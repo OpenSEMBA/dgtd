@@ -45,7 +45,7 @@ DEFINES += ORDER_N=$(order) USE_OPENMP
 # -------------------- Paths to directories -----------------------------------
 DIR = $(SRC_CORE_DIR) $(SRC_PARSER_DIR) $(SRC_EXPORTER_DIR) \
  src/apps/cudg3d/ solver/dgtd/ \
- solver/dgtd/core/ solver/dgtd/output/ solver/dgtd/integrator/ \
+ solver/dgtd/core/ solver/dgtd/integrator/ \
  solver/dgtd/DG/ solver/dgtd/DG/dispersives/ solver/dgtd/DG/sources/  
 SOURCE_DIR = $(addprefix $(SRCDIR), ${DIR})
 
