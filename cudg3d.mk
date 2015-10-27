@@ -31,8 +31,8 @@ SRCDIR = src/
 # =============================================================================
 CXXFLAGS += -fopenmp
 
-INCLUDES +=/usr/local/include
-LIBRARIES +=/usr/lib64
+INCLUDES += ./external/gidpost/
+LIBRARIES +=
 LIBS +=
 
 ifeq ($(target),debug)
@@ -46,7 +46,7 @@ DIR = $(SRC_CORE_DIR) $(SRC_PARSER_DIR) $(SRC_EXPORTER_DIR) \
  apps/cudg3d/ solver/dgtd/ \
  solver/dgtd/core/ solver/dgtd/integrator/ \
  solver/dgtd/DG/ solver/dgtd/DG/dispersives/ solver/dgtd/DG/sources/  
-SOURCE_DIR = $(addprefix $(SRCDIR), ${DIR}) $(addprefix $(LIBDIR), ${LIB_DIR})
+SOURCE_DIR = $(addprefix $(SRCDIR), ${DIR})
 
 SRCS_CXX := $(shell find $(SOURCE_DIR) -maxdepth 1 -type f -name "*.cpp")
 SRCS_CXX := $(filter-out $(EXCLUDE), $(SRCS_CXX)) 
