@@ -28,7 +28,7 @@ using namespace std;
 #define APP_NAME "cudg3d"
 
 int
-main(int argc, char *argv[]) {
+main(int argc, const char *argv[]) {
     Arguments arg(argc, argv);
     arg.printWelcomeMessage(string(APP_NAME), string(APP_VERSION));
     arg.printInfo();
@@ -39,8 +39,8 @@ main(int argc, char *argv[]) {
     smb = parserGiD.read();
     smb->solverOptions->set(arg);
 
-    SolverDGTD dgtd(smb);
-    dgtd.run();
+    SolverCudg3d cudg3d(smb);
+    cudg3d.run();
 
     arg.printGoodbyeMessage(string(APP_NAME));
     exit(EXIT_SUCCESS);
