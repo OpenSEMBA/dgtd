@@ -31,9 +31,9 @@ SRCDIR = src/
 # =============================================================================
 CXXFLAGS += -fopenmp
 
-INCLUDES += ./external/gidpost/
-LIBRARIES +=
-LIBS +=
+INCLUDES += ./bin/gidpost/include/
+LIBRARIES += ./bin/gidpost/lib/
+LIBS += gidpost
 
 ifeq ($(target),debug)
 	DEFINES +=_DEBUG
