@@ -39,7 +39,7 @@ main(int argc, const char *argv[]) {
     smb = parserGiD.read();
     smb->solverOptions->set(arg);
 
-    SolverCudg3d cudg3d(smb);
+    SolverDGTD cudg3d(smb);
     cudg3d.run();
 
     arg.printGoodbyeMessage(string(APP_NAME));
