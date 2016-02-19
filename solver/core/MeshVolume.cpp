@@ -135,7 +135,7 @@ vector<vector<ElementId>> MeshVolume::getPartitionsIds(
             tpwgts[i] = taskPower[i];
             sum += tpwgts[i];
         }
-        assert(abs(sum) - 1.0e-16 < 1.0);
+        assert(std::abs(sum) - 1.0e-16 < 1.0);
     }
     // METIS options.
     cout << " - Setting Options... " << flush;

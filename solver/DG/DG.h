@@ -50,7 +50,7 @@ struct lexCompareMat {
             const StaMatrix<Real,np,np>& rhs) const {
         static const Real tolerance = 1e-12;
         for (UInt i = 0; i < (np*np); i++) {
-            if (abs(lhs.val(i) - rhs.val(i)) > tolerance) {
+            if (std::abs(lhs.val(i) - rhs.val(i)) > tolerance) {
                 if (lhs.val(i) < rhs.val(i)) {
                     return true;
                 }

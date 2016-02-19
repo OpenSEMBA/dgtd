@@ -353,7 +353,7 @@ void Integrator::checkMaterialStabilityForDT(
     const PMVolumeDispersive* disp = dynamic_cast<const PMVolumeDispersive*>(mat);
     if (disp != NULL) {
         for (UInt p = 0; p < disp->getPoleNumber(); p++) {
-            Real polePeriod = 1.0 / abs(disp->getPole(p));
+            Real polePeriod = 1.0 / std::abs(disp->getPole(p));
             if (polePeriod < dt) {
                 cerr << endl << "ERROR@Integrator: "
                         << " Contains pole #" << p + 1
