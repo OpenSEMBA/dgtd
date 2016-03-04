@@ -41,6 +41,10 @@ endif
 
 DEFINES += ORDER_N=$(order) USE_OPENMP
 # =============================================================================
+ifeq ($(FFTW3_SUPPORT),yes)
+	DEFINES +=FFTW3_SUPPORT
+	LIBS += fftw3
+endif
 # -------------------- Paths to directories -----------------------------------
 DIR = $(SRC_CORE_DIR) $(SRC_PARSER_DIR) $(SRC_EXPORTER_DIR) \
  apps/cudg3d/ solver/dgtd/ \
