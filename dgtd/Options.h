@@ -40,6 +40,9 @@ using namespace SEMBA;
 #include "argument/Argument.h"
 #include "solver/Options.h"
 
+namespace Solver {
+namespace DGTD {
+
 class Options : public SEMBA::Solver::Options {
 public:
 	typedef enum {
@@ -54,12 +57,12 @@ public:
 
     void set(const Argument::Argument& args);
 
-    void setGrowSmallerTiers(UInt growSmallerTiers);
-    void setMaxNumberOfTiers(UInt maxNumberOfTiers);
-    void setPMLConductivity(Real pmlConductivity);
+    void setGrowSmallerTiers(size_t growSmallerTiers);
+    void setMaxNumberOfTiers(size_t maxNumberOfTiers);
+    void setPMLConductivity(Math::Real pmlConductivity);
     void setPMLConstantConductivityProfile(bool);
     void setTimeIntegrator(TimeIntegrator timeIntegrator);
-    void setUpwinding(Real upwinding);
+    void setUpwinding(Math::Real upwinding);
     void setUseLTS(bool useLts);
     void setUseMaxStageSizeForLTS(bool useMaxStageSizeForLts);
 
@@ -88,4 +91,8 @@ private:
 	void initDefaults_();
 
 };
+
+}
+}
+
 #endif /* ARGUMENTS_H_ */
