@@ -18,78 +18,46 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-
-# ============= Makefile for the cudg3d program ===============================
-# ==================== Default variables ======================================
-target = debug
-compiler = gnu
+# =============================================================================
 OUT = cudg3d
-# Default paths.
-BINDIR = bin/
-OBJDIR = obj/
-SRCDIR = src/
 # =============================================================================
-CXXFLAGS += -fopenmp
-
-INCLUDES += ./bin/gidpost/include/
-LIBRARIES += ./bin/gidpost/lib/
-LIBS += gidpost
-
-ifeq ($(target),debug)
-	DEFINES +=_DEBUG
-endif
-
-DEFINES += ORDER_N=$(order) USE_OPENMP
-# =============================================================================
-ifeq ($(FFTW3_SUPPORT),yes)
-	DEFINES +=FFTW3_SUPPORT
-	LIBS += fftw3
-endif
+#ifeq ($(FFTW3_SUPPORT),yes)
+#	DEFINES +=FFTW3_SUPPORT
+#	LIBS += fftw3
+#endif
 # -------------------- Paths to directories -----------------------------------
-DIR = $(SRC_CORE_DIR) $(SRC_PARSER_DIR) $(SRC_EXPORTER_DIR) \
- apps/cudg3d/ solver/dgtd/ \
- solver/dgtd/core/ solver/dgtd/integrator/ \
- solver/dgtd/DG/ solver/dgtd/DG/dispersives/ solver/dgtd/DG/sources/  
-SOURCE_DIR = $(addprefix $(SRCDIR), ${DIR})
+SRC_DIRS = $(shell find $(SRC_DIR)/apps/cudg3d/ -type d)
 
-SRCS_CXX := $(shell find $(SOURCE_DIR) -maxdepth 1 -type f -name "*.cpp")
-SRCS_CXX := $(filter-out $(EXCLUDE), $(SRCS_CXX)) 
-OBJS_CXX := $(patsubst $(SRCDIR)%,$(OBJDIR)%,$(SRCS_CXX:.cpp=.o))
+SRCS_CXX := $(shell find $(SRC_DIRS) -maxdepth 1 -type f -name "*.cpp")
+OBJS_CXX := $(addprefix $(OBJ_DIR), $(SRCS_CXX:.cpp=.o))
 
-SRCS_C := $(shell find $(SOURCE_DIR) -maxdepth 1 -type f -name "*.c")
-SRCS_C := $(filter-out $(EXCLUDE), $(SRCS_C)) 
-OBJS_C := $(patsubst $(SRCDIR)%,$(OBJDIR)%,$(SRCS_C:.c=.o))
+# =============================================================================
+LIBS += gidpost opensemba
+INCLUDES += $(LIB_DIR)gidpost/include/ \
+			$(LIB_DIR)opensemba/include/core/ $(LIB_DIR)opensemba/include/ \
+			$(SRC_DIR)/apps/cudg3d/
+LIBRARIES += $(LIB_DIR)gidpost/lib/ $(LIB_DIR)opensemba/lib/
+# =============================================================================
+.PHONY: default check
 
-.PHONY: default clean clobber check
-
-default: check cudg3d
+default: print $(OUT)
 	@echo "======================================================="
 	@echo "             $(OUT) compilation finished               "
 	@echo "======================================================="
-	
-clean:
-	rm -rf *.err *.o *.d $(OBJDIR)
 
-clobber: clean
-	rm -rf $(BINDIR)
-
-$(OBJDIR)%.o: $(SRCDIR)%.cpp
+$(OBJ_DIR)%.o: %.cpp
 	@dirname $@ | xargs mkdir -p
 	@echo "Compiling:" $@
 	$(CXX) $(CXXFLAGS) $(addprefix -D, $(DEFINES)) $(addprefix -I,$(INCLUDES) ${SOURCE_DIR}) -c -o $@ $<
-	
-$(OBJDIR)%.o: $(SRCDIR)%.c
-	@dirname $@ | xargs mkdir -p
-	@echo "Compiling:" $@
-	$(CC) $(CCFLAGS) $(addprefix -D, $(DEFINES)) $(addprefix -I,$(INCLUDES) ${SOURCE_DIR}) -c -o $@ $<
 
-cudg3d: $(OBJS_CXX) $(OBJS_C)
-	@mkdir -p $(BINDIR)
+cudg3d: $(OBJS_CXX) 
+	@mkdir -p $(BIN_DIR)
 	@echo "Linking:" $@
-	${CXX} $^ -o $(BINDIR)$(OUT) $(CXXFLAGS) \
+	${CXX} $^ -o $(BIN_DIR)$(OUT) $(CXXFLAGS) \
 	 $(addprefix -D, $(DEFINES)) \
-	 $(addprefix -I, $(SOURCE_DIR)) $(addprefix -I, ${INCLUDES}) \
-	 $(addprefix -L, ${LIBRARIES}) $(addprefix -l, ${LIBS})
+	 $(addprefix -I, ${INCLUDES}) \
+	 $(addprefix -L, ${LIBRARIES}) \
+	 $(addprefix -l, ${LIBS})
 
 print:
 	@echo "======================================================="
