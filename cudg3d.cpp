@@ -27,8 +27,7 @@ using namespace std;
 
 #define APP_NAME "cudg3d"
 
-int
-main(int argc, const char *argv[]) {
+int main(int argc, const char *argv[]) {
     Arguments arg(argc, argv);
     arg.printWelcomeMessage(string(APP_NAME), string(APP_VERSION));
     arg.printInfo();

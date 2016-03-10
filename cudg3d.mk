@@ -91,7 +91,7 @@ cudg3d: $(OBJS_CXX) $(OBJS_C)
 	 $(addprefix -I, $(SOURCE_DIR)) $(addprefix -I, ${INCLUDES}) \
 	 $(addprefix -L, ${LIBRARIES}) $(addprefix -l, ${LIBS})
 
-check:
+print:
 	@echo "======================================================="
 	@echo "            ----- Compiling $(OUT) ------              "
 	@echo "target:           " $(target)
@@ -101,4 +101,3 @@ check:
 	@echo "Defines:          " $(DEFINES)
 	@echo "Polynomial order: " $(order)
 	@echo "======================================================="
-	@sleep 1
