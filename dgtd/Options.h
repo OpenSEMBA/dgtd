@@ -35,7 +35,9 @@
 #include <omp.h>
 
 using namespace std;
+using namespace SEMBA;
 
+#include "argument/Argument.h"
 #include "solver/Options.h"
 
 class Options : public SEMBA::Solver::Options {
@@ -48,9 +50,9 @@ public:
 	OptionsSolverDGTD(const OptionsSolver& base);
 	virtual ~OptionsSolverDGTD();
 
-    DEFINE_CLONE(OptionsSolverDGTD);
+    DEFINE_CLONE(Options);
 
-    void set(const Arguments& args);
+    void set(const Argument::Argument& args);
 
     void setGrowSmallerTiers(UInt growSmallerTiers);
     void setMaxNumberOfTiers(UInt maxNumberOfTiers);

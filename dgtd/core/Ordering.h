@@ -56,7 +56,7 @@ protected:
             const UInt localSize,
             const UInt localOffset);
     void buildRelPosOfIds(
-            const DynMatrix<UInt>& list);
+            const Matrix::Dynamic<UInt>& list);
     void printOrderingInfo() const;
 private:
     static UInt globalSize;

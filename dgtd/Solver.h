@@ -41,6 +41,9 @@
 #include "solver/Solver.h"
 #include "dg/DGExplicit.h"
 
+namespace SEMBA {
+namespace Solver {
+
 class Solver {
 public:
     Solver(SmbData*);

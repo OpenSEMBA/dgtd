@@ -39,7 +39,7 @@ using namespace Math;
 
 #include "core/Comm.h"
 #include "core/Ordering.h"
-#include "../core/Volume.h"
+#include "core/mesh/Volume.h"
 #include "physicalModel/PhysicalModel.h"
 #include "options/OptionsSolverDGTD.h"
 #include "../dg/DG.h"
@@ -75,7 +75,7 @@ protected:
     void init(
             const Mesh::Volume& mesh,
             const PMGroup& pmGroup,
-            const OptionsSolverDGTD* arg);
+            const Options* arg);
     UInt getNumberOfCellsInTier(const UInt tier) const;
     virtual UInt getNumOfIterationsPerBigTimeStep(
             const UInt e) const = 0;
@@ -111,7 +111,7 @@ private:
             const PMGroup& pmGroup);
     pair<UInt,UInt>** buildTierRange(
             pair<UInt,UInt> **range,
-            const DynMatrix<UInt>& list);
+            const Matrix::Dynamic<UInt>& list);
     void growSmallestTierRegions(
             const UInt numToGrow,
             const Mesh::Volume& mesh);
