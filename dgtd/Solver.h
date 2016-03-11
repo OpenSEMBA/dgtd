@@ -22,7 +22,7 @@
 #ifndef SOLVERDGTD_H_
 #define SOLVERDGTD_H_
 
-#include "../../exporter/gid/Exporter.h"
+#include "exporter/gid/Exporter.h"
 #include "exporter/Output.h"
 #include "Options.h"
 #include "parser/gid/Parser.h"
@@ -34,19 +34,20 @@
 #else
     #include "../dgtd/core/CommNone.h"
 #endif
-#include "../dgtd/integrator/IntegratorLSERK.h"
-#include "../dgtd/integrator/IntegratorLF2.h"
-#include "../dgtd/integrator/IntegratorLF2Full.h"
-#include "../dgtd/integrator/IntegratorVerlet.h"
+#include "dgtd/integrator/IntegratorLSERK.h"
+#include "dgtd/integrator/IntegratorLF2.h"
+#include "dgtd/integrator/IntegratorLF2Full.h"
+#include "dgtd/integrator/IntegratorVerlet.h"
 #include "solver/Solver.h"
 #include "dg/DGExplicit.h"
+#include "Options.h"
 
-namespace SEMBA {
-namespace Solver {
+namespace Cudg3d {
+namespace DGTD {
 
 class Solver {
 public:
-    Solver(SmbData*);
+    Solver(Data* raw);
     ~Solver();
     bool run();
     bool canRun() const;
@@ -55,12 +56,16 @@ private:
     Integrator *integrator_;
     DG *dg_;
     Exporter* exporter_;
-    const OptionsSolverDGTD* options_;
+    const Options* options_;
     Integrator* initIntegrator(
-            const Mesh::Volume* mesh,
+            const Geometry::Mesh::Volume* mesh,
             const PMGroup* pMGroup,
-            const OptionsSolverDGTD* args);
+            const Solver::DGTD::Options* args);
     Comm* initMPI();
 };
+
+}
+}
+}
 
 #endif

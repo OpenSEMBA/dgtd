@@ -40,22 +40,23 @@ using namespace SEMBA;
 #include "argument/Argument.h"
 #include "solver/Options.h"
 
-namespace Solver {
+namespace Cudg3d {
 namespace DGTD {
 
-class Options : public SEMBA::Solver::Options {
+class Options : public Solver::Options {
 public:
-	typedef enum {
+	enum class TimeIntegrator {
 		lserk4, verlet, lf2, lf2full
-	} TimeIntegrator;
+	};
 
-	OptionsSolverDGTD();
-	OptionsSolverDGTD(const OptionsSolver& base);
-	virtual ~OptionsSolverDGTD();
+	Options();
+	Options(const SEMBA::Solver::Options& base);
+	virtual ~Options();
 
     DEFINE_CLONE(Options);
 
-    void set(const Argument::Argument& args);
+    void addArguments(Argument::Group& args) const;
+    void set(const SEMBA::Solver::Settings& opts);
 
     void setGrowSmallerTiers(size_t growSmallerTiers);
     void setMaxNumberOfTiers(size_t maxNumberOfTiers);
@@ -67,25 +68,27 @@ public:
     void setUseMaxStageSizeForLTS(bool useMaxStageSizeForLts);
 
 	TimeIntegrator getTimeIntegrator() const;
-	Real getUpwinding() const;
-    UInt getGrowSmallerTiers() const;
-    UInt getMaxNumberOfTiers() const;
-    Real getPMLConductivity() const;
+	Math::Real getUpwinding() const;
+    size_t getGrowSmallerTiers() const;
+    size_t getMaxNumberOfTiers() const;
+    Math::Real getPMLConductivity() const;
     bool isPMLConstantConductivityProfile() const;
     bool isUseLTS() const;
     bool isUseMaxStageSizeForLTS() const;
 
 	static TimeIntegrator strToTimeIntegrator(const string& str);
+	static string toStr(const TimeIntegrator&);
 	void printInfo() const;
+
 private:
-	Real upwinding_;
+	Math::Real upwinding_;
 	TimeIntegrator timeIntegrator_;
 	bool useLTS_;
-	UInt growSmallerTiers_;
-	UInt maxNumberOfTiers_;
+	size_t growSmallerTiers_;
+	size_t maxNumberOfTiers_;
 	bool useMaxStageSizeForLTS_;
 	bool PMLConstantConductivityProfile_;
-	Real PMLConductivity_;
+	Math::Real PMLConductivity_;
 
 	void printHelp() const;
 	void initDefaults_();

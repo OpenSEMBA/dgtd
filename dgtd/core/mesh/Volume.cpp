@@ -20,6 +20,9 @@
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 #include "Volume.h"
 
+namespace Cudg3d {
+namespace DGTD {
+
 Mesh::Volume::Mesh::Volume() {
 }
 
@@ -46,9 +49,9 @@ bool MeshUnstructured::isFloatingCoordinate(const CoordR3* param) const {
     return true;
 }
 
-vector<vector<ElemId>> Mesh::Volume::getPartitionsIds(
+vector<vector<SEMBA::Geometry::ElemId>> Mesh::Volume::getPartitionsIds(
         const UInt nDivisions,
-        const vector<pair<ElemId,Int>> idWgt,
+        const vector<pair<SEMBA::Geometry::ElemId,Int>> idWgt,
         const Real* taskPower) const {
     // Metis v5 manual:
     // [...] take as input the element-node array of the mesh and
@@ -178,4 +181,7 @@ vector<vector<ElemId>> Mesh::Volume::getPartitionsIds(
 #else
     throw Error("Mesh partitioning is not allowed.");
 #endif
+}
+
+}
 }

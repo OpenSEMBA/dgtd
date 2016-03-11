@@ -24,24 +24,25 @@
 using namespace std;
 
 #include "dgtd/Solver.h"
+#include "solver/Info.h"
 
 int main(int argc, const char *argv[]) {
 
-    Argument::Parser args;
-    args.args(argc, argv);
-    Argument::OptionBase& input = args.addOption(
+    Argument::Parser arg;
+    arg.args(argc, argv);
+    Argument::OptionBase& input = arg.addOption(
             new Argument::Option<std::string>("Input", 'i', "input"));
-    args.addOption(
+    arg.addOption(
             (new Argument::Switch("Help", 'h', "help"))->defaultVal(false));
-    Argument::Object opts = args.parseKnownArgs().first;
+    Argument::Object opts = arg.parseKnownArgs().first;
     if (opts("Input").isNull()) {
         if (opts("Help").getBool()) {
-            args.printHelp();
+            arg.printHelp();
             exit(EXIT_SUCCESS);
         } else {
             Argument::Error::Required error(input);
-            args.printUsage();
-            cerr << args.getProg() << ": " << error.what() << endl;
+            arg.printUsage();
+            cerr << arg.getProg() << ": " << error.what() << endl;
             throw error;
         }
     }
@@ -50,28 +51,20 @@ int main(int argc, const char *argv[]) {
     Parser::GiD::Parser parserGiD(inputFile.getFilename());
     Data* smb = parserGiD.read();
 
-    if (smb->solver == NULL) {
-        if (opts("Solver").isNull()) {
-            Argument::Error::Required error(solver);
-            args.printUsage();
-            std::cerr << args.getProg() << ": " << error.what() << std::endl;
-            throw error;
-        }
-    } else if (!opts("Solver").isNull()) {
+    if (!opts("Solver").isNull()) {
         if (opts("Solver").getString() != smb->solver->getName()) {
             delete smb->solver;
-            smb->solver = new Solver::Info(opts("Solver").getString());
+            smb->solver = new SEMBA::Solver::Info(opts("Solver").getString());
         }
     }
 
-    Solver::DGTD::Options solverDGTDOptions;
-    solverFDTDOptions.set(opts);
-    isRunActivated_ = solverFDTDOptions.isRunSimulation();
-
-    if (smb->solver->getName() == "ugrfdtd") {
-        solver_ = new Solver::FDTD::Solver(smb, arg);
-    } else if (smb->solver->getName() == "cudg3d") {
-
+    Cudg3d::DGTD::Options solverDGTDOptions;
+    solverDGTDOptions.set(opts);
+        if (smb->solver->getName() == "cudg3d") {
+        Cudg3d::DGTD::Solver solver(smb);
+        if (solverDGTDOptions.isRunSimulation()) {
+            solver.run();
+        }
     } else {
         throw std::logic_error(std::string("Invalid solver name ") +
                 smb->solver->getName());

@@ -32,8 +32,7 @@ using namespace std;
 
 #include "geometry/mesh/Unstructured.h"
 
-namespace SEMBA {
-namespace Geometry {
+namespace Cudg3d {
 namespace Mesh {
 
 class Volume : public Unstructured {
@@ -50,7 +49,6 @@ public:
 };
 
 } /* namespace Mesh */
-} /* namespace Geometry */
-} /* namespace SEMBA */
+}
 
 #endif

@@ -20,28 +20,28 @@
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 #include "Solver.h"
 
-Solver::Solver(SmbData* raw) {
+namespace Cudg3d {
+namespace DGTD {
 
+Solver::Solver(Data* raw) {
     // Smb data adaptation and validation.
-    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
-    SmbData smb;
+//    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
+    Data smb;
 //    AdapterDGTD(*raw).convert(smb); TODO Adapt OutRqs on Volumes.
-
     // Time integrator initialization.
-    options_ = smb.solverOptions->castTo<OptionsSolverDGTD>();
-    integrator_ = initIntegrator(&mesh, smb.pMGroup, options_);
-    integrator_->partitionate(&mesh, comm_);
-
+//    options_ = smb.solverOptions->castTo<OptionsSolverDGTD>();
+//    integrator_ = initIntegrator(&mesh, smb.pMGroup, options_);
+//    integrator_->partitionate(&mesh, comm_);
     // Spatial discretization.
-    dg_ = new DGExplicit(mesh, *smb.pMGroup, *smb.emSources, *options_, comm_);
-    dg_->setOutputRequests(smb.outputRequests);
-    integrator_->setSolver(dg_);
-
+//    dg_ = new DGExplicit(mesh, *smb.physicalModels, *smb.sources, *options_, comm_);
+//    dg_->setOutputRequests(smb.outputRequests);
+//    integrator_->setSolver(dg_);
     // Exporter initialization.
 //    cout << " - Initializing exporter... " << flush;
 //    const string outputFilename = smb.getOutputFilename();
 //    exporter_ = new ExporterGiD(smb, outputFilename, outputs_);
 //    cout << "[OK]" << endl;
+
 }
 
 Solver::~Solver() {
@@ -73,22 +73,22 @@ bool Solver::run() {
 Integrator* Solver::initIntegrator(
         const Mesh::Volume* mesh,
         const PMGroup* pMGroup,
-        const OptionsSolverDGTD* arg) {
+        const Cudg3d::DGTD::Options* arg) {
     Integrator* res;
     switch (arg->getTimeIntegrator()) {
-    case OptionsSolverDGTD::lserk4:
+    case Options::TimeIntegrator::lserk4:
         cout<< "- Initializing LSERK Integrator." << endl;
         res = new IntegratorLSERK(*mesh, *pMGroup, arg);
         break;
-    case OptionsSolverDGTD::lf2:
+    case Options::TimeIntegrator::lf2:
         cout<< "- Initializing LF2 Integrator." << endl;
         res = new IntegratorLF2(*mesh, *pMGroup, arg);
         break;
-    case OptionsSolverDGTD::lf2full:
+    case Options::TimeIntegrator::lf2full:
         cout<< "- Initializing LF2Full Integrator." << endl;
         res = new IntegratorLF2Full(*mesh, *pMGroup, arg);
         break;
-    case OptionsSolverDGTD::verlet:
+    case Options::TimeIntegrator::verlet:
         cout<< "- Initializing Verlet Integrator." << endl;
         res = new IntegratorVerlet(*mesh, *pMGroup, arg);
         break;
@@ -100,4 +100,7 @@ Integrator* Solver::initIntegrator(
 
 bool Solver::canRun() const {
     throw ErrorNotImplemented("Can Run is not implemented.");
+}
+
+}
 }
