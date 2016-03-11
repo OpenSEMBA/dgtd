@@ -22,6 +22,7 @@
 #include <sys/time.h>
 
 using namespace std;
+using namespace SEMBA;
 
 #include "dgtd/Solver.h"
 #include "solver/Info.h"
