@@ -25,8 +25,6 @@ namespace SEMBA {
 namespace Cudg3d {
 namespace Cell {
 
-typedef pair<const Cell*, size_t> Face;
-
 class Cell {
 public:
     Cell();

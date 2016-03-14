@@ -41,8 +41,11 @@ using namespace Math;
 #include "Volume.h"
 #include "core/Ordering.h"
 
+namespace SEMBA {
+namespace Cudg3d {
+namespace Communications {
 
-class Comm : public Ordering {
+class Comm : public Cell::Ordering {
 public:
     virtual ~Comm();
     virtual Int getNumberOfTasks() const = 0;
@@ -66,5 +69,9 @@ public:
     virtual Real reduceToGlobalMinimum(Real val) const = 0;
     virtual void printInfo() const = 0;
 };
+
+}
+}
+}
 
 #endif /* COMMUNICATIONS_H_ */

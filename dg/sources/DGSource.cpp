@@ -25,7 +25,7 @@
  *      Author: luis
  */
 
-#include "../../dg/sources/DGSource.h"
+#include "DGSource.h"
 
 DGSource::DGSource() {
     dExT = NULL;

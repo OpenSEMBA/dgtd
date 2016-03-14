@@ -32,55 +32,43 @@
 using namespace std;
 
 #include "BoundaryCondition.h"
+#include "mesh/Volume.h"
+#include "source/Group.h"
+#include "physicalModel/Group.h"
+#include "geometry/graph/Connectivities.h"
+#include "group/Cloneable.h"
+#include "group/Printable.h"
 
 namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
 
-class Group {
+class Group : public SEMBA::Group::Group<Base> {
 public:
-    vector<EMSourceBC> embc;
-    vector<PhysicalModelBC> pmbc;
-    vector<SurfaceImpedanceBC> sibc;
-    Group(
-            const Mesh::Volume& mesh,
+    Group(const Mesh::Volume& mesh,
             const SourceGroup& em,
-            const PMGroup& pm,
-            const Cell::Group& cells,
-            const Geometry::Graph::Connectivities& map);
-    Group& operator=(const Group &rhs);
-    vector<const BoundaryCondition*> getPtrsToPEC() const;
-    vector<const BoundaryCondition*> getPtrsToPMC() const;
-    vector<const BoundaryCondition*> getPtrsToSMA() const;
-    vector<const BoundaryCondition*> getPtrsToSIBC() const;
-    vector<const BoundaryCondition*> getPtrsToEMSourceBC() const;
-    vector<const BoundaryCondition*> getPtrsToBC(const Source::Base* pw) const;
-    vector<const BoundaryCondition*> getPtrsToBCWithMatId(const MatId id) const;
+            const PMGroup& pm);
     void printInfo() const;
+
 private:
-    void buildEMSourceBC(
+    void buildEMSourceBC_(
             const Mesh::Volume& mesh,
-            const SourceGroup& em,
-            const Cell::Group& cells);
-    void buildPhysicalModelBC(
+            const SourceGroup& em);
+    void buildPhysicalModelBC_(
             const Mesh::Volume& mesh,
-            const PMGroup& pm,
-            const Cell::Group& cells,
-            const Geometry::Graph::Connectivities& map);
+            const PMGroup& pm);
     void removeOverlapped();
-    vector<BoundaryCondition*> removeCommons(
-            const vector<BoundaryCondition*>& low,
-            const vector<BoundaryCondition*>& high) const;
-    void check() const;
-    bool checkOverlapping() const;
-    void checkEMSourcesAreSetInVacuum() const;
+    vector<Base*> removeCommons(
+            const vector<Base*>& low,
+            const vector<Base*>& high) const;
 };
 
-typedef GroupBoundaryConditions BCGroup;
+} /* SEMBA */
 
-}
-}
-}
+typedef BoundaryCondition::Group BCGroup;
+
+} /* Cudg3d */
+} /* BoundaryCondition */
 
 
 #endif /* BCGROUP_H_ */

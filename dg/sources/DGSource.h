@@ -25,8 +25,8 @@
  *      Author: luis
  */
 
-#ifndef SOLVERSOURCE_H_
-#define SOLVERSOURCE_H_
+#ifndef DG_SOLVER_SOURCE_H_
+#define DG_SOLVER_SOURCE_H_
 
 #include <utility>
 #include <vector>
@@ -34,10 +34,8 @@
 using namespace std;
 
 #include "sources/EMSource.h"
-#include "geometry/graphs/Connectivities.h"
-#include "../../../dgtd/core/Comm.h"
-#include "../../../dgtd/core/CellGroup.h"
-#include "../../../dgtd/core/BCGroup.h"
+#include "communications/Comm.h"
+#include "boundaryConditions/Group.h"
 
 class DGSource {
 public:

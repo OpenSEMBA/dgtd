@@ -31,40 +31,49 @@
 
 using namespace std;
 
-#include "Data.h"
-#include "cell/Group.h"
-#include "cell/Cell.h"
+#include "geometry/element/Element.h"
+#include "physicalModel/PhysicalModel.h"
+#include "source/Source.h"
 
 namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
 
+class Base : public virtual Class::Class,
+             public virtual Class::Cloneable,
+             public virtual Class::Printable {
+public:
+    Base();
+    virtual ~Base();
+
+    virtual bool hasSameBoundary(const Base& other) const = 0;
+};
+
 template<class T>
-class BoundaryCondition {
+class BoundaryCondition : public Base {
 public:
     BoundaryCondition(
             T* condition,
-            Cell::Face localFace,
-            Cell::Face neighFace);
+            Geometry::Element::Face localFace,
+            Geometry::Element::Face neighFace);
     virtual ~BoundaryCondition();
-    bool hasSameBoundary(const BoundaryCondition& other) const;
+    bool hasSameBoundary(const BoundaryCondition::Base& other) const;
     virtual BoundaryCondition& operator=(const BoundaryCondition& rhs);
 
-    Cell::Face getLocalFace() const;
-    Cell::Face getNeighFace() const;
+    Geometry::Element::Face getLocalFace() const;
+    Geometry::Element::Face getNeighFace() const;
     const T* getCondition() const;
 
     void printInfo() const;
 private:
     const T* condition_;
-    Cell::Face localFace_, neighFace_;
+    Geometry::Element::Face localFace_, neighFace_;
 };
 
 #include "BoundaryCondition.hpp"
 
 typedef BoundaryCondition<Source::Base> EMSourceBC;
 typedef BoundaryCondition<PhysicalModel::PhysicalModel> PhysicalModelBC;
-typedef BoundaryCondition<PhysicalModel::Surface::SIBC> SurfaceImpedanceBC;
 
 }
 }

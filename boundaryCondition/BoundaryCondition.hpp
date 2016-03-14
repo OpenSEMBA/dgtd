@@ -28,8 +28,8 @@ namespace BoundaryCondition {
 template<class T>
 BoundaryCondition<T>::BoundaryCondition::BoundaryCondition(
         T* condition,
-        Cell::Face localFace,
-        Cell::Face neighFace) {
+        Geometry::Element::Face localFace,
+        Geometry::Element::Face neighFace) {
     condition_ = condition;
     localFace_ = localFace;
     neighFace_ = neighFace;
@@ -75,12 +75,12 @@ void BoundaryCondition<T>::printInfo() const {
 
 
 template<class T>
-inline Cell::Face BoundaryCondition<T>::getLocalFace() const {
+inline Geometry::Element::Face BoundaryCondition<T>::getLocalFace() const {
     return localFace_;
 }
 
 template<class T>
-inline Cell::Face BoundaryCondition<T>::getNeighFace() const {
+inline Geometry::Element::Face BoundaryCondition<T>::getNeighFace() const {
     return neighFace_;
 }
 

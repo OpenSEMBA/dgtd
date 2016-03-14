@@ -25,7 +25,7 @@
  *      Author: luis
  */
 
-#include "../../dgtd/core/Comm.h"
+#include "Comm.h"
 
 Comm::~Comm() {
 

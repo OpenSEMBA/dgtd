@@ -48,6 +48,10 @@ public:
             const vector<pair<Geometry::ElemId,int>> idWeights =
                     vector<pair<Geometry::ElemId,int>>(),
             const Math::Real* taskPower = NULL) const;
+
+    const Geometry::Graph::Connectivities* getConnectivities() const;
+private:
+    Geometry::Graph::Connectivities* connectivities_;
 };
 
 } /* namespace Mesh */

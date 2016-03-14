@@ -52,8 +52,6 @@ public:
 	Options(const SEMBA::Solver::Options& base);
 	virtual ~Options();
 
-    DEFINE_CLONE(Options);
-
     void addArguments(Argument::Group& args) const;
     void set(const SEMBA::Solver::Settings& opts);
 

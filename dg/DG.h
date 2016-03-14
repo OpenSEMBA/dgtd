@@ -24,21 +24,20 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+
 using namespace std;
 
-#include "SmbData.h"
+#include "Data.h"
 #include "math/Field.h"
 #include "solver/SpatialDiscretization.h"
 #include "solver/dgtd/core/Comm.h"
 #include "solver/dgtd/core/BCGroup.h"
 #include "options/OptionsSolverDGTD.h"
-#include "../dg/sources/DGPlaneWave.h"
-#include "../dg/sources/DGDipole.h"
-#include "../dg/sources/DGWaveguidePortRectangular.h"
-#include "../dg/dispersive/DGSIBC.h"
-#include "../dg/dispersive/DGDispersiveVolumic.h"
-//#include "dispersives/DGPMLUniaxial.h"
-//#include "dispersives/DGPMLMultiaxial.h"
+#include "dg/sources/DGPlaneWave.h"
+#include "dg/sources/DGDipole.h"
+#include "dg/sources/DGWaveguidePortRectangular.h"
+#include "dg/dispersive/DGSIBC.h"
+#include "dg/dispersive/DGDispersiveVolumic.h"
 
 #define SOLVER_DEDUPLICATE_OPERATORS
 
@@ -46,8 +45,8 @@ struct lexCompareMat {
     static const size_t np = ((ORDER_N+1) * (ORDER_N+2) * (ORDER_N+3) / 6);
     bool
     operator() (
-            const StaMatrix<Real,np,np>& lhs,
-            const StaMatrix<Real,np,np>& rhs) const {
+            const Math::Matrix::Static<Real,np,np>& lhs,
+            const Math::Matrix::Static<Real,np,np>& rhs) const {
         static const Real tolerance = 1e-12;
         for (size_t i = 0; i < (np*np); i++) {
             if (std::abs(lhs.val(i) - rhs.val(i)) > tolerance) {
@@ -114,9 +113,9 @@ protected:
     Real LIFT[faces*npnfp]; //!< Flux gatherer operator. dim = matrix(np x (4*nfp))
 
 #ifdef SOLVER_DEDUPLICATE_OPERATORS
-    set<StaMatrix<Real,np,np>, lexCompareMat> CList;
+    set<Math::Matrix::Static<Real,np,np>, lexCompareMat> CList;
 #else
-    StaMatrix<Real,np,np>* CList;
+    Math::Matrix::Static<Real,np,np>* CList;
 #endif
     void init(
             const OptionsSolverDGTD& options,

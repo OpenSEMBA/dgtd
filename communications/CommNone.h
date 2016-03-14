@@ -33,9 +33,13 @@
 #include <vector>
 #include <assert.h>
 
-#include "../../dgtd/core/Comm.h"
-
 using namespace std;
+
+#include "Comm.h"
+
+namespace SEMBA {
+namespace Cudg3d {
+namespace Communications {
 
 class CommNone : public Comm {
 public:
@@ -49,13 +53,13 @@ public:
     Int getNumOfTasksOnThisHost() const;
     size_t getLocalSize() const;
     void gatherFieldsMaster(
-            FieldR3& electric,
-            FieldR3& magnetic,
-            const FieldR3& localElectric,
-            const FieldR3& localMagnetic) const;
+            Math::FieldR3& electric,
+            Math::FieldR3& magnetic,
+            const Math::FieldR3& localElectric,
+            const Math::FieldR3& localMagnetic) const;
     void gatherFieldsSlave(
-            const FieldR3& electric,
-            const FieldR3& magnetic) const;
+            const Math::FieldR3& electric,
+            const Math::FieldR3& magnetic) const;
     void setPartitionSizes(
             const vector<vector<ElemId>>& partId);
     void syncNeighbourFields(
@@ -67,5 +71,9 @@ public:
     void initNeighbourFields(const vector<ElemId>& nIds);
     void printInfo() const;
 };
+
+}
+}
+}
 
 #endif
