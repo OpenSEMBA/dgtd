@@ -39,36 +39,36 @@ using namespace std;
 
 class DGDispersive {
 public:
-    static const UInt N = ORDER_N;
-    static const UInt nfp = (N+1) * (N+2) / 2;
-    static const UInt np = (N+1) * (N+2) * (N+3) / 6;
-    static const UInt faces = 4;
+    static const size_t N = ORDER_N;
+    static const size_t nfp = (N+1) * (N+2) / 2;
+    static const size_t np = (N+1) * (N+2) * (N+3) / 6;
+    static const size_t faces = 4;
     virtual ~DGDispersive() = 0;
     virtual void computeRHSElectric(
             FieldR3& rhsE,
             const FieldR3& E,
-            const UInt e1, const UInt e2) const = 0;
+            const size_t e1, const size_t e2) const = 0;
     virtual void computeRHSMagnetic(
             FieldR3& rhsH,
             const FieldR3& H,
-            const UInt e1, const UInt e2) const= 0;
+            const size_t e1, const size_t e2) const= 0;
     virtual void computeRHSElectricPolarizationCurrents(
             const FieldR3& E,
-            const UInt e1, const UInt e2) = 0;
+            const size_t e1, const size_t e2) = 0;
     virtual void computeRHSMagneticPolarizationCurrents(
             const FieldR3& H,
-            const UInt e1, const UInt e2) = 0;
+            const size_t e1, const size_t e2) = 0;
     virtual void addRHSToRes(
-            const UInt e1, const UInt e2,
+            const size_t e1, const size_t e2,
             const Real rka, const Real dt) = 0;
     virtual void updateWithRes(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkb) = 0;
     virtual void addJumps(
             FieldR3& dE, FieldR3& dH,
             FieldR3& E, FieldR3& H,
-            const UInt e1, const UInt e2) = 0;
+            const size_t e1, const size_t e2) = 0;
 };
 
 #endif /* SOLVERDISPERSIVE_H_ */

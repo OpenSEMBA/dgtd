@@ -46,10 +46,10 @@
 //}
 //
 //void DGDispersiveVolumic::updateWithRes(
-//        const UInt e1,
-//        const UInt e2,
+//        const size_t e1,
+//        const size_t e2,
 //        const Real rkb) {
-//    UInt i, e;
+//    size_t i, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,e)
 //#endif
@@ -75,11 +75,11 @@
 //}
 //
 //void DGDispersiveVolumic::addRHSToRes(
-//        const UInt e1,
-//        const UInt e2,
+//        const size_t e1,
+//        const size_t e2,
 //        const Real rka,
 //        const Real dt) {
-//    UInt i, e;
+//    size_t i, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,e)
 //#endif
@@ -113,8 +113,8 @@
 //void DGDispersiveVolumic::computeRHSElectric(
 //        FieldR3& rhsE,
 //        const FieldR3& E,
-//        const UInt e1, const UInt e2) const {
-//    UInt i, j, e, n, p;
+//        const size_t e1, const size_t e2) const {
+//    size_t i, j, e, n, p;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n,p)
 //#endif
@@ -152,13 +152,13 @@
 //
 //void DGDispersiveVolumic::computeRHSMagnetic(
 //        FieldR3& rhsE,
-//        const FieldR3& E, const UInt e1, const UInt e2) const {
+//        const FieldR3& E, const size_t e1, const size_t e2) const {
 //}
 //
 //void DGDispersiveVolumic::computeRHSElectricPolarizationCurrents(
 //        const FieldR3& E,
-//        const UInt e1, const UInt e2) {
-//    UInt i, j, e, n, p;
+//        const size_t e1, const size_t e2) {
+//    size_t i, j, e, n, p;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n,p)
 //#endif
@@ -177,34 +177,34 @@
 //
 //
 //void DGDispersiveVolumic::computeRHSMagneticPolarizationCurrents(
-//        const FieldR3& E, const UInt e1, const UInt e2) {
+//        const FieldR3& E, const size_t e1, const size_t e2) {
 //}
 //
 //void DGDispersiveVolumic::addJumps(FieldR3& dE,
 //        FieldR3& dH, FieldR3& E, FieldR3& H,
-//        const UInt e1, const UInt e2) {
+//        const size_t e1, const size_t e2) {
 //}
 //
 //void DGDispersiveVolumic::build() {
-////    for (UInt p = 0; p < getPoleNumber(); p++) {
+////    for (size_t p = 0; p < getPoleNumber(); p++) {
 ////        getResidue(p) *= Constants::eps0;
 ////    }
-////    for (UInt p = 0; p < getDrudePoleNumber(); p++) {
+////    for (size_t p = 0; p < getDrudePoleNumber(); p++) {
 ////        getDrudeResidue(p) *= Constants::eps0;
 ////    }
 ////    // Creates list of elements containing dispersive material.
-////    vector<UInt> rpList;
+////    vector<size_t> rpList;
 ////    rpList.reserve(cells.getLocalSize());
-////    for (UInt e = 0; e < cells.getLocalSize(); e++) {
-////        UInt id = cells.getIdOfRelPos(e);
+////    for (size_t e = 0; e < cells.getLocalSize(); e++) {
+////        size_t id = cells.getIdOfRelPos(e);
 ////        const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
 ////        if (cell->material->getId() == getId()) {
 ////            rpList.push_back(e);
 ////        }
 ////    }
 ////    nElem = rpList.size();
-////    elem = new UInt[nElem];
-////    for (UInt i = 0; i < nElem; i++) {
+////    elem = new size_t[nElem];
+////    for (size_t i = 0; i < nElem; i++) {
 ////        elem[i] = rpList[i];
 ////    }
 ////    // Usual poles.

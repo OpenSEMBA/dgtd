@@ -61,12 +61,12 @@ void DGPlaneWave::computeExcitationField(
         FieldR3& EInc,
         FieldR3& HInc,
         const Real* vPos,
-        const UInt nE,
+        const size_t nE,
         const Real intTime) {
     // Computes the plane wve excitation corresponding to the face f.
     // The face contins nfp nodes and it is computed for time intTime.
-    const UInt nFields = nfp*nE;
-    for (UInt j = 0; j < nFields; j++) {
+    const size_t nFields = nfp*nE;
+    for (size_t j = 0; j < nFields; j++) {
         Real delayedTime = intTime - vPos[j];
         if (delayedTime >= 0) {
             pair<CVecR3,CVecR3> EHInc = getElectromagneticField(delayedTime);
@@ -99,14 +99,14 @@ void DGPlaneWave::initWaveNumberPosition(
     bool krminSet = false;
     CVecR3 nodePos;
     // Total field.
-    vector<pair<UInt, UInt> > total;
+    vector<pair<size_t, size_t> > total;
     total = getTotalFieldElemFaces(bc, map, cells);
     kNPosTF = new Real[ETInc.size() * nfp];
-    for (UInt j = 0; j < ETInc.size(); j++) {
+    for (size_t j = 0; j < ETInc.size(); j++) {
         ElemId id = cells.getIdOfRelPos(total[j].first);
-        UInt f = total[j].second;
-        UInt pos = j * nfp;
-        for (UInt k = 0; k < nfp; k++) {
+        size_t f = total[j].second;
+        size_t pos = j * nfp;
+        for (size_t k = 0; k < nfp; k++) {
             const CellTet<N>* cell = cells.getPtrToCellWithId(id);
             nodePos = cell->n[vmapM[f][k]];
             kNPosTF[pos + k] = getWaveDirection().dot(nodePos) / Constants::c0;
@@ -120,14 +120,14 @@ void DGPlaneWave::initWaveNumberPosition(
         }
     }
     // Scattered field.
-    vector<pair<UInt, UInt> > scatt;
+    vector<pair<size_t, size_t> > scatt;
     scatt = getScattFieldElemFaces(bc, map, cells);
     kNPosSF = new Real[ESInc.size() * nfp];
-    for (UInt j = 0; j < ESInc.size(); j++) {
+    for (size_t j = 0; j < ESInc.size(); j++) {
         ElemId id = cells.getIdOfRelPos(scatt[j].first);
-        UInt f = scatt[j].second;
-        UInt pos = j * nfp;
-        for (UInt k = 0; k < nfp; k++) {
+        size_t f = scatt[j].second;
+        size_t pos = j * nfp;
+        for (size_t k = 0; k < nfp; k++) {
             const CellTet<N>* cell = cells.getPtrToCellWithId(id);
             nodePos = cell->n[vmapM[f][k]];
             kNPosSF[pos + k] = getWaveDirection().dot(nodePos) / Constants::c0;
@@ -142,14 +142,14 @@ void DGPlaneWave::initWaveNumberPosition(
         }
     }
     // Total field not backed.
-    vector<pair<UInt, UInt> > totalNotBacked;
+    vector<pair<size_t, size_t> > totalNotBacked;
     totalNotBacked = getTotalNotBackedFieldElemFaces(bc, map, cells);
     kNPosTFNB = new Real[EIncNB.size() * nfp];
-    for (UInt j = 0; j < EIncNB.size(); j++) {
+    for (size_t j = 0; j < EIncNB.size(); j++) {
         ElemId id = cells.getIdOfRelPos(totalNotBacked[j].first);
-        UInt f = totalNotBacked[j].second;
-        UInt pos = j * nfp;
-        for (UInt k = 0; k < nfp; k++) {
+        size_t f = totalNotBacked[j].second;
+        size_t pos = j * nfp;
+        for (size_t k = 0; k < nfp; k++) {
             const CellTet<N>* cell = cells.getPtrToCellWithId(id);
             nodePos = cell->n[vmapM[f][k]];
             kNPosTFNB[pos + k] = getWaveDirection().dot(nodePos) / Constants::c0;
@@ -166,13 +166,13 @@ void DGPlaneWave::initWaveNumberPosition(
     // Syncs minimum.
     krmin = comm->reduceToGlobalMinimum(krmin);
     // Adds krmin to kNPosTSF and kNPosTFNB.
-    for (UInt j = 0; j < ETInc.size() * nfp; j++) {
+    for (size_t j = 0; j < ETInc.size() * nfp; j++) {
         kNPosTF[j] -= krmin;
     }
-    for (UInt j = 0; j < ESInc.size() * nfp; j++) {
+    for (size_t j = 0; j < ESInc.size() * nfp; j++) {
         kNPosSF[j] -= krmin;
     }
-    for (UInt j = 0; j < EIncNB.size() * nfp; j++) {
+    for (size_t j = 0; j < EIncNB.size() * nfp; j++) {
         kNPosTFNB[j] -= krmin;
     }
 }

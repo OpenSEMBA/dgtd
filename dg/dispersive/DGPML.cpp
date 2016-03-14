@@ -31,15 +31,15 @@
 //    // Initializes Element list and dof.
 //    vector<ElemId> auxList;
 //    auxList.reserve(cells.getLocalSize());
-//    for (UInt e = 0; e < cells.getLocalSize(); e++) {
+//    for (size_t e = 0; e < cells.getLocalSize(); e++) {
 //        const CellTet<ORDER_N>* cell = cells(e);
 //        ElemId id = cell->getId();
 //        if (cell->material->getId() == mat.getId()) {
 //            auxList.push_back(cells.getRelPosOfId(id));
 //        }
 //        nElem = auxList.size();
-//        elem = new UInt[nElem];
-//        for (UInt j = 0; j < nElem; j++) {
+//        elem = new size_t[nElem];
+//        for (size_t j = 0; j < nElem; j++) {
 //            elem[j] = auxList[j];
 //        }
 //    }
@@ -52,11 +52,11 @@
 //
 //void DGPML::initConductivity(
 //        Real **sigma,
-//        const UInt orientation,
+//        const size_t orientation,
 //        const PMVolumePML& mat,
 //        const CellGroup& cells) {
 //    StaMatrix<Real,np,np> auxSig;
-//    for (UInt e = 0; e < nElem; e++) {
+//    for (size_t e = 0; e < nElem; e++) {
 //        ElemId id = cells.getIdOfRelPos(elem[e]);
 //        const CellTet<ORDER_N>* cell;
 //        cell = cells.getPtrToCellWithId(id);
@@ -73,7 +73,7 @@
 //    if (mat.isUniaxial()) {
 //        sig1 = new Real*[nElem];
 //        sig11 = new Real*[nElem];
-//        for (UInt e = 0; e < nElem; e++) {
+//        for (size_t e = 0; e < nElem; e++) {
 //            sig1[e] = new Real[np*np];
 //            sig11[e] = new Real[np*np];
 //        }
@@ -85,7 +85,7 @@
 //        sig11 = new Real*[nElem];
 //        sig22 = new Real*[nElem];
 //        sig12= new Real*[nElem];
-//        for (UInt e = 0; e < nElem; e++) {
+//        for (size_t e = 0; e < nElem; e++) {
 //            sig1[e] = new Real[np*np];
 //            sig2[e] = new Real[np*np];
 //            sig11[e] = new Real[np*np];
@@ -108,7 +108,7 @@
 //        sig12= new Real*[nElem];
 //        sig23= new Real*[nElem];
 //        sig31= new Real*[nElem];
-//        for (UInt e = 0; e < nElem; e++) {
+//        for (size_t e = 0; e < nElem; e++) {
 //            sig1[e] = new Real[np*np];
 //            sig2[e] = new Real[np*np];
 //            sig3[e] = new Real[np*np];
@@ -134,5 +134,5 @@
 //void DGPML::addJumps(
 //        FieldR3& dE, FieldR3& dH,
 //        FieldR3& E, FieldR3& H,
-//        const UInt e1, const UInt e2) {
+//        const size_t e1, const size_t e2) {
 //}

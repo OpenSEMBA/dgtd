@@ -41,9 +41,9 @@ using namespace std;
 
 class DGSource {
 public:
-    const static UInt N = ORDER_N;
-    const static UInt nfp = (N+1) * (N+2) / 2;
-    const static UInt faces = 4;
+    const static size_t N = ORDER_N;
+    const static size_t nfp = (N+1) * (N+2) / 2;
+    const static size_t faces = 4;
     typedef enum {
         totalField,
         scatteredField,
@@ -52,23 +52,23 @@ public:
     DGSource();
     virtual ~DGSource();
     void addJumps(
-            const UInt e1,
-            const UInt e2);
+            const size_t e1,
+            const size_t e2);
     virtual void computeExcitation(
             const Real intTime,
             const Real minDT) = 0;
     virtual void printInfo() const = 0;
 protected:
-    const static UInt np = (N+1) * (N+2) * (N+3) / 6;
-    const static UInt np2 = np * 2;
-    const static UInt npnfp = np * nfp;
-    const static UInt npnp = np * np;
-    const static UInt nfpfaces = nfp * faces;
+    const static size_t np = (N+1) * (N+2) * (N+3) / 6;
+    const static size_t np2 = np * 2;
+    const static size_t npnfp = np * nfp;
+    const static size_t npnp = np * np;
+    const static size_t nfpfaces = nfp * faces;
     // Excitation fields.
     FieldR3 ETInc, ESInc, EIncNB;
     FieldR3 HTInc, HSInc, HIncNB;
 
-    vector<UInt> ETFe, ESFe, ETFNBe;
+    vector<size_t> ETFe, ESFe, ETFNBe;
     // Excitation total field jumps pointers.
     Real **dExT, **dEyT, **dEzT;
     Real **dHxT, **dHyT, **dHzT;
@@ -86,17 +86,17 @@ protected:
             FieldR3& dH,
             const Int vmapM[faces][nfp]);
     CVecR3* initPositions(
-            const vector<pair<UInt, UInt> >& elemFace,
+            const vector<pair<size_t, size_t> >& elemFace,
             const CellGroup& cells) const;
-    vector<pair<UInt, UInt>> getTotalFieldElemFaces(
+    vector<pair<size_t, size_t>> getTotalFieldElemFaces(
             const BCGroup& bc,
             const Connectivities& map,
             const CellGroup& cells) const;
-    vector<pair<UInt, UInt>> getScattFieldElemFaces(
+    vector<pair<size_t, size_t>> getScattFieldElemFaces(
             const BCGroup& bc,
             const Connectivities& map,
             const CellGroup& cells) const;
-    vector<pair<UInt, UInt>> getTotalNotBackedFieldElemFaces(
+    vector<pair<size_t, size_t>> getTotalNotBackedFieldElemFaces(
             const BCGroup& bc,
             const Connectivities& map,
             const CellGroup& cells) const;

@@ -50,7 +50,7 @@ IntegratorLF2Full::~IntegratorLF2Full() {
 
 }
 
-UInt
+size_t
 IntegratorLF2Full::getNStages() const {
 	return nStages;
 }
@@ -60,13 +60,13 @@ IntegratorLF2Full::getMaxTimeRatio() const {
 	return ((Real)1.0 / (Real) nStages);
 }
 
-UInt
-IntegratorLF2Full::getNumOfIterationsPerBigTimeStep(const UInt e) const {
-	UInt nTiers = getNTiers();
-	UInt nStages = getNStages();
-	UInt tier = timeTierList_(e,1);
-	UInt stage = timeTierList_(e,2);
-	UInt iter = 0;
+size_t
+IntegratorLF2Full::getNumOfIterationsPerBigTimeStep(const size_t e) const {
+	size_t nTiers = getNTiers();
+	size_t nStages = getNStages();
+	size_t tier = timeTierList_(e,1);
+	size_t stage = timeTierList_(e,2);
+	size_t iter = 0;
 	if (tier == 0) {
 		iter = (nTiers - tier) * nStages;
 	} else {
@@ -92,11 +92,11 @@ void
 IntegratorLF2Full::LTSTimeIntegration(
  Real localTime,
  Real localdt,
- const UInt tier,
- const UInt stage) const {
-	UInt fK, lK;
+ const size_t tier,
+ const size_t stage) const {
+	size_t fK, lK;
 	static const bool useResForUpwinding = true;
-	const UInt nStages = getNStages();
+	const size_t nStages = getNStages();
 	// Determines range of cells belonging to this tier and stage.
 	if (tier == getNTiers()-1) {
 		fK = getRange(tier, 0).first;
@@ -114,9 +114,9 @@ IntegratorLF2Full::LTSTimeIntegration(
 	// ------- Recursively calls this function ------------------------
 	if (tier > 0) {
 		Real lts = localdt/((Real) nStages);
-		UInt lSaved = getRange(tier, nStages-2).second;
+		size_t lSaved = getRange(tier, nStages-2).second;
 		solver->LTSSaveFieldsAndResidues(fK,lSaved);
-		for (UInt s = 0; s < nStages; s++) {
+		for (size_t s = 0; s < nStages; s++) {
 			LTSTimeIntegration(localTime + ((Real) s)*lts,
 			 lts, tier-1, nStages-s-1);
 		}
@@ -131,8 +131,8 @@ IntegratorLF2Full::LTSTimeIntegration(
 
 void
 IntegratorLF2Full::updateFields(
- const UInt e1,
- const UInt e2,
+ const size_t e1,
+ const size_t e2,
  const Real localTime,
  const Real rkdt) const {
 	static const bool useResForUpwinding = true;

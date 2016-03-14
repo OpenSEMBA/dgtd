@@ -42,9 +42,9 @@
 //void DGPMLTriaxial::computeRHSElectric(
 //        FieldR3& rhsE,
 //        const FieldR3& E,
-//        const UInt e1, const UInt e2) const {
+//        const size_t e1, const size_t e2) const {
 ////    if (useConstantConductivity) {
-////        UInt i, j, e, n;
+////        size_t i, j, e, n;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i,j,e,n)
 ////#endif
@@ -59,7 +59,7 @@
 ////            }
 ////        }
 ////    } else {
-////        UInt i, j, e;
+////        size_t i, j, e;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i,j,e)
 ////#endif
@@ -89,9 +89,9 @@
 //
 //void DGPMLTriaxial::computeRHSMagnetic(
 //        FieldR3& rhsH,
-//        const FieldR3& H, const UInt e1, const UInt e2) const {
+//        const FieldR3& H, const size_t e1, const size_t e2) const {
 ////    if (useConstantConductivity) {
-////        UInt i, j, e, n;
+////        size_t i, j, e, n;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i,j,e,n)
 ////#endif
@@ -106,7 +106,7 @@
 ////            }
 ////        }
 ////    } else {
-////        UInt i, j, e;
+////        size_t i, j, e;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i,j,e)
 ////#endif
@@ -135,14 +135,14 @@
 //}
 //
 //void DGPMLTriaxial::computeRHSElectricPolarizationCurrents(
-//        const FieldR3& E, const UInt e1, const UInt e2) {
+//        const FieldR3& E, const size_t e1, const size_t e2) {
 ////    if (useConstantConductivity) {
-////        UInt i;
+////        size_t i;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i)
 ////#endif
 ////        for (i = 0; i < dof; i++) {
-////            UInt e = elem[(i / np) % nElem];
+////            size_t e = elem[(i / np) % nElem];
 ////            if (e1 <= e && e < e2) {
 ////                rhsJ1[i] = - J1[i] * sig;
 ////                rhsJ2[i] = - J2[i] * sig;
@@ -150,7 +150,7 @@
 ////            }
 ////        }
 ////    } else {
-////        UInt i, j, e;
+////        size_t i, j, e;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i,j,e)
 ////#endif
@@ -183,14 +183,14 @@
 //
 //void DGPMLTriaxial::computeRHSMagneticPolarizationCurrents(
 //        const FieldR3& H,
-//        const UInt e1, const UInt e2) {
+//        const size_t e1, const size_t e2) {
 ////    if (useConstantConductivity) {
-////        UInt i;
+////        size_t i;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i)
 ////#endif
 ////        for (i = 0; i < dof; i++) {
-////            UInt e = elem[(i / np) % nElem];
+////            size_t e = elem[(i / np) % nElem];
 ////            if (e1 <= e && e < e2) {
 ////                rhsM1[i] = - M1[i]*sig;
 ////                rhsM2[i] = - M2[i]*sig;
@@ -198,7 +198,7 @@
 ////            }
 ////        }
 ////    } else {
-////        UInt i, j, e;
+////        size_t i, j, e;
 ////#ifdef SOLVER_USE_OPENMP
 ////#pragma omp parallel for private(i,j,e)
 ////#endif

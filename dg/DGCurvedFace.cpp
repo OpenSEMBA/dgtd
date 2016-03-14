@@ -57,8 +57,8 @@ DGCurvedFace::DGCurvedFace() {
 
 DGCurvedFace::DGCurvedFace(
         const Cell* cell,
-        const UInt face,
-        const UInt solverPosition_,
+        const size_t face,
+        const size_t solverPosition_,
         FieldR3& rhsE, FieldR3& rhsH,
         const FieldR3& dE, const FieldR3& dH,
         const FieldR3& dresE, const FieldR3& dresH,
@@ -68,7 +68,7 @@ DGCurvedFace::DGCurvedFace(
         const Real admAv_) {
 //    solverPosition = solverPosition_;
 //    // Pointers to RHS and jumps --------------------------------------
-//    UInt pos = solverPosition_ * np;
+//    size_t pos = solverPosition_ * np;
 //    rhsEx = &rhsE.set(x)[pos];
 //    rhsEy = &rhsE.set(y)[pos];
 //    rhsEz = &rhsE.set(z)[pos];
@@ -139,7 +139,7 @@ DGCurvedFace::operator=(const DGCurvedFace& rhs) {
     admPAv = rhs.admPAv;
     imp1Av = rhs.imp1Av;
     adm1Av = rhs.adm1Av;
-    for (UInt i = 0; i < np*nfp; i++) {
+    for (size_t i = 0; i < np*nfp; i++) {
         nx[i] = rhs.nx[i];
         ny[i] = rhs.ny[i];
         nz[i] = rhs.nz[i];

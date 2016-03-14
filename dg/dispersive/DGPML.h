@@ -38,16 +38,16 @@
 //    void addJumps(
 //            FieldR3& dE, FieldR3& dH,
 //            FieldR3& E, FieldR3& H,
-//            const UInt e1, const UInt e2);
+//            const size_t e1, const size_t e2);
 //protected:
-//    UInt dof;
-//    UInt nElem;
-//    UInt *elem;
+//    size_t dof;
+//    size_t nElem;
+//    size_t *elem;
 //    bool useConstantConductivity;
 //    static constexpr Real sigDefault = 10e9;
 //    Real sig;
-//    static const UInt N = ORDER_N;
-//    static const UInt np = (N+1) * (N+2) * (N+3) / 6;
+//    static const size_t N = ORDER_N;
+//    static const size_t np = (N+1) * (N+2) * (N+3) / 6;
 //    Real **sig1, **sig2, **sig3;
 //    Real **sig11, **sig22, **sig33;
 //    Real **sig12, **sig23, **sig31;
@@ -57,7 +57,7 @@
 //            const CellGroup& cells);
 //    void initConductivity(
 //            Real **sigma,
-//            const UInt ori,
+//            const size_t ori,
 //            const PMVolumePML& mat,
 //            const CellGroup& cells);
 //};

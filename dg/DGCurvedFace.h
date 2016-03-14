@@ -37,12 +37,12 @@
 
 class DGCurvedFace {
 public:
-	UInt solverPosition;
+	size_t solverPosition;
 	DGCurvedFace();
 	DGCurvedFace(
 	 const Cell* cell,
-	 const UInt f,
-	 const UInt solverPosition,
+	 const size_t f,
+	 const size_t solverPosition,
 	 FieldR3& rhsE_, FieldR3& rhsH_,
 	 const FieldR3& dE_, const FieldR3& dH_,
 	 const FieldR3& dresE_, const FieldR3& dresH_,
@@ -62,9 +62,9 @@ public:
 	  const Real upwinding,
 	  const bool useResForUpw);
 private:
-	static const UInt N = ORDER_N;
-	static const UInt np = (N+1) * (N+2) * (N+3) / 6;
-	static const UInt nfp = (N+1) * (N+2) / 2;
+	static const size_t N = ORDER_N;
+	static const size_t np = (N+1) * (N+2) * (N+3) / 6;
+	static const size_t nfp = (N+1) * (N+2) / 2;
 	Real impPAv, admPAv, imp1Av, adm1Av;
 	Real *rhsEx, *rhsEy, *rhsEz, *rhsHx, *rhsHy, *rhsHz;
 	const Real *dEx, *dEy, *dEz, *dHx, *dHy, *dHz;

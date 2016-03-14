@@ -67,7 +67,7 @@ IntegratorLF2::timeIntegrate(
 	}
 }
 
-UInt
+size_t
 IntegratorLF2::getNStages() const {
 	return nStages;
 }
@@ -77,13 +77,13 @@ IntegratorLF2::getMaxTimeRatio() const {
 	return Real (1.0 / 3.0);
 }
 
-UInt
+size_t
 IntegratorLF2::getNumOfIterationsPerBigTimeStep(
- const UInt e) const {
-	UInt nTiers = getNTiers();
-	UInt nStages = getNStages();
-	UInt tier = timeTierList_(e,1);
-	UInt iter = (nTiers - tier) * nStages;
+ const size_t e) const {
+	size_t nTiers = getNTiers();
+	size_t nStages = getNStages();
+	size_t tier = timeTierList_(e,1);
+	size_t iter = (nTiers - tier) * nStages;
 	return iter;
 }
 
@@ -91,9 +91,9 @@ void
 IntegratorLF2::LTSupdateFieldsElectric(
  Real lTime,
  Real ldt,
- const UInt tier) const {
-	UInt e1 = getRange(tier, 0).first;
-	UInt e2 = getRange(tier, 1).second;
+ const size_t tier) const {
+	size_t e1 = getRange(tier, 0).first;
+	size_t e2 = getRange(tier, 1).second;
 	if (tier > 0) {
 		LTSupdateFieldsElectric(lTime, ldt/3.0, tier-1);
 		LTSupdateFieldsMagnetic(lTime+ldt/3.0,ldt/3.0, tier-1);
@@ -107,9 +107,9 @@ void
 IntegratorLF2::LTSupdateFieldsMagnetic(
  Real lTime,
  Real ldt,
- const UInt tier) const {
-	UInt fK = getRange(tier, 0).first;
-	UInt lK = getRange(tier, 1).second;
+ const size_t tier) const {
+	size_t fK = getRange(tier, 0).first;
+	size_t lK = getRange(tier, 1).second;
 	if (tier > 0) {
 		LTSupdateFieldsMagnetic(lTime, ldt/3.0, tier-1);
 		LTSupdateFieldsElectric(lTime+ldt/3.0,ldt/3.0, tier-1);
@@ -121,8 +121,8 @@ IntegratorLF2::LTSupdateFieldsMagnetic(
 
 void
 IntegratorLF2::updateFields(
- const UInt e1,
- const UInt e2,
+ const size_t e1,
+ const size_t e2,
  const Real localTime,
  const Real rkdt) const {
 	solver->computeRHSElectric(e1, e2, localTime, mindt);

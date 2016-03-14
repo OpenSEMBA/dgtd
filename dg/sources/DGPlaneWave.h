@@ -56,7 +56,7 @@ private:
             FieldR3& EInc,
             FieldR3& HInc,
             const Real* vPos,
-            const UInt nE,
+            const size_t nE,
             const Real intTime);
     void initWaveNumberPosition(
             const BCGroup& bc,

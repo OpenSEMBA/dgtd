@@ -46,7 +46,7 @@ using namespace Math;
 
 #define SOLVERINFO_ALLOW_REORDERING_IN_SOLVER
 
-typedef pair<UInt,UInt> Interval;
+typedef pair<size_t,size_t> Interval;
 
 class Integrator : public Ordering {
 public:
@@ -56,12 +56,12 @@ public:
     void setSolver(DG* solver);
     Real getMaxDT() const;
     Real getMinDT() const;
-    UInt getNTiers() const;
-    UInt getNPartitions() const;
+    size_t getNTiers() const;
+    size_t getNPartitions() const;
     vector<vector<ElemId>> getTiersIds() const;
     vector<vector<ElemId>> getStagesIds() const;
     vector<vector<ElemId>> getPartitionsIds() const;
-    Interval getRange(const UInt tier, const UInt stage) const;
+    Interval getRange(const size_t tier, const size_t stage) const;
     vector<pair<ElemId,Int>> getComputationalWeights(
             const Mesh::Volume* msh) const;
     void partitionate(const Mesh::Volume* mesh, Comm* comm);
@@ -70,35 +70,35 @@ protected:
     Real cfl_;
     DG* solver;
     bool doLTS;
-    Matrix::Dynamic<UInt> timeTierList_; // Id - Tier - Stage
+    Matrix::Dynamic<size_t> timeTierList_; // Id - Tier - Stage
     Real mindt;
     void init(
             const Mesh::Volume& mesh,
             const PMGroup& pmGroup,
             const Options* arg);
-    UInt getNumberOfCellsInTier(const UInt tier) const;
-    virtual UInt getNumOfIterationsPerBigTimeStep(
-            const UInt e) const = 0;
-    virtual UInt getNStages() const = 0;
+    size_t getNumberOfCellsInTier(const size_t tier) const;
+    virtual size_t getNumOfIterationsPerBigTimeStep(
+            const size_t e) const = 0;
+    virtual size_t getNStages() const = 0;
     virtual Real getMaxTimeStep(
             const VolR* tet,
             const PhysicalModel* mat) const;
     virtual Real getMaxTimeRatio() const = 0;
-    vector<ElemId> getIdsOfTier(const UInt tier) const;
-    vector<ElemId> getIdsOfStage(const UInt stage) const;
+    vector<ElemId> getIdsOfTier(const size_t tier) const;
+    vector<ElemId> getIdsOfStage(const size_t stage) const;
 private:
-    static const UInt noTier = 0;
-    static const UInt noStage = 0;
-    static const UInt growStages = 1;
-    UInt growSmallerTiers;
-    UInt maxNumOfTiers;
-    UInt nTiers_;
-    pair<UInt,UInt> **tierRange_;
+    static const size_t noTier = 0;
+    static const size_t noStage = 0;
+    static const size_t growStages = 1;
+    size_t growSmallerTiers;
+    size_t maxNumOfTiers;
+    size_t nTiers_;
+    pair<size_t,size_t> **tierRange_;
     vector<vector<ElemId>> partIds_;
     void reorder(
             const vector<vector<ElemId>>& partitionsIds_,
-            const UInt localOffset,
-            const UInt localSize);
+            const size_t localOffset,
+            const size_t localSize);
     void buildTierInfo(
             const Mesh::Volume& mesh,
             const PMGroup& pmGroup);
@@ -109,13 +109,13 @@ private:
     void assignTiersBasedOnMaxTimeStep(
             const Mesh::Volume& mesh,
             const PMGroup& pmGroup);
-    pair<UInt,UInt>** buildTierRange(
-            pair<UInt,UInt> **range,
-            const Matrix::Dynamic<UInt>& list);
+    pair<size_t,size_t>** buildTierRange(
+            pair<size_t,size_t> **range,
+            const Matrix::Dynamic<size_t>& list);
     void growSmallestTierRegions(
-            const UInt numToGrow,
+            const size_t numToGrow,
             const Mesh::Volume& mesh);
-    vector<pair<UInt, UInt> > getIdPartitionVector(
+    vector<pair<size_t, size_t> > getIdPartitionVector(
             const vector<vector<ElemId> >& pId) const;
     void assignStages(const Mesh::Volume& mesh);
     void reorderTimeTierList(const vector<vector<ElemId>>& partitionId);

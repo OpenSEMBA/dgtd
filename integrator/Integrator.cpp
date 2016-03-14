@@ -39,7 +39,7 @@ Integrator::Integrator() {
 }
 
 Integrator::~Integrator() {
-    for (UInt i = 0; i < nTiers_; i++) {
+    for (size_t i = 0; i < nTiers_; i++) {
         delete tierRange_[i];
     }
 }
@@ -48,7 +48,7 @@ void Integrator::setSolver(DG* solver_) {
     solver = solver_;
 }
 
-UInt Integrator::getNTiers() const {
+size_t Integrator::getNTiers() const {
     return nTiers_;
 }
 
@@ -66,7 +66,7 @@ Real Integrator::getMinDT() const {
 
 vector<vector<ElemId>> Integrator::getTiersIds() const {
     vector<vector<ElemId>> res;
-    for (UInt tier = 0; tier < nTiers_; tier++) {
+    for (size_t tier = 0; tier < nTiers_; tier++) {
         vector<ElemId> tierIds = getIdsOfTier(tier);
         res.push_back(tierIds);
     }
@@ -75,7 +75,7 @@ vector<vector<ElemId>> Integrator::getTiersIds() const {
 
 vector<vector<ElemId>> Integrator::getStagesIds() const {
     vector<vector<ElemId> > res;
-    for (UInt stage = 0; stage < getNStages(); stage++) {
+    for (size_t stage = 0; stage < getNStages(); stage++) {
         vector<ElemId> stageIds = getIdsOfStage(stage);
         res.push_back(stageIds);
     }
@@ -94,10 +94,10 @@ vector<pair<ElemId,Int>> Integrator::getComputationalWeights(
     Int flops = curlFlops + fluxFlops;
     GroupElements<const VolR> physVol = msh->elems();
     physVol.removeMatId(MatId(0));
-    const UInt nK = physVol.sizeOf<VolR>();
+    const size_t nK = physVol.sizeOf<VolR>();
     vector<pair<ElemId,Int>> idWgt;
     idWgt.reserve(nK);
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         pair<ElemId,Int> aux;
         ElemId id = getIdOfGlobalRelPos(e);
         aux.first = id;
@@ -107,14 +107,14 @@ vector<pair<ElemId,Int>> Integrator::getComputationalWeights(
     return idWgt;
 }
 
-Interval Integrator::getRange(const UInt tier, const UInt stage) const {
+Interval Integrator::getRange(const size_t tier, const size_t stage) const {
     assert(tier < nTiers_);
     assert(stage < getNStages());
     assert(tierRange_ != NULL);
     return tierRange_[tier][stage];
 }
 
-UInt Integrator::getNPartitions() const {
+size_t Integrator::getNPartitions() const {
     return partIds_.size();
 }
 
@@ -142,10 +142,10 @@ void Integrator::printInfo() const {
     cout << "Max. time step: " << getMaxDT()*1E12 << " [ps]" << endl;
     cout << "Number of tiers: " << nTiers_ << endl;
     if (nTiers_ > 1) {
-        for (UInt i = 0; i < nTiers_; i++) {
+        for (size_t i = 0; i < nTiers_; i++) {
             cout << "# of Cells in tier " << i << ": "
                     << getNumberOfCellsInTier(i) << endl;
-            for (UInt j = 0; j < getNStages(); j++) {
+            for (size_t j = 0; j < getNStages(); j++) {
                 cout << "--> Range stage #" << j << ": "
                         << getRange(i,j).first << ", "
                         << getRange(i,j).second << endl;
@@ -180,7 +180,7 @@ Real Integrator::getMaxTimeStep(
         const PhysicalModel* mat) const {
     // Returns the maximum time step allowed for this cell.
     Real fS1 = 0.0;
-    for (UInt f = 0; f < vol->numberOfFaces(); f++) {
+    for (size_t f = 0; f < vol->numberOfFaces(); f++) {
         Real area = vol->getAreaOfFace(f);
         Real volume = vol->getVolume();
         Real fS2 = area / volume;
@@ -194,21 +194,21 @@ Real Integrator::getMaxTimeStep(
     return (dt * cfl_);
 }
 
-UInt Integrator::getNumberOfCellsInTier(const UInt tier) const {
+size_t Integrator::getNumberOfCellsInTier(const size_t tier) const {
     assert(tier < nTiers_);
     assert(tierRange_ != NULL);
-    UInt first = getRange(tier, 0).first;
-    UInt last = getRange(tier, getNStages() - 1).second;
-    UInt res = last - first;
+    size_t first = getRange(tier, 0).first;
+    size_t last = getRange(tier, getNStages() - 1).second;
+    size_t res = last - first;
     return res;
 }
 
-vector<ElemId> Integrator::getIdsOfTier(UInt tier) const {
+vector<ElemId> Integrator::getIdsOfTier(size_t tier) const {
     assert(tier < nTiers_);
-    const UInt nK = timeTierList_.nRows();
+    const size_t nK = timeTierList_.nRows();
     vector<ElemId> res;
     res.reserve(nK);
-    for (UInt i = 0; i < nK; i++) {
+    for (size_t i = 0; i < nK; i++) {
         if (timeTierList_(i,1) == tier) {
             res.push_back(ElemId(timeTierList_(i,0)));
         }
@@ -216,12 +216,12 @@ vector<ElemId> Integrator::getIdsOfTier(UInt tier) const {
     return res;
 }
 
-vector<ElemId> Integrator::getIdsOfStage(UInt stage) const {
+vector<ElemId> Integrator::getIdsOfStage(size_t stage) const {
     assert(stage < getNStages());
-    UInt nK = timeTierList_.nRows();
+    size_t nK = timeTierList_.nRows();
     vector<ElemId> res;
     res.reserve(nK);
-    for (UInt i = 0; i < nK; i++) {
+    for (size_t i = 0; i < nK; i++) {
         if (timeTierList_(i,2) == stage) {
             res.push_back(ElemId(timeTierList_(i,0)));
         }
@@ -231,17 +231,17 @@ vector<ElemId> Integrator::getIdsOfStage(UInt stage) const {
 
 void Integrator::reorder(
         const vector<vector<ElemId> >& partitionId,
-        const UInt localOffset,
-        const UInt localSize) {
+        const size_t localOffset,
+        const size_t localSize) {
     partIds_ = partitionId;
     // Reorders timeTierList according to partitions.
     reorderTimeTierList(partitionId);
     // Now aux stores the final ordering considering partitions.
     buildRelPosOfIds(timeTierList_);
     // Builds time tier range
-    DynMatrix<UInt> reducedList(localSize,3);
-    for (UInt i = 0; i < localSize; i++) {
-        for (UInt j = 0; j < 3; j++) {
+    DynMatrix<size_t> reducedList(localSize,3);
+    for (size_t i = 0; i < localSize; i++) {
+        for (size_t j = 0; j < 3; j++) {
             reducedList(i,j) = timeTierList_(i + localOffset, j);
         }
     }
@@ -250,9 +250,9 @@ void Integrator::reorder(
 
 void Integrator::reorderTimeTierList(
         const vector<vector<ElemId>>& partitionId) {
-    UInt nK = timeTierList_.nRows();
-    DynMatrix<UInt> aux(nK, 5); // relPos - Ids - Part - Tier - Stage
-    for (UInt k = 0; k < nK; k++) {
+    size_t nK = timeTierList_.nRows();
+    DynMatrix<size_t> aux(nK, 5); // relPos - Ids - Part - Tier - Stage
+    for (size_t k = 0; k < nK; k++) {
         aux(k, 0) = k;
         aux(k, 1) = timeTierList_(k, 0);
         aux(k, 2) = 0; // Temporary assignation of partition.
@@ -260,16 +260,16 @@ void Integrator::reorderTimeTierList(
         aux(k, 4) = timeTierList_(k, 2);
     }
     aux.sortRows_omp(1, 1);
-    UInt initId = aux(0, 1);
-    UInt nParts = partitionId.size();
-    for (UInt p = 0; p < nParts; p++) {
-        for (UInt i = 0; i < partitionId[p].size(); i++) {
-            UInt id = partitionId[p][i].toUInt();
+    size_t initId = aux(0, 1);
+    size_t nParts = partitionId.size();
+    for (size_t p = 0; p < nParts; p++) {
+        for (size_t i = 0; i < partitionId[p].size(); i++) {
+            size_t id = partitionId[p][i].tosize_t();
             aux(id - initId, 2) = p;
         }
     }
     aux.sortRows_omp(2, 4);
-    for (UInt i = 0; i < nK; i++) {
+    for (size_t i = 0; i < nK; i++) {
         timeTierList_(i, 0) = aux(i, 1);
         timeTierList_(i, 1) = aux(i, 3);
         timeTierList_(i, 2) = aux(i, 4);
@@ -296,43 +296,43 @@ void Integrator::buildTierInfo(
 
 Interval** Integrator::buildTierRange(
         Interval **range,
-        const DynMatrix<UInt>& list) {
-    UInt nK = list.nRows();
-    static const UInt vS = 2;
-    const UInt nStages = getNStages();
+        const DynMatrix<size_t>& list) {
+    size_t nK = list.nRows();
+    static const size_t vS = 2;
+    const size_t nStages = getNStages();
     // Allocates memory for tierRange.
     if (range != NULL) {
-        for (UInt i = 0; i < nTiers_; i++) {
+        for (size_t i = 0; i < nTiers_; i++) {
             delete [] range[i];
         }
         delete [] range;
     }
-    range = new pair<UInt,UInt>*[nTiers_];
-    for (UInt i = 0; i < nTiers_; i++) {
-        range[i] = new pair<UInt,UInt>[nStages];
+    range = new pair<size_t,size_t>*[nTiers_];
+    for (size_t i = 0; i < nTiers_; i++) {
+        range[i] = new pair<size_t,size_t>[nStages];
     }
     // Assigns ranges for tier 0.
     if (nTiers_ == 1) {
-        for (UInt i = 0; i < nStages; i++) {
+        for (size_t i = 0; i < nStages; i++) {
             range[0][i].first = 0;
             range[0][i].second = nK;
         }
     } else {
-        static const UInt nextKey[2] = {1, 0};
-        UInt e2 = list.findFirstOcurrenceInColumns(nextKey,1,vS);
-        for (UInt i = 0; i < nStages; i++) {
+        static const size_t nextKey[2] = {1, 0};
+        size_t e2 = list.findFirstOcurrenceInColumns(nextKey,1,vS);
+        for (size_t i = 0; i < nStages; i++) {
             range[0][i].first = 0;
             range[0][i].second = e2;
         }
     }
     //
-    UInt key[2], nextKey[2];
-    for (UInt tier = 1; tier < nTiers_; tier++) {
-        for (UInt stage = 0; stage < nStages; stage++) {
+    size_t key[2], nextKey[2];
+    for (size_t tier = 1; tier < nTiers_; tier++) {
+        for (size_t stage = 0; stage < nStages; stage++) {
             key[0] = tier;
             key[1] = stage;
-            UInt e1 = list.findFirstOcurrenceInColumns(key,1,vS);
-            UInt e2;
+            size_t e1 = list.findFirstOcurrenceInColumns(key,1,vS);
+            size_t e2;
             if (tier+1 != nTiers_ || stage+1 != nStages) {
                 nextKey[0] = tier + (stage+1) / nStages;
                 nextKey[1] = (stage+1) % nStages;
@@ -352,7 +352,7 @@ void Integrator::checkMaterialStabilityForDT(
         const Real dt) const {
     const PMVolumeDispersive* disp = dynamic_cast<const PMVolumeDispersive*>(mat);
     if (disp != NULL) {
-        for (UInt p = 0; p < disp->getPoleNumber(); p++) {
+        for (size_t p = 0; p < disp->getPoleNumber(); p++) {
             Real polePeriod = 1.0 / std::abs(disp->getPole(p));
             if (polePeriod < dt) {
                 cerr << endl << "ERROR@Integrator: "
@@ -367,15 +367,15 @@ void Integrator::checkMaterialStabilityForDT(
 }
 
 void Integrator::growSmallestTierRegions(
-        const UInt toGrow,
+        const size_t toGrow,
         const Mesh::Volume& mesh) {
     timeTierList_.sortRows_omp(0,0);
-    const UInt nK = mesh.elems().getOf<VolR>().size();
-    for (UInt tier = 0; tier < nTiers_-1; tier++) {
+    const size_t nK = mesh.elems().getOf<VolR>().size();
+    for (size_t tier = 0; tier < nTiers_-1; tier++) {
         // Creates a list with all the elements belonging to this tier.
         Group<const VolR> elemsInTier;
         elemsInTier.reserve(nK);
-        for (UInt k = 0; k < nK; k++) {
+        for (size_t k = 0; k < nK; k++) {
             if (timeTierList_(k,1) == tier) {
                 ElemId id(timeTierList_(k,0));
                 elemsInTier.add(mesh.elems().getId(id));
@@ -383,14 +383,14 @@ void Integrator::growSmallestTierRegions(
         }
         Group<const VolR> neigh;
         Group<const VolR> grownElem(elemsInTier);
-        for (UInt stage = 0; stage < toGrow; stage++) {
+        for (size_t stage = 0; stage < toGrow; stage++) {
             Group<const VolR> newNeigh = mesh.getAdjacentRegion(grownElem);
             neigh.add(newNeigh);
             grownElem.add(newNeigh);
         }
-        for (UInt k = 0; k < neigh.size(); k++) {
-            UInt id = neigh(k)->getId().toUInt();
-            const UInt row = timeTierList_.findFirstOcurrenceInColumns(&id,0,1);
+        for (size_t k = 0; k < neigh.size(); k++) {
+            size_t id = neigh(k)->getId().tosize_t();
+            const size_t row = timeTierList_.findFirstOcurrenceInColumns(&id,0,1);
             timeTierList_(row,1) = tier;
         }
     }
@@ -405,17 +405,17 @@ void Integrator::assignTiersBasedOnMaxTimeStep(
     // Takes only elements with a defined material.
     GroupElements<const VolR> vol = mesh.elems().getOf<VolR>();
     vol.removeMatId(MatId(0));
-    const UInt nK =  vol.size();
+    const size_t nK =  vol.size();
     // Computes maximum global timestep (local minimum).
     DynMatrix<Real> dtList(vol.size(), 4);
     mindt = 0.0;
-    for (UInt k = 0; k < vol.size(); k++) {
+    for (size_t k = 0; k < vol.size(); k++) {
         const PhysicalModel* mat = pmGroup.getId(vol(k)->getMatId());
         Real dt = getMaxTimeStep(vol(k), mat);
         if (mindt > dt || mindt == 0.0) {
             mindt = dt;
         }
-        dtList(k,0) = vol(k)->getId().toUInt();
+        dtList(k,0) = vol(k)->getId().tosize_t();
         dtList(k,1) = dt;
         dtList(k,2) = noTier;
         dtList(k,3) = getNStages() - 1;
@@ -428,7 +428,7 @@ void Integrator::assignTiersBasedOnMaxTimeStep(
         if (maxNumOfTiers > 0 && nTiers_ > maxNumOfTiers) {
             nTiers_ = maxNumOfTiers;
         }
-        for (UInt tier = 0; tier < nTiers_; tier++) {
+        for (size_t tier = 0; tier < nTiers_; tier++) {
             Real inf = mindt / pow(ratio, Real(tier));
             Real sup;
             if (tier+1 == maxNumOfTiers) {
@@ -436,7 +436,7 @@ void Integrator::assignTiersBasedOnMaxTimeStep(
             } else {
                 sup = mindt / pow(ratio, Real(tier + 1));
             }
-            for (UInt k = 0; k < nK; k++) {
+            for (size_t k = 0; k < nK; k++) {
                 if (dtList(k,1) >= inf && dtList(k,1) < sup) {
                     dtList(k,2) = tier;
                 }
@@ -454,15 +454,15 @@ void Integrator::assignStages(const Mesh::Volume& mesh) {
     }
     // ----------- Reassigns tiers ------------------------------------
     GroupElements<const VolR> vol = mesh.elems().getOf<VolR>();
-    const UInt nK = vol.size();
+    const size_t nK = vol.size();
     timeTierList_.sortRows_omp(0,0);
-    const UInt nStages = getNStages();
-    for (UInt tier = 0; tier < nTiers_-2; tier++) {
+    const size_t nStages = getNStages();
+    for (size_t tier = 0; tier < nTiers_-2; tier++) {
         // Creates a list with all the elements belonging to this tier.
         GroupElements<const VolR> elem;
         elem.reserve(nK);
         bool isInRegion;
-        for (UInt k = 0; k < nK; k++) {
+        for (size_t k = 0; k < nK; k++) {
             isInRegion = (timeTierList_(k,1) == tier);
             if (isInRegion) {
                 elem.add(vol.getId(ElemId(timeTierList_(k,0))));
@@ -470,25 +470,25 @@ void Integrator::assignStages(const Mesh::Volume& mesh) {
         }
         GroupElements<const VolR> grownElem = elem;
         GroupElements<const VolR> neigh;
-        for (UInt stage = 0; stage < (nStages * growStages); stage++) {
+        for (size_t stage = 0; stage < (nStages * growStages); stage++) {
             GroupElements<const VolR> newNeigh = mesh.getAdjacentRegion(grownElem);
             neigh.add(newNeigh);
             grownElem.add(newNeigh);
         }
-        for (UInt k = 0; k < neigh.size(); k++) {
-            UInt id = neigh(k)->getId().toUInt();
-            UInt row = timeTierList_.findFirstOcurrenceInColumns(&id,0,1);
+        for (size_t k = 0; k < neigh.size(); k++) {
+            size_t id = neigh(k)->getId().tosize_t();
+            size_t row = timeTierList_.findFirstOcurrenceInColumns(&id,0,1);
             if (timeTierList_(row,1) > tier + 1) {
                 timeTierList_(row,1) = tier + 1;
             }
         }
     }
     // ----------- Assigns stages -------------------------------------
-    for (UInt tier = 0; tier < nTiers_-1; tier++) {
+    for (size_t tier = 0; tier < nTiers_-1; tier++) {
         GroupElements<const VolR> elem;
         elem.reserve(nK);
         bool isInRegion;
-        for (UInt k = 0; k < nK; k++) {
+        for (size_t k = 0; k < nK; k++) {
             isInRegion = (timeTierList_(k,1) == tier);
             if (isInRegion) {
                 elem.add(vol.getId(ElemId(timeTierList_(k,0))));
@@ -496,13 +496,13 @@ void Integrator::assignStages(const Mesh::Volume& mesh) {
         }
         GroupElements<const VolR> grownElem = elem;
         GroupElements<const VolR> neigh;
-        for (UInt stage = 0; stage < nStages; stage++) {
-            for (UInt times = 0; times < growStages; times++) {
+        for (size_t stage = 0; stage < nStages; stage++) {
+            for (size_t times = 0; times < growStages; times++) {
                 GroupElements<const VolR> newNeigh = mesh.getAdjacentRegion(grownElem);
                 grownElem.add(newNeigh);
-                for (UInt k = 0; k < newNeigh.size(); k++) {
-                    UInt id = newNeigh(k)->getId().toUInt();
-                    UInt row =
+                for (size_t k = 0; k < newNeigh.size(); k++) {
+                    size_t id = newNeigh(k)->getId().tosize_t();
+                    size_t row =
                             timeTierList_.findFirstOcurrenceInColumns(&id,0,1);
                     if (row < nK) {
                         if (timeTierList_(row,1) > tier) {
@@ -515,19 +515,19 @@ void Integrator::assignStages(const Mesh::Volume& mesh) {
     }
 }
 
-vector<pair<UInt, UInt>> Integrator::getIdPartitionVector(
+vector<pair<size_t, size_t>> Integrator::getIdPartitionVector(
         const vector<vector<ElemId>>& pId) const {
-    vector<pair<UInt,UInt>> res;
-    UInt nPart = pId.size();
-    UInt gSize = 0;
-    for (UInt p = 0; p < nPart; p++) {
+    vector<pair<size_t,size_t>> res;
+    size_t nPart = pId.size();
+    size_t gSize = 0;
+    for (size_t p = 0; p < nPart; p++) {
         gSize += pId[p].size();
     }
     res.reserve(gSize);
-    pair<UInt,UInt> idPart;
-    for (UInt p = 0; p < nPart; p++) {
-        for (UInt k = 0; k < pId[p].size(); k++) {
-            idPart.first = pId[p][k].toUInt();
+    pair<size_t,size_t> idPart;
+    for (size_t p = 0; p < nPart; p++) {
+        for (size_t k = 0; k < pId[p].size(); k++) {
+            idPart.first = pId[p][k].tosize_t();
             idPart.second = p;
             res.push_back(idPart);
         }

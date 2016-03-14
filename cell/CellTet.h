@@ -30,14 +30,14 @@ using namespace SEMBA;
 
 #include "math/simplex/Tetrahedron.h"
 #include "math/function/Polynomial.h"
-
+#include "Cell.h"
 
 namespace SEMBA {
 namespace Cudg3d {
 namespace Cell {
 
 template <int TET_N>
-class CellTet {
+class CellTet : public Cell {
 #define TET_NP ((TET_N+1)*(TET_N+2)*(TET_N+3)/6)
 #define TET_NFP ((TET_N+1)*(TET_N+2)/2)
 public:

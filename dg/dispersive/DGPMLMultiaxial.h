@@ -38,26 +38,26 @@
 //            const Real conductivity);
 //    virtual ~DGPMLMultiaxial();
 //    void addRHSToRes(
-//            const UInt e1, const UInt e2,
+//            const size_t e1, const size_t e2,
 //            const Real rka, const Real dt);
 //    void updateWithRes(
-//            const UInt e1,
-//            const UInt e2,
+//            const size_t e1,
+//            const size_t e2,
 //            const Real rkb);
 //    virtual void computeRHSElectric(
 //            FieldR3& rhsE,
 //            const FieldR3& E,
-//            const UInt e1, const UInt e2) const = 0;
+//            const size_t e1, const size_t e2) const = 0;
 //    virtual void computeRHSMagnetic(
 //            FieldR3& rhsH,
 //            const FieldR3& H,
-//            const UInt e1, const UInt e2) const = 0;
+//            const size_t e1, const size_t e2) const = 0;
 //    virtual void computeRHSElectricPolarizationCurrents(
 //            const FieldR3& E,
-//            const UInt e1, const UInt e2) = 0;
+//            const size_t e1, const size_t e2) = 0;
 //    virtual void computeRHSMagneticPolarizationCurrents(
 //            const FieldR3& H,
-//            const UInt e1, const UInt e2) = 0;
+//            const size_t e1, const size_t e2) = 0;
 //protected:
 //    FieldR3 J, M, resJ, resM, rhsJ, rhsM;
 //};

@@ -62,7 +62,7 @@ private:
             FieldR3& EInc,
             FieldR3& HInc,
             const SphericalVector* vPos,
-            const UInt nE,
+            const size_t nE,
             const Real time) const;
 };
 #endif /* SOLVERDIPOLE_H_ */

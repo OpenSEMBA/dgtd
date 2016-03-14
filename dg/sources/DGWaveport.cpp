@@ -48,9 +48,9 @@ DGWaveport::~DGWaveport() {
 // const Real spread,
 // const Real kcm) const {
 //	// Computes current step.
-//	const UInt n = t / dt;
+//	const size_t n = t / dt;
 //	// Performs convolution.
-//	UInt j;
+//	size_t j;
 //	Real res = 0.0;
 //	for (j = 0; j < n; j++) {
 //		res +=
@@ -73,14 +73,14 @@ Real DGWaveport::getHm(
 }
 
 bool DGWaveport::checkNormalsAreEqual(
- const vector<pair<UInt, UInt> >& elemFace) const {
+ const vector<pair<size_t, size_t> >& elemFace) const {
 //	CVecR3 n1, n2;
-//	for (UInt i = 1; i < elemFace.size(); i++) {
-//		const UInt id1 = cells.getIdOfRelPos(elemFace[i-1].first);
-//		const UInt f1 = elemFace[i-1].second;
+//	for (size_t i = 1; i < elemFace.size(); i++) {
+//		const size_t id1 = cells.getIdOfRelPos(elemFace[i-1].first);
+//		const size_t f1 = elemFace[i-1].second;
 //		n1 = cells.getPtrToCellWithId(id1)->getSideNormal(f1);
-//		const UInt id2 = cells.getIdOfRelPos(elemFace[i].first);
-//		const UInt f2 = elemFace[i].second;
+//		const size_t id2 = cells.getIdOfRelPos(elemFace[i].first);
+//		const size_t f2 = elemFace[i].second;
 //		n2 = cells.getPtrToCellWithId(id2)->getSideNormal(f2);
 //		if (n1 != n2) {
 //			return false;

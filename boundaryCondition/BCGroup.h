@@ -29,40 +29,44 @@
 #ifndef BCGROUP_H_
 #define BCGROUP_H_
 
-#include "../../dgtd/core/BoundaryCondition.h"
-
 using namespace std;
 
-class GroupBoundaryConditions {
+#include "BoundaryCondition.h"
+
+namespace SEMBA {
+namespace Cudg3d {
+namespace BoundaryCondition {
+
+class Group {
 public:
     vector<EMSourceBC> embc;
     vector<PhysicalModelBC> pmbc;
     vector<SurfaceImpedanceBC> sibc;
-    GroupBoundaryConditions(
+    Group(
             const Mesh::Volume& mesh,
-            const EMSourceGroup& em,
+            const SourceGroup& em,
             const PMGroup& pm,
-            const CellGroup& cells,
-            const Connectivities& map);
-    GroupBoundaryConditions& operator=(const GroupBoundaryConditions &rhs);
+            const Cell::Group& cells,
+            const Geometry::Graph::Connectivities& map);
+    Group& operator=(const Group &rhs);
     vector<const BoundaryCondition*> getPtrsToPEC() const;
     vector<const BoundaryCondition*> getPtrsToPMC() const;
     vector<const BoundaryCondition*> getPtrsToSMA() const;
     vector<const BoundaryCondition*> getPtrsToSIBC() const;
     vector<const BoundaryCondition*> getPtrsToEMSourceBC() const;
-    vector<const BoundaryCondition*> getPtrsToBC(const EMSourceBase* pw) const;
+    vector<const BoundaryCondition*> getPtrsToBC(const Source::Base* pw) const;
     vector<const BoundaryCondition*> getPtrsToBCWithMatId(const MatId id) const;
     void printInfo() const;
 private:
     void buildEMSourceBC(
             const Mesh::Volume& mesh,
-            const EMSourceGroup& em,
-            const CellGroup& cells);
+            const SourceGroup& em,
+            const Cell::Group& cells);
     void buildPhysicalModelBC(
             const Mesh::Volume& mesh,
             const PMGroup& pm,
-            const CellGroup& cells,
-            const Connectivities& map);
+            const Cell::Group& cells,
+            const Geometry::Graph::Connectivities& map);
     void removeOverlapped();
     vector<BoundaryCondition*> removeCommons(
             const vector<BoundaryCondition*>& low,
@@ -73,5 +77,10 @@ private:
 };
 
 typedef GroupBoundaryConditions BCGroup;
+
+}
+}
+}
+
 
 #endif /* BCGROUP_H_ */

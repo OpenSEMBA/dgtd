@@ -52,15 +52,15 @@
 //	 getNumberOfTasks() const;
 //	Int
 //	 getTask() const;
-//	UInt
+//	size_t
 //	 getLocalOffset() const;
-//	UInt
+//	size_t
 //	 getLocalSize() const;
 //	Int
 //	 getNumOfTasksOnThisHost() const;
 //	void
 //	 setPartitionSizes(
-//	  const vector<vector<UInt> >& partId);
+//	  const vector<vector<size_t> >& partId);
 //	void
 //	 gatherFieldsMaster(
 // 	  Real* Ex, Real* Ey, Real* Ez,
@@ -80,14 +80,14 @@
 //	  const Real* Ex, const Real* Ey, const Real* Ez,
 //	  const Real* Hx, const Real* Hy, const Real* Hz) const;
 //	void
-//	 initNeighbourFields(const vector<UInt>& nIds);
+//	 initNeighbourFields(const vector<size_t>& nIds);
 //	Real
 //	 reduceToGlobalMinimum(Real val) const;
 //	void
 //	 printInfo() const;
 //private:
 //	static const Int master = 0;
-//	static const UInt np = ((ORDER_N+1)*(ORDER_N+2)*(ORDER_N+3)/6);
+//	static const size_t np = ((ORDER_N+1)*(ORDER_N+2)*(ORDER_N+3)/6);
 //	static const bool weightPartitions = true;
 //	Int nTasks;
 //	Int nTasksInHost;
@@ -97,12 +97,12 @@
 //	Int* pOffset;
 //	Int* fSize;
 //	Int* fOffset;
-//	UInt* neighElemRP;
+//	size_t* neighElemRP;
 //	MPI_Comm world;
 //	MPI_Datatype MPIField;
-//	UInt nPartitions;
+//	size_t nPartitions;
 //	Int* nNeighId;
-//	UInt** neighId;
+//	size_t** neighId;
 //	Int **neighFSize;
 //	Int **neighFOffset;
 //	Int **nDofSize;
@@ -111,43 +111,43 @@
 //	 getDofSizes() const;
 //	Int*
 //	 getDofOffsets() const;
-//	UInt
+//	size_t
 //	 getLocalDofSize() const;
-//	UInt
+//	size_t
 //	 getGlobalDofSize() const;
 //	void
 //	 packFields(
 //	  Field_s *field,
 //	  const Real *Ex, const Real *Ey, const Real *Ez,
 //	  const Real *Hx, const Real *Hy, const Real *Hz,
-//	  const UInt fSize) const;
+//	  const size_t fSize) const;
 //	void
 //	 unpackFields(
 //	  Real *Ex, Real *Ey, Real *Ez,
 //	  Real *Hx, Real *Hy, Real *Hz,
-//	  const Field_s *field, const UInt fSize) const;
+//	  const Field_s *field, const size_t fSize) const;
 //	void
 //	 commitFieldStruct();
 //	Int*
 //	 getFieldSizes() const;
 //	Int*
 //	 getFieldOffsets() const;
-//	UInt
+//	size_t
 //	 getLocalFieldSize() const;
 //	Int
-//	 getTaskOfId(const UInt id) const;
+//	 getTaskOfId(const size_t id) const;
 //	bool
 //	 checkNNeighCoherence(Int* nneigh) const;
 //	bool
 //	 checkVectorsAreEqual(
-//	  const UInt vSize,
-//	  const UInt* v,
-//	  const vector<UInt>& nIds) const;
+//	  const size_t vSize,
+//	  const size_t* v,
+//	  const vector<size_t>& nIds) const;
 //	bool
 //	 checkNeighFSizes() const;
 //	Int
 //	 countTasksInLocalHost() const;
-//	vector<UInt>
+//	vector<size_t>
 //	 getThreadsOfTasks() const;
 //};
 //

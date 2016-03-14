@@ -35,19 +35,19 @@
 //        PortWaveguide(wp) {
 //    //   initSource(map, cells, dE, dH, vmapM);
 //    //   // Computes positions.
-//    //   vector<pair<UInt, UInt> > total;
+//    //   vector<pair<size_t, size_t> > total;
 //    //   total = getElemFaces(map, cells, totalField);
 //    //   posTF = initPositions(total, cells);
 //    //   if (!checkNormalsAreEqual(total, cells)) {
 //    //      cerr << endl << "Total Normals are different" << endl;
 //    //   }
-//    //   vector<pair<UInt,UInt> > scatt;
+//    //   vector<pair<size_t,size_t> > scatt;
 //    //   scatt = getElemFaces(map, cells, scatteredField);
 //    //   posSF = initPositions(scatt, cells);
 //    //   if (!checkNormalsAreEqual(scatt, cells)) {
 //    //      cerr << endl << "Scatt Normals are different" << endl;
 //    //   }
-//    //   vector<pair<UInt, UInt> > totalNB;
+//    //   vector<pair<size_t, size_t> > totalNB;
 //    //   totalNB = getElemFaces(map, cells, totalFieldNotBacked);
 //    //   posTFNB = initPositions(totalNB, cells);
 //    //   if (!checkNormalsAreEqual(totalNB, cells)) {
@@ -66,7 +66,7 @@
 //    //      yMax = posTFNB[0](1);
 //    //      yMin = posTFNB[0](1);
 //    //   }
-//    //   for (UInt i = 0; i < (nETF*nfp); i++) {
+//    //   for (size_t i = 0; i < (nETF*nfp); i++) {
 //    //      if (posTF[i](2) > zMax) {
 //    //         zMax = posTF[i](2);
 //    //      }
@@ -80,7 +80,7 @@
 //    //         yMin = posTF[i](1);
 //    //      }
 //    //   }
-//    //   for (UInt i = 0; i < (nETFNB*nfp); i++) {
+//    //   for (size_t i = 0; i < (nETFNB*nfp); i++) {
 //    //      if (posTFNB[i](2) > zMax) {
 //    //         zMax = posTFNB[i](2);
 //    //      }
@@ -106,24 +106,24 @@
 //    //   }
 //    //   // Displaces origin to center of waveguide.
 //    //   if (getSymXY() != Waveport::none) {
-//    //      for (UInt i = 0; i < nETF*nfp; i++) {
+//    //      for (size_t i = 0; i < nETF*nfp; i++) {
 //    //         posTF[i](2) += width / 2.0;
 //    //      }
-//    //      for (UInt i = 0; i < nESF*nfp; i++) {
+//    //      for (size_t i = 0; i < nESF*nfp; i++) {
 //    //         posSF[i](2) += width / 2.0;
 //    //      }
-//    //      for (UInt i = 0; i < nETFNB*nfp; i++) {
+//    //      for (size_t i = 0; i < nETFNB*nfp; i++) {
 //    //         posTFNB[i](2) += width / 2.0;
 //    //      }
 //    //   }
 //    //   if (getSymZX() != Waveport::none) {
-//    //      for (UInt i = 0; i < nETF*nfp; i++) {
+//    //      for (size_t i = 0; i < nETF*nfp; i++) {
 //    //         posTF[i](1) += height / 2.0;
 //    //      }
-//    //      for (UInt i = 0; i < nESF*nfp; i++) {
+//    //      for (size_t i = 0; i < nESF*nfp; i++) {
 //    //         posSF[i](1) += height / 2.0;
 //    //      }
-//    //      for (UInt i = 0; i < nETFNB*nfp; i++) {
+//    //      for (size_t i = 0; i < nETFNB*nfp; i++) {
 //    //         posTFNB[i](2) += height / 2.0;
 //    //      }
 //    //   }
@@ -172,7 +172,7 @@
 //        FieldR3& EInc,
 //        FieldR3& HInc,
 //        const CVecR3* pos,
-//        const UInt nE,
+//        const size_t nE,
 //        const Real time,
 //        const Real minDT) {
 //    //   const Real kcmSq = kcm * kcm;
@@ -181,10 +181,10 @@
 //    //   //	Real gammaMf =
 //    //   //	 getNumericalGammaMGauss(time,minDT, amplitude,delay,spread, kcm);
 //    //   if (excitationMode == Waveport::TE) {
-//    //      const UInt nFields = nfp * nE;
+//    //      const size_t nFields = nfp * nE;
 //    //      const Real mConst = Constants::pi * getMode().first / width;
 //    //      const Real nConst = Constants::pi * getMode().second / height;
-//    //      for (UInt i = 0; i < nFields; i++) {
+//    //      for (size_t i = 0; i < nFields; i++) {
 //    //         const Real yD = pos[i](1);
 //    //         const Real zD = pos[i](2);
 //    //         // --- Electric field, TE ---

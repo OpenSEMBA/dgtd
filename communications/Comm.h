@@ -49,8 +49,8 @@ public:
     virtual Int getTask() const = 0;
     virtual bool isMaster() const = 0;
     virtual Int getNumOfTasksOnThisHost() const = 0;
-    virtual UInt getLocalOffset() const = 0;
-    virtual UInt getLocalSize() const = 0;
+    virtual size_t getLocalOffset() const = 0;
+    virtual size_t getLocalSize() const = 0;
     virtual void setPartitionSizes(const vector<vector<ElemId>>& partId) = 0;
     virtual void gatherFieldsMaster(
             FieldR3& elec, FieldR3& magn,

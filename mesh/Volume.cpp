@@ -20,15 +20,14 @@
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 #include "Volume.h"
 
+namespace SEMBA {
 namespace Cudg3d {
-namespace DGTD {
 namespace Mesh {
 
 Volume::Volume() {
 }
 
-Volume::Volume(
-        const MeshUnstructured& uns) {
+Volume::Volume(const Geometry::Mesh::Unstructured& uns) {
     this->coords() = *uns.coords().clone();
     this->elems() = *uns.elems().clone();
     this->layers() = *uns.layers().clone();
@@ -36,37 +35,37 @@ Volume::Volume(
 
 Volume::~Volume() {
 }
+//
+//bool MeshUnstructured::isFloatingCoordinate(const Geometry::CoordR3* param) const {
+//    GroupElements<const ElemR> elems =
+//            GroupElements<ElemR>::getOf<ElemR>();
+//    for (size_t i = 0; i < elems.size(); i++) {
+//        for (size_t j = 0; j < elems(i)->numberOfCoordinates(); j++) {
+//            if (*param == *elems(i)->getV(j)) {
+//                return false;
+//            }
+//        }
+//    }
+//    return true;
+//}
 
-bool MeshUnstructured::isFloatingCoordinate(const CoordR3* param) const {
-    GroupElements<const ElemR> elems =
-            GroupElements<ElemR>::getOf<ElemR>();
-    for (UInt i = 0; i < elems.size(); i++) {
-        for (UInt j = 0; j < elems(i)->numberOfCoordinates(); j++) {
-            if (*param == *elems(i)->getV(j)) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-vector<vector<SEMBA::Geometry::ElemId>> Volume::getPartitionsIds(
-        const UInt nDivisions,
-        const vector<pair<SEMBA::Geometry::ElemId,Int>> idWgt,
-        const Real* taskPower) const {
+vector<vector<Geometry::ElemId>> Volume::getPartitionsIds(
+        const size_t nDivisions,
+        const vector<pair<Geometry::ElemId,int>> idWgt,
+        const Math::Real* taskPower) const {
     // Metis v5 manual:
     // [...] take as input the element-node array of the mesh and
     // compute a k-way partitioning for both its elements and its nodes
     // idWgt contains id and weight pairs.
-    vector<vector<ElemId>> res;
-    res.resize(nDivisions, vector<ElemId>());
+    vector<vector<Geometry::ElemId>> res;
+    res.resize(nDivisions, vector<Geometry::ElemId>());
     // Accounts for the one partition case.
     if (nDivisions == 1) {
-        GroupElements<const ElemR> physVol = elems();
+        Geometry::ElemRGroup physVol = elems();
         physVol.removeMatId(MatId(0));
-        const UInt nK = physVol.sizeOf<VolR>();
-        res[0].resize(nK, ElemId(0));
-        for (UInt i = 0; i < nK; i++) {
+        const size_t nK = physVol.sizeOf<Geometry::VolR>();
+        res[0].resize(nK, Geometry::ElemId(0));
+        for (size_t i = 0; i < nK; i++) {
             res[0][i] = (elems())(i)->getId();
         }
         return res;
@@ -74,15 +73,15 @@ vector<vector<SEMBA::Geometry::ElemId>> Volume::getPartitionsIds(
 #ifdef MESH_ALLOW_PARTITIONING
     // Prepares mesh info.
     cout << " - Preparing mesh info... " << flush;
-    idx_t ne = elem_.nVolumeElements();
+    idx_t ne = elems().sizeOf<Geometry::VolR>();
     idx_t *eptr, *eind;
     eptr = new idx_t[ne+1];
     eind = new idx_t[ne*4];
-    UInt counter = 0;
+    size_t counter = 0;
     eptr[0] = counter;
-    for (Int i = 0; i < (Int) ne; i++) {
-        const Tet* vol = elem_.tet[i];
-        for (UInt j = 0; j < vol->numberOfVertices(); j++) {
+    for (idx_t i = 0; i < ne; i++) {
+        const Geometry::VolR* vol = elem_.tet[i];
+        for (size_t j = 0; j < vol->numberOfVertices(); j++) {
             eind[counter++] = vol->getVertex(j)->id - 1;
         }
         eptr[i+1] = counter;
@@ -135,7 +134,7 @@ vector<vector<SEMBA::Geometry::ElemId>> Volume::getPartitionsIds(
     if (taskPower != NULL) {
         tpwgts = new real_t[nDivisions];
         real_t sum = 0.0;
-        for (UInt i = 0; i < nDivisions; i++) {
+        for (size_t i = 0; i < nDivisions; i++) {
             tpwgts[i] = taskPower[i];
             sum += tpwgts[i];
         }
@@ -164,11 +163,11 @@ vector<vector<SEMBA::Geometry::ElemId>> Volume::getPartitionsIds(
     }
     cout << "OK" << endl;
     // Converts result.
-    for (UInt i = 0; i < nDivisions; i++) {
+    for (size_t i = 0; i < nDivisions; i++) {
         res[i].reserve(ne);
     }
     for (Int i = 0; i < ne; i++) {
-        UInt id = elem_.tet[i]->getId();
+        size_t id = elem_.tet[i]->getId();
         res[epart[i]].push_back(id);
     }
     // Frees memory.
@@ -180,7 +179,7 @@ vector<vector<SEMBA::Geometry::ElemId>> Volume::getPartitionsIds(
     // Returns result.
     return res;
 #else
-    throw Error("Mesh partitioning is not allowed.");
+    throw logic_error("Mesh partitioning is not allowed.");
 #endif
 }
 

@@ -39,15 +39,15 @@
 //
 //void
 //DGPMLMultiaxial::internalBiaxialRHSElectricPolarizationCurrent(
-//        const Real* E1, const Real* E2, const Real* E3, const UInt e1,
-//        const UInt e2) {
+//        const Real* E1, const Real* E2, const Real* E3, const size_t e1,
+//        const size_t e2) {
 //    if (useConstantConductivity) {
-//        UInt i;
+//        size_t i;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i)
 //#endif
 //        for (i = 0; i < dof; i++) {
-//            UInt e = elem[(i / np) % nElem];
+//            size_t e = elem[(i / np) % nElem];
 //            if (e1 <= e && e < e2) {
 //                rhsJ1[i] = - J1[i]*sig;
 //                rhsJ2[i] = - J2[i]*sig;
@@ -55,7 +55,7 @@
 //            }
 //        }
 //    } else {
-//        UInt i, j, e;
+//        size_t i, j, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -81,14 +81,14 @@
 //void
 //DGPMLMultiaxial::internalBiaxialRHSMagneticPolarizationCurrent(
 //        const Real* H1, const Real* H2, const Real* H3,
-//        const UInt e1, const UInt e2) {
+//        const size_t e1, const size_t e2) {
 //    if (useConstantConductivity) {
-//        UInt i;
+//        size_t i;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i)
 //#endif
 //        for (i = 0; i < dof; i++) {
-//            UInt e = elem[(i / np) % nElem];
+//            size_t e = elem[(i / np) % nElem];
 //            if (e1 <= e && e < e2) {
 //                rhsM1[i] = - M1[i]*sig;
 //                rhsM2[i] = - M2[i]*sig;
@@ -96,7 +96,7 @@
 //            }
 //        }
 //    } else {
-//        UInt i, j, e;
+//        size_t i, j, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -122,12 +122,12 @@
 //void
 //DGPMLMultiaxial::internalBiaxialRHSMagnetic(
 //        Real* rhsH1, Real* rhsH2, Real* rhsH3, const Real* H1, const Real* H2,
-//        const Real* H3, const UInt e1, const UInt e2) const {
+//        const Real* H3, const size_t e1, const size_t e2) const {
 //    if (useConstantConductivity) {
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n)
 //#endif
-//        UInt i, j, e, n;
+//        size_t i, j, e, n;
 //        for (i = 0; i < dof; i++) {
 //            e = elem[(i / np) % nElem];
 //            if (e1 <= e && e < e2) {
@@ -139,7 +139,7 @@
 //            }
 //        }
 //    } else {
-//        UInt i, j, e;
+//        size_t i, j, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -170,9 +170,9 @@
 //void
 //DGPMLMultiaxial::internalBiaxialRHSElectric(Real* rhsE1,
 //        Real* rhsE2, Real* rhsE3, const Real* E1, const Real* E2,
-//        const Real* E3, const UInt e1, const UInt e2) const {
+//        const Real* E3, const size_t e1, const size_t e2) const {
 //    if (useConstantConductivity) {
-//        UInt i, j, e, n;
+//        size_t i, j, e, n;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n)
 //#endif
@@ -187,7 +187,7 @@
 //            }
 //        }
 //    } else {
-//        UInt i, j, e;
+//        size_t i, j, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -235,7 +235,7 @@
 //void
 //DGPMLxy::computeRHSElectric(
 //        FieldR3& rhs, const FieldR3& f,
-//        const UInt e1, const UInt e2) const {
+//        const size_t e1, const size_t e2) const {
 //    internalBiaxialRHSElectric(
 //            rhs.set(x),rhs.set(y),rhs.set(z), f(x),f(y),f(z), e1,e2);
 //}
@@ -243,19 +243,19 @@
 //void
 //DGPMLxy::computeRHSMagnetic(
 //        FieldR3& rhs, const FieldR3& f,
-//        const UInt e1, const UInt e2) const {
+//        const size_t e1, const size_t e2) const {
 //    internalBiaxialRHSMagnetic(
 //            rhs.set(x),rhs.set(y),rhs.set(z), f(x),f(y),f(z), e1,e2);
 //}
 //
 //void
 //DGPMLxy::computeRHSElectricPolarizationCurrents(
-//        const FieldR3& f, const UInt e1, const UInt e2) {
+//        const FieldR3& f, const size_t e1, const size_t e2) {
 //    internalBiaxialRHSElectricPolarizationCurrent(f(x),f(y),f(z), e1,e2);
 //}
 //
 //void
 //DGPMLxy::computeRHSMagneticPolarizationCurrents(
-//        const FieldR3& f, const UInt e1, const UInt e2) {
+//        const FieldR3& f, const size_t e1, const size_t e2) {
 //    internalBiaxialRHSMagneticPolarizationCurrent(f(x),f(y),f(z), e1,e2);
 //}

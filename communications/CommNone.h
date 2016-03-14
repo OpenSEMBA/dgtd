@@ -45,9 +45,9 @@ public:
     void abort() const;
     bool isMaster() const;
     Int getTask() const;
-    UInt getLocalOffset() const;
+    size_t getLocalOffset() const;
     Int getNumOfTasksOnThisHost() const;
-    UInt getLocalSize() const;
+    size_t getLocalSize() const;
     void gatherFieldsMaster(
             FieldR3& electric,
             FieldR3& magnetic,

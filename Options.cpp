@@ -27,8 +27,8 @@
  */
 #include "Options.h"
 
+namespace SEMBA {
 namespace Cudg3d {
-namespace DGTD {
 
 void Options::initDefaults_() {
     timeIntegrator_ = TimeIntegrator::lserk4;

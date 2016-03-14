@@ -53,7 +53,7 @@ private:
             FieldR3& EInc,
             FieldR3& HInc,
             const CVecR3* pos,
-            const UInt nE,
+            const size_t nE,
             const Real intTime,
             const Real minDT);
 };

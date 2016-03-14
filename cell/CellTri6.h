@@ -13,10 +13,10 @@
 
 template <int TRI_N>
 class CellTri6 : public CellTri<TRI_N>, public Tri6 {
-	static const UInt np = (TRI_N+1) * (TRI_N+2) / 2;
-	static const UInt nfp = (TRI_N + 1);
-	static const UInt faces = 3;
-	static const UInt vertices = 3;
+	static const size_t np = (TRI_N+1) * (TRI_N+2) / 2;
+	static const size_t nfp = (TRI_N + 1);
+	static const size_t faces = 3;
+	static const size_t vertices = 3;
 public:
 	CellTri6(
 	 const Tri6& base);

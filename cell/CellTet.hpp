@@ -19,7 +19,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 
-#include "../../dgtd/core/CellTet.h"
+#include "cell/CellTet.h"
+
+namespace SEMBA {
+namespace Cudg3d {
+namespace Cell {
 
 template <int TET_N>
 CellTet<TET_N>::CellTet() {
@@ -54,7 +58,7 @@ array<typename CellTet<TET_N>::MatNpNp,3> CellTet<TET_N>::getCMatrices() const {
     StaMatrix<double,4,3> cJHat[SimplexTet<1>::ncp];
     base->getCubatureJacobianHat(cJHat, cJ, cJDet);
     array<MatNpNp,3> res;
-    for (UInt x = 0; x < 3; x++) {
+    for (size_t x = 0; x < 3; x++) {
         res[x] = getCMatrix(x, invM, cJHat, cJ);
     }
     return res;
@@ -63,9 +67,9 @@ array<typename CellTet<TET_N>::MatNpNp,3> CellTet<TET_N>::getCMatrices() const {
 template <int TET_N>
 StaMatrix<double,TET_NP,TET_NP> CellTet<TET_N>::getConductivityWithGeometricProfile(
         const PMVolumePML& mat,
-        const UInt type,
+        const size_t type,
         const double maxSigma) const {
-//    static const UInt ncp = SimplexTet<TET_N>::ncp;
+//    static const size_t ncp = SimplexTet<TET_N>::ncp;
 //    StaMatrix<double,np,np> res;
 //    CVecR3 cPos[ncp];
 //    base->getCubaturePositions(cPos);
@@ -77,14 +81,14 @@ StaMatrix<double,TET_NP,TET_NP> CellTet<TET_N>::getConductivityWithGeometricProf
 //    // Computes sigma(x) = [(x - x_0)/width]^2 * maxSigma.
 //    double sigma[ncp];
 //    i = i % 3;
-//    for (UInt c = 0; c < ncp; c++) {
+//    for (size_t c = 0; c < ncp; c++) {
 //        sigma[c] = maxSigma;
 //        sigma[c] *= pow((cPos[c](i) - posBorder(i))/width(i), 2);
 //    }
 //    // Computes second sigma if necessary.
 //    if (j - firstOrientation >= 0) {
 //        j = j % 3;
-//        for (UInt c = 0; c < ncp; c++) {
+//        for (size_t c = 0; c < ncp; c++) {
 //            sigma[c] *= maxSigma;
 //            sigma[c] *= pow((cPos[c](j) - posBorder(j))/width(j), 2);
 //        }
@@ -100,12 +104,12 @@ void CellTet<TET_N>::getCurvedLIFTnormal(
         StaMatrix<double,np,nfp> LIFTn[3],
         StaMatrix<double,np,nfp> LIFTcn[3],
         StaMatrix<double,np,nfp> LIFTrn[3],
-        const UInt face) const {
+        const size_t face) const {
     throw ErrorNotImplemented("Not implemented");
 }
 
 template <int TET_N>
-UInt CellTet<TET_N>::getNbfp() const {
+size_t CellTet<TET_N>::getNbfp() const {
     return base->numberOfSideCoordinates();
 }
 
@@ -115,7 +119,7 @@ bool CellTet<TET_N>::isCurved() const {
 }
 
 template <int TET_N>
-bool CellTet<TET_N>::isCurvedFace(const UInt f) const {
+bool CellTet<TET_N>::isCurvedFace(const size_t f) const {
     return base->isCurvedFace(f);
 }
 
@@ -131,16 +135,16 @@ const Tet* CellTet<TET_N>::getBase() const {
 
 template <int TET_N>
 StaMatrix<double,TET_NP,TET_NP> CellTet<TET_N>::getCMatrix(
-        const UInt x,
+        const size_t x,
         const StaMatrix<double,np,np>& invM,
         const StaMatrix<double,4,3> cJHat[SimplexTet<1>::ncp],
         const StaMatrix<double,4,4> cJ[SimplexTet<1>::ncp]) const {
     StaMatrix<double,TET_NP,TET_NP> res;
     // Computes preliminary C matrices.
-    for (UInt i = 0; i < this->tet.np; i++) {
-        for (UInt j = 0; j < this->tet.np; j++) {
-            for (UInt k = 0; k < faces; k++) {
-                for (UInt c = 0; c < SimplexTet<1>::ncp; c++) {
+    for (size_t i = 0; i < this->tet.np; i++) {
+        for (size_t j = 0; j < this->tet.np; j++) {
+            for (size_t k = 0; k < faces; k++) {
+                for (size_t c = 0; c < SimplexTet<1>::ncp; c++) {
                     res(i,j) += this->tet.cwada[c][k](i,j) * cJHat[c](k,x);
                 }
             }
@@ -156,7 +160,7 @@ template <int TET_N>
 StaMatrix<double,TET_NP,TET_NP> CellTet<TET_N>::getMassMatrix(
         const double cJDet[SimplexTet<1>::ncp]) const{
     StaMatrix<double,TET_NP,TET_NP> res;
-    for (UInt c = 0; c < SimplexTet<1>::ncp; c++) {
+    for (size_t c = 0; c < SimplexTet<1>::ncp; c++) {
         res += tet.cwaa[c] * cJDet[c];
     }
     res *= double(1.0 / 6.0);
@@ -166,7 +170,7 @@ StaMatrix<double,TET_NP,TET_NP> CellTet<TET_N>::getMassMatrix(
 template <int TET_N>
 StaMatrix<double,TET_NP,TET_NP>
 CellTet<TET_N>::getMassMatrix() const {
-    static const UInt ncp = SimplexTet<1>::ncp;
+    static const size_t ncp = SimplexTet<1>::ncp;
     MatR44 cJ[SimplexTet<1>::ncp];
     base->getCubatureJacobian(cJ);
     double cJDet[ncp];
@@ -178,30 +182,30 @@ template <int TET_N>
 StaMatrix<double,TET_NP,TET_NP>
 CellTet<TET_N>::getMassMatrixIntegratedWithScalar(
         const double cScalar[SimplexTet<1>::ncp]) const {
-    static const UInt ncp = SimplexTet<1>::ncp;
+    static const size_t ncp = SimplexTet<1>::ncp;
     MatR44 cJ[SimplexTet<1>::ncp];
     base->getCubatureJacobian(cJ);
     double cJDetByScalar[ncp];
     base->getCubatureJacobianDeterminant(cJDetByScalar, cJ);
-    for (UInt c = 0; c < ncp; c++) {
+    for (size_t c = 0; c < ncp; c++) {
         cJDetByScalar[c] *= cScalar[c];
     }
     return getMassMatrix(cJDetByScalar);
 }
 
 template <int TET_N>
-double CellTet<TET_N>::getAreaOfFace(UInt face) const {
+double CellTet<TET_N>::getAreaOfFace(size_t face) const {
     return base->getAreaOfFace(face);
 }
 
 template <int TET_N>
-UInt CellTet<TET_N>::getNodeVertex(const UInt i) const {
+size_t CellTet<TET_N>::getNodeVertex(const size_t i) const {
     return tet.vertex(i);
 }
 
 template <int TET_N>
 bool CellTet<TET_N>::isLocalSide(
-        const UInt face,
+        const size_t face,
         const SurfR* surf) const {
     return (base->isLocalFace(face, *surf));
 }
@@ -209,7 +213,7 @@ bool CellTet<TET_N>::isLocalSide(
 template <int TET_N>
 bool CellTet<TET_N>::isLocalSide(
         const SurfR* surf) const {
-    for (UInt f = 0; f < faces; f++) {
+    for (size_t f = 0; f < faces; f++) {
         if (isLocalSide(f, surf)) {
             return true;
         }
@@ -219,30 +223,30 @@ bool CellTet<TET_N>::isLocalSide(
 
 template <int TET_N>
 CVecR3 CellTet<TET_N>::getSideNodePos(
-        const UInt f, const UInt i) const {
+        const size_t f, const size_t i) const {
     return n[tet.sideNode(f, i)];
 }
 
 template <int TET_N>
 CVecR3 CellTet<TET_N>::getSideNormal(
-        const UInt f) const {
+        const size_t f) const {
     return base->getSideNormal(f);
 }
 
 template <int TET_N>
-UInt CellTet<TET_N>::getSideNode(
-        const UInt f, const UInt i) const {
+size_t CellTet<TET_N>::getSideNode(
+        const size_t f, const size_t i) const {
     return tet.sideNode(f, i);
 }
 
 template <int TET_N>
 const CoordR3* CellTet<TET_N>::getSideBaseNode(
-        const UInt f, const UInt i) const {
+        const size_t f, const size_t i) const {
     return base->getSideV(f,i);
 }
 
 template <int TET_N>
-const CoordR3* CellTet<TET_N>::getSideVertexBaseNode(UInt f, UInt i) const {
+const CoordR3* CellTet<TET_N>::getSideVertexBaseNode(size_t f, size_t i) const {
     return (base->getSideVertex(f, i));
 }
 
@@ -251,14 +255,14 @@ void CellTet<TET_N>::buildNodes() {
     // Evaluates Lagrange's functions in positions specified by the
     // simplex coordinates of tet.
     double lagrEv[tet.np][base->numberOfCoordinates()];
-    for (UInt j = 0; j < tet.np; j++) {
-        for (UInt i = 0; i < base->numberOfCoordinates(); i++) {
+    for (size_t j = 0; j < tet.np; j++) {
+        for (size_t i = 0; i < base->numberOfCoordinates(); i++) {
             lagrEv[j][i]= base->getTet().getLagr(i).eval(tet.coordinate(j));
         }
     }
     // Computes nodes.
-    for (UInt j = 0; j < tet.np; j++) {
-        for (UInt i = 0; i < base->numberOfCoordinates(); i++) {
+    for (size_t j = 0; j < tet.np; j++) {
+        for (size_t i = 0; i < base->numberOfCoordinates(); i++) {
             this->n[j] += *(base->getV(i)) * lagrEv[j][i];
         }
     }
@@ -266,7 +270,7 @@ void CellTet<TET_N>::buildNodes() {
 
 template <int TET_N>
 bool CellTet<TET_N>::isFaceContainedInPlane(
-        const UInt face,
+        const size_t face,
         const CartesianPlane plane) const {
     return base->isFaceContainedInPlane(face, plane);
 }
@@ -276,14 +280,14 @@ void CellTet<TET_N>::printInfo() const {
     cout << " --- CellTet information --- " << endl;
     this->base->printInfo();
     cout << "Nodes: " << this->np << endl;
-    for (UInt i = 0; i < this->np; i++) {
+    for (size_t i = 0; i < this->np; i++) {
         this->n[i].printInfo();
         cout << endl;
     }
     cout << "Side Nodes and Normal vectors:" << endl;
-    for (UInt f = 0; f < base->numberOfFaces(); f++) {
+    for (size_t f = 0; f < base->numberOfFaces(); f++) {
         cout << "Face " << f << ": " << endl;
-        for (UInt i = 0; i < this->nfp; i++) {
+        for (size_t i = 0; i < this->nfp; i++) {
             cout << "Pos: ";
             this->getSideNodePos(f,i).printInfo();
             cout << "Normal: ";
@@ -291,28 +295,28 @@ void CellTet<TET_N>::printInfo() const {
             cout << endl;
         }
     }
-    for (UInt f = 0; f < base->numberOfFaces(); f++) {
+    for (size_t f = 0; f < base->numberOfFaces(); f++) {
         cout << "Area of face " << f << ": "
                 << this->base->getAreaOfFace(f) << endl;
     }
     cout << " Volume: " << this->base->getVolume() << endl;
     cout << " Neighbour nodes: (vmapP)" << endl;
-    for (UInt f = 0; f < this->faces; f++) {
+    for (size_t f = 0; f < this->faces; f++) {
         cout << " Face #" << f << ": ";
-        for (UInt i = 0; i < this->nfp; i++) {
+        for (size_t i = 0; i < this->nfp; i++) {
             cout << this->vmapP[f][i] << " ";
         }
         cout << endl;
     }
     cout << " Vertex info: " << endl;
-    for (UInt i = 0; i < this->vertices; i++) {
+    for (size_t i = 0; i < this->vertices; i++) {
         this->getV(i)->printInfo();
         cout << endl;
     }
     cout << " Side Vertex Info: " << endl;
-    for (UInt f = 0; f < this->faces; f++) {
+    for (size_t f = 0; f < this->faces; f++) {
         cout << "Face #" << f << endl;
-        for (UInt i = 0; i < this->nfp; i++) {
+        for (size_t i = 0; i < this->nfp; i++) {
             this->getSideVertexBaseNode(f,i)->printInfo();
             cout << endl;
         }
@@ -359,19 +363,19 @@ void CellTet10<TET_N>::getCurvedLIFTnormal(
         StaMatrix<double,np,nfp> LIFTn[3],
         StaMatrix<double,np,nfp> LIFTcn[3],
         StaMatrix<double,np,nfp> LIFTrn[3],
-        const UInt f) const {
+        const size_t f) const {
     // Side mass matrix.
     vector<const CoordR3*> coord;
-    for (UInt i = 0; i < this->base->numberOfSideCoordinates(); i++) {
+    for (size_t i = 0; i < this->base->numberOfSideCoordinates(); i++) {
         coord.push_back(this->base->getSideV(f,i));
     }
     Tri6 face(ElemId(0), &coord[0]);
-    static const UInt ncp = SimplexTri<2>::ncp;
+    static const size_t ncp = SimplexTri<2>::ncp;
     double csdf[ncp];
     face.getCubatureDifferentials(csdf);
     CVecR3 csdn[ncp], csdcn[ncp], csdrn[ncp];
     face.getCubatureNormals(csdn);
-    for (UInt c = 0; c < ncp; c++) {
+    for (size_t c = 0; c < ncp; c++) {
         csdcn[c](0) = csdn[c](0) * csdn[c](1);
         csdcn[c](1) = csdn[c](1) * csdn[c](2);
         csdcn[c](2) = csdn[c](2) * csdn[c](0);
@@ -380,11 +384,11 @@ void CellTet10<TET_N>::getCurvedLIFTnormal(
     }
     StaMatrix<double,nfp,nfp> sMMn[3], sMMcn[3], sMMrn[3];
     static const SimplexTri<TET_N> tri;
-    for (UInt i = 0; i < 3; i++) {
+    for (size_t i = 0; i < 3; i++) {
         sMMn[i].zeros();
         sMMcn[i].zeros();
         sMMrn[i].zeros();
-        for (UInt c = 0; c < ncp; c++) {
+        for (size_t c = 0; c < ncp; c++) {
             sMMn[i] += tri.cwaa[c] * (csdf[c] / 2.0) * csdn[c](i);
             sMMcn[i] += tri.cwaa[c] * (csdf[c] / 2.0) * csdcn[c](i);
             sMMrn[i] += tri.cwaa[c] * (csdf[c] / 2.0) * csdrn[c](i);
@@ -400,9 +404,13 @@ void CellTet10<TET_N>::getCurvedLIFTnormal(
     StaMatrix<double,np,nfp> MMR;
     MMR = this->getMassMatrix().invert() * R;
     // Final form.
-    for (UInt i = 0; i < 3; i++) {
+    for (size_t i = 0; i < 3; i++) {
         LIFTn[i] = MMR * sMMn[i];
         LIFTcn[i] = MMR * sMMcn[i];
         LIFTrn[i] = MMR * sMMrn[i];
     }
+}
+
+}
+}
 }

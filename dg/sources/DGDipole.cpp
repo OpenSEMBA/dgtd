@@ -35,25 +35,25 @@ DGDipole::DGDipole(
       throw Error("Trying to set TF/SF in a not backed boundary.");
    }
    // Total field boundary.
-   vector<pair<UInt, UInt> > total;
+   vector<pair<size_t, size_t> > total;
    total = getTotalFieldElemFaces(bc, map, cells);
    tPos = new SphericalVector[ETInc.size() * nfp];
-   for (UInt i = 0; i < total.size(); i++) {
+   for (size_t i = 0; i < total.size(); i++) {
       ElemId id = cells.getIdOfRelPos(total[i].first);
-      UInt f = total[i].second;
-      for (UInt j = 0; j < nfp; j++) {
+      size_t f = total[i].second;
+      for (size_t j = 0; j < nfp; j++) {
          tPos[i*nfp+j] =
                cells.getPtrToCellWithId(id)->getSideNodePos(f,j) - position_;
       }
    }
    // Scattered field boundary.
-   vector<pair<UInt,UInt> > scatt;
+   vector<pair<size_t,size_t> > scatt;
    scatt = getScattFieldElemFaces(bc, map, cells);
    sPos = new SphericalVector[ESInc.size() * nfp];
-   for (UInt i = 0; i < scatt.size(); i++) {
+   for (size_t i = 0; i < scatt.size(); i++) {
       ElemId id = cells.getIdOfRelPos(scatt[i].first);
-      UInt f = scatt[i].second;
-      for (UInt j = 0; j < nfp; j++) {
+      size_t f = scatt[i].second;
+      for (size_t j = 0; j < nfp; j++) {
          sPos[i*nfp+j] =
                cells.getPtrToCellWithId(id)->getSideNodePos(f,j) - position_;
       }
@@ -74,7 +74,7 @@ void DGDipole::computeExcitationField(
         FieldR3& EInc,
         FieldR3& HInc,
       const SphericalVector* vPos,
-      const UInt nE,
+      const size_t nE,
       const Real time) const {
    // PURPOSE: Computes the dipole excitation.
    // Chapter 2, R. Gomez's book. 2006.
@@ -90,8 +90,8 @@ void DGDipole::computeExcitationField(
    SphericalVector sphE, sphH;
    CVecR3 E, H;
    // External field.
-   const UInt nFields = nfp * nE;
-   for (UInt j = 0; j < nFields; j++) {
+   const size_t nFields = nfp * nE;
+   for (size_t j = 0; j < nFields; j++) {
       pos = vPos[j].norm();
       pos2 = pos * pos;
       pos3 = pos2 * pos;

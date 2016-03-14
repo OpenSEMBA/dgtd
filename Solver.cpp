@@ -25,22 +25,22 @@ namespace Cudg3d {
 
 Solver::Solver(Data* raw) {
     // Smb data adaptation and validation.
-//    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
+    //    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
     Data smb;
-//    AdapterDGTD(*raw).convert(smb); TODO Adapt OutRqs on Volumes.
+    //    AdapterDGTD(*raw).convert(smb); TODO Adapt OutRqs on Volumes.
     // Time integrator initialization.
-//    options_ = smb.solverOptions->castTo<OptionsSolverDGTD>();
-//    integrator_ = initIntegrator(&mesh, smb.pMGroup, options_);
-//    integrator_->partitionate(&mesh, comm_);
+    //    options_ = smb.solverOptions->castTo<OptionsSolverDGTD>();
+    //    integrator_ = initIntegrator(&mesh, smb.pMGroup, options_);
+    //    integrator_->partitionate(&mesh, comm_);
     // Spatial discretization.
-//    dg_ = new DGExplicit(mesh, *smb.physicalModels, *smb.sources, *options_, comm_);
-//    dg_->setOutputRequests(smb.outputRequests);
-//    integrator_->setSolver(dg_);
+    //    dg_ = new DGExplicit(mesh, *smb.physicalModels, *smb.sources, *options_, comm_);
+    //    dg_->setOutputRequests(smb.outputRequests);
+    //    integrator_->setSolver(dg_);
     // Exporter initialization.
-//    cout << " - Initializing exporter... " << flush;
-//    const string outputFilename = smb.getOutputFilename();
-//    exporter_ = new ExporterGiD(smb, outputFilename, outputs_);
-//    cout << "[OK]" << endl;
+    //    cout << " - Initializing exporter... " << flush;
+    //    const string outputFilename = smb.getOutputFilename();
+    //    exporter_ = new ExporterGiD(smb, outputFilename, outputs_);
+    //    cout << "[OK]" << endl;
 
 }
 
@@ -54,20 +54,20 @@ Solver::~Solver() {
 bool Solver::run() {
     Math::Real time = 0.0;
     while (time < options_->getFinalTime()) {
-//        dg_->update(outputs_);
-//        exporter_->process(time, outputs_);
+        //        dg_->update(outputs_);
+        //        exporter_->process(time, outputs_);
     }
     return true;
 }
 
 Integrator* Solver::initIntegrator(
-        const Mesh::Volume* mesh,
+        const SEMBA::Cudg3d::Mesh::Volume* mesh,
         const PMGroup* pMGroup,
-        const Cudg3d::DGTD::Options* arg) {
+        const Options* arg) {
     Integrator* res;
     switch (arg->getTimeIntegrator()) {
     case Options::TimeIntegrator::lserk4:
-        cout<< "- Initializing LSERK Integrator." << endl;
+        cout<< "- Initial   izing LSERK Integrator." << endl;
         res = new IntegratorLSERK(*mesh, *pMGroup, arg);
         break;
     case Options::TimeIntegrator::lf2:
@@ -83,7 +83,7 @@ Integrator* Solver::initIntegrator(
         res = new IntegratorVerlet(*mesh, *pMGroup, arg);
         break;
     default:
-        throw Error("Undefined time integrator.");
+        throw logic_error("Undefined time integrator.");
     }
     return res;
 }

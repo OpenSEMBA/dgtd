@@ -19,14 +19,14 @@ CellTri<TRI_N>::~CellTri() {
 }
 
 template<int TRI_N>
-UInt
+size_t
 CellTri<TRI_N>::getNumberOfVertices() const {
 	return vertices;
 }
 
 template<int TRI_N>
 CVecR3
-CellTri<TRI_N>::getSideNormal(const UInt s) const {
+CellTri<TRI_N>::getSideNormal(const size_t s) const {
 	cout << "ERROR @ CellTri:: Not Done" << endl;
 	exit(-1);
 }

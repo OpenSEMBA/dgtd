@@ -63,7 +63,7 @@ DGExplicit::~DGExplicit() {
 
 }
 
-UInt DGExplicit::getFieldDOFs() {
+size_t DGExplicit::getFieldDOFs() {
     return (nK * np * 3);
 }
 
@@ -85,31 +85,31 @@ void DGExplicit:: printInfo() const {
 }
 
 void DGExplicit::computePolarizationCurrentsRHS(
-        const UInt e1,
-        const UInt e2) {
+        const size_t e1,
+        const size_t e2) {
     computePolarizationCurrentsRHSElectric(e1,e2);
     computePolarizationCurrentsRHSMagnetic(e1,e2);
 }
 
 void DGExplicit::computePolarizationCurrentsRHSElectric(
-        const UInt e1, const UInt e2) {
-    for (UInt d = 0; d < dispersive.size(); d++) {
+        const size_t e1, const size_t e2) {
+    for (size_t d = 0; d < dispersive.size(); d++) {
         dispersive[d]->computeRHSElectricPolarizationCurrents(E, e1, e2);
         dispersive[d]->computeRHSElectric(rhsE, E, e1, e2);
     }
 }
 
 void DGExplicit::computePolarizationCurrentsRHSMagnetic(
-        const UInt e1, const UInt e2) {
-    for (UInt d = 0; d < dispersive.size(); d++) {
+        const size_t e1, const size_t e2) {
+    for (size_t d = 0; d < dispersive.size(); d++) {
         dispersive[d]->computeRHSMagneticPolarizationCurrents(H, e1, e2);
         dispersive[d]->computeRHSMagnetic(rhsH, H, e1, e2);
     }
 }
 
 void DGExplicit::computeRHS(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real localTime,
         const Real minDT) {
     computeRHSElectric(e1,e2, localTime,minDT);
@@ -117,14 +117,14 @@ void DGExplicit::computeRHS(
 }
 
 void DGExplicit::computeRHSElectric(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real localTime,
         const Real minDT) {
     computeCurlsInRHSElectric(e1,e2);
     computeJumps(e1,e2, localTime,minDT);
     addFluxesToRHSElectric(e1,e2);
-    UInt i, j, e;
+    size_t i, j, e;
 #	pragma omp parallel for private(i,j,e)
     for (e = e1; e < e2; e++) {
         i = e * np;
@@ -134,14 +134,14 @@ void DGExplicit::computeRHSElectric(
 }
 
 void DGExplicit::computeRHSMagnetic(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real localTime,
         const Real minDT) {
     computeCurlsInRHSMagnetic(e1,e2);
     computeJumps(e1,e2,localTime,minDT);
     addFluxesToRHSMagnetic(e1,e2);
-    UInt i, j, e;
+    size_t i, j, e;
 #pragma omp parallel for private(i,j,e)
     for (e = e1; e < e2; e++) {
         i = e * np;
@@ -151,9 +151,9 @@ void DGExplicit::computeRHSMagnetic(
 }
 
 void DGExplicit::computeCurlsInRHSElectric(
-        const UInt e1,
-        const UInt e2) {
-    UInt i, e;
+        const size_t e1,
+        const size_t e2) {
+    size_t i, e;
 #pragma omp parallel for private(e,i)
     for (e = e1; e < e2; e++) {
         // i: Beginning of element field. [0, (nK-1)*np]
@@ -171,9 +171,9 @@ void DGExplicit::computeCurlsInRHSElectric(
 }
 
 void DGExplicit::computeCurlsInRHSMagnetic(
-        const UInt e1,
-        const UInt e2) {
-    UInt i, e;
+        const size_t e1,
+        const size_t e2) {
+    size_t i, e;
 #pragma omp parallel for private(e,i)
     for (e = e1; e < e2; e++) {
         // i: Beginning of element field. [0, (nK-1)*np]
@@ -190,8 +190,8 @@ void DGExplicit::computeCurlsInRHSMagnetic(
     }
 }
 void DGExplicit::computeJumps(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real localTime,
         const Real minDT) {
     if (comm->getNumberOfTasks() > 1) {
@@ -199,14 +199,14 @@ void DGExplicit::computeJumps(
                 nE.set(x), nE.set(y), nE.set(z), nH.set(x), nH.set(y), nH.set(z),
                 E(x),E(y),E(z),H(x),H(y),H(z));
     }
-    UInt b, i, j, k, f, e;
-    UInt vM, vP;
+    size_t b, i, j, k, f, e;
+    size_t vM, vP;
 #pragma omp parallel for private(e,k,i,f,j,vM,vP)
     for (e = e1; e < e2; e++) {
         k = e * np;   // Beginning of element field. [0, (nK-1)*np]
         i = e * nfp * faces;
-        for (UInt f = 0; f < faces; f++) {
-            for (UInt j = 0; j < nfp; j++) {
+        for (size_t f = 0; f < faces; f++) {
+            for (size_t j = 0; j < nfp; j++) {
                 vM = k + vmapM[f][j]; // Local field pos.
                 vP = map_[e][f][j]; // Neigh field pos.
                 dE.set(x)[i] = E(x)[vM] - ExP[e][f][vP];
@@ -288,40 +288,40 @@ void DGExplicit::computeJumps(
 }
 
 void DGExplicit::addFluxesToRHSElectric(
-        const UInt e1,
-        const UInt e2) {
+        const size_t e1,
+        const size_t e2) {
     static const bool useResForUpw = false;
     addFluxesToRHSElectric(e1,e2,useResForUpw);
 }
 
 void DGExplicit::addFluxesToRHSMagnetic(
-        const UInt e1,
-        const UInt e2) {
+        const size_t e1,
+        const size_t e2) {
     static const bool useResForUpw = false;
     addFluxesToRHSMagnetic(e1,e2,useResForUpw);
 }
 
 void DGExplicit::addFluxesToRHSElectric(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const bool useResForUpw) {
     addStraightFluxesToRHSElectric(e1,e2,useResForUpw);
     addCurvedFluxesToRHSElectric(e1,e2,useResForUpw);
 }
 
 void DGExplicit::addFluxesToRHSMagnetic(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const bool useResForUpw) {
     addStraightFluxesToRHSMagnetic(e1,e2,useResForUpw);
     addCurvedFluxesToRHSMagnetic(e1,e2,useResForUpw);
 }
 
 void DGExplicit::addStraightFluxesToRHSElectric(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const bool useResForUpw) {
-    UInt i,j, k, f, e;
+    size_t i,j, k, f, e;
     Real fx[nfpfaces], fy[nfpfaces], fz[nfpfaces];
     if (upwinding == 0.0) {
         // ---------- Centred flux ------------------------------------
@@ -448,10 +448,10 @@ void DGExplicit::addStraightFluxesToRHSElectric(
 }
 
 void DGExplicit::addStraightFluxesToRHSMagnetic (
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const bool useResForUpw) {
-    UInt i, j, f, e, k;
+    size_t i, j, f, e, k;
     Real fx[nfpfaces], fy[nfpfaces], fz[nfpfaces];
     if (upwinding == 0.0) {
         // ---------- Centred flux --------------------------------------------
@@ -572,10 +572,10 @@ void DGExplicit::addStraightFluxesToRHSMagnetic (
     }
 }
 void DGExplicit::addCurvedFluxesToRHSElectric(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const bool useResForUpw) {
-    UInt c;
+    size_t c;
 #pragma omp parallel for private(c)
     for (c = 0; c < nCurvedFaces; c++) {
         if (e1 <= curveFace[c].solverPosition
@@ -586,10 +586,10 @@ void DGExplicit::addCurvedFluxesToRHSElectric(
 }
 
 void DGExplicit::addCurvedFluxesToRHSMagnetic(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const bool useResForUpw) {
-    UInt c;
+    size_t c;
 #pragma omp parallel for private(c)
     for (c = 0; c < nCurvedFaces; c++) {
         if (e1 <= curveFace[c].solverPosition
@@ -600,20 +600,20 @@ void DGExplicit::addCurvedFluxesToRHSMagnetic(
 }
 
 void DGExplicit::addRHSToFieldsElectric(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real rkdt) {
-    UInt init = getIndexOfElement(e1);
-    UInt end = getIndexOfElement(e2);
+    size_t init = getIndexOfElement(e1);
+    size_t end = getIndexOfElement(e2);
     E.addProd_omp(init, end, getRHSElectric(), rkdt);
 }
 
 void DGExplicit::addRHSToFieldsMagnetic(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real rkdt) {
-    UInt init = getIndexOfElement(e1);
-    UInt end = getIndexOfElement(e2);
+    size_t init = getIndexOfElement(e1);
+    size_t end = getIndexOfElement(e2);
     H.addProd_omp(init, end, getRHSMagnetic(), rkdt);
 }
 
@@ -631,14 +631,14 @@ void DGExplicit::allocateMaps() {
     HxP = new Real**[nK];
     HyP = new Real**[nK];
     HzP = new Real**[nK];
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ExP[e] = new Real*[faces];
         EyP[e] = new Real*[faces];
         EzP[e] = new Real*[faces];
         HxP[e] = new Real*[faces];
         HyP[e] = new Real*[faces];
         HzP[e] = new Real*[faces];
-        for (UInt f = 0; f < faces; f++) {
+        for (size_t f = 0; f < faces; f++) {
             ExP[e][f] = NULL;
             EyP[e][f] = NULL;
             EzP[e][f] = NULL;
@@ -648,9 +648,9 @@ void DGExplicit::allocateMaps() {
         }
     }
     map_ = new Int**[nK];
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         map_[e] = new Int*[faces];
-        for (UInt f = 0; f < faces; f++) {
+        for (size_t f = 0; f < faces; f++) {
             map_[e][f] = NULL;
         }
     }
@@ -661,7 +661,7 @@ void DGExplicit::assignMatrices(const CellGroup& cells) {
     Cx = new const Real*[nK];
     Cy = new const Real*[nK];
     Cz = new const Real*[nK];
-    UInt e;
+    size_t e;
 #	ifdef SOLVER_DEDUPLICATE_OPERATORS
 #	pragma omp parallel for private(e)
     for (e = 0; e < nK; e++) {
@@ -669,7 +669,7 @@ void DGExplicit::assignMatrices(const CellGroup& cells) {
         const ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
         C = cell->getCMatrices();
-        for (UInt i = 0; i < 3; i++) {
+        for (size_t i = 0; i < 3; i++) {
             set<StaMatrix<Real,np,np>, lexCompareMat>::iterator it;
             it = CList.find(C[i]);
             if (it != CList.end()) {
@@ -693,10 +693,10 @@ void DGExplicit::assignMatrices(const CellGroup& cells) {
     CList = new StaMatrix<Real,np,np>[3*nK];
 #	pragma omp parallel for private(e)
     for (e = 0; e < nK; e++) {
-        UInt id = cells.getIdOfRelPos(e);
+        size_t id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell_ = cells.getPtrToCellWithId(id);
-        for (UInt i = 0; i < 3; i++) {
-            UInt j = 3 * e + i;
+        for (size_t i = 0; i < 3; i++) {
+            size_t j = 3 * e + i;
             if (i == 0) {
                 Cx[e] = CList[j].val();
             }
@@ -715,10 +715,10 @@ void DGExplicit::assignPointersToNeighbours(
         const CellGroup& cells,
         const Connectivities& map,
         const Mesh::Volume& mesh) {
-    UInt nNeighs = 0;
-    for (UInt k = 0; k < nK; k++) {
+    size_t nNeighs = 0;
+    for (size_t k = 0; k < nK; k++) {
         const VolR* vol = cells(k)->getBase();
-        for (UInt f = 0; f < faces; f++) {
+        for (size_t f = 0; f < faces; f++) {
             Face neigh = map.getNeighFace(Face(vol,f));
             ElemId id2;
             if (map.isDomainBoundary(neigh)) {
@@ -728,7 +728,7 @@ void DGExplicit::assignPointersToNeighbours(
             }
             if (cells.isLocalId(id2)) {
                 // Assigns ptrs to local cells and counts non local neigh.
-                UInt e2 = cells.getRelPosOfId(id2);
+                size_t e2 = cells.getRelPosOfId(id2);
                 ExP[k][f] = &E.set(x)[e2 * np];
                 EyP[k][f] = &E.set(y)[e2 * np];
                 EzP[k][f] = &E.set(z)[e2 * np];
@@ -747,10 +747,10 @@ void DGExplicit::assignPointersToNeighbours(
     nH.setSize(nNeighs*np);
     nE.setAll((Real) 0.0);
     nH.setAll((Real) 0.0);
-    UInt neigh = 0;
-    for (UInt k = 0; k < nK; k++) {
+    size_t neigh = 0;
+    for (size_t k = 0; k < nK; k++) {
         const VolR* vol = cells(k)->getBase();
-        for (UInt f = 0; f < faces; f++) {
+        for (size_t f = 0; f < faces; f++) {
             Face neighF = map.getNeighFace(Face(vol,f));
             ElemId id2;
             if (map.isDomainBoundary(neighF)) {
@@ -804,22 +804,22 @@ void DGExplicit::BCToLocalArray(
         emPtr = removeNonLocalBCs(&cells, emPtr);
         // Stores em sources at boundaries.
         vector<const BoundaryCondition*> emAtDomainBound;
-        for (UInt i = 0; i < emPtr.size(); i++) {
+        for (size_t i = 0; i < emPtr.size(); i++) {
             if (map.isDomainBoundary(emPtr[i]->getCellFace())) {
                 emAtDomainBound.push_back(emPtr[i]);
             }
         }
         nSMA = smaPtr.size() + emAtDomainBound.size();
-        SMAe = new UInt[nSMA];
-        SMAf = new UInt[nSMA];
+        SMAe = new size_t[nSMA];
+        SMAf = new size_t[nSMA];
         // Stores solver relative positions and faces.
-        UInt j = 0;
-        for (UInt i = 0; i < smaPtr.size(); i++) {
+        size_t j = 0;
+        for (size_t i = 0; i < smaPtr.size(); i++) {
             SMAe[j] = cells.getRelPosOfId(smaPtr[i]->getCell()->getId());
             SMAf[j] = smaPtr[i]->getFace();
             j++;
         }
-        for (UInt i = 0; i < emAtDomainBound.size(); i++) {
+        for (size_t i = 0; i < emAtDomainBound.size(); i++) {
             SMAe[j] = cells.getRelPosOfId(emAtDomainBound[i]->getCell()->getId());
             SMAf[j] = emAtDomainBound[i]->getFace();
             j++;
@@ -832,10 +832,10 @@ void DGExplicit::BCToLocalArray(
         vector<const BoundaryCondition*> pecPtr = bc.getPtrsToPEC();
         pecPtr = removeNonLocalBCs(&cells, pecPtr);
         nPEC = pecPtr.size();
-        PECe = new UInt[nPEC];
-        PECf = new UInt[nPEC];
+        PECe = new size_t[nPEC];
+        PECf = new size_t[nPEC];
         // Stores solver rel pos and faces.
-        for (UInt i = 0; i < pecPtr.size(); i++) {
+        for (size_t i = 0; i < pecPtr.size(); i++) {
             PECe[i] = cells.getRelPosOfId(pecPtr[i]->getCell()->getId());
             PECf[i] = pecPtr[i]->getFace();
         }
@@ -846,16 +846,16 @@ void DGExplicit::BCToLocalArray(
         vector<const BoundaryCondition*> pmcPtr = bc.getPtrsToPMC();
         pmcPtr = removeNonLocalBCs(&cells, pmcPtr);
         nPMC = pmcPtr.size();
-        PMCe = new UInt[nPMC];
-        PMCf = new UInt[nPMC];
+        PMCe = new size_t[nPMC];
+        PMCf = new size_t[nPMC];
         // Stores solver rel pos and faces.
-        for (UInt i = 0; i < pmcPtr.size(); i++) {
+        for (size_t i = 0; i < pmcPtr.size(); i++) {
             PMCe[i] = cells.getRelPosOfId(pmcPtr[i]->getCell()->getId());
             PMCf[i] = pmcPtr[i]->getFace();
         }
     }
     //    {
-    //        for (UInt i = 0; i < smb_->pMGroup->countSIBC(); i++) {
+    //        for (size_t i = 0; i < smb_->pMGroup->countSIBC(); i++) {
     //            const PMSurfaceSIBC* m =
     //                    dynamic_cast<const PMSurfaceSIBC*>(smb_->pMGroup->getPMSurface(i));
     //            if (m != NULL) {
@@ -876,17 +876,17 @@ void DGExplicit::buildEMSources(
         const Connectivities& maps,
         const CellGroup& cells) {
     // Copies the sources structure into solver.
-    for (UInt i = 0; i < em.getOf<PlaneWave>().size(); i++) {
+    for (size_t i = 0; i < em.getOf<PlaneWave>().size(); i++) {
         vector<const BoundaryCondition*> aux = bc.getPtrsToEMSourceBC();
         source.push_back(new DGPlaneWave(*(em(i)->castTo<PlaneWave>()), bc,
                 maps, cells, comm, dE, dH, vmapM));
     }
-    //    for (UInt i = 0; i < em.countDipoles(); i++) {
+    //    for (size_t i = 0; i < em.countDipoles(); i++) {
     //        vector<const BoundaryCondition*> aux = bc.get(Condition::emSource);
     //        source.push_back(
     //                new DGDipole(*em.getDipole(i), aux, maps, cells, dE, dH, vmapM));
     //    }
-    //    for (UInt i = 0; i < em.countWaveports(); i++) {
+    //    for (size_t i = 0; i < em.countWaveports(); i++) {
     //        vector<const BoundaryCondition*> aux =	 bc.get(Condition::emSource);
     //        Waveport::Shape shape = em.getWaveport(i)->getShape();
     //        if (shape == Waveport::rectangular) {
@@ -913,10 +913,10 @@ void DGExplicit::buildCurvedFluxScalingFactors(
         const Connectivities& map) {
     // Counts curved faces.
     nCurvedFaces = 0;
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-        for (UInt f = 0; f < cell->getFaces(); f++) {
+        for (size_t f = 0; f < cell->getFaces(); f++) {
             if (cell->isCurvedFace(f)) {
                 nCurvedFaces++;
             }
@@ -924,12 +924,12 @@ void DGExplicit::buildCurvedFluxScalingFactors(
     }
     curveFace = new DGCurvedFace[nCurvedFaces];
     // Supress linear fluxes operators. Computes curved operators.
-    UInt face = 0;
-    for (UInt e = 0; e < nK; e++) {
+    size_t face = 0;
+    for (size_t e = 0; e < nK; e++) {
         const VolR* vol = cells(e)->getBase();
         const CellTet<ORDER_N>* cell = cells.getPtrToCell(vol);
         Real impM, admM, impP, admP, impAv, admAv;
-        for (UInt f = 0; f < faces; f++) {
+        for (size_t f = 0; f < faces; f++) {
             if (cell->isCurvedFace(f)) {
                 // Builds CurvedFace information
                 impM = cell->material->getImpedance();
@@ -943,7 +943,7 @@ void DGExplicit::buildCurvedFluxScalingFactors(
                 curveFace[face++] = DGCurvedFace(
                         cell, f, e, rhsE, rhsH, dE, dH, dresE, dresH,
                         impP, admP, impAv, admAv);
-                UInt i = e * faces + f;
+                size_t i = e * faces + f;
                 // Sets flux scaling factors to zero.
                 CVecR3 zero(0.0, 0.0, 0.0);
                 nAdm.set(i, zero);
@@ -963,13 +963,13 @@ void DGExplicit::buildMaterials(
     //    // Creates Dispersive materials vars parameters and stores ptrs.
     //    const GroupPhysicalModels<PMVolumeDispersive> dispersives =
     //            smb_->pMGroup->getOf<PMVolumeDispersive>();
-    //    for (UInt i = 0; i < dispersives.size(); i++) {
+    //    for (size_t i = 0; i < dispersives.size(); i++) {
     //        dispersive.push_back(new DGDispersiveVolumic(*dispersives(i), cells));
     //    }
     //    // Creates PML materials variables parameters and stores pointers.
     //    const GroupPhysicalModels<PMVolumePML> pmls =
     //            smb_->pMGroup->getOf<PMVolumePML>();
-    //    for (UInt i = 0; i < pmls.size(); i++) {
+    //    for (size_t i = 0; i < pmls.size(); i++) {
     //        const bool isConstCond = arg->isPMLConstantConductivityProfile();
     //        const Real cond = arg->getPMLConductivity();
     //        switch (pmls(i)->getOrientation()) {
@@ -1002,8 +1002,8 @@ void DGExplicit::buildMaterials(
 
 bool DGExplicit::checkPtrsToNeigh() const {
     bool res = true;
-    for (UInt e = 0; e < nK; e++) {
-        for (UInt f = 0; f < faces; f++) {
+    for (size_t e = 0; e < nK; e++) {
+        for (size_t f = 0; f < faces; f++) {
             bool problem = false;
             problem |= (ExP[e][f] == NULL);
             problem |= (EyP[e][f] == NULL);
@@ -1025,8 +1025,8 @@ bool DGExplicit::checkPtrsToNeigh() const {
 void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
     // --- Copies vmapM -----------------------------------------------
     SimplexTet<ORDER_N> tet;
-    for (UInt f = 0; f < faces; f++) {
-        for (UInt i = 0; i < nfp; i++) {
+    for (size_t f = 0; f < faces; f++) {
+        for (size_t i = 0; i < nfp; i++) {
             vmapM[f][i] = tet.sideNode(f,i);
         }
     }
@@ -1038,15 +1038,15 @@ void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
         }
     }
     // deduplicates vmapP in a list and points cell->vmap to them.
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-        for (UInt f = 0; f < faces; f++) {
+        for (size_t f = 0; f < faces; f++) {
             // Checks if the vmapP[f] vector is in the list.
             bool found;
             for (Int i = 0; i < 16; i++) {
                 found = true;
-                for (UInt j = 0; j < nfp; j++)
+                for (size_t j = 0; j < nfp; j++)
                     if (vmapP[i][j] != Int(cell->vmapP[f][j])) {
                         found = false;
                         break;
@@ -1061,7 +1061,7 @@ void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
             if (!found) {
                 for (Int i = 0; i < 16; i++) {
                     if (vmapP[i][0] == -1) {
-                        for (UInt j = 0; j < nfp; j++) {
+                        for (size_t j = 0; j < nfp; j++) {
                             vmapP[i][j] = cell->vmapP[f][j];
                         }
                         // Points cell->vmapP to its corresponding one.
@@ -1074,8 +1074,8 @@ void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
     }
     // Checks that all the elem vmapP pointers have been correctly addressed.
     bool problem = false;
-    for (UInt e = 0; e < nK; e++) {
-        for (UInt f = 0; f < faces; f++) {
+    for (size_t e = 0; e < nK; e++) {
+        for (size_t f = 0; f < faces; f++) {
             if (map_[e][f] == NULL) {
                 problem = true;
                 if (problem) {
@@ -1087,11 +1087,11 @@ void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
         }
     }
     // Checks that vmapP has the correct values.
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-        for (UInt f = 0; f < faces; f++) {
-            for (UInt i = 0; i < nfp; i++) {
+        for (size_t f = 0; f < faces; f++) {
+            for (size_t i = 0; i < nfp; i++) {
                 if (Int(cell->vmapP[f][i]) != map_[e][f][i]) {
                     if (!problem) {
                         cerr << endl << "ERROR: Solver::deduplicateVMaps" << endl;
@@ -1111,8 +1111,8 @@ void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
 //        const vector<const BoundaryCondition*>& bc) const {
 //    vector<const BoundaryCondition*> res;
 //    res.reserve(bc.size());
-//    for (UInt i = 0; i < bc.size(); i++) {
-//        UInt id = bc[i]->getCell()->getId();
+//    for (size_t i = 0; i < bc.size(); i++) {
+//        size_t id = bc[i]->getCell()->getId();
 //        if (cells->isLocalId(id)) {
 //            res.push_back(bc[i]);
 //        }
@@ -1121,10 +1121,10 @@ void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
 //}
 
 void DGExplicit::LTSSaveFieldsAndResidues(
-        const UInt fKSave,
-        const UInt lKSave) {
-    const UInt init = fKSave * np;
-    const UInt end = lKSave * np;
+        const size_t fKSave,
+        const size_t lKSave) {
+    const size_t init = fKSave * np;
+    const size_t end = lKSave * np;
     savedE.copy(init, end, E);
     savedH.copy(init, end, H);
     savedResE.copy(init, end, resE);
@@ -1132,10 +1132,10 @@ void DGExplicit::LTSSaveFieldsAndResidues(
 }
 
 void DGExplicit::LTSLoadFieldsAndResidues(
-        const UInt fKLoad,
-        const UInt lKLoad) {
-    const UInt init = fKLoad * np;
-    const UInt end = lKLoad * np;
+        const size_t fKLoad,
+        const size_t lKLoad) {
+    const size_t init = fKLoad * np;
+    const size_t end = lKLoad * np;
     E.copy(init, end, savedE);
     H.copy(init, end, savedH);
     resE.copy(init, end, savedResE);
@@ -1153,9 +1153,9 @@ void DGExplicit::allocateFieldsForLTS() {
 }
 
 void DGExplicit::copyJumpsToResidueJumps(
-        const UInt e1,
-        const UInt e2) {
-    UInt i, j, f, e;
+        const size_t e1,
+        const size_t e2) {
+    size_t i, j, f, e;
 #pragma omp parallel for private(e,i,f,j)
     for (e = e1; e < e2; e++) {
         i = e * nfp * faces;
@@ -1175,8 +1175,8 @@ void DGExplicit::copyJumpsToResidueJumps(
 
 
 void DGExplicit::addRHSToResidueElectric(
-        const UInt e1, const UInt e2,	const Real rkdt) {
-    UInt i, j, e;
+        const size_t e1, const size_t e2,	const Real rkdt) {
+    size_t i, j, e;
 #pragma omp parallel for private(i,j,e)
     for (e = e1; e < e2; e++) {
         i = e * np;
@@ -1190,8 +1190,8 @@ void DGExplicit::addRHSToResidueElectric(
 }
 
 void DGExplicit::addRHSToResidueMagnetic(
-        const UInt e1, const UInt e2, const Real rkdt) {
-    UInt i, j, e;
+        const size_t e1, const size_t e2, const Real rkdt) {
+    size_t i, j, e;
 #pragma omp parallel for private(i,j,e)
     for (e = e1; e < e2; e++) {
         i = e * np;
@@ -1205,28 +1205,28 @@ void DGExplicit::addRHSToResidueMagnetic(
 }
 
 void DGExplicit::updateFieldsWithRes(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real rkb) {
     updateFieldsWithResBase(e1,e2,rkb);
-    for (UInt d = 0; d < dispersive.size(); d++) {
+    for (size_t d = 0; d < dispersive.size(); d++) {
         dispersive[d]->updateWithRes(e1,e2,rkb);
     }
 }
 
 void DGExplicit::addRHSToRes(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real rka,
         const Real dt) {
-    UInt i = getIndexOfElement(e1);
-    UInt j = getIndexOfElement(e2);
+    size_t i = getIndexOfElement(e1);
+    size_t j = getIndexOfElement(e2);
     resE.prod_omp(i,j, rka);
     resE.addProd_omp(i,j, rhsE, dt);
     resH.prod_omp(i,j, rka);
     resH.addProd_omp(i,j, rhsH, dt);
     // Polarization currents in dispersive materials.
-    for (UInt d = 0; d < dispersive.size(); d++) {
+    for (size_t d = 0; d < dispersive.size(); d++) {
         dispersive[d]->addRHSToRes(e1,e2,rka,dt);
     }
 }

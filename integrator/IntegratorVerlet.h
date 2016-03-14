@@ -48,12 +48,12 @@ public:
 	 timeIntegrate(
 	  const Real time) const;
 protected:
-	UInt
+	size_t
  	 getNumOfIterationsPerBigTimeStep(
-      const UInt e) const;
+      const size_t e) const;
 private:
-	static const UInt nStages = 2;
-	UInt
+	static const size_t nStages = 2;
+	size_t
 	 getNStages() const;
 	Real
 	 getMaxTimeRatio() const;
@@ -61,11 +61,11 @@ private:
 	 LTSTimeIntegration(
 	  const Real localTime,
 	  const Real localdt,
-	  const UInt tier) const;
+	  const size_t tier) const;
 	void
 	 updateFieldsVerlet(
-	  const UInt e1,
-	  const UInt e2,
+	  const size_t e1,
+	  const size_t e2,
 	  const Real localTime,
 	  const Real rkdt) const;
 };

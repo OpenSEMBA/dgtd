@@ -46,16 +46,16 @@ IntegratorVerlet::~IntegratorVerlet() {
 
 }
 
-UInt IntegratorVerlet::getNumOfIterationsPerBigTimeStep(
-        const UInt e) const {
-    UInt nTiers = getNTiers();
-    UInt nStages = getNStages();
-    UInt tier = timeTierList_(e,1);
-    UInt iter = (nTiers - tier) * nStages;
+size_t IntegratorVerlet::getNumOfIterationsPerBigTimeStep(
+        const size_t e) const {
+    size_t nTiers = getNTiers();
+    size_t nStages = getNStages();
+    size_t tier = timeTierList_(e,1);
+    size_t iter = (nTiers - tier) * nStages;
     return iter;
 }
 
-UInt IntegratorVerlet::getNStages() const {
+size_t IntegratorVerlet::getNStages() const {
     return nStages;
 }
 
@@ -76,9 +76,9 @@ void IntegratorVerlet::timeIntegrate(
 void IntegratorVerlet::LTSTimeIntegration(
         Real localTime,
         Real localdt,
-        const UInt tier) const {
-    UInt fK = getRange(tier, 0).first;
-    UInt lK = getRange(tier, 1).second;
+        const size_t tier) const {
+    size_t fK = getRange(tier, 0).first;
+    size_t lK = getRange(tier, 1).second;
     if (tier > 0) {
         LTSTimeIntegration(localTime, localdt/2.0, tier-1);
     }
@@ -90,8 +90,8 @@ void IntegratorVerlet::LTSTimeIntegration(
 }
 
 void IntegratorVerlet::updateFieldsVerlet(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real localTime,
         const Real rkdt) const {
     solver->computeCurlsInRHSMagnetic(e1,e2);

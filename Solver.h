@@ -32,14 +32,15 @@
     #include "../output/OutputCommGiD.h"
     #include "../output/OutputComm.h"
 #else
-    #include "../dgtd/core/comm/CommNone.h"
+    #include "communications/CommNone.h"
 #endif
-#include "dgtd/integrator/IntegratorLSERK.h"
-#include "dgtd/integrator/IntegratorLF2.h"
-#include "dgtd/integrator/IntegratorLF2Full.h"
-#include "dgtd/integrator/IntegratorVerlet.h"
+#include "IntegratorLSERK.h"
+#include "IntegratorLF2.h"
+#include "IntegratorLF2Full.h"
+#include "IntegratorVerlet.h"
 #include "solver/Solver.h"
 #include "dg/DGExplicit.h"
+#include "mesh/Volume.h"
 #include "Options.h"
 
 namespace SEMBA {
@@ -57,10 +58,11 @@ private:
     DG *dg_;
     Exporter* exporter_;
     const Options* options_;
+
     Integrator* initIntegrator(
-            const Geometry::Mesh::Volume* mesh,
+            const SEMBA::Cudg3d::Mesh::Volume* mesh,
             const PMGroup* pMGroup,
-            const Solver::DGTD::Options* args);
+            const Options* args);
     Comm* initMPI();
 };
 

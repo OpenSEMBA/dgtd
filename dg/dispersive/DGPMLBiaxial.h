@@ -42,17 +42,17 @@
 //    void computeRHSElectric(
 //            FieldR3& rhs,
 //            const FieldR3& f,
-//            const UInt e1, const UInt e2) const;
+//            const size_t e1, const size_t e2) const;
 //    void computeRHSMagnetic(
 //            FieldR3& rhs,
 //            const FieldR3& f,
-//            const UInt e1, const UInt e2) const;
+//            const size_t e1, const size_t e2) const;
 //    void computeRHSElectricPolarizationCurrents(
 //            const FieldR3& f,
-//            const UInt e1, const UInt e2);
+//            const size_t e1, const size_t e2);
 //    void computeRHSMagneticPolarizationCurrents(
 //            const FieldR3& f,
-//            const UInt e1, const UInt e2);
+//            const size_t e1, const size_t e2);
 //};
 //
 //#include "DGPMLBiaxial.hpp"

@@ -18,42 +18,23 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-/*
- * SolverWaveport.h
- *
- *  Created on: Aug 26, 2013
- *      Author: luis
- */
+#ifndef SRC_APPS_CUDG3D_CELL_CELL_H_
+#define SRC_APPS_CUDG3D_CELL_CELL_H_
 
-#ifndef SOLVERWAVEPORT_H_
-#define SOLVERWAVEPORT_H_
+namespace SEMBA {
+namespace Cudg3d {
+namespace Cell {
 
-#include "../../dg/sources/DGSource.h"
+typedef pair<const Cell*, size_t> Face;
 
-class DGWaveport : public DGSource {
+class Cell {
 public:
-    DGWaveport();
-    virtual	~DGWaveport();
-protected:
-    //	Real
-    //     getNumericalGammaMGauss(
-    //      const Real time,
-    //      const Real minDT,
-    //      const Real amplitude,
-    //      const Real delay,
-    //      const Real spread,
-    //      const Real kcm) const;
-    bool checkNormalsAreEqual(
-            const vector<pair<size_t,size_t> >& elemFace) const;
-protected:
-    CVecR3* posTF;
-    CVecR3* posTFNB;
-    CVecR3* posSF;
-private:
-    Real *gauss, *hm;
-    Real getHm(
-            const Real time,
-            const Real kcm) const;
+    Cell();
+    virtual ~Cell();
 };
 
-#endif /* SOLVERWAVEPORT_H_ */
+}
+}
+}
+
+#endif /* SRC_APPS_CUDG3D_CELL_CELL_H_ */

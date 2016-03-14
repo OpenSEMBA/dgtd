@@ -18,10 +18,10 @@ template<int TRI_N>
 class CellTri : public Cell {
 public:
     static const SimplexTri<TRI_N> tri;
-    static const UInt np = (TRI_N+1) * (TRI_N+2) / 2;
-    static const UInt nfp = (TRI_N + 1);
-    static const UInt faces = 3;
-    static const UInt vertices = 3;
+    static const size_t np = (TRI_N+1) * (TRI_N+2) / 2;
+    static const size_t nfp = (TRI_N + 1);
+    static const size_t faces = 3;
+    static const size_t vertices = 3;
     CellTri();
     virtual
     ~CellTri();
@@ -30,8 +30,8 @@ public:
             const CVecC3 magnetic[np],
             const double frequency,
             const pair<double,double> direction) const = 0;
-    virtual UInt getNumberOfVertices() const;
-    virtual CVecR3 getSideNormal(const UInt s) const;
+    virtual size_t getNumberOfVertices() const;
+    virtual CVecR3 getSideNormal(const size_t s) const;
 };
 
 #include "../../dgtd/core/CellTri.hpp"

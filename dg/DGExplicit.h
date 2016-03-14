@@ -44,86 +44,86 @@ public:
             const OptionsSolverDGTD& options,
             Comm* comm);
     virtual ~DGExplicit();
-    UInt getFieldDOFs();
+    size_t getFieldDOFs();
     const FieldR3& getRHSElectric() const;
     const FieldR3& getRHSMagnetic() const;
     void printInfo() const;
 protected:
     void computeRHS(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localtime,
             const Real rkdt);
     void computeRHSElectric(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localtime,
             const Real minDT);
     void computeRHSMagnetic(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localtime,
             const Real minDT);
-    void computeCurlsInRHSElectric(const UInt e1, const UInt e2);
-    void computeCurlsInRHSMagnetic(const UInt e1, const UInt e2);
+    void computeCurlsInRHSElectric(const size_t e1, const size_t e2);
+    void computeCurlsInRHSMagnetic(const size_t e1, const size_t e2);
     void computeJumps(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localTime,
             const Real minDT);
     void copyJumpsToResidueJumps(
-            const UInt e1,
-            const UInt e2);
+            const size_t e1,
+            const size_t e2);
     void addFluxesToRHSElectric(
-            const UInt e1, const UInt e2);
+            const size_t e1, const size_t e2);
     void addFluxesToRHSMagnetic(
-            const UInt e1, const UInt e2);
+            const size_t e1, const size_t e2);
     void addFluxesToRHSElectric(
-            const UInt e1, const UInt e2, const bool useResForUpw);
+            const size_t e1, const size_t e2, const bool useResForUpw);
     void addFluxesToRHSMagnetic(
-            const UInt e1, const UInt e2, const bool useResForUpw);
-    void addStraightFluxesToRHSElectric(const UInt e1, const UInt e2,
+            const size_t e1, const size_t e2, const bool useResForUpw);
+    void addStraightFluxesToRHSElectric(const size_t e1, const size_t e2,
             const bool useResForUpw);
-    void addStraightFluxesToRHSMagnetic(const UInt e1, const UInt e2,
+    void addStraightFluxesToRHSMagnetic(const size_t e1, const size_t e2,
             const bool useResForUpw);
-    void addCurvedFluxesToRHSElectric(const UInt e1, const UInt e2,
+    void addCurvedFluxesToRHSElectric(const size_t e1, const size_t e2,
             const bool useResForUpw);
-    void addCurvedFluxesToRHSMagnetic(const UInt e1, const UInt e2,
+    void addCurvedFluxesToRHSMagnetic(const size_t e1, const size_t e2,
             const bool useResForUpw);
     void computePolarizationCurrentsRHS(
-            const UInt e1, const UInt e2);
+            const size_t e1, const size_t e2);
     void computePolarizationCurrentsRHSElectric(
-            const UInt e1, const UInt e2);
+            const size_t e1, const size_t e2);
     void computePolarizationCurrentsRHSMagnetic(
-            const UInt e1, const UInt e2);
+            const size_t e1, const size_t e2);
     void addRHSToFieldsElectric(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkdt);
     void addRHSToFieldsMagnetic(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkdt);
-    UInt getIndexOfElement(const UInt e) const;
-    void addRHSToResidueElectric(const UInt e1, const UInt e2,
+    size_t getIndexOfElement(const size_t e) const;
+    void addRHSToResidueElectric(const size_t e1, const size_t e2,
             const Real rkdt);
-    void addRHSToResidueMagnetic(const UInt e1, const UInt e2,
+    void addRHSToResidueMagnetic(const size_t e1, const size_t e2,
             const Real rkdt);
     void addRHSToRes(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rka,
             const Real dt);
     void updateFieldsWithRes(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkb);
     void LTSSaveFieldsAndResidues(
-            const UInt fKSave,
-            const UInt lKSave);
+            const size_t fKSave,
+            const size_t lKSave);
     void LTSLoadFieldsAndResidues(
-            const UInt fKSave,
-            const UInt lKSave);
+            const size_t fKSave,
+            const size_t lKSave);
 private:
     // - Maps.
     Int vmapM[faces][nfp];
@@ -132,7 +132,7 @@ private:
     // Pointers to neighbour fields. dim = (nK, 4).
     Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
     // Curved faces stuff ---------------------------------------------
-    UInt nCurvedFaces;
+    size_t nCurvedFaces;
     DGCurvedFace *curveFace;
     const Real **Cx, **Cy, **Cz; // Pointers to C. dim = (nK)
     // Fields and residuals: dim = (np,nK)
@@ -146,8 +146,8 @@ private:
     // BC lists. nSMA, nPEC and nPMC are the number of BC of each kind.
     // BC are stored as pointers to memory positions in the jumps.
     // dim = (nK)
-    UInt nSMA, nPEC, nPMC;
-    UInt *SMAe, *SMAf, *PECe, *PECf, *PMCe, *PMCf;
+    size_t nSMA, nPEC, nPMC;
+    size_t *SMAe, *SMAf, *PECe, *PECf, *PMCe, *PMCf;
     vector<DGSource*> source;
     vector<DGDispersive*> dispersive;
     void buildMaterials(
@@ -179,7 +179,7 @@ private:
     void buildCurvedFluxScalingFactors(const CellGroup& cells, const Connectivities& map);
 };
 
-inline UInt DGExplicit::getIndexOfElement(const UInt e) const {
+inline size_t DGExplicit::getIndexOfElement(const size_t e) const {
     return (e * np);
 }
 

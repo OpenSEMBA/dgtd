@@ -40,26 +40,26 @@ public:
             const Real conductivity);
     virtual ~DGPMLUniaxial();
     void addRHSToRes(
-            const UInt e1, const UInt e2,
+            const size_t e1, const size_t e2,
             const Real rka, const Real dt);
     void updateWithRes(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkb);
     void computeRHSElectric(
             FieldR3& rhsE,
             const FieldR3& E,
-            const UInt e1, const UInt e2) const;
+            const size_t e1, const size_t e2) const;
     void computeRHSMagnetic(
             FieldR3& rhsH,
             const FieldR3& H,
-            const UInt e1, const UInt e2) const;
+            const size_t e1, const size_t e2) const;
     void computeRHSElectricPolarizationCurrents(
             const FieldR3& E,
-            const UInt e1, const UInt e2);
+            const size_t e1, const size_t e2);
     void computeRHSMagneticPolarizationCurrents(
             const FieldR3& H,
-            const UInt e1, const UInt e2);
+            const size_t e1, const size_t e2);
 protected:
     FieldR1 J, M, resJ, resM, rhsJ, rhsM;
 private:

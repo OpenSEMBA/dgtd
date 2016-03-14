@@ -35,15 +35,14 @@
 #include <omp.h>
 
 using namespace std;
-using namespace SEMBA;
 
 #include "argument/Argument.h"
 #include "solver/Options.h"
 
+namespace SEMBA {
 namespace Cudg3d {
-namespace DGTD {
 
-class Options : public Solver::Options {
+class Options : public SEMBA::Solver::Options {
 public:
 	enum class TimeIntegrator {
 		lserk4, verlet, lf2, lf2full

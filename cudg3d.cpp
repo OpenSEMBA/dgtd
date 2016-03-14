@@ -24,7 +24,7 @@
 using namespace std;
 using namespace SEMBA;
 
-#include "dgtd/Solver.h"
+#include "Solver.h"
 #include "solver/Info.h"
 
 int main(int argc, const char *argv[]) {
@@ -59,10 +59,10 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    Cudg3d::DGTD::Options solverDGTDOptions;
+    Cudg3d::Options solverDGTDOptions;
     solverDGTDOptions.set(opts);
         if (smb->solver->getName() == "cudg3d") {
-        Cudg3d::DGTD::Solver solver(smb);
+        Cudg3d::Solver solver(smb);
         if (solverDGTDOptions.isRunSimulation()) {
             solver.run();
         }

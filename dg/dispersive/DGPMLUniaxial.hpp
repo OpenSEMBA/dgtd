@@ -50,9 +50,9 @@ DGPMLUniaxial<D>::~DGPMLUniaxial() {
 
 template<Int D>
 void DGPMLUniaxial<D>::addRHSToRes(
-        const UInt e1, const UInt e2,
+        const size_t e1, const size_t e2,
         const Real rka, const Real dt) {
-//    UInt i,e;
+//    size_t i,e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,e)
 //#endif
@@ -70,9 +70,9 @@ void DGPMLUniaxial<D>::addRHSToRes(
 template<Int D>
 void DGPMLUniaxial<D>::computeRHSElectric(
         FieldR3& rhsE, const FieldR3& E,
-        const UInt e1, const UInt e2) const {
+        const size_t e1, const size_t e2) const {
 //    if (useConstantConductivity) {
-//        UInt i, j, e, n;
+//        size_t i, j, e, n;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n)
 //#endif
@@ -87,7 +87,7 @@ void DGPMLUniaxial<D>::computeRHSElectric(
 //            }
 //        }
 //    } else {
-//        UInt i,j,e;
+//        size_t i,j,e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -110,9 +110,9 @@ void DGPMLUniaxial<D>::computeRHSElectric(
 template<Int D>
 void DGPMLUniaxial<D>::computeRHSMagnetic(
         FieldR3& rhsH, const FieldR3& H,
-        const UInt e1, const UInt e2) const {
+        const size_t e1, const size_t e2) const {
 //    if (useConstantConductivity) {
-//        UInt i, j, e, n;
+//        size_t i, j, e, n;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n)
 //#endif
@@ -127,7 +127,7 @@ void DGPMLUniaxial<D>::computeRHSMagnetic(
 //            }
 //        }
 //    } else {
-//        UInt i, j, e;
+//        size_t i, j, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -150,9 +150,9 @@ void DGPMLUniaxial<D>::computeRHSMagnetic(
 template<Int D>
 void DGPMLUniaxial<D>::computeRHSElectricPolarizationCurrents(
         const FieldR3& E,
-        const UInt e1, const UInt e2) {
+        const size_t e1, const size_t e2) {
 //    if (useConstantConductivity) {
-//        UInt i, j, e, n;
+//        size_t i, j, e, n;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n)
 //#endif
@@ -165,7 +165,7 @@ void DGPMLUniaxial<D>::computeRHSElectricPolarizationCurrents(
 //            }
 //        }
 //    } else {
-//        UInt i,j,e;
+//        size_t i,j,e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -184,9 +184,9 @@ void DGPMLUniaxial<D>::computeRHSElectricPolarizationCurrents(
 template<Int D>
 void DGPMLUniaxial<D>::computeRHSMagneticPolarizationCurrents(
         const FieldR3& H,
-        const UInt e1, const UInt e2) {
+        const size_t e1, const size_t e2) {
 //    if (useConstantConductivity) {
-//        UInt i, j, e, n;
+//        size_t i, j, e, n;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n)
 //#endif
@@ -199,7 +199,7 @@ void DGPMLUniaxial<D>::computeRHSMagneticPolarizationCurrents(
 //            }
 //        }
 //    } else {
-//        UInt i, j, e;
+//        size_t i, j, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e)
 //#endif
@@ -234,10 +234,10 @@ bool DGPMLUniaxial<D>::check() const {
 
 template<Int D>
 void DGPMLUniaxial<D>::updateWithRes(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real rkb) {
-    UInt i, e;
+    size_t i, e;
 #ifdef SOLVER_USE_OPENMP
 #pragma omp parallel for private(i, e)
 #endif

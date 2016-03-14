@@ -41,11 +41,11 @@ void CommNone::abort() const {
 
 }
 
-UInt CommNone::getLocalOffset() const {
+size_t CommNone::getLocalOffset() const {
    return 0;
 }
 
-UInt CommNone::getLocalSize() const {
+size_t CommNone::getLocalSize() const {
    return getGlobalSize();
 }
 

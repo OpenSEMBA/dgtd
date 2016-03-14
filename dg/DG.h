@@ -43,13 +43,13 @@ using namespace std;
 #define SOLVER_DEDUPLICATE_OPERATORS
 
 struct lexCompareMat {
-    static const UInt np = ((ORDER_N+1) * (ORDER_N+2) * (ORDER_N+3) / 6);
+    static const size_t np = ((ORDER_N+1) * (ORDER_N+2) * (ORDER_N+3) / 6);
     bool
     operator() (
             const StaMatrix<Real,np,np>& lhs,
             const StaMatrix<Real,np,np>& rhs) const {
         static const Real tolerance = 1e-12;
-        for (UInt i = 0; i < (np*np); i++) {
+        for (size_t i = 0; i < (np*np); i++) {
             if (std::abs(lhs.val(i) - rhs.val(i)) > tolerance) {
                 if (lhs.val(i) < rhs.val(i)) {
                     return true;
@@ -70,14 +70,14 @@ class DG : public Ordering, public SpatialDiscretization {
     friend class IntegratorLF2Full;
     friend class IntegratorVerlet;
 public:
-    const static UInt N = ORDER_N;
-    const static UInt faces = 4;
-    const static UInt np = (N+1) * (N+2) * (N+3) / 6;
-    const static UInt np2 = np * 2;
-    const static UInt nfp = (N+1) * (N+2) / 2;
-    const static UInt npnfp = np * nfp;
-    const static UInt npnp = np * np;
-    const static UInt nfpfaces = nfp * faces;
+    const static size_t N = ORDER_N;
+    const static size_t faces = 4;
+    const static size_t np = (N+1) * (N+2) * (N+3) / 6;
+    const static size_t np2 = np * 2;
+    const static size_t nfp = (N+1) * (N+2) / 2;
+    const static size_t npnfp = np * nfp;
+    const static size_t npnp = np * np;
+    const static size_t nfpfaces = nfp * faces;
     DG();
     virtual ~DG();
     virtual void setFieldsToRandom();
@@ -92,14 +92,14 @@ public:
             const CVecI3& harmonics,
             CVecR3& polarization);
     void setFieldsAndTimeFromResumeFile();
-    virtual UInt getFieldDOFs() = 0;
+    virtual size_t getFieldDOFs() = 0;
     const FieldR3* getElectric() const;
     const FieldR3* getMagnetic() const;
-    virtual UInt getGlobalFieldPosOfVertex(
-            pair<const ElemR*, UInt> vertex) const;
-    virtual vector<UInt> getGlobalFieldPosOfFace(
+    virtual size_t getGlobalFieldPosOfVertex(
+            pair<const ElemR*, size_t> vertex) const;
+    virtual vector<size_t> getGlobalFieldPosOfFace(
             Face boundary) const;
-    virtual vector<UInt> getGlobalFieldPosOfVolume(
+    virtual vector<size_t> getGlobalFieldPosOfVolume(
             const ElemId volId) const;
     virtual void printInfo() const = 0;
 
@@ -109,7 +109,7 @@ protected:
     FieldR3 nAdm, nImp, rnAdm, rnImp, cnAdm, cnImp;
     Real *oneOverEps, *oneOverMu;
     Comm* comm;
-    UInt nK;
+    size_t nK;
     Real upwinding;
     Real LIFT[faces*npnfp]; //!< Flux gatherer operator. dim = matrix(np x (4*nfp))
 
@@ -124,91 +124,91 @@ protected:
             const CellGroup& cells,
             Comm* comm_);
     virtual void addFluxesToRHS(
-            const UInt e1, const UInt e2,
+            const size_t e1, const size_t e2,
             const Real localTime,
             const Real minDT);
-    virtual void addFluxesToRHSElectric(const UInt e1, const UInt e2) = 0;
-    virtual void addFluxesToRHSMagnetic(const UInt e1, const UInt e2) = 0;
+    virtual void addFluxesToRHSElectric(const size_t e1, const size_t e2) = 0;
+    virtual void addFluxesToRHSMagnetic(const size_t e1, const size_t e2) = 0;
     virtual void addFluxesToRHSElectric(
-            const UInt e1, const UInt e2, const bool useResForUpw) = 0;
+            const size_t e1, const size_t e2, const bool useResForUpw) = 0;
     virtual void addFluxesToRHSMagnetic(
-            const UInt e1, const UInt e2, const bool useResForUpw) = 0;
+            const size_t e1, const size_t e2, const bool useResForUpw) = 0;
     virtual void addRHSToFieldsElectric(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkdt) = 0;
     virtual void addRHSToFieldsMagnetic(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkdt) = 0;
     virtual void addRHSToResidueElectric(
-            const UInt e1, const UInt e2, const Real rkdt) = 0;
+            const size_t e1, const size_t e2, const Real rkdt) = 0;
     virtual void addRHSToResidueMagnetic(
-            const UInt e1, const UInt e2, const Real rkdt) = 0;
+            const size_t e1, const size_t e2, const Real rkdt) = 0;
     void buildCMatrices(const CellGroup& cells);
     virtual void buildMaterials(
             const CellGroup& cells,
             const OptionsSolverDGTD& arg) = 0;
     virtual void  computeRHS(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localtime,
             const Real rkdt) = 0;
     virtual void computeRHSElectric(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localtime,
             const Real minDT) = 0;
     virtual void computeRHSMagnetic(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localtime,
             const Real minDT) = 0;
-    virtual UInt getIndexOfElement(const UInt e) const = 0;
+    virtual size_t getIndexOfElement(const size_t e) const = 0;
     virtual const FieldR3& getRHSElectric() const = 0;
     virtual const FieldR3& getRHSMagnetic() const = 0;
     virtual void updateFieldsWithRes(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkb) = 0;
     virtual void updateFieldsWithResBase(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rkb);
-    virtual void computeCurlsInRHS(const UInt e1, const UInt e2);
-    virtual void computeCurlsInRHSElectric(const UInt e1, const UInt e2) = 0;
-    virtual void computeCurlsInRHSMagnetic(const UInt e1, const UInt e2) = 0;
+    virtual void computeCurlsInRHS(const size_t e1, const size_t e2);
+    virtual void computeCurlsInRHSElectric(const size_t e1, const size_t e2) = 0;
+    virtual void computeCurlsInRHSMagnetic(const size_t e1, const size_t e2) = 0;
     virtual void computeJumps(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localTime,
             const Real minDT) = 0;
     void copyFieldsInResidues(
-            const UInt e1,
-            const UInt e2);
+            const size_t e1,
+            const size_t e2);
     virtual void copyJumpsToResidueJumps(
-            const UInt e1,
-            const UInt e2) = 0;
+            const size_t e1,
+            const size_t e2) = 0;
     virtual void computePolarizationCurrentsRHS(
-            const UInt e1, const UInt e2) = 0;
+            const size_t e1, const size_t e2) = 0;
     virtual void computePolarizationCurrentsRHSElectric(
-            const UInt e1, const UInt e2) = 0;
+            const size_t e1, const size_t e2) = 0;
     virtual void computePolarizationCurrentsRHSMagnetic(
-            const UInt e1, const UInt e2) = 0;
+            const size_t e1, const size_t e2) = 0;
     virtual void LTSSaveFieldsAndResidues(
-            const UInt fKSave,
-            const UInt lKSave) = 0;
+            const size_t fKSave,
+            const size_t lKSave) = 0;
     virtual void LTSLoadFieldsAndResidues(
-            const UInt fKSave,
-            const UInt lKSave) = 0;
+            const size_t fKSave,
+            const size_t lKSave) = 0;
     virtual void addRHSToRes(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rka,
             const Real dt) = 0;
     void swapResiduesAndFields(
-            const UInt e1,
-            const UInt e2);
+            const size_t e1,
+            const size_t e2);
     void buildFluxScalingFactors(const CellGroup& cells, const Connectivities& map);
     void buildFieldScalingFactors(const CellGroup& cells);
     virtual void buildScalingFactors(

@@ -45,9 +45,9 @@ DGPMLMultiaxial::~DGPMLMultiaxial() {
 }
 
 void DGPMLMultiaxial::addRHSToRes(
-        const UInt e1, const UInt e2,
+        const size_t e1, const size_t e2,
         const Real rka, const Real dt) {
-//    UInt i, e;
+//    size_t i, e;
 //    for (i = 0; i < dof; i++) {
 //        e = elem[(i / np) % nElem];
 //        if (e1 <= e && e < e2) {
@@ -60,10 +60,10 @@ void DGPMLMultiaxial::addRHSToRes(
 }
 
 void DGPMLMultiaxial::updateWithRes(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real rkb) {
-//    UInt i, e;
+//    size_t i, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i, e)
 //#endif

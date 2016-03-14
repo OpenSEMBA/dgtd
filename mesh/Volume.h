@@ -19,19 +19,20 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 // File: Mesh.h
-#ifndef Mesh::Volume_H_
-#define Mesh::Volume_H_
+#ifndef MESH_VOLUME_H_
+#define MESH_VOLUME_H_
 
 #include <metis.h>
 #if METIS_VER_MAJOR < 5
 #error "Mesh partitioning requires METIS version 5+"
 #endif
-#define MESH_ALLOW_PARTITIONING
+//#define MESH_ALLOW_PARTITIONING
 
 using namespace std;
 
 #include "geometry/mesh/Unstructured.h"
 
+namespace SEMBA {
 namespace Cudg3d {
 namespace Mesh {
 
@@ -42,13 +43,15 @@ public:
     Volume(const Unstructured& uns);
     virtual ~Volume();
     Volume& operator=(const Volume& param);
-    vector<vector<ElemId>> getPartitionsIds(
-            const UInt nDivisions,
-            const vector<pair<ElemId,Int>> idWeights = vector<pair<ElemId,Int>>(),
-            const Real* taskPower = NULL) const;
+    vector<vector<Geometry::ElemId>> getPartitionsIds(
+            const size_t nDivisions,
+            const vector<pair<Geometry::ElemId,int>> idWeights =
+                    vector<pair<Geometry::ElemId,int>>(),
+            const Math::Real* taskPower = NULL) const;
 };
 
 } /* namespace Mesh */
+}
 }
 
 #endif

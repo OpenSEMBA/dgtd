@@ -59,7 +59,7 @@ void DGSource::initSource(
         FieldR3& dE,
         FieldR3& dH,
         const Int vmapM[faces][nfp]) {
-    vector<pair<UInt, UInt> > total, scatt, totalNotBacked;
+    vector<pair<size_t, size_t> > total, scatt, totalNotBacked;
     total = getTotalFieldElemFaces(bc, map, cells);
     scatt = getScattFieldElemFaces(bc, map, cells);
     totalNotBacked = getTotalNotBackedFieldElemFaces(bc, map, cells);
@@ -70,9 +70,9 @@ void DGSource::initSource(
     HSInc.setAll((Real) 0.0);
     EIncNB.setAll((Real) 0.0);
     HIncNB.setAll((Real) 0.0);
-    const UInt nETF = total.size();
-    const UInt nESF = scatt.size();
-    const UInt nETFNB = totalNotBacked.size();
+    const size_t nETF = total.size();
+    const size_t nESF = scatt.size();
+    const size_t nETFNB = totalNotBacked.size();
     // Allocates and sets jumps pointers.
     // The pointers point to the beginning of the face that they have to
     // update on each iteration.
@@ -82,10 +82,10 @@ void DGSource::initSource(
     dHxT = new Real*[nETF];
     dHyT = new Real*[nETF];
     dHzT = new Real*[nETF];
-    for (UInt j = 0; j < nETF; j++) {
-        UInt e = total[j].first;
-        UInt f = total[j].second;
-        UInt pos = e * nfp * faces + f * nfp;
+    for (size_t j = 0; j < nETF; j++) {
+        size_t e = total[j].first;
+        size_t f = total[j].second;
+        size_t pos = e * nfp * faces + f * nfp;
         dExT[j] = &dE.set(x)[pos];
         dEyT[j] = &dE.set(y)[pos];
         dEzT[j] = &dE.set(z)[pos];
@@ -99,10 +99,10 @@ void DGSource::initSource(
     dHxS = new Real*[nESF];
     dHyS = new Real*[nESF];
     dHzS = new Real*[nESF];
-    for (UInt j = 0; j < nESF; j++) {
-        UInt e = scatt[j].first;
-        UInt f = scatt[j].second;
-        UInt pos = e * nfp * faces + f * nfp;
+    for (size_t j = 0; j < nESF; j++) {
+        size_t e = scatt[j].first;
+        size_t f = scatt[j].second;
+        size_t pos = e * nfp * faces + f * nfp;
         dExS[j] = &dE.set(x)[pos];
         dEyS[j] = &dE.set(y)[pos];
         dEzS[j] = &dE.set(z)[pos];
@@ -116,10 +116,10 @@ void DGSource::initSource(
     dHxTNB = new Real*[nETFNB];
     dHyTNB = new Real*[nETFNB];
     dHzTNB = new Real*[nETFNB];
-    for (UInt j = 0; j < nETFNB; j++) {
-        UInt e = totalNotBacked[j].first;
-        UInt f = totalNotBacked[j].second;
-        UInt pos = e * (nfp*faces) + f * nfp;
+    for (size_t j = 0; j < nETFNB; j++) {
+        size_t e = totalNotBacked[j].first;
+        size_t f = totalNotBacked[j].second;
+        size_t pos = e * (nfp*faces) + f * nfp;
         dExTNB[j] = &dE.set(x)[pos];
         dEyTNB[j] = &dE.set(y)[pos];
         dEzTNB[j] = &dE.set(z)[pos];
@@ -129,23 +129,23 @@ void DGSource::initSource(
     }
     // List of elements.
     ETFe.resize(nETF);
-    for (UInt i = 0; i < nETF; i++) {
+    for (size_t i = 0; i < nETF; i++) {
         ETFe[i] = total[i].first;
     }
     ESFe.resize(nESF);
-    for (UInt i = 0; i < nESF; i++) {
+    for (size_t i = 0; i < nESF; i++) {
         ESFe[i] = scatt[i].first;
     }
     ETFNBe.resize(nETFNB);
-    for (UInt i = 0; i < nETFNB; i++) {
+    for (size_t i = 0; i < nETFNB; i++) {
         ETFNBe[i] = totalNotBacked[i].first;
     }
 }
 
 void DGSource::addJumps(
-        const UInt e1,
-        const UInt e2) {
-    UInt j, k, pos;
+        const size_t e1,
+        const size_t e2) {
+    size_t j, k, pos;
     // Total field jumps.
     for (j = 0; j < ETInc.size(); j++) {
         if (e1 <= ETFe[j] && ETFe[j] < e2) {
@@ -193,15 +193,15 @@ void DGSource::addJumps(
 }
 
 CVecR3* DGSource::initPositions(
-        const vector<pair<UInt, UInt> >& elemFace,
+        const vector<pair<size_t, size_t> >& elemFace,
         const CellGroup& cells) const {
-    const UInt nE = elemFace.size();
+    const size_t nE = elemFace.size();
     CVecR3 *pos;
     pos = new CVecR3 [nE * nfp];
-    for (UInt i = 0; i < nE; i++) {
+    for (size_t i = 0; i < nE; i++) {
         ElemId id = cells.getIdOfRelPos(elemFace[i].first);
-        UInt f = elemFace[i].second;
-        for (UInt j = 0; j < nfp; j++) {
+        size_t f = elemFace[i].second;
+        for (size_t j = 0; j < nfp; j++) {
             pos[i*nfp+j] =
                     cells.getPtrToCellWithId(id)->getSideNodePos(f,j);
         }
@@ -209,17 +209,17 @@ CVecR3* DGSource::initPositions(
     return pos;
 }
 
-vector<pair<UInt, UInt>> DGSource::getTotalFieldElemFaces(
+vector<pair<size_t, size_t>> DGSource::getTotalFieldElemFaces(
         const BCGroup& bc,
         const Connectivities& map,
         const CellGroup& cells) const {
-    vector<pair<UInt, UInt> > res;
-    for (UInt i = 0; i < bc.embc.size(); i++) {
+    vector<pair<size_t, size_t> > res;
+    for (size_t i = 0; i < bc.embc.size(); i++) {
         if (!map.isDomainBoundary(bc.embc[i].getCellFace())) {
             const ElemId id1 = bc.embc[i].getCell()->getId();
-            const UInt f1 = bc.embc[i].getFace();
+            const size_t f1 = bc.embc[i].getFace();
             if (cells.isLocalId(id1)) {
-                pair<UInt,UInt> aux1(cells.getRelPosOfId(id1), f1);
+                pair<size_t,size_t> aux1(cells.getRelPosOfId(id1), f1);
                 res.push_back(aux1);
             }
         }
@@ -227,20 +227,20 @@ vector<pair<UInt, UInt>> DGSource::getTotalFieldElemFaces(
     return res;
 }
 
-vector<pair<UInt, UInt>> DGSource::getScattFieldElemFaces(
+vector<pair<size_t, size_t>> DGSource::getScattFieldElemFaces(
         const BCGroup& bc,
         const Connectivities& map,
         const CellGroup& cells) const {
-    vector<pair<UInt,UInt> > res;
-    for (UInt i = 0; i <bc.embc.size(); i++) {
+    vector<pair<size_t,size_t> > res;
+    for (size_t i = 0; i <bc.embc.size(); i++) {
         Face bcFace = bc.embc[i].getCellFace();
         if (!map.isDomainBoundary(bcFace)) {
             Face outer = map.getNeighFace(bcFace);
             ElemId id2 = outer.first->getId();
-            UInt f2 = outer.second;
+            size_t f2 = outer.second;
             if (cells.isLocalId(id2)) {
-                UInt e2 = cells.getRelPosOfId(id2);
-                pair<UInt,UInt> aux2(e2, f2);
+                size_t e2 = cells.getRelPosOfId(id2);
+                pair<size_t,size_t> aux2(e2, f2);
                 res.push_back(aux2);
             }
         }
@@ -248,19 +248,19 @@ vector<pair<UInt, UInt>> DGSource::getScattFieldElemFaces(
     return res;
 }
 
-vector<pair<UInt, UInt>> DGSource::getTotalNotBackedFieldElemFaces(
+vector<pair<size_t, size_t>> DGSource::getTotalNotBackedFieldElemFaces(
 
         const BCGroup& bc,
         const Connectivities& map,
         const CellGroup& cells) const {
-    vector<pair<UInt,UInt> > res;
-    for (UInt i = 0; i < bc.embc.size(); i++) {
+    vector<pair<size_t,size_t> > res;
+    for (size_t i = 0; i < bc.embc.size(); i++) {
         Face inner = bc.embc[i].getCellFace();
         if (map.isDomainBoundary(inner)) {
             const ElemId id1 = inner.first->getId();
-            const UInt f1 = inner.second;
+            const size_t f1 = inner.second;
             if (cells.isLocalId(id1)) {
-                pair<UInt,UInt> aux1(cells.getRelPosOfId(id1), f1);
+                pair<size_t,size_t> aux1(cells.getRelPosOfId(id1), f1);
                 res.push_back(aux1);
             }
         }

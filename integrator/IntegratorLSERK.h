@@ -40,11 +40,11 @@ public:
             const OptionsSolverDGTD* arg);
     void timeIntegrate(const Real time) const;
 protected:
-    UInt getNumOfIterationsPerBigTimeStep(
-            const UInt e) const;
+    size_t getNumOfIterationsPerBigTimeStep(
+            const size_t e) const;
 private:
     bool useMaxStageSizeForLTS;
-    static const UInt nStages = 5;
+    static const size_t nStages = 5;
     static const Real rka[nStages];
     static const Real rkb[nStages];
     static const Real rkc[nStages];
@@ -56,17 +56,17 @@ private:
             const Real time,
             const Real localTime,
             const Real localdt,
-            const UInt tier) const;
+            const size_t tier) const;
     void updateResiduals(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real rka,
             const Real localTime,
             const Real localdt) const;
-    UInt getNStages() const;
-    Real getRKA(const UInt s) const;
-    Real getRKB(const UInt s) const;
-    Real getRKC(const UInt s) const;
-    Real getStageSize(const UInt s) const;
+    size_t getNStages() const;
+    Real getRKA(const size_t s) const;
+    Real getRKB(const size_t s) const;
+    Real getRKC(const size_t s) const;
+    Real getStageSize(const size_t s) const;
 };
 #endif /* SOLVERLSERK_H_ */

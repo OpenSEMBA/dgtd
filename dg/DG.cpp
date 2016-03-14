@@ -44,10 +44,10 @@ void DG::setFieldsToGaussian(
     CVecR3 aux;
     Real expArg;
     polarization.normalize();
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-        for (UInt i = 0; i < np; i++) {
+        for (size_t i = 0; i < np; i++) {
             aux = cell->n[i] - gaussCenter;
             expArg = aux.norm() / gaussWidth;
             E.set(e*np + i, polarization*amplitude*exp(- expArg * expArg));
@@ -63,10 +63,10 @@ void DG::setFieldsToHarmonics(
     Real amp;
     CVecR3 pos;
     polarization.normalize();
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-        for (UInt i = 0; i < np; i++) {
+        for (size_t i = 0; i < np; i++) {
             pos = cell->n[i];
             if(harmonics(1) == 0) {
                 amp = sin(pos(0) * harmonics(0) * Constants::pi);
@@ -97,7 +97,7 @@ void DG::setFieldsAndTimeFromResumeFile() {
     //      VectorModuleResult electricField(nK * np);
     //      electricField.readResult(f_in);
     //      // Copies result electric fields into the fast solver field vectors.
-    //      for (UInt i = 0; i < nK * np; i++) {
+    //      for (size_t i = 0; i < nK * np; i++) {
     //         E.set(x)[i] = electricField.values[0][i];
     //         E.set(y)[i] = electricField.values[1][i];
     //         E.set(z)[i] = electricField.values[2][i];
@@ -108,7 +108,7 @@ void DG::setFieldsAndTimeFromResumeFile() {
     //      VectorModuleResult magneticField(nK * np);
     //      magneticField.readResult(f_in);
     //      // Copies result electric fields into the fast solver field vectors.
-    //      for (UInt i = 0; i < nK * np; i++) {
+    //      for (size_t i = 0; i < nK * np; i++) {
     //         H.set(x)[i] = magneticField.values[0][i];
     //         H.set(y)[i] = magneticField.values[1][i];
     //         H.set(z)[i] = magneticField.values[2][i];
@@ -122,7 +122,7 @@ void DG::buildFieldScalingFactors(
         const CellGroup& cells) {
     oneOverEps = new Real[nK];
     oneOverMu = new Real[nK];
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
         oneOverEps[e] = 1.0 / (cell->material->getPermittivity());
@@ -140,15 +140,15 @@ void DG::buildFluxScalingFactors(
     cnAdm.setSize(nK*4);
     cnImp.setSize(nK*4);
     // Straight faces -------------------------------------------------
-    for (UInt e = 0; e < nK; e++) {
+    for (size_t e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
         Real impM, admM, impP, admP, impAv, admAv;
         CVecR3 n, rn, cn;
         CVecR3 nAdmAux, rnAdmAux, cnAdmAux;
         CVecR3 nImpAux, rnImpAux, cnImpAux;
-        for (UInt f = 0; f < faces; f++) {
-            UInt i = e * faces + f;
+        for (size_t f = 0; f < faces; f++) {
+            size_t i = e * faces + f;
             // Computes Scaling factor.
             Real fSc = 0.5 * cell->getAreaOfFace(f) / cell->getVolume();
             // Computes local impedance and admittance..
@@ -203,8 +203,8 @@ void DG::init(
 }
 
 void DG::addFluxesToRHS(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real localTime,
         const Real minDT) {
     computeJumps(e1,e2, localTime,minDT);
@@ -213,13 +213,13 @@ void DG::addFluxesToRHS(
 }
 
 void DG::buildCMatrices(const CellGroup& cells) {
-    UInt e;
+    size_t e;
 #ifdef SOLVER_DEDUPLICATE_OPERATORS
     for (e = 0; e < nK; e++) {
         ElemId id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
         array<StaMatrix<Real,np,np>,3> C = cell->getCMatrices();
-        for (UInt i = 0; i < 3; i++) {
+        for (size_t i = 0; i < 3; i++) {
             CList.insert(C[i]);
         }
     }
@@ -227,12 +227,12 @@ void DG::buildCMatrices(const CellGroup& cells) {
     CList = new StaMatrix<Real,np,np>[3*nK];
 #pragma omp parallel for private(e)
     for (e = 0; e < nK; e++) {
-        UInt id = cells.getIdOfRelPos(e);
+        size_t id = cells.getIdOfRelPos(e);
         const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
         StaMatrix<Real,np,np> C[3];
         cell->getCMatrices(C);
-        for (UInt i = 0; i < 3; i++) {
-            UInt j = 3 * e + i;
+        for (size_t i = 0; i < 3; i++) {
+            size_t j = 3 * e + i;
             CList[j] = C[i];
         }
     }
@@ -241,17 +241,17 @@ void DG::buildCMatrices(const CellGroup& cells) {
 }
 
 void DG::computeCurlsInRHS(
-        const UInt e1,
-        const UInt e2) {
+        const size_t e1,
+        const size_t e2) {
     computeCurlsInRHSElectric(e1, e2);
     computeCurlsInRHSMagnetic(e1, e2);
 }
 
 void DG::updateFieldsWithResBase(
-        const UInt e1,
-        const UInt e2,
+        const size_t e1,
+        const size_t e2,
         const Real rkb) {
-    UInt i, j, e;
+    size_t i, j, e;
 #pragma omp parallel for private(i,j,e)
     for (e = e1; e < e2; e++) {
         i = e * np;
@@ -269,19 +269,19 @@ void DG::updateFieldsWithResBase(
 
 
 void DG::copyFieldsInResidues(
-        const UInt e1,
-        const UInt e2) {
-    const UInt init = e1 * np;
-    const UInt end = e2 * np;
+        const size_t e1,
+        const size_t e2) {
+    const size_t init = e1 * np;
+    const size_t end = e2 * np;
     resE.copy(init, end, E);
     resH.copy(init, end, H);
 }
 
 void DG::swapResiduesAndFields(
-        const UInt e1,
-        const UInt e2) {
-    const UInt init = e1 * np;
-    const UInt end = e2 * np;
+        const size_t e1,
+        const size_t e2) {
+    const size_t init = e1 * np;
+    const size_t end = e2 * np;
     E.swap(resE, init, end);
     H.swap(resH, init, end);
 }
@@ -298,9 +298,9 @@ void DG::buildLIFT() {
     // These are used only for linear elements.
     static const SimplexTet<ORDER_N> tet;
     StaMatrix<Real, np, nfp * 4> tmpLIFT;
-    for (UInt i = 0; i < np; i++) {
-        for (UInt f = 0; f < faces; f++) {
-            for (UInt j = 0; j < nfp; j++) {
+    for (size_t i = 0; i < np; i++) {
+        for (size_t f = 0; f < faces; f++) {
+            for (size_t j = 0; j < nfp; j++) {
                 tmpLIFT(i, f * nfp + j) = tet.LIFT[f](i, j);
             }
         }
@@ -309,7 +309,7 @@ void DG::buildLIFT() {
 }
 
 void DG::allocateFieldsAndRes() {
-    UInt dof = getFieldDOFs();
+    size_t dof = getFieldDOFs();
     E.setSize(dof/3);
     H.setSize(dof/3);
     resE.setSize(dof/3);
@@ -324,28 +324,28 @@ const FieldR3* DG::getMagnetic() const {
     return &H;
 }
 
-UInt DG::getGlobalFieldPosOfVertex(pair<const ElemR*, UInt> vertex) const {
-    UInt e = getGlobalRelPosOfId(vertex.first->getId());
+size_t DG::getGlobalFieldPosOfVertex(pair<const ElemR*, size_t> vertex) const {
+    size_t e = getGlobalRelPosOfId(vertex.first->getId());
     static const SimplexTet<ORDER_N> tet;
     return (e*tet.np + tet.vertex(vertex.second));
 }
 
-vector<UInt> DG::getGlobalFieldPosOfFace(Face bound) const {
-    const UInt e = getGlobalRelPosOfId(bound.first->getId());
-    const UInt f = bound.second;
+vector<size_t> DG::getGlobalFieldPosOfFace(Face bound) const {
+    const size_t e = getGlobalRelPosOfId(bound.first->getId());
+    const size_t f = bound.second;
     static const SimplexTet<ORDER_N> tet;
-    vector<UInt> res(tet.nfp, 0);
-    for (UInt i = 0; i < tet.nfp; i++) {
+    vector<size_t> res(tet.nfp, 0);
+    for (size_t i = 0; i < tet.nfp; i++) {
         res[i] = e * tet.np + tet.sideNode(f,i);
     }
     return res;
 }
 
-vector<UInt> DG::getGlobalFieldPosOfVolume(const ElemId volId) const {
-    const UInt e = getGlobalRelPosOfId(volId);
+vector<size_t> DG::getGlobalFieldPosOfVolume(const ElemId volId) const {
+    const size_t e = getGlobalRelPosOfId(volId);
     static const SimplexTet<ORDER_N> tet;
-    vector<UInt> res(tet.np, 0);
-    for (UInt i = 0; i < tet.np; i++) {
+    vector<size_t> res(tet.np, 0);
+    for (size_t i = 0; i < tet.np; i++) {
         res[i] = e * tet.np + i;
     }
     return res;

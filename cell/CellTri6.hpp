@@ -13,7 +13,7 @@ CellTri6<TRI_N>::CellTri6(
 	assert(this->tri.ncp == geo.ncp);
 	id = base.getId();
 	normal = base.getNormal();
-	for (UInt i = 0; i < geo.np; i++) {
+	for (size_t i = 0; i < geo.np; i++) {
 		v[i] = base.getV(i);
 	}
 }
@@ -38,7 +38,7 @@ CellTri6<TRI_N>::getRadiatedField(
 	CVecR3 dir = sphDir.convertToCartesian();
 	CVecR3 cNode[geo.ncp];
 	getCubatureNodes(cNode);
-	for (UInt c = 0; c < geo.ncp; c++) {
+	for (size_t c = 0; c < geo.ncp; c++) {
 		phase[c] = exp(phaseShift * (double) dir.dot(cNode[c]));
 	}
 	// Computes integral.
@@ -54,8 +54,8 @@ CellTri6<TRI_N>::getRadiatedField(
 	MathUtils::convertToComplex(complexNormal,cNormal,geo.ncp);
 	static const SimplexTri<TRI_N> tri;
 	CVecC3 M, J, integrand;
-	for (UInt j = 0; j < tri.np; j++) {
-		for (UInt c = 0; c < geo.ncp; c++) {
+	for (size_t j = 0; j < tri.np; j++) {
+		for (size_t c = 0; c < geo.ncp; c++) {
 			M = - (complexNormal[c] ^ electric[j]);
 			J =   (complexNormal[c] ^ magnetic[j]);
 			integrand = ((J ^ complexDir) * c0mu0 + M) ^ complexDir;

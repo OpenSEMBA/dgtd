@@ -47,21 +47,21 @@ public:
     void
     timeIntegrate(const Real time) const;
 protected:
-    UInt
+    size_t
     getNumOfIterationsPerBigTimeStep(
-            const UInt e) const;
+            const size_t e) const;
 private:
-    static const UInt nStages = 2;
-    UInt getNStages() const;
+    static const size_t nStages = 2;
+    size_t getNStages() const;
     Real getMaxTimeRatio() const;
     void LTSTimeIntegration(
             const Real localTime,
             const Real localdt,
-            const UInt tier,
-            const UInt stage) const;
+            const size_t tier,
+            const size_t stage) const;
     void updateFields(
-            const UInt e1,
-            const UInt e2,
+            const size_t e1,
+            const size_t e2,
             const Real localTime,
             const Real rkdt) const;
 };
