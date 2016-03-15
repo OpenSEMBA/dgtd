@@ -19,13 +19,13 @@
 
 #include <iostream>
 #include <stdlib.h>
-#include <sys/time.h>
-
-using namespace std;
-using namespace SEMBA;
 
 #include "Solver.h"
 #include "solver/Info.h"
+#include "argument/Parser.h"
+
+using namespace std;
+using namespace SEMBA;
 
 int main(int argc, const char *argv[]) {
 

@@ -32,17 +32,18 @@ namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
 
-Group::Group(
+template<typename T>
+Group<T>::Group(
         const Mesh::Volume& mesh,
         const SourceGroup& em,
         const PMGroup& pm) {
     buildEMSourceBC_(mesh, em);
     buildPhysicalModelBC_(mesh, pm);
     removeOverlapped();
-    check();
 }
 
-void Group::buildEMSourceBC_(
+template<typename T>
+void Group<T>::buildEMSourceBC_(
         const Mesh::Volume& mesh,
         const SourceGroup& em) {
     for (size_t i = 0; i < em.size(); i++) {
@@ -72,7 +73,8 @@ void Group::buildEMSourceBC_(
     }
 }
 
-void Group::buildPhysicalModelBC_(
+template<typename T>
+void Group<T>::buildPhysicalModelBC_(
         const Mesh::Volume& mesh,
         const PMGroup& pm) {
     Geometry::SurfRGroup surf = mesh.elems().getOf<Geometry::SurfR>();
@@ -96,85 +98,8 @@ void Group::buildPhysicalModelBC_(
     }
 }
 
-void Group::removeOverlapped() {
-    // Hierarchy in boundary conditions: PEC, PMC, SMA, SIBC > EM Source
-    vector<BoundaryCondition*> pec, pmc, sma, sibc, em;
-    for (size_t i = 0; i < pmbc.size(); i++) {
-        if(pmbc[i].getCondition()->is<PhysicalModel::Predefined::SMA>()) {
-            sma.push_back(&pmbc[i]);
-        } else if (pmbc[i].getCondition()->is<PMPEC>()) {
-            pec.push_back(&pmbc[i]);
-        } else if (pmbc[i].getCondition()->is<PMPMC>()) {
-            pmc.push_back(&pmbc[i]);
-        } else if (pmbc[i].getCondition()->is<PMSurfaceSIBC>()) {
-            sibc.push_back(&pmbc[i]);
-        }
-    }
-    em.reserve(embc.size());
-    for (size_t i = 0; i < embc.size(); i++) {
-        em.push_back(&embc[i]);
-    }
-    // Removes bc overlapping PEC. After this, PEC is cleaned.
-    pmc = removeCommons(pmc, pec);
-    sma = removeCommons(sma, pec);
-    em = removeCommons(em, pec);
-    // Cleans PMC
-    sma = removeCommons(sma, pmc);
-    em = removeCommons(em, pmc);
-    // Cleans SMA
-    em = removeCommons(em, sma);
-    // Cleans SIBC
-    em = removeCommons(em, sibc);
-    // Rebuilds lists.
-    vector<PhysicalModelBC> auxPMBC;
-    auxPMBC.reserve(pec.size() + pmc.size() + sma.size() + sibc.size());
-    for (size_t i = 0; i < pec.size(); i++) {
-        const PhysicalModelBC* aux = dynamic_cast<PhysicalModelBC*>(pec[i]);
-        auxPMBC.push_back(PhysicalModelBC(*aux));
-    }
-    for (size_t i = 0; i < pmc.size(); i++) {
-        const PhysicalModelBC* aux = dynamic_cast<PhysicalModelBC*>(pmc[i]);
-        auxPMBC.push_back(PhysicalModelBC(*aux));
-    }
-    for (size_t i = 0; i < sma.size(); i++) {
-        const PhysicalModelBC* aux = dynamic_cast<PhysicalModelBC*>(sma[i]);
-        auxPMBC.push_back(PhysicalModelBC(*aux));
-    }
-    for (size_t i = 0; i < sibc.size(); i++) {
-        const PhysicalModelBC* aux = dynamic_cast<PhysicalModelBC*>(sibc[i]);
-        auxPMBC.push_back(PhysicalModelBC(*aux));
-    }
-    pmbc = auxPMBC;
-    vector<EMSourceBC> auxEMBC;
-    auxEMBC.reserve(em.size());
-    for (size_t i = 0; i < em.size(); i++) {
-        const EMSourceBC* aux = dynamic_cast<EMSourceBC*>(em[i]);
-        auxEMBC.push_back(EMSourceBC(*aux));
-    }
-    embc = auxEMBC;
-}
-
-vector<Base*> Group::removeCommons(
-        const vector<Base*>& low,
-        const vector<Base*>& high) const {
-    vector<BoundaryCondition::Base*> res;
-    res.reserve(low.size());
-    for (size_t i = 0; i < low.size(); i++) {
-        bool isPresentInHigh = false;
-        for (size_t j = 0; j < high.size(); j++) {
-            if (low[i]->hasSameBoundary(*high[j])) {
-                isPresentInHigh = true;
-                break;
-            }
-        }
-        if (!isPresentInHigh) {
-            res.push_back(low[i]);
-        }
-    }
-    return res;
-}
-
-void Group::printInfo() const {
+template<typename T>
+void Group<T>::printInfo() const {
     cout << "--- Group info ---" << endl;
     cout << "EM Source BCs: " << embc.size() << endl;
     cout << "Physical Model BCs: " << pmbc.size() << endl;

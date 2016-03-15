@@ -27,15 +27,14 @@
 
 #ifndef SOLVEREXPLICIT_H_
 
-#include "../dg/DG.h"
-#include "../dg/DGCurvedFace.h"
-#include "../dg/SolverMath.h"
+#include "DG.h"
+#include "DGCurvedFace.h"
 
-class DGExplicit : public DG {
-    friend class IntegratorLSERK;
-    friend class IntegratorLF2;
-    friend class IntegratorLF2Full;
-    friend class IntegratorVerlet;
+namespace SEMBA {
+namespace Cudg3d {
+namespace DG {
+
+class Explicit : public DG {
 public:
     DGExplicit(
             const Mesh::Volume& mesh,
@@ -179,8 +178,9 @@ private:
     void buildCurvedFluxScalingFactors(const CellGroup& cells, const Connectivities& map);
 };
 
-inline size_t DGExplicit::getIndexOfElement(const size_t e) const {
-    return (e * np);
 }
+}
+}
+
 
 #endif /* SOLVEREXPLICIT_H_ */

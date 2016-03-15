@@ -41,12 +41,15 @@ namespace BoundaryCondition {
 
 class Base : public virtual Class::Class,
              public virtual Class::Cloneable,
+             public virtual Class::Shareable,
              public virtual Class::Printable {
 public:
     Base();
     virtual ~Base();
 
     virtual bool hasSameBoundary(const Base& other) const = 0;
+    virtual Geometry::Element::Face getLocalFace() const = 0;
+    virtual Geometry::Element::Face getNeighFace() const = 0;
 };
 
 template<class T>
@@ -70,8 +73,6 @@ private:
     Geometry::Element::Face localFace_, neighFace_;
 };
 
-#include "BoundaryCondition.hpp"
-
 typedef BoundaryCondition<Source::Base> EMSourceBC;
 typedef BoundaryCondition<PhysicalModel::PhysicalModel> PhysicalModelBC;
 
@@ -79,5 +80,6 @@ typedef BoundaryCondition<PhysicalModel::PhysicalModel> PhysicalModelBC;
 }
 }
 
+#include "BoundaryCondition.hpp"
 
 #endif /* BOUNDARYCONDITION_H_ */

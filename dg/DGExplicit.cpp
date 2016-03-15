@@ -19,14 +19,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 
-/*
- * SolverExplicit.cpp
- *
- *  Created on: Nov 30, 2012
- *      Author: luis
- */
-
-#include "../dg/DGExplicit.h"
+#include "dg/Explicit.h"
 
 DGExplicit::DGExplicit(
         const Mesh::Volume& mesh,

@@ -61,7 +61,7 @@ vector<vector<Geometry::ElemId>> Volume::getPartitionsIds(
     res.resize(nDivisions, vector<Geometry::ElemId>());
     // Accounts for the one partition case.
     if (nDivisions == 1) {
-        Geometry::ElemRGroup physVol = elems();
+        Geometry::ConstElemRGroup physVol = elems();
         physVol.removeMatId(MatId(0));
         const size_t nK = physVol.sizeOf<Geometry::VolR>();
         res[0].resize(nK, Geometry::ElemId(0));

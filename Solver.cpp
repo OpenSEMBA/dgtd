@@ -45,10 +45,10 @@ Solver::Solver(Data* raw) {
 }
 
 Solver::~Solver() {
-    delete exporter_;
-    delete dg_;
-    delete integrator_;
-    delete comm_;
+//    delete exporter_;
+//    delete dg_;
+//    delete integrator_;
+//    delete comm_;
 }
 
 bool Solver::run() {
@@ -60,33 +60,33 @@ bool Solver::run() {
     return true;
 }
 
-Integrator* Solver::initIntegrator(
-        const SEMBA::Cudg3d::Mesh::Volume* mesh,
-        const PMGroup* pMGroup,
-        const Options* arg) {
-    Integrator* res;
-    switch (arg->getTimeIntegrator()) {
-    case Options::TimeIntegrator::lserk4:
-        cout<< "- Initial   izing LSERK Integrator." << endl;
-        res = new IntegratorLSERK(*mesh, *pMGroup, arg);
-        break;
-    case Options::TimeIntegrator::lf2:
-        cout<< "- Initializing LF2 Integrator." << endl;
-        res = new IntegratorLF2(*mesh, *pMGroup, arg);
-        break;
-    case Options::TimeIntegrator::lf2full:
-        cout<< "- Initializing LF2Full Integrator." << endl;
-        res = new IntegratorLF2Full(*mesh, *pMGroup, arg);
-        break;
-    case Options::TimeIntegrator::verlet:
-        cout<< "- Initializing Verlet Integrator." << endl;
-        res = new IntegratorVerlet(*mesh, *pMGroup, arg);
-        break;
-    default:
-        throw logic_error("Undefined time integrator.");
-    }
-    return res;
-}
+//Integrator* Solver::initIntegrator(
+//        const Mesh::Volume* mesh,
+//        const PMGroup* pMGroup,
+//        const Options* arg) {
+//    Integrator* res;
+//    switch (arg->getTimeIntegrator()) {
+//    case Options::TimeIntegrator::lserk4:
+//        cout<< "- Initial   izing LSERK Integrator." << endl;
+//        res = new IntegratorLSERK(*mesh, *pMGroup, arg);
+//        break;
+//    case Options::TimeIntegrator::lf2:
+//        cout<< "- Initializing LF2 Integrator." << endl;
+//        res = new IntegratorLF2(*mesh, *pMGroup, arg);
+//        break;
+//    case Options::TimeIntegrator::lf2full:
+//        cout<< "- Initializing LF2Full Integrator." << endl;
+//        res = new IntegratorLF2Full(*mesh, *pMGroup, arg);
+//        break;
+//    case Options::TimeIntegrator::verlet:
+//        cout<< "- Initializing Verlet Integrator." << endl;
+//        res = new IntegratorVerlet(*mesh, *pMGroup, arg);
+//        break;
+//    default:
+//        throw logic_error("Undefined time integrator.");
+//    }
+//    return res;
+//}
 
 bool Solver::canRun() const {
     throw logic_error("Cudg3d can run is not implemented.");

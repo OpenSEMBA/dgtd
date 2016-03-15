@@ -34,10 +34,10 @@
 #else
     #include "communications/CommNone.h"
 #endif
-#include "IntegratorLSERK.h"
-#include "IntegratorLF2.h"
-#include "IntegratorLF2Full.h"
-#include "IntegratorVerlet.h"
+//#include "integrator/LSERK.h"
+//#include "integrator/LF2.h"
+//#include "integrator/LF2Full.h"
+//#include "integrator/Verlet.h"
 #include "solver/Solver.h"
 #include "dg/DGExplicit.h"
 #include "mesh/Volume.h"
@@ -53,17 +53,17 @@ public:
     bool run();
     bool canRun() const;
 private:
-    Comm *comm_;
-    Integrator *integrator_;
-    DG *dg_;
-    Exporter* exporter_;
+//    Communications::Comm *comm_;
+//    Integrator *integrator_;
+//    DG *dg_;
+//    Exporter* exporter_;
     const Options* options_;
 
-    Integrator* initIntegrator(
-            const SEMBA::Cudg3d::Mesh::Volume* mesh,
-            const PMGroup* pMGroup,
-            const Options* args);
-    Comm* initMPI();
+//    Integrator* initIntegrator(
+//            const Mesh::Volume* mesh,
+//            const PMGroup* pMGroup,
+//            const Options* args);
+//    Communications::Comm* initMPI();
 };
 
 }

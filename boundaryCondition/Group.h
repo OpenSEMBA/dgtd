@@ -43,7 +43,8 @@ namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
 
-class Group : public SEMBA::Group::Group<Base> {
+template<typename T = Base>
+class Group : public SEMBA::Group::Group<T> {
 public:
     Group(const Mesh::Volume& mesh,
             const SourceGroup& em,
@@ -63,12 +64,13 @@ private:
             const vector<Base*>& high) const;
 };
 
-} /* SEMBA */
+} /* BoundaryCondition */
 
 typedef BoundaryCondition::Group BCGroup;
 
 } /* Cudg3d */
-} /* BoundaryCondition */
+} /* SEMBA */
 
+#include "Group.hpp"
 
 #endif /* BCGROUP_H_ */

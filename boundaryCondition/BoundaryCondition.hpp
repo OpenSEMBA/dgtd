@@ -41,8 +41,7 @@ BoundaryCondition<T>::~BoundaryCondition() {
 }
 
 template<class T>
-bool BoundaryCondition<T>::hasSameBoundary(
-        const BoundaryCondition<T>& other) const {
+bool BoundaryCondition<T>::hasSameBoundary(const Base& other) const {
     return (getLocalFace() == other.getLocalFace());
 }
 
@@ -86,7 +85,7 @@ inline Geometry::Element::Face BoundaryCondition<T>::getNeighFace() const {
 
 template<class T>
 inline const T* BoundaryCondition<T>::getCondition() const {
-    return condition_:
+    return condition_;
 }
 
 }
