@@ -1,6 +1,3 @@
-[submodule "external/--force"]
-	path = external/--force
-	url = https://github.com/OpenSEMBA/OpenSEMBA.git
 [submodule "opensemba"]
 	path = external/opensemba
 	url = https://github.com/OpenSEMBA/OpenSEMBA.git

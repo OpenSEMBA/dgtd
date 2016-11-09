@@ -21,12 +21,13 @@
 # =============================================================================
 OUT = cudg3d
 # =============================================================================
-#ifeq ($(FFTW3_SUPPORT),yes)
-#	DEFINES +=FFTW3_SUPPORT
-#	LIBS += fftw3
-#endif
+ifeq ($(FFTW3_SUPPORT),yes)
+	DEFINES +=FFTW3_SUPPORT
+	LIBS += fftw3
+endif
 # -------------------- Paths to directories -----------------------------------
-SRC_DIRS = $(shell find $(SRC_DIR)/apps/cudg3d/ -type d)
+SRC_DIRS = $(shell find $(SRC_DIR)/apps/cudg3d/ -type d) \
+           $(shell find $(SRC_DIR)/core/ -type d)
 
 SRCS_CXX := $(shell find $(SRC_DIRS) -maxdepth 1 -type f -name "*.cpp")
 OBJS_CXX := $(addprefix $(OBJ_DIR), $(SRCS_CXX:.cpp=.o))
@@ -35,8 +36,11 @@ OBJS_CXX := $(addprefix $(OBJ_DIR), $(SRCS_CXX:.cpp=.o))
 LIBS += gidpost opensemba
 INCLUDES += $(LIB_DIR)gidpost/include/ \
 			$(LIB_DIR)opensemba/include/core/ $(LIB_DIR)opensemba/include/ \
-			$(SRC_DIR)/apps/cudg3d/
+			$(SRC_DIR)/apps/cudg3d/ $(SRC_DIR)/core/
 LIBRARIES += $(LIB_DIR)gidpost/lib/ $(LIB_DIR)opensemba/lib/
+
+OBJS_LIB  += $(LIB_DIR)opensemba/lib/libopensemba.a \
+			 $(LIB_DIR)gidpost/lib/libgidpost.a \
 # =============================================================================
 .PHONY: default check
 
@@ -50,7 +54,7 @@ $(OBJ_DIR)%.o: %.cpp
 	@echo "Compiling:" $@
 	$(CXX) $(CXXFLAGS) $(addprefix -D, $(DEFINES)) $(addprefix -I,$(INCLUDES) ${SOURCE_DIR}) -c -o $@ $<
 
-cudg3d: $(OBJS_CXX) 
+cudg3d: $(OBJS_CXX)  $(OBJS_LIB)
 	@mkdir -p $(BIN_DIR)
 	@echo "Linking:" $@
 	${CXX} $^ -o $(BIN_DIR)$(OUT) $(CXXFLAGS) \

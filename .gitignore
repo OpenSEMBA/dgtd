@@ -1,0 +1,9 @@
+build*/
+/obj/
+/bin/
+external/gidpost/debug/
+external/gidpost/release/
+.settings
+.project
+.cproject
+
