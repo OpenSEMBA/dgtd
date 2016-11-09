@@ -20,7 +20,7 @@
 # along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 
 # -- USAGE --------------------------------------------------------------------
-# make target   = {debug, release, optimized}
+# make target   = {debug, release}
 #      compiler = {gnu}
 # ==================== Default values =========================================
 target = release
@@ -56,9 +56,6 @@ endif
 ifeq ($(target),release)
    	CXXFLAGS += -O2 
 endif
-ifeq ($(target),optimized)
-   	CXXFLAGS += -O3 --fast-math 
-endif
 # =============================================================================
 # -------------------- RULES --------------------------------------------------
 default: all
@@ -75,7 +72,7 @@ opensemba: check
 	-mkdir -p $(LIB_DIR)
 	-cp -r $(EXTERNAL_DIR)opensemba/$(LIB_DIR)/* $(LIB_DIR)
 
-test: check
+test: opensemba check
 	$(MAKE) -f $(SRC_DIR)apps/test/test.mk print
 	$(MAKE) -f $(SRC_DIR)apps/test/test.mk
 
@@ -88,15 +85,13 @@ clobber: clean
 	$(MAKE) --directory=$(EXTERNAL_DIR)opensemba/ -f Makefile clobber
 
 check:
-ifneq ($(target),optimized)
 ifneq ($(target),release) 
 ifneq ($(target),debug) 
 	@echo "Invalid build target."  
-	@echo "Please use 'make target=debug|release|optimized'"  
+	@echo "Please use 'make target=debug|release'"  
 	@exit 1
 endif 
 endif 
-endif
 ifneq ($(compiler),gnu)  
 	@echo "Invalid build compiler"  
 	@echo "Please use 'make compiler= gnu'" 

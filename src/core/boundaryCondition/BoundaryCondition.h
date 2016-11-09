@@ -73,7 +73,7 @@ private:
     Geometry::Element::Face localFace_, neighFace_;
 };
 
-typedef BoundaryCondition<Source::Base> EMSourceBC;
+typedef BoundaryCondition<Source::Base> SourceBC;
 typedef BoundaryCondition<PhysicalModel::PhysicalModel> PhysicalModelBC;
 
 }

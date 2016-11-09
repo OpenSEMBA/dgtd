@@ -18,59 +18,70 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
+
+OUT = test
+
+TEST_CORE_CELL          = yes#
+
 # =============================================================================
-OUT = cudg3d
+SRC_APP_DIR = $(SRC_DIR)apps/test/
 # =============================================================================
-ifeq ($(FFTW3_SUPPORT),yes)
-	DEFINES +=FFTW3_SUPPORT
-	LIBS += fftw3
+# --- Core ---
+ifeq ($(TEST_CORE_CELL),yes)
+	SRC_CORE_CELL_DIRS     := $(shell find $(SRC_DIR)core/cell/ -type d)
+	SRC_CORE_CELL_TESTS_DIRS := $(SRC_CORE_CELL_DIRS) \
+							    $(shell find $(SRC_APP_DIR)core/cell/ -type d)
 endif
-# -------------------- Paths to directories -----------------------------------
-SRC_DIRS = $(shell find $(SRC_DIR)/apps/cudg3d/ -type d) \
-           $(shell find $(SRC_DIR)/core/ -type d)
+
+SRC_CORE_TESTS_DIRS = $(SRC_CORE_CELL_TESTS_DIRS) 
+# ----- Gathers sources ----
+SRC_DIRS := $(SRC_APP_DIR) $(SRC_CORE_TESTS_DIRS) 
 
 SRCS_CXX := $(shell find $(SRC_DIRS) -maxdepth 1 -type f -name "*.cpp")
 OBJS_CXX := $(addprefix $(OBJ_DIR), $(SRCS_CXX:.cpp=.o))
-
 # =============================================================================
-LIBS += gidpost opensemba
-INCLUDES += $(LIB_DIR)gidpost/include/ \
-			$(LIB_DIR)opensemba/include/core/ $(LIB_DIR)opensemba/include/ \
-			$(SRC_DIR)/apps/cudg3d/ $(SRC_DIR)/core/
+LIBS      += gtest gidpost opensemba 
+INCLUDES  += $(SRC_DIR)core/ \
+             $(LIB_DIR)gidpost/include/ \
+			 $(LIB_DIR)opensemba/include/core/ \
+			 $(LIB_DIR)opensemba/include/
 LIBRARIES += $(LIB_DIR)gidpost/lib/ $(LIB_DIR)opensemba/lib/
 
 OBJS_LIB  += $(LIB_DIR)opensemba/lib/libopensemba.a \
 			 $(LIB_DIR)gidpost/lib/libgidpost.a \
 # =============================================================================
-.PHONY: default check
+.PHONY: default print
 
-default: print $(OUT)
+default: $(OUT)
 	@echo "======================================================="
-	@echo "             $(OUT) compilation finished               "
+	@echo "           $(OUT) compilation finished"
 	@echo "======================================================="
 
 $(OBJ_DIR)%.o: %.cpp
 	@dirname $@ | xargs mkdir -p
 	@echo "Compiling:" $@
-	$(CXX) $(CXXFLAGS) $(addprefix -D, $(DEFINES)) $(addprefix -I,$(INCLUDES) \
-	       ${SOURCE_DIR}) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(addprefix -D, $(DEFINES)) $(addprefix -I,$(INCLUDES)) -c -o $@ $<
 
-cudg3d: $(OBJS_CXX) $(OBJS_LIB)
+$(BIN_DIR)$(OUT): $(OBJS_CXX) $(OBJS_LIB)
 	@mkdir -p $(BIN_DIR)
 	@echo "Linking:" $@
-	${CXX} $^ -o $(BIN_DIR)$(OUT) $(CXXFLAGS) \
-	 $(addprefix -D, $(DEFINES)) \
-	 $(addprefix -I, ${INCLUDES}) \
-	 $(addprefix -L, ${LIBRARIES}) \
-	 $(addprefix -l, ${LIBS})
+	${CXX} $^ \
+	-o $@ $(CXXFLAGS) \
+	$(addprefix -D, $(DEFINES)) \
+	$(addprefix -I, ${INCLUDES}) \
+	$(addprefix -L, ${LIBRARIES}) \
+	$(addprefix -l, ${LIBS})
+
+$(OUT): print $(BIN_DIR)$(OUT)
 
 print:
 	@echo "======================================================="
-	@echo "            ----- Compiling $(OUT) ------              "
-	@echo "target:           " $(target)
+	@echo "         ----- Compiling $(OUT) ------        "
+	@echo "Target:           " $(target)
 	@echo "Compiler:         " $(compiler)
 	@echo "C++ Compiler:     " `which $(CXX)`
 	@echo "C++ Flags:        " $(CXXFLAGS)
 	@echo "Defines:          " $(DEFINES)
-	@echo "Polynomial order: " $(order)
 	@echo "======================================================="
+
+# ------------------------------- END ----------------------------------------

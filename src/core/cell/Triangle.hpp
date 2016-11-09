@@ -19,21 +19,22 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 
-#include "Cell.h"
+#include "Triangle.h"
 
 namespace SEMBA {
 namespace Cudg3d {
 namespace Cell {
 
-CellDG::CellDG() {
-    // TODO Auto-generated constructor stub
-
+template<int TRI_N>
+Triangle<TRI_N>::Triangle() {
+	// TODO Auto-generated constructor stub
 }
 
-CellDG::~CellDG() {
-    // TODO Auto-generated destructor stub
+template<int TRI_N>
+Triangle<TRI_N>::~Triangle() {
+	// TODO Auto-generated destructor stub
 }
 
-}
-}
-}
+}  /* namespace Cell */
+}  /* namespace Cudg3d */
+}  /* namespace SEMBA */

@@ -18,43 +18,38 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-// File: Mesh.h
-#ifndef MESH_VOLUME_H_
-#define MESH_VOLUME_H_
+#ifndef SRC_APPS_TEST_CORE_CELL_TRIANGLE3TEST_H_
+#define SRC_APPS_TEST_CORE_CELL_TRIANGLE3TEST_H_
 
-#include <metis.h>
-#if METIS_VER_MAJOR < 5
-#error "Mesh partitioning requires METIS version 5+"
-#endif
+#include "gtest/gtest.h"
+#include "cell/Triangle3.h"
 
-using namespace std;
+using namespace SEMBA;
+using namespace Math;
+using namespace Geometry;
 
-#include "geometry/mesh/Unstructured.h"
+class CellTriangle3Test : public ::testing::Test {
 
-namespace SEMBA {
-namespace Cudg3d {
-namespace Mesh {
-
-class Volume : public SEMBA::Geometry::Mesh::Unstructured {
-public:
-    Volume();
-    Volume(const Volume& meshVol);
-    Volume(const Unstructured& uns);
-    virtual ~Volume();
-    Volume& operator=(const Volume& param);
-    vector<vector<Geometry::ElemId>> getPartitionsIds(
-            const size_t nDivisions,
-            const vector<pair<Geometry::ElemId,int>> idWeights =
-                    vector<pair<Geometry::ElemId,int>>(),
-            const Math::Real* taskPower = NULL) const;
-
-    const Geometry::Graph::Connectivities* getConnectivities() const;
-private:
-    Geometry::Graph::Connectivities* connectivities_;
+protected:
+    void SetUp() {
+        cG_.add(new CoordR3(CoordId(1), CVecR3( 0.0, 0.0, 0.0)));
+        cG_.add(new CoordR3(CoordId(2), CVecR3( 0.0, 0.0, 1.0)));
+        cG_.add(new CoordR3(CoordId(3), CVecR3( 1.0, 0.0, 0.0)));
+        {
+            const CoordR3* v[3] = {
+                    cG_.getId(CoordId(1)),
+                    cG_.getId(CoordId(2)),
+                    cG_.getId(CoordId(3))};
+            tri3_ = Tri3(ElemId(1), v);
+        }
+    }
+    void TearDown() {
+        cG_.clear();
+    }
+protected:
+    CoordR3Group cG_;
+    Tri3 tri3_;
 };
 
-} /* namespace Mesh */
-}
-}
 
-#endif
+#endif /* SRC_APPS_TEST_CORE_CELL_TRIANGLE3TEST_H_ */

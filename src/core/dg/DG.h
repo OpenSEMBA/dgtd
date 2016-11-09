@@ -29,8 +29,8 @@ using namespace std;
 
 #include "Data.h"
 #include "math/Field.h"
-#include "solver/dgtd/core/Comm.h"
-#include "solver/dgtd/core/BCGroup.h"
+#include "communications/Communications.h"
+#include "BCGroup.h"
 #include "options/OptionsSolverDGTD.h"
 #include "dg/sources/DGPlaneWave.h"
 #include "dg/sources/DGDipole.h"

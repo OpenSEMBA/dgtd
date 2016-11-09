@@ -18,56 +18,33 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-/*
- * SolverLeapfrog.h
- *
- *  Created on: Feb 22, 2013
- *      Author: luis
- */
+#ifndef CELL_TRIANGLE3_H_
+#define CELL_TRIANGLE3_H_
 
-#ifndef INTEGRATORVERLET_H_
-#define INTEGRATORVERLET_H_
+#include "geometry/element/Triangle3.h"
+#include "Triangle.h"
 
-#include "../../dgtd/integrator/Integrator.h"
+namespace SEMBA {
+namespace Cudg3d {
+namespace Cell {
 
-#ifdef LEAPFROG_ORDER
-#ifndef SOLVER_IGNORE_DISPERSIVES
-	#error Dispersive materials have not been implemented for LF.
-#endif
-#endif
-
-class IntegratorVerlet : public Integrator {
+template<int N>
+class Triangle3 : public Triangle<N>, public Geometry::Tri3 {
 public:
-	IntegratorVerlet();
-	virtual ~IntegratorVerlet();
-	IntegratorVerlet(
-	 const Mesh::Volume& mesh,
-	 const PMGroup& pmGroup,
-	 const OptionsSolverDGTD* arg);
-	void
-	 timeIntegrate(
-	  const Real time) const;
-protected:
-	size_t
- 	 getNumOfIterationsPerBigTimeStep(
-      const size_t e) const;
-private:
-	static const size_t nStages = 2;
-	size_t
-	 getNStages() const;
-	Real
-	 getMaxTimeRatio() const;
-	void
-	 LTSTimeIntegration(
-	  const Real localTime,
-	  const Real localdt,
-	  const size_t tier) const;
-	void
-	 updateFieldsVerlet(
-	  const size_t e1,
-	  const size_t e2,
-	  const Real localTime,
-	  const Real rkdt) const;
+	Triangle3(const Geometry::Tri3& base);
+	virtual	~Triangle3();
+
+//	Math::CVecC3 getRadiatedField(
+//	        const CVecC3 electric[np],
+//	        const CVecC3 magnetic[np],
+//	        const double frequency,
+//	        const std::pair<double, double> direction) const;
 };
 
-#endif /* SOLVERLEAPFROG_H_ */
+}  /* namespace Cell */
+}  /* namespace Cudg3d */
+}  /* namespace SEMBA */
+
+#include "Triangle3.hpp"
+
+#endif /* CELL_TRIANGLE3_H_ */

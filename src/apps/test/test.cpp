@@ -18,26 +18,13 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-#ifndef SRC_APPS_CUDG3D_CELL_CELLDG_H_
-#define SRC_APPS_CUDG3D_CELL_CELLDG_H_
+#include <stdio.h>
+#include <gtest/gtest.h>
+#include <string>
 
-#include <type_traits>
+using namespace std;
 
-//namespace SEMBA {
-//namespace Cudg3d {
-//namespace Cell {
-//
-//template<class E>
-//class CellDG : public E {
-//public:
-//    CellDG();
-//    virtual ~CellDG();
-//private:
-//    Math::Matrix::Static<>
-//};
-//
-//}
-//}
-//}
-
-#endif
+GTEST_API_ int main(int argc, char **argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

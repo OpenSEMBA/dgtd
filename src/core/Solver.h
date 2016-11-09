@@ -32,7 +32,7 @@
     #include "../output/OutputCommGiD.h"
     #include "../output/OutputComm.h"
 #else
-    #include "communications/CommNone.h"
+    #include "communications/None.h"
 #endif
 //#include "integrator/LSERK.h"
 //#include "integrator/LF2.h"

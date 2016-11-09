@@ -18,43 +18,42 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-// File: Mesh.h
-#ifndef MESH_VOLUME_H_
-#define MESH_VOLUME_H_
 
-#include <metis.h>
-#if METIS_VER_MAJOR < 5
-#error "Mesh partitioning requires METIS version 5+"
-#endif
+#ifndef CELLTRI_H_
+#define CELLTRI_H_
 
-using namespace std;
+#include <complex>
+#include <array>
 
-#include "geometry/mesh/Unstructured.h"
+#include "Cell.h"
 
 namespace SEMBA {
 namespace Cudg3d {
-namespace Mesh {
+namespace Cell {
 
-class Volume : public SEMBA::Geometry::Mesh::Unstructured {
+template<int TRI_N>
+class Triangle : public Cell {
 public:
-    Volume();
-    Volume(const Volume& meshVol);
-    Volume(const Unstructured& uns);
-    virtual ~Volume();
-    Volume& operator=(const Volume& param);
-    vector<vector<Geometry::ElemId>> getPartitionsIds(
-            const size_t nDivisions,
-            const vector<pair<Geometry::ElemId,int>> idWeights =
-                    vector<pair<Geometry::ElemId,int>>(),
-            const Math::Real* taskPower = NULL) const;
+    static const Math::Simplex::Triangle<TRI_N> tri;
+    static const size_t np       = (TRI_N+1) * (TRI_N+2) / 2;
+    static const size_t nfp      = (TRI_N + 1);
 
-    const Geometry::Graph::Connectivities* getConnectivities() const;
-private:
-    Geometry::Graph::Connectivities* connectivities_;
+    Triangle();
+    virtual ~Triangle();
+
+//    virtual Math::CVecC3 getRadiatedField(
+//            const Math::CVecC3 electric[np],
+//            const Math::CVecC3 magnetic[np],
+//            const double frequency,
+//            const std::pair<double,double> direction) const = 0;
+
 };
 
-} /* namespace Mesh */
+}
 }
 }
 
-#endif
+
+#include "Triangle.hpp"
+
+#endif /* CELLTRI_H_ */
