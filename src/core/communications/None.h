@@ -37,33 +37,33 @@ namespace Communications {
 
 class None : public Communications {
 public:
-    None();
-    virtual ~None();
-    Int getNumberOfTasks() const;
-    void abort() const;
-    bool isMaster() const;
-    Int getTask() const;
-    size_t getLocalOffset() const;
-    Int getNumOfTasksOnThisHost() const;
-    size_t getLocalSize() const;
-    void gatherFieldsMaster(
-            Math::FieldR3& electric,
-            Math::FieldR3& magnetic,
-            const Math::FieldR3& localElectric,
-            const Math::FieldR3& localMagnetic) const;
-    void gatherFieldsSlave(
-            const Math::FieldR3& electric,
-            const Math::FieldR3& magnetic) const;
-    void setPartitionSizes(
-            const vector<vector<ElemId>>& partId);
-    void syncNeighbourFields(
-            Real* nEx, Real* nEy, Real* nEz,
-            Real* nHx, Real* nHy, Real* nHz,
-            const Real* Ex, const Real* Ey, const Real* Ez,
-            const Real* Hx, const Real* Hy, const Real* Hz) const;
-    Real reduceToGlobalMinimum(Real val) const;
-    void initNeighbourFields(const vector<ElemId>& nIds);
-    void printInfo() const;
+//    None();
+//    virtual ~None();
+//    Int getNumberOfTasks() const;
+//    void abort() const;
+//    bool isMaster() const;
+//    Int getTask() const;
+//    size_t getLocalOffset() const;
+//    Int getNumOfTasksOnThisHost() const;
+//    size_t getLocalSize() const;
+//    void gatherFieldsMaster(
+//            Math::FieldR3& electric,
+//            Math::FieldR3& magnetic,
+//            const Math::FieldR3& localElectric,
+//            const Math::FieldR3& localMagnetic) const;
+//    void gatherFieldsSlave(
+//            const Math::FieldR3& electric,
+//            const Math::FieldR3& magnetic) const;
+//    void setPartitionSizes(
+//            const vector<vector<ElemId>>& partId);
+//    void syncNeighbourFields(
+//            Real* nEx, Real* nEy, Real* nEz,
+//            Real* nHx, Real* nHy, Real* nHz,
+//            const Real* Ex, const Real* Ey, const Real* Ez,
+//            const Real* Hx, const Real* Hy, const Real* Hz) const;
+//    Real reduceToGlobalMinimum(Real val) const;
+//    void initNeighbourFields(const vector<ElemId>& nIds);
+//    void printInfo() const;
 };
 
 }

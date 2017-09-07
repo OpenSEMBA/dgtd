@@ -28,7 +28,7 @@
 #ifndef SOLVEREXPLICIT_H_
 
 #include "DG.h"
-#include "DGCurvedFace.h"
+#include "CurvedFace.h"
 
 namespace SEMBA {
 namespace Cudg3d {
@@ -36,7 +36,7 @@ namespace DG {
 
 class Explicit : public DG {
 public:
-    DGExplicit(
+    Explicit(
             const Mesh::Volume& mesh,
             const PMGroup& pMGroup,
             const EMSourceGroup& emsources,
@@ -51,25 +51,25 @@ protected:
     void computeRHS(
             const size_t e1,
             const size_t e2,
-            const Real localtime,
-            const Real rkdt);
+            const Math::Real localtime,
+            const Math::Real rkdt);
     void computeRHSElectric(
             const size_t e1,
             const size_t e2,
-            const Real localtime,
-            const Real minDT);
+            const Math::Real localtime,
+            const Math::Real minDT);
     void computeRHSMagnetic(
             const size_t e1,
             const size_t e2,
-            const Real localtime,
-            const Real minDT);
+            const Math::Real localtime,
+            const Math::Real minDT);
     void computeCurlsInRHSElectric(const size_t e1, const size_t e2);
     void computeCurlsInRHSMagnetic(const size_t e1, const size_t e2);
     void computeJumps(
             const size_t e1,
             const size_t e2,
-            const Real localTime,
-            const Real minDT);
+            const Math::Real localTime,
+            const Math::Real minDT);
     void copyJumpsToResidueJumps(
             const size_t e1,
             const size_t e2);
@@ -98,25 +98,25 @@ protected:
     void addRHSToFieldsElectric(
             const size_t e1,
             const size_t e2,
-            const Real rkdt);
+            const Math::Real rkdt);
     void addRHSToFieldsMagnetic(
             const size_t e1,
             const size_t e2,
-            const Real rkdt);
+            const Math::Real rkdt);
     size_t getIndexOfElement(const size_t e) const;
     void addRHSToResidueElectric(const size_t e1, const size_t e2,
-            const Real rkdt);
+            const Math::Real rkdt);
     void addRHSToResidueMagnetic(const size_t e1, const size_t e2,
-            const Real rkdt);
+            const Math::Real rkdt);
     void addRHSToRes(
             const size_t e1,
             const size_t e2,
-            const Real rka,
-            const Real dt);
+            const Math::Real rka,
+            const Math::Real dt);
     void updateFieldsWithRes(
             const size_t e1,
             const size_t e2,
-            const Real rkb);
+            const Math::Real rkb);
     void LTSSaveFieldsAndResidues(
             const size_t fKSave,
             const size_t lKSave);
@@ -129,11 +129,11 @@ private:
     Int vmapP[16][nfp];
     Int ***map_;
     // Pointers to neighbour fields. dim = (nK, 4).
-    Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
+    Math::Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
     // Curved faces stuff ---------------------------------------------
     size_t nCurvedFaces;
     DGCurvedFace *curveFace;
-    const Real **Cx, **Cy, **Cz; // Pointers to C. dim = (nK)
+    const Math::Real **Cx, **Cy, **Cz; // Pointers to C. dim = (nK)
     // Fields and residuals: dim = (np,nK)
     FieldR3 rhsE, rhsH;
     FieldR3 savedResE, savedResH;

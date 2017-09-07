@@ -21,6 +21,14 @@
 
 #include "Communications.h"
 
-Comm::~Comm() {
+namespace SEMBA {
+namespace Cudg3d {
+namespace Communications {
 
+Communications::~Communications() {
+
+}
+
+}
+}
 }

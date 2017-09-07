@@ -22,6 +22,7 @@
 
 namespace SEMBA {
 namespace Cudg3d {
+namespace Solver {
 
 Solver::Solver(Data* raw) {
     // Smb data adaptation and validation.

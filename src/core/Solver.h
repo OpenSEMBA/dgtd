@@ -39,7 +39,7 @@
 //#include "integrator/LF2Full.h"
 //#include "integrator/Verlet.h"
 #include "solver/Solver.h"
-#include "dg/DGExplicit.h"
+#include "dg/Explicit.h"
 #include "mesh/Volume.h"
 #include "Options.h"
 

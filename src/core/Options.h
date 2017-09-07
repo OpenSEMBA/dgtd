@@ -42,14 +42,14 @@ using namespace std;
 namespace SEMBA {
 namespace Cudg3d {
 
-class Options : public SEMBA::Solver::Options {
+class Options : public SEMBA::Cudg3d::Solver::Options {
 public:
 	enum class TimeIntegrator {
 		lserk4, verlet, lf2, lf2full
 	};
 
 	Options();
-	Options(const SEMBA::Solver::Options& base);
+	Options(const Solver::Options& base);
 	virtual ~Options();
 
     void addArguments(Argument::Group& args) const;

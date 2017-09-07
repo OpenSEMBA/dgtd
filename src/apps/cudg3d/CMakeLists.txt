@@ -1,25 +1,15 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0)
-PROJECT(cudg3d)
+cmake_minimum_required(VERSION 2.8.11)
 
-FIND_PACKAGE( PkgConfig REQUIRED)
+project(cudg3d CXX)
 
-# Moving the binary files to the directory bin/
-SET (EXECUTABLE_OUTPUT_PATH ${Main_BINARY_DIR}/bin
-     CACHE PATH "Directory for Executables")
+add_subdirectory(../../core obj/core)
 
-OPTION(RUN_TESTS "Compile tests" ON)
-if(RUN_TESTS)
-	FIND_PACKAGE( PkgConfig REQUIRED)
-	PKG_CHECK_MODULES( gtest REQUIRED gtest)
-	add_subdirectory(src/apps/test)
-endif()
+get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+foreach(dir ${dirs})
+  message(STATUS "dir='${dir}'")
+endforeach()
 
-OPTION(OPENSEMBA "Inlcude OpenSEMBA library" ON)
-if(OPENSEMBA)
-	#include_directories(${CMAKE_CURRENT_LIST_DIR}
-        #                   ${CMAKE_CURRENT_LIST_DIR}/external/)
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/OpenSEMBA/src ${CMAKE_CURRENT_BINARY_DIR}/opensemba)
-endif()
+add_executable(cudg3d cudg3d.cpp)
 
-ADD_EXECUTABLE(Main Main.cpp)
-TARGET_LINK_LIBRARIES(Main ${gsl_LIBRARIES} pthread)
+target_link_libraries(cudg3d cudg3d_core
+							 pthread)
