@@ -19,25 +19,26 @@
 //// You should have received a copy of the GNU Lesser General Public License
 //// along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 ///*
-// * DGPMLTriaxial.h
+// * DGPMLBiaxial.h
 // *
 // *  Created on: Jun 22, 2015
 // *      Author: luis
 // */
 //
-//#ifndef SRC_SOLVER_DGTD_DG_DISPERSIVES_DGPMLTRIAXIAL_H_
-//#define SRC_SOLVER_DGTD_DG_DISPERSIVES_DGPMLTRIAXIAL_H_
+//#ifndef SRC_SOLVER_DGTD_DG_DISPERSIVES_DGPMLBIAXIAL_H_
+//#define SRC_SOLVER_DGTD_DG_DISPERSIVES_DGPMLBIAXIAL_H_
 //
 //#include "DGPMLMultiaxial.h"
 //
-//class DGPMLTriaxial: public DGPMLMultiaxial {
+//template<Math::Int D>
+//class DGPMLBiaxial: public DGPMLMultiaxial {
 //public:
-//    DGPMLTriaxial(
+//    DGPMLBiaxial(
 //            const PMVolumePML& mat,
 //            const CellGroup& cells,
 //            const bool useConductivity,
-//            const Real conductivity);
-//    virtual ~DGPMLTriaxial();
+//            const Math::Real conductivity);
+//    virtual ~DGPMLBiaxial();
 //    void computeRHSElectric(
 //            FieldR3& rhs,
 //            const FieldR3& f,
@@ -54,6 +55,10 @@
 //            const size_t e1, const size_t e2);
 //};
 //
-//typedef DGPMLTriaxial DGPMLxyz;
+//#include "DGPMLBiaxial.hpp"
 //
-//#endif /* SRC_SOLVER_DGTD_DG_DISPERSIVES_DGPMLTRIAXIAL_H_ */
+//typedef DGPMLBiaxial<x> DGPMLxy;
+//typedef DGPMLBiaxial<y> DGPMLyz;
+//typedef DGPMLBiaxial<z> DGPMLzx;
+//
+//#endif /* SRC_SOLVER_DGTD_DG_DISPERSIVES_DGPMLBIAXIAL_H_ */

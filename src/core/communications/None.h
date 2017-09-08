@@ -39,12 +39,12 @@ class None : public Communications {
 public:
 //    None();
 //    virtual ~None();
-//    Int getNumberOfTasks() const;
+//    Math::Int getNumberOfTasks() const;
 //    void abort() const;
 //    bool isMaster() const;
-//    Int getTask() const;
+//    Math::Int getTask() const;
 //    size_t getLocalOffset() const;
-//    Int getNumOfTasksOnThisHost() const;
+//    Math::Int getNumOfTasksOnThisHost() const;
 //    size_t getLocalSize() const;
 //    void gatherFieldsMaster(
 //            Math::FieldR3& electric,
@@ -57,11 +57,11 @@ public:
 //    void setPartitionSizes(
 //            const vector<vector<ElemId>>& partId);
 //    void syncNeighbourFields(
-//            Real* nEx, Real* nEy, Real* nEz,
-//            Real* nHx, Real* nHy, Real* nHz,
-//            const Real* Ex, const Real* Ey, const Real* Ez,
-//            const Real* Hx, const Real* Hy, const Real* Hz) const;
-//    Real reduceToGlobalMinimum(Real val) const;
+//            Math::Real* nEx, Math::Real* nEy, Math::Real* nEz,
+//            Math::Real* nHx, Math::Real* nHy, Math::Real* nHz,
+//            const Math::Real* Ex, const Math::Real* Ey, const Math::Real* Ez,
+//            const Math::Real* Hx, const Math::Real* Hy, const Math::Real* Hz) const;
+//    Math::Real reduceToGlobalMinimum(Math::Real val) const;
 //    void initNeighbourFields(const vector<ElemId>& nIds);
 //    void printInfo() const;
 };

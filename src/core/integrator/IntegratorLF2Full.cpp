@@ -55,9 +55,9 @@
 //	return nStages;
 //}
 //
-//Real
+//Math::Real
 //IntegratorLF2Full::getMaxTimeRatio() const {
-//	return ((Real)1.0 / (Real) nStages);
+//	return ((Math::Real)1.0 / (Math::Real) nStages);
 //}
 //
 //size_t
@@ -77,7 +77,7 @@
 //
 //void
 //IntegratorLF2Full::timeIntegrate(
-// const Real time) const {
+// const Math::Real time) const {
 //	assert(solver != NULL);
 //	if (doLTS) {
 //		LTSTimeIntegration(time, getMaxDT(), getNTiers() - 1, 0);
@@ -90,8 +90,8 @@
 //
 //void
 //IntegratorLF2Full::LTSTimeIntegration(
-// Real localTime,
-// Real localdt,
+// Math::Real localTime,
+// Math::Real localdt,
 // const size_t tier,
 // const size_t stage) const {
 //	size_t fK, lK;
@@ -113,11 +113,11 @@
 //	solver->addFluxesToRHSMagnetic(fK,lK,useResForUpwinding);
 //	// ------- Recursively calls this function ------------------------
 //	if (tier > 0) {
-//		Real lts = localdt/((Real) nStages);
+//		Math::Real lts = localdt/((Math::Real) nStages);
 //		size_t lSaved = getRange(tier, nStages-2).second;
 //		solver->LTSSaveFieldsAndResidues(fK,lSaved);
 //		for (size_t s = 0; s < nStages; s++) {
-//			LTSTimeIntegration(localTime + ((Real) s)*lts,
+//			LTSTimeIntegration(localTime + ((Math::Real) s)*lts,
 //			 lts, tier-1, nStages-s-1);
 //		}
 //		solver->LTSLoadFieldsAndResidues(fK,lSaved);
@@ -133,8 +133,8 @@
 //IntegratorLF2Full::updateFields(
 // const size_t e1,
 // const size_t e2,
-// const Real localTime,
-// const Real rkdt) const {
+// const Math::Real localTime,
+// const Math::Real rkdt) const {
 //	static const bool useResForUpwinding = true;
 //	solver->computeCurlsInRHSElectric(e1,e2);
 //	solver->computeCurlsInRHSMagnetic(e1,e2);

@@ -6,7 +6,7 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}
                     ${CMAKE_CURRENT_LIST_DIR}/../external/
                     ${OPENSEMBA_PATH}/src
                     ${OPENSEMBA_PATH}/src/core
-                    ${OPENSEMBA_PATH}/external)
+                    ${OPENSEMBA_PATH}/external/gidpost)
 
 add_sources(. SRCS)
 

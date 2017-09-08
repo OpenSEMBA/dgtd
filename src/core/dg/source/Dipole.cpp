@@ -27,7 +27,7 @@
 //      const CellGroup& cells,
 //      FieldR3& dE,
 //      FieldR3& dH,
-//      const Int vmapM[faces][nfp])
+//      const Math::Int vmapM[faces][nfp])
 //: Dipole(dip) {
 //   initSource(bc, map, cells, dE, dH, vmapM);
 //   // Determines total or scattered fields in the bc.
@@ -64,8 +64,8 @@
 //}
 //
 //void DGDipole::computeExcitation(
-//      const Real time,
-//      const Real minDT) {
+//      const Math::Real time,
+//      const Math::Real minDT) {
 //   computeExcitationField(ETInc, HTInc, tPos, ETInc.size(), time);
 //   computeExcitationField(ESInc, HSInc, sPos, ESInc.size(), time);
 //}
@@ -75,7 +75,7 @@
 //        FieldR3& HInc,
 //      const SphericalVector* vPos,
 //      const size_t nE,
-//      const Real time) const {
+//      const Math::Real time) const {
 //   // PURPOSE: Computes the dipole excitation.
 //   // Chapter 2, R. Gomez's book. 2006.
 //   // "Electromagnetic Field Theory for physicist and engineers.
@@ -83,10 +83,10 @@
 //   // arbitrary time dependence.
 //   // Uses the derivative of the gaussian.
 //   // Otherwise charge accumulates and fields do not tend to zero.
-//   Real pos, pos2, pos3;
-//   Real expArg, expArg2;
-//   Real iT, iD;
-//   Real tDelayed, sint, cost;
+//   Math::Real pos, pos2, pos3;
+//   Math::Real expArg, expArg2;
+//   Math::Real iT, iD;
+//   Math::Real tDelayed, sint, cost;
 //   SphericalVector sphE, sphH;
 //   CVecR3 E, H;
 //   // External field.
@@ -102,15 +102,15 @@
 //      expArg2 = expArg * expArg;
 //      iT = exp(- expArg2); // current @ delayed time.
 //      iD = - iT * 2.0 * expArg / spreadSqrt2_; // derivative of current.
-//      Real iD2 = iD * (-2.0)* expArg / spreadSqrt2_
+//      Math::Real iD2 = iD * (-2.0)* expArg / spreadSqrt2_
 //            + iT * (-2.0) / spreadSqrt2_ / spreadSqrt2_;
-//      Real er = length_ * INV4PIEPS0 * 2.0 * cost
+//      Math::Real er = length_ * INV4PIEPS0 * 2.0 * cost
 //            * (iT/pos3 + iD/(Constants::c0*pos2));
-//      Real et = length_ * INV4PIEPS0 * sint
+//      Math::Real et = length_ * INV4PIEPS0 * sint
 //            * (iT/pos3
 //                  + iD/(Constants::c0 * pos2)
 //                  + iD2/(SPEED_OF_LIGHT_SQ*pos) );
-//      Real hp = length_ * INV4PI * sint
+//      Math::Real hp = length_ * INV4PI * sint
 //            * (iD2/(pos*Constants::c0) + iD/pos2 );
 //      // Spherical to Cartesian conversion.
 //      E = vPos[j].convertSphericalVectorField(er, et, 0.0);

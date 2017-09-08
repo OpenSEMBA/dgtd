@@ -30,9 +30,9 @@
 //DGSIBC::DGSIBC(
 //        const PMSurfaceSIBC& mat_,
 //        const CellGroup& cells,
-//        Int*** map_, const Int vmapM_[faces][nfp],
-//        Real*** ExP_, Real*** EyP_, Real*** EzP_,
-//        Real*** HxP_, Real*** HyP_, Real*** HzP_) : PMSurfaceSIBC(mat_) {
+//        Math::Int*** map_, const Math::Int vmapM_[faces][nfp],
+//        Math::Real*** ExP_, Math::Real*** EyP_, Math::Real*** EzP_,
+//        Math::Real*** HxP_, Math::Real*** HyP_, Math::Real*** HzP_) : PMSurfaceSIBC(mat_) {
 ////    map = map_;
 ////    ExP = ExP_;
 ////    EyP = EyP_;
@@ -131,7 +131,7 @@
 //            for (size_t p = 0; p < nP; p++) {
 //                size_t i = e * nfp;
 //                for (size_t j = 0; j < nfp; j++) {
-//                    Int vM = e0 * np + vmapM[f0][j];
+//                    Math::Int vM = e0 * np + vmapM[f0][j];
 //                    const CVecR3 H0(H(x)[vM],H(y)[vM],H(z)[vM]);
 //                    size_t vP = map[e0][f0][j]; // Field coeff pos.
 //                    const CVecR3 HD(HxP[eD][fD][vP], HyP[eD][fD][vP], HzP[eD][fD][vP]);
@@ -179,7 +179,7 @@
 //
 //void
 //DGSIBC::computePolarizationFields(
-//        const Real* Hx, const Real* Hy,	const Real* Hz,
+//        const Math::Real* Hx, const Math::Real* Hy,	const Math::Real* Hz,
 //        const size_t e1, const size_t e2) {
 //    for (size_t e = 0; e < nE0; e++) {
 //        size_t e0 = elem0[e];
@@ -188,7 +188,7 @@
 //        size_t fD = faceD[e];
 //        if (e1 <= e0 && e0 < e2) {
 //            for (size_t j = 0; j < nfp; j++) {
-//                Int vM = e0 * np + vmapM[f0][j];
+//                Math::Int vM = e0 * np + vmapM[f0][j];
 //                CVecR3 H0(Hx[vM],Hy[vM],Hz[vM]);
 //                size_t vP = map[eD][fD][j]; // Field coeff pos.
 //                CVecR3
@@ -211,7 +211,7 @@
 //        size_t fD = faceD[e];
 //        if (e1 <= e0 && e0 < e2) {
 //            for (size_t j = 0; j < nfp; j++) {
-//                Int vM = eD * np + vmapM[fD][j];
+//                Math::Int vM = eD * np + vmapM[fD][j];
 //                CVecR3 H0(Hx[vM],Hy[vM],Hz[vM]);
 //                size_t vP = map[e0][f0][j]; // Field coeff pos.
 //                CVecR3
@@ -245,7 +245,7 @@
 //            n = (e * faces + f) * nfp;
 //            i = lE * nfp;
 //            for (j = 0; j < nfp; j++) {
-//                Int vM = e * np + vmapM[f][j];
+//                Math::Int vM = e * np + vmapM[f][j];
 //                dE.set(x)[n] = 2.0 * (E(x)[vM] - E0[i](0));
 //                dE.set(y)[n] = 2.0 * (E(y)[vM] - E0[i](1));
 //                dE.set(z)[n] = 2.0 * (E(z)[vM] - E0[i](2));
@@ -264,7 +264,7 @@
 //            n = (e * faces + f) * nfp;
 //            i = nfp * lE;
 //            for (j = 0; j < nfp; j++) {
-//                Int vM = e * np + vmapM[f][j];
+//                Math::Int vM = e * np + vmapM[f][j];
 //                dE.set(x)[n] = 2.0 * (E(x)[vM] - ED[i](0));
 //                dE.set(y)[n] = 2.0 * (E(y)[vM] - ED[i](1));
 //                dE.set(z)[n] = 2.0 * (E(z)[vM] - ED[i](2));
@@ -281,8 +281,8 @@
 //void
 //DGSIBC::addRHSToRes(
 //        const size_t e1, const size_t e2,
-//        const Real rka,
-//        const Real dt) {
+//        const Math::Real rka,
+//        const Math::Real dt) {
 //    for (size_t e = 0; e < nE0; e++) {
 //        if (e >= e1 && e < e2) {
 //            for (size_t p = 0; p < nP; p++) {
@@ -309,7 +309,7 @@
 //
 //void
 //DGSIBC::updateWithRes(
-//        const size_t e1, const size_t e2, const Real rkb) {
+//        const size_t e1, const size_t e2, const Math::Real rkb) {
 //    for (size_t e = 0; e < nE0; e++) {
 //        if (e >= e1 && e < e2) {
 //            for (size_t p = 0; p < nP; p++) {

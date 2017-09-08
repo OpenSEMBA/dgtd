@@ -19,43 +19,41 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 /*
- * SolverWaveportRectangular.h
+ * SolverWaveport.h
  *
  *  Created on: Aug 26, 2013
  *      Author: luis
  */
 
-#ifndef SOLVERWAVEPORTRECTANGULAR_H_
-#define SOLVERWAVEPORTRECTANGULAR_H_
+#ifndef SOLVERWAVEPORT_H_
+#define SOLVERWAVEPORT_H_
 
-#include "../../dg/sources/DGWaveport.h"
-#include "sources/ports/PortWaveguideRectangular.h"
+#include "Source.h"
 
-class DGWaveportRectangular : public DGWaveport, public PortWaveguideRectangular {
-public:
-    DGWaveportRectangular(
-            const PortWaveguide& pw,
-            const Connectivities& map,
-            FieldR3& dE, FieldR3& dH,
-            const Int vmapM[faces][nfp]);
-    virtual ~DGWaveportRectangular();
-    void computeExcitation(
-            const Real intTime,
-            const Real minDT);
-    void printInfo() const;
-private:
-    Real width, height;
-    PortWaveguide::ExcitationMode excitationMode;
-    Real kcm;
-    Real intrinsicImpedance;
-    Real gammaMSum;
-    void computeExcitationField(
-            FieldR3& EInc,
-            FieldR3& HInc,
-            const CVecR3* pos,
-            const size_t nE,
-            const Real intTime,
-            const Real minDT);
-};
+//class DGWaveport : public DGSource {
+//public:
+//    DGWaveport();
+//    virtual	~DGWaveport();
+//protected:
+//    //	Math::Real
+//    //     getNumericalGammaMGauss(
+//    //      const Math::Real time,
+//    //      const Math::Real minDT,
+//    //      const Math::Real amplitude,
+//    //      const Math::Real delay,
+//    //      const Math::Real spread,
+//    //      const Math::Real kcm) const;
+//    bool checkNormalsAreEqual(
+//            const vector<pair<size_t,size_t> >& elemFace) const;
+//protected:
+//    CVecR3* posTF;
+//    CVecR3* posTFNB;
+//    CVecR3* posSF;
+//private:
+//    Math::Real *gauss, *hm;
+//    Math::Real getHm(
+//            const Math::Real time,
+//            const Math::Real kcm) const;
+//};
 
-#endif /* SOLVERWAVEPORTRECTANGULAR_H_ */
+#endif /* SOLVERWAVEPORT_H_ */

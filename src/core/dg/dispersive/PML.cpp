@@ -51,11 +51,11 @@
 //}
 //
 //void DGPML::initConductivity(
-//        Real **sigma,
+//        Math::Real **sigma,
 //        const size_t orientation,
 //        const PMVolumePML& mat,
 //        const CellGroup& cells) {
-//    StaMatrix<Real,np,np> auxSig;
+//    StaMatrix<Math::Real,np,np> auxSig;
 //    for (size_t e = 0; e < nElem; e++) {
 //        ElemId id = cells.getIdOfRelPos(elem[e]);
 //        const CellTet<ORDER_N>* cell;
@@ -71,26 +71,26 @@
 //        const CellGroup& cells) {
 //    assert(elem != NULL);
 //    if (mat.isUniaxial()) {
-//        sig1 = new Real*[nElem];
-//        sig11 = new Real*[nElem];
+//        sig1 = new Math::Real*[nElem];
+//        sig11 = new Math::Real*[nElem];
 //        for (size_t e = 0; e < nElem; e++) {
-//            sig1[e] = new Real[np*np];
-//            sig11[e] = new Real[np*np];
+//            sig1[e] = new Math::Real[np*np];
+//            sig11[e] = new Math::Real[np*np];
 //        }
 //        initConductivity(sig1, 1, mat, cells);
 //        initConductivity(sig11, 11, mat, cells);
 //    } else if (mat.isBiaxial()) {
-//        sig1 = new Real*[nElem];
-//        sig2 = new Real*[nElem];
-//        sig11 = new Real*[nElem];
-//        sig22 = new Real*[nElem];
-//        sig12= new Real*[nElem];
+//        sig1 = new Math::Real*[nElem];
+//        sig2 = new Math::Real*[nElem];
+//        sig11 = new Math::Real*[nElem];
+//        sig22 = new Math::Real*[nElem];
+//        sig12= new Math::Real*[nElem];
 //        for (size_t e = 0; e < nElem; e++) {
-//            sig1[e] = new Real[np*np];
-//            sig2[e] = new Real[np*np];
-//            sig11[e] = new Real[np*np];
-//            sig22[e] = new Real[np*np];
-//            sig12[e] = new Real[np*np];
+//            sig1[e] = new Math::Real[np*np];
+//            sig2[e] = new Math::Real[np*np];
+//            sig11[e] = new Math::Real[np*np];
+//            sig22[e] = new Math::Real[np*np];
+//            sig12[e] = new Math::Real[np*np];
 //        }
 //        initConductivity(sig1, 1, mat, cells);
 //        initConductivity(sig2, 2, mat, cells);
@@ -99,25 +99,25 @@
 //        initConductivity(sig12, 12, mat, cells);
 //    } else {
 //        assert(mat.isTriaxial());
-//        sig1 = new Real*[nElem];
-//        sig2 = new Real*[nElem];
-//        sig3 = new Real*[nElem];
-//        sig11 = new Real*[nElem];
-//        sig22 = new Real*[nElem];
-//        sig33 = new Real*[nElem];
-//        sig12= new Real*[nElem];
-//        sig23= new Real*[nElem];
-//        sig31= new Real*[nElem];
+//        sig1 = new Math::Real*[nElem];
+//        sig2 = new Math::Real*[nElem];
+//        sig3 = new Math::Real*[nElem];
+//        sig11 = new Math::Real*[nElem];
+//        sig22 = new Math::Real*[nElem];
+//        sig33 = new Math::Real*[nElem];
+//        sig12= new Math::Real*[nElem];
+//        sig23= new Math::Real*[nElem];
+//        sig31= new Math::Real*[nElem];
 //        for (size_t e = 0; e < nElem; e++) {
-//            sig1[e] = new Real[np*np];
-//            sig2[e] = new Real[np*np];
-//            sig3[e] = new Real[np*np];
-//            sig11[e] = new Real[np*np];
-//            sig22[e] = new Real[np*np];
-//            sig33[e] = new Real[np*np];
-//            sig12[e] = new Real[np*np];
-//            sig23[e] = new Real[np*np];
-//            sig31[e] = new Real[np*np];
+//            sig1[e] = new Math::Real[np*np];
+//            sig2[e] = new Math::Real[np*np];
+//            sig3[e] = new Math::Real[np*np];
+//            sig11[e] = new Math::Real[np*np];
+//            sig22[e] = new Math::Real[np*np];
+//            sig33[e] = new Math::Real[np*np];
+//            sig12[e] = new Math::Real[np*np];
+//            sig23[e] = new Math::Real[np*np];
+//            sig31[e] = new Math::Real[np*np];
 //        }
 //        initConductivity(sig1, 1, mat, cells);
 //        initConductivity(sig2, 2, mat, cells);

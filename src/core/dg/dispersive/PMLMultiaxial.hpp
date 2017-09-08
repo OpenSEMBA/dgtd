@@ -25,13 +25,13 @@
  *      Author: luis
  */
 
-#include "../../dg/dispersive/DGPMLMultiaxial.h"
+#include "PMLMultiaxial.h"
 
 DGPMLMultiaxial::DGPMLMultiaxial(
         const PMVolumePML& mat,
         const CellGroup& cells,
         const bool useConductivity,
-        const Real conductivity) : DGPML(mat, cells) {
+        const Math::Real conductivity) : DGPML(mat, cells) {
 //    J.set(dof, 0.0);
 //    resJ.set(dof, 0.0);
 //    rhsJ.set(dof, 0.0);
@@ -46,7 +46,7 @@ DGPMLMultiaxial::~DGPMLMultiaxial() {
 
 void DGPMLMultiaxial::addRHSToRes(
         const size_t e1, const size_t e2,
-        const Real rka, const Real dt) {
+        const Math::Real rka, const Math::Real dt) {
 //    size_t i, e;
 //    for (i = 0; i < dof; i++) {
 //        e = elem[(i / np) % nElem];
@@ -62,7 +62,7 @@ void DGPMLMultiaxial::addRHSToRes(
 void DGPMLMultiaxial::updateWithRes(
         const size_t e1,
         const size_t e2,
-        const Real rkb) {
+        const Math::Real rkb) {
 //    size_t i, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i, e)

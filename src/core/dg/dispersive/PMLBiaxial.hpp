@@ -39,7 +39,7 @@
 //
 //void
 //DGPMLMultiaxial::internalBiaxialRHSElectricPolarizationCurrent(
-//        const Real* E1, const Real* E2, const Real* E3, const size_t e1,
+//        const Math::Real* E1, const Math::Real* E2, const Math::Real* E3, const size_t e1,
 //        const size_t e2) {
 //    if (useConstantConductivity) {
 //        size_t i;
@@ -64,15 +64,15 @@
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsJ1[i] = + sig11*E1[j] - sig12*E1[j] - sig1*J1[i];
-//                m_v_prod<Real,np,np>(&rhsJ1[i], sig11[e], &E1[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsJ1[i], sig12[e], &E1[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsJ1[i], sig1[e], &J1[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig11[e], &E1[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig12[e], &E1[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig1[e], &J1[i]);
 //                //rhsJ2[i] = - sig21*E2[j] + sig22*E2[j] - sig2*J2[i];
-//                m_v_prod<Real,np,np>(&rhsJ2[i], sig22[e], &E2[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsJ2[i], sig12[e], &E2[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsJ2[i], sig2[e], &J2[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig22[e], &E2[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig12[e], &E2[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig2[e], &J2[i]);
 //                //rhsJ3[i] = sig12*J3[i];
-//                m_v_prod<Real,np,np>(&rhsJ3[i], sig12[e], &J3[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsJ3[i], sig12[e], &J3[i]);
 //            }
 //        }
 //    }
@@ -80,7 +80,7 @@
 //
 //void
 //DGPMLMultiaxial::internalBiaxialRHSMagneticPolarizationCurrent(
-//        const Real* H1, const Real* H2, const Real* H3,
+//        const Math::Real* H1, const Math::Real* H2, const Math::Real* H3,
 //        const size_t e1, const size_t e2) {
 //    if (useConstantConductivity) {
 //        size_t i;
@@ -105,15 +105,15 @@
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsM1[i] = - sig12*H1[j] + sig11*H1[j] - sig1*M1[i];
-//                m_v_prod<Real,np,np>(&rhsM1[i], sig11[e], &H1[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsM1[i], sig12[e], &H1[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsM1[i], sig1[e], &M1[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsM1[i], sig11[e], &H1[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsM1[i], sig12[e], &H1[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsM1[i], sig1[e], &M1[i]);
 //                //rhsM2[i] = - sig21*H2[j] + sig22*H2[j] - sig2*M2[i];
-//                m_v_prod<Real,np,np>(&rhsM2[i], sig22[e], &H2[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsM2[i], sig12[e], &H2[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsM2[i], sig2[e], &M2[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsM2[i], sig22[e], &H2[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsM2[i], sig12[e], &H2[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsM2[i], sig2[e], &M2[i]);
 //                //rhsM3[i] = sig12*M3[i];
-//                m_v_prod<Real,np,np>(&rhsM3[i], sig12[e], &M3[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsM3[i], sig12[e], &M3[i]);
 //            }
 //        }
 //    }
@@ -121,8 +121,8 @@
 //
 //void
 //DGPMLMultiaxial::internalBiaxialRHSMagnetic(
-//        Real* rhsH1, Real* rhsH2, Real* rhsH3, const Real* H1, const Real* H2,
-//        const Real* H3, const size_t e1, const size_t e2) const {
+//        Math::Real* rhsH1, Math::Real* rhsH2, Math::Real* rhsH3, const Math::Real* H1, const Math::Real* H2,
+//        const Math::Real* H3, const size_t e1, const size_t e2) const {
 //    if (useConstantConductivity) {
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,j,e,n)
@@ -148,19 +148,19 @@
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsM3[i] = sig12*M3[i];
-//                m_v_prod<Real,np,np>(&rhsM3[i], sig12[e], &M3[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsM3[i], sig12[e], &M3[i]);
 //                //rhsH1[j] += - H1[j]*Constants::mu0*(sigma2-sigma1) - M1[i]*Constants::mu0;
-//                sub_am_v_prod<Real,np,np>(&rhsH1[j], sig2[e], &H1[j], Constants::mu0);
-//                add_am_v_prod<Real,np,np>(&rhsH1[j], sig1[e], &H1[j], Constants::mu0);
-//                sub_a_v_prod<Real,np>(&rhsH1[j], &M1[i], Constants::mu0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsH1[j], sig2[e], &H1[j], Constants::mu0);
+//                add_am_v_prod<Math::Real,np,np>(&rhsH1[j], sig1[e], &H1[j], Constants::mu0);
+//                sub_a_v_prod<Math::Real,np>(&rhsH1[j], &M1[i], Constants::mu0);
 //                //rhsH2[j] += - H2[j]*Constants::mu0*(sigma1-sigma2) - M2[i]*Constants::mu0;
-//                sub_am_v_prod<Real,np,np>(&rhsH2[j], sig1[e], &H2[j], Constants::mu0);
-//                add_am_v_prod<Real,np,np>(&rhsH2[j], sig2[e], &H2[j], Constants::mu0);
-//                sub_a_v_prod<Real,np>(&rhsH2[j], &M2[i], Constants::mu0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsH2[j], sig1[e], &H2[j], Constants::mu0);
+//                add_am_v_prod<Math::Real,np,np>(&rhsH2[j], sig2[e], &H2[j], Constants::mu0);
+//                sub_a_v_prod<Math::Real,np>(&rhsH2[j], &M2[i], Constants::mu0);
 //                //rhsH3[j] += - H3[j]*Constants::mu0*(sigma1+sigma2) - M3[i]*Constants::mu0;
-//                sub_am_v_prod<Real,np,np>(&rhsH3[j], sig1[e], &H3[j], Constants::mu0);
-//                sub_am_v_prod<Real,np,np>(&rhsH3[j], sig2[e], &H3[j], Constants::mu0);
-//                sub_a_v_prod<Real,np>(&rhsH3[j], &J3[i], Constants::mu0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsH3[j], sig1[e], &H3[j], Constants::mu0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsH3[j], sig2[e], &H3[j], Constants::mu0);
+//                sub_a_v_prod<Math::Real,np>(&rhsH3[j], &J3[i], Constants::mu0);
 //            }
 //        }
 //    }
@@ -168,9 +168,9 @@
 //
 //
 //void
-//DGPMLMultiaxial::internalBiaxialRHSElectric(Real* rhsE1,
-//        Real* rhsE2, Real* rhsE3, const Real* E1, const Real* E2,
-//        const Real* E3, const size_t e1, const size_t e2) const {
+//DGPMLMultiaxial::internalBiaxialRHSElectric(Math::Real* rhsE1,
+//        Math::Real* rhsE2, Math::Real* rhsE3, const Math::Real* E1, const Math::Real* E2,
+//        const Math::Real* E3, const size_t e1, const size_t e2) const {
 //    if (useConstantConductivity) {
 //        size_t i, j, e, n;
 //#ifdef SOLVER_USE_OPENMP
@@ -196,17 +196,17 @@
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsE1[j] += - sig2*E1[j]*Constants::eps0 + sig1*E1[j]*Constants::eps0 - J1[i]*Constants::eps0;
-//                sub_am_v_prod<Real,np,np>(&rhsE1[j], sig2[e], &E1[j], Constants::eps0);
-//                add_am_v_prod<Real,np,np>(&rhsE1[j], sig1[e], &E1[j], Constants::eps0);
-//                sub_a_v_prod<Real,np>(&rhsE1[j], &J1[i], Constants::eps0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsE1[j], sig2[e], &E1[j], Constants::eps0);
+//                add_am_v_prod<Math::Real,np,np>(&rhsE1[j], sig1[e], &E1[j], Constants::eps0);
+//                sub_a_v_prod<Math::Real,np>(&rhsE1[j], &J1[i], Constants::eps0);
 //                //rhsE2[j] += - E2[j]*Constants::eps0*(sig1-sig2) - J2[i]*Constants::eps0;
-//                sub_am_v_prod<Real,np,np>(&rhsE2[j], sig1[e], &E2[j], Constants::eps0);
-//                add_am_v_prod<Real,np,np>(&rhsE2[j], sig2[e], &E2[j], Constants::eps0);
-//                sub_a_v_prod<Real,np>(&rhsE2[j], &J2[i], Constants::eps0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsE2[j], sig1[e], &E2[j], Constants::eps0);
+//                add_am_v_prod<Math::Real,np,np>(&rhsE2[j], sig2[e], &E2[j], Constants::eps0);
+//                sub_a_v_prod<Math::Real,np>(&rhsE2[j], &J2[i], Constants::eps0);
 //                //rhsE3[j] += - E3[j]*Constants::eps0*(sig1+sig2) - J3[i]*Constants::eps0;
-//                sub_am_v_prod<Real,np,np>(&rhsE3[j], sig1[e], &E3[j], Constants::eps0);
-//                sub_am_v_prod<Real,np,np>(&rhsE3[j], sig2[e], &E3[j], Constants::eps0);
-//                sub_a_v_prod<Real,np>(&rhsE3[j], &J3[i], Constants::eps0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsE3[j], sig1[e], &E3[j], Constants::eps0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsE3[j], sig2[e], &E3[j], Constants::eps0);
+//                sub_a_v_prod<Math::Real,np>(&rhsE3[j], &J3[i], Constants::eps0);
 //            }
 //        }
 //    }
@@ -220,7 +220,7 @@
 //        const  PMVolumePML& mat_,
 //        const CellGroup& cells,
 //        const bool useConductivity,
-//        const Real conductivity) {
+//        const Math::Real conductivity) {
 //    useConstantConductivity = useConductivity;
 //    if (conductivity != 0.0) {
 //        sig = conductivity;

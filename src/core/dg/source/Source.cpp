@@ -57,30 +57,30 @@
 //        const CellGroup& cells,
 //        FieldR3& dE,
 //        FieldR3& dH,
-//        const Int vmapM[faces][nfp]) {
+//        const Math::Int vmapM[faces][nfp]) {
 //    vector<pair<size_t, size_t> > total, scatt, totalNotBacked;
 //    total = getTotalFieldElemFaces(bc, map, cells);
 //    scatt = getScattFieldElemFaces(bc, map, cells);
 //    totalNotBacked = getTotalNotBackedFieldElemFaces(bc, map, cells);
 //    // Set fields to zero.
-//    ETInc.setAll((Real) 0.0);
-//    HTInc.setAll((Real) 0.0);
-//    ESInc.setAll((Real) 0.0);
-//    HSInc.setAll((Real) 0.0);
-//    EIncNB.setAll((Real) 0.0);
-//    HIncNB.setAll((Real) 0.0);
+//    ETInc.setAll((Math::Real) 0.0);
+//    HTInc.setAll((Math::Real) 0.0);
+//    ESInc.setAll((Math::Real) 0.0);
+//    HSInc.setAll((Math::Real) 0.0);
+//    EIncNB.setAll((Math::Real) 0.0);
+//    HIncNB.setAll((Math::Real) 0.0);
 //    const size_t nETF = total.size();
 //    const size_t nESF = scatt.size();
 //    const size_t nETFNB = totalNotBacked.size();
 //    // Allocates and sets jumps pointers.
 //    // The pointers point to the beginning of the face that they have to
 //    // update on each iteration.
-//    dExT = new Real*[nETF];
-//    dEyT = new Real*[nETF];
-//    dEzT = new Real*[nETF];
-//    dHxT = new Real*[nETF];
-//    dHyT = new Real*[nETF];
-//    dHzT = new Real*[nETF];
+//    dExT = new Math::Real*[nETF];
+//    dEyT = new Math::Real*[nETF];
+//    dEzT = new Math::Real*[nETF];
+//    dHxT = new Math::Real*[nETF];
+//    dHyT = new Math::Real*[nETF];
+//    dHzT = new Math::Real*[nETF];
 //    for (size_t j = 0; j < nETF; j++) {
 //        size_t e = total[j].first;
 //        size_t f = total[j].second;
@@ -92,12 +92,12 @@
 //        dHyT[j] = &dH.set(y)[pos];
 //        dHzT[j] = &dH.set(z)[pos];
 //    }
-//    dExS = new Real*[nESF];
-//    dEyS = new Real*[nESF];
-//    dEzS = new Real*[nESF];
-//    dHxS = new Real*[nESF];
-//    dHyS = new Real*[nESF];
-//    dHzS = new Real*[nESF];
+//    dExS = new Math::Real*[nESF];
+//    dEyS = new Math::Real*[nESF];
+//    dEzS = new Math::Real*[nESF];
+//    dHxS = new Math::Real*[nESF];
+//    dHyS = new Math::Real*[nESF];
+//    dHzS = new Math::Real*[nESF];
 //    for (size_t j = 0; j < nESF; j++) {
 //        size_t e = scatt[j].first;
 //        size_t f = scatt[j].second;
@@ -109,12 +109,12 @@
 //        dHyS[j] = &dH.set(y)[pos];
 //        dHzS[j] = &dH.set(z)[pos];
 //    }
-//    dExTNB = new Real*[nETFNB];
-//    dEyTNB = new Real*[nETFNB];
-//    dEzTNB = new Real*[nETFNB];
-//    dHxTNB = new Real*[nETFNB];
-//    dHyTNB = new Real*[nETFNB];
-//    dHzTNB = new Real*[nETFNB];
+//    dExTNB = new Math::Real*[nETFNB];
+//    dEyTNB = new Math::Real*[nETFNB];
+//    dEzTNB = new Math::Real*[nETFNB];
+//    dHxTNB = new Math::Real*[nETFNB];
+//    dHyTNB = new Math::Real*[nETFNB];
+//    dHzTNB = new Math::Real*[nETFNB];
 //    for (size_t j = 0; j < nETFNB; j++) {
 //        size_t e = totalNotBacked[j].first;
 //        size_t f = totalNotBacked[j].second;

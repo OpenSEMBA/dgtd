@@ -19,50 +19,51 @@
 //// You should have received a copy of the GNU Lesser General Public License
 //// along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 ///*
-// * SolverDipole.h
+// * SolverPlaneWave.h
 // *
-// *  Created on: Oct 3, 2012
+// *  Created on: Sep 11, 2012
 // *      Author: luis
 // */
 //
-//#ifndef SOLVERDIPOLE_H_
-//#define SOLVERDIPOLE_H_
+//#ifndef SOLVERPLANEWAVE_H_
+//#define SOLVERPLANEWAVE_H_
 //
 //#include "../../dg/sources/DGSource.h"
-//#include "math/SphericalVector.h"
-//#include "sources/Dipole.h"
+//#include "sources/PlaneWave.h"
 //
 //using namespace std;
 //
-////#define SOLVERDIPOLE_DO_NOT_USE_GAUSSIAN_DERIVATIVE
-//#define SOLVERDIPOLE_CREATE_GRAPH_WITH_EXCITATION
-//
-//class DGDipole : public DGSource, public Dipole {
+//class DGPlaneWave : public DGSource, public PlaneWave {
 //public:
-//    DGDipole(
-//            const Dipole& dip,
+//    DGPlaneWave(
+//            const PlaneWave& pw,
 //            const BCGroup& bc,
 //            const Connectivities& map,
 //            const CellGroup& cells,
-//            FieldR3& dE,
-//            FieldR3& dH,
-//            const Int vmapM[faces][nfp]);
-//    virtual ~DGDipole();
+//            const Comm* comm,
+//            FieldR3& dE, FieldR3& dH,
+//            const Math::Int vmapM[faces][nfp]);
+//    virtual ~DGPlaneWave();
 //    void computeExcitation(
-//            const Real intTime,
-//            const Real minDT);
-//    CVecR3 getMagnitude(const Real time) const;
+//            const Math::Real intTime,
+//            const Math::Real minDT);
 //    void printInfo() const;
 //private:
-//#ifdef SOLVERDIPOLE_DO_NOT_USE_GAUSSIAN_DERIVATIVE
-//    Real *intT, *intS;
-//#endif
-//    SphericalVector *tPos, *sPos;
+//    Math::Real *kNPosTF; // dim(nETSF*SOLVER_NFP)
+//    Math::Real *kNPosSF; // dim(nETSF*SOLVER_NFP)
+//    Math::Real *kNPosTFNB; // dim(nETFNB*SOLVER_NFP)
 //    void computeExcitationField(
 //            FieldR3& EInc,
 //            FieldR3& HInc,
-//            const SphericalVector* vPos,
+//            const Math::Real* vPos,
 //            const size_t nE,
-//            const Real time) const;
+//            const Math::Real intTime);
+//    void initWaveNumberPosition(
+//            const BCGroup& bc,
+//            const Connectivities& map,
+//            const CellGroup& cells,
+//            const Comm* comm,
+//            const Math::Int vmapM[faces][nfp]);
 //};
-//#endif /* SOLVERDIPOLE_H_ */
+//
+//#endif /* SOLVERPLANEWAVE_H_ */

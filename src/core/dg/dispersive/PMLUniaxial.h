@@ -28,24 +28,24 @@
 #ifndef SOLVERPMLUNIAXIAL_H_
 #define SOLVERPMLUNIAXIAL_H_
 
-#include "../../dg/dispersive/DGPML.h"
+#include "PML.h"
 
-template<Int D>
+template<Math::Int D>
 class DGPMLUniaxial : public DGPML {
 public:
     DGPMLUniaxial(
             const PMVolumePML& mat,
             const CellGroup& cells,
             const bool useConductivity,
-            const Real conductivity);
+            const Math::Real conductivity);
     virtual ~DGPMLUniaxial();
     void addRHSToRes(
             const size_t e1, const size_t e2,
-            const Real rka, const Real dt);
+            const Math::Real rka, const Math::Real dt);
     void updateWithRes(
             const size_t e1,
             const size_t e2,
-            const Real rkb);
+            const Math::Real rkb);
     void computeRHSElectric(
             FieldR3& rhsE,
             const FieldR3& E,
@@ -69,7 +69,7 @@ private:
     static const CartesianAxis dir3 = CartesianAxis((D + 2)%3);
 };
 
-#include "../../dg/dispersive/DGPMLUniaxial.hpp"
+#include "PMLUniaxial.hpp"
 
 typedef DGPMLUniaxial<x> DGPMLx;
 typedef DGPMLUniaxial<y> DGPMLy;

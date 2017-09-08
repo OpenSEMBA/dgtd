@@ -19,31 +19,31 @@
 //// You should have received a copy of the GNU Lesser General Public License
 //// along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 ///*
-// * SolverPMLUniaxial.h
+// * SolverDispersive.h
 // *
-// *  Created on: Aug 2, 2013
+// *  Created on: Sep 27, 2014
 // *      Author: luis
 // */
 //
-//#ifndef SOLVERPMLMULTIAXIAL_H_
-//#define SOLVERPMLMULTIAXIAL_H_
+//#ifndef SOLVERDISPERSIVE_H_
+//#define SOLVERDISPERSIVE_H_
 //
-//#include "DGPML.h"
+//#include <cmath>
 //
-//class DGPMLMultiaxial : public DGPML {
+//using namespace std;
+//
+//#include "math/Constants.h"
+//#include "math/Field.h"
+//#include "physicalModel/PhysicalModel.h"
+//#include "solver/dgtd/core/CellGroup.h"
+//
+//class DGDispersive {
 //public:
-//    DGPMLMultiaxial(
-//            const PMVolumePML& mat,
-//            const bool useConductivity,
-//            const Real conductivity);
-//    virtual ~DGPMLMultiaxial();
-//    void addRHSToRes(
-//            const size_t e1, const size_t e2,
-//            const Real rka, const Real dt);
-//    void updateWithRes(
-//            const size_t e1,
-//            const size_t e2,
-//            const Real rkb);
+//    static const size_t N = ORDER_N;
+//    static const size_t nfp = (N+1) * (N+2) / 2;
+//    static const size_t np = (N+1) * (N+2) * (N+3) / 6;
+//    static const size_t faces = 4;
+//    virtual ~DGDispersive() = 0;
 //    virtual void computeRHSElectric(
 //            FieldR3& rhsE,
 //            const FieldR3& E,
@@ -51,15 +51,24 @@
 //    virtual void computeRHSMagnetic(
 //            FieldR3& rhsH,
 //            const FieldR3& H,
-//            const size_t e1, const size_t e2) const = 0;
+//            const size_t e1, const size_t e2) const= 0;
 //    virtual void computeRHSElectricPolarizationCurrents(
 //            const FieldR3& E,
 //            const size_t e1, const size_t e2) = 0;
 //    virtual void computeRHSMagneticPolarizationCurrents(
 //            const FieldR3& H,
 //            const size_t e1, const size_t e2) = 0;
-//protected:
-//    FieldR3 J, M, resJ, resM, rhsJ, rhsM;
+//    virtual void addRHSToRes(
+//            const size_t e1, const size_t e2,
+//            const Math::Real rka, const Math::Real dt) = 0;
+//    virtual void updateWithRes(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real rkb) = 0;
+//    virtual void addJumps(
+//            FieldR3& dE, FieldR3& dH,
+//            FieldR3& E, FieldR3& H,
+//            const size_t e1, const size_t e2) = 0;
 //};
 //
-//#endif /* SOLVERPMLUNIAXIAL_H_ */
+//#endif /* SOLVERDISPERSIVE_H_ */

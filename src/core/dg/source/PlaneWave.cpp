@@ -33,7 +33,7 @@
 //        const CellGroup& cells,
 //        const Comm* comm,
 //        FieldR3& dE, FieldR3& dH,
-//        const Int vmapM[faces][nfp]) :
+//        const Math::Int vmapM[faces][nfp]) :
 //        PlaneWave(pw) {
 //    	initSource(bc, map, cells, dE, dH, vmapM);
 //    	initWaveNumberPosition(bc, map, cells, comm, vmapM);
@@ -51,7 +51,7 @@
 //}
 //
 //void DGPlaneWave::computeExcitation(
-//        const Real intTime, const Real minDT) {
+//        const Math::Real intTime, const Math::Real minDT) {
 //    computeExcitationField(ETInc, HTInc, kNPosTF, ETInc.size(), intTime);
 //    computeExcitationField(ESInc, HSInc, kNPosSF, ESInc.size(), intTime);
 //    computeExcitationField(EIncNB, HIncNB, kNPosTFNB, EIncNB.size(), intTime);
@@ -60,14 +60,14 @@
 //void DGPlaneWave::computeExcitationField(
 //        FieldR3& EInc,
 //        FieldR3& HInc,
-//        const Real* vPos,
+//        const Math::Real* vPos,
 //        const size_t nE,
-//        const Real intTime) {
+//        const Math::Real intTime) {
 //    // Computes the plane wve excitation corresponding to the face f.
 //    // The face contins nfp nodes and it is computed for time intTime.
 //    const size_t nFields = nfp*nE;
 //    for (size_t j = 0; j < nFields; j++) {
-//        Real delayedTime = intTime - vPos[j];
+//        Math::Real delayedTime = intTime - vPos[j];
 //        if (delayedTime >= 0) {
 //            pair<CVecR3,CVecR3> EHInc = getElectromagneticField(delayedTime);
 //            EInc(x)[j] = EHInc.first(0);
@@ -77,12 +77,12 @@
 //            HInc(y)[j] = EHInc.second(1);
 //            HInc(z)[j] = EHInc.second(2);
 //        } else {
-//            EInc(x)[j] = (Real) 0.0;
-//            EInc(y)[j] = (Real) 0.0;
-//            EInc(z)[j] = (Real) 0.0;
-//            HInc(x)[j] = (Real) 0.0;
-//            HInc(y)[j] = (Real) 0.0;
-//            HInc(z)[j] = (Real) 0.0;
+//            EInc(x)[j] = (Math::Real) 0.0;
+//            EInc(y)[j] = (Math::Real) 0.0;
+//            EInc(z)[j] = (Math::Real) 0.0;
+//            HInc(x)[j] = (Math::Real) 0.0;
+//            HInc(y)[j] = (Math::Real) 0.0;
+//            HInc(z)[j] = (Math::Real) 0.0;
 //        }
 //    }
 //}
@@ -92,16 +92,16 @@
 //        const Connectivities& map,
 //        const CellGroup& cells,
 //        const Comm* comm,
-//        const Int vmapM[faces][nfp]) {
+//        const Math::Int vmapM[faces][nfp]) {
 //    // Generates kNPosTSF for PW excitation.
 //    // Computes krmin position.
-//    Real krmin = 0.0;
+//    Math::Real krmin = 0.0;
 //    bool krminSet = false;
 //    CVecR3 nodePos;
 //    // Total field.
 //    vector<pair<size_t, size_t> > total;
 //    total = getTotalFieldElemFaces(bc, map, cells);
-//    kNPosTF = new Real[ETInc.size() * nfp];
+//    kNPosTF = new Math::Real[ETInc.size() * nfp];
 //    for (size_t j = 0; j < ETInc.size(); j++) {
 //        ElemId id = cells.getIdOfRelPos(total[j].first);
 //        size_t f = total[j].second;
@@ -122,7 +122,7 @@
 //    // Scattered field.
 //    vector<pair<size_t, size_t> > scatt;
 //    scatt = getScattFieldElemFaces(bc, map, cells);
-//    kNPosSF = new Real[ESInc.size() * nfp];
+//    kNPosSF = new Math::Real[ESInc.size() * nfp];
 //    for (size_t j = 0; j < ESInc.size(); j++) {
 //        ElemId id = cells.getIdOfRelPos(scatt[j].first);
 //        size_t f = scatt[j].second;
@@ -144,7 +144,7 @@
 //    // Total field not backed.
 //    vector<pair<size_t, size_t> > totalNotBacked;
 //    totalNotBacked = getTotalNotBackedFieldElemFaces(bc, map, cells);
-//    kNPosTFNB = new Real[EIncNB.size() * nfp];
+//    kNPosTFNB = new Math::Real[EIncNB.size() * nfp];
 //    for (size_t j = 0; j < EIncNB.size(); j++) {
 //        ElemId id = cells.getIdOfRelPos(totalNotBacked[j].first);
 //        size_t f = totalNotBacked[j].second;

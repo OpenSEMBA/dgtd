@@ -25,14 +25,14 @@
  *      Author: luis
  */
 
-#include "../../dg/dispersive/DGPMLUniaxial.h"
+#include "PMLUniaxial.h"
 
-template<Int D>
+template<Math::Int D>
 DGPMLUniaxial<D>::DGPMLUniaxial(
         const PMVolumePML& mat,
         const CellGroup& cells,
         const bool useConductivity,
-        const Real conductivity) :
+        const Math::Real conductivity) :
 DGPML(mat) {
     J.set(dof, 0.0);
     resJ.set(dof, 0.0);
@@ -43,15 +43,15 @@ DGPML(mat) {
     assert(check());
 }
 
-template<Int D>
+template<Math::Int D>
 DGPMLUniaxial<D>::~DGPMLUniaxial() {
 
 }
 
-template<Int D>
+template<Math::Int D>
 void DGPMLUniaxial<D>::addRHSToRes(
         const size_t e1, const size_t e2,
-        const Real rka, const Real dt) {
+        const Math::Real rka, const Math::Real dt) {
 //    size_t i,e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,e)
@@ -67,7 +67,7 @@ void DGPMLUniaxial<D>::addRHSToRes(
 //    }
 }
 
-template<Int D>
+template<Math::Int D>
 void DGPMLUniaxial<D>::computeRHSElectric(
         FieldR3& rhsE, const FieldR3& E,
         const size_t e1, const size_t e2) const {
@@ -96,18 +96,18 @@ void DGPMLUniaxial<D>::computeRHSElectric(
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsE1[j] += (Constants::eps0*sig1) * E1[j] - Constants::eps0 * J[i];
-//                add_am_v_prod<Real,np,np>(&rhsE.set(dir1)[j], sig1[e], &E(dir1)[j], Constants::eps0);
-//                sub_a_v_prod<Real,np>(&rhsE(dir1)[j], &J[i], Constants::eps0);
+//                add_am_v_prod<Math::Real,np,np>(&rhsE.set(dir1)[j], sig1[e], &E(dir1)[j], Constants::eps0);
+//                sub_a_v_prod<Math::Real,np>(&rhsE(dir1)[j], &J[i], Constants::eps0);
 //                //rhsE2[j] -= (Constants::eps0*sig1) * E2[j];
-//                sub_am_v_prod<Real,np,np>(&rhsE(dir2)[j], sig1[e], &E(dir2)[j], Constants::eps0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsE(dir2)[j], sig1[e], &E(dir2)[j], Constants::eps0);
 //                //rhsE3[j] -= (Constants::eps0*sig1) * E3[j];
-//                sub_am_v_prod<Real,np,np>(&rhsE(dir3)[j], sig1[e], &E(dir3)[j], Constants::eps0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsE(dir3)[j], sig1[e], &E(dir3)[j], Constants::eps0);
 //            }
 //        }
 //    }
 }
 
-template<Int D>
+template<Math::Int D>
 void DGPMLUniaxial<D>::computeRHSMagnetic(
         FieldR3& rhsH, const FieldR3& H,
         const size_t e1, const size_t e2) const {
@@ -136,18 +136,18 @@ void DGPMLUniaxial<D>::computeRHSMagnetic(
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsH1[j] += (Constants::mu0*sigma1) * H1[j] - Constants::mu0 * M[i];
-//                add_am_v_prod<Real,np,np>(&rhsH(dir1)[j], sig1[e], &H(dir1)[j], Constants::mu0);
-//                sub_a_v_prod<Real,np>(&rhsH(dir1)[j], &M[i], Constants::mu0);
+//                add_am_v_prod<Math::Real,np,np>(&rhsH(dir1)[j], sig1[e], &H(dir1)[j], Constants::mu0);
+//                sub_a_v_prod<Math::Real,np>(&rhsH(dir1)[j], &M[i], Constants::mu0);
 //                //rhsH2[j] -= (Constants::mu0*sigma1) * H2[j];
-//                sub_am_v_prod<Real,np,np>(&rhsH(dir2)[j], sig1[e], &H(dir2)[j], Constants::mu0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsH(dir2)[j], sig1[e], &H(dir2)[j], Constants::mu0);
 //                //rhsH3[j] -= (Constants::mu0*sigma1) * H3[j];
-//                sub_am_v_prod<Real,np,np>(&rhsH(dir3)[j], sig1[e], &H(dir3)[j], Constants::mu0);
+//                sub_am_v_prod<Math::Real,np,np>(&rhsH(dir3)[j], sig1[e], &H(dir3)[j], Constants::mu0);
 //            }
 //        }
 //    }
 }
 
-template<Int D>
+template<Math::Int D>
 void DGPMLUniaxial<D>::computeRHSElectricPolarizationCurrents(
         const FieldR3& E,
         const size_t e1, const size_t e2) {
@@ -174,14 +174,14 @@ void DGPMLUniaxial<D>::computeRHSElectricPolarizationCurrents(
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsJ[i] = E1[j] * (sig11) - sig1 * J[i];
-//                m_v_prod<Real,np,np>(&rhsJ[i], sig11[e], &E(dir1)[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsJ[i], sig1[e], &J[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsJ[i], sig11[e], &E(dir1)[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsJ[i], sig1[e], &J[i]);
 //            }
 //        }
 //    }
 }
 
-template<Int D>
+template<Math::Int D>
 void DGPMLUniaxial<D>::computeRHSMagneticPolarizationCurrents(
         const FieldR3& H,
         const size_t e1, const size_t e2) {
@@ -208,14 +208,14 @@ void DGPMLUniaxial<D>::computeRHSMagneticPolarizationCurrents(
 //                i = e * np;
 //                j = elem[e] * np;
 //                //rhsM[i] = H1[j] * (sigma1*sigma1) - sigma1 * M[i];
-//                m_v_prod<Real,np,np>(&rhsM[i], sig11[e], &H(dir1)[j]);
-//                sub_m_v_prod<Real,np,np>(&rhsM[i], sig1[e], &M[i]);
+//                m_v_prod<Math::Real,np,np>(&rhsM[i], sig11[e], &H(dir1)[j]);
+//                sub_m_v_prod<Math::Real,np,np>(&rhsM[i], sig1[e], &M[i]);
 //            }
 //        }
 //    }
 }
 
-template<Int D>
+template<Math::Int D>
 bool DGPMLUniaxial<D>::check() const {
     bool sigInitialized = true;
     if (!useConstantConductivity) {
@@ -232,11 +232,11 @@ bool DGPMLUniaxial<D>::check() const {
     return sigInitialized;
 }
 
-template<Int D>
+template<Math::Int D>
 void DGPMLUniaxial<D>::updateWithRes(
         const size_t e1,
         const size_t e2,
-        const Real rkb) {
+        const Math::Real rkb) {
     size_t i, e;
 #ifdef SOLVER_USE_OPENMP
 #pragma omp parallel for private(i, e)

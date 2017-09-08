@@ -48,7 +48,7 @@
 //void DGDispersiveVolumic::updateWithRes(
 //        const size_t e1,
 //        const size_t e2,
-//        const Real rkb) {
+//        const Math::Real rkb) {
 //    size_t i, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,e)
@@ -77,8 +77,8 @@
 //void DGDispersiveVolumic::addRHSToRes(
 //        const size_t e1,
 //        const size_t e2,
-//        const Real rka,
-//        const Real dt) {
+//        const Math::Real rka,
+//        const Math::Real dt) {
 //    size_t i, e;
 //#ifdef SOLVER_USE_OPENMP
 //#pragma omp parallel for private(i,e)

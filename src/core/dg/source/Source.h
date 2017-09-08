@@ -53,8 +53,8 @@
 //            const size_t e1,
 //            const size_t e2);
 //    virtual void computeExcitation(
-//            const Real intTime,
-//            const Real minDT) = 0;
+//            const Math::Real intTime,
+//            const Math::Real minDT) = 0;
 //    virtual void printInfo() const = 0;
 //protected:
 //    const static size_t np = (N+1) * (N+2) * (N+3) / 6;
@@ -68,21 +68,21 @@
 //
 //    vector<size_t> ETFe, ESFe, ETFNBe;
 //    // Excitation total field jumps pointers.
-//    Real **dExT, **dEyT, **dEzT;
-//    Real **dHxT, **dHyT, **dHzT;
+//    Math::Real **dExT, **dEyT, **dEzT;
+//    Math::Real **dHxT, **dHyT, **dHzT;
 //    // Excitation scattered field jumps pointers.
-//    Real **dExS, **dEyS, **dEzS;
-//    Real **dHxS, **dHyS, **dHzS;
+//    Math::Real **dExS, **dEyS, **dEzS;
+//    Math::Real **dHxS, **dHyS, **dHzS;
 //    // Excitation total field not backed jumps.
-//    Real **dExTNB, **dEyTNB, **dEzTNB;
-//    Real **dHxTNB, **dHyTNB, **dHzTNB;
+//    Math::Real **dExTNB, **dEyTNB, **dEzTNB;
+//    Math::Real **dHxTNB, **dHyTNB, **dHzTNB;
 //    void initSource(
 //            const BCGroup& bc,
 //            const Connectivities& map,
 //            const CellGroup& cells,
 //            FieldR3& dE,
 //            FieldR3& dH,
-//            const Int vmapM[faces][nfp]);
+//            const Math::Int vmapM[faces][nfp]);
 //    CVecR3* initPositions(
 //            const vector<pair<size_t, size_t> >& elemFace,
 //            const CellGroup& cells) const;

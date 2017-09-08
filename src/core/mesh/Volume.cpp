@@ -89,15 +89,15 @@ vector<vector<Geometry::ElemId>> Volume::getPartitionsIds(
     cout << "OK" << endl;
     // Relabels ids, needed by quadratic or linearized meshes.
     cout << " - Relabeling... " << flush;
-    DynMatrix<Int> id(ne*4,3);
-    for (Int i = 0; i < ne*4; i++) {
+    DynMatrix<Math::Int> id(ne*4,3);
+    for (Math::Int i = 0; i < ne*4; i++) {
         id(i,0) = i;
         id(i,1) = eind[i];
         id(i,2) = 0;
     }
     id.sortRows_omp(1,1);
-    Int label = 0;
-    for (Int i = 1; i < ne*4; i++) {
+    Math::Int label = 0;
+    for (Math::Int i = 1; i < ne*4; i++) {
         if (id(i,1) == id(i-1,1)) {
             id(i,2) = label;
         } else {
@@ -105,7 +105,7 @@ vector<vector<Geometry::ElemId>> Volume::getPartitionsIds(
         }
     }
     id.sortRows_omp(0,0);
-    for (Int i = 0; i < ne*4; i++) {
+    for (Math::Int i = 0; i < ne*4; i++) {
         eind[i] = id(i,2);
     }
     idx_t nn = label+1; // Number of vertices.
@@ -117,7 +117,7 @@ vector<vector<Geometry::ElemId>> Volume::getPartitionsIds(
         vwgt = NULL;
     } else {
         vwgt = new idx_t[ne];
-        for (Int e = 0; e < ne; e++) {
+        for (Math::Int e = 0; e < ne; e++) {
             vwgt[e] = idWgt[e].second;
         }
     }
@@ -143,7 +143,7 @@ vector<vector<Geometry::ElemId>> Volume::getPartitionsIds(
     // METIS options.
     cout << " - Setting Options... " << flush;
     idx_t options[METIS_NOPTIONS];
-    Int status;
+    Math::Int status;
     status = METIS_SetDefaultOptions(options);
     options[METIS_OPTION_PTYPE] = METIS_PTYPE_KWAY;
     options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_CUT;
@@ -166,7 +166,7 @@ vector<vector<Geometry::ElemId>> Volume::getPartitionsIds(
     for (size_t i = 0; i < nDivisions; i++) {
         res[i].reserve(ne);
     }
-    for (Int i = 0; i < ne; i++) {
+    for (Math::Int i = 0; i < ne; i++) {
         size_t id = elem_.tet[i]->getId();
         res[epart[i]].push_back(id);
     }

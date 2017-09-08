@@ -38,6 +38,11 @@ function(add_sources dir srcs)
     endif()
 endfunction()
 
+add_custom_target(clobber WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                          COMMAND ${CMAKE_COMMAND} -E remove_directory obj
+                          COMMAND ${CMAKE_COMMAND} -E remove_directory bin
+                          COMMAND ${CMAKE_COMMAND} -E remove_directory lib)
+
 project(cudg3d_global CXX)
 
 if (CMAKE_COMPILER_IS_GNUCXX)

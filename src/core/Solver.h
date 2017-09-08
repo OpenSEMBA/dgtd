@@ -27,13 +27,7 @@
 #include "Options.h"
 #include "parser/gid/Parser.h"
 #include "physicalModel/Group.h"
-#ifdef USE_MPI
-    #include "CommMPI.h"
-    #include "../output/OutputCommGiD.h"
-    #include "../output/OutputComm.h"
-#else
-    #include "communications/None.h"
-#endif
+#include "communications/None.h"
 //#include "integrator/LSERK.h"
 //#include "integrator/LF2.h"
 //#include "integrator/LF2Full.h"
@@ -41,7 +35,6 @@
 #include "solver/Solver.h"
 #include "dg/Explicit.h"
 #include "mesh/Volume.h"
-#include "Options.h"
 
 namespace SEMBA {
 namespace Cudg3d {

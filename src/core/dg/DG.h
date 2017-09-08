@@ -28,193 +28,194 @@
 using namespace std;
 
 #include "Data.h"
-#include "math/Field.h"
+//#include "math/Field.h"
 #include "communications/Communications.h"
-#include "BCGroup.h"
-#include "options/OptionsSolverDGTD.h"
-#include "dg/sources/DGPlaneWave.h"
-#include "dg/sources/DGDipole.h"
-#include "dg/sources/DGWaveguidePortRectangular.h"
-#include "dg/dispersive/DGSIBC.h"
-#include "dg/dispersive/DGDispersiveVolumic.h"
+#include "boundaryCondition/Group.h"
+#include "source/PlaneWave.h"
+#include "source/Dipole.h"
+#include "source/WaveguidePortRectangular.h"
+#include "dispersive/SIBC.h"
+#include "dispersive/Volume.h"
 
-#define SOLVER_DEDUPLICATE_OPERATORS
+namespace SEMBA {
+namespace Cudg3d {
+namespace DG {
 
-struct lexCompareMat {
-    static const size_t np = ((ORDER_N+1) * (ORDER_N+2) * (ORDER_N+3) / 6);
-    bool
-    operator() (
-            const Math::Matrix::Static<Real,np,np>& lhs,
-            const Math::Matrix::Static<Real,np,np>& rhs) const {
-        static const Real tolerance = 1e-12;
-        for (size_t i = 0; i < (np*np); i++) {
-            if (std::abs(lhs.val(i) - rhs.val(i)) > tolerance) {
-                if (lhs.val(i) < rhs.val(i)) {
-                    return true;
-                }
-                if (lhs.val(i) > rhs.val(i)) {
-                    return false;
-                }
-            }
-        }
-        return false;
-    }
-};
+//struct lexCompareMat {
+//    static const size_t np = ((ORDER_N+1) * (ORDER_N+2) * (ORDER_N+3) / 6);
+//    bool
+//    operator() (
+//            const Math::Matrix::Static<Math::Real,np,np>& lhs,
+//            const Math::Matrix::Static<Math::Real,np,np>& rhs) const {
+//        static const Math::Real tolerance = 1e-12;
+//        for (size_t i = 0; i < (np*np); i++) {
+//            if (std::abs(lhs.val(i) - rhs.val(i)) > tolerance) {
+//                if (lhs.val(i) < rhs.val(i)) {
+//                    return true;
+//                }
+//                if (lhs.val(i) > rhs.val(i)) {
+//                    return false;
+//                }
+//            }
+//        }
+//        return false;
+//    }
+//};
+//
+//class DG {
+//    friend class Exporter;
+//    friend class IntegratorLSERK;
+//    friend class IntegratorLF2;
+//    friend class IntegratorLF2Full;
+//    friend class IntegratorVerlet;
+//public:
+//    const static size_t N = ORDER_N;
+//    const static size_t faces = 4;
+//    const static size_t np = (N+1) * (N+2) * (N+3) / 6;
+//    const static size_t np2 = np * 2;
+//    const static size_t nfp = (N+1) * (N+2) / 2;
+//    const static size_t npnfp = np * nfp;
+//    const static size_t npnp = np * np;
+//    const static size_t nfpfaces = nfp * faces;
+//    DG();
+//    virtual ~DG();
+//    virtual void setFieldsToRandom();
+//    virtual void setFieldsToGaussian(
+//            const CellGroup& cells,
+//            const Math::Real amplitude,
+//            CVecR3& polarization,
+//            const CVecR3& gaussCenter,
+//            const Math::Real gaussWidth);
+//    virtual void setFieldsToHarmonics(
+//            const CellGroup& cells,
+//            const CVecI3& harmonics,
+//            CVecR3& polarization);
+//    void setFieldsAndTimeFromResumeFile();
+//    virtual size_t getFieldDOFs() = 0;
+//    const FieldR3* getElectric() const;
+//    const FieldR3* getMagnetic() const;
+//    virtual size_t getGlobalFieldPosOfVertex(
+//            pair<const ElemR*, size_t> vertex) const;
+//    virtual vector<size_t> getGlobalFieldPosOfFace(
+//            Face boundary) const;
+//    virtual vector<size_t> getGlobalFieldPosOfVolume(
+//            const ElemId volId) const;
+//    virtual void printInfo() const = 0;
+//
+//protected:
+//    FieldR3 E, H;
+//    FieldR3 resE, resH;
+//    FieldR3 nAdm, nImp, rnAdm, rnImp, cnAdm, cnImp;
+//    Math::Real *oneOverEps, *oneOverMu;
+//    Comm* comm;
+//    size_t nK;
+//    Math::Real upwinding;
+//    Math::Real LIFT[faces*npnfp]; //!< Flux gatherer operator. dim = matrix(np x (4*nfp))
+//    set<Math::Matrix::Static<Math::Real,np,np>, lexCompareMat> CList;
+//    void init(
+//            const OptionsSolverDGTD& options,
+//            const PMGroup& pm,
+//            const CellGroup& cells,
+//            Comm* comm_);
+//    virtual void addFluxesToRHS(
+//            const size_t e1, const size_t e2,
+//            const Math::Real localTime,
+//            const Math::Real minDT);
+//    virtual void addFluxesToRHSElectric(const size_t e1, const size_t e2) = 0;
+//    virtual void addFluxesToRHSMagnetic(const size_t e1, const size_t e2) = 0;
+//    virtual void addFluxesToRHSElectric(
+//            const size_t e1, const size_t e2, const bool useResForUpw) = 0;
+//    virtual void addFluxesToRHSMagnetic(
+//            const size_t e1, const size_t e2, const bool useResForUpw) = 0;
+//    virtual void addRHSToFieldsElectric(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real rkdt) = 0;
+//    virtual void addRHSToFieldsMagnetic(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real rkdt) = 0;
+//    virtual void addRHSToResidueElectric(
+//            const size_t e1, const size_t e2, const Math::Real rkdt) = 0;
+//    virtual void addRHSToResidueMagnetic(
+//            const size_t e1, const size_t e2, const Math::Real rkdt) = 0;
+//    void buildCMatrices(const CellGroup& cells);
+//    virtual void buildMaterials(
+//            const CellGroup& cells,
+//            const OptionsSolverDGTD& arg) = 0;
+//    virtual void  computeRHS(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real localtime,
+//            const Math::Real rkdt) = 0;
+//    virtual void computeRHSElectric(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real localtime,
+//            const Math::Real minDT) = 0;
+//    virtual void computeRHSMagnetic(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real localtime,
+//            const Math::Real minDT) = 0;
+//    virtual size_t getIndexOfElement(const size_t e) const = 0;
+//    virtual const FieldR3& getRHSElectric() const = 0;
+//    virtual const FieldR3& getRHSMagnetic() const = 0;
+//    virtual void updateFieldsWithRes(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real rkb) = 0;
+//    virtual void updateFieldsWithResBase(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real rkb);
+//    virtual void computeCurlsInRHS(const size_t e1, const size_t e2);
+//    virtual void computeCurlsInRHSElectric(const size_t e1, const size_t e2) = 0;
+//    virtual void computeCurlsInRHSMagnetic(const size_t e1, const size_t e2) = 0;
+//    virtual void computeJumps(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real localTime,
+//            const Math::Real minDT) = 0;
+//    void copyFieldsInResidues(
+//            const size_t e1,
+//            const size_t e2);
+//    virtual void copyJumpsToResidueJumps(
+//            const size_t e1,
+//            const size_t e2) = 0;
+//    virtual void computePolarizationCurrentsRHS(
+//            const size_t e1, const size_t e2) = 0;
+//    virtual void computePolarizationCurrentsRHSElectric(
+//            const size_t e1, const size_t e2) = 0;
+//    virtual void computePolarizationCurrentsRHSMagnetic(
+//            const size_t e1, const size_t e2) = 0;
+//    virtual void LTSSaveFieldsAndResidues(
+//            const size_t fKSave,
+//            const size_t lKSave) = 0;
+//    virtual void LTSLoadFieldsAndResidues(
+//            const size_t fKSave,
+//            const size_t lKSave) = 0;
+//    virtual void addRHSToRes(
+//            const size_t e1,
+//            const size_t e2,
+//            const Math::Real rka,
+//            const Math::Real dt) = 0;
+//    void swapResiduesAndFields(
+//            const size_t e1,
+//            const size_t e2);
+//    void buildFluxScalingFactors(const CellGroup& cells, const Connectivities& map);
+//    void buildFieldScalingFactors(const CellGroup& cells);
+//    virtual void buildScalingFactors(
+//            const CellGroup& cells,
+//            const Connectivities& map);
+//    void buildLIFT();
+//    virtual void assignMatrices(const CellGroup& cells) = 0;
+//    void allocateFieldsAndRes();
+//};
 
-class DG {
-    friend class Exporter;
-    friend class IntegratorLSERK;
-    friend class IntegratorLF2;
-    friend class IntegratorLF2Full;
-    friend class IntegratorVerlet;
-public:
-    const static size_t N = ORDER_N;
-    const static size_t faces = 4;
-    const static size_t np = (N+1) * (N+2) * (N+3) / 6;
-    const static size_t np2 = np * 2;
-    const static size_t nfp = (N+1) * (N+2) / 2;
-    const static size_t npnfp = np * nfp;
-    const static size_t npnp = np * np;
-    const static size_t nfpfaces = nfp * faces;
-    DG();
-    virtual ~DG();
-    virtual void setFieldsToRandom();
-    virtual void setFieldsToGaussian(
-            const CellGroup& cells,
-            const Real amplitude,
-            CVecR3& polarization,
-            const CVecR3& gaussCenter,
-            const Real gaussWidth);
-    virtual void setFieldsToHarmonics(
-            const CellGroup& cells,
-            const CVecI3& harmonics,
-            CVecR3& polarization);
-    void setFieldsAndTimeFromResumeFile();
-    virtual size_t getFieldDOFs() = 0;
-    const FieldR3* getElectric() const;
-    const FieldR3* getMagnetic() const;
-    virtual size_t getGlobalFieldPosOfVertex(
-            pair<const ElemR*, size_t> vertex) const;
-    virtual vector<size_t> getGlobalFieldPosOfFace(
-            Face boundary) const;
-    virtual vector<size_t> getGlobalFieldPosOfVolume(
-            const ElemId volId) const;
-    virtual void printInfo() const = 0;
+}
+}
+}
 
-protected:
-    FieldR3 E, H;
-    FieldR3 resE, resH;
-    FieldR3 nAdm, nImp, rnAdm, rnImp, cnAdm, cnImp;
-    Real *oneOverEps, *oneOverMu;
-    Comm* comm;
-    size_t nK;
-    Real upwinding;
-    Real LIFT[faces*npnfp]; //!< Flux gatherer operator. dim = matrix(np x (4*nfp))
-
-#ifdef SOLVER_DEDUPLICATE_OPERATORS
-    set<Math::Matrix::Static<Real,np,np>, lexCompareMat> CList;
-#else
-    Math::Matrix::Static<Real,np,np>* CList;
-#endif
-    void init(
-            const OptionsSolverDGTD& options,
-            const PMGroup& pm,
-            const CellGroup& cells,
-            Comm* comm_);
-    virtual void addFluxesToRHS(
-            const size_t e1, const size_t e2,
-            const Real localTime,
-            const Real minDT);
-    virtual void addFluxesToRHSElectric(const size_t e1, const size_t e2) = 0;
-    virtual void addFluxesToRHSMagnetic(const size_t e1, const size_t e2) = 0;
-    virtual void addFluxesToRHSElectric(
-            const size_t e1, const size_t e2, const bool useResForUpw) = 0;
-    virtual void addFluxesToRHSMagnetic(
-            const size_t e1, const size_t e2, const bool useResForUpw) = 0;
-    virtual void addRHSToFieldsElectric(
-            const size_t e1,
-            const size_t e2,
-            const Real rkdt) = 0;
-    virtual void addRHSToFieldsMagnetic(
-            const size_t e1,
-            const size_t e2,
-            const Real rkdt) = 0;
-    virtual void addRHSToResidueElectric(
-            const size_t e1, const size_t e2, const Real rkdt) = 0;
-    virtual void addRHSToResidueMagnetic(
-            const size_t e1, const size_t e2, const Real rkdt) = 0;
-    void buildCMatrices(const CellGroup& cells);
-    virtual void buildMaterials(
-            const CellGroup& cells,
-            const OptionsSolverDGTD& arg) = 0;
-    virtual void  computeRHS(
-            const size_t e1,
-            const size_t e2,
-            const Real localtime,
-            const Real rkdt) = 0;
-    virtual void computeRHSElectric(
-            const size_t e1,
-            const size_t e2,
-            const Real localtime,
-            const Real minDT) = 0;
-    virtual void computeRHSMagnetic(
-            const size_t e1,
-            const size_t e2,
-            const Real localtime,
-            const Real minDT) = 0;
-    virtual size_t getIndexOfElement(const size_t e) const = 0;
-    virtual const FieldR3& getRHSElectric() const = 0;
-    virtual const FieldR3& getRHSMagnetic() const = 0;
-    virtual void updateFieldsWithRes(
-            const size_t e1,
-            const size_t e2,
-            const Real rkb) = 0;
-    virtual void updateFieldsWithResBase(
-            const size_t e1,
-            const size_t e2,
-            const Real rkb);
-    virtual void computeCurlsInRHS(const size_t e1, const size_t e2);
-    virtual void computeCurlsInRHSElectric(const size_t e1, const size_t e2) = 0;
-    virtual void computeCurlsInRHSMagnetic(const size_t e1, const size_t e2) = 0;
-    virtual void computeJumps(
-            const size_t e1,
-            const size_t e2,
-            const Real localTime,
-            const Real minDT) = 0;
-    void copyFieldsInResidues(
-            const size_t e1,
-            const size_t e2);
-    virtual void copyJumpsToResidueJumps(
-            const size_t e1,
-            const size_t e2) = 0;
-    virtual void computePolarizationCurrentsRHS(
-            const size_t e1, const size_t e2) = 0;
-    virtual void computePolarizationCurrentsRHSElectric(
-            const size_t e1, const size_t e2) = 0;
-    virtual void computePolarizationCurrentsRHSMagnetic(
-            const size_t e1, const size_t e2) = 0;
-    virtual void LTSSaveFieldsAndResidues(
-            const size_t fKSave,
-            const size_t lKSave) = 0;
-    virtual void LTSLoadFieldsAndResidues(
-            const size_t fKSave,
-            const size_t lKSave) = 0;
-    virtual void addRHSToRes(
-            const size_t e1,
-            const size_t e2,
-            const Real rka,
-            const Real dt) = 0;
-    void swapResiduesAndFields(
-            const size_t e1,
-            const size_t e2);
-    void buildFluxScalingFactors(const CellGroup& cells, const Connectivities& map);
-    void buildFieldScalingFactors(const CellGroup& cells);
-    virtual void buildScalingFactors(
-            const CellGroup& cells,
-            const Connectivities& map);
-    void buildLIFT();
-    virtual void assignMatrices(const CellGroup& cells) = 0;
-    void allocateFieldsAndRes();
-};
 #endif /* SOLVER_H_ */
 

@@ -29,19 +29,19 @@
 //
 //#ifndef LSERKINFO_CONSTANTS
 //#define LSERKINFO_CONSTANTS
-//const Real IntegratorLSERK::rka[IntegratorLSERK::nStages] = {
+//const Math::Real IntegratorLSERK::rka[IntegratorLSERK::nStages] = {
 //        0.0,
 //        -567301805773.0/1357537059087.0,
 //        -2404267990393.0/2016746695238.0,
 //        -3550918686646.0/2091501179385.0,
 //        -1275806237668.0/842570457699.0};
-//const Real IntegratorLSERK::rkb[IntegratorLSERK::nStages] = {
+//const Math::Real IntegratorLSERK::rkb[IntegratorLSERK::nStages] = {
 //        1432997174477.0/9575080441755.0,
 //        5161836677717.0/13612068292357.0,
 //        1720146321549.0/2090206949498.0,
 //        3134564353537.0/4481467310338.0,
 //        2277821191437.0/14882151754819.0};
-//const Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
+//const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
 //        0.0,
 //        1432997174477.0/9575080441755.0,
 //        2526269341429.0/6820363962896.0,
@@ -66,13 +66,13 @@
 //IntegratorLSERK::~IntegratorLSERK() {
 //}
 //
-//void IntegratorLSERK::timeIntegrate(const Real time) const {
+//void IntegratorLSERK::timeIntegrate(const Math::Real time) const {
 //    assert(solver != NULL);
-//    Real dt = getMaxDT();
+//    Math::Real dt = getMaxDT();
 //    if (doLTS) {
 //        LTSTimeIntegration(time, time, dt, getNTiers() - 1);
 //    } else  {
-//        Real localTime;
+//        Math::Real localTime;
 //        const size_t nStages = getNStages();
 //        size_t nK = solver->nK;
 //        for (size_t s = 0; s < nStages; s++) {
@@ -103,22 +103,22 @@
 //    return nStages;
 //}
 //
-//Real
+//Math::Real
 //IntegratorLSERK::getRKA(const size_t s) const {
 //    return rka[s];
 //}
 //
-//Real
+//Math::Real
 //IntegratorLSERK::getRKB(const size_t s) const {
 //    return rkb[s];
 //}
 //
-//Real
+//Math::Real
 //IntegratorLSERK::getRKC(const size_t s) const {
 //    return rkc[s];
 //}
 //
-//Real
+//Math::Real
 //IntegratorLSERK::getStageSize(const size_t s) const {
 //    return stageSize[s];
 //}
@@ -128,12 +128,12 @@
 //    for (size_t i = 1; i <= nStages; i++) {
 //        stageSize[i-1] = rkc[i] - rkc[i-1];
 //    }
-//    stageSize[nStages - 1] = (Real) 1.0 - rkc[nStages-1];
+//    stageSize[nStages - 1] = (Math::Real) 1.0 - rkc[nStages-1];
 //}
 //
-//Real
+//Math::Real
 //IntegratorLSERK::getMaxStageSize() const {
-//    DynMatrix<Real> aux(nStages,1);
+//    DynMatrix<Math::Real> aux(nStages,1);
 //    for (size_t i = 0; i < nStages; i++) {
 //        aux(i,0) = stageSize[i];
 //    }
@@ -141,21 +141,21 @@
 //    return aux(nStages-1, 0);
 //}
 //
-//Real
+//Math::Real
 //IntegratorLSERK::getMaxTimeRatio() const {
 //    if (useMaxStageSizeForLTS) {
 //        return getMaxStageSize();
 //    } else {
-//        return ((Real)1.0 / (Real) nStages);
+//        return ((Math::Real)1.0 / (Math::Real) nStages);
 //    }
 //}
 //
 //
 //void
 //IntegratorLSERK::LTSTimeIntegration(
-//        const Real time,
-//        Real localTime,
-//        Real localdt,
+//        const Math::Real time,
+//        Math::Real localTime,
+//        Math::Real localdt,
 //        const size_t tier) const {
 //    size_t fK, lK;
 //    const size_t nStages = getNStages();
@@ -174,7 +174,7 @@
 //        }
 //        // Updates RHS in current tier.
 //        localTime = time + localdt * getRKC(s);
-//        Real rkdt = localdt * getStageSize(s);
+//        Math::Real rkdt = localdt * getStageSize(s);
 //        // Recursively calls this function.
 //        if (tier > 0) {
 //            size_t lSaved = getRange(tier, nStages-2).second;
@@ -192,9 +192,9 @@
 //IntegratorLSERK::updateResiduals(
 //        const size_t e1,
 //        const size_t e2,
-//        const Real rka,
-//        const Real localTime,
-//        const Real localdt) const {
+//        const Math::Real rka,
+//        const Math::Real localTime,
+//        const Math::Real localdt) const {
 //    solver->computeRHS(e1,e2,localTime,localdt);
 //    solver->addRHSToRes(e1,e2,rka,localdt);
 //}

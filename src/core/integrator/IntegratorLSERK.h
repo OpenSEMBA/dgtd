@@ -38,35 +38,35 @@
 //            const Mesh::Volume& mesh,
 //            const PMGroup& pmGroup,
 //            const OptionsSolverDGTD* arg);
-//    void timeIntegrate(const Real time) const;
+//    void timeIntegrate(const Math::Real time) const;
 //protected:
 //    size_t getNumOfIterationsPerBigTimeStep(
 //            const size_t e) const;
 //private:
 //    bool useMaxStageSizeForLTS;
 //    static const size_t nStages = 5;
-//    static const Real rka[nStages];
-//    static const Real rkb[nStages];
-//    static const Real rkc[nStages];
-//    Real stageSize[nStages];
-//    Real getMaxStageSize() const;
-//    Real getMaxTimeRatio() const;
+//    static const Math::Real rka[nStages];
+//    static const Math::Real rkb[nStages];
+//    static const Math::Real rkc[nStages];
+//    Math::Real stageSize[nStages];
+//    Math::Real getMaxStageSize() const;
+//    Math::Real getMaxTimeRatio() const;
 //    void buildRKConstants();
 //    void LTSTimeIntegration(
-//            const Real time,
-//            const Real localTime,
-//            const Real localdt,
+//            const Math::Real time,
+//            const Math::Real localTime,
+//            const Math::Real localdt,
 //            const size_t tier) const;
 //    void updateResiduals(
 //            const size_t e1,
 //            const size_t e2,
-//            const Real rka,
-//            const Real localTime,
-//            const Real localdt) const;
+//            const Math::Real rka,
+//            const Math::Real localTime,
+//            const Math::Real localdt) const;
 //    size_t getNStages() const;
-//    Real getRKA(const size_t s) const;
-//    Real getRKB(const size_t s) const;
-//    Real getRKC(const size_t s) const;
-//    Real getStageSize(const size_t s) const;
+//    Math::Real getRKA(const size_t s) const;
+//    Math::Real getRKB(const size_t s) const;
+//    Math::Real getRKC(const size_t s) const;
+//    Math::Real getStageSize(const size_t s) const;
 //};
 //#endif /* SOLVERLSERK_H_ */

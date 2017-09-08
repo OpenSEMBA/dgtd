@@ -44,19 +44,19 @@
 //    size_t nElem;
 //    size_t *elem;
 //    bool useConstantConductivity;
-//    static constexpr Real sigDefault = 10e9;
-//    Real sig;
+//    static constexpr Math::Real sigDefault = 10e9;
+//    Math::Real sig;
 //    static const size_t N = ORDER_N;
 //    static const size_t np = (N+1) * (N+2) * (N+3) / 6;
-//    Real **sig1, **sig2, **sig3;
-//    Real **sig11, **sig22, **sig33;
-//    Real **sig12, **sig23, **sig31;
+//    Math::Real **sig1, **sig2, **sig3;
+//    Math::Real **sig11, **sig22, **sig33;
+//    Math::Real **sig12, **sig23, **sig31;
 //private:
 //    void initConductivityMatrices(
 //            const PMVolumePML& mat,
 //            const CellGroup& cells);
 //    void initConductivity(
-//            Real **sigma,
+//            Math::Real **sigma,
 //            const size_t ori,
 //            const PMVolumePML& mat,
 //            const CellGroup& cells);

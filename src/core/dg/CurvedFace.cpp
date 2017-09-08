@@ -60,10 +60,10 @@
 //        FieldR3& rhsE, FieldR3& rhsH,
 //        const FieldR3& dE, const FieldR3& dH,
 //        const FieldR3& dresE, const FieldR3& dresH,
-//        const Real impP_,
-//        const Real admP_,
-//        const Real impAv_,
-//        const Real admAv_) {
+//        const Math::Real impP_,
+//        const Math::Real admP_,
+//        const Math::Real impAv_,
+//        const Math::Real admAv_) {
 ////    solverPosition = solverPosition_;
 ////    // Pointers to RHS and jumps --------------------------------------
 ////    size_t pos = solverPosition_ * np;
@@ -92,7 +92,7 @@
 ////    imp1Av = 1.0 / impAv_ / 2.0;
 ////    adm1Av = 1.0 / admAv_ / 2.0;
 ////    // Computes LIFT matrices for curved elements ---------------------
-////    StaMatrix<Real,np,nfp> LIFTn[3], LIFTcn[3], LIFTrn[3];
+////    StaMatrix<Math::Real,np,nfp> LIFTn[3], LIFTcn[3], LIFTrn[3];
 ////    cell->getCurvedLIFTnormal(LIFTn, LIFTcn, LIFTrn, face);
 ////    LIFTn[0].convertToArray(MATRICES_ROW_MAJOR, nx);
 ////    LIFTn[1].convertToArray(MATRICES_ROW_MAJOR, ny);
@@ -152,184 +152,184 @@
 //}
 //
 //void DGCurvedFace::addFluxToRHSElectric(
-//        const Real upwinding, const bool useResForUpw) {
+//        const Math::Real upwinding, const bool useResForUpw) {
 //    //	if  (upwinding == 1.0 && !useResForUpw) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,nz,dHy,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnx,dEy,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnz,dEz,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,rnx,dEx,-imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,nz,dHy,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnx,dEy,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnz,dEz,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,rnx,dEx,-imp1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nx,dHz,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cny,dEz,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cnx,dEx,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,rny,dEy,-imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nx,dHz,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cny,dEz,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cnx,dEx,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,rny,dEy,-imp1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,ny,dHx,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cnz,dEx,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cny,dEy,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,rnz,dEz,-imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,ny,dHx,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cnz,dEx,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cny,dEy,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,rnz,dEz,-imp1Av);
 //    //		return;
 //    //	} else if (upwinding == 1.0 && useResForUpw) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,nz,dHy,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnx,dresEy,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnz,dresEz,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,rnx,dresEx,-imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,nz,dHy,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnx,dresEy,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnz,dresEz,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,rnx,dresEx,-imp1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nx,dHz,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cny,dresEz,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cnx,dresEx,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,rny,dresEy,-imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nx,dHz,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cny,dresEz,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cnx,dresEx,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,rny,dresEy,-imp1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,ny,dHx,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cnz,dresEx,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cny,dresEy,imp1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,rnz,dresEz,-imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,ny,dHx,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cnz,dresEx,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cny,dresEy,imp1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,rnz,dresEz,-imp1Av);
 //    //		return;
 //    //	} else if (upwinding == 0.0) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,nz,dHy,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,nz,dHy,impPAv);
 //    //		// ------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nx,dHz,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nx,dHz,impPAv);
 //    //		// ------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,ny,dHx,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,ny,dHx,impPAv);
 //    //		return;
 //    //	} else if (!useResForUpw) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,nz,dHy,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnx,dEy,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnz,dEz,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,rnx,dEx,-imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,nz,dHy,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnx,dEy,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnz,dEz,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,rnx,dEx,-imp1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nx,dHz,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cny,dEz,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cnx,dEx,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,rny,dEy,-imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nx,dHz,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cny,dEz,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cnx,dEx,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,rny,dEy,-imp1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,ny,dHx,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cnz,dEx,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cny,dEy,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,rnz,dEz,-imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,ny,dHx,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cnz,dEx,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cny,dEy,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,rnz,dEz,-imp1Av*upwinding);
 //    //		return;
 //    //	} else {
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,nz,dHy,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnx,dresEy,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,cnz,dresEz,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEx,rnx,dresEx,-imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,ny,dHz,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,nz,dHy,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnx,dresEy,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,cnz,dresEz,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEx,rnx,dresEx,-imp1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,nx,dHz,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cny,dresEz,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,cnx,dresEx,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEy,rny,dresEy,-imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nz,dHx,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,nx,dHz,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cny,dresEz,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,cnx,dresEx,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEy,rny,dresEy,-imp1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,ny,dHx,impPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cnz,dresEx,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,cny,dresEy,imp1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsEz,rnz,dresEz,-imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,nx,dHy,-impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,ny,dHx,impPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cnz,dresEx,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,cny,dresEy,imp1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsEz,rnz,dresEz,-imp1Av*upwinding);
 //    //		return;
 //    //	}
 //}
 //
 //void DGCurvedFace::addFluxToRHSMagnetic(
-//        const Real upwinding,
+//        const Math::Real upwinding,
 //        const bool useResForUpw) {
 //    //	if (upwinding == 1.0 && !useResForUpw) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,ny,dEz,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnx,dHy,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnz,dHz,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,rnx,dHx,-adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,ny,dEz,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnx,dHy,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnz,dHz,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,rnx,dHx,-adm1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nz,dEx,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cny,dHz,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cnx,dHx,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,rny,dHy,-adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nz,dEx,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cny,dHz,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cnx,dHx,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,rny,dHy,-adm1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,nx,dEy,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cnz,dHx,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cny,dHy,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,rnz,dHz,-adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,nx,dEy,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cnz,dHx,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cny,dHy,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,rnz,dHz,-adm1Av);
 //    //		return;
 //    //	} else if (upwinding == 1.0 && useResForUpw) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,ny,dEz,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnx,dresHy,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnz,dresHz,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,rnx,dresHx,-adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,ny,dEz,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnx,dresHy,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnz,dresHz,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,rnx,dresHx,-adm1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nz,dEx,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cny,dresHz,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cnx,dresHx,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,rny,dresHy,-adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nz,dEx,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cny,dresHz,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cnx,dresHx,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,rny,dresHy,-adm1Av);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,nx,dEy,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cnz,dresHx,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cny,dresHy,adm1Av);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,rnz,dresHz,-adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,nx,dEy,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cnz,dresHx,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cny,dresHy,adm1Av);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,rnz,dresHz,-adm1Av);
 //    //		return;
 //    //	} else if (upwinding == 0.0) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,ny,dEz,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,ny,dEz,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nz,dEx,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nz,dEx,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,nx,dEy,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,nx,dEy,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
 //    //		return;
 //    //	} else if (!useResForUpw) {
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,ny,dEz,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnx,dHy,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnz,dHz,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,rnx,dHx,-adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,ny,dEz,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnx,dHy,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnz,dHz,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,rnx,dHx,-adm1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nz,dEx,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cny,dHz,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cnx,dHx,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,rny,dHy,-adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nz,dEx,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cny,dHz,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cnx,dHx,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,rny,dHy,-adm1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,nx,dEy,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cnz,dHx,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cny,dHy,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,rnz,dHz,-adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,nx,dEy,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cnz,dHx,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cny,dHy,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,rnz,dHz,-adm1Av*upwinding);
 //    //		return;
 //    //	} else {
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,ny,dEz,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnx,dresHy,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,cnz,dresHz,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHx,rnx,dresHx,-adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,ny,dEz,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,nz,dEy,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnx,dresHy,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,cnz,dresHz,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHx,rnx,dresHx,-adm1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nz,dEx,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cny,dresHz,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,cnx,dresHx,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHy,rny,dresHy,-adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nz,dEx,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,nx,dEz,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cny,dresHz,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,cnx,dresHx,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHy,rny,dresHy,-adm1Av*upwinding);
 //    //		// ----------------------------------------------------------------
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,nx,dEy,admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cnz,dresHx,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,cny,dresHy,adm1Av*upwinding);
-//    //		add_am_v_prod<Real,np,nfp>(rhsHz,rnz,dresHz,-adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,nx,dEy,admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,ny,dEx,-admPAv);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cnz,dresHx,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,cny,dresHy,adm1Av*upwinding);
+//    //		add_am_v_prod<Math::Real,np,nfp>(rhsHz,rnz,dresHz,-adm1Av*upwinding);
 //    //		return;
 //    //	}
 //}

@@ -29,20 +29,20 @@
 //}
 //
 //void DG::setFieldsToRandom() {
-//    static const Real min = -1.0;
-//    static const Real max = 1.0;
+//    static const Math::Real min = -1.0;
+//    static const Math::Real max = 1.0;
 //    E.setToRandom(min, max);
 //    H.setToRandom(min, max);
 //}
 //
 //void DG::setFieldsToGaussian(
 //        const CellGroup& cells,
-//        const Real amplitude,
+//        const Math::Real amplitude,
 //        CVecR3& polarization,
 //        const CVecR3& gaussCenter,
-//        const Real gaussWidth) {
+//        const Math::Real gaussWidth) {
 //    CVecR3 aux;
-//    Real expArg;
+//    Math::Real expArg;
 //    polarization.normalize();
 //    for (size_t e = 0; e < nK; e++) {
 //        ElemId id = cells.getIdOfRelPos(e);
@@ -53,14 +53,14 @@
 //            E.set(e*np + i, polarization*amplitude*exp(- expArg * expArg));
 //        }
 //    }
-//    H.setAll((Real) 0.0);
+//    H.setAll((Math::Real) 0.0);
 //}
 //
 //void DG::setFieldsToHarmonics(
 //        const CellGroup& cells,
 //        const CVecI3& harmonics,
 //        CVecR3& polarization) {
-//    Real amp;
+//    Math::Real amp;
 //    CVecR3 pos;
 //    polarization.normalize();
 //    for (size_t e = 0; e < nK; e++) {
@@ -77,7 +77,7 @@
 //            E.set(e*np + i, polarization*amp);
 //        }
 //    }
-//    H.setAll((Real) 0.0);
+//    H.setAll((Math::Real) 0.0);
 //}
 //
 //void DG::setFieldsAndTimeFromResumeFile() {
@@ -120,8 +120,8 @@
 //
 //void DG::buildFieldScalingFactors(
 //        const CellGroup& cells) {
-//    oneOverEps = new Real[nK];
-//    oneOverMu = new Real[nK];
+//    oneOverEps = new Math::Real[nK];
+//    oneOverMu = new Math::Real[nK];
 //    for (size_t e = 0; e < nK; e++) {
 //        ElemId id = cells.getIdOfRelPos(e);
 //        const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
@@ -143,14 +143,14 @@
 //    for (size_t e = 0; e < nK; e++) {
 //        ElemId id = cells.getIdOfRelPos(e);
 //        const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-//        Real impM, admM, impP, admP, impAv, admAv;
+//        Math::Real impM, admM, impP, admP, impAv, admAv;
 //        CVecR3 n, rn, cn;
 //        CVecR3 nAdmAux, rnAdmAux, cnAdmAux;
 //        CVecR3 nImpAux, rnImpAux, cnImpAux;
 //        for (size_t f = 0; f < faces; f++) {
 //            size_t i = e * faces + f;
 //            // Computes Scaling factor.
-//            Real fSc = 0.5 * cell->getAreaOfFace(f) / cell->getVolume();
+//            Math::Real fSc = 0.5 * cell->getAreaOfFace(f) / cell->getVolume();
 //            // Computes local impedance and admittance..
 //            impM = cell->material->getImpedance();
 //            admM = cell->material->getAdmitance();
@@ -170,7 +170,7 @@
 //            // ----- Computes vectors ---------------------------------
 //            n = cell->getSideNormal(f);
 //            // Computes: rn = 1 - n .^ 2.
-//            rn = Real(1.0);
+//            rn = Math::Real(1.0);
 //            rn -= n * n; // This is NOT cartesian scalar prod.
 //            // Computes: cn = [ ny*nz  nz*nx nx*ny ].
 //            cn(0) = n(0) * n(1);
@@ -198,15 +198,15 @@
 //    buildMaterials(cells, options);
 //    buildCMatrices(cells);
 //    allocateFieldsAndRes();
-//    resE.setAll((Real) 0.0);
-//    resH.setAll((Real) 0.0);
+//    resE.setAll((Math::Real) 0.0);
+//    resH.setAll((Math::Real) 0.0);
 //}
 //
 //void DG::addFluxesToRHS(
 //        const size_t e1,
 //        const size_t e2,
-//        const Real localTime,
-//        const Real minDT) {
+//        const Math::Real localTime,
+//        const Math::Real minDT) {
 //    computeJumps(e1,e2, localTime,minDT);
 //    addFluxesToRHSElectric(e1,e2);
 //    addFluxesToRHSMagnetic(e1,e2);
@@ -218,18 +218,18 @@
 //    for (e = 0; e < nK; e++) {
 //        ElemId id = cells.getIdOfRelPos(e);
 //        const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-//        array<StaMatrix<Real,np,np>,3> C = cell->getCMatrices();
+//        array<StaMatrix<Math::Real,np,np>,3> C = cell->getCMatrices();
 //        for (size_t i = 0; i < 3; i++) {
 //            CList.insert(C[i]);
 //        }
 //    }
 //#	else
-//    CList = new StaMatrix<Real,np,np>[3*nK];
+//    CList = new StaMatrix<Math::Real,np,np>[3*nK];
 //#pragma omp parallel for private(e)
 //    for (e = 0; e < nK; e++) {
 //        size_t id = cells.getIdOfRelPos(e);
 //        const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-//        StaMatrix<Real,np,np> C[3];
+//        StaMatrix<Math::Real,np,np> C[3];
 //        cell->getCMatrices(C);
 //        for (size_t i = 0; i < 3; i++) {
 //            size_t j = 3 * e + i;
@@ -250,7 +250,7 @@
 //void DG::updateFieldsWithResBase(
 //        const size_t e1,
 //        const size_t e2,
-//        const Real rkb) {
+//        const Math::Real rkb) {
 //    size_t i, j, e;
 //#pragma omp parallel for private(i,j,e)
 //    for (e = e1; e < e2; e++) {
@@ -297,7 +297,7 @@
 //    // Copies LIFT matrices into the solver matrix format.
 //    // These are used only for linear elements.
 //    static const SimplexTet<ORDER_N> tet;
-//    StaMatrix<Real, np, nfp * 4> tmpLIFT;
+//    StaMatrix<Math::Real, np, nfp * 4> tmpLIFT;
 //    for (size_t i = 0; i < np; i++) {
 //        for (size_t f = 0; f < faces; f++) {
 //            for (size_t j = 0; j < nfp; j++) {

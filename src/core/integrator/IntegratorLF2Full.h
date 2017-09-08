@@ -45,7 +45,7 @@
 //            const PMGroup& pmGroup,
 //            const OptionsSolverDGTD* arg);
 //    void
-//    timeIntegrate(const Real time) const;
+//    timeIntegrate(const Math::Real time) const;
 //protected:
 //    size_t
 //    getNumOfIterationsPerBigTimeStep(
@@ -53,17 +53,17 @@
 //private:
 //    static const size_t nStages = 2;
 //    size_t getNStages() const;
-//    Real getMaxTimeRatio() const;
+//    Math::Real getMaxTimeRatio() const;
 //    void LTSTimeIntegration(
-//            const Real localTime,
-//            const Real localdt,
+//            const Math::Real localTime,
+//            const Math::Real localdt,
 //            const size_t tier,
 //            const size_t stage) const;
 //    void updateFields(
 //            const size_t e1,
 //            const size_t e2,
-//            const Real localTime,
-//            const Real rkdt) const;
+//            const Math::Real localTime,
+//            const Math::Real rkdt) const;
 //};
 //
 //#endif /* SOLVERLEAPFROG_H_ */

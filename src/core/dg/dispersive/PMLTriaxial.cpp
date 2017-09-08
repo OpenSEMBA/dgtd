@@ -31,7 +31,7 @@
 //        const PMVolumePML& mat,
 //        const CellGroup& cells,
 //        const bool useConductivity,
-//        const Real conductivity) :
+//        const Math::Real conductivity) :
 //        DGPMLMultiaxial(mat, cells, useConductivity, conductivity) {
 //}
 //
@@ -68,20 +68,20 @@
 ////                i = e * np;
 ////                j = elem[e] * np;
 ////                //rhsEx[j] += - Ex[j]*Constants::eps0*(sig3+sig2-sig1) - J1[i]*Constants::eps0;
-////                sub_am_v_prod<Real,np,np>(&rhsE.set(0)[j], sig3[e], &E(0)[j], Constants::eps0);
-////                sub_am_v_prod<Real,np,np>(&rhsE.set(0)[j], sig2[e], &E(0)[j], Constants::eps0);
-////                add_am_v_prod<Real,np,np>(&rhsE.set(0)[j], sig1[e], &E(0)[j], Constants::eps0);
-////                sub_a_v_prod<Real,np>(&rhsE.set(0)[j], &J1[i], Constants::eps0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsE.set(0)[j], sig3[e], &E(0)[j], Constants::eps0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsE.set(0)[j], sig2[e], &E(0)[j], Constants::eps0);
+////                add_am_v_prod<Math::Real,np,np>(&rhsE.set(0)[j], sig1[e], &E(0)[j], Constants::eps0);
+////                sub_a_v_prod<Math::Real,np>(&rhsE.set(0)[j], &J1[i], Constants::eps0);
 ////                //rhsEy[j] += - Ey[j]*Constants::eps0*(sig1+sig3-sig2) - J2[i]*Constants::eps0;
-////                sub_am_v_prod<Real,np,np>(&rhsE.set(1)[j], sig1[e], &E(1)[j], Constants::eps0);
-////                sub_am_v_prod<Real,np,np>(&rhsE.set(1)[j], sig3[e], &E(1)[j], Constants::eps0);
-////                add_am_v_prod<Real,np,np>(&rhsE.set(1)[j], sig2[e], &E(1)[j], Constants::eps0);
-////                sub_a_v_prod<Real,np>(&rhsE.set(1)[j], &J2[i], Constants::eps0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsE.set(1)[j], sig1[e], &E(1)[j], Constants::eps0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsE.set(1)[j], sig3[e], &E(1)[j], Constants::eps0);
+////                add_am_v_prod<Math::Real,np,np>(&rhsE.set(1)[j], sig2[e], &E(1)[j], Constants::eps0);
+////                sub_a_v_prod<Math::Real,np>(&rhsE.set(1)[j], &J2[i], Constants::eps0);
 ////                //rhsEz[j] += - Ez[j]*Constants::eps0*(sig2+sig1-sig3) - J3[i]*Constants::eps0;
-////                sub_am_v_prod<Real,np,np>(&rhsE.set(2)[j], sig2[e], &E(2)[j], Constants::eps0);
-////                sub_am_v_prod<Real,np,np>(&rhsE.set(2)[j], sig1[e], &E(2)[j], Constants::eps0);
-////                add_am_v_prod<Real,np,np>(&rhsE.set(2)[j], sig3[e], &E(2)[j], Constants::eps0);
-////                sub_a_v_prod<Real,np>(&rhsE.set(2)[j], &J3[i], Constants::eps0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsE.set(2)[j], sig2[e], &E(2)[j], Constants::eps0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsE.set(2)[j], sig1[e], &E(2)[j], Constants::eps0);
+////                add_am_v_prod<Math::Real,np,np>(&rhsE.set(2)[j], sig3[e], &E(2)[j], Constants::eps0);
+////                sub_a_v_prod<Math::Real,np>(&rhsE.set(2)[j], &J3[i], Constants::eps0);
 ////            }
 ////        }
 ////    }
@@ -115,20 +115,20 @@
 ////                i = e * np;
 ////                j = elem[e] * np;
 ////                //rhsHx[j] += - Hx[j]*Constants::mu0*(sig3+sig2-sig1) - M1[i]*Constants::mu0;
-////                sub_am_v_prod<Real,np,np>(&rhsH.set(0)[j], sig3[e], &H(0)[j], Constants::mu0);
-////                sub_am_v_prod<Real,np,np>(&rhsH.set(0)[j], sig2[e], &H(0)[j], Constants::mu0);
-////                add_am_v_prod<Real,np,np>(&rhsH.set(0)[j], sig1[e], &H(0)[j], Constants::mu0);
-////                sub_a_v_prod<Real,np>(&rhsH.set(0)[j], &M1[i], Constants::mu0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsH.set(0)[j], sig3[e], &H(0)[j], Constants::mu0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsH.set(0)[j], sig2[e], &H(0)[j], Constants::mu0);
+////                add_am_v_prod<Math::Real,np,np>(&rhsH.set(0)[j], sig1[e], &H(0)[j], Constants::mu0);
+////                sub_a_v_prod<Math::Real,np>(&rhsH.set(0)[j], &M1[i], Constants::mu0);
 ////                //rhsHy[j] += - Hy[j]*Constants::mu0*(sig1+sig3-sig2) - M2[i]*Constants::mu0;
-////                sub_am_v_prod<Real,np,np>(&rhsH.set(1)[j], sig1[e], &H(1)[j], Constants::mu0);
-////                sub_am_v_prod<Real,np,np>(&rhsH.set(1)[j], sig3[e], &H(1)[j], Constants::mu0);
-////                add_am_v_prod<Real,np,np>(&rhsH.set(1)[j], sig2[e], &H(1)[j], Constants::mu0);
-////                sub_a_v_prod<Real,np>(&rhsH.set(1)[j], &M2[i], Constants::mu0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsH.set(1)[j], sig1[e], &H(1)[j], Constants::mu0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsH.set(1)[j], sig3[e], &H(1)[j], Constants::mu0);
+////                add_am_v_prod<Math::Real,np,np>(&rhsH.set(1)[j], sig2[e], &H(1)[j], Constants::mu0);
+////                sub_a_v_prod<Math::Real,np>(&rhsH.set(1)[j], &M2[i], Constants::mu0);
 ////                //rhsHz[j] += - Hz[j]*Constants::mu0*(sig2+sig1-sig3) - M3[i]*Constants::mu0;
-////                sub_am_v_prod<Real,np,np>(&rhsH.set(2)[j], sig2[e], &H(2)[j], Constants::mu0);
-////                sub_am_v_prod<Real,np,np>(&rhsH.set(2)[j], sig1[e], &H(2)[j], Constants::mu0);
-////                add_am_v_prod<Real,np,np>(&rhsH.set(2)[j], sig3[e], &H(2)[j], Constants::mu0);
-////                sub_a_v_prod<Real,np>(&rhsH.set(2)[j], &M3[i], Constants::mu0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsH.set(2)[j], sig2[e], &H(2)[j], Constants::mu0);
+////                sub_am_v_prod<Math::Real,np,np>(&rhsH.set(2)[j], sig1[e], &H(2)[j], Constants::mu0);
+////                add_am_v_prod<Math::Real,np,np>(&rhsH.set(2)[j], sig3[e], &H(2)[j], Constants::mu0);
+////                sub_a_v_prod<Math::Real,np>(&rhsH.set(2)[j], &M3[i], Constants::mu0);
 ////            }
 ////        }
 ////    }
@@ -159,23 +159,23 @@
 ////                i = e * np;
 ////                j = elem[e] * np;
 ////                //rhsJ1[i] = sig23*Ex[j]-sig31*Ex[j]-sig12*Ex[j]+ sig11*Ex[j] - sig1*J1[i];
-////                m_v_prod<Real,np,np>(&rhsJ1[i], sig23[e], &E(0)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ1[i], sig31[e], &E(0)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ1[i], sig12[e], &E(0)[j]);
-////                add_m_v_prod<Real,np,np>(&rhsJ1[i], sig11[e], &E(0)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ1[i], sig1[e], &J1[i]);
+////                m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig23[e], &E(0)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig31[e], &E(0)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig12[e], &E(0)[j]);
+////                add_m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig11[e], &E(0)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ1[i], sig1[e], &J1[i]);
 ////                //rhsJ2[i] = (sig1-sig2)*(sig3-sig2)*Ey[j] - sig2*J2[i];
-////                m_v_prod<Real,np,np>(&rhsJ2[i], sig31[e], &E(1)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ2[i], sig12[e], &E(1)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ2[i], sig23[e], &E(1)[j]);
-////                add_m_v_prod<Real,np,np>(&rhsJ2[i], sig22[e], &E(1)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ2[i], sig2[e], &J2[i]);
+////                m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig31[e], &E(1)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig12[e], &E(1)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig23[e], &E(1)[j]);
+////                add_m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig22[e], &E(1)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ2[i], sig2[e], &J2[i]);
 ////                //rhsJ3[i] = (sig2-sig3)*(sig1-sig3)*E(2)[j] - sig3*J3[i];
-////                m_v_prod<Real,np,np>(&rhsJ3[i], sig12[e], &E(2)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ3[i], sig23[e], &E(2)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ3[i], sig31[e], &E(2)[j]);
-////                add_m_v_prod<Real,np,np>(&rhsJ3[i], sig33[e], &E(2)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsJ3[i], sig3[e], &J3[i]);
+////                m_v_prod<Math::Real,np,np>(&rhsJ3[i], sig12[e], &E(2)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ3[i], sig23[e], &E(2)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ3[i], sig31[e], &E(2)[j]);
+////                add_m_v_prod<Math::Real,np,np>(&rhsJ3[i], sig33[e], &E(2)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsJ3[i], sig3[e], &J3[i]);
 ////            }
 ////        }
 ////    }
@@ -207,23 +207,23 @@
 ////                i = e * np;
 ////                j = elem[e] * np;
 ////                //rhsM1[i] = (sig3 - sig1)*(sig2 - sig1)*Hx[j] - sig1*M1[i];
-////                m_v_prod<Real,np,np>(&rhsM1[i], sig23[e], &H(0)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM1[i], sig31[e], &H(0)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM1[i], sig12[e], &H(0)[j]);
-////                add_m_v_prod<Real,np,np>(&rhsM1[i], sig11[e], &H(0)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM1[i], sig1[e], &M1[i]);
+////                m_v_prod<Math::Real,np,np>(&rhsM1[i], sig23[e], &H(0)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM1[i], sig31[e], &H(0)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM1[i], sig12[e], &H(0)[j]);
+////                add_m_v_prod<Math::Real,np,np>(&rhsM1[i], sig11[e], &H(0)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM1[i], sig1[e], &M1[i]);
 ////                //rhsM2[i] = (sig1 - sig2)*(sig3 - sig2)*Hy[j] - sig2*M2[i];
-////                m_v_prod<Real,np,np>(&rhsM2[i], sig31[e], &H(1)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM2[i], sig12[e], &H(1)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM2[i], sig23[e], &H(1)[j]);
-////                add_m_v_prod<Real,np,np>(&rhsM2[i], sig22[e], &H(1)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM2[i], sig2[e], &M2[i]);
+////                m_v_prod<Math::Real,np,np>(&rhsM2[i], sig31[e], &H(1)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM2[i], sig12[e], &H(1)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM2[i], sig23[e], &H(1)[j]);
+////                add_m_v_prod<Math::Real,np,np>(&rhsM2[i], sig22[e], &H(1)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM2[i], sig2[e], &M2[i]);
 ////                //rhsM3[i] = (sig2 - sig3)*(sig1 - sig3)*Hz[j] - sig3*M3[i];
-////                m_v_prod<Real,np,np>(&rhsM3[i], sig12[e], &H(2)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM3[i], sig23[e], &H(2)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM3[i], sig31[e], &H(2)[j]);
-////                add_m_v_prod<Real,np,np>(&rhsM3[i], sig33[e], &H(2)[j]);
-////                sub_m_v_prod<Real,np,np>(&rhsM3[i], sig3[e], &M3[i]);
+////                m_v_prod<Math::Real,np,np>(&rhsM3[i], sig12[e], &H(2)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM3[i], sig23[e], &H(2)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM3[i], sig31[e], &H(2)[j]);
+////                add_m_v_prod<Math::Real,np,np>(&rhsM3[i], sig33[e], &H(2)[j]);
+////                sub_m_v_prod<Math::Real,np,np>(&rhsM3[i], sig3[e], &M3[i]);
 ////            }
 ////        }
 ////    }

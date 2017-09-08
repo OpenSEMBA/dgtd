@@ -26,12 +26,6 @@
 #include <assert.h>
 #include <vector>
 
-using namespace std;
-using namespace Math;
-
-#include "math/Field.h"
-#include "mesh/Volume.h"
-
 namespace SEMBA {
 namespace Cudg3d {
 namespace Communications {

@@ -38,14 +38,14 @@
 //public:
 //   DGSIBC(
 //         const PMSurfaceSIBC& mat_,
-//         Int ***map_,
-//         const Int vmapM[faces][nfp],
-//         Real ***ExP_,
-//         Real ***EyP_,
-//         Real ***EzP_,
-//         Real ***HxP_,
-//         Real ***HyP_,
-//         Real ***HzP_);
+//         Math::Int ***map_,
+//         const Math::Int vmapM[faces][nfp],
+//         Math::Real ***ExP_,
+//         Math::Real ***EyP_,
+//         Math::Real ***EzP_,
+//         Math::Real ***HxP_,
+//         Math::Real ***HyP_,
+//         Math::Real ***HzP_);
 //   virtual ~DGSIBC();
 //   void computeRHSElectricPolarizationCurrents(
 //         const FieldR3& E,
@@ -70,16 +70,16 @@
 //   void addRHSToRes(
 //         const size_t e1,
 //         const size_t e2,
-//         const Real rka,
-//         const Real dt);
+//         const Math::Real rka,
+//         const Math::Real dt);
 //   void updateWithRes(
 //         const size_t e1,
 //         const size_t e2,
-//         const Real rkb);
+//         const Math::Real rkb);
 //private:
-//   Int ***map;
-//   Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
-//   Int vmapM[faces][nfp];
+//   Math::Int ***map;
+//   Math::Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
+//   Math::Int vmapM[faces][nfp];
 //   size_t nP;
 //   size_t nE0, nED;
 //   size_t *elem0, *elemD;
@@ -89,7 +89,7 @@
 //   CVecR3 **QD, **rhsQD, **resQD;
 //   CVecR3 *E0, *ED;
 //   void computePolarizationFields(
-//         const Real *Hx, const Real *Hy, const Real *Hz,
+//         const Math::Real *Hx, const Math::Real *Hy, const Math::Real *Hz,
 //         const size_t e1, const size_t e2);
 //};
 //

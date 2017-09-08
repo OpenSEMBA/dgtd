@@ -42,7 +42,7 @@ using namespace std;
 namespace SEMBA {
 namespace Cudg3d {
 
-class Options : public SEMBA::Cudg3d::Solver::Options {
+class Options : public SEMBA::Solver::Options {
 public:
 	enum class TimeIntegrator {
 		lserk4, verlet, lf2, lf2full

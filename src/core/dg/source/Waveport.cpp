@@ -39,19 +39,19 @@
 //	// TODO Auto-generated destructor stub
 //}
 ////
-////Real
+////Math::Real
 ////DGWaveport::getNumericalGammaMGauss(
-//// const Real t,
-//// const Real dt,
-//// const Real amp,
-//// const Real delay,
-//// const Real spread,
-//// const Real kcm) const {
+//// const Math::Real t,
+//// const Math::Real dt,
+//// const Math::Real amp,
+//// const Math::Real delay,
+//// const Math::Real spread,
+//// const Math::Real kcm) const {
 ////	// Computes current step.
 ////	const size_t n = t / dt;
 ////	// Performs convolution.
 ////	size_t j;
-////	Real res = 0.0;
+////	Math::Real res = 0.0;
 ////	for (j = 0; j < n; j++) {
 ////		res +=
 ////		 getHm(j*dt, kcm)
@@ -62,9 +62,9 @@
 ////	return res;
 ////}
 //
-//Real DGWaveport::getHm(
-// const Real t,
-// const Real kcm) const {
+//Math::Real DGWaveport::getHm(
+// const Math::Real t,
+// const Math::Real kcm) const {
 //	if (t == 0) {
 //		return (kcm * kcm * Constants::c0 / 2.0);
 //	} else {

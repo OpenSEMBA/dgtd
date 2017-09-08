@@ -54,9 +54,9 @@
 //}
 //
 //void IntegratorLF2::timeIntegrate(
-// const Real time) const {
+// const Math::Real time) const {
 //	assert(solver!=NULL);
-//	Real dt = getMaxDT();
+//	Math::Real dt = getMaxDT();
 //	if (doLTS) {
 //		LTSupdateFieldsElectric(time,dt,getNTiers()-1);
 //		LTSupdateFieldsMagnetic(time,dt,getNTiers()-1);
@@ -69,8 +69,8 @@
 //	return nStages;
 //}
 //
-//Real IntegratorLF2::getMaxTimeRatio() const {
-//	return Real (1.0 / 3.0);
+//Math::Real IntegratorLF2::getMaxTimeRatio() const {
+//	return Math::Real (1.0 / 3.0);
 //}
 //
 //size_t
@@ -84,8 +84,8 @@
 //}
 //
 //void IntegratorLF2::LTSupdateFieldsElectric(
-// Real lTime,
-// Real ldt,
+// Math::Real lTime,
+// Math::Real ldt,
 // const size_t tier) const {
 //	size_t e1 = getRange(tier, 0).first;
 //	size_t e2 = getRange(tier, 1).second;
@@ -99,8 +99,8 @@
 //}
 //
 //void IntegratorLF2::LTSupdateFieldsMagnetic(
-// Real lTime,
-// Real ldt,
+// Math::Real lTime,
+// Math::Real ldt,
 // const size_t tier) const {
 //	size_t fK = getRange(tier, 0).first;
 //	size_t lK = getRange(tier, 1).second;
@@ -116,8 +116,8 @@
 //void IntegratorLF2::updateFields(
 // const size_t e1,
 // const size_t e2,
-// const Real localTime,
-// const Real rkdt) const {
+// const Math::Real localTime,
+// const Math::Real rkdt) const {
 //	solver->computeRHSElectric(e1, e2, localTime, mindt);
 //	solver->addRHSToFieldsElectric(e1,e2,rkdt);
 //	solver->computeRHSMagnetic(e1, e2, localTime, mindt);
