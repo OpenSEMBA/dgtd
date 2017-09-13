@@ -25,7 +25,8 @@
  *      Author: luis
  */
 
-#ifndef DG_H_
+#ifndef EXPLICIT_H_
+#define EXPLICIT_H_
 
 #include "DG.h"
 #include "CurvedFace.h"

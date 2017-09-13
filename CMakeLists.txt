@@ -38,43 +38,15 @@ function(add_sources dir srcs)
     endif()
 endfunction()
 
-add_custom_target(clobber WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-                          COMMAND ${CMAKE_COMMAND} -E remove_directory obj
-                          COMMAND ${CMAKE_COMMAND} -E remove_directory bin
-                          COMMAND ${CMAKE_COMMAND} -E remove_directory lib)
+find_package(opensemba REQUIRED)
+find_package(gidpost REQUIRED)
 
-project(cudg3d_global CXX)
-
-if (CMAKE_COMPILER_IS_GNUCXX)
-    include(CheckCXXCompilerFlag)
-    check_cxx_compiler_flag("-std=c++11" compiler_supports_cxx11)
-    check_cxx_compiler_flag("-std=c++0x" compiler_supports_cxx0X)
-    if(compiler_supports_cxx11)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    elseif(compiler_supports_cxx0X)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-    else()
-        message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. "
-                            "Please use a different C++ compiler.")
-    endif()
+OPTION(RUN_TESTS "Compile tests" OFF)
+if(RUN_TESTS)
+	add_subdirectory(src/apps/test)
 endif()
 
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
-
-set(OPENSEMBA_PATH ${CMAKE_CURRENT_SOURCE_DIR}/external/opensemba) 
-add_subdirectory(${OPENSEMBA_PATH}/src obj/opensemba)
-
-
-option(CUDG3D "Compile cudg3d" ON)
+option(CUDG3D "Compile cudg3d" OFF)
 if(CUDG3D)
 	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/apps/cudg3d)
 endif()
-
-#OPTION(RUN_TESTS "Compile tests" OFF)
-#if(RUN_TESTS)
-#	add_subdirectory(src/apps/test)
-#endif()

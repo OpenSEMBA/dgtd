@@ -38,43 +38,44 @@ using namespace std;
 namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
-
-class Base : public virtual Class::Class,
-             public virtual Class::Cloneable,
-             public virtual Class::Shareable,
-             public virtual Class::Printable {
-public:
-    Base();
-    virtual ~Base();
-
-    virtual bool hasSameBoundary(const Base& other) const = 0;
-    virtual Geometry::Element::Face getLocalFace() const = 0;
-    virtual Geometry::Element::Face getNeighFace() const = 0;
-};
-
-template<class T>
-class BoundaryCondition : public Base {
-public:
-    BoundaryCondition(
-            T* condition,
-            Geometry::Element::Face localFace,
-            Geometry::Element::Face neighFace);
-    virtual ~BoundaryCondition();
-    bool hasSameBoundary(const BoundaryCondition::Base& other) const;
-    virtual BoundaryCondition& operator=(const BoundaryCondition& rhs);
-
-    Geometry::Element::Face getLocalFace() const;
-    Geometry::Element::Face getNeighFace() const;
-    const T* getCondition() const;
-
-    void printInfo() const;
-private:
-    const T* condition_;
-    Geometry::Element::Face localFace_, neighFace_;
-};
-
-typedef BoundaryCondition<Source::Base> SourceBC;
-typedef BoundaryCondition<PhysicalModel::PhysicalModel> PhysicalModelBC;
+//
+//class Base {
+//public:
+//    Base();
+//    virtual ~Base();
+//
+//    virtual bool hasSameBoundary(const Base& other) const = 0;
+//    virtual Geometry::Element::Face getLocalFace() const = 0;
+//    virtual Geometry::Element::Face getNeighFace() const = 0;
+//};
+//
+//template<class T>
+//class BoundaryCondition : public Base,
+//                          public virtual Class::Class,
+//                          public virtual Class::Cloneable,
+//                          public virtual Class::Shareable,
+//                          public virtual Class::Printable{
+//public:
+//    BoundaryCondition(
+//            T* condition,
+//            Geometry::Element::Face localFace,
+//            Geometry::Element::Face neighFace);
+//    virtual ~BoundaryCondition();
+//    bool hasSameBoundary(const BoundaryCondition::Base& other) const;
+//    virtual BoundaryCondition& operator=(const BoundaryCondition& rhs);
+//
+//    Geometry::Element::Face getLocalFace() const;
+//    Geometry::Element::Face getNeighFace() const;
+//    const T* getCondition() const;
+//
+//    void printInfo() const;
+//private:
+//    const T* condition_;
+//    Geometry::Element::Face localFace_, neighFace_;
+//};
+//
+//typedef BoundaryCondition<Source::Base> SourceBC;
+//typedef BoundaryCondition<PhysicalModel::PhysicalModel> PhysicalModelBC;
 
 }
 }

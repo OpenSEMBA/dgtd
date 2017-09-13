@@ -24,69 +24,65 @@
 namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
-
-template<class T>
-BoundaryCondition<T>::BoundaryCondition::BoundaryCondition(
-        T* condition,
-        Geometry::Element::Face localFace,
-        Geometry::Element::Face neighFace) {
-    condition_ = condition;
-    localFace_ = localFace;
-    neighFace_ = neighFace;
-}
-
-template<class T>
-BoundaryCondition<T>::~BoundaryCondition() {
-
-}
-
-template<class T>
-bool BoundaryCondition<T>::hasSameBoundary(const Base& other) const {
-    return (getLocalFace() == other.getLocalFace());
-}
-
-template<class T>
-BoundaryCondition<T>& BoundaryCondition<T>::operator =(
-        const BoundaryCondition<T>& rhs) {
-    if (this == &rhs) {
-        return *this;
-    }
-    condition_ = rhs.condition_;
-    localFace_ = rhs.localFace_;
-    neighFace_ = rhs.neighFace_;
-    return *this;
-}
-
-template<class T>
-void BoundaryCondition<T>::printInfo() const {
-    cout << "--- BC info ---" << endl;
-    this->getCondition()->printInfo();
-
-    cout << "Local face: " << endl;
-    this->getLocalFace().first.printInfo();
-    cout << "Face #: " << this->getLocalFace().second << endl;
-
-    cout << "Neigh face: " << endl;
-    this->getNeighFace().first.printInfo();
-    cout << "Face #: " << this->getNeighFace().second << endl;
-    cout << "--- End of BC Info ---" << endl;
-}
-
-
-template<class T>
-inline Geometry::Element::Face BoundaryCondition<T>::getLocalFace() const {
-    return localFace_;
-}
-
-template<class T>
-inline Geometry::Element::Face BoundaryCondition<T>::getNeighFace() const {
-    return neighFace_;
-}
-
-template<class T>
-inline const T* BoundaryCondition<T>::getCondition() const {
-    return condition_;
-}
+//
+//BoundaryCondition::BoundaryCondition(
+//        T* condition,
+//        Geometry::Element::Face localFace,
+//        Geometry::Element::Face neighFace) {
+//    condition_ = condition;
+//    localFace_ = localFace;
+//    neighFace_ = neighFace;
+//}
+//
+//BoundaryCondition::~BoundaryCondition() {
+//
+//}
+//
+//bool BoundaryCondition::hasSameBoundary(const Base& other) const {
+//    return (getLocalFace() == other.getLocalFace());
+//}
+//
+//BoundaryCondition& BoundaryCondition::operator =(
+//        const BoundaryCondition& rhs) {
+//    if (this == &rhs) {
+//        return *this;
+//    }
+//    condition_ = rhs.condition_;
+//    localFace_ = rhs.localFace_;
+//    neighFace_ = rhs.neighFace_;
+//    return *this;
+//}
+//
+//template<class T>
+//void BoundaryCondition<T>::printInfo() const {
+//    cout << "--- BC info ---" << endl;
+//    this->getCondition()->printInfo();
+//
+//    cout << "Local face: " << endl;
+//    this->getLocalFace().first.printInfo();
+//    cout << "Face #: " << this->getLocalFace().second << endl;
+//
+//    cout << "Neigh face: " << endl;
+//    this->getNeighFace().first.printInfo();
+//    cout << "Face #: " << this->getNeighFace().second << endl;
+//    cout << "--- End of BC Info ---" << endl;
+//}
+//
+//
+//template<class T>
+//inline Geometry::Element::Face BoundaryCondition<T>::getLocalFace() const {
+//    return localFace_;
+//}
+//
+//template<class T>
+//inline Geometry::Element::Face BoundaryCondition<T>::getNeighFace() const {
+//    return neighFace_;
+//}
+//
+//template<class T>
+//inline const T* BoundaryCondition<T>::getCondition() const {
+//    return condition_;
+//}
 
 }
 }

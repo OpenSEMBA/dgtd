@@ -28,40 +28,41 @@ using namespace std;
 #include "source/Group.h"
 #include "physicalModel/Group.h"
 #include "geometry/graph/Connectivities.h"
+#include "geometry/element/Hexahedron8.h"
 #include "group/Cloneable.h"
 #include "group/Printable.h"
 
 namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
-
-template<typename T = Base>
-class Group : public SEMBA::Group::Group<T> {
-public:
-    Group(const Mesh::Volume& mesh,
-            const SourceGroup& em,
-            const PMGroup& pm);
-    void printInfo() const;
-
-private:
-    void buildEMSourceBC_(
-            const Mesh::Volume& mesh,
-            const SourceGroup& em);
-    void buildPhysicalModelBC_(
-            const Mesh::Volume& mesh,
-            const PMGroup& pm);
-    void removeOverlapped();
-    vector<Base*> removeCommons(
-            const vector<Base*>& low,
-            const vector<Base*>& high) const;
-};
-
-} /* BoundaryCondition */
-
-typedef BoundaryCondition::Group BCGroup;
-
-} /* Cudg3d */
-} /* SEMBA */
+//
+//template<typename T = Base>
+//class Group : public SEMBA::Group::Group<T> {
+//public:
+//    Group(const Mesh::Volume& mesh,
+//            const SourceGroup& em,
+//            const PMGroup& pm);
+//    void printInfo() const;
+//
+//private:
+//    void buildEMSourceBC_(
+//            const Mesh::Volume& mesh,
+//            const SourceGroup& em);
+//    void buildPhysicalModelBC_(
+//            const Mesh::Volume& mesh,
+//            const PMGroup& pm);
+//    void removeOverlapped();
+//    vector<Base*> removeCommons(
+//            const vector<Base*>& low,
+//            const vector<Base*>& high) const;
+//};
+//
+//} /* BoundaryCondition */
+//
+////typedef BoundaryCondition::Group BCGroup;
+//
+//} /* Cudg3d */
+//} /* SEMBA */
 
 #include "Group.hpp"
 
