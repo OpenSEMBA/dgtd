@@ -7,3 +7,4 @@ external/gidpost/release/
 .project
 .cproject
 
+/libs/
