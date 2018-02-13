@@ -24,12 +24,12 @@
 
 #include <type_traits>
 
+using namespace SEMBA;
+using namespace Math;
 using namespace Cudg3d;
 
 template <typename T>
-class JacobiLineTest : public ::testing::Test {
-
-};
+class JacobiLineTypedTest : public ::testing::Test {};
 
 using test_types = ::testing::Types<
     std::integral_constant<std::size_t,2>,
@@ -38,23 +38,55 @@ using test_types = ::testing::Types<
     std::integral_constant<std::size_t,8>,
     std::integral_constant<std::size_t,12>>;
 
-TYPED_TEST_CASE(JacobiLineTest, test_types);
+TYPED_TEST_CASE(JacobiLineTypedTest, test_types);
 
-TYPED_TEST(JacobiLineTest, BasicOperations) {
+TYPED_TEST(JacobiLineTypedTest, BasicOperations) {
     static constexpr std::size_t n = TypeParam::value;
     Jacobi::Line<n> lin;
 
-    SEMBA::Math::Real sum = 0.0;
-    std::vector<SEMBA::Math::Real> weights = lin.getWeights();
+    Real sum = 0.0;
+    std::vector<Real> weights = lin.getWeights();
     for (size_t i = 0; i < weights.size(); ++i) {
         sum += weights[i];
     }
-    EXPECT_NEAR(1.0, sum, 1e-8);
+    EXPECT_FLOAT_EQ(1.0, sum);
 }
 
+class JacobiLineTest : public ::testing::Test {};
 
-TEST(LineTest, BasicOperations) {
-    Jacobi::Line<3> lin;
+TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
 
+    {
+        Jacobi::Line<3> lin;
+        std::vector<Jacobi::Line<3>::Point> expected = {
+                -1.000000000000000,
+                -0.447213595499958,
+                 0.447213595499958,
+                 1.000000000000000};
+
+        auto computed = lin.getPoints();
+
+        for (std::size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_FLOAT_EQ(expected[i], computed[i]);
+        }
+    }
+
+    {
+        Jacobi::Line<5> lin;
+        std::vector<Jacobi::Line<5>::Point> expected = {
+                -1.000000000000000,
+                -0.765055323929465,
+                -0.285231516480645,
+                 0.285231516480645,
+                 0.765055323929465,
+                 1.000000000000000
+        };
+
+        std::vector<Jacobi::Line<5>::Point> computed = lin.getPoints();
+
+        for (std::size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_FLOAT_EQ(expected[i], computed[i]);
+        }
+    }
 
 }

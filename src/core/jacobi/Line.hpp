@@ -28,28 +28,51 @@ using namespace SEMBA;
 using namespace Math;
 
 template <size_t N>
-Line<N>::Line() {
+Line<N>::Line(Real alpha, Real beta) :
+        alpha_(alpha),
+        beta_(beta) {
 
+    // Computes quadrature points.
+    if (N == 1) {
+        points_[0] = -1.0;
+        points_[1] =  1.0;
+    } else {
+        jacobiGaussQuadrature(alpha_+1.0, beta_+1.0);
+    }
 };
 
 template <size_t N>
-inline const Function::Polynomial<Real>& Line<N>::getLagr(
-        const std::size_t i) const {
-    return lagr[i];
-}
-
-template <size_t N>
-inline const Function::Polynomial<Real>& Line<N>::getDLagr(
-        const std::size_t i,
-        const std::size_t f) const {
-    return dLagr[i][f];
+inline std::vector<typename Line<N>::Point> Line<N>::getPoints() const {
+    std::vector<Point> res(np);
+    std::copy_n(points_.begin(), np, res.begin());
+    return res;
 }
 
 template <size_t N>
 inline std::vector<Real> Line<N>::getWeights() const {
-    std::vector<Real> res(np);
-    std::copy_n(weights.begin(), np, res.begin());
+    std::vector<Weight> res(np);
+    std::copy_n(weights_.begin(), np, res.begin());
     return res;
+}
+
+template <size_t N>
+std::vector<std::pair<typename Line<N>::Point, typename Line<N>::Weight>>
+        Line<N>::jacobiGaussQuadrature(Real alpha, Real beta) {
+
+    size_t constexpr n = N -2;
+    std::static_assert(n >= 0);
+
+    std::vector<std::pair<Point, Weight>> res;
+    if (n == 0) {
+        Point x = (alpha - beta)/(alpha + beta + 2.0);
+        Weight w = 2.0;
+        res.push_back(std::make_pair(x,w));
+        return res;
+    }
+
+    Matrix::Static<Real, n+1, n+1> J;
+
+#error "TO DO." // TODO
 }
 
 } /* namespace Jacobi */

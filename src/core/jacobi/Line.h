@@ -26,6 +26,8 @@
 
 #include <array>
 #include <algorithm>
+#include <pair>
+#include <type_traits>
 
 namespace Cudg3d {
 namespace Jacobi {
@@ -41,23 +43,21 @@ public:
     static const std::size_t nfp = 1;
     static constexpr std::size_t np = N + 1;
 
-    typedef Vector::Cartesian<Real,dimension> Position;
+    typedef Real Point;
+    typedef Real Weight;
 
-    Line();
+    Line(Real alpha = 0.0, Real beta = 0.0);
 
-    const Function::Polynomial<Real>& getLagr(
-            const std::size_t node) const;
-    const Function::Polynomial<Real>& getDLagr(
-            const std::size_t node, const std::size_t simplex) const;
-
-    std::vector<Real> getWeights() const;
+    std::vector<Point>  getPoints()  const;
+    std::vector<Weight> getWeights() const;
 
 private:
-    Function::Polynomial<Real> lagr[np];
-    Function::Polynomial<Real> dLagr[np][faces];
+    Real alpha_, beta_;
+    std::array<Point,np>  points_;
+    std::array<Weight,np> weights_;
 
-    std::array<Position, np> points;
-    std::array<Real,np>      weights;
+    static std::vector<std::pair<Point,Weight>>
+        jacobiGaussQuadrature(Real alpha, Real beta);
 };
 
 } /* namespace Jacobi */
@@ -65,4 +65,4 @@ private:
 
 #include "Line.hpp"
 
-#endif /* DGTD_JACOBI_LINE_H_ */
+#endif
