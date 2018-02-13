@@ -19,13 +19,38 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
 
-#include "Triangle3Test.h"
+#include "Line.h"
+
+namespace Cudg3d {
+namespace Jacobi {
 
 using namespace SEMBA;
-using namespace Cudg3d;
+using namespace Math;
 
-TEST_F(CellTriangle3Test, BaseOperations) {
-    Cell::Triangle3<1> cell(tri3_);
+template <size_t N>
+Line<N>::Line() {
 
-    EXPECT_EQ(0.5, cell.getArea());
+};
+
+template <size_t N>
+inline const Function::Polynomial<Real>& Line<N>::getLagr(
+        const std::size_t i) const {
+    return lagr[i];
 }
+
+template <size_t N>
+inline const Function::Polynomial<Real>& Line<N>::getDLagr(
+        const std::size_t i,
+        const std::size_t f) const {
+    return dLagr[i][f];
+}
+
+template <size_t N>
+inline std::vector<Real> Line<N>::getWeights() const {
+    std::vector<Real> res(np);
+    std::copy_n(weights.begin(), np, res.begin());
+    return res;
+}
+
+} /* namespace Jacobi */
+} /* namespace DGTD */

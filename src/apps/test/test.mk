@@ -22,19 +22,24 @@
 OUT = test
 
 TEST_CORE_CELL          = yes#
-
+TEST_CORE_JACOBI        = yes#
 # =============================================================================
 SRC_APP_DIR = $(SRC_DIR)apps/test/
 # =============================================================================
-# --- Core ---
 ifeq ($(TEST_CORE_CELL),yes)
 	SRC_CORE_CELL_DIRS     := $(shell find $(SRC_DIR)core/cell/ -type d)
 	SRC_CORE_CELL_TESTS_DIRS := $(SRC_CORE_CELL_DIRS) \
 							    $(shell find $(SRC_APP_DIR)core/cell/ -type d)
 endif
+ifeq ($(TEST_CORE_JACOBI),yes)
+	SRC_CORE_JACOBI_DIRS     := $(shell find $(SRC_DIR)core/jacobi/ -type d)
+	SRC_CORE_JACOBI_TESTS_DIRS := $(SRC_CORE_JACOBI_DIRS) \
+							      $(shell find $(SRC_APP_DIR)core/jacobi/ -type d)
+endif
 
-SRC_CORE_TESTS_DIRS = $(SRC_CORE_CELL_TESTS_DIRS) 
-# ----- Gathers sources ----
+SRC_CORE_TESTS_DIRS = $(SRC_CORE_CELL_TESTS_DIRS) \
+					  $(SRC_CORE_JACOBI_TESTS_DIRS) 
+
 SRC_DIRS := $(SRC_APP_DIR) $(SRC_CORE_TESTS_DIRS) 
 
 SRCS_CXX := $(shell find $(SRC_DIRS) -maxdepth 1 -type f -name "*.cpp")
@@ -46,7 +51,6 @@ INCLUDES  += $(SRC_DIR)core/ \
 			 $(LIB_DIR)opensemba/include/core/ \
 			 $(LIB_DIR)opensemba/include/
 LIBRARIES += $(LIB_DIR)gidpost/lib/ $(LIB_DIR)opensemba/lib/
-
 OBJS_LIB  += $(LIB_DIR)opensemba/lib/libopensemba.a \
 			 $(LIB_DIR)gidpost/lib/libgidpost.a \
 # =============================================================================

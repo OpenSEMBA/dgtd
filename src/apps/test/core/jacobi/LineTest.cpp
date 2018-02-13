@@ -18,38 +18,43 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-#ifndef SRC_APPS_TEST_CORE_CELL_TRIANGLE3TEST_H_
-#define SRC_APPS_TEST_CORE_CELL_TRIANGLE3TEST_H_
 
 #include "gtest/gtest.h"
-#include "cell/Triangle3.h"
+#include "jacobi/Line.h"
 
-using namespace SEMBA;
-using namespace Math;
-using namespace Geometry;
+#include <type_traits>
 
-class CellTriangle3Test : public ::testing::Test {
+using namespace Cudg3d;
 
-protected:
-    void SetUp() {
-        cG_.add(new CoordR3(CoordId(1), CVecR3( 0.0, 0.0, 0.0)));
-        cG_.add(new CoordR3(CoordId(2), CVecR3( 0.0, 0.0, 1.0)));
-        cG_.add(new CoordR3(CoordId(3), CVecR3( 1.0, 0.0, 0.0)));
-        {
-            const CoordR3* v[3] = {
-                    cG_.getId(CoordId(1)),
-                    cG_.getId(CoordId(2)),
-                    cG_.getId(CoordId(3))};
-            tri3_ = Tri3(ElemId(1), v);
-        }
-    }
-    void TearDown() {
-        cG_.clear();
-    }
-protected:
-    CoordR3Group cG_;
-    Tri3 tri3_;
+template <typename T>
+class JacobiLineTest : public ::testing::Test {
+
 };
 
+using test_types = ::testing::Types<
+    std::integral_constant<std::size_t,2>,
+    std::integral_constant<std::size_t,3>,
+    std::integral_constant<std::size_t,5>,
+    std::integral_constant<std::size_t,8>,
+    std::integral_constant<std::size_t,12>>;
 
-#endif /* SRC_APPS_TEST_CORE_CELL_TRIANGLE3TEST_H_ */
+TYPED_TEST_CASE(JacobiLineTest, test_types);
+
+TYPED_TEST(JacobiLineTest, BasicOperations) {
+    static constexpr std::size_t n = TypeParam::value;
+    Jacobi::Line<n> lin;
+
+    SEMBA::Math::Real sum = 0.0;
+    std::vector<SEMBA::Math::Real> weights = lin.getWeights();
+    for (size_t i = 0; i < weights.size(); ++i) {
+        sum += weights[i];
+    }
+    EXPECT_NEAR(1.0, sum, 1e-8);
+}
+
+
+TEST(LineTest, BasicOperations) {
+    Jacobi::Line<3> lin;
+
+
+}
