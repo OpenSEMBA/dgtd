@@ -21,13 +21,14 @@
 #ifndef CUDG3D_JACOBI_LINE_H_
 #define CUDG3D_JACOBI_LINE_H_
 
-#include "math/matrix/Static.h"
-#include "math/function/Polynomial.h"
-
 #include <array>
 #include <algorithm>
-#include <pair>
+#include <utility>
 #include <type_traits>
+
+#include "math/matrix/Static.h"
+#include "math/function/Polynomial.h"
+#include "Rule.h"
 
 namespace Cudg3d {
 namespace Jacobi {
@@ -55,9 +56,6 @@ private:
     Real alpha_, beta_;
     std::array<Point,np>  points_;
     std::array<Weight,np> weights_;
-
-    static std::vector<std::pair<Point,Weight>>
-        jacobiGaussQuadrature(Real alpha, Real beta);
 };
 
 } /* namespace Jacobi */

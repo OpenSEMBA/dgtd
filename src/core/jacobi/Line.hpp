@@ -37,7 +37,8 @@ Line<N>::Line(Real alpha, Real beta) :
         points_[0] = -1.0;
         points_[1] =  1.0;
     } else {
-        jacobiGaussQuadrature(alpha_+1.0, beta_+1.0);
+        Rule(N-1, std::make_pair(alpha_+1.0, beta_+1.0),
+                std::make_pair(-1.0, +1.0));
     }
 };
 
@@ -53,26 +54,6 @@ inline std::vector<Real> Line<N>::getWeights() const {
     std::vector<Weight> res(np);
     std::copy_n(weights_.begin(), np, res.begin());
     return res;
-}
-
-template <size_t N>
-std::vector<std::pair<typename Line<N>::Point, typename Line<N>::Weight>>
-        Line<N>::jacobiGaussQuadrature(Real alpha, Real beta) {
-
-    size_t constexpr n = N -2;
-    std::static_assert(n >= 0);
-
-    std::vector<std::pair<Point, Weight>> res;
-    if (n == 0) {
-        Point x = (alpha - beta)/(alpha + beta + 2.0);
-        Weight w = 2.0;
-        res.push_back(std::make_pair(x,w));
-        return res;
-    }
-
-    Matrix::Static<Real, n+1, n+1> J;
-
-#error "TO DO." // TODO
 }
 
 } /* namespace Jacobi */
