@@ -33,12 +33,17 @@ Line<N>::Line(Real alpha, Real beta) :
         beta_(beta) {
 
     // Computes quadrature points.
-    if (N == 1) {
-        points_[0] = -1.0;
-        points_[1] =  1.0;
-    } else {
-        Rule(N-1, std::make_pair(alpha_+1.0, beta_+1.0),
-                std::make_pair(-1.0, +1.0));
+    points_.front() = -1.0;
+    points_.back()  =  1.0;
+    if (N != 1) {
+        Rule rule(N-1,
+                  std::make_pair(alpha_+1.0, beta_+1.0),
+                  std::make_pair(-1.0, +1.0));
+
+        const std::vector<Real> rulePoints = rule.getPoints();
+        for (size_t i = 1; i < N; ++i) {
+            points_[i] = rulePoints[i-1];
+        }
     }
 };
 

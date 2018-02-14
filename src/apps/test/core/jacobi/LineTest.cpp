@@ -28,37 +28,52 @@ using namespace SEMBA;
 using namespace Math;
 using namespace Cudg3d;
 
-template <typename T>
-class JacobiLineTypedTest : public ::testing::Test {};
+//template <typename T>
+//class JacobiLineTypedTest : public ::testing::Test {};
+//
+//using test_types = ::testing::Types<
+//    std::integral_constant<std::size_t,2>,
+//    std::integral_constant<std::size_t,3>,
+//    std::integral_constant<std::size_t,5>,
+//    std::integral_constant<std::size_t,8>,
+//    std::integral_constant<std::size_t,12>>;
 
-using test_types = ::testing::Types<
-    std::integral_constant<std::size_t,2>,
-    std::integral_constant<std::size_t,3>,
-    std::integral_constant<std::size_t,5>,
-    std::integral_constant<std::size_t,8>,
-    std::integral_constant<std::size_t,12>>;
-
-TYPED_TEST_CASE(JacobiLineTypedTest, test_types);
-
-TYPED_TEST(JacobiLineTypedTest, BasicOperations) {
-    static constexpr std::size_t n = TypeParam::value;
-    Jacobi::Line<n> lin;
-
-    Real sum = 0.0;
-    std::vector<Real> weights = lin.getWeights();
-    for (size_t i = 0; i < weights.size(); ++i) {
-        sum += weights[i];
-    }
-    EXPECT_FLOAT_EQ(1.0, sum);
-}
+//TYPED_TEST_CASE(JacobiLineTypedTest, test_types);
+//
+//TYPED_TEST(JacobiLineTypedTest, BasicOperations) {
+//    static constexpr std::size_t n = TypeParam::value;
+//    Jacobi::Line<n> lin;
+//
+//    Real sum = 0.0;
+//    std::vector<Real> weights = lin.getWeights();
+//    for (size_t i = 0; i < weights.size(); ++i) {
+//        sum += weights[i];
+//    }
+//    EXPECT_FLOAT_EQ(1.0, sum);
+//}
 
 class JacobiLineTest : public ::testing::Test {};
 
 TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
 
     {
-        Jacobi::Line<3> lin;
-        std::vector<Jacobi::Line<3>::Point> expected = {
+        static const size_t n = 1;
+        Jacobi::Line<n> lin;
+        std::vector<Jacobi::Line<n>::Point> expected = {
+                -1.000000000000000,
+                 1.000000000000000};
+
+        auto computed = lin.getPoints();
+
+        for (std::size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;;
+        }
+    }
+
+    {
+        static const size_t n = 3;
+        Jacobi::Line<n> lin;
+        std::vector<Jacobi::Line<n>::Point> expected = {
                 -1.000000000000000,
                 -0.447213595499958,
                  0.447213595499958,
@@ -67,13 +82,31 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
         auto computed = lin.getPoints();
 
         for (std::size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_FLOAT_EQ(expected[i], computed[i]);
+            EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;;
         }
     }
 
     {
-        Jacobi::Line<5> lin;
-        std::vector<Jacobi::Line<5>::Point> expected = {
+        static const size_t n = 4;
+        Jacobi::Line<n> lin;
+        std::vector<Jacobi::Line<n>::Point> expected = {
+                -1.000000000000000,
+                -0.654653670707977,
+                 0.000000000000000,
+                 0.654653670707977,
+                 1.000000000000000};
+
+        auto computed = lin.getPoints();
+
+        for (std::size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(expected[i], computed[i], 1e-14) << "N=" << n;
+        }
+    }
+
+    {
+        static const size_t n = 5;
+        Jacobi::Line<n> lin;
+        std::vector<Jacobi::Line<n>::Point> expected = {
                 -1.000000000000000,
                 -0.765055323929465,
                 -0.285231516480645,
@@ -85,7 +118,7 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
         std::vector<Jacobi::Line<5>::Point> computed = lin.getPoints();
 
         for (std::size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_FLOAT_EQ(expected[i], computed[i]);
+            EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;;
         }
     }
 

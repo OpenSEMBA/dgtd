@@ -33,13 +33,50 @@ class JacobiRuleTest : public ::testing::Test {};
 TEST_F(JacobiRuleTest, QuadraturePointsAndWeights) {
 
     std::pair<Real,Real> interval(-1.0, 1.0);
+    {
+        const size_t n = 1;
+        std::pair<Real,Real> alphabeta(1.0, 1.0);
+        Jacobi::Rule rule(n, alphabeta, interval);
+        std::array<Real,n> expectedPoints = { 0 };
+
+        std::array<Real,n> expectedWeights = { 1.3333334 };
+
+        auto computedPoints  = rule.getPoints();
+        auto computedWeights = rule.getWeights();
+
+        for (std::size_t i = 0; i < expectedPoints.size(); ++i) {
+            EXPECT_FLOAT_EQ(expectedPoints [i], computedPoints [i]);
+            EXPECT_FLOAT_EQ(expectedWeights[i], computedWeights[i]);
+        }
+    }
+
+    {
+        const size_t n = 2;
+        std::pair<Real,Real> alphabeta(1.0, 1.0);
+        Jacobi::Rule rule(n, alphabeta, interval);
+        std::array<Real,n> expectedPoints = {
+                -0.447213595499958,
+                 0.447213595499958};
+
+        std::array<Real,n> expectedWeights = {
+                0.666666666666667,
+                0.666666666666667};
+
+        auto computedPoints  = rule.getPoints();
+        auto computedWeights = rule.getWeights();
+
+        for (std::size_t i = 0; i < expectedPoints.size(); ++i) {
+            EXPECT_FLOAT_EQ(expectedPoints [i], computedPoints [i]);
+            EXPECT_FLOAT_EQ(expectedWeights[i], computedWeights[i]);
+        }
+    }
 
     {
         const size_t n = 3;
         std::pair<Real,Real> alphabeta(1.0, 1.0);
         Jacobi::Rule rule(n, alphabeta, interval);
         std::array<Real,n> expectedPoints = {
-                -0.6546536707079771   ,
+                -0.654653670707977    ,
                  6.982261990806649e-17,
                  0.654653670707977    };
 

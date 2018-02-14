@@ -40,7 +40,7 @@ Rule::Rule(std::size_t order,
                     a_(region.first),
                     b_(region.second) {
 
-    if (order < 1) {
+    if (order < 0) {
         throw std::logic_error("Jacobi::Rule: Order must be >= 1.\n");
     }
     if (beta_ <= -1.0 ) {
@@ -160,7 +160,7 @@ void Rule::imtqlx(
         }
     }
 
-    // Sorts
+    // Sorts positions preseving order of associated weight.
     for (size_t ii = 2; ii <= order_; ii++ ) {
         const size_t i = ii - 1;
         size_t k = i;
@@ -188,8 +188,8 @@ void Rule::scqf (
         const std::vector<size_t>& ndx,
         std::vector<double>& swts,
         std::vector<double>& st) const {
-    if ( fabs ( b_ - a_ ) <= std::numeric_limits<double>::epsilon()) {
-        throw std::logic_error("Jacobi::Rule: |B - A| too small.\n");
+    if (fabs(b_-a_) <= std::numeric_limits<double>::epsilon()) {
+        throw std::logic_error("Jacobi::Rule: B - A too small.\n");
     }
     const double shft = ( a_ + b_ ) / 2.0;
     const double slp  = ( b_ - a_ ) / 2.0;
