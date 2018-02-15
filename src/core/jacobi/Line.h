@@ -44,18 +44,14 @@ public:
     static const std::size_t nfp = 1;
     static constexpr std::size_t np = N + 1;
 
-    typedef Real Point;
-    typedef Real Weight;
-
     Line(Real alpha = 0.0, Real beta = 0.0);
 
-    std::vector<Point>  getPoints()  const;
-    std::vector<Weight> getWeights() const;
+    std::vector<Real> getGaussLobattoPoints()  const;
+    std::vector<Real> evaluateAt(const std::vector<Real>& x) const;
 
 private:
     Real alpha_, beta_;
-    std::array<Point,np>  points_;
-    std::array<Weight,np> weights_;
+    std::array<Real,np>  gaussLobattoPoints_;
 };
 
 } /* namespace Jacobi */

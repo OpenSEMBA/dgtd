@@ -1,4 +1,4 @@
-// OpenSEMBA
+// OpenSEMBAompu
 // Copyright (C) 2015 Salvador Gonzalez Garcia        (salva@ugr.es)
 //                    Luis Manuel Diaz Angulo         (lmdiazangulo@semba.guru)
 //                    Miguel David Ruiz-Cabello Nuñez (miguel@semba.guru)
@@ -59,11 +59,11 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
     {
         static const size_t n = 1;
         Jacobi::Line<n> lin;
-        std::vector<Jacobi::Line<n>::Point> expected = {
+        std::vector<Real> expected = {
                 -1.000000000000000,
                  1.000000000000000};
 
-        auto computed = lin.getPoints();
+        auto computed = lin.getGaussLobattoPoints();
 
         for (std::size_t i = 0; i < expected.size(); ++i) {
             EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;;
@@ -73,13 +73,13 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
     {
         static const size_t n = 3;
         Jacobi::Line<n> lin;
-        std::vector<Jacobi::Line<n>::Point> expected = {
+        std::vector<Real> expected = {
                 -1.000000000000000,
                 -0.447213595499958,
                  0.447213595499958,
                  1.000000000000000};
 
-        auto computed = lin.getPoints();
+        auto computed = lin.getGaussLobattoPoints();
 
         for (std::size_t i = 0; i < expected.size(); ++i) {
             EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;;
@@ -89,24 +89,34 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
     {
         static const size_t n = 4;
         Jacobi::Line<n> lin;
-        std::vector<Jacobi::Line<n>::Point> expected = {
+        std::vector<Real> expectedLGL = {
                 -1.000000000000000,
                 -0.654653670707977,
                  0.000000000000000,
                  0.654653670707977,
                  1.000000000000000};
 
-        auto computed = lin.getPoints();
+        std::vector<Real> expectedEvaluations = {
+                 2.121320343559644,
+                -0.909137290096990,
+                 0.795495128834866,
+                -0.909137290096990,
+                 2.121320343559644};
 
-        for (std::size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(expected[i], computed[i], 1e-14) << "N=" << n;
+        auto computedLGL         = lin.getGaussLobattoPoints();
+        auto computedEvaluations = lin.evaluateAt(computedLGL);
+
+        for (std::size_t i = 0; i < expectedLGL.size(); ++i) {
+            EXPECT_NEAR(expectedLGL[i], computedLGL[i], 1e-14) << "N=" << n;
+            EXPECT_NEAR(expectedEvaluations[i],
+                        computedEvaluations[i],         1e-14) << "N=" << n;
         }
     }
 
     {
         static const size_t n = 5;
         Jacobi::Line<n> lin;
-        std::vector<Jacobi::Line<n>::Point> expected = {
+        std::vector<Real> expected = {
                 -1.000000000000000,
                 -0.765055323929465,
                 -0.285231516480645,
@@ -115,7 +125,7 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
                  1.000000000000000
         };
 
-        std::vector<Jacobi::Line<5>::Point> computed = lin.getPoints();
+        std::vector<Real> computed = lin.getGaussLobattoPoints();
 
         for (std::size_t i = 0; i < expected.size(); ++i) {
             EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;;

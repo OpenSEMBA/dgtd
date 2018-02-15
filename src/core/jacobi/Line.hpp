@@ -33,8 +33,8 @@ Line<N>::Line(Real alpha, Real beta) :
         beta_(beta) {
 
     // Computes quadrature points.
-    points_.front() = -1.0;
-    points_.back()  =  1.0;
+    gaussLobattoPoints_.front() = -1.0;
+    gaussLobattoPoints_.back()  =  1.0;
     if (N != 1) {
         Rule rule(N-1,
                   std::make_pair(alpha_+1.0, beta_+1.0),
@@ -42,23 +42,64 @@ Line<N>::Line(Real alpha, Real beta) :
 
         const std::vector<Real> rulePoints = rule.getPoints();
         for (size_t i = 1; i < N; ++i) {
-            points_[i] = rulePoints[i-1];
+            gaussLobattoPoints_[i] = rulePoints[i-1];
         }
     }
 };
 
 template <size_t N>
-inline std::vector<typename Line<N>::Point> Line<N>::getPoints() const {
-    std::vector<Point> res(np);
-    std::copy_n(points_.begin(), np, res.begin());
+inline std::vector<Real> Line<N>::getGaussLobattoPoints() const {
+    std::vector<Real> res(np);
+    std::copy_n(gaussLobattoPoints_.begin(), np, res.begin());
     return res;
 }
 
 template <size_t N>
-inline std::vector<Real> Line<N>::getWeights() const {
-    std::vector<Weight> res(np);
-    std::copy_n(weights_.begin(), np, res.begin());
-    return res;
+std::vector<Real>  Line<N>::evaluateAt(const std::vector<Real>& x) const {
+    Matrix::Dynamic<Real> PL(np, x.size());
+    const Real gamma0 = std::pow(2.0, alpha_+beta_+1.0) /
+            (alpha_ +beta_ + 1.0) *
+            std::tgamma(alpha_ + 1.0) *
+            std::tgamma(beta_  + 1.0) /
+            std::tgamma(alpha_+beta_+1.0);
+    for (size_t i = 0; i < PL.nCols(); ++i) {
+        PL(0,i) = 1.0 / sqrt(gamma0);
+    }
+    if (N != 0) {
+        const Real gamma1 = (alpha_+1.0) * (beta_+1.0) /
+                            (alpha_ + beta_ + 3.0) *
+                            gamma0;
+        for (size_t i = 0; i < PL.nCols(); ++i) {
+            PL(1,i) =  ( (alpha_+beta_+2.0)*x[i] / 2.0+(alpha_-beta_)/2.0 ) /
+                        sqrt(gamma1);
+        }
+
+
+        Real aOld = 2.0 /
+                    (2.0 + alpha_ + beta_) *
+                    sqrt((alpha_+1.0)*(beta_+1.0) / (alpha_+beta_+3.0));
+        for (size_t i = 0; i < (N-1); ++i) {
+            const Real h1 = (Real) (2*(i+1)) + alpha_ + beta_;
+            const Real aNew = 2.0 / (h1 + 2.0) *
+                             sqrt( ( (Real) i + 2.0 ) *
+                                   ( (Real) i + 2.0 + alpha_ + beta_)*
+                                   ( (Real) i + 2.0 + alpha_) *
+                                   ( (Real) i + 2.0 + beta_) /
+                                   (h1 + 1.0) /
+                                   (h1 + 3.0)
+                                 );
+             const Real bNew = - (pow(alpha_,2) - pow(beta_,2)) /
+                                  h1 /
+                                  (h1 + 2.0);
+             for (size_t j = 0; j < PL.nCols(); ++j) {
+                 PL(i+2,j) = 1.0 / aNew *
+                             (-aOld*PL(i,j) + (x[j]-bNew) * PL(i+1,j) );
+             }
+            aOld = aNew;
+        }
+    }
+
+    return PL.cpRowToVector(N);
 }
 
 } /* namespace Jacobi */
