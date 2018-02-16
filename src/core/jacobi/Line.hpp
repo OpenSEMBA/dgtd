@@ -31,10 +31,13 @@ template <size_t N>
 Line<N>::Line(Real alpha, Real beta) :
         alpha_(alpha),
         beta_(beta) {
+};
 
-    // Computes quadrature points.
-    gaussLobattoPoints_.front() = -1.0;
-    gaussLobattoPoints_.back()  =  1.0;
+template <size_t N>
+std::vector<Real> Line<N>::getGaussLobattoPoints() const {
+    std::vector<Real> res(np);
+    res.front() = -1.0;
+    res.back()  =  1.0;
     if (N != 1) {
         Rule rule(N-1,
                   std::make_pair(alpha_+1.0, beta_+1.0),
@@ -42,21 +45,27 @@ Line<N>::Line(Real alpha, Real beta) :
 
         const std::vector<Real> rulePoints = rule.getPoints();
         for (size_t i = 1; i < N; ++i) {
-            gaussLobattoPoints_[i] = rulePoints[i-1];
+            res[i] = rulePoints[i-1];
         }
     }
-};
-
-template <size_t N>
-inline std::vector<Real> Line<N>::getGaussLobattoPoints() const {
-    std::vector<Real> res(np);
-    std::copy_n(gaussLobattoPoints_.begin(), np, res.begin());
     return res;
 }
 
 template <size_t N>
-std::vector<Real>  Line<N>::evaluateAt(const std::vector<Real>& x) const {
-    Matrix::Dynamic<Real> PL(np, x.size());
+Matrix::Dynamic<Real> Line<N>::getVandermonde(const std::vector<Real>& x) const {
+    Matrix::Dynamic<Real> res(x.size(), N+1);
+    for (size_t i = 0; i < (N+1); ++i) {
+        auto polynomialValues = this->evaluateAt(x, i);
+        res.cpToCol(i, polynomialValues);
+    }
+    return res;
+}
+
+template <size_t N>
+std::vector<Real> Line<N>::evaluateAt(
+        const std::vector<Real>& x,
+        const size_t n) const {
+    Matrix::Dynamic<Real> PL(n+1, x.size());
     const Real gamma0 = std::pow(2.0, alpha_+beta_+1.0) /
             (alpha_ +beta_ + 1.0) *
             std::tgamma(alpha_ + 1.0) *
@@ -65,7 +74,7 @@ std::vector<Real>  Line<N>::evaluateAt(const std::vector<Real>& x) const {
     for (size_t i = 0; i < PL.nCols(); ++i) {
         PL(0,i) = 1.0 / sqrt(gamma0);
     }
-    if (N != 0) {
+    if (n != 0) {
         const Real gamma1 = (alpha_+1.0) * (beta_+1.0) /
                             (alpha_ + beta_ + 3.0) *
                             gamma0;
@@ -78,7 +87,7 @@ std::vector<Real>  Line<N>::evaluateAt(const std::vector<Real>& x) const {
         Real aOld = 2.0 /
                     (2.0 + alpha_ + beta_) *
                     sqrt((alpha_+1.0)*(beta_+1.0) / (alpha_+beta_+3.0));
-        for (size_t i = 0; i < (N-1); ++i) {
+        for (size_t i = 0; i < (n-1); ++i) {
             const Real h1 = (Real) (2*(i+1)) + alpha_ + beta_;
             const Real aNew = 2.0 / (h1 + 2.0) *
                              sqrt( ( (Real) i + 2.0 ) *
@@ -88,18 +97,18 @@ std::vector<Real>  Line<N>::evaluateAt(const std::vector<Real>& x) const {
                                    (h1 + 1.0) /
                                    (h1 + 3.0)
                                  );
-             const Real bNew = - (pow(alpha_,2) - pow(beta_,2)) /
+            const Real bNew = - (pow(alpha_,2) - pow(beta_,2)) /
                                   h1 /
                                   (h1 + 2.0);
-             for (size_t j = 0; j < PL.nCols(); ++j) {
-                 PL(i+2,j) = 1.0 / aNew *
+            for (size_t j = 0; j < PL.nCols(); ++j) {
+                PL(i+2,j) = 1.0 / aNew *
                              (-aOld*PL(i,j) + (x[j]-bNew) * PL(i+1,j) );
-             }
+            }
             aOld = aNew;
         }
     }
 
-    return PL.cpRowToVector(N);
+    return PL.cpRowToVector(n);
 }
 
 } /* namespace Jacobi */

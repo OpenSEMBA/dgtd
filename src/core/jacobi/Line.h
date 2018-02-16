@@ -47,11 +47,14 @@ public:
     Line(Real alpha = 0.0, Real beta = 0.0);
 
     std::vector<Real> getGaussLobattoPoints()  const;
-    std::vector<Real> evaluateAt(const std::vector<Real>& x) const;
 
+    Matrix::Dynamic<Real> getVandermonde(const std::vector<Real>& x) const;
+
+    std::vector<Real> evaluateAt(
+            const std::vector<Real>& x,
+            const size_t n = N) const;
 private:
     Real alpha_, beta_;
-    std::array<Real,np>  gaussLobattoPoints_;
 };
 
 } /* namespace Jacobi */

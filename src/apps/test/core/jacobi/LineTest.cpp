@@ -52,7 +52,10 @@ using namespace Cudg3d;
 //    EXPECT_FLOAT_EQ(1.0, sum);
 //}
 
-class JacobiLineTest : public ::testing::Test {};
+class JacobiLineTest : public ::testing::Test {
+protected:
+    const Real tol_ = 1e-14;
+};
 
 TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
 
@@ -107,9 +110,9 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
         auto computedEvaluations = lin.evaluateAt(computedLGL);
 
         for (std::size_t i = 0; i < expectedLGL.size(); ++i) {
-            EXPECT_NEAR(expectedLGL[i], computedLGL[i], 1e-14) << "N=" << n;
+            EXPECT_NEAR(expectedLGL[i], computedLGL[i], tol_) << "N=" << n;
             EXPECT_NEAR(expectedEvaluations[i],
-                        computedEvaluations[i],         1e-14) << "N=" << n;
+                        computedEvaluations[i],         tol_) << "N=" << n;
         }
     }
 
@@ -128,8 +131,28 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
         std::vector<Real> computed = lin.getGaussLobattoPoints();
 
         for (std::size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;;
+            EXPECT_FLOAT_EQ(expected[i], computed[i]) << "N=" << n;
         }
     }
 
+}
+
+TEST_F(JacobiLineTest, VandermondeMatrix) {
+    {
+        static const size_t n = 4;
+        Jacobi::Line<n> lin;
+        auto r = lin.getGaussLobattoPoints();
+        Matrix::Dynamic<Real> V = lin.getVandermonde(r);
+
+        std::vector<Real> expected = {
+            0.707106781186547, -1.224744871391589,  1.581138830084190, -1.870828693386972,  2.121320343559644,
+            0.707106781186547, -0.801783725737273,  0.225876975726313,  0.524890659167824, -0.909137290096990,
+            0.707106781186547, -0.000000000000000, -0.790569415042095,  0.000000000000000,  0.795495128834866,
+            0.707106781186547,  0.801783725737273,  0.225876975726313, -0.524890659167823, -0.909137290096990,
+            0.707106781186547,  1.224744871391589,  1.581138830084190,  1.870828693386972,  2.121320343559644};
+
+        for (size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(expected[i], V.val(i), tol_) << "N=" << n;
+        }
+    }
 }
