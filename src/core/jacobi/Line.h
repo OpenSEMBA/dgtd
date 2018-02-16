@@ -47,12 +47,23 @@ public:
     Line(Real alpha = 0.0, Real beta = 0.0);
 
     std::vector<Real> getGaussLobattoPoints()  const;
+    Matrix::Dynamic<Real> getVandermondeMatrix(const std::vector<Real>& x) const;
+    Matrix::Dynamic<Real> getGradVandermondeMatrix(const std::vector<Real>& x) const;
+    Matrix::Dynamic<Real> getDifferentiationMatrix(
+            const std::vector<Real>& x) const;
 
-    Matrix::Dynamic<Real> getVandermonde(const std::vector<Real>& x) const;
-
-    std::vector<Real> evaluateAt(
+protected:
+    static std::vector<Real> evaluatePolynomialAt(
             const std::vector<Real>& x,
-            const size_t n = N) const;
+            const Real alpha,
+            const Real beta,
+            const size_t n);
+
+    static std::vector<Real> evaluateGradPolynomialAt(
+                const std::vector<Real>& x,
+                const Real alpha,
+                const Real beta,
+                const size_t n = N);
 private:
     Real alpha_, beta_;
 };

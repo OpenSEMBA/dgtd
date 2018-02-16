@@ -26,7 +26,7 @@
 
 using namespace SEMBA;
 using namespace Math;
-using namespace Cudg3d;
+using namespace Cudg3d::Jacobi;
 
 //template <typename T>
 //class JacobiLineTypedTest : public ::testing::Test {};
@@ -53,15 +53,16 @@ using namespace Cudg3d;
 //}
 
 class JacobiLineTest : public ::testing::Test {
+    template<size_t N> friend class Line;
 protected:
-    const Real tol_ = 1e-14;
+    const Real tol_ = 1e-12;
 };
 
 TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
 
     {
         static const size_t n = 1;
-        Jacobi::Line<n> lin;
+        Line<n> lin;
         std::vector<Real> expected = {
                 -1.000000000000000,
                  1.000000000000000};
@@ -75,7 +76,7 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
 
     {
         static const size_t n = 3;
-        Jacobi::Line<n> lin;
+        Line<n> lin;
         std::vector<Real> expected = {
                 -1.000000000000000,
                 -0.447213595499958,
@@ -91,7 +92,7 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
 
     {
         static const size_t n = 4;
-        Jacobi::Line<n> lin;
+        Line<n> lin;
         std::vector<Real> expectedLGL = {
                 -1.000000000000000,
                 -0.654653670707977,
@@ -99,26 +100,16 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
                  0.654653670707977,
                  1.000000000000000};
 
-        std::vector<Real> expectedEvaluations = {
-                 2.121320343559644,
-                -0.909137290096990,
-                 0.795495128834866,
-                -0.909137290096990,
-                 2.121320343559644};
-
         auto computedLGL         = lin.getGaussLobattoPoints();
-        auto computedEvaluations = lin.evaluateAt(computedLGL);
 
         for (std::size_t i = 0; i < expectedLGL.size(); ++i) {
             EXPECT_NEAR(expectedLGL[i], computedLGL[i], tol_) << "N=" << n;
-            EXPECT_NEAR(expectedEvaluations[i],
-                        computedEvaluations[i],         tol_) << "N=" << n;
         }
     }
 
     {
         static const size_t n = 5;
-        Jacobi::Line<n> lin;
+        Line<n> lin;
         std::vector<Real> expected = {
                 -1.000000000000000,
                 -0.765055323929465,
@@ -140,9 +131,9 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
 TEST_F(JacobiLineTest, VandermondeMatrix) {
     {
         static const size_t n = 4;
-        Jacobi::Line<n> lin;
+        Line<n> lin;
         auto r = lin.getGaussLobattoPoints();
-        Matrix::Dynamic<Real> V = lin.getVandermonde(r);
+        Matrix::Dynamic<Real> computed = lin.getVandermondeMatrix(r);
 
         std::vector<Real> expected = {
             0.707106781186547, -1.224744871391589,  1.581138830084190, -1.870828693386972,  2.121320343559644,
@@ -152,7 +143,47 @@ TEST_F(JacobiLineTest, VandermondeMatrix) {
             0.707106781186547,  1.224744871391589,  1.581138830084190,  1.870828693386972,  2.121320343559644};
 
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(expected[i], V.val(i), tol_) << "N=" << n;
+            EXPECT_NEAR(expected[i], computed.val(i), tol_) << "N=" << n;
+        }
+    }
+}
+
+TEST_F(JacobiLineTest, GradVandermondeMatrix) {
+    {
+        static const size_t n = 4;
+        Line<n> lin;
+        auto r = lin.getGaussLobattoPoints();
+        Matrix::Dynamic<Real> computed = lin.getGradVandermondeMatrix(r);
+
+        std::vector<Real> expected = {
+                0, 1.224744871391589, -4.743416490252569, 11.224972160321824, -21.213203435596430,
+                0, 1.224744871391589, -3.105295017040594,  3.207134902949095,  -0.000000000000003,
+                0, 1.224744871391589, -0.000000000000000, -2.806243040080456,   0.000000000000001,
+                0, 1.224744871391589,  3.105295017040595,  3.207134902949096,   0.000000000000005,
+                0, 1.224744871391589,  4.743416490252569, 11.224972160321824,  21.213203435596430};
+
+        for (size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(expected[i], computed.val(i), tol_) << "N=" << n;
+        }
+    }
+}
+
+TEST_F(JacobiLineTest, DifferentiationMatrix) {
+    {
+        static const size_t n = 4;
+        Line<n> lin;
+        auto r = lin.getGaussLobattoPoints();
+        Matrix::Dynamic<Real> computed = lin.getDifferentiationMatrix(r);
+
+        std::vector<Real> expected = {
+                -5.000000000000000,  6.756502488724239, -2.666666666666667,  1.410164177942428, -0.500000000000000,
+                -1.240990253030983,  0.000000000000000,  1.745743121887938, -0.763762615825973,  0.259009746969017,
+                 0.375000000000000, -1.336584577695454,  0.000000000000001,  1.336584577695453, -0.375000000000000,
+                -0.259009746969017,  0.763762615825974, -1.745743121887939, -0.000000000000001,  1.240990253030984,
+                 0.500000000000000, -1.410164177942427,  2.666666666666665, -6.756502488724237,  4.999999999999999};
+
+        for (size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(expected[i], computed.val(i), tol_) << "N=" << n;
         }
     }
 }
