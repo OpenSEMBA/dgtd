@@ -28,30 +28,6 @@ using namespace SEMBA;
 using namespace Math;
 using namespace Cudg3d::Jacobi;
 
-//template <typename T>
-//class JacobiLineTypedTest : public ::testing::Test {};
-//
-//using test_types = ::testing::Types<
-//    std::integral_constant<std::size_t,2>,
-//    std::integral_constant<std::size_t,3>,
-//    std::integral_constant<std::size_t,5>,
-//    std::integral_constant<std::size_t,8>,
-//    std::integral_constant<std::size_t,12>>;
-
-//TYPED_TEST_CASE(JacobiLineTypedTest, test_types);
-//
-//TYPED_TEST(JacobiLineTypedTest, BasicOperations) {
-//    static constexpr std::size_t n = TypeParam::value;
-//    Jacobi::Line<n> lin;
-//
-//    Real sum = 0.0;
-//    std::vector<Real> weights = lin.getWeights();
-//    for (size_t i = 0; i < weights.size(); ++i) {
-//        sum += weights[i];
-//    }
-//    EXPECT_FLOAT_EQ(1.0, sum);
-//}
-
 class JacobiLineTest : public ::testing::Test {
     template<size_t N> friend class Line;
 protected:
@@ -100,10 +76,10 @@ TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {
                  0.654653670707977,
                  1.000000000000000};
 
-        auto computedLGL         = lin.getGaussLobattoPoints();
+        auto computed = lin.getGaussLobattoPoints();
 
         for (std::size_t i = 0; i < expectedLGL.size(); ++i) {
-            EXPECT_NEAR(expectedLGL[i], computedLGL[i], tol_) << "N=" << n;
+            EXPECT_NEAR(expectedLGL[i], computed[i], tol_) << "N=" << n;
         }
     }
 
@@ -183,6 +159,26 @@ TEST_F(JacobiLineTest, DifferentiationMatrix) {
                  0.500000000000000, -1.410164177942427,  2.666666666666665, -6.756502488724237,  4.999999999999999};
 
         for (size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(expected[i], computed.val(i), tol_) << "N=" << n;
+        }
+    }
+}
+
+TEST_F(JacobiLineTest, LIFTMatrix) {
+    {
+        static const size_t n = 3;
+        Line<n> lin;
+        Matrix::Dynamic<Real> computed = lin.getLiftMatrix(
+                lin.getGaussLobattoPoints());
+
+        std::vector<Real> expected = {
+                8.000000000000004,  -2.000000000000003,
+               -0.894427190999917,   0.894427190999917,
+                0.894427190999917,  -0.894427190999917,
+               -2.000000000000003,   8.000000000000004};
+
+        EXPECT_EQ(computed.size(), expected.size());
+        for (size_t i = 0; i < computed.size(); ++i) {
             EXPECT_NEAR(expected[i], computed.val(i), tol_) << "N=" << n;
         }
     }

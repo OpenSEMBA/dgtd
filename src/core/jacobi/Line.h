@@ -51,6 +51,7 @@ public:
     Matrix::Dynamic<Real> getGradVandermondeMatrix(const std::vector<Real>& x) const;
     Matrix::Dynamic<Real> getDifferentiationMatrix(
             const std::vector<Real>& x) const;
+    Matrix::Dynamic<Real> getLiftMatrix(const std::vector<Real>& x) const;
 
 protected:
     static std::vector<Real> evaluatePolynomialAt(

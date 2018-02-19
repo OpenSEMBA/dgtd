@@ -80,6 +80,17 @@ Matrix::Dynamic<Real> Line<N>::getDifferentiationMatrix(
 }
 
 template <size_t N>
+Matrix::Dynamic<Real> Line<N>::getLiftMatrix(
+        const std::vector<Real>& x) const {
+    Matrix::Dynamic<Real> V = this->getVandermondeMatrix(x);
+    Matrix::Dynamic<Real> Vtrans = this->getVandermondeMatrix(x).transpose();
+    Matrix::Dynamic<Real> extractionMatrix(np,nfp*faces);
+    extractionMatrix(0,0)     = 1.0;
+    extractionMatrix(np-1, 1) = 1.0;
+    return (V * Vtrans) * extractionMatrix;
+}
+
+template <size_t N>
 std::vector<Real> Line<N>::evaluateGradPolynomialAt(
                 const std::vector<Real>& x,
                 const Real alpha,
