@@ -53,7 +53,6 @@ public:
             const std::vector<Real>& x) const;
     Matrix::Dynamic<Real> getLiftMatrix(const std::vector<Real>& x) const;
 
-protected:
     static std::vector<Real> evaluatePolynomialAt(
             const std::vector<Real>& x,
             const Real alpha,
