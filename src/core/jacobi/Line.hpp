@@ -64,8 +64,8 @@ Matrix::Dynamic<Real> Line<N>::getVandermondeMatrix(
 template <size_t N>
 Matrix::Dynamic<Real> Line<N>::getGradVandermondeMatrix(
         const std::vector<Real>& x) const {
-    Matrix::Dynamic<Real> res(x.size(), N+1);
-    for (size_t i = 0; i < (N+1); ++i) {
+    Matrix::Dynamic<Real> res(x.size(), np);
+    for (size_t i = 0; i < np; ++i) {
         res.cpToCol(i, this->evaluateGradPolynomialAt(x, alpha_, beta_, i));
     }
     return res;

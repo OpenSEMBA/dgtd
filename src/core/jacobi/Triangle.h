@@ -18,17 +18,11 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-#ifndef CUDG3D_JACOBI_LINE_H_
-#define CUDG3D_JACOBI_LINE_H_
+#ifndef CUDG3D_JACOBI_TRIANGLE_H_
+#define CUDG3D_JACOBI_TRIANGLE_H_
 
-#include <array>
-#include <algorithm>
-#include <utility>
-#include <type_traits>
-
-#include "math/matrix/Static.h"
-#include "math/function/Polynomial.h"
-#include "Rule.h"
+#include "Line.h"
+#include "matrix/Dynamic.h"
 
 namespace Cudg3d {
 namespace Jacobi {
@@ -37,40 +31,36 @@ using namespace SEMBA;
 using namespace Math;
 
 template <size_t N>
-class Line {
+class Triangle {
 public:
-    static const std::size_t faces = 2;
-    static const std::size_t dimension = 1;
-    static const std::size_t nfp = 1;
-    static constexpr std::size_t np = N + 1;
+    static const std::size_t faces = 3;
+    static const std::size_t dimension = 2;
+    static const std::size_t nfp = N + 1;
+    static constexpr std::size_t np = (N+1)*(N+2)/2;
 
-    Line(Real alpha = 0.0, Real beta = 0.0);
+    Triangle();
 
-    std::vector<Real> getGaussLobattoPoints()  const;
-    Matrix::Dynamic<Real> getVandermondeMatrix(const std::vector<Real>& x) const;
-    Matrix::Dynamic<Real> getGradVandermondeMatrix(const std::vector<Real>& x) const;
-    Matrix::Dynamic<Real> getDifferentiationMatrix(
-            const std::vector<Real>& x) const;
-    Matrix::Dynamic<Real> getLiftMatrix(const std::vector<Real>& x) const;
+    std::vector<CVecR2>   getGaussLobattoPoints()  const;
+    DynMatR getVandermondeMatrix(const std::vector<CVecR2>& x) const;
+    DynMatR getGradVandermondeMatrix(const std::vector<CVecR2>& x) const;
+    DynMatR getDifferentiationMatrix(const std::vector<CVecR2>& x) const;
+    DynMatR getLiftMatrix(const std::vector<CVecR2>& x) const;
 
     static std::vector<Real> evaluatePolynomialAt(
-            const std::vector<Real>& x,
-            const Real alpha,
-            const Real beta,
-            const size_t n);
+            const std::vector<CVecR2>& x,
+            const std::pair<size_t,size_t> ij);
 
     static std::vector<Real> evaluateGradPolynomialAt(
-                const std::vector<Real>& x,
-                const Real alpha,
-                const Real beta,
-                const size_t n);
+            const std::vector<CVecR2>& x,
+            const std::pair<size_t,size_t> ij);
 private:
-    Real alpha_, beta_;
+    static std::vector<Real> warpFactor_(const std::vector<Real>& rOut);
+    static std::vector<CVecR2> rsToab_(const std::vector<CVecR2>& rs);
 };
 
 } /* namespace Jacobi */
 } /* namespace DGTD */
 
-#include "Line.hpp"
+#include "Triangle.hpp"
 
 #endif
