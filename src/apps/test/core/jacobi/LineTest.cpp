@@ -31,7 +31,7 @@ using namespace Cudg3d::Jacobi;
 class JacobiLineTest : public ::testing::Test {
     template<size_t N> friend class Line;
 protected:
-    const Real tol_ = 1e-12;
+    const Real tol_ = 1e-8;
 };
 
 TEST_F(JacobiLineTest, LegendreGaussLobatoPoints) {

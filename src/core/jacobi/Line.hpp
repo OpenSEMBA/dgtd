@@ -76,7 +76,9 @@ Matrix::Dynamic<Real> Line<N>::getDifferentiationMatrix(
         const std::vector<Real>& x) const {
     Matrix::Dynamic<Real> Vr = this->getGradVandermondeMatrix(x);
     Matrix::Dynamic<Real> invV = this->getVandermondeMatrix(x).invert();
-    return Vr * invV;
+    Matrix::Dynamic<Real> res;
+    res = Vr * invV;
+    return res;
 }
 
 template <size_t N>

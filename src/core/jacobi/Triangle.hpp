@@ -99,7 +99,7 @@ std::vector<CVecR2> Triangle<N>::getGaussLobattoPoints() const {
     }
 
     // Converts to coordinates in standard triangle.
-    std::array<CVecR2,np> rs;
+    std::vector<CVecR2> rs(np);
     for (size_t i = 0; i < np; i++) {
         Real L1, L2, L3;
         const Real &x = xy[i][0];
@@ -116,7 +116,8 @@ std::vector<CVecR2> Triangle<N>::getGaussLobattoPoints() const {
 template <size_t N>
 std::vector<Real> Triangle<N>::warpFactor_(const std::vector<Real>& rOut) {
     Line<N> line;
-    std::vector<Real> rEq  = Util::linspace({-1.0, 1.0}, N+1);
+    std::vector<Real> rEq  = Util::linspace(
+            std::pair<Real,Real>(-1.0, 1.0), N+1);
     Matrix::Dynamic<Real> Veq = line.getVandermondeMatrix(rEq);
 
     // Evaluate Lagrange polynomial at rOut
@@ -126,13 +127,17 @@ std::vector<Real> Triangle<N>::warpFactor_(const std::vector<Real>& rOut) {
     }
     Veq.transpose();
     Pmat.invert();
-    DynMatR Lmat = Veq * Pmat;
+    DynMatR Lmat;
+    Lmat = Veq * Pmat;
     Lmat.transpose();
 
     // Compute warp factor.
-    DynMatR LGLrVec(line.getGaussLobattoPoints());
-    DynMatR rEqVec(rEq);
-    DynMatR warp = Lmat * (LGLrVec - rEqVec);
+    DynMatR LGLrVec(rOut.size(),1);
+    LGLrVec.cpToCol(0, line.getGaussLobattoPoints());
+    DynMatR rEqVec(rEq.size(), 1);
+    rEqVec.cpToCol(0, rEq);
+    DynMatR warp;
+    warp = Lmat * (LGLrVec - rEqVec);
 
     // Scale factor.
     // TODO
@@ -151,6 +156,7 @@ std::vector<CVecR2> Triangle<N>::rsToab_(const std::vector<CVecR2>& rs) {
         }
         ab[i](1) = rs[i](1);
     }
+    return ab;
 }
 
 template <size_t N>
@@ -169,17 +175,17 @@ Matrix::Dynamic<Real> Triangle<N>::getVandermondeMatrix(
 
 template <size_t N>
 Matrix::Dynamic<Real> Triangle<N>::getGradVandermondeMatrix(
-        const std::vector<Real>& x) const {
+        const std::vector<CVecR2>& x) const {
     Matrix::Dynamic<Real> res(x.size(), N+1);
     for (size_t i = 0; i < (N+1); ++i) {
-        res.cpToCol(i, this->evaluateGradPolynomialAt(x, alpha_, beta_, i));
+        res.cpToCol(i, this->evaluateGradPolynomialAt(x, i));
     }
     return res;
 }
 
 template <size_t N>
 Matrix::Dynamic<Real> Triangle<N>::getDifferentiationMatrix(
-        const std::vector<Real>& x) const {
+        const std::vector<CVecR2>& x) const {
     Matrix::Dynamic<Real> Vr = this->getGradVandermondeMatrix(x);
     Matrix::Dynamic<Real> invV = this->getVandermondeMatrix(x).invert();
     return Vr * invV;
@@ -187,7 +193,7 @@ Matrix::Dynamic<Real> Triangle<N>::getDifferentiationMatrix(
 
 template <size_t N>
 Matrix::Dynamic<Real> Triangle<N>::getLiftMatrix(
-        const std::vector<Real>& x) const {
+        const std::vector<CVecR2>& x) const {
     Matrix::Dynamic<Real> V = this->getVandermondeMatrix(x);
     Matrix::Dynamic<Real> Vtrans = this->getVandermondeMatrix(x).transpose();
     Matrix::Dynamic<Real> extractionMatrix(np,nfp*faces);
@@ -198,19 +204,17 @@ Matrix::Dynamic<Real> Triangle<N>::getLiftMatrix(
 
 template <size_t N>
 std::vector<Real> Triangle<N>::evaluateGradPolynomialAt(
-                const std::vector<Real>& x,
-                const Real alpha,
-                const Real beta,
-                const size_t n) {
-    if (n == 0) {
-        return std::vector<Real>(x.size(), 0.0);;
-    } else {
-        auto res = evaluatePolynomialAt(x, alpha+1.0, beta+1.0, n-1);
-        for (size_t i = 0; i < res.size(); ++i) {
-            res[i] *= sqrt(n*(n + alpha + beta + 1));
-        }
-        return res;
-    }
+                const std::vector<CVecR2>& rs,
+                const std::pair<size_t,size_t> ij) {
+//    if (n == 0) {
+//        return std::vector<Real>(rs.size(), 0.0);;
+//    } else {
+//        auto res = evaluatePolynomialAt(rs, n-1);
+//        for (size_t i = 0; i < res.size(); ++i) {
+//            res[i] *= sqrt(n*(n + 1));
+//        }
+//        return res;
+//    }
 }
 
 template <size_t N>
@@ -224,10 +228,8 @@ std::vector<Real> Triangle<N>::evaluatePolynomialAt(
     }
 
     Line<N> line;
-    std::vector<Real> h1 =
-            line.evaluatePolynomialAt(a,          0.0, 0.0, ij.first );
-    std::vector<Real> h2 =
-            line.evaluatePolynomialAt(b, 2*ij.first+1, 0.0, ij.second);
+    auto h1 = line.evaluatePolynomialAt(a,          0.0, 0.0, ij.first );
+    auto h2 = line.evaluatePolynomialAt(b, 2*ij.first+1, 0.0, ij.second);
 
     std::vector<Real> res(ab.size());
     for (size_t i = 0; i < ab.size(); ++i) {

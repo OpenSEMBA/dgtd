@@ -22,7 +22,8 @@
 #define CUDG3D_JACOBI_TRIANGLE_H_
 
 #include "Line.h"
-#include "matrix/Dynamic.h"
+#include "math/matrix/Dynamic.h"
+#include "math/util/SpaceGenerator.h"
 
 namespace Cudg3d {
 namespace Jacobi {
@@ -41,10 +42,10 @@ public:
     Triangle();
 
     std::vector<CVecR2>   getGaussLobattoPoints()  const;
-    DynMatR getVandermondeMatrix(const std::vector<CVecR2>& x) const;
-    DynMatR getGradVandermondeMatrix(const std::vector<CVecR2>& x) const;
-    DynMatR getDifferentiationMatrix(const std::vector<CVecR2>& x) const;
-    DynMatR getLiftMatrix(const std::vector<CVecR2>& x) const;
+    DynMatR getVandermondeMatrix(    const std::vector<CVecR2>& rs) const;
+    DynMatR getGradVandermondeMatrix(const std::vector<CVecR2>& rs) const;
+    DynMatR getDifferentiationMatrix(const std::vector<CVecR2>& rs) const;
+    DynMatR getLiftMatrix(           const std::vector<CVecR2>& rs) const;
 
     static std::vector<Real> evaluatePolynomialAt(
             const std::vector<CVecR2>& x,
