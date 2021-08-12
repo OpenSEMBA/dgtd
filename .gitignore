@@ -1,3 +1,7 @@
+.vs/
+out/
+*.json
+
 # Prerequisites
 *.d
 
