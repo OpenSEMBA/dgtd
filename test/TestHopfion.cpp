@@ -23,8 +23,12 @@ TEST_F(TestHopfion, initialConditionForHopfion) {
 			>> referenceH[0] >> referenceH[1] >> referenceH[2];
 
 		Hopfion::FieldEH computed = hopfion.evaluate(t, pos);
-		EXPECT_NEAR(referenceE, computed.first, 1e-8);
-		EXPECT_NEAR(referenceH, computed.second, 1e-8);
+
+		for (std::size_t d = 0; d < 3; d++) {
+			EXPECT_NEAR(referenceE[d], computed.first[d], 1e-8);
+			EXPECT_NEAR(referenceH[d], computed.second[d], 1e-8);
+		}
+		
 	}
 	
 }
