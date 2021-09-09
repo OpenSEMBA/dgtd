@@ -8,12 +8,18 @@ class TestHopfion : public ::testing::Test {
 };
 
 TEST_F(TestHopfion, initialConditionForHopfion) {
-	std::string path = "../../testData/hopfion/";
+	std::string path = "testData/hopfion/";
 	
-	std::string filename = "hopfion_p1_q1.txt";
+	std::string casename = "hopfion_p1_q1.txt";
 	Hopfion hopfion(1, 1);
 
-	std::ifstream inputFile(path + filename);
+	std::ifstream inputFile; 
+	std::string filename = path + casename;
+	inputFile.open(filename);
+	if (!inputFile.is_open()) {
+		throw std::runtime_error("Could not open file: " + filename);
+	}
+
 	while (!inputFile.eof()) {
 		double t;
 		Hopfion::Vec3 pos, referenceE, referenceH;
