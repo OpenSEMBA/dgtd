@@ -20,7 +20,7 @@ private:
 	std::size_t p, q;
 
 
-    double FieldEx(double x, double y, double z, double t) const{
+    double fieldEx(double x, double y, double z, double t) const{
         double Ex;
         std::complex<double> I(0, 1);
         std::complex<double> Fx;
@@ -31,7 +31,7 @@ private:
         return Ex;
     }
 
-    double FieldHx(double x, double y, double z, double t) const {
+    double fieldHx(double x, double y, double z, double t) const {
         double Hx;
         std::complex<double> I(0, 1);
         std::complex<double> Fx;
@@ -43,7 +43,7 @@ private:
     }
 
 
-    double FieldEy(double x, double y, double z, double t) const {
+    double fieldEy(double x, double y, double z, double t) const {
         double Ey;
         std::complex<double> I(0, 1);
         std::complex<double> Fy;
@@ -54,7 +54,7 @@ private:
         return Ey;
     }
 
-    double FieldHy(double x, double y, double z, double t) const {
+    double fieldHy(double x, double y, double z, double t) const {
         double Hy;
         std::complex<double> I(0, 1);
         std::complex<double> Fy;
@@ -66,7 +66,7 @@ private:
     }
 
 
-    double FieldEz(double x, double y, double z, double t) const {
+    double fieldEz(double x, double y, double z, double t) const {
         double Ez;
         std::complex<double> I(0, 1);
         std::complex<double> Fz;
@@ -77,7 +77,7 @@ private:
         return Ez;
     }
 
-    double FieldHz(double x, double y, double z, double t) const {
+    double fieldHz(double x, double y, double z, double t) const {
         double Hz;
         std::complex<double> I(0, 1);
         std::complex<double> Fz;

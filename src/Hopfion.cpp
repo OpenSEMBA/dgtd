@@ -16,12 +16,12 @@ Hopfion::FieldEH Hopfion::evaluate(double time, Vec3 position) const
     Hopfion::Vec3 E;
     Hopfion::Vec3 H;
 
-    H[0] = FieldHx(x, y, z, time);
-    H[1] = FieldHy(x, y, z, time);
-    H[2] = FieldHz(x, y, z, time);
-    E[0] = FieldEx(x, y, z, time);
-    E[1] = FieldEy(x, y, z, time);
-    E[2] = FieldEz(x, y, z, time);
+    H[0] = fieldHx(x, y, z, time);
+    H[1] = fieldHy(x, y, z, time);
+    H[2] = fieldHz(x, y, z, time);
+    E[0] = fieldEx(x, y, z, time);
+    E[1] = fieldEy(x, y, z, time);
+    E[2] = fieldEz(x, y, z, time);
 
     // Hopfion::FieldEH CamposEH = <E, H>;
     // Hopfion::FieldEH CamposEH(E, H);
