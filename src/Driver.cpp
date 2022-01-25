@@ -7,82 +7,28 @@
 using namespace mfem;
 
 Driver::Driver() {
-    initializeBilinearForms(initializeFiniteElementSpace(initializeMesh()));
     initialize();
 }
 
 Driver::Driver(const Options& inOpts) {
     opts = inOpts;
-    initializeBilinearForms(initializeFiniteElementSpace(initializeMesh()));
     initialize();
 }
 
-Mesh Driver::initializeMesh() {
-    std::cout.precision(opts.precision);
-
-    Device device(opts.device_config);
-
-    Mesh mesh(opts.mesh_file, 1, 1);
-
-    for (int lev = 0; lev < opts.ref_levels; lev++)
-    {
-        mesh.UniformRefinement();
-    }
-
-    mesh.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts.order, 1));
-
-    return mesh;
-}
-
-FiniteElementSpace Driver::initializeFiniteElementSpace(Mesh mesh) {
-    DG_FECollection fec(opts.order, mesh.Dimension(), BasisType::GaussLobatto);
-    fes = new FiniteElementSpace(&mesh, &fec);
-    std::cout << "Number of unknowns per field:    " << fes->GetVSize() << std::endl;
-    return *fes;
-}
-
-void Driver::initializeBilinearForms(FiniteElementSpace fes) {
-
-    ConstantCoefficient zero(0.0), one(1.0), mOne(-1.0);
-
-    Vector nxVec(2);  nxVec(0) = 1.0; nxVec(1) = 0.0;
-    Vector nyVec(2);  nyVec(0) = 0.0; nyVec(1) = 1.0;
-    Vector n1Vec(2);  n1Vec(0) = 1.0; n1Vec(1) = 1.0;
-    VectorConstantCoefficient nx(nxVec), ny(nyVec), n1(n1Vec);
-
-    MInv = new BilinearForm(&fes);
-    Kx = new BilinearForm(&fes);
-    Ky = new BilinearForm(&fes);
-
-    MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-
-    double alpha = -1.0, beta = 0.0;
-
-    Kx->AddDomainIntegrator(new DerivativeIntegrator(one, 0));
-    Kx->AddInteriorFaceIntegrator(
-        new TransposeIntegrator(new DGTraceIntegrator(nx, alpha, beta)));
-
-    Ky->AddDomainIntegrator(new DerivativeIntegrator(one, 1));
-    Ky->AddInteriorFaceIntegrator(
-        new TransposeIntegrator(new DGTraceIntegrator(ny, alpha, beta)));
-
-    MInv->Assemble();
-    int skip_zeros = 0;
-    Kx->Assemble(skip_zeros);
-    Ky->Assemble(skip_zeros);
-
-    MInv->Finalize();
-    Kx->Finalize(skip_zeros);
-    Ky->Finalize(skip_zeros);
+Driver::Driver(const Options& inOpts, const int nx, const int ny, mfem::Element::Type type, bool generateEdges) {
+    opts = inOpts;
+    initializeMesh();
+    initializeFiniteElementSpace(initializeMesh());
+    initializeBilinearForms(initializeFiniteElementSpace(initializeMesh()));
 }
 
 void Driver::initialize() {
     std::cout.precision(opts.precision);
-    
+
     Device device(opts.device_config);
-    
+
     Mesh mesh(opts.mesh_file, 1, 1);
-    
+
     int dim = mesh.Dimension();
 
     for (int lev = 0; lev < opts.ref_levels; lev++)
@@ -149,6 +95,67 @@ void Driver::initialize() {
         pd->Save();
     }
 }
+
+
+Mesh Driver::initializeMesh() {
+    std::cout.precision(opts.precision);
+
+    Device device(opts.device_config);
+
+    Mesh mesh = Mesh::Mesh::MakeCartesian2D(nx, ny, type, generateEdges);
+
+    for (int lev = 0; lev < opts.ref_levels; lev++)
+    {
+        mesh.UniformRefinement();
+    }
+
+    mesh.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts.order, 1));
+
+    return mesh;
+}
+
+FiniteElementSpace Driver::initializeFiniteElementSpace(Mesh mesh) {
+    DG_FECollection fec(opts.order, mesh.Dimension(), BasisType::GaussLobatto);
+    FiniteElementSpace fes(&mesh, &fec);
+    std::cout << "Number of unknowns per field:    " << fes.GetTrueVSize() << std::endl;
+    return fes;
+}
+
+void Driver::initializeBilinearForms(FiniteElementSpace fes) {
+
+    ConstantCoefficient zero(0.0), one(1.0), mOne(-1.0);
+
+    Vector nxVec(2);  nxVec(0) = 1.0; nxVec(1) = 0.0;
+    Vector nyVec(2);  nyVec(0) = 0.0; nyVec(1) = 1.0;
+    Vector n1Vec(2);  n1Vec(0) = 1.0; n1Vec(1) = 1.0;
+    VectorConstantCoefficient nx(nxVec), ny(nyVec), n1(n1Vec);
+
+    BilinearForm MInv(&fes);
+    BilinearForm Kx(&fes);
+    BilinearForm Ky(&fes);
+
+    MInv.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+
+    double alpha = -1.0, beta = 0.0;
+
+    Kx.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
+    Kx.AddInteriorFaceIntegrator(
+        new TransposeIntegrator(new DGTraceIntegrator(nx, alpha, beta)));
+
+    Ky.AddDomainIntegrator(new DerivativeIntegrator(one, 1));
+    Ky.AddInteriorFaceIntegrator(
+        new TransposeIntegrator(new DGTraceIntegrator(ny, alpha, beta)));
+
+    MInv.Assemble();
+    int skip_zeros = 0;
+    Kx.Assemble(skip_zeros);
+    Ky.Assemble(skip_zeros);
+
+    MInv.Finalize();
+    Kx.Finalize(skip_zeros);
+    Ky.Finalize(skip_zeros);
+}
+
 
 void Driver::run() {
     double t = 0.0;

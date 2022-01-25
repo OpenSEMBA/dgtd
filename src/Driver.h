@@ -19,8 +19,14 @@ public:
         int precision = 8;
     };
 
+    int nx = 1;
+    int ny = 1;
+    mfem::Element::Type type = mfem::Element::Type::QUADRILATERAL;
+    bool generateEdges = true;
+
 	Driver();
     Driver(const Options&);
+    Driver(const Options&, const int nx, const int ny, mfem::Element::Type type, bool generateEdges);
 
     void run();
 

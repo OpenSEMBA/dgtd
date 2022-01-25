@@ -74,7 +74,7 @@ TEST(Testing, mapElementAndVertex) {
 
 	int nx = 5; int ny = 5; bool generateEdges = true;
 
-	std::vector<int> mapped = mapElementTopLeftVertex(mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges));
+	std::vector<int> mapped = mapQuadElementTopLeftVertex(mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges));
 
 	EXPECT_EQ(0, mapped[0]);
 	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);
