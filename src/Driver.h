@@ -54,5 +54,9 @@ private:
     mfem::ParaViewDataCollection* pd;
     
     void initialize();
+    mfem::Mesh initializeMesh();
+    mfem::FiniteElementSpace initializeFiniteElementSpace(mfem::Mesh mesh);
+    void initializeBilinearForms(mfem::FiniteElementSpace fes);
 };
+
 

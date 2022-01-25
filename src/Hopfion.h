@@ -2,6 +2,9 @@
 
 #include <array>
 #include <complex>
+#include <stdlib.h>
+#include <vector>
+#include <mfem.hpp>
 
 
 class Hopfion {
@@ -89,3 +92,6 @@ private:
     }
 
 };
+
+
+std::vector<int> mapElementTopLeftVertex(mfem::Mesh mesh);

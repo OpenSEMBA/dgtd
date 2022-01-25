@@ -1,5 +1,8 @@
 #include "Hopfion.h"
 #include <iostream>
+#include <stdlib.h>
+#include <vector>
+#include <mfem.hpp>
 
 Hopfion::Hopfion(std::size_t pIn, std::size_t qIn)
 {
@@ -29,4 +32,14 @@ Hopfion::FieldEH Hopfion::evaluate(double time, Vec3 position) const
 
     return CamposEH;
 
+}
+
+std::vector<int> mapElementTopLeftVertex(mfem::Mesh mesh) {
+    std::vector<int> res;
+    for (int i = 0; i < mesh.GetNE(); i++) {
+        mfem::Array<int> meshArrayElement;
+        mesh.GetElementVertices(i, meshArrayElement);
+        res.push_back(meshArrayElement[0]);
+    }
+    return res;
 }
