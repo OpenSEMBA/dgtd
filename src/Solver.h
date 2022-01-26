@@ -2,6 +2,8 @@
 
 #include "mfem.hpp"
 
+namespace Maxwell {
+
 class Solver {
 public:
 
@@ -17,9 +19,9 @@ public:
         int precision = 8;
     };
 
-	Solver(const Options&, const mfem::Mesh&);
-
-    void run();
+	Solver(const Options&, mfem::Mesh&);
+    
+    //void run();
 
 protected:
     /// Initial condition. 
@@ -40,20 +42,20 @@ protected:
 private:
     static mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
 
-    Options opts;
-    mfem::FiniteElementSpace* fes;
+    Options opts_;
 
-    mfem::BilinearForm* MInv;
-    mfem::BilinearForm* Kx;
-    mfem::BilinearForm* Ky;
-    mfem::GridFunction ez, hx, hy;
+    std::unique_ptr<mfem::FiniteElementSpace> fes_;
 
-    mfem::ParaViewDataCollection* pd;
+    std::unique_ptr<mfem::BilinearForm> MInv_;
+    //mfem::BilinearForm Kx_;
+    //mfem::BilinearForm Ky_;
+    //mfem::GridFunction ez_, hx_, hy_;
+
+    mfem::ParaViewDataCollection* pd_;
     
-    void initialize();
-    mfem::Mesh initializeMesh();
-    mfem::FiniteElementSpace initializeFiniteElementSpace(mfem::Mesh mesh);
-    void initializeBilinearForms(mfem::FiniteElementSpace fes);
+    void initializeFiniteElementSpace(mfem::Mesh& mesh);
+    void initializeBilinearForms();
 };
 
+}
 
