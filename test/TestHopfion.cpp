@@ -8,6 +8,7 @@
 class TestHopfion : public ::testing::Test {
 };
 
+
 TEST_F(TestHopfion, initialConditionForHopfion) {
 	std::string path = "testData/hopfion/";
 	
@@ -39,6 +40,24 @@ TEST_F(TestHopfion, initialConditionForHopfion) {
 	}
 	
 }
+
+Mesh Solver::initializeMesh() {
+	std::cout.precision(opts.precision);
+
+	Device device(opts.device_config);
+
+	Mesh mesh = Mesh::Mesh::MakeCartesian2D(nx, ny, type, generateEdges);
+
+	for (int lev = 0; lev < opts.ref_levels; lev++)
+	{
+		mesh.UniformRefinement();
+	}
+
+	mesh.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts.order, 1));
+
+	return mesh;
+}
+
 
 TEST(Testing, meshCheck) {
 
@@ -74,7 +93,9 @@ TEST(Testing, mapElementAndVertex) {
 
 	int nx = 5; int ny = 5; bool generateEdges = true;
 
-	std::vector<int> mapped = mapQuadElementTopLeftVertex(mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges));
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+
+	std::vector<int> mapped = mapQuadElementTopLeftVertex(mesh);
 
 	EXPECT_EQ(0, mapped[0]);
 	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);

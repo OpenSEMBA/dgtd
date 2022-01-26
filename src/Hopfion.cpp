@@ -34,7 +34,8 @@ Hopfion::FieldEH Hopfion::evaluate(double time, Vec3 position) const
 
 }
 
-std::vector<int> mapQuadElementTopLeftVertex(mfem::Mesh mesh) {
+
+std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) {
     std::vector<int> res;
     for (int i = 0; i < mesh.GetNE(); i++) {
         mfem::Array<int> meshArrayElement;

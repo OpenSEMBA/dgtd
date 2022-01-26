@@ -94,4 +94,4 @@ private:
 };
 
 
-std::vector<int> mapQuadElementTopLeftVertex(mfem::Mesh mesh);
+std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh);
