@@ -57,8 +57,7 @@ private:
     void initializeFiniteElementSpace(mfem::Mesh& mesh);
     void initializeBilinearForms();
     void buildDomainAndFaceIntegrators();
-    void assembleBilinearForms();
-    void finalizeBilinearForms();
+    void buildBilinearForms();
 };
 
 }

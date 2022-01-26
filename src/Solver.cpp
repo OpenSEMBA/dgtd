@@ -21,9 +21,7 @@ Solver::Solver(const Options& opts, Mesh& mesh)
 
     buildDomainAndFaceIntegrators();
 
-    assembleBilinearForms();
-
-    finalizeBilinearForms();
+    buildBilinearForms();
 
     run();
 }
@@ -49,9 +47,9 @@ void Solver::buildDomainAndFaceIntegrators()
     Vector n1Vec(2);  n1Vec(0) = 1.0; n1Vec(1) = 1.0;
     VectorConstantCoefficient nx(nxVec), ny(nyVec), n1(n1Vec);
 
-    MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-
     double alpha = -1.0, beta = 0.0;
+
+    MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
 
     Kx_->AddDomainIntegrator(new DerivativeIntegrator(one, 0));
     Kx_->AddInteriorFaceIntegrator(
@@ -62,35 +60,30 @@ void Solver::buildDomainAndFaceIntegrators()
         new TransposeIntegrator(new DGTraceIntegrator(ny, alpha, beta)));
 }
 
-void Solver::assembleBilinearForms()
+void Solver::buildBilinearForms()
 {
     MInv_->Assemble();
     int skip_zeros = 0;
     Kx_->Assemble(skip_zeros);
     Ky_->Assemble(skip_zeros);
-}
 
-void Solver::finalizeBilinearForms()
-{
     MInv_->Finalize();
-    int skip_zeros = 0;
     Kx_->Finalize(skip_zeros);
     Ky_->Finalize(skip_zeros);
 }
 
-
-void Solver::run() {
+void Solver::run() 
+{
     double t = 0.0;
+    bool done = false;
 
     Vector aux(fes_->GetVSize());
     Vector ezNew(fes_->GetVSize());
     Vector hxNew(fes_->GetVSize());
     Vector hyNew(fes_->GetVSize());
 
-    bool done = false;
     for (int ti = 0; !done; )
     {
-        double dt_real = std::min(opts_.dt, opts_.t_final - t);
 
         // Update E.
         Kx_->Mult(hy_, aux);
@@ -122,8 +115,6 @@ void Solver::run() {
 
         if (done || ti % opts_.vis_steps == 0)
         {
-            std::cout << "time step: " << ti << ", time: " << t << std::endl;
-
             if (opts_.paraview)
             {
                 pd_->SetCycle(ti);
