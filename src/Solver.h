@@ -19,7 +19,7 @@ public:
         int precision = 8;
     };
 
-	Solver(const Options&, mfem::Mesh&);
+	Solver(const Options&, const mfem::Mesh&);
     
     void run();
 
@@ -46,6 +46,8 @@ private:
 
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
 
+    mfem::Mesh mesh_;
+
     std::unique_ptr<mfem::BilinearForm> MInv_;
     std::unique_ptr<mfem::BilinearForm> Kx_;
     std::unique_ptr<mfem::BilinearForm> Ky_;
@@ -54,7 +56,7 @@ private:
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
-    void initializeFiniteElementSpace(mfem::Mesh& mesh);
+    void initializeFiniteElementSpace(const mfem::Mesh& mesh);
     void initializeBilinearForms();
     void buildDomainAndFaceIntegrators();
     void buildBilinearForms();

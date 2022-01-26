@@ -49,7 +49,6 @@ TEST_F(TestSolver, checkMeshElementVertices) {
 TEST_F(TestSolver, mapMeshElementAndVertex) {
 
 	int nx = 5; int ny = 5; bool generateEdges = true;
-
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 
 	std::vector<int> mapped = mapQuadElementTopLeftVertex(mesh);

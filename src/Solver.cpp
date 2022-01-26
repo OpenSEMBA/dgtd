@@ -8,25 +8,35 @@ using namespace mfem;
 
 namespace Maxwell {
 
-Solver::Solver(const Options& opts, Mesh& mesh)
+Solver::Solver(const Options& opts, const Mesh& mesh) 
 {
+    if (mesh.Dimension() != 2) {
+        throw std::exception("Incorrect Dimension for mesh");
+    }
+    if ((opts.order < 0) ||
+        (opts.t_final < 0) ||
+        (opts.dt < 0)||
+        (opts.vis_steps < 1)||
+        (opts.precision < 1)) {
+        throw std::exception("Incorrect parameters in Options");
+    }
+
+    mesh_ = mfem::Mesh(mesh, true);
     opts_ = opts;
 
     Device device(opts_.device_config);
-    mesh.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts_.order, 1));
+    mesh_.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts_.order, 1));
 
-    initializeFiniteElementSpace(mesh);
+    initializeFiniteElementSpace(mesh_);
 
     initializeBilinearForms();
 
     buildDomainAndFaceIntegrators();
 
     buildBilinearForms();
-
-    run();
 }
 
-void Solver::initializeFiniteElementSpace(Mesh& mesh)
+void Solver::initializeFiniteElementSpace(const Mesh& mesh)
 {
     DG_FECollection fec(opts_.order, mesh.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh, &fec);
@@ -74,7 +84,7 @@ void Solver::buildBilinearForms()
 
 void Solver::run() 
 {
-    double t = 0.0;
+    double time = 0.0;
     bool done = false;
 
     Vector aux(fes_->GetVSize());
@@ -82,7 +92,7 @@ void Solver::run()
     Vector hxNew(fes_->GetVSize());
     Vector hyNew(fes_->GetVSize());
 
-    for (int ti = 0; !done; )
+    for (int cycle = 0; !done;)
     {
 
         // Update E.
@@ -108,17 +118,17 @@ void Solver::run()
         hx_ = hxNew;
         hy_ = hyNew;
 
-        t += opts_.dt;
-        ti++;
+        time += opts_.dt;
+        cycle++;
 
-        done = (t >= opts_.t_final - 1e-8 * opts_.dt);
+        done = (time >= opts_.t_final - 1e-8 * opts_.dt);
 
-        if (done || ti % opts_.vis_steps == 0)
+        if (done || cycle % opts_.vis_steps == 0)
         {
             if (opts_.paraview)
             {
-                pd_->SetCycle(ti);
-                pd_->SetTime(t);
+                pd_->SetCycle(cycle);
+                pd_->SetTime(time);
                 pd_->Save();
             }
         }
