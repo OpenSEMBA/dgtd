@@ -10,16 +10,8 @@ namespace Maxwell {
 
 Solver::Solver(const Options& opts, const Mesh& mesh) 
 {
-    if (mesh.Dimension() != 2) {
-        throw std::exception("Incorrect Dimension for mesh");
-    }
-    if ((opts.order < 0) ||
-        (opts.t_final < 0) ||
-        (opts.dt < 0)||
-        (opts.vis_steps < 1)||
-        (opts.precision < 1)) {
-        throw std::exception("Incorrect parameters in Options");
-    }
+
+    checkOptionsAreValid(opts, mesh);
 
     mesh_ = mfem::Mesh(mesh, true);
     opts_ = opts;
@@ -27,7 +19,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     Device device(opts_.device_config);
     mesh_.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts_.order, 1));
 
-    initializeFiniteElementSpace(mesh_);
+    initializeFiniteElementSpace();
 
     initializeBilinearForms();
 
@@ -36,10 +28,25 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     buildBilinearForms();
 }
 
-void Solver::initializeFiniteElementSpace(const Mesh& mesh)
+void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
 {
-    DG_FECollection fec(opts_.order, mesh.Dimension(), BasisType::GaussLobatto);
-    fes_ = std::make_unique<FiniteElementSpace>(&mesh, &fec);
+    if (mesh.Dimension() != 2) {
+        throw std::exception("Incorrect Dimension for mesh");
+    }
+    if ((opts.order < 0) ||
+        (opts.t_final < 0) ||
+        (opts.dt < 0) ||
+        (opts.vis_steps < 1) ||
+        (opts.precision < 1)) {
+        throw std::exception("Incorrect parameters in Options");
+    }
+
+}
+
+void Solver::initializeFiniteElementSpace()
+{
+    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+    fes_ = std::make_unique<FiniteElementSpace>(&mesh_, &fec);
 }
 
 void Solver::initializeBilinearForms()

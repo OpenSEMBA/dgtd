@@ -56,7 +56,8 @@ private:
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
-    void initializeFiniteElementSpace(const mfem::Mesh& mesh);
+    void checkOptionsAreValid(const Options&, const mfem::Mesh&);
+    void initializeFiniteElementSpace();
     void initializeBilinearForms();
     void buildDomainAndFaceIntegrators();
     void buildBilinearForms();
