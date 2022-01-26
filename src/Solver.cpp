@@ -12,8 +12,8 @@ Solver::Solver(const Options& opts, Mesh& mesh)
 {
     opts_ = opts;
 
-    Device device(opts.device_config);
-    //mesh.getBoundingBox...
+    Device device(opts_.device_config);
+    mesh.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts_.order, 1));
 
     initializeFiniteElementSpace(mesh);
 
@@ -28,7 +28,6 @@ void Solver::initializeFiniteElementSpace(Mesh& mesh)
 
 void Solver::initializeBilinearForms() 
 {
-
     ConstantCoefficient zero(0.0), one(1.0), mOne(-1.0);
 
     Vector nxVec(2);  nxVec(0) = 1.0; nxVec(1) = 0.0;
@@ -37,87 +36,84 @@ void Solver::initializeBilinearForms()
     VectorConstantCoefficient nx(nxVec), ny(nyVec), n1(n1Vec);
 
     MInv_ = std::make_unique<BilinearForm>(fes_.get());
-    //BilinearForm Kx(fes_);
-    //BilinearForm Ky(fes_);
+    Kx_ = std::make_unique<BilinearForm>(fes_.get());
+    Ky_ = std::make_unique<BilinearForm>(fes_.get());
 
-    //MInv.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+    MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
 
-    //double alpha = -1.0, beta = 0.0;
+    double alpha = -1.0, beta = 0.0;
 
-    //Kx.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
-    //Kx.AddInteriorFaceIntegrator(
-    //    new TransposeIntegrator(new DGTraceIntegrator(nx, alpha, beta)));
+    Kx_->AddDomainIntegrator(new DerivativeIntegrator(one, 0));
+    Kx_->AddInteriorFaceIntegrator(
+        new TransposeIntegrator(new DGTraceIntegrator(nx, alpha, beta)));
 
-    //Ky.AddDomainIntegrator(new DerivativeIntegrator(one, 1));
-    //Ky.AddInteriorFaceIntegrator(
-    //    new TransposeIntegrator(new DGTraceIntegrator(ny, alpha, beta)));
+    Ky_->AddDomainIntegrator(new DerivativeIntegrator(one, 1));
+    Ky_->AddInteriorFaceIntegrator(
+        new TransposeIntegrator(new DGTraceIntegrator(ny, alpha, beta)));
 
-    //MInv.Assemble();
-    //int skip_zeros = 0;
-    //Kx.Assemble(skip_zeros);
-    //Ky.Assemble(skip_zeros);
+    MInv_->Assemble();
+    int skip_zeros = 0;
+    Kx_->Assemble(skip_zeros);
+    Ky_->Assemble(skip_zeros);
 
-    //MInv.Finalize();
-    //Kx.Finalize(skip_zeros);
-    //Ky.Finalize(skip_zeros);
+    MInv_->Finalize();
+    Kx_->Finalize(skip_zeros);
+    Ky_->Finalize(skip_zeros);
 }
 
 
-//void Solver::run() {
-//    double t = 0.0;
-//
-//    Vector aux(fes->GetVSize());
-//    Vector ezNew(fes->GetVSize());
-//    Vector hxNew(fes->GetVSize());
-//    Vector hyNew(fes->GetVSize());
-//
-//    bool done = false;
-//    for (int ti = 0; !done; )
-//    {
-//        double dt_real = std::min(opts.dt, opts.t_final - t);
-//
-//
-//        // Update E.
-//        Kx->Mult(hy, aux);
-//        Ky->AddMult(hx, aux, -1.0);
-//        MInv->Mult(aux, ezNew);
-//        ezNew *= -opts.dt;
-//        ezNew.Add(1.0, ez);
-//
-//
-//        // Update H.
-//        Kx->Mult(ezNew, aux);
-//        MInv->Mult(aux, hyNew);
-//        hyNew *= -opts.dt;
-//        hyNew.Add(1.0, hy);
-//
-//        Ky->Mult(ezNew, aux);
-//        MInv->Mult(aux, hxNew);
-//        hxNew *= opts.dt;
-//        hxNew.Add(1.0, hx);
-//
-//        ez = ezNew;
-//        hx = hxNew;
-//        hy = hyNew;
-//
-//        t += opts.dt;
-//        ti++;
-//
-//        done = (t >= opts.t_final - 1e-8 * opts.dt);
-//
-//        if (done || ti % opts.vis_steps == 0)
-//        {
-//            std::cout << "time step: " << ti << ", time: " << t << std::endl;
-//
-//            if (opts.paraview)
-//            {
-//                pd->SetCycle(ti);
-//                pd->SetTime(t);
-//                pd->Save();
-//            }
-//        }
-//    }
-//
-//    delete pd;
-//}
+void Solver::run() {
+    double t = 0.0;
+
+    Vector aux(fes_->GetVSize());
+    Vector ezNew(fes_->GetVSize());
+    Vector hxNew(fes_->GetVSize());
+    Vector hyNew(fes_->GetVSize());
+
+    bool done = false;
+    for (int ti = 0; !done; )
+    {
+        double dt_real = std::min(opts_.dt, opts_.t_final - t);
+
+        // Update E.
+        Kx_->Mult(hy_, aux);
+        Ky_->AddMult(hx_, aux, -1.0);
+        MInv_->Mult(aux, ezNew);
+        ezNew *= -opts_.dt;
+        ezNew.Add(1.0, ez_);
+
+
+        // Update H.
+        Kx_->Mult(ezNew, aux);
+        MInv_->Mult(aux, hyNew);
+        hyNew *= -opts_.dt;
+        hyNew.Add(1.0, hy_);
+
+        Ky_->Mult(ezNew, aux);
+        MInv_->Mult(aux, hxNew);
+        hxNew *= opts_.dt;
+        hxNew.Add(1.0, hx_);
+
+        ez_ = ezNew;
+        hx_ = hxNew;
+        hy_ = hyNew;
+
+        t += opts_.dt;
+        ti++;
+
+        done = (t >= opts_.t_final - 1e-8 * opts_.dt);
+
+        if (done || ti % opts_.vis_steps == 0)
+        {
+            std::cout << "time step: " << ti << ", time: " << t << std::endl;
+
+            if (opts_.paraview)
+            {
+                pd_->SetCycle(ti);
+                pd_->SetTime(t);
+                pd_->Save();
+            }
+        }
+    }
+}
 }

@@ -21,7 +21,7 @@ public:
 
 	Solver(const Options&, mfem::Mesh&);
     
-    //void run();
+    void run();
 
 protected:
     /// Initial condition. 
@@ -47,11 +47,12 @@ private:
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
 
     std::unique_ptr<mfem::BilinearForm> MInv_;
-    //mfem::BilinearForm Kx_;
-    //mfem::BilinearForm Ky_;
-    //mfem::GridFunction ez_, hx_, hy_;
+    std::unique_ptr<mfem::BilinearForm> Kx_;
+    std::unique_ptr<mfem::BilinearForm> Ky_;
 
-    mfem::ParaViewDataCollection* pd_;
+    mfem::GridFunction ez_, hx_, hy_;
+
+    std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
     void initializeFiniteElementSpace(mfem::Mesh& mesh);
     void initializeBilinearForms();

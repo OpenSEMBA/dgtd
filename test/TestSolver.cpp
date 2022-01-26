@@ -16,7 +16,7 @@ protected:
 	}
 };
 
-TEST_F(TestSolver, meshCheck) {
+TEST_F(TestSolver, checkMeshDimensions) {
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
@@ -25,7 +25,7 @@ TEST_F(TestSolver, meshCheck) {
 
 }
 
-TEST_F(TestSolver, elementVerticesCheck) {
+TEST_F(TestSolver, checkMeshElementVertices) {
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
@@ -46,7 +46,7 @@ TEST_F(TestSolver, elementVerticesCheck) {
 
 }
 
-TEST_F(TestSolver, mapElementAndVertex) {
+TEST_F(TestSolver, mapMeshElementAndVertex) {
 
 	int nx = 5; int ny = 5; bool generateEdges = true;
 
@@ -55,7 +55,7 @@ TEST_F(TestSolver, mapElementAndVertex) {
 	std::vector<int> mapped = mapQuadElementTopLeftVertex(mesh);
 
 	EXPECT_EQ(0, mapped[0]);
-	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);
-	EXPECT_EQ(nx-1,mapped[mapped.size()-1]);
+	EXPECT_EQ(nx*ny-1, mapped.size()-1);
+	EXPECT_EQ(nx-1, mapped[mapped.size()-1]);
 }
 
