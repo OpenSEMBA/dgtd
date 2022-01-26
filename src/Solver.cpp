@@ -8,7 +8,7 @@ using namespace mfem;
 
 namespace Maxwell {
 
-Solver::Solver(const Options& opts, Mesh& mesh) 
+Solver::Solver(const Options& opts, Mesh& mesh)
 {
     opts_ = opts;
 
@@ -18,26 +18,36 @@ Solver::Solver(const Options& opts, Mesh& mesh)
     initializeFiniteElementSpace(mesh);
 
     initializeBilinearForms();
+
+    buildDomainAndFaceIntegrators();
+
+    assembleBilinearForms();
+
+    finalizeBilinearForms();
+
+    run();
 }
 
-void Solver::initializeFiniteElementSpace(Mesh& mesh) 
+void Solver::initializeFiniteElementSpace(Mesh& mesh)
 {
     DG_FECollection fec(opts_.order, mesh.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh, &fec);
 }
 
-void Solver::initializeBilinearForms() 
+void Solver::initializeBilinearForms()
+{
+    MInv_ = std::make_unique<BilinearForm>(fes_.get());
+    Kx_ = std::make_unique<BilinearForm>(fes_.get());
+    Ky_ = std::make_unique<BilinearForm>(fes_.get());
+}
+
+void Solver::buildDomainAndFaceIntegrators()
 {
     ConstantCoefficient zero(0.0), one(1.0), mOne(-1.0);
-
     Vector nxVec(2);  nxVec(0) = 1.0; nxVec(1) = 0.0;
     Vector nyVec(2);  nyVec(0) = 0.0; nyVec(1) = 1.0;
     Vector n1Vec(2);  n1Vec(0) = 1.0; n1Vec(1) = 1.0;
     VectorConstantCoefficient nx(nxVec), ny(nyVec), n1(n1Vec);
-
-    MInv_ = std::make_unique<BilinearForm>(fes_.get());
-    Kx_ = std::make_unique<BilinearForm>(fes_.get());
-    Ky_ = std::make_unique<BilinearForm>(fes_.get());
 
     MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
 
@@ -50,13 +60,20 @@ void Solver::initializeBilinearForms()
     Ky_->AddDomainIntegrator(new DerivativeIntegrator(one, 1));
     Ky_->AddInteriorFaceIntegrator(
         new TransposeIntegrator(new DGTraceIntegrator(ny, alpha, beta)));
+}
 
+void Solver::assembleBilinearForms()
+{
     MInv_->Assemble();
     int skip_zeros = 0;
     Kx_->Assemble(skip_zeros);
     Ky_->Assemble(skip_zeros);
+}
 
+void Solver::finalizeBilinearForms()
+{
     MInv_->Finalize();
+    int skip_zeros = 0;
     Kx_->Finalize(skip_zeros);
     Ky_->Finalize(skip_zeros);
 }
