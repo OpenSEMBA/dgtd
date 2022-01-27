@@ -95,6 +95,31 @@ void Solver::buildBilinearForms()
     Ky_->Finalize(skip_zeros);
 }
 
+//FunctionCoefficient u0(u0_function);
+//GridFunction ez(fes), hx(fes), hy(fes);
+//ez.ProjectCoefficient(u0);
+//hx.ProjectCoefficient(zero);
+//hy.ProjectCoefficient(zero);
+//
+//
+
+void Solver::collectParaviewData() 
+{
+    pd_ = NULL;
+    pd_ = std::make_unique<ParaViewDataCollection>("Example9", &mesh_);
+    pd_->SetPrefixPath("ParaView");
+    pd_->RegisterField("ez", &ez_);
+    pd_->RegisterField("hx", &hx_);
+    pd_->RegisterField("hy", &hy_);
+    pd_->SetLevelsOfDetail(opts_.order);
+    pd_->SetDataFormat(VTKFormat::BINARY);
+    opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
+    pd_->SetCycle(0);
+    pd_->SetTime(0.0);
+    pd_->Save();
+}
+
+
 void Solver::run() 
 {
     double time = 0.0;

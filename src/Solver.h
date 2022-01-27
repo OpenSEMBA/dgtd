@@ -43,6 +43,7 @@ private:
     void initializeBilinearForms();
     void buildDomainAndFaceIntegrators();
     void buildBilinearForms();
+    void Solver::collectParaviewData();
 };
 
 }
