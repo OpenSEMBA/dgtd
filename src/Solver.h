@@ -14,6 +14,7 @@ public:
         int precision = 8;
     };
 
+
 	Solver(const Options&, const mfem::Mesh&);
     
     void setInitialFields(std::function<double(const mfem::Vector&)>);
@@ -39,12 +40,11 @@ private:
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
-    std::unique_ptr<mfem::FiniteElementSpace> buildFiniteElementSpace() const;
+    //std::unique_ptr<mfem::FiniteElementSpace> buildFiniteElementSpace() const;
     void buildMassMatrix();
-    void buildDerivativeOperators();
+    std::unique_ptr<mfem::BilinearForm> buildDerivativeOperators(const char&);
     void buildBilinearForms();
     void collectParaviewData();
-
 };
 
 }
