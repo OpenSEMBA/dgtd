@@ -16,7 +16,7 @@ public:
 
 	Solver(const Options&, const mfem::Mesh&);
     
-    void setInitialField(std::function<double(const mfem::Vector&)>);
+    void setInitialFields(std::function<double(const mfem::Vector&)>);
     
     mfem::Mesh& getMesh() { return mesh_;  }
 
@@ -40,10 +40,12 @@ private:
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     //std::unique_ptr<mfem::FiniteElementSpace> buildFiniteElementSpace() const;
+    void buildMassMatrix();
     void initializeBilinearForms();
-    void buildDomainAndFaceIntegrators();
+    void buildDerivativeOperators();
     void buildBilinearForms();
-    void Solver::collectParaviewData();
+    void collectParaviewData();
+
 };
 
 }

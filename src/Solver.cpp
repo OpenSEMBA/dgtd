@@ -18,20 +18,11 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
     //fes_ = buildFiniteElementSpace();
 
-    initializeBilinearForms();
+    buildMassMatrix();
 
-    buildDomainAndFaceIntegrators();
+    buildDerivativeOperators();
 
     buildBilinearForms();
-
-    ez_.ProjectCoefficient(ConstantCoefficient(0.0));
-    hx_.ProjectCoefficient(ConstantCoefficient(0.0));
-    hy_.ProjectCoefficient(ConstantCoefficient(0.0));
-}
-
-void Solver::setInitialField(std::function<double(const mfem::Vector&)> f)
-{
-     ez_.ProjectCoefficient(FunctionCoefficient(f));
 }
 
 void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
@@ -55,14 +46,19 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 //    return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
 //}
 
-void Solver::initializeBilinearForms()
+void Solver::buildMassMatrix()
 {
     MInv_ = std::make_unique<BilinearForm>(fes_.get());
+    MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+}
+
+void Solver::initializeBilinearForms()
+{
     Kx_ = std::make_unique<BilinearForm>(fes_.get());
     Ky_ = std::make_unique<BilinearForm>(fes_.get());
 }
 
-void Solver::buildDomainAndFaceIntegrators()
+void Solver::buildDerivativeOperators()
 {
     ConstantCoefficient zero(0.0), one(1.0), mOne(-1.0);
     Vector nxVec(2);  nxVec(0) = 1.0; nxVec(1) = 0.0;
@@ -71,8 +67,6 @@ void Solver::buildDomainAndFaceIntegrators()
     VectorConstantCoefficient nx(nxVec), ny(nyVec), n1(n1Vec);
 
     double alpha = -1.0, beta = 0.0;
-
-    MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
 
     Kx_->AddDomainIntegrator(new DerivativeIntegrator(one, 0));
     Kx_->AddInteriorFaceIntegrator(
@@ -95,6 +89,13 @@ void Solver::buildBilinearForms()
     Ky_->Finalize(skip_zeros);
 }
 
+void Solver::setInitialFields(std::function<double(const mfem::Vector&)> f)
+{
+    GridFunction ez_(fes_.get()), hx_(fes_.get()), hy_(fes_.get());
+    ez_.ProjectCoefficient(FunctionCoefficient(f));
+    hx_.ProjectCoefficient(ConstantCoefficient(0.0));
+    hy_.ProjectCoefficient(ConstantCoefficient(0.0));
+}
 //FunctionCoefficient u0(u0_function);
 //GridFunction ez(fes), hx(fes), hy(fes);
 //ez.ProjectCoefficient(u0);
