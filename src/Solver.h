@@ -42,8 +42,7 @@ private:
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     //std::unique_ptr<mfem::FiniteElementSpace> buildFiniteElementSpace() const;
     void buildMassMatrix();
-    std::unique_ptr<mfem::BilinearForm> buildDerivativeOperators(const char&);
-    void buildBilinearForms();
+    std::unique_ptr<mfem::BilinearForm> buildDerivativeOperators(const char);
     void collectParaviewData();
 };
 
