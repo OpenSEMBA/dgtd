@@ -19,8 +19,8 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
     //fes_ = buildFiniteElementSpace();
 
-    Kx_ = buildDerivativeOperators(*"X");
-    Kx_ = buildDerivativeOperators(*"Y");
+    Kx_ = buildDerivativeOperator(*"X");
+    Ky_ = buildDerivativeOperator(*"Y");
 
     buildMassMatrix();
 }
@@ -54,7 +54,7 @@ void Solver::buildMassMatrix()
     MInv_->Finalize();
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperators(const char direction)
+std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const char& direction)
 {
     ConstantCoefficient zero(0.0), one(1.0); double auxValue; int indexValue;
 
