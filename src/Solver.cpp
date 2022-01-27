@@ -16,7 +16,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     mesh_ = mfem::Mesh(mesh, true);
     opts_ = opts;
 
-    //fes_ = buildFiniteElementSpace();
+    fes_ = buildFiniteElementSpace();
 
     buildMassMatrix();
 
@@ -40,22 +40,16 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 
 }
 
-//std::unique_ptr<mfem::FiniteElementSpace> Solver::buildFiniteElementSpace() const
-//{
-//    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
-//    return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
-//}
+std::unique_ptr<mfem::FiniteElementSpace> Solver::buildFiniteElementSpace() const
+{
+    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+    return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
+}
 
 void Solver::buildMassMatrix()
 {
     MInv_ = std::make_unique<BilinearForm>(fes_.get());
     MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-}
-
-void Solver::initializeBilinearForms()
-{
-    Kx_ = std::make_unique<BilinearForm>(fes_.get());
-    Ky_ = std::make_unique<BilinearForm>(fes_.get());
 }
 
 void Solver::buildDerivativeOperators()
@@ -67,6 +61,9 @@ void Solver::buildDerivativeOperators()
     VectorConstantCoefficient nx(nxVec), ny(nyVec), n1(n1Vec);
 
     double alpha = -1.0, beta = 0.0;
+
+    Kx_ = std::make_unique<BilinearForm>(fes_.get());
+    Ky_ = std::make_unique<BilinearForm>(fes_.get());
 
     Kx_->AddDomainIntegrator(new DerivativeIntegrator(one, 0));
     Kx_->AddInteriorFaceIntegrator(

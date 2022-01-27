@@ -46,7 +46,7 @@ TEST_F(TestSolver, setInitialField)
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 	std::function<double(const mfem::Vector&)> f = 
 		std::bind(&TestSolver::gaussianFunction, this, std::placeholders::_1);
-	solver.setInitialField(f);
+	solver.setInitialFields(f);
 
 	
 }
