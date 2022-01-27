@@ -1,9 +1,26 @@
 #include "gtest/gtest.h"
 
-#include <mfem.hpp>
+#include "Solver.h"
+
+using namespace Maxwell;
 
 class TestSolver : public ::testing::Test {
+public:
+	double gaussianFunction(const mfem::Vector& x)
+	{
+		mfem::Vector X(2);
+		for (size_t i = 0; i < 2; i++) {
+			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
+			X[i] = 2 * (x[i] - center) / (meshBoundingBoxMax[0] - meshBoundingBoxMin[0]);
+		}
+
+		return exp(-10. * (pow(X[0], 2) + pow(X[1], 2)));
+	}
+
 protected:
+	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
+
+
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
 	{
 		std::vector<int> res;
@@ -14,9 +31,28 @@ protected:
 		}
 		return res;
 	}
+
+	
 };
 
-TEST_F(TestSolver, checkMeshDimensions) {
+TEST_F(TestSolver, setInitialField)
+{
+	int nx = 8; int ny = 8; bool generateEdges = true;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+
+	
+	Solver solver(Solver::Options(), mesh);
+	
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+	std::function<double(const mfem::Vector&)> f = 
+		std::bind(&TestSolver::gaussianFunction, this, std::placeholders::_1);
+	solver.setInitialField(f);
+
+	
+}
+
+TEST_F(TestSolver, checkMeshDimensions) 
+{
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);

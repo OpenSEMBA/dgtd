@@ -16,16 +16,22 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     mesh_ = mfem::Mesh(mesh, true);
     opts_ = opts;
 
-    Device device(opts_.device_config);
-    mesh_.GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax, std::max(opts_.order, 1));
-
-    initializeFiniteElementSpace();
+    //fes_ = buildFiniteElementSpace();
 
     initializeBilinearForms();
 
     buildDomainAndFaceIntegrators();
 
     buildBilinearForms();
+
+    ez_.ProjectCoefficient(ConstantCoefficient(0.0));
+    hx_.ProjectCoefficient(ConstantCoefficient(0.0));
+    hy_.ProjectCoefficient(ConstantCoefficient(0.0));
+}
+
+void Solver::setInitialField(std::function<double(const mfem::Vector&)> f)
+{
+     ez_.ProjectCoefficient(FunctionCoefficient(f));
 }
 
 void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
@@ -43,11 +49,11 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 
 }
 
-void Solver::initializeFiniteElementSpace()
-{
-    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
-    fes_ = std::make_unique<FiniteElementSpace>(&mesh_, &fec);
-}
+//std::unique_ptr<mfem::FiniteElementSpace> Solver::buildFiniteElementSpace() const
+//{
+//    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+//    return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
+//}
 
 void Solver::initializeBilinearForms()
 {
@@ -130,14 +136,10 @@ void Solver::run()
 
         done = (time >= opts_.t_final - 1e-8 * opts_.dt);
 
-        if (done || cycle % opts_.vis_steps == 0)
-        {
-            if (opts_.paraview)
-            {
+        if (done || cycle % opts_.vis_steps == 0) {
                 pd_->SetCycle(cycle);
                 pd_->SetTime(time);
                 pd_->Save();
-            }
         }
     }
 }
