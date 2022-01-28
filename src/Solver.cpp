@@ -16,9 +16,9 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     mesh_ = mfem::Mesh(mesh, true);
     opts_ = opts;
 
-    //fes_ = buildFiniteElementSpace();
+    fes_ = buildFiniteElementSpace();
 
-    buildMassMatrix();
+    MInv_ = buildMassMatrix();
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
     collectParaviewData();
@@ -39,47 +39,40 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 
 }
 
-//std::unique_ptr<mfem::FiniteElementSpace> Solver::buildFiniteElementSpace() const
-//{
-//    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
-//    return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
-//}
-
-void Solver::buildMassMatrix()
+std::unique_ptr<mfem::FiniteElementSpace> Solver::buildFiniteElementSpace()
 {
-    MInv_ = std::make_unique<BilinearForm>(fes_.get());
-    MInv_->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-    MInv_->Assemble();
-    MInv_->Finalize();
+    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+    return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direction& d)
+std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix()
 {
-    if (d != X || d != Y) {
-        throw std::exception("Incorrect argument for direction in buildDerivativeOperators()");
-    }
+    auto MInv = std::make_unique<BilinearForm>(fes_.get());
+    MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+    MInv->Assemble();
+    MInv->Finalize();
+    return MInv;
+}
 
-    double auxValue; int indexValue;
-    if (d == X) {
-        auxValue = 0.0; indexValue = 0;
-    }
-    else {
-        auxValue = 1.0; indexValue = 1;
-    }
+std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direction& d) const
+{
+    assert(d != X || d != Y, "Incorrect argument for direction.");
+    
+    auto kDir = std::make_unique<BilinearForm>(fes_.get());
 
-    Vector auxVec(2);  
-    auxVec(0) = auxValue - 0.0; 
-    auxVec(1) = auxValue - 1.0;
-
-    VectorConstantCoefficient vectorCoeff(auxVec);
-
-    double alpha = -1.0, beta = 0.0; int skip_zeros = 0;
-
-    std::unique_ptr<mfem::BilinearForm> kDir = std::make_unique<BilinearForm>(fes_.get());
-
-    kDir->AddDomainIntegrator(new DerivativeIntegrator(ConstantCoefficient(1.0), indexValue));
+    kDir->AddDomainIntegrator(
+        new DerivativeIntegrator(ConstantCoefficient(1.0), d));
+    
+    std::vector<VectorConstantCoefficient> n = {
+        VectorConstantCoefficient(Vector({1.0, 0.0})),
+        VectorConstantCoefficient(Vector({0.0, 1.0}))
+    };
+    double alpha = -1.0, beta = 0.0; 
     kDir->AddInteriorFaceIntegrator(
-        new TransposeIntegrator(new DGTraceIntegrator(vectorCoeff, alpha, beta)));
+        new TransposeIntegrator(
+            new DGTraceIntegrator(n[d], alpha, beta)));
+
+    int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
     kDir->Finalize(skip_zeros);
 
@@ -87,11 +80,15 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
 }
 
-void Solver::setInitialFields(std::function<double(const mfem::Vector&)> f)
+void Solver::setInitialFields(std::function<double(const mfem::Vector&)> f) 
 {
-    GridFunction ez_(fes_.get()), hx_(fes_.get()), hy_(fes_.get());
+    ez_ = GridFunction(fes_.get());
     ez_.ProjectCoefficient(FunctionCoefficient(f));
+    
+    hx_ = GridFunction(fes_.get());
     hx_.ProjectCoefficient(ConstantCoefficient(0.0));
+
+    hy_ = GridFunction(fes_.get());
     hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 }
 
