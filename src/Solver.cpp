@@ -6,7 +6,6 @@
 
 using namespace mfem;
 
-
 namespace Maxwell {
 
 Solver::Solver(const Options& opts, const Mesh& mesh) 
@@ -19,10 +18,10 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
     //fes_ = buildFiniteElementSpace();
 
+    buildMassMatrix();
     Kx_ = buildDerivativeOperator(*"X");
     Ky_ = buildDerivativeOperator(*"Y");
-
-    buildMassMatrix();
+    collectParaviewData();
 }
 
 void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
@@ -58,20 +57,14 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const char& 
 {
     ConstantCoefficient zero(0.0), one(1.0); double auxValue; int indexValue;
 
-    if (&direction == "X") {
-        auxValue = 0.0; indexValue = 0;
-    }
-    else if(&direction == "Y") {
-        auxValue = 1.0; indexValue = 1;
-    }
-    else {
-        throw std::exception("Incorrect argument for direction in buildDerivativeOperators()");
-    }
+    if (&direction == "X") { auxValue = 0.0; indexValue = 0; }
+    else if(&direction == "Y") {auxValue = 1.0; indexValue = 1;}
+    //else {
+    //    throw std::exception("Incorrect argument for direction in buildDerivativeOperators()");
+    //}
 
-    Vector auxVec(2);  auxVec(0) = auxValue-0.0; auxVec(1) = auxValue-1.0;
+    Vector auxVec(2);  auxVec(0) = auxValue - 0.0; auxVec(1) = auxValue-1.0;
     VectorConstantCoefficient vectorCoeff(auxVec);
-    Vector n1Vec(2);  n1Vec(0) = 1.0; n1Vec(1) = 1.0;
-    VectorConstantCoefficient n1(n1Vec);
 
     double alpha = -1.0, beta = 0.0; int skip_zeros = 0;
 
@@ -94,18 +87,11 @@ void Solver::setInitialFields(std::function<double(const mfem::Vector&)> f)
     hx_.ProjectCoefficient(ConstantCoefficient(0.0));
     hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 }
-//FunctionCoefficient u0(u0_function);
-//GridFunction ez(fes), hx(fes), hy(fes);
-//ez.ProjectCoefficient(u0);
-//hx.ProjectCoefficient(zero);
-//hy.ProjectCoefficient(zero);
-//
-//
 
 void Solver::collectParaviewData()
 {
     pd_ = NULL;
-    pd_ = std::make_unique<ParaViewDataCollection>("Example9", &mesh_);
+    pd_ = std::make_unique<ParaViewDataCollection>("Example", &mesh_);
     pd_->SetPrefixPath("ParaView");
     pd_->RegisterField("ez", &ez_);
     pd_->RegisterField("hx", &hx_);
