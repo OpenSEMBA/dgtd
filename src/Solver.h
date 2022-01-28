@@ -4,6 +4,11 @@
 
 namespace Maxwell {
 
+typedef std::size_t Direction;
+
+const Direction X = 0;
+const Direction Y = 1;
+
 class Solver {
 public:
     struct Options {

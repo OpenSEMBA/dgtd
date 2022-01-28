@@ -19,8 +19,8 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     //fes_ = buildFiniteElementSpace();
 
     buildMassMatrix();
-    Kx_ = buildDerivativeOperator(*"X");
-    Ky_ = buildDerivativeOperator(*"Y");
+    Kx_ = buildDerivativeOperator(X);
+    Ky_ = buildDerivativeOperator(Y);
     collectParaviewData();
 }
 
@@ -53,24 +53,31 @@ void Solver::buildMassMatrix()
     MInv_->Finalize();
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const char& direction)
+std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direction& d)
 {
-    ConstantCoefficient zero(0.0), one(1.0); double auxValue; int indexValue;
+    if (d != X || d != Y) {
+        throw std::exception("Incorrect argument for direction in buildDerivativeOperators()");
+    }
 
-    if (&direction == "X") { auxValue = 0.0; indexValue = 0; }
-    else if(&direction == "Y") {auxValue = 1.0; indexValue = 1;}
-    //else {
-    //    throw std::exception("Incorrect argument for direction in buildDerivativeOperators()");
-    //}
+    double auxValue; int indexValue;
+    if (d == X) {
+        auxValue = 0.0; indexValue = 0;
+    }
+    else {
+        auxValue = 1.0; indexValue = 1;
+    }
 
-    Vector auxVec(2);  auxVec(0) = auxValue - 0.0; auxVec(1) = auxValue-1.0;
+    Vector auxVec(2);  
+    auxVec(0) = auxValue - 0.0; 
+    auxVec(1) = auxValue - 1.0;
+
     VectorConstantCoefficient vectorCoeff(auxVec);
 
     double alpha = -1.0, beta = 0.0; int skip_zeros = 0;
 
     std::unique_ptr<mfem::BilinearForm> kDir = std::make_unique<BilinearForm>(fes_.get());
 
-    kDir->AddDomainIntegrator(new DerivativeIntegrator(one, indexValue));
+    kDir->AddDomainIntegrator(new DerivativeIntegrator(ConstantCoefficient(1.0), indexValue));
     kDir->AddInteriorFaceIntegrator(
         new TransposeIntegrator(new DGTraceIntegrator(vectorCoeff, alpha, beta)));
     kDir->Assemble(skip_zeros);
