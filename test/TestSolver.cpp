@@ -46,7 +46,7 @@ TEST_F(TestSolver, setInitialField)
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 	std::function<double(const mfem::Vector&)> f = 
 		std::bind(&TestSolver::gaussianFunction, this, std::placeholders::_1);
-	solver.setInitialFields(f);
+	solver.setInitialElectricField(f);
 
 	
 }
@@ -92,5 +92,19 @@ TEST_F(TestSolver, mapMeshElementAndVertex) {
 	EXPECT_EQ(0, mapped[0]);
 	EXPECT_EQ(nx*ny-1, mapped.size()-1);
 	EXPECT_EQ(nx-1, mapped[mapped.size()-1]);
+}
+
+TEST_F(TestSolver, checkMeshInvariance) {
+
+	int nx = 8; int ny = 8; bool generateEdges = true;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+	Solver solver(Solver::Options(),mesh);
+
+	std::vector<int> meshMap = mapQuadElementTopLeftVertex(mesh);
+	std::vector<int> solverMeshMap = mapQuadElementTopLeftVertex(solver.getMesh());
+
+	ASSERT_EQ(mesh.Dimension(), solver.getMesh().Dimension());
+	EXPECT_EQ(meshMap[0], solverMeshMap[0]);
+	EXPECT_EQ(meshMap.size(), solverMeshMap.size());
 }
 

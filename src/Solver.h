@@ -9,8 +9,12 @@ typedef std::size_t Direction;
 const Direction X = 0;
 const Direction Y = 1;
 
+
 class Solver {
 public:
+    typedef double ElectricField;
+    typedef mfem::Vector Position;
+
     struct Options {
         int order = 3;
         double t_final = 10.0;
@@ -19,12 +23,13 @@ public:
         int precision = 8;
     };
 
-
 	Solver(const Options&, const mfem::Mesh&);
     
-    void setInitialFields(std::function<double(const mfem::Vector&)>);
+    void setInitialElectricField(std::function<ElectricField(const Position&)>);
     
     mfem::Mesh& getMesh() { return mesh_;  }
+    
+    ElectricField getElectricFieldAtPosition(const Position&) const;
 
     void run();
 
@@ -46,7 +51,7 @@ private:
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     std::unique_ptr<mfem::FiniteElementSpace> buildFiniteElementSpace();
-    std::unique_ptr<mfem::BilinearForm> buildMassMatrix();
+    std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeOperator(const Direction&) const;
     void collectParaviewData();
 };

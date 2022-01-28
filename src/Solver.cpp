@@ -21,7 +21,16 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     MInv_ = buildMassMatrix();
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
-    collectParaviewData();
+
+    ez_ = GridFunction(fes_.get());
+    ez_.ProjectCoefficient(ConstantCoefficient(0.0));
+
+    hx_ = GridFunction(fes_.get());
+    hx_.ProjectCoefficient(ConstantCoefficient(0.0));
+
+    hy_ = GridFunction(fes_.get());
+    hy_.ProjectCoefficient(ConstantCoefficient(0.0));
+
 }
 
 void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
@@ -45,7 +54,7 @@ std::unique_ptr<mfem::FiniteElementSpace> Solver::buildFiniteElementSpace()
     return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix()
+std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
 {
     auto MInv = std::make_unique<BilinearForm>(fes_.get());
     MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
@@ -80,16 +89,10 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
 }
 
-void Solver::setInitialFields(std::function<double(const mfem::Vector&)> f) 
+void Solver::setInitialElectricField(std::function<double(const mfem::Vector&)> f) 
 {
     ez_ = GridFunction(fes_.get());
     ez_.ProjectCoefficient(FunctionCoefficient(f));
-    
-    hx_ = GridFunction(fes_.get());
-    hx_.ProjectCoefficient(ConstantCoefficient(0.0));
-
-    hy_ = GridFunction(fes_.get());
-    hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 }
 
 void Solver::collectParaviewData()
