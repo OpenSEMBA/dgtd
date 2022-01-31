@@ -4,9 +4,11 @@
 
 using namespace Maxwell;
 
+mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
+
 class TestSolver : public ::testing::Test {
 public:
-	Solver::ElectricField gaussianFunction(const Solver::Position& x)
+	static Solver::ElectricField gaussianFunction(const Solver::Position& x)
 	{
 		mfem::Vector X(2);
 		for (size_t i = 0; i < 2; i++) {
@@ -19,8 +21,7 @@ public:
 
 protected:
 
-	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
-
+	
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
 	{
 		std::vector<int> res;
@@ -100,11 +101,10 @@ TEST_F(TestSolver, checkRun)
 	Solver solver(Solver::Options(), mesh);
 
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	std::function<Solver::ElectricField(const Solver::Position&)> f =
-		std::bind(&TestSolver::gaussianFunction, this, std::placeholders::_1);
-	solver.setInitialElectricField(f);
+	
+	solver.setInitialElectricField(TestSolver::gaussianFunction);
 
-	//solver.run();
+	solver.run();
 
 
 }
