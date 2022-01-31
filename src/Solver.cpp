@@ -16,19 +16,20 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     mesh_ = mfem::Mesh(mesh, true);
     opts_ = opts;
 
-    fes_ = buildFiniteElementSpace();
+    fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+    fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
     MInv_ = buildMassMatrix();
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
 
-    ez_ = GridFunction(fes_.get());
+    ez_.SetSpace(fes_.get());
     ez_.ProjectCoefficient(ConstantCoefficient(0.0));
 
-    hx_ = GridFunction(fes_.get());
+    hx_.SetSpace(fes_.get());
     hx_.ProjectCoefficient(ConstantCoefficient(0.0));
 
-    hy_ = GridFunction(fes_.get());
+    hy_.SetSpace(fes_.get());
     hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 
 }
@@ -48,12 +49,6 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 
 }
 
-std::unique_ptr<mfem::FiniteElementSpace> Solver::buildFiniteElementSpace()
-{
-    DG_FECollection fec(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
-    return std::make_unique<FiniteElementSpace>(&mesh_, &fec);
-}
-
 std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
 {
     auto MInv = std::make_unique<BilinearForm>(fes_.get());
@@ -69,13 +64,15 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
     
     auto kDir = std::make_unique<BilinearForm>(fes_.get());
 
-    kDir->AddDomainIntegrator(
-        new DerivativeIntegrator(ConstantCoefficient(1.0), d));
+    ConstantCoefficient one(1.0);
+
+    kDir->AddDomainIntegrator(new DerivativeIntegrator(one, d));
     
     std::vector<VectorConstantCoefficient> n = {
         VectorConstantCoefficient(Vector({1.0, 0.0})),
         VectorConstantCoefficient(Vector({0.0, 1.0}))
     };
+
     double alpha = -1.0, beta = 0.0; 
     kDir->AddInteriorFaceIntegrator(
         new TransposeIntegrator(

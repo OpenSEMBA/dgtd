@@ -37,6 +37,7 @@ private:
     
     Options opts_;
 
+    std::unique_ptr<mfem::DG_FECollection> fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
 
     mfem::Mesh mesh_;
@@ -50,7 +51,6 @@ private:
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
-    std::unique_ptr<mfem::FiniteElementSpace> buildFiniteElementSpace();
     std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeOperator(const Direction&) const;
     void collectParaviewData();

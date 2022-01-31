@@ -98,7 +98,7 @@ TEST_F(TestSolver, checkMeshInvariance) {
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	Solver solver(Solver::Options(),mesh);
+	Solver solver(Solver::Options(), mesh);
 
 	std::vector<int> meshMap = mapQuadElementTopLeftVertex(mesh);
 	std::vector<int> solverMeshMap = mapQuadElementTopLeftVertex(solver.getMesh());
