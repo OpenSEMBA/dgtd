@@ -32,6 +32,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     hy_.SetSpace(fes_.get());
     hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 
+    collectParaviewData();
 }
 
 void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
@@ -86,9 +87,8 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
 }
 
-void Solver::setInitialElectricField(std::function<double(const mfem::Vector&)> f) 
+void Solver::setInitialElectricField(std::function<ElectricField(const Position&)> f) 
 {
-    ez_ = GridFunction(fes_.get());
     ez_.ProjectCoefficient(FunctionCoefficient(f));
 }
 

@@ -6,7 +6,7 @@ using namespace Maxwell;
 
 class TestSolver : public ::testing::Test {
 public:
-	double gaussianFunction(const mfem::Vector& x)
+	Maxwell::Solver::ElectricField gaussianFunction(const Maxwell::Solver::Position& x)
 	{
 		mfem::Vector X(2);
 		for (size_t i = 0; i < 2; i++) {
@@ -21,7 +21,7 @@ protected:
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
 
 
-	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
+	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh)
 	{
 		std::vector<int> res;
 		for (int i = 0; i < mesh.GetNE(); i++) {
@@ -31,25 +31,7 @@ protected:
 		}
 		return res;
 	}
-
-	
 };
-
-TEST_F(TestSolver, setInitialField)
-{
-	int nx = 8; int ny = 8; bool generateEdges = true;
-	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-
-	
-	Solver solver(Solver::Options(), mesh);
-	
-	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	std::function<double(const mfem::Vector&)> f = 
-		std::bind(&TestSolver::gaussianFunction, this, std::placeholders::_1);
-	solver.setInitialElectricField(f);
-
-	
-}
 
 TEST_F(TestSolver, checkMeshDimensions) 
 {
@@ -61,7 +43,8 @@ TEST_F(TestSolver, checkMeshDimensions)
 
 }
 
-TEST_F(TestSolver, checkMeshElementVertices) {
+TEST_F(TestSolver, checkMeshElementVertices) 
+{
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
@@ -82,8 +65,8 @@ TEST_F(TestSolver, checkMeshElementVertices) {
 
 }
 
-TEST_F(TestSolver, mapMeshElementAndVertex) {
-
+TEST_F(TestSolver, mapMeshElementAndVertex) 
+{
 	int nx = 5; int ny = 5; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 
@@ -94,8 +77,8 @@ TEST_F(TestSolver, mapMeshElementAndVertex) {
 	EXPECT_EQ(nx-1, mapped[mapped.size()-1]);
 }
 
-TEST_F(TestSolver, checkMeshInvariance) {
-
+TEST_F(TestSolver, checkMeshInvariance) 
+{
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 	Solver solver(Solver::Options(), mesh);
@@ -106,5 +89,24 @@ TEST_F(TestSolver, checkMeshInvariance) {
 	ASSERT_EQ(mesh.Dimension(), solver.getMesh().Dimension());
 	EXPECT_EQ(meshMap[0], solverMeshMap[0]);
 	EXPECT_EQ(meshMap.size(), solverMeshMap.size());
+}
+
+TEST_F(TestSolver, runTest)
+{
+	int nx = 8; int ny = 8; bool generateEdges = true;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+	Solver solver(Solver::Options(), mesh);
+
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+
+	Maxwell::Solver::Position testVector({ 0.0,1.0 });
+
+	std::function<Maxwell::Solver::ElectricField(const Maxwell::Solver::Position&)> f2 = gaussianFunction(testVector);
+
+	std::function<Maxwell::Solver::ElectricField(const Maxwell::Solver::Position&)> f =
+		std::bind(&TestSolver::gaussianFunction, this, std::placeholders::_1);
+	solver.setInitialElectricField(f2);
+
+	//solver.run();
 }
 

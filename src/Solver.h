@@ -54,6 +54,7 @@ private:
     std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeOperator(const Direction&) const;
     void collectParaviewData();
+
 };
 
 }
