@@ -32,7 +32,8 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     hy_.SetSpace(fes_.get());
     hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 
-    collectParaviewData();
+    initializeParaviewData();
+
 }
 
 void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
@@ -92,7 +93,7 @@ void Solver::setInitialElectricField(std::function<ElectricField(const Position&
     ez_.ProjectCoefficient(FunctionCoefficient(f));
 }
 
-void Solver::collectParaviewData()
+void Solver::initializeParaviewData()
 {
     pd_ = NULL;
     pd_ = std::make_unique<ParaViewDataCollection>("Example", &mesh_);

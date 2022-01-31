@@ -6,7 +6,7 @@ using namespace Maxwell;
 
 class TestSolver : public ::testing::Test {
 public:
-	Maxwell::Solver::ElectricField gaussianFunction(const Maxwell::Solver::Position& x)
+	Solver::ElectricField gaussianFunction(const Solver::Position& x)
 	{
 		mfem::Vector X(2);
 		for (size_t i = 0; i < 2; i++) {
@@ -18,10 +18,10 @@ public:
 	}
 
 protected:
+
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
 
-
-	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh)
+	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
 	{
 		std::vector<int> res;
 		for (int i = 0; i < mesh.GetNE(); i++) {
@@ -67,6 +67,7 @@ TEST_F(TestSolver, checkMeshElementVertices)
 
 TEST_F(TestSolver, mapMeshElementAndVertex) 
 {
+
 	int nx = 5; int ny = 5; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 
@@ -79,6 +80,7 @@ TEST_F(TestSolver, mapMeshElementAndVertex)
 
 TEST_F(TestSolver, checkMeshInvariance) 
 {
+
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 	Solver solver(Solver::Options(), mesh);
@@ -91,22 +93,19 @@ TEST_F(TestSolver, checkMeshInvariance)
 	EXPECT_EQ(meshMap.size(), solverMeshMap.size());
 }
 
-TEST_F(TestSolver, runTest)
+TEST_F(TestSolver, checkRun) 
 {
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 	Solver solver(Solver::Options(), mesh);
 
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-
-	Maxwell::Solver::Position testVector({ 0.0,1.0 });
-
-	std::function<Maxwell::Solver::ElectricField(const Maxwell::Solver::Position&)> f2 = gaussianFunction(testVector);
-
-	std::function<Maxwell::Solver::ElectricField(const Maxwell::Solver::Position&)> f =
+	std::function<Solver::ElectricField(const Solver::Position&)> f =
 		std::bind(&TestSolver::gaussianFunction, this, std::placeholders::_1);
-	solver.setInitialElectricField(f2);
+	solver.setInitialElectricField(f);
 
 	//solver.run();
+
+
 }
 
