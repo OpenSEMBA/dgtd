@@ -1,10 +1,12 @@
 #include "gtest/gtest.h"
+#include <math.h>
 
 #include "Solver.h"
 
 using namespace Maxwell;
 
 mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
+const double PI = atan(1.0) * 4;
 
 class TestSolver : public ::testing::Test {
 public:
@@ -17,6 +19,17 @@ public:
 		}
 
 		return exp(-10. * (pow(X[0], 2) + pow(X[1], 2)));
+	}
+
+	static Solver::ElectricField standingWaveFunction(const Solver::Position& x)
+	{
+		mfem::Vector X(2);
+		for (size_t i = 0; i < 2; i++) {
+			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
+			X[i] = 2 * (x[i] - center) / (meshBoundingBoxMax[0] - meshBoundingBoxMin[0]);
+		}
+
+		return 2*cos(X[1] - X[0]);
 	}
 
 protected:
@@ -34,6 +47,20 @@ protected:
 	}
 };
 
+TEST_F(TestSolver, checkRun)
+{
+	int nx = 8; int ny = 8; bool generateEdges = true;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+	Solver solver(Solver::Options(), mesh);
+
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+
+	solver.setInitialElectricField(TestSolver::standingWaveFunction);
+
+	solver.run();
+
+
+}
 TEST_F(TestSolver, checkMeshDimensions) 
 {
 
@@ -94,18 +121,4 @@ TEST_F(TestSolver, checkMeshInvariance)
 	EXPECT_EQ(meshMap.size(), solverMeshMap.size());
 }
 
-TEST_F(TestSolver, checkRun) 
-{
-	int nx = 8; int ny = 8; bool generateEdges = true;
-	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	Solver solver(Solver::Options(), mesh);
-
-	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	
-	solver.setInitialElectricField(TestSolver::gaussianFunction);
-
-	solver.run();
-
-
-}
 

@@ -104,9 +104,6 @@ void Solver::initializeParaviewData()
     pd_->SetLevelsOfDetail(opts_.order);
     pd_->SetDataFormat(VTKFormat::BINARY);
     opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
-    pd_->SetCycle(0);
-    pd_->SetTime(0.0);
-    pd_->Save();
 }
 
 
@@ -119,6 +116,10 @@ void Solver::run()
     Vector ezNew(fes_->GetVSize());
     Vector hxNew(fes_->GetVSize());
     Vector hyNew(fes_->GetVSize());
+
+    pd_->SetCycle(0);
+    pd_->SetTime(0.0);
+    pd_->Save();
 
     for (int cycle = 0; !done;)
     {
