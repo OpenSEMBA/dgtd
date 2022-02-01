@@ -5,32 +5,42 @@
 
 using namespace Maxwell;
 
-mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
-const double PI = atan(1.0) * 4;
+namespace AnalyticalFunctions {
+	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
+	std::size_t standingWaveModeX = 1, standingWaveModeY = 1;
+
+	const double PI = atan(1.0) * 4;
+
+	double gaussianFunction(const Solver::Position& pos)
+	{
+		mfem::Vector normalizedPos(2);
+		for (size_t i = 0; i < 2; i++) {
+			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
+			normalizedPos[i] = 2 * (pos[i] - center) / (meshBoundingBoxMax[i] - meshBoundingBoxMin[i]);
+		}
+
+		return exp(-10. * (pow(normalizedPos[0], 2) + pow(normalizedPos[1], 2)));
+	}
+
+	double standingWaveFunction(const Solver::Position& pos)
+	{
+		mfem::Vector normalizedPos(2);
+		mfem::Vector L(2);
+		for (size_t i = 0; i < 2; i++) {
+			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
+			L[i] = meshBoundingBoxMax[i] - meshBoundingBoxMin[i];
+			normalizedPos[i] = (pos[i] - meshBoundingBoxMin[i]) / L[i];
+		}
+
+		return sin(normalizedPos[0]  * PI * double(standingWaveModeX)) *
+			sin(normalizedPos[1] * PI * double(standingWaveModeY));
+	}
+}
+
 
 class TestSolver : public ::testing::Test {
 public:
-	static Solver::ElectricField gaussianFunction(const Solver::Position& x)
-	{
-		mfem::Vector X(2);
-		for (size_t i = 0; i < 2; i++) {
-			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
-			X[i] = 2 * (x[i] - center) / (meshBoundingBoxMax[0] - meshBoundingBoxMin[0]);
-		}
-
-		return exp(-10. * (pow(X[0], 2) + pow(X[1], 2)));
-	}
-
-	static Solver::ElectricField standingWaveFunction(const Solver::Position& x)
-	{
-		mfem::Vector X(2);
-		for (size_t i = 0; i < 2; i++) {
-			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
-			X[i] = 2 * (x[i] - center) / (meshBoundingBoxMax[0] - meshBoundingBoxMin[0]);
-		}
-
-		return 2*cos(X[1] - X[0]);
-	}
+	
 
 protected:
 
@@ -51,12 +61,20 @@ TEST_F(TestSolver, checkRun)
 {
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	Solver solver(Solver::Options(), mesh);
+	
+	Solver::Options opts;
+	opts.t_final = 1;
+	opts.vis_steps = 1;
+	AnalyticalFunctions::standingWaveModeX = 1;
+	AnalyticalFunctions::standingWaveModeY = 1;
+	
+	Solver solver(opts, mesh);
+	solver.getMesh().GetBoundingBox(
+		AnalyticalFunctions::meshBoundingBoxMin, 
+		AnalyticalFunctions::meshBoundingBoxMax);
 
-	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-
-	solver.setInitialElectricField(TestSolver::standingWaveFunction);
-
+	
+	solver.setInitialElectricField(AnalyticalFunctions::standingWaveFunction);
 	solver.run();
 
 
