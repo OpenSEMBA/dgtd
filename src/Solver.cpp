@@ -50,7 +50,6 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
         (opts.precision < 1)) {
         throw std::exception("Incorrect parameters in Options");
     }
-
 }
 
 std::unique_ptr<mfem::LinearForm> Solver::buildInflowForm() const
@@ -64,7 +63,7 @@ std::unique_ptr<mfem::LinearForm> Solver::buildInflowForm() const
 std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
 {
     auto MInv = std::make_unique<BilinearForm>(fes_.get());
-    MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+    MInv->AddDomainIntegrator(new MassIntegrator);
     MInv->Assemble();
     MInv->Finalize();
     return MInv;
@@ -87,8 +86,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
     double alpha = -1.0, beta = 0.0; 
     kDir->AddInteriorFaceIntegrator(
-        new TransposeIntegrator(
-            new DGTraceIntegrator(n[d], alpha, beta)));
+            new DGTraceIntegrator(n[d], alpha, beta));
 
     int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
@@ -130,6 +128,27 @@ void Solver::run()
     pd_->SetTime(0.0);
     pd_->Save();
 
+    //FE_Evolution adv(MInv_, ez_, inflowForm_);
+
+    //double t = 0.0;
+    //adv.SetTime(t);
+    //ode_solver->Init(adv);
+
+    //for (int ti = 0; !done; )
+    //{
+    //    double dt_real = std::min(opts_.dt, opts_.t_final - t);
+    //    ode_solver->Step(ezNew, t, dt_real);
+    //    ti++;
+
+    //    done = (t >= opts_.t_final - 1e-8 * opts_.dt);
+
+    //    if (done || ti % opts_.vis_steps == 0){
+    //   
+    //        pd_->SetCycle(ti);
+    //        pd_->SetTime(t);
+    //        pd_->Save();
+    //    }
+    //}
     for (int cycle = 0; !done;)
     {
 
@@ -167,4 +186,5 @@ void Solver::run()
         }
     }
 }
+
 }
