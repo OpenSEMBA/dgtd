@@ -42,6 +42,8 @@ private:
 
     mfem::Mesh mesh_;
 
+    std::unique_ptr<mfem::LinearForm> inflowForm_;
+
     std::unique_ptr<mfem::BilinearForm> MInv_;
     std::unique_ptr<mfem::BilinearForm> Kx_;
     std::unique_ptr<mfem::BilinearForm> Ky_;
@@ -51,6 +53,7 @@ private:
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
+    std::unique_ptr<mfem::LinearForm> buildInflowForm() const;
     std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeOperator(const Direction&) const;
 

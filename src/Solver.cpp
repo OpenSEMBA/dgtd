@@ -19,6 +19,8 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
+    inflowForm_ = buildInflowForm();
+
     MInv_ = buildMassMatrix();
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
@@ -49,6 +51,14 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
         throw std::exception("Incorrect parameters in Options");
     }
 
+}
+
+std::unique_ptr<mfem::LinearForm> Solver::buildInflowForm() const
+{
+    auto inflowForm = std::make_unique<LinearForm>(fes_.get());
+    inflowForm->AddBdrFaceIntegrator(new BoundaryLFIntegrator(mfem::ConstantCoefficient(0.0)));
+    inflowForm->Assemble();
+    return inflowForm;
 }
 
 std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
@@ -85,7 +95,6 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
     kDir->Finalize(skip_zeros);
 
     return kDir;
-
 }
 
 void Solver::setInitialElectricField(std::function<ElectricField(const Position&)> f) 
@@ -130,7 +139,6 @@ void Solver::run()
         MInv_->Mult(aux, ezNew);
         ezNew *= -opts_.dt;
         ezNew.Add(1.0, ez_);
-
 
         // Update H.
         Kx_->Mult(ezNew, aux);
