@@ -39,11 +39,7 @@ namespace AnalyticalFunctions {
 
 
 class TestSolver : public ::testing::Test {
-public:
-	
-
 protected:
-
 	
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
 	{

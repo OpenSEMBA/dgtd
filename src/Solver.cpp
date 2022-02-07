@@ -19,8 +19,6 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
-    inflowForm_ = buildInflowForm();
-
     MInv_ = buildMassMatrix();
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
@@ -50,14 +48,6 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
         (opts.precision < 1)) {
         throw std::exception("Incorrect parameters in Options");
     }
-}
-
-std::unique_ptr<mfem::LinearForm> Solver::buildInflowForm() const
-{
-    auto inflowForm = std::make_unique<LinearForm>(fes_.get());
-    inflowForm->AddBdrFaceIntegrator(new BoundaryLFIntegrator(mfem::ConstantCoefficient(0.0)));
-    inflowForm->Assemble();
-    return inflowForm;
 }
 
 std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
@@ -128,27 +118,6 @@ void Solver::run()
     pd_->SetTime(0.0);
     pd_->Save();
 
-    //FE_Evolution adv(MInv_, ez_, inflowForm_);
-
-    //double t = 0.0;
-    //adv.SetTime(t);
-    //ode_solver->Init(adv);
-
-    //for (int ti = 0; !done; )
-    //{
-    //    double dt_real = std::min(opts_.dt, opts_.t_final - t);
-    //    ode_solver->Step(ezNew, t, dt_real);
-    //    ti++;
-
-    //    done = (t >= opts_.t_final - 1e-8 * opts_.dt);
-
-    //    if (done || ti % opts_.vis_steps == 0){
-    //   
-    //        pd_->SetCycle(ti);
-    //        pd_->SetTime(t);
-    //        pd_->Save();
-    //    }
-    //}
     for (int cycle = 0; !done;)
     {
 
