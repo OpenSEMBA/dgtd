@@ -19,6 +19,8 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
+    boundaryTDOFs_ = buildTrueBoundaryDOF();
+
     MInv_ = buildMassMatrix();
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
@@ -50,10 +52,17 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
     }
 }
 
+mfem::Array<int> Solver::buildTrueBoundaryDOF()
+{
+    mfem::Array<int> boundaryTDOF;
+    fes_.get()->GetBoundaryTrueDofs(boundaryTDOF);
+    return boundaryTDOF;
+}
+
 std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
 {
     auto MInv = std::make_unique<BilinearForm>(fes_.get());
-    MInv->AddDomainIntegrator(new MassIntegrator);
+    MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
     MInv->Assemble();
     MInv->Finalize();
     return MInv;
@@ -76,7 +85,8 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
     double alpha = -1.0, beta = 0.0; 
     kDir->AddInteriorFaceIntegrator(
-            new DGTraceIntegrator(n[d], alpha, beta));
+        new TransposeIntegrator(
+            new DGTraceIntegrator(n[d], alpha, beta)));
 
     int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
@@ -93,7 +103,7 @@ void Solver::setInitialElectricField(std::function<ElectricField(const Position&
 void Solver::initializeParaviewData()
 {
     pd_ = NULL;
-    pd_ = std::make_unique<ParaViewDataCollection>("Example", &mesh_);
+    pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView", &mesh_);
     pd_->SetPrefixPath("ParaView");
     pd_->RegisterField("ez", &ez_);
     pd_->RegisterField("hx", &hx_);
@@ -138,6 +148,8 @@ void Solver::run()
         MInv_->Mult(aux, hxNew);
         hxNew *= opts_.dt;
         hxNew.Add(1.0, hx_);
+
+        ez_.ProjectCoefficient(ConstantCoefficient(0.0), boundaryTDOFs_);
 
         ez_ = ezNew;
         hx_ = hxNew;

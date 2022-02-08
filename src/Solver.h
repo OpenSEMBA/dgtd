@@ -39,9 +39,9 @@ private:
     std::unique_ptr<mfem::DG_FECollection> fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
 
-    mfem::Mesh mesh_;
+    mfem::Array<int> boundaryTDOFs_;
 
-    std::unique_ptr<mfem::LinearForm> inflowForm_;
+    mfem::Mesh mesh_;
 
     std::unique_ptr<mfem::BilinearForm> MInv_;
     std::unique_ptr<mfem::BilinearForm> Kx_;
@@ -52,6 +52,7 @@ private:
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
+    mfem::Array<int> Solver::buildTrueBoundaryDOF();
     std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeOperator(const Direction&) const;
 

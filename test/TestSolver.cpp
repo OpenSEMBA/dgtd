@@ -72,8 +72,6 @@ TEST_F(TestSolver, checkRun)
 	
 	solver.setInitialElectricField(AnalyticalFunctions::standingWaveFunction);
 	solver.run();
-
-
 }
 TEST_F(TestSolver, checkMeshDimensions) 
 {
