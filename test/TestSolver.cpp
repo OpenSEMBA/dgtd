@@ -59,6 +59,7 @@ TEST_F(TestSolver, checkRun)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 	
 	Solver::Options opts;
+	opts.order = 1;
 	opts.t_final = 1;
 	opts.vis_steps = 1;
 	AnalyticalFunctions::standingWaveModeX = 1;

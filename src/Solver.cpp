@@ -83,10 +83,23 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
         VectorConstantCoefficient(Vector({0.0, 1.0}))
     };
 
-    double alpha = -1.0, beta = 0.0; 
+
+    double alpha = 0.0;
+    if (d == X) {
+        alpha = 1.0;
+    }
+    else {
+        alpha = -1.0;
+    }
+
+
+    double beta = 0.0; 
     kDir->AddInteriorFaceIntegrator(
         new TransposeIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta)));
+    kDir->AddBdrFaceIntegrator(
+        new TransposeIntegrator(
+            new DGTraceIntegrator(n[d], -alpha, beta)));
 
     int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
@@ -149,11 +162,11 @@ void Solver::run()
         hxNew *= opts_.dt;
         hxNew.Add(1.0, hx_);
 
-        ez_.ProjectCoefficient(ConstantCoefficient(0.0), boundaryTDOFs_);
-
         ez_ = ezNew;
         hx_ = hxNew;
         hy_ = hyNew;
+
+       //ez_.ProjectCoefficient(ConstantCoefficient(0.0), boundaryTDOFs_);
 
         time += opts_.dt;
         cycle++;
