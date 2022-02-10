@@ -19,7 +19,7 @@ namespace AnalyticalFunctions {
 			normalizedPos[i] = 2 * (pos[i] - center) / (meshBoundingBoxMax[i] - meshBoundingBoxMin[i]);
 		}
 
-		return exp(-10. * (pow(normalizedPos[0], 2) + pow(normalizedPos[1], 2)));
+		return exp(-20. * (pow(normalizedPos[0], 2) + pow(normalizedPos[1], 2)));
 	}
 
 	double standingWaveFunction(const Solver::Position& pos)
@@ -55,16 +55,16 @@ protected:
 
 TEST_F(TestSolver, checkRun)
 {
-	int nx = 8; int ny = 8; bool generateEdges = true;
+	int nx = 21; int ny = 21; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	//const char* mesh_file = "periodic-square.mesh";
+	//const char* mesh_file = "ref-square.mesh";
 	//mfem::Mesh *readmesh = new mfem::Mesh(mesh_file, 1, 1);
 	//mfem::Mesh mesh = mfem::Mesh(*readmesh);
 
 	Solver::Options opts;
-	//opts.order = 1;
-	//opts.dt = 1e-3;
-	opts.t_final = 1;
+	opts.order = 2;
+	opts.dt = 1e-3;
+	opts.t_final = 0.05;
 	opts.vis_steps = 1;
 	AnalyticalFunctions::standingWaveModeX = 1;
 	AnalyticalFunctions::standingWaveModeY = 1;
@@ -75,7 +75,7 @@ TEST_F(TestSolver, checkRun)
 		AnalyticalFunctions::meshBoundingBoxMax);
 
 	
-	solver.setInitialElectricField(AnalyticalFunctions::standingWaveFunction);
+	solver.setInitialElectricField(AnalyticalFunctions::gaussianFunction);
 	solver.run();
 }
 TEST_F(TestSolver, checkMeshDimensions) 

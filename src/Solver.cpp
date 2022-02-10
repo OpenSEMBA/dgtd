@@ -18,8 +18,10 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
     fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+    fecH1_ = std::make_unique<H1_FECollection>(opts_.order, mesh_.Dimension());
+    fesH1_ = std::make_unique<FiniteElementSpace>(&mesh_, fecH1_.get());
 
-    boundaryTDOFs_ = buildTrueBoundaryDOF();
+    boundaryTDOFs_ = buildEssentialTrueDOF();
 
     MInv_ = buildMassMatrix();
     Kx_ = buildDerivativeOperator(X);
@@ -52,11 +54,17 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
     }
 }
 
-mfem::Array<int> Solver::buildTrueBoundaryDOF()
+mfem::Array<int> Solver::buildEssentialTrueDOF()
 {
-    mfem::Array<int> boundaryTDOF;
-    fes_.get()->GetBoundaryTrueDofs(boundaryTDOF);
-    return boundaryTDOF;
+    Array<int> ess_tdof_list;
+    if (mesh_.bdr_attributes.Size())
+    {
+        Array<int> ess_bdr(mesh_.bdr_attributes.Max());
+        ess_bdr = 1;
+        fesH1_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+    }
+    std::cout << ess_tdof_list << std::endl;
+    return ess_tdof_list;
 }
 
 std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
@@ -71,18 +79,19 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
 std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direction& d) const
 {
     assert(d != X || d != Y, "Incorrect argument for direction.");
-    
+
     auto kDir = std::make_unique<BilinearForm>(fes_.get());
 
     ConstantCoefficient one(1.0);
 
-    kDir->AddDomainIntegrator(new DerivativeIntegrator(one, d));
-    
+    kDir->AddDomainIntegrator(
+        new TransposeIntegrator(
+            new DerivativeIntegrator(one, d)));
+
     std::vector<VectorConstantCoefficient> n = {
         VectorConstantCoefficient(Vector({1.0, 0.0})),
         VectorConstantCoefficient(Vector({0.0, 1.0}))
     };
-
 
     double alpha = 0.0;
     if (d == X) {
@@ -92,14 +101,17 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
         alpha = -1.0;
     }
 
+    double beta = 0.0;
 
-    double beta = 0.0; 
+    //kDir->AddBoundaryIntegrator(new DGTraceIntegrator(n[d], alpha, beta));
+
     //kDir->AddInteriorFaceIntegrator(
     //    new TransposeIntegrator(
     //        new DGTraceIntegrator(n[d], alpha, beta)));
     //kDir->AddBdrFaceIntegrator(
     //    new TransposeIntegrator(
     //        new DGTraceIntegrator(n[d], -alpha, beta)));
+
 
     int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
@@ -154,12 +166,12 @@ void Solver::run()
         ezNew.Add(1.0, ez_);
 
         // Update H.
-        Kx_->Mult(ez_, aux);
+        Kx_->Mult(ezNew, aux);
         MInv_->Mult(aux, hyNew);
         hyNew *= -opts_.dt;
         hyNew.Add(1.0, hy_);
 
-        Ky_->Mult(ez_, aux);
+        Ky_->Mult(ezNew, aux);
         MInv_->Mult(aux, hxNew);
         hxNew *= opts_.dt;
         hxNew.Add(1.0, hx_);
