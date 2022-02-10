@@ -57,9 +57,13 @@ TEST_F(TestSolver, checkRun)
 {
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	
+	//const char* mesh_file = "periodic-square.mesh";
+	//mfem::Mesh *readmesh = new mfem::Mesh(mesh_file, 1, 1);
+	//mfem::Mesh mesh = mfem::Mesh(*readmesh);
+
 	Solver::Options opts;
-	opts.order = 1;
+	//opts.order = 1;
+	//opts.dt = 1e-3;
 	opts.t_final = 1;
 	opts.vis_steps = 1;
 	AnalyticalFunctions::standingWaveModeX = 1;
