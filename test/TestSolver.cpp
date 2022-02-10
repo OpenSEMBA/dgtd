@@ -138,4 +138,25 @@ TEST_F(TestSolver, checkMeshInvariance)
 	EXPECT_EQ(meshMap.size(), solverMeshMap.size());
 }
 
+namespace mfem {
+
+	TEST(MFEM, checkMassMatrix)
+	{
+		int order = 1;
+		int dimension = 1;
+		FiniteElementCollection* fec;
+		FiniteElementSpace* fes;
+
+		Mesh mesh = Mesh::MakeCartesian1D(1);
+		fec = new H1_FECollection(order, dimension);
+		fes = new FiniteElementSpace(&mesh, fec);
+		BilinearForm massMatrix(fes);
+		
+		massMatrix.AddDomainIntegrator(new MassIntegrator);
+
+
+
+	}
+}
+
 
