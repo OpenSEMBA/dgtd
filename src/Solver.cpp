@@ -94,12 +94,12 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
 
     double beta = 0.0; 
-    kDir->AddInteriorFaceIntegrator(
-        new TransposeIntegrator(
-            new DGTraceIntegrator(n[d], -alpha, beta)));
-    kDir->AddBdrFaceIntegrator(
-        new TransposeIntegrator(
-            new DGTraceIntegrator(n[d], alpha, beta)));
+    //kDir->AddInteriorFaceIntegrator(
+    //    new TransposeIntegrator(
+    //        new DGTraceIntegrator(n[d], alpha, beta)));
+    //kDir->AddBdrFaceIntegrator(
+    //    new TransposeIntegrator(
+    //        new DGTraceIntegrator(n[d], -alpha, beta)));
 
     int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
@@ -137,6 +137,8 @@ void Solver::run()
     Vector hxNew(fes_->GetVSize());
     Vector hyNew(fes_->GetVSize());
 
+    aux = 0.0; ezNew = 0.0; hxNew = 0.0; hyNew = 0.0;
+
     pd_->SetCycle(0);
     pd_->SetTime(0.0);
     pd_->Save();
@@ -152,12 +154,12 @@ void Solver::run()
         ezNew.Add(1.0, ez_);
 
         // Update H.
-        Kx_->Mult(ezNew, aux);
+        Kx_->Mult(ez_, aux);
         MInv_->Mult(aux, hyNew);
         hyNew *= -opts_.dt;
         hyNew.Add(1.0, hy_);
 
-        Ky_->Mult(ezNew, aux);
+        Ky_->Mult(ez_, aux);
         MInv_->Mult(aux, hxNew);
         hxNew *= opts_.dt;
         hxNew.Add(1.0, hx_);
