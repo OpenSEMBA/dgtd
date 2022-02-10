@@ -162,6 +162,45 @@ namespace mfem {
 		EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), 1e-3);
 
 	}
+
+	TEST(DG, checkMassMatrixIsSameForH1andDG)
+	{
+		const int maxOrder = 5;
+		const int dimension = 1;
+		Mesh mesh = Mesh::MakeCartesian1D(1);
+
+		for (int order = 1; order < maxOrder; order++) {
+
+			std::cout << "Checking order: " << order << std::endl;
+
+			FiniteElementSpace* fesH1 = new FiniteElementSpace(
+				&mesh, new H1_FECollection(order, dimension, BasisType::ClosedUniform));
+
+			FiniteElementSpace* fesDG = new FiniteElementSpace(
+				&mesh,new DG_FECollection(order, dimension, BasisType::ClosedUniform));
+
+			BilinearForm massMatrixH1(fesH1);
+			massMatrixH1.AddDomainIntegrator(new MassIntegrator);
+			massMatrixH1.Assemble();
+			massMatrixH1.Finalize();
+
+			BilinearForm massMatrixDG(fesDG);
+			massMatrixDG.AddDomainIntegrator(new MassIntegrator);
+			massMatrixDG.Assemble();
+			massMatrixDG.Finalize();
+
+			ASSERT_EQ(massMatrixH1.NumRows(), massMatrixDG.NumRows());
+			ASSERT_EQ(massMatrixH1.NumCols(), massMatrixDG.NumCols());
+
+			for (std::size_t i = 0; i < massMatrixDG.NumRows(); i++) {
+				for (std::size_t j = 0; j < massMatrixDG.NumCols(); j++) {
+					EXPECT_NEAR(massMatrixDG(i, j), massMatrixH1(i, j), 1e-5);
+				}
+			}
+		}
+
+
+	}
 }
 
 
