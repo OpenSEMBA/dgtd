@@ -140,7 +140,7 @@ TEST_F(TestSolver, checkMeshInvariance)
 
 namespace mfem {
 
-	TEST(MFEM, checkMassMatrix)
+	TEST(DG, checkMassMatrix)
 	{
 		int order = 1;
 		int dimension = 1;
@@ -150,11 +150,16 @@ namespace mfem {
 		Mesh mesh = Mesh::MakeCartesian1D(1);
 		fec = new H1_FECollection(order, dimension);
 		fes = new FiniteElementSpace(&mesh, fec);
-		BilinearForm massMatrix(fes);
 		
+		BilinearForm massMatrix(fes);
 		massMatrix.AddDomainIntegrator(new MassIntegrator);
+		massMatrix.Assemble();
+		massMatrix.Finalize();
 
-
+		EXPECT_NEAR(2.0 / 6.0, massMatrix(0, 0), 1e-3);
+		EXPECT_NEAR(1.0 / 6.0, massMatrix(0, 1), 1e-3);
+		EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), 1e-3);
+		EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), 1e-3);
 
 	}
 }
