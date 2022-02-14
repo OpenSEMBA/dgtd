@@ -51,8 +51,8 @@ namespace HelperFunctions {
 		int width = op->Width();
 		int height = op->Height();
 		mfem::SparseMatrix res(height,height);
-
 		mfem::Vector x(width), y(height);
+
 		x = 0.0;
 
 		for (int i = 0; i < width; i++)
@@ -223,18 +223,6 @@ namespace mfem {
 			const Operator* rotatorH1 = fesH1->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
 
 			mfem::SparseMatrix rotatorMatrix = HelperFunctions::operatorToSparseMatrix(rotatorH1);
-			
-			rotatorMatrix.PrintMatlab(std::cout);
-
-			//GridFunction H1Nodes(fesH1);
-			//meshH1.GetNodes(H1Nodes);
-			//GridFunction DGNodes(fesDG);
-			//meshDG.GetNodes(DGNodes);
-
-			//GridFunction newH1Nodes(fesH1);
-			//rotatorH1->Mult(H1Nodes, newH1Nodes);
-
-			//rotatorH1->PrintMatlab(std::cout);
 
 			BilinearForm massMatrixH1(fesH1);
 			massMatrixH1.AddDomainIntegrator(new MassIntegrator);
@@ -244,16 +232,6 @@ namespace mfem {
 			massMatrixDG.AddDomainIntegrator(new MassIntegrator);
 			massMatrixDG.Assemble();
 			massMatrixDG.Finalize();
-			BilinearForm rotatedMassMatrixH1(fesH1);
-			rotatedMassMatrixH1.AddDomainIntegrator(new MassIntegrator);
-			rotatedMassMatrixH1.Assemble();
-			rotatedMassMatrixH1.Finalize();
-
-
-			//massMatrixH1.Print(std::cout);
-			//std::cout << std::endl;
-			//massMatrixDG.Print(std::cout);
-			//std::cout << std::endl;
 
 			ASSERT_EQ(massMatrixH1.NumRows(), massMatrixDG.NumRows());
 			ASSERT_EQ(massMatrixH1.NumCols(), massMatrixDG.NumCols());
