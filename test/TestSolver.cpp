@@ -37,6 +37,42 @@ namespace AnalyticalFunctions {
 	}
 }
 
+namespace HelperFunctions {
+		
+	mfem::Array<int> getH1LexOrder(const mfem::H1_FECollection* fec) {
+		auto* fe = fec->FiniteElementForGeometry(mfem::Geometry::SEGMENT);
+		const mfem::NodalFiniteElement* nodal_fe =
+			dynamic_cast<const mfem::NodalFiniteElement*>(fe);
+		mfem::Array<int> lexOrder = nodal_fe->GetLexicographicOrdering();
+		return lexOrder;
+	}
+	mfem::SparseMatrix operatorToSparseMatrix(const mfem::Operator* op) {
+		
+		int width = op->Width();
+		int height = op->Height();
+		mfem::SparseMatrix res(height,height);
+
+		mfem::Vector x(width), y(height);
+		x = 0.0;
+
+		for (int i = 0; i < width; i++)
+		{
+			x(i) = 1.0;
+			op->Mult(x, y);
+			for (int j = 0; j < height; j++)
+			{
+				if (y(j) != 0.0)
+				{
+					res.Add(i, j, y[j]);
+				}
+			}
+			x(i) = 0.0;
+		}
+
+		res.Finalize();
+		return res;
+	}
+}
 
 class TestSolver : public ::testing::Test {
 protected:
@@ -76,7 +112,7 @@ TEST_F(TestSolver, checkRun)
 
 	
 	solver.setInitialElectricField(AnalyticalFunctions::gaussianFunction);
-	solver.run();
+	//solver.run();
 }
 TEST_F(TestSolver, checkMeshDimensions) 
 {
@@ -167,27 +203,57 @@ namespace mfem {
 	{
 		const int maxOrder = 5;
 		const int dimension = 1;
-		Mesh mesh = Mesh::MakeCartesian1D(1);
+		Mesh meshH1 = Mesh::MakeCartesian1D(1);
+		Mesh meshDG = Mesh::MakeCartesian1D(1);
 
-		for (int order = 1; order < maxOrder; order++) {
+		for (int order = 3; order < maxOrder; order++) {
 
 			std::cout << "Checking order: " << order << std::endl;
 
-			FiniteElementSpace* fesH1 = new FiniteElementSpace(
-				&mesh, new H1_FECollection(order, dimension, BasisType::ClosedUniform));
+			auto fecH1 = new H1_FECollection(order, dimension, BasisType::ClosedUniform);
+			auto fecDG = new DG_FECollection(order, dimension, BasisType::ClosedUniform);
 
+			FiniteElementSpace* fesH1 = new FiniteElementSpace(
+				&meshH1, fecH1);
 			FiniteElementSpace* fesDG = new FiniteElementSpace(
-				&mesh,new DG_FECollection(order, dimension, BasisType::ClosedUniform));
+				&meshDG, fecDG);
+
+			auto lexOrderH1 = HelperFunctions::getH1LexOrder(fecH1);
+
+			const Operator* rotatorH1 = fesH1->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
+
+			mfem::SparseMatrix rotatorMatrix = HelperFunctions::operatorToSparseMatrix(rotatorH1);
+			
+			rotatorMatrix.PrintMatlab(std::cout);
+
+			//GridFunction H1Nodes(fesH1);
+			//meshH1.GetNodes(H1Nodes);
+			//GridFunction DGNodes(fesDG);
+			//meshDG.GetNodes(DGNodes);
+
+			//GridFunction newH1Nodes(fesH1);
+			//rotatorH1->Mult(H1Nodes, newH1Nodes);
+
+			//rotatorH1->PrintMatlab(std::cout);
 
 			BilinearForm massMatrixH1(fesH1);
 			massMatrixH1.AddDomainIntegrator(new MassIntegrator);
 			massMatrixH1.Assemble();
 			massMatrixH1.Finalize();
-
 			BilinearForm massMatrixDG(fesDG);
 			massMatrixDG.AddDomainIntegrator(new MassIntegrator);
 			massMatrixDG.Assemble();
 			massMatrixDG.Finalize();
+			BilinearForm rotatedMassMatrixH1(fesH1);
+			rotatedMassMatrixH1.AddDomainIntegrator(new MassIntegrator);
+			rotatedMassMatrixH1.Assemble();
+			rotatedMassMatrixH1.Finalize();
+
+
+			//massMatrixH1.Print(std::cout);
+			//std::cout << std::endl;
+			//massMatrixDG.Print(std::cout);
+			//std::cout << std::endl;
 
 			ASSERT_EQ(massMatrixH1.NumRows(), massMatrixDG.NumRows());
 			ASSERT_EQ(massMatrixH1.NumCols(), massMatrixDG.NumCols());
@@ -198,9 +264,5 @@ namespace mfem {
 				}
 			}
 		}
-
-
 	}
 }
-
-
