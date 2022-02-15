@@ -91,9 +91,42 @@ namespace HelperFunctions {
 			}
 		}
 	}
+
+	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element) {
+		switch (dimension) {
+		case 1:
+			return Mesh::MakeCartesian1D(1);
+			break;
+		case 2:
+			switch (element) {
+			case Element::TRIANGLE:
+				return Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE);
+				break;
+			case Element::QUADRILATERAL:
+				return Mesh::MakeCartesian2D(1, 1, Element::QUADRILATERAL);
+				break;
+			default:
+				throw std::exception("Incorrect combination of dimension and/or element type.");
+			}
+		case 3:
+			switch (element) {
+			case Element::HEXAHEDRON:
+				return Mesh::MakeCartesian3D(1, 1, 1, Element::HEXAHEDRON);
+				break;
+			case Element::WEDGE:
+				return Mesh::MakeCartesian3D(1, 1, 1, Element::WEDGE);
+				break;
+			case Element::TETRAHEDRON:
+				return Mesh::MakeCartesian3D(1, 1, 1, Element::TETRAHEDRON);
+				break;
+			default:
+				throw std::exception("Incorrect combination of dimension and/or element type.");
+			}
+		default:
+			throw std::exception("Dimension must be 2 or 3 with Element argument. Or dimension 1, which ignores element.");
+		} 
+	}
 }
-
-
 
 TEST(DG, checkMassMatrix)
 {
@@ -122,14 +155,13 @@ TEST(DG, checkMassMatrixIsSameForH1andDG)
 {
 	const int maxOrder = 10;
 	int order = 1;
-	Mesh mesh = Mesh::MakeCartesian1D(1);
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2, Element::QUADRILATERAL);
 
 	for (order; order < maxOrder; order++) {
 
 		ASSERT_EQ(1, mesh.GetNE());
 
 		HelperFunctions::compareH1AndDGMassMatrixes(order, mesh, BasisType::ClosedUniform);
-
 	}
 }
 
@@ -137,10 +169,17 @@ TEST(DG, checkDataValueOutsideNodes)
 {
 	const int dimension = 1;
 	const int order = 1;
-	Mesh mesh = Mesh::MakeCartesian1D(1);
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2,Element::QUADRILATERAL);
 
 	auto fecH1 = new H1_FECollection(order, dimension, BasisType::GaussLegendre);
 	auto* fesH1 = new FiniteElementSpace(&mesh, fecH1);
+
+	BilinearForm massMatrixH1(fesH1);
+	massMatrixH1.AddDomainIntegrator(new MassIntegrator);
+	massMatrixH1.Assemble();
+	massMatrixH1.Finalize();
+
+
 
 
 
