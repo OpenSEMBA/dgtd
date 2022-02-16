@@ -164,8 +164,10 @@ TEST(DG, checkDataValueForBasisFunctionNodes)
 
 	GridFunction solution;
 	solution.SetSpace(fesDG);
+	Vector nodalVect;
+	solution.GetNodalValues(nodalVect);
 	IntegrationPoint integPoint;
-	std::ofstream DataFile("BasisFunctionOrder" + std::to_string(order) + ".txt");
+	std::ofstream DataFile("BasisFunctionOrder" + std::to_string(order) + ".csv");
 	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.01) {
 		integPoint.Set(xVal, 0.0, 0.0, 0.0);
 		double interpolatedPoint = solution.GetValue(0, integPoint);

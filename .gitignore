@@ -2,7 +2,7 @@
 out/
 ParaView/
 
-*.txt
+*.csv
 
 *.json
 
