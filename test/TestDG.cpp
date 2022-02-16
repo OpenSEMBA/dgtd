@@ -154,27 +154,32 @@ namespace HelperFunctions {
 	}
 }
 
-TEST(DG, checkDataValueForBasisFunctionNodes)
+TEST(DG, printGLVISDataForBasisFunctionNodes)
 {
 	const int dimension = 1;
 	const int order = 1;
+
+	Vector nodalVector(order + 1);
+	Vector dofVector(order + 1);
+	IntegrationPoint integPoint;
+	Array<int> vdofs;
+	
 	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);
 	auto fecDG = new DG_FECollection(order, dimension);
 	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
 
-	GridFunction solution;
-	solution.SetSpace(fesDG);
-	Vector nodalVect;
-	solution.GetNodalValues(nodalVect);
-	IntegrationPoint integPoint;
-	std::ofstream DataFile("BasisFunctionOrder" + std::to_string(order) + ".csv");
-	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.01) {
-		integPoint.Set(xVal, 0.0, 0.0, 0.0);
-		double interpolatedPoint = solution.GetValue(0, integPoint);
-		DataFile << xVal << " " << interpolatedPoint << std::endl;
+	int ndof = fesDG->GetVSize();
+	fesDG->GetVDofs(dimension, vdofs);
+
+	GridFunction** solution = new GridFunction*[ndof];
+	
+	for (int i = 0; i < ndof; i++) {
+		solution[i] = new GridFunction(fesDG);
+		*solution[i] = 0.0;
+		(*solution[i])(vdofs[i]) = 1.0;
 	}
-	DataFile.close();
 }
+
 TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	const int dimension = 1;
@@ -193,6 +198,7 @@ TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
+
 TEST(DG, checkMassMatrix)
 {
 	int order = 1;
