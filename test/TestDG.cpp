@@ -152,6 +152,10 @@ namespace HelperFunctions {
 	{
 		sol.ProjectCoefficient(FunctionCoefficient(f));
 	}
+
+	void SaveData(GridFunction& gf, const char* filename) {
+		gf.Save(filename);
+	}
 }
 
 TEST(DG, printGLVISDataForBasisFunctionNodes)
@@ -169,15 +173,18 @@ TEST(DG, printGLVISDataForBasisFunctionNodes)
 	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
 
 	int ndof = fesDG->GetVSize();
-	fesDG->GetVDofs(dimension, vdofs);
+	fesDG->GetElementVDofs(0, vdofs);
 
-	GridFunction** solution = new GridFunction*[ndof];
+	GridFunction** solution = new GridFunction * [ndof];	
 	
 	for (int i = 0; i < ndof; i++) {
 		solution[i] = new GridFunction(fesDG);
 		*solution[i] = 0.0;
 		(*solution[i])(vdofs[i]) = 1.0;
+		const char* filename = "Lag2_N" + static_cast<char>(i);
+		HelperFunctions::SaveData(*solution[i], filename);
 	}
+	HelperFunctions::SaveData(**solution, "save.gf");
 }
 
 TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
