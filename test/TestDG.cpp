@@ -6,20 +6,22 @@ using namespace mfem;
 
 namespace HelperFunctions {
 
-	mfem::Array<int> getH1LexOrder(const mfem::H1_FECollection* fec) {
-		auto* fe = fec->FiniteElementForGeometry(mfem::Geometry::SEGMENT);
-		const mfem::NodalFiniteElement* nodal_fe =
-			dynamic_cast<const mfem::NodalFiniteElement*>(fe);
-		mfem::Array<int> lexOrder = nodal_fe->GetLexicographicOrdering();
+	Array<int> getH1LexOrder(const H1_FECollection* fec) 
+	{
+		auto* fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+		const NodalFiniteElement* nodal_fe =
+			dynamic_cast<const NodalFiniteElement*>(fe);
+		Array<int> lexOrder = nodal_fe->GetLexicographicOrdering();
 		return lexOrder;
 	}
 
-	mfem::SparseMatrix operatorToSparseMatrix(const mfem::Operator* op) {
+	SparseMatrix operatorToSparseMatrix(const Operator* op) 
+	{
 
 		int width = op->Width();
 		int height = op->Height();
-		mfem::SparseMatrix res(height, height);
-		mfem::Vector x(width), y(height);
+		SparseMatrix res(height, height);
+		Vector x(width), y(height);
 
 		x = 0.0;
 
@@ -40,7 +42,8 @@ namespace HelperFunctions {
 		res.Finalize();
 		return res;
 	}
-	void compareH1AndDGMassMatrixes(int& order, Mesh& mesh, const int& basis) {
+	void compareH1AndDGMassMatrixes(int& order, Mesh& mesh, const int& basis) 
+	{
 
 		std::cout << "Checking order: " << order << std::endl;
 
@@ -92,11 +95,17 @@ namespace HelperFunctions {
 		}
 	}
 
-	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element) {
+	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element) 
+	{
 		switch (dimension) {
 		case 1:
-			return Mesh::MakeCartesian1D(1);
-			break;
+			switch (element) {
+			case Element::SEGMENT:
+				return Mesh::MakeCartesian1D(1);
+				break;
+			default:
+				throw std::exception("1-Dimensional meshes can only be SEGMENT based.");
+			}
 		case 2:
 			switch (element) {
 			case Element::TRIANGLE:
@@ -106,7 +115,7 @@ namespace HelperFunctions {
 				return Mesh::MakeCartesian2D(1, 1, Element::QUADRILATERAL);
 				break;
 			default:
-				throw std::exception("Incorrect combination of dimension and/or element type.");
+				throw std::exception("2-Dimensional meshes can only be TRIANGLE or QUADRILATERAL based.");
 			}
 		case 3:
 			switch (element) {
@@ -120,14 +129,46 @@ namespace HelperFunctions {
 				return Mesh::MakeCartesian3D(1, 1, 1, Element::TETRAHEDRON);
 				break;
 			default:
-				throw std::exception("Incorrect combination of dimension and/or element type.");
+				throw std::exception("3-Dimensional meshes can only be HEXAEDRON, WEDGE or TETRAHEDRON based.");
 			}
 		default:
 			throw std::exception("Dimension must be 2 or 3 with Element argument. Or dimension 1, which ignores element.");
 		} 
 	}
-}
 
+	double linearFunction(const Vector& pos)
+	{
+		double normalizedPos;
+		double leftBoundary = 0.0, rightBoundary = 1.0;
+		double length = rightBoundary - leftBoundary;
+		normalizedPos = (pos[0] - leftBoundary) / length;
+
+		return 2*normalizedPos;
+	}
+
+	void setInitialCondition(GridFunction& sol,std::function<double(const Vector&)> f) 
+	{
+		sol.ProjectCoefficient(FunctionCoefficient(f));
+	}
+}
+TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
+{
+	const int dimension = 1;
+	const int order = 1;
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1,Element::SEGMENT);
+	auto fecDG = new DG_FECollection(order, dimension, BasisType::GaussLegendre);
+	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
+
+	GridFunction solution;
+	solution.SetSpace(fesDG);
+	solution.ProjectCoefficient(FunctionCoefficient(HelperFunctions::linearFunction));
+	IntegrationPoint integPoint;
+	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.1) {
+		integPoint.Set(xVal, 0.0, 0.0, 0.0);
+		double interpolatedPoint = solution.GetValue(0, integPoint);
+		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
+	}
+}
 TEST(DG, checkMassMatrix)
 {
 	int order = 1;
@@ -165,22 +206,3 @@ TEST(DG, checkMassMatrixIsSameForH1andDG)
 	}
 }
 
-TEST(DG, checkDataValueOutsideNodes)
-{
-	const int dimension = 1;
-	const int order = 1;
-	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2,Element::QUADRILATERAL);
-
-	auto fecH1 = new H1_FECollection(order, dimension, BasisType::GaussLegendre);
-	auto* fesH1 = new FiniteElementSpace(&mesh, fecH1);
-
-	BilinearForm massMatrixH1(fesH1);
-	massMatrixH1.AddDomainIntegrator(new MassIntegrator);
-	massMatrixH1.Assemble();
-	massMatrixH1.Finalize();
-
-
-
-
-
-}
