@@ -1,4 +1,6 @@
 #include "gtest/gtest.h"
+#include <iostream>
+#include <fstream>
 
 #include "mfem.hpp"
 
@@ -150,6 +152,26 @@ namespace HelperFunctions {
 	{
 		sol.ProjectCoefficient(FunctionCoefficient(f));
 	}
+}
+
+TEST(DG, checkDataValueForBasisFunctionNodes)
+{
+	const int dimension = 1;
+	const int order = 1;
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);
+	auto fecDG = new DG_FECollection(order, dimension);
+	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
+
+	GridFunction solution;
+	solution.SetSpace(fesDG);
+	IntegrationPoint integPoint;
+	std::ofstream DataFile("BasisFunctionOrder" + std::to_string(order) + ".txt");
+	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.01) {
+		integPoint.Set(xVal, 0.0, 0.0, 0.0);
+		double interpolatedPoint = solution.GetValue(0, integPoint);
+		DataFile << xVal << " " << interpolatedPoint << std::endl;
+	}
+	DataFile.close();
 }
 TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
