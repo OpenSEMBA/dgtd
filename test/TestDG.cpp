@@ -3,6 +3,10 @@
 #include <fstream>
 
 #include "mfem.hpp"
+#include "../../mfemlib4.3/miniapps/common/mfem-common.hpp"
+#include "../../mfemlib4.3/miniapps/common/fem_extras.hpp"
+#include "../../mfemlib4.3/miniapps/common/fem_extras.cpp"
+#include <vector>
 
 using namespace mfem;
 
@@ -158,6 +162,8 @@ namespace HelperFunctions {
 	}
 }
 
+
+
 TEST(DG, printGLVISDataForBasisFunctionNodes)
 {
 	const int dimension = 1;
@@ -181,10 +187,12 @@ TEST(DG, printGLVISDataForBasisFunctionNodes)
 		solution[i] = new GridFunction(fesDG);
 		*solution[i] = 0.0;
 		(*solution[i])(vdofs[i]) = 1.0;
-		const char* filename = "Lag2_N" + static_cast<char>(i);
+		std::string stringName = "L2_O" + std::to_string(order) + "_SEG_N" + std::to_string(i) + ".gf";
+		const char* filename = stringName.c_str();
 		HelperFunctions::SaveData(*solution[i], filename);
 	}
 	HelperFunctions::SaveData(**solution, "save.gf");
+	mesh.Save("mesh.mesh");
 }
 
 TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
@@ -243,3 +251,82 @@ TEST(DG, checkMassMatrixIsSameForH1andDG)
 	}
 }
 
+TEST(DG, visualizeGLVISDataForBasisFunctionNodes)
+{
+	const int dimension = 1;
+	const int order = 1;
+
+	char vishost[] = "localhost";
+	int  visport = 19916;
+
+	struct VisWinLayout
+	{
+		int nx;
+		int ny;
+		int w;
+		int h;
+	};
+
+	VisWinLayout vwl;
+	vwl.nx = 5;
+	vwl.ny = 3;
+	vwl.w = 250;
+	vwl.h = 250;
+
+
+	bool visualization = true;
+	int onlySome = -1;
+
+	std::vector<socketstream*> socket;
+
+
+	Vector nodalVector(order + 1);
+	Vector dofVector(order + 1);
+	IntegrationPoint integPoint;
+	Array<int> vdofs;
+
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);
+	auto fecDG = new DG_FECollection(order, dimension);
+	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
+
+	int ndof = fesDG->GetVSize();
+	fesDG->GetElementVDofs(0, vdofs);
+
+	int offx = vwl.w + 10, offy = vwl.h + 45; // window offsets
+
+	for (unsigned int i = 0; i < socket.size(); i++)
+	{
+		*socket[i] << "keys q";
+		delete socket[i];
+	}
+
+	socket.resize(ndof);
+	for (int i = 0; i < ndof; i++)
+	{
+		socket[i] = new socketstream; socket[i]->precision(8);
+	}
+	GridFunction** solution = new GridFunction * [ndof];
+
+	for (int i = 0; i < ndof; i++) {
+		solution[i] = new GridFunction(fesDG);
+		*solution[i] = 0.0;
+		(*solution[i])(vdofs[i]) = 1.0;
+	}
+
+	int stopAt = ndof;
+	bool vec = false;
+
+	for (int i = 0; i < stopAt; i++)
+	{
+		if (i == 0 && onlySome > 0 && onlySome < ndof)
+		{
+			i = onlySome - 1;
+			stopAt = std::min(ndof, onlySome + 9);
+		}
+
+		std::ostringstream oss;
+		oss << "DoF " << i + 1;
+		mfem::common::VisualizeField(*socket[i], vishost, visport, *solution[i], oss.str().c_str(),
+			(i % vwl.nx) * offx, ((i / vwl.nx) % vwl.ny) * offy, vwl.w, vwl.h, "aaAc", vec);
+	}
+}
