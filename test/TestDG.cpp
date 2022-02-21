@@ -48,6 +48,7 @@ namespace HelperFunctions {
 		res.Finalize();
 		return res;
 	}
+
 	void compareH1AndDGMassMatrixes(int& order, Mesh& mesh, const int& basis) 
 	{
 
@@ -160,9 +161,8 @@ namespace HelperFunctions {
 	void SaveData(GridFunction& gf, const char* filename) {
 		gf.Save(filename);
 	}
+
 }
-
-
 
 TEST(DG, printGLVISDataForBasisFunctionNodes)
 {
@@ -194,7 +194,6 @@ TEST(DG, printGLVISDataForBasisFunctionNodes)
 	HelperFunctions::SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
-
 TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	const int dimension = 1;
@@ -213,7 +212,6 @@ TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
-
 TEST(DG, checkMassMatrix)
 {
 	int order = 1;
@@ -237,6 +235,53 @@ TEST(DG, checkMassMatrix)
 
 }
 
+TEST(DG, checkStiffnessMatrix)
+{
+	int order = 1;
+	const int dimension = 1;
+	FiniteElementCollection* fec;
+	FiniteElementSpace* fes;
+
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	fec = new DG_FECollection(order, dimension,BasisType::GaussLobatto);
+	fes = new FiniteElementSpace(&mesh, fec);
+	//Coefficient* one = new ConstantCoefficient(1.0);
+
+	BilinearForm stiffnessMatrix(fes);
+	stiffnessMatrix.AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(
+				*(new ConstantCoefficient(1.0)),0)));
+	stiffnessMatrix.Assemble();
+	stiffnessMatrix.Finalize();
+
+	auto stiffnessSparse = stiffnessMatrix.SpMat();
+	auto stiffnessDense = stiffnessSparse.ToDenseMatrix();
+
+	stiffnessDense->Print(std::cout);
+
+	switch (order) {
+	case 1:
+		EXPECT_NEAR(1.0, stiffnessMatrix(0, 0), 1e-3);
+		EXPECT_NEAR(-1.0, stiffnessMatrix(0, 1), 1e-3);
+		EXPECT_NEAR(-1.0, stiffnessMatrix(1, 0), 1e-3);
+		EXPECT_NEAR(1.0, stiffnessMatrix(1, 1), 1e-3);
+		break;
+	case 2:
+		EXPECT_NEAR(3.0 / 7.0, stiffnessMatrix(0, 0), 1e-3);
+		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(0, 1), 1e-3);
+		EXPECT_NEAR(3.0 / 1.0, stiffnessMatrix(0, 2), 1e-3);
+		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(1, 0), 1e-3);
+		EXPECT_NEAR(3.0 / 16.0, stiffnessMatrix(1, 1), 1e-3);
+		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(1, 2), 1e-3);
+		EXPECT_NEAR(3.0 / 1.0, stiffnessMatrix(2, 0), 1e-3);
+		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(2, 1), 1e-3);
+		EXPECT_NEAR(3.0 / 7.0, stiffnessMatrix(2, 2), 1e-3);
+		break;
+	}
+
+}
+
 TEST(DG, checkMassMatrixIsSameForH1andDG)
 {
 	const int maxOrder = 10;
@@ -250,7 +295,6 @@ TEST(DG, checkMassMatrixIsSameForH1andDG)
 		HelperFunctions::compareH1AndDGMassMatrixes(order, mesh, BasisType::ClosedUniform);
 	}
 }
-
 TEST(DG, visualizeGLVISDataForBasisFunctionNodes)
 {
 	const int dimension = 1;
