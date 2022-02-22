@@ -37,7 +37,6 @@ namespace AnalyticalFunctions {
 	}
 }
 
-
 class TestSolver : public ::testing::Test {
 protected:
 	
@@ -55,16 +54,16 @@ protected:
 
 TEST_F(TestSolver, checkRun)
 {
-	int nx = 21; int ny = 21; bool generateEdges = true;
-	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	//const char* mesh_file = "ref-square.mesh";
-	//mfem::Mesh *readmesh = new mfem::Mesh(mesh_file, 1, 1);
-	//mfem::Mesh mesh = mfem::Mesh(*readmesh);
+	//int nx = 21; int ny = 21; bool generateEdges = true;
+	//mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+	const char* mesh_file = "square3x3.mesh";
+	mfem::Mesh *readmesh = new mfem::Mesh(mesh_file, 1, 1);
+	mfem::Mesh mesh = mfem::Mesh(*readmesh);
 
 	Solver::Options opts;
-	opts.order = 2;
-	opts.dt = 1e-3;
-	opts.t_final = 0.05;
+	opts.order = 1;
+	//opts.dt = 1e-3;
+	opts.t_final = 0.5;
 	opts.vis_steps = 1;
 	AnalyticalFunctions::standingWaveModeX = 1;
 	AnalyticalFunctions::standingWaveModeY = 1;
@@ -76,7 +75,7 @@ TEST_F(TestSolver, checkRun)
 
 	
 	solver.setInitialElectricField(AnalyticalFunctions::gaussianFunction);
-	//solver.run();
+	solver.run();
 }
 TEST_F(TestSolver, checkMeshDimensions) 
 {

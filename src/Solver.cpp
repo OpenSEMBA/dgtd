@@ -63,7 +63,6 @@ mfem::Array<int> Solver::buildEssentialTrueDOF()
         ess_bdr = 1;
         fesH1_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
     }
-    std::cout << ess_tdof_list << std::endl;
     return ess_tdof_list;
 }
 
@@ -103,11 +102,11 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
     double beta = 0.0;
 
+    auto boundaries = boundaryTDOFs_;
+
+    kDir->AddBoundaryIntegrator(new DGTraceIntegrator(n[d], alpha, beta), boundaries);
     //kDir->AddBoundaryIntegrator(new DGTraceIntegrator(n[d], alpha, beta));
 
-    //kDir->AddInteriorFaceIntegrator(
-    //    new TransposeIntegrator(
-    //        new DGTraceIntegrator(n[d], alpha, beta)));
     //kDir->AddBdrFaceIntegrator(
     //    new TransposeIntegrator(
     //        new DGTraceIntegrator(n[d], -alpha, beta)));
@@ -149,8 +148,6 @@ void Solver::run()
     Vector hxNew(fes_->GetVSize());
     Vector hyNew(fes_->GetVSize());
 
-    aux = 0.0; ezNew = 0.0; hxNew = 0.0; hyNew = 0.0;
-
     pd_->SetCycle(0);
     pd_->SetTime(0.0);
     pd_->Save();
@@ -179,8 +176,6 @@ void Solver::run()
         ez_ = ezNew;
         hx_ = hxNew;
         hy_ = hyNew;
-
-       //ez_.ProjectCoefficient(ConstantCoefficient(0.0), boundaryTDOFs_);
 
         time += opts_.dt;
         cycle++;

@@ -164,7 +164,9 @@ namespace HelperFunctions {
 
 }
 
-TEST(DG, printGLVISDataForBasisFunctionNodes)
+class DG : public ::testing::Test {
+};
+TEST_F(DG, printGLVISDataForBasisFunctionNodes)
 {
 	const int dimension = 1;
 	const int order = 1;
@@ -194,7 +196,7 @@ TEST(DG, printGLVISDataForBasisFunctionNodes)
 	HelperFunctions::SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
-TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
+TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	const int dimension = 1;
 	const int order = 1;
@@ -212,7 +214,7 @@ TEST(DG, checkDataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
-TEST(DG, checkMassMatrix)
+TEST_F(DG, checkMassMatrix)
 {
 	int order = 1;
 	int dimension = 1;
@@ -235,7 +237,7 @@ TEST(DG, checkMassMatrix)
 
 }
 
-TEST(DG, checkStiffnessMatrix)
+TEST_F(DG, checkStiffnessMatrix)
 {
 	int order = 1;
 	const int dimension = 1;
@@ -259,6 +261,7 @@ TEST(DG, checkStiffnessMatrix)
 	auto stiffnessDense = stiffnessSparse.ToDenseMatrix();
 
 	stiffnessDense->Print(std::cout);
+	std::cout << std::endl;
 
 	switch (order) {
 	case 1:
@@ -282,7 +285,7 @@ TEST(DG, checkStiffnessMatrix)
 
 }
 
-TEST(DG, checkMassMatrixIsSameForH1andDG)
+TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 {
 	const int maxOrder = 10;
 	int order = 1;
@@ -295,7 +298,7 @@ TEST(DG, checkMassMatrixIsSameForH1andDG)
 		HelperFunctions::compareH1AndDGMassMatrixes(order, mesh, BasisType::ClosedUniform);
 	}
 }
-TEST(DG, visualizeGLVISDataForBasisFunctionNodes)
+TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 {
 	const int dimension = 1;
 	const int order = 1;
