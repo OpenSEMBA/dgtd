@@ -236,7 +236,6 @@ TEST_F(DG, checkMassMatrix)
 	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), 1e-3);
 
 }
-
 TEST_F(DG, checkStiffnessMatrix)
 {
 	int order = 1;
@@ -284,7 +283,6 @@ TEST_F(DG, checkStiffnessMatrix)
 	}
 
 }
-
 TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 {
 	const int maxOrder = 10;

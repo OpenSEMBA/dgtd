@@ -86,7 +86,6 @@ TEST_F(TestSolver, checkMeshDimensions)
 	EXPECT_EQ(nx*ny, mesh.GetNE());
 
 }
-
 TEST_F(TestSolver, checkMeshElementVertices) 
 {
 
@@ -109,6 +108,44 @@ TEST_F(TestSolver, checkMeshElementVertices)
 
 }
 
+TEST_F(TestSolver, checkMeshBoundaries)
+{
+	int order = 1;
+	int dimension = 2;
+	int nx = 3; int ny = 3; bool generateEdges = true;
+	mfem::Mesh meshAuto = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+	const char* mesh_file = "square3x3.mesh";
+	mfem::Mesh* readmesh = new mfem::Mesh(mesh_file, 1, 1);
+	mfem::Mesh meshManual = mfem::Mesh(*readmesh);
+
+	auto fec = new mfem::DG_FECollection(order, dimension, mfem::BasisType::GaussLegendre);
+
+	auto fesAuto = new mfem::FiniteElementSpace(&meshAuto, fec);
+	auto fesManual = new mfem::FiniteElementSpace(&meshManual, fec);
+
+	mfem::Array<int> ess_tdof_list_auto;
+	if (meshAuto.bdr_attributes.Size())
+	{
+		mfem::Array<int> ess_bdr_auto(meshAuto.bdr_attributes.Max());
+		ess_bdr_auto = 1;
+		fesAuto->GetEssentialTrueDofs(ess_bdr_auto, ess_tdof_list_auto);
+	}
+
+	mfem::Array<int> ess_tdof_list_manual;
+	if (meshManual.bdr_attributes.Size())
+	{
+		mfem::Array<int> ess_bdr_manual(meshManual.bdr_attributes.Max());
+		ess_bdr_manual = 1;
+		fesManual->GetEssentialTrueDofs(ess_bdr_manual, ess_tdof_list_manual);
+	}
+
+	meshAuto.Print(std::cout);
+	std::cout << std::endl;
+	meshManual.Print(std::cout);
+	std::cout << std::endl;
+
+	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
+}
 TEST_F(TestSolver, mapMeshElementAndVertex) 
 {
 
@@ -121,7 +158,6 @@ TEST_F(TestSolver, mapMeshElementAndVertex)
 	EXPECT_EQ(nx*ny-1, mapped.size()-1);
 	EXPECT_EQ(nx-1, mapped[mapped.size()-1]);
 }
-
 TEST_F(TestSolver, checkMeshInvariance) 
 {
 
