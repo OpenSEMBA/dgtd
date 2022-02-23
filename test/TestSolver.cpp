@@ -63,8 +63,8 @@ TEST_F(TestSolver, checkRun)
 	Solver::Options opts;
 	opts.order = 1;
 	//opts.dt = 1e-3;
-	opts.t_final = 0.5;
-	opts.vis_steps = 1;
+	opts.t_final = 3;
+	opts.vis_steps = 2;
 	AnalyticalFunctions::standingWaveModeX = 1;
 	AnalyticalFunctions::standingWaveModeY = 1;
 	
