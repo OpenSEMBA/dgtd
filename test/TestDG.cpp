@@ -166,36 +166,6 @@ namespace HelperFunctions {
 
 class DG : public ::testing::Test {
 };
-TEST_F(DG, printGLVISDataForBasisFunctionNodes)
-{
-	const int dimension = 1;
-	const int order = 1;
-
-	Vector nodalVector(order + 1);
-	Vector dofVector(order + 1);
-	IntegrationPoint integPoint;
-	Array<int> vdofs;
-	
-	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);
-	auto fecDG = new DG_FECollection(order, dimension);
-	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
-
-	int ndof = fesDG->GetVSize();
-	fesDG->GetElementVDofs(0, vdofs);
-
-	GridFunction** solution = new GridFunction * [ndof];	
-	
-	for (int i = 0; i < ndof; i++) {
-		solution[i] = new GridFunction(fesDG);
-		*solution[i] = 0.0;
-		(*solution[i])(vdofs[i]) = 1.0;
-		std::string stringName = "L2_O" + std::to_string(order) + "_SEG_N" + std::to_string(i) + ".gf";
-		const char* filename = stringName.c_str();
-		HelperFunctions::SaveData(*solution[i], filename);
-	}
-	HelperFunctions::SaveData(**solution, "save.gf");
-	mesh.Save("mesh.mesh");
-}
 TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	const int dimension = 1;
@@ -235,6 +205,20 @@ TEST_F(DG, checkMassMatrix)
 	EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), 1e-3);
 	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), 1e-3);
 
+}
+
+TEST_F(DG, checkMassMatrixIsSameForH1andDG)
+{
+	const int maxOrder = 10;
+	int order = 1;
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2, Element::QUADRILATERAL);
+
+	for (order; order < maxOrder; order++) {
+
+		ASSERT_EQ(1, mesh.GetNE());
+
+		HelperFunctions::compareH1AndDGMassMatrixes(order, mesh, BasisType::ClosedUniform);
+	}
 }
 TEST_F(DG, checkStiffnessMatrix)
 {
@@ -283,18 +267,19 @@ TEST_F(DG, checkStiffnessMatrix)
 	}
 
 }
-TEST_F(DG, checkMassMatrixIsSameForH1andDG)
+
+TEST_F(DG, checkFluxOperators)
 {
-	const int maxOrder = 10;
 	int order = 1;
-	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2, Element::QUADRILATERAL);
+	const int dimension = 1;
+	FiniteElementCollection* fec;
+	FiniteElementSpace* fes;
 
-	for (order; order < maxOrder; order++) {
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
+	fes = new FiniteElementSpace(&mesh, fec);
 
-		ASSERT_EQ(1, mesh.GetNE());
-
-		HelperFunctions::compareH1AndDGMassMatrixes(order, mesh, BasisType::ClosedUniform);
-	}
+	BilinearForm fluxForm(fes);
 }
 TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 {
@@ -374,4 +359,35 @@ TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 		mfem::common::VisualizeField(*socket[i], vishost, visport, *solution[i], oss.str().c_str(),
 			(i % vwl.nx) * offx, ((i / vwl.nx) % vwl.ny) * offy, vwl.w, vwl.h, "aaAc", vec);
 	}
+}
+
+TEST_F(DG, printGLVISDataForBasisFunctionNodes)
+{
+	const int dimension = 1;
+	const int order = 1;
+
+	Vector nodalVector(order + 1);
+	Vector dofVector(order + 1);
+	IntegrationPoint integPoint;
+	Array<int> vdofs;
+
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);
+	auto fecDG = new DG_FECollection(order, dimension);
+	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
+
+	int ndof = fesDG->GetVSize();
+	fesDG->GetElementVDofs(0, vdofs);
+
+	GridFunction** solution = new GridFunction * [ndof];
+
+	for (int i = 0; i < ndof; i++) {
+		solution[i] = new GridFunction(fesDG);
+		*solution[i] = 0.0;
+		(*solution[i])(vdofs[i]) = 1.0;
+		std::string stringName = "L2_O" + std::to_string(order) + "_SEG_N" + std::to_string(i) + ".gf";
+		const char* filename = stringName.c_str();
+		HelperFunctions::SaveData(*solution[i], filename);
+	}
+	HelperFunctions::SaveData(**solution, "save.gf");
+	mesh.Save("mesh.mesh");
 }

@@ -22,6 +22,17 @@ namespace AnalyticalFunctions {
 		return exp(-20. * (pow(normalizedPos[0], 2) + pow(normalizedPos[1], 2)));
 	}
 
+	double gaussianFunction1D(const mfem::Vector pos)
+	{
+		mfem::Vector normalizedPos(2);
+		for (size_t i = 0; i < 2; i++) {
+			double center = 0.5;
+			normalizedPos[i] = 2 * (pos[i] - center);
+		}
+
+		return exp(-20. * (pow(normalizedPos[0], 2)));
+	}
+
 	double standingWaveFunction(const Solver::Position& pos)
 	{
 		mfem::Vector normalizedPos(2);
@@ -51,20 +62,19 @@ protected:
 		return res;
 	}
 };
-
 TEST_F(TestSolver, checkRun)
 {
-	//int nx = 21; int ny = 21; bool generateEdges = true;
-	//mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	const char* mesh_file = "square3x3.mesh";
-	mfem::Mesh *readmesh = new mfem::Mesh(mesh_file, 1, 1);
-	mfem::Mesh mesh = mfem::Mesh(*readmesh);
+	int nx = 9; int ny = 9; bool generateEdges = true;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+	//const char* mesh_file = "square3x3.mesh";
+	//mfem::Mesh *readmesh = new mfem::Mesh(mesh_file, 1, 1);
+	//mfem::Mesh mesh = mfem::Mesh(*readmesh);
 
 	Solver::Options opts;
-	opts.order = 1;
+	opts.order = 2;
 	//opts.dt = 1e-3;
-	opts.t_final = 3;
-	opts.vis_steps = 2;
+	opts.t_final = 1;
+	opts.vis_steps = 1;
 	AnalyticalFunctions::standingWaveModeX = 1;
 	AnalyticalFunctions::standingWaveModeY = 1;
 	
@@ -107,7 +117,6 @@ TEST_F(TestSolver, checkMeshElementVertices)
 	EXPECT_EQ(lastElementVerticesVector, vectorLastElement);
 
 }
-
 TEST_F(TestSolver, checkMeshBoundaries)
 {
 	int order = 1;
@@ -171,5 +180,101 @@ TEST_F(TestSolver, checkMeshInvariance)
 	ASSERT_EQ(mesh.Dimension(), solver.getMesh().Dimension());
 	EXPECT_EQ(meshMap[0], solverMeshMap[0]);
 	EXPECT_EQ(meshMap.size(), solverMeshMap.size());
+}
+
+namespace mfem {
+TEST_F(TestSolver, oneDimensional)
+{
+	int order = 1;
+	const int dimension = 1;
+	FiniteElementCollection* fec;
+	FiniteElementSpace* fes;
+
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
+	fes = new FiniteElementSpace(&mesh, fec);
+
+	BilinearForm massMatrix(fes);
+	massMatrix.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+	massMatrix.Assemble();
+	massMatrix.Finalize();
+
+	ConstantCoefficient one(1.0);
+	BilinearForm K(fes);
+	K.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
+	K.Assemble();
+	K.Finalize();
+
+	std::vector<VectorConstantCoefficient> n = {
+		VectorConstantCoefficient(Vector({1.0})),
+	};
+
+	BilinearForm fluxForm(fes);
+	fluxForm.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
+	fluxForm.AddInteriorFaceIntegrator(new DGTraceIntegrator(n[0], 0.0, 1.0));
+	fluxForm.Assemble();
+	fluxForm.Finalize();
+
+	double gaussianFunction = exp(-20. * (pow(0, 2) + pow(1, 2)));
+
+	GridFunction Ez(fes);
+	Ez.ProjectCoefficient(FunctionCoefficient(AnalyticalFunctions::gaussianFunction1D));
+	GridFunction Hy(fes);
+
+	std::unique_ptr<ParaViewDataCollection> pd = NULL;
+	pd = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh);
+	pd->SetPrefixPath("ParaView");
+	pd->RegisterField("ez", &Ez);
+	pd->RegisterField("hy", &Hy);
+	pd->SetDataFormat(VTKFormat::BINARY);
+	pd->SetHighOrderOutput(true);
+
+	double time = 0.0;
+	bool done = false;
+	double dt = 1e-2;
+	double t_final = 2.0;
+	int vis_steps = 1;
+
+	Vector aux(fes->GetVSize());
+	Vector ezNew(fes->GetVSize());
+	Vector hyNew(fes->GetVSize());
+
+	pd->SetCycle(0);
+	pd->SetTime(0.0);
+	pd->Save();
+
+	for (int cycle = 0; !done;)
+	{
+
+		// Update E.
+		K.Mult(Hy, aux);
+		massMatrix.Mult(aux, ezNew);
+		ezNew *= -dt;
+		ezNew.Add(1.0, Ez);
+
+		// Update H.
+		K.Mult(ezNew, aux);
+		massMatrix.Mult(aux, hyNew);
+		hyNew *= -dt;
+		hyNew.Add(1.0, Hy);
+
+		Ez = ezNew;
+		Hy = hyNew;
+
+		time += dt;
+		cycle++;
+
+		done = (time >= t_final - 1e-8 * dt);
+
+		if (done || cycle % vis_steps == 0) {
+			pd->SetCycle(cycle);
+			pd->SetTime(time);
+			pd->Save();
+		}
+	}
+	
+
+}
+
 }
 
