@@ -222,7 +222,7 @@ TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 }
 TEST_F(DG, checkStiffnessMatrix)
 {
-	int order = 1;
+	int order = 2;
 	const int dimension = 1;
 	FiniteElementCollection* fec;
 	FiniteElementSpace* fes;
@@ -234,9 +234,8 @@ TEST_F(DG, checkStiffnessMatrix)
 
 	BilinearForm stiffnessMatrix(fes);
 	stiffnessMatrix.AddDomainIntegrator(
-		new TransposeIntegrator(
 			new DerivativeIntegrator(
-				*(new ConstantCoefficient(1.0)),0)));
+				*(new ConstantCoefficient(1.0)),0));
 	stiffnessMatrix.Assemble();
 	stiffnessMatrix.Finalize();
 
@@ -248,21 +247,21 @@ TEST_F(DG, checkStiffnessMatrix)
 
 	switch (order) {
 	case 1:
-		EXPECT_NEAR(1.0, stiffnessMatrix(0, 0), 1e-3);
-		EXPECT_NEAR(-1.0, stiffnessMatrix(0, 1), 1e-3);
-		EXPECT_NEAR(-1.0, stiffnessMatrix(1, 0), 1e-3);
-		EXPECT_NEAR(1.0, stiffnessMatrix(1, 1), 1e-3);
+		EXPECT_NEAR(-0.5, stiffnessDense->Elem(0, 0), 1e-3);
+		EXPECT_NEAR(0.5, stiffnessDense->Elem(0, 1), 1e-3);
+		EXPECT_NEAR(-0.5, stiffnessDense->Elem(1, 0), 1e-3);
+		EXPECT_NEAR(0.5, stiffnessDense->Elem(1, 1), 1e-3);
 		break;
 	case 2:
-		EXPECT_NEAR(3.0 / 7.0, stiffnessMatrix(0, 0), 1e-3);
-		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(0, 1), 1e-3);
-		EXPECT_NEAR(3.0 / 1.0, stiffnessMatrix(0, 2), 1e-3);
-		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(1, 0), 1e-3);
-		EXPECT_NEAR(3.0 / 16.0, stiffnessMatrix(1, 1), 1e-3);
-		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(1, 2), 1e-3);
-		EXPECT_NEAR(3.0 / 1.0, stiffnessMatrix(2, 0), 1e-3);
-		EXPECT_NEAR(3.0 / -8.0, stiffnessMatrix(2, 1), 1e-3);
-		EXPECT_NEAR(3.0 / 7.0, stiffnessMatrix(2, 2), 1e-3);
+		EXPECT_NEAR(-5e-1, stiffnessDense->Elem(0, 0), 1e-3);
+		EXPECT_NEAR(6.6667e-1 ,stiffnessDense->Elem(0, 1), 1e-3);
+		EXPECT_NEAR(-1.6667e-1 ,stiffnessDense->Elem(0, 2), 1e-3);
+		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(1, 0), 1e-3);
+		EXPECT_NEAR(0.0 ,stiffnessDense->Elem(1, 1), 1e-3);
+		EXPECT_NEAR(6.6667e-1,stiffnessDense->Elem(1, 2), 1e-3);
+		EXPECT_NEAR(1.6667e-1,stiffnessDense->Elem(2, 0), 1e-3);
+		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(2, 1), 1e-3);
+		EXPECT_NEAR(5e-1 ,stiffnessDense->Elem(2, 2), 1e-3);
 		break;
 	}
 

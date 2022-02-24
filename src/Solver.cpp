@@ -105,11 +105,9 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
     auto boundaries = boundaryTDOFs_;
 
     kDir->AddInteriorFaceIntegrator(
-        new TransposeIntegrator(
-            new DGTraceIntegrator(n[d], alpha, beta)));
+            new DGTraceIntegrator(n[d], alpha, beta));
     kDir->AddBdrFaceIntegrator(
-        new TransposeIntegrator(
-            new DGTraceIntegrator(n[d], alpha, beta)));
+            new DGTraceIntegrator(n[d], alpha, beta));
 
     int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
