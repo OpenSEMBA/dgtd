@@ -64,11 +64,20 @@ protected:
 };
 TEST_F(TestSolver, checkRun)
 {
+	/*The purpose of this test is to check the run() function for the solver object
+	and change the available different options.
+	
+	First, dimensional variables are declared and a mesh is constructed, along with the declaration
+	of different useful variables.
+	
+	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
+	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
+	
+	Lastly, the run() function is called.*/
+
+	
 	int nx = 9; int ny = 9; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
-	//const char* mesh_file = "square3x3.mesh";
-	//mfem::Mesh *readmesh = new mfem::Mesh(mesh_file, 1, 1);
-	//mfem::Mesh mesh = mfem::Mesh(*readmesh);
 
 	Solver::Options opts;
 	opts.order = 2;
@@ -212,15 +221,26 @@ TEST_F(TestSolver, mapMeshElementAndVertex)
 }
 TEST_F(TestSolver, checkMeshInvariance) 
 {
+	/* This test aimed to prove mesh invariance after being used by our Solver object, and
+	* deep the understanding of C++ programming.
+	
+	First, dimensional variables are declared, a mesh object is constructed and copied for comparison purposes,
+	a Solver object is created by inputting the mesh as a parameter.
+	
+	Then, the copied mesh and solver object's mesh get their top left vertex extracted for each element.
+	
+	Lastly, several comparisons are made to the copied mesh and the solver's mesh, such as dimension, vertex index
+	and size.*/
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
+	auto meshCopy = mfem::Mesh(mesh);
 	Solver solver(Solver::Options(), mesh);
 
-	std::vector<int> meshMap = mapQuadElementTopLeftVertex(mesh);
+	std::vector<int> meshMap = mapQuadElementTopLeftVertex(meshCopy);
 	std::vector<int> solverMeshMap = mapQuadElementTopLeftVertex(solver.getMesh());
 
-	ASSERT_EQ(mesh.Dimension(), solver.getMesh().Dimension());
+	ASSERT_EQ(meshCopy.Dimension(), solver.getMesh().Dimension());
 	EXPECT_EQ(meshMap[0], solverMeshMap[0]);
 	EXPECT_EQ(meshMap.size(), solverMeshMap.size());
 }
@@ -228,6 +248,8 @@ TEST_F(TestSolver, checkMeshInvariance)
 namespace mfem {
 TEST_F(TestSolver, oneDimensional)
 {
+
+	/*This test is a WIP.*/
 	int order = 1;
 	const int dimension = 1;
 	FiniteElementCollection* fec;

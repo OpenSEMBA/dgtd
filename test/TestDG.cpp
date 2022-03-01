@@ -168,6 +168,20 @@ class DG : public ::testing::Test {
 };
 TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
+	/* The purpose of this test is to ensure we can extract data from a GridFunction,
+	even if the point we're trying to obtain it at is not necessarily a DoF or node.
+	
+	First, the basic process to declare and initialise a FiniteElementSpace is done,
+	this means variables such as dimension, order, creating a mesh, a FEC and a finally,
+	the FES.
+	
+	A GridFunction is then created and assigned the FES. A function is projected in the
+	GridFunction, which is a linear function with a slope of 2.
+	
+	Lastly, an IntegrationPoint is constructed, which we will use to obtain the values
+	from the GridFunction at any point we want. As the slope of the line is 2, we expect
+	the values to be 2 times the xVal.*/
+	
 	const int dimension = 1;
 	const int order = 1;
 	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1,Element::SEGMENT);
@@ -186,8 +200,21 @@ TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
 }
 TEST_F(DG, checkMassMatrix)
 {
+	/*The purpose of this text is to check the values of a Mass Matrix 
+	for an order 1, 1D line with a single element.
+	
+	First, the basic variables and objects to create a FiniteElementSpace are 
+	declared.
+	
+	Then, a BilinearForm is created, in which we add a domain integrator for the
+	Mass Matrix, which is MassIntegrator.
+	
+	Then, we compare the values of the Mass Matrix with those found in Silvester,
+	Appendix 3 for a 1D Line Segment.*/
+	
+	const double tol = 1e-3;
 	int order = 1;
-	int dimension = 1;
+	const int dimension = 1;
 	FiniteElementCollection* fec;
 	FiniteElementSpace* fes;
 
@@ -200,15 +227,17 @@ TEST_F(DG, checkMassMatrix)
 	massMatrix.Assemble();
 	massMatrix.Finalize();
 
-	EXPECT_NEAR(2.0 / 6.0, massMatrix(0, 0), 1e-3);
-	EXPECT_NEAR(1.0 / 6.0, massMatrix(0, 1), 1e-3);
-	EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), 1e-3);
-	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), 1e-3);
+	EXPECT_NEAR(2.0 / 6.0, massMatrix(0, 0), tol);
+	EXPECT_NEAR(1.0 / 6.0, massMatrix(0, 1), tol);
+	EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), tol);
+	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), tol);
 
 }
 
 TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 {
+	/*This test is awaiting reformatting.*/
+	
 	const int maxOrder = 5;
 	int order = 1;
 	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2, Element::QUADRILATERAL);
@@ -222,6 +251,21 @@ TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 }
 TEST_F(DG, checkStiffnessMatrix)
 {
+	/*The purpose of this text is to check the values of a Stiffness Matrix
+	for a 1D line with a single element.
+
+	First, the basic variables and objects to create a FiniteElementSpace are
+	declared.
+
+	Then, a BilinearForm is created, in which we add a domain integrator for the
+	Stiffness Matrix, which is DerivativeIntegrator. We extract the sparse matrix
+	stored inside the BilinearForm, and then convert it to a Dense, for comparing
+	purposes.
+
+	Then, we compare the values of the Stiffness Matrix with those calculated
+	through Hesthaven's MatLab code for a 1D Line Segment with a single element.*/
+	
+	const double tol = 1e-3;
 	int order = 2;
 	const int dimension = 1;
 	FiniteElementCollection* fec;
@@ -230,7 +274,6 @@ TEST_F(DG, checkStiffnessMatrix)
 	Mesh mesh = Mesh::MakeCartesian1D(1);
 	fec = new DG_FECollection(order, dimension,BasisType::GaussLobatto);
 	fes = new FiniteElementSpace(&mesh, fec);
-	//Coefficient* one = new ConstantCoefficient(1.0);
 
 	BilinearForm stiffnessMatrix(fes);
 	stiffnessMatrix.AddDomainIntegrator(
@@ -246,27 +289,29 @@ TEST_F(DG, checkStiffnessMatrix)
 
 	switch (order) {
 	case 1:
-		EXPECT_NEAR(-0.5, stiffnessDense->Elem(0, 0), 1e-3);
-		EXPECT_NEAR(0.5, stiffnessDense->Elem(0, 1), 1e-3);
-		EXPECT_NEAR(-0.5, stiffnessDense->Elem(1, 0), 1e-3);
-		EXPECT_NEAR(0.5, stiffnessDense->Elem(1, 1), 1e-3);
+		EXPECT_NEAR(-0.5, stiffnessDense->Elem(0, 0), tol);
+		EXPECT_NEAR(0.5, stiffnessDense->Elem(0, 1), tol);
+		EXPECT_NEAR(-0.5, stiffnessDense->Elem(1, 0), tol);
+		EXPECT_NEAR(0.5, stiffnessDense->Elem(1, 1), tol);
 		break;
 	case 2:
-		EXPECT_NEAR(-5e-1, stiffnessDense->Elem(0, 0), 1e-3);
-		EXPECT_NEAR(6.6667e-1 ,stiffnessDense->Elem(0, 1), 1e-3);
-		EXPECT_NEAR(-1.6667e-1 ,stiffnessDense->Elem(0, 2), 1e-3);
-		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(1, 0), 1e-3);
-		EXPECT_NEAR(0.0 ,stiffnessDense->Elem(1, 1), 1e-3);
-		EXPECT_NEAR(6.6667e-1,stiffnessDense->Elem(1, 2), 1e-3);
-		EXPECT_NEAR(1.6667e-1,stiffnessDense->Elem(2, 0), 1e-3);
-		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(2, 1), 1e-3);
-		EXPECT_NEAR(5e-1 ,stiffnessDense->Elem(2, 2), 1e-3);
+		EXPECT_NEAR(-5e-1, stiffnessDense->Elem(0, 0), tol);
+		EXPECT_NEAR(6.6667e-1 ,stiffnessDense->Elem(0, 1), tol);
+		EXPECT_NEAR(-1.6667e-1 ,stiffnessDense->Elem(0, 2), tol);
+		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(1, 0), tol);
+		EXPECT_NEAR(0.0 ,stiffnessDense->Elem(1, 1), tol);
+		EXPECT_NEAR(6.6667e-1,stiffnessDense->Elem(1, 2), tol);
+		EXPECT_NEAR(1.6667e-1,stiffnessDense->Elem(2, 0), tol);
+		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(2, 1), tol);
+		EXPECT_NEAR(5e-1 ,stiffnessDense->Elem(2, 2), tol);
 		break;
 	}
 }
 
 TEST_F(DG, checkFluxOperators)
 {
+	/*This test is a WIP.*/
+
 	int order = 1;
 	const int dimension = 1;
 	FiniteElementCollection* fec;
@@ -280,6 +325,10 @@ TEST_F(DG, checkFluxOperators)
 }
 TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 {
+	/*This test aims to show the Basis Functions through GLVIS visualization.
+	
+	This test has to be reformatted to be properly commented.*/
+	
 	const int dimension = 1;
 	const int order = 1;
 
@@ -300,12 +349,10 @@ TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 	vwl.w = 250;
 	vwl.h = 250;
 
-
 	bool visualization = true;
 	int onlySome = -1;
 
 	std::vector<socketstream*> socket;
-
 
 	Vector nodalVector(order + 1);
 	Vector dofVector(order + 1);
@@ -360,6 +407,19 @@ TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 
 TEST_F(DG, printGLVISDataForBasisFunctionNodes)
 {
+	/*This test creates files for the Basis Functions, for later visualization 
+	through GLVIS.
+	
+	First, the basic variables and objects to create a FiniteElementSpace are
+	declared.
+
+	Then, the number of VDoFs are extracted from the fes.
+
+	Lastly, for each DoF, a 1.0 is assigned to only one of the nodes, while the rest
+	are left at 0.0, then a file is written through the GridFunction SaveData function
+	for each of the Basis Functions. The mesh too, is saved as a file.
+	*/
+	
 	const int dimension = 1;
 	const int order = 2;
 
