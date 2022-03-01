@@ -65,7 +65,7 @@ protected:
 TEST_F(TestSolver, checkRun)
 {
 	/*The purpose of this test is to check the run() function for the solver object
-	and change the available different options.
+	and test the different available options.
 	
 	First, dimensional variables are declared and a mesh is constructed, along with the declaration
 	of different useful variables.
@@ -205,9 +205,9 @@ TEST_F(TestSolver, mapMeshElementAndVertex)
 	in an integer vector.
 	
 	Lastly, we compare that the first mapped vertex is the first created vertex in the mesh 0,
-	the top left vertex for the uppermost, rightmost element is equal to the horizontal dimension - 1,
-	and the size of the mapped vertices vector is equal to the number of elements in the mesh - 1 (as
-	it starts with index 0).*/
+	the top left vertex for the uppermost, rightmost element is equal to the last element's index - 1 
+	(due to how mesh mapping works), and the size of the mapped vertices vector is equal to the number 
+	of elements in the mesh - 1 (as it starts with index 0).*/
 
 	int nx = 5; int ny = 5; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
@@ -215,7 +215,7 @@ TEST_F(TestSolver, mapMeshElementAndVertex)
 	std::vector<int> mapped = mapQuadElementTopLeftVertex(mesh);
 
 	EXPECT_EQ(0, mapped[0]);
-	EXPECT_EQ(nx - 1, mapped[nx - 1]);
+	EXPECT_EQ(nx - 1, mapped[mapped.size() -1]);
 	EXPECT_EQ(nx*ny-1, mapped.size()-1);
 	
 }
@@ -250,6 +250,7 @@ TEST_F(TestSolver, oneDimensional)
 {
 
 	/*This test is a WIP.*/
+
 	int order = 1;
 	const int dimension = 1;
 	FiniteElementCollection* fec;
