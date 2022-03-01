@@ -209,7 +209,7 @@ TEST_F(DG, checkMassMatrix)
 
 TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 {
-	const int maxOrder = 10;
+	const int maxOrder = 5;
 	int order = 1;
 	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2, Element::QUADRILATERAL);
 
@@ -239,8 +239,7 @@ TEST_F(DG, checkStiffnessMatrix)
 	stiffnessMatrix.Assemble();
 	stiffnessMatrix.Finalize();
 
-	auto stiffnessSparse = stiffnessMatrix.SpMat();
-	auto stiffnessDense = stiffnessSparse.ToDenseMatrix();
+	auto stiffnessDense = stiffnessMatrix.SpMat().ToDenseMatrix();
 
 	stiffnessDense->Print(std::cout);
 	std::cout << std::endl;
@@ -264,7 +263,6 @@ TEST_F(DG, checkStiffnessMatrix)
 		EXPECT_NEAR(5e-1 ,stiffnessDense->Elem(2, 2), 1e-3);
 		break;
 	}
-
 }
 
 TEST_F(DG, checkFluxOperators)
@@ -363,7 +361,7 @@ TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 TEST_F(DG, printGLVISDataForBasisFunctionNodes)
 {
 	const int dimension = 1;
-	const int order = 1;
+	const int order = 2;
 
 	Vector nodalVector(order + 1);
 	Vector dofVector(order + 1);

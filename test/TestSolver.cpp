@@ -89,6 +89,12 @@ TEST_F(TestSolver, checkRun)
 }
 TEST_F(TestSolver, checkMeshDimensions) 
 {
+	/*This test ensures that the number of elements of any 2D Cartesian
+	mesh is equal to the product of the horizontal and vertical segments
+	
+	Dimensional parameters are declared which are then used to create
+	a mesh object, then the test comparison is made.*/
+
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
@@ -98,6 +104,19 @@ TEST_F(TestSolver, checkMeshDimensions)
 }
 TEST_F(TestSolver, checkMeshElementVertices) 
 {
+	/*This test was created to understand the process of mesh creation
+	and assignation of vertex index to elements.
+	
+	First, dimensional variables are declared, which are then used
+	to create a new mesh object.
+	
+	Then firstElementVerticesVector and lastElementVerticesVector are 
+	initialized and assigned values manually, with the values we expect
+	these elements will have. We also retrieve the vertices for the first
+	and last element of the mesh, and then store them inside vectors.
+	
+	Lastly, we compare that the vertices we retrieved from the mesh are
+	equal to those we presumed at the start.*/
 
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
@@ -119,6 +138,19 @@ TEST_F(TestSolver, checkMeshElementVertices)
 }
 TEST_F(TestSolver, checkMeshBoundaries)
 {
+	/*In this test we aim to compare the boundary DoFs for a mesh generated through
+	the Mesh class constructors for a 2DCartesian and 'square3x3.mesh', a handcrafted mesh.
+	
+	First, we declare and initialise the variables we will require in order to create a
+	FiniteElementSpace object, that is a FiniteElementCollection and a Mesh. In this we create
+	two FES, one for the Cartesian2D mesh (Auto) and one for the handcrafted mesh (Manual).
+
+	We then extract the Boundary DoFs from each of the FES.
+
+	Lastly, we compare both of the Arrays where the DoFs are stored, to confirm that when it comes
+	to boundaries of this nature, the Cartesian2D constructor works equally to the handcrafted mesh.
+	*/
+
 	int order = 1;
 	int dimension = 2;
 	int nx = 3; int ny = 3; bool generateEdges = true;
@@ -148,15 +180,25 @@ TEST_F(TestSolver, checkMeshBoundaries)
 		fesManual->GetEssentialTrueDofs(ess_bdr_manual, ess_tdof_list_manual);
 	}
 
-	meshAuto.Print(std::cout);
-	std::cout << std::endl;
-	meshManual.Print(std::cout);
-	std::cout << std::endl;
-
 	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
 }
 TEST_F(TestSolver, mapMeshElementAndVertex) 
 {
+
+	/* This test was created with the aim to understand the mapping and ordering process
+	of a mesh in a more visual way. It uses the mapQuadElementTopLeftVertex() function
+	which, for a Quadrilateral Element, it extracts its top left vertex, which allows for a nigh
+	full mapping of the mesh.
+	
+	First, dimensional variables are declared and a mesh is constructed.
+	
+	Then, the mapQuadElementTopLeftVertex extracts the top left vertex of each element and stores them
+	in an integer vector.
+	
+	Lastly, we compare that the first mapped vertex is the first created vertex in the mesh 0,
+	the top left vertex for the uppermost, rightmost element is equal to the horizontal dimension - 1,
+	and the size of the mapped vertices vector is equal to the number of elements in the mesh - 1 (as
+	it starts with index 0).*/
 
 	int nx = 5; int ny = 5; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
@@ -164,8 +206,9 @@ TEST_F(TestSolver, mapMeshElementAndVertex)
 	std::vector<int> mapped = mapQuadElementTopLeftVertex(mesh);
 
 	EXPECT_EQ(0, mapped[0]);
+	EXPECT_EQ(nx - 1, mapped[nx - 1]);
 	EXPECT_EQ(nx*ny-1, mapped.size()-1);
-	EXPECT_EQ(nx-1, mapped[mapped.size()-1]);
+	
 }
 TEST_F(TestSolver, checkMeshInvariance) 
 {
