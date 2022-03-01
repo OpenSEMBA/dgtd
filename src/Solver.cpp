@@ -92,17 +92,15 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
         VectorConstantCoefficient(Vector({0.0, 1.0}))
     };
 
-    double alpha = 0.0;
-    if (d == X) {
-        alpha = 1.0;
-    }
-    else {
-        alpha = -1.0;
-    }
+    double alpha = -1.0;
+    //if (d == X) {
+    //    alpha = 1.0;
+    //}
+    //else {
+    //    alpha = 1.0;
+    //}
 
     double beta = 0.0;
-
-    auto boundaries = boundaryTDOFs_;
 
     kDir->AddInteriorFaceIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta));

@@ -12,7 +12,7 @@ using namespace mfem;
 
 namespace HelperFunctions {
 
-	Array<int> getH1LexOrder(const H1_FECollection* fec) 
+	Array<int> getH1LexOrder(const H1_FECollection* fec)
 	{
 		auto* fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
 		const NodalFiniteElement* nodal_fe =
@@ -21,7 +21,7 @@ namespace HelperFunctions {
 		return lexOrder;
 	}
 
-	SparseMatrix operatorToSparseMatrix(const Operator* op) 
+	SparseMatrix operatorToSparseMatrix(const Operator* op)
 	{
 
 		int width = op->Width();
@@ -49,57 +49,17 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	void compareH1AndDGMassMatrixes(int& order, Mesh& mesh, const int& basis) 
+	SparseMatrix* rotateMatrixLexico(BilinearForm& matrix)
 	{
-
-		std::cout << "Checking order: " << order << std::endl;
-
-		auto fecH1 = new H1_FECollection(order, mesh.Dimension(), basis);
-		auto fecDG = new DG_FECollection(order, mesh.Dimension(), basis);
-
-		FiniteElementSpace* fesH1 = new FiniteElementSpace(
-			&mesh, fecH1);
-		FiniteElementSpace* fesDG = new FiniteElementSpace(
-			&mesh, fecDG);
-
-		const Operator* rotatorH1 = fesH1->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
-
-		const SparseMatrix rotatorMatrix = HelperFunctions::operatorToSparseMatrix(rotatorH1);
-		rotatorMatrix.Finalized();
-
-		rotatorMatrix.Print(std::cout);
-		std::cout << std::endl;
-
-		BilinearForm massMatrixH1(fesH1);
-		massMatrixH1.AddDomainIntegrator(new MassIntegrator);
-		massMatrixH1.Assemble();
-		massMatrixH1.Finalize();
-		BilinearForm massMatrixDG(fesDG);
-		massMatrixDG.AddDomainIntegrator(new MassIntegrator);
-		massMatrixDG.Assemble();
-		massMatrixDG.Finalize();
-
-		const SparseMatrix massMatrixH1Sparse = massMatrixH1.SpMat();
-		massMatrixH1Sparse.Finalized();		
-
-		SparseMatrix* rotatedMassMatrixH1Sparse;
+		const Operator* rotatorOperator = matrix.GetFES()->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
+		const SparseMatrix rotatorMatrix = HelperFunctions::operatorToSparseMatrix(rotatorOperator);
+		const SparseMatrix matrixSparse = matrix.SpMat();
+		SparseMatrix* res;
 		{
-			auto aux = Mult(massMatrixH1Sparse, rotatorMatrix);
-			rotatedMassMatrixH1Sparse = TransposeMult(rotatorMatrix, *aux);			
+			auto aux = Mult(matrixSparse, rotatorMatrix);
+			res = TransposeMult(rotatorMatrix, *aux);
 		}
-		rotatedMassMatrixH1Sparse->Finalized();
-
-		const SparseMatrix massMatrixDGSparse = massMatrixDG.SpMat();
-		massMatrixDGSparse.Finalized();
-		
-		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumRows(), massMatrixDGSparse.NumRows());
-		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumCols(), massMatrixDGSparse.NumCols());
-
-		for (std::size_t i = 0; i < massMatrixDGSparse.NumRows(); i++) {
-			for (std::size_t j = 0; j < massMatrixDGSparse.NumCols(); j++) {
-				EXPECT_NEAR(rotatedMassMatrixH1Sparse->Elem(i, j), massMatrixDGSparse.Elem(i, j), 1e-5);
-			}
-		}
+		return res;
 	}
 
 	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element) 
@@ -236,7 +196,21 @@ TEST_F(DG, checkMassMatrix)
 
 TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 {
-	/*This test is awaiting reformatting.*/
+	/*This test compares the mass matrices for H1 and DG spaces for a mesh with a single element
+	
+	First, a mesh is built with buildCartesianMeshForOneElement() which ensures a mesh
+	with a single element will be used. Then, for different orders, FiniteElementCollection and
+	FiniteElementSpace will be created for both H1 and DG, along with a BilinearForm containing
+	the Mass Matrix for each one of them.
+	
+	Then, the BilinearForm for the Mass Matrix for H1 will have its inner Sparse Matrix rotated 
+	by applying a lexicographic rotation operator, as spaces for H1 and DG are ordered differently,
+	and be returned as a Sparse Matrix. The DG Bilinear Form will just have its Sparse Matrix
+	extracted.
+	
+	Lastly, assertions will be made to ensure the number of rows and columns are the same
+	for both matrices. To finalise, each element will be compared for the same position in the 
+	matrices.*/
 	
 	const int maxOrder = 5;
 	int order = 1;
@@ -246,7 +220,35 @@ TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 
 		ASSERT_EQ(1, mesh.GetNE());
 
-		HelperFunctions::compareH1AndDGMassMatrixes(order, mesh, BasisType::ClosedUniform);
+		std::cout << "Checking order: " << order << std::endl;
+
+		auto fecH1 = new H1_FECollection(order, mesh.Dimension(), BasisType::ClosedUniform);
+		FiniteElementSpace* fesH1 = new FiniteElementSpace(
+			&mesh, fecH1);
+		BilinearForm massMatrixH1(fesH1);
+		massMatrixH1.AddDomainIntegrator(new MassIntegrator);
+		massMatrixH1.Assemble();
+		massMatrixH1.Finalize();
+
+		auto fecDG = new DG_FECollection(order, mesh.Dimension(), BasisType::ClosedUniform);
+		FiniteElementSpace* fesDG = new FiniteElementSpace(
+			&mesh, fecDG);
+		BilinearForm massMatrixDG(fesDG);
+		massMatrixDG.AddDomainIntegrator(new MassIntegrator);
+		massMatrixDG.Assemble();
+		massMatrixDG.Finalize();
+
+		SparseMatrix* rotatedMassMatrixH1Sparse = HelperFunctions::rotateMatrixLexico(massMatrixH1);
+		SparseMatrix massMatrixDGSparse = massMatrixDG.SpMat();
+
+		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumRows(), massMatrixDGSparse.NumRows());
+		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumCols(), massMatrixDGSparse.NumCols());
+
+		for (std::size_t i = 0; i < massMatrixDGSparse.NumRows(); i++) {
+			for (std::size_t j = 0; j < massMatrixDGSparse.NumCols(); j++) {
+				EXPECT_NEAR(rotatedMassMatrixH1Sparse->Elem(i, j), massMatrixDGSparse.Elem(i, j), 1e-5);
+			}
+		}
 	}
 }
 TEST_F(DG, checkStiffnessMatrix)

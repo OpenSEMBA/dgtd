@@ -76,14 +76,14 @@ TEST_F(TestSolver, checkRun)
 	Lastly, the run() function is called.*/
 
 	
-	int nx = 9; int ny = 9; bool generateEdges = true;
+	int nx = 3; int ny = 3; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 
 	Solver::Options opts;
 	opts.order = 2;
-	//opts.dt = 1e-3;
-	opts.t_final = 1;
-	opts.vis_steps = 1;
+	opts.dt = 1e-4;
+	opts.t_final = 0.5;
+	opts.vis_steps = 50;
 	AnalyticalFunctions::standingWaveModeX = 1;
 	AnalyticalFunctions::standingWaveModeY = 1;
 	
