@@ -21,6 +21,8 @@ public:
         int precision = 8;
     };
 
+    
+
     Solver1D(const Options&, const mfem::Mesh&);
 
     void setInitialElectricField(std::function<ElectricField(const Position&)>);
@@ -28,6 +30,7 @@ public:
     mfem::Mesh& getMesh() { return mesh_; }
 
     void run();
+    void runODESolver();
 
 private:
 
@@ -42,16 +45,20 @@ private:
 
     std::unique_ptr<mfem::BilinearForm> MInv_;
     std::unique_ptr<mfem::BilinearForm> Kx_;
+    std::unique_ptr<mfem::LinearForm> B_;
+
+    mfem::Array<int> boundaryTDoF_;
 
     mfem::GridFunction Ez_, Hy_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
+    mfem::Array<int> buildEssentialTrueDOF();
     std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(const Direction&) const;
-
     void initializeParaviewData();
+
 };
 
 }

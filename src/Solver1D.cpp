@@ -6,7 +6,30 @@
 
 using namespace mfem;
 
+
+
+
 namespace Maxwell {
+
+double inflow_function(const Vector& x)
+{
+	return 0.0;
+}
+
+void velocity_function(const Vector& x, Vector& v)
+{
+	int dim = x.Size();
+
+	// map to the reference [-1,1] domain
+
+	Vector pos(dim);
+	double normalizedPos;
+	double center = (0.0 + 1.0) * 0.5;
+	normalizedPos = 2 * (pos[0] - center) / (1.0 - 0.0);
+
+	v(0) = 1.0;
+}
+
 
 Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 {
@@ -14,6 +37,7 @@ Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 
 	mesh_ = mfem::Mesh(mesh, true);
 	opts_ = opts;
+	int dim = mesh.Dimension();
 
 	fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
@@ -26,6 +50,14 @@ Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 
 	Hy_.SetSpace(fes_.get());
 	Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
+
+	auto boundaryTDoF_ = buildEssentialTrueDOF();
+	FunctionCoefficient inflow(inflow_function);
+	VectorFunctionCoefficient velocity(dim, velocity_function);
+
+	B_->AddBdrFaceIntegrator(
+		new BoundaryFlowIntegrator(inflow, velocity, 1.0));
+	B_->Assemble();
 
 	initializeParaviewData();
 }
@@ -43,6 +75,19 @@ void Solver1D::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 		throw std::exception("Incorrect parameters in Options");
 	}
 }
+
+mfem::Array<int> Solver1D::buildEssentialTrueDOF()
+{
+	Array<int> ess_tdof_list;
+	if (mesh_.bdr_attributes.Size())
+	{
+		Array<int> ess_bdr(mesh_.bdr_attributes.Max());
+		ess_bdr = 1;
+		fes_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+	}
+	return ess_tdof_list;
+}
+
 
 std::unique_ptr<mfem::BilinearForm> Solver1D::buildMassMatrix() const
 {
@@ -99,6 +144,7 @@ void Solver1D::initializeParaviewData()
 
 void Solver1D::run()
 {
+	
 	double time = 0.0;
 	bool done = false;
 
@@ -139,5 +185,32 @@ void Solver1D::run()
 			pd_->Save();
 		}
 	}
+}
+
+void Solver1D::runODESolver()
+{
+
+	double t = 0.0;
+	adv.SetTime(t);
+	ode_solver->Init(adv);
+
+	bool done = false;
+	for (int cycle = 0; !done;)
+	{
+		double dt_real = std::min(opts_.dt, opts_.t_final - t);
+		ode_solver->Step(u, t, dt_real);
+		cycle++;
+
+		done = (t >= opts_.t_final - 1e-8 * opts_.dt);
+
+		if (done || cycle % opts_.vis_steps == 0)
+		{
+
+			pd_->SetCycle(cycle);
+			pd_->SetTime(t);
+			pd_->Save();
+
+		}
+
 }
 }
