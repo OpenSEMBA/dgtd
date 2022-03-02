@@ -4,15 +4,16 @@
 
 namespace Maxwell {
 
-typedef std::size_t Direction;
-
-const Direction X = 0;
-const Direction Y = 1;
-
 class Solver {
 public:
     typedef double ElectricField;
     typedef mfem::Vector Position;
+
+    typedef std::size_t Direction;
+
+    const Direction X = 0;
+    const Direction Y = 1;
+
 
     struct Options {
         int order = 3;
@@ -49,7 +50,7 @@ private:
     std::unique_ptr<mfem::BilinearForm> Kx_;
     std::unique_ptr<mfem::BilinearForm> Ky_;
 
-    mfem::GridFunction ez_, hx_, hy_;
+    mfem::GridFunction Ez_, hx_, Hy_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     

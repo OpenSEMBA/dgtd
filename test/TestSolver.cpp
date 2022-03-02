@@ -2,6 +2,7 @@
 #include <math.h>
 
 #include "Solver.h"
+#include "Solver1D.h"
 
 using namespace Maxwell;
 
@@ -244,5 +245,32 @@ TEST_F(TestSolver, checkMeshInvariance)
 }
 TEST_F(TestSolver, oneDimensional)
 {
+	/*The purpose of this test is to check the run() function for the Solver1D class
+	and test the different available options.
+
+	First, dimensional variables are declared and a mesh is constructed, along with the declaration
+	of different useful variables.
+
+	Then, a Solver1D object is constructed using said mesh and options, the bounding box for its mesh
+	is extracted and an initial condition is applied to one of its variables. (GridFunction Ez_)
+
+	Lastly, the run() function is called.*/
+
+	int nx = 100;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
+
+	Solver1D::Options opts;
+	opts.order = 2;
+	opts.dt = 1e-4;
+	opts.t_final = 0.5;
+	opts.vis_steps = 50;
+
+	Solver1D solver1D(opts, mesh);
+	solver1D.getMesh().GetBoundingBox(
+		AnalyticalFunctions::meshBoundingBoxMin,
+		AnalyticalFunctions::meshBoundingBoxMax);
+
+	solver1D.setInitialElectricField(AnalyticalFunctions::gaussianFunction1D);
+	solver1D.run();
 }
 

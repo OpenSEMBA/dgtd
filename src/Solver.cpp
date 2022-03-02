@@ -27,14 +27,14 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
 
-    ez_.SetSpace(fes_.get());
-    ez_.ProjectCoefficient(ConstantCoefficient(0.0));
+    Ez_.SetSpace(fes_.get());
+    Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
 
     hx_.SetSpace(fes_.get());
     hx_.ProjectCoefficient(ConstantCoefficient(0.0));
 
-    hy_.SetSpace(fes_.get());
-    hy_.ProjectCoefficient(ConstantCoefficient(0.0));
+    Hy_.SetSpace(fes_.get());
+    Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 
     initializeParaviewData();
 
@@ -116,7 +116,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
 
 void Solver::setInitialElectricField(std::function<ElectricField(const Position&)> f) 
 {
-    ez_.ProjectCoefficient(FunctionCoefficient(f));
+    Ez_.ProjectCoefficient(FunctionCoefficient(f));
 }
 
 void Solver::initializeParaviewData()
@@ -124,9 +124,9 @@ void Solver::initializeParaviewData()
     pd_ = NULL;
     pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView", &mesh_);
     pd_->SetPrefixPath("ParaView");
-    pd_->RegisterField("ez", &ez_);
+    pd_->RegisterField("ez", &Ez_);
     pd_->RegisterField("hx", &hx_);
-    pd_->RegisterField("hy", &hy_);
+    pd_->RegisterField("hy", &Hy_);
     pd_->SetLevelsOfDetail(opts_.order);
     pd_->SetDataFormat(VTKFormat::BINARY);
     opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
@@ -151,26 +151,26 @@ void Solver::run()
     {
 
         // Update E.
-        Kx_->Mult(hy_, aux);
+        Kx_->Mult(Hy_, aux);
         Ky_->AddMult(hx_, aux, -1.0);
         MInv_->Mult(aux, ezNew);
         ezNew *= -opts_.dt;
-        ezNew.Add(1.0, ez_);
+        ezNew.Add(1.0, Ez_);
 
         // Update H.
         Kx_->Mult(ezNew, aux);
         MInv_->Mult(aux, hyNew);
         hyNew *= -opts_.dt;
-        hyNew.Add(1.0, hy_);
+        hyNew.Add(1.0, Hy_);
 
         Ky_->Mult(ezNew, aux);
         MInv_->Mult(aux, hxNew);
         hxNew *= opts_.dt;
         hxNew.Add(1.0, hx_);
 
-        ez_ = ezNew;
+        Ez_ = ezNew;
         hx_ = hxNew;
-        hy_ = hyNew;
+        Hy_ = hyNew;
 
         time += opts_.dt;
         cycle++;

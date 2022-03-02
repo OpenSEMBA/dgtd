@@ -1,4 +1,4 @@
-#include "Solver.h"
+#include "Solver1D.h"
 
 #include <fstream>
 #include <iostream>
@@ -8,9 +8,8 @@ using namespace mfem;
 
 namespace Maxwell {
 
-Solver::Solver(const Options& opts, const Mesh& mesh)
+Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 {
-
 	checkOptionsAreValid(opts, mesh);
 
 	mesh_ = mfem::Mesh(mesh, true);
@@ -18,207 +17,127 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
 	fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
-	fecH1_ = std::make_unique<H1_FECollection>(opts_.order, mesh_.Dimension());
-	fesH1_ = std::make_unique<FiniteElementSpace>(&mesh_, fecH1_.get());
 
 	MInv_ = buildMassMatrix();
-	Kx_ = buildDerivativeOperator(X);
+	Kx_ = buildDerivativeAndFluxOperator(X);
 
-	ez_.SetSpace(fes_.get());
-	ez_.ProjectCoefficient(ConstantCoefficient(0.0));
+	Ez_.SetSpace(fes_.get());
+	Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
 
-	hx_.SetSpace(fes_.get());
-	hx_.ProjectCoefficient(ConstantCoefficient(0.0));
+	Hy_.SetSpace(fes_.get());
+	Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 
 	initializeParaviewData();
-
 }
-/*This test is a WIP.*/
 
-int order = 2;
-const int dimension = 1;
-FiniteElementCollection* fec;
-FiniteElementSpace* fes;
-
-Mesh mesh = Mesh::MakeCartesian1D(100);
-mesh.GetBoundingBox(
-	AnalyticalFunctions::meshBoundingBoxMin,
-	AnalyticalFunctions::meshBoundingBoxMax);
-fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-fes = new FiniteElementSpace(&mesh, fec);
-
-BilinearForm massMatrixInv(fes);
-massMatrixInv.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-massMatrixInv.Assemble();
-massMatrixInv.Finalize();
-
-ConstantCoefficient one(1.0);
-BilinearForm K(fes);
-K.AddDomainIntegrator(
-	new TransposeIntegrator(
-		new DerivativeIntegrator(one, 0)));
-
-std::vector<VectorConstantCoefficient> n = {
-	VectorConstantCoefficient(Vector({1.0})),
-};
-
-K.AddInteriorFaceIntegrator(
-	new DGTraceIntegrator(n[0], -1.0, 0.0));
-K.AddBdrFaceIntegrator(
-	new DGTraceIntegrator(n[0], -1.0, 0.0));
-
-K.Assemble();
-K.Finalize();
-
-GridFunction Ez(fes);
-Ez.ProjectCoefficient(FunctionCoefficient(AnalyticalFunctions::gaussianFunction1D));
-GridFunction Hy(fes);
-Hy.ProjectCoefficient(ConstantCoefficient(0.0));
-
-std::unique_ptr<ParaViewDataCollection> pd = NULL;
-pd = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh);
-pd->SetPrefixPath("ParaView");
-pd->RegisterField("ez", &Ez);
-pd->RegisterField("hy", &Hy);
-pd->SetDataFormat(VTKFormat::BINARY);
-pd->SetHighOrderOutput(true);
-
-double time = 0.0;
-bool done = false;
-
-Vector aux(fes->GetVSize());
-Vector ezNew(fes->GetVSize());
-Vector hyNew(fes->GetVSize());
-
-pd->SetCycle(0);
-pd->SetTime(0.0);
-pd->Save();
-
-for (int cycle = 0; !done;)
+void Solver1D::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 {
-
-	// Update E.
-	K.Mult(Hy, aux);
-	massMatrixInv.Mult(aux, ezNew);
-	ezNew *= dt;
-	ezNew.Add(1.0, Ez);
-
-	// Update H.
-	K.Mult(Ez, aux);
-	massMatrixInv.Mult(aux, hyNew);
-	hyNew *= dt;
-	hyNew.Add(1.0, Hy);
-
-	Ez = ezNew;
-	Hy = hyNew;
-
-	time += dt;
-	cycle++;
-
-	done = (time >= t_final - 1e-8 * dt);
-
-	if (done || cycle % vis_steps == 0) {
-		pd->SetCycle(cycle);
-		pd->SetTime(time);
-		pd->Save();
+	if (mesh.Dimension() != 1) {
+		throw std::exception("Incorrect Dimension for mesh");
+	}
+	if ((opts.order < 0) ||
+		(opts.t_final < 0) ||
+		(opts.dt < 0) ||
+		(opts.vis_steps < 1) ||
+		(opts.precision < 1)) {
+		throw std::exception("Incorrect parameters in Options");
 	}
 }
 
-
-/*This test is a WIP.*/
-
-int order = 2;
-const int dimension = 1;
-FiniteElementCollection* fec;
-FiniteElementSpace* fes;
-
-Mesh mesh = Mesh::MakeCartesian1D(100);
-mesh.GetBoundingBox(
-	AnalyticalFunctions::meshBoundingBoxMin,
-	AnalyticalFunctions::meshBoundingBoxMax);
-fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-fes = new FiniteElementSpace(&mesh, fec);
-
-BilinearForm massMatrixInv(fes);
-massMatrixInv.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-massMatrixInv.Assemble();
-massMatrixInv.Finalize();
-
-ConstantCoefficient one(1.0);
-BilinearForm K(fes);
-K.AddDomainIntegrator(
-	new TransposeIntegrator(
-		new DerivativeIntegrator(one, 0)));
-
-std::vector<VectorConstantCoefficient> n = {
-	VectorConstantCoefficient(Vector({1.0})),
-};
-
-K.AddInteriorFaceIntegrator(
-	new DGTraceIntegrator(n[0], -1.0, 0.0));
-K.AddBdrFaceIntegrator(
-	new DGTraceIntegrator(n[0], -1.0, 0.0));
-
-K.Assemble();
-K.Finalize();
-
-GridFunction Ez(fes);
-Ez.ProjectCoefficient(FunctionCoefficient(AnalyticalFunctions::gaussianFunction1D));
-GridFunction Hy(fes);
-Hy.ProjectCoefficient(ConstantCoefficient(0.0));
-
-std::unique_ptr<ParaViewDataCollection> pd = NULL;
-pd = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh);
-pd->SetPrefixPath("ParaView");
-pd->RegisterField("ez", &Ez);
-pd->RegisterField("hy", &Hy);
-pd->SetDataFormat(VTKFormat::BINARY);
-pd->SetHighOrderOutput(true);
-
-double time = 0.0;
-bool done = false;
-double dt = 1e-4;
-double t_final = 1000 * dt;
-int vis_steps = 100;
-
-Vector aux(fes->GetVSize());
-Vector ezNew(fes->GetVSize());
-Vector hyNew(fes->GetVSize());
-
-pd->SetCycle(0);
-pd->SetTime(0.0);
-pd->Save();
-
-for (int cycle = 0; !done;)
+std::unique_ptr<mfem::BilinearForm> Solver1D::buildMassMatrix() const
 {
-
-	// Update E.
-	K.Mult(Hy, aux);
-	massMatrixInv.Mult(aux, ezNew);
-	ezNew *= dt;
-	ezNew.Add(1.0, Ez);
-
-	// Update H.
-	K.Mult(Ez, aux);
-	massMatrixInv.Mult(aux, hyNew);
-	hyNew *= dt;
-	hyNew.Add(1.0, Hy);
-
-	Ez = ezNew;
-	Hy = hyNew;
-
-	time += dt;
-	cycle++;
-
-	done = (time >= t_final - 1e-8 * dt);
-
-	if (done || cycle % vis_steps == 0) {
-		pd->SetCycle(cycle);
-		pd->SetTime(time);
-		pd->Save();
-	}
+	auto MInv = std::make_unique<BilinearForm>(fes_.get());
+	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+	MInv->Assemble();
+	MInv->Finalize();
+	return MInv;
 }
 
+std::unique_ptr<mfem::BilinearForm> Solver1D::buildDerivativeAndFluxOperator(const Direction& d) const
+{
 
+	assert(d == X, "Incorrect argument for direction.");
+
+	ConstantCoefficient one(1.0);
+
+	auto K = std::make_unique<BilinearForm>(fes_.get());
+	K->AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(one, X)));
+
+	std::vector<VectorConstantCoefficient> n = {
+		VectorConstantCoefficient(Vector({1.0})),
+	};
+
+	K->AddInteriorFaceIntegrator(
+		new DGTraceIntegrator(n[0], -1.0, 0.0));
+	K->AddBdrFaceIntegrator(
+		new DGTraceIntegrator(n[0], -1.0, 0.0));
+
+	K->Assemble();
+	K->Finalize();
+
+	return K;
+}
+
+void Solver1D::setInitialElectricField(std::function<ElectricField(const Position&)> f)
+{
+	Ez_.ProjectCoefficient(FunctionCoefficient(f));
+}
+
+void Solver1D::initializeParaviewData()
+{
+	pd_ = NULL;
+	pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh_);
+	pd_->SetPrefixPath("ParaView");
+	pd_->RegisterField("Ez", &Ez_);
+	pd_->RegisterField("Hy", &Hy_);
+	pd_->SetLevelsOfDetail(opts_.order);
+	pd_->SetDataFormat(VTKFormat::BINARY);
+	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
+}
+
+void Solver1D::run()
+{
+	double time = 0.0;
+	bool done = false;
+
+	Vector aux(fes_->GetVSize());
+	Vector ezNew(fes_->GetVSize());
+	Vector hyNew(fes_->GetVSize());
+
+	pd_->SetCycle(0);
+	pd_->SetTime(0.0);
+	pd_->Save();
+
+	for (int cycle = 0; !done;)
+	{
+
+		// Update E.
+		Kx_->Mult(Hy_, aux);
+		MInv_->Mult(aux, ezNew);
+		ezNew *= opts_.dt;
+		ezNew.Add(1.0, Ez_);
+
+		// Update H.
+		Kx_->Mult(Ez_, aux);
+		MInv_->Mult(aux, hyNew);
+		hyNew *= opts_.dt;
+		hyNew.Add(1.0, Hy_);
+
+		Ez_ = ezNew;
+		Hy_ = hyNew;
+
+		time += opts_.dt;
+		cycle++;
+
+		done = (time >= opts_.t_final - 1e-8 * opts_.dt);
+
+		if (done || cycle % opts_.vis_steps == 0) {
+			pd_->SetCycle(cycle);
+			pd_->SetTime(time);
+			pd_->Save();
+		}
+	}
 }
 }
