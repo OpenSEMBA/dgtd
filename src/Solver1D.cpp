@@ -160,15 +160,12 @@ namespace Maxwell {
 		fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
-		boundaryTDoF_ = buildEssentialTrueDOF();
-
-		M_ = buildMassMatrix();
 		MInv_ = buildInverseMassMatrix();
 		Kx_ = buildDerivativeAndFluxOperator(X);
 
 		Ez_.SetSpace(fes_.get());
 		Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
-		Ez_.ProjectBdrCoefficient(ConstantCoefficient(0.0), boundaryTDoF_);
+		//Ez_.ProjectBdrCoefficient(ConstantCoefficient(0.0), boundaryTDoF_);
 
 		Hy_.SetSpace(fes_.get());
 		Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
@@ -197,26 +194,17 @@ namespace Maxwell {
 		}
 	}
 
-	mfem::Array<int> Solver1D::buildEssentialTrueDOF()
-	{
-		Array<int> ess_tdof_list;
-		if (mesh_.bdr_attributes.Size())
-		{
-			Array<int> ess_bdr(mesh_.bdr_attributes.Max());
-			ess_bdr = 1;
-			fes_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-		}
-		return ess_tdof_list;
-	}
-
-	std::unique_ptr<mfem::BilinearForm> Solver1D::buildMassMatrix() const
-	{
-		auto M = std::make_unique<BilinearForm>(fes_.get());
-		M->AddDomainIntegrator((new MassIntegrator));
-		M->Assemble();
-		M->Finalize();
-		return M;
-	}
+	//mfem::Array<int> Solver1D::buildEssentialTrueDOF()
+	//{
+	//	Array<int> ess_tdof_list;
+	//	if (mesh_.bdr_attributes.Size())
+	//	{
+	//		Array<int> ess_bdr(mesh_.bdr_attributes.Max());
+	//		ess_bdr = 1;
+	//		fes_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+	//	}
+	//	return ess_tdof_list;
+	//}
 
 	std::unique_ptr<mfem::BilinearForm> Solver1D::buildInverseMassMatrix() const
 	{
@@ -317,40 +305,40 @@ namespace Maxwell {
 		}
 	}
 
-	void Solver1D::runODESolver()
-	{
-		FE_Evolution adv(*M_, *Kx_, B_);
+	//void Solver1D::runODESolver()
+	//{
+	//	FE_Evolution adv(*M_, *Kx_, B_);
 
-		double t = 0.0;
-		adv.SetTime(t);
+	//	double t = 0.0;
+	//	adv.SetTime(t);
 
-		ODESolver* ode_solver = NULL;
-		ode_solver = new RK4Solver;
-		ode_solver->Init(adv);
+	//	ODESolver* ode_solver = NULL;
+	//	ode_solver = new RK4Solver;
+	//	ode_solver->Init(adv);
 
-		pd_->SetCycle(0);
-		pd_->SetTime(0.0);
-		pd_->Save();
+	//	pd_->SetCycle(0);
+	//	pd_->SetTime(0.0);
+	//	pd_->Save();
 
-		bool done = false;
-		for (int cycle = 0; !done;)
-		{
-			double dt_real = std::min(opts_.dt, opts_.t_final - t);
-			ode_solver->Step(Ez_, t, dt_real);
-			//ode_solver->Step(Hy_, t, dt_real);
-			cycle++;
+	//	bool done = false;
+	//	for (int cycle = 0; !done;)
+	//	{
+	//		double dt_real = std::min(opts_.dt, opts_.t_final - t);
+	//		ode_solver->Step(Ez_, t, dt_real);
+	//		//ode_solver->Step(Hy_, t, dt_real);
+	//		cycle++;
 
-			done = (t >= opts_.t_final - 1e-8 * opts_.dt);
+	//		done = (t >= opts_.t_final - 1e-8 * opts_.dt);
 
-			if (done || cycle % opts_.vis_steps == 0)
-			{
+	//		if (done || cycle % opts_.vis_steps == 0)
+	//		{
 
-				pd_->SetCycle(cycle);
-				pd_->SetTime(t);
-				pd_->Save();
+	//			pd_->SetCycle(cycle);
+	//			pd_->SetTime(t);
+	//			pd_->Save();
 
-			}
+	//		}
 
-		}
-	}
+	//	}
+	//}
 }
