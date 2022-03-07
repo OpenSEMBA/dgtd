@@ -43,9 +43,10 @@ private:
 
     mfem::Mesh mesh_;
 
+    std::unique_ptr<mfem::BilinearForm> M_;
     std::unique_ptr<mfem::BilinearForm> MInv_;
     std::unique_ptr<mfem::BilinearForm> Kx_;
-    std::unique_ptr<mfem::LinearForm> B_;
+    mfem::LinearForm B_;
 
     mfem::Array<int> boundaryTDoF_;
 
@@ -56,6 +57,7 @@ private:
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     mfem::Array<int> buildEssentialTrueDOF();
     std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
+    std::unique_ptr<mfem::BilinearForm> buildInverseMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(const Direction&) const;
     void initializeParaviewData();
 

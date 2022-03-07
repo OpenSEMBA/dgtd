@@ -21,7 +21,6 @@ namespace Maxwell {
 		int dim = x.Size();
 
 		// map to the reference [-1,1] domain
-
 		Vector pos(dim);
 		double normalizedPos;
 		double center = (0.0 + 1.0) * 0.5;
@@ -30,6 +29,7 @@ namespace Maxwell {
 		v(0) = 1.0;
 	}
 
+	
 	class DG_Solver : public Solver
 	{
 	private:
@@ -78,8 +78,6 @@ namespace Maxwell {
 			linear_solver.Mult(x, y);
 		}
 	};
-
-
 
 	class FE_Evolution : public TimeDependentOperator
 	{
@@ -150,9 +148,7 @@ namespace Maxwell {
 		delete dg_solver;
 	}
 
-
-
-
+	
 	Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 	{
 		checkOptionsAreValid(opts, mesh);
@@ -164,20 +160,25 @@ namespace Maxwell {
 		fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
-		MInv_ = buildMassMatrix();
+		boundaryTDoF_ = buildEssentialTrueDOF();
+
+		M_ = buildMassMatrix();
+		MInv_ = buildInverseMassMatrix();
 		Kx_ = buildDerivativeAndFluxOperator(X);
 
 		Ez_.SetSpace(fes_.get());
 		Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
+		Ez_.ProjectBdrCoefficient(ConstantCoefficient(0.0), boundaryTDoF_);
 
 		Hy_.SetSpace(fes_.get());
 		Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
 
-		FunctionCoefficient inflow(inflow_function);
 		VectorFunctionCoefficient velocity(dim, velocity_function);
-		B_->AddBdrFaceIntegrator(
+		FunctionCoefficient inflow(inflow_function);
+		B_.Update(fes_.get());
+		B_.AddBdrFaceIntegrator(
 			new BoundaryFlowIntegrator(inflow, velocity, 1.0));
-		B_->Assemble();
+		B_.Assemble();
 
 		initializeParaviewData();
 	}
@@ -209,6 +210,15 @@ namespace Maxwell {
 	}
 
 	std::unique_ptr<mfem::BilinearForm> Solver1D::buildMassMatrix() const
+	{
+		auto M = std::make_unique<BilinearForm>(fes_.get());
+		M->AddDomainIntegrator((new MassIntegrator));
+		M->Assemble();
+		M->Finalize();
+		return M;
+	}
+
+	std::unique_ptr<mfem::BilinearForm> Solver1D::buildInverseMassMatrix() const
 	{
 		auto MInv = std::make_unique<BilinearForm>(fes_.get());
 		MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
@@ -265,7 +275,6 @@ namespace Maxwell {
 	{
 
 		double time = 0.0;
-		bool done = false;
 
 		Vector aux(fes_->GetVSize());
 		Vector ezNew(fes_->GetVSize());
@@ -275,6 +284,7 @@ namespace Maxwell {
 		pd_->SetTime(0.0);
 		pd_->Save();
 
+		bool done = false;
 		for (int cycle = 0; !done;)
 		{
 
@@ -293,6 +303,7 @@ namespace Maxwell {
 			Ez_ = ezNew;
 			Hy_ = hyNew;
 
+
 			time += opts_.dt;
 			cycle++;
 
@@ -308,7 +319,7 @@ namespace Maxwell {
 
 	void Solver1D::runODESolver()
 	{
-		FE_Evolution adv(*MInv_, *Kx_, *B_);
+		FE_Evolution adv(*M_, *Kx_, B_);
 
 		double t = 0.0;
 		adv.SetTime(t);
@@ -317,11 +328,16 @@ namespace Maxwell {
 		ode_solver = new RK4Solver;
 		ode_solver->Init(adv);
 
+		pd_->SetCycle(0);
+		pd_->SetTime(0.0);
+		pd_->Save();
+
 		bool done = false;
 		for (int cycle = 0; !done;)
 		{
 			double dt_real = std::min(opts_.dt, opts_.t_final - t);
 			ode_solver->Step(Ez_, t, dt_real);
+			//ode_solver->Step(Hy_, t, dt_real);
 			cycle++;
 
 			done = (t >= opts_.t_final - 1e-8 * opts_.dt);

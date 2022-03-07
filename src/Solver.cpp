@@ -23,7 +23,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
     boundaryTDOFs_ = buildEssentialTrueDOF();
 
-    MInv_ = buildMassMatrix();
+    MInv_ = buildInverseMassMatrix();
     Kx_ = buildDerivativeOperator(X);
     Ky_ = buildDerivativeOperator(Y);
 
@@ -66,7 +66,7 @@ mfem::Array<int> Solver::buildEssentialTrueDOF()
     return ess_tdof_list;
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildMassMatrix() const
+std::unique_ptr<mfem::BilinearForm> Solver::buildInverseMassMatrix() const
 {
     auto MInv = std::make_unique<BilinearForm>(fes_.get());
     MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));

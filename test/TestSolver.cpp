@@ -263,7 +263,7 @@ TEST_F(TestSolver, oneDimensional)
 	opts.order = 2;
 	opts.dt = 1e-4;
 	opts.t_final = 0.5;
-	opts.vis_steps = 50;
+	opts.vis_steps = 100;
 
 	Solver1D solver1D(opts, mesh);
 	solver1D.getMesh().GetBoundingBox(
@@ -272,5 +272,6 @@ TEST_F(TestSolver, oneDimensional)
 
 	solver1D.setInitialElectricField(AnalyticalFunctions::gaussianFunction1D);
 	solver1D.run();
+	//solver1D.runODESolver();
 }
 

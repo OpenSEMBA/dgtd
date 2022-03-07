@@ -56,7 +56,7 @@ private:
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     mfem::Array<int> Solver::buildEssentialTrueDOF();
-    std::unique_ptr<mfem::BilinearForm> buildMassMatrix() const;
+    std::unique_ptr<mfem::BilinearForm> buildInverseMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeOperator(const Direction&) const;
 
     void initializeParaviewData();
