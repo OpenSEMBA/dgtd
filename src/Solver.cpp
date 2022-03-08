@@ -104,7 +104,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const
         kDir->AddInteriorFaceIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta));
         kDir->AddBdrFaceIntegrator(
-            new DGTraceIntegrator(n[d], alpha, beta));
+            new DGTraceIntegrator(n[d], 0.5*alpha, beta));
     }
     else
     {
@@ -113,7 +113,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const
         kDir->AddInteriorFaceIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta));
         kDir->AddBdrFaceIntegrator(
-            new DGTraceIntegrator(n[d], alpha, beta));
+            new DGTraceIntegrator(n[d], 0.5*alpha, beta));
     }
 
     int skip_zeros = 0;
