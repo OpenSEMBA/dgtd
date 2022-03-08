@@ -81,8 +81,8 @@ TEST_F(TestSolver, checkRun)
 	Solver::Options opts;
 	opts.order = 2;
 	opts.dt = 5e-3;
-	opts.t_final = 100;
-	opts.vis_steps = 100;
+	opts.t_final = 4;
+	opts.vis_steps = 20;
 	AnalyticalFunctions::standingWaveModeX = 1;
 	AnalyticalFunctions::standingWaveModeY = 1;
 	
@@ -262,7 +262,7 @@ TEST_F(TestSolver, oneDimensional)
 	Solver1D::Options opts;
 	opts.order = 2;
 	opts.dt = 1e-4;
-	opts.t_final = 0.5;
+	opts.t_final = 4;
 	opts.vis_steps = 100;
 
 	Solver1D solver1D(opts, mesh);

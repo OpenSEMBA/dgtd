@@ -6,136 +6,14 @@
 
 using namespace mfem;
 
-
-
-
 namespace Maxwell {
 
-	class DG_Solver : public Solver
-	{
-	private:
-		SparseMatrix& M, & K, A;
-		GMRESSolver linear_solver;
-		BlockILU prec;
-		double dt;
-	public:
-		DG_Solver(SparseMatrix& M_, SparseMatrix& K_, const FiniteElementSpace& fes)
-			: M(M_),
-			K(K_),
-			prec(fes.GetFE(0)->GetDof(),
-				BlockILU::Reordering::MINIMUM_DISCARDED_FILL),
-			dt(-1.0)
-		{
-			linear_solver.iterative_mode = false;
-			linear_solver.SetRelTol(1e-9);
-			linear_solver.SetAbsTol(0.0);
-			linear_solver.SetMaxIter(100);
-			linear_solver.SetPrintLevel(0);
-			linear_solver.SetPreconditioner(prec);
-		}
-
-		void SetTimeStep(double dt_)
-		{
-			if (dt_ != dt)
-			{
-				dt = dt_;
-				// Form operator A = M - dt*K
-				A = K;
-				A *= -dt;
-				A += M;
-
-				// this will also call SetOperator on the preconditioner
-				linear_solver.SetOperator(A);
-			}
-		}
-
-		void SetOperator(const Operator& op)
-		{
-			linear_solver.SetOperator(op);
-		}
-
-		virtual void Mult(const Vector& x, Vector& y) const
-		{
-			linear_solver.Mult(x, y);
-		}
-	};
-
-	class FE_Evolution : public TimeDependentOperator
-	{
-	private:
-		BilinearForm& M, & K;
-		const Vector& b;
-		Solver* M_prec;
-		CGSolver M_solver;
-		DG_Solver* dg_solver;
-
-		mutable Vector z;
-
-	public:
-		FE_Evolution(BilinearForm& M_, BilinearForm& K_, const Vector& b_);
-
-		virtual void Mult(const Vector& x, Vector& y) const;
-		virtual void ImplicitSolve(const double dt, const Vector& x, Vector& k);
-
-		virtual ~FE_Evolution();
-	};
-
-	// Implementation of class FE_Evolution
-	FE_Evolution::FE_Evolution(BilinearForm& M_, BilinearForm& K_, const Vector& b_)
-		: TimeDependentOperator(M_.Height()), M(M_), K(K_), b(b_), z(M_.Height())
-	{
-		Array<int> ess_tdof_list;
-		if (M.GetAssemblyLevel() == AssemblyLevel::LEGACY)
-		{
-			M_prec = new DSmoother(M.SpMat());
-			M_solver.SetOperator(M.SpMat());
-			dg_solver = new DG_Solver(M.SpMat(), K.SpMat(), *M.FESpace());
-		}
-		else
-		{
-			M_prec = new OperatorJacobiSmoother(M, ess_tdof_list);
-			M_solver.SetOperator(M);
-			dg_solver = NULL;
-		}
-		M_solver.SetPreconditioner(*M_prec);
-		M_solver.iterative_mode = false;
-		M_solver.SetRelTol(1e-9);
-		M_solver.SetAbsTol(0.0);
-		M_solver.SetMaxIter(100);
-		M_solver.SetPrintLevel(0);
-	}
-
-	void FE_Evolution::Mult(const Vector& x, Vector& y) const
-	{
-		// y = M^{-1} (K x + b)
-		K.Mult(x, z);
-		z += b;
-		M_solver.Mult(z, y);
-	}
-
-	void FE_Evolution::ImplicitSolve(const double dt, const Vector& x, Vector& k)
-	{
-		MFEM_VERIFY(dg_solver != NULL,
-			"Implicit time integration is not supported with partial assembly");
-		K.Mult(x, z);
-		z += b;
-		dg_solver->SetTimeStep(dt);
-		dg_solver->Mult(z, k);
-	}
-
-	FE_Evolution::~FE_Evolution()
-	{
-		delete M_prec;
-		delete dg_solver;
-	}
-	
 	Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 	{
 		checkOptionsAreValid(opts, mesh);
 
 		mesh_ = mfem::Mesh(mesh, true);
 		opts_ = opts;
-		int dim = mesh.Dimension();
 
 		fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
@@ -192,7 +70,6 @@ namespace Maxwell {
 
 	std::unique_ptr<mfem::BilinearForm> Solver1D::buildDerivativeAndFluxOperator(const Direction& d, const FieldType& ft) const
 	{
-
 		assert(d == X, "Incorrect argument for direction.");
 
 		auto K = std::make_unique<BilinearForm>(fes_.get());
@@ -217,7 +94,7 @@ namespace Maxwell {
 			K->AddInteriorFaceIntegrator(
 				new DGTraceIntegrator(n[d], alpha, beta));
 			K->AddBdrFaceIntegrator(
-				new DGTraceIntegrator(n[d], 2.0*alpha, beta));
+				new DGTraceIntegrator(n[d], 0.0 * alpha, beta));
 		}
 		else
 		{
@@ -226,15 +103,15 @@ namespace Maxwell {
 			K->AddInteriorFaceIntegrator(
 				new DGTraceIntegrator(n[d], alpha, beta));
 			K->AddBdrFaceIntegrator(
-				new DGTraceIntegrator(n[d], 0.0 * alpha, beta));
+				new DGTraceIntegrator(n[d], 2.0 * alpha, beta));
 		}
 
-		int skip_zeros = 0;
-		K->Assemble(skip_zeros);
-		K->Finalize(skip_zeros);
+		//int skip_zeros = 0;
+		//K->Assemble(skip_zeros);
+		//K->Finalize(skip_zeros);
 
-		//K->Assemble();
-		//K->Finalize();
+		K->Assemble();
+		K->Finalize();
 
 		return K;
 	}
@@ -280,7 +157,7 @@ namespace Maxwell {
 			ezNew.Add(1.0, Ez_);
 
 			// Update H.
-			KxE_->Mult(Ez_, aux);
+			KxE_->Mult(ezNew, aux);
 			MInv_->Mult(aux, hyNew);
 			hyNew *= -opts_.dt;
 			hyNew.Add(1.0, Hy_);

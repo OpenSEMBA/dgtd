@@ -21,7 +21,7 @@ public:
 
     struct Options {
         int order = 3;
-        double t_final = 10.0;
+        double t_final = 1000*dt;
         double dt = 0.01;
         int vis_steps = 5;
         int precision = 8;

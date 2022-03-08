@@ -10,7 +10,6 @@ namespace Maxwell {
 
 Solver::Solver(const Options& opts, const Mesh& mesh) 
 {
-
     checkOptionsAreValid(opts, mesh);
 
     mesh_ = mfem::Mesh(mesh, true);
