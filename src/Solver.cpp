@@ -18,10 +18,6 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
     fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
-    //fecH1_ = std::make_unique<H1_FECollection>(opts_.order, mesh_.Dimension());
-    //fesH1_ = std::make_unique<FiniteElementSpace>(&mesh_, fecH1_.get());
-
-    //boundaryTDOFs_ = buildEssentialTrueDOF();
 
     MInv_ = buildInverseMassMatrix();
     KxE_ = buildDerivativeAndFluxOperator(X,Electric);
@@ -77,7 +73,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildInverseMassMatrix() const
     return MInv;
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const Direction& d, const FieldTerm& ft) const
+std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const Direction& d, const FieldType& ft) const
 {
     assert(d != X || d != Y, "Incorrect argument for direction.");
 
@@ -104,7 +100,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const
         kDir->AddInteriorFaceIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta));
         kDir->AddBdrFaceIntegrator(
-            new DGTraceIntegrator(n[d], 0.5*alpha, beta));
+            new DGTraceIntegrator(n[d], 0.0*alpha, beta));
     }
     else
     {
@@ -113,7 +109,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const
         kDir->AddInteriorFaceIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta));
         kDir->AddBdrFaceIntegrator(
-            new DGTraceIntegrator(n[d], 0.5*alpha, beta));
+            new DGTraceIntegrator(n[d], 2.0*alpha, beta));
     }
 
     int skip_zeros = 0;

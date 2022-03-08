@@ -10,8 +10,12 @@ public:
     typedef double ElectricField;
     typedef mfem::Vector Position;
     typedef std::size_t Direction;
+    typedef std::size_t FieldType;
 
     const Direction X = 0;
+
+    const FieldType Electric = 0;
+    const FieldType Magnetic = 1;
 
     struct Options {
         int order = 2;
@@ -44,8 +48,8 @@ private:
     mfem::Array<int> boundaryTDoF_;
 
     std::unique_ptr<mfem::BilinearForm> MInv_;
-    std::unique_ptr<mfem::BilinearForm> Kx_;
-    mfem::LinearForm B_;
+    std::unique_ptr<mfem::BilinearForm> KxE_;
+    std::unique_ptr<mfem::BilinearForm> KxH_;
 
     mfem::GridFunction Ez_, Hy_;
 
@@ -54,7 +58,7 @@ private:
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     mfem::Array<int> Solver1D::buildEssentialTrueDOF();
     std::unique_ptr<mfem::BilinearForm> buildInverseMassMatrix() const;
-    std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(const Direction&) const;
+    std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(const Direction&, const FieldType&) const;
     void initializeParaviewData();
 
 };

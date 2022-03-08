@@ -11,25 +11,6 @@ using namespace mfem;
 
 namespace Maxwell {
 
-	double inflow_function(const Vector& x)
-	{
-		return 0.0;
-	}
-
-	void velocity_function(const Vector& x, Vector& v)
-	{
-		int dim = x.Size();
-
-		// map to the reference [-1,1] domain
-		Vector pos(dim);
-		double normalizedPos;
-		double center = (0.0 + 1.0) * 0.5;
-		normalizedPos = 2 * (pos[0] - center) / (1.0 - 0.0);
-
-		v(0) = 1.0;
-	}
-
-	
 	class DG_Solver : public Solver
 	{
 	private:
@@ -147,7 +128,6 @@ namespace Maxwell {
 		delete M_prec;
 		delete dg_solver;
 	}
-
 	
 	Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 	{
@@ -160,24 +140,17 @@ namespace Maxwell {
 		fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
-		boundaryTDoF_ = buildEssentialTrueDOF();
+		/*boundaryTDoF_ = buildEssentialTrueDOF();*/
 
 		MInv_ = buildInverseMassMatrix();
-		Kx_ = buildDerivativeAndFluxOperator(X);
+		KxE_ = buildDerivativeAndFluxOperator(X, Electric);
+		KxH_ = buildDerivativeAndFluxOperator(X, Magnetic);
 
 		Ez_.SetSpace(fes_.get());
 		Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
-		//Ez_.ProjectBdrCoefficient(ConstantCoefficient(0.0), boundaryTDoF_);
 
 		Hy_.SetSpace(fes_.get());
 		Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
-
-		VectorFunctionCoefficient velocity(dim, velocity_function);
-		FunctionCoefficient inflow(inflow_function);
-		B_.Update(fes_.get());
-		B_.AddBdrFaceIntegrator(
-			new BoundaryFlowIntegrator(inflow, velocity, 1.0));
-		B_.Assemble();
 
 		initializeParaviewData();
 	}
@@ -217,29 +190,51 @@ namespace Maxwell {
 		return MInv;
 	}
 
-	std::unique_ptr<mfem::BilinearForm> Solver1D::buildDerivativeAndFluxOperator(const Direction& d) const
+	std::unique_ptr<mfem::BilinearForm> Solver1D::buildDerivativeAndFluxOperator(const Direction& d, const FieldType& ft) const
 	{
 
 		assert(d == X, "Incorrect argument for direction.");
 
+		auto K = std::make_unique<BilinearForm>(fes_.get());
+		
 		ConstantCoefficient one(1.0);
 
-		auto K = std::make_unique<BilinearForm>(fes_.get());
 		K->AddDomainIntegrator(
 			new TransposeIntegrator(
-				new DerivativeIntegrator(one, X)));
+				new DerivativeIntegrator(one, d)));
 
 		std::vector<VectorConstantCoefficient> n = {
 			VectorConstantCoefficient(Vector({1.0})),
 		};
 
-		K->AddInteriorFaceIntegrator(
-			new DGTraceIntegrator(n[0], -1.0, 0.0));
-		K->AddBdrFaceIntegrator(
-			new DGTraceIntegrator(n[0], -1.0, 0.0));
+		double alpha;
+		double beta;
 
-		K->Assemble();
-		K->Finalize();
+		if (ft == Electric)
+		{
+			alpha = -1.0;
+			beta = 0.0;
+			K->AddInteriorFaceIntegrator(
+				new DGTraceIntegrator(n[d], alpha, beta));
+			K->AddBdrFaceIntegrator(
+				new DGTraceIntegrator(n[d], 2.0*alpha, beta));
+		}
+		else
+		{
+			alpha = -1.0;
+			beta = 0.0;
+			K->AddInteriorFaceIntegrator(
+				new DGTraceIntegrator(n[d], alpha, beta));
+			K->AddBdrFaceIntegrator(
+				new DGTraceIntegrator(n[d], 0.0 * alpha, beta));
+		}
+
+		int skip_zeros = 0;
+		K->Assemble(skip_zeros);
+		K->Finalize(skip_zeros);
+
+		//K->Assemble();
+		//K->Finalize();
 
 		return K;
 	}
@@ -279,15 +274,15 @@ namespace Maxwell {
 		{
 
 			// Update E.
-			Kx_->Mult(Hy_, aux);
+			KxH_->Mult(Hy_, aux);
 			MInv_->Mult(aux, ezNew);
-			ezNew *= opts_.dt;
+			ezNew *= -opts_.dt;
 			ezNew.Add(1.0, Ez_);
 
 			// Update H.
-			Kx_->Mult(Ez_, aux);
+			KxE_->Mult(Ez_, aux);
 			MInv_->Mult(aux, hyNew);
-			hyNew *= opts_.dt;
+			hyNew *= -opts_.dt;
 			hyNew.Add(1.0, Hy_);
 
 			Ez_ = ezNew;
