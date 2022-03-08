@@ -160,6 +160,8 @@ namespace Maxwell {
 		fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
+		boundaryTDoF_ = buildEssentialTrueDOF();
+
 		MInv_ = buildInverseMassMatrix();
 		Kx_ = buildDerivativeAndFluxOperator(X);
 
@@ -194,17 +196,17 @@ namespace Maxwell {
 		}
 	}
 
-	//mfem::Array<int> Solver1D::buildEssentialTrueDOF()
-	//{
-	//	Array<int> ess_tdof_list;
-	//	if (mesh_.bdr_attributes.Size())
-	//	{
-	//		Array<int> ess_bdr(mesh_.bdr_attributes.Max());
-	//		ess_bdr = 1;
-	//		fes_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-	//	}
-	//	return ess_tdof_list;
-	//}
+	mfem::Array<int> Solver1D::buildEssentialTrueDOF()
+	{
+		Array<int> ess_tdof_list;
+		if (mesh_.bdr_attributes.Size())
+		{
+			Array<int> ess_bdr(mesh_.bdr_attributes.Max());
+			ess_bdr = 1;
+			fes_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+		}
+		return ess_tdof_list;
+	}
 
 	std::unique_ptr<mfem::BilinearForm> Solver1D::buildInverseMassMatrix() const
 	{

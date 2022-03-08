@@ -18,20 +18,22 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
     fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
-    fecH1_ = std::make_unique<H1_FECollection>(opts_.order, mesh_.Dimension());
-    fesH1_ = std::make_unique<FiniteElementSpace>(&mesh_, fecH1_.get());
+    //fecH1_ = std::make_unique<H1_FECollection>(opts_.order, mesh_.Dimension());
+    //fesH1_ = std::make_unique<FiniteElementSpace>(&mesh_, fecH1_.get());
 
-    boundaryTDOFs_ = buildEssentialTrueDOF();
+    //boundaryTDOFs_ = buildEssentialTrueDOF();
 
     MInv_ = buildInverseMassMatrix();
-    Kx_ = buildDerivativeOperator(X);
-    Ky_ = buildDerivativeOperator(Y);
+    KxE_ = buildDerivativeAndFluxOperator(X,Electric);
+    KyE_ = buildDerivativeAndFluxOperator(Y,Electric);
+    KxH_ = buildDerivativeAndFluxOperator(X,Magnetic);
+    KyH_ = buildDerivativeAndFluxOperator(Y,Magnetic);
 
     Ez_.SetSpace(fes_.get());
     Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
 
-    hx_.SetSpace(fes_.get());
-    hx_.ProjectCoefficient(ConstantCoefficient(0.0));
+    Hx_.SetSpace(fes_.get());
+    Hx_.ProjectCoefficient(ConstantCoefficient(0.0));
 
     Hy_.SetSpace(fes_.get());
     Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
@@ -61,7 +63,7 @@ mfem::Array<int> Solver::buildEssentialTrueDOF()
     {
         Array<int> ess_bdr(mesh_.bdr_attributes.Max());
         ess_bdr = 1;
-        fesH1_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+        fes_.get()->GetBoundaryTrueDofs(ess_tdof_list);
     }
     return ess_tdof_list;
 }
@@ -75,7 +77,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildInverseMassMatrix() const
     return MInv;
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direction& d) const
+std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const Direction& d, const FieldTerm& ft) const
 {
     assert(d != X || d != Y, "Incorrect argument for direction.");
 
@@ -92,20 +94,27 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeOperator(const Direct
         VectorConstantCoefficient(Vector({0.0, 1.0}))
     };
 
-    double alpha = -1.0;
-    //if (d == X) {
-    //    alpha = 1.0;
-    //}
-    //else {
-    //    alpha = 1.0;
-    //}
-
-    double beta = 0.0;
-
-    kDir->AddInteriorFaceIntegrator(
+    double alpha;
+    double beta;
+    
+    if (ft == Electric) 
+    {
+        alpha = -1.0;
+        beta = 0.0;
+        kDir->AddInteriorFaceIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta));
-    kDir->AddBdrFaceIntegrator(
+        kDir->AddBdrFaceIntegrator(
             new DGTraceIntegrator(n[d], alpha, beta));
+    }
+    else
+    {
+        alpha = -1.0;
+        beta = 0.0;
+        kDir->AddInteriorFaceIntegrator(
+            new DGTraceIntegrator(n[d], alpha, beta));
+        kDir->AddBdrFaceIntegrator(
+            new DGTraceIntegrator(n[d], alpha, beta));
+    }
 
     int skip_zeros = 0;
     kDir->Assemble(skip_zeros);
@@ -125,7 +134,7 @@ void Solver::initializeParaviewData()
     pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView", &mesh_);
     pd_->SetPrefixPath("ParaView");
     pd_->RegisterField("ez", &Ez_);
-    pd_->RegisterField("hx", &hx_);
+    pd_->RegisterField("hx", &Hx_);
     pd_->RegisterField("hy", &Hy_);
     pd_->SetLevelsOfDetail(opts_.order);
     pd_->SetDataFormat(VTKFormat::BINARY);
@@ -151,25 +160,25 @@ void Solver::run()
     {
 
         // Update E.
-        Kx_->Mult(Hy_, aux);
-        Ky_->AddMult(hx_, aux, -1.0);
+        KxH_->Mult(Hy_, aux);
+        //Ky_->Mult(Hx_, aux);
         MInv_->Mult(aux, ezNew);
         ezNew *= -opts_.dt;
         ezNew.Add(1.0, Ez_);
 
         // Update H.
-        Kx_->Mult(ezNew, aux);
+        KxE_->Mult(ezNew, aux);
         MInv_->Mult(aux, hyNew);
         hyNew *= -opts_.dt;
         hyNew.Add(1.0, Hy_);
 
-        Ky_->Mult(ezNew, aux);
-        MInv_->Mult(aux, hxNew);
-        hxNew *= opts_.dt;
-        hxNew.Add(1.0, hx_);
+        //Ky_->Mult(ezNew, aux);
+        //MInv_->Mult(aux, hxNew);
+        //hxNew *= opts_.dt;
+        //hxNew.Add(1.0, Hx_);
 
         Ez_ = ezNew;
-        hx_ = hxNew;
+        /*Hx_ = hxNew;*/
         Hy_ = hyNew;
 
         time += opts_.dt;

@@ -10,9 +10,13 @@ public:
     typedef mfem::Vector Position;
 
     typedef std::size_t Direction;
+    typedef std::size_t FieldTerm;
 
     const Direction X = 0;
     const Direction Y = 1;
+
+    const FieldTerm Electric = 0;
+    const FieldTerm Magnetic = 1;
 
 
     struct Options {
@@ -47,17 +51,19 @@ private:
     mfem::Mesh mesh_;
 
     std::unique_ptr<mfem::BilinearForm> MInv_;
-    std::unique_ptr<mfem::BilinearForm> Kx_;
-    std::unique_ptr<mfem::BilinearForm> Ky_;
+    std::unique_ptr<mfem::BilinearForm> KxE_;
+    std::unique_ptr<mfem::BilinearForm> KyE_;
+    std::unique_ptr<mfem::BilinearForm> KxH_;
+    std::unique_ptr<mfem::BilinearForm> KyH_;
 
-    mfem::GridFunction Ez_, hx_, Hy_;
+    mfem::GridFunction Ez_, Hx_, Hy_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     mfem::Array<int> Solver::buildEssentialTrueDOF();
     std::unique_ptr<mfem::BilinearForm> buildInverseMassMatrix() const;
-    std::unique_ptr<mfem::BilinearForm> buildDerivativeOperator(const Direction&) const;
+    std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(const Direction&, const FieldTerm& ) const;
 
     void initializeParaviewData();
 };

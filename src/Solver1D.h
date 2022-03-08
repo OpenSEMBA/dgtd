@@ -41,17 +41,18 @@ private:
 
     mfem::Mesh mesh_;
 
+    mfem::Array<int> boundaryTDoF_;
+
     std::unique_ptr<mfem::BilinearForm> MInv_;
     std::unique_ptr<mfem::BilinearForm> Kx_;
     mfem::LinearForm B_;
-
-    mfem::Array<int> boundaryTDoF_;
 
     mfem::GridFunction Ez_, Hy_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
+    mfem::Array<int> Solver1D::buildEssentialTrueDOF();
     std::unique_ptr<mfem::BilinearForm> buildInverseMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(const Direction&) const;
     void initializeParaviewData();
