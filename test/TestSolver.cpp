@@ -80,9 +80,9 @@ TEST_F(TestSolver, checkRun)
 
 	Solver::Options opts;
 	opts.order = 2;
-	opts.dt = 5e-3;
-	opts.t_final = 4;
-	opts.vis_steps = 20;
+	opts.dt = 5e-4;
+	opts.t_final = 100;
+	opts.vis_steps = 500;
 	AnalyticalFunctions::standingWaveModeX = 1;
 	AnalyticalFunctions::standingWaveModeY = 1;
 	

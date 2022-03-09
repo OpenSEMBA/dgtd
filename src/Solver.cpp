@@ -156,7 +156,7 @@ void Solver::run()
 
         // Update E.
         KxH_->Mult(Hy_, aux);
-        //Ky_->Mult(Hx_, aux);
+        //KyH_->AddMult(Hx_, aux, -1.0);
         MInv_->Mult(aux, ezNew);
         ezNew *= -opts_.dt;
         ezNew.Add(1.0, Ez_);
@@ -167,7 +167,7 @@ void Solver::run()
         hyNew *= -opts_.dt;
         hyNew.Add(1.0, Hy_);
 
-        //Ky_->Mult(ezNew, aux);
+        //KyE_->Mult(ezNew, aux);
         //MInv_->Mult(aux, hxNew);
         //hxNew *= opts_.dt;
         //hxNew.Add(1.0, Hx_);

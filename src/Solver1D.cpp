@@ -94,7 +94,7 @@ namespace Maxwell {
 			K->AddInteriorFaceIntegrator(
 				new DGTraceIntegrator(n[d], alpha, beta));
 			K->AddBdrFaceIntegrator(
-				new DGTraceIntegrator(n[d], 0.0 * alpha, beta));
+				new DGTraceIntegrator(n[d], alpha, beta));
 		}
 		else
 		{
@@ -103,12 +103,8 @@ namespace Maxwell {
 			K->AddInteriorFaceIntegrator(
 				new DGTraceIntegrator(n[d], alpha, beta));
 			K->AddBdrFaceIntegrator(
-				new DGTraceIntegrator(n[d], 2.0 * alpha, beta));
+				new DGTraceIntegrator(n[d], alpha, beta));
 		}
-
-		//int skip_zeros = 0;
-		//K->Assemble(skip_zeros);
-		//K->Finalize(skip_zeros);
 
 		K->Assemble();
 		K->Finalize();
