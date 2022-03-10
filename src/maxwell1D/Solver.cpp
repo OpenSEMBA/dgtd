@@ -22,9 +22,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 	KxE_ = buildDerivativeAndFluxOperator(X, Electric);
 	KxH_ = buildDerivativeAndFluxOperator(X, Magnetic);
 
-	feEvolution_ = FE_Evolution(MInv_, KxE_, KxH_);
-
-	ODESolver* ode_solver = NULL;
+	feEvolution_ = std::make_unique<FE_Evolution>(MInv_, KxE_, KxH_)
 	ode_solver = new RK4Solver;
 		
 	Ez_.SetSpace(fes_.get());

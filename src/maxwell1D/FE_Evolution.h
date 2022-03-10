@@ -18,17 +18,15 @@ public:
 
 private:
 	BilinearForm &invM_, &Ke_, &Kh_;
-	mutable Vector e_, h_;
-
+	Vector z_;
 };
 
 FE_Evolution::FE_Evolution(BilinearForm& invM, BilinearForm& Ke, BilinearForm& Kh): 
-	TimeDependentOperator(invM.Height()), 
+	TimeDependentOperator(2*invM.Height()), 
 	invM_(invM), 
 	Ke_(Ke), 
 	Kh_(Kh),
-	e_(invM.Height()), 
-	h_(invM.Height())
+	z_(2*invM.Height())
 {}
 
 void FE_Evolution::Mult(const Vector& x, Vector& y) const
@@ -36,14 +34,10 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 	// Update E.
 	KxH_->Mult(Hy_, aux);
 	MInv_->Mult(aux, ezNew);
-	ezNew *= -opts_.dt;
-	ezNew.Add(1.0, Ez_);
-
+	
 	// Update H.
-	KxE_->Mult(ezNew, aux);
+	KxE_->Mult(Ez_, aux);
 	MInv_->Mult(aux, hyNew);
-	hyNew *= -opts_.dt;
-	hyNew.Add(1.0, Hy_);
 
 	Ez_ = ezNew;
 	Hy_ = hyNew;

@@ -47,7 +47,7 @@ private:
     std::unique_ptr<mfem::DG_FECollection> fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
     
-    FE_Evolution feEvolution_;
+    std::unique_ptr<FE_Evolution> feEvolution_;
     std::unique_ptr<ODESolver> odeSolver_;
 
     mfem::Mesh mesh_;
