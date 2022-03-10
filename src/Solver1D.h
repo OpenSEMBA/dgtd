@@ -4,7 +4,6 @@
 
 namespace Maxwell {
 
-
 class Solver1D {
 public:
     typedef double ElectricField;
