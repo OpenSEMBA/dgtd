@@ -10,37 +10,38 @@ class FE_Evolution : public TimeDependentOperator
 {
 public:
 	FE_Evolution(
-		BilinearForm& invM, 
-		BilinearForm& Ke, 
-		BilinearForm& Kh);
+		BilinearForm& MInv,  
+		BilinearForm& kTerm);
 	virtual void Mult(const Vector& x, Vector& y) const;
 	virtual ~FE_Evolution() = default;
 
 private:
-	BilinearForm &invM_, &Ke_, &Kh_;
+	BilinearForm &MInv_, &kTerm_;
 	Vector z_;
 };
 
-FE_Evolution::FE_Evolution(BilinearForm& invM, BilinearForm& Ke, BilinearForm& Kh): 
-	TimeDependentOperator(2*invM.Height()), 
-	invM_(invM), 
-	Ke_(Ke), 
-	Kh_(Kh),
-	z_(2*invM.Height())
+FE_Evolution::FE_Evolution(BilinearForm& MInv, BilinearForm& kTerm): 
+	TimeDependentOperator(MInv.Height()), 
+	MInv_(MInv), 
+	kTerm_(kTerm), 
+	z_(MInv.Height())
 {}
 
 void FE_Evolution::Mult(const Vector& x, Vector& y) const
 {
-	// Update E.
-	KxH_->Mult(Hy_, aux);
-	MInv_->Mult(aux, ezNew);
-	
-	// Update H.
-	KxE_->Mult(Ez_, aux);
-	MInv_->Mult(aux, hyNew);
+	Vector aux(MInv_.Height());
 
-	Ez_ = ezNew;
-	Hy_ = hyNew;
+	// Update other term.
+	kTerm_.Mult(x, aux);
+	MInv_.Mult(aux, y);
+
+	//// Update E.
+	//Kh_.Mult(Hy, aux);
+	//MInv_.Mult(aux, ezNew);
+	// 
+	//// Update H.
+	//Ke_.Mult(Ez, aux);
+	//MInv_.Mult(aux, hyNew);
 }
 
 }

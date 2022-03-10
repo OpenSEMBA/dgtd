@@ -29,7 +29,7 @@ public:
         double t_final = 1000*dt;
         int vis_steps = 100;
         int precision = 8;
-        TimeIntegrator timeIntegrator = Leapfrog;
+        //TimeIntegrator timeIntegrator = Leapfrog;
     };
 
     Solver(const Options&, const mfem::Mesh&);
@@ -47,8 +47,8 @@ private:
     std::unique_ptr<mfem::DG_FECollection> fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
     
-    std::unique_ptr<FE_Evolution> feEvolution_;
-    std::unique_ptr<ODESolver> odeSolver_;
+    ODESolver* odeSolverE_;
+    ODESolver* odeSolverH_;
 
     mfem::Mesh mesh_;
 
@@ -59,6 +59,7 @@ private:
     std::unique_ptr<mfem::BilinearForm> KxH_;
 
     mfem::GridFunction Ez_, Hy_;
+    mfem::GridFunction solution_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 

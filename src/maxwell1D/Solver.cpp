@@ -22,8 +22,8 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 	KxE_ = buildDerivativeAndFluxOperator(X, Electric);
 	KxH_ = buildDerivativeAndFluxOperator(X, Magnetic);
 
-	feEvolution_ = std::make_unique<FE_Evolution>(MInv_, KxE_, KxH_)
-	ode_solver = new RK4Solver;
+	odeSolverE_ = new RK4Solver;
+	odeSolverH_ = new RK4Solver;
 		
 	Ez_.SetSpace(fes_.get());
 	Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
@@ -133,24 +133,28 @@ void Solver::initializeParaviewData()
 
 void Solver::run()
 {
+	FE_Evolution electricOp(MInv_, KxH_);
+	FE_Evolution magneticOp(MInv_, KxE_);
 
-	double time = 0.0;
-
-	Vector aux(fes_->GetVSize());
-	Vector ezNew(fes_->GetVSize());
-	Vector hyNew(fes_->GetVSize());
+	double t = 0.0;
+	electricOp.SetTime(t);
+	magneticOp.SetTime(t);
+	odeSolverE_->Init(electricOp);
+	odeSolverH_->Init(magneticOp);
 
 	pd_->SetCycle(0);
 	pd_->SetTime(0.0);
 	pd_->Save();
 
+	double time = 0.0;
 	bool done = false;
 	for (int cycle = 0; !done;)
 	{
+		double dt_real = std::min(opts_.dt, opts_.t_final - t);
 
-	
+		odeSolverE_->Step(Hy_, t, dt_real);
+		odeSolverH_->Step(Ez_, t, dt_real);
 
-		time += opts_.dt;
 		cycle++;
 
 		done = (time >= opts_.t_final - 1e-8 * opts_.dt);
