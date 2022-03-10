@@ -15,8 +15,10 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 	mesh_ = mfem::Mesh(mesh, true);
 	opts_ = opts;
 
-	fec_ = std::make_unique<DG_FECollection>(opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
-	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+	fec_ = std::make_unique<DG_FECollection>(
+		opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+	fes_ = std::make_unique<FiniteElementSpace>(
+		&mesh_, fec_.get(), 2, Ordering::byVDIM);
 
 	odeSolver_ = new RK4Solver;
 	
