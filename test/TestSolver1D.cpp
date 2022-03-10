@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
 #include <math.h>
 
-#include "Solver1D.h"
+#include "maxwell1D/Solver.h"
 
-using namespace Maxwell;
+using namespace Maxwell1D;
 
 namespace AnalyticalFunctions1D {
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
@@ -54,17 +54,16 @@ TEST_F(TestSolver1D, oneDimensional)
 	int nx = 100;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
-	Solver1D::Options opts;
+	Maxwell1D::Solver::Options opts;
 	opts.order = 2;
 	opts.dt = 1e-4;
 	opts.t_final = 4;
 	opts.vis_steps = 100;
 
-	Solver1D solver1D(opts, mesh);
-	solver1D.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+	Maxwell1D::Solver solver(opts, mesh);
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 
-	solver1D.setInitialElectricField(gaussianFunction);
-	solver1D.run();
-	//solver1D.runODESolver();
+	solver.setInitialElectricField(gaussianFunction);
+	solver.run();
 }
 

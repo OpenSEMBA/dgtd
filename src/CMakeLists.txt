@@ -7,6 +7,5 @@ include_directories(${MFEM_INCLUDE_DIRS})
 
 add_library(maxwell_solvers STATIC 
 	"Solver2D.cpp" "Solver2D.h"
-	"Solver1D.cpp" "Solver1D.h"
-	"Solver1DRunge.cpp" "Solver1DRunge.h")
+	"maxwell1D/Solver.h" "maxwell1D/Solver.cpp" "maxwell1D/FE_Evolution.h")
 
