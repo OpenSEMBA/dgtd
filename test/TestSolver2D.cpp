@@ -1,18 +1,17 @@
 #include "gtest/gtest.h"
 #include <math.h>
 
-#include "Solver.h"
-#include "Solver1D.h"
+#include "Solver2D.h"
 
 using namespace Maxwell;
 
-namespace AnalyticalFunctions {
+namespace AnalyticalFunctions2D {
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
 	std::size_t standingWaveModeX = 1, standingWaveModeY = 1;
 
 	const double PI = atan(1.0) * 4;
 
-	double gaussianFunction(const Solver::Position& pos)
+	double gaussianFunction(const Solver2D::Position& pos)
 	{
 		mfem::Vector normalizedPos(2);
 		for (size_t i = 0; i < 2; i++) {
@@ -23,7 +22,7 @@ namespace AnalyticalFunctions {
 		return exp(-20. * (pow(normalizedPos[0], 2) + pow(normalizedPos[1], 2)));
 	}
 
-	double standingWaveFunction(const Solver::Position& pos)
+	double standingWaveFunction(const Solver2D::Position& pos)
 	{
 		mfem::Vector normalizedPos(2);
 		mfem::Vector L(2);
@@ -38,7 +37,9 @@ namespace AnalyticalFunctions {
 	}
 }
 
-class TestSolver : public ::testing::Test {
+using namespace AnalyticalFunctions2D;
+
+class TestSolver2D : public ::testing::Test {
 protected:
 	
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
@@ -52,7 +53,7 @@ protected:
 		return res;
 	}
 };
-TEST_F(TestSolver, checkRun)
+TEST_F(TestSolver2D, checkRun)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -69,24 +70,22 @@ TEST_F(TestSolver, checkRun)
 	int nx = 101; int ny = 1; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges,100,1);
 
-	Solver::Options opts;
+	Solver2D::Options opts;
 	opts.order = 2;
 	opts.dt = 5e-4;
 	opts.t_final = 100;
 	opts.vis_steps = 500;
-	AnalyticalFunctions::standingWaveModeX = 1;
-	AnalyticalFunctions::standingWaveModeY = 1;
+	standingWaveModeX = 1;
+	standingWaveModeY = 1;
 	
-	Solver solver(opts, mesh);
-	solver.getMesh().GetBoundingBox(
-		AnalyticalFunctions::meshBoundingBoxMin, 
-		AnalyticalFunctions::meshBoundingBoxMax);
+	Solver2D solver(opts, mesh);
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 
 	
-	solver.setInitialElectricField(AnalyticalFunctions::gaussianFunction);
+	solver.setInitialElectricField(gaussianFunction);
 	solver.run();
 }
-TEST_F(TestSolver, checkMeshDimensions) 
+TEST_F(TestSolver2D, checkMeshDimensions) 
 {
 	/*This test ensures that the number of elements of any 2D Cartesian
 	mesh is equal to the product of the horizontal and vertical segments
@@ -101,7 +100,7 @@ TEST_F(TestSolver, checkMeshDimensions)
 	EXPECT_EQ(nx*ny, mesh.GetNE());
 
 }
-TEST_F(TestSolver, checkMeshElementVertices) 
+TEST_F(TestSolver2D, checkMeshElementVertices) 
 {
 	/*This test was created to understand the process of mesh creation
 	and assignation of vertex index to elements.
@@ -135,7 +134,7 @@ TEST_F(TestSolver, checkMeshElementVertices)
 	EXPECT_EQ(lastElementVerticesVector, vectorLastElement);
 
 }
-TEST_F(TestSolver, checkMeshBoundaries)
+TEST_F(TestSolver2D, checkMeshBoundaries)
 {
 	/*In this test we aim to compare the boundary DoFs for a mesh generated through
 	the Mesh class constructors for a 2DCartesian and 'square3x3.mesh', a handcrafted mesh.
@@ -181,7 +180,7 @@ TEST_F(TestSolver, checkMeshBoundaries)
 
 	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
 }
-TEST_F(TestSolver, mapMeshElementAndVertex) 
+TEST_F(TestSolver2D, mapMeshElementAndVertex) 
 {
 
 	/* This test was created with the aim to understand the mapping and ordering process
@@ -209,7 +208,7 @@ TEST_F(TestSolver, mapMeshElementAndVertex)
 	EXPECT_EQ(nx*ny-1, mapped.size()-1);
 	
 }
-TEST_F(TestSolver, checkMeshInvariance) 
+TEST_F(TestSolver2D, checkMeshInvariance) 
 {
 	/* This test aimed to prove mesh invariance after being used by our Solver object, and
 	* deep the understanding of C++ programming.
@@ -225,7 +224,7 @@ TEST_F(TestSolver, checkMeshInvariance)
 	int nx = 8; int ny = 8; bool generateEdges = true;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(nx, ny, mfem::Element::QUADRILATERAL, generateEdges);
 	auto meshCopy = mfem::Mesh(mesh);
-	Solver solver(Solver::Options(), mesh);
+	Solver2D solver(Solver2D::Options(), mesh);
 
 	std::vector<int> meshMap = mapQuadElementTopLeftVertex(meshCopy);
 	std::vector<int> solverMeshMap = mapQuadElementTopLeftVertex(solver.getMesh());

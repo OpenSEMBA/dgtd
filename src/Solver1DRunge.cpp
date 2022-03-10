@@ -82,7 +82,6 @@ namespace Maxwell {
 		virtual ~FE_Evolution();
 	};
 
-
 	Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 	{
 		checkOptionsAreValid(opts, mesh);

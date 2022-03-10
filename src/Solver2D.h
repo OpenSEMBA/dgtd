@@ -4,7 +4,7 @@
 
 namespace Maxwell {
 
-class Solver {
+class Solver2D {
 public:
     typedef double ElectricField;
     typedef mfem::Vector Position;
@@ -27,7 +27,7 @@ public:
         int precision = 8;
     };
 
-	Solver(const Options&, const mfem::Mesh&);
+	Solver2D(const Options&, const mfem::Mesh&);
     
     void setInitialElectricField(std::function<ElectricField(const Position&)>);
     
@@ -61,7 +61,7 @@ private:
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
     
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
-    mfem::Array<int> Solver::buildEssentialTrueDOF();
+    mfem::Array<int> Solver2D::buildEssentialTrueDOF();
     std::unique_ptr<mfem::BilinearForm> buildInverseMassMatrix() const;
     std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(const Direction&, const FieldType& ) const;
 

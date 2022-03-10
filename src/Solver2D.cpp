@@ -1,4 +1,4 @@
-#include "Solver.h"
+#include "Solver2D.h"
 
 #include <fstream>
 #include <iostream>
@@ -8,7 +8,7 @@ using namespace mfem;
 
 namespace Maxwell {
 
-Solver::Solver(const Options& opts, const Mesh& mesh) 
+Solver2D::Solver2D(const Options& opts, const Mesh& mesh) 
 {
     checkOptionsAreValid(opts, mesh);
 
@@ -37,7 +37,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
 }
 
-void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
+void Solver2D::checkOptionsAreValid(const Options& opts, const Mesh& mesh) 
 {
     if (mesh.Dimension() != 2) {
         throw std::exception("Incorrect Dimension for mesh");
@@ -51,7 +51,7 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
     }
 }
 
-mfem::Array<int> Solver::buildEssentialTrueDOF()
+mfem::Array<int> Solver2D::buildEssentialTrueDOF()
 {
     Array<int> ess_tdof_list;
     if (mesh_.bdr_attributes.Size())
@@ -63,7 +63,7 @@ mfem::Array<int> Solver::buildEssentialTrueDOF()
     return ess_tdof_list;
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildInverseMassMatrix() const
+std::unique_ptr<mfem::BilinearForm> Solver2D::buildInverseMassMatrix() const
 {
     auto MInv = std::make_unique<BilinearForm>(fes_.get());
     MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
@@ -72,7 +72,7 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildInverseMassMatrix() const
     return MInv;
 }
 
-std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const Direction& d, const FieldType& ft) const
+std::unique_ptr<mfem::BilinearForm> Solver2D::buildDerivativeAndFluxOperator(const Direction& d, const FieldType& ft) const
 {
     assert(d != X || d != Y, "Incorrect argument for direction.");
 
@@ -118,12 +118,12 @@ std::unique_ptr<mfem::BilinearForm> Solver::buildDerivativeAndFluxOperator(const
     return kDir;
 }
 
-void Solver::setInitialElectricField(std::function<ElectricField(const Position&)> f) 
+void Solver2D::setInitialElectricField(std::function<ElectricField(const Position&)> f) 
 {
     Ez_.ProjectCoefficient(FunctionCoefficient(f));
 }
 
-void Solver::initializeParaviewData()
+void Solver2D::initializeParaviewData()
 {
     pd_ = NULL;
     pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView", &mesh_);
@@ -137,7 +137,7 @@ void Solver::initializeParaviewData()
 }
 
 
-void Solver::run() 
+void Solver2D::run() 
 {
     double time = 0.0;
     bool done = false;
