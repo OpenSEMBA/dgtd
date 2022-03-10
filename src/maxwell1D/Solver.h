@@ -48,11 +48,14 @@ private:
     std::unique_ptr<mfem::DG_FECollection> fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
     
-    ODESolver* odeSolver_;
+    std::unique_ptr<ODESolver> odeSolver_;
 
     mfem::Array<int> boundaryTDoF_;
 
-    mfem::GridFunction Ez_, Hy_;
+    std::unique_ptr<FE_Evolution> maxwellEvol_;
+    
+    Vector sol_;
+    GridFunction E_, H_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 

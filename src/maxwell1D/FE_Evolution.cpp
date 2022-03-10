@@ -3,7 +3,7 @@
 namespace Maxwell1D {
 
 FE_Evolution::FE_Evolution(FiniteElementSpace* fes) :
-	TimeDependentOperator(numberOfFieldComponents* MInv_->Height()),
+	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	fes_(fes),
 	MInv_(buildInverseMassMatrix()),
 	KxE_(buildDerivativeAndFluxOperator(X, Electric)),
@@ -66,8 +66,8 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeAndFluxOperator(
 
 void FE_Evolution::Mult(const Vector& x, Vector& y) const
 {
-	Vector eOld(&x[0], fes_->GetNDofs());
-	Vector hOld(&x[fes_->GetNDofs()]);
+	Vector eOld(x.GetData(),                    fes_->GetNDofs());
+	Vector hOld(x.GetData() + fes_->GetNDofs(), fes_->GetNDofs());
 
 	GridFunction eNew(fes_, &y[0]);
 	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
@@ -75,12 +75,12 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 	Vector aux(MInv_->Height());
 
 	// Update E.
-	KxH_.Mult(hOld, aux);
-	MInv_.Mult(aux, eNew);
+	KxH_->Mult(hOld, aux);
+	MInv_->Mult(aux, eNew);
 	 
 	// Update H.
 	KxE_->Mult(eOld, aux);
-	MInv_.Mult(aux, hNew);
+	MInv_->Mult(aux, hNew);
 }
 
 }

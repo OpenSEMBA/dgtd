@@ -14,16 +14,15 @@ const Direction X = 0;
 const FieldType Electric = 0;
 const FieldType Magnetic = 1;
 
-class FE_Evolution : public TimeDependentOperator
-{
+class FE_Evolution : public TimeDependentOperator {
 public:
+	static const std::size_t numberOfFieldComponents = 2;
 
 	FE_Evolution(FiniteElementSpace* fes);
 	virtual void Mult(const Vector& x, Vector& y) const;
 	virtual ~FE_Evolution() = default;
 
 private:
-	const std::size_t numberOfFieldComponents = 2;
 
 	FiniteElementSpace* fes_;
 	

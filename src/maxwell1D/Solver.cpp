@@ -17,17 +17,21 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
 	fec_ = std::make_unique<DG_FECollection>(
 		opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
-	fes_ = std::make_unique<FiniteElementSpace>(
-		&mesh_, fec_.get(), 2, Ordering::byVDIM);
+	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
-	odeSolver_ = new RK4Solver;
+	odeSolver_ = std::make_unique<RK4Solver>();
+
+	maxwellEvol_ = std::make_unique<FE_Evolution>(fes_.get());
 	
-	//Ez_.SetSpace(fes_.get());
-	//Ez_.ProjectCoefficient(ConstantCoefficient(0.0));
+	sol_ = Vector(FE_Evolution::numberOfFieldComponents * fes_->GetNDofs());
+	sol_ = 0.0;
 
-	//Hy_.SetSpace(fes_.get());
-	//Hy_.ProjectCoefficient(ConstantCoefficient(0.0));
+	E_.SetSpace(fes_.get());
+	E_.SetData(sol_.GetData());
+	H_.SetSpace(fes_.get());
+	H_.SetData(sol_.GetData() + fes_->GetNDofs());
 
+	
 	initializeParaviewData();
 }
 
@@ -59,7 +63,7 @@ mfem::Array<int> Solver::buildEssentialTrueDOF()
 
 void Solver::setInitialElectricField(std::function<ElectricField(const Position&)> f)
 {
-	Ez_.ProjectCoefficient(FunctionCoefficient(f));
+	E_.ProjectCoefficient(FunctionCoefficient(f));
 }
 
 void Solver::initializeParaviewData()
@@ -67,8 +71,8 @@ void Solver::initializeParaviewData()
 	pd_ = NULL;
 	pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh_);
 	pd_->SetPrefixPath("ParaView");
-	pd_->RegisterField("Ez", &Ez_);
-	pd_->RegisterField("Hy", &Hy_);
+	pd_->RegisterField("E", &E_);
+	pd_->RegisterField("H", &H_);
 	pd_->SetLevelsOfDetail(opts_.order);
 	pd_->SetDataFormat(VTKFormat::BINARY);
 	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
@@ -77,27 +81,24 @@ void Solver::initializeParaviewData()
 void Solver::run()
 {
 	Vector vals(2 * fes_.get()->GetVSize());
+	
+	double time = 0.0;
 
-	FE_Evolution maxwellEvol(fes_.get());
-
-	double t = 0.0;
-	maxwellEvol.SetTime(t);
-	odeSolver_->Init(maxwellEvol);
+	maxwellEvol_->SetTime(time);
+	odeSolver_->Init(*maxwellEvol_);
 
 	pd_->SetCycle(0);
 	pd_->SetTime(0.0);
 	pd_->Save();
 
-	double time = 0.0;
 	bool done = false;
-	for (int cycle = 0; !done;)
-	{
-		double dt_real = std::min(opts_.dt, opts_.t_final - t);
-		//odeSolver_->Step(u, t, dt_real);
+	int cycle = 0;
+	while (!done) {
+		odeSolver_->Step(sol_, time, opts_.dt);
+
+		done = (time >= opts_.t_final);
+
 		cycle++;
-
-		done = (time >= opts_.t_final - 1e-8 * opts_.dt);
-
 		if (done || cycle % opts_.vis_steps == 0) {
 			pd_->SetCycle(cycle);
 			pd_->SetTime(time);
