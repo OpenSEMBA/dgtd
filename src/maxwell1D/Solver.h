@@ -43,32 +43,21 @@ public:
 private:
 
     Options opts_;
+    mfem::Mesh mesh_;
 
     std::unique_ptr<mfem::DG_FECollection> fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
     
-    ODESolver* odeSolverE_;
-    ODESolver* odeSolverH_;
-
-    mfem::Mesh mesh_;
+    ODESolver* odeSolver_;
 
     mfem::Array<int> boundaryTDoF_;
 
-    std::unique_ptr<mfem::BilinearForm> MInv_;
-    std::unique_ptr<mfem::BilinearForm> KxE_;
-    std::unique_ptr<mfem::BilinearForm> KxH_;
-
     mfem::GridFunction Ez_, Hy_;
-    mfem::GridFunction solution_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     mfem::Array<int> Solver::buildEssentialTrueDOF();
-
-    std::unique_ptr<mfem::BilinearForm> buildInverseMassMatrix() const;
-    std::unique_ptr<mfem::BilinearForm> buildDerivativeAndFluxOperator(
-        const Direction&, const FieldType&) const;
     
     void initializeParaviewData();
 
