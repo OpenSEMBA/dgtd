@@ -84,26 +84,15 @@ void Solver::initializeParaviewData()
 
 void Solver::initializeGLVISData() {
 
-	socketstream sout;
-
 	char vishost[] = "localhost";
-		int  visport = 19916;
-		sout.open(vishost, visport);
-		if (!sout)
-		{
-			std::cout << "Unable to connect to GLVis server at "
-				<< vishost << ':' << visport << std::endl;
-			std::cout << "GLVis visualization disabled.\n";
-		}
-		else
-		{
-			sout.precision(opts_.precision);
-			sout << "solution\n" << mesh_ << E_;
-			sout << "pause\n";
-			sout << std::flush;
-			std::cout << "GLVis visualization paused."
-				<< " Press space (in the GLVis window) to resume it.\n";
-		}
+	int  visport = 19916;
+	sout_.open(vishost, visport);
+	sout_.precision(opts_.precision);
+	sout_ << "solution\n" << mesh_ << E_;
+	sout_ << "pause\n";
+	sout_ << std::flush;
+	std::cout << "GLVis visualization paused."
+		<< " Press space (in the GLVis window) to resume it.\n";
 }
 
 void Solver::run()
@@ -142,10 +131,16 @@ void Solver::run()
 
 		cycle++;
 
-		if (done || cycle % opts_.vis_steps == 0 && opts_.paraview) {
-			pd_->SetCycle(cycle);
-			pd_->SetTime(time);
-			pd_->Save();
+
+		if (done || cycle % opts_.vis_steps == 0) {
+			if (opts_.paraview) {
+				pd_->SetCycle(cycle);
+				pd_->SetTime(time);
+				pd_->Save();
+			}
+			if (opts_.glvis) {
+				sout_ << "solution\n" << mesh_ << E_ << std::flush;
+			}
 		}
 	}
 }

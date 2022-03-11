@@ -61,6 +61,8 @@ private:
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
+    socketstream sout_;
+
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
     mfem::Array<int> Solver::buildEssentialTrueDOF();
     
