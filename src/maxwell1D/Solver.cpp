@@ -82,8 +82,8 @@ void Solver::initializeParaviewData()
 	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
 }
 
-void Solver::initializeGLVISData() {
-
+void Solver::initializeGLVISData() 
+{
 	char vishost[] = "localhost";
 	int  visport = 19916;
 	sout_.open(vishost, visport);
@@ -95,15 +95,8 @@ void Solver::initializeGLVISData() {
 		<< " Press space (in the GLVis window) to resume it.\n";
 }
 
-void Solver::run()
+void Solver::storeInitialVisualizationValues() 
 {
-	Vector vals(2 * fes_.get()->GetVSize());
-	
-	double time = 0.0;
-
-	maxwellEvol_->SetTime(time);
-	odeSolver_->Init(*maxwellEvol_);
-
 	if (opts_.paraview) {
 		pd_->SetCycle(0);
 		pd_->SetTime(0.0);
@@ -120,6 +113,18 @@ void Solver::run()
 		hSol.precision(opts_.precision);
 		H_.Save(hSol);
 	}
+}
+
+void Solver::run()
+{
+	Vector vals(2 * fes_.get()->GetVSize());
+	
+	double time = 0.0;
+
+	maxwellEvol_->SetTime(time);
+	odeSolver_->Init(*maxwellEvol_);
+
+	storeInitialVisualizationValues();
 
 	bool done = false;
 	int cycle = 0;
@@ -130,7 +135,6 @@ void Solver::run()
 		done = (time >= opts_.t_final);
 
 		cycle++;
-
 
 		if (done || cycle % opts_.vis_steps == 0) {
 			if (opts_.paraview) {

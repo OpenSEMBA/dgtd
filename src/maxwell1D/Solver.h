@@ -68,6 +68,7 @@ private:
     
     void initializeParaviewData();
     void initializeGLVISData();
+    void storeInitialVisualizationValues();
 
 };
 
