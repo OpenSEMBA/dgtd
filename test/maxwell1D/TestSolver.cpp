@@ -21,6 +21,22 @@ namespace AnalyticalFunctions1D {
 	}
 }
 
+namespace HelperFunctions1D {
+
+	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes)
+	{
+		Mesh res = Mesh::MakeCartesian1D(2);
+		res.SetAttribute(0, 1);
+		res.SetAttribute(1, 2);
+
+		for (int i = 0; i < refTimes; i++) {
+			res.UniformRefinement();
+		}
+
+		return res;
+	}
+
+}
 using namespace AnalyticalFunctions1D;
 
 class TestMaxwell1DSolver : public ::testing::Test {
@@ -34,10 +50,43 @@ protected:
 			mesh.GetElementVertices(i, meshArrayElement);
 			res.push_back(meshArrayElement[0]);
 		}
+		
 		return res;
 	}
 };
 
+TEST_F(TestMaxwell1DSolver, checkTwoAttributeMesh)
+{
+	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes) 
+	function.
+
+	First, an integer is declared for the number of times we wish to refine the mesh, then a mesh is 
+	constructed with two elements, left and right hand sides, setting the following attributes.
+
+	|------LHS------|------RHS------|
+
+	|##ATTRIBUTE 1##|##ATTRIBUTE 2##|
+
+	Once the mesh is refined, it is returned, then we compare if the expected number of elements is
+	true for the actual elements in the mesh.
+
+	Then, we consider how the mesh will perform its uniform refinement, and we declare that the 
+	LHS elements with Attribute one will be Even index elements (starting at 0), and the RHS
+	elements with Attribute 2 will be Uneven index elements (starting at 1).*/
+	
+	const int refTimes = 3;
+	Mesh mesh = HelperFunctions1D::makeTwoAttributeCartesianMesh1D(refTimes);
+
+	EXPECT_EQ(pow(2,refTimes + 1), mesh.GetNE());
+	for (int i = 0; i < mesh.GetNE(); i++) {
+		if (i % 2 == 0) {
+			EXPECT_EQ(1, mesh.GetAttribute(i));
+		}
+		else {
+			EXPECT_EQ(2, mesh.GetAttribute(i));
+		}
+	}
+}
 TEST_F(TestMaxwell1DSolver, oneDimensional)
 {
 	/*The purpose of this test is to check the run() function for the Solver class
