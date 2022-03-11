@@ -23,7 +23,7 @@ namespace AnalyticalFunctions1D {
 
 using namespace AnalyticalFunctions1D;
 
-class TestSolver1D : public ::testing::Test {
+class TestMaxwell1DSolver : public ::testing::Test {
 protected:
 	
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
@@ -38,27 +38,27 @@ protected:
 	}
 };
 
-TEST_F(TestSolver1D, oneDimensional)
+TEST_F(TestMaxwell1DSolver, oneDimensional)
 {
-	/*The purpose of this test is to check the run() function for the Solver1D class
+	/*The purpose of this test is to check the run() function for the Solver class
 	and test the different available options.
 
 	First, dimensional variables are declared and a mesh is constructed, along with the declaration
 	of different useful variables.
 
-	Then, a Solver1D object is constructed using said mesh and options, the bounding box for its mesh
+	Then, a Solver object is constructed using said mesh and options, the bounding box for its mesh
 	is extracted and an initial condition is applied to one of its variables. (GridFunction Ez_)
 
 	Lastly, the run() function is called.*/
 
-	int nx = 100;
+	int nx = 11;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	Maxwell1D::Solver::Options opts;
-	opts.order = 2;
-	opts.dt = 1e-4;
-	opts.t_final = 4;
-	opts.vis_steps = 100;
+	opts.order = 3;
+	opts.dt = 1e-3;
+	opts.t_final = 1000 * opts.dt;
+	opts.vis_steps = 1;
 
 	Maxwell1D::Solver solver(opts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
