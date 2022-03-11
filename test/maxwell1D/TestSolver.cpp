@@ -58,7 +58,8 @@ TEST_F(TestMaxwell1DSolver, oneDimensional)
 	opts.order = 3;
 	opts.dt = 1e-3;
 	opts.t_final = 1000 * opts.dt;
-	opts.vis_steps = 1;
+	opts.vis_steps = 2;
+	opts.paraview = true;
 
 	Maxwell1D::Solver solver(opts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);

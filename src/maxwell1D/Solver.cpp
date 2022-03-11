@@ -31,8 +31,12 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 	H_.SetSpace(fes_.get());
 	H_.SetData(sol_.GetData() + fes_->GetNDofs());
 
-	
-	initializeParaviewData();
+	if (opts_.paraview) {
+		initializeParaviewData();
+	}
+	if (opts_.glvis) {
+		initializeGLVISData();
+	}
 }
 
 void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
@@ -78,6 +82,30 @@ void Solver::initializeParaviewData()
 	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
 }
 
+void Solver::initializeGLVISData() {
+
+	socketstream sout;
+
+	char vishost[] = "localhost";
+		int  visport = 19916;
+		sout.open(vishost, visport);
+		if (!sout)
+		{
+			std::cout << "Unable to connect to GLVis server at "
+				<< vishost << ':' << visport << std::endl;
+			std::cout << "GLVis visualization disabled.\n";
+		}
+		else
+		{
+			sout.precision(opts_.precision);
+			sout << "solution\n" << mesh_ << E_;
+			sout << "pause\n";
+			sout << std::flush;
+			std::cout << "GLVis visualization paused."
+				<< " Press space (in the GLVis window) to resume it.\n";
+		}
+}
+
 void Solver::run()
 {
 	Vector vals(2 * fes_.get()->GetVSize());
@@ -87,19 +115,34 @@ void Solver::run()
 	maxwellEvol_->SetTime(time);
 	odeSolver_->Init(*maxwellEvol_);
 
-	pd_->SetCycle(0);
-	pd_->SetTime(0.0);
-	pd_->Save();
+	if (opts_.paraview) {
+		pd_->SetCycle(0);
+		pd_->SetTime(0.0);
+		pd_->Save();
+	}
+	if (opts_.glvis) {
+		std::ofstream omesh("Maxwell1D_RK4.mesh");
+		omesh.precision(opts_.precision);
+		mesh_.Print(omesh);
+		std::ofstream eSol("Maxwell1D_RK4-init-E.gf");
+		eSol.precision(opts_.precision);
+		E_.Save(eSol);
+		std::ofstream hSol("Maxwell1D_RK4-init-H.gf");
+		hSol.precision(opts_.precision);
+		H_.Save(hSol);
+	}
 
 	bool done = false;
 	int cycle = 0;
+
 	while (!done) {
 		odeSolver_->Step(sol_, time, opts_.dt);
 
 		done = (time >= opts_.t_final);
 
 		cycle++;
-		if (done || cycle % opts_.vis_steps == 0) {
+
+		if (done || cycle % opts_.vis_steps == 0 && opts_.paraview) {
 			pd_->SetCycle(cycle);
 			pd_->SetTime(time);
 			pd_->Save();

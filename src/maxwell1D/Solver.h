@@ -29,6 +29,8 @@ public:
         double t_final = 1000*dt;
         int vis_steps = 100;
         int precision = 8;
+        bool paraview = false;
+        bool glvis = false;
         //TimeIntegrator timeIntegrator = Leapfrog;
     };
 
@@ -63,6 +65,7 @@ private:
     mfem::Array<int> Solver::buildEssentialTrueDOF();
     
     void initializeParaviewData();
+    void initializeGLVISData();
 
 };
 
