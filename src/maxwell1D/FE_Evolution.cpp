@@ -6,12 +6,10 @@ FE_Evolution::FE_Evolution(FiniteElementSpace* fes) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	fes_(fes),
 	MInv_(buildInverseMassMatrix()),
-	KxE_(buildDerivativeAndFluxOperator(X, Electric)),
-	KxH_(buildDerivativeAndFluxOperator(X, Magnetic)),
-	SxE_(buildDerivativeOperator(X, Electric)),
-	SxH_(buildDerivativeOperator(X, Magnetic)),
-	FxE_(buildFluxOperator(X, Electric)),
-	FxH_(buildFluxOperator(X, Magnetic))
+	SE_(buildDerivativeOperator(X, Electric)),
+	SH_(buildDerivativeOperator(X, Magnetic)),
+	FE_(buildFluxOperator(X, Electric)),
+	FH_(buildFluxOperator(X, Magnetic))
 {}
 
 std::unique_ptr<BilinearForm> FE_Evolution::buildInverseMassMatrix() const
@@ -21,51 +19,6 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildInverseMassMatrix() const
 	MInv->Assemble();
 	MInv->Finalize();
 	return MInv;
-}
-
-std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeAndFluxOperator(
-	const Direction& d, const FieldType& ft) const
-{
-	assert(d == X, "Incorrect argument for direction.");
-
-	auto K = std::make_unique<BilinearForm>(fes_);
-
-	ConstantCoefficient one(1.0);
-
-	K->AddDomainIntegrator(
-		new TransposeIntegrator(
-			new DerivativeIntegrator(one, d)));
-
-	std::vector<VectorConstantCoefficient> n = {
-		VectorConstantCoefficient(Vector({1.0})),
-	};
-
-	double alpha;
-	double beta;
-
-	if (ft == Electric)
-	{
-		alpha = -1.0;
-		beta = 0.0;
-		K->AddInteriorFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
-		K->AddBdrFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
-	}
-	else
-	{
-		alpha = -1.0;
-		beta = 0.0;
-		K->AddInteriorFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
-		K->AddBdrFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
-	}
-
-	K->Assemble();
-	K->Finalize();
-
-	return K;
 }
 
 std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeOperator(
@@ -85,7 +38,6 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeOperator(
 
 	return S;
 }
-
 
 std::unique_ptr<BilinearForm> FE_Evolution::buildFluxOperator(
 	const Direction& d, const FieldType& ft) const
@@ -128,21 +80,30 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildFluxOperator(
 
 void FE_Evolution::Mult(const Vector& x, Vector& y) const
 {
-	Vector eOld(x.GetData(),                    fes_->GetNDofs());
+	Vector eOld(x.GetData(), fes_->GetNDofs());
 	Vector hOld(x.GetData() + fes_->GetNDofs(), fes_->GetNDofs());
 
 	GridFunction eNew(fes_, &y[0]);
 	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
 
-	Vector aux(MInv_->Height());
+	Vector auxE(MInv_->Height());
+	Vector auxFlux(MInv_->Height());
+	Vector auxRHS(MInv_->Height());
 
-	// Update E.
-	KxH_->Mult(hOld, aux);
-	MInv_->Mult(aux, eNew);
-	 
-	// Update H.
-	KxE_->Mult(eOld, aux);
-	MInv_->Mult(aux, hNew);
+	FE_->Mult(eOld, auxE);
+	FH_->Mult(hOld, auxFlux);
+	auxFlux.Add(1.0, auxE);
+
+	// Update E. dE/dt = M^{-1} * (-S * H + ([H] + [E])).
+	SH_->AddMult(hOld, auxRHS, -1.0);
+	auxRHS.Add(1.0, auxFlux);
+	MInv_->Mult(auxRHS, eNew);
+
+	// Update H. dH/dt = M^{-1} * (-S * E + ([E] + [H])).
+	SE_->AddMult(eOld, auxRHS, -1.0);
+	auxRHS.Add(1.0, auxFlux);
+	MInv_->Mult(auxRHS, hNew);
 }
 
 }
+
