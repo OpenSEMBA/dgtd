@@ -1,6 +1,11 @@
 .vs/
 out/
+ParaView/
+
+*.csv
+*.gf
 *.json
+*.mesh
 
 # Prerequisites
 *.d
@@ -34,3 +39,5 @@ out/
 *.exe
 *.out
 *.app
+
+testData/hopfion/hopfion_p1_q1.txt
