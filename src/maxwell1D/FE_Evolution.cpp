@@ -7,7 +7,11 @@ FE_Evolution::FE_Evolution(FiniteElementSpace* fes) :
 	fes_(fes),
 	MInv_(buildInverseMassMatrix()),
 	KxE_(buildDerivativeAndFluxOperator(X, Electric)),
-	KxH_(buildDerivativeAndFluxOperator(X, Magnetic))
+	KxH_(buildDerivativeAndFluxOperator(X, Magnetic)),
+	SxE_(buildDerivativeOperator(X, Electric)),
+	SxH_(buildDerivativeOperator(X, Magnetic)),
+	FxE_(buildFluxOperator(X, Electric)),
+	FxH_(buildFluxOperator(X, Magnetic))
 {}
 
 std::unique_ptr<BilinearForm> FE_Evolution::buildInverseMassMatrix() const
@@ -62,6 +66,64 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeAndFluxOperator(
 	K->Finalize();
 
 	return K;
+}
+
+std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeOperator(
+	const Direction& d, const FieldType& ft) const
+{
+	assert(d == X, "Incorrect argument for direction.");
+
+	auto S = std::make_unique<BilinearForm>(fes_);
+
+	ConstantCoefficient one(1.0);
+
+	S->AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(one, d)));
+	S->Assemble();
+	S->Finalize();
+
+	return S;
+}
+
+
+std::unique_ptr<BilinearForm> FE_Evolution::buildFluxOperator(
+	const Direction& d, const FieldType& ft) const
+{
+	assert(d == X, "Incorrect argument for direction.");
+
+	auto F = std::make_unique<BilinearForm>(fes_);
+
+	std::vector<VectorConstantCoefficient> n = {
+		VectorConstantCoefficient(Vector({1.0})),
+	};
+
+	double alpha;
+	double beta;
+
+	if (ft == Electric)
+	{
+		alpha = -1.0;
+		beta = 0.0;
+		F->AddInteriorFaceIntegrator(
+			new DGTraceIntegrator(n[d], alpha, beta));
+		F->AddBdrFaceIntegrator(
+			new DGTraceIntegrator(n[d], alpha, beta));
+	}
+	else
+	{
+		alpha = -1.0;
+		beta = 0.0;
+		F->AddInteriorFaceIntegrator(
+			new DGTraceIntegrator(n[d], alpha, beta));
+		F->AddBdrFaceIntegrator(
+			new DGTraceIntegrator(n[d], alpha, beta));
+	}
+
+	F->Assemble();
+	F->Finalize();
+
+	return F;
 }
 
 void FE_Evolution::Mult(const Vector& x, Vector& y) const

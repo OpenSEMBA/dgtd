@@ -123,7 +123,10 @@ namespace HelperFunctions {
 }
 
 class DG : public ::testing::Test {
+protected:
+	typedef std::size_t Direction;
 };
+
 TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
@@ -266,7 +269,7 @@ TEST_F(DG, checkStiffnessMatrix)
 	through Hesthaven's MatLab code for a 1D Line Segment with a single element.*/
 	
 	const double tol = 1e-3;
-	int order = 2;
+	int order = 1;
 	const int dimension = 1;
 	FiniteElementCollection* fec;
 	FiniteElementSpace* fes;
@@ -323,6 +326,79 @@ TEST_F(DG, checkFluxOperators)
 
 	BilinearForm fluxForm(fes);
 }
+
+TEST_F(DG, checkKOperators)
+{
+	/* The objetive of this test is to check the construction of the bilinear form 
+	  for a single element in 1D.
+
+	  Firstly, we build a matrix which represent the total bilinear form of the problem (K).
+	  Secondly, we build the stifness (S) and flux (F) matrix and convert all the matrix to 
+	  a dense for comparing purporse.
+	  
+	  Finally, we compare the elements of the inicial bilinear form (K) and the sum of the 
+	  elements of the the stifness (S) and flux (F) matrix. */ 
+
+	const double tol = 1e-3;
+	int order = 2;
+	const int dimension = 1;
+	FiniteElementCollection* fec;
+	FiniteElementSpace* fes;
+
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
+	fes = new FiniteElementSpace(&mesh, fec);
+
+	ConstantCoefficient one(1.0);
+	double alpha = -1.0;
+	double beta = 0.0;
+	const DG::Direction d = 0;
+	std::vector<VectorConstantCoefficient> n = {
+		VectorConstantCoefficient(Vector({1.0})),
+	};
+
+	BilinearForm kMat(fes);
+	kMat.AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(one, d)));
+	kMat.AddInteriorFaceIntegrator(
+		new DGTraceIntegrator(n[d], alpha, beta));
+	kMat.AddBdrFaceIntegrator(
+		new DGTraceIntegrator(n[d], alpha, beta));
+	kMat.Assemble();
+	kMat.Finalize();
+
+	BilinearForm sMat(fes);
+	sMat.AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(one, d)));
+	sMat.Assemble();
+	sMat.Finalize();
+
+	BilinearForm fMat(fes);
+	fMat.AddInteriorFaceIntegrator(
+		new DGTraceIntegrator(n[d], alpha, beta));
+	fMat.AddBdrFaceIntegrator(
+		new DGTraceIntegrator(n[d], alpha, beta));
+	fMat.Assemble();
+	fMat.Finalize();
+
+	auto matrixK = kMat.SpMat().ToDenseMatrix();
+	auto matrixS = sMat.SpMat().ToDenseMatrix();
+	auto matrixF = fMat.SpMat().ToDenseMatrix();
+
+	ASSERT_EQ(matrixK->NumRows(), matrixS->NumRows());
+	ASSERT_EQ(matrixK->NumCols(), matrixS->NumCols());
+	ASSERT_EQ(matrixK->NumRows(), matrixF->NumRows());
+	ASSERT_EQ(matrixK->NumCols(), matrixF->NumCols());
+
+	for (std::size_t i = 0; i < matrixK->NumRows(); i++) {
+		for (std::size_t j = 0; j < matrixK->NumCols(); j++) {
+			EXPECT_NEAR(matrixK->Elem(i, j), matrixS->Elem(i, j) + matrixF->Elem(i, j), tol);
+		}
+	}
+}
+
 //
 //TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 //{
