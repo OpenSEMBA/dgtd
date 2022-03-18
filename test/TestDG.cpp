@@ -126,6 +126,7 @@ class DG : public ::testing::Test {
 protected:
 	typedef std::size_t Direction;
 };
+
 TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
@@ -326,7 +327,6 @@ TEST_F(DG, checkFluxOperators)
 	BilinearForm fluxForm(fes);
 }
 
-
 TEST_F(DG, checkKOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
@@ -398,6 +398,7 @@ TEST_F(DG, checkKOperators)
 		}
 	}
 }
+
 //
 //TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
 //{

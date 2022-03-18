@@ -68,7 +68,6 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeAndFluxOperator(
 	return K;
 }
 
-
 std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeOperator(
 	const Direction& d, const FieldType& ft) const
 {
@@ -126,6 +125,7 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildFluxOperator(
 
 	return F;
 }
+
 void FE_Evolution::Mult(const Vector& x, Vector& y) const
 {
 	Vector eOld(x.GetData(),                    fes_->GetNDofs());
