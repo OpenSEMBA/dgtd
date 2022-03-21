@@ -372,10 +372,10 @@ static void PADGTraceSetup2D(const int Q1D,
                 const double negdot = n(q, 0, f) * v0 - n(q, 1, f) * v1;
                 const double abs = dot > 0.0 ? dot : -dot;
                 const double w = W[q] * r * d(q,f);
-                qd(q,0,0,f) = w * (alpha / 2 * dot + gamma * abs);
-                qd(q,1,0,f) = w * (alpha / 2 * dot - gamma * abs);
-                qd(q,0,1,f) = w * (-alpha / 2 * dot - gamma * abs);
-                qd(q,1,1,f) = w * (-alpha / 2 * dot + gamma * abs);
+                qd(q,0,0,f) = w * (alpha / 2 * dot + gamma * negdot);
+                qd(q,1,0,f) = w * (alpha / 2 * dot - gamma * negdot);
+                qd(q,0,1,f) = w * (-alpha / 2 * dot - gamma * negdot);
+                qd(q,1,1,f) = w * (-alpha / 2 * dot + gamma * negdot);
             }
         });
 }

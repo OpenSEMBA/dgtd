@@ -33,8 +33,8 @@ TEST_F(TestMaxwellDGTrace, DGTraces)
 	oldDGTrace.Assemble();
 	oldDGTrace.Finalize();
 
-	maxwellDGTrace.AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n[0], alpha, gamma));
-	maxwellDGTrace.AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n[0], alpha, gamma));
+	maxwellDGTrace.AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n[0], alpha, beta, gamma));
+	maxwellDGTrace.AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n[0], alpha, beta, gamma));
 	maxwellDGTrace.Assemble();
 	maxwellDGTrace.Finalize();
 
