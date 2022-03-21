@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mfem.hpp"
+#include "BilinearIntegrators.h"
 
 namespace Maxwell1D {
 
@@ -16,7 +17,9 @@ const FieldType Magnetic = 1;
 
 class FE_Evolution : public TimeDependentOperator {
 public:
+
 	static const std::size_t numberOfFieldComponents = 2;
+	bool upwind = true;
 
 	FE_Evolution(FiniteElementSpace* fes);
 	virtual void Mult(const Vector& x, Vector& y) const;

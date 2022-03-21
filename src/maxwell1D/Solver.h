@@ -31,6 +31,7 @@ public:
         int precision = 8;
         bool paraview = false;
         bool glvis = false;
+
         //TimeIntegrator timeIntegrator = Leapfrog;
     };
 

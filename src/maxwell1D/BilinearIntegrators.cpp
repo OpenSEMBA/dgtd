@@ -369,13 +369,12 @@ static void PADGTraceSetup2D(const int Q1D,
                 const double v0 = const_v ? V(0,0,0) : V(0,q,f);
                 const double v1 = const_v ? V(1,0,0) : V(1,q,f);
                 const double dot = n(q,0,f) * v0 + n(q,1,f) * v1;
-                const double negdot = n(q, 0, f) * v0 - n(q, 1, f) * v1;
                 const double abs = dot > 0.0 ? dot : -dot;
                 const double w = W[q] * r * d(q,f);
-                qd(q,0,0,f) = w * (alpha / 2 * dot + gamma * negdot);
-                qd(q,1,0,f) = w * (alpha / 2 * dot - gamma * negdot);
-                qd(q,0,1,f) = w * (-alpha / 2 * dot - gamma * negdot);
-                qd(q,1,1,f) = w * (-alpha / 2 * dot + gamma * negdot);
+                qd(q,0,0,f) = w * (alpha / 2 * dot + gamma * dot);
+                qd(q,1,0,f) = w * (alpha / 2 * dot - gamma * dot);
+                qd(q,0,1,f) = w * (-alpha / 2 * dot - gamma * dot);
+                qd(q,1,1,f) = w * (-alpha / 2 * dot + gamma * dot);
             }
         });
 }
@@ -419,10 +418,10 @@ static void PADGTraceSetup3D(const int Q1D,
                         /* */              n(q1,q2,2,f) * v2;
                         const double abs = dot > 0.0 ? dot : -dot;
                         const double w = W[q1 + q2 * Q1D] * r * d(q1,q2,f);
-                        qd(q1,q2,0,0,f) = w * (alpha / 2 * dot + gamma * abs);
-                        qd(q1,q2,1,0,f) = w * (alpha / 2 * dot - gamma * abs);
-                        qd(q1,q2,0,1,f) = w * (-alpha / 2 * dot - gamma * abs);
-                        qd(q1,q2,1,1,f) = w * (-alpha / 2 * dot + gamma * abs);
+                        qd(q1,q2,0,0,f) = w * (alpha / 2 * dot + gamma * dot);
+                        qd(q1,q2,1,0,f) = w * (alpha / 2 * dot - gamma * dot);
+                        qd(q1,q2,0,1,f) = w * (-alpha / 2 * dot - gamma * dot);
+                        qd(q1,q2,1,1,f) = w * (-alpha / 2 * dot + gamma * dot);
                     }
                 }
         });
@@ -1282,7 +1281,7 @@ static void PADGTraceApplyTranspose(const int dim,
     MFEM_ABORT("Unknown kernel.");
 }
 
-/*########################## MDG START  ##########################*/
+/*########################## MDG START ##########################*/
 //Has alpha (Done?)
 void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     const FiniteElement& el2,
@@ -1358,7 +1357,7 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         un = vu * nor;
         a = 0.5 * alpha * un;
         //b = beta * fabs(un);
-        g = gamma * fabs(un);
+        g = gamma * un;
         // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)
         //       and therefore two blocks in the element matrix contribution
         //       (from the current quadrature point) are 0

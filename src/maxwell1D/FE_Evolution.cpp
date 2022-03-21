@@ -52,25 +52,94 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildFluxOperator(
 
 	double alpha;
 	double beta;
+	double gamma;
 
-	if (ft == Electric)
-	{
-		alpha = -1.0;
-		beta = 0.0;
-		F->AddInteriorFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
-		F->AddBdrFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
+	if (upwind == true) {
+
+		if (ft == Electric) {
+			alpha = -1.0;
+			beta = 0.0;
+			gamma = 0.0;
+			F->AddInteriorFaceIntegrator(
+				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+			F->AddBdrFaceIntegrator(
+				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+		}
+		else {
+			alpha = -1.0;
+			beta = 0.0;
+			gamma = 0.0;
+			F->AddInteriorFaceIntegrator(
+				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+			F->AddBdrFaceIntegrator(
+				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+		}
 	}
-	else
-	{
-		alpha = -1.0;
-		beta = 0.0;
-		F->AddInteriorFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
-		F->AddBdrFaceIntegrator(
-			new DGTraceIntegrator(n[d], alpha, beta));
+	else {
+		if (ft == Electric) {
+
+			alpha = -1.0;
+			beta = 0.0;
+			gamma = 0.0;
+			F->AddInteriorFaceIntegrator(
+				new DGTraceIntegrator(n[d], alpha, beta));
+			F->AddBdrFaceIntegrator(
+				new DGTraceIntegrator(n[d], alpha, beta));
+		}
+		else {
+			alpha = -1.0;
+			beta = 0.0;
+			gamma = 0.0;
+			F->AddInteriorFaceIntegrator(
+				new DGTraceIntegrator(n[d], alpha, beta));
+			F->AddBdrFaceIntegrator(
+				new DGTraceIntegrator(n[d], alpha, beta));
+		}
 	}
+
+	//switch (upwind) {
+	//	case true:
+	//		switch (ft) {
+	//			case Electric:
+	//				alpha = -1.0;
+	//				beta = 0.0;
+	//				gamma = 0.0;
+	//				F->AddInteriorFaceIntegrator(
+	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+	//				F->AddBdrFaceIntegrator(
+	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+	//				break;
+	//			case Magnetic:
+	//				alpha = -1.0;
+	//				beta = 0.0;
+	//				gamma = 0.0;
+	//				F->AddInteriorFaceIntegrator(
+	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+	//				F->AddBdrFaceIntegrator(
+	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+	//				break;
+	//		}
+	//	case false:
+	//		switch (ft) {
+	//			case Electric:
+	//				alpha = -1.0;
+	//				beta = 0.0;
+	//				F->AddInteriorFaceIntegrator(
+	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta));
+	//				F->AddBdrFaceIntegrator(
+	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta));
+	//				break;
+	//			case Magnetic:
+	//				alpha = -1.0;
+	//				beta = 0.0;
+	//				F->AddInteriorFaceIntegrator(
+	//					new DGTraceIntegrator(n[d], alpha, beta));
+	//				F->AddBdrFaceIntegrator(
+	//					new DGTraceIntegrator(n[d], alpha, beta));
+	//				break;
+	//		}
+	//}
+
 
 	F->Assemble();
 	F->Finalize();

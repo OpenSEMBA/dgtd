@@ -39,11 +39,7 @@ TEST_F(TestMaxwellDGTrace, DGTraces)
 	maxwellDGTrace.Finalize();
 
 	auto oldDGMatrix = oldDGTrace.SpMat().ToDenseMatrix();
-	oldDGMatrix->Print(std::cout);
-	std::cout << std::endl;
 	auto maxwellDGMatrix = maxwellDGTrace.SpMat().ToDenseMatrix();
-	maxwellDGMatrix->Print(std::cout);
-	std::cout << std::endl;
 
 	ASSERT_EQ(oldDGMatrix->Height(), maxwellDGMatrix->Width());
 	ASSERT_EQ(oldDGMatrix->Height(), maxwellDGMatrix->Height());
