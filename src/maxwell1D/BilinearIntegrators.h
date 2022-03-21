@@ -1,6 +1,8 @@
-#pragma once
+#ifndef _HEADER_MAXWELLDGTRACEINTEGRATOR
+#define _HEADER_MAXWELLDGTRACEINTEGRATOR
 
 #include "mfem.hpp"
+#include "../../../general/forall.hpp"
 
 namespace Maxwell1D {
 
@@ -10,7 +12,7 @@ class MaxwellDGTraceIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	//When undeclared, rho = 1.0;
+	//When explicitly undeclared, rho = 1.0;
 	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a)
 	{
 		rho = NULL; u = &u_; alpha = a; beta = 0.5 * a; gamma = 0.0;
@@ -81,3 +83,6 @@ private:
 	void SetupPA(const FiniteElementSpace& fes, FaceType type);
 };
 }
+
+
+#endif
