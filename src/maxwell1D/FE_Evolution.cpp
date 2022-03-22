@@ -135,14 +135,14 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 
 		case Centered:
 	
-			// Update E. dE/dt = M^{-1} * (S * H + {H}).
+			// Update E. dE/dt = M^{-1} * (-S * H + {H}).
 			FH_->Mult(hOld, aux);
-			SH_->AddMult(hOld, auxRHS, 1.0);
+			SH_->AddMult(hOld, auxRHS, -1.0);
 			MInv_->Mult(auxRHS, eNew);
 
-			// Update H. dH/dt = M^{-1} * (S * E + {H}).
+			// Update H. dH/dt = M^{-1} * (-S * E + {H}).
 			FE_->Mult(eOld, aux);
-			SE_->AddMult(eOld, auxRHS, 1.0);
+			SE_->AddMult(eOld, auxRHS, -1.0);
 			MInv_->Mult(auxRHS, hNew);
 			break;
 		}
