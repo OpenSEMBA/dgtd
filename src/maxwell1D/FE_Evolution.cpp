@@ -54,92 +54,48 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildFluxOperator(
 	double beta;
 	double gamma;
 
-	if (upwind == true) {
-
-		if (ft == Electric) {
-			alpha = -1.0;
-			beta = 0.0;
-			gamma = 0.0;
-			F->AddInteriorFaceIntegrator(
-				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-			F->AddBdrFaceIntegrator(
-				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-		}
-		else {
-			alpha = -1.0;
-			beta = 0.0;
-			gamma = 0.0;
-			F->AddInteriorFaceIntegrator(
-				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-			F->AddBdrFaceIntegrator(
-				new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-		}
+	switch (fluxType) {
+		case Upwind:
+			switch (ft) {
+				case Electric:
+					alpha = -1.0;
+					beta = 0.0;
+					gamma = 0.0;
+					F->AddInteriorFaceIntegrator(
+						new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+					F->AddBdrFaceIntegrator(
+						new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+					break;
+				case Magnetic:
+					alpha = -1.0;
+					beta = 0.0;
+					gamma = 0.0;
+					F->AddInteriorFaceIntegrator(
+						new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+					F->AddBdrFaceIntegrator(
+						new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
+					break;
+			}
+		case Centered:
+			switch (ft) {
+				case Electric:
+					alpha = -1.0;
+					beta = 0.0;
+					F->AddInteriorFaceIntegrator(
+						new MaxwellDGTraceIntegrator(n[d], alpha, beta));
+					F->AddBdrFaceIntegrator(
+						new MaxwellDGTraceIntegrator(n[d], alpha, beta));
+					break;
+				case Magnetic:
+					alpha = -1.0;
+					beta = 0.0;
+					F->AddInteriorFaceIntegrator(
+						new DGTraceIntegrator(n[d], alpha, beta));
+					F->AddBdrFaceIntegrator(
+						new DGTraceIntegrator(n[d], alpha, beta));
+					break;
+			}
 	}
-	else {
-		if (ft == Electric) {
-
-			alpha = -1.0;
-			beta = 0.0;
-			gamma = 0.0;
-			F->AddInteriorFaceIntegrator(
-				new DGTraceIntegrator(n[d], alpha, beta));
-			F->AddBdrFaceIntegrator(
-				new DGTraceIntegrator(n[d], alpha, beta));
-		}
-		else {
-			alpha = -1.0;
-			beta = 0.0;
-			gamma = 0.0;
-			F->AddInteriorFaceIntegrator(
-				new DGTraceIntegrator(n[d], alpha, beta));
-			F->AddBdrFaceIntegrator(
-				new DGTraceIntegrator(n[d], alpha, beta));
-		}
-	}
-
-	//switch (upwind) {
-	//	case true:
-	//		switch (ft) {
-	//			case Electric:
-	//				alpha = -1.0;
-	//				beta = 0.0;
-	//				gamma = 0.0;
-	//				F->AddInteriorFaceIntegrator(
-	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-	//				F->AddBdrFaceIntegrator(
-	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-	//				break;
-	//			case Magnetic:
-	//				alpha = -1.0;
-	//				beta = 0.0;
-	//				gamma = 0.0;
-	//				F->AddInteriorFaceIntegrator(
-	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-	//				F->AddBdrFaceIntegrator(
-	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta, gamma));
-	//				break;
-	//		}
-	//	case false:
-	//		switch (ft) {
-	//			case Electric:
-	//				alpha = -1.0;
-	//				beta = 0.0;
-	//				F->AddInteriorFaceIntegrator(
-	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta));
-	//				F->AddBdrFaceIntegrator(
-	//					new MaxwellDGTraceIntegrator(n[d], alpha, beta));
-	//				break;
-	//			case Magnetic:
-	//				alpha = -1.0;
-	//				beta = 0.0;
-	//				F->AddInteriorFaceIntegrator(
-	//					new DGTraceIntegrator(n[d], alpha, beta));
-	//				F->AddBdrFaceIntegrator(
-	//					new DGTraceIntegrator(n[d], alpha, beta));
-	//				break;
-	//		}
-	//}
-
 
 	F->Assemble();
 	F->Finalize();
@@ -155,23 +111,42 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 	GridFunction eNew(fes_, &y[0]);
 	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
 
-	Vector auxE(MInv_->Height());
+	Vector aux(MInv_->Height());
 	Vector auxFlux(MInv_->Height());
 	Vector auxRHS(MInv_->Height());
 
-	FE_->Mult(eOld, auxE);
-	FH_->Mult(hOld, auxFlux);
-	auxFlux.Add(1.0, auxE);
+	switch (fluxType) {
+		case Upwind:
 
-	// Update E. dE/dt = M^{-1} * (-S * H + ([H] + [E])).
-	SH_->AddMult(hOld, auxRHS, -1.0);
-	auxRHS.Add(1.0, auxFlux);
-	MInv_->Mult(auxRHS, eNew);
+			FE_->Mult(eOld, aux);
+			FH_->Mult(hOld, auxFlux);
+			auxFlux.Add(1.0, aux);
 
-	// Update H. dH/dt = M^{-1} * (-S * E + ([E] + [H])).
-	SE_->AddMult(eOld, auxRHS, -1.0);
-	auxRHS.Add(1.0, auxFlux);
-	MInv_->Mult(auxRHS, hNew);
+			// Update E. dE/dt = M^{-1} * (-S * H + ([H] + [E])).
+			SH_->AddMult(hOld, auxRHS, -1.0);
+			auxRHS.Add(1.0, auxFlux);
+			MInv_->Mult(auxRHS, eNew);
+
+			// Update H. dH/dt = M^{-1} * (-S * E + ([E] + [H])).
+			SE_->AddMult(eOld, auxRHS, -1.0);
+			auxRHS.Add(1.0, auxFlux);
+			MInv_->Mult(auxRHS, hNew);
+			break;
+
+		case Centered:
+	
+			// Update E. dE/dt = M^{-1} * (S * H + {H}).
+			FH_->Mult(hOld, aux);
+			SH_->AddMult(hOld, auxRHS, 1.0);
+			MInv_->Mult(auxRHS, eNew);
+
+			// Update H. dH/dt = M^{-1} * (S * E + {H}).
+			FE_->Mult(eOld, aux);
+			SE_->AddMult(eOld, auxRHS, 1.0);
+			MInv_->Mult(auxRHS, hNew);
+			break;
+		}
+
 }
 
 }

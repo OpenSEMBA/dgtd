@@ -9,17 +9,21 @@ using namespace mfem;
 
 typedef std::size_t Direction;
 typedef std::size_t FieldType;
+typedef std::size_t FluxType;
 
 const Direction X = 0;
 
 const FieldType Electric = 0;
 const FieldType Magnetic = 1;
 
+const FluxType Centered = 0;
+const FluxType Upwind = 1;
+
 class FE_Evolution : public TimeDependentOperator {
 public:
 
 	static const std::size_t numberOfFieldComponents = 2;
-	bool upwind = true;
+	FluxType fluxType = Upwind;
 
 	FE_Evolution(FiniteElementSpace* fes);
 	virtual void Mult(const Vector& x, Vector& y) const;
