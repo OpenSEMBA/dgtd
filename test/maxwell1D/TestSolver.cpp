@@ -104,8 +104,8 @@ TEST_F(TestMaxwell1DSolver, oneDimensional)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	Maxwell1D::Solver::Options solverOpts;
-	solverOpts.order = 3;
-	solverOpts.dt = 1e-3;
+	solverOpts.order = 2;
+	solverOpts.dt = 1e-4;
 	solverOpts.t_final = 1000 * solverOpts.dt;
 	solverOpts.vis_steps = 2;
 	solverOpts.paraview = true;
