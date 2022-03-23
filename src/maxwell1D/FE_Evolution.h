@@ -8,22 +8,23 @@ namespace Maxwell1D {
 using namespace mfem;
 
 typedef std::size_t Direction;
-typedef std::size_t FieldType;
 typedef std::size_t FluxType;
+typedef std::size_t Factor;
 
 const Direction X = 0;
 
-const FieldType Electric = 0;
-const FieldType Magnetic = 1;
-
 const FluxType Centered = 0;
 const FluxType Upwind = 1;
+
+const Factor Alpha = 0;
+const Factor Beta = 1;
+const Factor Gamma = 2;
 
 class FE_Evolution : public TimeDependentOperator {
 public:
 
 	static const std::size_t numberOfFieldComponents = 2;
-	FluxType fluxType = Upwind;
+	FluxType fluxType = Centered;
 
 	FE_Evolution(FiniteElementSpace* fes);
 	virtual void Mult(const Vector& x, Vector& y) const;
@@ -34,18 +35,21 @@ private:
 	FiniteElementSpace* fes_;
 	
 	std::unique_ptr<BilinearForm> MInv_;
-	std::unique_ptr<BilinearForm> KE_;
-	std::unique_ptr<BilinearForm> KH_;
-	std::unique_ptr<BilinearForm> SE_;
-	std::unique_ptr<BilinearForm> SH_;
-	std::unique_ptr<BilinearForm> FE_;
-	std::unique_ptr<BilinearForm> FH_;
+	std::unique_ptr<BilinearForm> KEE_;
+	std::unique_ptr<BilinearForm> KEH_;
+	std::unique_ptr<BilinearForm> KHE_;
+	std::unique_ptr<BilinearForm> KHH_;
 
 	std::unique_ptr<BilinearForm> buildInverseMassMatrix() const;
-	std::unique_ptr<BilinearForm> buildDerivativeOperator(
-		const Direction& d, const FieldType& ft) const;
-	std::unique_ptr<BilinearForm> buildFluxOperator(
-		const Direction& d, const FieldType& ft) const;
+	void addDerivativeOperator(
+		std::unique_ptr<BilinearForm>& form,
+		const Direction& d, ConstantCoefficient& coeff) const;
+	void addFluxOperator(
+		std::unique_ptr<BilinearForm>& form,
+		const Direction& d, Vector& abg) const;
+	void FE_Evolution::finalizeBilinearForm(
+		std::unique_ptr<BilinearForm>& form) const;
+	void FE_Evolution::initializeBilinearForms();
 
 };
 
