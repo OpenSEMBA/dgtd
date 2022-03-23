@@ -5,12 +5,10 @@ namespace Maxwell1D {
 FE_Evolution::FE_Evolution(FiniteElementSpace* fes) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	fes_(fes),
-	MInv_(buildInverseMassMatrix())
+	MInv_(buildInverseMassMatrix())/*,
+	KEE_(buildFullKOperator(X, ConstantCoefficient(1.0), Vector({0.0,0.0,1.0}))),
+	KHH_(buildFullKOperator(X, ConstantCoefficient(1.0), Vector({0.0,0.0,1.0})))*/
 {
-	KEE_ = std::make_unique<BilinearForm>(fes_);
-	KEH_ = std::make_unique<BilinearForm>(fes_);
-	KHE_ = std::make_unique<BilinearForm>(fes_);
-	KHH_ = std::make_unique<BilinearForm>(fes_);
 	initializeBilinearForms();
 }
 
@@ -21,6 +19,15 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildInverseMassMatrix() const
 	MInv->Assemble();
 	MInv->Finalize();
 	return MInv;
+}
+
+std::unique_ptr<BilinearForm> FE_Evolution::buildFullKOperator(
+	const Direction& d, ConstantCoefficient& coeff, Vector& abg) const
+{
+	auto K = std::make_unique<BilinearForm>(fes_);
+	addDerivativeOperator(K, d, coeff);
+	addFluxOperator(K, d, abg);
+	return K;
 }
 
 void FE_Evolution::addDerivativeOperator(
@@ -68,13 +75,15 @@ void FE_Evolution::addFluxOperator(
 			break;
 
 	}
+	form->Assemble();
+	form->Finalize();
 }
 
 
 void FE_Evolution::finalizeBilinearForm(std::unique_ptr<BilinearForm>& form) const
 {
-	form->Assemble();
-	form->Finalize();
+	form->Assemble(0);
+	form->Finalize(0);
 }
 
 void FE_Evolution::initializeBilinearForms()
@@ -85,27 +94,28 @@ void FE_Evolution::initializeBilinearForms()
 	ConstantCoefficient coeff;
 	Vector abg({alpha, beta, gamma});
 
+	KEE_ = std::make_unique<BilinearForm>(fes_);
+	KEH_ = std::make_unique<BilinearForm>(fes_);
+	KHE_ = std::make_unique<BilinearForm>(fes_);
+	KHH_ = std::make_unique<BilinearForm>(fes_);
+
 	switch (fluxType) {
 	case Upwind:
 
 		abg[Gamma] = 1.0;
 
 		addFluxOperator(KEE_, X, abg);
-		finalizeBilinearForm(KEE_);
 
 		addFluxOperator(KHH_, X, abg);
-		finalizeBilinearForm(KHH_);
 
 		abg[Gamma] = 1.0 * 0.5;
 		coeff = ConstantCoefficient(-1.0);
 
 		addDerivativeOperator(KEH_, X, coeff);
 		addFluxOperator(KEH_, X, abg);
-		finalizeBilinearForm(KEH_);
 
 		addDerivativeOperator(KHE_, X, coeff);
 		addFluxOperator(KHE_, X, abg);
-		finalizeBilinearForm(KHE_);
 
 	case Centered:
 
@@ -115,11 +125,9 @@ void FE_Evolution::initializeBilinearForms()
 
 		addDerivativeOperator(KEH_, X, coeff);
 		addFluxOperator(KEH_, X, abg);
-		finalizeBilinearForm(KEH_);
 
 		addDerivativeOperator(KHE_, X, coeff);
 		addFluxOperator(KHE_, X, abg);
-		finalizeBilinearForm(KHE_);
 
 	}
 }

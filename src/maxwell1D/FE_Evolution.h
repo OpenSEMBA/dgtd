@@ -41,6 +41,8 @@ private:
 	std::unique_ptr<BilinearForm> KHH_;
 
 	std::unique_ptr<BilinearForm> buildInverseMassMatrix() const;
+	std::unique_ptr<BilinearForm> FE_Evolution::buildFullKOperator(
+		const Direction& d, ConstantCoefficient& coeff, Vector& abg) const;
 	void addDerivativeOperator(
 		std::unique_ptr<BilinearForm>& form,
 		const Direction& d, ConstantCoefficient& coeff) const;

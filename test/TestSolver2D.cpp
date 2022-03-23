@@ -73,7 +73,7 @@ TEST_F(TestSolver2D, checkRun)
 	Solver2D::Options opts;
 	opts.order = 2;
 	opts.dt = 5e-4;
-	opts.t_final = 100;
+	opts.t_final = 1000*opts.dt;
 	opts.vis_steps = 500;
 	standingWaveModeX = 1;
 	standingWaveModeY = 1;
