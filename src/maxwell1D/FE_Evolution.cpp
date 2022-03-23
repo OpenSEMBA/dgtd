@@ -19,15 +19,6 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildInverseMassMatrix() const
 	return MInv;
 }
 
-std::unique_ptr<BilinearForm> FE_Evolution::buildFullKOperator(
-	const Direction& d, ConstantCoefficient& coeff, Vector& abg) const
-{
-	auto K = std::make_unique<BilinearForm>(fes_);
-	addDerivativeOperator(K, d, coeff);
-	addFluxOperator(K, d, abg);
-	return K;
-}
-
 void FE_Evolution::addDerivativeOperator(
 	std::unique_ptr<BilinearForm>& form,
 	const Direction& d, ConstantCoefficient& coeff) const
@@ -41,14 +32,15 @@ void FE_Evolution::addDerivativeOperator(
 			break;
 		case Centered:
 			form->AddDomainIntegrator(
-				new DerivativeIntegrator(coeff, d));
+				new TransposeIntegrator(
+					new DerivativeIntegrator(coeff, d)));
 			break;
 	}
 }
 
 void FE_Evolution::addFluxOperator(
 	std::unique_ptr<BilinearForm>& form,
-	const Direction& d, Vector& abg) const
+	const Direction& d, const  Vector& abgFace, const Vector& abgBdr) const
 {
 	assert(d == X, "Incorrect argument for direction.");
 
@@ -57,19 +49,19 @@ void FE_Evolution::addFluxOperator(
 	};
 
 	switch (fluxType) {
-		case Upwind:
-			form->AddInteriorFaceIntegrator(
-				new MaxwellDGTraceIntegrator(n[d], abg[Alpha], abg[Beta], abg[Gamma]));
-			form->AddBdrFaceIntegrator(
-				new MaxwellDGTraceIntegrator(n[d], abg[Alpha], abg[Beta], abg[Gamma]));
-			break;
+	case Upwind:
+		form->AddInteriorFaceIntegrator(
+			new MaxwellDGTraceIntegrator(n[d], abgFace[Alpha], abgFace[Beta], abgFace[Gamma]));
+		form->AddBdrFaceIntegrator(
+			new MaxwellDGTraceIntegrator(n[d], abgBdr[Alpha], abgBdr[Beta], abgBdr[Gamma]));
+		break;
 
-		case Centered:
-			form->AddInteriorFaceIntegrator(
-				new DGTraceIntegrator(n[d], abg[Alpha], abg[Beta]));
-			form->AddBdrFaceIntegrator(
-				new DGTraceIntegrator(n[d], abg[Alpha], abg[Beta]));
-			break;
+	case Centered:
+		form->AddInteriorFaceIntegrator(
+			new DGTraceIntegrator(n[d], abgFace[Alpha], abgFace[Beta]));
+		form->AddBdrFaceIntegrator(
+			new DGTraceIntegrator(n[d], abgBdr[Alpha], abgBdr[Beta]));
+		break;
 
 	}
 	form->Assemble();
@@ -89,8 +81,10 @@ void FE_Evolution::initializeBilinearForms()
 	double beta = 0.0;
 	double gamma = 0.0;
 	ConstantCoefficient coeff;
-	Vector abgE({alpha, beta, gamma});
-	Vector abgH({alpha, beta, gamma});
+	Vector abgIntFaceE({ alpha, beta, gamma });
+	Vector abgBdrFaceE({ alpha, beta, gamma });
+	Vector abgIntFaceH({ alpha, beta, gamma });
+	Vector abgBdrFaceH({ alpha, beta, gamma });
 
 	KEE_ = std::make_unique<BilinearForm>(fes_);
 	KEH_ = std::make_unique<BilinearForm>(fes_);
@@ -100,47 +94,53 @@ void FE_Evolution::initializeBilinearForms()
 	switch (fluxType) {
 	case Upwind:
 
-		abgE[Gamma] = 1.0;
+		abgIntFaceE[Gamma] = 1.0;
 
-		addFluxOperator(KEE_, X, abgE);
+		addFluxOperator(KEE_, X, abgIntFaceE, abgBdrFaceE);
 
-		addFluxOperator(KHH_, X, abgH);
+		addFluxOperator(KHH_, X, abgIntFaceH, abgBdrFaceH);
 
-		abgE[Gamma] = 1.0 * 0.5;
+		abgIntFaceE[Gamma] = 1.0 * 0.5;
 		coeff = ConstantCoefficient(-1.0);
 
 		addDerivativeOperator(KEH_, X, coeff);
-		addFluxOperator(KEH_, X, abgE);
+		addFluxOperator(KEH_, X, abgIntFaceE, abgBdrFaceE);
 
 		addDerivativeOperator(KHE_, X, coeff);
-		addFluxOperator(KHE_, X, abgH);
+		addFluxOperator(KHE_, X, abgIntFaceH, abgBdrFaceH);
 
 	case Centered:
 
 		switch (bdrCond) {
 		case PEC:
-			abgE[Alpha] = 0.0;
-			abgH[Alpha] = -2.0;
+			abgIntFaceE[Alpha] = -1.0;
+			abgIntFaceH[Alpha] = -1.0;
+			abgBdrFaceE[Alpha] =  0.0;
+			abgBdrFaceH[Alpha] = -2.0;
 			break;
 		case PMC:
-			abgE[Alpha] = -2.0;
-			abgH[Alpha] = 0.0;
+			abgIntFaceE[Alpha] = -1.0;
+			abgIntFaceH[Alpha] = -1.0;
+			abgBdrFaceE[Alpha] = -2.0;
+			abgBdrFaceH[Alpha] =  0.0;
 			break;
 		case SMA:
 			throw std::exception("SMA not available for Centered Flux.");
 		default:
-			abgE[Alpha] = -1.0;
-			abgH[Alpha] = -1.0;
+			abgIntFaceE[Alpha] = -1.0;
+			abgIntFaceH[Alpha] = -1.0;
+			abgBdrFaceE[Alpha] = -1.0;
+			abgBdrFaceH[Alpha] = -1.0;
 			break;
 		}
 
 		coeff = ConstantCoefficient(1.0);
 
 		addDerivativeOperator(KEH_, X, coeff);
-		addFluxOperator(KEH_, X, abgE);
+		addFluxOperator(KEH_, X, abgIntFaceE, abgBdrFaceE);
 
 		addDerivativeOperator(KHE_, X, coeff);
-		addFluxOperator(KHE_, X, abgH);
+		addFluxOperator(KHE_, X, abgIntFaceH, abgBdrFaceH);
 	}
 }
 
@@ -157,34 +157,34 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 	Vector auxRHS(MInv_->Height());
 
 	switch (fluxType) {
-		case Upwind:
+	case Upwind:
 
-			// Update E. dE/dt = M^{-1} * (-S * H + 0.5 * ([H] - [E])).
-			KEH_->Mult(hOld, auxRHS);
-			KEE_->Mult(eOld, auxFluxdE);
-			auxRHS.Add(-1.0, auxFluxdE);
-			MInv_->Mult(auxRHS, eNew);
+		// Update E. dE/dt = M^{-1} * (-S * H + 0.5 * ([H] - [E])).
+		KEH_->Mult(hOld, auxRHS);
+		KEE_->Mult(eOld, auxFluxdE);
+		auxRHS.Add(-1.0, auxFluxdE);
+		MInv_->Mult(auxRHS, eNew);
 
-			// Update H. dH/dt = M^{-1} * (-S * E + 0.5 * ([E] - [H])).
-			KHE_->Mult(eOld, auxRHS);
-			KHH_->Mult(hOld, auxFluxdH);
-			auxRHS.Add(-1.0, auxFluxdH);
-			MInv_->Mult(auxRHS, eNew);
+		// Update H. dH/dt = M^{-1} * (-S * E + 0.5 * ([E] - [H])).
+		KHE_->Mult(eOld, auxRHS);
+		KHH_->Mult(hOld, auxFluxdH);
+		auxRHS.Add(-1.0, auxFluxdH);
+		MInv_->Mult(auxRHS, eNew);
 
-			break;
+		break;
 
-		case Centered:
+	case Centered:
 	
-			// Update E. dE/dt = M^{-1} * (S * H - {H}).
-			KEH_->Mult(hOld, auxRHS);
-			MInv_->Mult(auxRHS, eNew);
+		// Update E. dE/dt = M^{-1} * (S * H - {H}).
+		KEH_->Mult(hOld, auxRHS);
+		MInv_->Mult(auxRHS, eNew);
 
-			// Update H. dH/dt = M^{-1} * (S * E - {E}).
-			KHE_->Mult(eOld, auxRHS);
-			MInv_->Mult(auxRHS, hNew);
+		// Update H. dH/dt = M^{-1} * (S * E - {E}).
+		KHE_->Mult(eOld, auxRHS);
+		MInv_->Mult(auxRHS, hNew);
 
-			break;
-		}
+		break;
+	}
 
 }
 

@@ -100,14 +100,14 @@ TEST_F(TestMaxwell1DSolver, oneDimensional)
 
 	Lastly, the run() function is called.*/
 
-	int nx = 11;
+	int nx = 51;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	Maxwell1D::Solver::Options solverOpts;
 	solverOpts.order = 2;
-	solverOpts.dt = 1e-3;
-	solverOpts.t_final = 1000 * solverOpts.dt;
-	solverOpts.vis_steps = 5;
+	solverOpts.dt = 1e-4;
+	solverOpts.t_final = 10000 * solverOpts.dt;
+	solverOpts.vis_steps = 50;
 	solverOpts.paraview = true;
 
 	Maxwell1D::Solver solver(solverOpts, mesh);

@@ -14,8 +14,8 @@ typedef std::size_t BdrCond;
 
 const Direction X = 0;
 
-const FluxType Centered = 0;
-const FluxType Upwind = 1;
+const FluxType Centered = 0; //Weak form
+const FluxType Upwind = 1; //Strong form
 
 const Factor Alpha = 0;
 const Factor Beta = 1;
@@ -47,14 +47,12 @@ private:
 	std::unique_ptr<BilinearForm> KHH_;
 
 	std::unique_ptr<BilinearForm> buildInverseMassMatrix() const;
-	std::unique_ptr<BilinearForm> FE_Evolution::buildFullKOperator(
-		const Direction& d, ConstantCoefficient& coeff, Vector& abg) const;
 	void addDerivativeOperator(
 		std::unique_ptr<BilinearForm>& form,
 		const Direction& d, ConstantCoefficient& coeff) const;
 	void addFluxOperator(
 		std::unique_ptr<BilinearForm>& form,
-		const Direction& d, Vector& abg) const;
+		const Direction& d,const Vector& abgFace,const Vector& abgBdr) const;
 	void FE_Evolution::finalizeBilinearForm(
 		std::unique_ptr<BilinearForm>& form) const;
 	void FE_Evolution::initializeBilinearForms();
