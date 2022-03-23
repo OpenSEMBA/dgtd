@@ -105,9 +105,9 @@ TEST_F(TestMaxwell1DSolver, oneDimensional)
 
 	Maxwell1D::Solver::Options solverOpts;
 	solverOpts.order = 2;
-	solverOpts.dt = 1e-4;
+	solverOpts.dt = 1e-3;
 	solverOpts.t_final = 1000 * solverOpts.dt;
-	solverOpts.vis_steps = 2;
+	solverOpts.vis_steps = 5;
 	solverOpts.paraview = true;
 
 	Maxwell1D::Solver solver(solverOpts, mesh);

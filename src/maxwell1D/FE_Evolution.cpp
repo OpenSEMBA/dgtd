@@ -5,9 +5,7 @@ namespace Maxwell1D {
 FE_Evolution::FE_Evolution(FiniteElementSpace* fes) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	fes_(fes),
-	MInv_(buildInverseMassMatrix())/*,
-	KEE_(buildFullKOperator(X, ConstantCoefficient(1.0), Vector({0.0,0.0,1.0}))),
-	KHH_(buildFullKOperator(X, ConstantCoefficient(1.0), Vector({0.0,0.0,1.0})))*/
+	MInv_(buildInverseMassMatrix())
 {
 	initializeBilinearForms();
 }
@@ -43,8 +41,7 @@ void FE_Evolution::addDerivativeOperator(
 			break;
 		case Centered:
 			form->AddDomainIntegrator(
-				new TransposeIntegrator(
-					new DerivativeIntegrator(coeff, d)));
+				new DerivativeIntegrator(coeff, d));
 			break;
 	}
 }
@@ -92,7 +89,8 @@ void FE_Evolution::initializeBilinearForms()
 	double beta = 0.0;
 	double gamma = 0.0;
 	ConstantCoefficient coeff;
-	Vector abg({alpha, beta, gamma});
+	Vector abgE({alpha, beta, gamma});
+	Vector abgH({alpha, beta, gamma});
 
 	KEE_ = std::make_unique<BilinearForm>(fes_);
 	KEH_ = std::make_unique<BilinearForm>(fes_);
@@ -102,33 +100,47 @@ void FE_Evolution::initializeBilinearForms()
 	switch (fluxType) {
 	case Upwind:
 
-		abg[Gamma] = 1.0;
+		abgE[Gamma] = 1.0;
 
-		addFluxOperator(KEE_, X, abg);
+		addFluxOperator(KEE_, X, abgE);
 
-		addFluxOperator(KHH_, X, abg);
+		addFluxOperator(KHH_, X, abgH);
 
-		abg[Gamma] = 1.0 * 0.5;
+		abgE[Gamma] = 1.0 * 0.5;
 		coeff = ConstantCoefficient(-1.0);
 
 		addDerivativeOperator(KEH_, X, coeff);
-		addFluxOperator(KEH_, X, abg);
+		addFluxOperator(KEH_, X, abgE);
 
 		addDerivativeOperator(KHE_, X, coeff);
-		addFluxOperator(KHE_, X, abg);
+		addFluxOperator(KHE_, X, abgH);
 
 	case Centered:
 
-		abg[Alpha] = -1.0;
+		switch (bdrCond) {
+		case PEC:
+			abgE[Alpha] = 0.0;
+			abgH[Alpha] = -2.0;
+			break;
+		case PMC:
+			abgE[Alpha] = -2.0;
+			abgH[Alpha] = 0.0;
+			break;
+		case SMA:
+			throw std::exception("SMA not available for Centered Flux.");
+		default:
+			abgE[Alpha] = -1.0;
+			abgH[Alpha] = -1.0;
+			break;
+		}
 
-		coeff = ConstantCoefficient(-1.0);
+		coeff = ConstantCoefficient(1.0);
 
 		addDerivativeOperator(KEH_, X, coeff);
-		addFluxOperator(KEH_, X, abg);
+		addFluxOperator(KEH_, X, abgE);
 
 		addDerivativeOperator(KHE_, X, coeff);
-		addFluxOperator(KHE_, X, abg);
-
+		addFluxOperator(KHE_, X, abgH);
 	}
 }
 
@@ -163,11 +175,11 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 
 		case Centered:
 	
-			// Update E. dE/dt = M^{-1} * (-S * H + {H}).
+			// Update E. dE/dt = M^{-1} * (S * H - {H}).
 			KEH_->Mult(hOld, auxRHS);
 			MInv_->Mult(auxRHS, eNew);
 
-			// Update H. dH/dt = M^{-1} * (-S * E + {E}).
+			// Update H. dH/dt = M^{-1} * (S * E - {E}).
 			KHE_->Mult(eOld, auxRHS);
 			MInv_->Mult(auxRHS, hNew);
 
