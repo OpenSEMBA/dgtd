@@ -55,8 +55,7 @@ private:
 	std::unique_ptr<BilinearForm> buildInverseMassMatrix() const;
 	std::unique_ptr<BilinearForm> buildDerivativeOperator() const;
 	FluxOperators buildFluxOperators(const Field&) const;
-	void assembleAndFinalizeAllOperators();
-
+	
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorAltFluxCoefficient() const;
 	FluxCoefficient boundaryFluxCoefficient(const Field&) const;

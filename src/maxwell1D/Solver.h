@@ -8,20 +8,8 @@ namespace Maxwell1D {
 
 class Solver {
 public:
-    enum class TimeIntegrator {
-        Leapfrog,
-        RK4
-    };
-
     typedef double ElectricField;
     typedef mfem::Vector Position;
-    typedef std::size_t Direction;
-    typedef std::size_t FieldType;
-
-    const Direction X = 0;
-
-    const FieldType Electric = 0;
-    const FieldType Magnetic = 1;
 
     struct Options {
         int order = 2;
