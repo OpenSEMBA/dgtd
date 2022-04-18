@@ -92,16 +92,13 @@ void FE_Evolution::initializeBilinearForms()
 			abIntFaceH[Alpha] = 1.0;
 			abBdrFaceE[Alpha] = 0.0;
 			abBdrFaceH[Alpha] = 1.0;
-			abIntFaceE[Beta]  = 0.5;
+			abIntFaceE[Beta]  = 0.0;
 			abIntFaceH[Beta]  = 0.0;
 			abBdrFaceE[Beta]  = 0.5;
 			abBdrFaceH[Beta]  = 0.0;
 			break;		
 		default:		
-			abIntFaceE[Beta] = -1.0;
-			abIntFaceH[Beta] = -1.0;
-			abBdrFaceE[Beta] = -1.0;
-			abBdrFaceH[Beta] = -1.0;
+			throw std::exception("Input a valid Boundary Condition.");
 			break;
 		}
 
@@ -119,7 +116,7 @@ void FE_Evolution::initializeBilinearForms()
 			abBdrFaceE[Alpha] = 1.0;
 			abBdrFaceH[Alpha] = 0.0;
 			abIntFaceE[Beta]  = 0.0;
-			abIntFaceH[Beta]  = 0.5;
+			abIntFaceH[Beta]  = 0.0;
 			abBdrFaceE[Beta]  = 0.0;
 			abBdrFaceH[Beta]  = 0.5;
 			break;
