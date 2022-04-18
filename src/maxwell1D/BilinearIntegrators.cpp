@@ -369,6 +369,7 @@ static void PADGTraceSetup2D(const int Q1D,
                 const double v0 = const_v ? V(0,0,0) : V(0,q,f);
                 const double v1 = const_v ? V(1,0,0) : V(1,q,f);
                 const double dot = n(q,0,f) * v0 + n(q,1,f) * v1;
+                const double negdot = n(q, 0, f) * v0 - n(q, 1, f) * v1;
                 const double abs = dot > 0.0 ? dot : -dot;
                 const double w = W[q] * r * d(q,f);
                 qd(q,0,0,f) = w * (alpha / 2 * dot + gamma * dot);
@@ -1290,7 +1291,7 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
 {
     int dim, ndof1, ndof2;
 
-    double un, a, b, g, w;
+    double un, a, b, w;
 
     dim = el1.GetDim();
     ndof1 = el1.GetDof();
@@ -1353,11 +1354,12 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         {
             CalcOrtho(Trans.Jacobian(), nor);
         }
-
+        
+        vu(0) = 1.0;
         un = vu * nor;
+
         a = 0.5 * alpha * un;
-        //b = beta * fabs(un);
-        g = gamma * un;
+        b = beta;
         // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)
         //       and therefore two blocks in the element matrix contribution
         //       (from the current quadrature point) are 0
@@ -1374,11 +1376,10 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
                 rho_p = rho->Eval(*Trans.Elem1, eip1);
             }
             a *= rho_p;
-            //b *= rho_p;
-            g *= rho_p;
+            b *= rho_p;
         }
 
-        w = ip.weight * (a + g);
+        w = ip.weight * (a + b);
         if (w != 0.0)
         {
             for (int i = 0; i < ndof1; i++)
@@ -1399,7 +1400,7 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
                         elmat(ndof1 + i, j) -= w * shape2_(i) * shape1_(j);
                     }
 
-            w = ip.weight * (g - a);
+            w = ip.weight * (b - a);
             if (w != 0.0)
             {
                 for (int i = 0; i < ndof2; i++)

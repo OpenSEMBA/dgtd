@@ -15,7 +15,7 @@ namespace AnalyticalFunctions1D {
 		double normalizedPos;
 		double center = (meshBoundingBoxMin[0] + meshBoundingBoxMax[0]) * 0.5;
 		normalizedPos = 2.0 * (pos[0] - center) /
-			            (meshBoundingBoxMax[0] - meshBoundingBoxMin[0]);
+			            ((meshBoundingBoxMax[0] - meshBoundingBoxMin[0]));
 		
 		return exp(-20. * pow(normalizedPos, 2));
 	}
@@ -23,7 +23,7 @@ namespace AnalyticalFunctions1D {
 
 namespace HelperFunctions1D {
 
-	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes)
+	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes = 0)
 	{
 		Mesh res = Mesh::MakeCartesian1D(2);
 		res.SetAttribute(0, 1);
@@ -106,8 +106,8 @@ TEST_F(TestMaxwell1DSolver, oneDimensional)
 	Maxwell1D::Solver::Options solverOpts;
 	solverOpts.order = 2;
 	solverOpts.dt = 1e-4;
-	solverOpts.t_final = 10000 * solverOpts.dt;
-	solverOpts.vis_steps = 50;
+	solverOpts.t_final = 1000 * solverOpts.dt;
+	solverOpts.vis_steps = 5;
 	solverOpts.paraview = true;
 
 	Maxwell1D::Solver solver(solverOpts, mesh);

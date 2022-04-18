@@ -19,7 +19,6 @@ const FluxType Upwind = 1; //Strong form
 
 const Factor Alpha = 0;
 const Factor Beta = 1;
-const Factor Gamma = 2;
 
 const BdrCond PEC = 0;
 const BdrCond PMC = 1;
@@ -29,7 +28,7 @@ class FE_Evolution : public TimeDependentOperator {
 public:
 
 	static const std::size_t numberOfFieldComponents = 2;
-	FluxType fluxType = Centered;
+	FluxType fluxType = Upwind;
 	BdrCond bdrCond = PEC;
 
 	FE_Evolution(FiniteElementSpace* fes);
@@ -41,7 +40,7 @@ private:
 	FiniteElementSpace* fes_;
 	
 	std::unique_ptr<BilinearForm> MInv_;
-	std::unique_ptr<BilinearForm> KEE_;
+	std::unique_ptr<BilinearForm> KEE_; //K - Time Diff. (E) - Applied on (E)
 	std::unique_ptr<BilinearForm> KEH_;
 	std::unique_ptr<BilinearForm> KHE_;
 	std::unique_ptr<BilinearForm> KHH_;
@@ -53,8 +52,6 @@ private:
 	void addFluxOperator(
 		std::unique_ptr<BilinearForm>& form,
 		const Direction& d,const Vector& abgFace,const Vector& abgBdr) const;
-	void FE_Evolution::finalizeBilinearForm(
-		std::unique_ptr<BilinearForm>& form) const;
 	void FE_Evolution::initializeBilinearForms();
 
 };

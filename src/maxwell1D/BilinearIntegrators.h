@@ -15,17 +15,12 @@ public:
 	//When explicitly undeclared, rho = 1.0;
 	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a)
 	{
-		rho = NULL; u = &u_; alpha = a; beta = 0.5 * a; gamma = 0.0;
+		rho = NULL; u = &u_; alpha = a; beta = 0.5 * a;
 	}
 
 	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a, double b)
 	{
-		rho = NULL; u = &u_; alpha = a; beta = b; gamma = 0.0;
-	}
-
-	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a, double b, double g)
-	{
-		rho = NULL; u = &u_; alpha = a; beta = b; gamma = g;
+		rho = NULL; u = &u_; alpha = a; beta = b;
 	}
 
 	MaxwellDGTraceIntegrator(Coefficient& rho_, VectorCoefficient& u_,
@@ -34,13 +29,6 @@ public:
 		rho = &rho_; u = &u_; alpha = a; beta = b;
 	}
 
-	MaxwellDGTraceIntegrator(Coefficient& rho_, VectorCoefficient& u_,
-		double a, double b, double g)
-	{
-		rho = &rho_; u = &u_; alpha = a; beta = b; gamma = g;
-	}
-
-	using BilinearFormIntegrator::AssembleFaceMatrix;
 	virtual void AssembleFaceMatrix(const FiniteElement& el1,
 		const FiniteElement& el2,
 		FaceElementTransformations& Trans,

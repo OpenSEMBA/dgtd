@@ -51,9 +51,9 @@ void FE_Evolution::addFluxOperator(
 	switch (fluxType) {
 	case Upwind:
 		form->AddInteriorFaceIntegrator(
-			new MaxwellDGTraceIntegrator(n[d], abgFace[Alpha], abgFace[Beta], abgFace[Gamma]));
+			new MaxwellDGTraceIntegrator(n[d], abgFace[Alpha], abgFace[Beta]));
 		form->AddBdrFaceIntegrator(
-			new MaxwellDGTraceIntegrator(n[d], abgBdr[Alpha], abgBdr[Beta], abgBdr[Gamma]));
+			new MaxwellDGTraceIntegrator(n[d], abgBdr[Alpha], abgBdr[Beta]));
 		break;
 
 	case Centered:
@@ -64,13 +64,6 @@ void FE_Evolution::addFluxOperator(
 		break;
 
 	}
-	form->Assemble();
-	form->Finalize();
-}
-
-
-void FE_Evolution::finalizeBilinearForm(std::unique_ptr<BilinearForm>& form) const
-{
 	form->Assemble(0);
 	form->Finalize(0);
 }
@@ -79,12 +72,11 @@ void FE_Evolution::initializeBilinearForms()
 {
 	double alpha = 0.0;
 	double beta = 0.0;
-	double gamma = 0.0;
 	ConstantCoefficient coeff;
-	Vector abgIntFaceE({ alpha, beta, gamma });
-	Vector abgBdrFaceE({ alpha, beta, gamma });
-	Vector abgIntFaceH({ alpha, beta, gamma });
-	Vector abgBdrFaceH({ alpha, beta, gamma });
+	Vector abIntFaceE({alpha, beta});
+	Vector abBdrFaceE({alpha, beta});
+	Vector abIntFaceH({alpha, beta});
+	Vector abBdrFaceH({alpha, beta});
 
 	KEE_ = std::make_unique<BilinearForm>(fes_);
 	KEH_ = std::make_unique<BilinearForm>(fes_);
@@ -94,53 +86,86 @@ void FE_Evolution::initializeBilinearForms()
 	switch (fluxType) {
 	case Upwind:
 
-		abgIntFaceE[Gamma] = 1.0;
+		switch (bdrCond) {
+		case PEC:
+			abIntFaceE[Alpha] = 0.0;
+			abIntFaceH[Alpha] = 1.0;
+			abBdrFaceE[Alpha] = 0.0;
+			abBdrFaceH[Alpha] = 1.0;
+			abIntFaceE[Beta]  = 0.5;
+			abIntFaceH[Beta]  = 0.0;
+			abBdrFaceE[Beta]  = 0.5;
+			abBdrFaceH[Beta]  = 0.0;
+			break;		
+		default:		
+			abIntFaceE[Beta] = -1.0;
+			abIntFaceH[Beta] = -1.0;
+			abBdrFaceE[Beta] = -1.0;
+			abBdrFaceH[Beta] = -1.0;
+			break;
+		}
 
-		addFluxOperator(KEE_, X, abgIntFaceE, abgBdrFaceE);
-
-		addFluxOperator(KHH_, X, abgIntFaceH, abgBdrFaceH);
-
-		abgIntFaceE[Gamma] = 1.0 * 0.5;
 		coeff = ConstantCoefficient(-1.0);
 
+		addFluxOperator(KEE_, X, abIntFaceE, abBdrFaceE);
+
 		addDerivativeOperator(KEH_, X, coeff);
-		addFluxOperator(KEH_, X, abgIntFaceE, abgBdrFaceE);
+		addFluxOperator(KEH_, X, abIntFaceE, abBdrFaceE);
+
+		switch (bdrCond) {
+		case PEC:
+			abIntFaceE[Alpha] = 1.0;
+			abIntFaceH[Alpha] = 0.0;
+			abBdrFaceE[Alpha] = 1.0;
+			abBdrFaceH[Alpha] = 0.0;
+			abIntFaceE[Beta]  = 0.0;
+			abIntFaceH[Beta]  = 0.5;
+			abBdrFaceE[Beta]  = 0.0;
+			abBdrFaceH[Beta]  = 0.5;
+			break;
+		default:
+			throw std::exception("Input a valid Boundary Condition.");
+			break;
+		}
+
+		addFluxOperator(KHH_, X, abIntFaceH, abBdrFaceH);
 
 		addDerivativeOperator(KHE_, X, coeff);
-		addFluxOperator(KHE_, X, abgIntFaceH, abgBdrFaceH);
+		addFluxOperator(KHE_, X, abIntFaceH, abBdrFaceH);
+
+		break;
 
 	case Centered:
 
 		switch (bdrCond) {
 		case PEC:
-			abgIntFaceE[Alpha] = -1.0;
-			abgIntFaceH[Alpha] = -1.0;
-			abgBdrFaceE[Alpha] =  0.0;
-			abgBdrFaceH[Alpha] = -2.0;
+			abIntFaceE[Alpha] = -1.0;
+			abIntFaceH[Alpha] = -1.0;
+			abBdrFaceE[Alpha] =  0.0;
+			abBdrFaceH[Alpha] = -2.0;
 			break;
 		case PMC:
-			abgIntFaceE[Alpha] = -1.0;
-			abgIntFaceH[Alpha] = -1.0;
-			abgBdrFaceE[Alpha] = -2.0;
-			abgBdrFaceH[Alpha] =  0.0;
+			abIntFaceE[Alpha] = -1.0;
+			abIntFaceH[Alpha] = -1.0;
+			abBdrFaceE[Alpha] = -2.0;
+			abBdrFaceH[Alpha] =  0.0;
 			break;
 		case SMA:
 			throw std::exception("SMA not available for Centered Flux.");
 		default:
-			abgIntFaceE[Alpha] = -1.0;
-			abgIntFaceH[Alpha] = -1.0;
-			abgBdrFaceE[Alpha] = -1.0;
-			abgBdrFaceH[Alpha] = -1.0;
+			throw std::exception("Input a valid Boundary Condition.");
 			break;
 		}
 
 		coeff = ConstantCoefficient(1.0);
 
 		addDerivativeOperator(KEH_, X, coeff);
-		addFluxOperator(KEH_, X, abgIntFaceE, abgBdrFaceE);
+		addFluxOperator(KEH_, X, abIntFaceE, abBdrFaceE);
 
 		addDerivativeOperator(KHE_, X, coeff);
-		addFluxOperator(KHE_, X, abgIntFaceH, abgBdrFaceH);
+		addFluxOperator(KHE_, X, abIntFaceH, abBdrFaceH);
+
+		break;
 	}
 }
 
@@ -159,17 +184,17 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 	switch (fluxType) {
 	case Upwind:
 
-		// Update E. dE/dt = M^{-1} * (-S * H + 0.5 * ([H] - [E])).
+		// Update E. dE/dt = M^{-1} * (-S * H + nx * {H} + 0.5 * [E])).
 		KEH_->Mult(hOld, auxRHS);
 		KEE_->Mult(eOld, auxFluxdE);
-		auxRHS.Add(-1.0, auxFluxdE);
+		auxRHS.Add(1.0, auxFluxdE);
 		MInv_->Mult(auxRHS, eNew);
 
-		// Update H. dH/dt = M^{-1} * (-S * E + 0.5 * ([E] - [H])).
+		// Update H. dH/dt = M^{-1} * (-S * E + nx * {E} + 0.5 * [H])).
 		KHE_->Mult(eOld, auxRHS);
 		KHH_->Mult(hOld, auxFluxdH);
-		auxRHS.Add(-1.0, auxFluxdH);
-		MInv_->Mult(auxRHS, eNew);
+		auxRHS.Add(1.0, auxFluxdH);
+		MInv_->Mult(auxRHS, hNew);
 
 		break;
 
