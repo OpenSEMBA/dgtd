@@ -27,12 +27,11 @@ public:
         int order = 2;
         double dt = 1e-4;
         double t_final = 1000*dt;
-        int vis_steps = 100;
+        int vis_steps = 1;
         int precision = 8;
         bool paraview = false;
         bool glvis = false;
-
-        //TimeIntegrator timeIntegrator = Leapfrog;
+        FE_Evolution::Options evolutionOperatorOptions;
     };
 
     Solver(const Options&, const mfem::Mesh&);

@@ -21,7 +21,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 
 	odeSolver_ = std::make_unique<RK4Solver>();
 
-	maxwellEvol_ = std::make_unique<FE_Evolution>(fes_.get());
+	maxwellEvol_ = std::make_unique<FE_Evolution>(fes_.get(), opts.evolutionOperatorOptions);
 	
 	sol_ = Vector(FE_Evolution::numberOfFieldComponents * fes_->GetNDofs());
 	sol_ = 0.0;

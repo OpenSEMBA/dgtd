@@ -7,53 +7,60 @@ namespace Maxwell1D {
 
 using namespace mfem;
 
-typedef std::size_t Direction;
-typedef std::size_t FluxType;
-typedef std::size_t Factor;
-typedef std::size_t BdrCond;
-
-const Direction X = 0;
-
-const FluxType Centered = 0; //Weak form
-const FluxType Upwind = 1; //Strong form
-
-const Factor Alpha = 0;
-const Factor Beta = 1;
-
-const BdrCond PEC = 0;
-const BdrCond PMC = 1;
-const BdrCond SMA = 2;
-
 class FE_Evolution : public TimeDependentOperator {
 public:
+	enum class FluxType {
+		Centered,
+		Upwind
+	};
+
+	enum class BdrCond {
+		PEC,
+		PMC,
+		SMA
+	};
+
+	
+	struct Options {
+		FluxType fluxType = FluxType::Upwind;
+		BdrCond bdrCond = BdrCond::PEC;
+	};
 
 	static const std::size_t numberOfFieldComponents = 2;
-	FluxType fluxType = Upwind;
-	BdrCond bdrCond = PEC;
-
-	FE_Evolution(FiniteElementSpace* fes);
+	
+	FE_Evolution(FiniteElementSpace* fes, Options options);
 	virtual void Mult(const Vector& x, Vector& y) const;
 	virtual ~FE_Evolution() = default;
 
 private:
+	struct FluxCoefficient {
+		double alpha;
+		double beta;
+	};
+
+	typedef std::pair<std::unique_ptr<BilinearForm>, std::unique_ptr<BilinearForm>> FluxOperators;
+		
+	enum class Field {
+		Electric,
+		Magnetic
+	};
 
 	FiniteElementSpace* fes_;
+	Options opts_;
+
+	std::unique_ptr<BilinearForm> MInv_, K_;
+	FluxOperators FE_, FH_;
 	
-	std::unique_ptr<BilinearForm> MInv_;
-	std::unique_ptr<BilinearForm> KEE_; //K - Time Diff. (E) - Applied on (E)
-	std::unique_ptr<BilinearForm> KEH_;
-	std::unique_ptr<BilinearForm> KHE_;
-	std::unique_ptr<BilinearForm> KHH_;
-
+	void constructBilinearForms();
 	std::unique_ptr<BilinearForm> buildInverseMassMatrix() const;
-	void addDerivativeOperator(
-		std::unique_ptr<BilinearForm>& form,
-		const Direction& d, ConstantCoefficient& coeff) const;
-	void addFluxOperator(
-		std::unique_ptr<BilinearForm>& form,
-		const Direction& d,const Vector& abgFace,const Vector& abgBdr) const;
-	void FE_Evolution::initializeBilinearForms();
+	std::unique_ptr<BilinearForm> buildDerivativeOperator() const;
+	FluxOperators buildFluxOperators(const Field&) const;
+	void assembleAndFinalizeAllOperators();
 
+	FluxCoefficient interiorFluxCoefficient() const;
+	FluxCoefficient interiorAltFluxCoefficient() const;
+	FluxCoefficient boundaryFluxCoefficient(const Field&) const;
+	FluxCoefficient boundaryAltFluxCoefficient(const Field&) const;
 };
 
 

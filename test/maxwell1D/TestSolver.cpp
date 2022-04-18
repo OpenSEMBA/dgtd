@@ -87,7 +87,7 @@ TEST_F(TestMaxwell1DSolver, checkTwoAttributeMesh)
 		}
 	}
 }
-TEST_F(TestMaxwell1DSolver, oneDimensional)
+TEST_F(TestMaxwell1DSolver, oneDimensional_centered)
 {
 	/*The purpose of this test is to check the run() function for the Solver class
 	and test the different available options.
@@ -104,16 +104,32 @@ TEST_F(TestMaxwell1DSolver, oneDimensional)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	Maxwell1D::Solver::Options solverOpts;
-	solverOpts.order = 2;
-	solverOpts.dt = 1e-4;
-	solverOpts.t_final = 1000 * solverOpts.dt;
 	solverOpts.vis_steps = 5;
 	solverOpts.paraview = true;
 
+	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
+	solverOpts.evolutionOperatorOptions.fluxType = FE_Evolution::FluxType::Centered;
+
 	Maxwell1D::Solver solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-
 	solver.setInitialElectricField(gaussianFunction);
 	solver.run();
 }
 
+TEST_F(TestMaxwell1DSolver, oneDimensional_upwind)
+{
+	int nx = 51;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
+
+	Maxwell1D::Solver::Options solverOpts;
+	solverOpts.vis_steps = 5;
+	solverOpts.paraview = true;
+
+	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
+	solverOpts.evolutionOperatorOptions.fluxType = FE_Evolution::FluxType::Upwind;
+
+	Maxwell1D::Solver solver(solverOpts, mesh);
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+	solver.setInitialElectricField(gaussianFunction);
+	solver.run();
+}
