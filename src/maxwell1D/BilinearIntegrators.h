@@ -4,7 +4,7 @@
 #include "mfem.hpp"
 #include "../../../general/forall.hpp"
 
-namespace Maxwell1D {
+namespace maxwell1D {
 
 using namespace mfem;
 

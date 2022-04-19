@@ -3,24 +3,15 @@
 #include "mfem.hpp"
 #include "BilinearIntegrators.h"
 
-namespace Maxwell1D {
+#include "Types.h"
+
+namespace maxwell1D {
 
 using namespace mfem;
 
 class FE_Evolution : public TimeDependentOperator {
 public:
-	enum class FluxType {
-		Centered,
-		Upwind
-	};
 
-	enum class BdrCond {
-		PEC,
-		PMC,
-		SMA
-	};
-
-	
 	struct Options {
 		FluxType fluxType = FluxType::Upwind;
 		BdrCond bdrCond = BdrCond::PEC;
@@ -39,11 +30,7 @@ private:
 	};
 
 	typedef std::pair<std::unique_ptr<BilinearForm>, std::unique_ptr<BilinearForm>> FluxOperators;
-		
-	enum class Field {
-		Electric,
-		Magnetic
-	};
+
 
 	FiniteElementSpace* fes_;
 	Options opts_;
@@ -54,12 +41,12 @@ private:
 	void constructBilinearForms();
 	std::unique_ptr<BilinearForm> buildInverseMassMatrix() const;
 	std::unique_ptr<BilinearForm> buildDerivativeOperator() const;
-	FluxOperators buildFluxOperators(const Field&) const;
+	FluxOperators buildFluxOperators(const FieldType&) const;
 	
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorAltFluxCoefficient() const;
-	FluxCoefficient boundaryFluxCoefficient(const Field&) const;
-	FluxCoefficient boundaryAltFluxCoefficient(const Field&) const;
+	FluxCoefficient boundaryFluxCoefficient(const FieldType&) const;
+	FluxCoefficient boundaryAltFluxCoefficient(const FieldType&) const;
 };
 
 

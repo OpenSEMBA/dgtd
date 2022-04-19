@@ -4,17 +4,16 @@
 
 #include "FE_Evolution.h"
 
-namespace Maxwell1D {
+namespace maxwell1D {
 
 class Solver {
 public:
-    typedef double ElectricField;
     typedef mfem::Vector Position;
 
     struct Options {
         int order = 2;
-        double dt = 1e-4;
-        double t_final = 1000*dt;
+        double dt = 1e-3;
+        double t_final = 1.0;
         int vis_steps = 1;
         int precision = 8;
         bool paraview = false;
@@ -24,7 +23,8 @@ public:
 
     Solver(const Options&, const mfem::Mesh&);
 
-    void setInitialElectricField(std::function<ElectricField(const Position&)>);
+    void setInitialField(const FieldType&, std::function<double(const Position&)>);
+    const GridFunction& getField(const FieldType&) const;
 
     mfem::Mesh& getMesh() { return mesh_; }
 

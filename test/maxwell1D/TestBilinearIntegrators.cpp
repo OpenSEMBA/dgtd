@@ -3,7 +3,7 @@
 #include "maxwell1D/Solver.h"
 #include "maxwell1D/BilinearIntegrators.h"
 
-using namespace Maxwell1D;
+using namespace maxwell1D;
 
 class TestMaxwellDGTrace : public ::testing::Test {
 

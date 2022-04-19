@@ -1,6 +1,6 @@
 #include "FE_Evolution.h"
 
-namespace Maxwell1D {
+namespace maxwell1D {
 
 FE_Evolution::FE_Evolution(FiniteElementSpace* fes, Options options) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
@@ -8,8 +8,8 @@ FE_Evolution::FE_Evolution(FiniteElementSpace* fes, Options options) :
 	fes_(fes),
 	MInv_(buildInverseMassMatrix()),
 	K_(buildDerivativeOperator()),
-	FE_(buildFluxOperators(Field::Electric)),
-	FH_(buildFluxOperators(Field::Magnetic))
+	FE_(buildFluxOperators(FieldType::Electric)),
+	FH_(buildFluxOperators(FieldType::Magnetic))
 {
 }
 
@@ -42,7 +42,7 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeOperator() const
 	return K;
 }
 
-FE_Evolution::FluxOperators FE_Evolution::buildFluxOperators(const Field& f) const
+FE_Evolution::FluxOperators FE_Evolution::buildFluxOperators(const FieldType& f) const
 {
 	FluxOperators res = std::make_pair(
 		std::make_unique<BilinearForm>(fes_),
@@ -90,20 +90,20 @@ FE_Evolution::FluxCoefficient FE_Evolution::interiorAltFluxCoefficient() const
 	}
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const Field& f) const
+FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const FieldType& f) const
 {
 	switch (opts_.bdrCond) {
 	case BdrCond::PEC:
 		switch (f) {
-		case Field::Electric:
+		case FieldType::Electric:
 			return FluxCoefficient{ 0.0, 0.0 };
-		case Field::Magnetic:
+		case FieldType::Magnetic:
 			return FluxCoefficient{ 2.0, 0.0 };
 		}
 	}
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::boundaryAltFluxCoefficient(const Field& f) const
+FE_Evolution::FluxCoefficient FE_Evolution::boundaryAltFluxCoefficient(const FieldType& f) const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -112,9 +112,9 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryAltFluxCoefficient(const Fie
 		switch (opts_.bdrCond) {
 		case BdrCond::PEC:
 			switch (f) {
-			case Field::Electric:
+			case FieldType::Electric:
 				return FluxCoefficient{ 0.0, 0.0 }; // TODO
-			case Field::Magnetic:
+			case FieldType::Magnetic:
 				return FluxCoefficient{ 0.0, 0.0 }; // TODO
 			}
 		}
@@ -126,8 +126,8 @@ void FE_Evolution::constructBilinearForms()
 {
 	MInv_ = buildInverseMassMatrix();
 	K_ = buildDerivativeOperator();
-	FE_ = buildFluxOperators(Field::Electric);
-	FH_ = buildFluxOperators(Field::Magnetic);
+	FE_ = buildFluxOperators(FieldType::Electric);
+	FH_ = buildFluxOperators(FieldType::Magnetic);
 }
 
 void FE_Evolution::Mult(const Vector& x, Vector& y) const

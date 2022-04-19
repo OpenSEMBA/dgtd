@@ -6,7 +6,7 @@
 
 using namespace mfem;
 
-namespace Maxwell1D {
+namespace maxwell1D {
 
 Solver::Solver(const Options& opts, const Mesh& mesh)
 {
@@ -65,9 +65,26 @@ mfem::Array<int> Solver::buildEssentialTrueDOF()
 	return ess_tdof_list;
 }
 
-void Solver::setInitialElectricField(std::function<ElectricField(const Position&)> f)
+void Solver::setInitialField(const FieldType& ft, std::function<double(const Position&)> f)
 {
-	E_.ProjectCoefficient(FunctionCoefficient(f));
+	switch (ft) {
+	case FieldType::Electric:
+		E_.ProjectCoefficient(FunctionCoefficient(f));
+		return;
+	case FieldType::Magnetic:
+		H_.ProjectCoefficient(FunctionCoefficient(f));
+		return;
+	}	
+}
+
+const GridFunction& Solver::getField(const FieldType& ft) const
+{
+	switch (ft) {
+	case FieldType::Electric:
+		return E_;
+	case FieldType::Magnetic:
+		return H_;
+	}
 }
 
 void Solver::initializeParaviewData()

@@ -3,7 +3,7 @@
 
 #include "maxwell1D/Solver.h"
 
-using namespace Maxwell1D;
+using namespace maxwell1D;
 
 namespace AnalyticalFunctions1D {
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
@@ -103,17 +103,22 @@ TEST_F(TestMaxwell1DSolver, oneDimensional_centered)
 	int nx = 51;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
-	Maxwell1D::Solver::Options solverOpts;
-	solverOpts.vis_steps = 5;
-	solverOpts.paraview = true;
-
+	maxwell1D::Solver::Options solverOpts;
+	
 	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
-	solverOpts.evolutionOperatorOptions.fluxType = FE_Evolution::FluxType::Centered;
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
-	Maxwell1D::Solver solver(solverOpts, mesh);
+	maxwell1D::Solver solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	solver.setInitialElectricField(gaussianFunction);
+	solver.setInitialField(FieldType::Electric, gaussianFunction);
+	
+	Vector eOld = solver.getField(FieldType::Electric);
 	solver.run();
+	Vector eNew = solver.getField(FieldType::Electric);
+
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
+
 }
 
 TEST_F(TestMaxwell1DSolver, oneDimensional_upwind)
@@ -121,15 +126,15 @@ TEST_F(TestMaxwell1DSolver, oneDimensional_upwind)
 	int nx = 51;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
-	Maxwell1D::Solver::Options solverOpts;
+	maxwell1D::Solver::Options solverOpts;
 	solverOpts.vis_steps = 5;
 	solverOpts.paraview = true;
 
 	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
-	solverOpts.evolutionOperatorOptions.fluxType = FE_Evolution::FluxType::Upwind;
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Upwind;
 
-	Maxwell1D::Solver solver(solverOpts, mesh);
+	maxwell1D::Solver solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	solver.setInitialElectricField(gaussianFunction);
+	solver.setInitialField(FieldType::Electric, gaussianFunction);
 	solver.run();
 }

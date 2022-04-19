@@ -1,6 +1,6 @@
 #include "BilinearIntegrators.h"
 
-namespace Maxwell1D {
+namespace maxwell1D {
 
 /*########################### EA START ###########################*/
 
