@@ -100,6 +100,13 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const FieldT
 		case FieldType::Magnetic:
 			return FluxCoefficient{ 2.0, 0.0 };
 		}
+	case BdrCond::SMA:
+		switch (f) {
+		case FieldType::Electric:
+			return FluxCoefficient{ 1.0,0.0 };
+		case FieldType::Magnetic:
+			return FluxCoefficient{ 1.0,0.0 };
+		}
 	}
 }
 
@@ -116,6 +123,13 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryAltFluxCoefficient(const Fie
 				return FluxCoefficient{ 0.0, 0.0 }; // TODO
 			case FieldType::Magnetic:
 				return FluxCoefficient{ 0.0, 0.0 }; // TODO
+			}
+		case BdrCond::SMA:
+			switch (f) {
+			case FieldType::Electric:
+				return FluxCoefficient{ 0.0,0.0 };
+			case FieldType::Magnetic:
+				return FluxCoefficient{ 0.0,0.0 };
 			}
 		}
 	}
