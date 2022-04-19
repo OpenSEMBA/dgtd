@@ -56,7 +56,7 @@ FE_Evolution::FluxOperators FE_Evolution::buildFluxOperators(const Field& f) con
 	}
 	{
 		FluxCoefficient c = boundaryFluxCoefficient(f);
-		res.first->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res.first->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 	{
 		FluxCoefficient c = interiorAltFluxCoefficient();
@@ -64,7 +64,7 @@ FE_Evolution::FluxOperators FE_Evolution::buildFluxOperators(const Field& f) con
 	}
 	{
 		FluxCoefficient c = boundaryAltFluxCoefficient(f);
-		res.second->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res.second->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 
 	res.first->Assemble();
@@ -96,9 +96,9 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const Field&
 	case BdrCond::PEC:
 		switch (f) {
 		case Field::Electric:
-			return FluxCoefficient{ 2.0, 0.0 };
-		case Field::Magnetic:
 			return FluxCoefficient{ 0.0, 0.0 };
+		case Field::Magnetic:
+			return FluxCoefficient{ 2.0, 0.0 };
 		}
 	}
 }
