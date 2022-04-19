@@ -1355,9 +1355,7 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             CalcOrtho(Trans.Jacobian(), nor);
         }
         
-        vu(0) = 1.0;
         un = vu * nor;
-
         a = 0.5 * alpha * un;
         b = beta;
         // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)

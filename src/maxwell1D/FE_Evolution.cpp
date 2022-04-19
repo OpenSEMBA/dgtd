@@ -30,7 +30,11 @@ std::unique_ptr<BilinearForm> FE_Evolution::buildDerivativeOperator() const
 	ConstantCoefficient coeff(1.0);
 
 	auto K = std::make_unique<BilinearForm>(fes_);
-	K->AddDomainIntegrator(new TransposeIntegrator(new DerivativeIntegrator(coeff, d)));
+	K->AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(coeff, d)
+		)
+	);
 
 	K->Assemble();
 	K->Finalize();
@@ -73,7 +77,7 @@ FE_Evolution::FluxOperators FE_Evolution::buildFluxOperators(const Field& f) con
 
 FE_Evolution::FluxCoefficient FE_Evolution::interiorFluxCoefficient() const
 {
-	return FluxCoefficient{-1.0, 0.0};
+	return FluxCoefficient{1.0, 0.0};
 }
 
 FE_Evolution::FluxCoefficient FE_Evolution::interiorAltFluxCoefficient() const
@@ -92,9 +96,9 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const Field&
 	case BdrCond::PEC:
 		switch (f) {
 		case Field::Electric:
-			return FluxCoefficient{ -2.0, 0.0 };
+			return FluxCoefficient{ 2.0, 0.0 };
 		case Field::Magnetic:
-			return FluxCoefficient{  0.0, 0.0 };
+			return FluxCoefficient{ 0.0, 0.0 };
 		}
 	}
 }
@@ -136,17 +140,17 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 
 	Vector auxRHS(MInv_->Height());
 
-	// Update E. dE/dt = M^{-1} * (-K * H + FE * {H} + altFE * [E])).
-	auxRHS = 0.0;
-	K_->AddMult(hOld, auxRHS, -1.0);
-	FE_.first->AddMult(hOld, auxRHS);
+	// Update E. dE/dt = M^{-1} * (K * H - FE * {H} + altFE * [E])).
+	//auxRHS = 0.0;
+	K_->Mult(hOld, auxRHS);
+	FE_.first->AddMult(hOld, auxRHS, -1.0);
 	FE_.second->AddMult(eOld, auxRHS);
 	MInv_->Mult(auxRHS, eNew);
 
-	// Update H. dH/dt = M^{-1} * (-K * E + FH * {E} + altFH * [H])).
-	auxRHS = 0.0;
-	K_->AddMult(eOld, auxRHS, -1.0);
-	FH_.first->AddMult(eOld, auxRHS);
+	// Update H. dH/dt = M^{-1} * (K * E - FH * {E} + altFH * [H])).
+	//auxRHS = 0.0;
+	K_->Mult(eOld, auxRHS);
+	FH_.first->AddMult(eOld, auxRHS, -1.0);
 	FH_.second->AddMult(hOld, auxRHS);
 	MInv_->Mult(auxRHS, hNew);
 
