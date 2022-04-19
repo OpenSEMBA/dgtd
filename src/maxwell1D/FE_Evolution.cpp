@@ -86,7 +86,7 @@ FE_Evolution::FluxCoefficient FE_Evolution::interiorAltFluxCoefficient() const
 	case FluxType::Centered:
 		return FluxCoefficient{0.0, 0.0};
 	case FluxType::Upwind:
-		return FluxCoefficient{0.0, 0.5}; // TODO??
+		return FluxCoefficient{0.0, -0.5}; 
 	}
 }
 

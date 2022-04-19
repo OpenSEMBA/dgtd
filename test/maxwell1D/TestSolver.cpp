@@ -127,7 +127,7 @@ TEST_F(TestMaxwell1DSolver, oneDimensional_upwind)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	maxwell1D::Solver::Options solverOpts;
-	solverOpts.vis_steps = 5;
+	solverOpts.vis_steps = 25;
 	solverOpts.paraview = true;
 
 	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
@@ -136,5 +136,12 @@ TEST_F(TestMaxwell1DSolver, oneDimensional_upwind)
 	maxwell1D::Solver solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 	solver.setInitialField(FieldType::Electric, gaussianFunction);
+
+	Vector eOld = solver.getField(FieldType::Electric);
 	solver.run();
+	Vector eNew = solver.getField(FieldType::Electric);
+
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
+
 }
