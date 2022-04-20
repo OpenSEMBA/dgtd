@@ -84,7 +84,7 @@ FE_Evolution::Operator FE_Evolution::buildPenaltyOperator(const FieldType& f) co
 	return res;
 }
 
-FE_Evolution::Operator FE_Evolution::applyMassOperator(const OperatorType& optype, const FieldType& f) const
+FE_Evolution::Operator FE_Evolution::applyMassOperatorOnOtherOperators(const OperatorType& optype, const FieldType& f) const
 {
 	auto mass = buildInverseMassMatrix();
 	auto second = std::make_unique<BilinearForm>(fes_);

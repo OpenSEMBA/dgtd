@@ -50,7 +50,7 @@ private:
 	Operator buildFluxOperator(const FieldType&) const;
 	Operator buildPenaltyOperator(const FieldType&) const;
 
-	Operator applyMassOperator(const OperatorType&, const FieldType& f = FieldType::Electric) const;
+	Operator applyMassOperatorOnOtherOperators(const OperatorType&, const FieldType& f = FieldType::Electric) const;
 
 	//Operator buildMassAndStiffOperator() const;
 	//Operator buildMassAndFluxOperator(const FieldType&) const;
