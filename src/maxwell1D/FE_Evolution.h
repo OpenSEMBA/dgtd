@@ -30,17 +30,25 @@ private:
 	};
 
 	typedef std::pair<std::unique_ptr<BilinearForm>, std::unique_ptr<BilinearForm>> FluxOperators;
-
+	typedef std::unique_ptr<BilinearForm> Operator;
 
 	FiniteElementSpace* fes_;
 	Options opts_;
 
-	std::unique_ptr<BilinearForm> MInv_, K_;
-	FluxOperators FE_, FH_;
+	//std::unique_ptr<BilinearForm> MInv_, K_;
+	//FluxOperators FE_, FH_;
+	Operator MS_, FEE_, FEH_, FHE_, FHH_;
 	
 	void constructBilinearForms();
-	std::unique_ptr<BilinearForm> buildInverseMassMatrix() const;
-	std::unique_ptr<BilinearForm> buildDerivativeOperator() const;
+
+	Operator buildInverseMassMatrix() const;
+	Operator buildDerivativeOperator() const;
+	Operator buildFluxOperator(const FieldType&) const;
+
+	Operator buildMassAndStiffOperator() const;
+	Operator buildMassAndFluxOperator(const FieldType&) const;
+	Operator buildPenaltyOperator(const FieldType&) const;
+	
 	FluxOperators buildFluxOperators(const FieldType&) const;
 	
 	FluxCoefficient interiorFluxCoefficient() const;
