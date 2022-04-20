@@ -44,10 +44,12 @@ private:
 	Operator buildInverseMassMatrix() const;
 	Operator buildDerivativeOperator() const;
 	Operator buildFluxOperator(const FieldType&) const;
+	Operator buildPenaltyOperator(const FieldType&) const;
 
 	Operator buildMassAndStiffOperator() const;
 	Operator buildMassAndFluxOperator(const FieldType&) const;
-	Operator buildPenaltyOperator(const FieldType&) const;
+	Operator buildMassAndPenaltyOperator(const FieldType&) const;
+	
 	
 	FluxOperators buildFluxOperators(const FieldType&) const;
 	

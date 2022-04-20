@@ -11,10 +11,10 @@ namespace maxwell1D {
 	//FE_(buildFluxOperators(FieldType::Electric)),
 	//FH_(buildFluxOperators(FieldType::Magnetic)),
 	MS_(buildMassAndStiffOperator()),
-	FEE_(buildPenaltyOperator(FieldType::Electric)),
-	FHH_(buildPenaltyOperator(FieldType::Magnetic)),
-	FEH_(buildMassAndFluxOperator(FieldType::Magnetic)),
-	FHE_(buildMassAndFluxOperator(FieldType::Electric))
+	FEE_(buildMassAndPenaltyOperator(FieldType::Electric)),
+	FHH_(buildMassAndPenaltyOperator(FieldType::Magnetic)),
+	FEH_(buildMassAndFluxOperator(FieldType::Electric)),
+	FHE_(buildMassAndFluxOperator(FieldType::Magnetic))
 {
 }
 
@@ -67,6 +67,27 @@ FE_Evolution::Operator FE_Evolution::buildFluxOperator(const FieldType& f) const
 	return flux;
 }
 
+
+FE_Evolution::Operator FE_Evolution::buildPenaltyOperator(const FieldType& f) const
+{
+	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
+
+	VectorConstantCoefficient n(Vector({ 1.0 }));
+	{
+		FluxCoefficient c = interiorAltFluxCoefficient();
+		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+	}
+	{
+		FluxCoefficient c = boundaryAltFluxCoefficient(f);
+		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+	}
+
+	res->Assemble();
+	res->Finalize();
+
+	return res;
+}
+
 FE_Evolution::Operator FE_Evolution::buildMassAndStiffOperator() const
 {
 	auto mass = buildInverseMassMatrix();
@@ -98,25 +119,21 @@ FE_Evolution::Operator FE_Evolution::buildMassAndFluxOperator(const FieldType& f
 
 }
 
-FE_Evolution::Operator FE_Evolution::buildPenaltyOperator(const FieldType& f) const
+FE_Evolution::Operator FE_Evolution::buildMassAndPenaltyOperator(const FieldType& f) const
 {
-	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
+	auto mass = buildInverseMassMatrix();
+	auto penalty = buildPenaltyOperator(f);
 
-	VectorConstantCoefficient n(Vector({ 1.0 }));
-	{
-		FluxCoefficient c = interiorAltFluxCoefficient();
-		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-	}
-	{
-		FluxCoefficient c = boundaryAltFluxCoefficient(f);
-		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-	}
+	auto aux = mfem::Mult(mass->SpMat(), penalty->SpMat());
 
+	auto res = std::make_unique<BilinearForm>(fes_);
 	res->Assemble();
 	res->Finalize();
+	res->SpMat().Swap(*aux);
 
 	return res;
 }
+
 
 
 //FE_Evolution::FluxOperators FE_Evolution::buildFluxOperators(const FieldType& f) const
@@ -229,7 +246,7 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 	GridFunction eNew(fes_, &y[0]);
 	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
 
-	Vector auxRHS(MS_->Height());
+	/*Vector auxRHS(MS_->Height());*/
 
 	// Update E. dE/dt = M^{-1} * (K * H - FE * {H} - altFE * [E])).
 
@@ -247,17 +264,15 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 
 	// Update E. dE/dt = MS * H - FEH * {H} - FEE * [E].
 
-	MS_->Mult(hOld, auxRHS);
-	FEH_->AddMult(hOld, auxRHS, -1.0);
-	FEE_->AddMult(eOld, auxRHS, -1.0);
-	eNew = auxRHS;
+	MS_->Mult(hOld, eNew);
+	FEH_->AddMult(hOld, eNew, -1.0);
+	FEE_->AddMult(eOld, eNew, -1.0);
 
 	// Update H. dH/dt = MS * E - HE * {E} - FHH * [H].
 
-	MS_->Mult(eOld, auxRHS);
-	FHE_->AddMult(eOld, auxRHS, -1.0);
-	FHH_->AddMult(hOld, auxRHS, -1.0);
-	hNew = auxRHS;
+	MS_->Mult(eOld, hNew);
+	FHE_->AddMult(eOld, hNew, -1.0);
+	FHH_->AddMult(hOld, hNew, -1.0);
 
 }
 
