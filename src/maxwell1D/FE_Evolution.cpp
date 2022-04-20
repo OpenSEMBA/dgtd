@@ -6,11 +6,11 @@ namespace maxwell1D {
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
-	MS_(applyMassOperator(OperatorType::Stiffness)),
-	FEE_(applyMassOperator(OperatorType::Penalty, FieldType::Electric)),
-	FHH_(applyMassOperator(OperatorType::Penalty, FieldType::Magnetic)),
-	FEH_(applyMassOperator(OperatorType::Flux, FieldType::Electric)),
-	FHE_(applyMassOperator(OperatorType::Flux, FieldType::Magnetic))
+	MS_(applyMassOperatorOnOtherOperators(OperatorType::Stiffness)),
+	FEE_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Electric)),
+	FHH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Magnetic)),
+	FEH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Electric)),
+	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic))
 {
 }
 
