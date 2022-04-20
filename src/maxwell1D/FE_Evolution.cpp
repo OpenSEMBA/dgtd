@@ -6,15 +6,11 @@ namespace maxwell1D {
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
-	//MInv_(buildInverseMassMatrix()),
-	//K_(buildDerivativeOperator()),
-	//FE_(buildFluxOperators(FieldType::Electric)),
-	//FH_(buildFluxOperators(FieldType::Magnetic)),
-	MS_(buildMassAndStiffOperator()),
-	FEE_(buildMassAndPenaltyOperator(FieldType::Electric)),
-	FHH_(buildMassAndPenaltyOperator(FieldType::Magnetic)),
-	FEH_(buildMassAndFluxOperator(FieldType::Electric)),
-	FHE_(buildMassAndFluxOperator(FieldType::Magnetic))
+	MS_(applyMassOperator(OperatorType::Stiffness)),
+	FEE_(applyMassOperator(OperatorType::Penalty, FieldType::Electric)),
+	FHH_(applyMassOperator(OperatorType::Penalty, FieldType::Magnetic)),
+	FEH_(applyMassOperator(OperatorType::Flux, FieldType::Electric)),
+	FHE_(applyMassOperator(OperatorType::Flux, FieldType::Magnetic))
 {
 }
 
@@ -88,12 +84,24 @@ FE_Evolution::Operator FE_Evolution::buildPenaltyOperator(const FieldType& f) co
 	return res;
 }
 
-FE_Evolution::Operator FE_Evolution::buildMassAndStiffOperator() const
+FE_Evolution::Operator FE_Evolution::applyMassOperator(const OperatorType& optype, const FieldType& f) const
 {
 	auto mass = buildInverseMassMatrix();
-	auto stiff = buildDerivativeOperator();
+	auto second = std::make_unique<BilinearForm>(fes_);
 
-	auto aux = mfem::Mult(mass->SpMat(), stiff->SpMat());
+	switch (optype) {
+		case OperatorType::Stiffness:
+			second = buildDerivativeOperator();
+			break;
+		case OperatorType::Flux:
+			second = buildFluxOperator(f);
+			break;
+		case OperatorType::Penalty:
+			second = buildPenaltyOperator(f);
+			break;
+	}
+
+	auto aux = mfem::Mult(mass->SpMat(), second->SpMat());
 
 	auto res = std::make_unique<BilinearForm>(fes_);
 	res->Assemble();
@@ -102,72 +110,6 @@ FE_Evolution::Operator FE_Evolution::buildMassAndStiffOperator() const
 
 	return res;
 }
-
-FE_Evolution::Operator FE_Evolution::buildMassAndFluxOperator(const FieldType& f) const
-{
-	auto mass = buildInverseMassMatrix();
-	auto flux = buildFluxOperator(f);
-
-	auto aux = mfem::Mult(mass->SpMat(), flux->SpMat());
-
-	auto res = std::make_unique<BilinearForm>(fes_);
-	res->Assemble();
-	res->Finalize();
-	res->SpMat().Swap(*aux);
-
-	return res;
-
-}
-
-FE_Evolution::Operator FE_Evolution::buildMassAndPenaltyOperator(const FieldType& f) const
-{
-	auto mass = buildInverseMassMatrix();
-	auto penalty = buildPenaltyOperator(f);
-
-	auto aux = mfem::Mult(mass->SpMat(), penalty->SpMat());
-
-	auto res = std::make_unique<BilinearForm>(fes_);
-	res->Assemble();
-	res->Finalize();
-	res->SpMat().Swap(*aux);
-
-	return res;
-}
-
-
-
-//FE_Evolution::FluxOperators FE_Evolution::buildFluxOperators(const FieldType& f) const
-//{
-//	FluxOperators res = std::make_pair(
-//		std::make_unique<BilinearForm>(fes_),
-//		std::make_unique<BilinearForm>(fes_)
-//	);
-//
-//	VectorConstantCoefficient n(Vector({ 1.0 }));
-//	{
-//		FluxCoefficient c = interiorFluxCoefficient();
-//		res.first->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//	{
-//		FluxCoefficient c = boundaryFluxCoefficient(f);
-//		res.first->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//	{
-//		FluxCoefficient c = interiorAltFluxCoefficient();
-//		res.second->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//	{
-//		FluxCoefficient c = boundaryAltFluxCoefficient(f);
-//		res.second->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//
-//	res.first->Assemble();
-//	res.first->Finalize();
-//	res.second->Assemble();
-//	res.second->Finalize();
-//
-//	return res;
-//}
 
 FE_Evolution::FluxCoefficient FE_Evolution::interiorFluxCoefficient() const
 {
@@ -245,22 +187,6 @@ void FE_Evolution::Mult(const Vector& x, Vector& y) const
 
 	GridFunction eNew(fes_, &y[0]);
 	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
-
-	/*Vector auxRHS(MS_->Height());*/
-
-	// Update E. dE/dt = M^{-1} * (K * H - FE * {H} - altFE * [E])).
-
-	//K_->Mult(hOld, auxRHS);
-	//FE_.first->AddMult(hOld, auxRHS, -1.0);
-	//FE_.second->AddMult(eOld, auxRHS, -1.0);
-	//MInv_->Mult(auxRHS, eNew);
-
-	// Update H. dH/dt = M^{-1} * (K * E - FH * {E} - altFH * [H])).
-
-	//K_->Mult(eOld, auxRHS);
-	//FH_.first->AddMult(eOld, auxRHS, -1.0);
-	//FH_.second->AddMult(hOld, auxRHS, -1.0);
-	//MInv_->Mult(auxRHS, hNew);
 
 	// Update E. dE/dt = MS * H - FEH * {H} - FEE * [E].
 

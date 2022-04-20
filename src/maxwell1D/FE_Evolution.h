@@ -17,6 +17,11 @@ public:
 		BdrCond bdrCond = BdrCond::PEC;
 	};
 
+	enum class OperatorType {
+		Stiffness,
+		Flux,
+		Penalty
+	};
 	static const std::size_t numberOfFieldComponents = 2;
 	
 	FE_Evolution(FiniteElementSpace* fes, Options options);
@@ -29,14 +34,13 @@ private:
 		double beta;
 	};
 
+
 	typedef std::pair<std::unique_ptr<BilinearForm>, std::unique_ptr<BilinearForm>> FluxOperators;
 	typedef std::unique_ptr<BilinearForm> Operator;
 
 	FiniteElementSpace* fes_;
 	Options opts_;
 
-	//std::unique_ptr<BilinearForm> MInv_, K_;
-	//FluxOperators FE_, FH_;
 	Operator MS_, FEE_, FEH_, FHE_, FHH_;
 	
 	void constructBilinearForms();
@@ -46,10 +50,11 @@ private:
 	Operator buildFluxOperator(const FieldType&) const;
 	Operator buildPenaltyOperator(const FieldType&) const;
 
-	Operator buildMassAndStiffOperator() const;
-	Operator buildMassAndFluxOperator(const FieldType&) const;
-	Operator buildMassAndPenaltyOperator(const FieldType&) const;
-	
+	Operator applyMassOperator(const OperatorType&, const FieldType& f = FieldType::Electric) const;
+
+	//Operator buildMassAndStiffOperator() const;
+	//Operator buildMassAndFluxOperator(const FieldType&) const;
+	//Operator buildMassAndPenaltyOperator(const FieldType&) const;
 	
 	FluxOperators buildFluxOperators(const FieldType&) const;
 	
