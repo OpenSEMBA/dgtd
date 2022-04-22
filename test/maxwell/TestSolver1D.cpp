@@ -172,20 +172,21 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	maxwell::Solver1D::Options solverOpts;
-
-	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
-	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
-
 	maxwell::Solver1D solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 	solver.setInitialField(FieldType::Electric, gaussianFunction);
+	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
+	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
+	solverOpts.extractDataAtPoint = true;
+		IntegrationPoint ip;
+	ip.Set1w(meshBoundingBoxMax[0], 0.0);
+	solverOpts.integPoint = ip;
 
 	solver.run();
-	Vector eNew = solver.getField(FieldType::Electric);
-	Vector zero = eNew;
-	zero = 0.0;
 
-	double error = zero.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
+	mfem::IntegrationPoint ip;
+	ip.Set1w(meshBoundingBoxMax[0], 0.0);
+	Vector eNew = solver.getFieldAtPoint();
+
 
 }

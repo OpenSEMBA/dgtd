@@ -37,6 +37,10 @@ Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 	if (opts_.glvis) {
 		initializeGLVISData();
 	}
+	if (opts_.extractDataAtPoint) {
+		integPoint_ = setIntegrationPoint(opts_.integPoint);
+		fieldToExtract_ = opts_.fieldToExtract;
+	}
 }
 
 void Solver1D::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
@@ -85,6 +89,43 @@ const GridFunction& Solver1D::getField(const FieldType& ft) const
 	case FieldType::Magnetic:
 		return H_;
 	}
+}
+
+const int Solver1D::getElementNumberForPosition(const IntegrationPoint& ip) const
+{
+	Vector meshBoundingMin, meshBoundingMax;
+	Mesh meshc = Mesh(mesh_, true);
+	meshc.GetBoundingBox(meshBoundingMin,meshBoundingMax);
+	return (int)std::floor(ip.x /((meshBoundingMax[0] - meshBoundingMin[0]) / meshc.GetNV()));
+}
+
+const IntegrationPoint Solver1D::getRelativePositionInElement(const int& elementN, const IntegrationPoint& ip) const
+{
+	Array<int> aux;
+	mesh_.GetElementVertices(elementN, aux);
+
+	IntegrationPoint res;
+	res.Set1w(((ip.x - aux[0]) / (aux[1] - aux[0])), 0.0);
+	return res;
+}
+
+const double Solver1D::saveFieldAtPoint(const IntegrationPoint& ip, const FieldType& ft) const 
+{
+	switch (ft) {
+	case FieldType::Electric:
+		return E_.GetValue(getElementNumberForPosition(ip), 
+			getRelativePositionInElement(getElementNumberForPosition(ip), ip));
+	case FieldType::Magnetic:
+		return H_.GetValue(getElementNumberForPosition(ip), 
+			getRelativePositionInElement(getElementNumberForPosition(ip), ip));
+	}
+}
+
+const IntegrationPoint Solver1D::setIntegrationPoint(const IntegrationPoint& ip) const
+{
+	IntegrationPoint res;
+	res.Set1w(ip.x, ip.weight);
+	return res;
 }
 
 void Solver1D::initializeParaviewData()
@@ -143,17 +184,45 @@ void Solver1D::run()
 
 	storeInitialVisualizationValues();
 
+	if (opts_.extractDataAtPoint) {
+		timeRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
+		fieldRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
+	}
+
 	bool done = false;
 	int cycle = 0;
 
 	while (!done) {
 		odeSolver_->Step(sol_, time, opts_.dt);
 
+		if (opts_.extractDataAtPoint) {
+			timeRecord_[cycle] = time;
+			fieldRecord_[cycle] = saveFieldAtPoint(integPoint_, fieldToExtract_);
+		}
+
 		done = (time >= opts_.t_final);
 
 		cycle++;
 
 		if (done || cycle % opts_.vis_steps == 0) {
+			if (opts_.extractDataAtPoint) {
+
+				timeField_.SetSize(std::ceil(opts_.t_final / opts_.dt) * 2);
+
+				for (int i = 0; i < timeField_.Size(); i++) {
+
+					if (i < (timeField_.Size() / 2)) {
+
+						timeField_.Elem(i) = timeRecord_.Elem(i);
+					}
+					else {
+
+						timeField_.Elem(i) = fieldRecord_.Elem(i - (timeField_.Size() / 2));
+
+						}
+					}
+				}
+			}
 			if (opts_.paraview) {
 				pd_->SetCycle(cycle);
 				pd_->SetTime(time);
@@ -164,5 +233,4 @@ void Solver1D::run()
 			}
 		}
 	}
-}
 }
