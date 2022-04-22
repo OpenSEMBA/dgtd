@@ -1,4 +1,4 @@
-#include "Solver.h"
+#include "Solver1D.h"
 
 #include <fstream>
 #include <iostream>
@@ -6,9 +6,9 @@
 
 using namespace mfem;
 
-namespace maxwell1D {
+namespace maxwell {
 
-Solver::Solver(const Options& opts, const Mesh& mesh)
+Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 {
 	checkOptionsAreValid(opts, mesh);
 
@@ -39,7 +39,7 @@ Solver::Solver(const Options& opts, const Mesh& mesh)
 	}
 }
 
-void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
+void Solver1D::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 {
 	if (mesh.Dimension() != 1) {
 		throw std::exception("Incorrect Dimension for mesh");
@@ -53,7 +53,7 @@ void Solver::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 	}
 }
 
-mfem::Array<int> Solver::buildEssentialTrueDOF()
+mfem::Array<int> Solver1D::buildEssentialTrueDOF()
 {
 	Array<int> ess_tdof_list;
 	if (mesh_.bdr_attributes.Size())
@@ -65,7 +65,7 @@ mfem::Array<int> Solver::buildEssentialTrueDOF()
 	return ess_tdof_list;
 }
 
-void Solver::setInitialField(const FieldType& ft, std::function<double(const Position&)> f)
+void Solver1D::setInitialField(const FieldType& ft, std::function<double(const Position&)> f)
 {
 	switch (ft) {
 	case FieldType::Electric:
@@ -77,7 +77,7 @@ void Solver::setInitialField(const FieldType& ft, std::function<double(const Pos
 	}	
 }
 
-const GridFunction& Solver::getField(const FieldType& ft) const
+const GridFunction& Solver1D::getField(const FieldType& ft) const
 {
 	switch (ft) {
 	case FieldType::Electric:
@@ -87,7 +87,7 @@ const GridFunction& Solver::getField(const FieldType& ft) const
 	}
 }
 
-void Solver::initializeParaviewData()
+void Solver1D::initializeParaviewData()
 {
 	pd_ = NULL;
 	pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh_);
@@ -99,7 +99,7 @@ void Solver::initializeParaviewData()
 	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
 }
 
-void Solver::initializeGLVISData() 
+void Solver1D::initializeGLVISData() 
 {
 	char vishost[] = "localhost";
 	int  visport = 19916;
@@ -112,7 +112,7 @@ void Solver::initializeGLVISData()
 		<< " Press space (in the GLVis window) to resume it.\n";
 }
 
-void Solver::storeInitialVisualizationValues() 
+void Solver1D::storeInitialVisualizationValues() 
 {
 	if (opts_.paraview) {
 		pd_->SetCycle(0);
@@ -132,7 +132,7 @@ void Solver::storeInitialVisualizationValues()
 	}
 }
 
-void Solver::run()
+void Solver1D::run()
 {
 	Vector vals(2 * fes_.get()->GetVSize());
 	

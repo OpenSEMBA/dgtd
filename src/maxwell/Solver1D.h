@@ -3,10 +3,11 @@
 #include "mfem.hpp"
 
 #include "FE_Evolution.h"
+#include "Types.h"
 
-namespace maxwell1D {
+namespace maxwell {
 
-class Solver {
+class Solver1D {
 public:
     typedef mfem::Vector Position;
 
@@ -21,7 +22,7 @@ public:
         FE_Evolution::Options evolutionOperatorOptions;
     };
 
-    Solver(const Options&, const mfem::Mesh&);
+    Solver1D(const Options&, const mfem::Mesh&);
 
     void setInitialField(const FieldType&, std::function<double(const Position&)>);
     const GridFunction& getField(const FieldType&) const;
@@ -52,7 +53,7 @@ private:
     socketstream sout_;
 
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
-    mfem::Array<int> Solver::buildEssentialTrueDOF();
+    mfem::Array<int> Solver1D::buildEssentialTrueDOF();
     
     void initializeParaviewData();
     void initializeGLVISData();

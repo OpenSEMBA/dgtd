@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
 
-#include "maxwell1D/Solver.h"
-#include "maxwell1D/BilinearIntegrators.h"
+#include "maxwell/Solver1D.h"
+#include "maxwell/BilinearIntegrators.h"
 
-using namespace maxwell1D;
+using namespace maxwell;
 
 class TestMaxwellDGTrace : public ::testing::Test {
 

@@ -1,6 +1,6 @@
 #include "FE_Evolution.h"
 
-namespace maxwell1D {
+namespace maxwell {
 
 	FE_Evolution::FE_Evolution(FiniteElementSpace* fes, Options options) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
@@ -70,11 +70,11 @@ FE_Evolution::Operator FE_Evolution::buildPenaltyOperator(const FieldType& f) co
 
 	VectorConstantCoefficient n(Vector({ 1.0 }));
 	{
-		FluxCoefficient c = interiorAltFluxCoefficient();
+		FluxCoefficient c = interiorPenaltyFluxCoefficient();
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 	{
-		FluxCoefficient c = boundaryAltFluxCoefficient(f);
+		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f);
 		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 
@@ -116,7 +116,7 @@ FE_Evolution::FluxCoefficient FE_Evolution::interiorFluxCoefficient() const
 	return FluxCoefficient{1.0, 0.0};
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::interiorAltFluxCoefficient() const
+FE_Evolution::FluxCoefficient FE_Evolution::interiorPenaltyFluxCoefficient() const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -136,6 +136,13 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const FieldT
 		case FieldType::Magnetic:
 			return FluxCoefficient{ 2.0, 0.0 };
 		}
+	case BdrCond::PMC:
+		switch (f) {
+		case FieldType::Electric:
+			return FluxCoefficient{ 2.0, 0.0 };
+		case FieldType::Magnetic:
+			return FluxCoefficient{ 0.0, 0.0 };
+		}
 	case BdrCond::SMA:
 		switch (f) {
 		case FieldType::Electric:
@@ -146,7 +153,7 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const FieldT
 	}
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::boundaryAltFluxCoefficient(const FieldType& f) const
+FE_Evolution::FluxCoefficient FE_Evolution::boundaryPenaltyFluxCoefficient(const FieldType& f) const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -160,12 +167,19 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryAltFluxCoefficient(const Fie
 			case FieldType::Magnetic:
 				return FluxCoefficient{ 0.0, 0.0 };
 			}
-		case BdrCond::SMA:
+		case BdrCond::PMC:
 			switch (f) {
 			case FieldType::Electric:
 				return FluxCoefficient{ 0.0, 0.0 };
 			case FieldType::Magnetic:
 				return FluxCoefficient{ 0.0, 0.0 };
+			}
+		case BdrCond::SMA:
+			switch (f) {
+			case FieldType::Electric:
+				return FluxCoefficient{ 0.0, 0.5 };
+			case FieldType::Magnetic:
+				return FluxCoefficient{ 0.0, 0.5 };
 			}
 		}
 	}

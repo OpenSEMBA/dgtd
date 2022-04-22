@@ -2,10 +2,9 @@
 
 #include "mfem.hpp"
 #include "BilinearIntegrators.h"
-
 #include "Types.h"
 
-namespace maxwell1D {
+namespace maxwell {
 
 using namespace mfem;
 
@@ -59,9 +58,9 @@ private:
 	FluxOperators buildFluxOperators(const FieldType&) const;
 	
 	FluxCoefficient interiorFluxCoefficient() const;
-	FluxCoefficient interiorAltFluxCoefficient() const;
+	FluxCoefficient interiorPenaltyFluxCoefficient() const;
 	FluxCoefficient boundaryFluxCoefficient(const FieldType&) const;
-	FluxCoefficient boundaryAltFluxCoefficient(const FieldType&) const;
+	FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType&) const;
 };
 
 
