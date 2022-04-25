@@ -22,7 +22,7 @@ Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
 	odeSolver_ = std::make_unique<RK4Solver>();
 
 	maxwellEvol_ = std::make_unique<FE_Evolution>(fes_.get(), opts.evolutionOperatorOptions);
-	
+
 	sol_ = Vector(FE_Evolution::numberOfFieldComponents * fes_->GetNDofs());
 	sol_ = 0.0;
 
@@ -78,7 +78,7 @@ void Solver1D::setInitialField(const FieldType& ft, std::function<double(const P
 	case FieldType::Magnetic:
 		H_.ProjectCoefficient(FunctionCoefficient(f));
 		return;
-	}	
+	}
 }
 
 const GridFunction& Solver1D::getField(const FieldType& ft) const
@@ -91,33 +91,50 @@ const GridFunction& Solver1D::getField(const FieldType& ft) const
 	}
 }
 
-const int Solver1D::getElementNumberForPosition(const IntegrationPoint& ip) const
+const int Solver1D::getElementIndexForPosition(const IntegrationPoint& ip) const
 {
 	Vector meshBoundingMin, meshBoundingMax;
 	Mesh meshc = Mesh(mesh_, true);
-	meshc.GetBoundingBox(meshBoundingMin,meshBoundingMax);
-	return (int)std::floor(ip.x /((meshBoundingMax[0] - meshBoundingMin[0]) / meshc.GetNV()));
+	meshc.GetBoundingBox(meshBoundingMin, meshBoundingMax);
+	int res = (int)std::floor(ip.x / ((meshBoundingMax[0] - meshBoundingMin[0]) / meshc.GetNE())) - 1;
+	return res;
+}
+
+const Array<double> Solver1D::getVertexPositionInPhysicalCoords(const Array<int>& elementVertex) const
+{
+	Vector meshBoundingMin, meshBoundingMax;
+	Mesh meshc = Mesh(mesh_, true);
+	meshc.GetBoundingBox(meshBoundingMin, meshBoundingMax);
+	Array<double> res(elementVertex.Size());
+	const double vertexTop = meshc.GetNV() - 1;
+	for (int i = 0; i < elementVertex.Size(); i++) {
+		res[i] = (1.0 - ((vertexTop - elementVertex[i]) / vertexTop)) / (meshBoundingMax[0] - meshBoundingMin[0]);
+	}
+	return res;
+
+
 }
 
 const IntegrationPoint Solver1D::getRelativePositionInElement(const int& elementN, const IntegrationPoint& ip) const
 {
 	Array<int> aux;
 	mesh_.GetElementVertices(elementN, aux);
+	Array<double> auxPos = getVertexPositionInPhysicalCoords(aux);
 
 	IntegrationPoint res;
-	res.Set1w(((ip.x - aux[0]) / (aux[1] - aux[0])), 0.0);
+	res.Set1w(((ip.x - auxPos[0]) / (auxPos[1] - auxPos[0])), 0.0);
 	return res;
 }
 
-const double Solver1D::saveFieldAtPoint(const IntegrationPoint& ip, const FieldType& ft) const 
+const double Solver1D::saveFieldAtPoint(const IntegrationPoint& ip, const FieldType& ft) const
 {
 	switch (ft) {
 	case FieldType::Electric:
-		return E_.GetValue(getElementNumberForPosition(ip), 
-			getRelativePositionInElement(getElementNumberForPosition(ip), ip));
+		return E_.GetValue(getElementIndexForPosition(ip),
+			getRelativePositionInElement(getElementIndexForPosition(ip), ip));
 	case FieldType::Magnetic:
-		return H_.GetValue(getElementNumberForPosition(ip), 
-			getRelativePositionInElement(getElementNumberForPosition(ip), ip));
+		return H_.GetValue(getElementIndexForPosition(ip),
+			getRelativePositionInElement(getElementIndexForPosition(ip), ip));
 	}
 }
 
@@ -140,7 +157,7 @@ void Solver1D::initializeParaviewData()
 	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
 }
 
-void Solver1D::initializeGLVISData() 
+void Solver1D::initializeGLVISData()
 {
 	char vishost[] = "localhost";
 	int  visport = 19916;
@@ -153,7 +170,7 @@ void Solver1D::initializeGLVISData()
 		<< " Press space (in the GLVis window) to resume it.\n";
 }
 
-void Solver1D::storeInitialVisualizationValues() 
+void Solver1D::storeInitialVisualizationValues()
 {
 	if (opts_.paraview) {
 		pd_->SetCycle(0);
@@ -176,7 +193,7 @@ void Solver1D::storeInitialVisualizationValues()
 void Solver1D::run()
 {
 	Vector vals(2 * fes_.get()->GetVSize());
-	
+
 	double time = 0.0;
 
 	maxwellEvol_->SetTime(time);
@@ -209,18 +226,11 @@ void Solver1D::run()
 
 				timeField_.SetSize(std::ceil(opts_.t_final / opts_.dt) * 2);
 
-				for (int i = 0; i < timeField_.Size(); i++) {
+				for (int i = 0; i < timeField_.Size()/2; i++) {
 
-					if (i < (timeField_.Size() / 2)) {
+					timeField_.Elem(i) = timeRecord_.Elem(i);
+					timeField_.Elem(i + timeField_.Size() / 2) = fieldRecord_.Elem(i);
 
-						timeField_.Elem(i) = timeRecord_.Elem(i);
-					}
-					else {
-
-						timeField_.Elem(i) = fieldRecord_.Elem(i - (timeField_.Size() / 2));
-
-						}
-					}
 				}
 			}
 			if (opts_.paraview) {
@@ -233,4 +243,5 @@ void Solver1D::run()
 			}
 		}
 	}
+}
 }

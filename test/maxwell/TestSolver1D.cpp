@@ -19,6 +19,16 @@ namespace AnalyticalFunctions1D {
 		
 		return exp(-20. * pow(normalizedPos, 2));
 	}
+
+	double gaussianFunctionHalf(const mfem::Vector pos)
+	{
+		double normalizedPos;
+		double center = (meshBoundingBoxMin[0] + meshBoundingBoxMax[0]) * 0.5;
+		normalizedPos = 2.0 * (pos[0] - center) /
+			((meshBoundingBoxMax[0] - meshBoundingBoxMin[0]));
+
+		return exp(-20. * pow(normalizedPos, 2))/2;
+	}
 }
 
 namespace HelperFunctions1D {
@@ -172,21 +182,29 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	maxwell::Solver1D::Options solverOpts;
-	maxwell::Solver1D solver(solverOpts, mesh);
-	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	solver.setInitialField(FieldType::Electric, gaussianFunction);
 	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
 	solverOpts.extractDataAtPoint = true;
-		IntegrationPoint ip;
-	ip.Set1w(meshBoundingBoxMax[0], 0.0);
+	IntegrationPoint ip;
+	Vector meshMin, meshMax;
+	mesh.GetBoundingBox(meshMin, meshMax, 0);
+	ip.Set1w(meshMax[0], 0.0);
 	solverOpts.integPoint = ip;
+
+	maxwell::Solver1D solver(solverOpts, mesh);
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+	solver.setInitialField(FieldType::Electric, gaussianFunction);
 
 	solver.run();
 
-	mfem::IntegrationPoint ip;
-	ip.Set1w(meshBoundingBoxMax[0], 0.0);
-	Vector eNew = solver.getFieldAtPoint();
+	Vector eNew = solver.getField(FieldType::Electric);
+	Vector zero = eNew;
+	zero = 0.0;
+	double error = zero.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
 
-
+	Vector ePoint = solver.getFieldAtPoint();
+	for (int i = ePoint.Size() / 2; i < ePoint.Size(); i++) {
+		EXPECT_LE(ePoint[i],1.0);
+	}
 }

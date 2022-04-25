@@ -67,7 +67,8 @@ private:
     mfem::Array<int> buildEssentialTrueDOF();
 
     const IntegrationPoint setIntegrationPoint(const IntegrationPoint&) const;
-    const int getElementNumberForPosition(const IntegrationPoint&) const;
+    const int getElementIndexForPosition(const IntegrationPoint&) const;
+    const Array<double> getVertexPositionInPhysicalCoords(const Array<int>& elementVertex) const;
     const IntegrationPoint getRelativePositionInElement(const int&, const IntegrationPoint&) const;
     const double saveFieldAtPoint(const IntegrationPoint&, const FieldType&) const;
     
