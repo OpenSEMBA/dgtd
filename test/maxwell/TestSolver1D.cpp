@@ -186,9 +186,8 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
 	solverOpts.extractDataAtPoint = true;
 	IntegrationPoint ip;
-	Vector meshMin, meshMax;
-	mesh.GetBoundingBox(meshMin, meshMax, 0);
-	ip.Set1w(meshMax[0], 0.0);
+	double xPos = 1.0;
+	ip.Set1w(xPos, 0.0);
 	solverOpts.integPoint = ip;
 
 	maxwell::Solver1D solver(solverOpts, mesh);
