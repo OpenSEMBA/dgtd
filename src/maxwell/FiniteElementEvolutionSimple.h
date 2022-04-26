@@ -35,7 +35,6 @@ private:
 		double beta;
 	};
 
-
 	typedef std::pair<std::unique_ptr<BilinearForm>, std::unique_ptr<BilinearForm>> FluxOperators;
 	typedef std::unique_ptr<BilinearForm> Operator;
 
@@ -54,12 +53,6 @@ private:
 	Operator buildPenaltyOperator(const FieldType&) const;
 
 	Operator applyMassOperatorOnOtherOperators(const OperatorType&, const FieldType& f = FieldType::Electric) const;
-
-	//Operator buildMassAndStiffOperator() const;
-	//Operator buildMassAndFluxOperator(const FieldType&) const;
-	//Operator buildMassAndPenaltyOperator(const FieldType&) const;
-	
-	FluxOperators buildFluxOperators(const FieldType&) const;
 	
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorPenaltyFluxCoefficient() const;

@@ -60,12 +60,6 @@ private:
 
 	Operator applyMassOperatorOnOtherOperators(const OperatorType&, const FieldType& f = FieldType::Electric) const;
 
-	//Operator buildMassAndStiffOperator() const;
-	//Operator buildMassAndFluxOperator(const FieldType&) const;
-	//Operator buildMassAndPenaltyOperator(const FieldType&) const;
-
-	FluxOperators buildFluxOperators(const FieldType&) const;
-
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorPenaltyFluxCoefficient() const;
 	FluxCoefficient boundaryFluxCoefficient(const FieldType&) const;
