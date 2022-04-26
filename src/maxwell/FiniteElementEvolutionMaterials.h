@@ -8,7 +8,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-class FE_Evolution : public TimeDependentOperator {
+class FiniteElementEvolutionMaterials : public TimeDependentOperator {
 public:
 
 	struct Options {
@@ -25,10 +25,10 @@ public:
 	};
 
 	static const std::size_t numberOfFieldComponents = 2;
-	
-	FE_Evolution(FiniteElementSpace* fes, Options options);
+
+	FiniteElementEvolutionMaterials(FiniteElementSpace* fes, Options options);
 	virtual void Mult(const Vector& x, Vector& y) const;
-	virtual ~FE_Evolution() = default;
+	virtual ~FiniteElementEvolutionMaterials() = default;
 
 
 private:
@@ -49,7 +49,7 @@ private:
 	Vector eps_, mu_;
 	const Vector epsilonVal_;
 	const Vector muVal_;
-	
+
 	void constructBilinearForms();
 
 	Vector buildEpsilonVector();
@@ -65,9 +65,9 @@ private:
 	//Operator buildMassAndStiffOperator() const;
 	//Operator buildMassAndFluxOperator(const FieldType&) const;
 	//Operator buildMassAndPenaltyOperator(const FieldType&) const;
-	
+
 	FluxOperators buildFluxOperators(const FieldType&) const;
-	
+
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorPenaltyFluxCoefficient() const;
 	FluxCoefficient boundaryFluxCoefficient(const FieldType&) const;

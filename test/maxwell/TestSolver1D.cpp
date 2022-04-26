@@ -115,7 +115,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 
 	maxwell::Solver1D::Options solverOpts;
 	
-	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
 	maxwell::Solver1D solver(solverOpts, mesh);
@@ -138,7 +138,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 
 	maxwell::Solver1D::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
 
 	maxwell::Solver1D solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
@@ -160,7 +160,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 
 	maxwell::Solver1D::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::PMC;
 
 	maxwell::Solver1D solver(solverOpts, mesh);
@@ -182,7 +182,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	maxwell::Solver1D::Options solverOpts;
-	solverOpts.evolutionOperatorOptions = FE_Evolution::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
 	solverOpts.extractDataAtPoint = true;
 	IntegrationPoint ip;

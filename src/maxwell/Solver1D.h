@@ -2,7 +2,8 @@
 
 #include "mfem.hpp"
 
-#include "FE_Evolution.h"
+#include "FiniteElementEvolutionSimple.h"
+#include "FiniteElementEvolutionMaterials.h"
 #include "Types.h"
 
 namespace maxwell {
@@ -22,7 +23,7 @@ public:
         bool extractDataAtPoint = false;
         FieldType fieldToExtract = FieldType::Electric;
         IntegrationPoint integPoint;
-        FE_Evolution::Options evolutionOperatorOptions;
+        FiniteElementEvolutionSimple::Options evolutionOperatorOptions;
     };
 
     Solver1D(const Options&, const mfem::Mesh&);
@@ -48,7 +49,7 @@ private:
 
     mfem::Array<int> boundaryTDoF_;
 
-    std::unique_ptr<FE_Evolution> maxwellEvol_;
+    std::unique_ptr<FiniteElementEvolutionSimple> maxwellEvol_;
 
     Vector sol_;
 

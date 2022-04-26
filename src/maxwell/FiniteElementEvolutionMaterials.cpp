@@ -1,8 +1,8 @@
-#include "FE_Evolution.h"
+#include "FiniteElementEvolutionMaterials.h"
 
 namespace maxwell {
 
-	FE_Evolution::FE_Evolution(FiniteElementSpace* fes, Options options) :
+	FiniteElementEvolutionMaterials::FiniteElementEvolutionMaterials(FiniteElementSpace* fes, Options options) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
@@ -16,31 +16,7 @@ namespace maxwell {
 {
 }
 
-Vector FE_Evolution::buildEpsilonVector(){
-	Vector res(fes_->GetNDofs());
-	for (int i = 0; i < fes_->GetMesh()->GetNE(); i++) {
-		Array<int> aux;
-		fes_->GetElementDofs(i,aux);
-		for (int j = 0; j < aux.Size(); j++) {
-			res[aux[j]] = epsilonVal_[fes_->GetMesh()->GetAttribute(i)-1];
-		}
-	}
-	return res;
-}
-
-Vector FE_Evolution::buildMuVector() {
-	Vector res(fes_->GetNDofs());
-	for (int i = 0; i < fes_->GetMesh()->GetNE(); i++) {
-		Array<int> aux;
-		fes_->GetElementDofs(i, aux);
-		for (int j = 0; j < aux.Size(); j++) {
-			res[aux[j]] = muVal_[fes_->GetMesh()->GetAttribute(i)-1];
-		}
-	}
-	return res;
-}
-
-FE_Evolution::Operator FE_Evolution::buildInverseMassMatrix() const
+FiniteElementEvolutionMaterials::Operator FiniteElementEvolutionMaterials::buildInverseMassMatrix() const
 {
 	auto MInv = std::make_unique<BilinearForm>(fes_);
 	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
@@ -51,7 +27,7 @@ FE_Evolution::Operator FE_Evolution::buildInverseMassMatrix() const
 	return MInv;
 }
 
-FE_Evolution::Operator FE_Evolution::buildDerivativeOperator() const
+FiniteElementEvolutionMaterials::Operator FiniteElementEvolutionMaterials::buildDerivativeOperator() const
 {
 	std::size_t d = 0;
 	ConstantCoefficient coeff(1.0);
@@ -69,7 +45,7 @@ FE_Evolution::Operator FE_Evolution::buildDerivativeOperator() const
 	return K;
 }
 
-FE_Evolution::Operator FE_Evolution::buildFluxOperator(const FieldType& f) const
+FiniteElementEvolutionMaterials::Operator FiniteElementEvolutionMaterials::buildFluxOperator(const FieldType& f) const
 {
 	auto flux = std::make_unique<BilinearForm>(fes_);
 	VectorConstantCoefficient n(Vector({ 1.0 }));
@@ -88,7 +64,7 @@ FE_Evolution::Operator FE_Evolution::buildFluxOperator(const FieldType& f) const
 }
 
 
-FE_Evolution::Operator FE_Evolution::buildPenaltyOperator(const FieldType& f) const
+FiniteElementEvolutionMaterials::Operator FiniteElementEvolutionMaterials::buildPenaltyOperator(const FieldType& f) const
 {
 	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
 
@@ -108,7 +84,7 @@ FE_Evolution::Operator FE_Evolution::buildPenaltyOperator(const FieldType& f) co
 	return res;
 }
 
-FE_Evolution::Operator FE_Evolution::applyMassOperatorOnOtherOperators(const OperatorType& optype, const FieldType& f) const
+FiniteElementEvolutionMaterials::Operator FiniteElementEvolutionMaterials::applyMassOperatorOnOtherOperators(const OperatorType& optype, const FieldType& f) const
 {
 	auto mass = buildInverseMassMatrix();
 	auto second = std::make_unique<BilinearForm>(fes_);
@@ -135,12 +111,12 @@ FE_Evolution::Operator FE_Evolution::applyMassOperatorOnOtherOperators(const Ope
 	return res;
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::interiorFluxCoefficient() const
+FiniteElementEvolutionMaterials::FluxCoefficient FiniteElementEvolutionMaterials::interiorFluxCoefficient() const
 {
 	return FluxCoefficient{1.0, 0.0};
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::interiorPenaltyFluxCoefficient() const
+FiniteElementEvolutionMaterials::FluxCoefficient FiniteElementEvolutionMaterials::interiorPenaltyFluxCoefficient() const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -150,7 +126,7 @@ FE_Evolution::FluxCoefficient FE_Evolution::interiorPenaltyFluxCoefficient() con
 	}
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const FieldType& f) const
+FiniteElementEvolutionMaterials::FluxCoefficient FiniteElementEvolutionMaterials::boundaryFluxCoefficient(const FieldType& f) const
 {
 	switch (opts_.bdrCond) {
 	case BdrCond::PEC:
@@ -177,7 +153,7 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryFluxCoefficient(const FieldT
 	}
 }
 
-FE_Evolution::FluxCoefficient FE_Evolution::boundaryPenaltyFluxCoefficient(const FieldType& f) const
+FiniteElementEvolutionMaterials::FluxCoefficient FiniteElementEvolutionMaterials::boundaryPenaltyFluxCoefficient(const FieldType& f) const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -210,7 +186,7 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryPenaltyFluxCoefficient(const
 }
 
 
-//void FE_Evolution::constructBilinearForms()
+//void FiniteElementEvolutionMaterials::constructBilinearForms()
 //{
 //	MInv_ = buildInverseMassMatrix();
 //	K_ = buildDerivativeOperator();
@@ -218,7 +194,7 @@ FE_Evolution::FluxCoefficient FE_Evolution::boundaryPenaltyFluxCoefficient(const
 //	FH_ = buildFluxOperators(FieldType::Magnetic);
 //}
 
-void FE_Evolution::Mult(const Vector& x, Vector& y) const
+void FiniteElementEvolutionMaterials::Mult(const Vector& x, Vector& y) const
 {
 	Vector eOld(x.GetData(), fes_->GetNDofs());
 	Vector hOld(x.GetData() + fes_->GetNDofs(), fes_->GetNDofs());
