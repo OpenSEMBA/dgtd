@@ -16,6 +16,29 @@ namespace maxwell {
 {
 }
 
+Vector FiniteElementEvolutionMaterials::buildEpsilonVector() {
+	Vector res(fes_->GetNDofs());
+	for (int i = 0; i < fes_->GetMesh()->GetNE(); i++) {
+		Array<int> aux;
+		fes_->GetElementDofs(i, aux);
+		for (int j = 0; j < aux.Size(); j++) {
+			res[aux[j]] = epsilonVal_[fes_->GetMesh()->GetAttribute(i) - 1];
+		}
+	}
+	return res;
+}
+
+Vector FiniteElementEvolutionMaterials::buildMuVector() {
+	Vector res(fes_->GetNDofs());
+	for (int i = 0; i < fes_->GetMesh()->GetNE(); i++) {
+		Array<int> aux;
+		fes_->GetElementDofs(i, aux);
+		for (int j = 0; j < aux.Size(); j++) {
+			res[aux[j]] = muVal_[fes_->GetMesh()->GetAttribute(i) - 1];
+		}
+	}
+	return res;
+}
 FiniteElementEvolutionMaterials::Operator FiniteElementEvolutionMaterials::buildInverseMassMatrix() const
 {
 	auto MInv = std::make_unique<BilinearForm>(fes_);

@@ -50,8 +50,6 @@ private:
 	const Vector epsilonVal_;
 	const Vector muVal_;
 
-	void constructBilinearForms();
-
 	Vector buildEpsilonVector();
 	Vector buildMuVector();
 

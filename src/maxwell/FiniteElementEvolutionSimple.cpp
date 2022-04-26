@@ -14,6 +14,7 @@ namespace maxwell {
 {
 }
 
+
 FiniteElementEvolutionSimple::Operator FiniteElementEvolutionSimple::buildInverseMassMatrix() const
 {
 	auto MInv = std::make_unique<BilinearForm>(fes_);

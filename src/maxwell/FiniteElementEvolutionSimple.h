@@ -47,8 +47,6 @@ private:
 	Vector eps_, mu_;
 	const Vector epsilonVal_;
 	const Vector muVal_;
-	
-	void constructBilinearForms();
 
 	Operator buildInverseMassMatrix() const;
 	Operator buildDerivativeOperator() const;
