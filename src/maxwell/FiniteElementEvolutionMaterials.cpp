@@ -208,15 +208,6 @@ FiniteElementEvolutionMaterials::FluxCoefficient FiniteElementEvolutionMaterials
 	}
 }
 
-
-//void FiniteElementEvolutionMaterials::constructBilinearForms()
-//{
-//	MInv_ = buildInverseMassMatrix();
-//	K_ = buildDerivativeOperator();
-//	FE_ = buildFluxOperators(FieldType::Electric);
-//	FH_ = buildFluxOperators(FieldType::Magnetic);
-//}
-
 void FiniteElementEvolutionMaterials::Mult(const Vector& x, Vector& y) const
 {
 	Vector eOld(x.GetData(), fes_->GetNDofs());

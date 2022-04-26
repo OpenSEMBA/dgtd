@@ -310,23 +310,6 @@ TEST_F(DG, checkStiffnessMatrix)
 		break;
 	}
 }
-
-TEST_F(DG, checkFluxOperators)
-{
-	/*This test is a WIP.*/
-
-	int order = 1;
-	const int dimension = 1;
-	FiniteElementCollection* fec;
-	FiniteElementSpace* fes;
-
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-	fes = new FiniteElementSpace(&mesh, fec);
-
-	BilinearForm fluxForm(fes);
-}
-
 TEST_F(DG, checkKOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 

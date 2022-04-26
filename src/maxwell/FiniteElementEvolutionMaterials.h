@@ -37,8 +37,6 @@ private:
 		double beta;
 	};
 
-
-	typedef std::pair<std::unique_ptr<BilinearForm>, std::unique_ptr<BilinearForm>> FluxOperators;
 	typedef std::unique_ptr<BilinearForm> Operator;
 
 	FiniteElementSpace* fes_;
