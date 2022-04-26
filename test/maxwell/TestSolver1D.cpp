@@ -46,6 +46,14 @@ namespace HelperFunctions1D {
 		return res;
 	}
 
+	void setAttributeFromElementToLast(const int& attVal, const int& element, Mesh& mesh)
+	{
+		assert(element < mesh.GetNE(), "Declared element bigger than Mesh Number of Elements.");
+			for (int i = element; i < mesh.GetNE() - 1; i++) {
+				mesh.SetAttribute(i, attVal);
+			}
+	}
+
 }
 using namespace AnalyticalFunctions1D;
 
@@ -115,7 +123,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 
 	maxwell::Solver1D::Options solverOpts;
 	
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
 	maxwell::Solver1D solver(solverOpts, mesh);
@@ -138,7 +146,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 
 	maxwell::Solver1D::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 
 	maxwell::Solver1D solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
@@ -160,7 +168,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 
 	maxwell::Solver1D::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::PMC;
 
 	maxwell::Solver1D solver(solverOpts, mesh);
@@ -182,7 +190,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
 	maxwell::Solver1D::Options solverOpts;
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionSimple::Options();
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
 	solverOpts.extractDataAtPoint = true;
 	IntegrationPoint ip;
@@ -206,4 +214,13 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	for (int i = ePoint.Size() / 2; i < ePoint.Size(); i++) {
 		EXPECT_LE(ePoint[i],1.0);
 	}
+}
+
+TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
+{
+	int nx = 50;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
+	HelperFunctions1D::setAttributeFromElementToLast(2, 40, mesh);
+	maxwell::Solver1D::Options solverOpts;
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 }
