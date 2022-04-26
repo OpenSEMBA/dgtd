@@ -66,8 +66,6 @@ public:
 	struct Options {
 		FluxType fluxType = FluxType::Upwind;
 		BdrCond bdrCond = BdrCond::PEC;
-		Vector epsilonVal;
-		Vector muVal;
 	};
 
 	enum class OperatorType {
@@ -77,6 +75,8 @@ public:
 	};
 
 	static const std::size_t numberOfFieldComponents = 2;
+	Vector epsilonVal;
+	Vector muVal;
 
 	FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options);
 	virtual void Mult(const Vector& x, Vector& y) const;

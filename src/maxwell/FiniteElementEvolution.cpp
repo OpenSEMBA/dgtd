@@ -216,8 +216,8 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	FHH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Magnetic)),
 	FEH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Electric)),
 	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic)),
-	epsilonVal_(opts_.epsilonVal),
-	muVal_(opts_.muVal)
+	epsilonVal_(epsilonVal),
+	muVal_(muVal)
 {
 }
 
