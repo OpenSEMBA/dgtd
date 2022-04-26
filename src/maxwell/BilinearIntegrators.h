@@ -34,28 +34,6 @@ public:
 		FaceElementTransformations& Trans,
 		DenseMatrix& elmat);
 
-	using BilinearFormIntegrator::AssemblePA;
-
-	virtual void AssemblePAInteriorFaces(const FiniteElementSpace& fes);
-
-	virtual void AssemblePABoundaryFaces(const FiniteElementSpace& fes);
-
-	virtual void AddMultTransposePA(const Vector& x, Vector& y) const;
-
-	virtual void AddMultPA(const Vector&, Vector&) const;
-
-	virtual void AssembleEAInteriorFaces(const FiniteElementSpace& fes,
-		Vector& ea_data_int,
-		Vector& ea_data_ext,
-		const bool add);
-
-	virtual void AssembleEABoundaryFaces(const FiniteElementSpace& fes,
-		Vector& ea_data_bdr,
-		const bool add);
-
-	static const IntegrationRule& GetRule(Geometry::Type geom, int order,
-		FaceElementTransformations& T);
-
 protected:
 	Coefficient* rho;
 	VectorCoefficient* u;
@@ -68,7 +46,6 @@ protected:
 
 private:
 	Vector shape1_, shape2_;
-	void SetupPA(const FiniteElementSpace& fes, FaceType type);
 };
 }
 

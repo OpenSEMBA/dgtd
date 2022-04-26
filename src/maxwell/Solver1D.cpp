@@ -1,8 +1,8 @@
-#include "Solver1D.h"
-
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+
+#include "Solver1D.h"
 
 using namespace mfem;
 
@@ -57,17 +57,6 @@ void Solver1D::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
 	}
 }
 
-mfem::Array<int> Solver1D::buildEssentialTrueDOF()
-{
-	Array<int> ess_tdof_list;
-	if (mesh_.bdr_attributes.Size())
-	{
-		Array<int> ess_bdr(mesh_.bdr_attributes.Max());
-		ess_bdr = 1;
-		fes_.get()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-	}
-	return ess_tdof_list;
-}
 
 void Solver1D::setInitialField(const FieldType& ft, std::function<double(const Position&)> f)
 {
