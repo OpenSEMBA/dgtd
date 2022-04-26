@@ -51,6 +51,7 @@ private:
     std::unique_ptr<FE_Evolution> maxwellEvol_;
     
     Vector sol_;
+
     GridFunction E_, H_;
 
     IntegrationPoint integPoint_;

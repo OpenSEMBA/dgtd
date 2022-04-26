@@ -10,11 +10,35 @@ namespace maxwell {
 	FEE_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Electric)),
 	FHH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Magnetic)),
 	FEH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Electric)),
-	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic))
+	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic)),
+	epsilonVal_(opts_.epsilonVal),
+	muVal_(opts_.muVal)
 {
 }
 
-	
+Vector FE_Evolution::buildEpsilonVector(){
+	Vector res(fes_->GetNDofs());
+	for (int i = 0; i < fes_->GetMesh()->GetNE(); i++) {
+		Array<int> aux;
+		fes_->GetElementDofs(i,aux);
+		for (int j = 0; j < aux.Size(); j++) {
+			res[aux[j]] = epsilonVal_[fes_->GetMesh()->GetAttribute(i)-1];
+		}
+	}
+	return res;
+}
+
+Vector FE_Evolution::buildMuVector() {
+	Vector res(fes_->GetNDofs());
+	for (int i = 0; i < fes_->GetMesh()->GetNE(); i++) {
+		Array<int> aux;
+		fes_->GetElementDofs(i, aux);
+		for (int j = 0; j < aux.Size(); j++) {
+			res[aux[j]] = muVal_[fes_->GetMesh()->GetAttribute(i)-1];
+		}
+	}
+	return res;
+}
 
 FE_Evolution::Operator FE_Evolution::buildInverseMassMatrix() const
 {

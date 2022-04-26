@@ -14,6 +14,8 @@ public:
 	struct Options {
 		FluxType fluxType = FluxType::Upwind;
 		BdrCond bdrCond = BdrCond::PEC;
+		Vector epsilonVal;
+		Vector muVal;
 	};
 
 	enum class OperatorType {
@@ -21,11 +23,13 @@ public:
 		Flux,
 		Penalty
 	};
+
 	static const std::size_t numberOfFieldComponents = 2;
 	
 	FE_Evolution(FiniteElementSpace* fes, Options options);
 	virtual void Mult(const Vector& x, Vector& y) const;
 	virtual ~FE_Evolution() = default;
+
 
 private:
 	struct FluxCoefficient {
@@ -41,8 +45,15 @@ private:
 	Options opts_;
 
 	Operator MS_, FEE_, FEH_, FHE_, FHH_;
+
+	Vector eps_, mu_;
+	const Vector epsilonVal_;
+	const Vector muVal_;
 	
 	void constructBilinearForms();
+
+	Vector buildEpsilonVector();
+	Vector buildMuVector();
 
 	Operator buildInverseMassMatrix() const;
 	Operator buildDerivativeOperator() const;
