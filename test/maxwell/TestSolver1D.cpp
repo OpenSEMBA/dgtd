@@ -24,7 +24,7 @@ namespace AnalyticalFunctions1D {
 	{
 		double normalizedPos;
 		double center = (meshBoundingBoxMin[0] + meshBoundingBoxMax[0]) * 0.5;
-		normalizedPos = 4.0 * (pos[0] - center) /
+		normalizedPos = 4.0 * (pos[0] - center/2) /
 			((meshBoundingBoxMax[0] - meshBoundingBoxMin[0]));
 
 		return exp(-20. * pow(normalizedPos, 2));
@@ -219,21 +219,27 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 
 TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
 {
-	int nx = 200;
+	int nx = 100;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-	HelperFunctions1D::setAttributeIntervalMesh(2, Vector({ 101,200 }), mesh);
+	HelperFunctions1D::setAttributeIntervalMesh(2, Vector({ 51,100 }), mesh);
 
 	maxwell::Solver1D::Options solverOpts;
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 4.0;
+	solverOpts.t_final = 2.999;
 	solverOpts.vis_steps = 20;
 	solverOpts.paraview = true;
-	solverOpts.evolutionOperatorOptions.epsilonVal = Vector({ 1.0, 2.0 });
-	solverOpts.evolutionOperatorOptions.muVal = Vector({ 1.0, 2.0 });
+	
+	Material mat1(1.0, 1.0);
+	Material mat2(2.0, 1.0);
 
 	maxwell::Solver1D solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 	solver.setInitialField(FieldType::Electric, gaussianFunctionHalfWidth);
 
+	Vector eOld = solver.getField(FieldType::Electric);
 	solver.run();
+	Vector eNew = solver.getField(FieldType::Electric);
+
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
 }

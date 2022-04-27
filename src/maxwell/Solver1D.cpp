@@ -80,6 +80,12 @@ const GridFunction& Solver1D::getField(const FieldType& ft) const
 	}
 }
 
+const Vector& Solver1D::getMaterialProperties(const Material& mat) const
+{
+	Vector res({mat.epsilon, mat.mu, mat.getImpedance(), mat.getConductance() });
+	return res;
+}
+
 const int Solver1D::getElementIndexForPosition(const IntegrationPoint& ip) const
 {
 	Vector meshBoundingMin, meshBoundingMax;

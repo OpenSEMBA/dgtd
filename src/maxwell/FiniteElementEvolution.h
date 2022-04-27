@@ -108,6 +108,8 @@ private:
 	Operator buildFluxOperator(const FieldType&) const;
 	Operator buildPenaltyOperator(const FieldType&) const;
 
+	PWVectorCoefficient buildImpedanceParameter() const;
+
 	Operator applyMassOperatorOnOtherOperators(const OperatorType&, const FieldType& f = FieldType::Electric) const;
 
 	FluxCoefficient interiorFluxCoefficient() const;

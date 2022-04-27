@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mfem.hpp"
-
+#include "Material.h"
 #include "FiniteElementEvolution.h"
 #include "Types.h"
 
@@ -29,6 +29,7 @@ public:
 
     void setInitialField(const FieldType&, std::function<double(const Position&)>);
     const GridFunction& getField(const FieldType&) const;
+    const Vector& getMaterialProperties(const Material&) const;
 
 
     mfem::Mesh& getMesh() { return mesh_; }

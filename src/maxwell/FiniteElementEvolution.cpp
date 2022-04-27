@@ -272,8 +272,9 @@ FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildDeriva
 
 FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f) const
 {
-	auto flux = std::make_unique<BilinearForm>(fes_);
+
 	VectorConstantCoefficient n(Vector({ 1.0 }));
+	auto flux = std::make_unique<BilinearForm>(fes_);
 	{
 		FluxCoefficient c = interiorFluxCoefficient();
 		flux->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
