@@ -31,7 +31,6 @@ public:
     const GridFunction& getField(const FieldType&) const;
     const Vector& getMaterialProperties(const Material&) const;
 
-
     mfem::Mesh& getMesh() { return mesh_; }
     Vector& getFieldAtPoint() { return timeField_; }
 

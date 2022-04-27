@@ -2,7 +2,9 @@
 
 namespace maxwell {
 
-Material::Material(const double& epsilon, const double& mu) 
+Material::Material(const double& epsilon,const double& mu) :
+epsilon_(epsilon),
+mu_(mu)
 {
 }
 

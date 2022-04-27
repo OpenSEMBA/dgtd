@@ -1,18 +1,20 @@
 #pragma once
 
-#include <cmath>
+#include <math.h>
 
 namespace maxwell {
 
 class Material {
 public:
-	const double epsilon = 1.0;
-	const double mu = 1.0;
+	Material(const double& ,const  double&);
 
-	Material(const double& epsilon, const double& mu);
+	const double getPermittivity() const { return epsilon_; }
+	const double getPermeability() const { return mu_; }
+	const double getImpedance() const { return sqrt(mu_ / epsilon_); }
+	const double getConductance() const { return sqrt(epsilon_ / mu_); }
 
-	const double getImpedance() const { return sqrt(mu / epsilon); }
-	const double getConductance() const { return sqrt(epsilon / mu); }
+private:
+	double epsilon_, mu_;
 };
 
 }

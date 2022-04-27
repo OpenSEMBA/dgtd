@@ -100,8 +100,6 @@ private:
 
 	Operator MS_, FEE_, FEH_, FHE_, FHH_;
 
-
-
 	Operator buildInverseEpsilonMassMatrix() const;
 	Operator buildInverseMuMassMatrix() const;
 	Operator buildDerivativeOperator() const;

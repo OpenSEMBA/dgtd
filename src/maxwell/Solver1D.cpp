@@ -82,8 +82,7 @@ const GridFunction& Solver1D::getField(const FieldType& ft) const
 
 const Vector& Solver1D::getMaterialProperties(const Material& mat) const
 {
-	Vector res({mat.epsilon, mat.mu, mat.getImpedance(), mat.getConductance() });
-	return res;
+	return Vector({mat.getPermittivity(), mat.getPermeability(), mat.getImpedance(), mat.getConductance()});
 }
 
 const int Solver1D::getElementIndexForPosition(const IntegrationPoint& ip) const
