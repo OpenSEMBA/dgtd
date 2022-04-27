@@ -211,13 +211,14 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
+	epsilonVal_(opts_.epsilonVal),
+	muVal_(opts_.muVal),
 	MS_(applyMassOperatorOnOtherOperators(OperatorType::Stiffness)),
 	FEE_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Electric)),
 	FHH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Magnetic)),
 	FEH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Electric)),
-	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic)),
-	epsilonVal_(epsilonVal),
-	muVal_(muVal)
+	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic))
+
 {
 }
 

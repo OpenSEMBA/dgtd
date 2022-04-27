@@ -46,10 +46,11 @@ namespace HelperFunctions1D {
 		return res;
 	}
 
-	void setAttributeFromElementToLast(const int& attVal, const int& element, Mesh& mesh)
+	void setAttributeIntervalMesh(const int& attVal, const Vector& elIndexes, Mesh& mesh)
 	{
-		assert(element < mesh.GetNE(), "Declared element bigger than Mesh Number of Elements.");
-			for (int i = element; i < mesh.GetNE() - 1; i++) {
+		assert(elIndexes[0] < elIndexes[1], "Lower Index bigger than Higher Index.");
+		assert(elIndexes[1] <= mesh.GetNE(), "Declared element bigger than Mesh Number of Elements.");
+			for (int i = elIndexes[0]; i < elIndexes[1]; i++) {
 				mesh.SetAttribute(i, attVal);
 			}
 	}
@@ -218,9 +219,20 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 
 TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
 {
-	int nx = 50;
+	int nx = 51;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-	HelperFunctions1D::setAttributeFromElementToLast(2, 40, mesh);
+	HelperFunctions1D::setAttributeIntervalMesh(2, Vector({ 40,51 }), mesh);
+
 	maxwell::Solver1D::Options solverOpts;
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.vis_steps = 25;
+	solverOpts.paraview = true;
+	solverOpts.evolutionOperatorOptions.epsilonVal = Vector({ 1.0, 2.0 });
+	solverOpts.evolutionOperatorOptions.muVal = Vector({ 1.0, 2.0 });
+
+	maxwell::Solver1D solver(solverOpts, mesh);
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+	solver.setInitialField(FieldType::Electric, gaussianFunction);
+
+	solver.run();
 }
