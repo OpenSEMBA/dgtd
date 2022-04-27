@@ -20,14 +20,14 @@ namespace AnalyticalFunctions1D {
 		return exp(-20. * pow(normalizedPos, 2));
 	}
 
-	double gaussianFunctionHalf(const mfem::Vector pos)
+	double gaussianFunctionHalfWidth(const mfem::Vector pos)
 	{
 		double normalizedPos;
 		double center = (meshBoundingBoxMin[0] + meshBoundingBoxMax[0]) * 0.5;
-		normalizedPos = 2.0 * (pos[0] - center) /
+		normalizedPos = 4.0 * (pos[0] - center) /
 			((meshBoundingBoxMax[0] - meshBoundingBoxMin[0]));
 
-		return exp(-20. * pow(normalizedPos, 2))/2;
+		return exp(-20. * pow(normalizedPos, 2));
 	}
 }
 
@@ -49,8 +49,8 @@ namespace HelperFunctions1D {
 	void setAttributeIntervalMesh(const int& attVal, const Vector& elIndexes, Mesh& mesh)
 	{
 		assert(elIndexes[0] < elIndexes[1], "Lower Index bigger than Higher Index.");
-		assert(elIndexes[1] <= mesh.GetNE(), "Declared element bigger than Mesh Number of Elements.");
-			for (int i = elIndexes[0]; i < elIndexes[1]; i++) {
+		assert(elIndexes[1] <= mesh.GetNE(), "Declared element index bigger than Mesh Number of Elements.");
+			for (int i = elIndexes[0] - 1; i < elIndexes[1]; i++) {
 				mesh.SetAttribute(i, attVal);
 			}
 	}
@@ -219,20 +219,21 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 
 TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
 {
-	int nx = 51;
+	int nx = 200;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-	HelperFunctions1D::setAttributeIntervalMesh(2, Vector({ 40,51 }), mesh);
+	HelperFunctions1D::setAttributeIntervalMesh(2, Vector({ 101,200 }), mesh);
 
 	maxwell::Solver1D::Options solverOpts;
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.vis_steps = 25;
+	solverOpts.t_final = 4.0;
+	solverOpts.vis_steps = 20;
 	solverOpts.paraview = true;
 	solverOpts.evolutionOperatorOptions.epsilonVal = Vector({ 1.0, 2.0 });
 	solverOpts.evolutionOperatorOptions.muVal = Vector({ 1.0, 2.0 });
 
 	maxwell::Solver1D solver(solverOpts, mesh);
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	solver.setInitialField(FieldType::Electric, gaussianFunction);
+	solver.setInitialField(FieldType::Electric, gaussianFunctionHalfWidth);
 
 	solver.run();
 }

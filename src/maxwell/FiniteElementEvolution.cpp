@@ -430,19 +430,15 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& x, Vector& y) const
 
 	// Update E. dE/dt = MS * H - FEH * {H} - FEE * [E]. enew
 
-	MS_->Mult(hOld, auxRHS);
-	FEH_->AddMult(hOld, auxRHS, -1.0);
-	FEE_->AddMult(eOld, auxRHS, -1.0);
-
-	eNew = eps_ * auxRHS;
+	MS_->Mult(hOld, eNew);
+	FEH_->AddMult(hOld, eNew, -1.0);
+	FEE_->AddMult(eOld, eNew, -1.0);
 
 	// Update H. dH/dt = MS * E - HE * {E} - FHH * [H]. hnew
 
-	MS_->Mult(eOld, auxRHS);
-	FHE_->AddMult(eOld, auxRHS, -1.0);
-	FHH_->AddMult(hOld, auxRHS, -1.0);
-
-	hNew = mu_* auxRHS;
+	MS_->Mult(eOld, hNew);
+	FHE_->AddMult(eOld, hNew, -1.0);
+	FHH_->AddMult(hOld, hNew, -1.0);
 
 }
 
