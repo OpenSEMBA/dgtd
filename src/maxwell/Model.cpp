@@ -12,11 +12,4 @@ matMap_(matMap)
 
 }
 
-Mesh Model::getMesh()
-{
-	Mesh res(mesh_);
-	return res;
-}
-
-
 }

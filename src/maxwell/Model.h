@@ -14,7 +14,7 @@ public:
 	using attToMaterialMap = std::map<attribute, Material>;
 
 	const Model(Mesh mesh, attToMaterialMap matMap);
-	Mesh getMesh() const;
+	Mesh& getMesh() { return mesh_; };
 	attToMaterialMap getMaterialMap() const { return matMap_; }
 
 private:

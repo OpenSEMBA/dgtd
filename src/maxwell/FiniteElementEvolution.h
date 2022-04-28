@@ -4,6 +4,8 @@
 #include "BilinearIntegrators.h"
 #include "Types.h"
 
+#include <array>
+
 namespace maxwell {
 
 using namespace mfem;
@@ -70,12 +72,6 @@ public:
 		Vector muVal = Vector({ 1.0 });
 	};
 
-	enum class OperatorType {
-		Stiffness,
-		Flux,
-		Penalty
-	};
-
 	static const std::size_t numberOfFieldComponents = 2;
 
 	FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options);
@@ -96,15 +92,14 @@ private:
 	Vector epsilonVal_;
 	Vector muVal_;
 
-	Operator MS_, FEE_, FEH_, FHE_, FHH_;
-
-	Operator buildInverseEpsilonMassMatrix() const;
-	Operator buildInverseMuMassMatrix() const;
-	Operator buildDerivativeOperator() const;
+	std::array<std::array<Operator, 2>,3> MS_, FE_, FH_;
+	
+	Operator buildDerivativeOperator(Direction) const;
+	Operator buildInverseMassMatrix(const FieldType&) const;
 	Operator buildFluxOperator(const FieldType&) const;
 	Operator buildPenaltyOperator(const FieldType&) const;
 
-	Operator applyMassOperatorOnOtherOperators(const OperatorType&, const FieldType& f = FieldType::Electric) const;
+	Operator buildByMult(const BilinearForm*, const BilinearForm*) const;
 
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorPenaltyFluxCoefficient() const;

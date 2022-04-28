@@ -213,17 +213,30 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	fes_(fes),
 	epsilonVal_(opts_.epsilonVal),
 	muVal_(opts_.muVal),
-	MS_(applyMassOperatorOnOtherOperators(OperatorType::Stiffness)),
-	FEE_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Electric)),
-	FHH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Magnetic)),
-	FEH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Electric)),
-	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic))
+	MES_(
+		buildByMult(buildInverseMassMatrix(FieldType::Electric).get(), 
+			buildDerivativeOperator(0).get())),
+	MHS_(
+		buildByMult(buildInverseMassMatrix(FieldType::Magnetic).get(),
+			buildDerivativeOperator(0).get())),
+	FEE_(buildByMult(buildPenaltyOperator(FieldType::Electric).get(), FieldType::Electric)),
+	FHH_(applyMassOperatorOnOtherOperators(buildPenaltyOperator(FieldType::Magnetic).get(), FieldType::Magnetic)),
+	FEH_(applyMassOperatorOnOtherOperators(buildFluxOperator(FieldType::Electric).get(), FieldType::Electric)),
+	FHE_(applyMassOperatorOnOtherOperators(buildFluxOperator(FieldType::Magnetic).get(), FieldType::Magnetic))
 
 {
+	for (int fInt = FieldType::Electric; fInt != FieldType::Magnetic; fInt++) {
+		FieldType f = static_cast<FieldType>(fInt);
+		for (int d = 0; d < 3; d++) {
+			MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
+		}
+	}
 }
 
-FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildInverseEpsilonMassMatrix() const
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
 {
+	assert(false); //TODO TODO TODO TODO
 	assert(epsilonVal_ != NULL, "epsilonVal Vector is Null");
 	Vector aux(epsilonVal_);
 	PWConstCoefficient epsilonPWC(aux);
@@ -237,24 +250,9 @@ FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildInvers
 	return MInv;
 }
 
-FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildInverseMuMassMatrix() const
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildDerivativeOperator(Direction d) const
 {
-	assert(muVal_ != NULL, "muVal Vector is Null");
-	Vector aux(muVal_);
-	PWConstCoefficient muPWC(aux);
-
-	auto MInv = std::make_unique<BilinearForm>(fes_);
-	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(muPWC)));
-
-	MInv->Assemble();
-	MInv->Finalize();
-
-	return MInv;
-}
-
-FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildDerivativeOperator() const
-{
-	std::size_t d = 0;
 	ConstantCoefficient coeff(1.0);
 
 	auto K = std::make_unique<BilinearForm>(fes_);
@@ -310,33 +308,11 @@ FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildPenalt
 	return res;
 }
 
-FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::applyMassOperatorOnOtherOperators(const OperatorType& optype, const FieldType& f) const
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildByMult(
+	const BilinearForm* op1, const BilinearForm* op2) const
 {
-	auto mass = std::make_unique<BilinearForm>(fes_);
-	switch (f) {
-	case FieldType::Electric:
-		mass = buildInverseEpsilonMassMatrix();
-		break;
-	case FieldType::Magnetic:
-		mass = buildInverseMuMassMatrix();
-		break;
-	}
-
-	auto second = std::make_unique<BilinearForm>(fes_);
-	switch (optype) {
-	case OperatorType::Stiffness:
-		second = buildDerivativeOperator();
-		break;
-	case OperatorType::Flux:
-		second = buildFluxOperator(f);
-		break;
-	case OperatorType::Penalty:
-		second = buildPenaltyOperator(f);
-		break;
-	}
-
-	auto aux = mfem::Mult(mass->SpMat(), second->SpMat());
-
+	auto aux = mfem::Mult(op1->SpMat(), op2->SpMat());
 	auto res = std::make_unique<BilinearForm>(fes_);
 	res->Assemble();
 	res->Finalize();

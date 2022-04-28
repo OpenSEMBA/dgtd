@@ -2,7 +2,9 @@
 
 namespace maxwell {
 
-enum class FieldType {
+using Direction = std::size_t;
+
+enum FieldType {
 	Electric,
 	Magnetic
 };

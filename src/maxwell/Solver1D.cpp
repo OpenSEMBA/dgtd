@@ -203,7 +203,7 @@ void Solver1D::run()
 	int cycle = 0;
 
 	while (!done) {
-		odeSolver_->Step(sol_, time, solOpts_.dt);
+		odeSolver_->Step(sol_, time, opts_.dt);
 
 		if (opts_.extractDataAtPoint) {
 			timeRecord_[cycle] = time;

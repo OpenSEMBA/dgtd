@@ -7,7 +7,6 @@
 #include "Model.h"
 #include "Probes.h"
 #include "Sources.h"
-#include "Options.h"
 
 namespace maxwell {
 
@@ -36,8 +35,7 @@ public:
 private:
 
     Options opts_;
-    SolverOptions solOpts_;
-
+    
     mfem::Mesh mesh_;
 
     std::unique_ptr<mfem::DG_FECollection> fec_;
