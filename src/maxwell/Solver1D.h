@@ -15,7 +15,7 @@ class Solver1D {
 public:
     typedef mfem::Vector Position;
 
-    struct SolverOptions {
+    struct Options {
         int order = 2;
         double dt = 1e-3;
         double t_final = 1.0;

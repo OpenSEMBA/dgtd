@@ -122,7 +122,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	int nx = 51;
 	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
 
-	maxwell::Solver1D::Options solverOpts;
+	maxwell::Solver1D::SolverOptions solverOpts;
 	
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
