@@ -7,6 +7,7 @@
 #include "Model.h"
 #include "Probes.h"
 #include "Sources.h"
+#include "Options.h"
 
 namespace maxwell {
 
@@ -14,21 +15,14 @@ class Solver1D {
 public:
     typedef mfem::Vector Position;
 
-    struct Options {
+    struct SolverOptions {
         int order = 2;
         double dt = 1e-3;
         double t_final = 1.0;
-        int vis_steps = 1;
-        int precision = 8;
-        bool paraview = false;
-        bool glvis = false;
-        bool extractDataAtPoint = false;
-        FieldType fieldToExtract = FieldType::Electric;
-        IntegrationPoint integPoint;
         FiniteElementEvolutionNoCond::Options evolutionOperatorOptions;
     };
 
-    Solver1D(Model&, const Probes&, const Sources&, const Options&);
+    Solver1D(const Model&, const Probes&, const Sources&, const Options&);
 
     void setInitialField(const FieldType&, std::function<double(const Position&)>);
     const GridFunction& getField(const FieldType&) const;
@@ -42,6 +36,8 @@ public:
 private:
 
     Options opts_;
+    SolverOptions solOpts_;
+
     mfem::Mesh mesh_;
 
     std::unique_ptr<mfem::DG_FECollection> fec_;
@@ -67,7 +63,7 @@ private:
 
     socketstream sout_;
 
-    void checkOptionsAreValid(const Options&, const mfem::Mesh&);
+    void checkOptionsAreValid(const SolverOptions&, const mfem::Mesh&);
 
     const IntegrationPoint setIntegrationPoint(const IntegrationPoint&) const;
     const int getElementIndexForPosition(const IntegrationPoint&) const;

@@ -13,8 +13,8 @@ public:
 	using attribute = std::size_t;
 	using attToMaterialMap = std::map<attribute, Material>;
 
-	Model(Mesh mesh, attToMaterialMap matMap);
-	Mesh getMesh();
+	const Model(Mesh mesh, attToMaterialMap matMap);
+	Mesh getMesh() const;
 	attToMaterialMap getMaterialMap() const { return matMap_; }
 
 private:

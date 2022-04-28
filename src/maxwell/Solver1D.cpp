@@ -8,7 +8,7 @@ using namespace mfem;
 
 namespace maxwell {
 
-Solver1D::Solver1D(Model& model, const Probes& probes, 
+Solver1D::Solver1D(const Model& model, const Probes& probes, 
 	const Sources& sources, const Options& options) :
 
 mesh_(model.getMesh()),
@@ -17,12 +17,12 @@ opts_(options)
 
 
 	fec_ = std::make_unique<DG_FECollection>(
-	opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+	solOpts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
 	odeSolver_ = std::make_unique<RK4Solver>();
 
-	maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions);
+	maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), solOpts_.evolutionOperatorOptions);
 
 	sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * fes_->GetNDofs());
 	sol_ = 0.0;
@@ -44,16 +44,14 @@ opts_(options)
 	}
 }
 
-void Solver1D::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
+void Solver1D::checkOptionsAreValid(const SolverOptions& opts, const Mesh& mesh)
 {
 	if (mesh.Dimension() != 1) {
 		throw std::exception("Incorrect Dimension for mesh");
 	}
 	if ((opts.order < 0) ||
 		(opts.t_final < 0) ||
-		(opts.dt < 0) ||
-		(opts.vis_steps < 1) ||
-		(opts.precision < 1)) {
+		(opts.dt < 0)) {
 		throw std::exception("Incorrect parameters in Options");
 	}
 }
@@ -147,9 +145,9 @@ void Solver1D::initializeParaviewData()
 	pd_->SetPrefixPath("ParaView");
 	pd_->RegisterField("E", &E_);
 	pd_->RegisterField("H", &H_);
-	pd_->SetLevelsOfDetail(opts_.order);
+	pd_->SetLevelsOfDetail(solOpts_.order);
 	pd_->SetDataFormat(VTKFormat::BINARY);
-	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
+	solOpts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
 }
 
 void Solver1D::initializeGLVISData()
@@ -197,29 +195,29 @@ void Solver1D::run()
 	storeInitialVisualizationValues();
 
 	if (opts_.extractDataAtPoint) {
-		timeRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
-		fieldRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
+		timeRecord_.SetSize(std::ceil(solOpts_.t_final / solOpts_.dt));
+		fieldRecord_.SetSize(std::ceil(solOpts_.t_final / solOpts_.dt));
 	}
 
 	bool done = false;
 	int cycle = 0;
 
 	while (!done) {
-		odeSolver_->Step(sol_, time, opts_.dt);
+		odeSolver_->Step(sol_, time, solOpts_.dt);
 
 		if (opts_.extractDataAtPoint) {
 			timeRecord_[cycle] = time;
 			fieldRecord_[cycle] = saveFieldAtPoint(integPoint_, fieldToExtract_);
 		}
 
-		done = (time >= opts_.t_final);
+		done = (time >= solOpts_.t_final);
 
 		cycle++;
 
 		if (done || cycle % opts_.vis_steps == 0) {
 			if (opts_.extractDataAtPoint) {
 
-				timeField_.SetSize(std::ceil(opts_.t_final / opts_.dt) * 2);
+				timeField_.SetSize(std::ceil(solOpts_.t_final / solOpts_.dt) * 2);
 
 				for (int i = 0; i < timeField_.Size()/2; i++) {
 
