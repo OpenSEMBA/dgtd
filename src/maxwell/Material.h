@@ -6,12 +6,12 @@ namespace maxwell {
 
 class Material {
 public:
-	Material(const double& ,const  double&);
+	Material(double epsilon, double mu);
 
-	const double getPermittivity() const { return epsilon_; }
-	const double getPermeability() const { return mu_; }
-	const double getImpedance() const { return sqrt(mu_ / epsilon_); }
-	const double getConductance() const { return sqrt(epsilon_ / mu_); }
+	double getPermittivity() const { return epsilon_; }
+	double getPermeability() const { return mu_; }
+	double getImpedance() const { return sqrt(mu_ / epsilon_); }
+	double getConductance() const { return sqrt(epsilon_ / mu_); }
 
 private:
 	double epsilon_, mu_;

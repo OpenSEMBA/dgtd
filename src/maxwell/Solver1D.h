@@ -4,6 +4,9 @@
 #include "Material.h"
 #include "FiniteElementEvolution.h"
 #include "Types.h"
+#include "Model.h"
+#include "Probes.h"
+#include "Sources.h"
 
 namespace maxwell {
 
@@ -25,7 +28,7 @@ public:
         FiniteElementEvolutionNoCond::Options evolutionOperatorOptions;
     };
 
-    Solver1D(const Options&, const mfem::Mesh&);
+    Solver1D(Model&, const Probes&, const Sources&, const Options&);
 
     void setInitialField(const FieldType&, std::function<double(const Position&)>);
     const GridFunction& getField(const FieldType&) const;

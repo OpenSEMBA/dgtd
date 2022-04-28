@@ -226,13 +226,17 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
 	maxwell::Solver1D::Options solverOpts;
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.t_final = 2.999;
-	solverOpts.vis_steps = 20;
-	solverOpts.paraview = true;
 	
-	Material mat1(1.0, 1.0);
-	Material mat2(2.0, 1.0);
+	Vector eps = Vector({ 1.0, 2.0 });
+	Vector mu = Vector({ 1.0, 1.0 });
+	std::list<Material> matArray;
+	for (int i = 0; i < eps.Size(); i++) { //Check if mesh.attributes.Max() broken
+		Material matAux(eps[i], mu[i]);
+		matArray.push_back(matAux);
+	}
 
 	maxwell::Solver1D solver(solverOpts, mesh);
+	
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 	solver.setInitialField(FieldType::Electric, gaussianFunctionHalfWidth);
 

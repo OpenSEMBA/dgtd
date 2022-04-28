@@ -8,20 +8,21 @@ using namespace mfem;
 
 namespace maxwell {
 
-Solver1D::Solver1D(const Options& opts, const Mesh& mesh)
-{
-	checkOptionsAreValid(opts, mesh);
+Solver1D::Solver1D(Model& model, const Probes& probes, 
+	const Sources& sources, const Options& options) :
 
-	mesh_ = mfem::Mesh(mesh, true);
-	opts_ = opts;
+mesh_(model.getMesh()),
+opts_(options)
+{
+
 
 	fec_ = std::make_unique<DG_FECollection>(
-		opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+	opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
 	odeSolver_ = std::make_unique<RK4Solver>();
 
-	maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts.evolutionOperatorOptions);
+	maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions);
 
 	sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * fes_->GetNDofs());
 	sol_ = 0.0;

@@ -78,11 +78,9 @@ public:
 
 	static const std::size_t numberOfFieldComponents = 2;
 
-
 	FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options);
 	virtual void Mult(const Vector& x, Vector& y) const;
 	virtual ~FiniteElementEvolutionNoCond() = default;
-
 
 private:
 	struct FluxCoefficient {
