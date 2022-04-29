@@ -7,10 +7,10 @@ namespace maxwell {
 //	opts_(options),
 //	fes_(fes),
 //	MS_(applyMassOperatorOnOtherOperators(OperatorType::Stiffness)),
-//	FEE_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Electric)),
-//	FHH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::Magnetic)),
-//	FEH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Electric)),
-//	FHE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::Magnetic))
+//	FE_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::E)),
+//	FH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::H)),
+//	PE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::E)),
+//	PH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::H))
 //{
 //}
 //
@@ -130,23 +130,23 @@ namespace maxwell {
 //	switch (opts_.bdrCond) {
 //	case BdrCond::PEC:
 //		switch (f) {
-//		case FieldType::Electric:
+//		case FieldType::E:
 //			return FluxCoefficient{ 0.0, 0.0 };
-//		case FieldType::Magnetic:
+//		case FieldType::H:
 //			return FluxCoefficient{ 2.0, 0.0 };
 //		}
 //	case BdrCond::PMC:
 //		switch (f) {
-//		case FieldType::Electric:
+//		case FieldType::E:
 //			return FluxCoefficient{ 2.0, 0.0 };
-//		case FieldType::Magnetic:
+//		case FieldType::H:
 //			return FluxCoefficient{ 0.0, 0.0 };
 //		}
 //	case BdrCond::SMA:
 //		switch (f) {
-//		case FieldType::Electric:
+//		case FieldType::E:
 //			return FluxCoefficient{ 1.0, 0.0 };
-//		case FieldType::Magnetic:
+//		case FieldType::H:
 //			return FluxCoefficient{ 1.0, 0.0 };
 //		}
 //	}
@@ -161,23 +161,23 @@ namespace maxwell {
 //		switch (opts_.bdrCond) {
 //		case BdrCond::PEC:
 //			switch (f) {
-//			case FieldType::Electric:
+//			case FieldType::E:
 //				return FluxCoefficient{ 0.0, 0.0 };
-//			case FieldType::Magnetic:
+//			case FieldType::H:
 //				return FluxCoefficient{ 0.0, 0.0 };
 //			}
 //		case BdrCond::PMC:
 //			switch (f) {
-//			case FieldType::Electric:
+//			case FieldType::E:
 //				return FluxCoefficient{ 0.0, 0.0 };
-//			case FieldType::Magnetic:
+//			case FieldType::H:
 //				return FluxCoefficient{ 0.0, 0.0 };
 //			}
 //		case BdrCond::SMA:
 //			switch (f) {
-//			case FieldType::Electric:
+//			case FieldType::E:
 //				return FluxCoefficient{ 0.0, 0.5 };
-//			case FieldType::Magnetic:
+//			case FieldType::H:
 //				return FluxCoefficient{ 0.0, 0.5 };
 //			}
 //		}
@@ -212,23 +212,19 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	opts_(options),
 	fes_(fes),
 	epsilonVal_(opts_.epsilonVal),
-	muVal_(opts_.muVal),
-	MES_(
-		buildByMult(buildInverseMassMatrix(FieldType::Electric).get(), 
-			buildDerivativeOperator(0).get())),
-	MHS_(
-		buildByMult(buildInverseMassMatrix(FieldType::Magnetic).get(),
-			buildDerivativeOperator(0).get())),
-	FEE_(buildByMult(buildPenaltyOperator(FieldType::Electric).get(), FieldType::Electric)),
-	FHH_(applyMassOperatorOnOtherOperators(buildPenaltyOperator(FieldType::Magnetic).get(), FieldType::Magnetic)),
-	FEH_(applyMassOperatorOnOtherOperators(buildFluxOperator(FieldType::Electric).get(), FieldType::Electric)),
-	FHE_(applyMassOperatorOnOtherOperators(buildFluxOperator(FieldType::Magnetic).get(), FieldType::Magnetic))
-
+	muVal_(opts_.muVal)
 {
-	for (int fInt = FieldType::Electric; fInt != FieldType::Magnetic; fInt++) {
+	for (int fInt = FieldType::E; fInt != FieldType::H; fInt++) {
 		FieldType f = static_cast<FieldType>(fInt);
-		for (int d = 0; d < 3; d++) {
-			MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
+		for (int fInt2 = FieldType::E; fInt2 != FieldType::H; fInt2++) {
+			FieldType f2 = static_cast<FieldType>(fInt2);
+			for (int dir = Direction::X; dir != Direction::Z; dir++) {
+				Direction d = static_cast<Direction>(dir);
+				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
+				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2).get());
+
+			}
+			MP_[f][f2] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2).get());
 		}
 	}
 }
@@ -341,23 +337,23 @@ FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boun
 	switch (opts_.bdrCond) {
 	case BdrCond::PEC:
 		switch (f) {
-		case FieldType::Electric:
+		case FieldType::E:
 			return FluxCoefficient{ 0.0, 0.0 };
-		case FieldType::Magnetic:
+		case FieldType::H:
 			return FluxCoefficient{ 2.0, 0.0 };
 		}
 	case BdrCond::PMC:
 		switch (f) {
-		case FieldType::Electric:
+		case FieldType::E:
 			return FluxCoefficient{ 2.0, 0.0 };
-		case FieldType::Magnetic:
+		case FieldType::H:
 			return FluxCoefficient{ 0.0, 0.0 };
 		}
 	case BdrCond::SMA:
 		switch (f) {
-		case FieldType::Electric:
+		case FieldType::E:
 			return FluxCoefficient{ 1.0, 0.0 };
-		case FieldType::Magnetic:
+		case FieldType::H:
 			return FluxCoefficient{ 1.0, 0.0 };
 		}
 	}
@@ -372,51 +368,70 @@ FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boun
 		switch (opts_.bdrCond) {
 		case BdrCond::PEC:
 			switch (f) {
-			case FieldType::Electric:
+			case FieldType::E:
 				return FluxCoefficient{ 0.0, 0.0 };
-			case FieldType::Magnetic:
+			case FieldType::H:
 				return FluxCoefficient{ 0.0, 0.0 };
 			}
 		case BdrCond::PMC:
 			switch (f) {
-			case FieldType::Electric:
+			case FieldType::E:
 				return FluxCoefficient{ 0.0, 0.0 };
-			case FieldType::Magnetic:
+			case FieldType::H:
 				return FluxCoefficient{ 0.0, 0.0 };
 			}
 		case BdrCond::SMA:
 			switch (f) {
-			case FieldType::Electric:
+			case FieldType::E:
 				return FluxCoefficient{ 0.0, 0.5 };
-			case FieldType::Magnetic:
+			case FieldType::H:
 				return FluxCoefficient{ 0.0, 0.5 };
 			}
 		}
 	}
 }
 
-void FiniteElementEvolutionNoCond::Mult(const Vector& x, Vector& y) const
+void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 {
-	Vector eOld(x.GetData(), fes_->GetNDofs());
-	Vector hOld(x.GetData() + fes_->GetNDofs(), fes_->GetNDofs());
+	std::array<Vector,3> eOld, hOld;
+	for (int d = X; d <= Z; d++) {
+		eOld[d].SetDataAndSize(in.GetData() +     d*fes_->GetNDofs(), fes_->GetNDofs());
+		hOld[d].SetDataAndSize(in.GetData() + (d+3)*fes_->GetNDofs(), fes_->GetNDofs());
+	}
+	std::array<GridFunction, 3> eNew, hNew;
+	for (int d = X; d <= Z; d++) {
+		eNew[d].MakeRef(fes_, &out[    d* fes_->GetNDofs()]);
+		hNew[d].MakeRef(fes_, &out[(d+3)* fes_->GetNDofs()]);
+	}
 
-	GridFunction eNew(fes_, &y[0]);
-	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
+//	GridFunction eNew(fes_, &y[0]);
+//	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
 
 	Vector auxRHS(fes_->GetNDofs());
 
 	// Update E. dE/dt = MS * H - FEH * {H} - FEE * [E]. enew
 
-	MS_->Mult(hOld, eNew);
-	FEH_->AddMult(hOld, eNew, -1.0);
-	FEE_->AddMult(eOld, eNew, -1.0);
+	for (int x = X; x <= Z; x++) {
+		int y = (x + 1) % 3;
+		int z = (x + 2) % 3;
 
-	// Update H. dH/dt = MS * E - HE * {E} - FHH * [H]. hnew
+		// Update E.
+		MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
+		MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
+		MP_[E][E]   ->AddMult(eOld[x], eNew[x], -1.0);
+		MS_[E][z]   ->AddMult(hOld[y], eNew[x], -1.0);
+		MF_[E][H][z]->AddMult(hOld[y], eNew[x],  1.0);
+		MP_[E][E]   ->AddMult(eOld[x], eNew[x],  1.0);
 
-	MS_->Mult(eOld, hNew);
-	FHE_->AddMult(eOld, hNew, -1.0);
-	FHH_->AddMult(hOld, hNew, -1.0);
+		// Update H.
 
+		MS_[H][z]   ->Mult   (eOld[y], hNew[x]);
+		MF_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
+		MP_[H][H]   ->AddMult(hOld[x], hNew[x], -1.0);
+		MS_[H][y]   ->AddMult(eOld[z], hNew[x], -1.0);
+		MF_[H][E][y]->AddMult(eOld[z], hNew[x],  1.0);
+		MP_[H][H]   ->AddMult(hOld[x], hNew[x],  1.0);
+	}
 }
 
 }

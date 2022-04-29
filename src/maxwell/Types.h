@@ -2,11 +2,9 @@
 
 namespace maxwell {
 
-using Direction = std::size_t;
-
 enum FieldType {
-	Electric,
-	Magnetic
+	E,
+	H
 };
 
 enum class FluxType {
@@ -18,6 +16,12 @@ enum class BdrCond {
 	PEC,
 	PMC,
 	SMA
+};
+
+enum Direction {
+	X,
+	Y,
+	Z
 };
 
 

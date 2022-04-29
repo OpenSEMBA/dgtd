@@ -7,7 +7,7 @@ class Probes {
         bool paraview = false;
         bool glvis = false;
         bool extractDataAtPoint = false;
-        FieldType fieldToExtract = FieldType::Electric;
+        FieldType fieldToExtract = FieldType::E;
         IntegrationPoint integPoint;
     private:
 };

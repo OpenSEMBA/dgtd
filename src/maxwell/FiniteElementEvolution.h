@@ -54,7 +54,7 @@ using namespace mfem;
 //	Operator buildFluxOperator(const FieldType&) const;
 //	Operator buildPenaltyOperator(const FieldType&) const;
 //
-//	Operator applyMassOperatorOnOtherOperators(const OperatorType&, const FieldType& f = FieldType::Electric) const;
+//	Operator applyMassOperatorOnOtherOperators(const OperatorType&, const FieldType& f = FieldType::E) const;
 //	
 //	FluxCoefficient interiorFluxCoefficient() const;
 //	FluxCoefficient interiorPenaltyFluxCoefficient() const;
@@ -92,7 +92,9 @@ private:
 	Vector epsilonVal_;
 	Vector muVal_;
 
-	std::array<std::array<Operator, 2>,3> MS_, FE_, FH_;
+	std::array<std::array<Operator, 2>, 3> MS_;
+	std::array<std::array<std::array<Operator, 2>, 2>, 3> MF_;
+	std::array<std::array<Operator, 2>, 2> MP_;
 	
 	Operator buildDerivativeOperator(Direction) const;
 	Operator buildInverseMassMatrix(const FieldType&) const;

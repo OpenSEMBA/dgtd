@@ -7,6 +7,7 @@
 #include "Model.h"
 #include "Probes.h"
 #include "Sources.h"
+#include <array>
 
 namespace maxwell {
 
@@ -23,8 +24,8 @@ public:
 
     Solver1D(const Model&, const Probes&, const Sources&, const Options&);
 
-    void setInitialField(const FieldType&, std::function<double(const Position&)>);
-    const GridFunction& getField(const FieldType&) const;
+    void setInitialField(const FieldType&, std::function<double(const Position&)>, const Direction&);
+    const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const Vector& getMaterialProperties(const Material&) const;
 
     mfem::Mesh& getMesh() { return mesh_; }
@@ -34,9 +35,12 @@ public:
 
 private:
 
+    Model model_;
+    Probes probes_;
+    Sources sources_;
     Options opts_;
     
-    mfem::Mesh mesh_;
+    mfem::Mesh& mesh_;
 
     std::unique_ptr<mfem::DG_FECollection> fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
@@ -49,7 +53,7 @@ private:
 
     Vector sol_;
 
-    GridFunction E_, H_;
+    std::array<GridFunction, 3> E_, H_;
 
     IntegrationPoint integPoint_;
     FieldType fieldToExtract_;
@@ -61,13 +65,13 @@ private:
 
     socketstream sout_;
 
-    void checkOptionsAreValid(const SolverOptions&, const mfem::Mesh&);
+    void checkOptionsAreValid(const Options&, const mfem::Mesh&);
 
     const IntegrationPoint setIntegrationPoint(const IntegrationPoint&) const;
     const int getElementIndexForPosition(const IntegrationPoint&) const;
     const Array<double> getVertexPositionInPhysicalCoords(const Array<int>& elementVertex) const;
     const IntegrationPoint getRelativePositionInElement(const int&, const IntegrationPoint&) const;
-    const double saveFieldAtPoint(const IntegrationPoint&, const FieldType&) const;
+    //const double saveFieldAtPoint(const IntegrationPoint&, const FieldType&) const;
 
     void initializeParaviewData();
     void initializeGLVISData();
