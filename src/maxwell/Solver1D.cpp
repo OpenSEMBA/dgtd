@@ -41,19 +41,15 @@ namespace maxwell {
 		initializeParaviewData();
 	}
 	if (probes_.glvis) {
-		initializeGLVISData();
+		//initializeGLVISData(); //TODO
 	}
-	if (probes_.extractDataAtPoint) {
-		//integPoint_ = setIntegrationPoint(probes_.integPoint);
+	if (probes_.extractDataAtPoints) {
 		fieldToExtract_ = probes_.fieldToExtract;
 	}
 }
 
-void Solver1D::checkOptionsAreValid(const Options& opts, const Mesh& mesh)
+void Solver1D::checkOptionsAreValid(const Options& opts)
 {
-	if (mesh.Dimension() != 1) {
-		throw std::exception("Incorrect Dimension for mesh");
-	}
 	if ((opts.order < 0) ||
 		(opts.t_final < 0) ||
 		(opts.dt < 0)) {
@@ -89,37 +85,58 @@ const Vector& Solver1D::getMaterialProperties(const Material& mat) const
 	return Vector({mat.getPermittivity(), mat.getPermeability(), mat.getImpedance(), mat.getConductance()});
 }
 
-const std::array<std::array<double, 3>, 3> Solver1D::saveFieldAtPoints(DenseMatrix& physPoints, const FieldType& ft) const
-{
+std::pair<Array<int>, Array<IntegrationPoint>> Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints){
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
 	fes_->GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
-	IntegrationPointsSet integPointSet = Solver1D::buildIntegrationPointsSet(integPointArray);
+	return { elemIdArray,integPointArray };
+}
+
+const std::array<std::array<double, 3>, 3> Solver1D::saveFieldAtPoints(DenseMatrix& physPoints, const FieldType& ft)
+{
+	auto aux = Solver1D::buildIntegrationPointAndElemArrays(probes_.integPointMat);
+	fes_->GetMesh()->FindPoints(physPoints, aux.first, aux.second);
+
+	IntegrationPointsSet integPointSet = Solver1D::buildIntegrationPointsSet(aux.second);
+
 	std::array<std::array<double, 3>, 3> res{};
-	for (int i = 0; i < elemIdArray.Size(); i++) {
+	for (int i = 0; i < aux.first.Size(); i++) {
 		for (int dir = Direction::X; dir != Direction::Z; dir++) {
 			Direction d = static_cast<Direction>(dir);
 			switch (ft) {
 			case FieldType::E:
-				res[i][d] = E_[d].GetValue(elemIdArray[i],integPointSet[i][d]);
+				res[i][d] = E_[d].GetValue(aux.first[i],integPointSet[i][d]);
 			case FieldType::H:
-				res[i][d] = H_[d].GetValue(elemIdArray[i],integPointSet[i][d]);
+				res[i][d] = H_[d].GetValue(aux.first[i],integPointSet[i][d]);
 			}
 		}
 	}
 	return res;
 }
 
-const std::vector<std::array<IntegrationPoint,3>> Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
+const std::vector<std::vector<IntegrationPoint>> Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
 {
+
 	IntegrationPointsSet res;
-	for (int i = 0; i < ipArray.Size(); i++) {
-		for (int dir = Direction::X; dir != Direction::Z; dir++) {
-			Direction d = static_cast<Direction>(dir);
-			res[i][X].Set3(ipArray[i].x, 0.0,          0.0         );
-			res[i][Y].Set3(0.0,          ipArray[i].y, 0.0         );
-			res[i][Z].Set3(0.0,          0.0,          ipArray[i].z);
+	switch (fes_->GetMesh()->Dimension()) {
+	case 1:
+		for (int i = 0; i < ipArray.Size(); i++) {
+			res[i][X].Set1w(ipArray[i].x, 0.0);
 		}
+		break;
+	case 2:
+		for (int i = 0; i < ipArray.Size(); i++) {
+			res[i][X].Set2(ipArray[i].x, 0.0);
+			res[i][Y].Set2(0.0, ipArray[i].y);
+		}
+		break;
+	case 3:
+		for (int i = 0; i < ipArray.Size(); i++) {
+			res[i][X].Set3(ipArray[i].x, 0.0, 0.0);
+			res[i][Y].Set3(0.0, ipArray[i].y, 0.0);
+			res[i][Z].Set3(0.0, 0.0, ipArray[i].z);
+		}
+		break;
 	}
 	return res;
 }
@@ -140,18 +157,18 @@ void Solver1D::initializeParaviewData()
 	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
 }
 
-void Solver1D::initializeGLVISData()
-{
-	char vishost[] = "localhost";
-	int  visport = 19916;
-	sout_.open(vishost, visport);
-	sout_.precision(probes_.precision);
-	//sout_ << "solution\n" << mesh_ << E_; //TODO
-	sout_ << "pause\n";
-	sout_ << std::flush;
-	std::cout << "GLVis visualization paused."
-		<< " Press space (in the GLVis window) to resume it.\n";
-}
+//void Solver1D::initializeGLVISData() //TODO
+//{
+//	char vishost[] = "localhost";
+//	int  visport = 19916;
+//	sout_.open(vishost, visport);
+//	sout_.precision(probes_.precision);
+//	sout_ << "solution\n" << mesh_ << E_;
+//	sout_ << "pause\n";
+//	sout_ << std::flush;
+//	std::cout << "GLVis visualization paused."
+//		<< " Press space (in the GLVis window) to resume it.\n";
+//}
 
 void Solver1D::storeInitialVisualizationValues()
 {
@@ -184,7 +201,7 @@ void Solver1D::run()
 
 	storeInitialVisualizationValues();
 
-	if (probes_.extractDataAtPoint) {
+	if (probes_.extractDataAtPoints) {
 		timeRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
 		fieldRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
 	}
@@ -195,7 +212,7 @@ void Solver1D::run()
 	while (!done) {
 		odeSolver_->Step(sol_, time, opts_.dt);
 
-		if (probes_.extractDataAtPoint) {
+		if (probes_.extractDataAtPoints) {
 			timeRecord_[cycle] = time;
 			//fieldRecord_[cycle] = saveFieldAtPoint(integPoint_, fieldToExtract_);
 		}
@@ -205,7 +222,7 @@ void Solver1D::run()
 		cycle++;
 
 		if (done || cycle % probes_.vis_steps == 0) {
-			if (probes_.extractDataAtPoint) {
+			if (probes_.extractDataAtPoints) {
 
 				timeField_.SetSize(std::ceil(opts_.t_final / opts_.dt) * 2);
 

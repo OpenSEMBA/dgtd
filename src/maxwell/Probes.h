@@ -6,7 +6,7 @@ class Probes {
         int precision = 8;
         bool paraview = false;
         bool glvis = false;
-        bool extractDataAtPoint = false;
+        bool extractDataAtPoints = false;
         FieldType fieldToExtract = FieldType::E;
         DenseMatrix integPointMat;
     private:

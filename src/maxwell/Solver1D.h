@@ -14,7 +14,8 @@ namespace maxwell {
 class Solver1D {
 public:
     using Position = mfem::Vector;
-    using IntegrationPointsSet = std::vector<std::array<IntegrationPoint, 3>>;
+    using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
+    
 
     struct Options {
         int order = 2;
@@ -56,7 +57,6 @@ private:
 
     std::array<GridFunction, 3> E_, H_;
 
-    DenseMatrix integPointMat_;
     FieldType fieldToExtract_;
     Vector timeRecord_;
     Vector fieldRecord_;
@@ -66,13 +66,14 @@ private:
 
     socketstream sout_;
 
-    void checkOptionsAreValid(const Options&, const mfem::Mesh&);
+    void checkOptionsAreValid(const Options&);
 
+    std::pair<Array<int>,Array<IntegrationPoint>> Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints);
     const IntegrationPointsSet Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
-    const std::array<std::array<double, 3>, 3> saveFieldAtPoints(DenseMatrix& physPoints, const FieldType&) const;
+    const std::array<std::array<double, 3>, 3> saveFieldAtPoints(DenseMatrix& physPoints, const FieldType&);
 
     void initializeParaviewData();
-    void initializeGLVISData();
+    //void initializeGLVISData();
     void storeInitialVisualizationValues();
 
 };

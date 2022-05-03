@@ -513,11 +513,11 @@ TEST_F(Auxiliary, findPointsTest)
 {
 	Mesh mesh = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
 	DenseMatrix pointMat({ { 0.2,0.4,0.6 },{1.5, 3.5, 5.5},{0.25, 1.25, 3.75},{2.0, 4.0, 6.0} });
-	pointMat.Transpose();
 	Array<int> elArray;
 	Array<IntegrationPoint> ipArray;
 	std::vector<double> expVals({ 0.2,0.4,0.6 });
 
+	pointMat.Transpose();
 	mesh.FindPoints(pointMat, elArray, ipArray);
 
 	EXPECT_EQ(3, pointMat.Height());
