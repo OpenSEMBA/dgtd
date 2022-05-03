@@ -44,7 +44,7 @@ namespace maxwell {
 		initializeGLVISData();
 	}
 	if (probes_.extractDataAtPoint) {
-		integPoint_ = setIntegrationPoint(probes_.integPoint);
+		//integPoint_ = setIntegrationPoint(probes_.integPoint);
 		fieldToExtract_ = probes_.fieldToExtract;
 	}
 }
@@ -89,57 +89,38 @@ const Vector& Solver1D::getMaterialProperties(const Material& mat) const
 	return Vector({mat.getPermittivity(), mat.getPermeability(), mat.getImpedance(), mat.getConductance()});
 }
 
-const int Solver1D::getElementIndexForPosition(const IntegrationPoint& ip) const
+const std::array<std::array<double, 3>, 3> Solver1D::saveFieldAtPoints(DenseMatrix& physPoints, const FieldType& ft) const
 {
-	Vector meshBoundingMin, meshBoundingMax;
-	Mesh meshc = Mesh(mesh_, true);
-	meshc.GetBoundingBox(meshBoundingMin, meshBoundingMax);
-	int res = (int)std::floor(ip.x / ((meshBoundingMax[0] - meshBoundingMin[0]) / meshc.GetNE())) - 1;
-	return res;
-}
-
-const Array<double> Solver1D::getVertexPositionInPhysicalCoords(const Array<int>& elementVertex) const
-{
-	Vector meshBoundingMin, meshBoundingMax;
-	Mesh meshc = Mesh(mesh_, true);
-	meshc.GetBoundingBox(meshBoundingMin, meshBoundingMax);
-	Array<double> res(elementVertex.Size());
-	const double vertexTop = meshc.GetNV() - 1;
-	for (int i = 0; i < elementVertex.Size(); i++) {
-		res[i] = (1.0 - ((vertexTop - elementVertex[i]) / vertexTop)) / (meshBoundingMax[0] - meshBoundingMin[0]);
+	Array<int> elemIdArray;
+	Array<IntegrationPoint> integPointArray;
+	fes_->GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
+	IntegrationPointsSet integPointSet = Solver1D::buildIntegrationPointsSet(integPointArray);
+	std::array<std::array<double, 3>, 3> res{};
+	for (int i = 0; i < elemIdArray.Size(); i++) {
+		for (int dir = Direction::X; dir != Direction::Z; dir++) {
+			Direction d = static_cast<Direction>(dir);
+			switch (ft) {
+			case FieldType::E:
+				res[i][d] = E_[d].GetValue(elemIdArray[i],integPointSet[i][d]);
+			case FieldType::H:
+				res[i][d] = H_[d].GetValue(elemIdArray[i],integPointSet[i][d]);
+			}
+		}
 	}
 	return res;
-
-
 }
 
-const IntegrationPoint Solver1D::getRelativePositionInElement(const int& elementN, const IntegrationPoint& ip) const
+const std::vector<std::array<IntegrationPoint,3>> Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
 {
-	Array<int> aux;
-	mesh_.GetElementVertices(elementN, aux);
-	Array<double> auxPos = getVertexPositionInPhysicalCoords(aux);
-
-	IntegrationPoint res;
-	res.Set1w(((ip.x - auxPos[0]) / (auxPos[1] - auxPos[0])), 0.0);
-	return res;
-}
-
-//const double Solver1D::saveFieldAtPoint(const IntegrationPoint& ip, const FieldType& ft) const //TODO
-//{
-//	/*switch (ft) {*/ //TODO EXTEND 3D
-//	//case FieldType::E:
-//	//	return E_.GetValue(getElementIndexForPosition(ip),
-//	//		getRelativePositionInElement(getElementIndexForPosition(ip), ip));
-//	//case FieldType::H:
-//	//	return H_.GetValue(getElementIndexForPosition(ip),
-//	//		getRelativePositionInElement(getElementIndexForPosition(ip), ip));
-//	//}
-//}
-
-const IntegrationPoint Solver1D::setIntegrationPoint(const IntegrationPoint& ip) const
-{
-	IntegrationPoint res;
-	res.Set1w(ip.x, ip.weight);
+	IntegrationPointsSet res;
+	for (int i = 0; i < ipArray.Size(); i++) {
+		for (int dir = Direction::X; dir != Direction::Z; dir++) {
+			Direction d = static_cast<Direction>(dir);
+			res[i][X].Set3(ipArray[i].x, 0.0,          0.0         );
+			res[i][Y].Set3(0.0,          ipArray[i].y, 0.0         );
+			res[i][Z].Set3(0.0,          0.0,          ipArray[i].z);
+		}
+	}
 	return res;
 }
 

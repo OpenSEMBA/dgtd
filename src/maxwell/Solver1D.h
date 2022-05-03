@@ -13,7 +13,8 @@ namespace maxwell {
 
 class Solver1D {
 public:
-    typedef mfem::Vector Position;
+    using Position = mfem::Vector;
+    using IntegrationPointsSet = std::vector<std::array<IntegrationPoint, 3>>;
 
     struct Options {
         int order = 2;
@@ -55,7 +56,7 @@ private:
 
     std::array<GridFunction, 3> E_, H_;
 
-    IntegrationPoint integPoint_;
+    DenseMatrix integPointMat_;
     FieldType fieldToExtract_;
     Vector timeRecord_;
     Vector fieldRecord_;
@@ -67,11 +68,8 @@ private:
 
     void checkOptionsAreValid(const Options&, const mfem::Mesh&);
 
-    const IntegrationPoint setIntegrationPoint(const IntegrationPoint&) const;
-    const int getElementIndexForPosition(const IntegrationPoint&) const;
-    const Array<double> getVertexPositionInPhysicalCoords(const Array<int>& elementVertex) const;
-    const IntegrationPoint getRelativePositionInElement(const int&, const IntegrationPoint&) const;
-    //const double saveFieldAtPoint(const IntegrationPoint&, const FieldType&) const;
+    const IntegrationPointsSet Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
+    const std::array<std::array<double, 3>, 3> saveFieldAtPoints(DenseMatrix& physPoints, const FieldType&) const;
 
     void initializeParaviewData();
     void initializeGLVISData();

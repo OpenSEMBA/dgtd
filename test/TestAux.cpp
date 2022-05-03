@@ -122,12 +122,12 @@ namespace HelperFunctions {
 
 }
 
-class DG : public ::testing::Test {
+class Auxiliary : public ::testing::Test {
 protected:
 	typedef std::size_t Direction;
 };
 
-TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
+TEST_F(Auxiliary, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
 	even if the point we're trying to obtain it at is not necessarily a DoF or node.
@@ -159,7 +159,7 @@ TEST_F(DG, checkDataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
-TEST_F(DG, checkMassMatrix)
+TEST_F(Auxiliary, checkMassMatrix)
 {
 	/*The purpose of this text is to check the values of a Mass Matrix 
 	for an order 1, 1D line with a single element.
@@ -195,7 +195,7 @@ TEST_F(DG, checkMassMatrix)
 
 }
 
-TEST_F(DG, checkMassMatrixIsSameForH1andDG)
+TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
 {
 	/*This test compares the mass matrices for H1 and DG spaces for a mesh with a single element
 	
@@ -252,7 +252,7 @@ TEST_F(DG, checkMassMatrixIsSameForH1andDG)
 		}
 	}
 }
-TEST_F(DG, checkStiffnessMatrix)
+TEST_F(Auxiliary, checkStiffnessMatrix)
 {
 	/*The purpose of this text is to check the values of a Stiffness Matrix
 	for a 1D line with a single element.
@@ -310,7 +310,7 @@ TEST_F(DG, checkStiffnessMatrix)
 		break;
 	}
 }
-TEST_F(DG, checkKOperators)
+TEST_F(Auxiliary, checkKOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
 	  for a single element in 1D.
@@ -335,7 +335,7 @@ TEST_F(DG, checkKOperators)
 	ConstantCoefficient one(1.0);
 	double alpha = -1.0;
 	double beta = 0.0;
-	const DG::Direction d = 0;
+	const Auxiliary::Direction d = 0;
 	std::vector<VectorConstantCoefficient> n = {
 		VectorConstantCoefficient(Vector({1.0})),
 	};
@@ -383,7 +383,7 @@ TEST_F(DG, checkKOperators)
 }
 
 //
-//TEST_F(DG, visualizeGLVISDataForBasisFunctionNodes)
+//TEST_F(Auxiliary, visualizeGLVISDataForBasisFunctionNodes)
 //{
 //	/*This test aims to show the Basis Functions through GLVIS visualization.
 //	
@@ -465,7 +465,7 @@ TEST_F(DG, checkKOperators)
 //	}
 //}
 
-TEST_F(DG, printGLVISDataForBasisFunctionNodes)
+TEST_F(Auxiliary, printGLVISDataForBasisFunctionNodes)
 {
 	/*This test creates files for the Basis Functions, for later visualization 
 	through GLVIS.
@@ -507,4 +507,24 @@ TEST_F(DG, printGLVISDataForBasisFunctionNodes)
 	}
 	HelperFunctions::SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
+}
+
+TEST_F(Auxiliary, findPointsTest)
+{
+	Mesh mesh = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
+	DenseMatrix pointMat({ { 0.2,0.4,0.6 },{1.5, 3.5, 5.5},{0.25, 1.25, 3.75},{2.0, 4.0, 6.0} });
+	pointMat.Transpose();
+	Array<int> elArray;
+	Array<IntegrationPoint> ipArray;
+	std::vector<double> expVals({ 0.2,0.4,0.6 });
+
+	mesh.FindPoints(pointMat, elArray, ipArray);
+
+	EXPECT_EQ(3, pointMat.Height());
+	EXPECT_EQ(4, pointMat.Width());
+	EXPECT_EQ(0, elArray[0]);
+	EXPECT_EQ(expVals[0], ipArray[0].x);
+	EXPECT_EQ(expVals[1], ipArray[0].y);
+	EXPECT_EQ(expVals[2], ipArray[0].z);
+
 }

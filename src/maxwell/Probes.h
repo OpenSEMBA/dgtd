@@ -8,7 +8,7 @@ class Probes {
         bool glvis = false;
         bool extractDataAtPoint = false;
         FieldType fieldToExtract = FieldType::E;
-        IntegrationPoint integPoint;
+        DenseMatrix integPointMat;
     private:
 };
 
