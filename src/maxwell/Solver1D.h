@@ -15,6 +15,7 @@ class Solver1D {
 public:
     using Position = mfem::Vector;
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
+    using EMFieldByVDIM = std::array<std::array<double, 3>, 3>;
     
 
     struct Options {
@@ -31,7 +32,7 @@ public:
     const Vector& getMaterialProperties(const Material&) const;
 
     mfem::Mesh& getMesh() { return mesh_; }
-    Vector& getFieldAtPoint() { return timeField_; }
+    std::vector<std::pair<double, EMFieldByVDIM>> getFieldAtPoint() { return timeField_; }
 
     void run();
 
@@ -57,10 +58,12 @@ private:
 
     std::array<GridFunction, 3> E_, H_;
 
+    Array<int> elemIds_;
+    IntegrationPointsSet integPointSet_;
     FieldType fieldToExtract_;
-    Vector timeRecord_;
-    Vector fieldRecord_;
-    Vector timeField_;
+    double timeRecord_;
+    EMFieldByVDIM fieldRecord_;
+    std::vector<std::pair<double, EMFieldByVDIM>> timeField_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
@@ -68,9 +71,9 @@ private:
 
     void checkOptionsAreValid(const Options&);
 
-    std::pair<Array<int>,Array<IntegrationPoint>> Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints);
-    const IntegrationPointsSet Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
-    const std::array<std::array<double, 3>, 3> saveFieldAtPoints(DenseMatrix& physPoints, const FieldType&);
+    std::pair<Array<int>,Array<IntegrationPoint>>& Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints);
+    const IntegrationPointsSet& Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
+    const EMFieldByVDIM& saveFieldAtPoints(const FieldType&);
 
     void initializeParaviewData();
     //void initializeGLVISData();

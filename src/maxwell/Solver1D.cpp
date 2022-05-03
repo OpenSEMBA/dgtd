@@ -44,6 +44,9 @@ namespace maxwell {
 		//initializeGLVISData(); //TODO
 	}
 	if (probes_.extractDataAtPoints) {
+		auto aux = Solver1D::buildIntegrationPointAndElemArrays(probes_.integPointMat);
+		elemIds_ = aux.first;
+		integPointSet_ = Solver1D::buildIntegrationPointsSet(aux.second);
 		fieldToExtract_ = probes_.fieldToExtract;
 	}
 }
@@ -85,38 +88,16 @@ const Vector& Solver1D::getMaterialProperties(const Material& mat) const
 	return Vector({mat.getPermittivity(), mat.getPermeability(), mat.getImpedance(), mat.getConductance()});
 }
 
-std::pair<Array<int>, Array<IntegrationPoint>> Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints){
+std::pair<Array<int>, Array<IntegrationPoint>>& Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints)
+{
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
 	fes_->GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
-	return { elemIdArray,integPointArray };
+	return { std::make_pair(elemIdArray, integPointArray) };
 }
 
-const std::array<std::array<double, 3>, 3> Solver1D::saveFieldAtPoints(DenseMatrix& physPoints, const FieldType& ft)
+const std::vector<std::vector<IntegrationPoint>>& Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
 {
-	auto aux = Solver1D::buildIntegrationPointAndElemArrays(probes_.integPointMat);
-	fes_->GetMesh()->FindPoints(physPoints, aux.first, aux.second);
-
-	IntegrationPointsSet integPointSet = Solver1D::buildIntegrationPointsSet(aux.second);
-
-	std::array<std::array<double, 3>, 3> res{};
-	for (int i = 0; i < aux.first.Size(); i++) {
-		for (int dir = Direction::X; dir != Direction::Z; dir++) {
-			Direction d = static_cast<Direction>(dir);
-			switch (ft) {
-			case FieldType::E:
-				res[i][d] = E_[d].GetValue(aux.first[i],integPointSet[i][d]);
-			case FieldType::H:
-				res[i][d] = H_[d].GetValue(aux.first[i],integPointSet[i][d]);
-			}
-		}
-	}
-	return res;
-}
-
-const std::vector<std::vector<IntegrationPoint>> Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
-{
-
 	IntegrationPointsSet res;
 	switch (fes_->GetMesh()->Dimension()) {
 	case 1:
@@ -140,6 +121,24 @@ const std::vector<std::vector<IntegrationPoint>> Solver1D::buildIntegrationPoint
 	}
 	return res;
 }
+const std::array<std::array<double, 3>, 3>& Solver1D::saveFieldAtPoints(const FieldType& ft)
+{
+	auto maxDim = fes_->GetMesh()->Dimension();
+	std::array<std::array<double, 3>, 3> res{0.0};
+	for (int i = 0; i < elemIds_.Size(); i++) {
+		for (int dir = Direction::X; dir != maxDim; dir++) {
+			Direction d = static_cast<Direction>(dir);
+			switch (ft) {
+			case FieldType::E:
+				res[i][d] = E_[d].GetValue(elemIds_[i],integPointSet_[i][d]);
+			case FieldType::H:
+				res[i][d] = H_[d].GetValue(elemIds_[i],integPointSet_[i][d]);
+			}
+		}
+	}
+	return res;
+}
+
 
 void Solver1D::initializeParaviewData()
 {
@@ -201,20 +200,16 @@ void Solver1D::run()
 
 	storeInitialVisualizationValues();
 
-	if (probes_.extractDataAtPoints) {
-		timeRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
-		fieldRecord_.SetSize(std::ceil(opts_.t_final / opts_.dt));
-	}
-
 	bool done = false;
 	int cycle = 0;
+	int iter = 0;
 
 	while (!done) {
 		odeSolver_->Step(sol_, time, opts_.dt);
 
 		if (probes_.extractDataAtPoints) {
-			timeRecord_[cycle] = time;
-			//fieldRecord_[cycle] = saveFieldAtPoint(integPoint_, fieldToExtract_);
+			timeRecord_ = time;
+			fieldRecord_ = saveFieldAtPoints(fieldToExtract_);
 		}
 
 		done = (time >= opts_.t_final);
@@ -223,15 +218,9 @@ void Solver1D::run()
 
 		if (done || cycle % probes_.vis_steps == 0) {
 			if (probes_.extractDataAtPoints) {
-
-				timeField_.SetSize(std::ceil(opts_.t_final / opts_.dt) * 2);
-
-				for (int i = 0; i < timeField_.Size()/2; i++) {
-
-					timeField_.Elem(i) = timeRecord_.Elem(i);
-					//timeField_.Elem(i + timeField_.Size() / 2) = fieldRecord_.Elem(i);
-
-				}
+				timeField_[iter].first = timeRecord_;
+				timeField_[iter].second = fieldRecord_;
+				iter++;
 			}
 			if (probes_.paraview) {
 				pd_->SetCycle(cycle);
