@@ -393,7 +393,10 @@ FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boun
 
 void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 {
-	
+	//if (source) {
+	//	eOld[X].projectCoefficient(source.getFunction(t, X, E));
+	//}
+	GridFunction eAux;
 	
 	std::array<Vector,3> eOld, hOld;
 	for (int d = X; d <= Z; d++) {

@@ -64,6 +64,18 @@ namespace HelperFunctions1D {
 		return res;
 	}
 
+	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh)
+	{
+		std::vector<int> res;
+		for (int i = 0; i < mesh.GetNE(); i++) {
+			mfem::Array<int> meshArrayElement;
+			mesh.GetElementVertices(i, meshArrayElement);
+			res.push_back(meshArrayElement[0]);
+		}
+
+		return res;
+	}
+
 }
 using namespace AnalyticalFunctions1D;
 
@@ -74,29 +86,29 @@ protected:
 	Mesh mesh2D = Mesh::MakeCartesian2D(2, 3, Element::Type::QUADRILATERAL, 2.0, 3.0);
 	Mesh mesh3D = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
 	
-	Material mat11 = Material(1.0, 1.0);
-	Material mat12 = Material(1.0, 2.0);
-	Material mat21 = Material(2.0, 1.0);
-	Material mat22 = Material(2.0, 2.0);
+	Material mat11 = Material(1.0, 1.0); Material mat12 = Material(1.0, 2.0);
+	Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
 	
 	Vector attArrSingle = Vector({ 1 });
 	Vector attArrMultiple = Vector({ 1, 2, 3, 4 });
 	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
 	std::vector<Material> matArrMultiple = std::vector<Material>({ mat11,mat12,mat21,mat22 });
 
+	std::map<attribute, Material> attToMatMap = HelperFunctions1D::buildAttToMatmap(attArrSingle, matArrSimple);
+
+	Model* testModel = new Model(mesh1D, attToMatMap);
+
+	double spread = 2.0;
+	double delay = 0.0;
+	Direction d = X;
+	FieldType ft = E;
+
+	Source testSource = Source(testModel, spread, delay, d, ft);
+
 	Probes defaultProbes;
-	
-	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
-	{
-		std::vector<int> res;
-		for (int i = 0; i < mesh.GetNE(); i++) {
-			mfem::Array<int> meshArrayElement;
-			mesh.GetElementVertices(i, meshArrayElement);
-			res.push_back(meshArrayElement[0]);
-		}
-		
-		return res;
-	}
+
+	Options defaultOptions;
+
 };
 
 TEST_F(TestMaxwellSolver1D, checkTwoAttributeMesh)

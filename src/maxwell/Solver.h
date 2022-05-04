@@ -7,6 +7,7 @@
 #include "Model.h"
 #include "Probes.h"
 #include "Sources.h"
+#include "Options.h"
 #include <array>
 
 namespace maxwell {
