@@ -3,17 +3,17 @@
 
 namespace maxwell {
 
-Source::Source(Model* model, double spread, double delay, Direction& d, FieldType& ft) :
+Source::Source(Model& model, double spread, double delay, Direction& d, FieldType& ft) :
 	spread_(spread),
 	delay_(delay),
 	d_(d),
 	ft_(ft)
 {
-	model->getMesh().GetBoundingBox(minBB_, maxBB_, 0);
+	model.getMesh().GetBoundingBox(minBB_, maxBB_, 0);
 	for (int i = 0; i < minBB_.Size(); i++) {
 		center_[i] = (maxBB_[i] - minBB_[i]) / 0.5;
 	}
-	normalizedPos_.SetSize(model->getMesh().Dimension());
+	normalizedPos_.SetSize(model.getMesh().Dimension());
 	normalizedPos_ = 0.0;
 }
 

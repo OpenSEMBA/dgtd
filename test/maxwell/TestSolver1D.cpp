@@ -96,7 +96,7 @@ protected:
 
 	std::map<attribute, Material> attToMatMap = HelperFunctions1D::buildAttToMatmap(attArrSingle, matArrSimple);
 
-	Model* testModel = new Model(mesh1D, attToMatMap);
+	Model testModel = Model(mesh1D, attToMatMap);
 
 	double spread = 2.0;
 	double delay = 0.0;
@@ -143,39 +143,43 @@ TEST_F(TestMaxwellSolver1D, checkTwoAttributeMesh)
 		}
 	}
 }
-//TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
-//{
-//	/*The purpose of this test is to check the run() function for the Solver1D class
-//	and test the different available options.
-//
-//	First, dimensional variables are declared and a mesh is constructed, along with the declaration
-//	of different useful variables.
-//
-//	Then, a Solver1D object is constructed using said mesh and options, the bounding box for its mesh
-//	is extracted and an initial condition is applied to one of its variables. (GridFunction Ez_)
-//
-//	Lastly, the run() function is called.*/
-//
-//	int nx = 51;
-//	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-//
-//	maxwell::Solver1D::Options solverOpts;
-//	
-//	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-//	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-//
-//	maxwell::Solver1D solver(solverOpts, mesh);
-//	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-//	solver.setInitialField(FieldType::E, gaussianFunction, X);
-//	
-//	Vector eOld = solver.getField(FieldType::E);
-//	solver.run();
-//	Vector eNew = solver.getField(FieldType::E);
-//
-//	double error = eOld.DistanceTo(eNew);
-//	EXPECT_NEAR(0.0, error, 2e-3);
-//
-//}
+TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
+{
+	//DEPRECATED INTRO // REWRITE
+	
+	/*The purpose of this test is to check the run() function for the Solver1D class
+	and test the different available options.
+
+	First, dimensional variables are declared and a mesh is constructed, along with the declaration
+	of different useful variables.
+
+	Then, a Solver1D object is constructed using said mesh and options, the bounding box for its mesh
+	is extracted and an initial condition is applied to one of its variables. (GridFunction Ez_)
+
+	Lastly, the run() function is called.*/
+
+	int nx = 51;
+	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
+
+	maxwell::Solver::Options solverOpts;
+	
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+
+	maxwell::Solver solver(TestMaxwellSolver1D::testModel, TestMaxwellSolver1D::defaultProbes, 
+						TestMaxwellSolver1D::testSource, TestMaxwellSolver1D::defaultOptions);
+
+	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
+	solver.setInitialField(FieldType::E, gaussianFunction, X);
+	
+	//Vector eOld = solver.getField(FieldType::E);
+	//solver.run();
+	//Vector eNew = solver.getField(FieldType::E);
+
+	//double error = eOld.DistanceTo(eNew);
+	//EXPECT_NEAR(0.0, error, 2e-3);
+
+}
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 //{

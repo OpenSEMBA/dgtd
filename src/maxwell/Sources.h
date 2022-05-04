@@ -8,7 +8,7 @@ namespace maxwell {
 
 class Source {
 public:
-	Source(Model* model, double spread, double delay, Direction& d, FieldType& ft);
+	Source(Model& model, double spread, double delay, Direction& d, FieldType& ft);
 
 	FunctionCoefficient getFunction(double time, Direction d, FieldType ft);
 	std::tuple<FieldType, Direction, double>& getGaussianFunctionTuple(const Position& pos);
