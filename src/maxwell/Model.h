@@ -8,19 +8,19 @@ using namespace mfem;
 
 namespace maxwell {
 
+	using attribute = std::size_t;
+
 class Model {
 public:
-	using attribute = std::size_t;
-	using attToMaterialMap = std::map<attribute, Material>;
 
-	Model(Mesh mesh, attToMaterialMap matMap);
+	Model(Mesh mesh, std::map<attribute, Material> matMap);
 	Mesh& getMesh() { return mesh_; };
-	attToMaterialMap getMaterialMap() const { return matMap_; }
+	std::map<attribute, Material> getMaterialMap() const { return attToMatMap_; }
 
 private:
 
 	Mesh mesh_;
-	attToMaterialMap matMap_;
+	std::map<attribute, Material> attToMatMap_;
 
 
 };

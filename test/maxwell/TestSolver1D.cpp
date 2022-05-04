@@ -55,11 +55,36 @@ namespace HelperFunctions1D {
 			}
 	}
 
+	std::map<attribute, Material> buildAttToMatmap(const Vector& attVec, const std::vector<Material>& matVec)
+	{
+		std::map<attribute, Material> res;
+		for (int i = 0; i < attVec.Size(); i++) {
+			res.insert(std::make_pair(attVec[i],matVec[i]));
+		}
+		return res;
+	}
+
+
+
 }
 using namespace AnalyticalFunctions1D;
 
 class TestMaxwellSolver1D : public ::testing::Test {
 protected:
+
+	Mesh mesh1D = Mesh::MakeCartesian1D(5,5.0);
+	Mesh mesh2D = Mesh::MakeCartesian2D(2, 3, Element::Type::QUADRILATERAL, 2.0, 3.0);
+	Mesh mesh3D = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
+	
+	Material mat11 = Material(1.0, 1.0);
+	Material mat12 = Material(1.0, 2.0);
+	Material mat21 = Material(2.0, 1.0);
+	Material mat22 = Material(2.0, 2.0);
+	
+	Vector attArrSingle = Vector({ 1 });
+	Vector attArrMultiple = Vector({ 1, 2, 3, 4 });
+	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
+	std::vector<Material> matArrMultiple = std::vector<Material>({ mat11,mat12,mat21,mat22 });
 	
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
 	{

@@ -3,9 +3,9 @@
 
 namespace maxwell {
 
-Model::Model(Mesh mesh, attToMaterialMap matMap) :
+Model::Model(Mesh mesh, std::map<attribute, Material> matMap) :
 mesh_(mesh),
-matMap_(matMap)
+attToMatMap_(matMap)
 {
 	if (mesh_.Dimension() != 1)
 		throw std::runtime_error("Mesh dimension is not one.");
