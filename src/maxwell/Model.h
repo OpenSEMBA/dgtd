@@ -22,7 +22,6 @@ private:
 	Mesh mesh_;
 	std::map<attribute, Material> attToMatMap_;
 
-
 };
 
 }

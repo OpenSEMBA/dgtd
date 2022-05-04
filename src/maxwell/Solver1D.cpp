@@ -44,7 +44,7 @@ namespace maxwell {
 		//initializeGLVISData(); //TODO
 	}
 	if (probes_.extractDataAtPoints) {
-		auto aux = Solver1D::buildIntegrationPointAndElemArrays(probes_.integPointMat);
+		auto aux = Solver1D::buildElemAndIntegrationPointArrays(probes_.integPointMat);
 		elemIds_ = aux.first;
 		integPointSet_ = Solver1D::buildIntegrationPointsSet(aux.second);
 		fieldToExtract_ = probes_.fieldToExtract;
@@ -88,7 +88,7 @@ const Vector& Solver1D::getMaterialProperties(const Material& mat) const
 	return Vector({mat.getPermittivity(), mat.getPermeability(), mat.getImpedance(), mat.getConductance()});
 }
 
-std::pair<Array<int>, Array<IntegrationPoint>>& Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints)
+std::pair<Array<int>, Array<IntegrationPoint>>& Solver1D::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints)
 {
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
@@ -98,26 +98,22 @@ std::pair<Array<int>, Array<IntegrationPoint>>& Solver1D::buildIntegrationPointA
 
 const std::vector<std::vector<IntegrationPoint>>& Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
 {
-	IntegrationPointsSet res;
-	switch (fes_->GetMesh()->Dimension()) {
-	case 1:
-		for (int i = 0; i < ipArray.Size(); i++) {
+	IntegrationPointsSet res; 
+	for (int i = 0; i < ipArray.Size(); i++) {
+		switch (fes_->GetMesh()->Dimension()) {
+		case 1:
 			res[i][X].Set1w(ipArray[i].x, 0.0);
-		}
-		break;
-	case 2:
-		for (int i = 0; i < ipArray.Size(); i++) {
+			break;
+		case 2:
 			res[i][X].Set2(ipArray[i].x, 0.0);
 			res[i][Y].Set2(0.0, ipArray[i].y);
-		}
-		break;
-	case 3:
-		for (int i = 0; i < ipArray.Size(); i++) {
+			break;
+		case 3:
 			res[i][X].Set3(ipArray[i].x, 0.0, 0.0);
 			res[i][Y].Set3(0.0, ipArray[i].y, 0.0);
 			res[i][Z].Set3(0.0, 0.0, ipArray[i].z);
+			break;
 		}
-		break;
 	}
 	return res;
 }

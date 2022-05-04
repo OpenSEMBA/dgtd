@@ -13,11 +13,11 @@ namespace maxwell {
 
 class Solver1D {
 public:
+
     using Position = mfem::Vector;
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
     using EMFieldByVDIM = std::array<std::array<double, 3>, 3>;
     
-
     struct Options {
         int order = 2;
         double dt = 1e-3;
@@ -71,7 +71,7 @@ private:
 
     void checkOptionsAreValid(const Options&);
 
-    std::pair<Array<int>,Array<IntegrationPoint>>& Solver1D::buildIntegrationPointAndElemArrays(DenseMatrix& physPoints);
+    std::pair<Array<int>,Array<IntegrationPoint>>& Solver1D::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
     const IntegrationPointsSet& Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
     const EMFieldByVDIM& saveFieldAtPoints(const FieldType&);
 

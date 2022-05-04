@@ -64,8 +64,6 @@ namespace HelperFunctions1D {
 		return res;
 	}
 
-
-
 }
 using namespace AnalyticalFunctions1D;
 
@@ -85,6 +83,8 @@ protected:
 	Vector attArrMultiple = Vector({ 1, 2, 3, 4 });
 	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
 	std::vector<Material> matArrMultiple = std::vector<Material>({ mat11,mat12,mat21,mat22 });
+
+	Probes defaultProbes;
 	
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh) 
 	{
