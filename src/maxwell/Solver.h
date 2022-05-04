@@ -11,10 +11,9 @@
 
 namespace maxwell {
 
-class Solver1D {
+class Solver {
 public:
 
-    using Position = mfem::Vector;
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
     using EMFieldByVDIM = std::array<std::array<double, 3>, 3>;
     
@@ -25,7 +24,7 @@ public:
         FiniteElementEvolutionNoCond::Options evolutionOperatorOptions;
     };
 
-    Solver1D(const Model&, const Probes&, const Sources&, const Options&);
+    Solver(const Model&, const Probes&, const Source&, const Options&);
 
     void setInitialField(const FieldType&, std::function<double(const Position&)>, const Direction&);
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
@@ -40,7 +39,7 @@ private:
 
     Model model_;
     Probes probes_;
-    Sources sources_;
+    Source source_;
     Options opts_;
     
     mfem::Mesh& mesh_;
@@ -71,8 +70,8 @@ private:
 
     void checkOptionsAreValid(const Options&);
 
-    std::pair<Array<int>,Array<IntegrationPoint>>& Solver1D::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
-    const IntegrationPointsSet& Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
+    std::pair<Array<int>,Array<IntegrationPoint>>& Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
+    const IntegrationPointsSet& Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
     const EMFieldByVDIM& saveFieldAtPoints(const FieldType&);
 
     void initializeParaviewData();

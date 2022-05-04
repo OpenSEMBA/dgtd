@@ -1,5 +1,4 @@
 #include "Model.h"
-#include <stdexcept>
 
 namespace maxwell {
 

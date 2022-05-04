@@ -1,5 +1,3 @@
-
-
 namespace maxwell {
 
 class Options {

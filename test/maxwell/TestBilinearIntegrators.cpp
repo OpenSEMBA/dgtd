@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "maxwell/Solver1D.h"
+#include "maxwell/Solver.h"
 #include "maxwell/BilinearIntegrators.h"
 
 using namespace maxwell;

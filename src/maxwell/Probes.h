@@ -1,3 +1,7 @@
+#pragma once
+#include "mfem.hpp"
+#include "Types.h"
+
 namespace maxwell {
 
 class Probes {

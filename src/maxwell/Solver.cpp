@@ -2,56 +2,56 @@
 #include <iostream>
 #include <algorithm>
 
-#include "Solver1D.h"
+#include "Solver.h"
 
 using namespace mfem;
 
 namespace maxwell {
 
-	Solver1D::Solver1D(const Model& model, const Probes& probes,
-	const Sources& sources, const Options& options) :
+Solver::Solver(const Model& model, const Probes& probes,
+const Source& source, const Options& options) :
 
-	model_(model),
-	probes_(probes),
-	sources_(sources),
-	opts_(options),
-	mesh_(model_.getMesh())
+model_(model),
+probes_(probes),
+source_(source),
+opts_(options),
+mesh_(model_.getMesh())
 
 {
-	fec_ = std::make_unique<DG_FECollection>(
-	opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
-	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+fec_ = std::make_unique<DG_FECollection>(
+opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
-	odeSolver_ = std::make_unique<RK4Solver>();
+odeSolver_ = std::make_unique<RK4Solver>();
 
-	maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions);
+maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions);
 
-	sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * mesh_.Dimension() * fes_->GetNDofs());
-	sol_ = 0.0;
+sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * mesh_.Dimension() * fes_->GetNDofs());
+sol_ = 0.0;
 
-	for (int d = X; d <= Z; d++) {
-		E_[d].SetSpace(fes_.get());
-		E_[d].SetData(sol_.GetData() + d*fes_->GetNDofs());
-		H_[d].SetSpace(fes_.get());
-		H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
-	}
-
-
-	if (probes_.paraview) {
-		initializeParaviewData();
-	}
-	if (probes_.glvis) {
-		//initializeGLVISData(); //TODO
-	}
-	if (probes_.extractDataAtPoints) {
-		auto aux = Solver1D::buildElemAndIntegrationPointArrays(probes_.integPointMat);
-		elemIds_ = aux.first;
-		integPointSet_ = Solver1D::buildIntegrationPointsSet(aux.second);
-		fieldToExtract_ = probes_.fieldToExtract;
-	}
+for (int d = X; d <= Z; d++) {
+	E_[d].SetSpace(fes_.get());
+	E_[d].SetData(sol_.GetData() + d*fes_->GetNDofs());
+	H_[d].SetSpace(fes_.get());
+	H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
 }
 
-void Solver1D::checkOptionsAreValid(const Options& opts)
+
+if (probes_.paraview) {
+	initializeParaviewData();
+}
+if (probes_.glvis) {
+	//initializeGLVISData(); //TODO
+}
+if (probes_.extractDataAtPoints) {
+	auto aux = Solver::buildElemAndIntegrationPointArrays(probes_.integPointMat);
+	elemIds_ = aux.first;
+	integPointSet_ = Solver::buildIntegrationPointsSet(aux.second);
+	fieldToExtract_ = probes_.fieldToExtract;
+}
+}
+
+void Solver::checkOptionsAreValid(const Options& opts)
 {
 	if ((opts.order < 0) ||
 		(opts.t_final < 0) ||
@@ -61,7 +61,7 @@ void Solver1D::checkOptionsAreValid(const Options& opts)
 }
 
 
-void Solver1D::setInitialField(const FieldType& ft, std::function<double(const Position&)> f, const Direction& d)
+void Solver::setInitialField(const FieldType& ft, std::function<double(const Position&)> f, const Direction& d)
 {
 	switch (ft) {
 	case FieldType::E:
@@ -73,7 +73,7 @@ void Solver1D::setInitialField(const FieldType& ft, std::function<double(const P
 	}
 }
 
-const GridFunction& Solver1D::getFieldInDirection(const FieldType& ft, const Direction& d) const
+const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direction& d) const
 {
 	switch (ft) {
 	case FieldType::E:
@@ -83,12 +83,12 @@ const GridFunction& Solver1D::getFieldInDirection(const FieldType& ft, const Dir
 	}
 }
 
-const Vector& Solver1D::getMaterialProperties(const Material& mat) const
+const Vector& Solver::getMaterialProperties(const Material& mat) const
 {
 	return Vector({mat.getPermittivity(), mat.getPermeability(), mat.getImpedance(), mat.getConductance()});
 }
 
-std::pair<Array<int>, Array<IntegrationPoint>>& Solver1D::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints)
+std::pair<Array<int>, Array<IntegrationPoint>>& Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints)
 {
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
@@ -96,7 +96,7 @@ std::pair<Array<int>, Array<IntegrationPoint>>& Solver1D::buildElemAndIntegratio
 	return { std::make_pair(elemIdArray, integPointArray) };
 }
 
-const std::vector<std::vector<IntegrationPoint>>& Solver1D::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
+const std::vector<std::vector<IntegrationPoint>>& Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
 {
 	IntegrationPointsSet res; 
 	for (int i = 0; i < ipArray.Size(); i++) {
@@ -117,7 +117,7 @@ const std::vector<std::vector<IntegrationPoint>>& Solver1D::buildIntegrationPoin
 	}
 	return res;
 }
-const std::array<std::array<double, 3>, 3>& Solver1D::saveFieldAtPoints(const FieldType& ft)
+const std::array<std::array<double, 3>, 3>& Solver::saveFieldAtPoints(const FieldType& ft)
 {
 	auto maxDim = fes_->GetMesh()->Dimension();
 	std::array<std::array<double, 3>, 3> res{0.0};
@@ -136,7 +136,7 @@ const std::array<std::array<double, 3>, 3>& Solver1D::saveFieldAtPoints(const Fi
 }
 
 
-void Solver1D::initializeParaviewData()
+void Solver::initializeParaviewData()
 {
 	pd_ = NULL;
 	pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh_);
@@ -165,7 +165,7 @@ void Solver1D::initializeParaviewData()
 //		<< " Press space (in the GLVis window) to resume it.\n";
 //}
 
-void Solver1D::storeInitialVisualizationValues()
+void Solver::storeInitialVisualizationValues()
 {
 	if (probes_.paraview) {
 		pd_->SetCycle(0);
@@ -185,7 +185,7 @@ void Solver1D::storeInitialVisualizationValues()
 	//}
 }
 
-void Solver1D::run()
+void Solver::run()
 {
 	Vector vals(2 * fes_.get()->GetVSize());
 
@@ -201,6 +201,8 @@ void Solver1D::run()
 	int iter = 0;
 
 	while (!done) {
+		
+		
 		odeSolver_->Step(sol_, time, opts_.dt);
 
 		if (probes_.extractDataAtPoints) {

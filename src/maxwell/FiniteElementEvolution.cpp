@@ -1,4 +1,5 @@
 #include "FiniteElementEvolution.h"
+#include "Sources.h"
 
 namespace maxwell {
 
@@ -206,7 +207,6 @@ namespace maxwell {
 //
 //}
 
-
 FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	opts_(options),
@@ -393,6 +393,8 @@ FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boun
 
 void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 {
+	
+	
 	std::array<Vector,3> eOld, hOld;
 	for (int d = X; d <= Z; d++) {
 		eOld[d].SetDataAndSize(in.GetData() +     d*fes_->GetNDofs(), fes_->GetNDofs());

@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include <math.h>
 
-#include "maxwell/Solver1D.h"
+#include "maxwell/Solver.h"
 
 using namespace maxwell;
 

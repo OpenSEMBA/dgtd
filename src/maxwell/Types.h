@@ -1,6 +1,10 @@
 #pragma once
 
+#include "mfem.hpp"
+
 namespace maxwell {
+
+using Position = mfem::Vector;
 
 enum FieldType {
 	E,
