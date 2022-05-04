@@ -32,7 +32,7 @@ public:
     const Vector& getMaterialProperties(const Material&) const;
 
     mfem::Mesh& getMesh() { return mesh_; }
-    std::vector<std::pair<double, EMFieldByVDIM>> getFieldAtPoint() { return timeField_; }
+    std::vector<std::pair<double, EMFieldByVDIM>>& getFieldAtPoint() { return timeField_; }
 
     void run();
 

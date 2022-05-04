@@ -159,7 +159,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	Lastly, the run() function is called.*/
 
 	int nx = 51;
-	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
+	Mesh mesh = Mesh::MakeCartesian1D(nx);
 
 	maxwell::Solver::Options solverOpts;
 	
@@ -167,7 +167,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, TestMaxwellSolver1D::defaultProbes, 
-						TestMaxwellSolver1D::testSource, TestMaxwellSolver1D::defaultOptions);
+						TestMaxwellSolver1D::testSource, solverOpts);
 
 	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
 	solver.setInitialField(FieldType::E, gaussianFunction, X);
