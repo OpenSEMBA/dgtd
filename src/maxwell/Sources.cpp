@@ -3,9 +3,7 @@
 
 namespace maxwell {
 
-Source::Source(Model& model, double spread, double delay, Direction& d, FieldType& ft) :
-	spread_(spread),
-	delay_(delay)
+ModelParam::ModelParam(Model& model)
 {
 	model.getMesh().GetBoundingBox(minBB_, maxBB_, 0);
 	for (int i = 0; i < minBB_.Size(); i++) {
@@ -13,16 +11,22 @@ Source::Source(Model& model, double spread, double delay, Direction& d, FieldTyp
 	}
 	normalizedPos_.SetSize(model.getMesh().Dimension());
 	normalizedPos_ = 0.0;
-
-	funcPack_.ft_ = ft;
-	funcPack_.d_ = d;	
-	funcPack_.fc_ = FunctionCoefficient(buildGaussianFunction);
-	
 }
 
-double Source::buildGaussianFunction(const Position& pos)
+Source::Source(Model& model, double spread, double delay, Direction& d, FieldType& ft) :
+	spread_(spread),
+	delay_(delay)
 {
-	
+
+	modelParam_ = ModelParam(model);
+
+	funcPack_.ft_ = ft;
+	funcPack_.d_ = d;
+	funcPack_.fc_ = FunctionCoefficient(buildGaussianFunction);
+}
+
+double buildGaussianFunction(const Position& pos)
+{
 	for (int i = 0; i < normalizedPos_.Size(); i++) {
 		normalizedPos_[i] = 2 * (pos[i] - center_[i]) / (maxBB_[i] - minBB_[i]);
 	}
@@ -31,10 +35,9 @@ double Source::buildGaussianFunction(const Position& pos)
 			(2.0 * pow(spread_, 2.0)));
 }
 
-Source::FunctionPackage& Source::buildGaussianFunctionPackage(FieldType& ft, Direction& d, std::function<double(const Position&)> f)
+FunctionPackage& Source::buildGaussianFunctionPackage(FieldType& ft, Direction& d, std::function<double(const Position&)> f)
 {
-	FunctionCoefficient aux(f);
-	FunctionPackage res(ft,d,aux);
+	FunctionPackage res(ft,d,FunctionCoefficient(f));
 
 	return res;
 }
