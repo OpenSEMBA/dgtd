@@ -60,7 +60,6 @@ void Solver::checkOptionsAreValid(const Options& opts)
 	}
 }
 
-
 void Solver::setInitialField(const FieldType& ft, std::function<double(const Position&)> f, const Direction& d)
 {
 	switch (ft) {

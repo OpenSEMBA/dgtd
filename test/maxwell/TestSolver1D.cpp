@@ -168,9 +168,6 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, TestMaxwellSolver1D::defaultProbes, 
 						TestMaxwellSolver1D::testSource, solverOpts);
-
-	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-	solver.setInitialField(FieldType::E, gaussianFunction, X);
 	
 	//Vector eOld = solver.getField(FieldType::E);
 	//solver.run();
