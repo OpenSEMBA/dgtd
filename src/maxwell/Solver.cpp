@@ -60,14 +60,16 @@ void Solver::checkOptionsAreValid(const Options& opts)
 	}
 }
 
-void Solver::setInitialField(const FieldType& ft, std::function<double(const Position&)> f, const Direction& d)
+void Solver::setInitialField()
 {
-	switch (ft) {
+	std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction, &source_, std::placeholders::_1);
+
+	switch (source_.getFieldType()) {
 	case FieldType::E:
-		E_[d].ProjectCoefficient(FunctionCoefficient(f));
+		E_[source_.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
 		return;
 	case FieldType::H:
-		H_[d].ProjectCoefficient(FunctionCoefficient(f));
+		H_[source_.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
 		return;
 	}
 }

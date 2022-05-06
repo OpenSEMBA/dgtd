@@ -27,7 +27,7 @@ public:
 
     Solver(const Model&, const Probes&, const Source&, const Options&);
 
-    void setInitialField(const FieldType&, std::function<double(const Position&)>, const Direction&);
+    void setInitialField();
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const Vector& getMaterialProperties(const Material&) const;
 

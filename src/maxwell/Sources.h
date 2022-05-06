@@ -4,45 +4,26 @@
 #include "Types.h"
 #include "Model.h"
 
-
 namespace maxwell {
-
-struct ModelParam {
-	Vector center_;
-	Vector normalizedPos_;
-	Vector minBB_, maxBB_;
-
-	ModelParam();
-	ModelParam(Model&);
-};
-
-struct FunctionPackage {
-	FieldType ft_;
-	Direction d_;
-	FunctionCoefficient fc_;
-
-	FunctionPackage();
-	FunctionPackage(FieldType& ft, Direction& d, FunctionCoefficient& fc);
-};
 
 
 class Source {
 public:
-
 	Source(Model& model, double spread, double delay, Direction& d, FieldType& ft);
 
-	FunctionPackage& getFunctionPackage() { return funcPack_; }
-	ModelParam& getModelParam() { return modelParam_; }
+	double evalGaussianFunction(const Position& pos) const;
+	FieldType getFieldType() const { return fieldType_; }
+	Direction getDirection() const { return direction_; }
 
 private:
 
+	FieldType fieldType_;
+	Direction direction_;
 	double spread_;
 	double delay_;
-	FunctionPackage funcPack_;
-	ModelParam modelParam_;
+	Vector minBB_, maxBB_;
 
-	double buildGaussianFunction(const Position& pos);
-	FunctionPackage& buildGaussianFunctionPackage(FieldType&, Direction&, std::function<double(const Position&)> f);
+	static Vector vectorAverage(const Vector& min, const Vector& max);
 };
 
 }
