@@ -43,10 +43,10 @@ private:
 	std::array<std::array<std::array<Operator, 2>, 2>, 3> MF_;
 	std::array<std::array<Operator, 2>, 2> MP_;
 	
-	Operator buildDerivativeOperator(Direction) const;
-	Operator buildInverseMassMatrix(const FieldType&) const;
-	Operator buildFluxOperator(const FieldType&) const;
-	Operator buildPenaltyOperator(const FieldType&) const;
+	Operator buildDerivativeOperator(const Direction&) const;
+	Operator buildInverseMassMatrix(const FieldType&, const Direction& d) const;
+	Operator buildFluxOperator(const FieldType&, const Direction& d) const;
+	Operator buildPenaltyOperator(const FieldType&, const Direction& d) const;
 
 	Operator buildByMult(const BilinearForm*, const BilinearForm*) const;
 

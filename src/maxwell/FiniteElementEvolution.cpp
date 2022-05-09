@@ -17,45 +17,40 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 			FieldType f2 = static_cast<FieldType>(fInt2);
 			for (int dir = Direction::X; dir != Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
-				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
-				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2).get());
-
+				MS_[f][d] = buildByMult(buildInverseMassMatrix(f, d).get(), buildDerivativeOperator(d).get());
+				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f, d).get(), buildFluxOperator(f2, d).get());
+				MP_[f][f2] = buildByMult(buildInverseMassMatrix(f, d).get(), buildPenaltyOperator(f2, d).get());
 			}
-			MP_[f][f2] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2).get());
 		}
 	}
 }
 
-template<typename KeyType, typename ValueType>
-std::pair<KeyType, ValueType> get_max(const std::map<KeyType, ValueType>& x) {
-	using pairtype = std::pair<KeyType, ValueType>;
-	return *std::max_element(x.begin(), x.end(), [](const pairtype& p1, const pairtype& p2) {
-		return p1.second < p2.second;
-		});
-}
-
 void FiniteElementEvolutionNoCond::initializeMaterialParameterVectors()
 {
-	std::map<attribute, Material> matMap = model_.getMaterialMap();
-	auto maxVals = get_max(matMap);
-	eps_.SetSize(maxVals.first);
-	mu_.SetSize(maxVals.first);
+	std::vector<std::pair<attribute, Material>> matMap = model_.getAttToMatVec();
+	int max = 1;
+	for (int i = 0; i < matMap.size(); i++) {
+		if (matMap[i].first > max) {
+			max = matMap[i].first;
+		}
+	}
+	eps_.SetSize(max);
+	mu_.SetSize(max);
+	eps_ = 1.0; mu_ = 1.0;
 }
 
 void FiniteElementEvolutionNoCond::getMaterialParameterVectors()
 {
-	std::map<attribute, Material> matMap = model_.getMaterialMap();
-	for(const auto & it : matMap) {
+	std::vector<std::pair<attribute, Material>> matVec = model_.getAttToMatVec();
+	for(const auto & it : matVec) {
 		eps_[it.first-1] = it.second.getPermittivity();
 		mu_[it.first-1] = it.second.getPermeability();
 	}
 }
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
+FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f, const Direction& d) const
 {
-	//TODO TODO TODO TODO
-	assert(eps_ != NULL, "epsilonVal Vector is Null");
 	Vector aux(eps_);
 	PWConstCoefficient epsilonPWC(aux);
 
@@ -69,7 +64,7 @@ FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
 }
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildDerivativeOperator(Direction d) const
+FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
 {
 	ConstantCoefficient coeff(1.0);
 
@@ -87,7 +82,7 @@ FiniteElementEvolutionNoCond::buildDerivativeOperator(Direction d) const
 }
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f) const
+FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direction& d) const
 {
 
 	VectorConstantCoefficient n(Vector({ 1.0 }));
@@ -108,7 +103,7 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f) const
 
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f) const
+FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Direction& d) const
 {
 	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
 
@@ -247,7 +242,9 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 
-		// Update E.
+		// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_x] +
+		//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_x]
+		// Update E. M built with eps term.
 		MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
 		MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
 		MP_[E][E]   ->AddMult(eOld[x], eNew[x], -1.0);

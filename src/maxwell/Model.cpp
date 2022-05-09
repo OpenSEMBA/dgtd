@@ -2,9 +2,9 @@
 
 namespace maxwell {
 
-Model::Model(Mesh& mesh, std::map<attribute, Material>& matMap) :
+Model::Model(Mesh& mesh, std::vector<std::pair<attribute, Material>>& matVec) :
 mesh_(mesh),
-attToMatMap_(matMap)
+attToMatVec_(matVec)
 {
 }
 

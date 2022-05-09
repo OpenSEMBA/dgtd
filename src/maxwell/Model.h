@@ -13,15 +13,15 @@ namespace maxwell {
 class Model {
 public:
 
-	Model(Mesh& mesh, std::map<attribute, Material>& matMap);
+	Model(Mesh& mesh, std::vector<std::pair<attribute, Material>>& attToMatVec);
 	Mesh& getMesh() { return mesh_; };
 	const Mesh& getConstMesh() const { return mesh_; };
-	std::map<attribute, Material> getMaterialMap() const { return attToMatMap_; }
+	const std::vector<std::pair<attribute, Material>>& getAttToMatVec() const { return attToMatVec_; }
 
 private:
 
 	Mesh mesh_;
-	std::map<attribute, Material> attToMatMap_;
+	std::vector<std::pair<attribute, Material>> attToMatVec_;
 
 };
 

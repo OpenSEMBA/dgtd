@@ -55,15 +55,6 @@ namespace HelperFunctions1D {
 			}
 	}
 
-	std::map<attribute, Material> buildAttToMatmap(const Vector& attVec, const std::vector<Material>& matVec)
-	{
-		std::map<attribute, Material> res;
-		for (int i = 0; i < attVec.Size(); i++) {
-			res.insert(std::make_pair(attVec[i],matVec[i]));
-		}
-		return res;
-	}
-
 	std::vector<int> mapQuadElementTopLeftVertex(const mfem::Mesh& mesh)
 	{
 		std::vector<int> res;
@@ -76,6 +67,14 @@ namespace HelperFunctions1D {
 		return res;
 	}
 
+	std::vector<std::pair<attribute, Material>> buildAttToMatVec(const std::vector<attribute>& attVec, const std::vector<Material>& matVec)
+	{
+		std::vector<std::pair<attribute, Material>> res;
+		for (int i = 0; i < attVec.size(); i++) {
+			res.push_back(std::make_pair(attVec[i], matVec[i]));
+		}
+		return res;
+	}
 }
 using namespace AnalyticalFunctions1D;
 
@@ -89,14 +88,14 @@ protected:
 	Material mat11 = Material(1.0, 1.0); Material mat12 = Material(1.0, 2.0);
 	Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
 	
-	Vector attArrSingle = Vector({ 1 });
-	Vector attArrMultiple = Vector({ 1, 2, 3, 4 });
+	std::vector<attribute> attArrSingle = std::vector<attribute>({ 1 });
+	std::vector<attribute> attArrMultiple = std::vector<attribute>({ 1, 2, 3, 4 });
 	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
 	std::vector<Material> matArrMultiple = std::vector<Material>({ mat11,mat12,mat21,mat22 });
 
-	std::map<attribute, Material> attToMatMap = HelperFunctions1D::buildAttToMatmap(attArrSingle, matArrSimple);
+	std::vector<std::pair<attribute, Material>> attToMatVec = HelperFunctions1D::buildAttToMatVec(attArrSingle, matArrSimple);
 
-	Model testModel = Model(mesh1D, attToMatMap);
+	Model testModel = Model(mesh1D, attToMatVec);
 
 	double spread = 2.0;
 	double delay = 0.0;
