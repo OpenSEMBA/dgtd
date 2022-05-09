@@ -169,12 +169,12 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, TestMaxwellSolver1D::defaultProbes, 
 						TestMaxwellSolver1D::testSource, solverOpts);
 	
-	//Vector eOld = solver.getField(FieldType::E);
-	//solver.run();
-	//Vector eNew = solver.getField(FieldType::E);
+	GridFunction eOld = solver.getFieldInDirection(E, X);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, X);
 
-	//double error = eOld.DistanceTo(eNew);
-	//EXPECT_NEAR(0.0, error, 2e-3);
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
 //

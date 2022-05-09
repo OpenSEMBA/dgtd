@@ -12,6 +12,7 @@ public:
 	Source(Model& model, double spread, double delay, Direction& d, FieldType& ft);
 
 	double evalGaussianFunction(const Position& pos) const;
+	double evalGaussianFunction1D(const Position& pos) const;
 	FieldType getFieldType() const { return fieldType_; }
 	Direction getDirection() const { return direction_; }
 

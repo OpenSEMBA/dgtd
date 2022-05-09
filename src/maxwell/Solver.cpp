@@ -24,7 +24,7 @@ fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
 odeSolver_ = std::make_unique<RK4Solver>();
 
-maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions);
+maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions, model_);
 
 sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * mesh_.Dimension() * fes_->GetNDofs());
 sol_ = 0.0;
@@ -36,6 +36,9 @@ for (int d = X; d <= Z; d++) {
 	H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
 }
 
+//if (source_) {
+	setInitialField();
+//}
 
 if (probes_.paraview) {
 	initializeParaviewData();
@@ -62,7 +65,7 @@ void Solver::checkOptionsAreValid(const Options& opts)
 
 void Solver::setInitialField()
 {
-	std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction, &source_, std::placeholders::_1);
+	std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction1D, &source_, std::placeholders::_1);
 
 	switch (source_.getFieldType()) {
 	case FieldType::E:

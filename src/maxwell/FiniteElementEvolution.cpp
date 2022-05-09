@@ -1,219 +1,16 @@
 #include "FiniteElementEvolution.h"
-#include "Sources.h"
 
 namespace maxwell {
 
-//	FiniteElementEvolutionSimple::FiniteElementEvolutionSimple(FiniteElementSpace* fes, Options options) :
-//	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
-//	opts_(options),
-//	fes_(fes),
-//	MS_(applyMassOperatorOnOtherOperators(OperatorType::Stiffness)),
-//	FE_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::E)),
-//	FH_(applyMassOperatorOnOtherOperators(OperatorType::Penalty, FieldType::H)),
-//	PE_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::E)),
-//	PH_(applyMassOperatorOnOtherOperators(OperatorType::Flux, FieldType::H))
-//{
-//}
-//
-//
-//FiniteElementEvolutionSimple::Operator FiniteElementEvolutionSimple::buildInverseMassMatrix() const
-//{
-//	auto MInv = std::make_unique<BilinearForm>(fes_);
-//	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-//	
-//	MInv->Assemble();
-//	MInv->Finalize();
-//	
-//	return MInv;
-//}
-//
-//FiniteElementEvolutionSimple::Operator FiniteElementEvolutionSimple::buildDerivativeOperator() const
-//{
-//	std::size_t d = 0;
-//	ConstantCoefficient coeff(1.0);
-//
-//	auto K = std::make_unique<BilinearForm>(fes_);
-//	K->AddDomainIntegrator(
-//		new TransposeIntegrator(
-//			new DerivativeIntegrator(coeff, d)
-//		)
-//	);
-//
-//	K->Assemble();
-//	K->Finalize();
-//	
-//	return K;
-//}
-//
-//FiniteElementEvolutionSimple::Operator FiniteElementEvolutionSimple::buildFluxOperator(const FieldType& f) const
-//{
-//	auto flux = std::make_unique<BilinearForm>(fes_);
-//	VectorConstantCoefficient n(Vector({ 1.0 }));
-//	{
-//		FluxCoefficient c = interiorFluxCoefficient();
-//		flux->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//	{
-//		FluxCoefficient c = boundaryFluxCoefficient(f);
-//		flux->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//	flux->Assemble();
-//	flux->Finalize();
-//
-//	return flux;
-//}
-//
-//
-//FiniteElementEvolutionSimple::Operator FiniteElementEvolutionSimple::buildPenaltyOperator(const FieldType& f) const
-//{
-//	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
-//
-//	VectorConstantCoefficient n(Vector({ 1.0 }));
-//	{
-//		FluxCoefficient c = interiorPenaltyFluxCoefficient();
-//		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//	{
-//		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f);
-//		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-//	}
-//
-//	res->Assemble();
-//	res->Finalize();
-//
-//	return res;
-//}
-//
-//FiniteElementEvolutionSimple::Operator FiniteElementEvolutionSimple::applyMassOperatorOnOtherOperators(const OperatorType& optype, const FieldType& f) const
-//{
-//	auto mass = buildInverseMassMatrix();
-//	auto second = std::make_unique<BilinearForm>(fes_);
-//
-//	switch (optype) {
-//		case OperatorType::Stiffness:
-//			second = buildDerivativeOperator();
-//			break;
-//		case OperatorType::Flux:
-//			second = buildFluxOperator(f);
-//			break;
-//		case OperatorType::Penalty:
-//			second = buildPenaltyOperator(f);
-//			break;
-//	}
-//
-//	auto aux = mfem::Mult(mass->SpMat(), second->SpMat());
-//
-//	auto res = std::make_unique<BilinearForm>(fes_);
-//	res->Assemble();
-//	res->Finalize();
-//	res->SpMat().Swap(*aux);
-//
-//	return res;
-//}
-//
-//FiniteElementEvolutionSimple::FluxCoefficient FiniteElementEvolutionSimple::interiorFluxCoefficient() const
-//{
-//	return FluxCoefficient{1.0, 0.0};
-//}
-//
-//FiniteElementEvolutionSimple::FluxCoefficient FiniteElementEvolutionSimple::interiorPenaltyFluxCoefficient() const
-//{
-//	switch (opts_.fluxType) {
-//	case FluxType::Centered:
-//		return FluxCoefficient{0.0, 0.0};
-//	case FluxType::Upwind:
-//		return FluxCoefficient{0.0, 0.5}; 
-//	}
-//}
-//
-//FiniteElementEvolutionSimple::FluxCoefficient FiniteElementEvolutionSimple::boundaryFluxCoefficient(const FieldType& f) const
-//{
-//	switch (opts_.bdrCond) {
-//	case BdrCond::PEC:
-//		switch (f) {
-//		case FieldType::E:
-//			return FluxCoefficient{ 0.0, 0.0 };
-//		case FieldType::H:
-//			return FluxCoefficient{ 2.0, 0.0 };
-//		}
-//	case BdrCond::PMC:
-//		switch (f) {
-//		case FieldType::E:
-//			return FluxCoefficient{ 2.0, 0.0 };
-//		case FieldType::H:
-//			return FluxCoefficient{ 0.0, 0.0 };
-//		}
-//	case BdrCond::SMA:
-//		switch (f) {
-//		case FieldType::E:
-//			return FluxCoefficient{ 1.0, 0.0 };
-//		case FieldType::H:
-//			return FluxCoefficient{ 1.0, 0.0 };
-//		}
-//	}
-//}
-//
-//FiniteElementEvolutionSimple::FluxCoefficient FiniteElementEvolutionSimple::boundaryPenaltyFluxCoefficient(const FieldType& f) const
-//{
-//	switch (opts_.fluxType) {
-//	case FluxType::Centered:
-//		return FluxCoefficient{ 0.0, 0.0 };
-//	case FluxType::Upwind:
-//		switch (opts_.bdrCond) {
-//		case BdrCond::PEC:
-//			switch (f) {
-//			case FieldType::E:
-//				return FluxCoefficient{ 0.0, 0.0 };
-//			case FieldType::H:
-//				return FluxCoefficient{ 0.0, 0.0 };
-//			}
-//		case BdrCond::PMC:
-//			switch (f) {
-//			case FieldType::E:
-//				return FluxCoefficient{ 0.0, 0.0 };
-//			case FieldType::H:
-//				return FluxCoefficient{ 0.0, 0.0 };
-//			}
-//		case BdrCond::SMA:
-//			switch (f) {
-//			case FieldType::E:
-//				return FluxCoefficient{ 0.0, 0.5 };
-//			case FieldType::H:
-//				return FluxCoefficient{ 0.0, 0.5 };
-//			}
-//		}
-//	}
-//}
-//
-//void FiniteElementEvolutionSimple::Mult(const Vector& x, Vector& y) const
-//{
-//	Vector eOld(x.GetData(), fes_->GetNDofs());
-//	Vector hOld(x.GetData() + fes_->GetNDofs(), fes_->GetNDofs());
-//
-//	GridFunction eNew(fes_, &y[0]);
-//	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
-//
-//	// Update E. dE/dt = MS * H - FEH * {H} - FEE * [E].
-//
-//	MS_->Mult(hOld, eNew);
-//	FEH_->AddMult(hOld, eNew, -1.0);
-//	FEE_->AddMult(eOld, eNew, -1.0);
-//
-//	// Update H. dH/dt = MS * E - HE * {E} - FHH * [H].
-//
-//	MS_->Mult(eOld, hNew);
-//	FHE_->AddMult(eOld, hNew, -1.0);
-//	FHH_->AddMult(hOld, hNew, -1.0);
-//
-//}
-
-FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options) :
+FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model) :
 	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
-	epsilonVal_(opts_.epsilonVal),
-	muVal_(opts_.muVal)
+	model_(model)
 {
+	initializeMaterialParameterVectors();
+	getMaterialParameterVectors();
+
 	for (int fInt = FieldType::E; fInt != FieldType::H; fInt++) {
 		FieldType f = static_cast<FieldType>(fInt);
 		for (int fInt2 = FieldType::E; fInt2 != FieldType::H; fInt2++) {
@@ -229,12 +26,37 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	}
 }
 
+template<typename KeyType, typename ValueType>
+std::pair<KeyType, ValueType> get_max(const std::map<KeyType, ValueType>& x) {
+	using pairtype = std::pair<KeyType, ValueType>;
+	return *std::max_element(x.begin(), x.end(), [](const pairtype& p1, const pairtype& p2) {
+		return p1.second < p2.second;
+		});
+}
+
+void FiniteElementEvolutionNoCond::initializeMaterialParameterVectors()
+{
+	std::map<attribute, Material> matMap = model_.getMaterialMap();
+	auto maxVals = get_max(matMap);
+	eps_.SetSize(maxVals.first);
+	mu_.SetSize(maxVals.first);
+}
+
+void FiniteElementEvolutionNoCond::getMaterialParameterVectors()
+{
+	std::map<attribute, Material> matMap = model_.getMaterialMap();
+	for(const auto & it : matMap) {
+		eps_[it.first-1] = it.second.getPermittivity();
+		mu_[it.first-1] = it.second.getPermeability();
+	}
+}
+
 FiniteElementEvolutionNoCond::Operator 
 FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
 {
-	assert(false); //TODO TODO TODO TODO
-	assert(epsilonVal_ != NULL, "epsilonVal Vector is Null");
-	Vector aux(epsilonVal_);
+	//TODO TODO TODO TODO
+	assert(eps_ != NULL, "epsilonVal Vector is Null");
+	Vector aux(eps_);
 	PWConstCoefficient epsilonPWC(aux);
 
 	auto MInv = std::make_unique<BilinearForm>(fes_);
@@ -264,7 +86,8 @@ FiniteElementEvolutionNoCond::buildDerivativeOperator(Direction d) const
 	return K;
 }
 
-FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f) const
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f) const
 {
 
 	VectorConstantCoefficient n(Vector({ 1.0 }));
@@ -284,7 +107,8 @@ FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildFluxOp
 }
 
 
-FiniteElementEvolutionNoCond::Operator FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f) const
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f) const
 {
 	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
 
@@ -317,12 +141,14 @@ FiniteElementEvolutionNoCond::buildByMult(
 	return res;
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::interiorFluxCoefficient() const
+FiniteElementEvolutionNoCond::FluxCoefficient 
+FiniteElementEvolutionNoCond::interiorFluxCoefficient() const
 {
 	return FluxCoefficient{ 1.0, 0.0 };
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::interiorPenaltyFluxCoefficient() const
+FiniteElementEvolutionNoCond::FluxCoefficient 
+FiniteElementEvolutionNoCond::interiorPenaltyFluxCoefficient() const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -332,7 +158,8 @@ FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::inte
 	}
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boundaryFluxCoefficient(const FieldType& f) const
+FiniteElementEvolutionNoCond::FluxCoefficient 
+FiniteElementEvolutionNoCond::boundaryFluxCoefficient(const FieldType& f) const
 {
 	switch (opts_.bdrCond) {
 	case BdrCond::PEC:
@@ -359,7 +186,8 @@ FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boun
 	}
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boundaryPenaltyFluxCoefficient(const FieldType& f) const
+FiniteElementEvolutionNoCond::FluxCoefficient 
+FiniteElementEvolutionNoCond::boundaryPenaltyFluxCoefficient(const FieldType& f) const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -393,9 +221,7 @@ FiniteElementEvolutionNoCond::FluxCoefficient FiniteElementEvolutionNoCond::boun
 
 void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 {
-	//if (source) {
-	//	eOld[X].projectCoefficient(source.getFunction(t, X, E));
-	//}
+
 	GridFunction eAux;
 	
 	std::array<Vector,3> eOld, hOld;
@@ -403,18 +229,19 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		eOld[d].SetDataAndSize(in.GetData() +     d*fes_->GetNDofs(), fes_->GetNDofs());
 		hOld[d].SetDataAndSize(in.GetData() + (d+3)*fes_->GetNDofs(), fes_->GetNDofs());
 	}
+
+	//if (source) {
+	//	eOld[X].projectCoefficient(source.getFunction(t, X, E));
+	//}
+
+
 	std::array<GridFunction, 3> eNew, hNew;
 	for (int d = X; d <= Z; d++) {
 		eNew[d].MakeRef(fes_, &out[    d* fes_->GetNDofs()]);
 		hNew[d].MakeRef(fes_, &out[(d+3)* fes_->GetNDofs()]);
 	}
 
-//	GridFunction eNew(fes_, &y[0]);
-//	GridFunction hNew(fes_, &y[fes_->GetNDofs()]);
-
 	Vector auxRHS(fes_->GetNDofs());
-
-	// Update E. dE/dt = MS * H - FEH * {H} - FEE * [E]. enew
 
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
