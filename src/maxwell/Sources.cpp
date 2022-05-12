@@ -15,7 +15,6 @@ Source::Source(Model& model, double spread, double delay, Direction& d, FieldTyp
 
 double Source::evalGaussianFunction(const Position& pos) const
 {
-
 	Vector center = vectorAverage(minBB_, maxBB_);
 	Vector normalizedPos(pos.Size());
 	normalizedPos = 0.0;

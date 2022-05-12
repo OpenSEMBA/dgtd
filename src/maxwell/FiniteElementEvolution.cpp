@@ -11,16 +11,16 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	initializeMaterialParameterVectors();
 	getMaterialParameterVectors();
 
-	for (int fInt = FieldType::E; fInt != FieldType::H; fInt++) {
+	for (int fInt = FieldType::E; fInt <= FieldType::H; fInt++) {
 		FieldType f = static_cast<FieldType>(fInt);
-		for (int fInt2 = FieldType::E; fInt2 != FieldType::H; fInt2++) {
+		for (int fInt2 = FieldType::E; fInt2 <= FieldType::H; fInt2++) {
 			FieldType f2 = static_cast<FieldType>(fInt2);
-			for (int dir = Direction::X; dir != Direction::Z; dir++) {
+			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
-				MS_[f][d] = buildByMult(buildInverseMassMatrix(f, d).get(), buildDerivativeOperator(d).get());
-				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f, d).get(), buildFluxOperator(f2, d).get());
-				MP_[f][f2] = buildByMult(buildInverseMassMatrix(f, d).get(), buildPenaltyOperator(f2, d).get());
+				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
+				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2).get());
 			}
+			MP_[f][f2] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2).get());
 		}
 	}
 }
@@ -49,7 +49,7 @@ void FiniteElementEvolutionNoCond::getMaterialParameterVectors()
 }
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f, const Direction& d) const
+FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
 {
 	Vector aux(eps_);
 	PWConstCoefficient epsilonPWC(aux);
@@ -66,12 +66,21 @@ FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f, const D
 FiniteElementEvolutionNoCond::Operator 
 FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
 {
-	ConstantCoefficient coeff(1.0);
-
+	ConstantCoefficient coeff;
+	auto dir = d;
 	auto K = std::make_unique<BilinearForm>(fes_);
+	
+	if (d < fes_->GetMesh()->Dimension()) {
+		coeff.constant = 1.0;
+	}
+	else {
+		coeff.constant = 0.0;
+		dir = X;
+	}
+
 	K->AddDomainIntegrator(
 		new TransposeIntegrator(
-			new DerivativeIntegrator(coeff, d)
+			new DerivativeIntegrator(coeff, dir)
 		)
 	);
 
@@ -82,7 +91,7 @@ FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
 }
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direction& d) const
+FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f) const
 {
 
 	VectorConstantCoefficient n(Vector({ 1.0 }));
@@ -103,7 +112,7 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Direction& d) const
+FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f) const
 {
 	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
 
@@ -244,6 +253,7 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 
 		// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_x] +
 		//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_x]
+		// 
 		// Update E. M built with eps term.
 		MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
 		MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);

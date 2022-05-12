@@ -39,14 +39,14 @@ private:
 	Vector eps_, mu_;
 	Model model_;
 
-	std::array<std::array<Operator, 2>, 3> MS_;
-	std::array<std::array<std::array<Operator, 2>, 2>, 3> MF_;
+	std::array<std::array<Operator, 3>, 2> MS_;
+	std::array<std::array<std::array<Operator, 3>, 2>, 2> MF_;
 	std::array<std::array<Operator, 2>, 2> MP_;
 	
 	Operator buildDerivativeOperator(const Direction&) const;
-	Operator buildInverseMassMatrix(const FieldType&, const Direction& d) const;
-	Operator buildFluxOperator(const FieldType&, const Direction& d) const;
-	Operator buildPenaltyOperator(const FieldType&, const Direction& d) const;
+	Operator buildInverseMassMatrix(const FieldType&) const;
+	Operator buildFluxOperator(const FieldType&) const;
+	Operator buildPenaltyOperator(const FieldType&) const;
 
 	Operator buildByMult(const BilinearForm*, const BilinearForm*) const;
 
