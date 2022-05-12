@@ -18,9 +18,9 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
 				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
-				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2).get());
+				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
+				MP_[f][f2] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
 			}
-			MP_[f][f2] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2).get());
 		}
 	}
 }
@@ -90,33 +90,78 @@ FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
 	return K;
 }
 
-FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f) const
+Vector FiniteElementEvolutionNoCond::buildNVector(const Direction& d) const
 {
+	Vector res(fes_->GetMesh()->Dimension());
+	switch (fes_->GetMesh()->Dimension()) {
+	case 1:
+		switch (d) {
+		case X:
+			res = Vector({ 1.0 });
+			break;
+		default:
+			res = Vector({ 0.0 });
+			break;
+		}
+		break;
+	case 2:
+		switch (d) {
+		case X:
+			res = Vector({ 1.0,0.0 });
+			break;
+		case Y:
+			res = Vector({ 0.0,1.0 });
+			break;
+		default:
+			res = Vector({ 0.0,0.0 });
+			break;
+		}
+		break;
+	case 3:
+		switch (d) {
+		case X:
+			res = Vector({ 1.0,0.0,0.0 });
+			break;
+		case Y:
+			res = Vector({ 0.0,1.0,0.0 });
+			break;
+		case Z:
+			res = Vector({ 0.0,0.0,1.0 });
+			break;
+		}
+		break;
+	}
+	return res;
+}
 
-	VectorConstantCoefficient n(Vector({ 1.0 }));
-	auto flux = std::make_unique<BilinearForm>(fes_);
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direction& d) const
+{
+	Vector aux = buildNVector(d);
+	VectorConstantCoefficient n(aux);
+	auto res = std::make_unique<BilinearForm>(fes_);
 	{
 		FluxCoefficient c = interiorFluxCoefficient();
-		flux->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 	{
 		FluxCoefficient c = boundaryFluxCoefficient(f);
-		flux->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
-	flux->Assemble();
-	flux->Finalize();
+	res->Assemble();
+	res->Finalize();
 
-	return flux;
+	return res;
 }
 
 
 FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f) const
+FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Direction& d) const
 {
+	
+	auto aux = buildNVector(d);
+	VectorConstantCoefficient n(aux);
 	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
-
-	VectorConstantCoefficient n(Vector({ 1.0 }));
 	{
 		FluxCoefficient c = interiorPenaltyFluxCoefficient();
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
@@ -238,14 +283,11 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 	//	eOld[X].projectCoefficient(source.getFunction(t, X, E));
 	//}
 
-
 	std::array<GridFunction, 3> eNew, hNew;
 	for (int d = X; d <= Z; d++) {
 		eNew[d].MakeRef(fes_, &out[    d* fes_->GetNDofs()]);
 		hNew[d].MakeRef(fes_, &out[(d+3)* fes_->GetNDofs()]);
 	}
-
-	Vector auxRHS(fes_->GetNDofs());
 
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;

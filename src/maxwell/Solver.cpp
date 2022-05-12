@@ -191,7 +191,8 @@ void Solver::storeInitialVisualizationValues()
 
 void Solver::run()
 {
-	Vector vals(2 * fes_.get()->GetVSize());
+	
+	setInitialField();
 
 	double time = 0.0;
 
