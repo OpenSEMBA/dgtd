@@ -143,7 +143,7 @@ const std::array<std::array<double, 3>, 3>& Solver::saveFieldAtPoints(const Fiel
 void Solver::initializeParaviewData()
 {
 	pd_ = NULL;
-	pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView1D", &mesh_);
+	pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView", &mesh_);
 	pd_->SetPrefixPath("ParaView");
 	pd_->RegisterField("Ex", &E_[X]);
 	pd_->RegisterField("Ey", &E_[Y]);

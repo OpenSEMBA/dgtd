@@ -31,7 +31,8 @@ double Source::evalGaussianFunction1D(const Position& pos) const
 	double center = (minBB_[0] + maxBB_[0]) * 0.5;
 	double normalizedPos = 2 * (pos[0] - center) / (maxBB_[0] - minBB_[0]);
 	return (1.0 / spread_ * sqrt(2.0 * M_PI)) *
-		exp(-0.5 * pow(normalizedPos, 2.0) / pow(spread_, 2.0));
+		exp(-40 * pow(normalizedPos, 2.0) / pow(spread_, 2.0));
+
 }
 Vector Source::vectorAverage(const Vector& a, const Vector& b)
 {
