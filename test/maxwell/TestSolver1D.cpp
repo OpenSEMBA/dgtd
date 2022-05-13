@@ -189,12 +189,12 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 4.995*2;
-	solverOpts.dt = 5e-3;
+	solverOpts.t_final = 2.0;
+	solverOpts.dt = 1e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
-	probes.paraview = true;
-	probes.vis_steps = 10;
+	//probes.paraview = true;
+	probes.vis_steps = 50;
 
 	Sources sources;
 	sources.addSourceToVector(TestMaxwellSolver1D::testSource);
@@ -203,6 +203,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
+	//eOld.Neg();
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
 
@@ -217,12 +218,12 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::PMC;
-	solverOpts.t_final = 4.995;
-	solverOpts.dt = 5e-3;
+	solverOpts.t_final = 1.0;
+	solverOpts.dt = 1e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
-	probes.paraview = true;
-	probes.vis_steps = 10;
+	//probes.paraview = true;
+	probes.vis_steps = 5;
 
 	Sources sources;
 	sources.addSourceToVector(TestMaxwellSolver1D::testSource);
@@ -245,11 +246,11 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
-	solverOpts.t_final = 4.995;
-	solverOpts.dt = 5e-3;
+	solverOpts.t_final = 1.0;
+	solverOpts.dt = 1e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 5;
 
 	Sources sources;
