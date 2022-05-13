@@ -161,7 +161,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-	solverOpts.t_final = 5.0;
+	solverOpts.t_final = 4.995*2;
 	solverOpts.dt = 5e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
@@ -185,7 +185,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 4.995;
+	solverOpts.t_final = 4.995*2;
 	solverOpts.dt = 5e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
