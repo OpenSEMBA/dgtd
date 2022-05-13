@@ -131,7 +131,7 @@ FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
 	auto dir = d;
 	auto K = std::make_unique<BilinearForm>(fes_);
 	
-	if (d > fes_->GetMesh()->Dimension()) {
+	if (d >= fes_->GetMesh()->Dimension()) {
 		coeff.constant = 0.0;
 		dir = X;
 	}
