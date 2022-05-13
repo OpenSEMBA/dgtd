@@ -21,6 +21,7 @@ public:
 	};
 
 	static const std::size_t numberOfFieldComponents = 2;
+	static const std::size_t numberOfMaxDimensions = 3;
 
 	FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model);
 	virtual void Mult(const Vector& x, Vector& y) const;

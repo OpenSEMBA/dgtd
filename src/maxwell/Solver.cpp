@@ -26,7 +26,7 @@ odeSolver_ = std::make_unique<RK4Solver>();
 
 maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions, model_);
 
-sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * mesh_.Dimension() * fes_->GetNDofs());
+sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * FiniteElementEvolutionNoCond::numberOfMaxDimensions * fes_->GetNDofs());
 sol_ = 0.0;
 
 for (int d = X; d <= Z; d++) {
@@ -206,8 +206,7 @@ void Solver::run()
 	int iter = 0;
 
 	while (!done) {
-		
-		
+
 		odeSolver_->Step(sol_, time, opts_.dt);
 
 		if (probes_.extractDataAtPoints) {

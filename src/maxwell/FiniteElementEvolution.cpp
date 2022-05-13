@@ -3,7 +3,7 @@
 namespace maxwell {
 
 FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model) :
-	TimeDependentOperator(numberOfFieldComponents* fes->GetNDofs()),
+	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
 	model_(model)

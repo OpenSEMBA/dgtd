@@ -81,7 +81,7 @@ using namespace AnalyticalFunctions1D;
 class TestMaxwellSolver1D : public ::testing::Test {
 protected:
 
-	Mesh mesh1D = Mesh::MakeCartesian1D(3,1.0);
+	Mesh mesh1D = Mesh::MakeCartesian1D(5,5.0);
 	Mesh mesh2D = Mesh::MakeCartesian2D(2, 3, Element::Type::QUADRILATERAL, 2.0, 3.0);
 	Mesh mesh3D = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
 	
@@ -173,83 +173,63 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-//
-//TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
-//{
-//	int nx = 51;
-//	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-//
-//	maxwell::Solver1D::Options solverOpts;
-//
-//	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-//
-//	maxwell::Solver1D solver(solverOpts, mesh);
-//	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-//	solver.setInitialField(FieldType::E, gaussianFunction);
-//
-//	Vector eOld = solver.getField(FieldType::E);
-//	solver.run();
-//	Vector eNew = solver.getField(FieldType::E);
-//
-//	double error = eOld.DistanceTo(eNew);
-//	EXPECT_NEAR(0.0, error, 2e-3);
-//
-//}
-//
-//TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
-//{
-//	int nx = 51;
-//	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-//
-//	maxwell::Solver1D::Options solverOpts;
-//
-//	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-//	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::PMC;
-//
-//	maxwell::Solver1D solver(solverOpts, mesh);
-//	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-//	solver.setInitialField(FieldType::H, gaussianFunction);
-//
-//	Vector hOld = solver.getField(FieldType::H);
-//	solver.run();
-//	Vector hNew = solver.getField(FieldType::H);
-//
-//	double error = hOld.DistanceTo(hNew);
-//	EXPECT_NEAR(0.0, error, 2e-3);
-//
-//}
-//
-//TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
-//{
-//	int nx = 51;
-//	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-//
-//	maxwell::Solver1D::Options solverOpts;
-//	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-//	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
-//	solverOpts.extractDataAtPoint = true;
-//	IntegrationPoint ip;
-//	double xPos = 1.0;
-//	ip.Set1w(xPos, 0.0);
-//	solverOpts.integPoint = ip;
-//
-//	maxwell::Solver1D solver(solverOpts, mesh);
-//	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-//	solver.setInitialField(FieldType::E, gaussianFunction);
-//
-//	solver.run();
-//
-//	Vector eNew = solver.getField(FieldType::E);
-//	Vector zero = eNew;
-//	zero = 0.0;
-//	double error = zero.DistanceTo(eNew);
-//	EXPECT_NEAR(0.0, error, 2e-3);
-//
-//	Vector ePoint = solver.getFieldAtPoint();
-//	for (int i = ePoint.Size() / 2; i < ePoint.Size(); i++) {
-//		EXPECT_LE(ePoint[i],1.0);
-//	}
-//}
+
+TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
+{
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+
+	maxwell::Solver solver(TestMaxwellSolver1D::testModel, TestMaxwellSolver1D::defaultProbes,
+		TestMaxwellSolver1D::testSource, solverOpts);
+
+	GridFunction eOld = solver.getFieldInDirection(E, X);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, X);
+
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
+
+}
+
+TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
+{
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::PMC;
+
+	maxwell::Solver solver(TestMaxwellSolver1D::testModel, TestMaxwellSolver1D::defaultProbes,
+		TestMaxwellSolver1D::testSource, solverOpts);
+
+	GridFunction hOld = solver.getFieldInDirection(H, X);
+	solver.run();
+	GridFunction hNew = solver.getFieldInDirection(H, X);
+
+	double error = hOld.DistanceTo(hNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
+
+}
+
+TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
+{
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
+
+	maxwell::Solver solver(TestMaxwellSolver1D::testModel, TestMaxwellSolver1D::defaultProbes,
+		TestMaxwellSolver1D::testSource, solverOpts);
+
+	GridFunction eOld = solver.getFieldInDirection(E, X);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, X);
+	Vector zero = eNew;
+	zero = 0.0;
+	double error = zero.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
+
+}
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
 //{
