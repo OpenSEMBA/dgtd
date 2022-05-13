@@ -293,8 +293,8 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 
-		// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_x] +
-		//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_x]
+		// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_z] +
+		//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_y]
 		// 
 		// Update E. M built with eps term.
 		MS_[E][y]   ->Mult   (hOld[z], eNew[x]);

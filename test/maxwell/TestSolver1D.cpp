@@ -81,7 +81,7 @@ using namespace AnalyticalFunctions1D;
 class TestMaxwellSolver1D : public ::testing::Test {
 protected:
 
-	Mesh mesh1D = Mesh::MakeCartesian1D(5,5.0);
+	Mesh mesh1D = Mesh::MakeCartesian1D(3,1.0);
 	Mesh mesh2D = Mesh::MakeCartesian2D(2, 3, Element::Type::QUADRILATERAL, 2.0, 3.0);
 	Mesh mesh3D = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
 	
@@ -156,9 +156,6 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	is extracted and an initial condition is applied to one of its variables. (GridFunction Ez_)
 
 	Lastly, the run() function is called.*/
-
-	int nx = 51;
-	Mesh mesh = Mesh::MakeCartesian1D(nx);
 
 	maxwell::Solver::Options solverOpts;
 	
