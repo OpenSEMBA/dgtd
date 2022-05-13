@@ -27,4 +27,18 @@ private:
 	static Vector vectorAverage(const Vector& min, const Vector& max);
 };
 
+struct Sources {
+public:
+
+	void addSourceToVector(const Source& source) { sourceVector_.push_back(source); }
+	std::vector<Source> getSourceVector() { return sourceVector_; }
+
+	Sources() = default;
+
+private:
+
+	std::vector<Source> sourceVector_;
+
+};
+
 }

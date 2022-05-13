@@ -66,7 +66,8 @@ FiniteElementEvolutionNoCond::buildPieceWiseArgVector(const FieldType& f) const
 	return res;
 }
 
-Vector FiniteElementEvolutionNoCond::buildNVector(const Direction& d) const
+Vector 
+FiniteElementEvolutionNoCond::buildNVector(const Direction& d) const
 {
 	Vector res(fes_->GetMesh()->Dimension());
 	switch (fes_->GetMesh()->Dimension()) {

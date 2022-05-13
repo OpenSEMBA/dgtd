@@ -25,7 +25,7 @@ public:
         FiniteElementEvolutionNoCond::Options evolutionOperatorOptions;
     };
 
-    Solver(const Model&, const Probes&, const Source&, const Options&);
+    Solver(const Model&, const Probes&, const Sources&, const Options&);
 
     void setInitialField();
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
@@ -40,7 +40,7 @@ private:
 
     Model model_;
     Probes probes_;
-    Source source_;
+    Sources sources_;
     Options opts_;
     
     mfem::Mesh& mesh_;

@@ -9,11 +9,11 @@ using namespace mfem;
 namespace maxwell {
 
 Solver::Solver(const Model& model, const Probes& probes,
-const Source& source, const Options& options) :
+const Sources& sources, const Options& options) :
 
 model_(model),
 probes_(probes),
-source_(source),
+sources_(sources),
 opts_(options),
 mesh_(model_.getMesh())
 
@@ -65,15 +65,19 @@ void Solver::checkOptionsAreValid(const Options& opts)
 
 void Solver::setInitialField()
 {
-	std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction1D, &source_, std::placeholders::_1);
+	for (int i = 0; i < sources_.getSourceVector().size(); i++) {
 
-	switch (source_.getFieldType()) {
-	case FieldType::E:
-		E_[source_.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
-		return;
-	case FieldType::H:
-		H_[source_.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
-		return;
+		auto source = sources_.getSourceVector().at(i);
+		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction1D, &source, std::placeholders::_1);
+
+		switch (source.getFieldType()) {
+		case FieldType::E:
+			E_[source.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
+			return;
+		case FieldType::H:
+			H_[source.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
+			return;
+		}
 	}
 }
 

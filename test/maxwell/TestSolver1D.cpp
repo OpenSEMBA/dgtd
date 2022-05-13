@@ -81,9 +81,9 @@ using namespace AnalyticalFunctions1D;
 class TestMaxwellSolver1D : public ::testing::Test {
 protected:
 
-	Mesh mesh1D = Mesh::MakeCartesian1D(51,5.0);
-	Mesh mesh2D = Mesh::MakeCartesian2D(2, 3, Element::Type::QUADRILATERAL, 2.0, 3.0);
-	Mesh mesh3D = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
+	Mesh mesh1D = Mesh::MakeCartesian1D(51,1.0);
+	Mesh mesh2D = Mesh::MakeCartesian2D(20, 20, Element::Type::QUADRILATERAL, 1.0, 1.0);
+	Mesh mesh3D = Mesh::MakeCartesian3D(10, 10, 10, Element::Type::HEXAHEDRON, 1.0, 1.0, 1.0);
 	
 	Material mat11 = Material(1.0, 1.0); Material mat12 = Material(1.0, 2.0);
 	Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
@@ -97,7 +97,7 @@ protected:
 
 	Model testModel = Model(mesh1D, attToMatVec);
 
-	double spread = 2;
+	double spread = 2.0;
 	double delay = 0.0;
 	Direction d = Y;
 	FieldType ft = E;
@@ -161,17 +161,21 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-	solverOpts.t_final = 4.995*2;
-	solverOpts.dt = 5e-3;
+	solverOpts.t_final = 1.0;
+	solverOpts.dt = 1e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
-	//probes.paraview = true;
-	probes.vis_steps = 10;
+	probes.paraview = true;
+	probes.vis_steps = 100;
+
+	Sources sources;
+	sources.addSourceToVector(TestMaxwellSolver1D::testSource);
 
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, probes, 
-						TestMaxwellSolver1D::testSource, solverOpts);
+						sources, solverOpts);
 	
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
+	eOld.Neg();
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
 
@@ -192,8 +196,11 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 	probes.paraview = true;
 	probes.vis_steps = 10;
 
+	Sources sources;
+	sources.addSourceToVector(TestMaxwellSolver1D::testSource);
+
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, probes,
-		TestMaxwellSolver1D::testSource, solverOpts);
+		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
@@ -217,8 +224,11 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 	probes.paraview = true;
 	probes.vis_steps = 10;
 
+	Sources sources;
+	sources.addSourceToVector(TestMaxwellSolver1D::testSource);
+
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, probes,
-		TestMaxwellSolver1D::testSource, solverOpts);
+		sources, solverOpts);
 
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
 	solver.run();
@@ -242,8 +252,11 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	probes.paraview = true;
 	probes.vis_steps = 5;
 
+	Sources sources;
+	sources.addSourceToVector(TestMaxwellSolver1D::testSource);
+
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, probes,
-		TestMaxwellSolver1D::testSource, solverOpts);
+		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
 	solver.run();
