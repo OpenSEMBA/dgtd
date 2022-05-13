@@ -48,46 +48,22 @@ void FiniteElementEvolutionNoCond::getMaterialParameterVectors()
 	}
 }
 
-FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
+Vector
+FiniteElementEvolutionNoCond::buildPieceWiseArgVector(const FieldType& f) const
 {
-	Vector aux(eps_);
-	PWConstCoefficient epsilonPWC(aux);
-
-	auto MInv = std::make_unique<BilinearForm>(fes_);
-	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(epsilonPWC)));
-
-	MInv->Assemble();
-	MInv->Finalize();
-
-	return MInv;
-}
-
-FiniteElementEvolutionNoCond::Operator 
-FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
-{
-	ConstantCoefficient coeff;
-	auto dir = d;
-	auto K = std::make_unique<BilinearForm>(fes_);
+	Vector res;
 	
-	if (d < fes_->GetMesh()->Dimension()) {
-		coeff.constant = 1.0;
+	switch (f) {
+	case FieldType::E:
+		res.SetSize(eps_.Size());
+		res = eps_;
+		break;
+	case FieldType::H:
+		res.SetSize(mu_.Size());
+		res = mu_;
+		break;
 	}
-	else {
-		coeff.constant = 0.0;
-		dir = X;
-	}
-
-	K->AddDomainIntegrator(
-		new TransposeIntegrator(
-			new DerivativeIntegrator(coeff, dir)
-		)
-	);
-
-	K->Assemble();
-	K->Finalize();
-
-	return K;
+	return res;
 }
 
 Vector FiniteElementEvolutionNoCond::buildNVector(const Direction& d) const
@@ -132,6 +108,44 @@ Vector FiniteElementEvolutionNoCond::buildNVector(const Direction& d) const
 		break;
 	}
 	return res;
+}
+
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
+{
+	Vector aux = buildPieceWiseArgVector(f);
+	PWConstCoefficient PWCoeff(aux);
+
+	auto MInv = std::make_unique<BilinearForm>(fes_);
+	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
+	MInv->Assemble();
+	MInv->Finalize();
+
+	return MInv;
+}
+
+FiniteElementEvolutionNoCond::Operator 
+FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
+{
+	ConstantCoefficient coeff(1.0);
+	auto dir = d;
+	auto K = std::make_unique<BilinearForm>(fes_);
+	
+	if (d > fes_->GetMesh()->Dimension()) {
+		coeff.constant = 0.0;
+		dir = X;
+	}
+
+	K->AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(coeff, dir)
+		)
+	);
+
+	K->Assemble();
+	K->Finalize();
+
+	return K;
 }
 
 FiniteElementEvolutionNoCond::Operator 

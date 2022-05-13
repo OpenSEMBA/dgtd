@@ -45,6 +45,7 @@ private:
 	std::array<std::array<Operator, 2>, 2> MP_;
 
 	Vector buildNVector(const Direction& d) const;
+	Vector buildPieceWiseArgVector(const FieldType& f) const;
 	
 	Operator buildDerivativeOperator(const Direction&) const;
 	Operator buildInverseMassMatrix(const FieldType&) const;

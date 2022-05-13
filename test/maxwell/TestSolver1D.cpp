@@ -165,7 +165,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	solverOpts.dt = 5e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 10;
 
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, probes, 
