@@ -31,7 +31,7 @@ namespace AnalyticalFunctions1D {
 	}
 }
 
-namespace HelperFunctions1D {
+namespace HelperFunctions {
 
 	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes = 0)
 	{
@@ -93,7 +93,7 @@ protected:
 	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
 	std::vector<Material> matArrMultiple = std::vector<Material>({ mat11,mat12,mat21,mat22 });
 
-	std::vector<std::pair<attribute, Material>> attToMatVec = HelperFunctions1D::buildAttToMatVec(attArrSingle, matArrSimple);
+	std::vector<std::pair<attribute, Material>> attToMatVec = HelperFunctions::buildAttToMatVec(attArrSingle, matArrSimple);
 
 	Model testModel = Model(mesh1D, attToMatVec);
 
@@ -130,7 +130,7 @@ TEST_F(TestMaxwellSolver1D, checkTwoAttributeMesh)
 	elements with Attribute 2 will be Uneven index elements (starting at 1).*/
 	
 	const int refTimes = 3;
-	Mesh mesh = HelperFunctions1D::makeTwoAttributeCartesianMesh1D(refTimes);
+	Mesh mesh = HelperFunctions::makeTwoAttributeCartesianMesh1D(refTimes);
 
 	EXPECT_EQ(pow(2,refTimes + 1), mesh.GetNE());
 	for (int i = 0; i < mesh.GetNE(); i++) {
@@ -302,10 +302,29 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	maxwell::Solver solver(TestMaxwellSolver1D::testModel, probes,
 		sources, solverOpts);
 
+	///////////////////
+
 	solver.run();
+	std::vector<std::pair<double, std::vector<std::array<double, 3>>>> timeField = solver.getFieldAtPoint();
 
-	std::vector<std::pair<double, std::array<std::array<double, 3>, 3>>> timeField = solver.getFieldAtPoint();
+	///////////////////
 
+	std::vector<std::string> stringTime(timeField.size());
+
+	for (int i = 0; i < timeField.size(); i++) {
+		stringTime[i] = std::to_string(timeField[i].first);
+		stringTime[i].resize(5);
+	}
+	std::vector<std::string>::iterator itr = std::find(stringTime.begin(), stringTime.end(), "0.30");
+	int initialTimeIndex = 0;
+	if (std::find(stringTime.begin(), stringTime.end(), "0.30") != stringTime.end()) {
+		int index = std::distance(stringTime.begin(), itr);
+		EXPECT_NEAR(timeField.at(initialTimeIndex).second.at(0).at(X), timeField.at(index).second.at(1).at(X), 2e-3);
+	}
+	std::cout << timeField.at(initialTimeIndex).second.at(0).at(X) << std::endl;
+	std::cout << timeField.at(int(0.30/0.001/5)).second.at(1).at(X) << std::endl;
+
+	
 }
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)

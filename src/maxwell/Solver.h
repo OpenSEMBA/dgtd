@@ -16,8 +16,8 @@ class Solver {
 public:
 
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
-    using EMFieldByVDIM = std::array<std::array<double, 3>, 3>;
-    using TimeFieldPair = std::vector<std::pair<double, EMFieldByVDIM>>;
+    using FieldByVDIM = std::vector<std::array<double, 3>>;
+    using TimeFieldPair = std::vector<std::pair<double, FieldByVDIM>>;
     
     struct Options {
         int order = 2;
@@ -63,8 +63,8 @@ private:
     IntegrationPointsSet integPointSet_;
     FieldType fieldToExtract_;
     double timeRecord_;
-    EMFieldByVDIM fieldRecord_;
-    std::vector<std::pair<double, EMFieldByVDIM>> timeField_;
+    FieldByVDIM fieldRecord_;
+    std::vector<std::pair<double, FieldByVDIM>> timeField_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
@@ -74,7 +74,7 @@ private:
 
     std::pair<Array<int>,Array<IntegrationPoint>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
     const IntegrationPointsSet Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
-    const EMFieldByVDIM& saveFieldAtPoints(const FieldType&);
+    const FieldByVDIM saveFieldAtPoints(const FieldType&);
 
     void initializeParaviewData();
     //void initializeGLVISData();

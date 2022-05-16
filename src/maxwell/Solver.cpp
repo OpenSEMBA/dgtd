@@ -129,18 +129,21 @@ const std::vector<std::vector<IntegrationPoint>> Solver::buildIntegrationPointsS
 	}
 	return res;
 }
-const std::array<std::array<double, 3>, 3>& Solver::saveFieldAtPoints(const FieldType& ft)
+const std::vector<std::array<double, 3>> Solver::saveFieldAtPoints(const FieldType& ft)
 {
 	auto maxDim = fes_->GetMesh()->Dimension();
-	std::array<std::array<double, 3>, 3> res{0.0};
+	std::vector<std::array<double, 3>> res;
+	res.resize(elemIds_.Size());
 	for (int i = 0; i < elemIds_.Size(); i++) {
 		for (int dir = Direction::X; dir != maxDim; dir++) {
 			Direction d = static_cast<Direction>(dir);
 			switch (ft) {
 			case FieldType::E:
 				res[i][d] = E_[d].GetValue(elemIds_[i],integPointSet_[i][d]);
+				break;
 			case FieldType::H:
 				res[i][d] = H_[d].GetValue(elemIds_[i],integPointSet_[i][d]);
+				break;
 			}
 		}
 	}
@@ -199,8 +202,6 @@ void Solver::storeInitialVisualizationValues()
 
 void Solver::run()
 {
-	
-	setInitialField();
 
 	double time = 0.0;
 
@@ -214,7 +215,12 @@ void Solver::run()
 	int iter = 0; 
 	
 	if (probes_.extractDataAtPoints) {
-		timeField_.resize(opts_.t_final / opts_.dt);
+		timeRecord_ = time;
+		fieldRecord_ = saveFieldAtPoints(fieldToExtract_);
+		timeField_.resize(std::ceil(opts_.t_final / opts_.dt / probes_.vis_steps) +1);
+		timeField_[iter].first = timeRecord_;
+		timeField_[iter].second = fieldRecord_;
+		iter++;
 	}
 
 	while (!done) {
