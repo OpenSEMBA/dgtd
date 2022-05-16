@@ -9,7 +9,7 @@ namespace maxwell {
 
 class Source {
 public:
-	Source(Model& model, double spread, double delay, Direction& d, FieldType& ft);
+	Source(Model& model, double spread, double coeff, Direction& d, FieldType& ft);
 
 	double evalGaussianFunction(const Position& pos) const;
 	double evalGaussianFunction1D(const Position& pos) const;
@@ -21,7 +21,7 @@ private:
 	FieldType fieldType_;
 	Direction direction_;
 	double spread_;
-	double delay_;
+	double coeff_;
 	Vector minBB_, maxBB_;
 
 	static Vector vectorAverage(const Vector& min, const Vector& max);
@@ -31,7 +31,7 @@ struct Sources {
 public:
 
 	void addSourceToVector(const Source& source) { sourceVector_.push_back(source); }
-	std::vector<Source> getSourceVector() { return sourceVector_; }
+	std::vector<Source> getSourcesVector() const { return sourceVector_; }
 
 	Sources() = default;
 

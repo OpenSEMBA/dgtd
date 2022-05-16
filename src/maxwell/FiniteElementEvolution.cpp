@@ -169,7 +169,6 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 	return res;
 }
 
-
 FiniteElementEvolutionNoCond::Operator 
 FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Direction& d) const
 {
@@ -311,7 +310,7 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_z] +
 		//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_y]
 		// 
-		// Update E. M built with eps term.
+		// Update E.
 		MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
 		MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
 		MP_[E][E]   ->AddMult(eOld[z], eNew[x], -1.0);
@@ -319,6 +318,7 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		MF_[E][H][z]->AddMult(hOld[y], eNew[x],  1.0);
 		MP_[E][E]   ->AddMult(eOld[y], eNew[x],  1.0);
 
+		eNew[x].Neg();
 		// Update H.
 
 		MS_[H][z]   ->Mult   (eOld[y], hNew[x]);
@@ -327,6 +327,8 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		MS_[H][y]   ->AddMult(eOld[z], hNew[x], -1.0);
 		MF_[H][E][y]->AddMult(eOld[z], hNew[x],  1.0);
 		MP_[H][H]   ->AddMult(hOld[z], hNew[x],  1.0);
+
+		hNew[x].Neg();
 	}
 }
 

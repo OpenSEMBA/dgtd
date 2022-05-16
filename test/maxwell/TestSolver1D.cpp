@@ -268,6 +268,45 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
+
+TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
+{
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
+	solverOpts.t_final = 0.7;
+	solverOpts.dt = 1e-3;
+
+	Probes probes = TestMaxwellSolver1D::defaultProbes;
+	probes.paraview = true;
+	probes.vis_steps = 5;
+	probes.extractDataAtPoints = true;
+	DenseMatrix pointMat(1, 2);
+	pointMat.Elem(0, 0) = 0.5;
+	pointMat.Elem(0, 1) = 0.8;
+	probes.integPointMat = pointMat;
+
+	double spread = 2.0;
+	double coeff = 1.0;
+	Direction d = Y;
+	FieldType ft = E;
+	Source EYFieldSource = Source(testModel, spread, coeff, d, ft);
+	d = Z;
+	ft = H;
+	Source HZFieldSource = Source(testModel, spread, coeff, d, ft);
+	Sources sources;
+	sources.addSourceToVector(EYFieldSource);
+	sources.addSourceToVector(HZFieldSource);
+
+	maxwell::Solver solver(TestMaxwellSolver1D::testModel, probes,
+		sources, solverOpts);
+
+	solver.run();
+
+	std::vector<std::pair<double, std::array<std::array<double, 3>, 3>>> timeField = solver.getFieldAtPoint();
+
+}
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
 //{

@@ -47,6 +47,7 @@ if (probes_.glvis) {
 	//initializeGLVISData(); //TODO
 }
 if (probes_.extractDataAtPoints) {
+	//elemIds_.SetSize(probes_.integPointMat.Width());
 	auto aux = Solver::buildElemAndIntegrationPointArrays(probes_.integPointMat);
 	elemIds_ = aux.first;
 	integPointSet_ = Solver::buildIntegrationPointsSet(aux.second);
@@ -65,18 +66,18 @@ void Solver::checkOptionsAreValid(const Options& opts)
 
 void Solver::setInitialField()
 {
-	for (int i = 0; i < sources_.getSourceVector().size(); i++) {
+	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
 
-		auto source = sources_.getSourceVector().at(i);
+		auto source = sources_.getSourcesVector().at(i);
 		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction1D, &source, std::placeholders::_1);
 
 		switch (source.getFieldType()) {
 		case FieldType::E:
 			E_[source.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
-			return;
+			break;
 		case FieldType::H:
 			H_[source.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
-			return;
+			break;
 		}
 	}
 }
@@ -96,7 +97,7 @@ const Vector& Solver::getMaterialProperties(const Material& mat) const
 	return Vector({mat.getPermittivity(), mat.getPermeability(), mat.getImpedance(), mat.getConductance()});
 }
 
-std::pair<Array<int>, Array<IntegrationPoint>>& Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints)
+std::pair<Array<int>, Array<IntegrationPoint>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints)
 {
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
@@ -104,9 +105,12 @@ std::pair<Array<int>, Array<IntegrationPoint>>& Solver::buildElemAndIntegrationP
 	return { std::make_pair(elemIdArray, integPointArray) };
 }
 
-const std::vector<std::vector<IntegrationPoint>>& Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
+const std::vector<std::vector<IntegrationPoint>> Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
 {
-	IntegrationPointsSet res; 
+	std::vector<IntegrationPoint> aux;
+	aux.resize(model_.getConstMesh().Dimension());
+	IntegrationPointsSet res;
+	res.resize(ipArray.Size(), aux);
 	for (int i = 0; i < ipArray.Size(); i++) {
 		switch (fes_->GetMesh()->Dimension()) {
 		case 1:
@@ -207,7 +211,11 @@ void Solver::run()
 
 	bool done = false;
 	int cycle = 0;
-	int iter = 0;
+	int iter = 0; 
+	
+	if (probes_.extractDataAtPoints) {
+		timeField_.resize(opts_.t_final / opts_.dt);
+	}
 
 	while (!done) {
 
