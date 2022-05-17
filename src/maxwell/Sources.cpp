@@ -6,7 +6,7 @@ namespace maxwell {
 
 
 
-Source::Source(Model& model, double spread, double coeff, Direction& d, FieldType& ft) :
+Source::Source(Model& model,const double spread, const double coeff, const Direction& d, const FieldType& ft) :
 	spread_(spread),
 	coeff_(coeff),
 	fieldType_(ft),
