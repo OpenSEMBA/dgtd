@@ -12,6 +12,7 @@ class Probes {
         bool glvis = false;
         bool extractDataAtPoints = false;
         FieldType fieldToExtract = FieldType::E;
+        Direction directionToExtract = Direction::X;
         DenseMatrix integPointMat;
     private:
 };

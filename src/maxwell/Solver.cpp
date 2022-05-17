@@ -36,10 +36,6 @@ for (int d = X; d <= Z; d++) {
 	H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
 }
 
-//if (source_) {
-	setInitialField();
-//}
-
 if (probes_.paraview) {
 	initializeParaviewData();
 }
@@ -131,18 +127,18 @@ const std::vector<std::vector<IntegrationPoint>> Solver::buildIntegrationPointsS
 }
 const std::vector<std::array<double, 3>> Solver::saveFieldAtPoints(const FieldType& ft)
 {
-	auto maxDim = fes_->GetMesh()->Dimension();
+	auto maxDir = model_.getConstMesh().Dimension();
 	std::vector<std::array<double, 3>> res;
 	res.resize(elemIds_.Size());
 	for (int i = 0; i < elemIds_.Size(); i++) {
-		for (int dir = Direction::X; dir != maxDim; dir++) {
+		for (int dir = Direction::X; dir != maxDir; dir++) {
 			Direction d = static_cast<Direction>(dir);
 			switch (ft) {
 			case FieldType::E:
-				res[i][d] = E_[d].GetValue(elemIds_[i],integPointSet_[i][d]);
+				res[i][probes_.directionToExtract] = E_[probes_.directionToExtract].GetValue(elemIds_[i],integPointSet_[i][d]);
 				break;
 			case FieldType::H:
-				res[i][d] = H_[d].GetValue(elemIds_[i],integPointSet_[i][d]);
+				res[i][probes_.directionToExtract] = H_[probes_.directionToExtract].GetValue(elemIds_[i],integPointSet_[i][d]);
 				break;
 			}
 		}
@@ -204,6 +200,8 @@ void Solver::run()
 {
 
 	double time = 0.0;
+
+	setInitialField();
 
 	maxwellEvol_->SetTime(time);
 	odeSolver_->Init(*maxwellEvol_);

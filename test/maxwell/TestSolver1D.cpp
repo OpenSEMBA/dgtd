@@ -279,13 +279,14 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	solverOpts.dt = 1e-3;
 
 	Probes probes = TestMaxwellSolver1D::defaultProbes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 5;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 2);
 	pointMat.Elem(0, 0) = 0.5;
 	pointMat.Elem(0, 1) = 0.8;
 	probes.integPointMat = pointMat;
+	probes.directionToExtract = Y;
 
 	double spread = 2.0;
 	double coeff = 1.0;
@@ -319,12 +320,8 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	int initialTimeIndex = 0;
 	if (std::find(stringTime.begin(), stringTime.end(), "0.30") != stringTime.end()) {
 		int index = std::distance(stringTime.begin(), itr);
-		EXPECT_NEAR(timeField.at(initialTimeIndex).second.at(0).at(X), timeField.at(index).second.at(1).at(X), 2e-3);
+		EXPECT_NEAR(timeField.at(initialTimeIndex).second.at(0).at(Y), timeField.at(index).second.at(1).at(Y), 2e-3);
 	}
-	std::cout << timeField.at(initialTimeIndex).second.at(0).at(X) << std::endl;
-	std::cout << timeField.at(int(0.30/0.001/5)).second.at(1).at(X) << std::endl;
-
-	
 }
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
