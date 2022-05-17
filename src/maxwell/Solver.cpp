@@ -133,9 +133,9 @@ const std::vector<std::vector<IntegrationPoint>> Solver::buildIntegrationPointsS
 const std::vector<std::vector<std::array<double, 3>>> Solver::saveFieldAtPointsForAllProbes()
 {
 	auto maxDir = model_.getConstMesh().Dimension();
-	std::vector<FieldByVDIM> res;
+	std::vector<FieldFrame> res;
 	for (int i = 0; i < probes_.getProbeVector().size(); i++) {
-		FieldByVDIM aux;
+		FieldFrame aux;
 		aux.resize(elemIds_.at(i).Size());
 		for (int j = 0; j < elemIds_.at(i).Size(); j++) {
 			for (int dir = Direction::X; dir != maxDir; dir++) {
