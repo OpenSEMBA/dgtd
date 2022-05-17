@@ -104,7 +104,7 @@ protected:
 
 	Source testSource = Source(testModel, spread, delay, d, ft);
 
-	Probes defaultProbes;
+	Probes emptyProbes;
 
 	Options defaultOptions;
 
@@ -164,8 +164,8 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	solverOpts.t_final = 1.0;
 	solverOpts.dt = 1e-3;
 
-	Probes probes = TestMaxwellSolver1D::defaultProbes;
-	probes.paraview = true;
+	Probes probes = TestMaxwellSolver1D::emptyProbes;
+	//probes.paraview = true;
 	probes.vis_steps = 100;
 
 	Sources sources;
@@ -192,7 +192,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 	solverOpts.t_final = 2.0;
 	solverOpts.dt = 1e-3;
 
-	Probes probes = TestMaxwellSolver1D::defaultProbes;
+	Probes probes = TestMaxwellSolver1D::emptyProbes;
 	//probes.paraview = true;
 	probes.vis_steps = 50;
 
@@ -221,7 +221,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 	solverOpts.t_final = 1.0;
 	solverOpts.dt = 1e-3;
 
-	Probes probes = TestMaxwellSolver1D::defaultProbes;
+	Probes probes = TestMaxwellSolver1D::emptyProbes;
 	//probes.paraview = true;
 	probes.vis_steps = 5;
 
@@ -249,7 +249,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	solverOpts.t_final = 1.0;
 	solverOpts.dt = 1e-3;
 
-	Probes probes = TestMaxwellSolver1D::defaultProbes;
+	Probes probes = TestMaxwellSolver1D::emptyProbes;
 	//probes.paraview = true;
 	probes.vis_steps = 5;
 
@@ -278,15 +278,17 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	solverOpts.t_final = 0.7;
 	solverOpts.dt = 1e-3;
 
-	Probes probes = TestMaxwellSolver1D::defaultProbes;
+	Probes probes = TestMaxwellSolver1D::emptyProbes;
 	//probes.paraview = true;
 	probes.vis_steps = 5;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 2);
 	pointMat.Elem(0, 0) = 0.5;
 	pointMat.Elem(0, 1) = 0.8;
-	probes.integPointMat = pointMat;
-	probes.directionToExtract = Y;
+	FieldType fieldToExtract = E;
+	Direction directionToExtract = Y;
+	Probe probe(fieldToExtract, directionToExtract, pointMat);
+	probes.addProbeToVector(probe);
 
 	double spread = 2.0;
 	double coeff = 1.0;
@@ -306,21 +308,24 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	///////////////////
 
 	solver.run();
-	std::vector<std::pair<double, std::vector<std::array<double, 3>>>> timeField = solver.getFieldAtPoint();
+	std::vector<std::vector<std::pair<double, std::vector<std::array<double, 3>>>>> timeFieldVector = solver.getFieldAtPoint();
 
 	///////////////////
 
-	std::vector<std::string> stringTime(timeField.size());
-
-	for (int i = 0; i < timeField.size(); i++) {
-		stringTime[i] = std::to_string(timeField[i].first);
-		stringTime[i].resize(5);
+	std::vector<std::string> stringTime(timeFieldVector.size());
+	for (int i = 0; i < probes.getProbeVector().size(); i++){
+		for (int j = 0; j < timeFieldVector.size(); j++) {
+			stringTime[j] = std::to_string(timeFieldVector.at(i).at(j).first);
+			stringTime[j].resize(5);
+		}
 	}
 	std::vector<std::string>::iterator itr = std::find(stringTime.begin(), stringTime.end(), "0.30");
 	int initialTimeIndex = 0;
-	if (std::find(stringTime.begin(), stringTime.end(), "0.30") != stringTime.end()) {
-		int index = std::distance(stringTime.begin(), itr);
-		EXPECT_NEAR(timeField.at(initialTimeIndex).second.at(0).at(Y), timeField.at(index).second.at(1).at(Y), 2e-3);
+	for (int i = 0; i < probes.getProbeVector().size(); i++) {
+		if (std::find(stringTime.begin(), stringTime.end(), "0.30") != stringTime.end()) {
+			int index = std::distance(stringTime.begin(), itr);
+			EXPECT_NEAR(timeFieldVector.at(i).at(initialTimeIndex).second.at(0).at(Y), timeFieldVector.at(i).at(index).second.at(1).at(Y), 2e-3);
+		}
 	}
 }
 //

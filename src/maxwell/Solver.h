@@ -33,7 +33,7 @@ public:
     const Vector& getMaterialProperties(const Material&) const;
 
     mfem::Mesh& getMesh() { return mesh_; }
-    TimeFieldPair& getFieldAtPoint() { return timeField_; }
+    std::vector<TimeFieldPair>& getFieldAtPoint() { return timeField_; }
 
     void run();
 
@@ -59,12 +59,12 @@ private:
 
     std::array<GridFunction, 3> E_, H_;
 
-    Array<int> elemIds_;
-    IntegrationPointsSet integPointSet_;
-    FieldType fieldToExtract_;
+    std::vector<Array<int>> elemIds_;
+    std::vector<IntegrationPointsSet> integPointSet_;
+    std::vector<FieldType> fieldToExtract_;
     double timeRecord_;
-    FieldByVDIM fieldRecord_;
-    std::vector<std::pair<double, FieldByVDIM>> timeField_;
+    std::vector<FieldByVDIM> fieldRecord_;
+    std::vector<std::vector<std::pair<double, FieldByVDIM>>> timeField_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
@@ -72,9 +72,9 @@ private:
 
     void checkOptionsAreValid(const Options&);
 
-    std::pair<Array<int>,Array<IntegrationPoint>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
+    std::vector<std::pair<Array<int>, Array<IntegrationPoint>>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
     const IntegrationPointsSet Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
-    const FieldByVDIM saveFieldAtPoints(const FieldType&);
+    const std::vector<FieldByVDIM> saveFieldAtPointsForAllProbes();
 
     void initializeParaviewData();
     //void initializeGLVISData();
