@@ -8,9 +8,6 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	fes_(fes),
 	model_(model)
 {
-	initializeMaterialParameterVectors();
-	getMaterialParameterVectors();
-
 	for (int fInt = FieldType::E; fInt <= FieldType::H; fInt++) {
 		FieldType f = static_cast<FieldType>(fInt);
 		for (int fInt2 = FieldType::E; fInt2 <= FieldType::H; fInt2++) {
@@ -25,44 +22,25 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 	}
 }
 
-void FiniteElementEvolutionNoCond::initializeMaterialParameterVectors()
-{
-	std::vector<std::pair<attribute, Material>> matMap = model_.getAttToMatVec();
-	int max = 1;
-	for (int i = 0; i < matMap.size(); i++) {
-		if (matMap[i].first > max) {
-			max = matMap[i].first;
-		}
-	}
-	eps_.SetSize(max);
-	mu_.SetSize(max);
-	eps_ = 1.0; mu_ = 1.0;
-}
-
-void FiniteElementEvolutionNoCond::getMaterialParameterVectors()
-{
-	std::vector<std::pair<attribute, Material>> matVec = model_.getAttToMatVec();
-	for(const auto & it : matVec) {
-		eps_[it.first-1] = it.second.getPermittivity();
-		mu_[it.first-1] = it.second.getPermeability();
-	}
-}
-
 Vector
 FiniteElementEvolutionNoCond::buildPieceWiseArgVector(const FieldType& f) const
 {
 	Vector res;
+	res.SetSize(model_.getAttToMat().size());
 	
-	switch (f) {
-	case FieldType::E:
-		res.SetSize(eps_.Size());
-		res = eps_;
-		break;
-	case FieldType::H:
-		res.SetSize(mu_.Size());
-		res = mu_;
-		break;
+	std::size_t i = 0;
+	for (auto const& kv : model_.getAttToMat()) {
+		switch (f) {
+		case FieldType::E:
+			res[i] = kv.second.getPermittivity();
+			break;
+		case FieldType::H:
+			res[i] = kv.second.getPermeability();
+			break;
+		}
+		i++;
 	}
+
 	return res;
 }
 
