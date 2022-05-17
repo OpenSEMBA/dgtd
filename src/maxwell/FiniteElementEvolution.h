@@ -10,8 +10,6 @@
 
 namespace maxwell {
 
-using namespace mfem;
-
 class FiniteElementEvolutionNoCond : public TimeDependentOperator {
 public:
 
