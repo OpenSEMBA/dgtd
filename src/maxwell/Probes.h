@@ -2,6 +2,7 @@
 #include "mfem.hpp"
 #include "Types.h"
 
+
 namespace maxwell {
 
 class Probe {
