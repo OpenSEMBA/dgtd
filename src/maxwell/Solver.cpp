@@ -234,11 +234,6 @@ void Solver::run()
 
 		odeSolver_->Step(sol_, time, opts_.dt);
 
-		if (probes_.extractDataAtPoints) {
-			timeRecord_ = time;
-			fieldRecord_ = saveFieldAtPointsForAllProbes();
-		}
-
 		done = (time >= opts_.t_final);
 
 		cycle++;
@@ -246,6 +241,8 @@ void Solver::run()
 		if (done || cycle % probes_.vis_steps == 0) {
 			if (probes_.extractDataAtPoints) {
 				for (int i = 0; i < probes_.getProbeVector().size(); i++) {
+					timeRecord_ = time;
+					fieldRecord_ = saveFieldAtPointsForAllProbes();
 					probes_.getProbeVector().at(i).getFieldMovie().emplace(timeRecord_, fieldRecord_.at(i));
 				}
 			}
