@@ -47,27 +47,20 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	int getElementForPos(Mesh& mesh, double pos)
-	{
-		Vector minBB, maxBB;
-		mesh.GetBoundingBox(minBB, maxBB, 0);
-		if (pos < minBB[0] || pos > maxBB[0]) {
-			throw std::exception("Position is smaller than minboundary or bigger than maxboundary.");
-		}
-
-		return int(pos * (maxBB[0] - minBB[0]) / mesh.GetNE());
-	}
-
 	void setAttributeIntervalMesh(
 		const int& attVal, 
-		const std::vector<int>& elIndexes, 
+		const Array<int>& elIndexes, 
 		Mesh& mesh)
 	{
-		assert(elIndexes[0] < elIndexes[1], "Lower Index bigger than Higher Index.");
-		assert(elIndexes[1] <= mesh.GetNE(), "Declared element index bigger than Mesh Number of Elements.");
-			for (int i = elIndexes[0] - 1; i < elIndexes[1]; i++) {
-				mesh.SetAttribute(i, attVal);
-			}
+		if (elIndexes.begin() > elIndexes.end()) {
+			throw std::exception("Lower Index bigger than Higher Index.");
+		}
+		if (elIndexes[1] > mesh.GetNE()) {
+			throw std::exception("Declared element index bigger than Mesh Number of Elements.");
+		}
+		for (int i = elIndexes[0] - 1; i < elIndexes[1]; i++) {
+			mesh.SetAttribute(i, attVal);
+		}
 	}
 
 	std::vector<int> mapQuadElementTopLeftVertex(
@@ -364,7 +357,7 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 
 }
 
-TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflexion_SMA_PEC)
+TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -373,7 +366,7 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflexion_SMA_PEC)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
+	probes.paraview = true;
 	probes.vis_steps = 5;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 2);
@@ -386,10 +379,14 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflexion_SMA_PEC)
 
 	int meshIntervals = 101;
 	Mesh mesh1D = Mesh::MakeCartesian1D(meshIntervals);
-	;
-	HelperFunctions::setAttributeIntervalMesh(2, 
-		std::vector<int>({HelperFunctions::getElementForPos(mesh1D,0.75), mesh1D.GetNE()}), 
-		mesh1D);
+	DenseMatrix changeAttMat(1,2);
+	changeAttMat.Elem(0, 0) = 0.75;
+	changeAttMat.Elem(0, 1) = 1.0;
+	Array<int> elemID;
+	Array<IntegrationPoint> integPoint;
+	mesh1D.FindPoints(changeAttMat, elemID, integPoint);
+
+	HelperFunctions::setAttributeIntervalMesh(2,elemID,mesh1D);
 
 	std::vector<Material> matVec;
 	matVec.push_back(Material(1.0, 1.0));
@@ -403,13 +400,13 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflexion_SMA_PEC)
 	Direction d = Y;
 	FieldType ft = E;
 
-	Source EYFieldSource = 
-	Source HZFieldSource = 
+	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
+	Source HZFieldSource = Source(model, spread, coeff, dev, Z, H);
 	Sources sources;
 	sources.addSourceToVector(EYFieldSource);
 	sources.addSourceToVector(HZFieldSource);
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(meshIntervals), probes,
+	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
 
 	///////////////////
