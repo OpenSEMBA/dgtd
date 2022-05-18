@@ -221,16 +221,12 @@ void Solver::run()
 
 	bool done = false;
 	int cycle = 0;
-	int iter = 0; 
 	
 	if (probes_.extractDataAtPoints) {
 		timeRecord_ = time;
 		for (int i = 0; i < probes_.getProbeVector().size(); i++) {
 			fieldRecord_ = saveFieldAtPointsForAllProbes();
-			timeField_.resize(std::ceil(opts_.t_final / opts_.dt / probes_.vis_steps) + 1);
-			timeField_[iter].at(i).first = timeRecord_;
-			timeField_[iter].at(i).second = fieldRecord_.at(i);
-			iter++;
+			probes_.getProbeVector().at(i).getFieldMovie().emplace(timeRecord_, fieldRecord_.at(i));
 		}
 	}
 
@@ -250,9 +246,7 @@ void Solver::run()
 		if (done || cycle % probes_.vis_steps == 0) {
 			if (probes_.extractDataAtPoints) {
 				for (int i = 0; i < probes_.getProbeVector().size(); i++) {
-					timeField_[iter].at(i).first = timeRecord_;
-					timeField_[iter].at(i).second = fieldRecord_.at(i);
-					iter++;
+					probes_.getProbeVector().at(i).getFieldMovie().emplace(timeRecord_, fieldRecord_.at(i));
 				}
 			}
 			if (probes_.paraview) {

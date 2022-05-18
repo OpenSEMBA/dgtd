@@ -5,18 +5,21 @@
 namespace maxwell {
 
 class Probe {
+
 public:
 
     Probe(const FieldType&, const Direction&, DenseMatrix& integPointMat);
     const FieldType& getFieldType() const { return fieldToExtract_; }
     const Direction& getDirection() const { return directionToExtract_; }
     DenseMatrix& getIntegPointMat() { return integPointMat_; }
+    FieldMovie& getFieldMovie() { return fieldMovie_; }
     
 private:
 
     FieldType fieldToExtract_;
     Direction directionToExtract_;
     DenseMatrix integPointMat_;
+    FieldMovie fieldMovie_;
     
 };
 

@@ -75,6 +75,20 @@ namespace HelperFunctions {
 		}
 		return res;
 	}
+
+	std::map<Time, FieldFrame>::const_iterator findTimeId(
+		const std::map<Time, FieldFrame>& timeMap,
+		const Time& timeToFind,
+		const double tolerance)
+	{
+		for (auto it = timeMap.begin(); it != timeMap.end(); it++) {
+			const Time& time = it->first;
+			if (abs(time - timeToFind) < tolerance) {
+				return it;
+			}
+		}
+		return timeMap.end();
+	}
 }
 using namespace AnalyticalFunctions1D;
 
@@ -82,8 +96,6 @@ class TestMaxwellSolver1D : public ::testing::Test {
 protected:
 
 	Mesh mesh1D = Mesh::MakeCartesian1D(51,1.0);
-	Mesh mesh2D = Mesh::MakeCartesian2D(20, 20, Element::Type::QUADRILATERAL, 1.0, 1.0);
-	Mesh mesh3D = Mesh::MakeCartesian3D(10, 10, 10, Element::Type::HEXAHEDRON, 1.0, 1.0, 1.0);
 	
 	Material mat11 = Material(1.0, 1.0); Material mat12 = Material(1.0, 2.0);
 	Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
@@ -308,25 +320,24 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	///////////////////
 
 	solver.run();
-	std::vector<std::vector<std::pair<double, std::vector<std::array<double, 3>>>>> timeFieldVector = solver.getFieldAtPoint();
+	Probe probeEY = solver.getProbe(0);
 
 	///////////////////
 
-	std::vector<std::string> stringTime(timeFieldVector.size());
-	for (int i = 0; i < probes.getProbeVector().size(); i++){
-		for (int j = 0; j < timeFieldVector.size(); j++) {
-			stringTime[j] = std::to_string(timeFieldVector.at(i).at(j).first);
-			stringTime[j].resize(5);
-		}
+	auto it = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.0, 1e-6);
+	if (it == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
 	}
-	std::vector<std::string>::iterator itr = std::find(stringTime.begin(), stringTime.end(), "0.30");
-	int initialTimeIndex = 0;
-	for (int i = 0; i < probes.getProbeVector().size(); i++) {
-		if (std::find(stringTime.begin(), stringTime.end(), "0.30") != stringTime.end()) {
-			int index = std::distance(stringTime.begin(), itr);
-			EXPECT_NEAR(timeFieldVector.at(i).at(initialTimeIndex).second.at(0).at(Y), timeFieldVector.at(i).at(index).second.at(1).at(Y), 2e-3);
-		}
+	auto EYValForFirstPos = it->second.at(0).at(Y);
+
+	auto it2 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.3, 1e-6);
+	if (it2 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
 	}
+	auto EYValForSecondPos = it2->second.at(1).at(Y);
+	
+	EXPECT_NEAR(EYValForSecondPos, EYValForFirstPos, 2e-3);
+
 }
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)

@@ -16,11 +16,6 @@ class Solver {
 public:
 
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
-
-    using Time = double;
-    using CVec3 = std::array<double, 3>;
-    using FieldFrame = std::vector<CVec3>;
-    using FieldMovie = std::map<Time, FieldFrame>;
     
     struct Options {
         int order = 2;
@@ -34,9 +29,9 @@ public:
     void setInitialField();
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const Vector& getMaterialProperties(const Material&) const;
+    const Probe& getProbe(const std::size_t probe) const { return probes_.getProbeVector().at(probe); }
 
     mfem::Mesh& getMesh() { return mesh_; }
-    std::vector<FieldMovie>& getFieldForProbe(std::size_t probeNum) { return timeField_; }
 
     void run();
 
@@ -67,7 +62,6 @@ private:
     std::vector<FieldType> fieldToExtract_;
     double timeRecord_;
     std::vector<FieldFrame> fieldRecord_;
-    std::vector<std::vector<std::pair<double, FieldFrame>>> timeField_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
