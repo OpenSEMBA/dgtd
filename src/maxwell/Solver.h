@@ -24,7 +24,7 @@ public:
         FiniteElementEvolutionNoCond::Options evolutionOperatorOptions;
     };
 
-    Solver(const Model&, const Probes&, const Sources&, const Options&);
+    Solver(const Model&, Probes&, const Sources&, const Options&);
 
     void setInitialField();
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
@@ -38,7 +38,7 @@ public:
 private:
 
     Model model_;
-    Probes probes_;
+    Probes& probes_;
     Sources sources_;
     Options opts_;
     
@@ -59,7 +59,6 @@ private:
 
     std::vector<Array<int>> elemIds_;
     std::vector<IntegrationPointsSet> integPointSet_;
-    std::vector<FieldType> fieldToExtract_;
     double timeRecord_;
     std::vector<FieldFrame> fieldRecord_;
 

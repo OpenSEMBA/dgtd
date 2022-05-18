@@ -2,7 +2,6 @@
 #include "mfem.hpp"
 #include "Types.h"
 
-
 namespace maxwell {
 
 class Probe {
@@ -35,7 +34,7 @@ public:
     Probes() = default;
 
     void addProbeToVector(const Probe& probe) { probeVector_.push_back(probe); }
-    std::vector<Probe> getProbeVector() const { return probeVector_; }
+    std::vector<Probe>& getProbeVector() { return probeVector_; }
 
 private:
 
