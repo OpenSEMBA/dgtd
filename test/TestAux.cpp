@@ -49,7 +49,7 @@ namespace HelperFunctions {
 
 	SparseMatrix* rotateMatrixLexico(BilinearForm& matrix)
 	{
-		const Operator* rotatorOperator = matrix.GetFES()->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
+		const Operator* rotatorOperator = matrix.FESpace()->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
 		const SparseMatrix rotatorMatrix = HelperFunctions::operatorToSparseMatrix(rotatorOperator);
 		const SparseMatrix matrixSparse = matrix.SpMat();
 		SparseMatrix* res;
@@ -245,8 +245,8 @@ TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
 		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumRows(), massMatrixDGSparse.NumRows());
 		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumCols(), massMatrixDGSparse.NumCols());
 
-		for (std::size_t i = 0; i < massMatrixDGSparse.NumRows(); i++) {
-			for (std::size_t j = 0; j < massMatrixDGSparse.NumCols(); j++) {
+		for (int i = 0; i < massMatrixDGSparse.NumRows(); i++) {
+			for (int j = 0; j < massMatrixDGSparse.NumCols(); j++) {
 				EXPECT_NEAR(rotatedMassMatrixH1Sparse->Elem(i, j), massMatrixDGSparse.Elem(i, j), 1e-5);
 			}
 		}
@@ -375,8 +375,8 @@ TEST_F(Auxiliary, checkKOperators)
 	ASSERT_EQ(matrixK->NumRows(), matrixF->NumRows());
 	ASSERT_EQ(matrixK->NumCols(), matrixF->NumCols());
 
-	for (std::size_t i = 0; i < matrixK->NumRows(); i++) {
-		for (std::size_t j = 0; j < matrixK->NumCols(); j++) {
+	for (int i = 0; i < matrixK->NumRows(); i++) {
+		for (int j = 0; j < matrixK->NumCols(); j++) {
 			EXPECT_NEAR(matrixK->Elem(i, j), matrixS->Elem(i, j) + matrixF->Elem(i, j), tol);
 		}
 	}
@@ -485,7 +485,6 @@ TEST_F(Auxiliary, printGLVISDataForBasisFunctionNodes)
 
 	Vector nodalVector(order + 1);
 	Vector dofVector(order + 1);
-	IntegrationPoint integPoint;
 	Array<int> vdofs;
 
 	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);

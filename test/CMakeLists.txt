@@ -8,8 +8,12 @@ include_directories(${MFEM_INCLUDE_DIRS})
 
 include_directories(${maxwell_solvers_INCLUDE_DIRS})
 
-add_executable(maxwell_tests "TestAux.cpp" "maxwell/TestSolver1D.cpp" "maxwell/TestBilinearIntegrators.cpp" "maxwell/TestMaterial.cpp")
+add_executable(maxwell_tests 
+"TestAux.cpp" 
+"maxwell/TestSolver1D.cpp" 
+"maxwell/TestBilinearIntegrators.cpp" 
+"maxwell/TestMaterial.cpp")
 
-target_link_libraries(maxwell_tests maxwell_solvers mfem GTest::gtest GTest::gtest_main) 
+target_link_libraries(maxwell_tests maxwell_solvers GTest::gtest GTest::gtest_main) 
 
 

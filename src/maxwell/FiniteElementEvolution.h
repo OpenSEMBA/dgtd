@@ -10,8 +10,6 @@
 
 namespace maxwell {
 
-using namespace mfem;
-
 class FiniteElementEvolutionNoCond : public TimeDependentOperator {
 public:
 
@@ -37,7 +35,6 @@ private:
 
 	FiniteElementSpace* fes_;
 	Options opts_;
-	Vector eps_, mu_;
 	Model model_;
 
 	std::array<std::array<Operator, 3>, 2> MS_;
@@ -53,9 +50,6 @@ private:
 	Operator buildPenaltyOperator(const FieldType& f, const Direction& d) const;
 
 	Operator buildByMult(const BilinearForm*, const BilinearForm*) const;
-
-	void getMaterialParameterVectors();
-	void initializeMaterialParameterVectors();
 
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorPenaltyFluxCoefficient() const;

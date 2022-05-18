@@ -67,11 +67,11 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	std::vector<std::pair<attribute, Material>> buildAttToMatVec(const std::vector<attribute>& attVec, const std::vector<Material>& matVec)
+	AttributeToMaterial buildAttToMatVec(const std::vector<Attribute>& attVec, const std::vector<Material>& matVec)
 	{
-		std::vector<std::pair<attribute, Material>> res;
+		AttributeToMaterial res;
 		for (int i = 0; i < attVec.size(); i++) {
-			res.push_back(std::make_pair(attVec[i], matVec[i]));
+			res.emplace(attVec[i], matVec[i]);
 		}
 		return res;
 	}
@@ -88,12 +88,12 @@ protected:
 	Material mat11 = Material(1.0, 1.0); Material mat12 = Material(1.0, 2.0);
 	Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
 	
-	std::vector<attribute> attArrSingle = std::vector<attribute>({ 1 });
-	std::vector<attribute> attArrMultiple = std::vector<attribute>({ 1, 2, 3, 4 });
+	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
+	std::vector<Attribute> attArrMultiple = std::vector<Attribute>({ 1, 2, 3, 4 });
 	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
 	std::vector<Material> matArrMultiple = std::vector<Material>({ mat11,mat12,mat21,mat22 });
 
-	std::vector<std::pair<attribute, Material>> attToMatVec = HelperFunctions::buildAttToMatVec(attArrSingle, matArrSimple);
+	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatVec(attArrSingle, matArrSimple);
 
 	Model testModel = Model(mesh1D, attToMatVec);
 

@@ -2,7 +2,7 @@
 
 namespace maxwell {
 
-Model::Model(Mesh& mesh, std::vector<std::pair<attribute, Material>>& matVec) :
+Model::Model(Mesh& mesh, const AttributeToMaterial& matVec) :
 mesh_(mesh),
 attToMatVec_(matVec)
 {

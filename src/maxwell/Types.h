@@ -4,6 +4,8 @@
 
 namespace maxwell {
 
+using namespace mfem;
+
 using Position = mfem::Vector;
 
 enum FieldType {

@@ -16,8 +16,11 @@ class Solver {
 public:
 
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
-    using FieldByVDIM = std::vector<std::array<double, 3>>;
-    using TimeFieldPair = std::vector<std::pair<double, FieldByVDIM>>;
+
+    using Time = double;
+    using CVec3 = std::array<double, 3>;
+    using FieldFrame = std::vector<CVec3>;
+    using FieldMovie = std::map<Time, FieldFrame>;
     
     struct Options {
         int order = 2;
@@ -33,7 +36,7 @@ public:
     const Vector& getMaterialProperties(const Material&) const;
 
     mfem::Mesh& getMesh() { return mesh_; }
-    std::vector<TimeFieldPair>& getFieldAtPoint() { return timeField_; }
+    std::vector<FieldMovie>& getFieldForProbe(std::size_t probeNum) { return timeField_; }
 
     void run();
 
@@ -63,8 +66,8 @@ private:
     std::vector<IntegrationPointsSet> integPointSet_;
     std::vector<FieldType> fieldToExtract_;
     double timeRecord_;
-    std::vector<FieldByVDIM> fieldRecord_;
-    std::vector<std::vector<std::pair<double, FieldByVDIM>>> timeField_;
+    std::vector<FieldFrame> fieldRecord_;
+    std::vector<std::vector<std::pair<double, FieldFrame>>> timeField_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
@@ -74,7 +77,7 @@ private:
 
     std::vector<std::pair<Array<int>, Array<IntegrationPoint>>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
     const IntegrationPointsSet Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
-    const std::vector<FieldByVDIM> saveFieldAtPointsForAllProbes();
+    const std::vector<FieldFrame> saveFieldAtPointsForAllProbes();
 
     void initializeParaviewData();
     //void initializeGLVISData();
