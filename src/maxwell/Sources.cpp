@@ -6,13 +6,24 @@ namespace maxwell {
 
 
 
-Source::Source(Model& model,const double spread, const double coeff, const Direction& d, const FieldType& ft) :
+Source::Source(
+	Model& model,
+	const double spread, 
+	const double coeff, 
+	const double devFromCenter, 
+	const Direction& d, 
+	const FieldType& ft) :
+
 	spread_(spread),
 	coeff_(coeff),
+	devFromCenter_(devFromCenter),
 	fieldType_(ft),
 	direction_(d)
 {
 	model.getMesh().GetBoundingBox(minBB_, maxBB_, 0);
+	if (devFromCenter_ < minBB_[0] || devFromCenter_ > maxBB_[0]) {
+		throw std::exception("Deviation from center cannot be smaller than min boundary or bigger than max boundary values.");
+	}
 };
 
 double Source::evalGaussianFunction(const Position& pos) const
@@ -30,10 +41,10 @@ double Source::evalGaussianFunction(const Position& pos) const
 
 double Source::evalGaussianFunction1D(const Position& pos) const
 {
-	double center = (minBB_[0] + maxBB_[0]) * 0.5;
+	double center = (minBB_[0] + maxBB_[0]) * 0.5 - devFromCenter_;
 	double normalizedPos = 2 * (pos[0] - center) / (maxBB_[0] - minBB_[0]);
 	return coeff_ * (1.0 / spread_ * sqrt(2.0 * M_PI)) *
-		exp(-40 * pow(normalizedPos, 2.0) / pow(spread_, 2.0));
+		exp(-40 * pow(normalizedPos , 2.0) / pow(spread_, 2.0));
 
 }
 Vector Source::vectorAverage(const Vector& a, const Vector& b)

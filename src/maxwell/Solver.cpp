@@ -36,6 +36,8 @@ for (int d = X; d <= Z; d++) {
 	H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
 }
 
+setInitialField();
+
 if (probes_.paraview) {
 	initializeParaviewData();
 }
@@ -206,7 +208,7 @@ void Solver::run()
 
 	double time = 0.0;
 
-	setInitialField();
+
 
 	maxwellEvol_->SetTime(time);
 	odeSolver_->Init(*maxwellEvol_);

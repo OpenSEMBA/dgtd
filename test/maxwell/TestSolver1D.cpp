@@ -47,9 +47,20 @@ namespace HelperFunctions {
 		return res;
 	}
 
+	int getElementForPos(Mesh& mesh, double pos)
+	{
+		Vector minBB, maxBB;
+		mesh.GetBoundingBox(minBB, maxBB, 0);
+		if (pos < minBB[0] || pos > maxBB[0]) {
+			throw std::exception("Position is smaller than minboundary or bigger than maxboundary.");
+		}
+
+		return int(pos * (maxBB[0] - minBB[0]) / mesh.GetNE());
+	}
+
 	void setAttributeIntervalMesh(
 		const int& attVal, 
-		const Vector& elIndexes, 
+		const std::vector<int>& elIndexes, 
 		Mesh& mesh)
 	{
 		assert(elIndexes[0] < elIndexes[1], "Lower Index bigger than Higher Index.");
@@ -113,11 +124,10 @@ protected:
 		matArrMultiple.push_back(mat21); matArrMultiple.push_back(mat22);
 		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatVec(attArrMultiple, matArrMultiple);
 		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec);
-
 	}
 
 	Model buildOneDimOneMatModel(
-		const int meshIntervals) {
+		const int meshIntervals = 51) {
 
 		std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
 		Material mat11 = Material(1.0, 1.0);
@@ -129,12 +139,13 @@ protected:
 	Source buildSourceOneDimOneMat(
 		const int meshIntervals = 51, 
 		const double spread = 2.0, 
-		const double coeff = 0.0, 
+		const double coeff = 1.0, 
+		const double dev = 0.0,
 		const Direction& d = Y, 
 		const FieldType& ft = E){
-		return Source(buildOneDimOneMatModel(meshIntervals), spread, coeff, d, ft);
-	}
 
+		return Source(buildOneDimOneMatModel(meshIntervals), spread, coeff, dev, d, ft);
+	}
 
 };
 
@@ -189,21 +200,20 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-	solverOpts.t_final = 1.0;
+	solverOpts.t_final = 2.0;
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
 	//probes.paraview = true;
-	probes.vis_steps = 100;
+	probes.vis_steps = 50;
 
 	Sources sources;
 	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(51), probes, 
+	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes, 
 						sources, solverOpts);
 	
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
-	eOld.Neg();
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
 
@@ -227,13 +237,12 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 	Sources sources;
 	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(51), probes,
+	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
-	//eNew.Neg();
 
 	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
@@ -256,7 +265,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 	Sources sources;
 	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(51), probes,
+	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
@@ -284,7 +293,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	Sources sources;
 	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(51), probes,
+	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
@@ -320,15 +329,16 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 
 	double spread = 2.0;
 	double coeff = 1.0;
+	double dev = 0.0;
 	Direction d = Y;
 	FieldType ft = E;
 	Source EYFieldSource = TestMaxwellSolver1D::buildSourceOneDimOneMat();
-	Source HZFieldSource = TestMaxwellSolver1D::buildSourceOneDimOneMat(51,2.0,0.0,Z,H);
+	Source HZFieldSource = TestMaxwellSolver1D::buildSourceOneDimOneMat(51, spread, coeff, dev, Z, H);
 	Sources sources;
 	sources.addSourceToVector(EYFieldSource);
 	sources.addSourceToVector(HZFieldSource);
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(51), probes,
+	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	///////////////////
@@ -350,6 +360,77 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	}
 	auto EYValForSecondPos = it2->second.at(1).at(Y);
 	
+	EXPECT_NEAR(EYValForSecondPos, EYValForFirstPos, 2e-3);
+
+}
+
+TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflexion_SMA_PEC)
+{
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.t_final = 1.5;
+	solverOpts.dt = 1e-3;
+
+	Probes probes;
+	//probes.paraview = true;
+	probes.vis_steps = 5;
+	probes.extractDataAtPoints = true;
+	DenseMatrix pointMat(1, 2);
+	pointMat.Elem(0, 0) = 0.3;
+	pointMat.Elem(0, 1) = 0.1;
+	FieldType fieldToExtract = E;
+	Direction directionToExtract = Y;
+	Probe probe(fieldToExtract, directionToExtract, pointMat);
+	probes.addProbeToVector(probe);
+
+	int meshIntervals = 101;
+	Mesh mesh1D = Mesh::MakeCartesian1D(meshIntervals);
+	;
+	HelperFunctions::setAttributeIntervalMesh(2, 
+		std::vector<int>({HelperFunctions::getElementForPos(mesh1D,0.75), mesh1D.GetNE()}), 
+		mesh1D);
+
+	std::vector<Material> matVec;
+	matVec.push_back(Material(1.0, 1.0));
+	matVec.push_back(Material(2.0, 1.0));
+	std::vector<Attribute> attVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(mesh1D, HelperFunctions::buildAttToMatVec(attVec, matVec));
+
+	double spread = 1.0;
+	double coeff = 0.5;
+	double dev = 0.2;
+	Direction d = Y;
+	FieldType ft = E;
+
+	Source EYFieldSource = 
+	Source HZFieldSource = 
+	Sources sources;
+	sources.addSourceToVector(EYFieldSource);
+	sources.addSourceToVector(HZFieldSource);
+
+	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(meshIntervals), probes,
+		sources, solverOpts);
+
+	///////////////////
+
+	solver.run();
+	Probe probeEY = solver.getProbe(0);
+
+	///////////////////
+
+	auto it = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.0, 1e-6);
+	if (it == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValForFirstPos = it->second.at(0).at(Y);
+
+	auto it2 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.3, 1e-6);
+	if (it2 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValForSecondPos = it2->second.at(1).at(Y);
+
 	EXPECT_NEAR(EYValForSecondPos, EYValForFirstPos, 2e-3);
 
 }
