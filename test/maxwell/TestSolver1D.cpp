@@ -102,10 +102,19 @@ using namespace AnalyticalFunctions1D;
 class TestMaxwellSolver1D : public ::testing::Test {
 protected:
 
-	//Material mat12 = Material(1.0, 2.0);
-	//Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
-	//std::vector<Attribute> attArrMultiple = std::vector<Attribute>({ 1, 2, 3, 4 });
-	//std::vector<Material> matArrMultiple = std::vector<Material>({ mat11,mat12,mat21,mat22 });
+	Model buildOneDimFourMatModel(
+		const int meshIntervals) {
+
+		std::vector<Attribute> attArrMultiple = std::vector<Attribute>({ 1, 2, 3, 4 });
+		Material mat11 = Material(1.0, 1.0); Material mat12 = Material(1.0, 2.0);
+		Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
+		std::vector<Material> matArrMultiple;
+		matArrMultiple.push_back(mat11); matArrMultiple.push_back(mat12);
+		matArrMultiple.push_back(mat21); matArrMultiple.push_back(mat22);
+		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatVec(attArrMultiple, matArrMultiple);
+		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec);
+
+	}
 
 	Model buildOneDimOneMatModel(
 		const int meshIntervals) {
