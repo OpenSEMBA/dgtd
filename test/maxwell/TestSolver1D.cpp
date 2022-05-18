@@ -58,7 +58,7 @@ namespace HelperFunctions {
 		if (elIndexes[1] > mesh.GetNE()) {
 			throw std::exception("Declared element index bigger than Mesh Number of Elements.");
 		}
-		for (int i = elIndexes[0] - 1; i < elIndexes[1]; i++) {
+		for (int i = elIndexes[0]; i <= elIndexes[1]; i++) {
 			mesh.SetAttribute(i, attVal);
 		}
 	}
@@ -367,7 +367,7 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	Probes probes;
 	probes.paraview = true;
-	probes.vis_steps = 5;
+	probes.vis_steps = 10;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 2);
 	pointMat.Elem(0, 0) = 0.3;
@@ -380,7 +380,7 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	int meshIntervals = 101;
 	Mesh mesh1D = Mesh::MakeCartesian1D(meshIntervals);
 	DenseMatrix changeAttMat(1,2);
-	changeAttMat.Elem(0, 0) = 0.75;
+	changeAttMat.Elem(0, 0) = 0.76;
 	changeAttMat.Elem(0, 1) = 1.0;
 	Array<int> elemID;
 	Array<IntegrationPoint> integPoint;
