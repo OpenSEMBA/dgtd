@@ -116,7 +116,8 @@ protected:
 		matArrMultiple.push_back(mat11); matArrMultiple.push_back(mat12);
 		matArrMultiple.push_back(mat21); matArrMultiple.push_back(mat22);
 		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatVec(attArrMultiple, matArrMultiple);
-		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec);
+		AttributeToBoundary attToBdrVec;
+		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec, attToBdrVec);
 	}
 
 	Model buildOneDimOneMatModel(
@@ -126,7 +127,8 @@ protected:
 		Material mat11 = Material(1.0, 1.0);
 		std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
 		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatVec(attArrSingle, matArrSimple);
-		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec);
+		AttributeToBoundary attToBdrVec;
+		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec, attToBdrVec);
 	}
 
 	Source buildSourceOneDimOneMat(
@@ -392,7 +394,8 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	matVec.push_back(Material(1.0, 1.0));
 	matVec.push_back(Material(2.0, 1.0));
 	std::vector<Attribute> attVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(mesh1D, HelperFunctions::buildAttToMatVec(attVec, matVec));
+	AttributeToBoundary attToBdrVec;
+	Model model = Model(mesh1D, HelperFunctions::buildAttToMatVec(attVec, matVec), attToBdrVec);
 
 	double spread = 1.0;
 	double coeff = 0.5;
