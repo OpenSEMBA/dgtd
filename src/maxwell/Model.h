@@ -17,16 +17,20 @@ using AttributeToBoundary = std::map<Attribute, BdrCond>;
 class Model {
 public:
 
-	Model(Mesh& mesh, const AttributeToMaterial& attToMatVec, const AttributeToBoundary& bdrVec);
+	Model(Mesh&, const AttributeToMaterial&, const AttributeToBoundary&);
 	Mesh& getMesh() { return mesh_; };
 	const Mesh& getConstMesh() const { return mesh_; };
-	const AttributeToMaterial& getAttToMat() const { return attToMatVec_; }
-	const AttributeToBoundary& getAttToBdr() const { return attToBdrVec_; }
+	const AttributeToMaterial& getAttToMat() const { return attToMatMap_; }
+	const AttributeToBoundary& getAttToBdr() const { return attToBdrMap_; }
+	const Array<int>& getBdrMarkers() const { return bdrMarkers_; }
+	const Array<BdrCond>& getBdrConds() const { return bdrCondArr_; }
 
 private:
 	Mesh mesh_;
-	AttributeToMaterial attToMatVec_;
-	AttributeToBoundary attToBdrVec_;
+	AttributeToMaterial attToMatMap_;
+	AttributeToBoundary attToBdrMap_;
+	Array<int> bdrMarkers_;
+	Array<BdrCond> bdrCondArr_;
 
 };
 

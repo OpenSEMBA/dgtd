@@ -76,13 +76,24 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	AttributeToMaterial buildAttToMatVec(
+	AttributeToMaterial buildAttToMatMap(
 		const std::vector<Attribute>& attVec, 
 		const std::vector<Material>& matVec)
 	{
 		AttributeToMaterial res;
 		for (int i = 0; i < attVec.size(); i++) {
 			res.emplace(attVec[i], matVec[i]);
+		}
+		return res;
+	}
+
+	AttributeToBoundary buildAttToBdrMap(
+		const std::vector<Attribute>& attVec,
+		const std::vector<BdrCond>& bdrVec)
+	{
+		AttributeToBoundary res;
+		for (int i = 0; i < attVec.size(); i++) {
+			res.emplace(attVec[i], bdrVec[i]);
 		}
 		return res;
 	}
@@ -115,7 +126,7 @@ protected:
 		std::vector<Material> matArrMultiple;
 		matArrMultiple.push_back(mat11); matArrMultiple.push_back(mat12);
 		matArrMultiple.push_back(mat21); matArrMultiple.push_back(mat22);
-		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatVec(attArrMultiple, matArrMultiple);
+		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrMultiple, matArrMultiple);
 		AttributeToBoundary attToBdrVec;
 		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec, attToBdrVec);
 	}
@@ -126,7 +137,7 @@ protected:
 		std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
 		Material mat11 = Material(1.0, 1.0);
 		std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatVec(attArrSingle, matArrSimple);
+		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
 		AttributeToBoundary attToBdrVec;
 		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec, attToBdrVec);
 	}
@@ -393,9 +404,11 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	std::vector<Material> matVec;
 	matVec.push_back(Material(1.0, 1.0));
 	matVec.push_back(Material(2.0, 1.0));
+	std::vector<BdrCond> bdrVec;
+	bdrVec.push_back(BdrCond::SMA);
+	bdrVec.push_back(BdrCond::PEC);
 	std::vector<Attribute> attVec = std::vector<Attribute>({ 1, 2 });
-	AttributeToBoundary attToBdrVec;
-	Model model = Model(mesh1D, HelperFunctions::buildAttToMatVec(attVec, matVec), attToBdrVec);
+	Model model = Model(mesh1D, HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(attVec,bdrVec));
 
 	double spread = 1.0;
 	double coeff = 0.5;

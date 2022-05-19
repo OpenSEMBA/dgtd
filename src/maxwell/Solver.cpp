@@ -209,8 +209,6 @@ void Solver::run()
 
 	double time = 0.0;
 
-
-
 	maxwellEvol_->SetTime(time);
 	odeSolver_->Init(*maxwellEvol_);
 
