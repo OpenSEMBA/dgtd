@@ -190,6 +190,7 @@ void Solver::storeInitialVisualizationValues()
 		pd_->SetTime(0.0);
 		pd_->Save();
 	}
+
 	//if (probes_.glvis) { // TODO
 	//	std::ofstream omesh("Maxwell1D_RK4.mesh");
 	//	omesh.precision(probes_.precision);
