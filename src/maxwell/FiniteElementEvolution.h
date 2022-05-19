@@ -53,8 +53,8 @@ private:
 
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorPenaltyFluxCoefficient() const;
-	FluxCoefficient boundaryFluxCoefficient(const FieldType&) const;
-	FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType&) const;
+	FluxCoefficient boundaryFluxCoefficient(const FieldType&, const BdrCond& bdrC) const;
+	FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType&, const BdrCond& bdrC) const;
 };
 
 }

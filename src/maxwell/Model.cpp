@@ -5,9 +5,6 @@ namespace maxwell {
 	Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap) :
 		mesh_(mesh)
 	{
-		if (matMap.size() != bdrMap.size()) {
-			throw std::exception("Material and Boundary maps must have same size.");
-		}
 
 		if (matMap.size() == 0) {
 			attToMatMap_.emplace(1, Material(1.0, 1.0));
@@ -17,15 +14,23 @@ namespace maxwell {
 		}
 
 		if (bdrMap.size() == 0) {
-			attToBdrMap_.emplace(1, BdrCond::PEC);
+			for (int i = 0; i < mesh.bdr_attributes.Max(); i++) {
+				attToBdrMap_.emplace(i, BdrCond::PEC);
+			}
 		}
 		else {
 			attToBdrMap_ = bdrMap;
 		}
-		for (auto const& it : attToBdrMap_) {
-			bdrMarkers_.Append(it.first);
-			bdrCondArr_.Append(it.second);
+
+		if (mesh.bdr_attributes.Max() != attToBdrMap_.size()) {
+			throw std::exception("Max Mesh Boundary Attributes and Boundary maps must have same size.");
 		}
-}
+
+		bdrMarkers_.SetSize(attToBdrMap_.size());
+		bdrMarkers_ = 0; //No condition for any att. Mfem. Obscure.
+
+		for (auto const& imap : attToBdrMap_)
+			bdrCondVec_.push_back(imap.second);
+	}
 
 }

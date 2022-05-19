@@ -139,8 +139,13 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 	{
-		FluxCoefficient c = boundaryFluxCoefficient(f);
-		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		for (int i = 0; i < model_.getBdrConds().size(); i++) {
+			auto bdrCond = model_.getBdrConds().at(i);
+			FluxCoefficient c = boundaryFluxCoefficient(f, bdrCond);
+			auto bdrMark = model_.getBdrMarkers();
+			bdrMark[i] = 1;
+			res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMark);
+		}
 	}
 	res->Assemble();
 	res->Finalize();
@@ -160,10 +165,15 @@ FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Dir
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 	{
-		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f);
-		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		for (int i = 0; i < model_.getBdrConds().size(); i++) {
+			auto bdrCond = model_.getBdrConds().at(i);
+			FluxCoefficient c = boundaryPenaltyFluxCoefficient(f,bdrCond);
+			auto bdrMark = model_.getBdrMarkers();
+			bdrMark = 1;
+			res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta),bdrMark);
+		}
 	}
-
+	
 	res->Assemble();
 	res->Finalize();
 
@@ -201,9 +211,9 @@ FiniteElementEvolutionNoCond::interiorPenaltyFluxCoefficient() const
 }
 
 FiniteElementEvolutionNoCond::FluxCoefficient 
-FiniteElementEvolutionNoCond::boundaryFluxCoefficient(const FieldType& f) const
+FiniteElementEvolutionNoCond::boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
 {
-	switch (opts_.bdrCond) {
+	switch (bdrC) {
 	case BdrCond::PEC:
 		switch (f) {
 		case FieldType::E:
@@ -229,13 +239,13 @@ FiniteElementEvolutionNoCond::boundaryFluxCoefficient(const FieldType& f) const
 }
 
 FiniteElementEvolutionNoCond::FluxCoefficient 
-FiniteElementEvolutionNoCond::boundaryPenaltyFluxCoefficient(const FieldType& f) const
+FiniteElementEvolutionNoCond::boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
 		return FluxCoefficient{ 0.0, 0.0 };
 	case FluxType::Upwind:
-		switch (opts_.bdrCond) {
+		switch (bdrC) {
 		case BdrCond::PEC:
 			switch (f) {
 			case FieldType::E:

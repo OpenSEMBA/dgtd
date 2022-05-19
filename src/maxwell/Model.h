@@ -23,14 +23,14 @@ public:
 	const AttributeToMaterial& getAttToMat() const { return attToMatMap_; }
 	const AttributeToBoundary& getAttToBdr() const { return attToBdrMap_; }
 	const Array<int>& getBdrMarkers() const { return bdrMarkers_; }
-	const Array<BdrCond>& getBdrConds() const { return bdrCondArr_; }
+	const std::vector<BdrCond>& getBdrConds() const { return bdrCondVec_; }
 
 private:
 	Mesh mesh_;
 	AttributeToMaterial attToMatMap_;
 	AttributeToBoundary attToBdrMap_;
 	Array<int> bdrMarkers_;
-	Array<BdrCond> bdrCondArr_;
+	std::vector<BdrCond> bdrCondVec_;
 
 };
 

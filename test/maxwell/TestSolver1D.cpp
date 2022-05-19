@@ -203,7 +203,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	Lastly, the run() function is called.*/
 
 	maxwell::Solver::Options solverOpts;
-	
+
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 	solverOpts.t_final = 2.0;
