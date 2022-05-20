@@ -138,14 +138,16 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 		FluxCoefficient c = interiorFluxCoefficient();
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
-	{
-		for (int i = 0; i < model_.getBdrConds().size(); i++) {
-			auto bdrCond = model_.getBdrConds().at(i);
-			FluxCoefficient c = boundaryFluxCoefficient(f, bdrCond);
-			auto bdrMark = model_.getBdrMarkers();
-			bdrMark[i] = 1;
-			res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMark);
-		}
+	
+	std::vector<Array<int>> bdrMarkers;
+	for (auto const& kv : model_.getAttToBdr()) {
+		Array<int> bdrMarker(model_.getConstMesh().bdr_attributes.Max());
+		bdrMarker = 0;
+		bdrMarker[kv.first-1] = 1;
+
+		bdrMarkers.push_back(bdrMarker);
+		FluxCoefficient c = boundaryFluxCoefficient(f, kv.second);
+		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers.back());
 	}
 	res->Assemble();
 	res->Finalize();
@@ -164,15 +166,18 @@ FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Dir
 		FluxCoefficient c = interiorPenaltyFluxCoefficient();
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
-	{
-		for (int i = 0; i < model_.getBdrConds().size(); i++) {
-			auto bdrCond = model_.getBdrConds().at(i);
-			FluxCoefficient c = boundaryPenaltyFluxCoefficient(f,bdrCond);
-			auto bdrMark = model_.getBdrMarkers();
-			bdrMark = 1;
-			res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta),bdrMark);
-		}
+	
+	std::vector<Array<int>> bdrMarkers;
+	for (auto const& kv : model_.getAttToBdr()) {
+		Array<int> bdrMarker(model_.getConstMesh().bdr_attributes.Max());
+		bdrMarker = 0;
+		bdrMarker[kv.first - 1] = 1;
+
+		bdrMarkers.push_back(bdrMarker);
+		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.second);
+		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers.back());
 	}
+	
 	
 	res->Assemble();
 	res->Finalize();

@@ -14,7 +14,7 @@ namespace maxwell {
 		}
 
 		if (bdrMap.size() == 0) {
-			for (int i = 0; i < mesh.bdr_attributes.Max(); i++) {
+			for (int i = 1; i <= mesh.bdr_attributes.Size(); i++) {
 				attToBdrMap_.emplace(i, BdrCond::PEC);
 			}
 		}
@@ -22,15 +22,10 @@ namespace maxwell {
 			attToBdrMap_ = bdrMap;
 		}
 
-		if (mesh.bdr_attributes.Max() != attToBdrMap_.size()) {
-			throw std::exception("Max Mesh Boundary Attributes and Boundary maps must have same size.");
+		if (mesh.bdr_attributes.Size() != attToBdrMap_.size()) {
+			throw std::exception("Mesh Boundary Attributes Size and Boundary maps must have same size.");
 		}
 
-		bdrMarkers_.SetSize(attToBdrMap_.size());
-		bdrMarkers_ = 0; //No condition for any att. Mfem. Obscure.
-
-		for (auto const& imap : attToBdrMap_)
-			bdrCondVec_.push_back(imap.second);
 	}
 
 }
