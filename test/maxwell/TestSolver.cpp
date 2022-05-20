@@ -114,7 +114,7 @@ namespace HelperFunctions {
 }
 using namespace AnalyticalFunctions1D;
 
-class TestMaxwellSolver1D : public ::testing::Test {
+class TestMaxwellSolver : public ::testing::Test {
 protected:
 
 	Model buildOneDimFourMatModel(
@@ -155,7 +155,7 @@ protected:
 
 };
 
-TEST_F(TestMaxwellSolver1D, checkTwoAttributeMesh)
+TEST_F(TestMaxwellSolver, checkTwoAttributeMesh)
 {
 	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes) 
 	function.
@@ -187,7 +187,7 @@ TEST_F(TestMaxwellSolver1D, checkTwoAttributeMesh)
 		}
 	}
 }
-TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
+TEST_F(TestMaxwellSolver, oneDimensional_centered)
 {
 	//DEPRECATED INTRO // REWRITE
 	
@@ -214,9 +214,9 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 	probes.vis_steps = 50;
 
 	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
+	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes, 
+	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes, 
 						sources, solverOpts);
 	
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
@@ -228,7 +228,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_centered)
 
 }
 
-TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -241,9 +241,9 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 	probes.vis_steps = 50;
 
 	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
+	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
+	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
@@ -255,7 +255,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PEC)
 
 }
 
-TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -269,9 +269,9 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 	probes.vis_steps = 5;
 
 	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
+	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
+	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
@@ -283,7 +283,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_PMC)
 
 }
 
-TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -297,9 +297,9 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 	probes.vis_steps = 5;
 
 	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver1D::buildSourceOneDimOneMat());
+	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
+	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
@@ -312,7 +312,7 @@ TEST_F(TestMaxwellSolver1D, oneDimensional_upwind_SMA)
 
 }
 
-TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
+TEST_F(TestMaxwellSolver, TwoSourceWaveTravelsToTheRight_SMA)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -338,13 +338,13 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 	double dev = 0.0;
 	Direction d = Y;
 	FieldType ft = E;
-	Source EYFieldSource = TestMaxwellSolver1D::buildSourceOneDimOneMat();
-	Source HZFieldSource = TestMaxwellSolver1D::buildSourceOneDimOneMat(51, spread, coeff, dev, Z, H);
+	Source EYFieldSource = TestMaxwellSolver::buildSourceOneDimOneMat();
+	Source HZFieldSource = TestMaxwellSolver::buildSourceOneDimOneMat(51, spread, coeff, dev, Z, H);
 	Sources sources;
 	sources.addSourceToVector(EYFieldSource);
 	sources.addSourceToVector(HZFieldSource);
 
-	maxwell::Solver solver(TestMaxwellSolver1D::buildOneDimOneMatModel(), probes,
+	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
 		sources, solverOpts);
 
 	///////////////////
@@ -370,7 +370,7 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTravelsToTheRight_SMA)
 
 }
 
-TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
+TEST_F(TestMaxwellSolver, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -446,6 +446,17 @@ TEST_F(TestMaxwellSolver1D, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	EXPECT_NEAR(EYValForSecondPos, EYValForFirstPos, 2e-3);
 
+}
+
+TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
+{
+	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
+	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
+	Material mat11 = Material(1.0, 1.0);
+	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
+	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
+	AttributeToBoundary attToBdrVec;
+	Model model(mesh2D, attToMatVec, attToBdrVec);
 }
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)

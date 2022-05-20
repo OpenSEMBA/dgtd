@@ -10,7 +10,7 @@ include_directories(${maxwell_solvers_INCLUDE_DIRS})
 
 add_executable(maxwell_tests 
 "TestAux.cpp" 
-"maxwell/TestSolver1D.cpp" 
+"maxwell/TestSolver.cpp" 
 "maxwell/TestBilinearIntegrators.cpp" 
 "maxwell/TestMaterial.cpp")
 

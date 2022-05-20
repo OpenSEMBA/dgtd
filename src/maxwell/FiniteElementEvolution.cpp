@@ -140,14 +140,15 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 	}
 	
 	std::vector<Array<int>> bdrMarkers;
+	bdrMarkers.resize(model_.getConstMesh().bdr_attributes.Max());
 	for (auto const& kv : model_.getAttToBdr()) {
 		Array<int> bdrMarker(model_.getConstMesh().bdr_attributes.Max());
 		bdrMarker = 0;
 		bdrMarker[kv.first-1] = 1;
 
-		bdrMarkers.push_back(bdrMarker);
+		bdrMarkers[kv.first-1] = bdrMarker;
 		FluxCoefficient c = boundaryFluxCoefficient(f, kv.second);
-		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers.back());
+		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first-1]);
 	}
 	res->Assemble();
 	res->Finalize();
@@ -168,14 +169,15 @@ FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Dir
 	}
 	
 	std::vector<Array<int>> bdrMarkers;
+	bdrMarkers.resize(model_.getConstMesh().bdr_attributes.Max());
 	for (auto const& kv : model_.getAttToBdr()) {
 		Array<int> bdrMarker(model_.getConstMesh().bdr_attributes.Max());
 		bdrMarker = 0;
 		bdrMarker[kv.first - 1] = 1;
 
-		bdrMarkers.push_back(bdrMarker);
+		bdrMarkers[kv.first - 1] = bdrMarker;
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.second);
-		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers.back());
+		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
 	}
 	
 	
