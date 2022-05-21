@@ -322,9 +322,9 @@ TEST_F(TestMaxwellSolver, TwoSourceWaveTravelsToTheRight_SMA)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
+	probes.paraview = true;
 	probes.vis_steps = 5;
-	probes.extractDataAtPoints = true;
+	//probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 2);
 	pointMat.Elem(0, 0) = 0.5;
 	pointMat.Elem(0, 1) = 0.8;
@@ -333,18 +333,28 @@ TEST_F(TestMaxwellSolver, TwoSourceWaveTravelsToTheRight_SMA)
 	Probe probe(fieldToExtract, directionToExtract, pointMat);
 	probes.addProbeToVector(probe);
 
+
+	std::vector<Material> matVec;
+	matVec.push_back(Material(1.0, 1.0));
+	std::vector<Attribute> attVec = std::vector<Attribute>({1});
+	std::vector<BdrCond> bdrVec;
+	bdrVec.push_back(BdrCond::SMA);
+	bdrVec.push_back(BdrCond::SMA);
+	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
+
 	double spread = 2.0;
 	double coeff = 1.0;
 	double dev = 0.0;
 	Direction d = Y;
 	FieldType ft = E;
-	Source EYFieldSource = TestMaxwellSolver::buildSourceOneDimOneMat();
-	Source HZFieldSource = TestMaxwellSolver::buildSourceOneDimOneMat(51, spread, coeff, dev, Z, H);
+	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
+	Source HZFieldSource = Source(model, spread, coeff, dev, Z, H);
 	Sources sources;
 	sources.addSourceToVector(EYFieldSource);
 	sources.addSourceToVector(HZFieldSource);
 
-	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
+	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
 
 	///////////////////
@@ -404,11 +414,11 @@ TEST_F(TestMaxwellSolver, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	std::vector<Material> matVec;
 	matVec.push_back(Material(1.0, 1.0));
 	matVec.push_back(Material(2.0, 1.0));
+	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
 	std::vector<BdrCond> bdrVec;
 	bdrVec.push_back(BdrCond::SMA);
-	bdrVec.push_back(BdrCond::PEC);
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(mesh1D, HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(attVec,bdrVec));
+	bdrVec.push_back(BdrCond::PEC);	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(mesh1D, HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec,bdrVec));
 
 	double spread = 1.0;
 	double coeff = 0.5;
