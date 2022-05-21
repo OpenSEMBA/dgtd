@@ -80,6 +80,10 @@ namespace HelperFunctions {
 		const std::vector<Attribute>& attVec, 
 		const std::vector<Material>& matVec)
 	{
+
+		if (attVec.size() != matVec.size()) {
+			throw std::exception("attVec and matVec must have the same size.");
+		}
 		AttributeToMaterial res;
 		for (int i = 0; i < attVec.size(); i++) {
 			res.emplace(attVec[i], matVec[i]);
@@ -389,7 +393,7 @@ TEST_F(TestMaxwellSolver, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 10;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 2);
@@ -414,11 +418,12 @@ TEST_F(TestMaxwellSolver, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	std::vector<Material> matVec;
 	matVec.push_back(Material(1.0, 1.0));
 	matVec.push_back(Material(2.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::SMA);
-	bdrVec.push_back(BdrCond::PEC);	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(mesh1D, HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec,bdrVec));
+	std::vector<Attribute> matAttVec = std::vector<Attribute>({ 1, 2 });
+	std::vector<BdrCond> bdrCondVec;
+	bdrCondVec.push_back(BdrCond::SMA);
+	bdrCondVec.push_back(BdrCond::PEC);	
+	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(mesh1D, HelperFunctions::buildAttToMatMap(matAttVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec,bdrCondVec));
 
 	double spread = 1.0;
 	double coeff = 0.5;
@@ -442,19 +447,44 @@ TEST_F(TestMaxwellSolver, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	///////////////////
 
-	auto it = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.0, 1e-6);
-	if (it == probeEY.getFieldMovie().end()) {
+	auto it0 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.0, 1e-6);
+	if (it0 == probeEY.getFieldMovie().end()) {
 		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
 	}
-	auto EYValForFirstPos = it->second.at(0).at(Y);
-
-	auto it2 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.3, 1e-6);
-	if (it2 == probeEY.getFieldMovie().end()) {
+	auto EYValAtTime0 = it0->second.at(0).at(Y);
+	
+	auto it45 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.45, 1e-6);
+	if (it45 == probeEY.getFieldMovie().end()) {
 		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
 	}
-	auto EYValForSecondPos = it2->second.at(1).at(Y);
+	auto EYValAtTime45 = it45->second.at(0).at(Y);
 
-	EXPECT_NEAR(EYValForSecondPos, EYValForFirstPos, 2e-3);
+	auto it90 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.90, 1e-6);
+	if (it90 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime90 = it90->second.at(0).at(Y);
+
+	auto it110 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.10, 1e-6);
+	if (it110 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime110 = it110->second.at(1).at(Y);
+
+	auto it130 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.30, 1e-6);
+	if (it130 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime130 = it130->second.at(1).at(Y);
+
+	double reflectCoeff =
+		(matVec.at(1).getImpedance() - matVec.at(0).getImpedance()) / 
+		((matVec.at(1).getImpedance() + matVec.at(0).getImpedance()));
+
+	EXPECT_NEAR(0.0, EYValAtTime45, 2e-3);
+	EXPECT_NEAR(EYValAtTime0 * reflectCoeff, EYValAtTime90, 2e-3);
+	EXPECT_NEAR(EYValAtTime0 * reflectCoeff, EYValAtTime110, 2e-3);
+	EXPECT_NEAR(0.0, EYValAtTime130, 2e-3);
 
 }
 
