@@ -90,31 +90,19 @@ void Solver::initialize1DSources()
 
 void Solver::initialize2DSources()
 {
-	projectors_.resize(sources_.getSourcesVector().size());
-
 	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
-		GridFunction projector(fes_.get());
-		projector = 0.0;
-
 		auto source = sources_.getSourcesVector().at(i);
 		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction, &source, std::placeholders::_1);
 		
-		projector.ProjectCoefficient(FunctionCoefficient(f));
-		
-		//projectors_[i].SetSpace(fes_.get());
-		//projectors_[i] = projector;
-		
-		for (int d = X; d <= mesh_.Dimension() - 1; d++) {
-			switch (source.getFieldType()) {
-			case FieldType::E:
-				E_[d].ProjectGridFunction(projector);
-				break;
-			case FieldType::H:
-				H_[d].ProjectGridFunction(projector);
-				break;
-			}
+		Direction d = Z;
+		switch (source.getFieldType()) {
+		case FieldType::E:
+			E_[d].ProjectCoefficient(FunctionCoefficient(f));
+			break;
+		case FieldType::H:
+			H_[d].ProjectCoefficient(FunctionCoefficient(f));
+			break;
 		}
-
 	}
 }
 

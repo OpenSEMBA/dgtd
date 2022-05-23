@@ -53,7 +53,6 @@ private:
     std::unique_ptr<FiniteElementEvolutionNoCond> maxwellEvol_;
 
     Vector sol_;
-    std::vector<GridFunction> projectors_;
 
     std::array<GridFunction, 3> E_, H_;
 

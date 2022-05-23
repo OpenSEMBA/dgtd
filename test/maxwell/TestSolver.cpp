@@ -499,7 +499,7 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 	Model model(mesh2D, attToMatVec, attToBdrVec);
 
 	double spread = 2.0;
-	double coeff = 1.0;
+	double coeff = 20.0;
 	double dev = 0.0;
 	Source EXFieldSource = Source(model, spread, coeff, dev, X, E); 
 	Sources sources;
@@ -507,13 +507,14 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 
 	Probes probes;
 	probes.paraview = true;
-	probes.vis_steps = 10;
+	probes.vis_steps = 100;
 
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 0.2;
+	solverOpts.t_final = 1.0;
 	solverOpts.dt = 1e-4;
+	solverOpts.order = 1;
 
 	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
