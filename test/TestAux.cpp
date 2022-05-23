@@ -159,6 +159,26 @@ TEST_F(Auxiliary, checkDataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
+
+TEST_F(Auxiliary, checkVDIM)
+{
+	Mesh mesh1D = Mesh::MakeCartesian1D(5);
+	Mesh mesh2D = Mesh::MakeCartesian2D(5, 5, Element::Type::QUADRILATERAL);
+	Mesh mesh3D = Mesh::MakeCartesian3D(5, 5, 5, Element::Type::TETRAHEDRON);
+
+	DG_FECollection fec1D = DG_FECollection(1, mesh1D.Dimension());
+	DG_FECollection fec2D = DG_FECollection(1, mesh2D.Dimension());
+	DG_FECollection fec3D = DG_FECollection(1, mesh3D.Dimension());
+
+	FiniteElementSpace fes1D = FiniteElementSpace(&mesh1D, &fec1D);
+	FiniteElementSpace fes2D = FiniteElementSpace(&mesh2D, &fec2D);
+	FiniteElementSpace fes3D = FiniteElementSpace(&mesh3D, &fec3D);
+
+	GridFunction gf1D(&fes1D);
+	GridFunction gf2D(&fes2D);
+	GridFunction gf3D(&fes3D);
+
+}
 TEST_F(Auxiliary, checkMassMatrix)
 {
 	/*The purpose of this text is to check the values of a Mass Matrix 

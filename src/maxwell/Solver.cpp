@@ -34,6 +34,8 @@ sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents *
 	fes_->GetNDofs());
 sol_ = 0.0;
 
+
+
 for (int d = X; d <= Z; d++) {
 	E_[d].SetSpace(fes_.get());
 	E_[d].SetData(sol_.GetData() + d*fes_->GetNDofs());
@@ -88,27 +90,31 @@ void Solver::initialize1DSources()
 
 void Solver::initialize2DSources()
 {
-	int vdim = mesh_.SpaceDimension();
-	std::unique_ptr<FiniteElementSpace> fes = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), vdim, Ordering::byVDIM);
-	GridFunction projector(fes.get());
-	projector = 0.0;
+	projectors_.resize(sources_.getSourcesVector().size());
+
 	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
+		GridFunction projector(fes_.get());
+		projector = 0.0;
 
 		auto source = sources_.getSourcesVector().at(i);
 		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction, &source, std::placeholders::_1);
+		
 		projector.ProjectCoefficient(FunctionCoefficient(f));
-
+		
+		//projectors_[i].SetSpace(fes_.get());
+		//projectors_[i] = projector;
+		
 		for (int d = X; d <= mesh_.Dimension() - 1; d++) {
 			switch (source.getFieldType()) {
 			case FieldType::E:
-				E_[d].SetData(projector.GetData() + d * fes_->GetNDofs());
+				E_[d].ProjectGridFunction(projector);
 				break;
 			case FieldType::H:
-				H_[d].SetData(projector.GetData() + d * fes_->GetNDofs());
+				H_[d].ProjectGridFunction(projector);
 				break;
 			}
-
 		}
+
 	}
 }
 

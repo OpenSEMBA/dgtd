@@ -513,7 +513,7 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.t_final = 0.2;
-	solverOpts.dt = 5e-4;
+	solverOpts.dt = 1e-4;
 
 	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
