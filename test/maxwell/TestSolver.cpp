@@ -316,7 +316,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA)
 
 }
 
-TEST_F(TestMaxwellSolver, TwoSourceWaveTravelsToTheRight_SMA)
+TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -384,7 +384,7 @@ TEST_F(TestMaxwellSolver, TwoSourceWaveTravelsToTheRight_SMA)
 
 }
 
-TEST_F(TestMaxwellSolver, TwoSourceWaveTwoMaterialsReflection_SMA_PEC)
+TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -497,6 +497,29 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
 	AttributeToBoundary attToBdrVec;
 	Model model(mesh2D, attToMatVec, attToBdrVec);
+
+	double spread = 2.0;
+	double coeff = 1.0;
+	double dev = 0.0;
+	Source EXFieldSource = Source(model, spread, coeff, dev, X, E); 
+	Sources sources;
+	sources.addSourceToVector(EXFieldSource);
+
+	Probes probes;
+	probes.paraview = true;
+	probes.vis_steps = 10;
+
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.t_final = 0.2;
+	solverOpts.dt = 5e-4;
+
+	maxwell::Solver solver(model, probes,
+		sources, solverOpts);
+
+	solver.run();
+
 }
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)

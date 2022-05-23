@@ -20,13 +20,18 @@ mesh_(model_.getMesh())
 {
 fec_ = std::make_unique<DG_FECollection>(
 opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+
 fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
 odeSolver_ = std::make_unique<RK4Solver>();
 
-maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(fes_.get(), opts_.evolutionOperatorOptions, model_);
+maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(
+	fes_.get(), 
+	opts_.evolutionOperatorOptions, model_);
 
-sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents * FiniteElementEvolutionNoCond::numberOfMaxDimensions * fes_->GetNDofs());
+sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents *
+	FiniteElementEvolutionNoCond::numberOfMaxDimensions *
+	fes_->GetNDofs());
 sol_ = 0.0;
 
 for (int d = X; d <= Z; d++) {
@@ -63,10 +68,9 @@ void Solver::checkOptionsAreValid(const Options& opts)
 	}
 }
 
-void Solver::setInitialField()
+void Solver::initialize1DSources() 
 {
 	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
-
 		auto source = sources_.getSourcesVector().at(i);
 		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction1D, &source, std::placeholders::_1);
 
@@ -79,6 +83,46 @@ void Solver::setInitialField()
 			break;
 		}
 	}
+}
+
+
+void Solver::initialize2DSources()
+{
+	int vdim = mesh_.SpaceDimension();
+	std::unique_ptr<FiniteElementSpace> fes = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), vdim, Ordering::byVDIM);
+	GridFunction projector(fes.get());
+	projector = 0.0;
+	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
+
+		auto source = sources_.getSourcesVector().at(i);
+		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction, &source, std::placeholders::_1);
+		projector.ProjectCoefficient(FunctionCoefficient(f));
+
+		for (int d = X; d <= mesh_.Dimension() - 1; d++) {
+			switch (source.getFieldType()) {
+			case FieldType::E:
+				E_[d].SetData(projector.GetData() + d * fes_->GetNDofs());
+				break;
+			case FieldType::H:
+				H_[d].SetData(projector.GetData() + d * fes_->GetNDofs());
+				break;
+			}
+
+		}
+	}
+}
+
+void Solver::setInitialField()
+{	
+	switch (mesh_.Dimension()) {
+	case 1:
+		initialize1DSources();
+		break;
+	case 2:
+		initialize2DSources();
+		break;
+	}
+
 }
 
 const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direction& d) const

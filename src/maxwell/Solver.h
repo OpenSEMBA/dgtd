@@ -67,6 +67,9 @@ private:
 
     void checkOptionsAreValid(const Options&);
 
+    void Solver::initialize1DSources();
+    void Solver::initialize2DSources();
+
     std::vector<std::pair<Array<int>, Array<IntegrationPoint>>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints);
     const IntegrationPointsSet Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
     const std::vector<FieldFrame> saveFieldAtPointsForAllProbes();
