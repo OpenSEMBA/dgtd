@@ -191,20 +191,19 @@ TEST_F(TestMaxwellSolver, checkTwoAttributeMesh)
 		}
 	}
 }
+
 TEST_F(TestMaxwellSolver, oneDimensional_centered)
-{
-	//DEPRECATED INTRO // REWRITE
-	
-	/*The purpose of this test is to check the run() function for the Solver1D class
-	and test the different available options.
+{	
+	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
+	a centered type flux.
 
-	First, dimensional variables are declared and a mesh is constructed, along with the declaration
-	of different useful variables.
+	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
+	A single Gaussian is declared along Ey.
 
-	Then, a Solver1D object is constructed using said mesh and options, the bounding box for its mesh
-	is extracted and an initial condition is applied to one of its variables. (GridFunction Ez_)
-
-	Lastly, the run() function is called.*/
+	Then, the Solver object is constructed using said parts, with its mesh being one-dimensional.
+	The field along Ey is extracted before and after the solver calls its run() method and evolves the
+	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
+	back to its initial state within the specified error.*/
 
 	maxwell::Solver::Options solverOpts;
 
@@ -512,7 +511,7 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 1.0;
+	solverOpts.t_final = 2.0;
 	solverOpts.dt = 1e-4;
 	solverOpts.order = 1;
 
@@ -520,6 +519,59 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 		sources, solverOpts);
 
 	solver.run();
+
+}
+
+
+TEST_F(TestMaxwellSolver, twoDimensional_centered_NCMESH)
+{
+	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
+	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
+
+	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
+	A single 2D Gaussian on X and Y is declared along Ez.
+
+	Then, the Solver object is constructed using said parts, with its mesh being two-dimensional mixed
+	with triangles and squares.
+	The field along Ez is extracted before and after the solver calls its run() method and evolves the
+	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty 
+	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not 
+	higher than the initial value.*/
+
+	maxwell::Solver::Options solverOpts;
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+	solverOpts.t_final = 2.92;
+	solverOpts.dt = 1e-3;
+
+	Probes probes;
+	probes.paraview = true;
+	probes.vis_steps = 20;
+
+	const char* mesh_file = "star-mixed.mesh";
+	Mesh mesh(mesh_file);
+	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
+	Material mat11 = Material(1.0, 1.0);
+	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
+	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
+	AttributeToBoundary attToBdrVec;
+	Model model = Model(mesh, attToMatVec, attToBdrVec);
+
+	double spread = 2.0;
+	double coeff = 20.0;
+	double dev = 0.0;
+	Source EXFieldSource = Source(model, spread, coeff, dev, Z, E);
+	Sources sources;
+	sources.addSourceToVector(EXFieldSource);
+
+	maxwell::Solver solver(model, probes,
+		sources, solverOpts);
+
+	GridFunction eOld = solver.getFieldInDirection(E, Z);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, Z);
+
+	EXPECT_GT(eOld.Max(), eNew.Max());
 
 }
 //
