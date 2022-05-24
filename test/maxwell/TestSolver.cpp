@@ -230,7 +230,45 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
+TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
+{
+	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
+	a centered type flux.
 
+	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
+	A single Gaussian is declared along Ey.
+
+	Then, the Solver object is constructed using said parts, with its mesh being one-dimensional.
+	The field along Ey is extracted before and after the solver calls its run() method and evolves the
+	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
+	back to its initial state within the specified error.*/
+
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+	solverOpts.t_final = 1.999;
+	solverOpts.dt = 1e-3;
+
+	Probes probes;
+	//probes.paraview = true;
+	probes.vis_steps = 50;
+
+	Sources sources;
+	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
+
+	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
+		sources, solverOpts);
+
+	GridFunction eOld = solver.getFieldInDirection(E, Y);
+	GridFunction hOld = solver.getFieldInDirection(H, Z);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, Y);
+	GridFunction hNew = solver.getFieldInDirection(H, Z);
+
+	EXPECT_GE(eOld.Norml2() + hOld.Norml2(), eNew.Norml2() + hNew.Norml2());
+
+}
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC)
 {
 	maxwell::Solver::Options solverOpts;
@@ -572,7 +610,6 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NCMESH)
 	GridFunction eNew = solver.getFieldInDirection(E, Z);
 
 	EXPECT_GT(eOld.Max(), eNew.Max());
-
 }
 //
 //TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
