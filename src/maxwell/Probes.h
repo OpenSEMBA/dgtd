@@ -13,6 +13,7 @@ public:
     const Direction& getDirection() const { return directionToExtract_; }
     DenseMatrix& getIntegPointMat() { return integPointMat_; }
     FieldMovie& getFieldMovie() { return fieldMovie_; }
+    const FieldMovie& getConstFieldMovie() const { return fieldMovie_; }
     
 private:
 
