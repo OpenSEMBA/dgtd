@@ -177,10 +177,10 @@ protected:
 
 TEST_F(TestMaxwellSolver, checkTwoAttributeMesh)
 {
-	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes) 
+	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)
 	function.
 
-	First, an integer is declared for the number of times we wish to refine the mesh, then a mesh is 
+	First, an integer is declared for the number of times we wish to refine the mesh, then a mesh is
 	constructed with two elements, left and right hand sides, setting the following attributes.
 
 	|------LHS------|------RHS------|
@@ -190,14 +190,14 @@ TEST_F(TestMaxwellSolver, checkTwoAttributeMesh)
 	Once the mesh is refined, it is returned, then we compare if the expected number of elements is
 	true for the actual elements in the mesh.
 
-	Then, we consider how the mesh will perform its uniform refinement, and we declare that the 
+	Then, we consider how the mesh will perform its uniform refinement, and we declare that the
 	LHS elements with Attribute one will be Even index elements (starting at 0), and the RHS
 	elements with Attribute 2 will be Uneven index elements (starting at 1).*/
-	
+
 	const int refTimes = 3;
 	Mesh mesh = HelperFunctions::makeTwoAttributeCartesianMesh1D(refTimes);
 
-	EXPECT_EQ(pow(2,refTimes + 1), mesh.GetNE());
+	EXPECT_EQ(pow(2, refTimes + 1), mesh.GetNE());
 	for (int i = 0; i < mesh.GetNE(); i++) {
 		if (i % 2 == 0) {
 			EXPECT_EQ(1, mesh.GetAttribute(i));
@@ -207,6 +207,7 @@ TEST_F(TestMaxwellSolver, checkTwoAttributeMesh)
 		}
 	}
 }
+
 
 TEST_F(TestMaxwellSolver, oneDimensional_centered)
 {	
@@ -286,6 +287,8 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 
 }
 
+
+
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 {
 	maxwell::Solver::Options solverOpts;
@@ -334,15 +337,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 
 	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
-
-	Probe probeEX = solver.getProbe(0);
-
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEX, 0.5, 0, X), 2e-3);
-	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(probeEX, 0.5, 1, X));
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEX, 0.5, 2, X), 2e-3);
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEX, 1.5, 0, X), 2e-3);
-	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(probeEX, 1.5, 1, X));
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEX, 1.5, 2, X), 2e-3);
 
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
@@ -515,15 +509,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HX)
 	double error = hOld.DistanceTo(hNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-	Probe probeHX = solver.getProbe(0);
-
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHX, 0.5, 0, X), 2e-3);
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(probeHX, 0.5, 1, X));
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHX, 0.5, 2, X), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHX, 1.5, 0, X), 2e-3);
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(probeHX, 1.5, 1, X));
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHX, 1.5, 2, X), 2e-3);
-
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
 {
@@ -644,6 +629,8 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
 
 }
 
+
+
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_X)
 {
 	maxwell::Solver::Options solverOpts;
@@ -654,7 +641,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_X)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 50;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 3);
@@ -691,16 +678,8 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_X)
 	GridFunction eOld = solver.getFieldInDirection(E, X);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, X);
-	Vector zero = eNew;
-	zero = 0.0;
-	double error = zero.DistanceTo(eNew);
+	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
-
-	Probe probeEX = solver.getProbe(0);
-
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(probeEX, 0.5, 0, X));
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(probeEX, 0.5, 1, X));
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(probeEX, 0.5, 2, X));
 
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
@@ -713,7 +692,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 50;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 3);
@@ -772,7 +751,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 50;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 3);
@@ -821,6 +800,8 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(probeEZ, 0.5, 2, Z));
 
 }
+
+
 
 TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 {
@@ -889,7 +870,6 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 	EXPECT_NEAR(EYValForSecondPos, EYValForFirstPos, 2e-3);
 
 }
-
 TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	maxwell::Solver::Options solverOpts;
