@@ -269,7 +269,8 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 	EXPECT_GE(eOld.Norml2() + hOld.Norml2(), eNew.Norml2() + hNew.Norml2());
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC)
+
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 {
 	maxwell::Solver::Options solverOpts;
 
@@ -278,13 +279,137 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
+	probes.paraview = true;
 	probes.vis_steps = 50;
+	probes.extractDataAtPoints = true;
+	DenseMatrix pointMat(1, 3);
+	pointMat.Elem(0, 0) = 0.0;
+	pointMat.Elem(0, 1) = 0.5;
+	pointMat.Elem(0, 2) = 1.0;
+	FieldType fieldToExtract = E;
+	Direction directionToExtract = X;
+	Probe probe(fieldToExtract, directionToExtract, pointMat);
+	probes.addProbeToVector(probe);
 
+	std::vector<Material> matVec;
+	matVec.push_back(Material(1.0, 1.0));
+	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
+	std::vector<BdrCond> bdrVec;
+	bdrVec.push_back(BdrCond::PEC);
+	bdrVec.push_back(BdrCond::PEC);
+	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
+
+	double spread = 2.0;
+	double coeff = 1.0;
+	double dev = 0.0;
+	Direction d = X;
+	FieldType ft = E;
+	Source EXFieldSource = Source(model, spread, coeff, dev, d, ft);
 	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
+	sources.addSourceToVector(EXFieldSource);
 
-	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
+	maxwell::Solver solver(model, probes,
+		sources, solverOpts);
+
+	GridFunction eOld = solver.getFieldInDirection(E, X);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, X);
+
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
+
+	Probe probeEX = solver.getProbe(0);
+
+	auto it05pos0 = HelperFunctions::findTimeId(probeEX.getFieldMovie(), 0.5, 1e-6);
+	if (it05pos0 == probeEX.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EXValAtTime05Pos0 = it05pos0->second.at(0).at(X);
+
+	EXPECT_NEAR(0.0, EXValAtTime05Pos0, 2e-3);
+
+	auto it05pos1 = HelperFunctions::findTimeId(probeEX.getFieldMovie(), 0.5, 1e-6);
+	if (it05pos1 == probeEX.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EXValAtTime05Pos1 = it05pos1->second.at(1).at(X);
+
+	EXPECT_NE(eOld.Max(), EXValAtTime05Pos1);
+
+	auto it05pos2 = HelperFunctions::findTimeId(probeEX.getFieldMovie(), 0.5, 1e-6);
+	if (it05pos2 == probeEX.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EXValAtTime05Pos2 = it05pos2->second.at(2).at(X);
+
+	EXPECT_NEAR(0.0, EXValAtTime05Pos2, 2e-3);
+
+	auto it15pos0 = HelperFunctions::findTimeId(probeEX.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos0 == probeEX.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EXValAtTime15Pos0 = it15pos0->second.at(0).at(X);
+
+	EXPECT_NEAR(0.0, EXValAtTime15Pos0, 2e-3);
+
+	auto it15pos1 = HelperFunctions::findTimeId(probeEX.getFieldMovie(), 0.5, 1e-6);
+	if (it15pos1 == probeEX.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EXValAtTime15Pos1 = it15pos1->second.at(1).at(X);
+
+	EXPECT_NE(eOld.Max(), EXValAtTime15Pos1);
+
+	auto it15pos2 = HelperFunctions::findTimeId(probeEX.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos2 == probeEX.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EXValAtTime15Pos2 = it15pos2->second.at(2).at(X);
+
+	EXPECT_NEAR(0.0, EXValAtTime15Pos2, 2e-3);
+
+}
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
+{
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.t_final = 2.0;
+	solverOpts.dt = 1e-3;
+
+	Probes probes;
+	probes.paraview = true;
+	probes.vis_steps = 50;
+	probes.extractDataAtPoints = true;
+	DenseMatrix pointMat(1, 3);
+	pointMat.Elem(0, 0) = 0.0;
+	pointMat.Elem(0, 1) = 0.5;
+	pointMat.Elem(0, 2) = 1.0;
+	FieldType fieldToExtract = E;
+	Direction directionToExtract = Y;
+	Probe probe(fieldToExtract, directionToExtract, pointMat);
+	probes.addProbeToVector(probe);
+
+	std::vector<Material> matVec;
+	matVec.push_back(Material(1.0, 1.0));
+	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
+	std::vector<BdrCond> bdrVec;
+	bdrVec.push_back(BdrCond::PEC);
+	bdrVec.push_back(BdrCond::PEC);
+	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
+
+	double spread = 2.0;
+	double coeff = 1.0;
+	double dev = 0.0;
+	Direction d = Y;
+	FieldType ft = E;
+	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
+	Sources sources;
+	sources.addSourceToVector(EYFieldSource);
+
+	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
@@ -294,33 +419,155 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC)
 	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-}
+	Probe probeEY = solver.getProbe(0);
 
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC)
+	auto it05pos0 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.5, 1e-6);
+	if (it05pos0 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime05Pos0 = it05pos0->second.at(0).at(Y);
+
+	EXPECT_NEAR(0.0, EYValAtTime05Pos0, 2e-3);
+
+	auto it05pos1 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.5, 1e-6);
+	if (it05pos1 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime05Pos1 = it05pos1->second.at(1).at(Y);
+
+	EXPECT_NE(eOld.Max(), EYValAtTime05Pos1);
+
+	auto it05pos2 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.5, 1e-6);
+	if (it05pos2 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime05Pos2 = it05pos2->second.at(2).at(Y);
+
+	EXPECT_NEAR(0.0, EYValAtTime05Pos2, 2e-3);
+
+	auto it15pos0 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos0 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime15Pos0 = it15pos0->second.at(0).at(Y);
+
+	EXPECT_NEAR(0.0, EYValAtTime15Pos0, 2e-3);
+
+	auto it15pos1 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos1 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime15Pos1 = it15pos1->second.at(1).at(Y);
+
+	EXPECT_NE(eOld.Max(), EYValAtTime15Pos1);
+
+	auto it15pos2 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos2 == probeEY.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EYValAtTime15Pos2 = it15pos2->second.at(2).at(Y);
+
+	EXPECT_NEAR(0.0, EYValAtTime15Pos2, 2e-3);
+
+}
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
 {
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::PMC;
-	solverOpts.t_final = 1.0;
+	solverOpts.t_final = 2.0;
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 5;
+	probes.paraview = true;
+	probes.vis_steps = 50;
+	probes.extractDataAtPoints = true;
+	DenseMatrix pointMat(1, 3);
+	pointMat.Elem(0, 0) = 0.0;
+	pointMat.Elem(0, 1) = 0.5;
+	pointMat.Elem(0, 2) = 1.0;
+	FieldType fieldToExtract = E;
+	Direction directionToExtract = Z;
+	Probe probe(fieldToExtract, directionToExtract, pointMat);
+	probes.addProbeToVector(probe);
 
+	std::vector<Material> matVec;
+	matVec.push_back(Material(1.0, 1.0));
+	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
+	std::vector<BdrCond> bdrVec;
+	bdrVec.push_back(BdrCond::PEC);
+	bdrVec.push_back(BdrCond::PEC);
+	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
+
+	double spread = 2.0;
+	double coeff = 1.0;
+	double dev = 0.0;
+	Direction d = Z;
+	FieldType ft = E;
+	Source EZFieldSource = Source(model, spread, coeff, dev, d, ft);
 	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
+	sources.addSourceToVector(EZFieldSource);
 
-	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
+	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
 
-	GridFunction hOld = solver.getFieldInDirection(H, Z);
+	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
-	GridFunction hNew = solver.getFieldInDirection(H, Z);
+	GridFunction eNew = solver.getFieldInDirection(E, Z);
 
-	double error = hOld.DistanceTo(hNew);
+	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
+
+	Probe probeEZ = solver.getProbe(0);
+
+	auto it05pos0 = HelperFunctions::findTimeId(probeEZ.getFieldMovie(), 0.5, 1e-6);
+	if (it05pos0 == probeEZ.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EZValAtTime05Pos0 = it05pos0->second.at(0).at(Z);
+
+	EXPECT_NEAR(0.0, EZValAtTime05Pos0, 2e-3);
+
+	auto it05pos1 = HelperFunctions::findTimeId(probeEZ.getFieldMovie(), 1.5, 1e-6);
+	if (it05pos1 == probeEZ.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EZValAtTime05Pos1 = it05pos1->second.at(1).at(Z);
+
+	EXPECT_NE(eOld.Max(), EZValAtTime05Pos1);
+
+	auto it05pos2 = HelperFunctions::findTimeId(probeEZ.getFieldMovie(), 0.5, 1e-6);
+	if (it05pos2 == probeEZ.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EZValAtTime05Pos2 = it05pos2->second.at(2).at(Z);
+
+	EXPECT_NEAR(0.0, EZValAtTime05Pos2, 2e-3);
+
+	auto it15pos0 = HelperFunctions::findTimeId(probeEZ.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos0 == probeEZ.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EZValAtTime15Pos0 = it15pos0->second.at(0).at(Z);
+
+	EXPECT_NEAR(0.0, EZValAtTime15Pos0, 2e-3);
+
+	auto it15pos1 = HelperFunctions::findTimeId(probeEZ.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos1 == probeEZ.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EZValAtTime15Pos1 = it15pos1->second.at(1).at(Z);
+
+	EXPECT_NE(eOld.Max(), EZValAtTime15Pos1);
+
+	auto it15pos2 = HelperFunctions::findTimeId(probeEZ.getFieldMovie(), 1.5, 1e-6);
+	if (it15pos2 == probeEZ.getFieldMovie().end()) {
+		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
+	}
+	auto EZValAtTime15Pos2 = it15pos2->second.at(2).at(Z);
+
+	EXPECT_NEAR(0.0, EZValAtTime15Pos2, 2e-3);
 
 }
 
@@ -334,13 +581,29 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
+	probes.paraview = true;
 	probes.vis_steps = 5;
 
-	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
 
-	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
+	std::vector<Material> matVec;
+	matVec.push_back(Material(1.0, 1.0));
+	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
+	std::vector<BdrCond> bdrVec;
+	bdrVec.push_back(BdrCond::SMA);
+	bdrVec.push_back(BdrCond::SMA);
+	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
+	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
+
+	double spread = 2.0;
+	double coeff = 1.0;
+	double dev = 0.0;
+	Direction d = X;
+	FieldType ft = E;
+	Source EXFieldSource = Source(model, spread, coeff, dev, d, ft);
+	Sources sources;
+	sources.addSourceToVector(EXFieldSource);
+
+	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
@@ -430,7 +693,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
+	probes.paraview = true;
 	probes.vis_steps = 10;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 2);
@@ -561,7 +824,7 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 }
 
 
-TEST_F(TestMaxwellSolver, twoDimensional_centered_NCMESH)
+TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -588,6 +851,59 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NCMESH)
 
 	const char* mesh_file = "star-mixed.mesh";
 	Mesh mesh(mesh_file);
+	mesh.UniformRefinement();
+	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
+	Material mat11 = Material(1.0, 1.0);
+	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
+	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
+	AttributeToBoundary attToBdrVec;
+	Model model = Model(mesh, attToMatVec, attToBdrVec);
+
+	double spread = 2.0;
+	double coeff = 20.0;
+	double dev = 0.0;
+	Source EXFieldSource = Source(model, spread, coeff, dev, Z, E);
+	Sources sources;
+	sources.addSourceToVector(EXFieldSource);
+
+	maxwell::Solver solver(model, probes,
+		sources, solverOpts);
+
+	GridFunction eOld = solver.getFieldInDirection(E, Z);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, Z);
+
+	EXPECT_GT(eOld.Max(), eNew.Max());
+}
+
+TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
+{
+	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
+	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
+
+	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
+	A single 2D Gaussian on X and Y is declared along Ez.
+
+	Then, the Solver object is constructed using said parts, with its mesh being two-dimensional mixed
+	with triangles and squares.
+	The field along Ez is extracted before and after the solver calls its run() method and evolves the
+	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty
+	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
+	higher than the initial value.*/
+
+	maxwell::Solver::Options solverOpts;
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+	solverOpts.t_final = 2.92;
+	solverOpts.dt = 1e-3;
+
+	Probes probes;
+	probes.paraview = true;
+	probes.vis_steps = 20;
+
+	const char* mesh_file = "amr-quad.mesh";
+	Mesh mesh(mesh_file);
+	mesh.UniformRefinement();
 	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
 	Material mat11 = Material(1.0, 1.0);
 	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
