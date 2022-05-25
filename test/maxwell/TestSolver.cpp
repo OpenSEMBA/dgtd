@@ -282,7 +282,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
 	GridFunction hNew = solver.getFieldInDirection(H, Z);
 
-	EXPECT_GE(eOld.Norml2() + hOld.Norml2(), eNew.Norml2() + hNew.Norml2());
+	EXPECT_GE(pow(eOld.Norml2(),2.0) + pow(hOld.Norml2(),2.0), pow(eNew.Norml2(),2.0) + pow(hNew.Norml2(),2.0));
 
 }
 
@@ -1012,7 +1012,7 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 	sources.addSourceToVector(EXFieldSource);
 
 	Probes probes;
-	probes.paraview = true;
+	//probes.paraview = true;
 	probes.vis_steps = 100;
 
 	maxwell::Solver::Options solverOpts;
