@@ -990,10 +990,10 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 
 TEST_F(TestMaxwellSolver, twoDimensional_Periodic)
 {
-	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
-	Vector x_periodic({ 1.0, 0.0 });
+	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
+	Vector periodic({ 0.0, 1.0 });
 	std::vector<Vector> trans;
-	trans.push_back(x_periodic);
+	trans.push_back(periodic);
 	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D,mesh2D.CreatePeriodicVertexMapping(trans));
 
 	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
@@ -1020,13 +1020,13 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic)
 
 	Probes probes;
 	probes.paraview = true;
-	probes.vis_steps = 100;
+	probes.vis_steps = 20;
 
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
 	solverOpts.t_final = 1.0;
-	solverOpts.dt = 1e-4;
+	solverOpts.dt = 1e-3;
 
 	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
