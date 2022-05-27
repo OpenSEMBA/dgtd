@@ -151,7 +151,7 @@ protected:
 		const int meshIntervals = 51, 
 		const double spread = 2.0, 
 		const double coeff = 1.0, 
-		const double dev = 0.0,
+		const Vector dev = Vector({ 0.0 }),
 		const Direction& d = Y, 
 		const FieldType& ft = E){
 
@@ -321,7 +321,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = X;
 	FieldType ft = E;
 	Source EXFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -371,7 +371,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = Y;
 	FieldType ft = E;
 	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -430,7 +430,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = Z;
 	FieldType ft = E;
 	Source EZFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -492,7 +492,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HX)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = X;
 	FieldType ft = H;
 	Source HXFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -542,7 +542,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = Y;
 	FieldType ft = H;
 	Source HYFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -601,7 +601,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = Z;
 	FieldType ft = H;
 	Source HZFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -665,7 +665,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_X)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = X;
 	FieldType ft = E;
 	Source EXFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -716,7 +716,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = Y;
 	FieldType ft = E;
 	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -775,7 +775,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = Z;
 	FieldType ft = E;
 	Source EZFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -836,7 +836,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 
 	double spread = 2.0;
 	double coeff = 1.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0 });
 	Direction d = Y;
 	FieldType ft = E;
 	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
@@ -913,7 +913,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	double spread = 1.0;
 	double coeff = 0.5;
-	double dev = 0.2;
+	const Vector dev = Vector({ 0.2 });
 	Direction d = Y;
 	FieldType ft = E;
 
@@ -928,49 +928,26 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	///////////////////
 
+	auto eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
 	Probe probeEY = solver.getProbe(0);
 
 	///////////////////
 
-	auto it0 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.0, 1e-6);
-	if (it0 == probeEY.getFieldMovie().end()) {
-		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
-	}
-	auto EYValAtTime0 = it0->second.at(0).at(Y);
-	
-	auto it45 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.45, 1e-6);
-	if (it45 == probeEY.getFieldMovie().end()) {
-		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
-	}
-	auto EYValAtTime45 = it45->second.at(0).at(Y);
-
-	auto it90 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.90, 1e-6);
-	if (it90 == probeEY.getFieldMovie().end()) {
-		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
-	}
-	auto EYValAtTime90 = it90->second.at(0).at(Y);
-
-	auto it110 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.10, 1e-6);
-	if (it110 == probeEY.getFieldMovie().end()) {
-		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
-	}
-	auto EYValAtTime110 = it110->second.at(1).at(Y);
-
-	auto it130 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 1.30, 1e-6);
-	if (it130 == probeEY.getFieldMovie().end()) {
-		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
-	}
-	auto EYValAtTime130 = it130->second.at(1).at(Y);
-
 	double reflectCoeff =
-		(matVec.at(1).getImpedance() - matVec.at(0).getImpedance()) / 
+		(matVec.at(1).getImpedance() - matVec.at(0).getImpedance()) /
 		((matVec.at(1).getImpedance() + matVec.at(0).getImpedance()));
 
-	EXPECT_NEAR(0.0, EYValAtTime45, 2e-3);
-	EXPECT_NEAR(EYValAtTime0 * reflectCoeff, EYValAtTime90, 2e-3);
-	EXPECT_NEAR(EYValAtTime0 * reflectCoeff, EYValAtTime110, 2e-3);
-	EXPECT_NEAR(0.0, EYValAtTime130, 2e-3);
+	EXPECT_NEAR(eOld.Max(), 
+		getBoundaryFieldValueAtTime(probeEY, 0.0, 0, Y), 2e-3);
+	EXPECT_NEAR(0.0, 
+		getBoundaryFieldValueAtTime(probeEY, 0.45, 0, Y), 2e-3);
+	EXPECT_NEAR(getBoundaryFieldValueAtTime(probeEY, 0.0, 0, Y) * reflectCoeff, 
+		getBoundaryFieldValueAtTime(probeEY, 0.90, 0, Y), 2e-3);
+	EXPECT_NEAR(getBoundaryFieldValueAtTime(probeEY, 0.0, 0, Y) * reflectCoeff, 
+		getBoundaryFieldValueAtTime(probeEY, 1.10, 1, Y), 2e-3);
+	EXPECT_NEAR(0.0, 
+		getBoundaryFieldValueAtTime(probeEY, 1.30, 1, Y), 2e-3);
 
 }
 
@@ -986,7 +963,7 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 
 	double spread = 2.0;
 	double coeff = 20.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0,0.0 });
 	Source EXFieldSource = Source(model, spread, coeff, dev, X, E); 
 	Sources sources;
 	sources.addSourceToVector(EXFieldSource);
@@ -1001,6 +978,55 @@ TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
 	solverOpts.t_final = 2.0;
 	solverOpts.dt = 1e-4;
 	solverOpts.order = 1;
+
+	maxwell::Solver solver(model, probes,
+		sources, solverOpts);
+
+	solver.run();
+
+}
+
+
+
+TEST_F(TestMaxwellSolver, twoDimensional_Periodic)
+{
+	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
+	Vector x_periodic({ 1.0, 0.0 });
+	std::vector<Vector> trans;
+	trans.push_back(x_periodic);
+	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D,mesh2D.CreatePeriodicVertexMapping(trans));
+
+	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
+	Material mat11 = Material(1.0, 1.0);
+	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
+	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
+	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2, 3, 4 });
+	std::vector<BdrCond> bdrCondVec;
+	bdrCondVec.push_back(BdrCond::PEC);
+	bdrCondVec.push_back(BdrCond::PEC);
+	bdrCondVec.push_back(BdrCond::PEC);
+	bdrCondVec.push_back(BdrCond::PEC);
+	Model model = Model(mesh2DPer, HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple), 
+		HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrCondVec));
+
+	double spread = 1.0;
+	double coeff = 10.0;
+	const Vector dev = Vector({ 0.2, 0.0 });
+	Source FieldSource = Source(model, spread, coeff, dev, X, E);
+	Source FieldSource2 = Source(model, spread, coeff, dev, X, H);
+	Sources sources;
+	sources.addSourceToVector(FieldSource);
+	//sources.addSourceToVector(FieldSource2);
+
+	Probes probes;
+	probes.paraview = true;
+	probes.vis_steps = 100;
+
+	maxwell::Solver::Options solverOpts;
+
+	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	solverOpts.t_final = 1.0;
+	solverOpts.dt = 1e-4;
 
 	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
@@ -1047,7 +1073,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH)
 
 	double spread = 2.0;
 	double coeff = 20.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0, 0.0 });
 	Source EXFieldSource = Source(model, spread, coeff, dev, Z, E);
 	Sources sources;
 	sources.addSourceToVector(EXFieldSource);
@@ -1099,7 +1125,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 
 	double spread = 2.0;
 	double coeff = 20.0;
-	double dev = 0.0;
+	const Vector dev = Vector({ 0.0, 0.0 });
 	Source EXFieldSource = Source(model, spread, coeff, dev, Z, E);
 	Sources sources;
 	sources.addSourceToVector(EXFieldSource);
