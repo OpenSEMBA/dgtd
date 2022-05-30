@@ -15,52 +15,52 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 			FieldType f2 = static_cast<FieldType>(fInt2);
 			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
-				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
-				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
-				MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
+					MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
+					MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
+					MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
+				}
 			}
 		}
-	}
 
-	setValuesForOperatorsBasedOnProblemDim();
+	//setValuesForOperatorsBasedOnProblemDim();
 }
-
-void FiniteElementEvolutionNoCond::setValuesForOperatorsBasedOnProblemDim()
-{
-	if (fes_->GetMesh()->Dimension() == 1){
-		for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
-			switch (sources_.getSourcesVector().at(i).getDirection()) {
-			case X:
-				switch (sources_.getSourcesVector().at(i).getFieldType()) {
-				case E:
-					MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0);
-					MS_[E][Y].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0); MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
-					break;
-				case H:
-					break;
-				}
-				break;
-			case Y:
-				switch (sources_.getSourcesVector().at(i).getFieldType()) {
-				case E:
-					//MS_[E][Y].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
-					//                                 MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
-					/*MS_[E][Z].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0);*/ MP_[E][E][X].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
-
-					//MS_[H][Z].get()->operator=(0.0); MF_[H][E][Y].get()->operator=(0.0); MP_[H][H][Y].get()->operator=(0.0); MS_[H][Y].get()->operator=(0.0); MF_[H][E][Z].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
-					//								                                                                                                           
-					/*MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);*/ MP_[H][H][X].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
-					//MS_[H][Y].get()->operator=(0.0); MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);
-
-					break;
-				}
-				break;
-			case Z:
-				break;
-			}
-		}
-	}
-}
+//
+//void FiniteElementEvolutionNoCond::setValuesForOperatorsBasedOnProblemDim()
+//{
+//	if (fes_->GetMesh()->Dimension() == 1){
+//		for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
+//			switch (sources_.getSourcesVector().at(i).getDirection()) {
+//			case X:
+//				switch (sources_.getSourcesVector().at(i).getFieldType()) {
+//				case E:
+//					MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0);
+//					MS_[E][Y].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0); MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
+//					break;
+//				case H:
+//					break;
+//				}
+//				break;
+//			case Y:
+//				switch (sources_.getSourcesVector().at(i).getFieldType()) {
+//				case E:
+//					//MS_[E][Y].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
+//					//                                 MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
+//					/*MS_[E][Z].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0);*/ MP_[E][E][X].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
+//
+//					//MS_[H][Z].get()->operator=(0.0); MF_[H][E][Y].get()->operator=(0.0); MP_[H][H][Y].get()->operator=(0.0); MS_[H][Y].get()->operator=(0.0); MF_[H][E][Z].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
+//					//								                                                                                                           
+//					/*MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);*/ MP_[H][H][X].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
+//					//MS_[H][Y].get()->operator=(0.0); MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);
+//
+//					break;
+//				}
+//				break;
+//			case Z:
+//				break;
+//			}
+//		}
+//	}
+//}
 
 Vector
 FiniteElementEvolutionNoCond::buildPieceWiseArgVector(const FieldType& f) const
@@ -196,6 +196,10 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 	res->Assemble();
 	res->Finalize();
 
+	if (d >= fes_->GetMesh()->Dimension()) {
+		res.get()->operator=(0.0);
+	}
+
 	return res;
 }
 
@@ -225,6 +229,10 @@ FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Dir
 	
 	res->Assemble();
 	res->Finalize();
+
+	if (d >= fes_->GetMesh()->Dimension()) {
+		res.get()->operator=(0.0);
+	}
 
 	return res;
 }
@@ -326,20 +334,17 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 	GridFunction eAux;
 	
 	std::array<Vector,3> eOld, hOld;
+	std::array<GridFunction, 3> eNew, hNew;
 	for (int d = X; d <= Z; d++) {
 		eOld[d].SetDataAndSize(in.GetData() +     d*fes_->GetNDofs(), fes_->GetNDofs());
 		hOld[d].SetDataAndSize(in.GetData() + (d+3)*fes_->GetNDofs(), fes_->GetNDofs());
+		eNew[d].MakeRef(fes_, &out[d * fes_->GetNDofs()]);
+		hNew[d].MakeRef(fes_, &out[(d + 3) * fes_->GetNDofs()]);
 	}
 
 	//if (source) {
 	//	eOld[X].projectCoefficient(source.getFunction(t, X, E));
 	//}
-
-	std::array<GridFunction, 3> eNew, hNew;
-	for (int d = X; d <= Z; d++) {
-		eNew[d].MakeRef(fes_, &out[    d* fes_->GetNDofs()]);
-		hNew[d].MakeRef(fes_, &out[(d+3)* fes_->GetNDofs()]);
-	}
 
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
@@ -351,20 +356,20 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		// Update E.
 		MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
 		MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-		MP_[E][E][y]   ->AddMult(eOld[z], eNew[x], -1.0);
+		MP_[E][E][y]->AddMult(eOld[z], eNew[x], -1.0);
 		MS_[E][z]   ->AddMult(hOld[y], eNew[x], -1.0);
 		MF_[E][H][z]->AddMult(hOld[y], eNew[x],  1.0);
-		MP_[E][E][z]   ->AddMult(eOld[y], eNew[x],  1.0);
+		MP_[E][E][z]->AddMult(eOld[y], eNew[x],  1.0);
 
 		eNew[x].Neg();
 		// Update H.
 
 		MS_[H][z]   ->Mult   (eOld[y], hNew[x]);
 		MF_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-		MP_[H][H][z]   ->AddMult(hOld[y], hNew[x], -1.0);
+		MP_[H][H][z]->AddMult(hOld[y], hNew[x], -1.0);
 		MS_[H][y]   ->AddMult(eOld[z], hNew[x], -1.0);
 		MF_[H][E][y]->AddMult(eOld[z], hNew[x],  1.0);
-		MP_[H][H][y]   ->AddMult(hOld[z], hNew[x],  1.0);
+		MP_[H][H][y]->AddMult(hOld[z], hNew[x],  1.0);
 
 		hNew[x].Neg();
 	}

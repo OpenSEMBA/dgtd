@@ -15,7 +15,6 @@ public:
 
 	struct Options {
 		FluxType fluxType = FluxType::Upwind;
-		BdrCond bdrCond = BdrCond::PEC;
 	};
 
 	static const std::size_t numberOfFieldComponents = 2;
@@ -42,7 +41,7 @@ private:
 	std::array<std::array<std::array<Operator, 3>, 2>, 2> MF_;
 	std::array<std::array<std::array<Operator, 3>, 2>, 2> MP_;
 
-	void setValuesForOperatorsBasedOnProblemDim();
+	//void setValuesForOperatorsBasedOnProblemDim();
 
 	Vector buildNVector(const Direction& d) const;
 	Vector buildPieceWiseArgVector(const FieldType& f) const;

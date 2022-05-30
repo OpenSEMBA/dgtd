@@ -348,7 +348,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
+	probes.paraview = true;
 	probes.vis_steps = 50;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 3);
@@ -636,7 +636,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_X)
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
 	solverOpts.t_final = 1.0;
 	solverOpts.dt = 1e-3;
 
@@ -745,7 +744,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
 	solverOpts.t_final = 1.0;
 	solverOpts.dt = 1e-3;
 
@@ -807,7 +805,6 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
 	solverOpts.t_final = 0.7;
 	solverOpts.dt = 1e-3;
 
@@ -950,7 +947,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(TestMaxwellSolver, twoDimensionalResonantBox)
+TEST_F(TestMaxwellSolver, DISABLED_twoDimensionalResonantBox)
 {
 	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
 	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });

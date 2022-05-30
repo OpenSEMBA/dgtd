@@ -267,7 +267,9 @@ void Solver::run()
 
 		odeSolver_->Step(sol_, time, opts_.dt);
 
-		done = (time >= opts_.t_final);
+		if (abs(time - opts_.t_final) < 1e-6) {
+			done = true;
+		}
 
 		cycle++;
 
