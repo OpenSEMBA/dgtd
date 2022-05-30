@@ -21,7 +21,7 @@ public:
 	static const std::size_t numberOfFieldComponents = 2;
 	static const std::size_t numberOfMaxDimensions = 3;
 
-	FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model);
+	FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model, Sources& sources);
 	virtual void Mult(const Vector& x, Vector& y) const;
 	virtual ~FiniteElementEvolutionNoCond() = default;
 
@@ -36,12 +36,13 @@ private:
 	FiniteElementSpace* fes_;
 	Options opts_;
 	Model model_;
+	Sources sources_;
 
 	std::array<std::array<Operator, 3>, 2> MS_;
 	std::array<std::array<std::array<Operator, 3>, 2>, 2> MF_;
-	std::array<std::array<Operator, 2>, 2> MP_;
+	std::array<std::array<std::array<Operator, 3>, 2>, 2> MP_;
 
-	void setValuesForOperatorsBasedOnProbDim();
+	void setValuesForOperatorsBasedOnProblemDim();
 
 	Vector buildNVector(const Direction& d) const;
 	Vector buildPieceWiseArgVector(const FieldType& f) const;

@@ -687,13 +687,12 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
 	maxwell::Solver::Options solverOpts;
 
 	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.evolutionOperatorOptions.bdrCond = BdrCond::SMA;
-	solverOpts.t_final = 1.0;
+	solverOpts.t_final = 2.0;
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
+	probes.paraview = true;
+	probes.vis_steps = 100;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 3);
 	pointMat.Elem(0, 0) = 0.0;
@@ -751,7 +750,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 	solverOpts.dt = 1e-3;
 
 	Probes probes;
-	//probes.paraview = true;
+	probes.paraview = true;
 	probes.vis_steps = 50;
 	probes.extractDataAtPoints = true;
 	DenseMatrix pointMat(1, 3);

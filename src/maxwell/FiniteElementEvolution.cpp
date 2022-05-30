@@ -2,11 +2,12 @@
 
 namespace maxwell {
 
-FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model) :
+FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model, Sources& sources) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
-	model_(model)
+	model_(model),
+	sources_(sources)
 {
 	for (int fInt = FieldType::E; fInt <= FieldType::H; fInt++) {
 		FieldType f = static_cast<FieldType>(fInt);
@@ -16,7 +17,46 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 				Direction d = static_cast<Direction>(dir);
 				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
 				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
-				MP_[f][f2] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
+				MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
+			}
+		}
+	}
+
+	setValuesForOperatorsBasedOnProblemDim();
+}
+
+void FiniteElementEvolutionNoCond::setValuesForOperatorsBasedOnProblemDim()
+{
+	if (fes_->GetMesh()->Dimension() == 1){
+		for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
+			switch (sources_.getSourcesVector().at(i).getDirection()) {
+			case X:
+				switch (sources_.getSourcesVector().at(i).getFieldType()) {
+				case E:
+					MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0);
+					MS_[E][Y].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0); MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
+					break;
+				case H:
+					break;
+				}
+				break;
+			case Y:
+				switch (sources_.getSourcesVector().at(i).getFieldType()) {
+				case E:
+					//MS_[E][Y].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
+					//                                 MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
+					/*MS_[E][Z].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0);*/ MP_[E][E][X].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
+
+					//MS_[H][Z].get()->operator=(0.0); MF_[H][E][Y].get()->operator=(0.0); MP_[H][H][Y].get()->operator=(0.0); MS_[H][Y].get()->operator=(0.0); MF_[H][E][Z].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
+					//								                                                                                                           
+					/*MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);*/ MP_[H][H][X].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
+					//MS_[H][Y].get()->operator=(0.0); MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);
+
+					break;
+				}
+				break;
+			case Z:
+				break;
 			}
 		}
 	}
@@ -108,23 +148,26 @@ FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
 {
 	ConstantCoefficient coeff(1.0);
 	auto dir = d;
-	auto K = std::make_unique<BilinearForm>(fes_);
+	auto res = std::make_unique<BilinearForm>(fes_);
 	
 	if (d >= fes_->GetMesh()->Dimension()) {
-		coeff.constant = 0.0;
 		dir = X;
 	}
 
-	K->AddDomainIntegrator(
+	res->AddDomainIntegrator(
 		new TransposeIntegrator(
 			new DerivativeIntegrator(coeff, dir)
 		)
 	);
 
-	K->Assemble();
-	K->Finalize();
+	res->Assemble();
+	res->Finalize();
 
-	return K;
+	if (d >= fes_->GetMesh()->Dimension()) {
+		res.get()->operator=(0.0);
+	}
+
+	return res;
 }
 
 FiniteElementEvolutionNoCond::Operator 
@@ -149,6 +192,7 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 		FluxCoefficient c = boundaryFluxCoefficient(f, kv.second);
 		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first-1]);
 	}
+
 	res->Assemble();
 	res->Finalize();
 
@@ -178,7 +222,6 @@ FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Dir
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.second);
 		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
 	}
-	
 	
 	res->Assemble();
 	res->Finalize();
@@ -308,20 +351,20 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		// Update E.
 		MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
 		MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-		MP_[E][E]   ->AddMult(eOld[z], eNew[x], -1.0);
+		MP_[E][E][y]   ->AddMult(eOld[z], eNew[x], -1.0);
 		MS_[E][z]   ->AddMult(hOld[y], eNew[x], -1.0);
 		MF_[E][H][z]->AddMult(hOld[y], eNew[x],  1.0);
-		MP_[E][E]   ->AddMult(eOld[y], eNew[x],  1.0);
+		MP_[E][E][z]   ->AddMult(eOld[y], eNew[x],  1.0);
 
 		eNew[x].Neg();
 		// Update H.
 
 		MS_[H][z]   ->Mult   (eOld[y], hNew[x]);
 		MF_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-		MP_[H][H]   ->AddMult(hOld[y], hNew[x], -1.0);
+		MP_[H][H][z]   ->AddMult(hOld[y], hNew[x], -1.0);
 		MS_[H][y]   ->AddMult(eOld[z], hNew[x], -1.0);
 		MF_[H][E][y]->AddMult(eOld[z], hNew[x],  1.0);
-		MP_[H][H]   ->AddMult(hOld[z], hNew[x],  1.0);
+		MP_[H][H][y]   ->AddMult(hOld[z], hNew[x],  1.0);
 
 		hNew[x].Neg();
 	}

@@ -27,7 +27,7 @@ odeSolver_ = std::make_unique<RK4Solver>();
 
 maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(
 	fes_.get(), 
-	opts_.evolutionOperatorOptions, model_);
+	opts_.evolutionOperatorOptions, model_, sources_);
 
 sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents *
 	FiniteElementEvolutionNoCond::numberOfMaxDimensions *
