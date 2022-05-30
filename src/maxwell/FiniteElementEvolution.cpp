@@ -292,8 +292,6 @@ FiniteElementEvolutionNoCond::boundaryPenaltyFluxCoefficient(const FieldType& f,
 
 void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 {
-
-	GridFunction eAux;
 	
 	std::array<Vector,3> eOld, hOld;
 	std::array<GridFunction, 3> eNew, hNew;
