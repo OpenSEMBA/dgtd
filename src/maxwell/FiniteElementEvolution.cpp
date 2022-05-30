@@ -15,52 +15,14 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 			FieldType f2 = static_cast<FieldType>(fInt2);
 			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
-					MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
-					MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
-					MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
-				}
+				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
+				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
+				MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
 			}
 		}
+	}
 
-	//setValuesForOperatorsBasedOnProblemDim();
 }
-//
-//void FiniteElementEvolutionNoCond::setValuesForOperatorsBasedOnProblemDim()
-//{
-//	if (fes_->GetMesh()->Dimension() == 1){
-//		for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
-//			switch (sources_.getSourcesVector().at(i).getDirection()) {
-//			case X:
-//				switch (sources_.getSourcesVector().at(i).getFieldType()) {
-//				case E:
-//					MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0);
-//					MS_[E][Y].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0); MS_[E][X].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
-//					break;
-//				case H:
-//					break;
-//				}
-//				break;
-//			case Y:
-//				switch (sources_.getSourcesVector().at(i).getFieldType()) {
-//				case E:
-//					//MS_[E][Y].get()->operator=(0.0); MF_[E][H][Z].get()->operator=(0.0); MP_[E][E][Z].get()->operator=(0.0); MS_[E][Z].get()->operator=(0.0); MF_[E][H][Y].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
-//					//                                 MF_[E][H][X].get()->operator=(0.0); MP_[E][E][X].get()->operator=(0.0);
-//					/*MS_[E][Z].get()->operator=(0.0); MF_[E][H][X].get()->operator=(0.0);*/ MP_[E][E][X].get()->operator=(0.0); MP_[E][E][Y].get()->operator=(0.0);
-//
-//					//MS_[H][Z].get()->operator=(0.0); MF_[H][E][Y].get()->operator=(0.0); MP_[H][H][Y].get()->operator=(0.0); MS_[H][Y].get()->operator=(0.0); MF_[H][E][Z].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
-//					//								                                                                                                           
-//					/*MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);*/ MP_[H][H][X].get()->operator=(0.0); MP_[H][H][Z].get()->operator=(0.0);
-//					//MS_[H][Y].get()->operator=(0.0); MF_[H][E][X].get()->operator=(0.0); MP_[H][H][X].get()->operator=(0.0);
-//
-//					break;
-//				}
-//				break;
-//			case Z:
-//				break;
-//			}
-//		}
-//	}
-//}
 
 Vector
 FiniteElementEvolutionNoCond::buildPieceWiseArgVector(const FieldType& f) const

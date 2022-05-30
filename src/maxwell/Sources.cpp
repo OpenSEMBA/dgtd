@@ -35,9 +35,7 @@ double Source::evalGaussianFunction(const Position& pos) const
 		normalizedPos[i] = 2 * (pos[i] - center[i] - devFromCenter_[i]) / (maxBB_[i] - minBB_[i]);
 	}
 	return coeff_ * (1.0 / (pow(spread_, 2.0) * pow(2.0 * M_PI, 2.0 / 2.0))) *
-		exp(-40 * (pow(normalizedPos[X], 2.0) 
-			//+ pow(normalizedPos[Y], 2.0)
-			) /
+		exp(-40 * (pow(normalizedPos[X], 2.0) + pow(normalizedPos[Y], 2.0)) /
 			(2.0 * pow(spread_, 2.0)));
 }
 

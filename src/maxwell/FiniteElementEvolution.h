@@ -41,8 +41,6 @@ private:
 	std::array<std::array<std::array<Operator, 3>, 2>, 2> MF_;
 	std::array<std::array<std::array<Operator, 3>, 2>, 2> MP_;
 
-	//void setValuesForOperatorsBasedOnProblemDim();
-
 	Vector buildNVector(const Direction& d) const;
 	Vector buildPieceWiseArgVector(const FieldType& f) const;
 	
