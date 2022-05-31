@@ -129,7 +129,9 @@ protected:
 		return res;
 	}
 
-	Probes buildProbesWithDefaultProbe(const FieldType& fToExtract = E, const Direction& dirToExtract = X)
+	Probes buildProbesWithDefaultProbe(
+		const FieldType& fToExtract = E, 
+		const Direction& dirToExtract = X)
 	{
 		Probes res;
 		res.vis_steps = 20;
@@ -535,7 +537,6 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	);
 
 	Probes probes;
-	probes.paraview = true;
 	probes.extractDataAtPoints = true;
 	probes.addProbeToVector(Probe(E, Y, std::vector<std::vector<double>>{ {0.3}, { 0.1 } }));
 
@@ -550,11 +551,12 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		buildDefaultSolverOpts(1.5));
 
 	auto eOld = solver.getFieldInDirection(E, Y);
-	solver.run();
 
 	double reflectCoeff =
-		 (model.getAttToMat().at(1).getImpedance() - model.getAttToMat().at(0).getImpedance()) /
-		((model.getAttToMat().at(1).getImpedance() + model.getAttToMat().at(0).getImpedance()));
+		(model.getAttToMat().at(2).getImpedance() - model.getAttToMat().at(1).getImpedance()) /
+		(model.getAttToMat().at(2).getImpedance() + model.getAttToMat().at(1).getImpedance());
+
+	solver.run();
 
 	EXPECT_NEAR(eOld.Max(), 
 		getBoundaryFieldValueAtTime(solver.getProbe(0), 0.0, 0, Y), 2e-3);
