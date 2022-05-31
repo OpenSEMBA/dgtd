@@ -260,16 +260,14 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
 
-	Model model = TestMaxwellSolver::buildOneDimOneMatModel();
-
-	Probes probes;
+	Model model = buildOneDimOneMatModel();
 
 	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
 	maxwell::Solver solver(
 		model,
-		probes,
+		Probes(),
 		buildSourcesWithDefaultSource(model),
 		solverOpts);
 
@@ -494,16 +492,13 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 
 }
 
-
-
 TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
 	Probes probes;
 	probes.extractDataAtPoints = true;
-	Probe probe(E, Y, std::vector<std::vector<double>>{ {0.5} , {0.8} });
-	probes.addProbeToVector(probe);
+	probes.addProbeToVector(Probe(E, Y, std::vector<std::vector<double>>{ {0.5}, { 0.8 } }));
 
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Y, 2.0, 1.0, Vector({ 0.0 })));
@@ -589,7 +584,6 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
 
-
 	maxwell::Solver solver(model, probes, sources, buildDefaultSolverOpts(1.0));
 
 	solver.run();
@@ -633,7 +627,6 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHE
 
 	EXPECT_GT(eOld.Max(), eNew.Max());
 }
-
 TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
@@ -654,17 +647,13 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 	mesh.UniformRefinement();
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
-	Probes probes;
-	probes.paraview = true;
-	probes.vis_steps = 20;
-
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
 
 	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
-	maxwell::Solver solver(model, probes, sources, solverOpts);
+	maxwell::Solver solver(model, Probes(), sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
