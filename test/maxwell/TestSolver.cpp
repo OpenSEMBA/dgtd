@@ -260,7 +260,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
 
-
 	Model model = TestMaxwellSolver::buildOneDimOneMatModel();
 
 	Probes probes;
@@ -284,8 +283,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 
 }
 
-
-
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 {
 
@@ -307,7 +304,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 {
-
 	Model model = buildOneDimOneMatModel();
 
 	maxwell::Solver solver(
@@ -435,7 +431,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
 
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EX)
 {
-
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
 	maxwell::Solver solver(
@@ -454,7 +449,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EX)
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 {
-
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
 	maxwell::Solver solver(
@@ -478,7 +472,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 {
-
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
 	maxwell::Solver solver(
@@ -531,7 +524,6 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 }
 TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
-
 	Mesh mesh1D = Mesh::MakeCartesian1D(101);
 	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.76, 1.0) } }, mesh1D);
 
@@ -603,8 +595,6 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 	solver.run();
 
 }
-
-
 TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHECK
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
@@ -619,7 +609,6 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHE
 	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty 
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not 
 	higher than the initial value.*/
-
 
 	const char* mesh_file = "star-mixed.mesh";
 	Mesh mesh(mesh_file);
