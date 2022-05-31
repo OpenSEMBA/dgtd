@@ -7,6 +7,7 @@ Probe::Probe(const FieldType& ft, const Direction& d, std::vector<std::vector<do
 	fieldToExtract_(ft),
 	directionToExtract_(d)
 {
+
 	integPointMat_.SetSize(points.at(0).size(), points.size());
 	for (int i = 0; i < points.at(i).size(); i++) {
 		for (int j = 0; j < points.size(); j++) {
