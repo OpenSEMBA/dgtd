@@ -32,7 +32,6 @@ public:
     bool paraview = false;
     bool glvis = false;
     bool extractDataAtPoints = false;
-    Probes() = default;
 
     void addProbeToVector(const Probe& probe) { probeVector_.push_back(probe); }
     std::vector<Probe>& getProbeVector() { return probeVector_; }

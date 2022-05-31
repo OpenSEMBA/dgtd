@@ -113,7 +113,7 @@ protected:
 		const BdrCond& bdrL = BdrCond::PEC, 
 		const BdrCond& bdrR = BdrCond::PEC) {
 
-		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), buildAttToVaccumOneMatMap1D(), buildAttrToBdrMap1D(bdrL,bdrR));
+		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), AttributeToMaterial(), buildAttrToBdrMap1D(bdrL,bdrR));
 	}
 
 	Sources buildSourcesWithDefaultSource(
@@ -131,12 +131,12 @@ protected:
 
 	Probes buildProbesWithDefaultProbe(const FieldType& fToExtract = E, const Direction& dirToExtract = X)
 	{
-		Probes probes;
-		probes.vis_steps = 20;
-		probes.extractDataAtPoints = true;
-		probes.addProbeToVector(Probe(fToExtract, dirToExtract, 
+		Probes res;
+		res.vis_steps = 20;
+		res.extractDataAtPoints = true; 
+		res.addProbeToVector(Probe(fToExtract, dirToExtract, 
 			std::vector<std::vector<double>>{{0.0},{0.5},{1.0}}));
-		return probes;
+		return res;
 	}
 
 	maxwell::Solver::Options buildDefaultSolverOpts(const double tFinal = 2.0)
@@ -361,7 +361,6 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
 }
 
 
-
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HX)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
@@ -477,7 +476,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Y));
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 {
 
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
@@ -513,16 +512,14 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 	Probe probe(E, Y, std::vector<std::vector<double>>{ {0.5} , {0.8} });
 	probes.addProbeToVector(probe);
 
-	Source EYFieldSource(model, E, Y, 2.0, 1.0, Vector({ 0.0 }));
-	Source HZFieldSource(model, H, Z, 2.0, 1.0, Vector({ 0.0 }));
 	Sources sources;
-	sources.addSourceToVector(EYFieldSource);
-	sources.addSourceToVector(HZFieldSource);
+	sources.addSourceToVector(Source(model, E, Y, 2.0, 1.0, Vector({ 0.0 })));
+	sources.addSourceToVector(Source(model, H, Z, 2.0, 1.0, Vector({ 0.0 })));
 
 	maxwell::Solver solver(
 		model,
 		probes,
-		buildSourcesWithDefaultSource(model, E, Y),
+		sources,
 		buildDefaultSolverOpts(0.7));
 
 	solver.run();
@@ -590,25 +587,18 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 	std::vector<Vector> trans;
 	trans.push_back(periodic);
 	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D,mesh2D.CreatePeriodicVertexMapping(trans));
-
-	Model model = Model(mesh2DPer, 
-		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1 }), 
-			std::vector<Material>({ Material(1.0, 1.0) })),
-		HelperFunctions::buildAttToBdrMap(std::vector<Attribute>({ 1, 2, 3, 4 }), 
-			std::vector<BdrCond>({ BdrCond::PEC, BdrCond::PEC, BdrCond::PEC, BdrCond::PEC })));
-
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
-
+	
+	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
+	
 	Probes probes;
 	probes.paraview = true;
 	probes.vis_steps = 20;
 
-	maxwell::Solver solver(
-		model, 
-		probes,
-		sources, 
-		buildDefaultSolverOpts(1.0));
+	Sources sources;
+	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
+
+
+	maxwell::Solver solver(model, probes, sources, buildDefaultSolverOpts(1.0));
 
 	solver.run();
 
@@ -630,26 +620,23 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHE
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not 
 	higher than the initial value.*/
 
-	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+
+	const char* mesh_file = "star-mixed.mesh";
+	Mesh mesh(mesh_file);
+	mesh.UniformRefinement();
+	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	Probes probes;
 	probes.paraview = true;
 	probes.vis_steps = 20;
 
-	const char* mesh_file = "star-mixed.mesh";
-	Mesh mesh(mesh_file);
-	mesh.UniformRefinement();
-	Model model = Model(mesh, 
-		buildAttToMatMap(std::vector<Attribute>({ 1 }), 
-		std::vector<Material>({ Material(1.0, 1.0) })), 
-		AttributeToBoundary());
-
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
 
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+
+	maxwell::Solver solver(model, probes, sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
@@ -673,29 +660,22 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
 	higher than the initial value.*/
 
-	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+	const char* mesh_file = "amr-quad.mesh";
+	Mesh mesh(mesh_file);
+	mesh.UniformRefinement();
+	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	Probes probes;
 	probes.paraview = true;
 	probes.vis_steps = 20;
 
-	const char* mesh_file = "amr-quad.mesh";
-	Mesh mesh(mesh_file);
-	mesh.UniformRefinement();
-	Model model = Model(mesh,
-		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1 }),
-			std::vector<Material>({ Material(1.0, 1.0) })),
-		AttributeToBoundary());
-
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
 
-	maxwell::Solver solver(
-		model, 
-		probes,
-		sources, 
-		solverOpts);
+	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+
+	maxwell::Solver solver(model, probes, sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();

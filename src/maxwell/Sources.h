@@ -32,9 +32,7 @@ struct Sources {
 public:
 
 	void addSourceToVector(const Source& source) { sourceVector_.push_back(source); }
-	std::vector<Source> getSourcesVector() const { return sourceVector_; }
-
-	Sources() = default;
+	std::vector<Source>& getSourcesVector() { return sourceVector_; }
 
 private:
 
