@@ -367,7 +367,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 	bdrVec.push_back(BdrCond::PEC);
 	bdrVec.push_back(BdrCond::PEC);
 	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
+	Model model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
 
 	double spread = 2.0;
 	double coeff = 1.0;
@@ -647,9 +647,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_X)
 	pointMat.Elem(0, 0) = 0.0;
 	pointMat.Elem(0, 1) = 0.5;
 	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = X;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
+	Probe probe(FieldType::E, Direction::X, pointMat);
 	probes.addProbeToVector(probe);
 
 
@@ -702,15 +700,11 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
 	Probe probe(fieldToExtract, directionToExtract, pointMat);
 	probes.addProbeToVector(probe);
 
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::SMA);
-	bdrVec.push_back(BdrCond::SMA);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
+	Model model = Model(
+		Mesh::MakeCartesian1D(51), 
+		AttributeToMaterial(),
+		buildAttrMap1D(BdrCond::SMA, BdrCond::SMA)
+	);
 
 	double spread = 2.0;
 	double coeff = 1.0;
@@ -721,8 +715,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
 	Sources sources;
 	sources.addSourceToVector(EYFieldSource);
 
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(model, probes, sources, solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
@@ -907,17 +900,15 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
 	Model model = Model(mesh1D, HelperFunctions::buildAttToMatMap(matAttVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec,bdrCondVec));
 
-	double spread = 1.0;
-	double coeff = 0.5;
-	const Vector dev = Vector({ 0.2 });
-	Direction d = Y;
-	FieldType ft = E;
-
-	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Source HZFieldSource = Source(model, spread, coeff, dev, Z, H);
 	Sources sources;
-	sources.addSourceToVector(EYFieldSource);
-	sources.addSourceToVector(HZFieldSource);
+	{
+		double spread = 1.0;
+		double coeff = 0.5;
+		const Vector dev = Vector({ 0.2 });
+
+		sources.addSourceToVector(Source(model, spread, coeff, dev, Y, E));
+		sources.addSourceToVector(Source(model, spread, coeff, dev, Z, H));
+	}
 
 	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
