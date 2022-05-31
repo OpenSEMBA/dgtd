@@ -50,24 +50,26 @@ namespace HelperFunctions {
 	}
 
 	void setAttributeIntervalMesh1D(
-		const std::pair<Attribute,Interval>& attToInterPair,
+		const std::map<Attribute,Interval>& attToInterval,
 		Mesh& mesh)
 	{
-		DenseMatrix changeAttMat(1, 2);
-		changeAttMat.Elem(0, 0) = attToInterPair.second.first;
-		changeAttMat.Elem(0, 1) = attToInterPair.second.second;
-		Array<int> elemID;
-		Array<IntegrationPoint> integPoint;
-		mesh.FindPoints(changeAttMat, elemID, integPoint);
-		
-		if (elemID.begin() > elemID.end()) {
-			throw std::exception("Lower Index bigger than Higher Index.");
-		}
-		if (elemID[1] > mesh.GetNE()) {
-			throw std::exception("Declared element index bigger than Mesh Number of Elements.");
-		}
-		for (int i = elemID[0]; i <= elemID[1]; i++) {
-			mesh.SetAttribute(i, attToInterPair.first);
+		for (auto const& kv : attToInterval) {
+			DenseMatrix changeAttMat(1, 2);
+			changeAttMat.Elem(0, 0) = kv.second.first;
+			changeAttMat.Elem(0, 1) = kv.second.second;
+			Array<int> elemID;
+			Array<IntegrationPoint> integPoint;
+			mesh.FindPoints(changeAttMat, elemID, integPoint);
+
+			if (elemID.begin() > elemID.end()) {
+				throw std::exception("Lower Index bigger than Higher Index.");
+			}
+			if (elemID[1] > mesh.GetNE()) {
+				throw std::exception("Declared element index bigger than Mesh Number of Elements.");
+			}
+			for (int i = elemID[0]; i <= elemID[1]; i++) {
+				mesh.SetAttribute(i, kv.first);
+			}
 		}
 	}
 
@@ -81,32 +83,6 @@ namespace HelperFunctions {
 			res.push_back(meshArrayElement[0]);
 		}
 
-		return res;
-	}
-
-	AttributeToMaterial buildAttToMatMap(
-		const std::vector<Attribute>& attVec, 
-		const std::vector<Material>& matVec)
-	{
-
-		if (attVec.size() != matVec.size()) {
-			throw std::exception("attVec and matVec must have the same size.");
-		}
-		AttributeToMaterial res;
-		for (int i = 0; i < attVec.size(); i++) {
-			res.emplace(attVec[i], matVec[i]);
-		}
-		return res;
-	}
-
-	AttributeToBoundary buildAttToBdrMap(
-		const std::vector<Attribute>& attVec,
-		const std::vector<BdrCond>& bdrVec)
-	{
-		AttributeToBoundary res;
-		for (int i = 0; i < attVec.size(); i++) {
-			res.emplace(attVec[i], bdrVec[i]);
-		}
 		return res;
 	}
 
@@ -125,7 +101,9 @@ namespace HelperFunctions {
 	}
 
 }
+
 using namespace AnalyticalFunctions1D;
+using namespace HelperFunctions;
 
 class TestMaxwellSolver : public ::testing::Test {
 protected:
@@ -173,12 +151,17 @@ protected:
 
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
 	{
-		return HelperFunctions::buildAttToBdrMap({ 1, 2 }, { bdrL, bdrR });
+		return {
+			{1, bdrL},
+			{2, bdrR}
+		};
 	}
 
 	AttributeToMaterial buildAttToVaccumOneMatMap1D()
 	{
-		return HelperFunctions::buildAttToMatMap({ 1 }, { Material(1.0, 1.0) });
+		return { 
+			{ 1, Material(1.0, 1.0) } 
+		};
 	}
 
 	double getBoundaryFieldValueAtTime(
@@ -245,20 +228,14 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered)
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
 
-
-
-
-
-	Model model = TestMaxwellSolver::buildOneDimOneMatModel();
-
-	Probes probes;
+	Model model = buildOneDimOneMatModel();
 
 	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
 	maxwell::Solver solver(
 		model, 
-		probes, 
+		Probes(),
 		buildSourcesWithDefaultSource(model), 
 		solverOpts);
 	
@@ -411,7 +388,8 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
 		model,
 		buildProbesWithDefaultProbe(H, Y),
 		buildSourcesWithDefaultSource(model, H, Y),
-		buildDefaultSolverOpts());
+		buildDefaultSolverOpts()
+	);
 
 	GridFunction hOld = solver.getFieldInDirection(H, Y);
 	solver.run();
@@ -558,14 +536,19 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 
 	Mesh mesh1D = Mesh::MakeCartesian1D(101);
-	std::pair<Attribute, Interval> attToIntPair = std::make_pair(2, std::make_pair(0.76, 1.0));
-	HelperFunctions::setAttributeIntervalMesh1D(attToIntPair,mesh1D);
+	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.76, 1.0) } }, mesh1D);
 
-	Model model = Model(mesh1D, 
-		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1, 2 }), 
-			std::vector<Material>({ Material(1.0, 1.0), Material(2.0, 1.0) })), 
-		HelperFunctions::buildAttToBdrMap(std::vector<Attribute>({ 1, 2 }),
-			std::vector<BdrCond> ({ BdrCond::SMA, BdrCond::PEC })));
+	Model model = Model(
+		mesh1D, 
+		{
+			{1, Material(1.0, 1.0)},
+			{2, Material(2.0, 1.0)}
+		},
+		{
+			{1, BdrCond::SMA},
+			{2, BdrCond::PEC}
+		}
+	);
 
 	Probes probes;
 	probes.paraview = true;
@@ -658,8 +641,8 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHE
 	Mesh mesh(mesh_file);
 	mesh.UniformRefinement();
 	Model model = Model(mesh, 
-		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1 }), 
-			std::vector<Material>({ Material(1.0, 1.0) })), 
+		buildAttToMatMap(std::vector<Attribute>({ 1 }), 
+		std::vector<Material>({ Material(1.0, 1.0) })), 
 		AttributeToBoundary());
 
 	Sources sources;
