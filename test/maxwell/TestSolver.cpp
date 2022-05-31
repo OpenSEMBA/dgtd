@@ -5,6 +5,8 @@
 
 using namespace maxwell;
 
+using Interval = std::pair<double, double>;
+
 namespace AnalyticalFunctions1D {
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
 
@@ -47,19 +49,25 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	void setAttributeIntervalMesh(
-		const int& attVal, 
-		const Array<int>& elIndexes, 
+	void setAttributeIntervalMesh1D(
+		const std::pair<Attribute,Interval>& attToInterPair,
 		Mesh& mesh)
 	{
-		if (elIndexes.begin() > elIndexes.end()) {
+		DenseMatrix changeAttMat(1, 2);
+		changeAttMat.Elem(0, 0) = attToInterPair.second.first;
+		changeAttMat.Elem(0, 1) = attToInterPair.second.second;
+		Array<int> elemID;
+		Array<IntegrationPoint> integPoint;
+		mesh.FindPoints(changeAttMat, elemID, integPoint);
+		
+		if (elemID.begin() > elemID.end()) {
 			throw std::exception("Lower Index bigger than Higher Index.");
 		}
-		if (elIndexes[1] > mesh.GetNE()) {
+		if (elemID[1] > mesh.GetNE()) {
 			throw std::exception("Declared element index bigger than Mesh Number of Elements.");
 		}
-		for (int i = elIndexes[0]; i <= elIndexes[1]; i++) {
-			mesh.SetAttribute(i, attVal);
+		for (int i = elemID[0]; i <= elemID[1]; i++) {
+			mesh.SetAttribute(i, attToInterPair.first);
 		}
 	}
 
@@ -122,40 +130,55 @@ using namespace AnalyticalFunctions1D;
 class TestMaxwellSolver : public ::testing::Test {
 protected:
 
-	Model buildOneDimFourMatModel(
-		const int meshIntervals) {
-
-		std::vector<Attribute> attArrMultiple = std::vector<Attribute>({ 1, 2, 3, 4 });
-		Material mat11 = Material(1.0, 1.0); Material mat12 = Material(1.0, 2.0);
-		Material mat21 = Material(2.0, 1.0); Material mat22 = Material(2.0, 2.0);
-		std::vector<Material> matArrMultiple;
-		matArrMultiple.push_back(mat11); matArrMultiple.push_back(mat12);
-		matArrMultiple.push_back(mat21); matArrMultiple.push_back(mat22);
-		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrMultiple, matArrMultiple);
-		AttributeToBoundary attToBdrVec;
-		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec, attToBdrVec);
-	}
-
 	Model buildOneDimOneMatModel(
-		const int meshIntervals = 51) {
+		const int meshIntervals = 51, 
+		const BdrCond& bdrL = BdrCond::PEC, 
+		const BdrCond& bdrR = BdrCond::PEC) {
 
-		std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
-		Material mat11 = Material(1.0, 1.0);
-		std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-		AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-		AttributeToBoundary attToBdrVec;
-		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), attToMatVec, attToBdrVec);
+		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), buildAttToVaccumOneMatMap1D(), buildAttrToBdrMap1D(bdrL,bdrR));
 	}
 
-	Source buildSourceOneDimOneMat(
-		const int meshIntervals = 51, 
+	Sources buildSourcesWithDefaultSource(
+		Model& model, 
+		const FieldType& ft = E,
+		const Direction& d = X, 
 		const double spread = 2.0, 
 		const double coeff = 1.0, 
-		const Vector dev = Vector({ 0.0 }),
-		const Direction& d = Y, 
-		const FieldType& ft = E){
+		const Vector dev = Vector({ 0.0 })) {
 
-		return Source(buildOneDimOneMatModel(meshIntervals), spread, coeff, dev, d, ft);
+		Sources res;
+		res.addSourceToVector(Source(model, ft, d,  spread, coeff, dev));
+		return res;
+	}
+
+	Probes buildProbesWithDefaultProbe(const FieldType& fToExtract = E, const Direction& dirToExtract = X)
+	{
+		Probes probes;
+		probes.vis_steps = 20;
+		probes.extractDataAtPoints = true;
+		probes.addProbeToVector(Probe(fToExtract, dirToExtract, 
+			std::vector<std::vector<double>>{{0.0},{0.5},{1.0}}));
+		return probes;
+	}
+
+	maxwell::Solver::Options buildDefaultSolverOpts(const double tFinal = 2.0)
+	{
+		maxwell::Solver::Options res;
+
+		res.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+		res.t_final = tFinal;
+
+		return res;
+	}
+
+	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
+	{
+		return HelperFunctions::buildAttToBdrMap({ 1, 2 }, { bdrL, bdrR });
+	}
+
+	AttributeToMaterial buildAttToVaccumOneMatMap1D()
+	{
+		return HelperFunctions::buildAttToMatMap({ 1 }, { Material(1.0, 1.0) });
 	}
 
 	double getBoundaryFieldValueAtTime(
@@ -222,22 +245,22 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered)
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
 
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
+
+
+
+	Model model = TestMaxwellSolver::buildOneDimOneMatModel();
 
 	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
 
-	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
+	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
-	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes, 
-						sources, solverOpts);
+	maxwell::Solver solver(
+		model, 
+		probes, 
+		buildSourcesWithDefaultSource(model), 
+		solverOpts);
 	
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
@@ -260,22 +283,19 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
 
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-	solverOpts.t_final = 1.999;
-	solverOpts.dt = 1e-3;
+	Model model = TestMaxwellSolver::buildOneDimOneMatModel();
 
 	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
 
-	Sources sources;
-	sources.addSourceToVector(TestMaxwellSolver::buildSourceOneDimOneMat());
+	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
+	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
 
-	maxwell::Solver solver(TestMaxwellSolver::buildOneDimOneMatModel(), probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		probes,
+		buildSourcesWithDefaultSource(model),
+		solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
@@ -291,45 +311,14 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 {
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
+	Model model = buildOneDimOneMatModel();
 
-	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = X;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::PEC);
-	bdrVec.push_back(BdrCond::PEC);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = X;
-	FieldType ft = E;
-	Source EXFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(EXFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model, 
+		buildProbesWithDefaultProbe(),
+		buildSourcesWithDefaultSource(model),
+		buildDefaultSolverOpts());
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
 	solver.run();
@@ -341,45 +330,14 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 {
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
+	Model model = buildOneDimOneMatModel();
 
-	Probes probes;
-	probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = Y;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::PEC);
-	bdrVec.push_back(BdrCond::PEC);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = Y;
-	FieldType ft = E;
-	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(EYFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(E, Y),
+		buildSourcesWithDefaultSource(model, E, Y),
+		buildDefaultSolverOpts());
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
@@ -388,57 +346,25 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-	Probe probeEY = solver.getProbe(0);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 0, Y), 2e-3);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Y), 2e-3);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 0, Y), 2e-3);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 2, Y), 2e-3);
 
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEY, 0.5, 0, Y), 2e-3);
-	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(probeEY, 0.5, 1, Y));
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEY, 0.5, 2, Y), 2e-3);
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEY, 1.5, 0, Y), 2e-3);
-	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(probeEY, 1.5, 1, Y));
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEY, 1.5, 2, Y), 2e-3);
+	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 1, Y));
+	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 1, Y));
 
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
 {
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
+	Model model = buildOneDimOneMatModel();
 
-	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = Z;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::PEC);
-	bdrVec.push_back(BdrCond::PEC);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = Z;
-	FieldType ft = E;
-	Source EZFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(EZFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(E, Z),
+		buildSourcesWithDefaultSource(model, E, Z),
+		buildDefaultSolverOpts());
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
@@ -447,14 +373,13 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
 	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-	Probe probeEZ = solver.getProbe(0);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 0, Z), 2e-3);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Z), 2e-3);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 0, Z), 2e-3);
+	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 2, Z), 2e-3);
 
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEZ, 0.5, 0, Z), 2e-3);
-	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(probeEZ, 0.5, 1, Z));
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEZ, 0.5, 2, Z), 2e-3);
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEZ, 1.5, 0, Z), 2e-3);
-	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(probeEZ, 1.5, 1, Z));
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(probeEZ, 1.5, 2, Z), 2e-3);
+	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 1, Z));
+	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 1, Z));
 
 }
 
@@ -462,45 +387,13 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
 
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HX)
 {
-	maxwell::Solver::Options solverOpts;
+	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
-
-	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = H;
-	Direction directionToExtract = X;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::PMC);
-	bdrVec.push_back(BdrCond::PMC);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = X;
-	FieldType ft = H;
-	Source HXFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(HXFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(H, X),
+		buildSourcesWithDefaultSource(model, H, X),
+		buildDefaultSolverOpts());
 
 	GridFunction hOld = solver.getFieldInDirection(H, X);
 	solver.run();
@@ -512,45 +405,13 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HX)
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
 {
-	maxwell::Solver::Options solverOpts;
+	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
-
-	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = H;
-	Direction directionToExtract = Y;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::PMC);
-	bdrVec.push_back(BdrCond::PMC);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = Y;
-	FieldType ft = H;
-	Source HYFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(HYFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(H, Y),
+		buildSourcesWithDefaultSource(model, H, Y),
+		buildDefaultSolverOpts());
 
 	GridFunction hOld = solver.getFieldInDirection(H, Y);
 	solver.run();
@@ -559,57 +420,24 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
 	double error = hOld.DistanceTo(hNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-	Probe probeHY = solver.getProbe(0);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 0, Y), 2e-3);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Y), 2e-3);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 0, Y), 2e-3);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 2, Y), 2e-3);
 
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHY, 0.5, 0, Y), 2e-3);
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(probeHY, 0.5, 1, Y));
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHY, 0.5, 2, Y), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHY, 1.5, 0, Y), 2e-3);
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(probeHY, 1.5, 1, Y));
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHY, 1.5, 2, Y), 2e-3);
+	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 1, Y));
+	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 1, Y));
 
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
 {
-	maxwell::Solver::Options solverOpts;
+	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
-
-	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = H;
-	Direction directionToExtract = Z;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::PMC);
-	bdrVec.push_back(BdrCond::PMC);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = Z;
-	FieldType ft = H;
-	Source HZFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(HZFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(H, Z),
+		buildSourcesWithDefaultSource(model, H, Z),
+		buildDefaultSolverOpts());
 
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
 	solver.run();
@@ -618,104 +446,45 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
 	double error = hOld.DistanceTo(hNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-	Probe probeHZ = solver.getProbe(0);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 0, Z), 2e-3);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Z), 2e-3);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 0, Z), 2e-3);
+	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 2, Z), 2e-3);
 
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHZ, 0.5, 0, Z), 2e-3);
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(probeHZ, 0.5, 1, Z));
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHZ, 0.5, 2, Z), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHZ, 1.5, 0, Z), 2e-3);
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(probeHZ, 1.5, 1, Z));
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(probeHZ, 1.5, 2, Z), 2e-3);
+	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 1, Z));
+	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 1.5, 1, Z));
 
 }
 
-
-
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_X)
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EX)
 {
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 1.0;
-	solverOpts.dt = 1e-3;
+	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
-	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	Probe probe(FieldType::E, Direction::X, pointMat);
-	probes.addProbeToVector(probe);
-
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::SMA);
-	bdrVec.push_back(BdrCond::SMA);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = X;
-	FieldType ft = E;
-	Source EXFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(EXFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(E, X),
+		buildSourcesWithDefaultSource(model, E, X),
+		buildDefaultSolverOpts(1.0));
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, X);
+
 	double error = eOld.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 {
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-3;
+	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
-	Probes probes;
-	probes.paraview = true;
-	probes.vis_steps = 100;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = Y;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	Model model = Model(
-		Mesh::MakeCartesian1D(51), 
-		AttributeToMaterial(),
-		buildAttrMap1D(BdrCond::SMA, BdrCond::SMA)
-	);
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = Y;
-	FieldType ft = E;
-	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(EYFieldSource);
-
-	maxwell::Solver solver(model, probes, sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(E, Y),
+		buildSourcesWithDefaultSource(model, E, Y),
+		buildDefaultSolverOpts(1.0));
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
@@ -725,55 +494,21 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Y)
 	double error = zero.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-	Probe probeEY = solver.getProbe(0);
-
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(probeEY, 0.5, 0, Y));
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(probeEY, 0.5, 1, Y));
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(probeEY, 0.5, 2, Y));
+	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 0, Y));
+	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 1, Y));
+	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Y));
 
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 {
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 1.0;
-	solverOpts.dt = 1e-3;
+	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
-	Probes probes;
-	probes.paraview = true;
-	probes.vis_steps = 50;
-	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 3);
-	pointMat.Elem(0, 0) = 0.0;
-	pointMat.Elem(0, 1) = 0.5;
-	pointMat.Elem(0, 2) = 1.0;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = Z;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({ 1 });
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::SMA);
-	bdrVec.push_back(BdrCond::SMA);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = Z;
-	FieldType ft = E;
-	Source EZFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Sources sources;
-	sources.addSourceToVector(EZFieldSource);
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model,
+		buildProbesWithDefaultProbe(E, Z),
+		buildSourcesWithDefaultSource(model, E, Z),
+		buildDefaultSolverOpts(1.0));
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
@@ -783,11 +518,9 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 	double error = zero.DistanceTo(eNew);
 	EXPECT_NEAR(0.0, error, 2e-3);
 
-	Probe probeEZ = solver.getProbe(0);
-
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(probeEZ, 0.5, 0, Z));
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(probeEZ, 0.5, 1, Z));
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(probeEZ, 0.5, 2, Z));
+	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 0, Z));
+	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 1, Z));
+	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Z));
 
 }
 
@@ -795,187 +528,79 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_Z)
 
 TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 {
-	maxwell::Solver::Options solverOpts;
-
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 0.7;
-	solverOpts.dt = 1e-3;
+	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
 	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 5;
-	//probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 2);
-	pointMat.Elem(0, 0) = 0.5;
-	pointMat.Elem(0, 1) = 0.8;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = Y;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
+	probes.extractDataAtPoints = true;
+	Probe probe(E, Y, std::vector<std::vector<double>>{ {0.5} , {0.8} });
 	probes.addProbeToVector(probe);
 
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	std::vector<Attribute> attVec = std::vector<Attribute>({1});
-	std::vector<BdrCond> bdrVec;
-	bdrVec.push_back(BdrCond::SMA);
-	bdrVec.push_back(BdrCond::SMA);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(Mesh::MakeCartesian1D(51), HelperFunctions::buildAttToMatMap(attVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrVec));
-
-	double spread = 2.0;
-	double coeff = 1.0;
-	const Vector dev = Vector({ 0.0 });
-	Direction d = Y;
-	FieldType ft = E;
-	Source EYFieldSource = Source(model, spread, coeff, dev, d, ft);
-	Source HZFieldSource = Source(model, spread, coeff, dev, Z, H);
+	Source EYFieldSource(model, E, Y, 2.0, 1.0, Vector({ 0.0 }));
+	Source HZFieldSource(model, H, Z, 2.0, 1.0, Vector({ 0.0 }));
 	Sources sources;
 	sources.addSourceToVector(EYFieldSource);
 	sources.addSourceToVector(HZFieldSource);
 
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
-
-	///////////////////
+	maxwell::Solver solver(
+		model,
+		probes,
+		buildSourcesWithDefaultSource(model, E, Y),
+		buildDefaultSolverOpts(0.7));
 
 	solver.run();
-	Probe probeEY = solver.getProbe(0);
 
-	///////////////////
-
-	auto it = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.0, 1e-6);
-	if (it == probeEY.getFieldMovie().end()) {
-		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
-	}
-	auto EYValForFirstPos = it->second.at(0).at(Y);
-
-	auto it2 = HelperFunctions::findTimeId(probeEY.getFieldMovie(), 0.3, 1e-6);
-	if (it2 == probeEY.getFieldMovie().end()) {
-		GTEST_FATAL_FAILURE_("Time value has not been found within the specified tolerance.");
-	}
-	auto EYValForSecondPos = it2->second.at(1).at(Y);
-	
-	EXPECT_NEAR(EYValForSecondPos, EYValForFirstPos, 2e-3);
+	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getProbe(0), 0.3, 1, Y),
+				getBoundaryFieldValueAtTime(solver.getProbe(0), 0.0, 0, Y),
+				2e-3);
 
 }
 TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
-	maxwell::Solver::Options solverOpts;
 
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 1.5;
-	solverOpts.dt = 1e-3;
+	Mesh mesh1D = Mesh::MakeCartesian1D(101);
+	std::pair<Attribute, Interval> attToIntPair = std::make_pair(2, std::make_pair(0.76, 1.0));
+	HelperFunctions::setAttributeIntervalMesh1D(attToIntPair,mesh1D);
+
+	Model model = Model(mesh1D, 
+		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1, 2 }), 
+			std::vector<Material>({ Material(1.0, 1.0), Material(2.0, 1.0) })), 
+		HelperFunctions::buildAttToBdrMap(std::vector<Attribute>({ 1, 2 }),
+			std::vector<BdrCond> ({ BdrCond::SMA, BdrCond::PEC })));
 
 	Probes probes;
 	probes.paraview = true;
-	probes.vis_steps = 10;
 	probes.extractDataAtPoints = true;
-	DenseMatrix pointMat(1, 2);
-	pointMat.Elem(0, 0) = 0.3;
-	pointMat.Elem(0, 1) = 0.1;
-	FieldType fieldToExtract = E;
-	Direction directionToExtract = Y;
-	Probe probe(fieldToExtract, directionToExtract, pointMat);
-	probes.addProbeToVector(probe);
-
-	int meshIntervals = 101;
-	Mesh mesh1D = Mesh::MakeCartesian1D(meshIntervals);
-	DenseMatrix changeAttMat(1,2);
-	changeAttMat.Elem(0, 0) = 0.76;
-	changeAttMat.Elem(0, 1) = 1.0;
-	Array<int> elemID;
-	Array<IntegrationPoint> integPoint;
-	mesh1D.FindPoints(changeAttMat, elemID, integPoint);
-
-	HelperFunctions::setAttributeIntervalMesh(2,elemID,mesh1D);
-
-	std::vector<Material> matVec;
-	matVec.push_back(Material(1.0, 1.0));
-	matVec.push_back(Material(2.0, 1.0));
-	std::vector<Attribute> matAttVec = std::vector<Attribute>({ 1, 2 });
-	std::vector<BdrCond> bdrCondVec;
-	bdrCondVec.push_back(BdrCond::SMA);
-	bdrCondVec.push_back(BdrCond::PEC);	
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2 });
-	Model model = Model(mesh1D, HelperFunctions::buildAttToMatMap(matAttVec, matVec), HelperFunctions::buildAttToBdrMap(bdrAttVec,bdrCondVec));
+	probes.addProbeToVector(Probe(E, Y, std::vector<std::vector<double>>{ {0.3}, { 0.1 } }));
 
 	Sources sources;
-	{
-		double spread = 1.0;
-		double coeff = 0.5;
-		const Vector dev = Vector({ 0.2 });
+	sources.addSourceToVector(Source(model, E, Y, 1.0, 0.5, Vector({ 0.2 })));
+	sources.addSourceToVector(Source(model, H, Z, 1.0, 0.5, Vector({ 0.2 })));
 
-		sources.addSourceToVector(Source(model, spread, coeff, dev, Y, E));
-		sources.addSourceToVector(Source(model, spread, coeff, dev, Z, H));
-	}
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
-
-	///////////////////
+	maxwell::Solver solver(
+		model,
+		probes,
+		sources,
+		buildDefaultSolverOpts(1.5));
 
 	auto eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
-	Probe probeEY = solver.getProbe(0);
-
-	///////////////////
 
 	double reflectCoeff =
-		(matVec.at(1).getImpedance() - matVec.at(0).getImpedance()) /
-		((matVec.at(1).getImpedance() + matVec.at(0).getImpedance()));
+		 (model.getAttToMat().at(1).getImpedance() - model.getAttToMat().at(0).getImpedance()) /
+		((model.getAttToMat().at(1).getImpedance() + model.getAttToMat().at(0).getImpedance()));
 
 	EXPECT_NEAR(eOld.Max(), 
-		getBoundaryFieldValueAtTime(probeEY, 0.0, 0, Y), 2e-3);
+		getBoundaryFieldValueAtTime(solver.getProbe(0), 0.0, 0, Y), 2e-3);
 	EXPECT_NEAR(0.0, 
-		getBoundaryFieldValueAtTime(probeEY, 0.45, 0, Y), 2e-3);
-	EXPECT_NEAR(getBoundaryFieldValueAtTime(probeEY, 0.0, 0, Y) * reflectCoeff, 
-		getBoundaryFieldValueAtTime(probeEY, 0.90, 0, Y), 2e-3);
-	EXPECT_NEAR(getBoundaryFieldValueAtTime(probeEY, 0.0, 0, Y) * reflectCoeff, 
-		getBoundaryFieldValueAtTime(probeEY, 1.10, 1, Y), 2e-3);
+		getBoundaryFieldValueAtTime(solver.getProbe(0), 0.45, 0, Y), 2e-3);
+	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getProbe(0), 0.0, 0, Y) * reflectCoeff,
+		getBoundaryFieldValueAtTime(solver.getProbe(0), 0.90, 0, Y), 2e-3);
+	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getProbe(0), 0.0, 0, Y) * reflectCoeff,
+		getBoundaryFieldValueAtTime(solver.getProbe(0), 1.10, 1, Y), 2e-3);
 	EXPECT_NEAR(0.0, 
-		getBoundaryFieldValueAtTime(probeEY, 1.30, 1, Y), 2e-3);
-
+		getBoundaryFieldValueAtTime(solver.getProbe(0), 1.30, 1, Y), 2e-3);
 }
-
-TEST_F(TestMaxwellSolver, DISABLED_twoDimensionalResonantBox)
-{
-	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
-	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
-	Material mat11 = Material(1.0, 1.0);
-	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-	AttributeToBoundary attToBdrVec;
-	Model model(mesh2D, attToMatVec, attToBdrVec);
-
-	double spread = 2.0;
-	double coeff = 20.0;
-	const Vector dev = Vector({ 0.0,0.0 });
-	Source EXFieldSource = Source(model, spread, coeff, dev, X, E); 
-	Sources sources;
-	sources.addSourceToVector(EXFieldSource);
-
-	Probes probes;
-	//probes.paraview = true;
-	probes.vis_steps = 100;
-
-	maxwell::Solver::Options solverOpts;
-
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 2.0;
-	solverOpts.dt = 1e-4;
-	solverOpts.order = 1;
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
-
-	solver.run();
-
-}
-
-
-
-TEST_F(TestMaxwellSolver, twoDimensional_Periodic)
+TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 {
 	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
 	Vector periodic({ 0.0, 1.0 });
@@ -983,47 +608,31 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic)
 	trans.push_back(periodic);
 	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D,mesh2D.CreatePeriodicVertexMapping(trans));
 
-	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
-	Material mat11 = Material(1.0, 1.0);
-	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-	std::vector<Attribute> bdrAttVec = std::vector<Attribute>({ 1, 2, 3, 4 });
-	std::vector<BdrCond> bdrCondVec;
-	bdrCondVec.push_back(BdrCond::PEC);
-	bdrCondVec.push_back(BdrCond::PEC);
-	bdrCondVec.push_back(BdrCond::PEC);
-	bdrCondVec.push_back(BdrCond::PEC);
-	Model model = Model(mesh2DPer, HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple), 
-		HelperFunctions::buildAttToBdrMap(bdrAttVec, bdrCondVec));
+	Model model = Model(mesh2DPer, 
+		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1 }), 
+			std::vector<Material>({ Material(1.0, 1.0) })),
+		HelperFunctions::buildAttToBdrMap(std::vector<Attribute>({ 1, 2, 3, 4 }), 
+			std::vector<BdrCond>({ BdrCond::PEC, BdrCond::PEC, BdrCond::PEC, BdrCond::PEC })));
 
-	double spread = 1.0;
-	double coeff = 10.0;
-	const Vector dev = Vector({ 0.2, 0.0 });
-	Source FieldSource = Source(model, spread, coeff, dev, X, E);
-	Source FieldSource2 = Source(model, spread, coeff, dev, X, H);
 	Sources sources;
-	sources.addSourceToVector(FieldSource);
-	//sources.addSourceToVector(FieldSource2);
+	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
 
 	Probes probes;
 	probes.paraview = true;
 	probes.vis_steps = 20;
 
-	maxwell::Solver::Options solverOpts;
-
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-	solverOpts.t_final = 1.0;
-	solverOpts.dt = 1e-3;
-
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model, 
+		probes,
+		sources, 
+		buildDefaultSolverOpts(1.0));
 
 	solver.run();
 
 }
 
 
-TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH)
+TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHECK
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -1038,11 +647,8 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH)
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not 
 	higher than the initial value.*/
 
-	maxwell::Solver::Options solverOpts;
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-	solverOpts.t_final = 2.92;
-	solverOpts.dt = 1e-3;
 
 	Probes probes;
 	probes.paraview = true;
@@ -1051,19 +657,13 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH)
 	const char* mesh_file = "star-mixed.mesh";
 	Mesh mesh(mesh_file);
 	mesh.UniformRefinement();
-	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
-	Material mat11 = Material(1.0, 1.0);
-	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-	AttributeToBoundary attToBdrVec;
-	Model model = Model(mesh, attToMatVec, attToBdrVec);
+	Model model = Model(mesh, 
+		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1 }), 
+			std::vector<Material>({ Material(1.0, 1.0) })), 
+		AttributeToBoundary());
 
-	double spread = 2.0;
-	double coeff = 20.0;
-	const Vector dev = Vector({ 0.0, 0.0 });
-	Source EXFieldSource = Source(model, spread, coeff, dev, Z, E);
 	Sources sources;
-	sources.addSourceToVector(EXFieldSource);
+	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
 
 	maxwell::Solver solver(model, probes,
 		sources, solverOpts);
@@ -1090,11 +690,8 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
 	higher than the initial value.*/
 
-	maxwell::Solver::Options solverOpts;
-	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
 	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-	solverOpts.t_final = 2.92;
-	solverOpts.dt = 1e-3;
 
 	Probes probes;
 	probes.paraview = true;
@@ -1103,22 +700,19 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 	const char* mesh_file = "amr-quad.mesh";
 	Mesh mesh(mesh_file);
 	mesh.UniformRefinement();
-	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
-	Material mat11 = Material(1.0, 1.0);
-	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-	AttributeToBoundary attToBdrVec;
-	Model model = Model(mesh, attToMatVec, attToBdrVec);
+	Model model = Model(mesh,
+		HelperFunctions::buildAttToMatMap(std::vector<Attribute>({ 1 }),
+			std::vector<Material>({ Material(1.0, 1.0) })),
+		AttributeToBoundary());
 
-	double spread = 2.0;
-	double coeff = 20.0;
-	const Vector dev = Vector({ 0.0, 0.0 });
-	Source EXFieldSource = Source(model, spread, coeff, dev, Z, E);
 	Sources sources;
-	sources.addSourceToVector(EXFieldSource);
+	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
 
-	maxwell::Solver solver(model, probes,
-		sources, solverOpts);
+	maxwell::Solver solver(
+		model, 
+		probes,
+		sources, 
+		solverOpts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
@@ -1126,34 +720,37 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 
 	EXPECT_GT(eOld.Max(), eNew.Max());
 }
-//
-//TEST_F(TestMaxwellSolver1D, oneDimensional_two_materials)
+
+//TEST_F(TestMaxwellSolver, DISABLED_twoDimensionalResonantBox)
 //{
-//	int nx = 100;
-//	mfem::Mesh mesh = mfem::Mesh::MakeCartesian1D(nx);
-//	HelperFunctions1D::setAttributeIntervalMesh(2, Vector({ 51,100 }), mesh);
+//	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
+//	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
+//	Material mat11 = Material(1.0, 1.0);
+//	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
+//	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
+//	AttributeToBoundary attToBdrVec;
+//	Model model(mesh2D, attToMatVec, attToBdrVec);
 //
-//	maxwell::Solver1D::Options solverOpts;
-//	solverOpts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
-//	solverOpts.t_final = 2.999;
-//	
-//	Vector eps = Vector({ 1.0, 2.0 });
-//	Vector mu = Vector({ 1.0, 1.0 });
-//	std::list<Material> matArray;
-//	for (int i = 0; i < eps.Size(); i++) { //Check if mesh.attributes.Max() broken
-//		Material matAux(eps[i], mu[i]);
-//		matArray.push_back(matAux);
-//	}
+//	double spread = 2.0;
+//	double coeff = 20.0;
+//	const Vector dev = Vector({ 0.0,0.0 });
+//	Source EXFieldSource = Source(model, spread, coeff, dev, X, E); 
+//	Sources sources;
+//	sources.addSourceToVector(EXFieldSource);
 //
-//	maxwell::Solver1D solver(solverOpts, mesh);
-//	
-//	solver.getMesh().GetBoundingBox(meshBoundingBoxMin, meshBoundingBoxMax);
-//	solver.setInitialField(FieldType::E, gaussianFunctionHalfWidth);
+//	Probes probes;
+//	//probes.paraview = true;
+//	probes.vis_steps = 100;
 //
-//	Vector eOld = solver.getField(FieldType::E);
+//	maxwell::Solver::Options solverOpts;
+//
+//	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
+//	solverOpts.dt = 1e-4;
+//	solverOpts.order = 1;
+//
+//	maxwell::Solver solver(model, probes,
+//		sources, solverOpts);
+//
 //	solver.run();
-//	Vector eNew = solver.getField(FieldType::E);
 //
-//	double error = eOld.DistanceTo(eNew);
-//	EXPECT_NEAR(0.0, error, 2e-3);
 //}

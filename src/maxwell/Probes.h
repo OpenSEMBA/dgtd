@@ -8,7 +8,7 @@ class Probe {
 
 public:
 
-    Probe(const FieldType&, const Direction&, DenseMatrix& integPointMat);
+    Probe(const FieldType&, const Direction&, std::vector<std::vector<double>>& integPoints);
     const FieldType& getFieldType() const { return fieldToExtract_; }
     const Direction& getDirection() const { return directionToExtract_; }
     DenseMatrix& getIntegPointMat() { return integPointMat_; }
@@ -31,7 +31,7 @@ public:
     int precision = 8;
     bool paraview = false;
     bool glvis = false;
-    bool extractDataAtPoints = true;
+    bool extractDataAtPoints = false;
     Probes() = default;
 
     void addProbeToVector(const Probe& probe) { probeVector_.push_back(probe); }

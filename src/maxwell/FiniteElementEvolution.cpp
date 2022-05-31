@@ -15,13 +15,12 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 			FieldType f2 = static_cast<FieldType>(fInt2);
 			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
-				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
+				MS_[f][d]     = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
 				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
 				MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
 			}
 		}
 	}
-
 }
 
 Vector

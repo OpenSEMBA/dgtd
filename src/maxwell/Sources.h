@@ -9,8 +9,8 @@ namespace maxwell {
 
 class Source {
 public:
-	Source(Model& model, const double spread, const double coeff, 
-		const Vector devFromCenter, const Direction& d, const FieldType& ft);
+	Source(Model& model, const FieldType& ft, const Direction& d,  const double spread, const double coeff,
+		const Vector devFromCenter);
 
 	double evalGaussianFunction(const Position& pos) const;
 	double evalGaussianFunction1D(const Position& pos) const;

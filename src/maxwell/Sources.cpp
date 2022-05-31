@@ -8,11 +8,11 @@ namespace maxwell {
 
 Source::Source(
 	Model& model,
+	const FieldType& ft,
+	const Direction& d, 
 	const double spread, 
 	const double coeff, 
-	const Vector devFromCenter, 
-	const Direction& d, 
-	const FieldType& ft) :
+	const Vector devFromCenter) : 
 
 	spread_(spread),
 	coeff_(coeff),
