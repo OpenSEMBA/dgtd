@@ -10,6 +10,20 @@ using namespace mfem;
 
 namespace HelperFunctions {
 
+	Mesh makeTwoAttributeCartesianMesh1D(
+		const int& refTimes = 0)
+	{
+		Mesh res = Mesh::MakeCartesian1D(2);
+		res.SetAttribute(0, 1);
+		res.SetAttribute(1, 2);
+
+		for (int i = 0; i < refTimes; i++) {
+			res.UniformRefinement();
+		}
+
+		return res;
+	}
+
 	Array<int> getH1LexOrder(const H1_FECollection* fec)
 	{
 		auto* fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
@@ -213,6 +227,39 @@ TEST_F(Auxiliary, checkMassMatrix)
 	EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), tol);
 	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), tol);
 
+}
+
+TEST_F(Auxiliary, checkTwoAttributeMesh)
+{
+	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)
+	function.
+
+	First, an integer is declared for the number of times we wish to refine the mesh, then a mesh is
+	constructed with two elements, left and right hand sides, setting the following attributes.
+
+	|------LHS------|------RHS------|
+
+	|##ATTRIBUTE 1##|##ATTRIBUTE 2##|
+
+	Once the mesh is refined, it is returned, then we compare if the expected number of elements is
+	true for the actual elements in the mesh.
+
+	Then, we consider how the mesh will perform its uniform refinement, and we declare that the
+	LHS elements with Attribute one will be Even index elements (starting at 0), and the RHS
+	elements with Attribute 2 will be Uneven index elements (starting at 1).*/
+
+	const int refTimes = 3;
+	Mesh mesh = HelperFunctions::makeTwoAttributeCartesianMesh1D(refTimes);
+
+	EXPECT_EQ(pow(2, refTimes + 1), mesh.GetNE());
+	for (int i = 0; i < mesh.GetNE(); i++) {
+		if (i % 2 == 0) {
+			EXPECT_EQ(1, mesh.GetAttribute(i));
+		}
+		else {
+			EXPECT_EQ(2, mesh.GetAttribute(i));
+		}
+	}
 }
 
 TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
