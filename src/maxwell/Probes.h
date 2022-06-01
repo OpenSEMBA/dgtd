@@ -2,6 +2,7 @@
 #include "mfem.hpp"
 #include "Types.h"
 
+
 namespace maxwell {
 
 class Probe {
@@ -21,6 +22,10 @@ private:
     Direction directionToExtract_;
     DenseMatrix integPointMat_;
     FieldMovie fieldMovie_;
+
+    const bool verifyEntryVectorsSameSize(std::vector<std::vector<double>>& points) const;
+    const void verifyEntrySubvectorsNotEmpty(std::vector<std::vector<double>>& points) const;
+    const void buildIntegPointMat(std::vector<std::vector<double>>& points);
     
 };
 
@@ -39,6 +44,7 @@ public:
 private:
 
     std::vector<Probe> probeVector_;
+
 
 };
 

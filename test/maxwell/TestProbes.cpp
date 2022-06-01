@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+
 #include "maxwell/Probes.h"
 
 using namespace maxwell;
@@ -24,12 +25,26 @@ TEST_F(TestMaxwellProbes, integPointConvChecker_1D)
 		}
 	}
 }
-
-TEST_F(TestMaxwellProbes, integPointFailVector)
+TEST_F(TestMaxwellProbes, integPointDiffDimsVector)
 {
 	Probes probes;
 	auto pointVec = std::vector<std::vector<double>>({ {0.0, 0.5}, {0.5}, {1.0, 0.5, 1.0} });
-	probes.addProbeToVector(Probe(E, X, pointVec));
+	ASSERT_ANY_THROW(probes.addProbeToVector(Probe(E, X, pointVec)));
 
-	//Expect throw test, should fail, diff dimms on vector.
+}
+
+TEST_F(TestMaxwellProbes, integPointEmptySubvectors)
+{
+	Probes probes;
+	auto pointVec = std::vector<std::vector<double>>({ {},{} });
+	ASSERT_ANY_THROW(probes.addProbeToVector(Probe(E, X, pointVec)));
+}
+
+TEST_F(TestMaxwellProbes, integPointOneSubvector)
+{
+	Probes probes;
+	auto pointVec = std::vector<std::vector<double>>({ {0.5} });
+	probes.addProbeToVector(Probe(E, X, pointVec));
+	EXPECT_EQ(1, probes.getProbeVector().at(0).getIntegPointMat().Size());
+	EXPECT_EQ(0.5, probes.getProbeVector().at(0).getIntegPointMat().Elem(0, 0));
 }
