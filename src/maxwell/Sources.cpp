@@ -20,11 +20,27 @@ Source::Source(
 	fieldType_(ft),
 	direction_(d)
 {
-	model.getMesh().GetBoundingBox(minBB_, maxBB_, 0);
-	if (devFromCenter_[0] < minBB_[0] || devFromCenter_[0] > maxBB_[0]) {
-		throw std::exception("Deviation from center cannot be smaller than min boundary or bigger than max boundary values.");
-	}
+	checkInputArguments(model);
 };
+
+const void Source::checkInputArguments(Model& model)
+{
+	if (spread_ < 0.0) {
+		throw std::exception("Invalid spread value.");
+	}
+	if (coeff_ < 0.0) {
+		throw std::exception("Invalid coeff value.");
+	}
+	if (model.getConstMesh().Dimension() != devFromCenter_.Size()) {
+		throw std::exception("Mesh and devFromCenter vector sizes not the same.");
+	}
+	model.getMesh().GetBoundingBox(minBB_, maxBB_, 0);
+	for (int i = 0; i < devFromCenter_.Size(); i++) {
+		if (devFromCenter_[i] < minBB_[i] || devFromCenter_[i] > maxBB_[i]) {
+			throw std::exception("Deviation from center cannot be smaller than min boundary or bigger than max boundary values.");
+		}
+	}
+}
 
 double Source::evalGaussianFunction(const Position& pos) const
 {

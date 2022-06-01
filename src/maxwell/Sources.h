@@ -26,6 +26,7 @@ private:
 	Vector minBB_, maxBB_, devFromCenter_;
 
 	static Vector vectorAverage(const Vector& min, const Vector& max);
+	const void checkInputArguments(Model& model);
 };
 
 struct Sources {

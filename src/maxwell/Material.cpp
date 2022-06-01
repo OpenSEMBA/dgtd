@@ -9,10 +9,10 @@ Material::Material(double epsilon, double mu) :
 	mu_(mu)
 {
 	if (epsilon_ < 1.0) {
-		throw std::runtime_error("Invalid epsilon.");
+		throw std::runtime_error("Permittivity under 1.0 not allowed.");
 	}
 	if (mu_ < 1.0) {
-		throw std::runtime_error("Invalid mu.");
+		throw std::runtime_error("Permeability under 1.0 not allowed.");
 	}
 }
 

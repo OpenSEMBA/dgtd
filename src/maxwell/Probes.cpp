@@ -33,9 +33,14 @@ const void Probe::verifyEntrySubvectorsNotEmpty(std::vector<std::vector<double>>
 const void Probe::buildIntegPointMat(std::vector<std::vector<double>>& points)
 {
 	integPointMat_.SetSize(points.at(0).size(), points.size());
-	for (int i = 0; i < points.at(i).size(); i++) {
-		for (int j = 0; j < points.size(); j++) {
-			integPointMat_.Elem(i, j) = points.at(j).at(i);
+	if (points.at(0).size() == 1 && points.size() == 1) {
+		integPointMat_.Elem(0, 0) = points.at(0).at(0);
+	}
+	else {
+		for (int i = 0; i < points.at(i).size(); i++) {
+			for (int j = 0; j < points.size(); j++) {
+				integPointMat_.Elem(i, j) = points.at(j).at(i);
+			}
 		}
 	}
 }
