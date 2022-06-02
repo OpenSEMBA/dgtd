@@ -55,9 +55,9 @@ if (probes_.extractDataAtPoints) {
 	for (int i = 0; i < probes_.getProbeVector().size(); i++) {
 		elemIds_.resize(probes_.getProbeVector().size());
 		integPointSet_.resize(probes_.getProbeVector().size());
-		auto elemAndIntPointPair = buildElemAndIntegrationPointArrays(probes_.getProbeVector().at(0).getIntegPointMat());
-		elemIds_.at(i) = elemAndIntPointPair.at(0).first;
-		integPointSet_.at(i) = buildIntegrationPointsSet(elemAndIntPointPair.at(0).second);
+		auto elemAndIntPointPair = buildElemAndIntegrationPointArrays(probes_.getProbeVector().at(i).getIntegPointMat());
+		elemIds_.at(i) = elemAndIntPointPair.first;
+		integPointSet_.at(i) = buildIntegrationPointsSet(elemAndIntPointPair.second);
 	}
 }
 }
@@ -129,13 +129,13 @@ const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direc
 	}
 }
 
-std::vector<std::pair<Array<int>, Array<IntegrationPoint>>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints)
+const std::pair<Array<int>, Array<IntegrationPoint>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints) const
 {
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
-	std::vector<std::pair<Array<int>, Array<IntegrationPoint>>> res;
+	std::pair<Array<int>, Array<IntegrationPoint>> res;
 	fes_->GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
-	res.push_back(std::make_pair(elemIdArray, integPointArray));
+	res = std::make_pair(elemIdArray, integPointArray);
 	return res;
 }
 
@@ -176,10 +176,12 @@ const std::vector<std::vector<std::array<double, 3>>> Solver::saveFieldAtPointsF
 				Direction d = static_cast<Direction>(dir);
 				switch (probes_.getProbeVector().at(i).getFieldType()) {
 				case FieldType::E:
-					aux[j][probes_.getProbeVector().at(i).getDirection()] = E_[probes_.getProbeVector().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
+					aux[j][probes_.getProbeVector().at(i).getDirection()] = 
+						E_[probes_.getProbeVector().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
 					break;
 				case FieldType::H:
-					aux[j][probes_.getProbeVector().at(i).getDirection()] = H_[probes_.getProbeVector().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
+					aux[j][probes_.getProbeVector().at(i).getDirection()] = 
+						H_[probes_.getProbeVector().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
 					break;
 				}
 			}
