@@ -55,9 +55,9 @@ if (probes_.extractDataAtPoints) {
 	for (int i = 0; i < probes_.getProbeVector().size(); i++) {
 		elemIds_.resize(probes_.getProbeVector().size());
 		integPointSet_.resize(probes_.getProbeVector().size());
-		auto elemAndIntPointPairs = Solver::buildElemAndIntegrationPointArrays(probes_.getProbeVector().at(i).getIntegPointMat());
-		elemIds_.at(i) = elemAndIntPointPairs.at(i).first;
-		integPointSet_.at(i) = Solver::buildIntegrationPointsSet(elemAndIntPointPairs.at(i).second);
+		auto elemAndIntPointPair = buildElemAndIntegrationPointArrays(probes_.getProbeVector().at(0).getIntegPointMat());
+		elemIds_.at(i) = elemAndIntPointPair.at(0).first;
+		integPointSet_.at(i) = buildIntegrationPointsSet(elemAndIntPointPair.at(0).second);
 	}
 }
 }

@@ -32,7 +32,7 @@ const void Source::checkInputArguments(Model& model)
 		throw std::exception("Invalid coeff value.");
 	}
 	if (model.getConstMesh().Dimension() != devFromCenter_.Size()) {
-		throw std::exception("Mesh and devFromCenter vector sizes not the same.");
+		throw std::exception("Mesh dimension and devFromCenter vector size are not the same.");
 	}
 	model.getMesh().GetBoundingBox(minBB_, maxBB_, 0);
 	for (int i = 0; i < devFromCenter_.Size(); i++) {

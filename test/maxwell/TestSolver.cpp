@@ -402,9 +402,14 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
+	auto probes = buildProbesWithDefaultProbe(E, Y);
+	auto probeZ = Probe(E, Z, std::vector<std::vector<double>>({ {0.0},{0.5},{1.0} }));
+	probes.addProbeToVector(probeZ);
+	probes.paraview = true;
+
 	maxwell::Solver solver(
 		model,
-		buildProbesWithDefaultProbe(E, Y),
+		probes,
 		buildSourcesWithDefaultSource(model, E, Y),
 		buildDefaultSolverOpts(1.0));
 
@@ -419,6 +424,9 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 0, Y));
 	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 1, Y));
 	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getProbe(0), 0.5, 2, Y));
+	EXPECT_GE(0.0,		  getBoundaryFieldValueAtTime(solver.getProbe(1), 0.5, 0, Z));
+	EXPECT_NE(0.0,		  getBoundaryFieldValueAtTime(solver.getProbe(1), 0.5, 1, Z));
+	EXPECT_GE(0.0,		  getBoundaryFieldValueAtTime(solver.getProbe(1), 0.5, 2, Z));
 
 }
 TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
