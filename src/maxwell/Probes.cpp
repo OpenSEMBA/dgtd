@@ -5,7 +5,7 @@ using namespace mfem;
 
 namespace maxwell {
 
-const bool Probe::verifyEntryVectorsSameSize(std::vector<std::vector<double>>& points) const
+const bool PointsProbe::verifyEntryVectorsSameSize(std::vector<std::vector<double>>& points) const
 {
 	bool res{};
 
@@ -21,7 +21,7 @@ const bool Probe::verifyEntryVectorsSameSize(std::vector<std::vector<double>>& p
 	return res;
 }
 
-const void Probe::verifyEntrySubvectorsNotEmpty(std::vector<std::vector<double>>& points) const
+const void PointsProbe::verifyEntrySubvectorsNotEmpty(std::vector<std::vector<double>>& points) const
 {
 	for (int i = 0; i < points.size(); i++) {
 		if (points.at(i).size() == 0) {
@@ -30,7 +30,7 @@ const void Probe::verifyEntrySubvectorsNotEmpty(std::vector<std::vector<double>>
 	}
 }
 
-const void Probe::buildIntegPointMat(std::vector<std::vector<double>>& points)
+const void PointsProbe::buildIntegPointMat(std::vector<std::vector<double>>& points)
 {
 	integPointMat_.SetSize(points.at(0).size(), points.size());
 	if (points.at(0).size() == 1 && points.size() == 1) {
@@ -45,7 +45,7 @@ const void Probe::buildIntegPointMat(std::vector<std::vector<double>>& points)
 	}
 }
 
-Probe::Probe(const FieldType& ft, const Direction& d, std::vector<std::vector<double>>& points) :
+PointsProbe::PointsProbe(const FieldType& ft, const Direction& d, std::vector<std::vector<double>>& points) :
 	fieldToExtract_(ft),
 	directionToExtract_(d)
 {
@@ -70,6 +70,16 @@ std::vector<PointsProbe&> Probes::getPointsProbes()
 	std::vector<PointsProbe&> res;
 	res.reserve(probes_.size<PointsProbe>());
 	for (auto& p : probes_.segment<PointsProbe>()) {
+		res.push_back(&p);
+	}
+	return res;
+}
+
+std::vector<ExporterProbe&> Probes::getExporterProbes()
+{
+	std::vector<ExporterProbe&> res;
+	res.reserve(probes_.size<ExporterProbe>());
+	for (auto& p : probes_.segment<ExporterProbe>()) {
 		res.push_back(&p);
 	}
 	return res;

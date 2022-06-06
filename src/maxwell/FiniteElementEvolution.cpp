@@ -139,7 +139,7 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 	auto res = std::make_unique<BilinearForm>(fes_);
 	{
 		FluxCoefficient c = interiorFluxCoefficient();
-		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res->AddInteriorFaceIntegrator(new MaxwellWeakDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 	
 	std::vector<Array<int>> bdrMarkers;
@@ -151,7 +151,7 @@ FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direct
 
 		bdrMarkers[kv.first-1] = bdrMarker;
 		FluxCoefficient c = boundaryFluxCoefficient(f, kv.second);
-		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first-1]);
+		res->AddBdrFaceIntegrator(new MaxwellWeakDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first-1]);
 	}
 
 	res->Assemble();
@@ -173,7 +173,7 @@ FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Dir
 	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
 	{
 		FluxCoefficient c = interiorPenaltyFluxCoefficient();
-		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res->AddInteriorFaceIntegrator(new MaxwellWeakDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 	
 	std::vector<Array<int>> bdrMarkers;
@@ -185,7 +185,7 @@ FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Dir
 
 		bdrMarkers[kv.first - 1] = bdrMarker;
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.second);
-		res->AddBdrFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
+		res->AddBdrFaceIntegrator(new MaxwellWeakDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
 	}
 	
 	res->Assemble();

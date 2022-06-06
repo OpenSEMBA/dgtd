@@ -1,4 +1,6 @@
 #pragma once
+
+#include "boost/poly_collection/base_collection.hpp"
 #include "mfem.hpp"
 #include "Types.h"
 
@@ -24,7 +26,7 @@ class PointsProbe : public Probe {
 
 public:
 
-    Probe(const FieldType&, const Direction&, std::vector<std::vector<double>>& integPoints);
+    PointsProbe(const FieldType&, const Direction&, std::vector<std::vector<double>>& integPoints);
     const FieldType& getFieldType() const { return fieldToExtract_; }
     const Direction& getDirection() const { return directionToExtract_; }
     DenseMatrix& getIntegPointMat() { return integPointMat_; }
@@ -50,7 +52,7 @@ public:
     int vis_steps = 1;
     bool extractDataAtPoints = false;
 
-    void addProbeToVector(const Probe& probe) { probeVector_.push_back(probe); }
+    void addProbeToCollection(const Probe& probe) { probes_.insert(probe); }
     
     std::vector<PointsProbe&> getPointsProbes();
     std::vector<ExporterProbe&> getExporterProbes();

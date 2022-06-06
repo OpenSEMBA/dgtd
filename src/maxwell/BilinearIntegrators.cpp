@@ -4,7 +4,7 @@ namespace maxwell {
 
 /*########################## MDG START ##########################*/
 //Has alpha (Done?)
-void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
+void MaxwellWeakDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     const FiniteElement& el2,
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)

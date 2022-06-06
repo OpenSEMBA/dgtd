@@ -45,17 +45,24 @@ for (int d = X; d <= Z; d++) {
 
 setInitialField();
 
-if (probes_.paraview) {
-	initializeParaviewData();
+for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
+	if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
+		initializeParaviewData();
+		break;
+	}
 }
-if (probes_.glvis) {
-	//initializeGLVISData(); //TODO
+for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
+	if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Glvis) {
+		//initializeGLVISData();
+		break;
+	}
 }
-if (probes_.extractDataAtPoints) {
-	for (int i = 0; i < probes_.getProbeVector().size(); i++) {
-		elemIds_.resize(probes_.getProbeVector().size());
-		integPointSet_.resize(probes_.getProbeVector().size());
-		auto elemAndIntPointPair = buildElemAndIntegrationPointArrays(probes_.getProbeVector().at(i).getIntegPointMat());
+
+if (probes_.getPointsProbes().size()) {
+	for (int i = 0; i < probes_.getPointsProbes().size(); i++) {
+		elemIds_.resize(probes_.getPointsProbes().size());
+		integPointSet_.resize(probes_.getPointsProbes().size());
+		auto elemAndIntPointPair = buildElemAndIntegrationPointArrays(probes_.getPointsProbes().at(i).getIntegPointMat());
 		elemIds_.at(i) = elemAndIntPointPair.first;
 		integPointSet_.at(i) = buildIntegrationPointsSet(elemAndIntPointPair.second);
 	}
@@ -168,20 +175,20 @@ const std::vector<std::vector<std::array<double, 3>>> Solver::saveFieldAtPointsF
 {
 	auto maxDir = model_.getConstMesh().Dimension();
 	std::vector<FieldFrame> res;
-	for (int i = 0; i < probes_.getProbeVector().size(); i++) {
+	for (int i = 0; i < probes_.getPointsProbes().size(); i++) {
 		FieldFrame aux;
 		aux.resize(elemIds_.at(i).Size());
 		for (int j = 0; j < elemIds_.at(i).Size(); j++) {
 			for (int dir = Direction::X; dir != maxDir; dir++) {
 				Direction d = static_cast<Direction>(dir);
-				switch (probes_.getProbeVector().at(i).getFieldType()) {
+				switch (probes_.getPointsProbes().at(i).getFieldType()) {
 				case FieldType::E:
-					aux[j][probes_.getProbeVector().at(i).getDirection()] = 
-						E_[probes_.getProbeVector().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
+					aux[j][probes_.getPointsProbes().at(i).getDirection()] =
+						E_[probes_.getPointsProbes().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
 					break;
 				case FieldType::H:
-					aux[j][probes_.getProbeVector().at(i).getDirection()] = 
-						H_[probes_.getProbeVector().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
+					aux[j][probes_.getPointsProbes().at(i).getDirection()] =
+						H_[probes_.getPointsProbes().at(i).getDirection()].GetValue(elemIds_.at(i)[j], integPointSet_.at(i).at(j)[d]);
 					break;
 				}
 			}
@@ -221,10 +228,13 @@ void Solver::initializeParaviewData()
 
 void Solver::storeInitialVisualizationValues()
 {
-	if (probes_.paraview) {
-		pd_->SetCycle(0);
-		pd_->SetTime(0.0);
-		pd_->Save();
+	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
+		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
+			pd_->SetCycle(0);
+			pd_->SetTime(0.0);
+			pd_->Save();
+			break;
+		}
 	}
 
 	//if (probes_.glvis) { // TODO
@@ -253,11 +263,11 @@ void Solver::run()
 	bool done = false;
 	int cycle = 0;
 	
-	if (probes_.extractDataAtPoints) {
+	if (probes_.getPointsProbes().size()) {
 		timeRecord_ = time;
 		fieldRecord_ = saveFieldAtPointsForAllProbes();
-		for (int i = 0; i < probes_.getProbeVector().size(); i++) {
-			probes_.getProbeVector().at(i).getFieldMovie().emplace(timeRecord_, fieldRecord_.at(i));
+		for (int i = 0; i < probes_.getPointsProbes().size(); i++) {
+			probes_.getPointsProbes().at(i).getFieldMovie().emplace(timeRecord_, fieldRecord_.at(i));
 		}
 	}
 
@@ -272,17 +282,20 @@ void Solver::run()
 		cycle++;
 
 		if (done || cycle % probes_.vis_steps == 0) {
-			if (probes_.extractDataAtPoints) {
+			if (probes_.getPointsProbes().size()) {
 				fieldRecord_ = saveFieldAtPointsForAllProbes();
-				for (int i = 0; i < probes_.getProbeVector().size(); i++) {
+				for (int i = 0; i < probes_.getPointsProbes().size(); i++) {
 					timeRecord_ = time;
-					probes_.getProbeVector().at(i).getFieldMovie().emplace(timeRecord_, fieldRecord_.at(i));
+					probes_.getPointsProbes().at(i).getFieldMovie().emplace(timeRecord_, fieldRecord_.at(i));
 				}
 			}
-			if (probes_.paraview) {
+			for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
+				if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
 				pd_->SetCycle(cycle);
 				pd_->SetTime(time);
 				pd_->Save();
+				break;
+				}
 			}
 			//if (probes_.glvis) {
 			//	sout_ << "solution\n" << mesh_ << E_ << std::flush; //TODO

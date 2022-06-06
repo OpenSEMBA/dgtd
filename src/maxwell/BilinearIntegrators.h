@@ -8,22 +8,22 @@ namespace maxwell {
 
 using namespace mfem;
 
-class MaxwellDGTraceIntegrator : public BilinearFormIntegrator
+class MaxwellWeakDGTraceIntegrator : public BilinearFormIntegrator
 {
 
 public:
 	//When explicitly undeclared, rho = 1.0;
-	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a)
+	MaxwellWeakDGTraceIntegrator(VectorCoefficient& u_, double a)
 	{
 		rho = NULL; u = &u_; alpha = a; beta = 0.5 * a;
 	}
 
-	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a, double b)
+	MaxwellWeakDGTraceIntegrator(VectorCoefficient& u_, double a, double b)
 	{
 		rho = NULL; u = &u_; alpha = a; beta = b;
 	}
 
-	MaxwellDGTraceIntegrator(Coefficient& rho_, VectorCoefficient& u_,
+	MaxwellWeakDGTraceIntegrator(Coefficient& rho_, VectorCoefficient& u_,
 		double a, double b)
 	{
 		rho = &rho_; u = &u_; alpha = a; beta = b;
@@ -47,7 +47,22 @@ protected:
 private:
 	Vector shape1_, shape2_;
 };
-}
 
+class MaxwellStrongDGTraceIntegrator : public TransposeIntegrator
+{
+
+public:
+	MaxwellStrongDGTraceIntegrator(VectorCoefficient& u, double a)
+		: TransposeIntegrator(new MaxwellWeakDGTraceIntegrator(u, -a, 0.5 * a)) { }
+
+	MaxwellStrongDGTraceIntegrator(VectorCoefficient& u, double a, double b)
+		: TransposeIntegrator(new MaxwellWeakDGTraceIntegrator(u, -a, b)) { }
+
+	MaxwellStrongDGTraceIntegrator(Coefficient& rho, VectorCoefficient& u,
+		double a, double b)
+		: TransposeIntegrator(new MaxwellWeakDGTraceIntegrator(rho, u, -a, b)) { }
+
+};
+}
 
 #endif

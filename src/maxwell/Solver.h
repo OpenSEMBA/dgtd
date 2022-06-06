@@ -28,7 +28,7 @@ public:
 
     void setInitialField();
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
-    const Probe& getProbe(const std::size_t probe) { return probes_.getProbeVector().at(probe); }
+    const PointsProbe& getPointsProbe(const std::size_t probe) { return probes_.getPointsProbes().at(probe); }
 
     mfem::Mesh& getMesh() { return mesh_; }
 
