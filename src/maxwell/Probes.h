@@ -7,6 +7,21 @@ namespace maxwell {
 
 class Probe {
 
+};
+
+class ExporterProbe : public Probe {
+public:
+    enum class Type {
+        Paraview,
+        Glvis
+    };
+
+    Type type = Type::Paraview;
+    int precision = 8;
+};
+
+class PointsProbe : public Probe {
+
 public:
 
     Probe(const FieldType&, const Direction&, std::vector<std::vector<double>>& integPoints);
@@ -29,23 +44,19 @@ private:
     
 };
 
-struct Probes {
+class Probes {
 public:
 
     int vis_steps = 1;
-    int precision = 8;
-    bool paraview = false;
-    bool glvis = false;
     bool extractDataAtPoints = false;
 
     void addProbeToVector(const Probe& probe) { probeVector_.push_back(probe); }
-    std::vector<Probe>& getProbeVector() { return probeVector_; }
+    
+    std::vector<PointsProbe&> getPointsProbes();
+    std::vector<ExporterProbe&> getExporterProbes();
 
 private:
-
-    std::vector<Probe> probeVector_;
-
-
+    boost::base_collection<Probe> probes_;
 };
 
 }

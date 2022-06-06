@@ -64,4 +64,15 @@ Probe::Probe(const FieldType& ft, const Direction& d, std::vector<std::vector<do
 		throw std::exception("Vectors in points do not have the same dimensions.");
 	}
 }
+
+std::vector<PointsProbe&> Probes::getPointsProbes()
+{
+	std::vector<PointsProbe&> res;
+	res.reserve(probes_.size<PointsProbe>());
+	for (auto& p : probes_.segment<PointsProbe>()) {
+		res.push_back(&p);
+	}
+	return res;
+}
+
 }
