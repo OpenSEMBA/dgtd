@@ -15,6 +15,7 @@ public:
 
 	struct Options {
 		FluxType fluxType = FluxType::Upwind;
+		DisForm disForm = DisForm::Weak;
 	};
 
 	static const std::size_t numberOfFieldComponents = 2;

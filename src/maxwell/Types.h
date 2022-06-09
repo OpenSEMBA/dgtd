@@ -39,5 +39,10 @@ enum Direction {
 	Z
 };
 
+enum class DisForm {
+	Weak,
+	Strong
+};
+
 
 }
