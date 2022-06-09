@@ -21,7 +21,7 @@ public:
         int order = 2;
         double dt = 1e-3;
         double t_final = 1.0;
-        FiniteElementEvolutionNoCond::Options evolutionOperatorOptions;
+        FiniteElementEvolution::Options evolutionOperatorOptions;
     };
 
     Solver(const Model&, Probes&, const Sources&, const Options&);
@@ -50,7 +50,7 @@ private:
 
     mfem::Array<int> boundaryTDoF_;
 
-    std::unique_ptr<FiniteElementEvolutionNoCond> maxwellEvol_;
+    std::unique_ptr<FiniteElementEvolution> maxwellEvol_;
 
     Vector sol_;
 

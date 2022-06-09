@@ -130,7 +130,7 @@ protected:
 	{
 		maxwell::Solver::Options res;
 
-		res.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+		res.evolutionOperatorOptions = FiniteElementEvolution::Options();
 		res.t_final = tFinal;
 
 		return res;
@@ -429,7 +429,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(1), 1.0, 2, Z), 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
+TEST_F(TestMaxwellSolver, DISABLED_oneDimensional_upwind_SMA_EZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -455,19 +455,21 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 
 TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 {
-	Model model = buildOneDimOneMatModel();
+	Mesh mesh = Mesh::MakeCartesian1D(401);
+	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	maxwell::Solver::Options opts;
-	opts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
 	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
 
 	Probes probes = buildProbesWithDefaultPointsProbe(E, Y);
 	probes.addExporterProbeToCollection(ExporterProbe());
+	probes.vis_steps = 5;
 
 	maxwell::Solver solver(
 		model,
 		probes,
-		buildSourcesWithDefaultSource(model, E, Y),
+		buildSourcesWithDefaultSource(model, E, Y,0.5,0.050),
 		opts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
@@ -492,7 +494,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_weak_strong_flux_comparison)
 	Model model = buildOneDimOneMatModel();
 	
 	maxwell::Solver::Options optsWeak;
-	optsWeak.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	optsWeak.evolutionOperatorOptions = FiniteElementEvolution::Options();
 
 	maxwell::Solver solverWeak(
 		model,
@@ -501,7 +503,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_weak_strong_flux_comparison)
 		optsWeak);
 
 	maxwell::Solver::Options optsStrong;
-	optsStrong.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	optsStrong.evolutionOperatorOptions = FiniteElementEvolution::Options();
 	optsStrong.evolutionOperatorOptions.disForm = DisForm::Strong;
 
 	maxwell::Solver solverStrong(

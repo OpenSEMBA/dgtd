@@ -25,12 +25,12 @@ fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
 odeSolver_ = std::make_unique<RK4Solver>();
 
-maxwellEvol_ = std::make_unique<FiniteElementEvolutionNoCond>(
+maxwellEvol_ = std::make_unique<FiniteElementEvolution>(
 	fes_.get(), 
 	opts_.evolutionOperatorOptions, model_, sources_);
 
-sol_ = Vector(FiniteElementEvolutionNoCond::numberOfFieldComponents *
-	FiniteElementEvolutionNoCond::numberOfMaxDimensions *
+sol_ = Vector(FiniteElementEvolution::numberOfFieldComponents *
+	FiniteElementEvolution::numberOfMaxDimensions *
 	fes_->GetNDofs());
 sol_ = 0.0;
 

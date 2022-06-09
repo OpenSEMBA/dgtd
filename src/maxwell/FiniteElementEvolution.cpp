@@ -2,7 +2,7 @@
 
 namespace maxwell {
 
-FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model, Sources& sources) :
+FiniteElementEvolution::FiniteElementEvolution(FiniteElementSpace* fes, Options options, Model& model, Sources& sources) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes->GetNDofs()),
 	opts_(options),
 	fes_(fes),
@@ -32,7 +32,7 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 }
 
 Vector
-	FiniteElementEvolutionNoCond::buildPieceWiseArgVector(const FieldType& f) const
+	FiniteElementEvolution::buildPieceWiseArgVector(const FieldType& f) const
 {
 	Vector res;
 	res.SetSize((int) model_.getAttToMat().size());
@@ -54,7 +54,7 @@ Vector
 }
 
 Vector
-	FiniteElementEvolutionNoCond::buildNVector(const Direction& d) const
+	FiniteElementEvolution::buildNVector(const Direction& d) const
 {
 	Vector res(fes_->GetMesh()->Dimension());
 	switch (fes_->GetMesh()->Dimension()) {
@@ -98,8 +98,8 @@ Vector
 	return res;
 }
 
-FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildInverseMassMatrix(const FieldType& f) const
+FiniteElementEvolution::Operator
+	FiniteElementEvolution::buildInverseMassMatrix(const FieldType& f) const
 {
 	Vector aux = buildPieceWiseArgVector(f);
 	PWConstCoefficient PWCoeff(aux);
@@ -112,8 +112,8 @@ FiniteElementEvolutionNoCond::Operator
 	return MInv;
 }
 
-FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildDerivativeOperator(const Direction& d) const
+FiniteElementEvolution::Operator
+	FiniteElementEvolution::buildDerivativeOperator(const Direction& d) const
 {
 	ConstantCoefficient coeff(1.0);
 	auto dir = d;
@@ -148,8 +148,8 @@ FiniteElementEvolutionNoCond::Operator
 	return res;
 }
 
-FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildWeakFluxOperator(const FieldType& f, const Direction& d) const
+FiniteElementEvolution::Operator
+	FiniteElementEvolution::buildWeakFluxOperator(const FieldType& f, const Direction& d) const
 {
 	Vector aux = buildNVector(d);
 	VectorConstantCoefficient n(aux);
@@ -181,8 +181,8 @@ FiniteElementEvolutionNoCond::Operator
 	return res;
 }
 
-FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildStrongFluxOperator(const FieldType& f, const Direction& d) const
+FiniteElementEvolution::Operator
+	FiniteElementEvolution::buildStrongFluxOperator(const FieldType& f, const Direction& d) const
 {
 	Vector aux = buildNVector(d);
 	VectorConstantCoefficient n(aux);
@@ -214,8 +214,8 @@ FiniteElementEvolutionNoCond::Operator
 	return res;
 }
 
-FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildWeakPenaltyOperator(const FieldType& f, const Direction& d) const
+FiniteElementEvolution::Operator
+	FiniteElementEvolution::buildWeakPenaltyOperator(const FieldType& f, const Direction& d) const
 {
 
 	auto aux = buildNVector(d);
@@ -248,8 +248,8 @@ FiniteElementEvolutionNoCond::Operator
 	return res;
 }
 
-FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildStrongPenaltyOperator(const FieldType& f, const Direction& d) const
+FiniteElementEvolution::Operator
+	FiniteElementEvolution::buildStrongPenaltyOperator(const FieldType& f, const Direction& d) const
 {
 
 	auto aux = buildNVector(d);
@@ -282,8 +282,8 @@ FiniteElementEvolutionNoCond::Operator
 	return res;
 }
 
-FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildByMult(
+FiniteElementEvolution::Operator
+	FiniteElementEvolution::buildByMult(
 		const BilinearForm* op1, const BilinearForm* op2) const
 {
 	auto aux = mfem::Mult(op1->SpMat(), op2->SpMat());
@@ -295,14 +295,14 @@ FiniteElementEvolutionNoCond::Operator
 	return res;
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient
-	FiniteElementEvolutionNoCond::interiorFluxCoefficient() const
+FiniteElementEvolution::FluxCoefficient
+	FiniteElementEvolution::interiorFluxCoefficient() const
 {
 	return FluxCoefficient{ 1.0, 0.0 };
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient
-	FiniteElementEvolutionNoCond::interiorPenaltyFluxCoefficient() const
+FiniteElementEvolution::FluxCoefficient
+	FiniteElementEvolution::interiorPenaltyFluxCoefficient() const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -314,8 +314,8 @@ FiniteElementEvolutionNoCond::FluxCoefficient
 	}
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient
-	FiniteElementEvolutionNoCond::boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
+FiniteElementEvolution::FluxCoefficient
+	FiniteElementEvolution::boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
 {
 	switch (opts_.disForm) {
 	case DisForm::Weak:
@@ -364,9 +364,9 @@ FiniteElementEvolutionNoCond::FluxCoefficient
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 1.0 };
+				return FluxCoefficient{ 1.0, 0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 1.0 };
+				return FluxCoefficient{ 1.0, 0.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");
@@ -375,8 +375,8 @@ FiniteElementEvolutionNoCond::FluxCoefficient
 	}
 }
 
-FiniteElementEvolutionNoCond::FluxCoefficient
-	FiniteElementEvolutionNoCond::boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
+FiniteElementEvolution::FluxCoefficient
+	FiniteElementEvolution::boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -413,7 +413,7 @@ FiniteElementEvolutionNoCond::FluxCoefficient
 
 }
 
-void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
+void FiniteElementEvolution::Mult(const Vector& in, Vector& out) const
 {
 
 	std::array<Vector, 3> eOld, hOld;
@@ -466,14 +466,14 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 			MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
 			MS_[E][z]   ->AddMult(hOld[y], eNew[x], -1.0);
 			MF_[E][H][z]->AddMult(hOld[y], eNew[x],  1.0);
-			MP_[E][E][x]->AddMult(eOld[x], eNew[x], -1.0);
+			MF_[E][E][x]->AddMult(eOld[x], eNew[x], -1.0);
 
 			//Update H.
 			MS_[H][y]   ->Mult(eOld[z], hNew[x]);
 			MF_[H][E][y]->AddMult(eOld[z], hNew[x], -1.0);
 			MS_[H][z]   ->AddMult(eOld[y], hNew[x], -1.0);
 			MF_[H][E][z]->AddMult(eOld[y], hNew[x],  1.0);
-			MP_[H][H][x]->AddMult(hOld[x], hNew[x], -1.0);
+			MF_[H][H][x]->AddMult(hOld[x], hNew[x], -1.0);
 			break;
 		}
 	}

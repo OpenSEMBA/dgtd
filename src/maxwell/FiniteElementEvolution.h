@@ -10,7 +10,7 @@
 
 namespace maxwell {
 
-class FiniteElementEvolutionNoCond : public TimeDependentOperator {
+class FiniteElementEvolution : public TimeDependentOperator {
 public:
 
 	struct Options {
@@ -21,9 +21,9 @@ public:
 	static const std::size_t numberOfFieldComponents = 2;
 	static const std::size_t numberOfMaxDimensions = 3;
 
-	FiniteElementEvolutionNoCond(FiniteElementSpace* fes, Options options, Model& model, Sources& sources);
+	FiniteElementEvolution(FiniteElementSpace* fes, Options options, Model& model, Sources& sources);
 	virtual void Mult(const Vector& x, Vector& y) const;
-	virtual ~FiniteElementEvolutionNoCond() = default;
+	virtual ~FiniteElementEvolution() = default;
 
 private:
 	struct FluxCoefficient {
