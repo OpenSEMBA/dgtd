@@ -453,6 +453,77 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 
 }
 
+TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
+{
+	Model model = buildOneDimOneMatModel();
+
+	maxwell::Solver::Options opts;
+	opts.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
+
+	Probes probes = buildProbesWithDefaultPointsProbe(E, Y);
+	probes.addExporterProbeToCollection(ExporterProbe());
+
+	maxwell::Solver solver(
+		model,
+		probes,
+		buildSourcesWithDefaultSource(model, E, Y),
+		opts);
+
+	GridFunction eOld = solver.getFieldInDirection(E, Y);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, Y);
+
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
+
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 0, Y), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 2, Y), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 0, Y), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 2, Y), 2e-3);
+
+	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 1, Y));
+	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1, Y));
+
+}
+
+TEST_F(TestMaxwellSolver, oneDimensional_weak_strong_flux_comparison)
+{
+	Model model = buildOneDimOneMatModel();
+	
+	maxwell::Solver::Options optsWeak;
+	optsWeak.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+
+	maxwell::Solver solverWeak(
+		model,
+		buildProbesWithDefaultPointsProbe(E, Y),
+		buildSourcesWithDefaultSource(model, E, Y),
+		optsWeak);
+
+	maxwell::Solver::Options optsStrong;
+	optsStrong.evolutionOperatorOptions = FiniteElementEvolutionNoCond::Options();
+	optsStrong.evolutionOperatorOptions.disForm = DisForm::Strong;
+
+	maxwell::Solver solverStrong(
+		model,
+		buildProbesWithDefaultPointsProbe(E, Y),
+		buildSourcesWithDefaultSource(model, E, Y),
+		optsStrong);
+
+	GridFunction eOldWk = solverWeak.getFieldInDirection(E, Y);
+	GridFunction eOldSt = solverStrong.getFieldInDirection(E, Y);
+	solverWeak.run();
+	solverStrong.run();
+	GridFunction eNewWk = solverWeak.getFieldInDirection(E, Y);
+	GridFunction eNewSt = solverStrong.getFieldInDirection(E, Y);
+
+	double errorOld = eOldWk.DistanceTo(eOldSt);
+	double errorNew = eNewWk.DistanceTo(eNewSt);
+	EXPECT_NEAR(0.0, errorOld, 2e-3);
+	EXPECT_NEAR(0.0, errorNew, 2e-3);
+
+}
+
 TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
@@ -620,6 +691,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 
 	EXPECT_GT(eOld.Max(), eNew.Max());
 }
+
 
 //TEST_F(TestMaxwellSolver, DISABLED_twoDimensionalResonantBox)
 //{

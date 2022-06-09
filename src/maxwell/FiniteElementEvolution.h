@@ -47,8 +47,10 @@ private:
 	
 	Operator buildDerivativeOperator(const Direction&) const;
 	Operator buildInverseMassMatrix(const FieldType&) const;
-	Operator buildFluxOperator(const FieldType&, const Direction& d) const;
-	Operator buildPenaltyOperator(const FieldType& f, const Direction& d) const;
+	Operator buildWeakFluxOperator(const FieldType&, const Direction& d) const;
+	Operator buildStrongFluxOperator(const FieldType&, const Direction& d) const;
+	Operator buildWeakPenaltyOperator(const FieldType& f, const Direction& d) const;
+	Operator buildStrongPenaltyOperator(const FieldType& f, const Direction& d) const;
 
 	Operator buildByMult(const BilinearForm*, const BilinearForm*) const;
 

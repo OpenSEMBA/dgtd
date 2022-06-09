@@ -16,8 +16,16 @@ FiniteElementEvolutionNoCond::FiniteElementEvolutionNoCond(FiniteElementSpace* f
 			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
 				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
-				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(f2, d).get());
-				MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(f2, d).get());
+				switch (opts_.disForm) {
+				case DisForm::Weak:
+					MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildWeakFluxOperator(f2, d).get());
+					MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildWeakPenaltyOperator(f2, d).get());
+					break;
+				case DisForm::Strong:
+					MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildStrongFluxOperator(f2, d).get());
+					MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildStrongPenaltyOperator(f2, d).get());
+					break;
+				}
 			}
 		}
 	}
@@ -115,11 +123,20 @@ FiniteElementEvolutionNoCond::Operator
 		dir = X;
 	}
 
-	res->AddDomainIntegrator(
-		new TransposeIntegrator(
+	switch (opts_.disForm) {
+	case DisForm::Weak:
+		res->AddDomainIntegrator(
+			new TransposeIntegrator(
+				new DerivativeIntegrator(coeff, dir)
+			)
+		);
+		break;
+	case DisForm::Strong:
+		res->AddDomainIntegrator(
 			new DerivativeIntegrator(coeff, dir)
-		)
-	);
+		);
+		break;
+	}
 
 	res->Assemble();
 	res->Finalize();
@@ -132,7 +149,7 @@ FiniteElementEvolutionNoCond::Operator
 }
 
 FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildFluxOperator(const FieldType& f, const Direction& d) const
+	FiniteElementEvolutionNoCond::buildWeakFluxOperator(const FieldType& f, const Direction& d) const
 {
 	Vector aux = buildNVector(d);
 	VectorConstantCoefficient n(aux);
@@ -165,7 +182,40 @@ FiniteElementEvolutionNoCond::Operator
 }
 
 FiniteElementEvolutionNoCond::Operator
-	FiniteElementEvolutionNoCond::buildPenaltyOperator(const FieldType& f, const Direction& d) const
+	FiniteElementEvolutionNoCond::buildStrongFluxOperator(const FieldType& f, const Direction& d) const
+{
+	Vector aux = buildNVector(d);
+	VectorConstantCoefficient n(aux);
+	auto res = std::make_unique<BilinearForm>(fes_);
+	{
+		FluxCoefficient c = interiorFluxCoefficient();
+		res->AddInteriorFaceIntegrator(new MaxwellStrongDGTraceIntegrator(n, c.alpha, c.beta));
+	}
+
+	std::vector<Array<int>> bdrMarkers;
+	bdrMarkers.resize(model_.getConstMesh().bdr_attributes.Max());
+	for (auto const& kv : model_.getAttToBdr()) {
+		Array<int> bdrMarker(model_.getConstMesh().bdr_attributes.Max());
+		bdrMarker = 0;
+		bdrMarker[(int)kv.first - 1] = 1;
+
+		bdrMarkers[(int)kv.first - 1] = bdrMarker;
+		FluxCoefficient c = boundaryFluxCoefficient(f, kv.second);
+		res->AddBdrFaceIntegrator(new MaxwellStrongDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
+	}
+
+	res->Assemble();
+	res->Finalize();
+
+	if (d >= fes_->GetMesh()->Dimension()) {
+		res.get()->operator=(0.0);
+	}
+
+	return res;
+}
+
+FiniteElementEvolutionNoCond::Operator
+	FiniteElementEvolutionNoCond::buildWeakPenaltyOperator(const FieldType& f, const Direction& d) const
 {
 
 	auto aux = buildNVector(d);
@@ -186,6 +236,40 @@ FiniteElementEvolutionNoCond::Operator
 		bdrMarkers[(int) kv.first - 1] = bdrMarker;
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.second);
 		res->AddBdrFaceIntegrator(new MaxwellWeakDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
+	}
+
+	res->Assemble();
+	res->Finalize();
+
+	if (d >= fes_->GetMesh()->Dimension()) {
+		res.get()->operator=(0.0);
+	}
+
+	return res;
+}
+
+FiniteElementEvolutionNoCond::Operator
+	FiniteElementEvolutionNoCond::buildStrongPenaltyOperator(const FieldType& f, const Direction& d) const
+{
+
+	auto aux = buildNVector(d);
+	VectorConstantCoefficient n(aux);
+	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(fes_);
+	{
+		FluxCoefficient c = interiorPenaltyFluxCoefficient();
+		res->AddInteriorFaceIntegrator(new MaxwellStrongDGTraceIntegrator(n, c.alpha, c.beta));
+	}
+
+	std::vector<Array<int>> bdrMarkers;
+	bdrMarkers.resize(model_.getConstMesh().bdr_attributes.Max());
+	for (auto const& kv : model_.getAttToBdr()) {
+		Array<int> bdrMarker(model_.getConstMesh().bdr_attributes.Max());
+		bdrMarker = 0;
+		bdrMarker[(int)kv.first - 1] = 1;
+
+		bdrMarkers[(int)kv.first - 1] = bdrMarker;
+		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.second);
+		res->AddBdrFaceIntegrator(new MaxwellStrongDGTraceIntegrator(n, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
 	}
 
 	res->Assemble();
@@ -233,30 +317,61 @@ FiniteElementEvolutionNoCond::FluxCoefficient
 FiniteElementEvolutionNoCond::FluxCoefficient
 	FiniteElementEvolutionNoCond::boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
 {
-	switch (bdrC) {
-	case BdrCond::PEC:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 0.0, 0.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 2.0, 0.0 };
+	switch (opts_.disForm) {
+	case DisForm::Weak:
+		switch (bdrC) {
+		case BdrCond::PEC:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 0.0, 0.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 2.0, 0.0 };
+			}
+		case BdrCond::PMC:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 2.0, 0.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 0.0, 0.0 };
+			}
+		case BdrCond::SMA:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 1.0, 0.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 1.0, 0.0 };
+			}
+		default:
+			throw std::exception("No defined BdrCond.");
 		}
-	case BdrCond::PMC:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 2.0, 0.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 0.0, 0.0 };
+		break;
+	case DisForm::Strong:
+		switch (bdrC) {
+		case BdrCond::PEC:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 0.0, 0.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 0.0, 2.0 };
+			}
+		case BdrCond::PMC:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 0.0, 2.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 0.0, 0.0 };
+			}
+		case BdrCond::SMA:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 0.0, 1.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 0.0, 1.0 };
+			}
+		default:
+			throw std::exception("No defined BdrCond.");
 		}
-	case BdrCond::SMA:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 1.0, 0.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 1.0, 0.0 };
-		}
-	default:
-		throw std::exception("No defined BdrCond.");
+		break;
 	}
 }
 
@@ -310,16 +425,13 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 		hNew[d].MakeRef(fes_, &out[(d + 3) * fes_->GetNDofs()]);
 	}
 
-	//if (source) {
-	//	eOld[X].projectCoefficient(source.getFunction(t, X, E));
-	//}
-
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 
 		switch (opts_.disForm) {
 		case DisForm::Weak:
+
 			// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_z] +
 			//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_y]
 			// 
@@ -343,7 +455,9 @@ void FiniteElementEvolutionNoCond::Mult(const Vector& in, Vector& out) const
 
 			hNew[x].Neg();
 			break;
+
 		case DisForm::Strong:
+
 			//dtE_x = MS_y * H_z - MF_y * [H_z] +
 			//		 -MS_z * H_y + MF_z * [H_y] +
 			//                -a * MP_E * [E_x]
