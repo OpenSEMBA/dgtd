@@ -213,19 +213,6 @@ void Solver::initializeParaviewData()
 	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
 }
 
-//void Solver1D::initializeGLVISData() //TODO
-//{
-//	char vishost[] = "localhost";
-//	int  visport = 19916;
-//	sout_.open(vishost, visport);
-//	sout_.precision(probes_.precision);
-//	sout_ << "solution\n" << mesh_ << E_;
-//	sout_ << "pause\n";
-//	sout_ << std::flush;
-//	std::cout << "GLVis visualization paused."
-//		<< " Press space (in the GLVis window) to resume it.\n";
-//}
-
 void Solver::storeInitialVisualizationValues()
 {
 	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
@@ -236,18 +223,6 @@ void Solver::storeInitialVisualizationValues()
 			break;
 		}
 	}
-
-	//if (probes_.glvis) { // TODO
-	//	std::ofstream omesh("Maxwell1D_RK4.mesh");
-	//	omesh.precision(probes_.precision);
-	//	mesh_.Print(omesh);
-	//	std::ofstream eSol("Maxwell1D_RK4-init-E.gf");
-	//	eSol.precision(probes_.precision);
-	//	E_.Save(eSol);
-	//	std::ofstream hSol("Maxwell1D_RK4-init-H.gf");
-	//	hSol.precision(probes_.precision);
-	//	H_.Save(hSol);
-	//}
 }
 
 void Solver::run()

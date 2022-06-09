@@ -50,15 +50,17 @@ class Probes {
 public:
 
     int vis_steps = 1;
-    bool extractDataAtPoints = false;
 
-    void addProbeToCollection(const Probe& probe) { probes_.insert(probe); }
-    
-    std::vector<PointsProbe&> getPointsProbes();
-    std::vector<ExporterProbe&> getExporterProbes();
+    void addPointsProbeToCollection(const PointsProbe probe)     { pointsProbes_.push_back(probe);   }
+    void addExporterProbeToCollection(const ExporterProbe probe) { exporterProbes_.push_back(probe); }
+
+    std::vector<PointsProbe>& getPointsProbes() { return pointsProbes_; }
+    std::vector<ExporterProbe>& getExporterProbes() { return exporterProbes_; }
 
 private:
-    boost::base_collection<Probe> probes_;
+
+    std::vector<PointsProbe> pointsProbes_;
+    std::vector<ExporterProbe> exporterProbes_;
 };
 
 }

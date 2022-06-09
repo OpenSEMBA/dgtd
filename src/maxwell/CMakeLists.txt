@@ -17,5 +17,5 @@ add_library(maxwell_solvers STATIC
 	"Probes.h" "Probes.cpp" 
 	"Sources.h" "Sources.cpp")
 
-target_link_libraries(maxwell_solvers mfem Boost)
+target_link_libraries(maxwell_solvers mfem Boost::boost)
 

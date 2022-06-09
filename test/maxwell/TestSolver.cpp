@@ -54,7 +54,7 @@ namespace HelperFunctions {
 				throw std::exception("Declared element index bigger than Mesh Number of Elements.");
 			}
 			for (int i = elemID[0]; i <= elemID[1]; i++) {
-				mesh.SetAttribute(i, kv.first);
+				mesh.SetAttribute((int) i, (int) kv.first);
 			}
 		}
 	}
@@ -121,8 +121,7 @@ protected:
 	{
 		Probes res;
 		res.vis_steps = 20;
-		res.extractDataAtPoints = true; 
-		res.addProbeToCollection(PointsProbe(fToExtract, dirToExtract,
+		res.addPointsProbeToCollection(PointsProbe(fToExtract, dirToExtract,
 			std::vector<std::vector<double>>{{0.0},{0.5},{1.0}}));
 		return res;
 	}
@@ -404,8 +403,8 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 
 	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
 	auto probeZ = PointsProbe(E, Z, std::vector<std::vector<double>>({ {0.0},{0.5},{1.0} }));
-	probes.addProbeToCollection(probeZ);
-	probes.addProbeToCollection(ExporterProbe());
+	probes.addPointsProbeToCollection(probeZ);
+	probes.addExporterProbeToCollection(ExporterProbe());
 	
 
 	maxwell::Solver solver(
@@ -459,8 +458,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
 	Probes probes;
-	probes.extractDataAtPoints = true;
-	probes.addProbeToCollection(PointsProbe(E, Y, std::vector<std::vector<double>>{ {0.5}, { 0.8 } }));
+	probes.addPointsProbeToCollection(PointsProbe(E, Y, std::vector<std::vector<double>>{ {0.5}, { 0.8 } }));
 
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Y, 2.0, 1.0, Vector({ 0.0 })));
@@ -497,8 +495,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	);
 
 	Probes probes;
-	probes.extractDataAtPoints = true;
-	probes.addProbeToCollection(PointsProbe(E, Y, std::vector<std::vector<double>>{ {0.3}, { 0.1 } }));
+	probes.addPointsProbeToCollection(PointsProbe(E, Y, std::vector<std::vector<double>>{ {0.3}, { 0.1 } }));
 
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Y, 1.0, 0.5, Vector({ 0.2 })));
@@ -540,7 +537,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
 	
 	Probes probes;
-	probes.addProbeToCollection(ExporterProbe());
+	probes.addExporterProbeToCollection(ExporterProbe());
 	probes.vis_steps = 20;
 
 	Sources sources;
@@ -572,7 +569,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHE
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	Probes probes;
-	probes.addProbeToCollection(ExporterProbe());
+	probes.addExporterProbeToCollection(ExporterProbe());
 	probes.vis_steps = 20;
 
 	Sources sources;
