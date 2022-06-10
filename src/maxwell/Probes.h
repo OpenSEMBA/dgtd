@@ -1,6 +1,5 @@
 #pragma once
 
-#include "boost/poly_collection/base_collection.hpp"
 #include "mfem.hpp"
 #include "Types.h"
 
