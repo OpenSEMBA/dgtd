@@ -256,9 +256,12 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 {
 	Model model = buildOneDimOneMatModel();
 
+	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
+	probes.addExporterProbeToCollection(ExporterProbe());
+
 	maxwell::Solver solver(
 		model,
-		buildProbesWithDefaultPointsProbe(E, Y),
+		probes,
 		buildSourcesWithDefaultSource(model, E, Y),
 		buildDefaultSolverOpts());
 
@@ -387,7 +390,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EX)
 		model,
 		buildProbesWithDefaultPointsProbe(E, X),
 		buildSourcesWithDefaultSource(model, E, X),
-		buildDefaultSolverOpts(1.0));
+		buildDefaultSolverOpts(0.2));
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
 	solver.run();
@@ -403,7 +406,9 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 
 	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
 	auto probeZ = PointsProbe(E, Z, std::vector<std::vector<double>>({ {0.0},{0.5},{1.0} }));
+	auto probeHY = PointsProbe(H, Y, std::vector<std::vector<double>>({ {0.0},{0.5},{1.0} }));
 	probes.addPointsProbeToCollection(probeZ);
+	probes.addPointsProbeToCollection(probeHY);
 	probes.addExporterProbeToCollection(ExporterProbe());
 	
 
@@ -427,15 +432,21 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(1), 1.0, 0, Z), 2e-3);
 	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(1), 1.0, 1, Z), 2e-3);
 	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(1), 1.0, 2, Z), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(2), 1.0, 0, Y), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(2), 1.0, 1, Y), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(2), 1.0, 2, Y), 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, DISABLED_oneDimensional_upwind_SMA_EZ)
+TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
+	auto probes = buildProbesWithDefaultPointsProbe(E, Z);
+	probes.addExporterProbeToCollection(ExporterProbe());
+
 	maxwell::Solver solver(
 		model,
-		buildProbesWithDefaultPointsProbe(E, Z),
+		probes,
 		buildSourcesWithDefaultSource(model, E, Z),
 		buildDefaultSolverOpts(1.0));
 
@@ -455,7 +466,7 @@ TEST_F(TestMaxwellSolver, DISABLED_oneDimensional_upwind_SMA_EZ)
 
 TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 {
-	Mesh mesh = Mesh::MakeCartesian1D(401);
+	Mesh mesh = Mesh::MakeCartesian1D(51);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	maxwell::Solver::Options opts;
@@ -469,7 +480,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 	maxwell::Solver solver(
 		model,
 		probes,
-		buildSourcesWithDefaultSource(model, E, Y,0.5,0.050),
+		buildSourcesWithDefaultSource(model, E, Y),
 		opts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
@@ -692,6 +703,26 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 	GridFunction eNew = solver.getFieldInDirection(E, Z);
 
 	EXPECT_GT(eOld.Max(), eNew.Max());
+}
+
+TEST_F(TestMaxwellSolver, threeDimensional)
+{
+	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::HEXAHEDRON);
+	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
+
+	Sources sources;
+	sources.addSourceToVector(Source(model, E, Z, 0.2, 200.0, Vector({ 0.0,0.0,0.0 })));
+
+	Probes probes;
+	probes.addExporterProbeToCollection(ExporterProbe());
+
+	maxwell::Solver solver(
+		model,
+		probes,
+		sources,
+		buildDefaultSolverOpts(0.5));
+
+	solver.run();
 }
 
 

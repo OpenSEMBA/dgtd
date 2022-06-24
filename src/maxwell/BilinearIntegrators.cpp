@@ -77,7 +77,7 @@ void MaxwellWeakDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         
         un = vu * nor;
         a = 0.5 * alpha * un;
-        b = beta;
+        b = beta * un;
         // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)
         //       and therefore two blocks in the element matrix contribution
         //       (from the current quadrature point) are 0

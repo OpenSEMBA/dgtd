@@ -372,6 +372,8 @@ FiniteElementEvolution::FluxCoefficient
 			throw std::exception("No defined BdrCond.");
 		}
 		break;
+	default:
+		throw std::exception("No defined DisForm.");
 	}
 }
 
@@ -400,9 +402,9 @@ FiniteElementEvolution::FluxCoefficient
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 0.5 };
+				return FluxCoefficient{ 0.0, 0.25 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 0.5 };
+				return FluxCoefficient{ 0.0, 0.25 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");
@@ -438,20 +440,20 @@ void FiniteElementEvolution::Mult(const Vector& in, Vector& out) const
 			// Update E.
 			MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
 			MF_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-			MP_[E][E][y]->AddMult(eOld[z], eNew[x], -1.0);
+			MP_[E][E][y]->AddMult(eOld[x], eNew[x], -1.0);
 			MS_[E][z]   ->AddMult(hOld[y], eNew[x], -1.0);
 			MF_[E][H][z]->AddMult(hOld[y], eNew[x],  1.0);
-			MP_[E][E][z]->AddMult(eOld[y], eNew[x],  1.0);
+			MP_[E][E][z]->AddMult(eOld[x], eNew[x],  1.0);
 
 			eNew[x].Neg();
 			// Update H.
 
 			MS_[H][z]   ->Mult   (eOld[y], hNew[x]);
 			MF_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-			MP_[H][H][z]->AddMult(hOld[y], hNew[x], -1.0);
+			MP_[H][H][z]->AddMult(hOld[x], hNew[x], -1.0);
 			MS_[H][y]   ->AddMult(eOld[z], hNew[x], -1.0);
 			MF_[H][E][y]->AddMult(eOld[z], hNew[x],  1.0);
-			MP_[H][H][y]->AddMult(hOld[z], hNew[x],  1.0);
+			MP_[H][H][y]->AddMult(hOld[x], hNew[x],  1.0);
 
 			hNew[x].Neg();
 			break;
