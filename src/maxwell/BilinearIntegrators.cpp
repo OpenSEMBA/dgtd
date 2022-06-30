@@ -4,7 +4,7 @@ namespace maxwell {
 
 /*########################## MDG START ##########################*/
 //Has alpha (Done?)
-void MaxwellWeakDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
+void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     const FiniteElement& el2,
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
@@ -76,8 +76,17 @@ void MaxwellWeakDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         }
         
         un = vu * nor;
-        a = 0.5 * alpha * un;
-        b = beta * un;
+
+        switch (form_) {
+        case DisForm::Weak:
+            a = 0.5 * alpha* un; //{v} = (v1+v2)/2
+            b = beta * fabs(un); //|n| · [v] = |n| · (v1-v2)
+            break;
+        case DisForm::Strong:
+            a = alpha * un; //n · [v] = n · (v1-v2)
+            b = beta; //[v] = (v1-v2)
+
+        }
         // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)
         //       and therefore two blocks in the element matrix contribution
         //       (from the current quadrature point) are 0

@@ -257,7 +257,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 	Model model = buildOneDimOneMatModel();
 
 	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
-	probes.addExporterProbeToCollection(ExporterProbe());
+	//probes.addExporterProbeToCollection(ExporterProbe());
 
 	maxwell::Solver solver(
 		model,
@@ -332,9 +332,12 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
+	auto probes = buildProbesWithDefaultPointsProbe(H, Y);
+	//probes.addExporterProbeToCollection(ExporterProbe());
+
 	maxwell::Solver solver(
 		model,
-		buildProbesWithDefaultPointsProbe(H, Y),
+		probes,
 		buildSourcesWithDefaultSource(model, H, Y),
 		buildDefaultSolverOpts()
 	);
@@ -359,9 +362,12 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
+	auto probes = buildProbesWithDefaultPointsProbe(H, Z);
+	probes.addExporterProbeToCollection(ExporterProbe());
+
 	maxwell::Solver solver(
 		model,
-		buildProbesWithDefaultPointsProbe(H, Z),
+		probes,
 		buildSourcesWithDefaultSource(model, H, Z),
 		buildDefaultSolverOpts());
 
@@ -442,7 +448,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
 	auto probes = buildProbesWithDefaultPointsProbe(E, Z);
-	probes.addExporterProbeToCollection(ExporterProbe());
+	//probes.addExporterProbeToCollection(ExporterProbe());
 
 	maxwell::Solver solver(
 		model,
@@ -543,6 +549,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 
 	Probes probes;
 	probes.addPointsProbeToCollection(PointsProbe(E, Y, std::vector<std::vector<double>>{ {0.5}, { 0.8 } }));
+	//probes.addExporterProbeToCollection(ExporterProbe());
 
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Y, 2.0, 1.0, Vector({ 0.0 })));
@@ -580,6 +587,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	Probes probes;
 	probes.addPointsProbeToCollection(PointsProbe(E, Y, std::vector<std::vector<double>>{ {0.3}, { 0.1 } }));
+	//probes.addExporterProbeToCollection(ExporterProbe());
 
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Y, 1.0, 0.5, Vector({ 0.2 })));
@@ -621,8 +629,8 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
 	
 	Probes probes;
-	probes.addExporterProbeToCollection(ExporterProbe());
-	probes.vis_steps = 20;
+	//probes.addExporterProbeToCollection(ExporterProbe());
+	//probes.vis_steps = 20;
 
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
@@ -653,8 +661,8 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHE
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	Probes probes;
-	probes.addExporterProbeToCollection(ExporterProbe());
-	probes.vis_steps = 20;
+	//probes.addExporterProbeToCollection(ExporterProbe());
+	//probes.vis_steps = 20;
 
 	Sources sources;
 	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
@@ -705,7 +713,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 	EXPECT_GT(eOld.Max(), eNew.Max());
 }
 
-TEST_F(TestMaxwellSolver, threeDimensional)
+TEST_F(TestMaxwellSolver, DISABLED_threeDimensional)
 {
 	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::HEXAHEDRON);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
@@ -714,7 +722,7 @@ TEST_F(TestMaxwellSolver, threeDimensional)
 	sources.addSourceToVector(Source(model, E, Z, 0.2, 200.0, Vector({ 0.0,0.0,0.0 })));
 
 	Probes probes;
-	probes.addExporterProbeToCollection(ExporterProbe());
+	//probes.addExporterProbeToCollection(ExporterProbe());
 
 	maxwell::Solver solver(
 		model,

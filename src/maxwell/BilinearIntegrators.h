@@ -3,30 +3,31 @@
 
 #include "mfem.hpp"
 #include "../../../general/forall.hpp"
+#include "Types.h"
 
 namespace maxwell {
 
 using namespace mfem;
 
-class MaxwellWeakDGTraceIntegrator : public BilinearFormIntegrator
+class MaxwellDGTraceIntegrator : public BilinearFormIntegrator
 {
 
 public:
 	//When explicitly undeclared, rho = 1.0;
-	MaxwellWeakDGTraceIntegrator(VectorCoefficient& u_, double a)
+	MaxwellDGTraceIntegrator(const DisForm form, VectorCoefficient& u_, double a)
 	{
-		rho = NULL; u = &u_; alpha = a; beta = 0.5 * a;
+		form_ = form; rho = NULL; u = &u_; alpha = a; beta = 0.5 * a;
 	}
 
-	MaxwellWeakDGTraceIntegrator(VectorCoefficient& u_, double a, double b)
+	MaxwellDGTraceIntegrator(const DisForm form, VectorCoefficient& u_, double a, double b)
 	{
-		rho = NULL; u = &u_; alpha = a; beta = b;
+		form_ = form; rho = NULL; u = &u_; alpha = a; beta = b;
 	}
 
-	MaxwellWeakDGTraceIntegrator(Coefficient& rho_, VectorCoefficient& u_,
+	MaxwellDGTraceIntegrator(const DisForm form, Coefficient& rho_, VectorCoefficient& u_,
 		double a, double b)
 	{
-		rho = &rho_; u = &u_; alpha = a; beta = b;
+		form_ = form; rho = &rho_; u = &u_; alpha = a; beta = b;
 	}
 
 	virtual void AssembleFaceMatrix(const FiniteElement& el1,
@@ -46,22 +47,7 @@ protected:
 
 private:
 	Vector shape1_, shape2_;
-};
-
-class MaxwellStrongDGTraceIntegrator : public TransposeIntegrator
-{
-
-public:
-	MaxwellStrongDGTraceIntegrator(VectorCoefficient& u, double a)
-		: TransposeIntegrator(new MaxwellWeakDGTraceIntegrator(u, -a, 0.5 * a)) { }
-
-	MaxwellStrongDGTraceIntegrator(VectorCoefficient& u, double a, double b)
-		: TransposeIntegrator(new MaxwellWeakDGTraceIntegrator(u, -a, b)) { }
-
-	MaxwellStrongDGTraceIntegrator(Coefficient& rho, VectorCoefficient& u,
-		double a, double b)
-		: TransposeIntegrator(new MaxwellWeakDGTraceIntegrator(rho, u, -a, b)) { }
-
+	DisForm form_;
 };
 }
 
