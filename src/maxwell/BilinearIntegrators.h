@@ -49,6 +49,41 @@ private:
 	Vector shape1_, shape2_;
 	DisForm form_;
 };
+
+class MaxwellDGTraceNormalJumpIntegrator : public BilinearFormIntegrator
+{
+
+public:
+	//When explicitly undeclared, rho = 1.0;
+	MaxwellDGTraceNormalJumpIntegrator(Direction& dir_, double b)
+	{
+		dir = dir_; alpha = 0; beta = b;
+	}
+
+	MaxwellDGTraceNormalJumpIntegrator(Direction& dir_, double a, double b)
+	{
+		dir = dir_; alpha = a; beta = b;
+	}
+
+	virtual void AssembleFaceMatrix(const FiniteElement& el1,
+		const FiniteElement& el2,
+		FaceElementTransformations& Trans,
+		DenseMatrix& elmat);
+
+protected:
+	Direction dir;
+	double alpha, beta;
+	int dim;
+
+private:
+	Vector shape1_, shape2_;
+
+	const IntegrationRule* setIntegrationRule(const FiniteElement& el1, const FiniteElement& el2, FaceElementTransformations& Trans);
+	const Vector setNormalVector(const int dim, const IntegrationPoint& eip1, FaceElementTransformations& Trans);
+	void buildFaceMatrix(double w, int ndofA, int ndofB, int desvI, int desvJ,
+		Vector shapeA, Vector shapeB, DenseMatrix& elmat);
+	const int setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans);
+};
 }
 
 #endif
