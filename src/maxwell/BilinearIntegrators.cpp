@@ -215,8 +215,8 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
 {
-    int dim{ 0 }, ndof1{ 0 }, ndof2{ 0 };
-    double nIn{ 0.0 }, nOut{ 0.0 }, a{ 0.0 }, b{ 0.0 }, w{ 0.0 };
+    int dim, ndof1, ndof2;
+    double nIn, nOut, a, b, w;
     
     dim = el1.GetDim();
     Vector vu(dim), nor(dim);

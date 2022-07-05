@@ -478,6 +478,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 	maxwell::Solver::Options opts;
 	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
 	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
+	opts.t_final = 0.05;
 
 	Probes probes = buildProbesWithDefaultPointsProbe(E, Y);
 	probes.addExporterProbeToCollection(ExporterProbe());
