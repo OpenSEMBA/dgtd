@@ -54,7 +54,6 @@ class MaxwellDGTraceJumpIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	//When explicitly undeclared, rho = 1.0;
 	MaxwellDGTraceJumpIntegrator(std::vector<Direction>& dirTerms, double b)
 	{
 		dir = dirTerms; alpha = 0; beta = b;
@@ -78,7 +77,7 @@ private:
 	void buildFaceMatrix(double w, int ndofA, int ndofB, int desvI, int desvJ,
 		Vector shapeA, Vector shapeB, DenseMatrix& elmat);
 	const int setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans);
-	const double buildOuterNormalTerm(const Vector& innerNor, const Direction& outerDir);
+	const double buildNormalTerm(const Vector& innerNor, const Direction& outerDir);
 };
 }
 

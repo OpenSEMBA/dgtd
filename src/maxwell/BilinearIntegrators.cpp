@@ -58,13 +58,13 @@ const int MaxwellDGTraceJumpIntegrator::setNeighbourNDoF(const FiniteElement& el
     }
 }
 
-const double MaxwellDGTraceJumpIntegrator::buildOuterNormalTerm(const Vector& innerNor, const Direction& outerDir)
+const double MaxwellDGTraceJumpIntegrator::buildNormalTerm(const Vector& nor, const Direction& dir)
 {
     std::vector<double> res{0.0, 0.0, 0.0};
-    for (int i = 0; i < innerNor.Size(); i++) {
-        res.at(i) += innerNor.Elem(i);
+    for (int i = 0; i < nor.Size(); i++) {
+        res.at(i) += nor.Elem(i);
     }
-    return res.at(outerDir);
+    return res.at(dir);
 }
 
 /*########################## MDG START ##########################*/
@@ -215,8 +215,8 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
 {
-    int dim, ndof1, ndof2;
-    double nIn, nOut, a, b, w;
+    int dim{ 0 }, ndof1{ 0 }, ndof2{ 0 };
+    double nIn{ 0.0 }, nOut{ 0.0 }, a{ 0.0 }, b{ 0.0 }, w{ 0.0 };
     
     dim = el1.GetDim();
     Vector vu(dim), nor(dim);
@@ -248,23 +248,26 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
 
         Vector nor = setNormalVector(dim, eip1, Trans);
 
-        nIn = nor(dir.at(0));
-
         switch (dir.size()) {
         case 0:
             a = 0;
             b = beta; //[v] = (v1-v2)
+            break;
         case 1:
+            nIn = buildNormalTerm(nor, dir.at(0));
             a = 0;
             b = beta * nIn; //nIn * [v] = nIn * (v1-v2)
+            break;
         case 2:
-            nOut = buildOuterNormalTerm(nor, dir.at(1));
+            nIn = buildNormalTerm(nor, dir.at(0));
+            nOut = buildNormalTerm(nor, dir.at(1));
             a = 0;
             b = beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
+            break;
         default:
             throw std::exception("Incorrect dimensions for dirTerms vector.");
+            break;
         }
-
 
         w = ip.weight * (a + b);
         if (w != 0.0) {

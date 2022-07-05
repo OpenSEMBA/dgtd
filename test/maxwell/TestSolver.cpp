@@ -481,7 +481,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 
 	Probes probes = buildProbesWithDefaultPointsProbe(E, Y);
 	probes.addExporterProbeToCollection(ExporterProbe());
-	probes.vis_steps = 5;
+	probes.vis_steps = 1;
 
 	maxwell::Solver solver(
 		model,

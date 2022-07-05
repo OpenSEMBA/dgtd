@@ -41,6 +41,9 @@ private:
 	std::array<std::array<Operator, 3>, 2> MS_;
 	std::array<std::array<std::array<Operator, 3>, 2>, 2> MF_;
 	std::array<std::array<std::array<Operator, 3>, 2>, 2> MP_;
+	std::array<std::array<Operator, 2>, 2> MNND_;
+	std::array<std::array<std::array<Operator, 3>, 2>, 2> MNOD_;
+	std::array<std::array<std::array<std::array<Operator, 3>, 3>, 2>, 2> MNTD_;
 
 	Vector buildNVector(const Direction& d) const;
 	Vector buildPieceWiseArgVector(const FieldType& f) const;
@@ -49,6 +52,7 @@ private:
 	Operator buildInverseMassMatrix(const FieldType&) const;
 	Operator buildFluxOperator(const DisForm&, const FieldType&, const Direction&) const;
 	Operator buildPenaltyOperator(const DisForm&, const FieldType&, const Direction&) const;
+	Operator buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const;
 
 	Operator buildByMult(const BilinearForm*, const BilinearForm*) const;
 

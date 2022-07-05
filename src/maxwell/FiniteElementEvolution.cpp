@@ -13,11 +13,17 @@ FiniteElementEvolution::FiniteElementEvolution(FiniteElementSpace* fes, Options 
 		FieldType f = static_cast<FieldType>(fInt);
 		for (int fInt2 = FieldType::E; fInt2 <= FieldType::H; fInt2++) {
 			FieldType f2 = static_cast<FieldType>(fInt2);
+			MNND_[f][f2] = buildByMult(buildInverseMassMatrix(f).get(), buildNormalFluxOperator(f2,std::vector<Direction>{}).get());
 			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
 				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
 				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(opts_.disForm, f2, d).get());
 				MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(opts_.disForm, f2, d).get());
+				MNOD_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildNormalFluxOperator(f2, std::vector<Direction>{d}).get());
+				for (int dir2 = Direction::X; dir2 <= Direction::Z; dir2++) {
+					Direction d2 = static_cast<Direction>(dir2);
+					MNTD_[f][f2][d][d2] = buildByMult(buildInverseMassMatrix(f).get(), buildNormalFluxOperator(f2, std::vector<Direction>{d, d2}).get());
+				}
 			}
 		}
 	}
@@ -174,6 +180,40 @@ FiniteElementEvolution::Operator
 }
 
 FiniteElementEvolution::Operator
+FiniteElementEvolution::buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const
+{
+	std::vector<Direction> dirs = dirTerms;
+	auto res = std::make_unique<BilinearForm>(fes_);
+	{
+		FluxCoefficient c = interiorFluxCoefficient();
+		res->AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta));
+	}
+
+	std::vector<Array<int>> bdrMarkers;
+	bdrMarkers.resize(model_.getConstMesh().bdr_attributes.Max());
+	for (auto const& kv : model_.getAttToBdr()) {
+		Array<int> bdrMarker(model_.getConstMesh().bdr_attributes.Max());
+		bdrMarker = 0;
+		bdrMarker[(int)kv.first - 1] = 1;
+
+		bdrMarkers[(int)kv.first - 1] = bdrMarker;
+		FluxCoefficient c = boundaryFluxCoefficient(f, kv.second);
+		res->AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta), bdrMarkers[kv.first - 1]);
+	}
+
+	res->Assemble();
+	res->Finalize();
+
+	if (dirTerms.size() != 0) {
+		if (dirTerms.at(0) >= fes_->GetMesh()->Dimension()) {
+			res.get()->operator=(0.0);
+		}
+	}
+
+	return res;
+}
+
+FiniteElementEvolution::Operator
 	FiniteElementEvolution::buildPenaltyOperator(const DisForm& form, const FieldType& f, const Direction& d) const
 {
 
@@ -221,11 +261,16 @@ FiniteElementEvolution::Operator
 }
 
 FiniteElementEvolution::FluxCoefficient
-	FiniteElementEvolution::interiorFluxCoefficient() const
+FiniteElementEvolution::interiorFluxCoefficient() const
 {
-	return FluxCoefficient{ 1.0, 0.0 };
+	switch (opts_.disForm) {
+	case DisForm::Weak:
+		return FluxCoefficient{ 1.0, 0.0 };
+		break;
+	case DisForm::Strong:
+		return FluxCoefficient{ 0.0, 0.5 };
+	}
 }
-
 FiniteElementEvolution::FluxCoefficient
 	FiniteElementEvolution::interiorPenaltyFluxCoefficient() const
 {
@@ -277,21 +322,21 @@ FiniteElementEvolution::FluxCoefficient
 			case FieldType::E:
 				return FluxCoefficient{ 0.0, 0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 2.0 };
+				return FluxCoefficient{ 0.0, 1.0 };
 			}
 		case BdrCond::PMC:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 2.0 };
+				return FluxCoefficient{ 0.0, 1.0 };
 			case FieldType::H:
 				return FluxCoefficient{ 0.0, 0.0 };
 			}
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 1.0, 0.0 };
+				return FluxCoefficient{ 0.0, 0.5 };
 			case FieldType::H:
-				return FluxCoefficient{ 1.0, 0.0 };
+				return FluxCoefficient{ 0.0, 0.5 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");
@@ -383,22 +428,34 @@ void FiniteElementEvolution::Mult(const Vector& in, Vector& out) const
 
 		case DisForm::Strong:
 
-			//dtE_x = MS_y * H_z - MF_y * [H_z] +
-			//		 -MS_z * H_y + MF_z * [H_y] +
-			//                -a * MP_E * [E_x]
+			//dtE_x =   MS_y     * Hz   - MS_z * Hy + 
+			//		  + MNOD_y   * [Hz] - MNOD_z   * [Hy] + MNND_    * [Ex] +
+			//        - MNTD_x_x * [Ex] - MNTD_y_x * [Ey] - MNTD_z_x * [Ez]       
 			// Update E.
-			MS_[E][y]   ->Mult   (hOld[z], eNew[x]);
-			MP_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-			MS_[E][z]   ->AddMult(hOld[y], eNew[x], -1.0);
-			MP_[E][H][z]->AddMult(hOld[y], eNew[x],  1.0);
-			MP_[E][E][x]->AddMult(eOld[x], eNew[x], -1.0);
 
+			MS_[E][y]        ->Mult   (hOld[z], eNew[x]);
+			MS_[E][z]        ->AddMult(hOld[y], eNew[x], -1.0);
+			MNOD_[E][H][y]   ->AddMult(hOld[z], eNew[x],  1.0);
+			MNOD_[E][H][z]   ->AddMult(hOld[y], eNew[x], -1.0);
+			MNND_[E][E]		 ->AddMult(eOld[x], eNew[x],  1.0);
+			MNTD_[E][E][x][x]->AddMult(eOld[x], eNew[x], -1.0);
+			MNTD_[E][E][y][x]->AddMult(eOld[y], eNew[x], -1.0);
+			MNTD_[E][E][z][x]->AddMult(eOld[z], eNew[x], -1.0);
+
+			//dtH_x =   MS_z     * Ey   - MS_y     * Ez + 
+			//		  + MNOD_z   * [Ey] - MNOD_y   * [Ez] + MNND_    * [Hx] +
+			//        - MNTD_x_x * [Hx] - MNTD_y_x * [Hy] - MNTD_z_x * [Hz]    
 			//Update H.
-			MS_[H][y]   ->Mult(eOld[z], hNew[x]);
-			MP_[H][E][y]->AddMult(eOld[z], hNew[x], -1.0);
-			MS_[H][z]   ->AddMult(eOld[y], hNew[x], -1.0);
-			MP_[H][E][z]->AddMult(eOld[y], hNew[x],  1.0);
-			MP_[H][H][x]->AddMult(hOld[x], hNew[x], -1.0);
+
+			MS_[H][z]		 ->Mult   (eOld[y], hNew[x]);
+			MS_[H][y]		 ->AddMult(eOld[z], hNew[x], -1.0);
+			MNOD_[H][E][z]	 ->AddMult(eOld[y], hNew[x],  1.0);
+			MNOD_[H][E][z]	 ->AddMult(eOld[y], hNew[x], -1.0);
+			MNND_[H][H]		 ->AddMult(hOld[x], hNew[x],  1.0);
+			MNTD_[H][H][x][x]->AddMult(hOld[x], hNew[x], -1.0);
+			MNTD_[H][H][y][x]->AddMult(hOld[y], hNew[x], -1.0);
+			MNTD_[H][H][z][x]->AddMult(hOld[z], hNew[x], -1.0);
+
 
 			break;
 		}
