@@ -229,6 +229,42 @@ TEST_F(Auxiliary, checkMassMatrix)
 
 }
 
+TEST_F(Auxiliary, checkInverseMassMatrix)
+{
+	/*The purpose of this text is to check the values of a Mass Matrix
+	for an order 1, 1D line with a single element.
+
+	First, the basic variables and objects to create a FiniteElementSpace are
+	declared.
+
+	Then, a BilinearForm is created, in which we add a domain integrator for the
+	Mass Matrix, which is MassIntegrator.
+
+	Then, we compare the values of the Mass Matrix with those found in Silvester,
+	Appendix 3 for a 1D Line Segment.*/
+
+	const double tol = 1e-3;
+	int order = 1;
+	const int dimension = 1;
+	FiniteElementCollection* fec;
+	FiniteElementSpace* fes;
+
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	fec = new H1_FECollection(order, dimension);
+	fes = new FiniteElementSpace(&mesh, fec);
+
+	BilinearForm massMatrix(fes);
+	massMatrix.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+	massMatrix.Assemble();
+	massMatrix.Finalize();
+
+	EXPECT_NEAR(4.0, massMatrix(0, 0), tol);
+	EXPECT_NEAR(-2.0, massMatrix(0, 1), tol);
+	EXPECT_NEAR(-2.0, massMatrix(1, 0), tol);
+	EXPECT_NEAR(4.0, massMatrix(1, 1), tol);
+
+}
+
 TEST_F(Auxiliary, checkTwoAttributeMesh)
 {
 	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)

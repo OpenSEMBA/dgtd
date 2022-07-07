@@ -472,22 +472,22 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 
 TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 {
-	Mesh mesh = Mesh::MakeCartesian1D(51);
+	Mesh mesh = Mesh::MakeCartesian1D(201, 10.0);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	maxwell::Solver::Options opts;
 	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
 	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
-	opts.t_final = 0.05;
+	opts.t_final = 0.5;
 
 	Probes probes = buildProbesWithDefaultPointsProbe(E, Y);
 	probes.addExporterProbeToCollection(ExporterProbe());
-	probes.vis_steps = 1;
+	probes.vis_steps = 5;
 
 	maxwell::Solver solver(
 		model,
 		probes,
-		buildSourcesWithDefaultSource(model, E, Y),
+		buildSourcesWithDefaultSource(model, E, Y, 0.5),
 		opts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
@@ -637,6 +637,37 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
 
 	maxwell::Solver solver(model, probes, sources, buildDefaultSolverOpts(1.0));
+
+	solver.run();
+
+}
+
+TEST_F(TestMaxwellSolver, DISABLED_twoDimensional_Periodic_strong) //TODO ADD ENERGY CHECK
+{
+	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
+	Vector periodic({ 0.0, 1.0 });
+	std::vector<Vector> trans;
+	trans.push_back(periodic);
+	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D, mesh2D.CreatePeriodicVertexMapping(trans));
+
+	maxwell::Solver::Options opts;
+	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
+	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
+
+	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
+
+	Probes probes;
+	probes.addExporterProbeToCollection(ExporterProbe());
+	probes.vis_steps = 20;
+
+	Sources sources;
+	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.0, 0.0 })));
+
+	maxwell::Solver solver(
+		model, 
+		probes, 
+		sources, 
+		opts);
 
 	solver.run();
 

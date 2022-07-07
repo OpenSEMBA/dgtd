@@ -43,7 +43,11 @@ void MaxwellDGTraceJumpIntegrator::buildFaceMatrix(double w, int ndofA, int ndof
     for (int i = 0; i < ndofA; i++) {
         for (int j = 0; j < ndofB; j++)
         {
-            elmat(desvI + i, desvJ + j) += w * shapeA(i) * shapeB(j);
+            double nonDiag = +1.0;
+            if (desvI != desvJ) {
+                nonDiag = -1.0;
+            }
+            elmat(desvI + i, desvJ + j) += nonDiag * w * shapeA(i) * shapeB(j);
         }
     }
 }
@@ -266,7 +270,6 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             break;
         default:
             throw std::exception("Incorrect dimensions for dirTerms vector.");
-            break;
         }
 
         w = ip.weight * (a + b);

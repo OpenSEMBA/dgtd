@@ -266,9 +266,10 @@ FiniteElementEvolution::interiorFluxCoefficient() const
 	switch (opts_.disForm) {
 	case DisForm::Weak:
 		return FluxCoefficient{ 1.0, 0.0 };
-		break;
 	case DisForm::Strong:
-		return FluxCoefficient{ 0.0, 0.5 };
+		return FluxCoefficient{ 0.0, -2.0 };
+	default:
+		throw std::exception("No defined BdrCond.");
 	}
 }
 FiniteElementEvolution::FluxCoefficient
@@ -322,21 +323,21 @@ FiniteElementEvolution::FluxCoefficient
 			case FieldType::E:
 				return FluxCoefficient{ 0.0, 0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 2.0 };
+				return FluxCoefficient{ 0.0, -2.0 };
 			}
 		case BdrCond::PMC:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 2.0 };
+				return FluxCoefficient{ 0.0, -2.0 };
 			case FieldType::H:
 				return FluxCoefficient{ 0.0, 0.0 };
 			}
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 1.0 };
+				return FluxCoefficient{ 0.0, -1.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 1.0 };
+				return FluxCoefficient{ 0.0, -1.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");
@@ -455,7 +456,6 @@ void FiniteElementEvolution::Mult(const Vector& in, Vector& out) const
 			MNTD_[H][H][x][x]->AddMult(hOld[x], hNew[x], -1.0);
 			MNTD_[H][H][y][x]->AddMult(hOld[y], hNew[x], -1.0);
 			MNTD_[H][H][z][x]->AddMult(hOld[z], hNew[x], -1.0);
-
 
 			break;
 		}
