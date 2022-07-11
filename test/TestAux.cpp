@@ -4,6 +4,7 @@
 
 #include "mfem.hpp"
 #include "../src/maxwell/BilinearIntegrators.h"
+#include "../src/maxwell/Types.h"
 
 #include <vector>
 
@@ -608,6 +609,72 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 						}
 						else if (
 							i == order + ((order + 1) * it)		&& j == order + ((order + 1) * it) + 1 ||
+							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it)) {
+							EXPECT_NEAR(-1.0, DGDense->Elem(i, j), 1e-3);
+						}
+						else {
+							EXPECT_NEAR(0.0, DGDense->Elem(i, j), 1e-3);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+TEST_F(Auxiliary, checkMaxwellDGTraceJumpOnlyMatrix)
+{
+	/* This test checks the matrix built by the MaxwellDGTraceIntegrator for
+	   an integrator that only consists of Jump Operators on 1D.
+	   The order will be changed each step to verify the behaviour
+	   is consistent with the supposition that only the four central
+	   elements of the matrix will be different from zero.
+
+	   This test also verifies the Lexicographic ordering of the
+	   dofs for each element.
+
+	   The system will be composed of a different element mesh with a FE
+	   Collection of DG elements. A FiniteElementSpace is built with
+	   the previous elements and then an InteriorFaceIntegrator based
+	   on a MaxwellDGTraceIntegrator is added, considering a 
+	   MaxwellDGTraceIntegrator has the form:
+	   beta < rho_u n [v],[w] >
+	   we declare the arguments to be Dir = X, beta = 1.0 in the X
+	   direction.
+
+	   Lastly, a check for the matrix dimensions is performed, then,
+	   loop checks if the elements in the center of the matrix
+	   have the correct values for assembling a jump [q] = q- - q+.*/
+
+	for (int elements = 2; elements < 5; elements++) {
+		for (int order = 1; order < 5; order++) {
+			const int dimension = 1;
+
+			Mesh mesh = Mesh::MakeCartesian1D(2);
+			FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
+			FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+
+			BilinearForm DGmat(fes);
+			DGmat.AddInteriorFaceIntegrator(
+				new maxwell::MaxwellDGTraceJumpIntegrator(std::vector<maxwell::Direction>{maxwell::Direction::X}, 1.0));
+			DGmat.Assemble();
+			DGmat.Finalize();
+
+			DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
+
+			EXPECT_EQ((order + 1) * 2, DGDense->Width());
+			EXPECT_EQ((order + 1) * 2, DGDense->Height());
+
+			for (int i = 0; i < order; i++) {
+				for (int j = 0; j < order; j++) {
+					for (int it = 0; it < elements - 2; it++) {
+						if (
+							i == order + ((order + 1) * it) && j == order + ((order + 1) * it) ||
+							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) + 1) {
+							EXPECT_NEAR(1.0, DGDense->Elem(i, j), 1e-3);
+						}
+						else if (
+							i == order + ((order + 1) * it) && j == order + ((order + 1) * it) + 1 ||
 							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it)) {
 							EXPECT_NEAR(-1.0, DGDense->Elem(i, j), 1e-3);
 						}
