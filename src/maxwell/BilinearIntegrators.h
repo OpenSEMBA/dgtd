@@ -56,7 +56,7 @@ class MaxwellDGTraceJumpIntegrator : public BilinearFormIntegrator
 public:
 	MaxwellDGTraceJumpIntegrator(std::vector<Direction>& dirTerms, double b)
 	{
-		dir = dirTerms; alpha = 0; beta = b;
+		dir = dirTerms; alpha = 0.0; beta = b;
 	}
 
 	virtual void AssembleFaceMatrix(const FiniteElement& el1,

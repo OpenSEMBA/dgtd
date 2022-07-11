@@ -17,9 +17,11 @@ FiniteElementEvolution::FiniteElementEvolution(FiniteElementSpace* fes, Options 
 			for (int dir = Direction::X; dir <= Direction::Z; dir++) {
 				Direction d = static_cast<Direction>(dir);
 				MS_[f][d] = buildByMult(buildInverseMassMatrix(f).get(), buildDerivativeOperator(d).get());
-				MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(opts_.disForm, f2, d).get());
-				MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(opts_.disForm, f2, d).get());
 				MNOD_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildNormalFluxOperator(f2, std::vector<Direction>{d}).get());
+				if (opts_.disForm == DisForm::Weak) {
+					MF_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildFluxOperator(opts_.disForm, f2, d).get());
+					MP_[f][f2][d] = buildByMult(buildInverseMassMatrix(f).get(), buildPenaltyOperator(opts_.disForm, f2, d).get());
+				}
 				for (int dir2 = Direction::X; dir2 <= Direction::Z; dir2++) {
 					Direction d2 = static_cast<Direction>(dir2);
 					MNTD_[f][f2][d][d2] = buildByMult(buildInverseMassMatrix(f).get(), buildNormalFluxOperator(f2, std::vector<Direction>{d, d2}).get());
@@ -180,7 +182,7 @@ FiniteElementEvolution::Operator
 }
 
 FiniteElementEvolution::Operator
-FiniteElementEvolution::buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const
+	FiniteElementEvolution::buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const
 {
 	std::vector<Direction> dirs = dirTerms;
 	auto res = std::make_unique<BilinearForm>(fes_);
@@ -267,7 +269,7 @@ FiniteElementEvolution::interiorFluxCoefficient() const
 	case DisForm::Weak:
 		return FluxCoefficient{ 1.0, 0.0 };
 	case DisForm::Strong:
-		return FluxCoefficient{ 0.0, -2.0 };
+		return FluxCoefficient{ 0.0, 0.5 };
 	default:
 		throw std::exception("No defined BdrCond.");
 	}
@@ -308,9 +310,9 @@ FiniteElementEvolution::FluxCoefficient
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.5, 0.0 };
+				return FluxCoefficient{ 1.0, 0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.5, 0.0 };
+				return FluxCoefficient{ 1.0, 0.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");
@@ -321,16 +323,16 @@ FiniteElementEvolution::FluxCoefficient
 		case BdrCond::PEC:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 0.0 };
-			case FieldType::H:
 				return FluxCoefficient{ 0.0, -2.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 0.0,  0.0 };
 			}
 		case BdrCond::PMC:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, -2.0 };
+				return FluxCoefficient{ 0.0,  0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ 0.0, -2.0 };
 			}
 		case BdrCond::SMA:
 			switch (f) {
