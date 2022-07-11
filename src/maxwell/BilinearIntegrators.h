@@ -50,6 +50,23 @@ private:
 	DisForm form_;
 };
 
+/** Integrator for a specialised application of the DG form:
+	beta < k [v], [w] >,
+	where v and w are the trial and test variables, respectively.
+	[v] is the jump such that [v]=(v1-v2) for the  face between elements 1 and 2.
+	For boundary elements, v2=0. Coefficient k is a std::vector<Direction> that can
+	have either one, two or no entries based on the following form:
+
+	Empty vector:
+	beta <  [v], [w]>
+	One entry vector:
+	beta <  n_dir_0 [v], [w] >
+	Two entry vector:
+	beta < (n_dir_0 [v]) * n_dir_1, [w] >
+
+	One use case for this integrator is to discretize the individual Maxwell
+	equations with a DG formulation.
+	*/
 class MaxwellDGTraceJumpIntegrator : public BilinearFormIntegrator
 {
 
