@@ -423,8 +423,8 @@ TEST_F(Auxiliary, checkKOperators)
 	  Secondly, we build the stifness (S) and flux (F) matrix and convert all the matrix to 
 	  a dense for comparing purporse.
 	  
-	  Finally, we compare the elements of the inicial bilinear form (K) and the sum of the 
-	  elements of the the stifness (S) and flux (F) matrix. */ 
+	  Finally, we compare the elements of the initial bilinear form (K) and the sum of the 
+	  elements of the the stiffness (S) and flux (F) matrix. */ 
 
 
 	int order = 2;
@@ -497,7 +497,7 @@ TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 	This test also verifies the Lexicographic ordering of the 
 	dofs for each element.
 
-	The system will be composed of a two element mesh with a FE
+	The system will be composed of a different element mesh with a FE
 	Collection of DG elements. A FiniteElementSpace is built with
 	the previous elements and then an InteriorFaceIntegrator based
 	on a DGTraceIntegrator is added, considering a DGTraceIntegrator
@@ -510,44 +510,49 @@ TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 	loop checks if the elements in the center of the matrix
 	have the correct values for assembling an average {q} = (q- + q+)/2.
 	*/
+	for (int elements = 2; elements < 5; elements++) {
+		for (int order = 2; order < 5; order++) {
+			const int dimension = 1;
 
-	for (int order = 2; order < 5; order++) {
-	const int dimension = 1;
+			Mesh mesh = Mesh::MakeCartesian1D(elements);
+			FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
+			FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
-	Mesh mesh = Mesh::MakeCartesian1D(2);
-	FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+			std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
+			BilinearForm DGmat(fes);
+			DGmat.AddInteriorFaceIntegrator(
+				new DGTraceIntegrator(n[0], 1.0, 0.0));
+			DGmat.Assemble();
+			DGmat.Finalize();
 
-	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-	BilinearForm DGmat(fes);
-	DGmat.AddInteriorFaceIntegrator(
-		new DGTraceIntegrator(n[0], 1.0, 0.0));
-	DGmat.Assemble();
-	DGmat.Finalize();
+			DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
 
-	DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
+			DGDense->PrintMatlab(std::cout);
 
-	EXPECT_EQ((order + 1) * 2, DGDense->Width());
-	EXPECT_EQ((order + 1) * 2, DGDense->Height());
+			EXPECT_EQ((order + 1) * elements, DGDense->Width());
+			EXPECT_EQ((order + 1) * elements, DGDense->Height());
 
-	for (int i = 0; i < DGDense->Width(); i++) {
-		for (int j = 0; j < DGDense->Height(); j++) {
-			if (
-				i == order && j == order ||
-				i == order && j == order + 1) {
-				EXPECT_NEAR(0.5, DGDense->Elem(i, j), 1e-3);
-			}
-			else if (
-				i == order + 1 && j == order ||
-				i == order + 1 && j == order + 1) {
-				EXPECT_NEAR(-0.5, DGDense->Elem(i, j), 1e-3);
-			}
-			else {
-				EXPECT_NEAR(0.0, DGDense->Elem(i, j), 1e-3);
+			for (int i = 0; i < order; i++) {
+				for (int j = 0; j < order; j++) {
+					for (int it = 0; it < elements - 2; it++) {
+						if (
+							i == order + ((order + 1) * it)     && j == order + ((order + 1) * it) ||
+							i == order + ((order + 1) * it)     && j == order + ((order + 1) * it) + 1) {
+							EXPECT_NEAR(0.5, DGDense->Elem(i, j), 1e-3);
+						}
+						else if (
+							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) ||
+							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) + 1) {
+							EXPECT_NEAR(-0.5, DGDense->Elem(i , j), 1e-3);
+						}
+						else {
+							EXPECT_NEAR(0.0, DGDense->Elem(i , j), 1e-3);
+						}
+					}
+				}
 			}
 		}
 	}
-}
 }
 TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 {
@@ -560,7 +565,7 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 		This test also verifies the Lexicographic ordering of the
 		dofs for each element.
 	   
-	   The system will be composed of a two element mesh with a FE
+	   The system will be composed of a different element mesh with a FE
 	   Collection of DG elements. A FiniteElementSpace is built with
 	   the previous elements and then an InteriorFaceIntegrator based
 	   on a DGTraceIntegrator is added, considering a DGTraceIntegrator
@@ -573,41 +578,43 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 	   loop checks if the elements in the center of the matrix
 	   have the correct values for assembling a jump [q] = q- - q+.*/
 
-	for (int order = 2; order < 5; order++) {
-		const int dimension = 1;
+	for (int elements = 2; elements < 5; elements++) {
+		for (int order = 1; order < 5; order++) {
+			const int dimension = 1;
 
-		Mesh mesh = Mesh::MakeCartesian1D(2);
-		FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+			Mesh mesh = Mesh::MakeCartesian1D(2);
+			FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
+			FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
-		std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-		BilinearForm DGmat(fes);
-		DGmat.AddInteriorFaceIntegrator(
-			new DGTraceIntegrator(n[0], 0.0, 1.0));
-		DGmat.Assemble();
-		DGmat.Finalize();
+			std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
+			BilinearForm DGmat(fes);
+			DGmat.AddInteriorFaceIntegrator(
+				new DGTraceIntegrator(n[0], 0.0, 1.0));
+			DGmat.Assemble();
+			DGmat.Finalize();
 
-		DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
+			DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
 
-		EXPECT_EQ((order + 1) * 2, DGDense->Width());
-		EXPECT_EQ((order + 1) * 2, DGDense->Height());
+			EXPECT_EQ((order + 1) * 2, DGDense->Width());
+			EXPECT_EQ((order + 1) * 2, DGDense->Height());
 
-		for (int i = 0; i < DGDense->Width(); i++) {
-			for (int j = 0; j < DGDense->Height(); j++) {
-				if (i == order     && j == order     ||
-					i == order     && j == order + 1 ||
-					i == order + 1 && j == order     ||
-					i == order + 1 && j == order + 1)
-				{
-					if ((i + j) % 2 == 0) {
-						EXPECT_NEAR(1.0, DGDense->Elem(i, j), 1e-3);
+			for (int i = 0; i < order; i++) {
+				for (int j = 0; j < order; j++) {
+					for (int it = 0; it < elements - 2; it++) {
+						if (	 
+							i == order + ((order + 1) * it)		&& j == order + ((order + 1) * it)	   ||
+							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) + 1) {
+							EXPECT_NEAR(1.0, DGDense->Elem(i, j), 1e-3);
+						}
+						else if (
+							i == order + ((order + 1) * it)		&& j == order + ((order + 1) * it) + 1 ||
+							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it)) {
+							EXPECT_NEAR(-1.0, DGDense->Elem(i, j), 1e-3);
+						}
+						else {
+							EXPECT_NEAR(0.0, DGDense->Elem(i, j), 1e-3);
+						}
 					}
-					else {
-						EXPECT_NEAR(-1.0, DGDense->Elem(i, j), 1e-3);
-					}
-				}
-				else {
-					EXPECT_NEAR(0.0, DGDense->Elem(i, j), 1e-3);
 				}
 			}
 		}
