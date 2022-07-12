@@ -136,11 +136,39 @@ namespace HelperFunctions {
 		gf.Save(filename);
 	}
 
-	FiniteElementSpace* buildBilinearFormWith1DCartesianMesh(const int elements, const int order) {
+	std::unique_ptr<BilinearForm> buildBilinearFormWith1DCartesianMesh(
+		const int elements, 
+		const int order, 
+		std::pair<double,double> ab) 
+	{
 		Mesh mesh = Mesh::MakeCartesian1D(elements);
 		FiniteElementCollection* fec = new DG_FECollection(order, mesh.Dimension(), BasisType::GaussLobatto);
 		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-		return fes;
+		auto DGmat = std::make_unique<BilinearForm>(fes);
+		std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
+		DGmat->AddInteriorFaceIntegrator(
+			new DGTraceIntegrator(n[0], ab.first, ab.second));
+		DGmat->Assemble();
+		DGmat->Finalize();
+		return DGmat;
+	}
+
+	std::unique_ptr<BilinearForm> buildMaxwellBilinearFormWith1DCartesianMesh(
+		const int elements,
+		const int order,
+		std::vector<maxwell::Direction> dir,
+		const double beta)
+	{
+		Mesh mesh = Mesh::MakeCartesian1D(elements);
+		FiniteElementCollection* fec = new DG_FECollection(order, mesh.Dimension(), BasisType::GaussLobatto);
+		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+		auto DGmat = std::make_unique<BilinearForm>(fes);
+		DGmat->AddInteriorFaceIntegrator(
+			new maxwell::MaxwellDGTraceJumpIntegrator(dir, beta));
+		DGmat->Assemble();
+		DGmat->Finalize();
+		return DGmat;
+
 	}
 
 }
@@ -521,13 +549,7 @@ TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 2; order < 5; order++) {
 
-			std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-			auto fes = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order);
-			auto DGmat = std::make_unique<BilinearForm>(fes);
-			DGmat->AddInteriorFaceIntegrator(
-				new DGTraceIntegrator(n[0], 1.0, 0.0));
-			DGmat->Assemble();
-			DGmat->Finalize();
+			auto DGmat = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order,std::make_pair<double,double>(1.0,0.0));
 
 			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
 
@@ -585,13 +607,7 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
 		
-			std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-			auto fes = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order);
-			auto DGmat = std::make_unique<BilinearForm>(fes);
-			DGmat->AddInteriorFaceIntegrator(
-				new DGTraceIntegrator(n[0], 0.0, 1.0));
-			DGmat->Assemble();
-			DGmat->Finalize();
+			auto DGmat = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order, std::make_pair<double, double>(0.0, 1.0));
 
 			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
 
@@ -648,12 +664,11 @@ TEST_F(Auxiliary, checkMaxwellDGTraceJumpOnlyMatrix)
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
 
-			auto fes = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order);
-			auto DGmat = std::make_unique<BilinearForm>(fes);
-			DGmat->AddInteriorFaceIntegrator(
-				new maxwell::MaxwellDGTraceJumpIntegrator(std::vector<maxwell::Direction>{maxwell::Direction::X}, 1.0));
-			DGmat->Assemble();
-			DGmat->Finalize();
+			auto DGmat = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+				elements, 
+				order, 
+				std::vector<maxwell::Direction>{maxwell::Direction::X}, 
+				1.0);
 
 			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
 
