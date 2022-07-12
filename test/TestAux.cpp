@@ -136,6 +136,13 @@ namespace HelperFunctions {
 		gf.Save(filename);
 	}
 
+	FiniteElementSpace* buildBilinearFormWith1DCartesianMesh(const int elements, const int order) {
+		Mesh mesh = Mesh::MakeCartesian1D(elements);
+		FiniteElementCollection* fec = new DG_FECollection(order, mesh.Dimension(), BasisType::GaussLobatto);
+		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+		return fes;
+	}
+
 }
 
 class Auxiliary : public ::testing::Test {
@@ -513,20 +520,16 @@ TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 	*/
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 2; order < 5; order++) {
-			const int dimension = 1;
-
-			Mesh mesh = Mesh::MakeCartesian1D(elements);
-			FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-			FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
 			std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-			BilinearForm DGmat(fes);
-			DGmat.AddInteriorFaceIntegrator(
+			auto fes = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order);
+			auto DGmat = std::make_unique<BilinearForm>(fes);
+			DGmat->AddInteriorFaceIntegrator(
 				new DGTraceIntegrator(n[0], 1.0, 0.0));
-			DGmat.Assemble();
-			DGmat.Finalize();
+			DGmat->Assemble();
+			DGmat->Finalize();
 
-			DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
+			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
 
 			DGDense->PrintMatlab(std::cout);
 
@@ -581,23 +584,19 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
-			const int dimension = 1;
-
-			Mesh mesh = Mesh::MakeCartesian1D(2);
-			FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-			FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-
+		
 			std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-			BilinearForm DGmat(fes);
-			DGmat.AddInteriorFaceIntegrator(
+			auto fes = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order);
+			auto DGmat = std::make_unique<BilinearForm>(fes);
+			DGmat->AddInteriorFaceIntegrator(
 				new DGTraceIntegrator(n[0], 0.0, 1.0));
-			DGmat.Assemble();
-			DGmat.Finalize();
+			DGmat->Assemble();
+			DGmat->Finalize();
 
-			DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
+			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
 
-			EXPECT_EQ((order + 1) * 2, DGDense->Width());
-			EXPECT_EQ((order + 1) * 2, DGDense->Height());
+			EXPECT_EQ((order + 1) * elements, DGDense->Width());
+			EXPECT_EQ((order + 1) * elements, DGDense->Height());
 
 			for (int i = 0; i < order; i++) {
 				for (int j = 0; j < order; j++) {
@@ -648,22 +647,18 @@ TEST_F(Auxiliary, checkMaxwellDGTraceJumpOnlyMatrix)
 
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
-			const int dimension = 1;
 
-			Mesh mesh = Mesh::MakeCartesian1D(2);
-			FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
-			FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-
-			BilinearForm DGmat(fes);
-			DGmat.AddInteriorFaceIntegrator(
+			auto fes = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order);
+			auto DGmat = std::make_unique<BilinearForm>(fes);
+			DGmat->AddInteriorFaceIntegrator(
 				new maxwell::MaxwellDGTraceJumpIntegrator(std::vector<maxwell::Direction>{maxwell::Direction::X}, 1.0));
-			DGmat.Assemble();
-			DGmat.Finalize();
+			DGmat->Assemble();
+			DGmat->Finalize();
 
-			DenseMatrix* DGDense = DGmat.SpMat().ToDenseMatrix();
+			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
 
-			EXPECT_EQ((order + 1) * 2, DGDense->Width());
-			EXPECT_EQ((order + 1) * 2, DGDense->Height());
+			EXPECT_EQ((order + 1) * elements, DGDense->Width());
+			EXPECT_EQ((order + 1) * elements, DGDense->Height());
 
 			for (int i = 0; i < order; i++) {
 				for (int j = 0; j < order; j++) {
