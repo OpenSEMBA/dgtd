@@ -171,11 +171,58 @@ namespace HelperFunctions {
 
 	}
 
+	DenseMatrix* buildExpectedAverageDenseMatrix1D(
+		const int elements,
+		const int order)
+	{
+		DenseMatrix* res = new DenseMatrix((order + 1) * elements);
+		res->operator=(0.0);
+
+		for (int i = 1; i <= order; i++) {
+			for (int j = 1; j <= order;j++){
+				for (int it = 0; it < elements - 1; it++) {
+					if (i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == order + ((order + 1) * it) ||
+						i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == (order + 1) + ((order + 1) * it)) {
+						res->Elem(i + (order + 1) * it    , j + (order + 1) * it)     =  0.5;
+						res->Elem(i + (order + 1) * it    , j + 1 + (order + 1) * it) =  0.5;
+						res->Elem(i + 1 + (order + 1) * it, j + (order + 1) * it)     = -0.5;
+						res->Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) = -0.5;
+					}
+				}
+			}
+		}
+		return res;
+	}
+
+	DenseMatrix* buildExpectedJumpDenseMatrix1D(
+		const int elements,
+		const int order)
+	{
+		DenseMatrix* res = new DenseMatrix((order + 1) * elements);
+		res->operator=(0.0);
+
+		for (int i = 1; i <= order; i++) {
+			for (int j = 1; j <= order; j++) {
+				for (int it = 0; it < elements - 1; it++) {
+					if (i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == order + ((order + 1) * it) ||
+						i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == (order + 1) + ((order + 1) * it)) {
+						res->Elem(i + (order + 1) * it    , j + (order + 1) * it)     =  1.0;
+						res->Elem(i + (order + 1) * it    , j + 1 + (order + 1) * it) = -1.0;
+						res->Elem(i + 1 + (order + 1) * it, j + (order + 1) * it)     = -1.0;
+						res->Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) =  1.0;
+					}
+				}
+			}
+		}
+		return res;
+	}
+
 }
 
 class Auxiliary : public ::testing::Test {
 protected:
 	typedef std::size_t Direction;
+	
 };
 
 TEST_F(Auxiliary, checkDataValueOutsideNodesForOneElementMeshes)
@@ -541,40 +588,28 @@ TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 	alpha < rho_u (u.n) {v},[w] > + beta < rho_u |u.n| [v],[w] >
 	we declare the arguments to be alpha = 1.0, beta = 0.0 in the X
 	direction.
+	Lastly, a check for the matrix dimensions is performed, then the
+	expected matrix is built indepently,
+	the elements are substracted one by one, expecting them to be 0.0,
+	which would imply the matrix assembled through the DGTrace
+	has the correct values for assembling a average {q} = (q- + q+)/2.*/
 
-	Lastly, a check for the matrix dimensions is performed, then,
-	loop checks if the elements in the center of the matrix
-	have the correct values for assembling an average {q} = (q- + q+)/2.
-	*/
+
 	for (int elements = 2; elements < 5; elements++) {
-		for (int order = 2; order < 5; order++) {
+		for (int order = 1; order < 5; order++) {
 
 			auto DGmat = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order,std::make_pair<double,double>(1.0,0.0));
 
 			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
 
-			DGDense->PrintMatlab(std::cout);
-
 			EXPECT_EQ((order + 1) * elements, DGDense->Width());
 			EXPECT_EQ((order + 1) * elements, DGDense->Height());
 
-			for (int i = 0; i < order; i++) {
-				for (int j = 0; j < order; j++) {
-					for (int it = 0; it < elements - 2; it++) {
-						if (
-							i == order + ((order + 1) * it)     && j == order + ((order + 1) * it) ||
-							i == order + ((order + 1) * it)     && j == order + ((order + 1) * it) + 1) {
-							EXPECT_NEAR(0.5, DGDense->Elem(i, j), 1e-3);
-						}
-						else if (
-							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) ||
-							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) + 1) {
-							EXPECT_NEAR(-0.5, DGDense->Elem(i , j), 1e-3);
-						}
-						else {
-							EXPECT_NEAR(0.0, DGDense->Elem(i , j), 1e-3);
-						}
-					}
+			DenseMatrix* SubDense = HelperFunctions::buildExpectedAverageDenseMatrix1D(elements, order);		
+
+			for (int i = 0; i < DGDense->Width(); i++) {
+				for (int j = 0; j < DGDense->Height(); j++) {
+					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
 				}
 			}
 		}
@@ -600,9 +635,11 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 	   we declare the arguments to be alpha = 0.0, beta = 1.0 in the X
 	   direction.
 	   
-	   Lastly, a check for the matrix dimensions is performed, then, 
-	   loop checks if the elements in the center of the matrix
-	   have the correct values for assembling a jump [q] = q- - q+.*/
+	   Lastly, a check for the matrix dimensions is performed, then the
+	   expected matrix is built indepently,
+	   the elements are substracted one by one, expecting them to be 0.0,
+	   which would imply the matrix assembled through the DGTrace
+	   has the correct values for assembling a jump [q] = q- - q+.*/
 
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
@@ -614,30 +651,67 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 			EXPECT_EQ((order + 1) * elements, DGDense->Width());
 			EXPECT_EQ((order + 1) * elements, DGDense->Height());
 
-			for (int i = 0; i < order; i++) {
-				for (int j = 0; j < order; j++) {
-					for (int it = 0; it < elements - 2; it++) {
-						if (	 
-							i == order + ((order + 1) * it)		&& j == order + ((order + 1) * it)	   ||
-							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) + 1) {
-							EXPECT_NEAR(1.0, DGDense->Elem(i, j), 1e-3);
-						}
-						else if (
-							i == order + ((order + 1) * it)		&& j == order + ((order + 1) * it) + 1 ||
-							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it)) {
-							EXPECT_NEAR(-1.0, DGDense->Elem(i, j), 1e-3);
-						}
-						else {
-							EXPECT_NEAR(0.0, DGDense->Elem(i, j), 1e-3);
-						}
-					}
+			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
+
+			for (int i = 0; i < DGDense->Width(); i++) {
+				for (int j = 0; j < DGDense->Height(); j++) {
+					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
 				}
 			}
 		}
 	}
 }
 
-TEST_F(Auxiliary, checkMaxwellDGTraceJumpOnlyMatrix)
+TEST_F(Auxiliary, checkMaxwellDGTraceNoDirMatrix)
+{
+	/* This test checks the matrix built by the MaxwellDGTraceIntegrator for
+	   an integrator that only consists of Jump Operators on 1D.
+	   The order will be changed each step to verify the behaviour
+	   is consistent with the supposition that only the four central
+	   elements of the matrix will be different from zero.
+
+	   This test also verifies the Lexicographic ordering of the
+	   dofs for each element.
+
+	   The system will be composed of a different element mesh with a FE
+	   Collection of DG elements. A FiniteElementSpace is built with
+	   the previous elements and then an InteriorFaceIntegrator based
+	   on a MaxwellDGTraceIntegrator is added, considering a
+	   MaxwellDGTraceIntegrator has the form:
+	   beta < [v],[w] >
+	   we declare the arguments to be No Dir, beta = 1.0.
+
+	   Lastly, a check for the matrix dimensions is performed, then the
+	   expected matrix is built indepently,
+	   the elements are substracted one by one, expecting them to be 0.0,
+	   which would imply the matrix assembled through the DGTrace
+	   has the correct values for assembling a jump [q] = q- - q+.*/
+
+	for (int elements = 2; elements < 5; elements++) {
+		for (int order = 1; order < 5; order++) {
+
+			auto DGmat = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+				elements,
+				order,
+				std::vector<maxwell::Direction>{},
+				1.0);
+
+			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
+
+			EXPECT_EQ((order + 1) * elements, DGDense->Width());
+			EXPECT_EQ((order + 1) * elements, DGDense->Height());
+
+			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
+
+			for (int i = 0; i < DGDense->Width(); i++) {
+				for (int j = 0; j < DGDense->Height(); j++) {
+					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
+				}
+			}
+		}
+	}
+}
+TEST_F(Auxiliary, checkMaxwellDGTraceOneDirMatrix)
 {
 	/* This test checks the matrix built by the MaxwellDGTraceIntegrator for
 	   an integrator that only consists of Jump Operators on 1D.
@@ -657,9 +731,11 @@ TEST_F(Auxiliary, checkMaxwellDGTraceJumpOnlyMatrix)
 	   we declare the arguments to be Dir = X, beta = 1.0 in the X
 	   direction.
 
-	   Lastly, a check for the matrix dimensions is performed, then,
-	   loop checks if the elements in the center of the matrix
-	   have the correct values for assembling a jump [q] = q- - q+.*/
+	   Lastly, a check for the matrix dimensions is performed, then the
+	   expected matrix is built indepently,
+	   the elements are substracted one by one, expecting them to be 0.0,
+	   which would imply the matrix assembled through the DGTrace
+	   has the correct values for assembling a jump [q] = q- - q+.*/
 
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
@@ -675,23 +751,61 @@ TEST_F(Auxiliary, checkMaxwellDGTraceJumpOnlyMatrix)
 			EXPECT_EQ((order + 1) * elements, DGDense->Width());
 			EXPECT_EQ((order + 1) * elements, DGDense->Height());
 
-			for (int i = 0; i < order; i++) {
-				for (int j = 0; j < order; j++) {
-					for (int it = 0; it < elements - 2; it++) {
-						if (
-							i == order + ((order + 1) * it) && j == order + ((order + 1) * it) ||
-							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it) + 1) {
-							EXPECT_NEAR(1.0, DGDense->Elem(i, j), 1e-3);
-						}
-						else if (
-							i == order + ((order + 1) * it) && j == order + ((order + 1) * it) + 1 ||
-							i == order + ((order + 1) * it) + 1 && j == order + ((order + 1) * it)) {
-							EXPECT_NEAR(-1.0, DGDense->Elem(i, j), 1e-3);
-						}
-						else {
-							EXPECT_NEAR(0.0, DGDense->Elem(i, j), 1e-3);
-						}
-					}
+			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
+
+			for (int i = 0; i < DGDense->Width(); i++) {
+				for (int j = 0; j < DGDense->Height(); j++) {
+					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
+				}
+			}
+		}
+	}
+}
+
+TEST_F(Auxiliary, checkMaxwellDGTraceTwoDirMatrix)
+{
+	/* This test checks the matrix built by the MaxwellDGTraceIntegrator for
+	   an integrator that only consists of Jump Operators on 1D.
+	   The order will be changed each step to verify the behaviour
+	   is consistent with the supposition that only the four central
+	   elements of the matrix will be different from zero.
+
+	   This test also verifies the Lexicographic ordering of the
+	   dofs for each element.
+
+	   The system will be composed of a different element mesh with a FE
+	   Collection of DG elements. A FiniteElementSpace is built with
+	   the previous elements and then an InteriorFaceIntegrator based
+	   on a MaxwellDGTraceIntegrator is added, considering a
+	   MaxwellDGTraceIntegrator has the form:
+	   beta < (n_x [v])n_x,[w] >
+	   we declare the arguments to be Dir = X and X, beta = 1.0.
+
+	   Lastly, a check for the matrix dimensions is performed, then the
+	   expected matrix is built indepently,
+	   the elements are substracted one by one, expecting them to be 0.0,
+	   which would imply the matrix assembled through the DGTrace
+	   has the correct values for assembling a jump [q] = q- - q+.*/
+
+	for (int elements = 2; elements < 5; elements++) {
+		for (int order = 1; order < 5; order++) {
+
+			auto DGmat = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+				elements,
+				order,
+				std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::X},
+				1.0);
+
+			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
+
+			EXPECT_EQ((order + 1) * elements, DGDense->Width());
+			EXPECT_EQ((order + 1) * elements, DGDense->Height());
+
+			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
+
+			for (int i = 0; i < DGDense->Width(); i++) {
+				for (int j = 0; j < DGDense->Height(); j++) {
+					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
 				}
 			}
 		}
