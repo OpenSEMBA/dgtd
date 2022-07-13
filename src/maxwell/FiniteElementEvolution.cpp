@@ -131,9 +131,11 @@ FiniteElementEvolution::Operator
 			)
 		);
 		break;
-	case DisForm::Strong:
+	case DisForm::Strong: //Hesthaven bilinear form (lambda * u, dvdx). MFEM bilinear form (lambda * dudx, v)
 		res->AddDomainIntegrator(
-			new DerivativeIntegrator(coeff, dir)
+			new TransposeIntegrator(
+				new DerivativeIntegrator(coeff, dir)
+			)
 		);
 		break;
 	}
@@ -206,12 +208,6 @@ FiniteElementEvolution::Operator
 	res->Assemble();
 	res->Finalize();
 
-	if (dirTerms.size() != 0) {
-		if (dirTerms.at(0) >= fes_->GetMesh()->Dimension()) {
-			res.get()->operator=(0.0);
-		}
-	}
-
 	return res;
 }
 
@@ -269,7 +265,7 @@ FiniteElementEvolution::interiorFluxCoefficient() const
 	case DisForm::Weak:
 		return FluxCoefficient{ 1.0, 0.0 };
 	case DisForm::Strong:
-		return FluxCoefficient{ 0.0, 0.5 };
+		return FluxCoefficient{ 0.0, -0.5 };
 	default:
 		throw std::exception("No defined BdrCond.");
 	}

@@ -171,11 +171,11 @@ namespace HelperFunctions {
 
 	}
 
-	DenseMatrix* buildExpectedAverageDenseMatrix1D(
+	std::unique_ptr<DenseMatrix> buildExpectedAverageDenseMatrix1D(
 		const int elements,
 		const int order)
 	{
-		DenseMatrix* res = new DenseMatrix((order + 1) * elements);
+		std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
 		res->operator=(0.0);
 
 		for (int i = 1; i <= order; i++) {
@@ -194,11 +194,11 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	DenseMatrix* buildExpectedJumpDenseMatrix1D(
+	std::unique_ptr<DenseMatrix> buildExpectedJumpDenseMatrix1D(
 		const int elements,
 		const int order)
 	{
-		DenseMatrix* res = new DenseMatrix((order + 1) * elements);
+		std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
 		res->operator=(0.0);
 
 		for (int i = 1; i <= order; i++) {
@@ -217,6 +217,17 @@ namespace HelperFunctions {
 		return res;
 	}
 
+	void checkDenseMatrixSubtractIsValueForAllElem(
+		const double val, 
+		std::unique_ptr<DenseMatrix> m1, 
+		std::unique_ptr<DenseMatrix> m2)
+	{
+		for (int i = 0; i < m1->Width(); i++) {
+			for (int j = 0; j < m1->Height(); j++) {
+				EXPECT_NEAR(0.0, m1->Elem(i,j) - m2->Elem(i,j), 1e-3);
+			}
+		}
+	}
 }
 
 class Auxiliary : public ::testing::Test {
@@ -586,7 +597,7 @@ TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 	on a DGTraceIntegrator is added, considering a DGTraceIntegrator
 	has the form:
 	alpha < rho_u (u.n) {v},[w] > + beta < rho_u |u.n| [v],[w] >
-	we declare the arguments to be alpha = 1.0, beta = 0.0 in the X
+	we declare the arguments to be alpha = 0.0, beta = 1.0 in the X
 	direction.
 	Lastly, a check for the matrix dimensions is performed, then the
 	expected matrix is built indepently,
@@ -600,18 +611,13 @@ TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 
 			auto DGmat = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order,std::make_pair<double,double>(1.0,0.0));
 
-			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
+			EXPECT_EQ((order + 1) * elements, DGmat->SpMat().ToDenseMatrix()->Width());
+			EXPECT_EQ((order + 1) * elements, DGmat->SpMat().ToDenseMatrix()->Height());
 
-			EXPECT_EQ((order + 1) * elements, DGDense->Width());
-			EXPECT_EQ((order + 1) * elements, DGDense->Height());
+			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(0.0, 
+				std::unique_ptr<DenseMatrix>(DGmat->SpMat().ToDenseMatrix()), 
+				HelperFunctions::buildExpectedAverageDenseMatrix1D(elements, order));
 
-			DenseMatrix* SubDense = HelperFunctions::buildExpectedAverageDenseMatrix1D(elements, order);		
-
-			for (int i = 0; i < DGDense->Width(); i++) {
-				for (int j = 0; j < DGDense->Height(); j++) {
-					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
-				}
-			}
 		}
 	}
 }
@@ -646,18 +652,12 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 		
 			auto DGmat = HelperFunctions::buildBilinearFormWith1DCartesianMesh(elements, order, std::make_pair<double, double>(0.0, 1.0));
 
-			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
+			EXPECT_EQ((order + 1) * elements, DGmat->SpMat().ToDenseMatrix()->Width());
+			EXPECT_EQ((order + 1) * elements, DGmat->SpMat().ToDenseMatrix()->Height());
 
-			EXPECT_EQ((order + 1) * elements, DGDense->Width());
-			EXPECT_EQ((order + 1) * elements, DGDense->Height());
-
-			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
-
-			for (int i = 0; i < DGDense->Width(); i++) {
-				for (int j = 0; j < DGDense->Height(); j++) {
-					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
-				}
-			}
+			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(0.0,
+				std::unique_ptr<DenseMatrix>(DGmat->SpMat().ToDenseMatrix()),
+				HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order));
 		}
 	}
 }
@@ -696,18 +696,12 @@ TEST_F(Auxiliary, checkMaxwellDGTraceNoDirMatrix)
 				std::vector<maxwell::Direction>{},
 				1.0);
 
-			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
+			EXPECT_TRUE(DGmat->IsSquare());
+			EXPECT_EQ((order + 1) * elements, DGmat->SpMat().ToDenseMatrix()->Width());
 
-			EXPECT_EQ((order + 1) * elements, DGDense->Width());
-			EXPECT_EQ((order + 1) * elements, DGDense->Height());
-
-			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
-
-			for (int i = 0; i < DGDense->Width(); i++) {
-				for (int j = 0; j < DGDense->Height(); j++) {
-					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
-				}
-			}
+			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(0.0,
+				std::unique_ptr<DenseMatrix>(DGmat->SpMat().ToDenseMatrix()),
+				HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order));
 		}
 	}
 }
@@ -735,27 +729,42 @@ TEST_F(Auxiliary, checkMaxwellDGTraceOneDirMatrix)
 	   expected matrix is built indepently,
 	   the elements are substracted one by one, expecting them to be 0.0,
 	   which would imply the matrix assembled through the DGTrace
-	   has the correct values for assembling a jump [q] = q- - q+.*/
+	   has the correct values for assembling a jump [q] = q- - q+.
+	   For any direction that is not X, we expect n_In to be 0.0, so
+	   the entirety of the matrix would be comprised of 0.0*/
 
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
 
-			auto DGmat = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+			auto DGmatX = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
 				elements, 
 				order, 
 				std::vector<maxwell::Direction>{maxwell::Direction::X}, 
 				1.0);
 
-			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
+			auto DGmatY = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+				elements,
+				order,
+				std::vector<maxwell::Direction>{maxwell::Direction::Y},
+				1.0);
 
-			EXPECT_EQ((order + 1) * elements, DGDense->Width());
-			EXPECT_EQ((order + 1) * elements, DGDense->Height());
+			auto DGmatZ = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+				elements,
+				order,
+				std::vector<maxwell::Direction>{maxwell::Direction::Z},
+				1.0);
 
-			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
+			EXPECT_TRUE(DGmatX->IsSquare());
+			EXPECT_EQ((order + 1) * elements, DGmatX->SpMat().ToDenseMatrix()->Width());
 
-			for (int i = 0; i < DGDense->Width(); i++) {
-				for (int j = 0; j < DGDense->Height(); j++) {
-					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
+			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(0.0,
+				std::unique_ptr<DenseMatrix>(DGmatX->SpMat().ToDenseMatrix()),
+				HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order));
+
+			for (int i = 0; i < DGmatX->SpMat().ToDenseMatrix()->Width(); i++) {
+				for (int j = 0; j < DGmatX->SpMat().ToDenseMatrix()->Height(); j++) {
+					EXPECT_EQ(0.0, DGmatY->SpMat().ToDenseMatrix()->Elem(i, j));
+					EXPECT_EQ(0.0, DGmatZ->SpMat().ToDenseMatrix()->Elem(i, j));
 				}
 			}
 		}
@@ -779,33 +788,50 @@ TEST_F(Auxiliary, checkMaxwellDGTraceTwoDirMatrix)
 	   on a MaxwellDGTraceIntegrator is added, considering a
 	   MaxwellDGTraceIntegrator has the form:
 	   beta < (n_x [v])n_x,[w] >
-	   we declare the arguments to be Dir = X and X, beta = 1.0.
+	   
+	   We declare the first direction to be X and the second one X, Y and Z,
+	   with beta = 1.0. 
 
 	   Lastly, a check for the matrix dimensions is performed, then the
-	   expected matrix is built indepently,
+	   expected matrix is built indepently, for both directions being X
 	   the elements are substracted one by one, expecting them to be 0.0,
 	   which would imply the matrix assembled through the DGTrace
-	   has the correct values for assembling a jump [q] = q- - q+.*/
+	   has the correct values for assembling a jump [q] = q- - q+.
+	   For any combination of X with Y and Z, we expect n_Out to be 0.0, so
+	   the entirety of the matrix would be comprised of 0.0*/
 
 	for (int elements = 2; elements < 5; elements++) {
 		for (int order = 1; order < 5; order++) {
 
-			auto DGmat = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+			auto DGmatXX = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
 				elements,
 				order,
 				std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::X},
 				1.0);
 
-			DenseMatrix* DGDense = DGmat->SpMat().ToDenseMatrix();
+			auto DGmatXY = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+				elements,
+				order,
+				std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Y},
+				1.0);
 
-			EXPECT_EQ((order + 1) * elements, DGDense->Width());
-			EXPECT_EQ((order + 1) * elements, DGDense->Height());
+			auto DGmatXZ = HelperFunctions::buildMaxwellBilinearFormWith1DCartesianMesh(
+				elements,
+				order,
+				std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Z},
+				1.0);
 
-			DenseMatrix* SubDense = HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order);
+			EXPECT_TRUE(DGmatXX->IsSquare());
+			EXPECT_EQ((order + 1) * elements, DGmatXX->SpMat().ToDenseMatrix()->Width());
 
-			for (int i = 0; i < DGDense->Width(); i++) {
-				for (int j = 0; j < DGDense->Height(); j++) {
-					EXPECT_NEAR(0.0, DGDense->Elem(i, j) - SubDense->Elem(i, j), 1e-3);
+			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(0.0,
+				std::unique_ptr<DenseMatrix>(DGmatXX->SpMat().ToDenseMatrix()),
+				HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order));
+
+			for (int i = 0; i < DGmatXX->SpMat().ToDenseMatrix()->Width(); i++) {
+				for (int j = 0; j < DGmatXX->SpMat().ToDenseMatrix()->Height(); j++) {
+					EXPECT_EQ(0.0, DGmatXY->SpMat().ToDenseMatrix()->Elem(i, j));
+					EXPECT_EQ(0.0, DGmatXZ->SpMat().ToDenseMatrix()->Elem(i, j));
 				}
 			}
 		}

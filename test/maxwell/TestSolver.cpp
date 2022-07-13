@@ -472,7 +472,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 
 TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 {
-	Mesh mesh = Mesh::MakeCartesian1D(201, 10.0);
+	Mesh mesh = Mesh::MakeCartesian1D(51);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
 	maxwell::Solver::Options opts;
@@ -487,7 +487,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 	maxwell::Solver solver(
 		model,
 		probes,
-		buildSourcesWithDefaultSource(model, E, Y, 0.5),
+		buildSourcesWithDefaultSource(model, E, Y),
 		opts);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
