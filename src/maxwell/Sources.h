@@ -12,7 +12,8 @@ public:
 	Source(Model& model, const FieldType& ft, const Direction& d,  const double spread, const double coeff,
 		const Vector devFromCenter);
 
-	double evalGaussianFunction(const Position& pos) const;
+	double evalGaussianFunction3D(const Position& pos) const;
+	double evalGaussianFunction2D(const Position& pos) const;
 	double evalGaussianFunction1D(const Position& pos) const;
 	FieldType getFieldType() const { return fieldType_; }
 	Direction getDirection() const { return direction_; }

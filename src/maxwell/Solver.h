@@ -26,7 +26,6 @@ public:
 
     Solver(const Model&, Probes&, const Sources&, const Options&);
 
-    void setInitialField();
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const PointsProbe& getPointsProbe(const std::size_t probe) { return probes_.getPointsProbes().at(probe); }
 
@@ -67,8 +66,7 @@ private:
 
     void checkOptionsAreValid(const Options&);
 
-    void Solver::initialize1DSources();
-    void Solver::initialize2DSources();
+    void Solver::initializeSources();
 
     const std::pair<Array<int>, Array<IntegrationPoint>> buildElemAndIntegrationPointArrays(DenseMatrix& physPoints) const;
     const IntegrationPointsSet buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;

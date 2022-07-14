@@ -218,7 +218,7 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     const FiniteElement& el2,
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
-{
+{   
 
     int ndof1 = el1.GetDof();
     int ndof2 = setNeighbourNDoF(el2, Trans);

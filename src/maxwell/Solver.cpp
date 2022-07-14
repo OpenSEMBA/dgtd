@@ -43,7 +43,7 @@ for (int d = X; d <= Z; d++) {
 	H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
 }
 
-setInitialField();
+initializeSources();
 
 for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
 	if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
@@ -77,11 +77,24 @@ void Solver::checkOptionsAreValid(const Options& opts)
 	}
 }
 
-void Solver::initialize1DSources() 
+void Solver::initializeSources()
 {
 	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
 		auto source = sources_.getSourcesVector().at(i);
-		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction1D, &source, std::placeholders::_1);
+
+		std::function<double(const Position&)> f = 0;
+		
+		switch (model_.getConstMesh().Dimension()) {
+		case 1:
+			f = std::bind(&Source::evalGaussianFunction1D, &source, std::placeholders::_1);
+			break;
+		case 2:
+			f = std::bind(&Source::evalGaussianFunction2D, &source, std::placeholders::_1);
+			break;
+		case 3:
+			f = std::bind(&Source::evalGaussianFunction3D, &source, std::placeholders::_1);
+			break;
+		}
 
 		switch (source.getFieldType()) {
 		case FieldType::E:
@@ -94,37 +107,6 @@ void Solver::initialize1DSources()
 	}
 }
 
-
-void Solver::initialize2DSources()
-{
-	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
-		auto source = sources_.getSourcesVector().at(i);
-		std::function<double(const Position&)> f = std::bind(&Source::evalGaussianFunction, &source, std::placeholders::_1);
-		
-		Direction d = Z;
-		switch (source.getFieldType()) {
-		case FieldType::E:
-			E_[d].ProjectCoefficient(FunctionCoefficient(f));
-			break;
-		case FieldType::H:
-			H_[d].ProjectCoefficient(FunctionCoefficient(f));
-			break;
-		}
-	}
-}
-
-void Solver::setInitialField()
-{	
-	switch (mesh_.Dimension()) {
-	case 1:
-		initialize1DSources();
-		break;
-	case 2:
-		initialize2DSources();
-		break;
-	}
-
-}
 
 const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direction& d) const
 {

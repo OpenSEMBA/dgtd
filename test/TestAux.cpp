@@ -63,7 +63,7 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	SparseMatrix* rotateMatrixLexico(BilinearForm& matrix)
+	std::unique_ptr<SparseMatrix> rotateMatrixLexico(BilinearForm& matrix)
 	{
 		const Operator* rotatorOperator = matrix.FESpace()->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
 		const SparseMatrix rotatorMatrix = HelperFunctions::operatorToSparseMatrix(rotatorOperator);
@@ -73,7 +73,7 @@ namespace HelperFunctions {
 			auto aux = Mult(matrixSparse, rotatorMatrix);
 			res = TransposeMult(rotatorMatrix, *aux);
 		}
-		return res;
+		return std::unique_ptr<SparseMatrix>(res);
 	}
 
 	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element) 
@@ -236,39 +236,6 @@ protected:
 	
 };
 
-TEST_F(Auxiliary, checkDataValueOutsideNodesForOneElementMeshes)
-{
-	/* The purpose of this test is to ensure we can extract data from a GridFunction,
-	even if the point we're trying to obtain it at is not necessarily a DoF or node.
-	
-	First, the basic process to declare and initialise a FiniteElementSpace is done,
-	this means variables such as dimension, order, creating a mesh, a FEC and a finally,
-	the FES.
-	
-	A GridFunction is then created and assigned the FES. A function is projected in the
-	GridFunction, which is a linear function with a slope of 2.
-	
-	Lastly, an IntegrationPoint is constructed, which we will use to obtain the values
-	from the GridFunction at any point we want. As the slope of the line is 2, we expect
-	the values to be 2 times the xVal.*/
-	
-	const int dimension = 1;
-	const int order = 1;
-	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1,Element::SEGMENT);
-	auto fecDG = new DG_FECollection(order, dimension, BasisType::GaussLegendre);
-	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
-
-	GridFunction solution;
-	solution.SetSpace(fesDG);
-	solution.ProjectCoefficient(FunctionCoefficient(HelperFunctions::linearFunction));
-	IntegrationPoint integPoint;
-	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.1) {
-		integPoint.Set(xVal, 0.0, 0.0, 0.0);
-		double interpolatedPoint = solution.GetValue(0, integPoint);
-		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
-	}
-}
-
 TEST_F(Auxiliary, checkVDIM)
 {
 	Mesh mesh1D = Mesh::MakeCartesian1D(5);
@@ -286,77 +253,6 @@ TEST_F(Auxiliary, checkVDIM)
 	GridFunction gf1D(&fes1D);
 	GridFunction gf2D(&fes2D);
 	GridFunction gf3D(&fes3D);
-
-}
-TEST_F(Auxiliary, checkMassMatrix)
-{
-	/*The purpose of this text is to check the values of a Mass Matrix 
-	for an order 1, 1D line with a single element.
-	
-	First, the basic variables and objects to create a FiniteElementSpace are 
-	declared.
-	
-	Then, a BilinearForm is created, in which we add a domain integrator for the
-	Mass Matrix, which is MassIntegrator.
-	
-	Then, we compare the values of the Mass Matrix with those found in Silvester,
-	Appendix 3 for a 1D Line Segment.*/
-	
-	const double tol = 1e-3;
-	int order = 1;
-	const int dimension = 1;
-	FiniteElementCollection* fec;
-	FiniteElementSpace* fes;
-
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	fec = new H1_FECollection(order, dimension);
-	fes = new FiniteElementSpace(&mesh, fec);
-
-	BilinearForm massMatrix(fes);
-	massMatrix.AddDomainIntegrator(new MassIntegrator);
-	massMatrix.Assemble();
-	massMatrix.Finalize();
-
-	EXPECT_NEAR(2.0 / 6.0, massMatrix(0, 0), tol);
-	EXPECT_NEAR(1.0 / 6.0, massMatrix(0, 1), tol);
-	EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), tol);
-	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), tol);
-
-}
-
-TEST_F(Auxiliary, checkInverseMassMatrix)
-{
-	/*The purpose of this text is to check the values of a Mass Matrix
-	for an order 1, 1D line with a single element.
-
-	First, the basic variables and objects to create a FiniteElementSpace are
-	declared.
-
-	Then, a BilinearForm is created, in which we add a domain integrator for the
-	Mass Matrix, which is MassIntegrator.
-
-	Then, we compare the values of the Mass Matrix with those found in Silvester,
-	Appendix 3 for a 1D Line Segment.*/
-
-	const double tol = 1e-3;
-	int order = 1;
-	const int dimension = 1;
-	FiniteElementCollection* fec;
-	FiniteElementSpace* fes;
-
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	fec = new H1_FECollection(order, dimension);
-	fes = new FiniteElementSpace(&mesh, fec);
-
-	BilinearForm massMatrix(fes);
-	massMatrix.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-	massMatrix.Assemble();
-	massMatrix.Finalize();
-
-	EXPECT_NEAR(4.0, massMatrix(0, 0), tol);
-	EXPECT_NEAR(-2.0, massMatrix(0, 1), tol);
-	EXPECT_NEAR(-2.0, massMatrix(1, 0), tol);
-	EXPECT_NEAR(4.0, massMatrix(1, 1), tol);
 
 }
 
@@ -392,7 +288,72 @@ TEST_F(Auxiliary, checkTwoAttributeMesh)
 		}
 	}
 }
+TEST_F(Auxiliary, checkMassMatrix)
+{
+	/*The purpose of this text is to check the values of a Mass Matrix 
+	for an order 1, 1D line with a single element.
+	
+	First, the basic variables and objects to create a FiniteElementSpace are 
+	declared.
+	
+	Then, a BilinearForm is created, in which we add a domain integrator for the
+	Mass Matrix, which is MassIntegrator.
+	
+	Then, we compare the values of the Mass Matrix with those found in Silvester,
+	Appendix 3 for a 1D Line Segment.*/
+	
+	const double tol = 1e-3;
+	int order = 1;
+	const int dimension = 1;
 
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	FiniteElementCollection* fec = new H1_FECollection(order, dimension);
+	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+
+	BilinearForm massMatrix(fes);
+	massMatrix.AddDomainIntegrator(new MassIntegrator);
+	massMatrix.Assemble();
+	massMatrix.Finalize();
+
+	EXPECT_NEAR(2.0 / 6.0, massMatrix(0, 0), tol);
+	EXPECT_NEAR(1.0 / 6.0, massMatrix(0, 1), tol);
+	EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), tol);
+	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), tol);
+
+}
+TEST_F(Auxiliary, checkInverseMassMatrix)
+{
+	/*The purpose of this text is to check the values of a Mass Matrix
+	for an order 1, 1D line with a single element.
+
+	First, the basic variables and objects to create a FiniteElementSpace are
+	declared.
+
+	Then, a BilinearForm is created, in which we add a domain integrator for the
+	Mass Matrix, which is MassIntegrator.
+
+	Then, we compare the values of the Mass Matrix with those found in Silvester,
+	Appendix 3 for a 1D Line Segment.*/
+
+	const double tol = 1e-3;
+	int order = 1;
+	const int dimension = 1;
+
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	FiniteElementCollection* fec = new H1_FECollection(order, dimension);
+	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+
+	BilinearForm massMatrix(fes);
+	massMatrix.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
+	massMatrix.Assemble();
+	massMatrix.Finalize();
+
+	EXPECT_NEAR(4.0, massMatrix(0, 0), tol);
+	EXPECT_NEAR(-2.0, massMatrix(0, 1), tol);
+	EXPECT_NEAR(-2.0, massMatrix(1, 0), tol);
+	EXPECT_NEAR(4.0, massMatrix(1, 1), tol);
+
+}
 TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
 {
 	/*This test compares the mass matrices for H1 and DG spaces for a mesh with a single element
@@ -422,23 +383,21 @@ TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
 		std::cout << "Checking order: " << order << std::endl;
 
 		auto fecH1 = new H1_FECollection(order, mesh.Dimension(), BasisType::ClosedUniform);
-		FiniteElementSpace* fesH1 = new FiniteElementSpace(
-			&mesh, fecH1);
+		FiniteElementSpace* fesH1 = new FiniteElementSpace(&mesh, fecH1);
 		BilinearForm massMatrixH1(fesH1);
 		massMatrixH1.AddDomainIntegrator(new MassIntegrator);
 		massMatrixH1.Assemble();
 		massMatrixH1.Finalize();
 
 		auto fecDG = new DG_FECollection(order, mesh.Dimension(), BasisType::ClosedUniform);
-		FiniteElementSpace* fesDG = new FiniteElementSpace(
-			&mesh, fecDG);
+		FiniteElementSpace* fesDG = new FiniteElementSpace(&mesh, fecDG);
 		BilinearForm massMatrixDG(fesDG);
 		massMatrixDG.AddDomainIntegrator(new MassIntegrator);
 		massMatrixDG.Assemble();
 		massMatrixDG.Finalize();
 
-		SparseMatrix* rotatedMassMatrixH1Sparse = HelperFunctions::rotateMatrixLexico(massMatrixH1);
-		SparseMatrix massMatrixDGSparse = massMatrixDG.SpMat();
+		auto rotatedMassMatrixH1Sparse = HelperFunctions::rotateMatrixLexico(massMatrixH1);
+		auto massMatrixDGSparse = massMatrixDG.SpMat();
 
 		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumRows(), massMatrixDGSparse.NumRows());
 		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumCols(), massMatrixDGSparse.NumCols());
@@ -469,12 +428,10 @@ TEST_F(Auxiliary, checkStiffnessMatrix)
 	const double tol = 1e-3;
 	int order = 1;
 	const int dimension = 1;
-	FiniteElementCollection* fec;
-	FiniteElementSpace* fes;
 
 	Mesh mesh = Mesh::MakeCartesian1D(1);
-	fec = new DG_FECollection(order, dimension,BasisType::GaussLobatto);
-	fes = new FiniteElementSpace(&mesh, fec);
+	FiniteElementCollection* fec = new DG_FECollection(order, dimension,BasisType::GaussLobatto);
+	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
 	BilinearForm stiffnessMatrix(fes);
 	stiffnessMatrix.AddDomainIntegrator(
@@ -579,7 +536,6 @@ TEST_F(Auxiliary, checkKOperators)
 		}
 	}
 }
-
 TEST_F(Auxiliary, checkDGTraceAverageOnlyMatrix)
 {
 	/* This test checks the matrix built by the DGTraceIntegrator for
@@ -661,7 +617,6 @@ TEST_F(Auxiliary, checkDGTraceJumpOnlyMatrix)
 		}
 	}
 }
-
 TEST_F(Auxiliary, checkMaxwellDGTraceNoDirMatrix)
 {
 	/* This test checks the matrix built by the MaxwellDGTraceIntegrator for
@@ -757,7 +712,8 @@ TEST_F(Auxiliary, checkMaxwellDGTraceOneDirMatrix)
 			EXPECT_TRUE(DGmatX->IsSquare());
 			EXPECT_EQ((order + 1) * elements, DGmatX->SpMat().ToDenseMatrix()->Width());
 
-			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(0.0,
+			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(
+				0.0,
 				std::unique_ptr<DenseMatrix>(DGmatX->SpMat().ToDenseMatrix()),
 				HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order));
 
@@ -770,7 +726,6 @@ TEST_F(Auxiliary, checkMaxwellDGTraceOneDirMatrix)
 		}
 	}
 }
-
 TEST_F(Auxiliary, checkMaxwellDGTraceTwoDirMatrix)
 {
 	/* This test checks the matrix built by the MaxwellDGTraceIntegrator for
@@ -824,7 +779,8 @@ TEST_F(Auxiliary, checkMaxwellDGTraceTwoDirMatrix)
 			EXPECT_TRUE(DGmatXX->IsSquare());
 			EXPECT_EQ((order + 1) * elements, DGmatXX->SpMat().ToDenseMatrix()->Width());
 
-			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(0.0,
+			HelperFunctions::checkDenseMatrixSubtractIsValueForAllElem(
+				0.0,
 				std::unique_ptr<DenseMatrix>(DGmatXX->SpMat().ToDenseMatrix()),
 				HelperFunctions::buildExpectedJumpDenseMatrix1D(elements, order));
 
@@ -837,90 +793,6 @@ TEST_F(Auxiliary, checkMaxwellDGTraceTwoDirMatrix)
 		}
 	}
 }
-
-//
-//TEST_F(Auxiliary, visualizeGLVISDataForBasisFunctionNodes)
-//{
-//	/*This test aims to show the Basis Functions through GLVIS visualization.
-//	
-//	This test has to be reformatted to be properly commented.*/
-//	
-//	const int dimension = 1;
-//	const int order = 1;
-//
-//	char vishost[] = "localhost";
-//	int  visport = 19916;
-//
-//	struct VisWinLayout
-//	{
-//		int nx;
-//		int ny;
-//		int w;
-//		int h;
-//	};
-//
-//	VisWinLayout vwl;
-//	vwl.nx = 5;
-//	vwl.ny = 3;
-//	vwl.w = 250;
-//	vwl.h = 250;
-//
-//	bool visualization = true;
-//	int onlySome = -1;
-//
-//	std::vector<socketstream*> socket;
-//
-//	Vector nodalVector(order + 1);
-//	Vector dofVector(order + 1);
-//	IntegrationPoint integPoint;
-//	Array<int> vdofs;
-//
-//	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);
-//	auto fecDG = new DG_FECollection(order, dimension);
-//	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
-//
-//	int ndof = fesDG->GetVSize();
-//	fesDG->GetElementVDofs(0, vdofs);
-//
-//	int offx = vwl.w + 10, offy = vwl.h + 45; // window offsets
-//
-//	for (unsigned int i = 0; i < socket.size(); i++)
-//	{
-//		*socket[i] << "keys q";
-//		delete socket[i];
-//	}
-//
-//	socket.resize(ndof);
-//	for (int i = 0; i < ndof; i++)
-//	{
-//		socket[i] = new socketstream; socket[i]->precision(8);
-//	}
-//	GridFunction** solution = new GridFunction * [ndof];
-//
-//	for (int i = 0; i < ndof; i++) {
-//		solution[i] = new GridFunction(fesDG);
-//		*solution[i] = 0.0;
-//		(*solution[i])(vdofs[i]) = 1.0;
-//	}
-//
-//	int stopAt = ndof;
-//	bool vec = false;
-//
-//	for (int i = 0; i < stopAt; i++)
-//	{
-//		if (i == 0 && onlySome > 0 && onlySome < ndof)
-//		{
-//			i = onlySome - 1;
-//			stopAt = std::min(ndof, onlySome + 9);
-//		}
-//
-//		std::ostringstream oss;
-//		oss << "DoF " << i + 1;
-//		mfem::common::VisualizeField(*socket[i], vishost, visport, *solution[i], oss.str().c_str(),
-//			(i % vwl.nx) * offx, ((i / vwl.nx) % vwl.ny) * offy, vwl.w, vwl.h, "aaAc", vec);
-//	}
-//}
-
 TEST_F(Auxiliary, printGLVISDataForBasisFunctionNodes)
 {
 	/*This test creates files for the Basis Functions, for later visualization 
@@ -964,6 +836,37 @@ TEST_F(Auxiliary, printGLVISDataForBasisFunctionNodes)
 	mesh.Save("mesh.mesh");
 }
 
+TEST_F(Auxiliary, checkDataValueOutsideNodesForOneElementMeshes)
+{
+	/* The purpose of this test is to ensure we can extract data from a GridFunction,
+	even if the point we're trying to obtain it at is not necessarily a DoF or node.
+	
+	First, the basic process to declare and initialise a FiniteElementSpace is done,
+	this means variables such as dimension, order, creating a mesh, a FEC and a finally,
+	the FES.
+	
+	A GridFunction is then created and assigned the FES. A function is projected in the
+	GridFunction, which is a linear function with a slope of 2.
+	
+	Lastly, an IntegrationPoint is constructed, which we will use to obtain the values
+	from the GridFunction at any point we want. As the slope of the line is 2, we expect
+	the values to be 2 times the xVal.*/
+	
+	const int dimension = 1;
+	const int order = 1;
+	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1,Element::SEGMENT);
+	auto fecDG = new DG_FECollection(order, dimension, BasisType::GaussLegendre);
+	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
+
+	GridFunction solution(fesDG);
+	solution.ProjectCoefficient(FunctionCoefficient(HelperFunctions::linearFunction));
+	IntegrationPoint integPoint;
+	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.1) {
+		integPoint.Set(xVal, 0.0, 0.0, 0.0);
+		double interpolatedPoint = solution.GetValue(0, integPoint);
+		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
+	}
+}
 TEST_F(Auxiliary, findPointsTest)
 {
 	Mesh mesh = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
