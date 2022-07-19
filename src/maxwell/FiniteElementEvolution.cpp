@@ -115,7 +115,7 @@ FiniteElementEvolution::Operator
 FiniteElementEvolution::Operator
 	FiniteElementEvolution::buildDerivativeOperator(const Direction& d) const
 {
-	ConstantCoefficient coeff(1.0);
+	ConstantCoefficient coeff(0.0);
 	auto dir = d;
 	auto res = std::make_unique<BilinearForm>(fes_);
 
@@ -125,6 +125,7 @@ FiniteElementEvolution::Operator
 
 	switch (opts_.disForm) {
 	case DisForm::Weak:
+		coeff = ConstantCoefficient(1.0);
 		res->AddDomainIntegrator(
 			new TransposeIntegrator(
 				new DerivativeIntegrator(coeff, dir)
@@ -132,11 +133,8 @@ FiniteElementEvolution::Operator
 		);
 		break;
 	case DisForm::Strong: //Hesthaven bilinear form (lambda * u, dvdx). MFEM bilinear form (lambda * dudx, v)
-		res->AddDomainIntegrator(
-			new TransposeIntegrator(
-				new DerivativeIntegrator(coeff, dir)
-			)
-		);
+		coeff = ConstantCoefficient(0.5);
+		res->AddDomainIntegrator(new DerivativeIntegrator(coeff, dir));
 		break;
 	}
 

@@ -7,6 +7,7 @@
 #include "../src/maxwell/Types.h"
 
 #include <vector>
+#include <Eigen/Dense>
 
 using namespace mfem;
 
@@ -228,6 +229,40 @@ namespace HelperFunctions {
 			}
 		}
 	}
+
+	const Eigen::MatrixXd convertMFEMDenseToEigen(DenseMatrix* mat)
+	{
+		auto res = Eigen::MatrixXd(mat->Width(),mat->Height());
+		for (int i = 0; i < mat->Width(); i++) {
+			for (int j = 0; j < mat->Height(); j++) {
+				res(i, j) = mat->Elem(i, j);
+			}
+		}
+		return res;
+	}
+
+	Eigen::MatrixXd buildInverseMatrixEigen(FiniteElementSpace* fes)
+	{
+		ConstantCoefficient one(1.0);
+		BilinearForm res(fes);
+		res.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
+		res.Assemble();
+		res.Finalize();
+
+		return HelperFunctions::convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
+	}
+
+	Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace* fes)
+	{
+		ConstantCoefficient one(1.0);
+		BilinearForm res(fes);
+		res.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
+		res.Assemble();
+		res.Finalize();
+
+		return HelperFunctions::convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
+	}
+	
 }
 
 class Auxiliary : public ::testing::Test {
@@ -426,7 +461,7 @@ TEST_F(Auxiliary, checkStiffnessMatrix)
 	through Hesthaven's MatLab code for a 1D Line Segment with a single element.*/
 	
 	const double tol = 1e-3;
-	int order = 1;
+	int order = 2;
 	const int dimension = 1;
 
 	Mesh mesh = Mesh::MakeCartesian1D(1);
@@ -463,6 +498,46 @@ TEST_F(Auxiliary, checkStiffnessMatrix)
 		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(2, 1), tol);
 		EXPECT_NEAR(5e-1 ,stiffnessDense->Elem(2, 2), tol);
 		break;
+	}
+}
+
+TEST_F(Auxiliary, checkDOperator)
+{
+	for (int order = 1; order <= 4; order++) {
+
+		Mesh mesh = Mesh::MakeCartesian1D(1);
+		FiniteElementCollection* fec = new DG_FECollection(order, 1, BasisType::GaussLobatto);
+		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+
+		auto mInvEigen = HelperFunctions::buildInverseMatrixEigen(fes);
+		auto oldEigen = HelperFunctions::buildStiffnessMatrixEigen(fes);
+		auto MISCalcOld = 0.5 * mInvEigen * oldEigen;
+		auto expMat = Eigen::MatrixXd();
+		switch (order) {
+		case 1:
+			expMat = Eigen::Matrix2d{
+				{-0.5, 0.5},
+				{-0.5, 0.5} };
+			break;
+		case 2:
+			expMat = Eigen::Matrix3d{
+				{-1.5, 2.0,-0.5},
+				{-0.5, 0.0, 0.5},
+				{ 0.5,-2.0, 1.5} };
+			break;
+		case 4:
+			expMat = Eigen::MatrixXd{
+				{-5.00, 6.76,-2.67, 1.41,-0.50},
+				{-1.24, 0.00, 1.75,-0.76, 0.26},
+				{ 0.38,-1.34, 0.00, 1.34,-0.38},
+				{-0.26, 0.76,-1.75, 0.00, 1.24},
+				{ 0.50,-1.41, 2.67,-6.76, 5.00}};
+			break;
+
+		}
+		if (order != 3) {
+			EXPECT_TRUE(MISCalcOld.isApprox(expMat,1e-1));
+		}
 	}
 }
 TEST_F(Auxiliary, checkKOperators)

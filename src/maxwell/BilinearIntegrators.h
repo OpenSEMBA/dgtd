@@ -96,6 +96,38 @@ private:
 	const int setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans);
 	const double buildNormalTerm(const Vector& innerNor, const Direction& outerDir);
 };
+/** Integrator for a specialised application of the Hesthaven DG form:
+	(Q * u, dvdx),
+	where u and v are the trial and test variables, respectively.
+
+	One use case for this integrator is to discretize the individual Maxwell
+	equations with the Hesthaven DG formulation.
+	*/
+class HesthavenDerivativeIntegrator : public BilinearFormIntegrator
+{
+protected:
+	Coefficient* Q;
+
+private:
+	int xi;
+	DenseMatrix dshape, dshapedxt, invdfdx;
+	Vector shape, dshapedxi;
+
+public:
+	HesthavenDerivativeIntegrator(Coefficient& q, int i) : Q(&q), xi(i) { }
+	virtual void AssembleElementMatrix(const FiniteElement& el,
+		ElementTransformation& Trans,
+		DenseMatrix& elmat)
+	{
+		AssembleElementMatrix2(el, el, Trans, elmat);
+	}
+	virtual void AssembleElementMatrix2(const FiniteElement& trial_fe,
+		const FiniteElement& test_fe,
+		ElementTransformation& Trans,
+		DenseMatrix& elmat);
+};
 }
+
+
 
 #endif

@@ -292,6 +292,74 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     }
 }
 
+void HesthavenDerivativeIntegrator::AssembleElementMatrix2(
+    const FiniteElement& trial_fe,
+    const FiniteElement& test_fe,
+    ElementTransformation& Trans,
+    DenseMatrix& elmat)
+{
+    int dim = trial_fe.GetDim();
+    int trial_nd = trial_fe.GetDof();
+    int test_nd = test_fe.GetDof();
+    int spaceDim = Trans.GetSpaceDim();
+
+    int i, l;
+    double det;
+
+    elmat.SetSize(trial_nd, test_nd);
+    dshape.SetSize(test_nd, dim);
+    dshapedxt.SetSize(test_nd, spaceDim);
+    dshapedxi.SetSize(test_nd);
+    invdfdx.SetSize(dim, spaceDim);
+    shape.SetSize(trial_nd);
+
+    const IntegrationRule* ir = IntRule;
+    if (ir == NULL)
+    {
+        int order;
+        if (trial_fe.Space() == FunctionSpace::Pk)
+        {
+            order = trial_fe.GetOrder() + test_fe.GetOrder() - 1;
+        }
+        else
+        {
+            order = trial_fe.GetOrder() + test_fe.GetOrder() + dim;
+        }
+
+        if (trial_fe.Space() == FunctionSpace::rQk)
+        {
+            ir = &RefinedIntRules.Get(trial_fe.GetGeomType(), order);
+        }
+        else
+        {
+            ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+        }
+    }
+
+    elmat = 0.0;
+    for (i = 0; i < ir->GetNPoints(); i++)
+    {
+        const IntegrationPoint& ip = ir->IntPoint(i);
+
+        
+        test_fe.CalcDShape(ip, dshape);
+
+        Trans.SetIntPoint(&ip);
+        CalcInverse(Trans.Jacobian(), invdfdx);
+        det = Trans.Weight();
+        Mult(dshape, invdfdx, dshapedxt);
+        for (l = 0; l < test_nd; l++)
+        {
+            dshapedxi(l) = dshapedxt(l, xi);
+        }
+
+        trial_fe.CalcShape(ip, shape);
+
+        shape *= Q->Eval(Trans, ip) * det * ip.weight;
+        AddMultVWt(dshapedxi, shape, elmat);
+    }
+}
+
 
 
 }
