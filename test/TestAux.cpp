@@ -241,7 +241,18 @@ namespace HelperFunctions {
 		return res;
 	}
 
-	Eigen::MatrixXd buildInverseMatrixEigen(FiniteElementSpace* fes)
+	Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace* fes)
+	{
+		ConstantCoefficient one(1.0);
+		BilinearForm res(fes);
+		res.AddDomainIntegrator(new MassIntegrator(one));
+		res.Assemble();
+		res.Finalize();
+
+		return HelperFunctions::convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
+	}
+
+	Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace* fes)
 	{
 		ConstantCoefficient one(1.0);
 		BilinearForm res(fes);
@@ -262,6 +273,20 @@ namespace HelperFunctions {
 
 		return HelperFunctions::convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
 	}
+
+	Eigen::Matrix<double, 27, 27> build3DOneElementDMatrix()
+	{
+		auto res = Eigen::Matrix<double, 27, 27>();
+		res.setZero();
+		auto blockMat = Eigen::Matrix3d{
+				{-1.5, 2.0,-0.5},
+				{-0.5, 0.0, 0.5},
+				{ 0.5,-2.0, 1.5} };
+		for (int i = 0; i < res.cols(); i += 3) {
+			res.block<3, 3>(i,i) = blockMat;
+		}
+		return res;
+	}
 	
 }
 
@@ -270,26 +295,6 @@ protected:
 	typedef std::size_t Direction;
 	
 };
-
-TEST_F(Auxiliary, checkVDIM)
-{
-	Mesh mesh1D = Mesh::MakeCartesian1D(5);
-	Mesh mesh2D = Mesh::MakeCartesian2D(5, 5, Element::Type::QUADRILATERAL);
-	Mesh mesh3D = Mesh::MakeCartesian3D(5, 5, 5, Element::Type::TETRAHEDRON);
-
-	DG_FECollection fec1D = DG_FECollection(1, mesh1D.Dimension());
-	DG_FECollection fec2D = DG_FECollection(1, mesh2D.Dimension());
-	DG_FECollection fec3D = DG_FECollection(1, mesh3D.Dimension());
-
-	FiniteElementSpace fes1D = FiniteElementSpace(&mesh1D, &fec1D);
-	FiniteElementSpace fes2D = FiniteElementSpace(&mesh2D, &fec2D);
-	FiniteElementSpace fes3D = FiniteElementSpace(&mesh3D, &fec3D);
-
-	GridFunction gf1D(&fes1D);
-	GridFunction gf2D(&fes2D);
-	GridFunction gf3D(&fes3D);
-
-}
 
 TEST_F(Auxiliary, checkTwoAttributeMesh)
 {
@@ -337,23 +342,16 @@ TEST_F(Auxiliary, checkMassMatrix)
 	Then, we compare the values of the Mass Matrix with those found in Silvester,
 	Appendix 3 for a 1D Line Segment.*/
 	
-	const double tol = 1e-3;
-	int order = 1;
-	const int dimension = 1;
-
 	Mesh mesh = Mesh::MakeCartesian1D(1);
-	FiniteElementCollection* fec = new H1_FECollection(order, dimension);
+	FiniteElementCollection* fec = new H1_FECollection(1, 1);
 	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
-	BilinearForm massMatrix(fes);
-	massMatrix.AddDomainIntegrator(new MassIntegrator);
-	massMatrix.Assemble();
-	massMatrix.Finalize();
+	auto mass = HelperFunctions::buildMassMatrixEigen(fes);
+	auto expMat = Eigen::Matrix2d{
+		{2.0 / 6.0, 1.0 / 6.0},
+		{1.0 / 6.0, 2.0 / 6.0}, };
 
-	EXPECT_NEAR(2.0 / 6.0, massMatrix(0, 0), tol);
-	EXPECT_NEAR(1.0 / 6.0, massMatrix(0, 1), tol);
-	EXPECT_NEAR(1.0 / 6.0, massMatrix(1, 0), tol);
-	EXPECT_NEAR(2.0 / 6.0, massMatrix(1, 1), tol);
+	EXPECT_TRUE(mass.isApprox(expMat, 1e-1));
 
 }
 TEST_F(Auxiliary, checkInverseMassMatrix)
@@ -370,23 +368,16 @@ TEST_F(Auxiliary, checkInverseMassMatrix)
 	Then, we compare the values of the Mass Matrix with those found in Silvester,
 	Appendix 3 for a 1D Line Segment.*/
 
-	const double tol = 1e-3;
-	int order = 1;
-	const int dimension = 1;
-
 	Mesh mesh = Mesh::MakeCartesian1D(1);
-	FiniteElementCollection* fec = new H1_FECollection(order, dimension);
+	FiniteElementCollection* fec = new H1_FECollection(1, 1);
 	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
-	BilinearForm massMatrix(fes);
-	massMatrix.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
-	massMatrix.Assemble();
-	massMatrix.Finalize();
+	auto mass = HelperFunctions::buildInverseMassMatrixEigen(fes);
+	auto expMat = Eigen::Matrix2d{
+		{4.0, -2.0},
+		{-2.0, 4.0}, };
 
-	EXPECT_NEAR(4.0, massMatrix(0, 0), tol);
-	EXPECT_NEAR(-2.0, massMatrix(0, 1), tol);
-	EXPECT_NEAR(-2.0, massMatrix(1, 0), tol);
-	EXPECT_NEAR(4.0, massMatrix(1, 1), tol);
+	EXPECT_TRUE(mass.isApprox(expMat, 1e-1));
 
 }
 TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
@@ -459,49 +450,33 @@ TEST_F(Auxiliary, checkStiffnessMatrix)
 
 	Then, we compare the values of the Stiffness Matrix with those calculated
 	through Hesthaven's MatLab code for a 1D Line Segment with a single element.*/
+
 	
-	const double tol = 1e-3;
-	int order = 2;
-	const int dimension = 1;
+	for (int order = 1; order <= 2; order++) {
 
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	FiniteElementCollection* fec = new DG_FECollection(order, dimension,BasisType::GaussLobatto);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+		Mesh mesh = Mesh::MakeCartesian1D(1);
+		FiniteElementCollection* fec = new DG_FECollection(order, 1, BasisType::GaussLobatto);
+		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
-	BilinearForm stiffnessMatrix(fes);
-	stiffnessMatrix.AddDomainIntegrator(
-			new DerivativeIntegrator(
-				*(new ConstantCoefficient(1.0)),0));
-	stiffnessMatrix.Assemble();
-	stiffnessMatrix.Finalize();
-
-	auto stiffnessDense = stiffnessMatrix.SpMat().ToDenseMatrix();
-
-	stiffnessDense->Print(std::cout);
-	std::cout << std::endl;
-
-	switch (order) {
-	case 1:
-		EXPECT_NEAR(-0.5, stiffnessDense->Elem(0, 0), tol);
-		EXPECT_NEAR(0.5, stiffnessDense->Elem(0, 1), tol);
-		EXPECT_NEAR(-0.5, stiffnessDense->Elem(1, 0), tol);
-		EXPECT_NEAR(0.5, stiffnessDense->Elem(1, 1), tol);
-		break;
-	case 2:
-		EXPECT_NEAR(-5e-1, stiffnessDense->Elem(0, 0), tol);
-		EXPECT_NEAR(6.6667e-1 ,stiffnessDense->Elem(0, 1), tol);
-		EXPECT_NEAR(-1.6667e-1 ,stiffnessDense->Elem(0, 2), tol);
-		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(1, 0), tol);
-		EXPECT_NEAR(0.0 ,stiffnessDense->Elem(1, 1), tol);
-		EXPECT_NEAR(6.6667e-1,stiffnessDense->Elem(1, 2), tol);
-		EXPECT_NEAR(1.6667e-1,stiffnessDense->Elem(2, 0), tol);
-		EXPECT_NEAR(-6.6667e-1,stiffnessDense->Elem(2, 1), tol);
-		EXPECT_NEAR(5e-1 ,stiffnessDense->Elem(2, 2), tol);
-		break;
+		auto stiff = HelperFunctions::buildStiffnessMatrixEigen(fes);
+		auto expMat = Eigen::MatrixXd();
+		switch (order) {
+		case 1:
+			expMat = Eigen::Matrix2d{
+				{-0.5, 0.5},
+				{-0.5, 0.5} };
+			break;
+		case 2:
+			expMat = Eigen::Matrix3d{
+				{-0.50, 0.67,-0.17},
+				{-0.67, 0.00, 0.67},
+				{ 0.17,-0.67, 0.50} };
+			break;
+		}
+		EXPECT_TRUE(stiff.isApprox(expMat, 1e-1));
 	}
 }
-
-TEST_F(Auxiliary, checkDOperator)
+TEST_F(Auxiliary, checkDOperator1D)
 {
 	for (int order = 1; order <= 4; order++) {
 
@@ -509,7 +484,7 @@ TEST_F(Auxiliary, checkDOperator)
 		FiniteElementCollection* fec = new DG_FECollection(order, 1, BasisType::GaussLobatto);
 		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
-		auto mInvEigen = HelperFunctions::buildInverseMatrixEigen(fes);
+		auto mInvEigen = HelperFunctions::buildInverseMassMatrixEigen(fes);
 		auto oldEigen = HelperFunctions::buildStiffnessMatrixEigen(fes);
 		auto MISCalcOld = 0.5 * mInvEigen * oldEigen;
 		auto expMat = Eigen::MatrixXd();
@@ -540,6 +515,25 @@ TEST_F(Auxiliary, checkDOperator)
 		}
 	}
 }
+TEST_F(Auxiliary, checkDOperator3D)
+{
+
+	Mesh mesh = Mesh::MakeCartesian3D(1,1,1,Element::Type::QUADRILATERAL);
+	FiniteElementCollection* fec = new DG_FECollection(2, 3, BasisType::GaussLobatto);
+	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+
+	auto mInvEigen = HelperFunctions::buildInverseMassMatrixEigen(fes);
+	auto oldEigen = HelperFunctions::buildStiffnessMatrixEigen(fes);
+	auto MISCalcOld = 0.5 * mInvEigen * oldEigen;
+	auto expMat = HelperFunctions::build3DOneElementDMatrix();
+
+	std::cout << expMat << std::endl;
+
+	EXPECT_TRUE(MISCalcOld.isApprox(expMat, 1e-1));
+	
+	
+
+}
 TEST_F(Auxiliary, checkKOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
@@ -552,18 +546,11 @@ TEST_F(Auxiliary, checkKOperators)
 	  Finally, we compare the elements of the initial bilinear form (K) and the sum of the 
 	  elements of the the stiffness (S) and flux (F) matrix. */ 
 
-
-	int order = 2;
-	const int dimension = 1;
-
 	Mesh mesh = Mesh::MakeCartesian1D(1);
-	FiniteElementCollection* fec = new DG_FECollection(order, dimension, BasisType::GaussLobatto);
+	FiniteElementCollection* fec = new DG_FECollection(2, 1, BasisType::GaussLobatto);
 	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
 
-	ConstantCoefficient one(1.0);
-	double alpha = -1.0;
-	double beta = 0.0;
-	const Auxiliary::Direction d = 0;
+	ConstantCoefficient one{ 1.0 };
 	std::vector<VectorConstantCoefficient> n = {
 		VectorConstantCoefficient(Vector({1.0})),
 	};
@@ -571,43 +558,32 @@ TEST_F(Auxiliary, checkKOperators)
 	BilinearForm kMat(fes);
 	kMat.AddDomainIntegrator(
 		new TransposeIntegrator(
-			new DerivativeIntegrator(one, d)));
+			new DerivativeIntegrator(one, 0)));
 	kMat.AddInteriorFaceIntegrator(
-		new DGTraceIntegrator(n[d], alpha, beta));
+		new DGTraceIntegrator(n[0], -1.0, 0.0));
 	kMat.AddBdrFaceIntegrator(
-		new DGTraceIntegrator(n[d], alpha, beta));
+		new DGTraceIntegrator(n[0], -1.0, 0.0));
 	kMat.Assemble();
 	kMat.Finalize();
 
 	BilinearForm sMat(fes);
 	sMat.AddDomainIntegrator(
 		new TransposeIntegrator(
-			new DerivativeIntegrator(one, d)));
+			new DerivativeIntegrator(one, 0)));
 	sMat.Assemble();
 	sMat.Finalize();
 
 	BilinearForm fMat(fes);
 	fMat.AddInteriorFaceIntegrator(
-		new DGTraceIntegrator(n[d], alpha, beta));
+		new DGTraceIntegrator(n[0], -1.0, 0.0));
 	fMat.AddBdrFaceIntegrator(
-		new DGTraceIntegrator(n[d], alpha, beta));
+		new DGTraceIntegrator(n[0], -1.0, 0.0));
 	fMat.Assemble();
 	fMat.Finalize();
 
-	auto matrixK = kMat.SpMat().ToDenseMatrix();
-	auto matrixS = sMat.SpMat().ToDenseMatrix();
-	auto matrixF = fMat.SpMat().ToDenseMatrix();
-
-	ASSERT_EQ(matrixK->NumRows(), matrixS->NumRows());
-	ASSERT_EQ(matrixK->NumCols(), matrixS->NumCols());
-	ASSERT_EQ(matrixK->NumRows(), matrixF->NumRows());
-	ASSERT_EQ(matrixK->NumCols(), matrixF->NumCols());
-
-	const double tol = 1e-3;
-
-	for (int i = 0; i < matrixK->NumRows(); i++) {
-		for (int j = 0; j < matrixK->NumCols(); j++) {
-			EXPECT_NEAR(matrixK->Elem(i, j), matrixS->Elem(i, j) + matrixF->Elem(i, j), tol);
+	for (int i = 0; i < kMat.SpMat().ToDenseMatrix()->NumRows(); i++) {
+		for (int j = 0; j < kMat.SpMat().ToDenseMatrix()->NumCols(); j++) {
+			EXPECT_NEAR(kMat.SpMat().ToDenseMatrix()->Elem(i, j), sMat.SpMat().ToDenseMatrix()->Elem(i, j) + fMat.SpMat().ToDenseMatrix()->Elem(i, j), 1e-3);
 		}
 	}
 }
@@ -910,7 +886,6 @@ TEST_F(Auxiliary, printGLVISDataForBasisFunctionNodes)
 	HelperFunctions::SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
-
 TEST_F(Auxiliary, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
