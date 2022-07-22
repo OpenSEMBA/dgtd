@@ -8,8 +8,14 @@
 
 #include <vector>
 #include <Eigen/Dense>
+#include <maxwell/Model.h>
 
 using namespace mfem;
+
+struct FluxCoefficient {
+	double alpha;
+	double beta;
+};
 
 namespace HelperFunctions {
 
@@ -230,50 +236,6 @@ namespace HelperFunctions {
 		}
 	}
 
-	const Eigen::MatrixXd convertMFEMDenseToEigen(DenseMatrix* mat)
-	{
-		auto res = Eigen::MatrixXd(mat->Width(),mat->Height());
-		for (int i = 0; i < mat->Width(); i++) {
-			for (int j = 0; j < mat->Height(); j++) {
-				res(i, j) = mat->Elem(i, j);
-			}
-		}
-		return res;
-	}
-
-	Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace* fes)
-	{
-		ConstantCoefficient one(1.0);
-		BilinearForm res(fes);
-		res.AddDomainIntegrator(new MassIntegrator(one));
-		res.Assemble();
-		res.Finalize();
-
-		return HelperFunctions::convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
-	}
-
-	Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace* fes)
-	{
-		ConstantCoefficient one(1.0);
-		BilinearForm res(fes);
-		res.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
-		res.Assemble();
-		res.Finalize();
-
-		return HelperFunctions::convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
-	}
-
-	Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace* fes)
-	{
-		ConstantCoefficient one(1.0);
-		BilinearForm res(fes);
-		res.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
-		res.Assemble();
-		res.Finalize();
-
-		return HelperFunctions::convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
-	}
-
 	Eigen::Matrix<double, 27, 27> build3DOneElementDMatrix()
 	{
 		auto res = Eigen::Matrix<double, 27, 27>();
@@ -287,6 +249,7 @@ namespace HelperFunctions {
 		}
 		return res;
 	}
+
 	
 }
 
@@ -296,108 +259,24 @@ protected:
 	
 };
 
-TEST_F(Auxiliary, checkTwoAttributeMesh)
-{
-	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)
-	function.
-
-	First, an integer is declared for the number of times we wish to refine the mesh, then a mesh is
-	constructed with two elements, left and right hand sides, setting the following attributes.
-
-	|------LHS------|------RHS------|
-
-	|##ATTRIBUTE 1##|##ATTRIBUTE 2##|
-
-	Once the mesh is refined, it is returned, then we compare if the expected number of elements is
-	true for the actual elements in the mesh.
-
-	Then, we consider how the mesh will perform its uniform refinement, and we declare that the
-	LHS elements with Attribute one will be Even index elements (starting at 0), and the RHS
-	elements with Attribute 2 will be Uneven index elements (starting at 1).*/
-
-	const int refTimes = 3;
-	Mesh mesh = HelperFunctions::makeTwoAttributeCartesianMesh1D(refTimes);
-
-	EXPECT_EQ(pow(2, refTimes + 1), mesh.GetNE());
-	for (int i = 0; i < mesh.GetNE(); i++) {
-		if (i % 2 == 0) {
-			EXPECT_EQ(1, mesh.GetAttribute(i));
-		}
-		else {
-			EXPECT_EQ(2, mesh.GetAttribute(i));
-		}
-	}
-}
-TEST_F(Auxiliary, checkMassMatrix)
-{
-	/*The purpose of this text is to check the values of a Mass Matrix 
-	for an order 1, 1D line with a single element.
-	
-	First, the basic variables and objects to create a FiniteElementSpace are 
-	declared.
-	
-	Then, a BilinearForm is created, in which we add a domain integrator for the
-	Mass Matrix, which is MassIntegrator.
-	
-	Then, we compare the values of the Mass Matrix with those found in Silvester,
-	Appendix 3 for a 1D Line Segment.*/
-	
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	FiniteElementCollection* fec = new H1_FECollection(1, 1);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-
-	auto mass = HelperFunctions::buildMassMatrixEigen(fes);
-	auto expMat = Eigen::Matrix2d{
-		{2.0 / 6.0, 1.0 / 6.0},
-		{1.0 / 6.0, 2.0 / 6.0}, };
-
-	EXPECT_TRUE(mass.isApprox(expMat, 1e-1));
-
-}
-TEST_F(Auxiliary, checkInverseMassMatrix)
-{
-	/*The purpose of this text is to check the values of a Mass Matrix
-	for an order 1, 1D line with a single element.
-
-	First, the basic variables and objects to create a FiniteElementSpace are
-	declared.
-
-	Then, a BilinearForm is created, in which we add a domain integrator for the
-	Mass Matrix, which is MassIntegrator.
-
-	Then, we compare the values of the Mass Matrix with those found in Silvester,
-	Appendix 3 for a 1D Line Segment.*/
-
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	FiniteElementCollection* fec = new H1_FECollection(1, 1);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-
-	auto mass = HelperFunctions::buildInverseMassMatrixEigen(fes);
-	auto expMat = Eigen::Matrix2d{
-		{4.0, -2.0},
-		{-2.0, 4.0}, };
-
-	EXPECT_TRUE(mass.isApprox(expMat, 1e-1));
-
-}
 TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
 {
 	/*This test compares the mass matrices for H1 and DG spaces for a mesh with a single element
-	
+
 	First, a mesh is built with buildCartesianMeshForOneElement() which ensures a mesh
 	with a single element will be used. Then, for different orders, FiniteElementCollection and
 	FiniteElementSpace will be created for both H1 and DG, along with a BilinearForm containing
 	the Mass Matrix for each one of them.
-	
-	Then, the BilinearForm for the Mass Matrix for H1 will have its inner Sparse Matrix rotated 
+
+	Then, the BilinearForm for the Mass Matrix for H1 will have its inner Sparse Matrix rotated
 	by applying a lexicographic rotation operator, as spaces for H1 and DG are ordered differently,
 	and be returned as a Sparse Matrix. The DG Bilinear Form will just have its Sparse Matrix
 	extracted.
-	
+
 	Lastly, assertions will be made to ensure the number of rows and columns are the same
-	for both matrices. To finalise, each element will be compared for the same position in the 
+	for both matrices. To finalise, each element will be compared for the same position in the
 	matrices.*/
-	
+
 	const int maxOrder = 5;
 	int order = 1;
 	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2, Element::QUADRILATERAL);
@@ -435,104 +314,54 @@ TEST_F(Auxiliary, checkMassMatrixIsSameForH1andDG)
 		}
 	}
 }
-TEST_F(Auxiliary, checkStiffnessMatrix)
+
+//TEST_F(Auxiliary, checkDOperator3D)
+//{
+//
+//	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::QUADRILATERAL);
+//	FiniteElementCollection* fec = new DG_FECollection(2, 3, BasisType::GaussLobatto);
+//	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+//
+//	auto mInvEigen = HelperFunctions::buildInverseMassMatrixEigen(fes);
+//	auto oldEigen = HelperFunctions::buildStiffnessMatrixEigen(fes);
+//	auto MISCalcOld = 0.5 * mInvEigen * oldEigen;
+//	auto expMat = HelperFunctions::build3DOneElementDMatrix();
+//
+//	std::cout << expMat << std::endl;
+//
+//	EXPECT_TRUE(MISCalcOld.isApprox(expMat, 1e-1));
+//}
+TEST_F(Auxiliary, checkTwoAttributeMesh)
 {
-	/*The purpose of this text is to check the values of a Stiffness Matrix
-	for a 1D line with a single element.
+	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)
+	function.
 
-	First, the basic variables and objects to create a FiniteElementSpace are
-	declared.
+	First, an integer is declared for the number of times we wish to refine the mesh, then a mesh is
+	constructed with two elements, left and right hand sides, setting the following attributes.
 
-	Then, a BilinearForm is created, in which we add a domain integrator for the
-	Stiffness Matrix, which is DerivativeIntegrator. We extract the sparse matrix
-	stored inside the BilinearForm, and then convert it to a Dense, for comparing
-	purposes.
+	|------LHS------|------RHS------|
 
-	Then, we compare the values of the Stiffness Matrix with those calculated
-	through Hesthaven's MatLab code for a 1D Line Segment with a single element.*/
+	|##ATTRIBUTE 1##|##ATTRIBUTE 2##|
 
-	
-	for (int order = 1; order <= 2; order++) {
+	Once the mesh is refined, it is returned, then we compare if the expected number of elements is
+	true for the actual elements in the mesh.
 
-		Mesh mesh = Mesh::MakeCartesian1D(1);
-		FiniteElementCollection* fec = new DG_FECollection(order, 1, BasisType::GaussLobatto);
-		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+	Then, we consider how the mesh will perform its uniform refinement, and we declare that the
+	LHS elements with Attribute one will be Even index elements (starting at 0), and the RHS
+	elements with Attribute 2 will be Uneven index elements (starting at 1).*/
 
-		auto stiff = HelperFunctions::buildStiffnessMatrixEigen(fes);
-		auto expMat = Eigen::MatrixXd();
-		switch (order) {
-		case 1:
-			expMat = Eigen::Matrix2d{
-				{-0.5, 0.5},
-				{-0.5, 0.5} };
-			break;
-		case 2:
-			expMat = Eigen::Matrix3d{
-				{-0.50, 0.67,-0.17},
-				{-0.67, 0.00, 0.67},
-				{ 0.17,-0.67, 0.50} };
-			break;
+	const int refTimes = 3;
+	Mesh mesh = HelperFunctions::makeTwoAttributeCartesianMesh1D(refTimes);
+
+	EXPECT_EQ(pow(2, refTimes + 1), mesh.GetNE());
+	for (int i = 0; i < mesh.GetNE(); i++) {
+		if (i % 2 == 0) {
+			EXPECT_EQ(1, mesh.GetAttribute(i));
 		}
-		EXPECT_TRUE(stiff.isApprox(expMat, 1e-1));
-	}
-}
-TEST_F(Auxiliary, checkDOperator1D)
-{
-	for (int order = 1; order <= 4; order++) {
-
-		Mesh mesh = Mesh::MakeCartesian1D(1);
-		FiniteElementCollection* fec = new DG_FECollection(order, 1, BasisType::GaussLobatto);
-		FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-
-		auto mInvEigen = HelperFunctions::buildInverseMassMatrixEigen(fes);
-		auto oldEigen = HelperFunctions::buildStiffnessMatrixEigen(fes);
-		auto MISCalcOld = 0.5 * mInvEigen * oldEigen;
-		auto expMat = Eigen::MatrixXd();
-		switch (order) {
-		case 1:
-			expMat = Eigen::Matrix2d{
-				{-0.5, 0.5},
-				{-0.5, 0.5} };
-			break;
-		case 2:
-			expMat = Eigen::Matrix3d{
-				{-1.5, 2.0,-0.5},
-				{-0.5, 0.0, 0.5},
-				{ 0.5,-2.0, 1.5} };
-			break;
-		case 4:
-			expMat = Eigen::MatrixXd{
-				{-5.00, 6.76,-2.67, 1.41,-0.50},
-				{-1.24, 0.00, 1.75,-0.76, 0.26},
-				{ 0.38,-1.34, 0.00, 1.34,-0.38},
-				{-0.26, 0.76,-1.75, 0.00, 1.24},
-				{ 0.50,-1.41, 2.67,-6.76, 5.00}};
-			break;
-
-		}
-		if (order != 3) {
-			EXPECT_TRUE(MISCalcOld.isApprox(expMat,1e-1));
+		else {
+			EXPECT_EQ(2, mesh.GetAttribute(i));
 		}
 	}
-}
-TEST_F(Auxiliary, checkDOperator3D)
-{
-
-	Mesh mesh = Mesh::MakeCartesian3D(1,1,1,Element::Type::QUADRILATERAL);
-	FiniteElementCollection* fec = new DG_FECollection(2, 3, BasisType::GaussLobatto);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-
-	auto mInvEigen = HelperFunctions::buildInverseMassMatrixEigen(fes);
-	auto oldEigen = HelperFunctions::buildStiffnessMatrixEigen(fes);
-	auto MISCalcOld = 0.5 * mInvEigen * oldEigen;
-	auto expMat = HelperFunctions::build3DOneElementDMatrix();
-
-	std::cout << expMat << std::endl;
-
-	EXPECT_TRUE(MISCalcOld.isApprox(expMat, 1e-1));
-	
-	
-
 }
 TEST_F(Auxiliary, checkKOperators)
 {
