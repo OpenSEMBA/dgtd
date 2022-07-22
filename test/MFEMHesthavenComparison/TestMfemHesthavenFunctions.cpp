@@ -32,10 +32,10 @@ Eigen::MatrixXd convertMFEMDenseToEigen(DenseMatrix* mat)
 	return res;
 }
 
-Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace* fes)
+Eigen::MatrixXd buildMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
 {
 	ConstantCoefficient one(1.0);
-	BilinearForm res(fes);
+	BilinearForm res(fes.get());
 	res.AddDomainIntegrator(new MassIntegrator(one));
 	res.Assemble();
 	res.Finalize();
@@ -43,10 +43,10 @@ Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace* fes)
 	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
 }
 
-Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace* fes)
+Eigen::MatrixXd buildInverseMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
 {
 	ConstantCoefficient one(1.0);
-	BilinearForm res(fes);
+	BilinearForm res(fes.get());
 	res.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
 	res.Assemble();
 	res.Finalize();
@@ -54,10 +54,10 @@ Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace* fes)
 	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
 }
 
-Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace* fes)
+Eigen::MatrixXd buildStiffnessMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
 {
 	ConstantCoefficient one(1.0);
-	BilinearForm res(fes);
+	BilinearForm res(fes.get());
 	res.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
 	res.Assemble();
 	res.Finalize();
@@ -65,12 +65,12 @@ Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace* fes)
 	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
 }
 
-Eigen::MatrixXd	buildNormalPECFluxOperator1D(FiniteElementSpace* fes, std::vector<maxwell::Direction> dirVec)
+Eigen::MatrixXd	buildNormalPECFluxOperator1D(std::unique_ptr<FiniteElementSpace>& fes, std::vector<maxwell::Direction> dirVec)
 {
 	std::vector<maxwell::Direction> dirs = dirVec;
 	maxwell::AttributeToBoundary attBdr{ {1,maxwell::BdrCond::PEC},{2,maxwell::BdrCond::PEC} };
 
-	auto res = std::make_unique<BilinearForm>(fes);
+	auto res = std::make_unique<BilinearForm>(fes.get());
 	{
 		FluxCoefficient c = FluxCoefficient{ 0.0, -0.5 };
 		res->AddInteriorFaceIntegrator(new maxwell::MaxwellDGTraceJumpIntegrator(dirs, c.beta));
@@ -78,9 +78,9 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(FiniteElementSpace* fes, std::vecto
 	}
 
 	std::vector<Array<int>> bdrMarkers;
-	bdrMarkers.resize(fes->GetMesh()->bdr_attributes.Max());
+	bdrMarkers.resize(fes.get()->GetMesh()->bdr_attributes.Max());
 	for (auto const& kv : attBdr) {
-		Array<int> bdrMarker(fes->GetMesh()->bdr_attributes.Max());
+		Array<int> bdrMarker(fes.get()->GetMesh()->bdr_attributes.Max());
 		bdrMarker = 0;
 		bdrMarker[(int)kv.first - 1] = 1;
 
