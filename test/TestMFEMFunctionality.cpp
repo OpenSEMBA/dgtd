@@ -134,25 +134,8 @@ namespace HelperFunctions {
 		return 2*normalizedPos;
 	}
 
-	void setInitialCondition(GridFunction& sol,std::function<double(const Vector&)> f) 
-	{
-		sol.ProjectCoefficient(FunctionCoefficient(f));
-	}
-
 	void SaveData(GridFunction& gf, const char* filename) {
 		gf.Save(filename);
-	}
-
-	void checkDenseMatrixSubtractIsValueForAllElem(
-		const double val, 
-		std::unique_ptr<DenseMatrix> m1, 
-		std::unique_ptr<DenseMatrix> m2)
-	{
-		for (int i = 0; i < m1->Width(); i++) {
-			for (int j = 0; j < m1->Height(); j++) {
-				EXPECT_NEAR(0.0, m1->Elem(i,j) - m2->Elem(i,j), 1e-3);
-			}
-		}
 	}
 
 	Eigen::Matrix<double, 27, 27> build3DOneElementDMatrix()
@@ -174,7 +157,40 @@ namespace HelperFunctions {
 
 class TestMFEMFunctionality : public ::testing::Test {
 protected:
+
 	typedef std::size_t Direction;
+
+	void SetUp() override {
+		mesh_ = Mesh::MakeCartesian1D(1);
+		fec_ = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+	}
+
+	void setFES1D(
+		const int order,
+		const int elements = 1
+		)
+	{
+		mesh_ = Mesh::MakeCartesian1D(elements);
+		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+
+	}
+
+	void setFES2D(
+		const int order,
+		const int xElem = 1,
+		const int yElem = 1
+	)
+	{
+		mesh_ = Mesh::MakeCartesian2D(xElem, yElem, Element::Type::QUADRILATERAL);
+		fec_ = std::make_unique<DG_FECollection>(order, mesh_.Dimension(), BasisType::GaussLobatto);
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+	}
+
+	Mesh mesh_;
+	std::unique_ptr<FiniteElementCollection> fec_;
+	std::unique_ptr<FiniteElementSpace> fes_;
 	
 };
 
@@ -196,39 +212,26 @@ TEST_F(TestMFEMFunctionality, checkMassMatrixIsSameForH1andDG)
 	for both matrices. To finalise, each element will be compared for the same position in the
 	matrices.*/
 
-	const int maxOrder = 5;
-	int order = 1;
-	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(2, Element::QUADRILATERAL);
 
-	for (order; order < maxOrder; order++) {
+	for (int order = 1; order < 5; order++) {
 
-		ASSERT_EQ(1, mesh.GetNE());
+		setFES2D(order);
 
-		std::cout << "Checking order: " << order << std::endl;
-
-		auto fecH1 = new H1_FECollection(order, mesh.Dimension(), BasisType::ClosedUniform);
-		FiniteElementSpace* fesH1 = new FiniteElementSpace(&mesh, fecH1);
-		BilinearForm massMatrixH1(fesH1);
+		std::unique_ptr<FiniteElementCollection> fecH1 = std::make_unique<H1_FECollection>(order, mesh_.Dimension(), BasisType::GaussLobatto);
+		std::unique_ptr<FiniteElementSpace> fesH1 = std::make_unique<FiniteElementSpace>(&mesh_, fecH1.get());
+		BilinearForm massMatrixH1(fesH1.get());
 		massMatrixH1.AddDomainIntegrator(new MassIntegrator);
 		massMatrixH1.Assemble();
 		massMatrixH1.Finalize();
 
-		auto fecDG = new DG_FECollection(order, mesh.Dimension(), BasisType::ClosedUniform);
-		FiniteElementSpace* fesDG = new FiniteElementSpace(&mesh, fecDG);
-		BilinearForm massMatrixDG(fesDG);
+		BilinearForm massMatrixDG(fes_.get());
 		massMatrixDG.AddDomainIntegrator(new MassIntegrator);
 		massMatrixDG.Assemble();
 		massMatrixDG.Finalize();
 
-		auto rotatedMassMatrixH1Sparse = HelperFunctions::rotateMatrixLexico(massMatrixH1);
-		auto massMatrixDGSparse = massMatrixDG.SpMat();
-
-		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumRows(), massMatrixDGSparse.NumRows());
-		ASSERT_EQ(rotatedMassMatrixH1Sparse->NumCols(), massMatrixDGSparse.NumCols());
-
-		for (int i = 0; i < massMatrixDGSparse.NumRows(); i++) {
-			for (int j = 0; j < massMatrixDGSparse.NumCols(); j++) {
-				EXPECT_NEAR(rotatedMassMatrixH1Sparse->Elem(i, j), massMatrixDGSparse.Elem(i, j), 1e-5);
+		for (int i = 0; i < massMatrixDG.SpMat().NumRows(); i++) {
+			for (int j = 0; j < massMatrixDG.SpMat().NumCols(); j++) {
+				EXPECT_NEAR(HelperFunctions::rotateMatrixLexico(massMatrixH1)->Elem(i, j), massMatrixDG.SpMat().Elem(i, j), 1e-5);
 			}
 		}
 	}
@@ -294,16 +297,14 @@ TEST_F(TestMFEMFunctionality, checkKOperators)
 	  Finally, we compare the elements of the initial bilinear form (K) and the sum of the 
 	  elements of the the stiffness (S) and flux (F) matrix. */ 
 
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	FiniteElementCollection* fec = new DG_FECollection(2, 1, BasisType::GaussLobatto);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+	setFES1D(2);
 
 	ConstantCoefficient one{ 1.0 };
 	std::vector<VectorConstantCoefficient> n = {
 		VectorConstantCoefficient(Vector({1.0})),
 	};
 
-	BilinearForm kMat(fes);
+	BilinearForm kMat(fes_.get());
 	kMat.AddDomainIntegrator(
 		new TransposeIntegrator(
 			new DerivativeIntegrator(one, 0)));
@@ -314,14 +315,14 @@ TEST_F(TestMFEMFunctionality, checkKOperators)
 	kMat.Assemble();
 	kMat.Finalize();
 
-	BilinearForm sMat(fes);
+	BilinearForm sMat(fes_.get());
 	sMat.AddDomainIntegrator(
 		new TransposeIntegrator(
 			new DerivativeIntegrator(one, 0)));
 	sMat.Assemble();
 	sMat.Finalize();
 
-	BilinearForm fMat(fes);
+	BilinearForm fMat(fes_.get());
 	fMat.AddInteriorFaceIntegrator(
 		new DGTraceIntegrator(n[0], -1.0, 0.0));
 	fMat.AddBdrFaceIntegrator(
@@ -358,7 +359,7 @@ TEST_F(TestMFEMFunctionality, printGLVISDataForBasisFunctionNodes)
 	Vector dofVector(order + 1);
 	Array<int> vdofs;
 
-	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1, Element::SEGMENT);
+	Mesh mesh = Mesh::MakeCartesian1D(1);
 	auto fecDG = new DG_FECollection(order, dimension);
 	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
 
@@ -394,10 +395,8 @@ TEST_F(TestMFEMFunctionality, checkDataValueOutsideNodesForOneElementMeshes)
 	from the GridFunction at any point we want. As the slope of the line is 2, we expect
 	the values to be 2 times the xVal.*/
 	
-	const int dimension = 1;
-	const int order = 1;
-	Mesh mesh = HelperFunctions::buildCartesianMeshForOneElement(1,Element::SEGMENT);
-	auto fecDG = new DG_FECollection(order, dimension, BasisType::GaussLegendre);
+	Mesh mesh = Mesh::MakeCartesian1D(1);
+	auto fecDG = new DG_FECollection(1, 1, BasisType::GaussLobatto);
 	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
 
 	GridFunction solution(fesDG);
