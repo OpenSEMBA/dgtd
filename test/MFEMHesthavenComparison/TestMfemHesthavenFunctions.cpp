@@ -99,8 +99,9 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(std::unique_ptr<FiniteElementSpace>
 }
 
 Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
-	const int elements,
-	const int order)
+	const int order,
+	const int elements
+)
 {
 	std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
 	res->operator=(0.0);
@@ -122,8 +123,9 @@ Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 }
 
 Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
-	const int elements,
-	const int order)
+	const int order,
+	const int elements
+	)
 {
 	std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
 	res->operator=(0.0);
