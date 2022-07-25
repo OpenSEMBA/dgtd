@@ -98,7 +98,7 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(std::unique_ptr<FiniteElementSpace>
 	}
 }
 
-std::unique_ptr<DenseMatrix> buildExpectedAverageDenseMatrix1D(
+Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 	const int elements,
 	const int order)
 {
@@ -118,10 +118,10 @@ std::unique_ptr<DenseMatrix> buildExpectedAverageDenseMatrix1D(
 			}
 		}
 	}
-	return res;
+	return convertMFEMDenseToEigen(res.get());
 }
 
-std::unique_ptr<DenseMatrix> buildExpectedJumpDenseMatrix1D(
+Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
 	const int elements,
 	const int order)
 {
@@ -141,7 +141,7 @@ std::unique_ptr<DenseMatrix> buildExpectedJumpDenseMatrix1D(
 			}
 		}
 	}
-	return res;
+	return convertMFEMDenseToEigen(res.get());
 }
 
 Eigen::MatrixXd buildEigenDGTrace1D(
