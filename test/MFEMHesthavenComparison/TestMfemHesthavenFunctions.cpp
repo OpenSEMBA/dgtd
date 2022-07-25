@@ -18,7 +18,9 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(const int order)
 {
 	Mesh mesh = Mesh::MakeCartesian1D(1);
 	std::unique_ptr<FiniteElementCollection> fec = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
-	return std::make_unique<FiniteElementSpace>(&mesh, fec.get());
+	std::unique_ptr<FiniteElementSpace> fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get());
+	
+	return fes;
 }
 
 Eigen::MatrixXd convertMFEMDenseToEigen(DenseMatrix* mat)
@@ -93,5 +95,131 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(std::unique_ptr<FiniteElementSpace>
 		res->Finalize();
 
 		return convertMFEMDenseToEigen(res->SpMat().ToDenseMatrix());
+	}
+}
+
+std::unique_ptr<DenseMatrix> buildExpectedAverageDenseMatrix1D(
+	const int elements,
+	const int order)
+{
+	std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
+	res->operator=(0.0);
+
+	for (int i = 1; i <= order; i++) {
+		for (int j = 1; j <= order; j++) {
+			for (int it = 0; it < elements - 1; it++) {
+				if (i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == order + ((order + 1) * it) ||
+					i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == (order + 1) + ((order + 1) * it)) {
+					res->Elem(i + (order + 1) * it, j + (order + 1) * it) = 0.5;
+					res->Elem(i + (order + 1) * it, j + 1 + (order + 1) * it) = 0.5;
+					res->Elem(i + 1 + (order + 1) * it, j + (order + 1) * it) = -0.5;
+					res->Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) = -0.5;
+				}
+			}
+		}
+	}
+	return res;
+}
+
+std::unique_ptr<DenseMatrix> buildExpectedJumpDenseMatrix1D(
+	const int elements,
+	const int order)
+{
+	std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
+	res->operator=(0.0);
+
+	for (int i = 1; i <= order; i++) {
+		for (int j = 1; j <= order; j++) {
+			for (int it = 0; it < elements - 1; it++) {
+				if (i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == order + ((order + 1) * it) ||
+					i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == (order + 1) + ((order + 1) * it)) {
+					res->Elem(i + (order + 1) * it, j + (order + 1) * it) = 1.0;
+					res->Elem(i + (order + 1) * it, j + 1 + (order + 1) * it) = -1.0;
+					res->Elem(i + 1 + (order + 1) * it, j + (order + 1) * it) = -1.0;
+					res->Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) = 1.0;
+				}
+			}
+		}
+	}
+	return res;
+}
+
+Eigen::MatrixXd buildEigenDGTrace1D(
+	std::unique_ptr<FiniteElementSpace>& fes,
+	std::pair<double, double> ab)
+{
+	auto DGmat = std::make_unique<BilinearForm>(fes.get());
+	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
+	DGmat->AddInteriorFaceIntegrator(
+		new DGTraceIntegrator(n[0], ab.first, ab.second));
+	DGmat->Assemble();
+	DGmat->Finalize();
+
+	std::cout << DGmat.get()->SpMat().ToDenseMatrix() << std::endl;
+
+	return convertMFEMDenseToEigen(DGmat.get()->SpMat().ToDenseMatrix());
+}
+
+Eigen::MatrixXd buildEigenMaxwellDGTrace1D(
+	std::unique_ptr<FiniteElementSpace>& fes,
+	std::vector<maxwell::Direction> dir,
+	const double beta)
+{
+	auto DGmat = std::make_unique<BilinearForm>(fes.get());
+	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
+	DGmat->AddInteriorFaceIntegrator(
+		new maxwell::MaxwellDGTraceJumpIntegrator(dir, beta));
+	DGmat->Assemble();
+	DGmat->Finalize();
+
+	std::cout << DGmat.get()->SpMat().ToDenseMatrix() << std::endl;
+
+	return convertMFEMDenseToEigen(DGmat.get()->SpMat().ToDenseMatrix());
+}
+
+std::unique_ptr<BilinearForm> buildBilinearFormWith1DCartesianMesh(
+	const int elements,
+	const int order,
+	std::pair<double, double> ab)
+{
+	Mesh mesh = Mesh::MakeCartesian1D(elements);
+	FiniteElementCollection* fec = new DG_FECollection(order, mesh.Dimension(), BasisType::GaussLobatto);
+	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+	auto DGmat = std::make_unique<BilinearForm>(fes);
+	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
+	DGmat->AddInteriorFaceIntegrator(
+		new DGTraceIntegrator(n[0], ab.first, ab.second));
+	DGmat->Assemble();
+	DGmat->Finalize();
+	return DGmat;
+}
+
+std::unique_ptr<BilinearForm> buildMaxwellBilinearFormWith1DCartesianMesh(
+	const int elements,
+	const int order,
+	std::vector<maxwell::Direction> dir,
+	const double beta)
+{
+	Mesh mesh = Mesh::MakeCartesian1D(elements);
+	FiniteElementCollection* fec = new DG_FECollection(order, mesh.Dimension(), BasisType::GaussLobatto);
+	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
+	auto DGmat = std::make_unique<BilinearForm>(fes);
+	DGmat->AddInteriorFaceIntegrator(
+		new maxwell::MaxwellDGTraceJumpIntegrator(dir, beta));
+	DGmat->Assemble();
+	DGmat->Finalize();
+	return DGmat;
+
+}
+
+void checkDenseMatrixSubtractIsValueForAllElem(
+	const double val,
+	std::unique_ptr<DenseMatrix> m1,
+	std::unique_ptr<DenseMatrix> m2)
+{
+	for (int i = 0; i < m1->Width(); i++) {
+		for (int j = 0; j < m1->Height(); j++) {
+			EXPECT_NEAR(0.0, m1->Elem(i, j) - m2->Elem(i, j), 1e-3);
+		}
 	}
 }

@@ -9,7 +9,7 @@ include_directories(${MFEM_INCLUDE_DIRS})
 include_directories(${maxwell_solvers_INCLUDE_DIRS})
 
 add_executable(maxwell_tests 
-"TestAux.cpp" 
+"TestMFEMFunctionality.cpp" 
 "maxwell/TestSolver.cpp" 
 "maxwell/TestBilinearIntegrators.cpp" 
 "maxwell/TestMaterial.cpp" 
