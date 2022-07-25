@@ -172,13 +172,13 @@ namespace HelperFunctions {
 	
 }
 
-class MFEMComprehension : public ::testing::Test {
+class TestMFEMFunctionality : public ::testing::Test {
 protected:
 	typedef std::size_t Direction;
 	
 };
 
-TEST_F(MFEMComprehension, checkMassMatrixIsSameForH1andDG)
+TEST_F(TestMFEMFunctionality, checkMassMatrixIsSameForH1andDG)
 {
 	/*This test compares the mass matrices for H1 and DG spaces for a mesh with a single element
 
@@ -250,7 +250,7 @@ TEST_F(MFEMComprehension, checkMassMatrixIsSameForH1andDG)
 //
 //	EXPECT_TRUE(MISCalcOld.isApprox(expMat, 1e-1));
 //}
-TEST_F(MFEMComprehension, checkTwoAttributeMesh)
+TEST_F(TestMFEMFunctionality, checkTwoAttributeMesh)
 {
 	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)
 	function.
@@ -282,7 +282,7 @@ TEST_F(MFEMComprehension, checkTwoAttributeMesh)
 		}
 	}
 }
-TEST_F(MFEMComprehension, checkKOperators)
+TEST_F(TestMFEMFunctionality, checkKOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
 	  for a single element in 1D.
@@ -336,7 +336,7 @@ TEST_F(MFEMComprehension, checkKOperators)
 	}
 }
 
-TEST_F(MFEMComprehension, printGLVISDataForBasisFunctionNodes)
+TEST_F(TestMFEMFunctionality, printGLVISDataForBasisFunctionNodes)
 {
 	/*This test creates files for the Basis Functions, for later visualization 
 	through GLVIS.
@@ -378,7 +378,7 @@ TEST_F(MFEMComprehension, printGLVISDataForBasisFunctionNodes)
 	HelperFunctions::SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
-TEST_F(MFEMComprehension, checkDataValueOutsideNodesForOneElementMeshes)
+TEST_F(TestMFEMFunctionality, checkDataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
 	even if the point we're trying to obtain it at is not necessarily a DoF or node.
@@ -409,7 +409,7 @@ TEST_F(MFEMComprehension, checkDataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
-TEST_F(MFEMComprehension, findPointsTest)
+TEST_F(TestMFEMFunctionality, findPointsTest)
 {
 	Mesh mesh = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
 	DenseMatrix pointMat({ { 0.2,0.4,0.6 },{1.5, 3.5, 5.5},{0.25, 1.25, 3.75},{2.0, 4.0, 6.0} });
