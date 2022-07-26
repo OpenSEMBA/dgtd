@@ -10,6 +10,8 @@
 
 using namespace mfem;
 
+
+
 class MFEMHesthaven1D : public ::testing::Test {
 protected:
 
@@ -35,6 +37,10 @@ protected:
 
 };
 
+class MFEMHesthaven1DTrace : public MFEMHesthaven1D {
+
+};
+
 TEST_F(MFEMHesthaven1D, checkMassMatrix)
 {
 
@@ -49,8 +55,8 @@ TEST_F(MFEMHesthaven1D, checkInverseMassMatrix)
 {
 	
 	auto expMat = Eigen::Matrix2d{
-		{4.0, -2.0},
-		{-2.0, 4.0}, };
+		{ 4.0, -2.0},
+		{-2.0,  4.0}, };
 
 	EXPECT_TRUE(buildInverseMassMatrixEigen(fes_).isApprox(expMat, tol_));
 
@@ -114,7 +120,7 @@ TEST_F(MFEMHesthaven1D, checkDOperatorO4)
 }
 
 
-TEST_F(MFEMHesthaven1D, checkStrongFluxOperator)
+TEST_F(MFEMHesthaven1DTrace, checkStrongFluxOperator)
 {
 
 	Mesh mesh = Mesh::MakeCartesian1D(1);
@@ -128,7 +134,7 @@ TEST_F(MFEMHesthaven1D, checkStrongFluxOperator)
 
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO1)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -140,7 +146,7 @@ TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO2)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -152,7 +158,7 @@ TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO3)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -164,7 +170,7 @@ TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO4)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -176,7 +182,7 @@ TEST_F(MFEMHesthaven1D, checkDGTraceAverageOnlyMatrixO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO1)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -188,7 +194,7 @@ TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO2)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -200,7 +206,7 @@ TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO3)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -212,7 +218,7 @@ TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO4)
+TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -225,19 +231,19 @@ TEST_F(MFEMHesthaven1D, checkDGTraceJumpOnlyMatrixO4)
 }
 
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceNoDirO1)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_, std::vector<maxwell::Direction>{},1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
+		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_, std::vector<maxwell::Direction>{}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceNoDirO2)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -249,7 +255,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceNoDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceNoDirO3)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -261,7 +267,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceNoDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceNoDirO4)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -273,7 +279,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceNoDirO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO1)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -285,7 +291,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO2)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -297,7 +303,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO3)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -309,7 +315,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO4)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -321,7 +327,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXDirO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO1)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -333,7 +339,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO2)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -345,7 +351,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO3)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -357,7 +363,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO4)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -369,7 +375,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceYDirO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO1)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -381,7 +387,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO2)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -393,7 +399,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO3)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -405,7 +411,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO4)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -417,7 +423,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceZDirO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO1)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -429,7 +435,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO2)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -441,7 +447,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO3)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -453,7 +459,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO4)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -465,7 +471,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXXDirO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO1)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -477,7 +483,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO2)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -489,7 +495,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO3)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -501,7 +507,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO4)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -513,7 +519,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXYDirO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXZDirO1)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -525,7 +531,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXZDirO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXZDirO2)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -537,7 +543,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXZDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXZDirO3)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -549,7 +555,7 @@ TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXZDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1D, checkMaxwellDGTraceXZDirO4)
+TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {

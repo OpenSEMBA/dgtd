@@ -98,7 +98,7 @@ Vector
 	return res;
 }
 
-FiniteElementEvolution::Operator
+FiniteElementEvolution::FiniteElementOperator
 	FiniteElementEvolution::buildInverseMassMatrix(const FieldType& f) const
 {
 	Vector aux = buildPieceWiseArgVector(f);
@@ -112,7 +112,7 @@ FiniteElementEvolution::Operator
 	return MInv;
 }
 
-FiniteElementEvolution::Operator
+FiniteElementEvolution::FiniteElementOperator
 	FiniteElementEvolution::buildDerivativeOperator(const Direction& d) const
 {
 	ConstantCoefficient coeff(0.0);
@@ -148,7 +148,7 @@ FiniteElementEvolution::Operator
 	return res;
 }
 
-FiniteElementEvolution::Operator
+FiniteElementEvolution::FiniteElementOperator
 	FiniteElementEvolution::buildFluxOperator(const DisForm& form, const FieldType& f, const Direction& d) const
 {
 	Vector aux = buildNVector(d);
@@ -181,7 +181,7 @@ FiniteElementEvolution::Operator
 	return res;
 }
 
-FiniteElementEvolution::Operator
+FiniteElementEvolution::FiniteElementOperator
 	FiniteElementEvolution::buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const
 {
 	std::vector<Direction> dirs = dirTerms;
@@ -209,7 +209,7 @@ FiniteElementEvolution::Operator
 	return res;
 }
 
-FiniteElementEvolution::Operator
+FiniteElementEvolution::FiniteElementOperator
 	FiniteElementEvolution::buildPenaltyOperator(const DisForm& form, const FieldType& f, const Direction& d) const
 {
 
@@ -243,7 +243,7 @@ FiniteElementEvolution::Operator
 	return res;
 }
 
-FiniteElementEvolution::Operator
+FiniteElementEvolution::FiniteElementOperator
 	FiniteElementEvolution::buildByMult(
 		const BilinearForm* op1, const BilinearForm* op2) const
 {
@@ -458,5 +458,6 @@ void FiniteElementEvolution::Mult(const Vector& in, Vector& out) const
 	}
 
 }
+
 }
 

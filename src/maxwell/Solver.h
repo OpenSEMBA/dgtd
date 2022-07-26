@@ -30,6 +30,8 @@ public:
     const PointsProbe& getPointsProbe(const std::size_t probe) { return probes_.getPointsProbes().at(probe); }
 
     mfem::Mesh& getMesh() { return mesh_; }
+    const mfem::Mesh& getConstMesh() const { return mesh_; }
+    const std::unique_ptr<FiniteElementEvolution>& getFEEvol() const { return maxwellEvol_; }
 
     void run();
 

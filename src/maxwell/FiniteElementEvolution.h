@@ -13,6 +13,8 @@ namespace maxwell {
 class FiniteElementEvolution : public TimeDependentOperator {
 public:
 
+	typedef std::unique_ptr<BilinearForm> FiniteElementOperator;
+
 	struct Options {
 		FluxType fluxType = FluxType::Upwind;
 		DisForm disForm = DisForm::Weak;
@@ -25,36 +27,53 @@ public:
 	virtual void Mult(const Vector& x, Vector& y) const;
 	virtual ~FiniteElementEvolution() = default;
 
+	const FiniteElementOperator& getInvMassStiffness(
+		const FieldType& f, const Direction& dir) const 
+	{ return MS_[f][dir] ; }
+	const FiniteElementOperator& getInvMassFlux(
+		const FieldType& f1, const FieldType& f2, const Direction& dir) const 
+	{ return MF_[f1][f2][dir]; }
+	const FiniteElementOperator& getInvMassPenalty(
+		const FieldType& f1, const FieldType& f2, const Direction& dir) const 
+	{ return MP_[f1][f2][dir]; }
+	const FiniteElementOperator& getInvMassNoDirFlux(
+		const FieldType& f, const Direction& dir) const 
+	{ return MNND_[f][dir]; }
+	const FiniteElementOperator& getInvMassOneDirFlux(
+		const FieldType& f, const FieldType& f2, const Direction& dir) const 
+	{ return MNOD_[f][f2][dir]; }
+	const FiniteElementOperator& getInvMassTwoDirFlux(
+		const FieldType& f, const FieldType& f2, const Direction& dir1, const Direction& dir2) const 
+	{ return MNTD_[f][f2][dir1][dir2]; }
+
 private:
 	struct FluxCoefficient {
 		double alpha;
 		double beta;
 	};
 
-	typedef std::unique_ptr<BilinearForm> Operator;
-
 	FiniteElementSpace* fes_;
 	Options opts_;
 	Model model_;
 	Sources sources_;
 
-	std::array<std::array<Operator, 3>, 2> MS_;
-	std::array<std::array<std::array<Operator, 3>, 2>, 2> MF_;
-	std::array<std::array<std::array<Operator, 3>, 2>, 2> MP_;
-	std::array<std::array<Operator, 2>, 2> MNND_;
-	std::array<std::array<std::array<Operator, 3>, 2>, 2> MNOD_;
-	std::array<std::array<std::array<std::array<Operator, 3>, 3>, 2>, 2> MNTD_;
+	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MF_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MP_;
+	std::array<std::array<FiniteElementOperator, 2>, 2> MNND_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MNOD_;
+	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MNTD_;
 
 	Vector buildNVector(const Direction& d) const;
 	Vector buildPieceWiseArgVector(const FieldType& f) const;
 	
-	Operator buildDerivativeOperator(const Direction&) const;
-	Operator buildInverseMassMatrix(const FieldType&) const;
-	Operator buildFluxOperator(const DisForm&, const FieldType&, const Direction&) const;
-	Operator buildPenaltyOperator(const DisForm&, const FieldType&, const Direction&) const;
-	Operator buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const;
+	FiniteElementOperator buildDerivativeOperator(const Direction&) const;
+	FiniteElementOperator buildInverseMassMatrix(const FieldType&) const;
+	FiniteElementOperator buildFluxOperator(const DisForm&, const FieldType&, const Direction&) const;
+	FiniteElementOperator buildPenaltyOperator(const DisForm&, const FieldType&, const Direction&) const;
+	FiniteElementOperator buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const;
 
-	Operator buildByMult(const BilinearForm*, const BilinearForm*) const;
+	FiniteElementOperator buildByMult(const BilinearForm*, const BilinearForm*) const;
 
 	FluxCoefficient interiorFluxCoefficient() const;
 	FluxCoefficient interiorPenaltyFluxCoefficient() const;
