@@ -1,4 +1,5 @@
 #include "TestMfemHesthavenFunctions.h"
+#include "../TestGlobalFunctions.h"
 #include "mfem.hpp"
 #include <Eigen/Dense>
 
@@ -18,49 +19,7 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(const int order)
 	return fes;
 }
 
-Eigen::MatrixXd convertMFEMDenseToEigen(DenseMatrix* mat)
-{
-	auto res = Eigen::MatrixXd(mat->Width(), mat->Height());
-	for (int i = 0; i < mat->Width(); i++) {
-		for (int j = 0; j < mat->Height(); j++) {
-			res(i, j) = mat->Elem(i, j);
-		}
-	}
-	return res;
-}
 
-Eigen::MatrixXd buildMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
-{
-	ConstantCoefficient one(1.0);
-	BilinearForm res(fes.get());
-	res.AddDomainIntegrator(new MassIntegrator(one));
-	res.Assemble();
-	res.Finalize();
-
-	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
-}
-
-Eigen::MatrixXd buildInverseMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
-{
-	ConstantCoefficient one(1.0);
-	BilinearForm res(fes.get());
-	res.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
-	res.Assemble();
-	res.Finalize();
-
-	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
-}
-
-Eigen::MatrixXd buildStiffnessMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
-{
-	ConstantCoefficient one(1.0);
-	BilinearForm res(fes.get());
-	res.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
-	res.Assemble();
-	res.Finalize();
-
-	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
-}
 
 Eigen::MatrixXd	buildNormalPECFluxOperator1D(std::unique_ptr<FiniteElementSpace>& fes, std::vector<maxwell::Direction> dirVec)
 {
@@ -207,18 +166,6 @@ std::unique_ptr<BilinearForm> buildMaxwellBilinearFormWith1DCartesianMesh(
 	DGmat->Finalize();
 	return DGmat;
 
-}
-
-void checkDenseMatrixSubtractIsValueForAllElem(
-	const double val,
-	std::unique_ptr<DenseMatrix> m1,
-	std::unique_ptr<DenseMatrix> m2)
-{
-	for (int i = 0; i < m1->Width(); i++) {
-		for (int j = 0; j < m1->Height(); j++) {
-			EXPECT_NEAR(0.0, m1->Elem(i, j) - m2->Elem(i, j), 1e-3);
-		}
-	}
 }
 
 Eigen::Matrix<double, 27, 27> build3DOneElementDMatrix()

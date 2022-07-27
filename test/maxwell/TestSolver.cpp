@@ -2,6 +2,7 @@
 #include <math.h>
 
 #include "maxwell/Solver.h"
+#include "../TestGlobalFunctions.h"
 
 using namespace maxwell;
 
@@ -764,6 +765,32 @@ TEST_F(TestMaxwellSolver, DISABLED_threeDimensional)
 	solver.run();
 }
 
+TEST_F(TestMaxwellSolver, DISABLED_checkFluxOperatorO2)
+{
+
+	Model model = buildOneDimOneMatModel(5);
+
+	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
+	probes.addExporterProbeToCollection(ExporterProbe());
+
+	maxwell::Solver solver(
+		model,
+		probes,
+		buildSourcesWithDefaultSource(model, E, Y),
+		buildDefaultSolverOpts(0.1));
+
+	auto MSMat = convertMFEMDenseToEigen(solver.getFEEvol().get()
+		->getInvMassStiffness(FieldType::E, Direction::X).get()->SpMat().ToDenseMatrix());
+	auto noDirMat =  convertMFEMDenseToEigen(solver.getFEEvol().get()
+		->getInvMassNoDirFlux(FieldType::E, FieldType::E).get()->SpMat().ToDenseMatrix());
+	auto oneDirMat = convertMFEMDenseToEigen(solver.getFEEvol().get()
+		->getInvMassOneDirFlux(FieldType::E, FieldType::H, Direction::X).get()->SpMat().ToDenseMatrix());
+
+	std::cout << noDirMat << std::endl;
+
+	solver.run();
+
+}
 
 //TEST_F(TestMaxwellSolver, DISABLED_twoDimensionalResonantBox)
 //{

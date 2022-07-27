@@ -20,8 +20,7 @@ struct FluxCoefficient {
 
 namespace HelperFunctions {
 
-	Mesh makeTwoAttributeCartesianMesh1D(
-		const int& refTimes = 0)
+	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes = 0)
 	{
 		Mesh res = Mesh::MakeCartesian1D(2);
 		res.SetAttribute(0, 1);

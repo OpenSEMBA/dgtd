@@ -29,7 +29,7 @@ public:
 
 	const FiniteElementOperator& getInvMassStiffness(
 		const FieldType& f, const Direction& dir) const 
-	{ return MS_[f][dir] ; }
+	{ return MS_[f][dir]; }
 	const FiniteElementOperator& getInvMassFlux(
 		const FieldType& f1, const FieldType& f2, const Direction& dir) const 
 	{ return MF_[f1][f2][dir]; }
@@ -37,14 +37,14 @@ public:
 		const FieldType& f1, const FieldType& f2, const Direction& dir) const 
 	{ return MP_[f1][f2][dir]; }
 	const FiniteElementOperator& getInvMassNoDirFlux(
-		const FieldType& f, const Direction& dir) const 
-	{ return MNND_[f][dir]; }
+		const FieldType& f1, const FieldType& f2) const
+	{ return MNND_[f1][f2]; }
 	const FiniteElementOperator& getInvMassOneDirFlux(
-		const FieldType& f, const FieldType& f2, const Direction& dir) const 
-	{ return MNOD_[f][f2][dir]; }
+		const FieldType& f1, const FieldType& f2, const Direction& dir) const 
+	{ return MNOD_[f1][f2][dir]; }
 	const FiniteElementOperator& getInvMassTwoDirFlux(
-		const FieldType& f, const FieldType& f2, const Direction& dir1, const Direction& dir2) const 
-	{ return MNTD_[f][f2][dir1][dir2]; }
+		const FieldType& f1, const FieldType& f2, const Direction& dir1, const Direction& dir2) const 
+	{ return MNTD_[f1][f2][dir1][dir2]; }
 
 private:
 	struct FluxCoefficient {
