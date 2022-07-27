@@ -765,17 +765,14 @@ TEST_F(TestMaxwellSolver, DISABLED_threeDimensional)
 	solver.run();
 }
 
-TEST_F(TestMaxwellSolver, DISABLED_checkFluxOperatorO2)
+TEST_F(TestMaxwellSolver, checkFluxOperatorO2)
 {
 
-	Model model = buildOneDimOneMatModel(5);
-
-	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
-	probes.addExporterProbeToCollection(ExporterProbe());
+	Model model = buildOneDimOneMatModel(3);
 
 	maxwell::Solver solver(
 		model,
-		probes,
+		Probes(),
 		buildSourcesWithDefaultSource(model, E, Y),
 		buildDefaultSolverOpts(0.1));
 
@@ -786,9 +783,7 @@ TEST_F(TestMaxwellSolver, DISABLED_checkFluxOperatorO2)
 	auto oneDirMat = convertMFEMDenseToEigen(solver.getFEEvol().get()
 		->getInvMassOneDirFlux(FieldType::E, FieldType::H, Direction::X).get()->SpMat().ToDenseMatrix());
 
-	std::cout << noDirMat << std::endl;
-
-	solver.run();
+	std::cout << MSMat << std::endl;
 
 }
 
