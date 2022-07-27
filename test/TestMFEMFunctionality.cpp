@@ -1,11 +1,12 @@
-#include "gtest/gtest.h"
-#include <iostream>
-#include <fstream>
+#pragma once
 
+#include "gtest/gtest.h"
 #include "mfem.hpp"
 #include "../src/maxwell/BilinearIntegrators.h"
 #include "../src/maxwell/Types.h"
 
+#include <iostream>
+#include <fstream>
 #include <vector>
 #include <Eigen/Dense>
 #include <maxwell/Model.h>
@@ -138,21 +139,6 @@ namespace HelperFunctions {
 		gf.Save(filename);
 	}
 
-	Eigen::Matrix<double, 27, 27> build3DOneElementDMatrix()
-	{
-		auto res = Eigen::Matrix<double, 27, 27>();
-		res.setZero();
-		auto blockMat = Eigen::Matrix3d{
-				{-1.5, 2.0,-0.5},
-				{-0.5, 0.0, 0.5},
-				{ 0.5,-2.0, 1.5} };
-		for (int i = 0; i < res.cols(); i += 3) {
-			res.block<3, 3>(i,i) = blockMat;
-		}
-		return res;
-	}
-
-	
 }
 
 class TestMFEMFunctionality : public ::testing::Test {
@@ -160,7 +146,8 @@ protected:
 
 	typedef std::size_t Direction;
 
-	void SetUp() override {
+	void SetUp() override 
+	{
 		mesh_ = Mesh::MakeCartesian1D(1);
 		fec_ = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
@@ -168,8 +155,7 @@ protected:
 
 	void setFES1D(
 		const int order,
-		const int elements = 1
-		)
+		const int elements = 1)
 	{
 		mesh_ = Mesh::MakeCartesian1D(elements);
 		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
@@ -180,8 +166,7 @@ protected:
 	void setFES2D(
 		const int order,
 		const int xElem = 1,
-		const int yElem = 1
-	)
+		const int yElem = 1)
 	{
 		mesh_ = Mesh::MakeCartesian2D(xElem, yElem, Element::Type::QUADRILATERAL);
 		fec_ = std::make_unique<DG_FECollection>(order, mesh_.Dimension(), BasisType::GaussLobatto);
@@ -196,23 +181,6 @@ protected:
 
 TEST_F(TestMFEMFunctionality, checkMassMatrixIsSameForH1andDG)
 {
-	/*This test compares the mass matrices for H1 and DG spaces for a mesh with a single element
-
-	First, a mesh is built with buildCartesianMeshForOneElement() which ensures a mesh
-	with a single element will be used. Then, for different orders, FiniteElementCollection and
-	FiniteElementSpace will be created for both H1 and DG, along with a BilinearForm containing
-	the Mass Matrix for each one of them.
-
-	Then, the BilinearForm for the Mass Matrix for H1 will have its inner Sparse Matrix rotated
-	by applying a lexicographic rotation operator, as spaces for H1 and DG are ordered differently,
-	and be returned as a Sparse Matrix. The DG Bilinear Form will just have its Sparse Matrix
-	extracted.
-
-	Lastly, assertions will be made to ensure the number of rows and columns are the same
-	for both matrices. To finalise, each element will be compared for the same position in the
-	matrices.*/
-
-
 	for (int order = 1; order < 5; order++) {
 
 		setFES2D(order);
@@ -236,23 +204,6 @@ TEST_F(TestMFEMFunctionality, checkMassMatrixIsSameForH1andDG)
 		}
 	}
 }
-
-//TEST_F(Auxiliary, checkDOperator3D)
-//{
-//
-//	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::QUADRILATERAL);
-//	FiniteElementCollection* fec = new DG_FECollection(2, 3, BasisType::GaussLobatto);
-//	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-//
-//	auto mInvEigen = HelperFunctions::buildInverseMassMatrixEigen(fes);
-//	auto oldEigen = HelperFunctions::buildStiffnessMatrixEigen(fes);
-//	auto MISCalcOld = 0.5 * mInvEigen * oldEigen;
-//	auto expMat = HelperFunctions::build3DOneElementDMatrix();
-//
-//	std::cout << expMat << std::endl;
-//
-//	EXPECT_TRUE(MISCalcOld.isApprox(expMat, 1e-1));
-//}
 TEST_F(TestMFEMFunctionality, checkTwoAttributeMesh)
 {
 	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)

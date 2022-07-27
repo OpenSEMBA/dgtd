@@ -1,11 +1,6 @@
+#include "TestMfemHesthavenFunctions.h"
 #include "mfem.hpp"
-#include <fstream>
-#include <iostream>
-#include <../../maxwell/src/maxwell/Types.h>
-#include <../../maxwell/src/maxwell/BilinearIntegrators.h>
-
 #include <Eigen/Dense>
-#include <maxwell/Model.h>
 
 using namespace mfem;
 
@@ -125,7 +120,7 @@ Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
 	const int order,
 	const int elements
-	)
+)
 {
 	std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
 	res->operator=(0.0);
@@ -224,4 +219,18 @@ void checkDenseMatrixSubtractIsValueForAllElem(
 			EXPECT_NEAR(0.0, m1->Elem(i, j) - m2->Elem(i, j), 1e-3);
 		}
 	}
+}
+
+Eigen::Matrix<double, 27, 27> build3DOneElementDMatrix()
+{
+	auto res = Eigen::Matrix<double, 27, 27>();
+	res.setZero();
+	auto blockMat = Eigen::Matrix3d{
+			{-1.5, 2.0,-0.5},
+			{-0.5, 0.0, 0.5},
+			{ 0.5,-2.0, 1.5} };
+	for (int i = 0; i < res.cols(); i += 3) {
+		res.block<3, 3>(i, i) = blockMat;
+	}
+	return res;
 }

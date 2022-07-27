@@ -19,7 +19,9 @@ add_executable(maxwell_tests
 target_link_libraries(maxwell_tests maxwell_solvers GTest::gtest GTest::gtest_main)
 
 add_executable(mfem_hesthaven_tests
-"MFEMHesthavenComparison/TestMfemHesthaven1D.cpp")
+"MFEMHesthavenComparison/TestMfemHesthaven1D.cpp" 
+"MFEMHesthavenComparison/TestMfemHesthaven3D.cpp" 
+"MFEMHesthavenComparison/TestMfemHesthavenFunctions.cpp" "MFEMHesthavenComparison/TestMfemHesthavenFunctions.h")
 
 target_link_libraries(mfem_hesthaven_tests maxwell_solvers GTest::gtest GTest::gtest_main)
 

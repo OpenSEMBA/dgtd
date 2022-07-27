@@ -1,21 +1,13 @@
-#include "gtest/gtest.h"
+#pragma once
 
-#include "mfem.hpp"
-#include "TestMfemHesthavenFunctions.cpp"
-
-#include <fstream>
-#include <iostream>
-#include <../../maxwell/src/maxwell/Types.h>
-#include <Eigen/Dense>
-
+#include "TestMfemHesthavenFunctions.h"
 using namespace mfem;
-
-
 
 class MFEMHesthaven1D : public ::testing::Test {
 protected:
 
-	void SetUp() override {
+	void SetUp() override 
+	{
 		mesh_ = Mesh::MakeCartesian1D(1);
 		fec_ = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
