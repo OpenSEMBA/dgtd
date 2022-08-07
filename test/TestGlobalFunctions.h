@@ -12,7 +12,7 @@ struct FluxCoefficient {
 };
 
 Eigen::MatrixXd convertMFEMDenseToEigen(const DenseMatrix* mat);
-Eigen::MatrixXd buildMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes);
-Eigen::MatrixXd buildInverseMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes);
-Eigen::MatrixXd buildStiffnessMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes);
+Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace* fes);
+Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace* fes);
+Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace* fes);
 Eigen::MatrixXd	buildNormalPECFluxOperator1D(FiniteElementSpace* fes, std::vector<maxwell::Direction> dirVec);

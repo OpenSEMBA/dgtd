@@ -12,37 +12,37 @@ Eigen::MatrixXd convertMFEMDenseToEigen(const DenseMatrix* mat)
 	return res;
 }
 
-Eigen::MatrixXd buildMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
+Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace* fes)
 {
 	ConstantCoefficient one(1.0);
-	BilinearForm res(fes.get());
-	res.AddDomainIntegrator(new MassIntegrator(one));
-	res.Assemble();
-	res.Finalize();
+	auto res = std::make_unique<BilinearForm>(fes);
+	res->AddDomainIntegrator(new MassIntegrator(one));
+	res->Assemble();
+	res->Finalize();
 
-	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
+	return convertMFEMDenseToEigen(res->SpMat().ToDenseMatrix());
 }
 
-Eigen::MatrixXd buildInverseMassMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
+Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace* fes)
 {
 	ConstantCoefficient one(1.0);
-	BilinearForm res(fes.get());
-	res.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
-	res.Assemble();
-	res.Finalize();
+	auto res = std::make_unique<BilinearForm>(fes);
+	res->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
+	res->Assemble();
+	res->Finalize();
 
-	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
+	return convertMFEMDenseToEigen(res->SpMat().ToDenseMatrix());
 }
 
-Eigen::MatrixXd buildStiffnessMatrixEigen(std::unique_ptr<FiniteElementSpace>& fes)
+Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace* fes)
 {
 	ConstantCoefficient one(1.0);
-	BilinearForm res(fes.get());
-	res.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
-	res.Assemble();
-	res.Finalize();
+	auto res = std::make_unique<BilinearForm>(fes);
+	res->AddDomainIntegrator(new DerivativeIntegrator(one, 0));
+	res->Assemble();
+	res->Finalize();
 
-	return convertMFEMDenseToEigen(res.SpMat().ToDenseMatrix());
+	return convertMFEMDenseToEigen(res->SpMat().ToDenseMatrix());
 }
 
 Eigen::MatrixXd	buildNormalPECFluxOperator1D(FiniteElementSpace* fes, std::vector<maxwell::Direction> dirVec)

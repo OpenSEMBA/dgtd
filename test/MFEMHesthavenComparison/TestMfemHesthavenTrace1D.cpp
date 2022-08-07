@@ -34,7 +34,7 @@ TEST_F(MFEMHesthaven1DTrace, checkStrongFluxOperator)
 
 	setFES(2);
 
-	auto mInv = buildInverseMassMatrixEigen(fes_);
+	auto mInv = buildInverseMassMatrixEigen(fes_.get());
 	std::cout << mInv << std::endl;
 	auto flux = buildNormalPECFluxOperator1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X});
 	std::cout << flux << std::endl;

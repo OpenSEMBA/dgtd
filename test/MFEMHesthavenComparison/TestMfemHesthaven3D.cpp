@@ -39,7 +39,7 @@ TEST_F(MFEMHesthaven3D, checkDOperator3DO2)
 {
 	set3DFES(2);
 
-	auto MISCalcOld = 0.5 * buildInverseMassMatrixEigen(fes_) * buildStiffnessMatrixEigen(fes_);
+	auto MISCalcOld = 0.5 * buildInverseMassMatrixEigen(fes_.get()) * buildStiffnessMatrixEigen(fes_.get());
 
 	std::cout << MISCalcOld << std::endl;
 

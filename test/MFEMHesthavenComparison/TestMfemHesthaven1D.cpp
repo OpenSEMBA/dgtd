@@ -35,7 +35,7 @@ TEST_F(MFEMHesthaven1D, checkMassMatrix)
 		{2.0 / 6.0, 1.0 / 6.0},
 		{1.0 / 6.0, 2.0 / 6.0}, };
 
-	EXPECT_TRUE(buildMassMatrixEigen(fes_).isApprox(expMat, tol_));
+	EXPECT_TRUE(buildMassMatrixEigen(fes_.get()).isApprox(expMat, tol_));
 }
 
 TEST_F(MFEMHesthaven1D, checkInverseMassMatrix)
@@ -45,7 +45,7 @@ TEST_F(MFEMHesthaven1D, checkInverseMassMatrix)
 		{ 4.0, -2.0},
 		{-2.0,  4.0}, };
 
-	EXPECT_TRUE(buildInverseMassMatrixEigen(fes_).isApprox(expMat, tol_));
+	EXPECT_TRUE(buildInverseMassMatrixEigen(fes_.get()).isApprox(expMat, tol_));
 
 }
 
@@ -56,14 +56,14 @@ TEST_F(MFEMHesthaven1D, checkStiffnessMatrixO1)
 			{-0.5, 0.5},
 			{-0.5, 0.5} };
 
-	EXPECT_TRUE(buildStiffnessMatrixEigen(fes_).isApprox(expMat, tol_));
+	EXPECT_TRUE(buildStiffnessMatrixEigen(fes_.get()).isApprox(expMat, tol_));
 
 }
 
 TEST_F(MFEMHesthaven1D, checkDOperatorO1)
 {
 
-	Eigen::Matrix2d DMatrix = 0.5 * buildInverseMassMatrixEigen(fes_) * buildStiffnessMatrixEigen(fes_);
+	Eigen::Matrix2d DMatrix = 0.5 * buildInverseMassMatrixEigen(fes_.get()) * buildStiffnessMatrixEigen(fes_.get());
 
 	auto expMat = Eigen::Matrix2d{
 			{-0.5, 0.5},
@@ -77,7 +77,7 @@ TEST_F(MFEMHesthaven1D, checkDOperatorO2)
 
 	setFES(2);
 
-	Eigen::Matrix3d DMatrix = 0.5 * buildInverseMassMatrixEigen(fes_) * buildStiffnessMatrixEigen(fes_);
+	Eigen::Matrix3d DMatrix = 0.5 * buildInverseMassMatrixEigen(fes_.get()) * buildStiffnessMatrixEigen(fes_.get());
 
 	auto expMat = Eigen::Matrix3d{
 			{-1.5, 2.0,-0.5},
@@ -93,7 +93,7 @@ TEST_F(MFEMHesthaven1D, checkDOperatorO4)
 
 	setFES(4);
 
-	Eigen::Matrix<double,5,5> DMatrix = 0.5 * buildInverseMassMatrixEigen(fes_) * buildStiffnessMatrixEigen(fes_);
+	Eigen::Matrix<double,5,5> DMatrix = 0.5 * buildInverseMassMatrixEigen(fes_.get()) * buildStiffnessMatrixEigen(fes_.get());
 
 	auto expMat = Eigen::MatrixXd{
 			{-5.000000000000000e+00, 6.756502488724238e+00,-2.666666666666666e+00, 1.410164177942427e+00,-5.000000000000000e-01},
