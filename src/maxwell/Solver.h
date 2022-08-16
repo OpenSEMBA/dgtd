@@ -28,7 +28,7 @@ public:
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const PointsProbe& getPointsProbe(const std::size_t probe) { return probes_.getPointsProbes().at(probe); }
 
-    mfem::Mesh& getMesh() { return mesh_; }
+    const mfem::Mesh& getMesh() const { return mesh_; }
     const mfem::Mesh& getConstMesh() const { return mesh_; }
     const FiniteElementEvolution& getFEEvol() const { return *maxwellEvol_; }
 

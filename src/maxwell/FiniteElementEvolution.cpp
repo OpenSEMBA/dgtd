@@ -53,49 +53,40 @@ Vector
 	return res;
 }
 
-Vector
-	FiniteElementEvolution::buildNVector(const Direction& d) const
+Vector FiniteElementEvolution::buildNVector(const Direction& d) const
 {
-	Vector res(fes_->GetMesh()->Dimension());
+	assert(fes_->GetMesh()->Dimension() <= 3);
+	assert(d == X || d == Y || d == Z);
+
 	switch (fes_->GetMesh()->Dimension()) {
 	case 1:
 		switch (d) {
 		case X:
-			res = Vector({ 1.0 });
-			break;
+			return Vector({ 1.0 });
 		default:
-			res = Vector({ 0.0 });
-			break;
+			return Vector({ 0.0 });
 		}
-		break;
 	case 2:
 		switch (d) {
 		case X:
-			res = Vector({ 1.0,0.0 });
-			break;
+			return Vector({ 1.0,0.0 });
 		case Y:
-			res = Vector({ 0.0,1.0 });
-			break;
+			return Vector({ 0.0,1.0 });
 		default:
-			res = Vector({ 0.0,0.0 });
-			break;
+			return Vector({ 0.0,0.0 });
 		}
-		break;
 	case 3:
 		switch (d) {
 		case X:
-			res = Vector({ 1.0,0.0,0.0 });
-			break;
+			return Vector({ 1.0,0.0,0.0 });
 		case Y:
-			res = Vector({ 0.0,1.0,0.0 });
-			break;
+			return Vector({ 0.0,1.0,0.0 });
 		case Z:
-			res = Vector({ 0.0,0.0,1.0 });
-			break;
+			return Vector({ 0.0,0.0,1.0 });
 		}
-		break;
 	}
-	return res;
+
+	throw std::runtime_error("Invalid selection for build N vector.");
 }
 
 FiniteElementEvolution::FiniteElementOperator
