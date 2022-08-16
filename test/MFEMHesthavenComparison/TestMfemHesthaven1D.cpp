@@ -1,4 +1,4 @@
-#pragma once
+#include <gtest/gtest.h>
 
 #include "TestMfemHesthavenFunctions.h"
 #include "TestGlobalFunctions.h"

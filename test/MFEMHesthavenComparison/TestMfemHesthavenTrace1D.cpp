@@ -1,4 +1,4 @@
-#pragma once
+#include <gtest/gtest.h>
 
 #include "TestMfemHesthavenFunctions.h"
 #include "TestGlobalFunctions.h"
@@ -32,16 +32,15 @@ protected:
 };
 
 
-TEST_F(MFEMHesthaven1DTrace, StrongFluxOperator)
+TEST_F(MFEMHesthaven1DTrace, StrongFluxOperator_O2)
 {
-
 	setFES(2);
 
 	auto mInv = buildInverseMassMatrixEigen(*fes_);
 	auto flux = buildNormalPECFluxOperator1D(*fes_, std::vector<maxwell::Direction>{maxwell::Direction::X});
 }
 
-TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO1)
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O1)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(1, elements);
@@ -50,7 +49,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO2)
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O2)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(2, elements);
@@ -59,7 +58,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO3)
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O3)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(3, elements);
@@ -68,7 +67,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO4)
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O4)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(4, elements);
@@ -77,7 +76,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnlyMatrixO4)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO1)
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
@@ -87,7 +86,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO2)
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O2)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(2, elements);
@@ -98,7 +97,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO3)
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O3)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(3, elements);
@@ -106,7 +105,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO3)
 			.isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
 	}
 }
-TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO4)
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O4)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(4, elements);
@@ -114,7 +113,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnlyMatrixO4)
 			.isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 	}
 }
-TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDirO1)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O1)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(1, elements);
@@ -123,7 +122,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDirO1)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDirO2)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O2)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(2, elements);
@@ -133,7 +132,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDirO2)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDirO3)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O3)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(3, elements);
@@ -142,14 +141,15 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDirO3)
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDirO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(*fes_, std::vector<maxwell::Direction>{}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(*fes_, std::vector<maxwell::Direction>{}, 1.0)
+			.isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 
 	}
 }

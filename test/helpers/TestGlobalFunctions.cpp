@@ -1,10 +1,14 @@
 #include "TestGlobalFunctions.h"
 
+#include "maxwell/BilinearIntegrators.h"
+#include "maxwell/Model.h"
+
+using namespace mfem;
+
 std::unique_ptr<DenseMatrix> toUnique(DenseMatrix* matPtr)
 {
 	return std::make_unique<DenseMatrix>(*matPtr);
 }
-
 
 Eigen::MatrixXd convertMFEMDenseToEigen(const DenseMatrix& mat)
 {

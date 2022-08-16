@@ -1,7 +1,8 @@
+#include <gtest/gtest.h>
+
 #include "TestMfemHesthavenFunctions.h"
 #include "TestGlobalFunctions.h"
 #include "mfem.hpp"
-#include <Eigen/Dense>
 
 using namespace mfem;
 
@@ -116,7 +117,7 @@ std::unique_ptr<BilinearForm> buildMaxwellBilinearFormWith1DCartesianMesh(
 
 }
 
-Eigen::Matrix<double, 27, 27> build3DOneElementDMatrix()
+Eigen::MatrixXd build3DOneElementDMatrix()
 {
 	auto res = Eigen::Matrix<double, 27, 27>();
 	res.setZero();
