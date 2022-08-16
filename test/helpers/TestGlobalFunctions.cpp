@@ -11,7 +11,7 @@ std::unique_ptr<DenseMatrix> toUnique(DenseMatrix* matPtr)
 	return std::make_unique<DenseMatrix>(*matPtr);
 }
 
-Eigen::MatrixXd convertMFEMDenseToEigen(const DenseMatrix& mat)
+Eigen::MatrixXd toEigen(const DenseMatrix& mat)
 {
 	Eigen::MatrixXd res(mat.Width(), mat.Height());
 	for (int i = 0; i < mat.Width(); i++) {
@@ -30,7 +30,7 @@ Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace& fes)
 	res.Assemble();
 	res.Finalize();
 
-	return convertMFEMDenseToEigen(*toUnique(res.SpMat().ToDenseMatrix()));
+	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
 }
 
 Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace& fes)
@@ -41,7 +41,7 @@ Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace& fes)
 	res.Assemble();
 	res.Finalize();
 
-	return convertMFEMDenseToEigen(*toUnique(res.SpMat().ToDenseMatrix()));
+	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
 }
 
 Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace& fes)
@@ -52,7 +52,7 @@ Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace& fes)
 	res.Assemble();
 	res.Finalize();
 
-	return convertMFEMDenseToEigen(*toUnique(res.SpMat().ToDenseMatrix()));
+	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
 }
 
 Eigen::MatrixXd	buildNormalPECFluxOperator1D(
@@ -79,10 +79,9 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(
 		FluxCoefficient c{ 0.0, -2.0 };
 		res.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta), bdrMarkers[kv.first - 1]);
 		//res->AddBdrFaceIntegrator(new DGTraceIntegrator(*(new VectorConstantCoefficient(Vector(1.0))), 0.0, 2.0), bdrMarkers[kv.first - 1]);
-
 		res.Assemble();
 		res.Finalize();
-
-		return convertMFEMDenseToEigen(*toUnique(res.SpMat().ToDenseMatrix()));
 	}
+
+	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
 }

@@ -110,12 +110,17 @@ void Solver::initializeSources()
 
 const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direction& d) const
 {
+	assert(ft == E || ft == H);
+	assert(d < 3);
+	
 	switch (ft) {
 	case FieldType::E:
 		return E_[d];
 	case FieldType::H:
 		return H_[d];
 	}
+
+	throw std::runtime_error("Invalid field type.");
 }
 
 const std::pair<Array<int>, Array<IntegrationPoint>> Solver::buildElemAndIntegrationPointArrays(DenseMatrix& physPoints) const

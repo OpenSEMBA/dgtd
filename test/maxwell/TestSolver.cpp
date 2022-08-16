@@ -765,7 +765,7 @@ TEST_F(TestMaxwellSolver, DISABLED_threeDimensional)
 	solver.run();
 }
 
-TEST_F(TestMaxwellSolver, checkFluxOperatorO2)
+TEST_F(TestMaxwellSolver, checkFluxOperator_O2)
 {
 
 	Model model = buildOneDimOneMatModel(3);
@@ -776,11 +776,11 @@ TEST_F(TestMaxwellSolver, checkFluxOperatorO2)
 		buildSourcesWithDefaultSource(model, E, Y),
 		buildDefaultSolverOpts(0.1));
 
-	auto MSMat = convertMFEMDenseToEigen(*solver.getFEEvol()
+	auto MSMat = toEigen(*solver.getFEEvol()
 		.getInvMassStiffness(FieldType::E, Direction::X).get()->SpMat().ToDenseMatrix());
-	auto noDirMat =  convertMFEMDenseToEigen(*solver.getFEEvol()
+	auto noDirMat =  toEigen(*solver.getFEEvol()
 		.getInvMassNoDirFlux(FieldType::E, FieldType::E).get()->SpMat().ToDenseMatrix());
-	auto oneDirMat = convertMFEMDenseToEigen(*solver.getFEEvol()
+	auto oneDirMat = toEigen(*solver.getFEEvol()
 		.getInvMassOneDirFlux(FieldType::E, FieldType::H, Direction::X).get()->SpMat().ToDenseMatrix());
 }
 

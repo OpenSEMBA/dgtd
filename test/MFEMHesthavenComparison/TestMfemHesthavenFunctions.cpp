@@ -27,7 +27,7 @@ Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 			}
 		}
 	}
-	return convertMFEMDenseToEigen(res);
+	return toEigen(res);
 }
 
 Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
@@ -51,10 +51,10 @@ Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
 			}
 		}
 	}
-	return convertMFEMDenseToEigen(res);
+	return toEigen(res);
 }
 
-Eigen::MatrixXd buildEigenDGTrace1D(
+Eigen::MatrixXd buildDGTrace1DEigen(
 	FiniteElementSpace& fes,
 	maxwell::FluxCoefficient ab)
 {
@@ -65,12 +65,12 @@ Eigen::MatrixXd buildEigenDGTrace1D(
 	DGmat.Assemble();
 	DGmat.Finalize();
 
-	return convertMFEMDenseToEigen(*DGmat.SpMat().ToDenseMatrix());
+	return toEigen(*DGmat.SpMat().ToDenseMatrix());
 }
 
-Eigen::MatrixXd buildEigenMaxwellDGTrace1D(
+Eigen::MatrixXd buildMaxwellDGTrace1DEigen(
 	FiniteElementSpace& fes,
-	std::vector<maxwell::Direction> dir,
+	const std::vector<maxwell::Direction>& dir,
 	const double beta)
 {
 	BilinearForm DGmat(&fes);
@@ -79,42 +79,7 @@ Eigen::MatrixXd buildEigenMaxwellDGTrace1D(
 	DGmat.Assemble();
 	DGmat.Finalize();
 
-	return convertMFEMDenseToEigen(*DGmat.SpMat().ToDenseMatrix());
-}
-
-std::unique_ptr<BilinearForm> buildBilinearFormWith1DCartesianMesh(
-	const int elements,
-	const int order,
-	std::pair<double, double> ab)
-{
-	Mesh mesh = Mesh::MakeCartesian1D(elements);
-	FiniteElementCollection* fec = new DG_FECollection(order, mesh.Dimension(), BasisType::GaussLobatto);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-	auto DGmat = std::make_unique<BilinearForm>(fes);
-	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-	DGmat->AddInteriorFaceIntegrator(
-		new DGTraceIntegrator(n[0], ab.first, ab.second));
-	DGmat->Assemble();
-	DGmat->Finalize();
-	return DGmat;
-}
-
-std::unique_ptr<BilinearForm> buildMaxwellBilinearFormWith1DCartesianMesh(
-	const int elements,
-	const int order,
-	std::vector<maxwell::Direction> dir,
-	const double beta)
-{
-	Mesh mesh = Mesh::MakeCartesian1D(elements);
-	FiniteElementCollection* fec = new DG_FECollection(order, mesh.Dimension(), BasisType::GaussLobatto);
-	FiniteElementSpace* fes = new FiniteElementSpace(&mesh, fec);
-	auto DGmat = std::make_unique<BilinearForm>(fes);
-	DGmat->AddInteriorFaceIntegrator(
-		new maxwell::MaxwellDGTraceJumpIntegrator(dir, beta));
-	DGmat->Assemble();
-	DGmat->Finalize();
-	return DGmat;
-
+	return toEigen(*DGmat.SpMat().ToDenseMatrix());
 }
 
 Eigen::MatrixXd build3DOneElementDMatrix()
