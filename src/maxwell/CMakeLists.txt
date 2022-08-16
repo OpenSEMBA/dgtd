@@ -9,7 +9,7 @@ add_library(maxwell_solvers STATIC
 	"FiniteElementEvolution.h" "FiniteElementEvolution.cpp" 
 	"BilinearIntegrators.h" "BilinearIntegrators.cpp"
 	"Types.h" 
-	"Options.h"
+	
 	"Material.h" "Material.cpp"
 	"Model.h" "Model.cpp" 
 	"Probes.h" "Probes.cpp" 

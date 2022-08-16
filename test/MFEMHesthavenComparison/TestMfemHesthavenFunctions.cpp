@@ -21,23 +21,23 @@ Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 	const int elements
 )
 {
-	std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
-	res->operator=(0.0);
+	DenseMatrix res((order + 1) * elements);
+	res = 0.0;
 
 	for (int i = 1; i <= order; i++) {
 		for (int j = 1; j <= order; j++) {
 			for (int it = 0; it < elements - 1; it++) {
 				if (i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == order + ((order + 1) * it) ||
 					i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == (order + 1) + ((order + 1) * it)) {
-					res->Elem(i + (order + 1) * it, j + (order + 1) * it) = 0.5;
-					res->Elem(i + (order + 1) * it, j + 1 + (order + 1) * it) = 0.5;
-					res->Elem(i + 1 + (order + 1) * it, j + (order + 1) * it) = -0.5;
-					res->Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) = -0.5;
+					res.Elem(i + (order + 1) * it, j + (order + 1) * it) = 0.5;
+					res.Elem(i + (order + 1) * it, j + 1 + (order + 1) * it) = 0.5;
+					res.Elem(i + 1 + (order + 1) * it, j + (order + 1) * it) = -0.5;
+					res.Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) = -0.5;
 				}
 			}
 		}
 	}
-	return convertMFEMDenseToEigen(res.get());
+	return convertMFEMDenseToEigen(res);
 }
 
 Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
@@ -45,56 +45,51 @@ Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
 	const int elements
 )
 {
-	std::unique_ptr<DenseMatrix> res = std::make_unique<DenseMatrix>((order + 1) * elements);
-	res->operator=(0.0);
+	DenseMatrix res((order + 1) * elements);
+	res = 0.0;
 
 	for (int i = 1; i <= order; i++) {
 		for (int j = 1; j <= order; j++) {
 			for (int it = 0; it < elements - 1; it++) {
 				if (i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == order + ((order + 1) * it) ||
 					i + (order + 1) * it == order + ((order + 1) * it) && j + (order + 1) * it == (order + 1) + ((order + 1) * it)) {
-					res->Elem(i + (order + 1) * it, j + (order + 1) * it) = 1.0;
-					res->Elem(i + (order + 1) * it, j + 1 + (order + 1) * it) = -1.0;
-					res->Elem(i + 1 + (order + 1) * it, j + (order + 1) * it) = -1.0;
-					res->Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) = 1.0;
+					res.Elem(i + (order + 1) * it, j + (order + 1) * it) = 1.0;
+					res.Elem(i + (order + 1) * it, j + 1 + (order + 1) * it) = -1.0;
+					res.Elem(i + 1 + (order + 1) * it, j + (order + 1) * it) = -1.0;
+					res.Elem(i + 1 + (order + 1) * it, j + 1 + (order + 1) * it) = 1.0;
 				}
 			}
 		}
 	}
-	return convertMFEMDenseToEigen(res.get());
+	return convertMFEMDenseToEigen(res);
 }
 
 Eigen::MatrixXd buildEigenDGTrace1D(
-	FiniteElementSpace* fes,
+	FiniteElementSpace& fes,
 	maxwell::FluxCoefficient ab)
 {
-	auto DGmat = std::make_unique<BilinearForm>(fes);
+	BilinearForm DGmat(&fes);
 	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-	DGmat->AddInteriorFaceIntegrator(
+	DGmat.AddInteriorFaceIntegrator(
 		new DGTraceIntegrator(n[0], ab.alpha, ab.beta));
-	DGmat->Assemble();
-	DGmat->Finalize();
+	DGmat.Assemble();
+	DGmat.Finalize();
 
-	std::cout << DGmat.get()->SpMat().ToDenseMatrix() << std::endl;
-
-	return convertMFEMDenseToEigen(DGmat.get()->SpMat().ToDenseMatrix());
+	return convertMFEMDenseToEigen(*DGmat.SpMat().ToDenseMatrix());
 }
 
 Eigen::MatrixXd buildEigenMaxwellDGTrace1D(
-	FiniteElementSpace* fes,
+	FiniteElementSpace& fes,
 	std::vector<maxwell::Direction> dir,
 	const double beta)
 {
-	auto DGmat = std::make_unique<BilinearForm>(fes);
+	BilinearForm DGmat(&fes);
 	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-	DGmat->AddInteriorFaceIntegrator(
-		new maxwell::MaxwellDGTraceJumpIntegrator(dir, beta));
-	DGmat->Assemble();
-	DGmat->Finalize();
+	DGmat.AddInteriorFaceIntegrator(new maxwell::MaxwellDGTraceJumpIntegrator(dir, beta));
+	DGmat.Assemble();
+	DGmat.Finalize();
 
-	std::cout << DGmat.get()->SpMat().ToDenseMatrix() << std::endl;
-
-	return convertMFEMDenseToEigen(DGmat.get()->SpMat().ToDenseMatrix());
+	return convertMFEMDenseToEigen(*DGmat.SpMat().ToDenseMatrix());
 }
 
 std::unique_ptr<BilinearForm> buildBilinearFormWith1DCartesianMesh(

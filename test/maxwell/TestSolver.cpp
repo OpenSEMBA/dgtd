@@ -776,15 +776,12 @@ TEST_F(TestMaxwellSolver, checkFluxOperatorO2)
 		buildSourcesWithDefaultSource(model, E, Y),
 		buildDefaultSolverOpts(0.1));
 
-	auto MSMat = convertMFEMDenseToEigen(solver.getFEEvol().get()
-		->getInvMassStiffness(FieldType::E, Direction::X).get()->SpMat().ToDenseMatrix());
-	auto noDirMat =  convertMFEMDenseToEigen(solver.getFEEvol().get()
-		->getInvMassNoDirFlux(FieldType::E, FieldType::E).get()->SpMat().ToDenseMatrix());
-	auto oneDirMat = convertMFEMDenseToEigen(solver.getFEEvol().get()
-		->getInvMassOneDirFlux(FieldType::E, FieldType::H, Direction::X).get()->SpMat().ToDenseMatrix());
-
-	std::cout << MSMat << std::endl;
-
+	auto MSMat = convertMFEMDenseToEigen(*solver.getFEEvol()
+		.getInvMassStiffness(FieldType::E, Direction::X).get()->SpMat().ToDenseMatrix());
+	auto noDirMat =  convertMFEMDenseToEigen(*solver.getFEEvol()
+		.getInvMassNoDirFlux(FieldType::E, FieldType::E).get()->SpMat().ToDenseMatrix());
+	auto oneDirMat = convertMFEMDenseToEigen(*solver.getFEEvol()
+		.getInvMassOneDirFlux(FieldType::E, FieldType::H, Direction::X).get()->SpMat().ToDenseMatrix());
 }
 
 //TEST_F(TestMaxwellSolver, DISABLED_twoDimensionalResonantBox)

@@ -7,7 +7,6 @@
 #include "Model.h"
 #include "Probes.h"
 #include "Sources.h"
-#include "Options.h"
 #include <array>
 
 namespace maxwell {
@@ -31,7 +30,7 @@ public:
 
     mfem::Mesh& getMesh() { return mesh_; }
     const mfem::Mesh& getConstMesh() const { return mesh_; }
-    const std::unique_ptr<FiniteElementEvolution>& getFEEvol() const { return maxwellEvol_; }
+    const FiniteElementEvolution& getFEEvol() const { return *maxwellEvol_; }
 
     void run();
 
