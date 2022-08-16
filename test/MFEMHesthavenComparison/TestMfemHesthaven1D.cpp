@@ -1,7 +1,7 @@
 #pragma once
 
 #include "TestMfemHesthavenFunctions.h"
-#include "../TestGlobalFunctions.h"
+#include "TestGlobalFunctions.h"
 
 class MFEMHesthaven1D : public ::testing::Test {
 protected:
@@ -28,80 +28,78 @@ protected:
 
 };
 
-TEST_F(MFEMHesthaven1D, checkMassMatrix)
+TEST_F(MFEMHesthaven1D, MassMatrix_O1)
 {
-
-	auto expMat = Eigen::Matrix2d{
+	Eigen::MatrixXd expected{
 		{2.0 / 6.0, 1.0 / 6.0},
-		{1.0 / 6.0, 2.0 / 6.0}, };
+		{1.0 / 6.0, 2.0 / 6.0} 
+	};
 
-	EXPECT_TRUE(buildMassMatrixEigen(*fes_).isApprox(expMat, tol_));
+	EXPECT_TRUE(buildMassMatrixEigen(*fes_).isApprox(expected, tol_));
 }
 
-TEST_F(MFEMHesthaven1D, checkInverseMassMatrix)
-{
-	
-	auto expMat = Eigen::Matrix2d{
+TEST_F(MFEMHesthaven1D, InverseMassMatrix_O1)
+{	
+	Eigen::MatrixXd expected{
 		{ 4.0, -2.0},
-		{-2.0,  4.0}, };
+		{-2.0,  4.0}
+	};
 
-	EXPECT_TRUE(buildInverseMassMatrixEigen(*fes_).isApprox(expMat, tol_));
-
+	EXPECT_TRUE(buildInverseMassMatrixEigen(*fes_).isApprox(expected, tol_));
 }
 
-TEST_F(MFEMHesthaven1D, checkStiffnessMatrixO1)
+TEST_F(MFEMHesthaven1D, StiffnessMatrix_O1)
 {
-	
-	auto expMat = Eigen::Matrix2d{
+	Eigen::MatrixXd expected{
 			{-0.5, 0.5},
-			{-0.5, 0.5} };
+			{-0.5, 0.5} 
+	};
 
-	EXPECT_TRUE(buildStiffnessMatrixEigen(*fes_).isApprox(expMat, tol_));
-
+	EXPECT_TRUE(buildStiffnessMatrixEigen(*fes_).isApprox(expected, tol_));
 }
 
-TEST_F(MFEMHesthaven1D, checkDOperatorO1)
+TEST_F(MFEMHesthaven1D, DOperator_O1)
 {
+	Eigen::MatrixXd D{ 0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) };
 
-	Eigen::Matrix2d DMatrix = 0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_);
+	Eigen::MatrixXd expected{
+		{-0.5, 0.5},
+		{-0.5, 0.5} 
+	};
 
-	auto expMat = Eigen::Matrix2d{
-			{-0.5, 0.5},
-			{-0.5, 0.5} };
-
-	EXPECT_TRUE(DMatrix.isApprox(expMat, tol_));
+	EXPECT_TRUE(D.isApprox(expected, tol_));
 }
 
-TEST_F(MFEMHesthaven1D, checkDOperatorO2)
+TEST_F(MFEMHesthaven1D, DOperator_O2)
 {
 	setFES(2);
-	Eigen::Matrix3d D{ 
-		0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) };
+	Eigen::MatrixXd D{ 
+		0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) 
+	};
 
-	Eigen::Matrix3d expMat{
+	Eigen::MatrixXd expected{
 		{-1.5, 2.0,-0.5},
 		{-0.5, 0.0, 0.5},
 		{ 0.5,-2.0, 1.5} 
 	};
 
-	EXPECT_TRUE(D.isApprox(expMat, tol_));
+	EXPECT_TRUE(D.isApprox(expected, tol_));
 }
 
-TEST_F(MFEMHesthaven1D, checkDOperatorO4)
+TEST_F(MFEMHesthaven1D, DOperator_O4)
 {
-
 	setFES(4);
+	Eigen::MatrixXd D{
+		0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_)
+	};
 
-	Eigen::Matrix<double,5,5> DMatrix = 0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_);
+	Eigen::MatrixXd expected{
+		{-5.000000000000000e+00, 6.756502488724238e+00,-2.666666666666666e+00, 1.410164177942427e+00,-5.000000000000000e-01},
+		{-1.240990253030983e+00, 0.000000000000000e+00, 1.745743121887938e+00,-7.637626158259730e-01, 2.590097469690174e-01},
+		{ 3.750000000000002e-01,-1.336584577695454e+00, 0.000000000000000e+00, 1.336584577695453e+00,-3.750000000000002e-01},
+		{-2.590097469690172e-01, 7.637626158259738e-01,-1.745743121887938e+00, 0.000000000000000e+00, 1.240990253030984e+00},
+		{ 5.000000000000000e-01,-1.410164177942426e+00, 2.666666666666663e+00,-6.756502488724239e+00, 5.000000000000001e+00} 
+	};
 
-	auto expMat = Eigen::MatrixXd{
-			{-5.000000000000000e+00, 6.756502488724238e+00,-2.666666666666666e+00, 1.410164177942427e+00,-5.000000000000000e-01},
-			{-1.240990253030983e+00, 0.000000000000000e+00, 1.745743121887938e+00,-7.637626158259730e-01, 2.590097469690174e-01},
-			{ 3.750000000000002e-01,-1.336584577695454e+00, 0.000000000000000e+00, 1.336584577695453e+00,-3.750000000000002e-01},
-			{-2.590097469690172e-01, 7.637626158259738e-01,-1.745743121887938e+00, 0.000000000000000e+00, 1.240990253030984e+00},
-			{ 5.000000000000000e-01,-1.410164177942426e+00, 2.666666666666663e+00,-6.756502488724239e+00, 5.000000000000001e+00} };
-
-	EXPECT_TRUE(DMatrix.isApprox(expMat,tol_));
-
+	EXPECT_TRUE(D.isApprox(expected,tol_));
 }
-

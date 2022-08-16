@@ -1,7 +1,7 @@
 #pragma once
 
 #include "TestMfemHesthavenFunctions.h"
-#include "../TestGlobalFunctions.h"
+#include "TestGlobalFunctions.h"
 
 using namespace mfem;
 

@@ -1,20 +1,9 @@
 #include "TestMfemHesthavenFunctions.h"
-#include "../TestGlobalFunctions.h"
+#include "TestGlobalFunctions.h"
 #include "mfem.hpp"
 #include <Eigen/Dense>
 
 using namespace mfem;
-
-
-std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(const int order)
-{
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	std::unique_ptr<FiniteElementCollection> fec = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
-	std::unique_ptr<FiniteElementSpace> fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get());
-	
-	return fes;
-}
-
 
 Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 	const int order,

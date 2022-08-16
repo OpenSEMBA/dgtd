@@ -2,7 +2,7 @@
 #include <math.h>
 
 #include "maxwell/Solver.h"
-#include "../TestGlobalFunctions.h"
+#include "TestGlobalFunctions.h"
 
 using namespace maxwell;
 
