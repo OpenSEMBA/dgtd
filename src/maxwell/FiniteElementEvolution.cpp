@@ -256,8 +256,7 @@ FiniteElementEvolution::FiniteElementOperator
 	return res;
 }
 
-FiniteElementEvolution::FluxCoefficient
-FiniteElementEvolution::interiorFluxCoefficient() const
+FluxCoefficient FiniteElementEvolution::interiorFluxCoefficient() const
 {
 	switch (opts_.disForm) {
 	case DisForm::Weak:
@@ -268,8 +267,8 @@ FiniteElementEvolution::interiorFluxCoefficient() const
 		throw std::exception("No defined BdrCond.");
 	}
 }
-FiniteElementEvolution::FluxCoefficient
-	FiniteElementEvolution::interiorPenaltyFluxCoefficient() const
+
+FluxCoefficient FiniteElementEvolution::interiorPenaltyFluxCoefficient() const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:
@@ -281,8 +280,7 @@ FiniteElementEvolution::FluxCoefficient
 	}
 }
 
-FiniteElementEvolution::FluxCoefficient
-	FiniteElementEvolution::boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
+FluxCoefficient FiniteElementEvolution::boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
 {
 	switch (opts_.disForm) {
 	case DisForm::Weak:
@@ -344,8 +342,7 @@ FiniteElementEvolution::FluxCoefficient
 	}
 }
 
-FiniteElementEvolution::FluxCoefficient
-	FiniteElementEvolution::boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
+FluxCoefficient FiniteElementEvolution::boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond& bdrC) const
 {
 	switch (opts_.fluxType) {
 	case FluxType::Centered:

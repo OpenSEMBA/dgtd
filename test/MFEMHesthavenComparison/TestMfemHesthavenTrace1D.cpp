@@ -26,6 +26,9 @@ protected:
 
 	double tol_ = 1e-6;
 
+	static maxwell::FluxCoefficient buildAverageOnly() { return { 1.0, 0.0 }; }
+	static maxwell::FluxCoefficient buildJumpOnly() { return { 0.0, 1.0 }; }
+
 };
 
 
@@ -48,8 +51,8 @@ TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO1)
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(1, elements)));
-
+		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), buildAverageOnly())
+			.isApprox(buildExpectedAverageDenseMatrix1D(1, elements)));
 	}
 }
 
@@ -60,8 +63,7 @@ TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(2, elements)));
-
+		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), buildAverageOnly()).isApprox(buildExpectedAverageDenseMatrix1D(2, elements)));
 	}
 }
 
@@ -72,20 +74,16 @@ TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO3)
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(3, elements)));
+		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), buildAverageOnly()).isApprox(buildExpectedAverageDenseMatrix1D(3, elements)));
 
 	}
 }
 
 TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO4)
 {
-
 	for (int elements = 2; elements < 5; elements++) {
-
 		setFES(4, elements);
-
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(4, elements)));
-
+		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), buildAverageOnly()).isApprox(buildExpectedAverageDenseMatrix1D(4, elements)));
 	}
 }
 
@@ -93,11 +91,9 @@ TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
-
 		setFES(1, elements);
-
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
-
+		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), buildJumpOnly())
+			.isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 	}
 }
 
@@ -108,8 +104,9 @@ TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
-
+		EXPECT_TRUE(
+			buildEigenDGTrace1D(fes_.get(), buildJumpOnly())
+			.isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 	}
 }
 
@@ -117,11 +114,9 @@ TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
-
 		setFES(3, elements);
-
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
-
+		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), buildJumpOnly())
+			.isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
 	}
 }
 
@@ -132,7 +127,7 @@ TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO4)
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), buildJumpOnly()).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 
 	}
 }

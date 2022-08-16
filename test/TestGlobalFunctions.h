@@ -6,11 +6,6 @@
 
 using namespace mfem;
 
-struct FluxCoefficient {
-	double alpha;
-	double beta;
-};
-
 Eigen::MatrixXd convertMFEMDenseToEigen(const DenseMatrix* mat);
 Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace* fes);
 Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace* fes);

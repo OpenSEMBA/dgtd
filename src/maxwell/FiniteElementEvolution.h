@@ -47,11 +47,6 @@ public:
 	{ return MNTD_[f1][f2][dir1][dir2]; }
 
 private:
-	struct FluxCoefficient {
-		double alpha;
-		double beta;
-	};
-
 	FiniteElementSpace* fes_;
 	Options opts_;
 	Model model_;

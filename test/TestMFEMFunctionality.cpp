@@ -13,11 +13,6 @@
 
 using namespace mfem;
 
-struct FluxCoefficient {
-	double alpha;
-	double beta;
-};
-
 namespace HelperFunctions {
 
 	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes = 0)

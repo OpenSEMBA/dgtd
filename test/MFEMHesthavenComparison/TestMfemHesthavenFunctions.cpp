@@ -66,12 +66,12 @@ Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
 
 Eigen::MatrixXd buildEigenDGTrace1D(
 	FiniteElementSpace* fes,
-	std::pair<double, double> ab)
+	maxwell::FluxCoefficient ab)
 {
 	auto DGmat = std::make_unique<BilinearForm>(fes);
 	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
 	DGmat->AddInteriorFaceIntegrator(
-		new DGTraceIntegrator(n[0], ab.first, ab.second));
+		new DGTraceIntegrator(n[0], ab.alpha, ab.beta));
 	DGmat->Assemble();
 	DGmat->Finalize();
 

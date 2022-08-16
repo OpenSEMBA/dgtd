@@ -27,6 +27,11 @@ enum class FluxType {
 	Upwind
 };
 
+struct FluxCoefficient {
+	double alpha;
+	double beta;
+};
+
 enum class BdrCond {
 	PEC,
 	PMC,

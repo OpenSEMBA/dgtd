@@ -1,6 +1,5 @@
 #include "TestGlobalFunctions.h"
 
-
 Eigen::MatrixXd convertMFEMDenseToEigen(const DenseMatrix* mat)
 {
 	auto res = Eigen::MatrixXd(mat->Width(), mat->Height());
@@ -52,7 +51,7 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(FiniteElementSpace* fes, std::vecto
 
 	auto res = std::make_unique<BilinearForm>(fes);
 	{
-		FluxCoefficient c = FluxCoefficient{ 0.0, -0.5 };
+		maxwell::FluxCoefficient c{ 0.0, -0.5 };
 		res->AddInteriorFaceIntegrator(new maxwell::MaxwellDGTraceJumpIntegrator(dirs, c.beta));
 		//res->AddInteriorFaceIntegrator(new DGTraceIntegrator(*(new VectorConstantCoefficient(Vector(1.0))), 0.0, 0.5));
 	}
@@ -65,7 +64,7 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(FiniteElementSpace* fes, std::vecto
 		bdrMarker[(int)kv.first - 1] = 1;
 
 		bdrMarkers[(int)kv.first - 1] = bdrMarker;
-		FluxCoefficient c = FluxCoefficient{ 0.0, -2.0 };
+		maxwell::FluxCoefficient c{ 0.0, -2.0 };
 		res->AddBdrFaceIntegrator(new maxwell::MaxwellDGTraceJumpIntegrator(dirs, c.beta), bdrMarkers[kv.first - 1]);
 		//res->AddBdrFaceIntegrator(new DGTraceIntegrator(*(new VectorConstantCoefficient(Vector(1.0))), 0.0, 2.0), bdrMarkers[kv.first - 1]);
 
