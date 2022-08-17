@@ -9,7 +9,6 @@
 #include "maxwell/Types.h"
 #include <maxwell/Model.h>
 
-
 using namespace mfem;
 
 namespace HelperFunctions {

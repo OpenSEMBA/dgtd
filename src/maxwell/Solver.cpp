@@ -8,65 +8,65 @@ using namespace mfem;
 
 namespace maxwell {
 
-Solver::Solver(const Model& model, Probes& probes,
-const Sources& sources, const Options& options) :
-
-model_(model),
-probes_(probes),
-sources_(sources),
-opts_(options),
-mesh_(model_.getMesh())
+Solver::Solver(
+	const Model& model, 
+	Probes& probes,
+	const Sources& sources, 
+	const Options& options) :
+	model_(model),
+	probes_(probes),
+	sources_(sources),
+	opts_(options),
+	mesh_(model_.getMesh())
 
 {
-fec_ = std::make_unique<DG_FECollection>(
-opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
+	fec_ = std::make_unique<DG_FECollection>(
+	opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 
-fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
-odeSolver_ = std::make_unique<RK4Solver>();
+	odeSolver_ = std::make_unique<RK4Solver>();
 
-maxwellEvol_ = std::make_unique<FiniteElementEvolution>(
-	fes_.get(), 
-	opts_.evolutionOperatorOptions, model_, sources_);
+	maxwellEvol_ = std::make_unique<FiniteElementEvolution>(
+		fes_.get(), 
+		opts_.evolutionOperatorOptions, model_, sources_);
 
-sol_ = Vector(FiniteElementEvolution::numberOfFieldComponents *
-	FiniteElementEvolution::numberOfMaxDimensions *
-	fes_->GetNDofs());
-sol_ = 0.0;
+	sol_ = Vector(FiniteElementEvolution::numberOfFieldComponents *
+		FiniteElementEvolution::numberOfMaxDimensions *
+		fes_->GetNDofs());
+	sol_ = 0.0;
 
-
-
-for (int d = X; d <= Z; d++) {
-	E_[d].SetSpace(fes_.get());
-	E_[d].SetData(sol_.GetData() + d*fes_->GetNDofs());
-	H_[d].SetSpace(fes_.get());
-	H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
-}
-
-initializeSources();
-
-for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-	if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
-		initializeParaviewData();
-		break;
+	for (int d = X; d <= Z; d++) {
+		E_[d].SetSpace(fes_.get());
+		E_[d].SetData(sol_.GetData() + d*fes_->GetNDofs());
+		H_[d].SetSpace(fes_.get());
+		H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
 	}
-}
-for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-	if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Glvis) {
-		//initializeGLVISData();
-		break;
-	}
-}
 
-if (probes_.getPointsProbes().size()) {
-	for (int i = 0; i < probes_.getPointsProbes().size(); i++) {
-		elemIds_.resize(probes_.getPointsProbes().size());
-		integPointSet_.resize(probes_.getPointsProbes().size());
-		auto elemAndIntPointPair = buildElemAndIntegrationPointArrays(probes_.getPointsProbes().at(i).getIntegPointMat());
-		elemIds_.at(i) = elemAndIntPointPair.first;
-		integPointSet_.at(i) = buildIntegrationPointsSet(elemAndIntPointPair.second);
+	initializeSources();
+
+	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
+		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
+			initializeParaviewData();
+			break;
+		}
 	}
-}
+	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
+		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Glvis) {
+			//initializeGLVISData();
+			break;
+		}
+	}
+
+	if (probes_.getPointsProbes().size()) {
+		for (int i = 0; i < probes_.getPointsProbes().size(); i++) {
+			elemIds_.resize(probes_.getPointsProbes().size());
+			integPointSet_.resize(probes_.getPointsProbes().size());
+			auto elemAndIntPointPair = buildElemAndIntegrationPointArrays(probes_.getPointsProbes().at(i).getIntegPointMat());
+			elemIds_.at(i) = elemAndIntPointPair.first;
+			integPointSet_.at(i) = buildIntegrationPointsSet(elemAndIntPointPair.second);
+		}
+	}
 }
 void Solver::checkOptionsAreValid(const Options& opts)
 {

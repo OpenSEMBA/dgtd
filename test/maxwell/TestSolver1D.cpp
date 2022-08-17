@@ -134,10 +134,9 @@ protected:
 		}
 		return timeMap.end();
 	}
-
-
 };
-TEST_F(TestSolver1D, oneDimensional_centered)
+
+TEST_F(TestSolver1D, centered)
 {	
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -169,7 +168,7 @@ TEST_F(TestSolver1D, oneDimensional_centered)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestSolver1D, oneDimensional_centered_energy)
+TEST_F(TestSolver1D, centered_energy)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -202,8 +201,7 @@ TEST_F(TestSolver1D, oneDimensional_centered_energy)
 	EXPECT_GE(pow(eOld.Norml2(),2.0) + pow(hOld.Norml2(),2.0), pow(eNew.Norml2(),2.0) + pow(hNew.Norml2(),2.0));
 
 }
-
-TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EX)
+TEST_F(TestSolver1D, upwind_PEC_EX)
 {
 
 	Model model = buildOneDimOneMatModel();
@@ -222,7 +220,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EX)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EY)
+TEST_F(TestSolver1D, upwind_PEC_EY)
 {
 	Model model = buildOneDimOneMatModel();
 
@@ -251,7 +249,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EY)
 	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EZ)
+TEST_F(TestSolver1D, upwind_PEC_EZ)
 {
 
 	Model model = buildOneDimOneMatModel();
@@ -278,9 +276,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EZ)
 	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-
-
-TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HX)
+TEST_F(TestSolver1D, upwind_PMC_HX)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
@@ -298,7 +294,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HX)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HY)
+TEST_F(TestSolver1D, upwind_PMC_HY)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
@@ -328,7 +324,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HY)
 	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HZ)
+TEST_F(TestSolver1D, upwind_PMC_HZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
@@ -357,8 +353,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HZ)
 	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-
-TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EX)
+TEST_F(TestSolver1D, upwind_SMA_EX)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -376,7 +371,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EX)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EY)
+TEST_F(TestSolver1D, upwind_SMA_EY)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -413,7 +408,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EY)
 	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(2), 1.0, 2), 2e-3);
 
 }
-TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EZ)
+TEST_F(TestSolver1D, upwind_SMA_EZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -439,8 +434,7 @@ TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EZ)
 	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 2));
 
 }
-
-TEST_F(TestSolver1D, oneDimensional_strong_flux_PEC_EY)
+TEST_F(TestSolver1D, strong_flux_PEC_EY)
 {
 	Mesh mesh = Mesh::MakeCartesian1D(51);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
@@ -476,8 +470,7 @@ TEST_F(TestSolver1D, oneDimensional_strong_flux_PEC_EY)
 	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-
-TEST_F(TestSolver1D, oneDimensional_weak_strong_flux_comparison)
+TEST_F(TestSolver1D, weak_strong_flux_comparison)
 {
 	Model model = buildOneDimOneMatModel();
 	
@@ -513,7 +506,6 @@ TEST_F(TestSolver1D, oneDimensional_weak_strong_flux_comparison)
 	EXPECT_NEAR(0.0, errorNew, 2e-3);
 
 }
-
 TEST_F(TestSolver1D, twoSourceWaveTravelsToTheRight_SMA)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
@@ -589,152 +581,6 @@ TEST_F(TestSolver1D, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	EXPECT_NEAR(0.0, 
 		getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.30, 1), 2e-3);
 }
-TEST_F(TestSolver1D, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
-{
-	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
-	Vector periodic({ 0.0, 1.0 });
-	std::vector<Vector> trans;
-	trans.push_back(periodic);
-	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D,mesh2D.CreatePeriodicVertexMapping(trans));
-	
-	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
-	
-	Probes probes;
-	//probes.addExporterProbeToCollection(ExporterProbe());
-	//probes.vis_steps = 20;
-
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
-
-	maxwell::Solver solver(model, probes, sources, buildDefaultSolverOpts(1.0));
-
-	solver.run();
-
-}
-
-TEST_F(TestSolver1D, DISABLED_twoDimensional_Periodic_strong) //TODO ADD ENERGY CHECK
-{
-	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
-	Vector periodic({ 0.0, 1.0 });
-	std::vector<Vector> trans;
-	trans.push_back(periodic);
-	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D, mesh2D.CreatePeriodicVertexMapping(trans));
-
-	maxwell::Solver::Options opts;
-	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
-	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
-
-	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
-
-	Probes probes;
-	probes.addExporterProbeToCollection(ExporterProbe());
-	probes.vis_steps = 20;
-
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.0, 0.0 })));
-
-	maxwell::Solver solver(
-		model, 
-		probes, 
-		sources, 
-		opts);
-
-	solver.run();
-
-}
-TEST_F(TestSolver1D, DISABLED_twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHECK
-{
-	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
-	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
-
-	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
-	A single 2D Gaussian on X and Y is declared along Ez.
-
-	Then, the Solver object is constructed using said parts, with its mesh being two-dimensional mixed
-	with triangles and squares.
-	The field along Ez is extracted before and after the solver calls its run() method and evolves the
-	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty 
-	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not 
-	higher than the initial value.*/
-
-	const char* mesh_file = "star-mixed.mesh";
-	Mesh mesh(mesh_file);
-	mesh.UniformRefinement();
-	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
-
-	Probes probes;
-	//probes.addExporterProbeToCollection(ExporterProbe());
-	//probes.vis_steps = 20;
-
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
-
-	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-
-	maxwell::Solver solver(model, probes, sources, solverOpts);
-
-	GridFunction eOld = solver.getFieldInDirection(E, Z);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Z);
-
-	EXPECT_GT(eOld.Max(), eNew.Max());
-}
-TEST_F(TestSolver1D, twoDimensional_centered_AMR_MESH)
-{
-	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
-	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
-
-	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
-	A single 2D Gaussian on X and Y is declared along Ez.
-
-	Then, the Solver object is constructed using said parts, with its mesh being two-dimensional mixed
-	with triangles and squares.
-	The field along Ez is extracted before and after the solver calls its run() method and evolves the
-	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty
-	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
-	higher than the initial value.*/
-
-	const char* mesh_file = "amr-quad.mesh";
-	Mesh mesh(mesh_file);
-	mesh.UniformRefinement();
-	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
-
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
-
-	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-
-	maxwell::Solver solver(model, Probes(), sources, solverOpts);
-
-	GridFunction eOld = solver.getFieldInDirection(E, Z);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Z);
-
-	EXPECT_GT(eOld.Max(), eNew.Max());
-}
-
-TEST_F(TestSolver1D, DISABLED_threeDimensional)
-{
-	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::HEXAHEDRON);
-	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
-
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, Z, 0.2, 200.0, Vector({ 0.0,0.0,0.0 })));
-
-	Probes probes;
-	//probes.addExporterProbeToCollection(ExporterProbe());
-
-	maxwell::Solver solver(
-		model,
-		probes,
-		sources,
-		buildDefaultSolverOpts(0.5));
-
-	solver.run();
-}
-
 TEST_F(TestSolver1D, checkFluxOperator_O2)
 {
 
@@ -753,37 +599,3 @@ TEST_F(TestSolver1D, checkFluxOperator_O2)
 	auto oneDirMat = toEigen(*solver.getFEEvol()
 		.getInvMassOneDirFlux(FieldType::E, FieldType::H, Direction::X).get()->SpMat().ToDenseMatrix());
 }
-
-//TEST_F(TestMaxwellSolver, DISABLED_twoDimensionalResonantBox)
-//{
-//	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
-//	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
-//	Material mat11 = Material(1.0, 1.0);
-//	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-//	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-//	AttributeToBoundary attToBdrVec;
-//	Model model(mesh2D, attToMatVec, attToBdrVec);
-//
-//	double spread = 2.0;
-//	double coeff = 20.0;
-//	const Vector dev = Vector({ 0.0,0.0 });
-//	Source EXFieldSource = Source(model, spread, coeff, dev, X, E); 
-//	Sources sources;
-//	sources.addSourceToVector(EXFieldSource);
-//
-//	Probes probes;
-//	//probes.paraview = true;
-//	probes.vis_steps = 100;
-//
-//	maxwell::Solver::Options solverOpts;
-//
-//	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
-//	solverOpts.dt = 1e-4;
-//	solverOpts.order = 1;
-//
-//	maxwell::Solver solver(model, probes,
-//		sources, solverOpts);
-//
-//	solver.run();
-//
-//}

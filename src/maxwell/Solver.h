@@ -76,7 +76,6 @@ private:
     const std::vector<FieldFrame> saveFieldAtPointsForAllProbes();
 
     void initializeParaviewData();
-    //void initializeGLVISData();
     void storeInitialVisualizationValues();
 
 };
