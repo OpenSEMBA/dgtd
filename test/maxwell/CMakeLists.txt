@@ -19,7 +19,7 @@ add_executable(maxwell_tests
 	"TestMaterial.cpp" 
 	"TestProbes.cpp" 
 	"TestSources.cpp"
-	"TestMFEMFunctionality.cpp"
+	
  "TestSolver3D.cpp")
 
 target_link_libraries(maxwell_tests 

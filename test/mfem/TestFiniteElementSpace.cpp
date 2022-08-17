@@ -3,15 +3,57 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <Eigen/Dense>
 
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/Types.h"
-#include <maxwell/Model.h>
+#include <mfem.hpp>
 
 using namespace mfem;
 
-namespace HelperFunctions {
+class TestFiniteElementSpace : public ::testing::Test {
+protected:
+
+	typedef std::size_t Direction;
+
+	void SetUp() override 
+	{
+		mesh_ = Mesh::MakeCartesian1D(1);
+		fec_ = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+	}
+
+	void setFES1D(
+		const int order,
+		const int elements = 1)
+	{
+		mesh_ = Mesh::MakeCartesian1D(elements);
+		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+
+	}
+
+	void setFES2D(
+		const int order,
+		const int xElem = 1,
+		const int yElem = 1)
+	{
+		mesh_ = Mesh::MakeCartesian2D(xElem, yElem, Element::Type::QUADRILATERAL);
+		fec_ = std::make_unique<DG_FECollection>(order, mesh_.Dimension(), BasisType::GaussLobatto);
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+	}
+
+	Mesh mesh_;
+	std::unique_ptr<FiniteElementCollection> fec_;
+	std::unique_ptr<FiniteElementSpace> fes_;
+	
+	std::vector<int> mapQuadElementTopLeftVertex(const Mesh& mesh)
+	{
+		std::vector<int> res;
+		for (int i = 0; i < mesh.GetNE(); i++) {
+			Array<int> meshArrayElement;
+			mesh.GetElementVertices(i, meshArrayElement);
+			res.push_back(meshArrayElement[0]);
+		}
+		return res;
+	}
 
 	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes = 0)
 	{
@@ -66,7 +108,7 @@ namespace HelperFunctions {
 	std::unique_ptr<SparseMatrix> rotateMatrixLexico(BilinearForm& matrix)
 	{
 		const Operator* rotatorOperator = matrix.FESpace()->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
-		const SparseMatrix rotatorMatrix = HelperFunctions::operatorToSparseMatrix(rotatorOperator);
+		const SparseMatrix rotatorMatrix = operatorToSparseMatrix(rotatorOperator);
 		const SparseMatrix matrixSparse = matrix.SpMat();
 		SparseMatrix* res;
 		{
@@ -76,7 +118,7 @@ namespace HelperFunctions {
 		return std::unique_ptr<SparseMatrix>(res);
 	}
 
-	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element) 
+	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element)
 	{
 		switch (dimension) {
 		case 1:
@@ -114,64 +156,20 @@ namespace HelperFunctions {
 			}
 		default:
 			throw std::exception("Dimension must be 2 or 3 with Element argument. Or dimension 1, which ignores element.");
-		} 
+		}
 	}
 
-	double linearFunction(const Vector& pos)
+	static std::string getFilename(const std::string fn)
 	{
-		double normalizedPos;
-		double leftBoundary = 0.0, rightBoundary = 1.0;
-		double length = rightBoundary - leftBoundary;
-		normalizedPos = (pos[0] - leftBoundary) / length;
-
-		return 2*normalizedPos;
+		return "./testData/" + fn;
 	}
 
 	void SaveData(GridFunction& gf, const char* filename) {
 		gf.Save(filename);
 	}
-
-}
-
-class TestMFEMFunctionality : public ::testing::Test {
-protected:
-
-	typedef std::size_t Direction;
-
-	void SetUp() override 
-	{
-		mesh_ = Mesh::MakeCartesian1D(1);
-		fec_ = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
-		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
-	}
-
-	void setFES1D(
-		const int order,
-		const int elements = 1)
-	{
-		mesh_ = Mesh::MakeCartesian1D(elements);
-		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
-		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
-
-	}
-
-	void setFES2D(
-		const int order,
-		const int xElem = 1,
-		const int yElem = 1)
-	{
-		mesh_ = Mesh::MakeCartesian2D(xElem, yElem, Element::Type::QUADRILATERAL);
-		fec_ = std::make_unique<DG_FECollection>(order, mesh_.Dimension(), BasisType::GaussLobatto);
-		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
-	}
-
-	Mesh mesh_;
-	std::unique_ptr<FiniteElementCollection> fec_;
-	std::unique_ptr<FiniteElementSpace> fes_;
-	
 };
 
-TEST_F(TestMFEMFunctionality, checkMassMatrixIsSameForH1andDG)
+TEST_F(TestFiniteElementSpace, MassMatrixIsSameForH1andDG)
 {
 	for (int order = 1; order < 5; order++) {
 
@@ -191,44 +189,12 @@ TEST_F(TestMFEMFunctionality, checkMassMatrixIsSameForH1andDG)
 
 		for (int i = 0; i < massMatrixDG.SpMat().NumRows(); i++) {
 			for (int j = 0; j < massMatrixDG.SpMat().NumCols(); j++) {
-				EXPECT_NEAR(HelperFunctions::rotateMatrixLexico(massMatrixH1)->Elem(i, j), massMatrixDG.SpMat().Elem(i, j), 1e-5);
+				EXPECT_NEAR(rotateMatrixLexico(massMatrixH1)->Elem(i, j), massMatrixDG.SpMat().Elem(i, j), 1e-5);
 			}
 		}
 	}
 }
-TEST_F(TestMFEMFunctionality, checkTwoAttributeMesh)
-{
-	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)
-	function.
-
-	First, an integer is declared for the number of times we wish to refine the mesh, then a mesh is
-	constructed with two elements, left and right hand sides, setting the following attributes.
-
-	|------LHS------|------RHS------|
-
-	|##ATTRIBUTE 1##|##ATTRIBUTE 2##|
-
-	Once the mesh is refined, it is returned, then we compare if the expected number of elements is
-	true for the actual elements in the mesh.
-
-	Then, we consider how the mesh will perform its uniform refinement, and we declare that the
-	LHS elements with Attribute one will be Even index elements (starting at 0), and the RHS
-	elements with Attribute 2 will be Uneven index elements (starting at 1).*/
-
-	const int refTimes = 3;
-	Mesh mesh = HelperFunctions::makeTwoAttributeCartesianMesh1D(refTimes);
-
-	EXPECT_EQ(pow(2, refTimes + 1), mesh.GetNE());
-	for (int i = 0; i < mesh.GetNE(); i++) {
-		if (i % 2 == 0) {
-			EXPECT_EQ(1, mesh.GetAttribute(i));
-		}
-		else {
-			EXPECT_EQ(2, mesh.GetAttribute(i));
-		}
-	}
-}
-TEST_F(TestMFEMFunctionality, checkKOperators)
+TEST_F(TestFiniteElementSpace, KOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
 	  for a single element in 1D.
@@ -279,8 +245,52 @@ TEST_F(TestMFEMFunctionality, checkKOperators)
 		}
 	}
 }
+TEST_F(TestFiniteElementSpace, MeshBoundaries)
+{
+	/*In this test we aim to compare the boundary DoFs for a mesh generated through
+	the Mesh class constructors for a 2DCartesian and 'square3x3.mesh', a handcrafted mesh.
 
-TEST_F(TestMFEMFunctionality, printGLVISDataForBasisFunctionNodes)
+	First, we declare and initialise the variables we will require in order to create a
+	FiniteElementSpace object, that is a FiniteElementCollection and a Mesh. In this we create
+	two FES, one for the Cartesian2D mesh (Auto) and one for the handcrafted mesh (Manual).
+
+	We then extract the Boundary DoFs from each of the FES.
+
+	Lastly, we compare both of the Arrays where the DoFs are stored, to confirm that when it comes
+	to boundaries of this nature, the Cartesian2D constructor works equally to the handcrafted mesh.
+	*/
+
+	int order = 1;
+	int dimension = 2;
+	int nx = 3; 
+	int ny = 3; 
+	bool generateEdges = true;
+	Mesh meshAuto{ Mesh::MakeCartesian2D(nx, ny, Element::QUADRILATERAL, generateEdges) };
+	Mesh meshManual(*getFilename("square3x3.mesh").c_str(), 1, 1);
+
+	auto fec = new DG_FECollection(order, dimension, BasisType::GaussLegendre);
+	auto fesAuto = new FiniteElementSpace(&meshAuto, fec);
+	auto fesManual = new FiniteElementSpace(&meshManual, fec);
+
+	Array<int> ess_tdof_list_auto;
+	if (meshAuto.bdr_attributes.Size())
+	{
+		Array<int> ess_bdr_auto(meshAuto.bdr_attributes.Max());
+		ess_bdr_auto = 1;
+		fesAuto->GetEssentialTrueDofs(ess_bdr_auto, ess_tdof_list_auto);
+	}
+
+	Array<int> ess_tdof_list_manual;
+	if (meshManual.bdr_attributes.Size())
+	{
+		Array<int> ess_bdr_manual(meshManual.bdr_attributes.Max());
+		ess_bdr_manual = 1;
+		fesManual->GetEssentialTrueDofs(ess_bdr_manual, ess_tdof_list_manual);
+	}
+
+	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
+}
+TEST_F(TestFiniteElementSpace, printGLVISDataForBasisFunctionNodes)
 {
 	/*This test creates files for the Basis Functions, for later visualization 
 	through GLVIS.
@@ -316,42 +326,12 @@ TEST_F(TestMFEMFunctionality, printGLVISDataForBasisFunctionNodes)
 		*solution[i] = 0.0;
 		(*solution[i])(vdofs[i]) = 1.0;
 		std::string stringName = "L2_O" + std::to_string(order) + "_SEG_N" + std::to_string(i) + ".gf";
-		const char* filename = stringName.c_str();
-		HelperFunctions::SaveData(*solution[i], filename);
+		SaveData(*solution[i], stringName.c_str());
 	}
-	HelperFunctions::SaveData(**solution, "save.gf");
+	SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
-TEST_F(TestMFEMFunctionality, checkDataValueOutsideNodesForOneElementMeshes)
-{
-	/* The purpose of this test is to ensure we can extract data from a GridFunction,
-	even if the point we're trying to obtain it at is not necessarily a DoF or node.
-	
-	First, the basic process to declare and initialise a FiniteElementSpace is done,
-	this means variables such as dimension, order, creating a mesh, a FEC and a finally,
-	the FES.
-	
-	A GridFunction is then created and assigned the FES. A function is projected in the
-	GridFunction, which is a linear function with a slope of 2.
-	
-	Lastly, an IntegrationPoint is constructed, which we will use to obtain the values
-	from the GridFunction at any point we want. As the slope of the line is 2, we expect
-	the values to be 2 times the xVal.*/
-	
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	auto fecDG = new DG_FECollection(1, 1, BasisType::GaussLobatto);
-	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
-
-	GridFunction solution(fesDG);
-	solution.ProjectCoefficient(FunctionCoefficient(HelperFunctions::linearFunction));
-	IntegrationPoint integPoint;
-	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.1) {
-		integPoint.Set(xVal, 0.0, 0.0, 0.0);
-		double interpolatedPoint = solution.GetValue(0, integPoint);
-		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
-	}
-}
-TEST_F(TestMFEMFunctionality, findPointsTest)
+TEST_F(TestFiniteElementSpace, findPointsTest)
 {
 	Mesh mesh = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
 	DenseMatrix pointMat({ { 0.2,0.4,0.6 },{1.5, 3.5, 5.5},{0.25, 1.25, 3.75},{2.0, 4.0, 6.0} });
@@ -370,3 +350,4 @@ TEST_F(TestMFEMFunctionality, findPointsTest)
 	EXPECT_EQ(expVals[2], ipArray[0].z);
 
 }
+

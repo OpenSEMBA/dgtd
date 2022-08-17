@@ -581,7 +581,7 @@ TEST_F(TestSolver1D, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	EXPECT_NEAR(0.0, 
 		getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.30, 1), 2e-3);
 }
-TEST_F(TestSolver1D, checkFluxOperator_O2)
+TEST_F(TestSolver1D, fluxOperator_O2)
 {
 
 	Model model = buildOneDimOneMatModel(3);

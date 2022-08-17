@@ -5,7 +5,6 @@ ParaView/
 *.csv
 *.gf
 *.json
-*.mesh
 
 # Prerequisites
 *.d
