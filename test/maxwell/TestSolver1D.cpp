@@ -371,7 +371,7 @@ TEST_F(TestSolver1D, upwind_SMA_EX)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestSolver1D, upwind_SMA_EY)
+TEST_F(TestSolver1D, DISABLED_upwind_SMA_EY)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -408,7 +408,7 @@ TEST_F(TestSolver1D, upwind_SMA_EY)
 	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(2), 1.0, 2), 2e-3);
 
 }
-TEST_F(TestSolver1D, upwind_SMA_EZ)
+TEST_F(TestSolver1D, DISABLED_upwind_SMA_EZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -434,7 +434,7 @@ TEST_F(TestSolver1D, upwind_SMA_EZ)
 	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 2));
 
 }
-TEST_F(TestSolver1D, strong_flux_PEC_EY)
+TEST_F(TestSolver1D, DISABLED_strong_flux_PEC_EY)
 {
 	Mesh mesh = Mesh::MakeCartesian1D(51);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
@@ -470,7 +470,7 @@ TEST_F(TestSolver1D, strong_flux_PEC_EY)
 	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-TEST_F(TestSolver1D, weak_strong_flux_comparison)
+TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
 {
 	Model model = buildOneDimOneMatModel();
 	
