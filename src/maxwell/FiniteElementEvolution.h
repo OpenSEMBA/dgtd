@@ -1,19 +1,19 @@
 #pragma once
 
-#include "mfem.hpp"
-#include "BilinearIntegrators.h"
+#include "mfemExtension/BilinearIntegrators.h"
+
 #include "Types.h"
 #include "Model.h"
 #include "Sources.h"
 
-#include <array>
-
 namespace maxwell {
 
-class FiniteElementEvolution : public TimeDependentOperator {
+class FiniteElementEvolution : public mfem::TimeDependentOperator {
 public:
-
-	typedef std::unique_ptr<BilinearForm> FiniteElementOperator;
+	using Vector = mfem::Vector;
+	using FiniteElementSpace = mfem::FiniteElementSpace;
+	using BilinearForm = mfem::BilinearForm;
+	using FiniteElementOperator = std::unique_ptr<BilinearForm>;
 
 	struct Options {
 		FluxType fluxType = FluxType::Upwind;
@@ -47,11 +47,6 @@ public:
 	{ return MNTD_[f1][f2][dir1][dir2]; }
 
 private:
-	struct FluxCoefficient {
-		double alpha;
-		double beta;
-	};
-
 	FiniteElementSpace* fes_;
 	Options opts_;
 	Model model_;

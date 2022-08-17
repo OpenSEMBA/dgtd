@@ -11,7 +11,7 @@ public:
 	double getPermittivity() const { return epsilon_; }
 	double getPermeability() const { return mu_; }
 	double getImpedance() const { return sqrt(mu_ / epsilon_); }
-	double getConductance() const { return sqrt(epsilon_ / mu_); }
+	double getAdmitance() const { return sqrt(epsilon_ / mu_); }
 
 private:
 	double epsilon_, mu_;

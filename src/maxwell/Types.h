@@ -4,18 +4,12 @@
 #include <vector>
 #include <map>
 
-#include "mfem.hpp"
-
 namespace maxwell {
-
-using namespace mfem;
 
 using Time = double;
 using CVec3 = std::array<double, 3>;
 using FieldFrame = std::vector<CVec3>;
 using FieldMovie = std::map<Time, FieldFrame>;
-
-using Position = mfem::Vector;
 
 enum FieldType {
 	E,
@@ -25,6 +19,11 @@ enum FieldType {
 enum class FluxType {
 	Centered,
 	Upwind
+};
+
+struct FluxCoefficient {
+	double alpha;
+	double beta;
 };
 
 enum class BdrCond {

@@ -1,20 +1,20 @@
 #pragma once
 
-#include "mfem.hpp"
+#include <mfem.hpp>
 #include "Material.h"
 #include "FiniteElementEvolution.h"
-#include "Types.h"
-#include "Model.h"
 #include "Probes.h"
-#include "Sources.h"
-#include "Options.h"
-#include <array>
+#include "Types.h"
 
 namespace maxwell {
 
 class Solver {
 public:
-
+    using Vector = mfem::Vector;
+    using Position = Vector;
+    using GridFunction = mfem::GridFunction;
+    using IntegrationPoint = mfem::IntegrationPoint;
+    using ODESolver = mfem::ODESolver;
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
     
     struct Options {
@@ -29,9 +29,8 @@ public:
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const PointsProbe& getPointsProbe(const std::size_t probe) { return probes_.getPointsProbes().at(probe); }
 
-    mfem::Mesh& getMesh() { return mesh_; }
-    const mfem::Mesh& getConstMesh() const { return mesh_; }
-    const std::unique_ptr<FiniteElementEvolution>& getFEEvol() const { return maxwellEvol_; }
+    const mfem::Mesh& getMesh() const { return mesh_; }
+    const FiniteElementEvolution& getFEEvol() const { return *maxwellEvol_; }
 
     void run();
 
@@ -57,21 +56,23 @@ private:
 
     std::array<GridFunction, 3> E_, H_;
 
-    std::vector<Array<int>> elemIds_;
+    std::vector<mfem::Array<int>> elemIds_;
     std::vector<IntegrationPointsSet> integPointSet_;
     double timeRecord_;
     std::vector<FieldFrame> fieldRecord_;
 
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
-    socketstream sout_;
+    mfem::socketstream sout_;
 
     void checkOptionsAreValid(const Options&);
 
     void Solver::initializeSources();
 
-    const std::pair<Array<int>, Array<IntegrationPoint>> buildElemAndIntegrationPointArrays(DenseMatrix& physPoints) const;
-    const IntegrationPointsSet buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const;
+    const std::pair<mfem::Array<int>, mfem::Array<IntegrationPoint>> 
+        buildElemAndIntegrationPointArrays(mfem::DenseMatrix& physPoints) const;
+    const IntegrationPointsSet 
+        buildIntegrationPointsSet(const mfem::Array<IntegrationPoint>& ipArray) const;
     const std::vector<FieldFrame> saveFieldAtPointsForAllProbes();
 
     void initializeParaviewData();

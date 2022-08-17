@@ -1,8 +1,7 @@
 #pragma once
 
-#include "mfem.hpp"
+#include <mfem.hpp>
 #include "Types.h"
-
 
 namespace maxwell {
 
@@ -24,11 +23,10 @@ public:
 class PointsProbe : public Probe {
 
 public:
-
     PointsProbe(const FieldType&, const Direction&, std::vector<std::vector<double>>& integPoints);
     const FieldType& getFieldType() const { return fieldToExtract_; }
     const Direction& getDirection() const { return directionToExtract_; }
-    DenseMatrix& getIntegPointMat() { return integPointMat_; }
+    mfem::DenseMatrix& getIntegPointMat() { return integPointMat_; }
     FieldMovie& getFieldMovie() { return fieldMovie_; }
     const FieldMovie& getConstFieldMovie() const { return fieldMovie_; }
     
@@ -36,13 +34,12 @@ private:
 
     FieldType fieldToExtract_;
     Direction directionToExtract_;
-    DenseMatrix integPointMat_;
+    mfem::DenseMatrix integPointMat_;
     FieldMovie fieldMovie_;
 
     const bool verifyEntryVectorsSameSize(std::vector<std::vector<double>>& points) const;
     const void verifyEntrySubvectorsNotEmpty(std::vector<std::vector<double>>& points) const;
     const void buildIntegPointMat(std::vector<std::vector<double>>& points);
-    
 };
 
 class Probes {

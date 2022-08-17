@@ -1,7 +1,7 @@
-#pragma once
+#include <gtest/gtest.h>
 
 #include "TestMfemHesthavenFunctions.h"
-#include "../TestGlobalFunctions.h"
+#include "GlobalFunctions.h"
 
 using namespace mfem;
 
@@ -35,11 +35,12 @@ protected:
 
 };
 
-TEST_F(MFEMHesthaven3D, checkDOperator3DO2)
+TEST_F(MFEMHesthaven3D, DISABLED_checkDOperator3DO2)
 {
 	set3DFES(2);
 
-	auto MISCalcOld = 0.5 * buildInverseMassMatrixEigen(fes_.get()) * buildStiffnessMatrixEigen(fes_.get());
+	auto MISCalcOld = 
+		0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_);
 
 	std::cout << MISCalcOld << std::endl;
 

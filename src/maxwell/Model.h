@@ -1,11 +1,10 @@
 #pragma once
 
-#include "mfem.hpp"
-#include "Material.h"
-#include "Types.h"
+#include <mfem.hpp>
 #include <map>
 
-using namespace mfem;
+#include "Material.h"
+#include "Types.h"
 
 namespace maxwell {
 
@@ -16,6 +15,7 @@ using AttributeToBoundary = std::map<Attribute, BdrCond>;
 
 class Model {
 public:
+	using Mesh = mfem::Mesh;
 
 	Model(Mesh&, const AttributeToMaterial&, const AttributeToBoundary&);
 	Mesh& getMesh() { return mesh_; };
@@ -24,11 +24,9 @@ public:
 	const AttributeToBoundary& getAttToBdr() const { return attToBdrMap_; }
 
 private:
-
 	Mesh mesh_;
 	AttributeToMaterial attToMatMap_;
 	AttributeToBoundary attToBdrMap_;
-
 };
 
 }

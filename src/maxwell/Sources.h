@@ -1,20 +1,29 @@
 #pragma once
 
 #include <functional>
+
 #include "Types.h"
 #include "Model.h"
 
 namespace maxwell {
 
-
 class Source {
 public:
-	Source(Model& model, const FieldType& ft, const Direction& d,  const double spread, const double coeff,
-		const Vector devFromCenter);
+	using Vector = mfem::Vector;
+	using Position = mfem::Vector;
 
-	double evalGaussianFunction3D(const Position& pos) const;
-	double evalGaussianFunction2D(const Position& pos) const;
-	double evalGaussianFunction1D(const Position& pos) const;
+	Source(
+		Model& model, 
+		const FieldType& ft, 
+		const Direction& d, 
+		const double spread, 
+		const double coeff,
+		const Vector devFromCenter
+	);
+
+	double evalGaussianFunction3D(const Position&) const;
+	double evalGaussianFunction2D(const Position&) const;
+	double evalGaussianFunction1D(const Position&) const;
 	FieldType getFieldType() const { return fieldType_; }
 	Direction getDirection() const { return direction_; }
 

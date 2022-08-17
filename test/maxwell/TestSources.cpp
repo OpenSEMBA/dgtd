@@ -3,8 +3,9 @@
 #include "maxwell/Sources.h"
 
 using namespace maxwell;
+using namespace mfem;
 
-class TestMaxwellSources : public ::testing::Test {
+class TestSources : public ::testing::Test {
 protected:
 
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
@@ -25,27 +26,27 @@ protected:
 
 };
 
-TEST_F(TestMaxwellSources, negSpreadInput)
+TEST_F(TestSources, negSpreadInput)
 {
 	ASSERT_ANY_THROW(Source(buildOneDimOneMatModel(), E, X, -2.0,  1.0, Vector({0.5})));
 }
 
-TEST_F(TestMaxwellSources, negCoeffInput)
+TEST_F(TestSources, negCoeffInput)
 {
 	ASSERT_ANY_THROW(Source(buildOneDimOneMatModel(), E, X,  2.0, -1.0, Vector({0.5})));
 }
 
-TEST_F(TestMaxwellSources, emptyDevInput)
+TEST_F(TestSources, emptyDevInput)
 {
 	ASSERT_ANY_THROW(Source(buildOneDimOneMatModel(), E, X,  2.0,  1.0, Vector({   })));
 }
 
-TEST_F(TestMaxwellSources, outOfBoundsDevInput1D)
+TEST_F(TestSources, outOfBoundsDevInput1D)
 {
 	ASSERT_ANY_THROW(Source(buildOneDimOneMatModel(), E, X,  2.0,  1.0, Vector({ 20.0 })));
 }
 
-TEST_F(TestMaxwellSources, outOfBoundsDevInput2D)
+TEST_F(TestSources, outOfBoundsDevInput2D)
 {
 	Model model = Model(
 		Mesh::MakeCartesian2D(5, 5, Element::Type::QUADRILATERAL), 

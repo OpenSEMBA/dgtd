@@ -1,22 +1,16 @@
-#pragma once
-
 #include "gtest/gtest.h"
-#include "mfem.hpp"
-#include "../src/maxwell/BilinearIntegrators.h"
-#include "../src/maxwell/Types.h"
 
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <Eigen/Dense>
+
+#include "maxwell/mfemExtension/BilinearIntegrators.h"
+#include "maxwell/Types.h"
 #include <maxwell/Model.h>
 
-using namespace mfem;
 
-struct FluxCoefficient {
-	double alpha;
-	double beta;
-};
+using namespace mfem;
 
 namespace HelperFunctions {
 

@@ -1,7 +1,10 @@
-#pragma once
+#include <gtest/gtest.h>
 
 #include "TestMfemHesthavenFunctions.h"
-#include "../TestGlobalFunctions.h"
+#include "GlobalFunctions.h"
+
+using namespace maxwell;
+using namespace mfem;
 
 class MFEMHesthaven1DTrace : public ::testing::Test {
 protected:
@@ -26,450 +29,413 @@ protected:
 
 	double tol_ = 1e-6;
 
+	static FluxCoefficient buildAverageOnly() { return { 1.0, 0.0 }; }
+	static FluxCoefficient buildJumpOnly() { return { 0.0, 1.0 }; }
+
 };
 
+//TEST_F(MFEMHesthaven1DTrace, StrongFluxOperator_O1)
+//{
+//	auto mInv = buildInverseMassMatrixEigen(*fes_);
+//	auto flux = buildNormalPECFluxOperator1D(*fes_, {Direction::X});
+//
+//}
 
-TEST_F(MFEMHesthaven1DTrace, checkStrongFluxOperator)
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O1)
 {
-
-	setFES(2);
-
-	auto mInv = buildInverseMassMatrixEigen(fes_.get());
-	std::cout << mInv << std::endl;
-	auto flux = buildNormalPECFluxOperator1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X});
-	std::cout << flux << std::endl;
-
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO1)
-{
-
 	for (int elements = 2; elements < 5; elements++) {
-
 		setFES(1, elements);
-
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(1, elements)));
-
+		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+			.isApprox(buildExpectedAverageDenseMatrix1D(1, elements)));
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO2)
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O2)
+{
+	for (int elements = 2; elements < 5; elements++) {
+		setFES(2, elements);
+		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+			.isApprox(buildExpectedAverageDenseMatrix1D(2, elements)));
+	}
+}
+
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O3)
+{
+	for (int elements = 2; elements < 5; elements++) {
+		setFES(3, elements);
+		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+			.isApprox(buildExpectedAverageDenseMatrix1D(3, elements)));
+	}
+}
+
+TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O4)
+{
+	for (int elements = 2; elements < 5; elements++) {
+		setFES(4, elements);
+		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+			.isApprox(buildExpectedAverageDenseMatrix1D(4, elements)));
+	}
+}
+
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
+		setFES(1, elements);
+		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildJumpOnly())
+			.isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
+	}
+}
 
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O2)
+{
+	for (int elements = 2; elements < 5; elements++) {
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(2, elements)));
-
+		EXPECT_TRUE(
+			buildDGTrace1DEigen(*fes_, buildJumpOnly())
+			.isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO3)
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O3)
 {
-
 	for (int elements = 2; elements < 5; elements++) {
-
 		setFES(3, elements);
+		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildJumpOnly())
+			.isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+	}
+}
+TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O4)
+{
+	for (int elements = 2; elements < 5; elements++) {
+		setFES(4, elements);
+		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildJumpOnly())
+			.isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+	}
+}
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O1)
+{
+	for (int elements = 2; elements < 5; elements++) {
+		setFES(1, elements);
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {}, 1.0)
+			.isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
+	}
+}
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(3, elements)));
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O2)
+{
+	for (int elements = 2; elements < 5; elements++) {
+		setFES(2, elements);
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {}, 1.0)
+			.isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceAverageOnlyMatrixO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O3)
+{
+	for (int elements = 2; elements < 5; elements++) {
+		setFES(3, elements);
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {}, 1.0)
+			.isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+	}
+}
+
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(1.0, 0.0)).isApprox(buildExpectedAverageDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {}, 1.0)
+			.isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO1)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO1)
 {
-
 	for (int elements = 2; elements < 5; elements++) {
-
 		setFES(1, elements);
-
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
-
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0)
+			.isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO2)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO3)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkDGTraceJumpOnlyMatrixO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenDGTrace1D(fes_.get(), std::make_pair<double, double>(0.0, 1.0)).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 
 	}
 }
 
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO1)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO2)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO3)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceNoDirO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO1)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO2)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO3)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXDirO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO1)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO2)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO3)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceYDirO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO1)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO2)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO3)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceZDirO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO1)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO1)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO2)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO2)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO3)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO3)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
 
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXXDirO4)
+TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO4)
 {
 
 	for (int elements = 2; elements < 5; elements++) {
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO1)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(1, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Y}, 1.0).isZero(tol_));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO2)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(2, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Y}, 1.0).isZero(tol_));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO3)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(3, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Y}, 1.0).isZero(tol_));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXYDirO4)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(4, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Y}, 1.0).isZero(tol_));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO1)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(1, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Z}, 1.0).isZero(tol_));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO2)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(2, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Z}, 1.0).isZero(tol_));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO3)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(3, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Z}, 1.0).isZero(tol_));
-
-	}
-}
-
-TEST_F(MFEMHesthaven1DTrace, checkMaxwellDGTraceXZDirO4)
-{
-
-	for (int elements = 2; elements < 5; elements++) {
-
-		setFES(4, elements);
-
-		EXPECT_TRUE(buildEigenMaxwellDGTrace1D(fes_.get(), std::vector<maxwell::Direction>{maxwell::Direction::X, maxwell::Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
 
 	}
 }
