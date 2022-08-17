@@ -593,9 +593,9 @@ TEST_F(TestSolver1D, fluxOperator_O2)
 		buildDefaultSolverOpts(0.1));
 
 	auto MSMat = toEigen(*solver.getFEEvol()
-		.getInvMassStiffness(FieldType::E, Direction::X).get()->SpMat().ToDenseMatrix());
+		.getInvMassStiffness(FieldType::E, X).get()->SpMat().ToDenseMatrix());
 	auto noDirMat =  toEigen(*solver.getFEEvol()
 		.getInvMassNoDirFlux(FieldType::E, FieldType::E).get()->SpMat().ToDenseMatrix());
 	auto oneDirMat = toEigen(*solver.getFEEvol()
-		.getInvMassOneDirFlux(FieldType::E, FieldType::H, Direction::X).get()->SpMat().ToDenseMatrix());
+		.getInvMassOneDirFlux(FieldType::E, FieldType::H, X).get()->SpMat().ToDenseMatrix());
 }

@@ -64,8 +64,8 @@ private:
 	
 	FiniteElementOperator buildDerivativeOperator(const Direction&) const;
 	FiniteElementOperator buildInverseMassMatrix(const FieldType&) const;
-	FiniteElementOperator buildFluxOperator(const DisForm&, const FieldType&, const Direction&) const;
-	FiniteElementOperator buildPenaltyOperator(const DisForm&, const FieldType&, const Direction&) const;
+	FiniteElementOperator buildFluxOperator(const FieldType&, const Direction&) const;
+	FiniteElementOperator buildPenaltyOperator(const FieldType&, const Direction&) const;
 	FiniteElementOperator buildNormalFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms) const;
 
 	FiniteElementOperator buildByMult(const BilinearForm*, const BilinearForm*) const;

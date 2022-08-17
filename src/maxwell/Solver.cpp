@@ -162,8 +162,7 @@ const std::vector<std::vector<std::array<double, 3>>> Solver::saveFieldAtPointsF
 		FieldFrame aux;
 		aux.resize(elemIds_.at(i).Size());
 		for (int j = 0; j < elemIds_.at(i).Size(); j++) {
-			for (int dir = Direction::X; dir != maxDir; dir++) {
-				Direction d = static_cast<Direction>(dir);
+			for (int d = X; d != maxDir; d++) {
 				switch (probes_.getPointsProbes().at(i).getFieldType()) {
 				case FieldType::E:
 					aux[j][probes_.getPointsProbes().at(i).getDirection()] =
