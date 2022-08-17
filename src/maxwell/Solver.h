@@ -25,12 +25,14 @@ public:
     };
 
     Solver(const Model&, Probes&, const Sources&, const Options&);
+    Solver(const Solver&) = delete;
+    Solver& operator=(const Solver&) = delete;
 
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const PointsProbe& getPointsProbe(const std::size_t probe) { return probes_.getPointsProbes().at(probe); }
 
     const mfem::Mesh& getMesh() const { return mesh_; }
-    const FiniteElementEvolution& getFEEvol() const { return *maxwellEvol_; }
+    const FiniteElementEvolution& getFEEvol() const { return maxwellEvol_; }
 
     void run();
 
@@ -43,14 +45,14 @@ private:
     
     mfem::Mesh& mesh_;
 
-    std::unique_ptr<mfem::DG_FECollection> fec_;
-    std::unique_ptr<mfem::FiniteElementSpace> fes_;
+    mfem::DG_FECollection fec_;
+    mfem::FiniteElementSpace fes_;
 
     std::unique_ptr<ODESolver> odeSolver_;
 
     mfem::Array<int> boundaryTDoF_;
 
-    std::unique_ptr<FiniteElementEvolution> maxwellEvol_;
+    FiniteElementEvolution maxwellEvol_;
 
     Vector sol_;
 

@@ -8,39 +8,34 @@ using namespace mfem;
 
 namespace maxwell {
 
-Solver::Solver(
-	const Model& model, 
-	Probes& probes,
-	const Sources& sources, 
-	const Options& options) :
-	model_(model),
-	probes_(probes),
-	sources_(sources),
-	opts_(options),
-	mesh_(model_.getMesh())
-
+	Solver::Solver(
+		const Model& model,
+		Probes& probes,
+		const Sources& sources,
+		const Options& options) :
+		opts_{ options },
+		mesh_{ model_.getMesh() },
+		fec_{ opts_.order, mesh_.Dimension(), BasisType::GaussLobatto },
+		fes_{ &mesh_, &fec_ },
+		odeSolver_{ std::make_unique<RK4Solver>() },
+		model_{ model },
+		probes_{ probes },
+		sources_{ sources },
+		maxwellEvol_{ &fes_, opts_.evolutionOperatorOptions, model_, sources_ }
 {
-	fec_ = std::make_unique<DG_FECollection>(
-	opts_.order, mesh_.Dimension(), BasisType::GaussLobatto);
 
-	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
-
-	odeSolver_ = std::make_unique<RK4Solver>();
-
-	maxwellEvol_ = std::make_unique<FiniteElementEvolution>(
-		fes_.get(), 
-		opts_.evolutionOperatorOptions, model_, sources_);
-
-	sol_ = Vector(FiniteElementEvolution::numberOfFieldComponents *
+	sol_ = Vector(
+		FiniteElementEvolution::numberOfFieldComponents *
 		FiniteElementEvolution::numberOfMaxDimensions *
-		fes_->GetNDofs());
+		fes_.GetNDofs()
+	);
 	sol_ = 0.0;
 
 	for (int d = X; d <= Z; d++) {
-		E_[d].SetSpace(fes_.get());
-		E_[d].SetData(sol_.GetData() + d*fes_->GetNDofs());
-		H_[d].SetSpace(fes_.get());
-		H_[d].SetData(sol_.GetData() + (d+3)*fes_->GetNDofs());
+		E_[d].SetSpace(&fes_);
+		E_[d].SetData(sol_.GetData() + d*fes_.GetNDofs());
+		H_[d].SetSpace(&fes_);
+		H_[d].SetData(sol_.GetData() + (d+3)*fes_.GetNDofs());
 	}
 
 	initializeSources();
@@ -53,7 +48,7 @@ Solver::Solver(
 	}
 	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
 		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Glvis) {
-			//initializeGLVISData();
+			throw std::runtime_error("Not implemented.");
 			break;
 		}
 	}
@@ -128,19 +123,20 @@ const std::pair<Array<int>, Array<IntegrationPoint>> Solver::buildElemAndIntegra
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
 	std::pair<Array<int>, Array<IntegrationPoint>> res;
-	fes_->GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
+	fes_.GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
 	res = std::make_pair(elemIdArray, integPointArray);
 	return res;
 }
 
-const std::vector<std::vector<IntegrationPoint>> Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
+const std::vector<std::vector<IntegrationPoint>> 
+	Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
 {
 	std::vector<IntegrationPoint> aux;
 	aux.resize(model_.getConstMesh().Dimension());
 	IntegrationPointsSet res;
 	res.resize(ipArray.Size(), aux);
 	for (int i = 0; i < ipArray.Size(); i++) {
-		switch (fes_->GetMesh()->Dimension()) {
+		switch (fes_.GetMesh()->Dimension()) {
 		case 1:
 			res[i][X].Set1w(ipArray[i].x, 0.0);
 			break;
@@ -217,8 +213,8 @@ void Solver::run()
 
 	double time = 0.0;
 
-	maxwellEvol_->SetTime(time);
-	odeSolver_->Init(*maxwellEvol_);
+	maxwellEvol_.SetTime(time);
+	odeSolver_->Init(maxwellEvol_);
 
 	storeInitialVisualizationValues();
 
