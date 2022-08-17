@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 
 #include "TestMfemHesthavenFunctions.h"
-#include "TestGlobalFunctions.h"
+#include "GlobalFunctions.h"
 
 using namespace maxwell;
+using namespace mfem;
 
 class MFEMHesthaven1DTrace : public ::testing::Test {
 protected:

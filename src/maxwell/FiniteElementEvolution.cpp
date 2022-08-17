@@ -2,6 +2,9 @@
 
 namespace maxwell {
 
+using namespace mfem;
+using namespace mfemExtension;
+
 FiniteElementEvolution::FiniteElementEvolution(FiniteElementSpace* fes, Options options, Model& model, Sources& sources) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes->GetNDofs()),
 	opts_(options),

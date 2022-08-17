@@ -12,7 +12,7 @@ include_directories(
 )
 
 add_executable(maxwell_tests 
-	"TestSolver.cpp" 
+	"TestSolver1D.cpp" 
 	"TestBilinearIntegrators.cpp" 
 	"TestMaterial.cpp" 
 	"TestProbes.cpp" 

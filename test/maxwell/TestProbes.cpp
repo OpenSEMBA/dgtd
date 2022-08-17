@@ -1,14 +1,14 @@
 #include "gtest/gtest.h"
 
-
 #include "maxwell/Probes.h"
 
 using namespace maxwell;
+using mfem::DenseMatrix;
 
-class TestMaxwellProbes : public ::testing::Test {
+class TestProbes : public ::testing::Test {
 };
 
-TEST_F(TestMaxwellProbes, integPointConvChecker_1D)
+TEST_F(TestProbes, integPointConvChecker_1D)
 {
 	Probes probes;
 	auto pointVec = std::vector<std::vector<double>>({ {0.0}, { 0.5 }, { 1.0 } });
@@ -25,7 +25,7 @@ TEST_F(TestMaxwellProbes, integPointConvChecker_1D)
 		}
 	}
 }
-TEST_F(TestMaxwellProbes, integPointDiffDimsVector)
+TEST_F(TestProbes, integPointDiffDimsVector)
 {
 	Probes probes;
 	auto pointVec = std::vector<std::vector<double>>({ {0.0, 0.5}, {0.5}, {1.0, 0.5, 1.0} });
@@ -33,14 +33,14 @@ TEST_F(TestMaxwellProbes, integPointDiffDimsVector)
 
 }
 
-TEST_F(TestMaxwellProbes, integPointEmptySubvectors)
+TEST_F(TestProbes, integPointEmptySubvectors)
 {
 	Probes probes;
 	auto pointVec = std::vector<std::vector<double>>({ {},{} });
 	ASSERT_ANY_THROW(probes.addPointsProbeToCollection(PointsProbe(E, X, pointVec)));
 }
 
-TEST_F(TestMaxwellProbes, integPointOneSubvector)
+TEST_F(TestProbes, integPointOneSubvector)
 {
 	Probes probes;
 	auto pointVec = std::vector<std::vector<double>>({ {0.5} });

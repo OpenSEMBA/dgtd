@@ -1,6 +1,7 @@
 #include "BilinearIntegrators.h"
 
 namespace maxwell {
+namespace mfemExtension {
 
 const IntegrationRule* MaxwellDGTraceJumpIntegrator::setIntegrationRule(
     const FiniteElement& el1,
@@ -363,5 +364,5 @@ void HesthavenDerivativeIntegrator::AssembleElementMatrix2(
 
 
 }
-
+}
 

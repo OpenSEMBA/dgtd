@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 
+#include "maxwell/mfemExtension/BilinearIntegrators.h"
+
 #include "TestMfemHesthavenFunctions.h"
-#include "TestGlobalFunctions.h"
-#include "mfem.hpp"
+#include "GlobalFunctions.h"
 
 using namespace mfem;
+using namespace maxwell::mfemExtension;
 
 Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 	const int order,
@@ -75,7 +77,7 @@ Eigen::MatrixXd buildMaxwellDGTrace1DEigen(
 {
 	BilinearForm DGmat(&fes);
 	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-	DGmat.AddInteriorFaceIntegrator(new maxwell::MaxwellDGTraceJumpIntegrator(dir, beta));
+	DGmat.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dir, beta));
 	DGmat.Assemble();
 	DGmat.Finalize();
 

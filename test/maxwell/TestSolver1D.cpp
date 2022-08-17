@@ -1,98 +1,16 @@
 #include "gtest/gtest.h"
-#include <math.h>
+#include "AnalyticalFunctions1D.h"
 
 #include "maxwell/Solver.h"
-#include "TestGlobalFunctions.h"
-
-using namespace maxwell;
+#include "GlobalFunctions.h"
 
 using Interval = std::pair<double, double>;
 
-namespace AnalyticalFunctions1D {
-	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
-
-	const double PI = atan(1.0) * 4;
-
-	double gaussianFunction(const mfem::Vector pos)
-	{
-		double normalizedPos;
-		double center = (meshBoundingBoxMin[0] + meshBoundingBoxMax[0]) * 0.5;
-		normalizedPos = 2.0 * (pos[0] - center) /
-			            ((meshBoundingBoxMax[0] - meshBoundingBoxMin[0]));
-		
-		return exp(-20. * pow(normalizedPos, 2));
-	}
-
-	double gaussianFunctionHalfWidth(const mfem::Vector pos)
-	{
-		double normalizedPos;
-		double center = (meshBoundingBoxMin[0] + meshBoundingBoxMax[0]) * 0.5;
-		normalizedPos = 4.0 * (pos[0] - center/2) /
-			((meshBoundingBoxMax[0] - meshBoundingBoxMin[0]));
-
-		return exp(-20. * pow(normalizedPos, 2));
-	}
-}
-
-namespace HelperFunctions {
-
-	void setAttributeIntervalMesh1D(
-		const std::map<Attribute,Interval>& attToInterval,
-		Mesh& mesh)
-	{
-		for (auto const& kv : attToInterval) {
-			DenseMatrix changeAttMat(1, 2);
-			changeAttMat.Elem(0, 0) = kv.second.first;
-			changeAttMat.Elem(0, 1) = kv.second.second;
-			Array<int> elemID;
-			Array<IntegrationPoint> integPoint;
-			mesh.FindPoints(changeAttMat, elemID, integPoint);
-
-			if (elemID.begin() > elemID.end()) {
-				throw std::exception("Lower Index bigger than Higher Index.");
-			}
-			if (elemID[1] > mesh.GetNE()) {
-				throw std::exception("Declared element index bigger than Mesh Number of Elements.");
-			}
-			for (int i = elemID[0]; i <= elemID[1]; i++) {
-				mesh.SetAttribute((int) i, (int) kv.first);
-			}
-		}
-	}
-
-	std::vector<int> mapQuadElementTopLeftVertex(
-		const mfem::Mesh& mesh)
-	{
-		std::vector<int> res;
-		for (int i = 0; i < mesh.GetNE(); i++) {
-			mfem::Array<int> meshArrayElement;
-			mesh.GetElementVertices(i, meshArrayElement);
-			res.push_back(meshArrayElement[0]);
-		}
-
-		return res;
-	}
-
-	std::map<Time, FieldFrame>::const_iterator findTimeId(
-		const std::map<Time, FieldFrame>& timeMap,
-		const Time& timeToFind,
-		const double tolerance)
-	{
-		for (auto it = timeMap.begin(); it != timeMap.end(); it++) {
-			const Time& time = it->first;
-			if (abs(time - timeToFind) < tolerance) {
-				return it;
-			}
-		}
-		return timeMap.end();
-	}
-
-}
-
 using namespace AnalyticalFunctions1D;
-using namespace HelperFunctions;
+using namespace maxwell;
+using namespace mfem;
 
-class TestMaxwellSolver : public ::testing::Test {
+class TestSolver1D : public ::testing::Test {
 protected:
 
 	Model buildOneDimOneMatModel(
@@ -157,7 +75,7 @@ protected:
 		const Time& timeToFind,
 		const int denseMatPointByOrder)
 	{
-		auto itpos = HelperFunctions::findTimeId(probe.getConstFieldMovie(), timeToFind, 1e-6);
+		auto itpos = findTimeId(probe.getConstFieldMovie(), timeToFind, 1e-6);
 		if (itpos == probe.getConstFieldMovie().end()) {
 			throw std::exception("Time value has not been found within the specified tolerance.");
 		}
@@ -166,8 +84,60 @@ protected:
 		return FieldValueForTimeAtPoint;
 	}
 
+	void setAttributeIntervalMesh1D(
+		const std::map<Attribute, Interval>& attToInterval,
+		Mesh& mesh)
+	{
+		for (auto const& kv : attToInterval) {
+			DenseMatrix changeAttMat(1, 2);
+			changeAttMat.Elem(0, 0) = kv.second.first;
+			changeAttMat.Elem(0, 1) = kv.second.second;
+			Array<int> elemID;
+			Array<IntegrationPoint> integPoint;
+			mesh.FindPoints(changeAttMat, elemID, integPoint);
+
+			if (elemID.begin() > elemID.end()) {
+				throw std::exception("Lower Index bigger than Higher Index.");
+			}
+			if (elemID[1] > mesh.GetNE()) {
+				throw std::exception("Declared element index bigger than Mesh Number of Elements.");
+			}
+			for (int i = elemID[0]; i <= elemID[1]; i++) {
+				mesh.SetAttribute((int)i, (int)kv.first);
+			}
+		}
+	}
+
+	std::vector<int> mapQuadElementTopLeftVertex(
+		const mfem::Mesh& mesh)
+	{
+		std::vector<int> res;
+		for (int i = 0; i < mesh.GetNE(); i++) {
+			mfem::Array<int> meshArrayElement;
+			mesh.GetElementVertices(i, meshArrayElement);
+			res.push_back(meshArrayElement[0]);
+		}
+
+		return res;
+	}
+
+	std::map<Time, FieldFrame>::const_iterator findTimeId(
+		const std::map<Time, FieldFrame>& timeMap,
+		const Time& timeToFind,
+		const double tolerance)
+	{
+		for (auto it = timeMap.begin(); it != timeMap.end(); it++) {
+			const Time& time = it->first;
+			if (abs(time - timeToFind) < tolerance) {
+				return it;
+			}
+		}
+		return timeMap.end();
+	}
+
+
 };
-TEST_F(TestMaxwellSolver, oneDimensional_centered)
+TEST_F(TestSolver1D, oneDimensional_centered)
 {	
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -199,7 +169,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
+TEST_F(TestSolver1D, oneDimensional_centered_energy)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -233,7 +203,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_centered_energy)
 
 }
 
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
+TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EX)
 {
 
 	Model model = buildOneDimOneMatModel();
@@ -252,7 +222,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EX)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
+TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EY)
 {
 	Model model = buildOneDimOneMatModel();
 
@@ -281,7 +251,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EY)
 	EXPECT_NE(  eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
+TEST_F(TestSolver1D, oneDimensional_upwind_PEC_EZ)
 {
 
 	Model model = buildOneDimOneMatModel();
@@ -310,7 +280,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PEC_EZ)
 }
 
 
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HX)
+TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HX)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
@@ -328,7 +298,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HX)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
+TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HY)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
@@ -358,7 +328,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HY)
 	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
+TEST_F(TestSolver1D, oneDimensional_upwind_PMC_HZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
 
@@ -388,7 +358,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_PMC_HZ)
 
 }
 
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EX)
+TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EX)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -406,7 +376,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EX)
 	EXPECT_NEAR(0.0, error, 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
+TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EY)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -443,7 +413,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EY)
 	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(2), 1.0, 2), 2e-3);
 
 }
-TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
+TEST_F(TestSolver1D, oneDimensional_upwind_SMA_EZ)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -470,7 +440,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_upwind_SMA_EZ)
 
 }
 
-TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
+TEST_F(TestSolver1D, oneDimensional_strong_flux_PEC_EY)
 {
 	Mesh mesh = Mesh::MakeCartesian1D(51);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
@@ -507,7 +477,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_strong_flux_PEC_EY)
 
 }
 
-TEST_F(TestMaxwellSolver, oneDimensional_weak_strong_flux_comparison)
+TEST_F(TestSolver1D, oneDimensional_weak_strong_flux_comparison)
 {
 	Model model = buildOneDimOneMatModel();
 	
@@ -544,7 +514,7 @@ TEST_F(TestMaxwellSolver, oneDimensional_weak_strong_flux_comparison)
 
 }
 
-TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
+TEST_F(TestSolver1D, twoSourceWaveTravelsToTheRight_SMA)
 {
 	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
 
@@ -569,7 +539,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTravelsToTheRight_SMA)
 				2e-3);
 
 }
-TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
+TEST_F(TestSolver1D, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	Mesh mesh1D = Mesh::MakeCartesian1D(101);
 	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.76, 1.0) } }, mesh1D);
@@ -619,7 +589,7 @@ TEST_F(TestMaxwellSolver, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	EXPECT_NEAR(0.0, 
 		getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.30, 1), 2e-3);
 }
-TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
+TEST_F(TestSolver1D, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 {
 	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
 	Vector periodic({ 0.0, 1.0 });
@@ -642,7 +612,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_Periodic) //TODO ADD ENERGY CHECK
 
 }
 
-TEST_F(TestMaxwellSolver, DISABLED_twoDimensional_Periodic_strong) //TODO ADD ENERGY CHECK
+TEST_F(TestSolver1D, DISABLED_twoDimensional_Periodic_strong) //TODO ADD ENERGY CHECK
 {
 	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
 	Vector periodic({ 0.0, 1.0 });
@@ -672,7 +642,7 @@ TEST_F(TestMaxwellSolver, DISABLED_twoDimensional_Periodic_strong) //TODO ADD EN
 	solver.run();
 
 }
-TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHECK
+TEST_F(TestSolver1D, DISABLED_twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHECK
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -710,7 +680,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_NC_MESH) //TODO ADD ENERGY CHE
 
 	EXPECT_GT(eOld.Max(), eNew.Max());
 }
-TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
+TEST_F(TestSolver1D, twoDimensional_centered_AMR_MESH)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -745,7 +715,7 @@ TEST_F(TestMaxwellSolver, twoDimensional_centered_AMR_MESH)
 	EXPECT_GT(eOld.Max(), eNew.Max());
 }
 
-TEST_F(TestMaxwellSolver, DISABLED_threeDimensional)
+TEST_F(TestSolver1D, DISABLED_threeDimensional)
 {
 	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::HEXAHEDRON);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
@@ -765,7 +735,7 @@ TEST_F(TestMaxwellSolver, DISABLED_threeDimensional)
 	solver.run();
 }
 
-TEST_F(TestMaxwellSolver, checkFluxOperator_O2)
+TEST_F(TestSolver1D, checkFluxOperator_O2)
 {
 
 	Model model = buildOneDimOneMatModel(3);

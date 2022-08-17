@@ -6,8 +6,8 @@ find_package(mfem CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
 add_library(testHelpers 
-	"TestGlobalFunctions.cpp" "TestGlobalFunctions.h"
-)
+	"GlobalFunctions.cpp" "GlobalFunctions.h"
+ "AnalyticalFunctions1D.h")
 
 target_link_libraries(testHelpers Eigen3::Eigen)
 

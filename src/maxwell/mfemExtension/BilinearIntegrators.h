@@ -1,16 +1,18 @@
-#ifndef _HEADER_MAXWELLDGTRACEINTEGRATOR
-#define _HEADER_MAXWELLDGTRACEINTEGRATOR
+#pragma once
 
-#include "mfem.hpp"
+#include <mfem.hpp>
+
 #include "../../../general/forall.hpp"
-#include "Types.h"
+#include "../Types.h"
 
-namespace maxwell {
+namespace maxwell{
+namespace mfemExtension {
 
 using namespace mfem;
+using DisForm = maxwell::DisForm;
+using Direction = maxwell::Direction;
 
-class MaxwellDGTraceIntegrator : public BilinearFormIntegrator
-{
+class MaxwellDGTraceIntegrator : public mfem::BilinearFormIntegrator {
 
 public:
 	//When explicitly undeclared, rho = 1.0;
@@ -126,8 +128,6 @@ public:
 		ElementTransformation& Trans,
 		DenseMatrix& elmat);
 };
+
 }
-
-
-
-#endif
+}

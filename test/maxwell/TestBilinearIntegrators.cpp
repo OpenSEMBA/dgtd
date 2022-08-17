@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 
 #include "maxwell/Solver.h"
-#include "maxwell/BilinearIntegrators.h"
+#include "maxwell/mfemExtension/BilinearIntegrators.h"
 
 using namespace maxwell;
 

@@ -1,10 +1,9 @@
 #include "Sources.h"
 #include <math.h>
 
-
 namespace maxwell {
 
-
+using namespace mfem;
 
 Source::Source(
 	Model& model,

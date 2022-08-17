@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "TestMfemHesthavenFunctions.h"
-#include "TestGlobalFunctions.h"
+#include "GlobalFunctions.h"
 
 using namespace mfem;
 

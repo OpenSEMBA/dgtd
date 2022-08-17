@@ -1,6 +1,8 @@
+#pragma once
+
 #include <Eigen/Dense>
 
-#include "mfem.hpp"
+#include <mfem.hpp>
 #include "maxwell/Types.h"
 
 std::unique_ptr<mfem::DenseMatrix> toUnique(mfem::DenseMatrix*);

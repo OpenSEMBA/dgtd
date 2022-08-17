@@ -1,10 +1,11 @@
-#include "TestGlobalFunctions.h"
+#include "GlobalFunctions.h"
 
-#include "maxwell/BilinearIntegrators.h"
+#include "maxwell/mfemExtension/BilinearIntegrators.h"
 #include "maxwell/Model.h"
 
-using namespace mfem;
 using namespace maxwell;
+using namespace mfem;
+using namespace mfemExtension;
 
 std::unique_ptr<DenseMatrix> toUnique(DenseMatrix* matPtr)
 {

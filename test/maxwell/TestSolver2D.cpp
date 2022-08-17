@@ -1,9 +1,7 @@
 #include "gtest/gtest.h"
 #include <math.h>
 
-#include "Solver2D.h"
-
-using namespace Maxwell;
+using namespace maxwell;
 
 namespace AnalyticalFunctions2D {
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
