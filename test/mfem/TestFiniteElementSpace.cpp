@@ -44,39 +44,6 @@ protected:
 	std::unique_ptr<FiniteElementCollection> fec_;
 	std::unique_ptr<FiniteElementSpace> fes_;
 	
-	std::vector<int> mapQuadElementTopLeftVertex(const Mesh& mesh)
-	{
-		std::vector<int> res;
-		for (int i = 0; i < mesh.GetNE(); i++) {
-			Array<int> meshArrayElement;
-			mesh.GetElementVertices(i, meshArrayElement);
-			res.push_back(meshArrayElement[0]);
-		}
-		return res;
-	}
-
-	Mesh makeTwoAttributeCartesianMesh1D(const int& refTimes = 0)
-	{
-		Mesh res = Mesh::MakeCartesian1D(2);
-		res.SetAttribute(0, 1);
-		res.SetAttribute(1, 2);
-
-		for (int i = 0; i < refTimes; i++) {
-			res.UniformRefinement();
-		}
-
-		return res;
-	}
-
-	Array<int> getH1LexOrder(const H1_FECollection* fec)
-	{
-		auto* fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
-		const NodalFiniteElement* nodal_fe =
-			dynamic_cast<const NodalFiniteElement*>(fe);
-		Array<int> lexOrder = nodal_fe->GetLexicographicOrdering();
-		return lexOrder;
-	}
-
 	SparseMatrix operatorToSparseMatrix(const Operator* op)
 	{
 
@@ -116,47 +83,6 @@ protected:
 			res = TransposeMult(rotatorMatrix, *aux);
 		}
 		return std::unique_ptr<SparseMatrix>(res);
-	}
-
-	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element)
-	{
-		switch (dimension) {
-		case 1:
-			switch (element) {
-			case Element::SEGMENT:
-				return Mesh::MakeCartesian1D(1);
-				break;
-			default:
-				throw std::exception("1-Dimensional meshes can only be SEGMENT based.");
-			}
-		case 2:
-			switch (element) {
-			case Element::TRIANGLE:
-				return Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE);
-				break;
-			case Element::QUADRILATERAL:
-				return Mesh::MakeCartesian2D(1, 1, Element::QUADRILATERAL);
-				break;
-			default:
-				throw std::exception("2-Dimensional meshes can only be TRIANGLE or QUADRILATERAL based.");
-			}
-		case 3:
-			switch (element) {
-			case Element::HEXAHEDRON:
-				return Mesh::MakeCartesian3D(1, 1, 1, Element::HEXAHEDRON);
-				break;
-			case Element::WEDGE:
-				return Mesh::MakeCartesian3D(1, 1, 1, Element::WEDGE);
-				break;
-			case Element::TETRAHEDRON:
-				return Mesh::MakeCartesian3D(1, 1, 1, Element::TETRAHEDRON);
-				break;
-			default:
-				throw std::exception("3-Dimensional meshes can only be HEXAEDRON, WEDGE or TETRAHEDRON based.");
-			}
-		default:
-			throw std::exception("Dimension must be 2 or 3 with Element argument. Or dimension 1, which ignores element.");
-		}
 	}
 
 	static std::string getFilename(const std::string fn)

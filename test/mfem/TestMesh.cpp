@@ -51,56 +51,6 @@ protected:
 		return res;
 	}
 
-	Array<int> getH1LexOrder(const H1_FECollection* fec)
-	{
-		auto* fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
-		const NodalFiniteElement* nodal_fe =
-			dynamic_cast<const NodalFiniteElement*>(fe);
-		Array<int> lexOrder = nodal_fe->GetLexicographicOrdering();
-		return lexOrder;
-	}
-
-	SparseMatrix operatorToSparseMatrix(const Operator* op)
-	{
-
-		int width = op->Width();
-		int height = op->Height();
-		SparseMatrix res(height, height);
-		Vector x(width), y(height);
-
-		x = 0.0;
-
-		for (int i = 0; i < width; i++)
-		{
-			x(i) = 1.0;
-			op->Mult(x, y);
-			for (int j = 0; j < height; j++)
-			{
-				if (y(j) != 0.0)
-				{
-					res.Add(i, j, y[j]);
-				}
-			}
-			x(i) = 0.0;
-		}
-
-		res.Finalize();
-		return res;
-	}
-
-	std::unique_ptr<SparseMatrix> rotateMatrixLexico(BilinearForm& matrix)
-	{
-		const Operator* rotatorOperator = matrix.FESpace()->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
-		const SparseMatrix rotatorMatrix = operatorToSparseMatrix(rotatorOperator);
-		const SparseMatrix matrixSparse = matrix.SpMat();
-		SparseMatrix* res;
-		{
-			auto aux = Mult(matrixSparse, rotatorMatrix);
-			res = TransposeMult(rotatorMatrix, *aux);
-		}
-		return std::unique_ptr<SparseMatrix>(res);
-	}
-
 	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element)
 	{
 		switch (dimension) {
