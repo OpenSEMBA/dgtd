@@ -146,16 +146,8 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         
         un = vu * nor;
 
-        switch (form_) {
-        case DisForm::Weak:
-            a = 0.5 * alpha* un; // 0.5 * n * {v} = n * (v1+v2)/2
-            b = beta * fabs(un); //|n| * [v] = |n| * (v1-v2)
-            break;
-        case DisForm::Strong:
-            a = alpha * un; //n * {v} = n * (v1+v2)/2
-            b = beta; //[v] = (v1-v2)
-            break;
-        }
+        a = 0.5 * alpha* un; // 0.5 * n * {v} = n * (v1+v2)/2
+        b = beta * fabs(un); //|n| * [v] = |n| * (v1-v2)
         // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)
         //       and therefore two blocks in the element matrix contribution
         //       (from the current quadrature point) are 0

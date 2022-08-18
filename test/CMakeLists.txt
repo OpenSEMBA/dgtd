@@ -7,5 +7,6 @@ include_directories(
 
 add_subdirectory(helpers)
 add_subdirectory(maxwell)
-add_subdirectory(MFEMHesthavenComparison)
+add_subdirectory(mfem)
+add_subdirectory(mfemHesthavenComparison)
 

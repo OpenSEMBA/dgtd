@@ -3,33 +3,32 @@
 #include <mfem.hpp>
 
 #include "../../../general/forall.hpp"
-#include "../Types.h"
 
 namespace maxwell{
 namespace mfemExtension {
 
 using namespace mfem;
-using DisForm = maxwell::DisForm;
-using Direction = maxwell::Direction;
+
+using Direction = int;
 
 class MaxwellDGTraceIntegrator : public mfem::BilinearFormIntegrator {
 
 public:
 	//When explicitly undeclared, rho = 1.0;
-	MaxwellDGTraceIntegrator(const DisForm form, VectorCoefficient& u_, double a)
+	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a)
 	{
-		form_ = form; rho = NULL; u = &u_; alpha = a; beta = 0.5 * a;
+		rho = NULL; u = &u_; alpha = a; beta = 0.5 * a;
 	}
 
-	MaxwellDGTraceIntegrator(const DisForm form, VectorCoefficient& u_, double a, double b)
+	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a, double b)
 	{
-		form_ = form; rho = NULL; u = &u_; alpha = a; beta = b;
+		rho = NULL; u = &u_; alpha = a; beta = b;
 	}
 
-	MaxwellDGTraceIntegrator(const DisForm form, Coefficient& rho_, VectorCoefficient& u_,
+	MaxwellDGTraceIntegrator(Coefficient& rho_, VectorCoefficient& u_,
 		double a, double b)
 	{
-		form_ = form; rho = &rho_; u = &u_; alpha = a; beta = b;
+		rho = &rho_; u = &u_; alpha = a; beta = b;
 	}
 
 	virtual void AssembleFaceMatrix(const FiniteElement& el1,
@@ -49,7 +48,6 @@ protected:
 
 private:
 	Vector shape1_, shape2_;
-	DisForm form_;
 };
 
 /** Integrator for a specialised application of the DG form:

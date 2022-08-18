@@ -2,8 +2,6 @@
 
 #include <mfem.hpp>
 
-using Interval = std::pair<double, double>;
-
 namespace AnalyticalFunctions1D {
 	mfem::Vector meshBoundingBoxMin, meshBoundingBoxMax;
 

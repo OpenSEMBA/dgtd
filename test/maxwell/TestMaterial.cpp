@@ -7,7 +7,7 @@ using namespace maxwell;
 
 class TestMaterial : public ::testing::Test {
 };
-TEST_F(TestMaterial, checkImpedanceAndConductance)
+TEST_F(TestMaterial, impedanceAndConductance)
 {
 	Material mat1(1.0, 2.0);
 	Material mat2(100.0, 1.0);

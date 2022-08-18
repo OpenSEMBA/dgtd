@@ -31,7 +31,6 @@ public:
     const FieldMovie& getConstFieldMovie() const { return fieldMovie_; }
     
 private:
-
     FieldType fieldToExtract_;
     Direction directionToExtract_;
     mfem::DenseMatrix integPointMat_;

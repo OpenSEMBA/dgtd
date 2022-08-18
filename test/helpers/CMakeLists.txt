@@ -7,7 +7,7 @@ include_directories(${MFEM_INCLUDE_DIRS})
 
 add_library(testHelpers 
 	"GlobalFunctions.cpp" "GlobalFunctions.h"
- "AnalyticalFunctions1D.h")
+ "AnalyticalFunctions1D.h" "AnalyticalFunctions2D.h")
 
 target_link_libraries(testHelpers Eigen3::Eigen)
 

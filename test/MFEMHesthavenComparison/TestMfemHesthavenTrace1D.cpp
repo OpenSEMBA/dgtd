@@ -37,7 +37,7 @@ protected:
 //TEST_F(MFEMHesthaven1DTrace, StrongFluxOperator_O1)
 //{
 //	auto mInv = buildInverseMassMatrixEigen(*fes_);
-//	auto flux = buildNormalPECFluxOperator1D(*fes_, {Direction::X});
+//	auto flux = buildNormalPECFluxOperator1D(*fes_, {X});
 //
 //}
 
@@ -159,7 +159,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO1)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(1, elements);
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0)
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X}, 1.0)
 			.isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 	}
 }
@@ -171,7 +171,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 
 	}
 }
@@ -183,7 +183,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO3)
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
 
 	}
 }
@@ -195,7 +195,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXDirO4)
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 
 	}
 }
@@ -207,7 +207,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO1)
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -219,7 +219,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -231,7 +231,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO3)
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -243,7 +243,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceYDirO4)
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -255,7 +255,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO1)
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Z}, 1.0).isZero(tol_));
 
 	}
 }
@@ -267,7 +267,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Z}, 1.0).isZero(tol_));
 
 	}
 }
@@ -279,7 +279,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO3)
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Z}, 1.0).isZero(tol_));
 
 	}
 }
@@ -291,7 +291,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceZDirO4)
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Z}, 1.0).isZero(tol_));
 
 	}
 }
@@ -303,7 +303,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO1)
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 
 	}
 }
@@ -315,7 +315,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 
 	}
 }
@@ -327,7 +327,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO3)
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
 
 	}
 }
@@ -339,7 +339,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXXDirO4)
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, X}, 1.0).isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 
 	}
 }
@@ -351,7 +351,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO1)
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -363,7 +363,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -375,7 +375,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO3)
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -387,7 +387,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXYDirO4)
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Y}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Y}, 1.0).isZero(tol_));
 
 	}
 }
@@ -399,7 +399,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO1)
 
 		setFES(1, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Z}, 1.0).isZero(tol_));
 
 	}
 }
@@ -411,7 +411,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO2)
 
 		setFES(2, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Z}, 1.0).isZero(tol_));
 
 	}
 }
@@ -423,7 +423,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO3)
 
 		setFES(3, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Z}, 1.0).isZero(tol_));
 
 	}
 }
@@ -435,7 +435,7 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceXZDirO4)
 
 		setFES(4, elements);
 
-		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {Direction::X, Direction::Z}, 1.0).isZero(tol_));
+		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {X, Z}, 1.0).isZero(tol_));
 
 	}
 }

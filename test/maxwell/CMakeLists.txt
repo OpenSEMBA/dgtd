@@ -13,12 +13,14 @@ include_directories(
 
 add_executable(maxwell_tests 
 	"TestSolver1D.cpp" 
+	#"TestSolver2D.cpp" 
+	"TestSolver3D.cpp" 
 	"TestBilinearIntegrators.cpp" 
 	"TestMaterial.cpp" 
 	"TestProbes.cpp" 
 	"TestSources.cpp"
-	"TestMFEMFunctionality.cpp"
-)
+	
+ "TestSolver3D.cpp")
 
 target_link_libraries(maxwell_tests 
 	maxwell_solvers testHelpers 
