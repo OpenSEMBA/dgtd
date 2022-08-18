@@ -26,9 +26,10 @@ public:
     PointsProbe(const FieldType&, const Direction&, std::vector<std::vector<double>>& integPoints);
     const FieldType& getFieldType() const { return fieldToExtract_; }
     const Direction& getDirection() const { return directionToExtract_; }
-    mfem::DenseMatrix& getIntegPointMat() { return integPointMat_; }
-    FieldMovie& getFieldMovie() { return fieldMovie_; }
-    const FieldMovie& getConstFieldMovie() const { return fieldMovie_; }
+    const mfem::DenseMatrix& getIntegPointMat() const { return integPointMat_; }
+    const FieldMovie& getFieldMovie() const { return fieldMovie_; }
+
+    void addFrame(double time, const FieldFrame& frame) { fieldMovie_.emplace(time, frame); };
     
 private:
     FieldType fieldToExtract_;

@@ -45,16 +45,6 @@ protected:
 		return res;
 	}
 
-	maxwell::Solver::Options buildDefaultSolverOpts(const double tFinal = 2.0)
-	{
-		maxwell::Solver::Options res;
-
-		res.evolutionOperatorOptions = FiniteElementEvolution::Options();
-		res.t_final = tFinal;
-
-		return res;
-	}
-
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
 	{
 		return {
@@ -75,8 +65,8 @@ protected:
 		const Time& timeToFind,
 		const int denseMatPointByOrder)
 	{
-		auto itpos = findTimeId(probe.getConstFieldMovie(), timeToFind, 1e-6);
-		if (itpos == probe.getConstFieldMovie().end()) {
+		auto itpos = findTimeId(probe.getFieldMovie(), timeToFind, 1e-6);
+		if (itpos == probe.getFieldMovie().end()) {
 			throw std::exception("Time value has not been found within the specified tolerance.");
 		}
 		auto FieldValueForTimeAtPoint = itpos->second.at(denseMatPointByOrder).at(probe.getDirection());
@@ -151,22 +141,17 @@ TEST_F(TestSolver1D, centered)
 
 	Model model = buildOneDimOneMatModel();
 
-	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-
 	maxwell::Solver solver(
 		model, 
 		Probes(),
 		buildSourcesWithDefaultSource(model), 
-		solverOpts);
+		SolverOptions().setCentered());
 	
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
 
-	double error = eOld.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
 }
 TEST_F(TestSolver1D, centered_energy)
 {
@@ -182,15 +167,13 @@ TEST_F(TestSolver1D, centered_energy)
 	back to its initial state within the specified error.*/
 
 	Model model = buildOneDimOneMatModel();
-
-	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
-	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-
+		
 	maxwell::Solver solver(
 		model,
 		Probes(),
 		buildSourcesWithDefaultSource(model),
-		solverOpts);
+		SolverOptions().setCentered()
+	);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
@@ -210,14 +193,13 @@ TEST_F(TestSolver1D, upwind_PEC_EX)
 		model, 
 		buildProbesWithDefaultPointsProbe(),
 		buildSourcesWithDefaultSource(model),
-		buildDefaultSolverOpts());
+		SolverOptions());
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, X);
 
-	double error = eOld.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
 
 }
 TEST_F(TestSolver1D, upwind_PEC_EY)
@@ -231,14 +213,14 @@ TEST_F(TestSolver1D, upwind_PEC_EY)
 		model,
 		probes,
 		buildSourcesWithDefaultSource(model, E, Y),
-		buildDefaultSolverOpts());
+		SolverOptions()
+	);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
 
-	double error = eOld.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
 
 	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 0), 2e-3);
 	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 2), 2e-3);
@@ -258,7 +240,8 @@ TEST_F(TestSolver1D, upwind_PEC_EZ)
 		model,
 		buildProbesWithDefaultPointsProbe(E, Z),
 		buildSourcesWithDefaultSource(model, E, Z),
-		buildDefaultSolverOpts());
+		SolverOptions()
+	);
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
@@ -284,7 +267,8 @@ TEST_F(TestSolver1D, upwind_PMC_HX)
 		model,
 		buildProbesWithDefaultPointsProbe(H, X),
 		buildSourcesWithDefaultSource(model, H, X),
-		buildDefaultSolverOpts());
+		SolverOptions()
+	);
 
 	GridFunction hOld = solver.getFieldInDirection(H, X);
 	solver.run();
@@ -305,7 +289,7 @@ TEST_F(TestSolver1D, upwind_PMC_HY)
 		model,
 		probes,
 		buildSourcesWithDefaultSource(model, H, Y),
-		buildDefaultSolverOpts()
+		SolverOptions()
 	);
 
 	GridFunction hOld = solver.getFieldInDirection(H, Y);
@@ -335,7 +319,8 @@ TEST_F(TestSolver1D, upwind_PMC_HZ)
 		model,
 		probes,
 		buildSourcesWithDefaultSource(model, H, Z),
-		buildDefaultSolverOpts());
+		SolverOptions()
+	);
 
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
 	solver.run();
@@ -361,7 +346,7 @@ TEST_F(TestSolver1D, upwind_SMA_EX)
 		model,
 		buildProbesWithDefaultPointsProbe(E, X),
 		buildSourcesWithDefaultSource(model, E, X),
-		buildDefaultSolverOpts(0.2));
+		SolverOptions().setFinalTime(0.2));
 
 	GridFunction eOld = solver.getFieldInDirection(E, X);
 	solver.run();
@@ -387,7 +372,7 @@ TEST_F(TestSolver1D, DISABLED_upwind_SMA_EY)
 		model,
 		probes,
 		buildSourcesWithDefaultSource(model, E, Y),
-		buildDefaultSolverOpts(1.0));
+		SolverOptions().setFinalTime(1.0));
 
 	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
@@ -419,7 +404,7 @@ TEST_F(TestSolver1D, DISABLED_upwind_SMA_EZ)
 		model,
 		probes,
 		buildSourcesWithDefaultSource(model, E, Z),
-		buildDefaultSolverOpts(1.0));
+		SolverOptions().setFinalTime(1.0));
 
 	GridFunction eOld = solver.getFieldInDirection(E, Z);
 	solver.run();
@@ -439,7 +424,7 @@ TEST_F(TestSolver1D, DISABLED_strong_flux_PEC_EY)
 	Mesh mesh = Mesh::MakeCartesian1D(51);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
-	maxwell::Solver::Options opts;
+	SolverOptions opts;
 	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
 	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
 	opts.t_final = 0.5;
@@ -474,7 +459,7 @@ TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
 {
 	Model model = buildOneDimOneMatModel();
 	
-	maxwell::Solver::Options optsWeak;
+	SolverOptions optsWeak;
 	optsWeak.evolutionOperatorOptions = FiniteElementEvolution::Options();
 
 	maxwell::Solver solverWeak(
@@ -483,7 +468,7 @@ TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
 		buildSourcesWithDefaultSource(model, E, Y),
 		optsWeak);
 
-	maxwell::Solver::Options optsStrong;
+	SolverOptions optsStrong;
 	optsStrong.evolutionOperatorOptions = FiniteElementEvolution::Options();
 	optsStrong.evolutionOperatorOptions.disForm = DisForm::Strong;
 
@@ -522,7 +507,7 @@ TEST_F(TestSolver1D, twoSourceWaveTravelsToTheRight_SMA)
 		model,
 		probes,
 		sources,
-		buildDefaultSolverOpts(0.7));
+		SolverOptions().setFinalTime(0.7));
 
 	solver.run();
 
@@ -560,7 +545,7 @@ TEST_F(TestSolver1D, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		model,
 		probes,
 		sources,
-		buildDefaultSolverOpts(1.5));
+		SolverOptions().setFinalTime(1.5));
 
 	auto eOld = solver.getFieldInDirection(E, Y);
 
@@ -590,7 +575,7 @@ TEST_F(TestSolver1D, fluxOperator_O2)
 		model,
 		Probes(),
 		buildSourcesWithDefaultSource(model, E, Y),
-		buildDefaultSolverOpts(0.1));
+		SolverOptions().setFinalTime(0.1));
 
 	auto MSMat = toEigen(*solver.getFEEvol()
 		.getInvMassStiffness(FieldType::E, X).get()->SpMat().ToDenseMatrix());

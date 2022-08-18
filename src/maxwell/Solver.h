@@ -1,12 +1,18 @@
 #pragma once
 
-#include <mfem.hpp>
 #include "Material.h"
 #include "FiniteElementEvolution.h"
 #include "Probes.h"
 #include "Types.h"
+#include "SolverOptions.h"
 
 namespace maxwell {
+
+struct ProblemDescription {
+    Model model;
+    Probes probes;
+    Sources sources;
+};
 
 class Solver {
 public:
@@ -17,14 +23,7 @@ public:
     using ODESolver = mfem::ODESolver;
     using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
     
-    struct Options {
-        int order = 2;
-        double dt = 1e-3;
-        double t_final = 1.0;
-        FiniteElementEvolution::Options evolutionOperatorOptions;
-    };
-
-    Solver(const Model&, Probes&, const Sources&, const Options&);
+    Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
 
@@ -37,12 +36,26 @@ public:
     void run();
 
 private:
-
+    SolverOptions opts_;
     Model model_;
-    Probes probes_;
     Sources sources_;
-    Options opts_;
-    
+
+    // --- Probes Manager? --
+    struct PointsProbeIntegrationPoints {
+        mfem::Array<int> elemIds;
+        IntegrationPointsSet integPointSet;
+    };
+
+    Probes probes_;
+    std::map<const PointsProbe*, PointsProbeIntegrationPoints> probeIntegrationPoints_;
+
+    PointsProbeIntegrationPoints buildElemAndIntegrationPointArrays(const PointsProbe&) const;
+    const IntegrationPointsSet 
+        buildIntegrationPointsSet(const mfem::Array<IntegrationPoint>& ipArray) const;
+    FieldFrame getFieldForPointsProbe(const PointsProbe& p) const;
+    // -----------------------
+
+
     mfem::Mesh& mesh_;
 
     mfem::DG_FECollection fec_;
@@ -57,25 +70,14 @@ private:
     Vector sol_;
 
     std::array<GridFunction, 3> E_, H_;
-
-    std::vector<mfem::Array<int>> elemIds_;
-    std::vector<IntegrationPointsSet> integPointSet_;
-    double timeRecord_;
-    std::vector<FieldFrame> fieldRecord_;
-
     std::unique_ptr<mfem::ParaViewDataCollection> pd_;
 
     mfem::socketstream sout_;
 
-    void checkOptionsAreValid(const Options&);
+    void checkOptionsAreValid(const SolverOptions&);
 
     void Solver::initializeSources();
 
-    const std::pair<mfem::Array<int>, mfem::Array<IntegrationPoint>> 
-        buildElemAndIntegrationPointArrays(mfem::DenseMatrix& physPoints) const;
-    const IntegrationPointsSet 
-        buildIntegrationPointsSet(const mfem::Array<IntegrationPoint>& ipArray) const;
-    const std::vector<FieldFrame> saveFieldAtPointsForAllProbes();
 
     void initializeParaviewData();
     void storeInitialVisualizationValues();
