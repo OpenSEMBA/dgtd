@@ -8,27 +8,26 @@ using namespace mfem;
 
 namespace maxwell {
 
-	Solver::Solver(
-		const Model& model,
-		const Probes& probes,
-		const Sources& sources,
-		const SolverOptions& options) :
-		opts_{ options },
-		mesh_{ model_.getMesh() },
-		fec_{ opts_.order, mesh_.Dimension(), BasisType::GaussLobatto },
-		fes_{ &mesh_, &fec_ },
-		odeSolver_{ std::make_unique<RK4Solver>() },
-		model_{ model },
-		probes_{ probes },
-		sources_{ sources },
-		maxwellEvol_{ &fes_, opts_.evolutionOperatorOptions, model_, sources_ }
+Solver::Solver(
+	const Model& model,
+	const Probes& probes,
+	const Sources& sources,
+	const SolverOptions& options) :
+	opts_{ options },
+	mesh_{ model_.getMesh() },
+	fec_{ opts_.order, mesh_.Dimension(), BasisType::GaussLobatto },
+	fes_{ &mesh_, &fec_ },
+	odeSolver_{ std::make_unique<RK4Solver>() },
+	model_{ model },
+	sources_{ sources },
+	maxwellEvol_{ &fes_, opts_.evolutionOperatorOptions, model_, sources_ }
 {
 
-	sol_ = Vector(
+	sol_ = Vector{
 		FiniteElementEvolution::numberOfFieldComponents *
 		FiniteElementEvolution::numberOfMaxDimensions *
 		fes_.GetNDofs()
-	);
+	};
 	sol_ = 0.0;
 
 	for (int d = X; d <= Z; d++) {
@@ -40,23 +39,9 @@ namespace maxwell {
 
 	initializeSources();
 
-	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
-			initializeParaviewData();
-			break;
-		}
-	}
-	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Glvis) {
-			throw std::runtime_error("Not implemented.");
-			break;
-		}
-	}
-
-	for (const auto& p: probes_.getPointsProbes()) {
-		probeIntegrationPoints_.emplace(&p, buildElemAndIntegrationPointArrays(p));
-	}
+	probesManager_ = ProbesManager{ probes, &fes_, {&E_, &H_} };
 }
+
 void Solver::checkOptionsAreValid(const SolverOptions& opts)
 {
 	if ((opts.order < 0) ||
@@ -96,7 +81,6 @@ void Solver::initializeSources()
 	}
 }
 
-
 const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direction& d) const
 {
 	assert(ft == E || ft == H);
@@ -112,135 +96,24 @@ const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direc
 	throw std::runtime_error("Invalid field type.");
 }
 
-Solver::PointsProbeIntegrationPoints Solver::buildElemAndIntegrationPointArrays(const PointsProbe& p) const
-{
-	DenseMatrix physPoints{ p.getIntegPointMat() };
-	Array<int> elemIdArray;
-	Array<IntegrationPoint> integPointArray;
-	std::pair<Array<int>, Array<IntegrationPoint>> res;
-	fes_.GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
-	return { elemIdArray, buildIntegrationPointsSet(integPointArray) };
-}
-
-const std::vector<std::vector<IntegrationPoint>> 
-	Solver::buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray) const
-{
-	std::vector<IntegrationPoint> aux;
-	aux.resize(model_.getConstMesh().Dimension());
-	IntegrationPointsSet res;
-	res.resize(ipArray.Size(), aux);
-	for (int i = 0; i < ipArray.Size(); i++) {
-		switch (fes_.GetMesh()->Dimension()) {
-		case 1:
-			res[i][X].Set1w(ipArray[i].x, 0.0);
-			break;
-		case 2:
-			res[i][X].Set2(ipArray[i].x, 0.0);
-			res[i][Y].Set2(0.0, ipArray[i].y);
-			break;
-		case 3:
-			res[i][X].Set3(ipArray[i].x, 0.0, 0.0);
-			res[i][Y].Set3(0.0, ipArray[i].y, 0.0);
-			res[i][Z].Set3(0.0, 0.0, ipArray[i].z);
-			break;
-		}
-	}
-	return res;
-}
-
-FieldFrame Solver::getFieldForPointsProbe(const PointsProbe& p) const
-{
-	const auto& maxDir{ model_.getConstMesh().Dimension() };
-	const auto& it{ probeIntegrationPoints_.find(&p) };
-	assert(it != probeIntegrationPoints_.end());
-	const auto& pPIP{ it->second };
-	
-	FieldFrame res;
-	res.resize(pPIP.elemIds.Size());
-	for (int j = 0; j < pPIP.elemIds.Size(); j++) {
-		assert(pPIP.elemIds.Size() == pPIP.integPointSet.size());
-		for (int d = X; d != maxDir; d++) {
-			const auto& dir{ p.getDirection() };
-			switch (p.getFieldType()) {
-			case FieldType::E:
-				res[j][dir] = E_[dir].GetValue(pPIP.elemIds[j], pPIP.integPointSet[j][d]);
-				break;
-			case FieldType::H:
-				res[j][dir] = H_[dir].GetValue(pPIP.elemIds[j], pPIP.integPointSet[j][d]);
-				break;
-			}
-		}
-	}
-	return res;
-}
-
-void Solver::initializeParaviewData()
-{
-	pd_ = std::make_unique<ParaViewDataCollection>("MaxwellView", &mesh_);
-	pd_->SetPrefixPath("ParaView");
-	pd_->RegisterField("Ex", &E_[X]);
-	pd_->RegisterField("Ey", &E_[Y]);
-	pd_->RegisterField("Ez", &E_[Z]);
-	pd_->RegisterField("Hx", &H_[X]);
-	pd_->RegisterField("Hy", &H_[Y]);
-	pd_->RegisterField("Hz", &H_[Z]);
-	pd_->SetLevelsOfDetail(opts_.order);
-	pd_->SetDataFormat(VTKFormat::BINARY);
-	opts_.order > 0 ? pd_->SetHighOrderOutput(true) : pd_->SetHighOrderOutput(false);
-}
-
-void Solver::storeInitialVisualizationValues()
-{
-	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
-			pd_->SetCycle(0);
-			pd_->SetTime(0.0);
-			pd_->Save();
-			break;
-		}
-	}
-}
-
 void Solver::run()
 {
-
 	double time = 0.0;
+	bool done = false;
+	int cycle = 0;
 
 	maxwellEvol_.SetTime(time);
 	odeSolver_->Init(maxwellEvol_);
-
-	storeInitialVisualizationValues();
-
-	bool done = false;
-	int cycle = 0;
 	
-	for (auto& p: probes_.getPointsProbes()) {
-		p.addFrame(time, getFieldForPointsProbe(p));
-	}
-
+	probesManager_.updateProbes(done, cycle);
 	while (!done) {
-
 		odeSolver_->Step(sol_, time, opts_.dt);
-
 		if (abs(time - opts_.t_final) < 1e-6) {
 			done = true;
 		}
-
 		cycle++;
-
-		if (done || cycle % probes_.vis_steps == 0) {
-			for (auto& p: probes_.getPointsProbes()) {
-				p.addFrame(time, getFieldForPointsProbe(p));
-			}
-			for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-				if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
-				pd_->SetCycle(cycle);
-				pd_->SetTime(time);
-				pd_->Save();
-				break;
-				}
-			}
-		}
+		probesManager_.updateProbes(done, cycle);
 	}
 }
+
 }

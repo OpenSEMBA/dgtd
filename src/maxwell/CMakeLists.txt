@@ -13,7 +13,7 @@ add_library(maxwell_solvers STATIC
 	"Model.h" "Model.cpp" 
 	"Probes.h" "Probes.cpp" 
 	"Sources.h" "Sources.cpp"
- "SolverOptions.h")
+ "SolverOptions.h" "ProbesManager.h" "ProbesManager.cpp")
 
 target_link_libraries(maxwell_solvers mfem)
 

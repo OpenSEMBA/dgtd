@@ -5,6 +5,12 @@ using namespace mfem;
 
 namespace maxwell {
 
+ExporterProbe::ExporterProbe(int order) :
+	order_{ order }
+{}
+
+
+
 const bool PointsProbe::verifyEntryVectorsSameSize(std::vector<std::vector<double>>& points) const
 {
 	bool res{};
