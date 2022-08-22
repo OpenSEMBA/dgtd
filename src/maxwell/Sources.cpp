@@ -1,86 +1,53 @@
 #include "Sources.h"
+
+#define _USE_MATH_DEFINES
 #include <math.h>
 
 namespace maxwell {
 
-using namespace mfem;
-
-Vector vectorAverage(const Vector& a, const Vector& b)
-{
-	Vector res = a;
-	res.Add(1.0, b);
-	res /= 2.0;
-	return res;
-}
-
-Source::Source(
-	Model& model,
+GaussianInitialField::GaussianInitialField(
 	const FieldType& ft,
 	const Direction& d, 
 	const double spread, 
-	const double coeff, 
-	const Vector devFromCenter) : 
-	spread_(spread),
-	coeff_(coeff),
-	devFromCenter_(devFromCenter),
+	const double normalization, 
+	const Position center) : 
 	fieldType_(ft),
-	direction_(d)
+	direction_(d),
+	spread_(spread),
+	normalization_(normalization),
+	center_(center)
 {
-	checkInputArguments(model);
+	checkInputArguments();
 };
 
-const void Source::checkInputArguments(Model& model)
+const void GaussianInitialField::checkInputArguments()
 {
 	if (spread_ < 0.0) {
 		throw std::exception("Invalid spread value.");
 	}
-	if (coeff_ < 0.0) {
+	if (normalization_ < 0.0) {
 		throw std::exception("Invalid coeff value.");
 	}
-	if (model.getConstMesh().Dimension() != devFromCenter_.Size()) {
-		throw std::exception("Mesh dimension and devFromCenter vector size are not the same.");
-	}
-	model.getMesh().GetBoundingBox(minBB_, maxBB_, 0);
-	for (int i = 0; i < devFromCenter_.Size(); i++) {
-		if (devFromCenter_[i] < minBB_[i] || devFromCenter_[i] > maxBB_[i]) {
-			throw std::exception("Deviation from center cannot be smaller than min boundary or bigger than max boundary values.");
-		}
-	}
 }
 
-double Source::evalGaussianFunction3D(const Position& pos) const
+double GaussianInitialField::evalGaussianFunction3D(const Position& pos) const
 {
-	Vector center = vectorAverage(minBB_, maxBB_);
-	Vector normalizedPos(pos.Size());
-	normalizedPos = 0.0;
-	for (int i = 0; i < normalizedPos.Size(); i++) {
-		normalizedPos[i] = 2 * (pos[i] - center[i] - devFromCenter_[i]) / (maxBB_[i] - minBB_[i]);
-	}
-	return coeff_ * (1.0 / (pow(spread_, 2.0) * pow(2.0 * M_PI, 2.0 / 2.0))) *
-		exp(-40 * (pow(normalizedPos[X], 2.0) + pow(normalizedPos[Y], 2.0) + pow(normalizedPos[Z], 2.0)) /
+	return normalization_ * (1.0 / (pow(spread_, 2.0) * pow(2.0 * M_PI, 2.0 / 2.0))) *
+		exp((pow(pos[X], 2.0) + pow(pos[Y], 2.0) + pow(pos[Z], 2.0)) /
 			(2.0 * pow(spread_, 2.0)));
 }
 
-double Source::evalGaussianFunction2D(const Position& pos) const
+double GaussianInitialField::evalGaussianFunction2D(const Position& pos) const
 {
-	Vector center = vectorAverage(minBB_, maxBB_);
-	Vector normalizedPos(pos.Size());
-	normalizedPos = 0.0;
-	for (int i = 0; i < normalizedPos.Size(); i++) {
-		normalizedPos[i] = 2 * (pos[i] - center[i] - devFromCenter_[i]) / (maxBB_[i] - minBB_[i]);
-	}
-	return coeff_ * (1.0 / (pow(spread_, 2.0) * pow(2.0 * M_PI, 2.0 / 2.0))) *
-		exp(-40 * (pow(normalizedPos[X], 2.0) + pow(normalizedPos[Y], 2.0)) /
+	return normalization_ * (1.0 / (pow(spread_, 2.0) * pow(2.0 * M_PI, 2.0 / 2.0))) *
+		exp((pow(pos[X], 2.0) + pow(pos[Y], 2.0)) /
 			(2.0 * pow(spread_, 2.0)));
 }
 
-double Source::evalGaussianFunction1D(const Position& pos) const
+double GaussianInitialField::evalGaussianFunction1D(const Position& pos) const
 {
-	double center = (minBB_[0] + maxBB_[0]) * 0.5 - devFromCenter_[0];
-	double normalizedPos = 2 * (pos[0] - center) / (maxBB_[0] - minBB_[0]);
-	return coeff_ * (1.0 / spread_ * sqrt(2.0 * M_PI)) *
-		exp(-40 * pow(normalizedPos , 2.0) / pow(spread_, 2.0));
-
+	return normalization_ * (1.0 / spread_ * sqrt(2.0 * M_PI)) *
+		exp(pow(pos[X], 2.0) / pow(spread_, 2.0));
 }
 
 }

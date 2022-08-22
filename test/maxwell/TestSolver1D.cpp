@@ -12,41 +12,50 @@ using namespace mfem;
 
 class TestSolver1D : public ::testing::Test {
 protected:
+	static const int defaultMeshIntervals{ 51 };
 
-	Model buildOneDimOneMatModel(
-		const int meshIntervals = 51, 
+	Model buildDefaultModel(
+		const int meshIntervals = defaultMeshIntervals, 
 		const BdrCond& bdrL = BdrCond::PEC, 
 		const BdrCond& bdrR = BdrCond::PEC) {
 
-		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), AttributeToMaterial(), buildAttrToBdrMap1D(bdrL,bdrR));
+		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), AttributeToMaterial{}, buildAttrToBdrMap1D(bdrL, bdrR));
 	}
 
-	Sources buildSourcesWithDefaultSource(
-		Model& model, 
+	BdrCond buildPerfectBoundary(FieldType f) {
+		switch (f) {
+		case FieldType::E:
+			return BdrCond::PEC;
+		case FieldType::H:
+			return BdrCond::PMC;
+		default:
+			throw std::runtime_error("Invalid Field type");
+		}
+	}
+
+	GaussianInitialField buildDefaultInitialField(
 		const FieldType& ft = E,
-		const Direction& d = X, 
-		const double spread = 2.0, 
-		const double coeff = 1.0, 
-		const Vector dev = Vector({ 0.0 })) {
-
-		Sources res;
-		res.addSourceToVector(Source(model, ft, d,  spread, coeff, dev));
-		return res;
+		const Direction& d = X,
+		const double spread = 2.0,
+		const double coeff = 1.0,
+		const Vector& center = Vector({ 0.5 })) 
+	{
+		return { GaussianInitialField(ft, d, spread, coeff, center) };
 	}
 
-	Probes buildProbesWithDefaultPointsProbe(
+	Sources buildRightTravelingWaveInitialField(const Vector& center)
+	{
+		return {
+			GaussianInitialField(E, Y, 2.0, 1.0, center),
+			GaussianInitialField(H, Z, 2.0, 1.0, center)
+		};
+	}
+
+	PointsProbe buildDefaultPointsProbe(
 		const FieldType& fToExtract = E, 
 		const Direction& dirToExtract = X)
 	{
-		Probes res;
-		res.visSteps = 20;
-		res.pointsProbes = {
-			PointsProbe{
-				fToExtract, dirToExtract,
-				std::vector<std::vector<double>>{ {0.0},{0.5},{1.0} }
-			}
-		};
-		return res;
+		return { fToExtract, dirToExtract, Points{ {0.0},{0.5},{1.0} } };
 	}
 
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
@@ -128,36 +137,14 @@ protected:
 		}
 		return timeMap.end();
 	}
+
+	double getEnergy(const GridFunction& e, const GridFunction& h) 
+	{
+		return pow(e.Norml2(), 2.0) + pow(h.Norml2(), 2.0);
+	}
 };
 
 TEST_F(TestSolver1D, centered)
-{	
-	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
-	a centered type flux.
-
-	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
-	A single Gaussian is declared along Ey.
-
-	Then, the Solver object is constructed using said parts, with its mesh being one-dimensional.
-	The field along Ey is extracted before and after the solver calls its run() method and evolves the
-	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
-	back to its initial state within the specified error.*/
-
-	Model model = buildOneDimOneMatModel();
-
-	maxwell::Solver solver(
-		model, 
-		Probes(),
-		buildSourcesWithDefaultSource(model), 
-		SolverOptions().setCentered());
-	
-	GridFunction eOld = solver.getFieldInDirection(E, Y);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Y);
-
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
-}
-TEST_F(TestSolver1D, centered_energy)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -169,347 +156,76 @@ TEST_F(TestSolver1D, centered_energy)
 	The field along Ey is extracted before and after the solver calls its run() method and evolves the
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
-
-	Model model = buildOneDimOneMatModel();
-		
-	maxwell::Solver solver(
-		model,
-		Probes(),
-		buildSourcesWithDefaultSource(model),
-		SolverOptions().setCentered()
-	);
-
-	GridFunction eOld = solver.getFieldInDirection(E, Y);
+	maxwell::Solver solver{
+		buildDefaultModel(),
+		{ {buildDefaultPointsProbe()} },
+		{ buildDefaultInitialField() },
+		SolverOptions{}.setCentered()
+	};
+	
+	GridFunction eOld{ solver.getFieldInDirection(E, Y) };
 	GridFunction hOld = solver.getFieldInDirection(H, Z);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
 	GridFunction hNew = solver.getFieldInDirection(H, Z);
 
-	EXPECT_GE(pow(eOld.Norml2(),2.0) + pow(hOld.Norml2(),2.0), pow(eNew.Norml2(),2.0) + pow(hNew.Norml2(),2.0));
-
-}
-TEST_F(TestSolver1D, upwind_PEC_EX)
-{
-
-	Model model = buildOneDimOneMatModel();
-
-	maxwell::Solver solver(
-		model, 
-		buildProbesWithDefaultPointsProbe(),
-		buildSourcesWithDefaultSource(model),
-		SolverOptions());
-
-	GridFunction eOld = solver.getFieldInDirection(E, X);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, X);
-
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
-
+	EXPECT_GE(getEnergy(eOld, hOld), getEnergy(eNew, hNew));
 }
-TEST_F(TestSolver1D, upwind_PEC_EY)
+TEST_F(TestSolver1D, upwind_perfect_boundary_EH_XYZ)
 {
-	Model model = buildOneDimOneMatModel();
+	for (const auto& f : { E, H }) {
+		for (const auto& x : { X, Y, Z }) {
+			
+			maxwell::Solver solver{
+				buildDefaultModel(defaultMeshIntervals, buildPerfectBoundary(f), buildPerfectBoundary(f)),
+				{{buildDefaultPointsProbe(f, x)} },
+				{ buildDefaultInitialField(f, x) },
+				SolverOptions()
+			};
 
-	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
-	probes.exporterProbes.push_back(ExporterProbe{});
+			GridFunction fOld = solver.getFieldInDirection(f, x);
+			solver.run();
+			GridFunction fNew = solver.getFieldInDirection(f, x);
 
-	maxwell::Solver solver(
-		model,
-		probes,
-		buildSourcesWithDefaultSource(model, E, Y),
-		SolverOptions()
-	);
+			EXPECT_NEAR(0.0, fOld.DistanceTo(fNew), 2e-3);
 
-	GridFunction eOld = solver.getFieldInDirection(E, Y);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Y);
+			const auto pp{ *solver.getPointsProbe(0) };
+			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 0.5, 0), 2e-3);
+			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 0.5, 2), 2e-3);
+			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 1.5, 0), 2e-3);
+			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 1.5, 2), 2e-3);
 
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
-
-	const auto pp{ *solver.getPointsProbe(0) };
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(pp, 0.5, 0), 2e-3);
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(pp, 0.5, 2), 2e-3);
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(pp, 1.5, 0), 2e-3);
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(pp, 1.5, 2), 2e-3);
-
-	EXPECT_NE(eOld.Max(),   getBoundaryFieldValueAtTime(pp, 0.5, 1));
-	EXPECT_NE(eOld.Max(),   getBoundaryFieldValueAtTime(pp, 1.5, 1));
-
+			EXPECT_NE(fOld.Max(), getBoundaryFieldValueAtTime(pp, 0.5, 1));
+			EXPECT_NE(fOld.Max(), getBoundaryFieldValueAtTime(pp, 1.5, 1));
+		}
+	}
 }
-TEST_F(TestSolver1D, upwind_PEC_EZ)
+TEST_F(TestSolver1D, upwind_SMA_E_XYZ)
 {
-	Model model = buildOneDimOneMatModel();
+	for (const auto& x : { X, Y, Z }) {
+		maxwell::Solver solver(
+			buildDefaultModel(defaultMeshIntervals, BdrCond::SMA, BdrCond::SMA),
+			{ {buildDefaultPointsProbe(E, x)} },
+			{ buildDefaultInitialField(E, x) },
+			SolverOptions{}
+		);
 
-	maxwell::Solver solver(
-		model,
-		buildProbesWithDefaultPointsProbe(E, Z),
-		buildSourcesWithDefaultSource(model, E, Z),
-		SolverOptions()
-	);
+		GridFunction eOld = solver.getFieldInDirection(E, x);
+		solver.run();
+		GridFunction eNew = solver.getFieldInDirection(E, x);
 
-	GridFunction eOld = solver.getFieldInDirection(E, Z);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Z);
-
-	double error = eOld.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
-	const auto& pp{ *solver.getPointsProbe(0) };
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(pp, 0.5, 0), 2e-3);
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(pp, 0.5, 2), 2e-3);
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(pp, 1.5, 0), 2e-3);
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(pp, 1.5, 2), 2e-3);
-	
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(pp, 0.5, 1));
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(pp, 1.5, 1));
-
+		double error = eOld.DistanceTo(eNew);
+		EXPECT_NEAR(0.0, error, 2e-3);
+	}
 }
-TEST_F(TestSolver1D, upwind_PMC_HX)
+TEST_F(TestSolver1D, wave_travelingToTheRight_SMA)
 {
-	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
-
-	maxwell::Solver solver(
-		model,
-		buildProbesWithDefaultPointsProbe(H, X),
-		buildSourcesWithDefaultSource(model, H, X),
-		SolverOptions()
-	);
-
-	GridFunction hOld = solver.getFieldInDirection(H, X);
-	solver.run();
-	GridFunction hNew = solver.getFieldInDirection(H, X);
-
-	double error = hOld.DistanceTo(hNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
-}
-TEST_F(TestSolver1D, upwind_PMC_HY)
-{
-	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
-
-	auto probes = buildProbesWithDefaultPointsProbe(H, Y);
-		probes.exporterProbes.push_back(ExporterProbe{});
-
-	maxwell::Solver solver(
-		model,
-		probes,
-		buildSourcesWithDefaultSource(model, H, Y),
-		SolverOptions()
-	);
-
-	GridFunction hOld = solver.getFieldInDirection(H, Y);
-	solver.run();
-	GridFunction hNew = solver.getFieldInDirection(H, Y);
-
-	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 2e-3);
-
-	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 0), 2e-3);
-	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 2), 2e-3);
-	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 0), 2e-3);
-	EXPECT_NEAR(     0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 2), 2e-3);
-
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 1));
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 1));
-
-}
-TEST_F(TestSolver1D, upwind_PMC_HZ)
-{
-	Model model = buildOneDimOneMatModel(51, BdrCond::PMC, BdrCond::PMC);
-
-	auto probes = buildProbesWithDefaultPointsProbe(H, Z);
-		probes.exporterProbes.push_back(ExporterProbe{});
-
-	maxwell::Solver solver(
-		model,
-		probes,
-		buildSourcesWithDefaultSource(model, H, Z),
-		SolverOptions()
-	);
-
-	GridFunction hOld = solver.getFieldInDirection(H, Z);
-	solver.run();
-	GridFunction hNew = solver.getFieldInDirection(H, Z);
-
-	double error = hOld.DistanceTo(hNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 0), 2e-3);
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 2), 2e-3);
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 0), 2e-3);
-	EXPECT_NEAR(0.0,      getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 2), 2e-3);
-																					  
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 1));
-	EXPECT_NE(hOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 1));
-
-}
-TEST_F(TestSolver1D, upwind_SMA_EX)
-{
-	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
-
-	maxwell::Solver solver(
-		model,
-		buildProbesWithDefaultPointsProbe(E, X),
-		buildSourcesWithDefaultSource(model, E, X),
-		SolverOptions().setFinalTime(0.2));
-
-	GridFunction eOld = solver.getFieldInDirection(E, X);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, X);
-
-	double error = eOld.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
-}
-TEST_F(TestSolver1D, DISABLED_upwind_SMA_EY)
-{
-	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
-
-	auto probes = buildProbesWithDefaultPointsProbe(E, Y);
-	probes.pointsProbes.push_back(PointsProbe(E, Z, std::vector<std::vector<double>>({ {0.0},{0.5},{1.0} })));
-	probes.pointsProbes.push_back(PointsProbe(H, Y, std::vector<std::vector<double>>({ {0.0},{0.5},{1.0} })));
-	probes.exporterProbes.push_back(ExporterProbe{});
 
 	maxwell::Solver solver{
-		model,
-		probes,
-		buildSourcesWithDefaultSource(model, E, Y),
-		SolverOptions().setFinalTime(1.0)
-	};
-
-	GridFunction eOld = solver.getFieldInDirection(E, Y);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Y);
-	Vector zero = eNew;
-	zero = 0.0;
-	double error = zero.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.0, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.0, 1), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.0, 2), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(1), 1.0, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(1), 1.0, 1), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(1), 1.0, 2), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(2), 1.0, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(2), 1.0, 1), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(2), 1.0, 2), 2e-3);
-
-}
-TEST_F(TestSolver1D, DISABLED_upwind_SMA_EZ)
-{
-	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
-
-	auto probes = buildProbesWithDefaultPointsProbe(E, Z);
-	//	probes.exporterProbes.push_back(ExporterProbe{});
-
-	maxwell::Solver solver(
-		model,
-		probes,
-		buildSourcesWithDefaultSource(model, E, Z),
-		SolverOptions().setFinalTime(1.0));
-
-	GridFunction eOld = solver.getFieldInDirection(E, Z);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Z);
-	Vector zero = eNew;
-	zero = 0.0;
-	double error = zero.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 0));
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 1));
-	EXPECT_GE(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 2));
-
-}
-TEST_F(TestSolver1D, DISABLED_strong_flux_PEC_EY)
-{
-	Mesh mesh = Mesh::MakeCartesian1D(51);
-	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
-
-	SolverOptions opts;
-	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
-	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
-	opts.t_final = 0.5;
-
-	auto probes{ buildProbesWithDefaultPointsProbe(E, Y) };
-	probes.exporterProbes.push_back(ExporterProbe{});
-	probes.visSteps = 5;
-
-	maxwell::Solver solver(
-		model,
-		probes,
-		buildSourcesWithDefaultSource(model, E, Y),
-		opts);
-
-	GridFunction eOld = solver.getFieldInDirection(E, Y);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Y);
-
-	double error = eOld.DistanceTo(eNew);
-	EXPECT_NEAR(0.0, error, 2e-3);
-
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 2), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 2), 2e-3);
-
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 1));
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 1));
-
-}
-TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
-{
-	Model model = buildOneDimOneMatModel();
-	
-	SolverOptions optsWeak;
-	optsWeak.evolutionOperatorOptions = FiniteElementEvolution::Options();
-
-	maxwell::Solver solverWeak(
-		model,
-		buildProbesWithDefaultPointsProbe(E, Y),
-		buildSourcesWithDefaultSource(model, E, Y),
-		optsWeak);
-
-	SolverOptions optsStrong;
-	optsStrong.evolutionOperatorOptions = FiniteElementEvolution::Options();
-	optsStrong.evolutionOperatorOptions.disForm = DisForm::Strong;
-
-	maxwell::Solver solverStrong(
-		model,
-		buildProbesWithDefaultPointsProbe(E, Y),
-		buildSourcesWithDefaultSource(model, E, Y),
-		optsStrong);
-
-	GridFunction eOldWk = solverWeak.getFieldInDirection(E, Y);
-	GridFunction eOldSt = solverStrong.getFieldInDirection(E, Y);
-	solverWeak.run();
-	solverStrong.run();
-	GridFunction eNewWk = solverWeak.getFieldInDirection(E, Y);
-	GridFunction eNewSt = solverStrong.getFieldInDirection(E, Y);
-
-	double errorOld = eOldWk.DistanceTo(eOldSt);
-	double errorNew = eNewWk.DistanceTo(eNewSt);
-	EXPECT_NEAR(0.0, errorOld, 2e-3);
-	EXPECT_NEAR(0.0, errorNew, 2e-3);
-
-}
-TEST_F(TestSolver1D, twoSourceWaveTravelsToTheRight_SMA)
-{
-	Model model = buildOneDimOneMatModel(51, BdrCond::SMA, BdrCond::SMA);
-
-	Probes probes;
-	probes.pointsProbes = {
-		PointsProbe{E, Y, std::vector<std::vector<double>>{ {0.5}, { 0.8 } }}
-	};
-
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, Y, 2.0, 1.0, Vector({ 0.0 })));
-	sources.addSourceToVector(Source(model, H, Z, 2.0, 1.0, Vector({ 0.0 })));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		sources,
+		buildDefaultModel(defaultMeshIntervals, BdrCond::SMA, BdrCond::SMA),
+		{ {PointsProbe{E, Y, Points{ {0.5}, { 0.8 } }}} },
+		buildRightTravelingWaveInitialField(Vector({ 0.5 })),
 		SolverOptions{}.setFinalTime(0.7)
 	};
 
@@ -538,18 +254,15 @@ TEST_F(TestSolver1D, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	);
 
 	Probes probes{
-		{ PointsProbe(E, Y, std::vector<std::vector<double>>{ {0.3}, { 0.1 } }) }
+		{ PointsProbe(E, Y, Points{ {0.3}, { 0.1 } }) }
 	};
 
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, Y, 1.0, 0.5, Vector({ 0.2 })));
-	sources.addSourceToVector(Source(model, H, Z, 1.0, 0.5, Vector({ 0.2 })));
-
-	maxwell::Solver solver(
+	maxwell::Solver solver{
 		model,
 		probes,
-		sources,
-		SolverOptions().setFinalTime(1.5));
+		buildRightTravelingWaveInitialField(Vector({ 0.5 })),
+		SolverOptions{}.setFinalTime(1.5)
+	};
 
 	auto eOld = solver.getFieldInDirection(E, Y);
 
@@ -561,24 +274,78 @@ TEST_F(TestSolver1D, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	EXPECT_NEAR(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.0, 0), 2e-3);
 
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.45, 0), 2e-3);
-	EXPECT_NEAR(0.0,        getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.30, 1), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.45, 0), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.30, 1), 2e-3);
 	
 	EXPECT_NEAR(getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
 		        getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.90, 0), 2e-3);
 	EXPECT_NEAR(getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
 		        getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.10, 1), 2e-3);
 }
-TEST_F(TestSolver1D, fluxOperator_O2)
+
+TEST_F(TestSolver1D, DISABLED_strong_flux_PEC_EY)
 {
+	SolverOptions opts;
+	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
+	opts.t_final = 0.5;
 
-	Model model = buildOneDimOneMatModel(3);
+	maxwell::Solver solver{
+		buildDefaultModel(),
+		{{buildDefaultPointsProbe(E, Y)}},
+		{ buildDefaultInitialField(E, Y) },
+		opts
+	};
 
-	maxwell::Solver solver(
-		model,
+	GridFunction eOld = solver.getFieldInDirection(E, Y);
+	solver.run();
+	GridFunction eNew = solver.getFieldInDirection(E, Y);
+
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
+
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 0), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 2), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 0), 2e-3);
+	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 2), 2e-3);
+
+	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 0.5, 1));
+	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(*solver.getPointsProbe(0), 1.5, 1));
+
+}
+TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
+{
+	auto model{ buildDefaultModel() };
+	Probes probes{ {buildDefaultPointsProbe(E, Y)} };
+	auto source{ buildDefaultInitialField(E, Y) };
+
+	maxwell::Solver solverWeak{ 
+		model, probes, { source },
+		SolverOptions{}
+	};
+
+	maxwell::Solver solverStrong{
+		model, probes, { source },
+		SolverOptions{}.setStrongForm()
+	};
+
+	GridFunction eOldWk = solverWeak.getFieldInDirection(E, Y);
+	solverWeak.run();
+	GridFunction eNewWk = solverWeak.getFieldInDirection(E, Y);
+	
+	GridFunction eOldSt = solverStrong.getFieldInDirection(E, Y);
+	solverStrong.run();
+	GridFunction eNewSt = solverStrong.getFieldInDirection(E, Y);
+
+	EXPECT_NEAR(0.0, eOldWk.DistanceTo(eOldSt), 2e-3);
+	EXPECT_NEAR(0.0, eNewWk.DistanceTo(eNewSt), 2e-3);
+}
+TEST_F(TestSolver1D, DISABLED_fluxOperator_O2)
+{
+	maxwell::Solver solver{
+		buildDefaultModel(3),
 		Probes(),
-		buildSourcesWithDefaultSource(model, E, Y),
-		SolverOptions().setFinalTime(0.1));
+		{ buildDefaultInitialField(E, Y) },
+		SolverOptions().setFinalTime(0.1)
+	};
 
 	auto MSMat = toEigen(*solver.getFEEvol()
 		.getInvMassStiffness(FieldType::E, X).get()->SpMat().ToDenseMatrix());

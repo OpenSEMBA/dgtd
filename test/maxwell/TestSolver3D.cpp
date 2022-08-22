@@ -15,8 +15,9 @@ TEST_F(TestSolver3D, DISABLED_threeDimensional)
 	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::HEXAHEDRON);
 	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
 
-	Sources sources;
-	sources.addSourceToVector(Source(model, E, Z, 0.2, 200.0, Vector({ 0.0,0.0,0.0 })));
+	Sources sources{
+		GaussianInitialField{E, Z, 0.2, 200.0, Vector({ 0.0,0.0,0.0 })}
+	};
 
 	Probes probes;
 

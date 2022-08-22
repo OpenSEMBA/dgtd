@@ -18,18 +18,20 @@ FieldViews buildFieldsView(std::array<GridFunction, 3>& E, std::array<GridFuncti
 	return r;
 }
 
+Solver::Solver(const ProblemDescription& problem, const SolverOptions& options) :
+	Solver(problem.model, problem.probes, problem.sources, options)
+{}
+
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
 	const Sources& sources,
 	const SolverOptions& options) :
 	opts_{ options },
-	mesh_{ model_.getMesh() },
-	fec_{ opts_.order, mesh_.Dimension(), BasisType::GaussLobatto },
-	fes_{ &mesh_, &fec_ },
-	odeSolver_{ std::make_unique<RK4Solver>() },
 	model_{ model },
 	sources_{ sources },
+	fec_{ opts_.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
+	fes_{ &model_.getMesh(), &fec_ },
 	maxwellEvol_{ &fes_, opts_.evolutionOperatorOptions, model_, sources_ }
 {
 
@@ -47,7 +49,7 @@ Solver::Solver(
 		H_[d].SetData(sol_.GetData() + (d+3)*fes_.GetNDofs());
 	}
 
-	initializeSources();
+	initializeFieldsFromSources();
 
 	probesManager_ = ProbesManager{ probes, &fes_, buildFieldsView(E_, H_) };
 }
@@ -61,22 +63,20 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts)
 	}
 }
 
-void Solver::initializeSources()
+void Solver::initializeFieldsFromSources()
 {
-	for (int i = 0; i < sources_.getSourcesVector().size(); i++) {
-		auto source = sources_.getSourcesVector().at(i);
-
+	for (const auto& source: sources_) {
 		std::function<double(const Position&)> f = 0;
 		
 		switch (model_.getConstMesh().Dimension()) {
 		case 1:
-			f = std::bind(&Source::evalGaussianFunction1D, &source, std::placeholders::_1);
+			f = std::bind(&GaussianInitialField::evalGaussianFunction1D, &source, std::placeholders::_1);
 			break;
 		case 2:
-			f = std::bind(&Source::evalGaussianFunction2D, &source, std::placeholders::_1);
+			f = std::bind(&GaussianInitialField::evalGaussianFunction2D, &source, std::placeholders::_1);
 			break;
 		case 3:
-			f = std::bind(&Source::evalGaussianFunction3D, &source, std::placeholders::_1);
+			f = std::bind(&GaussianInitialField::evalGaussianFunction3D, &source, std::placeholders::_1);
 			break;
 		}
 

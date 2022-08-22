@@ -19,6 +19,10 @@ struct SolverOptions {
         evolutionOperatorOptions.fluxType = FluxType::Centered;
         return *this;
     }
+    SolverOptions& setStrongForm() {
+        evolutionOperatorOptions.disForm = DisForm::Strong;
+        return *this;
+    }
 };
 
 }

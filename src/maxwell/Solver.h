@@ -21,6 +21,7 @@ public:
     using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
     
+    Solver(const ProblemDescription&, const SolverOptions& = SolverOptions());
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
@@ -28,7 +29,6 @@ public:
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const PointsProbe* getPointsProbe(const std::size_t probe) { return probesManager_.getPointsProbe(probe); }
 
-    const mfem::Mesh& getMesh() const { return mesh_; }
     const FiniteElementEvolution& getFEEvol() const { return maxwellEvol_; }
 
     void run();
@@ -40,13 +40,10 @@ private:
     Sources sources_;
     ProbesManager probesManager_;
     
-    mfem::Mesh mesh_;
     mfem::DG_FECollection fec_;
     mfem::FiniteElementSpace fes_;
 
-    std::unique_ptr<ODESolver> odeSolver_;
-
-    mfem::Array<int> boundaryTDoF_;
+    std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
 
     FiniteElementEvolution maxwellEvol_;
 
@@ -55,6 +52,6 @@ private:
 
     void checkOptionsAreValid(const SolverOptions&);
 
-    void Solver::initializeSources();
+    void Solver::initializeFieldsFromSources();
 };
 }

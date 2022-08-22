@@ -1,52 +1,41 @@
 #pragma once
 
 #include <functional>
+#include <mfem.hpp>
 
 #include "Types.h"
-#include "Model.h"
 
 namespace maxwell {
 
-class Source {
+class GaussianInitialField {
 public:
-	using Vector = mfem::Vector;
 	using Position = mfem::Vector;
 
-	Source(
-		Model& model, 
+	GaussianInitialField(
 		const FieldType& ft, 
 		const Direction& d, 
 		const double spread, 
-		const double coeff,
-		const Vector devFromCenter
+		const double normalization,
+		const Position center
 	);
 
 	double evalGaussianFunction3D(const Position&) const;
 	double evalGaussianFunction2D(const Position&) const;
 	double evalGaussianFunction1D(const Position&) const;
+	
 	FieldType getFieldType() const { return fieldType_; }
 	Direction getDirection() const { return direction_; }
 
 private:
-	FieldType fieldType_;
-	Direction direction_;
-	double spread_;
-	double coeff_;
-	Vector minBB_, maxBB_, devFromCenter_;
+	FieldType fieldType_{E};
+	Direction direction_{X};
+	double spread_{2.0};
+	double normalization_{1.0};
+	Position center_;
 
-	const void checkInputArguments(Model& model);
+	const void checkInputArguments();
 };
 
-struct Sources {
-public:
-
-	void addSourceToVector(const Source& source) { sourceVector_.push_back(source); }
-	const std::vector<Source>& getSourcesVector() const { return sourceVector_; }
-
-private:
-
-	std::vector<Source> sourceVector_;
-
-};
+using Sources = std::vector<GaussianInitialField>;
 
 }
