@@ -8,6 +8,16 @@ using namespace mfem;
 
 namespace maxwell {
 
+FieldViews buildFieldsView(std::array<GridFunction, 3>& E, std::array<GridFunction, 3>& H)
+{
+	FieldViews r;
+	for (const auto& x : { X, Y, Z }) {
+		r.E[x] = &E[x];
+		r.H[x] = &H[x];
+	}
+	return r;
+}
+
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
@@ -39,7 +49,7 @@ Solver::Solver(
 
 	initializeSources();
 
-	probesManager_ = ProbesManager{ probes, &fes_, {&E_, &H_} };
+	probesManager_ = ProbesManager{ probes, &fes_, buildFieldsView(E_, H_) };
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts)
@@ -99,21 +109,22 @@ const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direc
 void Solver::run()
 {
 	double time = 0.0;
-	bool done = false;
-	int cycle = 0;
-
+	
 	maxwellEvol_.SetTime(time);
 	odeSolver_->Init(maxwellEvol_);
 	
-	probesManager_.updateProbes(done, cycle);
+	probesManager_.updateProbes(time);
+	
+	bool done = false;
 	while (!done) {
 		odeSolver_->Step(sol_, time, opts_.dt);
 		if (abs(time - opts_.t_final) < 1e-6) {
 			done = true;
 		}
-		cycle++;
-		probesManager_.updateProbes(done, cycle);
+		probesManager_.updateProbes(time);
 	}
+
+	probesManager_.updateProbes(time);
 }
 
 }

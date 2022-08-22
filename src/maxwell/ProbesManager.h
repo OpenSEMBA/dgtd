@@ -7,7 +7,7 @@ namespace maxwell {
 class ProbesManager {
 public:
     ProbesManager() = default;
-    ProbesManager(Probes, const mfem::FiniteElementSpace*, const FieldViews&);
+    ProbesManager(Probes, const mfem::FiniteElementSpace*, FieldViews&);
     
     ProbesManager(const ProbesManager&) = delete;
     ProbesManager(ProbesManager&&) = default;
@@ -15,31 +15,34 @@ public:
     ProbesManager& operator=(const ProbesManager&) = delete;
     ProbesManager& operator=(ProbesManager&&) = default;
 
-    void updateProbes(bool done, int cycle);
+    void updateProbes(double time);
 
     const PointsProbe* getPointsProbe(const std::size_t i) const;
-    
-    using IntegrationPoint = mfem::IntegrationPoint;
-    using IntegrationPointsSet = std::vector<std::vector<IntegrationPoint>>;
-
-    struct PointsProbeInFES {
-        mfem::Array<int> elemIds;
-        IntegrationPointsSet integPointSet;
-        const GridFunction& field;
-    };
 
 private:
+    struct FESPoint {
+        int elementId;
+        mfem::IntegrationPoint iP;
+    };
 
-    int vis_steps = 1;
+    struct PointsProbeCollection {
+        std::vector<FESPoint> fesPoints;
+        const mfem::GridFunction* field;
+    };
+
+    int cycle_{ 0 };
+
     Probes probes_;
-    std::map<const ExporterProbe*, mfem::ParaViewDataCollection> dataCollection_;
-    std::map<const PointsProbe*, PointsProbeInFES> probesToFES_;
+    std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
+    std::map<const PointsProbe*, PointsProbeCollection> pointProbesCollection_;
     
-    PointsProbeInFES buildElemAndIntegrationPointArrays(const PointsProbe&) const;
-    FieldFrame getFieldForPointsProbe(const PointsProbe& p) const;
-
-    void storeInitialVisualizationValues();
-
+    const mfem::FiniteElementSpace* fes_;
+    
+    mfem::ParaViewDataCollection buildParaviewDataCollection(FieldViews& fields) const;
+    PointsProbeCollection buildPointsProbeCollection(const PointsProbe&, FieldViews& fields) const;
+    
+    void updateProbe(ExporterProbe&, double time);
+    void updateProbe(PointsProbe&, double time);
 };
 
 }

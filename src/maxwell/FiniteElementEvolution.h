@@ -20,8 +20,8 @@ public:
 		DisForm disForm = DisForm::Weak;
 	};
 
-	static const std::size_t numberOfFieldComponents = 2;
-	static const std::size_t numberOfMaxDimensions = 3;
+	static const int numberOfFieldComponents = 2;
+	static const int numberOfMaxDimensions = 3;
 
 	FiniteElementEvolution(FiniteElementSpace* fes, Options options, Model& model, Sources& sources);
 	virtual void Mult(const Vector& x, Vector& y) const;

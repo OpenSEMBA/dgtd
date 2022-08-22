@@ -4,20 +4,19 @@ namespace maxwell {
 
 using namespace mfem;
 
-ParaViewDataCollection buildParaviewDataCollection(
-	FiniteElementSpace* fes, FieldViews& fields)
+ParaViewDataCollection ProbesManager::buildParaviewDataCollection(FieldViews& fields) const
 {
-	ParaViewDataCollection pd{ "MaxwellView", fes->GetMesh()};
+	ParaViewDataCollection pd{ "MaxwellView", fes_->GetMesh()};
 	pd.SetPrefixPath("ParaView");
 	
-	pd.RegisterField("Ex", &(*fields.E)[X]);
-	pd.RegisterField("Ey", &(*fields.E)[Y]);
-	pd.RegisterField("Ez", &(*fields.E)[Z]);
-	pd.RegisterField("Hx", &(*fields.H)[X]);
-	pd.RegisterField("Hy", &(*fields.H)[Y]);
-	pd.RegisterField("Hz", &(*fields.H)[Z]);
+	pd.RegisterField("Ex", fields.E[X]);
+	pd.RegisterField("Ey", fields.E[Y]);
+	pd.RegisterField("Ez", fields.E[Z]);
+	pd.RegisterField("Hx", fields.H[X]);
+	pd.RegisterField("Hy", fields.H[Y]);
+	pd.RegisterField("Hz", fields.H[Z]);
 
-	const auto order{ fes->GetMaxElementOrder() };
+	const auto order{ fes_->GetMaxElementOrder() };
 	pd.SetLevelsOfDetail(order);
 	order > 0 ? pd.SetHighOrderOutput(true) : pd.SetHighOrderOutput(false);
 	
@@ -26,15 +25,18 @@ ParaViewDataCollection buildParaviewDataCollection(
 	return pd;
 }
 
-ProbesManager::ProbesManager(Probes probes, const mfem::FiniteElementSpace* fes, const FieldViews& fields) :
-	probes_{probes}
+ProbesManager::ProbesManager(Probes probes, const mfem::FiniteElementSpace* fes, FieldViews& fields) :
+	probes_{probes},
+	fes_{fes}
 {
+	assert(fes_ != nullptr);
+	
 	for (const auto& p: probes_.exporterProbes) {
-		buildParaviewDataCollection(fes, fields);
+		exporterProbesCollection_.emplace(&p, buildParaviewDataCollection(fields));
 	}
 	
 	for (const auto& p : probes_.pointsProbes) {
-		probesToFES_.emplace(&p, buildElemAndIntegrationPointArrays(p));
+		pointProbesCollection_.emplace(&p, buildPointsProbeCollection(p, fields));
 	}
 }
 
@@ -44,99 +46,86 @@ const PointsProbe* ProbesManager::getPointsProbe(const std::size_t i) const
 	return &probes_.pointsProbes[i];
 }
 
-ProbesManager::PointsProbeInFES
-buildElemAndIntegrationPointArrays(const PointsProbe& p, const mfem::FiniteElementSpace* fes)
+const GridFunction* getFieldView(const PointsProbe& p, FieldViews& fields)
 {
-	DenseMatrix physPoints{ p.getIntegPointMat() };
-	Array<int> elemIdArray;
-	Array<IntegrationPoint> integPointArray;
-	std::pair<Array<int>, Array<IntegrationPoint>> res;
-	fes->GetMesh()->FindPoints(physPoints, elemIdArray, integPointArray);
-	return { elemIdArray, buildIntegrationPointsSet(integPointArray) };
+	const GridFunction* field{ nullptr };
+	switch (p.getFieldType()) {
+	case FieldType::E:
+		field = fields.E[p.getDirection()];
+		break;
+	case FieldType::H:
+		field = fields.H[p.getDirection()];
+		break;
+	default:
+		throw std::runtime_error("Invalid field type.");
+	}
+	return field;
 }
 
-const std::vector<std::vector<IntegrationPoint>> buildIntegrationPointsSet(const Array<IntegrationPoint>& ipArray)
+DenseMatrix toDenseMatrix(const Point& p)
 {
-	std::vector<IntegrationPoint> aux;
-	aux.resize(model_.getConstMesh().Dimension());
-	IntegrationPointsSet res;
-	res.resize(ipArray.Size(), aux);
-	for (int i = 0; i < ipArray.Size(); i++) {
-		switch (fes_.GetMesh()->Dimension()) {
-		case 1:
-			res[i][X].Set1w(ipArray[i].x, 0.0);
-			break;
-		case 2:
-			res[i][X].Set2(ipArray[i].x, 0.0);
-			res[i][Y].Set2(0.0, ipArray[i].y);
-			break;
-		case 3:
-			res[i][X].Set3(ipArray[i].x, 0.0, 0.0);
-			res[i][Y].Set3(0.0, ipArray[i].y, 0.0);
-			res[i][Z].Set3(0.0, 0.0, ipArray[i].z);
-			break;
-		}
+	DenseMatrix r(1,p.size());
+	for (auto i{ 0 }; i < p.size(); ++i) {
+		r(0, i) = p[i];
 	}
-	return res;
+	return r;
 }
 
-FieldFrame ProbesManager::getFieldForPointsProbe(const PointsProbe& p) const
+ProbesManager::PointsProbeCollection
+ProbesManager::buildPointsProbeCollection(const PointsProbe& p, FieldViews& fields) const
 {
-	const auto& it{ probeIntegrationPoints_.find(&p) };
-	assert(it != probeIntegrationPoints_.end());
-	const auto& pPIP{ it->second };
-
-	FieldFrame res;
-	res.resize(pPIP.elemIds.Size());
-	for (int j = 0; j < pPIP.elemIds.Size(); j++) {
-		assert(pPIP.elemIds.Size() == pPIP.integPointSet.size());
-		for (int d = X; d <= Z; d++) {
-			const auto& dir{ p.getDirection() };
-			switch (p.getFieldType()) {
-			case FieldType::E:
-				res[j][dir] = E_[dir].GetValue(pPIP.elemIds[j], pPIP.integPointSet[j][d]);
-				break;
-			case FieldType::H:
-				res[j][dir] = H_[dir].GetValue(pPIP.elemIds[j], pPIP.integPointSet[j][d]);
-				break;
-			}
-		}
+	std::vector<FESPoint> fesPoints;
+	for (const auto& point : p.getPoints()) {
+		Array<int> elemIdArray;
+		Array<IntegrationPoint> integPointArray;
+		fes_->GetMesh()->FindPoints(toDenseMatrix(point), elemIdArray, integPointArray);
+		assert(elemIdArray.Size() == 1);
+		assert(integPointArray.Size() == 1);
+		fesPoints.push_back({ elemIdArray[0], integPointArray[0] });
 	}
-	return res;
+	
+	return { 
+		fesPoints, 
+		getFieldView(p, fields)
+	};
+}
+
+void ProbesManager::updateProbe(ExporterProbe& p, double time)
+{
+	auto it{ exporterProbesCollection_.find(&p) };
+	assert(it != exporterProbesCollection_.end());
+	auto& pd{ it->second };
+
+	pd.SetCycle(cycle_);
+	pd.SetTime(time);
+	pd.Save();
 }
 
 
-void ProbesManager::storeInitialVisualizationValues()
+void ProbesManager::updateProbe(PointsProbe& p, double time)
 {
-	for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-		if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
-			pd_->SetCycle(0);
-			pd_->SetTime(0.0);
-			pd_->Save();
-			break;
-		}
+	const auto& it{ pointProbesCollection_.find(&p) };
+	assert(it != pointProbesCollection_.end());
+	const auto& pC{ it->second };
+
+	FieldFrame frame;
+	for (const auto& fesPoint: pC.fesPoints) {
+		frame.push_back( pC.field->GetValue(fesPoint.elementId, fesPoint.iP) );
 	}
+	
+	p.addFrame(time, frame);
 }
 
-void ProbesManager::updateProbes(double time, bool done, int cycle)
+void ProbesManager::updateProbes(double time)
 {
-	storeInitialVisualizationValues();
-	for (auto& p : probes_.pointsProbes) {
-		p.addFrame(time, getFieldForPointsProbe(p));
-	}
-	if (done || cycle % probes_.vis_steps == 0) {
-		for (auto& p : probes_.getPointsProbes()) {
-			p.addFrame(time, getFieldForPointsProbe(p));
+	if (cycle_ % probes_.visSteps == 0) {
+		for (auto& p: probes_.exporterProbes) {
+			updateProbe(p, time);
 		}
-		for (int i = 0; i < probes_.getExporterProbes().size(); i++) {
-			if (probes_.getExporterProbes().at(i).type == ExporterProbe::Type::Paraview) {
-				pd_->SetCycle(cycle);
-				pd_->SetTime(time);
-				pd_->Save();
-				break;
-			}
+		for (auto& p : probes_.pointsProbes) {
+			updateProbe(p, time);
 		}
 	}
-
+	cycle_++;
 }
 }
