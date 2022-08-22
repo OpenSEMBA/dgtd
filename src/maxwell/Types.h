@@ -7,9 +7,11 @@
 namespace maxwell {
 
 using Time = double;
-using CVec3 = std::array<double, 3>;
-using FieldFrame = std::vector<CVec3>;
+using FieldFrame = std::vector<double>;
 using FieldMovie = std::map<Time, FieldFrame>;
+
+using Point = std::vector<double>;
+using Points = std::vector<Point>;
 
 enum FieldType {
 	E,

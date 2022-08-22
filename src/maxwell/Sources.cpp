@@ -5,6 +5,14 @@ namespace maxwell {
 
 using namespace mfem;
 
+Vector vectorAverage(const Vector& a, const Vector& b)
+{
+	Vector res = a;
+	res.Add(1.0, b);
+	res /= 2.0;
+	return res;
+}
+
 Source::Source(
 	Model& model,
 	const FieldType& ft,
@@ -12,7 +20,6 @@ Source::Source(
 	const double spread, 
 	const double coeff, 
 	const Vector devFromCenter) : 
-
 	spread_(spread),
 	coeff_(coeff),
 	devFromCenter_(devFromCenter),
@@ -54,7 +61,6 @@ double Source::evalGaussianFunction3D(const Position& pos) const
 			(2.0 * pow(spread_, 2.0)));
 }
 
-
 double Source::evalGaussianFunction2D(const Position& pos) const
 {
 	Vector center = vectorAverage(minBB_, maxBB_);
@@ -75,13 +81,6 @@ double Source::evalGaussianFunction1D(const Position& pos) const
 	return coeff_ * (1.0 / spread_ * sqrt(2.0 * M_PI)) *
 		exp(-40 * pow(normalizedPos , 2.0) / pow(spread_, 2.0));
 
-}
-Vector Source::vectorAverage(const Vector& a, const Vector& b)
-{
-	Vector res = a;
-	res.Add(1.0, b);
-	res /= 2.0;
-	return res;
 }
 
 }

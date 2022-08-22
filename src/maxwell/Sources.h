@@ -28,14 +28,12 @@ public:
 	Direction getDirection() const { return direction_; }
 
 private:
-
 	FieldType fieldType_;
 	Direction direction_;
 	double spread_;
 	double coeff_;
 	Vector minBB_, maxBB_, devFromCenter_;
 
-	static Vector vectorAverage(const Vector& min, const Vector& max);
 	const void checkInputArguments(Model& model);
 };
 

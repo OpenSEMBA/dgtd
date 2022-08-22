@@ -7,15 +7,6 @@ using namespace mfem;
 
 class TestSolver3D : public ::testing::Test {
 protected:
-	maxwell::Solver::Options buildDefaultSolverOpts(const double tFinal = 2.0)
-	{
-		maxwell::Solver::Options res;
-
-		res.evolutionOperatorOptions = FiniteElementEvolution::Options();
-		res.t_final = tFinal;
-
-		return res;
-	}
 
 };
 
@@ -33,7 +24,7 @@ TEST_F(TestSolver3D, DISABLED_threeDimensional)
 		model,
 		probes,
 		sources,
-		buildDefaultSolverOpts(0.5));
+		SolverOptions().setFinalTime(0.5));
 
 	solver.run();
 }
