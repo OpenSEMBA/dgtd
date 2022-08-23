@@ -10,7 +10,11 @@ struct SolverOptions {
     double dt = 1e-3;
     double t_final = 2.0;
     FiniteElementEvolution::Options evolutionOperatorOptions;
-
+    
+    SolverOptions& setTimeStep(double t) {
+        dt = t;
+        return *this;
+    };
     SolverOptions& setFinalTime(double t) { 
         t_final = t; 
         return *this; 

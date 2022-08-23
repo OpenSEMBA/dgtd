@@ -95,7 +95,6 @@ void ProbesManager::updateProbe(ExporterProbe& p, double time)
 	pd.Save();
 }
 
-
 void ProbesManager::updateProbe(PointsProbe& p, double time)
 {
 	const auto& it{ pointProbesCollection_.find(&p) };

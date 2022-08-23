@@ -36,17 +36,16 @@ public:
 
 private:
     SolverOptions opts_;
-    
     Model model_;
+    mfem::DG_FECollection fec_;
+    mfem::FiniteElementSpace fes_;
+    Fields fields_;
+    
     SourcesManager sourcesManager_;
     ProbesManager probesManager_;
     
-    mfem::DG_FECollection fec_;
-    mfem::FiniteElementSpace fes_;
-
+    double time_;
     std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
-
-    Fields fields_;
     FiniteElementEvolution maxwellEvol_;
 
     void checkOptionsAreValid(const SolverOptions&);

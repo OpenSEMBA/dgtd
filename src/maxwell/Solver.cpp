@@ -24,9 +24,15 @@ Solver::Solver(
 	fields_{ fes_ },
 	sourcesManager_{ sources, fes_ },
 	probesManager_{ probes, fes_, fields_},
+	time_{0.0},
 	maxwellEvol_{ &fes_, opts_.evolutionOperatorOptions, model_, sourcesManager_.sources }
 {
 	sourcesManager_.setFields(fields_);
+
+	maxwellEvol_.SetTime(time_);
+	odeSolver_->Init(maxwellEvol_);
+
+	probesManager_.updateProbes(time_);
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts)
@@ -61,19 +67,10 @@ const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direc
 
 void Solver::run()
 {
-	double time = 0.0;
-	
-	maxwellEvol_.SetTime(time);
-	odeSolver_->Init(maxwellEvol_);
-	
-	probesManager_.updateProbes(time);
-	
-	while (time < opts_.t_final) {
-		odeSolver_->Step(fields_.allDOFs, time, opts_.dt);
-		probesManager_.updateProbes(time);
+	while (time_ < opts_.t_final) {
+		odeSolver_->Step(fields_.allDOFs, time_, opts_.dt);
+		probesManager_.updateProbes(time_);
 	}
-
-	probesManager_.updateProbes(time);
 }
 
 }

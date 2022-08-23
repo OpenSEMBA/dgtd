@@ -1,14 +1,16 @@
 #include "gtest/gtest.h"
-#include "AnalyticalFunctions1D.h"
+#include "SourceFixtures.h"
+#include "GlobalFunctions.h"
 
 #include "maxwell/Solver.h"
-#include "GlobalFunctions.h"
 
 using Interval = std::pair<double, double>;
 
-using namespace AnalyticalFunctions1D;
 using namespace maxwell;
 using namespace mfem;
+using namespace fixtures::sources;
+
+using Solver = maxwell::Solver;
 
 class TestSolver1D : public ::testing::Test {
 protected:
@@ -33,24 +35,6 @@ protected:
 		}
 	}
 
-	Sources buildGaussianInitialField(
-		const FieldType& ft = E,
-		const Direction& d = X,
-		const double spread = 0.1,
-		const double coeff = 1.0,
-		const Vector& center = Vector({ 0.5 })) 
-	{
-		return { GaussianInitialField(ft, d, spread, coeff, center) };
-	}
-
-	Sources buildRightTravelingWaveInitialField(const Vector& center)
-	{
-		return {
-			GaussianInitialField(E, Y, 2.0, 1.0, center),
-			GaussianInitialField(H, Z, 2.0, 1.0, center)
-		};
-	}
-
 	PointsProbe buildPointsProbe(
 		const FieldType& fToExtract = E, 
 		const Direction& dirToExtract = X)
@@ -65,6 +49,12 @@ protected:
 		Probes r{ { buildPointsProbe(f, d)} };
 		return r;
 	}
+
+	Probes buildExportProbes()
+	{
+		return { {}, { ExporterProbe{getTestCaseName()} } };
+	}
+
 
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
 	{
@@ -137,9 +127,13 @@ protected:
 	{
 		return pow(e.Norml2(), 2.0) + pow(h.Norml2(), 2.0);
 	}
+	static std::string getTestCaseName()
+	{
+		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
+	}
 };
 
-TEST_F(TestSolver1D, centered)
+TEST_F(TestSolver1D, box_pec_centered_flux)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -153,50 +147,81 @@ TEST_F(TestSolver1D, centered)
 	back to its initial state within the specified error.*/
 	maxwell::Solver solver{
 		buildModel(),
-		{ {buildPointsProbe()}, { ExporterProbe{"1D_Centered"} }},
+		buildExportProbes(),
 		buildGaussianInitialField(E, Y),
-		SolverOptions{}.setCentered().setFinalTime(0.0)
+		SolverOptions{}
+			.setTimeStep(2.5e-3)
+			.setCentered()
 	};
 	
 	GridFunction eOld{ solver.getFieldInDirection(E, Y) };
-	GridFunction hOld = solver.getFieldInDirection(H, Z);
+	GridFunction hOld{ solver.getFieldInDirection(H, Z) };
+	solver.run();
+	GridFunction eNew{ solver.getFieldInDirection(E, Y) };
+	GridFunction hNew{ solver.getFieldInDirection(H, Z) };
+
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(getEnergy(eOld, hOld), getEnergy(eNew, hNew), 1e-3);
+}
+TEST_F(TestSolver1D, box_pec_upwind_flux)
+{
+	maxwell::Solver solver{
+		buildModel(),
+		buildExportProbes(),
+		buildGaussianInitialField(E, Y),
+		SolverOptions{}
+			.setTimeStep(2.5e-3)
+	};
+
+	GridFunction eOld{ solver.getFieldInDirection(E, Y) };
+	GridFunction hOld{ solver.getFieldInDirection(H, Z) };
+	solver.run();
+	GridFunction eNew{ solver.getFieldInDirection(E, Y) };
+	GridFunction hNew{ solver.getFieldInDirection(H, Z) };
+
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(getEnergy(eOld, hOld), getEnergy(eNew, hNew), 1e-3);
+}
+
+TEST_F(TestSolver1D, box_SMA)
+{
+	maxwell::Solver solver(
+		buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+		buildExportProbes(),
+		buildGaussianInitialField(E, Y),
+		SolverOptions{}
+			.setTimeStep(2.5e-3)
+	);
+
+	GridFunction eOld = solver.getFieldInDirection(E, Y);
 	solver.run();
 	GridFunction eNew = solver.getFieldInDirection(E, Y);
-	GridFunction hNew = solver.getFieldInDirection(H, Z);
 
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
-	EXPECT_GE(getEnergy(eOld, hOld), getEnergy(eNew, hNew));
+	double error = eOld.DistanceTo(eNew);
+	EXPECT_NEAR(0.0, error, 2e-3);
 }
+
 TEST_F(TestSolver1D, upwind_perfect_boundary_EH_XYZ)
 {
 	for (const auto& f : { E, H }) {
 		for (const auto& x : { X, Y, Z }) {
-			
+			const auto y{ (x + 1) % 3 };
 			maxwell::Solver solver{
 				buildModel(defaultNumberOfElements, buildPerfectBoundary(f), buildPerfectBoundary(f)),
-				{{buildPointsProbe(f, x)} },
-				buildGaussianInitialField(f, x),
+				{{buildPointsProbe(f, y)} },
+				buildGaussianInitialField(f, y),
 				SolverOptions()
 			};
 
-			GridFunction fOld = solver.getFieldInDirection(f, x);
+			GridFunction fOld = solver.getFieldInDirection(f, y);
 			solver.run();
-			GridFunction fNew = solver.getFieldInDirection(f, x);
+			GridFunction fNew = solver.getFieldInDirection(f, y);
 
 			EXPECT_NEAR(0.0, fOld.DistanceTo(fNew), 2e-3);
-
-			const auto& pp{ solver.getPointsProbe(0) };
-			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 0.5, 0), 2e-3);
-			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 0.5, 2), 2e-3);
-			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 1.5, 0), 2e-3);
-			EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(pp, 1.5, 2), 2e-3);
-
-			EXPECT_NE(fOld.Max(), getBoundaryFieldValueAtTime(pp, 0.5, 1));
-			EXPECT_NE(fOld.Max(), getBoundaryFieldValueAtTime(pp, 1.5, 1));
 		}
 	}
 }
-TEST_F(TestSolver1D, upwind_SMA_E_XYZ)
+TEST_F(TestSolver1D, box_upwind_SMA_E_XYZ)
 {
 	for (const auto& x : { X, Y, Z }) {
 		maxwell::Solver solver(
@@ -214,24 +239,8 @@ TEST_F(TestSolver1D, upwind_SMA_E_XYZ)
 		EXPECT_NEAR(0.0, error, 2e-3);
 	}
 }
-TEST_F(TestSolver1D, wave_travelingToTheRight_SMA)
-{
 
-	maxwell::Solver solver{
-		buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
-		{ {PointsProbe{E, Y, Points{ {0.5}, { 0.8 } }}} },
-		buildRightTravelingWaveInitialField(Vector({ 0.5 })),
-		SolverOptions{}.setFinalTime(0.7)
-	};
-
-	solver.run();
-
-	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.3, 1),
-				getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0),
-				2e-3);
-
-}
-TEST_F(TestSolver1D, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
+TEST_F(TestSolver1D, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	Mesh mesh1D = Mesh::MakeCartesian1D(101);
 	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.76, 1.0) } }, mesh1D);

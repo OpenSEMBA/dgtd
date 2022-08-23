@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.0)
 
+project(maxwell)
+
 find_package(mfem CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
-
-add_library(maxwell_solvers STATIC 
+add_library(maxwell STATIC 
 	"SolverOptions.h" 		
 	"Solver.h" "Solver.cpp" 
 	"FiniteElementEvolution.h" "FiniteElementEvolution.cpp" 
@@ -19,5 +20,4 @@ add_library(maxwell_solvers STATIC
 	"Fields.h" "Fields.cpp" 
 )
 
-target_link_libraries(maxwell_solvers mfem)
-
+target_link_libraries(maxwell mfem)
