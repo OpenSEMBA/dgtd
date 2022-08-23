@@ -30,21 +30,19 @@ const void GaussianInitialField::checkInputArguments()
 	}
 }
 
-double GaussianInitialField::evalGaussianFunction3D(const Position& pos) const
+double GaussianInitialField::eval3D(const Position& pos) const
 {
 	return normalization_ * (1.0 / (pow(spread_, 2.0) * pow(2.0 * M_PI, 2.0 / 2.0))) *
 		exp((pow(pos[X], 2.0) + pow(pos[Y], 2.0) + pow(pos[Z], 2.0)) /
 			(2.0 * pow(spread_, 2.0)));
 }
-
-double GaussianInitialField::evalGaussianFunction2D(const Position& pos) const
+double GaussianInitialField::eval2D(const Position& pos) const
 {
 	return normalization_ * (1.0 / (pow(spread_, 2.0) * pow(2.0 * M_PI, 2.0 / 2.0))) *
 		exp((pow(pos[X], 2.0) + pow(pos[Y], 2.0)) /
 			(2.0 * pow(spread_, 2.0)));
 }
-
-double GaussianInitialField::evalGaussianFunction1D(const Position& pos) const
+double GaussianInitialField::eval1D(const Position& pos) const
 {
 	return normalization_ * (1.0 / spread_ * sqrt(2.0 * M_PI)) *
 		exp(pow(pos[X], 2.0) / pow(spread_, 2.0));

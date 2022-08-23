@@ -13,18 +13,18 @@ public:
 
 	GaussianInitialField(
 		const FieldType& ft, 
-		const Direction& d, 
+		const Direction& d,
 		const double spread, 
 		const double normalization,
 		const Position center
 	);
-
-	double evalGaussianFunction3D(const Position&) const;
-	double evalGaussianFunction2D(const Position&) const;
-	double evalGaussianFunction1D(const Position&) const;
 	
 	FieldType getFieldType() const { return fieldType_; }
 	Direction getDirection() const { return direction_; }
+
+	double eval3D(const mfem::Vector&) const;
+	double eval2D(const mfem::Vector&) const;
+	double eval1D(const mfem::Vector&) const;
 
 private:
 	FieldType fieldType_{E};

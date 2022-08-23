@@ -1,20 +1,12 @@
 #pragma once
 
 #include <mfem.hpp>
+
 #include "Types.h"
 
 namespace maxwell {
 
-struct FieldViews {
-    std::array<mfem::GridFunction*, 3> E;
-    std::array<mfem::GridFunction*, 3> H;
-};
-
-class Probe {
-
-};
-
-struct ExporterProbe : public Probe {
+struct ExporterProbe {
 public:
     ExporterProbe(const std::string& name) :
         name{ name }
@@ -23,8 +15,7 @@ public:
     std::string name{"MaxwellView"};
 };
 
-class PointsProbe : public Probe {
-
+class PointsProbe {
 public:
     PointsProbe(const FieldType&, const Direction&, const Points&);
 
@@ -46,7 +37,7 @@ struct Probes {
     std::vector<PointsProbe> pointsProbes;
     std::vector<ExporterProbe> exporterProbes;
 
-    int visSteps{ 1 };
+    int visSteps{ 10 };
 };
 
 }

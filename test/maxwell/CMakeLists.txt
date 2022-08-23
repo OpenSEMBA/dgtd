@@ -17,10 +17,10 @@ add_executable(maxwell_tests
 	"TestSolver3D.cpp" 
 	"TestBilinearIntegrators.cpp" 
 	"TestMaterial.cpp" 
-	"TestProbes.cpp" 
+	"TestProbesManager.cpp" 
 	"TestSources.cpp"
 	
- "TestSolver3D.cpp")
+ "TestSolver3D.cpp" "TestProbes.cpp")
 
 target_link_libraries(maxwell_tests 
 	maxwell_solvers testHelpers 

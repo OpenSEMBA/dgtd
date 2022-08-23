@@ -1,10 +1,11 @@
 #pragma once
 
-#include "Material.h"
-#include "FiniteElementEvolution.h"
-#include "ProbesManager.h"
 #include "Types.h"
+#include "Fields.h"
+#include "ProbesManager.h"
+#include "SourcesManager.h"
 #include "SolverOptions.h"
+#include "FiniteElementEvolution.h"
 
 namespace maxwell {
 
@@ -27,7 +28,7 @@ public:
     Solver& operator=(const Solver&) = delete;
 
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
-    const PointsProbe* getPointsProbe(const std::size_t probe) { return probesManager_.getPointsProbe(probe); }
+    const PointsProbe& getPointsProbe(const std::size_t probe) const;
 
     const FiniteElementEvolution& getFEEvol() const { return maxwellEvol_; }
 
@@ -37,7 +38,7 @@ private:
     SolverOptions opts_;
     
     Model model_;
-    Sources sources_;
+    SourcesManager sourcesManager_;
     ProbesManager probesManager_;
     
     mfem::DG_FECollection fec_;
@@ -45,10 +46,8 @@ private:
 
     std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
 
+    Fields fields_;
     FiniteElementEvolution maxwellEvol_;
-
-    Vector sol_;
-    std::array<GridFunction, 3> E_, H_;
 
     void checkOptionsAreValid(const SolverOptions&);
 
