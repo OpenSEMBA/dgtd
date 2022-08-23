@@ -14,7 +14,13 @@ class Probe {
 
 };
 
-class ExporterProbe : public Probe {
+struct ExporterProbe : public Probe {
+public:
+    ExporterProbe(const std::string& name) :
+        name{ name }
+    {}
+
+    std::string name{"MaxwellView"};
 };
 
 class PointsProbe : public Probe {

@@ -12,14 +12,14 @@ using namespace mfem;
 
 class TestSolver1D : public ::testing::Test {
 protected:
-	static const int defaultMeshIntervals{ 51 };
+	static const int defaultNumberOfElements{ 51 };
 
-	Model buildDefaultModel(
-		const int meshIntervals = defaultMeshIntervals, 
+	Model buildModel(
+		const int numberOfElements = defaultNumberOfElements, 
 		const BdrCond& bdrL = BdrCond::PEC, 
 		const BdrCond& bdrR = BdrCond::PEC) {
 
-		return Model(Mesh::MakeCartesian1D(meshIntervals, 1.0), AttributeToMaterial{}, buildAttrToBdrMap1D(bdrL, bdrR));
+		return Model(Mesh::MakeCartesian1D(numberOfElements, 1.0), AttributeToMaterial{}, buildAttrToBdrMap1D(bdrL, bdrR));
 	}
 
 	BdrCond buildPerfectBoundary(FieldType f) {
@@ -33,7 +33,7 @@ protected:
 		}
 	}
 
-	GaussianInitialField buildDefaultInitialField(
+	Sources buildGaussianInitialField(
 		const FieldType& ft = E,
 		const Direction& d = X,
 		const double spread = 2.0,
@@ -51,11 +51,18 @@ protected:
 		};
 	}
 
-	PointsProbe buildDefaultPointsProbe(
+	PointsProbe buildPointsProbe(
 		const FieldType& fToExtract = E, 
 		const Direction& dirToExtract = X)
 	{
 		return { fToExtract, dirToExtract, Points{ {0.0},{0.5},{1.0} } };
+	}
+
+	Probes buildProbes(
+		const FieldType& f = E,
+		const Direction& d = X)
+	{
+		Probes r{ {buildPointsProbe(f, d)} };
 	}
 
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
@@ -111,19 +118,6 @@ protected:
 		}
 	}
 
-	std::vector<int> mapQuadElementTopLeftVertex(
-		const mfem::Mesh& mesh)
-	{
-		std::vector<int> res;
-		for (int i = 0; i < mesh.GetNE(); i++) {
-			mfem::Array<int> meshArrayElement;
-			mesh.GetElementVertices(i, meshArrayElement);
-			res.push_back(meshArrayElement[0]);
-		}
-
-		return res;
-	}
-
 	std::map<Time, FieldFrame>::const_iterator findTimeId(
 		const std::map<Time, FieldFrame>& timeMap,
 		const Time& timeToFind,
@@ -157,9 +151,9 @@ TEST_F(TestSolver1D, centered)
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
 	maxwell::Solver solver{
-		buildDefaultModel(),
-		{ {buildDefaultPointsProbe()} },
-		{ buildDefaultInitialField() },
+		buildModel(),
+		{ {buildPointsProbe()}, { ExporterProbe{"Centered"} }},
+		buildGaussianInitialField(),
 		SolverOptions{}.setCentered()
 	};
 	
@@ -178,9 +172,9 @@ TEST_F(TestSolver1D, upwind_perfect_boundary_EH_XYZ)
 		for (const auto& x : { X, Y, Z }) {
 			
 			maxwell::Solver solver{
-				buildDefaultModel(defaultMeshIntervals, buildPerfectBoundary(f), buildPerfectBoundary(f)),
-				{{buildDefaultPointsProbe(f, x)} },
-				{ buildDefaultInitialField(f, x) },
+				buildModel(defaultNumberOfElements, buildPerfectBoundary(f), buildPerfectBoundary(f)),
+				{{buildPointsProbe(f, x)} },
+				buildGaussianInitialField(f, x),
 				SolverOptions()
 			};
 
@@ -205,9 +199,9 @@ TEST_F(TestSolver1D, upwind_SMA_E_XYZ)
 {
 	for (const auto& x : { X, Y, Z }) {
 		maxwell::Solver solver(
-			buildDefaultModel(defaultMeshIntervals, BdrCond::SMA, BdrCond::SMA),
-			{ {buildDefaultPointsProbe(E, x)} },
-			{ buildDefaultInitialField(E, x) },
+			buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+			{ {buildPointsProbe(E, x)} },
+			buildGaussianInitialField(E, x),
 			SolverOptions{}
 		);
 
@@ -223,7 +217,7 @@ TEST_F(TestSolver1D, wave_travelingToTheRight_SMA)
 {
 
 	maxwell::Solver solver{
-		buildDefaultModel(defaultMeshIntervals, BdrCond::SMA, BdrCond::SMA),
+		buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
 		{ {PointsProbe{E, Y, Points{ {0.5}, { 0.8 } }}} },
 		buildRightTravelingWaveInitialField(Vector({ 0.5 })),
 		SolverOptions{}.setFinalTime(0.7)
@@ -290,9 +284,9 @@ TEST_F(TestSolver1D, DISABLED_strong_flux_PEC_EY)
 	opts.t_final = 0.5;
 
 	maxwell::Solver solver{
-		buildDefaultModel(),
-		{{buildDefaultPointsProbe(E, Y)}},
-		{ buildDefaultInitialField(E, Y) },
+		buildModel(),
+		{{buildPointsProbe(E, Y)}},
+		buildGaussianInitialField(E, Y),
 		opts
 	};
 
@@ -313,17 +307,17 @@ TEST_F(TestSolver1D, DISABLED_strong_flux_PEC_EY)
 }
 TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
 {
-	auto model{ buildDefaultModel() };
-	Probes probes{ {buildDefaultPointsProbe(E, Y)} };
-	auto source{ buildDefaultInitialField(E, Y) };
+	auto model{ buildModel() };
+	Probes probes{ {buildPointsProbe(E, Y)} };
+	auto source{ buildGaussianInitialField(E, Y) };
 
 	maxwell::Solver solverWeak{ 
-		model, probes, { source },
+		model, probes, source,
 		SolverOptions{}
 	};
 
 	maxwell::Solver solverStrong{
-		model, probes, { source },
+		model, probes, source,
 		SolverOptions{}.setStrongForm()
 	};
 
@@ -341,9 +335,9 @@ TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
 TEST_F(TestSolver1D, DISABLED_fluxOperator_O2)
 {
 	maxwell::Solver solver{
-		buildDefaultModel(3),
+		buildModel(3),
 		Probes(),
-		{ buildDefaultInitialField(E, Y) },
+		buildGaussianInitialField(E, Y),
 		SolverOptions().setFinalTime(0.1)
 	};
 

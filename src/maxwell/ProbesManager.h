@@ -38,8 +38,8 @@ private:
     
     const mfem::FiniteElementSpace* fes_;
     
-    mfem::ParaViewDataCollection buildParaviewDataCollection(FieldViews& fields) const;
-    PointsProbeCollection buildPointsProbeCollection(const PointsProbe&, FieldViews& fields) const;
+    mfem::ParaViewDataCollection buildParaviewDataCollection(const ExporterProbe&, FieldViews&) const;
+    PointsProbeCollection buildPointsProbeCollection(const PointsProbe&, FieldViews&) const;
     
     void updateProbe(ExporterProbe&, double time);
     void updateProbe(PointsProbe&, double time);

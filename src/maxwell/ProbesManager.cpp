@@ -4,9 +4,9 @@ namespace maxwell {
 
 using namespace mfem;
 
-ParaViewDataCollection ProbesManager::buildParaviewDataCollection(FieldViews& fields) const
+ParaViewDataCollection ProbesManager::buildParaviewDataCollection(const ExporterProbe& p, FieldViews& fields) const
 {
-	ParaViewDataCollection pd{ "MaxwellView", fes_->GetMesh()};
+	ParaViewDataCollection pd{ p.name, fes_->GetMesh()};
 	pd.SetPrefixPath("ParaView");
 	
 	pd.RegisterField("Ex", fields.E[X]);
@@ -32,7 +32,7 @@ ProbesManager::ProbesManager(Probes probes, const mfem::FiniteElementSpace* fes,
 	assert(fes_ != nullptr);
 	
 	for (const auto& p: probes_.exporterProbes) {
-		exporterProbesCollection_.emplace(&p, buildParaviewDataCollection(fields));
+		exporterProbesCollection_.emplace(&p, buildParaviewDataCollection(p, fields));
 	}
 	
 	for (const auto& p : probes_.pointsProbes) {
