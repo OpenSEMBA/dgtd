@@ -49,22 +49,6 @@ const PointsProbe& Solver::getPointsProbe(const std::size_t probe) const
 	return probesManager_.getPointsProbe(probe); 
 }
 
-const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direction& d) const
-{
-	assert(ft == E || ft == H);
-	assert(d < 3);
-	
-	switch (ft) {
-	case FieldType::E:
-		return fields_.E[d];
-	case FieldType::H:
-		return fields_.H[d];
-	}
-
-	throw std::runtime_error("Invalid field type.");
-}
-
-
 void Solver::run()
 {
 	while (time_ < opts_.t_final) {

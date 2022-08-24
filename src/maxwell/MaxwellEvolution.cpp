@@ -19,6 +19,17 @@ MaxwellEvolution::buildByMult(
 	return res;
 }
 
+FieldType altField(const FieldType& f) 
+{
+	switch (f) {
+	case E:
+		return H;
+	case H:
+		return E;
+	}
+	throw std::runtime_error("Invalid field type for altField.");
+}
+
 MaxwellEvolution::MaxwellEvolution(
 	FiniteElementSpace& fes, Model& model, const Options& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
@@ -28,11 +39,10 @@ MaxwellEvolution::MaxwellEvolution(
 {
 	for (auto d: {X, Y, Z}) {
 		for (auto f : {E, H}) {
-			for (auto f2 : {E, H}) {
-				MS_[f][d] = buildByMult(*buildInverseMassMatrix(f), *buildDerivativeOperator(d));
-				MF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f), *buildFluxOperator(f2, d, false));
-				MP_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f), *buildFluxOperator(f2, d, true));
-			}
+			const auto f2{ altField(f) };
+			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f), *buildDerivativeOperator(d));
+			MF_[f][d] = buildByMult(*buildInverseMassMatrix(f), *buildFluxOperator(f2, d, false));
+			MP_[f][d] = buildByMult(*buildInverseMassMatrix(f), *buildFluxOperator(f2, d, true));
 		}
 	}
 }
@@ -56,9 +66,9 @@ MaxwellEvolution::buildInverseMassMatrix(const FieldType& f) const
 
 	auto MInv = std::make_unique<BilinearForm>(&fes_);
 	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
+
 	MInv->Assemble();
 	MInv->Finalize();
-
 	return MInv;
 }
 
@@ -196,9 +206,9 @@ FluxCoefficient MaxwellEvolution::boundaryPenaltyFluxCoefficient(const FieldType
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ -1.0, 0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ -1.0, 0.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");
@@ -226,20 +236,20 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 		// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_z] +
 		//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_y]
 		// Update E.
-		MS_[E][z]   ->Mult   (hOld[y], eNew[x]);
-		MF_[E][H][z]->AddMult(hOld[y], eNew[x], -1.0);
-		MP_[E][E][z]->AddMult(eOld[y], eNew[x], -1.0);
-		MS_[E][y]   ->AddMult(hOld[z], eNew[x], -1.0);
-		MF_[E][H][y]->AddMult(hOld[z], eNew[x],  1.0);
-		MP_[E][E][y]->AddMult(eOld[z], eNew[x],  1.0); 
+		MS_[E][z]->Mult   (hOld[y], eNew[x]);
+		MF_[E][z]->AddMult(hOld[y], eNew[x], -1.0);
+		MP_[E][z]->AddMult(eOld[y], eNew[x], -1.0);
+		MS_[E][y]->AddMult(hOld[z], eNew[x], -1.0);
+		MF_[E][y]->AddMult(hOld[z], eNew[x],  1.0);
+		MP_[E][y]->AddMult(eOld[z], eNew[x],  1.0); 
 
 		// Update H.
 		MS_[H][y]   ->Mult   (eOld[z], hNew[x]);
-		MF_[H][E][y]->AddMult(eOld[z], hNew[x], -1.0);
-		MP_[H][H][y]->AddMult(hOld[z], hNew[x], -1.0);
+		MF_[H][y]->AddMult(eOld[z], hNew[x], -1.0);
+		MP_[H][y]->AddMult(hOld[z], hNew[x], -1.0);
 		MS_[H][z]   ->AddMult(eOld[y], hNew[x], -1.0);
-		MF_[H][E][z]->AddMult(eOld[y], hNew[x],  1.0);
-		MP_[H][H][z]->AddMult(hOld[y], hNew[x],  1.0);
+		MF_[H][z]->AddMult(eOld[y], hNew[x],  1.0);
+		MP_[H][z]->AddMult(hOld[y], hNew[x],  1.0);
 	}
 
 }

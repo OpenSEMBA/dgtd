@@ -31,8 +31,8 @@ private:
 	Options opts_;
 	
 	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
-	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MF_;
-	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MP_;
+	std::array<std::array<FiniteElementOperator, 3>, 2> MF_;
+	std::array<std::array<FiniteElementOperator, 3>, 2> MP_;
 
 	Vector buildNVector(const Direction& d) const;
 	

@@ -27,7 +27,7 @@ public:
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
 
-    const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
+    const Fields& getFields() const { return fields_; };
     const PointsProbe& getPointsProbe(const std::size_t probe) const;
 
     const MaxwellEvolution& getFEEvol() const { return maxwellEvol_; }
