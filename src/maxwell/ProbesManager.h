@@ -1,13 +1,14 @@
 #pragma once
 
 #include "Probes.h"
+#include "Fields.h"
 
 namespace maxwell {
 
 class ProbesManager {
 public:
-    ProbesManager() = default;
-    ProbesManager(Probes, const mfem::FiniteElementSpace*, FieldViews&);
+    ProbesManager() = delete;
+    ProbesManager(Probes, const mfem::FiniteElementSpace&, Fields&);
     
     ProbesManager(const ProbesManager&) = delete;
     ProbesManager(ProbesManager&&) = default;
@@ -17,7 +18,7 @@ public:
 
     void updateProbes(double time);
 
-    const PointsProbe* getPointsProbe(const std::size_t i) const;
+    const PointsProbe& getPointsProbe(const std::size_t i) const;
 
 private:
     struct FESPoint {
@@ -27,7 +28,7 @@ private:
 
     struct PointsProbeCollection {
         std::vector<FESPoint> fesPoints;
-        const mfem::GridFunction* field;
+        const mfem::GridFunction& field;
     };
 
     int cycle_{ 0 };
@@ -36,10 +37,10 @@ private:
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointsProbe*, PointsProbeCollection> pointProbesCollection_;
     
-    const mfem::FiniteElementSpace* fes_;
+    const mfem::FiniteElementSpace& fes_;
     
-    mfem::ParaViewDataCollection buildParaviewDataCollection(FieldViews& fields) const;
-    PointsProbeCollection buildPointsProbeCollection(const PointsProbe&, FieldViews& fields) const;
+    mfem::ParaViewDataCollection buildParaviewDataCollection(const ExporterProbe&, Fields&) const;
+    PointsProbeCollection buildPointsProbeCollection(const PointsProbe&, Fields&) const;
     
     void updateProbe(ExporterProbe&, double time);
     void updateProbe(PointsProbe&, double time);

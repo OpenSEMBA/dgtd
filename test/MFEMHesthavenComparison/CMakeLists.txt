@@ -10,7 +10,7 @@ add_executable(mfem_hesthaven_tests
 "TestMfemHesthavenTrace1D.cpp")
 
 target_link_libraries(mfem_hesthaven_tests 
-	maxwell_solvers testHelpers
+	maxwell testHelpers
 	GTest::gtest GTest::gtest_main
 )
 
