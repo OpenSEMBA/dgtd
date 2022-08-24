@@ -25,7 +25,7 @@ Solver::Solver(
 	sourcesManager_{ sources, fes_ },
 	probesManager_{ probes, fes_, fields_},
 	time_{0.0},
-	maxwellEvol_{ &fes_, opts_.evolutionOperatorOptions, model_, sourcesManager_.sources }
+	maxwellEvol_{ fes_, model_, opts_.evolutionOperatorOptions }
 {
 	sourcesManager_.setFields(fields_);
 

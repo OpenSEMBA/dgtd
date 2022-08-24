@@ -244,17 +244,14 @@ TEST_F(TestSolver1D, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	Mesh mesh1D = Mesh::MakeCartesian1D(101);
 	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.76, 1.0) } }, mesh1D);
+	
+	Material mat1{1.0, 1.0};
+	Material mat2{2.0, 1.0};
 
 	Model model = Model(
 		mesh1D, 
-		{
-			{1, Material(1.0, 1.0)},
-			{2, Material(2.0, 1.0)}
-		},
-		{
-			{1, BdrCond::SMA},
-			{2, BdrCond::PEC}
-		}
+		{ {1, mat1}, {2, mat2} },
+		{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
 	);
 
 	Probes probes{
@@ -271,8 +268,8 @@ TEST_F(TestSolver1D, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	auto eOld = solver.getFieldInDirection(E, Y);
 
 	double reflectCoeff =
-		(model.getAttToMat().at(2).getImpedance() - model.getAttToMat().at(1).getImpedance()) /
-		(model.getAttToMat().at(2).getImpedance() + model.getAttToMat().at(1).getImpedance());
+		(mat2.getImpedance() - mat1.getImpedance()) /
+		(mat2.getImpedance() + mat1.getImpedance());
 
 	solver.run();
 
@@ -285,76 +282,4 @@ TEST_F(TestSolver1D, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.90, 0), 2e-3);
 	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
 		        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.10, 1), 2e-3);
-}
-
-TEST_F(TestSolver1D, DISABLED_strong_flux_PEC_EY)
-{
-	SolverOptions opts;
-	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
-	opts.t_final = 0.5;
-
-	maxwell::Solver solver{
-		buildModel(),
-		{{buildPointsProbe(E, Y)}},
-		buildGaussianInitialField(E, Y),
-		opts
-	};
-
-	GridFunction eOld = solver.getFieldInDirection(E, Y);
-	solver.run();
-	GridFunction eNew = solver.getFieldInDirection(E, Y);
-
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 2e-3);
-
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 2), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 2), 2e-3);
-
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.5, 1));
-	EXPECT_NE(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.5, 1));
-
-}
-TEST_F(TestSolver1D, DISABLED_weak_strong_flux_comparison)
-{
-	auto model{ buildModel() };
-	Probes probes{ {buildPointsProbe(E, Y)} };
-	auto source{ buildGaussianInitialField(E, Y) };
-
-	maxwell::Solver solverWeak{ 
-		model, probes, source,
-		SolverOptions{}
-	};
-
-	maxwell::Solver solverStrong{
-		model, probes, source,
-		SolverOptions{}.setStrongForm()
-	};
-
-	GridFunction eOldWk = solverWeak.getFieldInDirection(E, Y);
-	solverWeak.run();
-	GridFunction eNewWk = solverWeak.getFieldInDirection(E, Y);
-	
-	GridFunction eOldSt = solverStrong.getFieldInDirection(E, Y);
-	solverStrong.run();
-	GridFunction eNewSt = solverStrong.getFieldInDirection(E, Y);
-
-	EXPECT_NEAR(0.0, eOldWk.DistanceTo(eOldSt), 2e-3);
-	EXPECT_NEAR(0.0, eNewWk.DistanceTo(eNewSt), 2e-3);
-}
-TEST_F(TestSolver1D, DISABLED_fluxOperator_O2)
-{
-	maxwell::Solver solver{
-		buildModel(3),
-		Probes(),
-		buildGaussianInitialField(E, Y),
-		SolverOptions().setFinalTime(0.1)
-	};
-
-	auto MSMat = toEigen(*solver.getFEEvol()
-		.getInvMassStiffness(FieldType::E, X).get()->SpMat().ToDenseMatrix());
-	auto noDirMat =  toEigen(*solver.getFEEvol()
-		.getInvMassNoDirFlux(FieldType::E, FieldType::E).get()->SpMat().ToDenseMatrix());
-	auto oneDirMat = toEigen(*solver.getFEEvol()
-		.getInvMassOneDirFlux(FieldType::E, FieldType::H, X).get()->SpMat().ToDenseMatrix());
 }

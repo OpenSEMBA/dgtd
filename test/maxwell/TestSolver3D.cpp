@@ -13,7 +13,7 @@ protected:
 TEST_F(TestSolver3D, DISABLED_threeDimensional)
 {
 	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::HEXAHEDRON);
-	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
+	Model model = Model(mesh);
 
 	Sources sources{
 		GaussianInitialField{E, Z, 0.2, 200.0, Vector({ 0.0,0.0,0.0 })}

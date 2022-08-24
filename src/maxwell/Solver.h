@@ -5,7 +5,7 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
-#include "FiniteElementEvolution.h"
+#include "MaxwellEvolution.h"
 
 namespace maxwell {
 
@@ -30,7 +30,7 @@ public:
     const GridFunction& getFieldInDirection(const FieldType&, const Direction&) const;
     const PointsProbe& getPointsProbe(const std::size_t probe) const;
 
-    const FiniteElementEvolution& getFEEvol() const { return maxwellEvol_; }
+    const MaxwellEvolution& getFEEvol() const { return maxwellEvol_; }
 
     void run();
 
@@ -46,7 +46,7 @@ private:
     
     double time_;
     std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
-    FiniteElementEvolution maxwellEvol_;
+    MaxwellEvolution maxwellEvol_;
 
     void checkOptionsAreValid(const SolverOptions&);
 
