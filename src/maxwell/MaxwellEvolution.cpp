@@ -30,8 +30,8 @@ MaxwellEvolution::MaxwellEvolution(
 		for (auto f : {E, H}) {
 			for (auto f2 : {E, H}) {
 				MS_[f][d] = buildByMult(*buildInverseMassMatrix(f), *buildDerivativeOperator(d));
-				MF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f), *buildFluxOperator(f2, d));
-				MP_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f), *buildPenaltyOperator(f2, d));
+				MF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f), *buildFluxOperator(f2, d, false));
+				MP_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f), *buildFluxOperator(f2, d, true));
 			}
 		}
 	}
@@ -66,6 +66,12 @@ MaxwellEvolution::FiniteElementOperator
 MaxwellEvolution::buildDerivativeOperator(const Direction& d) const
 {
 	auto res = std::make_unique<BilinearForm>(&fes_);
+	
+	if (d >= fes_.GetMesh()->Dimension()) {
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
 
 	ConstantCoefficient coeff(1.0);
 	res->AddDomainIntegrator(
@@ -73,26 +79,43 @@ MaxwellEvolution::buildDerivativeOperator(const Direction& d) const
 			new DerivativeIntegrator(coeff, d)
 		)
 	);
-	
+
 	res->Assemble();
 	res->Finalize();
-
 	return res;
 }
 
 MaxwellEvolution::FiniteElementOperator
-MaxwellEvolution::buildFluxOperator(const FieldType& f, const Direction& d) const
+MaxwellEvolution::buildFluxOperator(const FieldType& f, const Direction& d, bool usePenaltyCoefficients) const
 {
+	auto res = std::make_unique<BilinearForm>(&fes_);
+	if ( d >= fes_.GetMesh()->Dimension()) {
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+	
 	Vector aux = buildNVector(d);
 	VectorConstantCoefficient n(aux);
-	auto res = std::make_unique<BilinearForm>(&fes_);
 	{
-		FluxCoefficient c = interiorFluxCoefficient();
+		FluxCoefficient c;
+		if (usePenaltyCoefficients) {
+			c = interiorPenaltyFluxCoefficient();
+		}
+		else {
+			c = interiorFluxCoefficient();
+		}
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 
 	for (auto& kv : model_.getBoundaryToMarker()) {
-		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+		FluxCoefficient c;
+		if (usePenaltyCoefficients) {
+			c = boundaryPenaltyFluxCoefficient(f, kv.first);
+		}
+		else {
+			c = boundaryFluxCoefficient(f, kv.first);
+		}
 		res->AddBdrFaceIntegrator(
 			new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), kv.second
 		);
@@ -102,35 +125,6 @@ MaxwellEvolution::buildFluxOperator(const FieldType& f, const Direction& d) cons
 	res->Finalize();
 	return res;
 }
-
-MaxwellEvolution::FiniteElementOperator
-	MaxwellEvolution::buildPenaltyOperator(const FieldType& f, const Direction& d) const
-{
-	auto aux = buildNVector(d);
-	VectorConstantCoefficient n(aux);
-	std::unique_ptr<BilinearForm> res = std::make_unique<BilinearForm>(&fes_);
-	{
-		FluxCoefficient c = interiorPenaltyFluxCoefficient();
-		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-	}
-
-	for (auto& kv : model_.getBoundaryToMarker()) {
-		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first);
-		res->AddBdrFaceIntegrator(
-			new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), kv.second
-		);
-	}
-
-	res->Assemble();
-	res->Finalize();
-
-	if (d >= fes_.GetMesh()->Dimension()) {
-		res.get()->operator=(0.0);
-	}
-
-	return res;
-}
-
 
 FluxCoefficient MaxwellEvolution::interiorFluxCoefficient() const
 {

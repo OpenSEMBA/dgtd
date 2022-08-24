@@ -38,8 +38,8 @@ private:
 	
 	FiniteElementOperator buildDerivativeOperator(const Direction&) const;
 	FiniteElementOperator buildInverseMassMatrix(const FieldType&) const;
-	FiniteElementOperator buildFluxOperator(const FieldType&, const Direction&) const;
-	FiniteElementOperator buildPenaltyOperator(const FieldType&, const Direction&) const;
+	FiniteElementOperator buildFluxOperator(
+		const FieldType&, const Direction&, bool usePenaltyCoefficients) const;
 
 	FiniteElementOperator buildByMult(const BilinearForm&, const BilinearForm&) const;
 
