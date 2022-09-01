@@ -8,7 +8,6 @@ include_directories(${MFEM_INCLUDE_DIRS})
 add_library(maxwell STATIC 
 	"SolverOptions.h" 		
 	"Solver.h" "Solver.cpp" 
-	"FiniteElementEvolution.h" "FiniteElementEvolution.cpp" 
 	"mfemExtension/BilinearIntegrators.h" "mfemExtension/BilinearIntegrators.cpp"
 	"Types.h" 
 	"Material.h" "Material.cpp"
@@ -18,6 +17,8 @@ add_library(maxwell STATIC
     "ProbesManager.h" "ProbesManager.cpp" 
 	"SourcesManager.h" "SourcesManager.cpp" 
 	"Fields.h" "Fields.cpp" 
+	"MaxwellEvolution.h" "MaxwellEvolution.cpp"
+
 )
 
 target_link_libraries(maxwell mfem)

@@ -1,6 +1,6 @@
 #include "Fields.h"
 
-#include "FiniteElementEvolution.h"
+#include "MaxwellEvolution.h"
 
 namespace maxwell {
 
@@ -8,8 +8,8 @@ using namespace mfem;
 
 Fields::Fields(mfem::FiniteElementSpace& fes) :
     allDOFs{ 
-        FiniteElementEvolution::numberOfFieldComponents *
-        FiniteElementEvolution::numberOfMaxDimensions *
+        MaxwellEvolution::numberOfFieldComponents *
+        MaxwellEvolution::numberOfMaxDimensions *
         fes.GetNDofs() 
     }
 {

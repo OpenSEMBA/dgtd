@@ -39,7 +39,7 @@ public:
 protected:
 	Coefficient* rho;
 	VectorCoefficient* u;
-	double alpha, beta, gamma;
+	double alpha, beta;
 	// PA extension
 	Vector pa_data;
 	const DofToQuad* maps;             ///< Not owned

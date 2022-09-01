@@ -25,7 +25,7 @@ Solver::Solver(
 	sourcesManager_{ sources, fes_ },
 	probesManager_{ probes, fes_, fields_},
 	time_{0.0},
-	maxwellEvol_{ &fes_, opts_.evolutionOperatorOptions, model_, sourcesManager_.sources }
+	maxwellEvol_{ fes_, model_, opts_.evolutionOperatorOptions }
 {
 	sourcesManager_.setFields(fields_);
 
@@ -48,22 +48,6 @@ const PointsProbe& Solver::getPointsProbe(const std::size_t probe) const
 { 
 	return probesManager_.getPointsProbe(probe); 
 }
-
-const GridFunction& Solver::getFieldInDirection(const FieldType& ft, const Direction& d) const
-{
-	assert(ft == E || ft == H);
-	assert(d < 3);
-	
-	switch (ft) {
-	case FieldType::E:
-		return fields_.E[d];
-	case FieldType::H:
-		return fields_.H[d];
-	}
-
-	throw std::runtime_error("Invalid field type.");
-}
-
 
 void Solver::run()
 {
