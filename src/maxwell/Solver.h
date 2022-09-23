@@ -5,7 +5,7 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
-#include "MaxwellEvolution.h"
+#include "MaxwellEvolution3D.h"
 
 namespace maxwell {
 

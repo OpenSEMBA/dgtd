@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MaxwellEvolution.h"
+#include "MaxwellEvolution3D.h"
 #include "Types.h"
 
 namespace maxwell {
