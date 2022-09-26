@@ -9,15 +9,15 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 	FiniteElementSpace& fes, Model& model, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 	fes_{ fes },
-	model_{model},
+	model_{ model },
 	opts_{ options }
 {
 	for (auto d: {X, Y, Z}) {
 		for (auto f : {E, H}) {
 			const auto f2{ altField(f) };
-			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
-			MF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, d, false, model_, fes_, opts_), fes_);
-			MP_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, d, true, model_, fes_, opts_), fes_);
+			MS_[f][d] = buildByMult(buildInverseMassMatrix(f, model_, fes_), buildDerivativeOperator(d, fes_), fes_);
+			MF_[f][d] = buildByMult(buildInverseMassMatrix(f, model_, fes_), buildFluxOperator(f2, d, false, model_, fes_, opts_), fes_);
+			MP_[f][d] = buildByMult(buildInverseMassMatrix(f, model_, fes_), buildFluxOperator(f2, d, true, model_, fes_, opts_), fes_);
 		}
 	}
 }

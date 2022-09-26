@@ -11,10 +11,6 @@ namespace maxwell {
 
 class MaxwellEvolution3D: public mfem::TimeDependentOperator {
 public:
-	using Vector = mfem::Vector;
-	using FiniteElementSpace = mfem::FiniteElementSpace;
-	using FiniteElementOperator = mfem::BilinearForm;
-
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
