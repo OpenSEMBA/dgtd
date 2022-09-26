@@ -14,10 +14,10 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 1;
 
-	MaxwellEvolution1D(FiniteElementSpace&, Model&, MaxwellEvolOptions&);
+	MaxwellEvolution1D(mfem::FiniteElementSpace&, Model&, MaxwellEvolOptions&);
 	virtual void Mult(const Vector& x, Vector& y) const;
 
-	const FiniteElementSpace& getFES() { return fes_; }
+	const mfem::FiniteElementSpace& getFES() { return fes_; }
 	std::array<FiniteElementOperator, 2>& getMS() { return MS_; }
 	std::array<FiniteElementOperator, 2>& getMF() { return MF_; }
 	std::array<FiniteElementOperator, 2>& getMP() { return MP_; }
@@ -29,9 +29,9 @@ private:
 	std::array<FiniteElementOperator, 2> MF_;
 	std::array<FiniteElementOperator, 2> MP_;
 
-	FiniteElementSpace& fes_;
+	mfem::FiniteElementSpace& fes_;
 	Model& model_;
-	MaxwellEvolOptions opts_;
+	MaxwellEvolOptions& opts_;
 
 	
 };

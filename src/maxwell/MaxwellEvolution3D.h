@@ -14,8 +14,8 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	MaxwellEvolution3D(FiniteElementSpace&, Model&, MaxwellEvolOptions&);
-	virtual void Mult(const Vector& x, Vector& y) const;
+	MaxwellEvolution3D(mfem::FiniteElementSpace&, Model&, MaxwellEvolOptions&);
+	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
 
 private:
 
@@ -23,9 +23,9 @@ private:
 	std::array<std::array<FiniteElementOperator, 3>, 2> MF_;
 	std::array<std::array<FiniteElementOperator, 3>, 2> MP_;
 
-	FiniteElementSpace& fes_;
+	mfem::FiniteElementSpace& fes_;
 	Model& model_;
-	MaxwellEvolOptions opts_;
+	MaxwellEvolOptions& opts_;
 	
 
 };
