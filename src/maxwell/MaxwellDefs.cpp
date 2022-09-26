@@ -1,5 +1,3 @@
-#include "Types.h"
-#include "SolverOptions.h"
 #include "MaxwellDefs.h"
 
 namespace maxwell {
