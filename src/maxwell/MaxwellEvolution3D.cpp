@@ -15,9 +15,9 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 	for (auto d: {X, Y, Z}) {
 		for (auto f : {E, H}) {
 			const auto f2{ altField(f) };
-			MS_[f][d] = buildByMult(buildInverseMassMatrix(f, model_, fes_), buildDerivativeOperator(d, fes_), fes_);
-			MF_[f][d] = buildByMult(buildInverseMassMatrix(f, model_, fes_), buildFluxOperator(f2, d, false, model_, fes_, opts_), fes_);
-			MP_[f][d] = buildByMult(buildInverseMassMatrix(f, model_, fes_), buildFluxOperator(f2, d, true, model_, fes_, opts_), fes_);
+			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
+			MF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, d, false, model_, fes_, opts_), fes_);
+			MP_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, d, true, model_, fes_, opts_), fes_);
 		}
 	}
 }
@@ -40,20 +40,20 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 		// dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_z] +
 		//        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_y]
 		// Update E.
-		MS_[E][z].Mult   (hOld[y], eNew[x]);
-		MF_[E][z].AddMult(hOld[y], eNew[x], -1.0);
-		MP_[E][z].AddMult(eOld[y], eNew[x], -1.0);
-		MS_[E][y].AddMult(hOld[z], eNew[x], -1.0);
-		MF_[E][y].AddMult(hOld[z], eNew[x],  1.0);
-		MP_[E][y].AddMult(eOld[z], eNew[x],  1.0); 
+		MS_[E][z]->Mult   (hOld[y], eNew[x]);
+		MF_[E][z]->AddMult(hOld[y], eNew[x], -1.0);
+		MP_[E][z]->AddMult(eOld[y], eNew[x], -1.0);
+		MS_[E][y]->AddMult(hOld[z], eNew[x], -1.0);
+		MF_[E][y]->AddMult(hOld[z], eNew[x],  1.0);
+		MP_[E][y]->AddMult(eOld[z], eNew[x],  1.0); 
 
 		// Update H.
-		MS_[H][y].Mult   (eOld[z], hNew[x]);
-		MF_[H][y].AddMult(eOld[z], hNew[x], -1.0);
-		MP_[H][y].AddMult(hOld[z], hNew[x], -1.0);
-		MS_[H][z].AddMult(eOld[y], hNew[x], -1.0);
-		MF_[H][z].AddMult(eOld[y], hNew[x],  1.0);
-		MP_[H][z].AddMult(hOld[y], hNew[x],  1.0);
+		MS_[H][y]->Mult   (eOld[z], hNew[x]);
+		MF_[H][y]->AddMult(eOld[z], hNew[x], -1.0);
+		MP_[H][y]->AddMult(hOld[z], hNew[x], -1.0);
+		MS_[H][z]->AddMult(eOld[y], hNew[x], -1.0);
+		MF_[H][z]->AddMult(eOld[y], hNew[x],  1.0);
+		MP_[H][z]->AddMult(hOld[y], hNew[x],  1.0);
 	}
 
 }

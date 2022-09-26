@@ -12,6 +12,7 @@ namespace maxwell {
 class MaxwellEvolution1D : public TimeDependentOperator {
 public:
 	static const int numberOfFieldComponents = 2;
+	static const int numberOfMaxDimensions = 1;
 
 	MaxwellEvolution1D(FiniteElementSpace&, Model&, MaxwellEvolOptions&);
 	virtual void Mult(const Vector& x, Vector& y) const;
@@ -30,7 +31,7 @@ private:
 
 	FiniteElementSpace& fes_;
 	Model& model_;
-	MaxwellEvolOptions& opts_;
+	MaxwellEvolOptions opts_;
 
 	
 };

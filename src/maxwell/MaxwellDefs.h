@@ -1,14 +1,114 @@
 #include "Types.h"
+#include "SolverOptions.h"
 
 namespace maxwell {
 
 using namespace mfem;
 using namespace mfemExtension;
-using FiniteElementOperator = BilinearForm;
+using FiniteElementOperator = std::unique_ptr<BilinearForm>;
 
-struct MaxwellEvolOptions {
-	FluxType fluxType{ FluxType::Upwind };
-};
+FiniteElementOperator buildByMult(
+	const BilinearForm& op1,
+	const BilinearForm& op2,
+	FiniteElementSpace& fes)
+{
+	auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
+	auto res = std::make_unique<BilinearForm>(&fes);
+	res->Assemble();
+	res->Finalize();
+	res->SpMat().Swap(*aux);
+
+	return res;
+}
+
+Vector buildNVector(const Direction& d, const FiniteElementSpace& fes)
+{
+	const auto dim{ fes.GetMesh()->Dimension() };
+	assert(d < dim);
+
+	Vector r(dim);
+	r = 0.0;
+	r[d] = 1.0;
+	return r;
+}
+
+FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& model, FiniteElementSpace& fes)
+{
+	Vector aux{ model.buildPiecewiseArgVector(f) };
+	PWConstCoefficient PWCoeff(aux);
+
+	auto MInv = std::make_unique<BilinearForm>(&fes);
+	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
+		
+	MInv->Assemble();
+	MInv->Finalize();
+	return MInv;
+}
+
+
+
+FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes)
+{
+	auto res = std::make_unique<BilinearForm>(&fes);
+
+	if (d >= fes.GetMesh()->Dimension()) {
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+
+	ConstantCoefficient coeff(1.0);
+	res->AddDomainIntegrator(
+		new TransposeIntegrator(
+			new DerivativeIntegrator(coeff, d)
+		)
+	);
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<BilinearForm>(&fes);
+	if (d >= fes.GetMesh()->Dimension()) {
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+
+	Vector aux = buildNVector(d, fes);
+	VectorConstantCoefficient n(aux);
+	{
+		FluxCoefficient c;
+		if (usePenaltyCoefficients) {
+			c = interiorPenaltyFluxCoefficient(opts);
+		}
+		else {
+			c = interiorFluxCoefficient();
+		}
+		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+	}
+
+	for (auto& kv : model.getBoundaryToMarker()) {
+		FluxCoefficient c;
+		if (usePenaltyCoefficients) {
+			c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+		}
+		else {
+			c = boundaryFluxCoefficient(f, kv.first);
+		}
+		res->AddBdrFaceIntegrator(
+			new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), kv.second
+		);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
 
 FluxCoefficient interiorFluxCoefficient()
 {
@@ -103,108 +203,5 @@ FieldType altField(const FieldType& f)
 	throw std::runtime_error("Invalid field type for altField.");
 
 }
-
-FiniteElementOperator buildByMult(
-	const BilinearForm& op1,
-	const BilinearForm& op2,
-	FiniteElementSpace& fes)
-{
-	auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
-	auto res = BilinearForm(&fes);
-	res.Assemble();
-	res.Finalize();
-	res.SpMat().Swap(*aux);
-
-	return res;
-}
-
-Vector buildNVector(const Direction& d, const FiniteElementSpace& fes)
-{
-	const auto dim{ fes.GetMesh()->Dimension() };
-	assert(d < dim);
-
-	Vector r(dim);
-	r = 0.0;
-	r[d] = 1.0;
-	return r;
-}
-
-FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& model, FiniteElementSpace& fes)
-{
-	Vector aux{ model.buildPiecewiseArgVector(f) };
-	PWConstCoefficient PWCoeff(aux);
-
-	auto MInv = BilinearForm(&fes);
-	MInv.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
-
-	MInv.Assemble();
-	MInv.Finalize();
-	return MInv;
-}
-
-
-
-FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes)
-{
-	auto res = BilinearForm(&fes);
-
-	if (d >= fes.GetMesh()->Dimension()) {
-		res.Assemble();
-		res.Finalize();
-		return res;
-	}
-
-	ConstantCoefficient coeff(1.0);
-	res.AddDomainIntegrator(
-		new TransposeIntegrator(
-			new DerivativeIntegrator(coeff, d)
-		)
-	);
-
-	res.Assemble();
-	res.Finalize();
-	return res;
-}
-
-FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
-{
-	auto res = BilinearForm(&fes);
-	if (d >= fes.GetMesh()->Dimension()) {
-		res.Assemble();
-		res.Finalize();
-		return res;
-	}
-
-	Vector aux = buildNVector(d, fes);
-	VectorConstantCoefficient n(aux);
-	{
-		FluxCoefficient c;
-		if (usePenaltyCoefficients) {
-			c = interiorPenaltyFluxCoefficient(opts);
-		}
-		else {
-			c = interiorFluxCoefficient();
-		}
-		res.AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
-	}
-
-	for (auto& kv : model.getBoundaryToMarker()) {
-		FluxCoefficient c;
-		if (usePenaltyCoefficients) {
-			c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-		}
-		else {
-			c = boundaryFluxCoefficient(f, kv.first);
-		}
-		res.AddBdrFaceIntegrator(
-			new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), kv.second
-		);
-	}
-
-	res.Assemble();
-	res.Finalize();
-	return res;
-}
-
 
 }

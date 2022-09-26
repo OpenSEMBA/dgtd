@@ -18,13 +18,16 @@ public:
 	virtual void Mult(const Vector& x, Vector& y) const;
 
 private:
-	FiniteElementSpace& fes_;
-	Model& model_;
-	MaxwellEvolOptions& opts_;
-	
+
 	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
 	std::array<std::array<FiniteElementOperator, 3>, 2> MF_;
 	std::array<std::array<FiniteElementOperator, 3>, 2> MP_;
+
+	FiniteElementSpace& fes_;
+	Model& model_;
+	MaxwellEvolOptions opts_;
+	
+
 };
 
 }

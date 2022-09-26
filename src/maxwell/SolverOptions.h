@@ -1,15 +1,19 @@
 #pragma once
-
+#include "MaxwellEvolution1D.h"
 #include "MaxwellEvolution3D.h"
 #include "Types.h"
 
 namespace maxwell {
 
+struct MaxwellEvolOptions {
+    FluxType fluxType{ FluxType::Upwind };
+};
+
 struct SolverOptions {
     int order = 2;
     double dt = 1e-3;
     double t_final = 2.0;
-    MaxwellEvolution::Options evolutionOperatorOptions;
+    MaxwellEvolOptions evolutionOperatorOptions;
     
     SolverOptions& setTimeStep(double t) {
         dt = t;
