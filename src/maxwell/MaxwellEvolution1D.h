@@ -9,7 +9,7 @@
 
 namespace maxwell {
 
-class MaxwellEvolution1D : public TimeDependentOperator {
+class MaxwellEvolution1D : public mfem::TimeDependentOperator {
 public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 1;

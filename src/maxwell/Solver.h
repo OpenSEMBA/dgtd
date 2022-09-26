@@ -6,6 +6,7 @@
 #include "SourcesManager.h"
 #include "SolverOptions.h"
 #include "MaxwellEvolution3D.h"
+#include "MaxwellEvolution1D.h"
 
 namespace maxwell {
 

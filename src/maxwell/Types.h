@@ -34,6 +34,11 @@ enum class BdrCond {
 	SMA
 };
 
+struct MaxwellEvolOptions {
+	FluxType fluxType{ FluxType::Upwind };
+};
+
+
 using Direction = int;
 static const Direction X{ 0 };
 static const Direction Y{ 1 };

@@ -18,7 +18,7 @@ add_library(maxwell STATIC
 	"SourcesManager.h" "SourcesManager.cpp" 
 	"Fields.h" "Fields.cpp" 
 	"MaxwellEvolution3D.h" "MaxwellEvolution3D.cpp"
-
- "MaxwellEvolution1D.cpp" "MaxwellEvolution1D.h" "MaxwellDefs.h" "MaxwellDefs.cpp")
+	"MaxwellEvolution1D.h" "MaxwellEvolution1D.cpp" 
+	"MaxwellDefs.h" "MaxwellDefs.cpp")
 
 target_link_libraries(maxwell mfem)

@@ -3,8 +3,6 @@
 namespace maxwell {
 
 using namespace mfem;
-using namespace mfemExtension;
-
 
 FiniteElementOperator buildByMult(
 	const BilinearForm& op1,
@@ -87,7 +85,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, 
 		else {
 			c = interiorFluxCoefficient();
 		}
-		res->AddInteriorFaceIntegrator(new MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
@@ -99,7 +97,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, 
 			c = boundaryFluxCoefficient(f, kv.first);
 		}
 		res->AddBdrFaceIntegrator(
-			new MaxwellDGTraceIntegrator(n, c.alpha, c.beta), kv.second
+			new mfemExtension::MaxwellDGTraceIntegrator(n, c.alpha, c.beta), kv.second
 		);
 	}
 

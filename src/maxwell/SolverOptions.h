@@ -1,13 +1,8 @@
 #pragma once
-#include "MaxwellEvolution1D.h"
-#include "MaxwellEvolution3D.h"
+
 #include "Types.h"
 
 namespace maxwell {
-
-struct MaxwellEvolOptions {
-    FluxType fluxType{ FluxType::Upwind };
-};
 
 struct SolverOptions {
     int order = 2;

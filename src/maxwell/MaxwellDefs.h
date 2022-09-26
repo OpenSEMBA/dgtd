@@ -1,10 +1,11 @@
 #include "Types.h"
-#include "SolverOptions.h"
+#include "mfem.hpp"
+#include "Model.h"
+#include "mfemExtension/BilinearIntegrators.h"
 
 namespace maxwell {
 
 using namespace mfem;
-using namespace mfemExtension;
 using FiniteElementOperator = std::unique_ptr<BilinearForm>;
 
 Vector buildNVector(const Direction& d, const FiniteElementSpace& fes);
