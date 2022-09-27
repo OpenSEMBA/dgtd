@@ -146,7 +146,7 @@ void MaxwellDGTraceIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         
         un = vu * nor;
 
-        a = 0.5 * alpha* un; // 0.5 * n * {v} = n * (v1+v2)/2
+        a = 0.5 * alpha * un; // 0.5 * n * {v} = n * (v1+v2)/2
         b = beta * fabs(un); //|n| * [v] = |n| * (v1-v2)
         // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)
         //       and therefore two blocks in the element matrix contribution
