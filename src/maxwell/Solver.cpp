@@ -28,14 +28,15 @@ Solver::Solver(
 	maxwellEvol1D_{ fes_, model_, opts_.evolutionOperatorOptions },
 	maxwellEvol3D_{ fes_, model_, opts_.evolutionOperatorOptions }
 {
-	sourcesManager_.setFields(fields_);
 
 	switch (fes_.GetMesh()->Dimension()) {
 	case 1:
+		sourcesManager_.setFields1D(fields_);
 		maxwellEvol1D_.SetTime(time_);
 		odeSolver_->Init(maxwellEvol1D_);
 		break;
 	default:
+		sourcesManager_.setFields3D(fields_);
 		maxwellEvol3D_.SetTime(time_);
 		odeSolver_->Init(maxwellEvol3D_);
 		break;
