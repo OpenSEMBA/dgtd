@@ -64,17 +64,10 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	return res;
 }
 
-FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
-	if (d >= fes.GetMesh()->Dimension()) {
-		res->Assemble();
-		res->Finalize();
-		return res;
-	}
 
-	Vector aux = buildNVector(d, fes);
-	VectorConstantCoefficient n(aux);
 	{
 		FluxCoefficient c;
 		if (usePenaltyCoefficients) {
@@ -83,7 +76,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, 
 		else {
 			c = interiorFluxCoefficient();
 		}
-		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceIntegrator(n, c.alpha, c.beta));
+		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
@@ -95,7 +88,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, 
 			c = boundaryFluxCoefficient(f, kv.first);
 		}
 		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceIntegrator(n, c.alpha, c.beta), kv.second
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
 		);
 	}
 
@@ -140,7 +133,7 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 
 FluxCoefficient interiorFluxCoefficient()
 {
-	return FluxCoefficient{ 0.0, 0.5 };
+	return FluxCoefficient{ 0.0, 1.0 };
 }
 
 FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions& opts)
@@ -149,7 +142,7 @@ FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions& opts)
 	case FluxType::Centered:
 		return FluxCoefficient{ 0.0, 0.0 };
 	case FluxType::Upwind:
-		return FluxCoefficient{ 0.0, 0.5 };
+		return FluxCoefficient{ 0.0, 1.0 };
 	default:
 		throw std::exception("No defined FluxType.");
 	}
@@ -175,9 +168,9 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 	case BdrCond::SMA:
 		switch (f) {
 		case FieldType::E:
-			return FluxCoefficient{ 0.0, 1.0 };
+			return FluxCoefficient{ 0.0, 2.0 };
 		case FieldType::H:
-			return FluxCoefficient{ 0.0, 1.0 };
+			return FluxCoefficient{ 0.0, 2.0 };
 		}
 	default:
 		throw std::exception("No defined BdrCond.");
@@ -208,9 +201,9 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, -1.0 };
+				return FluxCoefficient{ 0.0, 0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, -1.0 };
+				return FluxCoefficient{ 0.0, 0.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");

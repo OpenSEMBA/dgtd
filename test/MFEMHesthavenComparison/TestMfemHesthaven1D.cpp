@@ -1,9 +1,14 @@
 #include <gtest/gtest.h>
 
+#include "maxwell/mfemExtension/BilinearIntegrators.h"
+#include "maxwell/Types.h"
 #include "TestMfemHesthavenFunctions.h"
 #include "GlobalFunctions.h"
+#include <GlobalFunctions.cpp>
+
 
 using namespace mfem;
+using namespace maxwell;
 
 class MFEMHesthaven1D : public ::testing::Test {
 protected:
@@ -104,4 +109,28 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 	};
 
 	EXPECT_TRUE(D.isApprox(expected,tol_));
+}
+
+TEST_F(MFEMHesthaven1D, MFOperator)
+{
+	setFES(2, 4);
+	auto mass = buildInverseMassMatrixEigen(*fes_);
+	auto flux = buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0});
+	Eigen::MatrixXd MF{
+		0.5 * mass * flux
+	};
+
+	//std::cout << mass << std::endl;
+	//std::cout << flux << std::endl;
+	//std::cout << MF << std::endl;
+
+	const auto cols = MF.cols();
+
+	auto fieldVector = Eigen::Vector<double, 12>();
+	fieldVector.setConstant(1.0);
+
+	auto MF_MFEM = MF * fieldVector;
+
+	std::cout << MF_MFEM << std::endl;
+
 }

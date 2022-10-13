@@ -13,7 +13,7 @@ Vector buildNVector(const Direction& d, const FiniteElementSpace& fes);
 FiniteElementOperator buildByMult(const BilinearForm& op1,const BilinearForm& op2, FiniteElementSpace& fes);
 FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& model, FiniteElementSpace& fes);
 FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes);
-FiniteElementOperator buildFluxOperator(const FieldType& f, const Direction& d, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
+FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
 FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
 
 

@@ -17,7 +17,7 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		const auto f2{ altField(f) };
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxJumpOperator(f2, std::vector<Direction>{}, false, model_, fes_, opts_), fes_);
-		/*MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxJumpOperator(f2, std::vector<Direction>{}, true, model_, fes_, opts_), fes_);*/
+		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxJumpOperator(f2, std::vector<Direction>{}, true, model_, fes_, opts_), fes_);
 	}
 }
 
@@ -32,13 +32,13 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	hNew.MakeRef(&fes_, &out[fes_.GetNDofs()]);
 
 
-	// dtE = - MS * H + MF * [H] - MF * [E]
+	// dtE = - MS * H + MF * [H] - MF * [E] (signs in coeff)
 	// Update E.
 	MF_[E]->Mult   (hOld, eNew);
 	MS_[E]->AddMult(hOld, eNew, -1.0);
 	MF_[E]->AddMult(eOld, eNew, -1.0);
 
-	// dtH = - MS * E + MF * [E] - MF * [H]
+	// dtH = - MS * E + MF * [E] - MF * [H] (signs in coeff)
 	// Update H.
 	MF_[H]->Mult   (eOld, hNew);
 	MS_[H]->AddMult(eOld, hNew, -1.0);

@@ -64,7 +64,7 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(
 
 	BilinearForm res(&fes);
 	{
-		FluxCoefficient c{ 0.0, -0.5 };
+		FluxCoefficient c{ 0.0, 1.0 };
 		res.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta));
 		//res->AddInteriorFaceIntegrator(new DGTraceIntegrator(*(new VectorConstantCoefficient(Vector(1.0))), 0.0, 0.5));
 	}
@@ -80,9 +80,42 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(
 		FluxCoefficient c{ 0.0, -2.0 };
 		res.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta), bdrMarkers[kv.first - 1]);
 		//res->AddBdrFaceIntegrator(new DGTraceIntegrator(*(new VectorConstantCoefficient(Vector(1.0))), 0.0, 2.0), bdrMarkers[kv.first - 1]);
-		res.Assemble();
-		res.Finalize();
 	}
+	res.Assemble();
+	res.Finalize();
+
+	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
+}
+
+Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
+	FiniteElementSpace& fes, const std::vector<Direction>& dirVec)
+{
+	std::vector<Direction> dirs = dirVec;
+	AttributeToBoundary attBdr{ {1,BdrCond::SMA},{2,BdrCond::SMA} };
+	VectorConstantCoefficient one(Vector({ 1.0 }));
+
+	BilinearForm res(&fes);
+	{
+		//FluxCoefficient c{ 0.0, 1.0 };
+		res.AddInteriorFaceIntegrator(new DGTraceIntegrator(one, 0.0, 1.0));
+		//res.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta));
+		//res->AddInteriorFaceIntegrator(new DGTraceIntegrator(*(new VectorConstantCoefficient(Vector(1.0))), 0.0, 0.5));
+	}
+
+	std::vector<Array<int>> bdrMarkers;
+	bdrMarkers.resize(fes.GetMesh()->bdr_attributes.Max());
+	for (auto const& kv : attBdr) {
+		Array<int> bdrMarker(fes.GetMesh()->bdr_attributes.Max());
+		bdrMarker = 0;
+		bdrMarker[(int)kv.first - 1] = 1;
+		bdrMarkers[(int)kv.first - 1] = bdrMarker;
+		//FluxCoefficient c{ 0.0, -1.0 };
+		res.AddBdrFaceIntegrator(new DGTraceIntegrator(one, 0.0, -1.0),bdrMarkers[kv.first -1]);
+		//res.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta), bdrMarkers[kv.first - 1]);
+		//res->AddBdrFaceIntegrator(new DGTraceIntegrator(*(new VectorConstantCoefficient(Vector(1.0))), 0.0, 2.0), bdrMarkers[kv.first - 1]);
+	}
+	res.Assemble();
+	res.Finalize();
 
 	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
 }

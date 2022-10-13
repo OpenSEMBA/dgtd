@@ -16,8 +16,8 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 		for (auto f : {E, H}) {
 			const auto f2{ altField(f) };
 			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
-			MF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, d, false, model_, fes_, opts_), fes_);
-			MP_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, d, true, model_, fes_, opts_), fes_);
+			MF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, std::vector<Direction>{d}, false, model_, fes_, opts_), fes_);
+			MP_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, std::vector<Direction>{d}, true, model_, fes_, opts_), fes_);
 		}
 	}
 }
