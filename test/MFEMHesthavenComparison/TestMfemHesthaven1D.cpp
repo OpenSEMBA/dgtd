@@ -114,23 +114,11 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 TEST_F(MFEMHesthaven1D, MFOperator)
 {
 	setFES(2, 4);
-	auto mass = buildInverseMassMatrixEigen(*fes_);
-	auto flux = buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0});
-	Eigen::MatrixXd MF{
-		0.5 * mass * flux
+	Eigen::MatrixXd MFField_MFEM{
+		0.5 * buildInverseMassMatrixEigen(*fes_) * buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0}) * Eigen::VectorXd::Ones(buildInverseMassMatrixEigen(*fes_).cols())
 	};
 
-	//std::cout << mass << std::endl;
-	//std::cout << flux << std::endl;
-	//std::cout << MF << std::endl;
+	Eigen::VectorXd MFField_Hesthaven{{-18.0, 3.0, -6.0, 0, 0, 0, 0, 0, 0, -6.0, 3.0, -18.0}};
 
-	const auto cols = MF.cols();
-
-	auto fieldVector = Eigen::Vector<double, 12>();
-	fieldVector.setConstant(1.0);
-
-	auto MF_MFEM = MF * fieldVector;
-
-	std::cout << MF_MFEM << std::endl;
-
-}
+	EXPECT_TRUE(MFField_MFEM.isApprox(MFField_Hesthaven));
+} 
