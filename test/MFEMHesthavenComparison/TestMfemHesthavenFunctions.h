@@ -15,3 +15,5 @@ Eigen::MatrixXd buildMaxwellDGTrace1DEigen(
 	mfem::FiniteElementSpace& fes, const std::vector<maxwell::Direction>& dir, const double beta);
 
 Eigen::MatrixXd build3DOneElementDMatrix();
+
+Eigen::MatrixXd buildMatrixForMSTest();

@@ -6,6 +6,7 @@
 #include "Model.h"
 #include "Sources.h"
 #include "MaxwellDefs.h"
+#include "MaxwellDefs1D.h"
 
 namespace maxwell {
 

@@ -36,9 +36,9 @@ Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace& fes)
 
 Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace& fes)
 {
-	ConstantCoefficient one(1.0);
+	ConstantCoefficient two(2.0);
 	BilinearForm res(&fes);
-	res.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
+	res.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(two)));
 	res.Assemble();
 	res.Finalize();
 

@@ -4,7 +4,8 @@
 #include "maxwell/Types.h"
 #include "TestMfemHesthavenFunctions.h"
 #include "GlobalFunctions.h"
-#include <GlobalFunctions.cpp>
+#include "maxwell/MaxwellDefs.h"
+#include "maxwell/MaxwellDefs1D.h"
 
 
 using namespace mfem;
@@ -48,8 +49,8 @@ TEST_F(MFEMHesthaven1D, MassMatrix_O1)
 TEST_F(MFEMHesthaven1D, InverseMassMatrix_O1)
 {	
 	Eigen::MatrixXd expected{
-		{ 4.0, -2.0},
-		{-2.0,  4.0}
+		{ 2.0, -1.0},
+		{-1.0,  2.0}
 	};
 
 	EXPECT_TRUE(buildInverseMassMatrixEigen(*fes_).isApprox(expected, tol_));
@@ -67,7 +68,7 @@ TEST_F(MFEMHesthaven1D, StiffnessMatrix_O1)
 
 TEST_F(MFEMHesthaven1D, DOperator_O1)
 {
-	Eigen::MatrixXd D{ 0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) };
+	Eigen::MatrixXd D{ buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) };
 
 	Eigen::MatrixXd expected{
 		{-0.5, 0.5},
@@ -81,7 +82,7 @@ TEST_F(MFEMHesthaven1D, DOperator_O2)
 {
 	setFES(2);
 	Eigen::MatrixXd D{ 
-		0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) 
+		buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) 
 	};
 
 	Eigen::MatrixXd expected{
@@ -97,7 +98,7 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 {
 	setFES(4);
 	Eigen::MatrixXd D{
-		0.5 * buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_)
+		buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_)
 	};
 
 	Eigen::MatrixXd expected{
@@ -115,10 +116,23 @@ TEST_F(MFEMHesthaven1D, MFOperator)
 {
 	setFES(2, 4);
 	Eigen::MatrixXd MFField_MFEM{
-		0.5 * buildInverseMassMatrixEigen(*fes_) * buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0}) * Eigen::VectorXd::Ones(buildInverseMassMatrixEigen(*fes_).cols())
+		buildInverseMassMatrixEigen(*fes_) * buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0}) * Eigen::VectorXd::Ones(buildInverseMassMatrixEigen(*fes_).cols())
 	};
 
 	Eigen::VectorXd MFField_Hesthaven{{-18.0, 3.0, -6.0, 0, 0, 0, 0, 0, 0, -6.0, 3.0, -18.0}};
 
-	EXPECT_TRUE(MFField_MFEM.isApprox(MFField_Hesthaven));
+	EXPECT_TRUE(MFField_MFEM.isApprox(MFField_Hesthaven,tol_));
 } 
+
+TEST_F(MFEMHesthaven1D, MSOperator)
+{
+	setFES(2, 4);
+	auto res = toEigen(*buildByMult(
+		*buildInverseMassMatrix(E, Model(mesh_, AttributeToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_), 
+		*buildDerivativeOperator(X, *fes_), *fes_)
+		.get()->SpMat().ToDenseMatrix());
+	Eigen::MatrixXd expected = buildMatrixForMSTest();
+	EXPECT_TRUE(res.isApprox(expected,tol_));
+}
+
+

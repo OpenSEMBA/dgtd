@@ -18,16 +18,6 @@ FiniteElementOperator buildByMult(
 	return res;
 }
 
-Vector buildNVector(const Direction& d, const FiniteElementSpace& fes)
-{
-	const auto dim{ fes.GetMesh()->Dimension() };
-	assert(d < dim);
-
-	Vector r(dim);
-	r = 0.0;
-	r[d] = 1.0;
-	return r;
-}
 
 FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& model, FiniteElementSpace& fes)
 {

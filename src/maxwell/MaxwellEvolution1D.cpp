@@ -16,8 +16,10 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 	for (auto f : {E, H}) {
 		const auto f2{ altField(f) };
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
-		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxJumpOperator(f2, std::vector<Direction>{}, false, model_, fes_, opts_), fes_);
-		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxJumpOperator(f2, std::vector<Direction>{}, true, model_, fes_, opts_), fes_);
+		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, std::vector<Direction>{X}, model_, fes_, opts_), fes_);
+		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, std::vector<Direction>{}, model_, fes_, opts_), fes_);
+		//MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxJumpOperator(f2, std::vector<Direction>{}, false, model_, fes_, opts_), fes_);
+		//MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxJumpOperator(f2, std::vector<Direction>{}, true, model_, fes_, opts_), fes_);
 	}
 }
 
@@ -36,13 +38,13 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	// Update E.
 	MF_[E]->Mult   (hOld, eNew);
 	MS_[E]->AddMult(hOld, eNew, -1.0);
-	MF_[E]->AddMult(eOld, eNew, -1.0);
+	MP_[E]->AddMult(eOld, eNew, -1.0);
 
 	// dtH = - MS * E + MF * [E] - MF * [H] (signs in coeff)
 	// Update H.
 	MF_[H]->Mult   (eOld, hNew);
 	MS_[H]->AddMult(eOld, hNew, -1.0);
-	MF_[H]->AddMult(hOld, hNew, -1.0);
+	MP_[H]->AddMult(hOld, hNew, -1.0);
 
 
 
