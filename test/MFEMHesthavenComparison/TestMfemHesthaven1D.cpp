@@ -115,13 +115,20 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 TEST_F(MFEMHesthaven1D, MFOperator)
 {
 	setFES(2, 4);
-	Eigen::MatrixXd MFField_MFEM{
+	Eigen::MatrixXd MFField_MFEM_Ones{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0}) * Eigen::VectorXd::Ones(buildInverseMassMatrixEigen(*fes_).cols())
 	};
 
-	Eigen::VectorXd MFField_Hesthaven{{-18.0, 3.0, -6.0, 0, 0, 0, 0, 0, 0, -6.0, 3.0, -18.0}};
+	Eigen::VectorXd ManualFieldVector{ {5.69e-05,0.0045202,0.10288,0.10288,0.67085,1.2533,1.2533,0.67085,0.10288,0.10288,0.0045202,5.69e-05} };
+	Eigen::MatrixXd MFField_MFEM_Manual{
+		buildInverseMassMatrixEigen(*fes_)* buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0}) * ManualFieldVector
+	};
 
-	EXPECT_TRUE(MFField_MFEM.isApprox(MFField_Hesthaven,tol_));
+	Eigen::VectorXd MFField_Hesthaven{{-18.0, 3.0, -6.0, 0, 0, 0, 0, 0, 0, -6.0, 3.0, -18.0}};
+	Eigen::VectorXd MFField_Hesthaven_Manual{ {-0.0010242,0.0001707,-0.0003414,0,0,0,0,0,0,-0.0003414,0.0001707,-0.0010242} };
+
+	EXPECT_TRUE(MFField_MFEM_Ones.isApprox(MFField_Hesthaven,tol_));
+	EXPECT_TRUE(MFField_MFEM_Manual.isApprox(MFField_Hesthaven_Manual, tol_));
 } 
 
 TEST_F(MFEMHesthaven1D, MSOperator)
@@ -131,8 +138,23 @@ TEST_F(MFEMHesthaven1D, MSOperator)
 		*buildInverseMassMatrix(E, Model(mesh_, AttributeToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_), 
 		*buildDerivativeOperator(X, *fes_), *fes_)
 		.get()->SpMat().ToDenseMatrix());
-	Eigen::MatrixXd expected = buildMatrixForMSTest();
+	auto expected = buildMatrixForMSTest();
 	EXPECT_TRUE(res.isApprox(expected,tol_));
+}
+
+TEST_F(MFEMHesthaven1D, MPOperator)
+{
+	setFES(2, 4);
+	Eigen::MatrixXd MPField_MFEM{
+		buildInverseMassMatrixEigen(*fes_) * buildSMAPenaltyOperator1D(*fes_) * Eigen::VectorXd::Ones(buildInverseMassMatrixEigen(*fes_).cols())
+	};
+
+	Eigen::VectorXd MPField_Hesthaven{ {-18.0, 3.0, -6.0, 0, 0, 0, 0, 0, 0, -6.0, 3.0, -18.0} };
+
+	std::cout << MPField_MFEM << std::endl;
+
+	EXPECT_TRUE(MPField_MFEM.isApprox(MPField_Hesthaven, tol_));
+
 }
 
 

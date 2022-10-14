@@ -14,3 +14,5 @@ Eigen::MatrixXd buildStiffnessMatrixEigen(mfem::FiniteElementSpace&);
 
 Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 	mfem::FiniteElementSpace&, const std::vector<maxwell::Direction>& dirVec);
+Eigen::MatrixXd	buildSMAPenaltyOperator1D(
+	mfem::FiniteElementSpace& fes);
