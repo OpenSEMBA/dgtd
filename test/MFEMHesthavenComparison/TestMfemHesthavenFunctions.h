@@ -16,4 +16,4 @@ Eigen::MatrixXd buildMaxwellDGTrace1DEigen(
 
 Eigen::MatrixXd build3DOneElementDMatrix();
 
-Eigen::MatrixXd buildMatrixForMSTest();
+Eigen::MatrixXd buildMatrixForMSTest4E();

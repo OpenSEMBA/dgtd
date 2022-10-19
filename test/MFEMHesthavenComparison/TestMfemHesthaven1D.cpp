@@ -112,49 +112,121 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 	EXPECT_TRUE(D.isApprox(expected,tol_));
 }
 
-TEST_F(MFEMHesthaven1D, MFOperator)
-{
-	setFES(2, 4);
-	Eigen::MatrixXd MFField_MFEM_Ones{
-		buildInverseMassMatrixEigen(*fes_) * buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0}) * Eigen::VectorXd::Ones(buildInverseMassMatrixEigen(*fes_).cols())
-	};
-
-	Eigen::VectorXd ManualFieldVector{ {5.69e-05,0.0045202,0.10288,0.10288,0.67085,1.2533,1.2533,0.67085,0.10288,0.10288,0.0045202,5.69e-05} };
-	Eigen::MatrixXd MFField_MFEM_Manual{
-		buildInverseMassMatrixEigen(*fes_)* buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0}) * ManualFieldVector
-	};
-
-	Eigen::VectorXd MFField_Hesthaven{{-18.0, 3.0, -6.0, 0, 0, 0, 0, 0, 0, -6.0, 3.0, -18.0}};
-	Eigen::VectorXd MFField_Hesthaven_Manual{ {-0.0010242,0.0001707,-0.0003414,0,0,0,0,0,0,-0.0003414,0.0001707,-0.0010242} };
-
-	EXPECT_TRUE(MFField_MFEM_Ones.isApprox(MFField_Hesthaven,tol_));
-	EXPECT_TRUE(MFField_MFEM_Manual.isApprox(MFField_Hesthaven_Manual, tol_));
-} 
-
 TEST_F(MFEMHesthaven1D, MSOperator)
 {
 	setFES(2, 4);
-	auto res = toEigen(*buildByMult(
-		*buildInverseMassMatrix(E, Model(mesh_, AttributeToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_), 
+	auto MS_MFEM4E = toEigen(*buildByMult(
+		*buildInverseMassMatrix(E, Model(mesh_, AttributeToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_),
 		*buildDerivativeOperator(X, *fes_), *fes_)
 		.get()->SpMat().ToDenseMatrix());
-	auto expected = buildMatrixForMSTest();
-	EXPECT_TRUE(res.isApprox(expected,tol_));
+	auto MS_Hesthaven4E = buildMatrixForMSTest4E();
+
+	setFES(2, 3);
+	auto MS_MFEM3E = toEigen(*buildByMult(
+		*buildInverseMassMatrix(E, Model(mesh_, AttributeToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_),
+		*buildDerivativeOperator(X, *fes_), *fes_)
+		.get()->SpMat().ToDenseMatrix());
+	Eigen::MatrixXd MS_Hesthaven3E{
+		{  9.0, -12.0,  3.0,  0.0,   0.0,  0.0,  0.0,   0.0,  0.0},
+		{  3.0,   0.0, -3.0,  0.0,   0.0,  0.0,  0.0,   0.0,  0.0},
+		{ -3.0,  12.0, -9.0,  0.0,   0.0,  0.0,  0.0,   0.0,  0.0},
+		{  0.0,   0.0,  0.0,  9.0, -12.0,  3.0,  0.0,   0.0,  0.0},
+		{  0.0,   0.0,  0.0,  3.0,   0.0, -3.0,  0.0,   0.0,  0.0},
+		{  0.0,   0.0,  0.0, -3.0,  12.0, -9.0,  0.0,   0.0,  0.0},
+		{  0.0,   0.0,  0.0,  0.0,   0.0,  0.0,  9.0, -12.0,  3.0},
+		{  0.0,   0.0,  0.0,  0.0,   0.0,  0.0,  3.0,   0.0, -3.0},
+		{  0.0,   0.0,  0.0,  0.0,   0.0,  0.0, -3.0,  12.0, -9.0},
+	};
+
+	double multMS_coefficient = -1.0;
+
+	EXPECT_TRUE(MS_Hesthaven4E.isApprox(multMS_coefficient * MS_MFEM4E, tol_));
+	EXPECT_TRUE(MS_Hesthaven3E.isApprox(multMS_coefficient * MS_MFEM3E, tol_));
 }
+
+TEST_F(MFEMHesthaven1D, MFOperator)
+{
+	setFES(2, 4);
+	Eigen::MatrixXd MF_MFEM4E{
+		buildInverseMassMatrixEigen(*fes_) * buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0})
+	};
+
+	Eigen::MatrixXd MF_Hesthaven4E{
+		{-18.0, 0.0,  6.0,  -6.0, 0.0,  0.0,   0.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  3.0, 0.0, -3.0,   3.0, 0.0,  0.0,   0.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{ -6.0, 0.0, 18.0, -18.0, 0.0,  0.0,   0.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0, 18.0, -18.0, 0.0,  6.0,  -6.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0, -3.0,   3.0, 0.0, -3.0,   3.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,  6.0,  -6.0, 0.0, 18.0, -18.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,  0.0,   0.0, 0.0, 18.0, -18.0, 0.0,   6.0,  -6.0, 0.0,   0.0},
+		{  0.0, 0.0,  0.0,   0.0, 0.0, -3.0,   3.0, 0.0,  -3.0,   3.0, 0.0,   0.0},
+		{  0.0, 0.0,  0.0,   0.0, 0.0,  6.0,  -6.0, 0.0,  18.0, -18.0, 0.0,   0.0},
+		{  0.0, 0.0,  0.0,   0.0, 0.0,  0.0,   0.0, 0.0,  18.0, -18.0, 0.0,   6.0},
+		{  0.0, 0.0,  0.0,   0.0, 0.0,  0.0,   0.0, 0.0,  -3.0,   3.0, 0.0,  -3.0},
+		{  0.0, 0.0,  0.0,   0.0, 0.0,  0.0,   0.0, 0.0,   6.0,  -6.0, 0.0,  18.0}
+	};
+
+	setFES(2, 3);
+	Eigen::MatrixXd MF_MFEM3E{
+		buildInverseMassMatrixEigen(*fes_) * buildNormalSMAFluxOperator1D(*fes_, std::vector<int>{0})
+	};
+
+	Eigen::MatrixXd MF_Hesthaven3E{
+		{-13.5, 0.0,   4.5,  -4.5, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{ 2.25, 0.0, -2.25,  2.25, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{ -4.5, 0.0,  13.5, -13.5, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,  13.5, -13.5, 0.0,   4.5,  -4.5, 0.0,   0.0},
+		{  0.0, 0.0, -2.25,  2.25, 0.0, -2.25,  2.25, 0.0,   0.0},
+		{  0.0, 0.0,   4.5,  -4.5, 0.0,  13.5, -13.5, 0.0,   0.0},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,  13.5, -13.5, 0.0,   4.5},
+		{  0.0, 0.0,   0.0,   0.0, 0.0, -2.25,  2.25, 0.0, -2.25},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,   4.5,  -4.5, 0.0,  13.5}
+	};
+
+	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E, tol_));
+	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
+} 
 
 TEST_F(MFEMHesthaven1D, MPOperator)
 {
 	setFES(2, 4);
-	Eigen::MatrixXd MPField_MFEM{
-		buildInverseMassMatrixEigen(*fes_) * buildSMAPenaltyOperator1D(*fes_) * Eigen::VectorXd::Ones(buildInverseMassMatrixEigen(*fes_).cols())
+	Eigen::MatrixXd MP_MFEM4E{
+		buildInverseMassMatrixEigen(*fes_) * buildSMAPenaltyOperator1D(*fes_)
+	};
+	Eigen::MatrixXd MP_Hesthaven4E{
+		{-18.0, 0.0,  -6.0,   6.0, 0.0,   0.0,   0.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  3.0, 0.0,   3.0,  -3.0, 0.0,   0.0,   0.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{ -6.0, 0.0, -18.0,  18.0, 0.0,   0.0,   0.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,  18.0, -18.0, 0.0,  -6.0,   6.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,  -3.0,   3.0, 0.0,   3.0,  -3.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,   6.0,  -6.0, 0.0, -18.0,  18.0, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,  18.0, -18.0, 0.0,  -6.0,   6.0, 0.0,   0.0},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,  -3.0,   3.0, 0.0,   3.0,  -3.0, 0.0,   0.0},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,   6.0,  -6.0, 0.0, -18.0,  18.0, 0.0,   0.0},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,   0.0,   0.0, 0.0,  18.0, -18.0, 0.0,  -6.0},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,   0.0,   0.0, 0.0,  -3.0,   3.0, 0.0,   3.0},
+		{  0.0, 0.0,   0.0,   0.0, 0.0,   0.0,   0.0, 0.0,   6.0,  -6.0, 0.0, -18.0}
 	};
 
-	Eigen::VectorXd MPField_Hesthaven{ {-18.0, 3.0, -6.0, 0, 0, 0, 0, 0, 0, -6.0, 3.0, -18.0} };
+	setFES(2, 3);
+	Eigen::MatrixXd MP_MFEM3E{
+		buildInverseMassMatrixEigen(*fes_) * buildSMAPenaltyOperator1D(*fes_)
+	};
 
-	std::cout << MPField_MFEM << std::endl;
+	Eigen::MatrixXd MP_Hesthaven3E{
+		{-13.5, 0.0,   -4.5,   4.5, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{ 2.25, 0.0,   2.25, -2.25, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{ -4.5, 0.0,  -13.5,  13.5, 0.0,   0.0,   0.0, 0.0,   0.0},
+		{  0.0, 0.0,   13.5, -13.5, 0.0,  -4.5,   4.5, 0.0,   0.0},
+		{  0.0, 0.0,  -2.25,  2.25, 0.0,  2.25, -2.25, 0.0,   0.0},
+		{  0.0, 0.0,    4.5,  -4.5, 0.0, -13.5,  13.5, 0.0,   0.0},
+		{  0.0, 0.0,    0.0,   0.0, 0.0,  13.5, -13.5, 0.0,  -4.5},
+		{  0.0, 0.0,    0.0,   0.0, 0.0, -2.25,  2.25, 0.0,  2.25},
+		{  0.0, 0.0,    0.0,   0.0, 0.0,   4.5,  -4.5, 0.0, -13.5}
+	};
 
-	EXPECT_TRUE(MPField_MFEM.isApprox(MPField_Hesthaven, tol_));
+	double multMP_coefficient = -1.0;
 
+	EXPECT_TRUE(MP_Hesthaven4E.isApprox(multMP_coefficient * MP_MFEM4E, tol_));
+	EXPECT_TRUE(MP_Hesthaven3E.isApprox(multMP_coefficient * MP_MFEM3E, tol_));
 }
-
-

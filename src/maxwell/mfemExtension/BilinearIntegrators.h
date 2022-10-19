@@ -91,6 +91,7 @@ private:
 
 	const IntegrationRule* setIntegrationRule(const FiniteElement& el1, const FiniteElement& el2, FaceElementTransformations& Trans);
 	const Vector setNormalVector(const int dim, const IntegrationPoint& eip1, FaceElementTransformations& Trans);
+	const Vector setNormalVector1D(const int dim, const IntegrationPoint& eip1);
 	void buildFaceMatrix(double w, int ndofA, int ndofB, int desvI, int desvJ,
 		Vector shapeA, Vector shapeB, DenseMatrix& elmat);
 	const int setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans);

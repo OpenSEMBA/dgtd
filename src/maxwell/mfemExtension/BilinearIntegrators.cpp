@@ -39,6 +39,20 @@ const Vector MaxwellDGTraceJumpIntegrator::setNormalVector(const int dim,
     return res;
 }
 
+const Vector MaxwellDGTraceJumpIntegrator::setNormalVector1D(const int dim,
+    const IntegrationPoint& eip1
+)
+{
+    Vector res(dim);
+    if (eip1.x == 0.0) {
+        res(0) = -1.0;
+    }
+    else if (eip1.x == 1.0) {
+        res(0) = 1.0;
+    }
+    return res;
+}
+
 void MaxwellDGTraceJumpIntegrator::buildFaceMatrix(double w, int ndofA, int ndofB, int desvI, int desvJ,
     Vector shapeA, Vector shapeB, DenseMatrix& elmat) {
     for (int i = 0; i < ndofA; i++) {
@@ -240,7 +254,7 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
 
         el1.CalcShape(eip1, shape1_);
 
-        Vector nor = setNormalVector(dim, eip1, Trans);
+        Vector nor = setNormalVector1D(dim, eip1);
 
         double nIn, nOut, a, b;
         switch (dir.size()) {
@@ -257,7 +271,7 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             nIn = buildNormalTerm(nor, dir.at(0));
             nOut = buildNormalTerm(nor, dir.at(1));
             a = 0;
-            b = beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
+            b = beta * abs(nIn) * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
             break;
         default:
             throw std::exception("Incorrect dimensions for dirTerms vector.");
@@ -273,13 +287,15 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             el2.CalcShape(eip2, shape2_);
 
             if (w != 0.0) {
+                w *= -1.0;
                 buildFaceMatrix(w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
             }
 
             w = ip.weight * (b - a);
             if (w != 0.0) {
-                buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
                 buildFaceMatrix(w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);
+                w *= -1.0;
+                buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
             }
         }
     }

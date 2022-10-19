@@ -98,14 +98,14 @@ Eigen::MatrixXd build3DOneElementDMatrix()
 	return res;
 }
 
-Eigen::MatrixXd buildMatrixForMSTest()
+Eigen::MatrixXd buildMatrixForMSTest4E()
 {
 	auto res = Eigen::Matrix<double, 12, 12>();
 	res.setZero();
 	Eigen::Matrix3d blockMat{
-		{-12.0 ,  16.0  , -4.0},
-		{ -4.0 ,   0.0  ,  4.0},
-		{  4.0 , -16.0  , 12.0}};
+		{ 12.0, -16.0,   4.0},
+		{  4.0,   0.0,  -4.0},
+		{ -4.0,  16.0, -12.0}};
 	for (int i = 0; i < res.cols(); i += 3) {
 		res.block<3, 3>(i, i) = blockMat;
 	}

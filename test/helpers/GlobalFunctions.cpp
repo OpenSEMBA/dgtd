@@ -96,7 +96,8 @@ Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 
 	BilinearForm res(&fes);
 	{
-		res.AddInteriorFaceIntegrator(new DGTraceIntegrator(one, 0.0, 1.0));
+		res.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirVec, 1.0));
+		//res.AddInteriorFaceIntegrator(new DGTraceIntegrator(one, 0.0, -1.0));
 	}
 
 	std::vector<Array<int>> bdrMarkers;
@@ -106,7 +107,8 @@ Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 		bdrMarker = 0;
 		bdrMarker[(int)kv.first - 1] = 1;
 		bdrMarkers[(int)kv.first - 1] = bdrMarker;
-		res.AddBdrFaceIntegrator(new DGTraceIntegrator(one, 0.0, -1.0),bdrMarkers[kv.first -1]);
+		res.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirVec, 1.0), bdrMarkers[kv.first - 1]);
+		//res.AddBdrFaceIntegrator(new DGTraceIntegrator(one, 0.0, -1.0),bdrMarkers[kv.first -1]);
 
 	}
 	res.Assemble();
@@ -119,10 +121,12 @@ Eigen::MatrixXd	buildSMAPenaltyOperator1D(
 	FiniteElementSpace& fes)
 {
 	AttributeToBoundary attBdr{ {1,BdrCond::SMA},{2,BdrCond::SMA} };
+	VectorConstantCoefficient one(Vector({ 1.0 }));
 
 	BilinearForm res(&fes);
 	{
-		res.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(std::vector<Direction>{}, -1.0));
+		res.AddInteriorFaceIntegrator(new DGTraceIntegrator(one, 0.0, 1.0));
+		//res.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(std::vector<Direction>{}, -1.0));
 	}
 
 	std::vector<Array<int>> bdrMarkers;
@@ -132,7 +136,8 @@ Eigen::MatrixXd	buildSMAPenaltyOperator1D(
 		bdrMarker = 0;
 		bdrMarker[(int)kv.first - 1] = 1;
 		bdrMarkers[(int)kv.first - 1] = bdrMarker;
-		res.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(std::vector<Direction>{}, -1.0), bdrMarkers[kv.first - 1]);
+		res.AddBdrFaceIntegrator(new DGTraceIntegrator(one, 0.0, 1.0), bdrMarkers[kv.first - 1]);
+		//res.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(std::vector<Direction>{}, -1.0), bdrMarkers[kv.first - 1]);
 
 	}
 	res.Assemble();
