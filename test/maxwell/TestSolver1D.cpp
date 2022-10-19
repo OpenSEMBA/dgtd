@@ -158,6 +158,36 @@ TEST_F(TestSolver1D, box_pec_centered_flux)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
+
+TEST_F(TestSolver1D, box_pmc_centered_flux)
+{
+	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
+	a centered type flux.
+
+	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
+	A single Gaussian is declared along Ey.
+
+	Then, the Solver object is constructed using said parts, with its mesh being one-dimensional.
+	The field along Ey is extracted before and after the solver calls its run() method and evolves the
+	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
+	back to its initial state within the specified error.*/
+	maxwell::Solver solver{
+		buildModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
+		buildExportProbes(),
+		buildGaussianInitialField(H, Z),
+		SolverOptions{}
+			.setTimeStep(2.5e-3)
+			.setCentered()
+	};
+
+	GridFunction hOld{ solver.getFields().H[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction hNew{ solver.getFields().H[Z] };
+
+	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+}
 TEST_F(TestSolver1D, box_pec_upwind_flux)
 {
 	maxwell::Solver solver{

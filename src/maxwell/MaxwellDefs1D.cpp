@@ -87,12 +87,12 @@ FluxCoefficient boundaryCenteredFluxCoefficient1D(const FieldType& f, const BdrC
 		case FieldType::E:
 			return FluxCoefficient{ 0.0,  0.0 };
 		case FieldType::H:
-			return FluxCoefficient{ 0.0,  1.0 };
+			return FluxCoefficient{ 0.0,  2.0 };
 		}
 	case BdrCond::PMC:
 		switch (f) {
 		case FieldType::E:
-			return FluxCoefficient{ 0.0,  1.0 };
+			return FluxCoefficient{ 0.0,  2.0 };
 		case FieldType::H:
 			return FluxCoefficient{ 0.0,  0.0 };
 		}
@@ -120,12 +120,12 @@ FluxCoefficient boundaryPenaltyFluxCoefficient1D(const FieldType& f, const BdrCo
 			case FieldType::E:
 				return FluxCoefficient{ 0.0,  0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0,  1.0 };
+				return FluxCoefficient{ 0.0,  2.0 };
 			}
 		case BdrCond::PMC:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0,  1.0 };
+				return FluxCoefficient{ 0.0,  2.0 };
 			case FieldType::H:
 				return FluxCoefficient{ 0.0,  0.0 };
 			}
