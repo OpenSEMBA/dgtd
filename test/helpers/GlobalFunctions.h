@@ -12,6 +12,11 @@ Eigen::MatrixXd buildMassMatrixEigen(mfem::FiniteElementSpace&);
 Eigen::MatrixXd buildInverseMassMatrixEigen(mfem::FiniteElementSpace&);
 Eigen::MatrixXd buildStiffnessMatrixEigen(mfem::FiniteElementSpace&);
 
+Eigen::MatrixXd buildNormalPECFluxOperator1D(
+	const maxwell::FieldType ft, mfem::FiniteElementSpace& fes, const std::vector<maxwell::Direction>& dirVec);
+Eigen::MatrixXd	buildPECPenaltyOperator1D(
+	const maxwell::FieldType ft, mfem::FiniteElementSpace& fes);
+
 Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 	mfem::FiniteElementSpace&, const std::vector<maxwell::Direction>& dirVec);
 Eigen::MatrixXd	buildSMAPenaltyOperator1D(
