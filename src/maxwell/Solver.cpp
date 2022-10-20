@@ -59,6 +59,11 @@ const PointsProbe& Solver::getPointsProbe(const std::size_t probe) const
 	return probesManager_.getPointsProbe(probe); 
 }
 
+//const double Solver::calculateTimeStep() const
+//{
+//	
+//}
+
 void Solver::run()
 {
 	while (time_ < opts_.t_final) {

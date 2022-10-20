@@ -195,7 +195,7 @@ TEST_F(TestSolver1D, box_pec_upwind_flux)
 		buildExportProbes(),
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
-			.setTimeStep(2.5e-3)
+			.setTimeStep(1e-3)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Y] };
@@ -207,6 +207,24 @@ TEST_F(TestSolver1D, box_pec_upwind_flux)
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
 
+TEST_F(TestSolver1D, box_pmc_upwind_flux)
+{
+	maxwell::Solver solver{
+		buildModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
+		buildExportProbes(),
+		buildGaussianInitialField(H, Z),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+	};
+
+	GridFunction hOld{ solver.getFields().H[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction hNew{ solver.getFields().H[Z] };
+
+	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+}
 TEST_F(TestSolver1D, box_SMA)
 {
 	maxwell::Solver solver(

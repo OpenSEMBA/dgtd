@@ -53,6 +53,8 @@ private:
 
     void checkOptionsAreValid(const SolverOptions&);
 
+    const double Solver::calculateTimeStep() const;
+
     void Solver::initializeFieldsFromSources();
 };
 }
