@@ -45,11 +45,22 @@ Eigen::MatrixXd buildInverseMassMatrixEigen(FiniteElementSpace& fes)
 	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
 }
 
-Eigen::MatrixXd buildStiffnessMatrixEigen(FiniteElementSpace& fes)
+Eigen::MatrixXd build1DStiffnessMatrixEigen(FiniteElementSpace& fes)
 {
 	ConstantCoefficient one(1.0);
 	BilinearForm res(&fes);
 	res.AddDomainIntegrator(new DerivativeIntegrator(one, 0));
+	res.Assemble();
+	res.Finalize();
+
+	return toEigen(*toUnique(res.SpMat().ToDenseMatrix()));
+}
+
+Eigen::MatrixXd buildNormalStiffnessMatrixEigen(const Direction d, FiniteElementSpace& fes)
+{
+	ConstantCoefficient one(1.0);
+	BilinearForm res(&fes);
+	res.AddDomainIntegrator(new DerivativeIntegrator(one, d));
 	res.Assemble();
 	res.Finalize();
 

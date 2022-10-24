@@ -13,6 +13,8 @@ FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& mo
 FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes);
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
 FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
+FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
+FiniteElementOperator buildPenaltyOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
 
 
 FluxCoefficient interiorFluxCoefficient();

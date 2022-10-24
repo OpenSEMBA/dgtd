@@ -10,7 +10,8 @@ Eigen::MatrixXd toEigen(const mfem::DenseMatrix&);
 
 Eigen::MatrixXd buildMassMatrixEigen(mfem::FiniteElementSpace&);
 Eigen::MatrixXd buildInverseMassMatrixEigen(mfem::FiniteElementSpace&);
-Eigen::MatrixXd buildStiffnessMatrixEigen(mfem::FiniteElementSpace&);
+Eigen::MatrixXd build1DStiffnessMatrixEigen(mfem::FiniteElementSpace&);
+Eigen::MatrixXd buildNormalStiffnessMatrixEigen(const maxwell::Direction d, mfem::FiniteElementSpace& fes);
 
 Eigen::MatrixXd buildNormalPECFluxOperator1D(
 	const maxwell::FieldType ft, mfem::FiniteElementSpace& fes, const std::vector<maxwell::Direction>& dirVec);

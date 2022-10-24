@@ -54,6 +54,49 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	return res;
 }
 
+FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<BilinearForm>(&fes);
+
+	{
+		FluxCoefficient c = interiorFluxCoefficient();
+		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
+	}
+
+	for (auto& kv : model.getBoundaryToMarker()) {
+		
+		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+		);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildPenaltyOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<BilinearForm>(&fes);
+
+	{
+		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
+		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
+	}
+
+	for (auto& kv : model.getBoundaryToMarker()) {
+		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+		);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);

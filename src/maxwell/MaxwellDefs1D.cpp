@@ -25,7 +25,6 @@ FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<
 	{
 		FluxCoefficient c = interiorCenteredFluxCoefficient1D();
 		res->AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
-		//res->AddInteriorFaceIntegrator(new DGTraceIntegrator(vecCC, c.alpha, c.beta));
 	}
 
 	for (auto& kv : model.getBoundaryToMarker())

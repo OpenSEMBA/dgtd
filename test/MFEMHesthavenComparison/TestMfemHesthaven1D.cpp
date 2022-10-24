@@ -63,12 +63,12 @@ TEST_F(MFEMHesthaven1D, StiffnessMatrix_O1)
 			{-0.5, 0.5} 
 	};
 
-	EXPECT_TRUE(buildStiffnessMatrixEigen(*fes_).isApprox(expected, tol_));
+	EXPECT_TRUE(build1DStiffnessMatrixEigen(*fes_).isApprox(expected, tol_));
 }
 
 TEST_F(MFEMHesthaven1D, DOperator_O1)
 {
-	Eigen::MatrixXd D{ buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) };
+	Eigen::MatrixXd D{ buildInverseMassMatrixEigen(*fes_) * build1DStiffnessMatrixEigen(*fes_) };
 
 	Eigen::MatrixXd expected{
 		{-0.5, 0.5},
@@ -82,7 +82,7 @@ TEST_F(MFEMHesthaven1D, DOperator_O2)
 {
 	setFES(2);
 	Eigen::MatrixXd D{ 
-		buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_) 
+		buildInverseMassMatrixEigen(*fes_) * build1DStiffnessMatrixEigen(*fes_) 
 	};
 
 	Eigen::MatrixXd expected{
@@ -98,7 +98,7 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 {
 	setFES(4);
 	Eigen::MatrixXd D{
-		buildInverseMassMatrixEigen(*fes_) * buildStiffnessMatrixEigen(*fes_)
+		buildInverseMassMatrixEigen(*fes_) * build1DStiffnessMatrixEigen(*fes_)
 	};
 
 	Eigen::MatrixXd expected{

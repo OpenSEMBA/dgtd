@@ -66,6 +66,7 @@ const PointsProbe& Solver::getPointsProbe(const std::size_t probe) const
 
 void Solver::run()
 {
+	
 	while (time_ < opts_.t_final) {
 		odeSolver_->Step(fields_.allDOFs, time_, opts_.dt);
 		probesManager_.updateProbes(time_);

@@ -10,7 +10,7 @@ add_executable(mfem_hesthaven_tests
 "TestMfemHesthaven1D.cpp" 
 "TestMfemHesthaven3D.cpp" 
 "TestMfemHesthavenFunctions.cpp" "TestMfemHesthavenFunctions.h" 
-"TestMfemHesthavenTrace1D.cpp")
+"TestMfemHesthavenTrace1D.cpp" "TestMfemHesthaven2D.cpp")
 
 target_link_libraries(mfem_hesthaven_tests mfem
 	maxwell testHelpers
