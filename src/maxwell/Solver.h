@@ -6,6 +6,7 @@
 #include "SourcesManager.h"
 #include "SolverOptions.h"
 #include "MaxwellEvolution3D.h"
+#include "MaxwellEvolution2D.h"
 #include "MaxwellEvolution1D.h"
 
 namespace maxwell {
@@ -31,7 +32,8 @@ public:
     const Fields& getFields() const { return fields_; };
     const PointsProbe& getPointsProbe(const std::size_t probe) const;
 
-    const MaxwellEvolution1D& getFEEvol1D() const { return maxwellEvol1D_; }
+    //const MaxwellEvolution1D& getFEEvol1D() const { return maxwellEvol1D_; }
+    const MaxwellEvolution2D& getFEEvol2D() const { return maxwellEvol2D_; }
     const MaxwellEvolution3D& getFEEvol3D() const { return maxwellEvol3D_; }
 
     void run();
@@ -48,7 +50,8 @@ private:
     
     double time_;
     std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
-    MaxwellEvolution1D maxwellEvol1D_;
+    //MaxwellEvolution1D maxwellEvol1D_;
+    MaxwellEvolution2D maxwellEvol2D_;
     MaxwellEvolution3D maxwellEvol3D_;
 
     void checkOptionsAreValid(const SolverOptions&);

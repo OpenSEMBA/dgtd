@@ -26,7 +26,12 @@ protected:
 	}
 
 	Mesh mesh_;
-	
+
+	static std::string getFilename(const std::string fn)
+	{
+		return "./testData/" + fn;
+	}
+
 	std::vector<int> mapQuadElementTopLeftVertex(const Mesh& mesh)
 	{
 		std::vector<int> res;
@@ -229,5 +234,12 @@ TEST_F(TestMesh, mapMeshElementAndVertex)
 	EXPECT_EQ(0, mapped[0]);
 	EXPECT_EQ(nx - 1, mapped[mapped.size() - 1]);
 	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);
+
+}
+
+TEST_F(TestMesh, meshDataFileRead)
+{
+
+	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
 
 }
