@@ -74,6 +74,15 @@ protected:
 		}
 		return std::unique_ptr<SparseMatrix>(res);
 	}
+
+	Eigen::Matrix<double, 6, 6> rotatorO2{
+	{0,0,0,0,0,1},
+	{0,0,0,1,0,0},
+	{1,0,0,0,0,0},
+	{0,0,0,0,1,0},
+	{0,1,0,0,0,0},
+	{0,0,1,0,0,0}
+	};
 };
 
 TEST_F(MFEMHesthaven2D, massMatrix2D)
@@ -98,43 +107,49 @@ TEST_F(MFEMHesthaven2D, massMatrix2D)
 
 TEST_F(MFEMHesthaven2D, DOperators2D)
 {
-	std::cout << buildMassMatrixEigen(*fes_) << std::endl;
-	std::cout << buildInverseMassMatrixEigen(*fes_) << std::endl;
-	std::cout << buildNormalStiffnessMatrixEigen(X, *fes_) << std::endl;
-	std::cout << buildNormalStiffnessMatrixEigen(Y, *fes_) << std::endl;
+	setFES(2);
 
 	Eigen::MatrixXd DrOperatorMFEM{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(X,*fes_)
 	};
 
 	Eigen::MatrixXd DrOperatorHesthaven{
-		{ -0.5, 0.5, 0.0,  0.0, 0.0, 0.0},
-		{ -0.5, 0.5, 0.0,  0.0, 0.0, 0.0},
-		{ -0.5, 0.5, 0.0,  0.0, 0.0, 0.0},
-		{  0.0, 0.0, 0.0, -0.5, 0.5, 0.0},
-		{  0.0, 0.0, 0.0, -0.5, 0.5, 0.0},
-		{  0.0, 0.0, 0.0, -0.5, 0.5, 0.0}
+		{ -1.5,  2.0, -0.5,  0.0, 0.0, 0.0},
+		{ -0.5,  0.0,  0.5,  0.0, 0.0, 0.0},
+		{  0.5, -2.0,  1.5,  0.0, 0.0, 0.0},
+		{ -0.5,  1.0, -0.5, -1.0, 1.0, 0.0},
+		{  0.5, -1.0,  0.5, -1.0, 1.0, 0.0},
+		{  0.5,  0.0, -0.5, -2.0, 2.0, 0.0}
 	};
+
+
+	Eigen::Matrix<double, 6, 6> rotatedDrHesthaven = rotatorO2.transpose() * DrOperatorHesthaven * rotatorO2;
+
+	std::cout << rotatedDrHesthaven << std::endl;
 
 	Eigen::MatrixXd DsOperatorMFEM{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(Y,*fes_)
 	};
 
 	Eigen::MatrixXd DsOperatorHesthaven{
-		{ -0.5, 0.0, 0.5,  0.0, 0.0, 0.0},
-		{ -0.5, 0.0, 0.5,  0.0, 0.0, 0.0},
-		{ -0.5, 0.0, 0.5,  0.0, 0.0, 0.0},
-		{  0.0, 0.0, 0.0, -0.5, 0.0, 0.5},
-		{  0.0, 0.0, 0.0, -0.5, 0.0, 0.5},
-		{  0.0, 0.0, 0.0, -0.5, 0.0, 0.5}
+		{ -1.5,  0.0, 0.0,  2.0, 0.0, -0.5},
+		{ -0.5, -1.0, 0.0,  1.0, 1.0, -0.5},
+		{  0.5, -2.0, 0.0,  0.0, 2.0, -0.5},
+		{ -0.5,  0.0, 0.0, -0.5, 0.0,  0.5},
+		{  0.5, -1.0, 0.0, -1.0, 1.0,  0.5},
+		{  0.5,  0.0, 0.0, -2.0, 0.0,  1.5}
 	};
+
+	Eigen::Matrix<double, 6, 6> rotatedDsHesthaven = rotatorO2.transpose() * DsOperatorHesthaven * rotatorO2;
+
+	std::cout << rotatedDsHesthaven << std::endl;
 
 	const double scaleFactor = 0.25;
 
 	std::cout << DrOperatorMFEM << std::endl;
 	std::cout << DsOperatorMFEM << std::endl;
 
-	EXPECT_TRUE(DrOperatorMFEM.isApprox(scaleFactor * DrOperatorHesthaven, tol_));
+	EXPECT_TRUE(DrOperatorMFEM.isApprox(scaleFactor * rotatedDrHesthaven, tol_));
 	EXPECT_TRUE(DsOperatorMFEM.isApprox(scaleFactor * DsOperatorHesthaven, tol_));
 
 }
