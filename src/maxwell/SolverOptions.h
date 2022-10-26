@@ -27,6 +27,10 @@ struct SolverOptions {
         CFL = cfl;
         return *this;
     }
+    SolverOptions& setOrder(int or) {
+        order = or;
+        return *this;
+    }
 };
 
 }

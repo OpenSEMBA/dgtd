@@ -18,9 +18,6 @@ public:
 	virtual void Mult(const Vector& x, Vector& y) const;
 
 	const mfem::FiniteElementSpace& getFES() { return fes_; }
-	std::array<FiniteElementOperator, 2>& getMS() { return MS_; }
-	std::array<FiniteElementOperator, 2>& getMF() { return MF_; }
-	std::array<FiniteElementOperator, 2>& getMP() { return MP_; }
 
 private:
 	std::array<FiniteElementOperator, 2> MS_;

@@ -63,7 +63,7 @@ TEST_F(TestSolver2D, box_pec_centered_2D)
 	maxwell::Solver solver{
 	buildModel(),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z),
+	buildGaussianInitialField(E, Z, 0.1, 1.0, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(2.5e-3)
 		.setCentered()

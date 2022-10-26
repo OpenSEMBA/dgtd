@@ -24,28 +24,24 @@ Solver::Solver(
 	fields_{ fes_ },
 	sourcesManager_{ sources, fes_ },
 	probesManager_{ probes, fes_, fields_},
-	time_{0.0},
-	//maxwellEvol1D_{ fes_, model_, opts_.evolutionOperatorOptions },
-	maxwellEvol2D_{ fes_, model_, opts_.evolutionOperatorOptions },
-	maxwellEvol3D_{ fes_, model_, opts_.evolutionOperatorOptions }
+	time_{0.0}
 {
 	switch (fes_.GetMesh()->Dimension()) {
-	//case 1:
-	//	sourcesManager_.setFields1D(fields_);
-	//	maxwellEvol1D_.SetTime(time_);
-	//	odeSolver_->Init(maxwellEvol1D_);
-	//	break;
+	case 1:
+		sourcesManager_.setFields1D(fields_);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, opts_.evolutionOperatorOptions);
+		break;
 	case 2:
 		sourcesManager_.setFields3D(fields_);
-		maxwellEvol2D_.SetTime(time_);
-		odeSolver_->Init(maxwellEvol2D_);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, opts_.evolutionOperatorOptions);
 		break;
 	default:
 		sourcesManager_.setFields3D(fields_);
-		maxwellEvol3D_.SetTime(time_);
-		odeSolver_->Init(maxwellEvol3D_);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, opts_.evolutionOperatorOptions);
 		break;
 	}
+	maxwellEvol_->SetTime(time_);
+	odeSolver_->Init(*maxwellEvol_);
 
 	probesManager_.updateProbes(time_);
 }
@@ -71,8 +67,7 @@ const PointsProbe& Solver::getPointsProbe(const std::size_t probe) const
 
 void Solver::run()
 {
-	
-	while (time_ < opts_.t_final) {
+	while ( std::abs(time_ - opts_.t_final) < 1e-6 || time_ < opts_.t_final) {
 		odeSolver_->Step(fields_.allDOFs, time_, opts_.dt);
 		probesManager_.updateProbes(time_);
 	}

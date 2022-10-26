@@ -34,6 +34,46 @@ protected:
 
 	double tol_ = 1e-6;
 
+	SparseMatrix operatorToSparseMatrix(const Operator* op)
+	{
+
+		int width = op->Width();
+		int height = op->Height();
+		SparseMatrix res(height, height);
+		Vector x(width), y(height);
+
+		x = 0.0;
+
+		for (int i = 0; i < width; i++)
+		{
+			x(i) = 1.0;
+			op->Mult(x, y);
+			for (int j = 0; j < height; j++)
+			{
+				if (y(j) != 0.0)
+				{
+					res.Add(i, j, y[j]);
+				}
+			}
+			x(i) = 0.0;
+		}
+
+		res.Finalize();
+		return res;
+	}
+
+	std::unique_ptr<SparseMatrix> rotateMatrixLexico(BilinearForm& matrix)
+	{
+		const Operator* rotatorOperator = matrix.FESpace()->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC);
+		const SparseMatrix rotatorMatrix = operatorToSparseMatrix(rotatorOperator);
+		const SparseMatrix matrixSparse = matrix.SpMat();
+		SparseMatrix* res;
+		{
+			auto aux = Mult(matrixSparse, rotatorMatrix);
+			res = TransposeMult(rotatorMatrix, *aux);
+		}
+		return std::unique_ptr<SparseMatrix>(res);
+	}
 };
 
 TEST_F(MFEMHesthaven2D, massMatrix2D)
@@ -53,7 +93,7 @@ TEST_F(MFEMHesthaven2D, massMatrix2D)
 
 	std::cout << MFEMMass << std::endl;
 
-	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor,1e-2));
+	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor,tol_));
 }
 
 TEST_F(MFEMHesthaven2D, DOperators2D)
@@ -102,16 +142,60 @@ TEST_F(MFEMHesthaven2D, DOperators2D)
 TEST_F(MFEMHesthaven2D, manualMeshComparison)
 {
 	Mesh meshManual = Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 1);
-	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2);
+	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
 	Mesh meshAuto = Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE, true);
-	std::unique_ptr<FiniteElementCollection> fecAuto = std::make_unique<DG_FECollection>(1, 2);
+	std::unique_ptr<FiniteElementCollection> fecAuto = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesAuto = std::make_unique<FiniteElementSpace>(&meshAuto, fecAuto.get());
 
 	ASSERT_TRUE(buildMassMatrixEigen(*fesManual).isApprox(buildMassMatrixEigen(*fesAuto),tol_));
 	ASSERT_TRUE(buildNormalStiffnessMatrixEigen(X, *fesManual).isApprox(buildNormalStiffnessMatrixEigen(X, *fesAuto), tol_));
 	ASSERT_TRUE(buildNormalStiffnessMatrixEigen(Y, *fesManual).isApprox(buildNormalStiffnessMatrixEigen(Y, *fesAuto), tol_));
-
 	
+}
+
+TEST_F(MFEMHesthaven2D, nodalPosition)
+{
+	Mesh meshAuto = Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE, true);
+	std::unique_ptr<FiniteElementCollection> fecAuto = std::make_unique<DG_FECollection>(2, 2, BasisType::GaussLobatto);
+	std::unique_ptr<FiniteElementSpace> fesAuto = std::make_unique<FiniteElementSpace>(&meshAuto, fecAuto.get(), 2, Ordering::byNODES);
+
+	GridFunction mfemNodes(fesAuto.get());
+	meshAuto.GetNodes(mfemNodes);
+	auto lexiEigen = toEigen(*operatorToSparseMatrix(fesAuto->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC)).ToDenseMatrix());
+
+	std::cout << lexiEigen << std::endl;
+
+	Eigen::Matrix<double, 24, 1> mfemNodesPreLex;
+	for (int i = 0; i < mfemNodes.Size(); i++) {
+		mfemNodesPreLex(i, 0) = mfemNodes.Elem(i);
+	}
+
+	auto lexiMfemNodes = lexiEigen * mfemNodesPreLex;
+
+	Eigen::Matrix<double, 12, 2> mfemNodesLexiEigen;
+	for (int i = 0; i < mfemNodes.Size()/2; i++) {
+		mfemNodesLexiEigen(i, 0) = mfemNodes.Elem(i);
+		mfemNodesLexiEigen(i, 1) = mfemNodes.Elem(i + mfemNodes.Size()/2);
+	}
+
+	std::cout << lexiMfemNodes << std::endl;
+
+	Eigen::MatrixXd hesthavenNodes{
+		{ 0.0, 1.0},
+		{ 0.0, 0.5},
+		{ 0.0, 0.0},
+		{ 0.5, 1.0},
+		{ 0.5, 0.5},
+		{ 1.0, 1.0},
+		{ 1.0, 1.0},
+		{ 0.5, 0.5},
+		{ 0.0, 0.0},
+		{ 1.0, 0.5},
+		{ 0.5, 0.0},
+		{ 1.0, 0.0}
+	};
+
+	EXPECT_TRUE(hesthavenNodes.isApprox(lexiMfemNodes));
 }
