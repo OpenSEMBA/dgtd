@@ -163,24 +163,37 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 
 	GridFunction mfemNodes(fesAuto.get());
 	meshAuto.GetNodes(mfemNodes);
-	auto lexiEigen = toEigen(*operatorToSparseMatrix(fesAuto->GetElementRestriction(ElementDofOrdering::LEXICOGRAPHIC)).ToDenseMatrix());
+	
+	Eigen::Matrix<double, 6, 6> rotator{
+		{0,0,0,0,0,1},
+		{0,0,0,1,0,0},
+		{1,0,0,0,0,0},
+		{0,0,0,0,1,0},
+		{0,1,0,0,0,0},
+		{0,0,1,0,0,0}
+	};
+	Eigen::Matrix<double, 6, 6> identity;
+	identity.setIdentity();
 
-	std::cout << lexiEigen << std::endl;
+	Eigen::Matrix<double, 24, 24> fullRotator;
+	fullRotator.setZero();
+	fullRotator.block( 0,  0, 6, 6) = rotator;
+	fullRotator.block( 6,  6, 6, 6) = identity;
+	fullRotator.block(12, 12, 6, 6) = rotator;
+	fullRotator.block(18, 18, 6, 6) = identity;
 
-	Eigen::Matrix<double, 24, 1> mfemNodesPreLex;
+	Eigen::Vector<double, 24> mfemNodesPreRot;
 	for (int i = 0; i < mfemNodes.Size(); i++) {
-		mfemNodesPreLex(i, 0) = mfemNodes.Elem(i);
+		mfemNodesPreRot(i, 0) = mfemNodes.Elem(i);
 	}
 
-	auto lexiMfemNodes = lexiEigen * mfemNodesPreLex;
+	Eigen::Vector<double, 24> rotatedMfemNodesVector = fullRotator * mfemNodesPreRot;
 
-	Eigen::Matrix<double, 12, 2> mfemNodesLexiEigen;
+	Eigen::Matrix<double, 12, 2> rotatedMfemNodes;
 	for (int i = 0; i < mfemNodes.Size()/2; i++) {
-		mfemNodesLexiEigen(i, 0) = mfemNodes.Elem(i);
-		mfemNodesLexiEigen(i, 1) = mfemNodes.Elem(i + mfemNodes.Size()/2);
+		rotatedMfemNodes(i, 0) = rotatedMfemNodesVector(i);
+		rotatedMfemNodes(i, 1) = rotatedMfemNodesVector(i + rotatedMfemNodesVector.rows()/2);
 	}
-
-	std::cout << lexiMfemNodes << std::endl;
 
 	Eigen::MatrixXd hesthavenNodes{
 		{ 0.0, 1.0},
@@ -197,5 +210,5 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 		{ 1.0, 0.0}
 	};
 
-	EXPECT_TRUE(hesthavenNodes.isApprox(lexiMfemNodes));
+	EXPECT_TRUE(hesthavenNodes.isApprox(rotatedMfemNodes));
 }
