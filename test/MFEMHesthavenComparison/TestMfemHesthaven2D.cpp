@@ -18,14 +18,14 @@ protected:
 	{
 		mesh_ = Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE);
 		fec_ = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
-		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), 1, 0);
 	}
 
-	void setFES(const int order, const int nx = 1, const int ny = 1)
+	void setFES(const int order, const int nx = 1, const int ny = 1, const double sx = 1.0, const double sy = 1.0, const int vdim = 1)
 	{
-		mesh_ = Mesh::MakeCartesian2D(nx, ny, Element::Type::TRIANGLE);
+		mesh_ = Mesh::MakeCartesian2D(nx, ny, Element::Type::TRIANGLE, false, sx, sy);
 		fec_ = std::make_unique<DG_FECollection>(order, 2, BasisType::GaussLobatto);
-		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), vdim, 0);
 	}
 
 	Mesh mesh_;
@@ -101,56 +101,67 @@ TEST_F(MFEMHesthaven2D, massMatrix2D)
 	auto MFEMMass = buildMassMatrixEigen(*fes_);
 
 	std::cout << MFEMMass << std::endl;
+	std::cout << hesthavenMass * scaleFactor << std::endl;
 
-	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor,tol_));
+	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor,1e-4));
 }
 
-TEST_F(MFEMHesthaven2D, DOperators2D)
+TEST_F(MFEMHesthaven2D, DsOperator2D)
 {
 	setFES(2);
 
-	Eigen::MatrixXd DrOperatorMFEM{
-		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(X,*fes_)
+	Eigen::MatrixXd DsOperatorHesthaven{
+	{ -1.5,  2.0, -0.5,  0.0, 0.0, 0.0},
+	{ -0.5,  0.0,  0.5,  0.0, 0.0, 0.0},
+	{  0.5, -2.0,  1.5,  0.0, 0.0, 0.0},
+	{ -0.5,  1.0, -0.5, -1.0, 1.0, 0.0},
+	{  0.5, -1.0,  0.5, -1.0, 1.0, 0.0},
+	{  0.5,  0.0, -0.5, -2.0, 2.0, 0.0}
 	};
 
-	Eigen::MatrixXd DrOperatorHesthaven{
-		{ -1.5,  2.0, -0.5,  0.0, 0.0, 0.0},
-		{ -0.5,  0.0,  0.5,  0.0, 0.0, 0.0},
-		{  0.5, -2.0,  1.5,  0.0, 0.0, 0.0},
-		{ -0.5,  1.0, -0.5, -1.0, 1.0, 0.0},
-		{  0.5, -1.0,  0.5, -1.0, 1.0, 0.0},
-		{  0.5,  0.0, -0.5, -2.0, 2.0, 0.0}
-	};
-
-
-	Eigen::Matrix<double, 6, 6> rotatedDrHesthaven = rotatorO2.transpose() * DrOperatorHesthaven * rotatorO2;
-
-	std::cout << rotatedDrHesthaven << std::endl;
+	Eigen::Matrix<double, 6, 6> rotatedDsHesthaven = rotatorO2.transpose() * DsOperatorHesthaven * rotatorO2;
+	Eigen::Matrix<double, 12, 12> globalDsHesthaven;
+	globalDsHesthaven.setZero();
+	globalDsHesthaven.block(0, 0, 6, 6) = -1.0 * rotatedDsHesthaven;
+	globalDsHesthaven.block(6, 6, 6, 6) = rotatedDsHesthaven;
 
 	Eigen::MatrixXd DsOperatorMFEM{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(Y,*fes_)
 	};
 
-	Eigen::MatrixXd DsOperatorHesthaven{
-		{ -1.5,  0.0, 0.0,  2.0, 0.0, -0.5},
-		{ -0.5, -1.0, 0.0,  1.0, 1.0, -0.5},
-		{  0.5, -2.0, 0.0,  0.0, 2.0, -0.5},
-		{ -0.5,  0.0, 0.0, -0.5, 0.0,  0.5},
-		{  0.5, -1.0, 0.0, -1.0, 1.0,  0.5},
-		{  0.5,  0.0, 0.0, -2.0, 0.0,  1.5}
-	};
-
-	Eigen::Matrix<double, 6, 6> rotatedDsHesthaven = rotatorO2.transpose() * DsOperatorHesthaven * rotatorO2;
-
-	std::cout << rotatedDsHesthaven << std::endl;
-
-	const double scaleFactor = 0.25;
-
-	std::cout << DrOperatorMFEM << std::endl;
+	std::cout << globalDsHesthaven << std::endl;
 	std::cout << DsOperatorMFEM << std::endl;
 
-	EXPECT_TRUE(DrOperatorMFEM.isApprox(scaleFactor * rotatedDrHesthaven, tol_));
-	EXPECT_TRUE(DsOperatorMFEM.isApprox(scaleFactor * DsOperatorHesthaven, tol_));
+	EXPECT_TRUE(DsOperatorMFEM.isApprox(globalDsHesthaven, tol_));
+
+}
+TEST_F(MFEMHesthaven2D, DrOperator2D)
+{
+	setFES(2);
+
+	Eigen::MatrixXd DrOperatorHesthaven{
+	{ -1.5,  0.0, 0.0,  2.0, 0.0, -0.5},
+	{ -0.5, -1.0, 0.0,  1.0, 1.0, -0.5},
+	{  0.5, -2.0, 0.0,  0.0, 2.0, -0.5},
+	{ -0.5,  0.0, 0.0,  0.0, 0.0,  0.5},
+	{  0.5, -1.0, 0.0, -1.0, 1.0,  0.5},
+	{  0.5,  0.0, 0.0, -2.0, 0.0,  1.5}
+	};
+
+	Eigen::Matrix<double, 6, 6> rotatedDrHesthaven = rotatorO2.transpose() * DrOperatorHesthaven * rotatorO2;
+	Eigen::Matrix<double, 12, 12> globalDrHesthaven;
+	globalDrHesthaven.setZero();
+	globalDrHesthaven.block(0, 0, 6, 6) = rotatedDrHesthaven;
+	globalDrHesthaven.block(6, 6, 6, 6) = -1.0 * rotatedDrHesthaven;
+
+	Eigen::MatrixXd DrOperatorMFEM{
+		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(X,*fes_)
+	};
+
+	std::cout << globalDrHesthaven << std::endl;
+	std::cout << DrOperatorMFEM << std::endl;
+
+	EXPECT_TRUE(DrOperatorMFEM.isApprox(globalDrHesthaven, tol_));
 
 }
 
@@ -178,23 +189,15 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 
 	GridFunction mfemNodes(fesAuto.get());
 	meshAuto.GetNodes(mfemNodes);
-	
-	Eigen::Matrix<double, 6, 6> rotator{
-		{0,0,0,0,0,1},
-		{0,0,0,1,0,0},
-		{1,0,0,0,0,0},
-		{0,0,0,0,1,0},
-		{0,1,0,0,0,0},
-		{0,0,1,0,0,0}
-	};
+
 	Eigen::Matrix<double, 6, 6> identity;
 	identity.setIdentity();
 
 	Eigen::Matrix<double, 24, 24> fullRotator;
 	fullRotator.setZero();
-	fullRotator.block( 0,  0, 6, 6) = rotator;
+	fullRotator.block( 0,  0, 6, 6) = rotatorO2;
 	fullRotator.block( 6,  6, 6, 6) = identity;
-	fullRotator.block(12, 12, 6, 6) = rotator;
+	fullRotator.block(12, 12, 6, 6) = rotatorO2;
 	fullRotator.block(18, 18, 6, 6) = identity;
 
 	Eigen::Vector<double, 24> mfemNodesPreRot;
@@ -226,4 +229,24 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 	};
 
 	EXPECT_TRUE(hesthavenNodes.isApprox(rotatedMfemNodes));
+}
+
+TEST_F(MFEMHesthaven2D, extendedMeshOnX)
+{
+
+	setFES(2, 2, 1, 2.0);
+	GridFunction mfemNodes(fes_.get());
+	mesh_.GetNodes(mfemNodes);
+	mesh_.Save("supposedmesh.mesh");
+
+	std::cout << 0.25 * buildInverseMassMatrixEigen(*fes_) << std::endl;
+	std::cout << buildNormalStiffnessMatrixEigen(X, *fes_) << std::endl;
+
+	Eigen::MatrixXd DsOperatorMFEM{
+	buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(X,*fes_)
+	};
+
+	std::cout << DsOperatorMFEM << std::endl;
+
+	EXPECT_TRUE(false);
 }
