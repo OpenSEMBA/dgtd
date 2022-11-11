@@ -94,26 +94,25 @@ const Vector calculateNormal(const FiniteElement& el, const IntegrationPoint& ei
 }
 
 
-const double calculateBetaTerm(Vector& nor, std::vector<Direction>& dir, const double beta)
+double calculateBetaTerm(Vector& nor, std::vector<Direction>& dir, const double beta)
 {
-    double nIn, nOut, res;
     switch (dir.size()) {
     case 0:
-        res = beta; //[v] = (v1-v2)
-        break;
+        return beta; //[v] = (v1-v2)
     case 1:
-        nIn = buildNormalTerm(nor, dir.at(0));
-        res = beta * nIn; //nIn * [v] = nIn * (v1-v2)
-        break;
+    {
+        double nIn = buildNormalTerm(nor, dir.at(0));
+        return beta * nIn; //nIn * [v] = nIn * (v1-v2)
+    }
     case 2:
-        nIn = buildNormalTerm(nor, dir.at(0));
-        nOut = buildNormalTerm(nor, dir.at(1));
-        res = beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
-        break;
+    {
+        double nIn = buildNormalTerm(nor, dir.at(0));
+        double nOut = buildNormalTerm(nor, dir.at(1));
+        return beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
+    }
     default:
         throw std::exception("Incorrect dimensions for dirTerms vector.");
     }
-    return res;
 }
 
 /*########################## MDG START ##########################*/
@@ -296,11 +295,8 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
 
             if (w != 0.0) {
                 buildFaceMatrix(w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);
-                if (dim == 1) {
-                    w *= -1.0;
-                }
-                buildFaceMatrix(w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
-                buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
+                buildFaceMatrix(-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
+                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
             }
         }
     }

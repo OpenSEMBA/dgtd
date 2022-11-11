@@ -67,8 +67,8 @@ TEST_F(TestSolver2D, box_pec_centered_2D)
 	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
-		.setCentered()
-		.setFinalTime(1.0)
+		//.setCentered()
+		.setFinalTime(0.5)
 		.setOrder(3)
 	};
 

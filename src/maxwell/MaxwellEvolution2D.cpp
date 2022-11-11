@@ -37,10 +37,15 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
 	}
 
+	hNew[X] = 0.0;
+	hNew[Y] = 0.0;
+	eNew[Z] = 0.0;
+
 	// Flux term for Hx. LIFT*(Fscale.*FluxHx) = LIFT*(Fscale.*(ny.*dEz + alpha*(nx.*dHx.*nx+ny.*dHy.*nx-dHx)))/2.0;
 	MFNN_[H][H][X][X]->   Mult(hOld[X], hNew[X]);
 	MFNN_[H][H][Y][X]->AddMult(hOld[Y], hNew[X]);
 	MP_[H]		     ->AddMult(hOld[X], hNew[X], -1.0);
+
 	MFN_[H][E][Y]    ->AddMult(eOld[Z], hNew[X]);
 
 	//Mass term for Hx. (-Dy*Ez)
@@ -50,6 +55,7 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 	MFNN_[H][H][X][Y]->   Mult(hOld[X], hNew[Y]);
 	MFNN_[H][H][Y][Y]->AddMult(hOld[Y], hNew[Y]);
 	MP_[H]           ->AddMult(hOld[Y], hNew[Y], -1.0);
+
 	MFN_[H][E][X]    ->AddMult(eOld[Z], hNew[Y], -1.0);				 
 
 	// Mass term for Hy. (Dx*Ez)
@@ -57,8 +63,9 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 
 	// Flux term for Ez. LIFT*(Fscale.*FluxEz) = LIFT*(Fscale.*(-nx.*dHy + ny.*dHx - alpha*dEz))/2.0;
 
-	MFN_[H][H][Y]->	  Mult(hOld[X], eNew[Z]);
-	MFN_[H][H][X]->AddMult(hOld[Y], eNew[Z], -1.0);
+	MFN_[E][H][Y]->	  Mult(hOld[X], eNew[Z]);
+	MFN_[E][H][X]->AddMult(hOld[Y], eNew[Z], -1.0);
+
 	MP_[E]       ->AddMult(eOld[Z], eNew[Z], -1.0);
 
 	// Mass term for Ez. (Dx*Hy - Dy*Hx)
