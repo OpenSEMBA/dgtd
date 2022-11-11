@@ -3,7 +3,7 @@
 namespace maxwell {
 namespace mfemExtension {
 
-const IntegrationRule* MaxwellDGTraceJumpIntegrator::setIntegrationRule(
+const IntegrationRule* setIntegrationRule(
     const FiniteElement& el1,
     const FiniteElement& el2,
     FaceElementTransformations& Trans)
@@ -24,50 +24,41 @@ const IntegrationRule* MaxwellDGTraceJumpIntegrator::setIntegrationRule(
     return &IntRules.Get(Trans.GetGeometryType(), order);
 }
 
-const Vector MaxwellDGTraceJumpIntegrator::setNormalVector(const int dim,
+
+const Vector setNormalVector1D(const int dim,
+    const IntegrationPoint& eip1
+)
+{
+    Vector res(dim);
+    res(0) = 2 * eip1.x - 1.0;
+    return res;
+}
+
+const Vector setNormalVector(const int dim,
     const IntegrationPoint& eip1,
     FaceElementTransformations& Trans
 )
 {
     Vector res(dim);
-    if (dim == 1) {
-        res(0) = 2 * eip1.x - 1.0;
-    }
-    else {
-        CalcOrtho(Trans.Jacobian(), res);
-    }
+    CalcOrtho(Trans.Jacobian(), res);
     return res;
 }
 
-const Vector MaxwellDGTraceJumpIntegrator::setNormalVector1D(const int dim,
-    const IntegrationPoint& eip1
-)
-{
-    Vector res(dim);
-    if (eip1.x == 0.0) {
-        res(0) = -1.0;
-    }
-    else if (eip1.x == 1.0) {
-        res(0) = 1.0;
-    }
-    return res;
-}
-
-void MaxwellDGTraceJumpIntegrator::buildFaceMatrix(double w, int ndofA, int ndofB, int desvI, int desvJ,
+void buildFaceMatrix(double w, int ndofA, int ndofB, int offsetRow, int offsetCol,
     Vector shapeA, Vector shapeB, DenseMatrix& elmat) {
     for (int i = 0; i < ndofA; i++) {
         for (int j = 0; j < ndofB; j++)
         {
             double nonDiag = +1.0;
-            if (desvI != desvJ) {
+            if (offsetRow != offsetCol) {
                 nonDiag = -1.0;
             }
-            elmat(desvI + i, desvJ + j) += nonDiag * w * shapeA(i) * shapeB(j);
+            elmat(i + offsetRow, j + offsetCol) += nonDiag * w * shapeA(i) * shapeB(j);
         }
     }
 }
 
-const int MaxwellDGTraceJumpIntegrator::setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans)
+const int setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans)
 {
     if (Trans.Elem2No >= 0) {
        return el2.GetDof();
@@ -77,13 +68,52 @@ const int MaxwellDGTraceJumpIntegrator::setNeighbourNDoF(const FiniteElement& el
     }
 }
 
-const double MaxwellDGTraceJumpIntegrator::buildNormalTerm(const Vector& nor, const Direction& dir)
+const double buildNormalTerm(const Vector& nor, const Direction& dir)
 {
     std::vector<double> res{0.0, 0.0, 0.0};
     for (int i = 0; i < nor.Size(); i++) {
         res.at(i) += nor.Elem(i);
     }
     return res.at(dir);
+}
+
+const Vector calculateNormal(const FiniteElement& el, const IntegrationPoint& eip, FaceElementTransformations& Trans)
+{
+    Vector res(1);
+    switch (el.GetDim()) {
+    case 1:
+        res.SetSize(1);
+        res = setNormalVector1D(el.GetDim(), eip);
+        break;
+    default:
+        res.SetSize(el.GetDim());
+        res = setNormalVector(el.GetDim(), eip, Trans);
+        break;
+    }
+    return res;
+}
+
+
+const double calculateBetaTerm(Vector& nor, std::vector<Direction>& dir, const double beta)
+{
+    double nIn, nOut, res;
+    switch (dir.size()) {
+    case 0:
+        res = beta; //[v] = (v1-v2)
+        break;
+    case 1:
+        nIn = buildNormalTerm(nor, dir.at(0));
+        res = beta * nIn; //nIn * [v] = nIn * (v1-v2)
+        break;
+    case 2:
+        nIn = buildNormalTerm(nor, dir.at(0));
+        nOut = buildNormalTerm(nor, dir.at(1));
+        res = beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
+        break;
+    default:
+        throw std::exception("Incorrect dimensions for dirTerms vector.");
+    }
+    return res;
 }
 
 /*########################## MDG START ##########################*/
@@ -235,8 +265,6 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     elmat.SetSize(ndof1 + ndof2);
     elmat = 0.0;
 
-    int dim = el1.GetDim();
-
     const IntegrationRule* ir = IntRule;
     if (ir == NULL)
     {
@@ -252,43 +280,12 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         const IntegrationPoint& eip1 = Trans.GetElement1IntPoint();
         const IntegrationPoint& eip2 = Trans.GetElement2IntPoint();
 
+        Vector nor = calculateNormal(el1, eip1, Trans);
+
+        double b = calculateBetaTerm(nor, dir, beta);
+
         el1.CalcShape(eip1, shape1_);
-        Vector nor(3);
-
-        switch (dim) {
-        case 1:
-            nor.SetSize(1);
-            nor = setNormalVector1D(dim, eip1);
-            break;
-        default:
-            nor.SetSize(dim);
-            nor = setNormalVector(dim, eip1, Trans);
-            break;
-        }
-
-
-        double nIn, nOut, a, b;
-        switch (dir.size()) {
-        case 0:
-            a = 0;
-            b = beta; //[v] = (v1-v2)
-            break;
-        case 1:
-            nIn = buildNormalTerm(nor, dir.at(0));
-            a = 0;
-            b = beta * nIn; //nIn * [v] = nIn * (v1-v2)
-            break;
-        case 2:
-            nIn = buildNormalTerm(nor, dir.at(0));
-            nOut = buildNormalTerm(nor, dir.at(1));
-            a = 0;
-            b = beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
-            break;
-        default:
-            throw std::exception("Incorrect dimensions for dirTerms vector.");
-        }
-
-        double w = ip.weight * (a + b);
+        double w = ip.weight * b;
         if (w != 0.0) {
             buildFaceMatrix    (w, ndof1, ndof1,     0,     0, shape1_ , shape1_, elmat);
         }
@@ -298,18 +295,11 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             el2.CalcShape(eip2, shape2_);
 
             if (w != 0.0) {
-                if (dim == 1) {
-                    w *= -1.0;
-                }
-                buildFaceMatrix(w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
-            }
-
-            w = ip.weight * (b - a);
-            if (w != 0.0) {
                 buildFaceMatrix(w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);
                 if (dim == 1) {
                     w *= -1.0;
                 }
+                buildFaceMatrix(w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
                 buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
             }
         }

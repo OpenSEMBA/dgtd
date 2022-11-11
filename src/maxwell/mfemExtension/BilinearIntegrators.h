@@ -73,7 +73,7 @@ class MaxwellDGTraceJumpIntegrator : public BilinearFormIntegrator
 public:
 	MaxwellDGTraceJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
 	{
-		dir = dirTerms; alpha = 0.0; beta = b;
+		dir = dirTerms; beta = b;
 	}
 
 	virtual void AssembleFaceMatrix(const FiniteElement& el1,
@@ -83,19 +83,11 @@ public:
 	
 protected:
 	std::vector<Direction> dir;
-	double alpha, beta;
+	double beta;
 	int dim;
 
 private:
 	Vector shape1_, shape2_;
-
-	const IntegrationRule* setIntegrationRule(const FiniteElement& el1, const FiniteElement& el2, FaceElementTransformations& Trans);
-	const Vector setNormalVector(const int dim, const IntegrationPoint& eip1, FaceElementTransformations& Trans);
-	const Vector setNormalVector1D(const int dim, const IntegrationPoint& eip1);
-	void buildFaceMatrix(double w, int ndofA, int ndofB, int desvI, int desvJ,
-		Vector shapeA, Vector shapeB, DenseMatrix& elmat);
-	const int setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans);
-	const double buildNormalTerm(const Vector& innerNor, const Direction& outerDir);
 };
 /** Integrator for a specialised application of the Hesthaven DG form:
 	(Q * u, dvdx),
