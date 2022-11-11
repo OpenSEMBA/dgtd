@@ -17,12 +17,13 @@ protected:
 	Model buildModel(
 		const int nx = defaultNumberOfElements_X,
 		const int ny = defaultNumberOfElements_Y,
+		const Element::Type elType = Element::Type::TRIANGLE,
 		const BdrCond& bdrB = BdrCond::PEC,
 		const BdrCond& bdrR = BdrCond::PEC,
 		const BdrCond& bdrT = BdrCond::PEC,
 		const BdrCond& bdrL = BdrCond::PEC) {
 
-		return Model(Mesh::MakeCartesian2D(nx,ny,Element::Type::TRIANGLE), AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
+		return Model(Mesh::MakeCartesian2D(nx,ny,elType), AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
 	}
 
 	AttributeToBoundary buildAttrToBdrMap2D(const BdrCond& bdrB, const BdrCond& bdrR, const BdrCond& bdrT, const BdrCond& bdrL)
@@ -61,12 +62,14 @@ TEST_F(TestSolver2D, box_pec_centered_2D)
 	Lastly, the run() function is called.*/
 
 	maxwell::Solver solver{
-	buildModel(),
+	buildModel(5,5),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 1.0, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(2.5e-3)
+		.setTimeStep(5e-4)
 		.setCentered()
+		.setFinalTime(1.0)
+		.setOrder(3)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Z] };

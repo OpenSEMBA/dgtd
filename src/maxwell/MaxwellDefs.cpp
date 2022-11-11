@@ -54,7 +54,7 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	return res;
 }
 
-FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 

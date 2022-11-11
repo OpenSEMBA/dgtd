@@ -18,8 +18,8 @@ MaxwellEvolution2D::MaxwellEvolution2D(
 			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
 			for (auto d2 : { X,Y,Z }) {
 				for (auto f2 : { E, H }) {
-					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator2D(f2, std::vector<Direction>{d}, model_, fes_, opts_), fes_);
-					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator2D(f2, std::vector<Direction>{d, d2}, model_, fes_, opts_), fes_);
+					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator2D(f2, std::vector<Direction>{d}, model_, fes_), fes_);
+					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator2D(f2, std::vector<Direction>{d, d2}, model_, fes_), fes_);
 				}
 			}
 		}
@@ -42,19 +42,17 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 	MFNN_[H][H][Y][X]->AddMult(hOld[Y], hNew[X]);
 	MP_[H]		     ->AddMult(hOld[X], hNew[X], -1.0);
 	MFN_[H][E][Y]    ->AddMult(eOld[Z], hNew[X]);
-	hNew[X].operator/=(2.0);
 
-	//Mass term for Hx.
+	//Mass term for Hx. (-Dy*Ez)
 	MS_[H][Y]        ->AddMult(eOld[Z], hNew[X], -1.0);
 
 	// Flux term for Hy. LIFT*(Fscale.*FluxHy) = LIFT*(Fscale.*(-nx.*dEz + alpha*(nx.*dHx.*ny+ny.*dHy.*ny-dHy)))/2.0;
 	MFNN_[H][H][X][Y]->   Mult(hOld[X], hNew[Y]);
 	MFNN_[H][H][Y][Y]->AddMult(hOld[Y], hNew[Y]);
 	MP_[H]           ->AddMult(hOld[Y], hNew[Y], -1.0);
-	MFN_[H][E][X]    ->AddMult(eOld[Z], hNew[Y], -1.0);
-	hNew[Y].operator/=(2.0);				 
+	MFN_[H][E][X]    ->AddMult(eOld[Z], hNew[Y], -1.0);				 
 
-	// Mass term for Hy.
+	// Mass term for Hy. (Dx*Ez)
 	MS_[H][X]        ->AddMult(eOld[Z], hNew[Y]);
 
 	// Flux term for Ez. LIFT*(Fscale.*FluxEz) = LIFT*(Fscale.*(-nx.*dHy + ny.*dHx - alpha*dEz))/2.0;
@@ -62,12 +60,12 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 	MFN_[H][H][Y]->	  Mult(hOld[X], eNew[Z]);
 	MFN_[H][H][X]->AddMult(hOld[Y], eNew[Z], -1.0);
 	MP_[E]       ->AddMult(eOld[Z], eNew[Z], -1.0);
-	eOld[Z].operator/=(2.0);
 
-	// Mass term for Ez.
+	// Mass term for Ez. (Dx*Hy - Dy*Hx)
 	MS_[E][X]	 ->AddMult(hOld[Y], eNew[Z]);
 	MS_[E][Y]    ->AddMult(hOld[X], eNew[Z], -1.0);
 
+	//out.Print(std::cout);
 
 	//for (int x = X; x <= Z; x++) {
 	//	int y = (x + 1) % 3;

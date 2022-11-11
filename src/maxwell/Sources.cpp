@@ -39,9 +39,8 @@ double GaussianInitialField::eval3D(const Position& pos) const
 }
 double GaussianInitialField::eval2D(const Position& pos) const
 {
-	return normalization_ * exp( - (pow(pos[X], 2.0)
-		//- pow(pos[Y] - center_[Y], 2.0)
-		) /	(2.0 * pow(spread_, 2.0)));
+	return normalization_ * exp( - (pow(pos[X] - center_[X], 2.0)
+								  + pow(pos[Y] - center_[Y], 2.0)) /	(2.0 * pow(spread_, 2.0)));
 }
 double GaussianInitialField::eval1D(const Position& pos) const
 {

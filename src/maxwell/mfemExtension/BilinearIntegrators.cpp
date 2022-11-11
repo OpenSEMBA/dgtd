@@ -253,8 +253,19 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         const IntegrationPoint& eip2 = Trans.GetElement2IntPoint();
 
         el1.CalcShape(eip1, shape1_);
+        Vector nor(3);
 
-        Vector nor = setNormalVector1D(dim, eip1);
+        switch (dim) {
+        case 1:
+            nor.SetSize(1);
+            nor = setNormalVector1D(dim, eip1);
+            break;
+        default:
+            nor.SetSize(dim);
+            nor = setNormalVector(dim, eip1, Trans);
+            break;
+        }
+
 
         double nIn, nOut, a, b;
         switch (dir.size()) {
@@ -271,7 +282,7 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             nIn = buildNormalTerm(nor, dir.at(0));
             nOut = buildNormalTerm(nor, dir.at(1));
             a = 0;
-            b = beta * abs(nIn) * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
+            b = beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
             break;
         default:
             throw std::exception("Incorrect dimensions for dirTerms vector.");
@@ -287,14 +298,18 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             el2.CalcShape(eip2, shape2_);
 
             if (w != 0.0) {
-                w *= -1.0;
+                if (dim == 1) {
+                    w *= -1.0;
+                }
                 buildFaceMatrix(w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
             }
 
             w = ip.weight * (b - a);
             if (w != 0.0) {
                 buildFaceMatrix(w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);
-                w *= -1.0;
+                if (dim == 1) {
+                    w *= -1.0;
+                }
                 buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
             }
         }

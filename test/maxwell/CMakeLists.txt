@@ -24,7 +24,7 @@ add_executable(maxwell_tests
 	"TestProbesManager.cpp" 
 	"TestSources.cpp"
 	"TestProbes.cpp"
-)
+ )
 
 target_link_libraries(maxwell_tests 
 	maxwell testHelpers 
