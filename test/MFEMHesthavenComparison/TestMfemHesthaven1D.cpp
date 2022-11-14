@@ -144,7 +144,7 @@ TEST_F(MFEMHesthaven1D, MSOperator)
 	EXPECT_TRUE(MS_Hesthaven3E.isApprox(multMS_coefficient * MS_MFEM3E, tol_));
 }
 
-TEST_F(MFEMHesthaven1D, MFOperatorPEC_E) //TODO
+TEST_F(MFEMHesthaven1D, MFOperatorPEC_E)
 {
 	setFES(2, 4);
 	Eigen::MatrixXd MF_MFEM4E{
@@ -189,7 +189,7 @@ TEST_F(MFEMHesthaven1D, MFOperatorPEC_E) //TODO
 	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
 }
 
-TEST_F(MFEMHesthaven1D, MFOperatorPEC_H) //TODO
+TEST_F(MFEMHesthaven1D, MFOperatorPEC_H) 
 {
 	setFES(2, 4);
 	Eigen::MatrixXd MF_MFEM4E{
