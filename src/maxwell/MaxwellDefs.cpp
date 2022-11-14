@@ -166,16 +166,16 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 
 FluxCoefficient interiorFluxCoefficient()
 {
-	return FluxCoefficient{ 0.0, 1.0 };
+	return FluxCoefficient{ 1.0 };
 }
 
 FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions& opts)
 {
 	switch (opts.fluxType) {
 	case FluxType::Centered:
-		return FluxCoefficient{ 0.0, 0.0 };
+		return FluxCoefficient{ 0.0 };
 	case FluxType::Upwind:
-		return FluxCoefficient{ 0.0, 1.0 };
+		return FluxCoefficient{ 1.0 };
 	default:
 		throw std::exception("No defined FluxType.");
 	}
@@ -187,23 +187,23 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 	case BdrCond::PEC:
 		switch (f) {
 		case FieldType::E:
-			return FluxCoefficient{ 0.0, 0.0 };
+			return FluxCoefficient{ 0.0 };
 		case FieldType::H:
-			return FluxCoefficient{ 0.0, 2.0 };
+			return FluxCoefficient{ 2.0 };
 		}
 	case BdrCond::PMC:
 		switch (f) {
 		case FieldType::E:
-			return FluxCoefficient{ 0.0, 2.0 };
+			return FluxCoefficient{ 2.0 };
 		case FieldType::H:
-			return FluxCoefficient{ 0.0, 0.0 };
+			return FluxCoefficient{ 0.0 };
 		}
 	case BdrCond::SMA:
 		switch (f) {
 		case FieldType::E:
-			return FluxCoefficient{ 0.0, 2.0 };
+			return FluxCoefficient{ 2.0 };
 		case FieldType::H:
-			return FluxCoefficient{ 0.0, 2.0 };
+			return FluxCoefficient{ 2.0 };
 		}
 	default:
 		throw std::exception("No defined BdrCond.");
@@ -214,29 +214,29 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 {
 	switch (opts.fluxType) {
 	case FluxType::Centered:
-		return FluxCoefficient{ 0.0, 0.0 };
+		return FluxCoefficient{ 0.0 };
 	case FluxType::Upwind:
 		switch (bdrC) {
 		case BdrCond::PEC:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ 0.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ 2.0 };
 			}
 		case BdrCond::PMC:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ 2.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ 0.0 };
 			}
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ 1.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 0.0, 0.0 };
+				return FluxCoefficient{ 1.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");

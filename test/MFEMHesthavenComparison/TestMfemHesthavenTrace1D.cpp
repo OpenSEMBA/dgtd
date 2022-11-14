@@ -29,8 +29,8 @@ protected:
 
 	double tol_ = 1e-6;
 
-	static FluxCoefficient buildAverageOnly() { return { 1.0, 0.0 }; }
-	static FluxCoefficient buildJumpOnly() { return { 0.0, 1.0 }; }
+	static FluxCoefficient buildAverageOnly() { return { 1.0 }; }
+	static FluxCoefficient buildJumpOnly() { return { 1.0 }; }
 
 };
 
@@ -45,7 +45,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O1)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(1, elements);
-		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+		EXPECT_TRUE(buildDGTraceAverage1DEigen(*fes_, buildAverageOnly())
 			.isApprox(buildExpectedAverageDenseMatrix1D(1, elements)));
 	}
 }
@@ -54,7 +54,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O2)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(2, elements);
-		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+		EXPECT_TRUE(buildDGTraceAverage1DEigen(*fes_, buildAverageOnly())
 			.isApprox(buildExpectedAverageDenseMatrix1D(2, elements)));
 	}
 }
@@ -63,7 +63,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O3)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(3, elements);
-		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+		EXPECT_TRUE(buildDGTraceAverage1DEigen(*fes_, buildAverageOnly())
 			.isApprox(buildExpectedAverageDenseMatrix1D(3, elements)));
 	}
 }
@@ -72,7 +72,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceAverageOnly_O4)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(4, elements);
-		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildAverageOnly())
+		EXPECT_TRUE(buildDGTraceAverage1DEigen(*fes_, buildAverageOnly())
 			.isApprox(buildExpectedAverageDenseMatrix1D(4, elements)));
 	}
 }
@@ -82,7 +82,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O1)
 
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(1, elements);
-		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildJumpOnly())
+		EXPECT_TRUE(buildDGTraceJump1DEigen(*fes_, buildJumpOnly())
 			.isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 	}
 }
@@ -93,7 +93,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O2)
 		setFES(2, elements);
 
 		EXPECT_TRUE(
-			buildDGTrace1DEigen(*fes_, buildJumpOnly())
+			buildDGTraceJump1DEigen(*fes_, buildJumpOnly())
 			.isApprox(buildExpectedJumpDenseMatrix1D(2, elements)));
 	}
 }
@@ -102,7 +102,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O3)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(3, elements);
-		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildJumpOnly())
+		EXPECT_TRUE(buildDGTraceJump1DEigen(*fes_, buildJumpOnly())
 			.isApprox(buildExpectedJumpDenseMatrix1D(3, elements)));
 	}
 }
@@ -110,7 +110,7 @@ TEST_F(MFEMHesthaven1DTrace, DGTraceJumpOnly_O4)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(4, elements);
-		EXPECT_TRUE(buildDGTrace1DEigen(*fes_, buildJumpOnly())
+		EXPECT_TRUE(buildDGTraceJump1DEigen(*fes_, buildJumpOnly())
 			.isApprox(buildExpectedJumpDenseMatrix1D(4, elements)));
 	}
 }
@@ -118,6 +118,8 @@ TEST_F(MFEMHesthaven1DTrace, MaxwellDGTraceNoDir_O1)
 {
 	for (int elements = 2; elements < 5; elements++) {
 		setFES(1, elements);
+		std::cout << buildMaxwellDGTrace1DEigen(*fes_, {}, 1.0) << std::endl;
+		std::cout << buildExpectedJumpDenseMatrix1D(1, elements) << std::endl;
 		EXPECT_TRUE(buildMaxwellDGTrace1DEigen(*fes_, {}, 1.0)
 			.isApprox(buildExpectedJumpDenseMatrix1D(1, elements)));
 	}

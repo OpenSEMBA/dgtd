@@ -24,7 +24,6 @@ enum class FluxType {
 };
 
 struct FluxCoefficient {
-	double alpha;
 	double beta;
 };
 

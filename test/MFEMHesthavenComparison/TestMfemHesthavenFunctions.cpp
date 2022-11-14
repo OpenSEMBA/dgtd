@@ -56,14 +56,28 @@ Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
 	return toEigen(res);
 }
 
-Eigen::MatrixXd buildDGTrace1DEigen(
+Eigen::MatrixXd buildDGTraceAverage1DEigen(
 	FiniteElementSpace& fes,
 	maxwell::FluxCoefficient ab)
 {
 	BilinearForm DGmat(&fes);
 	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
 	DGmat.AddInteriorFaceIntegrator(
-		new DGTraceIntegrator(n[0], ab.alpha, ab.beta));
+		new DGTraceIntegrator(n[0], ab.beta, 0.0));
+	DGmat.Assemble();
+	DGmat.Finalize();
+
+	return toEigen(*DGmat.SpMat().ToDenseMatrix());
+}
+
+Eigen::MatrixXd buildDGTraceJump1DEigen(
+	FiniteElementSpace& fes,
+	maxwell::FluxCoefficient ab)
+{
+	BilinearForm DGmat(&fes);
+	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
+	DGmat.AddInteriorFaceIntegrator(
+		new DGTraceIntegrator(n[0], 0.0, ab.beta));
 	DGmat.Assemble();
 	DGmat.Finalize();
 

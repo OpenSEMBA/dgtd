@@ -75,7 +75,7 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(
 
 	BilinearForm res(&fes);
 	{
-		FluxCoefficient c{ 0.0, 1.0 };
+		FluxCoefficient c{ 1.0 };
 		res.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta));
 	}
 
@@ -87,13 +87,13 @@ Eigen::MatrixXd	buildNormalPECFluxOperator1D(
 		bdrMarker[(int)kv.first - 1] = 1;
 
 		bdrMarkers[(int)kv.first - 1] = bdrMarker;
-		FluxCoefficient c{ 0.0, 0.0 };
+		FluxCoefficient c{ 0.0 };
 		switch(ft){
 		case E:
-			c = FluxCoefficient{ 0.0, 2.0 };
+			c = FluxCoefficient{ 2.0 };
 			break;
 		case H:
-			c = FluxCoefficient{ 0.0, 0.0 };
+			c = FluxCoefficient{ 0.0 };
 			break;
 		}
 		res.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator(dirs, c.beta), bdrMarkers[kv.first - 1]);
@@ -112,8 +112,8 @@ Eigen::MatrixXd	buildPECPenaltyOperator1D(
 
 	BilinearForm res(&fes);
 	{
-		FluxCoefficient c{ 0.0, 1.0 };
-		res.AddInteriorFaceIntegrator(new DGTraceIntegrator(one,c.alpha,c.beta));
+		FluxCoefficient c{ 1.0 };
+		res.AddInteriorFaceIntegrator(new DGTraceIntegrator(one,0.0,c.beta));
 	}
 
 	std::vector<Array<int>> bdrMarkers;
@@ -124,16 +124,16 @@ Eigen::MatrixXd	buildPECPenaltyOperator1D(
 		bdrMarker[(int)kv.first - 1] = 1;
 
 		bdrMarkers[(int)kv.first - 1] = bdrMarker;
-		FluxCoefficient c{ 0.0, 0.0 };
+		FluxCoefficient c{ 0.0 };
 		switch (ft) {
 		case E:
-			c = FluxCoefficient{ 0.0, 2.0 };
+			c = FluxCoefficient{ 2.0 };
 			break;
 		case H:
-			c = FluxCoefficient{ 0.0, 0.0 };
+			c = FluxCoefficient{ .0 };
 			break;
 		}
-		res.AddBdrFaceIntegrator(new DGTraceIntegrator(one, c.alpha, c.beta), bdrMarkers[kv.first - 1]);
+		res.AddBdrFaceIntegrator(new DGTraceIntegrator(one, 0.0, c.beta), bdrMarkers[kv.first - 1]);
 	}
 	res.Assemble();
 	res.Finalize();
