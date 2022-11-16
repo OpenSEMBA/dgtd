@@ -20,8 +20,9 @@ public:
 private:
 
 	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
-	std::array<std::array<FiniteElementOperator, 3>, 2> MF_;
-	std::array<std::array<FiniteElementOperator, 3>, 2> MP_;
+	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_;
+	std::array<FiniteElementOperator, 2> MP_;
 
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
