@@ -79,18 +79,17 @@ FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<
 FiniteElementOperator buildPenaltyOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
-	VectorConstantCoefficient one(Vector({ 1.0,0.0 }));
 
 	{
 		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
 		res->AddInteriorFaceIntegrator(
-			new DGTraceIntegrator(one, 0.0, c.beta));
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
 		res->AddBdrFaceIntegrator(
-			new DGTraceIntegrator(one, 0.0, c.beta), kv.second);
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
 	}
 
 	res->Assemble();
@@ -235,9 +234,9 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 1.0 };
+				return FluxCoefficient{ 2.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 1.0 };
+				return FluxCoefficient{ 2.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");

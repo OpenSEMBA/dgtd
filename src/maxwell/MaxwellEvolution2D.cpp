@@ -55,7 +55,7 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 
 	// Flux term for Ez. LIFT*(Fscale.*FluxEz) = LIFT*(Fscale.*(-nx.*dHy + ny.*dHx - alpha*dEz))/2.0;
 
-	MFN_[E][H][Y]->	  Mult(hOld[X], eNew[Z]);
+	MFN_[E][H][Y]->AddMult(hOld[X], eNew[Z]);
 	MFN_[E][H][X]->AddMult(hOld[Y], eNew[Z], -1.0);
 
 	// Mass term for Ez. (Dx*Hy - Dy*Hx)
@@ -63,11 +63,11 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 	MS_[E][Y]    ->AddMult(hOld[X], eNew[Z], -1.0);
 
 	if (opts_.fluxType == FluxType::Upwind) {
-		MFNN_[H][H][X][X]->Mult(hOld[X], hNew[X]);
+		MFNN_[H][H][X][X]->AddMult(hOld[X], hNew[X]);
 		MFNN_[H][H][Y][X]->AddMult(hOld[Y], hNew[X]);
 		MP_[H]->AddMult(hOld[X], hNew[X], -1.0);
 
-		MFNN_[H][H][X][Y]->Mult(hOld[X], hNew[Y]);
+		MFNN_[H][H][X][Y]->AddMult(hOld[X], hNew[Y]);
 		MFNN_[H][H][Y][Y]->AddMult(hOld[Y], hNew[Y]);
 		MP_[H]->AddMult(hOld[Y], hNew[Y], -1.0);
 
