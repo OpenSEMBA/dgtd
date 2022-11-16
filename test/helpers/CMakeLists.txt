@@ -14,7 +14,7 @@ add_library(testHelpers
 	"GlobalFunctions.cpp" "GlobalFunctions.h"
     "AnalyticalFunctions1D.h" "AnalyticalFunctions2D.h" 
 	"SourceFixtures.h"
-)
+ "AnalyticalFunctions3D.h")
 
 target_link_libraries(testHelpers Eigen3::Eigen)
 
