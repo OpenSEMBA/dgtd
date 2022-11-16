@@ -19,15 +19,16 @@ add_executable(maxwell_tests
 	"TestSolver1D.cpp" 
 	"TestSolver2D.cpp" 
 	"TestSolver3D.cpp" 
-	"TestBilinearIntegrators.cpp" 
+	 
 	"TestMaterial.cpp" 
 	"TestProbesManager.cpp" 
 	"TestSources.cpp"
 	"TestProbes.cpp"
+	"TestBilinearIntegrators.cpp"
  )
 
 target_link_libraries(maxwell_tests 
-	maxwell testHelpers 
+	maxwell mfem testHelpers 
 	GTest::gtest GTest::gtest_main
 )
 

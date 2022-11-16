@@ -35,16 +35,11 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
 		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
 		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
+		eNew[d] = 0.0;
+		hNew[d] = 0.0;
 	}
 
-	hNew[X] = 0.0;
-	hNew[Y] = 0.0;
-	eNew[Z] = 0.0;
-
 	// Flux term for Hx. LIFT*(Fscale.*FluxHx) = LIFT*(Fscale.*(ny.*dEz + alpha*(nx.*dHx.*nx+ny.*dHy.*nx-dHx)))/2.0;
-	MFNN_[H][H][X][X]->   Mult(hOld[X], hNew[X]);
-	MFNN_[H][H][Y][X]->AddMult(hOld[Y], hNew[X]);
-	MP_[H]		     ->AddMult(hOld[X], hNew[X], -1.0);
 
 	MFN_[H][E][Y]    ->AddMult(eOld[Z], hNew[X]);
 
@@ -52,9 +47,6 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 	MS_[H][Y]        ->AddMult(eOld[Z], hNew[X], -1.0);
 
 	// Flux term for Hy. LIFT*(Fscale.*FluxHy) = LIFT*(Fscale.*(-nx.*dEz + alpha*(nx.*dHx.*ny+ny.*dHy.*ny-dHy)))/2.0;
-	MFNN_[H][H][X][Y]->   Mult(hOld[X], hNew[Y]);
-	MFNN_[H][H][Y][Y]->AddMult(hOld[Y], hNew[Y]);
-	MP_[H]           ->AddMult(hOld[Y], hNew[Y], -1.0);
 
 	MFN_[H][E][X]    ->AddMult(eOld[Z], hNew[Y], -1.0);				 
 
@@ -66,36 +58,21 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 	MFN_[E][H][Y]->	  Mult(hOld[X], eNew[Z]);
 	MFN_[E][H][X]->AddMult(hOld[Y], eNew[Z], -1.0);
 
-	MP_[E]       ->AddMult(eOld[Z], eNew[Z], -1.0);
-
 	// Mass term for Ez. (Dx*Hy - Dy*Hx)
 	MS_[E][X]	 ->AddMult(hOld[Y], eNew[Z]);
 	MS_[E][Y]    ->AddMult(hOld[X], eNew[Z], -1.0);
 
-	//out.Print(std::cout);
+	if (opts_.fluxType == FluxType::Upwind) {
+		MFNN_[H][H][X][X]->Mult(hOld[X], hNew[X]);
+		MFNN_[H][H][Y][X]->AddMult(hOld[Y], hNew[X]);
+		MP_[H]->AddMult(hOld[X], hNew[X], -1.0);
 
-	//for (int x = X; x <= Z; x++) {
-	//	int y = (x + 1) % 3;
-	//	int z = (x + 2) % 3;
+		MFNN_[H][H][X][Y]->Mult(hOld[X], hNew[Y]);
+		MFNN_[H][H][Y][Y]->AddMult(hOld[Y], hNew[Y]);
+		MP_[H]->AddMult(hOld[Y], hNew[Y], -1.0);
 
-	//	 dtE_x = MS_y * H_z - MF_y * {H_z} - MP_E * [E_z] +
-	//	        -MS_z * H_y + MF_z * {H_y} + MP_E * [E_y]
-	//	 Update E.
-	//	MS_[E][z]->Mult   (hOld[y], eNew[x]);
-	//	MF_[E][z]->AddMult(hOld[y], eNew[x], -1.0);
-	//	MP_[E][z]->AddMult(eOld[y], eNew[x], -1.0);
-	//	MS_[E][y]->AddMult(hOld[z], eNew[x], -1.0);
-	//	MF_[E][y]->AddMult(hOld[z], eNew[x],  1.0);
-	//	MP_[E][y]->AddMult(eOld[z], eNew[x],  1.0); 
-
-	//	// Update H.
-	//	MS_[H][y]->Mult   (eOld[z], hNew[x]);
-	//	MF_[H][y]->AddMult(eOld[z], hNew[x], -1.0);
-	//	MP_[H][y]->AddMult(hOld[z], hNew[x], -1.0);
-	//	MS_[H][z]->AddMult(eOld[y], hNew[x], -1.0);
-	//	MF_[H][z]->AddMult(eOld[y], hNew[x],  1.0);
-	//	MP_[H][z]->AddMult(hOld[y], hNew[x],  1.0);
-	//}
+		MP_[E]->AddMult(eOld[Z], eNew[Z], -1.0);
+	}
 
 }
 

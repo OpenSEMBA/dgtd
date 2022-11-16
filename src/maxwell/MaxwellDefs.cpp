@@ -79,17 +79,18 @@ FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<
 FiniteElementOperator buildPenaltyOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
+	VectorConstantCoefficient one(Vector({ 1.0,0.0 }));
 
 	{
 		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
-		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
+		res->AddInteriorFaceIntegrator(
+			new DGTraceIntegrator(one, 0.0, c.beta));
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
 		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
-		);
+			new DGTraceIntegrator(one, 0.0, c.beta), kv.second);
 	}
 
 	res->Assemble();
