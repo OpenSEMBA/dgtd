@@ -190,6 +190,8 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 	GridFunction mfemNodes(fesAuto.get());
 	meshAuto.GetNodes(mfemNodes);
 
+	std::cout << mfemNodes << std::endl;
+
 	Eigen::Matrix<double, 6, 6> identity;
 	identity.setIdentity();
 
