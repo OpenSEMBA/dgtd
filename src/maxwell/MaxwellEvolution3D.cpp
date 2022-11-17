@@ -13,13 +13,13 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 	opts_{ options }
 {
 	for (auto f : { E, H }) {
-		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator2D(f, {}, model_, fes_, opts_), fes_);
+		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d : { X, Y, Z }) {
 			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
 			for (auto d2 : { X,Y,Z }) {
 				for (auto f2 : { E, H }) {
-					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator2D(f2, {d}, model_, fes_), fes_);
-					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator2D(f2, {d, d2}, model_, fes_), fes_);
+					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_), fes_);
+					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d, d2}, model_, fes_), fes_);
 				}
 			}
 		}
@@ -55,14 +55,14 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 		MFN_[E][H][z]	 ->AddMult(hOld[y], eNew[x], -1.0);
 
 		if (opts_.fluxType == FluxType::Upwind) {
-			MFNN_[H][H][x][x]->AddMult(hOld[x], hNew[x], -1.0);
-			MFNN_[H][H][y][x]->AddMult(hOld[y], hNew[x], -1.0);
-			MFNN_[H][H][z][x]->AddMult(hOld[z], hNew[x], -1.0);
+			MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], -1.0);
+			MFNN_[H][H][Y][x]->AddMult(hOld[Y], hNew[x], -1.0);
+			MFNN_[H][H][Z][x]->AddMult(hOld[Z], hNew[x], -1.0);
 			MP_[H]			 ->AddMult(hOld[x], hNew[x]);			
 			
-			MFNN_[E][E][x][x]->AddMult(eOld[x], eNew[x], -1.0);
-			MFNN_[E][E][y][x]->AddMult(eOld[y], eNew[x], -1.0);
-			MFNN_[E][E][z][x]->AddMult(eOld[z], eNew[x], -1.0);
+			MFNN_[E][E][X][x]->AddMult(eOld[X], eNew[x], -1.0);
+			MFNN_[E][E][Y][x]->AddMult(eOld[Y], eNew[x], -1.0);
+			MFNN_[E][E][Z][x]->AddMult(eOld[Z], eNew[x], -1.0);
 			MP_[E]			 ->AddMult(eOld[x], eNew[x]);
 		}
 

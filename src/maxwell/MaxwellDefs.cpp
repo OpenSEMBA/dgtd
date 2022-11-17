@@ -54,7 +54,7 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	return res;
 }
 
-FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 
@@ -76,7 +76,7 @@ FiniteElementOperator buildFluxOperator2D(const FieldType& f, const std::vector<
 	return res;
 }
 
-FiniteElementOperator buildPenaltyOperator2D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 
@@ -234,9 +234,9 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 		case BdrCond::SMA:
 			switch (f) {
 			case FieldType::E:
-				return FluxCoefficient{ 2.0 };
+				return FluxCoefficient{ 1.0 };
 			case FieldType::H:
-				return FluxCoefficient{ 2.0 };
+				return FluxCoefficient{ 1.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");

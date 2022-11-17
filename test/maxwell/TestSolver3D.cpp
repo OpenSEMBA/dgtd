@@ -69,7 +69,7 @@ TEST_F(TestSolver3D, box_pec_centered_3D)
 	Lastly, the run() function is called.*/
 
 	maxwell::Solver solver{
-	buildModel(1,1,1),
+	buildModel(3,3,3),
 	buildExportProbes(),
 	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5,0.5})),
 	SolverOptions{}
@@ -77,6 +77,38 @@ TEST_F(TestSolver3D, box_pec_centered_3D)
 		.setCentered()
 		.setFinalTime(0.5)
 		.setOrder(3)
+	};
+
+	GridFunction eOld{ solver.getFields().E[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Z] };
+
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+}
+
+TEST_F(TestSolver3D, box_pec_upwind_3D)
+{
+	/*The purpose of this test is to check the run() function for the solver object
+	and test the different available options.
+
+	First, dimensional variables are declared and a mesh is constructed, along with the declaration
+	of different useful variables.
+
+	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
+	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
+
+	Lastly, the run() function is called.*/
+
+	maxwell::Solver solver{
+	buildModel(1,1,1),
+	buildExportProbes(),
+	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-5)
+		.setFinalTime(0.5)
+		.setOrder(4)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Z] };

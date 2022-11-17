@@ -243,3 +243,4 @@ TEST_F(TestMesh, meshDataFileRead)
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
 
 }
+

@@ -80,7 +80,6 @@ TEST_F(TestSolver2D, box_pec_centered_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-
 TEST_F(TestSolver2D, box_pec_centered_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
@@ -146,6 +145,38 @@ TEST_F(TestSolver2D, box_pec_upwind_2D)
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
 
+
+TEST_F(TestSolver2D, box_sma_upwind_square_2D)
+{
+	/*The purpose of this test is to check the run() function for the solver object
+	and test the different available options.
+
+	First, dimensional variables are declared and a mesh is constructed, along with the declaration
+	of different useful variables.
+
+	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
+	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
+
+	Lastly, the run() function is called.*/
+
+	maxwell::Solver solver{
+	buildModel(5,5,mfem::Element::Type::QUADRILATERAL,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
+	buildExportProbes(),
+	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(1.0)
+		.setOrder(3)
+	};
+
+	GridFunction eOld{ solver.getFields().E[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Z] };
+
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+}
 TEST_F(TestSolver2D, box_pec_upwind_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
@@ -167,6 +198,34 @@ TEST_F(TestSolver2D, box_pec_upwind_square_2D)
 		.setTimeStep(5e-4)
 		.setFinalTime(0.5)
 		.setOrder(4)
+	};
+
+	GridFunction eOld{ solver.getFields().E[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Z] };
+
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+}
+
+TEST_F(TestSolver2D, quadraticMesh)
+{
+	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
+	auto fec = std::make_unique<DG_FECollection>(2, 2, BasisType::GaussLobatto);
+	auto fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get());
+
+	Model model = Model(mesh, AttributeToMaterial{}, AttributeToBoundary{});
+
+	maxwell::Solver solver{
+		model,
+		buildExportProbes(),
+		buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+		SolverOptions{}
+		.setTimeStep(5e-4)
+		.setCentered()
+		.setFinalTime(0.5)
+		.setOrder(3)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Z] };

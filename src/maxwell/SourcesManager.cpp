@@ -37,7 +37,7 @@ void SourcesManager::setFields3D(Fields& fields)
             f = std::bind(&GaussianInitialField::eval2D, &source, std::placeholders::_1);
             break;
         case 3:
-            f = std::bind(&GaussianInitialField::eval3D, &source, std::placeholders::_1);
+            f = std::bind(&GaussianInitialField::eval2D, &source, std::placeholders::_1);
             break;
         default:
             throw std::exception("Incorrect Dimension for setFields3D");
