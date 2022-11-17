@@ -106,13 +106,60 @@ TEST_F(MFEMHesthaven3D, checkDrOperator3D)
 
 }
 
-TEST_F(MFEMHesthaven3D, DerivativeOperators)
+TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 {
 	Mesh meshManual = Mesh::LoadFromFile("./TestData/onetetra.mesh");
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
 	auto MFEMmass =	buildInverseMassMatrixEigen(*fesManual);
+	auto MFEMSX = buildNormalStiffnessMatrixEigen(X, *fesManual);
+	auto MFEMSY = buildNormalStiffnessMatrixEigen(Y, *fesManual);
+	auto MFEMSZ = buildNormalStiffnessMatrixEigen(Z, *fesManual);
+	auto MFEMDr = MFEMmass * MFEMSX;
+	auto MFEMDs = MFEMmass * MFEMSY;
+	auto MFEMDt = MFEMmass * MFEMSZ;
+
+	Eigen::MatrixXd DrOperatorHesthaven{
+	{  -0.5,  0.5, 0.0, 0.0},
+	{  -0.5,  0.5, 0.0, 0.0},
+	{  -0.5,  0.5, 0.0, 0.0},
+	{  -0.5,  0.5, 0.0, 0.0}
+	};
+
+	Eigen::MatrixXd DsOperatorHesthaven{
+	{  -0.5,  0.0, 0.5, 0.0},
+	{  -0.5,  0.0, 0.5, 0.0},
+	{  -0.5,  0.0, 0.5, 0.0},
+	{  -0.5,  0.0, 0.5, 0.0}
+	};
+
+	Eigen::MatrixXd DtOperatorHesthaven{
+	{  -0.5,  0.0, 0.0, 0.5},
+	{  -0.5,  0.0, 0.0, 0.5},
+	{  -0.5,  0.0, 0.0, 0.5},
+	{  -0.5,  0.0, 0.0, 0.5}
+	};
+
+	std::cout << "Dr" << std::endl;
+	std::cout << MFEMDr << std::endl;
+	std::cout << "Ds" << std::endl;
+	std::cout << MFEMDs << std::endl;
+	std::cout << "Dt" << std::endl;
+	std::cout << MFEMDt << std::endl;
+
+	EXPECT_TRUE(MFEMDr.isApprox(DrOperatorHesthaven));
+	EXPECT_TRUE(MFEMDs.isApprox(DsOperatorHesthaven));
+	EXPECT_TRUE(MFEMDt.isApprox(DtOperatorHesthaven));
+}
+
+TEST_F(MFEMHesthaven3D, DerivativeOperators_fivetetra)
+{
+	Mesh meshManual = Mesh::LoadFromFile("./TestData/fivetetra.mesh");
+	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
+	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
+
+	auto MFEMmass = buildInverseMassMatrixEigen(*fesManual);
 	auto MFEMSX = buildNormalStiffnessMatrixEigen(X, *fesManual);
 	auto MFEMSY = buildNormalStiffnessMatrixEigen(Y, *fesManual);
 	auto MFEMSZ = buildNormalStiffnessMatrixEigen(Z, *fesManual);
