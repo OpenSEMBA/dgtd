@@ -1,54 +1,23 @@
-//// OpenSEMBA
-//// Copyright (C) 2015 Salvador Gonzalez Garcia        (salva@ugr.es)
-////                    Luis Manuel Diaz Angulo         (lmdiazangulo@semba.guru)
-////                    Miguel David Ruiz-Cabello Nuñez (miguel@semba.guru)
-////                    Daniel Mateos Romero            (damarro@semba.guru)
-////
-//// This file is part of OpenSEMBA.
-////
-//// OpenSEMBA is free software: you can redistribute it and/or modify it under
-//// the terms of the GNU Lesser General Public License as published by the Free
-//// Software Foundation, either version 3 of the License, or (at your option)
-//// any later version.
-////
-//// OpenSEMBA is distributed in the hope that it will be useful, but WITHOUT ANY
-//// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-//// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-//// details.
-////
-//// You should have received a copy of the GNU Lesser General Public License
-//// along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-///*
-// * SolverSource.h
-// *
-// *  Created on: Sep 2, 2013
-// *      Author: luis
-// */
-//
-//#ifndef DG_SOLVER_SOURCE_H_
-//#define DG_SOLVER_SOURCE_H_
-//
-//#include <utility>
-//#include <vector>
-//
-//using namespace std;
-//
-//#include "source/Source.h"
-//#include "communications/Comm.h"
-//#include "boundaryConditions/Group.h"
-//
-//class DGSource {
-//public:
-//    const static size_t N = ORDER_N;
-//    const static size_t nfp = (N+1) * (N+2) / 2;
-//    const static size_t faces = 4;
-//    typedef enum {
-//        totalField,
-//        scatteredField,
-//        totalFieldNotBacked
-//    } BackingType;
-//    DGSource();
-//    virtual ~DGSource();
+#pragma once
+
+#include "core/source/Source.h"
+#include "communications/Comm.h"
+#include "boundaryConditions/Group.h"
+
+namespace SEMBA {
+namespace dgtd {
+namespace dg {
+namespace source {
+
+class Source {
+public:
+    typedef enum {
+        totalField,
+        scatteredField,
+        totalFieldNotBacked
+    } BackingType;
+
+    virtual ~DGSource() = default;
 //    void addJumps(
 //            const size_t e1,
 //            const size_t e2);
@@ -98,6 +67,10 @@
 //            const BCGroup& bc,
 //            const Connectivities& map,
 //            const CellGroup& cells) const;
-//};
-//
-//#endif /* SOLVERSOURCE_H_ */
+};
+
+
+}
+}
+}
+}
