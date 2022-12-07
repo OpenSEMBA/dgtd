@@ -66,11 +66,7 @@ TEST_F(MFEMHesthaven3D, checkNodalPositions)
 		}
 	}
 
-	std::cout << mfemEigenNodes << std::endl;
-
 	auto mfemEigenRotatedNodes = rotatorO1_ * mfemEigenNodes;
-
-	std::cout << mfemEigenRotatedNodes << std::endl;
 
 	Eigen::MatrixXd expectedNodes{
 		{0,0,0},
@@ -78,6 +74,8 @@ TEST_F(MFEMHesthaven3D, checkNodalPositions)
 		{0,1,0},
 		{0,0,1}
 	};
+
+	std::cout << rotatorO1_.transpose() * expectedNodes  << std::endl;
 
 	EXPECT_TRUE(expectedNodes.isApprox(mfemEigenRotatedNodes, tol_));
 	
@@ -141,12 +139,12 @@ TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
 	auto MFEMmass =	buildInverseMassMatrixEigen(*fesManual);
-	auto MFEMSX = buildNormalStiffnessMatrixEigen(Z, *fesManual);
+	auto MFEMSX = buildNormalStiffnessMatrixEigen(X, *fesManual);
 	auto MFEMSY = buildNormalStiffnessMatrixEigen(Y, *fesManual);
-	auto MFEMSZ = buildNormalStiffnessMatrixEigen(X, *fesManual);
-	auto MFEMDr = MFEMmass * MFEMSX;
+	auto MFEMSZ = buildNormalStiffnessMatrixEigen(Z, *fesManual);
+	auto MFEMDr = MFEMmass * MFEMSZ;
 	auto MFEMDs = MFEMmass * MFEMSY;
-	auto MFEMDt = MFEMmass * MFEMSZ;
+	auto MFEMDt = MFEMmass * MFEMSX;
 
 	Eigen::MatrixXd DrOperatorHesthaven{
 	{  -0.5,  0.5, 0.0, 0.0},

@@ -48,5 +48,10 @@ enum class DisForm {
 	Strong
 };
 
+enum class InitialFieldType {
+	Gaussian,
+	PlanarSinusoidal
+};
+
 
 }
