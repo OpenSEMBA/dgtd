@@ -13,13 +13,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 project(dgtd CXX)
 
-add_subdirectory(external/core/)
+add_subdirectory(external/opensemba/)
 
-include_directories(src/ src/core/)
+include_directories(src/ external/opensemba/)
 
-add_subdirectory  (src/)
+add_subdirectory(src/)
 
 message(STATUS "Creating build system with the following options:")
 
-#enable_testing()
-#add_subdirectory(test/)
+enable_testing()
+add_subdirectory(test/)

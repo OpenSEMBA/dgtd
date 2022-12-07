@@ -11,18 +11,16 @@ using namespace Math;
 template <size_t N>
 class Triangle {
 public:
-    static const std::size_t faces = 3;
-    static const std::size_t dimension = 2;
-    static const std::size_t nfp = N + 1;
+    static constexpr std::size_t faces = 3;
+    static constexpr std::size_t dimension = 2;
+    static constexpr std::size_t nfp = N + 1;
     static constexpr std::size_t np = (N+1)*(N+2)/2;
-
-    Triangle();
-
+        
     std::vector<CVecR2>   getGaussLobattoPoints()  const;
-    DynMatR getVandermondeMatrix(    const std::vector<CVecR2>& rs) const;
+    DynMatR getVandermondeMatrix(const std::vector<CVecR2>& rs) const;
     DynMatR getGradVandermondeMatrix(const std::vector<CVecR2>& rs) const;
     DynMatR getDifferentiationMatrix(const std::vector<CVecR2>& rs) const;
-    DynMatR getLiftMatrix(           const std::vector<CVecR2>& rs) const;
+    DynMatR getLiftMatrix(const std::vector<CVecR2>& rs) const;
 
     static std::vector<Real> evaluatePolynomialAt(
             const std::vector<CVecR2>& x,
@@ -34,11 +32,6 @@ public:
 private:
     static std::vector<Real> warpFactor_(const std::vector<Real>& rOut);
     static std::vector<CVecR2> rsToab_(const std::vector<CVecR2>& rs);
-};
-
-
-template <size_t N>
-Triangle<N>::Triangle() {
 };
 
 template <size_t N>
