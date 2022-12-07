@@ -18,20 +18,51 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
+#ifndef BCGROUP_H_
+#define BCGROUP_H_
 
-/*
- * Group.cpp
- *
- *  Created on: Jul 8, 2013
- *      Author: luis
- */
+using namespace std;
 
-#include "Group.h"
+#include "BoundaryCondition.h"
+#include "mesh/Volume.h"
+#include "source/Group.h"
+#include "physicalModel/Group.h"
+#include "geometry/graph/Connectivities.h"
+#include "geometry/element/Hexahedron8.h"
+#include "group/Cloneable.h"
+#include "group/Printable.h"
 
 namespace SEMBA {
 namespace Cudg3d {
 namespace BoundaryCondition {
-
+//
+//template<typename T = Base>
+//class Group : public SEMBA::Group::Group<T> {
+//public:
+//    Group(const Mesh::Volume& mesh,
+//            const SourceGroup& em,
+//            const PMGroup& pm);
+//    void printInfo() const;
+//
+//private:
+//    void buildEMSourceBC_(
+//            const Mesh::Volume& mesh,
+//            const SourceGroup& em);
+//    void buildPhysicalModelBC_(
+//            const Mesh::Volume& mesh,
+//            const PMGroup& pm);
+//    void removeOverlapped();
+//    vector<Base*> removeCommons(
+//            const vector<Base*>& low,
+//            const vector<Base*>& high) const;
+//};
+//
+//} /* BoundaryCondition */
+//
+////typedef BoundaryCondition::Group BCGroup;
+//
+//} /* Cudg3d */
+//} /* SEMBA */
 //template<typename T>
 //Group<T>::Group(
 //        const Mesh::Volume& mesh,
@@ -103,6 +134,5 @@ namespace BoundaryCondition {
 //    cout << "--- Group info ---" << endl;
 //}
 
-}
-}
-}
+
+#endif /* BCGROUP_H_ */
