@@ -7,7 +7,30 @@
 
 namespace maxwell {
 
-class GaussianInitialField {
+class Source {
+public:
+	using Position = mfem::Vector;
+
+
+	FieldType getFieldType() const { return fieldType_; }
+	Direction getDirection() const { return direction_; }
+	Position getCenter() const { return center_; }
+	InitialFieldType getInitialFieldType() const { return initialFT_; }	
+
+	const void setFieldType(const FieldType ft);
+	const void setDirection(const Direction d);
+	const void setCenter(const Position center);
+	const void setInitialFieldType(const InitialFieldType ift);
+
+private:
+
+	FieldType fieldType_{E};
+	Direction direction_{X};
+	InitialFieldType initialFT_;
+	Position center_;
+};
+
+class GaussianInitialField : public Source {
 public:
 	using Position = mfem::Vector;
 
@@ -19,26 +42,18 @@ public:
 		const Position center
 	);
 	
-	FieldType getFieldType() const { return fieldType_; }
-	Direction getDirection() const { return direction_; }
-	InitialFieldType getInitialFieldType() const { return InitialFieldType::Gaussian; }
-
 	double eval3D(const mfem::Vector&) const;
 	double eval2D(const mfem::Vector&) const;
 	double eval1D(const mfem::Vector&) const;
 
 private:
-	FieldType fieldType_{E};
-	Direction direction_{X};
 	double spread_{2.0};
 	double normalization_{1.0};
-	Position center_;
-	InitialFieldType Gaussian;
 
 	const void checkInputArguments();
 };
 
-class PlanarSinusoidalInitialField {
+class PlanarSinusoidalInitialField : public Source {
 public:
 	using Position = mfem::Vector;
 
@@ -54,19 +69,14 @@ public:
 	double eval2D(const mfem::Vector&) const;
 	double eval1D(const mfem::Vector&) const;
 
-	InitialFieldType getInitialFieldType() const { return InitialFieldType::PlanarSinusoidal; }
-
 private:
-	FieldType fieldType_{ E };
-	Direction direction_{ X };
+
 	std::vector<std::size_t> modes_{ {0,0,0} };
 	double coefficient_{ 1.0 };
-	Position center_;
-	InitialFieldType initialFT_{ InitialFieldType::PlanarSinusoidal };
 
 	const void assembleModesVector(std::vector<std::size_t> modes);
 };
 
-using Sources = std::vector<GaussianInitialField>;
+using Sources = std::vector<Source>;
 
 }

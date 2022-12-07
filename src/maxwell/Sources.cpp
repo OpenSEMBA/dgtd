@@ -5,18 +5,40 @@
 
 namespace maxwell {
 
+const void Source::setFieldType(const FieldType ft)
+{
+	fieldType_ = ft;
+}
+
+const void Source::setDirection(const Direction d)
+{
+	direction_ = d;
+}
+
+const void Source::setCenter(const Position center)
+{
+	center_ = center;
+}
+
+const void Source::setInitialFieldType(const InitialFieldType ift)
+{
+	initialFT_ = ift;
+}
+
 GaussianInitialField::GaussianInitialField(
 	const FieldType& ft,
 	const Direction& d, 
 	const double spread, 
 	const double normalization, 
 	const Position center) : 
-	fieldType_(ft),
-	direction_(d),
 	spread_(spread),
-	normalization_(normalization),
-	center_(center)
+	normalization_(normalization)
 {
+	setFieldType(ft);
+	setDirection(d);
+	setCenter(center);
+	setInitialFieldType(InitialFieldType::Gaussian);
+
 	checkInputArguments();
 };
 
@@ -32,19 +54,19 @@ const void GaussianInitialField::checkInputArguments()
 
 double GaussianInitialField::eval3D(const Position& pos) const
 {
-	return normalization_ * exp(-(pow(pos[X] - center_[X], 2.0)
-								+ pow(pos[Y] - center_[Y], 2.0) 
-								+ pow(pos[Z] - center_[Z], 2.0)) / (2.0 * pow(spread_, 2.0)));
+	return normalization_ * exp(-(pow(pos[X] - getCenter()[X], 2.0)
+								+ pow(pos[Y] - getCenter()[Y], 2.0)
+								+ pow(pos[Z] - getCenter()[Z], 2.0)) / (2.0 * pow(spread_, 2.0)));
 }
 double GaussianInitialField::eval2D(const Position& pos) const
 {
-	return normalization_ * exp( - (pow(pos[X] - center_[X], 2.0)
-								  + pow(pos[Y] - center_[Y], 2.0)) /	(2.0 * pow(spread_, 2.0)));
+	return normalization_ * exp( - (pow(pos[X] - getCenter()[X], 2.0)
+								  + pow(pos[Y] - getCenter()[Y], 2.0)) /	(2.0 * pow(spread_, 2.0)));
 }
 double GaussianInitialField::eval1D(const Position& pos) const
 {
 	return normalization_ 
-		* exp( - pow(pos[X] - center_[X], 2) / (2.0*pow(spread_, 2)) );
+		* exp( - pow(pos[X] - getCenter()[X], 2) / (2.0*pow(spread_, 2)) );
 }
 
 PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
@@ -53,11 +75,12 @@ PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
 	const std::vector<std::size_t> modes,
 	const double coefficient,
 	const Position center) :
-	fieldType_(ft),
-	direction_(d),
-	coefficient_(coefficient),
-	center_(center)
+	coefficient_(coefficient)
 {
+	setFieldType(ft);
+	setDirection(d);
+	setCenter(center);
+	setInitialFieldType(InitialFieldType::PlanarSinusoidal);
 	assembleModesVector(modes);
 }
 
