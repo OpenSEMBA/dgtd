@@ -1,5 +1,4 @@
-#ifndef COMMUNICATIONS_H_
-#define COMMUNICATIONS_H_
+#pragma once
 
 #include <iostream>
 #include <assert.h>
@@ -11,7 +10,7 @@ namespace Communications {
 
 class Communications {
 public:
-    virtual ~Communications();
+    virtual ~Communications() = default;
 //    virtual Math::Int getNumberOfTasks() const = 0;
 //    virtual Math::Int getTask() const = 0;
 //    virtual bool isMaster() const = 0;
@@ -37,5 +36,3 @@ public:
 }
 }
 }
-
-#endif /* COMMUNICATIONS_H_ */

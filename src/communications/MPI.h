@@ -1,37 +1,22 @@
-#ifndef COMMUNICATIONSMPI_H_
-#define COMMUNICATIONSMPI_H_
+#pragma once
 
 #include "MPI.h"
 #include "Communications.h"
 
-
 namespace SEMBA {
 namespace Cudg3d {
-
-struct Field_s {
-	Math::Int rp;
-	Math::Real Ex, Ey, Ez, Hx, Hy, Hz;
-};
+namespace Communications {
 
 //class MPI : public Communications {
 //public:
-//	MPI();
-//	virtual ~MPI();
-//	Math::Int
-//	 getNumberOfTasks() const;
-//	Math::Int
-//	 getTask() const;
-//	size_t
-//	 getLocalOffset() const;
-//	size_t
-//	 getLocalSize() const;
-//	Math::Int
-//	 getNumOfTasksOnThisHost() const;
-//	void
-//	 setPartitionSizes(
-//	  const vector<vector<size_t> >& partId);
-//	void
-//	 gatherFieldsMaster(
+//	Math::Int getNumberOfTasks() const;
+//	Math::Int getTask() const;
+//	size_t getLocalOffset() const;
+//	size_t getLocalSize() const;
+//	Math::Int getNumOfTasksOnThisHost() const;
+// 
+//	void setPartitionSizes(const vector<vector<size_t> >& partId);
+//	void gatherFieldsMaster(
 // 	  Math::Real* Ex, Math::Real* Ey, Math::Real* Ez,
 //	  Math::Real* Hx, Math::Real* Hy, Math::Real* Hz,
 //	  const Math::Real* lEx, const Math::Real* lEy, const Math::Real* lEz,
@@ -122,5 +107,4 @@ struct Field_s {
 
 }
 }
-
-#endif /* COMMUNICATIONSMPI_H_ */
+}
