@@ -2,6 +2,7 @@
 
 #include "Sources.h"
 #include "Fields.h"
+#include "Types.h"
 
 namespace maxwell {
 

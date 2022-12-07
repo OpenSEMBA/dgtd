@@ -50,7 +50,7 @@ double GaussianInitialField::eval1D(const Position& pos) const
 PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
 	const FieldType& ft,
 	const Direction& d,
-	const std::vector<int> modes,
+	const std::vector<std::size_t> modes,
 	const double coefficient,
 	const Position center) :
 	fieldType_(ft),
@@ -61,7 +61,7 @@ PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
 	assembleModesVector(modes);
 }
 
-const void PlanarSinusoidalInitialField::assembleModesVector(std::vector<int> modes)
+const void PlanarSinusoidalInitialField::assembleModesVector(std::vector<std::size_t> modes)
 {
 	for (int i = 0; i < modes.size(); i++) {
 		modes_[i] = modes[i];

@@ -45,7 +45,7 @@ public:
 	PlanarSinusoidalInitialField(
 		const FieldType& ft,
 		const Direction& d,
-		const std::vector<int> modes,
+		const std::vector<std::size_t> modes,
 		const double coefficient,
 		const Position center
 	);
@@ -59,12 +59,12 @@ public:
 private:
 	FieldType fieldType_{ E };
 	Direction direction_{ X };
-	std::vector<int> modes_{ {1,1,1} };
+	std::vector<std::size_t> modes_{ {0,0,0} };
 	double coefficient_{ 1.0 };
 	Position center_;
 	InitialFieldType initialFT_{ InitialFieldType::PlanarSinusoidal };
 
-	const void assembleModesVector(std::vector<int> modes);
+	const void assembleModesVector(std::vector<std::size_t> modes);
 };
 
 using Sources = std::vector<GaussianInitialField>;
