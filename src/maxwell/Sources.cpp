@@ -51,19 +51,20 @@ PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
 	const FieldType& ft,
 	const Direction& d,
 	const std::vector<int> modes,
+	const double coefficient,
 	const Position center) :
 	fieldType_(ft),
 	direction_(d),
-	modes_(modes),
+	coefficient_(coefficient),
 	center_(center)
 {
-	checkInputArguments();
+	assembleModesVector(modes);
 }
 
-const void PlanarSinusoidalInitialField::checkInputArguments()
+const void PlanarSinusoidalInitialField::assembleModesVector(std::vector<int> modes)
 {
-	if (modes_.size() != 3){
-		throw std::exception("modes vector must have three entries, representing xmode, ymode and zmode.");
+	for (int i = 0; i < modes.size(); i++) {
+		modes_[i] = modes[i];
 	}
 }
 
@@ -71,11 +72,11 @@ double PlanarSinusoidalInitialField::eval3D(const Position& pos) const
 {
 	switch (direction_) {
 	case X:
-		return sin(modes_[Y] * M_PI * pos[Y]) * sin(modes_[Z] * M_PI * pos[Z]);
+		return coefficient_ * sin(modes_[Y] * M_PI * pos[Y]) * sin(modes_[Z] * M_PI * pos[Z]);
 	case Y:
-		return sin(modes_[X] * M_PI * pos[X]) * sin(modes_[Z] * M_PI * pos[Z]);
+		return coefficient_ * sin(modes_[X] * M_PI * pos[X]) * sin(modes_[Z] * M_PI * pos[Z]);
 	case Z:
-		return sin(modes_[Y] * M_PI * pos[Y]) * sin(modes_[Y] * M_PI * pos[Y]);
+		return coefficient_ * sin(modes_[Y] * M_PI * pos[Y]) * sin(modes_[Y] * M_PI * pos[Y]);
 	}
 }
 
@@ -83,15 +84,15 @@ double PlanarSinusoidalInitialField::eval2D(const Position& pos) const
 {
 	switch (direction_) {
 	case X:
-		return sin(modes_[Y] * M_PI * pos[Y]);
+		return coefficient_ * sin(modes_[Y] * M_PI * pos[Y]);
 	case Y:
-		return sin(modes_[X] * M_PI * pos[X]);
+		return coefficient_ * sin(modes_[X] * M_PI * pos[X]);
 	}
 }
 
 double PlanarSinusoidalInitialField::eval1D(const Position& pos) const
 {
-	return sin(modes_[X] * M_PI * pos[X]);
+	return coefficient_ * sin(modes_[X] * M_PI * pos[X]);
 }
 	
 

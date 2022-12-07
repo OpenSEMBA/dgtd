@@ -46,6 +46,7 @@ public:
 		const FieldType& ft,
 		const Direction& d,
 		const std::vector<int> modes,
+		const double coefficient,
 		const Position center
 	);
 
@@ -58,11 +59,12 @@ public:
 private:
 	FieldType fieldType_{ E };
 	Direction direction_{ X };
-	std::vector<int> modes_;
+	std::vector<int> modes_{ {1,1,1} };
+	double coefficient_{ 1.0 };
 	Position center_;
 	InitialFieldType initialFT_{ InitialFieldType::PlanarSinusoidal };
 
-	const void checkInputArguments();
+	const void assembleModesVector(std::vector<int> modes);
 };
 
 using Sources = std::vector<GaussianInitialField>;
