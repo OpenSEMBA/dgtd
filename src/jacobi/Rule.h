@@ -55,9 +55,6 @@ private:
             double zemu,
             std::vector<double>& t, std::vector<double>& wts) const ;
 
-}; /* Class Rule */
+};
 
-} /* namespace Jacobi */
-} /* namespace DGTD */
-
-#endif
+}

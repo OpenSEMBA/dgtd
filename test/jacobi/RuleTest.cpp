@@ -1,42 +1,22 @@
-// OpenSEMBA
-// Copyright (C) 2015 Salvador Gonzalez Garcia        (salva@ugr.es)
-//                    Luis Manuel Diaz Angulo         (lmdiazangulo@semba.guru)
-//                    Miguel David Ruiz-Cabello Nuñez (miguel@semba.guru)
-//                    Daniel Mateos Romero            (damarro@semba.guru)
-//
-// This file is part of OpenSEMBA.
-//
-// OpenSEMBA is free software: you can redistribute it and/or modify it under
-// the terms of the GNU Lesser General Public License as published by the Free
-// Software Foundation, either version 3 of the License, or (at your option)
-// any later version.
-//
-// OpenSEMBA is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-// details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-
 #include "gtest/gtest.h"
 #include "jacobi/Rule.h"
 
 #include <type_traits>
+#include <array>
 
 using namespace SEMBA;
 using namespace Math;
-using namespace Cudg3d;
+using namespace dgtd::jacobi;
 
-class JacobiRuleTest : public ::testing::Test {};
+class RuleTest : public ::testing::Test {};
 
-TEST_F(JacobiRuleTest, QuadraturePointsAndWeights) {
+TEST_F(RuleTest, QuadraturePointsAndWeights) {
 
     std::pair<Real,Real> interval(-1.0, 1.0);
     {
         const size_t n = 1;
         std::pair<Real,Real> alphabeta(1.0, 1.0);
-        Jacobi::Rule rule(n, alphabeta, interval);
+        Rule rule(n, alphabeta, interval);
         std::array<Real,n> expectedPoints = { 0 };
 
         std::array<Real,n> expectedWeights = { 1.3333334 };
@@ -53,7 +33,7 @@ TEST_F(JacobiRuleTest, QuadraturePointsAndWeights) {
     {
         const size_t n = 2;
         std::pair<Real,Real> alphabeta(1.0, 1.0);
-        Jacobi::Rule rule(n, alphabeta, interval);
+        Rule rule(n, alphabeta, interval);
         std::array<Real,n> expectedPoints = {
                 -0.447213595499958,
                  0.447213595499958};
@@ -74,7 +54,7 @@ TEST_F(JacobiRuleTest, QuadraturePointsAndWeights) {
     {
         const size_t n = 3;
         std::pair<Real,Real> alphabeta(1.0, 1.0);
-        Jacobi::Rule rule(n, alphabeta, interval);
+        Rule rule(n, alphabeta, interval);
         std::array<Real,n> expectedPoints = {
                 -0.654653670707977    ,
                  6.982261990806649e-17,
@@ -118,7 +98,7 @@ TEST_F(JacobiRuleTest, QuadraturePointsAndWeights) {
                 0.10214770236035860,
                 0.02059009564912179};
 
-        Jacobi::Rule rule(n, alphabeta, interval);
+        Rule rule(n, alphabeta, interval);
         auto computedPoints  = rule.getPoints();
         auto computedWeights = rule.getWeights();
 
@@ -152,7 +132,7 @@ TEST_F(JacobiRuleTest, QuadraturePointsAndWeights) {
                  0.2223810344533742,
                  0.1012285362903759};
 
-        Jacobi::Rule rule(n, alphabeta, interval);
+        Rule rule(n, alphabeta, interval);
         auto computedPoints  = rule.getPoints();
         auto computedWeights = rule.getWeights();
 

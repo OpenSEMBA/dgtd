@@ -4,9 +4,13 @@
 #include "math/matrix/Dynamic.h"
 #include "math/util/SpaceGenerator.h"
 
+#include <cmath>
+
 namespace SEMBA::dgtd::jacobi {
 
 using namespace Math;
+
+using DynMatR = Matrix::Dynamic<Real>;
 
 template <size_t N>
 class Triangle {
@@ -140,7 +144,7 @@ std::vector<Real> Triangle<N>::warpFactor_(const std::vector<Real>& rOut) {
     DynMatR rEqVec(rEq.size(), 1);
     rEqVec.cpToCol(0, rEq);
     DynMatR warp;
-    warp = Lmat * (LGLrVec - rEqVec);
+    warp = Lmat * (LGLrVec + rEqVec * (-1.0));
 
     // Scale factor.
     // TODO
