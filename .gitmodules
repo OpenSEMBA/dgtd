@@ -1,3 +1,0 @@
-[submodule "core"]
-	path = external/core
-	url = https://github.com/OpenSEMBA/core.git
