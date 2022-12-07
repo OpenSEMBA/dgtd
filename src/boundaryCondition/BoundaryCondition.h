@@ -1,5 +1,4 @@
-#ifndef BOUNDARYCONDITION_H_
-#define BOUNDARYCONDITION_H_
+#pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,8 +6,6 @@
 #include <cmath>
 #include <vector>
 #include <utility>
-
-using namespace std;
 
 #include "geometry/element/Element.h"
 #include "physicalModel/PhysicalModel.h"
