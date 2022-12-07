@@ -4,7 +4,7 @@
 #include "solver/Options.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 
 class Options {
 public:

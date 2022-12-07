@@ -7,7 +7,7 @@
 #include "Volume.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace Mesh {
 
 Volume::Volume(const Geometry::Mesh::Unstructured& uns) {

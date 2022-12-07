@@ -28,7 +28,7 @@
 //#include "Integrator.h"
 //
 //namespace SEMBA {
-//namespace Cudg3d {
+//namespace dgtd {
 //namespace Integrator {
 //
 //Integrator::Integrator() {

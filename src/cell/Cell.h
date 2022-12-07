@@ -1,7 +1,7 @@
 #pragma once
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace Cell {
 
 class Cell {

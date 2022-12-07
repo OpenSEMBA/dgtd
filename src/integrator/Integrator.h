@@ -41,7 +41,7 @@
 //#include "DG.h"
 //
 //namespace SEMBA {
-//namespace Cudg3d {
+//namespace dgtd {
 //namespace Integrator {
 //
 //typedef pair<size_t,size_t> Interval;

@@ -1,7 +1,7 @@
 #include "Group.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace Cell {
 
 Group::Group(const VolumeMesh& mesh, const PMGroup& pMGroup) 

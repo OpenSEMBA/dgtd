@@ -1,8 +1,6 @@
 #pragma once 
 
-namespace SEMBA {
-namespace Cudg3d {
-namespace DG {
+namespace SEMBA::dgtd::dg {
 
 //class Explicit {
 //public:
@@ -148,6 +146,4 @@ namespace DG {
 //    void buildCurvedFluxScalingFactors(const CellGroup& cells, const Connectivities& map);
 //};
 
-}
-}
 }

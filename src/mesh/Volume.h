@@ -3,7 +3,7 @@
 #include "geometry/mesh/Unstructured.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace Mesh {
 
 class Volume : public SEMBA::Geometry::Mesh::Unstructured {

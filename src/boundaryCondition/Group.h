@@ -8,7 +8,7 @@
 #include "geometry/element/Hexahedron8.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace BoundaryCondition {
 
 template<typename T = Base>

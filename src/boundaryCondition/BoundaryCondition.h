@@ -12,7 +12,7 @@
 #include "source/Source.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace BoundaryCondition {
 //
 //class Base {

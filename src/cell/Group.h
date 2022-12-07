@@ -4,7 +4,7 @@
 #include "mesh/Volume.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace Cell {
 
 class Group {

@@ -1,7 +1,7 @@
 #include "None.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 namespace Communications {
 
 //Math::Int None::getNumberOfTasks() const {

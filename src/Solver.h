@@ -9,8 +9,7 @@
 //#include "communications/None.h"
 //#include "mesh/Volume.h"
 
-namespace SEMBA {
-namespace Cudg3d {
+namespace SEMBA::dgtd {
 
 class Solver {
 public:
@@ -33,6 +32,3 @@ private:
 };
 
 }
-}
-
-#endif

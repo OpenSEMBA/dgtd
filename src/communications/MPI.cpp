@@ -1,9 +1,10 @@
 #include "MPI.h"
 //
 //namespace SEMBA {
-//namespace Cudg3d {
-//namespace Communications {
-//
+#include "MPI.h"
+
+namespace SEMBA::dgtd::communications {
+
 //MPI::MPI() {
 //	world = MPI_COMM_WORLD;
 //	Math::Int rc = MPI_Init(NULL, NULL);
@@ -572,6 +573,4 @@
 //	return res;
 //}
 //
-//}
-//}
-//}
+}

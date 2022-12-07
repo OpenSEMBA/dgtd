@@ -1,7 +1,7 @@
 #include "Options.h"
 
 namespace SEMBA {
-namespace Cudg3d {
+namespace dgtd {
 
 void Options::printHelp() const {
     SEMBA::Solver::Options::printHelp();

@@ -1,12 +1,9 @@
 #include "Communications.h"
 
-namespace SEMBA {
-namespace Cudg3d {
-namespace Communications {
+namespace SEMBA::dgtd::communications {
 
 class None : public Communications {
 public:
-
 //    Math::Int getNumberOfTasks() const;
 //    void abort() const;
 //    bool isMaster() const;
@@ -33,6 +30,4 @@ public:
 //    void initNeighbourFields(const vector<ElemId>& nIds);
 };
 
-}
-}
 }

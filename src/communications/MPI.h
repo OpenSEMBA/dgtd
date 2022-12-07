@@ -3,9 +3,7 @@
 #include "MPI.h"
 #include "Communications.h"
 
-namespace SEMBA {
-namespace Cudg3d {
-namespace Communications {
+namespace SEMBA::dgtd::communications {
 
 //class MPI : public Communications {
 //public:
@@ -105,6 +103,4 @@ namespace Communications {
 //	 getThreadsOfTasks() const;
 //};
 
-}
-}
 }

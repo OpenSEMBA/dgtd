@@ -4,9 +4,7 @@
 #include <assert.h>
 #include <vector>
 
-namespace SEMBA {
-namespace Cudg3d {
-namespace Communications {
+namespace SEMBA::dgtd::communications {
 
 class Communications {
 public:
@@ -33,6 +31,4 @@ public:
 //    virtual void printInfo() const = 0;
 };
 
-}
-}
 }

@@ -1,8 +1,7 @@
 #include "Solver.h"
 
 namespace SEMBA {
-namespace Cudg3d {
-namespace Solver {
+namespace dgtd {
 
 Solver::Solver(Data* raw) {
     // Smb data adaptation and validation.
@@ -62,6 +61,5 @@ bool Solver::run() {
 //    return res;
 //}
 
-}
 }
 }

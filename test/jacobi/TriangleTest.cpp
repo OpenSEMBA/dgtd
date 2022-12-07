@@ -26,7 +26,7 @@
 
 using namespace SEMBA;
 using namespace Math;
-using namespace Cudg3d::Jacobi;
+using namespace dgtd::Jacobi;
 
 class JacobiTriangleTest : public ::testing::Test {
     template<size_t N> friend class Triangle;
