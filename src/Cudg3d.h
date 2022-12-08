@@ -2,7 +2,7 @@
 
 #include "ProblemDescription.h"
 
-//#include "dg/Explicit.h"
+#include "dg/Evolution.h"
 //#include "communications/None.h"
 
 namespace SEMBA::dgtd {
@@ -15,15 +15,14 @@ public:
             lserk4, verlet, lf2, lf2full
         };
 
-        Math::Real upwinding{ 1.0 };
         TimeIntegrator timeIntegrator{ TimeIntegrator::lserk4 };
         bool useLTS{ true };
         std::size_t growSmallerTiers = 0;
         std::size_t maxNumberOfTiers = 0;
         bool useMaxStageSizeForLTS = false;
-        bool PMLConstantConductivityProfile = false;
-        Math::Real PMLConductivity = 0.0;
         Math::Real finalTime = 30e-9;
+
+        dg::Evolution::Options evolution;
     };
 
     Cudg3d(const UnstructuredProblemDescription&, const Options&);
@@ -33,7 +32,7 @@ private:
     Options options_;
 //    Communications::Comm *comm_;
 //    Integrator *integrator_;
-//    DG *dg_;
+    std::unique_ptr<dg::Evolution> dg_;
 
 //    Integrator* initIntegrator(
 //            const Mesh::Volume* mesh,

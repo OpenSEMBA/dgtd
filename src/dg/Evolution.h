@@ -1,21 +1,25 @@
 #pragma once 
 
+#include "model/Model.h"
+#include "source/Group.h"
+
 namespace SEMBA::dgtd::dg {
 
-//class Explicit {
-//public:
-//    Explicit(
-//            const Mesh::Volume& mesh,
-//            const PMGroup& pMGroup,
-//            const EMSourceGroup& emsources,
-//            const OptionsSolverDGTD& options,
-//            Comm* comm);
-//    virtual ~DGExplicit();
+using Model = SEMBA::Model::UnstructuredModel;
+using EMSourceGroup = SEMBA::SourceGroup;
+
+class Evolution {
+public:
+	struct Options {
+		Math::Real upwinding{ 1.0 };
+		bool PMLConstantConductivityProfile = false;
+		Math::Real PMLConductivity = 0.0;
+	};
+    Evolution(const Model&, const EMSourceGroup&, const Options&);
 //    size_t getFieldDOFs();
 //    const FieldR3& getRHSElectric() const;
 //    const FieldR3& getRHSMagnetic() const;
-//    void printInfo() const;
-//protected:
+private:
 //    void computeRHS(
 //            const size_t e1,
 //            const size_t e2,
@@ -144,6 +148,6 @@ namespace SEMBA::dgtd::dg {
 //    void assignMatrices(const CellGroup& cells);
 //    void allocateFieldsForLTS();
 //    void buildCurvedFluxScalingFactors(const CellGroup& cells, const Connectivities& map);
-//};
+};
 
 }

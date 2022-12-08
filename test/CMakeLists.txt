@@ -13,7 +13,8 @@ add_executable(dgtd_tests  " "
 
 target_link_libraries(dgtd_tests 
 	dgtd_solver
-	opensemba_core opensemba_parsers
+	dgtd_dg
+	opensemba_parsers
 	GTest::gtest GTest::gtest_main
 )
 

@@ -1,6 +1,6 @@
-#include "Explicit.h"
-//
-//Explicit::Explicit(
+#include "Evolution.h"
+
+//Evolution::Explicit(
 //        const Mesh::Volume& mesh,
 //        const PMGroup& pMGroup,
 //        const EMSourceGroup& emSources,
@@ -31,39 +31,25 @@
 //    buildScalingFactors(cells, map);
 //}
 //
-//DGExplicit::~DGExplicit() {
-//
-//}
-//
-//size_t DGExplicit::getFieldDOFs() {
+//size_t Evolution::getFieldDOFs() {
 //    return (nK * np * 3);
 //}
 //
-//const FieldR3& DGExplicit::getRHSElectric() const {
+//const FieldR3& Evolution::getRHSElectric() const {
 //    return rhsE;
 //}
 //
-//const FieldR3& DGExplicit::getRHSMagnetic() const {
+//const FieldR3& Evolution::getRHSMagnetic() const {
 //    return rhsH;
 //}
-//
-//void DGExplicit:: printInfo() const {
-//    cout<< " --- SolverExplicit info ---" << endl;
-//    cout<< "- Boundary conditions: " << endl;
-//    cout<< "# SMA: " << nSMA << endl;
-//    cout<< "# PEC: " << nPEC << endl;
-//    cout<< "# PMC: " << nPMC << endl;
-//    cout<< "# Of Curved Faces: " << nCurvedFaces << endl;
-//}
-//
-//void DGExplicit::computePolarizationCurrentsRHS(
+//void Evolution::computePolarizationCurrentsRHS(
 //        const size_t e1,
 //        const size_t e2) {
 //    computePolarizationCurrentsRHSElectric(e1,e2);
 //    computePolarizationCurrentsRHSMagnetic(e1,e2);
 //}
 //
-//void DGExplicit::computePolarizationCurrentsRHSElectric(
+//void Evolution::computePolarizationCurrentsRHSElectric(
 //        const size_t e1, const size_t e2) {
 //    for (size_t d = 0; d < dispersive.size(); d++) {
 //        dispersive[d]->computeRHSElectricPolarizationCurrents(E, e1, e2);
@@ -71,7 +57,7 @@
 //    }
 //}
 //
-//void DGExplicit::computePolarizationCurrentsRHSMagnetic(
+//void Evolution::computePolarizationCurrentsRHSMagnetic(
 //        const size_t e1, const size_t e2) {
 //    for (size_t d = 0; d < dispersive.size(); d++) {
 //        dispersive[d]->computeRHSMagneticPolarizationCurrents(H, e1, e2);
@@ -79,7 +65,7 @@
 //    }
 //}
 //
-//void DGExplicit::computeRHS(
+//void Evolution::computeRHS(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real localTime,
@@ -88,7 +74,7 @@
 //    computeRHSMagnetic(e1,e2, localTime,minDT);
 //}
 //
-//void DGExplicit::computeRHSElectric(
+//void Evolution::computeRHSElectric(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real localTime,
@@ -105,7 +91,7 @@
 //    }
 //}
 //
-//void DGExplicit::computeRHSMagnetic(
+//void Evolution::computeRHSMagnetic(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real localTime,
@@ -122,7 +108,7 @@
 //    }
 //}
 //
-//void DGExplicit::computeCurlsInRHSElectric(
+//void Evolution::computeCurlsInRHSElectric(
 //        const size_t e1,
 //        const size_t e2) {
 //    size_t i, e;
@@ -142,7 +128,7 @@
 //    }
 //}
 //
-//void DGExplicit::computeCurlsInRHSMagnetic(
+//void Evolution::computeCurlsInRHSMagnetic(
 //        const size_t e1,
 //        const size_t e2) {
 //    size_t i, e;
@@ -161,7 +147,7 @@
 //        add_m_v_prod<Math::Real,np,np>(&rhsH.set(z)[i], Cy[e], &E(x)[i]);
 //    }
 //}
-//void DGExplicit::computeJumps(
+//void Evolution::computeJumps(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real localTime,
@@ -259,21 +245,21 @@
 //    }
 //}
 //
-//void DGExplicit::addFluxesToRHSElectric(
+//void Evolution::addFluxesToRHSElectric(
 //        const size_t e1,
 //        const size_t e2) {
 //    static const bool useResForUpw = false;
 //    addFluxesToRHSElectric(e1,e2,useResForUpw);
 //}
 //
-//void DGExplicit::addFluxesToRHSMagnetic(
+//void Evolution::addFluxesToRHSMagnetic(
 //        const size_t e1,
 //        const size_t e2) {
 //    static const bool useResForUpw = false;
 //    addFluxesToRHSMagnetic(e1,e2,useResForUpw);
 //}
 //
-//void DGExplicit::addFluxesToRHSElectric(
+//void Evolution::addFluxesToRHSElectric(
 //        const size_t e1,
 //        const size_t e2,
 //        const bool useResForUpw) {
@@ -281,7 +267,7 @@
 //    addCurvedFluxesToRHSElectric(e1,e2,useResForUpw);
 //}
 //
-//void DGExplicit::addFluxesToRHSMagnetic(
+//void Evolution::addFluxesToRHSMagnetic(
 //        const size_t e1,
 //        const size_t e2,
 //        const bool useResForUpw) {
@@ -289,7 +275,7 @@
 //    addCurvedFluxesToRHSMagnetic(e1,e2,useResForUpw);
 //}
 //
-//void DGExplicit::addStraightFluxesToRHSElectric(
+//void Evolution::addStraightFluxesToRHSElectric(
 //        const size_t e1,
 //        const size_t e2,
 //        const bool useResForUpw) {
@@ -419,7 +405,7 @@
 //    }
 //}
 //
-//void DGExplicit::addStraightFluxesToRHSMagnetic (
+//void Evolution::addStraightFluxesToRHSMagnetic (
 //        const size_t e1,
 //        const size_t e2,
 //        const bool useResForUpw) {
@@ -543,7 +529,7 @@
 //        }
 //    }
 //}
-//void DGExplicit::addCurvedFluxesToRHSElectric(
+//void Evolution::addCurvedFluxesToRHSElectric(
 //        const size_t e1,
 //        const size_t e2,
 //        const bool useResForUpw) {
@@ -557,7 +543,7 @@
 //    }
 //}
 //
-//void DGExplicit::addCurvedFluxesToRHSMagnetic(
+//void Evolution::addCurvedFluxesToRHSMagnetic(
 //        const size_t e1,
 //        const size_t e2,
 //        const bool useResForUpw) {
@@ -571,7 +557,7 @@
 //    }
 //}
 //
-//void DGExplicit::addRHSToFieldsElectric(
+//void Evolution::addRHSToFieldsElectric(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real rkdt) {
@@ -580,7 +566,7 @@
 //    E.addProd_omp(init, end, getRHSElectric(), rkdt);
 //}
 //
-//void DGExplicit::addRHSToFieldsMagnetic(
+//void Evolution::addRHSToFieldsMagnetic(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real rkdt) {
@@ -589,14 +575,14 @@
 //    H.addProd_omp(init, end, getRHSMagnetic(), rkdt);
 //}
 //
-//void DGExplicit::allocateRHSAndJumps() {
+//void Evolution::allocateRHSAndJumps() {
 //    rhsE.setSize(getFieldDOFs()/3);
 //    rhsH.setSize(getFieldDOFs()/3);
 //    dE.setSize(nK*nfp*4);
 //    dH.setSize(nK*nfp*4);
 //}
 //
-//void DGExplicit::allocateMaps() {
+//void Evolution::allocateMaps() {
 //    ExP = new Math::Real**[nK];
 //    EyP = new Math::Real**[nK];
 //    EzP = new Math::Real**[nK];
@@ -628,7 +614,7 @@
 //    }
 //}
 //
-//void DGExplicit::assignMatrices(const CellGroup& cells) {
+//void Evolution::assignMatrices(const CellGroup& cells) {
 //    // Assigns matrices.
 //    Cx = new const Math::Real*[nK];
 //    Cy = new const Math::Real*[nK];
@@ -682,7 +668,7 @@
 ////#	endif
 //}
 //
-//void DGExplicit::assignPointersToNeighbours(
+//void Evolution::assignPointersToNeighbours(
 //        const CellGroup& cells,
 //        const Connectivities& map,
 //        const Mesh::Volume& mesh) {
@@ -747,7 +733,7 @@
 //    assert(checkPtrsToNeigh());
 //}
 //
-//vector<const BoundaryCondition*> DGExplicit::removeNonLocalBCs(
+//vector<const BoundaryCondition*> Evolution::removeNonLocalBCs(
 //        const CellGroup* cells,
 //        const vector<const BoundaryCondition*>& bc) const {
 //    vector<const BoundaryCondition*> res;
@@ -761,7 +747,7 @@
 //    return res;
 //}
 //
-//void DGExplicit::BCToLocalArray(
+//void Evolution::BCToLocalArray(
 //        const BCGroup& bc,
 //        const CellGroup& cells,
 //        const Connectivities& map) {
@@ -841,7 +827,7 @@
 //    //    }
 //}
 //
-//void DGExplicit::buildEMSources(
+//void Evolution::buildEMSources(
 //        const EMSourceGroup& em,
 //        const BCGroup& bc,
 //        const Connectivities& maps,
@@ -871,7 +857,7 @@
 //
 //
 //
-//void DGExplicit::buildScalingFactors(
+//void Evolution::buildScalingFactors(
 //        const CellGroup& cells,
 //        const Connectivities& map) {
 //    buildFieldScalingFactors(cells);
@@ -879,7 +865,7 @@
 //    buildCurvedFluxScalingFactors(cells, map);
 //}
 //
-//void DGExplicit::buildCurvedFluxScalingFactors(
+//void Evolution::buildCurvedFluxScalingFactors(
 //        const CellGroup& cells,
 //        const Connectivities& map) {
 //    // Counts curved faces.
@@ -928,7 +914,7 @@
 //    }
 //}
 //
-//void DGExplicit::buildMaterials(
+//void Evolution::buildMaterials(
 //        const CellGroup& cells,
 //        const OptionsSolverDGTD& arg) {
 //    //    // Creates Dispersive materials vars parameters and stores ptrs.
@@ -971,7 +957,7 @@
 //    //    }
 //}
 //
-//bool DGExplicit::checkPtrsToNeigh() const {
+//bool Evolution::checkPtrsToNeigh() const {
 //    bool res = true;
 //    for (size_t e = 0; e < nK; e++) {
 //        for (size_t f = 0; f < faces; f++) {
@@ -993,7 +979,7 @@
 //    return res;
 //}
 //
-//void DGExplicit::deduplicateVMaps(const CellGroup& cells) {
+//void Evolution::deduplicateVMaps(const CellGroup& cells) {
 //    // --- Copies vmapM -----------------------------------------------
 //    SimplexTet<ORDER_N> tet;
 //    for (size_t f = 0; f < faces; f++) {
@@ -1077,7 +1063,7 @@
 //}
 //
 ////vector<const BoundaryCondition*>
-////DGExplicit::removeNonLocalBCs(
+////Evolution::removeNonLocalBCs(
 ////        const CellGroup* cells,
 ////        const vector<const BoundaryCondition*>& bc) const {
 ////    vector<const BoundaryCondition*> res;
@@ -1091,7 +1077,7 @@
 ////    return res;
 ////}
 //
-//void DGExplicit::LTSSaveFieldsAndResidues(
+//void Evolution::LTSSaveFieldsAndResidues(
 //        const size_t fKSave,
 //        const size_t lKSave) {
 //    const size_t init = fKSave * np;
@@ -1102,7 +1088,7 @@
 //    savedResH.copy(init, end, resH);
 //}
 //
-//void DGExplicit::LTSLoadFieldsAndResidues(
+//void Evolution::LTSLoadFieldsAndResidues(
 //        const size_t fKLoad,
 //        const size_t lKLoad) {
 //    const size_t init = fKLoad * np;
@@ -1114,7 +1100,7 @@
 //}
 //
 //
-//void DGExplicit::allocateFieldsForLTS() {
+//void Evolution::allocateFieldsForLTS() {
 //    dresE.setSize(nK*nfp*4);
 //    dresH.setSize(nK*nfp*4);
 //    savedE.setSize(getFieldDOFs()/3);
@@ -1123,7 +1109,7 @@
 //    savedResH.setSize(getFieldDOFs()/3);
 //}
 //
-//void DGExplicit::copyJumpsToResidueJumps(
+//void Evolution::copyJumpsToResidueJumps(
 //        const size_t e1,
 //        const size_t e2) {
 //    size_t i, j, f, e;
@@ -1145,7 +1131,7 @@
 //}
 //
 //
-//void DGExplicit::addRHSToResidueElectric(
+//void Evolution::addRHSToResidueElectric(
 //        const size_t e1, const size_t e2,	const Math::Real rkdt) {
 //    size_t i, j, e;
 //#pragma omp parallel for private(i,j,e)
@@ -1160,7 +1146,7 @@
 //    }
 //}
 //
-//void DGExplicit::addRHSToResidueMagnetic(
+//void Evolution::addRHSToResidueMagnetic(
 //        const size_t e1, const size_t e2, const Math::Real rkdt) {
 //    size_t i, j, e;
 //#pragma omp parallel for private(i,j,e)
@@ -1175,7 +1161,7 @@
 //    }
 //}
 //
-//void DGExplicit::updateFieldsWithRes(
+//void Evolution::updateFieldsWithRes(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real rkb) {
@@ -1185,7 +1171,7 @@
 //    }
 //}
 //
-//void DGExplicit::addRHSToRes(
+//void Evolution::addRHSToRes(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real rka,

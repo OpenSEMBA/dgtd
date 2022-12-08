@@ -3,25 +3,18 @@
 namespace SEMBA {
 namespace dgtd {
 
-Cudg3d::Cudg3d(const UnstructuredProblemDescription& raw, const Options& opts) 
+Cudg3d::Cudg3d(const UnstructuredProblemDescription& raw, const Options& opts)
 {
     // Smb data adaptation and validation.
     //    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
-    //Data smb;
-    //    AdapterDGTD(*raw).convert(smb); TODO Adapt OutRqs on Volumes.
+    //    AdapterDGTD(*raw).convert(smb);
+     
+    dg_ = std::make_unique<dg::Evolution>(raw.model, raw.sources, opts.evolution);
     // Time integrator initialization.
     //    options_ = smb.solverOptions->castTo<OptionsSolverDGTD>();
     //    integrator_ = initIntegrator(&mesh, smb.pMGroup, options_);
     //    integrator_->partitionate(&mesh, comm_);
-    // Spatial discretization.
-    //    dg_ = new DGExplicit(mesh, *smb.physicalModels, *smb.sources, *options_, comm_);
-    //    dg_->setOutputRequests(smb.outputRequests);
     //    integrator_->setSolver(dg_);
-    // Exporter initialization.
-    //    cout << " - Initializing exporter... " << flush;
-    //    const string outputFilename = smb.getOutputFilename();
-    //    exporter_ = new ExporterGiD(smb, outputFilename, outputs_);
-    //    cout << "[OK]" << endl;
 }
 
 void Cudg3d::run() {
