@@ -1,12 +1,13 @@
-#include "Solver.h"
+#include "Cudg3d.h"
 
 namespace SEMBA {
 namespace dgtd {
 
-Solver::Solver(Data* raw) {
+Cudg3d::Cudg3d(const UnstructuredProblemDescription& raw, const Options& opts) 
+{
     // Smb data adaptation and validation.
     //    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
-    Data smb;
+    //Data smb;
     //    AdapterDGTD(*raw).convert(smb); TODO Adapt OutRqs on Volumes.
     // Time integrator initialization.
     //    options_ = smb.solverOptions->castTo<OptionsSolverDGTD>();
@@ -21,19 +22,17 @@ Solver::Solver(Data* raw) {
     //    const string outputFilename = smb.getOutputFilename();
     //    exporter_ = new ExporterGiD(smb, outputFilename, outputs_);
     //    cout << "[OK]" << endl;
-
 }
 
-bool Solver::run() {
+void Cudg3d::run() {
     Math::Real time = 0.0;
-    while (time < options_->getFinalTime()) {
+    while (time < options_.finalTime) {
         //        dg_->update(outputs_);
         //        exporter_->process(time, outputs_);
     }
-    return true;
 }
 
-//Integrator* Solver::initIntegrator(
+//Integrator* Cudg3d::initIntegrator(
 //        const Mesh::Volume* mesh,
 //        const PMGroup* pMGroup,
 //        const Options* arg) {

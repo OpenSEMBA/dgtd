@@ -1,3 +1,6 @@
 [submodule "external/core"]
 	path = external/core
 	url = https://github.com/OpenSEMBA/core.git
+[submodule "external/maxwell"]
+	path = external/maxwell
+	url = https://github.com/OpenSEMBA/maxwell.git

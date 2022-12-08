@@ -183,10 +183,14 @@ Matrix::Dynamic<Real> Triangle<N>::getVandermondeMatrix(
 
 template <size_t N>
 Matrix::Dynamic<Real> Triangle<N>::getGradVandermondeMatrix(
-    const std::vector<CVecR2>& x) const {
-    Matrix::Dynamic<Real> res(x.size(), N + 1);
-    for (size_t i = 0; i < (N + 1); ++i) {
-        res.cpToCol(i, this->evaluateGradPolynomialAt(x, i));
+    const std::vector<CVecR2>& rs) const {
+    Matrix::Dynamic<Real> res(rs.size(), N + 1);
+    std::vector<CVecR2> ab = rsToab_(rs);
+    size_t sk = 0;
+    for (size_t i = 0; i < np; ++i) {
+        for (size_t j = 0; j < np - i; ++j) {
+            res.cpToCol(sk++, this->evaluateGradPolynomialAt(ab, { i,j }));
+        }
     }
     return res;
 }
@@ -213,16 +217,20 @@ Matrix::Dynamic<Real> Triangle<N>::getLiftMatrix(
 template <size_t N>
 std::vector<Real> Triangle<N>::evaluateGradPolynomialAt(
     const std::vector<CVecR2>& rs,
-    const std::pair<size_t, size_t> ij) {
-    //    if (n == 0) {
-    //        return std::vector<Real>(rs.size(), 0.0);;
-    //    } else {
-    //        auto res = evaluatePolynomialAt(rs, n-1);
-    //        for (size_t i = 0; i < res.size(); ++i) {
-    //            res[i] *= sqrt(n*(n + 1));
-    //        }
-    //        return res;
-    //    }
+    const std::pair<size_t, size_t> ij) 
+{
+    if (N == 0) {
+        return std::vector<Real>(rs.size(), 0.0);;
+    } else {
+        std::vector<Real> res = evaluatePolynomialAt(rs, N-1);
+        size_t sk = 0;
+        for (size_t i = 0; i < np; ++i) {
+            for (size_t j = 0; j < np - i; ++j) {
+                res[sk++] *= sqrt(N * (N + 1));
+            }
+        }
+        return res;
+    }
 }
 
 template <size_t N>
