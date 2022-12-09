@@ -33,8 +33,8 @@ std::unique_ptr<integrator::TimeIntegrator> Cudg3d::buildIntegrator(
     switch (opts.timeIntegrator) {
     case timeIntegratorType::lserk4:
         return std::make_unique<integrator::LSERK4>(dg, opts);
-    case timeIntegratorType::lf2:
-        return std::make_unique<integrator::LF2>(dg, opts);    
+    //case timeIntegratorType::lf2:
+    //    return std::make_unique<integrator::LF2>(dg, opts);    
     default:
         throw std::logic_error("Undefined time integrator.");
     }

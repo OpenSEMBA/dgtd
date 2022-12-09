@@ -1,6 +1,8 @@
 #pragma once
 
-namespace SEMBA::integrator {
+#include "dg/Evolution.h"
+
+namespace SEMBA::dgtd::integrator {
 
 typedef std::pair<size_t,size_t> Interval;
 
@@ -37,10 +39,15 @@ public:
     //        const Mesh::Volume* msh) const;
     //void partitionate(const Mesh::Volume* mesh, Communications::Comm* comm);
 
-//protected:
-//    Math::Real cfl_;
+private:
+    Options opts_;
+//    static const size_t noTier = 0;
+//    static const size_t noStage = 0;
+//    static const size_t growStages = 1;
+//    size_t nTiers_;
+//    pair<size_t,size_t> **tierRange_;
+//    vector<vector<Geometry::ElemId>> partIds_;
 //    DG* solver;
-//    bool doLTS;
 //    Math::Matrix::Dynamic<size_t> timeTierList_; // Id - Tier - Stage
 //    Math::Real mindt;
 //    void init(
@@ -57,15 +64,7 @@ public:
 //    virtual Math::Real getMaxTimeRatio() const = 0;
 //    vector<Geometry::ElemId> getIdsOfTier(const size_t tier) const;
 //    vector<Geometry::ElemId> getIdsOfStage(const size_t stage) const;
-//private:
-//    static const size_t noTier = 0;
-//    static const size_t noStage = 0;
-//    static const size_t growStages = 1;
-//    size_t growSmallerTiers;
-//    size_t maxNumOfTiers;
-//    size_t nTiers_;
-//    pair<size_t,size_t> **tierRange_;
-//    vector<vector<Geometry::ElemId>> partIds_;
+
 //    void reorder(
 //            const vector<vector<Geometry::ElemId>>& partitionsIds_,
 //            const size_t localOffset,

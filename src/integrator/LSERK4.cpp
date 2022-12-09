@@ -1,8 +1,9 @@
 #include "LSERK4.h"
 
-namespace SEMBA::integrator {
+namespace SEMBA::dgtd::integrator {
 
-const std::array<Math::Real, 5> rka{
+const std::size_t nStages{ 5 };
+const std::array<Math::Real, nStages> rka{
     0.0,
     -567301805773.0/1357537059087.0,
     -2404267990393.0/2016746695238.0,
@@ -10,38 +11,32 @@ const std::array<Math::Real, 5> rka{
     -1275806237668.0/842570457699.0
 };
 
-const Math::Real IntegratorLSERK::rkb[IntegratorLSERK::nStages] = {
-        1432997174477.0/9575080441755.0,
-        5161836677717.0/13612068292357.0,
-        1720146321549.0/2090206949498.0,
-        3134564353537.0/4481467310338.0,
-        2277821191437.0/14882151754819.0};
+const std::array<Math::Real, nStages> rkb{
+    1432997174477.0/9575080441755.0,
+    5161836677717.0/13612068292357.0,
+    1720146321549.0/2090206949498.0,
+    3134564353537.0/4481467310338.0,
+    2277821191437.0/14882151754819.0
+};
 
-const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
-        0.0,
-        1432997174477.0/9575080441755.0,
-        2526269341429.0/6820363962896.0,
-        2006345519317.0/3224310063776.0,
-        2802321613138.0/2924317926251.0 };
-//
-//IntegratorLSERK::IntegratorLSERK() {
-//    useMaxStageSizeForLTS = false;
-//}
-//
-//IntegratorLSERK::IntegratorLSERK(
-//        const Mesh::Volume& mesh,
-//        const PMGroup& pmGroup,
-//        const OptionsSolverDGTD* arg) {
-//    cfl_ = arg->getCFL();
-//    buildRKConstants();
-//    useMaxStageSizeForLTS = arg->isUseMaxStageSizeForLTS();
-//    init(mesh, pmGroup, arg);
-//}
-//
-//IntegratorLSERK::~IntegratorLSERK() {
-//}
-//
-//void IntegratorLSERK::timeIntegrate(const Math::Real time) const {
+const std::array<Math::Real, nStages> rkc{
+    0.0,
+    1432997174477.0/9575080441755.0,
+    2526269341429.0/6820363962896.0,
+    2006345519317.0/3224310063776.0,
+    2802321613138.0/2924317926251.0 
+};
+
+LSERK4::LSERK4(const dg::Evolution& dg, const Options& opts):
+    TimeIntegrator{opts}
+{
+    //cfl_ = opts.;
+    //buildRKConstants();
+    //useMaxStageSizeForLTS = arg->isUseMaxStageSizeForLTS();
+    //init(mesh, pmGroup, arg);
+}
+
+//void LSERK4::timeIntegrate(const Math::Real time) const {
 //    assert(solver != NULL);
 //    Math::Real dt = getMaxDT();
 //    if (doLTS) {
@@ -58,7 +53,7 @@ const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
 //    }
 //}
 //
-//size_t IntegratorLSERK::getNumOfIterationsPerBigTimeStep(
+//size_t LSERK4::getNumOfIterationsPerBigTimeStep(
 //        const size_t e) const {
 //    size_t nTiers = getNTiers();
 //    size_t nStages = getNStages();
@@ -74,32 +69,32 @@ const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
 //}
 //
 //size_t
-//IntegratorLSERK::getNStages() const {
+//LSERK4::getNStages() const {
 //    return nStages;
 //}
 //
 //Math::Real
-//IntegratorLSERK::getRKA(const size_t s) const {
+//LSERK4::getRKA(const size_t s) const {
 //    return rka[s];
 //}
 //
 //Math::Real
-//IntegratorLSERK::getRKB(const size_t s) const {
+//LSERK4::getRKB(const size_t s) const {
 //    return rkb[s];
 //}
 //
 //Math::Real
-//IntegratorLSERK::getRKC(const size_t s) const {
+//LSERK4::getRKC(const size_t s) const {
 //    return rkc[s];
 //}
 //
 //Math::Real
-//IntegratorLSERK::getStageSize(const size_t s) const {
+//LSERK4::getStageSize(const size_t s) const {
 //    return stageSize[s];
 //}
 //
 //void
-//IntegratorLSERK::buildRKConstants() {
+//LSERK4::buildRKConstants() {
 //    for (size_t i = 1; i <= nStages; i++) {
 //        stageSize[i-1] = rkc[i] - rkc[i-1];
 //    }
@@ -107,7 +102,7 @@ const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
 //}
 //
 //Math::Real
-//IntegratorLSERK::getMaxStageSize() const {
+//LSERK4::getMaxStageSize() const {
 //    DynMatrix<Math::Real> aux(nStages,1);
 //    for (size_t i = 0; i < nStages; i++) {
 //        aux(i,0) = stageSize[i];
@@ -117,7 +112,7 @@ const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
 //}
 //
 //Math::Real
-//IntegratorLSERK::getMaxTimeRatio() const {
+//LSERK4::getMaxTimeRatio() const {
 //    if (useMaxStageSizeForLTS) {
 //        return getMaxStageSize();
 //    } else {
@@ -127,7 +122,7 @@ const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
 //
 //
 //void
-//IntegratorLSERK::LTSTimeIntegration(
+//LSERK4::LTSTimeIntegration(
 //        const Math::Real time,
 //        Math::Real localTime,
 //        Math::Real localdt,
@@ -164,7 +159,7 @@ const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
 //}
 //
 //void
-//IntegratorLSERK::updateResiduals(
+//LSERK4::updateResiduals(
 //        const size_t e1,
 //        const size_t e2,
 //        const Math::Real rka,

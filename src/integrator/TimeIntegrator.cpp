@@ -1,11 +1,10 @@
-#include "Integrator.h"
+#include "TimeIntegrator.h"
 
-namespace SEMBA::integrator {
+namespace SEMBA::dgtd::integrator {
 
-TimeIntegrator::TimeIntegrator(const Options& opts)
-{
-
-}
+TimeIntegrator::TimeIntegrator(const Options& opts) : 
+	opts_{ opts }
+{}
 //void Integrator::setSolver(DG* solver_) {
 //    solver = solver_;
 //}

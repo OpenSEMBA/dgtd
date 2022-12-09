@@ -5,6 +5,9 @@
     "solverOptions": {
       "solver": "cudg3d",
       "runSimulation": false,
+      "evolutionOptions": {
+        "upwinding": 1.0
+      },
       "timeIntegratorOptions": {
         "finalTime": 3e-09,
         "timeStep": 3.08133312e-08,
@@ -61,9 +64,10 @@
     }
   },
   "sources": [
-    "initialField": {
-      "type": "sinusoidal",
-      "elemIds": [13, 14, 15, 16, 17]
+    {
+      "sourceType": "initialField",
+      "function": "sinusoidal",
+      "elemIds": [ 13, 14, 15, 16, 17 ]
     }
   ],
   "probes": []
