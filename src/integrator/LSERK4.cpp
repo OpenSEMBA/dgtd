@@ -1,53 +1,28 @@
-//// OpenSEMBA
-//// Copyright (C) 2015 Salvador Gonzalez Garcia        (salva@ugr.es)
-////                    Luis Manuel Diaz Angulo         (lmdiazangulo@semba.guru)
-////                    Miguel David Ruiz-Cabello Nuñez (miguel@semba.guru)
-////                    Daniel Mateos Romero            (damarro@semba.guru)
-////
-//// This file is part of OpenSEMBA.
-////
-//// OpenSEMBA is free software: you can redistribute it and/or modify it under
-//// the terms of the GNU Lesser General Public License as published by the Free
-//// Software Foundation, either version 3 of the License, or (at your option)
-//// any later version.
-////
-//// OpenSEMBA is distributed in the hope that it will be useful, but WITHOUT ANY
-//// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-//// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-//// details.
-////
-//// You should have received a copy of the GNU Lesser General Public License
-//// along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-///*
-// * SolverLSERK.cpp
-// *
-// *  Created on: Nov 30, 2012
-// *      Author: luis
-// */
-//
-//#include "../../dgtd/integrator/IntegratorLSERK.h"
-//
-//#ifndef LSERKINFO_CONSTANTS
-//#define LSERKINFO_CONSTANTS
-//const Math::Real IntegratorLSERK::rka[IntegratorLSERK::nStages] = {
-//        0.0,
-//        -567301805773.0/1357537059087.0,
-//        -2404267990393.0/2016746695238.0,
-//        -3550918686646.0/2091501179385.0,
-//        -1275806237668.0/842570457699.0};
-//const Math::Real IntegratorLSERK::rkb[IntegratorLSERK::nStages] = {
-//        1432997174477.0/9575080441755.0,
-//        5161836677717.0/13612068292357.0,
-//        1720146321549.0/2090206949498.0,
-//        3134564353537.0/4481467310338.0,
-//        2277821191437.0/14882151754819.0};
-//const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
-//        0.0,
-//        1432997174477.0/9575080441755.0,
-//        2526269341429.0/6820363962896.0,
-//        2006345519317.0/3224310063776.0,
-//        2802321613138.0/2924317926251.0 };
-//#endif
+#include "LSERK4.h"
+
+namespace SEMBA::integrator {
+
+const std::array<Math::Real, 5> rka{
+    0.0,
+    -567301805773.0/1357537059087.0,
+    -2404267990393.0/2016746695238.0,
+    -3550918686646.0/2091501179385.0,
+    -1275806237668.0/842570457699.0
+};
+
+const Math::Real IntegratorLSERK::rkb[IntegratorLSERK::nStages] = {
+        1432997174477.0/9575080441755.0,
+        5161836677717.0/13612068292357.0,
+        1720146321549.0/2090206949498.0,
+        3134564353537.0/4481467310338.0,
+        2277821191437.0/14882151754819.0};
+
+const Math::Real IntegratorLSERK::rkc[IntegratorLSERK::nStages] = {
+        0.0,
+        1432997174477.0/9575080441755.0,
+        2526269341429.0/6820363962896.0,
+        2006345519317.0/3224310063776.0,
+        2802321613138.0/2924317926251.0 };
 //
 //IntegratorLSERK::IntegratorLSERK() {
 //    useMaxStageSizeForLTS = false;
@@ -198,3 +173,5 @@
 //    solver->computeRHS(e1,e2,localTime,localdt);
 //    solver->addRHSToRes(e1,e2,rka,localdt);
 //}
+
+}

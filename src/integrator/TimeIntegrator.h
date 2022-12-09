@@ -1,38 +1,42 @@
 #pragma once
 
-#include <vector>
-#include <utility>
-#include <limits>
- 
-//#include "core/Comm.h"
-//#include "physicalModel/PhysicalModel.h"
-//#include "options/OptionsSolverDGTD.h"
-//#include "DG.h"
-//
-//namespace SEMBA {
-//namespace dgtd {
-//namespace Integrator {
-//
-//typedef pair<size_t,size_t> Interval;
-//
-//class Integrator {
-//public:
-//    Integrator();
-//    virtual ~Integrator();
-//    virtual void timeIntegrate(const Math::Real timer) const = 0;
-//    void setSolver(DG* solver);
-//    Math::Real getMaxDT() const;
-//    Math::Real getMinDT() const;
-//    size_t getNTiers() const;
-//    size_t getNPartitions() const;
-//    vector<vector<Geometry::ElemId>> getTiersIds() const;
-//    vector<vector<Geometry::ElemId>> getStagesIds() const;
-//    vector<vector<Geometry::ElemId>> getPartitionsIds() const;
-//    Interval getRange(const size_t tier, const size_t stage) const;
-//    vector<pair<Geometry::ElemId,Math::Int>> getComputationalWeights(
-//            const Mesh::Volume* msh) const;
-//    void partitionate(const Mesh::Volume* mesh, Communications::Comm* comm);
-//    void printInfo() const;
+namespace SEMBA::integrator {
+
+typedef std::pair<size_t,size_t> Interval;
+
+class TimeIntegrator {
+public:
+    struct Options {
+        enum class Type {
+            lserk4, lf2
+        };
+        Type timeIntegrator{ Type::lserk4 };
+
+        Math::Real finalTime = 30e-9;
+
+        bool useLTS{ false };
+        std::size_t growSmallerTiers = 0;
+        std::size_t maxNumberOfTiers = 0;
+        bool useMaxStageSizeForLTS = false;
+    };
+    
+    TimeIntegrator(const Options&);
+    virtual ~TimeIntegrator() = default;
+    
+    //virtual void timeIntegrate(const Math::Real timer) const = 0;
+    //void setSolver(DG* solver);
+    //Math::Real getMaxDT() const;
+    //Math::Real getMinDT() const;
+    //size_t getNTiers() const;
+    //size_t getNPartitions() const;
+    //vector<vector<Geometry::ElemId>> getTiersIds() const;
+    //vector<vector<Geometry::ElemId>> getStagesIds() const;
+    //vector<vector<Geometry::ElemId>> getPartitionsIds() const;
+    //Interval getRange(const size_t tier, const size_t stage) const;
+    //vector<pair<Geometry::ElemId,Math::Int>> getComputationalWeights(
+    //        const Mesh::Volume* msh) const;
+    //void partitionate(const Mesh::Volume* mesh, Communications::Comm* comm);
+
 //protected:
 //    Math::Real cfl_;
 //    DG* solver;
@@ -85,12 +89,6 @@
 //            const vector<vector<Geometry::ElemId> >& pId) const;
 //    void assignStages(const Mesh::Volume& mesh);
 //    void reorderTimeTierList(const vector<vector<Geometry::ElemId>>& partitionId);
-//};
-//
-//
-//}
-//}
-//}
-//
-//
-//#endif /* SOLVERINFO_H_ */
+};
+
+}

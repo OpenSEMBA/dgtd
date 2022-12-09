@@ -1,53 +1,11 @@
-//// OpenSEMBA
-//// Copyright (C) 2015 Salvador Gonzalez Garcia        (salva@ugr.es)
-////                    Luis Manuel Diaz Angulo         (lmdiazangulo@semba.guru)
-////                    Miguel David Ruiz-Cabello Nuñez (miguel@semba.guru)
-////                    Daniel Mateos Romero            (damarro@semba.guru)
-////
-//// This file is part of OpenSEMBA.
-////
-//// OpenSEMBA is free software: you can redistribute it and/or modify it under
-//// the terms of the GNU Lesser General Public License as published by the Free
-//// Software Foundation, either version 3 of the License, or (at your option)
-//// any later version.
-////
-//// OpenSEMBA is distributed in the hope that it will be useful, but WITHOUT ANY
-//// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-//// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
-//// details.
-////
-//// You should have received a copy of the GNU Lesser General Public License
-//// along with OpenSEMBA. If not, see <http://www.gnu.org/licenses/>.
-///*
-// * Integrator.cpp
-// *
-// *  Created on: Feb 21, 2013
-// *      Author: luis
-// */
-//
-//#include "Integrator.h"
-//
-//namespace SEMBA {
-//namespace dgtd {
-//namespace Integrator {
-//
-//Integrator::Integrator() {
-//    mindt = 0.0;
-//    nTiers_ = 0;
-//    tierRange_ = NULL;
-//    doLTS = true;
-//    growSmallerTiers = 0;
-//    maxNumOfTiers = 0;
-//    cfl_ = 0.0;
-//    solver = NULL;
-//}
-//
-//Integrator::~Integrator() {
-//    for (size_t i = 0; i < nTiers_; i++) {
-//        delete tierRange_[i];
-//    }
-//}
-//
+#include "Integrator.h"
+
+namespace SEMBA::integrator {
+
+TimeIntegrator::TimeIntegrator(const Options& opts)
+{
+
+}
 //void Integrator::setSolver(DG* solver_) {
 //    solver = solver_;
 //}
@@ -140,25 +98,6 @@
 //    reorder(partId, comm->getLocalOffset(), comm->getLocalSize());
 //    cout << "OK" << endl;
 //}
-//
-//void Integrator::printInfo() const {
-//    cout << "--- SolverInfo ---" << endl;
-//    cout << "Min. time step: " << mindt*1E12 << " [ps]" << endl;
-//    cout << "Max. time step: " << getMaxDT()*1E12 << " [ps]" << endl;
-//    cout << "Number of tiers: " << nTiers_ << endl;
-//    if (nTiers_ > 1) {
-//        for (size_t i = 0; i < nTiers_; i++) {
-//            cout << "# of Cells in tier " << i << ": "
-//                    << getNumberOfCellsInTier(i) << endl;
-//            for (size_t j = 0; j < getNStages(); j++) {
-//                cout << "--> Range stage #" << j << ": "
-//                        << getRange(i,j).first << ", "
-//                        << getRange(i,j).second << endl;
-//            }
-//        }
-//    }
-//}
-//
 //void Integrator::init(
 //        const Mesh::Volume& mesh,
 //        const PMGroup& pmGroup,
@@ -545,6 +484,4 @@
 //    return res;
 //}
 //
-//}
-//}
-//}
+}

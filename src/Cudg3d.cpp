@@ -1,5 +1,8 @@
 #include "Cudg3d.h"
 
+#include "integrator/LSERK4.h"
+#include "integrator/LF2.h"
+
 namespace SEMBA {
 namespace dgtd {
 
@@ -10,48 +13,32 @@ Cudg3d::Cudg3d(const UnstructuredProblemDescription& raw, const Options& opts)
     //    AdapterDGTD(*raw).convert(smb);
      
     dg_ = std::make_unique<dg::Evolution>(raw.model, raw.sources, opts.evolution);
-    // Time integrator initialization.
-    //    options_ = smb.solverOptions->castTo<OptionsSolverDGTD>();
-    //    integrator_ = initIntegrator(&mesh, smb.pMGroup, options_);
-    //    integrator_->partitionate(&mesh, comm_);
-    //    integrator_->setSolver(dg_);
+    
+    integrator_ = buildIntegrator(*dg_, opts.timeIntegrator);
 }
 
 void Cudg3d::run() {
     Math::Real time = 0.0;
-    while (time < options_.finalTime) {
+    while (time < options_.timeIntegrator.finalTime) {
         //        dg_->update(outputs_);
         //        exporter_->process(time, outputs_);
     }
 }
 
-//Integrator* Cudg3d::initIntegrator(
-//        const Mesh::Volume* mesh,
-//        const PMGroup* pMGroup,
-//        const Options* arg) {
-//    Integrator* res;
-//    switch (arg->getTimeIntegrator()) {
-//    case Options::TimeIntegrator::lserk4:
-//        cout<< "- Initial   izing LSERK Integrator." << endl;
-//        res = new IntegratorLSERK(*mesh, *pMGroup, arg);
-//        break;
-//    case Options::TimeIntegrator::lf2:
-//        cout<< "- Initializing LF2 Integrator." << endl;
-//        res = new IntegratorLF2(*mesh, *pMGroup, arg);
-//        break;
-//    case Options::TimeIntegrator::lf2full:
-//        cout<< "- Initializing LF2Full Integrator." << endl;
-//        res = new IntegratorLF2Full(*mesh, *pMGroup, arg);
-//        break;
-//    case Options::TimeIntegrator::verlet:
-//        cout<< "- Initializing Verlet Integrator." << endl;
-//        res = new IntegratorVerlet(*mesh, *pMGroup, arg);
-//        break;
-//    default:
-//        throw logic_error("Undefined time integrator.");
-//    }
-//    return res;
-//}
+std::unique_ptr<integrator::TimeIntegrator> Cudg3d::buildIntegrator(
+    const dg::Evolution& dg,
+    const integrator::TimeIntegrator::Options& opts) 
+{
+    using timeIntegratorType = integrator::TimeIntegrator::Options::Type;
+    switch (opts.timeIntegrator) {
+    case timeIntegratorType::lserk4:
+        return std::make_unique<integrator::LSERK4>(dg, opts);
+    case timeIntegratorType::lf2:
+        return std::make_unique<integrator::LF2>(dg, opts);    
+    default:
+        throw std::logic_error("Undefined time integrator.");
+    }
+}
 
 }
 }

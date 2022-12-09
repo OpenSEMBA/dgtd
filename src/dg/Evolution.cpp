@@ -1,35 +1,33 @@
 #include "Evolution.h"
 
-//Evolution::Explicit(
-//        const Mesh::Volume& mesh,
-//        const PMGroup& pMGroup,
-//        const EMSourceGroup& emSources,
-//        const OptionsSolverDGTD& options,
-//        Comm* comm) {
-//    CellGroup cells(mesh, pMGroup);
-//    init(options, pMGroup, cells, comm);
-//    allocateRHSAndJumps();
-//    if (options.isUseLTS()) {
-//        allocateFieldsForLTS();
-//    }
-//    if (emSources.size() != 0) {
-//        E.setAll((Math::Real) 0.0);
-//        H.setAll((Math::Real) 0.0);
-//    } else {
-//        setFieldsToRandom();
-//        cout<< ">> No EM Excitations were detected <<" << endl;
-//        cout<< ">> A random field is being used  <<" << endl;
-//    }
-//    allocateMaps();
-//    deduplicateVMaps(cells);
-//
-//    Connectivities map(mesh.elems());
-//    BCGroup bc(mesh, emSources, pMGroup, cells, map);
-//    assignPointersToNeighbours(cells, map, mesh);
-//    buildEMSources(emSources, bc, map, cells);
-//    BCToLocalArray(bc, cells, map);
-//    buildScalingFactors(cells, map);
-//}
+namespace SEMBA::dgtd::dg {
+
+Evolution::Evolution(const Model&, const EMSourceGroup&, const Options&) 
+{
+    //CellGroup cells(mesh, pMGroup);
+    //init(options, pMGroup, cells, comm);
+    //allocateRHSAndJumps();
+    //if (options.isUseLTS()) {
+    //    allocateFieldsForLTS();
+    //}
+    //if (emSources.size() != 0) {
+    //    E.setAll((Math::Real) 0.0);
+    //    H.setAll((Math::Real) 0.0);
+    //} else {
+    //    setFieldsToRandom();
+    //    cout<< ">> No EM Excitations were detected <<" << endl;
+    //    cout<< ">> A random field is being used  <<" << endl;
+    //}
+    //allocateMaps();
+    //deduplicateVMaps(cells);
+
+    //Connectivities map(mesh.elems());
+    //BCGroup bc(mesh, emSources, pMGroup, cells, map);
+    //assignPointersToNeighbours(cells, map, mesh);
+    //buildEMSources(emSources, bc, map, cells);
+    //BCToLocalArray(bc, cells, map);
+    //buildScalingFactors(cells, map);
+}
 //
 //size_t Evolution::getFieldDOFs() {
 //    return (nK * np * 3);
@@ -1187,3 +1185,5 @@
 //        dispersive[d]->addRHSToRes(e1,e2,rka,dt);
 //    }
 //}
+
+}

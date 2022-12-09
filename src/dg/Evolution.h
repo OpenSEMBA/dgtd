@@ -12,8 +12,8 @@ class Evolution {
 public:
 	struct Options {
 		Math::Real upwinding{ 1.0 };
-		bool PMLConstantConductivityProfile = false;
-		Math::Real PMLConductivity = 0.0;
+		//bool PMLConstantConductivityProfile = false;
+		//Math::Real PMLConductivity = 0.0;
 	};
     Evolution(const Model&, const EMSourceGroup&, const Options&);
 //    size_t getFieldDOFs();
