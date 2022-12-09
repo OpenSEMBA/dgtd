@@ -12,8 +12,7 @@ Cudg3d::Cudg3d(const UnstructuredProblemDescription& raw, const Options& opts)
     //    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
     //    AdapterDGTD(*raw).convert(smb);
      
-    dg_ = std::make_unique<dg::Evolution>(raw.model, raw.sources, opts.evolution);
-    
+    dg_ = std::make_unique<dg::Evolution>(raw.model, raw.sources, opts.evolution);   
     integrator_ = buildIntegrator(*dg_, opts.timeIntegrator);
 }
 

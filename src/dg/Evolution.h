@@ -3,6 +3,8 @@
 #include "model/Model.h"
 #include "source/Group.h"
 
+#include "VolumeModel.h"
+
 namespace SEMBA::dgtd::dg {
 
 using Model = SEMBA::Model::UnstructuredModel;
@@ -15,97 +17,43 @@ public:
 		//bool PMLConstantConductivityProfile = false;
 		//Math::Real PMLConductivity = 0.0;
 	};
-    Evolution(const Model&, const EMSourceGroup&, const Options&);
+    Evolution(const VolumeModel&, const EMSourceGroup&, const Options&);
 //    size_t getFieldDOFs();
 //    const FieldR3& getRHSElectric() const;
 //    const FieldR3& getRHSMagnetic() const;
 private:
-//    void computeRHS(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real localtime,
-//            const Math::Real rkdt);
-//    void computeRHSElectric(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real localtime,
-//            const Math::Real minDT);
-//    void computeRHSMagnetic(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real localtime,
-//            const Math::Real minDT);
+//    void computeRHS(const size_t e1, const size_t e2, const Math::Real localtime, const Math::Real rkdt);
+//    void computeRHSElectric(const size_t e1, const size_t e2, const Math::Real localtime, const Math::Real minDT);
+//    void computeRHSMagnetic(const size_t e1, const size_t e2, const Math::Real localtime, const Math::Real minDT);
 //    void computeCurlsInRHSElectric(const size_t e1, const size_t e2);
 //    void computeCurlsInRHSMagnetic(const size_t e1, const size_t e2);
-//    void computeJumps(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real localTime,
-//            const Math::Real minDT);
-//    void copyJumpsToResidueJumps(
-//            const size_t e1,
-//            const size_t e2);
-//    void addFluxesToRHSElectric(
-//            const size_t e1, const size_t e2);
-//    void addFluxesToRHSMagnetic(
-//            const size_t e1, const size_t e2);
-//    void addFluxesToRHSElectric(
-//            const size_t e1, const size_t e2, const bool useResForUpw);
-//    void addFluxesToRHSMagnetic(
-//            const size_t e1, const size_t e2, const bool useResForUpw);
-//    void addStraightFluxesToRHSElectric(const size_t e1, const size_t e2,
-//            const bool useResForUpw);
-//    void addStraightFluxesToRHSMagnetic(const size_t e1, const size_t e2,
-//            const bool useResForUpw);
-//    void addCurvedFluxesToRHSElectric(const size_t e1, const size_t e2,
-//            const bool useResForUpw);
-//    void addCurvedFluxesToRHSMagnetic(const size_t e1, const size_t e2,
-//            const bool useResForUpw);
-//    void computePolarizationCurrentsRHS(
-//            const size_t e1, const size_t e2);
-//    void computePolarizationCurrentsRHSElectric(
-//            const size_t e1, const size_t e2);
-//    void computePolarizationCurrentsRHSMagnetic(
-//            const size_t e1, const size_t e2);
-//    void addRHSToFieldsElectric(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real rkdt);
-//    void addRHSToFieldsMagnetic(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real rkdt);
+//    void computeJumps(const size_t e1, const size_t e2, const Math::Real localTime, const Math::Real minDT);
+//    void copyJumpsToResidueJumps(const size_t e1, const size_t e2);
+//    void addFluxesToRHSElectric(const size_t e1, const size_t e2);
+//    void addFluxesToRHSMagnetic(const size_t e1, const size_t e2);
+//    void addFluxesToRHSElectric(const size_t e1, const size_t e2, const bool useResForUpw);
+//    void addFluxesToRHSMagnetic(const size_t e1, const size_t e2, const bool useResForUpw);
+//    void addStraightFluxesToRHSElectric(const size_t e1, const size_t e2, const bool useResForUpw);
+//    void addStraightFluxesToRHSMagnetic(const size_t e1, const size_t e2, const bool useResForUpw);
+//    void computePolarizationCurrentsRHS(const size_t e1, const size_t e2);
+//    void computePolarizationCurrentsRHSElectric(const size_t e1, const size_t e2);
+//    void computePolarizationCurrentsRHSMagnetic(const size_t e1, const size_t e2);
+//    void addRHSToFieldsElectric(const size_t e1, const size_t e2, const Math::Real rkdt);
+//    void addRHSToFieldsMagnetic(const size_t e1, const size_t e2, const Math::Real rkdt);
 //    size_t getIndexOfElement(const size_t e) const;
-//    void addRHSToResidueElectric(const size_t e1, const size_t e2,
-//            const Math::Real rkdt);
-//    void addRHSToResidueMagnetic(const size_t e1, const size_t e2,
-//            const Math::Real rkdt);
-//    void addRHSToRes(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real rka,
-//            const Math::Real dt);
-//    void updateFieldsWithRes(
-//            const size_t e1,
-//            const size_t e2,
-//            const Math::Real rkb);
-//    void LTSSaveFieldsAndResidues(
-//            const size_t fKSave,
-//            const size_t lKSave);
-//    void LTSLoadFieldsAndResidues(
-//            const size_t fKSave,
-//            const size_t lKSave);
-//private:
-//    // - Maps.
-//    Math::Int vmapM[faces][nfp];
-//    Math::Int vmapP[16][nfp];
+//    void addRHSToResidueElectric(const size_t e1, const size_t e2, const Math::Real rkdt);
+//    void addRHSToResidueMagnetic(const size_t e1, const size_t e2, const Math::Real rkdt);
+//    void addRHSToRes(const size_t e1, const size_t e2, const Math::Real rka, const Math::Real dt);
+//    void updateFieldsWithRes(const size_t e1, const size_t e2, const Math::Real rkb);
+private:
+    // - Maps.
+    Math::Int vmapM[4][nfp];
+    Math::Int vmapP[16][nfp];
 //    Math::Int ***map_;
 //    // Pointers to neighbour fields. dim = (nK, 4).
 //    Math::Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
-//    // Curved faces stuff ---------------------------------------------
-//    size_t nCurvedFaces;
-//    DGCurvedFace *curveFace;
-//    const Math::Real **Cx, **Cy, **Cz; // Pointers to C. dim = (nK)
+	// Pointers to C. dim = (nK)
+//    const Math::Real **Cx, **Cy, **Cz; 
 //    // Fields and residuals: dim = (np,nK)
 //    FieldR3 rhsE, rhsH;
 //    FieldR3 savedResE, savedResH;

@@ -2,10 +2,8 @@
 
 namespace SEMBA::dgtd::dg {
 
-Evolution::Evolution(const Model&, const EMSourceGroup&, const Options&) 
+Evolution::Evolution(const VolumeModel& model, const EMSourceGroup&, const Options&) 
 {
-    //CellGroup cells(mesh, pMGroup);
-    //init(options, pMGroup, cells, comm);
     //allocateRHSAndJumps();
     //if (options.isUseLTS()) {
     //    allocateFieldsForLTS();
@@ -527,19 +525,6 @@ Evolution::Evolution(const Model&, const EMSourceGroup&, const Options&)
 //        }
 //    }
 //}
-//void Evolution::addCurvedFluxesToRHSElectric(
-//        const size_t e1,
-//        const size_t e2,
-//        const bool useResForUpw) {
-//    size_t c;
-//#pragma omp parallel for private(c)
-//    for (c = 0; c < nCurvedFaces; c++) {
-//        if (e1 <= curveFace[c].solverPosition
-//                && curveFace[c].solverPosition < e2) {
-//            curveFace[c].addFluxToRHSElectric(upwinding, useResForUpw);
-//        }
-//    }
-//}
 //
 //void Evolution::addCurvedFluxesToRHSMagnetic(
 //        const size_t e1,
@@ -572,45 +557,45 @@ Evolution::Evolution(const Model&, const EMSourceGroup&, const Options&)
 //    size_t end = getIndexOfElement(e2);
 //    H.addProd_omp(init, end, getRHSMagnetic(), rkdt);
 //}
-//
-//void Evolution::allocateRHSAndJumps() {
-//    rhsE.setSize(getFieldDOFs()/3);
-//    rhsH.setSize(getFieldDOFs()/3);
-//    dE.setSize(nK*nfp*4);
-//    dH.setSize(nK*nfp*4);
-//}
-//
-//void Evolution::allocateMaps() {
-//    ExP = new Math::Real**[nK];
-//    EyP = new Math::Real**[nK];
-//    EzP = new Math::Real**[nK];
-//    HxP = new Math::Real**[nK];
-//    HyP = new Math::Real**[nK];
-//    HzP = new Math::Real**[nK];
-//    for (size_t e = 0; e < nK; e++) {
-//        ExP[e] = new Math::Real*[faces];
-//        EyP[e] = new Math::Real*[faces];
-//        EzP[e] = new Math::Real*[faces];
-//        HxP[e] = new Math::Real*[faces];
-//        HyP[e] = new Math::Real*[faces];
-//        HzP[e] = new Math::Real*[faces];
-//        for (size_t f = 0; f < faces; f++) {
-//            ExP[e][f] = NULL;
-//            EyP[e][f] = NULL;
-//            EzP[e][f] = NULL;
-//            HxP[e][f] = NULL;
-//            HyP[e][f] = NULL;
-//            HzP[e][f] = NULL;
-//        }
-//    }
-//    map_ = new Math::Int**[nK];
-//    for (size_t e = 0; e < nK; e++) {
-//        map_[e] = new Math::Int*[faces];
-//        for (size_t f = 0; f < faces; f++) {
-//            map_[e][f] = NULL;
-//        }
-//    }
-//}
+
+void Evolution::allocateRHSAndJumps() {
+    rhsE.setSize(getFieldDOFs()/3);
+    rhsH.setSize(getFieldDOFs()/3);
+    dE.setSize(nK*nfp*4);
+    dH.setSize(nK*nfp*4);
+}
+
+void Evolution::allocateMaps() {
+    ExP = new Math::Real**[nK];
+    EyP = new Math::Real**[nK];
+    EzP = new Math::Real**[nK];
+    HxP = new Math::Real**[nK];
+    HyP = new Math::Real**[nK];
+    HzP = new Math::Real**[nK];
+    for (size_t e = 0; e < nK; e++) {
+        ExP[e] = new Math::Real*[faces];
+        EyP[e] = new Math::Real*[faces];
+        EzP[e] = new Math::Real*[faces];
+        HxP[e] = new Math::Real*[faces];
+        HyP[e] = new Math::Real*[faces];
+        HzP[e] = new Math::Real*[faces];
+        for (size_t f = 0; f < faces; f++) {
+            ExP[e][f] = NULL;
+            EyP[e][f] = NULL;
+            EzP[e][f] = NULL;
+            HxP[e][f] = NULL;
+            HyP[e][f] = NULL;
+            HzP[e][f] = NULL;
+        }
+    }
+    map_ = new Math::Int**[nK];
+    for (size_t e = 0; e < nK; e++) {
+        map_[e] = new Math::Int*[faces];
+        for (size_t f = 0; f < faces; f++) {
+            map_[e][f] = NULL;
+        }
+    }
+}
 //
 //void Evolution::assignMatrices(const CellGroup& cells) {
 //    // Assigns matrices.
@@ -861,55 +846,6 @@ Evolution::Evolution(const Model&, const EMSourceGroup&, const Options&)
 //    buildFieldScalingFactors(cells);
 //    buildFluxScalingFactors(cells, map);
 //    buildCurvedFluxScalingFactors(cells, map);
-//}
-//
-//void Evolution::buildCurvedFluxScalingFactors(
-//        const CellGroup& cells,
-//        const Connectivities& map) {
-//    // Counts curved faces.
-//    nCurvedFaces = 0;
-//    for (size_t e = 0; e < nK; e++) {
-//        ElemId id = cells.getIdOfRelPos(e);
-//        const CellTet<ORDER_N>* cell = cells.getPtrToCellWithId(id);
-//        for (size_t f = 0; f < cell->getFaces(); f++) {
-//            if (cell->isCurvedFace(f)) {
-//                nCurvedFaces++;
-//            }
-//        }
-//    }
-//    curveFace = new DGCurvedFace[nCurvedFaces];
-//    // Supress linear fluxes operators. Computes curved operators.
-//    size_t face = 0;
-//    for (size_t e = 0; e < nK; e++) {
-//        const VolR* vol = cells(e)->getBase();
-//        const CellTet<ORDER_N>* cell = cells.getPtrToCell(vol);
-//        Math::Real impM, admM, impP, admP, impAv, admAv;
-//        for (size_t f = 0; f < faces; f++) {
-//            if (cell->isCurvedFace(f)) {
-//                // Builds CurvedFace information
-//                impM = cell->material->getImpedance();
-//                admM = cell->material->getAdmitance();
-//                ElemId nId = map.getNeighFace(Face(vol, f)).first->getId();
-//                const CellTet<ORDER_N>* neigh = cells.getPtrToCellWithId(nId);
-//                impP = neigh->material->getImpedance();
-//                admP = neigh->material->getAdmitance();
-//                impAv = (impM + impP) * 0.5;
-//                admAv = (admM + admP) * 0.5;
-//                curveFace[face++] = DGCurvedFace(
-//                        cell, f, e, rhsE, rhsH, dE, dH, dresE, dresH,
-//                        impP, admP, impAv, admAv);
-//                size_t i = e * faces + f;
-//                // Sets flux scaling factors to zero.
-//                CVecR3 zero(0.0, 0.0, 0.0);
-//                nAdm.set(i, zero);
-//                nImp.set(i, zero);
-//                cnAdm.set(i, zero);
-//                cnImp.set(i, zero);
-//                rnAdm.set(i, zero);
-//                rnImp.set(i, zero);
-//            }
-//        }
-//    }
 //}
 //
 //void Evolution::buildMaterials(
