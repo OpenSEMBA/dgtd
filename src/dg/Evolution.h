@@ -4,6 +4,7 @@
 #include "source/Group.h"
 
 #include "VolumeModel.h"
+#include "CellTet.h"
 #include "Field.h"
 
 namespace SEMBA::dgtd::dg {
@@ -13,10 +14,9 @@ using EMSourceGroup = SEMBA::SourceGroup;
 
 class Evolution {
 public:
+    using FaceNodeIndices = std::array<std::size_t, CellTet<POLYNOMIAL_ORDER>::nfp>;
 	struct Options {
 		Math::Real upwinding{ 1.0 };
-		//bool PMLConstantConductivityProfile = false;
-		//Math::Real PMLConductivity = 0.0;
 	};
     Evolution(const VolumeModel&, const EMSourceGroup&, const Options&);
 //    size_t getFieldDOFs();
@@ -48,8 +48,8 @@ private:
 //    void updateFieldsWithRes(const size_t e1, const size_t e2, const Math::Real rkb);
 private:
     // - Maps.
-    Math::Int vmapM[4][nfp];
-    Math::Int vmapP[16][nfp];
+    std::array<FaceNodeIndices, 4> vmapM;
+    std::array<FaceNodeIndices, 16> vmapP;
 //    Math::Int ***map_;
 //    // Pointers to neighbour fields. dim = (nK, 4).
     Math::Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;

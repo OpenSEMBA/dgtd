@@ -2,32 +2,41 @@
   "_version": "0.15e",
   "_format": "Semba Data File in JSON format",
   "analysis": {
-    "solverOptions": {
-      "solver": "cudg3d",
-      "runSimulation": false,
-      "evolutionOptions": {
-        "upwinding": 1.0
-      },
-      "timeIntegratorOptions": {
-        "finalTime": 3e-09,
-        "timeStep": 3.08133312e-08,
-        "cfl": 0.8,
-        "type": "lserk4",
-        "useLTS": false,
-        "growSmallerTiers": 0,
-        "maxNumberOfTiers": 0,
-        "useMaxStigeSizeForLTS": false
-      }
+    "solver": "cudg3d",
+    "runSimulation": false,
+    "geometryScalingFactor": 0.001,
+    "evolutionOptions": {
+      "upwinding": 1.0
     },
-    "geometryScalingFactor": 0.001
+    "timeIntegratorOptions": {
+      "finalTime": 3e-09,
+      "timeStep": 3.08133312e-08,
+      "cfl": 0.8,
+      "type": "lserk4",
+      "useLTS": false,
+      "growSmallerTiers": 0,
+      "maxNumberOfTiers": 0,
+      "useMaxStigeSizeForLTS": false
+    }
   },
   "model": {
     "layers": [
-      { "id": 1, "name": "Cube" }
+      {
+        "id": 1,
+        "name": "Cube"
+      }
     ],
     "materials": [
-      { "id": 1, "name": "vacuum", "materialType": "Vacuum" },
-      { "id": 2, "name": "pec",    "materialType": "PEC" }
+      {
+        "id": 1,
+        "name": "vacuum",
+        "materialType": "Vacuum"
+      },
+      {
+        "id": 2,
+        "name": "pec",
+        "materialType": "PEC"
+      }
     ],
     "coordinates": [
       "1   0.0   0.0   0.0",
