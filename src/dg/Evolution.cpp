@@ -4,7 +4,7 @@ namespace SEMBA::dgtd::dg {
 
 Evolution::Evolution(const VolumeModel& model, const EMSourceGroup&, const Options&) 
 {
-    //allocateRHSAndJumps();
+    allocateRHSAndJumps();
     //if (options.isUseLTS()) {
     //    allocateFieldsForLTS();
     //}

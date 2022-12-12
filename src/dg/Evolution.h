@@ -4,6 +4,7 @@
 #include "source/Group.h"
 
 #include "VolumeModel.h"
+#include "Field.h"
 
 namespace SEMBA::dgtd::dg {
 
@@ -51,17 +52,17 @@ private:
     Math::Int vmapP[16][nfp];
 //    Math::Int ***map_;
 //    // Pointers to neighbour fields. dim = (nK, 4).
-//    Math::Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
+    Math::Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
 	// Pointers to C. dim = (nK)
 //    const Math::Real **Cx, **Cy, **Cz; 
 //    // Fields and residuals: dim = (np,nK)
-//    FieldR3 rhsE, rhsH;
-//    FieldR3 savedResE, savedResH;
-//    FieldR3 savedE, savedH;
-//    FieldR3 nE, nH;
+    FieldR3 rhsE, rhsH;
+    //FieldR3 savedResE, savedResH;
+    //FieldR3 savedE, savedH;
+    //FieldR3 nE, nH;
 //    // Jumps and fluxes: dim = (4*nfp, nK)
-//    FieldR3 dE, dH;
-//    FieldR3 dresE, dresH;
+    FieldR3 dE, dH;
+    //FieldR3 dresE, dresH;
 //    // BC lists. nSMA, nPEC and nPMC are the number of BC of each kind.
 //    // BC are stored as pointers to memory positions in the jumps.
 //    // dim = (nK)
@@ -73,8 +74,8 @@ private:
 //            const CellGroup& cells,
 //            const OptionsSolverDGTD& arg);
 //    void deduplicateVMaps(const CellGroup& cells);
-//    void allocateRHSAndJumps();
-//    void allocateMaps();
+    void allocateRHSAndJumps();
+    void allocateMaps();
 //    void assignPointersToNeighbours(
 //            const CellGroup& cells,
 //            const Connectivities& map,
