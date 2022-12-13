@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <mfem.hpp>
-
 #include "Types.h"
 
 namespace maxwell {
@@ -16,6 +15,10 @@ public:
 	Direction getDirection() const { return direction_; }
 	Position getCenter() const { return center_; }
 	InitialFieldType getInitialFieldType() const { return initialFT_; }	
+
+	double eval3D(const mfem::Vector&) const;
+	double eval2D(const mfem::Vector&) const;
+	double eval1D(const mfem::Vector&) const;
 
 	const void setFieldType(const FieldType ft);
 	const void setDirection(const Direction d);
