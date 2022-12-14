@@ -4,23 +4,35 @@ namespace maxwell {
 
 using namespace mfem;
 
-SourcesManager::SourcesManager(Sources srcs, const mfem::FiniteElementSpace& fes) :
-	sources{srcs},
+SourcesManager::SourcesManager(const Sources& srcs, const mfem::FiniteElementSpace& fes) :
 	fes_{fes}
-{}
+{
+    for (const auto& src : srcs) {
+        sources.push_back(src->clone());
+    }
+}
 
 void SourcesManager::setFields1D(Fields& fields)
 {
     for (const auto& source : sources) {
 
-        switch (source.get()->initialFT) {
-        case InitialFieldType::Gaussian:
-            std::function<double(const Source::Position&)> f = std::bind(&Source::eval1D, &source, std::placeholders::_1);
-            break;
-        case InitialFieldType::PlanarSinusoidal:
-            std::function<double(const Source::Position&)> f = 0;
-            f = std::bind(&PlanarSinusoidalInitialField::eval1D, &source, std::placeholders::_1);
-            break;
+        std::function<double(const Source::Position&)> f = 0;
+        if (dynamic_cast<GaussianInitialField*>(source.get())) {
+            f = std::bind(
+                &GaussianInitialField::eval1D, 
+                dynamic_cast<GaussianInitialField*>(source.get()),
+                std::placeholders::_1
+            );
+        }
+        else if (dynamic_cast<PlanarSinusoidalInitialField*>(source.get())) {
+            f = std::bind(
+                &PlanarSinusoidalInitialField::eval1D, 
+                dynamic_cast<PlanarSinusoidalInitialField*>(source.get()), 
+                std::placeholders::_1
+            );
+        }
+        else {
+            throw std::runtime_error("Invalid source type.");
         }
 
         switch (source.get()->fieldType) {
@@ -32,11 +44,6 @@ void SourcesManager::setFields1D(Fields& fields)
             break;
         }
     }
-}
-
-void SourcesManager::setGaussianSource(std::unique_ptr<Source> source) 
-{
-    std::function<double(const GaussianInitialField::Position&)> f = std::bind(&GaussianInitialField::eval1D, &GaussianInitialField, std::placeholders::_1);
 }
 
 void SourcesManager::setFields3D(Fields& fields)

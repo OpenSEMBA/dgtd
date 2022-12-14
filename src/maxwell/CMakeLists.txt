@@ -8,21 +8,20 @@ find_package(mfem CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
 add_library(maxwell STATIC 
-	"SolverOptions.h" 		
-	"Solver.h" "Solver.cpp" 
-	"mfemExtension/BilinearIntegrators.h" "mfemExtension/BilinearIntegrators.cpp"
-	"Types.h" 
-	"Material.h" "Material.cpp"
-	"Model.h" "Model.cpp" 
-	"Probes.h" "Probes.cpp" 
-	"Sources.h" "Sources.cpp"
-    "ProbesManager.h" "ProbesManager.cpp" 
-	"SourcesManager.h" "SourcesManager.cpp" 
-	"Fields.h" "Fields.cpp" 
-	"MaxwellEvolution3D.h" "MaxwellEvolution3D.cpp"
-	"MaxwellEvolution2D.h" "MaxwellEvolution2D.cpp"
-	"MaxwellEvolution1D.h" "MaxwellEvolution1D.cpp" 
-	"MaxwellDefs.h" "MaxwellDefs.cpp"
-	"MaxwellDefs1D.cpp" "MaxwellDefs1D.h")
+	"Solver.cpp" 
+	"mfemExtension/BilinearIntegrators.cpp"
+	"Material.cpp"
+	"Model.cpp" 
+	"Probes.cpp" 
+	"Sources.cpp"
+    "ProbesManager.cpp" 
+	"SourcesManager.cpp" 
+	"Fields.cpp" 
+	"MaxwellEvolution3D.cpp"
+	"MaxwellEvolution2D.cpp"
+	"MaxwellEvolution1D.cpp" 
+	"MaxwellDefs.cpp"
+	"MaxwellDefs1D.cpp"
+)
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)

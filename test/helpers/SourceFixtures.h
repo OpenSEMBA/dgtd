@@ -12,16 +12,19 @@ static Sources buildGaussianInitialField(
 	const double spread = 0.1,
 	const double coeff = 1.0,
 	const mfem::Vector& center = mfem::Vector({ 0.5 }))
-{
-	return { GaussianInitialField(ft, d, spread, coeff, center) };
+{	
+	Sources res;
+	res.push_back(std::move(std::make_unique<GaussianInitialField>(ft, d, spread, coeff, center)));
+	return res;
+	
 }
 
 static Sources buildRightTravelingWaveInitialField(const mfem::Vector& center)
 {
-	return {
-		GaussianInitialField(E, Y, 2.0, 1.0, center),
-		GaussianInitialField(H, Z, 2.0, 1.0, center)
-	};
+	Sources res;
+	res.push_back(std::move(std::make_unique<GaussianInitialField>(E, Y, 2.0, 1.0, center)));
+	res.push_back(std::move(std::make_unique<GaussianInitialField>(H, Z, 2.0, 1.0, center)));
+	return res;
 }
 
 }

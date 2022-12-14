@@ -11,10 +11,8 @@ message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
 message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
 
 add_library(testHelpers 
-	"GlobalFunctions.cpp" "GlobalFunctions.h"
-    "AnalyticalFunctions1D.h" "AnalyticalFunctions2D.h" 
-	"SourceFixtures.h"
- "AnalyticalFunctions3D.h")
+	"GlobalFunctions.cpp"
+)
 
 target_link_libraries(testHelpers Eigen3::Eigen)
 

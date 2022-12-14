@@ -70,7 +70,7 @@ TEST_F(TestSolver2D, box_pec_centered_2D)
 		.setCentered()
 		.setFinalTime(0.5)
 		.setOrder(3)
-	};
+	}; 
 
 	GridFunction eOld{ solver.getFields().E[Z] };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -171,6 +171,11 @@ TEST_F(TestSolver2D, box_sma_upwind_square_2D)
 
 	GridFunction eOld{ solver.getFields().E[Z] };
 	auto normOld{ solver.getFields().getNorml2() };
+
+	auto zeros{ eOld };
+	zeros = 0.0;
+	EXPECT_TRUE( eOld.DistanceTo(zeros) > 1e-2);
+
 	solver.run();
 	GridFunction eNew{ solver.getFields().E[Z] };
 

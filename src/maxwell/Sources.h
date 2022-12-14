@@ -15,6 +15,9 @@ public:
 	InitialFieldType initialFT;
 	Position center;
 
+	virtual ~Source() = default;
+	virtual std::unique_ptr<Source> clone() const = 0;
+
 	virtual double eval3D(const mfem::Vector&) const = 0;
 	virtual double eval2D(const mfem::Vector&) const = 0;
 	virtual double eval1D(const mfem::Vector&) const = 0;
@@ -34,11 +37,14 @@ public:
 		const double normalization,
 		const Position center
 	);
+
+	std::unique_ptr<Source> clone() const {
+		return std::make_unique<GaussianInitialField>(*this);
+	}
 	
 	double eval3D(const mfem::Vector&) const;
 	double eval2D(const mfem::Vector&) const;
 	double eval1D(const mfem::Vector&) const;
-	void binder1D(std::unique_ptr<GaussianInitialField> source) const;
 
 private:
 	double spread_{2.0};
@@ -58,6 +64,10 @@ public:
 		const double coefficient,
 		const Position center
 	);
+
+	std::unique_ptr<Source> clone() const {
+		return std::make_unique<PlanarSinusoidalInitialField>(*this);
+	}
 
 	double eval3D(const mfem::Vector&) const;
 	double eval2D(const mfem::Vector&) const;

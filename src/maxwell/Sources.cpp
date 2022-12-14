@@ -49,11 +49,6 @@ double GaussianInitialField::eval1D(const Position& pos) const
 		* exp( - pow(pos[X] - center[X], 2) / (2.0*pow(spread_, 2)) );
 }
 
-void GaussianInitialField::binder1D(GaussianInitialField& source) const
-{
-	f = std::bind(&GaussianInitialField::eval1D, source, std::placeholders::_1);
-}
-
 PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
 	const FieldType& ft,
 	const Direction& d,
