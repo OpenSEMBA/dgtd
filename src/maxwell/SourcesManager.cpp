@@ -11,12 +11,19 @@ SourcesManager::SourcesManager(Sources srcs, const mfem::FiniteElementSpace& fes
 
 void SourcesManager::setFields1D(Fields& fields)
 {
-   /* for (const auto& source : sources) {
+    for (const auto& source : sources) {
 
-        std::function<double(const GaussianInitialField::Position&)> f = 
-            std::bind(&GaussianInitialField::eval1D, &source, std::placeholders::_1);
+        switch (source.get()->initialFT) {
+        case InitialFieldType::Gaussian:
+            std::function<double(const Source::Position&)> f = std::bind(&Source::eval1D, &source, std::placeholders::_1);
+            break;
+        case InitialFieldType::PlanarSinusoidal:
+            std::function<double(const Source::Position&)> f = 0;
+            f = std::bind(&PlanarSinusoidalInitialField::eval1D, &source, std::placeholders::_1);
+            break;
+        }
 
-        switch (source.getFieldType()) {
+        switch (source.get()->fieldType) {
         case FieldType::E:
             fields.E1D.ProjectCoefficient(FunctionCoefficient(f));
             break;
@@ -24,7 +31,12 @@ void SourcesManager::setFields1D(Fields& fields)
             fields.H1D.ProjectCoefficient(FunctionCoefficient(f));
             break;
         }
-    }*/
+    }
+}
+
+void SourcesManager::setGaussianSource(std::unique_ptr<Source> source) 
+{
+    std::function<double(const GaussianInitialField::Position&)> f = std::bind(&GaussianInitialField::eval1D, &GaussianInitialField, std::placeholders::_1);
 }
 
 void SourcesManager::setFields3D(Fields& fields)

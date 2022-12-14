@@ -55,47 +55,6 @@ protected:
 
 		return res;
 	}
-
-	Mesh buildCartesianMeshForOneElement(const int& dimension, const Element::Type& element)
-	{
-		switch (dimension) {
-		case 1:
-			switch (element) {
-			case Element::SEGMENT:
-				return Mesh::MakeCartesian1D(1);
-				break;
-			default:
-				throw std::exception("1-Dimensional meshes can only be SEGMENT based.");
-			}
-		case 2:
-			switch (element) {
-			case Element::TRIANGLE:
-				return Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE);
-				break;
-			case Element::QUADRILATERAL:
-				return Mesh::MakeCartesian2D(1, 1, Element::QUADRILATERAL);
-				break;
-			default:
-				throw std::exception("2-Dimensional meshes can only be TRIANGLE or QUADRILATERAL based.");
-			}
-		case 3:
-			switch (element) {
-			case Element::HEXAHEDRON:
-				return Mesh::MakeCartesian3D(1, 1, 1, Element::HEXAHEDRON);
-				break;
-			case Element::WEDGE:
-				return Mesh::MakeCartesian3D(1, 1, 1, Element::WEDGE);
-				break;
-			case Element::TETRAHEDRON:
-				return Mesh::MakeCartesian3D(1, 1, 1, Element::TETRAHEDRON);
-				break;
-			default:
-				throw std::exception("3-Dimensional meshes can only be HEXAEDRON, WEDGE or TETRAHEDRON based.");
-			}
-		default:
-			throw std::exception("Dimension must be 2 or 3 with Element argument. Or dimension 1, which ignores element.");
-		}
-	}
 };
 
 TEST_F(TestMesh, TwoAttributeMesh)
