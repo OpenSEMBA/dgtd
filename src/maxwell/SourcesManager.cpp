@@ -48,29 +48,61 @@ void SourcesManager::setFields1D(Fields& fields)
 
 void SourcesManager::setFields3D(Fields& fields)
 {
-    //for (const auto& source : sources) {
-    //    std::function<double(const GaussianInitialField::Position&)> f = 0;
+    for (const auto& source : sources) {
 
-    //    switch (fes_.GetMesh()->Dimension()) {
-    //    case 2:
-    //        f = std::bind(&GaussianInitialField::eval2D, &source, std::placeholders::_1);
-    //        break;
-    //    case 3:
-    //        f = std::bind(&GaussianInitialField::eval2D, &source, std::placeholders::_1);
-    //        break;
-    //    default:
-    //        throw std::exception("Incorrect Dimension for setFields3D");
-    //    }
+        std::function<double(const Source::Position&)> f = 0;
+        switch (fes_.GetMesh()->Dimension()) {
+        case 2:
+            if (dynamic_cast<GaussianInitialField*>(source.get())) {
+                f = std::bind(
+                    &GaussianInitialField::eval2D,
+                    dynamic_cast<GaussianInitialField*>(source.get()),
+                    std::placeholders::_1
+                );
+            }
+            else if (dynamic_cast<PlanarSinusoidalInitialField*>(source.get())) {
+                f = std::bind(
+                    &PlanarSinusoidalInitialField::eval2D,
+                    dynamic_cast<PlanarSinusoidalInitialField*>(source.get()),
+                    std::placeholders::_1
+                );
+            }
+            else {
+                throw std::runtime_error("Invalid source type.");
+            }
+            break;
+        case 3:
+            if (dynamic_cast<GaussianInitialField*>(source.get())) {
+                f = std::bind(
+                    &GaussianInitialField::eval3D,
+                    dynamic_cast<GaussianInitialField*>(source.get()),
+                    std::placeholders::_1
+                );
+            }
+            else if (dynamic_cast<PlanarSinusoidalInitialField*>(source.get())) {
+                f = std::bind(
+                    &PlanarSinusoidalInitialField::eval3D,
+                    dynamic_cast<PlanarSinusoidalInitialField*>(source.get()),
+                    std::placeholders::_1
+                );
+            }
+            else {
+                throw std::runtime_error("Invalid source type.");
+            }
+            break;
+        default:
+            throw std::exception("Incorrect Dimension for setFields3D");
+        }
 
-    //    switch (source.getFieldType()) {
-    //    case FieldType::E:
-    //        fields.E[source.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
-    //        break;
-    //    case FieldType::H:
-    //        fields.H[source.getDirection()].ProjectCoefficient(FunctionCoefficient(f));
-    //        break;
-    //    }
-    //}
+        switch (source.get()->fieldType) {
+        case FieldType::E:
+            fields.E[source.get()->direction].ProjectCoefficient(FunctionCoefficient(f));
+            break;
+        case FieldType::H:
+            fields.H[source.get()->direction].ProjectCoefficient(FunctionCoefficient(f));
+            break;
+        }
+    }
 }
 
 
