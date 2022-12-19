@@ -5,20 +5,19 @@
 
 namespace maxwell {
 
-
 GaussianInitialField::GaussianInitialField(
 	const FieldType& ft,
-	const Direction& d, 
-	const double spread, 
-	const double normalization, 
-	const Position cnt) : 
+	const Direction& d,
+	const double spread,
+	const double normalization,
+	const Position cnt) :
 	spread_(spread),
 	normalization_(normalization)
 {
 	fieldType = ft,
-	direction = d,
-	center = cnt,
-	initialFT = InitialFieldType::Gaussian;
+		direction = d,
+		center = cnt,
+		initialFT = InitialFieldType::Gaussian;
 	checkInputArguments();
 };
 
@@ -35,18 +34,18 @@ const void GaussianInitialField::checkInputArguments()
 double GaussianInitialField::eval3D(const Position& pos) const
 {
 	return normalization_ * exp(-(pow(pos[X] - center[X], 2.0)
-								+ pow(pos[Y] - center[Y], 2.0)
-								+ pow(pos[Z] - center[Z], 2.0)) / (2.0 * pow(spread_, 2.0)));
+		+ pow(pos[Y] - center[Y], 2.0)
+		+ pow(pos[Z] - center[Z], 2.0)) / (2.0 * pow(spread_, 2.0)));
 }
 double GaussianInitialField::eval2D(const Position& pos) const
-{ 
-	return normalization_ * exp( - (pow(pos[X] - center[X], 2.0)
-								  + pow(pos[Y] - center[Y], 2.0)) /	(2.0 * pow(spread_, 2.0)));
+{
+	return normalization_ * exp(-(pow(pos[X] - center[X], 2.0)
+		+ pow(pos[Y] - center[Y], 2.0)) / (2.0 * pow(spread_, 2.0)));
 }
 double GaussianInitialField::eval1D(const Position& pos) const
 {
-	return normalization_ 
-		* exp( - pow(pos[X] - center[X], 2) / (2.0*pow(spread_, 2)) );
+	return normalization_
+		* exp(-pow(pos[X] - center[X], 2) / (2.0 * pow(spread_, 2)));
 }
 
 SinusoidalInitialField::SinusoidalInitialField(
@@ -96,4 +95,5 @@ double SinusoidalInitialField::eval2D(const Position& pos) const
 double SinusoidalInitialField::eval1D(const Position& pos) const
 {
 	return coefficient_ * sin(modes_[X] * M_PI * pos[X]);
+}
 }

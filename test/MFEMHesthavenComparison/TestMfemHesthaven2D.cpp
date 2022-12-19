@@ -7,9 +7,13 @@
 #include "maxwell/MaxwellDefs.h"
 #include "maxwell/MaxwellDefs1D.h"
 
+#include "AnalyticalFunctions2D.h"
+#include "SourceFixtures.h"
+#include "maxwell/Solver.h"
 
 using namespace mfem;
 using namespace maxwell;
+using namespace maxwell::fixtures::sources;
 
 class MFEMHesthaven2D : public ::testing::Test {
 protected:
@@ -83,6 +87,16 @@ protected:
 	{0,1,0,0,0,0},
 	{0,0,1,0,0,0}
 	};
+
+	Probes buildExportProbes()
+	{
+		return { {}, { ExporterProbe{getTestCaseName()} } };
+	}
+
+	static std::string getTestCaseName()
+	{
+		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
+	}
 };
 
 TEST_F(MFEMHesthaven2D, massMatrix2D)
@@ -286,5 +300,25 @@ TEST_F(MFEMHesthaven2D, oneFace)
 		std::unique_ptr<FiniteElementSpace> fesOne = std::make_unique<FiniteElementSpace>(&meshOne, fecOne.get());
 
 	}
+
+}
+
+TEST_F(MFEMHesthaven2D, MFEMHesthavenSameMesh)
+{
+	Mesh meshManual = Mesh::LoadFromFile("./TestData/2dplane.msh", true, 1);
+	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
+	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
+
+	Model model = Model(meshManual, AttributeToMaterial{}, AttributeToBoundary{});
+
+	maxwell::Solver solver{
+		model,
+		buildExportProbes(),
+		buildGaussianInitialField(E, Z, 0.4, 1.0, mfem::Vector({0.0,0.0})),
+		SolverOptions{}
+		.setTimeStep(0.012587)
+		.setFinalTime(1.0)
+		.setOrder(10)
+	};
 
 }
