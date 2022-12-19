@@ -53,11 +53,11 @@ private:
 	const void checkInputArguments();
 };
 
-class PlanarSinusoidalInitialField : public Source {
+class SinusoidalInitialField : public Source {
 public:
 	using Position = mfem::Vector;
 
-	PlanarSinusoidalInitialField(
+	SinusoidalInitialField(
 		const FieldType& ft,
 		const Direction& d,
 		const std::vector<std::size_t> modes,
@@ -66,7 +66,7 @@ public:
 	);
 
 	std::unique_ptr<Source> clone() const {
-		return std::make_unique<PlanarSinusoidalInitialField>(*this);
+		return std::make_unique<SinusoidalInitialField>(*this);
 	}
 
 	double eval3D(const mfem::Vector&) const;

@@ -39,7 +39,7 @@ double GaussianInitialField::eval3D(const Position& pos) const
 								+ pow(pos[Z] - center[Z], 2.0)) / (2.0 * pow(spread_, 2.0)));
 }
 double GaussianInitialField::eval2D(const Position& pos) const
-{
+{ 
 	return normalization_ * exp( - (pow(pos[X] - center[X], 2.0)
 								  + pow(pos[Y] - center[Y], 2.0)) /	(2.0 * pow(spread_, 2.0)));
 }
@@ -49,7 +49,7 @@ double GaussianInitialField::eval1D(const Position& pos) const
 		* exp( - pow(pos[X] - center[X], 2) / (2.0*pow(spread_, 2)) );
 }
 
-PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
+SinusoidalInitialField::SinusoidalInitialField(
 	const FieldType& ft,
 	const Direction& d,
 	const std::vector<std::size_t> modes,
@@ -64,14 +64,14 @@ PlanarSinusoidalInitialField::PlanarSinusoidalInitialField(
 	assembleModesVector(modes);
 }
 
-const void PlanarSinusoidalInitialField::assembleModesVector(std::vector<std::size_t> modes)
+const void SinusoidalInitialField::assembleModesVector(std::vector<std::size_t> modes)
 {
 	for (int i = 0; i < modes.size(); i++) {
 		modes_[i] = modes[i];
 	}
 }
 
-double PlanarSinusoidalInitialField::eval3D(const Position& pos) const
+double SinusoidalInitialField::eval3D(const Position& pos) const
 {
 	switch (direction) {
 	case X:
@@ -83,7 +83,7 @@ double PlanarSinusoidalInitialField::eval3D(const Position& pos) const
 	}
 }
 
-double PlanarSinusoidalInitialField::eval2D(const Position& pos) const
+double SinusoidalInitialField::eval2D(const Position& pos) const
 {
 	switch (direction) {
 	case X:
@@ -93,10 +93,7 @@ double PlanarSinusoidalInitialField::eval2D(const Position& pos) const
 	}
 }
 
-double PlanarSinusoidalInitialField::eval1D(const Position& pos) const
+double SinusoidalInitialField::eval1D(const Position& pos) const
 {
 	return coefficient_ * sin(modes_[X] * M_PI * pos[X]);
-}
-	
-
 }

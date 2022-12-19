@@ -24,10 +24,10 @@ void SourcesManager::setFields1D(Fields& fields)
                 std::placeholders::_1
             );
         }
-        else if (dynamic_cast<PlanarSinusoidalInitialField*>(source.get())) {
+        else if (dynamic_cast<SinusoidalInitialField*>(source.get())) {
             f = std::bind(
-                &PlanarSinusoidalInitialField::eval1D, 
-                dynamic_cast<PlanarSinusoidalInitialField*>(source.get()), 
+                &SinusoidalInitialField::eval1D, 
+                dynamic_cast<SinusoidalInitialField*>(source.get()), 
                 std::placeholders::_1
             );
         }
@@ -60,10 +60,10 @@ void SourcesManager::setFields3D(Fields& fields)
                     std::placeholders::_1
                 );
             }
-            else if (dynamic_cast<PlanarSinusoidalInitialField*>(source.get())) {
+            else if (dynamic_cast<SinusoidalInitialField*>(source.get())) {
                 f = std::bind(
-                    &PlanarSinusoidalInitialField::eval2D,
-                    dynamic_cast<PlanarSinusoidalInitialField*>(source.get()),
+                    &SinusoidalInitialField::eval2D,
+                    dynamic_cast<SinusoidalInitialField*>(source.get()),
                     std::placeholders::_1
                 );
             }
@@ -79,10 +79,10 @@ void SourcesManager::setFields3D(Fields& fields)
                     std::placeholders::_1
                 );
             }
-            else if (dynamic_cast<PlanarSinusoidalInitialField*>(source.get())) {
+            else if (dynamic_cast<SinusoidalInitialField*>(source.get())) {
                 f = std::bind(
-                    &PlanarSinusoidalInitialField::eval3D,
-                    dynamic_cast<PlanarSinusoidalInitialField*>(source.get()),
+                    &SinusoidalInitialField::eval3D,
+                    dynamic_cast<SinusoidalInitialField*>(source.get()),
                     std::placeholders::_1
                 );
             }
