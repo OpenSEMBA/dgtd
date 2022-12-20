@@ -55,15 +55,15 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 		MFN_[E][H][z]	 ->AddMult(hOld[y], eNew[x], 1.0);
 
 		if (opts_.fluxType == FluxType::Upwind) {
-			MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], -1.0);
-			MFNN_[H][H][Y][x]->AddMult(hOld[Y], hNew[x], -1.0);
-			MFNN_[H][H][Z][x]->AddMult(hOld[Z], hNew[x], -1.0);
-			MP_[H]			 ->AddMult(hOld[x], hNew[x]);			
+			MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], 1.0);
+			MFNN_[H][H][Y][x]->AddMult(hOld[Y], hNew[x], 1.0);
+			MFNN_[H][H][Z][x]->AddMult(hOld[Z], hNew[x], 1.0);
+			MP_[H]			 ->AddMult(hOld[x], hNew[x],-1.0);
 			
-			MFNN_[E][E][X][x]->AddMult(eOld[X], eNew[x], -1.0);
-			MFNN_[E][E][Y][x]->AddMult(eOld[Y], eNew[x], -1.0);
-			MFNN_[E][E][Z][x]->AddMult(eOld[Z], eNew[x], -1.0);
-			MP_[E]			 ->AddMult(eOld[x], eNew[x]);
+			MFNN_[E][E][X][x]->AddMult(eOld[X], eNew[x], 1.0);
+			MFNN_[E][E][Y][x]->AddMult(eOld[Y], eNew[x], 1.0);
+			MFNN_[E][E][Z][x]->AddMult(eOld[Z], eNew[x], 1.0);
+			MP_[E]			 ->AddMult(eOld[x], eNew[x],-1.0);
 		}
 
 	}
