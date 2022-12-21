@@ -52,7 +52,7 @@ SinusoidalInitialField::SinusoidalInitialField(
 	const FieldType& ft,
 	const Direction& d,
 	const std::vector<std::size_t> modes,
-	const double coefficient,
+	const std::vector<double> coefficient,
 	const Position cnt) :
 	coefficient_(coefficient)
 {
@@ -74,26 +74,21 @@ double SinusoidalInitialField::eval3D(const Position& pos) const
 {
 	switch (direction) {
 	case X:
-		return coefficient_ * sin(modes_[Y] * M_PI * pos[Y]) * sin(modes_[Z] * M_PI * pos[Z]);
+		return sin(coefficient_[Y] * modes_[Y] * M_PI * pos[Y]) * sin(coefficient_[Z] * modes_[Z] * M_PI * pos[Z]);
 	case Y:
-		return coefficient_ * sin(modes_[X] * M_PI * pos[X]) * sin(modes_[Z] * M_PI * pos[Z]);
+		return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]) * sin(coefficient_[Z] * modes_[Z] * M_PI * pos[Z]);
 	case Z:
-		return coefficient_ * sin(modes_[Y] * M_PI * pos[Y]) * sin(modes_[Y] * M_PI * pos[Y]);
+		return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]) * sin(coefficient_[Y] * modes_[Y] * M_PI * pos[Y]);
 	}
 }
 
 double SinusoidalInitialField::eval2D(const Position& pos) const
 {
-	switch (direction) {
-	case X:
-		return coefficient_ * sin(modes_[Y] * M_PI * pos[Y]);
-	case Y:
-		return coefficient_ * sin(modes_[X] * M_PI * pos[X]);
-	}
+	return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]) * sin(coefficient_[Y] * modes_[Y] * M_PI * pos[Y]);
 }
 
 double SinusoidalInitialField::eval1D(const Position& pos) const
 {
-	return coefficient_ * sin(modes_[X] * M_PI * pos[X]);
+	return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]);
 }
 }

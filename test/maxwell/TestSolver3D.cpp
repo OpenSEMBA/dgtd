@@ -104,7 +104,7 @@ TEST_F(TestSolver3D, box_pec_upwind_3D)
 	maxwell::Solver solver{
 	buildModel(3,3,3),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5,0.5})),
+	buildSinusoidalInitialField(E,Z,{{2,2,0}},{{1.0,1.0,0.0}},Vector{{0.0,0.0,0.5}}),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(0.5)

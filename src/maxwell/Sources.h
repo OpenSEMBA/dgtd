@@ -61,7 +61,7 @@ public:
 		const FieldType& ft,
 		const Direction& d,
 		const std::vector<std::size_t> modes,
-		const double coefficient,
+		const std::vector<double> coefficient,
 		const Position center
 	);
 
@@ -76,7 +76,7 @@ public:
 private:
 
 	std::vector<std::size_t> modes_{ {0,0,0} };
-	double coefficient_{ 1.0 };
+	std::vector<double> coefficient_{ {1.0,1.0,1.0} };
 
 	const void assembleModesVector(std::vector<std::size_t> modes);
 };
