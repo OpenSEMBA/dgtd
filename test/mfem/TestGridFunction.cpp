@@ -105,13 +105,29 @@ TEST_F(TestPointFinder, GetGFValuesAtPoints1D)
 	pointMat_.Transpose();
 	mesh_.FindPoints(pointMat_, elArray_, ipArray_);
 
-	GridFunction testfunction(fes_.get());
-	testfunction.ProjectCoefficient(FunctionCoefficient(simpleLinearFunction));
+	GridFunction gridFunction(fes_.get());
+	gridFunction.ProjectCoefficient(FunctionCoefficient(simpleLinearFunction));
 
 	Vector expectedValues({ 0.12, 1.0, 1.6 });
 	for (int i = 0; i < elArray_.Size(); i++) {
-		EXPECT_EQ(testfunction.GetValue(elArray_[i], ipArray_[i]), expectedValues[i]);
+		EXPECT_EQ(gridFunction.GetValue(elArray_[i], ipArray_[i]), expectedValues[i]);
 	}
+
+}
+
+TEST_F(TestPointFinder, SetGFValuesAtPoints1D)
+{
+	setFES1D(2, 5, 5.0);
+
+	DenseMatrix pointMat_({ {0.3},{2.5},{4.0} });
+	pointMat_.Transpose();
+	mesh_.FindPoints(pointMat_, elArray_, ipArray_);
+
+	GridFunction gridBase(fes_.get());
+	gridBase.ProjectCoefficient(FunctionCoefficient(simpleLinearFunction));
+	GridFunction gridAdder(fes_.get());
+	gridAdder = 0.0;
+	
 
 }
 
