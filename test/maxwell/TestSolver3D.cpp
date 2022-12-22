@@ -19,7 +19,7 @@ protected:
 		const int nx = defaultNumberOfElements_X,
 		const int ny = defaultNumberOfElements_Y,
 		const int nz = defaultNumberOfElements_Z,
-		const Element::Type elType = Element::Type::TETRAHEDRON,
+		const Element::Type elType = Element::Type::HEXAHEDRON,
 		const BdrCond& bdr1 = BdrCond::PEC,
 		const BdrCond& bdr2 = BdrCond::PEC,
 		const BdrCond& bdr3 = BdrCond::PEC,
@@ -104,7 +104,7 @@ TEST_F(TestSolver3D, box_pec_upwind_3D)
 	maxwell::Solver solver{
 	buildModel(3,3,3),
 	buildExportProbes(),
-	buildSinusoidalInitialField(E,Z,{{2,2,0}},{{1.0,1.0,0.0}},Vector{{0.0,0.0,0.5}}),
+	buildSinusoidalInitialField(E,Z,{{1,1,0}},{{1.0,1.0,0.0}},Vector{{0.0,0.0,0.5}}),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(0.5)

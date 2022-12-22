@@ -81,6 +81,10 @@ private:
 	const void assembleModesVector(std::vector<std::size_t> modes);
 };
 
+class Planewave : public Source {
+	//To do
+};
+
 using Sources = std::vector<std::unique_ptr<Source>>;
 
 }

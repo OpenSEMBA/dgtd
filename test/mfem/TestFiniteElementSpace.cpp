@@ -257,23 +257,5 @@ TEST_F(TestFiniteElementSpace, printGLVISDataForBasisFunctionNodes)
 	SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
-TEST_F(TestFiniteElementSpace, findPointsTest)
-{
-	Mesh mesh = Mesh::MakeCartesian3D(2, 4, 6, Element::Type::HEXAHEDRON, 2.0, 4.0, 6.0);
-	DenseMatrix pointMat({ { 0.2,0.4,0.6 },{1.5, 3.5, 5.5},{0.25, 1.25, 3.75},{2.0, 4.0, 6.0} });
-	Array<int> elArray;
-	Array<IntegrationPoint> ipArray;
-	std::vector<double> expVals({ 0.2,0.4,0.6 });
 
-	pointMat.Transpose();
-	mesh.FindPoints(pointMat, elArray, ipArray);
-
-	EXPECT_EQ(3, pointMat.Height());
-	EXPECT_EQ(4, pointMat.Width());
-	EXPECT_EQ(0, elArray[0]);
-	EXPECT_EQ(expVals[0], ipArray[0].x);
-	EXPECT_EQ(expVals[1], ipArray[0].y);
-	EXPECT_EQ(expVals[2], ipArray[0].z);
-
-}
 
