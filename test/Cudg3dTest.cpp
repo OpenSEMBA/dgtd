@@ -17,7 +17,7 @@ public:
 
     UnstructuredProblemDescription readProject(const std::string& name)
     {
-        return Parsers::JSON::Parser(getProjectFilename(name)).readExtended();
+        return Parsers::JSON::Parser(getProjectFilename(name)).read();
     }
 };
 

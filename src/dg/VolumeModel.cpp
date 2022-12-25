@@ -2,7 +2,7 @@
 
 namespace SEMBA::dgtd::dg {
 
-VolumeModel::VolumeModel(const Geometry::Mesh::Unstructured& uns) 
+VolumeModel::VolumeModel(const Model::UnstructuredModel& uns) 
 {}
 
 }

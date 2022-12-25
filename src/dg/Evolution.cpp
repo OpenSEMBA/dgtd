@@ -2,7 +2,10 @@
 
 namespace SEMBA::dgtd::dg {
 
-Evolution::Evolution(const VolumeModel& model, const EMSourceGroup&, const Options&) 
+Evolution::Evolution(
+    const VolumeModel& model, const EMSourceGroup& sources, const Options& opts) :
+    model_{model},
+    opts_{opts}
 {
     allocateRHSAndJumps();
     //if (options.isUseLTS()) {
@@ -26,11 +29,15 @@ Evolution::Evolution(const VolumeModel& model, const EMSourceGroup&, const Optio
     //BCToLocalArray(bc, cells, map);
     //buildScalingFactors(cells, map);
 }
-//
-//size_t Evolution::getFieldDOFs() {
-//    return (nK * np * 3);
-//}
-//
+
+size_t Evolution::getFieldDOFs() 
+{
+    return 
+        model_.numberOfVolumeElements() * 
+        Cell<POLYNOMIAL_ORDER>::np * 
+        3;
+}
+
 //const FieldR3& Evolution::getRHSElectric() const {
 //    return rhsE;
 //}
@@ -558,14 +565,23 @@ Evolution::Evolution(const VolumeModel& model, const EMSourceGroup&, const Optio
 //    H.addProd_omp(init, end, getRHSMagnetic(), rkdt);
 //}
 
-void Evolution::allocateRHSAndJumps() {
+void Evolution::allocateRHSAndJumps() 
+{
+    const auto nfp{ Cell<POLYNOMIAL_ORDER>::nfp };
+    const auto nK{ model_.numberOfVolumeElements() };
+
     rhsE.setSize(getFieldDOFs()/3);
     rhsH.setSize(getFieldDOFs()/3);
+    
     dE.setSize(nK*nfp*4);
     dH.setSize(nK*nfp*4);
 }
 
-void Evolution::allocateMaps() {
+void Evolution::allocateMaps() 
+{
+    const auto faces{ Cell<POLYNOMIAL_ORDER>::faces };
+    const auto nK{ model_.numberOfVolumeElements() };
+
     ExP = new Math::Real**[nK];
     EyP = new Math::Real**[nK];
     EzP = new Math::Real**[nK];
@@ -588,6 +604,7 @@ void Evolution::allocateMaps() {
             HzP[e][f] = NULL;
         }
     }
+
     map_ = new Math::Int**[nK];
     for (size_t e = 0; e < nK; e++) {
         map_[e] = new Math::Int*[faces];

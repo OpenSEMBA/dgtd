@@ -6,16 +6,27 @@ public:
     using Axis = std::size_t;
     using NodeIndex = std::size_t;
 
+    Field() = default;
     Field(std::size_t n);
 
     T* get(const Axis& d, const NodeIndex& i);
     const T* get(const Axis& d, const NodeIndex& i) const;
+    
+    void setSize(std::size_t newSize);
 
 private:
-    std::array<std::vector<T>, D> val_{ (T) 0 };
+    std::array<std::vector<T>, D> val_;
 };
 
 using FieldR3 = Field<Math::Real, 3>;
+
+template<class T, std::size_t D>
+void Field<T, D>::setSize(std::size_t newSize)
+{
+    for (auto& v : val_) {
+        v.resize(newSize);
+    }
+}
 
 template<class T, std::size_t D>
 Field<T, D>::Field(std::size_t n) {

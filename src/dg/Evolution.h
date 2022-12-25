@@ -4,7 +4,7 @@
 #include "source/Group.h"
 
 #include "VolumeModel.h"
-#include "CellTet.h"
+#include "Cell.h"
 #include "Field.h"
 
 namespace SEMBA::dgtd::dg {
@@ -14,12 +14,14 @@ using EMSourceGroup = SEMBA::SourceGroup;
 
 class Evolution {
 public:
-    using FaceNodeIndices = std::array<std::size_t, CellTet<POLYNOMIAL_ORDER>::nfp>;
-	struct Options {
+    using FaceNodeIndices = std::array<std::size_t, Cell<POLYNOMIAL_ORDER>::nfp>;
+	
+    struct Options {
 		Math::Real upwinding{ 1.0 };
 	};
+
     Evolution(const VolumeModel&, const EMSourceGroup&, const Options&);
-//    size_t getFieldDOFs();
+    size_t getFieldDOFs();
 //    const FieldR3& getRHSElectric() const;
 //    const FieldR3& getRHSMagnetic() const;
 private:
@@ -47,15 +49,20 @@ private:
 //    void addRHSToRes(const size_t e1, const size_t e2, const Math::Real rka, const Math::Real dt);
 //    void updateFieldsWithRes(const size_t e1, const size_t e2, const Math::Real rkb);
 private:
+    const VolumeModel& model_;
+    Options opts_;
+
     // - Maps.
     std::array<FaceNodeIndices, 4> vmapM;
     std::array<FaceNodeIndices, 16> vmapP;
-//    Math::Int ***map_;
-//    // Pointers to neighbour fields. dim = (nK, 4).
+    Math::Int ***map_;
+
+    // - Pointers to neighbour fields. dim = (nK, 4).
     Math::Real ***ExP, ***EyP, ***EzP, ***HxP, ***HyP, ***HzP;
-	// Pointers to C. dim = (nK)
+	// - Pointers to C. dim = (nK)
 //    const Math::Real **Cx, **Cy, **Cz; 
-//    // Fields and residuals: dim = (np,nK)
+    
+// Fields and residuals: dim = (np,nK)
     FieldR3 rhsE, rhsH;
     //FieldR3 savedResE, savedResH;
     //FieldR3 savedE, savedH;
