@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dg/Evolution.h"
+#include "cudg3d/dg/Evolution.h"
 
 namespace SEMBA::dgtd::integrator {
 
