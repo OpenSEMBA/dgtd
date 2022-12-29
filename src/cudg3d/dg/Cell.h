@@ -1,7 +1,10 @@
+#pragma once
+
 #include <Eigen/Dense>
 
 #include "physicalModel/volume/Classic.h"
 #include "geometry/element/Tetrahedron4.h"
+#include "VolumeModel.h"
 
 namespace SEMBA::cudg3d::dg {
 
@@ -20,7 +23,7 @@ public:
     using Face = std::size_t;
     
     PolynomialOrder order{ 1 };
-    const Geometry::Tet4& base;
+    const SEMBA::Geometry::Tet4& base;
     const PhysicalModel::Volume::Classic& material;
 
     Cell(const PolynomialOrder&, const Geometry::Tet4& base_, const PMGroup& pMGroup);
@@ -31,6 +34,13 @@ public:
 
     std::size_t getNumberOfNodes() const;
     std::size_t getNumberOfFaceNodes() const;
+};
+
+class CellGroup {
+public:
+    //CellGroup(const VolumeModel&) {}
+
+    std::vector<Cell> cells;
 };
 
 }

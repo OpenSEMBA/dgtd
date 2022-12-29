@@ -7,12 +7,14 @@
 #include "Cell.h"
 #include "Field.h"
 
+#include "mfem.hpp"
+
 namespace SEMBA::cudg3d::dg {
 
 using Model = SEMBA::Model::UnstructuredModel;
 using EMSourceGroup = SEMBA::SourceGroup;
 
-class Evolution {
+class Evolution : public mfem::TimeDependentOperator {
 public:
     using FaceNodeIds = std::vector<Cell::NodeId>;
 	
@@ -20,11 +22,14 @@ public:
 		Math::Real upwinding{ 1.0 };
 	};
 
-    Evolution(const VolumeModel&, const EMSourceGroup&, const Options&);
+    Evolution(const CellGroup&, const VolumeModel&, const EMSourceGroup&, const Options&);
+
+    virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const {};
+
     size_t getFieldDOFs();
-//    const FieldR3& getRHSElectric() const;
-//    const FieldR3& getRHSMagnetic() const;
 private:
+    void allocateJumps();
+    void allocateMaps();
 //    void computeRHS(const size_t e1, const size_t e2, const Math::Real localtime, const Math::Real rkdt);
 //    void computeRHSElectric(const size_t e1, const size_t e2, const Math::Real localtime, const Math::Real minDT);
 //    void computeRHSMagnetic(const size_t e1, const size_t e2, const Math::Real localtime, const Math::Real minDT);
@@ -62,8 +67,8 @@ private:
 	// - Pointers to C. dim = (nK)
 //    const Math::Real **Cx, **Cy, **Cz; 
     
-// Fields and residuals: dim = (np,nK)
-    FieldR3 rhsE, rhsH;
+    // Fields and residuals: dim = (np,nK)
+    //FieldR3 rhsE, rhsH;
     //FieldR3 savedResE, savedResH;
     //FieldR3 savedE, savedH;
     //FieldR3 nE, nH;
@@ -81,8 +86,6 @@ private:
 //            const CellGroup& cells,
 //            const OptionsSolverDGTD& arg);
 //    void deduplicateVMaps(const CellGroup& cells);
-    void allocateRHSAndJumps();
-    void allocateMaps();
 //    void assignPointersToNeighbours(
 //            const CellGroup& cells,
 //            const Connectivities& map,

@@ -7,6 +7,7 @@
 #include "Sources.h"
 #include "MaxwellDefs.h"
 #include "MaxwellDefs1D.h"
+
 namespace maxwell {
 
 class MaxwellEvolution1D : public mfem::TimeDependentOperator {

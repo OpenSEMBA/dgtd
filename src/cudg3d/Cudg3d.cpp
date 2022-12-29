@@ -2,6 +2,7 @@
 
 #include "integrator/LSERK4.h"
 #include "integrator/LF2.h"
+#include "dg/Cell.h"
 
 namespace SEMBA {
 namespace cudg3d {
@@ -12,8 +13,8 @@ Cudg3d::Cudg3d(const UnstructuredProblemDescription& raw, const Options& opts)
     //    Mesh::Volume mesh(*raw->mesh->castTo<MeshUnstructured>());
     //    AdapterDGTD(*raw).convert(smb);
     dg::VolumeModel adaptedModel{ raw.model };
-
-    dg_ = std::make_unique<dg::Evolution>(adaptedModel, raw.sources, opts.evolution);   
+    dg::CellGroup cG;// (adaptedModel);
+    dg_ = std::make_unique<dg::Evolution>(cG, adaptedModel, raw.sources, opts.evolution);   
     integrator_ = buildIntegrator(*dg_, opts.timeIntegrator);
 }
 

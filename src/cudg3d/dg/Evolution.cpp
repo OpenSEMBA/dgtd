@@ -3,24 +3,14 @@
 namespace SEMBA::cudg3d::dg {
 
 Evolution::Evolution(
-    const VolumeModel& model, const EMSourceGroup& sources, const Options& opts) :
+    const CellGroup& cG, 
+    const VolumeModel& model, 
+    const EMSourceGroup& sources, 
+    const Options& opts) :
     model_{model},
     opts_{opts}
 {
-    allocateRHSAndJumps();
-    //if (options.isUseLTS()) {
-    //    allocateFieldsForLTS();
-    //}
-    //if (emSources.size() != 0) {
-    //    E.setAll((Math::Real) 0.0);
-    //    H.setAll((Math::Real) 0.0);
-    //} else {
-    //    setFieldsToRandom();
-    //    cout<< ">> No EM Excitations were detected <<" << endl;
-    //    cout<< ">> A random field is being used  <<" << endl;
-    //}
     //allocateMaps();
-    //deduplicateVMaps(cells);
 
     //Connectivities map(mesh.elems());
     //BCGroup bc(mesh, emSources, pMGroup, cells, map);
@@ -39,13 +29,6 @@ size_t Evolution::getFieldDOFs()
     return 0;
 }
 
-//const FieldR3& Evolution::getRHSElectric() const {
-//    return rhsE;
-//}
-//
-//const FieldR3& Evolution::getRHSMagnetic() const {
-//    return rhsH;
-//}
 //void Evolution::computePolarizationCurrentsRHS(
 //        const size_t e1,
 //        const size_t e2) {
@@ -566,50 +549,14 @@ size_t Evolution::getFieldDOFs()
 //    H.addProd_omp(init, end, getRHSMagnetic(), rkdt);
 //}
 
-void Evolution::allocateRHSAndJumps() 
+void Evolution::allocateJumps() 
 {
-//    rhsE.setSize(getFieldDOFs()/3);
-//    rhsH.setSize(getFieldDOFs()/3);
-//    
-//    dE.setSize(nK*nfp*4);
-//    dH.setSize(nK*nfp*4);
+    
 }
 
 void Evolution::allocateMaps() 
 {
-    const auto faces{ 4 };
-    const auto nK{ model_.numberOfVolumeElements() };
-
-    ExP = new Math::Real**[nK];
-    EyP = new Math::Real**[nK];
-    EzP = new Math::Real**[nK];
-    HxP = new Math::Real**[nK];
-    HyP = new Math::Real**[nK];
-    HzP = new Math::Real**[nK];
-    for (size_t e = 0; e < nK; e++) {
-        ExP[e] = new Math::Real*[faces];
-        EyP[e] = new Math::Real*[faces];
-        EzP[e] = new Math::Real*[faces];
-        HxP[e] = new Math::Real*[faces];
-        HyP[e] = new Math::Real*[faces];
-        HzP[e] = new Math::Real*[faces];
-        for (size_t f = 0; f < faces; f++) {
-            ExP[e][f] = NULL;
-            EyP[e][f] = NULL;
-            EzP[e][f] = NULL;
-            HxP[e][f] = NULL;
-            HyP[e][f] = NULL;
-            HzP[e][f] = NULL;
-        }
-    }
-
-    map_ = new Math::Int**[nK];
-    for (size_t e = 0; e < nK; e++) {
-        map_[e] = new Math::Int*[faces];
-        for (size_t f = 0; f < faces; f++) {
-            map_[e][f] = NULL;
-        }
-    }
+    
 }
 //
 //void Evolution::assignMatrices(const CellGroup& cells) {
