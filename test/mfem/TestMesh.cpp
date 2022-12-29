@@ -195,7 +195,7 @@ TEST_F(TestMesh, mapMeshElementAndVertex)
 	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);
 
 }
-TEST_F(TestMesh, DISABLED_meshDataFileRead)
+TEST_F(TestMesh, meshDataFileRead)
 {
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
 }

@@ -50,7 +50,7 @@ protected:
 
 TEST_F(MFEMHesthaven3D, DISABLED_checkNodalPositions)
 {
-	mesh_ = Mesh::LoadFromFile("./TestData/onetetra.mesh");
+	mesh_ = Mesh::LoadFromFile("./testData/onetetra.mesh");
 	fec_ = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), 3, Ordering::byVDIM);
 
@@ -132,7 +132,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_checkDrOperator3D)
 
 }
 
-TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_onetetra)
+TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 {
 	Mesh meshManual = Mesh::LoadFromFile("./TestData/onetetra.mesh");
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
@@ -188,7 +188,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_onetetra)
 
 TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./TestData/fivetetra.mesh");
+	Mesh meshManual = Mesh::LoadFromFile("./testData/fivetetra.mesh");
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -233,7 +233,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
 	EXPECT_TRUE(MFEMDt.isApprox(DtOperatorHesthaven));
 }
 
-TEST_F(MFEMHesthaven3D, DISABLED_faceChecker)
+TEST_F(MFEMHesthaven3D, faceChecker)
 {
 
 	Mesh meshManual = Mesh::LoadFromFile("./TestData/onetetra.mesh");
