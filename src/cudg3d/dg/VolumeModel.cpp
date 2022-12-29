@@ -1,6 +1,6 @@
 #include "VolumeModel.h"
 
-namespace SEMBA::dgtd::dg {
+namespace SEMBA::cudg3d::dg {
 
 VolumeModel::VolumeModel(const Model::UnstructuredModel& uns) 
 {}

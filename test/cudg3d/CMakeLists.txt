@@ -18,8 +18,8 @@ message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
 add_definitions(-DPOLYNOMIAL_ORDER=3)
 
 add_executable(cudg3d_tests 
-	"TestCudg3d.cpp"
- )
+	"dg/CellTest.cpp"
+	"TestCudg3d.cpp")
 
 
 

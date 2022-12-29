@@ -1,6 +1,6 @@
 #include "LSERK4.h"
 
-namespace SEMBA::dgtd::integrator {
+namespace SEMBA::cudg3d::integrator {
 
 const std::size_t nStages{ 5 };
 const std::array<Math::Real, nStages> rka{

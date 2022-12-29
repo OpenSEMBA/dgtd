@@ -1,6 +1,6 @@
 #include "Evolution.h"
 
-namespace SEMBA::dgtd::dg {
+namespace SEMBA::cudg3d::dg {
 
 Evolution::Evolution(
     const VolumeModel& model, const EMSourceGroup& sources, const Options& opts) :
@@ -32,10 +32,11 @@ Evolution::Evolution(
 
 size_t Evolution::getFieldDOFs() 
 {
-    return 
-        model_.numberOfVolumeElements() * 
-        Cell<POLYNOMIAL_ORDER>::np * 
-        3;
+    //return 
+    //    model_.numberOfVolumeElements() * 
+    //    Cell<POLYNOMIAL_ORDER>::np * 
+    //    3;
+    return 0;
 }
 
 //const FieldR3& Evolution::getRHSElectric() const {
@@ -567,19 +568,16 @@ size_t Evolution::getFieldDOFs()
 
 void Evolution::allocateRHSAndJumps() 
 {
-    const auto nfp{ Cell<POLYNOMIAL_ORDER>::nfp };
-    const auto nK{ model_.numberOfVolumeElements() };
-
-    rhsE.setSize(getFieldDOFs()/3);
-    rhsH.setSize(getFieldDOFs()/3);
-    
-    dE.setSize(nK*nfp*4);
-    dH.setSize(nK*nfp*4);
+//    rhsE.setSize(getFieldDOFs()/3);
+//    rhsH.setSize(getFieldDOFs()/3);
+//    
+//    dE.setSize(nK*nfp*4);
+//    dH.setSize(nK*nfp*4);
 }
 
 void Evolution::allocateMaps() 
 {
-    const auto faces{ Cell<POLYNOMIAL_ORDER>::faces };
+    const auto faces{ 4 };
     const auto nK{ model_.numberOfVolumeElements() };
 
     ExP = new Math::Real**[nK];

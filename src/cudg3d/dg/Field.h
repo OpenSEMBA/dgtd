@@ -1,4 +1,4 @@
-namespace SEMBA::dgtd::dg {
+namespace SEMBA::cudg3d::dg {
 
 template <class T, std::size_t D>
 class Field {

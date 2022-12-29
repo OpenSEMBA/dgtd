@@ -1,6 +1,6 @@
 #include "TimeIntegrator.h"
 
-namespace SEMBA::dgtd::integrator {
+namespace SEMBA::cudg3d::integrator {
 
 TimeIntegrator::TimeIntegrator(const Options& opts) : 
 	opts_{ opts }

@@ -2,7 +2,7 @@
 
 #include "cudg3d/dg/Evolution.h"
 
-namespace SEMBA::dgtd::integrator {
+namespace SEMBA::cudg3d::integrator {
 
 typedef std::pair<size_t,size_t> Interval;
 

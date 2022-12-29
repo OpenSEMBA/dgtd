@@ -45,7 +45,6 @@ TEST_F(MFEMHesthaven1D, MassMatrix_O1)
 
 	EXPECT_TRUE(buildMassMatrixEigen(*fes_).isApprox(expected, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, InverseMassMatrix_O1)
 {	
 	Eigen::MatrixXd expected{
@@ -55,7 +54,6 @@ TEST_F(MFEMHesthaven1D, InverseMassMatrix_O1)
 
 	EXPECT_TRUE(buildInverseMassMatrixEigen(*fes_).isApprox(expected, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, StiffnessMatrix_O1)
 {
 	Eigen::MatrixXd expected{
@@ -65,7 +63,6 @@ TEST_F(MFEMHesthaven1D, StiffnessMatrix_O1)
 
 	EXPECT_TRUE(build1DStiffnessMatrixEigen(*fes_).isApprox(expected, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, DOperator_O1)
 {
 	Eigen::MatrixXd D{ buildInverseMassMatrixEigen(*fes_) * build1DStiffnessMatrixEigen(*fes_) };
@@ -77,7 +74,6 @@ TEST_F(MFEMHesthaven1D, DOperator_O1)
 
 	EXPECT_TRUE(D.isApprox(expected, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, DOperator_O2)
 {
 	setFES(2);
@@ -93,7 +89,6 @@ TEST_F(MFEMHesthaven1D, DOperator_O2)
 
 	EXPECT_TRUE(D.isApprox(expected, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, DOperator_O4)
 {
 	setFES(4);
@@ -111,7 +106,6 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 
 	EXPECT_TRUE(D.isApprox(expected,tol_));
 }
-
 TEST_F(MFEMHesthaven1D, MSOperator)
 {
 	setFES(2, 4);
@@ -143,7 +137,6 @@ TEST_F(MFEMHesthaven1D, MSOperator)
 	EXPECT_TRUE(MS_Hesthaven4E.isApprox(multMS_coefficient * MS_MFEM4E, tol_));
 	EXPECT_TRUE(MS_Hesthaven3E.isApprox(multMS_coefficient * MS_MFEM3E, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, MFOperatorPEC_E)
 {
 	setFES(2, 4);
@@ -188,7 +181,6 @@ TEST_F(MFEMHesthaven1D, MFOperatorPEC_E)
 	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E, tol_));
 	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, MFOperatorPEC_H) 
 {
 	setFES(2, 4);
@@ -231,7 +223,6 @@ TEST_F(MFEMHesthaven1D, MFOperatorPEC_H)
 	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E, tol_));
 	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
 }
-
 TEST_F(MFEMHesthaven1D, MFOperatorSMA)
 {
 	setFES(2, 4);
@@ -274,8 +265,6 @@ TEST_F(MFEMHesthaven1D, MFOperatorSMA)
 	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E, tol_));
 	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
 } 
-
-
 TEST_F(MFEMHesthaven1D, MPOperatorPEC_E) //TODO
 {
 	setFES(2, 4);
@@ -322,8 +311,6 @@ TEST_F(MFEMHesthaven1D, MPOperatorPEC_E) //TODO
 	EXPECT_TRUE(MP_MFEM4E.isApprox(multMP_coefficient * MP_Hesthaven4E, tol_));
 	EXPECT_TRUE(MP_MFEM3E.isApprox(multMP_coefficient * MP_Hesthaven3E, tol_));
 }
-
-
 TEST_F(MFEMHesthaven1D, MPOperatorPEC_H) //TODO
 {
 	setFES(2, 4);

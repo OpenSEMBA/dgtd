@@ -7,14 +7,14 @@
 #include "Cell.h"
 #include "Field.h"
 
-namespace SEMBA::dgtd::dg {
+namespace SEMBA::cudg3d::dg {
 
 using Model = SEMBA::Model::UnstructuredModel;
 using EMSourceGroup = SEMBA::SourceGroup;
 
 class Evolution {
 public:
-    using FaceNodeIndices = std::array<std::size_t, Cell<POLYNOMIAL_ORDER>::nfp>;
+    using FaceNodeIds = std::vector<Cell::NodeId>;
 	
     struct Options {
 		Math::Real upwinding{ 1.0 };
@@ -53,8 +53,8 @@ private:
     Options opts_;
 
     // - Maps.
-    std::array<FaceNodeIndices, 4> vmapM;
-    std::array<FaceNodeIndices, 16> vmapP;
+    std::array<FaceNodeIds, 4> vmapM;
+    std::array<FaceNodeIds, 16> vmapP;
     Math::Int ***map_;
 
     // - Pointers to neighbour fields. dim = (nK, 4).

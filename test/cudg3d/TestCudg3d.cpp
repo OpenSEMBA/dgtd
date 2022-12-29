@@ -4,7 +4,7 @@
 #include "parsers/json/Parser.h"
 
 using namespace SEMBA;
-using namespace SEMBA::dgtd;
+using namespace SEMBA::cudg3d;
 
 class SolverTest : public ::testing::Test {
 public:

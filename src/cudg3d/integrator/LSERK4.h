@@ -2,7 +2,7 @@
 
 #include "TimeIntegrator.h"
 
-namespace SEMBA::dgtd::integrator {
+namespace SEMBA::cudg3d::integrator {
 
 class LSERK4 : public TimeIntegrator {
 public:

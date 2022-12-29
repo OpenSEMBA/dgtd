@@ -4,7 +4,7 @@
 #include "integrator/LF2.h"
 
 namespace SEMBA {
-namespace dgtd {
+namespace cudg3d {
 
 Cudg3d::Cudg3d(const UnstructuredProblemDescription& raw, const Options& opts)
 {

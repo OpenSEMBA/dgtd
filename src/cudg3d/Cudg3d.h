@@ -5,7 +5,7 @@
 #include "dg/Evolution.h"
 #include "integrator/TimeIntegrator.h"
 
-namespace SEMBA::dgtd {
+namespace SEMBA::cudg3d {
 
 
 class Cudg3d {

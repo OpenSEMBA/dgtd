@@ -3,7 +3,7 @@
 #include "model/Model.h"
 #include "geometry/element/Tetrahedron.h"
 
-namespace SEMBA::dgtd::dg {
+namespace SEMBA::cudg3d::dg {
 
 class VolumeModel {
 public:

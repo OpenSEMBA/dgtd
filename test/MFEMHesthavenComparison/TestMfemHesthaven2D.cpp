@@ -25,7 +25,11 @@ protected:
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), 1, 0);
 	}
 
-	void setFES(const int order, const int nx = 1, const int ny = 1, const double sx = 1.0, const double sy = 1.0, const int vdim = 1)
+	void setFES(
+		const int order, 
+		const int nx = 1, const int ny = 1, 
+		const double sx = 1.0, const double sy = 1.0, 
+		const int vdim = 1)
 	{
 		mesh_ = Mesh::MakeCartesian2D(nx, ny, Element::Type::TRIANGLE, false, sx, sy);
 		fec_ = std::make_unique<DG_FECollection>(order, 2, BasisType::GaussLobatto);
