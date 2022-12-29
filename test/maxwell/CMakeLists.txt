@@ -6,11 +6,6 @@ include_directories(${GTEST_INCLUDE_DIRS})
 find_package(mfem CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
-include_directories(
-	./
-	${maxwell_INCLUDE_DIRS}
-)
-
 message(STATUS "Creating build system for testMaxwell")
 message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
 message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})

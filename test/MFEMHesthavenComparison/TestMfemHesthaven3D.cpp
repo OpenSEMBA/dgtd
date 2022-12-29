@@ -48,7 +48,7 @@ protected:
 
 };
 
-TEST_F(MFEMHesthaven3D, checkNodalPositions)
+TEST_F(MFEMHesthaven3D, checkNodalPositions_DISABLED)
 {
 	mesh_ = Mesh::LoadFromFile("./TestData/onetetra.mesh");
 	fec_ = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);

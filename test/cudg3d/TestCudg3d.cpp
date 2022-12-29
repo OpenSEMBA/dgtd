@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "Cudg3d.h"
+#include "cudg3d/Cudg3d.h"
 #include "parsers/json/Parser.h"
 
 using namespace SEMBA;

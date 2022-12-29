@@ -15,6 +15,8 @@ message(STATUS "Creating build system for testMaxwell")
 message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
 message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
 
+add_definitions(-DPOLYNOMIAL_ORDER=3)
+
 add_executable(cudg3d_tests 
 	"TestCudg3d.cpp"
  )
