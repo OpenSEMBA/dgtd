@@ -109,7 +109,7 @@ TEST_F(TestPointFinder, IntegrationPointFinder1D)
 
 TEST_F(TestPointFinder, DoFFinder1D)
 {
-	/*Create a 1D FES playground with the following form
+	/*Create a 1D FES mesh with the following form
 
 	   0      1      2      3      4
 	|-----||-----||-----||-----||-----|
@@ -170,7 +170,7 @@ TEST_F(TestPointFinder, SetGFValuesAtPoints1D)
 	0     12     34     56     78     9
 	      -+                   +-  
 	
-	Where we aim to project certain Coefficients on a GridFunction
+	Where the goal is to project certain Coefficients on a GridFunction
 	which has assigned the FES we've built. The DoF with a + sign
 	will have a positive addition to their initially projected
 	value (0.5) and the - sign will have a negative
