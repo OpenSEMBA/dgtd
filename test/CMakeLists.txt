@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
 
+include_directories(
+	./helpers
+	${maxwell_INCLUDE_DIRS}
 message(STATUS "Configuring build system for semba dgtd tests.")
 
 find_package(GTest CONFIG REQUIRED)
@@ -17,6 +20,11 @@ target_link_libraries(dgtd_tests
 	GTest::gtest GTest::gtest_main
 )
 
+add_subdirectory(helpers)
+add_subdirectory(maxwell)
+add_subdirectory(mfem)
+add_subdirectory(mfemHesthavenComparison)
+add_subdirectory(thirdpartysoft)
 add_test(dgtd ${CMAKE_BINARY_DIR}/bin/dgtd_tests)
 
 
