@@ -44,7 +44,7 @@ using namespace mfemExtension;
 
 	};
 
-	TEST_F(MFEMBilinears, compareDGTraceWithMaxwellDG1D)
+	TEST_F(MFEMBilinears, DISABLED_compareDGTraceWithMaxwellDG1D)
 	{
 		setFES1D(1, 3);
 

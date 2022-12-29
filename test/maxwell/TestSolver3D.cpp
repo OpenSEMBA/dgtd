@@ -55,7 +55,7 @@ protected:
 
 };
 
-TEST_F(TestSolver3D, box_pec_centered_3D)
+TEST_F(TestSolver3D, DISABLED_box_pec_centered_3D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -87,8 +87,7 @@ TEST_F(TestSolver3D, box_pec_centered_3D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-
-TEST_F(TestSolver3D, box_pec_upwind_3D)
+TEST_F(TestSolver3D, DISABLED_box_pec_upwind_3D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.

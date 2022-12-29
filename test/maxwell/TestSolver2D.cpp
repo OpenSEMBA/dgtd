@@ -48,7 +48,7 @@ protected:
 
 };
 
-TEST_F(TestSolver2D, box_pec_centered_2D)
+TEST_F(TestSolver2D, DISABLED_box_pec_centered_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -80,7 +80,7 @@ TEST_F(TestSolver2D, box_pec_centered_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver2D, box_pec_centered_square_2D)
+TEST_F(TestSolver2D, DISABLED_box_pec_centered_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -112,8 +112,7 @@ TEST_F(TestSolver2D, box_pec_centered_square_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-
-TEST_F(TestSolver2D, box_pec_upwind_2D)
+TEST_F(TestSolver2D, DISABLED_box_pec_upwind_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -144,9 +143,7 @@ TEST_F(TestSolver2D, box_pec_upwind_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-
-
-TEST_F(TestSolver2D, box_sma_upwind_square_2D)
+TEST_F(TestSolver2D, DISABLED_box_sma_upwind_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -182,7 +179,7 @@ TEST_F(TestSolver2D, box_sma_upwind_square_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver2D, box_pec_upwind_square_2D)
+TEST_F(TestSolver2D, DISABLED_box_pec_upwind_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -213,8 +210,7 @@ TEST_F(TestSolver2D, box_pec_upwind_square_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-
-TEST_F(TestSolver2D, quadraticMesh)
+TEST_F(TestSolver2D, DISABLED_quadraticMesh)
 {
 	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
 	auto fec = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);

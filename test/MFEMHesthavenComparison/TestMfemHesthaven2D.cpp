@@ -179,7 +179,7 @@ TEST_F(MFEMHesthaven2D, DsOperator2D)
 
 }
 
-TEST_F(MFEMHesthaven2D, manualMeshComparison)
+TEST_F(MFEMHesthaven2D, DISABLED_manualMeshComparison)
 {
 	Mesh meshManual = Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
@@ -246,7 +246,7 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 
 	EXPECT_TRUE(hesthavenNodes.isApprox(rotatedMfemNodes));
 }
-TEST_F(MFEMHesthaven2D, oneFace)
+TEST_F(MFEMHesthaven2D, DISABLED_oneFace)
 {
 	Mesh meshManual = Mesh::LoadFromFile("./TestData/onetriang.mesh", true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);

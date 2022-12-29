@@ -21,7 +21,7 @@ public:
     }
 };
 
-TEST_F(SolverTest, resonant_cube) 
+TEST_F(SolverTest, DISABLED_resonant_cube) 
 { 
     auto smb{ readProject("resonant_cube") };
     Cudg3d::Options opts;
