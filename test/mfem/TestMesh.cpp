@@ -200,4 +200,37 @@ TEST_F(TestMesh, meshDataFileRead)
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
 }
 
+TEST_F(TestMesh, boundaryWithoutInteriorFace)
+{
+	const auto numberOfElements{ 2 };
+	auto mesh{ Mesh::MakeCartesian2D(numberOfElements, 1, Element::Type::QUADRILATERAL, false, 2.0) };
+	//std::unique_ptr<FiniteElementCollection> fec = std::make_unique<DG_FECollection>(1, 2);
+	//std::unique_ptr<FiniteElementSpace> fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get(), 2);
+
+	using FaceId = int;
+	using Orientation = int;
+
+	std::map<FaceId, Orientation> facesToOrient;
+	for (std::size_t i{ 0 }; i < numberOfElements; ++i) {
+		Array<FaceId> faces;
+		Array<Orientation> orientations;
+		mesh.GetElementEdges(i, faces, orientations);
+
+		assert(faces.Size() == orientations.Size());
+		for (std::size_t f{ 0 }; f < faces.Size(); ++f) {
+			auto it{ facesToOrient.find(faces[f]) };
+			if (it == facesToOrient.end()) {
+				facesToOrient[faces[f]] = orientations[f];
+			}
+			else {
+				facesToOrient.erase(it);
+			}
+		}
+	}
+
+	std::map<int, int> expected{{0,1},{2,-1},{3,-1},{4,1},{5,1},{6,-1}};
+
+	EXPECT_EQ(expected, facesToOrient);
+}
+
 
