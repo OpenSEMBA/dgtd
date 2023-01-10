@@ -324,3 +324,40 @@ TEST_F(TestSolver1D, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
 		        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.10, 1), 2e-3);
 }
+
+TEST_F(TestSolver1D, TotalFieldFlux)
+{
+	auto mesh{ Mesh::MakeCartesian1D(4, 4.0) };
+	auto tFBoundaryAttr{ 5 };
+	mesh.AddBdrPoint(2, tFBoundaryAttr);
+	mesh.SetAttributes();
+	mesh.Finalize();
+
+	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &mesh, &fec };
+
+	BilinearForm totalFieldFlux{ &fes };
+	Array<int> bdrMarker(3);
+	bdrMarker = 0;
+	bdrMarker[2] = 1;
+	totalFieldFlux.AddBdrFaceIntegrator(
+		new mfemExtension::MaxwellDGTraceJumpIntegrator{
+			std::vector<Direction>{}, 1.0
+		},
+		bdrMarker
+	);
+	totalFieldFlux.Assemble();
+	totalFieldFlux.Finalize();
+
+	GridFunction f{ &fes };
+	f = 0.0;
+
+	GridFunction exc{ &fes };
+	exc = 3.0;
+
+	totalFieldFlux.Mult(exc, f);
+
+	EXPECT_EQ( 0.0, f[0]);
+	EXPECT_EQ( 3.0, f[4]);
+	EXPECT_EQ(-3.0, f[5]);
+}
