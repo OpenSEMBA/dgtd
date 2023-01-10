@@ -27,7 +27,7 @@ double negFunction(const Vector& pos)
 	return -2 * normalizedPos;
 }
 
-class TestPointFinder : public ::testing::Test {
+class TestGridFunction : public ::testing::Test {
 protected:
 
 	typedef std::size_t Direction;
@@ -71,7 +71,7 @@ protected:
 
 };
 
-TEST_F(TestPointFinder, ElementIDFinder1D)
+TEST_F(TestGridFunction, ElementIDFinder1D)
 {
 	setFES1D(2, 5, 5.0);
 	
@@ -87,7 +87,7 @@ TEST_F(TestPointFinder, ElementIDFinder1D)
 
 }
 
-TEST_F(TestPointFinder, IntegrationPointFinder1D)
+TEST_F(TestGridFunction, IntegrationPointFinder1D)
 {
 	setFES1D(2, 5, 5.0);
 
@@ -107,7 +107,7 @@ TEST_F(TestPointFinder, IntegrationPointFinder1D)
 
 }
 
-TEST_F(TestPointFinder, DoFFinder1D)
+TEST_F(TestGridFunction, DoFFinder1D)
 {
 	/*Create a 1D FES mesh with the following form
 
@@ -142,8 +142,7 @@ TEST_F(TestPointFinder, DoFFinder1D)
 
 }
 
-
-TEST_F(TestPointFinder, GetGFValuesAtPoints1D)
+TEST_F(TestGridFunction, GetGFValuesAtPoints1D)
 {
 	setFES1D(2, 5, 5.0);
 	
@@ -161,7 +160,7 @@ TEST_F(TestPointFinder, GetGFValuesAtPoints1D)
 
 }
 
-TEST_F(TestPointFinder, SetGFValuesAtPoints1D)
+TEST_F(TestGridFunction, SetGFValuesAtPoints1D)
 {
 	/*Create a 1D FES playground with the following form
 	
@@ -198,8 +197,45 @@ TEST_F(TestPointFinder, SetGFValuesAtPoints1D)
 	EXPECT_EQ(1.5, gridBase.Elem(2));
 	EXPECT_EQ(1.5, gridBase.Elem(7));
 	EXPECT_EQ(0.5, gridBase.Elem(8));
+}
 
+double linearDummyFunction(const Vector& v, double time)
+{
+	return v[0] + time;
+}
+
+TEST_F(TestGridFunction, TimeDependentGridFunction)
+{
+	setFES1D(1, 5, 5.0);
+	GridFunction f{ fes_.get() };
+	FunctionCoefficient function(linearDummyFunction);
 	
+	f.ProjectCoefficient(function);
+	EXPECT_EQ(0.0, f[0]);
+
+	for (auto time{ 0.0 }; time <= 5.0; time += 1.0) {
+		function.SetTime(time);
+		f.ProjectCoefficient(function);
+	}
+	EXPECT_EQ(5.0, f[0]);
 }
 	
+TEST_F(TestGridFunction, ProjectBdrFunction)
+{
+	const auto order{ 1 };
+	
+	auto mesh{ Mesh::MakeCartesian1D(5, 5.0) };
+	mesh.AddBdrPoint(2, 2);
+
+	H1_FECollection fec{ order, 1, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &mesh, &fec };
+
+	GridFunction f{ &fes };
+	f = 0.0;
+	FunctionCoefficient function(linearDummyFunction);
+	f.ProjectBdrCoefficient(function, Array<int>{ 2 });
+
+	EXPECT_EQ(0.0, f[0]);
+	EXPECT_EQ(2.0, f[2]);
+}
 

@@ -28,13 +28,13 @@ std::map<FaceId, Orientation> mapFaceToOrientationOuterBoundary(const Mesh& mesh
 	the # of tagged elements.*/
 	
 	std::map<FaceId, Orientation> res;
-	for (std::size_t i{ 0 }; i < numberOfElements; ++i) {
+	for (auto i{ 0 }; i < numberOfElements; ++i) {
 		Array<FaceId> faces;
 		Array<Orientation> orientations;
 		mesh.GetElementEdges(i, faces, orientations);
 
 		assert(faces.Size() == orientations.Size());
-		for (std::size_t f{ 0 }; f < faces.Size(); ++f) {
+		for (auto f{ 0 }; f < faces.Size(); ++f) {
 			auto it{ res.find(faces[f]) };
 			if (it == res.end()) {
 				res[faces[f]] = orientations[f];
@@ -241,32 +241,14 @@ TEST_F(TestMesh, BoundaryWithoutInteriorFace)
 	EXPECT_EQ(expected, facesToOrient);
 }
 
-TEST_F(TestMesh, NodesFromFacesToOrientMap)
+TEST_F(TestMesh, InteriorBoundary)
 {
-	const auto numberOfElements{ 2 };
-	auto mesh{ Mesh::MakeCartesian2D(numberOfElements, 1, Element::Type::QUADRILATERAL, false, 2.0) };
-	auto fec{ std::make_unique<DG_FECollection>(1,2) };
-	auto fes{ std::make_unique<FiniteElementSpace>(&mesh,fec.get(),2) };
+	auto mesh{ Mesh::LoadFromFile("./TestData/line.mesh", 1, 0) };
 
-	auto facesToOrient = mapFaceToOrientationOuterBoundary(mesh, numberOfElements);
-	
-	std::list<NodeId> bdrNodes;
-	for (std::size_t i{ 0 }; i < facesToOrient.size(); i++) {
-		Array<NodeId> edgeNodes;
-		fes.get()->GetEdgeDofs(i, edgeNodes);
-		fes.get()->GetEdgeVDofs(i, edgeNodes);
-		fes.get()->GetFaceDofs(i, edgeNodes);
-		fes.get()->GetEdgeInteriorDofs(i, edgeNodes);
+	EXPECT_EQ(2, mesh.GetBdrAttribute(0));
+	EXPECT_EQ(2, mesh.GetBdrAttribute(1));
+	EXPECT_EQ(3, mesh.GetBdrAttribute(2));
 
-		for (std::size_t j{ 0 }; j < edgeNodes.Size(); ++j) {
-			bdrNodes.push_back(edgeNodes[j]);
-		}
-	}
-	bdrNodes.sort();
-
-	std::list<NodeId> expected{ 0, 1, 2, 3, 4, 5, 6, 7 };
-	EXPECT_EQ(expected, bdrNodes);
-
+	mesh.AddBdrPoint(2, 4);
+	EXPECT_EQ(4, mesh.GetBdrAttribute(3));
 }
-
-

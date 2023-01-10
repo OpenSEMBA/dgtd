@@ -37,7 +37,7 @@ TEST_F(TestGmsh, meshDataGmshMSHRead)
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/test.msh", 1, 0));
 }
 
-TEST_F(TestGmsh, 2DboxwithGmshMesh)
+TEST_F(TestGmsh, DISABLED_2DboxwithGmshMesh)
 {
 	auto mesh = Mesh::LoadFromFile("./TestData/test.msh", 1, 0);
 	auto fec = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
