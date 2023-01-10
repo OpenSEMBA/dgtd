@@ -331,15 +331,15 @@ TEST_F(TestSolver1D, TotalFieldFlux)
 	auto tFBoundaryAttr{ 5 };
 	mesh.AddBdrPoint(2, tFBoundaryAttr);
 	mesh.SetAttributes();
-	mesh.Finalize();
+	mesh.FinalizeMesh();
 
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &mesh, &fec };
 
 	BilinearForm totalFieldFlux{ &fes };
-	Array<int> bdrMarker(3);
+	Array<int> bdrMarker{ mesh.bdr_attributes.Max() };
 	bdrMarker = 0;
-	bdrMarker[2] = 1;
+	bdrMarker[tFBoundaryAttr-1] = 1;
 	totalFieldFlux.AddBdrFaceIntegrator(
 		new mfemExtension::MaxwellDGTraceJumpIntegrator{
 			std::vector<Direction>{}, 1.0
@@ -354,7 +354,6 @@ TEST_F(TestSolver1D, TotalFieldFlux)
 
 	GridFunction exc{ &fes };
 	exc = 3.0;
-
 	totalFieldFlux.Mult(exc, f);
 
 	EXPECT_EQ( 0.0, f[0]);
