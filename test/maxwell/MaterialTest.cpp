@@ -5,9 +5,9 @@
 
 using namespace maxwell;
 
-class TestMaterial : public ::testing::Test {
+class MaterialTest : public ::testing::Test {
 };
-TEST_F(TestMaterial, impedanceAndConductance)
+TEST_F(MaterialTest, impedanceAndConductance)
 {
 	Material mat1(1.0, 2.0);
 	Material mat2(100.0, 1.0);
@@ -22,7 +22,7 @@ TEST_F(TestMaterial, impedanceAndConductance)
 	EXPECT_EQ(sqrt( 10.0  /  20.0), mat3.getAdmitance());
 }
 
-TEST_F(TestMaterial, invalidEpsOrMu)
+TEST_F(MaterialTest, invalidEpsOrMu)
 {
 	EXPECT_ANY_THROW(Material( 0.5,    1.0));
 	EXPECT_ANY_THROW(Material( 1.0,    0.5));

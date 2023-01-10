@@ -27,7 +27,7 @@ double negFunction(const Vector& pos)
 	return -2 * normalizedPos;
 }
 
-class TestGridFunction : public ::testing::Test {
+class GridFunctionTest : public ::testing::Test {
 protected:
 
 	typedef std::size_t Direction;
@@ -71,7 +71,7 @@ protected:
 
 };
 
-TEST_F(TestGridFunction, ElementIDFinder1D)
+TEST_F(GridFunctionTest, ElementIDFinder1D)
 {
 	setFES1D(2, 5, 5.0);
 	
@@ -87,7 +87,7 @@ TEST_F(TestGridFunction, ElementIDFinder1D)
 
 }
 
-TEST_F(TestGridFunction, IntegrationPointFinder1D)
+TEST_F(GridFunctionTest, IntegrationPointFinder1D)
 {
 	setFES1D(2, 5, 5.0);
 
@@ -107,7 +107,7 @@ TEST_F(TestGridFunction, IntegrationPointFinder1D)
 
 }
 
-TEST_F(TestGridFunction, DoFFinder1D)
+TEST_F(GridFunctionTest, DoFFinder1D)
 {
 	/*Create a 1D FES mesh with the following form
 
@@ -142,7 +142,7 @@ TEST_F(TestGridFunction, DoFFinder1D)
 
 }
 
-TEST_F(TestGridFunction, GetGFValuesAtPoints1D)
+TEST_F(GridFunctionTest, GetGFValuesAtPoints1D)
 {
 	setFES1D(2, 5, 5.0);
 	
@@ -160,7 +160,7 @@ TEST_F(TestGridFunction, GetGFValuesAtPoints1D)
 
 }
 
-TEST_F(TestGridFunction, SetGFValuesAtPoints1D)
+TEST_F(GridFunctionTest, SetGFValuesAtPoints1D)
 {
 	/*Create a 1D FES playground with the following form
 	
@@ -204,7 +204,7 @@ double linearDummyFunction(const Vector& v, double time)
 	return v[0] + time;
 }
 
-TEST_F(TestGridFunction, TimeDependentGridFunction)
+TEST_F(GridFunctionTest, TimeDependentGridFunction)
 {
 	setFES1D(1, 5, 5.0);
 	GridFunction f{ fes_.get() };
@@ -220,7 +220,7 @@ TEST_F(TestGridFunction, TimeDependentGridFunction)
 	EXPECT_EQ(5.0, f[0]);
 }
 	
-TEST_F(TestGridFunction, ProjectBdrFunction)
+TEST_F(GridFunctionTest, ProjectBdrFunction)
 {
 	const auto order{ 1 };
 	

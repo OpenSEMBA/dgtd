@@ -12,7 +12,7 @@ using namespace fixtures::sources;
 
 using Solver = maxwell::Solver;
 
-class TestSolver1D : public ::testing::Test {
+class Solver1DTest : public ::testing::Test {
 protected:
 	static const int defaultNumberOfElements{ 51 };
 
@@ -129,7 +129,7 @@ protected:
 	}
 };
 
-TEST_F(TestSolver1D, box_pec_centered_flux)
+TEST_F(Solver1DTest, box_pec_centered_flux)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -159,7 +159,7 @@ TEST_F(TestSolver1D, box_pec_centered_flux)
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
 
-TEST_F(TestSolver1D, box_pmc_centered_flux)
+TEST_F(Solver1DTest, box_pmc_centered_flux)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -188,7 +188,7 @@ TEST_F(TestSolver1D, box_pmc_centered_flux)
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver1D, box_pec_upwind_flux)
+TEST_F(Solver1DTest, box_pec_upwind_flux)
 {
 	maxwell::Solver solver{
 		buildModel(),
@@ -207,7 +207,7 @@ TEST_F(TestSolver1D, box_pec_upwind_flux)
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
 
-TEST_F(TestSolver1D, box_pmc_upwind_flux)
+TEST_F(Solver1DTest, box_pmc_upwind_flux)
 {
 	maxwell::Solver solver{
 		buildModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
@@ -226,7 +226,7 @@ TEST_F(TestSolver1D, box_pmc_upwind_flux)
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
-TEST_F(TestSolver1D, box_SMA)
+TEST_F(Solver1DTest, box_SMA)
 {
 	maxwell::Solver solver(
 		buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
@@ -242,7 +242,7 @@ TEST_F(TestSolver1D, box_SMA)
 	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
 }
 
-//TEST_F(TestSolver1D, DISABLED_upwind_perfect_boundary_EH_XYZ)
+//TEST_F(Solver1DTest, DISABLED_upwind_perfect_boundary_EH_XYZ)
 //{
 //	for (const auto& f : { E, H }) {
 //		for (const auto& x : { X, Y, Z }) {
@@ -262,7 +262,7 @@ TEST_F(TestSolver1D, box_SMA)
 //		}
 //	}
 //}
-TEST_F(TestSolver1D, DISABLED_box_upwind_SMA_E_XYZ)
+TEST_F(Solver1DTest, DISABLED_box_upwind_SMA_E_XYZ)
 {
 	for (const auto& x : { X, Y, Z }) {
 		maxwell::Solver solver(
@@ -281,7 +281,7 @@ TEST_F(TestSolver1D, DISABLED_box_upwind_SMA_E_XYZ)
 	}
 }
 
-TEST_F(TestSolver1D, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
+TEST_F(Solver1DTest, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	Mesh mesh1D = Mesh::MakeCartesian1D(101);
 	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.76, 1.0) } }, mesh1D);
@@ -325,7 +325,7 @@ TEST_F(TestSolver1D, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.10, 1), 2e-3);
 }
 
-TEST_F(TestSolver1D, TotalFieldFlux)
+TEST_F(Solver1DTest, TotalFieldFlux)
 {
 	auto mesh{ Mesh::MakeCartesian1D(4, 4.0) };
 	auto tFBoundaryAttr{ 5 };

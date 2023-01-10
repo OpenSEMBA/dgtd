@@ -2,7 +2,7 @@
 
 #include "maxwell/mfemExtension/BilinearIntegrators.h"
 #include "maxwell/Types.h"
-#include "TestMfemHesthavenFunctions.h"
+#include "MfemHesthavenFunctionsTest.h"
 #include "GlobalFunctions.h"
 #include "maxwell/MaxwellDefs.h"
 #include "maxwell/MaxwellDefs1D.h"
