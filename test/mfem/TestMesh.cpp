@@ -7,6 +7,7 @@
 #include <mfem.hpp>
 
 using namespace mfem;
+using NodeId = int;
 using FaceId = int;
 using Orientation = int;
 
@@ -21,6 +22,11 @@ double linearFunction(const Vector& pos)
 }
 
 std::map<FaceId, Orientation> mapFaceToOrientationOuterBoundary(const Mesh& mesh, const size_t numberOfElements) {
+	
+	/*This method would require from another method that would identify elements with a specific tag,
+	then the numberOfElements argument would be removed and the variable would be substituted by
+	the # of tagged elements.*/
+	
 	std::map<FaceId, Orientation> res;
 	for (std::size_t i{ 0 }; i < numberOfElements; ++i) {
 		Array<FaceId> faces;
@@ -190,7 +196,7 @@ TEST_F(TestMesh, MeshElementVertices)
 	EXPECT_EQ(lastElementVerticesVector, vectorLastElement);
 
 }
-TEST_F(TestMesh, mapMeshElementAndVertex)
+TEST_F(TestMesh, MapMeshElementAndVertex)
 {
 
 	/* This test was created with the aim to understand the mapping and ordering process
@@ -218,12 +224,12 @@ TEST_F(TestMesh, mapMeshElementAndVertex)
 	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);
 
 }
-TEST_F(TestMesh, meshDataFileRead)
+TEST_F(TestMesh, MeshDataFileRead)
 {
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
 }
 
-TEST_F(TestMesh, boundaryWithoutInteriorFace)
+TEST_F(TestMesh, BoundaryWithoutInteriorFace)
 {
 	const auto numberOfElements{ 2 };
 	auto mesh{ Mesh::MakeCartesian2D(numberOfElements, 1, Element::Type::QUADRILATERAL, false, 2.0) };
@@ -233,6 +239,34 @@ TEST_F(TestMesh, boundaryWithoutInteriorFace)
 	std::map<int, int> expected{{0,1},{2,-1},{3,-1},{4,1},{5,1},{6,-1}};
 
 	EXPECT_EQ(expected, facesToOrient);
+}
+
+TEST_F(TestMesh, NodesFromFacesToOrientMap)
+{
+	const auto numberOfElements{ 2 };
+	auto mesh{ Mesh::MakeCartesian2D(numberOfElements, 1, Element::Type::QUADRILATERAL, false, 2.0) };
+	auto fec{ std::make_unique<DG_FECollection>(1,2) };
+	auto fes{ std::make_unique<FiniteElementSpace>(&mesh,fec.get(),2) };
+
+	auto facesToOrient = mapFaceToOrientationOuterBoundary(mesh, numberOfElements);
+	
+	std::list<NodeId> bdrNodes;
+	for (std::size_t i{ 0 }; i < facesToOrient.size(); i++) {
+		Array<NodeId> edgeNodes;
+		fes.get()->GetEdgeDofs(i, edgeNodes);
+		fes.get()->GetEdgeVDofs(i, edgeNodes);
+		fes.get()->GetFaceDofs(i, edgeNodes);
+		fes.get()->GetEdgeInteriorDofs(i, edgeNodes);
+
+		for (std::size_t j{ 0 }; j < edgeNodes.Size(); ++j) {
+			bdrNodes.push_back(edgeNodes[j]);
+		}
+	}
+	bdrNodes.sort();
+
+	std::list<NodeId> expected{ 0, 1, 2, 3, 4, 5, 6, 7 };
+	EXPECT_EQ(expected, bdrNodes);
+
 }
 
 
