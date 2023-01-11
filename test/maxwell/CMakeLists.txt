@@ -19,7 +19,7 @@ add_executable(maxwell_tests
 	"SourcesTest.cpp"
 	"ProbesTest.cpp"
 	"BilinearIntegratorsTest.cpp"
- )
+	"BilinearFormTest.cpp")
 
 target_link_libraries(maxwell_tests 
 	maxwell mfem testHelpers 

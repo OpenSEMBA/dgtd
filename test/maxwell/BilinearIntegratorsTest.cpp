@@ -12,7 +12,7 @@ using namespace maxwell;
 using namespace mfem;
 using namespace mfemExtension;
 
-class BilinearIntregratorsTest : public ::testing::Test {
+class BilinearIntegratorsTest : public ::testing::Test {
 protected:
 
 	void SetUp() override
@@ -44,7 +44,7 @@ protected:
 
 };
 
-TEST_F(BilinearIntregratorsTest, DISABLED_compareDGTraceWithMaxwellDG1D)
+TEST_F(BilinearIntegratorsTest, DISABLED_compareDGTraceWithMaxwellDG1D)
 {
 	setFES1D(1, 3);
 
@@ -65,3 +65,5 @@ TEST_F(BilinearIntregratorsTest, DISABLED_compareDGTraceWithMaxwellDG1D)
 
 	EXPECT_TRUE(false);
 }
+
+
