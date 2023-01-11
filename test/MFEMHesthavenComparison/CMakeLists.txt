@@ -7,10 +7,12 @@ find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(mfem_hesthaven_tests
-"TestMfemHesthaven1D.cpp" 
-"TestMfemHesthaven3D.cpp" 
-"TestMfemHesthavenFunctions.cpp" "TestMfemHesthavenFunctions.h" 
-"TestMfemHesthavenTrace1D.cpp" "TestMfemHesthaven2D.cpp")
+"MfemHesthaven1DTest.cpp" 
+"MfemHesthaven3DTest.cpp" 
+"MfemHesthavenFunctionsTest.cpp" 
+"MfemHesthavenTrace1DTest.cpp" 
+"MfemHesthaven2DTest.cpp"
+)
 
 target_link_libraries(mfem_hesthaven_tests mfem
 	maxwell testHelpers

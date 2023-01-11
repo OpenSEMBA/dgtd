@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "TestMfemHesthavenFunctions.h"
+#include "MfemHesthavenFunctionsTest.h"
 #include "GlobalFunctions.h"
 
 using namespace maxwell;

@@ -8,11 +8,11 @@ using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
 
-class TestProbesManager : public ::testing::Test {
+class ProbesManagerTest : public ::testing::Test {
 	
 };
 
-TEST_F(TestProbesManager, exporterProbe)
+TEST_F(ProbesManagerTest, exporterProbe)
 {
 	Mesh mesh{ Mesh::MakeCartesian1D(20, 1.0) };
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };

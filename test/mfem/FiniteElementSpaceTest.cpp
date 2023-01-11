@@ -8,7 +8,7 @@
 
 using namespace mfem;
 
-class TestFiniteElementSpace : public ::testing::Test {
+class FiniteElementSpaceTest : public ::testing::Test {
 protected:
 
 	typedef std::size_t Direction;
@@ -95,7 +95,7 @@ protected:
 	}
 };
 
-TEST_F(TestFiniteElementSpace, MassMatrixIsSameForH1andDG)
+TEST_F(FiniteElementSpaceTest, MassMatrixIsSameForH1andDG)
 {
 	for (int order = 1; order < 5; order++) {
 
@@ -120,7 +120,7 @@ TEST_F(TestFiniteElementSpace, MassMatrixIsSameForH1andDG)
 		}
 	}
 }
-TEST_F(TestFiniteElementSpace, KOperators)
+TEST_F(FiniteElementSpaceTest, KOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
 	  for a single element in 1D.
@@ -171,7 +171,7 @@ TEST_F(TestFiniteElementSpace, KOperators)
 		}
 	}
 }
-TEST_F(TestFiniteElementSpace, MeshBoundaries)
+TEST_F(FiniteElementSpaceTest, MeshBoundaries)
 {
 	/*In this test we aim to compare the boundary DoFs for a mesh generated through
 	the Mesh class constructors for a 2DCartesian and 'square3x3.mesh', a handcrafted mesh.
@@ -216,7 +216,7 @@ TEST_F(TestFiniteElementSpace, MeshBoundaries)
 
 	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
 }
-TEST_F(TestFiniteElementSpace, printGLVISDataForBasisFunctionNodes)
+TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
 {
 	/*This test creates files for the Basis Functions, for later visualization 
 	through GLVIS.

@@ -47,7 +47,7 @@ std::map<FaceId, Orientation> mapFaceToOrientationOuterBoundary(const Mesh& mesh
 	return res;
 }
 
-class TestMesh : public ::testing::Test {
+class MeshTest : public ::testing::Test {
 protected:
 	void SetUp() override 
 	{
@@ -86,7 +86,7 @@ protected:
 	}
 };
 
-TEST_F(TestMesh, TwoAttributeMesh)
+TEST_F(MeshTest, TwoAttributeMesh)
 {
 	/*The purpose of this test is to check the makeTwoAttributeCartesianMesh1D(const int& refTimes)
 	function.
@@ -118,7 +118,7 @@ TEST_F(TestMesh, TwoAttributeMesh)
 		}
 	}
 }
-TEST_F(TestMesh, MeshDimensions)
+TEST_F(MeshTest, MeshDimensions)
 {
 	/*This test ensures that the number of elements of any 2D Cartesian
 	mesh is equal to the product of the horizontal and vertical segments
@@ -133,7 +133,7 @@ TEST_F(TestMesh, MeshDimensions)
 	EXPECT_EQ(nx * ny, mesh.GetNE());
 
 }
-TEST_F(TestMesh, DataValueOutsideNodesForOneElementMeshes)
+TEST_F(MeshTest, DataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
 	even if the point we're trying to obtain it at is not necessarily a DoF or node.
@@ -162,7 +162,7 @@ TEST_F(TestMesh, DataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
-TEST_F(TestMesh, MeshElementVertices)
+TEST_F(MeshTest, MeshElementVertices)
 {
 	/*This test was created to understand the process of mesh creation
 	and assignation of vertex index to elements.
@@ -196,7 +196,7 @@ TEST_F(TestMesh, MeshElementVertices)
 	EXPECT_EQ(lastElementVerticesVector, vectorLastElement);
 
 }
-TEST_F(TestMesh, MapMeshElementAndVertex)
+TEST_F(MeshTest, MapMeshElementAndVertex)
 {
 
 	/* This test was created with the aim to understand the mapping and ordering process
@@ -224,12 +224,12 @@ TEST_F(TestMesh, MapMeshElementAndVertex)
 	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);
 
 }
-TEST_F(TestMesh, MeshDataFileRead)
+TEST_F(MeshTest, MeshDataFileRead)
 {
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
 }
 
-TEST_F(TestMesh, BoundaryWithoutInteriorFace)
+TEST_F(MeshTest, BoundaryWithoutInteriorFace)
 {
 	const auto numberOfElements{ 2 };
 	auto mesh{ Mesh::MakeCartesian2D(numberOfElements, 1, Element::Type::QUADRILATERAL, false, 2.0) };
@@ -241,7 +241,7 @@ TEST_F(TestMesh, BoundaryWithoutInteriorFace)
 	EXPECT_EQ(expected, facesToOrient);
 }
 
-TEST_F(TestMesh, InteriorBoundary)
+TEST_F(MeshTest, InteriorBoundary)
 {
 	auto mesh{ Mesh::LoadFromFile("./TestData/line.mesh", 1, 0) };
 

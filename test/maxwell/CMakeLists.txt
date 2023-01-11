@@ -11,15 +11,14 @@ message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
 message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
 
 add_executable(maxwell_tests 
-	"TestSolver1D.cpp" 
-	"TestSolver2D.cpp" 
-	"TestSolver3D.cpp" 
-	 
-	"TestMaterial.cpp" 
-	"TestProbesManager.cpp" 
-	"TestSources.cpp"
-	"TestProbes.cpp"
-	"TestBilinearIntegrators.cpp"
+	"Solver1DTest.cpp" 
+	"Solver2DTest.cpp" 
+	"Solver3DTest.cpp"  
+	"MaterialTest.cpp" 
+	"ProbesManagerTest.cpp" 
+	"SourcesTest.cpp"
+	"ProbesTest.cpp"
+	"BilinearIntegratorsTest.cpp"
  )
 
 target_link_libraries(maxwell_tests 

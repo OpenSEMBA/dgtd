@@ -19,7 +19,7 @@ add_definitions(-DPOLYNOMIAL_ORDER=3)
 
 add_executable(cudg3d_tests 
 	"dg/CellTest.cpp"
-	"TestCudg3d.cpp")
+	"Cudg3dTest.cpp")
 
 
 

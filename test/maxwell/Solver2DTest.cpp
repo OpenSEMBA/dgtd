@@ -9,7 +9,7 @@ using namespace mfem;
 using namespace fixtures::sources;
 using namespace AnalyticalFunctions2D;
 
-class TestSolver2D : public ::testing::Test {
+class Solver2DTest : public ::testing::Test {
 protected:
 	static const int defaultNumberOfElements_X{ 3 };
 	static const int defaultNumberOfElements_Y{ 3 };
@@ -48,7 +48,7 @@ protected:
 
 };
 
-TEST_F(TestSolver2D, DISABLED_box_pec_centered_2D)
+TEST_F(Solver2DTest, DISABLED_box_pec_centered_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -80,7 +80,7 @@ TEST_F(TestSolver2D, DISABLED_box_pec_centered_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver2D, DISABLED_box_pec_centered_square_2D)
+TEST_F(Solver2DTest, DISABLED_box_pec_centered_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -112,7 +112,7 @@ TEST_F(TestSolver2D, DISABLED_box_pec_centered_square_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver2D, DISABLED_box_pec_upwind_2D)
+TEST_F(Solver2DTest, DISABLED_box_pec_upwind_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -143,7 +143,7 @@ TEST_F(TestSolver2D, DISABLED_box_pec_upwind_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver2D, DISABLED_box_sma_upwind_square_2D)
+TEST_F(Solver2DTest, DISABLED_box_sma_upwind_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -179,7 +179,7 @@ TEST_F(TestSolver2D, DISABLED_box_sma_upwind_square_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver2D, DISABLED_box_pec_upwind_square_2D)
+TEST_F(Solver2DTest, DISABLED_box_pec_upwind_square_2D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -210,7 +210,7 @@ TEST_F(TestSolver2D, DISABLED_box_pec_upwind_square_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(TestSolver2D, DISABLED_quadraticMesh)
+TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 {
 	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
 	auto fec = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
@@ -237,7 +237,7 @@ TEST_F(TestSolver2D, DISABLED_quadraticMesh)
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
 
-//TEST_F(TestSolver2D, DISABLED_centered_flux_AMR)
+//TEST_F(Solver2DTest, DISABLED_centered_flux_AMR)
 //{
 //	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 //	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -271,7 +271,7 @@ TEST_F(TestSolver2D, DISABLED_quadraticMesh)
 //
 //	EXPECT_GT(eOld.Max(), eNew.Max());
 //}
-//TEST_F(TestSolver2D, DISABLED_periodic) //TODO ADD ENERGY CHECK
+//TEST_F(Solver2DTest, DISABLED_periodic) //TODO ADD ENERGY CHECK
 //{
 //	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
 //	Vector periodic({ 0.0, 1.0 });
@@ -293,7 +293,7 @@ TEST_F(TestSolver2D, DISABLED_quadraticMesh)
 //	solver.run();
 //
 //}
-//TEST_F(TestSolver2D, DISABLED_periodic_strong) //TODO ADD ENERGY CHECK
+//TEST_F(Solver2DTest, DISABLED_periodic_strong) //TODO ADD ENERGY CHECK
 //{
 //	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
 //	Vector periodic({ 0.0, 1.0 });
@@ -323,7 +323,7 @@ TEST_F(TestSolver2D, DISABLED_quadraticMesh)
 //	solver.run();
 //
 //}
-//TEST_F(TestSolver2D, DISABLED_centered_NC_MESH) //TODO ADD ENERGY CHECK
+//TEST_F(Solver2DTest, DISABLED_centered_NC_MESH) //TODO ADD ENERGY CHECK
 //{
 //	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 //	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -361,7 +361,7 @@ TEST_F(TestSolver2D, DISABLED_quadraticMesh)
 //
 //	EXPECT_GT(eOld.Max(), eNew.Max());
 //}
-//TEST_F(TestSolver2D, DISABLED_resonantBox)
+//TEST_F(Solver2DTest, DISABLED_resonantBox)
 //{
 //	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
 //	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
