@@ -10,9 +10,22 @@ class BilinearFormTF : public BilinearForm
 {
 public:
 
-void Assemble(int skip_zeros = 1);
 
 	BilinearFormTF(FiniteElementSpace* f);
+
+	Array<BilinearFormIntegrator*>* GetIBFI() { return &interior_boundary_face_integs; }
+	Array<Array<int>*>* GetIBFI_Marker() { return &interior_boundary_face_integs_marker; }
+
+	void AddInteriorBoundaryFaceIntegrator(BilinearFormIntegrator* bfi,
+		Array<int>& int_bdr_marker);
+
+	void Assemble(int skip_zeros = 1);
+
+protected:
+
+	Array<BilinearFormIntegrator*> interior_boundary_face_integs;
+	Array<Array<int>*> interior_boundary_face_integs_marker; ///< Entries are not owned.
+
 
 private:
 	/// Copy construction is not supported; body is undefined.
