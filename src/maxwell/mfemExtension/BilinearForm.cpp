@@ -241,11 +241,10 @@ void BilinearFormTF::Assemble(int skip_zeros) {
             if (tr != NULL)
             {
                 fes->GetElementVDofs(tr->Elem1No, vdofs);
+                fes->GetElementVDofs(tr->Elem2No, vdofs2);
+                vdofs.Append(vdofs2);
                 fe1 = fes->GetFE(tr->Elem1No);
-                // The fe2 object is really a dummy and not used on the boundaries,
-                // but we can't dereference a NULL pointer, and we don't want to
-                // actually make a fake element.
-                fe2 = fe1;
+                fe2 = fes->GetFE(tr->Elem2No);
                 for (int k = 0; k < boundary_face_integs.Size(); k++)
                 {
                     if (boundary_face_integs_marker[k] &&
