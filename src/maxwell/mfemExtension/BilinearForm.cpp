@@ -18,10 +18,7 @@ void BilinearFormTF::AddInteriorBoundaryFaceIntegrator(BilinearFormIntegrator* b
 
 void BilinearFormTF::Assemble(int skip_zeros) {
     
-    ElementTransformation* eltrans;
-    DofTransformation* doftrans;
     Mesh* mesh = fes->GetMesh();
-    DenseMatrix elmat, * elmat_p;
     
     BilinearForm::Assemble(skip_zeros);
 
@@ -31,7 +28,7 @@ void BilinearFormTF::Assemble(int skip_zeros) {
         Array<int> vdofs2;
         const FiniteElement* fe1, * fe2;
 
-        // Which boundary attributes need to be processed?
+        // Which interior boundary attributes need to be processed?
         Array<int> int_bdr_attr_marker(mesh->bdr_attributes.Size() ?
             mesh->bdr_attributes.Max() : 0);
         int_bdr_attr_marker = 0;
@@ -54,8 +51,8 @@ void BilinearFormTF::Assemble(int skip_zeros) {
 
         for (int i = 0; i < fes->GetNBE(); i++)
         {
-            const int bdr_attr = mesh->GetBdrAttribute(i);
-            if (int_bdr_attr_marker[bdr_attr - 1] == 0) { continue; }
+            const int mesh_bdr_attr = mesh->GetBdrAttribute(i);
+            if (int_bdr_attr_marker[mesh_bdr_attr - 1] == 0) { continue; }
 
             tr = mesh->GetInteriorFaceTransformations(i);
             if (tr != NULL)
@@ -68,7 +65,7 @@ void BilinearFormTF::Assemble(int skip_zeros) {
                 for (int k = 0; k < interior_boundary_face_integs.Size(); k++)
                 {
                     if (interior_boundary_face_integs_marker[k] &&
-                        (*interior_boundary_face_integs_marker[k])[bdr_attr - 1] == 0)
+                        (*interior_boundary_face_integs_marker[k])[mesh_bdr_attr - 1] == 0)
                     {
                         continue;
                     }
