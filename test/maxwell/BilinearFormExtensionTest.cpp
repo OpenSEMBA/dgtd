@@ -7,7 +7,7 @@
 #include <mfem.hpp>
 #include "GlobalFunctions.h"
 #include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/mfemExtension/BilinearForm.h"
+#include "maxwell/mfemExtension/BilinearForm.hpp"
 
 using namespace maxwell;
 using namespace mfem;

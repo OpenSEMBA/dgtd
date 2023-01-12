@@ -1,4 +1,4 @@
-#include "BilinearForm.h"
+#include "BilinearForm.hpp"
 
 namespace maxwell {
 namespace mfemExtension {
@@ -7,6 +7,8 @@ using namespace mfem;
 
 BilinearFormTF::BilinearFormTF(FiniteElementSpace* f) : BilinearForm(f)
 {
+    MFEM_VERIFY(interior_boundary_face_integs_marker != NULL,
+        "interior_boundary_face_integs_marker is NULL.");
 }
 
 void BilinearFormTF::AddInteriorBoundaryFaceIntegrator(BilinearFormIntegrator* bfi,
