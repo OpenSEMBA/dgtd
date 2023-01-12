@@ -13,7 +13,7 @@ using namespace maxwell;
 using namespace mfem;
 using namespace mfemExtension;
 
-class BilinearFormTest : public ::testing::Test 
+class BilinearFormExtensionTest : public ::testing::Test 
 {
 protected:
 
@@ -40,7 +40,7 @@ protected:
 
 };
 
-TEST_F(BilinearFormTest, bdrInteriorBilinearForm)
+TEST_F(BilinearFormExtensionTest, checkInteriorBoundaryFaceIntegrator)
 {
 	setFES1D(1,4,4.0);
 
@@ -71,4 +71,45 @@ TEST_F(BilinearFormTest, bdrInteriorBilinearForm)
 	EXPECT_EQ( 0.0, f[7]);
 	EXPECT_EQ( 1.0, f[3]);
 	EXPECT_EQ(-1.0, f[4]);
+}
+
+TEST_F(BilinearFormExtensionTest, compareBaseAndDerivedBilinearForms)
+{
+	setFES1D(1, 4, 4.0);
+
+	auto intBdrAttr{ 5 };
+	mesh_.AddBdrPoint(2, intBdrAttr);
+	mesh_.FinalizeMesh();
+
+	Array<int> intBdrMarker{ mesh_.bdr_attributes.Max() };
+	intBdrMarker = 0;
+	intBdrMarker[intBdrAttr - 1] = 1;
+	std::vector<VectorConstantCoefficient> n = { VectorConstantCoefficient(Vector({1.0})) };
+
+	BilinearForm baseBilinearForm(fes_.get());
+	BilinearFormTF derivedBilinearForm(fes_.get());
+	baseBilinearForm.AddBdrFaceIntegrator(
+		new DGTraceIntegrator{ n[0],0.0, 1.0 },
+		intBdrMarker
+	);
+	derivedBilinearForm.AddInteriorBoundaryFaceIntegrator(
+		new DGTraceIntegrator{ n[0],0.0, 1.0 },
+		intBdrMarker
+	);
+	baseBilinearForm.Assemble();
+	baseBilinearForm.Finalize();
+	derivedBilinearForm.Assemble();
+	derivedBilinearForm.Finalize();	
+
+	GridFunction fbase{ fes_.get() }, fderived{ fes_.get() },exc{ fes_.get() };
+	exc[3] = 6.0;
+	exc[4] = 5.0;
+	baseBilinearForm.Mult(exc, fbase);
+	derivedBilinearForm.Mult(exc, fderived);
+
+	EXPECT_EQ( 0.0, fbase[3]);
+	EXPECT_EQ( 0.0, fbase[4]);
+	EXPECT_EQ( 1.0, fderived[3]);
+	EXPECT_EQ(-1.0, fderived[4]);
+	
 }
