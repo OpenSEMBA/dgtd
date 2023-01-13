@@ -42,9 +42,9 @@ public:
 		return std::make_unique<GaussianInitialField>(*this);
 	}
 	
-	double eval3D(const mfem::Vector&) const;
-	double eval2D(const mfem::Vector&) const;
-	double eval1D(const mfem::Vector&) const;
+	double eval3D(const Position&) const;
+	double eval2D(const Position&) const;
+	double eval1D(const Position&) const;
 
 private:
 	double spread_{2.0};
@@ -69,9 +69,9 @@ public:
 		return std::make_unique<SinusoidalInitialField>(*this);
 	}
 
-	double eval3D(const mfem::Vector&) const;
-	double eval2D(const mfem::Vector&) const;
-	double eval1D(const mfem::Vector&) const;
+	double eval3D(const Position&) const;
+	double eval2D(const Position&) const;
+	double eval1D(const Position&) const;
 
 private:
 
@@ -81,8 +81,34 @@ private:
 	const void assembleModesVector(std::vector<std::size_t> modes);
 };
 
-class Planewave : public Source {
-	//To do
+class PlaneWave : public Source {
+public:
+	using Position = mfem::Vector;
+
+	enum ExcitationType {
+		Gaussian
+	};
+
+	PlaneWave(
+		const Direction& d
+	);
+
+	std::unique_ptr<Source> clone() const {
+		return std::make_unique<PlaneWave>(*this);
+	}
+
+private: 
+
+	int excitationType_ = Gaussian;
+	double time_ = 0.0;
+
+	double eval3D(const Position&) const; //These shouldn't be used. TODO
+	double eval2D(const Position&) const; //These shouldn't be used. TODO
+	double eval1D(const Position&) const; //These shouldn't be used. TODO
+	double eval3D(const Position&, double) const;
+	double eval2D(const Position&, double) const;
+	double eval1D(const Position&, double) const;
+
 };
 
 using Sources = std::vector<std::unique_ptr<Source>>;

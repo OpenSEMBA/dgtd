@@ -8,7 +8,7 @@ namespace AnalyticalFunctions3D {
 	double gaussianFunction(const mfem::Vector& pos)
 	{
 		mfem::Vector normalizedPos(3);
-		for (size_t i = 0; i < 3; i++) {
+		for (auto i = 0; i < 3; i++) {
 			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
 			normalizedPos[i] = 2 * (pos[i] - center) / (meshBoundingBoxMax[i] - meshBoundingBoxMin[i]);
 		}

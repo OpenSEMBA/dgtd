@@ -7,7 +7,7 @@
 #include <mfem.hpp>
 #include "GlobalFunctions.h"
 #include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/mfemExtension/BilinearForm.hpp"
+#include "maxwell/mfemExtension/BilinearForm_IBFI.hpp"
 
 using namespace maxwell;
 using namespace mfem;
@@ -37,9 +37,7 @@ protected:
 	Mesh mesh_;
 	std::unique_ptr<FiniteElementCollection> fec_;
 	std::unique_ptr<FiniteElementSpace> fes_;
-
 };
-
 TEST_F(BilinearFormExtensionTest, checkInteriorBoundaryFaceIntegrator)
 {
 	setFES1D(1,4,4.0);
