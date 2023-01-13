@@ -46,6 +46,7 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	MP_[H]->AddMult(hOld, hNew, -1.0);
 
 	// MT_ operator should be evaluated here. TODO
+	// GridFunction eFunction{ SourcesManager::EvaluatePlaneWave() };
 
 
 }

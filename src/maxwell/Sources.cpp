@@ -120,7 +120,7 @@ double PlaneWave::eval2D(const Position& pos, double time) const
 }
 double PlaneWave::eval1D(const Position& pos, double time) const
 {
-	return 0.0; //The return should depend on the excitation type. TODO
+	return pos[X] * time; //WIP - The return should depend on the excitation type. TODO
 }
 
 

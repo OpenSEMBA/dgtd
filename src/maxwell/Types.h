@@ -31,7 +31,7 @@ enum class BdrCond {
 	PEC,
 	PMC,
 	SMA,
-	TotalField
+	TotalField = 301
 };
 
 struct MaxwellEvolOptions {
