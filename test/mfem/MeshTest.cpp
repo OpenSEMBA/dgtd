@@ -252,3 +252,36 @@ TEST_F(MeshTest, InteriorBoundary)
 	mesh.AddBdrPoint(2, 4);
 	EXPECT_EQ(4, mesh.GetBdrAttribute(3));
 }
+
+TEST_F(MeshTest, DGFESWithWedgeElements)
+{
+	int dim{ 3 };
+
+	Mesh m{ dim, 0, 0, 0 };
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(0.0, 0.0, 1.0);
+	m.AddVertex(1.0, 0.0, 1.0);
+	m.AddVertex(0.0, 1.0, 1.0);
+	m.AddTet(0, 1, 2, 3);
+	//m.AddWedge(0, 1, 2, 3, 4, 5, 6);
+	m.FinalizeMesh();
+	
+	DG_FECollection fec{1, dim, BasisType::GaussLobatto};
+	FiniteElementSpace fes{ &m, &fec, dim };
+
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+	ASSERT_NO_THROW(bf.Assemble());
+	ASSERT_NO_THROW(bf.Finalize());
+
+	GridFunction nodes{ &fes };
+	m.GetNodes(nodes);
+}
+
+TEST_F(MeshTest, DGFESWithPyramidElements)
+{
+	EXPECT_TRUE(false);
+}
