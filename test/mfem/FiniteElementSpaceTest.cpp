@@ -257,5 +257,73 @@ TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
 	SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
+TEST_F(FiniteElementSpaceTest, DGWithWedgeElement)
+{
+	int dim{ 3 };
 
+	Mesh m{ dim, 0, 0, 0 };
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(0.0, 0.0, 1.0);
+	m.AddVertex(1.0, 0.0, 1.0);
+	m.AddVertex(0.0, 1.0, 1.0);
+	m.AddWedge(0, 1, 2, 3, 4, 5, 6);
+	m.FinalizeMesh();
+
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec };
+
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+
+	ASSERT_NO_THROW(bf.Assemble());
+	ASSERT_NO_THROW(bf.Finalize());
+}
+TEST_F(FiniteElementSpaceTest, DGWithPyramidElementNotSupported)
+{
+	int dim{ 3 };
+
+	Mesh m{ dim, 0, 0, 0 };
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(1.0, 1.0, 0.0);
+	m.AddVertex(0.5, 0.5, 1.0);
+	m.AddPyramid(0, 1, 2, 3, 4);
+	m.FinalizeMesh();
+
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+
+	FiniteElementSpace fes{ &m, &fec };
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+
+	EXPECT_EXIT(bf.Assemble(), testing::ExitedWithCode(3), ".*");
+}
+TEST_F(FiniteElementSpaceTest, H1WithPyramidElement)
+{
+	int dim{ 3 };
+
+	Mesh m{ dim, 0, 0, 0 };
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(1.0, 1.0, 0.0);
+	m.AddVertex(0.5, 0.5, 1.0);
+	m.AddPyramid(0, 1, 2, 3, 4);
+	m.FinalizeMesh();
+
+	H1_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+
+	FiniteElementSpace fes{ &m, &fec };
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+
+	ASSERT_NO_THROW(bf.Assemble());
+	ASSERT_NO_THROW(bf.Finalize());
+}
 
