@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-
+#include <signal.h>  
 #include <mfem.hpp>
 
 using namespace mfem;
@@ -253,7 +253,7 @@ TEST_F(MeshTest, InteriorBoundary)
 	EXPECT_EQ(4, mesh.GetBdrAttribute(3));
 }
 
-TEST_F(MeshTest, DGFESWithWedgeElements)
+TEST_F(MeshTest, DGFESWithWedgeElement)
 {
 	int dim{ 3 };
 
@@ -264,24 +264,39 @@ TEST_F(MeshTest, DGFESWithWedgeElements)
 	m.AddVertex(0.0, 0.0, 1.0);
 	m.AddVertex(1.0, 0.0, 1.0);
 	m.AddVertex(0.0, 1.0, 1.0);
-	m.AddTet(0, 1, 2, 3);
-	//m.AddWedge(0, 1, 2, 3, 4, 5, 6);
+	m.AddWedge(0, 1, 2, 3, 4, 5, 6);
 	m.FinalizeMesh();
 	
 	DG_FECollection fec{1, dim, BasisType::GaussLobatto};
-	FiniteElementSpace fes{ &m, &fec, dim };
+	FiniteElementSpace fes{ &m, &fec };
 
 	BilinearForm bf{ &fes };
 	ConstantCoefficient one{ 1.0 };
 	bf.AddDomainIntegrator(new MassIntegrator(one));
+
 	ASSERT_NO_THROW(bf.Assemble());
 	ASSERT_NO_THROW(bf.Finalize());
-
-	GridFunction nodes{ &fes };
-	m.GetNodes(nodes);
 }
 
-TEST_F(MeshTest, DGFESWithPyramidElements)
+TEST_F(MeshTest, DGFESWithPyramidElementNotSupported)
 {
-	EXPECT_TRUE(false);
+	int dim{ 3 };
+
+	Mesh m{ dim, 0, 0, 0};
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(1.0, 1.0, 0.0);
+	m.AddVertex(0.5, 0.5, 1.0);
+	m.AddPyramid(0, 1, 2, 3, 4);
+	m.FinalizeMesh();
+
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+
+	FiniteElementSpace fes{ &m, &fec };
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+
+	EXPECT_EXIT(bf.Assemble(), testing::ExitedWithCode(3), ".*");
 }
