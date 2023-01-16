@@ -6,13 +6,13 @@ namespace maxwell {
 namespace mfemExtension{
 
 using namespace mfem;
-class BilinearFormTF : public BilinearForm
+class BilinearFormIBFI : public BilinearForm
 {
 public:
 
 	/// Creates bilinear form associated with FE space @a *f.
 	/** The pointer @a f is not owned by the newly constructed object. */
-	BilinearFormTF(FiniteElementSpace* f);
+	BilinearFormIBFI(FiniteElementSpace* f);
 
 	/// Access all the integrators added with AddInteriorBoundaryFaceIntegrator().
 	Array<BilinearFormIntegrator*>* GetIBFI() { return &interior_boundary_face_integs; }
@@ -38,10 +38,10 @@ protected:
 private:
 
 	/// Copy construction is not supported; body is undefined.
-	BilinearFormTF(const BilinearFormTF&);
+	BilinearFormIBFI(const BilinearFormIBFI&);
 
 	/// Copy assignment is not supported; body is undefined.
-	BilinearFormTF& operator=(const BilinearFormTF&);
+	BilinearFormIBFI& operator=(const BilinearFormIBFI&);
 
 };
 

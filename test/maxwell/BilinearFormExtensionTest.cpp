@@ -46,7 +46,7 @@ TEST_F(BilinearFormExtensionTest, checkInteriorBoundaryFaceIntegrator)
 	mesh_.AddBdrPoint(2, intBdrAttr);
 	mesh_.FinalizeMesh();
 
-	BilinearFormTF totalFieldFlux{ fes_.get() };
+	BilinearFormIBFI totalFieldFlux{ fes_.get() };
 	Array<int> intBdrMarker{ mesh_.bdr_attributes.Max() };
 	intBdrMarker = 0;
 	intBdrMarker[intBdrAttr - 1] = 1;
@@ -85,7 +85,7 @@ TEST_F(BilinearFormExtensionTest, compareBaseAndDerivedBilinearForms)
 	std::vector<VectorConstantCoefficient> n = { VectorConstantCoefficient(Vector({1.0})) };
 
 	BilinearForm baseBilinearForm(fes_.get());
-	BilinearFormTF derivedBilinearForm(fes_.get());
+	BilinearFormIBFI derivedBilinearForm(fes_.get());
 	baseBilinearForm.AddBdrFaceIntegrator(
 		new DGTraceIntegrator{ n[0],0.0, 1.0 },
 		intBdrMarker

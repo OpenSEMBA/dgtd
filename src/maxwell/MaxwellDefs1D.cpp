@@ -63,7 +63,7 @@ FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vect
 
 FiniteElementOperator buildFunctionOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<BilinearFormTF>(&fes);
+	auto res = std::make_unique<BilinearFormIBFI>(&fes);
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 
 	for (auto& kv : model.getBoundaryToMarker())
