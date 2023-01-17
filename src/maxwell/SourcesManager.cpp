@@ -15,7 +15,6 @@ SourcesManager::SourcesManager(const Sources& srcs, const mfem::FiniteElementSpa
 void SourcesManager::setFields(Fields& fields)
 {
     for (const auto& source : sources) {
-
         std::function<double(const Source::Position&, Source::Time)> f = 0;
         if (dynamic_cast<InitialField*>(source.get())) {
             auto initialField{ dynamic_cast<InitialField*>(source.get()) };

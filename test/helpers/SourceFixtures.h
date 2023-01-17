@@ -22,10 +22,9 @@ static Sources buildGaussianInitialField(
 
 }
 
-static Sources buildRightTravelingWaveInitialField(const mfem::Vector& center)
+static Sources buildRightTravelingWaveInitialField(const GaussianFunction& gauss)
 {
 	Sources res;
-	GaussianFunction gauss{ 1, 2.0, 1.0, center };
 	res.push_back(std::move(std::make_unique<InitialField>(gauss, E, Y)));
 	res.push_back(std::move(std::make_unique<InitialField>(gauss, H, Z)));
 	return res;

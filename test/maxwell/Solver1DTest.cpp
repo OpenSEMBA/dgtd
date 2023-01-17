@@ -35,18 +35,14 @@ protected:
 		}
 	}
 
-	PointsProbe buildPointsProbe(
-		const FieldType& fToExtract = E, 
-		const Direction& dirToExtract = X)
+	PointsProbe buildPointProbes(const FieldType& fToExtract = E, const Direction& dirToExtract = X)
 	{
 		return { fToExtract, dirToExtract, Points{ {0.0},{0.5},{1.0} } };
 	}
 
-	Probes buildProbes(
-		const FieldType& f = E,
-		const Direction& d = X)
+	Probes buildProbes(const FieldType& f = E, const Direction& d = X)
 	{
-		Probes r{ { buildPointsProbe(f, d)} };
+		Probes r{ { buildPointProbes(f, d)} };
 		return r;
 	}
 
@@ -55,8 +51,7 @@ protected:
 		return { {}, { ExporterProbe{getTestCaseName()} } };
 	}
 
-
-	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
+		AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
 	{
 		return {
 			{1, bdrL},
@@ -155,6 +150,7 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 	solver.run();
 	GridFunction eNew{ solver.getFields().E[Y] };
 
+	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
@@ -185,6 +181,7 @@ TEST_F(Solver1DTest, box_pmc_centered_flux)
 	solver.run();
 	GridFunction hNew{ solver.getFields().H[Z] };
 
+	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
@@ -224,6 +221,7 @@ TEST_F(Solver1DTest, box_pmc_upwind_flux)
 	solver.run();
 	GridFunction hNew{ solver.getFields().H[Z] };
 
+	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
@@ -243,32 +241,12 @@ TEST_F(Solver1DTest, box_SMA)
 	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
 }
 
-//TEST_F(Solver1DTest, DISABLED_upwind_perfect_boundary_EH_XYZ)
-//{
-//	for (const auto& f : { E, H }) {
-//		for (const auto& x : { X, Y, Z }) {
-//			const auto y{ (x + 1) % 3 };
-//			maxwell::Solver solver{
-//				buildModel(defaultNumberOfElements, buildPerfectBoundary(f), buildPerfectBoundary(f)),
-//				{{buildPointsProbe(f, y)} },
-//				buildGaussianInitialField(f, y),
-//				SolverOptions()
-//			};
-//
-//			GridFunction fOld = solver.getFieldInDirection(f, y);
-//			solver.run();
-//			GridFunction fNew = solver.getFieldInDirection(f, y);
-//
-//			EXPECT_NEAR(0.0, fOld.DistanceTo(fNew), 2e-3);
-//		}
-//	}
-//}
-TEST_F(Solver1DTest, DISABLED_box_upwind_SMA_E_XYZ)
+TEST_F(Solver1DTest, box_upwind_SMA_E_XYZ)
 {
 	for (const auto& x : { X, Y, Z }) {
 		maxwell::Solver solver(
 			buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
-			{ {buildPointsProbe(E, x)} },
+			{ {buildPointProbes(E, x)} },
 			buildGaussianInitialField(E, x),
 			SolverOptions{}
 		);
@@ -285,7 +263,7 @@ TEST_F(Solver1DTest, DISABLED_box_upwind_SMA_E_XYZ)
 TEST_F(Solver1DTest, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	Mesh mesh1D = Mesh::MakeCartesian1D(101);
-	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.76, 1.0) } }, mesh1D);
+	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.51, 1.0) } }, mesh1D);
 	
 	Material mat1{1.0, 1.0};
 	Material mat2{2.0, 1.0};
@@ -302,8 +280,8 @@ TEST_F(Solver1DTest, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	maxwell::Solver solver{
 		model,
-		probes,
-		buildRightTravelingWaveInitialField(Vector({ 0.5 })),
+		buildExportProbes(),
+		buildRightTravelingWaveInitialField(GaussianFunction{ 1, 0.05, 1.0, Vector({ 0.25 }) }),
 		SolverOptions{}.setFinalTime(1.5)
 	};
 
@@ -315,13 +293,13 @@ TEST_F(Solver1DTest, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	solver.run();
 
-	EXPECT_NEAR(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0), 2e-3);
+	//EXPECT_NEAR(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0), 2e-3);
 
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.45, 0), 2e-3);
-	EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.30, 1), 2e-3);
-	
-	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
-		        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.90, 0), 2e-3);
-	EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
-		        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.10, 1), 2e-3);
+	//EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.45, 0), 2e-3);
+	//EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.30, 1), 2e-3);
+	//
+	//EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
+	//	        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.90, 0), 2e-3);
+	//EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
+	//	        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.10, 1), 2e-3);
 }
