@@ -44,7 +44,7 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 	mfem::Vector res;
 	res.SetSize((int)attToMatMap_.size());
 
-	std::size_t i = 0;
+	int i = 0;
 	for (auto const& kv : attToMatMap_) {
 		switch (f) {
 		case FieldType::E:

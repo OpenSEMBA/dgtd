@@ -1,22 +1,22 @@
-#include "BilinearForm.h"
+#include "BilinearForm_IBFI.hpp"
 
 namespace maxwell {
 namespace mfemExtension {
 
 using namespace mfem;
 
-BilinearFormTF::BilinearFormTF(FiniteElementSpace* f) : BilinearForm(f)
+BilinearFormIBFI::BilinearFormIBFI(FiniteElementSpace* f) : BilinearForm(f)
 {
 }
 
-void BilinearFormTF::AddInteriorBoundaryFaceIntegrator(BilinearFormIntegrator* bfi,
+void BilinearFormIBFI::AddInteriorBoundaryFaceIntegrator(BilinearFormIntegrator* bfi,
     Array<int>& int_bdr_marker)
 {
     interior_boundary_face_integs.Append(bfi);
     interior_boundary_face_integs_marker.Append(&int_bdr_marker);
 }
 
-void BilinearFormTF::Assemble(int skip_zeros) {
+void BilinearFormIBFI::Assemble(int skip_zeros) {
     
     Mesh* mesh = fes->GetMesh();
     

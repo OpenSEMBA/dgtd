@@ -15,6 +15,9 @@ using AttributeToBoundary = std::map<Attribute, BdrCond>;
 using BoundaryMarker = mfem::Array<int>;
 using BoundaryToMarker = std::multimap<BdrCond, BoundaryMarker>;
 
+using InteriorBoundaryMarker = mfem::Array<int>;
+using InteriorBoundaryToMarker = std::multimap<BdrCond, InteriorBoundaryMarker>;
+
 class Model {
 public:
 	using Mesh = mfem::Mesh;
@@ -28,6 +31,7 @@ public:
 	Mesh& getMesh() { return mesh_; };
 	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
+	BoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 
 	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
 
@@ -37,6 +41,7 @@ private:
 	AttributeToMaterial attToMatMap_;
 	AttributeToBoundary attToBdrMap_;
 	BoundaryToMarker bdrToMarkerMap_;
+	InteriorBoundaryToMarker intBdrToMarkerMap_;
 };
 
 }

@@ -18,6 +18,7 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_, opts_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
+		MT_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(f, {}, model_, fes_, opts_), fes_);
 	}
 }
 
@@ -43,6 +44,11 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	MF_[H]->Mult   (eOld, hNew);
 	MS_[H]->AddMult(eOld, hNew, -1.0);
 	MP_[H]->AddMult(hOld, hNew, -1.0);
+
+	// MT_ operator should be evaluated here. TODO
+	// GridFunction eFunction{ SourcesManager::EvaluatePlaneWave() };
+
+
 }
 
 }

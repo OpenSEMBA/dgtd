@@ -30,7 +30,8 @@ struct FluxCoefficient {
 enum class BdrCond {
 	PEC,
 	PMC,
-	SMA
+	SMA,
+	TotalField = 301
 };
 
 struct MaxwellEvolOptions {
@@ -50,7 +51,8 @@ enum class DisForm {
 
 enum class InitialFieldType {
 	Gaussian,
-	PlanarSinusoidal
+	PlanarSinusoidal,
+	PlaneWave
 };
 
 

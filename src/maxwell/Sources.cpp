@@ -91,4 +91,37 @@ double SinusoidalInitialField::eval1D(const Position& pos) const
 {
 	return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]);
 }
+
+PlaneWave::PlaneWave(
+	const Direction& d)
+{
+	direction = d;
+}
+
+double PlaneWave::eval3D(const Position& pos) const
+{
+	return 0.0; //This one shouldn't be able to be used here, as we'd need them time dependent. TODO
+}
+double PlaneWave::eval2D(const Position& pos) const
+{
+	return 0.0; //This one shouldn't be able to be used here, as we'd need them time dependent. TODO
+}
+double PlaneWave::eval1D(const Position& pos) const
+{
+	return 0.0; //This one shouldn't be able to be used here, as we'd need them time dependent. TODO
+}
+double PlaneWave::eval3D(const Position& pos, double time) const
+{
+	return 0.0; //The return should depend on the excitation type. TODO
+}
+double PlaneWave::eval2D(const Position& pos, double time) const
+{
+	return 0.0; //The return should depend on the excitation type. TODO
+}
+double PlaneWave::eval1D(const Position& pos, double time) const
+{
+	return pos[X] * time; //WIP - The return should depend on the excitation type. TODO
+}
+
+
 }

@@ -11,45 +11,6 @@ using namespace mfem;
 
 using Direction = int;
 
-class MaxwellDGTraceIntegrator : public mfem::BilinearFormIntegrator {
-
-public:
-	//When explicitly undeclared, rho = 1.0;
-	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a)
-	{
-		rho = NULL; u = &u_; alpha = a; beta = 0.5 * a;
-	}
-
-	MaxwellDGTraceIntegrator(VectorCoefficient& u_, double a, double b)
-	{
-		rho = NULL; u = &u_; alpha = a; beta = b;
-	}
-
-	MaxwellDGTraceIntegrator(Coefficient& rho_, VectorCoefficient& u_,
-		double a, double b)
-	{
-		rho = &rho_; u = &u_; alpha = a; beta = b;
-	}
-
-	virtual void AssembleFaceMatrix(const FiniteElement& el1,
-		const FiniteElement& el2,
-		FaceElementTransformations& Trans,
-		DenseMatrix& elmat);
-
-protected:
-	Coefficient* rho;
-	VectorCoefficient* u;
-	double alpha, beta;
-	// PA extension
-	Vector pa_data;
-	const DofToQuad* maps;             ///< Not owned
-	const FaceGeometricFactors* geom;  ///< Not owned
-	int dim, nf, nq, dofs1D, quad1D;
-
-private:
-	Vector shape1_, shape2_;
-};
-
 /** Integrator for a specialised application of the DG form:
 	beta < k [v], [w] >,
 	where v and w are the trial and test variables, respectively.
@@ -88,36 +49,6 @@ protected:
 
 private:
 	Vector shape1_, shape2_;
-};
-/** Integrator for a specialised application of the Hesthaven DG form:
-	(Q * u, dvdx),
-	where u and v are the trial and test variables, respectively.
-
-	One use case for this integrator is to discretize the individual Maxwell
-	equations with the Hesthaven DG formulation.
-	*/
-class HesthavenDerivativeIntegrator : public BilinearFormIntegrator
-{
-protected:
-	Coefficient* Q;
-
-private:
-	int xi;
-	DenseMatrix dshape, dshapedxt, invdfdx;
-	Vector shape, dshapedxi;
-
-public:
-	HesthavenDerivativeIntegrator(Coefficient& q, int i) : Q(&q), xi(i) { }
-	virtual void AssembleElementMatrix(const FiniteElement& el,
-		ElementTransformation& Trans,
-		DenseMatrix& elmat)
-	{
-		AssembleElementMatrix2(el, el, Trans, elmat);
-	}
-	virtual void AssembleElementMatrix2(const FiniteElement& trial_fe,
-		const FiniteElement& test_fe,
-		ElementTransformation& Trans,
-		DenseMatrix& elmat);
 };
 
 }
