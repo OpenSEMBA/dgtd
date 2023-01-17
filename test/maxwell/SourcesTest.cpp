@@ -5,21 +5,17 @@
 using namespace maxwell;
 using namespace mfem;
 
-using Position = GaussianInitialField::Position;
+using Position = InitialField::Position;
 
 class SourcesTest : public ::testing::Test {
 protected:
 
 };
 
-TEST_F(SourcesTest, negSpreadInput)
+TEST_F(SourcesTest, semba_initial_field)
 {
-	ASSERT_ANY_THROW(GaussianInitialField(E, X, -2.0,  1.0, Position({ 0.5 })));
-}
+	InitialField initialField{ GaussianFunction{ 1, 2.0, 1.0, Position{0.0} }, E, X};
 
-TEST_F(SourcesTest, negNormalizationInput)
-{
-	ASSERT_ANY_THROW(GaussianInitialField(E, X,  2.0, -1.0, Position({0.5})));
-}
 
+}
 

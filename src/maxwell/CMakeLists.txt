@@ -22,6 +22,6 @@ add_library(maxwell STATIC
 	"MaxwellEvolution1D.cpp" 
 	"MaxwellDefs.cpp"
 	"MaxwellDefs1D.cpp"
-	"mfemExtension/BilinearForm_IBFI.cpp")
+	"mfemExtension/BilinearForm_IBFI.cpp" "sembaExtension/source/InitialField.h" "sembaExtension/source/magnitude/Positional.cpp" "sembaExtension/source/magnitude/Positional.h" "sembaExtension/source/InitialField.cpp" "MathFunction.h")
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)
