@@ -47,7 +47,7 @@ TEST_F(TestGmsh, DISABLED_2DboxwithGmshMesh)
 	maxwell::Solver solver{
 		model,
 		buildExportProbes(),
-		buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+		buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 		SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)

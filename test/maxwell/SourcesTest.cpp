@@ -12,10 +12,10 @@ protected:
 
 };
 
-TEST_F(SourcesTest, semba_initial_field)
-{
-	InitialField initialField{ GaussianFunction{ 1, 2.0, 1.0, Position{0.0} }, E, X};
-
-
-}
+//TEST_F(SourcesTest, initial_field)
+//{
+//	InitialField initialField{ GaussianFunction{ 1, 2.0, 1.0, Position{0.0} }, E, X};
+//
+//
+//}
 

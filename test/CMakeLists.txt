@@ -15,5 +15,3 @@ add_subdirectory(maxwell)
 add_subdirectory(mfem)
 add_subdirectory(mfemHesthavenComparison)
 add_subdirectory(thirdpartysoft)
-
-

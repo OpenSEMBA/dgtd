@@ -10,10 +10,10 @@ class SourcesManager {
 public:
     SourcesManager(const Sources&, const mfem::FiniteElementSpace&);  
 
-    void setFields1D(Fields&);
-    void setFields3D(Fields&);
-    
+    void setFields(Fields&);
+
     Sources sources;
+
 private:
     const mfem::FiniteElementSpace& fes_;
 };

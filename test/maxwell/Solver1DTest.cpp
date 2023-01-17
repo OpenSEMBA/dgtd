@@ -203,6 +203,7 @@ TEST_F(Solver1DTest, box_pec_upwind_flux)
 	solver.run();
 	GridFunction eNew{ solver.getFields().E[Y] };
 
+	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }

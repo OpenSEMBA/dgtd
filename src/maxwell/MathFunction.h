@@ -1,9 +1,9 @@
 #pragma once
 
-#include <functional>
 #include <mfem.hpp>
+
 #include "Types.h"
-//#define _USE_MATH_DEFINES
+
 #include <math.h>
 
 namespace maxwell {
@@ -54,6 +54,8 @@ public:
 					+ pow(pos[Z] - center_[Z], 2.0)) / 
 					(2.0 * pow(spatialSpread_, 2.0))
 				);
+		default:
+			throw std::runtime_error("Invalid dimension.");
 		}
 	}
 
