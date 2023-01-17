@@ -10,7 +10,6 @@ message(STATUS "Configuring build system for semba dgtd tests.")
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-add_subdirectory(cudg3d)
 add_subdirectory(helpers)
 add_subdirectory(maxwell)
 add_subdirectory(mfem)
