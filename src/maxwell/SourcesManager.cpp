@@ -34,6 +34,7 @@ void SourcesManager::setFields(Fields& fields)
                     fields.H1D.ProjectCoefficient(FunctionCoefficient(f));
                     break;
                 }
+                break;
             default:
                 switch (initialField->fieldType) {
                 case FieldType::E:

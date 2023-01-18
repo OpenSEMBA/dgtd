@@ -33,18 +33,20 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	hNew.MakeRef(&fes_, &out[fes_.GetNDofs()]);
 
 
-	// dtE = - MS * H + MF * [H] - MF * [E] (signs in coeff)
+	// dtE = - MS * H + MF * [H] (signs in coeff)
 	// Update E.
 	MF_[E]->Mult   (hOld, eNew);
 	MS_[E]->AddMult(hOld, eNew, -1.0);
-	MP_[E]->AddMult(eOld, eNew, -1.0);
 
-	// dtH = - MS * E + MF * [E] - MF * [H] (signs in coeff)
+	// dtH = - MS * E + MF * [E] (signs in coeff)
 	// Update H.
 	MF_[H]->Mult   (eOld, hNew);
 	MS_[H]->AddMult(eOld, hNew, -1.0);
-	MP_[H]->AddMult(hOld, hNew, -1.0);
 
+	if (opts_.fluxType == FluxType::Upwind) {
+		MP_[E]->AddMult(eOld, eNew, -1.0);
+		MP_[H]->AddMult(hOld, hNew, -1.0);
+	}
 	// MT_ operator should be evaluated here. TODO
 	// GridFunction eFunction{ SourcesManager::EvaluatePlaneWave() };
 
