@@ -10,12 +10,13 @@ static Sources buildGaussianInitialField(
 	const FieldType& ft = E,
 	const Direction& d = X,
 	const double spread = 0.1,
-	const mfem::Vector& center = mfem::Vector({ 0.5 }))
+	const mfem::Vector& center = mfem::Vector({ 0.5 }),
+	const int dimension = 1)
 {
 	Sources res;
 	res.push_back(
 		std::move(std::make_unique<InitialField>(
-			GaussianFunction{ 1, spread, 1.0, center }, ft, d)
+			GaussianFunction{ dimension, spread, 1.0, center }, ft, d)
 		)
 	);
 	return res;
