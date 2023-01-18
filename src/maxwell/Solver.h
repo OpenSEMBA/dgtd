@@ -30,7 +30,7 @@ public:
     Solver& operator=(const Solver&) = delete;
 
     const Fields& getFields() const { return fields_; };
-    const PointsProbe& getPointsProbe(const std::size_t probe) const;
+    const PointProbe& getPointProbe(const std::size_t probe) const;
 
     const TimeDependentOperator* getFEEvol() const { return maxwellEvol_.get(); }
 

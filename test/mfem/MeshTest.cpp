@@ -118,6 +118,7 @@ TEST_F(MeshTest, TwoAttributeMesh)
 		}
 	}
 }
+
 TEST_F(MeshTest, MeshDimensions)
 {
 	/*This test ensures that the number of elements of any 2D Cartesian
@@ -133,6 +134,7 @@ TEST_F(MeshTest, MeshDimensions)
 	EXPECT_EQ(nx * ny, mesh.GetNE());
 
 }
+
 TEST_F(MeshTest, DataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
@@ -162,6 +164,7 @@ TEST_F(MeshTest, DataValueOutsideNodesForOneElementMeshes)
 		EXPECT_NEAR(xVal * 2, interpolatedPoint,1e-10);
 	}
 }
+
 TEST_F(MeshTest, MeshElementVertices)
 {
 	/*This test was created to understand the process of mesh creation
@@ -196,6 +199,7 @@ TEST_F(MeshTest, MeshElementVertices)
 	EXPECT_EQ(lastElementVerticesVector, vectorLastElement);
 
 }
+
 TEST_F(MeshTest, MapMeshElementAndVertex)
 {
 
@@ -224,6 +228,7 @@ TEST_F(MeshTest, MapMeshElementAndVertex)
 	EXPECT_EQ(nx * ny - 1, mapped.size() - 1);
 
 }
+
 TEST_F(MeshTest, MeshDataFileRead)
 {
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
@@ -252,4 +257,3 @@ TEST_F(MeshTest, InteriorBoundary)
 	mesh.AddBdrPoint(2, 4);
 	EXPECT_EQ(4, mesh.GetBdrAttribute(3));
 }
-

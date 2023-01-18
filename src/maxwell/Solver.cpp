@@ -53,15 +53,10 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts)
 	}
 }
 
-const PointsProbe& Solver::getPointsProbe(const std::size_t probe) const 
+const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
 { 
-	return probesManager_.getPointsProbe(probe); 
+	return probesManager_.getPointProbe(probe); 
 }
-
-//const double Solver::calculateTimeStep() const
-//{
-//	
-//}
 
 void Solver::run()
 {

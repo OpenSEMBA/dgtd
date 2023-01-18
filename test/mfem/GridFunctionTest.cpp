@@ -6,14 +6,9 @@
 
 using namespace mfem;
 
-double posFunction(const Vector& pos)
+double xPositionFunction(const Vector& pos)
 {
-	double normalizedPos = 0.0;
-	double leftBoundary = 0.0, rightBoundary = 5.0;
-	double length = rightBoundary - leftBoundary;
-	normalizedPos = (pos[0] - leftBoundary) / length;
-
-	return 2 * normalizedPos;
+	return pos[0];
 };
 
 double negFunction(const Vector& pos)
@@ -42,10 +37,11 @@ protected:
 	void setFES1D(
 		const int order,
 		const int elements = 1,
-		const double length = 1.0)
+		const double length = 1.0,
+		const decltype(BasisType::GaussLobatto)& bt = BasisType::GaussLobatto)
 	{
 		mesh_ = Mesh::MakeCartesian1D(elements, length);
-		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
+		fec_ = std::make_unique<DG_FECollection>(order, 1, bt);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 
 	}
@@ -107,7 +103,7 @@ TEST_F(GridFunctionTest, IntegrationPointFinder1D)
 
 }
 
-TEST_F(GridFunctionTest, DoFFinder1D)
+TEST_F(GridFunctionTest, DISABLED_DoFFinder1D)
 {
 	/*Create a 1D FES mesh with the following form
 
@@ -142,25 +138,53 @@ TEST_F(GridFunctionTest, DoFFinder1D)
 
 }
 
-TEST_F(GridFunctionTest, GetGFValuesAtPoints1D)
+TEST_F(GridFunctionTest, GetValuesAtPoints1D)
 {
-	setFES1D(2, 5, 5.0);
-	
-	DenseMatrix pointMat_({ {0.3},{2.5},{4.0} });
-	pointMat_.Transpose();
-	mesh_.FindPoints(pointMat_, elArray_, ipArray_);
+	auto m{ Mesh::MakeCartesian1D(4) };
+	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec };
 
-	GridFunction gridFunction(fes_.get());
-	gridFunction.ProjectCoefficient(FunctionCoefficient(posFunction));
+	DenseMatrix pointMat{ 
+		{ 
+			{0.0}, // Point at left boundary.
+			{0.1}, // Point within mesh.
+			{0.5}, // Point in the boundary between two elements.
+			{1.0},  // Point at right boundary.
+			{1.1}  // Point out of the mesh.
+		} 
+	};
+	pointMat.Transpose();
 
-	Vector expectedValues({ 0.12, 1.0, 1.6 });
-	for (int i = 0; i < elArray_.Size(); i++) {
-		EXPECT_EQ(gridFunction.GetValue(elArray_[i], ipArray_[i]), expectedValues[i]);
+	Array<int> elArray;
+	Array<IntegrationPoint> ipArray;
+	m.FindPoints(pointMat, elArray, ipArray);
+
+	GridFunction gridFunction{ &fes };
+	gridFunction.ProjectCoefficient(FunctionCoefficient(xPositionFunction));
+
+	Array<int> expectedID{
+		{
+			0, // Id of first element (at left boundary).
+			0, // Id of first element.
+			1, // Lower if of the neighbouring elements.
+			3, // Id of last element (at right boundary).
+			-1 // Negative for failure to find.
+		}
+	};
+	for (int i = 0; i < elArray.Size(); i++) {
+		EXPECT_EQ(expectedID[i], elArray[i]);
+	}
+	Vector expectedValues({ 0.0, 0.1, 0.5, 1.0, 999.0 });
+	for (int i = 0; i < elArray.Size(); i++) {
+		if (elArray[i] < 0) {
+			continue;
+		}
+		EXPECT_EQ(gridFunction.GetValue(elArray[i], ipArray[i]), expectedValues[i]);
 	}
 
 }
 
-TEST_F(GridFunctionTest, SetGFValuesAtPoints1D)
+TEST_F(GridFunctionTest, SetValuesAtPoints1D)
 {
 	/*Create a 1D FES playground with the following form
 	

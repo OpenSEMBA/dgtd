@@ -16,12 +16,16 @@ class Solver1DTest : public ::testing::Test {
 protected:
 	static const int defaultNumberOfElements{ 51 };
 
-	Model buildModel(
+	Model buildStandardModel(
 		const int numberOfElements = defaultNumberOfElements, 
 		const BdrCond& bdrL = BdrCond::PEC, 
 		const BdrCond& bdrR = BdrCond::PEC) {
 
-		return Model(Mesh::MakeCartesian1D(numberOfElements, 1.0), AttributeToMaterial{}, buildAttrToBdrMap1D(bdrL, bdrR));
+		return Model{
+			Mesh::MakeCartesian1D(numberOfElements, 1.0),
+			AttributeToMaterial{},
+			buildAttrToBdrMap1D(bdrL, bdrR) 
+		};
 	}
 
 	BdrCond buildPerfectBoundary(FieldType f) {
@@ -35,18 +39,7 @@ protected:
 		}
 	}
 
-	PointsProbe buildPointProbes(const FieldType& fToExtract = E, const Direction& dirToExtract = X)
-	{
-		return { fToExtract, dirToExtract, Points{ {0.0},{0.5},{1.0} } };
-	}
-
-	Probes buildProbes(const FieldType& f = E, const Direction& d = X)
-	{
-		Probes r{ { buildPointProbes(f, d)} };
-		return r;
-	}
-
-	Probes buildExportProbes()
+	Probes buildProbesWithAnExportProbe()
 	{
 		return { {}, { ExporterProbe{getTestCaseName()} } };
 	}
@@ -64,20 +57,6 @@ protected:
 		return { 
 			{ 1, Material(1.0, 1.0) } 
 		};
-	}
-
-	double getBoundaryFieldValueAtTime(
-		const PointsProbe& probe,
-		const Time& timeToFind,
-		const int denseMatPointByOrder)
-	{
-		auto itpos = findTimeId(probe.getFieldMovie(), timeToFind, 1e-6);
-		if (itpos == probe.getFieldMovie().end()) {
-			throw std::exception("Time value has not been found within the specified tolerance.");
-		}
-		auto FieldValueForTimeAtPoint = itpos->second.at(denseMatPointByOrder);
-
-		return FieldValueForTimeAtPoint;
 	}
 
 	void setAttributeIntervalMesh1D(
@@ -104,20 +83,6 @@ protected:
 		}
 	}
 
-	std::map<Time, FieldFrame>::const_iterator findTimeId(
-		const std::map<Time, FieldFrame>& timeMap,
-		const Time& timeToFind,
-		const double tolerance)
-	{
-		for (auto it = timeMap.begin(); it != timeMap.end(); it++) {
-			const Time& time = it->first;
-			if (abs(time - timeToFind) < tolerance) {
-				return it;
-			}
-		}
-		return timeMap.end();
-	}
-
 	static std::string getTestCaseName()
 	{
 		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
@@ -126,19 +91,17 @@ protected:
 
 TEST_F(Solver1DTest, box_pec_centered_flux)
 {
-	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
-	a centered type flux.
-
-	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
-	A single Gaussian is declared along Ey.
-
-	Then, the Solver object is constructed using said parts, with its mesh being one-dimensional.
-	The field along Ey is extracted before and after the solver calls its run() method and evolves the
-	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
-	back to its initial state within the specified error.*/
+	// This test checks propagation of a wave inside a PEC box. 
+	// Final time is set so that a full cycle is completed.
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Y, {0.0}},
+		PointProbe{H, Z, {0.0}}
+	};
+	
 	maxwell::Solver solver{
-		buildModel(),
-		buildExportProbes(),
+		buildStandardModel(),
+		probes,
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
 			.setTimeStep(2.5e-3)
@@ -147,12 +110,33 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 	
 	GridFunction eOld{ solver.getFields().E[Y] };
 	auto normOld{ solver.getFields().getNorml2() };
+	
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld); 
+	
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Y] };
+	
 
-	EXPECT_NE(0.0, normOld);
+	// Checks that field is almost the same as initially because the completion of a cycle.
+	GridFunction eNew{ solver.getFields().E[Y] };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+
+	// Compares all DOFs.
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+		EXPECT_NEAR(0.0, f, 1e-4);
+	}
+	double hMaxInBoundary{ 0.0 };
+	for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovie()) {
+		if (hMaxInBoundary < f) {
+			hMaxInBoundary = f;
+		}
+	}
+	EXPECT_NEAR(1.0, hMaxInBoundary, 1e-4);
 }
 
 TEST_F(Solver1DTest, box_pmc_centered_flux)
@@ -168,8 +152,8 @@ TEST_F(Solver1DTest, box_pmc_centered_flux)
 	problem. This test verifies that after two seconds with PEC boundary conditions, the wave evolves
 	back to its initial state within the specified error.*/
 	maxwell::Solver solver{
-		buildModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
-		buildExportProbes(),
+		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
+		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(H, Z),
 		SolverOptions{}
 			.setTimeStep(2.5e-3)
@@ -188,8 +172,8 @@ TEST_F(Solver1DTest, box_pmc_centered_flux)
 TEST_F(Solver1DTest, box_pec_upwind_flux)
 {
 	maxwell::Solver solver{
-		buildModel(),
-		buildExportProbes(),
+		buildStandardModel(),
+		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
 			.setTimeStep(1e-3)
@@ -208,8 +192,8 @@ TEST_F(Solver1DTest, box_pec_upwind_flux)
 TEST_F(Solver1DTest, box_pmc_upwind_flux)
 {
 	maxwell::Solver solver{
-		buildModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
-		buildExportProbes(),
+		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
+		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(H, Z),
 		SolverOptions{}
 			.setTimeStep(1e-3)
@@ -228,8 +212,8 @@ TEST_F(Solver1DTest, box_pmc_upwind_flux)
 TEST_F(Solver1DTest, box_SMA)
 {
 	maxwell::Solver solver(
-		buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
-		buildExportProbes(),
+		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
 			.setTimeStep(2.5e-3)
@@ -244,9 +228,16 @@ TEST_F(Solver1DTest, box_SMA)
 TEST_F(Solver1DTest, box_upwind_SMA_E_XYZ)
 {
 	for (const auto& x : { X, Y, Z }) {
+		Probes probes;
+		probes.pointProbes = {
+			PointProbe{E, x, {0.0} },
+			PointProbe{E, x, {0.5} },
+			PointProbe{E, x, {1.0} }
+		};
+
 		maxwell::Solver solver(
-			buildModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
-			{ {buildPointProbes(E, x)} },
+			buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+			probes,
 			buildGaussianInitialField(E, x),
 			SolverOptions{}
 		);
@@ -274,14 +265,16 @@ TEST_F(Solver1DTest, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
 	);
 
-	Probes probes{
-		{ PointsProbe(E, Y, Points{ {0.3}, { 0.1 } }) }
+	Probes probes;
+	probes.pointProbes = {
+		PointProbe{ E, Y, {0.3} },
+		PointProbe{ E, Y, {0.1} }
 	};
 
 	maxwell::Solver solver{
 		model,
-		buildExportProbes(),
-		buildRightTravelingWaveInitialField(GaussianFunction{ 1, 0.05, 1.0, Vector({ 0.25 }) }),
+		buildProbesWithAnExportProbe(),
+		buildRightTravelingWaveInitialField(Gaussian{ 1, 0.05, 1.0, Vector({ 0.25 }) }),
 		SolverOptions{}.setFinalTime(1.5)
 	};
 

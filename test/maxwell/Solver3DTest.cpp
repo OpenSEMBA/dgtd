@@ -101,8 +101,8 @@ TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
 	Lastly, the run() function is called.*/
 
 	//maxwell::Solver solver{
-	//buildModel(3,3,3),
-	//buildExportProbes(),
+	//buildStandardModel(3,3,3),
+	//buildProbesWithAnExportProbe(),
 	//buildSinusoidalInitialField(E,Z,{{1,1,0}},{{1.0,1.0,0.0}},Vector{{0.0,0.0,0.5}}),
 	//SolverOptions{}
 	//	.setTimeStep(5e-4)

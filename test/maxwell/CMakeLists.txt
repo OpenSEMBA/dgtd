@@ -17,7 +17,7 @@ add_executable(maxwell_tests
 	"MaterialTest.cpp" 
 	"ProbesManagerTest.cpp" 
 	
-	"ProbesTest.cpp"
+	
 	"BilinearIntegratorsExtensionTest.cpp"
 	"BilinearFormExtensionTest.cpp")
 

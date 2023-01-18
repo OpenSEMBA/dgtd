@@ -15,26 +15,30 @@ public:
     std::string name{"MaxwellView"};
 };
 
-class PointsProbe {
+class PointProbe {
 public:
-    PointsProbe(const FieldType&, const Direction&, const Points&);
+    PointProbe(const FieldType& ft, const Direction& d, const Point& p) :
+        fieldToExtract_{ ft },
+        directionToExtract_{ d },
+        point_{ p }
+    {}
 
     const FieldType& getFieldType() const { return fieldToExtract_; }
     const Direction& getDirection() const { return directionToExtract_; }
     const FieldMovie& getFieldMovie() const { return fieldMovie_; }
-    const Points& getPoints() const { return points_; }
-    void addFrame(double time, const FieldFrame& frame) { fieldMovie_.emplace(time, frame); };
+    const Point& getPoint() const { return point_; }
+    void addFieldToMovie(double time, const double& field) { fieldMovie_.emplace(time, field); };
     
 private:
     FieldType fieldToExtract_;
     Direction directionToExtract_;
-    Points points_;
+    Point point_;
 
     FieldMovie fieldMovie_;
 };
 
 struct Probes {
-    std::vector<PointsProbe> pointsProbes;
+    std::vector<PointProbe> pointProbes;
     std::vector<ExporterProbe> exporterProbes;
 
     int visSteps{ 10 };

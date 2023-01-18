@@ -16,14 +16,14 @@ static Sources buildGaussianInitialField(
 	Sources res;
 	res.push_back(
 		std::move(std::make_unique<InitialField>(
-			GaussianFunction{ dimension, spread, 1.0, center }, ft, d)
+			Gaussian{ dimension, spread, 1.0, center }, ft, d)
 		)
 	);
 	return res;
 
 }
 
-static Sources buildRightTravelingWaveInitialField(const GaussianFunction& gauss)
+static Sources buildRightTravelingWaveInitialField(const Gaussian& gauss)
 {
 	Sources res;
 	res.push_back(std::move(std::make_unique<InitialField>(gauss, E, Y)));

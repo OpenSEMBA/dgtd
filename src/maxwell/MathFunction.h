@@ -17,9 +17,9 @@ public:
 	virtual double eval(const mfem::Vector&, double time = 0.0) const = 0;
 };
 
-class GaussianFunction : public MathFunction {
+class Gaussian : public MathFunction {
 public:
-	GaussianFunction(int dimension, double spatialSpread, double normalization, const mfem::Vector& center) :
+	Gaussian(int dimension, double spatialSpread, double normalization, const mfem::Vector& center) :
 		dimension_{ dimension },
 		spatialSpread_{ spatialSpread },
 		normalization_{ normalization },
@@ -27,11 +27,12 @@ public:
 	{}
 
 	std::unique_ptr<MathFunction> clone() const {
-		return std::make_unique<GaussianFunction>(*this);
+		return std::make_unique<Gaussian>(*this);
 	}
 
 	double eval(const mfem::Vector& pos, double time = 0.0) const 
 	{
+		assert(dimension_ <= pos.Size());
 		switch (dimension_) {
 		case 1:
 			return normalization_* 
@@ -67,11 +68,11 @@ private:
 
 };
 
-class SinusoidalModeFunction : public MathFunction {
+class SinusoidalMode : public MathFunction {
 public:
 
 	std::unique_ptr<MathFunction> clone() const {
-		return std::make_unique<SinusoidalModeFunction>(*this);
+		return std::make_unique<SinusoidalMode>(*this);
 	}
 
 	double eval(const mfem::Vector& pos, double time) const 

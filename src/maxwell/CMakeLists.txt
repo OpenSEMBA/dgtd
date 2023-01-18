@@ -12,7 +12,7 @@ add_library(maxwell STATIC
 	"mfemExtension/BilinearIntegrators.cpp"
 	"Material.cpp"
 	"Model.cpp" 
-	"Probes.cpp" 
+	 
 	"Sources.cpp"
     "ProbesManager.cpp" 
 	"SourcesManager.cpp" 

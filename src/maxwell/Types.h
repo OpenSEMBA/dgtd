@@ -7,8 +7,7 @@
 namespace maxwell {
 
 using Time = double;
-using FieldFrame = std::vector<double>;
-using FieldMovie = std::map<Time, FieldFrame>;
+using FieldMovie = std::map<Time, double>;
 
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
