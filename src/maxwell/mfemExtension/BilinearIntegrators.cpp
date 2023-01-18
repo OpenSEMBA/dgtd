@@ -49,11 +49,12 @@ void buildFaceMatrix(double w, int ndofA, int ndofB, int offsetRow, int offsetCo
     for (int i = 0; i < ndofA; i++) {
         for (int j = 0; j < ndofB; j++)
         {
-            double nonDiag = +1.0;
-            if (offsetRow != offsetCol) {
-                nonDiag = -1.0;
+            if (offsetRow == offsetCol) {
+                elmat(i + offsetRow, j + offsetCol) += w * shapeA(i) * shapeB(j);
             }
-            elmat(i + offsetRow, j + offsetCol) += nonDiag * w * shapeA(i) * shapeB(j);
+            else {
+                elmat(i + offsetRow, j + offsetCol) -= w * shapeA(i) * shapeB(j);
+            }
         }
     }
 }
