@@ -24,12 +24,25 @@ void SourcesManager::setFields(Fields& fields)
                 std::placeholders::_1,
                 std::placeholders::_2
             );
-            switch (initialField->fieldType) {
-            case FieldType::E:
-                fields.E1D.ProjectCoefficient(FunctionCoefficient(f));
-                break;
-            case FieldType::H:
-                fields.H1D.ProjectCoefficient(FunctionCoefficient(f));
+            switch (fes_.GetMesh()->Dimension()) {
+            case 1:
+                switch (initialField->fieldType) {
+                case FieldType::E:
+                    fields.E1D.ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                case FieldType::H:
+                    fields.H1D.ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                }
+            default:
+                switch (initialField->fieldType) {
+                case FieldType::E:
+                    fields.E[initialField->direction].ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                case FieldType::H:
+                    fields.H[initialField->direction].ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                }
                 break;
             }
         }
