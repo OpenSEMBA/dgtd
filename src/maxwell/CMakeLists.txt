@@ -22,6 +22,7 @@ add_library(maxwell STATIC
 	"MaxwellEvolution1D.cpp" 
 	"MaxwellDefs.cpp"
 	"MaxwellDefs1D.cpp"
-	"mfemExtension/BilinearForm_IBFI.cpp")
+	"mfemExtension/BilinearForm_IBFI.cpp" 
+)
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)

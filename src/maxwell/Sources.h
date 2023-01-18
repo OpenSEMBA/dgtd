@@ -3,112 +3,53 @@
 #include <functional>
 #include <mfem.hpp>
 #include "Types.h"
+#include "MathFunction.h"
 
 namespace maxwell {
 
 class Source {
 public:
 	using Position = mfem::Vector;
-	
-	FieldType fieldType{E};
-	Direction direction{X};
-	InitialFieldType initialFT;
-	Position center;
+	using Time = double;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
 
-	virtual double eval3D(const mfem::Vector&) const = 0;
-	virtual double eval2D(const mfem::Vector&) const = 0;
-	virtual double eval1D(const mfem::Vector&) const = 0;
+	virtual double eval(const Position&, Time) const = 0;
 
 };
 
-class GaussianInitialField : public Source {
+class InitialField : public Source {
 public:
-	using Position = mfem::Vector;
+	InitialField(const MathFunction& f, const FieldType& fT, const Direction& d);
+	InitialField(const InitialField& rhs);
 
-	std::function<double(const GaussianInitialField::Position&)> f = 0; 
+	std::unique_ptr<Source> clone() const;
 
-	GaussianInitialField(
-		const FieldType& ft, 
-		const Direction& d,
-		const double spread, 
-		const double normalization,
-		const Position center
-	);
+	double eval(const Position&, Time) const;
 
-	std::unique_ptr<Source> clone() const {
-		return std::make_unique<GaussianInitialField>(*this);
-	}
-	
-	double eval3D(const Position&) const;
-	double eval2D(const Position&) const;
-	double eval1D(const Position&) const;
+	FieldType fieldType{ E };
+	Direction direction{ X };
 
 private:
-	double spread_{2.0};
-	double normalization_{1.0};
-
-	const void checkInputArguments();
-};
-
-class SinusoidalInitialField : public Source {
-public:
-	using Position = mfem::Vector;
-
-	SinusoidalInitialField(
-		const FieldType& ft,
-		const Direction& d,
-		const std::vector<std::size_t> modes,
-		const std::vector<double> coefficient,
-		const Position center
-	);
-
-	std::unique_ptr<Source> clone() const {
-		return std::make_unique<SinusoidalInitialField>(*this);
-	}
-
-	double eval3D(const Position&) const;
-	double eval2D(const Position&) const;
-	double eval1D(const Position&) const;
-
-private:
-
-	std::vector<std::size_t> modes_{ {0,0,0} };
-	std::vector<double> coefficient_{ {1.0,1.0,1.0} };
-
-	const void assembleModesVector(std::vector<std::size_t> modes);
+	std::unique_ptr<MathFunction> function_;
 };
 
 class PlaneWave : public Source {
 public:
-	using Position = mfem::Vector;
+	PlaneWave(const Direction& d):
+		direction{ d }
+	{}
 
-	enum ExcitationType {
-		Gaussian
-	};
-
-	PlaneWave(
-		const Direction& d
-	);
-
-	std::unique_ptr<Source> clone() const {
+	std::unique_ptr<Source> clone() const 
+	{
 		return std::make_unique<PlaneWave>(*this);
 	}
 
-	double eval3D(const Position&, double) const;
-	double eval2D(const Position&, double) const;
-	double eval1D(const Position&, double) const;
+	double eval(const Position&, Time) const;
 
+	Direction direction{ X };
 private: 
-
-	int excitationType_ = Gaussian;
-	double time_ = 0.0;
-
-	double eval3D(const Position&) const; //These shouldn't be used, if not here there's issues with the virtuals from base. TODO
-	double eval2D(const Position&) const; //These shouldn't be used, if not here there's issues with the virtuals from base. TODO
-	double eval1D(const Position&) const; //These shouldn't be used, if not here there's issues with the virtuals from base. TODO
 
 };
 

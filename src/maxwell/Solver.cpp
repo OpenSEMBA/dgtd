@@ -26,17 +26,15 @@ Solver::Solver(
 	probesManager_{ probes, fes_, fields_},
 	time_{0.0}
 {
+	sourcesManager_.setFields(fields_);
 	switch (fes_.GetMesh()->Dimension()) {
 	case 1:
-		sourcesManager_.setFields1D(fields_);
 		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, opts_.evolutionOperatorOptions);
 		break;
 	case 2:
-		sourcesManager_.setFields3D(fields_);
 		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, opts_.evolutionOperatorOptions);
 		break;
 	default:
-		sourcesManager_.setFields3D(fields_);
 		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, opts_.evolutionOperatorOptions);
 		break;
 	}

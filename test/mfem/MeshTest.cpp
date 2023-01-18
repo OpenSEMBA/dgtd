@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-
+#include <signal.h>  
 #include <mfem.hpp>
 
 using namespace mfem;
@@ -252,3 +252,4 @@ TEST_F(MeshTest, InteriorBoundary)
 	mesh.AddBdrPoint(2, 4);
 	EXPECT_EQ(4, mesh.GetBdrAttribute(3));
 }
+

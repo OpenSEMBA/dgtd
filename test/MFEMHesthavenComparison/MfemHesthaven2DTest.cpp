@@ -318,7 +318,7 @@ TEST_F(MFEMHesthaven2D, MFEMHesthavenSameMesh)
 	maxwell::Solver solver{
 		model,
 		buildExportProbes(),
-		buildGaussianInitialField(E, Z, 0.4, 1.0, mfem::Vector({0.0,0.0})),
+		buildGaussianInitialField(E, Z, 0.4, mfem::Vector({0.0,0.0})),
 		SolverOptions{}
 		.setTimeStep(0.012587)
 		.setFinalTime(1.0)

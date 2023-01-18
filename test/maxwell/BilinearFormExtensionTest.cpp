@@ -27,10 +27,12 @@ protected:
 	void setFES1D(
 		const int order,
 		const int elements = 1,
-		const double length = 1.0)
+		const double length = 1.0,
+		const decltype(BasisType::GaussLobatto) basis = BasisType::GaussLobatto
+	)
 	{
 		mesh_ = Mesh::MakeCartesian1D(elements, length);
-		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
+		fec_ = std::make_unique<DG_FECollection>(order, 1, basis);
 		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 	}
 

@@ -71,7 +71,7 @@ TEST_F(Solver3DTest, DISABLED_box_pec_centered_3D)
 	maxwell::Solver solver{
 	buildModel(3,3,3),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -100,21 +100,21 @@ TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
 
 	Lastly, the run() function is called.*/
 
-	maxwell::Solver solver{
-	buildModel(3,3,3),
-	buildExportProbes(),
-	buildSinusoidalInitialField(E,Z,{{1,1,0}},{{1.0,1.0,0.0}},Vector{{0.0,0.0,0.5}}),
-	SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(0.5)
-		.setOrder(3)
-	};
+	//maxwell::Solver solver{
+	//buildModel(3,3,3),
+	//buildExportProbes(),
+	//buildSinusoidalInitialField(E,Z,{{1,1,0}},{{1.0,1.0,0.0}},Vector{{0.0,0.0,0.5}}),
+	//SolverOptions{}
+	//	.setTimeStep(5e-4)
+	//	.setFinalTime(0.5)
+	//	.setOrder(3)
+	//};
 
-	GridFunction eOld{ solver.getFields().E[Z] };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
+	//GridFunction eOld{ solver.getFields().E[Z] };
+	//auto normOld{ solver.getFields().getNorml2() };
+	//solver.run();
+	//GridFunction eNew{ solver.getFields().E[Z] };
 
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }

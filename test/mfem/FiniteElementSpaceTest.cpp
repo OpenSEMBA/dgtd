@@ -11,7 +11,56 @@ using namespace mfem;
 class FiniteElementSpaceTest : public ::testing::Test {
 protected:
 
-	typedef std::size_t Direction;
+
+	using NodeCoordinate = std::vector<double>;
+	using CollocatedNodes = std::map<int, int>;
+
+	std::map<NodeCoordinate, int> buildNodeCoordinateToDofs(
+		int elem, const FiniteElementSpace& fes, const GridFunction& nodes)
+	{
+		std::map<NodeCoordinate, int> localNodesToDof;
+		Array<int> localDofs;
+		fes.GetElementDofs(elem, localDofs);
+		for (int i{ 0 }; i < localDofs.Size(); ++i) {
+			int localDof{ localDofs[i] };
+			const auto dim{ fes.GetVDim() };
+			NodeCoordinate node(dim);
+			for (int d{ 0 }; d < dim; ++d) {
+				node[d] = nodes[localDof + d];
+			}
+			localNodesToDof[node] = localDof;
+		}
+		return localNodesToDof;
+	}
+
+	CollocatedNodes getCollocatedNodes(FiniteElementSpace& fes)
+	{
+		GridFunction nodes{ &fes };
+		auto& m{ *fes.GetMesh() };
+		m.GetNodes(nodes);
+
+		CollocatedNodes res;
+		for (int f{ 0 }; f < m.GetNumFaces(); ++f) {
+			const auto faceInfo{ m.GetFaceInformation(f) };
+			if (!faceInfo.IsInterior()) {
+				continue;
+			}
+			const auto localNodes{
+				buildNodeCoordinateToDofs(faceInfo.element[0].index, fes, nodes) };
+			const auto neighNodes{
+				buildNodeCoordinateToDofs(faceInfo.element[1].index, fes, nodes) };
+
+			for (const auto& [node, localDof] : localNodes) {
+				const auto it{ neighNodes.find(node) };
+				if (it != neighNodes.end()) {
+					res.emplace(localDof, it->second);
+				}
+			}
+		}
+		return res;
+	}
+
+	using Direction = std::size_t;
 
 	void SetUp() override 
 	{
@@ -257,5 +306,89 @@ TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
 	SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
+TEST_F(FiniteElementSpaceTest, DGWithWedgeElement)
+{
+	int dim{ 3 };
 
+	Mesh m{ dim, 0, 0, 0 };
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(0.0, 0.0, 1.0);
+	m.AddVertex(1.0, 0.0, 1.0);
+	m.AddVertex(0.0, 1.0, 1.0);
+	m.AddWedge(0, 1, 2, 3, 4, 5, 6);
+	m.FinalizeMesh();
 
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec };
+
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+
+	ASSERT_NO_THROW(bf.Assemble());
+	ASSERT_NO_THROW(bf.Finalize());
+}
+TEST_F(FiniteElementSpaceTest, DGWithPyramidElementNotSupported)
+{
+	int dim{ 3 };
+
+	Mesh m{ dim, 0, 0, 0 };
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(1.0, 1.0, 0.0);
+	m.AddVertex(0.5, 0.5, 1.0);
+	m.AddPyramid(0, 1, 2, 3, 4);
+	m.FinalizeMesh();
+
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+
+	FiniteElementSpace fes{ &m, &fec };
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+
+	EXPECT_EXIT(bf.Assemble(), testing::ExitedWithCode(3), ".*");
+}
+TEST_F(FiniteElementSpaceTest, H1WithPyramidElement)
+{
+	int dim{ 3 };
+
+	Mesh m{ dim, 0, 0, 0 };
+	m.AddVertex(0.0, 0.0, 0.0);
+	m.AddVertex(1.0, 0.0, 0.0);
+	m.AddVertex(0.0, 1.0, 0.0);
+	m.AddVertex(1.0, 1.0, 0.0);
+	m.AddVertex(0.5, 0.5, 1.0);
+	m.AddPyramid(0, 1, 2, 3, 4);
+	m.FinalizeMesh();
+
+	H1_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+
+	FiniteElementSpace fes{ &m, &fec };
+	BilinearForm bf{ &fes };
+	ConstantCoefficient one{ 1.0 };
+	bf.AddDomainIntegrator(new MassIntegrator(one));
+
+	ASSERT_NO_THROW(bf.Assemble());
+	ASSERT_NO_THROW(bf.Finalize());
+}
+TEST_F(FiniteElementSpaceTest, GetCollocatedNodes1D)
+{
+	//  0     1 2     3   DoFs
+	// | ----- | ----- |
+
+	int dim{ 1 };
+	auto m{ Mesh::MakeCartesian1D(2, 2.0)};
+
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec, dim, Ordering::byNODES };
+
+	auto collocatedNodes{ getCollocatedNodes(fes) };
+
+	ASSERT_EQ(1, collocatedNodes.size());
+	ASSERT_EQ(1, collocatedNodes.count(1));
+	EXPECT_EQ(2, collocatedNodes[1]);
+}

@@ -64,7 +64,7 @@ TEST_F(Solver2DTest, DISABLED_box_pec_centered_2D)
 	maxwell::Solver solver{
 	buildModel(5,5),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -96,7 +96,7 @@ TEST_F(Solver2DTest, DISABLED_box_pec_centered_square_2D)
 	maxwell::Solver solver{
 	buildModel(5,5,Element::Type::QUADRILATERAL),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1,mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -128,7 +128,7 @@ TEST_F(Solver2DTest, DISABLED_box_pec_upwind_2D)
 	maxwell::Solver solver{
 	buildModel(5,5),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -159,7 +159,7 @@ TEST_F(Solver2DTest, DISABLED_box_sma_upwind_square_2D)
 	maxwell::Solver solver{
 	buildModel(5,5,mfem::Element::Type::QUADRILATERAL,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -195,7 +195,7 @@ TEST_F(Solver2DTest, DISABLED_box_pec_upwind_square_2D)
 	maxwell::Solver solver{
 	buildModel(5,5,Element::Type::QUADRILATERAL),
 	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, 0.5, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -221,7 +221,7 @@ TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 	maxwell::Solver solver{
 		model,
 		buildExportProbes(),
-		buildGaussianInitialField(E, Z, 0.4, 1.0, mfem::Vector({-0.02566,0.03028})),
+		buildGaussianInitialField(E, Z, 0.4, mfem::Vector({-0.02566,0.03028})),
 		SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
