@@ -87,6 +87,7 @@ protected:
 	{
 		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
+
 };
 
 TEST_F(Solver1DTest, box_pec_centered_flux)
@@ -118,7 +119,6 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 	
 	solver.run();
 	
-
 	// Checks that field is almost the same as initially because the completion of a cycle.
 	GridFunction eNew{ solver.getFields().E[Y] };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
@@ -126,19 +126,15 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 	// Compares all DOFs.
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 
-	// (the wave splits in two and doubles at the boundary).
+	// At the left boundary the electric field should be always close to zero...
 	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
 		EXPECT_NEAR(0.0, f, tolerance);
 	}
-	double hMaxInBoundary{ 0.0 };
-	for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovie()) {
-		if (hMaxInBoundary < f) {
-			hMaxInBoundary = f;
-		}
-	}
-	EXPECT_NEAR(1.0, hMaxInBoundary, tolerance);
+	
+	// ... and the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
 TEST_F(Solver1DTest, box_pmc_centered_flux)
@@ -253,46 +249,48 @@ TEST_F(Solver1DTest, box_upwind_SMA_E_XYZ)
 	}
 }
 
-TEST_F(Solver1DTest, DISABLED_twoSourceWaveTwoMaterialsReflection_SMA_PEC)
+TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
-	Mesh mesh1D = Mesh::MakeCartesian1D(101);
-	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.51, 1.0) } }, mesh1D);
+	// Sends a wave through a material interface. 
+	// Checks reflection and transmission.
+	
+	auto msh{ Mesh::MakeCartesian1D(100) };
+
+	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.50, 1.0) } }, msh);
 	
 	Material mat1{1.0, 1.0};
-	Material mat2{2.0, 1.0};
+	Material mat2{4.0, 1.0};
 
-	Model model = Model(
-		mesh1D, 
-		{ {1, mat1}, {2, mat2} },
-		{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
-	);
-
-	Probes probes;
+	maxwell::Point initialPosition{ { 0.25 } };
+	maxwell::Point pointInMaterial{ { 0.51 } };
+	
+	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
-		PointProbe{ E, Y, {0.3} },
-		PointProbe{ E, Y, {0.1} }
+		PointProbe{ E, Y, initialPosition },
+		PointProbe{ E, Y, pointInMaterial }
 	};
-
+	
 	maxwell::Solver solver{
-		model,
+		Model{
+			msh,
+			{ {1, mat1}, {2, mat2} },
+			{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
+		},
 		buildProbesWithAnExportProbe(),
-		buildRightTravelingWaveInitialField(Gaussian{ 1, 0.05, 1.0, Vector({ 0.25 }) }),
+		buildRightTravelingWaveInitialField(
+			Gaussian{ 1, 0.05, 1.0, Vector({ initialPosition[0]})} ),
 		SolverOptions{}.setFinalTime(1.5)
 	};
-
-	auto eOld = solver.getFields().E[Y];
-
-	double reflectCoeff =
+		
+	auto reflectCoeff{
 		(mat2.getImpedance() - mat1.getImpedance()) /
-		(mat2.getImpedance() + mat1.getImpedance());
+		(mat2.getImpedance() + mat1.getImpedance())
+	};
 
 	solver.run();
-
+	EXPECT_TRUE(false);
 	//EXPECT_NEAR(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0), 2e-3);
 
-	//EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.45, 0), 2e-3);
-	//EXPECT_NEAR(0.0, getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.30, 1), 2e-3);
-	//
 	//EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
 	//	        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.90, 0), 2e-3);
 	//EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,

@@ -28,6 +28,17 @@ public:
     const FieldMovie& getFieldMovie() const { return fieldMovie_; }
     const Point& getPoint() const { return point_; }
     void addFieldToMovie(double time, const double& field) { fieldMovie_.emplace(time, field); };
+
+    std::pair<Time, double> findFrameWithMax() const
+    {
+        std::pair<Time, double> res{ 0.0, -std::numeric_limits<double>::infinity() };
+        for (const auto& [t, f] : fieldMovie_) {
+            if (res.second < f) {
+                res = { t,f };
+            }
+        }
+        return res;
+    }
     
 private:
     FieldType fieldToExtract_;
