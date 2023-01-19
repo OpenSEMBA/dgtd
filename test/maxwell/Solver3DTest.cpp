@@ -92,7 +92,7 @@ TEST_F(Solver3DTest, box_3D_centered_1dot5D)
 {
 
 	Probes probes{ buildExportProbes() };
-	probes.visSteps = 2;
+	probes.exporterProbes[0].visSteps = 2;
 
 	maxwell::Solver solver{
 	buildModel(15,15,15,Element::Type::HEXAHEDRON,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
