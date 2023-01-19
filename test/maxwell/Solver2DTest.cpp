@@ -48,7 +48,7 @@ protected:
 
 };
 
-TEST_F(Solver2DTest, box_pec_centered_2D)
+TEST_F(Solver2DTest, box_centered_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -85,7 +85,7 @@ TEST_F(Solver2DTest, box_pec_centered_2D)
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
-TEST_F(Solver2DTest, box_pec_centered_square_2D)
+TEST_F(Solver2DTest, box_centered_quadrilaterals_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -123,7 +123,7 @@ TEST_F(Solver2DTest, box_pec_centered_square_2D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 
 }
-TEST_F(Solver2DTest, box_pec_upwind_2D)
+TEST_F(Solver2DTest, box_upwind_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -160,7 +160,7 @@ TEST_F(Solver2DTest, box_pec_upwind_2D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-TEST_F(Solver2DTest, box_pec_upwind_square_2D)
+TEST_F(Solver2DTest, box_upwind_quadrilaterals_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
