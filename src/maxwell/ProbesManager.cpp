@@ -106,6 +106,10 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 
 void ProbesManager::updateProbe(ExporterProbe& p, double time)
 {
+	if (cycle_ % p.visSteps != 0) {
+		return;
+	}
+
 	auto it{ exporterProbesCollection_.find(&p) };
 	assert(it != exporterProbesCollection_.end());
 	auto& pd{ it->second };
@@ -128,14 +132,14 @@ void ProbesManager::updateProbe(PointProbe& p, double time)
 
 void ProbesManager::updateProbes(double time)
 {
-	if (cycle_ % probes.visSteps == 0) {
-		for (auto& p: probes.exporterProbes) {
-			updateProbe(p, time);
-		}
-		for (auto& p : probes.pointProbes) {
-			updateProbe(p, time);
-		}
+	for (auto& p: probes.exporterProbes) {
+		updateProbe(p, time);
 	}
+	
+	for (auto& p : probes.pointProbes) {
+		updateProbe(p, time);
+	}
+
 	cycle_++;
 }
 }

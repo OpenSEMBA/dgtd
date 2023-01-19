@@ -12,7 +12,7 @@ public:
 	double getPermeability() const { return mu_; }
 	double getImpedance() const { return sqrt(mu_ / epsilon_); }
 	double getAdmitance() const { return sqrt(epsilon_ / mu_); }
-
+	double getSpeedOfLight() const { return 1 / sqrt(mu_ * epsilon_); }
 private:
 	double epsilon_, mu_;
 };

@@ -134,6 +134,7 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 	// ... and the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
@@ -252,7 +253,8 @@ TEST_F(Solver1DTest, box_upwind_SMA_E_XYZ)
 TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	// Sends a wave through a material interface. 
-	// Checks reflection and transmission.
+	// and checks reflection and transmission.
+	// Ref: https://en.wikipedia.org/wiki/Reflection_coefficient
 	
 	auto msh{ Mesh::MakeCartesian1D(100) };
 
@@ -261,13 +263,10 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	Material mat1{1.0, 1.0};
 	Material mat2{4.0, 1.0};
 
-	maxwell::Point initialPosition{ { 0.25 } };
-	maxwell::Point pointInMaterial{ { 0.51 } };
-	
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
-		PointProbe{ E, Y, initialPosition },
-		PointProbe{ E, Y, pointInMaterial }
+		PointProbe{ E, Y, {0.00} },
+		PointProbe{ E, Y, {0.75} }
 	};
 	
 	maxwell::Solver solver{
@@ -276,23 +275,36 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 			{ {1, mat1}, {2, mat2} },
 			{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
 		},
-		buildProbesWithAnExportProbe(),
+		probes,
 		buildRightTravelingWaveInitialField(
-			Gaussian{ 1, 0.05, 1.0, Vector({ initialPosition[0]})} ),
-		SolverOptions{}.setFinalTime(1.5)
+			Gaussian{ 1, 0.05, 1.0, Vector({ 0.25 })} ),
+		SolverOptions{}.setFinalTime(1.0)
 	};
 		
+	solver.run();
+
 	auto reflectCoeff{
 		(mat2.getImpedance() - mat1.getImpedance()) /
 		(mat2.getImpedance() + mat1.getImpedance())
 	};
+	auto transmissionCoeff{ 1 + reflectCoeff };
 
-	solver.run();
-	EXPECT_TRUE(false);
-	//EXPECT_NEAR(eOld.Max(), getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0), 2e-3);
+	auto timeTolerance{ 0.02 };
+	auto fieldTolerance{ 0.01 };
 
-	//EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
-	//	        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.90, 0), 2e-3);
-	//EXPECT_NEAR(getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 0.0, 0) * reflectCoeff,
-	//	        getBoundaryFieldValueAtTime(solver.getPointsProbe(0), 1.10, 1), 2e-3);
+	// Checks the reflected wave.
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMin() };
+		EXPECT_NEAR(0.75, frame.first, timeTolerance);
+		EXPECT_NEAR(reflectCoeff, frame.second, fieldTolerance);
+	}
+
+	// Checks transmitted wave.
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		auto expectedTimeOfArrival{ 0.25 + 0.25 / mat2.getSpeedOfLight() };
+		EXPECT_NEAR(expectedTimeOfArrival, frame.first, timeTolerance);
+		EXPECT_NEAR(transmissionCoeff, frame.second, fieldTolerance);
+	}
+
 }

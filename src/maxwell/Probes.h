@@ -7,12 +7,8 @@
 namespace maxwell {
 
 struct ExporterProbe {
-public:
-    ExporterProbe(const std::string& name) :
-        name{ name }
-    {}
-
     std::string name{"MaxwellView"};
+    int visSteps{ 10 };
 };
 
 class PointProbe {
@@ -39,6 +35,17 @@ public:
         }
         return res;
     }
+
+    std::pair<Time, double> findFrameWithMin() const
+    {
+        std::pair<Time, double> res{ 0.0, std::numeric_limits<double>::infinity() };
+        for (const auto& [t, f] : fieldMovie_) {
+            if (res.second > f) {
+                res = { t, f };
+            }
+        }
+        return res;
+    }
     
 private:
     FieldType fieldToExtract_;
@@ -51,8 +58,6 @@ private:
 struct Probes {
     std::vector<PointProbe> pointProbes;
     std::vector<ExporterProbe> exporterProbes;
-
-    int visSteps{ 10 };
 };
 
 }
