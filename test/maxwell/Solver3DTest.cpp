@@ -55,7 +55,7 @@ protected:
 
 };
 
-TEST_F(Solver3DTest, DISABLED_box_pec_centered_3D)
+TEST_F(Solver3DTest, box_pec_centered_3D)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -77,6 +77,32 @@ TEST_F(Solver3DTest, DISABLED_box_pec_centered_3D)
 		.setCentered()
 		.setFinalTime(0.5)
 		.setOrder(3)
+	};
+
+	GridFunction eOld{ solver.getFields().E[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Z] };
+
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+}
+
+TEST_F(Solver3DTest, box_3D_centered_1dot5D)
+{
+
+	Probes probes{ buildExportProbes() };
+	probes.visSteps = 2;
+
+	maxwell::Solver solver{
+	buildModel(15,15,15,Element::Type::HEXAHEDRON,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-3)
+		.setCentered()
+		.setFinalTime(0.5)
+		.setOrder(2)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Z] };

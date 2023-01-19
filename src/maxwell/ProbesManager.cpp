@@ -80,9 +80,9 @@ const GridFunction& getFieldView(const PointProbe& p, const mfem::FiniteElementS
 
 DenseMatrix toDenseMatrix(const Point& p)
 {
-	DenseMatrix r{ 1, (int)p.size() };
+	DenseMatrix r{(int)p.size(), 1 };
 	for (auto i{ 0 }; i < p.size(); ++i) {
-		r(0, i) = p[i];
+		r(i, 0) = p[i];
 	}
 	return r;
 }

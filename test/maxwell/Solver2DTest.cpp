@@ -36,7 +36,7 @@ protected:
 		};
 	}
 
-	Probes buildExportProbes()
+	Probes buildProbesWithAnExportProbe()
 	{
 		return { {}, { ExporterProbe{getTestCaseName()} } };
 	}
@@ -48,27 +48,23 @@ protected:
 
 };
 
-TEST_F(Solver2DTest, DISABLED_box_pec_centered_2D)
+TEST_F(Solver2DTest, box_centered_1dot5D)
 {
-	/*The purpose of this test is to check the run() function for the solver object
-	and test the different available options.
-	
-	First, dimensional variables are declared and a mesh is constructed, along with the declaration
-	of different useful variables.
-	
-	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
-	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
-	
-	Lastly, the run() function is called.*/
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}}
+	};
 
 	maxwell::Solver solver{
-	buildModel(5,5),
-	buildExportProbes(),
+	buildModel(7,7,Element::Type::TRIANGLE, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
+	probes,
 	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
-		.setFinalTime(0.5)
+		.setFinalTime(1.0)
 		.setOrder(3)
 	}; 
 
@@ -77,61 +73,35 @@ TEST_F(Solver2DTest, DISABLED_box_pec_centered_2D)
 	solver.run();
 	GridFunction eNew{ solver.getFields().E[Z] };
 
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
-TEST_F(Solver2DTest, DISABLED_box_pec_centered_square_2D)
+TEST_F(Solver2DTest, box_centered_quadrilaterals_1dot5D)
 {
-	/*The purpose of this test is to check the run() function for the solver object
-	and test the different available options.
 
-	First, dimensional variables are declared and a mesh is constructed, along with the declaration
-	of different useful variables.
-
-	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
-	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
-
-	Lastly, the run() function is called.*/
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}}
+	};
 
 	maxwell::Solver solver{
-	buildModel(5,5,Element::Type::QUADRILATERAL),
-	buildExportProbes(),
+	buildModel(7, 7, Element::Type::QUADRILATERAL, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
+	probes,
 	buildGaussianInitialField(E, Z, 0.1,mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
-		.setFinalTime(2.0)
-		.setOrder(4)
-	};
-
-	GridFunction eOld{ solver.getFields().E[Z] };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
-
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
-}
-TEST_F(Solver2DTest, DISABLED_box_pec_upwind_2D)
-{
-	/*The purpose of this test is to check the run() function for the solver object
-	and test the different available options.
-
-	First, dimensional variables are declared and a mesh is constructed, along with the declaration
-	of different useful variables.
-
-	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
-	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
-
-	Lastly, the run() function is called.*/
-
-	maxwell::Solver solver{
-	buildModel(5,5),
-	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
-	SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(2.0)
+		.setFinalTime(1.0)
 		.setOrder(3)
 	};
 
@@ -140,29 +110,108 @@ TEST_F(Solver2DTest, DISABLED_box_pec_upwind_2D)
 	solver.run();
 	GridFunction eNew{ solver.getFields().E[Z] };
 
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
 }
-TEST_F(Solver2DTest, DISABLED_box_sma_upwind_square_2D)
+TEST_F(Solver2DTest, box_upwind_1dot5D)
 {
-	/*The purpose of this test is to check the run() function for the solver object
-	and test the different available options.
 
-	First, dimensional variables are declared and a mesh is constructed, along with the declaration
-	of different useful variables.
-
-	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
-	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
-
-	Lastly, the run() function is called.*/
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}}
+	};
 
 	maxwell::Solver solver{
-	buildModel(5,5,mfem::Element::Type::QUADRILATERAL,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
-	buildExportProbes(),
+	buildModel(7, 7, Element::Type::TRIANGLE, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
+	probes,
 	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
-		.setFinalTime(2.0)
+		.setFinalTime(1.0)
+		.setOrder(3)
+	};
+
+	GridFunction eOld{ solver.getFields().E[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Z] };
+
+	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+}
+
+TEST_F(Solver2DTest, box_upwind_quadrilaterals_1dot5D)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}}
+	};
+
+	maxwell::Solver solver{
+	buildModel(7,7,Element::Type::QUADRILATERAL, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(1.0)
+		.setOrder(3)
+	};
+
+	GridFunction eOld{ solver.getFields().E[Z] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Z] };
+
+	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+}
+TEST_F(Solver2DTest, DISABLED_box_sma_upwind_square_2D)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}}
+	};
+
+	maxwell::Solver solver{
+	buildModel(7, 7, mfem::Element::Type::QUADRILATERAL, BdrCond::SMA, BdrCond::SMA, BdrCond::SMA, BdrCond::SMA),
+	buildProbesWithAnExportProbe(),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(1.0)
 		.setOrder(3)
 	};
 
@@ -179,37 +228,6 @@ TEST_F(Solver2DTest, DISABLED_box_sma_upwind_square_2D)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(Solver2DTest, DISABLED_box_pec_upwind_square_2D)
-{
-	/*The purpose of this test is to check the run() function for the solver object
-	and test the different available options.
-
-	First, dimensional variables are declared and a mesh is constructed, along with the declaration
-	of different useful variables.
-
-	Then, a solver object is constructed using said mesh and options, the bounding box for its mesh
-	is extracted and an initial condition is applied to one of its variables. (GridFunction ez_)
-
-	Lastly, the run() function is called.*/
-
-	maxwell::Solver solver{
-	buildModel(5,5,Element::Type::QUADRILATERAL),
-	buildExportProbes(),
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
-	SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(2.0)
-		.setOrder(4)
-	};
-
-	GridFunction eOld{ solver.getFields().E[Z] };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
-
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
-}
 TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 {
 	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
@@ -220,7 +238,7 @@ TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 
 	maxwell::Solver solver{
 		model,
-		buildExportProbes(),
+		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(E, Z, 0.4, mfem::Vector({-0.02566,0.03028})),
 		SolverOptions{}
 		.setTimeStep(5e-4)
