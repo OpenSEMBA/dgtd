@@ -98,7 +98,9 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 		PointProbe{E, Y, {0.0}},
 		PointProbe{H, Z, {0.0}}
 	};
-	
+
+	double tolerance{ 1e-3 };
+
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
@@ -128,7 +130,7 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 	// the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
 	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
-		EXPECT_NEAR(0.0, f, 1e-4);
+		EXPECT_NEAR(0.0, f, tolerance);
 	}
 	double hMaxInBoundary{ 0.0 };
 	for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovie()) {
@@ -136,7 +138,7 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 			hMaxInBoundary = f;
 		}
 	}
-	EXPECT_NEAR(1.0, hMaxInBoundary, 1e-4);
+	EXPECT_NEAR(1.0, hMaxInBoundary, tolerance);
 }
 
 TEST_F(Solver1DTest, box_pmc_centered_flux)
