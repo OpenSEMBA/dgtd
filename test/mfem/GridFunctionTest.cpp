@@ -147,9 +147,9 @@ TEST_F(GridFunctionTest, GetValuesAtPoints1D)
 	DenseMatrix pointMat{ 
 		{ 
 			{0.0}, // Point at left boundary.
-			{0.1}, // Point within mesh.
+			{0.1}, // Point within an element in the mesh.
 			{0.5}, // Point in the boundary between two elements.
-			{1.0},  // Point at right boundary.
+			{1.0}, // Point at right boundary.
 			{1.1}  // Point out of the mesh.
 		} 
 	};
@@ -166,7 +166,7 @@ TEST_F(GridFunctionTest, GetValuesAtPoints1D)
 		{
 			0, // Id of first element (at left boundary).
 			0, // Id of first element.
-			1, // Lower if of the neighbouring elements.
+			1, // Lower Id of the neighbouring elements.
 			3, // Id of last element (at right boundary).
 			-1 // Negative for failure to find.
 		}
