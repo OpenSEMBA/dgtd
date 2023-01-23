@@ -80,22 +80,19 @@ TEST_F(Solver2DTest, box_2D_pec_centered_1dot5D)
 	SolverOptions{}
 		.setTimeStep(1e-3)
 		.setCentered()
-		.setFinalTime(3.5)
+		.setFinalTime(7.0)
 		.setOrder(3)
 	}; 
 
-	GridFunction eOld{ solver.getFields().E[Z] };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
 
-	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
 	// At the left boundary the electric field should be closed to zero and
 	// the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
-	double tolerance{ 1e-2 };
 	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
 	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
@@ -119,22 +116,19 @@ TEST_F(Solver2DTest, box_2D_pec_centered_quadrilaterals_1dot5D)
 	SolverOptions{}
 		.setTimeStep(1e-3)
 		.setCentered()
-		.setFinalTime(3.5)
+		.setFinalTime(7.0)
 		.setOrder(3)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Z] };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
 
-	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
 	// At the left boundary the electric field should be closed to zero and
 	// the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
-	double tolerance{ 1e-2 };
 	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
 	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
@@ -158,22 +152,19 @@ TEST_F(Solver2DTest, box_2D_pec_upwind_1dot5D)
 	buildGaussianInitialField(E, Z, 1.0, mfem::Vector({3.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(1e-3)
-		.setFinalTime(3.5)
+		.setFinalTime(7.0)
 		.setOrder(3)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Z] };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
 
-	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
 	// At the left boundary the electric field should be closed to zero and
 	// the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
-	double tolerance{ 1e-2 };
 	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
 	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
@@ -197,17 +188,19 @@ TEST_F(Solver2DTest, box_2D_pec_upwind_quadrilaterals_1dot5D)
 	buildGaussianInitialField(E, Z, 1.0, mfem::Vector({3.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(1e-3)
-		.setFinalTime(3.5)
+		.setFinalTime(7.0)
 		.setOrder(3)
 	};
 
+	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
 	// At the left boundary the electric field should be closed to zero and
 	// the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
-	
-	double tolerance{ 1e-2 };
 	auto eMaxFrameMid{ solver.getPointProbe(0).findFrameWithMax() };
 	EXPECT_NEAR(0.0, eMaxFrameMid.second, tolerance);
 
@@ -270,13 +263,12 @@ TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 		.setOrder(3)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Z] };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
 
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
 }
 
 //TEST_F(Solver2DTest, DISABLED_centered_flux_AMR)
