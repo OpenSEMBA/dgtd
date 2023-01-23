@@ -113,3 +113,18 @@ TEST_F(BilinearFormExtensionTest, compareBaseAndDerivedBilinearForms)
 	EXPECT_EQ(-1.0, fderived[4]);
 	
 }
+
+
+TEST_F(BilinearFormExtensionTest, checkNormalsOnRotatedQuad)
+{
+	int dim{ 2 };
+	auto m{ Mesh::LoadFromFile("./testData/rotatedquad.mesh",1,0)};
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec };
+
+	BilinearForm bf(&fes);
+	bf.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator({ X,Y }, 1.0));
+	bf.Assemble();
+	bf.Finalize();
+
+}
