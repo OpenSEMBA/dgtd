@@ -39,8 +39,9 @@ const Vector setNormalVector(const int dim,
     FaceElementTransformations& Trans
 )
 {
-    Vector res(dim);
-    CalcOrtho(Trans.Jacobian(), res);
+    Vector ortho(dim);
+    CalcOrtho(Trans.Jacobian(), ortho);
+    auto res{ ortho.operator/=(Trans.Weight()) };
     return res;
 }
 
