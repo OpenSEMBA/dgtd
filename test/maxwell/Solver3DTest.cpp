@@ -58,7 +58,7 @@ protected:
 
 };
 
-TEST_F(Solver3DTest, box_3D_centered_1dot5D)
+TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -89,7 +89,7 @@ TEST_F(Solver3DTest, box_3D_centered_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, box_3D_upwind_1dot5D)
+TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -117,6 +117,67 @@ TEST_F(Solver3DTest, box_3D_upwind_1dot5D)
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
+
+TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5, 0.5}}
+	};
+	probes.exporterProbes[0].visSteps = 50;
+
+	maxwell::Solver solver{
+	buildModel(5,1,1, Element::Type::TETRAHEDRON, 5.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setCentered()
+		.setFinalTime(5.0)
+		.setOrder(3)
+	};
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
+}
+
+TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5, 0.5}}
+	};
+	probes.exporterProbes[0].visSteps = 50;
+
+	maxwell::Solver solver{
+	buildModel(5,1,1, Element::Type::TETRAHEDRON, 5.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(5.0)
+		.setOrder(3)
+	};
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+}
+
 
 TEST_F(Solver3DTest, squareBox_3D_centered_1dot5D)
 {
