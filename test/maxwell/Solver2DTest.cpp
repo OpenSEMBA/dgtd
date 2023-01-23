@@ -26,6 +26,20 @@ protected:
 		return Model(Mesh::MakeCartesian2D(nx,ny,elType), AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
 	}
 
+	Model buildModel(
+		const int nx = defaultNumberOfElements_X,
+		const int ny = defaultNumberOfElements_Y,
+		const Element::Type elType = Element::Type::TRIANGLE,
+		const double sx = 1.0,
+		const double sy = 1.0,
+		const BdrCond& bdrB = BdrCond::PEC,
+		const BdrCond& bdrR = BdrCond::PEC,
+		const BdrCond& bdrT = BdrCond::PEC,
+		const BdrCond& bdrL = BdrCond::PEC) {
+
+		return Model(Mesh::MakeCartesian2D(nx, ny, elType, false, sx, sy), AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
+	}
+
 	AttributeToBoundary buildAttrToBdrMap2D(const BdrCond& bdrB, const BdrCond& bdrR, const BdrCond& bdrT, const BdrCond& bdrL)
 	{
 		return {
@@ -48,7 +62,7 @@ protected:
 
 };
 
-TEST_F(Solver2DTest, box_centered_1dot5D)
+TEST_F(Solver2DTest, box_2D_pec_centered_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -57,14 +71,16 @@ TEST_F(Solver2DTest, box_centered_1dot5D)
 		PointProbe{H, Y, {0.0, 0.5}}
 	};
 
+	probes.exporterProbes[0].visSteps = 40;
+
 	maxwell::Solver solver{
-	buildModel(7,7,Element::Type::TRIANGLE, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
+	buildModel(7,1,Element::Type::TRIANGLE, 7.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 1.0, mfem::Vector({3.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(5e-4)
+		.setTimeStep(1e-3)
 		.setCentered()
-		.setFinalTime(1.0)
+		.setFinalTime(3.5)
 		.setOrder(3)
 	}; 
 
@@ -85,7 +101,7 @@ TEST_F(Solver2DTest, box_centered_1dot5D)
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
-TEST_F(Solver2DTest, box_centered_quadrilaterals_1dot5D)
+TEST_F(Solver2DTest, box_2D_pec_centered_quadrilaterals_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -94,14 +110,16 @@ TEST_F(Solver2DTest, box_centered_quadrilaterals_1dot5D)
 		PointProbe{H, Y, {0.0, 0.5}}
 	};
 
+	probes.exporterProbes[0].visSteps = 40;
+
 	maxwell::Solver solver{
-	buildModel(7, 7, Element::Type::QUADRILATERAL, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
+	buildModel(7,1,Element::Type::QUADRILATERAL, 7.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1,mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 1.0, mfem::Vector({3.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(5e-4)
+		.setTimeStep(1e-3)
 		.setCentered()
-		.setFinalTime(1.0)
+		.setFinalTime(3.5)
 		.setOrder(3)
 	};
 
@@ -123,7 +141,7 @@ TEST_F(Solver2DTest, box_centered_quadrilaterals_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 
 }
-TEST_F(Solver2DTest, box_upwind_1dot5D)
+TEST_F(Solver2DTest, box_2D_pec_upwind_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -132,13 +150,15 @@ TEST_F(Solver2DTest, box_upwind_1dot5D)
 		PointProbe{H, Y, {0.0, 0.5}}
 	};
 
+	probes.exporterProbes[0].visSteps = 40;
+
 	maxwell::Solver solver{
-	buildModel(7, 7, Element::Type::TRIANGLE, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
+	buildModel(7,1,Element::Type::TRIANGLE, 7.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 1.0, mfem::Vector({3.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(1.0)
+		.setTimeStep(1e-3)
+		.setFinalTime(3.5)
 		.setOrder(3)
 	};
 
@@ -160,7 +180,7 @@ TEST_F(Solver2DTest, box_upwind_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-TEST_F(Solver2DTest, box_upwind_quadrilaterals_1dot5D)
+TEST_F(Solver2DTest, box_2D_pec_upwind_quadrilaterals_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -169,34 +189,33 @@ TEST_F(Solver2DTest, box_upwind_quadrilaterals_1dot5D)
 		PointProbe{H, Y, {0.0, 0.5}}
 	};
 
+	probes.exporterProbes[0].visSteps = 40;
+
 	maxwell::Solver solver{
-	buildModel(7,7,Element::Type::QUADRILATERAL, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
+	buildModel(7,1,Element::Type::QUADRILATERAL, 7.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 1.0, mfem::Vector({3.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(1.0)
+		.setTimeStep(1e-3)
+		.setFinalTime(3.5)
 		.setOrder(3)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Z] };
-	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
-
-	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 
 	// At the left boundary the electric field should be closed to zero and
 	// the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
+	
 	double tolerance{ 1e-2 };
-	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
-	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto eMaxFrameMid{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrameMid.second, tolerance);
+
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
 }
-TEST_F(Solver2DTest, DISABLED_box_sma_upwind_square_2D)
+TEST_F(Solver2DTest, box_2D_sma_upwind_quadrilaterals_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -205,28 +224,33 @@ TEST_F(Solver2DTest, DISABLED_box_sma_upwind_square_2D)
 		PointProbe{H, Y, {0.0, 0.5}}
 	};
 
+	probes.exporterProbes[0].visSteps = 40;
+
 	maxwell::Solver solver{
-	buildModel(7, 7, mfem::Element::Type::QUADRILATERAL, BdrCond::SMA, BdrCond::SMA, BdrCond::SMA, BdrCond::SMA),
-	buildProbesWithAnExportProbe(),
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildModel(5, 1, mfem::Element::Type::QUADRILATERAL,5.0, 1.0, BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
+	probes,
+	buildGaussianInitialField(E, Z, 0.5, mfem::Vector({2.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(1.0)
+		.setTimeStep(1e-3)
+		.setFinalTime(5.0)
 		.setOrder(3)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Z] };
-	auto normOld{ solver.getFields().getNorml2() };
 
 	auto zeros{ eOld };
 	zeros = 0.0;
 	EXPECT_TRUE( eOld.DistanceTo(zeros) > 1e-2);
 
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Z] };
 
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMin() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMin() };
+	EXPECT_NEAR(0.0, hMaxFrame.second, tolerance);
+
+
 }
 TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 {

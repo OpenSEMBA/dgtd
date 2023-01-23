@@ -78,7 +78,7 @@ const GridFunction& getFieldView(const PointProbe& p, const mfem::FiniteElementS
 	}
 }
 
-DenseMatrix toDenseMatrix(const Point& p)
+DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 {
 	DenseMatrix r{(int)p.size(), 1 };
 	for (auto i{ 0 }; i < p.size(); ++i) {
@@ -93,7 +93,7 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 	
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
-	fes_.GetMesh()->FindPoints(toDenseMatrix(p.getPoint()), elemIdArray, integPointArray);
+	fes_.GetMesh()->FindPoints(pointVectorToDenseMatrixColumnVector(p.getPoint()), elemIdArray, integPointArray);
 	assert(elemIdArray.Size() == 1);
 	assert(integPointArray.Size() == 1);
 	FESPoint fesPoints { elemIdArray[0], integPointArray[0] };

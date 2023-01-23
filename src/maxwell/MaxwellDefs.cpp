@@ -201,9 +201,9 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 	case BdrCond::SMA:
 		switch (f) {
 		case FieldType::E:
-			return FluxCoefficient{ 2.0 };
+			return FluxCoefficient{ 1.0 };
 		case FieldType::H:
-			return FluxCoefficient{ 2.0 };
+			return FluxCoefficient{ 1.0 };
 		}
 	default:
 		throw std::exception("No defined BdrCond.");
