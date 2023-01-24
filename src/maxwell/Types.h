@@ -27,6 +27,7 @@ struct FluxCoefficient {
 };
 
 enum class BdrCond {
+	NONE,
 	PEC,
 	PMC,
 	SMA,

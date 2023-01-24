@@ -8,6 +8,8 @@
 #include "GlobalFunctions.h"
 #include "maxwell/mfemExtension/BilinearIntegrators.h"
 #include "maxwell/mfemExtension/BilinearForm_IBFI.hpp"
+#include "maxwell/Types.h"
+
 
 using namespace maxwell;
 using namespace mfem;
@@ -115,16 +117,26 @@ TEST_F(BilinearFormExtensionTest, compareBaseAndDerivedBilinearForms)
 }
 
 
-TEST_F(BilinearFormExtensionTest, checkNormalsOnRotatedQuad)
+TEST_F(BilinearFormExtensionTest, markInnerFacesIn2D)
 {
 	int dim{ 2 };
-	auto m{ Mesh::LoadFromFile("./testData/rotatedquad.mesh",1,0)};
+	auto m{ Mesh::LoadFromFile("./testData/square3x3marked.mesh",1,0) };
 	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &m, &fec };
+	std::map<int, BdrCond> attToBdrMap{ {2,BdrCond::PEC},{301,BdrCond::TotalField} };
+	std::map<BdrCond, Array<int>> bdrToMarkerMap;
+	for (const auto& kv : attToBdrMap) {
+		const auto& att{ kv.first };
+		const auto& bdr{ kv.second };
+		assert(att > 0);
 
-	BilinearForm bf(&fes);
-	bf.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator({ X,Y }, 1.0));
-	bf.Assemble();
-	bf.Finalize();
+		Array<int> bdrMarker{ m.bdr_attributes.Max() };
+		bdrMarker = 0;
+		bdrMarker[att - 1] = 1;
+
+		bdrToMarkerMap.emplace(bdr, bdrMarker);
+	}
 
 }
+
+

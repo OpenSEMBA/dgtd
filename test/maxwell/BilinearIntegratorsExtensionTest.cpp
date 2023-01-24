@@ -44,6 +44,19 @@ protected:
 
 };
 
+TEST_F(BilinearIntegratorsExtensionTest, checkNormalsOnRotatedQuad)
+{
+	int dim{ 2 };
+	auto m{ Mesh::LoadFromFile("./testData/rotatedquad.mesh",1,0) };
+	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec };
+
+	BilinearForm bf(&fes);
+	bf.AddBdrFaceIntegrator(new MaxwellDGTraceJumpIntegrator({ X,Y }, 1.0));
+	bf.Assemble();
+	bf.Finalize();
+
+}
 TEST_F(BilinearIntegratorsExtensionTest, DISABLED_compareDGTraceWithMaxwellDG1D)
 {
 	setFES1D(1, 3);
@@ -65,5 +78,6 @@ TEST_F(BilinearIntegratorsExtensionTest, DISABLED_compareDGTraceWithMaxwellDG1D)
 
 	EXPECT_TRUE(false);
 }
+
 
 

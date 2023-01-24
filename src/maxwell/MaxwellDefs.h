@@ -2,6 +2,7 @@
 #include "mfem.hpp"
 #include "Model.h"
 #include "mfemExtension/BilinearIntegrators.h"
+#include "mfemExtension/BilinearForm_IBFI.hpp"
 
 namespace maxwell {
 
@@ -15,6 +16,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes);
 FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
+FiniteElementOperator buildFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
 
 
 FluxCoefficient interiorFluxCoefficient();
