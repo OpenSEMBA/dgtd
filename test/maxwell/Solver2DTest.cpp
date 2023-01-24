@@ -344,6 +344,35 @@ TEST_F(Solver2DTest, squareBox_2D_upwind_quadrilaterals_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
+TEST_F(Solver2DTest, InnerSquareTotalField)
+{
+	int dim{ 2 };
+	auto m{ Mesh::LoadFromFile("./testData/square3x3marked.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	AttributeToDomain attToDom{ {301,BdrCond::TotalField} };
+	Model model{ m, AttributeToMaterial{}, attToBdr,attToDom };
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 30;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, Z, 0.05, mfem::Vector({0.5,0.5}), 2),
+		SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(1.0)
+		.setCentered()
+		.setOrder(5)
+	};
+
+	solver.run();
+
+
+
+
+}
+
+
 //TEST_F(Solver2DTest, DISABLED_centered_flux_AMR)
 //{
 //	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using

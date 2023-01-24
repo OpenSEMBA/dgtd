@@ -11,9 +11,11 @@ namespace maxwell {
 using Attribute = int;
 using AttributeToMaterial = std::map<Attribute, Material>;
 using AttributeToBoundary = std::map<Attribute, BdrCond>;
+using AttributeToDomain = std::map<Attribute, BdrCond>;
 
 using BoundaryMarker = mfem::Array<int>;
 using BoundaryToMarker = std::multimap<BdrCond, BoundaryMarker>;
+using DomainToMarker = std::multimap<BdrCond, BoundaryMarker>;
 
 using InteriorBoundaryMarker = mfem::Array<int>;
 using InteriorBoundaryToMarker = std::multimap<BdrCond, InteriorBoundaryMarker>;
@@ -25,13 +27,14 @@ public:
 	Model(
 		Mesh&, 
 		const AttributeToMaterial& = AttributeToMaterial{},
-		const AttributeToBoundary& = AttributeToBoundary{}
+		const AttributeToBoundary& = AttributeToBoundary{},
+		const AttributeToDomain & = AttributeToDomain{}
 	);
 
 	Mesh& getMesh() { return mesh_; };
 	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
-	BoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
+	BoundaryToMarker& getDomainToMarker() { return domToMarkerMap_; }
 
 	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
 
@@ -40,8 +43,9 @@ private:
 	
 	AttributeToMaterial attToMatMap_;
 	AttributeToBoundary attToBdrMap_;
+	AttributeToDomain attToDomMap_;
 	BoundaryToMarker bdrToMarkerMap_;
-	InteriorBoundaryToMarker intBdrToMarkerMap_;
+	DomainToMarker domToMarkerMap_;
 };
 
 }

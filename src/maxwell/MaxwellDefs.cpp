@@ -64,16 +64,11 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		switch (kv.first) {
-		case (BdrCond::TotalField):
-			break;
-		default:
-			FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
-			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
-			);
-			break;
-		}
+		
+		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+		);
 	}
 
 	res->Assemble();
@@ -92,15 +87,9 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		switch (kv.first) {
-		case (BdrCond::TotalField):
-			break;
-		default:
-			FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
-			break;
-		}
+		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
 	}
 
 	res->Assemble();
@@ -124,22 +113,16 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		switch (kv.first) {
-		case (BdrCond::TotalField):
-			break;
-		default:
-			FluxCoefficient c;
-			if (usePenaltyCoefficients) {
-				c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-			}
-			else {
-				c = boundaryFluxCoefficient(f, kv.first);
-			}
-			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
-			);
-			break;
+		FluxCoefficient c;
+		if (usePenaltyCoefficients) {
+			c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
 		}
+		else {
+			c = boundaryFluxCoefficient(f, kv.first);
+		}
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+		);
 	}
 
 	res->Assemble();
@@ -163,22 +146,16 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		switch (kv.first) {
-		case (BdrCond::TotalField):
-			break;
-		default:
-			FluxCoefficient c;
-			if (usePenaltyCoefficients) {
-				c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-			}
-			else {
-				c = boundaryFluxCoefficient(f, kv.first);
-			}
-			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
-			);
-			break;
+		FluxCoefficient c;
+		if (usePenaltyCoefficients) {
+			c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
 		}
+		else {
+			c = boundaryFluxCoefficient(f, kv.first);
+		}
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+		);
 	}
 
 	res->Assemble();
@@ -186,27 +163,41 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 	return res;
 }
 
-FiniteElementOperator buildFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+Vector buildVector(const std::vector<Direction>& dirTerms) 
+{
+	Vector res(2);
+	if (dirTerms[0] == X){
+		res[0] = 1.0; res[1] = 0.0;
+		return res;
+	}
+	else if (dirTerms[0] == Y) {
+		res[0] = 0.0; res[1] = 1.0;
+		return res;
+	}
+	else {
+		res = 0.0;
+		return res;
+	}
+}
+
+FiniteElementOperator buildFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
-	VectorConstantCoefficient one(Vector({ 1.0 }));
+	Vector vec{ buildVector(dirTerms) };
+	VectorConstantCoefficient coeff{ vec };
 
-	for (auto& kv : model.getBoundaryToMarker()) {
-		switch (kv.first) {
-		case (BdrCond::TotalField):
-			res->AddInteriorBoundaryFaceIntegrator(
-				new DGTraceIntegrator(one, 0.0, 1.0), kv.second
-			);
-			break;
-		default:
-			break;
-		}
+	for (auto& kv : model.getDomainToMarker())
+	{
+		res->AddInteriorBoundaryFaceIntegrator(
+			new DGTraceIntegrator(coeff, 0.0, 1.0), kv.second
+		);
 	}
 
 	res->Assemble();
 	res->Finalize();
 	return res;
 }
+
 
 FluxCoefficient interiorFluxCoefficient()
 {
