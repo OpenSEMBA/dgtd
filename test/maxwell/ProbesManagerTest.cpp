@@ -19,7 +19,7 @@ TEST_F(ProbesManagerTest, exporterProbe)
 	FiniteElementSpace fes{ &mesh, &fec };
 	Fields fields{ fes };
 	SourcesManager sM{ buildGaussianInitialField(), fes };
-	sM.setFields(fields);
+	sM.setInitialFields(fields);
 
 	Probes ps;
 	ps.exporterProbes = { ExporterProbe{"ProbesManagerTest"} };

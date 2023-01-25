@@ -4,22 +4,22 @@ namespace maxwell {
 
 using namespace mfem;
 
-SourcesManager::SourcesManager(const Sources& srcs, const mfem::FiniteElementSpace& fes) :
-	fes_{fes}
+SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes) :
+    fes_{ fes }
 {
     for (const auto& src : srcs) {
         sources.push_back(src->clone());
     }
 }
 
-void SourcesManager::setFields(Fields& fields)
+void SourcesManager::setInitialFields(Fields& fields)
 {
     for (const auto& source : sources) {
         std::function<double(const Source::Position&, Source::Time)> f = 0;
         if (dynamic_cast<InitialField*>(source.get())) {
             auto initialField{ dynamic_cast<InitialField*>(source.get()) };
             f = std::bind(
-                &InitialField::eval, 
+                &InitialField::eval,
                 initialField,
                 std::placeholders::_1,
                 std::placeholders::_2
@@ -50,8 +50,27 @@ void SourcesManager::setFields(Fields& fields)
         else {
             throw std::runtime_error("Invalid source type.");
         }
-        
+
     }
+}
+
+GridFunction SourcesManager::setTotalField()
+{
+    GridFunction res(&fes_);
+    for (const auto& source : sources) {
+        std::function<double(const Source::Position&, Source::Time)> f = 0;
+        if (dynamic_cast<PlaneWave*>(source.get())) {
+            auto initialField{ dynamic_cast<PlaneWave*>(source.get()) };
+            f = std::bind(
+               &PlaneWave::eval,
+                initialField,
+                std::placeholders::_1,
+                std::placeholders::_2
+            );
+            res.ProjectCoefficient(FunctionCoefficient(f));
+        }
+    }
+    return res;
 }
 
 }

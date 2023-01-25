@@ -26,7 +26,7 @@ Solver::Solver(
 	probesManager_{ probes, fes_, fields_},
 	time_{0.0}
 {
-	sourcesManager_.setFields(fields_);
+	sourcesManager_.setInitialFields(fields_);
 	switch (fes_.GetMesh()->Dimension()) {
 	case 1:
 		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
