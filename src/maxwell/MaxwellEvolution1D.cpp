@@ -1,6 +1,5 @@
 #include "MaxwellEvolution1D.h"
 
-
 namespace maxwell {
 
 using namespace mfem;
@@ -17,7 +16,7 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 	for (auto f : {E, H}) {
 		const auto f2{ altField(f) };
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
-		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_, opts_), fes_);
+		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
 		MT_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(f, {}, model_, fes_), fes_);
 	}

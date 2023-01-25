@@ -12,7 +12,6 @@ add_library(maxwell STATIC
 	"mfemExtension/BilinearIntegrators.cpp"
 	"Material.cpp"
 	"Model.cpp" 
-	 
 	"Sources.cpp"
     "ProbesManager.cpp" 
 	"SourcesManager.cpp" 
@@ -20,8 +19,7 @@ add_library(maxwell STATIC
 	"MaxwellEvolution3D.cpp"
 	"MaxwellEvolution2D.cpp"
 	"MaxwellEvolution1D.cpp" 
-	"MaxwellDefs.cpp"
-	"MaxwellDefs1D.cpp"
+	"MaxwellEvolutionMethods.cpp"
 	"mfemExtension/BilinearForm_IBFI.cpp" 
 )
 

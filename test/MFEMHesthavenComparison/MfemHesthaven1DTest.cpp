@@ -4,9 +4,7 @@
 #include "maxwell/Types.h"
 #include "MfemHesthavenFunctionsTest.h"
 #include "GlobalFunctions.h"
-#include "maxwell/MaxwellDefs.h"
-#include "maxwell/MaxwellDefs1D.h"
-
+#include "maxwell/MaxwellEvolutionMethods.h"
 
 using namespace mfem;
 using namespace maxwell;

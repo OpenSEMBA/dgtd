@@ -1,4 +1,4 @@
-#include "MaxwellDefs.h"
+#include "MaxwellEvolutionMethods.h"
 
 namespace maxwell {
 
@@ -18,6 +18,16 @@ FiniteElementOperator buildByMult(
 	return res;
 }
 
+Vector buildNVector(const Direction& d, const FiniteElementSpace& fes)
+{
+	const auto dim{ fes.GetMesh()->Dimension() };
+	assert(d < dim);
+
+	Vector r(dim);
+	r = 0.0;
+	r[d] = 1.0;
+	return r;
+}
 
 FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& model, FiniteElementSpace& fes)
 {
@@ -163,33 +173,78 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 	return res;
 }
 
-Vector buildVector(const std::vector<Direction>& dirTerms) 
-{
-	Vector res(2);
-	if (dirTerms[0] == X){
-		res[0] = 1.0; res[1] = 0.0;
-		return res;
-	}
-	else if (dirTerms[0] == Y) {
-		res[0] = 0.0; res[1] = 1.0;
-		return res;
-	}
-	else {
-		res = 0.0;
-		return res;
-	}
-}
-
-FiniteElementOperator buildFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+FiniteElementOperator buildFunctionOperator(const FieldType& f, const Direction& dir, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
-	Vector vec{ buildVector(dirTerms) };
+	Vector vec{ buildNVector(dir, fes) };
 	VectorConstantCoefficient coeff{ vec };
 
 	for (auto& kv : model.getDomainToMarker())
 	{
 		res->AddInteriorBoundaryFaceIntegrator(
 			new DGTraceIntegrator(coeff, 0.0, 1.0), kv.second
+		);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+{
+	auto res = std::make_unique<BilinearForm>(&fes);
+	auto vec = buildNVector(dirTerms.at(0), fes);
+
+	VectorConstantCoefficient vecCC(vec);
+	{
+		FluxCoefficient c = interiorFluxCoefficient();
+		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
+	}
+
+	for (auto& kv : model.getBoundaryToMarker())
+	{
+		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<BilinearForm>(&fes);
+	VectorConstantCoefficient one(Vector({ 1.0 }));
+	{
+		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
+		res->AddInteriorFaceIntegrator(new DGTraceIntegrator(one, 0.0, c.beta));
+	}
+
+	for (auto& kv : model.getBoundaryToMarker())
+	{
+		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+		res->AddBdrFaceIntegrator(
+			new DGTraceIntegrator(one, 0.0, c.beta), kv.second
+		);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildFunctionOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+{
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+	VectorConstantCoefficient one(Vector({ 1.0 }));
+
+	for (auto& kv : model.getDomainToMarker())
+	{
+		res->AddInteriorBoundaryFaceIntegrator(
+			new DGTraceIntegrator(one, 0.0, 1.0), kv.second
 		);
 	}
 
