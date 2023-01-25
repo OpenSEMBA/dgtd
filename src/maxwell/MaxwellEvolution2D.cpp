@@ -6,10 +6,11 @@ using namespace mfem;
 using namespace mfemExtension;
 
 MaxwellEvolution2D::MaxwellEvolution2D(
-	FiniteElementSpace& fes, Model& model, MaxwellEvolOptions& options) :
+	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 	fes_{ fes },
 	model_{ model },
+	srcmngr_{ srcmngr },
 	opts_{ options }
 {
 	for (auto f : { E, H }) {
@@ -75,7 +76,6 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 		MP_[E]->AddMult(eOld[Z], eNew[Z], -1.0);
 	}
 	
-	//
 	//MT_[E][X]->AddMult(eOld[X], eNew[X]);
 	//MT_[E][Y]->AddMult(eOld[Y], eNew[Y]);
 	//MT_[H][X]->AddMult(eOld[X], eNew[X]);

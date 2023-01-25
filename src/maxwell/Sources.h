@@ -37,20 +37,17 @@ private:
 
 class PlaneWave : public Source {
 public:
-	PlaneWave(const Direction& d):
-		direction{ d }
-	{}
+	PlaneWave(const MathFunction& f, const Direction& d);
+	PlaneWave(const PlaneWave& rhs);
 
-	std::unique_ptr<Source> clone() const 
-	{
-		return std::make_unique<PlaneWave>(*this);
-	}
+	std::unique_ptr<Source> clone() const;
 
 	double eval(const Position&, Time) const;
 
 	Direction direction{ X };
-private: 
 
+private: 
+	std::unique_ptr<MathFunction> function_;
 };
 
 using Sources = std::vector<std::unique_ptr<Source>>;

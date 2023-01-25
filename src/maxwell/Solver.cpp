@@ -29,13 +29,13 @@ Solver::Solver(
 	sourcesManager_.setFields(fields_);
 	switch (fes_.GetMesh()->Dimension()) {
 	case 1:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, opts_.evolutionOperatorOptions);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	case 2:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, opts_.evolutionOperatorOptions);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	default:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, opts_.evolutionOperatorOptions);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	}
 	maxwellEvol_->SetTime(time_);

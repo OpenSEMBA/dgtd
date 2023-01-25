@@ -5,6 +5,7 @@
 #include "Types.h"
 #include "Model.h"
 #include "Sources.h"
+#include "SourcesManager.h"
 #include "MaxwellDefs.h"
 #include "MaxwellDefs1D.h"
 
@@ -15,7 +16,7 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 1;
 
-	MaxwellEvolution1D(mfem::FiniteElementSpace&, Model&, MaxwellEvolOptions&);
+	MaxwellEvolution1D(mfem::FiniteElementSpace&, Model&, SourcesManager&, MaxwellEvolOptions&);
 	virtual void Mult(const Vector& x, Vector& y) const;
 
 	const mfem::FiniteElementSpace& getFES() { return fes_; }
@@ -28,6 +29,7 @@ private:
 
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
+	SourcesManager& srcmngr_;
 	MaxwellEvolOptions& opts_;
 
 };

@@ -7,10 +7,11 @@ using namespace mfem;
 using namespace mfemExtension;
 
 MaxwellEvolution1D::MaxwellEvolution1D(
-	FiniteElementSpace& fes, Model& model, MaxwellEvolOptions& options) :
+	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 	fes_{ fes },
 	model_{ model },
+	srcmngr_{ srcmngr },
 	opts_{ options }
 {
 	for (auto f : {E, H}) {
@@ -47,6 +48,7 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 		MP_[E]->AddMult(eOld, eNew, -1.0);
 		MP_[H]->AddMult(hOld, hNew, -1.0);
 	}
+
 	// MT_ operator should be evaluated here. TODO
 	// GridFunction eFunction{ SourcesManager::EvaluatePlaneWave() };
 
