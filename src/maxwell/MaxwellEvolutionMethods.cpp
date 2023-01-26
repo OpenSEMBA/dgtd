@@ -179,7 +179,7 @@ FiniteElementOperator buildFunctionOperator(const FieldType& f, const Direction&
 	Vector vec{ buildNVector(dir, fes) };
 	VectorConstantCoefficient coeff{ vec };
 
-	for (auto& kv : model.getDomainToMarker())
+	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
 		res->AddInteriorBoundaryFaceIntegrator(
 			new DGTraceIntegrator(coeff, 0.0, 1.0), kv.second
@@ -241,7 +241,7 @@ FiniteElementOperator buildFunctionOperator1D(const FieldType& f, const std::vec
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 
-	for (auto& kv : model.getDomainToMarker())
+	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
 		res->AddInteriorBoundaryFaceIntegrator(
 			new DGTraceIntegrator(one, 0.0, 1.0), kv.second

@@ -47,27 +47,26 @@ void SourcesManager::setInitialFields(Fields& fields)
                 break;
             }
         }
-        else {
-            throw std::runtime_error("Invalid source type.");
-        }
-
     }
 }
 
-GridFunction SourcesManager::setTotalField()
+GridFunction SourcesManager::evalTotalField(const double time)
 {
     GridFunction res(&fes_);
+    res = 0.0;
     for (const auto& source : sources) {
         std::function<double(const Source::Position&, Source::Time)> f = 0;
         if (dynamic_cast<PlaneWave*>(source.get())) {
-            auto initialField{ dynamic_cast<PlaneWave*>(source.get()) };
+            auto totalField{ dynamic_cast<PlaneWave*>(source.get()) };
             f = std::bind(
                &PlaneWave::eval,
-                initialField,
+                totalField,
                 std::placeholders::_1,
                 std::placeholders::_2
             );
-            res.ProjectCoefficient(FunctionCoefficient(f));
+            FunctionCoefficient func(f);
+            func.SetTime(time);
+            res.ProjectCoefficient(func);
         }
     }
     return res;

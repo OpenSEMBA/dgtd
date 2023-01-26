@@ -17,6 +17,8 @@ public:
 
 	MaxwellEvolution1D(mfem::FiniteElementSpace&, Model&, SourcesManager&, MaxwellEvolOptions&);
 	virtual void Mult(const Vector& x, Vector& y) const;
+	double GetTime() const { return t; }
+	void SetTime(const double time) { t = time; }
 
 	const mfem::FiniteElementSpace& getFES() { return fes_; }
 

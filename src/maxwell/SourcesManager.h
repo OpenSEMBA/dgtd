@@ -11,7 +11,7 @@ public:
     SourcesManager(const Sources&, mfem::FiniteElementSpace&);  
 
     void setInitialFields(Fields&);
-    mfem::GridFunction setTotalField();
+    mfem::GridFunction evalTotalField(const double time);
 
     Sources sources;
 

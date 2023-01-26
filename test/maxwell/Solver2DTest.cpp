@@ -349,7 +349,7 @@ TEST_F(Solver2DTest, InnerSquareTotalField)
 	int dim{ 2 };
 	auto m{ Mesh::LoadFromFile("./testData/square3x3marked.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToDomain attToDom{ {301,BdrCond::TotalField} };
+	AttributeToInteriorBoundary attToDom{ {301,BdrCond::TotalField} };
 	Model model{ m, AttributeToMaterial{}, attToBdr,attToDom };
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 30;

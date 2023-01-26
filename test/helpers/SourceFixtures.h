@@ -23,6 +23,22 @@ static Sources buildGaussianInitialField(
 
 }
 
+static Sources buildPlaneWave(
+	const Direction& d = X,
+	const double spread = 0.1,
+	const double delay = 0.0,
+	const double normalization = 1.0,
+	const int dimension = 1)
+{
+	Sources res;
+	res.push_back(
+		std::move(std::make_unique<PlaneWave>(
+			TimeGaussian{ dimension, spread, normalization, delay }, d)
+		)
+	);
+	return res;
+}
+
 static Sources buildRightTravelingWaveInitialField(const Gaussian& gauss)
 {
 	Sources res;

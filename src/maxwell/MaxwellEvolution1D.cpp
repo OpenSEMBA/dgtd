@@ -20,6 +20,8 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
 		MT_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(f, {}, model_, fes_), fes_);
 	}
+	MT_[E].get()->SpMat().ToDenseMatrix()->Print(std::cout);
+	std::cout << MT_[E].get()->SpMat().ToDenseMatrix() << std::endl;
 }
 
 void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
@@ -48,8 +50,14 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 		MP_[H]->AddMult(hOld, hNew, -1.0);
 	}
 
-	// MT_ operator should be evaluated here. TODO
-	// GridFunction eFunction{ SourcesManager::EvaluatePlaneWave() };
+	for (const auto& source : srcmngr_.sources) {
+		if (dynamic_cast<PlaneWave*>(source.get())) {
+			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
+			//GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
+			MT_[E]->AddMult(eFunc, eNew);
+			//MT_[H]->AddMult(hFunc, hNew);
+		}
+	}
 
 
 }

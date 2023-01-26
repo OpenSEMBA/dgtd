@@ -308,3 +308,27 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	}
 
 }
+
+TEST_F(Solver1DTest, box_totalfield_centered_flux)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/linemarked.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalField} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(),
+		SolverOptions{}
+			.setFinalTime(5.0)
+			.setTimeStep(2.5e-3)
+			.setCentered()
+			.setOrder(1)
+	};
+
+	solver.run();
+
+}

@@ -2,7 +2,7 @@
 
 namespace maxwell {
 
-Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap, const AttributeToDomain& domMap) :
+Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap, const AttributeToInteriorBoundary& intBdrMap) :
 	mesh_(mesh)
 {
 	if (matMap.size() == 0) {
@@ -21,9 +21,10 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		attToBdrMap_ = bdrMap;
 	}
 
-	//if (mesh.bdr_attributes.Size() != attToBdrMap_.size()) {
-	//	throw std::exception("Mesh Boundary Attributes Size and Boundary maps must have same size.");
-	//}
+	if (intBdrMap.size() != 0)
+	{
+		attToIntBdrMap_ = intBdrMap;
+	}
 
 	for (const auto& kv : attToBdrMap_) {
 		const auto& att{ kv.first };
@@ -37,7 +38,7 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		bdrToMarkerMap_.emplace(bdr, bdrMarker);
 	}
 
-	for (const auto& kv : attToDomMap_) {
+	for (const auto& kv : attToIntBdrMap_) {
 		const auto& att{ kv.first };
 		const auto& bdr{ kv.second };
 		assert(att > 0);
@@ -46,7 +47,7 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		bdrMarker = 0;
 		bdrMarker[att - 1] = 1;
 
-		domToMarkerMap_.emplace(bdr, bdrMarker);
+		intBdrToMarkerMap_.emplace(bdr, bdrMarker);
 	}
 }
 
