@@ -20,8 +20,6 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
 		MT_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(f, model_, fes_), fes_);
 	}
-	buildFunctionOperator1D(E, model_, fes_).get()->SpMat().Print(std::cout);
-	std::cout << ".-.-.-." << std::endl;
 }
 
 void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const

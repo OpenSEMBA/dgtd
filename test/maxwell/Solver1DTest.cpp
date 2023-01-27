@@ -321,12 +321,12 @@ TEST_F(Solver1DTest, box_totalfield_centered_flux)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(),
+		buildPlaneWave(X,0.3,0.0,0.5),
 		SolverOptions{}
-			.setFinalTime(2.0)
-			.setTimeStep(1.0)
+			.setFinalTime(4.0)
+			.setTimeStep(1e-3)
 			.setCentered()
-			.setOrder(1)
+			.setOrder(3)
 	};
 
 	solver.run();
