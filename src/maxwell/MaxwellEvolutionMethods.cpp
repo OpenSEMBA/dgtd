@@ -176,16 +176,14 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 	return res;
 }
 
-FiniteElementOperator buildFunctionOperator(const FieldType& f, const Direction& dir, Model& model, FiniteElementSpace& fes)
+FiniteElementOperator buildFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
-	Vector vec{ buildNVector(dir, fes) };
-	VectorConstantCoefficient coeff{ vec };
 
 	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
 		res->AddInteriorBoundaryFaceIntegrator(
-			new DGTraceIntegrator(coeff, 0.0, 1.0), kv.second
+			new mfemExtension::MaxwellDGTotalFieldIntegrator(dirTerms, 1.0), kv.second
 		);
 	}
 
@@ -242,12 +240,11 @@ FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vect
 FiniteElementOperator buildFunctionOperator1D(const FieldType& f, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
-	VectorConstantCoefficient one(Vector({ 1.0 }));
 
 	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
 		res->AddInteriorBoundaryFaceIntegrator(
-			new DGTraceIntegrator(one, 0.0, 1.0), kv.second
+			new mfemExtension::MaxwellDGTotalFieldIntegrator({ X }, 1.0), kv.second
 		);
 	}
 

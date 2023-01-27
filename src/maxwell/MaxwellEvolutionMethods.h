@@ -9,23 +9,23 @@ namespace maxwell {
 using namespace mfem;
 using FiniteElementOperator = std::unique_ptr<BilinearForm>;
 
-FiniteElementOperator buildByMult(const BilinearForm& op1,const BilinearForm& op2, FiniteElementSpace& fes);
-FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& model, FiniteElementSpace& fes);
-FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes);
-FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes);
-FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-FiniteElementOperator buildFunctionOperator(const FieldType& f, const Direction& dir, Model& model, FiniteElementSpace& fes);
+FiniteElementOperator buildByMult				(const BilinearForm& op1,const BilinearForm& op2, FiniteElementSpace&);
+FiniteElementOperator buildInverseMassMatrix	(const FieldType&, const Model&, FiniteElementSpace&);
+FiniteElementOperator buildDerivativeOperator	(const Direction&, FiniteElementSpace&);
+FiniteElementOperator buildFluxOperator			(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+FiniteElementOperator buildFluxJumpOperator		(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+FiniteElementOperator buildFluxOperator			(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
+FiniteElementOperator buildPenaltyOperator		(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+FiniteElementOperator buildFunctionOperator		(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 
-FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes);
-FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-FiniteElementOperator buildFunctionOperator1D(const FieldType& f, Model& model, FiniteElementSpace& fes);
+FiniteElementOperator buildFluxOperator1D		(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
+FiniteElementOperator buildPenaltyOperator1D	(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+FiniteElementOperator buildFunctionOperator1D	(const FieldType&, Model& model, FiniteElementSpace&);
 
 FluxCoefficient interiorFluxCoefficient();
-FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions& opts);
-FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC);
-FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond& bdrC, const MaxwellEvolOptions& opts);
+FluxCoefficient interiorPenaltyFluxCoefficient	(const MaxwellEvolOptions& opts);
+FluxCoefficient boundaryFluxCoefficient			(const FieldType&, const BdrCond&);
+FluxCoefficient boundaryPenaltyFluxCoefficient	(const FieldType&, const BdrCond&, const MaxwellEvolOptions&);
 
 FieldType altField(const FieldType& f);
 
