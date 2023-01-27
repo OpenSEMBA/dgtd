@@ -11,6 +11,12 @@ MFEM mesh v1.0
 # CUBE        = 5
 # PRISM       = 6
 #
+#    Order 1 case
+#
+#    0    1|2   3|4   5|6   7|8   9|  NodeID
+#    |-----|-----|-----|-----|-----|
+#    0    *1*    2     3    *4*    5  FaceID
+#       0     1     2     3     4     ElemID
 
 dimension
 1

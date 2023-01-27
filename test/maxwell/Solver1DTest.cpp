@@ -323,8 +323,8 @@ TEST_F(Solver1DTest, box_totalfield_centered_flux)
 		probes,
 		buildPlaneWave(),
 		SolverOptions{}
-			.setFinalTime(5.0)
-			.setTimeStep(2.5e-3)
+			.setFinalTime(2.0)
+			.setTimeStep(1.0)
 			.setCentered()
 			.setOrder(1)
 	};

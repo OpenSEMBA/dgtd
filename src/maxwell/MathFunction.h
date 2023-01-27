@@ -94,16 +94,16 @@ public:
 		case 2:
 			return normalization_ *
 				exp(
-					-(pow(2 * M_PI * pos[X] - (time - delay_), 2.0)
-						+ pow(2 * M_PI * pos[Y] - (time - delay_), 2.0)) /
+					-(pow(pos[X] - (time - delay_), 2.0)
+						+ pow(pos[Y] - (time - delay_), 2.0)) /
 					(2.0 * pow(spatialSpread_, 2.0))
 				);
 		case 3:
 			return normalization_ *
 				exp(
-					-(pow(2 * M_PI * pos[X] - (time - delay_), 2.0)
-						+ pow(2 * M_PI * pos[Y] - (time - delay_), 2.0)
-						+ pow(2 * M_PI * pos[Z] - (time - delay_), 2.0)) /
+					-(pow(pos[X] - (time - delay_), 2.0)
+						+ pow(pos[Y] - (time - delay_), 2.0)
+						+ pow(pos[Z] - (time - delay_), 2.0)) /
 					(2.0 * pow(spatialSpread_, 2.0))
 				);
 		default:

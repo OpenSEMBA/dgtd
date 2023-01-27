@@ -236,7 +236,7 @@ FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vect
 	return res;
 }
 
-FiniteElementOperator buildFunctionOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+FiniteElementOperator buildFunctionOperator1D(const FieldType& f, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 	VectorConstantCoefficient one(Vector({ 1.0 }));

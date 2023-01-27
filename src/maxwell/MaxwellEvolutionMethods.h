@@ -20,7 +20,7 @@ FiniteElementOperator buildFunctionOperator(const FieldType& f, const Direction&
 
 FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes);
 FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-FiniteElementOperator buildFunctionOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes);
+FiniteElementOperator buildFunctionOperator1D(const FieldType& f, Model& model, FiniteElementSpace& fes);
 
 FluxCoefficient interiorFluxCoefficient();
 FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions& opts);

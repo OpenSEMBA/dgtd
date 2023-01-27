@@ -25,7 +25,7 @@ void BilinearFormIBFI::Assemble(int skip_zeros) {
     if (interior_boundary_face_integs.Size())
     {
         FaceElementTransformations* tr;
-        Array<int> vdofs2;
+        Array<int> vdofs, vdofs2;
         const FiniteElement* fe1, * fe2;
 
         // Which interior boundary attributes need to be processed?
@@ -54,7 +54,7 @@ void BilinearFormIBFI::Assemble(int skip_zeros) {
             const int mesh_bdr_attr = mesh->GetBdrAttribute(i);
             if (int_bdr_attr_marker[mesh_bdr_attr - 1] == 0) { continue; }
 
-            tr = mesh->GetInteriorFaceTransformations(i);
+            tr = mesh->GetInteriorFaceTransformations(mesh->GetBdrFace(i));
             if (tr != NULL)
             {
                 fes->GetElementVDofs(tr->Elem1No, vdofs);

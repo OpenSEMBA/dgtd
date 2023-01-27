@@ -18,10 +18,10 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
-		MT_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(f, {}, model_, fes_), fes_);
+		MT_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(f, model_, fes_), fes_);
 	}
-	MT_[E].get()->SpMat().ToDenseMatrix()->Print(std::cout);
-	std::cout << MT_[E].get()->SpMat().ToDenseMatrix() << std::endl;
+	buildFunctionOperator1D(E, model_, fes_).get()->SpMat().Print(std::cout);
+	std::cout << ".-.-.-." << std::endl;
 }
 
 void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
@@ -53,9 +53,9 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<PlaneWave*>(source.get())) {
 			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
-			//GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
+			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
 			MT_[E]->AddMult(eFunc, eNew);
-			//MT_[H]->AddMult(hFunc, hNew);
+			MT_[H]->AddMult(hFunc, hNew);
 		}
 	}
 
