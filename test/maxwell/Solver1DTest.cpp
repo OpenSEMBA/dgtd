@@ -309,7 +309,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(Solver1DTest, box_totalfield_centered_flux)
+TEST_F(Solver1DTest, box_totalfield_upwind_flux)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/linemarked.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
@@ -317,16 +317,16 @@ TEST_F(Solver1DTest, box_totalfield_centered_flux)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 60;
 
 	maxwell::Solver solver{
 		model,
 		probes,
 		buildPlaneWave(X,0.3,0.0,0.5),
 		SolverOptions{}
-			.setFinalTime(4.0)
+			.setFinalTime(10.0)
 			.setTimeStep(1e-3)
-			.setCentered()
-			.setOrder(3)
+			.setOrder(5)
 	};
 
 	solver.run();
