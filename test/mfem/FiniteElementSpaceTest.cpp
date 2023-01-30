@@ -60,6 +60,35 @@ protected:
 		return res;
 	}
 
+	double getMinimumInterNodeDistance1D(FiniteElementSpace& fes)
+	{
+		GridFunction nodes(&fes);
+		fes.GetMesh()->GetNodes(nodes);
+		double minDistance = std::numeric_limits<double>::max();
+		for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
+			Array<int> dofs;
+			fes.GetElementDofs(elemId, dofs);
+			for (int i = 0; i < dofs.Size(); ++i) {
+				for (int j = i + 1; j < dofs.Size(); ++j) {
+					minDistance = std::min(minDistance, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
+				}
+			}
+		}
+		return minDistance;
+	}
+
+	double getMinimumVertexDistance1D(FiniteElementSpace& fes) {
+		GridFunction nodes(&fes);
+		fes.GetMesh()->GetNodes(nodes);
+		double minVertexDistance = std::numeric_limits<double>::max();
+		for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
+			Array<int> vertices;
+			fes.GetElementVertices(elemId, vertices);
+			minVertexDistance = std::min(minVertexDistance, std::abs(nodes[vertices[0]] - nodes[vertices[1]]));
+		}
+		return minVertexDistance;
+	}
+
 	using Direction = std::size_t;
 
 	void SetUp() override 
@@ -391,4 +420,39 @@ TEST_F(FiniteElementSpaceTest, GetCollocatedNodes1D)
 	ASSERT_EQ(1, collocatedNodes.size());
 	ASSERT_EQ(1, collocatedNodes.count(1));
 	EXPECT_EQ(2, collocatedNodes[1]);
+}
+
+TEST_F(FiniteElementSpaceTest, calculateMinimumDistanceBetweenNodes1D)
+{
+
+	int dim{ 1 }, order{ 2 };
+	auto m{ Mesh::MakeCartesian1D(5, 5.0) };
+	Array<int> elToRef(1);
+	elToRef[0] = 2;
+	m.GeneralRefinement(elToRef);
+
+	DG_FECollection fec{ order, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec, dim, Ordering::byNODES };
+
+	EXPECT_EQ(0.25, getMinimumInterNodeDistance1D(fes));
+
+}
+
+TEST_F(FiniteElementSpaceTest, calculateOptimalLTS1D)
+{
+
+	int dim{ 1 }, order{ 2 };
+	auto m{ Mesh::MakeCartesian1D(5, 5.0) };
+	Array<int> elToRef(1);
+	elToRef[0] = 2;
+	m.GeneralRefinement(elToRef);
+
+	DG_FECollection fec{ order, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec, dim, Ordering::byNODES };
+	
+	double CFL{ 0.8 }, signalSpeed{ 1.0 };
+
+	EXPECT_GE(0.15, (CFL * getMinimumVertexDistance1D(fes)) / (pow(order, 1.5) * signalSpeed));
+
+
 }
