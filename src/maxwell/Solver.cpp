@@ -47,15 +47,44 @@ Solver::Solver(
 void Solver::checkOptionsAreValid(const SolverOptions& opts)
 {
 	if ((opts.order < 0) ||
-		(opts.t_final < 0) ||
-		(opts.dt < 0)) {
+		(opts.t_final < 0)) {
 		throw std::exception("Incorrect parameters in Options");
+	}
+
+	if (opts.dt == 0.0) {
+		if (fes_.GetMesh()->Dimension() > 1) {
+			throw std::exception("Automatic LTS calculation not implemented yet for Dimensions higher than 1.");
+		}
+		opts_.dt = calculateLTS();
 	}
 }
 
 const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
 { 
 	return probesManager_.getPointProbe(probe); 
+}
+
+double getMinimumInterNodeDistance1D(FiniteElementSpace& fes)
+{
+	GridFunction nodes(&fes);
+	fes.GetMesh()->GetNodes(nodes);
+	double res = std::numeric_limits<double>::max();
+	for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
+		Array<int> dofs;
+		fes.GetElementDofs(elemId, dofs);
+		for (int i = 0; i < dofs.Size(); ++i) {
+			for (int j = i + 1; j < dofs.Size(); ++j) {
+				res = std::min(res, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
+			}
+		}
+	}
+	return res;
+}
+
+double Solver::calculateLTS()
+{
+	double CFL = 0.8, signalSpeed = 1.0;
+	return (CFL * getMinimumInterNodeDistance1D(fes_)) / (pow(opts_.order, 1.5) * signalSpeed);
 }
 
 void Solver::run()

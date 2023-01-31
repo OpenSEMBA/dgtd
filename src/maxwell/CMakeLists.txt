@@ -9,7 +9,6 @@ include_directories(${MFEM_INCLUDE_DIRS})
 
 add_library(maxwell STATIC 
 	"Solver.cpp" 
-	"mfemExtension/BilinearIntegrators.cpp"
 	"Material.cpp"
 	"Model.cpp" 
 	"Sources.cpp"
@@ -21,6 +20,7 @@ add_library(maxwell STATIC
 	"MaxwellEvolution1D.cpp" 
 	"MaxwellEvolutionMethods.cpp"
 	"mfemExtension/BilinearForm_IBFI.cpp" 
+	"mfemExtension/BilinearIntegrators.cpp"
 	"mfemExtension/LinearIntegrators.cpp")
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)

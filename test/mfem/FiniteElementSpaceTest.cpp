@@ -6,6 +6,8 @@
 
 #include <mfem.hpp>
 
+#include <GlobalFunctions.h>
+
 using namespace mfem;
 
 class FiniteElementSpaceTest : public ::testing::Test {
@@ -58,35 +60,6 @@ protected:
 			}
 		}
 		return res;
-	}
-
-	double getMinimumInterNodeDistance1D(FiniteElementSpace& fes)
-	{
-		GridFunction nodes(&fes);
-		fes.GetMesh()->GetNodes(nodes);
-		double minDistance = std::numeric_limits<double>::max();
-		for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
-			Array<int> dofs;
-			fes.GetElementDofs(elemId, dofs);
-			for (int i = 0; i < dofs.Size(); ++i) {
-				for (int j = i + 1; j < dofs.Size(); ++j) {
-					minDistance = std::min(minDistance, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
-				}
-			}
-		}
-		return minDistance;
-	}
-
-	double getMinimumVertexDistance1D(FiniteElementSpace& fes) {
-		GridFunction nodes(&fes);
-		fes.GetMesh()->GetNodes(nodes);
-		double minVertexDistance = std::numeric_limits<double>::max();
-		for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
-			Array<int> vertices;
-			fes.GetElementVertices(elemId, vertices);
-			minVertexDistance = std::min(minVertexDistance, std::abs(nodes[vertices[0]] - nodes[vertices[1]]));
-		}
-		return minVertexDistance;
 	}
 
 	using Direction = std::size_t;
@@ -434,7 +407,9 @@ TEST_F(FiniteElementSpaceTest, calculateMinimumDistanceBetweenNodes1D)
 	DG_FECollection fec{ order, dim, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &m, &fec, dim, Ordering::byNODES };
 
-	EXPECT_EQ(0.25, getMinimumInterNodeDistance1D(fes));
+	auto distance{ getMinimumInterNodeDistance1D(fes) };
+
+	EXPECT_EQ(0.25, distance);
 
 }
 

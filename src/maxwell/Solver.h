@@ -52,9 +52,9 @@ private:
     std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
 
     void checkOptionsAreValid(const SolverOptions&);
+    void initializeFieldsFromSources();
 
-    const double Solver::calculateTimeStep() const;
+    double calculateLTS();
 
-    void Solver::initializeFieldsFromSources();
 };
 }

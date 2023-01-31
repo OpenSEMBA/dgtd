@@ -22,3 +22,6 @@ Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 	mfem::FiniteElementSpace&, const std::vector<maxwell::Direction>& dirVec);
 Eigen::MatrixXd	buildSMAPenaltyOperator1D(
 	mfem::FiniteElementSpace& fes);
+
+double getMinimumInterNodeDistance1D(mfem::FiniteElementSpace&);
+double getMinimumVertexDistance1D(mfem::FiniteElementSpace&);
