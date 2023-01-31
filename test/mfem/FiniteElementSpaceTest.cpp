@@ -427,7 +427,6 @@ TEST_F(FiniteElementSpaceTest, calculateOptimalLTS1D)
 	
 	double CFL{ 0.8 }, signalSpeed{ 1.0 };
 
-	EXPECT_GE(0.15, (CFL * getMinimumVertexDistance1D(fes)) / (pow(order, 1.5) * signalSpeed));
-
+	EXPECT_GE(0.15, (CFL * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * signalSpeed));
 
 }

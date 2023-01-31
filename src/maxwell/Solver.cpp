@@ -42,6 +42,8 @@ Solver::Solver(
 	odeSolver_->Init(*maxwellEvol_);
 
 	probesManager_.updateProbes(time_);
+
+	checkOptionsAreValid(opts_);
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts)
@@ -57,6 +59,13 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts)
 		}
 		opts_.dt = calculateLTS();
 	}
+
+	for (const auto& bdrMarker : model_.getBoundaryToMarker())
+	{
+		if (bdrMarker.first == BdrCond::SMA && opts_.evolutionOperatorOptions.fluxType == FluxType::Centered) {
+			throw std::exception("SMA and Centered FluxType are not compatible.");
+		}
+	}
 }
 
 const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
@@ -64,7 +73,7 @@ const PointProbe& Solver::getPointProbe(const std::size_t probe) const
 	return probesManager_.getPointProbe(probe); 
 }
 
-double getMinimumInterNodeDistance1D(FiniteElementSpace& fes)
+double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 {
 	GridFunction nodes(&fes);
 	fes.GetMesh()->GetNodes(nodes);
@@ -83,8 +92,8 @@ double getMinimumInterNodeDistance1D(FiniteElementSpace& fes)
 
 double Solver::calculateLTS()
 {
-	double CFL = 0.8, signalSpeed = 1.0;
-	return (CFL * getMinimumInterNodeDistance1D(fes_)) / (pow(opts_.order, 1.5) * signalSpeed);
+	double signalSpeed = 1.0;
+	return (opts_.CFL * getMinimumInterNodeDistance(fes_)) / (pow(opts_.order, 1.5) * signalSpeed);
 }
 
 void Solver::run()

@@ -107,7 +107,6 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 		probes,
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
-			.setTimeStep(2.5e-3)
 			.setCentered()
 	};
 	
@@ -175,7 +174,7 @@ TEST_F(Solver1DTest, box_pec_upwind_flux)
 		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
-			.setTimeStep(1e-3)
+			.setCFL(0.65)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Y] };
@@ -278,7 +277,9 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		probes,
 		buildRightTravelingWaveInitialField(
 			Gaussian{ 1, 0.05, 1.0, Vector({ 0.25 })} ),
-		SolverOptions{}.setFinalTime(1.0)
+		SolverOptions{}
+			.setCFL(0.65)
+			.setFinalTime(1.0)
 	};
 		
 	solver.run();
