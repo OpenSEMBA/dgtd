@@ -194,8 +194,7 @@ TEST_F(Solver1DTest, box_pmc_upwind_flux)
 		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(H, Z),
 		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setOrder(2)
+			.setCFL(0.65)
 	};
 
 	GridFunction hOld{ solver.getFields().H[Z] };
@@ -325,8 +324,8 @@ TEST_F(Solver1DTest, box_totalfield_upwind_flux)
 		probes,
 		buildPlaneWave(X,0.3,0.0,0.5),
 		SolverOptions{}
+			.setCFL(0.65)
 			.setFinalTime(10.0)
-			.setTimeStep(1e-3)
 			.setOrder(5)
 	};
 

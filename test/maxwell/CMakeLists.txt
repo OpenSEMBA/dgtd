@@ -19,7 +19,8 @@ add_executable(maxwell_tests
 	
 	
 	"BilinearIntegratorsExtensionTest.cpp"
-	"BilinearFormExtensionTest.cpp")
+	"BilinearFormExtensionTest.cpp" 
+	"LinearFormExtensionTest.cpp")
 
 target_link_libraries(maxwell_tests 
 	maxwell mfem testHelpers 

@@ -2,6 +2,17 @@
 
 namespace maxwell {
 namespace mfemExtension {
+    
+using namespace mfem;
+
+void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
+    const FiniteElement& el, ElementTransformation& Tr, Vector& elvect)
+{
+    mfem_error("BoundaryDGJumpIntegrator::AssembleRHSElementVect\n"
+        "  is not implemented as boundary integrator!\n"
+        "  Use LinearForm::AddBdrFaceIntegrator instead of\n"
+        "  LinearForm::AddBoundaryIntegrator.");
+}
 
 void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
     const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect)
@@ -59,5 +70,6 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
         elvect.Add(w, shape_);
     }
 }
+
 }
 }

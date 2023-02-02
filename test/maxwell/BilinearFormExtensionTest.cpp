@@ -42,6 +42,7 @@ protected:
 	std::unique_ptr<FiniteElementCollection> fec_;
 	std::unique_ptr<FiniteElementSpace> fes_;
 };
+
 TEST_F(BilinearFormExtensionTest, checkInteriorBoundaryFaceIntegrator)
 {
 	setFES1D(1,4,4.0);

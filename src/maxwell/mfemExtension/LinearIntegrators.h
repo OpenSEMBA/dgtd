@@ -5,33 +5,34 @@
 namespace maxwell {
 namespace mfemExtension {
 
-using namespace mfem;
-
 /** Class for boundary integration of the linear form:
 beta < (u.n) f, w >,
-where f and u are given scalar and vector coefficients, respectively,
+where f and u are given scalar and vector coefficients 
 and w is the scalar test function. */
-class BoundaryDGJumpIntegrator : public LinearFormIntegrator
+class BoundaryDGJumpIntegrator : public mfem::LinearFormIntegrator
 {
-private:
-    Coefficient* f_;
-    VectorCoefficient* u_;
-    double beta_;
-
-    Vector shape_;
-
 public:
-    BoundaryDGJumpIntegrator(Coefficient& f, VectorCoefficient& u,
+    BoundaryDGJumpIntegrator(mfem::Coefficient& f, mfem::VectorCoefficient& u,
         double beta)
     {
         f_ = &f; u_ = &u; beta_ = beta;
     }
 
-    virtual void AssembleRHSElementVect(const FiniteElement& el,
-        FaceElementTransformations& Tr,
-        Vector& elvect);
+    void AssembleRHSElementVect(const mfem::FiniteElement& el,
+        mfem::ElementTransformation& Tr,
+        mfem::Vector& elvect);
+    void AssembleRHSElementVect(const mfem::FiniteElement& el,
+        mfem::FaceElementTransformations& Tr,
+        mfem::Vector& elvect);
 
-    using LinearFormIntegrator::AssembleRHSElementVect;
+private:
+    double beta_;
+    mfem::VectorCoefficient* u_;
+    mfem::Coefficient* f_;
+
+
+    mfem::Vector shape_;
+
 };
 }
 }

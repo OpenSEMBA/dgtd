@@ -37,7 +37,7 @@ public:
 		dir = dirTerms; beta = b;
 	}
 
-	virtual void AssembleFaceMatrix(const FiniteElement& el1,
+	void AssembleFaceMatrix(const FiniteElement& el1,
 		const FiniteElement& el2,
 		FaceElementTransformations& Trans,
 		DenseMatrix& elmat);
@@ -60,7 +60,7 @@ public:
 		dir = dirTerms; beta = b;
 	}
 
-	virtual void AssembleFaceMatrix(const FiniteElement& el1,
+	void AssembleFaceMatrix(const FiniteElement& el1,
 		const FiniteElement& el2,
 		FaceElementTransformations& Trans,
 		DenseMatrix& elmat);
