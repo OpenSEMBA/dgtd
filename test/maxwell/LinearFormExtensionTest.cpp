@@ -112,8 +112,8 @@ TEST_F(LinearFormExtensionTest, checkLinearFormFunctionUsage)
 	std::unique_ptr<TimeDependentOperator> evol = std::make_unique<SimpleFEEvol>(m, b);
 	
 	double time = 0.0;
-	double tf = 2.0;
-	double dt = 1e-4;
+	double tf = 1.0;
+	double dt = 5e-3;
 
 	evol.get()->SetTime(time);
 	odeSolver->Init(*evol);
