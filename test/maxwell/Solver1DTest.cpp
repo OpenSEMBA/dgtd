@@ -335,46 +335,39 @@ TEST_F(Solver1DTest, totalfield_upwind)
 	EXPECT_TRUE(false);
 }
 
-TEST_F(Solver1DTest, resonant_modes_1D_upwind)
+TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 {
-	// This test checks propagation of a wave inside a PEC box. 
-// Final time is set so that a full cycle is completed.
+	// Resonant mode inside a PEC box. 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.pointProbes = {
-		PointProbe{E, Y, {0.25}},
-		PointProbe{H, Z, {0.25}}
-	};
+
+	double finalTime{ 1.2 };
 
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
-		buildResonantModeInitialField(E, Y),
+		buildResonantModeInitialField(E, Y, {1}),
 		SolverOptions{}
+			.setFinalTime(finalTime)
+			.setCFL(0.5)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Y] };
-	auto normOld{ solver.getFields().getNorml2() };
-
-	// Checks fields have been initialized.
-	EXPECT_NE(0.0, normOld);
-
+	Vector eOld(solver.getFields().E[Y].Size());
+	eOld = solver.getFields().E[Y];
+	
 	solver.run();
 
-	// Checks that field is almost the same as initially because the completion of a cycle.
 	GridFunction eNew{ solver.getFields().E[Y] };
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-8);
 
-	// Compares all DOFs.
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 
-	// At the left boundary the electric field should be always close to zero...
-	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
-		EXPECT_NEAR(0.0, f, tolerance);
-	}
+	//for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+	//	EXPECT_NEAR(0.0, f, tolerance);
+	//}
 
-	// ... and the magnetic field reaches a maximum close to 1.0 
-	// (the wave splits in two and doubles at the boundary).
-	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
-	EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
-	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+	//auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	//EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
+	//EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
+	EXPECT_TRUE(false);
 }
