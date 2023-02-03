@@ -24,7 +24,7 @@ TEST_F(ProbesManagerTest, exporterProbe)
 	Probes ps;
 	ps.exporterProbes = { ExporterProbe{"ProbesManagerTest"} };
 
-	ProbesManager pM{ ps, fes, fields };
+	ProbesManager pM{ ps, fes, fields, SolverOptions{} };
 
 	ASSERT_NO_THROW(pM.updateProbes(0.0));
 }

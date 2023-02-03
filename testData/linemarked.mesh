@@ -15,7 +15,7 @@ MFEM mesh v1.0
 #
 #    0    1|2   3|4   5|6   7|8   9|  NodeID
 #    |-----|-----|-----|-----|-----|
-#    0    *1*    2     3    *4*    5  FaceID
+#    0F    1     2     3     4    S5  FaceID
 #       0     1     2     3     4     ElemID
 
 dimension
@@ -30,10 +30,9 @@ elements
 1 1 4 5
 
 boundary
-3
-2   0 0
+2
+301 0 0
 2   0 5
-301 0 4
 
 vertices
 6

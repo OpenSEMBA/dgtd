@@ -313,22 +313,21 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 TEST_F(Solver1DTest, totalfield_upwind)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/linemarked.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalField} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {301,BdrCond::TotalField} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 60;
+	probes.exporterProbes[0].visSteps = 30;
 
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.3,0.0,0.5),
+		buildPlaneWave(X,0.2,1.5,1.0),
 		SolverOptions{}
 			.setCFL(0.65)
-			.setFinalTime(10.0)
-			.setOrder(5)
+			.setFinalTime(5.0)
+			.setOrder(3)
 	};
 
 	solver.run();

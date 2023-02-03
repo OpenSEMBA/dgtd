@@ -22,6 +22,7 @@ add_library(maxwell STATIC
 	"MaxwellEvolution1D.cpp" 
 	"MaxwellEvolutionMethods.cpp"
 	"mfemExtension/BilinearForm_IBFI.cpp" 
+	"mfemExtension/LinearForm_IBFI.cpp" 
 	"mfemExtension/BilinearIntegrators.cpp"
 	"mfemExtension/LinearIntegrators.cpp")
 

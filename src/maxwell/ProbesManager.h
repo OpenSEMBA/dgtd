@@ -2,13 +2,14 @@
 
 #include "Probes.h"
 #include "Fields.h"
+#include "SolverOptions.h"
 
 namespace maxwell {
 
 class ProbesManager {
 public:
     ProbesManager() = delete;
-    ProbesManager(Probes, const mfem::FiniteElementSpace&, Fields&);
+    ProbesManager(Probes, const mfem::FiniteElementSpace&, Fields&, const SolverOptions&);
     
     ProbesManager(const ProbesManager&) = delete;
     ProbesManager(ProbesManager&&) = default;
@@ -42,7 +43,7 @@ private:
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
-    
+
     void updateProbe(ExporterProbe&, double time);
     void updateProbe(PointProbe&, double time);
 };

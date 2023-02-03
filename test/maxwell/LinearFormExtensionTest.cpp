@@ -78,11 +78,9 @@ b_{ b }
 
 void SimpleFEEvol::Mult(const Vector& x, Vector& y) const
 {
-	b_.Assemble();
+	//b_.Assemble();
 	Vector temp(x.Size());
-	for (int i = 0; i < x.Size(); ++i) {
-		temp[i] = x[i] + b_[i];
-	}
+	add(x, b_, temp);
 	M_.Mult(temp, y);
 }
 TEST_F(LinearFormExtensionTest, checkLinearFormFunctionUsage)
@@ -92,15 +90,14 @@ TEST_F(LinearFormExtensionTest, checkLinearFormFunctionUsage)
 	DG_FECollection fec{ order, dim, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &mesh, &fec,1,Ordering::byNODES };
 
-	ConstantCoefficient one{1.0};
-	VectorFunctionCoefficient tdGaussian{ 1, TDgaussian_function };
+	VectorConstantCoefficient one(Vector({ 1.0 }));
 
 	BilinearForm m{&fes};
 	m.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator));
 
 	LinearForm b{ &fes };
 	b.AddBdrFaceIntegrator(
-		new BoundaryDGJumpIntegrator{ one, tdGaussian, 1.0 }
+		new BoundaryDGJumpIntegrator{ one, 1.0 }
 	);
 	
 	m.Assemble();
@@ -123,8 +120,8 @@ TEST_F(LinearFormExtensionTest, checkLinearFormFunctionUsage)
 
 	for (time; time <= tf; time += dt)
 	{
-		tdGaussian.SetTime(time);
-		evol.get()->SetTime(time);
+		//tdGaussian.SetTime(time);
+		//evol.get()->SetTime(time);
 		double dt_real = std::min(dt, tf - time);
 		odeSolver->Step(field, time, dt_real);
 	}

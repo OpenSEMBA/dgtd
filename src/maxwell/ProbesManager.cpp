@@ -33,12 +33,16 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	return pd;
 }
 
-ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields) :
+ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
 	probes{pIn},
 	fes_{fes}
 {
 	for (const auto& p: probes.exporterProbes) {
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
+	}
+
+	for (auto& p : probes.exporterProbes) {
+		p.t_final = opts.t_final;
 	}
 	
 	for (const auto& p : probes.pointProbes) {
@@ -106,7 +110,7 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 
 void ProbesManager::updateProbe(ExporterProbe& p, double time)
 {
-	if (cycle_ % p.visSteps != 0) {
+	if (cycle_ % p.visSteps != 0 && p.t_final != time) {
 		return;
 	}
 
