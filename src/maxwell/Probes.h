@@ -9,6 +9,7 @@ namespace maxwell {
 struct ExporterProbe {
     std::string name{"MaxwellView"};
     int visSteps{ 10 };
+    double t_final{ 0.0 };
 };
 
 class PointProbe {

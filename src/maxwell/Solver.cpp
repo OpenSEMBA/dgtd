@@ -23,7 +23,7 @@ Solver::Solver(
 	fes_{ &model_.getMesh(), &fec_ },
 	fields_{ fes_ },
 	sourcesManager_{ sources, fes_ },
-	probesManager_{ probes, fes_, fields_},
+	probesManager_{ probes, fes_, fields_, opts_},
 	time_{0.0}
 {
 	sourcesManager_.setInitialFields(fields_);
@@ -98,8 +98,9 @@ double Solver::calculateLTS()
 
 void Solver::run()
 {
-	while ( std::abs(time_ - opts_.t_final) < 1e-6 || time_ < opts_.t_final) {
-		odeSolver_->Step(fields_.allDOFs, time_, opts_.dt);
+	while (time_ <= opts_.t_final - 1e-8*opts_.dt) {
+		double truedt{ std::min(opts_.dt, opts_.t_final - time_) };
+		odeSolver_->Step(fields_.allDOFs, time_, truedt);
 		probesManager_.updateProbes(time_);
 	}
 }
