@@ -257,3 +257,13 @@ TEST_F(MeshTest, InteriorBoundary)
 	mesh.AddBdrPoint(2, 4);
 	EXPECT_EQ(4, mesh.GetBdrAttribute(3));
 }
+
+TEST_F(MeshTest, GetElementSize_1D)
+{
+	auto m{ Mesh::MakeCartesian1D(10, 1.0) };
+
+	for (auto e{ 0 }; e < m.GetNE(); ++e) {
+		EXPECT_NEAR(0.1, m.GetElementSize(e), 1e-8);
+	}
+
+}

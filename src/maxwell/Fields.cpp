@@ -14,8 +14,8 @@ Fields::Fields(mfem::FiniteElementSpace& fes)
         allDOFs = 0.0;
         E1D.SetSpace(&fes);
         H1D.SetSpace(&fes);
-        E1D.SetData(allDOFs.GetData());
-        H1D.SetData(allDOFs.GetData() + fes.GetNDofs());
+        E1D.SetDataAndSize(allDOFs.GetData(),                  fes.GetNDofs());
+        H1D.SetDataAndSize(allDOFs.GetData() + fes.GetNDofs(), fes.GetNDofs());
         break;
     default:
         allDOFs.SetSize(MaxwellEvolution3D::numberOfFieldComponents * MaxwellEvolution3D::numberOfMaxDimensions * fes.GetNDofs());
@@ -23,8 +23,8 @@ Fields::Fields(mfem::FiniteElementSpace& fes)
         for (int d = X; d <= Z; d++) {
             E[d].SetSpace(&fes);
             H[d].SetSpace(&fes);
-            E[d].SetData(allDOFs.GetData() + d * fes.GetNDofs());
-            H[d].SetData(allDOFs.GetData() + (d + 3) * fes.GetNDofs());
+            E[d].SetDataAndSize(allDOFs.GetData() + d * fes.GetNDofs(),       fes.GetNDofs());
+            H[d].SetDataAndSize(allDOFs.GetData() + (d + 3) * fes.GetNDofs(), fes.GetNDofs());
         }
         break;
     }
