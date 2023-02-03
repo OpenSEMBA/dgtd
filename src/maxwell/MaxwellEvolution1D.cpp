@@ -42,6 +42,14 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	eNew.MakeRef(&fes_, &out[0]);
 	hNew.MakeRef(&fes_, &out[fes_.GetNDofs()]);
 
+	for (const auto& source : srcmngr_.sources) {
+		if (dynamic_cast<PlaneWave*>(source.get())) {
+			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
+			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
+			eOld[0] = eFunc[0];
+			hOld[0] = hFunc[0];
+		}
+	}
 
 	// dtE = - MS * H + MF * [H] (signs in coeff)
 	// Update E.
@@ -62,18 +70,10 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 		if (dynamic_cast<PlaneWave*>(source.get())) {
 			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
 			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
-			Vector tempf(f_.get()->Size());
-			tempf = copyDataFromLFToVector(f_.get());
-			tempf.operator*=(eFunc);
-			Vector tempStorage(tempf.Size());
-			//invM_[E]->AddMult(tempf, eNew);
-			add(eNew, tempf, tempStorage);
-			eNew = tempStorage;
-			tempf = copyDataFromLFToVector(f_.get());
-			tempf.operator*=(hFunc);
-			add(hNew, tempf, tempStorage);
-			hNew = tempStorage;
-			//invM_[H]->AddMult(tempf, hNew);
+			Vector temp(eFunc.Size());
+			invM_[E]->Mult(eFunc, temp);
+			eNew[0] += temp[0];
+			hNew[0] += temp[0];
 		}
 	}
 

@@ -318,6 +318,13 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 			return FluxCoefficient{ 0.0 };
 		case FieldType::H:
 			return FluxCoefficient{ 0.0 };
+		}	
+	case BdrCond::NONE:
+		switch (f) {
+		case FieldType::E:
+			return FluxCoefficient{ 0.0 };
+		case FieldType::H:
+			return FluxCoefficient{ 0.0 };
 		}
 	default:
 		throw std::exception("No defined BdrCond.");
@@ -353,6 +360,13 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 				return FluxCoefficient{ 1.0 };
 			}
 		case BdrCond::TotalField:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 0.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 0.0 };
+			}
+		case BdrCond::NONE:
 			switch (f) {
 			case FieldType::E:
 				return FluxCoefficient{ 0.0 };

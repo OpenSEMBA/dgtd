@@ -316,15 +316,15 @@ TEST_F(Solver1DTest, box_totalfield_upwind_flux)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
+	probes.exporterProbes[0].visSteps = 30;
 
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.2,0.0,1.0),
+		buildPlaneWave(X,0.2,1.5,1.0),
 		SolverOptions{}
 			.setCFL(0.65)
-			.setFinalTime(2.0)
+			.setFinalTime(5.0)
 			.setOrder(3)
 	};
 
