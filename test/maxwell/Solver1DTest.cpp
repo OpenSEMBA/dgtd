@@ -323,9 +323,9 @@ TEST_F(Solver1DTest, box_totalfield_upwind_flux)
 		probes,
 		buildPlaneWave(X,0.2,0.0,1.0),
 		SolverOptions{}
-			.setCFL(0.7)
+			.setCFL(0.65)
 			.setFinalTime(2.0)
-			.setOrder(2)
+			.setOrder(3)
 	};
 
 	solver.run();

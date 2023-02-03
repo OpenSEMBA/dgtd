@@ -253,7 +253,7 @@ FiniteElementOperator buildFunctionOperator1D(const FieldType& f, Model& model, 
 	return res;
 }
 
-FiniteElementVector buildBoundaryFunctionVector1D(const FieldType& f, Model& model, FiniteElementSpace& fes) 
+FiniteElementVector buildBoundaryFunctionVector1D(Model& model, FiniteElementSpace& fes) 
 {
 	auto res = std::make_unique<mfemExtension::LinearForm>(&fes);
 	VectorConstantCoefficient one(Vector({ 1.0 }));

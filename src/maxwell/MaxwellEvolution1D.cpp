@@ -28,7 +28,7 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
 		invM_[f] = buildInverseMassMatrix(f, model_, fes_);
-		f_[f] = buildBoundaryFunctionVector1D(f, model_, fes_);
+		f_ = buildBoundaryFunctionVector1D(model_, fes_);
 	}
 }
 
@@ -62,14 +62,17 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 		if (dynamic_cast<PlaneWave*>(source.get())) {
 			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
 			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
-			Vector tempf(f_[E].get()->Size());
-			tempf = copyDataFromLFToVector(f_[E].get());
+			Vector tempf(f_.get()->Size());
+			tempf = copyDataFromLFToVector(f_.get());
 			tempf.operator*=(eFunc);
+			Vector tempStorage(tempf.Size());
 			//invM_[E]->AddMult(tempf, eNew);
-			add(eNew, tempf, eNew);
-			tempf = copyDataFromLFToVector(f_[H].get());
+			add(eNew, tempf, tempStorage);
+			eNew = tempStorage;
+			tempf = copyDataFromLFToVector(f_.get());
 			tempf.operator*=(hFunc);
-			add(hNew, tempf, hNew);
+			add(hNew, tempf, tempStorage);
+			hNew = tempStorage;
 			//invM_[H]->AddMult(tempf, hNew);
 		}
 	}
