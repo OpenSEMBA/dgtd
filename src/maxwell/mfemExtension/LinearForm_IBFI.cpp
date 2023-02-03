@@ -29,7 +29,7 @@ void LinearFormIBFI::Assemble() {
 
         Array<int> vdofs, vdofs2;
         const FiniteElement* fe1, * fe2;
-        Vector elemvect;
+        Vector elemvect, elem2vect;
 
         // Which interior boundary attributes need to be processed?
         Array<int> int_bdr_attr_marker(mesh->bdr_attributes.Size() ?
@@ -44,7 +44,7 @@ void LinearFormIBFI::Assemble() {
             }
             Array<int>& int_bdr_marker = *interior_boundary_face_integs_marker[k];
             MFEM_ASSERT(int_bdr_marker.Size() == int_bdr_attr_marker.Size(),
-                "invalid boundary marker for boundary face integrator #"
+                "invalid boundary marker for interior boundary face integrator #"
                 << k << ", counting from zero");
             for (int i = 0; i < int_bdr_attr_marker.Size(); i++)
             {
@@ -74,9 +74,16 @@ void LinearFormIBFI::Assemble() {
                     }
 
                     interior_boundary_face_integs[k]->
-                        AssembleRHSElementVect(*fe1,
-                            *tr, elemvect);
+                        AssembleRHSElementVect(*fe1,*tr, elemvect);
                     AddElementVector(vdofs, elemvect);
+
+                    interior_boundary_face_integs[k]->
+                        AssembleRHSElementVect(*fe2, *tr, elem2vect);
+                    AddElementVector(vdofs, elem2vect);
+
+                    Vector vecsum(elemvect.Size());
+                    add(elemvect, elem2vect, vecsum);
+                    elemvect = vecsum;
                 }
             }
         }
