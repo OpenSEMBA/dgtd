@@ -5,6 +5,15 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
+Vector copyDataFromLFToVector(const LinearForm* lf)
+{
+	Vector res{ lf->Size() };
+	for (int i = 0; i < lf->Size(); ++i) {
+		res[i] = lf->Elem(i);
+	}
+	return res;
+}
+
 MaxwellEvolution1D::MaxwellEvolution1D(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
@@ -18,7 +27,8 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
-		MT_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(f, model_, fes_), fes_);
+		invM_[f] = buildInverseMassMatrix(f, model_, fes_);
+		f_[f] = buildBoundaryFunctionVector1D(f, model_, fes_);
 	}
 }
 
@@ -52,8 +62,15 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 		if (dynamic_cast<PlaneWave*>(source.get())) {
 			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
 			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
-			MT_[E]->AddMult(eFunc, eNew);
-			MT_[H]->AddMult(hFunc, hNew);
+			Vector tempf(f_[E].get()->Size());
+			tempf = copyDataFromLFToVector(f_[E].get());
+			tempf.operator*=(eFunc);
+			//invM_[E]->AddMult(tempf, eNew);
+			add(eNew, tempf, eNew);
+			tempf = copyDataFromLFToVector(f_[H].get());
+			tempf.operator*=(hFunc);
+			add(hNew, tempf, hNew);
+			//invM_[H]->AddMult(tempf, hNew);
 		}
 	}
 

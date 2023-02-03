@@ -12,10 +12,9 @@ and w is the scalar test function. */
 class BoundaryDGJumpIntegrator : public mfem::LinearFormIntegrator
 {
 public:
-    BoundaryDGJumpIntegrator(mfem::Coefficient& f, mfem::VectorCoefficient& u,
-        double beta)
+    BoundaryDGJumpIntegrator(mfem::VectorCoefficient& u, double beta)
     {
-        f_ = &f; u_ = &u; beta_ = beta;
+        u_ = &u; beta_ = beta;
     }
 
     void AssembleRHSElementVect(const mfem::FiniteElement& el,
@@ -28,7 +27,6 @@ public:
 private:
     double beta_;
     mfem::VectorCoefficient* u_;
-    mfem::Coefficient* f_;
 
 
     mfem::Vector shape_;

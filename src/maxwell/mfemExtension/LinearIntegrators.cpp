@@ -65,8 +65,8 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
             nor = ortho.operator/=(Tr.Weight());
         }
 
-        double un{ vu * nor };
-        double w{ beta_ * un * ip.weight * f_->Eval(Tr, ip) };
+        double un{ vu * nor.operator*=(-1.0)};
+        double w{ beta_ * un * ip.weight };
         elvect.Add(w, shape_);
     }
 }

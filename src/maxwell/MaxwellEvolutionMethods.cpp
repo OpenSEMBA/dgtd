@@ -258,12 +258,12 @@ FiniteElementVector buildBoundaryFunctionVector1D(const FieldType& f, Model& mod
 	auto res = std::make_unique<mfemExtension::LinearForm>(&fes);
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 
-	//for (auto& kv : model.getBoundaryToMarker())
-	//{
-	//	res->AddBdrFaceIntegrator(
-	//		new mfemExtension::BoundaryDGJumpIntegrator(one, 1.0), kv.second
-	//	);
-	//}
+	for (auto& kv : model.getBoundaryToMarker())
+	{
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::BoundaryDGJumpIntegrator(one, 1.0), kv.second
+		);
+	}
 
 	res->Assemble();
 	return res;
@@ -312,6 +312,13 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 		case FieldType::H:
 			return FluxCoefficient{ 1.0 };
 		}
+	case BdrCond::TotalField:
+		switch (f) {
+		case FieldType::E:
+			return FluxCoefficient{ 0.0 };
+		case FieldType::H:
+			return FluxCoefficient{ 0.0 };
+		}
 	default:
 		throw std::exception("No defined BdrCond.");
 	}
@@ -344,6 +351,13 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 				return FluxCoefficient{ 1.0 };
 			case FieldType::H:
 				return FluxCoefficient{ 1.0 };
+			}
+		case BdrCond::TotalField:
+			switch (f) {
+			case FieldType::E:
+				return FluxCoefficient{ 0.0 };
+			case FieldType::H:
+				return FluxCoefficient{ 0.0 };
 			}
 		default:
 			throw std::exception("No defined BdrCond.");
