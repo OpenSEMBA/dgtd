@@ -24,6 +24,7 @@ add_library(maxwell STATIC
 	"mfemExtension/BilinearForm_IBFI.cpp" 
 	"mfemExtension/LinearForm_IBFI.cpp" 
 	"mfemExtension/BilinearIntegrators.cpp"
-	"mfemExtension/LinearIntegrators.cpp")
+	"mfemExtension/LinearIntegrators.cpp" 
+	"mfemExtension/IntegratorFunctions.cpp")
 
 target_link_libraries(maxwell mfem Eigen3::Eigen EvolutionOP)

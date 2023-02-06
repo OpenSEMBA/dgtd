@@ -62,7 +62,6 @@ void LinearFormIBFI::Assemble() {
             {
                 fes->GetElementVDofs(tr->Elem1No, vdofs);
                 fes->GetElementVDofs(tr->Elem2No, vdofs2);
-                vdofs.Append(vdofs2);
                 fe1 = fes->GetFE(tr->Elem1No);
                 fe2 = fes->GetFE(tr->Elem2No);
                 for (int k = 0; k < interior_boundary_face_integs.Size(); k++)
@@ -79,7 +78,7 @@ void LinearFormIBFI::Assemble() {
 
                     interior_boundary_face_integs[k]->
                         AssembleRHSElementVect(*fe2, *tr, elem2vect);
-                    AddElementVector(vdofs, elem2vect);
+                    AddElementVector(vdofs2, elem2vect);
 
                     Vector vecsum(elemvect.Size());
                     add(elemvect, elem2vect, vecsum);
