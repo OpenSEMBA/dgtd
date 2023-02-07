@@ -97,7 +97,6 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
         // Set the integration point in the face and the neighboring element
         Tr.SetAllIntPoints(&ip);
 
-        // Access the neighboring element's integration point
         const IntegrationPoint& eip1 = Tr.GetElement1IntPoint();
         const IntegrationPoint& eip2 = Tr.GetElement2IntPoint();
         shape1_.SetSize(el1.GetDof());
@@ -105,7 +104,7 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
         el1.CalcShape(eip1, shape1_);
         el2.CalcShape(eip2, shape2_);
 
-        // Use Tr.Elem1 transformation for u so that it matches the coefficient used.
+        // Use Tr.Elem1 and Tr.Elem2 transformation for u so that it matches the coefficient used.
         u_->Eval(vu , *Tr.Elem1, eip1);
         u_->Eval(vu2, *Tr.Elem2, eip2);
 
