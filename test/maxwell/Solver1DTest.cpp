@@ -90,7 +90,7 @@ protected:
 
 };
 
-TEST_F(Solver1DTest, box_pec_centered_flux)
+TEST_F(Solver1DTest, pec_centered)
 {
 	// This test checks propagation of a wave inside a PEC box. 
 	// Final time is set so that a full cycle is completed.
@@ -137,7 +137,7 @@ TEST_F(Solver1DTest, box_pec_centered_flux)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-TEST_F(Solver1DTest, box_pmc_centered_flux)
+TEST_F(Solver1DTest, pmc_centered)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux.
@@ -167,7 +167,8 @@ TEST_F(Solver1DTest, box_pmc_centered_flux)
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
-TEST_F(Solver1DTest, box_pec_upwind_flux)
+
+TEST_F(Solver1DTest, pec_upwind)
 {
 	maxwell::Solver solver{
 		buildStandardModel(),
@@ -187,7 +188,7 @@ TEST_F(Solver1DTest, box_pec_upwind_flux)
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
 
-TEST_F(Solver1DTest, box_pmc_upwind_flux)
+TEST_F(Solver1DTest, pmc_upwind)
 {
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
@@ -206,7 +207,8 @@ TEST_F(Solver1DTest, box_pmc_upwind_flux)
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
-TEST_F(Solver1DTest, box_SMA)
+
+TEST_F(Solver1DTest, sma)
 {
 	maxwell::Solver solver(
 		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
@@ -222,7 +224,7 @@ TEST_F(Solver1DTest, box_SMA)
 	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
 }
 
-TEST_F(Solver1DTest, box_upwind_SMA_E_XYZ)
+TEST_F(Solver1DTest, sma_e_xyz)
 {
 	for (const auto& x : { X, Y, Z }) {
 		Probes probes;
@@ -309,7 +311,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(Solver1DTest, box_totalfield_upwind_flux)
+TEST_F(Solver1DTest, totalfield_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {301,BdrCond::TotalField} };
@@ -330,4 +332,42 @@ TEST_F(Solver1DTest, box_totalfield_upwind_flux)
 
 	solver.run();
 
+	EXPECT_TRUE(false);
+}
+
+TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
+{
+	// Resonant mode inside a PEC box. 
+	auto probes{ buildProbesWithAnExportProbe() };
+
+	double finalTime{ 1.2 };
+
+	maxwell::Solver solver{
+		buildStandardModel(),
+		probes,
+		buildResonantModeInitialField(E, Y, {1}),
+		SolverOptions{}
+			.setFinalTime(finalTime)
+			.setCFL(0.5)
+	};
+
+	Vector eOld(solver.getFields().E[Y].Size());
+	eOld = solver.getFields().E[Y];
+	
+	solver.run();
+
+	GridFunction eNew{ solver.getFields().E[Y] };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-8);
+
+	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	//for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+	//	EXPECT_NEAR(0.0, f, tolerance);
+	//}
+
+	//auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	//EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
+	//EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
+	EXPECT_TRUE(false);
 }

@@ -44,9 +44,16 @@ Solver::Solver(
 	probesManager_.updateProbes(time_);
 
 	checkOptionsAreValid(opts_);
+
+	if (opts_.dt == 0.0) {
+		dt_ = getTimeStep();
+	}
+	else {
+		dt_ = opts_.dt;
+	}
 }
 
-void Solver::checkOptionsAreValid(const SolverOptions& opts)
+void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
 	if ((opts.order < 0) ||
 		(opts.t_final < 0)) {
@@ -57,7 +64,6 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts)
 		if (fes_.GetMesh()->Dimension() > 1) {
 			throw std::exception("Automatic LTS calculation not implemented yet for Dimensions higher than 1.");
 		}
-		opts_.dt = calculateLTS();
 	}
 
 	for (const auto& bdrMarker : model_.getBoundaryToMarker())
@@ -77,32 +83,49 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 {
 	GridFunction nodes(&fes);
 	fes.GetMesh()->GetNodes(nodes);
-	double res = std::numeric_limits<double>::max();
-	for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
+	double res{ std::numeric_limits<double>::max() };
+	for (int e = 0; e < fes.GetMesh()->ElementToElementTable().Size(); ++e) {
 		Array<int> dofs;
-		fes.GetElementDofs(elemId, dofs);
-		for (int i = 0; i < dofs.Size(); ++i) {
-			for (int j = i + 1; j < dofs.Size(); ++j) {
-				res = std::min(res, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
+		fes.GetElementDofs(e, dofs);
+		if (dofs.Size() == 1) {
+			res = std::min(res, fes.GetMesh()->GetElementSize(e));
+		}
+		else {
+			for (int i = 0; i < dofs.Size(); ++i) {
+				for (int j = i + 1; j < dofs.Size(); ++j) {
+					res = std::min(res, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
+				}
 			}
 		}
 	}
 	return res;
 }
 
-double Solver::calculateLTS()
+double Solver::getTimeStep()
 {
-	double signalSpeed = 1.0;
-	return (opts_.CFL * getMinimumInterNodeDistance(fes_)) / (pow(opts_.order, 1.5) * signalSpeed);
+	double signalSpeed{ 1.0 };
+	double maxTimeStep{ 0.0 };
+	if (opts_.order == 0) {
+		maxTimeStep = getMinimumInterNodeDistance(fes_) / signalSpeed;
+	}
+	else {
+		maxTimeStep = getMinimumInterNodeDistance(fes_) / pow(opts_.order, 1.5) / signalSpeed;
+	}
+	return opts_.CFL * maxTimeStep;
 }
 
 void Solver::run()
 {
-	while (time_ <= opts_.t_final - 1e-8*opts_.dt) {
-		double truedt{ std::min(opts_.dt, opts_.t_final - time_) };
-		odeSolver_->Step(fields_.allDOFs, time_, truedt);
-		probesManager_.updateProbes(time_);
+	while (time_ <= opts_.t_final - 1e-8*dt_) {
+		step();
 	}
+}
+
+void Solver::step()
+{
+	double truedt{ std::min(dt_, opts_.t_final - time_) };
+	odeSolver_->Step(fields_.allDOFs, time_, truedt);
+	probesManager_.updateProbes(time_);
 }
 
 }

@@ -16,11 +16,25 @@ static Sources buildGaussianInitialField(
 	Sources res;
 	res.push_back(
 		std::move(std::make_unique<InitialField>(
-			Gaussian{ dimension, spread, 1.0, center }, ft, d)
+			Gaussian{ dimension, spread, 1.0, center }, ft, d) 
 		)
 	);
 	return res;
+}
 
+static Sources buildResonantModeInitialField(
+	const FieldType& ft = E,
+	const Direction& d = X,
+	const std::vector<std::size_t>& modes = { 1 },
+	const int dimension = 1)
+{
+	Sources res;
+	res.push_back(
+		std::move(std::make_unique<InitialField>(
+			SinusoidalMode{ dimension, modes }, ft, d) 
+		)
+	);
+	return res;
 }
 
 static Sources buildPlaneWave(

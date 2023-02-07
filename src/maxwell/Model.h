@@ -34,6 +34,7 @@ public:
 	Mesh& getMesh() { return mesh_; };
 	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
+	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 
 	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
