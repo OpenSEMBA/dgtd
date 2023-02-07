@@ -29,7 +29,8 @@ void LinearFormIBFI::Assemble() {
 
         Array<int> vdofs, vdofs2;
         const FiniteElement* fe1, * fe2;
-        Vector elemvect, elemvect2;
+        Vector elemvect;
+        //Vector elemvect2;
 
         // Which interior boundary attributes need to be processed?
         Array<int> int_bdr_attr_marker(mesh->bdr_attributes.Size() ?
@@ -62,6 +63,7 @@ void LinearFormIBFI::Assemble() {
             {
                 fes->GetElementVDofs(tr->Elem1No, vdofs);
                 fes->GetElementVDofs(tr->Elem2No, vdofs2);
+                vdofs.Append(vdofs2);
                 fe1 = fes->GetFE(tr->Elem1No);
                 fe2 = fes->GetFE(tr->Elem2No);
                 for (int k = 0; k < interior_boundary_face_integs.Size(); k++)
@@ -72,11 +74,11 @@ void LinearFormIBFI::Assemble() {
                         continue;
                     }
 
-                    interior_boundary_face_integs[k]->AssembleRHSElementVect(*fe1, *tr, elemvect);
+                    interior_boundary_face_integs[k]->AssembleRHSElementVect(*fe1, *fe2, *tr, elemvect);
                     AddElementVector(vdofs,  elemvect);
 
-                    interior_boundary_face_integs[k]->AssembleRHSElementVect(*fe2, *tr, elemvect2);
-                    AddElementVector(vdofs2, elemvect2);
+                    //interior_boundary_face_integs[k]->AssembleRHSElementVect(*fe2, *tr, elemvect2);
+                    //AddElementVector(vdofs2, elemvect2);
                 }
             }
         }

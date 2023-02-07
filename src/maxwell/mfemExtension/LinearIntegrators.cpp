@@ -87,13 +87,7 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
         ir = setIntegrationRule(el1, el2, Tr);
     }
 
-
-    if (el1.GetDof() > el2.GetDof()) {
-        elvect.SetSize(el1.GetDof());
-    }
-    else {
-        elvect.SetSize(el2.GetDof());
-    }
+    elvect.SetSize(el1.GetDof() + el2.GetDof());
     elvect = 0.0;
 
     for (int p = 0; p < ir->GetNPoints(); p++)
@@ -111,12 +105,11 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
         el1.CalcShape(eip1, shape1_);
         el2.CalcShape(eip2, shape2_);
 
-        // Use Tr.Elem1 transformation for u so that it matches the coefficient
-        // used with the ConvectionIntegrator and/or the DGTraceIntegrator.
+        // Use Tr.Elem1 transformation for u so that it matches the coefficient used.
         u_->Eval(vu , *Tr.Elem1, eip1);
         u_->Eval(vu2, *Tr.Elem2, eip2);
 
-        if (el1.GetDim() == 1) //Multiple dimensions are not possible in MFEM at the moment,any elX.GetDim() works.
+        if (el1.GetDim() == 1) //Multiple dimensions are not possible in MFEM at the moment, any elX.GetDim() works.
         {
             nor(0)  = 2 * eip1.x - 1.0;
             nor2(0) = 2 * eip2.x - 1.0;
@@ -131,9 +124,15 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
 
         double un { vu * nor };
         double un2{ vu2 * nor2 };
-        double w{ beta_ * un * un2 * ip.weight };
+        double w1{ beta_ * un  * ip.weight };
+        double w2{ beta_ * un2 * ip.weight };
         
-        elvect.Add(w, shape1_.operator*=(shape2_));
+        for (int i = 0; i < shape1_.Size(); ++i) {
+            elvect[i]                  = w1 * shape1_[i];
+        }
+        for (int i = 0; i < shape2_.Size(); ++i) {
+            elvect[shape1_.Size() + i] = w2 * shape2_[i];
+        }
     }
 }
 
