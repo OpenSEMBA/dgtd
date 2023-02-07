@@ -10,7 +10,7 @@ FiniteElementOperator buildByMult(
 	FiniteElementSpace& fes)
 {
 	auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 	res->Assemble();
 	res->Finalize();
 	res->SpMat().Swap(*aux);
@@ -37,7 +37,7 @@ FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& mo
 	Vector aux{ model.buildPiecewiseArgVector(f) };
 	PWConstCoefficient PWCoeff(aux);
 
-	auto MInv = std::make_unique<BilinearForm>(&fes);
+	auto MInv = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
 		
 	MInv->Assemble();
@@ -49,7 +49,7 @@ FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& mo
 
 FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes)
 {
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	if (d >= fes.GetMesh()->Dimension()) {
 		res->Assemble();
@@ -69,7 +69,7 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
 {
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	{
 		FluxCoefficient c = interiorFluxCoefficient();
@@ -91,7 +91,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 
 FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	{
 		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
@@ -112,7 +112,7 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	{
 		FluxCoefficient c;
@@ -145,7 +145,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 
 FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	{
 		FluxCoefficient c;
@@ -194,7 +194,7 @@ FiniteElementOperator buildFunctionOperator(const FieldType& f, const std::vecto
 
 FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
 {
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 	auto vec = buildNVector(dirTerms.at(0), fes);
 
 	VectorConstantCoefficient vecCC(vec);
@@ -217,7 +217,7 @@ FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<
 
 FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<BilinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 	{
 		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
@@ -255,12 +255,12 @@ FiniteElementOperator buildFunctionOperator1D(const FieldType& f, Model& model, 
 
 FiniteElementVector buildBoundaryFunctionVector1D(Model& model, FiniteElementSpace& fes) 
 {
-	auto res = std::make_unique<mfemExtension::LinearForm>(&fes);
+	auto res = std::make_unique<mfemExtension::LinearFormIBFI>(&fes);
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 
-	for (auto& kv : model.getBoundaryToMarker())
+	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
-		res->AddBdrFaceIntegrator(
+		res->AddInteriorBoundaryFaceIntegrator(
 			new mfemExtension::BoundaryDGJumpIntegrator(one, 1.0), kv.second
 		);
 	}

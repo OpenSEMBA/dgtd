@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mfemExtension/BilinearIntegrators.h"
+#include "mfemExtension/LinearIntegrators.h"
 
 #include "Types.h"
 #include "Model.h"

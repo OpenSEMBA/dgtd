@@ -4,12 +4,13 @@
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 #include "mfemExtension/LinearIntegrators.h"
+#include "mfemExtension/LinearForm_IBFI.hpp"
 
 namespace maxwell {
 
 using namespace mfem;
-using FiniteElementOperator = std::unique_ptr<BilinearForm>;
-using FiniteElementVector = std::unique_ptr<LinearForm>;
+using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearFormIBFI>;
+using FiniteElementVector = std::unique_ptr<mfemExtension::LinearFormIBFI>;
 
 FiniteElementOperator buildByMult					(const BilinearForm& op1,const BilinearForm& op2, FiniteElementSpace&);
 FiniteElementOperator buildInverseMassMatrix		(const FieldType&, const Model&, FiniteElementSpace&);

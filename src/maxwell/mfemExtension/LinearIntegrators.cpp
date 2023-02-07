@@ -66,9 +66,74 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
             nor = ortho.operator/=(Tr.Weight());
         }
 
-        double un{ vu * nor.operator*=(-1.0)};
+        double un{ vu * nor};
         double w{ beta_ * un * ip.weight };
         elvect.Add(w, shape1_);
+    }
+}
+
+void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
+    const FiniteElement& el1, const FiniteElement& el2, FaceElementTransformations& Tr, Vector& elvect)
+{
+
+    double vu_data[3] , nor_data[3], 
+           vu_data2[3], nor_data2[3];
+    Vector vu (vu_data , el1.GetDim()), nor (nor_data , el1.GetDim()), 
+           vu2(vu_data2, el2.GetDim()), nor2(nor_data2, el2.GetDim());
+
+    const IntegrationRule* ir = IntRule;
+    if (ir == NULL)
+    {
+        ir = setIntegrationRule(el1, el2, Tr);
+    }
+
+
+    if (el1.GetDof() > el2.GetDof()) {
+        elvect.SetSize(el1.GetDof());
+    }
+    else {
+        elvect.SetSize(el2.GetDof());
+    }
+    elvect = 0.0;
+
+    for (int p = 0; p < ir->GetNPoints(); p++)
+    {
+        const IntegrationPoint& ip = ir->IntPoint(p);
+
+        // Set the integration point in the face and the neighboring element
+        Tr.SetAllIntPoints(&ip);
+
+        // Access the neighboring element's integration point
+        const IntegrationPoint& eip1 = Tr.GetElement1IntPoint();
+        const IntegrationPoint& eip2 = Tr.GetElement2IntPoint();
+        shape1_.SetSize(el1.GetDof());
+        shape2_.SetSize(el2.GetDof());
+        el1.CalcShape(eip1, shape1_);
+        el2.CalcShape(eip2, shape2_);
+
+        // Use Tr.Elem1 transformation for u so that it matches the coefficient
+        // used with the ConvectionIntegrator and/or the DGTraceIntegrator.
+        u_->Eval(vu , *Tr.Elem1, eip1);
+        u_->Eval(vu2, *Tr.Elem2, eip2);
+
+        if (el1.GetDim() == 1) //Multiple dimensions are not possible in MFEM at the moment,any elX.GetDim() works.
+        {
+            nor(0)  = 2 * eip1.x - 1.0;
+            nor2(0) = 2 * eip2.x - 1.0;
+        }
+        else
+        {
+            Vector ortho(el1.GetDim()); //Multiple dimensions are not possible in MFEM at the moment, any elX.GetDim() works.
+            CalcOrtho(Tr.Jacobian(), ortho);
+            nor = ortho.operator/=(Tr.Weight());
+            nor2 = nor;
+        }
+
+        double un { vu * nor };
+        double un2{ vu2 * nor2 };
+        double w{ beta_ * un * un2 * ip.weight };
+        
+        elvect.Add(w, shape1_.operator*=(shape2_));
     }
 }
 

@@ -337,13 +337,13 @@ TEST_F(Solver1DTest, totalfield_upwind)
 
 TEST_F(Solver1DTest, totalfield_intbdr_upwind)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalField} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 30;
+	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
 		model,
