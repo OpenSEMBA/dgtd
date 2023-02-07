@@ -72,17 +72,11 @@ void LinearFormIBFI::Assemble() {
                         continue;
                     }
 
-                    interior_boundary_face_integs[k]->
-                        AssembleRHSElementVect(*fe1,*tr, elemvect);
-                    AddElementVector(vdofs, elemvect);
+                    interior_boundary_face_integs[k]->AssembleRHSElementVect(*fe1, *tr, elemvect);
+                    AddElementVector(vdofs,  elemvect);
 
-                    interior_boundary_face_integs[k]->
-                        AssembleRHSElementVect(*fe2, *tr, elem2vect);
+                    interior_boundary_face_integs[k]->AssembleRHSElementVect(*fe2, *tr, elem2vect);
                     AddElementVector(vdofs2, elem2vect);
-
-                    Vector vecsum(elemvect.Size());
-                    add(elemvect, elem2vect, vecsum);
-                    elemvect = vecsum;
                 }
             }
         }

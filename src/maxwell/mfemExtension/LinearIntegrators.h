@@ -23,10 +23,6 @@ public:
     void AssembleRHSElementVect(const mfem::FiniteElement& el,
         mfem::FaceElementTransformations& Tr,
         mfem::Vector& elvect);
-    void AssembleRHSElementVect(const mfem::FiniteElement& el1,
-        const mfem::FiniteElement& el2,
-        mfem::FaceElementTransformations& Tr,
-        mfem::Vector& elvect);
 
 private:
     double beta_;
