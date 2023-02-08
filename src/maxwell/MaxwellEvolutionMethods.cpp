@@ -243,8 +243,9 @@ FiniteElementOperator buildFluxFunctionOperator1D(Model& model, FiniteElementSpa
 
 	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
+		auto c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, 1.0), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c, 1.0), kv.second
 		);
 	}
 
@@ -259,8 +260,9 @@ FiniteElementOperator buildPenaltyFunctionOperator1D(Model& model, FiniteElement
 
 	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
+		auto c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({ X }, 1.0), kv.second
+			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({ X }, c, 1.0), kv.second
 		);
 	}
 
@@ -289,7 +291,18 @@ FiniteElementVector buildBoundaryFunctionVector1D(Model& model, FiniteElementSpa
 	return res;
 
 }
-
+TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond bdrCond)
+{
+	switch (bdrCond)
+	{
+	case BdrCond::TotalFieldIn:
+		return TFSFOrientationCoefficient{ 0 };
+	case BdrCond::TotalFieldOut:
+		return TFSFOrientationCoefficient{ 1 };
+	default:
+		throw std::exception("Wrongly defined TotalField attribute");
+	}
+}
 
 FluxCoefficient interiorFluxCoefficient()
 {
@@ -332,7 +345,7 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 		case FieldType::H:
 			return FluxCoefficient{ 1.0 };
 		}
-	case BdrCond::TotalField:
+	case BdrCond::TotalFieldIn:
 		switch (f) {
 		case FieldType::E:
 			return FluxCoefficient{ 0.0 };
@@ -379,7 +392,7 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 			case FieldType::H:
 				return FluxCoefficient{ 1.0 };
 			}
-		case BdrCond::TotalField:
+		case BdrCond::TotalFieldIn:
 			switch (f) {
 			case FieldType::E:
 				return FluxCoefficient{ 0.0 };

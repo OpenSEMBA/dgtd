@@ -26,12 +26,17 @@ struct FluxCoefficient {
 	double beta;
 };
 
+struct TFSFOrientationCoefficient {
+	double orient;
+};
+
 enum class BdrCond {
 	NONE,
 	PEC,
 	PMC,
 	SMA,
-	TotalField = 301
+	TotalFieldIn = 301,
+	TotalFieldOut = 302
 };
 
 struct MaxwellEvolOptions {
