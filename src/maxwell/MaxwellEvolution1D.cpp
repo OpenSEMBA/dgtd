@@ -27,9 +27,10 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
-		invM_[f] = buildInverseMassMatrix(f, model_, fes_);
-		f_ = buildBoundaryFunctionVector1D(model_, fes_);
+		MB_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(model_, fes_), fes_);
 	}
+	buildFluxOperator1D(E, { X }, model_, fes_)->SpMat().Print(std::cout);
+	std::cout << "--" << std::endl;
 }
 
 void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
@@ -62,18 +63,10 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 		if (dynamic_cast<PlaneWave*>(source.get())) {
 			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
 			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
+			
+			MB_[E]->AddMult(eFunc, eNew);
+			MB_[H]->AddMult(hFunc, hNew);
 
-			Vector LFData (f_.get()->Size()), invMDataProd(f_.get()->Size()), preFieldSum(f_.get()->Size());
-
-			LFData = copyDataFromLFToVector(f_.get());
-			LFData.operator*=(eFunc);
-			invM_[E]->Mult(LFData, invMDataProd);
-			add(eNew, invMDataProd, eNew);
-
-			LFData = copyDataFromLFToVector(f_.get());
-			LFData.operator*=(hFunc);
-			invM_[H]->Mult(LFData, invMDataProd);
-			add(hNew, invMDataProd, hNew);
 		}
 	}
 }

@@ -109,9 +109,9 @@ void MaxwellDGTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
             el2.CalcShape(eip2, shape2_);
 
             if (w != 0.0) {
-                buildFaceMatrix(-w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);
-                buildFaceMatrix( w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
-                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
+                buildFaceMatrix(0.0, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);
+                buildFaceMatrix(0.0, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
+                buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
             }
         }
     }

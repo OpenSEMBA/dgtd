@@ -338,7 +338,7 @@ TEST_F(Solver1DTest, totalfield_upwind)
 TEST_F(Solver1DTest, totalfield_intbdr_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalField} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
@@ -352,7 +352,33 @@ TEST_F(Solver1DTest, totalfield_intbdr_upwind)
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(5.0)
-			.setOrder(3)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	EXPECT_TRUE(false);
+}
+
+TEST_F(Solver1DTest, totalfield_intbdr_centered)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalField} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(X,0.2,1.5,1.0),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setCentered()
+			.setFinalTime(5.0)
+			.setOrder(2)
 	};
 
 	solver.run();
