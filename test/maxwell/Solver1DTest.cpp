@@ -335,7 +335,7 @@ TEST_F(Solver1DTest, totalfield_upwind)
 	EXPECT_TRUE(false);
 }
 
-TEST_F(Solver1DTest, totalfield_intbdr_upwind)
+TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -360,7 +360,7 @@ TEST_F(Solver1DTest, totalfield_intbdr_upwind)
 	EXPECT_TRUE(false);
 }
 
-TEST_F(Solver1DTest, totalfield_intbdr_centered)
+TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -377,6 +377,57 @@ TEST_F(Solver1DTest, totalfield_intbdr_centered)
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
+			.setFinalTime(5.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	EXPECT_TRUE(false);
+}
+
+TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(X,0.2,1.5,1.0),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setCentered()
+			.setFinalTime(5.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	EXPECT_TRUE(false);
+}
+
+TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(X,0.2,1.5,1.0),
+		SolverOptions{}
+			.setCFL(0.5)
 			.setFinalTime(5.0)
 			.setOrder(2)
 	};

@@ -30,6 +30,8 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MBF_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_);
 		MBP_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator1D(model_, fes_), fes_);
 	}
+	MBF_[E]->SpMat().Print(std::cout);
+	std::cout << "aaaa" << std::endl;
 	MBP_[E]->SpMat().Print(std::cout);
 	std::cout << "aaaa" << std::endl;
 }
