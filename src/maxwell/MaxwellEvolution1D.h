@@ -27,8 +27,8 @@ private:
 	std::array<FiniteElementOperator, 2> MS_;
 	std::array<FiniteElementOperator, 2> MF_;
 	std::array<FiniteElementOperator, 2> MP_;
-	std::array<FiniteElementOperator, 2> MBF_;
-	std::array<FiniteElementOperator, 2> MBP_;
+	std::array<FiniteElementIBFIOperator, 2> MBF_;
+	std::array<FiniteElementIBFIOperator, 2> MBP_;
 	//FiniteElementVector f_;
 
 	mfem::FiniteElementSpace& fes_;

@@ -314,7 +314,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 TEST_F(Solver1DTest, totalfield_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {301,BdrCond::TotalField} };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {301,BdrCond::TotalFieldIn} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -339,7 +339,7 @@ TEST_F(Solver1DTest, totalfield_intbdr_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalField} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -364,7 +364,7 @@ TEST_F(Solver1DTest, totalfield_intbdr_centered)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalField} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };

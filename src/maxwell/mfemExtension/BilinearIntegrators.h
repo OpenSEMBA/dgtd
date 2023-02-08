@@ -55,9 +55,9 @@ class MaxwellDGFluxTotalFieldIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	MaxwellDGFluxTotalFieldIntegrator(const std::vector<Direction>& dirTerms, const TFSFOrientationCoefficient coeff, double b)
+	MaxwellDGFluxTotalFieldIntegrator(const std::vector<Direction>& dirTerms, double coeff, double b)
 	{
-		dir = dirTerms; coeff_ = coeff; beta = b;
+		dir = dirTerms; TFSFCoeff_ = coeff; beta = b;
 	}
 
 	void AssembleFaceMatrix(const FiniteElement& el1,
@@ -71,7 +71,7 @@ protected:
 	int dim;
 
 private:
-	TFSFOrientationCoefficient coeff_;
+	double TFSFCoeff_;
 	Vector shape1_, shape2_;
 };
 
@@ -79,9 +79,9 @@ class MaxwellDGPenaltyTotalFieldIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	MaxwellDGPenaltyTotalFieldIntegrator(const std::vector<Direction>& dirTerms, const TFSFOrientationCoefficient coeff, double b)
+	MaxwellDGPenaltyTotalFieldIntegrator(const std::vector<Direction>& dirTerms, const double coeff, double b)
 	{
-		dir = dirTerms; coeff_ = coeff; beta = b;
+		dir = dirTerms; TFSFCoeff_ = coeff; beta = b;
 	}
 
 	void AssembleFaceMatrix(const FiniteElement& el1,
@@ -95,7 +95,7 @@ protected:
 	int dim;
 
 private:
-	TFSFOrientationCoefficient coeff_;
+	double TFSFCoeff_;
 	Vector shape1_, shape2_;
 };
 
