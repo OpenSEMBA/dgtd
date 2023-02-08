@@ -4,106 +4,72 @@ namespace maxwell {
 
 using namespace mfem;
 
-SourcesManager::SourcesManager(const Sources& srcs, const mfem::FiniteElementSpace& fes) :
-	fes_{fes}
+SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes) :
+    fes_{ fes }
 {
     for (const auto& src : srcs) {
         sources.push_back(src->clone());
     }
 }
 
-void SourcesManager::setFields1D(Fields& fields)
+void SourcesManager::setInitialFields(Fields& fields)
 {
     for (const auto& source : sources) {
-
-        std::function<double(const Source::Position&)> f = 0;
-        if (dynamic_cast<GaussianInitialField*>(source.get())) {
+        std::function<double(const Source::Position&, Source::Time)> f = 0;
+        if (dynamic_cast<InitialField*>(source.get())) {
+            auto initialField{ dynamic_cast<InitialField*>(source.get()) };
             f = std::bind(
-                &GaussianInitialField::eval1D, 
-                dynamic_cast<GaussianInitialField*>(source.get()),
-                std::placeholders::_1
+                &InitialField::eval,
+                initialField,
+                std::placeholders::_1,
+                std::placeholders::_2
             );
-        }
-        else if (dynamic_cast<SinusoidalInitialField*>(source.get())) {
-            f = std::bind(
-                &SinusoidalInitialField::eval1D, 
-                dynamic_cast<SinusoidalInitialField*>(source.get()), 
-                std::placeholders::_1
-            );
-        }
-        else {
-            throw std::runtime_error("Invalid source type.");
-        }
-
-        switch (source.get()->fieldType) {
-        case FieldType::E:
-            fields.E1D.ProjectCoefficient(FunctionCoefficient(f));
-            break;
-        case FieldType::H:
-            fields.H1D.ProjectCoefficient(FunctionCoefficient(f));
-            break;
+            switch (fes_.GetMesh()->Dimension()) {
+            case 1:
+                switch (initialField->fieldType) {
+                case FieldType::E:
+                    fields.E1D.ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                case FieldType::H:
+                    fields.H1D.ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                }
+                break;
+            default:
+                switch (initialField->fieldType) {
+                case FieldType::E:
+                    fields.E[initialField->direction].ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                case FieldType::H:
+                    fields.H[initialField->direction].ProjectCoefficient(FunctionCoefficient(f));
+                    break;
+                }
+                break;
+            }
         }
     }
 }
 
-void SourcesManager::setFields3D(Fields& fields)
+GridFunction SourcesManager::evalTotalField(const double time)
 {
+    GridFunction res(&fes_);
+    res = 0.0;
     for (const auto& source : sources) {
-
-        std::function<double(const Source::Position&)> f = 0;
-        switch (fes_.GetMesh()->Dimension()) {
-        case 2:
-            if (dynamic_cast<GaussianInitialField*>(source.get())) {
-                f = std::bind(
-                    &GaussianInitialField::eval2D,
-                    dynamic_cast<GaussianInitialField*>(source.get()),
-                    std::placeholders::_1
-                );
-            }
-            else if (dynamic_cast<SinusoidalInitialField*>(source.get())) {
-                f = std::bind(
-                    &SinusoidalInitialField::eval2D,
-                    dynamic_cast<SinusoidalInitialField*>(source.get()),
-                    std::placeholders::_1
-                );
-            }
-            else {
-                throw std::runtime_error("Invalid source type.");
-            }
-            break;
-        case 3:
-            if (dynamic_cast<GaussianInitialField*>(source.get())) {
-                f = std::bind(
-                    &GaussianInitialField::eval3D,
-                    dynamic_cast<GaussianInitialField*>(source.get()),
-                    std::placeholders::_1
-                );
-            }
-            else if (dynamic_cast<SinusoidalInitialField*>(source.get())) {
-                f = std::bind(
-                    &SinusoidalInitialField::eval3D,
-                    dynamic_cast<SinusoidalInitialField*>(source.get()),
-                    std::placeholders::_1
-                );
-            }
-            else {
-                throw std::runtime_error("Invalid source type.");
-            }
-            break;
-        default:
-            throw std::exception("Incorrect Dimension for setFields3D");
-        }
-
-        switch (source.get()->fieldType) {
-        case FieldType::E:
-            fields.E[source.get()->direction].ProjectCoefficient(FunctionCoefficient(f));
-            break;
-        case FieldType::H:
-            fields.H[source.get()->direction].ProjectCoefficient(FunctionCoefficient(f));
-            break;
+        std::function<double(const Source::Position&, Source::Time)> f = 0;
+        if (dynamic_cast<PlaneWave*>(source.get())) {
+            auto totalField{ dynamic_cast<PlaneWave*>(source.get()) };
+            f = std::bind(
+               &PlaneWave::eval,
+                totalField,
+                std::placeholders::_1,
+                std::placeholders::_2
+            );
+            FunctionCoefficient func(f);
+            func.SetTime(time);
+            res.ProjectCoefficient(func);
         }
     }
+    return res;
 }
-
 
 }

@@ -6,10 +6,11 @@ using namespace mfem;
 using namespace mfemExtension;
 
 MaxwellEvolution3D::MaxwellEvolution3D(
-	FiniteElementSpace& fes, Model& model, MaxwellEvolOptions& options) :
+	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 	fes_{ fes },
 	model_{ model },
+	srcmngr_{ srcmngr },
 	opts_{ options }
 {
 	for (auto f : { E, H }) {

@@ -3,86 +3,51 @@
 #include <functional>
 #include <mfem.hpp>
 #include "Types.h"
+#include "MathFunction.h"
 
 namespace maxwell {
 
 class Source {
 public:
 	using Position = mfem::Vector;
-	
-	FieldType fieldType{E};
-	Direction direction{X};
-	InitialFieldType initialFT;
-	Position center;
+	using Time = double;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
 
-	virtual double eval3D(const mfem::Vector&) const = 0;
-	virtual double eval2D(const mfem::Vector&) const = 0;
-	virtual double eval1D(const mfem::Vector&) const = 0;
+	virtual double eval(const Position&, Time) const = 0;
 
 };
 
-class GaussianInitialField : public Source {
+class InitialField : public Source {
 public:
-	using Position = mfem::Vector;
+	InitialField(const MathFunction& f, const FieldType& fT, const Direction& d);
+	InitialField(const InitialField& rhs);
 
-	std::function<double(const GaussianInitialField::Position&)> f = 0; 
+	std::unique_ptr<Source> clone() const;
 
-	GaussianInitialField(
-		const FieldType& ft, 
-		const Direction& d,
-		const double spread, 
-		const double normalization,
-		const Position center
-	);
+	double eval(const Position&, Time) const;
 
-	std::unique_ptr<Source> clone() const {
-		return std::make_unique<GaussianInitialField>(*this);
-	}
-	
-	double eval3D(const mfem::Vector&) const;
-	double eval2D(const mfem::Vector&) const;
-	double eval1D(const mfem::Vector&) const;
+	FieldType fieldType{ E };
+	Direction direction{ X };
 
 private:
-	double spread_{2.0};
-	double normalization_{1.0};
-
-	const void checkInputArguments();
+	std::unique_ptr<MathFunction> function_;
 };
 
-class SinusoidalInitialField : public Source {
+class PlaneWave : public Source {
 public:
-	using Position = mfem::Vector;
+	PlaneWave(const MathFunction& f, const Direction& d);
+	PlaneWave(const PlaneWave& rhs);
 
-	SinusoidalInitialField(
-		const FieldType& ft,
-		const Direction& d,
-		const std::vector<std::size_t> modes,
-		const std::vector<double> coefficient,
-		const Position center
-	);
+	std::unique_ptr<Source> clone() const;
 
-	std::unique_ptr<Source> clone() const {
-		return std::make_unique<SinusoidalInitialField>(*this);
-	}
+	double eval(const Position&, Time) const;
 
-	double eval3D(const mfem::Vector&) const;
-	double eval2D(const mfem::Vector&) const;
-	double eval1D(const mfem::Vector&) const;
+	Direction direction{ X };
 
-private:
-
-	std::vector<std::size_t> modes_{ {0,0,0} };
-	std::vector<double> coefficient_{ {1.0,1.0,1.0} };
-
-	const void assembleModesVector(std::vector<std::size_t> modes);
-};
-
-class Planewave : public Source {
-	//To do
+private: 
+	std::unique_ptr<MathFunction> function_;
 };
 
 using Sources = std::vector<std::unique_ptr<Source>>;

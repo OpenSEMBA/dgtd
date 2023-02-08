@@ -7,8 +7,7 @@
 namespace maxwell {
 
 using Time = double;
-using FieldFrame = std::vector<double>;
-using FieldMovie = std::map<Time, FieldFrame>;
+using FieldMovie = std::map<Time, double>;
 
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
@@ -27,10 +26,17 @@ struct FluxCoefficient {
 	double beta;
 };
 
+struct TFSFOrientationCoefficient {
+	double orient;
+};
+
 enum class BdrCond {
+	NONE,
 	PEC,
 	PMC,
-	SMA
+	SMA,
+	TotalFieldIn = 301,
+	TotalFieldOut = 302
 };
 
 struct MaxwellEvolOptions {
@@ -50,7 +56,8 @@ enum class DisForm {
 
 enum class InitialFieldType {
 	Gaussian,
-	PlanarSinusoidal
+	PlanarSinusoidal,
+	PlaneWave
 };
 
 

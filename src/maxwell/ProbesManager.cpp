@@ -4,7 +4,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-ParaViewDataCollection ProbesManager::buildParaviewDataCollection(const ExporterProbe& p, Fields& fields) const
+ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
 	pd.SetPrefixPath("ParaView");
@@ -33,26 +33,30 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollection(const Exporter
 	return pd;
 }
 
-ProbesManager::ProbesManager(Probes probes, const mfem::FiniteElementSpace& fes, Fields& fields) :
-	probes_{probes},
+ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
+	probes{pIn},
 	fes_{fes}
 {
-	for (const auto& p: probes_.exporterProbes) {
-		exporterProbesCollection_.emplace(&p, buildParaviewDataCollection(p, fields));
+	for (const auto& p: probes.exporterProbes) {
+		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
+	}
+
+	for (auto& p : probes.exporterProbes) {
+		p.t_final = opts.t_final;
 	}
 	
-	for (const auto& p : probes_.pointsProbes) {
-		pointProbesCollection_.emplace(&p, buildPointsProbeCollection(p, fields));
+	for (const auto& p : probes.pointProbes) {
+		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
 	}
 }
 
-const PointsProbe& ProbesManager::getPointsProbe(const std::size_t i) const
+const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
 {
-	assert(i < probes_.pointsProbes.size());
-	return probes_.pointsProbes[i];
+	assert(i < probes.pointProbes.size());
+	return probes.pointProbes[i];
 }
 
-const GridFunction& getFieldView(const PointsProbe& p, const mfem::FiniteElementSpace& fes, Fields& fields)
+const GridFunction& getFieldView(const PointProbe& p, const mfem::FiniteElementSpace& fes, Fields& fields)
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
@@ -78,27 +82,25 @@ const GridFunction& getFieldView(const PointsProbe& p, const mfem::FiniteElement
 	}
 }
 
-DenseMatrix toDenseMatrix(const Point& p)
+DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 {
-	DenseMatrix r{ 1, (int)p.size() };
+	DenseMatrix r{(int)p.size(), 1 };
 	for (auto i{ 0 }; i < p.size(); ++i) {
-		r(0, i) = p[i];
+		r(i, 0) = p[i];
 	}
 	return r;
 }
 
-ProbesManager::PointsProbeCollection
-ProbesManager::buildPointsProbeCollection(const PointsProbe& p, Fields& fields) const
+ProbesManager::PointProbeCollection
+ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields) const
 {
-	std::vector<FESPoint> fesPoints;
-	for (const auto& point : p.getPoints()) {
-		Array<int> elemIdArray;
-		Array<IntegrationPoint> integPointArray;
-		fes_.GetMesh()->FindPoints(toDenseMatrix(point), elemIdArray, integPointArray);
-		assert(elemIdArray.Size() == 1);
-		assert(integPointArray.Size() == 1);
-		fesPoints.push_back({ elemIdArray[0], integPointArray[0] });
-	}
+	
+	Array<int> elemIdArray;
+	Array<IntegrationPoint> integPointArray;
+	fes_.GetMesh()->FindPoints(pointVectorToDenseMatrixColumnVector(p.getPoint()), elemIdArray, integPointArray);
+	assert(elemIdArray.Size() == 1);
+	assert(integPointArray.Size() == 1);
+	FESPoint fesPoints { elemIdArray[0], integPointArray[0] };
 	
 	return { 
 		fesPoints, 
@@ -108,6 +110,10 @@ ProbesManager::buildPointsProbeCollection(const PointsProbe& p, Fields& fields) 
 
 void ProbesManager::updateProbe(ExporterProbe& p, double time)
 {
+	if (cycle_ % p.visSteps != 0 && p.t_final != time) {
+		return;
+	}
+
 	auto it{ exporterProbesCollection_.find(&p) };
 	assert(it != exporterProbesCollection_.end());
 	auto& pd{ it->second };
@@ -117,30 +123,27 @@ void ProbesManager::updateProbe(ExporterProbe& p, double time)
 	pd.Save();
 }
 
-void ProbesManager::updateProbe(PointsProbe& p, double time)
+void ProbesManager::updateProbe(PointProbe& p, double time)
 {
 	const auto& it{ pointProbesCollection_.find(&p) };
 	assert(it != pointProbesCollection_.end());
 	const auto& pC{ it->second };
-
-	FieldFrame frame;
-	for (const auto& fesPoint: pC.fesPoints) {
-		frame.push_back( pC.field.GetValue(fesPoint.elementId, fesPoint.iP) );
-	}
-	
-	p.addFrame(time, frame);
+	p.addFieldToMovie(
+		time, 
+		pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
+	);
 }
 
 void ProbesManager::updateProbes(double time)
 {
-	if (cycle_ % probes_.visSteps == 0) {
-		for (auto& p: probes_.exporterProbes) {
-			updateProbe(p, time);
-		}
-		for (auto& p : probes_.pointsProbes) {
-			updateProbe(p, time);
-		}
+	for (auto& p: probes.exporterProbes) {
+		updateProbe(p, time);
 	}
+	
+	for (auto& p : probes.pointProbes) {
+		updateProbe(p, time);
+	}
+
 	cycle_++;
 }
 }

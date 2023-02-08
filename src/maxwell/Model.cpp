@@ -2,7 +2,7 @@
 
 namespace maxwell {
 
-Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap) :
+Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap, const AttributeToInteriorBoundary& intBdrMap) :
 	mesh_(mesh)
 {
 	if (matMap.size() == 0) {
@@ -21,8 +21,9 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		attToBdrMap_ = bdrMap;
 	}
 
-	if (mesh.bdr_attributes.Size() != attToBdrMap_.size()) {
-		throw std::exception("Mesh Boundary Attributes Size and Boundary maps must have same size.");
+	if (intBdrMap.size() != 0)
+	{
+		attToIntBdrMap_ = intBdrMap;
 	}
 
 	for (const auto& kv : attToBdrMap_) {
@@ -36,6 +37,18 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		
 		bdrToMarkerMap_.emplace(bdr, bdrMarker);
 	}
+
+	for (const auto& kv : attToIntBdrMap_) {
+		const auto& att{ kv.first };
+		const auto& bdr{ kv.second };
+		assert(att > 0);
+
+		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
+		bdrMarker = 0;
+		bdrMarker[att - 1] = 1;
+
+		intBdrToMarkerMap_.emplace(bdr, bdrMarker);
+	}
 }
 
 
@@ -44,7 +57,7 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 	mfem::Vector res;
 	res.SetSize((int)attToMatMap_.size());
 
-	std::size_t i = 0;
+	int i = 0;
 	for (auto const& kv : attToMatMap_) {
 		switch (f) {
 		case FieldType::E:

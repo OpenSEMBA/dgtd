@@ -11,11 +11,14 @@ include_directories(
 )
 
 add_executable(mfem_tests 
-	"TestFiniteElementSpace.cpp"
-	"TestMesh.cpp" "TestGridFunction.cpp")
+	"FiniteElementSpaceTest.cpp"
+	"MeshTest.cpp" 
+	"GridFunctionTest.cpp"
+)
 
 target_link_libraries(mfem_tests 
 	mfem 
+	testHelpers
 	GTest::gtest GTest::gtest_main
 )
 

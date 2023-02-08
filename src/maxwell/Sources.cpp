@@ -1,94 +1,47 @@
 #include "Sources.h"
 
-#define _USE_MATH_DEFINES
-#include <math.h>
-
 namespace maxwell {
 
-GaussianInitialField::GaussianInitialField(
-	const FieldType& ft,
-	const Direction& d,
-	const double spread,
-	const double normalization,
-	const Position cnt) :
-	spread_(spread),
-	normalization_(normalization)
-{
-	fieldType = ft,
-		direction = d,
-		center = cnt,
-		initialFT = InitialFieldType::Gaussian;
-	checkInputArguments();
-};
+InitialField::InitialField(const MathFunction& f, const FieldType& fT, const Direction& d) :
+	function_{ f.clone() },
+	fieldType{ fT },
+	direction{ d }
+{}
 
-const void GaussianInitialField::checkInputArguments()
+InitialField::InitialField(const InitialField& rhs) :
+	function_{ rhs.function_->clone() },
+	fieldType{ rhs.fieldType },
+	direction{ rhs.direction }
+{}
+
+std::unique_ptr<Source> InitialField::clone() const
 {
-	if (spread_ < 0.0) {
-		throw std::exception("Invalid spread value.");
-	}
-	if (normalization_ < 0.0) {
-		throw std::exception("Invalid coeff value.");
-	}
+	return std::make_unique<InitialField>(*this);
 }
 
-double GaussianInitialField::eval3D(const Position& pos) const
+double InitialField::eval(const Position& p, Time t) const
 {
-	return normalization_ * exp(-(pow(pos[X] - center[X], 2.0)
-		+ pow(pos[Y] - center[Y], 2.0)
-		+ pow(pos[Z] - center[Z], 2.0)) / (2.0 * pow(spread_, 2.0)));
-}
-double GaussianInitialField::eval2D(const Position& pos) const
-{
-	return normalization_ * exp(-(pow(pos[X] - center[X], 2.0)
-		+ pow(pos[Y] - center[Y], 2.0)) / (2.0 * pow(spread_, 2.0)));
-}
-double GaussianInitialField::eval1D(const Position& pos) const
-{
-	return normalization_
-		* exp(-pow(pos[X] - center[X], 2) / (2.0 * pow(spread_, 2)));
+	return function_->eval(p, t);
 }
 
-SinusoidalInitialField::SinusoidalInitialField(
-	const FieldType& ft,
-	const Direction& d,
-	const std::vector<std::size_t> modes,
-	const std::vector<double> coefficient,
-	const Position cnt) :
-	coefficient_(coefficient)
+PlaneWave::PlaneWave(const MathFunction& f, const Direction& d):
+	function_{ f.clone() },
+	direction{ d }
+{}
+
+PlaneWave::PlaneWave(const PlaneWave& rhs) :
+	function_{ rhs.function_->clone() },
+	direction{ rhs.direction }
+{}
+
+std::unique_ptr<Source> PlaneWave::clone() const
 {
-	fieldType = ft,
-	direction = d,
-	center = cnt,
-	initialFT = InitialFieldType::PlanarSinusoidal;
-	assembleModesVector(modes);
+	return std::make_unique<PlaneWave>(*this);
 }
 
-const void SinusoidalInitialField::assembleModesVector(std::vector<std::size_t> modes)
+double PlaneWave::eval(const Position& p, Time t) const
 {
-	for (int i = 0; i < modes.size(); i++) {
-		modes_[i] = modes[i];
-	}
+	return function_->eval(p, t);
 }
 
-double SinusoidalInitialField::eval3D(const Position& pos) const
-{
-	switch (direction) {
-	case X:
-		return sin(coefficient_[Y] * modes_[Y] * M_PI * pos[Y]) * sin(coefficient_[Z] * modes_[Z] * M_PI * pos[Z]);
-	case Y:
-		return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]) * sin(coefficient_[Z] * modes_[Z] * M_PI * pos[Z]);
-	case Z:
-		return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]) * sin(coefficient_[Y] * modes_[Y] * M_PI * pos[Y]);
-	}
-}
-
-double SinusoidalInitialField::eval2D(const Position& pos) const
-{
-	return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]) * sin(coefficient_[Y] * modes_[Y] * M_PI * pos[Y]);
-}
-
-double SinusoidalInitialField::eval1D(const Position& pos) const
-{
-	return sin(coefficient_[X] * modes_[X] * M_PI * pos[X]);
-}
 }

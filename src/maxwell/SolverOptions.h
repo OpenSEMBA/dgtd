@@ -6,9 +6,9 @@ namespace maxwell {
 
 struct SolverOptions {
     int order = 2;
-    double dt = 1e-3;
+    double dt = 0.0;
     double t_final = 2.0;
-    double CFL = 0.9;
+    double CFL = 0.8;
     MaxwellEvolOptions evolutionOperatorOptions;
     
     SolverOptions& setTimeStep(double t) {

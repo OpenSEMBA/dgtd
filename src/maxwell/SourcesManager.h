@@ -8,14 +8,15 @@ namespace maxwell {
 
 class SourcesManager {
 public:
-    SourcesManager(const Sources&, const mfem::FiniteElementSpace&);  
+    SourcesManager(const Sources&, mfem::FiniteElementSpace&);  
 
-    void setFields1D(Fields&);
-    void setFields3D(Fields&);
-    
+    void setInitialFields(Fields&);
+    mfem::GridFunction evalTotalField(const double time);
+
     Sources sources;
+
 private:
-    const mfem::FiniteElementSpace& fes_;
+    mfem::FiniteElementSpace& fes_;
 };
 
 }

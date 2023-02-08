@@ -30,12 +30,15 @@ public:
     Solver& operator=(const Solver&) = delete;
 
     const Fields& getFields() const { return fields_; };
-    const PointsProbe& getPointsProbe(const std::size_t probe) const;
+    const PointProbe& getPointProbe(const std::size_t probe) const;
+
+    double getTime() const { return time_; }
+    double getTimeStep();
 
     const TimeDependentOperator* getFEEvol() const { return maxwellEvol_.get(); }
 
     void run();
-
+    void step();
 private:
     SolverOptions opts_;
     Model model_;
@@ -47,14 +50,12 @@ private:
     ProbesManager probesManager_;
     
     double time_;
+    double dt_;
     std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
     
     std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
 
-    void checkOptionsAreValid(const SolverOptions&);
-
-    const double Solver::calculateTimeStep() const;
-
-    void Solver::initializeFieldsFromSources();
+    void checkOptionsAreValid(const SolverOptions&) const;
+    void initializeFieldsFromSources();
 };
 }

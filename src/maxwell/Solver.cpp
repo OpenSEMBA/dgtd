@@ -23,54 +23,109 @@ Solver::Solver(
 	fes_{ &model_.getMesh(), &fec_ },
 	fields_{ fes_ },
 	sourcesManager_{ sources, fes_ },
-	probesManager_{ probes, fes_, fields_},
+	probesManager_{ probes, fes_, fields_, opts_},
 	time_{0.0}
 {
+	sourcesManager_.setInitialFields(fields_);
 	switch (fes_.GetMesh()->Dimension()) {
 	case 1:
-		sourcesManager_.setFields1D(fields_);
-		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, opts_.evolutionOperatorOptions);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	case 2:
-		sourcesManager_.setFields3D(fields_);
-		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, opts_.evolutionOperatorOptions);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	default:
-		sourcesManager_.setFields3D(fields_);
-		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, opts_.evolutionOperatorOptions);
+		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	}
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
 
 	probesManager_.updateProbes(time_);
-}
 
-void Solver::checkOptionsAreValid(const SolverOptions& opts)
-{
-	if ((opts.order < 0) ||
-		(opts.t_final < 0) ||
-		(opts.dt < 0)) {
-		throw std::exception("Incorrect parameters in Options");
+	checkOptionsAreValid(opts_);
+
+	if (opts_.dt == 0.0) {
+		dt_ = getTimeStep();
+	}
+	else {
+		dt_ = opts_.dt;
 	}
 }
 
-const PointsProbe& Solver::getPointsProbe(const std::size_t probe) const 
-{ 
-	return probesManager_.getPointsProbe(probe); 
+void Solver::checkOptionsAreValid(const SolverOptions& opts) const
+{
+	if ((opts.order < 0) ||
+		(opts.t_final < 0)) {
+		throw std::exception("Incorrect parameters in Options");
+	}
+
+	if (opts.dt == 0.0) {
+		if (fes_.GetMesh()->Dimension() > 1) {
+			throw std::exception("Automatic LTS calculation not implemented yet for Dimensions higher than 1.");
+		}
+	}
+
+	for (const auto& bdrMarker : model_.getBoundaryToMarker())
+	{
+		if (bdrMarker.first == BdrCond::SMA && opts_.evolutionOperatorOptions.fluxType == FluxType::Centered) {
+			throw std::exception("SMA and Centered FluxType are not compatible.");
+		}
+	}
 }
 
-//const double Solver::calculateTimeStep() const
-//{
-//	
-//}
+const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
+{ 
+	return probesManager_.getPointProbe(probe); 
+}
+
+double getMinimumInterNodeDistance(FiniteElementSpace& fes)
+{
+	GridFunction nodes(&fes);
+	fes.GetMesh()->GetNodes(nodes);
+	double res{ std::numeric_limits<double>::max() };
+	for (int e = 0; e < fes.GetMesh()->ElementToElementTable().Size(); ++e) {
+		Array<int> dofs;
+		fes.GetElementDofs(e, dofs);
+		if (dofs.Size() == 1) {
+			res = std::min(res, fes.GetMesh()->GetElementSize(e));
+		}
+		else {
+			for (int i = 0; i < dofs.Size(); ++i) {
+				for (int j = i + 1; j < dofs.Size(); ++j) {
+					res = std::min(res, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
+				}
+			}
+		}
+	}
+	return res;
+}
+
+double Solver::getTimeStep()
+{
+	double signalSpeed{ 1.0 };
+	double maxTimeStep{ 0.0 };
+	if (opts_.order == 0) {
+		maxTimeStep = getMinimumInterNodeDistance(fes_) / signalSpeed;
+	}
+	else {
+		maxTimeStep = getMinimumInterNodeDistance(fes_) / pow(opts_.order, 1.5) / signalSpeed;
+	}
+	return opts_.CFL * maxTimeStep;
+}
 
 void Solver::run()
 {
-	while ( std::abs(time_ - opts_.t_final) < 1e-6 || time_ < opts_.t_final) {
-		odeSolver_->Step(fields_.allDOFs, time_, opts_.dt);
-		probesManager_.updateProbes(time_);
+	while (time_ <= opts_.t_final - 1e-8*dt_) {
+		step();
 	}
+}
+
+void Solver::step()
+{
+	double truedt{ std::min(dt_, opts_.t_final - time_) };
+	odeSolver_->Step(fields_.allDOFs, time_, truedt);
+	probesManager_.updateProbes(time_);
 }
 
 }
