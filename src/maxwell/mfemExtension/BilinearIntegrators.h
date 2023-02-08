@@ -51,11 +51,11 @@ private:
 	Vector shape1_, shape2_;
 };
 
-class MaxwellDGTotalFieldIntegrator : public BilinearFormIntegrator
+class MaxwellDGFluxTotalFieldIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	MaxwellDGTotalFieldIntegrator(const std::vector<Direction>& dirTerms, double b)
+	MaxwellDGFluxTotalFieldIntegrator(const std::vector<Direction>& dirTerms, double b)
 	{
 		dir = dirTerms; beta = b;
 	}
@@ -73,6 +73,30 @@ protected:
 private:
 	Vector shape1_, shape2_;
 };
+
+class MaxwellDGPenaltyTotalFieldIntegrator : public BilinearFormIntegrator
+{
+
+public:
+	MaxwellDGPenaltyTotalFieldIntegrator(const std::vector<Direction>& dirTerms, double b)
+	{
+		dir = dirTerms; beta = b;
+	}
+
+	void AssembleFaceMatrix(const FiniteElement& el1,
+		const FiniteElement& el2,
+		FaceElementTransformations& Trans,
+		DenseMatrix& elmat);
+
+protected:
+	std::vector<Direction> dir;
+	double beta;
+	int dim;
+
+private:
+	Vector shape1_, shape2_;
+};
+
 
 }
 }

@@ -27,16 +27,10 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
-		MB_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(model_, fes_), fes_);
-		MPB_[f] = buildByMult(
-			*buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_),
-			*buildFunctionOperator1D(model_, fes_),
-			fes_);
+		MBF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_);
+		MBP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_),*buildPenaltyFunctionOperator1D(model_, fes_), fes_);
 	}
-	buildByMult(
-		*buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator1D(E, {}, model_, fes_, opts_), fes_),
-		*buildFunctionOperator1D(model_, fes_),
-		fes_)->SpMat().Print(std::cout);
+	MBP_[E]->SpMat().Print(std::cout);
 	std::cout << "aaaa" << std::endl;
 }
 
@@ -49,7 +43,6 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	hOld.SetDataAndSize(in.GetData() + fes_.GetNDofs(), fes_.GetNDofs());
 	eNew.MakeRef(&fes_, &out[0]);
 	hNew.MakeRef(&fes_, &out[fes_.GetNDofs()]);
-
 
 	// dtE = - MS * H + MF * [H] (signs in coeff)
 	// Update E.
@@ -71,16 +64,12 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
 			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
 			
-			MB_[E]->AddMult(eFunc, eNew);
-			MB_[H]->AddMult(hFunc, hNew);
+			MBF_[E]->AddMult(eFunc, eNew);
+			MBF_[H]->AddMult(hFunc, hNew);
 
 			if (opts_.fluxType == FluxType::Upwind) {
-				Vector eTemp(eFunc.Size());
-				eTemp = 0.0;
-				eFunc[5] *= 0.0;
-				hFunc[5] *= 0.0;
-				MPB_[E]->AddMult(eFunc, eNew);
-				MPB_[H]->AddMult(hFunc, hNew);
+				MBP_[E]->AddMult(eFunc, eNew);
+				MBP_[H]->AddMult(hFunc, hNew);
 			}
 
 		}

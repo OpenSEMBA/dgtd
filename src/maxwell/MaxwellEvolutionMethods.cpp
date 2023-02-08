@@ -183,7 +183,7 @@ FiniteElementOperator buildFunctionOperator(const FieldType& f, const std::vecto
 	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGTotalFieldIntegrator(dirTerms, 1.0), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator(dirTerms, 1.0), kv.second
 		);
 	}
 
@@ -237,14 +237,14 @@ FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vect
 	return res;
 }
 
-FiniteElementOperator buildFunctionOperator1D(Model& model, FiniteElementSpace& fes)
+FiniteElementOperator buildFluxFunctionOperator1D(Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorBoundaryToMarker())
 	{
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGTotalFieldIntegrator({ X }, 1.0), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, 1.0), kv.second
 		);
 	}
 
@@ -252,6 +252,26 @@ FiniteElementOperator buildFunctionOperator1D(Model& model, FiniteElementSpace& 
 	res->Finalize();
 	return res;
 }
+
+FiniteElementOperator buildPenaltyFunctionOperator1D(Model& model, FiniteElementSpace& fes)
+{
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+
+	for (auto& kv : model.getInteriorBoundaryToMarker())
+	{
+		res->AddInteriorBoundaryFaceIntegrator(
+			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({ X }, 1.0), kv.second
+		);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+
+
+
 
 FiniteElementVector buildBoundaryFunctionVector1D(Model& model, FiniteElementSpace& fes) 
 {
