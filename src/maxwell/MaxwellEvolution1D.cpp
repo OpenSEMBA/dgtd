@@ -28,9 +28,16 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
 		MB_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFunctionOperator1D(model_, fes_), fes_);
+		MPB_[f] = buildByMult(
+			*buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_),
+			*buildFunctionOperator1D(model_, fes_),
+			fes_);
 	}
-	buildFluxOperator1D(E, { X }, model_, fes_)->SpMat().Print(std::cout);
-	std::cout << "--" << std::endl;
+	buildByMult(
+		*buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator1D(E, {}, model_, fes_, opts_), fes_),
+		*buildFunctionOperator1D(model_, fes_),
+		fes_)->SpMat().Print(std::cout);
+	std::cout << "aaaa" << std::endl;
 }
 
 void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
@@ -66,6 +73,15 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 			
 			MB_[E]->AddMult(eFunc, eNew);
 			MB_[H]->AddMult(hFunc, hNew);
+
+			if (opts_.fluxType == FluxType::Upwind) {
+				Vector eTemp(eFunc.Size());
+				eTemp = 0.0;
+				eFunc[5] *= 0.0;
+				hFunc[5] *= 0.0;
+				MPB_[E]->AddMult(eFunc, eNew);
+				MPB_[H]->AddMult(hFunc, hNew);
+			}
 
 		}
 	}
