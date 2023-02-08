@@ -412,7 +412,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	EXPECT_TRUE(false);
 }
 
-TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind)
+TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_pec)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -437,6 +437,30 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind)
 	EXPECT_TRUE(false);
 }
 
+TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 10;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(X,0.2,1.5,1.0),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setFinalTime(5.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	EXPECT_TRUE(false);
+}
 TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 {
 	// Resonant mode inside a PEC box. 
