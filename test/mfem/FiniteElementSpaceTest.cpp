@@ -413,7 +413,7 @@ TEST_F(FiniteElementSpaceTest, calculateMinimumDistanceBetweenNodes1D)
 
 }
 
-TEST_F(FiniteElementSpaceTest, calculateOptimalLTS1D)
+TEST_F(FiniteElementSpaceTest, calculateOptimalTS1D)
 {
 
 	int dim{ 1 }, order{ 2 };
@@ -428,5 +428,20 @@ TEST_F(FiniteElementSpaceTest, calculateOptimalLTS1D)
 	double CFL{ 0.8 }, signalSpeed{ 1.0 };
 
 	EXPECT_GE(0.15, (CFL * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * signalSpeed));
+
+}
+
+TEST_F(FiniteElementSpaceTest, DG_NormalTraceJumpInteg)
+{
+
+	int dim{ 1 }, order{ 2 };
+	auto m{ Mesh::MakeCartesian1D(5, 5.0) };
+	DG_FECollection fec{ order, dim, BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &m, &fec, dim, Ordering::byNODES };
+
+	BilinearForm bf{ &fes };
+	bf.AddInteriorFaceIntegrator(new NormalTraceJumpIntegrator());
+	bf.Assemble();
+	bf.Finalize();
 
 }

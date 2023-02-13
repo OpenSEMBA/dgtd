@@ -44,7 +44,12 @@ const Vector setNormalVector(const int dim,
 {
     Vector ortho(dim);
     CalcOrtho(Trans.Jacobian(), ortho);
-    return ortho.operator/=(Trans.Weight());
+    ortho.operator/=(Trans.Weight());
+    //if (ortho[1] < 1.0 && ortho[1] > -1.0 && ortho[0] != 0.0) {
+        //ortho[1] *= -1.0;
+    //}
+    return ortho;
+    //return ortho;
 }
 
 void buildFaceMatrix(double w, int ndofA, int ndofB, int offsetRow, int offsetCol,

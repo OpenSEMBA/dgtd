@@ -4,6 +4,14 @@
 #include "SourceFixtures.h"
 #include "maxwell/Solver.h"
 
+#include "maxwell/Types.h"
+#include "mfem.hpp"
+#include "maxwell/Model.h"
+#include "maxwell/mfemExtension/BilinearIntegrators.h"
+#include "maxwell/mfemExtension/BilinearForm_IBFI.hpp"
+#include "maxwell/mfemExtension/LinearIntegrators.h"
+#include "maxwell/mfemExtension/LinearForm_IBFI.hpp"
+
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
@@ -98,6 +106,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D)
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
+
 TEST_F(Solver2DTest, 2D_pec_centered_quadrilaterals_1dot5D)
 {
 
@@ -135,6 +144,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilaterals_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 
 }
+
 TEST_F(Solver2DTest, 2D_pec_upwind_1dot5D)
 {
 
@@ -208,6 +218,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilaterals_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 
 }
+
 TEST_F(Solver2DTest, 2D_sma_upwind_quadrilaterals_1dot5D)
 {
 
@@ -367,9 +378,46 @@ TEST_F(Solver2DTest, InnerSquareTotalField)
 
 	solver.run();
 
+}
 
+TEST_F(Solver2DTest, OrientationTest)
+{
+	auto mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE,false,1.0,1.0) };
+	auto fec{ new DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ new FiniteElementSpace(&mesh, fec, 1) };
 
+	BilinearForm bilform(fes);
+	bilform.AddInteriorFaceIntegrator(
+		new mfemExtension::MaxwellDGTraceJumpIntegrator({ Y }, 1.0)
+	);
 
+	bilform.Assemble();
+	bilform.Finalize();
+
+}
+
+TEST_F(Solver2DTest, meshNormalTests_2D)
+{
+	//Mesh mesh{ Mesh::LoadFromFile("./testData/severalcartesianquads.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/quadboundtriangint.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 1;
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({3.5,3.5})),
+	//buildRotatedGaussianInitialField(E, Z, 0.2, -M_PI/4, mfem::Vector({1.0, 1.0})),
+	SolverOptions{} 
+		.setTimeStep(5e-4)
+		.setFinalTime(2.0)
+		.setOrder(3)
+	};
+
+	solver.run();
 }
 
 

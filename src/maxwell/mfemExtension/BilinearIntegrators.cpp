@@ -113,7 +113,7 @@ void MaxwellDGFluxTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElement& 
 
             if (w != 0.0) {
                 if (TFSFCoeff_ > 0) {
-                    buildFaceMatrix(w,   ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
+                    buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
                 }
                 else {
                     buildFaceMatrix(w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);

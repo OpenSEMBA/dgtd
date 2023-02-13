@@ -105,7 +105,7 @@ TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D)
 	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(1e-3)
-		.setFinalTime(5.0)
+		.setFinalTime(15.0)
 		.setOrder(3)
 	};
 
@@ -126,7 +126,7 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5, 0.5}}
 	};
-	probes.exporterProbes[0].visSteps = 50;
+	probes.exporterProbes[0].visSteps = 75;
 
 	maxwell::Solver solver{
 	buildModel(5,1,1, Element::Type::TETRAHEDRON, 5.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
@@ -165,7 +165,7 @@ TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
 	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
-		.setFinalTime(5.0)
+		.setFinalTime(15.0)
 		.setOrder(3)
 	};
 

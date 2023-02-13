@@ -62,7 +62,7 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 
 	if (opts.dt == 0.0) {
 		if (fes_.GetMesh()->Dimension() > 1) {
-			throw std::exception("Automatic LTS calculation not implemented yet for Dimensions higher than 1.");
+			throw std::exception("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
 		}
 	}
 

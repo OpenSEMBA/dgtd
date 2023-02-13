@@ -22,6 +22,23 @@ static Sources buildGaussianInitialField(
 	return res;
 }
 
+static Sources buildRotatedGaussianInitialField(
+	const FieldType& ft = E,
+	const Direction& d = X,
+	const double spread = 0.1,
+	const double angle = 0.0,
+	const mfem::Vector& center = mfem::Vector({ 0.5 }),
+	const int dimension = 1)
+{
+	Sources res;
+	res.push_back(
+		std::move(std::make_unique<InitialField>(
+			RotatedGaussian{ dimension, spread, 1.0, angle, center }, ft, d)
+		)
+	);
+	return res;
+}
+
 static Sources buildResonantModeInitialField(
 	const FieldType& ft = E,
 	const Direction& d = X,

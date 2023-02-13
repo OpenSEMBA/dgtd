@@ -190,7 +190,7 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 	return res;
 }
 
-FiniteElementIBFIOperator buildFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
@@ -199,6 +199,23 @@ FiniteElementIBFIOperator buildFunctionOperator(const FieldType& f, const std::v
 		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
 			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator(dirTerms, c.orient, 1.0), kv.second
+		);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementIBFIOperator buildPenaltyFunctionOperator(const FieldType& f, Model& model, FiniteElementSpace& fes)
+{
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+
+	for (auto& kv : model.getInteriorBoundaryToMarker())
+	{
+		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
+		res->AddInteriorBoundaryFaceIntegrator(
+			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({}, c.orient, 1.0), kv.second
 		);
 	}
 
@@ -286,26 +303,6 @@ FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model& model, FiniteEle
 	return res;
 }
 
-
-
-
-
-FiniteElementVector buildBoundaryFunctionVector1D(Model& model, FiniteElementSpace& fes) 
-{
-	auto res = std::make_unique<mfemExtension::LinearFormIBFI>(&fes);
-	VectorConstantCoefficient one(Vector({ 1.0 }));
-
-	for (auto& kv : model.getInteriorBoundaryToMarker())
-	{
-		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::BoundaryDGJumpIntegrator(one, 1.0), kv.second
-		);
-	}
-
-	res->Assemble();
-	return res;
-
-}
 TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond& bdrCond)
 {
 	switch (bdrCond)

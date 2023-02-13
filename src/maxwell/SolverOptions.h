@@ -9,7 +9,7 @@ struct SolverOptions {
     double dt = 0.0;
     double t_final = 2.0;
     double CFL = 0.8;
-    decltype(BasisType::GaussLobatto) basis = BasisType::GaussLobatto;
+    //decltype(BasisType::GaussLobatto) basis = BasisType::GaussLobatto;
     MaxwellEvolOptions evolutionOperatorOptions;
     
     SolverOptions& setTimeStep(double t) {
@@ -32,10 +32,10 @@ struct SolverOptions {
         order = or;
         return *this;
     }
-    SolverOptions& setBasis(BasisType bst) {
-        basis = bst;
-        return *this;
-    }
+    //SolverOptions& setBasis(BasisType bst) {
+    //    basis = bst;
+    //    return *this;
+    //}
 };
 
 }

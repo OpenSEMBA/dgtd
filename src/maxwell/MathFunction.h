@@ -68,6 +68,53 @@ private:
 
 };
 
+class RotatedGaussian : public MathFunction {
+public:
+	RotatedGaussian(int dimension, double spatialSpread, double normalization, double angle, const mfem::Vector& center) :
+		dimension_{ dimension },
+		spatialSpread_{ spatialSpread },
+		normalization_{ normalization },
+		angle_{ angle },
+		center_{ center }
+	{}
+
+	std::unique_ptr<MathFunction> clone() const {
+		return std::make_unique<RotatedGaussian>(*this);
+	}
+
+	double eval(const mfem::Vector& pos, double time = 0.0) const
+	{
+		assert(dimension_ <= pos.Size());
+		switch (dimension_) {
+		case 1:
+			return normalization_ *
+				exp(
+					-pow((pos[X] - center_[X]) * cos(angle_) + (pos[Y]-center_[Y]) * (-sin(angle_)), 2.0) /
+					(2.0 * pow(spatialSpread_, 2.0))
+				);
+		case 2:
+			return normalization_ *
+				exp(
+					-(pow((pos[X] - center_[X]) * cos(angle_) + (pos[Y] - center_[Y]) * -sin(angle_), 2.0)
+					+ pow((pos[X] - center_[X]) * sin(angle_) + (pos[Y] - center_[Y]) *  cos(angle_), 2.0)) /
+					(2.0 * pow(spatialSpread_, 2.0))
+				);
+		case 3:
+			throw std::runtime_error("Rotated Gaussian Dim(3) - To Be Implemented.");
+		default:
+			throw std::runtime_error("Invalid dimension.");
+		}
+	}
+
+private:
+	int dimension_{ -1 };
+	double spatialSpread_{ 2.0 };
+	double normalization_{ 1.0 };
+	double angle_{ 0.0 };
+	mfem::Vector center_;
+
+};
+
 class TimeGaussian : public MathFunction {
 public:
 	TimeGaussian(int dimension, double spatialSpread, double normalization, double delay) :

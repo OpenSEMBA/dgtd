@@ -22,14 +22,15 @@ FiniteElementOperator buildFluxOperator				(const FieldType&, const std::vector<
 FiniteElementOperator buildFluxJumpOperator			(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
 FiniteElementOperator buildFluxOperator				(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 FiniteElementOperator buildPenaltyOperator			(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-FiniteElementIBFIOperator buildFunctionOperator		(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
+
+FiniteElementIBFIOperator buildFluxFunctionOperator		(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
+FiniteElementIBFIOperator buildPenaltyFunctionOperator	(const FieldType&, Model&, FiniteElementSpace&);
 
 FiniteElementOperator buildFluxOperator1D				(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 FiniteElementOperator buildPenaltyOperator1D			(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+
 FiniteElementIBFIOperator buildFluxFunctionOperator1D	(Model&, FiniteElementSpace&);
 FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model&, FiniteElementSpace&);
-
-FiniteElementVector   buildBoundaryFunctionVector1D		(Model&, FiniteElementSpace&);
 
 TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond&);
 
