@@ -294,13 +294,13 @@ TEST_F(Solver2DTest, squareBox_2D_centered_quadrilaterals_1dot5D)
 	probes.exporterProbes[0].visSteps = 40;
 
 	maxwell::Solver solver{
-	buildModel(7,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
+	buildModel(7,1,Element::Type::QUADRILATERAL, 7.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({3.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
-		.setFinalTime(1.0)
+		.setFinalTime(7.0)
 		.setOrder(3)
 	};
 
@@ -380,19 +380,28 @@ TEST_F(Solver2DTest, InnerSquareTotalField)
 
 }
 
-TEST_F(Solver2DTest, OrientationTest)
+TEST_F(Solver2DTest, Rotated2D_quadrilateral_centered_1dot5D)
 {
-	auto mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE,false,1.0,1.0) };
-	auto fec{ new DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ new FiniteElementSpace(&mesh, fec, 1) };
+	//auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
+	auto mesh{ Mesh::MakeCartesian2D(1,7,Element::QUADRILATERAL,1,1.0,7.0) };
+	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC}, {3,BdrCond::PEC}, {4,BdrCond::PMC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
 
-	BilinearForm bilform(fes);
-	bilform.AddInteriorFaceIntegrator(
-		new mfemExtension::MaxwellDGTraceJumpIntegrator({ Y }, 1.0)
-	);
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 5;
 
-	bilform.Assemble();
-	bilform.Finalize();
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({0.5,3.5})),
+	SolverOptions{}
+		.setTimeStep(1e-3)
+		.setFinalTime(2.0)
+		.setCentered()
+		.setOrder(10)
+	};
+
+	solver.run();
 
 }
 

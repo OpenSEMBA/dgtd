@@ -37,7 +37,7 @@ public:
 		case 1:
 			return normalization_* 
 				exp(
-					-pow(pos[X] - center_[X], 2) / 
+					-pow(pos[Y] - center_[Y], 2) / 
 					(2.0 * pow(spatialSpread_, 2))
 				);
 		case 2:

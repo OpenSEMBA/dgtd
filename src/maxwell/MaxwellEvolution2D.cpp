@@ -14,7 +14,7 @@ MaxwellEvolution2D::MaxwellEvolution2D(
 	opts_{ options }
 {
 	for (auto f : { E, H }) {
-		MP_[f]  = buildByMult    (*buildInverseMassMatrix(f, model_, fes_),  *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
+		MP_[f]  = buildByMult    (*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
 		MBP_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator(f, model_, fes_), fes_);
 		for (auto d : { X, Y, Z }) {
 			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
@@ -42,8 +42,6 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 		eNew[d] = 0.0;
 		hNew[d] = 0.0;
 	}
-
-	
 
 	MFN_[H][E][Y]    ->AddMult(eOld[Z], hNew[X]);
 	MS_[H][Y]        ->AddMult(eOld[Z], hNew[X], -1.0);
