@@ -277,7 +277,7 @@ FiniteElementIBFIOperator buildFluxFunctionOperator1D(Model& model, FiniteElemen
 	{
 		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c.orient, 1.0), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c.orient, 0.5), kv.second
 		);
 	}
 

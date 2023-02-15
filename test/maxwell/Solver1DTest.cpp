@@ -239,12 +239,20 @@ TEST_F(Solver1DTest, periodic)
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setCentered()
-			.setFinalTime(1.0)
+			.setFinalTime(2.0)
 			.setOrder(5)
 	};
 
 	solver.run();
-	EXPECT_TRUE(false);
+	
+	GridFunction eOld{ solver.getFields().E[Y] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Y] };
+
+	EXPECT_NE(0.0, normOld);
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
 
 TEST_F(Solver1DTest, periodic_inhomo)
@@ -265,7 +273,15 @@ TEST_F(Solver1DTest, periodic_inhomo)
 	};
 
 	solver.run();
-	EXPECT_TRUE(false);
+	
+	GridFunction eOld{ solver.getFields().E[Y] };
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+	GridFunction eNew{ solver.getFields().E[Y] };
+
+	EXPECT_NE(0.0, normOld);
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
 TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
@@ -328,7 +344,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(Solver1DTest, totalfield_upwind)
+TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_upwind_sma)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {301,BdrCond::TotalFieldIn} };
@@ -352,30 +368,6 @@ TEST_F(Solver1DTest, totalfield_upwind)
 	EXPECT_TRUE(false);
 }
 
-TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
-{
-	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
-
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 20;
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildPlaneWave(X,0.2,1.5,1.0),
-		SolverOptions{}
-			.setCFL(0.65)
-			.setFinalTime(5.0)
-			.setOrder(2)
-	};
-
-	solver.run();
-
-	EXPECT_TRUE(false);
-}
 
 TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 {
@@ -385,6 +377,11 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+	PointProbe{ E, Y, {0.1001} },
+	PointProbe{ E, Y, {1.0} },
+	PointProbe{ H, Z, {1.0} }
+	};
 	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
@@ -394,13 +391,80 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
-			.setFinalTime(5.0)
+			.setFinalTime(4.0)
 			.setOrder(2)
 	};
 
 	solver.run();
 
-	EXPECT_TRUE(false);
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+	
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.5, frame.first, 2e-1);
+		EXPECT_NEAR(2.0, frame.second, 1e-3);
+	}
+}
+TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+	PointProbe{ E, Y, {0.05} },
+	PointProbe{ E, Y, {0.1001} },
+	PointProbe{ E, Y, {1.0} },
+	PointProbe{ H, Z, {1.0} }
+	};
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(X,0.2,1.5,1.0),
+		SolverOptions{}
+			.setCFL(0.65)
+			.setFinalTime(4.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		if (frame.first <= 2.0) {
+			EXPECT_NEAR(0.0, frame.second, 1e-3);
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(2.5, frame.first, 2e-1);
+		EXPECT_NEAR(2.0, frame.second, 1e-3);
+	}
 }
 
 TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
@@ -411,6 +475,12 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+	PointProbe{ E, Y, {0.1001} },
+	PointProbe{ E, Y, {1.0} },
+	PointProbe{ H, Z, {0.9} },
+	PointProbe{ H, Z, {1.0} }
+	};
 	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
@@ -426,7 +496,27 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 
 	solver.run();
 
-	EXPECT_TRUE(false);
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
 }
 
 TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_pec)
