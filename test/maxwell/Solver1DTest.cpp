@@ -527,6 +527,13 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_pec)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+	PointProbe{ E, Y, {0.05} },
+	PointProbe{ E, Y, {0.1001} },
+	PointProbe{ E, Y, {0.9} },
+	PointProbe{ H, Z, {0.9} },
+	PointProbe{ E, Y, {0.9001} }
+	};
 	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
@@ -541,7 +548,37 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_pec)
 
 	solver.run();
 
-	EXPECT_TRUE(false);
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		if (frame.first <= 2.0) {
+			EXPECT_NEAR(0.0, frame.second, 1e-3);
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(4).findFrameWithMax() };
+		if (frame.first >= 2.0) {
+			EXPECT_NEAR(0.0, frame.second, 1e-3);
+		}
+	}
 }
 
 TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
@@ -552,7 +589,14 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 10;
+	probes.pointProbes = {
+	PointProbe{ E, Y, {0.05} },
+	PointProbe{ E, Y, {0.1001} },
+	PointProbe{ E, Y, {0.9} },
+	PointProbe{ H, Z, {0.9} },
+	PointProbe{ E, Y, {0.9001} }
+	};
+	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
 		model,
@@ -566,7 +610,37 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
 
 	solver.run();
 
-	EXPECT_TRUE(false);
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		if (frame.first <= 2.0) {
+			EXPECT_NEAR(0.0, frame.second, 1e-3);
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(4).findFrameWithMax() };
+		if (frame.first >= 2.0) {
+			EXPECT_NEAR(0.0, frame.second, 1e-3);
+		}
+	}
 }
 TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 {
