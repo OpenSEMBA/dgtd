@@ -39,27 +39,38 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         double b = calculateBetaTerm(nor, dir, beta);
 
         el1.CalcShape(eip1, shape1_);
-        double w = ip.weight * b;
-        if (w != 0.0) {
-            buildFaceMatrix    (w, ndof1, ndof1,     0,     0, shape1_ , shape1_, elmat);
-        }
-
         if (ndof2) {
-
             el2.CalcShape(eip2, shape2_);
-
-            if (w != 0.0) {
-                buildFaceMatrix(w, ndof1, ndof2, 0, ndof1, shape1_, shape2_, elmat);
-                switch (dir.size()) {
-                case 0:
-                    buildFaceMatrix(w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
-                    buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
-                    break;
-                default:
-                    buildFaceMatrix(-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);
-                    buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
-                    break;
+        }
+        double w = ip.weight * b * 0.5;
+        if (w != 0.0) {
+            switch (dir.size()) {
+            case 0:
+                buildFaceMatrix     ( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
+                if (ndof2) {
+                    buildFaceMatrix ( w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
+                    buildFaceMatrix (-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
+                    buildFaceMatrix (-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
                 }
+                break;
+            case 1:
+                buildFaceMatrix     ( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
+                if (ndof2) {           
+                    buildFaceMatrix ( w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
+                    buildFaceMatrix (-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
+                    buildFaceMatrix (-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
+                }
+                break;
+            case 2:
+                buildFaceMatrix    ( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
+                if (ndof2) {          
+                    buildFaceMatrix( w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
+                    buildFaceMatrix(-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
+                    buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
+                }
+                break;
+            default:
+                throw std::exception("Wrong direction size.");
             }
         }
     }

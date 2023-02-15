@@ -210,9 +210,11 @@ TEST_F(Solver1DTest, pmc_upwind)
 
 TEST_F(Solver1DTest, sma)
 {
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 1;
 	maxwell::Solver solver(
-		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
-		buildProbesWithAnExportProbe(),
+		buildStandardModel(201, BdrCond::SMA, BdrCond::SMA),
+		probes,
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
 			.setTimeStep(2.5e-3)
@@ -224,32 +226,47 @@ TEST_F(Solver1DTest, sma)
 	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
 }
 
-TEST_F(Solver1DTest, sma_e_xyz)
+TEST_F(Solver1DTest, periodic)
 {
-	for (const auto& x : { X, Y, Z }) {
-		Probes probes;
-		probes.pointProbes = {
-			PointProbe{E, x, {0.0} },
-			PointProbe{E, x, {0.5} },
-			PointProbe{E, x, {1.0} }
-		};
+	Mesh m{ Mesh::LoadFromFile("./testData/periodic-segment.mesh",1,0) };
 
-		maxwell::Solver solver(
-			buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
-			probes,
-			buildGaussianInitialField(E, x),
-			SolverOptions{}
-		);
+	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorBoundary{} };
+	auto probes{ buildProbesWithAnExportProbe() };
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E,Y),
+		SolverOptions{}
+			.setTimeStep(5e-4)
+			.setCentered()
+			.setFinalTime(1.0)
+			.setOrder(5)
+	};
 
-		GridFunction eOld{ solver.getFields().E[x] };
-		solver.run();
-		GridFunction eNew{ solver.getFields().E[x] };
-
-		double error = eOld.DistanceTo(eNew);
-		EXPECT_NEAR(0.0, error, 2e-3);
-	}
+	solver.run();
+	EXPECT_TRUE(false);
 }
 
+TEST_F(Solver1DTest, periodic_inhomo)
+{
+	Mesh m{ Mesh::LoadFromFile("./testData/periodic-inhomo-segment.mesh",1,0) };
+
+	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorBoundary{} };
+	auto probes{ buildProbesWithAnExportProbe() };
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E,Y),
+		SolverOptions{}
+			.setTimeStep(5e-4)
+			.setCentered()
+			.setFinalTime(1.0)
+			.setOrder(5)
+	};
+
+	solver.run();
+	EXPECT_TRUE(false);
+}
 TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	// Sends a wave through a material interface. 
