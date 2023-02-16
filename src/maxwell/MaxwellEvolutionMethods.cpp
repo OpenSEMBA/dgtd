@@ -253,14 +253,14 @@ FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vect
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 	{
 		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
-		res->AddInteriorFaceIntegrator(new DGTraceIntegrator(one, 0.0, c.beta));
+		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
 	}
 
 	for (auto& kv : model.getBoundaryToMarker())
 	{
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
 		res->AddBdrFaceIntegrator(
-			new DGTraceIntegrator(one, 0.0, c.beta), kv.second
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
 		);
 	}
 
@@ -294,7 +294,7 @@ FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model& model, FiniteEle
 	{
 		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({ X }, c.orient, 1.0), kv.second
+			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({ X }, c.orient, 0.5), kv.second
 		);
 	}
 

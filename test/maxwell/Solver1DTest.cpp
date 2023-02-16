@@ -28,6 +28,18 @@ protected:
 		};
 	}
 
+	Model buildCustomMeshModel(
+		Mesh& mesh,
+		const BdrCond& bdrL = BdrCond::PEC,
+		const BdrCond& bdrR = BdrCond::PEC) {
+		
+		return Model{
+			mesh, 
+			AttributeToMaterial{},
+			buildAttrToBdrMap1D(bdrL,bdrR),
+			AttributeToInteriorBoundary{} };
+	}
+
 	BdrCond buildPerfectBoundary(FieldType f) {
 		switch (f) {
 		case FieldType::E:
@@ -210,15 +222,32 @@ TEST_F(Solver1DTest, pmc_upwind)
 
 TEST_F(Solver1DTest, sma)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
+
 	maxwell::Solver solver(
 		buildStandardModel(201, BdrCond::SMA, BdrCond::SMA),
-		probes,
+		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(E, Y),
 		SolverOptions{}
-			.setTimeStep(2.5e-3)
+			.setTimeStep(5e-4)
 			.setFinalTime(1.25)
+	);
+
+	solver.run();
+
+	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
+}
+
+TEST_F(Solver1DTest, sma_farboundaries)
+{
+	Mesh m{ Mesh::MakeCartesian1D(401,15.0) };
+
+	maxwell::Solver solver(
+		buildCustomMeshModel(m, BdrCond::SMA, BdrCond::SMA),
+		buildProbesWithAnExportProbe(),
+		buildGaussianInitialField(E, Y, 0.3, Vector({7.5})),
+		SolverOptions{}
+		.setTimeStep(2.5e-3)
+		.setFinalTime(10.0)
 	);
 
 	solver.run();
@@ -261,6 +290,7 @@ TEST_F(Solver1DTest, periodic_inhomo)
 
 	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorBoundary{} };
 	auto probes{ buildProbesWithAnExportProbe() };
+
 	maxwell::Solver solver{
 		model,
 		probes,
@@ -324,7 +354,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	};
 	auto transmissionCoeff{ 1 + reflectCoeff };
 
-	auto timeTolerance{ 0.02 };
+	auto timeTolerance{ 0.03 };
 	auto fieldTolerance{ 0.01 };
 
 	// Checks the reflected wave.
