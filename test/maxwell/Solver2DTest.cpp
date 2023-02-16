@@ -257,6 +257,36 @@ TEST_F(Solver2DTest, 2D_sma_upwind_quadrilaterals_1dot5D)
 
 }
 
+
+TEST_F(Solver2DTest, 2D_rotated_quadrilateral_centered_1dot5D)
+{
+	auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
+	mesh.UniformRefinement();
+	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC}};
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 30;
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildRotatedGaussianInitialField(E, Z, 0.5, -M_PI/4, mfem::Vector({0.5,3.5})),
+	SolverOptions{}
+		.setTimeStep(1e-3)
+		.setFinalTime(4.95)
+		.setCentered()
+		.setOrder(3)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+}
+
+
 TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 {
 	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
@@ -282,81 +312,6 @@ TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
 }
-
-TEST_F(Solver2DTest, InnerSquareTotalField)
-{
-	int dim{ 2 };
-	auto m{ Mesh::LoadFromFile("./testData/square3x3marked.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToDom{ {301,BdrCond::TotalFieldIn} };
-	Model model{ m, AttributeToMaterial{}, attToBdr,attToDom };
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 30;
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianInitialField(E, Z, 0.05, mfem::Vector({0.5,0.5}), 2),
-		SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(1.0)
-		.setCentered()
-		.setOrder(5)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver2DTest, Rotated2D_quadrilateral_centered_1dot5D)
-{
-	//auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
-	auto mesh{ Mesh::MakeCartesian2D(1,7,Element::QUADRILATERAL,1,1.0,7.0) };
-	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC}, {3,BdrCond::PEC}, {4,BdrCond::PMC} };
-	Model model{ mesh, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorBoundary{} };
-
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 30;
-
-	maxwell::Solver solver{
-	buildModel(1,7,Element::QUADRILATERAL,1.0, 7.0,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC),
-	probes,
-	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({0.5,3.5})),
-	SolverOptions{}
-		.setTimeStep(1e-3)
-		.setFinalTime(7.0)
-		.setCentered()
-		.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver2DTest, meshNormalTests_2D)
-{
-	//Mesh mesh{ Mesh::LoadFromFile("./testData/severalcartesianquads.mesh",1,0) };
-	Mesh mesh{ Mesh::LoadFromFile("./testData/quadboundtriangint.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
-
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 20;
-
-	maxwell::Solver solver{
-	model,
-	probes,
-	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({3.5,3.5})),
-	//buildRotatedGaussianInitialField(E, Z, 0.2, -M_PI/4, mfem::Vector({1.0, 1.0})),
-	SolverOptions{} 
-		.setTimeStep(5e-4)
-		.setFinalTime(2.0)
-		.setOrder(3)
-	};
-
-	solver.run();
-}
-
 
 //TEST_F(Solver2DTest, DISABLED_centered_flux_AMR)
 //{
