@@ -708,3 +708,51 @@ TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 
 	EXPECT_TRUE(false);
 }
+
+TEST_F(Solver1DTest, pec_centered_spectral)
+{
+	// This test checks propagation of a wave inside a PEC box. 
+	// Final time is set so that a full cycle is completed.
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Y, {0.0}},
+		PointProbe{H, Z, {0.0}}
+	};
+
+	double tolerance{ 1e-3 };
+
+	maxwell::Solver solver{
+		buildStandardModel(),
+		probes,
+		buildGaussianInitialField(E, Y),
+		SolverOptions{}
+			.setCentered()
+			.setSpectralEO()
+	};
+
+	GridFunction eOld{ solver.getFields().E[Y] };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion of a cycle.
+	GridFunction eNew{ solver.getFields().E[Y] };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+
+	// Compares all DOFs.
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be always close to zero...
+	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+		EXPECT_NEAR(0.0, f, tolerance);
+	}
+
+	// ... and the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+}

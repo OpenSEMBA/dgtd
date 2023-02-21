@@ -5,6 +5,7 @@
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 #include "mfemExtension/LinearIntegrators.h"
 #include "mfemExtension/LinearForm_IBFI.hpp"
+#include <Eigen/Dense>
 
 namespace maxwell {
 
@@ -12,6 +13,9 @@ using namespace mfem;
 using FiniteElementIBFIOperator = std::unique_ptr<mfemExtension::BilinearFormIBFI>;
 using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
 using FiniteElementVector = std::unique_ptr<mfemExtension::LinearFormIBFI>;
+
+
+Eigen::MatrixXd toEigen(const DenseMatrix&);
 
 FiniteElementOperator buildByMult					(const BilinearForm& op1, const BilinearForm& op2                    , FiniteElementSpace&);
 FiniteElementIBFIOperator buildIBFIByMult			(const BilinearForm& op1, const mfemExtension::BilinearFormIBFI& op2, FiniteElementSpace& fes);

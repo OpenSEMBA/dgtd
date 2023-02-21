@@ -126,12 +126,12 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5, 0.5}}
 	};
-	probes.exporterProbes[0].visSteps = 75;
+	probes.exporterProbes[0].visSteps = 300;
 
 	maxwell::Solver solver{
-	buildModel(5,1,1, Element::Type::TETRAHEDRON, 5.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	buildModel(15,1,1, Element::Type::TETRAHEDRON, 1.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -160,12 +160,12 @@ TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
 	probes.exporterProbes[0].visSteps = 50;
 
 	maxwell::Solver solver{
-	buildModel(5,1,1, Element::Type::TETRAHEDRON, 5.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	buildModel(15,1,1, Element::Type::TETRAHEDRON, 1.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
-		.setFinalTime(15.0)
+		.setFinalTime(5.0)
 		.setOrder(3)
 	};
 
@@ -178,26 +178,35 @@ TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-
-TEST_F(Solver3DTest, squareBox_3D_centered_1dot5D)
+TEST_F(Solver3DTest, periodic_3D_centered_tetra_1dot5D)
 {
+	Mesh m{ Mesh::MakeCartesian3D(5,3,3,Element::TETRAHEDRON, 1.0, 1.0, 1.0) };
+
+	Vector xTr({ 1.0,0.0,0.0 });
+	std::vector<Vector> translations{ xTr };
+
+	Mesh mPer{ Mesh::MakePeriodic(m, m.CreatePeriodicVertexMapping(translations)) };
 
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5, 0.5}}
 	};
-	probes.exporterProbes[0].visSteps = 40;
+	probes.exporterProbes[0].visSteps = 10;
+
+	AttributeToBoundary attToBdr{ { 1,BdrCond::PEC }, { 2,BdrCond::PMC }, { 3,BdrCond::PMC }, { 4,BdrCond::PMC }, { 5,BdrCond::PMC }, { 6,BdrCond::PEC } };
+
+	Model model{ mPer,AttributeToMaterial{},attToBdr,AttributeToInteriorBoundary{} };
 
 	maxwell::Solver solver{
-	buildModel(7,1,1, Element::Type::HEXAHEDRON,1.0,1.0,1.0,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	model,
 	probes,
 	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(5e-4)
+		.setTimeStep(1e-4)
 		.setCentered()
-		.setFinalTime(2.0)
-		.setOrder(3)
+		.setFinalTime(0.01)
+		.setOrder(2)
 	};
 
 	solver.run();
@@ -207,7 +216,9 @@ TEST_F(Solver3DTest, squareBox_3D_centered_1dot5D)
 	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
 }
+
 TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
 {
 	/*The purpose of this test is to check the run() function for the solver object

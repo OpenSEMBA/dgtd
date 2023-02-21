@@ -29,7 +29,7 @@ Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(
 			}
 		}
 	}
-	return toEigen(res);
+	return maxwell::toEigen(res);
 }
 
 Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
@@ -53,7 +53,7 @@ Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(
 			}
 		}
 	}
-	return toEigen(res);
+	return maxwell::toEigen(res);
 }
 
 Eigen::MatrixXd buildDGTraceAverage1DEigen(
@@ -67,7 +67,7 @@ Eigen::MatrixXd buildDGTraceAverage1DEigen(
 	DGmat.Assemble();
 	DGmat.Finalize();
 
-	return toEigen(*DGmat.SpMat().ToDenseMatrix());
+	return maxwell::toEigen(*DGmat.SpMat().ToDenseMatrix());
 }
 
 Eigen::MatrixXd buildDGTraceJump1DEigen(
@@ -81,7 +81,7 @@ Eigen::MatrixXd buildDGTraceJump1DEigen(
 	DGmat.Assemble();
 	DGmat.Finalize();
 
-	return toEigen(*DGmat.SpMat().ToDenseMatrix());
+	return maxwell::toEigen(*DGmat.SpMat().ToDenseMatrix());
 }
 
 Eigen::MatrixXd buildMaxwellDGTrace1DEigen(
@@ -95,7 +95,7 @@ Eigen::MatrixXd buildMaxwellDGTrace1DEigen(
 	DGmat.Assemble();
 	DGmat.Finalize();
 
-	return toEigen(*DGmat.SpMat().ToDenseMatrix());
+	return maxwell::toEigen(*DGmat.SpMat().ToDenseMatrix());
 }
 
 Eigen::MatrixXd build3DOneElementDMatrix()

@@ -41,6 +41,7 @@ enum class BdrCond {
 
 struct MaxwellEvolOptions {
 	FluxType fluxType{ FluxType::Upwind };
+	bool spectral{ false };
 };
 
 

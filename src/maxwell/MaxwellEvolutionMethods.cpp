@@ -4,6 +4,19 @@ namespace maxwell {
 
 using namespace mfem;
 
+Eigen::MatrixXd toEigen(const DenseMatrix& mat)
+{
+	Eigen::MatrixXd res(mat.Width(), mat.Height());
+	for (int i = 0; i < mat.Width(); i++) {
+		for (int j = 0; j < mat.Height(); j++) {
+			res(i, j) = mat.Elem(i, j);
+		}
+	}
+	return res;
+}
+
+
+
 FiniteElementOperator buildByMult(
 	const BilinearForm& op1,
 	const BilinearForm& op2,

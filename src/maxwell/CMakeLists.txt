@@ -23,6 +23,7 @@ add_library(maxwell STATIC
 	"mfemExtension/LinearForm_IBFI.cpp" 
 	"mfemExtension/BilinearIntegrators.cpp"
 	"mfemExtension/LinearIntegrators.cpp" 
-	"mfemExtension/IntegratorFunctions.cpp")
+	"mfemExtension/IntegratorFunctions.cpp" 
+	"MaxwellEvolution1D_Spectral.cpp")
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)

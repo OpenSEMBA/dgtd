@@ -32,6 +32,10 @@ struct SolverOptions {
         order = or;
         return *this;
     }
+    SolverOptions& setSpectralEO() {
+        evolutionOperatorOptions.spectral = true;
+        return *this;
+    }
     //SolverOptions& setBasis(BasisType bst) {
     //    basis = bst;
     //    return *this;

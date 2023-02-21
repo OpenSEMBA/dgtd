@@ -5,15 +5,6 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
-Vector copyDataFromLFToVector(const LinearFormIBFI* lf)
-{
-	Vector res{ lf->Size() };
-	for (int i = 0; i < lf->Size(); ++i) {
-		res[i] = lf->Elem(i);
-	}
-	return res;
-}
-
 MaxwellEvolution1D::MaxwellEvolution1D(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),

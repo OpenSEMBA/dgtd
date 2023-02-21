@@ -4,9 +4,9 @@
 
 #include <mfem.hpp>
 #include "maxwell/Types.h"
+#include "maxwell/MaxwellEvolutionMethods.h"
 
 std::unique_ptr<mfem::DenseMatrix> toUnique(mfem::DenseMatrix*);
-Eigen::MatrixXd toEigen(const mfem::DenseMatrix&);
 
 Eigen::MatrixXd buildMassMatrixEigen(mfem::FiniteElementSpace&);
 Eigen::MatrixXd buildInverseMassMatrixEigen(mfem::FiniteElementSpace&);

@@ -29,7 +29,14 @@ Solver::Solver(
 	sourcesManager_.setInitialFields(fields_);
 	switch (fes_.GetMesh()->Dimension()) {
 	case 1:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+		switch (opts_.evolutionOperatorOptions.spectral) {
+		case true:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution1D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		default:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		}
 		break;
 	case 2:
 		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);

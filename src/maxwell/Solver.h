@@ -8,6 +8,7 @@
 #include "MaxwellEvolution3D.h"
 #include "MaxwellEvolution2D.h"
 #include "MaxwellEvolution1D.h"
+#include "MaxwellEvolution1D_Spectral.h"
 
 namespace maxwell {
 
