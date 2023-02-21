@@ -756,3 +756,37 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 	EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
+
+TEST_F(Solver1DTest, compareSpectralToBase_centered)
+{
+	Probes probes;
+	
+	maxwell::Solver solver{
+	buildStandardModel(),
+	probes,
+	buildGaussianInitialField(E, Y),
+	SolverOptions{}
+		.setCentered()
+	};
+	
+	maxwell::Solver solverSpectral{
+	buildStandardModel(),
+	probes,
+	buildGaussianInitialField(E, Y),
+	SolverOptions{}
+		.setCentered()
+		.setSpectralEO()
+	};
+
+	EXPECT_EQ(solver.getFields().E[Y], solverSpectral.getFields().E[Y]);
+	EXPECT_EQ(solver.getFields().H[Z], solverSpectral.getFields().H[Z]);
+
+	solver.run();
+	solverSpectral.run();
+
+	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(),1e-6);
+	EXPECT_EQ(solver.getFields().E[Y], solverSpectral.getFields().E[Y]);
+	EXPECT_EQ(solver.getFields().H[Z], solverSpectral.getFields().H[Z]);
+
+
+}
