@@ -69,13 +69,13 @@ TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
 	probes.exporterProbes[0].visSteps = 50;
 
 	maxwell::Solver solver{
-	buildModel(5,1,1, Element::Type::HEXAHEDRON, 5.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(1e-3)
+		.setTimeStep(5e-4)
 		.setCentered()
-		.setFinalTime(5.0)
+		.setFinalTime(6.0)
 		.setOrder(3)
 	};
 
@@ -100,12 +100,12 @@ TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D)
 	probes.exporterProbes[0].visSteps = 50;
 
 	maxwell::Solver solver{
-	buildModel(5,1,1, Element::Type::HEXAHEDRON, 5.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.7, mfem::Vector({2.5,0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(1e-3)
-		.setFinalTime(15.0)
+		.setTimeStep(5e-4)
+		.setFinalTime(6.0)
 		.setOrder(3)
 	};
 
@@ -126,16 +126,16 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5, 0.5}}
 	};
-	probes.exporterProbes[0].visSteps = 300;
+	probes.exporterProbes[0].visSteps = 500;
 
 	maxwell::Solver solver{
-	buildModel(15,1,1, Element::Type::TETRAHEDRON, 1.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	buildModel(15,1,1, Element::Type::TETRAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
-		.setFinalTime(5.0)
+		.setFinalTime(1.0)
 		.setOrder(3)
 	};
 
@@ -160,12 +160,12 @@ TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
 	probes.exporterProbes[0].visSteps = 50;
 
 	maxwell::Solver solver{
-	buildModel(15,1,1, Element::Type::TETRAHEDRON, 1.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	buildModel(10,1,1, Element::Type::TETRAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5,0.5})),
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
-		.setFinalTime(5.0)
+		.setFinalTime(6.0)
 		.setOrder(3)
 	};
 
@@ -250,3 +250,52 @@ TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
 	//EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
+
+void rotateMinus45degAlongZAxis(const Vector& oldP, Vector& newP)
+{
+	assert(oldP.Size() == newP.Size());
+	newP[0] = oldP[0] * cos(-M_PI / 4.0) - oldP[1] * sin(-M_PI / 4.0);
+	newP[1] = oldP[0] * sin(-M_PI / 4.0) + oldP[1] * cos(-M_PI / 4.0);
+	newP[2] = oldP[2];
+	
+}
+
+void rotateMinus45degAlongXAxis(const Vector& oldP, Vector& newP)
+{
+	assert(oldP.Size() == newP.Size());
+	newP[0] = oldP[0];
+	newP[1] = oldP[1] * cos(-M_PI / 4.0) - oldP[2] * sin(-M_PI / 4.0);
+	newP[2] = oldP[1] * sin(-M_PI / 4.0) + oldP[2] * cos(-M_PI / 4.0); 
+
+}
+
+TEST_F(Solver3DTest, rotated_3D_centered_hexa_1dot5D)
+{
+
+	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
+	//mesh.Transform(rotateMinus45degAlongZAxis);
+	mesh.Transform(rotateMinus45degAlongXAxis);
+
+	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
+
+	Model model{ mesh,AttributeToMaterial{},attToBdr,AttributeToInteriorBoundary{} };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 50;
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildRotatedGaussianInitialField(E, Z, 0.2, M_PI / 4.0, mfem::Vector({1.4105630296855063,-0.7167626001841779,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setCentered()
+		.setFinalTime(0.1)
+		.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+

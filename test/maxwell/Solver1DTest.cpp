@@ -340,7 +340,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		},
 		probes,
 		buildRightTravelingWaveInitialField(
-			Gaussian{ 1, 0.05, 1.0, Vector({ 0.25 })} ),
+			Gaussian{ 1, 0.05, 1.0, Vector({ 0.25 }), Z}),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(1.0)
