@@ -8,7 +8,6 @@
 #include "Sources.h"
 #include "SourcesManager.h"
 #include "MaxwellEvolutionMethods.h"
-#include <Eigen/Dense>
 
 namespace maxwell {
 

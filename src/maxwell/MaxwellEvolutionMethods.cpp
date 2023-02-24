@@ -451,4 +451,82 @@ FieldType altField(const FieldType& f)
 
 }
 
+
+void allocateDenseInEigen1D(const std::array<FiniteElementOperator, 2>& arr, Eigen::MatrixXd& res, const double sign, bool altField)
+{
+	int offset = arr[E]->SpMat().ToDenseMatrix()->Height();
+	for (int i = 0; i < arr[E]->Height(); ++i) {
+		for (int j = 0; j < arr[E]->Width(); ++j) {
+			switch (altField) {
+			case false:
+				res(i, j) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
+				res(i + offset, j + offset) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
+				break;
+			case true:
+				res(i, j + offset) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
+				res(i + offset, j) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
+				break;
+			}
+		}
+	}
+}
+
+void allocateDenseInEigen1D(const std::array<FiniteElementIBFIOperator, 2>& arr, Eigen::MatrixXd& res, const double sign, bool altField)
+{
+	int offset = arr[E]->SpMat().ToDenseMatrix()->Height();
+	for (int i = 0; i < arr[E]->Height(); ++i) {
+		for (int j = 0; j < arr[E]->Width(); ++j) {
+			switch (altField) {
+			case false:
+				res(i, j) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
+				res(i + offset, j + offset) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
+				break;
+			case true:
+				res(i, j + offset) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
+				res(i + offset, j) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
+				break;
+			}
+		}
+	}
+}
+
+void calculateEigenvalues(const Eigen::MatrixXd& mat, Eigen::VectorXcd& res)
+{
+	res = mat.eigenvalues();
+}
+
+void checkEigenvalues(const Eigen::VectorXcd& eigvals)
+{
+	for (int i = 0; i < eigvals.size(); ++i) {
+		if (eigvals[i].real() > 1e-10) {
+			throw std::exception("Eigenvalue's real part outside positive tolerance.");
+		}
+	}
+}
+
+void exportSparseToMarketFile(const Eigen::MatrixXd& mat)
+{
+	Eigen::SparseMatrix<double> sparse = mat.sparseView();
+	Eigen::saveMarket(sparse, "SparseMatrix.mtx");
+}
+
+Eigen::VectorXd toEigenVector(const Vector& in)
+{
+	Eigen::VectorXd res;
+	res.resize(in.Size());
+	for (int i = 0; i < in.Size(); ++i) {
+		res(i) = in.Elem(i);
+	}
+	return res;
+}
+
+Vector toMFEMVector(const Eigen::VectorXd& in)
+{
+	Vector res(int(in.size()));
+	for (int i = 0; i < res.Size(); ++i) {
+		res(i) = in[i];
+	}
+	return res;
+}
+
 }

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Types.h"
 #include "mfem.hpp"
 #include "Model.h"
@@ -6,6 +8,8 @@
 #include "mfemExtension/LinearIntegrators.h"
 #include "mfemExtension/LinearForm_IBFI.hpp"
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
+#include <unsupported/Eigen/SparseExtra>
 
 namespace maxwell {
 
@@ -44,5 +48,15 @@ FluxCoefficient boundaryFluxCoefficient				(const FieldType&, const BdrCond&);
 FluxCoefficient boundaryPenaltyFluxCoefficient		(const FieldType&, const BdrCond&, const MaxwellEvolOptions&);
 
 FieldType altField(const FieldType& f);
+
+void allocateDenseInEigen1D(const std::array<FiniteElementOperator, 2>&, Eigen::MatrixXd&, const double sign = 1.0, bool altField = false);
+void allocateDenseInEigen1D(const std::array<FiniteElementIBFIOperator, 2>&, Eigen::MatrixXd&, const double sign = 1.0, bool altField = false);
+
+void calculateEigenvalues(const Eigen::MatrixXd&, Eigen::VectorXcd&);
+void checkEigenvalues(const Eigen::VectorXcd&);
+void exportSparseToMarketFile(const Eigen::MatrixXd&);
+
+Eigen::VectorXd toEigenVector(const Vector&);
+Vector toMFEMVector(const Eigen::VectorXd&);
 
 }
