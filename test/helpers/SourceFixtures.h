@@ -30,12 +30,13 @@ static Sources buildRotatedGaussianInitialField(
 	const double angle = 0.0,
 	const mfem::Vector& center = mfem::Vector({ 0.5 }),
 	const Direction& pol = Z,
+	const Direction& rot = Z,
 	const int dimension = 1)
 {
 	Sources res;
 	res.push_back(
 		std::move(std::make_unique<InitialField>(
-			RotatedGaussian{ dimension, spread, 1.0, angle, center, pol }, ft, d)
+			RotatedGaussian{ dimension, spread, 1.0, angle, center, pol, rot }, ft, d)
 		)
 	);
 	return res;

@@ -25,7 +25,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 			}
 		}
 	}
-}
+ }
 
 void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 {
@@ -39,6 +39,71 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 		eNew[d] = 0.0;
 		hNew[d] = 0.0;
 	}
+
+	//MS_[H][Y]->AddMult(eOld[Z], hNew[X], -1.0);
+	//MS_[H][Z]->AddMult(eOld[X], hNew[Y], -1.0);
+	//MS_[H][X]->AddMult(eOld[Y], hNew[Z], -1.0);
+	//MS_[H][Y]->AddMult(hOld[Z], eNew[X]);
+	//MS_[H][Z]->AddMult(hOld[X], eNew[Y]);
+	//MS_[H][X]->AddMult(hOld[Y], eNew[Z]);
+
+	//MS_[H][Z]->AddMult(eOld[Y], hNew[X]);
+	//MS_[H][X]->AddMult(eOld[Z], hNew[Y]);
+	//MS_[H][Y]->AddMult(eOld[X], hNew[Z]);
+	//MS_[H][Z]->AddMult(hOld[Y], eNew[X], -1.0);
+	//MS_[H][X]->AddMult(hOld[Z], eNew[Y], -1.0);
+	//MS_[H][Y]->AddMult(hOld[X], eNew[Z], -1.0);
+
+	//MFN_[H][E][Y]->AddMult(eOld[Z], hNew[X], -1.0);
+	//MFN_[H][E][Z]->AddMult(eOld[X], hNew[Y], -1.0);
+	//MFN_[H][E][X]->AddMult(eOld[Y], hNew[Z], -1.0);
+	//MFN_[H][E][Y]->AddMult(hOld[Z], eNew[X]);
+	//MFN_[H][E][Z]->AddMult(hOld[X], eNew[Y]);
+	//MFN_[H][E][X]->AddMult(hOld[Y], eNew[Z]);
+
+	//MFN_[H][E][Z]->AddMult(eOld[Y], hNew[X]);
+	//MFN_[H][E][X]->AddMult(eOld[Z], hNew[Y]);
+	//MFN_[H][E][Y]->AddMult(eOld[X], hNew[Z]);
+	//MFN_[H][E][Z]->AddMult(hOld[Y], eNew[X], -1.0);
+	//MFN_[H][E][X]->AddMult(hOld[Z], eNew[Y], -1.0);
+	//MFN_[H][E][Y]->AddMult(hOld[X], eNew[Z], -1.0);
+
+	//if (opts_.fluxType == FluxType::Upwind) {
+
+	//	//Penalty, non-normal term
+	//	MP_[H]->AddMult(hOld[X], hNew[X]);
+	//	MP_[H]->AddMult(hOld[Y], hNew[Y]);
+	//	MP_[H]->AddMult(hOld[Z], hNew[Z]);
+	//	MP_[E]->AddMult(eOld[X], eNew[X]);
+	//	MP_[E]->AddMult(eOld[Y], eNew[Y]);
+	//	MP_[E]->AddMult(eOld[Z], eNew[Z]);
+
+	//	//Double normal terms
+	//	MFNN_[H][H][X][X]->AddMult(hOld[X], hNew[X], -1.0);
+	//	MFNN_[H][H][Y][X]->AddMult(hOld[Y], hNew[X], -1.0);
+	//	MFNN_[H][H][Z][X]->AddMult(hOld[Z], hNew[X], -1.0);
+
+	//	MFNN_[H][H][X][Y]->AddMult(hOld[X], hNew[Y], -1.0);
+	//	MFNN_[H][H][Y][Y]->AddMult(hOld[Y], hNew[Y], -1.0);
+	//	MFNN_[H][H][Z][Y]->AddMult(hOld[Z], hNew[Y], -1.0);
+
+	//	MFNN_[H][H][X][Z]->AddMult(hOld[X], hNew[Z], -1.0);
+	//	MFNN_[H][H][Y][Z]->AddMult(hOld[Y], hNew[Z], -1.0);
+	//	MFNN_[H][H][Z][Z]->AddMult(hOld[Z], hNew[Z], -1.0);
+
+	//	MFNN_[E][E][X][X]->AddMult(eOld[X], eNew[X], -1.0);
+	//	MFNN_[E][E][Y][X]->AddMult(eOld[Y], eNew[X], -1.0);
+	//	MFNN_[E][E][Z][X]->AddMult(eOld[Z], eNew[X], -1.0);
+
+	//	MFNN_[E][E][X][Y]->AddMult(eOld[X], eNew[Y], -1.0);
+	//	MFNN_[E][E][Y][Y]->AddMult(eOld[Y], eNew[Y], -1.0);
+	//	MFNN_[E][E][Z][Y]->AddMult(eOld[Z], eNew[Y], -1.0);
+
+	//	MFNN_[E][E][X][Z]->AddMult(eOld[X], eNew[Z], -1.0);
+	//	MFNN_[E][E][Y][Z]->AddMult(eOld[Y], eNew[Z], -1.0);
+	//	MFNN_[E][E][Z][Z]->AddMult(eOld[Z], eNew[Z], -1.0);
+
+	//}
 
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
@@ -68,7 +133,6 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 		}
 
 	}
-
 
 }
 

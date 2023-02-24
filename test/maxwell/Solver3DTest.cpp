@@ -133,7 +133,7 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
 	probes,
 	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(5e-4)
+		.setTimeStep(1e-4)
 		.setCentered()
 		.setFinalTime(1.0)
 		.setOrder(3)

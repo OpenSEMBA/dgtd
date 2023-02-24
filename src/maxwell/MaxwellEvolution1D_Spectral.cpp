@@ -1,4 +1,6 @@
 #include "MaxwellEvolution1D_Spectral.h"
+#include <Eigen/Sparse>
+#include <unsupported/Eigen/SparseExtra>
 
 namespace maxwell {
 
@@ -77,6 +79,12 @@ void checkEigenvalues(const Eigen::VectorXcd eigvals)
 	}
 }
 
+void exportSparseToMarketFile(const Eigen::MatrixXd& mat)
+{
+	Eigen::SparseMatrix<double> sparse = mat.sparseView();
+	Eigen::saveMarket(sparse, "SparseMatrix.mtx");
+}
+
 MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
@@ -123,6 +131,7 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 
 	calculateEigenvalues(global_, eigenvals_);
 	checkEigenvalues(eigenvals_);
+	exportSparseToMarketFile(global_);
 
 }
 

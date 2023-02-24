@@ -12,7 +12,7 @@ include_directories(
 )
 
 add_executable(third_party_soft_tests
-"GmshTest.cpp")
+"GmshTest.cpp" "EigenTest.cpp")
 
 target_link_libraries(third_party_soft_tests mfem
 	maxwell testHelpers
