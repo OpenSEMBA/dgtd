@@ -39,7 +39,14 @@ Solver::Solver(
 		}
 		break;
 	case 2:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+		switch (opts_.evolutionOperatorOptions.spectral) {
+		case true:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution2D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		default:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		}
 		break;
 	default:
 		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);

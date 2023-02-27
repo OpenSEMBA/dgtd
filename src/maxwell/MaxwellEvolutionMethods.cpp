@@ -451,27 +451,7 @@ FieldType altField(const FieldType& f)
 
 }
 
-
-void allocateDenseInEigen1D(const std::array<FiniteElementOperator, 2>& arr, Eigen::MatrixXd& res, const double sign, bool altField)
-{
-	int offset = arr[E]->SpMat().ToDenseMatrix()->Height();
-	for (int i = 0; i < arr[E]->Height(); ++i) {
-		for (int j = 0; j < arr[E]->Width(); ++j) {
-			switch (altField) {
-			case false:
-				res(i, j) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
-				res(i + offset, j + offset) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
-				break;
-			case true:
-				res(i, j + offset) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
-				res(i + offset, j) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
-				break;
-			}
-		}
-	}
-}
-
-void allocateDenseInEigen1D(const std::array<FiniteElementIBFIOperator, 2>& arr, Eigen::MatrixXd& res, const double sign, bool altField)
+void allocateDenseInEigen(const std::array<FiniteElementOperator, 2>& arr, Eigen::MatrixXd& res, const double sign, bool altField)
 {
 	int offset = arr[E]->SpMat().ToDenseMatrix()->Height();
 	for (int i = 0; i < arr[E]->Height(); ++i) {
@@ -525,6 +505,45 @@ Vector toMFEMVector(const Eigen::VectorXd& in)
 	Vector res(int(in.size()));
 	for (int i = 0; i < res.Size(); ++i) {
 		res(i) = in[i];
+	}
+	return res;
+}
+
+std::vector<int> calcOffsetCoeff(const std::vector<FieldType>& f, const std::vector<Direction>& d)
+{
+	std::vector<int> res(2);
+	if (d.size() == 1) {
+		if (f[0] == E) {
+			res[0] = d[0];
+			res[1] = d[0];
+		}
+		else {
+			res[0] = 3 + d[0];
+			res[1] = 3 + d[0];
+		}
+	}
+	else if (f[0] == f[1]) {
+		if (f[0] == E) {
+			res[0] = d[0];
+			res[1] = d[1];
+		}
+		else {
+			res[0] = 3 + d[0];
+			res[1] = 3 + d[1];
+		}
+	}
+	else if (f[0] != f[1]) {
+		if (f[0] == E) {
+			res[0] = d[0];
+			res[1] = 3 + d[1];
+		}
+		else {
+			res[0] = 3 + d[0];
+			res[1] = d[1];
+		}
+	}
+	else {
+		throw std::exception("Wrong input in method, check direction or field type vectors.");
 	}
 	return res;
 }

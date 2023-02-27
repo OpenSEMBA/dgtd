@@ -286,7 +286,43 @@ TEST_F(Solver2DTest, 2D_rotated_quadrilateral_centered_1dot5D)
 
 }
 
+TEST_F(Solver2DTest, 2D_pec_centered_1dot5D_spectral)
+{
 
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}}
+	};
+
+	probes.exporterProbes[0].visSteps = 40;
+
+	maxwell::Solver solver{
+	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setCentered()
+		.setFinalTime(2.0)
+		.setOrder(3)
+		.setSpectralEO()
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 
+	// (the wave splits in two and doubles at the boundary).
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+}
 TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 {
 	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);

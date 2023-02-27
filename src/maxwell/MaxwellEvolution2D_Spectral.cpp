@@ -13,7 +13,7 @@ MaxwellEvolution2D_Spectral::MaxwellEvolution2D_Spectral(
 	srcmngr_{ srcmngr },
 	opts_{ options }
 {
-	std::array<std::array<						FiniteElementOperator, 3>, 2> MS, MT;
+	std::array<std::array<						FiniteElementOperator, 3>, 2> MS;
 	std::array<std::array<std::array<			FiniteElementOperator, 3>, 2>, 2> MFN;
 
 	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MPNN;
@@ -31,64 +31,32 @@ MaxwellEvolution2D_Spectral::MaxwellEvolution2D_Spectral(
 		numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
 	forcing_.setZero();
 
-	for (auto f : { E, H }) {
-		if (opts_.fluxType == FluxType::Upwind) {
-			MP[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
-			MBP[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator(f, model_, fes_), fes_);
-		}
-		for (auto d : { X, Y, Z }) {
-			MS[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
-			for (auto d2 : { X,Y,Z }) {
-				for (auto f2 : { E, H }) {
-					MFN[f][f2][d]      = buildByMult    (*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_), fes_);
-					if (opts_.fluxType == FluxType::Upwind) {
-						MPNN[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, { d, d2 }, model_, fes_), fes_);
-						MBFN[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f2, { d }, model_, fes_), fes_);
-						MBPNN[f][f][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator(f, model_, fes_), fes_);
-					}
-				}
-			}
-		}
-	}
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildDerivativeOperator(Y, fes_), fes_), global_, { H,E }, { X,Z }, -1.0);
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildDerivativeOperator(X, fes_), fes_), global_, { H,E }, { Y,Z });
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildDerivativeOperator(X, fes_), fes_), global_, { E,H }, { Z,Y });
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildDerivativeOperator(Y, fes_), fes_), global_, { E,H }, { Z,X }, -1.0);
+
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(E, { Y }, model_, fes_), fes_), global_, { H,E }, { X,Z });
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(E, { X }, model_, fes_), fes_), global_, { H,E }, { Y,Z }, -1.0);
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildFluxOperator(H, { X }, model_, fes_), fes_), global_, { E,H }, { Z,Y }, -1.0);
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E,	model_, fes_), *buildFluxOperator(H, { Y }, model_, fes_), fes_), global_, { E,H }, { Z,X });
+
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyOperator(H, {}, model_, fes_, opts_), fes_), global_, { H,H }, { Y }, -1.0);
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyOperator(H, {}, model_, fes_, opts_), fes_), global_, { H,H }, { X }, -1.0);
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator(E, {}, model_, fes_, opts_), fes_), global_, { E,E }, { Z }, -1.0);
+
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { X, X }, model_, fes_), fes_), global_, { H,H }, { X,X });
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { X, Y }, model_, fes_), fes_), global_, { H,H }, { X,Y });
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { Y, X }, model_, fes_), fes_), global_, { H,H }, { Y,X });
+	allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { Y, Y }, model_, fes_), fes_), global_, { H,H }, { Y,Y });
+
 }
 
 void MaxwellEvolution2D_Spectral::Mult(const Vector& in, Vector& out) const
 {
-	std::array<Vector, 3> eOld, hOld;
-	std::array<GridFunction, 3> eNew, hNew;
-	for (int d = X; d <= Z; d++) {
-		eOld[d].SetDataAndSize(in.GetData() + d * fes_.GetNDofs(), fes_.GetNDofs());
-		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
-		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
-		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
-		eNew[d] = 0.0;
-		hNew[d] = 0.0;
-	}
-
-	//MFN_[H][E][Y]    ->AddMult(eOld[Z], hNew[X]);
-	//MS_[H][Y]        ->AddMult(eOld[Z], hNew[X], -1.0);
-
-	//MFN_[H][E][X]    ->AddMult(eOld[Z], hNew[Y], -1.0);				 
-	//MS_	[H][X]       ->AddMult(eOld[Z], hNew[Y]);
-
-	//MFN_[E][H][Y]->AddMult(hOld[X], eNew[Z]);
-	//MFN_[E][H][X]->AddMult(hOld[Y], eNew[Z], -1.0);
-
-	//MS_[E][X]	 ->AddMult(hOld[Y], eNew[Z]);
-	//MS_[E][Y]    ->AddMult(hOld[X], eNew[Z], -1.0);
-
-	//if (opts_.fluxType == FluxType::Upwind) {
-	//	MPNN_[H][H][X][X]->AddMult(hOld[X], hNew[X]);
-	//	MPNN_[H][H][Y][X]->AddMult(hOld[Y], hNew[X]);
-	//	MP_[H]->AddMult(hOld[X], hNew[X], -1.0);
-
-	//	MPNN_[H][H][X][Y]->AddMult(hOld[X], hNew[Y]);
-	//	MPNN_[H][H][Y][Y]->AddMult(hOld[Y], hNew[Y]);
-	//	MP_[H]->AddMult(hOld[Y], hNew[Y], -1.0);
-
-	//	MP_[E]->AddMult(eOld[Z], eNew[Z], -1.0);
-	//}
-
+	Eigen::VectorXd fieldsOld{ toEigenVector(in) };
+	Eigen::VectorXd fieldsNew{ global_ * fieldsOld };
+	out = toMFEMVector(fieldsNew);
 }
 
 }

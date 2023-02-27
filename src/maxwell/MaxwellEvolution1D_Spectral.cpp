@@ -30,11 +30,11 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 	global_.resize(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs(),
 				   numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
 	global_.setZero();
-	allocateDenseInEigen1D(MS, global_, -1.0, true);
-	allocateDenseInEigen1D(MF, global_,  1.0, true);
+	allocateDenseInEigen1D<FiniteElementOperator>(MS, global_, -1.0, true);
+	allocateDenseInEigen1D<FiniteElementOperator>(MF, global_,  1.0, true);
 
 	if (opts_.fluxType == FluxType::Upwind) {
-		allocateDenseInEigen1D(MP, global_, -1.0);
+		allocateDenseInEigen1D<FiniteElementOperator>(MP, global_, -1.0);
 	}
 
 	forcing_.resize(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs(),
@@ -43,9 +43,9 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<PlaneWave*>(source.get())) {
-			allocateDenseInEigen1D(MBF, forcing_);
+			allocateDenseInEigen1D<FiniteElementIBFIOperator>(MBF, forcing_);
 			if (opts_.fluxType == FluxType::Upwind) {
-				allocateDenseInEigen1D(MBP, forcing_);
+				allocateDenseInEigen1D<FiniteElementIBFIOperator>(MBP, forcing_);
 			}
 		}
 	}
