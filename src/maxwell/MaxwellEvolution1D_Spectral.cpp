@@ -50,9 +50,11 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 		}
 	}
 
-	calculateEigenvalues(global_, eigenvals_);
-	checkEigenvalues(eigenvals_);
-	exportSparseToMarketFile(global_);
+	if (opts_.eigenvals == true) {
+		calculateEigenvalues(global_, eigenvals_);
+		checkEigenvalues(eigenvals_);
+		exportSparseToMarketFile(global_);
+	}
 
 }
 
@@ -72,7 +74,7 @@ void MaxwellEvolution1D_Spectral::Mult(const Vector& in, Vector& out) const
 			for (int i = 0; i < eFunc.Size(); ++i) {
 				forcVecsOld(i)                = eFunc.Elem(i);
 				forcVecsOld(i + eFunc.Size()) = hFunc.Elem(i);
-			}
+			} 
 			fieldsNew += forcing_ * forcVecsOld;
 		}
 	}

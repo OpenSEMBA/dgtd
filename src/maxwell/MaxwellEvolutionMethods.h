@@ -50,6 +50,7 @@ namespace maxwell {
 	FieldType altField(const FieldType& f);
 
 	void calculateEigenvalues(const Eigen::MatrixXd&, Eigen::VectorXcd&);
+	void calculateEigenvalues(const Eigen::SparseMatrix<double>&, Eigen::VectorXcd&);
 	void checkEigenvalues(const Eigen::VectorXcd&);
 	void exportSparseToMarketFile(const Eigen::MatrixXd&);
 
@@ -78,23 +79,6 @@ void allocateDenseInEigen1D(const std::array<T, 2>& arr, Eigen::MatrixXd& res, c
 	}
 }
 
-
-template <class T>
-void allocateDenseInEigen(const std::unique_ptr<T>& bilForm, Eigen::MatrixXd& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign = 1.0)
-{
-	FiniteElementOperator F;
-	bilForm->SpMat().ToDenseMatrix()->Print(std::cout);
-	std::cout << "AAAAAAAAAAAAAAA" << std::endl;
-	int offset = bilForm->SpMat().ToDenseMatrix()->Height();
-	std::vector<int> offsetCoeff{ calcOffsetCoeff(f,d) };
-
-	for (int i = 0; i < bilForm->SpMat().ToDenseMatrix()->Height(); ++i) {
-		for (int j = 0; j < bilForm->SpMat().ToDenseMatrix()->Width(); ++j) {
-			if (bilForm->SpMat().ToDenseMatrix()->Elem(i, j) != 0.0) {
-				res(i + offset * offsetCoeff[0], j + offset * offsetCoeff[1]) += sign * bilForm->SpMat().ToDenseMatrix()->Elem(i, j);
-			}
-		}
-	}
-}
+void allocateDenseInEigen(DenseMatrix* bilForm, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign = 1.0);
 
 }

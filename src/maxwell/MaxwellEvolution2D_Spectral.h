@@ -20,8 +20,8 @@ public:
 
 private:
 
-	Eigen::MatrixXd global_;
-	Eigen::MatrixXd forcing_;
+	Eigen::SparseMatrix<double> global_;
+	Eigen::SparseMatrix<double> forcing_;
 	Eigen::VectorXcd eigenvals_;
 
 	mfem::FiniteElementSpace& fes_;

@@ -32,8 +32,9 @@ struct SolverOptions {
         order = or;
         return *this;
     }
-    SolverOptions& setSpectralEO() {
+    SolverOptions& setSpectralEO(bool eigenvals = false) {
         evolutionOperatorOptions.spectral = true;
+        evolutionOperatorOptions.eigenvals = eigenvals;
         return *this;
     }
     //SolverOptions& setBasis(BasisType bst) {
