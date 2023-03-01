@@ -1,5 +1,8 @@
 #include "gtest/gtest.h"
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 #include "GlobalFunctions.h"
 #include <vector>
 #include <mfem.hpp>
@@ -127,15 +130,6 @@ TEST_F(GridFunctionTest, DISABLED_DoFFinder1D)
 	GridFunction positions(fes_.get());
 	mesh_.GetNodes(positions);
 
-
-
-
-
-
-
-
-
-
 }
 
 TEST_F(GridFunctionTest, GetValuesAtPoints1D)
@@ -243,7 +237,6 @@ TEST_F(GridFunctionTest, TimeDependentGridFunction)
 	}
 	EXPECT_EQ(5.0, f[0]);
 }
-	
 TEST_F(GridFunctionTest, ProjectBdrFunction)
 {
 	const auto order{ 1 };
@@ -262,4 +255,53 @@ TEST_F(GridFunctionTest, ProjectBdrFunction)
 	EXPECT_EQ(0.0, f[0]);
 	EXPECT_EQ(2.0, f[2]);
 }
+
+double GaussianFunction(Vector& pos, double time) {
+	return 1.0 *
+		exp(
+			-pow(pos[0] - 3.5, 2) /
+			(2.0 * pow(0.2, 2))
+		);
+}
+
+double RotatedGaussianFunction(Vector& pos, double time) {
+	return 1.0 *
+		exp(
+			-pow(pos[0] - (3.5 * cos(-M_PI/4.0)) + pos[1] - (3.5 * -sin(-M_PI/4.0)), 2.0) /
+			(2.0 * pow(0.2, 2.0))
+		);
+}
+
+TEST_F(GridFunctionTest, ProjectFunctionOnMeshes)
+{
+	int order{ 4 };
+	//Mesh mesh{ Mesh::MakeCartesian2D(7,1,Element::QUADRILATERAL,1,7.0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/severalrotatedquadsnormalised.mesh",1,0) };
+	DG_FECollection fec{ order,2,BasisType::GaussLobatto };
+	FiniteElementSpace fes{ &mesh, &fec };
+
+	GridFunction proj{ &fes };
+	//FunctionCoefficient Gaussian(GaussianFunction);
+	//proj.ProjectCoefficient(Gaussian);
+	FunctionCoefficient RotatedGaussian(RotatedGaussianFunction);
+	proj.ProjectCoefficient(RotatedGaussian);
+
+	auto pd{ new ParaViewDataCollection("ProjectFunctionOnMeshes", &mesh) };
+	pd->SetPrefixPath("ParaView");
+	pd->RegisterField("solution", &proj);
+	pd->SetLevelsOfDetail(order);
+	pd->SetDataFormat(VTKFormat::BINARY);
+	pd->SetHighOrderOutput(true);
+	pd->SetCycle(0);
+	pd->SetTime(0.0);
+	pd->Save();
+
+
+}
+
+
+
+
+
+
 

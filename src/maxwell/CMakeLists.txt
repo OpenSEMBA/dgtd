@@ -7,8 +7,6 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(mfem CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
-add_subdirectory(EvolutionOperators)
-
 add_library(maxwell STATIC 
 	"Solver.cpp" 
 	"Material.cpp"
@@ -25,6 +23,8 @@ add_library(maxwell STATIC
 	"mfemExtension/LinearForm_IBFI.cpp" 
 	"mfemExtension/BilinearIntegrators.cpp"
 	"mfemExtension/LinearIntegrators.cpp" 
-	"mfemExtension/IntegratorFunctions.cpp")
+	"mfemExtension/IntegratorFunctions.cpp" 
+	"MaxwellEvolution1D_Spectral.cpp"
+	"MaxwellEvolution2D_Spectral.cpp")
 
-target_link_libraries(maxwell mfem Eigen3::Eigen EvolutionOP)
+target_link_libraries(maxwell mfem Eigen3::Eigen)

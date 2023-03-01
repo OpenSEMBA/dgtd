@@ -29,10 +29,24 @@ Solver::Solver(
 	sourcesManager_.setInitialFields(fields_);
 	switch (fes_.GetMesh()->Dimension()) {
 	case 1:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+		switch (opts_.evolutionOperatorOptions.spectral) {
+		case true:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution1D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		default:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		}
 		break;
 	case 2:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+		switch (opts_.evolutionOperatorOptions.spectral) {
+		case true:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution2D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		default:
+			maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			break;
+		}
 		break;
 	default:
 		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
@@ -62,7 +76,7 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 
 	if (opts.dt == 0.0) {
 		if (fes_.GetMesh()->Dimension() > 1) {
-			throw std::exception("Automatic LTS calculation not implemented yet for Dimensions higher than 1.");
+			throw std::exception("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
 		}
 	}
 

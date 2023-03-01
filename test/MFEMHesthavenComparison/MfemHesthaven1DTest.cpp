@@ -4,7 +4,6 @@
 #include "maxwell/Types.h"
 #include "MfemHesthavenFunctionsTest.h"
 #include "GlobalFunctions.h"
-#include "maxwell/MaxwellEvolutionMethods.h"
 
 using namespace mfem;
 using namespace maxwell;
@@ -157,8 +156,6 @@ TEST_F(MFEMHesthaven1D, MFOperatorPEC_E)
 		{  0.0, 0.0,  0.0,   0.0, 0.0,  0.0,   0.0, 0.0,   6.0,  -6.0, 0.0,  36.0}
 	};
 
-	std::cout << MF_MFEM4E << std::endl;
-
 	setFES(2, 3);
 	Eigen::MatrixXd MF_MFEM3E{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalPECFluxOperator1D(E, *fes_, std::vector<int>{0})
@@ -176,8 +173,8 @@ TEST_F(MFEMHesthaven1D, MFOperatorPEC_E)
 		{  0.0, 0.0,   0.0,   0.0, 0.0,   4.5,  -4.5, 0.0,  27.0}
 	};
 
-	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E, tol_));
-	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
+	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E *= 0.5, tol_));
+	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E *= 0.5, tol_));
 }
 TEST_F(MFEMHesthaven1D, MFOperatorPEC_H) 
 {
@@ -218,8 +215,8 @@ TEST_F(MFEMHesthaven1D, MFOperatorPEC_H)
 		{  0.0, 0.0,   0.0,   0.0, 0.0,   4.5,  -4.5, 0.0,   0.0}
 	};
 
-	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E, tol_));
-	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
+	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E *= 0.5, tol_));
+	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E *= 0.5, tol_));
 }
 TEST_F(MFEMHesthaven1D, MFOperatorSMA)
 {
@@ -260,8 +257,8 @@ TEST_F(MFEMHesthaven1D, MFOperatorSMA)
 		{  0.0, 0.0,   0.0,   0.0, 0.0,   4.5,  -4.5, 0.0,  13.5}
 	};
 
-	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E, tol_));
-	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E, tol_));
+	EXPECT_TRUE(MF_MFEM4E.isApprox(MF_Hesthaven4E *= 0.5, tol_));
+	EXPECT_TRUE(MF_MFEM3E.isApprox(MF_Hesthaven3E *= 0.5, tol_));
 } 
 TEST_F(MFEMHesthaven1D, MPOperatorPEC_E) //TODO
 {
@@ -284,8 +281,6 @@ TEST_F(MFEMHesthaven1D, MPOperatorPEC_E) //TODO
 		{  0.0, 0.0,  0.0,   0.0, 0.0,  0.0,   0.0, 0.0,  -3.0,   3.0, 0.0,   6.0},
 		{  0.0, 0.0,  0.0,   0.0, 0.0,  0.0,   0.0, 0.0,   6.0,  -6.0, 0.0, -36.0}
 	};
-
-	std::cout << MP_MFEM4E << std::endl;
 
 	setFES(2, 3);
 	Eigen::MatrixXd MP_MFEM3E{

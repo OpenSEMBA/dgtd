@@ -42,17 +42,6 @@ std::unique_ptr<DenseMatrix> toUnique(DenseMatrix* matPtr)
 	return std::make_unique<DenseMatrix>(*matPtr);
 }
 
-Eigen::MatrixXd toEigen(const DenseMatrix& mat)
-{
-	Eigen::MatrixXd res(mat.Width(), mat.Height());
-	for (int i = 0; i < mat.Width(); i++) {
-		for (int j = 0; j < mat.Height(); j++) {
-			res(i, j) = mat.Elem(i, j);
-		}
-	}
-	return res;
-}
-
 Eigen::MatrixXd buildMassMatrixEigen(FiniteElementSpace& fes)
 {
 	ConstantCoefficient one(1.0);

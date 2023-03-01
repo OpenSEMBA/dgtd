@@ -413,7 +413,7 @@ TEST_F(FiniteElementSpaceTest, calculateMinimumDistanceBetweenNodes1D)
 
 }
 
-TEST_F(FiniteElementSpaceTest, calculateOptimalLTS1D)
+TEST_F(FiniteElementSpaceTest, calculateOptimalTS1D)
 {
 
 	int dim{ 1 }, order{ 2 };

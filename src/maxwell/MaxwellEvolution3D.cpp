@@ -25,7 +25,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 			}
 		}
 	}
-}
+ }
 
 void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 {
@@ -68,7 +68,6 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 		}
 
 	}
-
 
 }
 

@@ -5,15 +5,6 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
-Vector copyDataFromLFToVector(const LinearFormIBFI* lf)
-{
-	Vector res{ lf->Size() };
-	for (int i = 0; i < lf->Size(); ++i) {
-		res[i] = lf->Elem(i);
-	}
-	return res;
-}
-
 MaxwellEvolution1D::MaxwellEvolution1D(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
@@ -24,16 +15,14 @@ MaxwellEvolution1D::MaxwellEvolution1D(
 {
 	for (auto f : {E, H}) {
 		const auto f2{ altField(f) };
-		MS_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_),  *buildDerivativeOperator(X, fes_), fes_);
-		MF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_),  *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
-		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_),  *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
-		MBF_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_);
-		MBP_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator1D(model_, fes_), fes_);
+		MS_[f] = buildByMult		 (*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
+		MF_[f] = buildByMult		 (*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
+		MBF_[f] = buildIBFIByMult	 (*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_);
+		if (opts_.fluxType == FluxType::Upwind) {
+			MP_[f] = buildByMult	 (*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
+			MBP_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator1D(model_, fes_), fes_);
+		}
 	}
-	MBF_[E]->SpMat().Print(std::cout);
-	std::cout << "aaaa" << std::endl;
-	MBP_[E]->SpMat().Print(std::cout);
-	std::cout << "aaaa" << std::endl;
 }
 
 void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const

@@ -14,7 +14,7 @@ add_executable(mfem_tests
 	"FiniteElementSpaceTest.cpp"
 	"MeshTest.cpp" 
 	"GridFunctionTest.cpp"
-)
+	"AlgebraTest.cpp")
 
 target_link_libraries(mfem_tests 
 	mfem 
