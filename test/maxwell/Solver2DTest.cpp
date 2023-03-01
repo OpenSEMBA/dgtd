@@ -298,7 +298,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D_spectral)
 	probes.exporterProbes[0].visSteps = 40;
 
 	maxwell::Solver solver{
-	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
+	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
 	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
@@ -306,7 +306,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D_spectral)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
-		.setSpectralEO()
+		.setSpectralEO(true)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -336,14 +336,14 @@ TEST_F(Solver2DTest, 2D_pec_upwind_1dot5D_spectral)
 	probes.exporterProbes[0].visSteps = 40;
 
 	maxwell::Solver solver{
-	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
+	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
 	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
 		.setOrder(3)
-		.setSpectralEO(true)
+		.setSpectralEO()
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };

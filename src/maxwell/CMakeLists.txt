@@ -25,6 +25,6 @@ add_library(maxwell STATIC
 	"mfemExtension/LinearIntegrators.cpp" 
 	"mfemExtension/IntegratorFunctions.cpp" 
 	"MaxwellEvolution1D_Spectral.cpp"
-	"MaxwellEvolution2D_Spectral.cpp")
+	"MaxwellEvolution2D_Spectral.cpp" "MaxwellEvolution3D_Spectral.cpp" "MaxwellEvolution3D_Spectral.h")
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)

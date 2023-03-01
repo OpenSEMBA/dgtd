@@ -37,8 +37,8 @@ MaxwellEvolution2D_Spectral::MaxwellEvolution2D_Spectral(
 		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator(E, {}, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { Z }, -1.0);
 
 		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { X, X }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { X,X }); //MPNN
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { X, Y }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { Y,X });
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { Y, X }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { X,Y });
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { X, Y }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { X,Y });
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { Y, X }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { Y,X });
 		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { Y, Y }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { Y,Y });
 	
 	}
@@ -46,6 +46,9 @@ MaxwellEvolution2D_Spectral::MaxwellEvolution2D_Spectral(
 	if (opts_.eigenvals == true) {
 		calculateEigenvalues(global_, eigenvals_);
 		checkEigenvalues(eigenvals_);
+	}
+
+	if (opts_.marketFile == true) {
 		exportSparseToMarketFile(global_);
 	}
 }

@@ -47,13 +47,13 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 		//Centered
 		MS_[H][y]		 ->AddMult(eOld[z], hNew[x], -1.0);
 		MS_[H][z]		 ->AddMult(eOld[y], hNew[x]);
-		MFN_[H][E][y]  	 ->AddMult(eOld[z], hNew[x], 1.0);
-		MFN_[H][E][z]	 ->AddMult(eOld[y], hNew[x], -1.0);
-		
 		MS_[E][y]		 ->AddMult(hOld[z], eNew[x]);
 		MS_[E][z]		 ->AddMult(hOld[y], eNew[x], -1.0);
+		
+		MFN_[H][E][y]  	 ->AddMult(eOld[z], hNew[x]);
+		MFN_[H][E][z]	 ->AddMult(eOld[y], hNew[x], -1.0);
 		MFN_[E][H][y]  	 ->AddMult(hOld[z], eNew[x], -1.0);
-		MFN_[E][H][z]	 ->AddMult(hOld[y], eNew[x], 1.0);
+		MFN_[E][H][z]	 ->AddMult(hOld[y], eNew[x]);
 
 		if (opts_.fluxType == FluxType::Upwind) {
 			MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], 1.0);
