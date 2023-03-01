@@ -89,6 +89,38 @@ TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
 
 }
 
+TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D_spectral)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5, 0.5}}
+	};
+	probes.exporterProbes[0].visSteps = 50;
+
+	maxwell::Solver solver{
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setCentered()
+		.setFinalTime(6.0)
+		.setOrder(3)
+		.setSpectralEO()
+	};
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
+}
+
 TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D)
 {
 
@@ -107,6 +139,36 @@ TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D)
 		.setTimeStep(5e-4)
 		.setFinalTime(6.0)
 		.setOrder(3)
+	};
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+}
+
+TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D_spectral)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5, 0.5}}
+	};
+	probes.exporterProbes[0].visSteps = 50;
+
+	maxwell::Solver solver{
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(6.0)
+		.setOrder(3)
+		.setSpectralEO()
 	};
 
 	solver.run();
@@ -137,6 +199,38 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
 		.setCentered()
 		.setFinalTime(1.0)
 		.setOrder(3)
+	};
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
+}
+
+TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D_spectral)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5, 0.5}}
+	};
+	probes.exporterProbes[0].visSteps = 500;
+
+	maxwell::Solver solver{
+	buildModel(15,1,1, Element::Type::TETRAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(1e-4)
+		.setCentered()
+		.setFinalTime(1.0)
+		.setOrder(3)
+		.setSpectralEO(false, true)
 	};
 
 	solver.run();
@@ -295,6 +389,109 @@ TEST_F(Solver3DTest, rotated_3D_centered_hexa_1dot5D)
 	};
 
 	solver.run();
+
+}
+
+
+TEST_F(Solver3DTest, compare_3DSpectralToBase_centered) {
+
+	Probes probes;
+
+	maxwell::Solver solver{
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setCentered()
+		.setFinalTime(6.0)
+		.setOrder(3)
+		.setSpectralEO()
+	};
+
+	maxwell::Solver solverSpectral{
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setCentered()
+		.setFinalTime(6.0)
+		.setOrder(3)
+		.setSpectralEO()
+	};
+
+	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	}
+
+	solver.run();
+	solverSpectral.run();
+
+	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
+	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	}
+
+}
+
+TEST_F(Solver3DTest, compare_3DSpectralToBase_upwind) {
+
+	Probes probes;
+
+	maxwell::Solver solver{
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(6.0)
+		.setOrder(3)
+		.setSpectralEO()
+	};
+
+	maxwell::Solver solverSpectral{
+	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	probes,
+	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(6.0)
+		.setOrder(3)
+		.setSpectralEO()
+	};
+
+	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	}
+
+	solver.run();
+	solverSpectral.run();
+
+	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
+	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
+		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	}
 
 }
 

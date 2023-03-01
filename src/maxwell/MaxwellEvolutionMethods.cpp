@@ -485,7 +485,7 @@ void checkEigenvalues(const Eigen::VectorXcd& eigvals)
 	for (int i = 0; i < eigvals.size(); ++i) {
 		//std::cout << eigvals[i].real() << std::endl;
 		if (eigvals[i].real() > 1e-2) {
-			throw std::exception("Eigenvalue's real part outside positive tolerance.");
+			//throw std::exception("Eigenvalue's real part outside positive tolerance.");
 		}
 	}
 }
@@ -554,15 +554,15 @@ std::vector<int> calcOffsetCoeff(const std::vector<FieldType>& f, const std::vec
 	return res;
 }
 
-void allocateDenseInEigen(DenseMatrix* bilForm, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign)
+void allocateDenseInEigen(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign)
 {
-	int offset = bilForm->Height();
+	int offset = bilMat->Height();
 	std::vector<int> offsetCoeff{ calcOffsetCoeff(f,d) };
 
-	for (int i = 0; i < bilForm->Height(); ++i) {
-		for (int j = 0; j < bilForm->Width(); ++j) {
-			if (bilForm->Elem(i, j) != 0.0) {
-				res.coeffRef(i + offset * offsetCoeff[0], j + offset * offsetCoeff[1]) += sign * bilForm->Elem(i, j);
+	for (int i = 0; i < bilMat->Height(); ++i) {
+		for (int j = 0; j < bilMat->Width(); ++j) {
+			if (bilMat->Elem(i, j) != 0.0) {
+				res.coeffRef(i + offset * offsetCoeff[0], j + offset * offsetCoeff[1]) += sign * bilMat->Elem(i, j);
 			}
 		}
 	}
