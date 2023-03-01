@@ -48,6 +48,11 @@ MaxwellEvolution2D_Spectral::MaxwellEvolution2D_Spectral(
 		checkEigenvalues(eigenvals_);
 	}
 
+	if (opts_.powerMethod != 0)
+	{
+		pmEigenvalue_ = usePowerMethod(global_, opts_.powerMethod);
+	}
+
 	if (opts_.marketFile == true) {
 		exportSparseToMarketFile(global_);
 	}

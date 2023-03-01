@@ -44,6 +44,7 @@ struct MaxwellEvolOptions {
 	bool spectral{ false };
 	bool eigenvals{ false };
 	bool marketFile{ false };
+	int powerMethod{ 0 };
 };
 
 

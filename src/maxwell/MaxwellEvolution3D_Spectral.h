@@ -23,6 +23,7 @@ private:
 	Eigen::SparseMatrix<double> global_;
 	Eigen::SparseMatrix<double> forcing_;
 	Eigen::VectorXcd eigenvals_;
+	double pmEigenvalue_;
 
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;

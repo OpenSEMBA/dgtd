@@ -6,6 +6,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
+#include <Eigen/Sparse>
 
 #include <math.h>
 
@@ -51,4 +52,32 @@ TEST_F(AlgebraTest, calcComplexEigenvalues)
 
 	EXPECT_EQ(matrix.eigenvalues(), expectedEVs);
 
+}
+
+TEST_F(AlgebraTest, checkSparseMatrixVectorProduct)
+{
+	int a{ 4 }, b{ 4 };
+	Eigen::SparseMatrix<double> sparse(a,b);
+	sparse.insert(0, 0) = 1.0;
+	sparse.insert(1, 0) = 2.0;
+	sparse.insert(0, 2) = 3.0;
+	sparse.insert(2, 3) = 4.0;
+	sparse.makeCompressed();
+	int c = 0;
+	Eigen::Vector4d vec({ 1.0,1.0,1.0,1.0 });
+	EXPECT_NO_THROW( sparse * vec );
+}
+
+TEST_F(AlgebraTest, checkEigenMatrixVectorProduct)
+{
+	int a{ 2 }, b{ 2 };
+	Eigen::SparseMatrix<double> sparse(a, b);
+	sparse.insert(0, 0) = 2;
+	sparse.insert(0, 1) = -12;
+	sparse.insert(1, 0) = 1;
+	sparse.insert(1, 1) = -5;
+	Eigen::VectorXd it(2);
+	it[0] = 1;
+	it[1] = 1;
+	auto product = sparse * it;
 }

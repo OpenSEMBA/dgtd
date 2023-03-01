@@ -306,7 +306,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D_spectral)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
-		.setSpectralEO(true)
+		.setSpectralEO()
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };

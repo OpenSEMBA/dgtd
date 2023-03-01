@@ -14,38 +14,31 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 	srcmngr_{ srcmngr },
 	opts_{ options }
 {
-	std::array<FiniteElementOperator, 2> MS, MF, MP;
-	std::array<FiniteElementIBFIOperator, 2> MBF, MBP;
-	for (auto f : {E, H}) {
-		const auto f2{ altField(f) };
-		MS[f] = buildByMult		 (*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(X, fes_), fes_);
-		MF[f] = buildByMult		 (*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator1D(f2, {X}, model_, fes_), fes_);
-		MBF[f] = buildIBFIByMult	 (*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_);
-		if (opts_.fluxType == FluxType::Upwind) {
-			MP[f] = buildByMult	 (*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator1D(f, {}, model_, fes_, opts_), fes_);
-			MBP[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator1D(model_, fes_), fes_);
-		}
-	}
 
 	global_.resize(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs(),
 				   numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
-	global_.setZero();
-	allocateDenseInEigen1D<FiniteElementOperator>(MS, global_, -1.0, true);
-	allocateDenseInEigen1D<FiniteElementOperator>(MF, global_,  1.0, true);
+
+	allocateDenseInEigen1D(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildDerivativeOperator(X, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,E }, -1.0); // MS
+	allocateDenseInEigen1D(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildDerivativeOperator(X, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { E,H }, -1.0);
+
+	allocateDenseInEigen1D(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(E, { X }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,E }); // MF
+	allocateDenseInEigen1D(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildFluxOperator(H, { X }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { E,H });
 
 	if (opts_.fluxType == FluxType::Upwind) {
-		allocateDenseInEigen1D<FiniteElementOperator>(MP, global_, -1.0);
+		allocateDenseInEigen1D(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyOperator(H, {}, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, -1.0); //MP
+		allocateDenseInEigen1D(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator(E, {}, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, -1.0);
 	}
 
 	forcing_.resize(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs(),
 		numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
-	forcing_.setZero();
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<PlaneWave*>(source.get())) {
-			allocateDenseInEigen1D<FiniteElementIBFIOperator>(MBF, forcing_);
+			allocateDenseInEigen1D(buildIBFIByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_)->SpMat().ToDenseMatrix(), forcing_, { H,H }); //MBF
+			allocateDenseInEigen1D(buildIBFIByMult(*buildInverseMassMatrix(E, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_)->SpMat().ToDenseMatrix(), forcing_, { E,E });
 			if (opts_.fluxType == FluxType::Upwind) {
-				allocateDenseInEigen1D<FiniteElementIBFIOperator>(MBP, forcing_);
+				allocateDenseInEigen1D(buildIBFIByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyFunctionOperator1D(model_, fes_), fes_)->SpMat().ToDenseMatrix(), forcing_, { H,H }); //MBP
+				allocateDenseInEigen1D(buildIBFIByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyFunctionOperator1D(model_, fes_), fes_)->SpMat().ToDenseMatrix(), forcing_, { E,E });
 			}
 		}
 	}
@@ -53,6 +46,14 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 	if (opts_.eigenvals == true) {
 		calculateEigenvalues(global_, eigenvals_);
 		checkEigenvalues(eigenvals_);
+	}
+
+	if (opts_.powerMethod != 0)
+	{
+		pmEigenvalue_ = usePowerMethod(global_, opts_.powerMethod);
+	}
+
+	if (opts_.marketFile == true) {
 		exportSparseToMarketFile(global_);
 	}
 

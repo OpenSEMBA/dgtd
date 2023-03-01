@@ -32,9 +32,10 @@ struct SolverOptions {
         order = or;
         return *this;
     }
-    SolverOptions& setSpectralEO(bool eigenvals = false, bool marketFile = false) {
+    SolverOptions& setSpectralEO(bool eigenvals = false, int pwrMethodIt = 0, bool marketFile = false) {
         evolutionOperatorOptions.spectral = true;
         evolutionOperatorOptions.eigenvals = eigenvals;
+        evolutionOperatorOptions.powerMethod = pwrMethodIt;
         evolutionOperatorOptions.marketFile = marketFile;
         return *this;
     }

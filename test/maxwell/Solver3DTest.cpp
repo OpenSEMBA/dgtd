@@ -230,7 +230,7 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D_spectral)
 		.setCentered()
 		.setFinalTime(1.0)
 		.setOrder(3)
-		.setSpectralEO(false, true)
+		.setSpectralEO(false, 0, true)
 	};
 
 	solver.run();
