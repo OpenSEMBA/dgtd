@@ -5,6 +5,7 @@ ParaView/
 *.csv
 *.gf
 mesh.mesh
+*.mtx
 
 # Prerequisites
 *.d
