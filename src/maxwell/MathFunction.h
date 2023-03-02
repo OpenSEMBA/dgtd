@@ -16,20 +16,20 @@ public:
 
 	virtual double eval(const mfem::Vector&, double time = 0.0) const = 0;
 	
-	virtual int dimension() = 0;
+	virtual int dimension() const = 0;
+
 };
 
 class Gaussian : public MathFunction {
 public:
-	Gaussian(double spatialSpread, double normalization, const mfem::Vector& center) :
+	Gaussian(double spatialSpread, int dim) :
 		spatialSpread_{ spatialSpread },
-		normalization_{ normalization },
-		center_{ center }
+		dimension_{ dim }
 	{}
 
 	int dimension() const 
 	{ 
-		return center_.Size(); 
+		return dimension_; 
 	}
 
 	std::unique_ptr<MathFunction> clone() const {
@@ -38,27 +38,24 @@ public:
 
 	double eval(const mfem::Vector& pos, double time = 0.0) const 
 	{
-		assert(center_.Size() <= pos.Size());
-		switch (center_.Size()) {
+		assert(dimension_ <= pos.Size());
+		switch (dimension_) {
 		case 1:
-			return normalization_* 
-				exp(
-					-pow(pos[X] - center_[X], 2) /
+			return 	exp(
+					-pow(pos[X], 2) /
 					(2.0 * pow(spatialSpread_, 2))
 				);
 		case 2:
-			return normalization_ * 
-				exp(
-					-(pow(pos[X] - center_[X], 2.0) 
-					+ pow(pos[Y] - center_[Y], 2.0)) /
+			return 	exp(
+					-(pow(pos[X], 2.0) 
+					+ pow(pos[Y], 2.0)) /
 					(2.0 * pow(spatialSpread_, 2.0))
 				);
 		case 3:
-			return normalization_ * 
-				exp(
-					-(pow(pos[X] - center_[X], 2.0)
-					+ pow(pos[Y] - center_[Y], 2.0)
-					+ pow(pos[Z] - center_[Z], 2.0)) /
+			return exp(
+					-(pow(pos[X], 2.0)
+					+ pow(pos[Y], 2.0)
+					+ pow(pos[Z], 2.0)) /
 					(2.0 * pow(spatialSpread_, 2.0))
 				);
 		default:
@@ -68,8 +65,7 @@ public:
 
 private:
 	double spatialSpread_{ 2.0 };
-	double normalization_{ 1.0 };
-	mfem::Vector center_;
+	int dimension_;
 };
 
 class TimeGaussian : public MathFunction {
@@ -80,6 +76,8 @@ public:
 		normalization_{ normalization },
 		delay_{ delay }
 	{}
+
+	int dimension() const { return dimension_; }
 
 	std::unique_ptr<MathFunction> clone() const {
 		return std::make_unique<TimeGaussian>(*this);
@@ -129,6 +127,8 @@ public:
 		dimension_{ dimension },
 		modes_{ modes }
 	{}
+
+	int dimension() const { return dimension_; }
 
 	std::unique_ptr<MathFunction> clone() const {
 		return std::make_unique<SinusoidalMode>(*this);
