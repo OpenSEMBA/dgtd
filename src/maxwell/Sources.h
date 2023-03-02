@@ -11,6 +11,7 @@ class Source {
 public:
 	using Position = mfem::Vector;
 	using Time = double;
+	using Polarization = std::array<double, 3>;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
@@ -21,15 +22,16 @@ public:
 
 class InitialField : public Source {
 public:
-	InitialField(const MathFunction& f, const FieldType& fT, const Direction& d);
-	InitialField(const InitialField& rhs);
+	InitialField(const MathFunction&, const FieldType&, const Polarization&, const Position& center);
+	InitialField(const InitialField&);
 
 	std::unique_ptr<Source> clone() const;
 
 	double eval(const Position&, Time) const;
 
 	FieldType fieldType{ E };
-	Direction direction{ X };
+	Polarization polarization;
+	Position center;
 
 private:
 	std::unique_ptr<MathFunction> function_;
@@ -37,14 +39,14 @@ private:
 
 class PlaneWave : public Source {
 public:
-	PlaneWave(const MathFunction& f, const Direction& d);
-	PlaneWave(const PlaneWave& rhs);
+	PlaneWave(const MathFunction&, const Polarization&);
+	PlaneWave(const PlaneWave&);
 
 	std::unique_ptr<Source> clone() const;
 
 	double eval(const Position&, Time) const;
 
-	Direction direction{ X };
+	Polarization polarization;
 
 private: 
 	std::unique_ptr<MathFunction> function_;

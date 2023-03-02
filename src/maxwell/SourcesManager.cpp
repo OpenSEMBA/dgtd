@@ -38,10 +38,16 @@ void SourcesManager::setInitialFields(Fields& fields)
             default:
                 switch (initialField->fieldType) {
                 case FieldType::E:
-                    fields.E[initialField->direction].ProjectCoefficient(FunctionCoefficient(f));
+                    for (auto x : { X, Y, Z }) {
+                        fields.E[x].ProjectCoefficient(FunctionCoefficient(f));
+                        fields.E[x] *= initialField->polarization[x];
+                    }
                     break;
                 case FieldType::H:
-                    fields.H[initialField->direction].ProjectCoefficient(FunctionCoefficient(f));
+                    for (auto x : { X, Y, Z }) {
+                        fields.H[x].ProjectCoefficient(FunctionCoefficient(f));
+                        fields.H[x] *= initialField->polarization[x];
+                    }
                     break;
                 }
                 break;

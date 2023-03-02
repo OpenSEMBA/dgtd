@@ -2,16 +2,21 @@
 
 namespace maxwell {
 
-InitialField::InitialField(const MathFunction& f, const FieldType& fT, const Direction& d) :
+InitialField::InitialField(
+	const MathFunction& f, 
+	const FieldType& fT, 
+	const Polarization& p,
+	const Position& centerIn) :
 	function_{ f.clone() },
 	fieldType{ fT },
-	direction{ d }
+	polarization{ p },
+	center{ centerIn }
 {}
 
 InitialField::InitialField(const InitialField& rhs) :
 	function_{ rhs.function_->clone() },
 	fieldType{ rhs.fieldType },
-	direction{ rhs.direction }
+	polarization{ rhs.polarization }
 {}
 
 std::unique_ptr<Source> InitialField::clone() const
@@ -24,14 +29,14 @@ double InitialField::eval(const Position& p, Time t) const
 	return function_->eval(p, t);
 }
 
-PlaneWave::PlaneWave(const MathFunction& f, const Direction& d):
+PlaneWave::PlaneWave(const MathFunction& f, const Polarization& p):
 	function_{ f.clone() },
-	direction{ d }
+	polarization{ p }
 {}
 
 PlaneWave::PlaneWave(const PlaneWave& rhs) :
 	function_{ rhs.function_->clone() },
-	direction{ rhs.direction }
+	polarization{ rhs.polarization }
 {}
 
 std::unique_ptr<Source> PlaneWave::clone() const
