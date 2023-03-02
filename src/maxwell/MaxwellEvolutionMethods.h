@@ -50,13 +50,14 @@ namespace maxwell {
 	FieldType altField(const FieldType& f);
 
 	void calculateEigenvalues(const Eigen::MatrixXd&, Eigen::VectorXcd&);
-	void calculateEigenvalues(const Eigen::SparseMatrix<double>&, Eigen::VectorXcd&);
+	void calculateEigenvalues(SparseMatrix& mat, Vector& res);
 	void checkEigenvalues(const Eigen::VectorXcd&);
 	void exportSparseToMarketFile(const Eigen::MatrixXd&);
-	double usePowerMethod(Eigen::SparseMatrix<double>&, int iterations);
+	double usePowerMethod(const Eigen::SparseMatrix<double>&, int iterations);
 
 	Eigen::VectorXd toEigenVector(const Vector&);
 	Vector toMFEMVector(const Eigen::VectorXd&);
+	SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>&);
 
 	std::vector<int> calcOffsetCoeff1D(const std::vector<FieldType>& f);
 	std::vector<int> calcOffsetCoeff(const std::vector<FieldType>&, const std::vector<Direction>&);

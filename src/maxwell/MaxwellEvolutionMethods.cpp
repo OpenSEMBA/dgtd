@@ -475,9 +475,11 @@ void calculateEigenvalues(const Eigen::MatrixXd& mat, Eigen::VectorXcd& res)
 	res = mat.eigenvalues();
 }
 
-void calculateEigenvalues(const Eigen::SparseMatrix<double>& mat, Eigen::VectorXcd& res)
+void calculateEigenvalues(SparseMatrix& mat, Vector& res)
 {
-	res = mat.toDense().eigenvalues();
+	auto denseMat{ mat.ToDenseMatrix() };
+	denseMat->Finalize(1);
+	denseMat->Eigenvalues(res);
 }
 
 void checkEigenvalues(const Eigen::VectorXcd& eigvals)
@@ -611,7 +613,7 @@ void allocateDenseInEigen(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res,
 	}
 }
 
-SparseMatrix toMFEMSparse(Eigen::SparseMatrix<double>& sp)
+SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>& sp)
 {
 	SparseMatrix res(int(sp.rows()), int(sp.cols()));
 	for (int k = 0; k < sp.outerSize(); ++k)
@@ -619,14 +621,14 @@ SparseMatrix toMFEMSparse(Eigen::SparseMatrix<double>& sp)
 		{
 			res.Set(int(it.row()), int(it.col()), it.value());
 		}
+	res.Finalize();
 	return res;
 }
 
-double usePowerMethod(Eigen::SparseMatrix<double>& global, int iterations)
+double usePowerMethod(const Eigen::SparseMatrix<double>& global, int iterations)
 {
 	auto spMat{ toMFEMSparse(global) };
 	Vector itVec(int(global.cols()));
-	itVec.Randomize();
 	PowerMethod pwrMtd;
 	return pwrMtd.EstimateLargestEigenvalue(toMFEMSparse(global), itVec, iterations);
 }

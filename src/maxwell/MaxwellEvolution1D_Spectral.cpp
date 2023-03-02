@@ -44,13 +44,16 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 	}
 
 	if (opts_.eigenvals == true) {
-		calculateEigenvalues(global_, eigenvals_);
-		checkEigenvalues(eigenvals_);
+		SparseMatrix mat{ toMFEMSparse(global_) };
+		calculateEigenvalues(mat, eigenvals_);
+		//checkEigenvalues(eigenvals_);
+		eigenvals_.Print(std::cout);
 	}
 
 	if (opts_.powerMethod != 0)
 	{
 		pmEigenvalue_ = usePowerMethod(global_, opts_.powerMethod);
+		std::cout << "And the powerMethoded Eigenval is..." + std::to_string(pmEigenvalue_) << std::endl;
 	}
 
 	if (opts_.marketFile == true) {
