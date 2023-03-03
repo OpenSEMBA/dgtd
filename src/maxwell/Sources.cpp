@@ -9,7 +9,7 @@ mfem::DenseMatrix getRotationMatrix(const Source::CartesianAngles& angles)
 	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisX, angles[X], 1.0, rotMat[X]);
 	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisY, angles[Y], 1.0, rotMat[Y]);
 	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisZ, angles[Z], 1.0, rotMat[Z]);
-	mfem::DenseMatrix tMat, res;
+	mfem::DenseMatrix tMat(3), res(3);
 	mfem::Mult(rotMat[X], rotMat[Y], tMat);
 	mfem::Mult(tMat     , rotMat[Z], res);
 	return res;
@@ -30,29 +30,7 @@ mfem::Vector rotateAroundAxis(
 
 	mfem::Vector res(v.Size());
 	for (auto d{ 0 }; d < v.Size(); d++) {
-		res[d] = v[d];
-	}
-	return res;
-}
-
-mfem::Vector rotateAroundZAxis(
-	const mfem::Vector& v, const double& angleRads)
-{
-	mfem::DenseMatrix rotMat;
-	double rotationAxis[3] = { 0.0, 0.0, 1.0 };
-	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxis, angleRads, 1.0, rotMat);
-
-	mfem::Vector pos3D(3), newPos3D(3);
-	pos3D = 0.0;
-	for (auto d{ 0 }; d < v.Size(); d++) {
-		pos3D[d] = v[d];
-	}
-	
-	rotMat.Mult(pos3D, newPos3D);
-
-	mfem::Vector res(v.Size());
-	for (auto d{ 0 }; d < v.Size(); d++) {
-		res[d] = v[d];
+		res[d] = newPos3D[d];
 	}
 	return res;
 }
@@ -83,30 +61,6 @@ std::unique_ptr<Source> InitialField::clone() const
 	return std::make_unique<InitialField>(*this);
 }
 
-//double InitialField::eval(const Position& p, Time t) const
-//{
-//	//if p.size() == 2 then apply 2D rotMat, else apply 3D (on Z?) Incomplete TODO
-//	assert(p.Size() == center.Size());
-//	Position pos(p.Size());
-//	for (int i{ 0 }; i < p.Size(); ++i) {
-//		pos[i] = p[i] - center[i];
-//	}
-//	if (angles[2] != 0) {
-//		auto tPos = pos;
-//		mfem::DenseMatrix rotMat;
-//		double rotationAxis[3] = { 0.0, 0.0, 1.0 };
-//		mfem::NURBSPatch::Get3DRotationMatrix(rotationAxis, -M_PI_4, 1.0, rotMat);
-//		mfem::Vector pos3D(3), newPos3D(3);
-//		pos3D[0] = pos[0];
-//		pos3D[1] = pos[1];
-//		pos3D[2] = 0.0;
-//		rotMat.Mult(pos3D, newPos3D);
-//		pos[0] = newPos3D[0];
-//		pos[1] = newPos3D[1];
-//	}
-//	return function_->eval(pos, t);
-//}
-
 double InitialField::eval(const Position& p, Time t) const
 {
 	assert(p.Size() == center.Size());
@@ -115,7 +69,8 @@ double InitialField::eval(const Position& p, Time t) const
 		pos[i] = p[i] - center[i];
 	}
 	if (angles[0] != 0.0 || angles[1] != 0.0 || angles[2] != 0.0) {
-		pos = rotateAroundAxis(pos, angles);
+		auto tPos = rotateAroundAxis(pos, angles);
+		return function_->eval(tPos, t);
 	}
 	return function_->eval(pos, t);
 }
