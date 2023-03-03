@@ -1,4 +1,4 @@
-#include "MaxwellEvolution1D_Spectral.h"
+#include "Evolution1D_Spectral.h"
 
 
 namespace maxwell {
