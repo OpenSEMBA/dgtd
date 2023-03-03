@@ -11,7 +11,7 @@ class Source {
 public:
 	using Position = mfem::Vector;
 	using Time = double;
-	using Polarization = std::array<double, 3>;
+	using Polarization = mfem::Vector;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;

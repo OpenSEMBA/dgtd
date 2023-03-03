@@ -33,7 +33,7 @@ protected:
 		return Model(Mesh::MakeCartesian3D(nx, ny, nz, elType, sx, sy, sz), AttributeToMaterial{}, buildAttrToBdrMap3D(bdr1, bdr2, bdr3, bdr4, bdr5, bdr6));
 	}
 
-	AttributeToBoundary buildAttrToBdrMap3D(const BdrCond& bdr1, const BdrCond& bdr2, const BdrCond& bdr3, const BdrCond& bdr4, const BdrCond& bdr5, const BdrCond& bdr6)
+	static AttributeToBoundary buildAttrToBdrMap3D(const BdrCond& bdr1, const BdrCond& bdr2, const BdrCond& bdr3, const BdrCond& bdr4, const BdrCond& bdr5, const BdrCond& bdr6)
 	{
 		return {
 			{1, bdr1},
@@ -45,7 +45,7 @@ protected:
 		};
 	}
 
-	Probes buildProbesWithAnExportProbe()
+	static Probes buildProbesWithAnExportProbe()
 	{
 		return { {}, { ExporterProbe{getTestCaseName()} } };
 	}
@@ -55,7 +55,29 @@ protected:
 		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
 
-	Source::Polarization zPolarization() { return { 0.0, 0.0, 1.0 }; }
+	static Source::Polarization zPolarization() 
+	{ 
+		return Source::Polarization({ 0.0, 0.0, 1.0 }); 
+	}
+
+	static void rotateMinus45degAlongZAxis(const Vector& oldP, Vector& newP)
+	{
+		assert(oldP.Size() == newP.Size());
+		newP[0] = oldP[0] * cos(-M_PI / 4.0) - oldP[1] * sin(-M_PI / 4.0);
+		newP[1] = oldP[0] * sin(-M_PI / 4.0) + oldP[1] * cos(-M_PI / 4.0);
+		newP[2] = oldP[2];
+
+	}
+
+	static void rotateMinus45degAlongXAxis(const Vector& oldP, Vector& newP)
+	{
+		assert(oldP.Size() == newP.Size());
+		newP[0] = oldP[0];
+		newP[1] = oldP[1] * cos(-M_PI / 4.0) - oldP[2] * sin(-M_PI / 4.0);
+		newP[2] = oldP[1] * sin(-M_PI / 4.0) + oldP[2] * cos(-M_PI / 4.0);
+
+	}
+
 };
 
 TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
@@ -348,28 +370,10 @@ TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
 	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
 
-void rotateMinus45degAlongZAxis(const Vector& oldP, Vector& newP)
-{
-	assert(oldP.Size() == newP.Size());
-	newP[0] = oldP[0] * cos(-M_PI / 4.0) - oldP[1] * sin(-M_PI / 4.0);
-	newP[1] = oldP[0] * sin(-M_PI / 4.0) + oldP[1] * cos(-M_PI / 4.0);
-	newP[2] = oldP[2];
-	
-}
-
-void rotateMinus45degAlongXAxis(const Vector& oldP, Vector& newP)
-{
-	assert(oldP.Size() == newP.Size());
-	newP[0] = oldP[0];
-	newP[1] = oldP[1] * cos(-M_PI / 4.0) - oldP[2] * sin(-M_PI / 4.0);
-	newP[2] = oldP[1] * sin(-M_PI / 4.0) + oldP[2] * cos(-M_PI / 4.0); 
-
-}
-
 TEST_F(Solver3DTest, rotated_3D_centered_hexa_1dot5D)
 {
 
-	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
+	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::TETRAHEDRON, 3.0, 1.0, 1.0) };
 	mesh.Transform(rotateMinus45degAlongXAxis);
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
@@ -379,23 +383,24 @@ TEST_F(Solver3DTest, rotated_3D_centered_hexa_1dot5D)
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 50;
 
-	mfem::Vector rotatedCenter({ 1.4105630296855063,-0.7167626001841779,0.5 });
+	mfem::Vector center({ 1.5,0.5,0.5 });
+	mfem::Vector polarization(3);
+	rotateMinus45degAlongXAxis(zPolarization(), polarization);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.2, rotatedCenter, zPolarization(), 1, M_PI / 4.0),
+	buildGaussianInitialField(E, 0.2, center, polarization, 1, M_PI / 4.0),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
-		.setFinalTime(0.1)
+		.setFinalTime(6.0)
 		.setOrder(3)
 	};
 
 	solver.run();
 
 }
-
 
 TEST_F(Solver3DTest, compare_3DSpectralToBase_centered) {
 
@@ -498,5 +503,3 @@ TEST_F(Solver3DTest, compare_3DSpectralToBase_upwind) {
 	}
 
 }
-
-

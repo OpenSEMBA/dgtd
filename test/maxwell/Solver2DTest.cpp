@@ -69,7 +69,10 @@ protected:
 	}
 
 	Vector fieldCenter{ { 0.5, 0.5 } };
-	Source::Polarization polarization{ 0.0, 0.0, 1.0 };
+	Source::Polarization zPolarization()
+	{
+		return Source::Polarization({ 0.0, 0.0, 1.0 });
+	}
 
 };
 
@@ -124,7 +127,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilaterals_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(), 1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -162,7 +165,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -198,7 +201,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilaterals_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -236,7 +239,7 @@ TEST_F(Solver2DTest, 2D_sma_upwind_quadrilaterals_1dot5D)
 	maxwell::Solver solver{
 	buildModel(10, 1, mfem::Element::Type::QUADRILATERAL,1.0, 1.0, BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -274,7 +277,7 @@ TEST_F(Solver2DTest, 2D_rotated_quadrilateral_centered_1dot5D)
 	maxwell::Solver solver {
 		model,
 		probes,
-		buildGaussianInitialField(E, 0.5, fieldCenter, polarization,1,-M_PI/4.0),
+		buildGaussianInitialField(E, 0.5, fieldCenter, zPolarization(),1,-M_PI/4.0),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(4.95)
@@ -304,7 +307,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -342,7 +345,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -372,7 +375,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_centered) {
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -383,7 +386,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_centered) {
 	maxwell::Solver solverSpectral{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -419,7 +422,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -429,7 +432,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 	maxwell::Solver solverSpectral{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, polarization,1),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)

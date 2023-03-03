@@ -10,7 +10,7 @@ static Sources buildGaussianInitialField(
 	const FieldType& ft = E,
 	const double spread = 0.1,
 	const mfem::Vector& center = mfem::Vector({ 0.5 }),
-	const Source::Polarization& p = Source::Polarization{ 0.0,0.0,1.0 },
+	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
 	const int dimension = 1,
 	const double rotAngle = 0.0)
 {
@@ -26,7 +26,7 @@ static Sources buildGaussianInitialField(
 
 static Sources buildResonantModeInitialField(
 	const FieldType& ft = E,
-	const Source::Polarization& p = Source::Polarization{ 0.0,0.0,1.0 },
+	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
 	const std::vector<std::size_t>& modes = { 1 },
 	const int dim = 1)
 {
@@ -42,7 +42,7 @@ static Sources buildResonantModeInitialField(
 }
 
 static Sources buildPlaneWave(
-	const Source::Polarization& p = Source::Polarization{ 0.0,0.0,1.0 },
+	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
 	const double spread = 0.1,
 	const double delay = 0.0,
 	const int dimension = 1)
@@ -61,8 +61,8 @@ static Sources buildRightTravelingWaveInitialField(
 	const Source::Position& center)
 {
 	Sources res;
-	res.push_back(std::move(std::make_unique<InitialField>(gauss, E, Source::Polarization{0.0, 1.0, 0.0}, center, 0.0)));
-	res.push_back(std::move(std::make_unique<InitialField>(gauss, H, Source::Polarization{0.0, 0.0, 1.0}, center, 0.0)));
+	res.push_back(std::move(std::make_unique<InitialField>(gauss, E, Source::Polarization({0.0, 1.0, 0.0}), center, 0.0)));
+	res.push_back(std::move(std::make_unique<InitialField>(gauss, H, Source::Polarization({0.0, 0.0, 1.0}), center, 0.0)));
 	return res;
 }
 
