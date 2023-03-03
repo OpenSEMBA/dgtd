@@ -68,6 +68,12 @@ protected:
 		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
 
+	Vector fieldCenter{ { 0.5, 0.5 } };
+	Source::Polarization zPolarization()
+	{
+		return Source::Polarization({ 0.0, 0.0, 1.0 });
+	}
+
 };
 
 TEST_F(Solver2DTest, 2D_pec_centered_1dot5D)
@@ -84,7 +90,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -98,9 +104,9 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D)
 	double tolerance{ 1e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 
-	// (the wave splits in two and doubles at the boundary).
+	//At the left boundary the electric field should be closed to zero and
+	//the magnetic field reaches a maximum close to 1.0 
+	//(the wave splits in two and doubles at the boundary).
 	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
 	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
@@ -121,7 +127,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilaterals_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(), 1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -159,7 +165,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -195,7 +201,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilaterals_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -233,7 +239,7 @@ TEST_F(Solver2DTest, 2D_sma_upwind_quadrilaterals_1dot5D)
 	maxwell::Solver solver{
 	buildModel(10, 1, mfem::Element::Type::QUADRILATERAL,1.0, 1.0, BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -257,7 +263,6 @@ TEST_F(Solver2DTest, 2D_sma_upwind_quadrilaterals_1dot5D)
 
 }
 
-
 TEST_F(Solver2DTest, 2D_rotated_quadrilateral_centered_1dot5D)
 {
 	auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
@@ -267,15 +272,17 @@ TEST_F(Solver2DTest, 2D_rotated_quadrilateral_centered_1dot5D)
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 30;
 
-	maxwell::Solver solver{
-	model,
-	probes,
-	buildRotatedGaussianInitialField(E, Z, 0.5, -M_PI/4, mfem::Vector({0.5,3.5})),
-	SolverOptions{}
-		.setTimeStep(1e-3)
-		.setFinalTime(4.95)
-		.setCentered()
-		.setOrder(3)
+	fieldCenter = Vector({ 2.0, 2.0 });
+
+	maxwell::Solver solver {
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.5, fieldCenter, zPolarization(), 1, Source::CartesianAngles({0.0,0.0,-M_PI_4})),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(4.95)
+			.setCentered()
+			.setOrder(3)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -300,13 +307,13 @@ TEST_F(Solver2DTest, 2D_pec_centered_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
-		.setSpectralEO(true)
+		.setSpectralEO()
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -338,7 +345,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -368,7 +375,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_centered) {
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -379,7 +386,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_centered) {
 	maxwell::Solver solverSpectral{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -415,7 +422,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -425,7 +432,7 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 	maxwell::Solver solverSpectral{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.1, mfem::Vector({0.5,0.5})),
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(),1),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
@@ -452,31 +459,31 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 	}
 
 }
-TEST_F(Solver2DTest, DISABLED_quadraticMesh)
-{
-	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
-	auto fec = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
-	auto fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get());
-
-	Model model = Model(mesh, AttributeToMaterial{}, AttributeToBoundary{});
-
-	maxwell::Solver solver{
-		model,
-		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, Z, 0.4, mfem::Vector({-0.02566,0.03028})),
-		SolverOptions{}
-		.setTimeStep(5e-4)
-		.setFinalTime(2.0)
-		.setOrder(3)
-	};
-
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-
-	double tolerance{ 1e-2 };
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-}
+//TEST_F(Solver2DTest, DISABLED_quadraticMesh)
+//{
+//	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
+//	auto fec = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
+//	auto fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get());
+//
+//	Model model = Model(mesh, AttributeToMaterial{}, AttributeToBoundary{});
+//
+//	maxwell::Solver solver{
+//		model,
+//		buildProbesWithAnExportProbe(),
+//		buildGaussianInitialField(E, Z, 0.4, mfem::Vector({-0.02566,0.03028})),
+//		SolverOptions{}
+//		.setTimeStep(5e-4)
+//		.setFinalTime(2.0)
+//		.setOrder(3)
+//	};
+//
+//	auto normOld{ solver.getFields().getNorml2() };
+//	solver.run();
+//
+//	double tolerance{ 1e-2 };
+//	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+//
+//}
 
 //TEST_F(Solver2DTest, DISABLED_centered_flux_AMR)
 //{

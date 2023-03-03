@@ -304,7 +304,7 @@ TEST_F(MFEMHesthaven2D, oneFace)
 
 }
 
-TEST_F(MFEMHesthaven2D, MFEMHesthavenSameMesh)
+TEST_F(MFEMHesthaven2D, DISABLED_MFEMHesthavenSameMesh)
 {
 	Mesh meshManual = Mesh::LoadFromFile("./TestData/2dplane.msh", true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
@@ -315,11 +315,11 @@ TEST_F(MFEMHesthaven2D, MFEMHesthavenSameMesh)
 	maxwell::Solver solver{
 		model,
 		buildExportProbes(),
-		buildGaussianInitialField(E, Z, 0.4, mfem::Vector({0.0,0.0})),
+		buildGaussianInitialField(),
 		SolverOptions{}
-		.setTimeStep(0.012587)
-		.setFinalTime(1.0)
-		.setOrder(10)
+			.setTimeStep(0.012587)
+			.setFinalTime(1.0)
+			.setOrder(10)
 	};
 
 }

@@ -7,7 +7,7 @@
 #include "Model.h"
 #include "Sources.h"
 #include "SourcesManager.h"
-#include "MaxwellEvolutionMethods.h"
+#include "EvolutionMethods.h"
 
 namespace maxwell {
 
@@ -25,9 +25,10 @@ public:
 
 private:
 
-	Eigen::MatrixXd global_;
-	Eigen::MatrixXd forcing_;
-	Eigen::VectorXcd eigenvals_;
+	Eigen::SparseMatrix<double> global_;
+	Eigen::SparseMatrix<double> forcing_;
+	Vector eigenvals_;
+	double pmEigenvalue_;
 
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;

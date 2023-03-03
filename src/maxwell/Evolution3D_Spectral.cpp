@@ -1,4 +1,4 @@
-#include "MaxwellEvolution3D_Spectral.h"
+#include "Evolution3D_Spectral.h"
 
 namespace maxwell {
 
@@ -52,6 +52,11 @@ MaxwellEvolution3D_Spectral::MaxwellEvolution3D_Spectral(
 	if (opts_.eigenvals == true) {
 		calculateEigenvalues(global_, eigenvals_);
 		checkEigenvalues(eigenvals_);
+	}
+
+	if (opts_.powerMethod != 0)
+	{
+		pmEigenvalue_ = usePowerMethod(global_, opts_.powerMethod);
 	}
 
 	if (opts_.marketFile == true) {

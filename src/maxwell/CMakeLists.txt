@@ -15,16 +15,18 @@ add_library(maxwell STATIC
     "ProbesManager.cpp" 
 	"SourcesManager.cpp" 
 	"Fields.cpp" 
-	"MaxwellEvolution3D.cpp"
-	"MaxwellEvolution2D.cpp"
-	"MaxwellEvolution1D.cpp" 
-	"MaxwellEvolutionMethods.cpp"
+	"Evolution3D.cpp"
+	"Evolution2D.cpp"
+	"Evolution1D.cpp" 
+	"Evolution1D_Spectral.cpp"
+	"Evolution2D_Spectral.cpp" 
+	"Evolution3D_Spectral.cpp"
+	"EvolutionMethods.cpp"
 	"mfemExtension/BilinearForm_IBFI.cpp" 
 	"mfemExtension/LinearForm_IBFI.cpp" 
 	"mfemExtension/BilinearIntegrators.cpp"
 	"mfemExtension/LinearIntegrators.cpp" 
 	"mfemExtension/IntegratorFunctions.cpp" 
-	"MaxwellEvolution1D_Spectral.cpp"
-	"MaxwellEvolution2D_Spectral.cpp" "MaxwellEvolution3D_Spectral.cpp" "MaxwellEvolution3D_Spectral.h")
+)
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)

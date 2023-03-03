@@ -1,4 +1,4 @@
-#include "MaxwellEvolution2D.h"
+#include "Evolution2D.h"
 
 namespace maxwell {
 

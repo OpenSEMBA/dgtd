@@ -50,35 +50,19 @@ namespace maxwell {
 	FieldType altField(const FieldType& f);
 
 	void calculateEigenvalues(const Eigen::MatrixXd&, Eigen::VectorXcd&);
-	void calculateEigenvalues(const Eigen::SparseMatrix<double>&, Eigen::VectorXcd&);
+	void calculateEigenvalues(SparseMatrix& mat, Vector& res);
 	void checkEigenvalues(const Eigen::VectorXcd&);
 	void exportSparseToMarketFile(const Eigen::MatrixXd&);
+	double usePowerMethod(const Eigen::SparseMatrix<double>&, int iterations);
 
 	Eigen::VectorXd toEigenVector(const Vector&);
 	Vector toMFEMVector(const Eigen::VectorXd&);
+	SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>&);
 
+	std::vector<int> calcOffsetCoeff1D(const std::vector<FieldType>& f);
 	std::vector<int> calcOffsetCoeff(const std::vector<FieldType>&, const std::vector<Direction>&);
 
-template <class T>
-void allocateDenseInEigen1D(const std::array<T, 2>& arr, Eigen::MatrixXd& res, const double sign = 1.0, bool altField = false)
-{
-	int offset = arr[E]->SpMat().ToDenseMatrix()->Height();
-	for (int i = 0; i < arr[E]->Height(); ++i) {
-		for (int j = 0; j < arr[E]->Width(); ++j) {
-			switch (altField) {
-			case false:
-				res(i, j) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
-				res(i + offset, j + offset) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
-				break;
-			case true:
-				res(i, j + offset) += sign * arr[E]->SpMat().ToDenseMatrix()->Elem(i, j);
-				res(i + offset, j) += sign * arr[H]->SpMat().ToDenseMatrix()->Elem(i, j);
-				break;
-			}
-		}
-	}
-}
-
-void allocateDenseInEigen(DenseMatrix* bilForm, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign = 1.0);
+	void allocateDenseInEigen1D(DenseMatrix* bilForm, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const double sign = 1.0);
+	void allocateDenseInEigen(DenseMatrix* bilForm, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign = 1.0);
 
 }

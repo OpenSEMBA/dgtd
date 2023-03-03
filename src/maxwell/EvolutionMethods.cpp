@@ -1,4 +1,4 @@
-#include "MaxwellEvolutionMethods.h"
+#include "EvolutionMethods.h"
 
 namespace maxwell {
 
@@ -475,9 +475,11 @@ void calculateEigenvalues(const Eigen::MatrixXd& mat, Eigen::VectorXcd& res)
 	res = mat.eigenvalues();
 }
 
-void calculateEigenvalues(const Eigen::SparseMatrix<double>& mat, Eigen::VectorXcd& res)
+void calculateEigenvalues(SparseMatrix& mat, Vector& res)
 {
-	res = mat.toDense().eigenvalues();
+	auto denseMat{ mat.ToDenseMatrix() };
+	denseMat->Finalize(1);
+	denseMat->Eigenvalues(res);
 }
 
 void checkEigenvalues(const Eigen::VectorXcd& eigvals)
@@ -511,6 +513,35 @@ Vector toMFEMVector(const Eigen::VectorXd& in)
 	Vector res(int(in.size()));
 	for (int i = 0; i < res.Size(); ++i) {
 		res(i) = in[i];
+	}
+	return res;
+}
+
+std::vector<int> calcOffsetCoeff1D(const std::vector<FieldType>& f)
+{
+	std::vector<int> res(2);
+	if (f[0] == f[1]) {
+		if (f[0] == E) {
+			res[0] = 0;
+			res[1] = 0;
+		}
+		else {
+			res[0] = 1;
+			res[1] = 1;
+		}
+	}
+	else if (f[0] != f[1]) {
+		if (f[0] == E) {
+			res[0] = 0;
+			res[1] = 1;
+		}
+		else {
+			res[0] = 1;
+			res[1] = 0;
+		}
+	}
+	else {
+		throw std::exception("Wrong input in method, check direction or field type vectors.");
 	}
 	return res;
 }
@@ -554,10 +585,10 @@ std::vector<int> calcOffsetCoeff(const std::vector<FieldType>& f, const std::vec
 	return res;
 }
 
-void allocateDenseInEigen(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign)
+void allocateDenseInEigen1D(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const double sign)
 {
-	int offset = bilMat->Height();
-	std::vector<int> offsetCoeff{ calcOffsetCoeff(f,d) };
+	auto offset = bilMat->Height();
+	auto offsetCoeff{calcOffsetCoeff1D(f)};
 
 	for (int i = 0; i < bilMat->Height(); ++i) {
 		for (int j = 0; j < bilMat->Width(); ++j) {
@@ -566,6 +597,40 @@ void allocateDenseInEigen(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res,
 			}
 		}
 	}
+}
+
+void allocateDenseInEigen(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign)
+{
+	auto offset = bilMat->Height();
+	auto offsetCoeff{ calcOffsetCoeff(f,d) };
+
+	for (int i = 0; i < bilMat->Height(); ++i) {
+		for (int j = 0; j < bilMat->Width(); ++j) {
+			if (bilMat->Elem(i, j) != 0.0) {
+				res.coeffRef(i + offset * offsetCoeff[0], j + offset * offsetCoeff[1]) += sign * bilMat->Elem(i, j);
+			}
+		}
+	}
+}
+
+SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>& sp)
+{
+	SparseMatrix res(int(sp.rows()), int(sp.cols()));
+	for (int k = 0; k < sp.outerSize(); ++k)
+		for (Eigen::SparseMatrix<double>::InnerIterator it(sp, k); it; ++it)
+		{
+			res.Set(int(it.row()), int(it.col()), it.value());
+		}
+	res.Finalize();
+	return res;
+}
+
+double usePowerMethod(const Eigen::SparseMatrix<double>& global, int iterations)
+{
+	auto spMat{ toMFEMSparse(global) };
+	Vector itVec(int(global.cols()));
+	PowerMethod pwrMtd;
+	return pwrMtd.EstimateLargestEigenvalue(toMFEMSparse(global), itVec, iterations);
 }
 
 }

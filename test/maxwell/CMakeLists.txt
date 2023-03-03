@@ -16,8 +16,6 @@ add_executable(maxwell_tests
 	"Solver3DTest.cpp"  
 	"MaterialTest.cpp" 
 	"ProbesManagerTest.cpp" 
-	
-	
 	"BilinearIntegratorsExtensionTest.cpp"
 	"BilinearFormExtensionTest.cpp" 
 	"LinearFormExtensionTest.cpp")
