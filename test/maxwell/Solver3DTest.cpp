@@ -321,7 +321,7 @@ TEST_F(Solver3DTest, periodic_3D_centered_tetra_1dot5D)
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5, 0.5}}
 	};
-	probes.exporterProbes[0].visSteps = 10;
+	probes.exporterProbes[0].visSteps = 50;
 
 	AttributeToBoundary attToBdr{ { 1,BdrCond::PEC }, { 2,BdrCond::PMC }, { 3,BdrCond::PMC }, { 4,BdrCond::PMC }, { 5,BdrCond::PMC }, { 6,BdrCond::PEC } };
 
@@ -334,7 +334,48 @@ TEST_F(Solver3DTest, periodic_3D_centered_tetra_1dot5D)
 	SolverOptions{}
 		.setTimeStep(1e-4)
 		.setCentered()
-		.setFinalTime(0.01)
+		.setFinalTime(6.0)
+		.setOrder(2)
+	};
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	auto eMaxFrame{ solver.getPointProbe(0).findFrameWithMax() };
+	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
+	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
+
+}
+
+TEST_F(Solver3DTest, periodic_3D_centered_hexa_1dot5D)
+{
+	Mesh m{ Mesh::MakeCartesian3D(5,3,3,Element::HEXAHEDRON, 1.0, 1.0, 1.0) };
+
+	Vector xTr({ 1.0,0.0,0.0 });
+	std::vector<Vector> translations{ xTr };
+
+	Mesh mPer{ Mesh::MakePeriodic(m, m.CreatePeriodicVertexMapping(translations)) };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5, 0.5}}
+	};
+	probes.exporterProbes[0].visSteps = 30;
+
+	AttributeToBoundary attToBdr{ { 1,BdrCond::PEC }, { 2,BdrCond::PMC }, { 3,BdrCond::PMC }, { 4,BdrCond::PMC }, { 5,BdrCond::PMC }, { 6,BdrCond::PEC } };
+
+	Model model{ mPer,AttributeToMaterial{},attToBdr,AttributeToInteriorBoundary{} };
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5,0.5}), zPolarization()),
+	SolverOptions{}
+		.setTimeStep(1e-4)
+		.setCentered()
+		.setFinalTime(6.0)
 		.setOrder(2)
 	};
 
@@ -383,7 +424,7 @@ TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
 TEST_F(Solver3DTest, rotated_M45X_3D_centered_hexa_1dot5D)
 {
 
-	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::TETRAHEDRON, 3.0, 1.0, 1.0) };
+	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
 	mesh.Transform(rotateMinus45degAlongXAxis);
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
@@ -415,7 +456,7 @@ TEST_F(Solver3DTest, rotated_M45X_3D_centered_hexa_1dot5D)
 TEST_F(Solver3DTest, rotated_M45Y_3D_centered_hexa_1dot5D)
 {
 
-	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::TETRAHEDRON, 3.0, 1.0, 1.0) };
+	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
 	mesh.Transform(rotateMinus45degAlongYAxis);
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
@@ -448,7 +489,7 @@ TEST_F(Solver3DTest, rotated_M45Y_3D_centered_hexa_1dot5D)
 TEST_F(Solver3DTest, rotated_M45Z_3D_centered_hexa_1dot5D)
 {
 
-	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::TETRAHEDRON, 3.0, 1.0, 1.0) };
+	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
 	mesh.Transform(rotateMinus45degAlongZAxis);
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
@@ -481,7 +522,7 @@ TEST_F(Solver3DTest, rotated_M45Z_3D_centered_hexa_1dot5D)
 TEST_F(Solver3DTest, rotated_AllDir_3D_centered_hexa_1dot5D)
 {
 
-	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::TETRAHEDRON, 3.0, 1.0, 1.0) };
+	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
 	mesh.Transform(rotateMinus45degAlongXAxis);
 	mesh.Transform(rotateMinus45degAlongYAxis);
 	mesh.Transform(rotateMinus45degAlongZAxis);
@@ -522,7 +563,7 @@ TEST_F(Solver3DTest, rotated_AllDir_3D_centered_hexa_1dot5D)
 TEST_F(Solver3DTest, rotated_AllDir_3D_upwind_hexa_1dot5D)
 {
 
-	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::TETRAHEDRON, 3.0, 1.0, 1.0) };
+	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
 	mesh.Transform(rotateMinus45degAlongXAxis);
 	mesh.Transform(rotateMinus45degAlongYAxis);
 	mesh.Transform(rotateMinus45degAlongZAxis);
@@ -558,6 +599,7 @@ TEST_F(Solver3DTest, rotated_AllDir_3D_upwind_hexa_1dot5D)
 	solver.run();
 
 }
+
 TEST_F(Solver3DTest, compare_3DSpectralToBase_centered) {
 
 	Probes probes;
