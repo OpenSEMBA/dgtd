@@ -90,7 +90,7 @@ protected:
 
 };
 
-TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
+TEST_F(Solver3DTest, centered_hexa_1dot5D)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
@@ -124,7 +124,7 @@ TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D_spectral)
+TEST_F(Solver3DTest, centered_hexa_1dot5D_spectral)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -156,7 +156,7 @@ TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D_spectral)
 
 }
 
-TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D)
+TEST_F(Solver3DTest, upwind_hexa_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -185,7 +185,7 @@ TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D_spectral)
+TEST_F(Solver3DTest, upwind_hexa_1dot5D_spectral)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -215,7 +215,7 @@ TEST_F(Solver3DTest, 3D_upwind_hexa_1dot5D_spectral)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
+TEST_F(Solver3DTest, centered_tetra_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -246,7 +246,7 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D_spectral)
+TEST_F(Solver3DTest, centered_tetra_1dot5D_spectral)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -278,7 +278,7 @@ TEST_F(Solver3DTest, 3D_centered_tetra_1dot5D_spectral)
 
 }
 
-TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
+TEST_F(Solver3DTest, upwind_tetra_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -286,7 +286,7 @@ TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5, 0.5}}
 	};
-	probes.exporterProbes[0].visSteps = 50;
+	probes.exporterProbes[0].visSteps = 500;
 
 	maxwell::Solver solver{
 	buildModel(10,1,1, Element::Type::TETRAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
@@ -294,7 +294,7 @@ TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
 	buildGaussianInitialField(E, 0.2, mfem::Vector({1.5,0.5,0.5}), zPolarization()),
 	SolverOptions{}
 		.setTimeStep(5e-4)
-		.setFinalTime(6.0)
+		.setFinalTime(30.0)
 		.setOrder(3)
 	};
 
@@ -307,11 +307,11 @@ TEST_F(Solver3DTest, 3D_upwind_tetra_1dot5D)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-TEST_F(Solver3DTest, periodic_3D_centered_tetra_1dot5D)
+TEST_F(Solver3DTest, periodic_x_centered_tetra_1dot5)
 {
-	Mesh m{ Mesh::MakeCartesian3D(5,3,3,Element::TETRAHEDRON, 1.0, 1.0, 1.0) };
+	Mesh m{ Mesh::MakeCartesian3D(11,3,3,Element::TETRAHEDRON, 3.0, 3.0, 3.0) };
 
-	Vector xTr({ 1.0,0.0,0.0 });
+	Vector xTr({ 3.0,3.0,3.0 });
 	std::vector<Vector> translations{ xTr };
 
 	Mesh mPer{ Mesh::MakePeriodic(m, m.CreatePeriodicVertexMapping(translations)) };
@@ -348,14 +348,10 @@ TEST_F(Solver3DTest, periodic_3D_centered_tetra_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, periodic_3D_centered_hexa_1dot5D)
+TEST_F(Solver3DTest, periodic_cube_centered_hexa_1dot5)
 {
-	Mesh m{ Mesh::MakeCartesian3D(5,3,3,Element::HEXAHEDRON, 1.0, 1.0, 1.0) };
-
-	Vector xTr({ 1.0,0.0,0.0 });
-	std::vector<Vector> translations{ xTr };
-
-	Mesh mPer{ Mesh::MakePeriodic(m, m.CreatePeriodicVertexMapping(translations)) };
+	auto mR{ Mesh::LoadFromFile("./testData/periodic-cube.mesh",1,0) };
+	//auto m{ Mesh::MakeSimplicial(mR);
 
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
@@ -364,18 +360,16 @@ TEST_F(Solver3DTest, periodic_3D_centered_hexa_1dot5D)
 	};
 	probes.exporterProbes[0].visSteps = 30;
 
-	AttributeToBoundary attToBdr{ { 1,BdrCond::PEC }, { 2,BdrCond::PMC }, { 3,BdrCond::PMC }, { 4,BdrCond::PMC }, { 5,BdrCond::PMC }, { 6,BdrCond::PEC } };
-
-	Model model{ mPer,AttributeToMaterial{},attToBdr,AttributeToInteriorBoundary{} };
+	Model model{ m,AttributeToMaterial{},AttributeToBoundary{},AttributeToInteriorBoundary{} };
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5,0.5}), zPolarization()),
+	buildGaussianInitialField(E, 0.3, mfem::Vector({0.0,0.0,0.0}), zPolarization()),
 	SolverOptions{}
-		.setTimeStep(1e-4)
+		.setTimeStep(5e-4)
 		.setCentered()
-		.setFinalTime(6.0)
+		.setFinalTime(3.0)
 		.setOrder(2)
 	};
 
@@ -386,10 +380,9 @@ TEST_F(Solver3DTest, periodic_3D_centered_hexa_1dot5D)
 	EXPECT_NEAR(0.0, eMaxFrame.second, tolerance);
 	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
-
 }
 
-TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
+TEST_F(Solver3DTest, DISABLED_box_pec_upwind)
 {
 	/*The purpose of this test is to check the run() function for the solver object
 	and test the different available options.
@@ -421,7 +414,7 @@ TEST_F(Solver3DTest, DISABLED_box_pec_upwind_3D)
 	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 }
 
-TEST_F(Solver3DTest, rotated_M45X_3D_centered_hexa_1dot5D)
+TEST_F(Solver3DTest, rotated_M45X_centered_hexa_1dot5)
 {
 
 	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
@@ -453,7 +446,7 @@ TEST_F(Solver3DTest, rotated_M45X_3D_centered_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, rotated_M45Y_3D_centered_hexa_1dot5D)
+TEST_F(Solver3DTest, rotated_M45Y_centered_hexa_1dot5)
 {
 
 	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
@@ -486,7 +479,7 @@ TEST_F(Solver3DTest, rotated_M45Y_3D_centered_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, rotated_M45Z_3D_centered_hexa_1dot5D)
+TEST_F(Solver3DTest, rotated_M45Z_centered_hexa_1dot5)
 {
 
 	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
@@ -519,7 +512,7 @@ TEST_F(Solver3DTest, rotated_M45Z_3D_centered_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, rotated_AllDir_3D_centered_hexa_1dot5D)
+TEST_F(Solver3DTest, rotated_AllDir_centered_hexa_1dot5)
 {
 
 	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
@@ -560,7 +553,7 @@ TEST_F(Solver3DTest, rotated_AllDir_3D_centered_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, rotated_AllDir_3D_upwind_hexa_1dot5D)
+TEST_F(Solver3DTest, rotated_AllDir_upwind_hexa_1dot5)
 {
 
 	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
@@ -600,7 +593,7 @@ TEST_F(Solver3DTest, rotated_AllDir_3D_upwind_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, compare_3DSpectralToBase_centered) {
+TEST_F(Solver3DTest, compare_SpectralToBase_centered) {
 
 	Probes probes;
 
@@ -652,7 +645,7 @@ TEST_F(Solver3DTest, compare_3DSpectralToBase_centered) {
 
 }
 
-TEST_F(Solver3DTest, compare_3DSpectralToBase_upwind) {
+TEST_F(Solver3DTest, compare_SpectralToBase_upwind) {
 
 	Probes probes;
 
