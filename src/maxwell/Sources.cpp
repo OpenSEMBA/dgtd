@@ -41,9 +41,6 @@ double InitialField::eval(const Position& p, Time t) const
 		mfem::DenseMatrix rotMat;
 		double rotationAxis[3] = { 0.0, 0.0, 1.0 };
 		mfem::NURBSPatch::Get3DRotationMatrix(rotationAxis, -M_PI_4, 1.0, rotMat);
-		/*mfem::DenseMatrix rotMat({
-		{cos(rotAngle), -sin(rotAngle)},
-		{sin(rotAngle),  cos(rotAngle)} });*/
 		mfem::Vector pos3D(3), newPos3D(3);
 		pos3D[0] = pos[0];
 		pos3D[1] = pos[1];

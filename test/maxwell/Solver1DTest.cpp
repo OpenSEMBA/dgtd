@@ -244,7 +244,8 @@ TEST_F(Solver1DTest, sma_farboundaries)
 	maxwell::Solver solver(
 		buildCustomMeshModel(m, BdrCond::SMA, BdrCond::SMA),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, Y, 0.3, Vector({7.5})),
+		buildGaussianInitialField(
+			E, 0.3, Vector({ 7.5 }), Source::Polarization{0.0, 1.0, 0.0}),
 		SolverOptions{}
 		.setTimeStep(2.5e-3)
 		.setFinalTime(10.0)
@@ -339,8 +340,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 			{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
 		},
 		probes,
-		buildRightTravelingWaveInitialField(
-			Gaussian{ 1, 0.05, 1.0, Vector({ 0.25 }), Z}),
+		buildRightTravelingWaveInitialField(Gaussian{ 0.05, 1}, Vector({ 0.25 })),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(1.0)
@@ -386,7 +386,7 @@ TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_upwind_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.2,1.5,1.0),
+		buildPlaneWave({0.0, 1.0, 0.0}, 0.2, 1.5),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(5.0)
@@ -417,7 +417,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.2,1.5,1.0),
+		buildPlaneWave({0.0, 1.0, 0.0}, 0.2, 1.5),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -463,7 +463,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.2,1.5,1.0),
+		buildPlaneWave(Source::Polarization{0.0,1.0,0.0}, 0.2, 1.5),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(4.0)
@@ -516,7 +516,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.2,1.5,1.0),
+		buildPlaneWave({0.0, 1.0, 0.0}, 0.2, 1.5, 1.0),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -558,18 +558,18 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_pec)
 
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
-	PointProbe{ E, Y, {0.05} },
-	PointProbe{ E, Y, {0.1001} },
-	PointProbe{ E, Y, {0.9} },
-	PointProbe{ H, Z, {0.9} },
-	PointProbe{ E, Y, {0.9001} }
+		PointProbe{ E, Y, {0.05} },
+		PointProbe{ E, Y, {0.1001} },
+		PointProbe{ E, Y, {0.9} },
+		PointProbe{ H, Z, {0.9} },
+		PointProbe{ E, Y, {0.9001} }
 	};
 	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.2,1.5,1.0),
+		buildPlaneWave({0.0, 1.0, 0.0}, 0.2, 1.5),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setFinalTime(5.0)
@@ -631,7 +631,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(X,0.2,1.5,1.0),
+		buildPlaneWave(Source::Polarization{0.0,1.0,0.0},0.2,1.5,1.0),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setFinalTime(5.0)
@@ -672,6 +672,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
 		}
 	}
 }
+
 TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 {
 	// Resonant mode inside a PEC box. 
@@ -682,7 +683,7 @@ TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
-		buildResonantModeInitialField(E, Y, {1}),
+		buildResonantModeInitialField(E, Source::Polarization{0.0,1.0,0.0}, {1}),
 		SolverOptions{}
 			.setFinalTime(finalTime)
 			.setCFL(0.5)

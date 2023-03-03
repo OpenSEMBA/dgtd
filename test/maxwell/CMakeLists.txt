@@ -11,7 +11,7 @@ message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
 message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
 
 add_executable(maxwell_tests 
-	#"Solver1DTest.cpp" 
+	"Solver1DTest.cpp" 
 	"Solver2DTest.cpp" 
 	#"Solver3DTest.cpp"  
 	"MaterialTest.cpp" 

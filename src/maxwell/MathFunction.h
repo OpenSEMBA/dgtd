@@ -70,10 +70,9 @@ private:
 
 class TimeGaussian : public MathFunction {
 public:
-	TimeGaussian(int dimension, double spatialSpread, double normalization, double delay) :
-		dimension_{ dimension },
+	TimeGaussian(double spatialSpread, double delay, int dimension) :
 		spatialSpread_{ spatialSpread },
-		normalization_{ normalization },
+		dimension_{ dimension },
 		delay_{ delay }
 	{}
 
@@ -88,21 +87,18 @@ public:
 		assert(dimension_ <= pos.Size());
 		switch (dimension_) {
 		case 1:
-			return normalization_ *
-				exp(
+			return exp(
 					-pow(pos[X] - (time - delay_), 2) /
 					(2.0 * pow(spatialSpread_, 2))
 				);
 		case 2:
-			return normalization_ *
-				exp(
+			return exp(
 					-(pow(pos[X] - (time - delay_), 2.0)
-						+ pow(pos[Y] - (time - delay_), 2.0)) /
+					+ pow(pos[Y] - (time - delay_), 2.0)) /
 					(2.0 * pow(spatialSpread_, 2.0))
 				);
 		case 3:
-			return normalization_ *
-				exp(
+			return exp(
 					-(pow(pos[X] - (time - delay_), 2.0)
 						+ pow(pos[Y] - (time - delay_), 2.0)
 						+ pow(pos[Z] - (time - delay_), 2.0)) /
@@ -116,9 +112,7 @@ public:
 private:
 	int dimension_{ -1 };
 	double spatialSpread_{ 2.0 };
-	double normalization_{ 1.0 };
 	double delay_{ 0.0 };
-
 };
 
 class SinusoidalMode : public MathFunction {

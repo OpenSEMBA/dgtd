@@ -22,7 +22,13 @@ public:
 
 class InitialField : public Source {
 public:
-	InitialField(const MathFunction&, const FieldType&, const Polarization&, const Position& center, const double rotAngle);
+	InitialField(
+		const MathFunction&, 
+		const FieldType&, 
+		const Polarization&, 
+		const Position& center,
+		const double rotAngle = 0.0
+	);
 	InitialField(const InitialField&);
 
 	std::unique_ptr<Source> clone() const;
