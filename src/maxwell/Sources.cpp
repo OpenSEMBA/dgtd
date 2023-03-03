@@ -2,6 +2,28 @@
 
 namespace maxwell {
 
+mfem::Vector rotateAroundZAxis(
+	const mfem::Vector& v, const double& angleRads)
+{
+	mfem::DenseMatrix rotMat;
+	double rotationAxis[3] = { 0.0, 0.0, 1.0 };
+	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxis, angleRads, 1.0, rotMat);
+
+	mfem::Vector pos3D(3), newPos3D(3);
+	pos3D = 0.0;
+	for (auto d{ 0 }; d < 3; d++) {
+		pos3D[d] = v[d];
+	}
+	
+	rotMat.Mult(pos3D, newPos3D);
+
+	mfem::Vector res(v.Size());
+	for (auto d{ 0 }; d < v.Size(); d++) {
+		res[d] = v[d];
+	}
+	return res;
+}
+
 InitialField::InitialField(
 	const MathFunction& f, 
 	const FieldType& fT, 
@@ -30,24 +52,13 @@ std::unique_ptr<Source> InitialField::clone() const
 
 double InitialField::eval(const Position& p, Time t) const
 {
-	//if p.size() == 2 then apply 2D rotMat, else apply 3D (on Z?) Incomplete TODO
 	assert(p.Size() == center.Size());
 	Position pos(p.Size());
 	for (int i{ 0 }; i < p.Size(); ++i) {
 		pos[i] = p[i] - center[i];
 	}
 	if (rotAngle != 0) {
-		auto tPos = pos;
-		mfem::DenseMatrix rotMat;
-		double rotationAxis[3] = { 0.0, 0.0, 1.0 };
-		mfem::NURBSPatch::Get3DRotationMatrix(rotationAxis, -M_PI_4, 1.0, rotMat);
-		mfem::Vector pos3D(3), newPos3D(3);
-		pos3D[0] = pos[0];
-		pos3D[1] = pos[1];
-		pos3D[2] = 0.0;
-		rotMat.Mult(pos3D, newPos3D);
-		pos[0] = newPos3D[0];
-		pos[1] = newPos3D[1];
+		pos = rotateAroundZAxis(pos, -M_PI_4);
 	}
 	return function_->eval(pos, t);
 }

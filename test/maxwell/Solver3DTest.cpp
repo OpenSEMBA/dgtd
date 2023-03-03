@@ -55,12 +55,14 @@ protected:
 		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
 
-
+	Source::Polarization zPolarization()
+	{
+		return { 0.0, 0.0, 1.0 };
+	}
 };
 
 TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
 {
-
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
@@ -69,9 +71,13 @@ TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D)
 	probes.exporterProbes[0].visSteps = 50;
 
 	maxwell::Solver solver{
-	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
+	buildModel(
+		10,1,1, Element::Type::HEXAHEDRON, 
+		3.0, 1.0, 1.0, 
+		BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,
+		BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	buildGaussianInitialField(E, 0.2, Source::Position({1.5,0.5,0.5}), zPolarization()),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -102,7 +108,7 @@ TEST_F(Solver3DTest, 3D_centered_hexa_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(10,1,1, Element::Type::HEXAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, Z, 0.2, mfem::Vector({1.5,0.5,0.5})),
+	buildGaussianInitialField(E, 0.2, mfem::Vector({1.5,0.5,0.5}), zPolarization()),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()
@@ -367,7 +373,6 @@ TEST_F(Solver3DTest, rotated_3D_centered_hexa_1dot5D)
 {
 
 	Mesh mesh{ Mesh::MakeCartesian3D(10,1,1,Element::HEXAHEDRON, 3.0, 1.0, 1.0) };
-	//mesh.Transform(rotateMinus45degAlongZAxis);
 	mesh.Transform(rotateMinus45degAlongXAxis);
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
