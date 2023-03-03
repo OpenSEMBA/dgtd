@@ -122,7 +122,7 @@ TEST_F(Solver1DTest, pec_centered)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
-		buildGaussianInitialField(E, Y),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 		SolverOptions{}
 			.setCentered()
 	};
@@ -169,7 +169,7 @@ TEST_F(Solver1DTest, pmc_centered)
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(H, Z),
+		buildGaussianInitialField(H, 0.1, Vector({0.5}), yPolarization()),
 		SolverOptions{}
 			.setTimeStep(2.5e-3)
 			.setCentered()
@@ -190,7 +190,7 @@ TEST_F(Solver1DTest, pec_upwind)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, Y),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 		SolverOptions{}
 			.setCFL(0.65)
 	};
@@ -210,7 +210,7 @@ TEST_F(Solver1DTest, pmc_upwind)
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(H, Z),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 		SolverOptions{}
 			.setCFL(0.65)
 	};
@@ -231,7 +231,7 @@ TEST_F(Solver1DTest, sma)
 	maxwell::Solver solver(
 		buildStandardModel(201, BdrCond::SMA, BdrCond::SMA),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, Y),
+		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), yPolarization()),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setFinalTime(1.25)
@@ -269,7 +269,7 @@ TEST_F(Solver1DTest, periodic)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianInitialField(E,Y),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setCentered()
@@ -299,7 +299,7 @@ TEST_F(Solver1DTest, periodic_inhomo)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianInitialField(E,Y),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setCentered()
@@ -520,7 +520,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(), 0.2, 1.5, 1.0),
+		buildPlaneWave(yPolarization(), 0.2, 1.5, 1),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -635,7 +635,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(),0.2,1.5,1.0),
+		buildPlaneWave(yPolarization(), 0.2, 1.5, 1),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setFinalTime(5.0)
@@ -729,10 +729,10 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
-		buildGaussianInitialField(E, Y),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 		SolverOptions{}
 			.setCentered()
-			.setSpectralEO(true, 100, false)
+			.setSpectralEO()
 	};
 
 	GridFunction eOld{ solver.getFields().E[Y] };
@@ -769,7 +769,7 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 	maxwell::Solver solver{
 	buildStandardModel(),
 	probes,
-	buildGaussianInitialField(E, Y),
+	buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 	SolverOptions{}
 		.setCentered()
 	};
@@ -777,7 +777,7 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 	maxwell::Solver solverSpectral{
 	buildStandardModel(),
 	probes,
-	buildGaussianInitialField(E, Y),
+	buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
 	SolverOptions{}
 		.setCentered()
 		.setSpectralEO()

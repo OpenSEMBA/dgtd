@@ -277,7 +277,7 @@ TEST_F(Solver2DTest, 2D_rotated_quadrilateral_centered_1dot5D)
 	maxwell::Solver solver {
 		model,
 		probes,
-		buildGaussianInitialField(E, 0.5, fieldCenter, zPolarization(),1,-M_PI/4.0),
+		buildGaussianInitialField(E, 0.2, fieldCenter, zPolarization(), 1, Source::CartesianAngles({0.0,0.0,M_PI_4})),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(4.95)

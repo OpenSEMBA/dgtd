@@ -2,6 +2,39 @@
 
 namespace maxwell {
 
+mfem::DenseMatrix getRotationMatrix(const Source::CartesianAngles& angles)
+{
+	std::array<mfem::DenseMatrix, 3> rotMat;
+	double rotationAxisX[3] = { 1.0,0.0,0.0 }, rotationAxisY[3] = { 0.0,1.0,0.0 }, rotationAxisZ[3] = { 0.0,0.0,1.0 };
+	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisX, angles[X], 1.0, rotMat[X]);
+	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisY, angles[Y], 1.0, rotMat[Y]);
+	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisZ, angles[Z], 1.0, rotMat[Z]);
+	mfem::DenseMatrix tMat, res;
+	mfem::Mult(rotMat[X], rotMat[Y], tMat);
+	mfem::Mult(tMat     , rotMat[Z], res);
+	return res;
+}
+
+mfem::Vector rotateAroundAxis(
+	const mfem::Vector& v, const Source::CartesianAngles& angles)
+{
+	auto rotMat{ getRotationMatrix(angles) };
+
+	mfem::Vector pos3D(3), newPos3D(3);
+	pos3D = 0.0;
+	for (auto d{ 0 }; d < v.Size(); d++) {
+		pos3D[d] = v[d];
+	}
+
+	rotMat.Mult(pos3D, newPos3D);
+
+	mfem::Vector res(v.Size());
+	for (auto d{ 0 }; d < v.Size(); d++) {
+		res[d] = v[d];
+	}
+	return res;
+}
+
 mfem::Vector rotateAroundZAxis(
 	const mfem::Vector& v, const double& angleRads)
 {
@@ -11,7 +44,7 @@ mfem::Vector rotateAroundZAxis(
 
 	mfem::Vector pos3D(3), newPos3D(3);
 	pos3D = 0.0;
-	for (auto d{ 0 }; d < 3; d++) {
+	for (auto d{ 0 }; d < v.Size(); d++) {
 		pos3D[d] = v[d];
 	}
 	
@@ -29,12 +62,12 @@ InitialField::InitialField(
 	const FieldType& fT, 
 	const Polarization& p,
 	const Position& centerIn,
-	const double rotAngleIn ) :
+	const CartesianAngles anglesIn ) :
 	function_{ f.clone() },
 	fieldType{ fT },
 	polarization{ p },
 	center{ centerIn },
-	rotAngle{ rotAngleIn }
+	angles{ anglesIn }
 {}
 
 InitialField::InitialField(const InitialField& rhs) :
@@ -42,13 +75,37 @@ InitialField::InitialField(const InitialField& rhs) :
 	fieldType{ rhs.fieldType },
 	polarization{ rhs.polarization },
 	center{ rhs.center },
-	rotAngle{ rhs.rotAngle }
+	angles{ rhs.angles }
 {}
 
 std::unique_ptr<Source> InitialField::clone() const
 {
 	return std::make_unique<InitialField>(*this);
 }
+
+//double InitialField::eval(const Position& p, Time t) const
+//{
+//	//if p.size() == 2 then apply 2D rotMat, else apply 3D (on Z?) Incomplete TODO
+//	assert(p.Size() == center.Size());
+//	Position pos(p.Size());
+//	for (int i{ 0 }; i < p.Size(); ++i) {
+//		pos[i] = p[i] - center[i];
+//	}
+//	if (angles[2] != 0) {
+//		auto tPos = pos;
+//		mfem::DenseMatrix rotMat;
+//		double rotationAxis[3] = { 0.0, 0.0, 1.0 };
+//		mfem::NURBSPatch::Get3DRotationMatrix(rotationAxis, -M_PI_4, 1.0, rotMat);
+//		mfem::Vector pos3D(3), newPos3D(3);
+//		pos3D[0] = pos[0];
+//		pos3D[1] = pos[1];
+//		pos3D[2] = 0.0;
+//		rotMat.Mult(pos3D, newPos3D);
+//		pos[0] = newPos3D[0];
+//		pos[1] = newPos3D[1];
+//	}
+//	return function_->eval(pos, t);
+//}
 
 double InitialField::eval(const Position& p, Time t) const
 {
@@ -57,8 +114,8 @@ double InitialField::eval(const Position& p, Time t) const
 	for (int i{ 0 }; i < p.Size(); ++i) {
 		pos[i] = p[i] - center[i];
 	}
-	if (rotAngle != 0) {
-		pos = rotateAroundZAxis(pos, -M_PI_4);
+	if (angles[0] != 0.0 || angles[1] != 0.0 || angles[2] != 0.0) {
+		pos = rotateAroundAxis(pos, angles);
 	}
 	return function_->eval(pos, t);
 }

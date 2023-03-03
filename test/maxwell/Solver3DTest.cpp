@@ -390,7 +390,7 @@ TEST_F(Solver3DTest, rotated_3D_centered_hexa_1dot5D)
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.2, center, polarization, 1, M_PI / 4.0),
+	buildGaussianInitialField(E, 0.2, center, polarization, 1, Source::CartesianAngles({ M_PI_4,0.0,0.0 })),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setCentered()

@@ -12,11 +12,11 @@ static Sources buildGaussianInitialField(
 	const mfem::Vector& center = mfem::Vector({ 0.5 }),
 	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
 	const int dimension = 1,
-	const double rotAngle = 0.0)
+	const Source::CartesianAngles angles = Source::CartesianAngles({ 0.0,0.0,0.0 }))
 {
 	auto initialField{ 
 		std::make_unique<InitialField>(
-			Gaussian{ spread, dimension }, ft, p, center, rotAngle) 
+			Gaussian{ spread, dimension }, ft, p, center, angles) 
 	};
 	
 	Sources res;
@@ -61,8 +61,8 @@ static Sources buildRightTravelingWaveInitialField(
 	const Source::Position& center)
 {
 	Sources res;
-	res.push_back(std::move(std::make_unique<InitialField>(gauss, E, Source::Polarization({0.0, 1.0, 0.0}), center, 0.0)));
-	res.push_back(std::move(std::make_unique<InitialField>(gauss, H, Source::Polarization({0.0, 0.0, 1.0}), center, 0.0)));
+	res.push_back(std::move(std::make_unique<InitialField>(gauss, E, Source::Polarization({0.0, 1.0, 0.0}), center, Source::CartesianAngles({ 0.0,0.0,0.0 }))));
+	res.push_back(std::move(std::make_unique<InitialField>(gauss, H, Source::Polarization({0.0, 0.0, 1.0}), center, Source::CartesianAngles({ 0.0,0.0,0.0 }))));
 	return res;
 }
 

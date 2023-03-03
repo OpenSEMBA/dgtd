@@ -12,6 +12,7 @@ public:
 	using Position = mfem::Vector;
 	using Time = double;
 	using Polarization = mfem::Vector;
+	using CartesianAngles = std::vector<double>;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
@@ -23,11 +24,11 @@ public:
 class InitialField : public Source {
 public:
 	InitialField(
-		const MathFunction&, 
-		const FieldType&, 
-		const Polarization&, 
+		const MathFunction&,
+		const FieldType&,
+		const Polarization&,
 		const Position& center,
-		const double rotAngle = 0.0
+		const CartesianAngles rotAngle = CartesianAngles({ 0.0,0.0,0.0 })
 	);
 	InitialField(const InitialField&);
 
@@ -38,7 +39,7 @@ public:
 	FieldType fieldType{ E };
 	Polarization polarization;
 	Position center;
-	double rotAngle;
+	CartesianAngles angles;
 
 private:
 	std::unique_ptr<MathFunction> function_;
