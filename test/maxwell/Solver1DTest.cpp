@@ -56,7 +56,7 @@ protected:
 		return { {}, { ExporterProbe{getTestCaseName()} } };
 	}
 
-		AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
+	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
 	{
 		return {
 			{1, bdrL},
@@ -104,7 +104,6 @@ protected:
 	{
 		return Source::Polarization({ 0.0, 1.0, 0.0 });
 	}
-
 };
 
 TEST_F(Solver1DTest, pec_centered)
@@ -318,10 +317,11 @@ TEST_F(Solver1DTest, periodic_inhomo)
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
 }
+
 TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 {
 	// Sends a wave through a material interface. 
-	// and checks reflection and transmission.
+	// Checks reflection and transmission.
 	// Ref: https://en.wikipedia.org/wiki/Reflection_coefficient
 	
 	auto msh{ Mesh::MakeCartesian1D(100) };
@@ -344,7 +344,12 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 			{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
 		},
 		probes,
-		buildRightTravelingWaveInitialField(Gaussian{ 0.05, 1}, Vector({ 0.25 })),
+		buildPlanewaveInitialField(
+			Gaussian{ 0.05 }, 
+			Source::Position({ 0.25 }),
+			Source::Polarization({0.0, 1.0, 0.0}),
+			mfem::Vector({1.0, 0.0, 0.0})
+		),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(1.0)
@@ -402,7 +407,6 @@ TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_upwind_sma)
 	EXPECT_TRUE(false);
 }
 
-
 TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
@@ -448,6 +452,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 		EXPECT_NEAR(2.0, frame.second, 1e-3);
 	}
 }
+
 TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };

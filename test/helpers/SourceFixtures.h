@@ -1,6 +1,7 @@
 #pragma once
 
 #include "maxwell/Sources.h"
+#include "maxwell/Calculus.h"
 
 namespace maxwell {
 namespace fixtures {
@@ -56,13 +57,19 @@ static Sources buildPlaneWave(
 	return res;
 }
 
-static Sources buildRightTravelingWaveInitialField(
-	const Gaussian& gauss,
-	const Source::Position& center)
+static Sources buildPlanewaveInitialField(
+	const MathFunction& mf,
+	const Source::Position& center,
+	const Source::Polarization& ePol,
+	const mfem::Vector& propagationDir)
 {
 	Sources res;
-	res.push_back(std::move(std::make_unique<InitialField>(gauss, E, Source::Polarization({0.0, 1.0, 0.0}), center, Source::CartesianAngles({ 0.0,0.0,0.0 }))));
-	res.push_back(std::move(std::make_unique<InitialField>(gauss, H, Source::Polarization({0.0, 0.0, 1.0}), center, Source::CartesianAngles({ 0.0,0.0,0.0 }))));
+
+	Source::Polarization hPol{ crossProduct(propagationDir, ePol)};
+
+	res.push_back(std::move(std::make_unique<InitialField>(mf, E, ePol, center)));
+	res.push_back(std::move(std::make_unique<InitialField>(mf, H, hPol, center)));
+
 	return res;
 }
 

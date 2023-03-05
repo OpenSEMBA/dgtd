@@ -22,7 +22,7 @@ public:
 
 class Gaussian : public MathFunction {
 public:
-	Gaussian(double spatialSpread, int dim) :
+	Gaussian(double spatialSpread, int dim = 1) :
 		spatialSpread_{ spatialSpread },
 		dimension_{ dim }
 	{}

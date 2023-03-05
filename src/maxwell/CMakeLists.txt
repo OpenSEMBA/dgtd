@@ -27,6 +27,7 @@ add_library(maxwell STATIC
 	"mfemExtension/BilinearIntegrators.cpp"
 	"mfemExtension/LinearIntegrators.cpp" 
 	"mfemExtension/IntegratorFunctions.cpp" 
+	"Calculus.h"
 )
 
 target_link_libraries(maxwell mfem Eigen3::Eigen)
