@@ -349,16 +349,16 @@ TEST_F(Solver3DTest, periodic_cube_centered)
 {
 	Mesh m;
 	{
-		Mesh cube{ Mesh::MakeCartesian3D(3,3,3,Element::HEXAHEDRON) };
+		Mesh cube{ Mesh::MakeCartesian3D(10,3,3,Element::HEXAHEDRON,4.0,1.0,1.0) };
 		std::vector<Vector> translations{
-			Vector({1.0, 0.0, 0.0}),
+			Vector({4.0, 0.0, 0.0}),
 			Vector({0.0, 1.0, 0.0}),
 			Vector({0.0, 0.0, 1.0})
 		};
 		m = Mesh::MakePeriodic(cube, cube.CreatePeriodicVertexMapping(translations));
 	}
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 50;
+	probes.exporterProbes[0].visSteps = 100;
 
 	Model model{ m };
 
@@ -366,16 +366,51 @@ TEST_F(Solver3DTest, periodic_cube_centered)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.3}, 
-			Source::Position    ({0.5, 0.5, 0.5}), // center
+			Gaussian{0.25}, 
+			Source::Position    ({1.0, 0.5, 0.5}), // center
 			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
 			mfem::Vector        ({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
-			.setTimeStep(1e-4)
+			.setTimeStep(5e-4)
 			.setCentered()
-			.setFinalTime(1.0)
-			.setOrder(2)
+			.setFinalTime(4.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+}
+
+TEST_F(Solver3DTest, periodic_cube_upwind)
+{
+	Mesh m;
+	{
+		Mesh cube{ Mesh::MakeCartesian3D(10,3,3,Element::HEXAHEDRON,4.0,1.0,1.0) };
+		std::vector<Vector> translations{
+			Vector({4.0, 0.0, 0.0}),
+			Vector({0.0, 1.0, 0.0}),
+			Vector({0.0, 0.0, 1.0})
+		};
+		m = Mesh::MakePeriodic(cube, cube.CreatePeriodicVertexMapping(translations));
+	}
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 100;
+
+	Model model{ m };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlanewaveInitialField(
+			Gaussian{0.25},
+			Source::Position({1.0, 0.5, 0.5}), // center
+			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
+			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+		),
+		SolverOptions{}
+			.setTimeStep(5e-4)
+			.setFinalTime(4.0)
+			.setOrder(3)
 	};
 
 	solver.run();

@@ -459,6 +459,78 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 	}
 
 }
+
+TEST_F(Solver2DTest, periodic_quadrilateral_centered)
+{
+	Mesh m;
+	{
+		Mesh square{ Mesh::MakeCartesian2D(15, 5, Element::QUADRILATERAL, false, 4.0, 1.0) };
+		std::vector<Vector> translations{
+			Vector({4.0, 0.0}),
+			Vector({0.0, 1.0}),
+		};
+		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
+	}
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 20;
+
+	Model model{ m };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlanewaveInitialField(
+			Gaussian{0.25},
+			Source::Position({1.0, 0.5}), // center
+			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
+			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+		),
+		SolverOptions{}
+			.setTimeStep(5e-4)
+			.setCentered()
+			.setFinalTime(4.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver2DTest, periodic_quadrilateral_upwind)
+{
+	Mesh m;
+	{
+		Mesh square{ Mesh::MakeCartesian2D(15, 5, Element::QUADRILATERAL, false, 4.0, 1.0) };
+		std::vector<Vector> translations{
+			Vector({4.0, 0.0}),
+			Vector({0.0, 1.0}),
+		};
+		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
+	}
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 20;
+
+	Model model{ m };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlanewaveInitialField(
+			Gaussian{0.25},
+			Source::Position({1.0, 0.5}), // center
+			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
+			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+		),
+		SolverOptions{}
+			.setTimeStep(5e-4)
+			.setFinalTime(4.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
 //TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 //{
 //	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
@@ -518,28 +590,6 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 //	GridFunction eNew = solver.getFieldInDirection(E, Z);
 //
 //	EXPECT_GT(eOld.Max(), eNew.Max());
-//}
-//TEST_F(Solver2DTest, DISABLED_periodic) //TODO ADD ENERGY CHECK
-//{
-//	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
-//	Vector periodic({ 0.0, 1.0 });
-//	std::vector<Vector> trans;
-//	trans.push_back(periodic);
-//	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D, mesh2D.CreatePeriodicVertexMapping(trans));
-//
-//	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
-//
-//	Probes probes;
-//	//probes.addExporterProbeToCollection(ExporterProbe());
-//	//probes.vis_steps = 20;
-//
-//	Sources sources;
-//	sources.addSourceToVector(Source(model, E, X, 1.0, 10.0, Vector({ 0.2, 0.0 })));
-//
-//	maxwell::Solver solver(model, probes, sources, buildDefaultSolverOpts(1.0));
-//
-//	solver.run();
-//
 //}
 //TEST_F(Solver2DTest, DISABLED_periodic_strong) //TODO ADD ENERGY CHECK
 //{
