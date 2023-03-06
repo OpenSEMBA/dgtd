@@ -229,7 +229,7 @@ TEST_F(Solver3DTest, centered_tetra_1dot5D)
 	SolverOptions{}
 		.setTimeStep(1e-3)
 		.setCentered()
-		.setFinalTime(1.0)
+		.setFinalTime(3.0)
 		.setOrder(3)
 	};
 
@@ -396,24 +396,28 @@ TEST_F(Solver3DTest, periodic_cube_upwind)
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 100;
 
-	Model model{ m };
+	Model model{ m }; 
 
 	maxwell::Solver solver{
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.25},
-			Source::Position({1.0, 0.5, 0.5}), // center
+			Gaussian{0.75},
+			Source::Position({2.0, 0.5, 0.5}), // center
 			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
-			.setTimeStep(5e-4)
+			.setTimeStep(2e-3)
 			.setFinalTime(4.0)
 			.setOrder(3)
 	};
 
+	auto initialEnergy{ solver.getFields().getNorml2() };
+
 	solver.run();
+
+	EXPECT_NEAR(initialEnergy, solver.getFields().getNorml2(), 0.01);
 }
 
 TEST_F(Solver3DTest, DISABLED_box_pec_upwind)
