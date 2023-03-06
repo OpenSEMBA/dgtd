@@ -44,7 +44,7 @@ const Vector setNormalVector(const int dim,
 {
     Vector ortho(dim);
     CalcOrtho(Trans.Jacobian(), ortho);
-    ortho.operator/=(Trans.Weight());
+    //ortho.operator/=(Trans.Weight());
     return ortho;
 }
 

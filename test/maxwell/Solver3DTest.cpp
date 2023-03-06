@@ -220,14 +220,14 @@ TEST_F(Solver3DTest, centered_tetra_1dot5D)
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5, 0.5}}
 	};
-	probes.exporterProbes[0].visSteps = 500;
+	probes.exporterProbes[0].visSteps = 100;
 
 	maxwell::Solver solver{
 	buildModel(15,1,1, Element::Type::TETRAHEDRON, 3.0, 1.0, 1.0, BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
 	buildGaussianInitialField(E, 0.2, mfem::Vector({1.5,0.5,0.5}), unitVec(Z)),
 	SolverOptions{}
-		.setTimeStep(1e-4)
+		.setTimeStep(1e-3)
 		.setCentered()
 		.setFinalTime(1.0)
 		.setOrder(3)

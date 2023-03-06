@@ -460,19 +460,19 @@ TEST_F(Solver2DTest, compare_2DSpectralToBase_upwind) {
 
 }
 
-TEST_F(Solver2DTest, periodic_quadrilateral_centered)
+TEST_F(Solver2DTest, periodic_triangle_centered)
 {
 	Mesh m;
 	{
-		Mesh square{ Mesh::MakeCartesian2D(15, 5, Element::QUADRILATERAL, false, 4.0, 1.0) };
+		Mesh square{ Mesh::MakeCartesian2D(6, 3, Element::TRIANGLE, false,2.0, 1.0) };
 		std::vector<Vector> translations{
-			Vector({4.0, 0.0}),
+			Vector({2.0, 0.0}),
 			Vector({0.0, 1.0}),
 		};
 		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
 	}
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 20;
+	probes.exporterProbes[0].visSteps = 200;
 
 	Model model{ m };
 
@@ -486,7 +486,7 @@ TEST_F(Solver2DTest, periodic_quadrilateral_centered)
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
-			.setTimeStep(5e-4)
+			.setTimeStep(1e-4)
 			.setCentered()
 			.setFinalTime(4.0)
 			.setOrder(3)
