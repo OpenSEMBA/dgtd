@@ -815,6 +815,53 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 
 }
 
+TEST_F(Solver2DTest, 2D_sma_centered_totalfieldin)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/SevenQuadsOnX_IntBdr.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+	PointProbe{ E, Z, {0.5001} },
+	PointProbe{ E, Z, {3.5} },
+	PointProbe{ H, Y, {3.5} },
+	PointProbe{ H, X, {3.5} }
+	};
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(zPolarization(), 0.2, 1.0),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setCentered()
+			.setFinalTime(4.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.5, frame.first, 2e-1);
+		EXPECT_NEAR(2.0, frame.second, 1e-3);
+	}
+}
+
 //TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 //{
 //	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);

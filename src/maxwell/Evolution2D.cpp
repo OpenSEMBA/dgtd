@@ -26,7 +26,7 @@ MaxwellEvolution2D::MaxwellEvolution2D(
 					if (opts_.fluxType == FluxType::Upwind) {
 						MPNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, { d, d2 }, model_, fes_), fes_);
 						MBFN_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f2, { d }, model_, fes_), fes_);
-						MBPNN_[f][f][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFunctionOperator(f, model_, fes_), fes_);
+						MBPNN_[f][f][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { d, d2 }, model_, fes_), fes_);
 					}
 				}
 			}
@@ -69,6 +69,29 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 		MP_[H]->AddMult(hOld[Y], hNew[Y], -1.0);
 
 		MP_[E]->AddMult(eOld[Z], eNew[Z], -1.0);
+	}
+
+	for (const auto& source : srcmngr_.sources) {
+		if (dynamic_cast<PlaneWave*>(source.get())) {
+			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
+			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
+
+			MBFN_[E][H][Y]->AddMult(eFunc, eNew[Z]);
+			MBFN_[E][H][X]->AddMult(eFunc, eNew[Z]);
+			MBFN_[H][E][X]->AddMult(hFunc, hNew[Y]);
+			MBFN_[H][E][Y]->AddMult(hFunc, hNew[X]);
+
+			if (opts_.fluxType == FluxType::Upwind) {
+				MBP_[E]->AddMult(eFunc, eNew[Z]);
+				MBP_[H]->AddMult(hFunc, hNew[X]);
+				MBP_[H]->AddMult(hFunc, hNew[Y]);
+
+				MBPNN_[H][H][X][Y]->AddMult(hFunc, hNew[X]);
+				MBPNN_[H][H][Y][X]->AddMult(hFunc, hNew[X]);
+				MBPNN_[H][H][X][Y]->AddMult(hFunc, hNew[Y]);
+				MBPNN_[H][H][Y][Y]->AddMult(hFunc, hNew[Y]);
+			}
+		}
 	}
 
 }
