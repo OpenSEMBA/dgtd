@@ -815,7 +815,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 
 }
 
-TEST_F(Solver2DTest, 2D_sma_centered_totalfieldin)
+TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldin_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/SevenQuadsOnX_IntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
@@ -824,10 +824,10 @@ TEST_F(Solver2DTest, 2D_sma_centered_totalfieldin)
 
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
-	PointProbe{ E, Z, {0.5001} },
-	PointProbe{ E, Z, {3.5} },
-	PointProbe{ H, Y, {3.5} },
-	PointProbe{ H, X, {3.5} }
+	PointProbe{ E, Z, {0.5001, 0.5} },
+	PointProbe{ E, Z, {0.5, 0.5} },
+	PointProbe{ H, Y, {3.5, 0.5} },
+	PointProbe{ H, X, {3.5, 0.5} }
 	};
 	probes.exporterProbes[0].visSteps = 20;
 
@@ -836,8 +836,7 @@ TEST_F(Solver2DTest, 2D_sma_centered_totalfieldin)
 		probes,
 		buildPlaneWave(zPolarization(), 0.2, 1.0),
 		SolverOptions{}
-			.setCFL(0.5)
-			.setCentered()
+			.setTimeStep(5e-3)
 			.setFinalTime(4.0)
 			.setOrder(2)
 	};
@@ -845,20 +844,19 @@ TEST_F(Solver2DTest, 2D_sma_centered_totalfieldin)
 	solver.run();
 
 	{
-		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
-		EXPECT_NEAR(1.5, frame.first, 1e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
+		EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().first, 1e-1);
+		EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, 1e-3);
 	}
 
 	{
-		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
-		EXPECT_NEAR(0.0, frame.second, 1e-3);
+		EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, 1e-3);
 	}
 
 	{
-		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
-		EXPECT_NEAR(2.5, frame.first, 2e-1);
-		EXPECT_NEAR(2.0, frame.second, 1e-3);
+		EXPECT_NEAR(3.5, solver.getPointProbe(2).findFrameWithMax().first, 2e-1);
+		EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, 1e-3);
+		EXPECT_NEAR(3.5, solver.getPointProbe(3).findFrameWithMax().first, 2e-1);
+		EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, 1e-3);
 	}
 }
 
