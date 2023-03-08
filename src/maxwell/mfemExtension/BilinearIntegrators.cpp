@@ -67,8 +67,8 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
                 buildFaceMatrix    ( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
                 if (ndof2) {          
                     buildFaceMatrix( w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
-                    buildFaceMatrix(-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
-                    buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
+                    buildFaceMatrix( w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
+                    buildFaceMatrix( w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
                 }
                 break;
             default:

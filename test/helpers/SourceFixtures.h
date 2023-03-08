@@ -73,6 +73,21 @@ static Sources buildPlanewaveInitialField(
 	return res;
 }
 
+static Sources buildConstantInitialField(
+	const MathFunction& mf)
+{
+	Sources res;
+
+	res.push_back(std::move(std::make_unique<InitialField>(mf, E, Source::Polarization({1.0, 0.0, 0.0}), mfem::Vector({0.0,0.0,0.0}))));
+	res.push_back(std::move(std::make_unique<InitialField>(mf, E, Source::Polarization({0.0, 1.0, 0.0}), mfem::Vector({0.0,0.0,0.0}))));
+	res.push_back(std::move(std::make_unique<InitialField>(mf, E, Source::Polarization({0.0, 0.0, 1.0}), mfem::Vector({0.0,0.0,0.0}))));
+	res.push_back(std::move(std::make_unique<InitialField>(mf, H, Source::Polarization({1.0, 0.0, 0.0}), mfem::Vector({0.0,0.0,0.0}))));
+	res.push_back(std::move(std::make_unique<InitialField>(mf, H, Source::Polarization({0.0, 1.0, 0.0}), mfem::Vector({0.0,0.0,0.0}))));
+	res.push_back(std::move(std::make_unique<InitialField>(mf, H, Source::Polarization({0.0, 0.0, 1.0}), mfem::Vector({0.0,0.0,0.0}))));
+
+	return res;
+}
+
 }
 }
 }

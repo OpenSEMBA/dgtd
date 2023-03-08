@@ -23,9 +23,9 @@ MaxwellEvolution2D::MaxwellEvolution2D(
 			for (auto d2 : { X,Y,Z }) {
 				for (auto f2 : { E, H }) {
 					MFN_[f][f2][d]      = buildByMult    (*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_), fes_);
+					MBFN_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f2, { d }, model_, fes_), fes_);
 					if (opts_.fluxType == FluxType::Upwind) {
 						MPNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, { d, d2 }, model_, fes_), fes_);
-						MBFN_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f2, { d }, model_, fes_), fes_);
 						MBPNN_[f][f][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { d, d2 }, model_, fes_), fes_);
 					}
 				}

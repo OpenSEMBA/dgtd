@@ -211,7 +211,7 @@ FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const st
 	{
 		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator(dirTerms, c.orient, 1.0), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator(dirTerms, c.orient, 0.5), kv.second
 		);
 	}
 
@@ -228,7 +228,7 @@ FiniteElementIBFIOperator buildPenaltyFunctionOperator(const FieldType& f, Model
 	{
 		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({}, c.orient, 1.0), kv.second
+			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({}, c.orient, 0.5), kv.second
 		);
 	}
 

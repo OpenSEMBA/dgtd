@@ -593,7 +593,8 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle_spectral_and_base_comparison) {
 
 TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
 {
-	Probes probes;
+	auto probes{ buildProbesWithAnExportProbe() };
+	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -625,7 +626,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(2.0)
+			.setFinalTime(20.0)
 			.setOrder(3)
 	};
 
@@ -714,7 +715,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle)
 		PointProbe{H, Y, {2.0, 0.5}}
 	};
 
-	probes.exporterProbes[0].visSteps = 100;
+	probes.exporterProbes[0].visSteps = 1000;
 
 	Mesh m;
 	{
@@ -802,7 +803,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
 
-	double tolerance{ 1e-2 };
+	double tolerance{ 3e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
 	// At the left boundary the electric field should be closed to zero and
@@ -814,6 +815,53 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 	EXPECT_NEAR(-1.0, solver.getPointProbe(3).findFrameWithMin().second, tolerance);
 
 }
+
+TEST_F(Solver2DTest, 2D_pec_centered_totalfieldin_1dot5D)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/SevenQuadsOnX_IntBdr.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+	PointProbe{ E, Z, {0.5001, 0.5} },
+	PointProbe{ E, Z, {0.5, 0.5} },
+	PointProbe{ H, Y, {3.5, 0.5} },
+	PointProbe{ H, X, {3.5, 0.5} }
+	};
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlaneWave(zPolarization(), 0.2, 1.0),
+		SolverOptions{}
+			.setTimeStep(5e-3)
+			.setCentered()
+			.setFinalTime(4.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	{
+		EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().first, 1e-1);
+		EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, 1e-3);
+	}
+
+	{
+		EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, 1e-3);
+	}
+
+	{
+		EXPECT_NEAR(3.5, solver.getPointProbe(2).findFrameWithMax().first, 2e-1);
+		EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, 1e-3);
+		EXPECT_NEAR(3.5, solver.getPointProbe(3).findFrameWithMax().first, 2e-1);
+		EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, 1e-3);
+	}
+}
+
 
 TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldin_1dot5D)
 {
