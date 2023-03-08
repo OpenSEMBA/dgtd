@@ -227,6 +227,62 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
+TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_AMR)
+{
+	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
+	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
+
+	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
+	A single 2D Gaussian on X and Y is declared along Ez.
+
+	Then, the Solver object is constructed using said parts, with its mesh being two-dimensional mixed
+	with triangles and squares.
+	The field along Ez is extracted before and after the solver calls its run() method and evolves the
+	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty
+	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
+	higher than the initial value.*/
+
+	Mesh mesh{ Mesh::LoadFromFile("./testData/amr-quad.mesh",1,0) };
+	mesh.UniformRefinement();
+
+	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+
+	Probes probes;
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{E, Z, {1.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}},
+		PointProbe{H, Y, {1.0, 0.5}}
+	};
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildGaussianInitialField(E, 0.1, Vector({0.5,0.5}), zPolarization()),
+	SolverOptions{}
+		.setTimeStep(5e-3)
+		.setCentered()
+		.setFinalTime(2.0)
+		.setOrder(3)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 2e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 or -1.0
+	// (the wave splits in two and doubles at the boundary).
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+
+}
+
 TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D)
 {
 
@@ -299,6 +355,61 @@ TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D_spectral)
 	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tolerance);
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tolerance);
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+}
+
+TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_AMR)
+{
+	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
+	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
+
+	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
+	A single 2D Gaussian on X and Y is declared along Ez.
+
+	Then, the Solver object is constructed using said parts, with its mesh being two-dimensional mixed
+	with triangles and squares.
+	The field along Ez is extracted before and after the solver calls its run() method and evolves the
+	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty
+	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
+	higher than the initial value.*/
+
+	Mesh mesh{ Mesh::LoadFromFile("./testData/amr-quad.mesh",1,0) };
+	mesh.UniformRefinement();
+
+	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+
+	Probes probes;
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{E, Z, {1.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}},
+		PointProbe{H, Y, {1.0, 0.5}}
+	};
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildGaussianInitialField(E, 0.1, Vector({0.5,0.5}), zPolarization()),
+	SolverOptions{}
+		.setTimeStep(2.5e-4)
+		.setFinalTime(2.0)
+		.setOrder(3)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 2e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 or -1.0
+	// (the wave splits in two and doubles at the boundary).
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+
 }
 
 TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D)
@@ -626,7 +737,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(20.0)
+			.setFinalTime(30.0)
 			.setOrder(3)
 	};
 
@@ -933,41 +1044,7 @@ TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldin_1dot5D)
 //	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 //
 //}
-
-//TEST_F(Solver2DTest, DISABLED_centered_flux_AMR)
-//{
-//	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
-//	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
-//
-//	First, all required parts for constructing a solver are declared, Model, Sources, Probes and Options.
-//	A single 2D Gaussian on X and Y is declared along Ez.
-//
-//	Then, the Solver object is constructed using said parts, with its mesh being two-dimensional mixed
-//	with triangles and squares.
-//	The field along Ez is extracted before and after the solver calls its run() method and evolves the
-//	problem. This test verifies that, for this mesh, after two seconds and nine hundred twenty
-//	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
-//	higher than the initial value.*/
-//
-//	const char* mesh_file = "amr-quad.mesh";
-//	Mesh mesh(mesh_file);
-//	mesh.UniformRefinement();
-//	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
-//
-//	Sources sources;
-//	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
-//
-//	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
-//	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
-//
-//	maxwell::Solver solver(model, Probes(), sources, solverOpts);
-//
-//	GridFunction eOld = solver.getFieldInDirection(E, Z);
-//	solver.run();
-//	GridFunction eNew = solver.getFieldInDirection(E, Z);
-//
-//	EXPECT_GT(eOld.Max(), eNew.Max());
-//}
+ 
 //TEST_F(Solver2DTest, DISABLED_periodic_strong) //TODO ADD ENERGY CHECK
 //{
 //	Mesh mesh2D = Mesh::MakeCartesian2D(21, 3, Element::Type::QUADRILATERAL);
