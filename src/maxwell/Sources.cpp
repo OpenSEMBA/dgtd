@@ -75,23 +75,36 @@ double InitialField::eval(const Position& p, Time t) const
 	return function_->eval(pos, t);
 }
 
-PlaneWave::PlaneWave(const MathFunction& f, const Polarization& p):
+TimeVaryingField::TimeVaryingField(const MathFunction& f, const Polarization& p, const Position& centerIn, const CartesianAngles& anglesIn ):
 	function_{ f.clone() },
-	polarization{ p }
+	polarization{ p },
+	center{ centerIn },
+	angles{ anglesIn }
 {}
 
-PlaneWave::PlaneWave(const PlaneWave& rhs) :
+TimeVaryingField::TimeVaryingField(const TimeVaryingField& rhs) :
 	function_{ rhs.function_->clone() },
-	polarization{ rhs.polarization }
+	polarization{ rhs.polarization },
+	center{ rhs.center },
+	angles{ rhs.angles }
 {}
 
-std::unique_ptr<Source> PlaneWave::clone() const
+std::unique_ptr<Source> TimeVaryingField::clone() const
 {
-	return std::make_unique<PlaneWave>(*this);
+	return std::make_unique<TimeVaryingField>(*this);
 }
 
-double PlaneWave::eval(const Position& p, Time t) const
+double TimeVaryingField::eval(const Position& p, Time t) const
 {
+	assert(p.Size() == center.Size());
+	Position pos(p.Size());
+	for (int i{ 0 }; i < p.Size(); ++i) {
+		pos[i] = p[i] - center[i];
+	}
+	if (angles[0] != 0.0 || angles[1] != 0.0 || angles[2] != 0.0) {
+		auto tPos = rotateAroundAxis(pos, angles);
+		return function_->eval(tPos, t);
+	}
 	return function_->eval(p, t);
 }
 

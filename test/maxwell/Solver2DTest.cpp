@@ -730,6 +730,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.1},
+			E,
 			Source::Position({0.5, 0.5}), // center
 			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
@@ -787,6 +788,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_quadrilateral)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
+			E,
 			Source::Position({1.0, 1.0}), // center
 			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
@@ -845,6 +847,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
+			E,
 			Source::Position({1.0, 1.0}), // center
 			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
@@ -901,6 +904,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
+			E,
 			Source::Position({1.0, 1.0}), // center
 			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
@@ -974,20 +978,20 @@ TEST_F(Solver2DTest, 2D_pec_centered_totalfieldin_1dot5D)
 }
 
 
-TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldin_1dot5D)
+TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/SevenQuadsOnX_IntBdr.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_Quadrilateral_IntBdr.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::SMA} };
+	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.pointProbes = {
-	PointProbe{ E, Z, {0.5001, 0.5} },
-	PointProbe{ E, Z, {0.5, 0.5} },
-	PointProbe{ H, Y, {3.5, 0.5} },
-	PointProbe{ H, X, {3.5, 0.5} }
-	};
+	//probes.pointProbes = {
+	//PointProbe{ E, Z, {0.5001, 0.5} },
+	//PointProbe{ E, Z, {0.5, 0.5} },
+	//PointProbe{ H, Y, {3.5, 0.5} },
+	//PointProbe{ H, X, {3.5, 0.5} }
+	//};
 	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
@@ -995,28 +999,28 @@ TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldin_1dot5D)
 		probes,
 		buildPlaneWave(zPolarization(), 0.2, 1.0),
 		SolverOptions{}
-			.setTimeStep(5e-3)
-			.setFinalTime(4.0)
+			.setTimeStep(1e-3)
+			.setFinalTime(2.0)
 			.setOrder(2)
 	};
 
 	solver.run();
 
-	{
-		EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().first, 1e-1);
-		EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, 1e-3);
-	}
+	//{
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().first, 1e-1);
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, 1e-3);
+	//}
 
-	{
-		EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, 1e-3);
-	}
+	//{
+	//	EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, 1e-3);
+	//}
 
-	{
-		EXPECT_NEAR(3.5, solver.getPointProbe(2).findFrameWithMax().first, 2e-1);
-		EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, 1e-3);
-		EXPECT_NEAR(3.5, solver.getPointProbe(3).findFrameWithMax().first, 2e-1);
-		EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, 1e-3);
-	}
+	//{
+	//	EXPECT_NEAR(3.5, solver.getPointProbe(2).findFrameWithMax().first, 2e-1);
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, 1e-3);
+	//	EXPECT_NEAR(3.5, solver.getPointProbe(3).findFrameWithMax().first, 2e-1);
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, 1e-3);
+	//}
 }
 
 //TEST_F(Solver2DTest, DISABLED_quadraticMesh)

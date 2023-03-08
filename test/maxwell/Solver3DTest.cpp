@@ -473,6 +473,7 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2}, 
+			E,
 			Source::Position    ({1.0, 0.5, 0.5}), // center
 			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
 			mfem::Vector        ({1.0, 0.0, 0.0})  // propagation direction
@@ -525,6 +526,7 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_upwind_hexa)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
+			E,
 			Source::Position({1.0, 0.5, 0.5}), // center
 			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction

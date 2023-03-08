@@ -53,16 +53,5 @@ static const Direction X{ 0 };
 static const Direction Y{ 1 };
 static const Direction Z{ 2 };
 
-enum class DisForm {
-	Weak,
-	Strong
-};
-
-enum class InitialFieldType {
-	Gaussian,
-	PlanarSinusoidal,
-	PlaneWave
-};
-
 
 }

@@ -345,7 +345,8 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		},
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{ 0.05 }, 
+			Gaussian{ 0.05 },
+			E,
 			Source::Position({ 0.25 }),
 			Source::Polarization({0.0, 1.0, 0.0}),
 			mfem::Vector({1.0, 0.0, 0.0})

@@ -56,16 +56,16 @@ void SourcesManager::setInitialFields(Fields& fields)
     }
 }
 
-GridFunction SourcesManager::evalTotalField(const double time)
+GridFunction SourcesManager::evalTimeVarField(const double time)
 {
     GridFunction res(&fes_);
     res = 0.0;
     for (const auto& source : sources) {
         std::function<double(const Source::Position&, Source::Time)> f = 0;
-        if (dynamic_cast<PlaneWave*>(source.get())) {
-            auto totalField{ dynamic_cast<PlaneWave*>(source.get()) };
+        if (dynamic_cast<TimeVaryingField*>(source.get())) {
+            auto totalField{ dynamic_cast<TimeVaryingField*>(source.get()) };
             f = std::bind(
-               &PlaneWave::eval,
+               &TimeVaryingField::eval,
                 totalField,
                 std::placeholders::_1,
                 std::placeholders::_2

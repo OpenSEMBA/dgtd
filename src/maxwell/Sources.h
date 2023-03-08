@@ -45,16 +45,18 @@ private:
 	std::unique_ptr<MathFunction> function_;
 };
 
-class PlaneWave : public Source {
+class TimeVaryingField : public Source {
 public:
-	PlaneWave(const MathFunction&, const Polarization&);
-	PlaneWave(const PlaneWave&);
+	TimeVaryingField(const MathFunction& f, const Polarization& p, const Position& centerIn, const CartesianAngles& anglesIn);
+	TimeVaryingField(const TimeVaryingField&);
 
 	std::unique_ptr<Source> clone() const;
 
 	double eval(const Position&, Time) const;
 
 	Polarization polarization;
+	Position center;
+	CartesianAngles angles;
 
 private: 
 	std::unique_ptr<MathFunction> function_;

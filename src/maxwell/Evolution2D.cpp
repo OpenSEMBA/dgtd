@@ -72,9 +72,9 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 	}
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<PlaneWave*>(source.get())) {
-			GridFunction eFunc(srcmngr_.evalTotalField(GetTime()));
-			GridFunction hFunc(srcmngr_.evalTotalField(GetTime()));
+		if (dynamic_cast<TimeVaryingField*>(source.get())) {
+			GridFunction eFunc(srcmngr_.evalTimeVarField(GetTime()));
+			GridFunction hFunc(srcmngr_.evalTimeVarField(GetTime()));
 
 			MBFN_[E][H][Y]->AddMult(eFunc, eNew[Z]);
 			MBFN_[E][H][X]->AddMult(eFunc, eNew[Z]);
