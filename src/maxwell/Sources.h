@@ -47,13 +47,19 @@ private:
 
 class TimeVaryingField : public Source {
 public:
-	TimeVaryingField(const MathFunction& f, const Polarization& p, const Position& centerIn, const CartesianAngles& anglesIn);
+	TimeVaryingField(
+		const MathFunction& f, 
+		const Polarization& p, 
+		const FieldType& ft, 
+		const Position& centerIn, 
+		const CartesianAngles& anglesIn);
 	TimeVaryingField(const TimeVaryingField&);
 
 	std::unique_ptr<Source> clone() const;
 
 	double eval(const Position&, Time) const;
 
+	FieldType fieldType;
 	Polarization polarization;
 	Position center;
 	CartesianAngles angles;

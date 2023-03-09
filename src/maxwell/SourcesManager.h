@@ -9,7 +9,7 @@ namespace maxwell {
 class SourcesManager {
 public:
 
-    using TimeVarOperators = std::array<mfem::GridFunction, 3>;
+    using TimeVarOperators = std::array<std::array<mfem::GridFunction, 3>, 2>;
 
     SourcesManager(const Sources&, mfem::FiniteElementSpace&);  
 

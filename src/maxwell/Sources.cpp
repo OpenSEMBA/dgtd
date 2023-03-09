@@ -75,8 +75,9 @@ double InitialField::eval(const Position& p, Time t) const
 	return function_->eval(pos, t);
 }
 
-TimeVaryingField::TimeVaryingField(const MathFunction& f, const Polarization& p, const Position& centerIn, const CartesianAngles& anglesIn ):
+TimeVaryingField::TimeVaryingField(const MathFunction& f, const Polarization& p, const FieldType& ft, const Position& centerIn, const CartesianAngles& anglesIn ):
 	function_{ f.clone() },
+	fieldType{ ft },
 	polarization{ p },
 	center{ centerIn },
 	angles{ anglesIn }
@@ -84,6 +85,7 @@ TimeVaryingField::TimeVaryingField(const MathFunction& f, const Polarization& p,
 
 TimeVaryingField::TimeVaryingField(const TimeVaryingField& rhs) :
 	function_{ rhs.function_->clone() },
+	fieldType{ rhs.fieldType },
 	polarization{ rhs.polarization },
 	center{ rhs.center },
 	angles{ rhs.angles }

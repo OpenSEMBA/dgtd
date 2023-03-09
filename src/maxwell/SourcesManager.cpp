@@ -59,8 +59,11 @@ void SourcesManager::setInitialFields(Fields& fields)
 SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double time)
 {
     SourcesManager::TimeVarOperators res;
-    for (auto d : { X, Y, Z }) {
-        res[d].SetSpace(&fes_);
+    for (auto ft : { E, H }) {
+        for (auto d : { X, Y, Z }) {
+            res[ft][d].SetSpace(&fes_);
+            res[ft][d] = 0.0;
+        }
     }
     for (const auto& source : sources) {
         std::function<double(const Source::Position&, Source::Time)> f = 0;
@@ -74,11 +77,9 @@ SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double t
             );
             FunctionCoefficient func(f);
             func.SetTime(time);
-            for (auto f : { E, H }) {
-                for (auto d : { X, Y, Z }) {
-                    res[d].ProjectCoefficient(func);
-                    res[d] *= timeVarField->polarization[d];
-                }
+            for (auto d : { X, Y, Z }) {
+                res[timeVarField->fieldType][d].ProjectCoefficient(func);
+                res[timeVarField->fieldType][d] *= timeVarField->polarization[d];
             }
         }
     }

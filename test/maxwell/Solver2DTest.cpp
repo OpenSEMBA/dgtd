@@ -950,7 +950,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(zPolarization(), 0.2, 1.0),
+		buildPlaneWave(0.2, 1.5, 1, zPolarization()),
 		SolverOptions{}
 			.setTimeStep(5e-3)
 			.setCentered()
@@ -997,7 +997,7 @@ TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldinout_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(zPolarization(), 0.2, 1.0),
+		buildPlaneWave(0.2, 1.5, 1, zPolarization()),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(10.0)

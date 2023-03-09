@@ -70,14 +70,14 @@ void MaxwellEvolution1D_Spectral::Mult(const Vector& in, Vector& out) const
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<TimeVaryingField*>(source.get())) {
-			std::array<GridFunction, 3> eFunc(srcmngr_.evalTimeVarField(GetTime()));
-			std::array<GridFunction, 3> hFunc(srcmngr_.evalTimeVarField(GetTime()));
+			std::array<std::array<GridFunction, 3>, 2> eFunc(srcmngr_.evalTimeVarField(GetTime()));
+			std::array<std::array<GridFunction, 3>, 2> hFunc(srcmngr_.evalTimeVarField(GetTime()));
 
 			Eigen::VectorXd forcVecsOld;
-			forcVecsOld.resize(2 * eFunc[Z].Size());
-			for (int i = 0; i < eFunc[Z].Size(); ++i) {
-				forcVecsOld(i)                   = eFunc[Y].Elem(i);
-				forcVecsOld(i + eFunc[Z].Size()) = hFunc[Z].Elem(i);
+			forcVecsOld.resize(2 * eFunc[E][Y].Size());
+			for (int i = 0; i < eFunc[E][Y].Size(); ++i) {
+				forcVecsOld(i)                      = eFunc[E][Y].Elem(i);
+				forcVecsOld(i + eFunc[E][Y].Size()) = hFunc[H][Z].Elem(i);
 			} 
 			fieldsNew += forcing_ * forcVecsOld;
 		}

@@ -396,7 +396,7 @@ TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_upwind_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(), 0.2, 1.5),
+		buildPlaneWave(0.2, 1.5, 1, yPolarization()),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(5.0)
@@ -426,7 +426,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(), 0.2, 1.5),
+		buildPlaneWave(0.2, 1.5, 1, yPolarization()),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -473,7 +473,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(), 0.2, 1.5),
+		buildPlaneWave(0.2, 1.5, 1, yPolarization()),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(4.0)
@@ -526,7 +526,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(), 0.2, 1.5, 1),
+		buildPlaneWave(0.2, 1.5, 1, yPolarization()),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -579,7 +579,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_pec)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(), 0.2, 1.5),
+		buildPlaneWave(0.2, 1.5, 1, yPolarization()),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setFinalTime(5.0)
@@ -641,7 +641,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(yPolarization(), 0.2, 1.5, 1),
+		buildPlaneWave(0.2, 1.5, 1, yPolarization()),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setFinalTime(5.0)
