@@ -63,10 +63,10 @@ GridFunction SourcesManager::evalTimeVarField(const double time)
     for (const auto& source : sources) {
         std::function<double(const Source::Position&, Source::Time)> f = 0;
         if (dynamic_cast<TimeVaryingField*>(source.get())) {
-            auto totalField{ dynamic_cast<TimeVaryingField*>(source.get()) };
+            auto timeVarField{ dynamic_cast<TimeVaryingField*>(source.get()) };
             f = std::bind(
                &TimeVaryingField::eval,
-                totalField,
+                timeVarField,
                 std::placeholders::_1,
                 std::placeholders::_2
             );
