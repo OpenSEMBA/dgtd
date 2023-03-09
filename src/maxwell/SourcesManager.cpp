@@ -56,10 +56,12 @@ void SourcesManager::setInitialFields(Fields& fields)
     }
 }
 
-GridFunction SourcesManager::evalTimeVarField(const double time)
+SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double time)
 {
-    GridFunction res(&fes_);
-    res = 0.0;
+    SourcesManager::TimeVarOperators res;
+    for (auto d : { X, Y, Z }) {
+        res[d].SetSpace(&fes_);
+    }
     for (const auto& source : sources) {
         std::function<double(const Source::Position&, Source::Time)> f = 0;
         if (dynamic_cast<TimeVaryingField*>(source.get())) {
@@ -72,7 +74,12 @@ GridFunction SourcesManager::evalTimeVarField(const double time)
             );
             FunctionCoefficient func(f);
             func.SetTime(time);
-            res.ProjectCoefficient(func);
+            for (auto f : { E, H }) {
+                for (auto d : { X, Y, Z }) {
+                    res[d].ProjectCoefficient(func);
+                    res[d] *= timeVarField->polarization[d];
+                }
+            }
         }
     }
     return res;

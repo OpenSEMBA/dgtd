@@ -8,10 +8,13 @@ namespace maxwell {
 
 class SourcesManager {
 public:
+
+    using TimeVarOperators = std::array<mfem::GridFunction, 3>;
+
     SourcesManager(const Sources&, mfem::FiniteElementSpace&);  
 
     void setInitialFields(Fields&);
-    mfem::GridFunction evalTimeVarField(const double time);
+    TimeVarOperators evalTimeVarField(const double time);
 
     Sources sources;
 

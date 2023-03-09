@@ -73,23 +73,23 @@ void MaxwellEvolution2D::Mult(const Vector& in, Vector& out) const
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<TimeVaryingField*>(source.get())) {
-			GridFunction eFunc(srcmngr_.evalTimeVarField(GetTime()));
-			GridFunction hFunc(srcmngr_.evalTimeVarField(GetTime()));
+			std::array<GridFunction, 3> eFunc(srcmngr_.evalTimeVarField(GetTime()));
+			std::array<GridFunction, 3> hFunc(srcmngr_.evalTimeVarField(GetTime()));
 
-			MBFN_[E][H][Y]->AddMult(eFunc, eNew[Z]);
-			MBFN_[E][H][X]->AddMult(eFunc, eNew[Z]);
-			MBFN_[H][E][X]->AddMult(hFunc, hNew[Y]);
-			MBFN_[H][E][Y]->AddMult(hFunc, hNew[X]);
+			MBFN_[E][H][Y]->AddMult(eFunc[Z], eNew[Z]);
+			MBFN_[E][H][X]->AddMult(eFunc[Z], eNew[Z]);
+			MBFN_[H][E][X]->AddMult(hFunc[Y], hNew[Y]);
+			MBFN_[H][E][Y]->AddMult(hFunc[X], hNew[X]);
 
 			if (opts_.fluxType == FluxType::Upwind) {
-				MBP_[E]->AddMult(eFunc, eNew[Z]);
-				MBP_[H]->AddMult(hFunc, hNew[X]);
-				MBP_[H]->AddMult(hFunc, hNew[Y]);
+				MBP_[E]->AddMult(eFunc[Z], eNew[Z]);
+				MBP_[H]->AddMult(hFunc[X], hNew[X]);
+				MBP_[H]->AddMult(hFunc[Y], hNew[Y]);
 
-				MBPNN_[H][H][X][Y]->AddMult(hFunc, hNew[X]);
-				MBPNN_[H][H][Y][X]->AddMult(hFunc, hNew[X]);
-				MBPNN_[H][H][X][Y]->AddMult(hFunc, hNew[Y]);
-				MBPNN_[H][H][Y][Y]->AddMult(hFunc, hNew[Y]);
+				MBPNN_[H][H][X][Y]->AddMult(hFunc[X], hNew[X]);
+				MBPNN_[H][H][Y][X]->AddMult(hFunc[X], hNew[X]);
+				MBPNN_[H][H][X][Y]->AddMult(hFunc[Y], hNew[Y]);
+				MBPNN_[H][H][Y][Y]->AddMult(hFunc[Y], hNew[Y]);
 			}
 		}
 	}

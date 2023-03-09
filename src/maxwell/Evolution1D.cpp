@@ -52,15 +52,15 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<TimeVaryingField*>(source.get())) {
-			GridFunction eFunc(srcmngr_.evalTimeVarField(GetTime()));
-			GridFunction hFunc(srcmngr_.evalTimeVarField(GetTime()));
+			std::array<GridFunction, 3> eFunc(srcmngr_.evalTimeVarField(GetTime()));
+			std::array<GridFunction, 3> hFunc(srcmngr_.evalTimeVarField(GetTime()));
 			
-			MBF_[E]->AddMult(eFunc, eNew);
-			MBF_[H]->AddMult(hFunc, hNew);
+			MBF_[E]->AddMult(eFunc[Y], eNew);
+			MBF_[H]->AddMult(hFunc[Z], hNew);
 
 			if (opts_.fluxType == FluxType::Upwind) {
-				MBP_[E]->AddMult(eFunc, eNew);
-				MBP_[H]->AddMult(hFunc, hNew);
+				MBP_[E]->AddMult(eFunc[Y], eNew);
+				MBP_[H]->AddMult(hFunc[Z], hNew);
 			}
 
 		}
