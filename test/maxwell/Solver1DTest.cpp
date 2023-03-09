@@ -473,7 +473,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, yPolarization(),E,mfem::Vector({0.0,0.0,0.0}),Source::Position({0.0})),
+		buildPlaneWave(0.2, 1.5, 1, yPolarization(),E,mfem::Vector({1.0,0.0,0.0}),Source::Position({0.0})),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(4.0)

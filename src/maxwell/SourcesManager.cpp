@@ -80,6 +80,7 @@ SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double t
             for (auto d : { X, Y, Z }) {
                 res[timeVarField->fieldType][d].ProjectCoefficient(func);
                 res[timeVarField->fieldType][d] *= timeVarField->polarization[d];
+                res[timeVarField->fieldType][d] *= 0.5;
             }
         }
     }
