@@ -934,6 +934,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_Quadrilateral_InnerSquare_IntBdr.mesh",1,0) };
+	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
@@ -950,7 +951,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, zPolarization()),
+		build2DPlaneWave(0.2, 1.5, 1),
 		SolverOptions{}
 			.setTimeStep(5e-3)
 			.setCentered()

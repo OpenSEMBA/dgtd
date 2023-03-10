@@ -73,6 +73,57 @@ static Sources buildPlaneWave(
 	return res;
 }
 
+static Sources build2DPlaneWave(
+	const double spread = 0.1,
+	const double delay = 0.0,
+	const int dimension = 1,
+	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
+	const FieldType ft = E,
+	const mfem::Vector& propagationDir = mfem::Vector({ 1.0,0.0,0.0 }),
+	const Source::Position& center = Source::Position({ 0.0,0.0,0.0 }),
+	const Source::CartesianAngles& angles = Source::CartesianAngles({ 0.0,0.0,0.0 }))
+{
+	auto altFt{ ft == E ? H : E };
+	Sources res;
+	res.push_back(
+		std::move(std::make_unique<TimeVaryingField>(
+			TimeGaussian{ spread, delay, dimension },
+			p,
+			ft,
+			center,
+			angles)
+		)
+	);
+	res.push_back(
+		std::move(std::make_unique<TimeVaryingField>(
+			TimeGaussian{ spread, delay, dimension },
+			crossProduct(propagationDir, p),
+			altFt,
+			center,
+			angles)
+		)
+	);
+	res.push_back(
+		std::move(std::make_unique<TimeVaryingField>(
+			TimeGaussian{ spread, delay, dimension },
+			p,
+			ft,
+			center,
+			angles)
+		)
+	);
+	res.push_back(
+		std::move(std::make_unique<TimeVaryingField>(
+			TimeGaussian{ spread, delay, dimension },
+			crossProduct(mfem::Vector({0.0,1.0,0.0}), p),
+			altFt,
+			center,
+			angles)
+		)
+	);
+	return res;
+}
+
 static Sources buildPlanewaveInitialField(
 	const MathFunction& mf,
 	const FieldType& ft,
