@@ -4,6 +4,9 @@
 #include "SourceFixtures.h"
 #include "maxwell/Solver.h"
 
+#include <iostream>
+#include <fstream>
+
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
@@ -80,6 +83,13 @@ protected:
 		newP[1] = oldP[0] * sin(-M_PI / 4.0) + oldP[1] * cos(-M_PI / 4.0);
 		newP[2] = oldP[2];
 
+	}
+	static void rotateMinus90degAlongZAxis(const Vector& oldP, Vector& newP)
+	{
+		assert(oldP.Size() == newP.Size());
+		newP[0] = oldP[0] * cos(-M_PI / 2.0) - oldP[1] * sin(-M_PI / 2.0);
+		newP[1] = oldP[0] * sin(-M_PI / 2.0) + oldP[1] * cos(-M_PI / 2.0);
+		newP[2] = oldP[2];
 	}
 };
 
@@ -407,7 +417,8 @@ TEST_F(Solver3DTest, 3D_pec_centered_tetra_1dot5D_spectral)
 TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 {
 
-	Probes probes;
+	Probes probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 5;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5, 0.5}},
@@ -886,4 +897,70 @@ TEST_F(Solver3DTest, 3D_pec_upwind_spectral_and_base_comparison) {
 		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
 		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
 	}
+}
+
+TEST_F(Solver3DTest, feng_fss)
+{
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 1000;
+
+	std::vector<double> pointR({ 0.01,-0.075,0.06 });
+	std::vector<double> pointT({ 0.29,-0.075,0.06 });
+
+	probes.pointProbes = {
+		PointProbe{E, X, pointR},
+		PointProbe{E, X, pointT},		
+		PointProbe{E, Y, pointR},
+		PointProbe{E, Y, pointT},		
+		PointProbe{E, Z, pointR},
+		PointProbe{E, Z, pointT},
+		PointProbe{H, X, pointR},
+		PointProbe{H, X, pointT},
+		PointProbe{H, Y, pointR},
+		PointProbe{H, Y, pointT},
+		PointProbe{H, Z, pointR},
+		PointProbe{H, Z, pointT}
+	};
+
+	auto mesh{ Mesh::LoadFromFile("./TestData/fengfss.msh",1,0) };
+	mesh.Transform(rotateMinus90degAlongZAxis);
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+
+	mfem::Vector center(3);
+	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center);
+	mfem::Vector polarization(3);
+	rotateMinus90degAlongZAxis(unitVec(Z), polarization);
+	
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildPlanewaveInitialField(
+		Gaussian{0.015},
+		E,
+		Source::Position({ 0.075,0.075,0.06 }), // center
+		Source::Polarization(unitVec(Z)), // e polarization
+		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+	),
+	SolverOptions{}
+		.setTimeStep(5e-7)
+		.setFinalTime(0.50)
+		.setOrder(1)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	for (int probeNumber = 0; probeNumber < probes.pointProbes.size(); probeNumber++) {
+		std::ofstream file("tnf_" + std::to_string(probeNumber) + ".txt"); 
+		file << "Time and " + std::to_string(probes.pointProbes[probeNumber].getFieldType()) + std::to_string(probes.pointProbes[probeNumber].getDirection()) + "\n";
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+			file << std::to_string(t) + " " + std::to_string(f) + "\n";
+		}
+	}
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
 }

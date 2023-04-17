@@ -52,7 +52,6 @@ static Sources buildPlaneWave(
 	const Source::Position& center = Source::Position({0.0,0.0,0.0}),
 	const Source::CartesianAngles& angles = Source::CartesianAngles({0.0,0.0,0.0}))
 {
-	auto altFt{ ft == E ? H : E };
 	Sources res;
 	res.push_back(
 		std::move(std::make_unique<TimeVaryingField>(
@@ -63,10 +62,12 @@ static Sources buildPlaneWave(
 			angles)
 		)
 	);
+	auto altFt{ ft == E ? H : E };
+	auto crossProd{ ft == E ? crossProduct(propagationDir,p) : crossProduct(p, propagationDir)};
 	res.push_back(
 		std::move(std::make_unique<TimeVaryingField>(
 			TimeGaussian{ spread, delay, dimension },
-			crossProduct(propagationDir, p),
+			crossProd,
 			altFt,
 			center,
 			angles)));
