@@ -9,21 +9,13 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
 	pd.SetPrefixPath("ParaView");
 	
-	switch (fes_.GetMesh()->Dimension()) {
-	case 1:
-		pd.RegisterField("E", &fields.E1D);
-		pd.RegisterField("H", &fields.H1D);
-		break;
-	default:
-		pd.RegisterField("Ex", &fields.E[X]);
-		pd.RegisterField("Ey", &fields.E[Y]);
-		pd.RegisterField("Ez", &fields.E[Z]);
-		pd.RegisterField("Hx", &fields.H[X]);
-		pd.RegisterField("Hy", &fields.H[Y]);
-		pd.RegisterField("Hz", &fields.H[Z]);
-		break;
-	}
-
+	pd.RegisterField("Ex", &fields.E[X]);
+	pd.RegisterField("Ey", &fields.E[Y]);
+	pd.RegisterField("Ez", &fields.E[Z]);
+	pd.RegisterField("Hx", &fields.H[X]);
+	pd.RegisterField("Hy", &fields.H[Y]);
+	pd.RegisterField("Hz", &fields.H[Z]);
+	
 	const auto order{ fes_.GetMaxElementOrder() };
 	pd.SetLevelsOfDetail(order);
 	order > 0 ? pd.SetHighOrderOutput(true) : pd.SetHighOrderOutput(false);
@@ -60,23 +52,9 @@ const GridFunction& getFieldView(const PointProbe& p, const mfem::FiniteElementS
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
-		switch (fes.GetMesh()->Dimension()) {
-		case 1:
-			return fields.E1D;
-			break;
-		default:
-			return fields.E[p.getDirection()];
-			break;
-		}
+		return fields.E[p.getDirection()];
 	case FieldType::H:
-		switch (fes.GetMesh()->Dimension()) {
-		case 1:
-			return fields.H1D;
-			break;
-		default:
-			return fields.H[p.getDirection()];
-			break;
-		}
+		return fields.H[p.getDirection()];
 	default:
 		throw std::runtime_error("Invalid field type.");
 	}

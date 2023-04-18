@@ -24,31 +24,17 @@ void SourcesManager::setInitialFields(Fields& fields)
                 std::placeholders::_1,
                 std::placeholders::_2
             );
-            switch (fes_.GetMesh()->Dimension()) {
-            case 1:
-                switch (initialField->fieldType) {
-                case FieldType::E:
-                    fields.E1D.ProjectCoefficient(FunctionCoefficient(f));
-                    break;
-                case FieldType::H:
-                    fields.H1D.ProjectCoefficient(FunctionCoefficient(f));
-                    break;
+            switch (initialField->fieldType) {
+            case FieldType::E:
+                for (auto x : { X, Y, Z }) {
+                    fields.E[x].ProjectCoefficient(FunctionCoefficient(f));
+                    fields.E[x] *= initialField->polarization[x];
                 }
                 break;
-            default:
-                switch (initialField->fieldType) {
-                case FieldType::E:
-                    for (auto x : { X, Y, Z }) {
-                        fields.E[x].ProjectCoefficient(FunctionCoefficient(f));
-                        fields.E[x] *= initialField->polarization[x];
-                    }
-                    break;
-                case FieldType::H:
-                    for (auto x : { X, Y, Z }) {
-                        fields.H[x].ProjectCoefficient(FunctionCoefficient(f));
-                        fields.H[x] *= initialField->polarization[x];
-                    }
-                    break;
+            case FieldType::H:
+                for (auto x : { X, Y, Z }) {
+                    fields.H[x].ProjectCoefficient(FunctionCoefficient(f));
+                    fields.H[x] *= initialField->polarization[x];
                 }
                 break;
             }
