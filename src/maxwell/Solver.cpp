@@ -27,40 +27,17 @@ Solver::Solver(
 	time_{0.0}
 {
 	sourcesManager_.setInitialFields(fields_);
-	switch (fes_.GetMesh()->Dimension()) {
-	case 1:
-		switch (opts_.evolutionOperatorOptions.spectral) {
-		case true:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(
-				fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		default:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
-				fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		}
-		break;
-	case 2:
-		switch (opts_.evolutionOperatorOptions.spectral) {
-		case true:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution2D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		default:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		}
+	switch (opts_.evolutionOperatorOptions.spectral) {
+	case true:
+		maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(
+			fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	default:
-		switch (opts_.evolutionOperatorOptions.spectral) {
-		case true:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		default:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		}
+		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
+			fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	}
+
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
 

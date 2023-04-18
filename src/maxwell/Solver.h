@@ -5,11 +5,11 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
-#include "Evolution3D.h"
-#include "Evolution2D.h"
 //#include "Evolution1D.h"
 //#include "Evolution1D_Spectral.h"
-#include "Evolution2D_Spectral.h"
+//#include "Evolution2D.h"
+//#include "Evolution2D_Spectral.h"
+#include "Evolution3D.h"
 #include "Evolution3D_Spectral.h"
 
 namespace maxwell {
