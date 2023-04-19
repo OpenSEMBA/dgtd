@@ -1,6 +1,5 @@
 #include "Fields.h"
-#include "Evolution1D.h"
-#include "Evolution3D.h"
+#include "evolution/Evolution3D.h"
 
 namespace maxwell {
 

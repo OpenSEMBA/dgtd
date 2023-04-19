@@ -21,11 +21,9 @@ include_directories(${MFEM_INCLUDE_DIRS})
 
 message(STATUS "MFEM_INCLUDE_DIRS: " ${MFEM_INCLUDE_DIRS})
 
-#add_subdirectory(external/core/)
 include_directories(
 	src/ 
-#	external/core/src/ 
-#	external/core/src/core/
+	src/maxwell/
 )
 
 add_subdirectory(src)
