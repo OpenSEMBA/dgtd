@@ -19,6 +19,8 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(MFEM CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
+message(STATUS "MFEM_INCLUDE_DIRS: " ${MFEM_INCLUDE_DIRS})
+
 #add_subdirectory(external/core/)
 include_directories(
 	src/ 
