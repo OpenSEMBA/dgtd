@@ -629,8 +629,9 @@ double usePowerMethod(const Eigen::SparseMatrix<double>& global, int iterations)
 {
 	auto spMat{ toMFEMSparse(global) };
 	Vector itVec(int(global.cols()));
+	auto mfemSparse{ toMFEMSparse(global) };
 	PowerMethod pwrMtd;
-	return pwrMtd.EstimateLargestEigenvalue(toMFEMSparse(global), itVec, iterations);
+	return pwrMtd.EstimateLargestEigenvalue(mfemSparse, itVec, iterations);
 }
 
 }

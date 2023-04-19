@@ -20,9 +20,9 @@ protected:
 		const int numberOfElements = defaultNumberOfElements, 
 		const BdrCond& bdrL = BdrCond::PEC, 
 		const BdrCond& bdrR = BdrCond::PEC) {
-
+		auto msh{ Mesh::MakeCartesian1D(numberOfElements, 1.0) };
 		return Model{
-			Mesh::MakeCartesian1D(numberOfElements, 1.0),
+			msh,
 			AttributeToMaterial{},
 			buildAttrToBdrMap1D(bdrL, bdrR) 
 		};

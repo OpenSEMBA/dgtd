@@ -12,26 +12,36 @@ struct SolverOptions {
     //decltype(BasisType::GaussLobatto) basis = BasisType::GaussLobatto;
     MaxwellEvolOptions evolutionOperatorOptions;
     
-    SolverOptions& setTimeStep(double t) {
+    SolverOptions& setTimeStep(double t) 
+    {
         dt = t;
         return *this;
     };
-    SolverOptions& setFinalTime(double t) { 
+
+    SolverOptions& setFinalTime(double t) 
+    { 
         t_final = t; 
         return *this; 
     };
-    SolverOptions& setCentered() {
+
+    SolverOptions& setCentered() 
+    {
         evolutionOperatorOptions.fluxType = FluxType::Centered;
         return *this;
     };
-    SolverOptions& setCFL(double cfl) {
+
+    SolverOptions& setCFL(double cfl) 
+    {
         CFL = cfl;
         return *this;
     }
-    SolverOptions& setOrder(int or) {
-        order = or;
+
+    SolverOptions& setOrder(int orderIn) 
+    {
+        order = orderIn;
         return *this;
     }
+
     SolverOptions& setSpectralEO(bool eigenvals = false, int pwrMethodIt = 0, bool marketFile = false) {
         evolutionOperatorOptions.spectral = true;
         evolutionOperatorOptions.eigenvals = eigenvals;

@@ -155,8 +155,9 @@ TEST_F(MeshTest, DataValueOutsideNodesForOneElementMeshes)
 	auto fecDG = new DG_FECollection(1, 1, BasisType::GaussLobatto);
 	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
 
-	GridFunction solution(fesDG);
-	solution.ProjectCoefficient(FunctionCoefficient(linearFunction));
+	GridFunction solution{ fesDG };
+	FunctionCoefficient fc{ linearFunction };
+	solution.ProjectCoefficient(fc);
 	IntegrationPoint integPoint;
 	for (double xVal = 0.0; xVal <= 1; xVal = xVal + 0.1) {
 		integPoint.Set(xVal, 0.0, 0.0, 0.0);

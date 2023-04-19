@@ -26,6 +26,7 @@ protected:
 		const double sx = 1.0,
 		const double sy = 1.0,
 		const double sz = 1.0,
+		
 		const BdrCond& bdr1 = BdrCond::PEC,
 		const BdrCond& bdr2 = BdrCond::PEC,
 		const BdrCond& bdr3 = BdrCond::PEC,
@@ -33,7 +34,9 @@ protected:
 		const BdrCond& bdr5 = BdrCond::PEC,
 		const BdrCond& bdr6 = BdrCond::PEC) {
 
-		return Model(Mesh::MakeCartesian3D(nx, ny, nz, elType, sx, sy, sz), AttributeToMaterial{}, buildAttrToBdrMap3D(bdr1, bdr2, bdr3, bdr4, bdr5, bdr6));
+		auto msh{ Mesh::MakeCartesian3D(nx, ny, nz, elType, sx, sy, sz) };
+
+		return Model(msh, AttributeToMaterial{}, buildAttrToBdrMap3D(bdr1, bdr2, bdr3, bdr4, bdr5, bdr6));
 	}
 
 	static AttributeToBoundary buildAttrToBdrMap3D(const BdrCond& bdr1, const BdrCond& bdr2, const BdrCond& bdr3, const BdrCond& bdr4, const BdrCond& bdr5, const BdrCond& bdr6)
@@ -104,22 +107,23 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_1dot5D)
 	};
 
 	maxwell::Solver solver{
-	buildModel(
-		10,    1,   1, Element::Type::HEXAHEDRON, 
-		1.0, 1.0, 1.0, 
-		BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,
-		BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
-	probes,
-	buildGaussianInitialField(
-		E, 0.1, 
-		Source::Position({0.5,0.5,0.5}), 
-		unitVec(Z)
-	),
-	SolverOptions{}
-		.setTimeStep(1e-2)
-		.setCentered()
-		.setFinalTime(2.0)
-		.setOrder(3)
+		buildModel(
+			10,    1,   1, Element::Type::HEXAHEDRON, 
+			1.0, 1.0, 1.0, 
+			BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,
+			BdrCond::PMC,BdrCond::PEC,BdrCond::PEC
+		),
+		probes,
+		buildGaussianInitialField(
+			E, 0.1, 
+			Source::Position({0.5,0.5,0.5}), 
+			unitVec(Z)
+		),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setCentered()
+			.setFinalTime(2.0)
+			.setOrder(3)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
