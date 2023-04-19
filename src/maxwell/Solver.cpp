@@ -57,19 +57,19 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
 	if ((opts.order < 0) ||
 		(opts.t_final < 0)) {
-		throw std::exception("Incorrect parameters in Options");
+		throw std::runtime_error("Incorrect parameters in Options");
 	}
 
 	if (opts.dt == 0.0) {
 		if (fes_.GetMesh()->Dimension() > 1) {
-			throw std::exception("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
+			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
 		}
 	}
 
 	for (const auto& bdrMarker : model_.getBoundaryToMarker())
 	{
 		if (bdrMarker.first == BdrCond::SMA && opts_.evolutionOperatorOptions.fluxType == FluxType::Centered) {
-			throw std::exception("SMA and Centered FluxType are not compatible.");
+			throw std::runtime_error("SMA and Centered FluxType are not compatible.");
 		}
 	}
 }
