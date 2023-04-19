@@ -10,7 +10,7 @@ add_subdirectory(dg)
 add_subdirectory(integrator)
 
 find_package(nlohmann_json CONFIG REQUIRED)
-find_package(mfem CONFIG REQUIRED)
+find_package(MFEM CONFIG REQUIRED)
 
 
 

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-find_package(mfem CONFIG REQUIRED)
+find_package(MFEM CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
 message(STATUS "Creating build system for testMaxwell")

@@ -4,7 +4,7 @@ project(maxwell)
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
-find_package(mfem CONFIG REQUIRED)
+find_package(MFEM CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
 add_library(maxwell STATIC 
