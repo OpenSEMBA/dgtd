@@ -182,7 +182,7 @@ TEST_F(MFEMHesthaven2D, DsOperator2D)
 
 TEST_F(MFEMHesthaven2D, manualMeshComparison)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 1);
+	Mesh meshManual = Mesh::LoadFromFile("./testData/twotriang.mesh", 1, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -249,7 +249,7 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 }
 TEST_F(MFEMHesthaven2D, oneFace)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./TestData/onetriang.mesh", true, 1);
+	Mesh meshManual = Mesh::LoadFromFile("./testData/onetriang.mesh", true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -306,7 +306,7 @@ TEST_F(MFEMHesthaven2D, oneFace)
 
 TEST_F(MFEMHesthaven2D, DISABLED_MFEMHesthavenSameMesh)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./TestData/2dplane.msh", true, 1);
+	Mesh meshManual = Mesh::LoadFromFile("./testData/2dplane.msh", true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 

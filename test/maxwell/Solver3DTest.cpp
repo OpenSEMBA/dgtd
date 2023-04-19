@@ -926,7 +926,7 @@ TEST_F(Solver3DTest, feng_fss)
 		PointProbe{H, Z, pointT}
 	};
 
-	auto mesh{ Mesh::LoadFromFile("./TestData/fengfss.msh",1,0) };
+	auto mesh{ Mesh::LoadFromFile("./testData/fengfss.msh",1,0) };
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };

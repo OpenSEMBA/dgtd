@@ -232,7 +232,7 @@ TEST_F(MeshTest, MapMeshElementAndVertex)
 
 TEST_F(MeshTest, MeshDataFileRead)
 {
-	ASSERT_NO_THROW(Mesh::LoadFromFile("./TestData/twotriang.mesh", 1, 0));
+	ASSERT_NO_THROW(Mesh::LoadFromFile("./testData/twotriang.mesh", 1, 0));
 }
 
 TEST_F(MeshTest, BoundaryWithoutInteriorFace)
@@ -249,7 +249,7 @@ TEST_F(MeshTest, BoundaryWithoutInteriorFace)
 
 TEST_F(MeshTest, InteriorBoundary)
 {
-	auto mesh{ Mesh::LoadFromFile("./TestData/line.mesh", 1, 0) };
+	auto mesh{ Mesh::LoadFromFile("./testData/line.mesh", 1, 0) };
 
 	EXPECT_EQ(2, mesh.GetBdrAttribute(0));
 	EXPECT_EQ(2, mesh.GetBdrAttribute(1));
