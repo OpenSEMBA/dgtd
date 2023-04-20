@@ -24,7 +24,6 @@ namespace AnalyticalFunctions2D {
 		mfem::Vector normalizedPos(2);
 		mfem::Vector L(2);
 		for (auto i{ 0 }; i < 2; i++) {
-			double center = (meshBoundingBoxMin[i] + meshBoundingBoxMax[i]) * 0.5;
 			L[i] = meshBoundingBoxMax[i] - meshBoundingBoxMin[i];
 			normalizedPos[i] = (pos[i] - meshBoundingBoxMin[i]) / L[i];
 		}

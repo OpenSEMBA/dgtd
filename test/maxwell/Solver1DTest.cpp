@@ -20,9 +20,9 @@ protected:
 		const int numberOfElements = defaultNumberOfElements, 
 		const BdrCond& bdrL = BdrCond::PEC, 
 		const BdrCond& bdrR = BdrCond::PEC) {
-
+		auto msh{ Mesh::MakeCartesian1D(numberOfElements, 1.0) };
 		return Model{
-			Mesh::MakeCartesian1D(numberOfElements, 1.0),
+			msh,
 			AttributeToMaterial{},
 			buildAttrToBdrMap1D(bdrL, bdrR) 
 		};
@@ -84,10 +84,10 @@ protected:
 			mesh.FindPoints(changeAttMat, elemID, integPoint);
 
 			if (elemID.begin() > elemID.end()) {
-				throw std::exception("Lower Index bigger than Higher Index.");
+				throw std::runtime_error("Lower Index bigger than Higher Index.");
 			}
 			if (elemID[1] > mesh.GetNE()) {
-				throw std::exception("Declared element index bigger than Mesh Number of Elements.");
+				throw std::runtime_error("Declared element index bigger than Mesh Number of Elements.");
 			}
 			for (int i = elemID[0]; i <= elemID[1]; i++) {
 				mesh.SetAttribute((int)i, (int)kv.first);
@@ -228,12 +228,13 @@ TEST_F(Solver1DTest, sma)
 {
 
 	maxwell::Solver solver(
-		buildStandardModel(201, BdrCond::SMA, BdrCond::SMA),
+		buildStandardModel(10, BdrCond::SMA, BdrCond::SMA),
 		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), yPolarization()),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setFinalTime(1.25)
+			.setOrder(3)
 	);
 
 	solver.run();

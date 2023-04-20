@@ -30,8 +30,8 @@ protected:
 		const BdrCond& bdrR = BdrCond::PEC,
 		const BdrCond& bdrT = BdrCond::PEC,
 		const BdrCond& bdrL = BdrCond::PEC) {
-
-		return Model(Mesh::MakeCartesian2D(nx,ny,elType), AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
+		auto msh{ Mesh::MakeCartesian2D(nx,ny,elType) };
+		return Model(msh, AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
 	}
 
 	Model buildModel(
@@ -44,8 +44,8 @@ protected:
 		const BdrCond& bdrR = BdrCond::PEC,
 		const BdrCond& bdrT = BdrCond::PEC,
 		const BdrCond& bdrL = BdrCond::PEC) {
-
-		return Model(Mesh::MakeCartesian2D(nx, ny, elType, false, sx, sy), AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
+		auto msh{ Mesh::MakeCartesian2D(nx, ny, elType, false, sx, sy) };
+		return Model(msh, AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
 	}
 
 	AttributeToBoundary buildAttrToBdrMap2D(const BdrCond& bdrB, const BdrCond& bdrR, const BdrCond& bdrT, const BdrCond& bdrL)
@@ -283,43 +283,6 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_AMR)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D)
-{
-
-	Probes probes;
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5}}
-	};
-
-	maxwell::Solver solver{
-	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
-	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
-	SolverOptions{}
-		.setTimeStep(5e-3)
-		.setFinalTime(2.0)
-		.setOrder(3)
-	};
-
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-
-	double tolerance{ 1e-2 };
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 or -1.0
-	// (the wave splits in two and doubles at the boundary).
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
-}
-
-
 TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D_spectral)
 {
 
@@ -412,23 +375,68 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_AMR)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D)
+TEST_F(Solver2DTest, pec_upwind_tris_1dot5D)
 {
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 50;
 
-	Probes probes;
 	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5}}
+		PointProbe{E, Z, {0.0, 0.4}},
+		PointProbe{E, Z, {1.0, 0.4}},
+		PointProbe{H, Y, {0.0, 0.4}},
+		PointProbe{H, Y, {1.0, 0.4}}
 	};
 
 	maxwell::Solver solver{
-	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
+	buildModel(
+		10, 2, Element::Type::TRIANGLE, 1.0, 0.4,
+		BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC
+	),
 	probes,
 	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
 	SolverOptions{}
-		.setTimeStep(5e-3)
+		.setTimeStep(1e-3)
+		.setFinalTime(2.0)
+		.setOrder(3)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	// At the left boundary the electric field should be closed to zero and
+	// the magnetic field reaches a maximum close to 1.0 or -1.0
+	// (the wave splits in two and doubles at the boundary).
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tolerance);
+	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+
+}
+
+TEST_F(Solver2DTest, pec_upwind_quads_1dot5D)
+{
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 50;
+
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.4}},
+		PointProbe{E, Z, {1.0, 0.4}},
+		PointProbe{H, Y, {0.0, 0.4}},
+		PointProbe{H, Y, {1.0, 0.4}}
+	};
+
+	maxwell::Solver solver{
+	buildModel(
+		10, 1, Element::Type::QUADRILATERAL, 1.0, 0.4, 
+		BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC
+	),
+	probes,
+	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	SolverOptions{}
+		.setTimeStep(1e-3)
 		.setFinalTime(2.0)
 		.setOrder(3)
 	};
@@ -486,28 +494,31 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_sma_upwind_triangle_1dot5D)
+TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	//Probes probes;
+	probes.exporterProbes[0].visSteps = 10;
+	
 	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5}}
+		PointProbe{E, Z, {0.0, 0.4}},
+		PointProbe{E, Z, {1.0, 0.4}},
+		PointProbe{H, Y, {0.0, 0.4}},
+		PointProbe{H, Y, {1.0, 0.4}}
 	};
 
-	probes.exporterProbes[0].visSteps = 40;
 
 	maxwell::Solver solver{
-	buildModel(10, 1, mfem::Element::Type::TRIANGLE,1.0, 1.0, BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
-	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
-	SolverOptions{}
-		.setTimeStep(5e-3)
-		.setFinalTime(2.0)
-		.setOrder(3)
+		buildModel(
+			10, 2, mfem::Element::Type::TRIANGLE, 1.0, 0.4,
+			BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
+		),
+		probes,
+		buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(2.0)
+			.setOrder(3)
 	};
 
 	GridFunction eOld{ solver.getFields().E[Z] };
@@ -526,26 +537,30 @@ TEST_F(Solver2DTest, 2D_sma_upwind_triangle_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, 2D_sma_upwind_quadrilaterals_1dot5D)
+TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
+
 	//Probes probes;
 	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5}}
+		PointProbe{E, Z, {0.0, 0.4}},
+		PointProbe{E, Z, {1.0, 0.4}},
+		PointProbe{H, Y, {0.0, 0.4}},
+		PointProbe{H, Y, {1.0, 0.4}}
 	};
 
-	probes.exporterProbes[0].visSteps = 40;
+	probes.exporterProbes[0].visSteps = 1;
 
 	maxwell::Solver solver{
-	buildModel(10, 1, mfem::Element::Type::QUADRILATERAL,1.0, 1.0, BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
+	buildModel(
+		10, 2, mfem::Element::Type::QUADRILATERAL,1.0, 0.4, 
+		BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
+	),
 	probes,
 	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
 	SolverOptions{}
-		.setTimeStep(5e-3)
+		.setTimeStep(1e-3)
 		.setFinalTime(2.0)
 		.setOrder(3)
 	};
@@ -564,6 +579,31 @@ TEST_F(Solver2DTest, 2D_sma_upwind_quadrilaterals_1dot5D)
 	EXPECT_NEAR(0.0, abs(solver.getPointProbe(2).findFrameWithMin().second), tolerance);
 	EXPECT_NEAR(0.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 
+}
+
+TEST_F(Solver2DTest, sma_upwind_quads)
+{
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 50;
+	
+	probes.pointProbes = { PointProbe{E, Z, {0.25, 0.25}} };
+
+	maxwell::Solver solver{
+		buildModel(10, 10, mfem::Element::Type::QUADRILATERAL, 1.0, 1.0, 
+			 BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
+		probes,
+		buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(), 2), 
+		SolverOptions{}
+			.setTimeStep(2.5e-4)
+			.setFinalTime(2.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+	double tolerance{ 1e-5 };
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
 }
 
 TEST_F(Solver2DTest, 2D_rotated_centered_quadrilateral_1dot5D)

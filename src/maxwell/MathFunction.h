@@ -71,8 +71,8 @@ private:
 class TimeGaussian : public MathFunction {
 public:
 	TimeGaussian(double spatialSpread, double delay, int dimension) :
-		spatialSpread_{ spatialSpread },
 		dimension_{ dimension },
+		spatialSpread_{ spatialSpread },
 		delay_{ delay }
 	{}
 

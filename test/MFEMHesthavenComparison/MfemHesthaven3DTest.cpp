@@ -134,7 +134,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_checkDrOperator3D)
 
 TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./TestData/onetetra.mesh");
+	Mesh meshManual = Mesh::LoadFromFile("./testData/onetetra.mesh");
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -236,7 +236,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
 TEST_F(MFEMHesthaven3D, faceChecker)
 {
 
-	Mesh meshManual = Mesh::LoadFromFile("./TestData/onetetra.mesh");
+	Mesh meshManual = Mesh::LoadFromFile("./testData/onetetra.mesh");
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 

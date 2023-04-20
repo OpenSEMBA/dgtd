@@ -154,7 +154,8 @@ TEST_F(GridFunctionTest, GetValuesAtPoints1D)
 	m.FindPoints(pointMat, elArray, ipArray);
 
 	GridFunction gridFunction{ &fes };
-	gridFunction.ProjectCoefficient(FunctionCoefficient(xPositionFunction));
+	FunctionCoefficient fc{ xPositionFunction };
+	gridFunction.ProjectCoefficient(fc);
 
 	Array<int> expectedID{
 		{
@@ -200,13 +201,16 @@ TEST_F(GridFunctionTest, SetValuesAtPoints1D)
 	Array<int> positiveDoF{ {2,7} }, negativeDoF{ {1,8} };
 
 	GridFunction gridBase(fes_.get());
-	gridBase.ProjectCoefficient(ConstantCoefficient{ 1.0 });
+	ConstantCoefficient oneCoeff{ 1.0 };
+	gridBase.ProjectCoefficient(oneCoeff);
 
 	GridFunction adder(fes_.get()), subber(fes_.get());
 	adder = 0.0; 
 	subber = 0.0;
-	adder.ProjectCoefficient(ConstantCoefficient{ 0.5 }, positiveDoF);
-	subber.ProjectCoefficient(ConstantCoefficient{ -0.5 }, negativeDoF);
+	ConstantCoefficient halfCoeff{ 0.5 };
+	adder.ProjectCoefficient(halfCoeff, positiveDoF);
+	ConstantCoefficient minusHalfCoeff{ 0.5 };
+	subber.ProjectCoefficient(minusHalfCoeff, negativeDoF);
 
 	gridBase.operator+=(adder);
 	gridBase.operator+=(subber);
@@ -250,7 +254,8 @@ TEST_F(GridFunctionTest, ProjectBdrFunction)
 	GridFunction f{ &fes };
 	f = 0.0;
 	FunctionCoefficient function(linearDummyFunction);
-	f.ProjectBdrCoefficient(function, Array<int>{ 2 });
+	Array<int> attr{ 2 };
+	f.ProjectBdrCoefficient(function, attr);
 
 	EXPECT_EQ(0.0, f[0]);
 	EXPECT_EQ(2.0, f[2]);

@@ -16,14 +16,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 project(dgtd)
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(mfem CONFIG REQUIRED)
+find_package(MFEM CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
-#add_subdirectory(external/core/)
+message(STATUS "MFEM_INCLUDE_DIRS: " ${MFEM_INCLUDE_DIRS})
+
 include_directories(
 	src/ 
-#	external/core/src/ 
-#	external/core/src/core/
+	src/maxwell/
 )
 
 add_subdirectory(src)
