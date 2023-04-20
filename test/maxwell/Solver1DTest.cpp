@@ -228,12 +228,13 @@ TEST_F(Solver1DTest, sma)
 {
 
 	maxwell::Solver solver(
-		buildStandardModel(201, BdrCond::SMA, BdrCond::SMA),
+		buildStandardModel(10, BdrCond::SMA, BdrCond::SMA),
 		buildProbesWithAnExportProbe(),
 		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), yPolarization()),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setFinalTime(1.25)
+			.setOrder(3)
 	);
 
 	solver.run();
