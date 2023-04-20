@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 
-#include "AnalyticalFunctions3D.h"
 #include "SourceFixtures.h"
 #include "maxwell/Solver.h"
 
@@ -10,7 +9,6 @@
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
-using namespace AnalyticalFunctions3D;
 
 class Solver3DTest : public ::testing::Test {
 protected:

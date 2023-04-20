@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 
-#include "AnalyticalFunctions2D.h"
 #include "SourceFixtures.h"
 #include "maxwell/Solver.h"
 
@@ -15,7 +14,6 @@
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
-using namespace AnalyticalFunctions2D;
 
 class Solver2DTest : public ::testing::Test {
 protected:
@@ -76,7 +74,7 @@ protected:
 
 };
 
-TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D)
+TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 {
 
 	Probes probes;
@@ -113,7 +111,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_centered_tris_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -151,7 +149,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D)
+TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 {
 
 	Probes probes;
@@ -189,7 +187,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_centered_quads_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -227,7 +225,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_AMR)
+TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -283,7 +281,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_AMR)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_tris_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -320,7 +318,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_AMR)
+TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -375,7 +373,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_AMR)
 
 }
 
-TEST_F(Solver2DTest, pec_upwind_tris_1dot5D)
+TEST_F(Solver2DTest, pec_tris_1dot5D)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 50;
@@ -416,7 +414,7 @@ TEST_F(Solver2DTest, pec_upwind_tris_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, pec_upwind_quads_1dot5D)
+TEST_F(Solver2DTest, pec_quads_1dot5D)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 50;
@@ -457,7 +455,7 @@ TEST_F(Solver2DTest, pec_upwind_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_quads_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -494,7 +492,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
+TEST_F(Solver2DTest, sma_tris_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -510,7 +508,7 @@ TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
 
 	maxwell::Solver solver{
 		buildModel(
-			10, 2, mfem::Element::Type::TRIANGLE, 1.0, 0.4,
+			10, 3, mfem::Element::Type::TRIANGLE, 1.0,3.0,
 			BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
 		),
 		probes,
@@ -537,7 +535,7 @@ TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
+TEST_F(Solver2DTest, sma_quads_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -581,7 +579,7 @@ TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, sma_upwind_quads)
+TEST_F(Solver2DTest, sma_quads)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -606,7 +604,7 @@ TEST_F(Solver2DTest, sma_upwind_quads)
 	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_rotated_centered_quadrilateral_1dot5D)
+TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
 {
 	auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
 	mesh.UniformRefinement();
@@ -636,7 +634,7 @@ TEST_F(Solver2DTest, 2D_rotated_centered_quadrilateral_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_centered_triangle_spectral_and_base_comparison) {
+TEST_F(Solver2DTest, periodic_centered_tris_spectral_and_base_comparison) {
 
 	Probes probes;
 
@@ -696,7 +694,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle_spectral_and_base_comparison)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_upwind_triangle_spectral_and_base_comparison) {
+TEST_F(Solver2DTest, periodic_tris_spectral_and_base_comparison) {
 
 	Probes probes;
 
@@ -742,7 +740,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle_spectral_and_base_comparison) {
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
+TEST_F(Solver2DTest, periodic_centered_tris)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	//Probes probes;
@@ -798,7 +796,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_centered_quadrilateral)
+TEST_F(Solver2DTest, periodic_centered_quads)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -856,9 +854,8 @@ TEST_F(Solver2DTest, 2D_periodic_centered_quadrilateral)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_upwind_triangle)
+TEST_F(Solver2DTest, periodic_tris)
 {
-
 	auto probes{ buildProbesWithAnExportProbe() };
 	//Probes probes;
 	probes.pointProbes = {
@@ -914,7 +911,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
+TEST_F(Solver2DTest, periodic_quads)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	//Probes probes;
@@ -971,9 +968,9 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
+TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_Quadrilateral_InnerSquare_IntBdr.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_InnerSquare_IntBdr.mesh",1,0) };
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
@@ -1019,9 +1016,9 @@ TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
 }
 
 
-TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldinout_1dot5D)
+TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_Quadrilateral_1dot5D_IntBdr.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_1dot5D_IntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };

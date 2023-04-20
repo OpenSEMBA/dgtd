@@ -7,15 +7,12 @@
 #include <mfem.hpp>
 
 #include "gtest/gtest.h"
-
-#include "AnalyticalFunctions2D.h"
 #include "SourceFixtures.h"
 #include "maxwell/Solver.h"
 
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
-using namespace AnalyticalFunctions2D;
 
 class TestGmsh : public ::testing::Test {
 protected:

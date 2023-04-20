@@ -42,7 +42,7 @@ private:
     SolverOptions opts_;
     Model model_;
     mfem::DG_FECollection fec_;
-    mfem::FiniteElementSpace fes_;
+    std::unique_ptr<mfem::FiniteElementSpace> fes_;
     Fields fields_;
     
     SourcesManager sourcesManager_;

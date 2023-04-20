@@ -12,7 +12,7 @@ message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
 
 add_library(testHelpers 
 	"GlobalFunctions.cpp"
-)
+ )
 
 target_link_libraries(testHelpers maxwell Eigen3::Eigen)
 
