@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
 
-option(MAXWELL_USE_MPI OFF)
 if (MAXWELL_USE_MPI)
 	message(STATUS "MAXWELL_USE_MPI:" ${MAXWELL_USE_MPI})
 	add_compile_definitions(MAXWELL_USE_MPI)

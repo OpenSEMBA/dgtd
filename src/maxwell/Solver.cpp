@@ -10,9 +10,10 @@ namespace maxwell {
 
 std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
 {
-	//if (dynamic_cast<ParMesh*>(m) != nullptr) {
-	//	return std::make_unique<ParFiniteElementSpace>(m, fec);
-	//}
+	if (dynamic_cast<ParMesh*>(m) != nullptr) {
+		auto pm{ dynamic_cast<ParMesh*>(m) };
+		return std::make_unique<ParFiniteElementSpace>(pm, fec);
+	}
 	if (dynamic_cast<Mesh*>(m) != nullptr) {
 		return std::make_unique<FiniteElementSpace>(m, fec);
 	}

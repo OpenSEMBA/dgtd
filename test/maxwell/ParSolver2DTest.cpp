@@ -65,14 +65,13 @@ TEST_F(ParSolver2DTest, periodic_tris_mpi)
 {
 	// Initialize MPI and HYPRE.
 	Mpi::Init();
-	int num_procs = Mpi::WorldSize();
-	int myid = Mpi::WorldRank();
 	Hypre::Init();
+	std::cout << "MPI rank:" << Mpi::WorldRank() << " of a total of " << Mpi::WorldSize() << std::endl;
 
-
+	// Init solver.
 	auto probes{ buildProbesWithAnExportProbe() };
 
-	probes.exporterProbes[0].visSteps = 1000;
+	probes.exporterProbes[0].visSteps = 100;
 
 	Mesh m;
 	{
