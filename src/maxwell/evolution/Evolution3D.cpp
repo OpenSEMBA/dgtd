@@ -15,9 +15,12 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 {
 	for (auto f : { E, H }) {
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
-		for (auto d : { X, Y, Z }) {
-			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
-			for (auto d2 : { X,Y,Z }) {
+		for (auto d{ X }; d <= Z; d++) {
+			MS_[f][d] = buildByMult(
+				*buildInverseMassMatrix(f, model_, fes_), 
+				*buildDerivativeOperator(d, fes_), fes_
+			);
+			for (auto d2{ X }; d2 <=Z; d2++) {
 				for (auto f2 : { E, H }) {
 					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_), fes_);
 					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d, d2}, model_, fes_), fes_);
@@ -29,6 +32,8 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 
 void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 {
+	const auto& dim{ fes_.GetMesh()->Dimension() };
+
 	std::array<Vector, 3> eOld, hOld;
 	std::array<GridFunction, 3> eNew, hNew;
 	for (int d = X; d <= Z; d++) {

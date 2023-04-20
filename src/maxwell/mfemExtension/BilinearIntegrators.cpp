@@ -72,7 +72,7 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
                 }
                 break;
             default:
-                throw std::exception("Wrong direction size.");
+                throw std::runtime_error("Wrong direction size.");
             }
         }
     }

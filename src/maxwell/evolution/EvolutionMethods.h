@@ -1,12 +1,14 @@
 #pragma once
 
-#include "Types.h"
 #include "mfem.hpp"
+
+#include "Types.h"
 #include "Model.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 #include "mfemExtension/LinearIntegrators.h"
 #include "mfemExtension/LinearForm_IBFI.hpp"
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/SparseExtra>

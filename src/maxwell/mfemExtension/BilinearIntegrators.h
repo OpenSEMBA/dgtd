@@ -2,8 +2,6 @@
 
 #include <mfem.hpp>
 
-#include "../../../general/forall.hpp"
-
 namespace maxwell{
 namespace mfemExtension {
 

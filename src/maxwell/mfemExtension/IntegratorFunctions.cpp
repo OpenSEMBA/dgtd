@@ -1,5 +1,6 @@
 #include "IntegratorFunctions.h"
 #include <maxwell/Types.h>
+#include <exception>
 
 namespace maxwell {
 namespace mfemExtension {
@@ -116,7 +117,7 @@ double calculateBetaTerm(Vector& nor, std::vector<Direction>& dir, const double 
         return beta * nIn * nOut; //(nIn * [v]) * nOut = nIn * (v1-v2) * nOut
     }
     default:
-        throw std::exception("Incorrect dimensions for dirTerms vector.");
+        throw std::runtime_error("Incorrect dimensions for dirTerms vector.");
     }
 }
 

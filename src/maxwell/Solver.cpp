@@ -27,38 +27,17 @@ Solver::Solver(
 	time_{0.0}
 {
 	sourcesManager_.setInitialFields(fields_);
-	switch (fes_.GetMesh()->Dimension()) {
-	case 1:
-		switch (opts_.evolutionOperatorOptions.spectral) {
-		case true:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution1D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		default:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution1D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		}
-		break;
-	case 2:
-		switch (opts_.evolutionOperatorOptions.spectral) {
-		case true:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution2D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		default:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution2D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		}
+	switch (opts_.evolutionOperatorOptions.spectral) {
+	case true:
+		maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(
+			fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	default:
-		switch (opts_.evolutionOperatorOptions.spectral) {
-		case true:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		default:
-			maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-			break;
-		}
+		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
+			fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	}
+
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
 
@@ -78,19 +57,19 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
 	if ((opts.order < 0) ||
 		(opts.t_final < 0)) {
-		throw std::exception("Incorrect parameters in Options");
+		throw std::runtime_error("Incorrect parameters in Options");
 	}
 
 	if (opts.dt == 0.0) {
 		if (fes_.GetMesh()->Dimension() > 1) {
-			throw std::exception("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
+			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
 		}
 	}
 
 	for (const auto& bdrMarker : model_.getBoundaryToMarker())
 	{
 		if (bdrMarker.first == BdrCond::SMA && opts_.evolutionOperatorOptions.fluxType == FluxType::Centered) {
-			throw std::exception("SMA and Centered FluxType are not compatible.");
+			throw std::runtime_error("SMA and Centered FluxType are not compatible.");
 		}
 	}
 }

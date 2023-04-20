@@ -325,7 +325,7 @@ TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond& bdrCon
 	case BdrCond::TotalFieldOut:
 		return TFSFOrientationCoefficient{ -1.0 };
 	default:
-		throw std::exception("Wrongly defined TotalField attribute");
+		throw std::runtime_error("Wrongly defined TotalField attribute");
 	}
 }
 
@@ -342,7 +342,7 @@ FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions& opts)
 	case FluxType::Upwind:
 		return FluxCoefficient{ 1.0 };
 	default:
-		throw std::exception("No defined FluxType.");
+		throw std::runtime_error("No defined FluxType.");
 	}
 }
 
@@ -385,7 +385,7 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 			return FluxCoefficient{ 0.0 };
 		}
 	default:
-		throw std::exception("No defined BdrCond.");
+		throw std::runtime_error("No defined BdrCond.");
 	}
 }
 
@@ -432,10 +432,10 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 				return FluxCoefficient{ 0.0 };
 			}
 		default:
-			throw std::exception("No defined BdrCond.");
+			throw std::runtime_error("No defined BdrCond.");
 		}
 	default:
-		throw std::exception("No defined FluxType.");
+		throw std::runtime_error("No defined FluxType.");
 	}
 }
 
@@ -487,7 +487,7 @@ void checkEigenvalues(const Eigen::VectorXcd& eigvals)
 	for (int i = 0; i < eigvals.size(); ++i) {
 		//std::cout << eigvals[i].real() << std::endl;
 		if (eigvals[i].real() > 1e-2) {
-			//throw std::exception("Eigenvalue's real part outside positive tolerance.");
+			//throw std::runtime_error("Eigenvalue's real part outside positive tolerance.");
 		}
 	}
 }
@@ -541,7 +541,7 @@ std::vector<int> calcOffsetCoeff1D(const std::vector<FieldType>& f)
 		}
 	}
 	else {
-		throw std::exception("Wrong input in method, check direction or field type vectors.");
+		throw std::runtime_error("Wrong input in method, check direction or field type vectors.");
 	}
 	return res;
 }
@@ -580,7 +580,7 @@ std::vector<int> calcOffsetCoeff(const std::vector<FieldType>& f, const std::vec
 		}
 	}
 	else {
-		throw std::exception("Wrong input in method, check direction or field type vectors.");
+		throw std::runtime_error("Wrong input in method, check direction or field type vectors.");
 	}
 	return res;
 }
@@ -629,8 +629,9 @@ double usePowerMethod(const Eigen::SparseMatrix<double>& global, int iterations)
 {
 	auto spMat{ toMFEMSparse(global) };
 	Vector itVec(int(global.cols()));
+	auto mfemSparse{ toMFEMSparse(global) };
 	PowerMethod pwrMtd;
-	return pwrMtd.EstimateLargestEigenvalue(toMFEMSparse(global), itVec, iterations);
+	return pwrMtd.EstimateLargestEigenvalue(mfemSparse, itVec, iterations);
 }
 
 }

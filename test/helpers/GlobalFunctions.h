@@ -4,7 +4,7 @@
 
 #include <mfem.hpp>
 #include "maxwell/Types.h"
-#include "maxwell/EvolutionMethods.h"
+#include "maxwell/evolution/EvolutionMethods.h"
 
 std::unique_ptr<mfem::DenseMatrix> toUnique(mfem::DenseMatrix*);
 
