@@ -428,7 +428,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D)
 
 	maxwell::Solver solver{
 	buildModel(
-		10, 1, Element::Type::QUADRILATERAL, 1.0, 0.4, 
+		10, 2, Element::Type::QUADRILATERAL, 1.0, 0.4, 
 		BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC
 	),
 	probes,
@@ -548,11 +548,11 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 		PointProbe{H, Y, {1.0, 0.4}}
 	};
 
-	probes.exporterProbes[0].visSteps = 1;
+	probes.exporterProbes[0].visSteps = 50;
 
 	maxwell::Solver solver{
 	buildModel(
-		10, 2, mfem::Element::Type::QUADRILATERAL,1.0, 0.4, 
+		10, 2, mfem::Element::Type::QUADRILATERAL,1.0,2.0, 
 		BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
 	),
 	probes,
@@ -769,8 +769,8 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 		buildPlanewaveInitialField(
 			Gaussian{0.1},
 			E,
-			Source::Position({0.5, 0.5}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
+			Source::Position({0.5, 0.5}), // center_
+			Source::Polarization({0.0, 0.0, 1.0}), // e polarization_
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
@@ -827,8 +827,8 @@ TEST_F(Solver2DTest, periodic_centered_quads)
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
 			E,
-			Source::Position({1.0, 1.0}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
+			Source::Position({1.0, 1.0}), // center_
+			Source::Polarization({0.0, 0.0, 1.0}), // e polarization_
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
@@ -885,8 +885,8 @@ TEST_F(Solver2DTest, periodic_tris)
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
 			E,
-			Source::Position({1.0, 1.0}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
+			Source::Position({1.0, 1.0}), // center_
+			Source::Polarization({0.0, 0.0, 1.0}), // e polarization_
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
@@ -942,8 +942,8 @@ TEST_F(Solver2DTest, periodic_quads)
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
 			E,
-			Source::Position({1.0, 1.0}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
+			Source::Position({1.0, 1.0}), // center_
+			Source::Polarization({0.0, 0.0, 1.0}), // e polarization_
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
@@ -1035,7 +1035,7 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, zPolarization()),
+		buildGaussianPlanewave(0.2, 1.5, 1, zPolarization()),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(10.0)

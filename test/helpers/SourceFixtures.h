@@ -10,14 +10,14 @@ namespace sources {
 static Sources buildGaussianInitialField(
 	const FieldType& ft = E,
 	const double spread = 0.1,
-	const mfem::Vector& center = mfem::Vector({ 0.5 }),
+	const mfem::Vector& center_ = mfem::Vector({ 0.5 }),
 	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
 	const int dimension = 1,
-	const Source::CartesianAngles angles = Source::CartesianAngles({ 0.0,0.0,0.0 }))
+	const Source::CartesianAngles angles_ = Source::CartesianAngles({ 0.0,0.0,0.0 }))
 {
 	auto initialField{ 
 		std::make_unique<InitialField>(
-			Gaussian{ spread, dimension }, ft, p, center, angles) 
+			Gaussian{ spread, dimension }, ft, p, center_, angles_) 
 	};
 	
 	Sources res;
@@ -32,118 +32,47 @@ static Sources buildResonantModeInitialField(
 	const int dim = 1)
 {
 	Sources res;
-	Source::Position center(dim);
-	center = 0.0;
+	Source::Position center_(dim);
+	center_ = 0.0;
 	res.push_back(
 		std::move(std::make_unique<InitialField>(
-			SinusoidalMode{ dim, modes }, ft, p, center)
+			SinusoidalMode{ dim, modes }, ft, p, center_)
 		)
 	);
 	return res;
 }
 
-static Sources buildPlaneWave(
-	const double spread = 0.1,
-	const double delay = 0.0,
-	const int dimension = 1,
-	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
-	const FieldType ft = E,
-	const mfem::Vector& propagationDir = mfem::Vector({1.0,0.0,0.0}),
-	const Source::Position& center = Source::Position({0.0,0.0,0.0}),
-	const Source::CartesianAngles& angles = Source::CartesianAngles({0.0,0.0,0.0}))
+static Sources buildGaussianPlanewave(
+	double spread,
+	double delay,
+	const Source::Polarization& pol,
+	const Source::Propagation& dir
+)
 {
+	Gaussian mag{ spread, mfem::Vector({delay}) };
 	Sources res;
-	res.push_back(
-		std::move(std::make_unique<TimeVaryingField>(
-			TimeGaussian{ spread, delay, dimension }, 
-			p, 
-			ft,
-			center, 
-			angles)
-		)
-	);
-	auto altFt{ ft == E ? H : E };
-	auto crossProd{ ft == E ? crossProduct(propagationDir,p) : crossProduct(p, propagationDir)};
-	res.push_back(
-		std::move(std::make_unique<TimeVaryingField>(
-			TimeGaussian{ spread, delay, dimension },
-			crossProd,
-			altFt,
-			center,
-			angles)));
-	return res;
-}
-
-static Sources build2DPlaneWave(
-	const double spread = 0.1,
-	const double delay = 0.0,
-	const int dimension = 1,
-	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
-	const FieldType ft = E,
-	const mfem::Vector& propagationDir = mfem::Vector({ 1.0,0.0,0.0 }),
-	const Source::Position& center = Source::Position({ 0.0,0.0,0.0 }),
-	const Source::CartesianAngles& angles = Source::CartesianAngles({ 0.0,0.0,0.0 }))
-{
-	auto altFt{ ft == E ? H : E };
-	Sources res;
-	res.push_back(
-		std::move(std::make_unique<TimeVaryingField>(
-			TimeGaussian{ spread, delay, dimension },
-			p,
-			ft,
-			center,
-			angles)
-		)
-	);
-	res.push_back(
-		std::move(std::make_unique<TimeVaryingField>(
-			TimeGaussian{ spread, delay, dimension },
-			crossProduct(propagationDir, p),
-			altFt,
-			center,
-			angles)
-		)
-	);
-	res.push_back(
-		std::move(std::make_unique<TimeVaryingField>(
-			TimeGaussian{ spread, delay, dimension },
-			p,
-			ft,
-			center,
-			angles)
-		)
-	);
-	res.push_back(
-		std::move(std::make_unique<TimeVaryingField>(
-			TimeGaussian{ spread, delay, dimension },
-			crossProduct(mfem::Vector({0.0,1.0,0.0}), p),
-			altFt,
-			center,
-			angles)
-		)
-	);
+	res.push_back(std::move(std::make_unique<Planewave>(mag, pol, dir)));
 	return res;
 }
 
 static Sources buildPlanewaveInitialField(
 	const MathFunction& mf,
-	const FieldType& ft,
-	const Source::Position& center,
+	const Source::Position& center_,
 	const Source::Polarization& polIn,
 	const mfem::Vector& propagationDir,
-	const Source::CartesianAngles& angles = Source::CartesianAngles({0.0,0.0,0.0}))
+	const Source::CartesianAngles& angles_ = Source::CartesianAngles({0.0,0.0,0.0}))
 {
 	Sources res;
-
-	auto altFt{ ft == E ? H : E };
-
-	res.push_back(std::move(std::make_unique<InitialField>(mf,    ft,                               polIn, center, angles)));
-	res.push_back(std::move(std::make_unique<InitialField>(mf, altFt, crossProduct(propagationDir, polIn), center, angles)));
-
+	res.push_back(
+		std::move(
+			std::make_unique<InitialField>(mf, E, polIn, center_, angles_)));
+	res.push_back(
+		std::move(
+			std::make_unique<InitialField>(mf, H, crossProduct(propagationDir, polIn), center_, angles_)));
 	return res;
 }
 
-static Sources buildConstantInitialField(
+static Sources buildInitialField(
 	const MathFunction& mf)
 {
 	Sources res;

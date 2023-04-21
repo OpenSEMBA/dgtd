@@ -14,7 +14,8 @@ public:
     std::array<mfem::GridFunction, 3> E, H;
     mfem::Vector allDOFs;
 
-    double getNorml2() const { return allDOFs.Norml2(); }
+    GridFunction& get(const FieldType&, const Direction&);
 
+    double getNorml2() const { return allDOFs.Norml2(); }
 };
 }

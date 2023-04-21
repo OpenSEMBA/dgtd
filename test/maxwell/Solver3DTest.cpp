@@ -529,8 +529,8 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 		buildPlanewaveInitialField(
 			Gaussian{0.2}, 
 			E,
-			Source::Position    ({1.0, 0.5, 0.5}), // center
-			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
+			Source::Position    ({1.0, 0.5, 0.5}), // center_
+			Source::Polarization({0.0, 1.0, 0.0}), // e polarization_
 			mfem::Vector        ({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
@@ -582,8 +582,8 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_upwind_hexa)
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
 			E,
-			Source::Position({1.0, 0.5, 0.5}), // center
-			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
+			Source::Position({1.0, 0.5, 0.5}), // center_
+			Source::Polarization({0.0, 1.0, 0.0}), // e polarization_
 			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
 		),
 		SolverOptions{}
@@ -628,15 +628,15 @@ TEST_F(Solver3DTest, 3D_rotated_M45X_centered_hexa_1dot5)
 	PointProbe{E, Z, {1.0, 0.5, 0.5}},
 	};
 
-	mfem::Vector center(3);
-	rotateMinus45degAlongXAxis(Vector({ 0.5,0.5,0.5 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus45degAlongXAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus45degAlongXAxis(Vector({ 0.5,0.5,0.5 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus45degAlongXAxis(unitVec(Z), polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, center, polarization, 1, Source::CartesianAngles({ M_PI_4, 0.0, 0.0 })),
+	buildGaussianInitialField(E, 0.1, center_, polarization_, 1, Source::CartesianAngles({ M_PI_4, 0.0, 0.0 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -681,15 +681,15 @@ TEST_F(Solver3DTest, 3D_rotated_M45Y_centered_hexa_1dot5)
 	PointProbe{E, Z, { 0.35355339059327, 0.5, 1.0606601717798 }}
 	};
 
-	mfem::Vector center(3);
-	rotateMinus45degAlongYAxis(Vector({ 0.5,0.5,0.5 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus45degAlongYAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus45degAlongYAxis(Vector({ 0.5,0.5,0.5 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus45degAlongYAxis(unitVec(Z), polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, center, polarization, 1, Source::CartesianAngles({ 0.0, M_PI_4, 0.0 })),
+	buildGaussianInitialField(E, 0.1, center_, polarization_, 1, Source::CartesianAngles({ 0.0, M_PI_4, 0.0 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -730,15 +730,15 @@ TEST_F(Solver3DTest, 3D_rotated_M45Z_centered_hexa_1dot5)
 	PointProbe{H, Y, {1.0606601717798, -0.35355339059327, 0.5}}
 	};
 
-	mfem::Vector center(3);
-	rotateMinus45degAlongZAxis(Vector({ 0.5,0.5,0.5 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus45degAlongZAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus45degAlongZAxis(Vector({ 0.5,0.5,0.5 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus45degAlongZAxis(unitVec(Z), polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, center, polarization, 1, Source::CartesianAngles({ 0.0, 0.0, M_PI_4 })),
+	buildGaussianInitialField(E, 0.1, center_, polarization_, 1, Source::CartesianAngles({ 0.0, 0.0, M_PI_4 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -784,21 +784,21 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_centered_hexa_1dot5)
 	};
 
 
-	mfem::Vector center({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
-	mfem::Vector polarization(3), tPolarization1(3), tPolarization2(3);
+	mfem::Vector center_({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
+	mfem::Vector polarization_(3), tPolarization1(3), tPolarization2(3);
 
-	rotateMinus45degAlongXAxis(center, rCenter1);
+	rotateMinus45degAlongXAxis(center_, rCenter1);
 	rotateMinus45degAlongYAxis(rCenter1, rCenter2);
 	rotateMinus45degAlongZAxis(rCenter2, rotCenter);
 
 	rotateMinus45degAlongXAxis(unitVec(Z), tPolarization1);
 	rotateMinus45degAlongYAxis(tPolarization1, tPolarization2);
-	rotateMinus45degAlongZAxis(tPolarization2, polarization);
+	rotateMinus45degAlongZAxis(tPolarization2, polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, rotCenter, polarization, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
+	buildGaussianInitialField(E, 0.1, rotCenter, polarization_, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -846,21 +846,21 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_upwind_hexa_1dot5)
 	};
 
 
-	mfem::Vector center({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
-	mfem::Vector polarization(3), tPolarization1(3), tPolarization2(3);
+	mfem::Vector center_({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
+	mfem::Vector polarization_(3), tPolarization1(3), tPolarization2(3);
 
-	rotateMinus45degAlongXAxis(center, rCenter1);
+	rotateMinus45degAlongXAxis(center_, rCenter1);
 	rotateMinus45degAlongYAxis(rCenter1, rCenter2);
 	rotateMinus45degAlongZAxis(rCenter2, rotCenter);
 
 	rotateMinus45degAlongXAxis(unitVec(Z), tPolarization1);
 	rotateMinus45degAlongYAxis(tPolarization1, tPolarization2);
-	rotateMinus45degAlongZAxis(tPolarization2, polarization);
+	rotateMinus45degAlongZAxis(tPolarization2, polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, rotCenter, polarization, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
+	buildGaussianInitialField(E, 0.1, rotCenter, polarization_, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
 	SolverOptions{}
 		.setTimeStep(5e-3)
 		.setFinalTime(2.0)
@@ -971,10 +971,10 @@ TEST_F(Solver3DTest, feng_fss)
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
 
-	mfem::Vector center(3);
-	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus90degAlongZAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus90degAlongZAxis(unitVec(Z), polarization_);
 	
 
 	maxwell::Solver solver{
@@ -983,8 +983,8 @@ TEST_F(Solver3DTest, feng_fss)
 	buildPlanewaveInitialField(
 		Gaussian{0.015},
 		E,
-		Source::Position({ 0.075,0.075,0.06 }), // center
-		Source::Polarization(unitVec(Z)), // e polarization
+		Source::Position({ 0.075,0.075,0.06 }), // center_
+		Source::Polarization(unitVec(Z)), // e polarization_
 		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
 	),
 	SolverOptions{}

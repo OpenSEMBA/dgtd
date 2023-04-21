@@ -28,6 +28,15 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 			}
 		}
 	}
+
+	for (auto f : { E, H }) {
+		for (auto d: {X, Y, Z}) {
+			MBF_[f][d] = buildIBFIByMult(
+				*buildInverseMassMatrix(f, model_, fes_), 
+				*buildFluxFunctionOperator(f, {d}, model_, fes_), fes_
+			);
+		}
+	}
  }
 
 void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
@@ -48,7 +57,7 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
-
+		
 		//Centered
 		MS_[H][y]		 ->AddMult(eOld[z], hNew[x], -1.0);
 		MS_[H][z]		 ->AddMult(eOld[y], hNew[x]);
@@ -72,6 +81,19 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 			MP_[E]			 ->AddMult(eOld[x], eNew[x],-1.0);
 		}
 
+	}
+
+	for (const auto& source : srcmngr_.sources) {
+		if (dynamic_cast<Planewave*>(source.get())) {
+			std::array<std::array<GridFunction, 3>, 2> eFunc(srcmngr_.evalTimeVarField(GetTime()));
+			std::array<std::array<GridFunction, 3>, 2> hFunc(srcmngr_.evalTimeVarField(GetTime()));
+			for(int x = X; x <= Z; x++) {
+				auto TimeVarE = eFunc[E][x];
+				auto TimeVarH = eFunc[H][x];
+				MBF_[E][x]->AddMult(TimeVarE, eNew[x]);
+				MBF_[H][x]->AddMult(TimeVarH, hNew[x]);
+			}
+		}
 	}
 
 }

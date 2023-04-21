@@ -16,6 +16,6 @@ add_library(maxwell STATIC
     "ProbesManager.cpp" 
 	"SourcesManager.cpp" 
 	"Fields.cpp" 
-)
+ "PhysicalConstants.h")
 
 target_link_libraries(maxwell maxwell-evolution mfemExtension mfem)

@@ -15,30 +15,18 @@ SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fe
 void SourcesManager::setInitialFields(Fields& fields)
 {
     for (const auto& source : sources) {
-        std::function<double(const Source::Position&, Source::Time)> f = 0;
         if (dynamic_cast<InitialField*>(source.get())) {
             auto initialField{ dynamic_cast<InitialField*>(source.get()) };
-            f = std::bind(
-                &InitialField::eval,
-                initialField,
-                std::placeholders::_1,
-                std::placeholders::_2
-            );
-            switch (initialField->fieldType) {
-            case FieldType::E:
+            for (FieldType ft: {E, H}) {
                 for (auto x : { X, Y, Z }) {
+                    std::function<double(const Source::Position&, Source::Time)> f = 0;
+                    f = std::bind(
+                        &InitialField::eval, initialField, 
+                        std::placeholders::_1, std::placeholders::_2, ft, x
+                    );
                     FunctionCoefficient fc(f);
-                    fields.E[x].ProjectCoefficient(fc);
-                    fields.E[x] *= initialField->polarization[x];
+                    fields.get(ft, x).ProjectCoefficient(fc);
                 }
-                break;
-            case FieldType::H:
-                for (auto x : { X, Y, Z }) {
-                    FunctionCoefficient fc(f);
-                    fields.H[x].ProjectCoefficient(fc);
-                    fields.H[x] *= initialField->polarization[x];
-                }
-                break;
             }
         }
     }
@@ -55,10 +43,10 @@ SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double t
     }
     for (const auto& source : sources) {
         std::function<double(const Source::Position&, Source::Time)> f = 0;
-        if (dynamic_cast<TimeVaryingField*>(source.get())) {
-            auto timeVarField{ dynamic_cast<TimeVaryingField*>(source.get()) };
+        if (dynamic_cast<Planewave*>(source.get())) {
+            auto timeVarField{ dynamic_cast<Planewave*>(source.get()) };
             f = std::bind(
-               &TimeVaryingField::eval,
+               &Planewave::eval,
                 timeVarField,
                 std::placeholders::_1,
                 std::placeholders::_2
@@ -66,9 +54,9 @@ SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double t
             FunctionCoefficient func(f);
             func.SetTime(time);
             for (auto d : { X, Y, Z }) {
-                res[timeVarField->fieldType][d].ProjectCoefficient(func);
-                res[timeVarField->fieldType][d] *= timeVarField->polarization[d];
-                res[timeVarField->fieldType][d] *= 0.5;
+                res[timeVarField->fieldType_][d].ProjectCoefficient(func);
+                res[timeVarField->fieldType_][d] *= timeVarField->polarization_[d];
+                res[timeVarField->fieldType_][d] *= 0.5;
             }
         }
     }

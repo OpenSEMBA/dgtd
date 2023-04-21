@@ -1,14 +1,19 @@
 #include "Sources.h"
 
+#include "PhysicalConstants.h"
+#include "Calculus.h"
+
 namespace maxwell {
 
-mfem::DenseMatrix getRotationMatrix(const Source::CartesianAngles& angles)
+constexpr double TOLERANCE = 10.0*DBL_EPSILON;
+
+mfem::DenseMatrix getRotationMatrix(const Source::CartesianAngles& angles_)
 {
 	std::array<mfem::DenseMatrix, 3> rotMat;
 	double rotationAxisX[3] = { 1.0,0.0,0.0 }, rotationAxisY[3] = { 0.0,1.0,0.0 }, rotationAxisZ[3] = { 0.0,0.0,1.0 };
-	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisX, angles[X], 1.0, rotMat[X]);
-	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisY, angles[Y], 1.0, rotMat[Y]);
-	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisZ, angles[Z], 1.0, rotMat[Z]);
+	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisX, angles_[X], 1.0, rotMat[X]);
+	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisY, angles_[Y], 1.0, rotMat[Y]);
+	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisZ, angles_[Z], 1.0, rotMat[Z]);
 	mfem::DenseMatrix tMat(3), res(3);
 	mfem::Mult(rotMat[X], rotMat[Y], tMat);
 	mfem::Mult(tMat     , rotMat[Z], res);
@@ -16,9 +21,9 @@ mfem::DenseMatrix getRotationMatrix(const Source::CartesianAngles& angles)
 }
 
 mfem::Vector rotateAroundAxis(
-	const mfem::Vector& v, const Source::CartesianAngles& angles)
+	const mfem::Vector& v, const Source::CartesianAngles& angles_)
 {
-	auto rotMat{ getRotationMatrix(angles) };
+	auto rotMat{ getRotationMatrix(angles_) };
 
 	mfem::Vector pos3D(3), newPos3D(3);
 	pos3D = 0.0;
@@ -41,19 +46,21 @@ InitialField::InitialField(
 	const Polarization& p,
 	const Position& centerIn,
 	const CartesianAngles anglesIn ) :
-	function_{ f.clone() },
-	fieldType{ fT },
-	polarization{ p },
-	center{ centerIn },
-	angles{ anglesIn }
-{}
+	magnitude_{ f.clone() },
+	fieldType_{ fT },
+	polarization_{ p },
+	center_{ centerIn },
+	angles_{ anglesIn }
+{
+	assert(polarization_.Norml2() <= TOLERANCE);
+}
 
 InitialField::InitialField(const InitialField& rhs) :
-	function_{ rhs.function_->clone() },
-	fieldType{ rhs.fieldType },
-	polarization{ rhs.polarization },
-	center{ rhs.center },
-	angles{ rhs.angles }
+	magnitude_{ rhs.magnitude_->clone() },
+	fieldType_{ rhs.fieldType_ },
+	polarization_{ rhs.polarization_ },
+	center_{ rhs.center_ },
+	angles_{ rhs.angles_ }
 {}
 
 std::unique_ptr<Source> InitialField::clone() const
@@ -61,53 +68,69 @@ std::unique_ptr<Source> InitialField::clone() const
 	return std::make_unique<InitialField>(*this);
 }
 
-double InitialField::eval(const Position& p, Time t) const
+double InitialField::eval(
+	const Position& p, const Time& t,
+	const FieldType& f, const Direction& d) const
 {
-	assert(p.Size() == center.Size());
+	assert(p.Size() == center_.Size());
+	
+	if (f != fieldType_) {
+		return 0.0;
+	}
+
 	Position pos(p.Size());
 	for (int i{ 0 }; i < p.Size(); ++i) {
-		pos[i] = p[i] - center[i];
+		pos[i] = p[i] - center_[i];
 	}
-	if (angles[0] != 0.0 || angles[1] != 0.0 || angles[2] != 0.0) {
-		auto tPos = rotateAroundAxis(pos, angles);
-		return function_->eval(tPos, t);
+	if (angles_[0] != 0.0 || angles_[1] != 0.0 || angles_[2] != 0.0) {
+		pos = rotateAroundAxis(pos, angles_);
 	}
-	return function_->eval(pos, t);
+	
+	return magnitude_->eval(pos) * polarization_[d];
 }
 
-TimeVaryingField::TimeVaryingField(const MathFunction& f, const Polarization& p, const FieldType& ft, const Position& centerIn, const CartesianAngles& anglesIn ):
-	function_{ f.clone() },
-	fieldType{ ft },
-	polarization{ p },
-	center{ centerIn },
-	angles{ anglesIn }
+Planewave::Planewave(
+	const MathFunction& mag, 
+	const Polarization& p, 
+	const Propagation& dir):
+	magnitude_{ mag.clone() },
+	polarization_{ p },
+	propagation_{ dir }
 {}
 
-TimeVaryingField::TimeVaryingField(const TimeVaryingField& rhs) :
-	function_{ rhs.function_->clone() },
-	fieldType{ rhs.fieldType },
-	polarization{ rhs.polarization },
-	center{ rhs.center },
-	angles{ rhs.angles }
-{}
-
-std::unique_ptr<Source> TimeVaryingField::clone() const
+Planewave::Planewave(const Planewave& rhs) :
+	magnitude_{ rhs.magnitude_->clone() },
+	polarization_{ rhs.polarization_ },
+	propagation_{ rhs.propagation_ }
 {
-	return std::make_unique<TimeVaryingField>(*this);
+	assert(polarization_.Norml2() <= TOLERANCE);
+	assert(propagation_.Norml2() <= TOLERANCE);
 }
 
-double TimeVaryingField::eval(const Position& p, Time t) const
+std::unique_ptr<Source> Planewave::clone() const
 {
-	assert(p.Size() == center.Size());
-	Position pos(p.Size());
-	for (int i{ 0 }; i < p.Size(); ++i) {
-		pos[i] = p[i] - center[i];
+	return std::make_unique<Planewave>(*this);
+}
+
+double Planewave::eval(
+	const Position& p, const Time& t,
+	const FieldType& f, const Direction& d) const
+{
+	assert(f == E || f == H);
+	assert(d == X || d == Y || d == Z);
+	
+	mfem::Vector fieldPol(3);
+	if (f == E) {
+		fieldPol = polarization_;
 	}
-	if (angles[0] != 0.0 || angles[1] != 0.0 || angles[2] != 0.0) {
-		auto tPos = rotateAroundAxis(pos, angles);
-		return function_->eval(tPos, t);
+	else {
+		fieldPol = crossProduct(propagation_, polarization_);
 	}
-	return function_->eval(p, t);
+
+	mfem::Vector delayedPosition(
+		{ p[d] - t * propagation_[d] / physicalConstants::speedOfLight }
+	);
+	return magnitude_->eval(delayedPosition) * fieldPol[d];
 }
 
 }

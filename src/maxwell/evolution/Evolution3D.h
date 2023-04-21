@@ -25,6 +25,8 @@ private:
 	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_;
 	std::array<FiniteElementOperator, 2> MP_;
 
+	std::array<std::array<FiniteElementOperator, 3>,2> MBF_;
+
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;

@@ -12,15 +12,8 @@ using FieldMovie = std::map<Time, double>;
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
 
-enum FieldType {
-	E,
-	H
-};
-
-enum class FluxType {
-	Centered,
-	Upwind
-};
+enum FieldType { E, H };
+enum class FluxType { Centered, Upwind };
 
 struct FluxCoefficient {
 	double beta;
@@ -36,7 +29,8 @@ enum class BdrCond {
 	PMC,
 	SMA,
 	TotalFieldIn = 301,
-	TotalFieldOut = 302
+	TotalFieldOut = 302,
+	TotalFieldInBacked = 303
 };
 
 struct MaxwellEvolOptions {

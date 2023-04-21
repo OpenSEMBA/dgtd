@@ -30,7 +30,7 @@ protected:
 TEST_F(TestGmsh, meshDataGmshMSHRead)
 {
 	/* This mesh includes a physical tag 1 a surface based on a square split in four trianges with a
-	point in the center and a physical tag 2 for the four boundary segments.*/
+	point in the center_ and a physical tag 2 for the four boundary segments.*/
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./testData/test.msh", 1, 0));
 }
 
