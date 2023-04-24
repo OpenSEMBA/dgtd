@@ -85,12 +85,10 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<Planewave*>(source.get())) {
-			std::array<std::array<GridFunction, 3>, 2> func(srcmngr_.evalTimeVarField(GetTime()));
+			auto func{srcmngr_.evalTimeVarField(GetTime())};
 			for(int x = X; x <= Z; x++) {
-				const auto& TimeVarE = func[E][x];
-				const auto& TimeVarH = func[H][x];
-				MBF_[E][x]->AddMult(TimeVarE, eNew[x]);
-				MBF_[H][x]->AddMult(TimeVarH, hNew[x]);
+				MBF_[E][x]->AddMult(func[E][x], eNew[x]);
+				MBF_[H][x]->AddMult(func[H][x], hNew[x]);
 			}
 		}
 	}

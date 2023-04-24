@@ -137,7 +137,7 @@ double Planewave::eval(
 
 
 	mfem::Vector delayedPosition(
-		{ positionComponent - t * propagation_[d] / physicalConstants::speedOfLight }
+		{ positionComponent - t * propagation_[d] * physicalConstants::speedOfLight }
 	);
 	return magnitude_->eval(delayedPosition) * fieldPol[d];
 }

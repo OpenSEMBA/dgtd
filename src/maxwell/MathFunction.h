@@ -30,11 +30,11 @@ public:
 	*/
 	Gaussian(
 		double spread, 
-		const mfem::Vector center_ = mfem::Vector({0.0}), 
+		const mfem::Vector center = mfem::Vector({0.0}), 
 		int dim = 1
 	) :
 		spread_{ spread },
-		center_{ center_ },
+		center_{ center },
 		dimension_{ dim }
 	{
 		assert(center_.Size() == dimension_);
@@ -51,20 +51,20 @@ public:
 		assert(dimension_ <= pos.Size());
 		switch (dimension_) {
 		case 1:
-			return 	exp(-pow(pos[X], 2) /
+			return 	exp(-pow(pos[X] - center_[X], 2) /
 					(2.0 * pow(spread_, 2))
 				);
 		case 2:
 			return 	exp(
-					-(pow(pos[X], 2.0) 
-					+ pow(pos[Y], 2.0)) /
+					-(pow(pos[X] - center_[X], 2.0)
+					+ pow(pos[Y] - center_[Y], 2.0)) /
 					(2.0 * pow(spread_, 2.0))
 				);
 		case 3:
 			return exp(
-					-(pow(pos[X], 2.0)
-					+ pow(pos[Y], 2.0)
-					+ pow(pos[Z], 2.0)) /
+					-(pow(pos[X] - center_[X], 2.0)
+					+ pow(pos[Y] - center_[Y], 2.0)
+					+ pow(pos[Z] - center_[Z], 2.0)) /
 					(2.0 * pow(spread_, 2.0))
 				);
 		default:
