@@ -6,6 +6,7 @@ ParaView/
 *.gf
 mesh.mesh
 *.mtx
+*.txt
 
 # Prerequisites
 *.d
