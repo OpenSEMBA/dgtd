@@ -53,7 +53,6 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
                 
                 res[ft][d].SetSpace(&fes_);
                 res[ft][d].ProjectCoefficient(func);
-                res[ft][d] *= 0.5;
             }
         }
     }

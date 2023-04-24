@@ -48,6 +48,16 @@ const Vector setNormalVector(const int dim,
     //ortho.operator/=(Trans.Weight());
     return ortho;
 }
+const Vector setNormalSMAVector(const int dim,
+    const IntegrationPoint& eip1,
+    FaceElementTransformations& Trans
+)
+{
+    Vector ortho(dim);
+    CalcOrtho(Trans.Jacobian(), ortho);
+    ortho.operator/=(Trans.Weight());
+    return ortho;
+}
 
 void buildFaceMatrix(double w, int ndofA, int ndofB, int offsetRow, int offsetCol,
     Vector shapeA, Vector shapeB, DenseMatrix& elmat) {
@@ -94,6 +104,22 @@ const Vector calculateNormal(const FiniteElement& el, const IntegrationPoint& ei
     default:
         res.SetSize(el.GetDim());
         res = setNormalVector(el.GetDim(), eip, Trans);
+        break;
+    }
+    return res;
+}
+
+const Vector calculateSMANormal(const FiniteElement& el, const IntegrationPoint& eip, FaceElementTransformations& Trans)
+{
+    Vector res(1);
+    switch (el.GetDim()) {
+    case 1:
+        res.SetSize(1);
+        res = setNormalVector1D(el.GetDim(), eip);
+        break;
+    default:
+        res.SetSize(el.GetDim());
+        res = setNormalSMAVector(el.GetDim(), eip, Trans);
         break;
     }
     return res;

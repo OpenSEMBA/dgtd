@@ -19,5 +19,7 @@ double calculateBetaTerm(Vector& nor, std::vector<Direction>& dir, const double 
 void buildFaceMatrix(double w, int ndofA, int ndofB, int offsetRow, int offsetCol,
     Vector shapeA, Vector shapeB, DenseMatrix& elmat);
 
+const Vector calculateSMANormal(const FiniteElement& el, const IntegrationPoint& eip, FaceElementTransformations& Trans);
+const Vector setNormalSMAVector(const int dim, const IntegrationPoint& eip1, FaceElementTransformations& Trans);
 }
 }

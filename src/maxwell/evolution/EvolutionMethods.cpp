@@ -103,15 +103,21 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 
 	{
 		FluxCoefficient c = interiorFluxCoefficient();
-		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
+		res->AddInteriorFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		
+
 		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
-		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
-		);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
 	}
 
 	res->Assemble();
@@ -131,8 +137,14 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
 	}
 
 	res->Assemble();
@@ -140,12 +152,59 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 	return res;
 }
 
-FiniteElementOperator buildFluxOperator(
-	const FieldType& f, 
-	const std::vector<Direction>& dirTerms, 
-	bool usePenaltyCoefficients, 
-	Model& model, 
-	FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+{
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+
+	for (auto& kv : model.getInteriorBoundaryToMarker()) {
+
+		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+		if (kv.first != BdrCond::SMA) {
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		else {
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		{
+			FluxCoefficient c = interiorFluxCoefficient();
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, -c.beta), kv.second);
+		}
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+
+	for (auto& kv : model.getInteriorBoundaryToMarker()) {
+		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+		if (kv.first != BdrCond::SMA) {
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		else {
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		{
+			FluxCoefficient c = interiorFluxCoefficient();
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, -c.beta), kv.second);
+		}
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 
 	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
@@ -220,7 +279,7 @@ FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const st
 	{
 		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator(dirTerms, c.orient, 0.5), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({X}, c.orient, 0.5), kv.second
 		);
 	}
 
