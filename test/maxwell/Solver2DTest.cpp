@@ -1189,3 +1189,27 @@ TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldinout_1dot5D)
 //	solver.run();
 //
 //}
+
+TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/InteriorPEC2D.msh",1,0) };
+	AttributeToBoundary attToBdr{ {3,BdrCond::PMC}, {4,BdrCond::SMA };
+	AttributeToInteriorBoundary attToIntBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+			buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+		SolverOptions{}
+			.setTimeStep(5e-3)
+			.setFinalTime(4.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+}
