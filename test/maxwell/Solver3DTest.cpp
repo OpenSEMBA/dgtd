@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 
 #include "SourceFixtures.h"
+#include "Utils.h"
+
 #include "maxwell/Solver.h"
 
 #include <iostream>
@@ -47,16 +49,6 @@ protected:
 			{5, bdr5},
 			{6, bdr6},
 		};
-	}
-
-	static Probes buildProbesWithAnExportProbe()
-	{
-		return { {}, { ExporterProbe{getTestCaseName()} } };
-	}
-
-	static std::string getTestCaseName()
-	{
-		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
 
 	static void rotateMinus45degAlongXAxis(const Vector& oldP, Vector& newP)

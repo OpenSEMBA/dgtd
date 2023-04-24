@@ -116,6 +116,7 @@ double Planewave::eval(
 	const Position& p, const Time& t,
 	const FieldType& f, const Direction& d) const
 {
+	assert(p.Size() <= 3);
 	assert(f == E || f == H);
 	assert(d == X || d == Y || d == Z);
 	
@@ -127,19 +128,19 @@ double Planewave::eval(
 		fieldPol = crossProduct(propagation_, polarization_);
 	}
 
-	double positionComponent;
-	if (d < p.Size()) {
-		positionComponent = p[d];
+	mfem::Vector pos(3);
+	if (p.Size() == 1) {
+		pos = mfem::Vector({ p[0],  0.0, 0.0 });
+	}
+	else if (p.Size() == 2) {
+		pos = mfem::Vector({ p[0], p[1], 0.0 });
 	}
 	else {
-		positionComponent = 0.0;
+		pos = p;
 	}
+	auto phaseDelay{ pos * propagation_ / physicalConstants::speedOfLight };
 
-
-	mfem::Vector delayedPosition(
-		{ positionComponent - t * propagation_[d] * physicalConstants::speedOfLight }
-	);
-	return magnitude_->eval(delayedPosition) * fieldPol[d];
+	return magnitude_->eval(mfem::Vector({phaseDelay - t})) * fieldPol[d];
 }
 
 }

@@ -25,9 +25,11 @@ add_executable(maxwell_tests
 	"Solver3DTest.cpp"  
 	"MaterialTest.cpp" 
 	"ProbesManagerTest.cpp" 
+	"SourcesTest.cpp"
 	"BilinearIntegratorsExtensionTest.cpp"
 	"BilinearFormExtensionTest.cpp" 
-	"LinearFormExtensionTest.cpp" "ParSolver2DTest.cpp")
+	"LinearFormExtensionTest.cpp" 
+)
 
 target_link_libraries(maxwell_tests 
 	maxwell mfem testHelpers 

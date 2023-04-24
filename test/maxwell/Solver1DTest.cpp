@@ -1,8 +1,9 @@
 #include "gtest/gtest.h"
+#include "maxwell/Solver.h"
+
+#include "Utils.h"
 #include "SourceFixtures.h"
 #include "GlobalFunctions.h"
-
-#include "maxwell/Solver.h"
 
 using Interval = std::pair<double, double>;
 
@@ -51,11 +52,6 @@ protected:
 		}
 	}
 
-	Probes buildProbesWithAnExportProbe()
-	{
-		return { {}, { ExporterProbe{getTestCaseName()} } };
-	}
-
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
 	{
 		return {
@@ -95,16 +91,7 @@ protected:
 		}
 	}
 
-	static std::string getTestCaseName()
-	{
-		std::string caseName{
-			::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()
-		};
-		std::string name{
-			::testing::UnitTest::GetInstance()->current_test_info()->name() 
-		};
-		return caseName + "." + name;
-	}
+
 
 };
 
@@ -367,7 +354,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(Solver1DTest, totalfieldin_bdr_upwind_sma)
+TEST_F(Solver1DTest, totalfieldin_bdr_sma)
 {
 	auto msh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh", 1, 0) };
 	Model model{ 
@@ -569,7 +556,7 @@ TEST_F(Solver1DTest, totalfieldinout_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
+		buildGaussianPlanewave(0.2, 0.8, unitVec(Y), unitVec(X)),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setFinalTime(5.0)

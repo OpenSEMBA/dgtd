@@ -51,7 +51,7 @@ static Sources buildGaussianPlanewave(
 	const Source::Propagation& dir
 )
 {
-	Gaussian mag{ spread, mfem::Vector({delay}) };
+	Gaussian mag{ spread, mfem::Vector({-delay}) };
 	Sources res;
 	res.push_back(std::move(std::make_unique<Planewave>(mag, pol, dir)));
 	return res;

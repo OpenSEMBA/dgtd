@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 
 #include "SourceFixtures.h"
+#include "Utils.h"
+
 #include "maxwell/Solver.h"
 
 #include "maxwell/Types.h"
@@ -54,16 +56,6 @@ protected:
 			{3, bdrT},
 			{4, bdrL},
 		};
-	}
-
-	Probes buildProbesWithAnExportProbe()
-	{
-		return { {}, { ExporterProbe{getTestCaseName()} } };
-	}
-
-	static std::string getTestCaseName()
-	{
-		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
 
 	Vector fieldCenter{ { 0.5, 0.5 } };

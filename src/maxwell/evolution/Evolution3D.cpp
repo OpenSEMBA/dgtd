@@ -85,7 +85,8 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<Planewave*>(source.get())) {
-			auto func{srcmngr_.evalTimeVarField(GetTime())};
+			auto time{ GetTime() };
+			auto func{srcmngr_.evalTimeVarField(time)};
 			for(int x = X; x <= Z; x++) {
 				MBF_[E][x]->AddMult(func[E][x], eNew[x]);
 				MBF_[H][x]->AddMult(func[H][x], hNew[x]);
