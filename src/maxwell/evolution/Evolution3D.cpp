@@ -23,7 +23,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 			for (auto d2{ X }; d2 <=Z; d2++) {
 				for (auto f2 : { E, H }) {
 					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_), fes_);
-					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d, d2}, model_, fes_), fes_);
+					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f2, {d, d2}, model_, fes_, opts_), fes_);
 				}
 			}
 		}

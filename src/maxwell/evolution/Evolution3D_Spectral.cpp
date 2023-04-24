@@ -38,12 +38,12 @@ MaxwellEvolution3D_Spectral::MaxwellEvolution3D_Spectral(
 			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyOperator(H, {}, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { x }, -1.0); // MP
 			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator(E, {}, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { x }, -1.0);
 
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { X, x }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { X,x }); //MPNN
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { Y, x }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { Y,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxOperator(H, { Z, x }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { Z,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildFluxOperator(E, { X, x }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { X,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildFluxOperator(E, { Y, x }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { Y,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildFluxOperator(E, { Z, x }, model_, fes_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { Z,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyOperator(H, { X, x }, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { X,x }); //MPNN
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyOperator(H, { Y, x }, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { Y,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, model_, fes_), *buildPenaltyOperator(H, { Z, x }, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { H,H }, { Z,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator(E, { X, x }, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { X,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator(E, { Y, x }, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { Y,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, model_, fes_), *buildPenaltyOperator(E, { Z, x }, model_, fes_, opts_), fes_)->SpMat().ToDenseMatrix(), global_, { E,E }, { Z,x });
 
 		}
 

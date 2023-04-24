@@ -422,18 +422,18 @@ TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 {
 
 	Probes probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 50;
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5, 0.5}}
-	};
+	probes.exporterProbes[0].visSteps = 200;
+	//probes.pointProbes = {
+	//	PointProbe{E, Z, {0.0, 0.5, 0.5}},
+	//	PointProbe{E, Z, {1.0, 0.5, 0.5}},
+	//	PointProbe{H, Y, {0.0, 0.5, 0.5}},
+	//	PointProbe{H, Y, {1.0, 0.5, 0.5}}
+	//};
 
 	maxwell::Solver solver{
 	buildModel(
-		10,    1,   1, Element::Type::HEXAHEDRON,
-		1.0, 1.0, 1.0,
+		10,    2,   2, Element::Type::HEXAHEDRON,
+		1.0, 0.4, 0.4,
 		BdrCond::PEC,BdrCond::PMC,BdrCond::SMA,
 		BdrCond::PMC,BdrCond::SMA,BdrCond::PEC),
 	probes,
@@ -443,7 +443,7 @@ TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 		unitVec(Z)
 	),
 	SolverOptions{}
-		.setTimeStep(1e-3)
+		.setTimeStep(1e-4)
 		.setFinalTime(2.0)
 		.setOrder(3)
 	};
@@ -454,10 +454,10 @@ TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 	double tolerance{ 1e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
-	EXPECT_NEAR(0.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(0.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
 
 TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)

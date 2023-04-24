@@ -430,7 +430,7 @@ TEST_F(Solver2DTest, pec_upwind_quads_1dot5D)
 
 	maxwell::Solver solver{
 	buildModel(
-		10, 1, Element::Type::QUADRILATERAL, 1.0, 0.4, 
+		10, 2, Element::Type::QUADRILATERAL, 1.0, 0.4, 
 		BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC
 	),
 	probes,
@@ -541,7 +541,7 @@ TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
-
+	probes.exporterProbes[0].visSteps = 50;
 	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.4}},
@@ -550,17 +550,15 @@ TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 		PointProbe{H, Y, {1.0, 0.4}}
 	};
 
-	probes.exporterProbes[0].visSteps = 1;
-
 	maxwell::Solver solver{
 	buildModel(
-		10, 2, mfem::Element::Type::QUADRILATERAL,1.0, 0.4, 
+		10, 10, mfem::Element::Type::QUADRILATERAL,1.0, 1.0, 
 		BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
 	),
 	probes,
 	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
 	SolverOptions{}
-		.setTimeStep(1e-3)
+		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
 		.setOrder(3)
 	};

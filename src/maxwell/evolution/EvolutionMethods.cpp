@@ -104,11 +104,16 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		
+
 		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
-		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
-		);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
 	}
 
 	res->Assemble();
@@ -128,8 +133,14 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+		}
 	}
 
 	res->Assemble();
