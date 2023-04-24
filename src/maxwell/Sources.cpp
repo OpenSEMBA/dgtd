@@ -52,7 +52,7 @@ InitialField::InitialField(
 	center_{ centerIn },
 	angles_{ anglesIn }
 {
-	assert(polarization_.Norml2() <= TOLERANCE);
+	assert(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE);
 }
 
 InitialField::InitialField(const InitialField& rhs) :

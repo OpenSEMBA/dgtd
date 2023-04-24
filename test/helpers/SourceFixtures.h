@@ -15,9 +15,11 @@ static Sources buildGaussianInitialField(
 	const int dimension = 1,
 	const Source::CartesianAngles angles_ = Source::CartesianAngles({ 0.0,0.0,0.0 }))
 {
-	auto initialField{ 
+	mfem::Vector gaussianCenter(dimension);
+	gaussianCenter = 0.0;
+	auto initialField{ 	
 		std::make_unique<InitialField>(
-			Gaussian{ spread, dimension }, ft, p, center_, angles_) 
+			Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_, angles_) 
 	};
 	
 	Sources res;
@@ -59,7 +61,7 @@ static Sources buildPlanewaveInitialField(
 	const MathFunction& mf,
 	const Source::Position& center_,
 	const Source::Polarization& polIn,
-	const mfem::Vector& propagationDir,
+	const Source::Propagation& propagationDir,
 	const Source::CartesianAngles& angles_ = Source::CartesianAngles({0.0,0.0,0.0}))
 {
 	Sources res;

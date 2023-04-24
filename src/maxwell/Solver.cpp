@@ -139,7 +139,7 @@ void Solver::run()
 void Solver::step()
 {
 	double truedt{ std::min(dt_, opts_.t_final - time_) };
-	odeSolver_->Step(fields_.allDOFs, time_, truedt);
+	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 	probesManager_.updateProbes(time_);
 }
 

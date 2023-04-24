@@ -35,28 +35,22 @@ void SourcesManager::setInitialFields(Fields& fields)
 SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double time)
 {
     SourcesManager::TimeVarOperators res;
-    for (auto ft : { E, H }) {
-        for (auto d : { X, Y, Z }) {
-            res[ft][d].SetSpace(&fes_);
-            res[ft][d] = 0.0;
-        }
-    }
     for (const auto& source : sources) {
-        std::function<double(const Source::Position&, Source::Time)> f = 0;
-        if (dynamic_cast<Planewave*>(source.get())) {
-            auto timeVarField{ dynamic_cast<Planewave*>(source.get()) };
-            f = std::bind(
-               &Planewave::eval,
-                timeVarField,
-                std::placeholders::_1,
-                std::placeholders::_2
-            );
-            FunctionCoefficient func(f);
-            func.SetTime(time);
+        auto pw = dynamic_cast<Planewave*>(source.get());
+        if (pw == nullptr) {
+            continue;
+        }
+        for (auto ft : { E, H }) {
             for (auto d : { X, Y, Z }) {
-                res[timeVarField->fieldType_][d].ProjectCoefficient(func);
-                res[timeVarField->fieldType_][d] *= timeVarField->polarization_[d];
-                res[timeVarField->fieldType_][d] *= 0.5;
+                std::function<double(const Source::Position&, Source::Time)> f = 0;
+                f = std::bind(&Planewave::eval, pw, 
+                    std::placeholders::_1, std::placeholders::_2, ft, d);
+                FunctionCoefficient func(f);
+                
+                func.SetTime(time);
+                res[ft][d].SetSpace(&fes_);
+                res[ft][d].ProjectCoefficient(func);
+                res[ft][d] *= 0.5;
             }
         }
     }

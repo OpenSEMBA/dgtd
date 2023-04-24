@@ -105,25 +105,4 @@ private:
 	std::vector<std::size_t> modes_;
 };
 
-class UniformField : public MathFunction {
-public:
-	UniformField(double val) : 
-		val_{ val }
-	{}
-
-	int dimension() const { return 3; }
-
-	std::unique_ptr<MathFunction> clone() const {
-		return std::make_unique<UniformField>(*this);
-	}
-
-	double eval(const mfem::Vector& pos, double time) const
-	{
-		return val_;
-	}
-
-private:
-	double val_{ 1.0 };
-};
-
 }

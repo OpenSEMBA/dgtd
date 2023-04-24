@@ -92,10 +92,9 @@ TEST_F(ParSolver2DTest, periodic_tris_mpi)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
-			E,
-			Source::Position({1.0, 1.0}), // center_
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization_
-			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position({1.0, 1.0}), // center
+			Source::Polarization(unitVec(Z)), // e polarization
+			Source::Propagation(unitVec(X))  // propagation direction
 		),
 		SolverOptions{}
 			.setTimeStep(1e-3)

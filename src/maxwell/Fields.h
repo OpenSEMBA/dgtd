@@ -11,11 +11,15 @@ class Fields {
 public:
     Fields(mfem::FiniteElementSpace& fes);
     
-    std::array<mfem::GridFunction, 3> E, H;
-    mfem::Vector allDOFs;
+    mfem::GridFunction& get(const FieldType&, const Direction&);
+    mfem::GridFunction& operator()(const FieldType&, const Direction&);
+    mfem::Vector& allDOFs() { return allDOFs_; }
+    const mfem::Vector& allDOFs() const { return allDOFs_; }
 
-    GridFunction& get(const FieldType&, const Direction&);
+    double getNorml2() const { return allDOFs_.Norml2(); }
 
-    double getNorml2() const { return allDOFs.Norml2(); }
+private:
+    mfem::Vector allDOFs_;
+    std::array<mfem::GridFunction, 3> e_, h_;
 };
 }

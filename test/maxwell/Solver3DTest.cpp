@@ -224,26 +224,16 @@ TEST_F(Solver3DTest, 3D_pec_centered_spectral_and_base_comparison)
 		.setSpectralEO()
 	};
 
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 
 }
@@ -528,10 +518,9 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2}, 
-			E,
-			Source::Position    ({1.0, 0.5, 0.5}), // center_
-			Source::Polarization({0.0, 1.0, 0.0}), // e polarization_
-			mfem::Vector        ({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position    ({1.0, 0.5, 0.5}), 
+			Source::Polarization(unitVec(Y)),
+			Source::Propagation(unitVec(X)) 
 		),
 		SolverOptions{}
 			.setTimeStep(7.5e-3)
@@ -581,10 +570,9 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_upwind_hexa)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
-			E,
 			Source::Position({1.0, 0.5, 0.5}), // center_
-			Source::Polarization({0.0, 1.0, 0.0}), // e polarization_
-			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+			Source::Polarization(unitVec(Y)), // e polarization_
+			Source::Propagation(unitVec(X)) 
 		),
 		SolverOptions{}
 			.setTimeStep(3e-3)
@@ -920,26 +908,16 @@ TEST_F(Solver3DTest, 3D_pec_upwind_spectral_and_base_comparison) {
 		.setSpectralEO()
 	};
 
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 }
 
@@ -982,10 +960,9 @@ TEST_F(Solver3DTest, feng_fss)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{0.015},
-		E,
 		Source::Position({ 0.075,0.075,0.06 }), // center_
 		Source::Polarization(unitVec(Z)), // e polarization_
-		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+		Source::Propagation(unitVec(Y)) // propagation direction
 	),
 	SolverOptions{}
 		.setTimeStep(5e-7)

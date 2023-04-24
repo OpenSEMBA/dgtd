@@ -128,7 +128,7 @@ TEST_F(Solver1DTest, pec_centered)
 			.setCentered()
 	};
 	
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	
 	// Checks fields have been initialized.
@@ -137,7 +137,7 @@ TEST_F(Solver1DTest, pec_centered)
 	solver.run();
 	
 	// Checks that field is almost the same as initially because the completion of a cycle.
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 
 	// Compares all DOFs.
@@ -176,10 +176,10 @@ TEST_F(Solver1DTest, pmc_centered)
 			.setCentered()
 	};
 
-	GridFunction hOld{ solver.getFields().H[Z] };
+	GridFunction hOld{ solver.getField(H,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction hNew{ solver.getFields().H[Z] };
+	GridFunction hNew{ solver.getField(H,Z) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -196,10 +196,10 @@ TEST_F(Solver1DTest, pec_upwind)
 			.setCFL(0.65)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
@@ -216,10 +216,10 @@ TEST_F(Solver1DTest, pmc_upwind)
 			.setCFL(0.65)
 	};
 
-	GridFunction hOld{ solver.getFields().H[Z] };
+	GridFunction hOld{ solver.getField(H,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction hNew{ solver.getFields().H[Z] };
+	GridFunction hNew{ solver.getField(H,Z) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -281,10 +281,10 @@ TEST_F(Solver1DTest, periodic)
 
 	solver.run();
 	
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
@@ -311,10 +311,10 @@ TEST_F(Solver1DTest, periodic_inhomo)
 
 	solver.run();
 	
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
@@ -388,8 +388,9 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 TEST_F(Solver1DTest, totalfieldin_bdr_upwind_sma)
 {
+	auto msh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh", 1, 0) };
 	Model model{ 
-		Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh",1,0),
+		msh,
 		AttributeToMaterial{}, 
 		AttributeToBoundary{
 			{ 2, BdrCond::SMA }, 
@@ -645,12 +646,12 @@ TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 			.setCFL(0.5)
 	};
 
-	Vector eOld(solver.getFields().E[Y].Size());
-	eOld = solver.getFields().E[Y];
+	Vector eOld(solver.getField(E,Y).Size());
+	eOld = solver.getField(E,Y);
 	
 	solver.run();
 
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-8);
 
 	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
@@ -687,7 +688,7 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 			.setSpectralEO()
 	};
 
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -696,7 +697,7 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 	solver.run();
 
 	// Checks that field is almost the same as initially because the completion of a cycle.
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 
 	// Compares all DOFs.
@@ -735,15 +736,15 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 		.setSpectralEO()
 	};
 
-	EXPECT_EQ(solver.getFields().E[Y], solverSpectral.getFields().E[Y]);
-	EXPECT_EQ(solver.getFields().H[Z], solverSpectral.getFields().H[Z]);
+	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
+	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(),1e-6);
-	EXPECT_EQ(solver.getFields().E[Y], solverSpectral.getFields().E[Y]);
-	EXPECT_EQ(solver.getFields().H[Z], solverSpectral.getFields().H[Z]);
+	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
+	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
 
 
 }
