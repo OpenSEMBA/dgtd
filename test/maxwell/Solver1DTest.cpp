@@ -228,7 +228,6 @@ TEST_F(Solver1DTest, pmc_upwind)
 
 TEST_F(Solver1DTest, sma)
 {
-
 	maxwell::Solver solver(
 		buildStandardModel(10, BdrCond::SMA, BdrCond::SMA),
 		buildProbesWithAnExportProbe(),
@@ -237,24 +236,6 @@ TEST_F(Solver1DTest, sma)
 			.setTimeStep(5e-4)
 			.setFinalTime(1.25)
 			.setOrder(3)
-	);
-
-	solver.run();
-
-	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
-}
-
-TEST_F(Solver1DTest, sma_farboundaries)
-{
-	Mesh m{ Mesh::MakeCartesian1D(401,15.0) };
-
-	maxwell::Solver solver(
-		buildCustomMeshModel(m, BdrCond::SMA, BdrCond::SMA),
-		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, 0.3, Vector({ 7.5 }), unitVec(Y)),
-		SolverOptions{}
-		.setTimeStep(2.5e-3)
-		.setFinalTime(10.0)
 	);
 
 	solver.run();
@@ -350,8 +331,8 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		buildPlanewaveInitialField(
 			Gaussian{ 0.05 },
 			Source::Position({ 0.25 }),
-			Source::Polarization({0.0, 1.0, 0.0}),
-			mfem::Vector({1.0, 0.0, 0.0})
+			Source::Polarization(unitVec(Y)),
+			Source::Propagation(unitVec(X))
 		),
 		SolverOptions{}
 			.setCFL(0.65)

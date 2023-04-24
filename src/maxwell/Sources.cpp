@@ -103,8 +103,8 @@ Planewave::Planewave(const Planewave& rhs) :
 	polarization_{ rhs.polarization_ },
 	propagation_{ rhs.propagation_ }
 {
-	assert(polarization_.Norml2() <= TOLERANCE);
-	assert(propagation_.Norml2() <= TOLERANCE);
+	assert(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE);
+	assert(std::abs(1.0 - propagation_.Norml2()) <= TOLERANCE);
 }
 
 std::unique_ptr<Source> Planewave::clone() const
@@ -127,8 +127,17 @@ double Planewave::eval(
 		fieldPol = crossProduct(propagation_, polarization_);
 	}
 
+	double positionComponent;
+	if (d < p.Size()) {
+		positionComponent = p[d];
+	}
+	else {
+		positionComponent = 0.0;
+	}
+
+
 	mfem::Vector delayedPosition(
-		{ p[d] - t * propagation_[d] / physicalConstants::speedOfLight }
+		{ positionComponent - t * propagation_[d] / physicalConstants::speedOfLight }
 	);
 	return magnitude_->eval(delayedPosition) * fieldPol[d];
 }

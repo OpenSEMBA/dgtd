@@ -15,26 +15,29 @@ SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fe
 void SourcesManager::setInitialFields(Fields& fields)
 {
     for (const auto& source : sources) {
-        if (dynamic_cast<InitialField*>(source.get())) {
-            auto initialField{ dynamic_cast<InitialField*>(source.get()) };
-            for (FieldType ft: {E, H}) {
-                for (auto x : { X, Y, Z }) {
-                    std::function<double(const Source::Position&, Source::Time)> f = 0;
-                    f = std::bind(
-                        &InitialField::eval, initialField, 
-                        std::placeholders::_1, std::placeholders::_2, ft, x
-                    );
-                    FunctionCoefficient fc(f);
-                    fields.get(ft, x).ProjectCoefficient(fc);
-                }
+        auto src{ dynamic_cast<InitialField*>(source.get()) };
+        if (src == nullptr) {
+            continue;
+        }
+        for (FieldType ft: {E, H}) {
+            for (auto x : { X, Y, Z }) {
+                std::function<double(const Source::Position&, Source::Time)> f = 0;
+                f = std::bind(
+                    &InitialField::eval, src, 
+                    std::placeholders::_1, std::placeholders::_2, ft, x
+                );
+                FunctionCoefficient fc(f);
+                GridFunction gf(fields.get(ft, x).FESpace());
+                gf.ProjectCoefficient(fc);
+                fields.get(ft, x) += gf;
             }
         }
     }
 }
 
-SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double time)
+std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const double time)
 {
-    SourcesManager::TimeVarOperators res;
+    std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
         auto pw = dynamic_cast<Planewave*>(source.get());
         if (pw == nullptr) {
@@ -46,8 +49,8 @@ SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double t
                 f = std::bind(&Planewave::eval, pw, 
                     std::placeholders::_1, std::placeholders::_2, ft, d);
                 FunctionCoefficient func(f);
-                
                 func.SetTime(time);
+                
                 res[ft][d].SetSpace(&fes_);
                 res[ft][d].ProjectCoefficient(func);
                 res[ft][d] *= 0.5;
