@@ -1241,6 +1241,24 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 500;
 
+	std::vector<double> pointR({ 2.5, 2.5, 2.5 });
+	std::vector<double> pointT({ 27.5, 2.5, 2.5 });
+
+	probes.pointProbes = {
+		PointProbe{E, X, pointR},
+		PointProbe{E, X, pointT},
+		PointProbe{E, Y, pointR},
+		PointProbe{E, Y, pointT},
+		PointProbe{E, Z, pointR},
+		PointProbe{E, Z, pointT},
+		PointProbe{H, X, pointR},
+		PointProbe{H, X, pointT},
+		PointProbe{H, Y, pointR},
+		PointProbe{H, Y, pointT},
+		PointProbe{H, Z, pointR},
+		PointProbe{H, Z, pointT}
+	};
+
 	auto mesh{ Mesh::LoadFromFile("./TestData/fsshexasmoredetail.msh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
 	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC } };
@@ -1258,12 +1276,20 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 	),
 	SolverOptions{}
 		.setTimeStep(1e-4)
-		.setFinalTime(15.0)
+		.setFinalTime(30.0)
 		.setOrder(2)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
+
+	for (int probeNumber = 0; probeNumber < probes.pointProbes.size(); probeNumber++) {
+		std::ofstream file("fss_sym_" + std::to_string(probeNumber) + ".txt");
+		file << "Time and " + std::to_string(probes.pointProbes[probeNumber].getFieldType()) + std::to_string(probes.pointProbes[probeNumber].getDirection()) + "\n";
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+			file << std::to_string(t) + " " + std::to_string(f) + "\n";
+		}
+	}
 
 	double tolerance{ 1e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
