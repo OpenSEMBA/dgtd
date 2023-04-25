@@ -1079,7 +1079,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	auto mesh{ Mesh::LoadFromFile("./TestData/fengfssflatsym.msh",1,0) };
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA}};
-	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC } };
+	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC }, {6, BdrCond::NONE} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr};
 
 	mfem::Vector center(3);
@@ -1100,7 +1100,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	),
 	SolverOptions{}
 		.setTimeStep(8e-7)
-		.setFinalTime(3.0)
+		.setFinalTime(0.05)
 		.setOrder(1)
 	};
 
@@ -1122,20 +1122,39 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 
 TEST_F(Solver3DTest, feng_fss_manual)
 {
-	auto mesh{ Mesh::MakeCartesian3D(1,2,1,Element::HEXAHEDRON,0.15,0.30,0.12) };
-	mesh.UniformRefinement();
-	mesh.UniformRefinement();
-
+	auto mesh{ Mesh::LoadFromFile("./testData/fengfssmanual.mesh",1,0) };
+	Array<Refinement> refinement_list;
+	refinement_list.Append(Refinement(0, 2));
+	refinement_list.Append(Refinement(1, 2));
+	refinement_list.Append(Refinement(2, 2));
+	refinement_list.Append(Refinement(3, 2));
+	refinement_list.Append(Refinement(4, 2));
+	refinement_list.Append(Refinement(5, 2));
+	refinement_list.Append(Refinement(6, 2));
+	refinement_list.Append(Refinement(7, 2));
+	mesh.GeneralRefinement(refinement_list);
+	refinement_list.Append(Refinement(8, 2));
+	refinement_list.Append(Refinement(9, 2));
+	refinement_list.Append(Refinement(10, 2));
+	refinement_list.Append(Refinement(11, 2));
+	refinement_list.Append(Refinement(12, 2));
+	refinement_list.Append(Refinement(13, 2));
+	refinement_list.Append(Refinement(14, 2));
+	refinement_list.Append(Refinement(15, 2));
+	mesh.GeneralRefinement(refinement_list);
+	//refinement_list.Append(Refinement(16, 2));
+	//refinement_list.Append(Refinement(17, 2));
+	//refinement_list.Append(Refinement(18, 2));
+	//refinement_list.Append(Refinement(19, 2));
+	mesh.GeneralRefinement(refinement_list);
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ 
-		{1, BdrCond::PEC},
 		{2, BdrCond::PEC},
 		{3, BdrCond::PMC},
-		{4, BdrCond::PEC},
-		{5, BdrCond::PMC},
-		{6, BdrCond::PEC}
+		{4, BdrCond::SMA}
 	};
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	mfem::Vector center(3);
 	rotateMinus90degAlongZAxis(Vector({ 0.15,0.15,0.06 }), center);
@@ -1143,7 +1162,7 @@ TEST_F(Solver3DTest, feng_fss_manual)
 	rotateMinus90degAlongZAxis(unitVec(Z), polarization);
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 200;
+	probes.exporterProbes[0].visSteps = 1000;
 
 	std::vector<double> pointR({ 0.01,-0.075,0.06 });
 	std::vector<double> pointT({ 0.29,-0.075,0.06 });
@@ -1169,13 +1188,13 @@ TEST_F(Solver3DTest, feng_fss_manual)
 	buildPlanewaveInitialField(
 		Gaussian{0.015},
 		E,
-		Source::Position({ 0.15,0.075,0.06 }), // center
+		Source::Position({ 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
 	),
 	SolverOptions{}
-		.setTimeStep(8e-6)
-		.setFinalTime(0.10)
+		.setTimeStep(1e-7)
+		.setFinalTime(0.0001)
 		.setOrder(1)
 	};
 
@@ -1187,3 +1206,66 @@ TEST_F(Solver3DTest, feng_fss_manual)
 
 }
 
+TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/InteriorPEC3D.msh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC}, {4,BdrCond::SMA } };
+	AttributeToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 100;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlanewaveInitialField(
+			Gaussian{0.15},
+			E,
+			Source::Position({ 0.0 }), // center
+			Source::Polarization(unitVec(Z)), // e polarization
+			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+	),
+		SolverOptions{}
+			.setTimeStep(2.5e-4)
+			.setFinalTime(1.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver3DTest, interiorPEC_fss_hexas)
+{
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 500;
+
+	auto mesh{ Mesh::LoadFromFile("./TestData/fsshexasmoredetail.msh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
+	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC } };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildPlanewaveInitialField(
+		Gaussian{1.6},
+		E,
+		Source::Position({ 9.0 }), // center
+		Source::Polarization(unitVec(Z)), // e polarization
+		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+	),
+	SolverOptions{}
+		.setTimeStep(1e-4)
+		.setFinalTime(15.0)
+		.setOrder(2)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+}

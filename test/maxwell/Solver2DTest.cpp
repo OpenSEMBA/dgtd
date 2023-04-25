@@ -1198,7 +1198,7 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 20;
+	probes.exporterProbes[0].visSteps = 100;
 
 	maxwell::Solver solver{
 		model,
@@ -1206,7 +1206,7 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 		buildGaussianInitialField(E, 0.2, Vector{{1.0,0.5}}, zPolarization()),
 		SolverOptions{}
 			.setTimeStep(1e-3)
-			.setFinalTime(2.0)
+			.setFinalTime(4.0)
 			.setOrder(3)
 	};
 
