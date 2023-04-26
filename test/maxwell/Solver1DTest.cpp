@@ -455,11 +455,11 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 	}
 }
 
-TEST_F(Solver1DTest, totalfieldin_intbdr_bigscale_centered)
+TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdrBigScale.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/intBdrPECBigScale.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	AttributeToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -473,7 +473,13 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_bigscale_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(2.0, 1.0, 1, unitVec(Y), E, mfem::Vector({1.0,0.0,0.0}), Source::Position({0.0})),
+		buildPlanewaveInitialField(
+			Gaussian{2.0},
+			E,
+			Source::Position({ 15.0 }), // center
+			Source::Polarization(unitVec(Z)), // e polarization
+			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+		),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
