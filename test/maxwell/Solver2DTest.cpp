@@ -1184,7 +1184,7 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianInitialField(E, 0.2, Source::Position( {1.0} ), unitVec(Z)),
+		buildGaussianInitialField(E, 0.2, Source::Position( {1.0, 0.0} ), unitVec(Z)),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(4.0)

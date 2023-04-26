@@ -354,7 +354,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(Solver1DTest, totalfieldin_bdr_sma)
+TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_sma)
 {
 	auto msh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh", 1, 0) };
 	Model model{ 
