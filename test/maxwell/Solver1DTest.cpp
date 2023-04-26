@@ -435,8 +435,8 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/intBdrPECBigScale.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	//AttributeToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
 
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
@@ -444,14 +444,13 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 	PointProbe{ E, Y, {10.0} },
 	PointProbe{ H, Z, {10.0} }
 	};
-	probes.exporterProbes[0].visSteps = 10;
+	probes.exporterProbes[0].visSteps = 5;
 
 	maxwell::Solver solver{
 		model,
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{2.0},
-			E,
 			Source::Position({ 15.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
@@ -460,7 +459,7 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 			.setCFL(0.5)
 			.setCentered()
 			.setFinalTime(100.0)
-			.setOrder(2)
+			.setOrder(4)
 	};
 
 	solver.run();
@@ -590,7 +589,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 
 TEST_F(Solver1DTest, totalfieldinout_sma)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/intBdrPECBigScale.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };

@@ -1055,7 +1055,6 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{15.0},
-		E,
 		Source::Position({ 75.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
@@ -1149,7 +1148,6 @@ TEST_F(Solver3DTest, feng_fss_manual)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{0.015},
-		E,
 		Source::Position({ 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
@@ -1183,7 +1181,6 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{7.5},
-			E,
 			Source::Position({ 0.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
@@ -1235,7 +1232,6 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{16.0},
-		E,
 		Source::Position({ 90.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
