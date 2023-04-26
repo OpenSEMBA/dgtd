@@ -464,6 +464,7 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 			return FluxCoefficient{ 1.0 };
 		}
 	case BdrCond::TotalFieldIn:
+	case BdrCond::TotalFieldOut:
 		switch (f) {
 		case FieldType::E:
 			return FluxCoefficient{ 0.0 };
@@ -512,6 +513,7 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 				return FluxCoefficient{ 1.0 };
 			}
 		case BdrCond::TotalFieldIn:
+		case BdrCond::TotalFieldOut:
 			switch (f) {
 			case FieldType::E:
 				return FluxCoefficient{ 0.0 };

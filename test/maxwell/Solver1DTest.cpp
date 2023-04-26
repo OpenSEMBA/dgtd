@@ -589,7 +589,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 
 TEST_F(Solver1DTest, totalfieldinout_sma)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/intBdrPECBigScale.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
