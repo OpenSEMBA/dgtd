@@ -4,6 +4,9 @@ namespace maxwell {
 
 using namespace mfem;
 
+using mfemExtension::BilinearFormIBFI;
+using mfemExtension::MaxwellDGFluxTotalFieldIntegrator;
+
 Eigen::MatrixXd toEigen(const DenseMatrix& mat)
 {
 	Eigen::MatrixXd res(mat.Width(), mat.Height());
@@ -203,6 +206,7 @@ FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std
 }
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, bool usePenaltyCoefficients, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
+
 	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
 
 	{
@@ -275,7 +279,7 @@ FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const st
 	{
 		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator(dirTerms, c.orient, 0.5), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({X}, c.orient, 0.5), kv.second
 		);
 	}
 
@@ -345,23 +349,26 @@ FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vect
 	res->Finalize();
 	return res;
 }
-
-FiniteElementIBFIOperator buildFluxFunctionOperator1D(Model& model, FiniteElementSpace& fes)
-{
-	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
-
-	for (auto& kv : model.getInteriorBoundaryToMarker())
-	{
-		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
-		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c.orient, 0.5), kv.second
-		);
-	}
-
-	res->Assemble();
-	res->Finalize();
-	return res;
-}
+//
+//FiniteElementIBFIOperator buildFluxFunctionOperator(
+//	Model& model, 
+//	FiniteElementSpace& fes,
+//	const Direction& dir)
+//{
+//	auto res = std::make_unique<BilinearFormIBFI>(&fes);
+//
+//	for (auto& kv : model.getInteriorBoundaryToMarker())
+//	{
+//		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
+//		res->AddInteriorBoundaryFaceIntegrator(
+//			new MaxwellDGFluxTotalFieldIntegrator({ dir }, c.orient, 0.5), kv.second
+//		);
+//	}
+//
+//	res->Assemble();
+//	res->Finalize();
+//	return res;
+//}
 
 FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model& model, FiniteElementSpace& fes)
 {
@@ -428,6 +435,7 @@ FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
 			return FluxCoefficient{ 2.0 };
 		}
 	case BdrCond::SMA:
+	case BdrCond::TotalFieldInBacked:
 		switch (f) {
 		case FieldType::E:
 			return FluxCoefficient{ 1.0 };
@@ -475,6 +483,7 @@ FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond
 				return FluxCoefficient{ 2.0 };
 			}
 		case BdrCond::SMA:
+		case BdrCond::TotalFieldInBacked:
 			switch (f) {
 			case FieldType::E:
 				return FluxCoefficient{ 1.0 };

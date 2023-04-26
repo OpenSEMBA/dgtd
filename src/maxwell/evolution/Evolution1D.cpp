@@ -51,7 +51,7 @@ void MaxwellEvolution1D::Mult(const Vector& in, Vector& out) const
 	}
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<TimeVaryingField*>(source.get())) {
+		if (dynamic_cast<Planewave*>(source.get())) {
 			std::array<std::array<GridFunction, 3>, 2> eFunc(srcmngr_.evalTimeVarField(GetTime()));
 			std::array<std::array<GridFunction, 3>, 2> hFunc(srcmngr_.evalTimeVarField(GetTime()));
 			auto TimeVarE = eFunc[E][Y];

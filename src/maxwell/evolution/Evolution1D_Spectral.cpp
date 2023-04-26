@@ -33,7 +33,7 @@ MaxwellEvolution1D_Spectral::MaxwellEvolution1D_Spectral(
 		numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<TimeVaryingField*>(source.get())) {
+		if (dynamic_cast<Planewave*>(source.get())) {
 			allocateDenseInEigen1D(buildIBFIByMult(*buildInverseMassMatrix(H, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_)->SpMat().ToDenseMatrix(), forcing_, { H,H }); //MBF
 			allocateDenseInEigen1D(buildIBFIByMult(*buildInverseMassMatrix(E, model_, fes_), *buildFluxFunctionOperator1D(model_, fes_), fes_)->SpMat().ToDenseMatrix(), forcing_, { E,E });
 			if (opts_.fluxType == FluxType::Upwind) {
@@ -69,7 +69,7 @@ void MaxwellEvolution1D_Spectral::Mult(const Vector& in, Vector& out) const
 	Eigen::VectorXd fieldsNew{ global_ * fieldsOld };
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<TimeVaryingField*>(source.get())) {
+		if (dynamic_cast<Planewave*>(source.get())) {
 			std::array<std::array<GridFunction, 3>, 2> eFunc(srcmngr_.evalTimeVarField(GetTime()));
 			std::array<std::array<GridFunction, 3>, 2> hFunc(srcmngr_.evalTimeVarField(GetTime()));
 

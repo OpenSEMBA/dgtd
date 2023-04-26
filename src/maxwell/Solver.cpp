@@ -8,6 +8,20 @@ using namespace mfem;
 
 namespace maxwell {
 
+std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
+{
+#ifdef MAXWELL_USE_MPI	
+	if (dynamic_cast<ParMesh*>(m) != nullptr) {
+		auto pm{ dynamic_cast<ParMesh*>(m) };
+		return std::make_unique<ParFiniteElementSpace>(pm, fec);
+	}
+#endif
+	if (dynamic_cast<Mesh*>(m) != nullptr) {
+		return std::make_unique<FiniteElementSpace>(m, fec);
+	}
+	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
+}
+
 Solver::Solver(const ProblemDescription& problem, const SolverOptions& options) :
 	Solver(problem.model, problem.probes, problem.sources, options)
 {}
@@ -20,21 +34,22 @@ Solver::Solver(
 	opts_{ options },
 	model_{ model },
 	fec_{ opts_.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
-	fes_{ &model_.getMesh(), &fec_ },
-	fields_{ fes_ },
-	sourcesManager_{ sources, fes_ },
-	probesManager_{ probes, fes_, fields_, opts_},
+	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
+	fields_{ *fes_ },
+	sourcesManager_{ sources, *fes_ },
+	probesManager_{ probes, *fes_, fields_, opts_ },
 	time_{0.0}
 {
+	
 	sourcesManager_.setInitialFields(fields_);
 	switch (opts_.evolutionOperatorOptions.spectral) {
 	case true:
 		maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(
-			fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	default:
 		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
-			fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 		break;
 	}
 
@@ -61,7 +76,7 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 	}
 
 	if (opts.dt == 0.0) {
-		if (fes_.GetMesh()->Dimension() > 1) {
+		if (fes_->GetMesh()->Dimension() > 1) {
 			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
 		}
 	}
@@ -106,10 +121,10 @@ double Solver::getTimeStep()
 	double signalSpeed{ 1.0 };
 	double maxTimeStep{ 0.0 };
 	if (opts_.order == 0) {
-		maxTimeStep = getMinimumInterNodeDistance(fes_) / signalSpeed;
+		maxTimeStep = getMinimumInterNodeDistance(*fes_) / signalSpeed;
 	}
 	else {
-		maxTimeStep = getMinimumInterNodeDistance(fes_) / pow(opts_.order, 1.5) / signalSpeed;
+		maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.order, 1.5) / signalSpeed;
 	}
 	return opts_.CFL * maxTimeStep;
 }
@@ -124,7 +139,7 @@ void Solver::run()
 void Solver::step()
 {
 	double truedt{ std::min(dt_, opts_.t_final - time_) };
-	odeSolver_->Step(fields_.allDOFs, time_, truedt);
+	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 	probesManager_.updateProbes(time_);
 }
 

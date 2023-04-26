@@ -1,7 +1,8 @@
 #include "gtest/gtest.h"
 
-#include "AnalyticalFunctions2D.h"
 #include "SourceFixtures.h"
+#include "Utils.h"
+
 #include "maxwell/Solver.h"
 
 #include "maxwell/Types.h"
@@ -15,7 +16,6 @@
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
-using namespace AnalyticalFunctions2D;
 
 class Solver2DTest : public ::testing::Test {
 protected:
@@ -58,25 +58,10 @@ protected:
 		};
 	}
 
-	Probes buildProbesWithAnExportProbe()
-	{
-		return { {}, { ExporterProbe{getTestCaseName()} } };
-	}
-
-	static std::string getTestCaseName()
-	{
-		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
-	}
-
 	Vector fieldCenter{ { 0.5, 0.5 } };
-	Source::Polarization zPolarization()
-	{
-		return Source::Polarization({ 0.0, 0.0, 1.0 });
-	}
-
 };
 
-TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D)
+TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 {
 
 	Probes probes;
@@ -113,7 +98,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_centered_tris_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -127,7 +112,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -151,7 +136,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_triangle_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D)
+TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 {
 
 	Probes probes;
@@ -165,7 +150,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -189,7 +174,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_centered_quads_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -203,7 +188,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -227,7 +212,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_AMR)
+TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -259,7 +244,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_AMR)
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, Vector({0.5,0.5}), zPolarization()),
+	buildGaussianInitialField(E, 0.1, Vector({0.5,0.5}), unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-3)
 		.setCentered()
@@ -283,7 +268,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_quadrilateral_1dot5D_AMR)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_tris_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -297,7 +282,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-3)
 		.setFinalTime(2.0)
@@ -320,7 +305,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_triangle_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_AMR)
+TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 {
 	/*The purpose of this test is to verify the functionality of the Maxwell Solver when using
 	a centered type flux. A non-conforming mesh is loaded to test MFEM functionalities on the code.
@@ -352,7 +337,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_AMR)
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, Vector({0.5,0.5}), zPolarization()),
+	buildGaussianInitialField(E, 0.1, Vector({0.5,0.5}), unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(2.5e-4)
 		.setFinalTime(2.0)
@@ -375,7 +360,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_AMR)
 
 }
 
-TEST_F(Solver2DTest, pec_upwind_tris_1dot5D)
+TEST_F(Solver2DTest, pec_tris_1dot5D)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 50;
@@ -393,7 +378,7 @@ TEST_F(Solver2DTest, pec_upwind_tris_1dot5D)
 		BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC
 	),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-3)
 		.setFinalTime(2.0)
@@ -416,7 +401,7 @@ TEST_F(Solver2DTest, pec_upwind_tris_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, pec_upwind_quads_1dot5D)
+TEST_F(Solver2DTest, pec_quads_1dot5D)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 50;
@@ -434,7 +419,7 @@ TEST_F(Solver2DTest, pec_upwind_quads_1dot5D)
 		BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC
 	),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-3)
 		.setFinalTime(2.0)
@@ -457,7 +442,7 @@ TEST_F(Solver2DTest, pec_upwind_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_spectral)
+TEST_F(Solver2DTest, pec_quads_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -471,7 +456,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_spectral)
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::QUADRILATERAL, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-3)
 		.setFinalTime(2.0)
@@ -494,7 +479,7 @@ TEST_F(Solver2DTest, 2D_pec_upwind_quadrilateral_1dot5D_spectral)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
+TEST_F(Solver2DTest, sma_tris_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -510,18 +495,18 @@ TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
 
 	maxwell::Solver solver{
 		buildModel(
-			10, 2, mfem::Element::Type::TRIANGLE, 1.0, 0.4,
+			10, 3, mfem::Element::Type::TRIANGLE, 1.0,3.0,
 			BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
 		),
 		probes,
-		buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(2.0)
 			.setOrder(3)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Z] };
+	GridFunction eOld{ solver.getField(E,Z) };
 
 	auto zeros{ eOld };
 	zeros = 0.0;
@@ -537,7 +522,7 @@ TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
+TEST_F(Solver2DTest, sma_quads_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -550,20 +535,22 @@ TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 		PointProbe{H, Y, {1.0, 0.4}}
 	};
 
+	probes.exporterProbes[0].visSteps = 50;
+
 	maxwell::Solver solver{
 	buildModel(
 		10, 10, mfem::Element::Type::QUADRILATERAL,1.0, 1.0, 
 		BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
 	),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(2.0)
 		.setOrder(3)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Z] };
+	GridFunction eOld{ solver.getField(E,Z) };
 
 	auto zeros{ eOld };
 	zeros = 0.0;
@@ -579,7 +566,7 @@ TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, sma_upwind_quads)
+TEST_F(Solver2DTest, sma_quads)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -591,7 +578,7 @@ TEST_F(Solver2DTest, sma_upwind_quads)
 		buildModel(10, 10, mfem::Element::Type::QUADRILATERAL, 1.0, 1.0, 
 			 BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
 		probes,
-		buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization(), 2), 
+		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z), 2), 
 		SolverOptions{}
 			.setTimeStep(2.5e-4)
 			.setFinalTime(2.0)
@@ -604,7 +591,7 @@ TEST_F(Solver2DTest, sma_upwind_quads)
 	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
 }
 
-TEST_F(Solver2DTest, 2D_rotated_centered_quadrilateral_1dot5D)
+TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
 {
 	auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
 	mesh.UniformRefinement();
@@ -618,7 +605,7 @@ TEST_F(Solver2DTest, 2D_rotated_centered_quadrilateral_1dot5D)
 	maxwell::Solver solver {
 		model,
 		probes,
-		buildGaussianInitialField(E, 0.5, fieldCenter, zPolarization(), 1, Source::CartesianAngles({0.0,0.0,-M_PI_4})),
+		buildGaussianInitialField(E, 0.5, fieldCenter, unitVec(Z), 1, Source::CartesianAngles({0.0,0.0,-M_PI_4})),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(4.95)
@@ -634,7 +621,7 @@ TEST_F(Solver2DTest, 2D_rotated_centered_quadrilateral_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_centered_triangle_spectral_and_base_comparison) {
+TEST_F(Solver2DTest, periodic_centered_tris_spectral_and_base_comparison) {
 
 	Probes probes;
 
@@ -653,7 +640,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle_spectral_and_base_comparison)
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -664,7 +651,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle_spectral_and_base_comparison)
 	maxwell::Solver solverSpectral{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -673,13 +660,13 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle_spectral_and_base_comparison)
 		.setSpectralEO()
 	};
 
-	Vector zeroVec{ solver.getFields().E[Z].Size() };
+	Vector zeroVec{ solver.getField(E,Z).Size() };
 	zeroVec = 0.0;
 	double tolerance{ 1e-5 };
 	for (int i = 0; i < zeroVec.Size(); ++i) {
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().E[Z].Elem(i) - solverSpectral.getFields().E[Z].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[Y].Elem(i) - solverSpectral.getFields().H[Y].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[X].Elem(i) - solverSpectral.getFields().H[X].Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(E,Z).Elem(i) - solverSpectral.getField(E,Z).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,Y).Elem(i) - solverSpectral.getField(H,Y).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,X).Elem(i) - solverSpectral.getField(H,X).Elem(i), tolerance);
 	}
 
 	solver.run();
@@ -687,21 +674,21 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle_spectral_and_base_comparison)
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
 	for (int i = 0; i < zeroVec.Size(); ++i) {
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().E[Z].Elem(i) - solverSpectral.getFields().E[Z].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[Y].Elem(i) - solverSpectral.getFields().H[Y].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[X].Elem(i) - solverSpectral.getFields().H[X].Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(E,Z).Elem(i) - solverSpectral.getField(E,Z).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,Y).Elem(i) - solverSpectral.getField(H,Y).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,X).Elem(i) - solverSpectral.getField(H,X).Elem(i), tolerance);
 	}
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_upwind_triangle_spectral_and_base_comparison) {
+TEST_F(Solver2DTest, periodic_tris_spectral_and_base_comparison) {
 
 	Probes probes;
 
 	maxwell::Solver solver{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-3)
 		.setFinalTime(2.0)
@@ -711,7 +698,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle_spectral_and_base_comparison) {
 	maxwell::Solver solverSpectral{
 	buildModel(14,1,Element::Type::TRIANGLE, 1.0, 1.0, BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, zPolarization()),
+	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-3)
 		.setFinalTime(2.0)
@@ -719,13 +706,13 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle_spectral_and_base_comparison) {
 		.setSpectralEO()
 	};
 
-	Vector zeroVec{ solver.getFields().E[Z].Size() };
+	Vector zeroVec{ solver.getField(E,Z).Size() };
 	zeroVec = 0.0;
 	double tolerance{ 1e-5 };
 	for (int i = 0; i < zeroVec.Size(); ++i) {
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().E[Z].Elem(i) - solverSpectral.getFields().E[Z].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[Y].Elem(i) - solverSpectral.getFields().H[Y].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[X].Elem(i) - solverSpectral.getFields().H[X].Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(E,Z).Elem(i) - solverSpectral.getField(E,Z).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,Y).Elem(i) - solverSpectral.getField(H,Y).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,X).Elem(i) - solverSpectral.getField(H,X).Elem(i), tolerance);
 	}
 
 	solver.run();
@@ -733,14 +720,14 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle_spectral_and_base_comparison) {
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
 	for (int i = 0; i < zeroVec.Size(); ++i) {
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().E[Z].Elem(i) - solverSpectral.getFields().E[Z].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[Y].Elem(i) - solverSpectral.getFields().H[Y].Elem(i), tolerance);
-		EXPECT_NEAR(zeroVec.Elem(i), solver.getFields().H[X].Elem(i) - solverSpectral.getFields().H[X].Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(E,Z).Elem(i) - solverSpectral.getField(E,Z).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,Y).Elem(i) - solverSpectral.getField(H,Y).Elem(i), tolerance);
+		EXPECT_NEAR(zeroVec.Elem(i), solver.getField(H,X).Elem(i) - solverSpectral.getField(H,X).Elem(i), tolerance);
 	}
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
+TEST_F(Solver2DTest, periodic_centered_tris)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	//Probes probes;
@@ -768,10 +755,9 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.1},
-			E,
-			Source::Position({0.5, 0.5}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
-			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position({0.5, 0.5}), // center_
+			Source::Polarization(unitVec(Z)), // e polarization_
+			Source::Propagation(unitVec(X))  // propagation direction
 		),
 		SolverOptions{}
 			.setTimeStep(1e-2)
@@ -796,7 +782,7 @@ TEST_F(Solver2DTest, 2D_periodic_centered_triangle)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_centered_quadrilateral)
+TEST_F(Solver2DTest, periodic_centered_quads)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -826,10 +812,9 @@ TEST_F(Solver2DTest, 2D_periodic_centered_quadrilateral)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
-			E,
-			Source::Position({1.0, 1.0}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
-			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position({1.0, 1.0}),           // center_
+			Source::Polarization(unitVec(Z)),  // e polarization_
+			Source::Propagation(unitVec(X))   // propagation direction
 		),
 		SolverOptions{}
 			.setTimeStep(1e-3)
@@ -854,9 +839,8 @@ TEST_F(Solver2DTest, 2D_periodic_centered_quadrilateral)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_upwind_triangle)
+TEST_F(Solver2DTest, periodic_tris)
 {
-
 	auto probes{ buildProbesWithAnExportProbe() };
 	//Probes probes;
 	probes.pointProbes = {
@@ -885,10 +869,9 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
-			E,
-			Source::Position({1.0, 1.0}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
-			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position({1.0, 1.0}), // center_
+			Source::Polarization(unitVec(Z)), // e polarization_
+			Source::Propagation(unitVec(X))  // propagation direction
 		),
 		SolverOptions{}
 			.setTimeStep(1e-3)
@@ -912,7 +895,7 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_triangle)
 
 }
 
-TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
+TEST_F(Solver2DTest, periodic_quads)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
 	//Probes probes;
@@ -942,10 +925,9 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
-			E,
-			Source::Position({1.0, 1.0}), // center
-			Source::Polarization({0.0, 0.0, 1.0}), // e polarization
-			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position({1.0, 1.0}), // center_
+			Source::Polarization(unitVec(Z)), // e polarization_
+			Source::Propagation(unitVec(X))  // propagation direction
 		),
 		SolverOptions{}
 			.setTimeStep(1e-3)
@@ -969,9 +951,9 @@ TEST_F(Solver2DTest, 2D_periodic_upwind_quadrilateral)
 
 }
 
-TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
+TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_Quadrilateral_InnerSquare_IntBdr.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_InnerSquare_IntBdr.mesh",1,0) };
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
@@ -989,7 +971,7 @@ TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		build2DPlaneWave(0.2, 1.5, 1),
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Z), unitVec(X)),
 		SolverOptions{}
 			.setTimeStep(5e-3)
 			.setCentered()
@@ -1016,10 +998,9 @@ TEST_F(Solver2DTest, 2D_pec_centered_totalfieldinout_1dot5D)
 	//}
 }
 
-
-TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldinout_1dot5D)
+TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_Quadrilateral_1dot5D_IntBdr.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_1dot5D_IntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
 	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
@@ -1036,7 +1017,7 @@ TEST_F(Solver2DTest, 2D_sma_upwind_totalfieldinout_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, zPolarization()),
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Z), unitVec(X)),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(10.0)
@@ -1203,7 +1184,7 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianInitialField(E, 0.2, Vector{{1.0,0.5}}, zPolarization()),
+		buildGaussianInitialField(E, 0.2, Source::Position( {1.0} ), unitVec(Z)),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(4.0)

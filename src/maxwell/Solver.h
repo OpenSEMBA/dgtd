@@ -29,6 +29,7 @@ public:
     Solver& operator=(const Solver&) = delete;
 
     const Fields& getFields() const { return fields_; };
+    const GridFunction& getField(const FieldType& f, const Direction& d) { return fields_(f, d); }
     const PointProbe& getPointProbe(const std::size_t probe) const;
 
     double getTime() const { return time_; }
@@ -42,7 +43,7 @@ private:
     SolverOptions opts_;
     Model model_;
     mfem::DG_FECollection fec_;
-    mfem::FiniteElementSpace fes_;
+    std::unique_ptr<mfem::FiniteElementSpace> fes_;
     Fields fields_;
     
     SourcesManager sourcesManager_;
