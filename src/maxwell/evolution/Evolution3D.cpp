@@ -15,9 +15,9 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 {
 	for (auto f : { E, H }) {
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
-		if (model_.getInteriorBoundaryToMarker().size() != 0) {
-			MPB_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyIBFIOperator(f, {}, model_, fes_, opts_), fes_);
-		}
+		//if (model_.getInteriorBoundaryToMarker().size() != 0) {
+		//	MPB_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyIBFIOperator(f, {}, model_, fes_, opts_), fes_);
+		//}
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(
 				*buildInverseMassMatrix(f, model_, fes_), 
@@ -27,12 +27,21 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 				for (auto f2 : { E, H }) {
 					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_), fes_);
 					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f2, {d, d2}, model_, fes_, opts_), fes_);
-					if (model_.getInteriorBoundaryToMarker().size() != 0) {
-						MFNB_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxIBFIOperator(f2, { d }, model_, fes_), fes_);
-						MFNNB_[f][f2][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
-					}
+					//if (model_.getInteriorBoundaryToMarker().size() != 0) {
+					//	MFNB_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxIBFIOperator(f2, { d }, model_, fes_), fes_);
+					//	MFNNB_[f][f2][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+					//}
 				}
 			}
+		}
+	}
+
+	for (auto f : { E, H }) {
+		for (auto d: {X, Y, Z}) {
+			MBF_[f][d] = buildIBFIByMult(
+				*buildInverseMassMatrix(f, model_, fes_), 
+				*buildFluxFunctionOperator(f, {d}, model_, fes_), fes_
+			);
 		}
 	}
  }
@@ -55,7 +64,7 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
-
+		
 		//Centered
 		MS_[H][y]		 ->AddMult(eOld[z], hNew[x], -1.0);
 		MS_[H][z]		 ->AddMult(eOld[y], hNew[x]);
@@ -80,27 +89,38 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 			MP_[E]			 ->AddMult(eOld[x], eNew[x],-1.0);
 		}
 
-		if (model_.getInteriorBoundaryToMarker().size() != 0) {
-			
-			MFNB_[H][E][y]->AddMult(eOld[z], hNew[x]);
-			MFNB_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-			MFNB_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-			MFNB_[E][H][z]->AddMult(hOld[y], eNew[x]);
+		//if (model_.getInteriorBoundaryToMarker().size() != 0) {
+		//	
+		//	MFNB_[H][E][y]->AddMult(eOld[z], hNew[x]);
+		//	MFNB_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
+		//	MFNB_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
+		//	MFNB_[E][H][z]->AddMult(hOld[y], eNew[x]);
 
-			if (opts_.fluxType == FluxType::Upwind) {
+		//	if (opts_.fluxType == FluxType::Upwind) {
 
-				MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
-				MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
-				MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
-				MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
+		//		MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
+		//		MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
+		//		MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
+		//		MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
 
-				MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
-				MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
-				MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
-				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
+		//		MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
+		//		MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
+		//		MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
+		//		MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
+		//	}
+		//}
+
+	}
+
+	for (const auto& source : srcmngr_.sources) {
+		if (dynamic_cast<Planewave*>(source.get())) {
+			auto time{ GetTime() };
+			auto func{srcmngr_.evalTimeVarField(time)};
+			for(int x = X; x <= Z; x++) {
+				MBF_[E][x]->AddMult(func[E][x], eNew[x]);
+				MBF_[H][x]->AddMult(func[H][x], hNew[x]);
 			}
 		}
-
 	}
 
 }

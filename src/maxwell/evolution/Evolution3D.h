@@ -25,6 +25,8 @@ private:
 	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_;
 	std::array<FiniteElementOperator, 2> MP_;
 
+	std::array<std::array<FiniteElementIBFIOperator, 3>,2> MBF_;
+
 	std::array<FiniteElementIBFIOperator, 2> MPB_;
 	std::array<std::array<std::array<FiniteElementIBFIOperator, 3>, 2>, 2> MFNB_;
 	std::array<std::array<std::array<std::array<FiniteElementIBFIOperator, 3>, 3>, 2>, 2> MFNNB_;

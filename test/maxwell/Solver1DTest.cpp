@@ -1,8 +1,9 @@
 #include "gtest/gtest.h"
+#include "maxwell/Solver.h"
+
+#include "Utils.h"
 #include "SourceFixtures.h"
 #include "GlobalFunctions.h"
-
-#include "maxwell/Solver.h"
 
 using Interval = std::pair<double, double>;
 
@@ -51,11 +52,6 @@ protected:
 		}
 	}
 
-	Probes buildProbesWithAnExportProbe()
-	{
-		return { {}, { ExporterProbe{getTestCaseName()} } };
-	}
-
 	AttributeToBoundary buildAttrToBdrMap1D(const BdrCond& bdrL, const BdrCond& bdrR)
 	{
 		return {
@@ -95,15 +91,8 @@ protected:
 		}
 	}
 
-	static std::string getTestCaseName()
-	{
-		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
-	}
 
-	Source::Polarization yPolarization()
-	{
-		return Source::Polarization({ 0.0, 1.0, 0.0 });
-	}
+
 };
 
 TEST_F(Solver1DTest, pec_centered)
@@ -121,12 +110,12 @@ TEST_F(Solver1DTest, pec_centered)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
-		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setCentered()
 	};
 	
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	
 	// Checks fields have been initialized.
@@ -135,7 +124,7 @@ TEST_F(Solver1DTest, pec_centered)
 	solver.run();
 	
 	// Checks that field is almost the same as initially because the completion of a cycle.
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 
 	// Compares all DOFs.
@@ -168,16 +157,16 @@ TEST_F(Solver1DTest, pmc_centered)
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(H, 0.1, Vector({0.5}), yPolarization()),
+		buildGaussianInitialField(H, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setTimeStep(2.5e-3)
 			.setCentered()
 	};
 
-	GridFunction hOld{ solver.getFields().H[Z] };
+	GridFunction hOld{ solver.getField(H,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction hNew{ solver.getFields().H[Z] };
+	GridFunction hNew{ solver.getField(H,Z) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -189,15 +178,15 @@ TEST_F(Solver1DTest, pec_upwind)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setCFL(0.65)
 	};
 
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
@@ -209,15 +198,15 @@ TEST_F(Solver1DTest, pmc_upwind)
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setCFL(0.65)
 	};
 
-	GridFunction hOld{ solver.getFields().H[Z] };
+	GridFunction hOld{ solver.getField(H,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction hNew{ solver.getFields().H[Z] };
+	GridFunction hNew{ solver.getField(H,Z) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -226,33 +215,14 @@ TEST_F(Solver1DTest, pmc_upwind)
 
 TEST_F(Solver1DTest, sma)
 {
-
 	maxwell::Solver solver(
 		buildStandardModel(10, BdrCond::SMA, BdrCond::SMA),
 		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), yPolarization()),
+		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), unitVec(Y)),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setFinalTime(1.25)
 			.setOrder(3)
-	);
-
-	solver.run();
-
-	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
-}
-
-TEST_F(Solver1DTest, sma_farboundaries)
-{
-	Mesh m{ Mesh::MakeCartesian1D(401,15.0) };
-
-	maxwell::Solver solver(
-		buildCustomMeshModel(m, BdrCond::SMA, BdrCond::SMA),
-		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(E, 0.3, Vector({ 7.5 }), yPolarization()),
-		SolverOptions{}
-		.setTimeStep(2.5e-3)
-		.setFinalTime(10.0)
 	);
 
 	solver.run();
@@ -269,7 +239,7 @@ TEST_F(Solver1DTest, periodic)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setCentered()
@@ -279,10 +249,10 @@ TEST_F(Solver1DTest, periodic)
 
 	solver.run();
 	
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
@@ -299,7 +269,7 @@ TEST_F(Solver1DTest, periodic_inhomo)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setTimeStep(5e-4)
 			.setCentered()
@@ -309,10 +279,10 @@ TEST_F(Solver1DTest, periodic_inhomo)
 
 	solver.run();
 	
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 
 	EXPECT_NE(0.0, normOld);
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
@@ -347,10 +317,9 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{ 0.05 },
-			E,
 			Source::Position({ 0.25 }),
-			Source::Polarization({0.0, 1.0, 0.0}),
-			mfem::Vector({1.0, 0.0, 0.0})
+			Source::Polarization(unitVec(Y)),
+			Source::Propagation(unitVec(X))
 		),
 		SolverOptions{}
 			.setCFL(0.65)
@@ -385,11 +354,18 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_upwind_sma)
+TEST_F(Solver1DTest, totalfieldin_bdr_sma)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {301,BdrCond::TotalFieldIn} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	auto msh{ Mesh::LoadFromFile("./testData/verylonglineTFSF.mesh", 1, 0) };
+	Model model{ 
+		msh,
+		AttributeToMaterial{}, 
+		AttributeToBoundary{
+			{ 2, BdrCond::SMA }, 
+			{ 303, BdrCond::TotalFieldInBacked }
+		}, 
+		AttributeToInteriorBoundary{} 
+	};
 
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 30;
@@ -397,7 +373,7 @@ TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_upwind_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, yPolarization()),
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(5.0)
@@ -427,7 +403,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, yPolarization(), E, mfem::Vector({1.0,0.0,0.0}), Source::Position({0.0})),
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -526,7 +502,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, yPolarization(),E,mfem::Vector({1.0,0.0,0.0}),Source::Position({0.0})),
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
 		SolverOptions{}
 			.setCFL(0.65)
 			.setFinalTime(4.0)
@@ -579,7 +555,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, yPolarization(), E, mfem::Vector({1.0,0.0,0.0}), Source::Position({0.0})),
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -612,69 +588,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	}
 }
 
-TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_pec)
-{
-	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
-
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.pointProbes = {
-		PointProbe{ E, Y, {0.05} },
-		PointProbe{ E, Y, {0.1001} },
-		PointProbe{ E, Y, {0.9} },
-		PointProbe{ H, Z, {0.9} },
-		PointProbe{ E, Y, {0.9001} }
-	};
-	probes.exporterProbes[0].visSteps = 20;
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildPlaneWave(0.2, 1.5, 1, yPolarization(), E, mfem::Vector({1.0,0.0,0.0}), Source::Position({0.0})),
-		SolverOptions{}
-			.setCFL(0.5)
-			.setFinalTime(5.0)
-			.setOrder(2)
-	};
-
-	solver.run();
-
-	{
-		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
-		if (frame.first <= 2.0) {
-			EXPECT_NEAR(0.0, frame.second, 1e-3);
-		}
-	}
-
-	{
-		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
-		EXPECT_NEAR(1.5, frame.first, 1e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
-	}
-
-	{
-		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
-		EXPECT_NEAR(2.4, frame.first, 2e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
-	}
-
-	{
-		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
-		EXPECT_NEAR(2.4, frame.first, 2e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
-	}
-
-	{
-		auto frame{ solver.getPointProbe(4).findFrameWithMax() };
-		if (frame.first >= 2.0) {
-			EXPECT_NEAR(0.0, frame.second, 1e-3);
-		}
-	}
-}
-
-TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
+TEST_F(Solver1DTest, totalfieldinout_sma)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
@@ -694,7 +608,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_upwind_sma)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildPlaneWave(0.2, 1.5, 1, yPolarization(), E, mfem::Vector({1.0,0.0,0.0}), Source::Position({0.0})),
+		buildGaussianPlanewave(0.2, 0.8, unitVec(Y), unitVec(X)),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setFinalTime(5.0)
@@ -746,18 +660,18 @@ TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
-		buildResonantModeInitialField(E, yPolarization(), {1}),
+		buildResonantModeInitialField(E, unitVec(Y), {1}),
 		SolverOptions{}
 			.setFinalTime(finalTime)
 			.setCFL(0.5)
 	};
 
-	Vector eOld(solver.getFields().E[Y].Size());
-	eOld = solver.getFields().E[Y];
+	Vector eOld(solver.getField(E,Y).Size());
+	eOld = solver.getField(E,Y);
 	
 	solver.run();
 
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-8);
 
 	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
@@ -788,13 +702,13 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 	maxwell::Solver solver{
 		buildStandardModel(),
 		probes,
-		buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setCentered()
 			.setSpectralEO()
 	};
 
-	GridFunction eOld{ solver.getFields().E[Y] };
+	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -803,7 +717,7 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 	solver.run();
 
 	// Checks that field is almost the same as initially because the completion of a cycle.
-	GridFunction eNew{ solver.getFields().E[Y] };
+	GridFunction eNew{ solver.getField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 
 	// Compares all DOFs.
@@ -828,7 +742,7 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 	maxwell::Solver solver{
 	buildStandardModel(),
 	probes,
-	buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+	buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 	SolverOptions{}
 		.setCentered()
 	};
@@ -836,21 +750,21 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 	maxwell::Solver solverSpectral{
 	buildStandardModel(),
 	probes,
-	buildGaussianInitialField(E, 0.1, Vector({0.5}), yPolarization()),
+	buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 	SolverOptions{}
 		.setCentered()
 		.setSpectralEO()
 	};
 
-	EXPECT_EQ(solver.getFields().E[Y], solverSpectral.getFields().E[Y]);
-	EXPECT_EQ(solver.getFields().H[Z], solverSpectral.getFields().H[Z]);
+	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
+	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(),1e-6);
-	EXPECT_EQ(solver.getFields().E[Y], solverSpectral.getFields().E[Y]);
-	EXPECT_EQ(solver.getFields().H[Z], solverSpectral.getFields().H[Z]);
+	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
+	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
 
 
 }

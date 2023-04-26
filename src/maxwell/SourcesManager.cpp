@@ -15,60 +15,44 @@ SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fe
 void SourcesManager::setInitialFields(Fields& fields)
 {
     for (const auto& source : sources) {
-        std::function<double(const Source::Position&, Source::Time)> f = 0;
-        if (dynamic_cast<InitialField*>(source.get())) {
-            auto initialField{ dynamic_cast<InitialField*>(source.get()) };
-            f = std::bind(
-                &InitialField::eval,
-                initialField,
-                std::placeholders::_1,
-                std::placeholders::_2
-            );
-            switch (initialField->fieldType) {
-            case FieldType::E:
-                for (auto x : { X, Y, Z }) {
-                    FunctionCoefficient fc(f);
-                    fields.E[x].ProjectCoefficient(fc);
-                    fields.E[x] *= initialField->polarization[x];
-                }
-                break;
-            case FieldType::H:
-                for (auto x : { X, Y, Z }) {
-                    FunctionCoefficient fc(f);
-                    fields.H[x].ProjectCoefficient(fc);
-                    fields.H[x] *= initialField->polarization[x];
-                }
-                break;
+        auto src{ dynamic_cast<InitialField*>(source.get()) };
+        if (src == nullptr) {
+            continue;
+        }
+        for (FieldType ft: {E, H}) {
+            for (auto x : { X, Y, Z }) {
+                std::function<double(const Source::Position&, Source::Time)> f = 0;
+                f = std::bind(
+                    &InitialField::eval, src, 
+                    std::placeholders::_1, std::placeholders::_2, ft, x
+                );
+                FunctionCoefficient fc(f);
+                GridFunction gf(fields.get(ft, x).FESpace());
+                gf.ProjectCoefficient(fc);
+                fields.get(ft, x) += gf;
             }
         }
     }
 }
 
-SourcesManager::TimeVarOperators SourcesManager::evalTimeVarField(const double time)
+std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const double time)
 {
-    SourcesManager::TimeVarOperators res;
-    for (auto ft : { E, H }) {
-        for (auto d : { X, Y, Z }) {
-            res[ft][d].SetSpace(&fes_);
-            res[ft][d] = 0.0;
-        }
-    }
+    std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
-        std::function<double(const Source::Position&, Source::Time)> f = 0;
-        if (dynamic_cast<TimeVaryingField*>(source.get())) {
-            auto timeVarField{ dynamic_cast<TimeVaryingField*>(source.get()) };
-            f = std::bind(
-               &TimeVaryingField::eval,
-                timeVarField,
-                std::placeholders::_1,
-                std::placeholders::_2
-            );
-            FunctionCoefficient func(f);
-            func.SetTime(time);
+        auto pw = dynamic_cast<Planewave*>(source.get());
+        if (pw == nullptr) {
+            continue;
+        }
+        for (auto ft : { E, H }) {
             for (auto d : { X, Y, Z }) {
-                res[timeVarField->fieldType][d].ProjectCoefficient(func);
-                res[timeVarField->fieldType][d] *= timeVarField->polarization[d];
-                res[timeVarField->fieldType][d] *= 0.5;
+                std::function<double(const Source::Position&, Source::Time)> f = 0;
+                f = std::bind(&Planewave::eval, pw, 
+                    std::placeholders::_1, std::placeholders::_2, ft, d);
+                FunctionCoefficient func(f);
+                func.SetTime(time);
+                
+                res[ft][d].SetSpace(&fes_);
+                res[ft][d].ProjectCoefficient(func);
             }
         }
     }

@@ -7,13 +7,30 @@ using namespace mfem;
 
 Fields::Fields(mfem::FiniteElementSpace& fes)
 {
-    allDOFs.SetSize(MaxwellEvolution3D::numberOfFieldComponents * MaxwellEvolution3D::numberOfMaxDimensions * fes.GetNDofs());
-    allDOFs = 0.0;
+    allDOFs_.SetSize(MaxwellEvolution3D::numberOfFieldComponents * MaxwellEvolution3D::numberOfMaxDimensions * fes.GetNDofs());
+    allDOFs_ = 0.0;
     for (int d = X; d <= Z; d++) {
-        E[d].SetSpace(&fes);
-        H[d].SetSpace(&fes);
-        E[d].SetDataAndSize(allDOFs.GetData() + d * fes.GetNDofs(),       fes.GetNDofs());
-        H[d].SetDataAndSize(allDOFs.GetData() + (d + 3) * fes.GetNDofs(), fes.GetNDofs());
+        e_[d].SetSpace(&fes);
+        h_[d].SetSpace(&fes);
+        e_[d].SetDataAndSize(allDOFs_.GetData() + d * fes.GetNDofs(),       fes.GetNDofs());
+        h_[d].SetDataAndSize(allDOFs_.GetData() + (d + 3) * fes.GetNDofs(), fes.GetNDofs());
+    }
+}
+
+GridFunction& Fields::operator()(const FieldType& f, const Direction& d)
+{
+    return get(f, d);
+}
+
+GridFunction& Fields::get(const FieldType& f, const Direction& d)
+{
+    assert(f == E || f == H);
+    assert(d == X || d == Y || d == Z);
+    if (f == E) {
+        return e_[d];
+    }
+    else {
+        return h_[d];
     }
 }
 

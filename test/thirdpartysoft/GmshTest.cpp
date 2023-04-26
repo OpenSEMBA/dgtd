@@ -7,15 +7,12 @@
 #include <mfem.hpp>
 
 #include "gtest/gtest.h"
-
-#include "AnalyticalFunctions2D.h"
 #include "SourceFixtures.h"
 #include "maxwell/Solver.h"
 
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
-using namespace AnalyticalFunctions2D;
 
 class TestGmsh : public ::testing::Test {
 protected:
@@ -33,7 +30,7 @@ protected:
 TEST_F(TestGmsh, meshDataGmshMSHRead)
 {
 	/* This mesh includes a physical tag 1 a surface based on a square split in four trianges with a
-	point in the center and a physical tag 2 for the four boundary segments.*/
+	point in the center_ and a physical tag 2 for the four boundary segments.*/
 	ASSERT_NO_THROW(Mesh::LoadFromFile("./testData/test.msh", 1, 0));
 }
 

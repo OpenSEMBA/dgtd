@@ -1,7 +1,8 @@
 #include "gtest/gtest.h"
 
-#include "AnalyticalFunctions3D.h"
 #include "SourceFixtures.h"
+#include "Utils.h"
+
 #include "maxwell/Solver.h"
 
 #include <iostream>
@@ -10,7 +11,6 @@
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
-using namespace AnalyticalFunctions3D;
 
 class Solver3DTest : public ::testing::Test {
 protected:
@@ -49,16 +49,6 @@ protected:
 			{5, bdr5},
 			{6, bdr6},
 		};
-	}
-
-	static Probes buildProbesWithAnExportProbe()
-	{
-		return { {}, { ExporterProbe{getTestCaseName()} } };
-	}
-
-	static std::string getTestCaseName()
-	{
-		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
 
 	static void rotateMinus45degAlongXAxis(const Vector& oldP, Vector& newP)
@@ -226,26 +216,16 @@ TEST_F(Solver3DTest, 3D_pec_centered_spectral_and_base_comparison)
 		.setSpectralEO()
 	};
 
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 
 }
@@ -531,10 +511,9 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2}, 
-			E,
-			Source::Position    ({1.0, 0.5, 0.5}), // center
-			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
-			mfem::Vector        ({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position    ({1.0, 0.5, 0.5}), 
+			Source::Polarization(unitVec(Y)),
+			Source::Propagation(unitVec(X)) 
 		),
 		SolverOptions{}
 			.setTimeStep(7.5e-3)
@@ -584,10 +563,9 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_upwind_hexa)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{0.2},
-			E,
-			Source::Position({1.0, 0.5, 0.5}), // center
-			Source::Polarization({0.0, 1.0, 0.0}), // e polarization
-			mfem::Vector({1.0, 0.0, 0.0})  // propagation direction
+			Source::Position({1.0, 0.5, 0.5}), // center_
+			Source::Polarization(unitVec(Y)), // e polarization_
+			Source::Propagation(unitVec(X)) 
 		),
 		SolverOptions{}
 			.setTimeStep(3e-3)
@@ -631,15 +609,15 @@ TEST_F(Solver3DTest, 3D_rotated_M45X_centered_hexa_1dot5)
 	PointProbe{E, Z, {1.0, 0.5, 0.5}},
 	};
 
-	mfem::Vector center(3);
-	rotateMinus45degAlongXAxis(Vector({ 0.5,0.5,0.5 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus45degAlongXAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus45degAlongXAxis(Vector({ 0.5,0.5,0.5 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus45degAlongXAxis(unitVec(Z), polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, center, polarization, 1, Source::CartesianAngles({ M_PI_4, 0.0, 0.0 })),
+	buildGaussianInitialField(E, 0.1, center_, polarization_, 1, Source::CartesianAngles({ M_PI_4, 0.0, 0.0 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -684,15 +662,15 @@ TEST_F(Solver3DTest, 3D_rotated_M45Y_centered_hexa_1dot5)
 	PointProbe{E, Z, { 0.35355339059327, 0.5, 1.0606601717798 }}
 	};
 
-	mfem::Vector center(3);
-	rotateMinus45degAlongYAxis(Vector({ 0.5,0.5,0.5 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus45degAlongYAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus45degAlongYAxis(Vector({ 0.5,0.5,0.5 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus45degAlongYAxis(unitVec(Z), polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, center, polarization, 1, Source::CartesianAngles({ 0.0, M_PI_4, 0.0 })),
+	buildGaussianInitialField(E, 0.1, center_, polarization_, 1, Source::CartesianAngles({ 0.0, M_PI_4, 0.0 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -733,15 +711,15 @@ TEST_F(Solver3DTest, 3D_rotated_M45Z_centered_hexa_1dot5)
 	PointProbe{H, Y, {1.0606601717798, -0.35355339059327, 0.5}}
 	};
 
-	mfem::Vector center(3);
-	rotateMinus45degAlongZAxis(Vector({ 0.5,0.5,0.5 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus45degAlongZAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus45degAlongZAxis(Vector({ 0.5,0.5,0.5 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus45degAlongZAxis(unitVec(Z), polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, center, polarization, 1, Source::CartesianAngles({ 0.0, 0.0, M_PI_4 })),
+	buildGaussianInitialField(E, 0.1, center_, polarization_, 1, Source::CartesianAngles({ 0.0, 0.0, M_PI_4 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -787,21 +765,21 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_centered_hexa_1dot5)
 	};
 
 
-	mfem::Vector center({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
-	mfem::Vector polarization(3), tPolarization1(3), tPolarization2(3);
+	mfem::Vector center_({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
+	mfem::Vector polarization_(3), tPolarization1(3), tPolarization2(3);
 
-	rotateMinus45degAlongXAxis(center, rCenter1);
+	rotateMinus45degAlongXAxis(center_, rCenter1);
 	rotateMinus45degAlongYAxis(rCenter1, rCenter2);
 	rotateMinus45degAlongZAxis(rCenter2, rotCenter);
 
 	rotateMinus45degAlongXAxis(unitVec(Z), tPolarization1);
 	rotateMinus45degAlongYAxis(tPolarization1, tPolarization2);
-	rotateMinus45degAlongZAxis(tPolarization2, polarization);
+	rotateMinus45degAlongZAxis(tPolarization2, polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, rotCenter, polarization, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
+	buildGaussianInitialField(E, 0.1, rotCenter, polarization_, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
 	SolverOptions{}
 		.setTimeStep(1e-2)
 		.setCentered()
@@ -849,21 +827,21 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_upwind_hexa_1dot5)
 	};
 
 
-	mfem::Vector center({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
-	mfem::Vector polarization(3), tPolarization1(3), tPolarization2(3);
+	mfem::Vector center_({ 0.5,0.5,0.5 }), rCenter1(3), rCenter2(3), rotCenter(3);
+	mfem::Vector polarization_(3), tPolarization1(3), tPolarization2(3);
 
-	rotateMinus45degAlongXAxis(center, rCenter1);
+	rotateMinus45degAlongXAxis(center_, rCenter1);
 	rotateMinus45degAlongYAxis(rCenter1, rCenter2);
 	rotateMinus45degAlongZAxis(rCenter2, rotCenter);
 
 	rotateMinus45degAlongXAxis(unitVec(Z), tPolarization1);
 	rotateMinus45degAlongYAxis(tPolarization1, tPolarization2);
-	rotateMinus45degAlongZAxis(tPolarization2, polarization);
+	rotateMinus45degAlongZAxis(tPolarization2, polarization_);
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianInitialField(E, 0.1, rotCenter, polarization, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
+	buildGaussianInitialField(E, 0.1, rotCenter, polarization_, 1, Source::CartesianAngles({ M_PI_4, M_PI_4, M_PI_4 })),
 	SolverOptions{}
 		.setTimeStep(5e-3)
 		.setFinalTime(2.0)
@@ -923,26 +901,16 @@ TEST_F(Solver3DTest, 3D_pec_upwind_spectral_and_base_comparison) {
 		.setSpectralEO()
 	};
 
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(), 1e-4);
-	for (int i = 0; i < solver.getFields().E[X].Size(); ++i) {
-		EXPECT_NEAR(solver.getFields().E[X].Elem(i), solverSpectral.getFields().E[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Y].Elem(i), solverSpectral.getFields().E[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().E[Z].Elem(i), solverSpectral.getFields().E[Z].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[Y].Elem(i), solverSpectral.getFields().H[Y].Elem(i), 1e-5);
-		EXPECT_NEAR(solver.getFields().H[X].Elem(i), solverSpectral.getFields().H[X].Elem(i), 1e-5);
+	for (int i = 0; i < solver.getFields().allDOFs().Size(); ++i) {
+		EXPECT_NEAR(solver.getFields().allDOFs()[i], solverSpectral.getFields().allDOFs()[i], 1e-5);
 	}
 }
 
@@ -1016,10 +984,10 @@ TEST_F(Solver3DTest, feng_fss)
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
 
-	mfem::Vector center(3);
-	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center);
-	mfem::Vector polarization(3);
-	rotateMinus90degAlongZAxis(unitVec(Z), polarization);
+	mfem::Vector center_(3);
+	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus90degAlongZAxis(unitVec(Z), polarization_);
 	
 
 	maxwell::Solver solver{
@@ -1027,10 +995,9 @@ TEST_F(Solver3DTest, feng_fss)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{0.015},
-		E,
-		Source::Position({ 0.075,0.075,0.06 }), // center
-		Source::Polarization(unitVec(Z)), // e polarization
-		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+		Source::Position({ 0.075,0.075,0.06 }), // center_
+		Source::Polarization(unitVec(Z)), // e polarization_
+		Source::Propagation(unitVec(Y)) // propagation direction
 	),
 	SolverOptions{}
 		.setTimeStep(5e-7)
@@ -1091,7 +1058,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 		E,
 		Source::Position({ 75.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
-		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+		Source::Propagation(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
 		.setTimeStep(1.0)
@@ -1185,7 +1152,7 @@ TEST_F(Solver3DTest, feng_fss_manual)
 		E,
 		Source::Position({ 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
-		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+		Source::Propagation(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
 		.setTimeStep(1e-7)
