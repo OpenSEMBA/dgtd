@@ -92,26 +92,26 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 			MP_[E]			 ->AddMult(eOld[x], eNew[x],-1.0);
 		}
 
-		//if (model_.getInteriorBoundaryToMarker().size() != 0) {
-		//	
-		//	MFNB_[H][E][y]->AddMult(eOld[z], hNew[x]);
-		//	MFNB_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-		//	MFNB_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-		//	MFNB_[E][H][z]->AddMult(hOld[y], eNew[x]);
+		if (model_.getInteriorBoundaryToMarker().size() != 0) {
+			
+			MFNB_[H][E][y]->AddMult(eOld[z], hNew[x]);
+			MFNB_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
+			MFNB_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
+			MFNB_[E][H][z]->AddMult(hOld[y], eNew[x]);
 
-		//	if (opts_.fluxType == FluxType::Upwind) {
+			if (opts_.fluxType == FluxType::Upwind) {
 
-		//		MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
-		//		MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
-		//		MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
-		//		MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
+				MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
+				MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
+				MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
+				MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
 
-		//		MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
-		//		MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
-		//		MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
-		//		MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
-		//	}
-		//}
+				MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
+				MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
+				MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
+				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
+			}
+		}
 
 	}
 
