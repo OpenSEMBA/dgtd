@@ -22,7 +22,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 			);
 			for (auto d2{ X }; d2 <=Z; d2++) {
 				for (auto f2 : { E, H }) {
-					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_), fes_);
+					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_, opts_), fes_);
 					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f2, {d, d2}, model_, fes_, opts_), fes_);
 				}
 			}
@@ -41,7 +41,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 		for (auto d{ X }; d <= Z; d++) {
 			for (auto d2{ X }; d2 <= Z; d2++) {
 				for (auto f2 : { E, H }) {
-					MFNB_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxIBFIOperator(f2, { d }, model_, fes_), fes_);
+					MFNB_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
 					MFNNB_[f][f2][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
 				}
 			}

@@ -30,7 +30,7 @@ namespace maxwell {
 	FiniteElementOperator buildDerivativeOperator(const Direction&, FiniteElementSpace&);
 	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
 	FiniteElementOperator buildFluxJumpOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
+	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
 	FiniteElementOperator buildCenteredFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 	FiniteElementOperator buildPenaltyOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
 
@@ -42,15 +42,12 @@ namespace maxwell {
 	FiniteElementIBFIOperator buildFluxFunctionOperator1D(Model&, FiniteElementSpace&);
 	FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model&, FiniteElementSpace&);
 
-	FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-	FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes);
+	FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
 
 	TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond&);
 
-	FluxCoefficient interiorFluxCoefficient();
-	FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions&);
-	FluxCoefficient boundaryFluxCoefficient(const FieldType&, const BdrCond&);
-	FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType&, const BdrCond&, const MaxwellEvolOptions&);
+	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const MaxwellEvolOptions&);
 
 	FieldType altField(const FieldType& f);
 

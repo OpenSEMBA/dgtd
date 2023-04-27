@@ -40,8 +40,10 @@ elements
 1 1 19 20
 
 boundary
-2
+4
 2   0 0
+301 0 2
+302 0 18
 2   0 20
 
 vertices

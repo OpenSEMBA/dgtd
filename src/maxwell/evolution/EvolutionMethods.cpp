@@ -7,6 +7,43 @@ using namespace mfem;
 using mfemExtension::BilinearFormIBFI;
 using mfemExtension::MaxwellDGFluxTotalFieldIntegrator;
 
+InteriorCoefficients intCoeff{
+	{FluxType::Centered, { 1.0, 0.0 }},
+	{FluxType::Upwind  , { 1.0, 1.0 }}
+};
+
+FluxCoefficientsCentered bdrCentCoeff{
+	{BdrCond::PEC               ,	{2.0,0.0}},
+	{BdrCond::PMC               ,	{0.0,2.0}},
+	{BdrCond::SMA               ,	{0.0,0.0}},
+	{BdrCond::TotalFieldInBacked,	{0.0,0.0}},
+	{BdrCond::TotalFieldIn      ,   {0.0,0.0}},
+	{BdrCond::TotalFieldOut     ,	{0.0,0.0}},
+};
+
+FluxCoefficientsUpwind bdrUpwindCoeff{
+	{BdrCond::PEC               ,	{ 2.0, 0.0}},
+	{BdrCond::PMC               ,	{ 0.0, 2.0}},
+	{BdrCond::SMA               ,	{ 1.0, 1.0}},
+	{BdrCond::TotalFieldInBacked,	{ 1.0, 1.0}},
+	{BdrCond::TotalFieldIn      ,	{ 1.0, 1.0}},
+	{BdrCond::TotalFieldOut     ,   {-1.0,-1.0}},
+};
+
+std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const FluxType& ft)
+{
+	std::map<BdrCond, std::vector<double>> res;
+	switch (ft) {
+	case(FluxType::Centered):
+		res = bdrCentCoeff;
+		break;
+	case(FluxType::Upwind):
+		res = bdrUpwindCoeff;
+		break;
+	}
+	return res;
+}
+
 Eigen::MatrixXd toEigen(const DenseMatrix& mat)
 {
 	Eigen::MatrixXd res(mat.Width(), mat.Height());
@@ -17,8 +54,6 @@ Eigen::MatrixXd toEigen(const DenseMatrix& mat)
 	}
 	return res;
 }
-
-
 
 FiniteElementOperator buildByMult(
 	const BilinearForm& op1,
@@ -97,26 +132,25 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	return res;
 }
 
-FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+
+
+FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
 
-	{
-		FluxCoefficient c = interiorFluxCoefficient();
-		res->AddInteriorFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
-	}
+	res->AddInteriorFaceIntegrator(
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Centered))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 
-		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+		auto c = bdrCoeffCheck(opts.fluxType);
 		if (kv.first != BdrCond::SMA) {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 		else {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 	}
 
@@ -129,21 +163,18 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 {
 	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
 
-	{
-		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
 		res->AddInteriorFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
-	}
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Upwind))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+		auto c = bdrCoeffCheck(opts.fluxType);
 		if (kv.first != BdrCond::SMA) {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 		else {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 	}
 
@@ -152,28 +183,28 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 	return res;
 }
 
-FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
+FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorBoundaryToMarker()) {
-		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+		auto c = bdrCoeffCheck(opts.fluxType);
 		switch (kv.first) {
 		case (BdrCond::SMA):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		case (BdrCond::TotalFieldIn):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		case (BdrCond::TotalFieldOut):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		default:
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		}
 		switch (kv.first) {
@@ -182,16 +213,16 @@ FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::v
 		case (BdrCond::TotalFieldOut):
 			break;
 		default:
-			FluxCoefficient c = interiorFluxCoefficient();
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, -c.beta), kv.second);
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Centered))), kv.second);
 			break;
 		}
 
-		res->Assemble();
-		res->Finalize();
-		return res;
 	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
 }
 
 FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
@@ -199,23 +230,23 @@ FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorBoundaryToMarker()) {
-		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+		auto c = bdrCoeffCheck(opts.fluxType);
 		switch (kv.first) {
 		case (BdrCond::SMA):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		case (BdrCond::TotalFieldIn):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		case (BdrCond::TotalFieldOut):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		default:
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c.beta), kv.second);
+				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 
 		}
@@ -225,9 +256,8 @@ FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std
 		case (BdrCond::TotalFieldOut):
 			break;
 		default:
-			FluxCoefficient c = interiorFluxCoefficient();
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, -c.beta), kv.second);
+				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Upwind))), kv.second);
 			break;
 		}
 	}
@@ -240,27 +270,12 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 
 	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
 
-	{
-		FluxCoefficient c;
-		if (usePenaltyCoefficients) {
-			c = interiorPenaltyFluxCoefficient(opts);
-		}
-		else {
-			c = interiorFluxCoefficient();
-		}
-		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
-	}
+	res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Centered))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		FluxCoefficient c;
-		if (usePenaltyCoefficients) {
-			c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-		}
-		else {
-			c = boundaryFluxCoefficient(f, kv.first);
-		}
+		auto c = bdrCoeffCheck(opts.fluxType);
 		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second
 		);
 	}
 
@@ -273,27 +288,12 @@ FiniteElementOperator buildFluxJumpOperator(const FieldType& f, const std::vecto
 {
 	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
 
-	{
-		FluxCoefficient c;
-		if (usePenaltyCoefficients) {
-			c = interiorPenaltyFluxCoefficient(opts);
-		}
-		else {
-			c = interiorFluxCoefficient();
-		}
-		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
-	}
+	res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Centered))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
-		FluxCoefficient c;
-		if (usePenaltyCoefficients) {
-			c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-		}
-		else {
-			c = boundaryFluxCoefficient(f, kv.first);
-		}
+		auto c = bdrCoeffCheck(opts.fluxType);
 		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second
 		);
 	}
 
@@ -326,50 +326,47 @@ FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const st
 	return res;
 }
 
-FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes)
-{
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
-	auto vec = buildNVector(dirTerms.at(0), fes);
+//FiniteElementOperator buildFluxOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+//{
+//	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+//	auto vec = buildNVector(dirTerms.at(0), fes);
+//
+//	VectorConstantCoefficient vecCC(vec);
+//	res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(f)));
+//
+//	for (auto& kv : model.getBoundaryToMarker())
+//	{
+//		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
+//		res->AddBdrFaceIntegrator(
+//			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
+//	}
+//
+//	res->Assemble();
+//	res->Finalize();
+//	return res;
+//}
 
-	VectorConstantCoefficient vecCC(vec);
-	{
-		FluxCoefficient c = interiorFluxCoefficient();
-		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
-	}
-
-	for (auto& kv : model.getBoundaryToMarker())
-	{
-		FluxCoefficient c = boundaryFluxCoefficient(f, kv.first);
-		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second);
-	}
-
-	res->Assemble();
-	res->Finalize();
-	return res;
-}
-
-FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
-{
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
-	VectorConstantCoefficient one(Vector({ 1.0 }));
-	{
-		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
-		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
-	}
-
-	for (auto& kv : model.getBoundaryToMarker())
-	{
-		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
-		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
-		);
-	}
-
-	res->Assemble();
-	res->Finalize();
-	return res;
-}
+//FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+//{
+//	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+//	VectorConstantCoefficient one(Vector({ 1.0 }));
+//	{
+//		FluxCoefficient c = interiorPenaltyFluxCoefficient(opts);
+//		res->AddInteriorFaceIntegrator(new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta));
+//	}
+//
+//	for (auto& kv : model.getBoundaryToMarker())
+//	{
+//		FluxCoefficient c = boundaryPenaltyFluxCoefficient(f, kv.first, opts);
+//		res->AddBdrFaceIntegrator(
+//			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c.beta), kv.second
+//		);
+//	}
+//
+//	res->Assemble();
+//	res->Finalize();
+//	return res;
+//}
 //
 //FiniteElementIBFIOperator buildFluxFunctionOperator(
 //	Model& model, 
@@ -391,22 +388,22 @@ FiniteElementOperator buildPenaltyOperator1D(const FieldType& f, const std::vect
 //	return res;
 //}
 
-FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model& model, FiniteElementSpace& fes)
-{
-	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
-
-	for (auto& kv : model.getInteriorBoundaryToMarker())
-	{
-		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
-		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({ X }, c.orient, 0.5), kv.second
-		);
-	}
-
-	res->Assemble();
-	res->Finalize();
-	return res;
-}
+//FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model& model, FiniteElementSpace& fes)
+//{
+//	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+//
+//	for (auto& kv : model.getInteriorBoundaryToMarker())
+//	{
+//		TFSFOrientationCoefficient c = interiorBoundaryFaceCoefficient(kv.first);
+//		res->AddInteriorBoundaryFaceIntegrator(
+//			new mfemExtension::MaxwellDGPenaltyTotalFieldIntegrator({ X }, c.orient, 0.5), kv.second
+//		);
+//	}
+//
+//	res->Assemble();
+//	res->Finalize();
+//	return res;
+//}
 
 TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond& bdrCond)
 {
@@ -418,120 +415,6 @@ TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond& bdrCon
 		return TFSFOrientationCoefficient{ -1.0 };
 	default:
 		throw std::runtime_error("Wrongly defined TotalField attribute");
-	}
-}
-
-FluxCoefficient interiorFluxCoefficient()
-{
-	return FluxCoefficient{ 1.0 };
-}
-
-FluxCoefficient interiorPenaltyFluxCoefficient(const MaxwellEvolOptions& opts)
-{
-	switch (opts.fluxType) {
-	case FluxType::Centered:
-		return FluxCoefficient{ 0.0 };
-	case FluxType::Upwind:
-		return FluxCoefficient{ 1.0 };
-	default:
-		throw std::runtime_error("No defined FluxType.");
-	}
-}
-
-FluxCoefficient boundaryFluxCoefficient(const FieldType& f, const BdrCond& bdrC)
-{
-	switch (bdrC) {
-	case BdrCond::PEC:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 2.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 0.0 };
-		}
-	case BdrCond::PMC:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 0.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 2.0 };
-		}
-	case BdrCond::SMA:
-	case BdrCond::TotalFieldInBacked:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 1.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 1.0 };
-		}
-	case BdrCond::TotalFieldIn:
-	case BdrCond::TotalFieldOut:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 0.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 0.0 };
-		}	
-	case BdrCond::NONE:
-		switch (f) {
-		case FieldType::E:
-			return FluxCoefficient{ 0.0 };
-		case FieldType::H:
-			return FluxCoefficient{ 0.0 };
-		}
-	default:
-		throw std::runtime_error("No defined BdrCond.");
-	}
-}
-
-FluxCoefficient boundaryPenaltyFluxCoefficient(const FieldType& f, const BdrCond& bdrC, const MaxwellEvolOptions& opts)
-{
-	switch (opts.fluxType) {
-	case FluxType::Centered:
-		return FluxCoefficient{ 0.0 };
-	case FluxType::Upwind:
-		switch (bdrC) {
-		case BdrCond::PEC:
-			switch (f) {
-			case FieldType::E:
-				return FluxCoefficient{ 2.0 };
-			case FieldType::H:
-				return FluxCoefficient{ 0.0 };
-			}
-		case BdrCond::PMC:
-			switch (f) {
-			case FieldType::E:
-				return FluxCoefficient{ 0.0 };
-			case FieldType::H:
-				return FluxCoefficient{ 2.0 };
-			}
-		case BdrCond::SMA:
-		case BdrCond::TotalFieldInBacked:
-			switch (f) {
-			case FieldType::E:
-				return FluxCoefficient{ 1.0 };
-			case FieldType::H:
-				return FluxCoefficient{ 1.0 };
-			}
-		case BdrCond::TotalFieldIn:
-		case BdrCond::TotalFieldOut:
-			switch (f) {
-			case FieldType::E:
-				return FluxCoefficient{ 0.0 };
-			case FieldType::H:
-				return FluxCoefficient{ 0.0 };
-			}
-		case BdrCond::NONE:
-			switch (f) {
-			case FieldType::E:
-				return FluxCoefficient{ 0.0 };
-			case FieldType::H:
-				return FluxCoefficient{ 0.0 };
-			}
-		default:
-			throw std::runtime_error("No defined BdrCond.");
-		}
-	default:
-		throw std::runtime_error("No defined FluxType.");
 	}
 }
 
