@@ -1,4 +1,4 @@
-# maxwell
+# maxwell-dgtd
 Maxwell's curl equations solver using discontinuous Galerkin methods
 
 
@@ -12,7 +12,10 @@ Compilation needs vcpkg with the following packages:
 
 ### OpenMP and MPI in Windows
 
-- OpenMP requires an LLVM compiler. It has been tested Intel OneAPI HPC.
+- OpenMP requires an LLVM compiler. It has been tested Intel OneAPI (Base kit and HPC kit). To compile, use the following CMake Command Arguments when compiling MFEM and maxwell dgtd:
+    ```
+    -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx
+    ```
 - MPI requires mfem to be compiled with MFEM_USE_MPI which requires Hypre and METIS.
   - Option 1, install with vcpkg. make sure to mark METIS_VERSION_5 and that th
   - Option 2, compiling from sources: Hypre can be cloned from https://github.com/hypre-space/hypre. It must be compiled **and installed** using a CMakeLists.txt in hypre/src. It is possible that the following variable has to be manually set:
