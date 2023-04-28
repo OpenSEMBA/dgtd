@@ -47,6 +47,8 @@ namespace maxwell {
 
 	TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond&);
 
+	FiniteElementOperator buildPenaltyFixOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+
 	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const MaxwellEvolOptions&);
 
 	FieldType altField(const FieldType& f);

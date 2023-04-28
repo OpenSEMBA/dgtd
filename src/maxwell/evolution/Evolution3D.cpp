@@ -15,6 +15,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 {
 	for (auto f : { E, H }) {
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
+		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(
 				*buildInverseMassMatrix(f, model_, fes_), 
@@ -122,6 +123,8 @@ void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
 			for(int x = X; x <= Z; x++) {
 				MBF_[E][x]->AddMult(func[E][x], eNew[x]);
 				MBF_[H][x]->AddMult(func[H][x], hNew[x]);
+				MFF_[H]->AddMult(hOld[x], hNew[x], -1.0);
+				MFF_[E]->AddMult(eOld[x], eNew[x], -1.0);
 			}
 		}
 	}

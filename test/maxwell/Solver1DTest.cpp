@@ -587,6 +587,57 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 	}
 }
 
+TEST_F(Solver1DTest, totalfieldinout_pec_upwind)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorConditions attToIntConds{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntConds };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.pointProbes = {
+	PointProbe{ E, Y, {0.1001} },
+	PointProbe{ E, Y, {1.0} },
+	PointProbe{ H, Z, {0.9} },
+	PointProbe{ H, Z, {1.0} }
+	};
+	probes.exporterProbes[0].visSteps = 20;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setFinalTime(5.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+}
+
 TEST_F(Solver1DTest, totalfieldinout_sma)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
