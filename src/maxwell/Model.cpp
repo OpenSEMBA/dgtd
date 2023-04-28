@@ -36,31 +36,10 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		}		
 	}
 
-	for (const auto& kv : attToBdrMap_) {
-		const auto& att{ kv.first };
-		const auto& bdr{ kv.second };
-		assert(att > 0);
-
-		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
-		bdrMarker = 0;
-		bdrMarker[att - 1] = 1;
-		
-		bdrToMarkerMap_.emplace(bdr, bdrMarker);
-	}
-
-	for (const auto& kv : attToIntBdrMap_) {
-		const auto& att{ kv.first };
-		const auto& bdr{ kv.second };
-		assert(att > 0);
-
-		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
-		bdrMarker = 0;
-		bdrMarker[att - 1] = 1;
-
-		intBdrToMarkerMap_.emplace(bdr, bdrMarker);
-	}
+	assembleAttToTypeMap(attToBdrMap_, bdrToMarkerMap_);
+	assembleAttToTypeMap(attToIntBdrMap_, intBdrToMarkerMap_);
+	assembleAttToTypeMap(attToIntSrcMap_, intSrcToMarkerMap_);
 }
-
 
 mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 {
@@ -81,6 +60,24 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 	}
 
 	return res;
+}
+
+
+void Model::assembleAttToTypeMap(
+	std::map<Attribute, BdrCond>& attToCond,
+	std::multimap<BdrCond, BoundaryMarker>& attToMarker)
+{
+	for (const auto& kv : attToCond) {
+		const auto& att{ kv.first };
+		const auto& bdr{ kv.second };
+		assert(att > 0);
+
+		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
+		bdrMarker = 0;
+		bdrMarker[att - 1] = 1;
+
+		attToMarker.emplace(bdr, bdrMarker);
+	}
 }
 
 

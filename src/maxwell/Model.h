@@ -52,6 +52,8 @@ private:
 	BoundaryToMarker bdrToMarkerMap_;
 	InteriorBoundaryCondToMarker intBdrToMarkerMap_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
+
+	void assembleAttToTypeMap(std::map<Attribute, BdrCond>& attToCond, std::multimap<BdrCond, BoundaryMarker>& attToMarker);
 };
 
 }

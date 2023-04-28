@@ -27,9 +27,9 @@ FluxBdrCoefficientsUpwind bdrUpwindCoeff{
 };
 
 FluxSrcCoefficientsCentered srcCentCoeff{
-	{BdrCond::TotalFieldInBacked,	{0.0, 0.0}},
-	{BdrCond::TotalFieldIn      ,   {0.0, 0.0}},
-	{BdrCond::TotalFieldOut     ,	{0.0, 0.0}},
+	{BdrCond::TotalFieldInBacked,	{ 1.0, 1.0}},
+	{BdrCond::TotalFieldIn      ,	{ 1.0, 1.0}},
+	{BdrCond::TotalFieldOut     ,   {-1.0,-1.0}},
 };
 
 FluxSrcCoefficientsUpwind srcUpwindCoeff{
