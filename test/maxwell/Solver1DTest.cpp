@@ -650,7 +650,6 @@ TEST_F(Solver1DTest, totalfieldinout_sma)
 	PointProbe{ E, Y, {0.05} },
 	PointProbe{ E, Y, {0.1001} },
 	PointProbe{ E, Y, {0.9} },
-	PointProbe{ H, Z, {0.9} },
 	PointProbe{ E, Y, {0.9001} }
 	};
 	probes.exporterProbes[0].visSteps = 20;
@@ -667,36 +666,29 @@ TEST_F(Solver1DTest, totalfieldinout_sma)
 
 	solver.run();
 
+	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
+
+
 	{
 		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
-		if (frame.first <= 2.0) {
-			EXPECT_NEAR(0.0, frame.second, 1e-3);
-		}
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
 	}
 
 	{
 		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
-		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(0.9, frame.first, 1e-1);
 		EXPECT_NEAR(1.0, frame.second, 1e-3);
 	}
 
 	{
 		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
-		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.7, frame.first, 2e-1);
 		EXPECT_NEAR(1.0, frame.second, 1e-3);
 	}
 
 	{
 		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
-		EXPECT_NEAR(2.4, frame.first, 2e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
-	}
-
-	{
-		auto frame{ solver.getPointProbe(4).findFrameWithMax() };
-		if (frame.first >= 2.0) {
-			EXPECT_NEAR(0.0, frame.second, 1e-3);
-		}
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
 	}
 }
 
