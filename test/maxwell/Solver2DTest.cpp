@@ -231,7 +231,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 	mesh.UniformRefinement();
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	Probes probes;
 	probes.pointProbes = {
@@ -324,7 +324,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 	mesh.UniformRefinement();
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	Probes probes;
 	probes.pointProbes = {
@@ -596,7 +596,7 @@ TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
 	auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC}};
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.exporterProbes[0].visSteps = 30;
 
@@ -956,7 +956,7 @@ TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_InnerSquare_IntBdr.mesh",1,0) };
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -1002,7 +1002,7 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_1dot5D_IntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -1175,7 +1175,7 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/InteriorPEC2D.msh",1,0) };
 	AttributeToBoundary attToBdr{ {3,BdrCond::PMC}, {4,BdrCond::SMA } };
-	AttributeToInteriorBoundary attToIntBdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorConditions attToIntBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };

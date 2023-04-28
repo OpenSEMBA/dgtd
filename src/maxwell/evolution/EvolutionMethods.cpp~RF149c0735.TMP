@@ -330,7 +330,7 @@ FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const st
 
 	for (auto& kv : model.getInteriorSourceToMarker())
 	{
-		auto c = srcCoeffCheck(opts.fluxType);
+		auto c = bdrCoeffCheck(opts.fluxType);
 		res->AddInteriorBoundaryFaceIntegrator(
 			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c[kv.first].at(f), 0.5), kv.second
 		);

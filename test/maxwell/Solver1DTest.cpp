@@ -38,7 +38,7 @@ protected:
 			mesh, 
 			AttributeToMaterial{},
 			buildAttrToBdrMap1D(bdrL,bdrR),
-			AttributeToInteriorBoundary{} };
+			AttributeToInteriorConditions{} };
 	}
 
 	BdrCond buildPerfectBoundary(FieldType f) {
@@ -234,7 +234,7 @@ TEST_F(Solver1DTest, periodic)
 {
 	Mesh m{ Mesh::LoadFromFile("./testData/periodic-segment.mesh",1,0) };
 
-	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorBoundary{} };
+	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe() };
 	maxwell::Solver solver{
 		model,
@@ -263,7 +263,7 @@ TEST_F(Solver1DTest, periodic_inhomo)
 {
 	Mesh m{ Mesh::LoadFromFile("./testData/periodic-inhomo-segment.mesh",1,0) };
 
-	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorBoundary{} };
+	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe() };
 
 	maxwell::Solver solver{
@@ -364,7 +364,7 @@ TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_sma)
 			{ 2, BdrCond::SMA }, 
 			{ 303, BdrCond::TotalFieldInBacked }
 		}, 
-		AttributeToInteriorBoundary{} 
+		AttributeToInteriorConditions{} 
 	};
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -389,7 +389,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -436,7 +436,7 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 	Mesh mesh{ Mesh::LoadFromFile("./testData/intBdrPECBigScale.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
 	//AttributeToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe() };
 	probes.pointProbes = {
@@ -486,7 +486,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/longlineIntBdr.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -539,7 +539,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -591,7 +591,7 @@ TEST_F(Solver1DTest, totalfieldinout_sma)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/LineTFSFInOut.mesh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
-	AttributeToInteriorBoundary attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302, BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };

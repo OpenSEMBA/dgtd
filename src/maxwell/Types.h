@@ -25,12 +25,14 @@ enum class BdrCond {
 	TotalFieldInBacked = 303
 };
 
-using InteriorFaceCoefficient = std::vector<double>;
-using BdrFaceCoefficient = std::vector<double>;
+using InteriorFaceCoefficients = std::vector<double>;
+using BdrFaceCoefficients = std::vector<double>;
 
-using InteriorCoefficients = std::map<FluxType, InteriorFaceCoefficient>;
-using FluxCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficient>;
-using FluxCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficient>;
+using InteriorCoefficients = std::map<FluxType, InteriorFaceCoefficients>;
+using FluxBdrCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
+using FluxBdrCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
+using FluxSrcCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
+using FluxSrcCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
 
 struct TFSFOrientationCoefficient {
 	double orient;

@@ -29,14 +29,14 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 		}
 	}
 
-	for (auto f : { E, H }) {//TFSF
+	for (auto f : { E, H }) {//TFSF - SrcConds
 		for (auto d : { X, Y, Z }) {
 			MBF_[f][d] = buildIBFIByMult(
-				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { d }, model_, fes_), fes_);
+				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { d }, model_, fes_, opts_), fes_);
 		}
 	}
 
-	for (auto f : { E, H }) { //Other IntBdrCond
+	for (auto f : { E, H }) { //IntBdrConds
 		MPB_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyIBFIOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d{ X }; d <= Z; d++) {
 			for (auto d2{ X }; d2 <= Z; d2++) {
