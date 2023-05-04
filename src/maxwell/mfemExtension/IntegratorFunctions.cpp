@@ -45,7 +45,6 @@ const Vector setNormalVector(const int dim,
 {
     Vector ortho(dim);
     CalcOrtho(Trans.Jacobian(), ortho);
-    //ortho.operator/=(Trans.Weight());
     return ortho;
 }
 const Vector setNormalSMAVector(const int dim,
@@ -130,7 +129,7 @@ double calculateBetaTerm(Vector& nor, std::vector<Direction>& dir, const double 
 {
     switch (dir.size()) {
     case 0:
-        return beta; //[v] = (v1-v2)
+        return beta;
     case 1:
     {
         double nIn = buildNormalTerm(nor, dir.at(0));

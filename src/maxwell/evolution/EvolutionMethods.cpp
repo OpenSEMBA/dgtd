@@ -144,7 +144,7 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 		return res;
 	}
 
-	ConstantCoefficient coeff(1.0);
+	ConstantCoefficient coeff = (d <= fes.GetMesh()->Dimension()) ? ConstantCoefficient(1.0) : ConstantCoefficient(0.0);
 	res->AddDomainIntegrator(
 		new DerivativeIntegrator(coeff, d)
 	);
@@ -198,6 +198,57 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 			res->AddBdrFaceIntegrator(
 				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	res->AddInteriorFaceIntegrator(
+		new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(intCoeff[opts.fluxType].at(int(opts.fluxType))));
+
+	for (auto& kv : model.getBoundaryToMarker()) {
+		auto c = bdrCoeffCheck(opts.fluxType);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f)), kv.second);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	res->AddInteriorFaceIntegrator(
+		new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+
+	for (auto& kv : model.getBoundaryToMarker()) {
+		auto c = bdrCoeffCheck(opts.fluxType);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
+FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	res->AddInteriorFaceIntegrator(
+		new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+
+	for (auto& kv : model.getBoundaryToMarker()) {
+		auto c = bdrCoeffCheck(opts.fluxType);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 	}
 
 	res->Assemble();
@@ -286,7 +337,7 @@ FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const st
 	{
 		auto c = srcCoeffCheck(opts.fluxType);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c[kv.first].at(f), 0.5), kv.second
+			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c[kv.first].at(f), 1.0), kv.second
 		);
 	}
 

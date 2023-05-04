@@ -64,7 +64,8 @@ protected:
 TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 {
 
-	Probes probes;
+	auto probes{ buildProbesWithAnExportProbe()};
+	probes.exporterProbes[0].visSteps = 10;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -77,7 +78,7 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 	probes,
 	buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(1e-2)
+		.setTimeStep(1e-3)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
@@ -101,7 +102,8 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 TEST_F(Solver2DTest, pec_centered_tris_1dot5D_spectral)
 {
 
-	Probes probes;
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 1;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -526,7 +528,7 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 50;
+	probes.exporterProbes[0].visSteps = 10;
 	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.4}},
@@ -535,18 +537,16 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 		PointProbe{H, Y, {1.0, 0.4}}
 	};
 
-	probes.exporterProbes[0].visSteps = 50;
-
 	maxwell::Solver solver{
 	buildModel(
-		10, 10, mfem::Element::Type::QUADRILATERAL,1.0, 1.0, 
+		10, 10, mfem::Element::Type::QUADRILATERAL,4.0, 4.0, 
 		BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
 	),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
+	buildGaussianInitialField(E, 0.25, Vector{{2.0,2.0}}, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-4)
-		.setFinalTime(2.0)
+		.setFinalTime(5.0)
 		.setOrder(3)
 	};
 
