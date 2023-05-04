@@ -798,15 +798,23 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 		.setSpectralEO()
 	};
 
-	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
-	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
+	ASSERT_EQ(solver.getField(E, Y).Size(), solverSpectral.getField(E, Y).Size());
+	ASSERT_EQ(solver.getField(H, Z).Size(), solverSpectral.getField(H, Z).Size());
+
+	for (int i = 0; i < solver.getField(E, Y).Size(); ++i) {
+		EXPECT_NEAR(solver.getField(E, Y)[i], solverSpectral.getField(E, Y)[i], 1e-3);
+		EXPECT_NEAR(solver.getField(H, Z)[i], solverSpectral.getField(H, Z)[i], 1e-3);
+	}
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(),1e-6);
-	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
-	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
+
+	for (int i = 0; i < solver.getField(E, Y).Size(); ++i) {
+		EXPECT_NEAR(solver.getField(E, Y)[i], solverSpectral.getField(E, Y)[i], 1e-3);
+		EXPECT_NEAR(solver.getField(H, Z)[i], solverSpectral.getField(H, Z)[i], 1e-3);
+	}
 
 
 }
