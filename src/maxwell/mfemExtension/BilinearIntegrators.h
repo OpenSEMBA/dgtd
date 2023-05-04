@@ -26,6 +26,71 @@ using Direction = int;
 	One use case for this integrator is to discretize the individual Maxwell
 	equations with a DG formulation.
 	*/
+class MaxwellDGZeroNormalJumpIntegrator : public BilinearFormIntegrator
+{
+
+public:
+	MaxwellDGZeroNormalJumpIntegrator(double b)
+	{
+		beta = b;
+	}
+
+	void AssembleFaceMatrix(const FiniteElement& el1,
+		const FiniteElement& el2,
+		FaceElementTransformations& Trans,
+		DenseMatrix& elmat);
+
+protected:
+	double beta;
+
+private:
+	Vector shape1_, shape2_;
+};
+
+class MaxwellDGOneNormalJumpIntegrator : public BilinearFormIntegrator
+{
+
+public:
+	MaxwellDGOneNormalJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
+	{
+		dir = dirTerms; beta = b;
+	}
+
+	void AssembleFaceMatrix(const FiniteElement& el1,
+		const FiniteElement& el2,
+		FaceElementTransformations& Trans,
+		DenseMatrix& elmat);
+
+protected:
+	std::vector<Direction> dir;
+	double beta;
+
+private:
+	Vector shape1_, shape2_;
+};
+
+class MaxwellDGTwoNormalJumpIntegrator : public BilinearFormIntegrator
+{
+
+public:
+	MaxwellDGTwoNormalJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
+	{
+		dir = dirTerms; beta = b;
+	}
+
+	void AssembleFaceMatrix(const FiniteElement& el1,
+		const FiniteElement& el2,
+		FaceElementTransformations& Trans,
+		DenseMatrix& elmat);
+
+protected:
+	std::vector<Direction> dir;
+	double beta;
+
+private:
+	Vector shape1_, shape2_;
+};
+
 class MaxwellDGTraceJumpIntegrator : public BilinearFormIntegrator
 {
 

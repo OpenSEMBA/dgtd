@@ -2,7 +2,7 @@
 
 namespace maxwell {
 
-Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap, const AttributeToInteriorBoundary& intBdrMap) :
+Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap, const AttributeToInteriorConditions& intBdrMap) :
 	mesh_(mesh)
 {
 	if (matMap.size() == 0) {
@@ -23,34 +23,23 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 
 	if (intBdrMap.size() != 0)
 	{
-		attToIntBdrMap_ = intBdrMap;
+		for (auto i = intBdrMap.begin(); i != intBdrMap.end(); i++){
+			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA || i->second == BdrCond::NONE) {
+				attToIntBdrMap_.insert({ i->first, i->second });
+			}
+			else if (i->second == BdrCond::TotalFieldIn || i->second == BdrCond::TotalFieldOut || i->second == BdrCond::TotalFieldInBacked) {
+				attToIntSrcMap_.insert({ i->first, i->second });
+			} 
+			else {
+				std::runtime_error("Wrongly declared BdrCond as value in AttributeToInteriorConditions");
+			}
+		}		
 	}
 
-	for (const auto& kv : attToBdrMap_) {
-		const auto& att{ kv.first };
-		const auto& bdr{ kv.second };
-		assert(att > 0);
-
-		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
-		bdrMarker = 0;
-		bdrMarker[att - 1] = 1;
-		
-		bdrToMarkerMap_.emplace(bdr, bdrMarker);
-	}
-
-	for (const auto& kv : attToIntBdrMap_) {
-		const auto& att{ kv.first };
-		const auto& bdr{ kv.second };
-		assert(att > 0);
-
-		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
-		bdrMarker = 0;
-		bdrMarker[att - 1] = 1;
-
-		intBdrToMarkerMap_.emplace(bdr, bdrMarker);
-	}
+	assembleAttToTypeMap(attToBdrMap_, bdrToMarkerMap_);
+	assembleAttToTypeMap(attToIntBdrMap_, intBdrToMarkerMap_);
+	assembleAttToTypeMap(attToIntSrcMap_, intSrcToMarkerMap_);
 }
-
 
 mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 {
@@ -71,6 +60,24 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 	}
 
 	return res;
+}
+
+
+void Model::assembleAttToTypeMap(
+	std::map<Attribute, BdrCond>& attToCond,
+	std::multimap<BdrCond, BoundaryMarker>& attToMarker)
+{
+	for (const auto& kv : attToCond) {
+		const auto& att{ kv.first };
+		const auto& bdr{ kv.second };
+		assert(att > 0);
+
+		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
+		bdrMarker = 0;
+		bdrMarker[att - 1] = 1;
+
+		attToMarker.emplace(bdr, bdrMarker);
+	}
 }
 
 

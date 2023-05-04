@@ -15,14 +15,6 @@ using Points = std::vector<Point>;
 enum FieldType { E, H };
 enum class FluxType { Centered, Upwind };
 
-struct FluxCoefficient {
-	double beta;
-};
-
-struct TFSFOrientationCoefficient {
-	double orient;
-};
-
 enum class BdrCond {
 	NONE,
 	PEC,
@@ -32,6 +24,20 @@ enum class BdrCond {
 	TotalFieldOut = 302,
 	TotalFieldInBacked = 303
 };
+
+using InteriorFaceCoefficients = std::vector<double>;
+using BdrFaceCoefficients = std::vector<double>;
+
+using InteriorCoefficients = std::map<FluxType, InteriorFaceCoefficients>;
+using FluxBdrCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
+using FluxBdrCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
+using FluxSrcCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
+using FluxSrcCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
+
+struct TFSFOrientationCoefficient {
+	double orient;
+};
+
 
 struct MaxwellEvolOptions {
 	FluxType fluxType{ FluxType::Upwind };

@@ -11,14 +11,16 @@ namespace maxwell {
 using Attribute = int;
 using AttributeToMaterial = std::map<Attribute, Material>;
 using AttributeToBoundary = std::map<Attribute, BdrCond>;
-using AttributeToInteriorBoundary = std::map<Attribute, BdrCond>;
+using AttributeToInteriorConditions = std::map<Attribute, BdrCond>;
+using AttributeToInteriorSource = std::map<Attribute, BdrCond>;
 
 using BoundaryMarker = mfem::Array<int>;
 using BoundaryToMarker = std::multimap<BdrCond, BoundaryMarker>;
-using InteriorBoundaryToMarker = std::multimap<BdrCond, BoundaryMarker>;
+using InteriorBoundaryCondToMarker = std::multimap<BdrCond, BoundaryMarker>;
+using InteriorSourceToMarker = std::multimap<BdrCond, BoundaryMarker>;
 
 using InteriorBoundaryMarker = mfem::Array<int>;
-using InteriorBoundaryToMarker = std::multimap<BdrCond, InteriorBoundaryMarker>;
+using InteriorBoundaryCondToMarker = std::multimap<BdrCond, InteriorBoundaryMarker>;
 
 class Model {
 public:
@@ -28,14 +30,15 @@ public:
 		Mesh&, 
 		const AttributeToMaterial& = AttributeToMaterial{},
 		const AttributeToBoundary& = AttributeToBoundary{},
-		const AttributeToInteriorBoundary & = AttributeToInteriorBoundary{}
+		const AttributeToInteriorConditions & = AttributeToInteriorConditions{}
 	);
 
 	Mesh& getMesh() { return mesh_; };
 	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
-	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
+	InteriorBoundaryCondToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
+	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 
 	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
 
@@ -44,9 +47,13 @@ private:
 	
 	AttributeToMaterial attToMatMap_;
 	AttributeToBoundary attToBdrMap_;
-	AttributeToInteriorBoundary attToIntBdrMap_;
+	AttributeToInteriorConditions attToIntBdrMap_;
+	AttributeToInteriorSource attToIntSrcMap_;
 	BoundaryToMarker bdrToMarkerMap_;
-	InteriorBoundaryToMarker intBdrToMarkerMap_;
+	InteriorBoundaryCondToMarker intBdrToMarkerMap_;
+	InteriorSourceToMarker intSrcToMarkerMap_;
+
+	void assembleAttToTypeMap(std::map<Attribute, BdrCond>& attToCond, std::multimap<BdrCond, BoundaryMarker>& attToMarker);
 };
 
 }

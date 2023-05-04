@@ -595,7 +595,7 @@ TEST_F(Solver3DTest, 3D_rotated_M45X_centered_hexa_1dot5)
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
 
-	Model model{ mesh,AttributeToMaterial{},attToBdr,AttributeToInteriorBoundary{} };
+	Model model{ mesh,AttributeToMaterial{},attToBdr,AttributeToInteriorConditions{} };
 
 	Probes probes;
 	probes.pointProbes = {
@@ -652,7 +652,7 @@ TEST_F(Solver3DTest, 3D_rotated_M45Y_centered_hexa_1dot5)
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
 
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	Probes probes;
 	probes.pointProbes = {
@@ -701,7 +701,7 @@ TEST_F(Solver3DTest, 3D_rotated_M45Z_centered_hexa_1dot5)
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
 
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	Probes probes;
 	probes.pointProbes = {
@@ -752,7 +752,7 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_centered_hexa_1dot5)
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
 
-	Model model{ mesh,AttributeToMaterial{},attToBdr,AttributeToInteriorBoundary{} };
+	Model model{ mesh,AttributeToMaterial{},attToBdr,AttributeToInteriorConditions{} };
 
 	Probes probes;
 	probes.pointProbes = {
@@ -814,7 +814,7 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_upwind_hexa_1dot5)
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
 
-	Model model{ mesh,AttributeToMaterial{},attToBdr,AttributeToInteriorBoundary{} };
+	Model model{ mesh,AttributeToMaterial{},attToBdr,AttributeToInteriorConditions{} };
 
 	Probes probes;
 	probes.pointProbes = {
@@ -982,7 +982,7 @@ TEST_F(Solver3DTest, feng_fss)
 	auto mesh{ Mesh::LoadFromFile("./testData/fengfss.msh",1,0) };
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorBoundary{} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	mfem::Vector center_(3);
 	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center_);
@@ -1047,7 +1047,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	auto mesh{ Mesh::LoadFromFile("./TestData/fengfssflatsym.msh",1,0) };
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA}};
-	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC }, {6, BdrCond::NONE} };
+	AttributeToInteriorConditions attToIntBdr{ {5, BdrCond::PEC }, {6, BdrCond::NONE} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr};
 
 	maxwell::Solver solver{
@@ -1055,7 +1055,6 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{15.0},
-		E,
 		Source::Position({ 75.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
@@ -1115,7 +1114,7 @@ TEST_F(Solver3DTest, feng_fss_manual)
 		{3, BdrCond::PMC},
 		{4, BdrCond::SMA}
 	};
-	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC} };
+	AttributeToInteriorConditions attToIntBdr{ {5, BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	mfem::Vector center(3);
@@ -1149,7 +1148,6 @@ TEST_F(Solver3DTest, feng_fss_manual)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{0.015},
-		E,
 		Source::Position({ 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
@@ -1172,7 +1170,7 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/InteriorPEC3D.msh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC}, {4,BdrCond::SMA } };
-	AttributeToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
+	AttributeToInteriorConditions attToIntBdr{ {5,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
@@ -1183,7 +1181,6 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 		probes,
 		buildPlanewaveInitialField(
 			Gaussian{7.5},
-			E,
 			Source::Position({ 0.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
@@ -1227,7 +1224,7 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 
 	auto mesh{ Mesh::LoadFromFile("./TestData/fsshexasmoredetail.msh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
-	AttributeToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC } };
+	AttributeToInteriorConditions attToIntBdr{ {5, BdrCond::PEC } };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	maxwell::Solver solver{
@@ -1235,7 +1232,6 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{16.0},
-		E,
 		Source::Position({ 90.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction

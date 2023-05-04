@@ -12,7 +12,6 @@ MFEM mesh v1.0
 # PRISM       = 6
 #
 
-
 dimension
 1
 
@@ -38,7 +37,6 @@ elements
 1 1 17 18
 1 1 18 19
 1 1 19 20
-
 
 boundary
 4
