@@ -450,8 +450,8 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{2.0},
-			Source::Position({ 15.0 }), // center
+			Gaussian{10.0},
+			Source::Position({ 35.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
 		),
@@ -459,7 +459,7 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 			.setCFL(0.5)
 			.setCentered()
 			.setFinalTime(100.0)
-			.setOrder(4)
+			.setOrder(2)
 	};
 
 	solver.run();

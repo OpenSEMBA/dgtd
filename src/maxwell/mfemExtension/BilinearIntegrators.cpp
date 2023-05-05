@@ -38,7 +38,7 @@ void MaxwellDGZeroNormalJumpIntegrator::AssembleFaceMatrix(const FiniteElement& 
         if (ndof2) {
             el2.CalcShape(eip2, shape2_);
         }
-        double w = ip.weight * beta;
+        double w = ip.weight * beta * 0.5;
         if (w != 0.0) {
             buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
             if (ndof2) {
@@ -86,14 +86,14 @@ void MaxwellDGOneNormalJumpIntegrator::AssembleFaceMatrix(const FiniteElement& e
         if (ndof2) {
             el2.CalcShape(eip2, shape2_);
         }
-        double w = ip.weight * b;
+        double w = ip.weight * b * 0.5;
         //double w = (Trans.Weight() >= 1.0) ? ip.weight * b / Trans.Weight() : ip.weight * b * Trans.Weight();
         if (w != 0.0) {
-            buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
+            buildFaceMatrix(     w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
             if (ndof2) {
-                buildFaceMatrix(w, ndof1, ndof2, 0, ndof1, shape1_, shape2_, elmat);//TR
-                buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
-                buildFaceMatrix(w, ndof2, ndof1, ndof1, 0, shape2_, shape1_, elmat);//BL
+                buildFaceMatrix( w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
+                buildFaceMatrix(-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
+                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
             }
         }
     }
@@ -135,13 +135,15 @@ void MaxwellDGTwoNormalJumpIntegrator::AssembleFaceMatrix(const FiniteElement& e
         if (ndof2) {
             el2.CalcShape(eip2, shape2_);
         }
-        double w = ip.weight * b;
+        double w = ip.weight * b * 0.5;
+        w /= Trans.Weight();
+        w /= Trans.Weight();
         //double w = (Trans.Weight() >= 1.0) ? ip.weight * b * Trans.Weight() * Trans.Weight() : ip.weight * b / Trans.Weight() / Trans.Weight();
         if (w != 0.0) {
-            buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
+            buildFaceMatrix(    w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
             if (ndof2) {
-                buildFaceMatrix(w, ndof1, ndof2, 0, ndof1, shape1_, shape2_, elmat);//TR
-                buildFaceMatrix(w, ndof2, ndof1, ndof1, 0, shape2_, shape1_, elmat);//BL
+                buildFaceMatrix(w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
+                buildFaceMatrix(w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
                 buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
             }
         }

@@ -247,6 +247,25 @@ TEST_F(MeshTest, BoundaryWithoutInteriorFace)
 	EXPECT_EQ(expected, facesToOrient);
 }
 
+TEST_F(MeshTest, SubMeshing)
+{
+	auto mesh{ Mesh::MakeCartesian1D(2) };
+
+	const auto att{ 3 };
+	Array<int> subdomain_attributes(1);
+	subdomain_attributes[0] = att;
+
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		const auto preAtt{ mesh.GetAttribute(i) };
+		mesh.SetAttribute(i, att);
+		auto submesh{ SubMesh::CreateFromDomain(mesh, subdomain_attributes) };
+		mesh.SetAttribute(i, preAtt);
+		EXPECT_EQ(1,mesh.GetAttribute(i));
+		EXPECT_EQ(3,submesh.GetAttribute(0));
+	}
+
+}
+
 TEST_F(MeshTest, InteriorBoundary)
 {
 	auto mesh{ Mesh::LoadFromFile("./testData/line.mesh", 1, 0) };
