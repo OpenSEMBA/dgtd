@@ -144,6 +144,18 @@ protected:
 	void SaveData(GridFunction& gf, const char* filename) {
 		gf.Save(filename);
 	}
+
+	Eigen::MatrixXd toEigen(const DenseMatrix& mat)
+	{
+		Eigen::MatrixXd res(mat.Width(), mat.Height());
+		for (int i = 0; i < mat.Width(); i++) {
+			for (int j = 0; j < mat.Height(); j++) {
+				res(i, j) = mat.Elem(i, j);
+			}
+		}
+		return res;
+	}
+
 };
 
 TEST_F(FiniteElementSpaceTest, MassMatrixIsSameForH1andDG)
@@ -428,5 +440,40 @@ TEST_F(FiniteElementSpaceTest, calculateOptimalTS1D)
 	double CFL{ 0.8 }, signalSpeed{ 1.0 };
 
 	EXPECT_GE(0.15, (CFL * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * signalSpeed));
+
+}
+
+TEST_F(FiniteElementSpaceTest, assemblingSubmeshedOperator)
+{
+	auto mesh{ Mesh::MakeCartesian1D(3, 3.0) };
+
+	Array<int> domainAttributes(1);
+	domainAttributes[0] = 404;
+
+	Eigen::MatrixXd expected{
+		{  4.0, -2.0},
+		{ -2.0,  4.0}
+	};
+
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		const auto preAtt{ mesh.GetAttribute(i) };
+		mesh.SetAttribute(i, domainAttributes[0]);
+		auto submesh{ SubMesh::CreateFromDomain(mesh,domainAttributes) };
+		mesh.SetAttribute(i, preAtt);
+		auto fec{ DG_FECollection(1, submesh.Dimension(),BasisType::GaussLobatto) };
+		auto fes{ FiniteElementSpace(&submesh, &fec) };
+		BilinearForm bf(&fes);
+		bf.AddDomainIntegrator(
+			new InverseIntegrator(
+				new MassIntegrator()
+			)
+		);
+		bf.Assemble();
+		bf.Finalize();
+
+		EXPECT_TRUE(toEigen(*bf.SpMat().ToDenseMatrix()).isApprox(expected,1e-2));
+
+	}
+
 
 }
