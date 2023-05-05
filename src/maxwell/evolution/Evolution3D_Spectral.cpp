@@ -51,7 +51,7 @@ MaxwellEvolution3D_Spectral::MaxwellEvolution3D_Spectral(
 
 	if (opts_.eigenvals == true) {
 		calculateEigenvalues(global_, eigenvals_);
-		checkEigenvalues(eigenvals_);
+		findMaxEigenvalueModulus(eigenvals_);
 	}
 
 	if (opts_.powerMethod != 0)

@@ -57,9 +57,11 @@ namespace maxwell {
 
 	FieldType altField(const FieldType& f);
 
+	Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const MaxwellEvolOptions&);
+	AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh&);
 	void calculateEigenvalues(const Eigen::MatrixXd&, Eigen::VectorXcd&);
 	void calculateEigenvalues(SparseMatrix& mat, Vector& res);
-	void checkEigenvalues(const Eigen::VectorXcd&);
+	double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
 	void exportSparseToMarketFile(const Eigen::MatrixXd&);
 	double usePowerMethod(const Eigen::SparseMatrix<double>&, int iterations);
 

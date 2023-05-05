@@ -4,8 +4,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-using mfemExtension::BilinearFormIBFI;
-using mfemExtension::MaxwellDGFluxTotalFieldIntegrator;
+using namespace mfemExtension;
 
 InteriorCoefficients intCoeff{
 	{FluxType::Centered, { 1.0, 0.0 }},
@@ -83,7 +82,7 @@ FiniteElementOperator buildByMult(
 	FiniteElementSpace& fes)
 {
 	auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 	res->Assemble();
 	res->Finalize();
 	res->SpMat().Swap(*aux);
@@ -93,11 +92,11 @@ FiniteElementOperator buildByMult(
 
 FiniteElementIBFIOperator buildIBFIByMult(
 	const BilinearForm& op1,
-	const mfemExtension::BilinearFormIBFI& op2,
+	const BilinearFormIBFI& op2,
 	FiniteElementSpace& fes)
 {
 	auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
-	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+	auto res = std::make_unique<BilinearFormIBFI>(&fes);
 	res->Assemble();
 	res->Finalize();
 	res->SpMat().Swap(*aux);
@@ -124,9 +123,9 @@ FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& mo
 	Vector aux{ model.buildPiecewiseArgVector(f) };
 	PWConstCoefficient PWCoeff(aux);
 
-	auto MInv = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto MInv = std::make_unique<BilinearForm>(&fes);
 	MInv->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
-		
+
 	MInv->Assemble();
 	MInv->Finalize();
 	return MInv;
@@ -136,7 +135,7 @@ FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& mo
 
 FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 
 	if (d >= fes.GetMesh()->Dimension()) {
 		res->Assemble();
@@ -158,21 +157,21 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 
 	res->AddInteriorFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Centered))));
+		new MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Centered))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 
 		auto c = bdrCoeffCheck(opts.fluxType);
 		if (kv.first != BdrCond::SMA) {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 		else {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 	}
 
@@ -183,20 +182,20 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 
 FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 
 	res->AddInteriorFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Upwind))));
+		new MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Upwind))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		if (kv.first != BdrCond::SMA) {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 		else {
 			res->AddBdrFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 		}
 	}
 
@@ -207,14 +206,14 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 
 FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 	res->AddInteriorFaceIntegrator(
-		new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(intCoeff[opts.fluxType].at(int(opts.fluxType))));
+		new MaxwellDGZeroNormalJumpIntegrator(intCoeff[opts.fluxType].at(int(opts.fluxType))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f)), kv.second);
+			new MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f)), kv.second);
 	}
 
 	res->Assemble();
@@ -224,14 +223,14 @@ FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, 
 
 FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 	res->AddInteriorFaceIntegrator(
-		new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+		new MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+			new MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 	}
 
 	res->Assemble();
@@ -241,14 +240,14 @@ FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vect
 
 FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 	res->AddInteriorFaceIntegrator(
-		new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+		new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		res->AddBdrFaceIntegrator(
-			new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+			new MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 	}
 
 	res->Assemble();
@@ -258,22 +257,22 @@ FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vect
 
 FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	auto res = std::make_unique<BilinearForm>(&fes);
 
 	if (model.getInteriorSourceToMarker().size() != 0 && opts.fluxType == FluxType::Upwind) {
 
 		res->AddInteriorFaceIntegrator(
-			new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, -intCoeff[opts.fluxType].at(int(FluxType::Upwind))));
+			new MaxwellDGTraceJumpIntegrator(dirTerms, -intCoeff[opts.fluxType].at(int(FluxType::Upwind))));
 
 		for (auto& kv : model.getBoundaryToMarker()) {
 			auto c = bdrCoeffCheck(opts.fluxType);
 			if (kv.first != BdrCond::SMA) {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellDGTraceJumpIntegrator(dirTerms, -c[kv.first].at(f)), kv.second);
+					new MaxwellDGTraceJumpIntegrator(dirTerms, -c[kv.first].at(f)), kv.second);
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, -c[kv.first].at(f)), kv.second);
+					new MaxwellSMAJumpIntegrator(dirTerms, -c[kv.first].at(f)), kv.second);
 			}
 		}
 	}
@@ -285,18 +284,18 @@ FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vec
 
 FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+	auto res = std::make_unique<BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		switch (kv.first) {
 		case (BdrCond::SMA):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		default:
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		}
 	}
@@ -308,18 +307,18 @@ FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::v
 
 FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+	auto res = std::make_unique<BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		switch (kv.first) {
 		case (BdrCond::SMA):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		default:
 			res->AddInteriorBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 
 		}
@@ -331,13 +330,13 @@ FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std
 
 FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+	auto res = std::make_unique<BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorSourceToMarker())
 	{
 		auto c = srcCoeffCheck(opts.fluxType);
 		res->AddInteriorBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGFluxTotalFieldIntegrator({ X }, c[kv.first].at(f), 0.5), kv.second
+			new MaxwellDGFluxTotalFieldIntegrator({ X }, c[kv.first].at(f), 0.5), kv.second
 		);
 	}
 
@@ -389,14 +388,16 @@ void calculateEigenvalues(SparseMatrix& mat, Vector& res)
 	denseMat->Eigenvalues(res);
 }
 
-void checkEigenvalues(const Eigen::VectorXcd& eigvals)
+double findMaxEigenvalueModulus(const Eigen::VectorXcd& eigvals)
 {
+	auto res{ 0.0 };
 	for (int i = 0; i < eigvals.size(); ++i) {
-		//std::cout << eigvals[i].real() << std::endl;
-		if (eigvals[i].real() > 1e-2) {
-			//throw std::runtime_error("Eigenvalue's real part outside positive tolerance.");
+		auto modulus{ sqrt(pow(eigvals[i].real(),2.0) + pow(eigvals[i].imag(),2.0)) };
+		if (modulus <= 1.0 && modulus >= res) {
+			res = modulus;
 		}
 	}
+	return res;
 }
 
 void exportSparseToMarketFile(const Eigen::MatrixXd& mat)
@@ -495,7 +496,7 @@ std::vector<int> calcOffsetCoeff(const std::vector<FieldType>& f, const std::vec
 void allocateDenseInEigen1D(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const double sign)
 {
 	auto offset = bilMat->Height();
-	auto offsetCoeff{calcOffsetCoeff1D(f)};
+	auto offsetCoeff{ calcOffsetCoeff1D(f) };
 
 	for (int i = 0; i < bilMat->Height(); ++i) {
 		for (int j = 0; j < bilMat->Width(); ++j) {
@@ -541,4 +542,92 @@ double usePowerMethod(const Eigen::SparseMatrix<double>& global, int iterations)
 	return pwrMtd.EstimateLargestEigenvalue(mfemSparse, itVec, iterations);
 }
 
+void performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const MaxwellEvolOptions& opts)
+{
+	Array<int> domainAtts(1);
+	const auto submAtt{ 501 };
+	domainAtts[0] = submAtt;
+	auto meshCopy{ fes.GetMesh() };
+	auto highestModulus{ 0.0 };
+	for (int elem = 0; elem < meshCopy->GetNE(); ++elem) {
+		auto preAtt(fes.GetMesh()->GetAttribute(0));
+		meshCopy->SetAttribute(elem, domainAtts[0]);
+		auto submesh{ SubMesh::CreateFromDomain(*meshCopy,domainAtts) };
+		meshCopy->SetAttribute(elem, preAtt);
+		auto eigModulus{ findMaxEigenvalueModulus(assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues()) };
+		if (eigModulus >= highestModulus) {
+			highestModulus = eigModulus;
+			if (highestModulus >= 1.0) {
+				std::runtime_error("Modulus of eigenvalue is higher than 1.0 - Unstability.");
+			}
+		}
+	}
+}
+
+Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const MaxwellEvolOptions& opts)
+{
+	Model submodel(submesh, AttributeToMaterial{}, assignAttToBdrByDimForSpectral(submesh), AttributeToInteriorConditions{});
+	FiniteElementSpace subfes(&submesh, &fec);
+	Eigen::SparseMatrix<double> local;
+	for (int x = X; x <= Z; x++) {
+		int y = (x + 1) % 3;
+		int z = (x + 2) % 3;
+
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
+
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
+
+		if (opts.fluxType == FluxType::Upwind) {
+
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildZeroNormalOperator(H, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildZeroNormalOperator(E, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
+
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
+
+		}
+
+	}
+
+	return local;
+}
+
+AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh& submesh)
+{
+	switch (submesh.Dimension()) {
+	case 1:
+		return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
+	case 2:
+		switch (submesh.GetElementType(0)) {
+		case Element::TRIANGLE:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
+		case Element::QUADRILATERAL:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+		default:
+			std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
+		}
+	case 3:
+		switch (submesh.GetElementType(0)) {
+		case Element::TETRAHEDRON:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+		case Element::HEXAHEDRON:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
+		default:
+			std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
+		}
+	default:
+		std::runtime_error("Dimension is incorrect for spectral AttToBdr assignation.");
+	}
+
+}
 }
