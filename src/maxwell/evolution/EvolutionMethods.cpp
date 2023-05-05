@@ -547,13 +547,13 @@ void performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const 
 	Array<int> domainAtts(1);
 	const auto submAtt{ 501 };
 	domainAtts[0] = submAtt;
-	auto meshCopy{ fes.GetMesh() };
+	auto meshCopy{ Mesh::Mesh(model.getConstMesh()) };
 	auto highestModulus{ 0.0 };
-	for (int elem = 0; elem < meshCopy->GetNE(); ++elem) {
+	for (int elem = 0; elem < meshCopy.GetNE(); ++elem) {
 		auto preAtt(fes.GetMesh()->GetAttribute(0));
-		meshCopy->SetAttribute(elem, domainAtts[0]);
-		auto submesh{ SubMesh::CreateFromDomain(*meshCopy,domainAtts) };
-		meshCopy->SetAttribute(elem, preAtt);
+		meshCopy.SetAttribute(elem, domainAtts[0]);
+		auto submesh{ SubMesh::CreateFromDomain(meshCopy,domainAtts) };
+		meshCopy.SetAttribute(elem, preAtt);
 		auto eigModulus{ findMaxEigenvalueModulus(assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues()) };
 		if (eigModulus >= highestModulus) {
 			highestModulus = eigModulus;
@@ -626,7 +626,7 @@ AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh& submesh)
 			std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
 		}
 	default:
-		std::runtime_error("Dimension is incorrect for spectral AttToBdr assignation.");
+		 std::runtime_error("Dimension is incorrect for spectral AttToBdr assignation.");
 	}
 
 }
