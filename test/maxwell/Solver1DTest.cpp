@@ -746,6 +746,7 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 		probes,
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
+			.setOrder(1)
 			.setCentered()
 			.setSpectralEO(true)
 	};

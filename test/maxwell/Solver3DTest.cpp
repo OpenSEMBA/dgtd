@@ -157,7 +157,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_1dot5D_spectral)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
-		.setSpectralEO()
+		.setSpectralEO(true)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };

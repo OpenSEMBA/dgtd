@@ -213,7 +213,6 @@ Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh
 		}
 
 	}
-
 	return local;
 }
 
@@ -229,6 +228,44 @@ double Solver::findMaxEigenvalueModulus(const Eigen::VectorXcd& eigvals)
 	return res;
 }
 
+void reassembleSpectralBdrForSubmesh(SubMesh* submesh) 
+{
+	switch (submesh->GetElementType(0)) {
+	case Element::SEGMENT:
+		for (int i = 0; i < submesh->GetParentVertexIDMap().Size(); ++i) {
+			submesh->AddBdrPoint(i, i + 1);
+		}
+		submesh->FinalizeMesh();
+		break;
+	case Element::TRIANGLE:
+		for (int i = 0; i < submesh->GetNBE(); ++i) {
+			submesh->SetBdrAttribute(i, i + 1);
+		}
+		submesh->FinalizeMesh();
+		break;
+	case Element::QUADRILATERAL:
+		for (int i = 0; i < submesh->GetNBE(); ++i) {
+			submesh->SetBdrAttribute(i, i + 1);
+		}
+		submesh->FinalizeMesh();
+		break;
+	case Element::TETRAHEDRON:
+		for (int i = 0; i < submesh->GetNBE(); ++i) {
+			submesh->SetBdrAttribute(i, i + 1);
+		}
+		submesh->FinalizeMesh();
+		break;
+	case Element::HEXAHEDRON:
+		for (int i = 0; i < submesh->GetNBE(); ++i) {
+			submesh->SetBdrAttribute(i, i + 1);
+		}
+		submesh->FinalizeMesh();
+		break;
+	default:
+		std::runtime_error("Incorrect element type for Bdr Spectral assignation.");
+	}
+}
+
 void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const MaxwellEvolOptions& opts)
 {
 	Array<int> domainAtts(1);
@@ -241,47 +278,12 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 		auto submesh{ SubMesh::CreateFromDomain(meshCopy,domainAtts) };
 		meshCopy.SetAttribute(elem, preAtt);
 		submesh.SetAttribute(0, preAtt);
-		
-		switch (submesh.GetElementType(0)) {
-		case Element::SEGMENT:
-			for (int i = 0; i < submesh.GetParentVertexIDMap().Size(); ++i) {
-				submesh.AddBdrPoint(i, i + 1);
-			}
-			submesh.FinalizeMesh();
-			break;
-		case Element::TRIANGLE:
-			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
-				submesh.AddBdrSegment(i, i + 1);
-			}
-			submesh.FinalizeMesh();
-			break;
-		case Element::QUADRILATERAL:
-			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
-				submesh.AddBdrSegment(i, i + 1);
-			}
-			submesh.FinalizeMesh();
-			break;
-		case Element::TETRAHEDRON:
-			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
-				submesh.AddBdrSegment(i, i + 1);
-			}
-			submesh.FinalizeMesh();
-			break;
-		case Element::HEXAHEDRON:
-			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
-				submesh.AddBdrSegment(i, i + 1);
-			}
-			submesh.FinalizeMesh();
-			break;
-		default:
-			std::runtime_error("Incorrect element type for Bdr Spectral assignation.");
-		}
-
+		reassembleSpectralBdrForSubmesh(&submesh);
 		auto eigModulus{ findMaxEigenvalueModulus(assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues()) };
 		if (eigModulus >= highestModulus) {
 			highestModulus = eigModulus;
-			if (highestModulus >= 1.0) {
-				std::runtime_error("Modulus of eigenvalue is higher than 1.0 - Unstability.");
+			if (highestModulus * opts_.dt >= 1.0) {
+				std::runtime_error("Modulus of eigenvalue times dt is higher than 1.0 - Unstability.");
 			}
 		}
 	}
