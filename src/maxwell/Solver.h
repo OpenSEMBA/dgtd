@@ -62,5 +62,6 @@ private:
     AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
     void performSpectralAnalysis(const FiniteElementSpace&, Model&, const MaxwellEvolOptions&);
+    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, std::unique_ptr<MaxwellEvolution3D>& maxwellEvol);
 };
 }

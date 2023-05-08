@@ -78,7 +78,7 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 	probes,
 	buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(1e-3)
+		.setTimeStep(1e-2)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)

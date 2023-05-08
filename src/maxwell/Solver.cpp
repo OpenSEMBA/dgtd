@@ -40,26 +40,7 @@ Solver::Solver(
 	probesManager_{ probes, *fes_, fields_, opts_ },
 	time_{0.0}
 {
-	if (opts_.evolutionOperatorOptions.spectral == true) {
-		performSpectralAnalysis(*fes_.get(), model_, opts_.evolutionOperatorOptions);
-	}
-	sourcesManager_.setInitialFields(fields_);
-	//switch (opts_.evolutionOperatorOptions.spectral) {
-	//case true:
-	//	maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(
-	//		*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-	//	break;
-	//default:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
-			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-	//	break;
-	//}
-
-	maxwellEvol_->SetTime(time_);
-	odeSolver_->Init(*maxwellEvol_);
-
-	probesManager_.updateProbes(time_);
-
+	
 	checkOptionsAreValid(opts_);
 
 	if (opts_.dt == 0.0) {
@@ -68,6 +49,21 @@ Solver::Solver(
 	else {
 		dt_ = opts_.dt;
 	}
+
+	if (opts_.evolutionOperatorOptions.spectral == true) {
+		performSpectralAnalysis(*fes_.get(), model_, opts_.evolutionOperatorOptions);
+	}
+
+	sourcesManager_.setInitialFields(fields_);
+	maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
+			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+	
+	maxwellEvol_->SetTime(time_);
+	odeSolver_->Init(*maxwellEvol_);
+
+	probesManager_.updateProbes(time_);
+
+
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
@@ -158,7 +154,7 @@ AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 		case Element::QUADRILATERAL:
 			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
 		default:
-			std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
+			throw std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
 		}
 	case 3:
 		switch (submesh.GetElementType(0)) {
@@ -167,10 +163,10 @@ AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 		case Element::HEXAHEDRON:
 			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
 		default:
-			std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
+			throw std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
 		}
 	default:
-		std::runtime_error("Dimension is incorrect for spectral AttToBdr assignation.");
+		throw std::runtime_error("Dimension is incorrect for spectral AttToBdr assignation.");
 	}
 
 }
@@ -262,7 +258,35 @@ void reassembleSpectralBdrForSubmesh(SubMesh* submesh)
 		submesh->FinalizeMesh();
 		break;
 	default:
-		std::runtime_error("Incorrect element type for Bdr Spectral assignation.");
+		throw std::runtime_error("Incorrect element type for Bdr Spectral assignation.");
+	}
+}
+
+void Solver::evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, std::unique_ptr<MaxwellEvolution3D>& maxwellEvol)
+{
+	auto real { toMFEMVector(eigenvals.real()) };
+	auto realPre = real;
+	auto imag { toMFEMVector(eigenvals.imag()) };
+	auto imagPre = imag;
+	auto time { 0.0 };
+	maxwellEvol->SetTime(time);
+	odeSolver_->Init(*maxwellEvol);
+	odeSolver_->Step(real, time, opts_.dt);
+	time = 0.0;
+	maxwellEvol->SetTime(time);
+	odeSolver_->Init(*maxwellEvol);
+	odeSolver_->Step(imag, time, opts_.dt);
+	
+	for (int i = 0; i < real.Size(); ++i) {
+		
+		auto modPre{ sqrt(pow(realPre[i],2.0) + pow(imagPre[i],2.0)) };
+		auto mod   { sqrt(pow(real[i]   ,2.0) + pow(imag[i]   ,2.0)) };
+
+		if (modPre != 0.0) {
+			if (mod / modPre > 1.0) {
+				throw std::runtime_error("The coefficient between the modulus of a time evolved eigenvalue and its original value is higher than 1.0 - RK4 instability.");
+			}
+		}
 	}
 }
 
@@ -271,22 +295,32 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 	Array<int> domainAtts(1);
 	domainAtts[0] = 501;
 	auto meshCopy{ Mesh::Mesh(model.getConstMesh()) };
-	auto highestModulus{ 0.0 };
+
 	for (int elem = 0; elem < meshCopy.GetNE(); ++elem) {
+
 		auto preAtt(meshCopy.GetAttribute(elem));
 		meshCopy.SetAttribute(elem, domainAtts[0]);
 		auto submesh{ SubMesh::CreateFromDomain(meshCopy,domainAtts) };
 		meshCopy.SetAttribute(elem, preAtt);
 		submesh.SetAttribute(0, preAtt);
+
 		reassembleSpectralBdrForSubmesh(&submesh);
-		auto eigModulus{ findMaxEigenvalueModulus(assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues()) };
-		if (eigModulus >= highestModulus) {
-			highestModulus = eigModulus;
-			if (highestModulus * opts_.dt >= 1.0 && typeid(odeSolver_.get()) == typeid(RK4Solver)) {
-				std::runtime_error("Modulus of eigenvalue times dt is higher than 1.0 - RK 4 Instability.");
-			}
-		}
+
+		auto eigenvals{ assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues() };
+
+		const FiniteElementCollection& fec = *fes.FEColl();
+		evaluateStabilityByEigenvalueEvolutionFunction(
+			eigenvals, 
+			std::make_unique<MaxwellEvolution3D>(
+				FiniteElementSpace(&submesh, &fec), 
+				Model(submesh, 
+					AttributeToMaterial{}, 
+					assignAttToBdrByDimForSpectral(submesh), 
+					AttributeToInteriorConditions{}), 
+				SourcesManager(Sources(), FiniteElementSpace(&submesh, &fec)), 
+				opts_.evolutionOperatorOptions));
 	}
 }
+
 
 }

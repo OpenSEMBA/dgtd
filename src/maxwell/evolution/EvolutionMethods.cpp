@@ -404,6 +404,16 @@ Eigen::VectorXd toEigenVector(const Vector& in)
 	return res;
 }
 
+Eigen::VectorXcd toComplexEigenVector(const Vector& in)
+{
+	Eigen::VectorXcd res;
+	res.resize(in.Size());
+	for (int i = 0; i < in.Size(); ++i) {
+		res(i) = in.Elem(i);
+	}
+	return res;
+}
+
 Vector toMFEMVector(const Eigen::VectorXd& in)
 {
 	Vector res(int(in.size()));
