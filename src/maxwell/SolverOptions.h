@@ -42,11 +42,8 @@ struct SolverOptions {
         return *this;
     }
 
-    SolverOptions& setSpectralEO(bool eigenvals = false, int pwrMethodIt = 0, bool marketFile = false) {
-        evolutionOperatorOptions.spectral = true;
-        evolutionOperatorOptions.eigenvals = eigenvals;
-        evolutionOperatorOptions.powerMethod = pwrMethodIt;
-        evolutionOperatorOptions.marketFile = marketFile;
+    SolverOptions& setSpectralEO(bool spectral = true) {
+        evolutionOperatorOptions.spectral = spectral;
         return *this;
     }
     //SolverOptions& setBasis(BasisType bst) {

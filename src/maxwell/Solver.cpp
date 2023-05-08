@@ -40,7 +40,7 @@ Solver::Solver(
 	probesManager_{ probes, *fes_, fields_, opts_ },
 	time_{0.0}
 {
-	if (opts_.evolutionOperatorOptions.eigenvals == true) {
+	if (opts_.evolutionOperatorOptions.spectral == true) {
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolutionOperatorOptions);
 	}
 	sourcesManager_.setInitialFields(fields_);
@@ -282,8 +282,8 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 		auto eigModulus{ findMaxEigenvalueModulus(assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues()) };
 		if (eigModulus >= highestModulus) {
 			highestModulus = eigModulus;
-			if (highestModulus * opts_.dt >= 1.0) {
-				std::runtime_error("Modulus of eigenvalue times dt is higher than 1.0 - Unstability.");
+			if (highestModulus * opts_.dt >= 1.0 && typeid(odeSolver_.get()) == typeid(RK4Solver)) {
+				std::runtime_error("Modulus of eigenvalue times dt is higher than 1.0 - RK 4 Instability.");
 			}
 		}
 	}
