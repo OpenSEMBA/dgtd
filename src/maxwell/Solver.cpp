@@ -40,18 +40,20 @@ Solver::Solver(
 	probesManager_{ probes, *fes_, fields_, opts_ },
 	time_{0.0}
 {
-	
+	if (opts_.evolutionOperatorOptions.eigenvals == true) {
+		performSpectralAnalysis(*fes_.get(), model_, opts_.evolutionOperatorOptions);
+	}
 	sourcesManager_.setInitialFields(fields_);
-	switch (opts_.evolutionOperatorOptions.spectral) {
-	case true:
-		maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(
-			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-		break;
-	default:
+	//switch (opts_.evolutionOperatorOptions.spectral) {
+	//case true:
+	//	maxwellEvol_ = std::make_unique<MaxwellEvolution3D_Spectral>(
+	//		*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+	//	break;
+	//default:
 		maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
 			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
-		break;
-	}
+	//	break;
+	//}
 
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
@@ -141,6 +143,148 @@ void Solver::step()
 	double truedt{ std::min(dt_, opts_.t_final - time_) };
 	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 	probesManager_.updateProbes(time_);
+}
+
+
+AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
+{
+	switch (submesh.Dimension()) {
+	case 1:
+		return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
+	case 2:
+		switch (submesh.GetElementType(0)) {
+		case Element::TRIANGLE:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
+		case Element::QUADRILATERAL:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+		default:
+			std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
+		}
+	case 3:
+		switch (submesh.GetElementType(0)) {
+		case Element::TETRAHEDRON:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+		case Element::HEXAHEDRON:
+			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
+		default:
+			std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
+		}
+	default:
+		std::runtime_error("Dimension is incorrect for spectral AttToBdr assignation.");
+	}
+
+}
+
+Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const MaxwellEvolOptions& opts)
+{
+	Model submodel(submesh, AttributeToMaterial{}, assignAttToBdrByDimForSpectral(submesh), AttributeToInteriorConditions{});
+	FiniteElementSpace subfes(&submesh, &fec);
+	Eigen::SparseMatrix<double> local;
+	auto numberOfFieldComponents = 2;
+	auto numberofMaxDimensions = 3;
+	local.resize(numberOfFieldComponents * numberofMaxDimensions * subfes.GetNDofs(), 
+		numberOfFieldComponents * numberofMaxDimensions * subfes.GetNDofs());
+	for (int x = X; x <= Z; x++) {
+		int y = (x + 1) % 3;
+		int z = (x + 2) % 3;
+
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
+
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
+		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
+
+		if (opts.fluxType == FluxType::Upwind) {
+
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildZeroNormalOperator(H, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildZeroNormalOperator(E, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
+
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
+			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
+
+		}
+
+	}
+
+	return local;
+}
+
+double Solver::findMaxEigenvalueModulus(const Eigen::VectorXcd& eigvals)
+{
+	auto res{ 0.0 };
+	for (int i = 0; i < eigvals.size(); ++i) {
+		auto modulus{ sqrt(pow(eigvals[i].real(),2.0) + pow(eigvals[i].imag(),2.0)) };
+		if (modulus <= 1.0 && modulus >= res) {
+			res = modulus;
+		}
+	}
+	return res;
+}
+
+void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const MaxwellEvolOptions& opts)
+{
+	Array<int> domainAtts(1);
+	domainAtts[0] = 501;
+	auto meshCopy{ Mesh::Mesh(model.getConstMesh()) };
+	auto highestModulus{ 0.0 };
+	for (int elem = 0; elem < meshCopy.GetNE(); ++elem) {
+		auto preAtt(meshCopy.GetAttribute(elem));
+		meshCopy.SetAttribute(elem, domainAtts[0]);
+		auto submesh{ SubMesh::CreateFromDomain(meshCopy,domainAtts) };
+		meshCopy.SetAttribute(elem, preAtt);
+		submesh.SetAttribute(0, preAtt);
+		
+		switch (submesh.GetElementType(0)) {
+		case Element::SEGMENT:
+			for (int i = 0; i < submesh.GetParentVertexIDMap().Size(); ++i) {
+				submesh.AddBdrPoint(i, i + 1);
+			}
+			submesh.FinalizeMesh();
+			break;
+		case Element::TRIANGLE:
+			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
+				submesh.AddBdrSegment(i, i + 1);
+			}
+			submesh.FinalizeMesh();
+			break;
+		case Element::QUADRILATERAL:
+			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
+				submesh.AddBdrSegment(i, i + 1);
+			}
+			submesh.FinalizeMesh();
+			break;
+		case Element::TETRAHEDRON:
+			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
+				submesh.AddBdrSegment(i, i + 1);
+			}
+			submesh.FinalizeMesh();
+			break;
+		case Element::HEXAHEDRON:
+			for (int i = 0; i < submesh.GetParentFaceIDMap().Size(); ++i) {
+				submesh.AddBdrSegment(i, i + 1);
+			}
+			submesh.FinalizeMesh();
+			break;
+		default:
+			std::runtime_error("Incorrect element type for Bdr Spectral assignation.");
+		}
+
+		auto eigModulus{ findMaxEigenvalueModulus(assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues()) };
+		if (eigModulus >= highestModulus) {
+			highestModulus = eigModulus;
+			if (highestModulus >= 1.0) {
+				std::runtime_error("Modulus of eigenvalue is higher than 1.0 - Unstability.");
+			}
+		}
+	}
 }
 
 }

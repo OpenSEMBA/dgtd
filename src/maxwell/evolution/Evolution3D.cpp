@@ -13,6 +13,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 	srcmngr_{ srcmngr },
 	opts_{ options }
 {
+
 	for (auto f : { E, H }) {
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
 		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);

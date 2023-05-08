@@ -747,7 +747,7 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setCentered()
-			.setSpectralEO()
+			.setSpectralEO(true)
 	};
 
 	GridFunction eOld{ solver.getField(E,Y) };
