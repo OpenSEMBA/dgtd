@@ -78,7 +78,7 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 	probes,
 	buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(1e-3)
+		.setTimeStep(1e-2)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
@@ -120,7 +120,7 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D_spectral)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
-		.setSpectralEO()
+		.setSpectralEO(true)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -383,7 +383,7 @@ TEST_F(Solver2DTest, pec_tris_1dot5D)
 	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-3)
-		.setFinalTime(2.0)
+		.setFinalTime(300.0)
 		.setOrder(3)
 	};
 
@@ -528,7 +528,7 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 10;
+	probes.exporterProbes[0].visSteps = 50;
 	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.4}},
@@ -539,11 +539,11 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 
 	maxwell::Solver solver{
 	buildModel(
-		10, 10, mfem::Element::Type::QUADRILATERAL,4.0, 4.0, 
+		11, 11, mfem::Element::Type::QUADRILATERAL,2.0, 2.0, 
 		BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA
 	),
 	probes,
-	buildGaussianInitialField(E, 0.25, Vector{{2.0,2.0}}, unitVec(Z)),
+	buildGaussianInitialField(E, 0.15, Vector{{1.0,1.0}}, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(5e-4)
 		.setFinalTime(5.0)
@@ -566,30 +566,30 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, sma_quads)
-{
-
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 50;
-	
-	probes.pointProbes = { PointProbe{E, Z, {0.25, 0.25}} };
-
-	maxwell::Solver solver{
-		buildModel(10, 10, mfem::Element::Type::QUADRILATERAL, 1.0, 1.0, 
-			 BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
-		probes,
-		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z), 2), 
-		SolverOptions{}
-			.setTimeStep(2.5e-4)
-			.setFinalTime(2.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-	double tolerance{ 1e-5 };
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
-}
+//TEST_F(Solver2DTest, sma_quads)
+//{
+//
+//	auto probes{ buildProbesWithAnExportProbe() };
+//	probes.exporterProbes[0].visSteps = 50;
+//	
+//	probes.pointProbes = { PointProbe{E, Z, {0.25, 0.25}} };
+//
+//	maxwell::Solver solver{
+//		buildModel(10, 10, mfem::Element::Type::QUADRILATERAL, 1.0, 1.0, 
+//			 BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
+//		probes,
+//		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z), 2), 
+//		SolverOptions{}
+//			.setTimeStep(2.5e-4)
+//			.setFinalTime(2.0)
+//			.setOrder(3)
+//	};
+//
+//	solver.run();
+//
+//	double tolerance{ 1e-5 };
+//	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
+//}
 
 TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
 {

@@ -10,7 +10,6 @@ message(STATUS "MFEM_INCLUDE_DIRS=" ${MFEM_INCLUDE_DIRS})
 
 add_library(maxwell-evolution STATIC 
 	"Evolution3D.cpp"
-	"Evolution3D_Spectral.cpp"
 	"EvolutionMethods.cpp"
 )
 

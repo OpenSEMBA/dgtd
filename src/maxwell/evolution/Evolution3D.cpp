@@ -13,15 +13,16 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 	srcmngr_{ srcmngr },
 	opts_{ options }
 {
+
 	for (auto f : { E, H }) {
-		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f, {}, model_, fes_, opts_), fes_);
+		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
 		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
 			for (auto d2{ X }; d2 <=Z; d2++) {
 				for (auto f2 : { E, H }) {
-					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildFluxOperator(f2, {d}, model_, fes_, opts_), fes_);
-					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyOperator(f2, {d, d2}, model_, fes_, opts_), fes_);
+					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalOperator(f2, {d}, model_, fes_, opts_), fes_);
+					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalOperator(f2, {d, d2}, model_, fes_, opts_), fes_);
 				}
 			}
 		}

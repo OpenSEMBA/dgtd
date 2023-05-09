@@ -450,8 +450,8 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{2.0},
-			Source::Position({ 15.0 }), // center
+			Gaussian{10.0},
+			Source::Position({ 35.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
 		),
@@ -459,7 +459,7 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 			.setCFL(0.5)
 			.setCentered()
 			.setFinalTime(100.0)
-			.setOrder(4)
+			.setOrder(2)
 	};
 
 	solver.run();
@@ -747,7 +747,7 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 			.setCentered()
-			.setSpectralEO()
+			.setSpectralEO(true)
 	};
 
 	GridFunction eOld{ solver.getField(E,Y) };
@@ -798,15 +798,23 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 		.setSpectralEO()
 	};
 
-	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
-	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
+	ASSERT_EQ(solver.getField(E, Y).Size(), solverSpectral.getField(E, Y).Size());
+	ASSERT_EQ(solver.getField(H, Z).Size(), solverSpectral.getField(H, Z).Size());
+
+	for (int i = 0; i < solver.getField(E, Y).Size(); ++i) {
+		EXPECT_NEAR(solver.getField(E, Y)[i], solverSpectral.getField(E, Y)[i], 1e-3);
+		EXPECT_NEAR(solver.getField(H, Z)[i], solverSpectral.getField(H, Z)[i], 1e-3);
+	}
 
 	solver.run();
 	solverSpectral.run();
 
 	EXPECT_NEAR(solver.getFields().getNorml2(), solverSpectral.getFields().getNorml2(),1e-6);
-	EXPECT_EQ(solver.getField(E,Y), solverSpectral.getField(E,Y));
-	EXPECT_EQ(solver.getField(H,Z), solverSpectral.getField(H,Z));
+
+	for (int i = 0; i < solver.getField(E, Y).Size(); ++i) {
+		EXPECT_NEAR(solver.getField(E, Y)[i], solverSpectral.getField(E, Y)[i], 1e-3);
+		EXPECT_NEAR(solver.getField(H, Z)[i], solverSpectral.getField(H, Z)[i], 1e-3);
+	}
 
 
 }

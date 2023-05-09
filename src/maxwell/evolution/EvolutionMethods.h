@@ -59,16 +59,17 @@ namespace maxwell {
 
 	void calculateEigenvalues(const Eigen::MatrixXd&, Eigen::VectorXcd&);
 	void calculateEigenvalues(SparseMatrix& mat, Vector& res);
-	void checkEigenvalues(const Eigen::VectorXcd&);
 	void exportSparseToMarketFile(const Eigen::MatrixXd&);
 	double usePowerMethod(const Eigen::SparseMatrix<double>&, int iterations);
 
 	Eigen::VectorXd toEigenVector(const Vector&);
+	Eigen::VectorXcd toComplexEigenVector(const Vector&);
 	Vector toMFEMVector(const Eigen::VectorXd&);
 	SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>&);
 
 	std::vector<int> calcOffsetCoeff1D(const std::vector<FieldType>& f);
 	std::vector<int> calcOffsetCoeff(const std::vector<FieldType>&, const std::vector<Direction>&);
+
 
 	void allocateDenseInEigen1D(DenseMatrix* bilForm, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const double sign = 1.0);
 	void allocateDenseInEigen(DenseMatrix* bilForm, Eigen::SparseMatrix<double>& res, const std::vector<FieldType> f, const std::vector<Direction> d, const double sign = 1.0);

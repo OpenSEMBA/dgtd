@@ -57,5 +57,11 @@ private:
 
     void checkOptionsAreValid(const SolverOptions&) const;
     void initializeFieldsFromSources();
+
+    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const MaxwellEvolOptions&);
+    AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh&);
+    double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
+    void performSpectralAnalysis(const FiniteElementSpace&, Model&, const MaxwellEvolOptions&);
+    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, std::unique_ptr<MaxwellEvolution3D>& maxwellEvol);
 };
 }

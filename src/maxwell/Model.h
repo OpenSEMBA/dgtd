@@ -34,6 +34,7 @@ public:
 	);
 
 	Mesh& getMesh() { return mesh_; };
+	const Mesh& getConstMesh() const { return mesh_; }
 	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
