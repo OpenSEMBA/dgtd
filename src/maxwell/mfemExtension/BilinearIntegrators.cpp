@@ -87,7 +87,7 @@ void MaxwellDGOneNormalJumpIntegrator::AssembleFaceMatrix(const FiniteElement& e
             el2.CalcShape(eip2, shape2_);
         }
         double w = ip.weight * b * 0.5;
-        //double w = (Trans.Weight() >= 1.0) ? ip.weight * b / Trans.Weight() : ip.weight * b * Trans.Weight();
+        w /= Trans.Weight();
         if (w != 0.0) {
             buildFaceMatrix(     w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
             if (ndof2) {
@@ -138,7 +138,6 @@ void MaxwellDGTwoNormalJumpIntegrator::AssembleFaceMatrix(const FiniteElement& e
         double w = ip.weight * b * 0.5;
         w /= Trans.Weight();
         w /= Trans.Weight();
-        //double w = (Trans.Weight() >= 1.0) ? ip.weight * b * Trans.Weight() * Trans.Weight() : ip.weight * b / Trans.Weight() / Trans.Weight();
         if (w != 0.0) {
             buildFaceMatrix(    w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
             if (ndof2) {

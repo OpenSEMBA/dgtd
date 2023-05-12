@@ -211,9 +211,16 @@ FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, 
 		new MaxwellDGZeroNormalJumpIntegrator(intCoeff[opts.fluxType].at(int(opts.fluxType))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
+
 		auto c = bdrCoeffCheck(opts.fluxType);
-		res->AddBdrFaceIntegrator(
-			new MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f)), kv.second);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f)), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator({}, c[kv.first].at(f)), kv.second);
+		}
 	}
 
 	res->Assemble();
@@ -228,9 +235,16 @@ FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vect
 		new MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
+
 		auto c = bdrCoeffCheck(opts.fluxType);
-		res->AddBdrFaceIntegrator(
-			new MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		}
 	}
 
 	res->Assemble();
@@ -245,9 +259,16 @@ FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vect
 		new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
 
 	for (auto& kv : model.getBoundaryToMarker()) {
+
 		auto c = bdrCoeffCheck(opts.fluxType);
-		res->AddBdrFaceIntegrator(
-			new MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		}
 	}
 
 	res->Assemble();
