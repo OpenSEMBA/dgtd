@@ -303,50 +303,124 @@ FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vec
 	return res;
 }
 
-FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<BilinearFormIBFI>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		switch (kv.first) {
 		case (BdrCond::SMA):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator({}, c[kv.first].at(f)), kv.second);
+			break;
+		case (BdrCond::TotalFieldIn):
+		case (BdrCond::TotalFieldOut):
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator({}, c[kv.first].at(f)), kv.second);
 			break;
 		default:
 			res->AddInteriorBoundaryFaceIntegrator(
-				new MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, c[kv.first].at(f)), kv.second);
+			break;
+
+		}
+		switch (kv.first) {
+		case (BdrCond::TotalFieldIn):
+			break;
+		case (BdrCond::TotalFieldOut):
+			break;
+		default:
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(-1.0), kv.second);
 			break;
 		}
 	}
-
 	res->Assemble();
 	res->Finalize();
 	return res;
 }
 
-FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementIBFIOperator buildOneNormalIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
 {
-	auto res = std::make_unique<BilinearFormIBFI>(&fes);
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
 	for (auto& kv : model.getInteriorBoundaryToMarker()) {
 		auto c = bdrCoeffCheck(opts.fluxType);
 		switch (kv.first) {
 		case (BdrCond::SMA):
 			res->AddInteriorBoundaryFaceIntegrator(
-				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+			break;
+		case (BdrCond::TotalFieldIn):
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
+			break;
+		case (BdrCond::TotalFieldOut):
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
 			break;
 		default:
 			res->AddInteriorBoundaryFaceIntegrator(
-				new MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
-
 		}
+		switch (kv.first) {
+		case (BdrCond::TotalFieldIn):
+			break;
+		case (BdrCond::TotalFieldOut):
+			break;
+		default:
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, -1.0), kv.second);
+			break;
+		}
+
+		res->Assemble();
+		res->Finalize();
+		return res;
 	}
-	res->Assemble();
-	res->Finalize();
-	return res;
+}
+
+FiniteElementIBFIOperator buildTwoNormalIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+{
+	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
+
+	for (auto& kv : model.getInteriorBoundaryToMarker()) {
+		auto c = bdrCoeffCheck(opts.fluxType);
+		switch (kv.first) {
+		case (BdrCond::SMA):
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+			break;
+		case (BdrCond::TotalFieldIn):
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
+			break;
+		case (BdrCond::TotalFieldOut):
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
+			break;
+		default:
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+			break;
+		}
+		switch (kv.first) {
+		case (BdrCond::TotalFieldIn):
+			break;
+		case (BdrCond::TotalFieldOut):
+			break;
+		default:
+			res->AddInteriorBoundaryFaceIntegrator(
+				new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, -1.0), kv.second);
+			break;
+		}
+
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
 }
 
 FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
