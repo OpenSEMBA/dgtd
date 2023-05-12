@@ -1174,6 +1174,7 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 {
 	Mesh mesh{ Mesh::LoadFromFile("./testData/InteriorPEC2D.msh",1,0) };
+	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {3,BdrCond::PMC}, {4,BdrCond::SMA } };
 	AttributeToInteriorConditions attToIntBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
