@@ -35,17 +35,17 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 		}
 	}
 
-	for (auto f : { E, H }) { //IntBdrConds
-		MPB_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
-		for (auto d{ X }; d <= Z; d++) {
-			for (auto d2{ X }; d2 <= Z; d2++) {
-				for (auto f2 : { E, H }) {
-					MFNB_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
-					MFNNB_[f][f2][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
-				}
-			}
-		}
-	}
+	//for (auto f : { E, H }) { //IntBdrConds
+	//	MPB_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
+	//	for (auto d{ X }; d <= Z; d++) {
+	//		for (auto d2{ X }; d2 <= Z; d2++) {
+	//			for (auto f2 : { E, H }) {
+	//				MFNB_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
+	//				MFNNB_[f][f2][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+	//			}
+	//		}
+	//	}
+	//}
  }
 
 void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const

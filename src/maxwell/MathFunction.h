@@ -74,8 +74,8 @@ public:
 
 private:
 	double spread_{ 2.0 };
-	int dimension_;
 	mfem::Vector center_;
+	int dimension_;
 };
 
 class SinusoidalMode : public MathFunction {

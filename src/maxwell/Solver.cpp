@@ -262,19 +262,21 @@ void reassembleSpectralBdrForSubmesh(SubMesh* submesh)
 	}
 }
 
-void Solver::evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, std::unique_ptr<MaxwellEvolution3D>& maxwellEvol)
+void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
+	Eigen::VectorXcd& eigenvals, 
+	MaxwellEvolution3D& maxwellEvol)
 {
 	auto real { toMFEMVector(eigenvals.real()) };
 	auto realPre = real;
 	auto imag { toMFEMVector(eigenvals.imag()) };
 	auto imagPre = imag;
 	auto time { 0.0 };
-	maxwellEvol->SetTime(time);
-	odeSolver_->Init(*maxwellEvol);
+	maxwellEvol.SetTime(time);
+	odeSolver_->Init(maxwellEvol);
 	odeSolver_->Step(real, time, opts_.dt);
 	time = 0.0;
-	maxwellEvol->SetTime(time);
-	odeSolver_->Init(*maxwellEvol);
+	maxwellEvol.SetTime(time);
+	odeSolver_->Init(maxwellEvol);
 	odeSolver_->Step(imag, time, opts_.dt);
 	
 	for (int i = 0; i < real.Size(); ++i) {
@@ -294,7 +296,8 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 {
 	Array<int> domainAtts(1);
 	domainAtts[0] = 501;
-	auto meshCopy{ Mesh::Mesh(model.getConstMesh()) };
+	auto mesh{ model.getConstMesh() };
+	auto meshCopy{ mesh };
 
 	for (int elem = 0; elem < meshCopy.GetNE(); ++elem) {
 
@@ -306,19 +309,23 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 
 		reassembleSpectralBdrForSubmesh(&submesh);
 
-		auto eigenvals{ assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues() };
-
-		const FiniteElementCollection& fec = *fes.FEColl();
-		evaluateStabilityByEigenvalueEvolutionFunction(
-			eigenvals, 
-			std::make_unique<MaxwellEvolution3D>(
-				FiniteElementSpace(&submesh, &fec), 
-				Model(submesh, 
-					AttributeToMaterial{}, 
-					assignAttToBdrByDimForSpectral(submesh), 
-					AttributeToInteriorConditions{}), 
-				SourcesManager(Sources(), FiniteElementSpace(&submesh, &fec)), 
-				opts_.evolutionOperatorOptions));
+		auto eigenvals{ 
+			assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues() 
+		};
+		FiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
+		Model model{ submesh,
+			AttributeToMaterial{},
+			assignAttToBdrByDimForSpectral(submesh),
+			AttributeToInteriorConditions{}
+		};
+		SourcesManager srcs{ Sources(), submeshFES };
+		MaxwellEvolution3D evol {
+			submeshFES,
+			model,
+			srcs,
+			opts_.evolutionOperatorOptions
+		};
+		evaluateStabilityByEigenvalueEvolutionFunction(eigenvals, evol);
 	}
 }
 
