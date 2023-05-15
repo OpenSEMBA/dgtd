@@ -42,16 +42,17 @@ namespace maxwell {
 	FiniteElementIBFIOperator buildFluxFunctionOperator1D(Model&, FiniteElementSpace&);
 	FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model&, FiniteElementSpace&);
 
-	FiniteElementIBFIOperator buildPenaltyIBFIOperator(const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementIBFIOperator buildFluxIBFIOperator(const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-
 	TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond&);
 
 	FiniteElementOperator buildPenaltyFixOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
 
-	FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-	FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
-	FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts);
+	FiniteElementOperator buildZeroNormalOperator(const FieldType&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementOperator buildOneNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementOperator buildTwoNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementIBFIOperator buildOneNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementIBFIOperator buildTwoNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+
 
 	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const MaxwellEvolOptions&);
 
