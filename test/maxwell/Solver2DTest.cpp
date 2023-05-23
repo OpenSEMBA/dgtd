@@ -3,15 +3,11 @@
 #include "SourceFixtures.h"
 #include "Utils.h"
 
-#include "maxwell/Solver.h"
+#include "Solver.h"
 
-#include "maxwell/Types.h"
+#include "Types.h"
 #include "mfem.hpp"
-#include "maxwell/Model.h"
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/mfemExtension/BilinearForm_IBFI.hpp"
-#include "maxwell/mfemExtension/LinearIntegrators.h"
-#include "maxwell/mfemExtension/LinearForm_IBFI.hpp"
+#include "Model.h"
 
 using namespace maxwell;
 using namespace mfem;

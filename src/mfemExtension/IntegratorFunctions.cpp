@@ -1,5 +1,5 @@
 #include "IntegratorFunctions.h"
-#include <maxwell/Types.h>
+#include "Types.h"
 #include <exception>
 
 namespace maxwell {

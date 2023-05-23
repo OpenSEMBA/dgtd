@@ -1,7 +1,7 @@
 #include "GlobalFunctions.h"
 
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/Model.h"
+#include "mfemExtension/BilinearIntegrators.h"
+#include "Model.h"
 
 using namespace maxwell;
 using namespace mfem;

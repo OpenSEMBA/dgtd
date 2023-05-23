@@ -1,7 +1,7 @@
 #pragma once
 
-#include "maxwell/Sources.h"
-#include "maxwell/Calculus.h"
+#include "Sources.h"
+#include "Calculus.h"
 
 namespace maxwell {
 namespace fixtures {

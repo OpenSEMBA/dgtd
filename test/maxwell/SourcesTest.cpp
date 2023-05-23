@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
-#include "maxwell/Solver.h"
 
+#include "Solver.h"
 #include "Utils.h"
 #include "SourceFixtures.h"
 #include "GlobalFunctions.h"

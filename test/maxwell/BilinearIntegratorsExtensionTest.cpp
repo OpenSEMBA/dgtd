@@ -2,11 +2,10 @@
 
 #include <iostream>
 #include <fstream>
-#include <vector>
 
 #include <mfem.hpp>
 #include "GlobalFunctions.h"
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
+#include "mfemExtension/BilinearIntegrators.h"
 
 using namespace maxwell;
 using namespace mfem;

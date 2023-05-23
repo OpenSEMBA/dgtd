@@ -3,8 +3,8 @@
 #include <Eigen/Dense>
 
 #include <mfem.hpp>
-#include "maxwell/Types.h"
-#include "maxwell/evolution/EvolutionMethods.h"
+#include "Types.h"
+#include "evolution/EvolutionMethods.h"
 
 std::unique_ptr<mfem::DenseMatrix> toUnique(mfem::DenseMatrix*);
 

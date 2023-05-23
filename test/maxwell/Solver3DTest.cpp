@@ -3,7 +3,7 @@
 #include "SourceFixtures.h"
 #include "Utils.h"
 
-#include "maxwell/Solver.h"
+#include "Solver.h"
 
 #include <iostream>
 #include <fstream>

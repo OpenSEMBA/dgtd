@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/Types.h"
+#include "mfemExtension/BilinearIntegrators.h"
+#include "Types.h"
+
 #include "MfemHesthavenFunctionsTest.h"
 #include "GlobalFunctions.h"
-
 
 using namespace maxwell;
 using namespace mfem;

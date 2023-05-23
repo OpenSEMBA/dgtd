@@ -1,4 +1,4 @@
-#include <maxwell/Types.h>
+#include <Types.h>
 #include <mfem.hpp>
 
 namespace maxwell {

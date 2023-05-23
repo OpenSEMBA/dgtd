@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
+#include "mfemExtension/BilinearIntegrators.h"
 
 #include "MfemHesthavenFunctionsTest.h"
 #include "GlobalFunctions.h"

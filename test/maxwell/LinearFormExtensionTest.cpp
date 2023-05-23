@@ -5,9 +5,10 @@
 #include <vector>
 
 #include <mfem.hpp>
+
 #include "GlobalFunctions.h"
-#include "maxwell/mfemExtension/LinearIntegrators.h"
-#include "maxwell/Types.h"
+#include "mfemExtension/LinearIntegrators.h"
+#include "Types.h"
 
 
 using namespace maxwell;

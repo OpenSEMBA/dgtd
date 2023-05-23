@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include <math.h>
 
-#include "maxwell/Material.h"
+#include "Material.h"
 
 using namespace maxwell;
 
