@@ -6,7 +6,7 @@ using namespace mfem;
 using namespace mfemExtension;
 
 MaxwellEvolution3D_Spectral::MaxwellEvolution3D_Spectral(
-	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, MaxwellEvolOptions& options) :
+	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 	fes_{ fes },
 	model_{ model },

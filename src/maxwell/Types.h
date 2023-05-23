@@ -38,16 +38,6 @@ struct TFSFOrientationCoefficient {
 	double orient;
 };
 
-
-struct MaxwellEvolOptions {
-	FluxType fluxType{ FluxType::Upwind };
-	bool spectral{ false };
-	bool eigenvals{ false };
-	bool marketFile{ false };
-	int powerMethod{ 0 };
-};
-
-
 using Direction = int;
 static const Direction X{ 0 };
 static const Direction Y{ 1 };

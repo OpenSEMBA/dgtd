@@ -11,7 +11,7 @@ message(STATUS "MFEM_INCLUDE_DIRS=" ${MFEM_INCLUDE_DIRS})
 add_library(maxwell-evolution STATIC 
 	"Evolution3D.cpp"
 	"EvolutionMethods.cpp"
-)
+ "EvolutionOptions.h")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})

@@ -2,7 +2,7 @@
 
 #include "mfem.hpp"
 
-#include "Types.h"
+#include "EvolutionOptions.h"
 #include "Model.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
@@ -28,33 +28,33 @@ namespace maxwell {
 
 	FiniteElementOperator buildInverseMassMatrix(const FieldType&, const Model&, FiniteElementSpace&);
 	FiniteElementOperator buildDerivativeOperator(const Direction&, FiniteElementSpace&);
-	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementOperator buildFluxJumpOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildFluxJumpOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 	FiniteElementOperator buildCenteredFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
-	FiniteElementOperator buildPenaltyOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementOperator buildPenaltyOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
-	FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
 	FiniteElementOperator buildFluxOperator1D(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
-	FiniteElementOperator buildPenaltyOperator1D(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementOperator buildPenaltyOperator1D(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
 	FiniteElementIBFIOperator buildFluxFunctionOperator1D(Model&, FiniteElementSpace&);
 	FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model&, FiniteElementSpace&);
 
 	TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond&);
 
-	FiniteElementOperator buildPenaltyFixOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementOperator buildPenaltyFixOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
-	FiniteElementOperator buildZeroNormalOperator(const FieldType&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementOperator buildOneNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementOperator buildTwoNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementIBFIOperator buildOneNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
-	FiniteElementIBFIOperator buildTwoNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const MaxwellEvolOptions&);
+	FiniteElementOperator buildZeroNormalOperator(const FieldType&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildOneNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildTwoNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementIBFIOperator buildOneNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementIBFIOperator buildTwoNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
 
-	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const MaxwellEvolOptions&);
+	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const EvolutionOptions&);
 
 	FieldType altField(const FieldType& f);
 

@@ -16,6 +16,7 @@ project(dgtd)
 set(CMAKE_CXX_STANDARD 17)
 
 option(MAXWELL_USE_MPI OFF)
+option(MAXWELL_USE_PYTHON_BINDINGS OFF)
 
 find_package(MFEM CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
@@ -28,6 +29,10 @@ include_directories(
 )
 
 add_subdirectory(src)
+
+if(MAXWELL_USE_PYTHON_BINDINGS)
+	add_subdirectory(pythonBindings)
+endif()
 
 enable_testing()
 

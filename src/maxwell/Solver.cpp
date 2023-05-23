@@ -171,7 +171,7 @@ AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 
 }
 
-Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const MaxwellEvolOptions& opts)
+Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
 {
 	Model submodel(submesh, AttributeToMaterial{}, assignAttToBdrByDimForSpectral(submesh), AttributeToInteriorConditions{});
 	FiniteElementSpace subfes(&submesh, &fec);
@@ -292,7 +292,7 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	}
 }
 
-void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const MaxwellEvolOptions& opts)
+void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
 {
 	Array<int> domainAtts(1);
 	domainAtts[0] = 501;

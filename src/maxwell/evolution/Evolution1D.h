@@ -16,7 +16,7 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 1;
 
-	MaxwellEvolution1D(mfem::FiniteElementSpace&, Model&, SourcesManager&, MaxwellEvolOptions&);
+	MaxwellEvolution1D(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const Vector& x, Vector& y) const;
 	double GetTime() const { return t; }
 	void SetTime(const double time) { t = time; }
@@ -33,7 +33,7 @@ private:
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
-	MaxwellEvolOptions& opts_;
+	EvolutionOptions& opts_;
 
 };
 

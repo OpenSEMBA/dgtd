@@ -23,6 +23,7 @@ public:
     using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
     
+    Solver(const std::string& filename);
     Solver(const ProblemDescription&, const SolverOptions& = SolverOptions());
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
@@ -58,10 +59,10 @@ private:
     void checkOptionsAreValid(const SolverOptions&) const;
     void initializeFieldsFromSources();
 
-    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const MaxwellEvolOptions&);
+    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
     AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
-    void performSpectralAnalysis(const FiniteElementSpace&, Model&, const MaxwellEvolOptions&);
+    void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
     void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution3D&);
 };
 }

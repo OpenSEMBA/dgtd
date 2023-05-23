@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types.h"
+#include "evolution/EvolutionOptions.h"
 
 namespace maxwell {
 
@@ -9,8 +10,8 @@ struct SolverOptions {
     double dt = 0.0;
     double t_final = 2.0;
     double CFL = 0.8;
-    //decltype(BasisType::GaussLobatto) basis = BasisType::GaussLobatto;
-    MaxwellEvolOptions evolutionOperatorOptions;
+
+    EvolutionOptions evolutionOperatorOptions;
     
     SolverOptions& setTimeStep(double t) 
     {

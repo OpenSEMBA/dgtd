@@ -155,7 +155,7 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 
 
 
-FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 
@@ -180,7 +180,7 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 	return res;
 }
 
-FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 
@@ -204,7 +204,7 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 	return res;
 }
 
-FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 	res->AddInteriorFaceIntegrator(
@@ -228,7 +228,7 @@ FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, 
 	return res;
 }
 
-FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 	res->AddInteriorFaceIntegrator(
@@ -252,7 +252,7 @@ FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vect
 	return res;
 }
 
-FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 	res->AddInteriorFaceIntegrator(
@@ -276,7 +276,7 @@ FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vect
 	return res;
 }
 
-FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
 
@@ -303,7 +303,7 @@ FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vec
 	return res;
 }
 
-FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
@@ -341,7 +341,7 @@ FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model&
 	return res;
 }
 
-FiniteElementIBFIOperator buildOneNormalIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementIBFIOperator buildOneNormalIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
@@ -382,7 +382,7 @@ FiniteElementIBFIOperator buildOneNormalIBFIOperator(const FieldType& f, const s
 	}
 }
 
-FiniteElementIBFIOperator buildTwoNormalIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementIBFIOperator buildTwoNormalIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<mfemExtension::BilinearFormIBFI>(&fes);
 
@@ -423,7 +423,7 @@ FiniteElementIBFIOperator buildTwoNormalIBFIOperator(const FieldType& f, const s
 	}
 }
 
-FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const MaxwellEvolOptions& opts)
+FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearFormIBFI>(&fes);
 

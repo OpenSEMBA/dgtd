@@ -1,3 +1,6 @@
 [submodule "external/core"]
 	path = external/core
 	url = https://github.com/OpenSEMBA/core.git
+[submodule "pythonBindings/pybind11"]
+	path = pythonBindings/pybind11
+	url = git@github.com:pybind/pybind11.git
