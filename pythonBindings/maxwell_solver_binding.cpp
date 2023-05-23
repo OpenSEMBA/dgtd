@@ -34,10 +34,10 @@ PYBIND11_MODULE(maxwell_solver, m) {
 
     py::class_<ProblemDescription>(m, "ProblemDescription")
         .def(py::init<const Model&, const Probes&, const Sources&>())
+        .def_static("readFromFile", &ProblemDescription::readFromFile)
         ;
-
-     
-    //py::class_<maxwell::Solver>(m, "Solver")
-    //    .def(py::init<const ProblemDescription&, const SolverOptions&>())
-    //    ;
+   
+    py::class_<maxwell::Solver>(m, "Solver")
+        .def(py::init<const ProblemDescription&, const SolverOptions&>())
+        ;
 }

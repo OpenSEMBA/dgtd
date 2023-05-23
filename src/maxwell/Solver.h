@@ -5,16 +5,11 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
+#include "ProblemDescription.h"
 #include "evolution/Evolution3D.h"
 #include "evolution/Evolution3D_Spectral.h"
 
 namespace maxwell {
-
-struct ProblemDescription {
-    Model model;
-    Probes probes;
-    Sources sources;
-};
 
 class Solver {
 public:

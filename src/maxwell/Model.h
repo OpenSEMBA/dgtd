@@ -25,7 +25,7 @@ using InteriorBoundaryCondToMarker = std::multimap<BdrCond, InteriorBoundaryMark
 class Model {
 public:
 	using Mesh = mfem::Mesh;
-
+	Model() = default;
 	Model(
 		Mesh&, 
 		const AttributeToMaterial& = AttributeToMaterial{},
