@@ -1195,3 +1195,26 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 	solver.run();
 
 }
+
+TEST_F(Solver2DTest, normalStudy)
+{
+	Mesh mesh{ Mesh::LoadFromFile("./testData/Maxwell2D_K2.mesh",1,0) };
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, pecBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 100;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.2, Source::Position({1.0, 0.0}), unitVec(Z)),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(4.0)
+			.setOrder(1)
+	};
+
+	solver.run();
+
+}

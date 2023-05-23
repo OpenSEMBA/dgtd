@@ -445,7 +445,7 @@ TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 {
 
 	Probes probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 5;
+	probes.exporterProbes[0].visSteps = 100;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5, 0.5}},
@@ -455,20 +455,20 @@ TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 
 	maxwell::Solver solver{
 	buildModel(
-		10,    1,   1, Element::Type::TETRAHEDRON,
-		1.0, 1.0, 1.0,
+		10,    10,   10, Element::Type::TETRAHEDRON,
+		3.0, 3.0, 3.0,
 		BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,
 		BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
 	buildGaussianInitialField(
-		E, 0.1,
-		Source::Position({0.5,0.5,0.5}),
+		E, 0.3,
+		Source::Position({1.5,0.5,0.5}),
 		unitVec(Z)
 	),
 	SolverOptions{}
-		.setTimeStep(5e-3)
-		.setFinalTime(2.0)
-		.setOrder(3)
+		.setTimeStep(1.0e-3)
+		.setFinalTime(3.0)
+		.setOrder(2)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -483,6 +483,49 @@ TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
 
+TEST_F(Solver3DTest, 3D_gmsh_cube_upwind_tetra)
+{
+	Probes probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 1;
+	//probes.pointProbes = {
+	//	PointProbe{E, Y, {0.0, 0.5, 0.5}},
+	//	PointProbe{E, Y, {2.0, 0.5, 0.5}},
+	//	PointProbe{H, Z, {0.0, 0.5, 0.5}},
+	//	PointProbe{H, Z, {2.0, 0.5, 0.5}}
+	//};
+	
+	Mesh m{ Mesh::LoadFromFile("./testData/pureCube.msh",1,0) };
+
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
+	Model model{ m, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlanewaveInitialField(
+			Gaussian{3.0}, 
+			Source::Position    ({14.0, 0.5, 0.5}), 
+			Source::Polarization(unitVec(Z)),
+			Source::Propagation(unitVec(X)) 
+		),
+		SolverOptions{}
+			.setTimeStep(1.0)
+			.setFinalTime(20.0)
+			.setOrder(2)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
+	EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
+	EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
+	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
+
+}
 TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 {
 	Probes probes;
@@ -1202,10 +1245,10 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
+	probes.exporterProbes[0].visSteps = 1000;
 
-	std::vector<double> pointR({ 25.0, 25.0, 25.0 });
-	std::vector<double> pointT({ 275.0, 25.0, 25.0 });
+	std::vector<double> pointR({ 0.25, 0.25, 0.25 });
+	std::vector<double> pointT({ 2.75, 0.25, 0.25 });
 
 	probes.pointProbes = {
 		PointProbe{E, X, pointR},
@@ -1222,23 +1265,22 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 		PointProbe{H, Z, pointT}
 	};
 
-	auto mesh{ Mesh::LoadFromFile("./TestData/fsshexasmoredetail.msh",1,0) };
+	auto mesh{ Mesh::LoadFromFile("./TestData/fsshexas.msh",1,0) };
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
-	AttributeToInteriorConditions attToIntBdr{ {5, BdrCond::PEC } };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	maxwell::Solver solver{
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{16.0},
-		Source::Position({ 90.0 }), // center
+		Gaussian{0.16},
+		Source::Position({ 0.7, 0.0, 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
-		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+		mfem::Vector(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
-		.setTimeStep(1.0)
-		.setFinalTime(30.0)
+		.setTimeStep(3.0e-5)
+		.setFinalTime(2.0)
 		.setOrder(3)
 	};
 
@@ -1255,5 +1297,33 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 
 	double tolerance{ 1e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+}
+
+TEST_F(Solver3DTest, 3D_minimal_tetra)
+{
+	auto probes{ buildProbesWithAnExportProbe() };
+	Mesh mesh{ Mesh::LoadFromFile("./testData/twotetras.msh",1,0)};
+
+	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
+
+	Model model{ mesh, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} };
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildPlanewaveInitialField(
+		Gaussian{0.16},
+		Source::Position({ 0.7, 0.0, 0.0 }), // center
+		Source::Polarization(unitVec(Z)), // e polarization
+		mfem::Vector(unitVec(X)) // propagation direction
+	),
+	SolverOptions{}
+		.setTimeStep(1e-2)
+		.setFinalTime(2.0)
+		.setOrder(3)
+	};
+
+	solver.run();
 
 }
