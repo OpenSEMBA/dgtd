@@ -65,6 +65,65 @@ private:
 	Propagation propagation_;
 };
 
-using Sources = std::vector<std::unique_ptr<Source>>;
+class Sources {
+public:
+	Sources() = default;
+	Sources(const Sources& rhs) 
+	{
+		for (auto& v : rhs) {
+			v_.push_back(v->clone());
+		}
+	}
+	Sources(Sources&& rhs)
+	{
+		for (auto& v: rhs) {
+			v_.push_back(std::move(v));
+		}
+	}
+	Sources& operator=(const Sources& rhs)
+	{
+		for (auto& v : rhs) {
+			v_.push_back(v->clone());
+		}
+		return *this;
+	}
+	Sources& operator=(Sources&& rhs)
+	{
+		Sources res;
+		{
+			for (auto& v : rhs) {
+				v_.push_back(std::move(v));
+			}
+		}
+		return res;
+	}
+
+	std::vector<std::unique_ptr<Source>>::const_iterator begin() const
+	{
+		return v_.cbegin();
+	}
+
+	std::vector<std::unique_ptr<Source>>::iterator begin()
+	{
+		return v_.begin();
+	}
+
+	std::vector<std::unique_ptr<Source>>::iterator end()
+	{
+		return v_.end();
+	}
+
+	std::vector<std::unique_ptr<Source>>::const_iterator end() const
+	{
+		return v_.cend();
+	}
+
+	void add(std::unique_ptr<Source>&& newV)
+	{
+		v_.push_back(std::move(newV));
+	}
+private:
+	std::vector<std::unique_ptr<Source>> v_;
+};
 
 }

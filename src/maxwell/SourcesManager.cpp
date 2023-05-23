@@ -5,11 +5,8 @@ namespace maxwell {
 using namespace mfem;
 
 SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes) :
-    fes_{ fes }
+    sources{srcs}, fes_{ fes }
 {
-    for (const auto& src : srcs) {
-        sources.push_back(src->clone());
-    }
 }
 
 void SourcesManager::setInitialFields(Fields& fields)
