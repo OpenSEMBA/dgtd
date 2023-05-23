@@ -1,7 +1,9 @@
 #include "Sources.h"
 
-#include "PhysicalConstants.h"
-#include "Calculus.h"
+#include <functional>
+#include <mfem.hpp>
+#include "math/PhysicalConstants.h"
+#include "math/Calculus.h"
 
 namespace maxwell {
 
@@ -41,7 +43,7 @@ mfem::Vector rotateAroundAxis(
 }
 
 InitialField::InitialField(
-	const MathFunction& f, 
+	const math::Function& f, 
 	const FieldType& fT, 
 	const Polarization& p,
 	const Position& centerIn,
@@ -90,7 +92,7 @@ double InitialField::eval(
 }
 
 Planewave::Planewave(
-	const MathFunction& mag, 
+	const math::Function& mag, 
 	const Polarization& p, 
 	const Propagation& dir):
 	magnitude_{ mag.clone() },

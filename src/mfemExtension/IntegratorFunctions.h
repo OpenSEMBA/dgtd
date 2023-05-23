@@ -1,5 +1,8 @@
-#include <Types.h>
+#pragma once
+
 #include <mfem.hpp>
+
+#include "components/Types.h"
 
 namespace maxwell {
 namespace mfemExtension {

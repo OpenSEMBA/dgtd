@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
 
-#include "Solver.h"
 #include "mfemExtension/BilinearIntegrators.h"
 
-#include "MfemHesthavenFunctionsTest.h"
 #include "GlobalFunctions.h"
 #include "SourceFixtures.h"
+
+#include "HesthavenFunctions.h"
 
 using namespace mfem;
 using namespace maxwell;
@@ -87,11 +87,6 @@ protected:
 		{0,1,0,0,0,0},
 		{0,0,1,0,0,0}
 	};
-
-	Probes buildExportProbes()
-	{
-		return { {}, { ExporterProbe{getTestCaseName()} } };
-	}
 
 	static std::string getTestCaseName()
 	{
@@ -246,6 +241,7 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 
 	EXPECT_TRUE(hesthavenNodes.isApprox(rotatedMfemNodes));
 }
+
 TEST_F(MFEMHesthaven2D, oneFace)
 {
 	Mesh meshManual = Mesh::LoadFromFile("./testData/onetriang.mesh", true, 1);
@@ -300,25 +296,5 @@ TEST_F(MFEMHesthaven2D, oneFace)
 		std::unique_ptr<FiniteElementSpace> fesOne = std::make_unique<FiniteElementSpace>(&meshOne, fecOne.get());
 
 	}
-
-}
-
-TEST_F(MFEMHesthaven2D, DISABLED_MFEMHesthavenSameMesh)
-{
-	Mesh meshManual = Mesh::LoadFromFile("./testData/2dplane.msh", true, 1);
-	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
-	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
-
-	Model model = Model(meshManual, AttributeToMaterial{}, AttributeToBoundary{});
-
-	maxwell::Solver solver{
-		model,
-		buildExportProbes(),
-		buildGaussianInitialField(),
-		SolverOptions{}
-			.setTimeStep(0.012587)
-			.setFinalTime(1.0)
-			.setOrder(10)
-	};
 
 }

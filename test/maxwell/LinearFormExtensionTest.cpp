@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <iostream>
 #include <fstream>
@@ -8,7 +8,7 @@
 
 #include "GlobalFunctions.h"
 #include "mfemExtension/LinearIntegrators.h"
-#include "Types.h"
+#include "components/Types.h"
 
 
 using namespace maxwell;

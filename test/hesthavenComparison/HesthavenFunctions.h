@@ -1,8 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
-
-#include "Model.h"
+#include "components/Types.h"
 
 Eigen::MatrixXd buildExpectedAverageDenseMatrix1D(const int order,const int elements);
 Eigen::MatrixXd buildExpectedJumpDenseMatrix1D(const int order, const int elements);

@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "SourceFixtures.h"
 #include "maxwell/Solver.h"

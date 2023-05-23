@@ -1,9 +1,9 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "SourceFixtures.h"
 #include "Utils.h"
 
-#include "Solver.h"
+#include "solver/Solver.h"
 
 #include <iostream>
 #include <fstream>
@@ -510,7 +510,7 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.2}, 
+			math::Gaussian{0.2}, 
 			Source::Position    ({1.0, 0.5, 0.5}), 
 			Source::Polarization(unitVec(Y)),
 			Source::Propagation(unitVec(X)) 
@@ -562,7 +562,7 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_upwind_hexa)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.2},
+			math::Gaussian{0.2},
 			Source::Position({1.0, 0.5, 0.5}), // center_
 			Source::Polarization(unitVec(Y)), // e polarization_
 			Source::Propagation(unitVec(X)) 
@@ -994,7 +994,7 @@ TEST_F(Solver3DTest, feng_fss)
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{0.015},
+		math::Gaussian{0.015},
 		Source::Position({ 0.075,0.075,0.06 }), // center_
 		Source::Polarization(unitVec(Z)), // e polarization_
 		Source::Propagation(unitVec(Y)) // propagation direction
@@ -1054,7 +1054,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{15.0},
+		math::Gaussian{15.0},
 		Source::Position({ 75.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
@@ -1147,7 +1147,7 @@ TEST_F(Solver3DTest, feng_fss_manual)
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{0.015},
+		math::Gaussian{0.015},
 		Source::Position({ 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
@@ -1180,7 +1180,7 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{7.5},
+			math::Gaussian{7.5},
 			Source::Position({ 0.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
@@ -1231,7 +1231,7 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{16.0},
+		math::Gaussian{16.0},
 		Source::Position({ 90.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction

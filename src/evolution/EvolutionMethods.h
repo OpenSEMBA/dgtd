@@ -1,9 +1,9 @@
 #pragma once
 
-#include "mfem.hpp"
+#include <mfem.hpp>
 
+#include "components/Model.h"
 #include "EvolutionOptions.h"
-#include "Model.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 #include "mfemExtension/LinearIntegrators.h"

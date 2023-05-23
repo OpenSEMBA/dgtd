@@ -1,15 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-message(STATUS "Creating build system for Maxwell_Tests")
-
-message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
-
-find_package(GTest CONFIG REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
-
-find_package(mfem CONFIG REQUIRED)
-include_directories(${MFEM_INCLUDE_DIRS})
-message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
+message(STATUS "Creating build system for maxwell_Tests")
 
 if (MAXWELL_USE_MPI)
 	set(MPI_SRCS "ParSolver2DTest.cpp")
@@ -18,7 +9,7 @@ if (MAXWELL_USE_MPI)
 endif()
 
 add_executable(maxwell_tests
-	"maxwell_tests.cpp"
+	"MaxwellSystemTestLauncher.cpp"
 	${MPI_SRCS}
 	"Solver1DTest.cpp" 
 	"Solver2DTest.cpp" 
@@ -32,7 +23,8 @@ add_executable(maxwell_tests
 )
 
 target_link_libraries(maxwell_tests 
-	maxwell mfem testHelpers 
+	maxwell-solver
+	testHelpers 
 	GTest::gtest
 )
 

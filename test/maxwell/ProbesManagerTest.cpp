@@ -1,8 +1,8 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include "SourceFixtures.h"
 
-#include "ProbesManager.h"
-#include "SourcesManager.h"
+#include "solver/ProbesManager.h"
+#include "solver/SourcesManager.h"
 
 using namespace maxwell;
 using namespace mfem;

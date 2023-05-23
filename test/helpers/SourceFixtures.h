@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Sources.h"
-#include "Calculus.h"
+#include "components/Sources.h"
+#include "math/Calculus.h"
 
 namespace maxwell {
 namespace fixtures {
@@ -20,7 +20,7 @@ static Sources buildGaussianInitialField(
 	
 	Sources res;
 	res.add(std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_, angles_)
+		math::Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_, angles_)
 	);
 	return res;
 }
@@ -36,7 +36,7 @@ static Sources buildResonantModeInitialField(
 	center_ = 0.0;
 	res.add(
 		std::make_unique<InitialField>(
-			SinusoidalMode{ dim, modes }, ft, p, center_
+			math::SinusoidalMode{ dim, modes }, ft, p, center_
 		)
 	);
 	return res;
@@ -49,14 +49,14 @@ static Sources buildGaussianPlanewave(
 	const Source::Propagation& dir
 )
 {
-	Gaussian mag{ spread, mfem::Vector({-delay}) };
+	math::Gaussian mag{ spread, mfem::Vector({-delay}) };
 	Sources res;
-	res.add(std::move(std::make_unique<Planewave>(mag, pol, dir)));
+	res.add(std::make_unique<Planewave>(mag, pol, dir));
 	return res;
 }
 
 static Sources buildPlanewaveInitialField(
-	const MathFunction& mf,
+	const math::Function& mf,
 	const Source::Position& center_,
 	const Source::Polarization& polIn,
 	const Source::Propagation& propagationDir,
@@ -73,7 +73,7 @@ static Sources buildPlanewaveInitialField(
 }
 
 static Sources buildInitialField(
-	const MathFunction& mf)
+	const math::Function& mf)
 {
 	Sources res;
 	res.add(

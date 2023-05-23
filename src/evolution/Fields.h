@@ -2,8 +2,7 @@
 
 #include <mfem.hpp>
 
-#include "Types.h"
-#include "Sources.h"
+#include "components/Types.h"
 
 namespace maxwell {
 

@@ -2,7 +2,7 @@
 
 #include "mfemExtension/BilinearIntegrators.h"
 
-#include "MfemHesthavenFunctionsTest.h"
+#include "HesthavenFunctions.h"
 #include "GlobalFunctions.h"
 
 using namespace mfem;

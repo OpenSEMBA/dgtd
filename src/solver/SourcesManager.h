@@ -1,8 +1,7 @@
 #pragma once
 
-#include "Sources.h"
-#include "Fields.h"
-#include "Types.h"
+#include "components/Sources.h"
+#include "evolution/Fields.h"
 
 namespace maxwell {
 

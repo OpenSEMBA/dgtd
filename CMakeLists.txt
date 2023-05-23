@@ -18,11 +18,6 @@ set(CMAKE_CXX_STANDARD 17)
 option(MAXWELL_USE_MPI OFF)
 option(MAXWELL_USE_PYTHON_BINDINGS OFF)
 
-find_package(MFEM CONFIG REQUIRED)
-include_directories(${MFEM_INCLUDE_DIRS})
-
-message(STATUS "MFEM_INCLUDE_DIRS: " ${MFEM_INCLUDE_DIRS})
-
 include_directories(
 	src/ 
 	src/maxwell/
@@ -38,8 +33,6 @@ enable_testing()
 
 add_subdirectory(test/  )
 
-add_test(cudg3d ${CMAKE_BINARY_DIR}/bin/cudg3d_tests)
 add_test(maxwell ${CMAKE_BINARY_DIR}/bin/maxwell_tests)
 add_test(mfem ${CMAKE_BINARY_DIR}/bin/mfem_tests)
-add_test(mfem_hesthaven ${CMAKE_BINARY_DIR}/bin/mfem_hesthaven_tests)
-add_test(3PTests ${CMAKE_BINARY_DIR}/bin/third_party_soft_tests)
+add_test(hesthavenComparison ${CMAKE_BINARY_DIR}/bin/hesthavenComparison_tests)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Types.h"
+#include "components/Types.h"
 
 namespace maxwell {
 

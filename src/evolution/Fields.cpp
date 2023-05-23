@@ -1,5 +1,4 @@
 #include "Fields.h"
-#include "evolution/Evolution3D.h"
 
 namespace maxwell {
 
@@ -7,7 +6,7 @@ using namespace mfem;
 
 Fields::Fields(mfem::FiniteElementSpace& fes)
 {
-    allDOFs_.SetSize(MaxwellEvolution3D::numberOfFieldComponents * MaxwellEvolution3D::numberOfMaxDimensions * fes.GetNDofs());
+    allDOFs_.SetSize(6 * fes.GetNDofs());
     allDOFs_ = 0.0;
     for (int d = X; d <= Z; d++) {
         e_[d].SetSpace(&fes);

@@ -2,20 +2,18 @@
 
 #include "mfemExtension/BilinearIntegrators.h"
 
-#include "Types.h"
-#include "Model.h"
-#include "Sources.h"
-#include "SourcesManager.h"
+#include "components/Model.h"
+#include "solver/SourcesManager.h"
 #include "EvolutionMethods.h"
 
 namespace maxwell {
 
-class MaxwellEvolution3D: public mfem::TimeDependentOperator {
+class Evolution: public mfem::TimeDependentOperator {
 public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	MaxwellEvolution3D(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+	Evolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
 
 private:

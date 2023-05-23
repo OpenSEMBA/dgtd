@@ -1,9 +1,7 @@
 #pragma once
 
-#include <functional>
-#include <mfem.hpp>
 #include "Types.h"
-#include "MathFunction.h"
+#include "math/Function.h"
 
 namespace maxwell {
 
@@ -26,7 +24,7 @@ public:
 class InitialField : public Source {
 public:
 	InitialField(
-		const MathFunction&,
+		const math::Function&,
 		const FieldType&,
 		const Polarization&,
 		const Position& center_,
@@ -41,7 +39,7 @@ public:
 		const FieldType&, const Direction&) const;
 
 private:
-	std::unique_ptr<MathFunction> magnitude_;
+	std::unique_ptr<math::Function> magnitude_;
 	FieldType fieldType_{ E };
 	Polarization polarization_;
 	Position center_;
@@ -50,7 +48,7 @@ private:
 
 class Planewave : public Source {
 public:
-	Planewave(const MathFunction&, const Polarization&, const Propagation&);
+	Planewave(const math::Function&, const Polarization&, const Propagation&);
 	Planewave(const Planewave&);
 
 	std::unique_ptr<Source> clone() const;
@@ -60,7 +58,7 @@ public:
 		const FieldType&, const Direction&) const;
 
 private: 
-	std::unique_ptr<MathFunction> magnitude_;
+	std::unique_ptr<math::Function> magnitude_;
 	Polarization polarization_;
 	Propagation propagation_;
 };
@@ -118,9 +116,10 @@ public:
 		return v_.cend();
 	}
 
-	void add(std::unique_ptr<Source>&& newV)
+	Source* add(std::unique_ptr<Source>&& newV)
 	{
 		v_.push_back(std::move(newV));
+		return v_.back().get();
 	}
 private:
 	std::vector<std::unique_ptr<Source>> v_;

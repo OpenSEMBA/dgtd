@@ -6,13 +6,13 @@
 
 #include <math.h>
 
-namespace maxwell {
+namespace maxwell::math {
 
-class MathFunction {
+class Function {
 public:
-	virtual ~MathFunction() = default;
+	virtual ~Function() = default;
 
-	virtual std::unique_ptr<MathFunction> clone() const = 0;
+	virtual std::unique_ptr<Function> clone() const = 0;
 
 	virtual double eval(const mfem::Vector&) const = 0;
 	
@@ -20,7 +20,7 @@ public:
 
 };
 
-class Gaussian : public MathFunction {
+class Gaussian : public Function {
 public:
 	/** 
 	* A Gaussian function from R^{dim} to R. 
@@ -42,7 +42,7 @@ public:
 
 	int dimension() const { return dimension_; }
 
-	std::unique_ptr<MathFunction> clone() const {
+	std::unique_ptr<Function> clone() const {
 		return std::make_unique<Gaussian>(*this);
 	}
 
@@ -78,7 +78,7 @@ private:
 	int dimension_;
 };
 
-class SinusoidalMode : public MathFunction {
+class SinusoidalMode : public Function {
 public:
 	SinusoidalMode(int dimension, std::vector<std::size_t> modes) :
 		dimension_{ dimension },
@@ -87,7 +87,7 @@ public:
 
 	int dimension() const { return dimension_; }
 
-	std::unique_ptr<MathFunction> clone() const {
+	std::unique_ptr<Function> clone() const {
 		return std::make_unique<SinusoidalMode>(*this);
 	}
 

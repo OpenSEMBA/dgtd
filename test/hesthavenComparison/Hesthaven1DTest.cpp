@@ -1,8 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "mfemExtension/BilinearIntegrators.h"
-#include "Types.h"
-#include "MfemHesthavenFunctionsTest.h"
+#include "HesthavenFunctions.h"
 #include "GlobalFunctions.h"
 
 using namespace mfem;

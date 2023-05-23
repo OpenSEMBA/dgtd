@@ -1,12 +1,8 @@
 #pragma once
 
-#include "Types.h"
-#include "Fields.h"
-#include "ProbesManager.h"
-#include "SourcesManager.h"
-#include "SolverOptions.h"
-#include "evolution/Evolution3D.h"
-#include "evolution/Evolution3D_Spectral.h"
+#include "Model.h"
+#include "Probes.h"
+#include "Sources.h"
 
 namespace maxwell {
 

@@ -1,13 +1,9 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "SourceFixtures.h"
 #include "Utils.h"
 
-#include "Solver.h"
-
-#include "Types.h"
-#include "mfem.hpp"
-#include "Model.h"
+#include "solver/Solver.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -750,7 +746,7 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.1},
+			math::Gaussian{0.1},
 			Source::Position({0.5, 0.5}), // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(unitVec(X))  // propagation direction
@@ -807,7 +803,7 @@ TEST_F(Solver2DTest, periodic_centered_quads)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.2},
+			math::Gaussian{0.2},
 			Source::Position({1.0, 1.0}),           // center_
 			Source::Polarization(unitVec(Z)),  // e polarization_
 			Source::Propagation(unitVec(X))   // propagation direction
@@ -864,7 +860,7 @@ TEST_F(Solver2DTest, periodic_tris)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.2},
+			math::Gaussian{0.2},
 			Source::Position({1.0, 1.0}), // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(unitVec(X))  // propagation direction
@@ -920,7 +916,7 @@ TEST_F(Solver2DTest, periodic_quads)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.2},
+			math::Gaussian{0.2},
 			Source::Position({1.0, 1.0}), // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(unitVec(X))  // propagation direction
@@ -1190,4 +1186,25 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 
 	solver.run();
 
+}
+
+TEST_F(Solver2DTest, DISABLED_box_with_Gmsh)
+{
+	auto mesh = Mesh::LoadFromFile("./testData/test.msh", 1, 0);
+	auto fec = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
+	auto fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get(), 1, 0);
+	auto model = Model(mesh, AttributeToMaterial{}, AttributeToBoundary{});
+
+	auto probes{ buildProbesWithAnExportProbe() };
+	probes.exporterProbes[0].visSteps = 100;
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5})),
+		SolverOptions{}
+		.setTimeStep(5e-4)
+		.setFinalTime(2.0)
+		.setOrder(4)
+	};
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Types.h"
 #include "evolution/EvolutionOptions.h"
 
 namespace maxwell {

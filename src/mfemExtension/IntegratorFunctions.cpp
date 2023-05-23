@@ -1,9 +1,9 @@
 #include "IntegratorFunctions.h"
-#include "Types.h"
+#include "components/Types.h"
+
 #include <exception>
 
-namespace maxwell {
-namespace mfemExtension {
+namespace maxwell::mfemExtension {
     
 using namespace mfem;
 
@@ -146,5 +146,4 @@ double calculateBetaTerm(Vector& nor, std::vector<Direction>& dir, const double 
     }
 }
 
-}
 }

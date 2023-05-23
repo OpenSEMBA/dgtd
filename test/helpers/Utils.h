@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gtest/gtest.h"
-#include "ProbesManager.h"
+#include <gtest/gtest.h>
+#include "components/Probes.h"
 
 namespace maxwell {
 

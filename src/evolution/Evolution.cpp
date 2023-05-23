@@ -1,11 +1,11 @@
-#include "Evolution3D.h"
+#include "Evolution.h"
 
 namespace maxwell {
 
 using namespace mfem;
 using namespace mfemExtension;
 
-MaxwellEvolution3D::MaxwellEvolution3D(
+Evolution::Evolution(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 	fes_{ fes },
@@ -48,7 +48,7 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 	//}
  }
 
-void MaxwellEvolution3D::Mult(const Vector& in, Vector& out) const
+void Evolution::Mult(const Vector& in, Vector& out) const
 {
 	const auto& dim{ fes_.GetMesh()->Dimension() };
 

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include "Solver.h"
+#include "ProblemDescription.h"
 
 using namespace mfem;
 

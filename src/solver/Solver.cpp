@@ -55,7 +55,7 @@ Solver::Solver(
 	}
 
 	sourcesManager_.setInitialFields(fields_);
-	maxwellEvol_ = std::make_unique<MaxwellEvolution3D>(
+	maxwellEvol_ = std::make_unique<Evolution>(
 			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
 	
 	maxwellEvol_->SetTime(time_);
@@ -264,7 +264,7 @@ void reassembleSpectralBdrForSubmesh(SubMesh* submesh)
 
 void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	Eigen::VectorXcd& eigenvals, 
-	MaxwellEvolution3D& maxwellEvol)
+	Evolution& maxwellEvol)
 {
 	auto real { toMFEMVector(eigenvals.real()) };
 	auto realPre = real;
@@ -319,7 +319,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 			AttributeToInteriorConditions{}
 		};
 		SourcesManager srcs{ Sources(), submeshFES };
-		MaxwellEvolution3D evol {
+		Evolution evol {
 			submeshFES,
 			model,
 			srcs,

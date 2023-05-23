@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Probes.h"
-#include "Fields.h"
+#include "components/Probes.h"
+#include "evolution/Fields.h"
 #include "SolverOptions.h"
 
 namespace maxwell {

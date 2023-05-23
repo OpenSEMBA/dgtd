@@ -1,13 +1,12 @@
 #pragma once
 
-#include "Types.h"
-#include "Fields.h"
+#include "components/ProblemDescription.h"
+#include "evolution/Fields.h"
+#include "evolution/Evolution.h"
+
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
-#include "ProblemDescription.h"
-#include "evolution/Evolution3D.h"
-#include "evolution/Evolution3D_Spectral.h"
 
 namespace maxwell {
 
@@ -18,7 +17,6 @@ public:
     using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
     
-    Solver(const std::string& filename);
     Solver(const ProblemDescription&, const SolverOptions& = SolverOptions());
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
@@ -31,7 +29,7 @@ public:
     double getTime() const { return time_; }
     double getTimeStep();
 
-    const TimeDependentOperator* getFEEvol() const { return maxwellEvol_.get(); }
+    const mfem::TimeDependentOperator* getFEEvol() const { return maxwellEvol_.get(); }
 
     void run();
     void step();
@@ -58,6 +56,6 @@ private:
     AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
     void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
-    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution3D&);
+    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, Evolution&);
 };
 }

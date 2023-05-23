@@ -1,5 +1,5 @@
-#include "gtest/gtest.h"
-#include "Solver.h"
+#include <gtest/gtest.h>
+#include "solver/Solver.h"
 
 #include "Utils.h"
 #include "SourceFixtures.h"
@@ -316,7 +316,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		},
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{ 0.05 },
+			math::Gaussian{ 0.05 },
 			Source::Position({ 0.25 }),
 			Source::Polarization(unitVec(Y)),
 			Source::Propagation(unitVec(X))
@@ -450,7 +450,7 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{10.0},
+			math::Gaussian{10.0},
 			Source::Position({ 35.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction

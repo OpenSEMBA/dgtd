@@ -7,12 +7,10 @@ include_directories(${MFEM_INCLUDE_DIRS})
 include_directories(${maxwell_INCLUDE_DIRS})
 
 message(STATUS "Creating build system for testHelpers")
-message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
-message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
 
 add_library(testHelpers 
 	"GlobalFunctions.cpp"
     "Utils.cpp")
 
-target_link_libraries(testHelpers maxwell Eigen3::Eigen GTest::gtest)
+target_link_libraries(testHelpers maxwell-solver Eigen3::Eigen GTest::gtest)
 
