@@ -6,7 +6,7 @@
 
 namespace maxwell {
 
-struct ProblemDescription {
+struct Problem {
     Model model;
     Probes probes;
     Sources sources;

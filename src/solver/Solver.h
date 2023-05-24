@@ -1,6 +1,6 @@
 #pragma once
 
-#include "components/ProblemDescription.h"
+#include "components/Problem.h"
 #include "evolution/Fields.h"
 #include "evolution/Evolution.h"
 
@@ -17,7 +17,7 @@ public:
     using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
     
-    Solver(const ProblemDescription&, const SolverOptions& = SolverOptions());
+    Solver(const Problem&, const SolverOptions& = SolverOptions());
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;

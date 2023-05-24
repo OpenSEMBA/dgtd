@@ -22,7 +22,7 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
-Solver::Solver(const ProblemDescription& problem, const SolverOptions& options) :
+Solver::Solver(const Problem& problem, const SolverOptions& options) :
 	Solver(problem.model, problem.probes, problem.sources, options)
 {}
 

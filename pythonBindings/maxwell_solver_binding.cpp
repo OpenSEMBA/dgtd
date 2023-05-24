@@ -32,12 +32,12 @@ PYBIND11_MODULE(maxwell_solver, m) {
                                      &SolverOptions::evolutionOperatorOptions)
         ;
 
-    py::class_<ProblemDescription>(m, "ProblemDescription")
+    py::class_<Problem>(m, "Problem")
         .def(py::init<const Model&, const Probes&, const Sources&>())
-        .def_static("readFromFile", &ProblemDescription::readFromFile)
+        .def_static("readFromFile", &Problem::readFromFile)
         ;
    
     py::class_<maxwell::Solver>(m, "Solver")
-        .def(py::init<const ProblemDescription&, const SolverOptions&>())
+        .def(py::init<const Problem&, const SolverOptions&>())
         ;
 }
