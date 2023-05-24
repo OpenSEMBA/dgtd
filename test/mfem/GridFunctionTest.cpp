@@ -25,6 +25,20 @@ double negFunction(const Vector& pos)
 	return -2 * normalizedPos;
 }
 
+double linearDummyFunction(const Vector& v, double time)
+{
+	return v[0] + time;
+}
+
+double RotatedGaussianFunction(Vector& pos, double time) {
+	return 1.0 *
+		exp(
+			-pow(pos[0] - (3.5 * cos(-M_PI / 4.0)) + pos[1] - (3.5 * -sin(-M_PI / 4.0)), 2.0) /
+			(2.0 * pow(0.2, 2.0))
+		);
+}
+
+
 class GridFunctionTest : public ::testing::Test {
 protected:
 
@@ -106,32 +120,6 @@ TEST_F(GridFunctionTest, IntegrationPointFinder1D)
 
 }
 
-TEST_F(GridFunctionTest, DISABLED_DoFFinder1D)
-{
-	/*Create a 1D FES mesh with the following form
-
-	   0      1      2      3      4
-	|-----||-----||-----||-----||-----|
-	0     12     34     56     78     9 
-	
-	Where the goal is to find DoF tags for nodes 2 and 7, 
-	and 1 and 8 through Physical Position values, 
-	and store them in Array<int> containers. */
-
-	// OPENED ISSUE DUE TO FINDPOINTS POTENTIAL ISSUE
-
-	setFES1D(1, 5, 5.0);
-
-	/* Node positions for... 1        2        7        8 */
-	DenseMatrix pointMat({ {1.0}, {1.00001}, {4.0}, {4.00001} });
-	pointMat.Transpose();
-	mesh_.FindPoints(pointMat, elArray_, ipArray_);
-
-	GridFunction positions(fes_.get());
-	mesh_.GetNodes(positions);
-
-}
-
 TEST_F(GridFunctionTest, GetValuesAtPoints1D)
 {
 	auto m{ Mesh::MakeCartesian1D(4) };
@@ -209,7 +197,7 @@ TEST_F(GridFunctionTest, SetValuesAtPoints1D)
 	subber = 0.0;
 	ConstantCoefficient halfCoeff{ 0.5 };
 	adder.ProjectCoefficient(halfCoeff, positiveDoF);
-	ConstantCoefficient minusHalfCoeff{ 0.5 };
+	ConstantCoefficient minusHalfCoeff{ -0.5 };
 	subber.ProjectCoefficient(minusHalfCoeff, negativeDoF);
 
 	gridBase.operator+=(adder);
@@ -219,11 +207,6 @@ TEST_F(GridFunctionTest, SetValuesAtPoints1D)
 	EXPECT_EQ(1.5, gridBase.Elem(2));
 	EXPECT_EQ(1.5, gridBase.Elem(7));
 	EXPECT_EQ(0.5, gridBase.Elem(8));
-}
-
-double linearDummyFunction(const Vector& v, double time)
-{
-	return v[0] + time;
 }
 
 TEST_F(GridFunctionTest, TimeDependentGridFunction)
@@ -241,6 +224,7 @@ TEST_F(GridFunctionTest, TimeDependentGridFunction)
 	}
 	EXPECT_EQ(5.0, f[0]);
 }
+
 TEST_F(GridFunctionTest, ProjectBdrFunction)
 {
 	const auto order{ 1 };
@@ -261,49 +245,35 @@ TEST_F(GridFunctionTest, ProjectBdrFunction)
 	EXPECT_EQ(2.0, f[2]);
 }
 
-double GaussianFunction(Vector& pos, double time) {
-	return 1.0 *
-		exp(
-			-pow(pos[0] - 3.5, 2) /
-			(2.0 * pow(0.2, 2))
-		);
-}
-
-double RotatedGaussianFunction(Vector& pos, double time) {
-	return 1.0 *
-		exp(
-			-pow(pos[0] - (3.5 * cos(-M_PI/4.0)) + pos[1] - (3.5 * -sin(-M_PI/4.0)), 2.0) /
-			(2.0 * pow(0.2, 2.0))
-		);
-}
-
-TEST_F(GridFunctionTest, ProjectFunctionOnMeshes)
+TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 {
 	int order{ 4 };
-	//Mesh mesh{ Mesh::MakeCartesian2D(7,1,Element::QUADRILATERAL,1,7.0) };
 	
-	auto mesh{ Mesh::LoadFromFile(
-		(mfemMeshesFolder() + "severalrotatedquadsnormalised.mesh").c_str(),1,0) 
+	auto mesh{ 
+		Mesh::LoadFromFile(
+			(mfemMeshesFolder() + "severalrotatedquadsnormalised.mesh").c_str(), 1, 0
+		) 
 	};
-	DG_FECollection fec{ order,2,BasisType::GaussLobatto };
+	DG_FECollection fec{ order, 2, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &mesh, &fec };
 
 	GridFunction proj{ &fes };
-	//FunctionCoefficient Gaussian(GaussianFunction);
-	//proj.ProjectCoefficient(Gaussian);
 	FunctionCoefficient RotatedGaussian(RotatedGaussianFunction);
 	proj.ProjectCoefficient(RotatedGaussian);
 
-	auto pd{ new ParaViewDataCollection("ProjectFunctionOnMeshes", &mesh) };
-	pd->SetPrefixPath("ParaView");
-	pd->RegisterField("solution", &proj);
-	pd->SetLevelsOfDetail(order);
-	pd->SetDataFormat(VTKFormat::BINARY);
-	pd->SetHighOrderOutput(true);
-	pd->SetCycle(0);
-	pd->SetTime(0.0);
-	pd->Save();
+	DenseMatrix pointMat{
+		{
+			{3.5 * cos(-M_PI / 4.0), 3.5 * -sin(-M_PI / 4.0) } // Center of Gaussian.
+		}
+	};
+	pointMat.Transpose();
 
+	Array<int> elArray;
+	Array<IntegrationPoint> ipArray;
+	mesh.FindPoints(pointMat, elArray, ipArray);
+
+	Vector expectedValue({ 1.0 });
+	EXPECT_NEAR(proj.GetValue(elArray[0], ipArray[0]), expectedValue[0], 1e-5);
 
 }
 

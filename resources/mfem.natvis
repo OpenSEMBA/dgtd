@@ -17,7 +17,7 @@
 	<!-- mfem matrix -->
 	<Type Name="mfem::DenseMatrix">
 		<DisplayString Condition="width == 0">empty mfem::DenseMatrix</DisplayString>
-		<DisplayString Condition="height != 0 &amp; width != 0">({width}, {height}) mfem::DenseMatrix</DisplayString>
+		<DisplayString Condition="height != 0 &amp; width != 0">({height}, {width}) mfem::DenseMatrix</DisplayString>
 		<Expand>
 			<ArrayItems Condition="width != 0">
 				<Direction>Backward</Direction>
