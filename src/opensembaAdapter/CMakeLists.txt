@@ -9,6 +9,7 @@ add_library(maxwell-components STATIC
 	"Material.cpp"
 	"Model.cpp" 
 	"Sources.cpp"
+	"ProblemDescription.cpp"
 )
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)

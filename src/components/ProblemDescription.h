@@ -10,8 +10,6 @@ struct ProblemDescription {
     Model model;
     Probes probes;
     Sources sources;
-
-    static ProblemDescription readFromFile(const std::string& filename);
 };
 
 }

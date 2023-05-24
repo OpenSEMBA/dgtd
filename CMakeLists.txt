@@ -16,7 +16,7 @@ project(dgtd)
 set(CMAKE_CXX_STANDARD 17)
 
 option(MAXWELL_USE_MPI OFF)
-option(MAXWELL_USE_PYTHON_BINDINGS OFF)
+option(MAXWELL_ENABLE_PYTHON_BINDINGS OFF)
 
 include_directories(
 	src/ 
@@ -25,7 +25,7 @@ include_directories(
 
 add_subdirectory(src)
 
-if(MAXWELL_USE_PYTHON_BINDINGS)
+if(MAXWELL_ENABLE_PYTHON_BINDINGS)
 	add_subdirectory(pythonBindings)
 endif()
 
