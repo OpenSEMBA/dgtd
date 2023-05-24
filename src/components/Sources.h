@@ -24,7 +24,7 @@ public:
 class InitialField : public Source {
 public:
 	InitialField(
-		const math::Function&,
+		const Function&,
 		const FieldType&,
 		const Polarization&,
 		const Position& center_,
@@ -39,7 +39,7 @@ public:
 		const FieldType&, const Direction&) const;
 
 private:
-	std::unique_ptr<math::Function> magnitude_;
+	std::unique_ptr<Function> magnitude_;
 	FieldType fieldType_{ E };
 	Polarization polarization_;
 	Position center_;
@@ -48,7 +48,7 @@ private:
 
 class Planewave : public Source {
 public:
-	Planewave(const math::Function&, const Polarization&, const Propagation&);
+	Planewave(const Function&, const Polarization&, const Propagation&);
 	Planewave(const Planewave&);
 
 	std::unique_ptr<Source> clone() const;
@@ -58,7 +58,7 @@ public:
 		const FieldType&, const Direction&) const;
 
 private: 
-	std::unique_ptr<math::Function> magnitude_;
+	std::unique_ptr<Function> magnitude_;
 	Polarization polarization_;
 	Propagation propagation_;
 };

@@ -10,7 +10,7 @@ message(STATUS "Creating build system for testHelpers")
 
 add_library(testHelpers 
 	"GlobalFunctions.cpp"
-    "Utils.cpp")
+    )
 
 target_link_libraries(testHelpers maxwell-solver Eigen3::Eigen GTest::gtest)
 

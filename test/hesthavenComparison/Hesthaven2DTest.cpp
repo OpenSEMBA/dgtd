@@ -3,13 +3,10 @@
 #include "mfemExtension/BilinearIntegrators.h"
 
 #include "GlobalFunctions.h"
-#include "SourceFixtures.h"
-
 #include "HesthavenFunctions.h"
 
 using namespace mfem;
 using namespace maxwell;
-using namespace maxwell::fixtures::sources;
 
 class MFEMHesthaven2D : public ::testing::Test {
 protected:

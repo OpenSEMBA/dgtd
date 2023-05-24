@@ -43,7 +43,7 @@ mfem::Vector rotateAroundAxis(
 }
 
 InitialField::InitialField(
-	const math::Function& f, 
+	const Function& f, 
 	const FieldType& fT, 
 	const Polarization& p,
 	const Position& centerIn,
@@ -92,7 +92,7 @@ double InitialField::eval(
 }
 
 Planewave::Planewave(
-	const math::Function& mag, 
+	const Function& mag, 
 	const Polarization& p, 
 	const Propagation& dir):
 	magnitude_{ mag.clone() },

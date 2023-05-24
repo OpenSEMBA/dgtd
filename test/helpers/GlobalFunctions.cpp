@@ -7,7 +7,6 @@ using namespace mfem;
 using namespace mfemExtension;
 
 
-
 double getMinimumVertexDistance1D(FiniteElementSpace& fes) 
 {
 	GridFunction nodes(&fes);

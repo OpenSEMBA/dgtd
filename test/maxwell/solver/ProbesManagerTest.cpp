@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include "SourceFixtures.h"
 
 #include "solver/ProbesManager.h"

@@ -1,13 +1,16 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include "components/Probes.h"
 
-namespace maxwell {
+static std::string getTestCaseName() 
 
-std::string getTestCaseName();
-
-Probes buildProbesWithAnExportProbe();
-
-
+{
+	std::string caseName{
+		::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()
+	};
+	std::string name{
+		::testing::UnitTest::GetInstance()->current_test_info()->name()
+	};
+	return caseName + "." + name;
 }
+

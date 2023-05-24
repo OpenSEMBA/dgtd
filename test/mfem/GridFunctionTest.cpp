@@ -3,8 +3,6 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#include "GlobalFunctions.h"
-#include <vector>
 #include <mfem.hpp>
 
 using namespace mfem;
