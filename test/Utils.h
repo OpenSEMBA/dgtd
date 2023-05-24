@@ -2,6 +2,11 @@
 
 #include <gtest/gtest.h>
 
+static std::string testDataFolder()   { return "./testData/"; }
+static std::string gmshMeshesFolder() { return testDataFolder() + "mfemMeshes/"; }
+static std::string mfemMeshesFolder() { return testDataFolder() + "mfemMeshes/"; }
+static std::string smbInputsFolder()  { return testDataFolder() + "smbInputs/"; }
+
 static std::string getTestCaseName() 
 {
 	std::string caseName{
@@ -12,4 +17,3 @@ static std::string getTestCaseName()
 	};
 	return caseName + "." + name;
 }
-

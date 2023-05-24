@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "Utils.h"
 #include "HesthavenFunctions.h"
 #include "math/EigenMfemTools.h"
 #include "evolution/EvolutionMethods.h"
@@ -172,7 +173,7 @@ TEST_F(MFEMHesthaven2D, DsOperator2D)
 
 TEST_F(MFEMHesthaven2D, manualMeshComparison)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./testData/twotriang.mesh", 1, 1);
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "twotriang.mesh").c_str(), 1, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -240,7 +241,7 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 
 TEST_F(MFEMHesthaven2D, oneFace)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./testData/onetriang.mesh", true, 1);
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetriang.mesh").c_str(), true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 

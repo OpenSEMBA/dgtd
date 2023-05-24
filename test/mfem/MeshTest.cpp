@@ -1,10 +1,8 @@
 #include <gtest/gtest.h>
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <signal.h>  
 #include <mfem.hpp>
+
+#include "Utils.h"  
 
 using namespace mfem;
 using NodeId = int;
@@ -232,7 +230,7 @@ TEST_F(MeshTest, MapMeshElementAndVertex)
 
 TEST_F(MeshTest, MeshDataFileRead)
 {
-	ASSERT_NO_THROW(Mesh::LoadFromFile("./testData/twotriang.mesh", 1, 0));
+	ASSERT_NO_THROW(Mesh::LoadFromFile((mfemMeshesFolder() + "twotriang.mesh").c_str(), 1, 0));
 }
 
 TEST_F(MeshTest, BoundaryWithoutInteriorFace)
@@ -268,7 +266,7 @@ TEST_F(MeshTest, SubMeshing)
 
 TEST_F(MeshTest, InteriorBoundary)
 {
-	auto mesh{ Mesh::LoadFromFile("./testData/line.mesh", 1, 0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "line.mesh").c_str(), 1, 0) };
 
 	EXPECT_EQ(2, mesh.GetBdrAttribute(0));
 	EXPECT_EQ(2, mesh.GetBdrAttribute(1));

@@ -5,6 +5,8 @@
 
 #include <mfem.hpp>
 
+#include "Utils.h"
+
 using namespace mfem;
 
 double xPositionFunction(const Vector& pos)
@@ -279,7 +281,10 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMeshes)
 {
 	int order{ 4 };
 	//Mesh mesh{ Mesh::MakeCartesian2D(7,1,Element::QUADRILATERAL,1,7.0) };
-	Mesh mesh{ Mesh::LoadFromFile("./testData/severalrotatedquadsnormalised.mesh",1,0) };
+	
+	auto mesh{ Mesh::LoadFromFile(
+		(mfemMeshesFolder() + "severalrotatedquadsnormalised.mesh").c_str(),1,0) 
+	};
 	DG_FECollection fec{ order,2,BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &mesh, &fec };
 
