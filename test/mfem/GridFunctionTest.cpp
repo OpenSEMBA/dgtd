@@ -274,7 +274,6 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 
 	Vector expectedValue({ 1.0 });
 	EXPECT_NEAR(proj.GetValue(elArray[0], ipArray[0]), expectedValue[0], 1e-5);
-
 }
 
 

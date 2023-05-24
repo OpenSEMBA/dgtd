@@ -8,6 +8,11 @@ if (MAXWELL_USE_MPI)
 	message(STATUS "MPI_SRCS=" ${MPI_SRCS})
 endif()
 
+option(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT OFF)
+if (MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
+	add_compile_definitions(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
+endif()
+
 add_executable(maxwell_tests
 	"MaxwellTestLauncher.cpp"
 	"components/MaterialTest.cpp" 
