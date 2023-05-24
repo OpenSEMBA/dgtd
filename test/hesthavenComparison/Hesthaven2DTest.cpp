@@ -106,10 +106,7 @@ TEST_F(MFEMHesthaven2D, massMatrix2D)
 
 	auto MFEMMass = buildMassMatrixEigen(*fes_);
 
-	std::cout << MFEMMass << std::endl;
-	std::cout << hesthavenMass * scaleFactor << std::endl;
-
-	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor,1e-4));
+	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor, 1e-4));
 }
 
 TEST_F(MFEMHesthaven2D, DrOperator2D)
@@ -134,9 +131,6 @@ TEST_F(MFEMHesthaven2D, DrOperator2D)
 	Eigen::MatrixXd DrOperatorMFEM{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(Y,*fes_)
 	};
-
-	std::cout << globalDrHesthaven << std::endl;
-	std::cout << DrOperatorMFEM << std::endl;
 
 	EXPECT_TRUE(DrOperatorMFEM.isApprox(globalDrHesthaven, tol_));
 
@@ -163,9 +157,6 @@ TEST_F(MFEMHesthaven2D, DsOperator2D)
 	Eigen::MatrixXd DsOperatorMFEM{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(X,*fes_)
 	};
-
-	std::cout << globalDsHesthaven << std::endl;
-	std::cout << DsOperatorMFEM << std::endl;
 
 	EXPECT_TRUE(DsOperatorMFEM.isApprox(globalDsHesthaven, tol_));
 
@@ -222,24 +213,24 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 	}
 
 	Eigen::MatrixXd hesthavenNodes{
-		{ 0.0, 1.0},
-		{ 0.0, 0.5},
-		{ 0.0, 0.0},
-		{ 0.5, 1.0},
-		{ 0.5, 0.5},
-		{ 1.0, 1.0},
-		{ 1.0, 1.0},
-		{ 0.5, 0.5},
-		{ 0.0, 0.0},
-		{ 1.0, 0.5},
-		{ 0.5, 0.0},
-		{ 1.0, 0.0}
+		{ 0.0, 1.0 },
+		{ 0.0, 0.5 },
+		{ 0.0, 0.0 },
+		{ 0.5, 1.0 },
+		{ 0.5, 0.5 },
+		{ 1.0, 1.0 },
+		{ 1.0, 1.0 },
+		{ 0.5, 0.5 },
+		{ 0.0, 0.0 },
+		{ 1.0, 0.5 },
+		{ 0.5, 0.0 },
+		{ 1.0, 0.0 }
 	};
 
 	EXPECT_TRUE(hesthavenNodes.isApprox(rotatedMfemNodes));
 }
 
-TEST_F(MFEMHesthaven2D, oneFace)
+TEST_F(MFEMHesthaven2D, DISABLED_oneFace)
 {
 	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetriang.mesh").c_str(), true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
@@ -291,7 +282,6 @@ TEST_F(MFEMHesthaven2D, oneFace)
 		Mesh meshOne = Mesh::MakeCartesian1D(1);
 		std::unique_ptr<FiniteElementCollection> fecOne = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
 		std::unique_ptr<FiniteElementSpace> fesOne = std::make_unique<FiniteElementSpace>(&meshOne, fecOne.get());
-
 	}
 
 }

@@ -170,16 +170,6 @@ TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 	auto DsRotated = rotatorO1_.transpose() * DsOperatorHesthaven * rotatorO1_;
 	auto DtRotated = rotatorO1_.transpose() * DtOperatorHesthaven * rotatorO1_;
 
-	std::cout << "Dr" << std::endl;
-	std::cout << MFEMDr << std::endl;
-	std::cout << DrRotated << std::endl;
-	std::cout << "Ds" << std::endl;
-	std::cout << MFEMDs << std::endl;
-	std::cout << DsRotated << std::endl;
-	std::cout << "Dt" << std::endl;
-	std::cout << MFEMDt << std::endl;
-	std::cout << DtRotated << std::endl;
-
 	EXPECT_TRUE(MFEMDr.isApprox(DrRotated));
 	EXPECT_TRUE(MFEMDs.isApprox(DsRotated));
 	EXPECT_TRUE(MFEMDt.isApprox(DtRotated));

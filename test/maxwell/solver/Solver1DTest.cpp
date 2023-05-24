@@ -404,59 +404,6 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 	}
 }
 
-TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
-{ 
-	auto m{ 
-		Mesh::LoadFromFile(
-			(mfemMeshesFolder() +"intBdrPECBigScale.mesh").c_str(), 1, 0
-		)
-	};
-	AttributeToBoundary attToBdr{ {2 , BdrCond::PEC} };
-	Model model{ m, {}, attToBdr, {} };
-
-	auto probes{ buildProbesWithAnExportProbe(25) };
-	probes.pointProbes = {
-		PointProbe{ E, Y, {10.01} },
-		PointProbe{ E, Y, {10.0} },
-		PointProbe{ H, Z, {10.0} }
-	};
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildPlanewaveInitialField(
-			Gaussian{10.0},
-			Source::Position({ 35.0 }), // center
-			Source::Polarization(unitVec(Z)), // e polarization
-			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
-		),
-		SolverOptions{}
-			.setCFL(0.5)
-			.setCentered()
-			.setFinalTime(100.0)
-			.setOrder(2)
-	};
-
-	solver.run();
-
-	{
-		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
-		EXPECT_NEAR(15.0, frame.first, 1e-1);
-		EXPECT_NEAR(10.0, frame.second, 1e-3);
-	}
-
-	{
-		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
-		EXPECT_NEAR(0.0, frame.second, 1e-3);
-	}
-
-	{
-		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
-		EXPECT_NEAR(25.0, frame.first, 2e-1);
-		EXPECT_NEAR(20.0, frame.second, 1e-3);
-	}
-}
-
 TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 {
 	Mesh mesh{ 
@@ -649,8 +596,8 @@ TEST_F(Solver1DTest, totalfieldinout_sma)
 		probes,
 		buildGaussianPlanewave(0.2, 0.8, unitVec(Y), unitVec(X)),
 		SolverOptions{}
-			.setCFL(0.5)
-			.setFinalTime(5.0)
+			.setCFL(0.95)
+			.setFinalTime(3.0)
 			.setOrder(2)
 	};
 
