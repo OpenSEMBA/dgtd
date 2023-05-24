@@ -69,7 +69,7 @@ Solver::Solver(
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
 	if ((opts.order < 0) ||
-		(opts.t_final < 0)) {
+		(opts.finalTime < 0)) {
 		throw std::runtime_error("Incorrect parameters in Options");
 	}
 
@@ -129,14 +129,14 @@ double Solver::getTimeStep()
 
 void Solver::run()
 {
-	while (time_ <= opts_.t_final - 1e-8*dt_) {
+	while (time_ <= opts_.finalTime - 1e-8*dt_) {
 		step();
 	}
 }
 
 void Solver::step()
 {
-	double truedt{ std::min(dt_, opts_.t_final - time_) };
+	double truedt{ std::min(dt_, opts_.finalTime - time_) };
 	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 	probesManager_.updateProbes(time_);
 }

@@ -5,11 +5,9 @@
 namespace maxwell {
 
 struct EvolutionOptions {
+	int order{ 2 };
 	FluxType fluxType{ FluxType::Upwind };
 	bool spectral{ false };
-	bool eigenvals{ false };
-	bool marketFile{ false };
-	int powerMethod{ 0 };
 };
 
 }

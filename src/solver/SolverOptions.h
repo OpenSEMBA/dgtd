@@ -7,7 +7,7 @@ namespace maxwell {
 struct SolverOptions {
     int order = 2;
     double dt = 0.0;
-    double t_final = 2.0;
+    double finalTime = 2.0;
     double CFL = 0.8;
 
     EvolutionOptions evolutionOperatorOptions;
@@ -20,7 +20,7 @@ struct SolverOptions {
 
     SolverOptions& setFinalTime(double t) 
     { 
-        t_final = t; 
+        finalTime = t; 
         return *this; 
     };
 
