@@ -91,9 +91,18 @@ protected:
 	}
 };
 
-TEST_F(MFEMHesthaven2D, massMatrix2D)
+TEST_F(MFEMHesthaven2D, massMatrix)
 {
-	Eigen::MatrixXd hesthavenMass{
+	// Hesthaven's mass matrix is calculated with
+	// $$ Mass = [V V']^{-1} J $$
+	// where $V$ is the Vandermonde matrix and $J$ is the jacobian.
+	// His reference element has area $A_r = 2$.
+	// In this FiniteElementSpace there are two triangles from
+	// [0, 1] x [0, 1]. Therefore they have A = 1/2.
+	// The jacobian is 
+	// $$ J = A / A_r = 0.25 $$
+
+	Eigen::MatrixXd vanderProdInverse{
 		{0.33333, 0.16667, 0.16667,     0.0,     0.0,     0.0},
 		{0.16667, 0.33333, 0.16667,     0.0,     0.0,     0.0},
 		{0.16667, 0.16667, 0.33333,     0.0,     0.0,     0.0},
@@ -101,15 +110,15 @@ TEST_F(MFEMHesthaven2D, massMatrix2D)
 		{    0.0,     0.0,     0.0, 0.16667, 0.33333, 0.16667},
 		{    0.0,     0.0,     0.0, 0.16667, 0.16667, 0.33333}
 	};
+	const double jacobian = 0.25;
 
-	const double scaleFactor = 0.25;
-
+	auto hesthavenMass{ vanderProdInverse * jacobian };
 	auto MFEMMass = buildMassMatrixEigen(*fes_);
 
-	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor, 1e-4));
+	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass, 1e-4));
 }
 
-TEST_F(MFEMHesthaven2D, DrOperator2D)
+TEST_F(MFEMHesthaven2D, DrOperator)
 {
 	setFES(2);
 
@@ -135,7 +144,7 @@ TEST_F(MFEMHesthaven2D, DrOperator2D)
 	EXPECT_TRUE(DrOperatorMFEM.isApprox(globalDrHesthaven, tol_));
 
 }
-TEST_F(MFEMHesthaven2D, DsOperator2D)
+TEST_F(MFEMHesthaven2D, DsOperator)
 {
 	setFES(2);
 

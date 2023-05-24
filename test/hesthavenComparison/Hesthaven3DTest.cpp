@@ -80,11 +80,19 @@ TEST_F(MFEMHesthaven3D, DISABLED_checkNodalPositions)
 	
 }
 
-TEST_F(MFEMHesthaven3D, checkMassOperator3D)
+TEST_F(MFEMHesthaven3D, massMatrix)
 {
+	// Hesthaven's mass matrix is calculated with
+	// $$ Mass = [V V']^{-1} J $$
+	// where $V$ is the Vandermonde matrix and $J$ is the jacobian.
+	// His reference element has volume $V_r = 8/6$.
+	// In this FiniteElementSpace there are 6 tetrahedrons from
+	// [0, 1] x [0, 1] x [0, 1]. Therefore they have V = 1/6.
+	// The jacobian is 
+	// $$ J = V / V_r = 1/8.0 $$
 	set3DFES(2);
 
-	Eigen::MatrixXd hesthavenMass{
+	Eigen::MatrixXd vanderProdInverse{
 		{ 0.019048, -0.012698, 0.0031746, -0.012698, -0.019048, 0.0031746, -0.012698, -0.019048, -0.019048, 0.0031746},
 		{-0.012698,	  0.10159, -0.012698,  0.050794,  0.050794, -0.019048,  0.050794,  0.050794,  0.025397, -0.019048},
 		{0.0031746, -0.012698,  0.019048, -0.019048, -0.012698, 0.0031746, -0.019048, -0.012698, -0.019048, 0.0031746},
@@ -97,10 +105,11 @@ TEST_F(MFEMHesthaven3D, checkMassOperator3D)
 		{0.0031746 ,-0.019048, 0.0031746, -0.019048, -0.019048, 0.0031746, -0.012698, -0.012698, -0.012698,  0.019048}
 	};
 
+	auto jacobian = 1.0 / 8.0;
 	auto MFEMmass = buildMassMatrixEigen(*fes_);
 	auto MFEMCutMass = MFEMmass.block<10, 10>(0, 0);
 
-	EXPECT_TRUE(MFEMCutMass.isApprox(JacobianFactor_ * hesthavenMass, 1e-4));
+	EXPECT_TRUE(MFEMCutMass.isApprox(vanderProdInverse*jacobian, 1e-4));
 
 }
 
