@@ -20,7 +20,6 @@ add_executable(mfem_tests
 
 target_link_libraries(mfem_tests 
 	mfem 
-	testHelpers
 	Eigen3::Eigen
 	GTest::gtest GTest::gtest_main
 )

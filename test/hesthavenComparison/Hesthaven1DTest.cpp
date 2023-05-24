@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "mfemExtension/BilinearIntegrators.h"
 #include "HesthavenFunctions.h"
-#include "GlobalFunctions.h"
+#include "math/EigenMfemTools.h"
+#include "evolution/EvolutionMethods.h"
 
 using namespace mfem;
 using namespace maxwell;

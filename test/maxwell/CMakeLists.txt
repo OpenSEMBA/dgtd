@@ -27,7 +27,6 @@ include_directories(./)
 
 target_link_libraries(maxwell_tests 
 	maxwell-solver
-	testHelpers 
 	GTest::gtest
 )
 
