@@ -1,9 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "solver/Solver.h"
-#include "Utils.h"
 #include "SourceFixtures.h"
-#include "GlobalFunctions.h"
+
+#include "solver/Solver.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -18,7 +17,7 @@ protected:
 
 TEST_F(SourcesTest, planewave)
 {
-	Planewave pw{math::Gaussian{ 0.2, mfem::Vector({-1.5}) }, unitVec(Y), unitVec(X)};
+	Planewave pw{Gaussian{ 0.2, mfem::Vector({-1.5}) }, unitVec(Y), unitVec(X)};
 
 	const double TOL{ 1e-6 };
 

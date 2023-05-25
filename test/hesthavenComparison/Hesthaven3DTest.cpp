@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "mfemExtension/BilinearIntegrators.h"
-
-#include "GlobalFunctions.h"
+#include "Utils.h"
 #include "HesthavenFunctions.h"
+#include "math/EigenMfemTools.h"
+#include "evolution/EvolutionMethods.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -49,7 +49,7 @@ protected:
 
 TEST_F(MFEMHesthaven3D, DISABLED_checkNodalPositions)
 {
-	mesh_ = Mesh::LoadFromFile("./testData/onetetra.mesh");
+	mesh_ = Mesh::LoadFromFile((mfemMeshesFolder() + "onetetra.mesh").c_str());
 	fec_ = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), 3, Ordering::byVDIM);
 
@@ -80,11 +80,19 @@ TEST_F(MFEMHesthaven3D, DISABLED_checkNodalPositions)
 	
 }
 
-TEST_F(MFEMHesthaven3D, checkMassOperator3D)
+TEST_F(MFEMHesthaven3D, massMatrix)
 {
+	// Hesthaven's mass matrix is calculated with
+	// $$ Mass = [V V']^{-1} J $$
+	// where $V$ is the Vandermonde matrix and $J$ is the jacobian.
+	// His reference element has volume $V_r = 8/6$.
+	// In this FiniteElementSpace there are 6 tetrahedrons from
+	// [0, 1] x [0, 1] x [0, 1]. Therefore they have V = 1/6.
+	// The jacobian is 
+	// $$ J = V / V_r = 1/8.0 $$
 	set3DFES(2);
 
-	Eigen::MatrixXd hesthavenMass{
+	Eigen::MatrixXd vanderProdInverse{
 		{ 0.019048, -0.012698, 0.0031746, -0.012698, -0.019048, 0.0031746, -0.012698, -0.019048, -0.019048, 0.0031746},
 		{-0.012698,	  0.10159, -0.012698,  0.050794,  0.050794, -0.019048,  0.050794,  0.050794,  0.025397, -0.019048},
 		{0.0031746, -0.012698,  0.019048, -0.019048, -0.012698, 0.0031746, -0.019048, -0.012698, -0.019048, 0.0031746},
@@ -97,10 +105,11 @@ TEST_F(MFEMHesthaven3D, checkMassOperator3D)
 		{0.0031746 ,-0.019048, 0.0031746, -0.019048, -0.019048, 0.0031746, -0.012698, -0.012698, -0.012698,  0.019048}
 	};
 
+	auto jacobian = 1.0 / 8.0;
 	auto MFEMmass = buildMassMatrixEigen(*fes_);
 	auto MFEMCutMass = MFEMmass.block<10, 10>(0, 0);
 
-	EXPECT_TRUE(MFEMCutMass.isApprox(JacobianFactor_ * hesthavenMass, 1e-4));
+	EXPECT_TRUE(MFEMCutMass.isApprox(vanderProdInverse*jacobian, 1e-4));
 
 }
 
@@ -133,7 +142,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_checkDrOperator3D)
 
 TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./testData/onetetra.mesh");
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetetra.mesh").c_str());
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -170,16 +179,6 @@ TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 	auto DsRotated = rotatorO1_.transpose() * DsOperatorHesthaven * rotatorO1_;
 	auto DtRotated = rotatorO1_.transpose() * DtOperatorHesthaven * rotatorO1_;
 
-	std::cout << "Dr" << std::endl;
-	std::cout << MFEMDr << std::endl;
-	std::cout << DrRotated << std::endl;
-	std::cout << "Ds" << std::endl;
-	std::cout << MFEMDs << std::endl;
-	std::cout << DsRotated << std::endl;
-	std::cout << "Dt" << std::endl;
-	std::cout << MFEMDt << std::endl;
-	std::cout << DtRotated << std::endl;
-
 	EXPECT_TRUE(MFEMDr.isApprox(DrRotated));
 	EXPECT_TRUE(MFEMDs.isApprox(DsRotated));
 	EXPECT_TRUE(MFEMDt.isApprox(DtRotated));
@@ -187,7 +186,7 @@ TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 
 TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./testData/fivetetra.mesh");
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "fivetetra.mesh").c_str());
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -235,7 +234,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
 TEST_F(MFEMHesthaven3D, faceChecker)
 {
 
-	Mesh meshManual = Mesh::LoadFromFile("./testData/onetetra.mesh");
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetetra.mesh").c_str());
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 

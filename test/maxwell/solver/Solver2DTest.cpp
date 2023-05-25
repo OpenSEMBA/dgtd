@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "ProbeFixtures.h"
 #include "SourceFixtures.h"
-#include "Utils.h"
 
 #include "solver/Solver.h"
 
@@ -746,7 +746,7 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			math::Gaussian{0.1},
+			Gaussian{0.1},
 			Source::Position({0.5, 0.5}), // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(unitVec(X))  // propagation direction
@@ -803,7 +803,7 @@ TEST_F(Solver2DTest, periodic_centered_quads)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			math::Gaussian{0.2},
+			Gaussian{0.2},
 			Source::Position({1.0, 1.0}),           // center_
 			Source::Polarization(unitVec(Z)),  // e polarization_
 			Source::Propagation(unitVec(X))   // propagation direction
@@ -860,7 +860,7 @@ TEST_F(Solver2DTest, periodic_tris)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			math::Gaussian{0.2},
+			Gaussian{0.2},
 			Source::Position({1.0, 1.0}), // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(unitVec(X))  // propagation direction
@@ -916,7 +916,7 @@ TEST_F(Solver2DTest, periodic_quads)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			math::Gaussian{0.2},
+			Gaussian{0.2},
 			Source::Position({1.0, 1.0}), // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(unitVec(X))  // propagation direction

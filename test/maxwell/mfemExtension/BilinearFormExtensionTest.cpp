@@ -1,15 +1,8 @@
 #include <gtest/gtest.h>
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-
-#include <mfem.hpp>
-#include "GlobalFunctions.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 #include "components/Types.h"
-
 
 using namespace maxwell;
 using namespace mfem;

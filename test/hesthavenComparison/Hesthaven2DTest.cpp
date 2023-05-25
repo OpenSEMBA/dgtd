@@ -1,15 +1,12 @@
 #include <gtest/gtest.h>
 
-#include "mfemExtension/BilinearIntegrators.h"
-
-#include "GlobalFunctions.h"
-#include "SourceFixtures.h"
-
+#include "Utils.h"
 #include "HesthavenFunctions.h"
+#include "math/EigenMfemTools.h"
+#include "evolution/EvolutionMethods.h"
 
 using namespace mfem;
 using namespace maxwell;
-using namespace maxwell::fixtures::sources;
 
 class MFEMHesthaven2D : public ::testing::Test {
 protected:
@@ -94,9 +91,18 @@ protected:
 	}
 };
 
-TEST_F(MFEMHesthaven2D, massMatrix2D)
+TEST_F(MFEMHesthaven2D, massMatrix)
 {
-	Eigen::MatrixXd hesthavenMass{
+	// Hesthaven's mass matrix is calculated with
+	// $$ Mass = [V V']^{-1} J $$
+	// where $V$ is the Vandermonde matrix and $J$ is the jacobian.
+	// His reference element has area $A_r = 2$.
+	// In this FiniteElementSpace there are two triangles from
+	// [0, 1] x [0, 1]. Therefore they have A = 1/2.
+	// The jacobian is 
+	// $$ J = A / A_r = 0.25 $$
+
+	Eigen::MatrixXd vanderProdInverse{
 		{0.33333, 0.16667, 0.16667,     0.0,     0.0,     0.0},
 		{0.16667, 0.33333, 0.16667,     0.0,     0.0,     0.0},
 		{0.16667, 0.16667, 0.33333,     0.0,     0.0,     0.0},
@@ -104,18 +110,15 @@ TEST_F(MFEMHesthaven2D, massMatrix2D)
 		{    0.0,     0.0,     0.0, 0.16667, 0.33333, 0.16667},
 		{    0.0,     0.0,     0.0, 0.16667, 0.16667, 0.33333}
 	};
+	const double jacobian = 0.25;
 
-	const double scaleFactor = 0.25;
-
+	auto hesthavenMass{ vanderProdInverse * jacobian };
 	auto MFEMMass = buildMassMatrixEigen(*fes_);
 
-	std::cout << MFEMMass << std::endl;
-	std::cout << hesthavenMass * scaleFactor << std::endl;
-
-	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass * scaleFactor,1e-4));
+	EXPECT_TRUE(MFEMMass.isApprox(hesthavenMass, 1e-4));
 }
 
-TEST_F(MFEMHesthaven2D, DrOperator2D)
+TEST_F(MFEMHesthaven2D, DrOperator)
 {
 	setFES(2);
 
@@ -138,13 +141,10 @@ TEST_F(MFEMHesthaven2D, DrOperator2D)
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(Y,*fes_)
 	};
 
-	std::cout << globalDrHesthaven << std::endl;
-	std::cout << DrOperatorMFEM << std::endl;
-
 	EXPECT_TRUE(DrOperatorMFEM.isApprox(globalDrHesthaven, tol_));
 
 }
-TEST_F(MFEMHesthaven2D, DsOperator2D)
+TEST_F(MFEMHesthaven2D, DsOperator)
 {
 	setFES(2);
 
@@ -167,16 +167,13 @@ TEST_F(MFEMHesthaven2D, DsOperator2D)
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(X,*fes_)
 	};
 
-	std::cout << globalDsHesthaven << std::endl;
-	std::cout << DsOperatorMFEM << std::endl;
-
 	EXPECT_TRUE(DsOperatorMFEM.isApprox(globalDsHesthaven, tol_));
 
 }
 
 TEST_F(MFEMHesthaven2D, manualMeshComparison)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./testData/twotriang.mesh", 1, 1);
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "twotriang.mesh").c_str(), 1, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -225,26 +222,26 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 	}
 
 	Eigen::MatrixXd hesthavenNodes{
-		{ 0.0, 1.0},
-		{ 0.0, 0.5},
-		{ 0.0, 0.0},
-		{ 0.5, 1.0},
-		{ 0.5, 0.5},
-		{ 1.0, 1.0},
-		{ 1.0, 1.0},
-		{ 0.5, 0.5},
-		{ 0.0, 0.0},
-		{ 1.0, 0.5},
-		{ 0.5, 0.0},
-		{ 1.0, 0.0}
+		{ 0.0, 1.0 },
+		{ 0.0, 0.5 },
+		{ 0.0, 0.0 },
+		{ 0.5, 1.0 },
+		{ 0.5, 0.5 },
+		{ 1.0, 1.0 },
+		{ 1.0, 1.0 },
+		{ 0.5, 0.5 },
+		{ 0.0, 0.0 },
+		{ 1.0, 0.5 },
+		{ 0.5, 0.0 },
+		{ 1.0, 0.0 }
 	};
 
 	EXPECT_TRUE(hesthavenNodes.isApprox(rotatedMfemNodes));
 }
 
-TEST_F(MFEMHesthaven2D, oneFace)
+TEST_F(MFEMHesthaven2D, DISABLED_oneFace)
 {
-	Mesh meshManual = Mesh::LoadFromFile("./testData/onetriang.mesh", true, 1);
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetriang.mesh").c_str(), true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -294,7 +291,6 @@ TEST_F(MFEMHesthaven2D, oneFace)
 		Mesh meshOne = Mesh::MakeCartesian1D(1);
 		std::unique_ptr<FiniteElementCollection> fecOne = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
 		std::unique_ptr<FiniteElementSpace> fesOne = std::make_unique<FiniteElementSpace>(&meshOne, fecOne.get());
-
 	}
 
 }

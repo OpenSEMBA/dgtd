@@ -1,12 +1,9 @@
 #pragma once
 
 #include <mfem.hpp>
-
-#include "Types.h"
-
 #include <math.h>
 
-namespace maxwell::math {
+namespace maxwell {
 
 class Function {
 public:

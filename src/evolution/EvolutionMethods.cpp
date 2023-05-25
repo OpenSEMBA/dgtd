@@ -65,16 +65,6 @@ std::map<BdrCond, std::vector<double>> srcCoeffCheck(const FluxType& ft)
 	return res;
 }
 
-Eigen::MatrixXd toEigen(const DenseMatrix& mat)
-{
-	Eigen::MatrixXd res(mat.Width(), mat.Height());
-	for (int i = 0; i < mat.Width(); i++) {
-		for (int j = 0; j < mat.Height(); j++) {
-			res(i, j) = mat.Elem(i, j);
-		}
-	}
-	return res;
-}
 
 FiniteElementOperator buildByMult(
 	const BilinearForm& op1,
@@ -131,8 +121,6 @@ FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& mo
 	return MInv;
 }
 
-
-
 FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementSpace& fes)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
@@ -152,8 +140,6 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	res->Finalize();
 	return res;
 }
-
-
 
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
@@ -489,35 +475,6 @@ void exportSparseToMarketFile(const Eigen::MatrixXd& mat)
 	Eigen::saveMarket(sparse, "SparseMatrix.mtx");
 }
 
-Eigen::VectorXd toEigenVector(const Vector& in)
-{
-	Eigen::VectorXd res;
-	res.resize(in.Size());
-	for (int i = 0; i < in.Size(); ++i) {
-		res(i) = in.Elem(i);
-	}
-	return res;
-}
-
-Eigen::VectorXcd toComplexEigenVector(const Vector& in)
-{
-	Eigen::VectorXcd res;
-	res.resize(in.Size());
-	for (int i = 0; i < in.Size(); ++i) {
-		res(i) = in.Elem(i);
-	}
-	return res;
-}
-
-Vector toMFEMVector(const Eigen::VectorXd& in)
-{
-	Vector res(int(in.size()));
-	for (int i = 0; i < res.Size(); ++i) {
-		res(i) = in[i];
-	}
-	return res;
-}
-
 std::vector<int> calcOffsetCoeff1D(const std::vector<FieldType>& f)
 {
 	std::vector<int> res(2);
@@ -612,18 +569,6 @@ void allocateDenseInEigen(DenseMatrix* bilMat, Eigen::SparseMatrix<double>& res,
 			}
 		}
 	}
-}
-
-SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>& sp)
-{
-	SparseMatrix res(int(sp.rows()), int(sp.cols()));
-	for (int k = 0; k < sp.outerSize(); ++k)
-		for (Eigen::SparseMatrix<double>::InnerIterator it(sp, k); it; ++it)
-		{
-			res.Set(int(it.row()), int(it.col()), it.value());
-		}
-	res.Finalize();
-	return res;
 }
 
 double usePowerMethod(const Eigen::SparseMatrix<double>& global, int iterations)
