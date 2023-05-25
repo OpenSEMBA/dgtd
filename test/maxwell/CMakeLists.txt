@@ -1,38 +1,30 @@
 cmake_minimum_required(VERSION 3.0)
 
-message(STATUS "Creating build system for Maxwell_Tests")
-
-message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
-
-find_package(GTest CONFIG REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
-
-find_package(mfem CONFIG REQUIRED)
-include_directories(${MFEM_INCLUDE_DIRS})
-message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
+message(STATUS "Creating build system for maxwell_Tests")
 
 if (MAXWELL_USE_MPI)
-	set(MPI_SRCS "ParSolver2DTest.cpp")
+	set(MPI_SRCS "solver/ParSolver2DTest.cpp")
 	add_compile_definitions(MAXWELL_USE_MPI)
 	message(STATUS "MPI_SRCS=" ${MPI_SRCS})
 endif()
 
 add_executable(maxwell_tests
-	"maxwell_tests.cpp"
+	"MaxwellSystemTestLauncher.cpp"
 	${MPI_SRCS}
-	"Solver1DTest.cpp" 
-	"Solver2DTest.cpp" 
-	"Solver3DTest.cpp"  
-	"MaterialTest.cpp" 
-	"ProbesManagerTest.cpp" 
-	"SourcesTest.cpp"
-	"BilinearIntegratorsExtensionTest.cpp"
-	"BilinearFormExtensionTest.cpp" 
-	"LinearFormExtensionTest.cpp" 
+	"solver/Solver1DTest.cpp" 
+	"solver/Solver2DTest.cpp" 
+	"solver/Solver3DTest.cpp"  
+	"components/MaterialTest.cpp" 
+	"solver/ProbesManagerTest.cpp" 
+	"solver/SourcesTest.cpp"
+	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
+	"mfemExtension/BilinearFormExtensionTest.cpp" 
+	"mfemExtension/LinearFormExtensionTest.cpp" 
 )
 
 target_link_libraries(maxwell_tests 
-	maxwell mfem testHelpers 
+	maxwell-solver
+	testHelpers 
 	GTest::gtest
 )
 

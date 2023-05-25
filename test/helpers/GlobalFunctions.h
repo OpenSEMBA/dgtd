@@ -1,10 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
-
-#include <mfem.hpp>
-#include "maxwell/Types.h"
-#include "maxwell/evolution/EvolutionMethods.h"
+#include "evolution/EvolutionMethods.h"
 
 std::unique_ptr<mfem::DenseMatrix> toUnique(mfem::DenseMatrix*);
 
@@ -23,5 +20,5 @@ Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 Eigen::MatrixXd	buildSMAPenaltyOperator1D(
 	mfem::FiniteElementSpace& fes);
 
-double getMinimumInterNodeDistance1D(mfem::FiniteElementSpace&);
-double getMinimumVertexDistance1D(mfem::FiniteElementSpace&);
+//double getMinimumInterNodeDistance1D(mfem::FiniteElementSpace&);
+//double getMinimumVertexDistance1D(mfem::FiniteElementSpace&);

@@ -1,14 +1,30 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+#include <mfem.hpp>
+#include <Eigen/Dense>
 
 #include <iostream>
 #include <fstream>
 #include <vector>
 
-#include <mfem.hpp>
-
-#include <GlobalFunctions.h>
 
 using namespace mfem;
+
+double getMinimumInterNodeDistance1D(FiniteElementSpace& fes)
+{
+	GridFunction nodes(&fes);
+	fes.GetMesh()->GetNodes(nodes);
+	double res = std::numeric_limits<double>::max();
+	for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
+		Array<int> dofs;
+		fes.GetElementDofs(elemId, dofs);
+		for (int i = 0; i < dofs.Size(); ++i) {
+			for (int j = i + 1; j < dofs.Size(); ++j) {
+				res = std::min(res, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
+			}
+		}
+	}
+	return res;
+}
 
 class FiniteElementSpaceTest : public ::testing::Test {
 protected:

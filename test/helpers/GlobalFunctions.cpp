@@ -1,28 +1,12 @@
 #include "GlobalFunctions.h"
 
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/Model.h"
+#include "mfemExtension/BilinearIntegrators.h"
 
 using namespace maxwell;
 using namespace mfem;
 using namespace mfemExtension;
 
-double getMinimumInterNodeDistance1D(FiniteElementSpace& fes)
-{
-	GridFunction nodes(&fes);
-	fes.GetMesh()->GetNodes(nodes);
-	double res = std::numeric_limits<double>::max();
-	for (int elemId = 0; elemId < fes.GetMesh()->ElementToElementTable().Size(); ++elemId) {
-		Array<int> dofs;
-		fes.GetElementDofs(elemId, dofs);
-		for (int i = 0; i < dofs.Size(); ++i) {
-			for (int j = i + 1; j < dofs.Size(); ++j) {
-				res = std::min(res, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
-			}
-		}
-	}
-	return res;
-}
+
 
 double getMinimumVertexDistance1D(FiniteElementSpace& fes) 
 {

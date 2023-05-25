@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <iostream>
 #include <mfem.hpp>
@@ -65,6 +65,7 @@ TEST_F(AlgebraTest, checkSparseMatrixVectorProduct)
 	sparse.makeCompressed();
 	int c = 0;
 	Eigen::Vector4d vec({ 1.0,1.0,1.0,1.0 });
+	
 	EXPECT_NO_THROW( sparse * vec );
 }
 
@@ -79,5 +80,6 @@ TEST_F(AlgebraTest, checkEigenMatrixVectorProduct)
 	Eigen::VectorXd it(2);
 	it[0] = 1;
 	it[1] = 1;
-	auto product = sparse * it;
+
+	EXPECT_NO_THROW( sparse * it);
 }
