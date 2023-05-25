@@ -28,6 +28,10 @@ MaxwellEvolution3D::MaxwellEvolution3D(
 		}
 	}
 
+	std::cout << "MFN_[H][E][X]" << std::endl;
+	MFN_[E][H][Z]->SpMat().ToDenseMatrix()->Print(std::cout);
+	std::cout << std::flush;
+
 	for (auto f : { E, H }) {//TFSF - SrcConds
 		for (auto d : { X, Y, Z }) {
 			MBF_[f][d] = buildIBFIByMult(

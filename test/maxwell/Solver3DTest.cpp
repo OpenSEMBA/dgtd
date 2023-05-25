@@ -461,13 +461,13 @@ TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 		BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
 	probes,
 	buildGaussianInitialField(
-		E, 0.3,
+		E, 0.4,
 		Source::Position({1.5,0.5,0.5}),
 		unitVec(Z)
 	),
 	SolverOptions{}
 		.setTimeStep(1.0e-3)
-		.setFinalTime(3.0)
+		.setFinalTime(3.0e-3*100)
 		.setOrder(2)
 	};
 

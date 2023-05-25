@@ -458,7 +458,7 @@ TEST_F(Solver1DTest, pec_intbdr_bigscale_centered)
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
-			.setFinalTime(100.0)
+			.setFinalTime(200.0)
 			.setOrder(2)
 	};
 

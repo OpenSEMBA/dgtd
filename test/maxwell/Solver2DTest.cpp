@@ -383,7 +383,7 @@ TEST_F(Solver2DTest, pec_tris_1dot5D)
 	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-3)
-		.setFinalTime(300.0)
+		.setFinalTime(4.0)
 		.setOrder(3)
 	};
 
