@@ -39,6 +39,7 @@ void MaxwellDGZeroNormalJumpIntegrator::AssembleFaceMatrix(const FiniteElement& 
             el2.CalcShape(eip2, shape2_);
         }
         double w = ip.weight * beta * 0.5;
+        w *= Trans.Weight();
         if (w != 0.0) {
             buildFaceMatrix(    w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
             if (ndof2) {
@@ -91,8 +92,8 @@ void MaxwellDGOneNormalJumpIntegrator::AssembleFaceMatrix(const FiniteElement& e
             buildFaceMatrix(     w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
             if (ndof2) {
                 buildFaceMatrix( w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
-                buildFaceMatrix( w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
-                buildFaceMatrix( w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
+                buildFaceMatrix(-w, ndof2, ndof1, ndof1,     0, shape2_, shape1_, elmat);//BL
+                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
             }
         }
     }
@@ -188,6 +189,7 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         if (w != 0.0) {
             switch (dir.size()) {
             case 0:
+                w *= Trans.Weight();
                 buildFaceMatrix     ( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
                 if (ndof2) {
                     buildFaceMatrix ( w, ndof1, ndof2,     0, ndof1, shape1_, shape2_, elmat);//TR
@@ -204,7 +206,6 @@ void MaxwellDGTraceJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
                 }
                 break;
             case 2:
-                w /= Trans.Weight();
                 w /= Trans.Weight();
                 buildFaceMatrix    ( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
                 if (ndof2) {          
@@ -259,14 +260,13 @@ void MaxwellDGInteriorJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el
         if (w != 0.0) {
             switch (dir.size()) {
             case 0:
+                w *= Trans.Weight();
                 buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
                 break;
             case 1:
-                w /= Trans.Weight();
                 buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
                 break;
             case 2:
-                w /= Trans.Weight();
                 w /= Trans.Weight();
                 buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
                 break;
@@ -313,14 +313,13 @@ void MaxwellSMAJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         if (w != 0.0) {
             switch (dir.size()) {
             case 0:
+                w *= Trans.Weight();
                 buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
                 break;
             case 1:
-                w /= Trans.Weight();
                 buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
                 break;
             case 2:
-                w /= Trans.Weight();
                 w /= Trans.Weight();
                 buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
                 break;

@@ -3,8 +3,11 @@
 #include <mfem.hpp>
 
 #include "Types.h"
+#include "mfemExtension/BilinearIntegrators.h"
 
 namespace maxwell {
+
+using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
 
 struct ExporterProbe {
     std::string name{"MaxwellView"};
@@ -54,6 +57,18 @@ private:
     Point point_;
 
     FieldMovie fieldMovie_;
+};
+
+class EnergyProbe {
+public:
+    EnergyProbe();
+
+    const double getEnergy(const FieldType&, const Direction&);
+
+private:
+
+    FiniteElementOperator massMatrix_;
+
 };
 
 struct Probes {
