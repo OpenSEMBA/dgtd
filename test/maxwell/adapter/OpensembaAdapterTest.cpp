@@ -1,16 +1,28 @@
 #include <gtest/gtest.h>
 
 #include "adapter/OpensembaAdapter.h"
+#include "TestUtils.h"
 
-#include "Utils.h"
-#include "SourceFixtures.h"
-
+using namespace maxwell;
 
 class OpensembaAdapterTest : public ::testing::Test {
-public:
 };
 
-TEST_F(OpensembaAdapterTest, resonant_box_1D)
+TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode)
 {
-	EXPECT_TRUE(false);
+	auto fn{ smbInputsFolder() + getTestCaseName() + ".smb.json" };
+	OpensembaAdapter smbAdapter(fn);
+
+	auto prob{ smbAdapter.readProblem() };
+	auto opts{ smbAdapter.readSolverOptions() };
+
+	EXPECT_GT(0, prob.model.getMesh().GetNE());
+	EXPECT_GT(0, prob.model.getMesh().GetNBE());
+	EXPECT_EQ(1, prob.model.numberOfMaterials());
+	EXPECT_EQ(1, prob.model.numberOfBoundaryMaterials());
+
+	EXPECT_EQ(1, prob.probes.exporterProbes.size());
+	EXPECT_EQ(0, prob.probes.pointProbes.size());
+
+	EXPECT_EQ(1, prob.sources.size());
 }

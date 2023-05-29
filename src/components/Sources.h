@@ -121,6 +121,11 @@ public:
 		v_.push_back(std::move(newV));
 		return v_.back().get();
 	}
+
+	std::size_t size() const
+	{
+		return v_.size();
+	}
 private:
 	std::vector<std::unique_ptr<Source>> v_;
 };

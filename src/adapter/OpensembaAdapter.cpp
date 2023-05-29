@@ -11,7 +11,7 @@ namespace maxwell {
 		throw std::runtime_error("Could not open file: " + filename_);
 	}
 
-	SEMBA::UnstructuredProblemDescription pd;
+	
 }
 
 Problem OpensembaAdapter::readProblem() const

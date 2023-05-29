@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "Utils.h"
+#include "TestUtils.h"
 #include "HesthavenFunctions.h"
 #include "math/EigenMfemTools.h"
 #include "evolution/EvolutionMethods.h"

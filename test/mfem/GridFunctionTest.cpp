@@ -5,7 +5,7 @@
 
 #include <mfem.hpp>
 
-#include "Utils.h"
+#include "TestUtils.h"
 
 using namespace mfem;
 

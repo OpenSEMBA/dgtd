@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "Utils.h"
+#include "TestUtils.h"
 
 #include "ProbeFixtures.h"
 #include "SourceFixtures.h"

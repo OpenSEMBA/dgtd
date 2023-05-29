@@ -43,6 +43,8 @@ public:
 
 	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
 
+	std::size_t numberOfMaterials() const;
+	std::size_t numberOfBoundaryMaterials() const;
 private:
 	Mesh mesh_;
 	
