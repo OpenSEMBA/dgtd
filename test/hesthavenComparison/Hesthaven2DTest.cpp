@@ -89,6 +89,23 @@ protected:
 	{
 		return ::testing::UnitTest::GetInstance()->current_test_info()->name();
 	}
+
+	std::pair<FiniteElementSpace, Model> buildRequirementsForComparison()
+	{
+		auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+		auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+		auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+		std::pair<FiniteElementSpace, Model> res(
+			fes, 
+			Model(
+				mesh,
+				AttributeToMaterial(),
+				AttributeToBoundary(),
+				AttributeToInteriorConditions())
+		);
+		return res;
+	}
 };
 
 TEST_F(MFEMHesthaven2D, massMatrix)
@@ -144,6 +161,123 @@ TEST_F(MFEMHesthaven2D, DrOperator)
 	EXPECT_TRUE(DrOperatorMFEM.isApprox(globalDrHesthaven, tol_));
 
 }
+
+TEST_F(MFEMHesthaven2D, Operator_ZeroNormal_PEC)
+{
+
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh,AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+
+	Eigen::MatrixXd ZeroNormalOperator{
+		{ 10., -1.12132034, -1.12132034,  2.12132034,  2.12132034,  0.},
+		{ -2.,  8.53553391, -2.29289322, -0.70710678, -3.53553391,  0.},
+		{ -2., -2.29289322,  8.53553391, -3.53553391, -0.70710678,  0.},
+		{  0., -0.70710678, -3.53553391,  8.53553391, -2.29289322, -2.},
+		{  0., -3.53553391, -0.70710678, -2.29289322,  8.53553391, -2.},
+		{  0.,  2.12132034,  2.12132034, -1.12132034, -1.12132034, 10.}
+	};
+
+	EvolutionOptions opts = EvolutionOptions();
+	opts.order = 1;
+	auto EigenMP = toEigen(
+		*buildByMult(
+			*buildInverseMassMatrix(E, model, fes),
+			*buildZeroNormalOperator(E, model, fes, opts),
+			fes
+		)->SpMat().ToDenseMatrix()
+	);
+
+	for (int i = 0; i < EigenMP.rows(); i++) {
+		for (int j = 0; j < EigenMP.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMP(i, j) - ZeroNormalOperator(i, j)) < 1e-8);
+		}
+	}
+
+}
+
+TEST_F(MFEMHesthaven2D, Operator_OneNormal_EZ_HX_PEC)
+{
+
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+
+	Eigen::MatrixXd OneNormalOperator{
+		{ 0., -1.5, -1.5,  1.5,  1.5, 0.},
+		{ 0.,  2.5,  0.5, -0.5, -2.5, 0.},
+		{ 0.,  0.5,  2.5, -2.5, -0.5, 0.},
+		{ 0.,  0.5,  2.5, -2.5, -0.5, 0.},
+		{ 0.,  2.5,  0.5, -0.5, -2.5, 0.},
+		{ 0., -1.5, -1.5,  1.5,  1.5, 0.}
+	};
+
+	EvolutionOptions opts = EvolutionOptions();
+	opts.order = 1;
+	auto EigenMP = toEigen(
+		*buildByMult(
+			*buildInverseMassMatrix(E, model, fes),
+			*buildOneNormalOperator(H, { X }, model, fes, opts),
+			fes
+		)->SpMat().ToDenseMatrix()
+	);
+
+	std::cout << EigenMP << std::endl;
+
+	for (int i = 0; i < EigenMP.rows(); i++) {
+		for (int j = 0; j < EigenMP.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMP(i, j) - OneNormalOperator(i, j)) < 1e-8);
+		}
+	}
+
+}
+
+TEST_F(MFEMHesthaven2D, Operator_OneNormal_EZ_HY_PEC)
+{
+
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+
+	Eigen::MatrixXd OneNormalOperator{
+		{ 0.,  1.5,  1.5, -1.5, -1.5, 0.},
+		{ 0., -2.5, -0.5,  0.5,  2.5, 0.},
+		{ 0., -0.5, -2.5,  2.5,  0.5, 0.},
+		{ 0., -0.5, -2.5,  2.5,  0.5, 0.},
+		{ 0., -2.5, -0.5,  0.5,  2.5, 0.},
+		{ 0.,  1.5,  1.5, -1.5, -1.5, 0.}
+	};
+
+	EvolutionOptions opts = EvolutionOptions();
+	opts.order = 1;
+	auto EigenMP = toEigen(
+		*buildByMult(
+			*buildInverseMassMatrix(E, model, fes),
+			*buildOneNormalOperator(H, { Y }, model, fes, opts),
+			fes
+		)->SpMat().ToDenseMatrix()
+	);
+
+	std::cout << EigenMP << std::endl;
+
+	for (int i = 0; i < EigenMP.rows(); i++) {
+		for (int j = 0; j < EigenMP.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMP(i, j) - OneNormalOperator(i, j)) < 1e-8);
+		}
+	}
+
+}
+
+
 TEST_F(MFEMHesthaven2D, DsOperator)
 {
 	setFES(2);

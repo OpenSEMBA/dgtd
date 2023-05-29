@@ -53,11 +53,14 @@ protected:
 	Vector fieldCenter{ { 0.5, 0.5 } };
 };
 
+class Solver2DSpectralTest : public Solver2DTest {
+
+};
+
 TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 {
 
-	auto probes{ buildProbesWithAnExportProbe()};
-	probes.exporterProbes[0].visSteps = 10;
+	auto probes{ buildProbesWithAnExportProbe(10)};
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -91,11 +94,10 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
 }
 
-TEST_F(Solver2DTest, pec_centered_tris_1dot5D_spectral)
+TEST_F(Solver2DSpectralTest, pec_centered_tris_1dot5D_spectral)
 {
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -168,7 +170,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, pec_centered_quads_1dot5D_spectral)
+TEST_F(Solver2DSpectralTest, pec_centered_quads_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -221,13 +223,13 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
 	higher than the initial value.*/
 
-	Mesh mesh{ Mesh::LoadFromFile("./testData/amr-quad.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "amr-quad.mesh").c_str(),1,0) };
 	mesh.UniformRefinement();
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
-	Probes probes;
+	auto probes{ buildProbesWithAnExportProbe(10) };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -262,7 +264,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 
 }
 
-TEST_F(Solver2DTest, pec_tris_1dot5D_spectral)
+TEST_F(Solver2DSpectralTest, pec_tris_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -314,7 +316,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
 	higher than the initial value.*/
 
-	Mesh mesh{ Mesh::LoadFromFile("./testData/amr-quad.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "amr-quad.mesh").c_str(),1,0)};
 	mesh.UniformRefinement();
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
@@ -356,8 +358,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 
 TEST_F(Solver2DTest, pec_tris_1dot5D)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 50;
+	auto probes{ buildProbesWithAnExportProbe(50) };
 
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.4}},
@@ -368,14 +369,14 @@ TEST_F(Solver2DTest, pec_tris_1dot5D)
 
 	maxwell::Solver solver{
 	buildModel(
-		10, 2, Element::Type::TRIANGLE, 1.0, 0.4,
+		9, 9, Element::Type::TRIANGLE, 2.0, 2.0,
 		BdrCond::PMC,BdrCond::PEC,BdrCond::PMC,BdrCond::PEC
 	),
 	probes,
-	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
+	buildGaussianInitialField(E, 0.2, Vector({ 1.0,0.5 }), unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-3)
-		.setFinalTime(300.0)
+		.setFinalTime(40.0)
 		.setOrder(3)
 	};
 
@@ -397,8 +398,7 @@ TEST_F(Solver2DTest, pec_tris_1dot5D)
 
 TEST_F(Solver2DTest, pec_quads_1dot5D)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 50;
+	auto probes{ buildProbesWithAnExportProbe(50) };
 
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.4}},
@@ -436,7 +436,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, pec_quads_1dot5D_spectral)
+TEST_F(Solver2DSpectralTest, pec_quads_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -475,9 +475,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_spectral)
 
 TEST_F(Solver2DTest, sma_tris_1dot5D)
 {
-
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 10;
+	auto probes{ buildProbesWithAnExportProbe(10) };
 	
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.4}},
@@ -518,9 +516,7 @@ TEST_F(Solver2DTest, sma_tris_1dot5D)
 
 TEST_F(Solver2DTest, sma_quads_1dot5D)
 {
-
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 50;
+	auto probes{ buildProbesWithAnExportProbe(50) };
 	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.4}},
@@ -537,7 +533,7 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 	probes,
 	buildGaussianInitialField(E, 0.15, Vector{{1.0,1.0}}, unitVec(Z)),
 	SolverOptions{}
-		.setTimeStep(5e-4)
+		.setTimeStep(1e-3)
 		.setFinalTime(5.0)
 		.setOrder(3)
 	};
@@ -558,39 +554,13 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 
 }
 
-//TEST_F(Solver2DTest, sma_quads)
-//{
-//
-//	auto probes{ buildProbesWithAnExportProbe() };
-//	probes.exporterProbes[0].visSteps = 50;
-//	
-//	probes.pointProbes = { PointProbe{E, Z, {0.25, 0.25}} };
-//
-//	maxwell::Solver solver{
-//		buildModel(10, 10, mfem::Element::Type::QUADRILATERAL, 1.0, 1.0, 
-//			 BdrCond::SMA,BdrCond::SMA,BdrCond::SMA,BdrCond::SMA),
-//		probes,
-//		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z), 2), 
-//		SolverOptions{}
-//			.setTimeStep(2.5e-4)
-//			.setFinalTime(2.0)
-//			.setOrder(3)
-//	};
-//
-//	solver.run();
-//
-//	double tolerance{ 1e-5 };
-//	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
-//}
-
 TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
 {
-	auto mesh{ Mesh::LoadFromFile("./testData/severalrotatedquads.mesh",1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "severalrotatedquads.mesh").c_str(),1,0)};
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC}};
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 30;
+	auto probes{ buildProbesWithAnExportProbe(30) };
 
 	fieldCenter = Vector({ 2.0, 2.0 });
 
@@ -613,7 +583,7 @@ TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, periodic_centered_tris_spectral_and_base_comparison) {
+TEST_F(Solver2DSpectralTest, periodic_centered_tris_spectral_and_base_comparison) {
 
 	Probes probes;
 
@@ -673,7 +643,7 @@ TEST_F(Solver2DTest, periodic_centered_tris_spectral_and_base_comparison) {
 
 }
 
-TEST_F(Solver2DTest, periodic_tris_spectral_and_base_comparison) {
+TEST_F(Solver2DSpectralTest, periodic_tris_spectral_and_base_comparison) {
 
 	Probes probes;
 
@@ -777,15 +747,13 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 TEST_F(Solver2DTest, periodic_centered_quads)
 {
 
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(200) };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
 		PointProbe{H, Y, {0.0, 0.5}},
 		PointProbe{H, Y, {1.0, 0.5}}
 	};
-
-	probes.exporterProbes[0].visSteps = 200;
 
 	Mesh m;
 	{
@@ -833,7 +801,7 @@ TEST_F(Solver2DTest, periodic_centered_quads)
 
 TEST_F(Solver2DTest, periodic_tris)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(1000) };
 	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
@@ -841,8 +809,6 @@ TEST_F(Solver2DTest, periodic_tris)
 		PointProbe{H, Y, {0.0, 0.5}},
 		PointProbe{H, Y, {2.0, 0.5}}
 	};
-
-	probes.exporterProbes[0].visSteps = 1000;
 
 	Mesh m;
 	{
@@ -889,7 +855,7 @@ TEST_F(Solver2DTest, periodic_tris)
 
 TEST_F(Solver2DTest, periodic_quads)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(100) };
 	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
@@ -897,8 +863,6 @@ TEST_F(Solver2DTest, periodic_quads)
 		PointProbe{H, Y, {0.0, 0.5}},
 		PointProbe{H, Y, {2.0, 0.5}}
 	};
-
-	probes.exporterProbes[0].visSteps = 100;
 
 	Mesh m;
 	{
@@ -945,20 +909,19 @@ TEST_F(Solver2DTest, periodic_quads)
 
 TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_InnerSquare_IntBdr.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(),1,0)};
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
 	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(20) };
 	//probes.pointProbes = {
 	//PointProbe{ E, Z, {0.5001, 0.5} },
 	//PointProbe{ E, Z, {0.5, 0.5} },
 	//PointProbe{ H, Y, {3.5, 0.5} },
 	//PointProbe{ H, X, {3.5, 0.5} }
 	//};
-	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
 		model,
@@ -992,19 +955,18 @@ TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 
 TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/4x4_quads_1dot5D_IntBdr.mesh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0)};
 	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
 	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(20) };
 	//probes.pointProbes = {
 	//PointProbe{ E, Z, {0.5001, 0.5} },
 	//PointProbe{ E, Z, {0.5, 0.5} },
 	//PointProbe{ H, Y, {3.5, 0.5} },
 	//PointProbe{ H, X, {3.5, 0.5} }
 	//};
-	probes.exporterProbes[0].visSteps = 20;
 
 	maxwell::Solver solver{
 		model,
@@ -1165,14 +1127,13 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 
 TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/InteriorPEC2D.msh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "InteriorPEC2D.msh").c_str(),1,0)};
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {3,BdrCond::PMC}, {4,BdrCond::SMA } };
 	AttributeToInteriorConditions attToIntBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 100;
+	auto probes{ buildProbesWithAnExportProbe(100) };
 
 	maxwell::Solver solver{
 		model,
@@ -1188,15 +1149,36 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 
 }
 
+TEST_F(Solver2DTest, normalStudy)
+{
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0)};
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, pecBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(100) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.2, Source::Position({1.0, 0.0}), unitVec(Z)),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(4.0)
+			.setOrder(1)
+	};
+
+	solver.run();
+
+}
+
 TEST_F(Solver2DTest, DISABLED_box_with_Gmsh)
 {
-	auto mesh = Mesh::LoadFromFile("./testData/test.msh", 1, 0);
+	auto mesh = Mesh::LoadFromFile((gmshMeshesFolder() + "test.msh").c_str(), 1, 0);
 	auto fec = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	auto fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get(), 1, 0);
 	auto model = Model(mesh, AttributeToMaterial{}, AttributeToBoundary{});
 
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 100;
+	auto probes{ buildProbesWithAnExportProbe(100) };
 
 	maxwell::Solver solver{
 		model,

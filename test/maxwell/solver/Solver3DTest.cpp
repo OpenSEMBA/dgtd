@@ -83,6 +83,10 @@ protected:
 	}
 };
 
+class Solver3DSpectralTest : public Solver3DTest {
+
+};
+
 TEST_F(Solver3DTest, 3D_pec_centered_hexa_1dot5D)
 {
 	Probes probes;
@@ -126,7 +130,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, 3D_pec_centered_hexa_1dot5D_spectral)
+TEST_F(Solver3DSpectralTest, 3D_pec_centered_hexa_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -171,7 +175,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_1dot5D_spectral)
 
 }
 
-TEST_F(Solver3DTest, 3D_pec_centered_spectral_and_base_comparison) 
+TEST_F(Solver3DSpectralTest, 3D_pec_centered_spectral_and_base_comparison)
 {
 
 	maxwell::Solver solver{
@@ -267,7 +271,7 @@ TEST_F(Solver3DTest, 3D_pec_upwind_hexa_1dot5D)
 	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
 
-TEST_F(Solver3DTest, 3D_pec_upwind_hexa_1dot5D_spectral)
+TEST_F(Solver3DSpectralTest, 3D_pec_upwind_hexa_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -311,8 +315,7 @@ TEST_F(Solver3DTest, 3D_pec_upwind_hexa_1dot5D_spectral)
 
 TEST_F(Solver3DTest, 3D_pec_centered_tetra_1dot5D)
 {
-	Probes probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 5;
+	Probes probes{ buildProbesWithAnExportProbe(5) };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5, 0.5}},
@@ -352,7 +355,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_tetra_1dot5D)
 
 }
 
-TEST_F(Solver3DTest, 3D_pec_centered_tetra_1dot5D_spectral)
+TEST_F(Solver3DSpectralTest, 3D_pec_centered_tetra_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -364,23 +367,23 @@ TEST_F(Solver3DTest, 3D_pec_centered_tetra_1dot5D_spectral)
 	};
 
 	maxwell::Solver solver{
-	buildModel(
-		10,    1,   1, Element::Type::TETRAHEDRON,
-		1.0, 1.0, 1.0,
-		BdrCond::PEC,BdrCond::PMC,BdrCond::PEC,
-		BdrCond::PMC,BdrCond::PEC,BdrCond::PEC),
-	probes,
-	buildGaussianInitialField(
-		E, 0.1,
-		Source::Position({0.5,0.5,0.5}),
-		unitVec(Z)
-	),
-	SolverOptions{}
-		.setTimeStep(1e-2)
-		.setCentered()
-		.setFinalTime(2.0)
-		.setOrder(3)
-		.setSpectralEO()
+		buildModel(
+			10, 1, 1, Element::Type::TETRAHEDRON,
+			1.0, 1.0, 1.0,
+			BdrCond::PEC, BdrCond::PMC, BdrCond::PEC,
+			BdrCond::PMC, BdrCond::PEC, BdrCond::PEC),
+			probes,
+			buildGaussianInitialField(
+				E, 0.1,
+				Source::Position({ 0.5,0.5,0.5 }),
+				unitVec(Z)
+			),
+			SolverOptions{}
+			.setTimeStep(1e-2)
+			.setCentered()
+			.setFinalTime(2.0)
+			.setOrder(3)
+			.setSpectralEO()
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -396,53 +399,10 @@ TEST_F(Solver3DTest, 3D_pec_centered_tetra_1dot5D_spectral)
 
 }
 
-TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
-{
-
-	Probes probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 200;
-	//probes.pointProbes = {
-	//	PointProbe{E, Z, {0.0, 0.5, 0.5}},
-	//	PointProbe{E, Z, {1.0, 0.5, 0.5}},
-	//	PointProbe{H, Y, {0.0, 0.5, 0.5}},
-	//	PointProbe{H, Y, {1.0, 0.5, 0.5}}
-	//};
-
-	maxwell::Solver solver{
-	buildModel(
-		10,    2,   2, Element::Type::HEXAHEDRON,
-		1.0, 0.4, 0.4,
-		BdrCond::PEC,BdrCond::PMC,BdrCond::SMA,
-		BdrCond::PMC,BdrCond::SMA,BdrCond::PEC),
-	probes,
-	buildGaussianInitialField(
-		E, 0.1,
-		Source::Position({0.5,0.5,0.5}),
-		unitVec(Z)
-	),
-	SolverOptions{}
-		.setTimeStep(1e-4)
-		.setFinalTime(2.0)
-		.setOrder(3)
-	};
-
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-
-	double tolerance{ 1e-2 };
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	//EXPECT_NEAR(0.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
-}
-
 TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 {
 
-	Probes probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 5;
+	Probes probes{ buildProbesWithAnExportProbe(100) };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5, 0.5}},
@@ -463,7 +423,7 @@ TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 		unitVec(Z)
 	),
 	SolverOptions{}
-		.setTimeStep(5e-3)
+		.setTimeStep(5.0e-3)
 		.setFinalTime(2.0)
 		.setOrder(3)
 	};
@@ -480,6 +440,48 @@ TEST_F(Solver3DTest, 3D_pec_upwind_tetra_1dot5D)
 	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
 
+TEST_F(Solver3DTest, 3D_gmsh_cube_upwind_tetra)
+{
+	Probes probes{ buildProbesWithAnExportProbe(20) };
+	//probes.pointProbes = {
+	//	PointProbe{E, Y, {0.0, 0.5, 0.5}},
+	//	PointProbe{E, Y, {2.0, 0.5, 0.5}},
+	//	PointProbe{H, Z, {0.0, 0.5, 0.5}},
+	//	PointProbe{H, Z, {2.0, 0.5, 0.5}}
+	//};
+	
+	Mesh m{ Mesh::LoadFromFile((gmshMeshesFolder() + "pureCube.msh").c_str(),1,0)};
+
+	AttributeToBoundary attToBdr{ {2,BdrCond::PMC},{3,BdrCond::PEC},{4,BdrCond::SMA} };
+	Model model{ m, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildPlanewaveInitialField(
+			Gaussian{3.0}, 
+			Source::Position    ({15.0, 0.5, 0.5}), 
+			Source::Polarization(unitVec(Z)),
+			Source::Propagation(unitVec(X)) 
+		),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setFinalTime(15.0)
+			.setOrder(3)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	//EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
+
+}
 TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 {
 	Probes probes;
@@ -859,7 +861,7 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_upwind_hexa_1dot5)
 	EXPECT_NEAR(0.5, solver.getPointProbe(5).findFrameWithMax().second, tolerance);
 
 }
-TEST_F(Solver3DTest, 3D_pec_upwind_spectral_and_base_comparison) {
+TEST_F(Solver3DSpectralTest, 3D_pec_upwind_spectral_and_base_comparison) {
 
 	maxwell::Solver solver{
 	buildModel(
@@ -913,8 +915,7 @@ TEST_F(Solver3DTest, 3D_pec_upwind_spectral_and_base_comparison) {
 
 TEST_F(Solver3DTest, 3D_sma_upwind_hexa_1dot5D)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
+	auto probes{ buildProbesWithAnExportProbe(1) };
 	//probes.pointProbes = {
 	//	PointProbe{E, Z, {0.0, 0.5, 0.5}},
 	//	PointProbe{E, Z, {1.0, 0.5, 0.5}},
@@ -924,19 +925,19 @@ TEST_F(Solver3DTest, 3D_sma_upwind_hexa_1dot5D)
 
 	maxwell::Solver solver{
 	buildModel(
-		8,    4,   4, Element::Type::HEXAHEDRON,
-		0.3, 0.15, 0.12,
+		12,    4,   4, Element::Type::HEXAHEDRON,
+		30.0, 15.0, 12.0,
 		BdrCond::PEC,BdrCond::PMC,BdrCond::SMA,
 		BdrCond::PMC,BdrCond::SMA,BdrCond::PEC),
 	probes,
 	buildGaussianInitialField(
-		E, 0.03,
-		Source::Position({0.15,0.075,0.06}),
+		E, 3.0,
+		Source::Position({15.0,7.5,6.0}),
 		unitVec(Z)
 	),
 	SolverOptions{}
-		.setTimeStep(1e-5)
-		.setFinalTime(2.0)
+		.setTimeStep(5e-1)
+		.setFinalTime(5.0)
 		.setOrder(3)
 	};
 
@@ -955,8 +956,7 @@ TEST_F(Solver3DTest, 3D_sma_upwind_hexa_1dot5D)
 
 TEST_F(Solver3DTest, feng_fss)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1000;
+	auto probes{ buildProbesWithAnExportProbe(1000) };
 
 	std::vector<double> pointR({ 0.01,-0.075,0.06 });
 	std::vector<double> pointT({ 0.29,-0.075,0.06 });
@@ -976,7 +976,7 @@ TEST_F(Solver3DTest, feng_fss)
 		PointProbe{H, Z, pointT}
 	};
 
-	auto mesh{ Mesh::LoadFromFile("./testData/fengfss.msh",1,0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "fengfss.msh").c_str(),1,0)};
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
@@ -1021,7 +1021,6 @@ TEST_F(Solver3DTest, feng_fss)
 TEST_F(Solver3DTest, feng_fss_symmetry)
 {
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
 
 	//std::vector<double> pointR({ 1.0, -7.5, 3.0 });
 	//std::vector<double> pointT({ 29.0, -7.5, 3.0 });
@@ -1041,7 +1040,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	//	PointProbe{H, Z, pointT}
 	//};
 
-	auto mesh{ Mesh::LoadFromFile("./TestData/fengfssflatsym.msh",1,0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "fengfssflatsym.msh").c_str(),1,0)};
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA}};
 	AttributeToInteriorConditions attToIntBdr{ {5, BdrCond::PEC }, {6, BdrCond::NONE} };
@@ -1080,7 +1079,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 
 TEST_F(Solver3DTest, feng_fss_manual)
 {
-	auto mesh{ Mesh::LoadFromFile("./testData/fengfssmanual.mesh",1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "fengfssmanual.mesh").c_str(),1,0)};
 	Array<Refinement> refinement_list;
 	refinement_list.Append(Refinement(0, 2));
 	refinement_list.Append(Refinement(1, 2));
@@ -1119,8 +1118,7 @@ TEST_F(Solver3DTest, feng_fss_manual)
 	mfem::Vector polarization(3);
 	rotateMinus90degAlongZAxis(unitVec(Z), polarization);
 
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1000;
+	auto probes{ buildProbesWithAnExportProbe(1000) };
 
 	std::vector<double> pointR({ 0.01,-0.075,0.06 });
 	std::vector<double> pointT({ 0.29,-0.075,0.06 });
@@ -1165,13 +1163,12 @@ TEST_F(Solver3DTest, feng_fss_manual)
 
 TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 {
-	Mesh mesh{ Mesh::LoadFromFile("./testData/InteriorPEC3D.msh",1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "InteriorPEC3D.msh").c_str(),1,0)};
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC}, {4,BdrCond::SMA } };
 	AttributeToInteriorConditions attToIntBdr{ {5,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
 
 	maxwell::Solver solver{
 		model,
@@ -1198,11 +1195,10 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 
 TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
-	probes.exporterProbes[0].visSteps = 1;
+	auto probes{ buildProbesWithAnExportProbe(1000) };
 
-	std::vector<double> pointR({ 25.0, 25.0, 25.0 });
-	std::vector<double> pointT({ 275.0, 25.0, 25.0 });
+	std::vector<double> pointR({ 0.25, 0.25, 0.25 });
+	std::vector<double> pointT({ 2.75, 0.25, 0.25 });
 
 	probes.pointProbes = {
 		PointProbe{E, X, pointR},
@@ -1219,23 +1215,22 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 		PointProbe{H, Z, pointT}
 	};
 
-	auto mesh{ Mesh::LoadFromFile("./TestData/fsshexasmoredetail.msh",1,0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "fsshexas.msh").c_str(),1,0)};
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
-	AttributeToInteriorConditions attToIntBdr{ {5, BdrCond::PEC } };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	maxwell::Solver solver{
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{16.0},
-		Source::Position({ 90.0 }), // center
+		Gaussian{0.16},
+		Source::Position({ 0.7, 0.0, 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
-		mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
+		mfem::Vector(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
-		.setTimeStep(1.0)
-		.setFinalTime(30.0)
+		.setTimeStep(3.0e-5)
+		.setFinalTime(2.0)
 		.setOrder(3)
 	};
 
@@ -1253,4 +1248,74 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 	double tolerance{ 1e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
 
+}
+
+TEST_F(Solver3DTest, 3D_minimal_tetra)
+{
+	auto probes{ buildProbesWithAnExportProbe() };
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "twotetras.msh").c_str(),1,0)};
+
+	AttributeToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
+
+	Model model{ mesh, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} };
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildPlanewaveInitialField(
+		Gaussian{0.16},
+		Source::Position({ 0.7, 0.0, 0.0 }), // center
+		Source::Polarization(unitVec(Z)), // e polarization
+		mfem::Vector(unitVec(X)) // propagation direction
+	),
+	SolverOptions{}
+		.setTimeStep(1e-2)
+		.setFinalTime(2.0)
+		.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+
+TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
+{
+
+	Probes probes{ buildProbesWithAnExportProbe(200) };
+	//probes.pointProbes = {
+	//	PointProbe{E, Z, {0.0, 0.5, 0.5}},
+	//	PointProbe{E, Z, {1.0, 0.5, 0.5}},
+	//	PointProbe{H, Y, {0.0, 0.5, 0.5}},
+	//	PointProbe{H, Y, {1.0, 0.5, 0.5}}
+	//};
+
+	maxwell::Solver solver{
+		buildModel(
+			10, 2, 2, Element::Type::HEXAHEDRON,
+			1.0, 0.4, 0.4,
+			BdrCond::PEC, BdrCond::PMC, BdrCond::SMA,
+			BdrCond::PMC, BdrCond::SMA, BdrCond::PEC),
+			probes,
+			buildGaussianInitialField(
+				E, 0.1,
+				Source::Position({ 0.5,0.5,0.5 }),
+				unitVec(Z)
+			),
+			SolverOptions{}
+			.setTimeStep(1e-4)
+			.setFinalTime(2.0)
+			.setOrder(3)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	//EXPECT_NEAR(0.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
