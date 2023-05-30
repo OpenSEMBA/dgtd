@@ -1195,10 +1195,10 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 
 TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 {
-	auto probes{ buildProbesWithAnExportProbe(1000) };
+	auto probes{ buildProbesWithAnExportProbe() };
 
-	std::vector<double> pointR({ 0.25, 0.25, 0.25 });
-	std::vector<double> pointT({ 2.75, 0.25, 0.25 });
+	std::vector<double> pointR({ 25, 25, 25 });
+	std::vector<double> pointT({ 275, 25, 25 });
 
 	probes.pointProbes = {
 		PointProbe{E, X, pointR},
@@ -1223,14 +1223,14 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{0.16},
-		Source::Position({ 0.7, 0.0, 0.0 }), // center
+		Gaussian{16},
+		Source::Position({ 70, 0.0, 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		mfem::Vector(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
-		.setTimeStep(3.0e-5)
-		.setFinalTime(2.0)
+		.setTimeStep(1.0)
+		.setFinalTime(90.0)
 		.setOrder(3)
 	};
 
