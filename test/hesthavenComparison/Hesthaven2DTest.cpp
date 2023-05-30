@@ -220,7 +220,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
-	auto EigenMP = toEigen(
+	auto EigenMFN = toEigen(
 		*buildByMult(
 			*buildInverseMassMatrix(E, model, fes),
 			*buildOneNormalOperator(H, { X }, model, fes, opts),
@@ -228,11 +228,11 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMP << std::endl;
+	std::cout << EigenMFN << std::endl;
 
-	for (int i = 0; i < EigenMP.rows(); i++) {
-		for (int j = 0; j < EigenMP.cols(); j++) {
-			ASSERT_TRUE(abs(EigenMP(i, j) - OneNormalOperator(i, j)) < 1e-8);
+	for (int i = 0; i < EigenMFN.rows(); i++) {
+		for (int j = 0; j < EigenMFN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFN(i, j) - OneNormalOperator(i, j)) < 1e-8);
 		}
 	}
 
@@ -259,7 +259,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
-	auto EigenMP = toEigen(
+	auto EigenMFN = toEigen(
 		*buildByMult(
 			*buildInverseMassMatrix(E, model, fes),
 			*buildOneNormalOperator(H, { Y }, model, fes, opts),
@@ -267,11 +267,11 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMP << std::endl;
+	std::cout << EigenMFN << std::endl;
 
-	for (int i = 0; i < EigenMP.rows(); i++) {
-		for (int j = 0; j < EigenMP.cols(); j++) {
-			ASSERT_TRUE(abs(EigenMP(i, j) - OneNormalOperator(i, j)) < 1e-8);
+	for (int i = 0; i < EigenMFN.rows(); i++) {
+		for (int j = 0; j < EigenMFN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFN(i, j) - OneNormalOperator(i, j)) < 1e-8);
 		}
 	}
 
@@ -298,7 +298,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
-	auto EigenMP = toEigen(
+	auto EigenMFN = toEigen(
 		*buildByMult(
 			*buildInverseMassMatrix(H, model, fes),
 			*buildOneNormalOperator(E, { Y }, model, fes, opts),
@@ -306,11 +306,11 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMP << std::endl;
+	std::cout << EigenMFN << std::endl;
 
-	for (int i = 0; i < EigenMP.rows(); i++) {
-		for (int j = 0; j < EigenMP.cols(); j++) {
-			ASSERT_TRUE(abs(EigenMP(i, j) - OneNormalOperator(i, j)) < 1e-8);
+	for (int i = 0; i < EigenMFN.rows(); i++) {
+		for (int j = 0; j < EigenMFN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFN(i, j) - OneNormalOperator(i, j)) < 1e-8);
 		}
 	}
 
@@ -337,7 +337,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
-	auto EigenMP = toEigen(
+	auto EigenMFN = toEigen(
 		*buildByMult(
 			*buildInverseMassMatrix(H, model, fes),
 			*buildOneNormalOperator(E, { X }, model, fes, opts),
@@ -345,16 +345,171 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMP << std::endl;
+	std::cout << EigenMFN << std::endl;
 
-	for (int i = 0; i < EigenMP.rows(); i++) {
-		for (int j = 0; j < EigenMP.cols(); j++) {
-			ASSERT_TRUE(abs(EigenMP(i, j) - OneNormalOperator(i, j)) < 1e-8);
+	for (int i = 0; i < EigenMFN.rows(); i++) {
+		for (int j = 0; j < EigenMFN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFN(i, j) - OneNormalOperator(i, j)) < 1e-8);
 		}
 	}
 
 }
 
+TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
+{
+
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+
+	Eigen::MatrixXd TwoNormalOperator{
+		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},
+		{ 0.,  1.76776695,  0.35355339, -0.35355339, -1.76776695,  0.},
+		{ 0.,  0.35355339,  1.76776695, -1.76776695, -0.35355339,  0.},
+		{ 0., -0.35355339, -1.76776695,  1.76776695,  0.35355339,  0.},
+		{ 0., -1.76776695, -0.35355339,  0.35355339,  1.76776695,  0.},
+		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017,  0.}
+	};
+
+	EvolutionOptions opts = EvolutionOptions();
+	opts.order = 1;
+	auto EigenMFNN = toEigen(
+		*buildByMult(
+			*buildInverseMassMatrix(H, model, fes),
+			*buildTwoNormalOperator(H, { X, X }, model, fes, opts),
+			fes
+		)->SpMat().ToDenseMatrix()
+	);
+
+	std::cout << EigenMFNN << std::endl;
+
+	for (int i = 0; i < EigenMFNN.rows(); i++) {
+		for (int j = 0; j < EigenMFNN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFNN(i, j) - TwoNormalOperator(i, j)) < 1e-3);
+		}
+	}
+
+}
+
+TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
+{
+
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+
+	Eigen::MatrixXd TwoNormalOperator{
+		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
+		{ 0., -1.76776695, -0.35355339,  0.35355339,  1.76776695, 0.},
+		{ 0., -0.35355339, -1.76776695,  1.76776695,  0.35355339, 0.},
+		{ 0.,  0.35355339,  1.76776695, -1.76776695, -0.35355339, 0.},
+		{ 0.,  1.76776695,  0.35355339, -0.35355339, -1.76776695, 0.},
+		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017, 0.}
+	};
+
+	EvolutionOptions opts = EvolutionOptions();
+	opts.order = 1;
+	auto EigenMFNN = toEigen(
+		*buildByMult(
+			*buildInverseMassMatrix(H, model, fes),
+			*buildTwoNormalOperator(H, { X, Y }, model, fes, opts),
+			fes
+		)->SpMat().ToDenseMatrix()
+	);
+
+	std::cout << EigenMFNN << std::endl;
+
+	for (int i = 0; i < EigenMFNN.rows(); i++) {
+		for (int j = 0; j < EigenMFNN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFNN(i, j) - TwoNormalOperator(i, j)) < 1e-8);
+		}
+	}
+
+}
+
+TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
+{
+
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+
+	Eigen::MatrixXd TwoNormalOperator{
+		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
+		{ 0., -1.76776695, -0.35355339,  0.35355339,  1.76776695, 0.},
+		{ 0., -0.35355339, -1.76776695,  1.76776695,  0.35355339, 0.},
+		{ 0.,  0.35355339,  1.76776695, -1.76776695, -0.35355339, 0.},
+		{ 0.,  1.76776695,  0.35355339, -0.35355339, -1.76776695, 0.},
+		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017, 0.}
+	};
+
+	EvolutionOptions opts = EvolutionOptions();
+	opts.order = 1;
+	auto EigenMFNN = toEigen(
+		*buildByMult(
+			*buildInverseMassMatrix(H, model, fes),
+			*buildTwoNormalOperator(H, { Y, X }, model, fes, opts),
+			fes
+		)->SpMat().ToDenseMatrix()
+	);
+
+	std::cout << EigenMFNN << std::endl;
+
+	for (int i = 0; i < EigenMFNN.rows(); i++) {
+		for (int j = 0; j < EigenMFNN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFNN(i, j) - TwoNormalOperator(i, j)) < 1e-8);
+		}
+	}
+
+}
+
+TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
+{
+
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&mesh,&fec) };
+
+	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+
+	Eigen::MatrixXd TwoNormalOperator{
+		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},
+		{ 0.,  1.76776695,  0.35355339, -0.35355339, -1.76776695,  0.},
+		{ 0.,  0.35355339,  1.76776695, -1.76776695, -0.35355339,  0.},
+		{ 0., -0.35355339, -1.76776695,  1.76776695,  0.35355339,  0.},
+		{ 0., -1.76776695, -0.35355339,  0.35355339,  1.76776695,  0.},
+		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017,  0.}
+	};
+
+	EvolutionOptions opts = EvolutionOptions();
+	opts.order = 1;
+	auto EigenMFNN = toEigen(
+		*buildByMult(
+			*buildInverseMassMatrix(H, model, fes),
+			*buildTwoNormalOperator(H, { Y, Y }, model, fes, opts),
+			fes
+		)->SpMat().ToDenseMatrix()
+	);
+
+	std::cout << EigenMFNN << std::endl;
+
+	for (int i = 0; i < EigenMFNN.rows(); i++) {
+		for (int j = 0; j < EigenMFNN.cols(); j++) {
+			ASSERT_TRUE(abs(EigenMFNN(i, j) - TwoNormalOperator(i, j)) < 1e-8);
+		}
+	}
+
+}
 
 TEST_F(MFEMHesthaven2D, DsOperator)
 {
