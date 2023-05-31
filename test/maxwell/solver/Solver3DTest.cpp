@@ -1020,7 +1020,7 @@ TEST_F(Solver3DTest, feng_fss)
 
 TEST_F(Solver3DTest, feng_fss_symmetry)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	//std::vector<double> pointR({ 1.0, -7.5, 3.0 });
 	//std::vector<double> pointT({ 29.0, -7.5, 3.0 });
@@ -1040,24 +1040,23 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	//	PointProbe{H, Z, pointT}
 	//};
 
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "fengfssflatsym.msh").c_str(),1,0)};
-	mesh.Transform(rotateMinus90degAlongZAxis);
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "Feng_FSS_Symmetry.msh").c_str(),1,0)};
+	//mesh.Transform(rotateMinus90degAlongZAxis);
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA}};
-	AttributeToInteriorConditions attToIntBdr{ {5, BdrCond::PEC }, {6, BdrCond::NONE} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr};
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	maxwell::Solver solver{
 	model,
 	probes,
 	buildPlanewaveInitialField(
-		Gaussian{15.0},
+		Gaussian{16.0},
 		Source::Position({ 75.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
-		.setTimeStep(1.0)
-		.setFinalTime(30.0)
+		.setTimeStep(1e-1)
+		.setFinalTime(180.0)
 		.setOrder(3)
 	};
 
@@ -1195,7 +1194,7 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 
 TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 {
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(2) };
 
 	std::vector<double> pointR({ 25, 25, 25 });
 	std::vector<double> pointT({ 275, 25, 25 });
@@ -1229,8 +1228,8 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 		mfem::Vector(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
-		.setTimeStep(1.0)
-		.setFinalTime(90.0)
+		.setTimeStep(7.5e-1)
+		.setFinalTime(270.0)
 		.setOrder(3)
 	};
 

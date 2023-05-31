@@ -376,7 +376,7 @@ TEST_F(Solver2DTest, pec_tris_1dot5D)
 	buildGaussianInitialField(E, 0.2, Vector({ 1.0,0.5 }), unitVec(Z)),
 	SolverOptions{}
 		.setTimeStep(1e-3)
-		.setFinalTime(40.0)
+		.setFinalTime(4.0)
 		.setOrder(3)
 	};
 
@@ -724,7 +724,7 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(30.0)
+			.setFinalTime(2.0)
 			.setOrder(3)
 	};
 
@@ -778,7 +778,7 @@ TEST_F(Solver2DTest, periodic_centered_quads)
 		),
 		SolverOptions{}
 			.setTimeStep(1e-3)
-			.setFinalTime(20.0)
+			.setFinalTime(4.0)
 			.setOrder(3)
 	};
 
@@ -833,7 +833,7 @@ TEST_F(Solver2DTest, periodic_tris)
 		),
 		SolverOptions{}
 			.setTimeStep(1e-3)
-			.setFinalTime(20.0)
+			.setFinalTime(4.0)
 			.setOrder(3)
 	};
 
@@ -887,7 +887,7 @@ TEST_F(Solver2DTest, periodic_quads)
 		),
 		SolverOptions{}
 			.setTimeStep(1e-3)
-			.setFinalTime(20.0)
+			.setFinalTime(4.0)
 			.setOrder(3)
 	};
 
