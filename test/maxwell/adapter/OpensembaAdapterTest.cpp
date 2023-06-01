@@ -8,9 +8,25 @@ using namespace maxwell;
 class OpensembaAdapterTest : public ::testing::Test {
 };
 
+TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode_options)
+{
+	auto fn{ smbInputsFolder() + "2D_box_resonant_mode/2D_box_resonant_mode.smb.json" };
+	OpensembaAdapter smbAdapter(fn);
+
+	auto opts{ smbAdapter.readSolverOptions() };
+
+	EXPECT_EQ(0.0, opts.timeStep);
+	EXPECT_EQ(2.0, opts.finalTime);
+	EXPECT_EQ(0.8, opts.cfl);
+
+	EXPECT_EQ(2, opts.evolution.order);
+	EXPECT_EQ(FluxType::Centered, opts.evolution.fluxType);
+	EXPECT_EQ(false, opts.evolution.spectral);
+}
+
 TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode)
 {
-	auto fn{ smbInputsFolder() + getCaseName() + ".smb.json" };
+	auto fn{ smbInputsFolder() + "2D_box_resonant_mode.smb.json" };
 	OpensembaAdapter smbAdapter(fn);
 
 	auto prob{ smbAdapter.readProblem() };

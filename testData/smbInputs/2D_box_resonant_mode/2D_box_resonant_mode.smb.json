@@ -3,14 +3,17 @@
   "_format": "Semba Data File in JSON format",
   "analysis": {
     "solver": "opensemba/dgtd",
-    "evolution": {
-      "order": 2,
-      "fluxType": "centered",
-      "spectral": false
-    },
-    "finalTime": 3e-09,
-    "timeStep": 3.08133312e-08,
-    "cfl": 0.8
+    "units": "natural",
+    "solverOptions": {
+      "evolution": {
+        "order": 2,
+        "fluxType": "centered",
+        "spectral": false
+      },
+      "finalTime": 2.0,
+      "timeStep": 0.0,
+      "cfl": 0.8
+    }
   },
   "model": {
     "materials": [

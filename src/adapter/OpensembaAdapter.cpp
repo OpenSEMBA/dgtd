@@ -122,13 +122,19 @@ SolverOptions OpensembaAdapter::readSolverOptions() const
 		throw std::logic_error("Invalid solver input.");
 	}
 
+	if (analysis->at("units").get<std::string>() != "natural") {
+		throw std::logic_error("Invalid units.");
+	}
+
+	auto& sO{ analysis->at("solverOptions") };
+
 	SolverOptions r;
-    OptionsBase::setIfExists<double>(*analysis, r.finalTime, "finalTime");
-	OptionsBase::setIfExists<double>(*analysis, r.timeStep,  "timeStep");
-	OptionsBase::setIfExists<double>(*analysis, r.cfl,       "cfl");
+    OptionsBase::setIfExists<double>(sO, r.finalTime, "finalTime");
+	OptionsBase::setIfExists<double>(sO, r.timeStep,  "timeStep");
+	OptionsBase::setIfExists<double>(sO, r.cfl,       "cfl");
 	
-	auto& evolution{ analysis->find("evolution")};
-	if (evolution != analysis->end()) {
+	auto& evolution{ sO.find("evolution")};
+	if (evolution != sO.end()) {
 		r.evolution = readEvolutionOptions(*evolution);
 	}
 	
