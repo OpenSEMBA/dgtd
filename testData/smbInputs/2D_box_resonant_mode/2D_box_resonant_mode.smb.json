@@ -36,7 +36,8 @@
     {
       "sourceType": "initialField",
       "function": {
-        "type": "sinusoidal"
+        "type": "sinusoidalMode",
+        "modes": [2, 2]
       },
       "fieldType": "E",
       "polarization": [ 0, 0, 1 ],

@@ -28,15 +28,14 @@ static Sources buildGaussianInitialField(
 static Sources buildResonantModeInitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
-	const std::vector<std::size_t>& modes = { 1 },
-	const int dim = 1)
+	const std::vector<std::size_t>& modes = { 1 })
 {
 	Sources res;
-	Source::Position center_(dim);
+	Source::Position center_((int) modes.size());
 	center_ = 0.0;
 	res.add(
 		std::make_unique<InitialField>(
-			SinusoidalMode{ dim, modes }, ft, p, center_
+			SinusoidalMode{ modes }, ft, p, center_
 		)
 	);
 	return res;

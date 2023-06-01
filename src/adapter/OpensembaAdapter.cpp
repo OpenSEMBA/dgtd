@@ -10,6 +10,32 @@ using json = nlohmann::json;
 
 namespace maxwell {
 
+FluxType strToFluxType(const std::string& label)
+{
+	if (label == "centered") {
+		return FluxType::Centered;
+	}
+	else if (label == "upwind") {
+		return FluxType::Upwind;
+	}
+	else {
+		throw std::runtime_error("Invalid flux type label.");
+	}
+}
+
+FieldType strToFieldType(const std::string& label)
+{
+	if (label == "E") {
+		return FieldType::E;
+	}
+	else if (label == "H") {
+		return FieldType::H;
+	}
+	else {
+		throw std::runtime_error("Invalid field type label.");
+	}
+}
+
 OpensembaAdapter::OpensembaAdapter(const std::string& fn) :
 	filename_{fn}
 {
@@ -26,16 +52,70 @@ OpensembaAdapter::OpensembaAdapter(const std::string& fn) :
 	}
 }
 
-//Sources readSources(const json& j)
-//{
-//	// TODO
-//}
-//
-//Probes readProbes(const json& j)
-//{
-//	// TODO
-//}
-//
+template <class T>
+std::vector<T> readVector(const json& j)
+{
+	std::vector<T> r;
+	for (const auto& v : j) {
+		r.push_back(v.get<T>());
+	}
+	return r;
+}
+
+std::unique_ptr<Function> readFunction(const json& j)
+{
+	auto f{ j["function"] };
+	auto type{ f["type"].get<std::string>() };
+	if (type == "sinusoidalMode") {
+		return std::make_unique<SinusoidalMode>(
+			readVector<std::size_t>(j["modes"])
+		);
+	}
+	else {
+		throw std::runtime_error("Unsupported function.");
+	}
+}
+
+mfem::Vector toMFEMVector(const std::vector<double>& v)
+{
+	mfem::Vector r(v.size());
+	std::copy(v.begin(), v.end(), r.begin());
+	return r;
+}
+
+InitialField readInitialFieldSource(const json& j)
+{
+	return {
+		*readFunction(j["function"]),
+		strToFieldType(j["fieldType"].get<std::string>()),
+		toMFEMVector(readVector<double>(j["polarization"])),
+		toMFEMVector(readVector<double>(j["position"])),
+	};
+}
+
+Sources readSources(const json& j)
+{
+	auto srcs{ j.find("sources")};
+	Sources r;
+	for (const auto& s : *srcs) {
+		auto type{ s["sourceType"].get<std::string>() };
+		if (type == "initialField") {
+			r.add(readInitialFieldSource(s));
+		}
+		else {
+			throw std::runtime_error(
+				"Unsupported source type."
+			);
+		}
+	}
+	return r;
+}
+
+Probes readProbes(const json& j)
+{
+	return {};
+}
+
 mfem::Mesh OpensembaAdapter::readMesh(const json& j) const
 {
 	if (j["mesh"]["type"] != "gmsh") {
@@ -80,7 +160,6 @@ Model OpensembaAdapter::readModel(const json& j) const
 		// TODO
 	}
 
-
 	return { 
 		readMesh(*modelJSON), 
 		attToMat, 
@@ -91,26 +170,11 @@ Model OpensembaAdapter::readModel(const json& j) const
 
 Problem OpensembaAdapter::readProblem() const
 {
-	Problem r;
-	auto model{ readModel(json_) };
-	//auto sources{ readSources(json_)};
-	//auto probes{ readProbes(json_) };
-	
-
-	return r;
-}
-
-FluxType strToFluxType(const std::string& label)
-{
-	if (label == "centered") {
-		return FluxType::Centered;
-	}
-	else if (label == "upwind") {
-		return FluxType::Upwind;
-	}
-	else {
-		throw std::runtime_error("Invalid flux type label.");
-	}
+	return { 
+		readModel(json_) ,
+		readProbes(json_),
+		readSources(json_)
+	};
 }
 
 EvolutionOptions readEvolutionOptions(const json& j)

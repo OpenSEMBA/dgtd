@@ -122,6 +122,12 @@ public:
 		return v_.back().get();
 	}
 
+	Source* add(const Source& newV)
+	{
+		v_.push_back(newV.clone());
+		return v_.back().get();
+	}
+
 	std::size_t size() const
 	{
 		return v_.size();
