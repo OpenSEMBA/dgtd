@@ -1,5 +1,7 @@
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include "components/Problem.h"
 #include "solver/SolverOptions.h"
 
@@ -14,6 +16,7 @@ public:
 
 private:
 	std::string filename_;
+	nlohmann::json json_;
 };
 
 }

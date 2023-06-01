@@ -3,7 +3,7 @@
   "_format": "Semba Data File in JSON format",
   "analysis": {
     "solver": "opensemba/dgtd",
-    "evolutionOptions": {
+    "evolution": {
       "order": 2,
       "fluxType": "centered",
       "spectral": false
@@ -15,31 +15,34 @@
   "model": {
     "materials": [
       {
-        "id": 1,
         "name": "vacuum",
+        "id": 1,
         "materialType": "Vacuum"
       },
       {
-        "id": 2,
         "name": "pec",
+        "id": 2,
         "materialType": "PEC"
       }
     ],
     "mesh": {
       "type": "gmsh" 
     }
-    
   },
   "sources": [
     {
       "sourceType": "initialField",
-      "function": "sinusoidal"
+      "function": {
+        "type": "sinusoidal"
+      },
+      "fieldType": "E",
+      "polarization": [ 0, 0, 1 ],
+      "position": [ 0, 0, 0 ]
     }
   ],
   "probes": [
     {
-      "type": "paraview_export",
-      "visSteps": 1
+      "type": "exporter"
     }
   ]
 }

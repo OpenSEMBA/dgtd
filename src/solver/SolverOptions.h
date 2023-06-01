@@ -5,16 +5,15 @@
 namespace maxwell {
 
 struct SolverOptions {
-    int order = 2;
-    double dt = 0.0;
+    double timeStep = 0.0;
     double finalTime = 2.0;
-    double CFL = 0.8;
+    double cfl = 0.8;
 
-    EvolutionOptions evolutionOperatorOptions;
+    EvolutionOptions evolution;
     
     SolverOptions& setTimeStep(double t) 
     {
-        dt = t;
+        timeStep = t;
         return *this;
     };
 
@@ -26,24 +25,24 @@ struct SolverOptions {
 
     SolverOptions& setCentered() 
     {
-        evolutionOperatorOptions.fluxType = FluxType::Centered;
+        evolution.fluxType = FluxType::Centered;
         return *this;
     };
 
     SolverOptions& setCFL(double cfl) 
     {
-        CFL = cfl;
+        cfl = cfl;
         return *this;
     }
 
     SolverOptions& setOrder(int orderIn) 
     {
-        order = orderIn;
+        evolution.order = orderIn;
         return *this;
     }
 
     SolverOptions& setSpectralEO(bool spectral = true) {
-        evolutionOperatorOptions.spectral = spectral;
+        evolution.spectral = spectral;
         return *this;
     }
     //SolverOptions& setBasis(BasisType bst) {

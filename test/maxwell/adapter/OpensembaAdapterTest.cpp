@@ -10,7 +10,7 @@ class OpensembaAdapterTest : public ::testing::Test {
 
 TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode)
 {
-	auto fn{ smbInputsFolder() + getTestCaseName() + ".smb.json" };
+	auto fn{ smbInputsFolder() + getCaseName() + ".smb.json" };
 	OpensembaAdapter smbAdapter(fn);
 
 	auto prob{ smbAdapter.readProblem() };

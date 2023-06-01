@@ -1032,8 +1032,8 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 //	Mesh mesh2DPer = Mesh::MakePeriodic(mesh2D, mesh2D.CreatePeriodicVertexMapping(trans));
 //
 //	maxwell::Solver::Options opts;
-//	opts.evolutionOperatorOptions = FiniteElementEvolution::Options();
-//	opts.evolutionOperatorOptions.disForm = DisForm::Strong;
+//	opts.evolution = FiniteElementEvolution::Options();
+//	opts.evolution.disForm = DisForm::Strong;
 //
 //	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
 //
@@ -1081,7 +1081,7 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 //	sources.addSourceToVector(Source(model, E, Z, 2.0, 20.0, Vector({ 0.0, 0.0 })));
 //
 //	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts(2.92);
-//	solverOpts.evolutionOperatorOptions.fluxType = FluxType::Centered;
+//	solverOpts.evolution.fluxType = FluxType::Centered;
 //
 //	maxwell::Solver solver(model, probes, sources, solverOpts);
 //
@@ -1115,7 +1115,7 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 //	maxwell::Solver::Options solverOpts;
 //
 //	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
-//	solverOpts.dt = 1e-4;
+//	solverOpts.timeStep = 1e-4;
 //	solverOpts.order = 1;
 //
 //	maxwell::Solver solver(model, probes,

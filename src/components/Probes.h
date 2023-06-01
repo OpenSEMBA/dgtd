@@ -12,7 +12,6 @@ using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
 struct ExporterProbe {
     std::string name{"MaxwellView"};
     int visSteps{ 10 };
-    double finalTime{ 0.0 };
 };
 
 class PointProbe {

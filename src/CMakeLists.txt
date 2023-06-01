@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(maxwell)
+
 
 if (MAXWELL_USE_MPI)
 	message(STATUS "MAXWELL_USE_MPI:" ${MAXWELL_USE_MPI})

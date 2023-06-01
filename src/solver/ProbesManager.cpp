@@ -32,10 +32,6 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 	for (const auto& p: probes.exporterProbes) {
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
 	}
-
-	for (auto& p : probes.exporterProbes) {
-		p.finalTime = opts.finalTime;
-	}
 	
 	for (const auto& p : probes.pointProbes) {
 		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
@@ -89,7 +85,7 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 
 void ProbesManager::updateProbe(ExporterProbe& p, double time)
 {
-	if (cycle_ % p.visSteps != 0 && p.finalTime != time) {
+	if (cycle_ % p.visSteps != 0) {
 		return;
 	}
 
