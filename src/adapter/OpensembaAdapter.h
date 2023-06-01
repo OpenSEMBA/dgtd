@@ -15,8 +15,13 @@ public:
 	SolverOptions readSolverOptions() const;
 
 private:
+	using json = nlohmann::json;
+
 	std::string filename_;
-	nlohmann::json json_;
+	json json_;
+
+	Model readModel(const json& j) const;
+	mfem::Mesh readMesh(const json& j) const;
 };
 
 }

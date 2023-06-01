@@ -36,25 +36,34 @@ OpensembaAdapter::OpensembaAdapter(const std::string& fn) :
 //	// TODO
 //}
 //
-mfem::Mesh readMesh(const json& j)
+mfem::Mesh OpensembaAdapter::readMesh(const json& j) const
 {
-	// TODO
-	return mfem::Mesh("");
+	if (j["mesh"]["type"] != "gmsh") {
+		throw std::runtime_error(
+			"Invalid mesh type. Only gmsh files are supported"
+		);
+	}
+
+	semba::util::ProjectFile fn{ filename_ };
+	auto caseName{
+		semba::util::ProjectFile::removeExtension(
+			semba::util::ProjectFile::removeExtension(
+				fn.getBasename()
+			)
+		)
+	};
+	auto meshFilename{fn.getFolder() + caseName + ".msh" };
+	return mfem::Mesh{ meshFilename.c_str() };
 }
 
-Model readModel(const json& j)
+Model OpensembaAdapter::readModel(const json& j) const
 {
 	auto modelJSON{ j.find("model") };
 	if (modelJSON == j.end()) {
 		throw std::runtime_error("Can not find \"model\" label.");
 	}
 
-	auto materialsJSON{ modelJSON->find("materials") };
-	if (materialsJSON == modelJSON->end()) {
-		throw std::runtime_error("Can not find \"materials\" label.");
-	}
-	
-	auto pm{ semba::parsers::JSON::readMaterials(*materialsJSON) };
+	auto pm{ semba::parsers::JSON::readMaterials(*modelJSON)};
 	
 	AttributeToMaterial attToMat;
 	for (const auto& mat : pm) {
@@ -72,7 +81,12 @@ Model readModel(const json& j)
 	}
 
 
-	return { readMesh(*modelJSON), attToMat, attToBdr, attToInteriorConditions };
+	return { 
+		readMesh(*modelJSON), 
+		attToMat, 
+		attToBdr, 
+		attToInteriorConditions 
+	};
 }
 
 Problem OpensembaAdapter::readProblem() const

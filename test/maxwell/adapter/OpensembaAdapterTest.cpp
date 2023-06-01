@@ -5,12 +5,17 @@
 
 using namespace maxwell;
 
+std::string caseFile(const std::string& caseName)
+{
+	return caseName + "/" + caseName + ".smb.json";
+}
+
 class OpensembaAdapterTest : public ::testing::Test {
 };
 
 TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode_options)
 {
-	auto fn{ smbInputsFolder() + "2D_box_resonant_mode/2D_box_resonant_mode.smb.json" };
+	auto fn{ smbInputsFolder() + caseFile("2D_box_resonant_mode") };
 	OpensembaAdapter smbAdapter(fn);
 
 	auto opts{ smbAdapter.readSolverOptions() };
@@ -24,13 +29,12 @@ TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode_options)
 	EXPECT_EQ(false, opts.evolution.spectral);
 }
 
-TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode)
+TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode_problem)
 {
-	auto fn{ smbInputsFolder() + "2D_box_resonant_mode.smb.json" };
+	auto fn{ smbInputsFolder() + caseFile("2D_box_resonant_mode") };
 	OpensembaAdapter smbAdapter(fn);
 
 	auto prob{ smbAdapter.readProblem() };
-	auto opts{ smbAdapter.readSolverOptions() };
 
 	EXPECT_GT(0, prob.model.getMesh().GetNE());
 	EXPECT_GT(0, prob.model.getMesh().GetNBE());
