@@ -38,6 +38,10 @@ public:
 		const Position&, const Time&, 
 		const FieldType&, const Direction&) const;
 
+	FieldType& fieldType() { return fieldType_; }
+	Polarization& polarization() { return polarization_; }
+	Function* magnitude() { return magnitude_.get(); }
+
 private:
 	std::unique_ptr<Function> magnitude_;
 	FieldType fieldType_{ E };

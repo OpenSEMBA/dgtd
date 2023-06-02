@@ -36,6 +36,23 @@ FieldType strToFieldType(const std::string& label)
 	}
 }
 
+template <class T>
+std::vector<T> readVector(const json& j)
+{
+	std::vector<T> r;
+	for (const auto& v : j) {
+		r.push_back(v.get<T>());
+	}
+	return r;
+}
+
+mfem::Vector toMFEMVector(const std::vector<double>& v)
+{
+	mfem::Vector r(v.size());
+	std::copy(v.begin(), v.end(), r.begin());
+	return r;
+}
+
 OpensembaAdapter::OpensembaAdapter(const std::string& fn) :
 	filename_{fn}
 {
@@ -52,20 +69,9 @@ OpensembaAdapter::OpensembaAdapter(const std::string& fn) :
 	}
 }
 
-template <class T>
-std::vector<T> readVector(const json& j)
-{
-	std::vector<T> r;
-	for (const auto& v : j) {
-		r.push_back(v.get<T>());
-	}
-	return r;
-}
-
 std::unique_ptr<Function> readFunction(const json& j)
 {
-	auto f{ j["function"] };
-	auto type{ f["type"].get<std::string>() };
+	auto type{ j["type"].get<std::string>() };
 	if (type == "sinusoidalMode") {
 		return std::make_unique<SinusoidalMode>(
 			readVector<std::size_t>(j["modes"])
@@ -74,13 +80,6 @@ std::unique_ptr<Function> readFunction(const json& j)
 	else {
 		throw std::runtime_error("Unsupported function.");
 	}
-}
-
-mfem::Vector toMFEMVector(const std::vector<double>& v)
-{
-	mfem::Vector r(v.size());
-	std::copy(v.begin(), v.end(), r.begin());
-	return r;
 }
 
 InitialField readInitialFieldSource(const json& j)
@@ -111,9 +110,30 @@ Sources readSources(const json& j)
 	return r;
 }
 
+ExporterProbe readExporterProbe(const json& j)
+{
+	return {
+		j["name"].get<std::string>(),
+		j["visSteps"].get<int>()
+	};
+}
+
 Probes readProbes(const json& j)
 {
-	return {};
+	auto ps{ j.find("probes") };
+	Probes r;
+	for (const auto& p : *ps) {
+		auto type{ p["type"].get<std::string>() };
+		if (type == "exporter") {
+			r.exporterProbes.push_back(readExporterProbe(p));
+		}
+		else {
+			throw std::runtime_error(
+				"Unsupported probe type."
+			);
+		}
+	}
+	return r;
 }
 
 mfem::Mesh OpensembaAdapter::readMesh(const json& j) const
@@ -170,11 +190,17 @@ Model OpensembaAdapter::readModel(const json& j) const
 
 Problem OpensembaAdapter::readProblem() const
 {
-	return { 
-		readModel(json_) ,
-		readProbes(json_),
-		readSources(json_)
-	};
+	try {
+		return {
+			readModel(json_) ,
+			readProbes(json_),
+			readSources(json_)
+		};
+	}
+	catch (json::exception& e) {
+		std::cout << e.what() << '\n';
+	}
+	
 }
 
 EvolutionOptions readEvolutionOptions(const json& j)

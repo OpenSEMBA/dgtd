@@ -46,7 +46,9 @@
   ],
   "probes": [
     {
-      "type": "exporter"
+      "type": "exporter",
+      "name": "maxwell_fields",
+      "visSteps": 10
     }
   ]
 }
