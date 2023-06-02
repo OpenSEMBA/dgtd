@@ -3,10 +3,12 @@
 #include "parsers/json/Parser.h"
 #include "core/ProblemDescription.h"
 #include "core/util/OptionsBase.h"
+#include "core/physicalModel/physicalModels.h"
 
 using semba::util::OptionsBase;
 using semba::PMGroup;
 using json = nlohmann::json;
+
 
 namespace maxwell {
 
@@ -163,21 +165,20 @@ Model OpensembaAdapter::readModel(const json& j) const
 		throw std::runtime_error("Can not find \"model\" label.");
 	}
 
-	auto pm{ semba::parsers::JSON::readMaterials(*modelJSON)};
-	
 	AttributeToMaterial attToMat;
-	for (const auto& mat : pm) {
-		// TODO
-	}
-
 	AttributeToBoundary attToBdr;
-	for (const auto& mat : pm) {
-		// TODO
-	}
-
 	AttributeToBoundary attToInteriorConditions;
-	for (const auto& mat : pm) {
-		// TODO
+	for (const auto& m : semba::parsers::JSON::readMaterials(*modelJSON)) {
+		Attribute att( m->getId().toInt() );
+		if (m->is<semba::physicalModel::Vacuum>()) {
+			attToMat.emplace(att, buildVacuumMaterial());
+		} 
+		else if (m->is<semba::physicalModel::PEC>()) {
+			attToBdr.emplace(att, BdrCond::PEC);
+		}
+		else {
+			throw std::runtime_error("Unsupported material.");
+		}
 	}
 
 	return { 

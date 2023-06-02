@@ -16,4 +16,9 @@ Material::Material(double epsilon, double mu) :
 	}
 }
 
+Material buildVacuumMaterial()
+{
+	return Material(1.0, 1.0);
+}
+
 }

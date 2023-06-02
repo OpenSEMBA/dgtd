@@ -1,10 +1,11 @@
 #pragma once
 
-#include <mfem.hpp>
-#include <map>
-
-#include "Material.h"
 #include "Types.h"
+#include "Material.h"
+
+#include <mfem.hpp>
+
+#include <map>
 
 namespace maxwell {
 
