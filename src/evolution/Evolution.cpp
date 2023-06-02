@@ -28,9 +28,6 @@ Evolution::Evolution(
 		}
 	}
 
-	MP_[E]->SpMat().ToDenseMatrix()->Print(std::cout);
-	std::cout << std::flush;
-
 	for (auto f : { E, H }) {//TFSF - SrcConds
 		for (auto d : { X, Y, Z }) {
 			MBF_[f][d] = buildIBFIByMult(

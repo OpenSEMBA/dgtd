@@ -11,7 +11,7 @@
         "spectral": false
       },
       "finalTime": 2.0,
-      "timeStep": 0.0,
+      "timeStep": 5e-4,
       "cfl": 0.8
     }
   },
@@ -41,14 +41,14 @@
       },
       "fieldType": "E",
       "polarization": [ 0, 0, 1 ],
-      "position": [ 0, 0, 0 ]
+      "position": [ 0, 0 ]
     }
   ],
   "probes": [
     {
       "type": "exporter",
       "name": "maxwell_fields",
-      "visSteps": 10
+      "visSteps": 20
     }
   ]
 }

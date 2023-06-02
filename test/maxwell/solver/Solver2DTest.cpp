@@ -5,6 +5,7 @@
 
 #include "solver/Solver.h"
 
+
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
@@ -801,7 +802,7 @@ TEST_F(Solver2DTest, periodic_centered_quads)
 
 TEST_F(Solver2DTest, periodic_tris)
 {
-	auto probes{ buildProbesWithAnExportProbe(1000) };
+	auto probes{ buildProbesWithAnExportProbe(10) };
 	//Probes probes;
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
@@ -1189,4 +1190,13 @@ TEST_F(Solver2DTest, DISABLED_box_with_Gmsh)
 		.setFinalTime(2.0)
 		.setOrder(4)
 	};
+}
+
+TEST_F(Solver2DTest, 2D_box_resonant_mode)
+{
+	maxwell::Solver solver{ smbCase(getCaseName()) };
+
+	solver.run();
+
+	EXPECT_TRUE(false);
 }

@@ -1,8 +1,10 @@
+#include "Solver.h"
+
+#include "adapter/OpensembaAdapter.h"
+
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-
-#include "Solver.h"
 
 using namespace mfem;
 
@@ -22,8 +24,16 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
+Solver::Solver(const std::string& smbFilename) :
+	Solver{ OpensembaAdapter{smbFilename}.readSolverInput() }
+{}
+
+Solver::Solver(const SolverInput& in) :
+	Solver{in.problem, in.options}
+{}
+
 Solver::Solver(const Problem& problem, const SolverOptions& options) :
-	Solver(problem.model, problem.probes, problem.sources, options)
+	Solver{problem.model, problem.probes, problem.sources, options}
 {}
 
 Solver::Solver(
@@ -44,7 +54,7 @@ Solver::Solver(
 	checkOptionsAreValid(opts_);
 
 	if (opts_.timeStep == 0.0) {
-		dt_ = getTimeStep();
+		dt_ = estimateTimeStep();
 	}
 	else {
 		dt_ = opts_.timeStep;
@@ -114,7 +124,7 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 	return res;
 }
 
-double Solver::getTimeStep()
+double Solver::estimateTimeStep() const
 {
 	double signalSpeed{ 1.0 };
 	double maxTimeStep{ 0.0 };

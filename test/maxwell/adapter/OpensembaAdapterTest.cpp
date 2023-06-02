@@ -5,10 +5,6 @@
 
 using namespace maxwell;
 
-std::string caseFile(const std::string& caseName)
-{
-	return caseName + "/" + caseName + ".smb.json";
-}
 
 bool equalMFEMVectors(const mfem::Vector& a, const mfem::Vector& b) 
 {
@@ -23,7 +19,7 @@ class OpensembaAdapterTest : public ::testing::Test {
 
 TEST_F(OpensembaAdapterTest, 2D_box_resonant_mode)
 {
-	auto fn{ smbInputsFolder() + caseFile("2D_box_resonant_mode") };
+	auto fn{smbCase("2D_box_resonant_mode") };
 	OpensembaAdapter smbAdapter(fn);
 
 	// SolverOptions parsing.

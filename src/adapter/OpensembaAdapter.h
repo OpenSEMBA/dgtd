@@ -2,8 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "components/Problem.h"
-#include "solver/SolverOptions.h"
+#include "solver/SolverInput.h"
 
 namespace maxwell {
 
@@ -13,6 +12,7 @@ public:
 
 	Problem readProblem() const;
 	SolverOptions readSolverOptions() const;
+	SolverInput readSolverInput() const;
 
 private:
 	using json = nlohmann::json;

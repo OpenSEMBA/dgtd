@@ -246,5 +246,12 @@ SolverOptions OpensembaAdapter::readSolverOptions() const
 	return r;
 };
 
+SolverInput OpensembaAdapter::readSolverInput() const
+{
+	return {
+		readProblem(),
+		readSolverOptions()
+	};
+}
 
 }
