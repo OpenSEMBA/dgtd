@@ -27,8 +27,12 @@ gmsh.model.occ.synchronize()
 # Creates physical groups
 gmsh.model.addPhysicalGroup(2, [region[0][1]], material_tag['Vacuum'])
 
+pec_bdr = []
 for line in boundary:
-    gmsh.model.addPhysicalGroup(1, [line[1]], material_tag['PEC'])
+    pec_bdr.append(line[1])
+
+gmsh.model.addPhysicalGroup(1, pec_bdr, material_tag['PEC'])
+gmsh.model.setPhysicalName(1, material_tag['PEC'], 'PEC')
 
 
 # Meshing.
