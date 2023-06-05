@@ -1,8 +1,10 @@
+#include "Solver.h"
+
+#include "adapter/OpensembaAdapter.h"
+
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-
-#include "Solver.h"
 
 using namespace mfem;
 
@@ -22,8 +24,16 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
+Solver::Solver(const std::string& smbFilename) :
+	Solver{ OpensembaAdapter{smbFilename}.readSolverInput() }
+{}
+
+Solver::Solver(const SolverInput& in) :
+	Solver{in.problem, in.options}
+{}
+
 Solver::Solver(const Problem& problem, const SolverOptions& options) :
-	Solver(problem.model, problem.probes, problem.sources, options)
+	Solver{problem.model, problem.probes, problem.sources, options}
 {}
 
 Solver::Solver(
@@ -33,7 +43,7 @@ Solver::Solver(
 	const SolverOptions& options) :
 	opts_{ options },
 	model_{ model },
-	fec_{ opts_.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
+	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
 	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
 	fields_{ *fes_ },
 	sourcesManager_{ sources, *fes_ },
@@ -43,20 +53,20 @@ Solver::Solver(
 	
 	checkOptionsAreValid(opts_);
 
-	if (opts_.dt == 0.0) {
-		dt_ = getTimeStep();
+	if (opts_.timeStep == 0.0) {
+		dt_ = estimateTimeStep();
 	}
 	else {
-		dt_ = opts_.dt;
+		dt_ = opts_.timeStep;
 	}
 
-	if (opts_.evolutionOperatorOptions.spectral == true) {
-		performSpectralAnalysis(*fes_.get(), model_, opts_.evolutionOperatorOptions);
+	if (opts_.evolution.spectral == true) {
+		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 
 	sourcesManager_.setInitialFields(fields_);
 	maxwellEvol_ = std::make_unique<Evolution>(
-			*fes_, model_, sourcesManager_, opts_.evolutionOperatorOptions);
+			*fes_, model_, sourcesManager_, opts_.evolution);
 	
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
@@ -68,12 +78,12 @@ Solver::Solver(
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
-	if ((opts.order < 0) ||
+	if ((opts.evolution.order < 0) ||
 		(opts.finalTime < 0)) {
 		throw std::runtime_error("Incorrect parameters in Options");
 	}
 
-	if (opts.dt == 0.0) {
+	if (opts.timeStep == 0.0) {
 		if (fes_->GetMesh()->Dimension() > 1) {
 			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
 		}
@@ -81,7 +91,7 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 
 	for (const auto& bdrMarker : model_.getBoundaryToMarker())
 	{
-		if (bdrMarker.first == BdrCond::SMA && opts_.evolutionOperatorOptions.fluxType == FluxType::Centered) {
+		if (bdrMarker.first == BdrCond::SMA && opts_.evolution.fluxType == FluxType::Centered) {
 			throw std::runtime_error("SMA and Centered FluxType are not compatible.");
 		}
 	}
@@ -114,17 +124,17 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 	return res;
 }
 
-double Solver::getTimeStep()
+double Solver::estimateTimeStep() const
 {
 	double signalSpeed{ 1.0 };
 	double maxTimeStep{ 0.0 };
-	if (opts_.order == 0) {
+	if (opts_.evolution.order == 0) {
 		maxTimeStep = getMinimumInterNodeDistance(*fes_) / signalSpeed;
 	}
 	else {
-		maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.order, 1.5) / signalSpeed;
+		maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / signalSpeed;
 	}
-	return opts_.CFL * maxTimeStep;
+	return opts_.cfl * maxTimeStep;
 }
 
 void Solver::run()
@@ -273,11 +283,11 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	auto time { 0.0 };
 	maxwellEvol.SetTime(time);
 	odeSolver_->Init(maxwellEvol);
-	odeSolver_->Step(real, time, opts_.dt);
+	odeSolver_->Step(real, time, opts_.timeStep);
 	time = 0.0;
 	maxwellEvol.SetTime(time);
 	odeSolver_->Init(maxwellEvol);
-	odeSolver_->Step(imag, time, opts_.dt);
+	odeSolver_->Step(imag, time, opts_.timeStep);
 	
 	for (int i = 0; i < real.Size(); ++i) {
 		
@@ -323,7 +333,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 			submeshFES,
 			model,
 			srcs,
-			opts_.evolutionOperatorOptions
+			opts_.evolution
 		};
 		evaluateStabilityByEigenvalueEvolutionFunction(eigenvals, evol);
 	}

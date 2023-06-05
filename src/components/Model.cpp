@@ -41,6 +41,16 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 	assembleAttToTypeMap(attToIntSrcMap_, intSrcToMarkerMap_);
 }
 
+std::size_t Model::numberOfMaterials() const
+{
+	return attToMatMap_.size();
+}
+
+std::size_t Model::numberOfBoundaryMaterials() const
+{
+	return attToBdrMap_.size();
+}
+
 mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 {
 	mfem::Vector res;
