@@ -17,4 +17,6 @@ private:
 	double epsilon_, mu_;
 };
 
+Material buildVacuumMaterial();
+
 }

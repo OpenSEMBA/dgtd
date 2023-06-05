@@ -1,12 +1,12 @@
 #pragma once
 
-#include "components/Problem.h"
-#include "evolution/Fields.h"
-#include "evolution/Evolution.h"
-
+#include "SolverInput.h"
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
+
+#include "evolution/Fields.h"
+#include "evolution/Evolution.h"
 
 namespace maxwell {
 
@@ -17,6 +17,8 @@ public:
     using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
     
+    Solver(const std::string& smbFilename);
+    Solver(const SolverInput&);
     Solver(const Problem&, const SolverOptions& = SolverOptions());
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
@@ -27,7 +29,9 @@ public:
     const PointProbe& getPointProbe(const std::size_t probe) const;
 
     double getTime() const { return time_; }
-    double getTimeStep();
+    double getTimeStep() const { return dt_; }
+    
+    double estimateTimeStep() const;
 
     const mfem::TimeDependentOperator* getFEEvol() const { return maxwellEvol_.get(); }
 

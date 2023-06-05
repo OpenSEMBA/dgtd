@@ -40,7 +40,9 @@ mesh.mesh
 *.out
 *.app
 
-testData/hopfion/hopfion_p1_q1.txt
+*.FCStd1
+
+
 .vs/*
 out/*
 /CMakeSettings.json
@@ -80,3 +82,4 @@ out/*
 /fss_sym_10.txt
 /fss_sym_1.txt
 /fss_sym_0.txt
+.vscode/settings.json

@@ -38,6 +38,10 @@ public:
 		const Position&, const Time&, 
 		const FieldType&, const Direction&) const;
 
+	FieldType& fieldType() { return fieldType_; }
+	Polarization& polarization() { return polarization_; }
+	Function* magnitude() { return magnitude_.get(); }
+
 private:
 	std::unique_ptr<Function> magnitude_;
 	FieldType fieldType_{ E };
@@ -120,6 +124,17 @@ public:
 	{
 		v_.push_back(std::move(newV));
 		return v_.back().get();
+	}
+
+	Source* add(const Source& newV)
+	{
+		v_.push_back(newV.clone());
+		return v_.back().get();
+	}
+
+	std::size_t size() const
+	{
+		return v_.size();
 	}
 private:
 	std::vector<std::unique_ptr<Source>> v_;

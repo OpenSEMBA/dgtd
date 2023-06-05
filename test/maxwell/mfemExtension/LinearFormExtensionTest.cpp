@@ -103,7 +103,7 @@ TEST_F(LinearFormExtensionTest, checkLinearFormFunctionUsage)
 	
 	double time = 0.0;
 	double tf = 1.0;
-	double dt = 5e-3;
+	double timeStep = 5e-3;
 
 	evol.get()->SetTime(time);
 	odeSolver->Init(*evol);
@@ -111,11 +111,11 @@ TEST_F(LinearFormExtensionTest, checkLinearFormFunctionUsage)
 	GridFunction field(&fes);
 	field = 0.0;
 
-	for (time; time <= tf; time += dt)
+	for (time; time <= tf; time += timeStep)
 	{
 		//tdGaussian.SetTime(time);
 		//evol.get()->SetTime(time);
-		double dt_real = std::min(dt, tf - time);
+		double dt_real = std::min(timeStep, tf - time);
 		odeSolver->Step(field, time, dt_real);
 	}
 

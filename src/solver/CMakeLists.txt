@@ -11,4 +11,9 @@ add_library(maxwell-solver STATIC
 	"SourcesManager.cpp" 
 )
 
-target_link_libraries(maxwell-solver maxwell-evolution maxwell-components mfem)
+target_link_libraries(maxwell-solver 
+	maxwell-evolution 
+	maxwell-components 
+	maxwell-adapter
+	mfem
+)

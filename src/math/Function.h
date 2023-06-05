@@ -77,12 +77,11 @@ private:
 
 class SinusoidalMode : public Function {
 public:
-	SinusoidalMode(int dimension, std::vector<std::size_t> modes) :
-		dimension_{ dimension },
+	SinusoidalMode(std::vector<std::size_t> modes) :
 		modes_{ modes }
 	{}
 
-	int dimension() const { return dimension_; }
+	int dimension() const { return (int) modes_.size(); }
 
 	std::unique_ptr<Function> clone() const {
 		return std::make_unique<SinusoidalMode>(*this);
@@ -91,14 +90,13 @@ public:
 	double eval(const mfem::Vector& pos) const 
 	{
 		double res{ 1.0 };
-		for (auto d{ 0 }; d < dimension_; ++d) {
+		for (auto d{ 0 }; d < modes_.size(); ++d) {
 			res *= sin(modes_[d] * 2.0*M_PI * pos[d]);
 		}
 		return res;
 	}
 
 private:
-	int dimension_{ -1 };
 	std::vector<std::size_t> modes_;
 };
 

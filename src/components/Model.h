@@ -1,10 +1,11 @@
 #pragma once
 
-#include <mfem.hpp>
-#include <map>
-
-#include "Material.h"
 #include "Types.h"
+#include "Material.h"
+
+#include <mfem.hpp>
+
+#include <map>
 
 namespace maxwell {
 
@@ -43,6 +44,8 @@ public:
 
 	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
 
+	std::size_t numberOfMaterials() const;
+	std::size_t numberOfBoundaryMaterials() const;
 private:
 	Mesh mesh_;
 	
