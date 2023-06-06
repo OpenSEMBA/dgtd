@@ -32,9 +32,13 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 	for (const auto& p: probes.exporterProbes) {
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
 	}
-	
+
 	for (const auto& p : probes.pointProbes) {
 		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
+	}
+
+	for (const auto& p: probes.energyProbes) {
+		energyProbesCollection_.emplace(&p, buildEnergyProbeCollectionInfo(fes_, fields));
 	}
 }
 
@@ -44,7 +48,13 @@ const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
 	return probes.pointProbes[i];
 }
 
-const GridFunction& getFieldView(const PointProbe& p, const mfem::FiniteElementSpace& fes, Fields& fields)
+const EnergyProbe& ProbesManager::getEnergyProbe(const std::size_t i) const
+{
+	assert(i < probes.energyProbes.size());
+	return probes.energyProbes[i];
+}
+
+const GridFunction& getFieldView(const PointProbe& p, const FiniteElementSpace& fes, Fields& fields)
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
@@ -83,7 +93,17 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 	};
 }
 
-void ProbesManager::updateProbe(ExporterProbe& p, double time)
+ProbesManager::EnergyProbeCollection
+ProbesManager::buildEnergyProbeCollectionInfo(const mfem::FiniteElementSpace& fes, const Fields& fields) const
+{
+
+	return {
+		fes,
+		fields
+	};
+}
+
+void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
 	if (cycle_ % p.visSteps != 0) {
 		return;
@@ -98,7 +118,7 @@ void ProbesManager::updateProbe(ExporterProbe& p, double time)
 	pd.Save();
 }
 
-void ProbesManager::updateProbe(PointProbe& p, double time)
+void ProbesManager::updateProbe(PointProbe& p, Time time)
 {
 	const auto& it{ pointProbesCollection_.find(&p) };
 	assert(it != pointProbesCollection_.end());
@@ -109,14 +129,34 @@ void ProbesManager::updateProbe(PointProbe& p, double time)
 	);
 }
 
-void ProbesManager::updateProbes(double time)
+void ProbesManager::updateProbe(EnergyProbe& p, Time time)
 {
-	for (auto& p: probes.exporterProbes) {
-		updateProbe(p, time);
+	if (cycle_ % p.visSteps != 0) {
+		return;
+	}
+
+	auto& it{ energyProbesCollection_.find(&p) };
+	assert(it != energyProbesCollection_.end());
+	auto& pC{ it->second };
+
+	p.addFieldsToMovie(
+		time,
+		pC.fields
+	);
+}
+
+void ProbesManager::updateProbes(Time t)
+{
+	for (auto& p : probes.exporterProbes) {
+		updateProbe(p, t);
 	}
 	
 	for (auto& p : probes.pointProbes) {
-		updateProbe(p, time);
+		updateProbe(p, t);
+	}
+
+	for (auto& p : probes.energyProbes) {
+		updateProbe(p, t);
 	}
 
 	cycle_++;

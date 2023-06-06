@@ -1056,7 +1056,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	),
 	SolverOptions{}
 		.setTimeStep(1e-1)
-		.setFinalTime(180.0)
+		.setFinalTime(240.0)
 		.setOrder(3)
 	};
 

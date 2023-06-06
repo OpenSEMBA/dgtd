@@ -37,6 +37,7 @@ public:
 
     void run();
     void step();
+
 private:
     SolverOptions opts_;
     Model model_;

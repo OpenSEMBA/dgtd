@@ -17,9 +17,10 @@ public:
     ProbesManager& operator=(const ProbesManager&) = delete;
     ProbesManager& operator=(ProbesManager&&) = default;
 
-    void updateProbes(double time);
+    void updateProbes(Time);
 
     const PointProbe& getPointProbe(const std::size_t i) const;
+    const EnergyProbe& getEnergyProbe(const std::size_t i) const;
 
     Probes probes;
 
@@ -34,18 +35,26 @@ private:
         const mfem::GridFunction& field;
     };
 
+    struct EnergyProbeCollection {
+        FiniteElementSpace fes;
+        const Fields& fields;
+    };
+
     int cycle_{ 0 };
 
-    std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
+    std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
+    std::map<const EnergyProbe*, EnergyProbeCollection> energyProbesCollection_;
     
     const mfem::FiniteElementSpace& fes_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
+    EnergyProbeCollection buildEnergyProbeCollectionInfo(const mfem::FiniteElementSpace& fes, const Fields&) const;
 
-    void updateProbe(ExporterProbe&, double time);
-    void updateProbe(PointProbe&, double time);
+    void updateProbe(ExporterProbe&, Time);
+    void updateProbe(PointProbe&, Time);
+    void updateProbe(EnergyProbe&, Time);
 };
 
 }

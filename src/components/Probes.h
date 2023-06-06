@@ -60,19 +60,24 @@ private:
 
 class EnergyProbe {
 public:
+
     EnergyProbe();
 
-    const double getEnergy(const FieldType&, const Direction&);
+    void addFieldsToMovie(Time t, const Fields& fields) { fieldsMovie_.emplace(t, fields); };
+    double getEnergy(const FieldType& ft, const Direction& d);
+
+    int visSteps{ 10 };
 
 private:
 
-    FiniteElementOperator massMatrix_;
+    std::map<Time, Fields> fieldsMovie_;
 
 };
 
 struct Probes {
     std::vector<PointProbe> pointProbes;
     std::vector<ExporterProbe> exporterProbes;
+    std::vector<EnergyProbe> energyProbes;
 };
 
 }
