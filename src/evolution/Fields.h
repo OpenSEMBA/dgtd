@@ -11,7 +11,8 @@ public:
     Fields(mfem::FiniteElementSpace& fes);
     
     mfem::GridFunction& get(const FieldType&, const Direction&);
-    mfem::GridFunction& operator()(const FieldType&, const Direction&);
+    const mfem::GridFunction& get(const FieldType&, const Direction&) const;
+    
     mfem::Vector& allDOFs() { return allDOFs_; }
     const mfem::Vector& allDOFs() const { return allDOFs_; }
 

@@ -171,10 +171,10 @@ Model OpensembaAdapter::readModel(const json& j) const
 	for (const auto& m : semba::parsers::JSON::readMaterials(*modelJSON)) {
 		Attribute att( m->getId().toInt() );
 		if (m->is<semba::physicalModel::Vacuum>()) {
-			attToMat.emplace(att, buildVacuumMaterial());
+			//attToMat.emplace(att, buildVacuumMaterial());
 		} 
 		else if (m->is<semba::physicalModel::PEC>()) {
-			attToBdr.emplace(att, BdrCond::PEC);
+			//attToBdr.emplace(att, BdrCond::PEC);
 		}
 		else {
 			throw std::runtime_error("Unsupported material.");

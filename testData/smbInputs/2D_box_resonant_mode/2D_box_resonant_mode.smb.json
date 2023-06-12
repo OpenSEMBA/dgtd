@@ -11,7 +11,7 @@
         "spectral": false
       },
       "finalTime": 2.0,
-      "timeStep": 5e-4,
+      "timeStep": 1e-4,
       "cfl": 0.8
     }
   },
@@ -48,7 +48,7 @@
     {
       "type": "exporter",
       "name": "maxwell_fields",
-      "visSteps": 20
+      "visSteps": 1000
     }
   ]
 }

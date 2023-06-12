@@ -9,12 +9,12 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
 	pd.SetPrefixPath("ParaView");
 	
-	pd.RegisterField("Ex", &fields(E,X));
-	pd.RegisterField("Ey", &fields(E,Y));
-	pd.RegisterField("Ez", &fields(E,Z));
-	pd.RegisterField("Hx", &fields(H,X));
-	pd.RegisterField("Hy", &fields(H,Y));
-	pd.RegisterField("Hz", &fields(H,Z));
+	pd.RegisterField("Ex", &fields.get(E,X));
+	pd.RegisterField("Ey", &fields.get(E,Y));
+	pd.RegisterField("Ez", &fields.get(E,Z));
+	pd.RegisterField("Hx", &fields.get(H,X));
+	pd.RegisterField("Hy", &fields.get(H,Y));
+	pd.RegisterField("Hz", &fields.get(H,Z));
 	
 	const auto order{ fes_.GetMaxElementOrder() };
 	pd.SetLevelsOfDetail(order);
@@ -64,9 +64,9 @@ const GridFunction& getFieldView(const PointProbe& p, const FiniteElementSpace& 
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
-		return fields(E, p.getDirection());
+		return fields.get(E, p.getDirection());
 	case FieldType::H:
-		return fields(H, p.getDirection());
+		return fields.get(H, p.getDirection());
 	default:
 		throw std::runtime_error("Invalid field type.");
 	}

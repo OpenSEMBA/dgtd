@@ -16,11 +16,6 @@ Fields::Fields(mfem::FiniteElementSpace& fes)
     }
 }
 
-GridFunction& Fields::operator()(const FieldType& f, const Direction& d)
-{
-    return get(f, d);
-}
-
 GridFunction& Fields::get(const FieldType& f, const Direction& d)
 {
     assert(f == E || f == H);
@@ -32,5 +27,18 @@ GridFunction& Fields::get(const FieldType& f, const Direction& d)
         return h_[d];
     }
 }
+
+const GridFunction& Fields::get(const FieldType& f, const Direction& d) const
+{
+    assert(f == E || f == H);
+    assert(d == X || d == Y || d == Z);
+    if (f == E) {
+        return e_[d];
+    }
+    else {
+        return h_[d];
+    }
+}
+
 
 }
