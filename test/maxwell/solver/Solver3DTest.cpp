@@ -482,6 +482,7 @@ TEST_F(Solver3DTest, 3D_gmsh_cube_upwind_tetra)
 	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 
 }
+
 TEST_F(Solver3DTest, 3D_pec_periodic_cube_centered_hexa)
 {
 	Probes probes;
@@ -1317,4 +1318,43 @@ TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 	//EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
 	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
 	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
+}
+
+TEST_F(Solver3DTest, 3D_pec_NC_cube_upwind_hexa)
+{
+	Probes probes{ buildProbesWithAnExportProbe(2) };
+	//probes.pointProbes = {
+	//	PointProbe{E, Y, {0.0, 0.5, 0.5}},
+	//	PointProbe{E, Y, {2.0, 0.5, 0.5}},
+	//	PointProbe{H, Z, {0.0, 0.5, 0.5}},
+	//	PointProbe{H, Z, {2.0, 0.5, 0.5}}
+	//};
+
+	Mesh m{ Mesh::LoadFromFile((mfemMeshesFolder() + "3D_NC_Gaussian_Cube.mesh").c_str(),1,0) };
+	//m.UniformRefinement();
+
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC}, {3,BdrCond::PMC}};
+	Model model{ m, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	maxwell::Solver solver{
+		model,
+			probes,
+			buildGaussianInitialField(E, 6.0, Source::Position({ 30.0 }),unitVec(Z),1),
+			SolverOptions{}
+			.setTimeStep(1.0)
+			.setFinalTime(60.0)
+			.setOrder(3)
+	};
+
+	auto normOld{ solver.getFields().getNorml2() };
+	solver.run();
+
+	double tolerance{ 1e-2 };
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+
+	//EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
+	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
+
 }

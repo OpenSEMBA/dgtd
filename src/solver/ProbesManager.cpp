@@ -37,9 +37,9 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
 	}
 
-	for (const auto& p: probes.energyProbes) {
-		energyProbesCollection_.emplace(&p, buildEnergyProbeCollectionInfo(fes_, fields));
-	}
+	//for (const auto& p: probes.energyProbes) {
+	//	energyProbesCollection_.emplace(&p, buildEnergyProbeCollectionInfo(fes_, fields));
+	//}
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -48,11 +48,17 @@ const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
 	return probes.pointProbes[i];
 }
 
-const EnergyProbe& ProbesManager::getEnergyProbe(const std::size_t i) const
+const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
 {
-	assert(i < probes.energyProbes.size());
-	return probes.energyProbes[i];
+	assert(i < probes.fieldProbes.size());
+	return probes.fieldProbes[i];
 }
+
+//const EnergyProbe& ProbesManager::getEnergyProbe(const std::size_t i) const
+//{
+//	assert(i < probes.energyProbes.size());
+//	return probes.energyProbes[i];
+//}
 
 const GridFunction& getFieldView(const PointProbe& p, const FiniteElementSpace& fes, Fields& fields)
 {
@@ -93,15 +99,33 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 	};
 }
 
-ProbesManager::EnergyProbeCollection
-ProbesManager::buildEnergyProbeCollectionInfo(const mfem::FiniteElementSpace& fes, const Fields& fields) const
+ProbesManager::FieldProbeCollection
+ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
 {
 
+	Array<int> elemIdArray;
+	Array<IntegrationPoint> integPointArray;
+	auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
+	fes_.GetMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
+	assert(elemIdArray.Size() == 1);
+	assert(integPointArray.Size() == 1);
+	FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
+
 	return {
-		fes,
+		fesPoints,
 		fields
 	};
 }
+
+//ProbesManager::EnergyProbeCollection
+//ProbesManager::buildEnergyProbeCollectionInfo(const mfem::FiniteElementSpace& fes, const Fields& fields) const
+//{
+//
+//	return {
+//		fes,
+//		fields
+//	};
+//}
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
@@ -123,27 +147,44 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	const auto& it{ pointProbesCollection_.find(&p) };
 	assert(it != pointProbesCollection_.end());
 	const auto& pC{ it->second };
-	p.addFieldToMovie(
+	p.addFieldToMovies(
 		time, 
 		pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
 	);
 }
 
-void ProbesManager::updateProbe(EnergyProbe& p, Time time)
+void ProbesManager::updateProbe(FieldProbe& p, Time time)
 {
-	if (cycle_ % p.visSteps != 0) {
-		return;
-	}
-
-	auto& it{ energyProbesCollection_.find(&p) };
-	assert(it != energyProbesCollection_.end());
-	auto& pC{ it->second };
-
-	p.addFieldsToMovie(
-		time,
-		pC.fields
-	);
+	const auto& it{ fieldProbesCollection_.find(&p) };
+	assert(it != fieldProbesCollection_.end());
+	const auto& pC{ it->second };
+	for (auto ft : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			p.addFieldToMovies(
+				ft,
+				d,
+				time,
+				pC.fields.get(ft,d).GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
+			);
+		}
+	}	
 }
+
+//void ProbesManager::updateProbe(EnergyProbe& p, Time time)
+//{
+//	if (cycle_ % p.visSteps != 0) {
+//		return;
+//	}
+//
+//	auto& it{ energyProbesCollection_.find(&p) };
+//	assert(it != energyProbesCollection_.end());
+//	auto& pC{ it->second };
+//
+//	p.addFieldsToMovie(
+//		time,
+//		pC.fields
+//	);
+//}
 
 void ProbesManager::updateProbes(Time t)
 {
@@ -155,9 +196,9 @@ void ProbesManager::updateProbes(Time t)
 		updateProbe(p, t);
 	}
 
-	for (auto& p : probes.energyProbes) {
-		updateProbe(p, t);
-	}
+	//for (auto& p : probes.energyProbes) {
+	//	updateProbe(p, t);
+	//}
 
 	cycle_++;
 }

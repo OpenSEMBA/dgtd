@@ -8,6 +8,7 @@
 namespace maxwell {
 
 using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
+using FieldMovies = std::vector<std::vector<FieldMovie>>;
 
 struct ExporterProbe {
     std::string name{"MaxwellView"};
@@ -26,7 +27,7 @@ public:
     const Direction& getDirection() const { return directionToExtract_; }
     const FieldMovie& getFieldMovie() const { return fieldMovie_; }
     const Point& getPoint() const { return point_; }
-    void addFieldToMovie(double time, const double& field) { fieldMovie_.emplace(time, field); };
+    void addFieldToMovies(double time, const double& field) { fieldMovie_.emplace(time, field); };
 
     std::pair<Time, double> findFrameWithMax() const
     {
@@ -58,26 +59,44 @@ private:
     FieldMovie fieldMovie_;
 };
 
-class EnergyProbe {
+class FieldProbe {
 public:
+    FieldProbe(const Point& p) :
+        point_{ p }
+    {}
 
-    EnergyProbe();
-
-    void addFieldsToMovie(Time t, const Fields& fields) { fieldsMovie_.emplace(t, fields); };
-    double getEnergy(const FieldType& ft, const Direction& d);
-
-    int visSteps{ 10 };
+    const FieldMovies& getFieldMovies() const { return fieldMovies_; }
+    const Point& getPoint() const { return point_; }
+    void addFieldToMovies(const FieldType& ft, const Direction& d, double time, const double& field) { fieldMovies_[ft][d].emplace(time, field); };
 
 private:
 
-    std::map<Time, Fields> fieldsMovie_;
+    Point point_;
 
+    FieldMovies fieldMovies_;
 };
+
+//class EnergyProbe {
+//public:
+//
+//    EnergyProbe();
+//
+//    void addFieldsToMovie(Time t, const Fields& fields) { fieldsMovie_.emplace(t, fields); };
+//    double getEnergy(const FieldType& ft, const Direction& d);
+//
+//    int visSteps{ 10 };
+//
+//private:
+//
+//    std::map<Time, Fields> fieldsMovie_;
+
+//};
 
 struct Probes {
     std::vector<PointProbe> pointProbes;
     std::vector<ExporterProbe> exporterProbes;
-    std::vector<EnergyProbe> energyProbes;
+    std::vector<FieldProbe> fieldProbes;
+    //std::vector<EnergyProbe> energyProbes;
 };
 
 }
