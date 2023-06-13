@@ -27,6 +27,7 @@ public:
     const Fields& getFields() const { return fields_; };
     const GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
     const PointProbe& getPointProbe(const std::size_t probe) const;
+    const FieldProbe& getFieldProbe(const std::size_t probe) const;
 
     double getTime() const { return time_; }
     double getTimeStep() const { return dt_; }

@@ -26,6 +26,7 @@ public:
     Probes probes;
 
 private:
+
     struct FESPoint {
         int elementId;
         mfem::IntegrationPoint iP;
@@ -38,7 +39,7 @@ private:
 
     struct FieldProbeCollection {
         FESPoint fesPoint;
-        const Fields& fields;
+        const GridFuncForFP& fields;
     };
 
     //struct EnergyProbeCollection {

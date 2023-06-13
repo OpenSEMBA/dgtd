@@ -8,7 +8,6 @@
 namespace maxwell {
 
 using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
-using FieldMovies = std::vector<std::vector<FieldMovie>>;
 
 struct ExporterProbe {
     std::string name{"MaxwellView"};
@@ -67,7 +66,8 @@ public:
 
     const FieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
-    void addFieldToMovies(const FieldType& ft, const Direction& d, double time, const double& field) { fieldMovies_[ft][d].emplace(time, field); };
+    void addFieldsToMovies(Time t, const FieldsForFP& fields) { fieldMovies_.emplace(t, fields); };
+
 
 private:
 

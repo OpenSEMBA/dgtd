@@ -102,6 +102,11 @@ const PointProbe& Solver::getPointProbe(const std::size_t probe) const
 	return probesManager_.getPointProbe(probe); 
 }
 
+const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
+{
+	return probesManager_.getFieldProbe(probe);
+}
+
 //const EnergyProbe& Solver::getEnergyProbe(const std::size_t probe) const
 //{
 //	return probesManager_.getEnergyProbe(probe);

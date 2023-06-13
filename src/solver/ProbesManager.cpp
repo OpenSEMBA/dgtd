@@ -60,7 +60,7 @@ const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
 //	return probes.energyProbes[i];
 //}
 
-const GridFunction& getFieldView(const PointProbe& p, const FiniteElementSpace& fes, Fields& fields)
+const GridFunction& getFieldView(const PointProbe& p, Fields& fields)
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
@@ -95,8 +95,21 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 	
 	return { 
 		fesPoints, 
-		getFieldView(p, fes_, fields)
+		getFieldView(p, fields)
 	};
+}
+
+GridFuncForFP buildGridFuncForFP(const Fields& fields)
+{
+	GridFuncForFP res;
+	res.Ex = fields.get(E, X);
+	res.Ey = fields.get(E, Y);
+	res.Ez = fields.get(E, Z);
+	res.Hx = fields.get(H, X);
+	res.Hy = fields.get(H, Y);
+	res.Hz = fields.get(H, Z);
+
+	return res;
 }
 
 ProbesManager::FieldProbeCollection
@@ -113,7 +126,7 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 
 	return {
 		fesPoints,
-		fields
+		buildGridFuncForFP(fields)
 	};
 }
 
@@ -158,16 +171,19 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	const auto& it{ fieldProbesCollection_.find(&p) };
 	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
-	for (auto ft : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			p.addFieldToMovies(
-				ft,
-				d,
-				time,
-				pC.fields.get(ft,d).GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
-			);
-		}
-	}	
+	FieldsForFP f4FP;
+	{
+		f4FP.Ex = pC.fields.Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Ey = pC.fields.Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Ez = pC.fields.Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Hx = pC.fields.Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Hy = pC.fields.Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Hz = pC.fields.Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+	}
+	p.addFieldsToMovies(
+		time,
+		f4FP
+	);
 }
 
 //void ProbesManager::updateProbe(EnergyProbe& p, Time time)
