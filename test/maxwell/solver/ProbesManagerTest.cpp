@@ -49,5 +49,5 @@ TEST_F(ProbesManagerTest, fieldProbe)
 
 	ASSERT_NO_THROW(pM.updateProbes(0.0));
 	EXPECT_NO_THROW(pM.getFieldProbe(0));
-	EXPECT_TRUE(pM.getFieldProbe(0).getFieldMovies().at(0).Ex);
+	EXPECT_TRUE(pM.getFieldProbe(0).getFieldMovies().at(0).Ez == 1.0);
 }

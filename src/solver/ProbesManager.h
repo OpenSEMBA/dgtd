@@ -21,7 +21,6 @@ public:
 
     const PointProbe& getPointProbe(const std::size_t i) const;
     const FieldProbe& getFieldProbe(const std::size_t i) const;
-    //const EnergyProbe& getEnergyProbe(const std::size_t i) const;
 
     Probes probes;
 
@@ -39,32 +38,29 @@ private:
 
     struct FieldProbeCollection {
         FESPoint fesPoint;
-        const GridFuncForFP& fields;
+        const mfem::GridFunction& field_Ex;
+        const mfem::GridFunction& field_Ey;
+        const mfem::GridFunction& field_Ez;
+        const mfem::GridFunction& field_Hx;
+        const mfem::GridFunction& field_Hy;
+        const mfem::GridFunction& field_Hz;
     };
-
-    //struct EnergyProbeCollection {
-    //    FiniteElementSpace fes;
-    //    const Fields& fields;
-    //};
 
     int cycle_{ 0 };
 
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
-    //std::map<const EnergyProbe*, EnergyProbeCollection> energyProbesCollection_;
     
     const mfem::FiniteElementSpace& fes_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    //EnergyProbeCollection buildEnergyProbeCollectionInfo(const mfem::FiniteElementSpace& fes, const Fields&) const;
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(PointProbe&, Time);
     void updateProbe(FieldProbe&, Time);
-    //void updateProbe(EnergyProbe&, Time);
 };
 
 }
