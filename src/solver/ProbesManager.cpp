@@ -212,6 +212,10 @@ void ProbesManager::updateProbes(Time t)
 		updateProbe(p, t);
 	}
 
+	for (auto& p : probes.fieldProbes) {
+		updateProbe(p, t);
+	}
+
 	//for (auto& p : probes.energyProbes) {
 	//	updateProbe(p, t);
 	//}
