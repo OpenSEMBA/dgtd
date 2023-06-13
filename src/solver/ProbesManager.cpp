@@ -103,9 +103,15 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 	};
 }
 
-GridFuncForFP buildGridFuncForFP(const Fields& fields)
+GridFuncForFP buildGridFuncForFP(const Fields& fields, FiniteElementSpace* fes)
 {
 	GridFuncForFP res;
+	res.Ex.SetSpace(fes);
+	res.Ey.SetSpace(fes);
+	res.Ez.SetSpace(fes);
+	res.Hx.SetSpace(fes);
+	res.Hy.SetSpace(fes);
+	res.Hz.SetSpace(fes);
 	res.Ex = fields.get(E, X);
 	res.Ey = fields.get(E, Y);
 	res.Ez = fields.get(E, Z);
@@ -128,9 +134,12 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	assert(integPointArray.Size() == 1);
 	FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
 
+	FiniteElementSpace copyFES{ fes_ };
+	GridFuncForFP gfForFP{ buildGridFuncForFP(fields, &copyFES) };
+
 	return {
 		fesPoints,
-		buildGridFuncForFP(fields)
+		gfForFP
 	};
 }
 
