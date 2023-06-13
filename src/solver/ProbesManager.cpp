@@ -37,6 +37,10 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
 	}
 
+	for (const auto& p : probes.fieldProbes) {
+		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
+	}
+
 	//for (const auto& p: probes.energyProbes) {
 	//	energyProbesCollection_.emplace(&p, buildEnergyProbeCollectionInfo(fes_, fields));
 	//}
