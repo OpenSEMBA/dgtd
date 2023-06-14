@@ -1200,3 +1200,54 @@ TEST_F(Solver2DTest, 2D_box_resonant_mode)
 
 	EXPECT_TRUE(false);
 }
+
+TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
+{
+	auto mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+
+	auto NV{ mesh.GetNV() };
+	Vector vertCoord(NV);
+	mesh.GetVertices(vertCoord);
+	Vector vx(NV), vy(NV);
+	for (int i = 0; i < NV; ++i) {
+		vx(i) = vertCoord(i);
+		vy(i) = vertCoord(i + NV);
+	}
+
+	Vector area(mesh.GetNE()), dtscale(mesh.GetNE());
+	for (int it = 0; it < mesh.GetNE(); ++it) {
+		auto el{ mesh.GetElement(it) };
+		Array<int> ENV(el->GetNVertices());
+		el->GetVertices(ENV);
+		Vector len(ENV.Size());
+		len = 0.0;
+		double sper{ 0.0 };
+		for (int i = 0; i < ENV.Size(); ++i) {
+			int j = (i + 1) % 3;
+			len(i) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
+			sper += len(i);
+		}
+		sper /= 2.0;
+		area(it) = sqrt(sper);
+		for (int i = 0; i < ENV.Size(); ++i) {
+			area(it) *= sqrt(sper - len(i));
+		}
+		dtscale(it) = area(it) / sper;
+	}
+
+	auto meshLGL{ Mesh::MakeCartesian1D(1, 2.0) };
+	DG_FECollection fec{ 3,1,BasisType::GaussLegendre };
+	FiniteElementSpace fes{ &meshLGL, &fec };
+
+	GridFunction nodes(&fes);
+	meshLGL.GetNodes(nodes);
+	nodes -= 1.0;
+
+	double rmin{ abs(nodes(0) - nodes(1)) };
+
+	double dt = dtscale.Min() * rmin * 2.0 / 3.0;
+
+	double tol = 1e-8;
+	EXPECT_NEAR(0.101761895965867, dt, tol);
+
+}

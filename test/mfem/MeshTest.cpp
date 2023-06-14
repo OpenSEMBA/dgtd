@@ -220,6 +220,46 @@ TEST_F(MeshTest, ElementVolumeThroughPerimeter_2D_Triangle)
 		ASSERT_NEAR(mesh.GetElementVolume(i), area(i),tol);
 	}
 
+}
+
+TEST_F(MeshTest, EstimatedDTScale_2D_Triangle) 
+{
+	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+
+	auto NV{ mesh.GetNV() };
+	Vector vertCoord(NV);
+	mesh.GetVertices(vertCoord);
+	Vector vx(NV), vy(NV);
+	for (int i = 0; i < NV; ++i) {
+		vx(i) = vertCoord(i);
+		vy(i) = vertCoord(i + NV);
+	}
+
+	Vector area(mesh.GetNE()), dtscale(mesh.GetNE());
+	for (int it = 0; it < mesh.GetNE(); ++it) {
+		auto el{ mesh.GetElement(it) };
+		Array<int> ENV(el->GetNVertices());
+		el->GetVertices(ENV);
+		Vector len(ENV.Size());
+		len = 0.0;
+		double sper{ 0.0 };
+		for (int i = 0; i < ENV.Size(); ++i) {
+			int j = (i + 1) % 3;
+			len(i) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
+			sper += len(i);
+		}
+		sper /= 2.0;
+		area(it) = sqrt(sper);
+		for (int i = 0; i < ENV.Size(); ++i) {
+			area(it) *= sqrt(sper - len(i));
+		}
+		dtscale(it) = area(it) / sper;
+	}
+
+	double tol = 1e-3;
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		ASSERT_NEAR(0.2929, dtscale(i), tol);
+	}
 
 }
 

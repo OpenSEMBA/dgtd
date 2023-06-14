@@ -1041,26 +1041,30 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{16.0},
-		Source::Position({ 75.0 }), // center
+		Source::Position({ 75.0, 0.0, 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
 		.setTimeStep(1e-1)
-		.setFinalTime(2.0)
+		.setFinalTime(300.0)
 		.setOrder(3)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
 
-	//for (int probeNumber = 0; probeNumber < probes.fieldProbes.size(); probeNumber++) {
-	//	std::ofstream file(getTestCaseName() + std::to_string(probeNumber) + ".txt");
-	//	file << "Time // Ex // Ey // Ez // Hx // Hy // Hz //""\n";
-	//	for (const auto& fm : solver.getFieldProbe(probeNumber).getFieldMovies()) {
-	//		fm.
-	//	}
-	//}
+	for (int probeNumber = 0; probeNumber < probes.fieldProbes.size(); probeNumber++) {
+		std::ofstream file(getTestCaseName() + std::to_string(probeNumber) + ".txt");
+		file << "Time // Ex // Ey // Ez // Hx // Hy // Hz //""\n";
+		for (const auto& fm : solver.getFieldProbe(probeNumber).getFieldMovies()) {
+			std::stringstream time, Ex, Ey, Ez, Hx, Hy, Hz;
+			time << std::scientific << std::setprecision(7) << (fm.first); 
+			Ex << std::scientific << std::setprecision(7) << fm.second.Ex; Ey << std::scientific << std::setprecision(7) << fm.second.Ey; Ez << std::scientific << std::setprecision(7) << fm.second.Ez; 
+			Hx << std::scientific << std::setprecision(7) << fm.second.Hx; Hy << std::scientific << std::setprecision(7) << fm.second.Hy; Hz << std::scientific << std::setprecision(7) << fm.second.Hz;
+			file << time.str() + " " + Ex.str() + " " + Ey.str() + " " + Ez.str() + " " + Hx.str() + " " + Hy.str() + " " + Hz.str() + "\n";
+		}
+	}
 
 	double tolerance{ 1e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);

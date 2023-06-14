@@ -491,5 +491,22 @@ TEST_F(FiniteElementSpaceTest, assemblingSubmeshedOperator)
 
 	}
 
+}
+
+TEST_F(FiniteElementSpaceTest, JacobiGLNodesPosition_1D)
+{
+	auto mesh{ Mesh::MakeCartesian1D(1, 2.0) };
+	DG_FECollection fec{ 3,1,BasisType::GaussLegendre };
+	FiniteElementSpace fes{ &mesh, &fec };
+
+	GridFunction nodes(&fes);
+	mesh.GetNodes(nodes);
+	nodes -= 1.0;
+
+	Vector expected({ -0.86114,-0.33998,0.33998,0.86114 });
+	double tol = 1e-5;
+	for (int i = 0; i < nodes.Size(); ++i) {
+		EXPECT_NEAR(expected(i), nodes(i), tol);
+	}
 
 }
