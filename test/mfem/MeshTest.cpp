@@ -133,6 +133,96 @@ TEST_F(MeshTest, MeshDimensions)
 
 }
 
+TEST_F(MeshTest, ElementVolume_2D_Triangle)
+{
+
+	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE)};
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		ASSERT_EQ(0.5, mesh.GetElementVolume(i));
+	}
+
+}
+
+TEST_F(MeshTest, ElementVolume_3D_Tetra)
+{
+	Mesh mesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::TETRAHEDRON) };
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		ASSERT_EQ(1.0 / 6.0, mesh.GetElementVolume(i));
+	}
+}
+
+TEST_F(MeshTest, ElementPerimeter_2D_Triangle)
+{
+	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+
+	auto NV{ mesh.GetNV() };
+	Vector vertCoord(NV);
+	mesh.GetVertices(vertCoord);
+	Vector vx(NV), vy(NV);
+	for (int i = 0; i < NV; ++i) {
+		vx(i) = vertCoord(i);
+		vy(i) = vertCoord(i + NV);
+	}
+
+	Vector per(mesh.GetNE());
+	per = 0.0;
+	for (int it = 0; it < mesh.GetNE(); ++it) {
+		auto el{ mesh.GetElement(it) };
+		Array<int> ENV(el->GetNVertices());
+		el->GetVertices(ENV);
+		for (int i = 0; i < ENV.Size(); ++i) {
+			 int j = (i + 1) % 3;
+			 per(it) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
+		}
+	}
+
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		ASSERT_EQ(1.0 + 1.0 + sqrt(pow(1.0,2.0) + pow(1.0,2.0)), per(i));
+	}
+
+}
+
+TEST_F(MeshTest, ElementVolumeThroughPerimeter_2D_Triangle)
+{
+	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+
+	auto NV{ mesh.GetNV() };
+	Vector vertCoord(NV);
+	mesh.GetVertices(vertCoord);
+	Vector vx(NV), vy(NV);
+	for (int i = 0; i < NV; ++i) {
+		vx(i) = vertCoord(i);
+		vy(i) = vertCoord(i + NV);
+	}
+
+	Vector area(mesh.GetNE());
+	for (int it = 0; it < mesh.GetNE(); ++it) {
+		auto el{ mesh.GetElement(it) };
+		Array<int> ENV(el->GetNVertices());
+		el->GetVertices(ENV);
+		Vector len(ENV.Size());
+		len = 0.0;
+		double sper{ 0.0 };
+		for (int i = 0; i < ENV.Size(); ++i) {
+			int j = (i + 1) % 3;
+			len(i) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
+			sper += len(i);
+		}
+		sper /= 2.0;
+		area(it) = sqrt(sper);
+		for (int i = 0; i < ENV.Size(); ++i) {
+			area(it) *= sqrt(sper - len(i));
+		}
+	}
+
+	double tol = 1e-8;
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		ASSERT_NEAR(mesh.GetElementVolume(i), area(i),tol);
+	}
+
+
+}
+
 TEST_F(MeshTest, DataValueOutsideNodesForOneElementMeshes)
 {
 	/* The purpose of this test is to ensure we can extract data from a GridFunction,
