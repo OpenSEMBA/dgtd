@@ -160,7 +160,7 @@ Vector getTimeStepScale(Mesh& mesh)
 		auto el{ mesh.GetElement(it) };
 		Vector sper(mesh.GetNumFaces());
 		sper = 0.0;
-		for (int f = 0; f < mesh.GetNumFaces(); ++f) {
+		for (int f = 0; f < mesh.GetElement(it)->GetNEdges(); ++f) {
 			ElementTransformation* T{ mesh.GetFaceTransformation(f)};
 			const IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
 			for (int p = 0; p < ir.GetNPoints(); p++)
@@ -201,10 +201,10 @@ double Solver::estimateTimeStep() const
 		return opts_.cfl * maxTimeStep;
 	}
 	else if (model_.getConstMesh().Dimension() == 2) {
-		auto mesh{ model_.getMesh() };
-		Vector dtscale{ getTimeStepScale(mesh) };
-		double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
-		return dtscale.Min() * rmin * 2.0 / 3.0;
+		//auto mesh{ model_.getMesh() };
+		//Vector dtscale{ getTimeStepScale(mesh) };
+		//double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
+		//return dtscale.Min() * rmin * 2.0 / 3.0;
 	}
 	else{
 		throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
