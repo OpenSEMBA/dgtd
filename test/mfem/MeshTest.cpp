@@ -154,6 +154,7 @@ TEST_F(MeshTest, ElementVolume_3D_Tetra)
 TEST_F(MeshTest, ElementFaceSurface_3D_Tetra)
 {
 	Mesh mesh{ Mesh::MakeCartesian3D(1,1,1,Element::TETRAHEDRON) };
+	Vector surfaces(mesh.GetNFaces());
 	for (int i = 0; i < mesh.GetNE(); ++i) {
 		Array<int> faces, ori;
 		mesh.GetElementFaces(i, faces, ori);
@@ -168,8 +169,10 @@ TEST_F(MeshTest, ElementFaceSurface_3D_Tetra)
 				T->SetAllIntPoints(&ip);
 				res += ip.weight * T->Weight();
 			}
+			surfaces(faces[j]) = res;
 		}
 	}
+	//WIP
 }
 
 TEST_F(MeshTest, ElementPerimeter_2D_Triangle)

@@ -201,10 +201,10 @@ double Solver::estimateTimeStep() const
 		return opts_.cfl * maxTimeStep;
 	}
 	else if (model_.getConstMesh().Dimension() == 2) {
-		//auto mesh{ model_.getMesh() };
-		//Vector dtscale{ getTimeStepScale(mesh) };
-		//double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
-		//return dtscale.Min() * rmin * 2.0 / 3.0;
+		Mesh mesh{ model_.getConstMesh() };
+		Vector dtscale{ getTimeStepScale(mesh) };
+		double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
+		return dtscale.Min() * rmin * 2.0 / 3.0;
 	}
 	else{
 		throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
