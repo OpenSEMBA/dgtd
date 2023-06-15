@@ -153,32 +153,23 @@ TEST_F(MeshTest, ElementVolume_3D_Tetra)
 
 TEST_F(MeshTest, ElementPerimeter_2D_Triangle)
 {
-	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
-
-	auto NV{ mesh.GetNV() };
-	Vector vertCoord(NV);
-	mesh.GetVertices(vertCoord);
-	Vector vx(NV), vy(NV);
-	for (int i = 0; i < NV; ++i) {
-		vx(i) = vertCoord(i);
-		vy(i) = vertCoord(i + NV);
-	}
-
-	Vector per(mesh.GetNE());
-	per = 0.0;
-	for (int it = 0; it < mesh.GetNE(); ++it) {
-		auto el{ mesh.GetElement(it) };
-		Array<int> ENV(el->GetNVertices());
-		el->GetVertices(ENV);
-		for (int i = 0; i < ENV.Size(); ++i) {
-			 int j = (i + 1) % 3;
-			 per(it) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
-		}
-	}
-
-	for (int i = 0; i < mesh.GetNE(); ++i) {
-		ASSERT_EQ(1.0 + 1.0 + sqrt(pow(1.0,2.0) + pow(1.0,2.0)), per(i));
-	}
+//	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+//
+//	Vector per(mesh.GetNE());
+//	per = 0.0;
+//	for (int it = 0; it < mesh.GetNE(); ++it) {
+//		auto el{ mesh.GetElement(it) };
+//		Array<int> EF(el->GetNFaces());
+//		auto fteTable{ mesh.GetFaceToElementTable() };
+//		for (int i = 0; i < ENV.Size(); ++i) {
+//			 int j = (i + 1) % 3;
+//			 per(it) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
+//		}
+//	}
+//
+//	for (int i = 0; i < mesh.GetNE(); ++i) {
+//		ASSERT_EQ(1.0 + 1.0 + sqrt(pow(1.0,2.0) + pow(1.0,2.0)), per(i));
+//	}
 
 }
 
@@ -198,19 +189,19 @@ TEST_F(MeshTest, ElementVolumeThroughPerimeter_2D_Triangle)
 	Vector area(mesh.GetNE());
 	for (int it = 0; it < mesh.GetNE(); ++it) {
 		auto el{ mesh.GetElement(it) };
-		Array<int> ENV(el->GetNVertices());
-		el->GetVertices(ENV);
-		Vector len(ENV.Size());
+		Array<int> EV(el->GetNVertices());
+		el->GetVertices(EV);
+		Vector len(EV.Size());
 		len = 0.0;
 		double sper{ 0.0 };
-		for (int i = 0; i < ENV.Size(); ++i) {
+		for (int i = 0; i < EV.Size(); ++i) {
 			int j = (i + 1) % 3;
-			len(i) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
+			len(i) += sqrt(pow(vx(EV[i]) - vx(EV[j]), 2.0) + pow(vy(EV[i]) - vy(EV[j]), 2.0));
 			sper += len(i);
 		}
 		sper /= 2.0;
 		area(it) = sqrt(sper);
-		for (int i = 0; i < ENV.Size(); ++i) {
+		for (int i = 0; i < EV.Size(); ++i) {
 			area(it) *= sqrt(sper - len(i));
 		}
 	}
@@ -238,19 +229,19 @@ TEST_F(MeshTest, EstimatedDTScale_2D_Triangle)
 	Vector area(mesh.GetNE()), dtscale(mesh.GetNE());
 	for (int it = 0; it < mesh.GetNE(); ++it) {
 		auto el{ mesh.GetElement(it) };
-		Array<int> ENV(el->GetNVertices());
-		el->GetVertices(ENV);
-		Vector len(ENV.Size());
+		Array<int> EV(el->GetNVertices());
+		el->GetVertices(EV);
+		Vector len(EV.Size());
 		len = 0.0;
 		double sper{ 0.0 };
-		for (int i = 0; i < ENV.Size(); ++i) {
+		for (int i = 0; i < EV.Size(); ++i) {
 			int j = (i + 1) % 3;
-			len(i) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
+			len(i) += sqrt(pow(vx(EV[i]) - vx(EV[j]), 2.0) + pow(vy(EV[i]) - vy(EV[j]), 2.0));
 			sper += len(i);
 		}
 		sper /= 2.0;
 		area(it) = sqrt(sper);
-		for (int i = 0; i < ENV.Size(); ++i) {
+		for (int i = 0; i < EV.Size(); ++i) {
 			area(it) *= sqrt(sper - len(i));
 		}
 		dtscale(it) = area(it) / sper;
@@ -414,4 +405,55 @@ TEST_F(MeshTest, GetElementSize_1D)
 		EXPECT_NEAR(0.1, m.GetElementSize(e), 1e-8);
 	}
 
+}
+
+TEST_F(MeshTest, FaceElementSurface_2D_Tri)
+{
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::TRIANGLE) };
+	Vector surface(m.GetNumFaces());
+	surface = 0.0;
+	for (int f = 0; f < m.GetNumFaces(); ++f) {
+		ElementTransformation* T{ m.GetFaceTransformation(f) };
+		const IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
+		for (int p = 0; p < ir.GetNPoints(); p++)
+		{
+			const IntegrationPoint& ip = ir.IntPoint(p);
+			surface(f) += ip.weight * T->Weight();
+		}
+	}
+	for (int e = 0; e < m.GetNE(); ++e) {
+		Array<int> edges(m.GetElement(e)->GetNEdges()), ori(m.GetElement(e)->GetNEdges());
+		m.GetElementEdges(e, edges, ori);
+		double tol = 1e-8;
+		ASSERT_NEAR(1.0 + 1.0 + sqrt(2), surface(edges[0]) + surface(edges[1]) + surface(edges[2]), tol);
+	}
+}
+
+TEST_F(MeshTest, ElementEdges_2D_Tri)
+{
+
+/* For a triangular mesh with elements and edges such as
+* 
+*                  ____1_____
+*                 |        / |
+*                 |	 0   /   |
+*                 2    0     4
+*                 |	 /    1  |
+*                 |/___3_____|
+*
+* we make a test where we obtain the edges of each element
+* to understand expected edge ordering and surface value.*/
+
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::TRIANGLE) };
+	for (int e = 0; e < m.GetNE(); ++e) {
+		Array<int> edges(m.GetElement(e)->GetNEdges()), ori(m.GetElement(e)->GetNEdges());
+		m.GetElementEdges(e, edges, ori);
+		if (e == 0) {
+
+			ASSERT_EQ(Array<int>({0, 1, 2 }), edges);
+		}
+		else {
+			ASSERT_EQ(Array<int>({0, 3, 4 }), edges);
+		}
+	}
 }
