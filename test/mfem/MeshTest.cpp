@@ -166,13 +166,10 @@ TEST_F(MeshTest, ElementFaceSurface_3D_Tetra)
 			{
 				const IntegrationPoint& ip = ir.IntPoint(p);
 				T->SetAllIntPoints(&ip);
-				Vector nor;
-				CalcOrtho(T->Jacobian(), nor);
 				res += ip.weight * T->Weight();
 			}
 		}
 	}
-}
 }
 
 TEST_F(MeshTest, ElementPerimeter_2D_Triangle)
