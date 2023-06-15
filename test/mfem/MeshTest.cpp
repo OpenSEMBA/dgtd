@@ -136,7 +136,7 @@ TEST_F(MeshTest, MeshDimensions)
 TEST_F(MeshTest, ElementVolume_2D_Triangle)
 {
 
-	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE)};
+	Mesh mesh{ Mesh::MakeCartesian2D(1,1,Element::TRIANGLE)};
 	for (int i = 0; i < mesh.GetNE(); ++i) {
 		ASSERT_EQ(0.5, mesh.GetElementVolume(i));
 	}
@@ -145,10 +145,34 @@ TEST_F(MeshTest, ElementVolume_2D_Triangle)
 
 TEST_F(MeshTest, ElementVolume_3D_Tetra)
 {
-	Mesh mesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::TETRAHEDRON) };
+	Mesh mesh{ Mesh::MakeCartesian3D(1,1,1,Element::TETRAHEDRON) };
 	for (int i = 0; i < mesh.GetNE(); ++i) {
 		ASSERT_EQ(1.0 / 6.0, mesh.GetElementVolume(i));
 	}
+}
+
+TEST_F(MeshTest, ElementFaceSurface_3D_Tetra)
+{
+	Mesh mesh{ Mesh::MakeCartesian3D(1,1,1,Element::TETRAHEDRON) };
+	for (int i = 0; i < mesh.GetNE(); ++i) {
+		Array<int> faces, ori;
+		mesh.GetElementFaces(i, faces, ori);
+		for (int j = 0; j < faces.Size(); ++j) {
+			auto face{ mesh.GetFace(faces[j]) };
+			auto T{ mesh.GetFaceElementTransformations(faces[j]) };
+			IntegrationRule ir;
+			double res = 0.0;
+			for (int p = 0; p < ir.GetNPoints(); p++)
+			{
+				const IntegrationPoint& ip = ir.IntPoint(p);
+				T->SetAllIntPoints(&ip);
+				Vector nor;
+				CalcOrtho(T->Jacobian(), nor);
+				res += ip.weight * T->Weight();
+			}
+		}
+	}
+}
 }
 
 TEST_F(MeshTest, ElementPerimeter_2D_Triangle)
