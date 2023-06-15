@@ -134,24 +134,15 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 	return res;
 }
 
-struct VertexCoordinates {
-	Vector vx;
-	Vector vy;
-};
-
-VertexCoordinates getVertexCoordinates(const Mesh& mesh)
+bool checkIfQuadInMesh(const Mesh& mesh) 
 {
-	auto NV{ mesh.GetNV() };
-	Vector vertCoord(NV);
-	mesh.GetVertices(vertCoord);
-	VertexCoordinates res;
-	res.vx.SetSize(NV); res.vy.SetSize(NV);
-	for (int i = 0; i < NV; ++i) {
-		res.vx(i) = vertCoord(i);
-		res.vy(i) = vertCoord(i + NV);
+	for (int e = 0; e < mesh.GetNE(); ++e)
+	{
+		if (mesh.GetElementGeometry(e) == Element::QUADRILATERAL) { return true; }
 	}
-	return res;
+	return false;
 }
+
 
 Vector getTimeStepScale(Mesh& mesh)
 {
@@ -201,10 +192,15 @@ double Solver::estimateTimeStep() const
 		return opts_.cfl * maxTimeStep;
 	}
 	else if (model_.getConstMesh().Dimension() == 2) {
-		Mesh mesh{ model_.getConstMesh() };
-		Vector dtscale{ getTimeStepScale(mesh) };
-		double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
-		return dtscale.Min() * rmin * 2.0 / 3.0;
+		if (checkIfQuadInMesh(model_.getConstMesh()) == false) {
+			Mesh mesh{ model_.getConstMesh() };
+			Vector dtscale{ getTimeStepScale(mesh) };
+			double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
+			return dtscale.Min() * rmin * 2.0 / 3.0;
+		}
+		else{
+			throw std::runtime_error("Automatic Time Step Estimation not available for meshes with quadrilateral elements.");
+		}
 	}
 	else{
 		throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
