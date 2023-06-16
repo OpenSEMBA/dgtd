@@ -1148,28 +1148,6 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 
 }
 
-TEST_F(Solver2DTest, normalStudy)
-{
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0)};
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, pecBdr, AttributeToInteriorConditions{} };
-
-	auto probes{ buildProbesWithAnExportProbe(100) };
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianInitialField(E, 0.2, Source::Position({1.0, 0.0}), unitVec(Z)),
-		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(4.0)
-			.setOrder(1)
-	};
-
-	solver.run();
-
-}
-
 TEST_F(Solver2DTest, DISABLED_box_with_Gmsh)
 {
 	auto mesh = Mesh::LoadFromFile((gmshMeshesFolder() + "test.msh").c_str(), 1, 0);
@@ -1203,34 +1181,23 @@ TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
 {
 	auto mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
 
-	auto NV{ mesh.GetNV() };
-	Vector vertCoord(NV);
-	mesh.GetVertices(vertCoord);
-	Vector vx(NV), vy(NV);
-	for (int i = 0; i < NV; ++i) {
-		vx(i) = vertCoord(i);
-		vy(i) = vertCoord(i + NV);
-	}
-
 	Vector area(mesh.GetNE()), dtscale(mesh.GetNE());
 	for (int it = 0; it < mesh.GetNE(); ++it) {
 		auto el{ mesh.GetElement(it) };
-		Array<int> ENV(el->GetNVertices());
-		el->GetVertices(ENV);
-		Vector len(ENV.Size());
-		len = 0.0;
-		double sper{ 0.0 };
-		for (int i = 0; i < ENV.Size(); ++i) {
-			int j = (i + 1) % 3;
-			len(i) += sqrt(pow(vx(i) - vx(j), 2.0) + pow(vy(i) - vy(j), 2.0));
-			sper += len(i);
+		Vector sper(mesh.GetNumFaces());
+		sper = 0.0;
+		for (int f = 0; f < mesh.GetElement(it)->GetNEdges(); ++f) {
+			ElementTransformation* T{ mesh.GetFaceTransformation(f) };
+			const IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
+			for (int p = 0; p < ir.GetNPoints(); p++)
+			{
+				const IntegrationPoint& ip = ir.IntPoint(p);
+				sper(it) += ip.weight * T->Weight();
+			}
 		}
 		sper /= 2.0;
-		area(it) = sqrt(sper);
-		for (int i = 0; i < ENV.Size(); ++i) {
-			area(it) *= sqrt(sper - len(i));
-		}
-		dtscale(it) = area(it) / sper;
+		area(it) = mesh.GetElementVolume(it);
+		dtscale(it) = area(it) / sper(it);
 	}
 
 	auto meshLGL{ Mesh::MakeCartesian1D(1, 2.0) };
@@ -1239,7 +1206,6 @@ TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
 
 	GridFunction nodes(&fes);
 	meshLGL.GetNodes(nodes);
-	nodes -= 1.0;
 
 	double rmin{ abs(nodes(0) - nodes(1)) };
 

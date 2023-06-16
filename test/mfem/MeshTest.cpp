@@ -383,7 +383,7 @@ TEST_F(MeshTest, BoundaryWithoutInteriorFace)
 	EXPECT_EQ(expected, facesToOrient);
 }
 
-TEST_F(MeshTest, SubMeshing)
+TEST_F(MeshTest, SubMeshingAttributes)
 {
 	auto mesh{ Mesh::MakeCartesian1D(2) };
 
@@ -399,6 +399,29 @@ TEST_F(MeshTest, SubMeshing)
 		EXPECT_EQ(1,mesh.GetAttribute(i));
 		EXPECT_EQ(3,submesh.GetAttribute(0));
 	}
+
+}
+
+TEST_F(MeshTest, SubMeshingBdrAttributes)
+{
+	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "line_for_submesh.mesh").c_str(),1, 0) };
+
+	Array<int> subdomain_attribute_1(1); subdomain_attribute_1[0] = 1;
+	Array<int> subdomain_attribute_2(1); subdomain_attribute_2[0] = 2;
+	Array<int> subdomain_attribute_3(1); subdomain_attribute_3[0] = 3;
+
+	auto submesh_att_1{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_1) };
+	auto submesh_att_2{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_2) };
+	auto submesh_att_3{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_3) };
+
+	submesh_att_1.AddBdrPoint(0, 4);
+	submesh_att_3.AddBdrPoint(1, 5);
+
+	EXPECT_EQ(mesh.GetAttribute(0), submesh_att_1.GetAttribute(0));
+	EXPECT_EQ(mesh.GetAttribute(1), submesh_att_2.GetAttribute(0));
+	EXPECT_EQ(mesh.GetAttribute(2), submesh_att_3.GetAttribute(0));
+	EXPECT_EQ(mesh.GetBdrAttribute(0), submesh_att_1.GetBdrAttribute(0));
+	EXPECT_EQ(mesh.GetBdrAttribute(1), submesh_att_3.GetBdrAttribute(0));
 
 }
 

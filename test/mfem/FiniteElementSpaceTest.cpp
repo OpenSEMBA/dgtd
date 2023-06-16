@@ -459,7 +459,7 @@ TEST_F(FiniteElementSpaceTest, calculateOptimalTS1D)
 
 }
 
-TEST_F(FiniteElementSpaceTest, assemblingSubmeshedOperator)
+TEST_F(FiniteElementSpaceTest, assemblingSubmeshedOperator_1D_InvM)
 {
 	auto mesh{ Mesh::MakeCartesian1D(3, 3.0) };
 
