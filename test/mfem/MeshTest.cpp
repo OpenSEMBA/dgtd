@@ -383,7 +383,7 @@ TEST_F(MeshTest, BoundaryWithoutInteriorFace)
 	EXPECT_EQ(expected, facesToOrient);
 }
 
-TEST_F(MeshTest, SubMeshingAttributes)
+TEST_F(MeshTest, SubMeshingAttributes_1D)
 {
 	auto mesh{ Mesh::MakeCartesian1D(2) };
 
@@ -402,7 +402,7 @@ TEST_F(MeshTest, SubMeshingAttributes)
 
 }
 
-TEST_F(MeshTest, SubMeshingBdrAttributes)
+TEST_F(MeshTest, SubMeshingBdrAttributes_1D)
 {
 	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "line_for_submesh.mesh").c_str(),1, 0) };
 
@@ -422,6 +422,54 @@ TEST_F(MeshTest, SubMeshingBdrAttributes)
 	EXPECT_EQ(mesh.GetAttribute(2), submesh_att_3.GetAttribute(0));
 	EXPECT_EQ(mesh.GetBdrAttribute(0), submesh_att_1.GetBdrAttribute(0));
 	EXPECT_EQ(mesh.GetBdrAttribute(1), submesh_att_3.GetBdrAttribute(0));
+
+}
+
+TEST_F(MeshTest, MeshIdentifyBoundaryVertex)
+{
+	auto mesh{ Mesh::MakeCartesian1D(2) };
+
+	Vector bdrIndex(mesh.GetNBE());
+	for (int i = 0; i < bdrIndex.Size(); ++i) {
+		bdrIndex(i) = int(mesh.GetBdrElementEdgeIndex(i));
+	}
+	
+	Vector exp({ 0,2 });
+	for (int i = 0; i < bdrIndex.Size(); ++i) {
+		EXPECT_EQ(exp[0], bdrIndex[0]);
+	}
+
+}
+
+TEST_F(MeshTest, SubMeshAssignBdrFromParentMesh_1D)
+{
+	auto mesh{ Mesh::MakeCartesian1D(2) };
+	mesh.SetBdrAttribute(0, 2);	mesh.SetBdrAttribute(1, 3);
+
+	using ParentId = int;
+	using BdrAtt = int;
+
+	Vector bdrIndex(mesh.GetNBE());
+	for (int i = 0; i < bdrIndex.Size(); ++i) {
+		bdrIndex(i) = int(mesh.GetBdrElementEdgeIndex(i));
+	}
+
+	for (int e = 0; e < mesh.GetNE(); ++e) {
+		std::map<ParentId, BdrAtt> PIdToBdrAtt;
+		auto el{ mesh.GetElement(e) };
+		Array<int> ver(el->GetNVertices());
+		Array<int> bdrAtt(el->GetNVertices());
+		Array<bool> isBdr(el->GetNVertices());
+		auto table{ mesh.GetFaceToElementTable()};
+		table->Print(std::cout);
+		std::cout << std::flush;
+		el->GetVertices(ver);
+		for (int v = 0; v < ver.Size(); ++v) {
+			mesh.FaceIsInterior(ver[v]) == false ? isBdr[v] = true : isBdr[v] = false;
+			mesh.FaceIsInterior(ver[v]) == false ? bdrAtt[v] = 0   : isBdr[v] = 3;
+
+		}
+	}
 
 }
 
@@ -496,4 +544,66 @@ TEST_F(MeshTest, ElementEdges_2D_Tri)
 			ASSERT_EQ(Array<int>({0, 3, 4 }), edges);
 		}
 	}
+}
+
+TEST_F(MeshTest, SubMeshingAttributes_2D)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "four_quads_for_submeshing.mesh").c_str(),1,0) };
+
+	Array<int> att_1(1); att_1[0] = 1;
+	Array<int> att_2(1); att_2[0] = 2;
+	Array<int> att_3(1); att_3[0] = 3;
+	Array<int> att_4(1); att_4[0] = 4;
+
+	auto submesh_att_1{ SubMesh::CreateFromDomain(m,att_1)};
+	auto submesh_att_2{ SubMesh::CreateFromDomain(m,att_2)};
+	auto submesh_att_3{ SubMesh::CreateFromDomain(m,att_3)};
+	auto submesh_att_4{ SubMesh::CreateFromDomain(m,att_4)};
+
+	EXPECT_EQ(m.GetAttribute(0), submesh_att_1.GetAttribute(0));
+	EXPECT_EQ(m.GetAttribute(1), submesh_att_2.GetAttribute(0));
+	EXPECT_EQ(m.GetAttribute(2), submesh_att_3.GetAttribute(0));
+	EXPECT_EQ(m.GetAttribute(3), submesh_att_4.GetAttribute(0));
+	EXPECT_EQ(1, submesh_att_1.GetAttribute(0));
+	EXPECT_EQ(2, submesh_att_2.GetAttribute(0));
+	EXPECT_EQ(3, submesh_att_3.GetAttribute(0));
+	EXPECT_EQ(4, submesh_att_4.GetAttribute(0));
+
+}
+
+TEST_F(MeshTest, SubMeshingBdrAttributes_2D)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "four_quads_for_submeshing.mesh").c_str(),1,0) };
+
+	Array<int> att_1(1); att_1[0] = 1;
+	Array<int> att_2(1); att_2[0] = 2;
+	Array<int> att_3(1); att_3[0] = 3;
+	Array<int> att_4(1); att_4[0] = 4;
+
+	auto submesh_bdratt_0_1{ SubMesh::CreateFromDomain(m,att_1) };
+	auto submesh_bdratt_2_3{ SubMesh::CreateFromDomain(m,att_2) };
+	auto submesh_bdratt_4_5{ SubMesh::CreateFromDomain(m,att_3) };
+	auto submesh_bdratt_6_7{ SubMesh::CreateFromDomain(m,att_4) };
+
+	EXPECT_EQ(m.GetBdrAttribute(0), submesh_bdratt_0_1.GetBdrAttribute(0));
+	EXPECT_EQ(m.GetBdrAttribute(1), submesh_bdratt_0_1.GetBdrAttribute(1));
+	EXPECT_EQ(m.GetBdrAttribute(2), submesh_bdratt_2_3.GetBdrAttribute(0));
+	EXPECT_EQ(m.GetBdrAttribute(3), submesh_bdratt_2_3.GetBdrAttribute(1));
+	EXPECT_EQ(m.GetBdrAttribute(4), submesh_bdratt_4_5.GetBdrAttribute(0));
+	EXPECT_EQ(m.GetBdrAttribute(5), submesh_bdratt_4_5.GetBdrAttribute(1));
+	EXPECT_EQ(m.GetBdrAttribute(6), submesh_bdratt_6_7.GetBdrAttribute(0));
+	EXPECT_EQ(m.GetBdrAttribute(7), submesh_bdratt_6_7.GetBdrAttribute(1));
+	EXPECT_EQ(5, submesh_bdratt_0_1.GetBdrAttribute(0));
+	EXPECT_EQ(5, submesh_bdratt_0_1.GetBdrAttribute(1));
+	EXPECT_EQ(6, submesh_bdratt_2_3.GetBdrAttribute(0));
+	EXPECT_EQ(6, submesh_bdratt_2_3.GetBdrAttribute(1));
+	EXPECT_EQ(7, submesh_bdratt_4_5.GetBdrAttribute(0));
+	EXPECT_EQ(7, submesh_bdratt_4_5.GetBdrAttribute(1));
+	EXPECT_EQ(8, submesh_bdratt_6_7.GetBdrAttribute(0));
+	EXPECT_EQ(8, submesh_bdratt_6_7.GetBdrAttribute(1));
+	
+	
+	
+
+
 }
