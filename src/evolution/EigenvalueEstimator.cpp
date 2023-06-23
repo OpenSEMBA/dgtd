@@ -61,27 +61,28 @@ EigenvalueEstimator::EigenvalueEstimator(
 				invM * toEigen(*buildZeroNormalOperator(f, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 			//MFNN
 			mat_.block(getOffset(f, X), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
-				invM * toEigen(*buildTwoNormalOperator(f, { X, d }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
+				invM * toEigen(*buildTwoNormalOperator(f, { d, X }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 			mat_.block(getOffset(f, Y), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
-				invM * toEigen(*buildTwoNormalOperator(f, { Y, d }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
+				invM * toEigen(*buildTwoNormalOperator(f, { d, Y }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 			mat_.block(getOffset(f, Z), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
-				invM * toEigen(*buildTwoNormalOperator(f, { Z, d }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
+				invM * toEigen(*buildTwoNormalOperator(f, { d, Z }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 
 		}
+
+		f == H ? invM = -invM_H : invM = invM_E;
+
 		for (int x = X; x <= Z; x++) {
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			f == E ? invM *= 1.0 : invM *= -1.0;
-
-			mat_.block(getOffset(altField(f), y), getOffset(f, x), fes_.GetNDofs(), fes_.GetNDofs()) -=
+			mat_.block(getOffset(f, x), getOffset(altField(f), y), fes_.GetNDofs(), fes_.GetNDofs()) -=
 				invM * toEigen(*buildDerivativeOperator(z, fes_)->SpMat().ToDenseMatrix());
-			mat_.block(getOffset(altField(f), y), getOffset(f, x), fes_.GetNDofs(), fes_.GetNDofs()) -=
+			mat_.block(getOffset(f, x), getOffset(altField(f), y), fes_.GetNDofs(), fes_.GetNDofs()) -=
 				invM * toEigen(*buildOneNormalOperator(f, { z }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 
-			mat_.block(getOffset(altField(f), z), getOffset(f, x), fes_.GetNDofs(), fes_.GetNDofs()) +=
+			mat_.block(getOffset(f, x), getOffset(altField(f), z), fes_.GetNDofs(), fes_.GetNDofs()) +=
 				invM * toEigen(*buildDerivativeOperator(y, fes_)->SpMat().ToDenseMatrix());
-			mat_.block(getOffset(altField(f), z), getOffset(f, x), fes_.GetNDofs(), fes_.GetNDofs()) +=
+			mat_.block(getOffset(f, x), getOffset(altField(f), z), fes_.GetNDofs(), fes_.GetNDofs()) +=
 				invM * toEigen(*buildOneNormalOperator(f, { y }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 		}
 	}
