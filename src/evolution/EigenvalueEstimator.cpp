@@ -10,25 +10,25 @@ int EigenvalueEstimator::getOffset(const FieldType& ft, const Direction& d)
 		case X:
 			return 0;
 		case Y:
-			return fes_.GetNDofs();
+			return fes_.GetNDofs() - 1;
 		case Z:
-			return 2 * fes_.GetNDofs();
+			return 2 * fes_.GetNDofs() - 1;
 		default:
 			throw std::runtime_error("Incorrect Direction for FieltType E in getOffset.");
 		}
 	case H:
 		switch (d) {
 		case X:
-			return 3 * fes_.GetNDofs();
+			return 3 * fes_.GetNDofs() - 1;
 		case Y:
-			return 4 * fes_.GetNDofs();
+			return 4 * fes_.GetNDofs() - 1;
 		case Z:
-			return 5 * fes_.GetNDofs();
+			return 5 * fes_.GetNDofs() - 1;
 		default:
 			throw std::runtime_error("Incorrect Direction for FieltType H in getOffset.");
 		}
 	default:
-		throw std::runtime_error("Incorrect Direction in getOffset.");
+		throw std::runtime_error("Incorrect FieldType in getOffset.");
 	}
 }
 
