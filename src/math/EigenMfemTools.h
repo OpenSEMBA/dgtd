@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/SparseExtra>
+#include <Eigen/Eigenvalues> 
 
 namespace maxwell {
 

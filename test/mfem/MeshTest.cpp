@@ -495,6 +495,27 @@ TEST_F(MeshTest, GetElementSize_1D)
 
 }
 
+TEST_F(MeshTest, GetElementFaceOrientation)
+{
+	/*    2___-1__3
+		  | 	  |
+		  -1	  1
+		  |		  |
+	      0___1___1
+	*/
+
+
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::QUADRILATERAL,true) };
+
+	Array<int> faces(m.GetElement(0)->GetNEdges()), ori(m.GetElement(0)->GetNEdges());
+	m.GetElementEdges(0, faces, ori);
+	Array<int> vert0(2), vert1(2), vert2(2), vert3(2);
+	m.GetEdgeVertices(0,vert0);
+	m.GetEdgeVertices(1,vert1);
+	m.GetEdgeVertices(2,vert2);
+	m.GetEdgeVertices(3,vert3);
+}
+
 TEST_F(MeshTest, FaceElementSurface_2D_Tri)
 {
 	auto m{ Mesh::MakeCartesian2D(1,1,Element::TRIANGLE) };
