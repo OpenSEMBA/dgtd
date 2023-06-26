@@ -60,11 +60,11 @@ EigenvalueEstimator::EigenvalueEstimator(
 			mat_.block(getOffset(f, d), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
 				invM * toEigen(*buildZeroNormalOperator(f, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 			//MFNN
-			mat_.block(getOffset(f, X), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
+			mat_.block(getOffset(f, X), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) -=
 				invM * toEigen(*buildTwoNormalOperator(f, { d, X }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
-			mat_.block(getOffset(f, Y), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
+			mat_.block(getOffset(f, Y), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) -=
 				invM * toEigen(*buildTwoNormalOperator(f, { d, Y }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
-			mat_.block(getOffset(f, Z), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
+			mat_.block(getOffset(f, Z), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) -=
 				invM * toEigen(*buildTwoNormalOperator(f, { d, Z }, model_, fes_, opts_)->SpMat().ToDenseMatrix());
 
 		}

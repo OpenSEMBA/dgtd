@@ -25,8 +25,8 @@ add_executable(maxwell_tests
 	"solver/Solver3DTest.cpp"  
 	"solver/ProbesManagerTest.cpp" 
 	"solver/SourcesTest.cpp"
-	"adapter/OpensembaAdapterTest.cpp"
-)
+	"solver/EigenvalueEstimator.cpp"
+	"adapter/OpensembaAdapterTest.cpp")
 
 include_directories(./)
 
