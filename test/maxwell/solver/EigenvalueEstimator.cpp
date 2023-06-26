@@ -11,11 +11,14 @@ using Solver = maxwell::Solver;
 
 class EigenvalueEstimatorTest : public ::testing::Test {
 protected:
-	Mesh mTri{ Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE, true) };
-	Mesh mQuad{ Mesh::MakeCartesian2D(1, 1, Element::QUADRILATERAL, true) };
-	DG_FECollection fec{ DG_FECollection(1, 2,BasisType::GaussLegendre) };
-	FiniteElementSpace fesTri{ FiniteElementSpace(&mTri, &fec) };
-	FiniteElementSpace fesQuad{ FiniteElementSpace(&mQuad, &fec) };
+	Mesh mTri { Mesh::MakeCartesian2D(1, 1,    Element::TRIANGLE     , true) };
+	Mesh mQuad{ Mesh::MakeCartesian2D(1, 1,    Element::QUADRILATERAL, true) };
+	Mesh mHexa{ Mesh::MakeCartesian3D(1, 1, 1, Element::HEXAHEDRON) };
+	DG_FECollection fec2D{ DG_FECollection(1, 2,BasisType::GaussLegendre) };
+	DG_FECollection fec3D{ DG_FECollection(1, 3,BasisType::GaussLegendre) };
+	FiniteElementSpace fesTri{  FiniteElementSpace(&mTri,  &fec2D) };
+	FiniteElementSpace fesQuad{ FiniteElementSpace(&mQuad, &fec2D) };
+	FiniteElementSpace fesHexa{ FiniteElementSpace(&mHexa, &fec3D) };
 
 };
 
@@ -38,7 +41,7 @@ TEST_F(EigenvalueEstimatorTest, verifyNoThrow_SubMesh_Tri)
 	Array<int> atts(1); atts[0] = 300;
 	auto smTri(SubMesh::CreateFromDomain(mTri, atts));
 	smTri.SetAttribute(0, 1);
-	FiniteElementSpace smFesTri{ FiniteElementSpace(&smTri, &fec) };
+	FiniteElementSpace smFesTri{ FiniteElementSpace(&smTri, &fec2D) };
 
 	EXPECT_NO_THROW(EigenvalueEstimator(
 		smFesTri, 
@@ -54,9 +57,9 @@ TEST_F(EigenvalueEstimatorTest, verifyNoThrow_SubMesh_Tri)
 TEST_F(EigenvalueEstimatorTest, printMatrix_PEC)
 {
 	EigenvalueEstimator ev(
-		fesQuad,
+		fesHexa,
 		Model{
-			mQuad,
+			mHexa,
 			AttributeToMaterial{},
 			AttributeToBoundary{},
 			AttributeToInteriorConditions{} },
@@ -76,13 +79,13 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 {
 
 	EigenvalueEstimator ev(
-		fesQuad,
+		fesHexa,
 		Model{
-			mQuad,
+			mHexa,
 			AttributeToMaterial{},
 			AttributeToBoundary{ {1,BdrCond::SMA} },
 			AttributeToInteriorConditions{} },
-			EvolutionOptions{});
+		EvolutionOptions{});
 
 	auto mat{ ev.getElementMatrix() };
 
