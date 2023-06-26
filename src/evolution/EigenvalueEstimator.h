@@ -12,6 +12,8 @@ public:
 
 	EigenvalueEstimator(mfem::FiniteElementSpace&, Model&, EvolutionOptions&);
 
+	const Eigen::MatrixXd& getElementMatrix() { return mat_; };
+
 private:
 
 	int getOffset(const FieldType&, const Direction&);
