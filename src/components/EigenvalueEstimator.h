@@ -1,7 +1,6 @@
 #include "mfemExtension/BilinearIntegrators.h"
-#include "components/Model.h"
-#include "EvolutionMethods.h"
-#include "math/EigenMfemTools.h"
+#include "Model.h"
+#include "evolution/EvolutionMethods.h"
 
 namespace maxwell {
 

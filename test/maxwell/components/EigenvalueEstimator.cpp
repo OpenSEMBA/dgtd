@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "TestUtils.h"
-#include "evolution/EigenvalueEstimator.h"
+#include "components/EigenvalueEstimator.h"
 #include "evolution/EvolutionMethods.h"
 
 using namespace maxwell;
@@ -95,4 +95,19 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 	std::cout << mat << std::endl;
 	std::cout << std::flush;
 
+}
+
+TEST_F(EigenvalueEstimatorTest, comparePECandSMAconditions)
+{
+	auto evPEC{EigenvalueEstimator(fesHexa, Model{ mHexa, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
+	auto att_to_bdr{ AttributeToBoundary{{1,BdrCond::SMA}} };
+	auto evSMA{ EigenvalueEstimator(fesHexa, Model{ mHexa, AttributeToMaterial{}, att_to_bdr, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
+
+	auto eigenvalsPEC{ evPEC.getElementMatrix().eigenvalues() };
+	auto eigenvalsSMA{ evSMA.getElementMatrix().eigenvalues() };
+
+	std::cout << "PEC" << std::endl;
+	std::cout << evPEC.getElementMatrix().eigenvalues() << std::endl;
+	std::cout << "SMA" << std::endl;
+	std::cout << evSMA.getElementMatrix().eigenvalues() << std::endl;
 }

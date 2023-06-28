@@ -46,8 +46,8 @@ EigenvalueEstimator::EigenvalueEstimator(
 
 	mat_.setConstant(0.0);
 
-	auto invM_E{ toEigen(*buildInverseMassMatrix(E,model_,fes_)->SpMat().ToDenseMatrix()) };
-	auto invM_H{ toEigen(*buildInverseMassMatrix(H,model_,fes_)->SpMat().ToDenseMatrix()) };
+	auto invM_E{ toEigen(*buildInverseMassMatrix(E, model_, fes_)->SpMat().ToDenseMatrix()) };
+	auto invM_H{ toEigen(*buildInverseMassMatrix(H, model_, fes_)->SpMat().ToDenseMatrix()) };
 	Eigen::MatrixXd invM(invM_E);
 
 	for (auto f : { E, H }) {
