@@ -31,6 +31,7 @@ void OptimizationManager::calculateTimeStepForElements()
 		
 		auto reqs{ assembleTimeSteppingReqs(e) };
 		auto ev{ EigenvalueEstimator(reqs.first, reqs.second , EvolutionOptions{})};
+		elemIdToMaxEV_.emplace(e, ev.getElementMatrix().eigenvalues().maxCoeff());
 
 	}
 }

@@ -3,6 +3,7 @@
 using ElementID = int;
 using ElementAttribute = int;
 using TimeStep = double;
+using MaxEigenVal = Eigen::dcomplex;
 
 namespace maxwell {
 
@@ -26,7 +27,7 @@ private:
 
 	double optimaldt_;
 	std::map<ElementID, ElementAttribute> elemIdToAtt_;
-	std::map<ElementID, TimeStep> elemIdTodt_;
+	std::map<ElementID, MaxEigenVal> elemIdToMaxEV_;
 };
 
 
