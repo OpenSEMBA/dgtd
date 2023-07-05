@@ -460,13 +460,10 @@ TEST_F(MeshTest, SubMeshAssignBdrFromParentMesh_1D)
 		Array<int> ver(el->GetNVertices());
 		Array<int> bdrAtt(el->GetNVertices());
 		Array<bool> isBdr(el->GetNVertices());
-		auto table{ mesh.GetFaceToElementTable()};
-		table->Print(std::cout);
-		std::cout << std::flush;
 		el->GetVertices(ver);
 		for (int v = 0; v < ver.Size(); ++v) {
 			mesh.FaceIsInterior(ver[v]) == false ? isBdr[v] = true : isBdr[v] = false;
-			mesh.FaceIsInterior(ver[v]) == false ? bdrAtt[v] = 0   : isBdr[v] = 3;
+			mesh.FaceIsInterior(ver[v]) == false ? bdrAtt[v] = 0   : bdrAtt[v] = 3;
 
 		}
 	}

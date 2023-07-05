@@ -23,9 +23,9 @@ private:
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 
-	double taggerAttribute_ = 999;
+	int taggerAttribute_ = 999;
 
-	double optimaldt_;
+	double optimaldt_ = 0.0;
 	std::map<ElementID, ElementAttribute> elemIdToAtt_;
 	std::map<ElementID, MaxEigenVal> elemIdToMaxEV_;
 };

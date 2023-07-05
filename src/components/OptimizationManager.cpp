@@ -25,13 +25,25 @@ std::pair<FiniteElementSpace, Model> OptimizationManager::assembleTimeSteppingRe
 	return pair;
 }
 
+Eigen::dcomplex calcHighestModulus(Eigen::VectorXcd evs)
+{
+	Eigen::dcomplex res(0, 0);
+	for (int i = 0; i < evs.size(); ++i) {
+		if (sqrt(pow(res.real(), 2.0) + pow(res.imag(), 2.0)) < sqrt(pow(evs[i].real(), 2.0) + pow(evs[i].imag(), 2.0))) {
+			res = evs[i];
+		}
+	}
+	return res;
+}
+
 void OptimizationManager::calculateTimeStepForElements() 
 {
 	for (int e = 0; e < model_.getConstMesh().GetNE(); ++e) {
 		
 		auto reqs{ assembleTimeSteppingReqs(e) };
-		auto ev{ EigenvalueEstimator(reqs.first, reqs.second , EvolutionOptions{})};
-		elemIdToMaxEV_.emplace(e, ev.getElementMatrix().eigenvalues().maxCoeff());
+		auto ev{ EigenvalueEstimator(reqs.first, reqs.second, EvolutionOptions{})};
+		auto evs{ ev.getElementMatrix().eigenvalues() };
+		elemIdToMaxEV_.emplace(e, calcHighestModulus(evs));
 
 	}
 }
