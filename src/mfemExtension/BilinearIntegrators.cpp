@@ -359,10 +359,7 @@ void MaxwellDGFluxTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElement& 
         const IntegrationPoint& eip1 = Trans.GetElement1IntPoint();
         const IntegrationPoint& eip2 = Trans.GetElement2IntPoint();
 
-        Vector nor = calculateNormal(el1, eip1, Trans);
-
-        double b = calculateBetaTerm(nor, dir, beta);
-
+        double b = 0.5;
         el1.CalcShape(eip1, shape1_);
         double w = ip.weight * b;
         elmat = 0.0;
