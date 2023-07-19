@@ -57,9 +57,9 @@ TEST_F(EigenvalueEstimatorTest, verifyNoThrow_SubMesh_Tri)
 TEST_F(EigenvalueEstimatorTest, printMatrix_PEC)
 {
 	EigenvalueEstimator ev(
-		fesTri,
+		fesQuad,
 		Model{
-			mTri,
+			mQuad,
 			AttributeToMaterial{},
 			AttributeToBoundary{},
 			AttributeToInteriorConditions{} },
@@ -79,9 +79,9 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 {
 
 	EigenvalueEstimator ev(
-		fesTri,
+		fesQuad,
 		Model{
-			mTri,
+			mQuad,
 			AttributeToMaterial{},
 			AttributeToBoundary{ {1,BdrCond::SMA} },
 			AttributeToInteriorConditions{} },
@@ -99,9 +99,9 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 
 TEST_F(EigenvalueEstimatorTest, comparePECandSMAconditions)
 {
-	auto evPEC{EigenvalueEstimator(fesTri, Model{ mTri, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
+	auto evPEC{EigenvalueEstimator(fesQuad, Model{ mQuad, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
 	auto att_to_bdr{ AttributeToBoundary{{1,BdrCond::SMA}} };
-	auto evSMA{ EigenvalueEstimator(fesTri, Model{ mTri, AttributeToMaterial{}, att_to_bdr, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
+	auto evSMA{ EigenvalueEstimator(fesQuad, Model{ mQuad, AttributeToMaterial{}, att_to_bdr, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
 
 	auto eigenvalsPEC{ evPEC.getElementMatrix().eigenvalues() };
 	auto eigenvalsSMA{ evSMA.getElementMatrix().eigenvalues() };

@@ -1148,6 +1148,35 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 
 }
 
+TEST_F(Solver2DTest, interiorBoundary_TotalFieldIn)
+{
+	auto mesh{
+		Mesh::LoadFromFile(
+			(mfemMeshesFolder() + "TwoQuadsIntBdr.mesh").c_str(), 1, 0
+		)
+	};
+	//mesh.UniformRefinement();
+	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2, BdrCond::PMC} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+
+	auto probes{ buildProbesWithAnExportProbe(80) };
+
+	maxwell::Solver solver{
+		model,
+			probes,
+			buildGaussianPlanewave(0.3, 0.5, unitVec(Z), unitVec(X)),
+			SolverOptions{}
+			.setTimeStep(1e-3)
+			.setCentered()
+			.setFinalTime(2.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+}
+
 TEST_F(Solver2DTest, DISABLED_box_with_Gmsh)
 {
 	auto mesh = Mesh::LoadFromFile((gmshMeshesFolder() + "test.msh").c_str(), 1, 0);

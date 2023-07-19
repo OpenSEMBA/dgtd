@@ -464,10 +464,81 @@ TEST_F(MeshTest, SubMeshAssignBdrFromParentMesh_1D)
 		for (int v = 0; v < ver.Size(); ++v) {
 			mesh.FaceIsInterior(ver[v]) == false ? isBdr[v] = true : isBdr[v] = false;
 			mesh.FaceIsInterior(ver[v]) == false ? bdrAtt[v] = 0   : bdrAtt[v] = 3;
-
 		}
 	}
 
+}
+
+TEST_F(MeshTest, SubMeshingFromDomain)
+{
+	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "TotalFieldScatteredFieldQuads.msh").c_str(), 1, 0)};
+	
+	Array<int> domain_atts(2); domain_atts[0] = 201; domain_atts[1] = 202;
+
+	using ElementId = int;
+	using Attribute = int;
+	using BdrId = int;
+	using IsInterior = bool;
+	using TwoElems = std::pair<ElementId, ElementId>;
+	using FaceToAtt = std::map<FaceId, Attribute>;
+
+	std::map<ElementId, FaceToAtt> map_pair;
+	std::map<BdrId, Attribute> bdr2att_map;
+	std::map<BdrId, TwoElems> bdr2el_map;
+	std::map<BdrId, IsInterior> bdr2int_map;
+	bdr2int_map.emplace(2, false); bdr2int_map.emplace(301, true);
+
+	for (int b = 0; b < m.GetNBE(); ++b) {
+		bdr2att_map.emplace(b,m.GetBdrAttribute(b));
+		int el, el2, info, info2;
+		if (bdr2int_map[m.GetBdrAttribute(b)] == true) {
+			auto facetrans = m.GetFaceElementTransformations(b, 31);
+			el = facetrans->Elem1No;
+			el2 = facetrans->Elem2No;
+		}
+		else {
+			auto facetrans = m.GetBdrFaceTransformations(b);
+			el = facetrans->Elem1No;
+			el2 = -1;
+		}
+		TwoElems twoelems(el,el2);
+		bdr2el_map.emplace(b,twoelems);
+	}
+
+	auto faceneighs{ m.FindFaceNeighbors(2) };	
+
+	for (int e = 0; e < m.GetNE(); ++e) {
+		for (int i = 0; i < domain_atts.Size(); ++i) {
+			if (m.GetElement(e)->GetAttribute() == domain_atts[i]) {
+				Array<int> faces, ori;
+				for (int f = 0; f < m.GetElement(e)->GetNEdges(); ++f) {
+					m.GetElementFaces(e, faces, ori);
+				}
+
+			}
+		}
+	}
+
+	auto sm_dom{ SubMesh::CreateFromDomain(m,domain_atts) };
+	Array<int> bdr_marker(2); bdr_marker[0] = 2; bdr_marker[1] = 301;
+	auto sm_bdr{ SubMesh::CreateFromBoundary(m,bdr_marker) };
+
+
+}
+
+TEST_F(MeshTest, ExtendedFindNeighboursMethod2D)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3.mesh").c_str(), 1, 0) };
+	
+	MFEM_ASSERT(m.FindFaceNeighbors(0) == Array<int>({0, 1, 3})      ,"Elem 0 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(1) == Array<int>({0, 1, 2, 4})   ,"Elem 1 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(2) == Array<int>({1, 2, 5})      ,"Elem 2 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(3) == Array<int>({0, 3, 4, 6})   ,"Elem 3 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(4) == Array<int>({1, 3, 4, 5, 7}),"Elem 4 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(5) == Array<int>({2, 4, 5, 8})   ,"Elem 5 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(6) == Array<int>({3, 6, 7})      ,"Elem 6 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(7) == Array<int>({4, 6, 7, 8})   ,"Elem 7 fails.");
+	MFEM_ASSERT(m.FindFaceNeighbors(8) == Array<int>({5, 7, 8})      ,"Elem 8 fails.");
 }
 
 TEST_F(MeshTest, InteriorBoundary)

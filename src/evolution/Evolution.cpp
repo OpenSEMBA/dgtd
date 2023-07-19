@@ -27,27 +27,27 @@ Evolution::Evolution(
 			}
 		}
 	}
-
 	for (auto f : { E, H }) {//TFSF - SrcConds
 		for (auto d : { X, Y, Z }) {
-			MBF_[f][d] = buildIBFIByMult(
-				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { d }, model_, fes_, opts_), fes_);
+			MBF_[f][d] = buildByMult(
+				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { X }, model_, fes_, opts_), fes_);
 		}
 	}
 
 	if (model_.getInteriorBoundaryToMarker().size() != 0) {
 		for (auto f : { E, H }) { //IntBdrConds
-			MPB_[f] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
+			MPB_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
 					for (auto f2 : { E, H }) {
-						MFNB_[f][f2][d] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
-						MFNNB_[f][f2][d][d2] = buildIBFIByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+						MFNB_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
+						MFNNB_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
 					}
 				}
 			}
 		}
 	}
+
  }
 
 void Evolution::Mult(const Vector& in, Vector& out) const
