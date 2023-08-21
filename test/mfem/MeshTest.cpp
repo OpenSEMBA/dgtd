@@ -285,3 +285,14 @@ TEST_F(MeshTest, GetElementSize_1D)
 	}
 
 }
+
+TEST_F(MeshTEst, ElementPerimeter_2D_tri)
+{
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE) };
+
+	auto e{ m.GetElement(0) };
+	mfem::Array<int> vertices(e->GetNVertices());
+	e->GetVertices(vertices);
+
+
+}
