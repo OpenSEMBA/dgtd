@@ -19,6 +19,7 @@ add_executable(maxwell_tests
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 
 	"mfemExtension/LinearFormExtensionTest.cpp" 
+	"math/GeometryTest.cpp"
 	${MPI_SRCS}
 	"solver/Solver1DTest.cpp" 
 	"solver/Solver2DTest.cpp" 

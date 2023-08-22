@@ -14,6 +14,7 @@ add_library(maxwell-solver STATIC
 target_link_libraries(maxwell-solver 
 	maxwell-evolution 
 	maxwell-components 
+	maxwell-math
 	maxwell-adapter
 	mfem
 )

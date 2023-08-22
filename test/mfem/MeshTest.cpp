@@ -285,3 +285,20 @@ TEST_F(MeshTest, GetElementSize_1D)
 	}
 
 }
+
+TEST_F(MeshTest, AddBdrElement_ownership)
+{
+	auto m{ Mesh::MakeCartesian2D(2, 1, Element::Type::QUADRILATERAL) };
+
+	int bdrNum;
+	{
+		Segment seg(1, 4, 20);
+		bdrNum = m.AddBdrElement(new Segment(seg)); // Ownership is transfered here
+		m.FinalizeTopology();
+		m.Finalize();
+	}
+	const Element* bdrElem = m.GetBdrElement(bdrNum);
+	
+	ASSERT_TRUE(bdrElem != nullptr);
+	EXPECT_EQ(Element::SEGMENT, bdrElem->GetType());
+}
