@@ -7,7 +7,13 @@
 using namespace mfem;
 using NodeId = int;
 using FaceId = int;
+using ElementId = int;
 using Orientation = int;
+using Attribute = int;
+using BdrId = int;
+using IsInterior = bool;
+using TwoElems = std::pair<ElementId, ElementId>;
+using FaceToAtt = std::map<FaceId, Attribute>;
 
 double linearFunction(const Vector& pos)
 {
@@ -469,18 +475,74 @@ TEST_F(MeshTest, SubMeshAssignBdrFromParentMesh_1D)
 
 }
 
+TEST_F(MeshTest, SubMeshingOnX)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "FiveQuadsOnX_TFSF.mesh").c_str(), 1, 0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes_m{ FiniteElementSpace(&m,&fec) };
+
+	Array<int> domain_atts({ 201, 202 });
+	auto sm{ SubMesh::CreateFromDomain(m,domain_atts) };
+	Array<int> att201, att202;
+	for (int e = 0; e < sm.GetNE(); ++e) {
+		if (sm.GetAttribute(e) == 201) {
+			att201.Append(e);
+		}
+		if (sm.GetAttribute(e) == 202) {
+			att202.Append(e);
+		}
+	}
+	MFEM_ASSERT(att201 == Array<int>({0, 3}), "att201 failure.");
+	MFEM_ASSERT(att202 == Array<int>({1, 2}), "att202 failure.");
+	
+	auto fes_sm{ FiniteElementSpace(&sm,&fec) };
+	
+	GridFunction gf_m (&fes_m);
+	GridFunction gf_sm(&fes_sm);
+
+	gf_sm[1]  =  5.0;
+	gf_sm[13] = -5.0;
+
+	sm.Transfer(gf_sm, gf_m);
+
+	auto idmap{ sm.GetParentElementIDMap() };
+	FaceToAtt parentbdr2a;
+	for (int bdr = 0; bdr < m.GetNBE(); ++bdr) {
+		parentbdr2a.emplace(bdr, m.GetBdrAttribute(bdr));
+	}
+	FaceToAtt subbdr2a;
+	for (int bdr = 0; bdr < sm.GetNBE(); ++bdr) {
+		subbdr2a.emplace(bdr, sm.GetBdrAttribute(bdr));
+	}
+
+	auto parentf2bdrEl{ m.GetFaceToBdrElMap() };
+	auto subf2bdrEl{ sm.GetFaceToBdrElMap() };
+
+	//Overrider of Boundaries, Squasher of Ones, Reclassifier of Sources
+
+	for (int e = 0; e < subf2bdrEl.Size(); ++e) { //Not all non-bdrs have to be internal or external bdrs, needs rework.
+		if (subf2bdrEl[e] != -1) { continue; }
+		Array<int> v;
+		sm.GetEdgeVertices(e, v);
+		sm.AddBdrSegment(v[0], v[1]);
+	}
+
+	auto m2smFaceMap{ mfem::SubMeshUtils::BuildFaceMap(m, sm, idmap) };
+	for (int f = 0; f < parentf2bdrEl.Size(); ++f) {
+		if (parentf2bdrEl[f] == -1) { continue; }
+		auto attToBe{ parentbdr2a[parentf2bdrEl[f]] };
+
+	}
+
+
+}
+
 TEST_F(MeshTest, SubMeshingFromDomain)
 {
 	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "TotalFieldScatteredFieldQuads.msh").c_str(), 1, 0)};
 	
 	Array<int> domain_atts(2); domain_atts[0] = 201; domain_atts[1] = 202;
 
-	using ElementId = int;
-	using Attribute = int;
-	using BdrId = int;
-	using IsInterior = bool;
-	using TwoElems = std::pair<ElementId, ElementId>;
-	using FaceToAtt = std::map<FaceId, Attribute>;
 
 	std::map<ElementId, FaceToAtt> map_pair;
 	std::map<BdrId, Attribute> bdr2att_map;
