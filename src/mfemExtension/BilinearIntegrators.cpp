@@ -441,7 +441,7 @@ void MaxwellDGPenaltyTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElemen
     }
 }
 
-void AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
+void TotalFieldScatteredFieldIntegrator::AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
     const FiniteElement& el2,
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
@@ -474,30 +474,14 @@ void AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
         el1.CalcShape(eip1, shape1_);
         double w = ip.weight * b;
         elmat = 0.0;
+
+        //Normals have no magnitude influence, only sign influence.
         
+        // We assume first element have positive normal
+        buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);
+        // We assume second element have negative normal
+        buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
 
-        //If Normal > 0.0, we build on the first element
-        buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);
-        //If normal < 0.0, we build on the second element
-        buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
-
-        if (ndof2) {
-
-            el2.CalcShape(eip2, shape2_);
-
-            if (w != 0.0) {
-                if (TFSFCoeff_ > 0) {
-                    buildFaceMatrix(0.0, ndof1, ndof2, 0, ndof1, shape1_, shape2_, elmat);
-                    buildFaceMatrix(0.0, ndof2, ndof1, ndof1, 0, shape2_, shape1_, elmat);
-                    buildFaceMatrix(w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
-                }
-                else {
-                    buildFaceMatrix(w, ndof1, ndof2, 0, ndof1, shape1_, shape2_, elmat);
-                    buildFaceMatrix(w, ndof2, ndof1, ndof1, 0, shape2_, shape1_, elmat);
-                    buildFaceMatrix(0.0, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
-                }
-            }
-        }
     }
 }
 
