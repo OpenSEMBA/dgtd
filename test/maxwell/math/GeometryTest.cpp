@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <math.h>
 
+#include "TestUtils.h"
 #include "math/Geometry.h"
 
 using namespace maxwell;
@@ -57,4 +58,13 @@ TEST_F(GeometryTest, internal_boundary_orientation_2D)
 	EXPECT_TRUE(elementsHaveSameOrientation(&seg1, m.GetFace(m.GetBdrFace(bdr1))));
 	EXPECT_FALSE(elementsHaveSameOrientation(&seg2, m.GetFace(m.GetBdrFace(bdr2))));
 
+}
+
+TEST_F(GeometryTest, orientation_from_gmsh_mesh)
+{
+	auto m{ mfem::Mesh::LoadFromFile((gmshMeshesFolder() + "twosquares.msh").c_str(), 1, 0, true) };
+
+	EXPECT_TRUE(elementsHaveSameOrientation(m.GetFace( m.GetBdrFace(0)), m.GetFace(m.GetBdrFace(1) )));
+
+	EXPECT_FALSE(elementsHaveSameOrientation(m.GetBdrElement(0), m.GetBdrElement(1)));
 }
