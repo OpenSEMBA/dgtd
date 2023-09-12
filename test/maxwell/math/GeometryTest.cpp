@@ -8,6 +8,71 @@ using namespace maxwell;
 using namespace mfem;
 
 class GeometryTest : public ::testing::Test {
+protected:
+
+	void setTFSFAttributesForSubMeshing(Mesh& m) 
+	{
+
+		for (int be = 0; be < m.GetNBE(); be++)
+		{
+			if (m.GetBdrAttribute(be) == 301)
+			{
+				Array<int> be_vert(2);
+				Array<int> el1_vert(4);
+				Array<int> el2_vert(4);
+
+				auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
+				auto el1{ m.GetElement(be_trans->Elem1No) };
+				auto el2{ m.GetElement(be_trans->Elem2No) };
+
+				auto ver1{ el1->GetVertices() };
+				auto ver2{ el2->GetVertices() };
+				m.GetBdrElementVertices(be, be_vert);
+
+				for (int v = 0; v < el1_vert.Size(); v++) {
+					el1_vert[v] = ver1[v];
+					el2_vert[v] = ver2[v];
+				}
+
+				//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
+
+				for (int v = 0; v < el1_vert.Size(); v++) {
+
+					if (el1->GetAttribute() == 1000 && el2->GetAttribute() == 2000 || el1->GetAttribute() == 2000 && el2->GetAttribute() == 1000) {
+						continue;
+					}
+
+					if (v + 1 < el1_vert.Size() && el1_vert[v] == be_vert[0] && el1_vert[v + 1] == be_vert[1]) {
+						el1->SetAttribute(1000);//TF attribute
+						el2->SetAttribute(2000);//SF attribute
+					}
+					else if (v + 1 < el2_vert.Size() && el2_vert[v] == be_vert[0] && el2_vert[v + 1] == be_vert[1]) {
+						el1->SetAttribute(2000);//SF attribute
+						el2->SetAttribute(1000);//TF attribute
+					}
+
+					//It can happen the vertex to check will not be adjacent in the Array but will be in the last and first position, as if closing the loop, thus we require an extra check.
+					if (v == el1_vert.Size() - 1 && el1->GetAttribute() != 1000 && el2->GetAttribute() != 2000 || v == el1_vert.Size() - 1 && el1->GetAttribute() != 2000 && el2->GetAttribute() != 1000) {
+						if (el1_vert[el1_vert.Size() - 1] == be_vert[0] && el1_vert[0] == be_vert[1]) {
+							el1->SetAttribute(1000);//TF attribute
+							el2->SetAttribute(2000);//SF attribute
+						}
+						else if (el2_vert[el2_vert.Size() - 1] == be_vert[0] && el2_vert[0] == be_vert[1]) {
+							el1->SetAttribute(2000);//SF attribute
+							el2->SetAttribute(1000);//TF attribute
+						}
+					}
+				}
+			}
+		}
+	}
+
+	void checkIfElementsHaveAttribute(const Mesh& m, const std::vector<int>& elems, const int att)
+	{
+		for (int e = 0; e < elems.size(); e++) {
+			EXPECT_TRUE(m.GetAttribute(elems[e]) == att);
+		}
+	}
 };
 
 TEST_F(GeometryTest, pointsOrientation)
@@ -68,3 +133,36 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh)
 
 	EXPECT_FALSE(elementsHaveSameOrientation(m.GetBdrElement(0), m.GetBdrElement(1)));
 }
+
+TEST_F(GeometryTest, marking_element_att_through_boundary_2D)
+{
+	
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(),1, 0, true) };
+	
+	setTFSFAttributesForSubMeshing(m);
+
+	int sf_att{ 2000 };
+	int tf_att{ 1000 };
+	std::vector<int> sf_elements{ {(1, 3, 5, 7)} };
+	std::vector<int> tf_elements{ {(4)} };
+	checkIfElementsHaveAttribute(m, sf_elements, sf_att);
+	checkIfElementsHaveAttribute(m, tf_elements, tf_att);
+
+}
+
+TEST_F(GeometryTest, marking_element_att_through_boundary_2D_5x5)
+{
+
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(),1, 0, true) };
+
+	setTFSFAttributesForSubMeshing(m);
+
+	int sf_att{ 2000 };
+	int tf_att{ 1000 };
+	std::vector<int> sf_elements{ {(1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23)} };
+	std::vector<int> tf_elements{ {(6, 7, 8, 11, 13, 16, 17, 18)} };
+	checkIfElementsHaveAttribute(m, sf_elements, sf_att);
+	checkIfElementsHaveAttribute(m, tf_elements, tf_att);
+
+}
+
