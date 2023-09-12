@@ -151,24 +151,23 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh)
 TEST_F(GeometryTest, marking_element_att_through_boundary_2D)
 {
 	
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
-	
-	setTFSFAttributesForSubMeshing(m);
+	{
+		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-	checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 3, 5, 7)} }, 2000);
-	checkIfElementsHaveAttribute(m, std::vector<int>{ {(4)} }         , 1000);
+		setTFSFAttributesForSubMeshing(m);
 
-}
+		checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 3, 5, 7)} }, 2000);
+		checkIfElementsHaveAttribute(m, std::vector<int>{ {(4)} }, 1000);
+	}
 
-TEST_F(GeometryTest, marking_element_att_through_boundary_2D_5x5)
-{
+	{
+		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(), 1, 0, true) };
 
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(), 1, 0, true) };
+		setTFSFAttributesForSubMeshing(m);
 
-	setTFSFAttributesForSubMeshing(m);
-
-	checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23)} }, 2000);
-	checkIfElementsHaveAttribute(m, std::vector<int>{ {(6, 7, 8, 11, 13, 16, 17, 18)} }              , 1000);
+		checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23)} }, 2000);
+		checkIfElementsHaveAttribute(m, std::vector<int>{ {(6, 7, 8, 11, 13, 16, 17, 18)} }, 1000);
+	}
 
 }
 
@@ -187,4 +186,38 @@ TEST_F(GeometryTest, marking_element_to_face_pairs_for_submeshing_2D)
 	}
 
 }
+
+TEST_F(GeometryTest, transfer_parent_bdr_att_to_child)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+
+	setTFSFAttributesForSubMeshing(m);
+
+	Array<int> tf_att(1); tf_att[0] = 1000;
+	Array<int> sf_att(1); sf_att[0] = 2000;
+
+	auto tf_sm{ SubMesh::CreateFromDomain(m, tf_att) };
+	auto sf_sm{ SubMesh::CreateFromDomain(m, sf_att) };
+
+	auto tf_m2sm_map{ SubMeshUtils::BuildFaceMap(m, tf_sm, tf_sm.GetParentElementIDMap()) };
+	auto sf_m2sm_map{ SubMeshUtils::BuildFaceMap(m, sf_sm, sf_sm.GetParentElementIDMap()) };
+
+	auto f2bdr_map{ m.GetFaceToBdrElMap() };
+	for (int i = 0; i < m.GetNBE(); i++) {
+		if (m.GetBdrAttribute(i) == 301) {
+			tf_sm.SetBdrAttribute(tf_m2sm_map.Find(f2bdr_map.Find(i)), 301);
+			sf_sm.SetBdrAttribute(sf_m2sm_map.Find(f2bdr_map.Find(i)), 301);
+		}
+	}
+
+	std::vector<int> tf_bdr_ids{ {0,1,2,3} };
+	std::vector<int> sf_bdr_ids{ {1,6,8,15} };
+
+	for (int i = 0; i < 4; i++) {
+		EXPECT_TRUE(tf_sm.GetBdrAttribute(tf_bdr_ids[i]) == 301);
+		EXPECT_TRUE(sf_sm.GetBdrAttribute(sf_bdr_ids[i]) == 301);
+	}
+}
+
+
 
