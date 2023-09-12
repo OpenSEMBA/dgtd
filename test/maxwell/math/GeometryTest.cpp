@@ -7,6 +7,9 @@
 using namespace maxwell;
 using namespace mfem;
 
+using FaceId = int;
+using ElementId = int;
+
 class GeometryTest : public ::testing::Test {
 protected:
 
@@ -45,10 +48,14 @@ protected:
 					if (v + 1 < el1_vert.Size() && el1_vert[v] == be_vert[0] && el1_vert[v + 1] == be_vert[1]) {
 						el1->SetAttribute(1000);//TF attribute
 						el2->SetAttribute(2000);//SF attribute
+						elem_to_face_tf.push_back(std::make_pair(be_trans->Elem1No, v));
+						elem_to_face_sf.push_back(std::make_pair(be_trans->Elem2No, (v + 2) % 4));
 					}
 					else if (v + 1 < el2_vert.Size() && el2_vert[v] == be_vert[0] && el2_vert[v + 1] == be_vert[1]) {
 						el1->SetAttribute(2000);//SF attribute
 						el2->SetAttribute(1000);//TF attribute
+						elem_to_face_sf.push_back(std::make_pair(be_trans->Elem1No, (v + 2) % 4));
+						elem_to_face_tf.push_back(std::make_pair(be_trans->Elem2No, v));
 					}
 
 					//It can happen the vertex to check will not be adjacent in the Array but will be in the last and first position, as if closing the loop, thus we require an extra check.
@@ -56,10 +63,14 @@ protected:
 						if (el1_vert[el1_vert.Size() - 1] == be_vert[0] && el1_vert[0] == be_vert[1]) {
 							el1->SetAttribute(1000);//TF attribute
 							el2->SetAttribute(2000);//SF attribute
+							elem_to_face_tf.push_back(std::make_pair(be_trans->Elem1No, v));
+							elem_to_face_sf.push_back(std::make_pair(be_trans->Elem2No, (v + 2) % 4));
 						}
 						else if (el2_vert[el2_vert.Size() - 1] == be_vert[0] && el2_vert[0] == be_vert[1]) {
 							el1->SetAttribute(2000);//SF attribute
 							el2->SetAttribute(1000);//TF attribute
+							elem_to_face_sf.push_back(std::make_pair(be_trans->Elem1No, (v + 2) % 4));
+							elem_to_face_tf.push_back(std::make_pair(be_trans->Elem2No, v));
 						}
 					}
 				}
@@ -73,6 +84,9 @@ protected:
 			EXPECT_TRUE(m.GetAttribute(elems[e]) == att);
 		}
 	}
+
+	std::vector<std::pair<ElementId, FaceId>> elem_to_face_tf;
+	std::vector<std::pair<ElementId, FaceId>> elem_to_face_sf;
 };
 
 TEST_F(GeometryTest, pointsOrientation)
@@ -137,32 +151,40 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh)
 TEST_F(GeometryTest, marking_element_att_through_boundary_2D)
 {
 	
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(),1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	
 	setTFSFAttributesForSubMeshing(m);
 
-	int sf_att{ 2000 };
-	int tf_att{ 1000 };
-	std::vector<int> sf_elements{ {(1, 3, 5, 7)} };
-	std::vector<int> tf_elements{ {(4)} };
-	checkIfElementsHaveAttribute(m, sf_elements, sf_att);
-	checkIfElementsHaveAttribute(m, tf_elements, tf_att);
+	checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 3, 5, 7)} }, 2000);
+	checkIfElementsHaveAttribute(m, std::vector<int>{ {(4)} }         , 1000);
 
 }
 
 TEST_F(GeometryTest, marking_element_att_through_boundary_2D_5x5)
 {
 
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(),1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(), 1, 0, true) };
 
 	setTFSFAttributesForSubMeshing(m);
 
-	int sf_att{ 2000 };
-	int tf_att{ 1000 };
-	std::vector<int> sf_elements{ {(1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23)} };
-	std::vector<int> tf_elements{ {(6, 7, 8, 11, 13, 16, 17, 18)} };
-	checkIfElementsHaveAttribute(m, sf_elements, sf_att);
-	checkIfElementsHaveAttribute(m, tf_elements, tf_att);
+	checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23)} }, 2000);
+	checkIfElementsHaveAttribute(m, std::vector<int>{ {(6, 7, 8, 11, 13, 16, 17, 18)} }              , 1000);
+
+}
+
+TEST_F(GeometryTest, marking_element_to_face_pairs_for_submeshing_2D)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+
+	setTFSFAttributesForSubMeshing(m);
+
+	std::vector<std::pair<ElementId, FaceId>>elem_to_face_tf_check{ {{4,0},{4,1},{4,2},{4,3}} };
+	std::vector<std::pair<ElementId, FaceId>>elem_to_face_sf_check{ {{3,2},{7,3},{5,0},{1,1}} };
+
+	for (int p = 0; p < elem_to_face_sf.size(); p++) {
+		EXPECT_EQ(elem_to_face_tf_check, elem_to_face_tf);
+		EXPECT_EQ(elem_to_face_sf_check, elem_to_face_sf);
+	}
 
 }
 
