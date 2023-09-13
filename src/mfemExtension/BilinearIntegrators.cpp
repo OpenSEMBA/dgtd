@@ -442,23 +442,20 @@ void MaxwellDGPenaltyTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElemen
 }
 
 void TotalFieldScatteredFieldIntegrator::AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
-    const FiniteElement& el2,
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
 {
 
     int ndof1 = el1.GetDof();
-    int ndof2 = setNeighbourNDoF(el2, Trans);
 
     shape1_.SetSize(ndof1);
-    shape2_.SetSize(ndof2);
-    elmat.SetSize(ndof1 + ndof2);
+    elmat.SetSize(ndof1);
     elmat = 0.0;
 
     const IntegrationRule* ir = IntRule;
     if (ir == NULL)
     {
-        ir = setIntegrationRule(el1, el2, Trans);
+        ir = setIntegrationRule(el1,Trans);
     }
 
     for (int p = 0; p < ir->GetNPoints(); p++)

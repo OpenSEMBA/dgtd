@@ -8,6 +8,7 @@ namespace maxwell {
 namespace mfemExtension {
     
 using namespace mfem;
+const IntegrationRule* setIntegrationRule(const FiniteElement& el1, FaceElementTransformations& Trans);
 const IntegrationRule* setIntegrationRule(const FiniteElement& el1, const FiniteElement& el2, FaceElementTransformations& Trans);
 
 const int setNeighbourNDoF(const FiniteElement& el2, FaceElementTransformations& Trans);
