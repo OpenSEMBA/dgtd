@@ -468,19 +468,15 @@ void TotalFieldScatteredFieldIntegrator::AssembleFaceMatrix(const FiniteElement&
         Trans.SetAllIntPoints(&ip);
 
         const IntegrationPoint& eip1 = Trans.GetElement1IntPoint();
-        const IntegrationPoint& eip2 = Trans.GetElement2IntPoint();
 
-        double b = 0.5;
         el1.CalcShape(eip1, shape1_);
-        double w = ip.weight * b;
+        double w = ip.weight * beta;
         elmat = 0.0;
 
         //Normals have no magnitude influence, only sign influence.
         
         // We assume first element have positive normal
         buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);
-        // We assume second element have negative normal
-        buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
 
     }
 }

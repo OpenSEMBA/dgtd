@@ -212,10 +212,8 @@ class TotalFieldScatteredFieldIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	TotalFieldScatteredFieldIntegrator(const std::vector<Direction>& dirTerms, double b)
-	{
-		dir = dirTerms; beta = b;
-	}
+	TotalFieldScatteredFieldIntegrator(Coefficient& q, double b) :
+		coeff(&q),  beta(b) {}
 
 	void AssembleFaceMatrix(const FiniteElement& el1,
 		const FiniteElement& el2,
@@ -223,12 +221,12 @@ public:
 		DenseMatrix& elmat);
 
 protected:
-	std::vector<Direction> dir;
+	Coefficient* coeff;
 	double beta;
 	int dim;
 
 private:
-	Vector shape1_, shape2_;
+	Vector shape1_;
 };
 
 }
