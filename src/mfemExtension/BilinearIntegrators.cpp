@@ -442,6 +442,14 @@ void MaxwellDGPenaltyTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElemen
 }
 
 void TotalFieldScatteredFieldIntegrator::AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
+    const FiniteElement& el2,
+    FaceElementTransformations& Trans,
+    DenseMatrix& elmat)
+{
+    AssembleFaceMatrix(el1, Trans, elmat);
+}
+
+void TotalFieldScatteredFieldIntegrator::AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
 {
