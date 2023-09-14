@@ -2,8 +2,6 @@
 
 #include <mfem.hpp>
 
-
-
 namespace maxwell {
 
 using namespace mfem;
@@ -18,18 +16,30 @@ TotalFieldScatteredField_SubMesher::TotalFieldScatteredField_SubMesher(const Mes
 	auto tf_sm{ SubMesh::CreateFromDomain(parent, tf_att) };
 	auto sf_sm{ SubMesh::CreateFromDomain(parent, sf_att) };
 
-	auto tf_m2sm_map{ SubMeshUtils::BuildFaceMap(parent, tf_sm, tf_sm.GetParentElementIDMap()) };
-	auto sf_m2sm_map{ SubMeshUtils::BuildFaceMap(parent, sf_sm, sf_sm.GetParentElementIDMap()) };
 	auto f2bdr_map{ parent.GetFaceToBdrElMap() };
-	for (int i = 0; i < parent.GetNBE(); i++) {
-		if (parent.GetBdrAttribute(i) == 301) {
-			tf_sm.SetBdrAttribute(tf_m2sm_map.Find(f2bdr_map.Find(i)), 301);
-			sf_sm.SetBdrAttribute(sf_m2sm_map.Find(f2bdr_map.Find(i)), 301);
-		}
-	}
+	
+	setBoundaryAttributesInChild(parent,tf_sm);
+	setBoundaryAttributesInChild(parent,sf_sm);
+	
 	tf_sm.FinalizeMesh();
 	sf_sm.FinalizeMesh();
+
+	tf_mesh_ = std::move(tf_sm);
+	sf_mesh_ = std::move(sf_sm);
+
 };
+
+void TotalFieldScatteredField_SubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child)
+{
+
+	auto f2bdr_map{ parent.GetFaceToBdrElMap() };
+	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
+	for (int i = 0; i < parent.GetNBE(); i++) {
+		if (parent.GetBdrAttribute(i) == 301) {
+			child.SetBdrAttribute(map.Find(f2bdr_map.Find(i)), 301);
+		}
+	}
+}
 
 
 void TotalFieldScatteredField_SubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf = true)
