@@ -984,3 +984,45 @@ TEST_F(MeshTest, original_attributes_are_restored_2D)
 		EXPECT_TRUE(m.GetElement(e)->GetAttribute() == 1);
 	}
 }
+
+TEST_F(MeshTest, gridfunction_transfer_between_parent_and_child_2D)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	Mesh backup_m(m);
+
+	setTFSFAttributesForSubMeshing(m);
+
+	Array<int> tf_att(1); tf_att[0] = 1000;
+	auto tf_sm{ SubMesh::CreateFromDomain(m, tf_att) };
+
+	auto tf_m2sm_map{ SubMeshUtils::BuildFaceMap(m, tf_sm, tf_sm.GetParentElementIDMap()) };
+	auto f2bdr_map{ m.GetFaceToBdrElMap() };
+	for (int i = 0; i < m.GetNBE(); i++) {
+		if (m.GetBdrAttribute(i) == 301) {
+			tf_sm.SetBdrAttribute(tf_m2sm_map.Find(f2bdr_map.Find(i)), 301);
+		}
+	}
+	tf_sm.FinalizeMesh();
+	
+	auto fec{ L2_FECollection{1,2,BasisType::GaussLobatto} };
+	auto tf_fes{ FiniteElementSpace{&tf_sm,&fec} };
+
+	GridFunction tf_gf(&tf_fes);
+	tf_gf[0] = 1;
+	tf_gf[1] = 2;
+	tf_gf[2] = 3;
+	tf_gf[3] = 4;
+
+	auto m_fes{ FiniteElementSpace{&backup_m,&fec} };
+
+	GridFunction m_gf(&m_fes);
+	m_gf = 0;
+
+	SubMesh::Transfer(tf_gf, m_gf);
+
+	EXPECT_TRUE(m_gf[16] == 1);
+	EXPECT_TRUE(m_gf[17] == 2);
+	EXPECT_TRUE(m_gf[18] == 3);
+	EXPECT_TRUE(m_gf[19] == 4);
+
+}
