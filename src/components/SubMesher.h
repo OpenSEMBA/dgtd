@@ -16,6 +16,7 @@ class TotalFieldScatteredFieldSubMesher
 {
 public:
 
+	TotalFieldScatteredFieldSubMesher(){};
 	TotalFieldScatteredFieldSubMesher(const Mesh&);
 
 	Mesh& getTFMesh() { return tf_mesh_; }
