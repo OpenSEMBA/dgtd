@@ -289,6 +289,18 @@ FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vec
 	return res;
 }
 
+FiniteElementOperator buildTFSFOperator(const FieldType& f, FiniteElementSpace& festfsf, double coeff)
+{
+	auto res = std::make_unique<mfemExtension::BilinearForm>(&festfsf);
+	Array<int> bdr_marker(301);
+	bdr_marker = 0;
+	bdr_marker[300] = 1;
+	res->AddBdrFaceIntegrator(new mfemExtension::TotalFieldScatteredFieldIntegrator(1.0), bdr_marker);
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
 FiniteElementOperator buildZeroNormalIBFIOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);

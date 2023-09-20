@@ -212,8 +212,8 @@ class TotalFieldScatteredFieldIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	TotalFieldScatteredFieldIntegrator(Coefficient& q, double b) :
-		coeff(&q),  beta(b) {}
+	TotalFieldScatteredFieldIntegrator(double b) :
+		beta(b) {}
 
 	void AssembleFaceMatrix(const FiniteElement& el1,
 		const FiniteElement& el2,
@@ -225,9 +225,7 @@ public:
 		DenseMatrix& elmat);
 
 protected:
-	Coefficient* coeff;
 	double beta;
-	int dim;
 
 private:
 	Vector shape1_;

@@ -41,7 +41,6 @@ void TotalFieldScatteredField_SubMesher::setBoundaryAttributesInChild(const Mesh
 	}
 }
 
-
 void TotalFieldScatteredField_SubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf = true)
 {
 	switch (el1_is_tf) {

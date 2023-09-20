@@ -20,8 +20,8 @@ public:
 
 	Mesh& getTFMesh() { return tf_mesh_; }
 	Mesh& getSFMesh() { return sf_mesh_; }
-	const Mesh& getTFConstMesh() { return tf_mesh_; }
-	const Mesh& getSFConstMesh() { return sf_mesh_; }
+	const Mesh& getTFConstMesh() const { return tf_mesh_; }
+	const Mesh& getSFConstMesh() const { return sf_mesh_; }
 
 private:
 

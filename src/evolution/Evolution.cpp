@@ -33,6 +33,19 @@ Evolution::Evolution(
 				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { X }, model_, fes_, opts_), fes_);
 		}
 	}
+	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
+		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301)
+		{
+			auto tfsfSubmesher{ TotalFieldScatteredField_SubMesher{model_.getMesh()} };
+			auto fesTF_{ FiniteElementSpace{&tfsfSubmesher.getTFMesh(), fes.FEColl()} };
+			auto fesSF_{ FiniteElementSpace{&tfsfSubmesher.getSFMesh(), fes.FEColl()} };
+			for (auto f : { E, H }) {
+				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF_), *buildTFSFOperator(f, fesTF_,  1.0), fesTF_);
+				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF_), *buildTFSFOperator(f, fesTF_, -1.0), fesTF_);
+			}
+			break;
+		}
+	}
 
 	if (model_.getInteriorBoundaryToMarker().size() != 0) {
 		for (auto f : { E, H }) { //IntBdrConds

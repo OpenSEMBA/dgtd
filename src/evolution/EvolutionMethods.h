@@ -45,6 +45,7 @@ namespace maxwell {
 	FiniteElementOperator buildOneNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 	FiniteElementOperator buildTwoNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
+	FiniteElementOperator buildTFSFOperator(const FieldType& f, FiniteElementSpace& fes, double coeff);
 
 	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const EvolutionOptions&);
 

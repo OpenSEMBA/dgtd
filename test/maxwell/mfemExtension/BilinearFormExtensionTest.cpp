@@ -205,10 +205,9 @@ TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 	auto tf_fes{ FiniteElementSpace{&tf_sm, &fec} };
 
 	BilinearForm tf_bf(&tf_fes);
-	ConstantCoefficient coeff(1.0);
 	Array<int> bdr_marker(301);
 	bdr_marker = 0; bdr_marker[300] = 1;
-	tf_bf.AddBdrFaceIntegrator(new TotalFieldScatteredFieldIntegrator(coeff, 1.0), bdr_marker);
+	tf_bf.AddBdrFaceIntegrator(new TotalFieldScatteredFieldIntegrator(1.0), bdr_marker);
 	tf_bf.Assemble();
 	tf_bf.Finalize();
 	tf_bf.SpMat().ToDenseMatrix()->Print(std::cout);

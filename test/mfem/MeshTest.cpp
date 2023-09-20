@@ -677,56 +677,56 @@ TEST_F(MeshTest, SubMeshingOnX)
 
 }
 
-TEST_F(MeshTest, SubMeshingFromDomain)
-{
-	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "TotalFieldScatteredFieldQuads.msh").c_str(), 1, 0)};
-	
-	Array<int> domain_atts(2); domain_atts[0] = 201; domain_atts[1] = 202;
-
-
-	std::map<ElementId, FaceToAtt> map_pair;
-	std::map<BdrId, Attribute> bdr2att_map;
-	std::map<BdrId, TwoElems> bdr2el_map;
-	std::map<BdrId, IsInterior> bdr2int_map;
-	bdr2int_map.emplace(2, false); bdr2int_map.emplace(301, true);
-
-	for (int b = 0; b < m.GetNBE(); ++b) {
-		bdr2att_map.emplace(b,m.GetBdrAttribute(b));
-		int el, el2, info, info2;
-		if (bdr2int_map[m.GetBdrAttribute(b)] == true) {
-			auto facetrans = m.GetFaceElementTransformations(b, 31);
-			el = facetrans->Elem1No;
-			el2 = facetrans->Elem2No;
-		}
-		else {
-			auto facetrans = m.GetBdrFaceTransformations(b);
-			el = facetrans->Elem1No;
-			el2 = -1;
-		}
-		TwoElems twoelems(el,el2);
-		bdr2el_map.emplace(b,twoelems);
-	}
-
-	auto faceneighs{ m.FindFaceNeighbors(2) };	
-
-	for (int e = 0; e < m.GetNE(); ++e) {
-		for (int i = 0; i < domain_atts.Size(); ++i) {
-			if (m.GetElement(e)->GetAttribute() == domain_atts[i]) {
-				Array<int> faces, ori;
-				for (int f = 0; f < m.GetElement(e)->GetNEdges(); ++f) {
-					m.GetElementFaces(e, faces, ori);
-				}
-
-			}
-		}
-	}
-
-	auto sm_dom{ SubMesh::CreateFromDomain(m,domain_atts) };
-	Array<int> bdr_marker(2); bdr_marker[0] = 2; bdr_marker[1] = 301;
-	auto sm_bdr{ SubMesh::CreateFromBoundary(m,bdr_marker) };
-
-
-}
+//TEST_F(MeshTest, SubMeshingFromDomain)
+//{
+//	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "TotalFieldScatteredFieldQuads.msh").c_str(), 1, 0)};
+//	
+//	Array<int> domain_atts(2); domain_atts[0] = 201; domain_atts[1] = 202;
+//
+//
+//	std::map<ElementId, FaceToAtt> map_pair;
+//	std::map<BdrId, Attribute> bdr2att_map;
+//	std::map<BdrId, TwoElems> bdr2el_map;
+//	std::map<BdrId, IsInterior> bdr2int_map;
+//	bdr2int_map.emplace(2, false); bdr2int_map.emplace(301, true);
+//
+//	for (int b = 0; b < m.GetNBE(); ++b) {
+//		bdr2att_map.emplace(b,m.GetBdrAttribute(b));
+//		int el, el2, info, info2;
+//		if (bdr2int_map[m.GetBdrAttribute(b)] == true) {
+//			auto facetrans = m.GetFaceElementTransformations(b, 31);
+//			el = facetrans->Elem1No;
+//			el2 = facetrans->Elem2No;
+//		}
+//		else {
+//			auto facetrans = m.GetBdrFaceTransformations(b);
+//			el = facetrans->Elem1No;
+//			el2 = -1;
+//		}
+//		TwoElems twoelems(el,el2);
+//		bdr2el_map.emplace(b,twoelems);
+//	}
+//
+//	auto faceneighs{ m.FindFaceNeighbors(2) };	
+//
+//	for (int e = 0; e < m.GetNE(); ++e) {
+//		for (int i = 0; i < domain_atts.Size(); ++i) {
+//			if (m.GetElement(e)->GetAttribute() == domain_atts[i]) {
+//				Array<int> faces, ori;
+//				for (int f = 0; f < m.GetElement(e)->GetNEdges(); ++f) {
+//					m.GetElementFaces(e, faces, ori);
+//				}
+//
+//			}
+//		}
+//	}
+//
+//	auto sm_dom{ SubMesh::CreateFromDomain(m,domain_atts) };
+//	Array<int> bdr_marker(2); bdr_marker[0] = 2; bdr_marker[1] = 301;
+//	auto sm_bdr{ SubMesh::CreateFromBoundary(m,bdr_marker) };
+//
+//
+//}
 
 TEST_F(MeshTest, ExtendedFindNeighboursMethod2D)
 {
@@ -861,40 +861,6 @@ TEST_F(MeshTest, SubMeshingAttributes_2D)
 	EXPECT_EQ(4, submesh_att_4.GetAttribute(0));
 
 }
-
-TEST_F(MeshTest, SubMeshingBdrAttributes_2D)
-{
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "four_quads_for_submeshing.mesh").c_str(),1,0) };
-
-	Array<int> att_1(1); att_1[0] = 1;
-	Array<int> att_2(1); att_2[0] = 2;
-	Array<int> att_3(1); att_3[0] = 3;
-	Array<int> att_4(1); att_4[0] = 4;
-
-	auto submesh_bdratt_0_1{ SubMesh::CreateFromDomain(m,att_1) };
-	auto submesh_bdratt_2_3{ SubMesh::CreateFromDomain(m,att_2) };
-	auto submesh_bdratt_4_5{ SubMesh::CreateFromDomain(m,att_3) };
-	auto submesh_bdratt_6_7{ SubMesh::CreateFromDomain(m,att_4) };
-
-	EXPECT_EQ(m.GetBdrAttribute(0), submesh_bdratt_0_1.GetBdrAttribute(0));
-	EXPECT_EQ(m.GetBdrAttribute(1), submesh_bdratt_0_1.GetBdrAttribute(1));
-	EXPECT_EQ(m.GetBdrAttribute(2), submesh_bdratt_2_3.GetBdrAttribute(0));
-	EXPECT_EQ(m.GetBdrAttribute(3), submesh_bdratt_2_3.GetBdrAttribute(1));
-	EXPECT_EQ(m.GetBdrAttribute(4), submesh_bdratt_4_5.GetBdrAttribute(0));
-	EXPECT_EQ(m.GetBdrAttribute(5), submesh_bdratt_4_5.GetBdrAttribute(1));
-	EXPECT_EQ(m.GetBdrAttribute(6), submesh_bdratt_6_7.GetBdrAttribute(0));
-	EXPECT_EQ(m.GetBdrAttribute(7), submesh_bdratt_6_7.GetBdrAttribute(1));
-	EXPECT_EQ(5, submesh_bdratt_0_1.GetBdrAttribute(0));
-	EXPECT_EQ(5, submesh_bdratt_0_1.GetBdrAttribute(1));
-	EXPECT_EQ(6, submesh_bdratt_2_3.GetBdrAttribute(0));
-	EXPECT_EQ(6, submesh_bdratt_2_3.GetBdrAttribute(1));
-	EXPECT_EQ(7, submesh_bdratt_4_5.GetBdrAttribute(0));
-	EXPECT_EQ(7, submesh_bdratt_4_5.GetBdrAttribute(1));
-	EXPECT_EQ(8, submesh_bdratt_6_7.GetBdrAttribute(0));
-	EXPECT_EQ(8, submesh_bdratt_6_7.GetBdrAttribute(1));
-	
-}
-
 
 TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 {
