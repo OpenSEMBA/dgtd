@@ -28,6 +28,19 @@ const IntegrationRule* setIntegrationRule(
     return &IntRules.Get(Trans.GetGeometryType(), order);
 }
 
+const IntegrationRule* setIntegrationRule(
+    const FiniteElement& el1,
+    FaceElementTransformations& Trans)
+{
+
+    auto order = Trans.Elem1->OrderW() + 2 * el1.GetOrder();
+    
+    if (el1.Space() == FunctionSpace::Pk) {
+        order++;
+    }
+    return &IntRules.Get(Trans.GetGeometryType(), order);
+}
+
 
 const Vector setNormalVector1D(const int dim,
     const IntegrationPoint& eip1

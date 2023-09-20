@@ -16,10 +16,11 @@ add_executable(mfem_tests
 	"MeshTest.cpp" 
 	"GridFunctionTest.cpp"
 	"AlgebraTest.cpp"
-)
+	"Forms.cpp")
 
 target_link_libraries(mfem_tests 
 	mfem 
+	maxwell-mfemExtension
 	Eigen3::Eigen
 	GTest::gtest GTest::gtest_main
 )

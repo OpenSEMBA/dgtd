@@ -14,12 +14,12 @@
 namespace maxwell {
 
 	using namespace mfem;
-	using FiniteElementIBFIOperator = std::unique_ptr<mfemExtension::BilinearFormIBFI>;
+	//using FiniteElementIBFIOperator = std::unique_ptr<mfemExtension::BilinearFormIBFI>;
 	using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
 	using FiniteElementVector = std::unique_ptr<mfemExtension::LinearFormIBFI>;
 
 	FiniteElementOperator buildByMult(const BilinearForm& op1, const BilinearForm& op2, FiniteElementSpace&);
-	FiniteElementIBFIOperator buildIBFIByMult(const BilinearForm& op1, const mfemExtension::BilinearFormIBFI& op2, FiniteElementSpace& fes);
+	//FiniteElementIBFIOperator buildIBFIByMult(const BilinearForm& op1, const mfemExtension::BilinearFormIBFI& op2, FiniteElementSpace& fes);
 
 	FiniteElementOperator buildInverseMassMatrix(const FieldType&, const Model&, FiniteElementSpace&);
 	FiniteElementOperator buildDerivativeOperator(const Direction&, FiniteElementSpace&);
@@ -29,13 +29,10 @@ namespace maxwell {
 	FiniteElementOperator buildCenteredFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 	FiniteElementOperator buildPenaltyOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
-	FiniteElementIBFIOperator buildFluxFunctionOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildFluxFunctionOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
 	FiniteElementOperator buildFluxOperator1D(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 	FiniteElementOperator buildPenaltyOperator1D(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
-
-	FiniteElementIBFIOperator buildFluxFunctionOperator1D(Model&, FiniteElementSpace&);
-	FiniteElementIBFIOperator buildPenaltyFunctionOperator1D(Model&, FiniteElementSpace&);
 
 	TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond&);
 
@@ -44,10 +41,11 @@ namespace maxwell {
 	FiniteElementOperator buildZeroNormalOperator(const FieldType&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 	FiniteElementOperator buildOneNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 	FiniteElementOperator buildTwoNormalOperator (const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
-	FiniteElementIBFIOperator buildZeroNormalIBFIOperator(const FieldType& f, Model&, FiniteElementSpace&, const EvolutionOptions&);
-	FiniteElementIBFIOperator buildOneNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
-	FiniteElementIBFIOperator buildTwoNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildZeroNormalIBFIOperator(const FieldType& f, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildOneNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+	FiniteElementOperator buildTwoNormalIBFIOperator (const FieldType& f, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
+	FiniteElementOperator buildTFSFOperator(const FieldType& f, FiniteElementSpace& fes, double coeff);
 
 	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const EvolutionOptions&);
 

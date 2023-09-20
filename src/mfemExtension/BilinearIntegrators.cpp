@@ -359,10 +359,7 @@ void MaxwellDGFluxTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElement& 
         const IntegrationPoint& eip1 = Trans.GetElement1IntPoint();
         const IntegrationPoint& eip2 = Trans.GetElement2IntPoint();
 
-        Vector nor = calculateNormal(el1, eip1, Trans);
-
-        double b = calculateBetaTerm(nor, dir, beta);
-
+        double b = 0.5;
         el1.CalcShape(eip1, shape1_);
         double w = ip.weight * b;
         elmat = 0.0;
@@ -441,6 +438,51 @@ void MaxwellDGPenaltyTotalFieldIntegrator::AssembleFaceMatrix(const FiniteElemen
                 buildFaceMatrix(w,   ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);
             }
         }
+    }
+}
+
+void TotalFieldScatteredFieldIntegrator::AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
+    const FiniteElement& el2,
+    FaceElementTransformations& Trans,
+    DenseMatrix& elmat)
+{
+    AssembleFaceMatrix(el1, Trans, elmat);
+}
+
+void TotalFieldScatteredFieldIntegrator::AssembleFaceMatrix(const FiniteElement& el1, //TotalFieldRework
+    FaceElementTransformations& Trans,
+    DenseMatrix& elmat)
+{
+
+    int ndof1 = el1.GetDof();
+
+    shape1_.SetSize(ndof1);
+    elmat.SetSize(ndof1);
+    elmat = 0.0;
+
+    const IntegrationRule* ir = IntRule;
+    if (ir == NULL)
+    {
+        ir = setIntegrationRule(el1,Trans);
+    }
+
+    for (int p = 0; p < ir->GetNPoints(); p++)
+    {
+        const IntegrationPoint& ip = ir->IntPoint(p);
+
+        Trans.SetAllIntPoints(&ip);
+
+        const IntegrationPoint& eip1 = Trans.GetElement1IntPoint();
+
+        el1.CalcShape(eip1, shape1_);
+        double w = ip.weight * beta;
+        elmat = 0.0;
+
+        //Normals have no magnitude influence, only sign influence.
+        
+        // We assume first element have positive normal
+        buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);
+
     }
 }
 

@@ -15,15 +15,18 @@ public:
 	BilinearFormIBFI(FiniteElementSpace* f);
 
 	/// Access all the integrators added with AddInteriorBoundaryFaceIntegrator().
-	Array<BilinearFormIntegrator*>* GetIBFI() { return &interior_boundary_face_integs; }
+	Array<BilinearFormIntegrator*>* GetIBFI() { return &internal_boundary_face_integs; }
 
 	/** @brief Access all boundary markers added with AddInteriorBoundaryFaceIntegrator().*/
-	Array<Array<int>*>* GetIBFI_Marker() { return &interior_boundary_face_integs_marker; }
+	Array<Array<int>*>* GetIBFI_Marker() { return &internal_boundary_face_integs_marker; }
 	
 	/// Adds new Boundary Integrator restricted to certain Interior faces specified by
 	/// the @a int_attr_marker.
 	void AddInteriorBoundaryFaceIntegrator(BilinearFormIntegrator* bfi,
-		Array<int>& int_bdr_marker);
+		Array<int>& internal_bdr_attr_marker);
+
+	/// Adds new Boundary Integrator restricted to certain Interior faces.
+	void AddInternalBoundaryFaceIntegrator(BilinearFormIntegrator* bfi);
 
 	/// Assembles the form i.e. sums over all domain/bdr integrators.
 	void Assemble(int skip_zeros = 1);
@@ -31,8 +34,8 @@ public:
 protected:
 
 	/// Interior Boundary integrators.
-	Array<BilinearFormIntegrator*> interior_boundary_face_integs;
-	Array<Array<int>*> interior_boundary_face_integs_marker; ///< Entries are not owned.
+	Array<BilinearFormIntegrator*> internal_boundary_face_integs;
+	Array<Array<int>*> internal_boundary_face_integs_marker; ///< Entries are not owned.
 
 
 private:

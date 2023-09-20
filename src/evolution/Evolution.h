@@ -5,6 +5,7 @@
 #include "components/Model.h"
 #include "solver/SourcesManager.h"
 #include "EvolutionMethods.h"
+#include "components/SubMesher.h"
 
 namespace maxwell {
 
@@ -24,11 +25,16 @@ private:
 	std::array<FiniteElementOperator, 2> MP_;
 	std::array<FiniteElementOperator, 2> MFF_;
 
-	std::array<std::array<FiniteElementIBFIOperator, 3>,2> MBF_;
+	std::array<std::array<FiniteElementOperator, 3>,2> MBF_;
 
-	std::array<FiniteElementIBFIOperator, 2> MPB_;
-	std::array<std::array<std::array<FiniteElementIBFIOperator, 3>, 2>, 2> MFNB_;
-	std::array<std::array<std::array<std::array<FiniteElementIBFIOperator, 3>, 3>, 2>, 2> MFNNB_;
+	std::array<FiniteElementOperator, 2> MPB_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFNB_;
+	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNNB_;
+
+	std::array<FiniteElementOperator, 2> MTF_;
+	std::array<FiniteElementOperator, 2> MSF_;
+
+	TotalFieldScatteredFieldSubMesher tfsfSubMesher_;
 
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;

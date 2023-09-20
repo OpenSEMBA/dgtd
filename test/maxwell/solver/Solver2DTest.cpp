@@ -74,7 +74,6 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 	probes,
 	buildGaussianInitialField(E, 0.1, mfem::Vector({0.5,0.5})),
 	SolverOptions{}
-		.setTimeStep(1e-2)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
@@ -149,7 +148,6 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 	probes,
 	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
-		.setTimeStep(1e-2)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)
@@ -1150,22 +1148,29 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 
 }
 
-TEST_F(Solver2DTest, normalStudy)
+TEST_F(Solver2DTest, interiorBoundary_TotalFieldIn)
 {
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0)};
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, pecBdr, AttributeToInteriorConditions{} };
+	auto mesh{
+		Mesh::LoadFromFile(
+			(mfemMeshesFolder() + "TwoQuadsIntBdr.mesh").c_str(), 1, 0
+		)
+	};
+	//mesh.UniformRefinement();
+	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2, BdrCond::PMC} };
+	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
 
-	auto probes{ buildProbesWithAnExportProbe(100) };
+	auto probes{ buildProbesWithAnExportProbe(80) };
 
 	maxwell::Solver solver{
 		model,
-		probes,
-		buildGaussianInitialField(E, 0.2, Source::Position({1.0, 0.0}), unitVec(Z)),
-		SolverOptions{}
+			probes,
+			buildGaussianPlanewave(0.3, 0.5, unitVec(Z), unitVec(X)),
+			SolverOptions{}
 			.setTimeStep(1e-3)
-			.setFinalTime(4.0)
-			.setOrder(1)
+			.setCentered()
+			.setFinalTime(2.0)
+			.setOrder(2)
 	};
 
 	solver.run();
@@ -1199,4 +1204,43 @@ TEST_F(Solver2DTest, 2D_box_resonant_mode)
 	solver.run();
 
 	EXPECT_TRUE(false);
+}
+
+TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
+{
+	auto mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+
+	Vector area(mesh.GetNE()), dtscale(mesh.GetNE());
+	for (int it = 0; it < mesh.GetNE(); ++it) {
+		auto el{ mesh.GetElement(it) };
+		Vector sper(mesh.GetNumFaces());
+		sper = 0.0;
+		for (int f = 0; f < mesh.GetElement(it)->GetNEdges(); ++f) {
+			ElementTransformation* T{ mesh.GetFaceTransformation(f) };
+			const IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
+			for (int p = 0; p < ir.GetNPoints(); p++)
+			{
+				const IntegrationPoint& ip = ir.IntPoint(p);
+				sper(it) += ip.weight * T->Weight();
+			}
+		}
+		sper /= 2.0;
+		area(it) = mesh.GetElementVolume(it);
+		dtscale(it) = area(it) / sper(it);
+	}
+
+	auto meshLGL{ Mesh::MakeCartesian1D(1, 2.0) };
+	DG_FECollection fec{ 3,1,BasisType::GaussLegendre };
+	FiniteElementSpace fes{ &meshLGL, &fec };
+
+	GridFunction nodes(&fes);
+	meshLGL.GetNodes(nodes);
+
+	double rmin{ abs(nodes(0) - nodes(1)) };
+
+	double dt = dtscale.Min() * rmin * 2.0 / 3.0;
+
+	double tol = 1e-8;
+	EXPECT_NEAR(0.101761895965867, dt, tol);
+
 }

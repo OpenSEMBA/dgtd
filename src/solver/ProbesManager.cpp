@@ -26,8 +26,8 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 }
 
 ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
-	probes{pIn},
-	fes_{fes}
+	probes{ pIn },
+	fes_{ fes }
 {
 	for (const auto& p: probes.exporterProbes) {
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
@@ -37,9 +37,9 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
 	}
 
-	//for (const auto& p: probes.energyProbes) {
-	//	energyProbesCollection_.emplace(&p, buildEnergyProbeCollectionInfo(fes_, fields));
-	//}
+	for (const auto& p : probes.fieldProbes) {
+		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
+	}
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -54,13 +54,7 @@ const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
 	return probes.fieldProbes[i];
 }
 
-//const EnergyProbe& ProbesManager::getEnergyProbe(const std::size_t i) const
-//{
-//	assert(i < probes.energyProbes.size());
-//	return probes.energyProbes[i];
-//}
-
-const GridFunction& getFieldView(const PointProbe& p, const FiniteElementSpace& fes, Fields& fields)
+const GridFunction& getFieldView(const PointProbe& p, Fields& fields)
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
@@ -95,7 +89,7 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 	
 	return { 
 		fesPoints, 
-		getFieldView(p, fes_, fields)
+		getFieldView(p, fields)
 	};
 }
 
@@ -113,19 +107,14 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 
 	return {
 		fesPoints,
-		fields
+		fields.get(E, X),
+		fields.get(E, Y),
+		fields.get(E, Z),
+		fields.get(H, X),
+		fields.get(H, Y),
+		fields.get(H, Z)
 	};
 }
-
-//ProbesManager::EnergyProbeCollection
-//ProbesManager::buildEnergyProbeCollectionInfo(const mfem::FiniteElementSpace& fes, const Fields& fields) const
-//{
-//
-//	return {
-//		fes,
-//		fields
-//	};
-//}
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
@@ -158,33 +147,20 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	const auto& it{ fieldProbesCollection_.find(&p) };
 	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
-	for (auto ft : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			p.addFieldToMovies(
-				ft,
-				d,
-				time,
-				pC.fields.get(ft,d).GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
-			);
-		}
-	}	
+	FieldsForFP f4FP;
+	{
+		f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Ez = pC.field_Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Hx = pC.field_Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Hy = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		f4FP.Hz = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+	}
+	p.addFieldsToMovies(
+		time,
+		f4FP
+	);
 }
-
-//void ProbesManager::updateProbe(EnergyProbe& p, Time time)
-//{
-//	if (cycle_ % p.visSteps != 0) {
-//		return;
-//	}
-//
-//	auto& it{ energyProbesCollection_.find(&p) };
-//	assert(it != energyProbesCollection_.end());
-//	auto& pC{ it->second };
-//
-//	p.addFieldsToMovie(
-//		time,
-//		pC.fields
-//	);
-//}
 
 void ProbesManager::updateProbes(Time t)
 {
@@ -196,9 +172,9 @@ void ProbesManager::updateProbes(Time t)
 		updateProbe(p, t);
 	}
 
-	//for (auto& p : probes.energyProbes) {
-	//	updateProbe(p, t);
-	//}
+	for (auto& p : probes.fieldProbes) {
+		updateProbe(p, t);
+	}
 
 	cycle_++;
 }

@@ -3,11 +3,31 @@
 #include <array>
 #include <vector>
 #include <map>
+#include <mfem.hpp>
 
 namespace maxwell {
 
+struct GridFuncForFP {
+	mfem::GridFunction Ex;
+	mfem::GridFunction Ey;
+	mfem::GridFunction Ez;
+	mfem::GridFunction Hx;
+	mfem::GridFunction Hy;
+	mfem::GridFunction Hz;
+};
+
+struct FieldsForFP {
+	double Ex;
+	double Ey;
+	double Ez;
+	double Hx;
+	double Hy;
+	double Hz;
+};
+
 using Time = double;
 using FieldMovie = std::map<Time, double>;
+using FieldMovies = std::map<Time,FieldsForFP>;
 
 using Point = std::vector<double>;
 using Points = std::vector<Point>;

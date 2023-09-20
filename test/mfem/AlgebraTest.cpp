@@ -34,20 +34,17 @@ TEST_F(AlgebraTest, calcRealEigenvalues)
 	};
 
 	EXPECT_EQ(matrix.eigenvalues(), expectedEVs);
-
 }
 
 TEST_F(AlgebraTest, calcComplexEigenvalues)
 {
-
-	Eigen::Matrix3cd matrix{
-	{1.0 + 1.0_i, 0.0        , 0.0        },
-	{0.0        , 2.0 + 2.0_i, 0.0        },
-	{0.0        , 0.0        ,-3.0 + 3.0_i}
+	Eigen::Matrix2d matrix{
+		{  3, -2},
+		{  4, -1}
 	};
 
-	Eigen::Vector<std::complex<double>, 3> expectedEVs{
-	{1.0 + 1.0_i, 2.0 + 2.0_i, -3.0 + 3.0_i}
+	Eigen::Vector<std::complex<double>, 2> expectedEVs{
+		{1.0 + 2.0_i, 1.0 - 2.0_i}
 	};
 
 	EXPECT_EQ(matrix.eigenvalues(), expectedEVs);

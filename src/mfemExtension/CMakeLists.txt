@@ -6,8 +6,8 @@ find_package(MFEM CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
 
 add_library(maxwell-mfemExtension STATIC 
-	"BilinearForm_IBFI.cpp"
-	"LinearForm_IBFI.cpp"
+	#"BilinearForm_IBFI.cpp"
+	#"LinearForm_IBFI.cpp"
 	"BilinearIntegrators.cpp"
 	"LinearIntegrators.cpp" 
 	"IntegratorFunctions.cpp" 

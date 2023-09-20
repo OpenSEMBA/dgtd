@@ -777,3 +777,41 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 
 
 }
+
+TEST_F(Solver1DTest, fieldProbeThroughSolver)
+{
+	Mesh m{ Mesh::MakeCartesian1D(20,5.0) };
+	
+	auto probes{ buildProbesWithAnExportProbe(2) };
+	probes.fieldProbes = {
+		FieldProbe{{2.0}}
+	};
+
+	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.5, Vector({ 2.5 }), unitVec(Y)),
+		SolverOptions{}
+			.setTimeStep(5e-2)
+			.setFinalTime(2.0)
+			.setCentered()
+	};
+
+	solver.run();
+
+	for (int probeNumber = 0; probeNumber < probes.fieldProbes.size(); probeNumber++) {
+		std::ofstream file(getTestCaseName() + std::to_string(probeNumber) + ".txt");
+		file << "Time // Ex // Ey // Ez // Hx // Hy // Hz //""\n";
+		for (const auto& fm : solver.getFieldProbe(probeNumber).getFieldMovies()) {
+			std::stringstream time, Ex, Ey, Ez, Hx, Hy, Hz;
+			time << std::scientific << std::setprecision(7) << (fm.first);
+			Ex << std::scientific << std::setprecision(7) << fm.second.Ex; Ey << std::scientific << std::setprecision(7) << fm.second.Ey; Ez << std::scientific << std::setprecision(7) << fm.second.Ez;
+			Hx << std::scientific << std::setprecision(7) << fm.second.Hx; Hy << std::scientific << std::setprecision(7) << fm.second.Hy; Hz << std::scientific << std::setprecision(7) << fm.second.Hz;
+			file << time.str() + " " + Ex.str() + " " + Ey.str() + " " + Ez.str() + " " + Hx.str() + " " + Hy.str() + " " + Hz.str() + "\n";
+		}
+	}
+
+
+}

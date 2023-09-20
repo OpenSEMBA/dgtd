@@ -862,6 +862,7 @@ TEST_F(Solver3DTest, 3D_rotated_AllDir_upwind_hexa_1dot5)
 	EXPECT_NEAR(0.5, solver.getPointProbe(5).findFrameWithMax().second, tolerance);
 
 }
+
 TEST_F(Solver3DSpectralTest, 3D_pec_upwind_spectral_and_base_comparison) {
 
 	maxwell::Solver solver{
@@ -954,7 +955,6 @@ TEST_F(Solver3DTest, 3D_sma_upwind_hexa_1dot5D)
 	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
 
-
 TEST_F(Solver3DTest, feng_fss)
 {
 	auto probes{ buildProbesWithAnExportProbe(1000) };
@@ -1023,23 +1023,13 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 {
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
-	//std::vector<double> pointR({ 1.0, -7.5, 3.0 });
-	//std::vector<double> pointT({ 29.0, -7.5, 3.0 });
+	std::vector<double> pointR({ 10.0, 37.5, 30 });
+	std::vector<double> pointT({ 290.0, 37.5, 30 });
 
-	//probes.pointProbes = {
-	//	PointProbe{E, X, pointR},
-	//	PointProbe{E, X, pointT},
-	//	PointProbe{E, Y, pointR},
-	//	PointProbe{E, Y, pointT},
-	//	PointProbe{E, Z, pointR},
-	//	PointProbe{E, Z, pointT},
-	//	PointProbe{H, X, pointR},
-	//	PointProbe{H, X, pointT},
-	//	PointProbe{H, Y, pointR},
-	//	PointProbe{H, Y, pointT},
-	//	PointProbe{H, Z, pointR},
-	//	PointProbe{H, Z, pointT}
-	//};
+	probes.fieldProbes = {
+		FieldProbe{pointR},
+		FieldProbe{pointT}
+	};
 
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "Feng_FSS_Symmetry.msh").c_str(),1,0)};
 	//mesh.Transform(rotateMinus90degAlongZAxis);
@@ -1051,26 +1041,30 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	probes,
 	buildPlanewaveInitialField(
 		Gaussian{16.0},
-		Source::Position({ 75.0 }), // center
+		Source::Position({ 75.0, 0.0, 0.0 }), // center
 		Source::Polarization(unitVec(Z)), // e polarization
 		Source::Propagation(unitVec(X)) // propagation direction
 	),
 	SolverOptions{}
 		.setTimeStep(1e-1)
-		.setFinalTime(240.0)
+		.setFinalTime(300.0)
 		.setOrder(3)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
 	solver.run();
 
-	//for (int probeNumber = 0; probeNumber < probes.pointProbes.size(); probeNumber++) {
-	//	std::ofstream file("tnf_sym_" + std::to_string(probeNumber) + ".txt");
-	//	file << "Time and " + std::to_string(probes.pointProbes[probeNumber].getFieldType()) + std::to_string(probes.pointProbes[probeNumber].getDirection()) + "\n";
-	//	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
-	//		file << std::to_string(t) + " " + std::to_string(f) + "\n";
-	//	}
-	//}
+	for (int probeNumber = 0; probeNumber < probes.fieldProbes.size(); probeNumber++) {
+		std::ofstream file(getTestCaseName() + std::to_string(probeNumber) + ".txt");
+		file << "Time // Ex // Ey // Ez // Hx // Hy // Hz //""\n";
+		for (const auto& fm : solver.getFieldProbe(probeNumber).getFieldMovies()) {
+			std::stringstream time, Ex, Ey, Ez, Hx, Hy, Hz;
+			time << std::scientific << std::setprecision(7) << (fm.first); 
+			Ex << std::scientific << std::setprecision(7) << fm.second.Ex; Ey << std::scientific << std::setprecision(7) << fm.second.Ey; Ez << std::scientific << std::setprecision(7) << fm.second.Ez; 
+			Hx << std::scientific << std::setprecision(7) << fm.second.Hx; Hy << std::scientific << std::setprecision(7) << fm.second.Hy; Hz << std::scientific << std::setprecision(7) << fm.second.Hz;
+			file << time.str() + " " + Ex.str() + " " + Ey.str() + " " + Ez.str() + " " + Hx.str() + " " + Hy.str() + " " + Hz.str() + "\n";
+		}
+	}
 
 	double tolerance{ 1e-2 };
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
@@ -1278,7 +1272,6 @@ TEST_F(Solver3DTest, 3D_minimal_tetra)
 
 }
 
-
 TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 {
 
@@ -1318,43 +1311,4 @@ TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 	//EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
 	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
 	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
-}
-
-TEST_F(Solver3DTest, 3D_pec_NC_cube_upwind_hexa)
-{
-	Probes probes{ buildProbesWithAnExportProbe(2) };
-	//probes.pointProbes = {
-	//	PointProbe{E, Y, {0.0, 0.5, 0.5}},
-	//	PointProbe{E, Y, {2.0, 0.5, 0.5}},
-	//	PointProbe{H, Z, {0.0, 0.5, 0.5}},
-	//	PointProbe{H, Z, {2.0, 0.5, 0.5}}
-	//};
-
-	Mesh m{ Mesh::LoadFromFile((mfemMeshesFolder() + "3D_NC_Gaussian_Cube.mesh").c_str(),1,0) };
-	//m.UniformRefinement();
-
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC}, {3,BdrCond::PMC}};
-	Model model{ m, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
-
-	maxwell::Solver solver{
-		model,
-			probes,
-			buildGaussianInitialField(E, 6.0, Source::Position({ 30.0 }),unitVec(Z),1),
-			SolverOptions{}
-			.setTimeStep(1.0)
-			.setFinalTime(60.0)
-			.setOrder(3)
-	};
-
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-
-	double tolerance{ 1e-2 };
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	//EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
-
 }

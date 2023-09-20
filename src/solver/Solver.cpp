@@ -84,8 +84,8 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 	}
 
 	if (opts.timeStep == 0.0) {
-		if (fes_->GetMesh()->Dimension() > 1) {
-			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
+		if (fes_->GetMesh()->Dimension() > 2) {
+			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 2.");
 		}
 	}
 
@@ -100,6 +100,11 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
 { 
 	return probesManager_.getPointProbe(probe); 
+}
+
+const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
+{
+	return probesManager_.getFieldProbe(probe);
 }
 
 //const EnergyProbe& Solver::getEnergyProbe(const std::size_t probe) const
@@ -129,17 +134,77 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 	return res;
 }
 
+bool checkIfQuadInMesh(const Mesh& mesh) 
+{
+	for (int e = 0; e < mesh.GetNE(); ++e)
+	{
+		if (mesh.GetElementGeometry(e) == Element::QUADRILATERAL) { return true; }
+	}
+	return false;
+}
+
+
+Vector getTimeStepScale(Mesh& mesh)
+{
+	Vector area(mesh.GetNE()), dtscale(mesh.GetNE());
+	for (int it = 0; it < mesh.GetNE(); ++it) {
+		auto el{ mesh.GetElement(it) };
+		Vector sper(mesh.GetNumFaces());
+		sper = 0.0;
+		for (int f = 0; f < mesh.GetElement(it)->GetNEdges(); ++f) {
+			ElementTransformation* T{ mesh.GetFaceTransformation(f)};
+			const IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
+			for (int p = 0; p < ir.GetNPoints(); p++)
+			{
+				const IntegrationPoint& ip = ir.IntPoint(p);
+				sper(it) += ip.weight * T->Weight();
+			}
+		}
+		sper /= 2.0;
+		area(it) = mesh.GetElementVolume(it);
+		dtscale(it) = area(it) / sper(it);
+	}
+	return dtscale;
+}
+
+double getJacobiGQ_RMin(const int order) {
+	auto mesh{ Mesh::MakeCartesian1D(1, 2.0) };
+	DG_FECollection fec{ order,1,BasisType::GaussLegendre };
+	FiniteElementSpace fes{ &mesh, &fec };
+
+	GridFunction nodes(&fes);
+	mesh.GetNodes(nodes);
+
+	return abs(nodes(0) - nodes(1));
+}
+
 double Solver::estimateTimeStep() const
 {
-	double signalSpeed{ 1.0 };
-	double maxTimeStep{ 0.0 };
-	if (opts_.evolution.order == 0) {
-		maxTimeStep = getMinimumInterNodeDistance(*fes_) / signalSpeed;
+	if (model_.getConstMesh().Dimension() == 1) {
+		double signalSpeed{ 1.0 };
+		double maxTimeStep{ 0.0 };
+		if (opts_.evolution.order == 0) {
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / signalSpeed;
+		}
+		else {
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / signalSpeed;
+		}
+		return opts_.cfl * maxTimeStep;
 	}
-	else {
-		maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / signalSpeed;
+	else if (model_.getConstMesh().Dimension() == 2) {
+		if (checkIfQuadInMesh(model_.getConstMesh()) == false) {
+			Mesh mesh{ model_.getConstMesh() };
+			Vector dtscale{ getTimeStepScale(mesh) };
+			double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
+			return dtscale.Min() * rmin * 2.0 / 3.0;
+		}
+		else{
+			throw std::runtime_error("Automatic Time Step Estimation not available for meshes with quadrilateral elements.");
+		}
 	}
-	return opts_.cfl * maxTimeStep;
+	else{
+		throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
+	}
 }
 
 void Solver::run()
