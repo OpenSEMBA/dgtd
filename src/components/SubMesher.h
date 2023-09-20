@@ -12,11 +12,11 @@ namespace maxwell {
 
 using namespace mfem;
 
-class TotalFieldScatteredField_SubMesher
+class TotalFieldScatteredFieldSubMesher
 {
 public:
 
-	TotalFieldScatteredField_SubMesher(const Mesh&);
+	TotalFieldScatteredFieldSubMesher(const Mesh&);
 
 	Mesh& getTFMesh() { return tf_mesh_; }
 	Mesh& getSFMesh() { return sf_mesh_; }

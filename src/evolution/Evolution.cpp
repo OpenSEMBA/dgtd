@@ -36,12 +36,12 @@ Evolution::Evolution(
 	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
 		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301)
 		{
-			auto tfsfSubmesher{ TotalFieldScatteredField_SubMesher{model_.getMesh()} };
-			auto fesTF_{ FiniteElementSpace{&tfsfSubmesher.getTFMesh(), fes.FEColl()} };
-			auto fesSF_{ FiniteElementSpace{&tfsfSubmesher.getSFMesh(), fes.FEColl()} };
+			tfsfSubMesher_ = TotalFieldScatteredFieldSubMesher{model_.getMesh()};
+			auto fesTF{ FiniteElementSpace{&tfsfSubMesher_.getTFMesh(), fes.FEColl()} };
+			auto fesSF{ FiniteElementSpace{&tfsfSubMesher_.getSFMesh(), fes.FEColl()} };
 			for (auto f : { E, H }) {
-				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF_), *buildTFSFOperator(f, fesTF_,  1.0), fesTF_);
-				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF_), *buildTFSFOperator(f, fesTF_, -1.0), fesTF_);
+				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF), *buildTFSFOperator(f, fesTF,  1.0), fesTF);
+				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF), *buildTFSFOperator(f, fesTF, -1.0), fesTF);
 			}
 			break;
 		}

@@ -34,6 +34,8 @@ private:
 	std::array<FiniteElementOperator, 2> MTF_;
 	std::array<FiniteElementOperator, 2> MSF_;
 
+	TotalFieldScatteredFieldSubMesher tfsfSubMesher_;
+
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;

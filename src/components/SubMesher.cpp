@@ -6,7 +6,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-TotalFieldScatteredField_SubMesher::TotalFieldScatteredField_SubMesher(const Mesh& m)
+TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m)
 {
 	Mesh parent(m);
 	setTFSFAttributesForSubMeshing(parent);
@@ -29,7 +29,7 @@ TotalFieldScatteredField_SubMesher::TotalFieldScatteredField_SubMesher(const Mes
 
 };
 
-void TotalFieldScatteredField_SubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child)
+void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child)
 {
 
 	auto f2bdr_map{ parent.GetFaceToBdrElMap() };
@@ -41,7 +41,7 @@ void TotalFieldScatteredField_SubMesher::setBoundaryAttributesInChild(const Mesh
 	}
 }
 
-void TotalFieldScatteredField_SubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf = true)
+void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf = true)
 {
 	switch (el1_is_tf) {
 	case true:
@@ -55,7 +55,7 @@ void TotalFieldScatteredField_SubMesher::setAttributeForTagging(Mesh& m, const F
 	}
 }
 
-void TotalFieldScatteredField_SubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, const FaceId f, bool el1_is_tf = true)
+void TotalFieldScatteredFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, const FaceId f, bool el1_is_tf = true)
 {
 	switch (el1_is_tf) {
 	case true:
@@ -69,13 +69,13 @@ void TotalFieldScatteredField_SubMesher::storeElementToFaceInformation(const Fac
 	}
 }
 
-void TotalFieldScatteredField_SubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, const FaceId f, bool el1_is_tf = true)
+void TotalFieldScatteredFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, const FaceId f, bool el1_is_tf = true)
 {
 	setAttributeForTagging(m, trans, el1_is_tf);
 	storeElementToFaceInformation(trans, f, el1_is_tf);
 }
 
-void TotalFieldScatteredField_SubMesher::setTFSFAttributesForSubMeshing(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing(Mesh& m)
 {
 
 	for (int be = 0; be < m.GetNBE(); be++)
