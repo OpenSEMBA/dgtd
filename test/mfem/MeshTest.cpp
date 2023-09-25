@@ -13,7 +13,7 @@ using Orientation = int;
 using Attribute = int;
 using BdrId = int;
 using IsInterior = bool;
-using IsCounterClockwise = bool;
+using IsCCW = bool;
 using ElNo2Att = std::pair<ElementId, Attribute>;
 using TwoElems = std::pair<ElementId, ElementId>;
 using FaceToAtt = std::map<FaceId, Attribute>;
@@ -125,7 +125,7 @@ protected:
 		storeElementToFaceInformation(trans, facesId, el1_is_tf);
 	}
 
-	std::pair<FaceId,IsCounterClockwise> getFaceAndDirOnVertexIteration(const Element* el, const Array<int>& verts, const Array<int>& be_verts)
+	std::pair<FaceId,IsCCW> getFaceAndDirOnVertexIteration(const Element* el, const Array<int>& verts, const Array<int>& be_verts)
 	{
 		for (int v = 0; v < verts.Size(); v++) {
 
@@ -181,8 +181,6 @@ protected:
 				for (int v2 = 0; v2 < el2_vert.Size(); v2++) {
 					el2_vert[v2] = ver2[v2];
 				}
-
-				std::vector<ElNo2Att> el_to_att_pre(2);
 
 				//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
 

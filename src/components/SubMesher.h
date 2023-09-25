@@ -5,8 +5,9 @@
 using FaceId = int;
 using ElementId = int;
 using Attribute = int;
+using IsCCW = bool;
 using El2Face = std::pair<ElementId, FaceId>;
-using El2Att = std::pair<ElementId, Attribute>;
+using Face2Dir = std::pair<FaceId, IsCCW>;
 
 namespace maxwell {
 
@@ -28,14 +29,14 @@ private:
 
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
 	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child);
-	void storeElementToFaceInformation(const FaceElementTransformations*, const FaceId, bool el1_is_tf);
-	void prepareSubMeshInfo(Mesh&, const FaceElementTransformations*, const FaceId, bool el1_is_tf);
+	void storeElementToFaceInformation(const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf);
+	void prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setTFSFAttributesForSubMeshing(Mesh&);
+
+	std::pair<FaceId, IsCCW> getFaceAndDirOnVertexIteration(const Element*, const Array<int>& verts, const Array<int>& be_verts);
 
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;
-	std::vector<El2Face> elem_to_att_tf_;
-	std::vector<El2Face> elem_to_att_sf_;
 
 	Mesh tf_mesh_;
 	Mesh sf_mesh_;
