@@ -43,4 +43,19 @@ private:
 
 };
 
+class MaxwellTransferMap
+{
+public:
+	
+	MaxwellTransferMap(const GridFunction& src, const GridFunction& dst);
+	
+	void TransferAdd(const GridFunction& src, GridFunction& dst) const;
+
+private:
+
+	Array<int> sub_to_parent_map_;
+	mutable Vector z_;
+
+};
+
 };

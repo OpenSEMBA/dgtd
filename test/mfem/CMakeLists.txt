@@ -21,6 +21,7 @@ add_executable(mfem_tests
 target_link_libraries(mfem_tests 
 	mfem 
 	maxwell-mfemExtension
+	maxwell-components
 	Eigen3::Eigen
 	GTest::gtest GTest::gtest_main
 )

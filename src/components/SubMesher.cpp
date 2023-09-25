@@ -141,4 +141,28 @@ void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing(Mesh& m)
 		}
 	}
 }
+
+MaxwellTransferMap::MaxwellTransferMap(const GridFunction& src,
+	const GridFunction& dst)
+{
+	const FiniteElementSpace* parentfes = nullptr, * subfes = nullptr;
+
+	SubMesh* src_sm = static_cast<SubMesh*>(src.FESpace()->GetMesh());
+	subfes = src.FESpace();
+	parentfes = dst.FESpace();
+	SubMeshUtils::BuildVdofToVdofMap(*subfes,
+		*parentfes,
+		src_sm->GetFrom(),
+		src_sm->GetParentElementIDMap(),
+		sub_to_parent_map_);
+}
+
+void MaxwellTransferMap::TransferAdd(const GridFunction& src, GridFunction& dst) const
+{
+	for (int i = 0; i < sub_to_parent_map_.Size(); i++)
+	{
+		dst(sub_to_parent_map_[i]) += src(i);
+	}
+}
+
 };

@@ -16,7 +16,6 @@ Evolution::Evolution(
 
 	for (auto f : { E, H }) {
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
-		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
 			for (auto d2{ X }; d2 <= Z; d2++) {
@@ -27,12 +26,15 @@ Evolution::Evolution(
 			}
 		}
 	}
+
 	for (auto f : { E, H }) {//TFSF - SrcConds
+		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d : { X, Y, Z }) {
 			MBF_[f][d] = buildByMult(
 				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { X }, model_, fes_, opts_), fes_);
 		}
 	}
+
 	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
 		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301)
 		{
@@ -41,7 +43,7 @@ Evolution::Evolution(
 			auto fesSF{ FiniteElementSpace{&tfsfSubMesher_.getSFMesh(), fes.FEColl()} };
 			for (auto f : { E, H }) {
 				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF), *buildTFSFOperator(f, fesTF,  1.0), fesTF);
-				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF), *buildTFSFOperator(f, fesTF, -1.0), fesTF);
+				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesSF), *buildTFSFOperator(f, fesSF, -1.0), fesSF);
 			}
 			break;
 		}
