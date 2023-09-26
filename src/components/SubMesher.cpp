@@ -9,7 +9,7 @@ using namespace mfem;
 TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m)
 {
 	Mesh parent(m);
-	setTFSFAttributesForSubMeshing(parent);
+ 	setTFSFAttributesForSubMeshing(parent);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	Array<int> sf_att(1); sf_att[0] = 2000;
@@ -21,6 +21,9 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	setBoundaryAttributesInChild(parent,tf_sm);
 	setBoundaryAttributesInChild(parent,sf_sm);
 	
+	restoreElementAttributes(tf_sm);
+	restoreElementAttributes(sf_sm);
+
 	tf_sm.FinalizeMesh();
 	sf_sm.FinalizeMesh();
 
@@ -29,14 +32,23 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 
 };
 
+void TotalFieldScatteredFieldSubMesher::restoreElementAttributes(Mesh& m) //Temporary method that has to be reworked when materials are implemented.
+{
+	for (int e = 0; e < m.GetNE(); e++)
+	{
+		m.SetAttribute(e, 1);
+	}
+}
+
 void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child)
 {
 
-	auto f2bdr_map{ parent.GetFaceToBdrElMap() };
+	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
+	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
 	for (int i = 0; i < parent.GetNBE(); i++) {
 		if (parent.GetBdrAttribute(i) == 301) {
-			child.SetBdrAttribute(map.Find(f2bdr_map.Find(i)), 301);
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], 301);
 		}
 	}
 }
@@ -134,7 +146,7 @@ void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing(Mesh& m)
 
 			auto set_v1 = getFaceAndDirOnVertexIteration(el1, el1_vert, be_vert);
 			auto set_v2 = getFaceAndDirOnVertexIteration(el2, el2_vert, be_vert);
-			std::pair<FaceId, FaceId>facesInfo = std::make_pair(set_v1.first, set_v2.first);
+			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
 			std::pair<IsCCW, IsCCW> dirInfo = std::make_pair(set_v1.second, set_v2.second);
 			prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
 

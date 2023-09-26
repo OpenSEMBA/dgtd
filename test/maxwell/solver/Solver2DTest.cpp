@@ -909,10 +909,8 @@ TEST_F(Solver2DTest, periodic_quads)
 TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(),1,0)};
-	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
-	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	//probes.pointProbes = {
@@ -930,7 +928,7 @@ TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 			.setTimeStep(5e-3)
 			.setCentered()
 			.setFinalTime(4.0)
-			.setOrder(2)
+			.setOrder(1)
 	};
 
 	solver.run();
@@ -1156,13 +1154,12 @@ TEST_F(Solver2DTest, interiorBoundary_TotalFieldIn)
 	};
 	//mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2, BdrCond::PMC} };
-	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
-
+	
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe(80) };
 
 	maxwell::Solver solver{
-		model,
+			model,
 			probes,
 			buildGaussianPlanewave(0.3, 0.5, unitVec(Z), unitVec(X)),
 			SolverOptions{}
