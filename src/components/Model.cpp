@@ -27,9 +27,6 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA || i->second == BdrCond::NONE) {
 				attToIntBdrMap_.insert({ i->first, i->second });
 			}
-			else if (i->second == BdrCond::TotalFieldIn || i->second == BdrCond::TotalFieldOut || i->second == BdrCond::TotalFieldInBacked) {
-				attToIntSrcMap_.insert({ i->first, i->second });
-			} 
 			else {
 				std::runtime_error("Wrongly declared BdrCond as value in AttributeToInteriorConditions");
 			}

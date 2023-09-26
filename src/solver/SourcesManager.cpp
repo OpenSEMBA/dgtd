@@ -6,12 +6,8 @@ using namespace mfem;
 
 SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes) :
     sources{ srcs }, 
-    fes_{ fes }, 
-    tf_fes_{ FiniteElementSpace{&tf_mesh_,fes_.FEColl()} }, 
-    sf_fes_{ FiniteElementSpace{&sf_mesh_,fes_.FEColl()} }
+    fes_{ fes }
 {
-    tf_mesh_
-
 }
 
 void SourcesManager::setInitialFields(Fields& fields)
@@ -35,15 +31,6 @@ void SourcesManager::setInitialFields(Fields& fields)
             }
         }
     }
-}
-
-void SourcesManager::initTFSFmeshes(const std::pair<SubMesh, SubMesh>& ms)
-{
-    auto tf_mesh{ ms.first };
-    auto sf_mesh{ ms.second };
-    tf_mesh_ = std::move(tf_mesh);
-    sf_mesh_ = std::move(sf_mesh);
-
 }
 
 std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const Time time)
@@ -88,10 +75,10 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
 
                 switch (is_tf) {
                 case true:
-                    res[ft][d].SetSpace(&tf_fes_);
+                    res[ft][d].SetSpace(tf_fes_.get());
                     break;
                 case false:
-                    res[ft][d].SetSpace(&sf_fes_);
+                    res[ft][d].SetSpace(sf_fes_.get());
                     break;
                 }
                 res[ft][d].ProjectCoefficient(func);
@@ -99,6 +86,24 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
         }
     }
     return res;
+}
+
+void SourcesManager::initTFSFPreReqs(const Mesh& m)
+{
+    initTFSFSubMesher(m);
+    initTFSFSpaces();
+}
+
+void SourcesManager::initTFSFSubMesher(const Mesh& m)
+{
+    auto sm = TotalFieldScatteredFieldSubMesher(m);
+    tfsf_submesher_ = std::move(sm);
+}
+
+void SourcesManager::initTFSFSpaces()
+{
+    tf_fes_ = std::make_unique<FiniteElementSpace>(&tfsf_submesher_.getTFMesh(), fes_.FEColl());
+    sf_fes_ = std::make_unique<FiniteElementSpace>(&tfsf_submesher_.getSFMesh(), fes_.FEColl());
 }
 
 }

@@ -956,8 +956,7 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0)};
 	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
-	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn}, {302,BdrCond::TotalFieldOut} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	//probes.pointProbes = {
@@ -1152,7 +1151,7 @@ TEST_F(Solver2DTest, interiorBoundary_TotalFieldIn)
 {
 	auto mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "TwoQuadsIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshesFolder() + "intbdr_two_quads.mesh").c_str(), 1, 0
 		)
 	};
 	//mesh.UniformRefinement();

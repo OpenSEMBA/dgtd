@@ -36,14 +36,13 @@ Evolution::Evolution(
 	}
 
 	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
-		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301)
-		{
-			tfsfSubMesher_ = TotalFieldScatteredFieldSubMesher{model_.getMesh()};
-			auto fesTF{ FiniteElementSpace{&tfsfSubMesher_.getTFMesh(), fes.FEColl()} };
-			auto fesSF{ FiniteElementSpace{&tfsfSubMesher_.getSFMesh(), fes.FEColl()} };
+		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301) {
+			srcmngr_.initTFSFPreReqs(model_.getConstMesh());
+			auto fesTF{ srcmngr_.getTFSpace() };
+			auto fesSF{ srcmngr_.getSFSpace() };
 			for (auto f : { E, H }) {
-				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF), *buildTFSFOperator(f, fesTF,  1.0), fesTF);
-				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesSF), *buildTFSFOperator(f, fesSF, -1.0), fesSF);
+				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildTFSFOperator(f, *fesTF,  1.0), *fesTF);
+				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildTFSFOperator(f, *fesSF, -1.0), *fesSF);
 			}
 			break;
 		}
@@ -134,12 +133,29 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<Planewave*>(source.get())) {
 			auto time{ GetTime() };
-			auto func{ srcmngr_.evalTimeVarField(tfsfSubMesher_.getTFConstMesh(), time) };
-			for(int x = X; x <= Z; x++) {
-				MBF_[E][x]->AddMult(func[E][x], eNew[x]);
-				MBF_[H][x]->AddMult(func[H][x], hNew[x]);
-				MFF_[H]->AddMult(hOld[x], hNew[x], -1.0);
-				MFF_[E]->AddMult(eOld[x], eNew[x], -1.0);
+			auto func_tf{ srcmngr_.evalTimeVarField(time, true) };
+			auto func_sf{ srcmngr_.evalTimeVarField(time, false) };
+			std::array<GridFunction, 3> eTempTF, hTempTF, eTempSF, hTempSF;
+			for (int x = X; x <= Z; x++) {
+
+				MTF_[E]->AddMult(func_tf[E][x], eTempTF[x]);
+				MTF_[H]->AddMult(func_tf[H][x], hTempTF[x]);
+
+				MSF_[E]->AddMult(func_sf[E][x], eTempSF[x]);
+				MSF_[H]->AddMult(func_sf[H][x], hTempSF[x]);
+
+				MaxwellTransferMap eMapTF(eTempTF[x], eNew[x]);
+				eMapTF.TransferAdd		 (eTempTF[x], eNew[x]);
+
+				MaxwellTransferMap hMapTF(hTempTF[x], hNew[x]);
+				hMapTF.TransferAdd		 (hTempTF[x], hNew[x]);
+
+				MaxwellTransferMap eMapSF(eTempSF[x], eNew[x]);
+				eMapSF.TransferAdd		 (eTempSF[x], eNew[x]);
+
+				MaxwellTransferMap hMapSF(hTempSF[x], hNew[x]);
+				hMapSF.TransferAdd		 (hTempSF[x], hNew[x]);
+
 			}
 		}
 	}
