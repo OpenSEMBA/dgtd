@@ -289,13 +289,24 @@ FiniteElementOperator buildPenaltyFixOperator(const FieldType& f, const std::vec
 	return res;
 }
 
-FiniteElementOperator buildTFSFOperator(const FieldType& f, FiniteElementSpace& festfsf, double coeff)
+FiniteElementOperator buildTFSFOperator(const FieldType& f, FiniteElementSpace& fes, double coeff)
 {
-	auto res = std::make_unique<mfemExtension::BilinearForm>(&festfsf);
-	Array<int> bdr_marker(301);
+
+	
+	auto res = std::make_unique<mfemExtension::BilinearForm>(&fes);
+	Array<int> bdr_marker(302);
 	bdr_marker = 0;
-	bdr_marker[300] = 1;
+	bdr_marker[300] = 1; //in
 	res->AddBdrFaceIntegrator(new mfemExtension::TotalFieldScatteredFieldIntegrator(1.0), bdr_marker);
+	for (int b = 0; b < fes.GetMesh()->GetNBE(); b++) {
+		if (fes.GetMesh()->GetBdrAttribute(b) == 302) {
+			Array<int> bdr_marker2(302);
+			bdr_marker2 = 0;
+			bdr_marker2[301] = 1; //out
+			res->AddBdrFaceIntegrator(new mfemExtension::TotalFieldScatteredFieldIntegrator(-1.0), bdr_marker2);
+			break;
+		}
+	}
 	res->Assemble();
 	res->Finalize();
 	return res;

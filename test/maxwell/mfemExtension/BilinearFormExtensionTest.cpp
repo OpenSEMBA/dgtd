@@ -98,7 +98,7 @@ protected:
 		storeElementToFaceInformation(trans, f, el1_is_tf);
 	}
 
-	void setTFSFAttributesForSubMeshing(Mesh& m)
+	void setTFSFAttributesForSubMeshing2D(Mesh& m)
 	{
 
 		for (int be = 0; be < m.GetNBE(); be++)
@@ -183,7 +183,7 @@ TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 {
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	Array<int> sf_att(1); sf_att[0] = 2000;

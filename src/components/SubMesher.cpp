@@ -9,18 +9,32 @@ using namespace mfem;
 TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m)
 {
 	Mesh parent(m);
- 	setTFSFAttributesForSubMeshing(parent);
+
+	switch (parent.Dimension()) {
+	case 1:
+ 		setTFSFAttributesForSubMeshing1D(parent);
+		break;
+	case 2:
+ 		setTFSFAttributesForSubMeshing2D(parent);
+		break;
+	}
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	Array<int> sf_att(1); sf_att[0] = 2000;
 	auto tf_sm{ SubMesh::CreateFromDomain(parent, tf_att) };
 	auto sf_sm{ SubMesh::CreateFromDomain(parent, sf_att) };
+	
+	switch (parent.Dimension()) {
+	case 1:
+		setBoundaryAttributesInChild1D(parent, tf_sm);
+		setBoundaryAttributesInChild1D(parent, sf_sm);
+		break;
+	case 2:
+		setBoundaryAttributesInChild2D(parent,tf_sm);
+		setBoundaryAttributesInChild2D(parent,sf_sm);
+		break;
+	}
 
-	auto f2bdr_map{ parent.GetFaceToBdrElMap() };
-	
-	setBoundaryAttributesInChild(parent,tf_sm);
-	setBoundaryAttributesInChild(parent,sf_sm);
-	
 	restoreElementAttributes(tf_sm);
 	restoreElementAttributes(sf_sm);
 
@@ -40,9 +54,29 @@ void TotalFieldScatteredFieldSubMesher::restoreElementAttributes(Mesh& m) //Temp
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child)
+void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild1D(const Mesh& parent, SubMesh& child)
 {
+	for (int e = 0; e < child.GetNE(); e++) {
+		Array<int> verts(2);
+		child.GetElementVertices(e, verts);
+		child.AddBdrPoint(verts[0]); 
+		child.AddBdrPoint(verts[1]);
+	}
+	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
+	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
+	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
+	for (int i = 0; i < parent.GetNBE(); i++) {
+		if (parent.GetBdrAttribute(i) == 301) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], 301);
+		}
+		else if (parent.GetBdrAttribute(i) == 302) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], 302);
+		}
+	}
+}
 
+void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild2D(const Mesh& parent, SubMesh& child)
+{
 	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
 	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
@@ -116,12 +150,43 @@ Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration(const
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing1D(Mesh& m)
 {
-	for (int be = 0; be < m.GetNBE(); be++)
-	{
-		if (m.GetBdrAttribute(be) == 301)
-		{
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (m.GetBdrAttribute(be) == 301 || m.GetBdrAttribute(be) == 302) {
+			auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
+			auto el1{ m.GetElement(be_trans->Elem1No) };
+			auto el2{ m.GetElement(be_trans->Elem2No) };
+
+			Array<int> el1_vert(el1->GetNVertices());
+			Array<int> el2_vert(el2->GetNVertices());
+			Array<int> be_vert(1);
+
+			auto ver1{ el1->GetVertices() };
+			auto ver2{ el2->GetVertices() };
+			m.GetBdrElementVertices(be, be_vert);
+
+			if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == 301) {
+				el1->SetAttribute(1000);
+				el2->SetAttribute(2000);
+				elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem2No, ver2[0]));
+				elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
+			}
+			if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == 302) {
+				el1->SetAttribute(2000);
+				el2->SetAttribute(1000);
+				elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
+				elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem2No, ver2[0]));
+			}
+
+		}
+	}
+}
+
+void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing2D(Mesh& m)
+{
+	for (int be = 0; be < m.GetNBE(); be++)	{
+		if (m.GetBdrAttribute(be) == 301) {
 
 			auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
 			auto el1{ m.GetElement(be_trans->Elem1No) };

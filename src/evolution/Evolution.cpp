@@ -40,10 +40,38 @@ Evolution::Evolution(
 			srcmngr_.initTFSFPreReqs(model_.getConstMesh());
 			auto fesTF{ srcmngr_.getTFSpace() };
 			auto fesSF{ srcmngr_.getSFSpace() };
+			
+			for (auto f : { E, H }) {
+				MP_TF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildZeroNormalOperator(f, model_, *fesTF, opts_), *fesTF);
+				for (auto d{ X }; d <= Z; d++) {
+					MS_TF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildDerivativeOperator(d, *fesTF), *fesTF);
+					for (auto d2{ X }; d2 <= Z; d2++) {
+						for (auto f2 : { E, H }) {
+							MFN_TF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildOneNormalOperator(f2, { d }, model_, *fesTF, opts_), *fesTF);
+							MFNN_TF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildTwoNormalOperator(f2, { d, d2 }, model_, *fesTF, opts_), *fesTF);
+						}
+					}
+				}
+			}
+
+			for (auto f : { E, H }) {
+				MP_SF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildZeroNormalOperator(f, model_, *fesSF, opts_), *fesSF);
+				for (auto d{ X }; d <= Z; d++) {
+					MS_SF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildDerivativeOperator(d, *fesSF), *fesSF);
+					for (auto d2{ X }; d2 <= Z; d2++) {
+						for (auto f2 : { E, H }) {
+							MFN_SF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildOneNormalOperator(f2, { d }, model_, *fesSF, opts_), *fesSF);
+							MFNN_SF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildTwoNormalOperator(f2, { d, d2 }, model_, *fesSF, opts_), *fesSF);
+						}
+					}
+				}
+			}
+
 			for (auto f : { E, H }) {
 				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildTFSFOperator(f, *fesTF,  1.0), *fesTF);
 				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildTFSFOperator(f, *fesSF, -1.0), *fesSF);
 			}
+
 			break;
 		}
 	}

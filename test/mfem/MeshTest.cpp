@@ -156,7 +156,7 @@ protected:
 		}
 	}
 
-	void setTFSFAttributesForSubMeshing(Mesh& m)
+	void setTFSFAttributesForSubMeshing2D(Mesh& m)
 	{
 
 		for (int be = 0; be < m.GetNBE(); be++)
@@ -845,7 +845,7 @@ TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 	{
 		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-		setTFSFAttributesForSubMeshing(m);
+		setTFSFAttributesForSubMeshing2D(m);
 
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 3, 5, 7)} }, 2000);
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(4)} }, 1000);
@@ -854,7 +854,7 @@ TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 	{
 		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(), 1, 0, true) };
 
-		setTFSFAttributesForSubMeshing(m);
+		setTFSFAttributesForSubMeshing2D(m);
 
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23)} }, 2000);
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(6, 7, 8, 11, 13, 16, 17, 18)} }, 1000);
@@ -866,7 +866,7 @@ TEST_F(MeshTest, marking_element_to_face_pairs_for_submeshing_2D)
 {
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	std::vector<std::pair<ElementId, FaceId>>elem_to_face_tf_check{ {{4,0}, {4,1}, {4,2}, {4,3}} };
 	std::vector<std::pair<ElementId, FaceId>>elem_to_face_sf_check{ {{3,2}, {7,3}, {5,0}, {1,1}} };
@@ -880,7 +880,7 @@ TEST_F(MeshTest, transfer_parent_bdr_att_to_child)
 {
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	Array<int> sf_att(1); sf_att[0] = 2000;
@@ -911,7 +911,7 @@ TEST_F(MeshTest, gridfunction_transfer_between_parent_and_child_2D)
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	Mesh backup_m(m);
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	auto tf_sm{ SubMesh::CreateFromDomain(m, tf_att) };
@@ -953,7 +953,7 @@ TEST_F(MeshTest, homebrew_transfer_map)
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	Mesh backup_m(m);
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	auto tf_sm{ SubMesh::CreateFromDomain(m, tf_att) };
