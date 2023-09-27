@@ -16,6 +16,7 @@ public:
     void initTFSFPreReqs(const Mesh&);
     FiniteElementSpace* getTFSpace() { return tf_fes_.get(); }
     FiniteElementSpace* getSFSpace() { return sf_fes_.get(); }
+    TotalFieldScatteredFieldSubMesher& getTFSFSubMesher() { return tfsf_submesher_; }
 
     Sources sources;
 

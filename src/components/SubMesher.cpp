@@ -27,8 +27,8 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	tf_sm.FinalizeMesh();
 	sf_sm.FinalizeMesh();
 
-	tf_mesh_ = std::move(tf_sm);
-	sf_mesh_ = std::move(sf_sm);
+	tf_mesh_ = std::make_unique<SubMesh>(tf_sm);
+	sf_mesh_ = std::make_unique<SubMesh>(sf_sm);
 
 };
 
@@ -158,7 +158,6 @@ MaxwellTransferMap::MaxwellTransferMap(const GridFunction& src,
 	const GridFunction& dst)
 {
 	const FiniteElementSpace* parentfes = nullptr, * subfes = nullptr;
-
 	SubMesh* src_sm = static_cast<SubMesh*>(src.FESpace()->GetMesh());
 	subfes = src.FESpace();
 	parentfes = dst.FESpace();

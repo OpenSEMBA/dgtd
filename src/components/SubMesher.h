@@ -20,10 +20,10 @@ public:
 	TotalFieldScatteredFieldSubMesher(){};
 	TotalFieldScatteredFieldSubMesher(const Mesh&);
 
-	Mesh& getTFMesh() { return tf_mesh_; }
-	Mesh& getSFMesh() { return sf_mesh_; }
-	const Mesh& getTFConstMesh() const { return tf_mesh_; }
-	const Mesh& getSFConstMesh() const { return sf_mesh_; }
+	SubMesh* getTFSubMesh() { return tf_mesh_.get(); }
+	SubMesh* getSFSubMesh() { return sf_mesh_.get(); }
+	const SubMesh* getTFConstSubMesh() const { return tf_mesh_.get(); }
+	const SubMesh* getSFConstSubMesh() const { return sf_mesh_.get(); }
 
 private:
 
@@ -39,8 +39,8 @@ private:
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;
 
-	Mesh tf_mesh_;
-	Mesh sf_mesh_;
+	std::unique_ptr<SubMesh> tf_mesh_;
+	std::unique_ptr<SubMesh> sf_mesh_;
 
 };
 

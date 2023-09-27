@@ -73,6 +73,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	for (int d = X; d <= Z; d++) {
 		eOld[d].SetDataAndSize(in.GetData() + d * fes_.GetNDofs(), fes_.GetNDofs());
 		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
+		eNew[d].SetSpace(&fes_);
+		hNew[d].SetSpace(&fes_);
 		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
 		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
 		eNew[d] = 0.0;
@@ -132,17 +134,32 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<Planewave*>(source.get())) {
+			
 			auto time{ GetTime() };
+			
 			auto func_tf{ srcmngr_.evalTimeVarField(time, true) };
 			auto func_sf{ srcmngr_.evalTimeVarField(time, false) };
+			
 			std::array<GridFunction, 3> eTempTF, hTempTF, eTempSF, hTempSF;
+			
+			for (int d = X; d <= Z; d++) {
+				eTempTF[d].SetSpace(srcmngr_.getTFSpace());
+				hTempTF[d].SetSpace(srcmngr_.getTFSpace());
+				eTempSF[d].SetSpace(srcmngr_.getSFSpace());
+				hTempSF[d].SetSpace(srcmngr_.getSFSpace());
+				eTempTF[d] = 0.0;
+				hTempTF[d] = 0.0;
+				eTempSF[d] = 0.0;
+				hTempSF[d] = 0.0;
+			}
+
 			for (int x = X; x <= Z; x++) {
 
-				MTF_[E]->AddMult(func_tf[E][x], eTempTF[x]);
-				MTF_[H]->AddMult(func_tf[H][x], hTempTF[x]);
+				MTF_[E]->Mult(func_tf[E][x], eTempTF[x]);
+				MTF_[H]->Mult(func_tf[H][x], hTempTF[x]);
 
-				MSF_[E]->AddMult(func_sf[E][x], eTempSF[x]);
-				MSF_[H]->AddMult(func_sf[H][x], hTempSF[x]);
+				MSF_[E]->Mult(func_sf[E][x], eTempSF[x]);
+				MSF_[H]->Mult(func_sf[H][x], hTempSF[x]);
 
 				MaxwellTransferMap eMapTF(eTempTF[x], eNew[x]);
 				eMapTF.TransferAdd		 (eTempTF[x], eNew[x]);
