@@ -177,8 +177,6 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 			}
 
 			for (int x = X; x <= Z; x++) {
-				int y = (x + 1) % 3;
-				int z = (x + 2) % 3;
 
 				MaxwellTransferMap eMapTF(eTempTF[x], eNew[x]);
 				MaxwellTransferMap hMapTF(hTempTF[x], hNew[x]);
@@ -197,21 +195,21 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				if (opts_.fluxType == FluxType::Upwind) {
 
 					MFNN_TF_[H][H][X][x]->Mult(func_tf[H][X], hTempTF[x]);
-					hMapTF.TransferAdd(hTempTF[X], hNew[x]);
+					hMapTF.TransferAdd(hTempTF[x], hNew[x]);
 					MFNN_TF_[H][H][Y][x]->Mult(func_tf[H][Y], hTempTF[x]);
-					hMapTF.TransferAdd(hTempTF[X], hNew[x]);
+					hMapTF.TransferAdd(hTempTF[x], hNew[x]);
 					MFNN_TF_[H][H][Z][x]->Mult(func_tf[H][Z], hTempTF[x]);
-					hMapTF.TransferAdd(hTempTF[X], hNew[x]);
+					hMapTF.TransferAdd(hTempTF[x], hNew[x]);
 
 					MP_TF_[H]->Mult(func_tf[H][x], hTempTF[x]);
 					hMapTF.TransferAdd(hTempTF[x], hNew[x]);
 
 					MFNN_TF_[E][E][X][x]->Mult(func_tf[E][X], eTempTF[x]);
-					eMapTF.TransferAdd(eTempTF[X], eNew[x]);
+					eMapTF.TransferAdd(eTempTF[x], eNew[x]);
 					MFNN_TF_[E][E][Y][x]->Mult(func_tf[E][Y], eTempTF[x]);
-					eMapTF.TransferAdd(eTempTF[Y], eNew[x]);
+					eMapTF.TransferAdd(eTempTF[x], eNew[x]);
 					MFNN_TF_[E][E][Z][x]->Mult(func_tf[E][Z], eTempTF[x]);
-					eMapTF.TransferAdd(eTempTF[Z], eNew[x]);
+					eMapTF.TransferAdd(eTempTF[x], eNew[x]);
 
 					MP_TF_[E]->Mult(func_tf[E][x], eTempTF[x]);
 					eMapTF.TransferAdd(eTempTF[x], eNew[x]);
@@ -238,21 +236,21 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				if (opts_.fluxType == FluxType::Upwind) {
 
 					MFNN_SF_[H][H][X][x]->Mult(func_sf[H][X], hTempSF[x]);
-					hMapSF.TransferAdd(hTempSF[X], hNew[x]);
+					hMapSF.TransferAdd(hTempSF[x], hNew[x]);
 					MFNN_SF_[H][H][Y][x]->Mult(func_sf[H][Y], hTempSF[x]);
-					hMapSF.TransferAdd(hTempSF[X], hNew[x]);
+					hMapSF.TransferAdd(hTempSF[x], hNew[x]);
 					MFNN_SF_[H][H][Z][x]->Mult(func_sf[H][Z], hTempSF[x]);
-					hMapSF.TransferAdd(hTempSF[X], hNew[x]);
+					hMapSF.TransferAdd(hTempSF[x], hNew[x]);
 
 					MP_SF_[H]->Mult(func_sf[H][x], hTempSF[x]);
 					hMapSF.TransferAdd(hTempSF[x], hNew[x]);
 
 					MFNN_SF_[E][E][X][x]->Mult(func_sf[E][X], eTempSF[x]);
-					eMapSF.TransferAdd(eTempSF[X], eNew[x]);
+					eMapSF.TransferAdd(eTempSF[x], eNew[x]);
 					MFNN_SF_[E][E][Y][x]->Mult(func_sf[E][Y], eTempSF[x]);
-					eMapSF.TransferAdd(eTempSF[Y], eNew[x]);
+					eMapSF.TransferAdd(eTempSF[x], eNew[x]);
 					MFNN_SF_[E][E][Z][x]->Mult(func_sf[E][Z], eTempSF[x]);
-					eMapSF.TransferAdd(eTempSF[Z], eNew[x]);
+					eMapSF.TransferAdd(eTempSF[x], eNew[x]);
 
 					MP_SF_[E]->Mult(func_sf[E][x], eTempSF[x]);
 					eMapSF.TransferAdd(eTempSF[x], eNew[x]);
