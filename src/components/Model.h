@@ -31,7 +31,7 @@ public:
 		Mesh&, 
 		const AttributeToMaterial& = AttributeToMaterial{},
 		const AttributeToBoundary& = AttributeToBoundary{},
-		const AttributeToInteriorConditions & = AttributeToInteriorConditions{}
+		const AttributeToInteriorConditions& = AttributeToInteriorConditions{}
 	);
 
 	Mesh& getMesh() { return mesh_; };

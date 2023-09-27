@@ -5,7 +5,8 @@ namespace maxwell {
 using namespace mfem;
 
 SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes) :
-    sources{srcs}, fes_{ fes }
+    sources{ srcs }, 
+    fes_{ fes }
 {
 }
 
@@ -32,7 +33,7 @@ void SourcesManager::setInitialFields(Fields& fields)
     }
 }
 
-std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const double time)
+std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const Time time)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -54,6 +55,55 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
         }
     }
     return res;
+}
+
+std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const Time time, bool is_tf)
+{
+    std::array<std::array<GridFunction, 3>, 2> res;
+    for (const auto& source : sources) {
+        auto pw = dynamic_cast<Planewave*>(source.get());
+        if (pw == nullptr) {
+            continue;
+        }
+        for (auto ft : { E, H }) {
+            for (auto d : { X, Y, Z }) {
+                std::function<double(const Source::Position&, Source::Time)> f = 0;
+                f = std::bind(&Planewave::eval, pw,
+                    std::placeholders::_1, std::placeholders::_2, ft, d);
+                FunctionCoefficient func(f);
+                func.SetTime(time);
+
+                switch (is_tf) {
+                case true:
+                    res[ft][d].SetSpace(tf_fes_.get());
+                    break;
+                case false:
+                    res[ft][d].SetSpace(sf_fes_.get());
+                    break;
+                }
+                res[ft][d].ProjectCoefficient(func);
+            }
+        }
+    }
+    return res;
+}
+
+void SourcesManager::initTFSFPreReqs(const Mesh& m)
+{
+    initTFSFSubMesher(m);
+    initTFSFSpaces();
+}
+
+void SourcesManager::initTFSFSubMesher(const Mesh& m)
+{
+    auto sm = TotalFieldScatteredFieldSubMesher(m);
+    tfsf_submesher_ = std::move(sm);
+}
+
+void SourcesManager::initTFSFSpaces()
+{
+    tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
+    sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
 }
 
 }

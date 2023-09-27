@@ -16,7 +16,6 @@ Evolution::Evolution(
 
 	for (auto f : { E, H }) {
 		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
-		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
 			for (auto d2{ X }; d2 <= Z; d2++) {
@@ -27,21 +26,23 @@ Evolution::Evolution(
 			}
 		}
 	}
+
 	for (auto f : { E, H }) {//TFSF - SrcConds
+		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);
 		for (auto d : { X, Y, Z }) {
 			MBF_[f][d] = buildByMult(
 				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { X }, model_, fes_, opts_), fes_);
 		}
 	}
+
 	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
-		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301)
-		{
-			tfsfSubMesher_ = TotalFieldScatteredFieldSubMesher{model_.getMesh()};
-			auto fesTF{ FiniteElementSpace{&tfsfSubMesher_.getTFMesh(), fes.FEColl()} };
-			auto fesSF{ FiniteElementSpace{&tfsfSubMesher_.getSFMesh(), fes.FEColl()} };
+		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301) {
+			srcmngr_.initTFSFPreReqs(model_.getConstMesh());
+			auto fesTF{ srcmngr_.getTFSpace() };
+			auto fesSF{ srcmngr_.getSFSpace() };
 			for (auto f : { E, H }) {
-				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF), *buildTFSFOperator(f, fesTF,  1.0), fesTF);
-				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fesTF), *buildTFSFOperator(f, fesTF, -1.0), fesTF);
+				MTF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildTFSFOperator(f, *fesTF,  1.0), *fesTF);
+				MSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildTFSFOperator(f, *fesSF, -1.0), *fesSF);
 			}
 			break;
 		}
@@ -72,6 +73,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	for (int d = X; d <= Z; d++) {
 		eOld[d].SetDataAndSize(in.GetData() + d * fes_.GetNDofs(), fes_.GetNDofs());
 		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
+		eNew[d].SetSpace(&fes_);
+		hNew[d].SetSpace(&fes_);
 		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
 		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
 		eNew[d] = 0.0;
@@ -131,13 +134,45 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<Planewave*>(source.get())) {
+			
 			auto time{ GetTime() };
-			auto func{srcmngr_.evalTimeVarField(time)};
-			for(int x = X; x <= Z; x++) {
-				MBF_[E][x]->AddMult(func[E][x], eNew[x]);
-				MBF_[H][x]->AddMult(func[H][x], hNew[x]);
-				MFF_[H]->AddMult(hOld[x], hNew[x], -1.0);
-				MFF_[E]->AddMult(eOld[x], eNew[x], -1.0);
+			
+			auto func_tf{ srcmngr_.evalTimeVarField(time, true) };
+			auto func_sf{ srcmngr_.evalTimeVarField(time, false) };
+			
+			std::array<GridFunction, 3> eTempTF, hTempTF, eTempSF, hTempSF;
+			
+			for (int d = X; d <= Z; d++) {
+				eTempTF[d].SetSpace(srcmngr_.getTFSpace());
+				hTempTF[d].SetSpace(srcmngr_.getTFSpace());
+				eTempSF[d].SetSpace(srcmngr_.getSFSpace());
+				hTempSF[d].SetSpace(srcmngr_.getSFSpace());
+				eTempTF[d] = 0.0;
+				hTempTF[d] = 0.0;
+				eTempSF[d] = 0.0;
+				hTempSF[d] = 0.0;
+			}
+
+			for (int x = X; x <= Z; x++) {
+
+				MTF_[E]->Mult(func_tf[E][x], eTempTF[x]);
+				MTF_[H]->Mult(func_tf[H][x], hTempTF[x]);
+
+				MSF_[E]->Mult(func_sf[E][x], eTempSF[x]);
+				MSF_[H]->Mult(func_sf[H][x], hTempSF[x]);
+
+				MaxwellTransferMap eMapTF(eTempTF[x], eNew[x]);
+				eMapTF.TransferAdd		 (eTempTF[x], eNew[x]);
+
+				MaxwellTransferMap hMapTF(hTempTF[x], hNew[x]);
+				hMapTF.TransferAdd		 (hTempTF[x], hNew[x]);
+
+				MaxwellTransferMap eMapSF(eTempSF[x], eNew[x]);
+				eMapSF.TransferAdd		 (eTempSF[x], eNew[x]);
+
+				MaxwellTransferMap hMapSF(hTempSF[x], hNew[x]);
+				hMapSF.TransferAdd		 (hTempSF[x], hNew[x]);
+
 			}
 		}
 	}

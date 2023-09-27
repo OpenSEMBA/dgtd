@@ -40,7 +40,7 @@ TEST_F(FormTest, LinearForms_1D)
 TEST_F(FormTest, LinearForms_2D) 
 {
 	
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "TwoQuadsIntBdr.mesh").c_str(), 1, 0) };
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "intbdr_two_quads.mesh").c_str(), 1, 0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLegendre) };
 	auto fes{ FiniteElementSpace(&m,&fec) };
 
@@ -57,10 +57,4 @@ TEST_F(FormTest, LinearForms_2D)
 
 	lf.Assemble();
 	
-
-}
-
-TEST_F(FormTest, BilinearFormsAssemblies)
-{
-
 }
