@@ -639,6 +639,33 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 		EXPECT_NEAR(0.0, frame.second, 1e-3);
 	}
 }
+
+TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
+{
+	Mesh mesh{
+		Mesh::LoadFromFile(
+			(mfemMeshesFolder() + "lineIntBdr.mesh").c_str(), 1, 0
+		)
+	};
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(1) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setCentered()
+			.setFinalTime(5.0)
+			.setOrder(1)
+	};
+
+	solver.run();
+
+}
 TEST_F(Solver1DTest, totalfieldinout_pec_upwind)
 {
 	Mesh mesh{ 
