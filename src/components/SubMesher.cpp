@@ -167,14 +167,14 @@ void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing1D(Mesh& m
 			m.GetBdrElementVertices(be, be_vert);
 
 			if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == 301) {
-				el1->SetAttribute(1000);
-				el2->SetAttribute(2000);
+				el1->SetAttribute(2000);
+				el2->SetAttribute(1000);
 				elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem2No, ver2[0]));
 				elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
 			}
 			if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == 302) {
-				el1->SetAttribute(2000);
-				el2->SetAttribute(1000);
+				el1->SetAttribute(1000);
+				el2->SetAttribute(2000);
 				elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
 				elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem2No, ver2[0]));
 			}
