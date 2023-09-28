@@ -657,10 +657,10 @@ TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
 		probes,
 		buildGaussianPlanewave(0.2, 1.5, unitVec(Z), unitVec(X)),
 		SolverOptions{}
-			.setCFL(0.5)
+			.setCFL(0.1)
 			.setCentered()
 			.setFinalTime(5.0)
-			.setOrder(1)
+			.setOrder(2)
 	};
 
 	solver.run();

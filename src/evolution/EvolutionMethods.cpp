@@ -449,6 +449,30 @@ FiniteElementOperator buildFluxFunctionOperator(const FieldType& f, const std::v
 	return res;
 }
 
+FiniteElementOperator buildOneNormalTotalFieldOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
+{
+	auto res = std::make_unique<BilinearForm>(&fes);
+	res->AddInteriorFaceIntegrator(
+		new MaxwellDGOneNormalTotalFieldIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+
+	for (auto& kv : model.getBoundaryToMarker()) {
+
+		auto c = bdrCoeffCheck(opts.fluxType);
+		if (kv.first != BdrCond::SMA) {
+			res->AddBdrFaceIntegrator(
+				new MaxwellDGOneNormalTotalFieldIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		}
+		else {
+			res->AddBdrFaceIntegrator(
+				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+		}
+	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+}
+
 FieldType altField(const FieldType& f)
 {
 	switch (f) {

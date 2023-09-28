@@ -19,30 +19,36 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 		break;
 	}
 
-	Array<int> tf_att(1); tf_att[0] = 1000;
-	Array<int> sf_att(1); sf_att[0] = 2000;
-	auto tf_sm{ SubMesh::CreateFromDomain(parent, tf_att) };
-	auto sf_sm{ SubMesh::CreateFromDomain(parent, sf_att) };
+	Array<int> global_att(1); global_att[0] = 3000;
+	auto global_sm{ SubMesh::CreateFromDomain(parent, global_att) };
+	restoreElementAttributes(global_sm);
+	global_sm.FinalizeMesh();
+	global_submesh_ = std::make_unique<SubMesh>(global_sm);
+
+	//Array<int> tf_att(1); tf_att[0] = 1000;
+	//Array<int> sf_att(1); sf_att[0] = 2000;
+	//auto tf_sm{ SubMesh::CreateFromDomain(parent, tf_att) };
+	//auto sf_sm{ SubMesh::CreateFromDomain(parent, sf_att) };
 	
-	switch (parent.Dimension()) {
-	case 1:
-		setBoundaryAttributesInChild1D(parent, tf_sm);
-		setBoundaryAttributesInChild1D(parent, sf_sm);
-		break;
-	case 2:
-		setBoundaryAttributesInChild2D(parent,tf_sm);
-		setBoundaryAttributesInChild2D(parent,sf_sm);
-		break;
-	}
+	//switch (parent.Dimension()) {
+	//case 1:
+	//	setBoundaryAttributesInChild1D(parent, tf_sm);
+	//	setBoundaryAttributesInChild1D(parent, sf_sm);
+	//	break;
+	//case 2:
+	//	setBoundaryAttributesInChild2D(parent, tf_sm);
+	//	setBoundaryAttributesInChild2D(parent, sf_sm);
+	//	break;
+	//}
 
-	restoreElementAttributes(tf_sm);
-	restoreElementAttributes(sf_sm);
+	//restoreElementAttributes(tf_sm);
+	//restoreElementAttributes(sf_sm);
 
-	tf_sm.FinalizeMesh();
-	sf_sm.FinalizeMesh();
+	//tf_sm.FinalizeMesh();
+	//sf_sm.FinalizeMesh();
 
-	tf_mesh_ = std::make_unique<SubMesh>(tf_sm);
-	sf_mesh_ = std::make_unique<SubMesh>(sf_sm);
+	//tf_mesh_ = std::make_unique<SubMesh>(tf_sm);
+	//sf_mesh_ = std::make_unique<SubMesh>(sf_sm);
 
 };
 
@@ -178,7 +184,19 @@ void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing1D(Mesh& m
 				elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
 				elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem2No, ver2[0]));
 			}
+		}
+	}
 
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (m.GetBdrAttribute(be) == 301) {
+
+			auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
+
+			m.GetElement(be_trans->Elem1No)->SetAttribute(3000);
+			m.GetElement(be_trans->Elem2No)->SetAttribute(3000);
+
+			elems_for_global_submesh_.push_back(be_trans->Elem1No);
+			elems_for_global_submesh_.push_back(be_trans->Elem2No);
 		}
 	}
 }
