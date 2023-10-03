@@ -5,6 +5,15 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
+void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
+{
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			gfs[f][d] *= -1.0;
+		}
+	}
+}
+
 Evolution::Evolution(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
@@ -38,8 +47,6 @@ Evolution::Evolution(
 	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
 		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301) {
 			srcmngr_.initTFSFPreReqs(model_.getConstMesh());
-			auto fesTF{ srcmngr_.getTFSpace() };
-			auto fesSF{ srcmngr_.getSFSpace() };
 			auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
 			Model modelGlobal = Model(*globalTFSFfes->GetMesh(), AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{});
 			
@@ -49,7 +56,7 @@ Evolution::Evolution(
 					MS_GTFSF_[f][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildDerivativeOperator(d, *globalTFSFfes), *globalTFSFfes);
 					for (auto d2{ X }; d2 <= Z; d2++) {
 						for (auto f2 : { E, H }) {
-							MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildOneNormalTotalFieldOperator(f2, { d }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+							MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildOneNormalOperator(f2, { d }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 							MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildTwoNormalOperator(f2, { d, d2 }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 						}
 					}
@@ -180,8 +187,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 			auto func_g_sf{ func_g_tf };
 			srcmngr_.markDoFSforTFandSF(func_g_tf, true);
 			srcmngr_.markDoFSforTFandSF(func_g_sf, false);
+			changeSignOfFieldGridFuncs(func_g_sf);
 
-			
 			std::array<GridFunction, 3> eTemp, hTemp;
 
 			for (int d = X; d <= Z; d++) {
@@ -199,6 +206,9 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				MaxwellTransferMap hMap(hTemp[x], hNew[x]);
 
 				//Centered
+
+				MFN_GTFSF_[H][E][x]->SpMat().ToDenseMatrix()->Print(std::cout);
+				std::cout << std::flush;
 
 				MFN_GTFSF_[E][H][z]->Mult(func_g_tf[H][y], eTemp[x]);
 				eMap.TransferAdd(eTemp[x], eNew[x]);
@@ -222,13 +232,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 					eMap.TransferAdd(hTemp[x], hNew[x]);
 
 				}
-
-				func_g_tf[E][X] *= -1.0;
-				func_g_tf[E][Y] *= -1.0;
-				func_g_tf[E][Z] *= -1.0;
-				func_g_tf[H][X] *= -1.0;
-				func_g_tf[H][Y] *= -1.0;
-				func_g_tf[H][Z] *= -1.0;
+				//Change signs for negative Maxwell Equation parts
+				changeSignOfFieldGridFuncs(func_g_tf);
 
 				MFN_GTFSF_[E][H][y]->Mult(func_g_tf[H][z], eTemp[x]);
 				eMap.TransferAdd(eTemp[x], eNew[x]);
@@ -265,13 +270,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 					eMap.TransferAdd(hTemp[x], hNew[x]);
 
 				}
-
-				func_g_sf[E][X] *= -1.0;
-				func_g_sf[E][Y] *= -1.0;
-				func_g_sf[E][Z] *= -1.0;
-				func_g_sf[H][X] *= -1.0;
-				func_g_sf[H][Y] *= -1.0;
-				func_g_sf[H][Z] *= -1.0;
+				//Change signs for negative Maxwell Equation parts
+				changeSignOfFieldGridFuncs(func_g_sf);
 
 				MFN_GTFSF_[E][H][y]->Mult(func_g_sf[H][z], eTemp[x]);
 				eMap.TransferAdd(eTemp[x], eNew[x]);
@@ -285,10 +285,12 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 					MP_GTFSF_[H]->Mult(func_g_sf[H][x], hTemp[x]);
 					eMap.TransferAdd(hTemp[x], hNew[x]);
 				}
+				////Change signs to restore original signs
+				//changeSignOfFieldGridFuncs(func_g_tf);
+				//changeSignOfFieldGridFuncs(func_g_sf);
 			}
 		}
 	}
-
 }
 
 }

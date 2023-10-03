@@ -651,11 +651,17 @@ TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(1) };
+	probes.pointProbes = {
+		PointProbe{ E, Y, {0.1001} },
+		PointProbe{ E, Y, {2.0} },
+		PointProbe{ H, Z, {2.0} },
+		PointProbe{ H, Z, {0.1001} }
+	};
 
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(0.2, 1.5, unitVec(Z), unitVec(X)),
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
 		SolverOptions{}
 			.setCFL(0.1)
 			.setCentered()
@@ -664,6 +670,30 @@ TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
 	};
 
 	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(3.5, frame.first, 1e-1);
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(3.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(3.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(3.5, frame.first, 1e-3);
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
 
 }
 TEST_F(Solver1DTest, totalfieldinout_pec_upwind)

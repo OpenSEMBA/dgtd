@@ -135,8 +135,6 @@ void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
             }
         }
     }
-
-
 }
 
 void SourcesManager::initTFSFPreReqs(const Mesh& m)

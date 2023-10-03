@@ -21,7 +21,7 @@ public:
     FiniteElementSpace* getSFSpace() { return sf_fes_.get(); }
     FiniteElementSpace* getGlobalTFSFSpace() { return global_tfsf_fes_.get(); }
     TotalFieldScatteredFieldSubMesher& getTFSFSubMesher() { return tfsf_submesher_; }
-    void markDoFSforTFandSF(FieldGridFuncs& gf, bool isTF);
+    void markDoFSforTFandSF(FieldGridFuncs&, bool isTF);
 
     Sources sources;
 
