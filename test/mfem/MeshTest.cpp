@@ -156,7 +156,7 @@ protected:
 		}
 	}
 
-	void setTFSFAttributesForSubMeshing(Mesh& m)
+	void setTFSFAttributesForSubMeshing2D(Mesh& m)
 	{
 
 		for (int be = 0; be < m.GetNBE(); be++)
@@ -845,7 +845,7 @@ TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 	{
 		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-		setTFSFAttributesForSubMeshing(m);
+		setTFSFAttributesForSubMeshing2D(m);
 
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 3, 5, 7)} }, 2000);
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(4)} }, 1000);
@@ -854,7 +854,7 @@ TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 	{
 		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(), 1, 0, true) };
 
-		setTFSFAttributesForSubMeshing(m);
+		setTFSFAttributesForSubMeshing2D(m);
 
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23)} }, 2000);
 		checkIfElementsHaveAttribute(m, std::vector<int>{ {(6, 7, 8, 11, 13, 16, 17, 18)} }, 1000);
@@ -866,7 +866,7 @@ TEST_F(MeshTest, marking_element_to_face_pairs_for_submeshing_2D)
 {
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	std::vector<std::pair<ElementId, FaceId>>elem_to_face_tf_check{ {{4,0}, {4,1}, {4,2}, {4,3}} };
 	std::vector<std::pair<ElementId, FaceId>>elem_to_face_sf_check{ {{3,2}, {7,3}, {5,0}, {1,1}} };
@@ -880,7 +880,7 @@ TEST_F(MeshTest, transfer_parent_bdr_att_to_child)
 {
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	Array<int> sf_att(1); sf_att[0] = 2000;
@@ -911,7 +911,7 @@ TEST_F(MeshTest, gridfunction_transfer_between_parent_and_child_2D)
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	Mesh backup_m(m);
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	auto tf_sm{ SubMesh::CreateFromDomain(m, tf_att) };
@@ -953,7 +953,7 @@ TEST_F(MeshTest, homebrew_transfer_map)
 	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	Mesh backup_m(m);
 
-	setTFSFAttributesForSubMeshing(m);
+	setTFSFAttributesForSubMeshing2D(m);
 
 	Array<int> tf_att(1); tf_att[0] = 1000;
 	auto tf_sm{ SubMesh::CreateFromDomain(m, tf_att) };
@@ -990,4 +990,49 @@ TEST_F(MeshTest, homebrew_transfer_map)
 	EXPECT_TRUE(m_gf[17] == 0);
 	EXPECT_TRUE(m_gf[18] == 0);
 	EXPECT_TRUE(m_gf[19] == 0);
+}
+
+TEST_F(MeshTest, transfering_zeroes_between_submeshes_of_same_parent)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	
+	maxwell::TotalFieldScatteredFieldSubMesher submesher(m);
+
+	auto fec{ L2_FECollection(1,2,BasisType::GaussLobatto) };
+	auto global_tfsf_fes{ FiniteElementSpace(submesher.getGlobalTFSFSubMesh(), &fec) };
+
+	auto global_to_parent_elem_map{ submesher.getGlobalTFSFSubMesh()->GetParentElementIDMap() };
+	auto tf_to_parent_elem_map{ submesher.getTFSubMesh()->GetParentElementIDMap() };
+	auto sf_to_parent_elem_map{ submesher.getSFSubMesh()->GetParentElementIDMap() };
+
+	GridFunction global_for_tf_gf(&global_tfsf_fes);
+	GridFunction global_for_sf_gf(&global_tfsf_fes);
+
+	for (int i = 0; i < global_for_tf_gf.Size(); i++) {
+		global_for_tf_gf[i] = static_cast<double>(i);
+		global_for_sf_gf[i] = static_cast<double>(-i);
+	}
+	for (int e = 0; e < tf_to_parent_elem_map.Size(); e++) {
+		Array<int> tf_dofs;
+		global_tfsf_fes.GetElementDofs(global_to_parent_elem_map.Find(tf_to_parent_elem_map[e]), tf_dofs);
+		for (int i = 0; i < tf_dofs.Size(); i++) {
+			global_for_sf_gf[tf_dofs[i]] = 0.0;
+		}
+	}
+	for (int e = 0; e < sf_to_parent_elem_map.Size(); e++) {
+		Array<int> sf_dofs;
+		global_tfsf_fes.GetElementDofs(global_to_parent_elem_map.Find(sf_to_parent_elem_map[e]), sf_dofs);
+		for (int i = 0; i < sf_dofs.Size(); i++) {
+			global_for_tf_gf[sf_dofs[i]] = 0.0;
+		}
+	}
+
+	Vector tf_to_global_expected{ { 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  8.0, 9.0, 10.0, 11.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0} };
+	Vector sf_to_global_expected{ { 0.0, -1.0, -2.0, -3.0, -4.0, -5.0, -6.0, -7.0,  0.0, 0.0,  0.0,  0.0, -12.0, -13.0, -14.0, -15.0, -16.0, -17.0, -18.0, -19.0} };
+
+	for (int i = 0; i < tf_to_global_expected.Size(); i++) {
+		EXPECT_EQ(tf_to_global_expected[i], global_for_tf_gf[i]);
+		EXPECT_EQ(sf_to_global_expected[i], global_for_sf_gf[i]);
+	}
+
 }

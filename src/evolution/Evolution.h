@@ -34,6 +34,26 @@ private:
 	std::array<FiniteElementOperator, 2> MTF_;
 	std::array<FiniteElementOperator, 2> MSF_;
 
+	//Total Field and Scattered Field operators for SubMeshing
+
+	std::array<std::array<FiniteElementOperator, 3>, 2> MS_TF_;
+	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_TF_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_TF_;
+	std::array<FiniteElementOperator, 2> MP_TF_;
+
+	std::array<std::array<FiniteElementOperator, 3>, 2> MS_SF_;
+	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_SF_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_SF_;
+	std::array<FiniteElementOperator, 2> MP_SF_;
+
+
+	std::array<std::array<FiniteElementOperator, 3>, 2> MS_GTFSF_;
+	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_GTFSF_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_GTFSF_;
+	std::array<FiniteElementOperator, 2> MP_GTFSF_;
+
+	/* */
+
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;

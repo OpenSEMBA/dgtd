@@ -33,7 +33,7 @@ void SourcesManager::setInitialFields(Fields& fields)
     }
 }
 
-std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const Time time)
+FieldGridFuncs SourcesManager::evalTimeVarField(const Time time)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -57,7 +57,30 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
     return res;
 }
 
-std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const Time time, bool is_tf)
+FieldGridFuncs SourcesManager::evalGlobalTFSFTimeVarField(const Time time)
+{
+    std::array<std::array<GridFunction, 3>, 2> res;
+    for (const auto& source : sources) {
+        auto pw = dynamic_cast<Planewave*>(source.get());
+        if (pw == nullptr) {
+            continue;
+        }
+        for (auto ft : { E, H }) {
+            for (auto d : { X, Y, Z }) {
+                std::function<double(const Source::Position&, Source::Time)> f = 0;
+                f = std::bind(&Planewave::eval, pw,
+                    std::placeholders::_1, std::placeholders::_2, ft, d);
+                FunctionCoefficient func(f);
+                func.SetTime(time);
+                res[ft][d].SetSpace(global_tfsf_fes_.get());
+                res[ft][d].ProjectCoefficient(func);
+            }
+        }
+    }
+    return res;
+}
+
+FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, bool is_tf)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -88,6 +111,32 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
     return res;
 }
 
+void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
+{
+    auto global_tfsf_map = tfsf_submesher_.getGlobalTFSFSubMesh()->GetParentElementIDMap();
+    Array<int> secondary_map;
+    switch (isTF) {
+    case true:
+        secondary_map = tfsf_submesher_.getTFSubMesh()->GetParentElementIDMap();
+        break;
+    case false:
+        secondary_map = tfsf_submesher_.getSFSubMesh()->GetParentElementIDMap();
+        break;
+    }
+
+    for (int e = 0; e < secondary_map.Size(); e++) {
+        Array<int> dofs;
+        global_tfsf_fes_->GetElementDofs(global_tfsf_map.Find(secondary_map[e]), dofs);
+        for (int i = 0; i < dofs.Size(); i++) {
+            for (auto f : { E, H }) {
+                for (auto d{ X }; d <= Z; d++) {
+                    gfs[f][d][dofs[i]] = 0.0;
+                }
+            }
+        }
+    }
+}
+
 void SourcesManager::initTFSFPreReqs(const Mesh& m)
 {
     initTFSFSubMesher(m);
@@ -102,8 +151,9 @@ void SourcesManager::initTFSFSubMesher(const Mesh& m)
 
 void SourcesManager::initTFSFSpaces()
 {
-    tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
-    sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
+    //tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
+    //sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
+    global_tfsf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getGlobalTFSFSubMesh(), fes_.FEColl());
 }
 
 }
