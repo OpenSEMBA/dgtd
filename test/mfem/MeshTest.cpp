@@ -998,23 +998,15 @@ TEST_F(MeshTest, transfering_zeroes_between_submeshes_of_same_parent)
 	
 	maxwell::TotalFieldScatteredFieldSubMesher submesher(m);
 
-	auto global_mesh{ submesher.getGlobalTFSFSubMesh() };
-	auto tf_mesh{ submesher.getTFSubMesh() };
-	auto sf_mesh{ submesher.getSFSubMesh() };
-
 	auto fec{ L2_FECollection(1,2,BasisType::GaussLobatto) };
-	auto global_tfsf_fes{ FiniteElementSpace(global_mesh, &fec) };
-	auto tf_fes{ FiniteElementSpace(tf_mesh, &fec) };
-	auto sf_fes{ FiniteElementSpace(sf_mesh, &fec) };
+	auto global_tfsf_fes{ FiniteElementSpace(submesher.getGlobalTFSFSubMesh(), &fec) };
 
-	auto global_to_parent_elem_map{ global_mesh->GetParentElementIDMap() };
-	auto tf_to_parent_elem_map{ tf_mesh->GetParentElementIDMap() };
-	auto sf_to_parent_elem_map{ sf_mesh->GetParentElementIDMap() };
+	auto global_to_parent_elem_map{ submesher.getGlobalTFSFSubMesh()->GetParentElementIDMap() };
+	auto tf_to_parent_elem_map{ submesher.getTFSubMesh()->GetParentElementIDMap() };
+	auto sf_to_parent_elem_map{ submesher.getSFSubMesh()->GetParentElementIDMap() };
 
 	GridFunction global_for_tf_gf(&global_tfsf_fes);
 	GridFunction global_for_sf_gf(&global_tfsf_fes);
-	GridFunction tf_gf(&tf_fes);
-	GridFunction sf_gf(&sf_fes);
 
 	for (int i = 0; i < global_for_tf_gf.Size(); i++) {
 		global_for_tf_gf[i] = static_cast<double>(i);
