@@ -58,6 +58,7 @@ public:
 	MaxwellTransferMap(const GridFunction& src, const GridFunction& dst);
 	
 	void TransferAdd(const GridFunction& src, GridFunction& dst) const;
+	void TransferSub(const GridFunction& src, GridFunction& dst) const;
 
 private:
 

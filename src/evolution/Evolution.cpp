@@ -183,11 +183,19 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 			
 			//auto func_tf{ srcmngr_.evalTimeVarField(time, true) };
 			//auto func_sf{ srcmngr_.evalTimeVarField(time, false) };
-			auto func_g_tf{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
-			auto func_g_sf{ func_g_tf };
-			srcmngr_.markDoFSforTFandSF(func_g_tf, true);
-			srcmngr_.markDoFSforTFandSF(func_g_sf, false);
-			changeSignOfFieldGridFuncs(func_g_sf);
+			auto func_g{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
+			srcmngr_.markDoFSforTFandSF(func_g, true);
+			
+			{
+				auto func_g_sf{ func_g };
+				srcmngr_.markDoFSforTFandSF(func_g_sf, false);
+				for (int f: {E, H} ) {
+					for (int x{0}; x <= Z; x++) {
+						func_g[f][x] -= func_g_sf[f][x];
+					}
+				}
+			}
+
 
 			std::array<GridFunction, 3> eTemp, hTemp;
 
@@ -210,84 +218,15 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				MFN_GTFSF_[H][E][x]->SpMat().ToDenseMatrix()->Print(std::cout);
 				std::cout << std::flush;
 
-				MFN_GTFSF_[E][H][z]->Mult(func_g_tf[H][y], eTemp[x]);
+				MFN_GTFSF_[E][H][z]->Mult(func_g[H][y], eTemp[x]);
 				eMap.TransferAdd(eTemp[x], eNew[x]);
-				MFN_GTFSF_[H][E][y]->Mult(func_g_tf[E][z], hTemp[x]);
+				MFN_GTFSF_[H][E][y]->Mult(func_g[E][z], hTemp[x]);
 				eMap.TransferAdd(hTemp[x], hNew[x]);
-
-				if (opts_.fluxType == FluxType::Upwind) {
-
-					MFNN_GTFSF_[E][E][X][x]->Mult(func_g_tf[E][X], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Y][x]->Mult(func_g_tf[E][Y], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Z][x]->Mult(func_g_tf[E][Z], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-
-					MFNN_GTFSF_[H][H][X][x]->Mult(func_g_tf[H][X], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Y][x]->Mult(func_g_tf[H][Y], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Z][x]->Mult(func_g_tf[H][Z], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-
-				}
-				//Change signs for negative Maxwell Equation parts
-				changeSignOfFieldGridFuncs(func_g_tf);
-
-				MFN_GTFSF_[E][H][y]->Mult(func_g_tf[H][z], eTemp[x]);
-				eMap.TransferAdd(eTemp[x], eNew[x]);
-				MFN_GTFSF_[H][E][z]->Mult(func_g_tf[E][y], hTemp[x]);
-				eMap.TransferAdd(hTemp[x], hNew[x]);
-
-				if (opts_.fluxType == FluxType::Upwind) {
-
-					MP_GTFSF_[E]->Mult(func_g_tf[E][x], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MP_GTFSF_[H]->Mult(func_g_tf[H][x], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-				}
-
-				MFN_GTFSF_[E][H][z]->Mult(func_g_sf[H][y], eTemp[x]);
-				eMap.TransferAdd(eTemp[x], eNew[x]);
-				MFN_GTFSF_[H][E][y]->Mult(func_g_sf[E][z], hTemp[x]);
-				eMap.TransferAdd(hTemp[x], hNew[x]);
-
-				if (opts_.fluxType == FluxType::Upwind) {
-
-					MFNN_GTFSF_[E][E][X][x]->Mult(func_g_sf[E][X], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Y][x]->Mult(func_g_sf[E][Y], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Z][x]->Mult(func_g_sf[E][Z], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-
-					MFNN_GTFSF_[H][H][X][x]->Mult(func_g_sf[H][X], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Y][x]->Mult(func_g_sf[H][Y], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Z][x]->Mult(func_g_sf[H][Z], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-
-				}
-				//Change signs for negative Maxwell Equation parts
-				changeSignOfFieldGridFuncs(func_g_sf);
-
-				MFN_GTFSF_[E][H][y]->Mult(func_g_sf[H][z], eTemp[x]);
-				eMap.TransferAdd(eTemp[x], eNew[x]);
-				MFN_GTFSF_[H][E][z]->Mult(func_g_sf[E][y], hTemp[x]);
-				eMap.TransferAdd(hTemp[x], hNew[x]);
-
-				if (opts_.fluxType == FluxType::Upwind) {
-
-					MP_GTFSF_[E]->Mult(func_g_sf[E][x], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MP_GTFSF_[H]->Mult(func_g_sf[H][x], hTemp[x]);
-					eMap.TransferAdd(hTemp[x], hNew[x]);
-				}
-				////Change signs to restore original signs
-				//changeSignOfFieldGridFuncs(func_g_tf);
-				//changeSignOfFieldGridFuncs(func_g_sf);
+				
+				MFN_GTFSF_[E][H][y]->Mult(func_g[H][z], eTemp[x]);
+				eMap.TransferSub(eTemp[x], eNew[x]);
+				MFN_GTFSF_[H][E][z]->Mult(func_g[E][y], hTemp[x]);
+				eMap.TransferSub(hTemp[x], hNew[x]);
 			}
 		}
 	}

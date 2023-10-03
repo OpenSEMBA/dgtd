@@ -264,4 +264,12 @@ void MaxwellTransferMap::TransferAdd(const GridFunction& src, GridFunction& dst)
 	}
 }
 
+void MaxwellTransferMap::TransferSub(const GridFunction& src, GridFunction& dst) const
+{
+	for (int i = 0; i < sub_to_parent_map_.Size(); i++)
+	{
+		dst(sub_to_parent_map_[i]) -= src(i);
+	}
+}
+
 };
