@@ -176,80 +176,114 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 			
 			//auto func_tf{ srcmngr_.evalTimeVarField(time, true) };
 			//auto func_sf{ srcmngr_.evalTimeVarField(time, false) };
-			auto func_g_tfsf{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
+			auto func_g_tf{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
+			auto func_g_sf{ func_g_tf };
+			srcmngr_.markDoFSforTFandSF(func_g_tf, true);
+			srcmngr_.markDoFSforTFandSF(func_g_sf, false);
 
 			
-			std::array<GridFunction, 3> eTempGTFSF, hTempGTFSF;/* eTempSF, hTempSF;*/
+			std::array<GridFunction, 3> eTemp, hTemp;
 
 			for (int d = X; d <= Z; d++) {
-				eTempGTFSF[d].SetSpace(srcmngr_.getGlobalTFSFSpace());
-				hTempGTFSF[d].SetSpace(srcmngr_.getGlobalTFSFSpace());
-				//eTempSF[d].SetSpace(srcmngr_.getSFSpace());
-				//hTempSF[d].SetSpace(srcmngr_.getSFSpace());
-				eTempGTFSF[d] = 0.0;
-				hTempGTFSF[d] = 0.0;
-				//eTempSF[d] = 0.0;
-				//hTempSF[d] = 0.0;
+				eTemp[d].SetSpace(srcmngr_.getGlobalTFSFSpace());
+				hTemp[d].SetSpace(srcmngr_.getGlobalTFSFSpace());
+				eTemp[d] = 0.0;
+				hTemp[d] = 0.0;
 			}
 
 			for (int x = X; x <= Z; x++) {
 				int y = (x + 1) % 3;
 				int z = (x + 2) % 3;
 
-				MaxwellTransferMap eMapGTFSF(eTempGTFSF[x], eNew[x]);
-				MaxwellTransferMap hMapGTFSF(hTempGTFSF[x], hNew[x]);
+				MaxwellTransferMap eMap(eTemp[x], eNew[x]);
+				MaxwellTransferMap hMap(hTemp[x], hNew[x]);
 
 				//Centered
 
-				std::cout << "Now MFN_GTFSF_[E][H][X] Mat" << std::endl;
-				MFN_GTFSF_[E][H][X]->SpMat().ToDenseMatrix()->Print(std::cout);
-				std::cout << "Now MFN_GTFSF_[H][E][X] Mat" << std::endl;
-				MFN_GTFSF_[H][E][X]->SpMat().ToDenseMatrix()->Print(std::cout);
-				std::cout << "And MFN_[E][H][X]" << std::endl;
-				MFN_[E][H][X]->SpMat().ToDenseMatrix()->Print(std::cout);
-				std::cout << std::flush;
-
-				MFN_GTFSF_[E][H][z]->Mult(func_g_tfsf[H][y], eTempGTFSF[x]);
-				eMapGTFSF.TransferAdd(eTempGTFSF[x], eNew[x]);
-				MFN_GTFSF_[H][E][y]->Mult(func_g_tfsf[E][z], hTempGTFSF[x]);
-				eMapGTFSF.TransferAdd(hTempGTFSF[x], hNew[x]);
+				MFN_GTFSF_[E][H][z]->Mult(func_g_tf[H][y], eTemp[x]);
+				eMap.TransferAdd(eTemp[x], eNew[x]);
+				MFN_GTFSF_[H][E][y]->Mult(func_g_tf[E][z], hTemp[x]);
+				eMap.TransferAdd(hTemp[x], hNew[x]);
 
 				if (opts_.fluxType == FluxType::Upwind) {
 
-					MFNN_GTFSF_[E][E][X][x]->Mult(func_g_tfsf[E][X], eTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(eTempGTFSF[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Y][x]->Mult(func_g_tfsf[E][Y], eTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(eTempGTFSF[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Z][x]->Mult(func_g_tfsf[E][Z], eTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(eTempGTFSF[x], eNew[x]);
+					MFNN_GTFSF_[E][E][X][x]->Mult(func_g_tf[E][X], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Y][x]->Mult(func_g_tf[E][Y], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Z][x]->Mult(func_g_tf[E][Z], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
 
-					MFNN_GTFSF_[H][H][X][x]->Mult(func_g_tfsf[H][X], hTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(hTempGTFSF[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Y][x]->Mult(func_g_tfsf[H][Y], hTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(hTempGTFSF[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Z][x]->Mult(func_g_tfsf[H][Z], hTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(hTempGTFSF[x], hNew[x]);
+					MFNN_GTFSF_[H][H][X][x]->Mult(func_g_tf[H][X], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Y][x]->Mult(func_g_tf[H][Y], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Z][x]->Mult(func_g_tf[H][Z], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
 
 				}
 
-				func_g_tfsf[E][X] *= -1.0;
-				func_g_tfsf[E][Y] *= -1.0;
-				func_g_tfsf[E][Z] *= -1.0;
-				func_g_tfsf[H][X] *= -1.0;
-				func_g_tfsf[H][Y] *= -1.0;
-				func_g_tfsf[H][Z] *= -1.0;
+				func_g_tf[E][X] *= -1.0;
+				func_g_tf[E][Y] *= -1.0;
+				func_g_tf[E][Z] *= -1.0;
+				func_g_tf[H][X] *= -1.0;
+				func_g_tf[H][Y] *= -1.0;
+				func_g_tf[H][Z] *= -1.0;
 
-				MFN_GTFSF_[E][H][y]->Mult(func_g_tfsf[H][z], eTempGTFSF[x]);
-				eMapGTFSF.TransferAdd(eTempGTFSF[x], eNew[x]);
-				MFN_GTFSF_[H][E][z]->Mult(func_g_tfsf[E][y], hTempGTFSF[x]);
-				eMapGTFSF.TransferAdd(hTempGTFSF[x], hNew[x]);
+				MFN_GTFSF_[E][H][y]->Mult(func_g_tf[H][z], eTemp[x]);
+				eMap.TransferAdd(eTemp[x], eNew[x]);
+				MFN_GTFSF_[H][E][z]->Mult(func_g_tf[E][y], hTemp[x]);
+				eMap.TransferAdd(hTemp[x], hNew[x]);
 
 				if (opts_.fluxType == FluxType::Upwind) {
 
-					MP_GTFSF_[E]->Mult(func_g_tfsf[E][x], eTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(eTempGTFSF[x], eNew[x]);
-					MP_GTFSF_[H]->Mult(func_g_tfsf[H][x], hTempGTFSF[x]);
-					eMapGTFSF.TransferAdd(hTempGTFSF[x], hNew[x]);
+					MP_GTFSF_[E]->Mult(func_g_tf[E][x], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+					MP_GTFSF_[H]->Mult(func_g_tf[H][x], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
+				}
+
+				MFN_GTFSF_[E][H][z]->Mult(func_g_sf[H][y], eTemp[x]);
+				eMap.TransferAdd(eTemp[x], eNew[x]);
+				MFN_GTFSF_[H][E][y]->Mult(func_g_sf[E][z], hTemp[x]);
+				eMap.TransferAdd(hTemp[x], hNew[x]);
+
+				if (opts_.fluxType == FluxType::Upwind) {
+
+					MFNN_GTFSF_[E][E][X][x]->Mult(func_g_sf[E][X], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Y][x]->Mult(func_g_sf[E][Y], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Z][x]->Mult(func_g_sf[E][Z], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+
+					MFNN_GTFSF_[H][H][X][x]->Mult(func_g_sf[H][X], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Y][x]->Mult(func_g_sf[H][Y], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Z][x]->Mult(func_g_sf[H][Z], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
+
+				}
+
+				func_g_sf[E][X] *= -1.0;
+				func_g_sf[E][Y] *= -1.0;
+				func_g_sf[E][Z] *= -1.0;
+				func_g_sf[H][X] *= -1.0;
+				func_g_sf[H][Y] *= -1.0;
+				func_g_sf[H][Z] *= -1.0;
+
+				MFN_GTFSF_[E][H][y]->Mult(func_g_sf[H][z], eTemp[x]);
+				eMap.TransferAdd(eTemp[x], eNew[x]);
+				MFN_GTFSF_[H][E][z]->Mult(func_g_sf[E][y], hTemp[x]);
+				eMap.TransferAdd(hTemp[x], hNew[x]);
+
+				if (opts_.fluxType == FluxType::Upwind) {
+
+					MP_GTFSF_[E]->Mult(func_g_sf[E][x], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+					MP_GTFSF_[H]->Mult(func_g_sf[H][x], hTemp[x]);
+					eMap.TransferAdd(hTemp[x], hNew[x]);
 				}
 			}
 		}

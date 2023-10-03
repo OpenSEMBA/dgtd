@@ -162,7 +162,7 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 {
 
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == 301) {
+		if (m.GetBdrAttribute(be) == 301 || m.GetBdrAttribute(be) == 302) {
 
 			auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
 

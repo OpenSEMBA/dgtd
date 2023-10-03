@@ -4,6 +4,8 @@
 #include "evolution/Fields.h"
 #include "components/SubMesher.h"
 
+using FieldGridFuncs = std::array<std::array<mfem::GridFunction, 3>, 2>;
+
 namespace maxwell {
 
 class SourcesManager {
@@ -19,6 +21,7 @@ public:
     FiniteElementSpace* getSFSpace() { return sf_fes_.get(); }
     FiniteElementSpace* getGlobalTFSFSpace() { return global_tfsf_fes_.get(); }
     TotalFieldScatteredFieldSubMesher& getTFSFSubMesher() { return tfsf_submesher_; }
+    void markDoFSforTFandSF(FieldGridFuncs& gf, bool isTF);
 
     Sources sources;
 

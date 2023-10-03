@@ -33,7 +33,7 @@ void SourcesManager::setInitialFields(Fields& fields)
     }
 }
 
-std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const Time time)
+FieldGridFuncs SourcesManager::evalTimeVarField(const Time time)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -57,7 +57,7 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
     return res;
 }
 
-std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalGlobalTFSFTimeVarField(const Time time)
+FieldGridFuncs SourcesManager::evalGlobalTFSFTimeVarField(const Time time)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -80,7 +80,7 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalGlobalTFSFTimeVar
     return res;
 }
 
-std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(const Time time, bool is_tf)
+FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, bool is_tf)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -109,6 +109,34 @@ std::array<std::array<GridFunction, 3>, 2> SourcesManager::evalTimeVarField(cons
         }
     }
     return res;
+}
+
+void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
+{
+    auto global_tfsf_map = tfsf_submesher_.getGlobalTFSFSubMesh()->GetParentElementIDMap();
+    Array<int> secondary_map;
+    switch (isTF) {
+    case true:
+        secondary_map = tfsf_submesher_.getTFSubMesh()->GetParentElementIDMap();
+        break;
+    case false:
+        secondary_map = tfsf_submesher_.getSFSubMesh()->GetParentElementIDMap();
+        break;
+    }
+
+    for (int e = 0; e < secondary_map.Size(); e++) {
+        Array<int> dofs;
+        global_tfsf_fes_->GetElementDofs(global_tfsf_map.Find(secondary_map[e]), dofs);
+        for (int i = 0; i < dofs.Size(); i++) {
+            for (auto f : { E, H }) {
+                for (auto d{ X }; d <= Z; d++) {
+                    gfs[f][d][dofs[i]] = 0.0;
+                }
+            }
+        }
+    }
+
+
 }
 
 void SourcesManager::initTFSFPreReqs(const Mesh& m)
