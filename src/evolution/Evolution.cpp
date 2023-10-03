@@ -180,14 +180,11 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 		if (dynamic_cast<Planewave*>(source.get())) {
 			
 			auto time{ GetTime() };
-			
-			//auto func_tf{ srcmngr_.evalTimeVarField(time, true) };
-			//auto func_sf{ srcmngr_.evalTimeVarField(time, false) };
 			auto func_g{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
 			srcmngr_.markDoFSforTFandSF(func_g, true);
 			
 			{
-				auto func_g_sf{ func_g };
+				auto func_g_sf{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
 				srcmngr_.markDoFSforTFandSF(func_g_sf, false);
 				for (int f: {E, H} ) {
 					for (int x{0}; x <= Z; x++) {
@@ -195,7 +192,6 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 					}
 				}
 			}
-
 
 			std::array<GridFunction, 3> eTemp, hTemp;
 
@@ -215,18 +211,15 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 
 				//Centered
 
-				MFN_GTFSF_[H][E][x]->SpMat().ToDenseMatrix()->Print(std::cout);
-				std::cout << std::flush;
-
-				MFN_GTFSF_[E][H][z]->Mult(func_g[H][y], eTemp[x]);
-				eMap.TransferAdd(eTemp[x], eNew[x]);
 				MFN_GTFSF_[H][E][y]->Mult(func_g[E][z], hTemp[x]);
 				eMap.TransferAdd(hTemp[x], hNew[x]);
-				
-				MFN_GTFSF_[E][H][y]->Mult(func_g[H][z], eTemp[x]);
-				eMap.TransferSub(eTemp[x], eNew[x]);
 				MFN_GTFSF_[H][E][z]->Mult(func_g[E][y], hTemp[x]);
 				eMap.TransferSub(hTemp[x], hNew[x]);
+				MFN_GTFSF_[E][H][y]->Mult(func_g[H][z], eTemp[x]);
+				eMap.TransferSub(eTemp[x], eNew[x]);
+				MFN_GTFSF_[E][H][z]->Mult(func_g[H][y], eTemp[x]);
+				eMap.TransferAdd(eTemp[x], eNew[x]);
+
 			}
 		}
 	}
