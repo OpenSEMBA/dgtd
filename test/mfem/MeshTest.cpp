@@ -991,3 +991,56 @@ TEST_F(MeshTest, homebrew_transfer_map)
 	EXPECT_TRUE(m_gf[18] == 0);
 	EXPECT_TRUE(m_gf[19] == 0);
 }
+
+TEST_F(MeshTest, transfering_zeroes_between_submeshes_of_same_parent)
+{
+	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	
+	maxwell::TotalFieldScatteredFieldSubMesher submesher(m);
+
+	auto global_mesh{ submesher.getGlobalTFSFSubMesh() };
+	auto tf_mesh{ submesher.getTFSubMesh() };
+	auto sf_mesh{ submesher.getSFSubMesh() };
+
+	auto fec{ L2_FECollection(1,2,BasisType::GaussLobatto) };
+	auto global_tfsf_fes{ FiniteElementSpace(global_mesh, &fec) };
+	auto tf_fes{ FiniteElementSpace(tf_mesh, &fec) };
+	auto sf_fes{ FiniteElementSpace(sf_mesh, &fec) };
+
+	auto global_to_parent_elem_map{ global_mesh->GetParentElementIDMap() };
+	auto tf_to_parent_elem_map{ tf_mesh->GetParentElementIDMap() };
+	auto sf_to_parent_elem_map{ sf_mesh->GetParentElementIDMap() };
+
+	GridFunction global_for_tf_gf(&global_tfsf_fes);
+	GridFunction global_for_sf_gf(&global_tfsf_fes);
+	GridFunction tf_gf(&tf_fes);
+	GridFunction sf_gf(&sf_fes);
+
+	for (int i = 0; i < global_for_tf_gf.Size(); i++) {
+		global_for_tf_gf[i] = static_cast<double>(i);
+		global_for_sf_gf[i] = static_cast<double>(-i);
+	}
+	for (int e = 0; e < tf_to_parent_elem_map.Size(); e++) {
+		Array<int> tf_dofs;
+		global_tfsf_fes.GetElementDofs(global_to_parent_elem_map.Find(tf_to_parent_elem_map[e]), tf_dofs);
+		for (int i = 0; i < tf_dofs.Size(); i++) {
+			global_for_sf_gf[tf_dofs[i]] = 0.0;
+		}
+	}
+	for (int e = 0; e < sf_to_parent_elem_map.Size(); e++) {
+		Array<int> sf_dofs;
+		global_tfsf_fes.GetElementDofs(global_to_parent_elem_map.Find(sf_to_parent_elem_map[e]), sf_dofs);
+		for (int i = 0; i < sf_dofs.Size(); i++) {
+			global_for_tf_gf[sf_dofs[i]] = 0.0;
+		}
+	}
+
+	Vector tf_to_global_expected{ { 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  8.0, 9.0, 10.0, 11.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0} };
+	Vector sf_to_global_expected{ { 0.0, -1.0, -2.0, -3.0, -4.0, -5.0, -6.0, -7.0,  0.0, 0.0,  0.0,  0.0, -12.0, -13.0, -14.0, -15.0, -16.0, -17.0, -18.0, -19.0} };
+
+	for (int i = 0; i < tf_to_global_expected.Size(); i++) {
+		EXPECT_EQ(tf_to_global_expected[i], global_for_tf_gf[i]);
+		EXPECT_EQ(sf_to_global_expected[i], global_for_sf_gf[i]);
+	}
+
+}

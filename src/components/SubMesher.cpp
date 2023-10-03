@@ -8,47 +8,49 @@ using namespace mfem;
 
 TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m)
 {
-	Mesh parent(m);
+	Mesh parent_for_global(m);
+	Mesh parent_for_individual(m);
 
-	switch (parent.Dimension()) {
+ 	setGlobalTFSFAttributesForSubMeshing(parent_for_global);
+	switch (parent_for_individual.Dimension()) {
 	case 1:
- 		setTFSFAttributesForSubMeshing1D(parent);
+		setIndividualTFSFAttributesForSubMeshing1D(parent_for_individual);
 		break;
 	case 2:
- 		setTFSFAttributesForSubMeshing2D(parent);
+		setIndividualTFSFAttributesForSubMeshing2D(parent_for_individual);
 		break;
 	}
 
 	Array<int> global_att(1); global_att[0] = 3000;
-	auto global_sm{ SubMesh::CreateFromDomain(parent, global_att) };
+	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
 	global_submesh_ = std::make_unique<SubMesh>(global_sm);
 
-	//Array<int> tf_att(1); tf_att[0] = 1000;
-	//Array<int> sf_att(1); sf_att[0] = 2000;
-	//auto tf_sm{ SubMesh::CreateFromDomain(parent, tf_att) };
-	//auto sf_sm{ SubMesh::CreateFromDomain(parent, sf_att) };
+	Array<int> tf_att(1); tf_att[0] = 1000;
+	Array<int> sf_att(1); sf_att[0] = 2000;
+	auto tf_sm{ SubMesh::CreateFromDomain(parent_for_individual, tf_att) };
+	auto sf_sm{ SubMesh::CreateFromDomain(parent_for_individual, sf_att) };
 	
-	//switch (parent.Dimension()) {
-	//case 1:
-	//	setBoundaryAttributesInChild1D(parent, tf_sm);
-	//	setBoundaryAttributesInChild1D(parent, sf_sm);
-	//	break;
-	//case 2:
-	//	setBoundaryAttributesInChild2D(parent, tf_sm);
-	//	setBoundaryAttributesInChild2D(parent, sf_sm);
-	//	break;
-	//}
+	switch (parent_for_individual.Dimension()) {
+	case 1:
+		setBoundaryAttributesInChild1D(parent_for_individual, tf_sm);
+		setBoundaryAttributesInChild1D(parent_for_individual, sf_sm);
+		break;
+	case 2:
+		setBoundaryAttributesInChild2D(parent_for_individual, tf_sm);
+		setBoundaryAttributesInChild2D(parent_for_individual, sf_sm);
+		break;
+	}
 
-	//restoreElementAttributes(tf_sm);
-	//restoreElementAttributes(sf_sm);
+	restoreElementAttributes(tf_sm);
+	restoreElementAttributes(sf_sm);
 
-	//tf_sm.FinalizeMesh();
-	//sf_sm.FinalizeMesh();
+	tf_sm.FinalizeMesh();
+	sf_sm.FinalizeMesh();
 
-	//tf_mesh_ = std::make_unique<SubMesh>(tf_sm);
-	//sf_mesh_ = std::make_unique<SubMesh>(sf_sm);
+	tf_mesh_ = std::make_unique<SubMesh>(tf_sm);
+	sf_mesh_ = std::make_unique<SubMesh>(sf_sm);
 
 };
 
@@ -156,7 +158,24 @@ Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration(const
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing1D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mesh& m)
+{
+
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (m.GetBdrAttribute(be) == 301) {
+
+			auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
+
+			m.GetElement(be_trans->Elem1No)->SetAttribute(3000);
+			m.GetElement(be_trans->Elem2No)->SetAttribute(3000);
+
+			elems_for_global_submesh_.push_back(be_trans->Elem1No);
+			elems_for_global_submesh_.push_back(be_trans->Elem2No);
+		}
+	}
+}
+
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (m.GetBdrAttribute(be) == 301 || m.GetBdrAttribute(be) == 302) {
@@ -186,22 +205,9 @@ void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing1D(Mesh& m
 			}
 		}
 	}
-
-	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == 301) {
-
-			auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
-
-			m.GetElement(be_trans->Elem1No)->SetAttribute(3000);
-			m.GetElement(be_trans->Elem2No)->SetAttribute(3000);
-
-			elems_for_global_submesh_.push_back(be_trans->Elem1No);
-			elems_for_global_submesh_.push_back(be_trans->Elem2No);
-		}
-	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing2D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m)
 {
 	for (int be = 0; be < m.GetNBE(); be++)	{
 		if (m.GetBdrAttribute(be) == 301) {
@@ -232,7 +238,6 @@ void TotalFieldScatteredFieldSubMesher::setTFSFAttributesForSubMeshing2D(Mesh& m
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
 			std::pair<IsCCW, IsCCW> dirInfo = std::make_pair(set_v1.second, set_v2.second);
 			prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
-
 		}
 	}
 }

@@ -34,8 +34,9 @@ private:
 	void setBoundaryAttributesInChild2D(const Mesh& parent, SubMesh& child);
 	void storeElementToFaceInformation(const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf);
 	void prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf);
-	void setTFSFAttributesForSubMeshing1D(Mesh& m);
-	void setTFSFAttributesForSubMeshing2D(Mesh&);
+	void setGlobalTFSFAttributesForSubMeshing(Mesh&);
+	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&);
+	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&);
 	void restoreElementAttributes(Mesh& m);
 
 	std::pair<FaceId, IsCCW> getFaceAndDirOnVertexIteration(const Element*, const Array<int>& verts, const Array<int>& be_verts);
