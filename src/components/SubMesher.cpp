@@ -79,11 +79,11 @@ void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild1D(const Mes
 	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
 	for (int i = 0; i < parent.GetNBE(); i++) {
-		if (parent.GetBdrAttribute(i) == 301) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], 301);
+		if (parent.GetBdrAttribute(i) == static_cast<int>(BdrCond::TotalFieldIn)) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], static_cast<int>(BdrCond::TotalFieldIn));
 		}
-		else if (parent.GetBdrAttribute(i) == 302) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], 302);
+		else if (parent.GetBdrAttribute(i) == static_cast<int>(BdrCond::TotalFieldOut)) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], static_cast<int>(BdrCond::TotalFieldOut));
 		}
 	}
 }
@@ -94,8 +94,8 @@ void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild2D(const Mes
 	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
 	for (int i = 0; i < parent.GetNBE(); i++) {
-		if (parent.GetBdrAttribute(i) == 301) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], 301);
+		if (parent.GetBdrAttribute(i) == static_cast<int>(BdrCond::TotalFieldIn)) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], static_cast<int>(BdrCond::TotalFieldIn));
 		}
 	}
 }
