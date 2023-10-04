@@ -1,10 +1,9 @@
 #include "SubMesher.h"
 
-#include <mfem.hpp>
-
 namespace maxwell {
 
 using namespace mfem;
+static const int NotFound{ -1 };
 
 TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m)
 {
@@ -21,7 +20,7 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 		break;
 	}
 
-	Array<int> global_att(1); global_att[0] = 3000;
+	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::Global_SubMesh;
 	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
@@ -41,10 +40,10 @@ SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& p
 {
 	Array<int> marker(1); 
 	if (isTF) {
-		marker[0] = 1000;
+		marker[0] = SubMeshingMarkers::TotalField;
 	}
 	else {
-		marker[0] = 2000;
+		marker[0] = SubMeshingMarkers::ScatteredField;
 	}
 	auto res{ SubMesh::CreateFromDomain(parent, marker) };
 	switch (parent.Dimension()) {
@@ -103,29 +102,29 @@ void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild2D(const Mes
 
 void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
 {
-	if (trans->Elem2No != -1) {
+	if (trans->Elem2No != NotFound) {
 		if (el1_is_tf) {
-			m.GetElement(trans->Elem1No)->SetAttribute(1000);
-			m.GetElement(trans->Elem2No)->SetAttribute(2000);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalField);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::ScatteredField);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(2000);
-			m.GetElement(trans->Elem2No)->SetAttribute(1000);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredField);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::TotalField);
 		}
 	}
 	else {
 		if (el1_is_tf) {
-			m.GetElement(trans->Elem1No)->SetAttribute(1000);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalField);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(2000);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredField);
 		}
 	}
 }
 
 void TotalFieldScatteredFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf)
 {
-	if (facesId.second != -1) {
+	if (facesId.second != NotFound) {
 		if (el1_is_tf) {
 			elem_to_face_tf_.push_back(std::make_pair(trans->Elem1No, facesId.first));
 			elem_to_face_sf_.push_back(std::make_pair(trans->Elem2No, facesId.second));
@@ -161,7 +160,7 @@ Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration(const
 		}
 
 		//It can happen the vertices to check will not be adjacent in the Array but will be in the last and first position, as if closing the loop, thus we require an extra check.
-		if (v == verts.Size() - 1 && el->GetAttribute() != 1000 || v == verts.Size() - 1 && el->GetAttribute() != 2000) {
+		if (v == verts.Size() - 1 && el->GetAttribute() != SubMeshingMarkers::TotalField || v == verts.Size() - 1 && el->GetAttribute() != SubMeshingMarkers::ScatteredField) {
 			if (verts[verts.Size() - 1] == be_verts[0] && verts[0] == be_verts[1]) {
 				return std::make_pair(v, true);
 			}
@@ -173,7 +172,7 @@ Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration(const
 		}
 
 		//It can happen the vertices to check will not be adjacent in the Array but will be in the last and first position, as if closing the loop, thus we require an extra check.
-		if (v == verts.Size() - 1 && el->GetAttribute() != 1000 || v == verts.Size() - 1 && el->GetAttribute() != 2000) {
+		if (v == verts.Size() - 1 && el->GetAttribute() != SubMeshingMarkers::TotalField || v == verts.Size() - 1 && el->GetAttribute() != SubMeshingMarkers::ScatteredField) {
 			if (verts[verts.Size() - 1] == be_verts[1] && verts[0] == be_verts[0]) {
 				return std::make_pair(v, false);
 			}
@@ -195,16 +194,17 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 {
 
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == 301 || m.GetBdrAttribute(be) == 302) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn) || 
+			m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
 			auto be_trans{ getFaceElementTransformation(m, be)};
-			if (be_trans->Elem2No != -1) {
-				m.GetElement(be_trans->Elem1No)->SetAttribute(3000);
-				m.GetElement(be_trans->Elem2No)->SetAttribute(3000);
+			if (be_trans->Elem2No != NotFound) {
+				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
+				m.GetElement(be_trans->Elem2No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
 				elems_for_global_submesh_.push_back(be_trans->Elem1No);
 				elems_for_global_submesh_.push_back(be_trans->Elem2No);
 			}
 			else {
-				m.GetElement(be_trans->Elem1No)->SetAttribute(3000);
+				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
 				elems_for_global_submesh_.push_back(be_trans->Elem1No);
 			}
 		}
@@ -214,7 +214,8 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == 301 || m.GetBdrAttribute(be) == 302) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn) || 
+			m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			auto el1{ m.GetElement(be_trans->Elem1No) };
 
@@ -226,27 +227,27 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				auto el2{ m.GetElement(be_trans->Elem2No) };
 				auto ver2{ el2->GetVertices() };
 
-				if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == 301) {
-					el1->SetAttribute(2000);
-					el2->SetAttribute(1000);
+				if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+					el1->SetAttribute(SubMeshingMarkers::ScatteredField);
+					el2->SetAttribute(SubMeshingMarkers::TotalField);
 					elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem2No, ver2[0]));
 					elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
 				}
-				if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == 302) {
-					el1->SetAttribute(1000);
-					el2->SetAttribute(2000);
+				if (ver1[1] == be_vert[0] && ver2[0] == be_vert[0] && m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
+					el1->SetAttribute(SubMeshingMarkers::TotalField);
+					el2->SetAttribute(SubMeshingMarkers::ScatteredField);
 					elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
 					elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem2No, ver2[0]));
 				}
 			}
 			else {
 
-				if (ver1[1] == be_vert[0] && m.GetBdrAttribute(be) == 301) {
-					el1->SetAttribute(2000);
+				if (ver1[1] == be_vert[0] && m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+					el1->SetAttribute(SubMeshingMarkers::ScatteredField);
 					elem_to_face_sf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
 				}
-				if (ver1[1] == be_vert[0] && m.GetBdrAttribute(be) == 302) {
-					el1->SetAttribute(1000);
+				if (ver1[1] == be_vert[0] && m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
+					el1->SetAttribute(SubMeshingMarkers::TotalField);
 					elem_to_face_tf_.push_back(std::make_pair(be_trans->Elem1No, ver1[1]));
 				}
 			}
@@ -257,7 +258,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == 301) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
 
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			auto el1{ m.GetElement(be_trans->Elem1No) };
@@ -275,7 +276,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto set_v1 = getFaceAndDirOnVertexIteration(el1, el1_vert, be_vert);
 			Face2Dir set_v2;
 
-			if (be_trans->Elem2No != -1) {
+			if (be_trans->Elem2No != NotFound) {
 
 				auto el2{ m.GetElement(be_trans->Elem2No) };
 
@@ -290,7 +291,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				set_v2 = getFaceAndDirOnVertexIteration(el2, el2_vert, be_vert);
 			}
 			else {
-				set_v2 = std::make_pair(-1, false);
+				set_v2 = std::make_pair(NotFound, false);
 			}
 			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);

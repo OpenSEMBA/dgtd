@@ -35,6 +35,17 @@ using Points = std::vector<Point>;
 enum FieldType { E, H };
 enum class FluxType { Centered, Upwind };
 
+enum SubMeshingMarkers {
+	TotalField = 1000,
+	ScatteredField = 2000,
+	Global_SubMesh = 3000
+};
+
+enum SubMeshBdrCond {
+	TotalField = 301,
+	ScatteredField = 302
+};
+
 enum class BdrCond {
 	NONE,
 	PEC,

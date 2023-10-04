@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mfem.hpp>
+#include "Types.h"
 
 using FaceId = int;
 using ElementId = int;
