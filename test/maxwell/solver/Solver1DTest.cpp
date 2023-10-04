@@ -596,7 +596,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
-	auto probes{ buildProbesWithAnExportProbe(20) };
+	auto probes{ buildProbesWithAnExportProbe(1) };
 	probes.pointProbes = {
 	PointProbe{ E, Y, {0.1001} },
 	PointProbe{ E, Y, {1.0} },

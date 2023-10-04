@@ -908,7 +908,8 @@ TEST_F(Solver2DTest, periodic_quads)
 
 TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(),1,0)};
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0)};
+	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
@@ -928,7 +929,7 @@ TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 			.setTimeStep(5e-3)
 			.setCentered()
 			.setFinalTime(4.0)
-			.setOrder(1)
+			.setOrder(2)
 	};
 
 	solver.run();

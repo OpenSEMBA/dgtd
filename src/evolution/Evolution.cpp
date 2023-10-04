@@ -214,13 +214,13 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				//Centered
 
 				MFN_GTFSF_[H][E][y]->Mult(func_g[E][z], hTemp[x]);
-				eMap.TransferAdd(hTemp[x], hNew[x]);
-				MFN_GTFSF_[H][E][z]->Mult(func_g[E][y], hTemp[x]);
 				eMap.TransferSub(hTemp[x], hNew[x]);
+				MFN_GTFSF_[H][E][z]->Mult(func_g[E][y], hTemp[x]);
+				eMap.TransferAdd(hTemp[x], hNew[x]);
 				MFN_GTFSF_[E][H][y]->Mult(func_g[H][z], eTemp[x]);
-				eMap.TransferSub(eTemp[x], eNew[x]);
-				MFN_GTFSF_[E][H][z]->Mult(func_g[H][y], eTemp[x]);
 				eMap.TransferAdd(eTemp[x], eNew[x]);
+				MFN_GTFSF_[E][H][z]->Mult(func_g[H][y], eTemp[x]);
+				eMap.TransferSub(eTemp[x], eNew[x]);
 
 			}
 		}

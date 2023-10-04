@@ -117,10 +117,14 @@ void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
     Array<int> secondary_map;
     switch (isTF) {
     case true:
-        secondary_map = tfsf_submesher_.getTFSubMesh()->GetParentElementIDMap();
+        if (tfsf_submesher_.getSFSubMesh() != NULL) {
+            secondary_map = tfsf_submesher_.getSFSubMesh()->GetParentElementIDMap();
+        }
         break;
     case false:
-        secondary_map = tfsf_submesher_.getSFSubMesh()->GetParentElementIDMap();
+        if (tfsf_submesher_.getTFSubMesh() != NULL) {
+            secondary_map = tfsf_submesher_.getTFSubMesh()->GetParentElementIDMap();
+        }
         break;
     }
 
