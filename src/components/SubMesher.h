@@ -32,12 +32,14 @@ private:
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
 	void setBoundaryAttributesInChild1D(const Mesh& parent, SubMesh& child);
 	void setBoundaryAttributesInChild2D(const Mesh& parent, SubMesh& child);
-	void storeElementToFaceInformation(const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf);
-	void prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf);
+	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
+	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setGlobalTFSFAttributesForSubMeshing(Mesh&);
 	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&);
 	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&);
-	void restoreElementAttributes(Mesh& m);
+	void restoreElementAttributes(Mesh&);
+	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
+	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
 
 	std::pair<FaceId, IsCCW> getFaceAndDirOnVertexIteration(const Element*, const Array<int>& verts, const Array<int>& be_verts);
 

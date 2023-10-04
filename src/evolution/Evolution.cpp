@@ -184,11 +184,13 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 			srcmngr_.markDoFSforTFandSF(func_g, true);
 			
 			{
-				auto func_g_sf{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
-				srcmngr_.markDoFSforTFandSF(func_g_sf, false);
-				for (int f: {E, H} ) {
-					for (int x{0}; x <= Z; x++) {
-						func_g[f][x] -= func_g_sf[f][x];
+				if (srcmngr_.getTFSFSubMesher().getSFSubMesh() != NULL) {
+					auto func_g_sf{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
+					srcmngr_.markDoFSforTFandSF(func_g_sf, false);
+					for (int f : {E, H}) {
+						for (int x{ 0 }; x <= Z; x++) {
+							func_g[f][x] -= func_g_sf[f][x];
+						}
 					}
 				}
 			}
