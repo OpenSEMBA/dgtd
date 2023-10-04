@@ -41,11 +41,6 @@ enum SubMeshingMarkers {
 	Global_SubMesh = 3000
 };
 
-enum SubMeshBdrCond {
-	TotalField = 301,
-	ScatteredField = 302
-};
-
 enum class BdrCond {
 	NONE,
 	PEC,
