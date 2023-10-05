@@ -13,9 +13,9 @@ public:
     SourcesManager(const Sources&, mfem::FiniteElementSpace&);  
 
     void setInitialFields(Fields&);
-    std::array<std::array<mfem::GridFunction, 3>, 2> evalTimeVarField(const Time);
-    std::array<std::array<mfem::GridFunction, 3>, 2> evalTimeVarField(const Time, bool is_tf);
-    std::array<std::array<mfem::GridFunction, 3>, 2> evalGlobalTFSFTimeVarField(const Time);
+    FieldGridFuncs evalTimeVarField(const Time);
+    FieldGridFuncs evalTimeVarField(const Time, bool is_tf);
+    FieldGridFuncs evalTimeVarField(const Time, FiniteElementSpace*);
     void initTFSFPreReqs(const Mesh&);
     FiniteElementSpace* getTFSpace() { return tf_fes_.get(); }
     FiniteElementSpace* getSFSpace() { return sf_fes_.get(); }

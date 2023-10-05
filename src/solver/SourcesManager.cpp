@@ -57,7 +57,7 @@ FieldGridFuncs SourcesManager::evalTimeVarField(const Time time)
     return res;
 }
 
-FieldGridFuncs SourcesManager::evalGlobalTFSFTimeVarField(const Time time)
+FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, FiniteElementSpace* fes)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -72,7 +72,7 @@ FieldGridFuncs SourcesManager::evalGlobalTFSFTimeVarField(const Time time)
                     std::placeholders::_1, std::placeholders::_2, ft, d);
                 FunctionCoefficient func(f);
                 func.SetTime(time);
-                res[ft][d].SetSpace(global_tfsf_fes_.get());
+                res[ft][d].SetSpace(fes);
                 res[ft][d].ProjectCoefficient(func);
             }
         }
@@ -117,13 +117,13 @@ void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
     Array<int> secondary_map;
     switch (isTF) {
     case true:
-        if (tfsf_submesher_.getTFSubMesh() != NULL) {
-            secondary_map = tfsf_submesher_.getTFSubMesh()->GetParentElementIDMap();
+        if (tfsf_submesher_.getSFSubMesh() != NULL) {
+            secondary_map = tfsf_submesher_.getSFSubMesh()->GetParentElementIDMap();
         }
         break;
     case false:
-        if (tfsf_submesher_.getSFSubMesh() != NULL) {
-            secondary_map = tfsf_submesher_.getSFSubMesh()->GetParentElementIDMap();
+        if (tfsf_submesher_.getTFSubMesh() != NULL) {
+            secondary_map = tfsf_submesher_.getTFSubMesh()->GetParentElementIDMap();
         }
         break;
     }
@@ -155,8 +155,8 @@ void SourcesManager::initTFSFSubMesher(const Mesh& m)
 
 void SourcesManager::initTFSFSpaces()
 {
-    //tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
-    //sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
+    tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
+    sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
     global_tfsf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getGlobalTFSFSubMesh(), fes_.FEColl());
 }
 
