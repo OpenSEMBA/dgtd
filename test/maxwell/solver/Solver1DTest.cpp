@@ -452,6 +452,53 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_centered)
 	}
 }
 
+TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_upwind)
+{
+	auto mesh{
+		Mesh::LoadFromFile(
+			(mfemMeshesFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
+		)
+	};
+	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(20) };
+	probes.pointProbes = {
+		PointProbe{ E, Y, {0.1001} },
+		PointProbe{ E, Y, {1.0} },
+		PointProbe{ H, Z, {1.0} }
+	};
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
+		SolverOptions{}
+			.setCFL(0.4)
+			.setFinalTime(4.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.5, frame.first, 2e-1);
+		EXPECT_NEAR(2.0, frame.second, 1e-3);
+	}
+}
+
 //TEST_F(Solver1DTest, totalfieldin_intbdr_upwind)
 //{
 //	Mesh mesh{ Mesh::LoadFromFile("./testData/intBdrPECBigScale.mesh",1,0) };
@@ -596,7 +643,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
-	auto probes{ buildProbesWithAnExportProbe(1) };
+	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
 	PointProbe{ E, Y, {0.1001} },
 	PointProbe{ E, Y, {1.0} },
