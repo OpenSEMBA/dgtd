@@ -199,7 +199,7 @@ TEST_F(Solver1DTest, sma)
 TEST_F(Solver1DTest, periodic)
 {
 	auto m{ 
-		Mesh::LoadFromFile((mfemMeshesFolder() + "periodic-segment.mesh").c_str(), 1, 0)
+		Mesh::LoadFromFile((mfemMeshes1DFolder() + "periodic-segment.mesh").c_str(), 1, 0)
 	};
 
 	Model model{ m };
@@ -230,7 +230,7 @@ TEST_F(Solver1DTest, periodic)
 TEST_F(Solver1DTest, periodic_inhomo)
 {
 	Mesh m{ Mesh::LoadFromFile(
-		(mfemMeshesFolder() + "periodic-inhomo-segment.mesh").c_str(),1,0) 
+		(mfemMeshes1DFolder() + "periodic-inhomo-segment.mesh").c_str(),1,0) 
 	};
 
 	Model model{ m };
@@ -327,7 +327,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 TEST_F(Solver1DTest, DISABLED_totalfieldin_bdr_sma)
 {
 	auto msh{ Mesh::LoadFromFile(
-		(mfemMeshesFolder() + "verylonglineTFSF.mesh").c_str(), 1, 0)};
+		(mfemMeshes1DFolder() + "verylonglineTFSF.mesh").c_str(), 1, 0)};
 	Model model{ 
 		msh,
 		AttributeToMaterial{}, 
@@ -359,7 +359,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 {
 	auto mesh{ 
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
 	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
@@ -408,7 +408,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_centered)
 {
 	auto mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
 	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
@@ -456,7 +456,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_upwind)
 {
 	auto mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
 	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
@@ -582,7 +582,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 {
 	Mesh mesh{ 
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0
 		) 
 	};
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -637,7 +637,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 {
 	Mesh mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0
 		)
 	};
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -691,7 +691,7 @@ TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
 {
 	Mesh mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "lineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "lineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -747,7 +747,7 @@ TEST_F(Solver1DTest, totalfieldinout_pec_upwind)
 {
 	Mesh mesh{ 
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0
 		)
 	};
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -801,7 +801,7 @@ TEST_F(Solver1DTest, totalfieldinout_sma)
 {
 	auto mesh { 
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "LineTFSFInOut.mesh").c_str(),1,0
+			(mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(),1,0
 		)
 	};
 	AttributeToBoundary attToBdr{ {2, BdrCond::SMA} };

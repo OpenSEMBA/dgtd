@@ -1073,7 +1073,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 
 TEST_F(Solver3DTest, feng_fss_manual)
 {
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "fengfssmanual.mesh").c_str(),1,0)};
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "fengfssmanual.mesh").c_str(),1,0)};
 	Array<Refinement> refinement_list;
 	refinement_list.Append(Refinement(0, 2));
 	refinement_list.Append(Refinement(1, 2));
