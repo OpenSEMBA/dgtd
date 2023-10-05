@@ -222,7 +222,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
 	higher than the initial value.*/
 
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "amr-quad.mesh").c_str(),1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "amr-quad.mesh").c_str(),1,0) };
 	mesh.UniformRefinement();
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
@@ -315,7 +315,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 	miliseconds, the problem reaches a new peak in field Ez and the maximum value in Ez is not
 	higher than the initial value.*/
 
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "amr-quad.mesh").c_str(),1,0)};
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "amr-quad.mesh").c_str(),1,0)};
 	mesh.UniformRefinement();
 
 	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
@@ -555,7 +555,7 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 
 TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
 {
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "severalrotatedquads.mesh").c_str(),1,0)};
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "severalrotatedquads.mesh").c_str(),1,0)};
 	mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC}};
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
@@ -908,7 +908,7 @@ TEST_F(Solver2DTest, periodic_quads)
 
 TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0)};
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0)};
 	//mesh.UniformRefinement();
 	//mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
@@ -954,7 +954,7 @@ TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
 
 TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0) };
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0) };
 	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
@@ -1151,7 +1151,7 @@ TEST_F(Solver2DTest, interiorBoundary_TotalFieldIn)
 {
 	auto mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "intbdr_two_quads.mesh").c_str(), 1, 0
+			(mfemMeshes2DFolder() + "intbdr_two_quads.mesh").c_str(), 1, 0
 		)
 	};
 	//mesh.UniformRefinement();
