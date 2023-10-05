@@ -4,6 +4,7 @@
 
 #include "TestUtils.h"  
 #include "components/SubMesher.h"
+#include "components/Types.h"
 
 using namespace mfem;
 
@@ -15,6 +16,7 @@ using Attribute = int;
 using BdrId = int;
 using IsInterior = bool;
 using IsTF = bool;
+static int NotFound{ -1 };
 using ElNo2Att = std::pair<ElementId, Attribute>;
 using TwoElems = std::pair<ElementId, ElementId>;
 using FaceToAtt = std::map<FaceId, Attribute>;
@@ -95,28 +97,45 @@ protected:
 
 	void setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
 	{
-		switch (el1_is_tf) {
-		case true:
-			m.GetElement(trans->Elem1No)->SetAttribute(1000);
-			m.GetElement(trans->Elem2No)->SetAttribute(2000);
-			break;
-		case false:
-			m.GetElement(trans->Elem1No)->SetAttribute(2000);
-			m.GetElement(trans->Elem2No)->SetAttribute(1000);
-			break;
+		if (trans->Elem2No != NotFound) {
+			if (el1_is_tf) {
+				m.GetElement(trans->Elem1No)->SetAttribute(maxwell::SubMeshingMarkers::TotalField);
+				m.GetElement(trans->Elem2No)->SetAttribute(maxwell::SubMeshingMarkers::ScatteredField);
+			}
+			else {
+				m.GetElement(trans->Elem1No)->SetAttribute(maxwell::SubMeshingMarkers::ScatteredField);
+				m.GetElement(trans->Elem2No)->SetAttribute(maxwell::SubMeshingMarkers::TotalField);
+			}
+		}
+		else {
+			if (el1_is_tf) {
+				m.GetElement(trans->Elem1No)->SetAttribute(maxwell::SubMeshingMarkers::TotalField);
+			}
+			else {
+				m.GetElement(trans->Elem1No)->SetAttribute(maxwell::SubMeshingMarkers::ScatteredField);
+			}
 		}
 	}
 
 	void storeElementToFaceInformation(const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf)
 	{
-		switch (el1_is_tf) {
-		case true:
-			elem_to_face_tf.push_back(std::make_pair(trans->Elem1No, facesId.first));
-			elem_to_face_sf.push_back(std::make_pair(trans->Elem2No, facesId.second));
-			break;
-		case false:
-			elem_to_face_tf.push_back(std::make_pair(trans->Elem2No, facesId.second));
-			elem_to_face_sf.push_back(std::make_pair(trans->Elem1No, facesId.first));
+		if (facesId.second != NotFound) {
+			if (el1_is_tf) {
+				elem_to_face_tf_.push_back(std::make_pair(trans->Elem1No, facesId.first));
+				elem_to_face_sf_.push_back(std::make_pair(trans->Elem2No, facesId.second));
+			}
+			else {
+				elem_to_face_tf_.push_back(std::make_pair(trans->Elem2No, facesId.second));
+				elem_to_face_sf_.push_back(std::make_pair(trans->Elem1No, facesId.first));
+			}
+		}
+		else {
+			if (el1_is_tf) {
+				elem_to_face_tf_.push_back(std::make_pair(trans->Elem1No, facesId.first));
+			}
+			else {
+				elem_to_face_sf_.push_back(std::make_pair(trans->Elem1No, facesId.first));
+			}
 		}
 	}
 
@@ -136,7 +155,7 @@ protected:
 			}
 
 			//It can happen the vertices to check will not be adjacent in the Array but will be in the last and first position, as if closing the loop, thus we require an extra check.
-			if (v == verts.Size() - 1 && el->GetAttribute() != 1000 || v == verts.Size() - 1 && el->GetAttribute() != 2000) {
+			if (v == verts.Size() - 1 && el->GetAttribute() != maxwell::SubMeshingMarkers::TotalField || v == verts.Size() - 1 && el->GetAttribute() != maxwell::SubMeshingMarkers::ScatteredField) {
 				if (verts[verts.Size() - 1] == be_verts[0] && verts[0] == be_verts[1]) {
 					return std::make_pair(v, true);
 				}
@@ -148,9 +167,39 @@ protected:
 			}
 
 			//It can happen the vertices to check will not be adjacent in the Array but will be in the last and first position, as if closing the loop, thus we require an extra check.
-			if (v == verts.Size() - 1 && el->GetAttribute() != 1000 || v == verts.Size() - 1 && el->GetAttribute() != 2000) {
+			if (v == verts.Size() - 1 && el->GetAttribute() != maxwell::SubMeshingMarkers::TotalField || v == verts.Size() - 1 && el->GetAttribute() != maxwell::SubMeshingMarkers::ScatteredField) {
 				if (verts[verts.Size() - 1] == be_verts[1] && verts[0] == be_verts[0]) {
 					return std::make_pair(v, false);
+				}
+			}
+		}
+	}
+	FaceElementTransformations* getFaceElementTransformation(Mesh& m, int be)
+	{
+		switch (m.FaceIsInterior(m.GetBdrFace(be))) {
+		case true:
+			return m.GetInternalBdrFaceTransformations(be);
+		default:
+			return m.GetBdrFaceTransformations(be);
+		}
+	}
+
+	void setGlobalTFSFAttributesForSubMeshing(Mesh& m)
+	{
+
+		for (int be = 0; be < m.GetNBE(); be++) {
+			if (m.GetBdrAttribute(be) == static_cast<int>(maxwell::BdrCond::TotalFieldIn) ||
+				m.GetBdrAttribute(be) == static_cast<int>(maxwell::BdrCond::TotalFieldOut)) {
+				auto be_trans{ getFaceElementTransformation(m, be) };
+				if (be_trans->Elem2No != NotFound) {
+					m.GetElement(be_trans->Elem1No)->SetAttribute(maxwell::SubMeshingMarkers::Global_SubMesh);
+					m.GetElement(be_trans->Elem2No)->SetAttribute(maxwell::SubMeshingMarkers::Global_SubMesh);
+					elems_for_global_submesh_.push_back(be_trans->Elem1No);
+					elems_for_global_submesh_.push_back(be_trans->Elem2No);
+				}
+				else {
+					m.GetElement(be_trans->Elem1No)->SetAttribute(maxwell::SubMeshingMarkers::Global_SubMesh);
+					elems_for_global_submesh_.push_back(be_trans->Elem1No);
 				}
 			}
 		}
@@ -158,39 +207,46 @@ protected:
 
 	void setTFSFAttributesForSubMeshing2D(Mesh& m)
 	{
+		for (int be = 0; be < m.GetNBE(); be++) {
+			if (m.GetBdrAttribute(be) == static_cast<int>(maxwell::BdrCond::TotalFieldIn)) {
 
-		for (int be = 0; be < m.GetNBE(); be++)
-		{
-			if (m.GetBdrAttribute(be) == 301)
-			{
-
-				auto be_trans{ m.GetInternalBdrFaceTransformations(be) };
+				auto be_trans{ getFaceElementTransformation(m, be) };
 				auto el1{ m.GetElement(be_trans->Elem1No) };
-				auto el2{ m.GetElement(be_trans->Elem2No) };
 
 				Array<int> el1_vert(el1->GetNVertices());
-				Array<int> el2_vert(el2->GetNVertices());
+				{
+					auto ver1{ el1->GetVertices() };
+					for (int v = 0; v < el1_vert.Size(); v++) {
+						el1_vert[v] = ver1[v];
+					}
+				}
 				Array<int> be_vert(2);
-
-				auto ver1{ el1->GetVertices() };
-				auto ver2{ el2->GetVertices() };
 				m.GetBdrElementVertices(be, be_vert);
 
-				for (int v = 0; v < el1_vert.Size(); v++) {
-					el1_vert[v] = ver1[v];
-				}
-				for (int v2 = 0; v2 < el2_vert.Size(); v2++) {
-					el2_vert[v2] = ver2[v2];
-				}
-
-				//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
-
 				auto set_v1 = getFaceAndDirOnVertexIteration(el1, el1_vert, be_vert);
-				auto set_v2 = getFaceAndDirOnVertexIteration(el2, el2_vert, be_vert);
-				std::pair<int, int> facesInfo = std::make_pair(set_v1.first, set_v2.first);
-				std::pair<int, int> dirInfo = std::make_pair(set_v1.second, set_v2.second);
-				prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
+				Face2Dir set_v2;
 
+				if (be_trans->Elem2No != NotFound) {
+
+					auto el2{ m.GetElement(be_trans->Elem2No) };
+
+					Array<int> el2_vert(el2->GetNVertices());
+					{
+						auto ver2{ el2->GetVertices() };
+						for (int v2 = 0; v2 < el2_vert.Size(); v2++) {
+							el2_vert[v2] = ver2[v2];
+						}
+					}
+
+					set_v2 = getFaceAndDirOnVertexIteration(el2, el2_vert, be_vert);
+				}
+				else {
+					set_v2 = std::make_pair(NotFound, false);
+				}
+				//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
+				std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
+				std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
+				prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
 			}
 		}
 	}
@@ -202,8 +258,12 @@ protected:
 		}
 	}
 
-	std::vector<std::pair<ElementId, FaceId>> elem_to_face_tf;
-	std::vector<std::pair<ElementId, FaceId>> elem_to_face_sf;
+	std::vector<El2Face> elem_to_face_tf_;
+	std::vector<El2Face> elem_to_face_sf_;
+	std::vector<ElementId> elems_for_global_submesh_;
+	std::unique_ptr<SubMesh> tf_mesh_;
+	std::unique_ptr<SubMesh> sf_mesh_;
+	std::unique_ptr<SubMesh> global_submesh_;
 
 };
 
@@ -491,7 +551,7 @@ TEST_F(MeshTest, MapMeshElementAndVertex)
 
 TEST_F(MeshTest, MeshDataFileRead)
 {
-	ASSERT_NO_THROW(Mesh::LoadFromFile((mfemMeshesFolder() + "twotriang.mesh").c_str(), 1, 0));
+	ASSERT_NO_THROW(Mesh::LoadFromFile((mfemMeshes2DFolder() + "twotriang.mesh").c_str(), 1, 0));
 }
 
 TEST_F(MeshTest, BoundaryWithoutInteriorFace)
@@ -527,7 +587,7 @@ TEST_F(MeshTest, SubMeshingAttributes_1D)
 
 TEST_F(MeshTest, SubMeshingBdrAttributes_1D)
 {
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "line_for_submesh.mesh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes1DFolder() + "line_for_submesh.mesh").c_str(),1, 0) };
 
 	Array<int> subdomain_attribute_1(1); subdomain_attribute_1[0] = 1;
 	Array<int> subdomain_attribute_2(1); subdomain_attribute_2[0] = 2;
@@ -594,7 +654,7 @@ TEST_F(MeshTest, SubMeshAssignBdrFromParentMesh_1D)
 
 TEST_F(MeshTest, SubMeshingOnX)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "FiveQuadsOnX_TFSF.mesh").c_str(), 1, 0) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "FiveQuadsOnX_TFSF.mesh").c_str(), 1, 0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes_m{ FiniteElementSpace(&m,&fec) };
 
@@ -707,7 +767,7 @@ TEST_F(MeshTest, SubMeshingOnX)
 
 TEST_F(MeshTest, ExtendedFindNeighboursMethod2D)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3.mesh").c_str(), 1, 0) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3.mesh").c_str(), 1, 0) };
 	
 	MFEM_ASSERT(m.FindFaceNeighbors(0) == Array<int>({0, 1, 3})      ,"Elem 0 fails.");
 	MFEM_ASSERT(m.FindFaceNeighbors(1) == Array<int>({0, 1, 2, 4})   ,"Elem 1 fails.");
@@ -722,7 +782,7 @@ TEST_F(MeshTest, ExtendedFindNeighboursMethod2D)
 
 TEST_F(MeshTest, InteriorBoundary)
 {
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "line.mesh").c_str(), 1, 0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes1DFolder() + "line.mesh").c_str(), 1, 0) };
 
 	EXPECT_EQ(2, mesh.GetBdrAttribute(0));
 	EXPECT_EQ(2, mesh.GetBdrAttribute(1));
@@ -816,7 +876,7 @@ TEST_F(MeshTest, ElementEdges_2D_Tri)
 
 TEST_F(MeshTest, SubMeshingAttributes_2D)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "four_quads_for_submeshing.mesh").c_str(),1,0) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "four_quads_for_submeshing.mesh").c_str(),1,0) };
 
 	Array<int> att_1(1); att_1[0] = 1;
 	Array<int> att_2(1); att_2[0] = 2;
@@ -843,7 +903,7 @@ TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 {
 
 	{
-		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+		auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
 		setTFSFAttributesForSubMeshing2D(m);
 
@@ -852,7 +912,7 @@ TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 	}
 
 	{
-		auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square5x5marked.mesh").c_str(), 1, 0, true) };
+		auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square5x5marked.mesh").c_str(), 1, 0, true) };
 
 		setTFSFAttributesForSubMeshing2D(m);
 
@@ -864,21 +924,21 @@ TEST_F(MeshTest, marking_element_att_through_boundary_2D)
 
 TEST_F(MeshTest, marking_element_to_face_pairs_for_submeshing_2D)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
 	setTFSFAttributesForSubMeshing2D(m);
 
 	std::vector<std::pair<ElementId, FaceId>>elem_to_face_tf_check{ {{4,0}, {4,1}, {4,2}, {4,3}} };
 	std::vector<std::pair<ElementId, FaceId>>elem_to_face_sf_check{ {{3,2}, {7,3}, {5,0}, {1,1}} };
 
-	EXPECT_EQ(elem_to_face_tf_check, elem_to_face_tf);
-	EXPECT_EQ(elem_to_face_sf_check, elem_to_face_sf);
+	EXPECT_EQ(elem_to_face_tf_check, elem_to_face_tf_);
+	EXPECT_EQ(elem_to_face_sf_check, elem_to_face_sf_);
 
 }
 
 TEST_F(MeshTest, transfer_parent_bdr_att_to_child)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
 	setTFSFAttributesForSubMeshing2D(m);
 
@@ -908,7 +968,7 @@ TEST_F(MeshTest, transfer_parent_bdr_att_to_child)
 
 TEST_F(MeshTest, gridfunction_transfer_between_parent_and_child_2D)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	Mesh backup_m(m);
 
 	setTFSFAttributesForSubMeshing2D(m);
@@ -950,7 +1010,7 @@ TEST_F(MeshTest, gridfunction_transfer_between_parent_and_child_2D)
 
 TEST_F(MeshTest, homebrew_transfer_map)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	Mesh backup_m(m);
 
 	setTFSFAttributesForSubMeshing2D(m);
@@ -994,7 +1054,7 @@ TEST_F(MeshTest, homebrew_transfer_map)
 
 TEST_F(MeshTest, transfering_zeroes_between_submeshes_of_same_parent)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 	
 	maxwell::TotalFieldScatteredFieldSubMesher submesher(m);
 

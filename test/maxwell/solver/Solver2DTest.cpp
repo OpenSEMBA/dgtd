@@ -906,7 +906,7 @@ TEST_F(Solver2DTest, periodic_quads)
 
 }
 
-TEST_F(Solver2DTest, pec_centered_totalfieldinout_1dot5D)
+TEST_F(Solver2DTest, pec_centered_totalfieldin_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0)};
 	//mesh.UniformRefinement();
@@ -975,8 +975,31 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 
 TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 {
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "One_Element_Tall_Long_Line_TF_centered.mesh").c_str(),1,0)};
-	AttributeToBoundary attToBdr{ {1,BdrCond::PMC},{2, BdrCond::PEC} };
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "One_Element_Tall_Long_Line_TF_centered.mesh").c_str(), 1, 0)};
+	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(20) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.2, 0.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(5e-3)
+			.setCentered()
+			.setFinalTime(3.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver2DTest, pec_upwind_totalfieldin_longline_1dot5D)
+{
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "One_Element_Tall_Long_Line_TF_centered.mesh").c_str(), 1, 0) };
+	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
@@ -994,7 +1017,6 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 	solver.run();
 
 }
-
 //TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 //{
 //	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
