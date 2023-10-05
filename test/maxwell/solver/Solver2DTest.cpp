@@ -988,7 +988,6 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 		SolverOptions{}
 			.setTimeStep(5e-3)
 			.setFinalTime(3.0)
-			.setCentered()
 			.setOrder(3)
 	};
 
