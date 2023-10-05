@@ -2,10 +2,11 @@
 
 #include <gtest/gtest.h>
 
-static std::string testDataFolder()   { return "./testData/"; }
-static std::string gmshMeshesFolder() { return testDataFolder() + "gmshMeshes/"; }
-static std::string mfemMeshesFolder() { return testDataFolder() + "mfemMeshes/"; }
-static std::string smbInputsFolder()  { return testDataFolder() + "smbInputs/"; }
+static std::string testDataFolder()     { return "./testData/"; }
+static std::string gmshMeshesFolder()   { return testDataFolder() + "gmshMeshes/"; }
+static std::string mfemMeshesFolder()   { return testDataFolder() + "mfemMeshes/"; }
+static std::string mfemMeshes2DFolder() { return testDataFolder() + "mfemMeshes/2D/"; }
+static std::string smbInputsFolder()    { return testDataFolder() + "smbInputs/"; }
 
 static std::string smbCase(const std::string& caseName)
 {
