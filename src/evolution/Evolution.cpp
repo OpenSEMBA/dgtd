@@ -222,6 +222,26 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				MFN_GTFSF_[E][H][z]->Mult(func_g[H][y], eTemp[x]);
 				eMap.TransferSub(eTemp[x], eNew[x]);
 
+				if (opts_.fluxType == FluxType::Upwind) {
+					MFNN_GTFSF_[H][H][X][x]->Mult(func_g[H][X], hTemp[x]);
+					hMap.TransferSub(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Y][x]->Mult(func_g[H][Y], hTemp[x]);
+					hMap.TransferSub(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Z][x]->Mult(func_g[H][Z], hTemp[x]);
+					hMap.TransferSub(hTemp[x], hNew[x]);
+					MP_GTFSF_[H]           ->Mult(func_g[H][x], hTemp[x]);
+					hMap.TransferAdd(hTemp[x], hNew[x]);
+
+					MFNN_GTFSF_[E][E][X][x]->Mult(func_g[E][X], eTemp[x]);
+					eMap.TransferSub(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Y][x]->Mult(func_g[E][Y], eTemp[x]);
+					eMap.TransferSub(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Z][x]->Mult(func_g[E][Z], eTemp[x]);
+					eMap.TransferSub(eTemp[x], eNew[x]);
+					MP_GTFSF_[E]           ->Mult(func_g[E][x], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
+				}
+
 			}
 		}
 	}
