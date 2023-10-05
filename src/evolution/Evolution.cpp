@@ -14,6 +14,25 @@ void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 	}
 }
 
+const FieldGridFuncs evalTimeVarFunction(const Time time, SourcesManager& sm)
+{
+	auto res{ sm.evalTimeVarField(time, sm.getGlobalTFSFSpace()) };
+	sm.markDoFSforTFandSF(res, true);
+	{
+		if (sm.getTFSFSubMesher().getSFSubMesh() != NULL) {
+			auto func_g_sf{ sm.evalTimeVarField(time, sm.getGlobalTFSFSpace()) };
+			sm.markDoFSforTFandSF(func_g_sf, false);
+			for (int f : {E, H}) {
+				for (int x{ 0 }; x <= Z; x++) {
+					res[f][x] -= func_g_sf[f][x];
+					res[f][x] *= 0.5;
+				}
+			}
+		}
+	}
+	return res;
+}
+
 Evolution::Evolution(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
@@ -53,7 +72,6 @@ Evolution::Evolution(
 			for (auto f : { E, H }) {
 				MP_GTFSF_[f] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 				for (auto d{ X }; d <= Z; d++) {
-					MS_GTFSF_[f][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildDerivativeOperator(d, *globalTFSFfes), *globalTFSFfes);
 					for (auto d2{ X }; d2 <= Z; d2++) {
 						for (auto f2 : { E, H }) {
 							MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildOneNormalOperator(f2, { d }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
@@ -62,32 +80,6 @@ Evolution::Evolution(
 					}
 				}
 			}
-
-			//for (auto f : { E, H }) {
-			//	MP_GTFSF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildZeroNormalOperator(f, model_, *fesTF, opts_), *fesTF);
-			//	for (auto d{ X }; d <= Z; d++) {
-			//		MS_TF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildDerivativeOperator(d, *fesTF), *fesTF);
-			//		for (auto d2{ X }; d2 <= Z; d2++) {
-			//			for (auto f2 : { E, H }) {
-			//				MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildOneNormalOperator(f2, { d }, model_, *fesTF, opts_), *fesTF);
-			//				MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, *fesTF), *buildTwoNormalOperator(f2, { d, d2 }, model_, *fesTF, opts_), *fesTF);
-			//			}
-			//		}
-			//	}
-			//}
-
-			//for (auto f : { E, H }) {
-			//	MP_SF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildZeroNormalOperator(f, model_, *fesSF, opts_), *fesSF);
-			//	for (auto d{ X }; d <= Z; d++) {
-			//		MS_SF_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildDerivativeOperator(d, *fesSF), *fesSF);
-			//		for (auto d2{ X }; d2 <= Z; d2++) {
-			//			for (auto f2 : { E, H }) {
-			//				MFN_SF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildOneNormalOperator(f2, { d }, model_, *fesSF, opts_), *fesSF);
-			//				MFNN_SF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, *fesSF), *buildTwoNormalOperator(f2, { d, d2 }, model_, *fesSF, opts_), *fesSF);
-			//			}
-			//		}
-			//	}
-			//}
 			break;
 		}
 	}
@@ -179,22 +171,7 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<Planewave*>(source.get())) {
 			
-			auto time{ GetTime() };
-			auto func_g{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
-			srcmngr_.markDoFSforTFandSF(func_g, true);
-			
-			{
-				if (srcmngr_.getTFSFSubMesher().getSFSubMesh() != NULL) {
-					auto func_g_sf{ srcmngr_.evalGlobalTFSFTimeVarField(time) };
-					srcmngr_.markDoFSforTFandSF(func_g_sf, false);
-					for (int f : {E, H}) {
-						for (int x{ 0 }; x <= Z; x++) {
-							func_g[f][x] -= func_g_sf[f][x];
-							func_g[f][x] *= 0.5;
-						}
-					}
-				}
-			}
+			auto func { evalTimeVarFunction(GetTime(),srcmngr_) };
 
 			std::array<GridFunction, 3> eTemp, hTemp;
 
@@ -214,39 +191,41 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 
 				//Centered
 
-				MFN_GTFSF_[H][E][y]->Mult(func_g[E][z], hTemp[x]);
-				eMap.TransferAdd(hTemp[x], hNew[x]);
-				MFN_GTFSF_[H][E][z]->Mult(func_g[E][y], hTemp[x]);
+				MFN_GTFSF_[H][E][y]->Mult(func[E][z], hTemp[x]);
 				eMap.TransferSub(hTemp[x], hNew[x]);
-				MFN_GTFSF_[E][H][y]->Mult(func_g[H][z], eTemp[x]);
-				eMap.TransferSub(eTemp[x], eNew[x]);
-				MFN_GTFSF_[E][H][z]->Mult(func_g[H][y], eTemp[x]);
+				MFN_GTFSF_[H][E][z]->Mult(func[E][y], hTemp[x]);
+				eMap.TransferAdd(hTemp[x], hNew[x]);
+				MFN_GTFSF_[E][H][y]->Mult(func[H][z], eTemp[x]);
 				eMap.TransferAdd(eTemp[x], eNew[x]);
+				MFN_GTFSF_[E][H][z]->Mult(func[H][y], eTemp[x]);
+				eMap.TransferSub(eTemp[x], eNew[x]);
 
 				if (opts_.fluxType == FluxType::Upwind) {
-					MFNN_GTFSF_[H][H][X][x]->Mult(func_g[H][X], hTemp[x]);
-					hMap.TransferAdd(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Y][x]->Mult(func_g[H][Y], hTemp[x]);
-					hMap.TransferAdd(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Z][x]->Mult(func_g[H][Z], hTemp[x]);
-					hMap.TransferAdd(hTemp[x], hNew[x]);
-					MP_GTFSF_[H]           ->Mult(func_g[H][x], hTemp[x]);
+					MFNN_GTFSF_[H][H][X][x]->Mult(func[H][X], hTemp[x]);
 					hMap.TransferSub(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Y][x]->Mult(func[H][Y], hTemp[x]);
+					hMap.TransferSub(hTemp[x], hNew[x]);
+					MFNN_GTFSF_[H][H][Z][x]->Mult(func[H][Z], hTemp[x]);
+					hMap.TransferSub(hTemp[x], hNew[x]);
+					MP_GTFSF_[H]           ->Mult(func[H][x], hTemp[x]);
+					hMap.TransferAdd(hTemp[x], hNew[x]);
 
-					MFNN_GTFSF_[E][E][X][x]->Mult(func_g[E][X], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Y][x]->Mult(func_g[E][Y], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Z][x]->Mult(func_g[E][Z], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-					MP_GTFSF_[E]           ->Mult(func_g[E][x], eTemp[x]);
+					MFNN_GTFSF_[E][E][X][x]->Mult(func[E][X], eTemp[x]);
 					eMap.TransferSub(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Y][x]->Mult(func[E][Y], eTemp[x]);
+					eMap.TransferSub(eTemp[x], eNew[x]);
+					MFNN_GTFSF_[E][E][Z][x]->Mult(func[E][Z], eTemp[x]);
+					eMap.TransferSub(eTemp[x], eNew[x]);
+					MP_GTFSF_[E]           ->Mult(func[E][x], eTemp[x]);
+					eMap.TransferAdd(eTemp[x], eNew[x]);
 				}
 
 			}
 		}
 	}
 }
+
+
 
 }
 
