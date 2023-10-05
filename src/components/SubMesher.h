@@ -6,9 +6,9 @@
 using FaceId = int;
 using ElementId = int;
 using Attribute = int;
-using IsCCW = bool;
+using IsTF = bool;
 using El2Face = std::pair<ElementId, FaceId>;
-using Face2Dir = std::pair<FaceId, IsCCW>;
+using Face2Dir = std::pair<FaceId, IsTF>;
 
 namespace maxwell {
 
@@ -42,7 +42,7 @@ private:
 	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
 	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
 
-	std::pair<FaceId, IsCCW> getFaceAndDirOnVertexIteration(const Element*, const Array<int>& verts, const Array<int>& be_verts);
+	std::pair<FaceId, IsTF> getFaceAndDirOnVertexIteration(const Element*, const Array<int>& verts, const Array<int>& be_verts);
 
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;

@@ -14,7 +14,7 @@ using Orientation = int;
 using Attribute = int;
 using BdrId = int;
 using IsInterior = bool;
-using IsCCW = bool;
+using IsTF = bool;
 using ElNo2Att = std::pair<ElementId, Attribute>;
 using TwoElems = std::pair<ElementId, ElementId>;
 using FaceToAtt = std::map<FaceId, Attribute>;
@@ -126,7 +126,7 @@ protected:
 		storeElementToFaceInformation(trans, facesId, el1_is_tf);
 	}
 
-	std::pair<FaceId,IsCCW> getFaceAndDirOnVertexIteration(const Element* el, const Array<int>& verts, const Array<int>& be_verts)
+	std::pair<FaceId,IsTF> getFaceAndDirOnVertexIteration(const Element* el, const Array<int>& verts, const Array<int>& be_verts)
 	{
 		for (int v = 0; v < verts.Size(); v++) {
 

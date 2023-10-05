@@ -295,7 +295,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			}
 			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
-			std::pair<IsCCW, IsCCW> dirInfo = std::make_pair(set_v1.second, set_v2.second);
+			std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
 			prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
 		}
 	}
