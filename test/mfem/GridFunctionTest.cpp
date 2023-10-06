@@ -251,7 +251,7 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 	
 	auto mesh{ 
 		Mesh::LoadFromFile(
-			(mfemMeshesFolder() + "severalrotatedquadsnormalised.mesh").c_str(), 1, 0
+			(mfemMeshes2DFolder() + "severalrotatedquadsnormalised.mesh").c_str(), 1, 0
 		) 
 	};
 	DG_FECollection fec{ order, 2, BasisType::GaussLobatto };

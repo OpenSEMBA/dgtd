@@ -181,7 +181,7 @@ protected:
 
 TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 {
-	auto m{ Mesh::LoadFromFile((mfemMeshesFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
+	auto m{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "square3x3marked.mesh").c_str(), 1, 0, true) };
 
 	setTFSFAttributesForSubMeshing2D(m);
 

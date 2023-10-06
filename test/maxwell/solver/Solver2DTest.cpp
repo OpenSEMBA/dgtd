@@ -135,7 +135,7 @@ TEST_F(Solver2DSpectralTest, pec_centered_tris_1dot5D_spectral)
 TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 {
 
-	Probes probes;
+	Probes probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -148,6 +148,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 	probes,
 	buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 	SolverOptions{}
+		.setTimeStep(1e-3)
 		.setCentered()
 		.setFinalTime(2.0)
 		.setOrder(3)

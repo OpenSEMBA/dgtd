@@ -49,7 +49,7 @@ protected:
 
 TEST_F(MFEMHesthaven3D, DISABLED_checkNodalPositions)
 {
-	mesh_ = Mesh::LoadFromFile((mfemMeshesFolder() + "onetetra.mesh").c_str());
+	mesh_ = Mesh::LoadFromFile((mfemMeshes3DFolder() + "onetetra.mesh").c_str());
 	fec_ = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), 3, Ordering::byVDIM);
 
@@ -142,7 +142,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_checkDrOperator3D)
 
 TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 {
-	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetetra.mesh").c_str());
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshes3DFolder() + "onetetra.mesh").c_str());
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -186,7 +186,7 @@ TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 
 TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
 {
-	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "fivetetra.mesh").c_str());
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshes3DFolder() + "fivetetra.mesh").c_str());
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -234,7 +234,7 @@ TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
 TEST_F(MFEMHesthaven3D, faceChecker)
 {
 
-	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetetra.mesh").c_str());
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshes3DFolder() + "onetetra.mesh").c_str());
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
