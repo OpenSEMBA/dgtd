@@ -907,9 +907,10 @@ TEST_F(Solver2DTest, periodic_quads)
 
 }
 
-TEST_F(Solver2DTest, pec_centered_totalfieldin_1dot5D)
+TEST_F(Solver2DTest, pec_totalfieldin_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0)};
+	mesh.UniformRefinement();
 	//mesh.UniformRefinement();
 	//mesh.UniformRefinement();
 	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
@@ -926,12 +927,59 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(0.2, 1.5, unitVec(Z), unitVec(X)),
+		buildGaussianPlanewave(0.5, 2.0, unitVec(Z), unitVec(X)),
 		SolverOptions{}
 			.setTimeStep(1e-2)
-			.setCentered()
-			.setFinalTime(4.0)
-			.setOrder(2)
+			//.setCentered()
+			.setFinalTime(6.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+	//{
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().first, 1e-1);
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, 1e-3);
+	//}
+
+	//{
+	//	EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, 1e-3);
+	//}
+
+	//{
+	//	EXPECT_NEAR(3.5, solver.getPointProbe(2).findFrameWithMax().first, 2e-1);
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, 1e-3);
+	//	EXPECT_NEAR(3.5, solver.getPointProbe(3).findFrameWithMax().first, 2e-1);
+	//	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, 1e-3);
+	//}
+}
+
+TEST_F(Solver2DTest, pec_planewave)
+{
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(),1,0) };
+	//mesh.UniformRefinement();
+	//mesh.UniformRefinement();
+	//mesh.UniformRefinement();
+	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(5) };
+	//probes.pointProbes = {
+	//PointProbe{ E, Z, {0.5001, 0.5} },
+	//PointProbe{ E, Z, {0.5, 0.5} },
+	//PointProbe{ H, Y, {3.5, 0.5} },
+	//PointProbe{ H, X, {3.5, 0.5} }
+	//};
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			//.setCentered()
+			.setFinalTime(8.0)
+			.setOrder(3)
 	};
 
 	solver.run();
