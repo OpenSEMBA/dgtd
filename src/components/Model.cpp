@@ -12,15 +12,8 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		attToMatMap_ = matMap;
 	}
 
-	if (bdrMap.size() == 0) {
-		for (int i = 1; i <= mesh.bdr_attributes.Size(); i++) {
-			attToBdrMap_.emplace(i, BdrCond::PEC);
-		}
-	}
-	else {
-		attToBdrMap_ = bdrMap;
-	}
-
+	attToBdrMap_ = bdrMap;
+	
 	if (intBdrMap.size() != 0)
 	{
 		for (auto i = intBdrMap.begin(); i != intBdrMap.end(); i++){
