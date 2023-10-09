@@ -18,6 +18,9 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	case 2:
 		setIndividualTFSFAttributesForSubMeshing2D(parent_for_individual);
 		break;
+	case 3: 
+		setIndividualTFSFAttributesForSubMeshing3D(parent_for_individual);
+		break;
 	}
 
 	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::Global_SubMesh;
@@ -52,6 +55,9 @@ SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& p
 		break;
 	case 2:
 		setBoundaryAttributesInChild2D(parent, res);
+		break;
+	case 3:
+		setBoundaryAttributesInChild3D(parent, res);
 		break;
 	}
 	restoreElementAttributes(res);
@@ -98,6 +104,11 @@ void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild2D(const Mes
 			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], static_cast<int>(BdrCond::TotalFieldIn));
 		}
 	}
+}
+
+void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild3D(const Mesh& parent, SubMesh& child)
+{
+	setBoundaryAttributesInChild2D(parent, child);
 }
 
 void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
@@ -299,6 +310,11 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
 		}
 	}
+}
+
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m)
+{
+	setIndividualTFSFAttributesForSubMeshing2D(m);
 }
 
 
