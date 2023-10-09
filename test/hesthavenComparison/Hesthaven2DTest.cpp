@@ -92,7 +92,7 @@ protected:
 
 	std::pair<FiniteElementSpace, Model> buildRequirementsForComparison()
 	{
-		auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+		auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 		auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 		auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -165,7 +165,7 @@ TEST_F(MFEMHesthaven2D, DrOperator)
 TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -202,7 +202,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -241,7 +241,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -280,7 +280,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -319,7 +319,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -358,7 +358,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -397,7 +397,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -436,7 +436,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -475,7 +475,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 {
 
-	auto mesh{ Mesh::LoadFromFile((mfemMeshesFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
@@ -540,7 +540,7 @@ TEST_F(MFEMHesthaven2D, DsOperator)
 
 TEST_F(MFEMHesthaven2D, manualMeshComparison)
 {
-	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "twotriang.mesh").c_str(), 1, 1);
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshes2DFolder() + "twotriang.mesh").c_str(), 1, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
@@ -608,7 +608,7 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 
 TEST_F(MFEMHesthaven2D, DISABLED_oneFace)
 {
-	Mesh meshManual = Mesh::LoadFromFile((mfemMeshesFolder() + "onetriang.mesh").c_str(), true, 1);
+	Mesh meshManual = Mesh::LoadFromFile((mfemMeshes2DFolder() + "onetriang.mesh").c_str(), true, 1);
 	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
 
