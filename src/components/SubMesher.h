@@ -44,7 +44,8 @@ private:
 	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
 	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
 
-	std::pair<FaceId, IsTF> getFaceAndDirOnVertexIteration(const Element*, const Array<int>& verts, const Array<int>& be_verts);
+	Face2Dir getFaceAndDirOnVertexIteration2D(const Element*, const Array<int>& verts, const Array<int>& be_verts);
+	Face2Dir getFaceAndDirOnVertexIteration3D(Mesh& m, int be);
 
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;

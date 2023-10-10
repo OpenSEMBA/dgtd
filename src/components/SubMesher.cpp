@@ -161,7 +161,7 @@ void TotalFieldScatteredFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceEl
 	storeElementToFaceInformation(trans, facesId, el1_is_tf);
 }
 
-Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration(const Element* el, const Array<int>& verts, const Array<int>& be_verts)
+Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration2D(const Element* el, const Array<int>& verts, const Array<int>& be_verts)
 {
 	for (int v = 0; v < verts.Size(); v++) {
 
@@ -189,6 +189,14 @@ Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration(const
 			}
 		}
 	}
+}
+
+Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration3D(Mesh& m, int be)
+{
+
+	std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
+	std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
+	prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
 }
 
 FaceElementTransformations* TotalFieldScatteredFieldSubMesher::getFaceElementTransformation(Mesh&m, int be) 
@@ -284,7 +292,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			Array<int> be_vert(2);
 			m.GetBdrElementVertices(be, be_vert);
 			
-			auto set_v1 = getFaceAndDirOnVertexIteration(el1, el1_vert, be_vert);
+			auto set_v1 = getFaceAndDirOnVertexIteration2D(el1, el1_vert, be_vert);
 			Face2Dir set_v2;
 
 			if (be_trans->Elem2No != NotFound) {
@@ -299,7 +307,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 					}
 				}
 
-				set_v2 = getFaceAndDirOnVertexIteration(el2, el2_vert, be_vert);
+				set_v2 = getFaceAndDirOnVertexIteration2D(el2, el2_vert, be_vert);
 			}
 			else {
 				set_v2 = std::make_pair(NotFound, false);
@@ -314,7 +322,44 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m)
 {
-	setIndividualTFSFAttributesForSubMeshing2D(m);
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+
+			auto be_trans{ getFaceElementTransformation(m, be) };
+			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
+			m.GetBdrElementVertices(be, be_vert);
+			be_vert.Sort();
+
+			std::pair<FaceId, IsTF> set_v1;
+			m.GetElementFaces(be_trans->Elem1No, el1_face, el1_ori);
+			for (int f = 0; f < el1_face.Size(); f++) {
+				m.GetFaceVertices(f, face_vert);
+				face_vert.Sort();
+				if (face_vert == be_vert) {
+					set_v1 = std::make_pair(f, el1_ori[f]);
+				}
+			}
+
+			std::pair<FaceId, IsTF> set_v2;
+			if (be_trans->Elem2No != NotFound) {
+				m.GetElementFaces(be_trans->Elem2No, el2_face, el2_ori);
+				for (int f = 0; f < el2_face.Size(); f++) {
+					m.GetFaceVertices(f, face_vert);
+					face_vert.Sort();
+					if (face_vert == be_vert) {
+						set_v2 = std::make_pair(f, el2_ori[f]);
+					}
+				}
+			}
+			else {
+				auto set_v2{ std::make_pair(NotFound, false) };
+			}
+			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
+			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
+			std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
+			prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
+		}
+	}
 }
 
 

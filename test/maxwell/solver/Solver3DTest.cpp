@@ -1334,3 +1334,25 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 	solver.run();
 
 }
+
+TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin_dev)
+{
+	auto probes{ buildProbesWithAnExportProbe(10) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_twohex_totalfieldin.mesh").c_str(), 1, 0) };
+	AttributeToBoundary att2bdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setCentered()
+			.setFinalTime(6.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
