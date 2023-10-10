@@ -191,14 +191,6 @@ Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration2D(con
 	}
 }
 
-Face2Dir TotalFieldScatteredFieldSubMesher::getFaceAndDirOnVertexIteration3D(Mesh& m, int be)
-{
-
-	std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
-	std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
-	prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
-}
-
 FaceElementTransformations* TotalFieldScatteredFieldSubMesher::getFaceElementTransformation(Mesh&m, int be) 
 {
 	switch (m.FaceIsInterior(m.GetBdrFace(be))) {
