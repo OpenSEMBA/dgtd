@@ -326,6 +326,15 @@ Vector getBarycenterOfElement(Mesh& m, int e)
 	return res;
 }
 
+Vector subtract(const double* bdr_v, const Vector& b_v)
+{
+	Vector res(3);
+	for (int i = 0; i < res.Size(); i++) {
+		res[i] = b_v[i] - bdr_v[i];
+	}
+	return res;
+}
+
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
@@ -334,6 +343,16 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			auto bary1{ getBarycenterOfElement(m, be_trans->Elem1No) };
 			auto bary2{ getBarycenterOfElement(m, be_trans->Elem2No) };
+			auto bdr_vertices{ m.GetBdrElement(be)->GetVertices()};
+			auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
+			auto v1{ subtract(bdr_vert,bary1) };
+			auto v2{ subtract(bdr_vert,bary2) };
+			Vector normal(3);
+			be_trans->SetIntPoint(&Geometries.GetCenter(be_trans->GetGeometryType()));
+ 			CalcOrtho(be_trans->Jacobian(), normal);
+			auto d1{ mfem::InnerProduct(v1, normal) };
+			auto d2{ mfem::InnerProduct(v2, normal) };
+
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
