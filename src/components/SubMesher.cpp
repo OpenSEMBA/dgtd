@@ -318,9 +318,14 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
 
 			auto be_trans{ getFaceElementTransformation(m, be) };
+			int el1, info1;
+			m.GetBdrElementAdjacentElement(be, el1, info1);
+			int el2, info2;
+			m.GetBdrElementAdjacentElement2(be, el2, info2);
+
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
-			be_vert.Sort();
+			//be_vert.Sort();
 
 			std::pair<FaceId, IsTF> set_v1;
 			m.GetElementFaces(be_trans->Elem1No, el1_face, el1_ori);
