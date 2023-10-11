@@ -330,8 +330,9 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			std::pair<FaceId, IsTF> set_v1;
 			m.GetElementFaces(be_trans->Elem1No, el1_face, el1_ori);
 			for (int f = 0; f < el1_face.Size(); f++) {
+				auto fi{ m.GetFaceInformation(f) };
 				m.GetFaceVertices(el1_face[f], face_vert);
-				face_vert.Sort();
+				//face_vert.Sort();
 				if (face_vert == be_vert) {
 					set_v1 = std::make_pair(f, el1_ori[f]);
 				}
@@ -341,9 +342,11 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			if (be_trans->Elem2No != NotFound) {
 				m.GetElementFaces(be_trans->Elem2No, el2_face, el2_ori);
 				for (int f = 0; f < el2_face.Size(); f++) {
+					auto fi{ m.GetFaceInformation(f) };
+					auto ir = Geometries.GetVertices(Geometry::Type::SQUARE);
 					m.GetFaceVertices(el2_face[f], face_vert);
 					auto el_faces = m.GetElement(be_trans->Elem2No)->GetFaceVertices(f);
-					face_vert.Sort();
+					//face_vert.Sort();
 					if (face_vert == be_vert) {
 						set_v2 = std::make_pair(f, el2_ori[f]);
 					}
