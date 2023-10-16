@@ -335,37 +335,53 @@ Vector subtract(const double* bdr_v, const Vector& b_v)
 	return res;
 }
 
+Vector getNormal(FaceElementTransformations& fet)
+{
+	Vector res(3);
+	fet.SetIntPoint(&Geometries.GetCenter(fet.GetGeometryType()));
+	CalcOrtho(fet.Jacobian(), res);
+	return res;
+}
+
+std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be)
+{
+	auto bdr_vertices{ m.GetBdrElement(be)->GetVertices() };
+	auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
+	auto normal{ getNormal(fet) };
+	
+	auto bary1{ getBarycenterOfElement(m, fet.Elem1No) };
+	auto v1{ subtract(bdr_vert,bary1) };
+	auto d1{ mfem::InnerProduct(v1, normal) };
+	
+	auto bary2{ getBarycenterOfElement(m, fet.Elem2No) };
+	auto v2{ subtract(bdr_vert,bary2) };
+	auto d2{ mfem::InnerProduct(v2, normal) };
+
+	return std::make_pair(d1, d2);
+}
+
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m)
 {
+	auto facemap{ m.GetFaceToBdrElMap() };
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
 
 			auto be_trans{ getFaceElementTransformation(m, be) };
-			auto bary1{ getBarycenterOfElement(m, be_trans->Elem1No) };
-			auto bary2{ getBarycenterOfElement(m, be_trans->Elem2No) };
-			auto bdr_vertices{ m.GetBdrElement(be)->GetVertices()};
-			auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
-			auto v1{ subtract(bdr_vert,bary1) };
-			auto v2{ subtract(bdr_vert,bary2) };
-			Vector normal(3);
-			be_trans->SetIntPoint(&Geometries.GetCenter(be_trans->GetGeometryType()));
- 			CalcOrtho(be_trans->Jacobian(), normal);
-			auto d1{ mfem::InnerProduct(v1, normal) };
-			auto d2{ mfem::InnerProduct(v2, normal) };
-
+			auto face_oris{ calculateBaryNormalProduct(m, *be_trans, be) };
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
-			//be_vert.Sort();
+			be_vert.Sort();
 
 			std::pair<FaceId, IsTF> set_v1;
 			m.GetElementFaces(be_trans->Elem1No, el1_face, el1_ori);
 			for (int f = 0; f < el1_face.Size(); f++) {
 				auto fi{ m.GetFaceInformation(f) };
 				m.GetFaceVertices(el1_face[f], face_vert);
-				//face_vert.Sort();
+				face_vert.Sort();
 				if (face_vert == be_vert) {
-					set_v1 = std::make_pair(f, el1_ori[f]);
+					face_oris.first >= 0.0 ? set_v1 = std::make_pair(f, true) : set_v1 = std::make_pair(f, false);
+					break;
 				}
 			}
 
@@ -377,9 +393,10 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 					auto ir = Geometries.GetVertices(Geometry::Type::SQUARE);
 					m.GetFaceVertices(el2_face[f], face_vert);
 					auto el_faces = m.GetElement(be_trans->Elem2No)->GetFaceVertices(f);
-					//face_vert.Sort();
+					face_vert.Sort();
 					if (face_vert == be_vert) {
-						set_v2 = std::make_pair(f, el2_ori[f]);
+						face_oris.second >= 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
+						break;
 					}
 				}
 			}
