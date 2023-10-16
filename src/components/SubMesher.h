@@ -37,9 +37,7 @@ private:
 	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setGlobalTFSFAttributesForSubMeshing(Mesh&);
-	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&);
-	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&);
-	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&);
+	void setIndividualTFSFAttributesForSubMeshing(Mesh&);
 	void restoreElementAttributes(Mesh&);
 	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
 	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
