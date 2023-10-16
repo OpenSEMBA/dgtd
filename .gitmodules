@@ -6,4 +6,4 @@
 	url = git@github.com:OpenSEMBA/core.git
 [submodule "external/mfem-geg"]
 	path = external/mfem-geg
-	url = git@github.com:AlejandroMunozManterola/mfem.git
+	url = git@github.com:OpenSEMBA/mfem.git
