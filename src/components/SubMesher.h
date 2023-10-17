@@ -9,6 +9,7 @@ using Attribute = int;
 using IsTF = bool;
 using El2Face = std::pair<ElementId, FaceId>;
 using Face2Dir = std::pair<FaceId, IsTF>;
+using SetPairs = std::pair<std::pair<FaceId, IsTF>, std::pair<FaceId, IsTF>>;
 
 namespace maxwell {
 
@@ -37,6 +38,10 @@ private:
 	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setGlobalTFSFAttributesForSubMeshing(Mesh&);
+	void assignIndividualTFSFAttsOnePoint1D(Mesh&);
+	void assignIndividualTFSFAttsTwoPoints1D(Mesh&);
+	SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh&, int be, bool flag);
+	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&);
 	void setIndividualTFSFAttributesForSubMeshing(Mesh&);
 	void restoreElementAttributes(Mesh&);
 	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);

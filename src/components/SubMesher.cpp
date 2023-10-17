@@ -11,7 +11,15 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	Mesh parent_for_individual(m);
 
 	setGlobalTFSFAttributesForSubMeshing(parent_for_global);
-	setIndividualTFSFAttributesForSubMeshing(parent_for_individual);
+
+	switch (m.Dimension()) {
+	case 1:
+		setIndividualTFSFAttributesForSubMeshing1D(parent_for_individual);
+		break;
+	default:
+		setIndividualTFSFAttributesForSubMeshing(parent_for_individual);
+		break;
+	}
 
 	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::Global_SubMesh;
 	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
@@ -265,12 +273,114 @@ std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransfo
 	auto bary1{ getBarycenterOfElement(m, fet.Elem1No) };
 	auto v1{ subtract(bdr_vert,bary1) };
 	auto d1{ mfem::InnerProduct(v1, normal) };
-	
-	auto bary2{ getBarycenterOfElement(m, fet.Elem2No) };
-	auto v2{ subtract(bdr_vert,bary2) };
-	auto d2{ mfem::InnerProduct(v2, normal) };
+
+	auto d2 = 0.0;
+	if (fet.Elem2No != NotFound) {
+		auto bary2{ getBarycenterOfElement(m, fet.Elem2No) };
+		auto v2{ subtract(bdr_vert,bary2) };
+		d2 = mfem::InnerProduct(v2, normal);
+	}
 
 	return std::make_pair(d1, d2);
+}
+
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh& m)
+{
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+			auto be_trans{ getFaceElementTransformation(m, be) };
+			std::pair<FaceId, IsTF> set_e1;
+			std::pair<FaceId, IsTF> set_e2;
+			if (be_trans->Elem1No == 0) {
+				set_e1 = std::make_pair(0, true);
+				set_e2 = std::make_pair(NotFound, false);
+			}
+			else if (be_trans->Elem1No == m.GetNE() - 1) {
+				set_e1 = std::make_pair(1, true);
+				set_e2 = std::make_pair(NotFound, false);
+			}
+			else {
+				set_e1 = std::make_pair(1, false);
+				set_e2 = std::make_pair(0, true);
+			}
+			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_e1.first, set_e2.first);
+			std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_e1.second, set_e2.second);
+			prepareSubMeshInfo(m, be_trans, facesInfo, set_e1.second);
+		}
+	}
+}
+
+SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, bool flag)
+{
+	auto be_trans{ getFaceElementTransformation(m, be) };
+	std::pair<FaceId, IsTF> set_e1;
+	std::pair<FaceId, IsTF> set_e2;
+	switch (flag) {
+	case false: //If first boundary we find
+		if (be_trans->Elem1No == 0 && be_trans->Elem2No == NotFound) {
+			set_e1 = std::make_pair(0, true);
+			set_e2 = std::make_pair(NotFound, false);
+		}
+		else {
+			set_e1 = std::make_pair(1, false);
+			set_e2 = std::make_pair(0, true);
+		}
+		break;
+	case true: //If second boundary we find
+		if (be_trans->Elem1No == m.GetNE() - 1 && be_trans->Elem2No == NotFound) {
+			set_e1 = std::make_pair(1, true);
+			set_e2 = std::make_pair(NotFound, false);
+		}
+		else {
+			set_e1 = std::make_pair(1, true);
+			set_e2 = std::make_pair(0, false);
+		}
+		break;
+	}
+	return std::make_pair(set_e1, set_e2);
+}
+
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh& m)
+{
+	auto flag{ false };
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+			SetPairs sets;
+			switch (flag) {
+			case false:
+				sets = twoPointAssignator(m, be, flag);
+				flag = true;
+				break;
+			case true:
+				sets = twoPointAssignator(m, be, flag);
+				break;
+			}
+
+			std::pair<FaceId, FaceId> facesInfo = std::make_pair(sets.first.first, sets.second.first);
+			std::pair<IsTF, IsTF> dirInfo = std::make_pair(sets.first.second, sets.second.second);
+			prepareSubMeshInfo(m, getFaceElementTransformation(m, be), facesInfo, sets.first.second);
+		}
+	}
+}
+
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m)
+{
+	auto be_counter{ 0 };
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+			be_counter++;
+		}
+	}
+	switch (be_counter) {
+	case 1:
+		assignIndividualTFSFAttsOnePoint1D(m);
+		break;
+	case 2:
+		assignIndividualTFSFAttsTwoPoints1D(m);
+		break;
+	default:
+		throw std::exception("Only one or two TFSF points can be declared in a 1D Mesh.");
+	}
 }
 
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing(Mesh& m)
