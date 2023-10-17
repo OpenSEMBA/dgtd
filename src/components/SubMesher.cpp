@@ -277,10 +277,16 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 {
 	auto facemap{ m.GetFaceToBdrElMap() };
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn) ||
+			m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
 
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			auto face_oris{ calculateBaryNormalProduct(m, *be_trans, be) };
+
+			if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
+				face_oris.first  *= -1.0; 
+				face_oris.second *= -1.0;
+			}
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
