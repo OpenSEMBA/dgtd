@@ -1316,8 +1316,14 @@ TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 {
 	auto probes{ buildProbesWithAnExportProbe(10) };
+	probes.pointProbes = {
+		PointProbe{E, Z, {2.0, 0.5, 0.5}},
+		PointProbe{E, Z, {5.0, 0.5, 0.5}},
+		PointProbe{H, Y, {2.0, 0.5, 0.5}},
+		PointProbe{H, Y, {5.0, 0.5, 0.5}}
+	};
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldin.mesh").c_str(), 1, 0) };
-	AttributeToBoundary att2bdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PEC} };
+	AttributeToBoundary att2bdr{ {1, BdrCond::PMC}, {2, BdrCond::PEC}, {3, BdrCond::PEC} };
 	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
 
 	maxwell::Solver solver{
@@ -1327,19 +1333,69 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(6.0)
+			.setFinalTime(8.0)
 			.setOrder(3)
 	};
 
 	solver.run();
+	
+	{
+		auto frame{ solver.getPointProbe(0).getFieldMovie()};
+		auto expected_t = 5.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(1.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).getFieldMovie() };
+		auto expected_t = 8.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(1.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).getFieldMovie() };
+		auto expected_t = 5.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-1.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).getFieldMovie() };
+		auto expected_t = 8.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-1.0, f, 1e-2);
+			}
+		}
+	}
 
 }
 
-TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin_dev)
+TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldinout)
 {
 	auto probes{ buildProbesWithAnExportProbe(10) };
-	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_twohex_totalfieldin.mesh").c_str(), 1, 0) };
-	AttributeToBoundary att2bdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PEC} };
+	probes.pointProbes = {
+		PointProbe{E, Z, {2.0, 0.5, 0.5}},
+		PointProbe{E, Z, {5.0, 0.5, 0.5}},
+		PointProbe{H, Y, {2.0, 0.5, 0.5}},
+		PointProbe{H, Y, {5.0, 0.5, 0.5}}
+	};
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldinout.mesh").c_str(), 1, 0) };
+	AttributeToBoundary att2bdr{ {1, BdrCond::PMC}, {2, BdrCond::PEC}, {3, BdrCond::PEC} };
 	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
 
 	maxwell::Solver solver{
@@ -1349,7 +1405,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin_dev)
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(6.0)
+			.setFinalTime(8.0)
 			.setOrder(3)
 	};
 
