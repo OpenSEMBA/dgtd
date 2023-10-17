@@ -1401,11 +1401,11 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldinout)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
+		buildGaussianPlanewave(1.0, 2.0, unitVec(Z), unitVec(X)),
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(8.0)
+			.setFinalTime(11.0)
 			.setOrder(3)
 	};
 
