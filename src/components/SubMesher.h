@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mfem.hpp>
+#include "math/Calculus.h"
 #include "Types.h"
 
 using FaceId = int;
@@ -38,11 +39,15 @@ private:
 	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setGlobalTFSFAttributesForSubMeshing(Mesh&);
+	
+	SetPairs twoPointAssignator(Mesh&, int be, bool flag);
 	void assignIndividualTFSFAttsOnePoint1D(Mesh&);
 	void assignIndividualTFSFAttsTwoPoints1D(Mesh&);
-	SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh&, int be, bool flag);
 	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&);
+	
 	void setIndividualTFSFAttributesForSubMeshing(Mesh&);
+	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&);
+
 	void restoreElementAttributes(Mesh&);
 	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
 	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
