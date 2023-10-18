@@ -1317,9 +1317,9 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 {
 	auto probes{ buildProbesWithAnExportProbe(10) };
 	probes.pointProbes = {
-		PointProbe{E, Z, {2.0, 0.5, 0.5}},
+		PointProbe{E, Z, {3.0, 0.5, 0.5}},
 		PointProbe{E, Z, {5.0, 0.5, 0.5}},
-		PointProbe{H, Y, {2.0, 0.5, 0.5}},
+		PointProbe{H, Y, {3.0, 0.5, 0.5}},
 		PointProbe{H, Y, {5.0, 0.5, 0.5}}
 	};
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldin.mesh").c_str(), 1, 0) };
@@ -1341,7 +1341,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 	
 	{
 		auto frame{ solver.getPointProbe(0).getFieldMovie()};
-		auto expected_t = 5.0;
+		auto expected_t = 6.0;
 		for (const auto& [t, f] : frame)
 		{
 			if (abs(expected_t - t) <= 1e-2) {
@@ -1363,7 +1363,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 
 	{
 		auto frame{ solver.getPointProbe(2).getFieldMovie() };
-		auto expected_t = 5.0;
+		auto expected_t = 6.0;
 		for (const auto& [t, f] : frame)
 		{
 			if (abs(expected_t - t) <= 1e-2) {
@@ -1394,7 +1394,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldinout)
 		PointProbe{H, Y, {2.0, 0.5, 0.5}},
 		PointProbe{H, Y, {5.0, 0.5, 0.5}}
 	};
-	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldinout.mesh").c_str(), 1, 0) };
+	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldinout.mesh").c_str(), 1, 0, false) };
 	AttributeToBoundary att2bdr{ {1, BdrCond::PMC}, {2, BdrCond::PEC}, {3, BdrCond::PEC} };
 	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
 
@@ -1407,6 +1407,35 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldinout)
 			.setCentered()
 			.setFinalTime(11.0)
 			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver3DTest, feng_tf)
+{
+	auto probes{ buildProbesWithAnExportProbe(1000) };
+
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "Feng_TF.msh").c_str(),1,0) };
+	mesh.Transform(rotateMinus90degAlongZAxis);
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	mfem::Vector center_(3);
+	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center_);
+	mfem::Vector polarization_(3);
+	rotateMinus90degAlongZAxis(unitVec(Z), polarization_);
+
+
+	maxwell::Solver solver{
+	model,
+	probes,
+	buildGaussianPlanewave(0.30, 2.0, unitVec(Z), unitVec(Y)),
+	SolverOptions{}
+		.setTimeStep(5e-3)
+		.setFinalTime(0.50)
+		.setOrder(2)
 	};
 
 	solver.run();

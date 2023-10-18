@@ -322,7 +322,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
-	Probes probes;
+	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
 		PointProbe{E, Z, {0.0, 0.5}},
 		PointProbe{E, Z, {1.0, 0.5}},
@@ -1029,6 +1029,12 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
+	probes.pointProbes = {
+		PointProbe{E, Z, {2.0, 0.125}},
+		PointProbe{H, Y, {2.0, 0.125}},
+		PointProbe{E, Z, {1.5, 0.125}},
+		PointProbe{H, Y, {1.5, 0.125}}
+	};
 
 	maxwell::Solver solver{
 		model,
@@ -1037,11 +1043,52 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 		SolverOptions{}
 			.setTimeStep(5e-3)
 			.setCentered()
-			.setFinalTime(3.0)
+			.setFinalTime(6.0)
 			.setOrder(3)
 	};
 
 	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).getFieldMovie() };
+		auto expected_t = 2.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(1.0, f, 1e-2);
+			}
+		}
+	}
+	{
+		auto frame{ solver.getPointProbe(1).getFieldMovie() };
+		auto expected_t = 2.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-1.0, f, 1e-2);
+			}
+		}
+	}
+	{
+		auto frame{ solver.getPointProbe(2).getFieldMovie() };
+		auto expected_t = 5.5;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-1.0, f, 1e-2);
+			}
+		}
+	}
+	{
+		auto frame{ solver.getPointProbe(3).getFieldMovie() };
+		auto expected_t = 5.5;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-1.0, f, 1e-2);
+			}
+		}
+	}
 
 }
 
@@ -1078,7 +1125,29 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(0.7, 1.0, unitVec(Z), unitVec(X)),
+		buildGaussianPlanewave(0.7, 1.5, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(5e-3)
+			.setFinalTime(10.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
+{
+	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(), 1, 0) };
+	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(25) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.7, 1.0, unitVec(Z), Vector{{1.0/sqrt(2.0), 1.0/sqrt(2.0), 0.0}}),
 		SolverOptions{}
 			.setTimeStep(5e-3)
 			.setFinalTime(7.0)
