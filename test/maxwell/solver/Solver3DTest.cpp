@@ -1441,3 +1441,26 @@ TEST_F(Solver3DTest, feng_tf)
 	solver.run();
 
 }
+
+TEST_F(Solver3DTest, 3D_pec_centered_innerbox_totalfieldinout)
+{
+	auto probes{ buildProbesWithAnExportProbe(10) };
+
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_BOX.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary att2bdr{ {2, BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(1.0, 2.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setCentered()
+			.setFinalTime(5.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
