@@ -76,6 +76,24 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 
 	auto m { Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "test_normals_3D_all_bdr_normals_in.msh").c_str(), 1, 0, false) };
 
+	{ //Bdr Element 2 & Corresponding Face 53 (XY plane, bottom hexa face)
+		auto be{ m.GetBdrElement(2) };
+		auto be_trans{ m.GetBdrElementTransformation(2) };
+		Vector normal_be(3);
+		CalcOrtho(be_trans->Jacobian(), normal_be);
+
+		auto face{ m.GetFace(m.GetBdrFace(2)) };
+		EXPECT_EQ(53, m.GetBdrFace(2));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(2)) };
+		Vector normal_f(3);
+		CalcOrtho(f_trans->Jacobian(), normal_f);
+
+		normal_be *= -1.0;
+		for (auto i{ 0 }; i < m.Dimension(); ++i) {
+			EXPECT_EQ(normal_be[i], normal_f[i]);
+		}
+	}
+
 	{ //Bdr Element 4 & Corresponding Face 49 (XZ plane, front hexa face)
 		auto be{ m.GetBdrElement(4) };
 		auto be_trans{ m.GetBdrElementTransformation(4) };
@@ -104,24 +122,6 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		auto face{ m.GetFace(m.GetBdrFace(8)) };
 		EXPECT_EQ(54, m.GetBdrFace(8));
 		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(8)) };
-		Vector normal_f(3);
-		CalcOrtho(f_trans->Jacobian(), normal_f);
-
-		normal_be *= -1.0;
-		for (auto i{ 0 }; i < m.Dimension(); ++i) {
-			EXPECT_EQ(normal_be[i], normal_f[i]);
-		}
-	}
-
-	{ //Bdr Element 23 & Corresponding Face 28 (XY plane, top hexa face)
-		auto be{ m.GetBdrElement(23) };
-		auto be_trans{ m.GetBdrElementTransformation(23) };
-		Vector normal_be(3);
-		CalcOrtho(be_trans->Jacobian(), normal_be);
-
-		auto face{ m.GetFace(m.GetBdrFace(23)) };
-		EXPECT_EQ(28, m.GetBdrFace(23));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(23)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -167,6 +167,33 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		}
 	}
 
+	{ //Bdr Element 23 & Corresponding Face 28 (XY plane, top hexa face)
+		auto be{ m.GetBdrElement(23) };
+		auto be_trans{ m.GetBdrElementTransformation(23) };
+		Vector normal_be(3);
+		CalcOrtho(be_trans->Jacobian(), normal_be);
+
+		auto face{ m.GetFace(m.GetBdrFace(23)) };
+		EXPECT_EQ(28, m.GetBdrFace(23));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(23)) };
+		Vector normal_f(3);
+		CalcOrtho(f_trans->Jacobian(), normal_f);
+
+		normal_be *= -1.0;
+		for (auto i{ 0 }; i < m.Dimension(); ++i) {
+			EXPECT_EQ(normal_be[i], normal_f[i]);
+		}
+	}
+
+}
+
+TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D_bad_orientation)
+{
+	//We expect BdrFace and its corresponding face to have opposing normals. 
+	//This mesh purposely should fail on surfaces 1, 3, 5, 6 as it lacks a surface reversal. (Gmesh notation) (bottom, right, left, top).
+
+	auto m{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "test_normals_3D_no_reversal.msh").c_str(), 1, 0, false) };
+
 	{ //Bdr Element 2 & Corresponding Face 53 (XY plane, bottom hexa face)
 		auto be{ m.GetBdrElement(2) };
 		auto be_trans{ m.GetBdrElementTransformation(2) };
@@ -180,12 +207,89 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
 		normal_be *= -1.0;
-		for (auto i{ 0 }; i < m.Dimension(); ++i) {
-			EXPECT_EQ(normal_be[i], normal_f[i]);
-		}
+		EXPECT_FALSE(abs(normal_be.Sum() - normal_f.Sum()) <= 1e-5);
 	}
 
+	{ //Bdr Element 4 & Corresponding Face 49 (XZ plane, front hexa face)
+		auto be{ m.GetBdrElement(4) };
+		auto be_trans{ m.GetBdrElementTransformation(4) };
+		Vector normal_be(3);
+		CalcOrtho(be_trans->Jacobian(), normal_be);
 
+		auto face{ m.GetFace(m.GetBdrFace(4)) };
+		EXPECT_EQ(49, m.GetBdrFace(4));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(4)) };
+		Vector normal_f(3);
+		CalcOrtho(f_trans->Jacobian(), normal_f);
+
+		normal_be *= -1.0;
+		EXPECT_TRUE(abs(normal_be.Sum() - normal_f.Sum()) <= 1e-5);
+
+	}
+
+	{ //Bdr Element 8 & Corresponding Face 54 (YZ plane, right hexa face)
+		auto be{ m.GetBdrElement(8) };
+		auto be_trans{ m.GetBdrElementTransformation(8) };
+		Vector normal_be(3);
+		CalcOrtho(be_trans->Jacobian(), normal_be);
+
+		auto face{ m.GetFace(m.GetBdrFace(8)) };
+		EXPECT_EQ(54, m.GetBdrFace(8));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(8)) };
+		Vector normal_f(3);
+		CalcOrtho(f_trans->Jacobian(), normal_f);
+
+		normal_be *= -1.0;
+		EXPECT_FALSE(abs(normal_be.Sum() - normal_f.Sum()) <= 1e-5);
+	}
+
+	{ //Bdr Element 15 & Corresponding Face 30 (XZ plane, back hexa face)
+		auto be{ m.GetBdrElement(15) };
+		auto be_trans{ m.GetBdrElementTransformation(15) };
+		Vector normal_be(3);
+		CalcOrtho(be_trans->Jacobian(), normal_be);
+
+		auto face{ m.GetFace(m.GetBdrFace(15)) };
+		EXPECT_EQ(30, m.GetBdrFace(15));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(15)) };
+		Vector normal_f(3);
+		CalcOrtho(f_trans->Jacobian(), normal_f);
+
+		normal_be *= -1.0;
+		EXPECT_TRUE(abs(normal_be.Sum() - normal_f.Sum()) <= 1e-5);
+	}
+
+	{ //Bdr Element 19 & Corresponding Face 24 (YZ plane, left hexa face)
+		auto be{ m.GetBdrElement(19) };
+		auto be_trans{ m.GetBdrElementTransformation(19) };
+		Vector normal_be(3);
+		CalcOrtho(be_trans->Jacobian(), normal_be);
+
+		auto face{ m.GetFace(m.GetBdrFace(19)) };
+		EXPECT_EQ(24, m.GetBdrFace(19));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(19)) };
+		Vector normal_f(3);
+		CalcOrtho(f_trans->Jacobian(), normal_f);
+
+		normal_be *= -1.0;
+		EXPECT_FALSE(abs(normal_be.Sum() - normal_f.Sum()) <= 1e-5);
+	}
+
+	{ //Bdr Element 23 & Corresponding Face 28 (XY plane, top hexa face)
+		auto be{ m.GetBdrElement(23) };
+		auto be_trans{ m.GetBdrElementTransformation(23) };
+		Vector normal_be(3);
+		CalcOrtho(be_trans->Jacobian(), normal_be);
+
+		auto face{ m.GetFace(m.GetBdrFace(23)) };
+		EXPECT_EQ(28, m.GetBdrFace(23));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(23)) };
+		Vector normal_f(3);
+		CalcOrtho(f_trans->Jacobian(), normal_f);
+
+		normal_be *= -1.0;
+		EXPECT_FALSE(abs(normal_be.Sum() - normal_f.Sum()) <= 1e-5);
+	}
 
 }
 
