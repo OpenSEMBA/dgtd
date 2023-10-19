@@ -1385,34 +1385,6 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 
 }
 
-TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldinout)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-	probes.pointProbes = {
-		PointProbe{E, Z, {2.0, 0.5, 0.5}},
-		PointProbe{E, Z, {5.0, 0.5, 0.5}},
-		PointProbe{H, Y, {2.0, 0.5, 0.5}},
-		PointProbe{H, Y, {5.0, 0.5, 0.5}}
-	};
-	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldinout.mesh").c_str(), 1, 0, false) };
-	AttributeToBoundary att2bdr{ {1, BdrCond::PMC}, {2, BdrCond::PEC}, {3, BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.0, 2.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setCentered()
-			.setFinalTime(11.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
 TEST_F(Solver3DTest, feng_tf)
 {
 	auto probes{ buildProbesWithAnExportProbe(1000) };
@@ -1442,24 +1414,50 @@ TEST_F(Solver3DTest, feng_tf)
 
 }
 
-TEST_F(Solver3DTest, 3D_pec_centered_beam_totalfield)
+TEST_F(Solver3DTest, 3D_pec_upwind_box_totalfieldscatteredfield)
 {
-	auto probes{ buildProbesWithAnExportProbe(10) };
+	auto probes{ buildProbesWithAnExportProbe(30) };
 
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_Beam.msh").c_str(), 1, 0, true) };
-	mesh.UniformRefinement();
-	AttributeToBoundary att2bdr{ {2, BdrCond::PMC}, {3, BdrCond::PEC}, {4, BdrCond::PEC} };
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_MinimalistBox.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary att2bdr{ {2, BdrCond::SMA} };
 	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
 
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
+		buildGaussianPlanewave(1.5, 5.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(5e-3)
+			.setFinalTime(10.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver3DTest, 3D_pec_centered_beam_totalfieldscatteredfield)
+{
+	auto probes{ buildProbesWithAnExportProbe(10) };
+	probes.pointProbes = {
+		PointProbe{E, Z, {2.0, 0.5, 0.5}},
+		PointProbe{E, Z, {5.0, 0.5, 0.5}},
+		PointProbe{H, Y, {2.0, 0.5, 0.5}},
+		PointProbe{H, Y, {5.0, 0.5, 0.5}}
+	};
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Beam.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary att2bdr{ {2, BdrCond::PMC}, {1, BdrCond::PEC}, {3, BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.7, 3.0, unitVec(Z), unitVec(X)),
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(10.0)
-			.setOrder(2)
+			.setFinalTime(11.0)
+			.setOrder(3)
 	};
 
 	solver.run();
