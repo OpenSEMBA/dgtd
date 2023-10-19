@@ -1442,11 +1442,35 @@ TEST_F(Solver3DTest, feng_tf)
 
 }
 
+TEST_F(Solver3DTest, 3D_pec_centered_beam_totalfield)
+{
+	auto probes{ buildProbesWithAnExportProbe(10) };
+
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_Beam.msh").c_str(), 1, 0, true) };
+	mesh.UniformRefinement();
+	AttributeToBoundary att2bdr{ {2, BdrCond::PMC}, {3, BdrCond::PEC}, {4, BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setCentered()
+			.setFinalTime(10.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+}
+
 TEST_F(Solver3DTest, 3D_pec_centered_innerbox_totalfieldinout)
 {
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_BOX.msh").c_str(), 1, 0, true) };
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Box.msh").c_str(), 1, 0, true) };
 	mesh.UniformRefinement();
 	AttributeToBoundary att2bdr{ {2, BdrCond::PEC} };
 	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());

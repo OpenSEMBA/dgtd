@@ -50,6 +50,8 @@ private:
 
 	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&);
 
+	void cleanInvalidSubMeshEntries();
+
 	void restoreElementAttributes(Mesh&);
 	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
 	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);

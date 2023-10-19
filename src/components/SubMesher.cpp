@@ -30,6 +30,8 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	global_sm.FinalizeMesh();
 	global_submesh_ = std::make_unique<SubMesh>(global_sm);
 
+	cleanInvalidSubMeshEntries();
+
 	if (!elem_to_face_tf_.empty()) {
 		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, true));
 	}
@@ -39,6 +41,19 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	}
 
 };
+
+void TotalFieldScatteredFieldSubMesher::cleanInvalidSubMeshEntries()
+{
+	auto end_tf = std::remove_if(elem_to_face_tf_.begin(), elem_to_face_tf_.end(), [](const auto& i) {
+		return i.first == -1;
+	});
+	elem_to_face_tf_.erase(end_tf, elem_to_face_tf_.end());
+
+	auto end_sf = std::remove_if(elem_to_face_sf_.begin(), elem_to_face_sf_.end(), [](const auto& i) {
+		return i.first == -1;
+	});
+	elem_to_face_sf_.erase(end_sf, elem_to_face_sf_.end());
+}
 
 SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& parent, bool isTF)
 {
@@ -523,7 +538,12 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			else {
 				bary2 = getBarycenterOfFaceElement(m, m.GetBdrFace(be));
 			}
-			auto face_ori{ mfem::InnerProduct(bary1, bary2) };
+			Vector bary_vec(3);
+			for (auto i{ 0 }; i < bary_vec.Size(); ++i) {
+				bary_vec[i] = bary2[i] - bary1[i];
+			}
+			auto face_ori{ mfem::InnerProduct(bary_vec, normal_be) };
+
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);

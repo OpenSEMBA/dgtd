@@ -155,8 +155,12 @@ void SourcesManager::initTFSFSubMesher(const Mesh& m)
 
 void SourcesManager::initTFSFSpaces()
 {
-    tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
-    sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
+    if (tfsf_submesher_.getTFSubMesh() != NULL) {
+        tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
+    }
+    if (tfsf_submesher_.getSFSubMesh() != NULL) {
+        sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
+    }
     global_tfsf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getGlobalTFSFSubMesh(), fes_.FEColl());
 }
 
