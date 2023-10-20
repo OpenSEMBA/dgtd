@@ -33,9 +33,7 @@ public:
 private:
 
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
-	void setBoundaryAttributesInChild1D(const Mesh& parent, SubMesh& child);
-	void setBoundaryAttributesInChild2D(const Mesh& parent, SubMesh& child);
-	void setBoundaryAttributesInChild3D(const Mesh& parent, SubMesh& child);
+	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child);
 	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setGlobalTFSFAttributesForSubMeshing(Mesh&);

@@ -1092,25 +1092,198 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, pec_upwind_totalfieldin_longline_1dot5D)
+TEST_F(Solver2DTest, pec_upwind_beam_totalfield)
 {
-	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "One_Element_Tall_Long_Line_TF_centered.mesh").c_str(), 1, 0) };
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TF_Beam.msh").c_str(), 1, 0) };
 	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.0, 0.5}},
+		PointProbe{E, Z, {1.0001, 0.5}},
+		PointProbe{E, Z, {4.0, 0.5}},
+		PointProbe{H, Y, {0.0, 0.5}},
+		PointProbe{H, Y, {1.0001, 0.5}},
+		PointProbe{H, Y, {4.0, 0.5}}
+	};
 
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(0.2, 0.0, unitVec(Z), unitVec(X)),
+		buildGaussianPlanewave(0.5, 1.0, unitVec(Z), unitVec(X)),
 		SolverOptions{}
-			.setTimeStep(5e-3)
-			.setFinalTime(3.0)
+			.setTimeStep(2e-2)
+			.setFinalTime(9.0)
 			.setOrder(3)
 	};
 
 	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).getFieldMovie() };
+		auto expected_t = 1.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(0.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(0).getFieldMovie() };
+		auto expected_t = 9.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(0.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).getFieldMovie() };
+		auto expected_t = 2.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(1.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).getFieldMovie() };
+		auto expected_t = 5.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(0.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).getFieldMovie() };
+		auto expected_t = 9.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-2.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(4).getFieldMovie() };
+		auto expected_t = 2.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-1.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(5).getFieldMovie() };
+		auto expected_t = 5.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-2.0, f, 1e-2);
+			}
+		}
+	}
+
+}
+
+TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield)
+{
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TFSF_Beam.msh").c_str(), 1, 0) };
+	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(20) };
+	probes.pointProbes = {
+		PointProbe{E, Z, {0.5, 0.5}},
+		PointProbe{E, Z, {2.0, 0.5}},
+		PointProbe{E, Z, {3.5, 0.5}},
+		PointProbe{H, Y, {0.5, 0.5}},
+		PointProbe{H, Y, {2.0, 0.5}},
+		PointProbe{H, Y, {3.5, 0.5}}
+	};
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.5, 1.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(2e-2)
+			.setFinalTime(9.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMin() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).getFieldMovie() };
+		auto expected_t = 3.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(1.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMin() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMin() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(4).getFieldMovie() };
+		auto expected_t = 3.0;
+		for (const auto& [t, f] : frame)
+		{
+			if (abs(expected_t - t) <= 1e-2) {
+				EXPECT_NEAR(-1.0, f, 1e-2);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(5).findFrameWithMin() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
+	{
+		auto frame{ solver.getPointProbe(5).findFrameWithMax() };
+		EXPECT_NEAR(frame.second, 0.0, 1e-3);
+	}
 
 }
 

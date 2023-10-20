@@ -1456,7 +1456,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_beam_totalfieldscatteredfield)
 		SolverOptions{}
 			.setTimeStep(1e-2)
 			.setCentered()
-			.setFinalTime(11.0)
+			.setFinalTime(20.0)
 			.setOrder(3)
 	};
 
