@@ -1092,7 +1092,7 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, pec_upwind_beam_totalfield)
+TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_in)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TF_Beam.msh").c_str(), 1, 0) };
 	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
@@ -1199,7 +1199,7 @@ TEST_F(Solver2DTest, pec_upwind_beam_totalfield)
 
 }
 
-TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield)
+TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_inout)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TFSF_Beam.msh").c_str(), 1, 0) };
 	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };

@@ -1464,6 +1464,54 @@ TEST_F(Solver3DTest, 3D_pec_centered_beam_totalfieldscatteredfield)
 
 }
 
+TEST_F(Solver3DTest, upwind_beam_totalfieldscatteredfield_inout)
+{
+	auto probes{ buildProbesWithAnExportProbe(10) };
+	probes.pointProbes = {
+		PointProbe{E, Z, {2.0, 0.5, 0.5}},
+		PointProbe{E, Z, {5.0, 0.5, 0.5}},
+		PointProbe{H, Y, {2.0, 0.5, 0.5}},
+		PointProbe{H, Y, {5.0, 0.5, 0.5}}
+	};
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Beam.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary att2bdr{ {2, BdrCond::PMC}, {1, BdrCond::PEC}, {3, BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.7, 3.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setFinalTime(20.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver3DTest, dualintbdr_upwind_beam_totalfieldscatteredfield_in)
+{
+	auto probes{ buildProbesWithAnExportProbe(10) };
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_DualSurface_Beam.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC}, {5, BdrCond::PEC} };
+	Model model(mesh, AttributeToMaterial(), att2bdr, AttributeToInteriorConditions());
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.7, 2.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setFinalTime(10.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
 TEST_F(Solver3DTest, 3D_pec_centered_innerbox_totalfieldinout)
 {
 	auto probes{ buildProbesWithAnExportProbe(10) };
