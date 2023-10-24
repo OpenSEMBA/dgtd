@@ -261,14 +261,17 @@ void MaxwellDGInteriorJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el
             switch (dir.size()) {
             case 0:
                 w *= Trans.Weight();
-                buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
+                buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
+                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
                 break;
             case 1:
-                buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
+                buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
+                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
                 break;
             case 2:
                 w /= Trans.Weight();
-                buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL
+                buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
+                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
                 break;
             default:
                 throw std::runtime_error("Wrong direction size.");

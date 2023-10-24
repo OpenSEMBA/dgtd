@@ -334,16 +334,11 @@ FiniteElementOperator buildZeroNormalIBFIOperator(const FieldType& f, Model& mod
 			break;
 
 		}
-		switch (kv.first) {
-		case (BdrCond::TotalFieldIn):
-			break;
-		case (BdrCond::TotalFieldOut):
-			break;
-		default:
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(-1.0), kv.second);
-			break;
-		}
+		
+		res->AddInternalBoundaryFaceIntegrator(
+			new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(-1.0), kv.second);
+		break;
+
 	}
 	res->Assemble();
 	res->Finalize();

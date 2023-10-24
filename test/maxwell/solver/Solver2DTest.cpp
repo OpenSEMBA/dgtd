@@ -1287,6 +1287,54 @@ TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_inout)
 
 }
 
+TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface)
+{
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_DualSurface_FullFace_Beam.msh").c_str(), 1, 0) };
+	//mesh.UniformRefinement();
+	AttributeToBoundary attToBdr{ {2,BdrCond::PMC}, {3, BdrCond::PEC} };
+	AttributeToInteriorConditions attToIntCond{ {4, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+
+	auto probes{ buildProbesWithAnExportProbe(100) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.5, 2.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(9.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface_RtL)
+{
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_DualSurface_FullFace_Beam_RtL.msh").c_str(), 1, 0) };
+	//mesh.UniformRefinement();
+	AttributeToBoundary attToBdr{ {2,BdrCond::PMC}, {3, BdrCond::PEC} };
+	AttributeToInteriorConditions attToIntCond{ {4, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+
+	auto probes{ buildProbesWithAnExportProbe(100) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.5, 2.0, unitVec(Z), Vector{{-1.0, 0.0, 0.0}}),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(9.0)
+			.setOrder(3)
+	};
+
+	solver.run();
+
+}
+
 TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(), 1, 0) };

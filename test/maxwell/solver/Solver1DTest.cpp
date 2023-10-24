@@ -604,11 +604,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_centered)
 
 TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 {
-	Mesh mesh{
-		Mesh::LoadFromFile(
-			(mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0
-		)
-	};
+	Mesh mesh{	Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0)};
 	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
@@ -654,6 +650,56 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
 		EXPECT_NEAR(0.0, frame.second, 1e-3);
 	}
+}
+
+TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
+{
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + + "LineTFSFInOut_RtL.mesh").c_str(), 1, 0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	auto probes{ buildProbesWithAnExportProbe(20) };
+	probes.pointProbes = {
+		PointProbe{ E, Y, {-0.1001} },
+		PointProbe{ E, Y, {-1.0} },
+		PointProbe{ H, Z, {-0.9} },
+		PointProbe{ H, Z, {-1.0} }
+	};
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), Vector{{-1.0, 0.0, 0.0}}),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setCentered()
+			.setFinalTime(5.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
+		EXPECT_NEAR(1.5, frame.first, 1e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
+		EXPECT_NEAR(2.4, frame.first, 2e-1);
+		EXPECT_NEAR(1.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
 }
 
 TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
