@@ -428,8 +428,13 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
 			auto be_trans{ m.GetBdrElementTransformation(be) };
+			auto f{ m.GetFace(m.GetBdrFace(be)) };
+			auto v0{ m.GetVertex(f->GetVertices()[0]) };
+			auto v1{ m.GetVertex(f->GetVertices()[1]) };
 			Vector normal_be(2);
-			CalcOrtho(be_trans->Jacobian(), normal_be);
+			for (int i = 0; i < normal_be.Size(); i++) {
+				normal_be[i] = v1[i] - v0[i];
+			}
 
 			auto fe_trans{ getFaceElementTransformation(m,be) };
 
