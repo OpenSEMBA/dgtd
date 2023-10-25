@@ -1628,10 +1628,9 @@ TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
 
 TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circleinside)
 {
-	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TFSF_Box_Circle.msh").c_str(), 1, 0, true) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
-	AttributeToInteriorConditions attToIntCond{ {3,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_TFSF_Box_Circle.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 
@@ -1643,6 +1642,28 @@ TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circleinside)
 			.setTimeStep(1e-3)
 			.setFinalTime(5.0)
 			.setOrder(2)
+	};
+
+	solver.run();
+}
+
+TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_intbdr_fss)
+{
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TF_FSS.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PMC} };
+	AttributeToInteriorConditions attToIntCond{ {4,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+
+	auto probes{ buildProbesWithAnExportProbe(10) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(1.0, 2.5, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-2)
+			.setFinalTime(10.0)
+			.setOrder(3)
 	};
 
 	solver.run();
