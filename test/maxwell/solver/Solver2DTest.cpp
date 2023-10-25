@@ -1668,3 +1668,24 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_intbdr_fss)
 
 	solver.run();
 }
+
+TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circle_w_circles)
+{
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_TFSF_Circle_of_circles.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+
+	auto probes{ buildProbesWithAnExportProbe(20) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(2.0, 4.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(15.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+}
