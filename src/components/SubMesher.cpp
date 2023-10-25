@@ -433,7 +433,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto v1{ m.GetVertex(f->GetVertices()[1]) };
 			Vector normal_be(2);
 			for (int i = 0; i < normal_be.Size(); i++) {
-				normal_be[i] = v1[i] - v0[i];
+				normal_be[i] = v1[1-i] - v0[1-i];
 			}
 
 			auto fe_trans{ getFaceElementTransformation(m,be) };
