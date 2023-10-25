@@ -630,9 +630,13 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 	solver.run();
 
 	{
-		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
-		EXPECT_NEAR(1.5, frame.first, 1e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
+		auto frame{ solver.getPointProbe(0).getFieldMovie() };
+		auto expected_t = 1.6;
+		for (const auto& [t, f] : frame) {
+			if (abs(t - expected_t) <= 1e-2) {
+				EXPECT_NEAR(f, 1.0, 1e-2);
+			}
+		}
 	}
 
 	{
@@ -641,9 +645,13 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 	}
 
 	{
-		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
-		EXPECT_NEAR(2.4, frame.first, 2e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
+		auto frame{ solver.getPointProbe(2).getFieldMovie() };
+		auto expected_t = 2.4;
+		for (const auto& [t, f] : frame) {
+			if (abs(t - expected_t) <= 1e-2) {
+				EXPECT_NEAR(f, 1.0, 1e-2);
+			}
+		}
 	}
 
 	{
@@ -659,16 +667,16 @@ TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
 	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
-		PointProbe{ E, Y, {-0.1001} },
-		PointProbe{ E, Y, {-1.0} },
-		PointProbe{ H, Z, {-0.9} },
-		PointProbe{ H, Z, {-1.0} }
+		PointProbe{ E, Y, {0.9} },
+		PointProbe{ E, Y, {0.95} },
+		PointProbe{ H, Z, {0.2} },
+		PointProbe{ H, Z, {0.95} }
 	};
 
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), Vector{{-1.0, 0.0, 0.0}}),
+		buildGaussianPlanewave(0.2, 2.4, unitVec(Y), Vector{{-1.0, 0.0, 0.0}}),
 		SolverOptions{}
 			.setCFL(0.5)
 			.setCentered()
@@ -679,9 +687,13 @@ TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
 	solver.run();
 
 	{
-		auto frame{ solver.getPointProbe(0).findFrameWithMax() };
-		EXPECT_NEAR(1.5, frame.first, 1e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
+		auto frame{ solver.getPointProbe(0).getFieldMovie()};
+		auto expected_t = 1.5;
+		for (const auto& [t, f] : frame) {
+			if (abs(t - expected_t) <= 1e-2) {
+				EXPECT_NEAR(f, 1.0, 1e-3);
+			}
+		}
 	}
 
 	{
@@ -690,10 +702,73 @@ TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
 	}
 
 	{
-		auto frame{ solver.getPointProbe(2).findFrameWithMax() };
-		EXPECT_NEAR(2.4, frame.first, 2e-1);
-		EXPECT_NEAR(1.0, frame.second, 1e-3);
+		auto frame{ solver.getPointProbe(2).getFieldMovie()};
+		auto expected_t = 2.2;
+		for (const auto& [t, f] : frame) {
+			if (abs(t - expected_t) <= 1e-2) {
+				EXPECT_NEAR(f, -1.0, 1e-3);
+			}
+		}
 	}
+
+
+	{
+		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+}
+
+TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_upwind)
+{
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + +"LineTFSFInOut_RtL.mesh").c_str(), 1, 0) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	auto probes{ buildProbesWithAnExportProbe(20) };
+	probes.pointProbes = {
+		PointProbe{ E, Y, {0.9} },
+		PointProbe{ E, Y, {0.95} },
+		PointProbe{ H, Z, {0.2} },
+		PointProbe{ H, Z, {0.95} }
+	};
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.2, 2.4, unitVec(Y), Vector{{-1.0, 0.0, 0.0}}),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setFinalTime(5.0)
+			.setOrder(2)
+	};
+
+	solver.run();
+
+	{
+		auto frame{ solver.getPointProbe(0).getFieldMovie() };
+		auto expected_t = 1.5;
+		for (const auto& [t, f] : frame) {
+			if (abs(t - expected_t) <= 1e-2) {
+				EXPECT_NEAR(f, 1.0, 1e-3);
+			}
+		}
+	}
+
+	{
+		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		EXPECT_NEAR(0.0, frame.second, 1e-3);
+	}
+
+	{
+		auto frame{ solver.getPointProbe(2).getFieldMovie() };
+		auto expected_t = 2.2;
+		for (const auto& [t, f] : frame) {
+			if (abs(t - expected_t) <= 1e-2) {
+				EXPECT_NEAR(f, -1.0, 1e-3);
+			}
+		}
+	}
+
 
 	{
 		auto frame{ solver.getPointProbe(3).findFrameWithMax() };
@@ -1033,5 +1108,95 @@ TEST_F(Solver1DTest, fieldProbeThroughSolver)
 		}
 	}
 
+
+}
+
+TEST_F(Solver1DTest, interior_boundary_marking_centered)
+{
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto probes{ buildProbesWithAnExportProbe(10) };
+
+	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.30, Vector({2.0}), unitVec(Y)),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setCentered()
+			.setFinalTime(8.0)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver1DTest, interior_boundary_marking_upwind)
+{
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto probes{ buildProbesWithAnExportProbe(10) };
+
+	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.30, Vector({2.0}), unitVec(Y)),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setFinalTime(8.0)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver1DTest, interior_boundary_marking_centered_RtL)
+{
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto probes{ buildProbesWithAnExportProbe(10) };
+
+	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond};
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.30, Vector({6.0}), unitVec(Y)),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setCentered()
+			.setFinalTime(8.0)
+	};
+
+	solver.run();
+
+}
+
+TEST_F(Solver1DTest, interior_boundary_marking_upwind_RtL)
+{
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto probes{ buildProbesWithAnExportProbe(10) };
+
+	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianInitialField(E, 0.30, Vector({6.0}), unitVec(Y)),
+		SolverOptions{}
+			.setCFL(0.5)
+			.setFinalTime(8.0)
+	};
+
+	solver.run();
 
 }

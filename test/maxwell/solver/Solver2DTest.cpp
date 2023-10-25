@@ -1324,7 +1324,7 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface_RtL)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(0.5, 2.0, unitVec(Z), Vector{{-1.0, 0.0, 0.0}}),
+		buildGaussianPlanewave(0.5, 4.0, unitVec(Z), Vector{{-1.0, 0.0, 0.0}}),
 		SolverOptions{}
 			.setTimeStep(1e-3)
 			.setFinalTime(9.0)
@@ -1624,4 +1624,26 @@ TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
 	double tol = 1e-8;
 	EXPECT_NEAR(0.101761895965867, dt, tol);
 
+}
+
+TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circleinside)
+{
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TFSF_Box_Circle.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary attToBdr{ {2,BdrCond::SMA} };
+	AttributeToInteriorConditions attToIntCond{ {3,BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+
+	auto probes{ buildProbesWithAnExportProbe(20) };
+
+	maxwell::Solver solver{
+		model,
+		probes,
+		buildGaussianPlanewave(0.7, 1.0, unitVec(Z), unitVec(X)),
+		SolverOptions{}
+			.setTimeStep(1e-3)
+			.setFinalTime(5.0)
+			.setOrder(2)
+	};
+
+	solver.run();
 }

@@ -227,8 +227,6 @@ void MaxwellDGInteriorJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el
     FaceElementTransformations& Trans,
     DenseMatrix& elmat)
 {
-    //Trans.Elem2No = -1;
-    //el2.~FiniteElement();
 
     int ndof1 = el1.GetDof();
     int ndof2 = setNeighbourNDoF(el2, Trans);
@@ -251,18 +249,20 @@ void MaxwellDGInteriorJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el
         Trans.SetAllIntPoints(&ip);
 
         const IntegrationPoint& eip1 = Trans.GetElement1IntPoint();
+        const IntegrationPoint& eip2 = Trans.GetElement2IntPoint();
 
         Vector nor = calculateNormal(el1, eip1, Trans);
         double b = calculateBetaTerm(nor, dir, beta);
 
         el1.CalcShape(eip1, shape1_);
+        el2.CalcShape(eip2, shape2_);
         double w = ip.weight * b * 0.5;
         if (w != 0.0) {
             switch (dir.size()) {
             case 0:
                 w *= Trans.Weight();
                 buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
-                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
+                buildFaceMatrix( w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
                 break;
             case 1:
                 buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
@@ -271,7 +271,7 @@ void MaxwellDGInteriorJumpIntegrator::AssembleFaceMatrix(const FiniteElement& el
             case 2:
                 w /= Trans.Weight();
                 buildFaceMatrix( w, ndof1, ndof1,     0,     0, shape1_, shape1_, elmat);//TL
-                buildFaceMatrix(-w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
+                buildFaceMatrix( w, ndof2, ndof2, ndof1, ndof1, shape2_, shape2_, elmat);//BR
                 break;
             default:
                 throw std::runtime_error("Wrong direction size.");

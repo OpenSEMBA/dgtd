@@ -55,14 +55,6 @@ Evolution::Evolution(
 		}
 	}
 
-	for (auto f : { E, H }) {//TFSF - SrcConds
-		MFF_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildPenaltyFixOperator(f, {}, model_, fes_, opts_), fes_);
-		for (auto d : { X, Y, Z }) {
-			MBF_[f][d] = buildByMult(
-				*buildInverseMassMatrix(f, model_, fes_), *buildFluxFunctionOperator(f, { X }, model_, fes_, opts_), fes_);
-		}
-	}
-
 	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
 		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301) {
 			srcmngr_.initTFSFPreReqs(model_.getConstMesh());

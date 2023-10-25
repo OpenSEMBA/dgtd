@@ -193,8 +193,16 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
-	res->AddInteriorFaceIntegrator(
-		new MaxwellDGZeroNormalJumpIntegrator(intCoeff[opts.fluxType].at(int(opts.fluxType))));
+	if (model.getInteriorBoundaryToMarker().size()) {
+		for (auto& kv : model.getInteriorBoundaryToMarker()) {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGZeroNormalJumpIntegrator(intCoeff[opts.fluxType].at(int(opts.fluxType))), kv.second);
+		}
+	}
+	else {
+		res->AddInteriorFaceIntegrator(
+			new MaxwellDGZeroNormalJumpIntegrator(intCoeff[opts.fluxType].at(int(opts.fluxType))));
+	}
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 
@@ -217,8 +225,17 @@ FiniteElementOperator buildZeroNormalOperator(const FieldType& f, Model& model, 
 FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
-	res->AddInteriorFaceIntegrator(
-		new MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+	if (model.getInteriorBoundaryToMarker().size()) {
+		for (auto& kv : model.getInteriorBoundaryToMarker()) {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))), kv.second);
+		}
+	}
+	else {
+		res->AddInteriorFaceIntegrator(
+			new MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+	}
+
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 
@@ -241,8 +258,17 @@ FiniteElementOperator buildOneNormalOperator(const FieldType& f, const std::vect
 FiniteElementOperator buildTwoNormalOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
-	res->AddInteriorFaceIntegrator(
-		new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+	if (model.getInteriorBoundaryToMarker().size()) {
+		for (auto& kv : model.getInteriorBoundaryToMarker()) {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))), kv.second);
+		}
+	}
+	else {
+		res->AddInteriorFaceIntegrator(
+			new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(opts.fluxType))));
+	}
+
 
 	for (auto& kv : model.getBoundaryToMarker()) {
 
@@ -323,23 +349,13 @@ FiniteElementOperator buildZeroNormalIBFIOperator(const FieldType& f, Model& mod
 			res->AddInternalBoundaryFaceIntegrator(
 				new mfemExtension::MaxwellSMAJumpIntegrator({}, c[kv.first].at(f)), kv.second);
 			break;
-		case (BdrCond::TotalFieldIn):
-		case (BdrCond::TotalFieldOut):
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator({}, c[kv.first].at(f)), kv.second);
-			break;
 		default:
 			res->AddInternalBoundaryFaceIntegrator(
 				new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, c[kv.first].at(f)), kv.second);
 			break;
-
 		}
-		
-		res->AddInternalBoundaryFaceIntegrator(
-			new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(-1.0), kv.second);
-		break;
-
 	}
+
 	res->Assemble();
 	res->Finalize();
 	return res;
@@ -356,34 +372,16 @@ FiniteElementOperator buildOneNormalIBFIOperator(const FieldType& f, const std::
 			res->AddInternalBoundaryFaceIntegrator(
 				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
-		case (BdrCond::TotalFieldIn):
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
-			break;
-		case (BdrCond::TotalFieldOut):
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
-			break;
 		default:
 			res->AddInternalBoundaryFaceIntegrator(
 				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		}
-		switch (kv.first) {
-		case (BdrCond::TotalFieldIn):
-			break;
-		case (BdrCond::TotalFieldOut):
-			break;
-		default:
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, -1.0), kv.second);
-			break;
-		}
-
-		res->Assemble();
-		res->Finalize();
-		return res;
 	}
+
+	res->Assemble();
+	res->Finalize();
+	return res;
 }
 
 FiniteElementOperator buildTwoNormalIBFIOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
@@ -397,34 +395,16 @@ FiniteElementOperator buildTwoNormalIBFIOperator(const FieldType& f, const std::
 			res->AddInternalBoundaryFaceIntegrator(
 				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
-		case (BdrCond::TotalFieldIn):
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
-			break;
-		case (BdrCond::TotalFieldOut):
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 0.0), kv.second);
-			break;
 		default:
 			res->AddInternalBoundaryFaceIntegrator(
 				new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
 			break;
 		}
-		switch (kv.first) {
-		case (BdrCond::TotalFieldIn):
-			break;
-		case (BdrCond::TotalFieldOut):
-			break;
-		default:
-			res->AddInternalBoundaryFaceIntegrator(
-				new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, -1.0), kv.second);
-			break;
-		}
-
-		res->Assemble();
-		res->Finalize();
-		return res;
 	}
+	
+	res->Assemble();
+	res->Finalize();
+	return res;
 }
 
 FiniteElementOperator buildFluxFunctionOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
