@@ -1,29 +1,38 @@
 cmake_minimum_required(VERSION 3.0)
 
-find_package(GTest CONFIG REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
+message(STATUS "Creating build system for maxwell_Tests")
 
-find_package(mfem CONFIG REQUIRED)
-include_directories(${MFEM_INCLUDE_DIRS})
+if (MAXWELL_USE_MPI)
+	set(MPI_SRCS "solver/ParSolver2DTest.cpp")
+	add_compile_definitions(MAXWELL_USE_MPI)
+	message(STATUS "MPI_SRCS=" ${MPI_SRCS})
+endif()
 
-message(STATUS "Creating build system for testMaxwell")
-message(STATUS "Maxwell include dirs: " ${maxwell_INCLUDE_DIRS})
-message(STATUS "MFEM include dirs: " ${MFEM_INCLUDE_DIRS})
+option(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT OFF)
+if (MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
+	add_compile_definitions(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
+endif()
 
-add_executable(maxwell_tests 
-	"TestSolver1D.cpp" 
-	"TestSolver2D.cpp" 
-	"TestSolver3D.cpp" 
-	 
-	"TestMaterial.cpp" 
-	"TestProbesManager.cpp" 
-	"TestSources.cpp"
-	"TestProbes.cpp"
-	"TestBilinearIntegrators.cpp"
- )
+add_executable(maxwell_tests
+	"MaxwellTestLauncher.cpp"
+	"components/MaterialTest.cpp" 
+	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
+	"mfemExtension/BilinearFormExtensionTest.cpp" 
+	"mfemExtension/LinearFormExtensionTest.cpp" 
+	"math/GeometryTest.cpp"
+	${MPI_SRCS}
+	"solver/Solver1DTest.cpp" 
+	"solver/Solver2DTest.cpp" 
+	"solver/Solver3DTest.cpp"  
+	"solver/ProbesManagerTest.cpp" 
+	"solver/SourcesTest.cpp"
+	"components/EigenvalueEstimator.cpp"
+	"adapter/OpensembaAdapterTest.cpp" )
+
+include_directories(./)
 
 target_link_libraries(maxwell_tests 
-	maxwell mfem testHelpers 
-	GTest::gtest GTest::gtest_main
+	maxwell-solver
+	GTest::gtest
 )
 

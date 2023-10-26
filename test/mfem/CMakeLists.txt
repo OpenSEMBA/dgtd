@@ -1,21 +1,28 @@
 cmake_minimum_required(VERSION 3.0)
 
-find_package(GTest CONFIG REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
+message(STATUS "Creating build system for mfem_tests")
 
-find_package(mfem CONFIG REQUIRED)
+find_package(MFEM CONFIG REQUIRED)
 include_directories(${MFEM_INCLUDE_DIRS})
+
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 include_directories(
 	./
 )
 
 add_executable(mfem_tests 
-	"TestFiniteElementSpace.cpp"
-	"TestMesh.cpp" "TestGridFunction.cpp")
+	"FiniteElementSpaceTest.cpp"
+	"MeshTest.cpp" 
+	"GridFunctionTest.cpp"
+	"AlgebraTest.cpp"
+	"Forms.cpp")
 
 target_link_libraries(mfem_tests 
 	mfem 
+	maxwell-mfemExtension
+	maxwell-components
+	Eigen3::Eigen
 	GTest::gtest GTest::gtest_main
 )
 

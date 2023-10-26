@@ -1,0 +1,54 @@
+{
+  "_version": "0.16",
+  "_format": "Semba Data File in JSON format",
+  "analysis": {
+    "solver": "opensemba/dgtd",
+    "units": "natural",
+    "solverOptions": {
+      "evolution": {
+        "order": 2,
+        "fluxType": "centered",
+        "spectral": false
+      },
+      "finalTime": 2.0,
+      "timeStep": 1e-4,
+      "cfl": 0.8
+    }
+  },
+  "model": {
+    "materials": [
+      {
+        "name": "vacuum",
+        "id": 1,
+        "materialType": "Vacuum"
+      },
+      {
+        "name": "pec",
+        "id": 2,
+        "materialType": "PEC"
+      }
+    ],
+    "mesh": {
+      "type": "gmsh" 
+    }
+  },
+  "sources": [
+    {
+      "sourceType": "initialField",
+      "function": {
+        "type": "sinusoidalMode",
+        "modes": [2, 2]
+      },
+      "fieldType": "E",
+      "polarization": [ 0, 0, 1 ],
+      "position": [ 0, 0 ]
+    }
+  ],
+  "probes": [
+    {
+      "type": "exporter",
+      "name": "maxwell_fields",
+      "visSteps": 1000
+    }
+  ]
+}
