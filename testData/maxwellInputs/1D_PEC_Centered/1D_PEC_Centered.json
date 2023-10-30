@@ -46,14 +46,20 @@
     }
   },
 
-  "sources": {                               // Case Illumination
-    "type": "Initial",                       // Type of Illumination (Initial, Planewave).
+  "sources": {                               // Case Illumination. Temporarily One Max.
+    "type": "Initial",                       // Type of Illumination (Initial, Resonant, TDPlanewave, InitPlanewave).
     "field_type": "E",                       // Field to illuminate (E, H).
     "field_spatial": "Y",                    // Spatial component of the Field (X, Y, Z)
     "center": [ 0.5 ],                       // Spatial position of the illumination on t = 0 (nD Array with Mesh Dimension as size for X, Y, Z).
     "polarization": [ 0.0, 1.0, 0.0 ],       // Spatial polarization of the field to illuminate (3D Array (X, Y, Z)).
     "source_dimension": 1,                   // Dimension of the *source* (1, 2, 3).
-    "rotation_angles": null                  // Rotation angles for the source. (3D Array with angles on radians (X, Y, Z).
+    "rotation_angles": null,                 // Rotation angles for the source. (3D Array with angles on radians (X, Y, Z)).
+    // Extra arguments if using specific types. Will assume defaults if not given.
+    "function_type": "Gaussian",             // For now, only required if type InitPlanewave. (Gaussian)
+    "gaussian_spread": 0.15,                 // Only if type = Initial/TDPlanewave/InitPlanewave (Gausian for now). (double)
+    "delay": 1.0,                            // Only if type = TDPlanewave, delay for the illumination (starts on 0.0, 0.0, 0.0);
+    "propagation": [ 1.0, 0.0, 0.0 ],        // Only if type = TDPlanewave/InitPlanewave. (3D Array (X, Y, Z)).
+    "modes": [2]                             // Only if type = Resonant (nD Array with Mesh Dimension as size (X, Y, Z)).
   },
 
   "solver_options": {                        // Optional - Customisation of the case's solver.

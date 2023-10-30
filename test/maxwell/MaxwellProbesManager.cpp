@@ -1,3 +1,4 @@
+#pragma once
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -39,7 +40,8 @@ const Direction assignFieldSpatial(const std::string& direction)
 }
 
 
-Probes assembleProbes(const json& case_data) {
+Probes assembleProbes(const json& case_data) 
+{
 
 	Probes probes;
 	
