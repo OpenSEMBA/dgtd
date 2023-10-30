@@ -3,21 +3,13 @@
 
 #include <TestUtils.h>
 
-#include "ProbeFixtures.h"
-#include "SourceFixtures.h"
-
-#include "solver/Solver.h"
+#include "components/model.h"
 
 using json = nlohmann::json;
 
 namespace maxwell {
 
-BdrCond assignInteriorCond(const std::string& bdr_cond) 
-{
-		assignBdrCond(bdr_cond);
-}
-
-BdrCond assignBdrCond(const std::string& bdr_cond) 
+BdrCond assignBdrCond(const std::string& bdr_cond)
 {
 	if (bdr_cond == "PEC") {
 		return BdrCond::PEC;
@@ -36,46 +28,51 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 	}
 }
 
-Element::Type assignElementType(const std::string& element_type) 
+BdrCond assignInteriorCond(const std::string& bdr_cond)
+{
+	return assignBdrCond(bdr_cond);
+}
+
+mfem::Element::Type assignElementType(const std::string& element_type)
 {
 	if (element_type == "Triangle") {
-		return Element::Type::TRIANGLE;
+		return mfem::Element::Type::TRIANGLE;
 	}
 	else if (element_type == "Quadrilateral") {
-		return Element::Type::QUADRILATERAL;
+		return mfem::Element::Type::QUADRILATERAL;
 	}
 	else if (element_type == "Tetrahedron") {
-		return Element::Type::TETRAHEDRON;
+		return mfem::Element::Type::TETRAHEDRON;
 	}
 	else if (element_type == "Pyramid") {
-		return Element::Type::PYRAMID;
+		return mfem::Element::Type::PYRAMID;
 	}
 	else if (element_type == "Wedge") {
-		return Element::Type::WEDGE;
+		return mfem::Element::Type::WEDGE;
 	}
 	else if (element_type == "Hexahedron") {
-		return Element::Type::HEXAHEDRON;
+		return mfem::Element::Type::HEXAHEDRON;
 	}
 }
 
-Element::Type assignElementType(const std::string& element_type, const int dimension)
+mfem::Element::Type assignElementType(const std::string& element_type, const int dimension)
 {
 	assert(element_type == "Undefined");
 	switch (dimension) {
 	case 1:
-		return Element::Type::SEGMENT;
+		return mfem::Element::Type::SEGMENT;
 	case 2:
-		return Element::Type::TRIANGLE;
+		return mfem::Element::Type::TRIANGLE;
 	case 3:
-		return Element::Type::TETRAHEDRON;
+		return mfem::Element::Type::TETRAHEDRON;
 	default:
 		throw std::exception("Incorrect dimension assigning element type for case.");
 	}
 }
 
-Vector assembleNumberOfElements(const json& case_data)
+mfem::Vector assembleNumberOfElements(const json& case_data)
 {
-	Vector res(case_data["dimension"]);
+	mfem::Vector res(case_data["dimension"]);
 	if (case_data.contains("number_of_elements")) {
 		for (int i = 0; i < case_data["dimension"]; i++) {
 			res[i] = case_data["number_of_elements"][i];
@@ -84,7 +81,7 @@ Vector assembleNumberOfElements(const json& case_data)
 	return res;
 }
 
-Element::Type assembleElementType(const json& case_data) 
+mfem::Element::Type assembleElementType(const json& case_data)
 {
 	if (case_data.contains("element_type")) {
 		return assignElementType(case_data["element_type"]);
@@ -94,8 +91,8 @@ Element::Type assembleElementType(const json& case_data)
 	}
 }
 
-Vector assembleMeshLength(const json& case_data) {
-	Vector res(case_data["dimension"]);
+mfem::Vector assembleMeshLength(const json& case_data) {
+	mfem::Vector res(case_data["dimension"]);
 	res = 1.0;
 	if (case_data.contains("mesh_length")) {
 		for (int i = 0; i < case_data["dimension"]; i++) {
@@ -105,22 +102,22 @@ Vector assembleMeshLength(const json& case_data) {
 	return res;
 }
 
-void verifyDimensionAndElementCompatibility(const int dimension, const Element::Type& element_type)
+void verifyDimensionAndElementCompatibility(const int dimension, const mfem::Element::Type& element_type)
 {
 	switch (dimension) {
 	case 2:
-		if (element_type == Element::Type::TRIANGLE 
-			|| element_type == Element::Type::QUADRILATERAL) {
+		if (element_type == mfem::Element::Type::TRIANGLE
+			|| element_type == mfem::Element::Type::QUADRILATERAL) {
 			break;
 		}
 		else {
 			throw std::exception("Incompatible dimension and element type for case.");
 		}
 	case 3:
-		if (element_type == Element::Type::TETRAHEDRON 
-			|| element_type == Element::Type::PYRAMID
-			|| element_type == Element::Type::WEDGE
-			|| element_type == Element::Type::HEXAHEDRON) {
+		if (element_type == mfem::Element::Type::TETRAHEDRON
+			|| element_type == mfem::Element::Type::PYRAMID
+			|| element_type == mfem::Element::Type::WEDGE
+			|| element_type == mfem::Element::Type::HEXAHEDRON) {
 			break;
 		}
 		else {
@@ -151,7 +148,11 @@ AttributeToMaterial assembleAttributeToMaterial(const json& case_data)
 	AttributeToMaterial res{};
 	if (case_data.contains("attribute_to_material")) {
 		for (int i = 0; i < case_data["attribute_to_material"].size(); i++) {
-			res.emplace(case_data["attribute_to_material"][i]);
+			Material mat(
+				case_data["attribute_to_material"][i][1][0], //Epsilon
+				case_data["attribute_to_material"][i][1][1]  //Mu
+			);
+			res.emplace(std::make_pair(case_data["attribute_to_material"][i][0], mat));
 		}
 	}
 	return res;
@@ -175,7 +176,7 @@ std::pair<AttributeToBoundary, bool> assembleAttributeToBoundary(const json& cas
 	return std::make_pair(att_to_boundary, totalfield_flag);
 }
 
-AttributeToInteriorConditions assembleAttributeToInteriorConditions(const json& case_data) 
+AttributeToInteriorConditions assembleAttributeToInteriorConditions(const json& case_data)
 {
 	AttributeToInteriorConditions res{};
 	if (case_data.contains("attribute_to_interior_conditions")) {
@@ -189,26 +190,26 @@ AttributeToInteriorConditions assembleAttributeToInteriorConditions(const json& 
 	return res;
 }
 
-Mesh assembleAutoMesh(
-	const Vector& num_of_elem, 
-	const Element::Type element_type, 
-	const Vector& mesh_length) 
+mfem::Mesh assembleAutoMesh(
+	const mfem::Vector& num_of_elem,
+	const mfem::Element::Type element_type,
+	const mfem::Vector& mesh_length)
 {
-	Mesh mesh;
+	mfem::Mesh mesh;
 	switch (num_of_elem.Size()) {
 	case 1:
-		mesh = Mesh::MakeCartesian1D(
+		mesh = mfem::Mesh::MakeCartesian1D(
 			num_of_elem[0],
 			mesh_length[0]);
 		break;
 	case 2:
-		mesh = Mesh::MakeCartesian2D(
+		mesh = mfem::Mesh::MakeCartesian2D(
 			num_of_elem[0], num_of_elem[1],
 			element_type, true,
 			mesh_length[0], mesh_length[1]);
 		break;
 	case 3:
-		mesh = Mesh::MakeCartesian3D(
+		mesh = mfem::Mesh::MakeCartesian3D(
 			num_of_elem[0], num_of_elem[1], num_of_elem[2],
 			element_type,
 			mesh_length[0], mesh_length[1], mesh_length[2]);
@@ -219,17 +220,17 @@ Mesh assembleAutoMesh(
 	return mesh;
 }
 
-Mesh assembleManualMesh(const std::string& mesh_string, bool totalfieldscatteredfield_flag)
+mfem::Mesh assembleManualMesh(const std::string& mesh_string, bool totalfieldscatteredfield_flag)
 {
 	switch (totalfieldscatteredfield_flag) {
 	case true:
-		return Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, true);
+		return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, true);
 	case false:
-		return Mesh::LoadFromFile(mesh_string, 1, 0, true);
+		return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
 	}
 }
 
-Model assembleModel(const json& case_data) 
+Model assembleModel(const json& case_data)
 {
 	if (case_data.contains("auto_model")) {
 
@@ -241,7 +242,7 @@ Model assembleModel(const json& case_data)
 
 		auto mesh{ assembleAutoMesh(num_of_elem, element_type, mesh_length) };
 
-		AttributeToMaterial att_to_material{ assembleAttributeToMaterial(case_data)};
+		AttributeToMaterial att_to_material{ assembleAttributeToMaterial(case_data) };
 		auto bdr_data{ assembleAttributeToBoundary(case_data) };
 		AttributeToBoundary att_to_boundary{ bdr_data.first };
 		AttributeToInteriorConditions att_to_int_conds{ assembleAttributeToInteriorConditions(case_data) };
@@ -258,8 +259,10 @@ Model assembleModel(const json& case_data)
 		AttributeToInteriorConditions att_to_int_conds{ assembleAttributeToInteriorConditions(case_data) };
 
 		auto mesh{ assembleManualMesh(
-			assembleMeshString(case_data["mesh"], case_data["mesh_format"]), 
-			tfsf_flag) 
+			assembleMeshString(
+				case_data["mesh"],
+				case_data["mesh_format"]),
+			tfsf_flag)
 		};
 
 		return Model(mesh, att_to_material, att_to_boundary, att_to_int_conds);
@@ -268,17 +271,4 @@ Model assembleModel(const json& case_data)
 		throw std::exception("Json File does not contain a valid model input.");
 	}
 }
-
-Solver assembleCaseSolver(std::string case_name) 
-{
-
-	auto file_name{ maxwellCase("1D_PEC_Centered") };
-	std::ifstream test_file(file_name);
-	auto test_data = json::parse(test_file);
-
-
-
-
-}
-
 }
