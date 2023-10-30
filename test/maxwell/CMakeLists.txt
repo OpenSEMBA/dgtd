@@ -19,6 +19,7 @@ add_executable(maxwell_tests
 	"MaxwellModelManager.cpp"
 	"MaxwellProbesManager.cpp"
 	"MaxwellSourcesManager.cpp"
+	"MaxwellSolverOptsManager.cpp"
 	"components/MaterialTest.cpp" 
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 

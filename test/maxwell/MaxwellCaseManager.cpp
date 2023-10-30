@@ -12,6 +12,7 @@
 #include <MaxwellModelManager.cpp>
 #include <MaxwellProbesManager.cpp>
 #include <MaxwellSourcesManager.cpp>
+#include <MaxwellSolverOptsManager.cpp>
 
 using json = nlohmann::json;
 
@@ -25,6 +26,9 @@ Solver assembleCaseSolver(std::string case_name)
 	Model model{ assembleModel(case_data) };
 	Probes probes{ assembleProbes(case_data) };
 	Sources sources{ assembleSources(case_data) };
+	SolverOptions solverOpts{ assembleSolverOptions(case_data) };
+
+	return Solver(model, probes, sources, solverOpts);
 }
 
 }
