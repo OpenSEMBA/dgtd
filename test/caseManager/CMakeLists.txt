@@ -7,7 +7,7 @@ include_directories(${MFEM_INCLUDE_DIRS})
 
 find_package(nlohmann_json CONFIG REQUIRED)
 
-add_executable(case_manager
+add_library(case_manager
 	"MaxwellCaseManager.cpp"
 	"MaxwellModelManager.cpp"
 	"MaxwellProbesManager.cpp"
@@ -18,4 +18,3 @@ target_link_libraries(case_manager
 	mfem
 	maxwell-solver
 	nlohmann_json)
-
