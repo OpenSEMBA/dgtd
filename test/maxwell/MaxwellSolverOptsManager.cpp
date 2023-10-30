@@ -1,10 +1,5 @@
 #pragma once
-#include <fstream>
-#include <nlohmann/json.hpp>
-
-#include <solver/SolverOptions.h>
-
-using json = nlohmann::json;
+#include "MaxwellSolverOptsManager.hpp"
 
 namespace maxwell {
 

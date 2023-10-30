@@ -1,12 +1,5 @@
 #pragma once
-#include <fstream>
-#include <nlohmann/json.hpp>
-
-#include <TestUtils.h>
-
-#include "components/model.h"
-
-using json = nlohmann::json;
+#include "MaxwellModelManager.hpp"
 
 namespace maxwell {
 
@@ -200,18 +193,18 @@ mfem::Mesh assembleAutoMesh(
 	switch (num_of_elem.Size()) {
 	case 1:
 		mesh = mfem::Mesh::MakeCartesian1D(
-			num_of_elem[0],
+			int(num_of_elem[0]),
 			mesh_length[0]);
 		break;
 	case 2:
 		mesh = mfem::Mesh::MakeCartesian2D(
-			num_of_elem[0], num_of_elem[1],
+			int(num_of_elem[0]), int(num_of_elem[1]),
 			element_type, true,
 			mesh_length[0], mesh_length[1]);
 		break;
 	case 3:
 		mesh = mfem::Mesh::MakeCartesian3D(
-			num_of_elem[0], num_of_elem[1], num_of_elem[2],
+			int(num_of_elem[0]), int(num_of_elem[1]), int(num_of_elem[2]),
 			element_type,
 			mesh_length[0], mesh_length[1], mesh_length[2]);
 		break;

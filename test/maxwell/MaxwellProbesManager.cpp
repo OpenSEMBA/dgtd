@@ -1,12 +1,5 @@
 #pragma once
-#include <fstream>
-#include <nlohmann/json.hpp>
-
-#include <TestUtils.h>
-
-#include "components/probes.h"
-
-using json = nlohmann::json;
+#include <MaxwellProbesManager.hpp>
 
 namespace maxwell {
 
@@ -38,7 +31,6 @@ const Direction assignFieldSpatial(const std::string& direction)
 		throw std::exception("Wrong Field Polarization in Point Probe assignation.");
 	}
 }
-
 
 Probes assembleProbes(const json& case_data) 
 {

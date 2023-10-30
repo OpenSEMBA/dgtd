@@ -1,14 +1,6 @@
 #pragma once
-#include <fstream>
-#include <nlohmann/json.hpp>
 
-#include <TestUtils.h>
-
-#include "components/sources.h"
-#include "SourceFixtures.h"
-#include "MaxwellProbesManager.cpp"
-
-using json = nlohmann::json;
+#include "MaxwellSourcesManager.hpp"
 
 namespace maxwell {
 
@@ -54,7 +46,6 @@ mfem::Vector assemblePropagationVector(const json& case_data)
 	}
 	return res;
 }
-
 
 Sources assembleSources(const json& case_data)
 {

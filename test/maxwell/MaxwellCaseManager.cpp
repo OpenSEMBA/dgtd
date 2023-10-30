@@ -1,20 +1,5 @@
 #pragma once
-#include <fstream>
-#include <nlohmann/json.hpp>
-
-#include <TestUtils.h>
-
-#include "ProbeFixtures.h"
-#include "SourceFixtures.h"
-
-#include "solver/Solver.h"
-
-#include <MaxwellModelManager.cpp>
-#include <MaxwellProbesManager.cpp>
-#include <MaxwellSourcesManager.cpp>
-#include <MaxwellSolverOptsManager.cpp>
-
-using json = nlohmann::json;
+#include "MaxwellCaseManager.hpp"
 
 namespace maxwell {
 
