@@ -1385,29 +1385,23 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 
 }
 
-TEST_F(Solver3DTest, feng_tf)
+TEST_F(Solver3DTest, feng_fss_flat)
 {
-	auto probes{ buildProbesWithAnExportProbe(1000) };
+	auto probes{ buildProbesWithAnExportProbe(50) };
 
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "Feng_TF.msh").c_str(),1,0) };
-	mesh.Transform(rotateMinus90degAlongZAxis);
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
-
-	mfem::Vector center_(3);
-	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center_);
-	mfem::Vector polarization_(3);
-	rotateMinus90degAlongZAxis(unitVec(Z), polarization_);
-
+	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_Feng_FSS_Flat.msh").c_str(), 1, 0, true) };
+	AttributeToBoundary attToBdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::SMA} };
+	AttributeToInteriorConditions att2IntCond{ {60, BdrCond::PEC} };
+	Model model{ mesh, AttributeToMaterial{}, attToBdr, att2IntCond };
 
 	maxwell::Solver solver{
 	model,
 	probes,
-	buildGaussianPlanewave(0.30, 2.0, unitVec(Z), unitVec(Y)),
+	buildGaussianPlanewave(0.010, 0.1, unitVec(Y), unitVec(X)),
 	SolverOptions{}
-		.setTimeStep(5e-3)
-		.setFinalTime(0.50)
-		.setOrder(2)
+		.setTimeStep(9e-4)
+		.setFinalTime(1.0)
+		.setOrder(3)
 	};
 
 	solver.run();

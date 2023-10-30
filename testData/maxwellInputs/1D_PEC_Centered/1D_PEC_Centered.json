@@ -1,0 +1,63 @@
+{
+  "name": "1D_PEC_Centered",
+
+  "auto_model": {
+    "dimension": 1,
+    "number_of_elements": null,
+    "element_type": null,
+    "mesh_length": null,
+    "attribute_to_material": null,
+    "attribute_to_boundary": [
+      [ 1, "PEC" ],
+      [ 2, "PEC" ]
+    ],
+    "attribute_to_interior_conditions": null
+  },
+
+  "manual_model": {
+    "mesh": "1D_PEC_Centered",
+    "mesh_format": "gmsh",
+    "attribute_to_material": null,
+    "attribute_to_boundary": [
+      [ 2, "PEC" ]
+    ],
+    "attribute_to_interior_conditions": null
+  },
+
+  "probes": {
+    "exporter_probes": {
+      "enabled": true,
+      "steps": 1
+    },
+    "point_probes": {
+      "enabled": true,
+      "probe_info": [
+        [
+          "E",
+          "Y",
+          [ 0.0 ]
+        ],
+        [
+          "H",
+          "Z",
+          [ 0.0 ]
+        ]
+      ]
+    }
+  },
+
+  "sources": {
+    "type": "Initial",
+    "field_type": "E",
+    "field_axis": "Y",
+    "center": [ 0.5 ],
+    "polarization": [ 0.0, 1.0, 0.0 ],
+    "dimension": 1,
+    "rotation_angles": null
+  },
+
+  "solver_options": {
+    "solver_type": "Centered"
+  }
+
+};

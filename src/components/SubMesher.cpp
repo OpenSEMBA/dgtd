@@ -431,9 +431,9 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto f{ m.GetFace(m.GetBdrFace(be)) };
 			auto v0{ m.GetVertex(f->GetVertices()[0]) };
 			auto v1{ m.GetVertex(f->GetVertices()[1]) };
-			Vector normal_be(2);
-			for (int i = 0; i < normal_be.Size(); i++) {
-				normal_be[i] = v1[1-i] - v0[1-i];
+			Vector tang_be(2);
+			for (int i = 0; i < tang_be.Size(); i++) {
+				tang_be[i] = v1[i] - v0[i];
 			}
 
 			auto fe_trans{ getFaceElementTransformation(m,be) };
@@ -450,7 +450,15 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			for (auto i{ 0 }; i < bary_vec.Size(); ++i) {
 				bary_vec[i] = bary2[i] - bary1[i];
 			}
-			auto face_ori{ mfem::InnerProduct(bary_vec, normal_be) };
+			Vector cross_first(3), cross_sec(3);
+			cross_first[0] = bary_vec[0];
+			cross_first[1] = bary_vec[1];
+			cross_first[2] = 0.0; 
+			cross_sec[0] = tang_be[0];
+			cross_sec[1] = tang_be[1];
+			cross_sec[2] = 0.0;
+			auto cross = crossProduct(cross_first, cross_sec);
+			auto face_ori = cross[2];
 
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;

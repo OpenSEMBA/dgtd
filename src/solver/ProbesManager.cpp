@@ -17,8 +17,8 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	pd.RegisterField("Hz", &fields.get(H,Z));
 	
 	const auto order{ fes_.GetMaxElementOrder() };
-	pd.SetLevelsOfDetail(order);
-	order > 0 ? pd.SetHighOrderOutput(true) : pd.SetHighOrderOutput(false);
+	pd.SetLevelsOfDetail(3);
+	pd.SetHighOrderOutput(true);
 	
 	pd.SetDataFormat(VTKFormat::BINARY);
 

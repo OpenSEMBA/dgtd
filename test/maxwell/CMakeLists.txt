@@ -14,7 +14,8 @@ if (MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
 endif()
 
 add_executable(maxwell_tests
-	"MaxwellTestLauncher.cpp"
+	"MaxwellTestLauncher.cpp"  
+	"MaxwellTestManager.cpp"
 	"components/MaterialTest.cpp" 
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 
@@ -27,7 +28,7 @@ add_executable(maxwell_tests
 	"solver/ProbesManagerTest.cpp" 
 	"solver/SourcesTest.cpp"
 	"components/EigenvalueEstimator.cpp"
-	"adapter/OpensembaAdapterTest.cpp" )
+	"adapter/OpensembaAdapterTest.cpp")
 
 include_directories(./)
 

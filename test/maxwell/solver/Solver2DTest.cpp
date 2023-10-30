@@ -1680,11 +1680,11 @@ TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circle_w_circles)
 	maxwell::Solver solver{
 		model,
 		probes,
-		buildGaussianPlanewave(2.0, 4.0, unitVec(Z), unitVec(X)),
+		buildGaussianPlanewave(0.5, 3.0, unitVec(Z), unitVec(X)),
 		SolverOptions{}
 			.setTimeStep(1e-3)
-			.setFinalTime(15.0)
-			.setOrder(2)
+			.setFinalTime(30.0)
+			.setOrder(3)
 	};
 
 	solver.run();

@@ -9,10 +9,16 @@ static std::string mfemMeshes1DFolder() { return testDataFolder() + "mfemMeshes/
 static std::string mfemMeshes2DFolder() { return testDataFolder() + "mfemMeshes/2D/"; }
 static std::string mfemMeshes3DFolder() { return testDataFolder() + "mfemMeshes/3D/"; }
 static std::string smbInputsFolder()    { return testDataFolder() + "smbInputs/"; }
+static std::string maxwellInputsFolder(){ return testDataFolder() + "maxwellInputs/"; }
 
 static std::string smbCase(const std::string& caseName)
 {
 	return smbInputsFolder() + caseName + "/" + caseName + ".smb.json";
+}
+
+static std::string maxwellCase(const std::string& caseName)
+{
+	return maxwellInputsFolder() + caseName + "/" + caseName + ".json";
 }
 
 static std::string getCaseName()
