@@ -3,7 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "components/sources.h"
-#include "SourceFixtures.h"
+#include "maxwell/SourceFixtures.h"
 #include "MaxwellProbesManager.hpp"
 
 using json = nlohmann::json;

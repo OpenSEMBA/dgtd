@@ -15,11 +15,6 @@ endif()
 
 add_executable(maxwell_tests
 	"MaxwellTestLauncher.cpp"  
-	"MaxwellCaseManager.cpp"
-	"MaxwellModelManager.cpp"
-	"MaxwellProbesManager.cpp"
-	"MaxwellSourcesManager.cpp"
-	"MaxwellSolverOptsManager.cpp"
 	"components/MaterialTest.cpp" 
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 

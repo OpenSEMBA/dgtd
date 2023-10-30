@@ -1,5 +1,5 @@
 #pragma once
-#include <MaxwellProbesManager.hpp>
+#include "MaxwellProbesManager.hpp"
 
 namespace maxwell {
 
