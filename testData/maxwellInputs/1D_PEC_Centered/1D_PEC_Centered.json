@@ -1,74 +1,86 @@
 {
-  "case_name": "1D_PEC_Centered",            //Case name
-  "dimension": 1,                            //Case's dimension.
-
-  //ONLY AUTO OR MANUAL, NOT BOTH (Manual will override Auto if both are defined). Both written for documentation purposes only.
-  
-  "auto_model": {                            // Case Model will be built using MFEM's Cartesian nDimensional methods.
-    "number_of_elements": null,              // How many elements in the mesh (integer nD Array with Mesh Dimension as size for X, Y, Z).
-    "element_type": null,                    // Specify Element Type (string) (Triangle, Quadrilateral, Tetrahedron, Hexahedron, Pyramid*, Wedge*). Elements with * might not be fully supported by MFEM.
-    "mesh_length": null,                     // Spatial dimensions of the mesh (double nD Array with Mesh Dimension as size for X, Y, Z).
-    "attribute_to_material": null,           // Array of Arrays with <AttributeNo, Material> as inputs. Material is a double two size Array with Permittivity and Permeability as entries.
-    "attribute_to_boundary": [               // Array of Arrays with <AttributeNo, BdrCond> as inputs.
-      [ 1, "PEC" ],                          // Example: Bdr Elements marked with Att 1 will be treated as PEC.
-      [ 2, "PEC" ]                           // Defined BdrCond can be as follows: "PEC", "PMC", "SMA", "NONE", "TotalFieldIn".
-    ] ,
-    "attribute_to_interior_conditions": null // Array of Arrays with <AttributeNo, BdrCond> as inputs.
+  "solver_options": { // Optional - Customisation of the case's solver.
+    "solver_type": "Centered", // Type of Flux to solve (Centered*, Upwind). *Centered does not support SMA boundaries.
+    "final_time": 2.0, // Final time of the simulation. (double) (2.0 if not defined).
+    "time_step": 1e-2, // Time step to use. Does not ensure stability if chosen too high. (double) (0.0 if not defined).
+    "cfl": 0.7, // Courant-Friedrichs-Lewy condition. Does not ensure stability if chosen too high. Limited to 1D problems. (0.0 to 1.0) (0.8 if not defined).
+    "order": 3, // Order of the Finite Element Collection used to distretise the Mesh. (integer)
+    "spectral": false // Use Spectral Evolution Operators. (boolean) (false if ignored) (Heavier on the computation) (Does not include newer features).
   },
 
-  "manual_model": {                          // Model will be built using customised mesh.
-    "mesh": "1D_PEC_Centered",               // Name of the Mesh, must coincide with name of the case. (string)
-    "mesh_format": "gmsh",                   // Mesh Format, currently supporting Gmsh (gmsh) and MFEM (mfem). (string)
-    "attribute_to_material": null,           // Array of Arrays with <AttributeNo, Material> as inputs. See auto_model for explanation.
-    "attribute_to_boundary": [               // Array of Arrays with <AttributeNo, BdrCond> as inputs.
-      [ 2, "PEC" ]                           // Example: Bdr Elements marked with Att 1 will be treated as PEC.
-    ],                                       // Defined BdrCond as follows: "PEC", "PMC", "SMA", "NONE", "TotalFieldIn".
-    "attribute_to_interior_conditions": null // Array of Arrays with <AttributeNo, BdrCond> as inputs.
+  "model": { // Model will be built using customised mesh.
+    "filename": "1D_PEC_Centered.msh", // Name of the Mesh, must coincide with name of the case. (string)
+    "materials": [
+      {
+        "tags": [ 1 ],
+        "type": "Vacuum"
+      },
+      {
+        "tags": [ 2 ],
+        "type": "Dielectric",
+        "relative_permittivity": 3.1
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "PEC"
+      } // Defined BdrCond as follows: "PEC", "PMC", "SMA".
   },
 
-  "probes": {                                // Case Data extraction.
-    "exporter_probes": {                     // Optional - If this exists a Paraview visualization will be extracted by the defined steps. Only one.
-      "steps": 1                             // Every how many steps the data should be saved.
-    },                                       
-    "point_probes": {                        // Optional - If this exists, define probe_info for each point probe. 
-      "probe_info": [                        // Multiple allowed.
-        [                                    
-          "E",                               // Field to extract (E, H).
-          "Y",                               // Spatial component of the Field to Extract (X, Y, Z)
-          [ 0.0 ]                            // Spatial location on where to extract (nD vector with Mesh Dimension as size). If defined out of bounds the program will crash.
-        ],                                   
-        [                                    
-          "H",                               // Field to extract (E, H).
-          "Z",                               // Spatial component of the Field to Extract (X, Y, Z)
-          [ 0.0 ]                            // Spatial location on where to extract (nD vector with Mesh Dimension as size). If defined out of bounds the program will crash.
-        ]
-      ]
+  "probes": { // Case Data extraction.
+    "exporter": { // Optional - If this exists a Paraview visualization will be extracted by the defined steps. Only one.
+      "steps": 1 // Every how many steps the data should be saved.
+    },
+    "points": [ // Optional - If this exists, define probe_info for each point probe.
+      {
+        "field": "E",
+        "position": [ 0.0 ] // Spatial location on where to extract (nD vector with Mesh Dimension as size). If defined out of bounds the program will crash.
+      }
+    ],
+    "surfaces": [
+      {
+        "field": "E",
+        "tags": [ 1 ] // Spatial location on where to extract (nD vector with Mesh Dimension as size). If defined out of bounds the program will crash.
+      }
+    ]
+  },
+
+  "sources": [ // Case Illumination. Temporarily One Max.
+    {
+      "type": "initial", // Type of Illumination (Initial, Resonant).
+      "field_type": "E", // Field to illuminate (E, H).
+      "center": [ 0.5 ], // Spatial position of the illumination on t = 0 (nD Array with Mesh Dimension as size for X, Y, Z).
+      "polarization": [ 0.0, 1.0, 0.0 ], // Spatial polarization of the field to illuminate (3D Array (X, Y, Z)).
+      "dimension": 1, // Dimension of the *source* (1, 2, 3).
+      // Extra arguments if using specific types. Will assume defaults if not given(?).
+      "magnitude": {
+        "type": "gaussian", // For now, only required if type InitPlanewave. (Gaussian)
+        "spread": 0.15, // Only if type = Initial/TDPlanewave/InitPlanewave (Gaussian for now). (double)
+        "delay": 1.0 // Only if type = TDPlanewave, delay for the illumination (starts on 0.0, 0.0, 0.0);
+      }
+    },
+    {
+      "type": "initial", // Type of Illumination (Initial, Resonant).
+      "field_type": "E", // Field to illuminate (E, H).
+      "polarization": [ 0.0, 1.0, 0.0 ], // Spatial polarization of the field to illuminate (3D Array (X, Y, Z)).
+      // Extra arguments if using specific types. Will assume defaults if not given(?).
+      "magnitude": {
+        "type": "resonant",
+        "mode": [ 2 ]
+      }
+    },
+    {
+      "type": "totalField",
+      "tags": [ 1, 2, 3, 4 ],
+      "magnitude": {
+        "type": "gaussian", // For now, only required if type InitPlanewave. (Gaussian)
+        "spread": 0.15, // Only if type = Initial/TDPlanewave/InitPlanewave (Gaussian for now). (double)
+        "delay": 1.0 // Only if type = TDPlanewave, delay for the illumination (starts on 0.0, 0.0, 0.0);
+      },
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ] // Only if type = TDPlanewave/InitPlanewave. (3D Array (X, Y, Z)).
     }
-  },
-
-  "sources": {                               // Case Illumination. Temporarily One Max.
-    "type": "Initial",                       // Type of Illumination (Initial, Resonant, TDPlanewave, InitPlanewave).
-    "field_type": "E",                       // Field to illuminate (E, H).
-    "field_spatial": "Y",                    // Spatial component of the Field (X, Y, Z)
-    "center": [ 0.5 ],                       // Spatial position of the illumination on t = 0 (nD Array with Mesh Dimension as size for X, Y, Z).
-    "polarization": [ 0.0, 1.0, 0.0 ],       // Spatial polarization of the field to illuminate (3D Array (X, Y, Z)).
-    "source_dimension": 1,                   // Dimension of the *source* (1, 2, 3).
-    "rotation_angles": null,                 // Rotation angles for the source. (3D Array with angles on radians (X, Y, Z)).
-    // Extra arguments if using specific types. Will assume defaults if not given(?).
-    "function_type": "Gaussian",             // For now, only required if type InitPlanewave. (Gaussian)
-    "gaussian_spread": 0.15,                 // Only if type = Initial/TDPlanewave/InitPlanewave (Gaussian for now). (double)
-    "delay": 1.0,                            // Only if type = TDPlanewave, delay for the illumination (starts on 0.0, 0.0, 0.0);
-    "propagation": [ 1.0, 0.0, 0.0 ],        // Only if type = TDPlanewave/InitPlanewave. (3D Array (X, Y, Z)).
-    "modes": [2]                             // Only if type = Resonant (nD Array with Mesh Dimension as size (X, Y, Z)).
-  },
-
-  "solver_options": {                        // Optional - Customisation of the case's solver.
-    "solver_type": "Centered",               // Type of Flux to solve (Centered*, Upwind). *Centered does not support SMA boundaries.
-    "final_time": 2.0,                       // Final time of the simulation. (double) (2.0 if not defined).
-    "time_step": 1e-2,                       // Time step to use. Does not ensure stability if chosen too high. (double) (0.0 if not defined).
-    "cfl": 0.7,                              // Courant-Friedrichs-Lewy condition. Does not ensure stability if chosen too high. Limited to 1D problems. (0.0 to 1.0) (0.8 if not defined).
-    "order": 3,                              // Order of the Finite Element Collection used to distretise the Mesh. (integer)
-    "spectral": false                        // Use Spectral Evolution Operators. (boolean) (false if ignored) (Heavier on the computation) (Does not include newer features).
-  }
+  ]
 
 };
