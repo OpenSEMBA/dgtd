@@ -188,8 +188,7 @@ protected:
 	{
 
 		for (int be = 0; be < m.GetNBE(); be++) {
-			if (m.GetBdrAttribute(be) == static_cast<int>(maxwell::BdrCond::TotalFieldIn) ||
-				m.GetBdrAttribute(be) == static_cast<int>(maxwell::BdrCond::TotalFieldOut)) {
+			if (m.GetBdrAttribute(be) == static_cast<int>(maxwell::BdrCond::TotalFieldIn)) {
 				auto be_trans{ getFaceElementTransformation(m, be) };
 				if (be_trans->Elem2No != NotFound) {
 					m.GetElement(be_trans->Elem1No)->SetAttribute(maxwell::SubMeshingMarkers::Global_SubMesh);

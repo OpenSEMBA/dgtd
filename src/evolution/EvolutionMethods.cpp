@@ -15,26 +15,20 @@ FluxBdrCoefficientsCentered bdrCentCoeff{
 	{BdrCond::PEC               ,	{2.0, 0.0}},
 	{BdrCond::PMC               ,	{0.0, 2.0}},
 	{BdrCond::SMA               ,	{0.0, 0.0}},
-	{BdrCond::NONE              ,   {0.0, 0.0}},
 };
 
 FluxBdrCoefficientsUpwind bdrUpwindCoeff{
 	{BdrCond::PEC               ,	{2.0, 0.0}},
 	{BdrCond::PMC               ,	{0.0, 2.0}},
 	{BdrCond::SMA               ,	{1.0, 1.0}},
-	{BdrCond::NONE              ,   {0.0, 0.0}},
 };
 
 FluxSrcCoefficientsCentered srcCentCoeff{
-	{BdrCond::TotalFieldInBacked,	{ 1.0, 1.0}},
 	{BdrCond::TotalFieldIn      ,	{ 1.0, 1.0}},
-	{BdrCond::TotalFieldOut     ,   {-1.0,-1.0}},
 };
 
 FluxSrcCoefficientsUpwind srcUpwindCoeff{
-	{BdrCond::TotalFieldInBacked,	{ 1.0, 1.0}},
 	{BdrCond::TotalFieldIn      ,	{ 1.0, 1.0}},
-	{BdrCond::TotalFieldOut     ,   {-1.0,-1.0}},
 };
 
 std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const FluxType& ft)

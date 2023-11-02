@@ -46,9 +46,7 @@ enum class BdrCond {
 	PEC,
 	PMC,
 	SMA,
-	TotalFieldIn = 301,
-	TotalFieldOut = 302,
-	TotalFieldInBacked = 303
+	TotalFieldIn = 301
 };
 
 using InteriorFaceCoefficients = std::vector<double>;

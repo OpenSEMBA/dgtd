@@ -17,11 +17,11 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 	if (intBdrMap.size() != 0)
 	{
 		for (auto i = intBdrMap.begin(); i != intBdrMap.end(); i++){
-			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA || i->second == BdrCond::NONE) {
+			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA) {
 				attToIntBdrMap_.insert({ i->first, i->second });
 			}
 			else {
-				std::runtime_error("Wrongly declared BdrCond as value in AttributeToInteriorConditions");
+				std::runtime_error("Wrongly declared BdrCond as value in AttributeToInteriorConditions.");
 			}
 		}		
 	}
