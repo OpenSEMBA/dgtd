@@ -1,0 +1,35 @@
+{
+  "solver_options": {
+    "solver_type": "Centered",
+    "final_time": 2.0,
+    "time_step": 1e-2,
+    "cfl": 0.7,
+    "order": 3,
+    "spectral": false
+  },
+
+  "model": {
+    "filename": "2D_Parser_BdrAndInterior.msh",
+    "materials": [
+      {
+        "tags": [ 1 ],
+        "type": "Vacuum"
+      },
+      {
+        "tags": [ 2 ],
+        "type": "Dielectric",
+        "relative_permittivity": 4.0
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 3, 5, 7 ],
+        "type": "PMC"
+      },
+      {
+        "tags": [ 2, 4, 6 ],
+        "type": "PEC"
+      }
+    ]
+  }
+}

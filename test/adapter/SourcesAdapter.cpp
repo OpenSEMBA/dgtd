@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MaxwellSourcesManager.hpp"
+#include "SourcesAdapter.hpp"
 
 namespace maxwell {
 

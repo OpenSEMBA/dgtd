@@ -26,6 +26,7 @@
         "tags": [ 1, 2 ],
         "type": "PEC"
       } // Defined BdrCond as follows: "PEC", "PMC", "SMA".
+    ]
   },
 
   "probes": { // Case Data extraction.

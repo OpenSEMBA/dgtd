@@ -1,5 +1,5 @@
 #pragma once
-#include "MaxwellSolverOptsManager.hpp"
+#include "SolverOptsAdapter.hpp"
 
 namespace maxwell {
 

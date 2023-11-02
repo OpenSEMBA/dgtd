@@ -1,11 +1,11 @@
 #pragma once
-#include "MaxwellCaseManager.hpp"
+#include "MaxwellAdapter.hpp"
 
 namespace maxwell {
 
 Solver assembleCaseSolver(std::string case_name) 
 {
-	auto file_name{ maxwellCase("1D_PEC_Centered") };
+	auto file_name{ maxwellCase(case_name) };
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 	Model model             { assembleModel        (case_data) };

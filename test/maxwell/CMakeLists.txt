@@ -13,6 +13,8 @@ if (MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
 	add_compile_definitions(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
 endif()
 
+find_package(nlohmann_json CONFIG REQUIRED)
+
 add_executable(maxwell_tests
 	"MaxwellTestLauncher.cpp"  
 	"components/MaterialTest.cpp" 
@@ -31,7 +33,8 @@ add_executable(maxwell_tests
 
 include_directories(./)
 
-target_link_libraries(maxwell_tests 
+target_link_libraries(maxwell_tests
+	nlohmann_json
 	maxwell-solver
 	GTest::gtest
 )
