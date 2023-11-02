@@ -8,6 +8,7 @@ include_directories(${MFEM_INCLUDE_DIRS})
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(adapter
+	"AdapterHelper.h"
 	"MaxwellAdapter.cpp"
 	"ModelAdapter.cpp"
 	"ProbesAdapter.cpp"
@@ -24,7 +25,4 @@ target_link_libraries(adapter
 
 target_link_libraries(adapter_tests
 	adapter
-	mfem
-	GTest::gtest GTest::gtest_main
-	maxwell-solver
-	nlohmann_json)
+	GTest::gtest GTest::gtest_main)

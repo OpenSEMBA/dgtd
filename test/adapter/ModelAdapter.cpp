@@ -44,8 +44,8 @@ AttributeToMaterial assembleAttributeToMaterial(const json& case_data, const mfe
 {
 	AttributeToMaterial res{};
 
-	assert(case_data.contains("model"));
-	assert(case_data["model"].contains("materials"));
+	checkIfThrows(case_data.contains("model"), "JSON data does not include 'model'.");
+	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
 
 	auto show{ case_data["model"]["materials"] };
 
@@ -64,11 +64,19 @@ AttributeToMaterial assembleAttributeToMaterial(const json& case_data, const mfe
 	}
 
 	for (auto [att, v] : res) {
-		assert(mesh.attributes.Find(att) != -1);
+		checkIfThrows(
+			mesh.attributes.Find(att) != -1, 
+			std::string("There is no attribute") + std::to_string(att) +
+			" defined in the mesh, but it is defined in the JSON."
+		);
 	}
 
 	for (auto att{ 1 }; att < mesh.attributes.Size() + 1; att++) {
-		assert(!(res.find(att) == res.end()));
+		checkIfThrows(
+			!(res.find(att) == res.end()),
+			std::string("There is no attribute") + std::to_string(att) +
+			" defined in the JSON, but it is defined in the mesh."
+		);
 	}
 
 	return res;
@@ -76,15 +84,21 @@ AttributeToMaterial assembleAttributeToMaterial(const json& case_data, const mfe
 
 BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh& mesh)
 {
+	checkIfThrows(case_data["model"].contains("boundaries"), 
+		"JSON data does not include 'boundaries' in 'model'.");
 
 	auto face2BdrEl{ mesh.GetFaceToBdrElMap() };
 
-	assert(case_data["model"].contains("boundaries"));
 	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
-		assert(case_data["model"]["boundaries"][b].contains("tags"));
-		assert(!case_data["model"]["boundaries"][b]["tags"].empty());
 
-		assert(case_data["model"]["boundaries"][b].contains("type"));
+		checkIfThrows(case_data["model"]["boundaries"][b].contains("tags"),
+			"Boundary " + std::to_string(b) + " does not have defined 'tags'.");
+
+		checkIfThrows(!case_data["model"]["boundaries"][b]["tags"].empty(),
+			"Boundary " + std::to_string(b) + " 'tags' are empty.");
+
+		checkIfThrows(case_data["model"]["boundaries"][b].contains("type"),
+			"Boundary " + std::to_string(b) + " does not have a defined 'type'.");
 	}
 
 	std::map<Attribute, BdrCond>att2bdrCond;
@@ -106,11 +120,19 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 	}
 
 	for (auto [att, v] : att2interior) {
-		assert(mesh.bdr_attributes.Find(att) != -1);
+		checkIfThrows(
+			mesh.bdr_attributes.Find(att) != -1,
+			std::string("There is no bdrattribute") + std::to_string(att) +
+			" defined in the mesh, but it is defined in the JSON."
+		);
 	}
 
 	for (auto att{ 1 }; att < mesh.bdr_attributes.Size() + 1; att++) {
-		assert(!(att2interior.find(att) == att2interior.end()));
+		checkIfThrows(
+			!(att2interior.find(att) == att2interior.end()),
+			std::string("There is no bdrattribute") + std::to_string(att) +
+			" defined in the JSON, but it is defined in the mesh."
+		);
 	}
 	
 	AttributeToBoundary att2bdr{};

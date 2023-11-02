@@ -6,6 +6,8 @@
 
 #include "components/model.h"
 
+#include "AdapterHelper.h"
+
 using json = nlohmann::json;
 
 namespace maxwell {
