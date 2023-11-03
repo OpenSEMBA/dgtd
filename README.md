@@ -86,10 +86,8 @@ https://github.com/OpenSEMBA/dgtd/blob/5dd67ef6435066172e9387d674ea7ccc4c6a8b87/
 	  	  	- Object. If defined, enables Paraview data exporting for posterior visualization.
 	  	  	  	- steps:
 	  	  	  	  	- Integer. Every how many time steps the solver will store data for visualization. All E and H componentts will be saved. If undefined, defaults to 1.
-	  	- points:
-	  	  	- Array. If defined, stores all components of the specified field at the specified point every time step.
-	  	  	  	- field:
-	  	  	  	  	- String. Can be "E" or "H". Field to save.
+	  	- field:
+	  	  	- Array. If defined, stores all fields at the specified point every time step.
 	  	  	  	- position:
 	  	  	  	  	- Array of doubles. Geometrical position at which data will be saved. Array must be n-Dimensional and define the required X, Y and/or Z coordinates. i.e. A 2D mesh only requires to define X and Y coordinates. ***Warning:*** If the point is defined outside the physical boundaries of the mesh, the simulation will crash.
 	  	- surfaces:
