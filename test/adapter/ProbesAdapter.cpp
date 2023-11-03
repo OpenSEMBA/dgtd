@@ -46,14 +46,14 @@ Probes assembleProbes(const json& case_data)
 
 	Probes probes;
 	
-	if (case_data.contains("exporter")) {
+	if (case_data["probes"].contains("exporter")) {
 		ExporterProbe exporter_probe;
 		exporter_probe.name = case_data["model"]["filename"];
 		exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
 		probes.exporterProbes.push_back(exporter_probe);
 	}
 
-	if (case_data.contains("field")) {
+	if (case_data["probes"].contains("field")) {
 		for (int p = 0; p < case_data["field"].size(); p++) {
 			FieldProbe field_probe(
 				assembleVector(case_data["field"][p]["position"])

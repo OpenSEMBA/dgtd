@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "ModelAdapter.hpp"
+#include "ProbesAdapter.hpp"
 #include "SourcesAdapter.hpp"
 
 #include <TestUtils.h>
@@ -50,7 +51,7 @@ TEST_F(MaxwellAdapterTest, jsonFindsExistingNestedObjects)
 	EXPECT_TRUE(case_data["model"]["materials"][1].contains("relative_permittivity"));
 
 	EXPECT_TRUE(case_data["probes"].contains("exporter"));
-	EXPECT_TRUE(case_data["probes"]["points"][0].contains("position"));
+	EXPECT_TRUE(case_data["probes"]["field"][0].contains("position"));
 
 	EXPECT_TRUE(case_data["sources"][0]["magnitude"].contains("delay"));
 	EXPECT_TRUE(case_data["sources"][1]["magnitude"].contains("mode"));
@@ -127,6 +128,15 @@ TEST_F(MaxwellAdapterTest, adaptsModelObjects)
 
 TEST_F(MaxwellAdapterTest, adaptsProbeObjects) 
 {
+	auto file_name{ maxwellCase("1D_PEC_Centered") };
+	std::ifstream test_file(file_name);
+	auto case_data = json::parse(test_file);
+
+	EXPECT_NO_THROW(assembleProbes(case_data));
+	auto probes{ assembleProbes(case_data) };
+
+	EXPECT_EQ(1, probes.exporterProbes.size());
+	EXPECT_EQ(1, probes.fieldProbes.size());
 
 }
 
@@ -138,6 +148,8 @@ TEST_F(MaxwellAdapterTest, adaptsSourcesObjects)
 
 	EXPECT_NO_THROW(assembleSources(case_data));
 	auto sources{ assembleSources(case_data) };
+
+	EXPECT_EQ(1, sources.size());
 }
 
 }
