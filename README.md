@@ -35,7 +35,7 @@ Compilation needs vcpkg with the following packages:
 
 ### Defining a JSON file
 
-Cases can be defined by parsing a JSON file with the problem information. See a complete [example](https://github.com/OpenSEMBA/dgtd/blob/be481d1c60f5c927e406c1972fb5c12f779e70f0/testData/maxwellInputs/2D_Parser_BdrAndInterior/2D_Parser_BdrAndInterior.json) of a valid JSON file. 
+Cases can be defined by parsing a JSON file with the problem information. See a complete [example](https://github.com/OpenSEMBA/dgtd/blob/alejandro/testData/maxwellInputs/1D_PEC_Centered/1D_PEC_Centered.json) of a valid JSON file. 
 An OpenSemba/dgtd JSON file must have the following structure, **bold** entries are **required**:
 
 - solver_options:
