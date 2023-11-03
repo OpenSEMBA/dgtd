@@ -12,15 +12,14 @@ static Sources buildGaussianInitialField(
 	const double spread = 0.1,
 	const mfem::Vector& center_ = mfem::Vector({ 0.5 }),
 	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
-	const int dimension = 1,
-	const Source::CartesianAngles angles_ = Source::CartesianAngles({ 0.0,0.0,0.0 }))
+	const int dimension = 1)
 {
 	mfem::Vector gaussianCenter(dimension);
 	gaussianCenter = 0.0;
 	
 	Sources res;
 	res.add(std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_, angles_)
+		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_)
 	);
 	return res;
 }
@@ -58,15 +57,14 @@ static Sources buildPlanewaveInitialField(
 	const Function& mf,
 	const Source::Position& center_,
 	const Source::Polarization& polIn,
-	const Source::Propagation& propagationDir,
-	const Source::CartesianAngles& angles_ = Source::CartesianAngles({0.0,0.0,0.0}))
+	const Source::Propagation& propagationDir)
 {
 	Sources res;
 	res.add(
-			std::make_unique<InitialField>(mf, E, polIn, center_, angles_)
+			std::make_unique<InitialField>(mf, E, polIn, center_)
 	);
 	res.add(
-			std::make_unique<InitialField>(mf, H, crossProduct(propagationDir, polIn), center_, angles_)
+			std::make_unique<InitialField>(mf, H, crossProduct(propagationDir, polIn), center_)
 	);
 	return res;
 }

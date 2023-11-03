@@ -11,7 +11,6 @@ public:
 	using Time = double;
 	using Polarization = mfem::Vector;
 	using Propagation = mfem::Vector;
-	using CartesianAngles = std::vector<double>;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
@@ -27,8 +26,7 @@ public:
 		const Function&,
 		const FieldType&,
 		const Polarization&,
-		const Position& center_,
-		const CartesianAngles rotAngle = CartesianAngles({ 0.0,0.0,0.0 })
+		const Position& center
 	);
 	InitialField(const InitialField&);
 
@@ -47,7 +45,6 @@ private:
 	FieldType fieldType_{ E };
 	Polarization polarization_;
 	Position center_;
-	CartesianAngles angles_;
 };
 
 class Planewave : public Source {

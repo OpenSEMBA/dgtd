@@ -9,50 +9,15 @@ namespace maxwell {
 
 constexpr double TOLERANCE = 10.0*DBL_EPSILON;
 
-mfem::DenseMatrix getRotationMatrix(const Source::CartesianAngles& angles_)
-{
-	std::array<mfem::DenseMatrix, 3> rotMat;
-	double rotationAxisX[3] = { 1.0,0.0,0.0 }, rotationAxisY[3] = { 0.0,1.0,0.0 }, rotationAxisZ[3] = { 0.0,0.0,1.0 };
-	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisX, angles_[X], 1.0, rotMat[X]);
-	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisY, angles_[Y], 1.0, rotMat[Y]);
-	mfem::NURBSPatch::Get3DRotationMatrix(rotationAxisZ, angles_[Z], 1.0, rotMat[Z]);
-	mfem::DenseMatrix tMat(3), res(3);
-	mfem::Mult(rotMat[X], rotMat[Y], tMat);
-	mfem::Mult(tMat     , rotMat[Z], res);
-	return res;
-}
-
-mfem::Vector rotateAroundAxis(
-	const mfem::Vector& v, const Source::CartesianAngles& angles_)
-{
-	auto rotMat{ getRotationMatrix(angles_) };
-
-	mfem::Vector pos3D(3), newPos3D(3);
-	pos3D = 0.0;
-	for (auto d{ 0 }; d < v.Size(); d++) {
-		pos3D[d] = v[d];
-	}
-
-	rotMat.Mult(pos3D, newPos3D);
-
-	mfem::Vector res(v.Size());
-	for (auto d{ 0 }; d < v.Size(); d++) {
-		res[d] = newPos3D[d];
-	}
-	return res;
-}
-
 InitialField::InitialField(
 	const Function& f, 
 	const FieldType& fT, 
 	const Polarization& p,
-	const Position& centerIn,
-	const CartesianAngles anglesIn ) :
+	const Position& centerIn) :
 	magnitude_{ f.clone() },
 	fieldType_{ fT },
 	polarization_{ p },
-	center_{ centerIn },
-	angles_{ anglesIn }
+	center_{ centerIn }
 {
 	assert(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE);
 }
@@ -61,8 +26,7 @@ InitialField::InitialField(const InitialField& rhs) :
 	magnitude_{ rhs.magnitude_->clone() },
 	fieldType_{ rhs.fieldType_ },
 	polarization_{ rhs.polarization_ },
-	center_{ rhs.center_ },
-	angles_{ rhs.angles_ }
+	center_{ rhs.center_ }
 {}
 
 std::unique_ptr<Source> InitialField::clone() const
@@ -83,9 +47,6 @@ double InitialField::eval(
 	Position pos(p.Size());
 	for (int i{ 0 }; i < p.Size(); ++i) {
 		pos[i] = p[i] - center_[i];
-	}
-	if (angles_[0] != 0.0 || angles_[1] != 0.0 || angles_[2] != 0.0) {
-		pos = rotateAroundAxis(pos, angles_);
 	}
 	
 	return magnitude_->eval(pos) * polarization_[d];

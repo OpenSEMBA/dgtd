@@ -554,35 +554,6 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 
 }
 
-TEST_F(Solver2DTest, rotated_centered_quads_1dot5D)
-{
-	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "severalrotatedquads.mesh").c_str(),1,0)};
-	mesh.UniformRefinement();
-	AttributeToBoundary attToBdr{ {1,BdrCond::PEC}, {2,BdrCond::PMC}};
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
-	auto probes{ buildProbesWithAnExportProbe(30) };
-
-	fieldCenter = Vector({ 2.0, 2.0 });
-
-	maxwell::Solver solver {
-		model,
-		probes,
-		buildGaussianInitialField(E, 0.5, fieldCenter, unitVec(Z), 1, Source::CartesianAngles({0.0,0.0,-M_PI_4})),
-		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(4.95)
-			.setCentered()
-			.setOrder(3)
-	};
-
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-
-	double tolerance{ 1e-2 };
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-}
-
 TEST_F(Solver2DSpectralTest, periodic_centered_tris_spectral_and_base_comparison) {
 
 	Probes probes;
