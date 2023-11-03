@@ -1,15 +1,15 @@
 {
-  "solver_options": { // Optional - Customisation of the case's solver.
-    "solver_type": "Centered", // Type of Flux to solve (Centered*, Upwind). *Centered does not support SMA boundaries.
-    "final_time": 2.0, // Final time of the simulation. (double) (2.0 if not defined).
-    "time_step": 1e-2, // Time step to use. Does not ensure stability if chosen too high. (double) (0.0 if not defined).
-    "cfl": 0.7, // Courant-Friedrichs-Lewy condition. Does not ensure stability if chosen too high. Limited to 1D problems. (0.0 to 1.0) (0.8 if not defined).
-    "order": 3, // Order of the Finite Element Collection used to distretise the Mesh. (integer)
-    "spectral": false // Use Spectral Evolution Operators. (boolean) (false if ignored) (Heavier on the computation) (Does not include newer features).
+  "solver_options": { 
+    "solver_type": "Centered", 
+    "final_time": 2.0, 
+    "time_step": 1e-2, 
+    "cfl": 0.7, 
+    "order": 3, 
+    "spectral": false 
   },
 
-  "model": { // Model will be built using customised mesh.
-    "filename": "1D_PEC_Centered.msh", // Name of the Mesh, must coincide with name of the case. (string)
+  "model": { 
+    "filename": "1D_PEC_Centered.msh",
     "materials": [
       {
         "tags": [ 1 ],
@@ -25,47 +25,45 @@
       {
         "tags": [ 1, 2 ],
         "type": "PEC"
-      } // Defined BdrCond as follows: "PEC", "PMC", "SMA".
+      } 
     ]
   },
 
-  "probes": { // Case Data extraction.
-    "exporter": { // Optional - If this exists a Paraview visualization will be extracted by the defined steps. Only one.
-      "steps": 1 // Every how many steps the data should be saved.
+  "probes": { 
+    "exporter": { 
+      "steps": 1 
     },
-    "points": [ // Optional - If this exists, define probe_info for each point probe.
+    "points": [ 
       {
         "field": "E",
-        "position": [ 0.0 ] // Spatial location on where to extract (nD vector with Mesh Dimension as size). If defined out of bounds the program will crash.
+        "position": [ 0.0 ] 
       }
     ],
     "surfaces": [
       {
         "field": "E",
-        "tags": [ 1 ] // Spatial location on where to extract (nD vector with Mesh Dimension as size). If defined out of bounds the program will crash.
+        "tags": [ 1 ] 
       }
     ]
   },
 
-  "sources": [ // Case Illumination. Temporarily One Max.
+  "sources": [ 
     {
-      "type": "initial", // Type of Illumination (Initial, Resonant).
-      "field_type": "E", // Field to illuminate (E, H).
-      "center": [ 0.5 ], // Spatial position of the illumination on t = 0 (nD Array with Mesh Dimension as size for X, Y, Z).
-      "polarization": [ 0.0, 1.0, 0.0 ], // Spatial polarization of the field to illuminate (3D Array (X, Y, Z)).
-      "dimension": 1, // Dimension of the *source* (1, 2, 3).
-      // Extra arguments if using specific types. Will assume defaults if not given(?).
+      "type": "initial", 
+      "field_type": "E", 
+      "center": [ 0.5 ], 
+      "polarization": [ 0.0, 1.0, 0.0 ], 
+      "dimension": 1, 
       "magnitude": {
-        "type": "gaussian", // For now, only required if type InitPlanewave. (Gaussian)
-        "spread": 0.15, // Only if type = Initial/TDPlanewave/InitPlanewave (Gaussian for now). (double)
-        "delay": 1.0 // Only if type = TDPlanewave, delay for the illumination (starts on 0.0, 0.0, 0.0);
+        "type": "gaussian", 
+        "spread": 0.15,
+        "delay": 1.0 
       }
     },
     {
-      "type": "initial", // Type of Illumination (Initial, Resonant).
-      "field_type": "E", // Field to illuminate (E, H).
-      "polarization": [ 0.0, 1.0, 0.0 ], // Spatial polarization of the field to illuminate (3D Array (X, Y, Z)).
-      // Extra arguments if using specific types. Will assume defaults if not given(?).
+      "type": "initial", 
+      "field_type": "E", 
+      "polarization": [ 0.0, 1.0, 0.0 ], 
       "magnitude": {
         "type": "resonant",
         "mode": [ 2 ]
@@ -74,14 +72,13 @@
     {
       "type": "totalField",
       "tags": [ 1, 2, 3, 4 ],
-      "magnitude": {
-        "type": "gaussian", // For now, only required if type InitPlanewave. (Gaussian)
-        "spread": 0.15, // Only if type = Initial/TDPlanewave/InitPlanewave (Gaussian for now). (double)
-        "delay": 1.0 // Only if type = TDPlanewave, delay for the illumination (starts on 0.0, 0.0, 0.0);
-      },
       "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ] // Only if type = TDPlanewave/InitPlanewave. (3D Array (X, Y, Z)).
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.15,
+        "delay": 1.0
+      }
     }
   ]
-
 };
