@@ -37,14 +37,14 @@ Probes assembleProbes(const json& case_data)
 
 	Probes probes;
 	
-	if (case_data["exporter_probes"]) {
+	if (case_data.contains("exporter_probes")) {
 		ExporterProbe exporter_probe;
 		exporter_probe.name = case_data["name"];
 		exporter_probe.visSteps = case_data["exporter_probe"]["steps"];
 		probes.exporterProbes.push_back(exporter_probe);
 	}
 
-	if (case_data["point_probes"]) {
+	if (case_data.contains("point_probes")) {
 		for (int p = 0; p < case_data["point_probes"].size(); p++) {
 			auto field{ assignFieldType(case_data["point_probes"][p][0]) };
 			auto direction{ assignFieldSpatial(case_data["point_probes"][p][1]) };

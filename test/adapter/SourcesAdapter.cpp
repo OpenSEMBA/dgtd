@@ -6,104 +6,65 @@ namespace maxwell {
 
 using namespace fixtures::sources;
 
-mfem::Vector assembleCenterVector(const json& case_data)
+mfem::Vector assembleCenterVector(const json& source_center)
 {
-	mfem::Vector res(case_data["dimension"]);
-	for (int i = 0; i < case_data["dimension"]; i++) {
-		res[i] = case_data["sources"]["center"][i];
+	mfem::Vector res(source_center.size());
+	for (int i = 0; i < source_center.size(); i++) {
+		res[i] = source_center[i];
 	}
 	return res;
 }
 
-mfem::Vector assemblePolarizationVector(const json& case_data)
+mfem::Vector assemblePolarizationVector(const json& source_polarization)
 {
-	mfem::Vector res(case_data["sources"]["polarization"]);
-	for (int i = 0; i < case_data["sources"]["polarization"].size(); i++) {
-		res[i] = case_data["sources"]["polarization"][i];
+	mfem::Vector res(3);
+	for (int i = 0; i < source_polarization.size(); i++) {
+		res[i] = source_polarization[i];
 	}
 	return res;
 }
 
-Source::CartesianAngles assembleRotationVector(const json& case_data)
+mfem::Vector assemblePropagationVector(const json& source_propagation)
 {
-	Source::CartesianAngles res(3);
-	res[0] = 0.0;
-	res[1] = 0.0;
-	res[2] = 0.0;
-	if (case_data["rotation_angles"]) {
-		for (int i = 0; i < case_data["sources"]["rotation_angles"].size(); i++) {
-			res[i] = case_data["sources"]["rotation_angles"][i];
-		}
-	}
-	return res;
-}
-
-mfem::Vector assemblePropagationVector(const json& case_data)
-{
-	mfem::Vector res(case_data["sources"]["propagation"]);
-	for (int i = 0; i < case_data["sources"]["propagation"].size(); i++) {
-		res[i] = case_data["sources"]["propagation"][i];
+	mfem::Vector res(3);
+	for (int i = 0; i < source_propagation.size(); i++) {
+		res[i] = source_propagation[i];
 	}
 	return res;
 }
 
 Sources assembleSources(const json& case_data)
 {
-	
-	auto field{ assignFieldType(case_data["sources"]["field_type"]) };
-	auto direction{ assignFieldSpatial(case_data["sources"]["field_spatial"])};
-	auto center(assembleCenterVector(case_data));
-	auto polarization(assemblePolarizationVector(case_data));
-	auto rotation_angles(assembleRotationVector(case_data));
-
 	Sources res;
-	if (case_data["sources"]["type"] == "Initial") {
-		return buildGaussianInitialField(
-			field, 
-			case_data["sources"]["spread"], 
-			center, 
-			polarization, 
-			case_data["sources"]["source_dimension"], 
-			rotation_angles
-		);
-	}
-	else if (case_data["sources"]["type"] == "Resonant") {
-		return buildResonantModeInitialField(
-			field,
-			polarization,
-			case_data["sources"]["modes"]
-		);
-	}
-	else if (case_data["sources"]["type"] == "TDPlanewave") {
-		auto propagation(assemblePropagationVector(case_data));
-		return buildGaussianPlanewave(
-			case_data["sources"]["spread"],
-			case_data["sources"]["delay"],
-			polarization,
-			propagation
-		);
-	}
-	else if (case_data["sources"]["type"] == "InitPlanewave") {
-		auto propagation(assemblePropagationVector(case_data));
-		if (case_data["sources"]["function_type"] == "Gaussian") {
-			auto function{ 
-				Gaussian(
-					case_data["sources"]["spread"], 
-					mfem::Vector(0.0),
-					case_data["sources"]["sources_dimension"]
-				)
-			};
-			return buildPlanewaveInitialField(
-				function, 
-				center, 
-				polarization, 
-				propagation, 
-				rotation_angles
+	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
+		if (case_data["sources"][s]["type"] == "initial") {
+			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
+				return buildGaussianInitialField(
+					assignFieldType(case_data["sources"][s]["field_type"]),
+					case_data["sources"][s]["magnitude"]["spread"],
+					assembleCenterVector(case_data["sources"][s]["center"]),
+					assemblePolarizationVector(case_data["sources"][s]["polarization"]),
+					case_data["sources"][s]["dimension"]
+				);
+			}
+			else if (case_data["sources"][s]["magnitude"]["type"] == "resonant") {
+				return buildResonantModeInitialField(
+					assignFieldType(case_data["sources"][s]["field_type"]),
+					assemblePolarizationVector(case_data["sources"][s]["polarization"]),
+					case_data["sources"][s]["magnitude"]["modes"]
+				);
+			}
+		}
+		else if (case_data["sources"][s]["type"] == "totalField") {
+			auto propagation(assemblePropagationVector(case_data));
+			return buildGaussianPlanewave(
+				case_data["sources"]["spread"],
+				case_data["sources"]["delay"],
+				assemblePolarizationVector(case_data["sources"][s]["polarization"]),
+				assemblePropagationVector(case_data["sources"][s]["propagation"])
 			);
 		}
 	}
-
-
 }
 
 }

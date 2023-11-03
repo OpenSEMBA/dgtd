@@ -97,15 +97,15 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 		checkIfThrows(!case_data["model"]["boundaries"][b]["tags"].empty(),
 			"Boundary " + std::to_string(b) + " 'tags' are empty.");
 
-		checkIfThrows(case_data["model"]["boundaries"][b].contains("type"),
-			"Boundary " + std::to_string(b) + " does not have a defined 'type'.");
+		checkIfThrows(case_data["model"]["boundaries"][b].contains("class"),
+			"Boundary " + std::to_string(b) + " does not have a defined 'class'.");
 	}
 
 	std::map<Attribute, BdrCond>att2bdrCond;
 	std::map<Attribute, isInterior> att2interior;
 	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
 		for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
-			att2bdrCond. emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["type"]));
+			att2bdrCond. emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["class"]));
 			att2interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
 			for (auto f = 0; f < mesh.GetNumFaces(); f++) {
 				auto bdrEl{ face2BdrEl[f] };

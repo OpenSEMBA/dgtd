@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "ModelAdapter.hpp"
+#include "SourcesAdapter.hpp"
 
 #include <TestUtils.h>
 
@@ -122,6 +123,21 @@ TEST_F(MaxwellAdapterTest, adaptsModelObjects)
 			EXPECT_EQ(it->second, exp);
 	}
 	//EXPECT_EQ(BdrCond::PEC, model.getBoundaryToMarker())
+}
+
+TEST_F(MaxwellAdapterTest, adaptsProbeObjects) 
+{
+
+}
+
+TEST_F(MaxwellAdapterTest, adaptsSourcesObjects)
+{
+	auto file_name{ maxwellCase("2D_Parser_BdrAndInterior") };
+	std::ifstream test_file(file_name);
+	auto case_data = json::parse(test_file);
+
+	EXPECT_NO_THROW(assembleSources(case_data));
+	auto sources{ assembleSources(case_data) };
 }
 
 }
