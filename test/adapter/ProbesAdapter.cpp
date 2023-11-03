@@ -54,9 +54,9 @@ Probes assembleProbes(const json& case_data)
 	}
 
 	if (case_data["probes"].contains("field")) {
-		for (int p = 0; p < case_data["field"].size(); p++) {
+		for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
 			FieldProbe field_probe(
-				assembleVector(case_data["field"][p]["position"])
+				assembleVector(case_data["probes"]["field"][p]["position"])
 			);
 			probes.fieldProbes.push_back(field_probe);
 		}
