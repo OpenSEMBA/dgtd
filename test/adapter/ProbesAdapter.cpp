@@ -32,30 +32,38 @@ const Direction assignFieldSpatial(const std::string& direction)
 	}
 }
 
+std::vector<double> assembleVector(const json& input)
+{
+	std::vector<double> res(input.size());
+	for (int i = 0; i < input.size(); i++) {
+		res[i] = input[i];
+	}
+	return res;
+}
+
 Probes assembleProbes(const json& case_data) 
 {
 
 	Probes probes;
 	
-	if (case_data.contains("exporter_probes")) {
+	if (case_data.contains("exporter")) {
 		ExporterProbe exporter_probe;
-		exporter_probe.name = case_data["name"];
-		exporter_probe.visSteps = case_data["exporter_probe"]["steps"];
+		exporter_probe.name = case_data["model"]["filename"];
+		exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
 		probes.exporterProbes.push_back(exporter_probe);
 	}
 
-	if (case_data.contains("point_probes")) {
-		for (int p = 0; p < case_data["point_probes"].size(); p++) {
-			auto field{ assignFieldType(case_data["point_probes"][p][0]) };
-			auto direction{ assignFieldSpatial(case_data["point_probes"][p][1]) };
-			std::vector<double> point(case_data["point_probes"][p][2].size());
-			for (int i = 0; i < point.size(); i++) {
-				point[i] = case_data["point_probes"][p][2][i];
-			}
-			PointProbe point_probe(field, direction, point);
-			probes.pointProbes.push_back(point_probe);
+	if (case_data.contains("field")) {
+		for (int p = 0; p < case_data["field"].size(); p++) {
+			FieldProbe field_probe(
+				assembleVector(case_data["field"][p]["position"])
+			);
+			probes.fieldProbes.push_back(field_probe);
 		}
 	}
+
+	// Surface probes will go here.
+
 	return probes;
 }
 

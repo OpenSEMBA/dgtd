@@ -33,9 +33,8 @@
     "exporter": { 
       "steps": 1 
     },
-    "points": [ 
+    "field": [ 
       {
-        "field": "E",
         "position": [ 0.0 ] 
       }
     ],
