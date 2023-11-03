@@ -98,7 +98,7 @@ https://github.com/OpenSEMBA/dgtd/blob/5dd67ef6435066172e9387d674ea7ccc4c6a8b87/
 	  	  	  	  	- Array of integers. Contains the tags referred to the geometrical tags in the mesh that define where to extract data.
 
 Example of a probes section with all types of probes defined. An exporter probe that saves data at every step, a points probe that stores the "E" field on position 0.0 for a 1D Mesh, and a surface probe that will store the "E" field at the surface with geometrical tag "1":
-https://github.com/OpenSEMBA/dgtd/blob/5dd67ef6435066172e9387d674ea7ccc4c6a8b87/testData/maxwellInputs/1D_PEC_Centered/1D_PEC_Centered.json#L32-L48
+https://github.com/OpenSEMBA/dgtd/blob/2e153b3978c770c8fc5ef299de6bf6b51fd98ef0/testData/maxwellInputs/1D_PEC_Centered/1D_PEC_Centered.json#L32-L47
 
 - **Sources**:
   	- Array of sources. User can customise problem illumination in this section. User should define at least one type of illumination from the available types. Different illumination types have different required parameters.
