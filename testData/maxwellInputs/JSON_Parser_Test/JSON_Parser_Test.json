@@ -1,67 +1,147 @@
 {
-  "solver_options": { 
-    "solver_type": "Centered", 
-    "final_time": 2.0, 
-    "time_step": 1e-2, 
-    "cfl": 0.7,  
-    "order": 3, 
-    "spectral": false
-  },
-
-  "model": { 
-    "filename": "1D_PEC_Centered.msh", 
-    "materials": [
-      {
-        "tags": [ 1 ],
-        "type": "Vacuum"
-      },
-      {
-        "tags": [ 2 ],
-        "type": "Dielectric",
-        "relative_permittivity": 3.1
-      }
-    ],
-    "boundaries": [
-      {
-        "tags": [ 1, 2 ],
-        "type": "PEC"
-      } 
-    ]
-  },
-
-  "probes": { 
-    "exporter": { 
-      "steps": 1 
+  "solver_options": {
+    "solver_type": {
+      "__description": "Defines the evolution operator that will be used in the simulation. Can be 'Centered' or 'Upwind'.",
+      "type": "string",
+      "default": "Centered",
+      "enum": ["Centered", "Upwind"]
     },
-    "points": [ 
-      {
-        "field": "E",
-        "position": [ 0.0 ] 
-      }
-    ]
-  },
-
-  "sources": [ 
-    {
-      "type": "initial", 
-      "field_type": "E", 
-      "center": [ 0.5 ], 
-      "polarization": [ 0.0, 1.0, 0.0 ], 
-      "dimension": 1, 
-      "magnitude": {
-        "type": "gaussian", 
-        "spread": 0.15, 
-        "delay": 1.0
-      }
+    "final_time": {
+      "__description": "In Natural Units (1m/c), how long the problem will be simulated.",
+      "type": "double",
+      "default": 2.0
     },
-    {
-      "type": "initial", 
-      "field_type": "E", 
-      "polarization": [ 0.0, 1.0, 0.0 ], 
-      "magnitude": {
-        "type": "resonant",
-        "mode": [ 2 ]
-      }
+    "time_step": {
+      "__description": "In Natural Units (1m/c), defines the time step increments between iterations. If not defined or set to 0.0 in 1D, will use an automatic time step calculation approach through CFL's condition. Must be defined in 2D and/or 3D. Overrides CFL for 1D if defined.",
+      "type": "double",
+      "default":  0.0
+    },
+    "cfl": {
+      "__description": "Courant–Friedrichs–Lewy condition, defines time step increments between iterations for 1D. Not available for 2D and/or 3D. If 'time_step' is defined this parameter is ignored.",
+      "type": "double",
+      "minimum": 0.1,
+      "maximum": 1.0,
+      "default": 0.7
+    },
+    "order": {
+      "__description": "Polynomial order of the interpolation function used on the mesh elements.",
+      "type": "integer",
+      "minimum": 0,
+      "default": 3
+    },
+    "spectral": {
+      "__description": "Use an Evolution Operator that uses a complete matrix form for all E and H unknowns but allows to calculate an approximate time step through analysis of the Eigenvalues of the matrix. Heavy computational cost, slower than the default Evolution Operators. Does not support the latest features.",
+      "type": "boolean",
+      "default": false
     }
-  ]
-}
+  },
+
+  "model": {
+    "__description": "Contains the information relevant to the mesh, materials and boundary conditions.",
+    "type": "object",
+    "filename": {
+      "__description": "Name of the mesh file. Must be the same as the folder name.",
+      "type":  "string"
+    },
+    "materials": {
+      "__description": "Contains the physical information of the interiors of the materials in the problem.",
+      "type": "array",
+      {
+        "tags": {
+          "__description": "Contains the tags referring to the geometrical identification of volumetrical elements in the mesh. (Volumes in 3D, Surfaces in 2D, Segments in 1D.)",
+          "type": "array of integers"
+        },
+        "class": {
+          "__description": "Type of material.",
+          "type": "string",
+          "enum": [ "Vacuum", "Dielectric", "Conductor" ]
+        },
+        "relative_permittivity": {
+          "__description": "Relative permittivity of the material.",
+          "type": "double",
+          "minimum": 1.0,
+          "default": 1.0
+        },
+        "relative_permeability": {
+          "__description": "Relative permeability of the material.",
+          "type": "double",
+          "minimum": 1.0,
+          "default": 1.0
+        }
+      }
+    },
+    "boundaries": {
+      "__description": "Contains the physical information of the surfaces of the problem.",
+      "type": "array",
+      {
+        "tags": {
+          "__description": "Contains the tags referring to the geometrical identification of surface elements in the mesh. (Surfaces in 3D, Segments in 2D, Points in 1D.)",
+          "type": "array of integers"
+        },
+        "class": {
+          "__description": "Type of boundary condition.",
+          "type": "string",
+          "enum": [ "PEC", "PMC", "SMA" ]
+        }
+      }
+    },
+
+    "probes": {
+      "__description": "Contains the information relevant to data extraction.",
+      "type": "object",
+      {
+        "exporter": {
+          "__description": "If defined, all fields will be exported for Paraview visualization.",
+          "type": "object",
+          {
+            "steps": {
+              "__description": "Every how many time steps data should be extracted.",
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          }
+        },
+        "points": {
+          "__description": "If defined, will extract all components of the specified field at the defined position.",
+          "type": "object"
+          {
+            "field": {
+              "__description": "Field to extract.",
+              "type": "string",
+              "enum":  ["E", "H"]
+            },
+            "position": {
+              "__description": "Physical space position of the extraction. Must be defined within valid mesh limits or the simulation will crash.",
+              "type": "nDimensional array",
+            }
+          }
+        }
+
+      },
+    },
+
+      "sources": [
+        {
+          "class": "initial",
+          "field_type": "E",
+          "center": [ 0.5 ],
+          "polarization": [ 0.0, 1.0, 0.0 ],
+          "dimension": 1,
+          "magnitude": {
+            "class": "gaussian",
+            "spread": 0.15,
+            "delay": 1.0
+          }
+        },
+        {
+          "class": "initial",
+          "field_type": "E",
+          "polarization": [ 0.0, 1.0, 0.0 ],
+          "magnitude": {
+            "class": "resonant",
+            "mode": [ 2 ]
+          }
+        }
+      ]
+    }
