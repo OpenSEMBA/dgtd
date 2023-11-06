@@ -41,6 +41,8 @@ public:
 	Mesh& getMesh() { return mesh_; };
 	const Mesh& getConstMesh() const { return mesh_; }
 	
+	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
+	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryCondToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
@@ -67,18 +69,14 @@ private:
 	BoundaryMarker pmcMarker_;
 	BoundaryMarker smaMarker_;
 
-	InteriorBoundaryMarker intpecMarker_;
-	InteriorBoundaryMarker intpmcMarker_;
-	InteriorBoundaryMarker intsmaMarker_;
+	BoundaryMarker intpecMarker_;
+	BoundaryMarker intpmcMarker_;
+	BoundaryMarker intsmaMarker_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 
 		bool isInterior);
 
-	void initGeomTagToTypeMaps();
-
-	BoundaryMarker& getMarkerForBdrCond(const BdrCond&);
-	InteriorBoundaryMarker& getInteriorMarkerForBdrCond(const BdrCond&);
 };
 
 }

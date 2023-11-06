@@ -27,12 +27,11 @@ Model::Model(Mesh& mesh, const GeomTagToMaterial& matMap, const GeomTagToBoundar
 				attToIntBdrMap_.insert(std::make_pair( i->first, i->second ));
 			}
 			else {
-				std::runtime_error("Wrongly declared BdrCond as value in AttributeToInteriorConditions.");
+				throw std::exception("Wrongly declared BdrCond as value in AttributeToInteriorConditions.");
 			}
 		}
 	}
 
-	initGeomTagToTypeMaps();
 	assembleGeomTagToTypeMap(attToBdrMap_, false);
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
 
@@ -69,6 +68,11 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 	return res;
 }
 
+void initMarker(BoundaryMarker& marker, const int size)
+{
+	marker.SetSize(size);
+	marker = 0;
+}
 
 void Model::assembleGeomTagToTypeMap(
 	std::map<GeomTag, BdrCond>& geomTagToCond,
@@ -80,62 +84,46 @@ void Model::assembleGeomTagToTypeMap(
 			throw std::exception("geomTag <= 0 in GeomTagToTypeMap assembly.");
 		}
 
-		switch (isInterior) {
-		case false:
-			getMarkerForBdrCond(bdr)[geomTag - 1] = 1;
-			break;
-		case true:
-			getInteriorMarkerForBdrCond(bdr)[geomTag - 1] = 1;
-			break;
+		auto marker{ getMarker(bdr, isInterior) };
+
+		if (marker.Size() == 0) {
+			initMarker(marker, mesh_.bdr_attributes.Max());
 		}
+
+		marker[geomTag - 1] = 1;
 	}
 }
 
-void Model::initGeomTagToTypeMaps()
-{
-	pecMarker_.SetSize(mesh_.bdr_attributes.Max());
-	pmcMarker_.SetSize(mesh_.bdr_attributes.Max());
-	smaMarker_.SetSize(mesh_.bdr_attributes.Max());
-	intpecMarker_.SetSize(mesh_.bdr_attributes.Max());
-	intpmcMarker_.SetSize(mesh_.bdr_attributes.Max());
-	intsmaMarker_.SetSize(mesh_.bdr_attributes.Max());
-	
-	pecMarker_    = 0;
-	pmcMarker_    = 0;
-	smaMarker_    = 0;
-	intpecMarker_ = 0;
-	intpmcMarker_ = 0;
-	intsmaMarker_ = 0;
-
-}
-
-BoundaryMarker& Model::getMarkerForBdrCond(const BdrCond& bdrCond)
+BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 {
 	switch (bdrCond) {
 	case BdrCond::PEC:
-		return pecMarker_;
+		switch (isInterior) {
+			case true:
+				return intpecMarker_;
+			case false:
+				return pecMarker_;
+		}
+		break;
 	case BdrCond::PMC:
-		return pmcMarker_;
+		switch (isInterior) {
+			case true:
+				return intpmcMarker_;
+			case false:
+				return pmcMarker_;
+		}
+		break;
 	case BdrCond::SMA:
-		return smaMarker_;
+		switch (isInterior) {
+			case true:
+				return intsmaMarker_;
+			case false:
+				return smaMarker_;
+		}
+		break;
 	default:
 		throw std::exception("Wrong BdrCond in getMarkerForBdrCond getter.");
 	}
 }
-
-InteriorBoundaryMarker& Model::getInteriorMarkerForBdrCond(const BdrCond& bdrCond)
-{
-	switch (bdrCond) {
-	case BdrCond::PEC:
-		return intpecMarker_;
-	case BdrCond::PMC:
-		return intpmcMarker_;
-	case BdrCond::SMA:
-		return intsmaMarker_;
-	default:
-		throw std::exception("Wrong BdrCond in getInteriorMarkerForBdrCond getter.");
-	}
-}
-
 
 }
