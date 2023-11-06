@@ -2,13 +2,16 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
+#include "MaxwellAdapter.hpp"
 #include "ModelAdapter.hpp"
 #include "ProbesAdapter.hpp"
 #include "SourcesAdapter.hpp"
+#include "SolverOptsAdapter.hpp"
 
 #include <TestUtils.h>
 
 using json = nlohmann::json;
+using namespace mfem;
 
 namespace maxwell {
 
@@ -150,6 +153,66 @@ TEST_F(MaxwellAdapterTest, adaptsSourcesObjects)
 	auto sources{ assembleSources(case_data) };
 
 	EXPECT_EQ(1, sources.size());
+}
+
+TEST_F(MaxwellAdapterTest, 1D_PEC_Centered) 
+{
+
+	auto solver{ assembleCaseSolver("1D_PEC_Centered") };
+
+	GridFunction eOld{ solver.getField(E,Y) };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	double tolerance{ 1e-2 };
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion 
+	// of a cycle.
+	GridFunction eNew{ solver.getField(E,Y) };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+
+	// Compares all DOFs.
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be always close to zero...
+	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		EXPECT_NEAR(0.0, f.Ey, tolerance);
+	}
+
+}
+
+TEST_F(MaxwellAdapterTest, 1D_PEC_Upwind)
+{
+
+	auto solver{ assembleCaseSolver("1D_PEC_Upwind") };
+
+	GridFunction eOld{ solver.getField(E,Y) };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	double tolerance{ 1e-2 };
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion 
+	// of a cycle.
+	GridFunction eNew{ solver.getField(E,Y) };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+
+	// Compares all DOFs.
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be always close to zero...
+	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		EXPECT_NEAR(0.0, f.Ey, tolerance);
+	}
+
 }
 
 }

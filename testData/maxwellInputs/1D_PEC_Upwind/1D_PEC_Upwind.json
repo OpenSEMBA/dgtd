@@ -1,10 +1,7 @@
 {
-  "solver_options": { 
-    "solver_type": "centered"
-  },
 
   "model": { 
-    "filename": "1D_PEC_Centered.msh",
+    "filename": "1D_PEC_Upwind.msh",
     "materials": [
       {
         "tags": [ 1 ],

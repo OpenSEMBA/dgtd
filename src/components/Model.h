@@ -53,7 +53,9 @@ public:
 
 	std::size_t numberOfMaterials() const;
 	std::size_t numberOfBoundaryMaterials() const;
+
 private:
+
 	Mesh mesh_;
 	
 	GeomTagToMaterial attToMatMap_;
@@ -77,6 +79,9 @@ private:
 		std::map<GeomTag, BdrCond>& attToCond, 
 		bool isInterior);
 
+	void assembleBdrToMarkerMaps();
+
+	void assembleIfNotEmpty(const BoundaryMarker&, bool isInterior);
 };
 
 }

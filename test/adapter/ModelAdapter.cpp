@@ -95,8 +95,8 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 		checkIfThrows(!case_data["model"]["boundaries"][b]["tags"].empty(),
 			"Boundary " + std::to_string(b) + " 'tags' are empty.");
 
-		checkIfThrows(case_data["model"]["boundaries"][b].contains("class"),
-			"Boundary " + std::to_string(b) + " does not have a defined 'class'.");
+		checkIfThrows(case_data["model"]["boundaries"][b].contains("type"),
+			"Boundary " + std::to_string(b) + " does not have a defined 'type'.");
 	}
 
 	auto face2BdrEl{ mesh.GetFaceToBdrElMap() };
@@ -105,7 +105,7 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 	std::map<GeomTag, isInterior> geomTag2interior;
 	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
 		for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
-			geomTag2bdrCond. emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["class"]));
+			geomTag2bdrCond. emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["type"]));
 			geomTag2interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
 			for (auto f = 0; f < mesh.GetNumFaces(); f++) {
 				if (face2BdrEl[f] != -1) {

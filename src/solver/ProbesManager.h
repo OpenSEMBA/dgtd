@@ -47,6 +47,7 @@ private:
     };
 
     int cycle_{ 0 };
+    double finalTime_;
 
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;

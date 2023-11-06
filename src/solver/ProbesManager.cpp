@@ -40,6 +40,8 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 	for (const auto& p : probes.fieldProbes) {
 		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
 	}
+
+	finalTime_ = opts.finalTime;
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -118,8 +120,10 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-	if (cycle_ % p.visSteps != 0) {
-		return;
+	if (abs(time - finalTime_) >= 1e-3){
+		if (cycle_ % p.visSteps != 0) {
+			return;
+		}
 	}
 
 	auto it{ exporterProbesCollection_.find(&p) };
@@ -178,4 +182,5 @@ void ProbesManager::updateProbes(Time t)
 
 	cycle_++;
 }
+
 }

@@ -142,16 +142,16 @@ FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Di
 	res->AddInteriorFaceIntegrator(
 		new MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Centered))));
 
-	for (auto& kv : model.getBoundaryToMarker()) {
+	for (auto& [bdrCond, marker] : model.getBoundaryToMarker()) {
 
 		auto c = bdrCoeffCheck(opts.fluxType);
-		if (kv.first != BdrCond::SMA) {
+		if (bdrCond != BdrCond::SMA) {
 			res->AddBdrFaceIntegrator(
-				new MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellDGTraceJumpIntegrator(dirTerms, c[bdrCond].at(f)), marker);
 		}
 		else {
 			res->AddBdrFaceIntegrator(
-				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellSMAJumpIntegrator(dirTerms, c[bdrCond].at(f)), marker);
 		}
 	}
 
@@ -167,15 +167,16 @@ FiniteElementOperator buildPenaltyOperator(const FieldType& f, const std::vector
 	res->AddInteriorFaceIntegrator(
 		new MaxwellDGTraceJumpIntegrator(dirTerms, intCoeff[opts.fluxType].at(int(FluxType::Upwind))));
 
-	for (auto& kv : model.getBoundaryToMarker()) {
+	for (auto& [bdrCond, marker] : model.getBoundaryToMarker()) {
+
 		auto c = bdrCoeffCheck(opts.fluxType);
-		if (kv.first != BdrCond::SMA) {
+		if (bdrCond != BdrCond::SMA) {
 			res->AddBdrFaceIntegrator(
-				new MaxwellDGTraceJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellDGTraceJumpIntegrator(dirTerms, c[bdrCond].at(f)), marker);
 		}
 		else {
 			res->AddBdrFaceIntegrator(
-				new MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+				new MaxwellSMAJumpIntegrator(dirTerms, c[bdrCond].at(f)), marker);
 		}
 	}
 

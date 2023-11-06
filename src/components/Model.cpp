@@ -34,7 +34,30 @@ Model::Model(Mesh& mesh, const GeomTagToMaterial& matMap, const GeomTagToBoundar
 
 	assembleGeomTagToTypeMap(attToBdrMap_, false);
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
+	assembleBdrToMarkerMaps();
 
+}
+
+void Model::assembleBdrToMarkerMaps()
+{
+	if (pecMarker_.Size() != 0) {
+		bdrToMarkerMap_.insert(std::make_pair(BdrCond::PEC, pecMarker_));
+	}
+	if (pmcMarker_.Size() != 0) {
+		bdrToMarkerMap_.insert(std::make_pair(BdrCond::PMC, pmcMarker_));
+	}
+	if (smaMarker_.Size() != 0) {
+		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, smaMarker_));
+	}
+	if (intpecMarker_.Size() != 0) {
+		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::PEC, intpecMarker_));
+	}
+	if (intpmcMarker_.Size() != 0) {
+		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::PMC, intpmcMarker_));
+	}
+	if (intsmaMarker_.Size() != 0) {
+		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, intsmaMarker_));
+	}
 }
 
 std::size_t Model::numberOfMaterials() const
@@ -84,10 +107,10 @@ void Model::assembleGeomTagToTypeMap(
 			throw std::exception("geomTag <= 0 in GeomTagToTypeMap assembly.");
 		}
 
-		auto marker{ getMarker(bdr, isInterior) };
+		auto& marker{ getMarker(bdr, isInterior) };
 
 		if (marker.Size() == 0) {
-			initMarker(marker, mesh_.bdr_attributes.Max());
+			initMarker(getMarker(bdr, isInterior), mesh_.bdr_attributes.Max());
 		}
 
 		marker[geomTag - 1] = 1;
