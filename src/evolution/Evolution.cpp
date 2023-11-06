@@ -59,7 +59,7 @@ Evolution::Evolution(
 		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301) {
 			srcmngr_.initTFSFPreReqs(model_.getConstMesh());
 			auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
-			Model modelGlobal = Model(*globalTFSFfes->GetMesh(), AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{});
+			Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{});
 			
 			for (auto f : { E, H }) {
 				MP_GTFSF_[f] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);

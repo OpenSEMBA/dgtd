@@ -165,9 +165,9 @@ Model OpensembaAdapter::readModel(const json& j) const
 		throw std::runtime_error("Can not find \"model\" label.");
 	}
 
-	AttributeToMaterial attToMat;
-	AttributeToBoundary attToBdr;
-	AttributeToBoundary attToInteriorConditions;
+	GeomTagToMaterial attToMat;
+	GeomTagToBoundary attToBdr;
+	GeomTagToBoundary attToInteriorConditions;
 	for (const auto& m : semba::parsers::JSON::readMaterials(*modelJSON)) {
 		Attribute att( m->getId().toInt() );
 		if (m->is<semba::physicalModel::Vacuum>()) {

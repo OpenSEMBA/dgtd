@@ -222,26 +222,26 @@ void Solver::step()
 }
 
 
-AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
+GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 {
 	switch (submesh.Dimension()) {
 	case 1:
-		return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
+		return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
 	case 2:
 		switch (submesh.GetElementType(0)) {
 		case Element::TRIANGLE:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
 		case Element::QUADRILATERAL:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
 		default:
 			throw std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
 		}
 	case 3:
 		switch (submesh.GetElementType(0)) {
 		case Element::TETRAHEDRON:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
 		case Element::HEXAHEDRON:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
 		default:
 			throw std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
 		}
@@ -253,7 +253,7 @@ AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 
 Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
 {
-	Model submodel(submesh, AttributeToMaterial{}, assignAttToBdrByDimForSpectral(submesh), AttributeToInteriorConditions{});
+	Model submodel(submesh, GeomTagToMaterial{}, assignAttToBdrByDimForSpectral(submesh), GeomTagToInteriorConditions{});
 	FiniteElementSpace subfes(&submesh, &fec);
 	Eigen::SparseMatrix<double> local;
 	auto numberOfFieldComponents = 2;
@@ -394,9 +394,9 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 		};
 		FiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
 		Model model{ submesh,
-			AttributeToMaterial{},
+			GeomTagToMaterial{},
 			assignAttToBdrByDimForSpectral(submesh),
-			AttributeToInteriorConditions{}
+			GeomTagToInteriorConditions{}
 		};
 		SourcesManager srcs{ Sources(), submeshFES };
 		Evolution evol {

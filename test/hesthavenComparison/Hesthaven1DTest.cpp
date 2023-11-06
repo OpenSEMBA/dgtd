@@ -106,14 +106,14 @@ TEST_F(MFEMHesthaven1D, MSOperator)
 {
 	setFES(2, 4);
 	auto MS_MFEM4E = toEigen(*buildByMult(
-		*buildInverseMassMatrix(E, Model(mesh_, AttributeToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_),
+		*buildInverseMassMatrix(E, Model(mesh_, GeomTagToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_),
 		*buildDerivativeOperator(X, *fes_), *fes_)
 		.get()->SpMat().ToDenseMatrix());
 	auto MS_Hesthaven4E = buildMatrixForMSTest4E();
 
 	setFES(2, 3);
 	auto MS_MFEM3E = toEigen(*buildByMult(
-		*buildInverseMassMatrix(E, Model(mesh_, AttributeToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_),
+		*buildInverseMassMatrix(E, Model(mesh_, GeomTagToMaterial{}, { {1, BdrCond::SMA}, {2, BdrCond::SMA} }), *fes_),
 		*buildDerivativeOperator(X, *fes_), *fes_)
 		.get()->SpMat().ToDenseMatrix());
 	Eigen::MatrixXd MS_Hesthaven3E{

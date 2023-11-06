@@ -9,13 +9,17 @@
 
 namespace maxwell {
 
-using Attribute = int;
-using AttributeToMaterial = std::map<Attribute, Material>;
-using AttributeToBoundary = std::map<Attribute, BdrCond>;
-using AttributeToInteriorConditions = std::map<Attribute, BdrCond>;
-using AttributeToInteriorSource = std::map<Attribute, BdrCond>;
+using FaceId = int;
+using GeomTag = int;
+using GeomTagToMaterial = std::map<GeomTag, Material>;
+using GeomTagToBoundary = std::map<GeomTag, BdrCond>;
+using GeomTagToInteriorConditions = std::map<GeomTag, BdrCond>;
+using GeomTagToInteriorSource = std::map<GeomTag, BdrCond>;
+using FaceToGeomTag = std::map<FaceId, GeomTag>;
+using GeomTagToBdrCond = std::map<GeomTag, BdrCond>;
 
 using BoundaryMarker = mfem::Array<int>;
+using InteriorBoundaryMarker = BoundaryMarker;
 using BoundaryToMarker = std::multimap<BdrCond, BoundaryMarker>;
 using InteriorBoundaryCondToMarker = std::multimap<BdrCond, BoundaryMarker>;
 using InteriorSourceToMarker = std::multimap<BdrCond, BoundaryMarker>;
@@ -29,9 +33,9 @@ public:
 	Model() = default;
 	Model(
 		Mesh&, 
-		const AttributeToMaterial& = AttributeToMaterial{},
-		const AttributeToBoundary& = AttributeToBoundary{},
-		const AttributeToInteriorConditions& = AttributeToInteriorConditions{}
+		const GeomTagToMaterial& = GeomTagToMaterial{},
+		const GeomTagToBoundary& = GeomTagToBoundary{},
+		const GeomTagToInteriorConditions& = GeomTagToInteriorConditions{}
 	);
 
 	Mesh& getMesh() { return mesh_; };
@@ -41,6 +45,7 @@ public:
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryCondToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
+	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
 
 	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
 
@@ -49,17 +54,31 @@ public:
 private:
 	Mesh mesh_;
 	
-	AttributeToMaterial attToMatMap_;
-	AttributeToBoundary attToBdrMap_;
-	AttributeToInteriorConditions attToIntBdrMap_;
-	AttributeToInteriorSource attToIntSrcMap_;
+	GeomTagToMaterial attToMatMap_;
+	GeomTagToBoundary attToBdrMap_;
+	GeomTagToInteriorConditions attToIntBdrMap_;
+	GeomTagToInteriorSource attToIntSrcMap_;
 	BoundaryToMarker bdrToMarkerMap_;
 	InteriorBoundaryCondToMarker intBdrToMarkerMap_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
+	FaceToGeomTag faceToGeomTag_;
 
-	void assembleAttToTypeMap(
-		std::map<Attribute, BdrCond>& attToCond, 
-		std::multimap<BdrCond, BoundaryMarker>& attToMarker);
+	BoundaryMarker pecMarker_;
+	BoundaryMarker pmcMarker_;
+	BoundaryMarker smaMarker_;
+
+	InteriorBoundaryMarker intpecMarker_;
+	InteriorBoundaryMarker intpmcMarker_;
+	InteriorBoundaryMarker intsmaMarker_;
+
+	void assembleGeomTagToTypeMap(
+		std::map<GeomTag, BdrCond>& attToCond, 
+		bool isInterior);
+
+	void initGeomTagToTypeMaps();
+
+	BoundaryMarker& getMarkerForBdrCond(const BdrCond&);
+	InteriorBoundaryMarker& getInteriorMarkerForBdrCond(const BdrCond&);
 };
 
 }

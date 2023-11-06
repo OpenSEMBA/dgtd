@@ -149,7 +149,7 @@ Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 	FiniteElementSpace& fes, const std::vector<Direction>& dirVec)
 {
 	std::vector<Direction> dirs = dirVec;
-	AttributeToBoundary attBdr{ {1,BdrCond::SMA},{2,BdrCond::SMA} };
+	GeomTagToBoundary attBdr{ {1,BdrCond::SMA},{2,BdrCond::SMA} };
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 
 	BilinearForm res(&fes);
@@ -180,7 +180,7 @@ Eigen::MatrixXd	buildNormalSMAFluxOperator1D(
 Eigen::MatrixXd	buildSMAPenaltyOperator1D(
 	FiniteElementSpace& fes)
 {
-	AttributeToBoundary attBdr{ {1,BdrCond::SMA},{2,BdrCond::SMA} };
+	GeomTagToBoundary attBdr{ {1,BdrCond::SMA},{2,BdrCond::SMA} };
 	VectorConstantCoefficient one(Vector({ 1.0 }));
 
 	BilinearForm res(&fes);

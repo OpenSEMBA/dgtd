@@ -100,9 +100,9 @@ protected:
 			fes, 
 			Model(
 				mesh,
-				AttributeToMaterial(),
-				AttributeToBoundary(),
-				AttributeToInteriorConditions())
+				GeomTagToMaterial(),
+				GeomTagToBoundary(),
+				GeomTagToInteriorConditions())
 		);
 		return res;
 	}
@@ -169,8 +169,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh,AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh,GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd ZeroNormalOperator{
 		{ 10., -1.12132034, -1.12132034,  2.12132034,  2.12132034,  0.},
@@ -206,8 +206,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd OneNormalOperator{
 		{ 0., -1.5, -1.5,  1.5,  1.5, 0.},
@@ -245,8 +245,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd OneNormalOperator{
 		{ 0.,  1.5,  1.5, -1.5, -1.5, 0.},
@@ -284,8 +284,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd OneNormalOperator{
 		{ 5.,  1.5,  2.5, -1.5, -1.5,  0.},
@@ -323,8 +323,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd OneNormalOperator{
 		{-5., -2.5, -1.5,  1.5,  1.5,  0.},
@@ -362,8 +362,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},
@@ -401,8 +401,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
@@ -440,8 +440,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
@@ -479,8 +479,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
-	AttributeToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, AttributeToMaterial(), pecBdr, AttributeToInteriorConditions());
+	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},

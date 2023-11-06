@@ -14,9 +14,7 @@ using namespace fixtures::sources;
 
 mfem::Vector assembleCenterVector(const json& case_data);
 
-mfem::Vector assemblePolarizationVector(const json& case_data);
-
-mfem::Vector assemblePropagationVector(const json& case_data);
+mfem::Vector assemble3DVector(const json& case_data);
 
 Sources assembleSources(const json& case_data);
 

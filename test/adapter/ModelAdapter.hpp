@@ -12,11 +12,11 @@ using json = nlohmann::json;
 
 namespace maxwell {
 
-using BoundaryPair = std::pair<AttributeToBoundary, AttributeToInteriorConditions>;
+using BoundaryPair = std::pair<GeomTagToBoundary, GeomTagToInteriorConditions>;
 
 BdrCond assignBdrCond(const std::string& bdr_cond);
 
-AttributeToMaterial assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh);
+GeomTagToMaterial assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh);
 BoundaryPair        assembleAttributeToBoundary(const json& case_data, const mfem::Mesh& mesh);
 
 std::string assembleMeshString(const std::string& filename);

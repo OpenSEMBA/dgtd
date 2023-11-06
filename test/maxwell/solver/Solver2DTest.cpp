@@ -24,7 +24,7 @@ protected:
 		const BdrCond& bdrT = BdrCond::PEC,
 		const BdrCond& bdrL = BdrCond::PEC) {
 		auto msh{ Mesh::MakeCartesian2D(nx,ny,elType) };
-		return Model(msh, AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
+		return Model(msh, GeomTagToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
 	}
 
 	Model buildModel(
@@ -38,10 +38,10 @@ protected:
 		const BdrCond& bdrT = BdrCond::PEC,
 		const BdrCond& bdrL = BdrCond::PEC) {
 		auto msh{ Mesh::MakeCartesian2D(nx, ny, elType, false, sx, sy) };
-		return Model(msh, AttributeToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
+		return Model(msh, GeomTagToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
 	}
 
-	AttributeToBoundary buildAttrToBdrMap2D(const BdrCond& bdrB, const BdrCond& bdrR, const BdrCond& bdrT, const BdrCond& bdrL)
+	GeomTagToBoundary buildAttrToBdrMap2D(const BdrCond& bdrB, const BdrCond& bdrR, const BdrCond& bdrT, const BdrCond& bdrL)
 	{
 		return {
 			{1, bdrB},
@@ -226,8 +226,8 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "amr-quad.mesh").c_str(),1,0) };
 	mesh.UniformRefinement();
 
-	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(10) };
 	probes.pointProbes = {
@@ -319,8 +319,8 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "amr-quad.mesh").c_str(),1,0)};
 	mesh.UniformRefinement();
 
-	AttributeToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1, BdrCond::PMC}, {2,BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -884,8 +884,8 @@ TEST_F(Solver2DTest, pec_totalfieldin_1dot5D)
 	mesh.UniformRefinement();
 	//mesh.UniformRefinement();
 	//mesh.UniformRefinement();
-	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(5) };
 	//probes.pointProbes = {
@@ -931,8 +931,8 @@ TEST_F(Solver2DTest, pec_planewave)
 	//mesh.UniformRefinement();
 	//mesh.UniformRefinement();
 	//mesh.UniformRefinement();
-	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1, BdrCond::PEC}, {2,BdrCond::PMC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(5) };
 	//probes.pointProbes = {
@@ -975,8 +975,8 @@ TEST_F(Solver2DTest, pec_planewave)
 TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(),1,0) };
-	AttributeToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1, BdrCond::SMA}, {2,BdrCond::PMC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 
@@ -996,8 +996,8 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "One_Element_Tall_Long_Line_TF_centered.mesh").c_str(), 1, 0)};
-	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -1066,8 +1066,8 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_in)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TF_Beam.msh").c_str(), 1, 0) };
-	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -1173,8 +1173,8 @@ TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_in)
 TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_inout)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TFSF_Beam.msh").c_str(), 1, 0) };
-	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -1262,9 +1262,9 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface)
 {
 	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_DualSurface_FullFace_Beam.msh").c_str(), 1, 0) };
 	//mesh.UniformRefinement();
-	AttributeToBoundary attToBdr{ {2,BdrCond::PMC}, {3, BdrCond::PEC} };
-	AttributeToInteriorConditions attToIntCond{ {4, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::PMC}, {3, BdrCond::PEC} };
+	GeomTagToInteriorConditions attToIntCond{ {4, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntCond };
 
 	auto probes{ buildProbesWithAnExportProbe(100) };
 
@@ -1286,9 +1286,9 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface_RtL)
 {
 	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_DualSurface_FullFace_Beam_RtL.msh").c_str(), 1, 0) };
 	//mesh.UniformRefinement();
-	AttributeToBoundary attToBdr{ {2,BdrCond::PMC}, {3, BdrCond::PEC} };
-	AttributeToInteriorConditions attToIntCond{ {4, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::PMC}, {3, BdrCond::PEC} };
+	GeomTagToInteriorConditions attToIntCond{ {4, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntCond };
 
 	auto probes{ buildProbesWithAnExportProbe(100) };
 
@@ -1309,8 +1309,8 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface_RtL)
 TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(), 1, 0) };
-	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(25) };
 
@@ -1331,8 +1331,8 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D)
 TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
 {
 	Mesh mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(), 1, 0) };
-	AttributeToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {1,BdrCond::PMC}, {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(25) };
 
@@ -1355,7 +1355,7 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
 //	auto fec = std::make_unique<DG_FECollection>(4, 2, BasisType::GaussLobatto);
 //	auto fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get());
 //
-//	Model model = Model(mesh, AttributeToMaterial{}, AttributeToBoundary{});
+//	Model model = Model(mesh, GeomTagToMaterial{}, GeomTagToBoundary{});
 //
 //	maxwell::Solver solver{
 //		model,
@@ -1387,7 +1387,7 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
 //	opts.evolution = FiniteElementEvolution::Options();
 //	opts.evolution.disForm = DisForm::Strong;
 //
-//	Model model = Model(mesh2DPer, AttributeToMaterial(), AttributeToBoundary());
+//	Model model = Model(mesh2DPer, GeomTagToMaterial(), GeomTagToBoundary());
 //
 //	Probes probes;
 //	probes.addExporterProbeToCollection(ExporterProbe());
@@ -1423,7 +1423,7 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
 //	const char* mesh_file = "star-mixed.mesh";
 //	Mesh mesh(mesh_file);
 //	mesh.UniformRefinement();
-//	Model model = Model(mesh, AttributeToMaterial(), AttributeToBoundary());
+//	Model model = Model(mesh, GeomTagToMaterial(), GeomTagToBoundary());
 //
 //	Probes probes;
 //	//probes.addExporterProbeToCollection(ExporterProbe());
@@ -1449,8 +1449,8 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
 //	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
 //	Material mat11 = Material(1.0, 1.0);
 //	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-//	AttributeToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-//	AttributeToBoundary attToBdrVec;
+//	GeomTagToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
+//	GeomTagToBoundary attToBdrVec;
 //	Model model(mesh2D, attToMatVec, attToBdrVec);
 //
 //	double spread = 2.0;
@@ -1481,9 +1481,9 @@ TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "InteriorPEC2D.msh").c_str(),1,0)};
 	mesh.UniformRefinement();
-	AttributeToBoundary attToBdr{ {3,BdrCond::PMC}, {4,BdrCond::SMA } };
-	AttributeToInteriorConditions attToIntBdr{ {2,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	GeomTagToBoundary attToBdr{ {3,BdrCond::PMC}, {4,BdrCond::SMA } };
+	GeomTagToInteriorConditions attToIntBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe(100) };
 
@@ -1509,9 +1509,9 @@ TEST_F(Solver2DTest, interiorBoundary_TotalFieldIn)
 		)
 	};
 	//mesh.UniformRefinement();
-	AttributeToBoundary attToBdr{ {1, BdrCond::PEC}, {2, BdrCond::PMC} };
+	GeomTagToBoundary attToBdr{ {1, BdrCond::PEC}, {2, BdrCond::PMC} };
 	
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe(80) };
 
 	maxwell::Solver solver{
@@ -1534,7 +1534,7 @@ TEST_F(Solver2DTest, DISABLED_box_with_Gmsh)
 	auto mesh = Mesh::LoadFromFile((gmshMeshesFolder() + "test.msh").c_str(), 1, 0);
 	auto fec = std::make_unique<DG_FECollection>(1, 2, BasisType::GaussLobatto);
 	auto fes = std::make_unique<FiniteElementSpace>(&mesh, fec.get(), 1, 0);
-	auto model = Model(mesh, AttributeToMaterial{}, AttributeToBoundary{});
+	auto model = Model(mesh, GeomTagToMaterial{}, GeomTagToBoundary{});
 
 	auto probes{ buildProbesWithAnExportProbe(100) };
 
@@ -1600,8 +1600,8 @@ TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
 TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circleinside)
 {
 	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_TFSF_Box_Circle.msh").c_str(), 1, 0, true) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 
@@ -1621,9 +1621,9 @@ TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circleinside)
 TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_intbdr_fss)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TF_FSS.msh").c_str(), 1, 0, true) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PMC} };
-	AttributeToInteriorConditions attToIntCond{ {4,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntCond };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PMC} };
+	GeomTagToInteriorConditions attToIntCond{ {4,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntCond };
 
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
@@ -1643,8 +1643,8 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_intbdr_fss)
 TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circle_w_circles)
 {
 	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_TFSF_Circle_of_circles.msh").c_str(), 1, 0, true) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::SMA}, {3,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 

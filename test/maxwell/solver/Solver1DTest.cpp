@@ -26,8 +26,8 @@ protected:
 		auto msh{ Mesh::MakeCartesian1D(numberOfElements, 1.0) };
 		return Model{
 			msh,
-			AttributeToMaterial{},
-			AttributeToBoundary{
+			GeomTagToMaterial{},
+			GeomTagToBoundary{
 				{1, bdrL},
 				{2, bdrR}
 			}
@@ -331,9 +331,9 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
-	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
-	AttributeToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, attToIntBdr };
+	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
+	GeomTagToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntBdr };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -380,8 +380,8 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_centered)
 			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
-	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -428,8 +428,8 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_upwind)
 			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
-	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -475,8 +475,8 @@ TEST_F(Solver1DTest, totalfield_doublebdr_submesher_centered)
 			(gmshMeshesFolder() + "1D_TFp_line.msh").c_str(), 1, 0
 		)
 	};
-	AttributeToBoundary attToBdr{ {2, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(5) };
 	probes.pointProbes = {
@@ -519,8 +519,8 @@ TEST_F(Solver1DTest, totalfield_doublebdr_submesher_centered)
 TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 {
 	Mesh mesh{	Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0)};
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
@@ -577,8 +577,8 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
 {
 	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + + "LineTFSFInOut_RtL.mesh").c_str(), 1, 0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
 		PointProbe{ E, Y, {0.9} },
@@ -636,8 +636,8 @@ TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
 TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_upwind)
 {
 	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + +"LineTFSFInOut_RtL.mesh").c_str(), 1, 0) };
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe(20) };
 	probes.pointProbes = {
 		PointProbe{ E, Y, {0.9} },
@@ -698,8 +698,8 @@ TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
 			(mfemMeshes1DFolder() + "lineIntBdr.mesh").c_str(), 1, 0
 		)
 	};
-	AttributeToBoundary attToBdr{ {2,BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, attToBdr, AttributeToInteriorConditions{} };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
 	auto probes{ buildProbesWithAnExportProbe(1) };
 	probes.pointProbes = {
@@ -884,7 +884,7 @@ TEST_F(Solver1DTest, fieldProbeThroughSolver)
 		FieldProbe{{2.0}}
 	};
 
-	Model model{ m, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} };
+	Model model{ m, GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{} };
 
 	maxwell::Solver solver{
 		model,
@@ -918,9 +918,9 @@ TEST_F(Solver1DTest, interior_boundary_marking_centered)
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
-	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond };
+	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond };
 
 	maxwell::Solver solver{
 		model,
@@ -941,9 +941,9 @@ TEST_F(Solver1DTest, interior_boundary_marking_upwind)
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
-	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond };
+	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond };
 
 	maxwell::Solver solver{
 		model,
@@ -963,9 +963,9 @@ TEST_F(Solver1DTest, interior_boundary_marking_centered_RtL)
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
-	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond};
+	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond};
 
 	maxwell::Solver solver{
 		model,
@@ -986,9 +986,9 @@ TEST_F(Solver1DTest, interior_boundary_marking_upwind_RtL)
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
-	AttributeToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	AttributeToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, AttributeToMaterial{}, att2Bdr, att2IntCond };
+	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
+	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond };
 
 	maxwell::Solver solver{
 		model,

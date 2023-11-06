@@ -32,6 +32,8 @@ using FieldMovies = std::map<Time,FieldsForFP>;
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
 
+using Attribute = int;
+
 enum FieldType { E, H };
 enum class FluxType { Centered, Upwind };
 
@@ -57,10 +59,6 @@ using FluxBdrCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxBdrCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxSrcCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxSrcCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
-
-struct TFSFOrientationCoefficient {
-	double orient;
-};
 
 using Direction = int;
 static const Direction X{ 0 };

@@ -34,8 +34,6 @@ namespace maxwell {
 	FiniteElementOperator buildFluxOperator1D(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 	FiniteElementOperator buildPenaltyOperator1D(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
-	TFSFOrientationCoefficient interiorBoundaryFaceCoefficient(const BdrCond&);
-
 	FiniteElementOperator buildPenaltyFixOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
 	FiniteElementOperator buildZeroNormalOperator(const FieldType&, Model&, FiniteElementSpace&, const EvolutionOptions&);

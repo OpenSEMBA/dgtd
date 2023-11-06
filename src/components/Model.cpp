@@ -2,7 +2,7 @@
 
 namespace maxwell {
 
-Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBoundary& bdrMap, const AttributeToInteriorConditions& intBdrMap) :
+Model::Model(Mesh& mesh, const GeomTagToMaterial& matMap, const GeomTagToBoundary& bdrMap, const GeomTagToInteriorConditions& intBdrMap) :
 	mesh_(mesh)
 {
 	if (matMap.size() == 0) {
@@ -12,23 +12,30 @@ Model::Model(Mesh& mesh, const AttributeToMaterial& matMap, const AttributeToBou
 		attToMatMap_ = matMap;
 	}
 
+	auto f2bdr{ mesh.GetFaceToBdrElMap() };
+
+	for (auto i = bdrMap.begin(); i != bdrMap.end(); i++) {
+		faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
+	}
 	attToBdrMap_ = bdrMap;
 	
 	if (intBdrMap.size() != 0)
 	{
 		for (auto i = intBdrMap.begin(); i != intBdrMap.end(); i++){
 			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA) {
-				attToIntBdrMap_.insert({ i->first, i->second });
+				faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
+				attToIntBdrMap_.insert(std::make_pair( i->first, i->second ));
 			}
 			else {
 				std::runtime_error("Wrongly declared BdrCond as value in AttributeToInteriorConditions.");
 			}
-		}		
+		}
 	}
 
-	assembleAttToTypeMap(attToBdrMap_, bdrToMarkerMap_);
-	assembleAttToTypeMap(attToIntBdrMap_, intBdrToMarkerMap_);
-	assembleAttToTypeMap(attToIntSrcMap_, intSrcToMarkerMap_);
+	initGeomTagToTypeMaps();
+	assembleGeomTagToTypeMap(attToBdrMap_, false);
+	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
+
 }
 
 std::size_t Model::numberOfMaterials() const
@@ -63,20 +70,70 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 }
 
 
-void Model::assembleAttToTypeMap(
-	std::map<Attribute, BdrCond>& attToCond,
-	std::multimap<BdrCond, BoundaryMarker>& attToMarker)
+void Model::assembleGeomTagToTypeMap(
+	std::map<GeomTag, BdrCond>& geomTagToCond,
+	bool isInterior)
 {
-	for (const auto& kv : attToCond) {
-		const auto& att{ kv.first };
-		const auto& bdr{ kv.second };
-		assert(att > 0);
+	for (const auto& [geomTag, bdr] : geomTagToCond) {
 
-		BoundaryMarker bdrMarker{ mesh_.bdr_attributes.Max() };
-		bdrMarker = 0;
-		bdrMarker[att - 1] = 1;
+		if (geomTag <= 0) {
+			throw std::exception("geomTag <= 0 in GeomTagToTypeMap assembly.");
+		}
 
-		attToMarker.emplace(bdr, bdrMarker);
+		switch (isInterior) {
+		case false:
+			getMarkerForBdrCond(bdr)[geomTag - 1] = 1;
+			break;
+		case true:
+			getInteriorMarkerForBdrCond(bdr)[geomTag - 1] = 1;
+			break;
+		}
+	}
+}
+
+void Model::initGeomTagToTypeMaps()
+{
+	pecMarker_.SetSize(mesh_.bdr_attributes.Max());
+	pmcMarker_.SetSize(mesh_.bdr_attributes.Max());
+	smaMarker_.SetSize(mesh_.bdr_attributes.Max());
+	intpecMarker_.SetSize(mesh_.bdr_attributes.Max());
+	intpmcMarker_.SetSize(mesh_.bdr_attributes.Max());
+	intsmaMarker_.SetSize(mesh_.bdr_attributes.Max());
+	
+	pecMarker_    = 0;
+	pmcMarker_    = 0;
+	smaMarker_    = 0;
+	intpecMarker_ = 0;
+	intpmcMarker_ = 0;
+	intsmaMarker_ = 0;
+
+}
+
+BoundaryMarker& Model::getMarkerForBdrCond(const BdrCond& bdrCond)
+{
+	switch (bdrCond) {
+	case BdrCond::PEC:
+		return pecMarker_;
+	case BdrCond::PMC:
+		return pmcMarker_;
+	case BdrCond::SMA:
+		return smaMarker_;
+	default:
+		throw std::exception("Wrong BdrCond in getMarkerForBdrCond getter.");
+	}
+}
+
+InteriorBoundaryMarker& Model::getInteriorMarkerForBdrCond(const BdrCond& bdrCond)
+{
+	switch (bdrCond) {
+	case BdrCond::PEC:
+		return intpecMarker_;
+	case BdrCond::PMC:
+		return intpmcMarker_;
+	case BdrCond::SMA:
+		return intsmaMarker_;
+	default:
+		throw std::exception("Wrong BdrCond in getInteriorMarkerForBdrCond getter.");
 	}
 }
 

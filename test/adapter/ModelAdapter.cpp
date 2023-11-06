@@ -40,9 +40,9 @@ std::string assembleMeshString(const std::string& filename)
 	return maxwellInputsFolder() + folder_name + "/" + filename;
 }
 
-AttributeToMaterial assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh)
+GeomTagToMaterial assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh)
 {
-	AttributeToMaterial res{};
+	GeomTagToMaterial res{};
 
 	checkIfThrows(case_data.contains("model"), "JSON data does not include 'model'.");
 	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
@@ -87,8 +87,6 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 	checkIfThrows(case_data["model"].contains("boundaries"), 
 		"JSON data does not include 'boundaries' in 'model'.");
 
-	auto face2BdrEl{ mesh.GetFaceToBdrElMap() };
-
 	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
 
 		checkIfThrows(case_data["model"]["boundaries"][b].contains("tags"),
@@ -101,17 +99,18 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 			"Boundary " + std::to_string(b) + " does not have a defined 'class'.");
 	}
 
-	std::map<Attribute, BdrCond>att2bdrCond;
-	std::map<Attribute, isInterior> att2interior;
+	auto face2BdrEl{ mesh.GetFaceToBdrElMap() };
+
+	std::map<GeomTag, BdrCond> geomTag2bdrCond;
+	std::map<GeomTag, isInterior> geomTag2interior;
 	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
 		for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
-			att2bdrCond. emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["class"]));
-			att2interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
+			geomTag2bdrCond. emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["class"]));
+			geomTag2interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
 			for (auto f = 0; f < mesh.GetNumFaces(); f++) {
-				auto bdrEl{ face2BdrEl[f] };
-				if (bdrEl != -1) {
-					if (mesh.GetBdrAttribute(bdrEl) == a && mesh.FaceIsInterior(f)) {
-						att2interior[a] = true;
+				if (face2BdrEl[f] != -1) {
+					if (mesh.GetBdrAttribute(face2BdrEl[f]) == a && mesh.FaceIsInterior(f)) {
+						geomTag2interior[a] = true;
 						break;
 					}
 				}
@@ -119,36 +118,36 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 		}
 	}
 
-	for (auto [att, v] : att2interior) {
+	for (auto [geomTag, v] : geomTag2interior) {
 		checkIfThrows(
-			mesh.bdr_attributes.Find(att) != -1,
-			std::string("There is no bdrattribute") + std::to_string(att) +
+			mesh.bdr_attributes.Find(geomTag) != -1,
+			std::string("There is no boundary geometrical tag ") + std::to_string(geomTag) +
 			" defined in the mesh, but it is defined in the JSON."
 		);
 	}
 
-	for (auto att{ 1 }; att < mesh.bdr_attributes.Size() + 1; att++) {
+	for (auto geomTag{ 1 }; geomTag < mesh.bdr_attributes.Size() + 1; geomTag++) {
 		checkIfThrows(
-			!(att2interior.find(att) == att2interior.end()),
-			std::string("There is no bdrattribute") + std::to_string(att) +
+			!(geomTag2interior.find(geomTag) == geomTag2interior.end()),
+			std::string("There is no  boundary geometrical tag ") + std::to_string(geomTag) +
 			" defined in the JSON, but it is defined in the mesh."
 		);
 	}
 	
-	AttributeToBoundary att2bdr{};
-	AttributeToInteriorConditions att2intCond{};
-	for (auto [att, isInt] : att2interior) {
+	GeomTagToBoundary geomTag2bdr{};
+	GeomTagToInteriorConditions geomTag2intCond{};
+	for (auto [att, isInt] : geomTag2interior) {
 		switch (isInt) {
 		case false:
-			att2bdr.emplace(att, att2bdrCond[att]);
+			geomTag2bdr.emplace(att, geomTag2bdrCond[att]);
 			break;
 		case true:
-			att2intCond.emplace(att, att2bdrCond[att]);
+			geomTag2intCond.emplace(att, geomTag2bdrCond[att]);
 			break;
 		}
 	}
 	
-	return std::make_pair(att2bdr, att2intCond);
+	return std::make_pair(geomTag2bdr, geomTag2intCond);
 }
 
 mfem::Mesh assembleMesh(const std::string& mesh_string)
