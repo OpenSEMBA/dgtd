@@ -79,8 +79,6 @@ private:
 		bool isInterior);
 
 	void assembleBdrToMarkerMaps();
-
-	void assembleIfNotEmpty(const BoundaryMarker&, bool isInterior);
 };
 
 }

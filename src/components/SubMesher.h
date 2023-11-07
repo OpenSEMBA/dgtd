@@ -42,8 +42,6 @@ private:
 	void assignIndividualTFSFAttsOnePoint1D(Mesh&, const Array<int>& marker);
 	void assignIndividualTFSFAttsTwoPoints1D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&, const Array<int>& marker);
-	
-	void setIndividualTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&, const Array<int>& marker);
 

@@ -157,6 +157,19 @@ double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, in
 
 }
 
+const Vector calculateTangent2D(Mesh& m, int be)
+{
+	auto be_trans{ m.GetBdrElementTransformation(be) };
+	auto f{ m.GetFace(m.GetBdrFace(be)) };
+	auto v0{ m.GetVertex(f->GetVertices()[0]) };
+	auto v1{ m.GetVertex(f->GetVertices()[1]) };
+	Vector res(2);
+	for (int i = 0; i < res.Size(); i++) {
+		res[i] = v1[i] - v0[i];
+	}
+	return res;
+}
+
 const Vector calculateNormal3D(Mesh& m, int be)
 {
 	auto be_trans{ m.GetBdrElementTransformation(be) };
@@ -190,7 +203,7 @@ const Vector calculateBarycenterVector(Mesh& m, int be)
 {
 	auto barys{ calculateBarycenters(m, be) };
 
-	Vector res(3);
+	Vector res(barys.first.Size());
 	for (auto i{ 0 }; i < res.Size(); ++i) {
 		res[i] = barys.first[i] - barys.second[i];
 	}
@@ -463,43 +476,30 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	}
 }
 
+double calculateCrossCoefficient(const Vector& bary_vec, const Vector& tang_vec)
+{
+	Vector cross_first(3), cross_sec(3);
+	cross_first[0] = bary_vec[0];
+	cross_first[1] = bary_vec[1];
+	cross_first[2] = 0.0;
+	cross_sec[0] = tang_vec[0];
+	cross_sec[1] = tang_vec[1];
+	cross_sec[2] = 0.0;
+	auto cross = crossProduct(cross_first, cross_sec);
+	return cross[2];
+}
+
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
-			auto be_trans{ m.GetBdrElementTransformation(be) };
-			auto f{ m.GetFace(m.GetBdrFace(be)) };
-			auto v0{ m.GetVertex(f->GetVertices()[0]) };
-			auto v1{ m.GetVertex(f->GetVertices()[1]) };
-			Vector tang_be(2);
-			for (int i = 0; i < tang_be.Size(); i++) {
-				tang_be[i] = v1[i] - v0[i];
-			}
 
-			auto fe_trans{ getFaceElementTransformation(m,be) };
+			auto face_ori { calculateCrossCoefficient(
+					calculateBarycenterVector(m, be),
+					calculateTangent2D(m, be))
+			};
 
-			auto bary1{ getBarycenterOfElement(m, fe_trans->Elem1No) };
-			Vector bary2(2);
-			if (fe_trans->Elem2No != NotFound) {
-				bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
-			}
-			else {
-				bary2 = getBarycenterOfFaceElement(m, m.GetBdrFace(be));
-			}
-			Vector bary_vec(2);
-			for (auto i{ 0 }; i < bary_vec.Size(); ++i) {
-				bary_vec[i] = bary2[i] - bary1[i];
-			}
-			Vector cross_first(3), cross_sec(3);
-			cross_first[0] = bary_vec[0];
-			cross_first[1] = bary_vec[1];
-			cross_first[2] = 0.0; 
-			cross_sec[0] = tang_be[0];
-			cross_sec[1] = tang_be[1];
-			cross_sec[2] = 0.0;
-			auto cross = crossProduct(cross_first, cross_sec);
-			auto face_ori = cross[2];
-
+			auto fe_trans{ getFaceElementTransformation(m, be) };
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
@@ -597,78 +597,6 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 		}
 	}
 
-}
-
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing(Mesh& m, const Array<int>& marker)
-{
-	auto facemap{ m.GetFaceToBdrElMap() };
-	for (int be = 0; be < m.GetNBE(); be++) {
-		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
-
-			auto be_trans{ getFaceElementTransformation(m, be) };
-			auto face_oris{ calculateBaryNormalProduct(m, *be_trans, be) };
-
-			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
-			m.GetBdrElementVertices(be, be_vert);
-			be_vert.Sort();
-
-			switch (m.Dimension()) {
-			case 2:
-				m.GetElementEdges(be_trans->Elem1No, el1_face, el1_ori);
-				break;
-			case 3:
-				m.GetElementFaces(be_trans->Elem1No, el1_face, el1_ori);
-				break;
-			default:
-				throw std::exception("Incorrect Dimension for mesh in TFSF Child Attribute setting.");
-			}
-			std::pair<FaceId, IsTF> set_v1;
-			for (int f = 0; f < el1_face.Size(); f++) {
-				auto fi{ m.GetFaceInformation(f) };
-				m.GetFaceVertices(el1_face[f], face_vert);
-				face_vert.Sort();
-				if (face_vert == be_vert) {
-					face_oris.first >= 0.0 ? set_v1 = std::make_pair(f, true) : set_v1 = std::make_pair(f, false);
-					break;
-				}
-			}
-
-			std::pair<FaceId, IsTF> set_v2;
-			if (be_trans->Elem2No != NotFound) {
-				switch (m.Dimension()) {
-				case 1:
-					m.GetElementVertices(be_trans->Elem2No, el2_face);
-					break;
-				case 2:
-					m.GetElementEdges(be_trans->Elem2No, el2_face, el2_ori);
-					break;
-				case 3:
-					m.GetElementFaces(be_trans->Elem2No, el2_face, el2_ori);
-					break;
-				default:
-					throw std::exception("Incorrect Dimension for mesh in TFSF Child Attribute setting.");
-				}
-				for (int f = 0; f < el2_face.Size(); f++) {
-					auto fi{ m.GetFaceInformation(f) };
-					auto ir = Geometries.GetVertices(Geometry::Type::SQUARE);
-					m.GetFaceVertices(el2_face[f], face_vert);
-					auto el_faces = m.GetElement(be_trans->Elem2No)->GetFaceVertices(f);
-					face_vert.Sort();
-					if (face_vert == be_vert) {
-						face_oris.second >= 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
-						break;
-					}
-				}
-			}
-			else {
-				auto set_v2{ std::make_pair(NotFound, false) };
-			}
-			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
-			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
-			std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
-			prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
-		}
-	}
 }
 
 NearToFarField::NearToFarField(const Mesh& m, const FiniteElementSpace& fes, const Array<int>& marker)
