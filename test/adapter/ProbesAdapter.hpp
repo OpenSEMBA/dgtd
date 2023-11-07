@@ -12,6 +12,6 @@ const FieldType assignFieldType(const std::string& field_type);
 
 const Direction assignFieldSpatial(const std::string& direction);
 
-Probes assembleProbes(const json& case_data);
+Probes buildProbes(const json& case_data);
 
 }

@@ -41,7 +41,7 @@ std::vector<double> assembleVector(const json& input)
 	return res;
 }
 
-Probes assembleProbes(const json& case_data) 
+Probes buildProbes(const json& case_data) 
 {
 
 	Probes probes;

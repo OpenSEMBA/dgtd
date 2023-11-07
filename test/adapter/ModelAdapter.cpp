@@ -160,7 +160,7 @@ mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, true);
 }
 
-Model assembleModel(const json& case_data)
+Model buildModel(const json& case_data)
 {
 	auto mesh{ assembleMesh(assembleMeshString(case_data["model"]["filename"]))};
 		

@@ -77,8 +77,8 @@ TEST_F(MaxwellAdapterTest, adaptsModelObjects)
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 
-	EXPECT_NO_THROW(assembleModel(case_data));
-	auto model{ assembleModel(case_data) };	
+	EXPECT_NO_THROW(buildModel(case_data));
+	auto model{ buildModel(case_data) };	
 
 	typedef std::multimap<BdrCond, BoundaryMarker>::iterator MMAPIterator;
 
@@ -135,8 +135,8 @@ TEST_F(MaxwellAdapterTest, adaptsProbeObjects)
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 
-	EXPECT_NO_THROW(assembleProbes(case_data));
-	auto probes{ assembleProbes(case_data) };
+	EXPECT_NO_THROW(buildProbes(case_data));
+	auto probes{ buildProbes(case_data) };
 
 	EXPECT_EQ(1, probes.exporterProbes.size());
 	EXPECT_EQ(1, probes.fieldProbes.size());
@@ -149,16 +149,16 @@ TEST_F(MaxwellAdapterTest, adaptsSourcesObjects)
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 
-	EXPECT_NO_THROW(assembleSources(case_data));
-	auto sources{ assembleSources(case_data) };
+	EXPECT_NO_THROW(buildSources(case_data));
+	auto sources{ buildSources(case_data) };
 
 	EXPECT_EQ(1, sources.size());
 }
 
 TEST_F(MaxwellAdapterTest, 1D_PEC_Centered) 
 {
-
-	auto solver{ assembleCaseSolver("1D_PEC_Centered") };
+	std::string case_name{ "1D_PEC_Centered" };
+	auto solver{ buildSolver(case_name) };
 
 	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -188,7 +188,8 @@ TEST_F(MaxwellAdapterTest, 1D_PEC_Centered)
 TEST_F(MaxwellAdapterTest, 1D_PEC_Upwind)
 {
 
-	auto solver{ assembleCaseSolver("1D_PEC_Upwind") };
+	std::string case_name{ "1D_PEC_Upwind" };
+	auto solver{ buildSolver(case_name) };
 
 	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -214,5 +215,71 @@ TEST_F(MaxwellAdapterTest, 1D_PEC_Upwind)
 	}
 
 }
+
+TEST_F(MaxwellAdapterTest, 2D_PEC_Centered)
+{
+	auto data{ parseJSONfile("2D_PEC") };
+	data["solver_options"]["solver_type"] = "centered";
+	auto solver{ buildSolver(data) };
+
+	GridFunction eOld{ solver.getField(E,Z) };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	double tolerance{ 2e-2 };
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion 
+	// of a cycle.
+	GridFunction eNew{ solver.getField(E,Z) };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
+
+	// Compares all DOFs.
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary the electric field should be always close to zero...
+	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		EXPECT_NEAR(0.0, f.Ex, tolerance);
+		EXPECT_NEAR(0.0, f.Ey, tolerance);
+		EXPECT_NEAR(0.0, f.Ez, tolerance);
+	}
+
+}
+
+TEST_F(MaxwellAdapterTest, 2D_PEC_Upwind)
+{
+	std::string case_data {"2D_PEC"};
+	auto solver{ buildSolver(case_data) };
+
+	GridFunction eOld{ solver.getField(E,Z) };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	double tolerance{ 2e-2 };
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion 
+	// of a cycle.
+	GridFunction eNew{ solver.getField(E,Z) };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
+
+	// Compares all DOFs.
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 5e-3);
+
+	// At the left boundary the electric field should be always close to zero...
+	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		EXPECT_NEAR(0.0, f.Ex, tolerance);
+		EXPECT_NEAR(0.0, f.Ey, tolerance);
+		EXPECT_NEAR(0.0, f.Ez, tolerance);
+	}
+
+}
+
 
 }

@@ -50,8 +50,6 @@ private:
 
 	void cleanInvalidSubMeshEntries();
 
-	void restoreElementAttributes(Mesh&);
-	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
 	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
 
 	Face2Dir getFaceAndDirOnVertexIteration2D(const Element*, const Array<int>& verts, const Array<int>& be_verts);
@@ -64,6 +62,27 @@ private:
 	std::unique_ptr<SubMesh> tf_mesh_;
 	std::unique_ptr<SubMesh> sf_mesh_;
 	std::unique_ptr<SubMesh> global_submesh_;
+
+};
+
+class NearToFarField
+{
+public:
+	NearToFarField(){};
+	NearToFarField(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
+
+private:
+
+	void setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker);
+	void prepareSubMeshInfo(Mesh&, const FaceElementTransformations*, int faceId, bool el1_is_tf);
+	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
+	void storeElementToFaceInformation(const FaceElementTransformations*, int faceId, bool el1_is_tf);
+	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& marker);
+	SubMesh createSubMeshFromParent(const Mesh&, const Array<int>& parent_marker);
+
+	std::vector<El2Face> elem_to_face_ntff_;
+	std::vector<ElementId> elems_for_global_submesh_;
+	std::unique_ptr<SubMesh> ntff_mesh_;
 
 };
 

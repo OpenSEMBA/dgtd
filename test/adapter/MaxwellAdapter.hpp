@@ -7,4 +7,6 @@
 
 using json = nlohmann::json;
 
-maxwell::Solver assembleCaseSolver(std::string case_name);
+json parseJSONfile(const std::string& case_name);
+maxwell::Solver buildSolver(const std::string& case_name);
+maxwell::Solver buildSolver(const json& case_data);

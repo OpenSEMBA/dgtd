@@ -3,7 +3,7 @@
 
 namespace maxwell {
 
-SolverOptions assembleSolverOptions(const json& case_data) 
+SolverOptions buildSolverOptions(const json& case_data) 
 {
 	SolverOptions res{};
 

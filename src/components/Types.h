@@ -40,7 +40,8 @@ enum class FluxType { Centered, Upwind };
 enum SubMeshingMarkers {
 	TotalField = 1000,
 	ScatteredField = 2000,
-	Global_SubMesh = 3000
+	Global_SubMesh = 3000,
+	NearToFarField = 4000
 };
 
 enum class BdrCond {
@@ -48,6 +49,7 @@ enum class BdrCond {
 	PEC,
 	PMC,
 	SMA,
+	NearToFarField = 201,
 	TotalFieldIn = 301
 };
 

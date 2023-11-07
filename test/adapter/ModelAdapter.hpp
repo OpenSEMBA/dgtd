@@ -22,6 +22,6 @@ BoundaryPair        assembleAttributeToBoundary(const json& case_data, const mfe
 std::string assembleMeshString(const std::string& filename);
 mfem::Mesh assembleMesh(const std::string& mesh_string);
 
-Model assembleModel(const json& case_data);
+Model buildModel(const json& case_data);
 
 }

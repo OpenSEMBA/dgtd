@@ -24,7 +24,7 @@ mfem::Vector assemble3DVector(const json& input)
 	return res;
 }
 
-Sources assembleSources(const json& case_data)
+Sources buildSources(const json& case_data)
 {
 	Sources res;
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
