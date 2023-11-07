@@ -20,12 +20,9 @@ using GeomTagToBdrCond = std::map<GeomTag, BdrCond>;
 
 using BoundaryMarker = mfem::Array<int>;
 using InteriorBoundaryMarker = BoundaryMarker;
-using BoundaryToMarker = std::multimap<BdrCond, BoundaryMarker>;
-using InteriorBoundaryCondToMarker = std::multimap<BdrCond, BoundaryMarker>;
-using InteriorSourceToMarker = std::multimap<BdrCond, BoundaryMarker>;
-
-using InteriorBoundaryMarker = mfem::Array<int>;
-using InteriorBoundaryCondToMarker = std::multimap<BdrCond, InteriorBoundaryMarker>;
+using BoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
+using InteriorBoundaryCondToMarker = std::map<BdrCond, BoundaryMarker>;
+using InteriorSourceToMarker = std::map<BdrCond, BoundaryMarker>;
 
 class Model {
 public:
@@ -74,6 +71,8 @@ private:
 	BoundaryMarker intpecMarker_;
 	BoundaryMarker intpmcMarker_;
 	BoundaryMarker intsmaMarker_;
+
+	BoundaryMarker tfsfMarker_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 

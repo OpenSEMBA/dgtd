@@ -58,6 +58,9 @@ void Model::assembleBdrToMarkerMaps()
 	if (intsmaMarker_.Size() != 0) {
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, intsmaMarker_));
 	}
+	if (tfsfMarker_.Size() != 0) {
+		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::TotalFieldIn, tfsfMarker_));
+	}
 }
 
 std::size_t Model::numberOfMaterials() const
@@ -142,6 +145,12 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 				return intsmaMarker_;
 			case false:
 				return smaMarker_;
+		}
+		break;
+	case BdrCond::TotalFieldIn:
+		switch (isInterior) {
+			case true:
+				return tfsfMarker_;
 		}
 		break;
 	default:

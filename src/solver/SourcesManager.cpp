@@ -141,15 +141,15 @@ void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
     }
 }
 
-void SourcesManager::initTFSFPreReqs(const Mesh& m)
+void SourcesManager::initTFSFPreReqs(const Mesh& m, const Array<int>& marker)
 {
-    initTFSFSubMesher(m);
+    initTFSFSubMesher(m, marker);
     initTFSFSpaces();
 }
 
-void SourcesManager::initTFSFSubMesher(const Mesh& m)
+void SourcesManager::initTFSFSubMesher(const Mesh& m, const Array<int>& marker)
 {
-    auto sm = TotalFieldScatteredFieldSubMesher(m);
+    auto sm = TotalFieldScatteredFieldSubMesher(m, marker);
     tfsf_submesher_ = std::move(sm);
 }
 

@@ -56,8 +56,8 @@ Evolution::Evolution(
 	}
 
 	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
-		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301) {
-			srcmngr_.initTFSFPreReqs(model_.getConstMesh());
+		if (model_.getInteriorBoundaryToMarker().find(BdrCond::TotalFieldIn) != model.getInteriorBoundaryToMarker().end()) {
+			srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn));
 			auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
 			Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{});
 			

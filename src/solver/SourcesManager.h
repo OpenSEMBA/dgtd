@@ -16,7 +16,7 @@ public:
     FieldGridFuncs evalTimeVarField(const Time);
     FieldGridFuncs evalTimeVarField(const Time, bool is_tf);
     FieldGridFuncs evalTimeVarField(const Time, FiniteElementSpace*);
-    void initTFSFPreReqs(const Mesh&);
+    void initTFSFPreReqs(const Mesh&, const Array<int>& marker);
     FiniteElementSpace* getTFSpace() { return tf_fes_.get(); }
     FiniteElementSpace* getSFSpace() { return sf_fes_.get(); }
     FiniteElementSpace* getGlobalTFSFSpace() { return global_tfsf_fes_.get(); }
@@ -27,7 +27,7 @@ public:
 
 private:
 
-    void initTFSFSubMesher(const Mesh&);
+    void initTFSFSubMesher(const Mesh&, const Array<int>& marker);
     void initTFSFSpaces();
 
     mfem::FiniteElementSpace& fes_;

@@ -21,7 +21,7 @@ class TotalFieldScatteredFieldSubMesher
 public:
 
 	TotalFieldScatteredFieldSubMesher(){};
-	TotalFieldScatteredFieldSubMesher(const Mesh&);
+	TotalFieldScatteredFieldSubMesher(const Mesh&, const Array<int>& marker);
 
 	SubMesh* getTFSubMesh() { return tf_mesh_.get(); }
 	SubMesh* getSFSubMesh() { return sf_mesh_.get(); }
@@ -32,28 +32,24 @@ public:
 
 private:
 
-	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
-	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child);
-	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
-	void setGlobalTFSFAttributesForSubMeshing(Mesh&);
+	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
+	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& parent_marker);
+	void setGlobalTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
+	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	
 	SetPairs twoPointAssignator(Mesh&, int be, bool flag);
-	void assignIndividualTFSFAttsOnePoint1D(Mesh&);
-	void assignIndividualTFSFAttsTwoPoints1D(Mesh&);
-	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&);
+	void assignIndividualTFSFAttsOnePoint1D(Mesh&, const Array<int>& marker);
+	void assignIndividualTFSFAttsTwoPoints1D(Mesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&, const Array<int>& marker);
 	
-	void setIndividualTFSFAttributesForSubMeshing(Mesh&);
-	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&);
-
-	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&);
+	void setIndividualTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&, const Array<int>& marker);
 
 	void cleanInvalidSubMeshEntries();
 
 	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
-
-	Face2Dir getFaceAndDirOnVertexIteration2D(const Element*, const Array<int>& verts, const Array<int>& be_verts);
-	Face2Dir getFaceAndDirOnVertexIteration3D(Mesh& m, int be);
 
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;

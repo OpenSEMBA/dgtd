@@ -205,22 +205,22 @@ void restoreElementAttributes(Mesh& m) //Temporary method that has to be reworke
 	}
 }
 
-TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m)
+TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m, const Array<int>& marker)
 {
 	Mesh parent_for_global(m);
 	Mesh parent_for_individual(m);
 
-	setGlobalTFSFAttributesForSubMeshing(parent_for_global);
+	setGlobalTFSFAttributesForSubMeshing(parent_for_global, marker);
 
 	switch (m.Dimension()) {
 	case 1:
-		setIndividualTFSFAttributesForSubMeshing1D(parent_for_individual);
+		setIndividualTFSFAttributesForSubMeshing1D(parent_for_individual, marker);
 		break;
 	case 2:
-		setIndividualTFSFAttributesForSubMeshing2D(parent_for_individual);
+		setIndividualTFSFAttributesForSubMeshing2D(parent_for_individual, marker);
 		break;
 	default:
-		setIndividualTFSFAttributesForSubMeshing3D(parent_for_individual);
+		setIndividualTFSFAttributesForSubMeshing3D(parent_for_individual, marker);
 		break;
 	}
 
@@ -266,14 +266,14 @@ SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& p
 	}
 	
 	auto res{ SubMesh::CreateFromDomain(parent, marker) };
-	setBoundaryAttributesInChild(parent, res);
+	setBoundaryAttributesInChild(parent, res, marker);
 
 	restoreElementAttributes(res);
 	res.FinalizeMesh();
 	return res;
 }
 
-void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child)
+void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& parent_marker)
 {
 	if (child.Dimension() == 1) {
 		for (int e = 0; e < child.GetNE(); e++) {
@@ -286,9 +286,9 @@ void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh&
 	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
 	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
-	for (int i = 0; i < parent.GetNBE(); i++) {
-		if (parent.GetBdrAttribute(i) == static_cast<int>(BdrCond::TotalFieldIn)) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], static_cast<int>(BdrCond::TotalFieldIn));
+	for (int be = 0; be < parent.GetNBE(); be++) {
+		if (parent_marker[parent.GetBdrAttribute(be) - 1] == 1) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(be))], static_cast<int>(BdrCond::TotalFieldIn));
 		}
 	}
 }
@@ -344,11 +344,11 @@ void TotalFieldScatteredFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceEl
 }
 
 
-void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mesh& m, const Array<int>& marker)
 {
 
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ getFaceElementTransformation(m, be)};
 			if (be_trans->Elem2No != NotFound) {
 				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
@@ -394,10 +394,10 @@ SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, 
 	return std::make_pair(set_e1, set_e2);
 }
 
-void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			std::pair<FaceId, IsTF> set_e1;
 			std::pair<FaceId, IsTF> set_e2;
@@ -420,11 +420,11 @@ void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh&
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh& m, const Array<int>& marker)
 {
 	auto flag{ false };
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			SetPairs sets;
 			switch (flag) {
 			case false:
@@ -443,30 +443,30 @@ void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m, const Array<int>& marker)
 {
 	auto be_counter{ 0 };
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			be_counter++;
 		}
 	}
 	switch (be_counter) {
 	case 1:
-		assignIndividualTFSFAttsOnePoint1D(m);
+		assignIndividualTFSFAttsOnePoint1D(m, marker);
 		break;
 	case 2:
-		assignIndividualTFSFAttsTwoPoints1D(m);
+		assignIndividualTFSFAttsTwoPoints1D(m, marker);
 		break;
 	default:
 		throw std::exception("Only one or two TFSF points can be declared in a 1D Mesh.");
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m) 
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ m.GetBdrElementTransformation(be) };
 			auto f{ m.GetFace(m.GetBdrFace(be)) };
 			auto v0{ m.GetVertex(f->GetVertices()[0]) };
@@ -543,11 +543,11 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
-			
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
+
 			auto face_ori{ mfem::InnerProduct(
 				calculateBarycenterVector(m, be),
 				calculateNormal3D(m, be))
@@ -599,11 +599,11 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing(Mesh& m, const Array<int>& marker)
 {
 	auto facemap{ m.GetFaceToBdrElMap() };
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			auto face_oris{ calculateBaryNormalProduct(m, *be_trans, be) };
