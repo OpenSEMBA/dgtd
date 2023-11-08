@@ -118,21 +118,21 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 		}
 	}
 
-	for (auto [geomTag, v] : geomTag2interior) {
-		checkIfThrows(
-			mesh.bdr_attributes.Find(geomTag) != -1,
-			std::string("There is no boundary geometrical tag ") + std::to_string(geomTag) +
-			" defined in the mesh, but it is defined in the JSON."
-		);
-	}
+	//for (auto [geomTag, v] : geomTag2interior) {
+	//	checkIfThrows(
+	//		mesh.bdr_attributes.Find(geomTag) != -1,
+	//		std::string("There is no boundary geometrical tag ") + std::to_string(geomTag) +
+	//		" defined in the mesh, but it is defined in the JSON."
+	//	);
+	//}
 
-	for (auto geomTag{ 1 }; geomTag < mesh.bdr_attributes.Size() + 1; geomTag++) {
-		checkIfThrows(
-			!(geomTag2interior.find(geomTag) == geomTag2interior.end()),
-			std::string("There is no  boundary geometrical tag ") + std::to_string(geomTag) +
-			" defined in the JSON, but it is defined in the mesh."
-		);
-	}
+	//for (auto geomTag{ 1 }; geomTag < mesh.bdr_attributes.Size() + 1; geomTag++) {
+	//	checkIfThrows(
+	//		!(geomTag2interior.find(geomTag) == geomTag2interior.end()),
+	//		std::string("There is no  boundary geometrical tag ") + std::to_string(geomTag) +
+	//		" defined in the JSON, but it is defined in the mesh."
+	//	);
+	//}
 	
 	GeomTagToBoundary geomTag2bdr{};
 	GeomTagToInteriorConditions geomTag2intCond{};

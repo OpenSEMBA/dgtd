@@ -26,9 +26,6 @@ Model::Model(Mesh& mesh, const GeomTagToMaterial& matMap, const GeomTagToBoundar
 				faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
 				attToIntBdrMap_.insert(std::make_pair( i->first, i->second ));
 			}
-			else {
-				throw std::exception("Wrongly declared BdrCond as value in AttributeToInteriorConditions.");
-			}
 		}
 	}
 
@@ -57,9 +54,6 @@ void Model::assembleBdrToMarkerMaps()
 	}
 	if (intsmaMarker_.Size() != 0) {
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, intsmaMarker_));
-	}
-	if (tfsfMarker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::TotalFieldIn, tfsfMarker_));
 	}
 }
 

@@ -48,8 +48,8 @@ Sources buildSources(const json& case_data)
 		}
 		else if (case_data["sources"][s]["type"] == "totalField") {
 			return buildGaussianPlanewave(
-				case_data["sources"]["spread"],
-				case_data["sources"]["delay"],
+				case_data["sources"][s]["magnitude"]["spread"],
+				case_data["sources"][s]["magnitude"]["delay"],
 				assemble3DVector(case_data["sources"][s]["polarization"]),
 				assemble3DVector(case_data["sources"][s]["propagation"])
 			);
