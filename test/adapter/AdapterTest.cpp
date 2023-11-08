@@ -18,6 +18,10 @@ namespace maxwell {
 class MaxwellAdapterTest : public ::testing::Test {
 };
 
+class MaxwellProblemTest : public MaxwellAdapterTest {
+
+};
+
 TEST_F(MaxwellAdapterTest, testFileFound)
 {
 	EXPECT_NO_THROW(maxwellCase("JSON_Parser_Test"));
@@ -155,9 +159,70 @@ TEST_F(MaxwellAdapterTest, adaptsSourcesObjects)
 	EXPECT_EQ(1, sources.size());
 }
 
-TEST_F(MaxwellAdapterTest, 1D_PEC_Centered) 
+TEST_F(MaxwellProblemTest, 1D_PEC_Centered)
 {
-	std::string case_name{ "1D_PEC_Centered" };
+
+	auto file{ parseJSONfile("1D_PEC") };
+	file["solver_options"]["flux_type"] = "centered";
+	auto solver{ buildSolver(file) };
+
+	GridFunction eOld{ solver.getField(E,Y) };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	double tolerance{ 1e-2 };
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion 
+	// of a cycle.
+	GridFunction eNew{ solver.getField(E,Y) };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+
+	// Compares all DOFs.
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary and right boundaries the electric field should be always close to zero...
+	{
+		auto expected_t_half{ 0.5 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hz, tolerance);
+			}
+		}
+
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hz, tolerance);
+			}
+		}
+	}
+
+	// At the left boundary and right boundaries the electric field should be always close to zero 
+	// while the magnetic field should reach +- 2.0 at specific times...
+
+	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		auto expected_t_initial{ 0.0 };
+		auto expected_t_final{ 2.0 };
+		if (abs(t - expected_t_initial) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ey, tolerance);
+		}
+		if (abs(t - expected_t_final) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ey, tolerance);
+		}
+	}
+
+
+}
+
+TEST_F(MaxwellProblemTest, 1D_PEC_Upwind)
+{
+
+	std::string case_name{ "1D_PEC" };
 	auto solver{ buildSolver(case_name) };
 
 	GridFunction eOld{ solver.getField(E,Y) };
@@ -178,45 +243,44 @@ TEST_F(MaxwellAdapterTest, 1D_PEC_Centered)
 	// Compares all DOFs.
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 
-	// At the left boundary the electric field should be always close to zero...
-	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
-		EXPECT_NEAR(0.0, f.Ey, tolerance);
+	// At the left boundary and right boundaries the electric field should be always close to zero 
+	// while the magnetic field should reach +- 2.0 at specific times...
+	{
+		auto expected_t_half{ 0.5 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hz, tolerance);
+			}
+		}
+
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hz, tolerance);
+			}
+		}
+	}
+
+	//...and at the start and end of the simulation, 
+	// the electric field should be always close to one due to symmetries in the problem.
+
+	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		auto expected_t_initial{ 0.0 };
+		auto expected_t_final{ 2.0 };
+		if (abs(t - expected_t_initial) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+		}
+		if (abs(t - expected_t_final) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+		}
 	}
 
 }
 
-TEST_F(MaxwellAdapterTest, 1D_PEC_Upwind)
-{
-
-	std::string case_name{ "1D_PEC_Upwind" };
-	auto solver{ buildSolver(case_name) };
-
-	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
-
-	// Checks fields have been initialized.
-	EXPECT_NE(0.0, normOld);
-
-	double tolerance{ 1e-2 };
-
-	solver.run();
-
-	// Checks that field is almost the same as initially because the completion 
-	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Y) };
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-
-	// Compares all DOFs.
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
-
-	// At the left boundary the electric field should be always close to zero...
-	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
-		EXPECT_NEAR(0.0, f.Ey, tolerance);
-	}
-
-}
-
-TEST_F(MaxwellAdapterTest, 2D_PEC_Centered)
+TEST_F(MaxwellProblemTest, 2D_PEC_Centered)
 {
 	auto data{ parseJSONfile("2D_PEC") };
 	data["solver_options"]["solver_type"] = "centered";
@@ -240,16 +304,48 @@ TEST_F(MaxwellAdapterTest, 2D_PEC_Centered)
 	// Compares all DOFs.
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 
-	// At the left boundary the electric field should be always close to zero...
-	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
-		EXPECT_NEAR(0.0, f.Ex, tolerance);
-		EXPECT_NEAR(0.0, f.Ey, tolerance);
-		EXPECT_NEAR(0.0, f.Ez, tolerance);
+	// At the left boundary and right boundaries the electric field should be always close to zero 
+	// while the magnetic field should reach +- 2.0 at specific times...
+	{
+		auto expected_t_half{ 0.5 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hy, tolerance);
+			}
+		}
+
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	//...and at the start and end of the simulation, in the center of the problem,
+	// the electric field should be always close to 1.0 due to dimensions of the box.
+
+	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		auto expected_t_initial{ 0.0 };
+		auto expected_t_final{ 2.0 };
+		if (abs(t - expected_t_initial) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+		}
+		if (abs(t - expected_t_final) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+		}
 	}
 
 }
 
-TEST_F(MaxwellAdapterTest, 2D_PEC_Upwind)
+TEST_F(MaxwellProblemTest, 2D_PEC_Upwind)
 {
 	std::string case_data {"2D_PEC"};
 	auto solver{ buildSolver(case_data) };
@@ -272,11 +368,42 @@ TEST_F(MaxwellAdapterTest, 2D_PEC_Upwind)
 	// Compares all DOFs.
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 5e-3);
 
-	// At the left boundary the electric field should be always close to zero...
-	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
-		EXPECT_NEAR(0.0, f.Ex, tolerance);
-		EXPECT_NEAR(0.0, f.Ey, tolerance);
-		EXPECT_NEAR(0.0, f.Ez, tolerance);
+	// At the left boundary and right boundaries the electric field should be always close to zero 
+	// while the magnetic field should reach +- 2.0 at specific times...
+	{
+		auto expected_t_half{ 0.5 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hy, tolerance);
+			}
+		}
+
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(2.0, f.Hy, tolerance);
+			}
+		}
+	}
+	//...and at the start and end of the simulation, in the center of the problem,
+	// the electric field should be always close to 1.0 due to dimensions of the box.
+
+	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		auto expected_t_initial{ 0.0 };
+		auto expected_t_final{ 2.0 };
+		if (abs(t - expected_t_initial) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+		}
+		if (abs(t - expected_t_final) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+		}
 	}
 
 }

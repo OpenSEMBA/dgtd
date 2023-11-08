@@ -1,10 +1,7 @@
 {
-  "solver_options": { 
-    "solver_type": "centered"
-  },
 
   "model": { 
-    "filename": "1D_PEC_Centered.msh",
+    "filename": "1D_PEC.msh",
     "materials": [
       {
         "tags": [ 1 ],
@@ -23,9 +20,15 @@
     "exporter": { 
       "steps": 20
     },
-    "field": [ 
+    "field": [
       {
-        "position": [ 0.0 ] 
+        "position": [ 0.0 ]
+      },
+      {
+        "position": [ 1.0 ]
+      },
+      {
+        "position": [ 0.5 ]
       }
     ]
   },
