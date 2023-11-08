@@ -20,6 +20,7 @@ public:
 private:
 
 	std::array<FiniteElementOperator, 2> MInv_;
+	std::array<FiniteElementOperator, 2> MInvTFSF_;
 
 	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
 	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_;

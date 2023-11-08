@@ -22,6 +22,7 @@ using BoundaryMarker = mfem::Array<int>;
 using InteriorBoundaryMarker = BoundaryMarker;
 using BoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
 using InteriorBoundaryCondToMarker = std::map<BdrCond, BoundaryMarker>;
+using TotalFieldScatteredFieldToMarker = std::map<BdrCond, BoundaryMarker>;
 using InteriorSourceToMarker = std::map<BdrCond, BoundaryMarker>;
 
 class Model {
@@ -43,6 +44,7 @@ public:
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryCondToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
+	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
 
@@ -61,6 +63,7 @@ private:
 	GeomTagToInteriorSource attToIntSrcMap_;
 	BoundaryToMarker bdrToMarkerMap_;
 	InteriorBoundaryCondToMarker intBdrToMarkerMap_;
+	TotalFieldScatteredFieldToMarker tfsfToMarkerMap_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
 	FaceToGeomTag faceToGeomTag_;
 

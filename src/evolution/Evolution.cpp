@@ -42,19 +42,23 @@ Evolution::Evolution(
 	opts_{ options }
 {
 
-	if (model_.getInteriorBoundaryToMarker().find(BdrCond::TotalFieldIn) != model.getInteriorBoundaryToMarker().end()) {
-		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn));
+	if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model.getTotalFieldScatteredFieldToMarker().end()) {
+		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
 		auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
 		Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{});
 			
 		for (auto f : { E, H }) {
-			MP_GTFSF_[f] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+			MInvTFSF_[f] = buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes);
+		}
+
+		for (auto f : { E, H }) {
+			MP_GTFSF_[f] = buildByMult(*MInvTFSF_[f], *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 		}
 
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
-					MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildOneNormalOperator(f2, { d }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+					MFN_GTFSF_[f][f2][d] = buildByMult(*MInvTFSF_[f], *buildOneNormalOperator(f2, {d}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 				}
 			}
 		}
@@ -63,7 +67,7 @@ Evolution::Evolution(
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
 					for (auto d2{ X }; d2 <= Z; d2++) {
-						MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildTwoNormalOperator(f2, { d, d2 }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+						MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*MInvTFSF_[f], *buildTwoNormalOperator(f2, {d, d2}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 					}
 				}
 			}
@@ -75,7 +79,7 @@ Evolution::Evolution(
 	}
 
 	if (model_.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
-		for (auto f : { E, H }) { 
+		for (auto f : { E, H }) {
 			MPB_[f] = buildByMult(*MInv_[f], *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
 		}
 
