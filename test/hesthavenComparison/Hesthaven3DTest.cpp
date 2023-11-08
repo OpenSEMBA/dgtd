@@ -47,39 +47,6 @@ protected:
 
 };
 
-TEST_F(MFEMHesthaven3D, DISABLED_checkNodalPositions)
-{
-	mesh_ = Mesh::LoadFromFile((mfemMeshes3DFolder() + "onetetra.mesh").c_str());
-	fec_ = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
-	fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get(), 3, Ordering::byVDIM);
-
-	GridFunction mfemNodes(fes_.get());
-	mesh_.GetNodes(mfemNodes);
-
-	std::cout << mfemNodes << std::endl;
-
-	Eigen::MatrixXd mfemEigenNodes(4, 3);
-	for (Eigen::Index i = 0; i < mfemEigenNodes.rows(); i++) {
-		for (Eigen::Index j = 0; j < mfemEigenNodes.cols(); j++) {
-			mfemEigenNodes(i, j) = mfemNodes.Elem((i * mfemEigenNodes.cols()) + j);
-		}
-	}
-
-	auto mfemEigenRotatedNodes = rotatorO1_ * mfemEigenNodes;
-
-	Eigen::MatrixXd expectedNodes{
-		{0,0,0},
-		{1,0,0},
-		{0,1,0},
-		{0,0,1}
-	};
-
-	std::cout << rotatorO1_.transpose() * expectedNodes  << std::endl;
-
-	EXPECT_TRUE(expectedNodes.isApprox(mfemEigenRotatedNodes, tol_));
-	
-}
-
 TEST_F(MFEMHesthaven3D, massMatrix)
 {
 	// Hesthaven's mass matrix is calculated with
@@ -110,33 +77,6 @@ TEST_F(MFEMHesthaven3D, massMatrix)
 	auto MFEMCutMass = MFEMmass.block<10, 10>(0, 0);
 
 	EXPECT_TRUE(MFEMCutMass.isApprox(vanderProdInverse*jacobian, 1e-4));
-
-}
-
-TEST_F(MFEMHesthaven3D, DISABLED_checkDrOperator3D)
-{
-	set3DFES(2);
-
-	Eigen::MatrixXd hesthavenDr{
-		{-1.5,  2.0, -0.5,  0.0, 0.0, 0.0,  0.0, 0.0, 0.0, 0.0},
-		{-0.5,  0.0,  0.5,  0.0, 0.0, 0.0,  0.0, 0.0, 0.0, 0.0},
-		{ 0.5, -2.0,  1.5,  0.0, 0.0, 0.0,  0.0, 0.0, 0.0, 0.0},
-		{-0.5,  1.0, -0.5, -1.0, 1.0, 0.0,  0.0, 0.0, 0.0, 0.0},
-		{ 0.5, -1.0,  0.5, -1.0, 1.0, 0.0,  0.0, 0.0, 0.0, 0.0},
-		{ 0.5,  0.0, -0.5, -2.0, 2.0, 0.0,  0.0, 0.0, 0.0, 0.0},
-		{-0.5,  1.0, -0.5,  0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0},
-		{ 0.5, -1.0,  0.5,  0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0},
-		{ 0.5,  0.0, -0.5, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 0.0},
-		{ 0.5,  0.0, -0.5,  0.0, 0.0, 0.0, -2.0, 2.0, 0.0, 0.0}
-	};
-
-	auto MFEMDr{
-		buildMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(Y,*fes_)
-	};
-
-	auto MFEMCutDr = MFEMDr.block<10, 10>(0, 0);
-
-	EXPECT_TRUE(MFEMCutDr.isApprox(JacobianFactor_ * hesthavenDr, 1e-4));
 
 }
 
@@ -182,53 +122,6 @@ TEST_F(MFEMHesthaven3D, DerivativeOperators_onetetra)
 	EXPECT_TRUE(MFEMDr.isApprox(DrRotated));
 	EXPECT_TRUE(MFEMDs.isApprox(DsRotated));
 	EXPECT_TRUE(MFEMDt.isApprox(DtRotated));
-}
-
-TEST_F(MFEMHesthaven3D, DISABLED_DerivativeOperators_fivetetra)
-{
-	Mesh meshManual = Mesh::LoadFromFile((mfemMeshes3DFolder() + "fivetetra.mesh").c_str());
-	std::unique_ptr<FiniteElementCollection> fecManual = std::make_unique<DG_FECollection>(1, 3, BasisType::GaussLobatto);
-	std::unique_ptr<FiniteElementSpace> fesManual = std::make_unique<FiniteElementSpace>(&meshManual, fecManual.get());
-
-	auto MFEMmass = buildInverseMassMatrixEigen(*fesManual);
-	auto MFEMSX = buildNormalStiffnessMatrixEigen(Z, *fesManual);
-	auto MFEMSY = buildNormalStiffnessMatrixEigen(Y, *fesManual);
-	auto MFEMSZ = buildNormalStiffnessMatrixEigen(X, *fesManual);
-	auto MFEMDr = MFEMmass * MFEMSX;
-	auto MFEMDs = MFEMmass * MFEMSY;
-	auto MFEMDt = MFEMmass * MFEMSZ;
-
-	Eigen::MatrixXd DrOperatorHesthaven{
-	{  -0.5,  0.5, 0.0, 0.0},
-	{  -0.5,  0.5, 0.0, 0.0},
-	{  -0.5,  0.5, 0.0, 0.0},
-	{  -0.5,  0.5, 0.0, 0.0}
-	};
-
-	Eigen::MatrixXd DsOperatorHesthaven{
-	{  -0.5,  0.0, 0.5, 0.0},
-	{  -0.5,  0.0, 0.5, 0.0},
-	{  -0.5,  0.0, 0.5, 0.0},
-	{  -0.5,  0.0, 0.5, 0.0}
-	};
-
-	Eigen::MatrixXd DtOperatorHesthaven{
-	{  -0.5,  0.0, 0.0, 0.5},
-	{  -0.5,  0.0, 0.0, 0.5},
-	{  -0.5,  0.0, 0.0, 0.5},
-	{  -0.5,  0.0, 0.0, 0.5}
-	};
-
-	std::cout << "Dr" << std::endl;
-	std::cout << MFEMDr << std::endl;
-	std::cout << "Ds" << std::endl;
-	std::cout << MFEMDs << std::endl;
-	std::cout << "Dt" << std::endl;
-	std::cout << MFEMDt << std::endl;
-
-	EXPECT_TRUE(MFEMDr.isApprox(DrOperatorHesthaven));
-	EXPECT_TRUE(MFEMDs.isApprox(DsOperatorHesthaven));
-	EXPECT_TRUE(MFEMDt.isApprox(DtOperatorHesthaven));
 }
 
 TEST_F(MFEMHesthaven3D, faceChecker)
