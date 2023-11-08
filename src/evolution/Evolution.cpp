@@ -41,34 +41,6 @@ Evolution::Evolution(
 	srcmngr_{ srcmngr },
 	opts_{ options }
 {
-	for (auto f : { E, H }) {
-		MInv_[f] = buildInverseMassMatrix(f, model_, fes_);
-	}
-
-	for (auto f : { E, H }) {
-		MP_[f] = buildByMult(*MInv_[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
-	}
-	for (auto f : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
-		}
-	}
-	for (auto f : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			for (auto f2 : { E, H }) {
-				MFN_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalOperator(f2, { d }, model_, fes_, opts_), fes_);
-			}
-		}
-	}
-	for (auto f : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			for (auto f2 : { E, H }) {
-				for (auto d2{ X }; d2 <= Z; d2++) {
-					MFNN_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
-				}
-			}
-		}
-	}
 
 	if (model_.getInteriorBoundaryToMarker().find(BdrCond::TotalFieldIn) != model.getInteriorBoundaryToMarker().end()) {
 		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn));
@@ -98,6 +70,10 @@ Evolution::Evolution(
 		}
 	}
 
+	for (auto f : { E, H }) {
+		MInv_[f] = buildInverseMassMatrix(f, model_, fes_);
+	}
+
 	if (model_.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 		for (auto f : { E, H }) { 
 			MPB_[f] = buildByMult(*MInv_[f], *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
@@ -121,6 +97,32 @@ Evolution::Evolution(
 			}
 		}
 	}
+
+	for (auto f : { E, H }) {
+		MP_[f] = buildByMult(*MInv_[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
+	}
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
+		}
+	}
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			for (auto f2 : { E, H }) {
+				MFN_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalOperator(f2, { d }, model_, fes_, opts_), fes_);
+			}
+		}
+	}
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			for (auto f2 : { E, H }) {
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					MFNN_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+				}
+			}
+		}
+	}
+
 
  }
 

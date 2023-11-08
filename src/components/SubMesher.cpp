@@ -246,11 +246,11 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	cleanInvalidSubMeshEntries();
 
 	if (!elem_to_face_tf_.empty()) {
-		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, true));
+		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, true, marker));
 	}
 
 	if (!elem_to_face_sf_.empty()) {
-		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, false));
+		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, false, marker));
 	}
 
 };
@@ -268,7 +268,7 @@ void TotalFieldScatteredFieldSubMesher::cleanInvalidSubMeshEntries()
 	elem_to_face_sf_.erase(end_sf, elem_to_face_sf_.end());
 }
 
-SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& parent, bool isTF)
+SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& parent, bool isTF, const Array<int>& bdr_marker)
 {
 	Array<int> marker(1); 
 	if (isTF) {
@@ -279,7 +279,7 @@ SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& p
 	}
 	
 	auto res{ SubMesh::CreateFromDomain(parent, marker) };
-	setBoundaryAttributesInChild(parent, res, marker);
+	setBoundaryAttributesInChild(parent, res, bdr_marker);
 
 	restoreElementAttributes(res);
 	res.FinalizeMesh();
