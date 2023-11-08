@@ -31,7 +31,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model)
 	for (auto t : tfsf_tags) {
 		marker[t - 1] = 1;
 	}
-	model.getInteriorBoundaryToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, marker));
+	model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, marker));
 }
 
 maxwell::Solver buildSolver(const json& case_data)
