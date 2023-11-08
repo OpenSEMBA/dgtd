@@ -41,49 +41,81 @@ Evolution::Evolution(
 	srcmngr_{ srcmngr },
 	opts_{ options }
 {
+	for (auto f : { E, H }) {
+		MInv_[f] = buildInverseMassMatrix(f, model_, fes_);
+	}
 
 	for (auto f : { E, H }) {
-		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
+		MP_[f] = buildByMult(*MInv_[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
+	}
+	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
-			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
-			for (auto d2{ X }; d2 <= Z; d2++) {
-				for (auto f2 : { E, H }) {
-					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalOperator(f2, { d }, model_, fes_, opts_), fes_);
-					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
+		}
+	}
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			for (auto f2 : { E, H }) {
+				MFN_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalOperator(f2, { d }, model_, fes_, opts_), fes_);
+			}
+		}
+	}
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			for (auto f2 : { E, H }) {
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					MFNN_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
 				}
 			}
 		}
 	}
 
-	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
-		if (model_.getInteriorBoundaryToMarker().find(BdrCond::TotalFieldIn) != model.getInteriorBoundaryToMarker().end()) {
-			srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn));
-			auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
-			Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{});
+	if (model_.getInteriorBoundaryToMarker().find(BdrCond::TotalFieldIn) != model.getInteriorBoundaryToMarker().end()) {
+		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn));
+		auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
+		Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{});
 			
-			for (auto f : { E, H }) {
-				MP_GTFSF_[f] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
-				for (auto d{ X }; d <= Z; d++) {
+		for (auto f : { E, H }) {
+			MP_GTFSF_[f] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+		}
+
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto f2 : { E, H }) {
+					MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildOneNormalOperator(f2, { d }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+				}
+			}
+		}
+
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto f2 : { E, H }) {
 					for (auto d2{ X }; d2 <= Z; d2++) {
-						for (auto f2 : { E, H }) {
-							MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildOneNormalOperator(f2, { d }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
-							MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildTwoNormalOperator(f2, { d, d2 }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
-						}
+						MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildTwoNormalOperator(f2, { d, d2 }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 					}
 				}
 			}
-			break;
 		}
 	}
 
-	if (model_.getInteriorBoundaryToMarker().size() != 0) {
-		for (auto f : { E, H }) { //IntBdrConds
-			MPB_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
+	if (model_.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
+		for (auto f : { E, H }) { 
+			MPB_[f] = buildByMult(*MInv_[f], *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
+		}
+
+		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
-				for (auto d2{ X }; d2 <= Z; d2++) {
-					for (auto f2 : { E, H }) {
-						MFNB_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
-						MFNNB_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+				for (auto f2 : { E, H }) {
+					MFNB_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
+				}
+			}
+		}
+
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto f2 : { E, H }) {
+					for (auto d2{ X }; d2 <= Z; d2++) {
+						MFNNB_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
 					}
 				}
 			}
