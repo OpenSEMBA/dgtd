@@ -4,20 +4,6 @@ namespace maxwell {
 
 using namespace mfem;
 
-NearToFarFieldExporter ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, Fields& fields)
-{
-	NearToFarFieldExporter res{ p.name };
-	res.SetPrefixPath(p.name);
-	res.RegisterField("Ex", &fields.get(E, X));
-	res.RegisterField("Ey", &fields.get(E, Y));
-	res.RegisterField("Ez", &fields.get(E, Z));
-	res.RegisterField("Hx", &fields.get(H, X));
-	res.RegisterField("Hy", &fields.get(H, Y));
-	res.RegisterField("Hz", &fields.get(H, Z));
-
-	return res;
-}
-
 ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
@@ -37,6 +23,20 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	pd.SetDataFormat(VTKFormat::BINARY);
 
 	return pd;
+}
+
+NearToFarFieldExporter ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, Fields& fields)
+{
+	NearToFarFieldExporter res{ p.name };
+	res.SetPrefixPath(p.name);
+	res.RegisterField("Ex", &fields.get(E, X));
+	res.RegisterField("Ey", &fields.get(E, Y));
+	res.RegisterField("Ez", &fields.get(E, Z));
+	res.RegisterField("Hx", &fields.get(H, X));
+	res.RegisterField("Hy", &fields.get(H, Y));
+	res.RegisterField("Hz", &fields.get(H, Z));
+
+	return res;
 }
 
 ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
