@@ -102,9 +102,11 @@ Solver::Solver(
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 	
-	initNeartoFarFieldPreReqs();
 
 	sourcesManager_.setInitialFields(fields_);
+
+	initNeartoFarFieldPreReqs(fields_);
+	
 	maxwellEvol_ = std::make_unique<Evolution>(
 			*fes_, model_, sourcesManager_, opts_.evolution);
 	
@@ -116,15 +118,26 @@ Solver::Solver(
 
 }
 
-void Solver::initNeartoFarFieldPreReqs()
+void transferFields(const Fields& src, Fields& dst)
+{
+	for (auto& f : { E, H }) {
+		for (auto& d : { X, Y, Z }) {
+			TransferMap tf(src.get(f, d), dst.get(f, d));
+			tf.Transfer(src.get(f, d), dst.get(f, d));
+		}
+	}
+}
+
+void Solver::initNeartoFarFieldPreReqs(Fields& fields)
 {
 	for (auto& p : probesManager_.probes.nearToFarFieldProbes) {
 		Mesh parent(*fes_->GetMesh());
 		NearToFarFieldSubMesher subMesher(parent, *fes_, buildSurfaceMarker(p, *fes_));
 		performNearToFarFieldExports(p, subMesher);
 		FiniteElementSpace sfes(subMesher.getSubMesh(), fes_->FEColl());
-		Fields fields(sfes);
-		probesManager_.initNearToFarFieldProbeDataCollection(p, fields);
+		Fields pFields(sfes);
+		transferFields(fields, pFields);
+		probesManager_.initNearToFarFieldProbeDataCollection(p, pFields);
 	}
 
 }
