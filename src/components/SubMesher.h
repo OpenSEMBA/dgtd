@@ -59,11 +59,11 @@ private:
 
 };
 
-class NearToFarField
+class NearToFarFieldSubMesher
 {
 public:
-	NearToFarField(){};
-	NearToFarField(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
+	NearToFarFieldSubMesher(){};
+	NearToFarFieldSubMesher(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
 
 private:
 
