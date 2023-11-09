@@ -64,10 +64,6 @@ Solver::Solver(
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 
-	if (!probesManager_.probes.nearToFarFieldProbes.empty()) {
-		probesManager_.buildN2FFProbeInfo(probes,*fes_,fields_,model_);
-	}
-
 	sourcesManager_.setInitialFields(fields_);
 	maxwellEvol_ = std::make_unique<Evolution>(
 			*fes_, model_, sourcesManager_, opts_.evolution);
@@ -111,10 +107,10 @@ const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
 	return probesManager_.getFieldProbe(probe);
 }
 
-const NearToFarFieldProbe& Solver::getNearToFarFieldProbe(const std::size_t probe) const
-{
-	return probesManager_.getNearToFarFieldProbe(probe);
-}
+//const EnergyProbe& Solver::getEnergyProbe(const std::size_t probe) const
+//{
+//	return probesManager_.getEnergyProbe(probe);
+//}
 
 double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 {

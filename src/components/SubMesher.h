@@ -59,17 +59,11 @@ private:
 
 };
 
-class NearToFarFieldSubMesher
+class NearToFarField
 {
 public:
-
-	NearToFarFieldSubMesher(){};
-	NearToFarFieldSubMesher(const Mesh&, const Array<int>& marker);
-
-	const std::vector<El2Face>& getElementToFace() { return elem_to_face_ntff_; }
-
-	SubMesh* getSubMesh()      { return ntff_mesh_.get(); }
-	const SubMesh* getConstSubMesh() { return ntff_mesh_.get(); } 
+	NearToFarField(){};
+	NearToFarField(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
 
 private:
 

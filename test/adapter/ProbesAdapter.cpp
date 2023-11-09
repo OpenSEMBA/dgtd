@@ -54,7 +54,7 @@ Probes buildProbes(const json& case_data)
 	}
 
 	if (case_data["probes"].contains("field")) {
-		for (int p{ 0 }; p < case_data["probes"]["field"].size(); p++) {
+		for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
 			FieldProbe field_probe(
 				assembleVector(case_data["probes"]["field"][p]["position"])
 			);
@@ -62,19 +62,7 @@ Probes buildProbes(const json& case_data)
 		}
 	}
 
-	if (case_data["probes"].contains("nearfarfield")) {
-		for (int p{ 0 }; p < case_data["probes"]["nearfarfield"].size(); p++) {
-			Array<int> tags;
-			for (int t{ 0 }; t < case_data["probes"][p]["tags"].size(); t++) {
-				tags.Append(case_data["probes"][p]["tags"][t]);
-			}
-			NearToFarFieldProbe n2ff_probe(tags);
-			probes.nearToFarFieldProbes.push_back(n2ff_probe);
-		}
-		
-
-		
-	}
+	// Surface probes will go here.
 
 	return probes;
 }

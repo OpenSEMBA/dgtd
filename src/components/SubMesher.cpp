@@ -599,7 +599,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 }
 
-NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const Array<int>& marker)
+NearToFarField::NearToFarField(const Mesh& m, const FiniteElementSpace& fes, const Array<int>& marker)
 {
 
 	Mesh parent_for_individual(m);
@@ -611,7 +611,7 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const Array<int>
 	}
 }
 
-void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
+void NearToFarField::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -655,13 +655,13 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m
 	}
 }
 
-void NearToFarFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, int faceId, bool el2_is_ntff)
+void NearToFarField::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, int faceId, bool el2_is_ntff)
 {
 	setAttributeForTagging(m, trans, el2_is_ntff);
 	storeElementToFaceInformation(trans, faceId, el2_is_ntff);
 }
 
-void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el2_is_ntff)
+void NearToFarField::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el2_is_ntff)
 {
 	if (trans->Elem2No != NotFound) {
 		if (el2_is_ntff) {
@@ -671,7 +671,7 @@ void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementT
 
 }
 
-void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, int faceId, bool el2_is_ntff)
+void NearToFarField::storeElementToFaceInformation(const FaceElementTransformations* trans, int faceId, bool el2_is_ntff)
 {
 	if (faceId != NotFound) {
 		if (el2_is_ntff) {
@@ -679,7 +679,7 @@ void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTra
 		}
 	}
 }
-SubMesh NearToFarFieldSubMesher::createSubMeshFromParent(const Mesh& parent, const Array<int>& parent_marker)
+SubMesh NearToFarField::createSubMeshFromParent(const Mesh& parent, const Array<int>& parent_marker)
 {
 	Array<int> marker(1);
 	marker[0] = SubMeshingMarkers::NearToFarField;
@@ -693,7 +693,7 @@ SubMesh NearToFarFieldSubMesher::createSubMeshFromParent(const Mesh& parent, con
 	return res;
 }
 
-void NearToFarFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& marker)
+void NearToFarField::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& marker)
 {
 
 	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };

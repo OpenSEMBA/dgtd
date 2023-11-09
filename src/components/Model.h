@@ -9,6 +9,7 @@
 
 namespace maxwell {
 
+using FaceId = int;
 using GeomTag = int;
 using GeomTagToMaterial = std::map<GeomTag, Material>;
 using GeomTagToBoundary = std::map<GeomTag, BdrCond>;

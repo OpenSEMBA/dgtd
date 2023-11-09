@@ -4,12 +4,32 @@ namespace maxwell {
 
 using namespace mfem;
 
+ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
+{
+	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
+	pd.SetPrefixPath("ParaView");
+	
+	pd.RegisterField("Ex", &fields.get(E,X));
+	pd.RegisterField("Ey", &fields.get(E,Y));
+	pd.RegisterField("Ez", &fields.get(E,Z));
+	pd.RegisterField("Hx", &fields.get(H,X));
+	pd.RegisterField("Hy", &fields.get(H,Y));
+	pd.RegisterField("Hz", &fields.get(H,Z));
+	
+	const auto order{ fes_.GetMaxElementOrder() };
+	pd.SetLevelsOfDetail(3);
+	pd.SetHighOrderOutput(true);
+	
+	pd.SetDataFormat(VTKFormat::BINARY);
+
+	return pd;
+}
 
 ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
 	probes{ pIn },
 	fes_{ fes }
 {
-	for (const auto& p : probes.exporterProbes) {
+	for (const auto& p: probes.exporterProbes) {
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
 	}
 
@@ -24,27 +44,6 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 	finalTime_ = opts.finalTime;
 }
 
-ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
-{
-	ParaViewDataCollection pd{ p.name, fes_.GetMesh() };
-	pd.SetPrefixPath("ParaView");
-
-	pd.RegisterField("Ex", &fields.get(E, X));
-	pd.RegisterField("Ey", &fields.get(E, Y));
-	pd.RegisterField("Ez", &fields.get(E, Z));
-	pd.RegisterField("Hx", &fields.get(H, X));
-	pd.RegisterField("Hy", &fields.get(H, Y));
-	pd.RegisterField("Hz", &fields.get(H, Z));
-
-	const auto order{ fes_.GetMaxElementOrder() };
-	pd.SetLevelsOfDetail(3);
-	pd.SetHighOrderOutput(true);
-
-	pd.SetDataFormat(VTKFormat::BINARY);
-
-	return pd;
-}
-
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
 {
 	assert(i < probes.pointProbes.size());
@@ -55,12 +54,6 @@ const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
 {
 	assert(i < probes.fieldProbes.size());
 	return probes.fieldProbes[i];
-}
-
-const NearToFarFieldProbe& ProbesManager::getNearToFarFieldProbe(const std::size_t i) const
-{
-	assert(i < probes.nearToFarFieldProbes.size());
-	return probes.nearToFarFieldProbes[i];
 }
 
 const GridFunction& getFieldView(const PointProbe& p, Fields& fields)
@@ -77,7 +70,7 @@ const GridFunction& getFieldView(const PointProbe& p, Fields& fields)
 
 DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 {
-	DenseMatrix r{ (int)p.size(), 1 };
+	DenseMatrix r{(int)p.size(), 1 };
 	for (auto i{ 0 }; i < p.size(); ++i) {
 		r(i, 0) = p[i];
 	}
@@ -85,25 +78,25 @@ DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 }
 
 ProbesManager::PointProbeCollection
-	ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields) const
+ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields) const
 {
-
+	
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
 	auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
 	fes_.GetMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
 	assert(elemIdArray.Size() == 1);
 	assert(integPointArray.Size() == 1);
-	FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
-
-	return {
-		fesPoints,
+	FESPoint fesPoints { elemIdArray[0], integPointArray[0] };
+	
+	return { 
+		fesPoints, 
 		getFieldView(p, fields)
 	};
 }
 
 ProbesManager::FieldProbeCollection
-	ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
+ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
 {
 
 	Array<int> elemIdArray;
@@ -125,21 +118,9 @@ ProbesManager::FieldProbeCollection
 	};
 }
 
-void ProbesManager::buildN2FFProbeInfo(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, Model& model)
-{
-	for (auto& p : pIn.nearToFarFieldProbes) {
-		Array<int> marker(model.getConstMesh().bdr_attributes.Max());
-		marker = 0;
-		for (const auto& t : p.getTags()) {
-			marker[t - 1] = 1;
-		}
-		p.buildSubMesher(model.getConstMesh(), marker);
-	}
-}
-
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-	if (abs(time - finalTime_) >= 1e-3) {
+	if (abs(time - finalTime_) >= 1e-3){
 		if (cycle_ % p.visSteps != 0) {
 			return;
 		}
@@ -160,7 +141,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	assert(it != pointProbesCollection_.end());
 	const auto& pC{ it->second };
 	p.addFieldToMovies(
-		time,
+		time, 
 		pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
 	);
 }
@@ -170,7 +151,7 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	const auto& it{ fieldProbesCollection_.find(&p) };
 	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
-	FieldsForProbes f4FP;
+	FieldsForFP f4FP;
 	{
 		f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 		f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
@@ -185,11 +166,6 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	);
 }
 
-void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time) 
-{
-	
-}
-
 void ProbesManager::updateProbes(Time t)
 {
 	for (auto& p : probes.exporterProbes) {
@@ -201,10 +177,6 @@ void ProbesManager::updateProbes(Time t)
 	}
 
 	for (auto& p : probes.fieldProbes) {
-		updateProbe(p, t);
-	}
-
-	for (auto& p : probes.nearToFarFieldProbes) {
 		updateProbe(p, t);
 	}
 
