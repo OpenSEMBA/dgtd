@@ -1,7 +1,7 @@
 #include "Solver.h"
 
 #include "adapter/OpensembaAdapter.h"
-#include "SubMesher.h"
+#include "components/SubMesher.h"
 
 #include <fstream>
 #include <iostream>
@@ -10,6 +10,43 @@
 using namespace mfem;
 
 namespace maxwell {
+
+Array<int> buildSurfaceMarker(const NearToFarFieldProbe& p, const FiniteElementSpace& fes)
+{
+	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+	res = 0;
+	for (const auto& t : p.tags) {
+		res[t - 1] = 1;
+	}
+	return res;
+}
+
+void exportSubMeshData(const NearToFarFieldProbe& p, const SubMesh& sm)
+{
+	std::string smSaveDir(p.name + "/" + p.name);
+	sm.Save(smSaveDir);
+}
+
+void exportSubMeshElementToFaceData(const NearToFarFieldProbe& p, const std::vector<El2Face>& v)
+{
+	std::string el2FaceSaveDir(p.name + "/" + "El2Face.txt");
+	std::ofstream fout(el2FaceSaveDir);
+	for (const auto& p : v) {
+		fout << p.first << "; ";
+		fout << p.second << " ";
+		fout << '\n';
+	}
+	fout.close();
+}
+
+void exportSubMeshFES(const NearToFarFieldProbe& p, SubMesh& sm, const FiniteElementCollection& fec)
+{
+	FiniteElementSpace sfes(&sm, &fec);
+	std::string fesSaveDir(p.name + "fes.txt");
+	std::ofstream fout(fesSaveDir);
+	sfes.Save(fout);
+	fout.close();
+}
 
 std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
 {
@@ -77,43 +114,6 @@ Solver::Solver(
 	probesManager_.updateProbes(time_);
 
 
-}
-
-Array<int> buildSurfaceMarker(const NearToFarFieldProbe& p, const FiniteElementSpace& fes)
-{
-	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
-	res = 0;
-	for (const auto& t : p.tags) {
-		res[t - 1] = 1;
-	}
-	return res;
-}
-
-void exportSubMeshData(const NearToFarFieldProbe& p, const SubMesh& sm)
-{
-	std::string smSaveDir(p.name + "/" + p.name);
-	sm.Save(smSaveDir);
-}
-
-void exportSubMeshElementToFaceData(const NearToFarFieldProbe& p, const std::vector<El2Face>& v)
-{
-	std::string el2FaceSaveDir(p.name + "/" + "El2Face.txt");
-	std::ofstream fout(el2FaceSaveDir);
-	for (const auto& p : v) {
-		fout << p.first << "; ";
-		fout << p.second << " ";
-		fout << '\n';
-	}
-	fout.close();
-}
-
-void exportSubMeshFES(const NearToFarFieldProbe& p, SubMesh& sm, const FiniteElementCollection& fec)
-{
-	FiniteElementSpace sfes(&sm, &fec);
-	std::string fesSaveDir(p.name + "fes.txt");
-	std::ofstream fout(fesSaveDir);
-	sfes.Save(fout);
-	fout.close();
 }
 
 void Solver::initNeartoFarFieldPreReqs()

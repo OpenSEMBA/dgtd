@@ -185,6 +185,23 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	);
 }
 
+void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
+{
+	if (abs(time - finalTime_) >= 1e-3) {
+		if (cycle_ % p.steps != 0) {
+			return;
+		}
+	}
+
+	auto it{ nearToFarFieldProbesCollection_.find(&p) };
+	assert(it != nearToFarFieldProbesCollection_.end());
+	auto& dc{ it->second };
+
+	dc.SetCycle(cycle_);
+	dc.SetTime(time);
+	dc.Save();
+}
+
 void ProbesManager::updateProbes(Time t)
 {
 	for (auto& p : probes.exporterProbes) {
@@ -196,6 +213,10 @@ void ProbesManager::updateProbes(Time t)
 	}
 
 	for (auto& p : probes.fieldProbes) {
+		updateProbe(p, t);
+	}
+
+	for (auto& p : probes.nearToFarFieldProbes) {
 		updateProbe(p, t);
 	}
 

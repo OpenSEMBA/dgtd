@@ -70,6 +70,7 @@ private:
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(PointProbe&, Time);
     void updateProbe(FieldProbe&, Time);
+    void updateProbe(NearToFarFieldProbe&, Time);
 };
 
 }
