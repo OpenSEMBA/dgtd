@@ -7,7 +7,10 @@
 
 namespace maxwell {
 
-struct GridFuncForFP {
+using FaceId = int;
+using ElementId = int;
+
+struct GridFuncForProbes {
 	mfem::GridFunction Ex;
 	mfem::GridFunction Ey;
 	mfem::GridFunction Ez;
@@ -16,7 +19,7 @@ struct GridFuncForFP {
 	mfem::GridFunction Hz;
 };
 
-struct FieldsForFP {
+struct FieldsForProbes {
 	double Ex;
 	double Ey;
 	double Ez;
@@ -27,7 +30,8 @@ struct FieldsForFP {
 
 using Time = double;
 using FieldMovie = std::map<Time, double>;
-using FieldMovies = std::map<Time,FieldsForFP>;
+using FaceFieldMovies = std::map<Time, GridFuncForProbes>;
+using PointFieldMovies = std::map<Time, FieldsForProbes>;
 
 using Point = std::vector<double>;
 using Points = std::vector<Point>;

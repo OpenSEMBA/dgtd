@@ -4,6 +4,8 @@
 
 #include "Types.h"
 #include "mfemExtension/BilinearIntegrators.h"
+#include "components/SubMesher.h"
+#include "components/Model.h"
 
 namespace maxwell {
 
@@ -64,39 +66,45 @@ public:
         point_{ p }
     {}
 
-    const FieldMovies& getFieldMovies() const { return fieldMovies_; }
+    const PointFieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
-    void addFieldsToMovies(Time t, const FieldsForFP& fields) { fieldMovies_.emplace(t, fields); };
+    void addFieldsToMovies(Time t, const FieldsForProbes& fields) { fieldMovies_.emplace(t, fields); };
 
 
 private:
 
     Point point_;
+    PointFieldMovies fieldMovies_;
 
-    FieldMovies fieldMovies_;
 };
 
-//class EnergyProbe {
-//public:
-//
-//    EnergyProbe();
-//
-//    void addFieldsToMovie(Time t, const Fields& fields) { fieldsMovie_.emplace(t, fields); };
-//    double getEnergy(const FieldType& ft, const Direction& d);
-//
-//    int visSteps{ 10 };
-//
-//private:
-//
-//    std::map<Time, Fields> fieldsMovie_;
+class NearToFarFieldProbe {
+public:
 
-//};
+    NearToFarFieldProbe();
+    NearToFarFieldProbe(const mfem::Array<int>& tags);
+
+    const Array<int>& getTags() { return tags_; }
+
+    void buildSubMesher(const Mesh& mesh, const Array<int>& marker);
+    NearToFarFieldSubMesher* getSubMesher() { return ntff_sm_.get(); }
+
+    void addFieldsToMovies(Time t, const GridFuncForProbes& fields) { faceFieldMovies_.emplace(t, fields); };
+    const FaceFieldMovies& getFieldMovies() { return faceFieldMovies_; }
+
+private:
+
+    FaceFieldMovies faceFieldMovies_;
+    Array<int> tags_;
+    std::unique_ptr<NearToFarFieldSubMesher> ntff_sm_;
+
+};
 
 struct Probes {
-    std::vector<PointProbe> pointProbes;
-    std::vector<ExporterProbe> exporterProbes;
-    std::vector<FieldProbe> fieldProbes;
-    //std::vector<EnergyProbe> energyProbes;
+    std::vector<PointProbe>          pointProbes;
+    std::vector<ExporterProbe>       exporterProbes;
+    std::vector<FieldProbe>          fieldProbes;
+    std::vector<NearToFarFieldProbe> nearToFarFieldProbes;
 };
 
 }

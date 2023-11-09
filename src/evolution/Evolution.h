@@ -6,6 +6,7 @@
 #include "solver/SourcesManager.h"
 #include "EvolutionMethods.h"
 #include "components/SubMesher.h"
+#include <solver/ProbesManager.h>
 
 namespace maxwell {
 
