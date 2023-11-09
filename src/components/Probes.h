@@ -14,6 +14,12 @@ struct ExporterProbe {
     int visSteps{ 10 };
 };
 
+struct NearToFarFieldProbe {
+    std::string name{ "NearToFarField" };
+    int steps{ 10 };
+    mfem::Array<int> tags;
+};
+
 class PointProbe {
 public:
     PointProbe(const FieldType& ft, const Direction& d, const Point& p) :
@@ -76,27 +82,11 @@ private:
     FieldMovies fieldMovies_;
 };
 
-//class EnergyProbe {
-//public:
-//
-//    EnergyProbe();
-//
-//    void addFieldsToMovie(Time t, const Fields& fields) { fieldsMovie_.emplace(t, fields); };
-//    double getEnergy(const FieldType& ft, const Direction& d);
-//
-//    int visSteps{ 10 };
-//
-//private:
-//
-//    std::map<Time, Fields> fieldsMovie_;
-
-//};
-
 struct Probes {
     std::vector<PointProbe> pointProbes;
     std::vector<ExporterProbe> exporterProbes;
     std::vector<FieldProbe> fieldProbes;
-    //std::vector<EnergyProbe> energyProbes;
+    std::vector<NearToFarFieldProbe> nearToFarFieldProbes;
 };
 
 }
