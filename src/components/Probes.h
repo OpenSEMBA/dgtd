@@ -3,11 +3,8 @@
 #include <mfem.hpp>
 
 #include "Types.h"
-#include "mfemExtension/BilinearIntegrators.h"
 
 namespace maxwell {
-
-using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
 
 struct ExporterProbe {
     std::string name{"MaxwellView"};
