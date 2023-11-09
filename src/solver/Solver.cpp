@@ -1,6 +1,7 @@
 #include "Solver.h"
 
 #include "adapter/OpensembaAdapter.h"
+#include "SubMesher.h"
 
 #include <fstream>
 #include <iostream>
@@ -63,6 +64,8 @@ Solver::Solver(
 	if (opts_.evolution.spectral == true) {
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
+	
+	initNeartoFarFieldPreReqs();
 
 	sourcesManager_.setInitialFields(fields_);
 	maxwellEvol_ = std::make_unique<Evolution>(
@@ -74,6 +77,64 @@ Solver::Solver(
 	probesManager_.updateProbes(time_);
 
 
+}
+
+Array<int> buildSurfaceMarker(const NearToFarFieldProbe& p, const FiniteElementSpace& fes)
+{
+	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+	res = 0;
+	for (const auto& t : p.tags) {
+		res[t - 1] = 1;
+	}
+	return res;
+}
+
+void exportSubMeshData(const NearToFarFieldProbe& p, const SubMesh& sm)
+{
+	std::string smSaveDir(p.name + "/" + p.name);
+	sm.Save(smSaveDir);
+}
+
+void exportSubMeshElementToFaceData(const NearToFarFieldProbe& p, const std::vector<El2Face>& v)
+{
+	std::string el2FaceSaveDir(p.name + "/" + "El2Face.txt");
+	std::ofstream fout(el2FaceSaveDir);
+	for (const auto& p : v) {
+		fout << p.first << "; ";
+		fout << p.second << " ";
+		fout << '\n';
+	}
+	fout.close();
+}
+
+void exportSubMeshFES(const NearToFarFieldProbe& p, SubMesh& sm, const FiniteElementCollection& fec)
+{
+	FiniteElementSpace sfes(&sm, &fec);
+	std::string fesSaveDir(p.name + "fes.txt");
+	std::ofstream fout(fesSaveDir);
+	sfes.Save(fout);
+	fout.close();
+}
+
+void Solver::initNeartoFarFieldPreReqs()
+{
+	for (auto& p : probesManager_.probes.nearToFarFieldProbes) {
+		Mesh parent(*fes_->GetMesh());
+		NearToFarFieldSubMesher subMesher(parent, *fes_, buildSurfaceMarker(p, *fes_));
+		performNearToFarFieldExports(p, subMesher);
+		FiniteElementSpace sfes(subMesher.getSubMesh(), fes_->FEColl());
+		Fields fields(sfes);
+		probesManager_.initNearToFarFieldProbeDataCollection(p, fields);
+	}
+
+}
+
+void Solver::performNearToFarFieldExports(const NearToFarFieldProbe& p, NearToFarFieldSubMesher& smr) 
+{
+
+	exportSubMeshData(p, *smr.getConstSubMesh());
+	exportSubMeshElementToFaceData(p, smr.getEl2Face());
+	exportSubMeshFES(p, *smr.getSubMesh(), *fes_->FEColl());
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
@@ -106,11 +167,6 @@ const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
 {
 	return probesManager_.getFieldProbe(probe);
 }
-
-//const EnergyProbe& Solver::getEnergyProbe(const std::size_t probe) const
-//{
-//	return probesManager_.getEnergyProbe(probe);
-//}
 
 double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 {

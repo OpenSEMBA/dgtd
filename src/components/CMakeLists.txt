@@ -14,7 +14,8 @@ add_library(maxwell-components STATIC
 	"../solver/SolverInput.h"
 	"EigenvalueEstimator.cpp"
 	"OptimizationManager.cpp"
-	"SubMesher.cpp")
+	"SubMesher.cpp"
+	"Exporter.cpp")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})

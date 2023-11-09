@@ -3,6 +3,7 @@
 #include "components/Probes.h"
 #include "evolution/Fields.h"
 #include "SolverOptions.h"
+#include <components/Exporter.h>
 
 namespace maxwell {
 
@@ -21,6 +22,8 @@ public:
 
     const PointProbe& getPointProbe(const std::size_t i) const;
     const FieldProbe& getFieldProbe(const std::size_t i) const;
+
+    void initNearToFarFieldProbeDataCollection(NearToFarFieldProbe&, Fields&);
 
     Probes probes;
 
@@ -46,18 +49,23 @@ private:
         const mfem::GridFunction& field_Hz;
     };
 
+    using NearToFarFieldProbeCollection = NearToFarFieldExporter;
+
     int cycle_{ 0 };
     double finalTime_;
 
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
+    std::map<const NearToFarFieldProbe*, NearToFarFieldExporter> nearToFarFieldProbesCollection_;
     
     const mfem::FiniteElementSpace& fes_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
+    NearToFarFieldExporter buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, Fields&);
+
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(PointProbe&, Time);

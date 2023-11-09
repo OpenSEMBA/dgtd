@@ -65,6 +65,10 @@ public:
 	NearToFarFieldSubMesher(){};
 	NearToFarFieldSubMesher(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
 
+	const SubMesh* getConstSubMesh() { return ntff_mesh_.get(); }
+	SubMesh* getSubMesh() { return ntff_mesh_.get(); }
+	const std::vector<El2Face> getEl2Face() { return elem_to_face_ntff_; }
+
 private:
 
 	void setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker);

@@ -4,6 +4,20 @@ namespace maxwell {
 
 using namespace mfem;
 
+NearToFarFieldExporter ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, Fields& fields)
+{
+	NearToFarFieldExporter res{ p.name };
+	res.SetPrefixPath(p.name);
+	res.RegisterField("Ex", &fields.get(E, X));
+	res.RegisterField("Ey", &fields.get(E, Y));
+	res.RegisterField("Ez", &fields.get(E, Z));
+	res.RegisterField("Hx", &fields.get(H, X));
+	res.RegisterField("Hy", &fields.get(H, Y));
+	res.RegisterField("Hz", &fields.get(H, Z));
+
+	return res;
+}
+
 ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
@@ -42,6 +56,11 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 	}
 
 	finalTime_ = opts.finalTime;
+}
+
+void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, Fields& fields)
+{
+		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fields));
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
