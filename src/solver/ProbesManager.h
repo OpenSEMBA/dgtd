@@ -1,9 +1,12 @@
 #pragma once
 
+#include <iostream>
+#include <fstream>
+#include <mfem.hpp>
+
 #include "components/Probes.h"
 #include "evolution/Fields.h"
 #include "SolverOptions.h"
-#include <components/Exporter.h>
 
 namespace maxwell {
 
@@ -18,7 +21,7 @@ public:
     ProbesManager& operator=(const ProbesManager&) = delete;
     ProbesManager& operator=(ProbesManager&&) = default;
 
-    void updateProbes(Time);
+    void updateProbes(Time, Fields&);
 
     const PointProbe& getPointProbe(const std::size_t i) const;
     const FieldProbe& getFieldProbe(const std::size_t i) const;
@@ -49,28 +52,26 @@ private:
         const mfem::GridFunction& field_Hz;
     };
 
-    using NearToFarFieldProbeCollection = NearToFarFieldExporter;
-
     int cycle_{ 0 };
     double finalTime_;
 
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
-    std::map<const NearToFarFieldProbe*, NearToFarFieldExporter> nearToFarFieldProbesCollection_;
+    std::map<const NearToFarFieldProbe*, mfem::DataCollection> nearToFarFieldProbesCollection_;
     
     const mfem::FiniteElementSpace& fes_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    NearToFarFieldExporter buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, Fields&);
+    mfem::DataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, Fields&);
 
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(PointProbe&, Time);
     void updateProbe(FieldProbe&, Time);
-    void updateProbe(NearToFarFieldProbe&, Time);
+    void updateNearToFarFieldProbe(NearToFarFieldProbe&, Time, Fields&);
 };
 
 }

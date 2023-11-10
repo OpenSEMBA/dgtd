@@ -42,7 +42,7 @@ void exportSubMeshElementToFaceData(const NearToFarFieldProbe& p, const std::vec
 void exportSubMeshFES(const NearToFarFieldProbe& p, SubMesh& sm, const FiniteElementCollection& fec)
 {
 	FiniteElementSpace sfes(&sm, &fec);
-	std::string fesSaveDir(p.name + "fes.txt");
+	std::string fesSaveDir(p.name + "/" + "fes.txt");
 	std::ofstream fout(fesSaveDir);
 	sfes.Save(fout);
 	fout.close();
@@ -113,7 +113,7 @@ Solver::Solver(
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
 
-	probesManager_.updateProbes(time_);
+	probesManager_.updateProbes(time_, fields_);
 
 
 }
@@ -287,7 +287,7 @@ void Solver::step()
 {
 	double truedt{ std::min(dt_, opts_.finalTime - time_) };
 	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
-	probesManager_.updateProbes(time_);
+	probesManager_.updateProbes(time_, fields_);
 }
 
 
