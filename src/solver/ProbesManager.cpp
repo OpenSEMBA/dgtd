@@ -86,9 +86,9 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	finalTime_ = opts.finalTime;
 }
 
-void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, FiniteElementSpace& fes, Fields& fields)
+void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, FiniteElementSpace& sFes, Fields& gFields)
 {
-		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fes, fields));
+		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, sFes, gFields));
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -165,9 +165,9 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	};
 }
 
-NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, FiniteElementSpace& sfes, Fields& global) const
+NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, FiniteElementSpace& sFes, Fields& gFields) const
 {
-	NearToFarFieldDataCollection res{ p.name, sfes, global };
+	NearToFarFieldDataCollection res{ p.name, sFes, gFields };
 	res.SetPrefixPath(p.name);
 	res.RegisterField("Ex", &res.getCollectionField(E, X));
 	res.RegisterField("Ey", &res.getCollectionField(E, Y));

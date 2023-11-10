@@ -27,10 +27,10 @@ void maxwell::NearToFarFieldDataCollection::updateFields()
 
 void maxwell::TransferMaps::transferFields(const globalFields& src, Fields& dst)
 {
-	Ex.Transfer(src.Ex, dst.get(E, X));
-	Ey.Transfer(src.Ey, dst.get(E, Y));
-	Ez.Transfer(src.Ez, dst.get(E, Z));
-	Hx.Transfer(src.Hx, dst.get(H, X));
-	Hy.Transfer(src.Hy, dst.get(H, Y));
-	Hz.Transfer(src.Hz, dst.get(H, Z));
+	tMapEx.Transfer(src.Ex, dst.get(E, X));
+	tMapEy.Transfer(src.Ey, dst.get(E, Y));
+	tMapEz.Transfer(src.Ez, dst.get(E, Z));
+	tMapHx.Transfer(src.Hx, dst.get(H, X));
+	tMapHy.Transfer(src.Hy, dst.get(H, Y));
+	tMapHz.Transfer(src.Hz, dst.get(H, Z));
 }

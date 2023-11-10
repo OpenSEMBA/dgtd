@@ -26,20 +26,20 @@ struct globalFields {
 
 struct TransferMaps {
 
-	mfem::TransferMap Ex;
-	mfem::TransferMap Ey;
-	mfem::TransferMap Ez;
-	mfem::TransferMap Hx;
-	mfem::TransferMap Hy;
-	mfem::TransferMap Hz;
+	mfem::TransferMap tMapEx;
+	mfem::TransferMap tMapEy;
+	mfem::TransferMap tMapEz;
+	mfem::TransferMap tMapHx;
+	mfem::TransferMap tMapHy;
+	mfem::TransferMap tMapHz;
 
 	TransferMaps(Fields& src, Fields& dst) :
-		Ex{ mfem::TransferMap(src.get(E, X), dst.get(E, X)) },
-		Ey{ mfem::TransferMap(src.get(E, Y), dst.get(E, Y)) },
-		Ez{ mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
-		Hx{ mfem::TransferMap(src.get(H, X), dst.get(H, X)) },
-		Hy{ mfem::TransferMap(src.get(H, Y), dst.get(H, Y)) },
-		Hz{ mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) } 
+		tMapEx{ mfem::TransferMap(src.get(E, X), dst.get(E, X)) },
+		tMapEy{ mfem::TransferMap(src.get(E, Y), dst.get(E, Y)) },
+		tMapEz{ mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
+		tMapHx{ mfem::TransferMap(src.get(H, X), dst.get(H, X)) },
+		tMapHy{ mfem::TransferMap(src.get(H, Y), dst.get(H, Y)) },
+		tMapHz{ mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) } 
 	{}
 
 	void transferFields(const globalFields&, Fields&);
