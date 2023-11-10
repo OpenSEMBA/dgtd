@@ -17,21 +17,21 @@ maxwell::Solver buildSolver(const std::string& case_name)
 
 void postProcessInformation(const json& case_data, maxwell::Model& model) 
 {
-	mfem::Array<int> tfsf_tags;
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
+	mfem::Array<int> tfsf_tags;
 		if (case_data["sources"][s]["type"] == "totalField") {
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
 			}
+		auto marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
+		marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+		marker = 0;
+		for (auto t : tfsf_tags) {
+			marker[t - 1] = 1;
+		}
+		model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, marker));
 		}
 	}
-	auto marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
-	marker.SetSize(model.getConstMesh().bdr_attributes.Max());
-	marker = 0;
-	for (auto t : tfsf_tags) {
-		marker[t - 1] = 1;
-	}
-	model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, marker));
 }
 
 maxwell::Solver buildSolver(const json& case_data)
