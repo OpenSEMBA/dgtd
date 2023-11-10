@@ -218,6 +218,67 @@ void restoreElementAttributes(Mesh& m) //Temporary method that has to be reworke
 	}
 }
 
+
+void cleanInvalidSubMeshEntries(std::vector<El2Face>& v)
+{
+	auto end_tf = std::remove_if(v.begin(), v.end(), [](const auto& i) {
+		return i.first == -1;
+		});
+	v.erase(end_tf, v.end());
+}
+
+
+void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const std::pair<Array<int>, BdrCond>& parent_info)
+{
+	if (child.Dimension() == 1) {
+		for (int e = 0; e < child.GetNE(); e++) {
+			Array<int> verts(2);
+			child.GetElementVertices(e, verts);
+			child.AddBdrPoint(verts[0]);
+			child.AddBdrPoint(verts[1]);
+		}
+	}
+	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
+	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
+	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
+	for (int be = 0; be < parent.GetNBE(); be++) {
+		if (parent_info.first[parent.GetBdrAttribute(be) - 1] == 1) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(be))], static_cast<int>(parent_info.second));
+		}
+	}
+}
+
+Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
+{
+	Array<int> res(1);
+	switch (bdrCond) {
+	case BdrCond::TotalFieldIn:
+		if (isTF) {
+			res[0] = SubMeshingMarkers::TotalField;
+		}
+		else {
+			res[0] = SubMeshingMarkers::ScatteredField;
+		}
+		break;
+	case BdrCond::NearToFarField:
+		res[0] = SubMeshingMarkers::NearToFarField;
+		break;
+	}
+	return res;
+}
+
+SubMesh createSubMeshFromParent(const Mesh& parent, const std::pair<Array<int>, BdrCond>& parent_info, bool isTF = false)
+{
+	Array<int> marker{ getMarkerForSubMesh(parent_info.second, isTF) };
+
+	auto res{ SubMesh::CreateFromDomain(parent, marker) };
+	setBoundaryAttributesInChild(parent, res, parent_info);
+
+	restoreElementAttributes(res);
+	res.FinalizeMesh();
+	return res;
+}
+
 TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m, const Array<int>& marker)
 {
 	Mesh parent_for_global(m);
@@ -243,68 +304,20 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	global_sm.FinalizeMesh();
 	global_submesh_ = std::make_unique<SubMesh>(global_sm);
 
-	cleanInvalidSubMeshEntries();
+	cleanInvalidSubMeshEntries(elem_to_face_tf_);
+	cleanInvalidSubMeshEntries(elem_to_face_sf_);
 
 	if (!elem_to_face_tf_.empty()) {
-		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, true, marker));
+		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), true));
 	}
 
 	if (!elem_to_face_sf_.empty()) {
-		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, false, marker));
+		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), false));
 	}
 
 };
 
-void TotalFieldScatteredFieldSubMesher::cleanInvalidSubMeshEntries()
-{
-	auto end_tf = std::remove_if(elem_to_face_tf_.begin(), elem_to_face_tf_.end(), [](const auto& i) {
-		return i.first == -1;
-	});
-	elem_to_face_tf_.erase(end_tf, elem_to_face_tf_.end());
 
-	auto end_sf = std::remove_if(elem_to_face_sf_.begin(), elem_to_face_sf_.end(), [](const auto& i) {
-		return i.first == -1;
-	});
-	elem_to_face_sf_.erase(end_sf, elem_to_face_sf_.end());
-}
-
-SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& parent, bool isTF, const Array<int>& bdr_marker)
-{
-	Array<int> marker(1); 
-	if (isTF) {
-		marker[0] = SubMeshingMarkers::TotalField;
-	}
-	else {
-		marker[0] = SubMeshingMarkers::ScatteredField;
-	}
-	
-	auto res{ SubMesh::CreateFromDomain(parent, marker) };
-	setBoundaryAttributesInChild(parent, res, bdr_marker);
-
-	restoreElementAttributes(res);
-	res.FinalizeMesh();
-	return res;
-}
-
-void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& parent_marker)
-{
-	if (child.Dimension() == 1) {
-		for (int e = 0; e < child.GetNE(); e++) {
-			Array<int> verts(2);
-			child.GetElementVertices(e, verts);
-			child.AddBdrPoint(verts[0]);
-			child.AddBdrPoint(verts[1]);
-		}
-	}
-	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
-	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
-	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
-	for (int be = 0; be < parent.GetNBE(); be++) {
-		if (parent_marker[parent.GetBdrAttribute(be) - 1] == 1) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(be))], static_cast<int>(BdrCond::TotalFieldIn));
-		}
-	}
-}
 
 void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
 {
@@ -607,7 +620,7 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 	setIndividualNTFFAttributesForSubMeshing3D(parent_for_individual, marker);
 
 	if (!elem_to_face_ntff_.empty()) {
-		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, marker));
+		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker,BdrCond::NearToFarField)));
 	}
 }
 
@@ -679,33 +692,6 @@ void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTra
 		}
 	}
 }
-SubMesh NearToFarFieldSubMesher::createSubMeshFromParent(const Mesh& parent, const Array<int>& parent_marker)
-{
-	Array<int> marker(1);
-	marker[0] = SubMeshingMarkers::NearToFarField;
-
-	auto res{ SubMesh::CreateFromDomain(parent, marker) };
-
-	setBoundaryAttributesInChild(parent, res, parent_marker);
-
-	restoreElementAttributes(res);
-	res.FinalizeMesh();
-	return res;
-}
-
-void NearToFarFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& marker)
-{
-
-	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
-	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
-	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
-	for (int be = 0; be < parent.GetNBE(); be++) {
-		if (marker[parent.GetBdrAttribute(be) - 1] == 1) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(be))], static_cast<int>(BdrCond::NearToFarField));
-		}
-	}
-}
-
 
 MaxwellTransferMap::MaxwellTransferMap(const GridFunction& src,
 	const GridFunction& dst)

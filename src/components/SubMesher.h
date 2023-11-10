@@ -32,7 +32,6 @@ private:
 
 	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
-	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& parent_marker);
 	void setGlobalTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
 	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	
@@ -43,9 +42,6 @@ private:
 	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&, const Array<int>& marker);
 
-	void cleanInvalidSubMeshEntries();
-
-	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF, const Array<int>& bdr_marker);
 
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;
@@ -73,8 +69,6 @@ private:
 	void prepareSubMeshInfo(Mesh&, const FaceElementTransformations*, int faceId, bool el1_is_tf);
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
 	void storeElementToFaceInformation(const FaceElementTransformations*, int faceId, bool el1_is_tf);
-	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const Array<int>& marker);
-	SubMesh createSubMeshFromParent(const Mesh&, const Array<int>& parent_marker);
 
 	std::vector<El2Face> elem_to_face_ntff_;
 	std::vector<ElementId> elems_for_global_submesh_;
