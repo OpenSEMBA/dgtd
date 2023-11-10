@@ -4,16 +4,18 @@
 #include <fstream>
 #include <mfem.hpp>
 
-#include "components/Probes.h"
-#include "evolution/Fields.h"
-#include "SolverOptions.h"
+#include <components/Probes.h>
+#include <evolution/Fields.h>
+#include <solver/SolverOptions.h>
+#include <components/Exporter.h>
+#include <components/SubMesher.h>
 
 namespace maxwell {
 
 class ProbesManager {
 public:
     ProbesManager() = delete;
-    ProbesManager(Probes, const mfem::FiniteElementSpace&, Fields&, const SolverOptions&);
+    ProbesManager(Probes, mfem::FiniteElementSpace&, Fields&, const SolverOptions&);
     
     ProbesManager(const ProbesManager&) = delete;
     ProbesManager(ProbesManager&&) = default;
@@ -21,12 +23,13 @@ public:
     ProbesManager& operator=(const ProbesManager&) = delete;
     ProbesManager& operator=(ProbesManager&&) = default;
 
-    void updateProbes(Time, Fields&);
+    void updateProbes(Time);
 
     const PointProbe& getPointProbe(const std::size_t i) const;
     const FieldProbe& getFieldProbe(const std::size_t i) const;
 
-    void initNearToFarFieldProbeDataCollection(NearToFarFieldProbe&, Fields&);
+    void initNeartoFarFieldPreReqs(Fields&);
+    void initNearToFarFieldProbeDataCollection(NearToFarFieldProbe&, FiniteElementSpace&, Fields&);
 
     Probes probes;
 
@@ -58,20 +61,21 @@ private:
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
-    std::map<const NearToFarFieldProbe*, mfem::DataCollection> nearToFarFieldProbesCollection_;
+    std::map<const NearToFarFieldProbe*, NearToFarFieldDataCollection> nearToFarFieldProbesCollection_;
     
-    const mfem::FiniteElementSpace& fes_;
+    mfem::FiniteElementSpace& fes_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    mfem::DataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, Fields&);
+    NearToFarFieldDataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, FiniteElementSpace&, Fields&) const;
 
+    void performNearToFarFieldExports(const NearToFarFieldProbe&, NearToFarFieldSubMesher&);
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(PointProbe&, Time);
     void updateProbe(FieldProbe&, Time);
-    void updateNearToFarFieldProbe(NearToFarFieldProbe&, Time, Fields&);
+    void updateProbe(NearToFarFieldProbe&, Time);
 };
 
 }

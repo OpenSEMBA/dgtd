@@ -56,9 +56,6 @@ private:
     std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
-    
-    void initNeartoFarFieldPreReqs(Fields&);
-    void performNearToFarFieldExports(const NearToFarFieldProbe&, NearToFarFieldSubMesher&);
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);

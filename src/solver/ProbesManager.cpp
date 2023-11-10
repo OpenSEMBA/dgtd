@@ -4,6 +4,48 @@ namespace maxwell {
 
 using namespace mfem;
 
+Array<int> buildSurfaceMarker(const NearToFarFieldProbe& p, const FiniteElementSpace& fes)
+{
+	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+	res = 0;
+	for (const auto& t : p.tags) {
+		res[t - 1] = 1;
+	}
+	return res;
+}
+
+void exportSubMeshData(const NearToFarFieldProbe& p, const SubMesh& sm)
+{
+	std::string smSaveDir(p.name + "/" + p.name);
+	sm.Save(smSaveDir);
+}
+
+void exportSubMeshFES(const NearToFarFieldProbe& p, SubMesh& sm, const FiniteElementCollection* fec)
+{
+	FiniteElementSpace sfes(&sm, fec);
+	std::string fesSaveDir(p.name + "/" + "fes.txt");
+	std::ofstream fout(fesSaveDir);
+	sfes.Save(fout);
+	fout.close();
+}
+
+void ProbesManager::performNearToFarFieldExports(const NearToFarFieldProbe& p, NearToFarFieldSubMesher& smr)
+{
+	exportSubMeshData(p, *smr.getConstSubMesh());
+	exportSubMeshFES(p, *smr.getSubMesh(), fes_.FEColl());
+}
+
+void ProbesManager::initNeartoFarFieldPreReqs(Fields& fields)
+{
+	for (auto& p : probes.nearToFarFieldProbes) {
+		Mesh parent(*fes_.GetMesh());
+		NearToFarFieldSubMesher subMesher(parent, fes_, buildSurfaceMarker(p, fes_));
+		performNearToFarFieldExports(p, subMesher);
+		FiniteElementSpace sfes(subMesher.getSubMesh(), fes_.FEColl());
+		initNearToFarFieldProbeDataCollection(p, sfes, fields);
+	}
+}
+
 ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
@@ -25,7 +67,7 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	return pd;
 }
 
-ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
+ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
 	probes{ pIn },
 	fes_{ fes }
 {
@@ -44,9 +86,9 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 	finalTime_ = opts.finalTime;
 }
 
-void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, Fields& fields)
+void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, FiniteElementSpace& fes, Fields& fields)
 {
-		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fields));
+		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fes, fields));
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -123,16 +165,16 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	};
 }
 
-DataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, Fields& fields)
+NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, FiniteElementSpace& sfes, Fields& global) const
 {
-	DataCollection res{ p.name };
+	NearToFarFieldDataCollection res{ p.name, sfes, global };
 	res.SetPrefixPath(p.name);
-	res.RegisterField("Ex", &fields.get(E, X));
-	res.RegisterField("Ey", &fields.get(E, Y));
-	res.RegisterField("Ez", &fields.get(E, Z));
-	res.RegisterField("Hx", &fields.get(H, X));
-	res.RegisterField("Hy", &fields.get(H, Y));
-	res.RegisterField("Hz", &fields.get(H, Z));
+	res.RegisterField("Ex", &res.getCollectionField(E, X));
+	res.RegisterField("Ey", &res.getCollectionField(E, Y));
+	res.RegisterField("Ez", &res.getCollectionField(E, Z));
+	res.RegisterField("Hx", &res.getCollectionField(H, X));
+	res.RegisterField("Hy", &res.getCollectionField(H, Y));
+	res.RegisterField("Hz", &res.getCollectionField(H, Z));
 
 	return res;
 }
@@ -185,39 +227,6 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	);
 }
 
-void updateFieldsTargets(DataCollection& dc, Fields& fields)
-{
-	dc.DeregisterField("Ex");
-	dc.RegisterField("Ex", &fields.get(E, X));
-	dc.DeregisterField("Ey");
-	dc.RegisterField("Ey", &fields.get(E, Y));
-	dc.DeregisterField("Ez");
-	dc.RegisterField("Ez", &fields.get(E, Z));
-	dc.DeregisterField("Hx");
-	dc.RegisterField("Hx", &fields.get(H, X));
-	dc.DeregisterField("Hy");
-	dc.RegisterField("Hy", &fields.get(H, Y));
-	dc.DeregisterField("Hz");
-	dc.RegisterField("Hz", &fields.get(H, Z));
-}
-
-FiniteElementSpace reassembleFES(NearToFarFieldProbe& p)
-{
-	std::string meshDir(p.name + "/" + p.name);
-	auto m{ Mesh::LoadFromFile(meshDir) };
-
-	std::string fesDir(p.name + "/" + "fes.txt");
-	std::filebuf fb;
-	fb.open(fesDir, std::ios::in);
-	std::istream iStr(&fb);
-	FiniteElementSpace* tfes{};
-	auto fec{ tfes->Load(&m, iStr) };
-
-	auto fes{ FiniteElementSpace(&m,fec) };
-
-	return fes;
-}
-
 Fields buildFieldsForProbe(const Fields& src, FiniteElementSpace& fes)
 {
 	Fields res(fes);
@@ -230,7 +239,7 @@ Fields buildFieldsForProbe(const Fields& src, FiniteElementSpace& fes)
 	return res;
 }
 
-void ProbesManager::updateNearToFarFieldProbe(NearToFarFieldProbe& p, Time time, Fields& fields)
+void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
 {
 	if (abs(time - finalTime_) >= 1e-3) {
 		if (cycle_ % p.steps != 0) {
@@ -242,16 +251,14 @@ void ProbesManager::updateNearToFarFieldProbe(NearToFarFieldProbe& p, Time time,
 	assert(it != nearToFarFieldProbesCollection_.end());
 	auto& dc{ it->second };
 
-
-	auto fes{ reassembleFES(p) };
-	updateFieldsTargets(dc, buildFieldsForProbe(fields, fes));
+	dc.updateFields();
 
 	dc.SetCycle(cycle_);
 	dc.SetTime(time);
 	dc.Save();
 }
 
-void ProbesManager::updateProbes(Time t, Fields& fields)
+void ProbesManager::updateProbes(Time t)
 {
 	for (auto& p : probes.exporterProbes) {
 		updateProbe(p, t);
@@ -266,7 +273,7 @@ void ProbesManager::updateProbes(Time t, Fields& fields)
 	}
 
 	for (auto& p : probes.nearToFarFieldProbes) {
-		updateNearToFarFieldProbe(p, t, fields);
+		updateProbe(p, t);
 	}
 
 	cycle_++;

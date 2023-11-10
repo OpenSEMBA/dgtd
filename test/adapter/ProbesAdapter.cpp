@@ -74,9 +74,9 @@ Probes buildProbes(const json& case_data)
 				probe.steps = case_data["probes"]["neartofarfield"][p]["steps"];
 			}
 			if (case_data["probes"]["neartofarfield"][p].contains("tags")) {
-				mfem::Array<int> tags;
+				std::vector<int> tags(case_data["probes"]["neartofarfield"][p]["tags"].size());
 				for (int t{ 0 }; t < case_data["probes"]["neartofarfield"][p]["tags"].size(); t++) {
-					tags.Append(case_data["probes"]["neartofarfield"][p]["tags"][t]);
+					tags.push_back(case_data["probes"]["neartofarfield"][p]["tags"][t]);
 				}
 			}
 			else {

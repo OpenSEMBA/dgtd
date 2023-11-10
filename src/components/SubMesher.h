@@ -4,15 +4,13 @@
 #include "math/Calculus.h"
 #include "Types.h"
 
-using FaceId = int;
-using ElementId = int;
-using Attribute = int;
-using IsTF = bool;
-using El2Face = std::pair<ElementId, FaceId>;
-using Face2Dir = std::pair<FaceId, IsTF>;
-using SetPairs = std::pair<std::pair<FaceId, IsTF>, std::pair<FaceId, IsTF>>;
 
 namespace maxwell {
+
+using Attribute = int;
+using IsTF = bool;
+using Face2Dir = std::pair<FaceId, IsTF>;
+using SetPairs = std::pair<std::pair<FaceId, IsTF>, std::pair<FaceId, IsTF>>;
 
 using namespace mfem;
 

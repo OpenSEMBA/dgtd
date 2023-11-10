@@ -32,6 +32,10 @@ using FieldMovies = std::map<Time,FieldsForFP>;
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
 
+using FaceId = int;
+using ElementId = int;
+using El2Face = std::pair<ElementId, FaceId>;
+
 using Attribute = int;
 
 enum FieldType { E, H };

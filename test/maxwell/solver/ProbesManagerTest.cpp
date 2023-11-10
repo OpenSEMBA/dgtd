@@ -28,7 +28,7 @@ TEST_F(ProbesManagerTest, exporterProbe)
 
 	ProbesManager pM{ ps, fes, fields, SolverOptions{} };
 
-	ASSERT_NO_THROW(pM.updateProbes(0.0, fields));
+	ASSERT_NO_THROW(pM.updateProbes(0.0));
 }
 
 TEST_F(ProbesManagerTest, fieldProbe)
@@ -47,7 +47,7 @@ TEST_F(ProbesManagerTest, fieldProbe)
 
 	ProbesManager pM{ probes, fes, fields, SolverOptions{} };
 
-	ASSERT_NO_THROW(pM.updateProbes(0.0, fields));
+	ASSERT_NO_THROW(pM.updateProbes(0.0));
 	EXPECT_NO_THROW(pM.getFieldProbe(0));
 	EXPECT_TRUE(pM.getFieldProbe(0).getFieldMovies().at(0).Ez == 1.0);
 }

@@ -14,7 +14,7 @@ struct ExporterProbe {
 struct NearToFarFieldProbe {
     std::string name{ "NearToFarField" };
     int steps{ 10 };
-    mfem::Array<int> tags;
+    std::vector<int> tags;
 };
 
 class PointProbe {

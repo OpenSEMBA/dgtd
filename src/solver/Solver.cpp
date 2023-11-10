@@ -11,43 +11,6 @@ using namespace mfem;
 
 namespace maxwell {
 
-Array<int> buildSurfaceMarker(const NearToFarFieldProbe& p, const FiniteElementSpace& fes)
-{
-	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
-	res = 0;
-	for (const auto& t : p.tags) {
-		res[t - 1] = 1;
-	}
-	return res;
-}
-
-void exportSubMeshData(const NearToFarFieldProbe& p, const SubMesh& sm)
-{
-	std::string smSaveDir(p.name + "/" + p.name);
-	sm.Save(smSaveDir);
-}
-
-void exportSubMeshElementToFaceData(const NearToFarFieldProbe& p, const std::vector<El2Face>& v)
-{
-	std::string el2FaceSaveDir(p.name + "/" + "El2Face.txt");
-	std::ofstream fout(el2FaceSaveDir);
-	for (const auto& p : v) {
-		fout << p.first << "; ";
-		fout << p.second << " ";
-		fout << '\n';
-	}
-	fout.close();
-}
-
-void exportSubMeshFES(const NearToFarFieldProbe& p, SubMesh& sm, const FiniteElementCollection& fec)
-{
-	FiniteElementSpace sfes(&sm, &fec);
-	std::string fesSaveDir(p.name + "/" + "fes.txt");
-	std::ofstream fout(fesSaveDir);
-	sfes.Save(fout);
-	fout.close();
-}
-
 std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
 {
 #ifdef MAXWELL_USE_MPI	
@@ -105,7 +68,7 @@ Solver::Solver(
 
 	sourcesManager_.setInitialFields(fields_);
 
-	initNeartoFarFieldPreReqs(fields_);
+	probesManager_.initNeartoFarFieldPreReqs(fields_);
 	
 	maxwellEvol_ = std::make_unique<Evolution>(
 			*fes_, model_, sourcesManager_, opts_.evolution);
@@ -113,41 +76,9 @@ Solver::Solver(
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
 
-	probesManager_.updateProbes(time_, fields_);
+	probesManager_.updateProbes(time_);
 
 
-}
-
-void transferFields(const Fields& src, Fields& dst)
-{
-	for (auto& f : { E, H }) {
-		for (auto& d : { X, Y, Z }) {
-			TransferMap tf(src.get(f, d), dst.get(f, d));
-			tf.Transfer(src.get(f, d), dst.get(f, d));
-		}
-	}
-}
-
-void Solver::initNeartoFarFieldPreReqs(Fields& fields)
-{
-	for (auto& p : probesManager_.probes.nearToFarFieldProbes) {
-		Mesh parent(*fes_->GetMesh());
-		NearToFarFieldSubMesher subMesher(parent, *fes_, buildSurfaceMarker(p, *fes_));
-		performNearToFarFieldExports(p, subMesher);
-		FiniteElementSpace sfes(subMesher.getSubMesh(), fes_->FEColl());
-		Fields pFields(sfes);
-		transferFields(fields, pFields);
-		probesManager_.initNearToFarFieldProbeDataCollection(p, pFields);
-	}
-
-}
-
-void Solver::performNearToFarFieldExports(const NearToFarFieldProbe& p, NearToFarFieldSubMesher& smr) 
-{
-
-	exportSubMeshData(p, *smr.getConstSubMesh());
-	exportSubMeshElementToFaceData(p, smr.getEl2Face());
-	exportSubMeshFES(p, *smr.getSubMesh(), *fes_->FEColl());
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
@@ -287,7 +218,7 @@ void Solver::step()
 {
 	double truedt{ std::min(dt_, opts_.finalTime - time_) };
 	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
-	probesManager_.updateProbes(time_, fields_);
+	probesManager_.updateProbes(time_);
 }
 
 
