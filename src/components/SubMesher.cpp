@@ -649,10 +649,9 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m
 				for (int f = 0; f < el2_face.Size(); f++) {
 					auto fi{ m.GetFaceInformation(f) };
 					m.GetFaceVertices(el2_face[f], face_vert);
-					auto el_faces = m.GetElement(fe_trans->Elem2No)->GetFaceVertices(f);
 					face_vert.Sort();
 					if (face_vert == be_vert) {
-						face_ori >= 0.0 ? el2_info = std::make_pair(f, true) : el2_info = std::make_pair(f, false);
+						face_ori >= 0.0 ? el2_info = std::make_pair(f, false) : el2_info = std::make_pair(f, true);
 						break;
 					}
 				}
@@ -680,6 +679,7 @@ void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementT
 		if (el2_is_ntff) {
 			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarField);
 		}
+
 	}
 
 }
