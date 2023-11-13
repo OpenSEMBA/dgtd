@@ -2,7 +2,7 @@
   "solver_options": {
     "solver_type": "upwind",
     "time_step": 1e-2,
-    "final_time":  4.0,
+    "final_time":  10.0,
     "order": 3
   },
 
@@ -26,10 +26,21 @@
     ]
   },
 
-  "probes": { 
-    "exporter": { 
+  "probes": {
+    "exporter": {
       "steps": 20
-    }
+    },
+    "field": [
+      {
+        "position": [ 0.0, 0.5 ]
+      },
+      {
+        "position": [ 1.0001, 0.5 ]
+      },
+      {
+        "position": [ 4.0, 0.5 ]
+      }
+    ]
   },
 
   "sources": [ 

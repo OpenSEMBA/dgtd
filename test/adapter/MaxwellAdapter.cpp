@@ -18,7 +18,7 @@ maxwell::Solver buildSolver(const std::string& case_name)
 void postProcessInformation(const json& case_data, maxwell::Model& model) 
 {
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
-	mfem::Array<int> tfsf_tags;
+		mfem::Array<int> tfsf_tags;
 		if (case_data["sources"][s]["type"] == "totalField") {
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
