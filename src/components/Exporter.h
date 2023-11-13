@@ -33,13 +33,13 @@ struct TransferMaps {
 	mfem::TransferMap tMapHy;
 	mfem::TransferMap tMapHz;
 
-	TransferMaps(Fields& src, Fields& dst) :
-		tMapEx{ mfem::TransferMap(src.get(E, X), dst.get(E, X)) },
-		tMapEy{ mfem::TransferMap(src.get(E, Y), dst.get(E, Y)) },
-		tMapEz{ mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
-		tMapHx{ mfem::TransferMap(src.get(H, X), dst.get(H, X)) },
-		tMapHy{ mfem::TransferMap(src.get(H, Y), dst.get(H, Y)) },
-		tMapHz{ mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) } 
+	TransferMaps(globalFields& src, Fields& dst) :
+		tMapEx{ mfem::TransferMap(src.Ex, dst.get(E, X)) },
+		tMapEy{ mfem::TransferMap(src.Ey, dst.get(E, Y)) },
+		tMapEz{ mfem::TransferMap(src.Ez, dst.get(E, Z)) },
+		tMapHx{ mfem::TransferMap(src.Hx, dst.get(H, X)) },
+		tMapHy{ mfem::TransferMap(src.Hy, dst.get(H, Y)) },
+		tMapHz{ mfem::TransferMap(src.Hz, dst.get(H, Z)) }
 	{}
 
 	void transferFields(const globalFields&, Fields&);

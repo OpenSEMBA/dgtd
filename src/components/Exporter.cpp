@@ -14,8 +14,8 @@ maxwell::NearToFarFieldDataCollection::NearToFarFieldDataCollection(const std::s
 	: DataCollection(name, subFes.GetMesh()),
 	sfes_(subFes),
 	fields_{Fields(sfes_)},
-	tMaps_{ TransferMaps(global, fields_) },
-	gFields_ { globalFields(global) }
+	gFields_ { globalFields(global) },
+	tMaps_{ TransferMaps(gFields_, fields_) }
 {
 	updateFields();
 }
