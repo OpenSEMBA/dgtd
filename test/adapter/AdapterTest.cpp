@@ -114,15 +114,17 @@ TEST_F(MaxwellAdapterTest, adaptsModelObjects)
 
 TEST_F(MaxwellAdapterTest, adaptsProbeObjects) 
 {
-	auto file_name{ maxwellCase("1D_PEC_Centered") };
+	auto file_name{ maxwellCase("1D_PEC") };
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 
+	// We expect our Adapter will not throw an error while we build the probes...
 	EXPECT_NO_THROW(buildProbes(case_data));
 	auto probes{ buildProbes(case_data) };
 
+	// ...and as per our problem definition, we expect to find an exporter probe and three field probes.
 	EXPECT_EQ(1, probes.exporterProbes.size());
-	EXPECT_EQ(1, probes.fieldProbes.size());
+	EXPECT_EQ(3, probes.fieldProbes.size());
 
 }
 
