@@ -81,56 +81,35 @@ TEST_F(MaxwellAdapterTest, adaptsModelObjects)
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 
+	// We expect our Adapter will not throw an error while we build the model...
 	EXPECT_NO_THROW(buildModel(case_data));
 	auto model{ buildModel(case_data) };	
 
-	typedef std::multimap<BdrCond, BoundaryMarker>::iterator MMAPIterator;
-
+	// ...once built, we expect to be able to retrieve the model's mesh.
 	EXPECT_NO_THROW(model.getConstMesh());
-
-	std::pair<MMAPIterator, MMAPIterator> it_pair = 
-		model.getBoundaryToMarker().equal_range(BdrCond::PEC);
-	auto a{ 0 };
-	for (MMAPIterator it = it_pair.first; it != it_pair.second; it++) {
-		if (a == 0) {
-			mfem::Array<int> exp({ 0,0,0,1,0,0,0 });
-			EXPECT_EQ(it->second, exp);
-		}
-		if (a == 1) {
-			mfem::Array<int> exp({ 0,0,0,0,0,1,0 });
-			EXPECT_EQ(it->second, exp);
-		}
-		a++;
+	
+	// And for this specific test problem, we defined the PEC markers on tags 2, 4 and 6. 
+	// But tag number 2 will be an interior tag, which will be checked independently.
+	//That means our BoundaryToMarker will have tags marked on 4 and 6 for PEC...
+	{ 
+		auto marker = model.getBoundaryToMarker().find(BdrCond::PEC);
+		mfem::Array<int> exp({ 0,0,0,1,0,1,0 });
+		EXPECT_EQ(marker->second, exp);
+	}
+	// ... and 1, 3, 5 and 7 for PMC.
+	{
+		auto marker = model.getBoundaryToMarker().find(BdrCond::PMC);
+		mfem::Array<int> exp({ 1,0,1,0,1,0,1 });
+		EXPECT_EQ(marker->second, exp);
+	}
+	//Whereas our interior boundary PEC is on position 2.
+	{
+		auto marker = model.getInteriorBoundaryToMarker().find(BdrCond::PEC);
+		mfem::Array<int> exp({ 0,1,0,0,0,0,0 });
+		EXPECT_EQ(marker->second, exp);
 	}
 
-	it_pair = model.getBoundaryToMarker().equal_range(BdrCond::PMC);
-	a = 0;
-	for (MMAPIterator it = it_pair.first; it != it_pair.second; it++) {
-		if (a == 0) {
-			mfem::Array<int> exp({ 1,0,0,0,0,0,0 });
-			EXPECT_EQ(it->second, exp);
-		}
-		if (a == 1) {
-			mfem::Array<int> exp({ 0,0,1,0,0,0,0 });
-			EXPECT_EQ(it->second, exp);
-		}
-		if (a == 2) {
-			mfem::Array<int> exp({ 0,0,0,0,1,0,0 });
-			EXPECT_EQ(it->second, exp);
-		}
-		if (a == 3) {
-			mfem::Array<int> exp({ 0,0,0,0,0,0,1 });
-			EXPECT_EQ(it->second, exp);
-		}
-		a++;
-	}
 
-	it_pair = model.getInteriorBoundaryToMarker().equal_range(BdrCond::PEC);
-	for (MMAPIterator it = it_pair.first; it != it_pair.second; it++) {
-			mfem::Array<int> exp({ 0,1,0,0,0,0,0 });
-			EXPECT_EQ(it->second, exp);
-	}
-	//EXPECT_EQ(BdrCond::PEC, model.getBoundaryToMarker())
 }
 
 TEST_F(MaxwellAdapterTest, adaptsProbeObjects) 

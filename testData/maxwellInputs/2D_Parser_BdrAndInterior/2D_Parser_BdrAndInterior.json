@@ -13,22 +13,22 @@
     "materials": [
       {
         "tags": [ 1 ],
-        "class": "Vacuum"
+        "type": "Vacuum"
       },
       {
         "tags": [ 2 ],
-        "class": "Dielectric",
+        "type": "Dielectric",
         "relative_permittivity": 4.0
       }
     ],
     "boundaries": [
       {
         "tags": [ 1, 3, 5, 7 ],
-        "class": "PMC"
+        "type": "PMC"
       },
       {
         "tags": [ 2, 4, 6 ],
-        "class": "PEC"
+        "type": "PEC"
       }
     ]
   },
