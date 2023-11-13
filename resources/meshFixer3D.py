@@ -31,7 +31,7 @@ new_el_id = 1
 for i in range(int(maxElements)):
     temp_list = lines[i+firstElementIdx].strip().split()
     
-    if (temp_list[1] == "15" or temp_list[1] == "1"):
+    if (temp_list[1] == "15" or temp_list[1] == "1" or temp_list[1] == "26"):
         elementsToDelete += 1
     else:
         temp_list[3] = temp_list[4]

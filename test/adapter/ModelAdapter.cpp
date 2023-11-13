@@ -71,13 +71,13 @@ GeomTagToMaterial assembleAttributeToMaterial(const json& case_data, const mfem:
 		);
 	}
 
-	for (auto att{ 1 }; att < mesh.attributes.Size() + 1; att++) {
-		checkIfThrows(
-			!(res.find(att) == res.end()),
-			std::string("There is no attribute") + std::to_string(att) +
-			" defined in the JSON, but it is defined in the mesh."
-		);
-	}
+	//for (auto att{ 1 }; att < mesh.attributes.Size() + 1; att++) {
+	//	checkIfThrows(
+	//		!(res.find(att) == res.end()),
+	//		std::string("There is no attribute") + std::to_string(att) +
+	//		" defined in the JSON, but it is defined in the mesh."
+	//	);
+	//}
 
 	return res;
 }

@@ -812,4 +812,12 @@ TEST_F(MaxwellProblemTest, 3D_TFSF_Upwind)
 
 }
 
+TEST_F(MaxwellProblemTest, 3D_NearToFarField_Upwind)
+{
+	std::string case_data{ "3D_NearToFarField" };
+	auto solver{ buildSolver(case_data) };
+
+	solver.run();
+}
+
 }
