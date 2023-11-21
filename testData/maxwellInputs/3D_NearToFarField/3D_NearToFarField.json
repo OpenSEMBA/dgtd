@@ -2,7 +2,7 @@
   "solver_options": {
     "solver_type": "upwind",
     "time_step": 1e-2,
-    "final_time":  1.0,
+    "final_time":  1e-2,
     "order": 3
   },
 

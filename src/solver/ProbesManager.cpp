@@ -35,13 +35,13 @@ void ProbesManager::performNearToFarFieldExports(const NearToFarFieldProbe& p, N
 	exportSubMeshFES(p, *smr.getSubMesh(), fes_.FEColl());
 }
 
-void ProbesManager::initNeartoFarFieldPreReqs(Fields& fields)
+void ProbesManager::initNeartoFarFieldPreReqs(Fields& fields, DG_FECollection& fec)
 {
 	for (auto& p : probes.nearToFarFieldProbes) {
 		Mesh parent(*fes_.GetMesh());
 		NearToFarFieldSubMesher subMesher(parent, fes_, buildSurfaceMarker(p, fes_));
 		performNearToFarFieldExports(p, subMesher);
-		FiniteElementSpace sfes(subMesher.getSubMesh(), fes_.FEColl());
+		FiniteElementSpace sfes(subMesher.getSubMesh(), &fec);
 		initNearToFarFieldProbeDataCollection(p, sfes, fields);
 	}
 }

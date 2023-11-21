@@ -28,7 +28,7 @@ public:
     const PointProbe& getPointProbe(const std::size_t i) const;
     const FieldProbe& getFieldProbe(const std::size_t i) const;
 
-    void initNeartoFarFieldPreReqs(Fields&);
+    void initNeartoFarFieldPreReqs(Fields&, mfem::DG_FECollection& fec);
     void initNearToFarFieldProbeDataCollection(NearToFarFieldProbe&, FiniteElementSpace&, Fields&);
 
     Probes probes;

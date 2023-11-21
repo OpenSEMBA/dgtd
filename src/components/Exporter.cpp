@@ -12,8 +12,8 @@ void maxwell::NearToFarFieldDataCollection::assignGlobalFieldsReferences(Fields&
 
 maxwell::NearToFarFieldDataCollection::NearToFarFieldDataCollection(const std::string& name, mfem::FiniteElementSpace& subFes, Fields& global) 
 	: DataCollection(name),
-	sfes_(&subFes),
-	fields_{Fields(*sfes_)},
+	sfes_(subFes),
+	fields_{Fields(sfes_)},
 	gFields_{ globalFields(global) },
 	tMaps_{ TransferMaps(gFields_, fields_) }
 {

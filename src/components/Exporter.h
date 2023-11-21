@@ -58,7 +58,7 @@ private:
 
 	void assignGlobalFieldsReferences(Fields& global);
 	
-	mfem::FiniteElementSpace* sfes_;
+	mfem::FiniteElementSpace sfes_;
 	Fields fields_;
 	globalFields gFields_;
 	TransferMaps tMaps_;
