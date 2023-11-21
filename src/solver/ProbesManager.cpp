@@ -42,7 +42,7 @@ void ProbesManager::initNeartoFarFieldPreReqs(Fields& fields, DG_FECollection& f
 		NearToFarFieldSubMesher subMesher(parent, fes_, buildSurfaceMarker(p, fes_));
 		performNearToFarFieldExports(p, subMesher);
 		FiniteElementSpace sfes(subMesher.getSubMesh(), &fec);
-		initNearToFarFieldProbeDataCollection(p, sfes, fields);
+		initNearToFarFieldProbeDataCollection(p, *subMesher.getSubMesh(), fec, fields);
 	}
 }
 
@@ -86,9 +86,9 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	finalTime_ = opts.finalTime;
 }
 
-void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, FiniteElementSpace& sFes, Fields& gFields)
+void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, SubMesh& sm, DG_FECollection& fec, Fields& gFields)
 {
-		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, sFes, gFields));
+		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, sm, fec, gFields));
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -165,9 +165,9 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	};
 }
 
-NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, FiniteElementSpace& sFes, Fields& gFields) const
+NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, SubMesh& sm, DG_FECollection& fec, Fields& gFields) const
 {
-	NearToFarFieldDataCollection res{ p.name, sFes, gFields };
+	NearToFarFieldDataCollection res{ p.name, sm, fec, gFields };
 	res.SetPrefixPath(p.name);
 	res.RegisterField("Ex", &res.getCollectionField(E, X));
 	res.RegisterField("Ey", &res.getCollectionField(E, Y));

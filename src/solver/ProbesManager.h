@@ -29,7 +29,7 @@ public:
     const FieldProbe& getFieldProbe(const std::size_t i) const;
 
     void initNeartoFarFieldPreReqs(Fields&, mfem::DG_FECollection& fec);
-    void initNearToFarFieldProbeDataCollection(NearToFarFieldProbe&, FiniteElementSpace&, Fields&);
+    void initNearToFarFieldProbeDataCollection(NearToFarFieldProbe&, SubMesh&, DG_FECollection&, Fields&);
 
     Probes probes;
 
@@ -68,7 +68,7 @@ private:
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    NearToFarFieldDataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, FiniteElementSpace&, Fields&) const;
+    NearToFarFieldDataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, SubMesh&, DG_FECollection&, Fields&) const;
 
     void performNearToFarFieldExports(const NearToFarFieldProbe&, NearToFarFieldSubMesher&);
 

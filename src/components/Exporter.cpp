@@ -10,9 +10,9 @@ void maxwell::NearToFarFieldDataCollection::assignGlobalFieldsReferences(Fields&
 	gFields_.Hz = global.get(H, Z);
 }
 
-maxwell::NearToFarFieldDataCollection::NearToFarFieldDataCollection(const std::string& name, mfem::FiniteElementSpace& subFes, Fields& global) 
+maxwell::NearToFarFieldDataCollection::NearToFarFieldDataCollection(const std::string& name, mfem::SubMesh& sm, mfem::DG_FECollection& fec, Fields& global)
 	: DataCollection(name),
-	sfes_(subFes),
+	sfes_(mfem::FiniteElementSpace(&sm, &fec)),
 	fields_{Fields(sfes_)},
 	gFields_{ globalFields(global) },
 	tMaps_{ TransferMaps(gFields_, fields_) }

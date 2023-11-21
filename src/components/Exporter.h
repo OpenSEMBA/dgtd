@@ -49,7 +49,7 @@ class NearToFarFieldDataCollection : public mfem::DataCollection
 {
 public:
 
-	NearToFarFieldDataCollection(const std::string&, mfem::FiniteElementSpace&, Fields&);
+	NearToFarFieldDataCollection(const std::string&, mfem::SubMesh&, mfem::DG_FECollection&, Fields&);
 
 	mfem::GridFunction& getCollectionField(const FieldType& f, const Direction& d)  { return fields_.get(f, d) ; }
 	void updateFields();
