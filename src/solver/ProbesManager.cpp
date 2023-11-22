@@ -4,16 +4,6 @@ namespace maxwell {
 
 using namespace mfem;
 
-Array<int> buildSurfaceMarker(const NearToFarFieldProbe& p, const FiniteElementSpace& fes)
-{
-	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
-	res = 0;
-	for (const auto& t : p.tags) {
-		res[t - 1] = 1;
-	}
-	return res;
-}
-
 void exportSubMeshData(const NearToFarFieldProbe& p, const SubMesh& sm)
 {
 	std::string smSaveDir(p.name + "/" + p.name);
@@ -38,11 +28,7 @@ void ProbesManager::performNearToFarFieldExports(const NearToFarFieldProbe& p, N
 void ProbesManager::initNeartoFarFieldPreReqs(Fields& fields, DG_FECollection& fec)
 {
 	for (auto& p : probes.nearToFarFieldProbes) {
-		Mesh parent(*fes_.GetMesh());
-		NearToFarFieldSubMesher subMesher(parent, fes_, buildSurfaceMarker(p, fes_));
-		performNearToFarFieldExports(p, subMesher);
-		FiniteElementSpace sfes(subMesher.getSubMesh(), &fec);
-		initNearToFarFieldProbeDataCollection(p, *subMesher.getSubMesh(), fec, fields);
+		initNearToFarFieldProbeDataCollection(p, fec, fields);
 	}
 }
 
@@ -86,9 +72,9 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	finalTime_ = opts.finalTime;
 }
 
-void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, SubMesh& sm, DG_FECollection& fec, Fields& gFields)
+void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, DG_FECollection& fec, Fields& gFields)
 {
-		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, sm, fec, gFields));
+		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fec, gFields));
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -165,9 +151,9 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	};
 }
 
-NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, SubMesh& sm, DG_FECollection& fec, Fields& gFields) const
+NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, DG_FECollection& fec, Fields& gFields) const
 {
-	NearToFarFieldDataCollection res{ p.name, sm, fec, gFields };
+	NearToFarFieldDataCollection res{ p, std::make_pair(fec, fes_), gFields };
 	res.SetPrefixPath(p.name);
 	res.RegisterField("Ex", &res.getCollectionField(E, X));
 	res.RegisterField("Ey", &res.getCollectionField(E, Y));
@@ -177,6 +163,7 @@ NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInf
 	res.RegisterField("Hz", &res.getCollectionField(H, Z));
 
 	return res;
+
 }
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)

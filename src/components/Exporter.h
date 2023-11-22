@@ -2,6 +2,8 @@
 
 #include <evolution/Fields.h>
 #include <components/Types.h>
+#include <components/SubMesher.h>
+#include <components/Probes.h>
 
 namespace maxwell {
 
@@ -49,7 +51,7 @@ class NearToFarFieldDataCollection : public mfem::DataCollection
 {
 public:
 
-	NearToFarFieldDataCollection(const std::string&, mfem::SubMesh&, mfem::DG_FECollection&, Fields&);
+	NearToFarFieldDataCollection(const NearToFarFieldProbe&, std::pair<mfem::DG_FECollection,mfem::FiniteElementSpace>&, Fields&);
 
 	mfem::GridFunction& getCollectionField(const FieldType& f, const Direction& d)  { return fields_.get(f, d) ; }
 	void updateFields();
@@ -58,6 +60,7 @@ private:
 
 	void assignGlobalFieldsReferences(Fields& global);
 	
+	NearToFarFieldSubMesher ntff_smsh_;
 	mfem::FiniteElementSpace sfes_;
 	Fields fields_;
 	globalFields gFields_;

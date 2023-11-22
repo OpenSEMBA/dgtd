@@ -1,5 +1,15 @@
 #include "Exporter.h"
 
+mfem::Array<int> buildSurfaceMarker(const maxwell::NearToFarFieldProbe& p, const mfem::FiniteElementSpace& fes)
+{
+	mfem::Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+	res = 0;
+	for (const auto& t : p.tags) {
+		res[t - 1] = 1;
+	}
+	return res;
+}
+
 void maxwell::NearToFarFieldDataCollection::assignGlobalFieldsReferences(Fields& global)
 {
 	gFields_.Ex = global.get(E, X);
@@ -10,9 +20,10 @@ void maxwell::NearToFarFieldDataCollection::assignGlobalFieldsReferences(Fields&
 	gFields_.Hz = global.get(H, Z);
 }
 
-maxwell::NearToFarFieldDataCollection::NearToFarFieldDataCollection(const std::string& name, mfem::SubMesh& sm, mfem::DG_FECollection& fec, Fields& global)
+maxwell::NearToFarFieldDataCollection::NearToFarFieldDataCollection(const NearToFarFieldProbe& p, std::pair<mfem::DG_FECollection, mfem::FiniteElementSpace>& fesInfo, Fields& global)
 	: DataCollection(name),
-	sfes_(mfem::FiniteElementSpace(&sm, &fec)),
+	ntff_smsh_{NearToFarFieldSubMesher(*fesInfo.second.GetMesh(), fesInfo.second, buildSurfaceMarker(p, fesInfo.second))},
+	sfes_{mfem::FiniteElementSpace(ntff_smsh_.getSubMesh(), &fesInfo.first)},
 	fields_{Fields(sfes_)},
 	gFields_{ globalFields(global) },
 	tMaps_{ TransferMaps(gFields_, fields_) }
