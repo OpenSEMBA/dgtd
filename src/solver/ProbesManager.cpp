@@ -74,7 +74,6 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 
 void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, DG_FECollection& fec, Fields& gFields)
 {
-	auto col{ buildNearToFarFieldDataCollectionInfo(p, fec, gFields) };
 	nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fec, gFields));
 }
 
@@ -154,7 +153,7 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 
 NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, DG_FECollection& fec, Fields& gFields) const
 {
-	NearToFarFieldDataCollection res{ p, std::make_pair(fec, fes_), gFields };
+	NearToFarFieldDataCollection res{ p, fec, fes_, gFields };
 	res.SetPrefixPath(p.name);
 	res.RegisterField("Ex", &res.getCollectionField(E, X));
 	res.RegisterField("Ey", &res.getCollectionField(E, Y));

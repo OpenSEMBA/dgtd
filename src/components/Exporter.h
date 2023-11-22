@@ -7,14 +7,16 @@
 
 namespace maxwell {
 
+using namespace mfem;
+
 struct globalFields {
 
-	mfem::GridFunction& Ex;
-	mfem::GridFunction& Ey;
-	mfem::GridFunction& Ez;
-	mfem::GridFunction& Hx;
-	mfem::GridFunction& Hy;
-	mfem::GridFunction& Hz;
+	GridFunction& Ex;
+	GridFunction& Ey;
+	GridFunction& Ez;
+	GridFunction& Hx;
+	GridFunction& Hy;
+	GridFunction& Hz;
 
 	globalFields(Fields& global) :
 		Ex{ global.get(E,X) },
@@ -28,32 +30,32 @@ struct globalFields {
 
 struct TransferMaps {
 
-	mfem::TransferMap tMapEx;
-	mfem::TransferMap tMapEy;
-	mfem::TransferMap tMapEz;
-	mfem::TransferMap tMapHx;
-	mfem::TransferMap tMapHy;
-	mfem::TransferMap tMapHz;
+	TransferMap tMapEx;
+	TransferMap tMapEy;
+	TransferMap tMapEz;
+	TransferMap tMapHx;
+	TransferMap tMapHy;
+	TransferMap tMapHz;
 
 	TransferMaps(globalFields& src, Fields& dst) :
-		tMapEx{ mfem::TransferMap(src.Ex, dst.get(E, X)) },
-		tMapEy{ mfem::TransferMap(src.Ey, dst.get(E, Y)) },
-		tMapEz{ mfem::TransferMap(src.Ez, dst.get(E, Z)) },
-		tMapHx{ mfem::TransferMap(src.Hx, dst.get(H, X)) },
-		tMapHy{ mfem::TransferMap(src.Hy, dst.get(H, Y)) },
-		tMapHz{ mfem::TransferMap(src.Hz, dst.get(H, Z)) }
+		tMapEx{ TransferMap(src.Ex, dst.get(E, X)) },
+		tMapEy{ TransferMap(src.Ey, dst.get(E, Y)) },
+		tMapEz{ TransferMap(src.Ez, dst.get(E, Z)) },
+		tMapHx{ TransferMap(src.Hx, dst.get(H, X)) },
+		tMapHy{ TransferMap(src.Hy, dst.get(H, Y)) },
+		tMapHz{ TransferMap(src.Hz, dst.get(H, Z)) }
 	{}
 
 	void transferFields(const globalFields&, Fields&);
 };
 
-class NearToFarFieldDataCollection : public mfem::DataCollection
+class NearToFarFieldDataCollection : public DataCollection
 {
 public:
 
-	NearToFarFieldDataCollection(const NearToFarFieldProbe&, std::pair<mfem::DG_FECollection,mfem::FiniteElementSpace>&, Fields&);
+	NearToFarFieldDataCollection(const NearToFarFieldProbe&, DG_FECollection& fec, FiniteElementSpace& fes, Fields&);
 
-	mfem::GridFunction& getCollectionField(const FieldType& f, const Direction& d)  { return fields_.get(f, d) ; }
+	GridFunction& getCollectionField(const FieldType& f, const Direction& d)  { return fields_.get(f, d) ; }
 	void updateFields();
 
 private:
@@ -61,7 +63,7 @@ private:
 	void assignGlobalFieldsReferences(Fields& global);
 	
 	NearToFarFieldSubMesher ntff_smsh_;
-	mfem::FiniteElementSpace sfes_;
+	FiniteElementSpace sfes_;
 	Fields fields_;
 	globalFields gFields_;
 	TransferMaps tMaps_;
