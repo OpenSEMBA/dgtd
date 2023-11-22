@@ -74,7 +74,8 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 
 void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, DG_FECollection& fec, Fields& gFields)
 {
-		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fec, gFields));
+	auto col{ buildNearToFarFieldDataCollectionInfo(p, fec, gFields) };
+	nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fec, gFields));
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
