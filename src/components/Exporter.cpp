@@ -27,11 +27,12 @@ void NearToFarFieldDataCollection::assignGlobalFieldsReferences(Fields& global)
 NearToFarFieldDataCollection::NearToFarFieldDataCollection(const NearToFarFieldProbe& p, DG_FECollection& fec, FiniteElementSpace& fes, Fields& global)
 	: DataCollection(p.name),
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
-	sfes_{ FiniteElementSpace(ntff_smsh_.getSubMesh(), &fec) },
-	fields_{ Fields(sfes_) },
+	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), &fec) },
+	fields_{ Fields(*sfes_.get()) },
 	gFields_{ globalFields(global) },
 	tMaps_{ TransferMaps(gFields_, fields_) }
 {
+	this->SetMesh(ntff_smsh_.getSubMesh());
 	updateFields();
 }
 

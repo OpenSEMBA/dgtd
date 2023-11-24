@@ -820,4 +820,12 @@ TEST_F(MaxwellProblemTest, 3D_NearToFarField_Upwind)
 	solver.run();
 }
 
+TEST_F(MaxwellProblemTest, 3D_NearToFarFieldSmaller_Upwind)
+{
+	std::string case_data{ "3D_NearToFarFieldSmaller" };
+	auto solver{ buildSolver(case_data) };
+
+	solver.run();
+}
+
 }

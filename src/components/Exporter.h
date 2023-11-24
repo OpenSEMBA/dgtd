@@ -63,7 +63,7 @@ private:
 	void assignGlobalFieldsReferences(Fields& global);
 	
 	NearToFarFieldSubMesher ntff_smsh_;
-	FiniteElementSpace sfes_;
+	std::unique_ptr<FiniteElementSpace> sfes_;
 	Fields fields_;
 	globalFields gFields_;
 	TransferMaps tMaps_;
