@@ -29,7 +29,7 @@ public:
     const FieldProbe& getFieldProbe(const std::size_t i) const;
 
     void initNeartoFarFieldPreReqs(Fields&, DG_FECollection& fec);
-    void initNearToFarFieldProbeDataCollection(NearToFarFieldProbe&, DG_FECollection&, Fields&);
+    void initNearToFarFieldProbeDataCollection(const NearToFarFieldProbe&, DG_FECollection&, Fields&);
 
     Probes probes;
 

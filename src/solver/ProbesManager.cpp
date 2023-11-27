@@ -27,8 +27,8 @@ void ProbesManager::performNearToFarFieldExports(const NearToFarFieldProbe& p, N
 
 void ProbesManager::initNeartoFarFieldPreReqs(Fields& fields, DG_FECollection& fec)
 {
-	for (auto& p : probes.nearToFarFieldProbes) {
-		initNearToFarFieldProbeDataCollection(p, fec, fields);
+	for (const auto& p : probes.nearToFarFieldProbes) {
+		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fec, fields));
 	}
 }
 
@@ -70,11 +70,6 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	}
 
 	finalTime_ = opts.finalTime;
-}
-
-void ProbesManager::initNearToFarFieldProbeDataCollection(NearToFarFieldProbe& p, DG_FECollection& fec, Fields& gFields)
-{
-	nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fec, gFields));
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -174,7 +169,7 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 		}
 	}
 
-	auto it{ exporterProbesCollection_.find(&p) };
+	auto& it{ exporterProbesCollection_.find(&p) };
 	assert(it != exporterProbesCollection_.end());
 	auto& pd{ it->second };
 
@@ -234,7 +229,7 @@ void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
 		}
 	}
 
-	auto it{ nearToFarFieldProbesCollection_.find(&p) };
+	auto& it{ nearToFarFieldProbesCollection_.find(&p) };
 	assert(it != nearToFarFieldProbesCollection_.end());
 	auto& dc{ it->second };
 

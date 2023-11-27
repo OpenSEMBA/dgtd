@@ -70,6 +70,7 @@ private:
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
 	void storeElementToFaceInformation(const FaceElementTransformations*, int faceId, bool el1_is_tf);
 
+	std::unique_ptr<Mesh> original_;
 	std::vector<El2Face> elem_to_face_ntff_;
 	std::vector<ElementId> elems_for_global_submesh_;
 	std::unique_ptr<SubMesh> ntff_mesh_;

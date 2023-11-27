@@ -615,12 +615,12 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElementSpace& fes, const Array<int>& marker)
 {
 
-	Mesh parent_for_individual(m);
+	original_ = std::make_unique<Mesh>(m);
 
-	setIndividualNTFFAttributesForSubMeshing3D(parent_for_individual, marker);
+	setIndividualNTFFAttributesForSubMeshing3D(*original_.get(), marker);
 
 	if (!elem_to_face_ntff_.empty()) {
-		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker,BdrCond::NearToFarField)));
+		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
 	}
 }
 
