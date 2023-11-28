@@ -66,7 +66,7 @@ public:
 	NearToFarFieldDataCollection(const NearToFarFieldProbe&, const DG_FECollection& fec, FiniteElementSpace& fes, Fields&);
 
 	NearToFarFieldDataCollection(const NearToFarFieldDataCollection&) = delete;
-	NearToFarFieldDataCollection(NearToFarFieldDataCollection&&) = default;
+	NearToFarFieldDataCollection(NearToFarFieldDataCollection&&);
 
 	NearToFarFieldDataCollection& operator=(const NearToFarFieldDataCollection&) = delete;
 	NearToFarFieldDataCollection& operator=(NearToFarFieldDataCollection&&);

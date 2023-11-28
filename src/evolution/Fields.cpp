@@ -11,7 +11,7 @@ Fields::Fields(mfem::FiniteElementSpace& fes)
     for (int d = X; d <= Z; d++) {
         e_[d].SetSpace(&fes);
         h_[d].SetSpace(&fes);
-        e_[d].SetDataAndSize(allDOFs_.GetData() + d * fes.GetNDofs(),       fes.GetNDofs());
+        e_[d].SetDataAndSize(allDOFs_.GetData() + d *       fes.GetNDofs(), fes.GetNDofs());
         h_[d].SetDataAndSize(allDOFs_.GetData() + (d + 3) * fes.GetNDofs(), fes.GetNDofs());
     }
 }

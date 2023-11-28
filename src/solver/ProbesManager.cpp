@@ -63,7 +63,7 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	}
 
 	for (const auto& p : probes.nearToFarFieldProbes) {
-		auto n2ffdc{ buildNearToFarFieldDataCollectionInfo(p, fields)};
+		auto n2ffdc{ buildNearToFarFieldDataCollectionInfo(p, fields) };
 		nearToFarFieldProbesCollection_.emplace(&p, std::move(n2ffdc));
 	}
 

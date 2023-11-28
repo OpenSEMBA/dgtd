@@ -6,7 +6,7 @@ using namespace mfem;
 
 GlobalFields& GlobalFields::operator=(GlobalFields&& gfs)
 {
-	if (this == &gfs)
+	if (this != &gfs)
 	{
 		Ex = std::move(gfs.Ex);
 		Ey = std::move(gfs.Ey);
@@ -51,19 +51,27 @@ NearToFarFieldDataCollection::NearToFarFieldDataCollection(
 	updateFields();
 }
 
-NearToFarFieldDataCollection& NearToFarFieldDataCollection::operator=(NearToFarFieldDataCollection&& dc)
+NearToFarFieldDataCollection::NearToFarFieldDataCollection(NearToFarFieldDataCollection&& ntf) : 
+	DataCollection(std::move(ntf)),
+	ntff_smsh_{ std::move(ntf.ntff_smsh_) },
+	sfes_{ std::move(ntf.sfes_) },
+	fields_{ std::move(ntf.fields_) },
+	gFields_{ std::move(ntf.gFields_) },
+	tMaps_{ std::move(ntf.tMaps_) }
 {
-	if (this != &dc)
+}
+
+NearToFarFieldDataCollection& NearToFarFieldDataCollection::operator=(NearToFarFieldDataCollection&& ntf)
+{
+	if (this != &ntf)
 	{
-		ntff_smsh_ = std::move(dc.ntff_smsh_);
-		sfes_ = std::move(dc.sfes_);
-		fields_ = std::move(dc.fields_);
-		gFields_ = std::move(dc.gFields_);
-		tMaps_ = std::move(dc.tMaps_);
+		ntff_smsh_ = std::move(ntf.ntff_smsh_);
+		sfes_ = std::move(ntf.sfes_);
+		fields_ = std::move(ntf.fields_);
+		gFields_ = std::move(ntf.gFields_);
+		tMaps_ = std::move(ntf.tMaps_);
 	}
-
 	return *this;
-
 }
 
 void NearToFarFieldDataCollection::updateFields()

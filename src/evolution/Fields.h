@@ -9,6 +9,14 @@ namespace maxwell {
 class Fields {
 public:
     Fields(mfem::FiniteElementSpace& fes);
+
+    Fields(const Fields&) = delete;
+    Fields(Fields&&) = default;
+
+    Fields& operator=(const Fields&) = delete;
+    Fields& operator=(Fields&& gfs) = default;
+
+    ~Fields() = default;
     
     mfem::GridFunction& get(const FieldType&, const Direction&);
     const mfem::GridFunction& get(const FieldType&, const Direction&) const;
