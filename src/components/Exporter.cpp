@@ -24,7 +24,8 @@ void NearToFarFieldDataCollection::assignGlobalFieldsReferences(Fields& global)
 	gFields_.Hz = global.get(H, Z);
 }
 
-NearToFarFieldDataCollection::NearToFarFieldDataCollection(const NearToFarFieldProbe& p, DG_FECollection& fec, FiniteElementSpace& fes, Fields& global)
+NearToFarFieldDataCollection::NearToFarFieldDataCollection(
+	const NearToFarFieldProbe& p, const DG_FECollection& fec, FiniteElementSpace& fes, Fields& global)
 	: DataCollection(p.name, fes.GetMesh()),
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
 	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), &fec) },

@@ -25,13 +25,6 @@ void ProbesManager::performNearToFarFieldExports(const NearToFarFieldProbe& p, N
 	exportSubMeshFES(p, *smr.getSubMesh(), fes_.FEColl());
 }
 
-void ProbesManager::initNeartoFarFieldPreReqs(Fields& fields, DG_FECollection& fec)
-{
-	for (const auto& p : probes.nearToFarFieldProbes) {
-		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fec, fields));
-	}
-}
-
 ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
@@ -67,6 +60,15 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 
 	for (const auto& p : probes.fieldProbes) {
 		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
+	}
+
+	for (const auto& p : probes.nearToFarFieldProbes) {
+		auto dgfec{ dynamic_cast<const DG_FECollection*>(fes.FEColl()) };
+		if (!dgfec) {
+			throw std::runtime_error("Finite Element Collection must be DG.");
+		}
+		auto n2ffdc{ buildNearToFarFieldDataCollectionInfo(p, *dgfec, fields)};
+		nearToFarFieldProbesCollection_.emplace(&p, std::move(n2ffdc));
 	}
 
 	finalTime_ = opts.finalTime;
@@ -146,7 +148,8 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	};
 }
 
-NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe& p, DG_FECollection& fec, Fields& gFields) const
+NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
+	const NearToFarFieldProbe& p, const DG_FECollection& fec, Fields& gFields) const
 {
 	NearToFarFieldDataCollection res{ p, fec, fes_, gFields };
 	res.SetPrefixPath(p.name);

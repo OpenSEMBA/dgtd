@@ -64,12 +64,9 @@ Solver::Solver(
 	if (opts_.evolution.spectral == true) {
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
-	
 
 	sourcesManager_.setInitialFields(fields_);
 
-	probesManager_.initNeartoFarFieldPreReqs(fields_, fec_);
-	
 	maxwellEvol_ = std::make_unique<Evolution>(
 			*fes_, model_, sourcesManager_, opts_.evolution);
 	

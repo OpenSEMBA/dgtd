@@ -53,7 +53,15 @@ class NearToFarFieldDataCollection : public DataCollection
 {
 public:
 
-	NearToFarFieldDataCollection(const NearToFarFieldProbe&, DG_FECollection& fec, FiniteElementSpace& fes, Fields&);
+	NearToFarFieldDataCollection(const NearToFarFieldProbe&, const DG_FECollection& fec, FiniteElementSpace& fes, Fields&);
+
+	NearToFarFieldDataCollection(const NearToFarFieldDataCollection&) = delete;
+	NearToFarFieldDataCollection(NearToFarFieldDataCollection&&) = default;
+
+	NearToFarFieldDataCollection& operator=(const NearToFarFieldDataCollection&) = delete;
+	NearToFarFieldDataCollection& operator=(NearToFarFieldDataCollection&&) = default;
+
+	~NearToFarFieldDataCollection() = default;
 
 	GridFunction& getCollectionField(const FieldType& f, const Direction& d)  { return fields_.get(f, d) ; }
 	void updateFields();
