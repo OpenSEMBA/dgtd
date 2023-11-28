@@ -63,11 +63,7 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	}
 
 	for (const auto& p : probes.nearToFarFieldProbes) {
-		auto dgfec{ dynamic_cast<const DG_FECollection*>(fes.FEColl()) };
-		if (!dgfec) {
-			throw std::runtime_error("Finite Element Collection must be DG.");
-		}
-		auto n2ffdc{ buildNearToFarFieldDataCollectionInfo(p, *dgfec, fields)};
+		auto n2ffdc{ buildNearToFarFieldDataCollectionInfo(p, fields)};
 		nearToFarFieldProbesCollection_.emplace(&p, std::move(n2ffdc));
 	}
 
@@ -149,9 +145,13 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 }
 
 NearToFarFieldDataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
-	const NearToFarFieldProbe& p, const DG_FECollection& fec, Fields& gFields) const
+	const NearToFarFieldProbe& p, Fields& gFields) const
 {
-	NearToFarFieldDataCollection res{ p, fec, fes_, gFields };
+	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
+	{
+		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+	}
+	NearToFarFieldDataCollection res{ p, *dynamic_cast<const DG_FECollection*>(fes_.FEColl()), fes_, gFields };
 	res.SetPrefixPath(p.name);
 	res.RegisterField("Ex", &res.getCollectionField(E, X));
 	res.RegisterField("Ey", &res.getCollectionField(E, Y));

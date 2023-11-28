@@ -4,10 +4,11 @@ namespace maxwell {
 
 using namespace mfem;
 
-SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes) :
+SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes, Fields& fields) :
     sources{ srcs }, 
     fes_{ fes }
 {
+    setInitialFields(fields);
 }
 
 void SourcesManager::setInitialFields(Fields& fields)

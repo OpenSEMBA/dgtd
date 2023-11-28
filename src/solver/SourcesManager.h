@@ -10,9 +10,8 @@ namespace maxwell {
 
 class SourcesManager {
 public:
-    SourcesManager(const Sources&, mfem::FiniteElementSpace&);  
+    SourcesManager(const Sources&, mfem::FiniteElementSpace&, Fields& fields);
 
-    void setInitialFields(Fields&);
     FieldGridFuncs evalTimeVarField(const Time);
     FieldGridFuncs evalTimeVarField(const Time, bool is_tf);
     FieldGridFuncs evalTimeVarField(const Time, FiniteElementSpace*);
@@ -29,6 +28,7 @@ private:
 
     void initTFSFSubMesher(const Mesh&, const Array<int>& marker);
     void initTFSFSpaces();
+    void setInitialFields(Fields&);
 
     mfem::FiniteElementSpace& fes_;
     TotalFieldScatteredFieldSubMesher tfsf_submesher_;

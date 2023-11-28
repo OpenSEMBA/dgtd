@@ -47,8 +47,8 @@ Solver::Solver(
 	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
 	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
 	fields_{ *fes_ },
-	sourcesManager_{ sources, *fes_ },
-	probesManager_{ probes, *fes_, fields_, opts_ },
+	sourcesManager_{ sources, *fes_, fields_ },
+	probesManager_ { probes , *fes_, fields_, opts_ },
 	time_{0.0}
 {
 	
@@ -64,8 +64,6 @@ Solver::Solver(
 	if (opts_.evolution.spectral == true) {
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
-
-	sourcesManager_.setInitialFields(fields_);
 
 	maxwellEvol_ = std::make_unique<Evolution>(
 			*fes_, model_, sourcesManager_, opts_.evolution);
@@ -395,7 +393,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 			assignAttToBdrByDimForSpectral(submesh),
 			GeomTagToInteriorConditions{}
 		};
-		SourcesManager srcs{ Sources(), submeshFES };
+		SourcesManager srcs{ Sources(), submeshFES, fields_ };
 		Evolution evol {
 			submeshFES,
 			model,

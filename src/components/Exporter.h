@@ -19,12 +19,12 @@ struct globalFields {
 	GridFunction& Hz;
 
 	globalFields(Fields& global) :
-		Ex{ global.get(E,X) },
-		Ey{ global.get(E,X) },
-		Ez{ global.get(E,X) },
-		Hx{ global.get(E,X) },
-		Hy{ global.get(E,X) },
-		Hz{ global.get(E,X) }
+		Ex{ global.get(E, X) },
+		Ey{ global.get(E, Y) },
+		Ez{ global.get(E, Z) },
+		Hx{ global.get(H, X) },
+		Hy{ global.get(H, Y) },
+		Hz{ global.get(H, Z) }
 	{}
 };
 
