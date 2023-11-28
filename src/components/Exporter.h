@@ -9,7 +9,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-struct globalFields {
+struct GlobalFields {
 
 	GridFunction& Ex;
 	GridFunction& Ey;
@@ -18,7 +18,7 @@ struct globalFields {
 	GridFunction& Hy;
 	GridFunction& Hz;
 
-	globalFields(Fields& global) :
+	GlobalFields(Fields& global) :
 		Ex{ global.get(E, X) },
 		Ey{ global.get(E, Y) },
 		Ez{ global.get(E, Z) },
@@ -26,6 +26,16 @@ struct globalFields {
 		Hy{ global.get(H, Y) },
 		Hz{ global.get(H, Z) }
 	{}
+
+	GlobalFields(const GlobalFields&) = delete;
+	GlobalFields(GlobalFields&&) = default;
+
+	GlobalFields& operator=(const GlobalFields&) = delete;
+	GlobalFields& operator=(GlobalFields&& gfs);
+
+	~GlobalFields() = default;
+
+
 };
 
 struct TransferMaps {
@@ -37,7 +47,7 @@ struct TransferMaps {
 	TransferMap tMapHy;
 	TransferMap tMapHz;
 
-	TransferMaps(globalFields& src, Fields& dst) :
+	TransferMaps(GlobalFields& src, Fields& dst) :
 		tMapEx{ TransferMap(src.Ex, dst.get(E, X)) },
 		tMapEy{ TransferMap(src.Ey, dst.get(E, Y)) },
 		tMapEz{ TransferMap(src.Ez, dst.get(E, Z)) },
@@ -46,7 +56,7 @@ struct TransferMaps {
 		tMapHz{ TransferMap(src.Hz, dst.get(H, Z)) }
 	{}
 
-	void transferFields(const globalFields&, Fields&);
+	void transferFields(const GlobalFields&, Fields&);
 };
 
 class NearToFarFieldDataCollection : public DataCollection
@@ -59,7 +69,7 @@ public:
 	NearToFarFieldDataCollection(NearToFarFieldDataCollection&&) = default;
 
 	NearToFarFieldDataCollection& operator=(const NearToFarFieldDataCollection&) = delete;
-	NearToFarFieldDataCollection& operator=(NearToFarFieldDataCollection&&) = default;
+	NearToFarFieldDataCollection& operator=(NearToFarFieldDataCollection&&);
 
 	~NearToFarFieldDataCollection() = default;
 
@@ -73,7 +83,7 @@ private:
 	NearToFarFieldSubMesher ntff_smsh_;
 	std::unique_ptr<FiniteElementSpace> sfes_;
 	Fields fields_;
-	globalFields gFields_;
+	GlobalFields gFields_;
 	TransferMaps tMaps_;
 
 };

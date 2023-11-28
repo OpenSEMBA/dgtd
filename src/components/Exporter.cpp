@@ -4,6 +4,20 @@ namespace maxwell {
 
 using namespace mfem;
 
+GlobalFields& GlobalFields::operator=(GlobalFields&& gfs)
+{
+	if (this == &gfs)
+	{
+		Ex = std::move(gfs.Ex);
+		Ey = std::move(gfs.Ey);
+		Ez = std::move(gfs.Ez);
+		Hx = std::move(gfs.Hx);
+		Hy = std::move(gfs.Hy);
+		Hz = std::move(gfs.Hz);
+	}
+	return *this;
+}
+
 Array<int> buildSurfaceMarker(const std::vector<int>& tags, const FiniteElementSpace& fes)
 {
 	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
@@ -30,11 +44,26 @@ NearToFarFieldDataCollection::NearToFarFieldDataCollection(
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
 	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), &fec) },
 	fields_{ Fields(*sfes_.get()) },
-	gFields_{ globalFields(global) },
+	gFields_{ GlobalFields(global) },
 	tMaps_{ TransferMaps(gFields_, fields_) }
 {
 	this->SetMesh(ntff_smsh_.getSubMesh());
 	updateFields();
+}
+
+NearToFarFieldDataCollection& NearToFarFieldDataCollection::operator=(NearToFarFieldDataCollection&& dc)
+{
+	if (this != &dc)
+	{
+		ntff_smsh_ = std::move(dc.ntff_smsh_);
+		sfes_ = std::move(dc.sfes_);
+		fields_ = std::move(dc.fields_);
+		gFields_ = std::move(dc.gFields_);
+		tMaps_ = std::move(dc.tMaps_);
+	}
+
+	return *this;
+
 }
 
 void NearToFarFieldDataCollection::updateFields()
@@ -42,7 +71,7 @@ void NearToFarFieldDataCollection::updateFields()
 	tMaps_.transferFields(gFields_, fields_);
 }
 
-void TransferMaps::transferFields(const globalFields& src, Fields& dst)
+void TransferMaps::transferFields(const GlobalFields& src, Fields& dst)
 {
 	tMapEx.Transfer(src.Ex, dst.get(E, X));
 	tMapEy.Transfer(src.Ey, dst.get(E, Y));
