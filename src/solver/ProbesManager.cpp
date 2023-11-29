@@ -137,7 +137,7 @@ DataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
 	}
 
 	DataCollection res{ p.name, nearToFarFieldReqs_.at(&p)->getSubMesh()};
-	res.SetPrefixPath(p.name);
+	res.SetPrefixPath("NearToFarFieldExports/" + p.name);
 	res.RegisterField("Ex.gf", &nearToFarFieldReqs_.at(&p)->getField(E, X));
 	res.RegisterField("Ey.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Y));
 	res.RegisterField("Ez.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Z));
