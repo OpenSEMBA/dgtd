@@ -4,27 +4,6 @@ namespace maxwell {
 
 using namespace mfem;
 
-void exportSubMeshData(const NearToFarFieldProbe& p, const SubMesh& sm)
-{
-	std::string smSaveDir(p.name + "/" + p.name);
-	sm.Save(smSaveDir);
-}
-
-void exportSubMeshFES(const NearToFarFieldProbe& p, SubMesh& sm, const FiniteElementCollection* fec)
-{
-	FiniteElementSpace sfes(&sm, fec);
-	std::string fesSaveDir(p.name + "/" + "fes.txt");
-	std::ofstream fout(fesSaveDir);
-	sfes.Save(fout);
-	fout.close();
-}
-
-void ProbesManager::performNearToFarFieldExports(const NearToFarFieldProbe& p, NearToFarFieldSubMesher& smr)
-{
-	exportSubMeshData(p, *smr.getConstSubMesh());
-	exportSubMeshFES(p, *smr.getSubMesh(), fes_.FEColl());
-}
-
 ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
@@ -159,12 +138,12 @@ DataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
 
 	DataCollection res{ p.name, nearToFarFieldReqs_.at(&p)->getSubMesh()};
 	res.SetPrefixPath(p.name);
-	res.RegisterField("Ex", &nearToFarFieldReqs_.at(&p)->getField(E, X));
-	res.RegisterField("Ey", &nearToFarFieldReqs_.at(&p)->getField(E, Y));
-	res.RegisterField("Ez", &nearToFarFieldReqs_.at(&p)->getField(E, Z));
-	res.RegisterField("Hx", &nearToFarFieldReqs_.at(&p)->getField(H, X));
-	res.RegisterField("Hy", &nearToFarFieldReqs_.at(&p)->getField(H, Y));
-	res.RegisterField("Hz", &nearToFarFieldReqs_.at(&p)->getField(H, Z));
+	res.RegisterField("Ex.gf", &nearToFarFieldReqs_.at(&p)->getField(E, X));
+	res.RegisterField("Ey.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Y));
+	res.RegisterField("Ez.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Z));
+	res.RegisterField("Hx.gf", &nearToFarFieldReqs_.at(&p)->getField(H, X));
+	res.RegisterField("Hy.gf", &nearToFarFieldReqs_.at(&p)->getField(H, Y));
+	res.RegisterField("Hz.gf", &nearToFarFieldReqs_.at(&p)->getField(H, Z));
 
 	return res;
 

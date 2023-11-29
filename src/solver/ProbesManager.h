@@ -7,7 +7,6 @@
 #include <components/Probes.h>
 #include <evolution/Fields.h>
 #include <solver/SolverOptions.h>
-#include <components/Exporter.h>
 #include <components/SubMesher.h>
 
 namespace maxwell {
@@ -111,8 +110,6 @@ private:
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
     DataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, Fields&) const;
-
-    void performNearToFarFieldExports(const NearToFarFieldProbe&, NearToFarFieldSubMesher&);
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(PointProbe&, Time);
