@@ -311,8 +311,8 @@ void TransferMaps::transferFields(const Fields& src, Fields& dst)
 NearToFarFieldReqs::NearToFarFieldReqs(
 	const NearToFarFieldProbe& p, const DG_FECollection* fec, FiniteElementSpace& fes, Fields& global) :
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
-	sfes_{ FiniteElementSpace(ntff_smsh_.getSubMesh(), fec) },
-	fields_{ Fields(sfes_) },
+	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
+	fields_{ Fields(*sfes_) },
 	gFields_{ global },
 	tMaps_{ TransferMaps(gFields_, fields_) }
 {

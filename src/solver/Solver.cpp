@@ -73,7 +73,6 @@ Solver::Solver(
 
 	probesManager_.updateProbes(time_);
 
-
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
