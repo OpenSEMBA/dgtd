@@ -226,6 +226,12 @@ void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
 	dc.SetCycle(cycle_);
 	dc.SetTime(time);
 	dc.Save();
+
+	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
+	std::ofstream file;
+	file.open(dir_name);
+	file << time;
+	file.close();
 }
 
 void ProbesManager::updateProbes(Time t)

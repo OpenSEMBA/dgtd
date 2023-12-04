@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 1e-2,
-    "final_time":  1e-2,
+    "time_step": 1e-4,
+    "final_time": 1.0,
     "order": 3
   },
 
@@ -28,12 +28,12 @@
 
   "probes": {
     "exporter": {
-      "steps": 20
+      "steps": 2000
     },
     "neartofarfield": [
       {
         "name": "middle",
-        "steps": 5,
+        "steps": 500,
         "tags": [ 4 ]
       }
     ]

@@ -4,6 +4,8 @@
 #include <fstream>
 #include <mfem.hpp>
 
+#include <general/text.hpp>
+
 #include <components/Probes.h>
 #include <evolution/Fields.h>
 #include <solver/SolverOptions.h>
