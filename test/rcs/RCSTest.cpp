@@ -6,6 +6,10 @@
 #include <components/Types.h>
 
 #include <iostream>
+#include <filesystem>
+
+#include <math.h>
+#include <complex>
 
 
 namespace maxwell {

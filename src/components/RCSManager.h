@@ -2,7 +2,13 @@
 
 #include <mfem.hpp>
 #include <components/Types.h>
+
 #include <iostream>
+#include <filesystem>
+
+#include <math.h>
+#include <complex>
+
 #include <components/Probes.h>
 
 
@@ -24,12 +30,13 @@ public:
 private:
 
 	void initFieldsRCS(const std::string&);
-	void calculateRCS(FieldsToTime&);
+	void calculateRCS(const GridFunction& rcs, GridFunction&);
 	GridFunction getGridFunction(const std::string& path, const FieldType&, const Direction&);
 
 	std::unique_ptr<Mesh> m_;
 	FieldToGridFunction fieldsRCS_;
 	std::string basePath_;
+	double frequency_;
 
 };
 
