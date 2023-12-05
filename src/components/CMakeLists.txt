@@ -15,7 +15,7 @@ add_library(maxwell-components STATIC
 	"EigenvalueEstimator.cpp"
 	"OptimizationManager.cpp"
 	"SubMesher.cpp"
-	)
+	 "RCSManager.h" "RCSManager.cpp")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})

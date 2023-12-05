@@ -18,7 +18,6 @@ add_executable(rcs_tests
 )
 
 target_link_libraries(rcs_tests 
-	PRIVATE FFTW3::fftw3
 	mfem 
 	maxwell-mfemExtension
 	maxwell-components
