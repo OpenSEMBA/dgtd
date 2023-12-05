@@ -63,20 +63,26 @@ void RCSManager::update(FieldsToTime& ftt)
 {
 	int rank{ 0 };
 
-	for (auto itEntry = std::filesystem::recursive_directory_iterator(basePath_);
-		itEntry != std::filesystem::recursive_directory_iterator();
-		++itEntry) {
-
-
-
+	for (const auto& itEntry : std::filesystem::directory_iterator(basePath_)) {
+		auto subPath{ itEntry.path() };
+		for (auto& f : { E, H }) {
+			for (auto& d : { X, Y, Z }) {
+				calculateRCS(fieldsRCS_.at(getGridFunctionString(f, d)), getGridFunction(subPath.string(), f, d));
+			}
+		}
+		rank++;
+	}
+	for (auto& f : { E, H }) {
+		for (auto& d : { X, Y, Z }) {
+			fieldsRCS_.at(getGridFunctionString(f, d)) /= rank;
+		}
 	}
 	//Iterate through directory
 	//Read GF data and assemble ftt
 	//Pass ftt to calculate
-	calculateRCS(ftt);
 	//Rinse and repeat while there's folders to iterate through
 	//Keep counting how many folder we're going through, at the end, divide by that.
-	rank++;
+	
 }
 
 void RCSManager::initFieldsRCS(const std::string& path)

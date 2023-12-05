@@ -36,6 +36,7 @@ private:
 	std::unique_ptr<Mesh> m_;
 	FieldToGridFunction fieldsRCS_;
 	std::string basePath_;
+	std::vector<std::filesystem::path> dataPaths_;
 	double frequency_;
 
 };
