@@ -95,12 +95,6 @@ void RCSManager::update(FieldsToTime& ftt)
 			}
 		}
 	}
-	//Iterate through directory X
-	//Read GF data and assemble ftt X
-	//Pass ftt to calculate X
-	//Rinse and repeat while there's folders to iterate through
-	//Keep counting how many folder we're going through, at the end, divide by that.
-	
 }
  
 void RCSManager::calculateRCS(CompVec& rcs, const GridFunction& ingf, const Time time)
@@ -110,9 +104,6 @@ void RCSManager::calculateRCS(CompVec& rcs, const GridFunction& ingf, const Time
 	for (auto i{ 0 }; i < ingf.Size(); ++i) {
 		rcs[i] = ingf[i] * exp(constPart * time);
 	}
-	//Do the math
-	//rcs.atspecificthing += mathmath(gf);
-
 }
 
 void RCSManager::initFieldsRCS(const std::string& path)
