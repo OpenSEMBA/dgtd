@@ -59,12 +59,21 @@ GridFunction RCSManager::getGridFunction(const std::string& path, const FieldTyp
 	return gf;
 }
 
+const double getTime(const std::string& timePath)
+{
+	std::ifstream timeFile(timePath);
+	std::string timeString;
+	std::getline(timeFile, timeString);
+	return std::stod(timeString);
+}
+
 void RCSManager::update(FieldsToTime& ftt)
 {
 	int rank{ 0 };
 
 	for (const auto& itEntry : std::filesystem::directory_iterator(basePath_)) {
 		auto subPath{ itEntry.path() };
+		auto time{ getTime(subPath.generic_string() + "/time.txt") };
 		for (auto& f : { E, H }) {
 			for (auto& d : { X, Y, Z }) {
 				calculateRCS(fieldsRCS_.at(getGridFunctionString(f, d)), getGridFunction(subPath.string(), f, d));
@@ -77,12 +86,20 @@ void RCSManager::update(FieldsToTime& ftt)
 			fieldsRCS_.at(getGridFunctionString(f, d)) /= rank;
 		}
 	}
-	//Iterate through directory
-	//Read GF data and assemble ftt
+	//Iterate through directory X
+	//Read GF data and assemble ftt X
 	//Pass ftt to calculate
 	//Rinse and repeat while there's folders to iterate through
 	//Keep counting how many folder we're going through, at the end, divide by that.
 	
+}
+ 
+void RCSManager::calculateRCS(const GridFunction& rcs, GridFunction& gf)
+{
+	const std::complex<double> constPart{ 0.0, -(double)(2.0 * M_PI * frequency_) };
+	//Do the math
+	//rcs.atspecificthing += mathmath(gf);
+
 }
 
 void RCSManager::initFieldsRCS(const std::string& path)
@@ -92,14 +109,6 @@ void RCSManager::initFieldsRCS(const std::string& path)
 			fieldsRCS_.emplace(getGridFunctionString(f, d), getGridFunction(path, f, d));
 		}
 	}
-}
-
-void RCSManager::calculateRCS(const GridFunction& rcs, GridFunction& gf)
-{
-	const std::complex<double> constPart{ 0.0, -(double)(2.0 * M_PI * frequency_) };
-	//Do the math
-	//rcs.atspecificthing += mathmath(gf);
-
 }
 
 
