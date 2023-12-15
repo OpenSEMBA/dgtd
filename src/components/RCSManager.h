@@ -16,8 +16,9 @@ namespace maxwell {
 
 using namespace mfem;
 
-using FieldToGridFunction = std::map<std::string, GridFunction>;
-using FieldsToTime = std::pair<FieldToGridFunction, Time>;
+using CompVec = std::vector<std::complex<double>>;
+using FieldToRCSVector = std::map<std::string, CompVec>;
+using FieldsToTime = std::pair<FieldToRCSVector, Time>;
 
 class RCSManager {
 public:
@@ -30,11 +31,11 @@ public:
 private:
 
 	void initFieldsRCS(const std::string&);
-	void calculateRCS(const GridFunction& rcs, GridFunction&);
+	void calculateRCS(CompVec&, const GridFunction&, const Time);
 	GridFunction getGridFunction(const std::string& path, const FieldType&, const Direction&);
 
 	std::unique_ptr<Mesh> m_;
-	FieldToGridFunction fieldsRCS_;
+	FieldToRCSVector fieldsRCS_;
 	std::string basePath_;
 	std::vector<std::filesystem::path> dataPaths_;
 	double frequency_;
