@@ -62,6 +62,9 @@ GridFunction RCSManager::getGridFunction(const std::string& path, const FieldTyp
 const double getTime(const std::string& timePath)
 {
 	std::ifstream timeFile(timePath);
+	if (!timeFile) {
+		throw std::runtime_error("File could not be opened in getTime for RCS, verify path.");
+	}
 	std::string timeString;
 	std::getline(timeFile, timeString);
 	return std::stod(timeString);
