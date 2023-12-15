@@ -81,7 +81,8 @@ void RCSManager::update(FieldsToTime& ftt)
 			for (auto& d : { X, Y, Z }) {
 				calculateRCS(fieldsRCS_.at(getGridFunctionString(f, d)), 
 					getGridFunction(subPath.string(), f, d), 
-					getTime(subPath.generic_string() + "/time.txt"));
+					getTime(subPath.generic_string() + "/time.txt")
+				);
 			}
 		}
 		rank++;
@@ -96,7 +97,7 @@ void RCSManager::update(FieldsToTime& ftt)
 	}
 	//Iterate through directory X
 	//Read GF data and assemble ftt X
-	//Pass ftt to calculate
+	//Pass ftt to calculate X
 	//Rinse and repeat while there's folders to iterate through
 	//Keep counting how many folder we're going through, at the end, divide by that.
 	
@@ -107,8 +108,7 @@ void RCSManager::calculateRCS(CompVec& rcs, const GridFunction& ingf, const Time
 	const std::complex<double> constPart{ 0.0, -(double)(2.0 * M_PI * frequency_) };
 	std::complex<double> res{ 0.0, 0.0 };
 	for (auto i{ 0 }; i < ingf.Size(); ++i) {
-		auto val = ingf[i] * exp(constPart * time);
-		rcs[i] = val;
+		rcs[i] = ingf[i] * exp(constPart * time);
 	}
 	//Do the math
 	//rcs.atspecificthing += mathmath(gf);
