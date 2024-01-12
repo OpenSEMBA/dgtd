@@ -4,6 +4,8 @@ namespace maxwell {
 
 using namespace mfem;
 
+
+
 Mesh getRCSMesh(const std::string& path)
 {
 	std::ifstream in(path + "/mesh");
@@ -97,22 +99,22 @@ void RCSManager::update(FieldsToTime& ftt)
 	}
 }
  
-void RCSManager::calculateRCS(CompVec& rcs, const GridFunction& ingf, const Time time)
+void RCSManager::calculateRCS(CompVec& res, const GridFunction& ingf, const Time time)
 {
+	//Need to split into real and complex for the integration.
 	const std::complex<double> constPart{ 0.0, -(double)(2.0 * M_PI * frequency_) };
-	std::complex<double> res{ 0.0, 0.0 };
 	for (auto i{ 0 }; i < ingf.Size(); ++i) {
-		rcs[i] = ingf[i] * exp(constPart * time);
+		res[i] = std::conj((double)ingf[i] * exp(constPart * time));
 	}
 }
 
 void RCSManager::initFieldsRCS(const std::string& path)
 {
-	for (auto f : { E, H }) {
-		for (auto d : { X, Y, Z }) {
-			fieldsRCS_.emplace(getGridFunctionString(f, d), getGridFunction(path, f, d));
-		}
-	}
+	//for (auto f : { E, H }) {
+	//	for (auto d : { X, Y, Z }) {
+	//		fieldsRCS_.emplace(getGridFunctionString(f, d), getGridFunction(path, f, d));
+	//	}
+	//}
 }
 
 
