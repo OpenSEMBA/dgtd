@@ -278,7 +278,7 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 
 TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 {
-	auto mesh{ Mesh::MakeCartesian2D(2, 2, Element::QUADRILATERAL, true) };
+	auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
 
 	auto dgfec{ DG_FECollection(1, 2) };
 	auto ndfec{ ND_FECollection(1, 2) };
@@ -287,55 +287,31 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
 
 	GridFunction dg_gf_x(&dgfes);
-	GridFunction dg_gf_y(&dgfes);
-	GridFunction nd_gf_x(&ndfes);
-	GridFunction nd_gf_y(&ndfes);	
-	GridFunction nd_gf_global(&ndfes);
+	GridFunction nd_gf_x(&ndfes);	
 	dg_gf_x = 1.0;
-	dg_gf_y = 1.0;
-	nd_gf_global = 0.0;
+	nd_gf_x = 0.0;
 
 	dg_gf_x.SetTrueVector();
 	dg_gf_x.SetFromTrueVector();
-	dg_gf_y.SetTrueVector();
-	dg_gf_y.SetFromTrueVector();
 
-	BilinearForm mass(&ndfes);
-	MixedBilinearForm dg_nd_mbf_x(&dgfes, &ndfes);
-	MixedBilinearForm dg_nd_mbf_y(&dgfes, &ndfes);
+	MixedBilinearForm mass_mixed_x(&dgfes, &ndfes);
 
-	ConstantCoefficient one(1.0);
 	Vector x{ {1.0, 0.0} };
 	VectorConstantCoefficient vcc_x(x);
-	Vector y{ {0.0, 1.0} };
-	VectorConstantCoefficient vcc_y(y);
 
-	dg_nd_mbf_x.AddDomainIntegrator(new MixedVectorProductIntegrator(vcc_x));
-	dg_nd_mbf_y.AddDomainIntegrator(new MixedVectorProductIntegrator(vcc_y));
+	mass_mixed_x.AddDomainIntegrator(new MixedVectorProductIntegrator(vcc_x));
 
-	mass.Assemble();
-	mass.Finalize();
-	dg_nd_mbf_x.Assemble();
-	dg_nd_mbf_x.Finalize();
-	dg_nd_mbf_y.Assemble();
-	dg_nd_mbf_y.Finalize();
+	mass_mixed_x.Assemble();
+	mass_mixed_x.Finalize();
 
-	SparseMatrix& mixed_x = dg_nd_mbf_x.SpMat();
-	mixed_x.Mult(dg_gf_x, nd_gf_x);
-	SparseMatrix& mixed_y = dg_nd_mbf_y.SpMat();
-	mixed_y.Mult(dg_gf_y, nd_gf_y);
-
-	nd_gf_global += nd_gf_x;
-	nd_gf_global += nd_gf_y;
+	Array<int> boundary_dofs;
+	ndfes.GetBoundaryTrueDofs(boundary_dofs);
 
 	ParaViewDataCollection* pd = NULL;
 	pd = new ParaViewDataCollection("Example", &mesh);
 	pd->SetPrefixPath("Nedelec");
 	pd->RegisterField("Galerkin Solution X", &dg_gf_x);
-	pd->RegisterField("Galerkin Solution Y", &dg_gf_y);
 	pd->RegisterField("Nedelec Solution X", &nd_gf_x);
-	pd->RegisterField("Nedelec Solution Y", &nd_gf_y);
-	pd->RegisterField("Nedelec Solution Global", &nd_gf_global);
 	pd->SetLevelsOfDetail(1);
 	pd->SetDataFormat(VTKFormat::BINARY);
 	pd->SetHighOrderOutput(true);
