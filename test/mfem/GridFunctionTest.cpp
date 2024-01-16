@@ -276,6 +276,26 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 	EXPECT_NEAR(proj.GetValue(elArray[0], ipArray[0]), expectedValue[0], 1e-5);
 }
 
+static std::unique_ptr<GridFunction>
+ProjectVectorFEGridFunction(std::unique_ptr<GridFunction> gf)
+{
+	if ((gf->VectorDim() == 2) && (gf->FESpace()->GetVDim() == 1))
+	{
+		int p = gf->FESpace()->GetOrder(0);
+		std::cout << "Switching to order " << p
+			<< " discontinuous vector grid function..." << std::endl;
+		int dim = gf->FESpace()->GetMesh()->Dimension();
+		FiniteElementCollection* d_fec = (FiniteElementCollection*)new L2_FECollection(p, dim, 1);
+		FiniteElementSpace* d_fespace =
+			new FiniteElementSpace(gf->FESpace()->GetMesh(), d_fec, 3);
+		GridFunction* d_gf = new GridFunction(d_fespace);
+		d_gf->MakeOwner(d_fec);
+		gf->ProjectVectorFieldOn(*d_gf);
+		gf.reset(d_gf);
+	}
+	return gf;
+}
+
 TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 {
 	auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
@@ -288,66 +308,59 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	dg_x = 1.0;
 	GridFunction dg_y(&dgfes);
 	dg_y = 1.0;
-	GridFunction dg_z(&dgfes);
-	dg_z = 3.0;
 
 	auto h1fec{ H1_FECollection(1, 2) };
 	auto h1fes{ FiniteElementSpace(&mesh, &h1fec) };
+	auto h1fesv2{ FiniteElementSpace(&mesh, &h1fec, 2) };
 
 	GridFunction h1_x(&h1fes);
 	GridFunction h1_y(&h1fes);
-	GridFunction h1_z(&h1fes);
+	GridFunction h1_gf(&h1fesv2);
 
 	h1_x.ProjectGridFunction(dg_x);
 	h1_y.ProjectGridFunction(dg_y);
-	h1_z.ProjectGridFunction(dg_z);
 
-	Vector vx{ {1.0, 0.0 } };
-	Vector vy{ {0.0, 1.0 } };
-	//Vector vz{ {0.0, 0.0, 1.0 } };
+	h1_gf.SetVector(h1_x, 0);
+	h1_gf.SetVector(h1_y, h1_x.Size());
 
-	VectorGridFunctionCoefficient vccx(&h1_x);
-	VectorGridFunctionCoefficient vccy(&h1_y);
-	//VectorConstantCoefficient vccz(vz);
+	h1_gf.SetTrueVector();
+	h1_gf.SetFromTrueVector();
 
 	auto ndfec{ ND_FECollection(1, 2) };
 	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
-
-	MixedBilinearForm mbf_x(&h1fes, &ndfes);
-	MixedBilinearForm mbf_y(&h1fes, &ndfes);
-	//MixedBilinearForm mbf_z(&h1fes, &ndfes);
-
-	mbf_x.AddDomainIntegrator(new MixedVectorProductIntegrator(vccx));
-	mbf_y.AddDomainIntegrator(new MixedVectorProductIntegrator(vccy));
-	//mbf_z.AddDomainIntegrator(new MixedVectorProductIntegrator(vccz));
-
-	mbf_x.Assemble();
-	mbf_x.Finalize();
-	mbf_y.Assemble();
-	mbf_y.Finalize();
-	//mbf_z.Assemble();
-	//mbf_z.Finalize();
+	auto ndfesv2{ FiniteElementSpace(&mesh, &ndfec, 2) };
 
 	GridFunction nd_gf_x(&ndfes);
 	GridFunction nd_gf_y(&ndfes);
+	DiscreteLinearOperator dlo(&h1fes, &ndfes);
+	dlo.AddDomainInterpolator(new IdentityInterpolator());
+	dlo.Assemble();
+	dlo.Mult(h1_x, nd_gf_x);
+	dlo.Mult(h1_y, nd_gf_y);
+
+	GridFunction nd_v2(&ndfesv2);
+	nd_v2 = 0.0;
+	for (auto i{ 0 }; i < nd_gf_x.Size(); ++i) {
+		nd_v2[i] = nd_gf_x[i];
+		nd_v2[i + nd_gf_x.Size()] = nd_gf_y[i];
+	}
+
+	VectorGridFunctionCoefficient vgfc(&h1_gf);
+
 	GridFunction nd_gf(&ndfes);
 	nd_gf = 0.0;
 
-	mbf_x.Mult(h1_x, nd_gf_x);
-	mbf_y.Mult(h1_y, nd_gf_y);
-	nd_gf += nd_gf_x;
-	nd_gf += nd_gf_y;
-	//mbf_z.AddMult(h1_z, nd_gf);
+	nd_gf.ProjectCoefficient(vgfc);
 
 	ParaViewDataCollection* pd = NULL;
 	pd = new ParaViewDataCollection("Example", &mesh);
 	pd->SetPrefixPath("Nedelec");
 	pd->RegisterField("Galerkin Solution X", &dg_x);
 	pd->RegisterField("Galerkin Solution Y", &dg_y);
-	pd->RegisterField("Galerkin Solution Z", &dg_z);
 	pd->RegisterField("Continuous Space Solution X", &h1_x);
 	pd->RegisterField("Continuous Space Solution Y", &h1_y);
-	pd->RegisterField("Continuous Space Solution Z", &h1_z);
+	pd->RegisterField("Nedelec Solution X", &nd_gf_x);
+	pd->RegisterField("Nedelec Solution Y", &nd_gf_y);
 	pd->RegisterField("Nedelec Solution", &nd_gf);
 	pd->SetLevelsOfDetail(1);
 	pd->SetDataFormat(VTKFormat::BINARY);
