@@ -298,46 +298,77 @@ ProjectVectorFEGridFunction(std::unique_ptr<GridFunction> gf)
 
 TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 {
-	//auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
+	// Choose any mesh in 2D, either MFEM-Cartesian or any other format.
+	// auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
 	auto mesh{ Mesh::LoadFromFile("testData/star.mesh") };
 
+	// Let us assume we have a L2 space, 2-dimensional, with vdim equal to 1, meaning
+	// our components are individually separated into a GridFunction representing X,
+	// another representing Y, and a third one that would represent Z if it were the case. 
 	auto dgfec{ DG_FECollection(1, 2) };
 	auto dgfes{ FiniteElementSpace(&mesh, &dgfec) };
-	auto dgfesv3{ FiniteElementSpace(&mesh, &dgfec, 3) }; //If ordering not defined, it is by byNodes, meaning XXX, YYY, ZZZ...
 
+	// For the sake of having non-zero GridFunctions, we initialise them to 1.0 in all the
+	// degrees of freedom of the problem.
 	GridFunction dg_x(&dgfes);
 	dg_x = 1.0;
 	GridFunction dg_y(&dgfes);
 	dg_y = 1.0;
 
+	// While still unexplored if fully needed or potentially replicable directly from L2
+	// we will take a middle step to first transform from L2 to H1, for this purpose, 
+	// we will initialise a similar FES to the previous one, only in H1.
 	auto h1fec{ H1_FECollection(1, 2) };
 	auto h1fes{ FiniteElementSpace(&mesh, &h1fec) };
-	auto h1fesv2{ FiniteElementSpace(&mesh, &h1fec, 2) };
 
+	// Additionally, we create another H1 FES with vdim equal to 2.
+	// If ordering not defined, the default is 'byNODES', meaning the components are stored XXX, YYY, ZZZ...
+	auto h1fesv2{ FiniteElementSpace(&mesh, &h1fec, 2) }; 
+
+	// We create a GridFunction for each of the individual components (X and Y), and
+	// another GridFunction for the vdim 2 FES.
 	GridFunction h1_x(&h1fes);
 	GridFunction h1_y(&h1fes);
 	GridFunction h1_gf(&h1fesv2);
 
+	// We directly project the L2 GridFunctions onto our individual H1 GridFunctions.
+	// This seems to work without causing a double evaluation in the interior faces.
 	h1_x.ProjectGridFunction(dg_x);
 	h1_y.ProjectGridFunction(dg_y);
 
+	// We now fill the values for the vdim 2 GridFunction, following the ordering
+	// defined by the FES, in this case, first component X, then component Y, ...
+	// The vdim 2 GridFunction has double the size of the individual ones, so it is
+	// merely a process of setting the vectors.
 	h1_gf.SetVector(h1_x, 0);
 	h1_gf.SetVector(h1_y, h1_x.Size());
 
-	h1_gf.SetTrueVector();
-	h1_gf.SetFromTrueVector();
-
+	// We create a Nedelec Collection and Finite Element Space with vdim 1, 
+	// through all of this process, the order and dimension between all the
+	// created FEC is the same. As Nedelec spaces are vectorial by nature, 
+	// it doesn't seem we need to initialise the FES with vdim 2, which could feel
+	// like a natural choice.
 	auto ndfec{ ND_FECollection(1, 2) };
 	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
-	auto ndfesv2{ FiniteElementSpace(&mesh, &ndfec, 2) };
 
+	// We create a Nedelec GridFunction using the Nedelec FES. As we will be 
+	// projecting a solution onto the GridFunction, it is not needed to set its
+	// values to 0.0 
+	GridFunction nd_gf(&ndfes);
+
+	// We create a VectorGridFunctionCoefficient by using the H1 GridFunction that was
+	// created through the vdim 2 H1 FES. As we are going for a vdim > 1 system, the Coefficient
+	// *MUST* be VectorCoefficient, and not simply Coefficient.
 	VectorGridFunctionCoefficient vgfc(&h1_gf);
 
-	GridFunction nd_gf(&ndfes);
-	nd_gf = 0.0;
-
+	// We project the VGFC onto the Nedelec GridFunction we have previously created, 
+	// it doesn't seem we need to specify where goes what, even if the debugger tells us
+	// that technically the Nedelec GridFunction is only half the size of the VGFC vector, 
+	// it just works. 
+	// I personally still do not understand where the information for the Y-Component goes.
 	nd_gf.ProjectCoefficient(vgfc);
 
+	// This is the typical paraview exporting code for the GridFunctions and problem.
 	ParaViewDataCollection* pd = NULL;
 	pd = new ParaViewDataCollection("L2toH1toND", &mesh);
 	pd->SetPrefixPath("BasisSwapping");
@@ -353,4 +384,17 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	pd->SetTime(0.0);
 	pd->Save();
 	
+	Vector nd_x, nd_y;
+	nd_gf.GetVectorFieldNodalValues(nd_x, 1);
+	nd_gf.GetVectorFieldNodalValues(nd_y, 2);
+
+	// Simple condition to automatise the test. Strange as it is, the component argument in 
+	// GetVectorFieldNodalValues starts at 1 - X, 2 - Y, and not at 0.
+	double error{ 1e-6 };
+	for (auto i{ 0 }; i < nd_x.Size(); ++i) {
+		EXPECT_NEAR(1.0, nd_x[i], error);
+		EXPECT_NEAR(1.0, nd_y[i], error);
+	}
+
+
 }
