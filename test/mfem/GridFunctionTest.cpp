@@ -298,7 +298,8 @@ ProjectVectorFEGridFunction(std::unique_ptr<GridFunction> gf)
 
 TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 {
-	auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
+	//auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
+	auto mesh{ Mesh::LoadFromFile("testData/star.mesh") };
 
 	auto dgfec{ DG_FECollection(1, 2) };
 	auto dgfes{ FiniteElementSpace(&mesh, &dgfec) };
@@ -329,21 +330,6 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	auto ndfec{ ND_FECollection(1, 2) };
 	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
 	auto ndfesv2{ FiniteElementSpace(&mesh, &ndfec, 2) };
-
-	GridFunction nd_gf_x(&ndfes);
-	GridFunction nd_gf_y(&ndfes);
-	DiscreteLinearOperator dlo(&h1fes, &ndfes);
-	dlo.AddDomainInterpolator(new IdentityInterpolator());
-	dlo.Assemble();
-	dlo.Mult(h1_x, nd_gf_x);
-	dlo.Mult(h1_y, nd_gf_y);
-
-	GridFunction nd_v2(&ndfesv2);
-	nd_v2 = 0.0;
-	for (auto i{ 0 }; i < nd_gf_x.Size(); ++i) {
-		nd_v2[i] = nd_gf_x[i];
-		nd_v2[i + nd_gf_x.Size()] = nd_gf_y[i];
-	}
 
 	VectorGridFunctionCoefficient vgfc(&h1_gf);
 
