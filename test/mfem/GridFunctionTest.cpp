@@ -307,17 +307,27 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	// another representing Y, and a third one that would represent Z if it were the case. 
 	auto dgfec{ DG_FECollection(1, 2) };
 	auto dgfes{ FiniteElementSpace(&mesh, &dgfec) };
+
+	// Additionally, we create a L2 space with vdim 2, which we will use later to create a 
+	// GridFunction and store the component values in a single object.
 	auto dgfesv2{ FiniteElementSpace(&mesh, &dgfec, 2) };
 
 	// For the sake of having non-zero GridFunctions, we initialise them to 1.0 in all the
-	// degrees of freedom of the problem.
+	// degrees of freedom of the problem. As the vdim 2 GridFunction will be projected onto
+	// there is no need to initialise its values.
 	GridFunction dg_x(&dgfes);
 	dg_x = 1.0;
 	GridFunction dg_y(&dgfes);
 	dg_y = 1.0;
 	GridFunction dg_gf(&dgfesv2);
+
+	// The vdim 2 GridFunction has its values ordered byNODES, this means first it stores the X
+	// components, then the Y components, and if it were vdim 3, the Z components. So, we fill
+	// the vector accordingly with our individual GridFunctions.
 	dg_gf.SetVector(dg_x, 0);
 	dg_gf.SetVector(dg_y, dg_x.Size());
+
+	// We create a VectorGridFunctionCoefficient from the vdim 2 GridFunction.
 	VectorGridFunctionCoefficient dg_vgfc(&dg_gf);
 
 	// We create a Nedelec Collection and Finite Element Space with vdim 1, 
@@ -333,16 +343,18 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	// values to 0.0 
 	GridFunction nd_gf(&ndfes);
 
-	// We project the VGFC onto the Nedelec GridFunction we have previously created, 
+	// We project the L2 VGFC onto the Nedelec GridFunction we have previously created, 
 	// it doesn't seem we need to specify where goes what, even if the debugger tells us
 	// that technically the Nedelec GridFunction is only half the size of the VGFC vector, 
 	// it just works. 
 	// I personally still do not understand where the information for the Y-Component goes.
+	// It might have to do with the DegreesOfFreedom(DoF) being Vector(?)DegreesOfFreedom (VDoF)
+	// in this case, thus storing the information at a lower level we cannot trivially see in the debugger.
 	nd_gf.ProjectCoefficient(dg_vgfc);
 
 	// This is the typical paraview exporting code for the GridFunctions and problem.
 	ParaViewDataCollection* pd = NULL;
-	pd = new ParaViewDataCollection("L2toH1toND", &mesh);
+	pd = new ParaViewDataCollection("L2toND", &mesh);
 	pd->SetPrefixPath("SpaceSwapping");
 	pd->RegisterField("Galerkin Solution X", &dg_x);
 	pd->RegisterField("Galerkin Solution Y", &dg_y);
