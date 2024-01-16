@@ -353,14 +353,12 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	nd_gf.ProjectCoefficient(vgfc);
 
 	ParaViewDataCollection* pd = NULL;
-	pd = new ParaViewDataCollection("Example", &mesh);
-	pd->SetPrefixPath("Nedelec");
+	pd = new ParaViewDataCollection("L2toH1toND", &mesh);
+	pd->SetPrefixPath("BasisSwapping");
 	pd->RegisterField("Galerkin Solution X", &dg_x);
 	pd->RegisterField("Galerkin Solution Y", &dg_y);
 	pd->RegisterField("Continuous Space Solution X", &h1_x);
 	pd->RegisterField("Continuous Space Solution Y", &h1_y);
-	pd->RegisterField("Nedelec Solution X", &nd_gf_x);
-	pd->RegisterField("Nedelec Solution Y", &nd_gf_y);
 	pd->RegisterField("Nedelec Solution", &nd_gf);
 	pd->SetLevelsOfDetail(1);
 	pd->SetDataFormat(VTKFormat::BINARY);
