@@ -276,31 +276,11 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 	EXPECT_NEAR(proj.GetValue(elArray[0], ipArray[0]), expectedValue[0], 1e-5);
 }
 
-static std::unique_ptr<GridFunction>
-ProjectVectorFEGridFunction(std::unique_ptr<GridFunction> gf)
-{
-	if ((gf->VectorDim() == 2) && (gf->FESpace()->GetVDim() == 1))
-	{
-		int p = gf->FESpace()->GetOrder(0);
-		std::cout << "Switching to order " << p
-			<< " discontinuous vector grid function..." << std::endl;
-		int dim = gf->FESpace()->GetMesh()->Dimension();
-		FiniteElementCollection* d_fec = (FiniteElementCollection*)new L2_FECollection(p, dim, 1);
-		FiniteElementSpace* d_fespace =
-			new FiniteElementSpace(gf->FESpace()->GetMesh(), d_fec, 3);
-		GridFunction* d_gf = new GridFunction(d_fespace);
-		d_gf->MakeOwner(d_fec);
-		gf->ProjectVectorFieldOn(*d_gf);
-		gf.reset(d_gf);
-	}
-	return gf;
-}
-
-TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
+TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 {
 	// Choose any mesh in 2D, either MFEM-Cartesian or any other format.
 	// auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
-	auto mesh{ Mesh::LoadFromFile("testData/star.mesh") };
+	auto mesh{ Mesh::LoadFromFile("testData/mfemMeshes/square-disc.mesh") };
 
 	// Let us assume we have a L2 space, 2-dimensional, with vdim equal to 1, meaning
 	// our components are individually separated into a GridFunction representing X,
@@ -313,8 +293,11 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentBasis)
 	auto dgfesv2{ FiniteElementSpace(&mesh, &dgfec, 2) };
 
 	// For the sake of having non-zero GridFunctions, we initialise them to 1.0 in all the
-	// degrees of freedom of the problem. As the vdim 2 GridFunction will be projected onto
-	// there is no need to initialise its values.
+	// degrees of freedom of the problem. As the vdim 2 GridFunction will be filled with the
+	// previous GridFunctions there is no need to initialise its values.
+	// While we could just create the vdim 2 GridFunction, we are 'simulating' that our 
+	// components are initially separated, thus this step is needed to be closer to our
+	// Solver code.
 	GridFunction dg_x(&dgfes);
 	dg_x = 1.0;
 	GridFunction dg_y(&dgfes);
