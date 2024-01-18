@@ -3,8 +3,45 @@
 namespace maxwell {
 
 using namespace mfem;
+using NedelecXY = GridFunction;
+using H1_Z = GridFunction;
 
+GridFunction assembleHigherVDimL2GridFunction(const GridFunction& xField, const GridFunction& yField)
+{
+	auto l2fes_vdim{
+		FiniteElementSpace(
+			xField.FESpace()->GetMesh(),
+			dynamic_cast<const L2_FECollection*>(xField.FESpace()->FEColl()),
+			2)
+	};
 
+	GridFunction res(&l2fes_vdim);
+	res.SetVector(xField, 0);
+	res.SetVector(yField, xField.Size());
+
+	return res;
+}
+
+std::pair<NedelecXY, H1_Z> convertL2toNewFES2D(const GridFunction& xField, const GridFunction& yField, const GridFunction& zField)
+{
+
+	if (xField.FESpace() != yField.FESpace() || xField.FESpace() != zField.FESpace()) {
+		throw std::exception("GridFunctions xField, yField and/or zField do not have the same FiniteElementSpace.");
+	}
+	auto l2_gf_vdim{ &assembleHigherVDimL2GridFunction(xField, yField) };
+	VectorGridFunctionCoefficient dg_vgfc(l2_gf_vdim);
+
+	auto ndfes{	FiniteElementSpace(	xField.FESpace()->GetMesh(), &ND_FECollection(xField.FESpace()->FEColl()->GetOrder(), xField.FESpace()->GetMesh()->Dimension())) };
+	auto h1fes{ FiniteElementSpace( zField.FESpace()->GetMesh(), &H1_FECollection(zField.FESpace()->FEColl()->GetOrder(), zField.FESpace()->GetMesh()->Dimension())) };
+	
+	NedelecXY xyFieldND(&ndfes);
+	xyFieldND.ProjectCoefficient(dg_vgfc);
+	H1_Z zFieldH1(&h1fes);
+	zFieldH1.ProjectGridFunction(zField);
+
+	return std::make_pair(xyFieldND, zFieldH1);
+
+}
 
 Mesh getRCSMesh(const std::string& path)
 {
@@ -47,7 +84,7 @@ RCSManager::RCSManager(const std::string& path, const NearToFarFieldProbe& p)
 	m_ = std::make_unique<Mesh>(getRCSMesh(basePath_));
 	//frequency_ = somethingSomethingFrequency();
 	const std::string initFolder{ path + "/" + p.name + "_000000" };
-	initFieldsRCS(initFolder);
+	
 }
 
 GridFunction RCSManager::getGridFunction(const std::string& path, const FieldType& f, const Direction& d)
@@ -72,50 +109,6 @@ const double getTime(const std::string& timePath)
 	return std::stod(timeString);
 }
 
-void RCSManager::update(FieldsToTime& ftt)
-{
-	int rank{ 0 };
-
-	for (const auto& itEntry : std::filesystem::directory_iterator(basePath_)) {
-		auto subPath{ itEntry.path() };
-		auto time{ getTime(subPath.generic_string() + "/time.txt") };
-		for (auto& f : { E, H }) {
-			for (auto& d : { X, Y, Z }) {
-				calculateRCS(fieldsRCS_.at(getGridFunctionString(f, d)), 
-					getGridFunction(subPath.string(), f, d), 
-					getTime(subPath.generic_string() + "/time.txt")
-				);
-			}
-		}
-		rank++;
-	}
-	for (auto& f : { E, H }) {
-		for (auto& d : { X, Y, Z }) {
-			auto vec{ fieldsRCS_.at(getGridFunctionString(f, d)) };
-			for (auto i{ 0 }; i < vec.size(); ++i) {
-				vec[i] /= (double) rank;
-			}
-		}
-	}
-}
- 
-void RCSManager::calculateRCS(CompVec& res, const GridFunction& ingf, const Time time)
-{
-	//Need to split into real and complex for the integration.
-	const std::complex<double> constPart{ 0.0, -(double)(2.0 * M_PI * frequency_) };
-	for (auto i{ 0 }; i < ingf.Size(); ++i) {
-		res[i] = std::conj((double)ingf[i] * exp(constPart * time));
-	}
-}
-
-void RCSManager::initFieldsRCS(const std::string& path)
-{
-	//for (auto f : { E, H }) {
-	//	for (auto d : { X, Y, Z }) {
-	//		fieldsRCS_.emplace(getGridFunctionString(f, d), getGridFunction(path, f, d));
-	//	}
-	//}
-}
 
 
 }
