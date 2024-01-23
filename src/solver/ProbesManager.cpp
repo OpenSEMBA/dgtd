@@ -225,7 +225,11 @@ void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
 
 	dc.SetCycle(cycle_);
 	dc.SetTime(time);
-	dc.Save();
+	dc.Save(); //Ideally we wouldn't save the mesh every step but MFEM DataCollection does it. We should redo the method or delete the mesh later (suboptimal).
+
+	std::string mesh_path{ dc.GetPrefixPath() + dc.GetCollectionName() + "/mesh" }; //We do want to save the mesh at the base directory, though ideally we'd only do this once. (WIP)
+	auto mesh{ dc.GetMesh() };
+	mesh->Save(dc.GetPrefixPath() + "/mesh");
 
 	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
 	std::ofstream file;
