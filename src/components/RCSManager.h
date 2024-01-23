@@ -23,17 +23,17 @@ using FieldsToTime = std::pair<FieldToRCSVector, Time>;
 class RCSManager {
 public:
 
-	RCSManager(const std::string& path, const NearToFarFieldProbe&);
+	RCSManager(const std::string& path, const std::string& probe_name, double f);
 
 private:
 
 	GridFunction getGridFunction(const std::string& path, const FieldType&, const Direction&);
+	void performRCS2DCalculations(const std::string& path);
 
-	std::unique_ptr<Mesh> m_;
+	Mesh m_;
 	FieldToRCSVector fieldsRCS_;
 	std::string basePath_;
-	std::vector<std::filesystem::path> dataPaths_;
-	double frequency_;
+	double frequency_{ 0.0 };
 
 };
 
