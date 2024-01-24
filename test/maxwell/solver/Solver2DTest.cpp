@@ -1549,15 +1549,6 @@ TEST_F(Solver2DTest, DISABLED_box_with_Gmsh)
 	};
 }
 
-TEST_F(Solver2DTest, 2D_box_resonant_mode)
-{
-	maxwell::Solver solver{ smbCase(getCaseName()) };
-
-	solver.run();
-
-	EXPECT_TRUE(false);
-}
-
 TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
 {
 	auto mesh{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };

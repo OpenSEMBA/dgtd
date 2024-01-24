@@ -17,9 +17,6 @@ public:
     using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
     
-    Solver(const std::string& smbFilename);
-    Solver(const SolverInput&);
-    Solver(const Problem&, const SolverOptions& = SolverOptions());
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;

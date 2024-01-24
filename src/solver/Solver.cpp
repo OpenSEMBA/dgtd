@@ -1,6 +1,5 @@
 #include "Solver.h"
 
-#include "adapter/OpensembaAdapter.h"
 #include "components/SubMesher.h"
 
 #include <fstream>
@@ -24,18 +23,6 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	}
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
-
-Solver::Solver(const std::string& smbFilename) :
-	Solver{ OpensembaAdapter{smbFilename}.readSolverInput() }
-{}
-
-Solver::Solver(const SolverInput& in) :
-	Solver{in.problem, in.options}
-{}
-
-Solver::Solver(const Problem& problem, const SolverOptions& options) :
-	Solver{problem.model, problem.probes, problem.sources, options}
-{}
 
 Solver::Solver(
 	const Model& model,

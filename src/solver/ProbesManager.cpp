@@ -225,7 +225,7 @@ void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
 
 	dc.SetCycle(cycle_);
 	dc.SetTime(time);
-	dc.Save(); //Ideally we wouldn't save the mesh every step but MFEM DataCollection does it. We should redo the method or delete the mesh later (suboptimal).
+	dc.Save(); //Ideally we wouldn't save the mesh every step but MFEM DataCollection does it. We should redo the method or delete the extra meshes later (suboptimal).
 
 	std::string mesh_path{ dc.GetPrefixPath() + dc.GetCollectionName() + "/mesh" }; //We do want to save the mesh at the base directory, though ideally we'd only do this once. (WIP)
 	auto mesh{ dc.GetMesh() };
@@ -258,9 +258,6 @@ void ProbesManager::updateProbes(Time t)
 
 	cycle_++;
 }
-
-
-
 
 Array<int> buildSurfaceMarker(const std::vector<int>& tags, const FiniteElementSpace& fes)
 {
