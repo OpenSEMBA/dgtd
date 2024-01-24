@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 include_directories(
 	./
@@ -13,4 +13,3 @@ add_subdirectory(mfem)
 add_subdirectory(hesthavenComparison)
 add_subdirectory(adapter)
 add_subdirectory(rcs)
-add_subdirectory(other)

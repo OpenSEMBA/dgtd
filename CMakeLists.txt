@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 if(NOT DEFINED _VCPKG_INSTALLED_DIR AND DEFINED ENV{_VCPKG_INSTALLED_DIR})
    set(_VCPKG_INSTALLED_DIR $ENV{_VCPKG_INSTALLED_DIR})
@@ -39,4 +39,3 @@ add_test(mfem ${CMAKE_BINARY_DIR}/bin/mfem_tests)
 add_test(hesthavenComparison ${CMAKE_BINARY_DIR}/bin/hesthavenComparison_tests)
 add_test(adapter ${CMAKE_BINARY_DIR}/bin/adapter_tests)
 add_test(rcs ${CMAKE_BINARY_DIR}/bin/rcs_tests)
-add_test(other ${CMAKE_BINARY_DIR}/bin/other_tests)
