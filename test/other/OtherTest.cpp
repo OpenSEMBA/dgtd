@@ -69,37 +69,27 @@ TEST_F(OtherTest, filesystem_recursive_iterator_load_data)
 
 	std::unique_ptr<GridFunction> Ex, Ey, Ez, Hx, Hy, Hz;
 	double time;
-	Mesh mesh;
+	Mesh mesh{ Mesh::LoadFromFile(base_path.generic_string() + "/mesh", 1, 0) };
 
-	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(base_path)) {
-		std::ifstream in(dir_entry.path().generic_string());
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) == "mesh") {
-			mesh = Mesh::LoadFromFile(dir_entry.path().generic_string(), 1, 0);
-		}
-		else if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 5) == "Ex.gf") {
-			Ex = std::make_unique<GridFunction>(&mesh, in);
-		}
-		else if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 5) == "Ey.gf") {
-			Ey = std::make_unique<GridFunction>(&mesh, in);
-		}
-		else if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 5) == "Ez.gf") {
-			Ez = std::make_unique<GridFunction>(&mesh, in);
-		}
-		else if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 5) == "Hx.gf") {
-			Hx = std::make_unique<GridFunction>(&mesh, in);
-		}
-		else if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 5) == "Hy.gf") {
-			Hy = std::make_unique<GridFunction>(&mesh, in);
-		}
-		else if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 5) == "Hz.gf") {
-			Hz = std::make_unique<GridFunction>(&mesh, in);
-		}
-		else if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) == "time.txt") {
+	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			std::ifstream inEx(dir_entry.path().generic_string() + "/Ex.gf");
+			Ex = std::make_unique<GridFunction>(&mesh, inEx);
+			std::ifstream inEy(dir_entry.path().generic_string() + "/Ey.gf");
+			Ey = std::make_unique<GridFunction>(&mesh, inEy);
+			std::ifstream inEz(dir_entry.path().generic_string() + "/Ez.gf");
+			Ez = std::make_unique<GridFunction>(&mesh, inEz);
+			std::ifstream inHx(dir_entry.path().generic_string() + "/Hx.gf");
+			Hx = std::make_unique<GridFunction>(&mesh, inHx);
+			std::ifstream inHy(dir_entry.path().generic_string() + "/Hy.gf");
+			Hy = std::make_unique<GridFunction>(&mesh, inHy);
+			std::ifstream inHz(dir_entry.path().generic_string() + "/Hz.gf");
+			Hz = std::make_unique<GridFunction>(&mesh, inHz);
 			std::string timeString;
-			std::getline(in, timeString);
+			std::ifstream inTime(dir_entry.path().generic_string() + "/time.txt");
+			std::getline(inTime, timeString);
 			time = std::stod(timeString);
 		}
-		break; //Just for this test.
 	}
 
 
