@@ -27,8 +27,7 @@ public:
 
 private:
 
-	GridFunction getGridFunction(const std::string& path, const FieldType&, const Direction&);
-	void performRCS2DCalculations(const std::string& path);
+	void performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz);
 
 	Mesh m_;
 	FieldToRCSVector fieldsRCS_;

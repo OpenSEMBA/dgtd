@@ -113,10 +113,9 @@ std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& vfc, F
 	return res;
 }
 
-void RCSManager::performRCS2DCalculations(const std::string& path) 
+void RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz) 
 {
-	auto pairTE = convertL2toNewFES2D(getGridFunction(path, E, X), getGridFunction(path, E, Y), getGridFunction(path, H, Z));
-	auto pairTM = convertL2toNewFES2D(getGridFunction(path, H, X), getGridFunction(path, H, Y), getGridFunction(path, E, Z));
+	auto pairTE = convertL2toNewFES2D(Ax, Ay, Bz);
 
 	VectorFunctionCoefficient vfc_te_real_nd(pairTE.first.VectorDim(), func_exp_real_part);
 	auto lf_real_nd{ assembleLinearForm(vfc_te_real_nd, *pairTE.first.FESpace()) };
@@ -130,39 +129,49 @@ void RCSManager::performRCS2DCalculations(const std::string& path)
 	VectorFunctionCoefficient vfc_te_imag_h1(pairTE.second.VectorDim(), func_exp_imag_part);
 	auto lf_imag_h1{ assembleLinearForm(vfc_te_imag_h1, *pairTE.second.FESpace()) };
 
-	//Same for TM. Duplicating code, gotta fix. Can probably economise down to single assembly with double coeff, or viceversa.
+
+
 }
 
 RCSManager::RCSManager(const std::string& path, const std::string& probe_name, double f) 
 {
 	basePath_ = path;
 	frequency_ = f;
-	//frequency_ = somethingSomethingFrequency();
-	m_ = Mesh::LoadFromFile(path + "/" + probe_name + "_000000/mesh", 1, 0);
-	for (auto const& dir_entry : std::filesystem::directory_iterator{ basePath_ }) {
-		auto iterPath{ dir_entry.path().generic_string() };
-		switch (getGridFunction(path, E, X).FESpace()->GetMesh()->Dimension()) {
-		case 2:
-			performRCS2DCalculations(iterPath);
-			break;
-		case 3:
-			break;
-		default:
-			throw std::runtime_error("The RCSManager does not support dimensions other than 2 or 3.");
+
+	std::unique_ptr<GridFunction> Ex, Ey, Ez, Hx, Hy, Hz;
+	double time;
+	Mesh mesh{ Mesh::LoadFromFile(basePath_ + "/mesh", 1, 0) };
+
+	for (auto const& dir_entry : std::filesystem::directory_iterator(basePath_)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			std::ifstream inEx(dir_entry.path().generic_string() + "/Ex.gf");
+			Ex = std::make_unique<GridFunction>(&mesh, inEx);
+			std::ifstream inEy(dir_entry.path().generic_string() + "/Ey.gf");
+			Ey = std::make_unique<GridFunction>(&mesh, inEy);
+			std::ifstream inEz(dir_entry.path().generic_string() + "/Ez.gf");
+			Ez = std::make_unique<GridFunction>(&mesh, inEz);
+			std::ifstream inHx(dir_entry.path().generic_string() + "/Hx.gf");
+			Hx = std::make_unique<GridFunction>(&mesh, inHx);
+			std::ifstream inHy(dir_entry.path().generic_string() + "/Hy.gf");
+			Hy = std::make_unique<GridFunction>(&mesh, inHy);
+			std::ifstream inHz(dir_entry.path().generic_string() + "/Hz.gf");
+			Hz = std::make_unique<GridFunction>(&mesh, inHz);
+			time = getTime(dir_entry.path().generic_string() + "/time.txt");
+
+			switch (mesh.SpaceDimension()) {
+			case 2:
+				performRCS2DCalculations(*Ex, *Ey, *Hz);
+				performRCS2DCalculations(*Hx, *Hy, *Ez);
+				break;
+			case 3:
+				break;
+			default:
+				throw std::runtime_error("RCSManager cannot be applied on dimensions other than 2 and 3.");
+			}
+
 		}
 	}
 	
-}
-
-GridFunction RCSManager::getGridFunction(const std::string& path, const FieldType& f, const Direction& d)
-{
-	auto filePath{ getGridFunctionPathForType(path, f, d) };
-	std::ifstream in(filePath);
-	if (!in) {
-		throw std::runtime_error("File could not be opened in getGridFunctionPathForType.");
-	}
-	GridFunction gf(&m_, in);
-	return gf;
 }
 
 const double getTime(const std::string& timePath)
