@@ -3,8 +3,38 @@
 namespace maxwell {
 
 using namespace mfem;
-using Nedelec_XY = GridFunction;
-using H1_Z = GridFunction;
+
+
+void func_exp_real_part_2D(const Vector& x, Vector& v, const double freq, const Rho angle)
+{
+	v[0] = cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	v[1] = cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+}
+
+void func_exp_imag_part_2D(const Vector& x, Vector& v, const double freq, const Rho angle)
+{
+	v[0] = sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	v[1] = sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+}
+
+Array<int> getNTFFMarker(const int att_size)
+{
+	Array<int> res(att_size);
+	res = 0;
+	res[static_cast<int>(BdrCond::NearToFarField) - 1] = 1;
+	return res;
+}
+
+const double getTime(const std::string& timePath)
+{
+	std::ifstream timeFile(timePath);
+	if (!timeFile) {
+		throw std::runtime_error("File could not be opened in getTime.");
+	}
+	std::string timeString;
+	std::getline(timeFile, timeString);
+	return std::stod(timeString);
+}
 
 GridFunction assembleHigherVDimL2GridFunction(const GridFunction& xField, const GridFunction& yField)
 {
@@ -30,12 +60,11 @@ std::pair<Nedelec_XY, H1_Z> convertL2toNewFES2D(const GridFunction& xField, cons
 	}
 	auto l2_gf_vdim{ &assembleHigherVDimL2GridFunction(xField, yField) };
 	VectorGridFunctionCoefficient dg_vgfc(l2_gf_vdim);
-
 	auto ndfes{	FiniteElementSpace(	xField.FESpace()->GetMesh(), &ND_FECollection(xField.FESpace()->FEColl()->GetOrder(), xField.FESpace()->GetMesh()->Dimension())) };
-	auto h1fes{ FiniteElementSpace( zField.FESpace()->GetMesh(), &H1_FECollection(zField.FESpace()->FEColl()->GetOrder(), zField.FESpace()->GetMesh()->Dimension())) };
-	
 	Nedelec_XY xyFieldND(&ndfes);
 	xyFieldND.ProjectCoefficient(dg_vgfc);
+
+	auto h1fes{ FiniteElementSpace( zField.FESpace()->GetMesh(), &H1_FECollection(zField.FESpace()->FEColl()->GetOrder(), zField.FESpace()->GetMesh()->Dimension())) };
 	H1_Z zFieldH1(&h1fes);
 	zFieldH1.ProjectGridFunction(zField);
 
@@ -43,58 +72,6 @@ std::pair<Nedelec_XY, H1_Z> convertL2toNewFES2D(const GridFunction& xField, cons
 
 }
 
-Mesh getRCSMesh(const std::string& path)
-{
-	std::ifstream in(path + "/mesh");
-	return Mesh(in);
-}
-
-std::string getGridFunctionString(const FieldType& f, const Direction& d)
-{
-	switch (f) {
-	case E:
-		switch (d) {
-		case X:
-			return "Ex";
-		case Y:
-			return "Ey";
-		case Z:
-			return "Ez";
-		}
-	case H:
-		switch (d) {
-		case X:
-			return "Hx";
-		case Y:
-			return "Hy";
-		case Z:
-			return "Hz";
-		}
-	}
-}
-
-std::string getGridFunctionPathForType(const std::string& path, const FieldType& f, const Direction& d)
-{
-	return path + "/" + getGridFunctionString(f, d) + ".gf";
-}
-
-void func_exp_real_part(const Vector& pos, double time, Vector& v)
-{
-	//real part of exponential things
-}
-
-void func_exp_imag_part(const Vector& pos, double time, Vector& v)
-{
-	//real part of exponential things
-}
-
-Array<int> getNTFFMarker(const int att_size)
-{
-	Array<int> res(att_size);
-	res = 0;
-	res[static_cast<int>(BdrCond::NearToFarField) - 1] = 1;
-	return res;
-}
 
 std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& vfc, FiniteElementSpace& fes) 
 {
@@ -113,30 +90,47 @@ std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& vfc, F
 	return res;
 }
 
-void RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz) 
+
+VectorFunctionCoefficient buildVFC_2D(const double freq, const Rho& angle, bool isReal)
 {
-	auto pairTE = convertL2toNewFES2D(Ax, Ay, Bz);
 
-	VectorFunctionCoefficient vfc_te_real_nd(pairTE.first.VectorDim(), func_exp_real_part);
-	auto lf_real_nd{ assembleLinearForm(vfc_te_real_nd, *pairTE.first.FESpace()) };
-
-	VectorFunctionCoefficient vfc_te_imag_nd(pairTE.first.VectorDim(), func_exp_imag_part);
-	auto lf_imag_nd{ assembleLinearForm(vfc_te_imag_nd, *pairTE.first.FESpace()) };
-
-	VectorFunctionCoefficient vfc_te_real_h1(pairTE.second.VectorDim(), func_exp_real_part);
-	auto lf_real_h1{ assembleLinearForm(vfc_te_real_h1, *pairTE.second.FESpace()) };
-
-	VectorFunctionCoefficient vfc_te_imag_h1(pairTE.second.VectorDim(), func_exp_imag_part);
-	auto lf_imag_h1{ assembleLinearForm(vfc_te_imag_h1, *pairTE.second.FESpace()) };
-
-
+	std::function<void(const Vector&, Vector&)> f = 0;
+	switch (isReal) {
+		case true:
+			f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, std::placeholders::_2, freq, angle);
+			break;
+		case false:
+			f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, std::placeholders::_2, freq, angle);
+			break;
+	}
+	VectorFunctionCoefficient res(2, f);
+	return res;
 
 }
 
-RCSManager::RCSManager(const std::string& path, const std::string& probe_name, double f) 
+void RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz, const double frequency, const std::pair<Rho,Phi>& angles)
+{
+	auto pair = convertL2toNewFES2D(Ax, Ay, Bz);
+
+	auto vfc_real_nd{ buildVFC_2D(frequency, angles.first, true) };
+	auto lf_real_nd{ assembleLinearForm(vfc_real_nd, *pair.first.FESpace()) };
+	//eval with gf, gives a double, add them all and map them to the freq and angles
+
+	auto vfc_imag_nd{ buildVFC_2D(frequency, angles.first, false) };
+	auto lf_imag_nd{ assembleLinearForm(vfc_imag_nd, *pair.first.FESpace()) };
+
+	auto vfc_real_h1{ buildVFC_2D(frequency, angles.first, true) };
+	auto lf_real_h1{ assembleLinearForm(vfc_real_h1, *pair.second.FESpace()) };
+
+	auto vfc_imag_h1{ buildVFC_2D(frequency, angles.first, false) };
+	auto lf_imag_h1{ assembleLinearForm(vfc_imag_h1, *pair.second.FESpace()) };
+
+}
+
+
+RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequency, const SphericalAngles& angle) 
 {
 	basePath_ = path;
-	frequency_ = f;
 
 	std::unique_ptr<GridFunction> Ex, Ey, Ez, Hx, Hy, Hz;
 	double time;
@@ -158,31 +152,24 @@ RCSManager::RCSManager(const std::string& path, const std::string& probe_name, d
 			Hz = std::make_unique<GridFunction>(&mesh, inHz);
 			time = getTime(dir_entry.path().generic_string() + "/time.txt");
 
-			switch (mesh.SpaceDimension()) {
-			case 2:
-				performRCS2DCalculations(*Ex, *Ey, *Hz);
-				performRCS2DCalculations(*Hx, *Hy, *Ez);
-				break;
-			case 3:
-				break;
-			default:
-				throw std::runtime_error("RCSManager cannot be applied on dimensions other than 2 and 3.");
+			for (const auto& f : frequency) {
+				for (const auto& angpair : angle) {
+					switch (mesh.SpaceDimension()) {
+					case 2:
+						performRCS2DCalculations(*Ex, *Ey, *Hz, f, angpair);
+						performRCS2DCalculations(*Hx, *Hy, *Ez, f, angpair);
+						break;
+					case 3:
+						break;
+					default:
+						throw std::runtime_error("RCSManager cannot be applied on dimensions other than 2 and 3.");
+					}
+				}
 			}
 
 		}
 	}
 	
-}
-
-const double getTime(const std::string& timePath)
-{
-	std::ifstream timeFile(timePath);
-	if (!timeFile) {
-		throw std::runtime_error("File could not be opened in getTime.");
-	}
-	std::string timeString;
-	std::getline(timeFile, timeString);
-	return std::stod(timeString);
 }
 
 

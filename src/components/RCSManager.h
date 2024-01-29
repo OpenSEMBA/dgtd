@@ -15,24 +15,23 @@
 namespace maxwell {
 
 using namespace mfem;
-
-using CompVec = std::vector<std::complex<double>>;
-using FieldToRCSVector = std::map<std::string, CompVec>;
-using FieldsToTime = std::pair<FieldToRCSVector, Time>;
+using Rho = double;
+using Phi = double;
+using SphericalAngles = std::vector<std::pair<Rho, Phi>>;
+using Nedelec_XY = GridFunction;
+using H1_Z = GridFunction;
 
 class RCSManager {
 public:
 
-	RCSManager(const std::string& path, const std::string& probe_name, double f);
+	RCSManager(const std::string& path, const std::vector<double>& frenquency, const SphericalAngles& angle);
 
 private:
 
-	void performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz);
+	void performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz, const double frequency, const std::pair<Rho,Phi>&);
 
 	Mesh m_;
-	FieldToRCSVector fieldsRCS_;
 	std::string basePath_;
-	double frequency_{ 0.0 };
 
 };
 
