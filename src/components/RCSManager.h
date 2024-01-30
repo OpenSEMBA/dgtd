@@ -21,6 +21,14 @@ using SphericalAngles = std::vector<std::pair<Rho, Phi>>;
 using Nedelec_XY = GridFunction;
 using H1_Z = GridFunction;
 
+struct RCSData {
+	double RCSvalue;
+	double frequency;
+	std::pair<Rho, Phi> angles;
+
+	RCSData(double val, double freq, std::pair<Rho, Phi>);
+};
+
 class RCSManager {
 public:
 
@@ -28,10 +36,11 @@ public:
 
 private:
 
-	void performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz, const double frequency, const std::pair<Rho,Phi>&);
+	double performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz, const double frequency, const std::pair<Rho,Phi>&);
 
 	Mesh m_;
 	std::string basePath_;
+	std::vector<RCSData> data_;
 
 };
 

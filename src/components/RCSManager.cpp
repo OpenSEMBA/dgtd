@@ -4,6 +4,11 @@ namespace maxwell {
 
 using namespace mfem;
 
+RCSData::RCSData(double val, double f, std::pair<Rho, Phi> angles) :
+	RCSvalue{ val },
+	frequency{ f },
+	angles{ angles }
+{}
 
 void func_exp_real_part_2D(const Vector& x, Vector& v, const double freq, const Rho angle)
 {
@@ -108,13 +113,12 @@ VectorFunctionCoefficient buildVFC_2D(const double freq, const Rho& angle, bool 
 
 }
 
-void RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz, const double frequency, const std::pair<Rho,Phi>& angles)
+double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz, const double frequency, const std::pair<Rho,Phi>& angles)
 {
 	auto pair = convertL2toNewFES2D(Ax, Ay, Bz);
 
 	auto vfc_real_nd{ buildVFC_2D(frequency, angles.first, true) };
 	auto lf_real_nd{ assembleLinearForm(vfc_real_nd, *pair.first.FESpace()) };
-	//eval with gf, gives a double, add them all and map them to the freq and angles
 
 	auto vfc_imag_nd{ buildVFC_2D(frequency, angles.first, false) };
 	auto lf_imag_nd{ assembleLinearForm(vfc_imag_nd, *pair.first.FESpace()) };
@@ -125,6 +129,10 @@ void RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, Gr
 	auto vfc_imag_h1{ buildVFC_2D(frequency, angles.first, false) };
 	auto lf_imag_h1{ assembleLinearForm(vfc_imag_h1, *pair.second.FESpace()) };
 
+	return mfem::InnerProduct(*lf_real_nd.get(), pair. first) + 
+		   mfem::InnerProduct(*lf_imag_nd.get(), pair. first) + 
+		   mfem::InnerProduct(*lf_real_h1.get(), pair.second) +	
+		   mfem::InnerProduct(*lf_imag_h1.get(), pair.second);
 }
 
 
@@ -156,8 +164,13 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 				for (const auto& angpair : angle) {
 					switch (mesh.SpaceDimension()) {
 					case 2:
-						performRCS2DCalculations(*Ex, *Ey, *Hz, f, angpair);
-						performRCS2DCalculations(*Hx, *Hy, *Ez, f, angpair);
+						data_.push_back(
+							RCSData(
+								performRCS2DCalculations(*Ex, *Ey, *Hz, f, angpair) + performRCS2DCalculations(*Ex, *Ey, *Hz, f, angpair), 
+								f, 
+								angpair
+							)
+						);
 						break;
 					case 3:
 						break;
@@ -171,7 +184,6 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 	}
 	
 }
-
 
 
 }
