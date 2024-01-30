@@ -129,10 +129,8 @@ double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, 
 	auto vfc_imag_h1{ buildVFC_2D(frequency, angles.first, false) };
 	auto lf_imag_h1{ assembleLinearForm(vfc_imag_h1, *pair.second.FESpace()) };
 
-	return mfem::InnerProduct(*lf_real_nd.get(), pair. first) + 
-		   mfem::InnerProduct(*lf_imag_nd.get(), pair. first) + 
-		   mfem::InnerProduct(*lf_real_h1.get(), pair.second) +	
-		   mfem::InnerProduct(*lf_imag_h1.get(), pair.second);
+	return sqrt(std::pow(mfem::InnerProduct(*lf_real_nd.get(), pair. first), 2.0) + std::pow(mfem::InnerProduct(*lf_imag_nd.get(), pair. first), 2.0)) +
+		   sqrt(std::pow(mfem::InnerProduct(*lf_real_h1.get(), pair.second), 2.0) + std::pow(mfem::InnerProduct(*lf_imag_h1.get(), pair.second), 2.0));
 }
 
 
