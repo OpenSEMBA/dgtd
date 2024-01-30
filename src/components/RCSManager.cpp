@@ -13,13 +13,13 @@ RCSData::RCSData(double val, double f, std::pair<Rho, Phi> angles) :
 void func_exp_real_part_2D(const Vector& x, Vector& v, const double freq, const Rho angle)
 {
 	v[0] = cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
-	v[1] = cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	v[1] = v[0];
 }
 
 void func_exp_imag_part_2D(const Vector& x, Vector& v, const double freq, const Rho angle)
 {
 	v[0] = sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
-	v[1] = sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	v[1] = v[0];
 }
 
 Array<int> getNTFFMarker(const int att_size)
