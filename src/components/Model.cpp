@@ -69,20 +69,18 @@ std::size_t Model::numberOfBoundaryMaterials() const
 
 mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 {
-	mfem::Vector res;
-	res.SetSize((int)attToMatMap_.size());
+	mfem::Vector res((int)this->mesh_.attributes.Max());
+	res = 0.0;
 
-	int i = 0;
-	for (auto const& kv : attToMatMap_) {
+	for (auto const& [geomTag, mat] : attToMatMap_) {
 		switch (f) {
 		case FieldType::E:
-			res[i] = kv.second.getPermittivity();
+			res[geomTag - 1] = mat.getPermittivity();
 			break;
 		case FieldType::H:
-			res[i] = kv.second.getPermeability();
+			res[geomTag - 1] = mat.getPermeability();
 			break;
 		}
-		i++;
 	}
 
 	return res;
