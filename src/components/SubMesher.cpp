@@ -617,11 +617,63 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 
 	original_ = std::make_unique<Mesh>(m);
 
-	setIndividualNTFFAttributesForSubMeshing3D(*original_.get(), marker);
+	switch (original_->SpaceDimension()) {
+	case 2:
+		setIndividualNTFFAttributesForSubMeshing2D(*original_.get(), marker);
+		break;
+	case 3:
+		setIndividualNTFFAttributesForSubMeshing3D(*original_.get(), marker);
+		break;
+	default:
+		throw std::runtime_error("NearToFarField can only be applied to 2D or 3D meshes.");
+	}
 
 	if (!elem_to_face_ntff_.empty()) {
 		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
 	}
+}
+
+void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
+{
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
+
+			auto face_ori { calculateCrossCoefficient(
+					calculateBarycenterVector(m, be),
+					calculateTangent2D(m, be))
+			};
+
+			Array<int> be_vert, el2_face, el2_ori, face_vert;
+			m.GetBdrElementVertices(be, be_vert);
+			be_vert.Sort();
+
+			auto fe_trans{ getFaceElementTransformation(m, be) };
+
+			std::pair<FaceId, IsTF> el2_info;
+			if (fe_trans->Elem2No != NotFound) {
+
+				m.GetElementEdges(fe_trans->Elem2No, el2_face, el2_ori);
+
+				for (int f = 0; f < el2_face.Size(); f++) {
+					auto fi{ m.GetFaceInformation(f) };
+					m.GetFaceVertices(el2_face[f], face_vert);
+					face_vert.Sort();
+					if (face_vert == be_vert) {
+						face_ori >= 0.0 ? el2_info = std::make_pair(f, false) : el2_info = std::make_pair(f, true);
+						break;
+					}
+				}
+			}
+			else {
+				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
+				throw std::exception(error.c_str());
+			}
+			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
+			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
+			prepareSubMeshInfo(m, fe_trans, el2_info.first, el2_info.second);
+		}
+	}
+
 }
 
 void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
