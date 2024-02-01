@@ -1,0 +1,48 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step": 1e-4,
+    "final_time":  2.0,
+    "order": 3
+  },
+
+  "model": { 
+    "filename": "2D_NTFF_Box.msh",
+    "materials": [
+      {
+        "tags": [ 2, 6 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 10, 11, 12, 13 ],
+        "type": "SMA"
+      },
+      {
+        "tags": [ 18 ],
+        "type": "PEC"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 1
+    }
+  },
+
+  "sources": [ 
+    {
+      "type": "totalField",
+      "polarization": [ 0.0, 0.0, 1.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 14, 15, 16, 17 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.4,
+        "delay": 1.0
+      }
+    }
+  ]
+}

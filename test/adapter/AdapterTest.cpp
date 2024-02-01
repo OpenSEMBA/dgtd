@@ -668,7 +668,22 @@ TEST_F(MaxwellProblemTest, 2D_TFSF_Upwind)
 		}
 	}
 
+}
 
+TEST_F(MaxwellProblemTest, 2D_NTFF_Box_Upwind)
+{
+	std::string case_data{ "2D_NTFF_Box" };
+	auto solver{ buildSolver(case_data) };
+
+	solver.run();
+}
+
+TEST_F(MaxwellProblemTest, 2D_NTFF_Circle_Upwind)
+{
+	std::string case_data{ "2D_NTFF_Circle" };
+	auto solver{ buildSolver(case_data) };
+
+	solver.run();
 }
 
 TEST_F(MaxwellProblemTest, 3D_TFSF_Centered)
