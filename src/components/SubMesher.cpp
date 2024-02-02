@@ -643,23 +643,23 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 					calculateTangent2D(m, be))
 			};
 
-			Array<int> be_vert, el2_face, el2_ori, face_vert;
+			Array<int> be_vert, el_face, el_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
 			be_vert.Sort();
 
 			auto fe_trans{ getFaceElementTransformation(m, be) };
 
-			std::pair<FaceId, IsTF> el2_info;
+			std::pair<FaceId, IsTF> el_info;
 			if (fe_trans->Elem2No != NotFound) {
 
-				m.GetElementEdges(fe_trans->Elem2No, el2_face, el2_ori);
+				m.GetElementEdges(fe_trans->Elem1No, el_face, el_ori);
 
-				for (int f = 0; f < el2_face.Size(); f++) {
+				for (int f = 0; f < el_face.Size(); f++) {
 					auto fi{ m.GetFaceInformation(f) };
-					m.GetFaceVertices(el2_face[f], face_vert);
+					m.GetFaceVertices(el_face[f], face_vert);
 					face_vert.Sort();
 					if (face_vert == be_vert) {
-						face_ori >= 0.0 ? el2_info = std::make_pair(f, false) : el2_info = std::make_pair(f, true);
+						face_ori >= 0.0 ? el_info = std::make_pair(f, true) : el_info = std::make_pair(f, false);
 						break;
 					}
 				}
@@ -670,7 +670,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
 			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
-			prepareSubMeshInfo(m, fe_trans, el2_info.first, el2_info.second);
+			prepareSubMeshInfo(m, fe_trans, el_info.first, el_info.second);
 		}
 	}
 
@@ -719,28 +719,28 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m
 	}
 }
 
-void NearToFarFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, int faceId, bool el2_is_ntff)
+void NearToFarFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
 {
-	setAttributeForTagging(m, trans, el2_is_ntff);
-	storeElementToFaceInformation(trans, faceId, el2_is_ntff);
+	setAttributeForTagging(m, trans, el_is_ntff);
+	storeElementToFaceInformation(trans, faceId, el_is_ntff);
 }
 
-void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el2_is_ntff)
+void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el_is_ntff)
 {
 	if (trans->Elem2No != NotFound) {
-		if (el2_is_ntff) {
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+		if (!el_is_ntff) {
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarField);
 		}
 
 	}
 
 }
 
-void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, int faceId, bool el2_is_ntff)
+void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
 {
 	if (faceId != NotFound) {
-		if (el2_is_ntff) {
-			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem2No, faceId));
+		if (!el_is_ntff) {
+			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem1No, faceId));
 		}
 	}
 }
