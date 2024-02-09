@@ -4,22 +4,21 @@ namespace maxwell {
 
 using namespace mfem;
 
-RCSData::RCSData(double val, double f, std::pair<Rho, Phi> angles) :
+RCSData::RCSData(double val, double f, std::pair<Rho, Phi> angles, double t) :
 	RCSvalue{ val },
 	frequency{ f },
-	angles{ angles }
+	angles{ angles },
+	time{ t }
 {}
 
-void func_exp_real_part_2D(const Vector& x, Vector& v, const double freq, const Rho angle)
+double func_exp_real_part_2D(const Vector& x, const double freq, const Rho angle)
 {
-	v[0] = cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
-	v[1] = v[0];
+	return cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
-void func_exp_imag_part_2D(const Vector& x, Vector& v, const double freq, const Rho angle)
+double func_exp_imag_part_2D(const Vector& x, const double freq, const Rho angle)
 {
-	v[0] = sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
-	v[1] = v[0];
+	return sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
 Array<int> getNTFFMarker(const int att_size)
@@ -41,102 +40,63 @@ const double getTime(const std::string& timePath)
 	return std::stod(timeString);
 }
 
-GridFunction assembleHigherVDimL2GridFunction(const GridFunction& xField, const GridFunction& yField)
-{
-	auto l2fes_vdim{
-		FiniteElementSpace(
-			xField.FESpace()->GetMesh(),
-			dynamic_cast<const L2_FECollection*>(xField.FESpace()->FEColl()),
-			2)
-	};
-
-	GridFunction res(&l2fes_vdim);
-	res.SetVector(xField, 0);
-	res.SetVector(yField, xField.Size());
-
-	return res;
-}
-
-std::pair<Nedelec_XY, H1_Z> convertL2toNewFES2D(const GridFunction& xField, const GridFunction& yField, const GridFunction& zField)
-{
-
-	if (xField.FESpace() != yField.FESpace() || xField.FESpace() != zField.FESpace()) {
-		throw std::exception("GridFunctions xField, yField and/or zField do not have the same FiniteElementSpace.");
-	}
-	auto l2_gf_vdim{ &assembleHigherVDimL2GridFunction(xField, yField) };
-	VectorGridFunctionCoefficient dg_vgfc(l2_gf_vdim);
-	auto ndfes{	FiniteElementSpace(	xField.FESpace()->GetMesh(), &ND_FECollection(xField.FESpace()->FEColl()->GetOrder(), xField.FESpace()->GetMesh()->Dimension())) };
-	Nedelec_XY xyFieldND(&ndfes);
-	xyFieldND.ProjectCoefficient(dg_vgfc);
-
-	auto h1fes{ FiniteElementSpace( zField.FESpace()->GetMesh(), &H1_FECollection(zField.FESpace()->FEColl()->GetOrder(), zField.FESpace()->GetMesh()->Dimension())) };
-	H1_Z zFieldH1(&h1fes);
-	zFieldH1.ProjectGridFunction(zField);
-
-	return std::make_pair(xyFieldND, zFieldH1);
-
-}
-
-
-std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& vfc, FiniteElementSpace& fes) 
+std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteElementSpace& fes, const Direction& dir) 
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
-	switch (vfc.GetVDim()) {
-	case 1:
-		res->AddBdrFaceIntegrator(new BoundaryTangentialLFIntegrator(vfc), getNTFFMarker(fes.GetMesh()->bdr_attributes.Max()));
-		break;
-	case 2:
-		res->AddBdrFaceIntegrator(new VectorFEBoundaryTangentLFIntegrator(vfc), getNTFFMarker(fes.GetMesh()->bdr_attributes.Max()));
-		break;
-	default:
-		throw std::runtime_error("Wrong VDIM for VectorFunctionCoefficient.");
-	}
+	auto marker{ getNTFFMarker(fes.GetMesh()->bdr_attributes.Max()) };
+	res->AddBdrFaceIntegrator(new mfemExtension::RCSBdrFaceIntegrator(fc, X), marker);
 	res->Assemble();
 	return res;
 }
 
 
-VectorFunctionCoefficient buildVFC_2D(const double freq, const Rho& angle, bool isReal)
+FunctionCoefficient buildFC_2D(const double freq, const Rho& angle, bool isReal)
 {
-
-	std::function<void(const Vector&, Vector&)> f = 0;
+	std::function<double(const Vector&)> f = 0;
 	switch (isReal) {
 		case true:
-			f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, std::placeholders::_2, freq, angle);
+			f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, angle);
 			break;
 		case false:
-			f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, std::placeholders::_2, freq, angle);
+			f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, angle);
 			break;
 	}
-	VectorFunctionCoefficient res(2, f);
+	FunctionCoefficient res(f);
 	return res;
 
 }
 
-double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Bz, const double frequency, const std::pair<Rho,Phi>& angles)
+double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Az, const double frequency, const std::pair<Rho,Phi>& angles)
 {
-	auto pair = convertL2toNewFES2D(Ax, Ay, Bz);
+	auto fc_real_l2{ buildFC_2D(frequency, angles.first, true) };
+	auto lf_real_l2_x{ assembleLinearForm(fc_real_l2, *Ax.FESpace(), X) };
+	auto lf_real_l2_y{ assembleLinearForm(fc_real_l2, *Ax.FESpace(), Y) };
+	auto lf_real_l2_z{ assembleLinearForm(fc_real_l2, *Ax.FESpace(), Z) };
 
-	auto vfc_real_nd{ buildVFC_2D(frequency, angles.first, true) };
-	auto lf_real_nd{ assembleLinearForm(vfc_real_nd, *pair.first.FESpace()) };
+	auto fc_imag_l2{ buildFC_2D(frequency, angles.first, false) };
+	auto lf_imag_l2_x{ assembleLinearForm(fc_imag_l2, *Ax.FESpace(), X) };
+	auto lf_imag_l2_y{ assembleLinearForm(fc_imag_l2, *Ax.FESpace(), Y) };
+	auto lf_imag_l2_z{ assembleLinearForm(fc_imag_l2, *Ax.FESpace(), Z) };
 
-	auto vfc_imag_nd{ buildVFC_2D(frequency, angles.first, false) };
-	auto lf_imag_nd{ assembleLinearForm(vfc_imag_nd, *pair.first.FESpace()) };
+	//Manual extension of n x A = (nyAz - nzAy) dir_x + (nzAx - nxAz) dir_y + (nxAy - nyAx) dir_z
 
-	auto vfc_real_h1{ buildVFC_2D(frequency, angles.first, true) };
-	auto lf_real_h1{ assembleLinearForm(vfc_real_h1, *pair.second.FESpace()) };
+	auto real_factor = mfem::InnerProduct(*lf_real_l2_y.get(), Az) - mfem::InnerProduct(*lf_real_l2_z.get(), Ay)
+					 + mfem::InnerProduct(*lf_real_l2_z.get(), Ax) - mfem::InnerProduct(*lf_real_l2_x.get(), Az)
+					 + mfem::InnerProduct(*lf_real_l2_x.get(), Ay) - mfem::InnerProduct(*lf_real_l2_y.get(), Ax);
 
-	auto vfc_imag_h1{ buildVFC_2D(frequency, angles.first, false) };
-	auto lf_imag_h1{ assembleLinearForm(vfc_imag_h1, *pair.second.FESpace()) };
+	auto imag_factor = mfem::InnerProduct(*lf_imag_l2_y.get(), Az) - mfem::InnerProduct(*lf_imag_l2_z.get(), Ay)
+					 + mfem::InnerProduct(*lf_imag_l2_z.get(), Ax) - mfem::InnerProduct(*lf_imag_l2_x.get(), Az)
+					 + mfem::InnerProduct(*lf_imag_l2_x.get(), Ay) - mfem::InnerProduct(*lf_imag_l2_y.get(), Ax);
 
-	return sqrt(std::pow(mfem::InnerProduct(*lf_real_nd.get(), pair. first), 2.0) + std::pow(mfem::InnerProduct(*lf_imag_nd.get(), pair. first), 2.0)) +
-		   sqrt(std::pow(mfem::InnerProduct(*lf_real_h1.get(), pair.second), 2.0) + std::pow(mfem::InnerProduct(*lf_imag_h1.get(), pair.second), 2.0));
+	return sqrt(std::pow(real_factor, 2.0) + std::pow(imag_factor, 2.0));
 }
 
 
-RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequency, const SphericalAngles& angle) 
+RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequency, const SphericalAngles& angle)
 {
 	basePath_ = path;
+
+	auto auxiliarySpaces = false;
 
 	std::unique_ptr<GridFunction> Ex, Ey, Ez, Hx, Hy, Hz;
 	double time;
@@ -162,13 +122,7 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 				for (const auto& angpair : angle) {
 					switch (mesh.SpaceDimension()) {
 					case 2:
-						data_.push_back(
-							RCSData(
-								performRCS2DCalculations(*Ex, *Ey, *Hz, f, angpair) + performRCS2DCalculations(*Ex, *Ey, *Hz, f, angpair), 
-								f, 
-								angpair
-							)
-						);
+						data_.push_back(RCSData(performRCS2DCalculations(*Ex, *Ey, *Ez, f, angpair) + performRCS2DCalculations(*Hx, *Hy, *Hz, f, angpair), f, angpair, time));
 						break;
 					case 3:
 						break;
