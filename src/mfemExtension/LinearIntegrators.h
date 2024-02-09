@@ -1,6 +1,8 @@
 #pragma once
 
 #include <mfem.hpp>
+#include <components/Types.h>
+#include <mfemExtension/IntegratorFunctions.h>
 
 namespace maxwell {
 namespace mfemExtension {
@@ -35,6 +37,30 @@ private:
 
     mfem::Vector shape1_;
     mfem::Vector shape2_;
+
+};
+
+class RCSBdrFaceIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+    RCSBdrFaceIntegrator(mfem::Coefficient& c, const Direction& outputDir) :
+        c_(c), dir_(outputDir) {}
+
+    void AssembleRHSElementVect(const mfem::FiniteElement& el,
+        mfem::ElementTransformation& Tr,
+        mfem::Vector& elvect);
+    void AssembleRHSElementVect(const mfem::FiniteElement& el1,
+        const mfem::FiniteElement& el2,
+        mfem::FaceElementTransformations& Tr,
+        mfem::Vector& elvect);
+
+    void AssembleRHSElementVect(const mfem::FiniteElement& el, mfem::FaceElementTransformations& Tr, mfem::Vector& elvect);
+
+private:
+    mfem::Coefficient& c_;
+    Direction dir_;
+
+    mfem::Vector shape_;
 
 };
 }

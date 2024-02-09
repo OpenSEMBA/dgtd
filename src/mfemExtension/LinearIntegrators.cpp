@@ -1,5 +1,4 @@
 #include "LinearIntegrators.h"
-#include "IntegratorFunctions.h"
 
 namespace maxwell {
 namespace mfemExtension {
@@ -133,6 +132,52 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
             elvect[shape1_.Size() + i] = w2 * shape2_[i];
         }
     }
+}
+
+void RCSBdrFaceIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement& el, mfem::ElementTransformation& Tr, mfem::Vector& elvect)
+{
+    mfem_error("RCSBoundaryIntegrator::AssembleRHSElementVect\n"
+        "  is not implemented as boundary integrator!\n"
+        "  Use LinearForm::AddBdrFaceIntegrator instead of\n"
+        "  LinearForm::AddBoundaryIntegrator.");
+}
+
+void RCSBdrFaceIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement& el1, const mfem::FiniteElement& el2, mfem::FaceElementTransformations& Tr, mfem::Vector& elvect)
+{
+    mfem_error("RCSBoundaryIntegrator::AssembleRHSElementVect\n"
+        "  is not implemented for two element purposes!\n");
+}
+
+void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect) 
+{
+    int ndof = el.GetDof();
+    shape_.SetSize(ndof);
+    elvect.SetSize(ndof);
+    elvect = 0.0;
+
+    const IntegrationRule* ir = IntRule;
+    if (ir == NULL)
+    {
+        ir = &IntRules.Get(el.GetGeomType(), el.GetOrder());
+    }
+
+    Vector nor(el.GetDim());
+
+    for (int i = 0; i < ir->GetNPoints(); i++)
+    {
+        const IntegrationPoint& ip = ir->IntPoint(i);
+        Tr.SetIntPoint(&ip);
+
+        nor = 0.0;
+        CalcOrtho(Tr.Jacobian(), nor);
+        
+        el.CalcShape(ip, shape_);
+
+        elvect.Add(ip.weight * c_.Eval(Tr, ip) * nor[dir_], shape_);
+    }
+
 }
 
 }
