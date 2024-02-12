@@ -4,7 +4,9 @@ namespace maxwell {
 
 using namespace mfem;
 
-RCSData::RCSData(double val, double f, std::pair<Rho, Phi> angles, double t) :
+double speed_of_light{ 299792458.0 };
+
+RCSData::RCSData(double val, double f, SphericalAngles angles, double t) :
 	RCSvalue{ val },
 	frequency{ f },
 	angles{ angles },
@@ -44,7 +46,7 @@ std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteEl
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
 	auto marker{ getNTFFMarker(fes.GetMesh()->bdr_attributes.Max()) };
-	res->AddBdrFaceIntegrator(new mfemExtension::RCSBdrFaceIntegrator(fc, X), marker);
+	res->AddBdrFaceIntegrator(new mfemExtension::RCSBdrFaceIntegrator(fc, dir), marker);
 	res->Assemble();
 	return res;
 }
@@ -66,7 +68,7 @@ FunctionCoefficient buildFC_2D(const double freq, const Rho& angle, bool isReal)
 
 }
 
-double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Az, const double frequency, const std::pair<Rho,Phi>& angles)
+double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Az, const double frequency, const SphericalAngles& angles)
 {
 	auto fc_real_l2{ buildFC_2D(frequency, angles.first, true) };
 	auto lf_real_l2_x{ assembleLinearForm(fc_real_l2, *Ax.FESpace(), X) };
@@ -91,8 +93,18 @@ double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, 
 	return sqrt(std::pow(real_factor, 2.0) + std::pow(imag_factor, 2.0));
 }
 
+void RCSManager::fillPostDataMaps(const std::vector<double>& frequencies, const SphericalAnglesVector& angleVec)
+{
+	for (const auto& angpair : angleVec) {
+		Freq2Value inner;
+		for (const auto& f : frequencies) {
+			inner.emplace(f, 0.0);
+		}
+		postdata_.emplace(angpair, inner);
+	}
+}
 
-RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequency, const SphericalAngles& angle)
+RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const SphericalAnglesVector& angleVec)
 {
 	basePath_ = path;
 
@@ -100,7 +112,10 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 
 	std::unique_ptr<GridFunction> Ex, Ey, Ez, Hx, Hy, Hz;
 	double time;
+	int time_steps{ 0 };
 	Mesh mesh{ Mesh::LoadFromFile(basePath_ + "/mesh", 1, 0) };
+
+	fillPostDataMaps(frequencies, angleVec);
 
 	for (auto const& dir_entry : std::filesystem::directory_iterator(basePath_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
@@ -116,13 +131,16 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 			Hy = std::make_unique<GridFunction>(&mesh, inHy);
 			std::ifstream inHz(dir_entry.path().generic_string() + "/Hz.gf");
 			Hz = std::make_unique<GridFunction>(&mesh, inHz);
-			time = getTime(dir_entry.path().generic_string() + "/time.txt");
+			time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
+			time_steps++;
 
-			for (const auto& f : frequency) {
-				for (const auto& angpair : angle) {
+			std::unique_ptr<RCSData> data;
+			for (const auto& f : frequencies) {
+				for (const auto& angpair : angleVec) {
 					switch (mesh.SpaceDimension()) {
-					case 2:
-						data_.push_back(RCSData(performRCS2DCalculations(*Ex, *Ey, *Ez, f, angpair) + performRCS2DCalculations(*Hx, *Hy, *Hz, f, angpair), f, angpair, time));
+					case 2:					
+						data = std::make_unique<RCSData>(performRCS2DCalculations(*Ex, *Ey, *Ez, f, angpair) + performRCS2DCalculations(*Hx, *Hy, *Hz, f, angpair), f, angpair, time);
+						postdata_[angpair][f] += data->RCSvalue;
 						break;
 					case 3:
 						break;
@@ -131,9 +149,20 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 					}
 				}
 			}
-
 		}
 	}
+
+	for (const auto& angpair : angleVec) {
+		std::ofstream myfile;
+		myfile.open("RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");	
+		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log(RCSData/Lambda)\n";
+		for (const auto& f : frequencies) {
+			postdata_[angpair][f] /= (time_steps * 2.0); //( 2.0 = Correction value for 2D)
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log(postdata_[angpair][f]*f) << "\n";			
+		}
+		myfile.close();
+	}
+
 	
 }
 

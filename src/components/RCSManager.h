@@ -18,29 +18,34 @@ namespace maxwell {
 using namespace mfem;
 using Rho = double;
 using Phi = double;
-using SphericalAngles = std::vector<std::pair<Rho, Phi>>;
+using Frequency = double;
+using RCSValue = double;
+using Freq2Value = std::map<Frequency, RCSValue>;
+using SphericalAngles = std::pair<Rho, Phi>;
+using SphericalAnglesVector = std::vector<SphericalAngles>;
 
 struct RCSData {
 	double RCSvalue;
 	double frequency;
-	std::pair<Rho, Phi> angles;
+	SphericalAngles angles;
 	double time;
 
-	RCSData(double val, double freq, std::pair<Rho, Phi>, double t);
+	RCSData(double val, double freq, SphericalAngles, double t);
 };
 
 class RCSManager {
 public:
 
-	RCSManager(const std::string& path, const std::vector<double>& frenquency, const SphericalAngles& angle);
+	RCSManager(const std::string& path, const std::vector<double>& frenquency, const SphericalAnglesVector& angle);
 
 private:
 
-	double performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Az, const double frequency, const std::pair<Rho,Phi>&);
+	double performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Az, const double frequency, const SphericalAngles&);
+	void fillPostDataMaps(const std::vector<double>& frequencies, const SphericalAnglesVector& angleVec);
 	
 	Mesh m_;
 	std::string basePath_;
-	std::vector<RCSData> data_;
+	std::map<SphericalAngles, Freq2Value> postdata_;
 
 };
 
