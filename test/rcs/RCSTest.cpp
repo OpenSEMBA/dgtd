@@ -11,77 +11,38 @@
 #include <math.h>
 #include <complex>
 
+#include <components/RCSExporter.h>
+#include <components/RCSManager.h>
+
 
 namespace maxwell {
 
 using namespace mfem;
 
-std::string getGridFunctionString(const FieldType& f, const Direction& d) 
-{
-	switch (f) {
-	case E:
-		switch (d) {
-		case X:
-			return "Ex.gf";
-		case Y:
-			return "Ey.gf";
-		case Z:
-			return "Ez.gf";
-		}
-	case H:
-		switch (d) {
-		case X:
-			return "Hx.gf";
-		case Y:
-			return "Hy.gf";
-		case Z:
-			return "Hz.gf";
-		}
-	}
-}
-
-std::string getGridFunctionPathForType(const std::string& path, const FieldType& f, const Direction& d)
-{
-	return path + "/" + getGridFunctionString(f, d);
-}
-
-Mesh getRCSMesh(const std::string& path)
-{
-	std::ifstream in(path + "/mesh");
-	return Mesh(in);
-}
-
 class RCSTest : public ::testing::Test {
 public:
-	GridFunction getGridFunction(Mesh& m, const std::string& path, const FieldType& f, const Direction& d) 
-	{
-		auto filepath{ getGridFunctionPathForType(path, f, d) };
-		std::ifstream in(filepath);
-		if (!in) {
-			throw std::runtime_error("File could not be opened in readGridFunctionFromFile, verify path.");
-		}
-		GridFunction gf(&m, in);
-		return gf;
+std::vector<double> linspace(const double min, const double max, const int stepval) 
+{
+	int steps = int(max / stepval);
+	std::vector<double> res(steps);
+	for (int i = 0; i < steps; i++) {
+		res[i] = min + stepval * i;
 	}
+	return res;
+}
 
 };
 
-TEST_F(RCSTest, readMeshFromFile)
+TEST_F(RCSTest, circleTest)
 {
-	EXPECT_NO_THROW(getRCSMesh("testData/rcsInputs"));
+	const double f_min = 1e6;
+	const double f_max = 1e9;
+	const int f_step = 1e6;
+
+	auto frequency{ linspace(f_min, f_max, f_step) };
+
+	std::vector<std::pair<Rho, Phi>> angles{ {0.0, 0.0}, {M_PI, 0.0} };
+	RCSManager rcs("NearToFarFieldExports/circle", frequency, angles);
 }
 
-TEST_F(RCSTest, readGridFunctionsFromFile)
-{
-	std::string path{ "testData/rcsInputs" };
-	auto m{ getRCSMesh(path) };
-	EXPECT_NO_THROW(getGridFunction(m, path, E, X));
-}
-
-TEST_F(RCSTest, explorerTest)
-{
-	std::string path{ "testData/rcsInputs" };
-	auto m{ getRCSMesh(path) };
-	auto gf{ getGridFunction(m, path, E, X) };
-}
 }
