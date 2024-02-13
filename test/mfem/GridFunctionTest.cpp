@@ -280,12 +280,12 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 {
 	// Choose any mesh in 2D, either MFEM-Cartesian or any other format.
 	// auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
-	auto mesh{ Mesh::LoadFromFile("testData/mfemMeshes/square-disc.mesh") };
+	auto mesh{ Mesh::LoadFromFile("testData/mfemMeshes/2D/square-disc.mesh") };
 
 	// Let us assume we have a L2 space, 2-dimensional, with vdim equal to 1, meaning
 	// our components are individually separated into a GridFunction representing X,
 	// another representing Y, and a third one that would represent Z if it were the case. 
-	auto dgfec{ DG_FECollection(1, 2) };
+	auto dgfec{ DG_FECollection(3, 2) };
 	auto dgfes{ FiniteElementSpace(&mesh, &dgfec) };
 
 	// Additionally, we create a L2 space with vdim 2, which we will use later to create a 
@@ -318,7 +318,7 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 	// created FEC is the same. As Nedelec spaces are vectorial by nature, 
 	// it doesn't seem we need to initialise the FES with vdim 2, which could feel
 	// like a natural choice.
-	auto ndfec{ ND_FECollection(1, 2) };
+	auto ndfec{ ND_FECollection(3, 2) };
 	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
 
 	// We create a Nedelec GridFunction using the Nedelec FES. As we will be 
@@ -361,6 +361,98 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 		EXPECT_NEAR(1.0, nd_x[i], error);
 		EXPECT_NEAR(1.0, nd_y[i], error);
 	}
+
+
+}
+
+TEST_F(GridFunctionTest, ProjectBetweenDifferentSpacesFromRead)
+{
+
+	auto mesh{ Mesh::LoadFromFile("NearToFarFieldExports/circle/mesh") };
+
+	std::ifstream inEx("NearToFarFieldExports/circle/circle_002000/Ex.gf");
+	std::unique_ptr<GridFunction> Ex = std::make_unique<GridFunction>(&mesh, inEx);
+	std::ifstream inEy("NearToFarFieldExports/circle/circle_002000/Ey.gf");
+	std::unique_ptr<GridFunction> Ey = std::make_unique<GridFunction>(&mesh, inEy);
+
+	auto l2fec{ L2_FECollection(3, 2) };
+	auto l2fes2{ FiniteElementSpace(&mesh, &l2fec, 2) };
+
+	auto ndfec{ ND_FECollection(3, 2) };
+	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
+	auto ndfes2{ FiniteElementSpace(&mesh, &ndfec, 2) };
+
+
+	GridFunction l2_gf(&l2fes2);
+
+	l2_gf.SetVector(*Ex.get(), 0);
+	l2_gf.SetVector(*Ey.get(), Ex->Size());
+
+	GridFunction nd_gf_Ex(&ndfes);
+	GridFunction nd_gf_Ey(&ndfes);
+	GridFunction nd_gf(&ndfes2);
+
+	VectorGridFunctionCoefficient l2_vgfc(&l2_gf);
+
+	nd_gf.ProjectCoefficient(l2_vgfc);
+	nd_gf_Ey.ProjectGridFunction(*Ey.get());
+
+}
+
+TEST_F(GridFunctionTest, HigherVDIMGridFunctions)
+{
+
+	auto mesh{ Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE, true) };
+
+	auto dgfec = DG_FECollection(1, 2);
+	auto dgfes1 = FiniteElementSpace(&mesh, &dgfec, 1);
+	auto dgfes2 = FiniteElementSpace(&mesh, &dgfec, 2);
+
+	GridFunction Ax(&dgfes1);
+	Ax = 1.0;
+	GridFunction Ay(&dgfes1);
+	Ay = 2.0;
+	GridFunction Ag(&dgfes2);
+
+	Ag.SetVector(Ax, 0);
+	Ag.SetVector(Ay, Ax.Size());
+
+	auto ndfec = ND_FECollection(1, 2);
+	auto ndfec1 = FiniteElementSpace(&mesh, &ndfec, 1);
+	auto ndfec2 = FiniteElementSpace(&mesh, &ndfec, 2);
+
+	GridFunction Bx(&dgfes1);
+	Bx = 0.0;
+	GridFunction By(&dgfes1);
+	By = 0.0;
+	GridFunction Bg(&dgfes2);
+	Bg = 0.0;
+
+	GridFunctionCoefficient gfc_x(&Ax);
+	Bx.ProjectCoefficient(gfc_x);
+	GridFunctionCoefficient gfc_y(&Ay);
+	By.ProjectCoefficient(gfc_y);
+	VectorGridFunctionCoefficient gfc_g(&Ag);
+	Bg.ProjectCoefficient(gfc_g);
+
+	auto lin{ LinearForm(&ndfec2) };
+	Vector vx{ {1.0, 0.0} };
+	VectorConstantCoefficient vccx(vx);
+	lin.AddDomainIntegrator(new VectorFEBoundaryTangentLFIntegrator(vccx));
+	lin.Assemble();
+
+	ParaViewDataCollection* pd = NULL;
+	pd = new ParaViewDataCollection("L2toND", &mesh);
+	pd->SetPrefixPath("SpaceSwapping");
+	pd->RegisterField("Galerkin Global Solution", &Ag);
+	pd->RegisterField("Nedelec Solution X", &Bx);
+	pd->RegisterField("Nedelec Global Solution", &Bg);
+	pd->SetLevelsOfDetail(1);
+	pd->SetDataFormat(VTKFormat::BINARY);
+	pd->SetHighOrderOutput(true);
+	pd->SetCycle(0);
+	pd->SetTime(0.0);
+	pd->Save();
 
 
 }
