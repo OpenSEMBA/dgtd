@@ -163,7 +163,8 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
         ir = &IntRules.Get(el.GetGeomType(), el.GetOrder());
     }
 
-    Vector nor(el.GetDim());
+    Vector nor(3);
+    Vector nor_temp(el.GetDim());
 
     for (int i = 0; i < ir->GetNPoints(); i++)
     {
@@ -171,7 +172,12 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
         Tr.SetIntPoint(&ip);
 
         nor = 0.0;
-        CalcOrtho(Tr.Jacobian(), nor);
+        nor_temp = 0.0;
+        CalcOrtho(Tr.Jacobian(), nor_temp);
+
+        for (auto i{ X }; i < nor_temp.Size(); i++) {
+            nor[i] = nor_temp[i];
+        }
         
         el.CalcShape(ip, shape_);
 
