@@ -123,9 +123,9 @@ GridFunction parseGridFunction(Mesh& mesh, const std::string& path)
 	return res;
 }
 
-DFTFreqFields RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field)
+DFTFreqFieldsComp RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field)
 {
-	DFTFreqFields res(frequencies.size());
+	DFTFreqFieldsComp res(frequencies.size());
 	int dofs{ 0 };
 	auto time_steps{ 0 };
 
@@ -157,61 +157,58 @@ DFTFreqFields RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<doubl
 	return res;
 }
 
+void splitCompIntoDoubles(const DFTFreqFieldsComp& comp, DFTFreqFieldsDouble& real, DFTFreqFieldsDouble& imag) 
+{
+	for (int f{ 0 }; f < comp.size(); f++) {
+		for (int i{ 0 }; i < comp[f].size(); i++) {
+			real[f][i] = comp[f][i].real();
+			imag[f][i] = comp[f][i].imag();
+		}
+	}
+}
+
 RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const SphericalAnglesVector& angle_vec)
 {
 	base_path_ = path;
 
 	double time;
-	int time_steps{ 0 };
+	
 	Mesh mesh{ Mesh::LoadFromFile(base_path_ + "/mesh", 1, 0) };
 
 	fillPostDataMaps(frequencies, angle_vec);
+	
+	DFTFreqFieldsComp FEx{ assembleFreqFields(mesh, frequencies, "/Ex.gf") };
+	DFTFreqFieldsComp FEy{ assembleFreqFields(mesh, frequencies, "/Ey.gf") };
+	DFTFreqFieldsComp FEz{ assembleFreqFields(mesh, frequencies, "/Ez.gf") };
+	DFTFreqFieldsComp FHx{ assembleFreqFields(mesh, frequencies, "/Hx.gf") };
+	DFTFreqFieldsComp FHy{ assembleFreqFields(mesh, frequencies, "/Hy.gf") };
+	DFTFreqFieldsComp FHz{ assembleFreqFields(mesh, frequencies, "/Hz.gf") };
 
-	auto time_vector{ buildTimeVector(base_path_) };
+	DFTFreqFieldsDouble FEx_real, FEx_imag, FEy_real, FEy_imag, FEz_real, FEz_imag,
+						FHx_real, FHx_imag, FHy_real, FHy_imag, FHz_real, FHz_imag;
 
-	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			auto Ex {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Ex.gf")};
-			auto Ey {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Ey.gf")};
-			auto Ez {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Ez.gf")};
-			auto Hx {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Hx.gf")};
-			auto Hy {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Hy.gf")};
-			auto Hz {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Hz.gf")};
-			time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
-			time_steps++;
+	splitCompIntoDoubles(FEx, FEx_real, FEx_imag);
+	splitCompIntoDoubles(FEy, FEy_real, FEy_imag);
+	splitCompIntoDoubles(FEz, FEz_real, FEz_imag);
+	splitCompIntoDoubles(FHx, FHx_real, FHx_imag);
+	splitCompIntoDoubles(FHy, FHy_real, FHy_imag);
+	splitCompIntoDoubles(FHz, FHz_real, FHz_imag);
 
-			//Gotta convert E and H fields through a DFT, for that we need the entire frequency vector (we have it) and the entire time vector (we can prebuild it).
-
-			std::unique_ptr<RCSData> data;
-			for (const auto& f : frequencies) {
-				for (const auto& angpair : angle_vec) {
-					switch (mesh.SpaceDimension()) {
-					case 2:					
-						data = std::make_unique<RCSData>(performRCS2DCalculations(Ex, Ey, Ez, f, angpair) + performRCS2DCalculations(Hx, Hy, Hz, f, angpair), f, angpair, time);
-						postdata_[angpair][f] += data->RCSvalue;
-						break;
-					case 3:
-						break;
-					default:
-						throw std::runtime_error("RCSManager cannot be applied on dimensions other than 2 and 3.");
-					}
-				}
+	std::unique_ptr<RCSData> data;
+	for (const auto& f : frequencies) {
+		for (const auto& angpair : angle_vec) {
+			switch (mesh.SpaceDimension()) {
+			case 2:					
+				data = std::make_unique<RCSData>(performRCS2DCalculations(Ex, Ey, Ez, f, angpair) + performRCS2DCalculations(Hx, Hy, Hz, f, angpair), f, angpair, time);
+				postdata_[angpair][f] += data->RCSvalue;
+				break;
+			case 3:
+				break;
+			default:
+				throw std::runtime_error("RCSManager cannot be applied on dimensions other than 2 and 3.");
 			}
 		}
 	}
-
-	for (const auto& angpair : angle_vec) {
-		std::ofstream myfile;
-		myfile.open("RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");	
-		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log(RCSData/Lambda)\n";
-		for (const auto& f : frequencies) {
-			postdata_[angpair][f] /= (time_steps * 2.0); //( 2.0 = Correction value for 2D)
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log(postdata_[angpair][f]*f) << "\n";			
-		}
-		myfile.close();
-	}
-
-	
 }
 
 

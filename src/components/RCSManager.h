@@ -1,7 +1,6 @@
 #pragma once
 
 #include <mfem.hpp>
-#include <components/Types.h>
 
 #include <iostream>
 #include <filesystem>
@@ -23,7 +22,8 @@ using RCSValue = double;
 using Freq2Value = std::map<Frequency, RCSValue>;
 using SphericalAngles = std::pair<Rho, Phi>;
 using SphericalAnglesVector = std::vector<SphericalAngles>;
-using DFTFreqFields = std::vector<std::vector<std::complex<double>>>;
+using DFTFreqFieldsComp = std::vector<std::vector<std::complex<double>>>;
+using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
 
 struct RCSData {
 	double RCSvalue;
@@ -42,7 +42,7 @@ public:
 private:
 
 	double performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Az, const double frequency, const SphericalAngles&);
-	DFTFreqFields assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& path);
+	DFTFreqFieldsComp assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& path);
 	void fillPostDataMaps(const std::vector<double>& frequencies, const SphericalAnglesVector& angleVec);
 	
 	Mesh m_;
