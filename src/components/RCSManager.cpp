@@ -104,42 +104,90 @@ void RCSManager::fillPostDataMaps(const std::vector<double>& frequencies, const 
 	}
 }
 
-RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const SphericalAnglesVector& angleVec)
+std::vector<double> buildTimeVector(const std::string& base_dir)
 {
-	basePath_ = path;
+	std::vector<double> res;
+	for (auto const& dir_entry : std::filesystem::directory_iterator(base_dir)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light);
+		}
+	}
+	return res;
+}
 
-	auto auxiliarySpaces = false;
 
-	std::unique_ptr<GridFunction> Ex, Ey, Ez, Hx, Hy, Hz;
+GridFunction parseGridFunction(Mesh& mesh, const std::string& path)
+{
+	std::ifstream in(path);
+	GridFunction res(&mesh, in);
+	return res;
+}
+
+DFTFreqFields RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field)
+{
+	DFTFreqFields res(frequencies.size());
+	int dofs{ 0 };
+	auto time_steps{ 0 };
+
+	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			dofs = parseGridFunction(mesh, dir_entry.path().generic_string() + field).Size();
+			break;
+		}
+	}
+	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			auto Ex{ parseGridFunction(mesh, dir_entry.path().generic_string() + field) };
+			auto time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
+			time_steps++;
+			for (int f{ 0 }; f < frequencies.size(); f++) {
+				auto freq_const{ -2.0 * M_PI * f };
+				auto time_const{ time * std::exp(std::complex<double>(0.0, freq_const * time)) };
+				for (int i{ 0 }; i < dofs; i++) {
+					res[f][i] += std::complex<double>(Ex[i], 0.0) * time_const;
+				}
+			}
+		}
+	}
+	for (int f{ 0 }; f < frequencies.size(); f++) {
+		for (int i{ 0 }; i < dofs; i++) {
+			res[f][i] /= time_steps;
+		}
+	}
+	return res;
+}
+
+RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const SphericalAnglesVector& angle_vec)
+{
+	base_path_ = path;
+
 	double time;
 	int time_steps{ 0 };
-	Mesh mesh{ Mesh::LoadFromFile(basePath_ + "/mesh", 1, 0) };
+	Mesh mesh{ Mesh::LoadFromFile(base_path_ + "/mesh", 1, 0) };
 
-	fillPostDataMaps(frequencies, angleVec);
+	fillPostDataMaps(frequencies, angle_vec);
 
-	for (auto const& dir_entry : std::filesystem::directory_iterator(basePath_)) {
+	auto time_vector{ buildTimeVector(base_path_) };
+
+	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			std::ifstream inEx(dir_entry.path().generic_string() + "/Ex.gf");
-			Ex = std::make_unique<GridFunction>(&mesh, inEx);
-			std::ifstream inEy(dir_entry.path().generic_string() + "/Ey.gf");
-			Ey = std::make_unique<GridFunction>(&mesh, inEy);
-			std::ifstream inEz(dir_entry.path().generic_string() + "/Ez.gf");
-			Ez = std::make_unique<GridFunction>(&mesh, inEz);
-			std::ifstream inHx(dir_entry.path().generic_string() + "/Hx.gf");
-			Hx = std::make_unique<GridFunction>(&mesh, inHx);
-			std::ifstream inHy(dir_entry.path().generic_string() + "/Hy.gf");
-			Hy = std::make_unique<GridFunction>(&mesh, inHy);
-			std::ifstream inHz(dir_entry.path().generic_string() + "/Hz.gf");
-			Hz = std::make_unique<GridFunction>(&mesh, inHz);
+			auto Ex {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Ex.gf")};
+			auto Ey {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Ey.gf")};
+			auto Ez {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Ez.gf")};
+			auto Hx {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Hx.gf")};
+			auto Hy {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Hy.gf")};
+			auto Hz {parseGridFunction(mesh, dir_entry.path().generic_string() + "/Hz.gf")};
 			time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
 			time_steps++;
 
+			//Gotta convert E and H fields through a DFT, for that we need the entire frequency vector (we have it) and the entire time vector (we can prebuild it).
+
 			std::unique_ptr<RCSData> data;
 			for (const auto& f : frequencies) {
-				for (const auto& angpair : angleVec) {
+				for (const auto& angpair : angle_vec) {
 					switch (mesh.SpaceDimension()) {
 					case 2:					
-						data = std::make_unique<RCSData>(performRCS2DCalculations(*Ex, *Ey, *Ez, f, angpair) + performRCS2DCalculations(*Hx, *Hy, *Hz, f, angpair), f, angpair, time);
+						data = std::make_unique<RCSData>(performRCS2DCalculations(Ex, Ey, Ez, f, angpair) + performRCS2DCalculations(Hx, Hy, Hz, f, angpair), f, angpair, time);
 						postdata_[angpair][f] += data->RCSvalue;
 						break;
 					case 3:
@@ -152,7 +200,7 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 		}
 	}
 
-	for (const auto& angpair : angleVec) {
+	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
 		myfile.open("RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");	
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log(RCSData/Lambda)\n";
