@@ -6,11 +6,10 @@ using namespace mfem;
 
 double speed_of_light{ 299792458.0 };
 
-RCSData::RCSData(double val, double f, SphericalAngles angles, double t) :
+RCSData::RCSData(double val, double f, SphericalAngles angles) :
 	RCSvalue{ val },
 	frequency{ f },
-	angles{ angles },
-	time{ t }
+	angles{ angles }
 {}
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Rho angle)
@@ -68,32 +67,7 @@ FunctionCoefficient buildFC_2D(const double freq, const Rho& angle, bool isReal)
 
 }
 
-double RCSManager::performRCS2DCalculations(GridFunction& Ax, GridFunction& Ay, GridFunction& Az, const double frequency, const SphericalAngles& angles)
-{
-	auto fc_real_l2{ buildFC_2D(frequency, angles.first, true) };
-	auto lf_real_l2_x{ assembleLinearForm(fc_real_l2, *Ax.FESpace(), X) };
-	auto lf_real_l2_y{ assembleLinearForm(fc_real_l2, *Ax.FESpace(), Y) };
-	auto lf_real_l2_z{ assembleLinearForm(fc_real_l2, *Ax.FESpace(), Z) };
-
-	auto fc_imag_l2{ buildFC_2D(frequency, angles.first, false) };
-	auto lf_imag_l2_x{ assembleLinearForm(fc_imag_l2, *Ax.FESpace(), X) };
-	auto lf_imag_l2_y{ assembleLinearForm(fc_imag_l2, *Ax.FESpace(), Y) };
-	auto lf_imag_l2_z{ assembleLinearForm(fc_imag_l2, *Ax.FESpace(), Z) };
-
-	//Manual extension of n x A = (nyAz - nzAy) dir_x + (nzAx - nxAz) dir_y + (nxAy - nyAx) dir_z
-
-	auto real_factor = mfem::InnerProduct(*lf_real_l2_y.get(), Az) - mfem::InnerProduct(*lf_real_l2_z.get(), Ay)
-					 + mfem::InnerProduct(*lf_real_l2_z.get(), Ax) - mfem::InnerProduct(*lf_real_l2_x.get(), Az)
-					 + mfem::InnerProduct(*lf_real_l2_x.get(), Ay) - mfem::InnerProduct(*lf_real_l2_y.get(), Ax);
-
-	auto imag_factor = mfem::InnerProduct(*lf_imag_l2_y.get(), Az) - mfem::InnerProduct(*lf_imag_l2_z.get(), Ay)
-					 + mfem::InnerProduct(*lf_imag_l2_z.get(), Ax) - mfem::InnerProduct(*lf_imag_l2_x.get(), Az)
-					 + mfem::InnerProduct(*lf_imag_l2_x.get(), Ay) - mfem::InnerProduct(*lf_imag_l2_y.get(), Ax);
-
-	return sqrt(std::pow(real_factor, 2.0) + std::pow(imag_factor, 2.0));
-}
-
-void RCSManager::fillPostDataMaps(const std::vector<double>& frequencies, const SphericalAnglesVector& angleVec)
+void RCSManager::fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec)
 {
 	for (const auto& angpair : angleVec) {
 		Freq2Value inner;
@@ -126,25 +100,20 @@ GridFunction parseGridFunction(Mesh& mesh, const std::string& path)
 DFTFreqFieldsComp RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field)
 {
 	DFTFreqFieldsComp res(frequencies.size());
-	int dofs{ 0 };
+	size_t dofs{ 0 };
 	auto time_steps{ 0 };
 
 	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			dofs = parseGridFunction(mesh, dir_entry.path().generic_string() + field).Size();
-			break;
-		}
-	}
-	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			auto Ex{ parseGridFunction(mesh, dir_entry.path().generic_string() + field) };
+			auto gf{ parseGridFunction(mesh, dir_entry.path().generic_string() + field) };
 			auto time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
+			dofs = gf.Size();
 			time_steps++;
 			for (int f{ 0 }; f < frequencies.size(); f++) {
-				auto freq_const{ -2.0 * M_PI * f };
-				auto time_const{ time * std::exp(std::complex<double>(0.0, freq_const * time)) };
+				auto time_const{ time * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) };
+				res[f].resize(dofs);
 				for (int i{ 0 }; i < dofs; i++) {
-					res[f][i] += std::complex<double>(Ex[i], 0.0) * time_const;
+					res[f][i] += std::complex<double>(gf[i], 0.0) * time_const;
 				}
 			}
 		}
@@ -157,23 +126,68 @@ DFTFreqFieldsComp RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<d
 	return res;
 }
 
-void splitCompIntoDoubles(const DFTFreqFieldsComp& comp, DFTFreqFieldsDouble& real, DFTFreqFieldsDouble& imag) 
+void splitCompIntoDoubles(const std::vector<std::complex<double>>& comp, Vector& real, Vector& imag)
 {
-	for (int f{ 0 }; f < comp.size(); f++) {
-		for (int i{ 0 }; i < comp[f].size(); i++) {
-			real[f][i] = comp[f][i].real();
-			imag[f][i] = comp[f][i].imag();
-		}
+	for (int i{ 0 }; i < comp.size(); i++) {
+		real[i] = comp[i].real();
+		imag[i] = comp[i].imag();
 	}
 }
 
-RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const SphericalAnglesVector& angle_vec)
+std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& last)
+{
+	if (first.size() != last.size()) {
+		throw std::runtime_error("Complex Vectors do not have the same sizes.");
+	}
+	std::complex<double> res(0.0, 0.0);
+	for (int i{ 0 }; i < first.size(); i++) {
+		res += first[i] * std::conj(last[i]);
+	}
+	return res;
+}
+
+double RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles)
+{
+	auto fc_real_l2{ buildFC_2D(frequency, angles.first, true) };
+	auto lf_real_l2_x{ assembleLinearForm(fc_real_l2, *fes_, X) };
+	auto lf_real_l2_y{ assembleLinearForm(fc_real_l2, *fes_, Y) };
+	auto lf_real_l2_z{ assembleLinearForm(fc_real_l2, *fes_, Z) };
+
+	auto fc_imag_l2{ buildFC_2D(frequency, angles.first, false) };
+	auto lf_imag_l2_x{ assembleLinearForm(fc_imag_l2, *fes_, X) };
+	auto lf_imag_l2_y{ assembleLinearForm(fc_imag_l2, *fes_, Y) };
+	auto lf_imag_l2_z{ assembleLinearForm(fc_imag_l2, *fes_, Z) };
+
+	ComplexVector lf_x(lf_real_l2_x->Size()), lf_y(lf_real_l2_y->Size()), lf_z(lf_real_l2_z->Size());
+
+	for (int i{ 0 }; i < lf_x.size(); i++) {
+		lf_x[i] = std::complex<double>(lf_real_l2_x.get()->Elem(i), lf_imag_l2_x.get()->Elem(i));
+		lf_y[i] = std::complex<double>(lf_real_l2_y.get()->Elem(i), lf_imag_l2_y.get()->Elem(i));
+		lf_z[i] = std::complex<double>(lf_real_l2_z.get()->Elem(i), lf_imag_l2_z.get()->Elem(i));
+	}
+
+	auto value = complexInnerProduct(lf_y, FAz) + complexInnerProduct(lf_z, FAy) 
+			   + complexInnerProduct(lf_z, FAx) + complexInnerProduct(lf_x, FAz) 
+			   + complexInnerProduct(lf_x, FAy) + complexInnerProduct(lf_y, FAx);
+
+	return std::norm(value);
+}
+
+RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
 	base_path_ = path;
-
-	double time;
 	
 	Mesh mesh{ Mesh::LoadFromFile(base_path_ + "/mesh", 1, 0) };
+
+	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			std::ifstream in(dir_entry.path().generic_string() + "/Ex.gf");
+			GridFunction gf(&mesh, in);
+			fec_ = std::make_unique<DG_FECollection>(gf.FESpace()->FEColl()->GetOrder(), mesh.SpaceDimension(), 1);
+			fes_ = std::make_unique<FiniteElementSpace>(&mesh, fec_.get());
+			break;
+		}
+	}
 
 	fillPostDataMaps(frequencies, angle_vec);
 	
@@ -184,23 +198,13 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 	DFTFreqFieldsComp FHy{ assembleFreqFields(mesh, frequencies, "/Hy.gf") };
 	DFTFreqFieldsComp FHz{ assembleFreqFields(mesh, frequencies, "/Hz.gf") };
 
-	DFTFreqFieldsDouble FEx_real, FEx_imag, FEy_real, FEy_imag, FEz_real, FEz_imag,
-						FHx_real, FHx_imag, FHy_real, FHy_imag, FHz_real, FHz_imag;
-
-	splitCompIntoDoubles(FEx, FEx_real, FEx_imag);
-	splitCompIntoDoubles(FEy, FEy_real, FEy_imag);
-	splitCompIntoDoubles(FEz, FEz_real, FEz_imag);
-	splitCompIntoDoubles(FHx, FHx_real, FHx_imag);
-	splitCompIntoDoubles(FHy, FHy_real, FHy_imag);
-	splitCompIntoDoubles(FHz, FHz_real, FHz_imag);
-
 	std::unique_ptr<RCSData> data;
-	for (const auto& f : frequencies) {
+	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			switch (mesh.SpaceDimension()) {
 			case 2:					
-				data = std::make_unique<RCSData>(performRCS2DCalculations(Ex, Ey, Ez, f, angpair) + performRCS2DCalculations(Hx, Hy, Hz, f, angpair), f, angpair, time);
-				postdata_[angpair][f] += data->RCSvalue;
+				data = std::make_unique<RCSData>(performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair) + performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair), frequencies[f], angpair);
+				postdata_[angpair][frequencies[f]] += data->RCSvalue;
 				break;
 			case 3:
 				break;
@@ -209,6 +213,17 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 			}
 		}
 	}
+
+	for (const auto& angpair : angle_vec) {
+		std::ofstream myfile;
+		myfile.open("RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log(RCSData/Lambda)\n";
+		for (const auto& f : frequencies) {
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0 * log(postdata_[angpair][f] * f) << "\n";
+		}
+		myfile.close();
+	}
+
 }
 
 
