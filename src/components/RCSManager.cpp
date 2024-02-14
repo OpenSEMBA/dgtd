@@ -14,6 +14,8 @@ RCSData::RCSData(double val, double f, SphericalAngles angles) :
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Rho angle)
 {
+	//angulo viene dado por x[0], x[1] y 0.0, 0.0. No es el angulo donde observo, es el angulo que forma el punto y el angulo de observacion en un sistema centrado en el punto.
+
 	return cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
@@ -109,8 +111,8 @@ DFTFreqFieldsComp RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<d
 			auto time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
 			dofs = gf.Size();
 			time_steps++;
-			for (int f{ 0 }; f < frequencies.size(); f++) {
-				auto time_const{ time * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) };
+			for (int f{ 0 }; f < frequencies.size(); f++) { //timeccc es delta t, no t.
+				auto time_const{ timeccc * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) };
 				res[f].resize(dofs);
 				for (int i{ 0 }; i < dofs; i++) {
 					res[f][i] += std::complex<double>(gf[i], 0.0) * time_const;
