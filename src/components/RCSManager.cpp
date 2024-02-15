@@ -12,15 +12,16 @@ RCSData::RCSData(double val, double f, SphericalAngles angles) :
 	angles{ angles }
 {}
 
-double func_exp_real_part_2D(const Vector& x, const double freq, const Rho angle)
+double func_exp_real_part_2D(const Vector& x, const double freq, const Rho rho)
 {
 	//angulo viene dado por x[0], x[1] y 0.0, 0.0. No es el angulo donde observo, es el angulo que forma el punto y el angulo de observacion en un sistema centrado en el punto.
-
+	auto angle = acos((x[0] * cos(rho) + x[1] * sin(rho)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
 	return cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
-double func_exp_imag_part_2D(const Vector& x, const double freq, const Rho angle)
+double func_exp_imag_part_2D(const Vector& x, const double freq, const Rho rho)
 {
+	auto angle = acos((x[0] * cos(rho) + x[1] * sin(rho)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
 	return sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
@@ -53,15 +54,15 @@ std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteEl
 }
 
 
-FunctionCoefficient buildFC_2D(const double freq, const Rho& angle, bool isReal)
+FunctionCoefficient buildFC_2D(const double freq, const Rho& rho, bool isReal)
 {
 	std::function<double(const Vector&)> f = 0;
 	switch (isReal) {
 		case true:
-			f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, angle);
+			f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, rho);
 			break;
 		case false:
-			f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, angle);
+			f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, rho);
 			break;
 	}
 	FunctionCoefficient res(f);
@@ -80,18 +81,6 @@ void RCSManager::fillPostDataMaps(const std::vector<double>& frequencies, const 
 	}
 }
 
-std::vector<double> buildTimeVector(const std::string& base_dir)
-{
-	std::vector<double> res;
-	for (auto const& dir_entry : std::filesystem::directory_iterator(base_dir)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light);
-		}
-	}
-	return res;
-}
-
-
 GridFunction parseGridFunction(Mesh& mesh, const std::string& path)
 {
 	std::ifstream in(path);
@@ -103,16 +92,31 @@ DFTFreqFieldsComp RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<d
 {
 	DFTFreqFieldsComp res(frequencies.size());
 	size_t dofs{ 0 };
-	auto time_steps{ 0 };
+	auto time_step_counter{ 0 };
+	double time_step;
+	std::vector<double> two_times_for_dt(2);
+	size_t time_counter{ 0 };
+
+	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			two_times_for_dt[time_counter] = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
+			if (time_counter == 1) {
+				break;
+			}
+			time_counter++;
+		}
+	}
+
+	time_step = std::abs(two_times_for_dt[1] - two_times_for_dt[0]);
 
 	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
 			auto gf{ parseGridFunction(mesh, dir_entry.path().generic_string() + field) };
 			auto time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
 			dofs = gf.Size();
-			time_steps++;
-			for (int f{ 0 }; f < frequencies.size(); f++) { //timeccc es delta t, no t.
-				auto time_const{ timeccc * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) };
+			time_step_counter++;
+			for (int f{ 0 }; f < frequencies.size(); f++) {
+				auto time_const{ time_step * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) };
 				res[f].resize(dofs);
 				for (int i{ 0 }; i < dofs; i++) {
 					res[f][i] += std::complex<double>(gf[i], 0.0) * time_const;
@@ -122,7 +126,7 @@ DFTFreqFieldsComp RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<d
 	}
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (int i{ 0 }; i < dofs; i++) {
-			res[f][i] /= time_steps;
+			res[f][i] /= time_step_counter;
 		}
 	}
 	return res;
@@ -168,9 +172,9 @@ double RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& F
 		lf_z[i] = std::complex<double>(lf_real_l2_z.get()->Elem(i), lf_imag_l2_z.get()->Elem(i));
 	}
 
-	auto value = complexInnerProduct(lf_y, FAz) + complexInnerProduct(lf_z, FAy) 
-			   + complexInnerProduct(lf_z, FAx) + complexInnerProduct(lf_x, FAz) 
-			   + complexInnerProduct(lf_x, FAy) + complexInnerProduct(lf_y, FAx);
+	auto value = complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) 
+			   + complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) 
+			   + complexInnerProduct(lf_x, FAy) - complexInnerProduct(lf_y, FAx);
 
 	return std::norm(value);
 }
@@ -196,16 +200,20 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 	DFTFreqFieldsComp FEx{ assembleFreqFields(mesh, frequencies, "/Ex.gf") };
 	DFTFreqFieldsComp FEy{ assembleFreqFields(mesh, frequencies, "/Ey.gf") };
 	DFTFreqFieldsComp FEz{ assembleFreqFields(mesh, frequencies, "/Ez.gf") };
-	DFTFreqFieldsComp FHx{ assembleFreqFields(mesh, frequencies, "/Hx.gf") };
+ 	DFTFreqFieldsComp FHx{ assembleFreqFields(mesh, frequencies, "/Hx.gf") };
 	DFTFreqFieldsComp FHy{ assembleFreqFields(mesh, frequencies, "/Hy.gf") };
 	DFTFreqFieldsComp FHz{ assembleFreqFields(mesh, frequencies, "/Hz.gf") };
 
 	std::unique_ptr<RCSData> data;
+	double freqdata;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			switch (mesh.SpaceDimension()) {
-			case 2:					
-				data = std::make_unique<RCSData>(performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair) + performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair), frequencies[f], angpair);
+			case 2:	
+				freqdata = std::pow(2.0 * M_PI * frequencies[f], 2.0)
+					* (std::pow(std::abs(performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair)), 2.0) + std::pow(std::abs(performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair)), 2.0))
+					/ (8.0 * M_PI);
+				data = std::make_unique<RCSData>(freqdata, frequencies[f], angpair);
 				postdata_[angpair][frequencies[f]] += data->RCSvalue;
 				break;
 			case 3:
