@@ -20,7 +20,7 @@ using Phi = double;
 using Frequency = double;
 using RCSValue = double;
 using Freq2Value = std::map<Frequency, RCSValue>;
-using SphericalAngles = std::pair<Rho, Phi>;
+using SphericalAngles = std::pair<Phi, Rho>;
 using ComplexVector = std::vector<std::complex<double>>;
 using DFTFreqFieldsComp = std::vector<std::vector<std::complex<double>>>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
@@ -41,7 +41,7 @@ public:
 
 private:
 
-	double performRCS2DCalculations(ComplexVector& FAx, ComplexVector& Ay, ComplexVector& Az, const double frequency, const SphericalAngles&);
+	std::pair<std::complex<double>, std::complex<double>> performRCS2DCalculations(ComplexVector& FAx, ComplexVector& Ay, ComplexVector& Az, const double frequency, const SphericalAngles&);
 	DFTFreqFieldsComp assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field);
 	void fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec);
 	

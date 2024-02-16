@@ -12,16 +12,16 @@ RCSData::RCSData(double val, double f, SphericalAngles angles) :
 	angles{ angles }
 {}
 
-double func_exp_real_part_2D(const Vector& x, const double freq, const Rho rho)
+double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
 	//angulo viene dado por x[0], x[1] y 0.0, 0.0. No es el angulo donde observo, es el angulo que forma el punto y el angulo de observacion en un sistema centrado en el punto.
-	auto angle = acos((x[0] * cos(rho) + x[1] * sin(rho)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
+	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
 	return cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
-double func_exp_imag_part_2D(const Vector& x, const double freq, const Rho rho)
+double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto angle = acos((x[0] * cos(rho) + x[1] * sin(rho)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
+	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
 	return sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
@@ -54,15 +54,15 @@ std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteEl
 }
 
 
-FunctionCoefficient buildFC_2D(const double freq, const Rho& rho, bool isReal)
+FunctionCoefficient buildFC_2D(const double freq, const Phi& phi, bool isReal)
 {
 	std::function<double(const Vector&)> f = 0;
 	switch (isReal) {
 		case true:
-			f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, rho);
+			f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, phi);
 			break;
 		case false:
-			f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, rho);
+			f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, phi);
 			break;
 	}
 	FunctionCoefficient res(f);
@@ -152,7 +152,7 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& la
 	return res;
 }
 
-double RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles)
+std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles)
 {
 	auto fc_real_l2{ buildFC_2D(frequency, angles.first, true) };
 	auto lf_real_l2_x{ assembleLinearForm(fc_real_l2, *fes_, X) };
@@ -172,11 +172,14 @@ double RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& F
 		lf_z[i] = std::complex<double>(lf_real_l2_z.get()->Elem(i), lf_imag_l2_z.get()->Elem(i));
 	}
 
-	auto value = complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) 
-			   + complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) 
-			   + complexInnerProduct(lf_x, FAy) - complexInnerProduct(lf_y, FAx);
+	auto DCx{ complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) };
+	auto DCy{ complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) };
+	auto DCz{ complexInnerProduct(lf_x, FAy) - complexInnerProduct(lf_y, FAx) };
 
-	return std::norm(value);
+	auto phi_value = -DCx * sin(angles.first)                      + DCy * cos(angles.first);
+	auto rho_value =  DCx * cos(angles.second) * cos(angles.first) + DCy * cos(angles.second) * sin(angles.first) - DCz * sin(angles.second);
+
+	return std::pair<std::complex<double>, std::complex<double>>(phi_value, rho_value);
 }
 
 RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
@@ -206,13 +209,16 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 
 	std::unique_ptr<RCSData> data;
 	double freqdata;
+	double const_term;
+	std::pair<std::complex<double>, std::complex<double>> N_pair, L_pair;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			switch (mesh.SpaceDimension()) {
 			case 2:	
-				freqdata = std::pow(2.0 * M_PI * frequencies[f], 2.0)
-					* (std::pow(std::abs(performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair)), 2.0) + std::pow(std::abs(performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair)), 2.0))
-					/ (8.0 * M_PI);
+				N_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair);
+				L_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair);
+				const_term = std::pow((2.0 * M_PI * frequencies[f]), 2.0) / (8.0 * M_PI);
+				freqdata = const_term * (std::pow(std::norm(L_pair.first + N_pair.second), 2.0) + std::pow(std::norm(L_pair.second - N_pair.first), 2.0));
 				data = std::make_unique<RCSData>(freqdata, frequencies[f], angpair);
 				postdata_[angpair][frequencies[f]] += data->RCSvalue;
 				break;
