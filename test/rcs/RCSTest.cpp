@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <vector>
 #include <fftw3.h>
 
 #include <mfem.hpp>
