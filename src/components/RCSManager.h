@@ -47,6 +47,7 @@ private:
 	std::pair<std::complex<double>, std::complex<double>> performRCS2DCalculations(ComplexVector& FAx, ComplexVector& Ay, ComplexVector& Az, const double frequency, const SphericalAngles&, bool isElectric);
 	DFTFreqFieldsComplex assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field);
 	void fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec);
+	void getGFforFES(Mesh& mesh);
 	
 	Mesh m_;
 	std::string base_path_;

@@ -13,13 +13,13 @@ double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
 	//angulo viene dado por x[0], x[1] y 0.0, 0.0. No es el angulo donde observo, es el angulo que forma el punto y el angulo de observacion en un sistema centrado en el punto.
 	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-	return cos(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	return cos(2.0 * M_PI * (speed_of_light/freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
 double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
 	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-	return sin(2.0 * M_PI * freq * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	return sin(2.0 * M_PI * (speed_of_light / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
 Array<int> getNTFFMarker(const int att_size)
@@ -95,7 +95,7 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 
 	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			two_times_for_dt[time_counter] = getTime(dir_entry.path().generic_string() + "/time.txt");
+			two_times_for_dt[time_counter] = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
 			if (time_counter == 1) {
 				break;
 			}
@@ -108,11 +108,11 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
 			auto gf{ parseGridFunction(mesh, dir_entry.path().generic_string() + field) };
-			auto time = getTime(dir_entry.path().generic_string() + "/time.txt");
+			auto time = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
 			dofs = gf.Size();
 			time_step_counter++;
 			for (int f{ 0 }; f < frequencies.size(); f++) {
-				auto time_const{ time_step * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) };
+				auto time_const{ time_step * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) }; //Does it need dt here too? Salv uses it, Semba doesn't seem to.
 				res[f].resize(dofs);
 				for (int i{ 0 }; i < dofs; i++) {
 					res[f][i] += std::complex<double>(gf[i], 0.0) * time_const;
@@ -126,14 +126,6 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 		}
 	}
 	return res;
-}
-
-void splitCompIntoDoubles(const std::vector<std::complex<double>>& comp, Vector& real, Vector& imag)
-{
-	for (int i{ 0 }; i < comp.size(); i++) {
-		real[i] = comp[i].real();
-		imag[i] = comp[i].imag();
-	}
 }
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second)
@@ -191,12 +183,8 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 	return std::pair<std::complex<double>, std::complex<double>>(phi_value, rho_value);
 }
 
-RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
+void RCSManager::getGFforFES(Mesh& mesh)
 {
-	base_path_ = path;
-	
-	Mesh mesh{ Mesh::LoadFromFile(base_path_ + "/mesh", 1, 0) };
-
 	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
 			std::ifstream inex(dir_entry.path().generic_string() + "/Ex.gf");
@@ -214,7 +202,15 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 			break;
 		}
 	}
+}
 
+RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
+{
+	base_path_ = path;
+	
+	Mesh mesh{ Mesh::LoadFromFile(base_path_ + "/mesh", 1, 0) };
+
+	getGFforFES(mesh);
 	fillPostDataMaps(frequencies, angle_vec);
 	
 	DFTFreqFieldsComplex FEx{ assembleFreqFields(mesh, frequencies, "/Ex.gf") };
@@ -234,7 +230,7 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 			case 2:	
 				N_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair, true);
 				L_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair, false);
-				const_term = std::pow((2.0 * M_PI * frequencies[f]), 2.0) / (8.0 * M_PI * eta_0);
+				const_term = std::pow((2.0 * M_PI * (speed_of_light / frequencies[f])), 2.0) / (8.0 * M_PI * eta_0);
 				freqdata = const_term * (std::pow(std::norm(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::norm(L_pair.second - eta_0 * N_pair.first), 2.0));
 				data = std::make_unique<RCSData>(freqdata, frequencies[f], angpair);
 				postdata_[angpair][frequencies[f]] += data->RCSvalue;
@@ -252,7 +248,7 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 		myfile.open("RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log(RCSData/Lambda)\n";
 		for (const auto& f : frequencies) {
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0 * log(postdata_[angpair][f] * f) << "\n";
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0 * log(postdata_[angpair][f] / (speed_of_light/f)) << "\n";
 		}
 		myfile.close();
 	}
