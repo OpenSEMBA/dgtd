@@ -42,8 +42,10 @@ TEST_F(RCSTest, circleTest)
 
 	auto frequency{ linspace(f_min, f_max, f_step) };
 
-	std::vector<std::pair<Rho, Phi>> angles{ {0.0, 0.0}, {M_PI, 0.0} };
-	RCSManager rcs("NearToFarFieldExports/circle", frequency, angles);
+	std::vector<double> frequencies_manual({ 30e6, 70e6, 100e6, 200e6, 300e6, 400e6, 500e6, 600e6, 700e6, 800e6, 900e6 });
+
+	std::vector<std::pair<Rho, Phi>> angles{ {0.0, 0.0}  }; 
+	RCSManager rcs("NearToFarFieldExports/circle", frequency, angles); 
 }
 
 }

@@ -160,29 +160,32 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
     const IntegrationRule* ir = IntRule;
     if (ir == NULL)
     {
-        ir = &IntRules.Get(el.GetGeomType(), Tr.Elem1->OrderW() + 2 * el.GetOrder());
+        ir = &IntRules.Get(Tr.FaceGeom, 2 * el.GetOrder() + 2);
     }
 
-    Vector nor(3);
-    Vector nor_temp(el.GetDim());
+    Vector inner_normal(3);
+    Vector normal(el.GetDim());
 
     for (int i = 0; i < ir->GetNPoints(); i++)
     {
         const IntegrationPoint& ip = ir->IntPoint(i);
         Tr.SetAllIntPoints(&ip);
-        const IntegrationPoint& eip1 = Tr.GetElement1IntPoint();
+        const IntegrationPoint& eip = Tr.GetElement1IntPoint();
 
-        nor = 0.0;
-        nor_temp = 0.0;
-        CalcOrtho(Tr.Jacobian(), nor_temp);
+        inner_normal = 0.0;
+        normal = 0.0;
+        CalcOrtho(Tr.Jacobian(), normal);
 
-        for (auto i{ X }; i < nor_temp.Size(); i++) {
-            nor[i] = nor_temp[i];
+        for (auto i{ X }; i < normal.Size(); i++) {
+            inner_normal[i] = -normal[i];
         }
-        
-        el.CalcShape(eip1, shape_);
 
-        elvect.Add(ip.weight * c_.Eval(Tr, eip1) * -nor[dir_], shape_);
+        el.CalcShape(eip, shape_);
+        auto coeff_eval{ c_.Eval(*Tr.Face, ip) };
+
+        auto val = Tr.Face->Weight() * ip.weight * coeff_eval * inner_normal[dir_];
+
+        add(elvect, val, shape_, elvect);
     }
 
 }

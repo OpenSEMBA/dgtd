@@ -13,13 +13,13 @@ double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
 	//angulo viene dado por x[0], x[1] y 0.0, 0.0. No es el angulo donde observo, es el angulo que forma el punto y el angulo de observacion en un sistema centrado en el punto.
 	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-	return cos(2.0 * M_PI * (speed_of_light/freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	return cos(2.0 * M_PI * (freq / speed_of_light) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
 double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
 	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-	return sin(2.0 * M_PI * (speed_of_light / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+	return sin(2.0 * M_PI * (freq / speed_of_light) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 }
 
 Array<int> getNTFFMarker(const int att_size)
@@ -89,21 +89,6 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 	DFTFreqFieldsComplex res(frequencies.size());
 	size_t dofs{ 0 };
 	auto time_step_counter{ 0 };
-	double time_step;
-	std::vector<double> two_times_for_dt(2);
-	size_t time_counter{ 0 };
-
-	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			two_times_for_dt[time_counter] = getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_light;
-			if (time_counter == 1) {
-				break;
-			}
-			time_counter++;
-		}
-	}
-
-	time_step = std::abs(two_times_for_dt[1] - two_times_for_dt[0]);
 
 	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
@@ -112,10 +97,9 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 			dofs = gf.Size();
 			time_step_counter++;
 			for (int f{ 0 }; f < frequencies.size(); f++) {
-				auto time_const{ time_step * std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * time)) }; //Does it need dt here too? Salv uses it, Semba doesn't seem to.
-				res[f].resize(dofs);
+				if (res[f].size() != dofs) { res[f].resize(dofs); }
 				for (int i{ 0 }; i < dofs; i++) {
-					res[f][i] += std::complex<double>(gf[i], 0.0) * time_const;
+					res[f][i] += std::conj(std::complex<double>(gf[i] * cos(-2.0 * M_PI * frequencies[f] * time), gf[i] * sin(-2.0 * M_PI * frequencies[f] * time)));
 				}
 			}
 		}
@@ -148,20 +132,20 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 	std::unique_ptr<LinearForm> lf_real_l2_x, lf_real_l2_y, lf_real_l2_z, lf_imag_l2_x, lf_imag_l2_y, lf_imag_l2_z;
 	switch (isElectric) {
 	case true:
-		lf_real_l2_x = assembleLinearForm(fc_real_l2, *gfex_->FESpace(), X);
-		lf_real_l2_y = assembleLinearForm(fc_real_l2, *gfey_->FESpace(), Y);
-		lf_real_l2_z = assembleLinearForm(fc_real_l2, *gfez_->FESpace(), Z);
-		lf_imag_l2_x = assembleLinearForm(fc_imag_l2, *gfex_->FESpace(), X);
-		lf_imag_l2_y = assembleLinearForm(fc_imag_l2, *gfey_->FESpace(), Y);
-		lf_imag_l2_z = assembleLinearForm(fc_imag_l2, *gfez_->FESpace(), Z);
+		lf_real_l2_x = assembleLinearForm(fc_real_l2, *fes_.get(), X);
+		lf_real_l2_y = assembleLinearForm(fc_real_l2, *fes_.get(), Y);
+		lf_real_l2_z = assembleLinearForm(fc_real_l2, *fes_.get(), Z);
+		lf_imag_l2_x = assembleLinearForm(fc_imag_l2, *fes_.get(), X);
+		lf_imag_l2_y = assembleLinearForm(fc_imag_l2, *fes_.get(), Y);
+		lf_imag_l2_z = assembleLinearForm(fc_imag_l2, *fes_.get(), Z);
 		break;
 	case false:
-		lf_real_l2_x = assembleLinearForm(fc_real_l2, *gfhx_->FESpace(), X);
-		lf_real_l2_y = assembleLinearForm(fc_real_l2, *gfhy_->FESpace(), Y);
-		lf_real_l2_z = assembleLinearForm(fc_real_l2, *gfhz_->FESpace(), Z);
-		lf_imag_l2_x = assembleLinearForm(fc_imag_l2, *gfhx_->FESpace(), X);
-		lf_imag_l2_y = assembleLinearForm(fc_imag_l2, *gfhy_->FESpace(), Y);
-		lf_imag_l2_z = assembleLinearForm(fc_imag_l2, *gfhz_->FESpace(), Z);
+		lf_real_l2_x = assembleLinearForm(fc_real_l2, *fes_.get(), X);
+		lf_real_l2_y = assembleLinearForm(fc_real_l2, *fes_.get(), Y);
+		lf_real_l2_z = assembleLinearForm(fc_real_l2, *fes_.get(), Z);
+		lf_imag_l2_x = assembleLinearForm(fc_imag_l2, *fes_.get(), X);
+		lf_imag_l2_y = assembleLinearForm(fc_imag_l2, *fes_.get(), Y);
+		lf_imag_l2_z = assembleLinearForm(fc_imag_l2, *fes_.get(), Z);
 		break;
 	}
 
@@ -183,22 +167,14 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 	return std::pair<std::complex<double>, std::complex<double>>(phi_value, rho_value);
 }
 
-void RCSManager::getGFforFES(Mesh& mesh)
+void RCSManager::getFESFromGF(Mesh& mesh)
 {
 	for (auto const& dir_entry : std::filesystem::directory_iterator(base_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
 			std::ifstream inex(dir_entry.path().generic_string() + "/Ex.gf");
-			gfex_ = std::make_unique<GridFunction>(&mesh, inex);
-			std::ifstream iney(dir_entry.path().generic_string() + "/Ey.gf");
-			gfey_ = std::make_unique<GridFunction>(&mesh, iney);
-			std::ifstream inez(dir_entry.path().generic_string() + "/Ez.gf");
-			gfez_ = std::make_unique<GridFunction>(&mesh, inez);
-			std::ifstream inhx(dir_entry.path().generic_string() + "/Hx.gf");
-			gfhx_ = std::make_unique<GridFunction>(&mesh, inhx);
-			std::ifstream inhy(dir_entry.path().generic_string() + "/Hy.gf");
-			gfhy_ = std::make_unique<GridFunction>(&mesh, inhy);
-			std::ifstream inhz(dir_entry.path().generic_string() + "/Hz.gf");
-			gfhz_ = std::make_unique<GridFunction>(&mesh, inhz);
+			FiniteElementSpace fes;
+			fes.Load(&mesh, inex);
+			fes_ = std::make_unique<FiniteElementSpace>(fes);
 			break;
 		}
 	}
@@ -210,7 +186,7 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 	
 	Mesh mesh{ Mesh::LoadFromFile(base_path_ + "/mesh", 1, 0) };
 
-	getGFforFES(mesh);
+	getFESFromGF(mesh);
 	fillPostDataMaps(frequencies, angle_vec);
 	
 	DFTFreqFieldsComplex FEx{ assembleFreqFields(mesh, frequencies, "/Ex.gf") };
@@ -230,7 +206,7 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 			case 2:	
 				N_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair, true);
 				L_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair, false);
-				const_term = std::pow((2.0 * M_PI * (speed_of_light / frequencies[f])), 2.0) / (8.0 * M_PI * eta_0);
+				const_term = std::pow((2.0 * M_PI * (frequencies[f]/speed_of_light)), 2.0) / (8.0 * M_PI * eta_0);
 				freqdata = const_term * (std::pow(std::norm(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::norm(L_pair.second - eta_0 * N_pair.first), 2.0));
 				data = std::make_unique<RCSData>(freqdata, frequencies[f], angpair);
 				postdata_[angpair][frequencies[f]] += data->RCSvalue;
@@ -246,9 +222,9 @@ RCSManager::RCSManager(const std::string& path, const std::vector<double>& frequ
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
 		myfile.open("RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
-		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log(RCSData/Lambda)\n";
+		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log10(RCSData/landa)\n";
 		for (const auto& f : frequencies) {
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0 * log(postdata_[angpair][f] / (speed_of_light/f)) << "\n";
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log10(postdata_[angpair][f]) / 2.0 << "\n";
 		}
 		myfile.close();
 	}
