@@ -22,6 +22,7 @@ option(MAXWELL_ENABLE_PYTHON_BINDINGS OFF)
 include_directories(
 	src/ 
 	src/maxwell/
+	src/adapter/
 )
 
 add_subdirectory(src)

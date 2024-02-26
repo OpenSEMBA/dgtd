@@ -10,7 +10,9 @@
 
 #include <components/Probes.h>
 #include <mfemExtension/LinearIntegrators.h>
+#include <adapter/MaxwellAdapter.hpp>
 
+#include <nlohmann/json.hpp>
 
 namespace maxwell {
 
@@ -24,6 +26,15 @@ using SphericalAngles = std::pair<Phi, Rho>;
 using ComplexVector = std::vector<std::complex<double>>;
 using DFTFreqFieldsComplex = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
+
+struct PlaneWaveData {
+	double mean;
+	double delay;
+
+	PlaneWaveData(double m, double dl) :
+		mean(m),
+		delay(dl) {};
+};
 
 struct RCSData {
 	double RCSvalue;
@@ -40,7 +51,7 @@ struct RCSData {
 class RCSManager {
 public:
 
-	RCSManager(const std::string& path, const std::vector<double>& frequency, const std::vector<SphericalAngles>& angle);
+	RCSManager(const std::string& data_path, const std::string& json_path, const std::vector<double>& frequency, const std::vector<SphericalAngles>& angle);
 
 private:
 
@@ -48,9 +59,11 @@ private:
 	DFTFreqFieldsComplex assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field);
 	void fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec);
 	void getFESFromGF(Mesh& mesh);
+	std::vector<double> buildNormalizationTerm(const std::string& json_path, const std::vector<double>& frequencies);
+	PlaneWaveData buildPlaneWaveData(const json&);
 	
 	Mesh m_;
-	std::string base_path_;
+	std::string data_path_;
 	std::map<SphericalAngles, Freq2Value> postdata_;
 	std::unique_ptr<FiniteElementSpace> fes_;
 

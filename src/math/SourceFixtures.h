@@ -20,7 +20,7 @@ static Sources buildGaussianInitialField(
 	
 	Sources res;
 	res.add(std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_)
+		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_, angles_)
 	);
 	return res;
 }

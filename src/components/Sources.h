@@ -11,6 +11,7 @@ public:
 	using Time = double;
 	using Polarization = mfem::Vector;
 	using Propagation = mfem::Vector;
+	using CartesianAngles = mfem::Vector;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
@@ -26,7 +27,8 @@ public:
 		const Function&,
 		const FieldType&,
 		const Polarization&,
-		const Position& center
+		const Position& center,
+		const CartesianAngles& angles = CartesianAngles({ 0.0,0.0,0.0 })
 	);
 	InitialField(const InitialField&);
 

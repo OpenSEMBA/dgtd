@@ -13,7 +13,8 @@ InitialField::InitialField(
 	const Function& f, 
 	const FieldType& fT, 
 	const Polarization& p,
-	const Position& centerIn) :
+	const Position& centerIn,
+	const CartesianAngles& angles) :
 	magnitude_{ f.clone() },
 	fieldType_{ fT },
 	polarization_{ p },
