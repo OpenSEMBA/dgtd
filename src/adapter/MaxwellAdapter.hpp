@@ -5,6 +5,8 @@
 #include "SourcesAdapter.hpp"
 #include "SolverOptsAdapter.hpp"
 
+#include "../../test/TestUtils.h"
+
 using json = nlohmann::json;
 
 json parseJSONfile(const std::string& case_name);

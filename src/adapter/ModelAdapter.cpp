@@ -1,11 +1,10 @@
 #pragma once
 #include "ModelAdapter.hpp"
 
-using FaceNo = int;
-using isInterior = bool;
-
 namespace maxwell {
 
+std::string dataFolder() { return "./testData/"; }
+std::string maxwellInputsFolder() { return dataFolder() + "maxwellInputs/"; }
 
 BdrCond assignBdrCond(const std::string& bdr_cond)
 {

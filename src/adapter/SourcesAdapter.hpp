@@ -2,9 +2,9 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "components/sources.h"
-#include "maxwell/SourceFixtures.h"
-#include "ProbesAdapter.hpp"
+#include <components/Sources.h>
+#include <math/SourceFixtures.h>
+#include <adapter/ProbesAdapter.hpp>
 
 using json = nlohmann::json;
 

@@ -2,11 +2,11 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "MaxwellAdapter.hpp"
-#include "ModelAdapter.hpp"
-#include "ProbesAdapter.hpp"
-#include "SourcesAdapter.hpp"
-#include "SolverOptsAdapter.hpp"
+#include <adapter/MaxwellAdapter.hpp>
+#include <adapter/ModelAdapter.hpp>
+#include <adapter/ProbesAdapter.hpp>
+#include <adapter/SourcesAdapter.hpp>
+#include <adapter/SolverOptsAdapter.hpp>
 
 #include <TestUtils.h>
 
