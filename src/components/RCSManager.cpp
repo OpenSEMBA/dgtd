@@ -7,8 +7,10 @@ using namespace mfem;
 using json = nlohmann::json;
 
 double speed_of_light{ 299792458.0 };
-double mu_0 = 4.0e-7 * M_PI;
-double e_0 = 8.8541878128e-12;
+double mu_0 = 1.0;
+//double mu_0 = 4.0e-7 * M_PI;
+double e_0 = 1.0;
+//double e_0 = 8.8541878128e-12;
 double eta_0{ sqrt(mu_0 / e_0) };
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
@@ -76,17 +78,15 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 
 	std::vector<double> gauss_val(time.size());
 	for (int t = 0; t < time.size(); ++t) {
-		gauss_val[t] = 1.0 * exp(-0.5 * std::pow(((time[t]/speed_of_light) - planewave_data.delay) / planewave_data.mean, 2.0));
+		gauss_val[t] = exp(-0.5 * std::pow((((time[t]/speed_of_light) - planewave_data.delay) / planewave_data.mean), 2.0));
 	}
 
-	std::map<double, std::complex<double>> freq2transform;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		std::complex<double> freq_val(0.0, 0.0);
 		for (int t{ 0 }; t < time.size(); t++) {
-			auto transformed_val = std::complex<double>(gauss_val[t] * cos(-2.0 * M_PI * (frequencies[f]/speed_of_light) * time[t]), gauss_val[t] * sin(-2.0 * M_PI * (frequencies[f] / speed_of_light) * time[t]));
+			auto transformed_val = std::complex<double>(gauss_val[t] * cos(-2.0 * M_PI * (frequencies[f] / speed_of_light) * time[t]), gauss_val[t] * sin(-2.0 * M_PI * (frequencies[f] / speed_of_light) * time[t]));
 			freq_val += transformed_val;
 		}
-		freq2transform.emplace(std::make_pair(frequencies[f], std::abs(freq_val)));
 		res[f] = e_0 * std::pow(std::abs(freq_val), 2.0);
 	}
 
