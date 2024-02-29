@@ -6,43 +6,60 @@ using namespace mfem;
 
 using json = nlohmann::json;
 
-double speed_of_light{ 299792458.0 };
 double mu_0 = 1.0;
 //double mu_0 = 4.0e-7 * M_PI;
 double e_0 = 1.0;
 //double e_0 = 8.8541878128e-12;
 double eta_0{ sqrt(mu_0 / e_0) };
+double v{ 1.0/sqrt(mu_0 * e_0) };
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
 	auto r_vec_mod = sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0));
 	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / r_vec_mod);
-	auto landa = speed_of_light / (freq / speed_of_light);
-	return cos((2.0 * M_PI / landa) * r_vec_mod * cos(angle));
+	auto landa = v / freq;
+	auto wavenumber = 2.0 * M_PI / landa;
+	return cos(wavenumber * r_vec_mod * cos(angle));
 }
 
 double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
 	auto r_vec_mod = sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0));
 	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / r_vec_mod);
-	auto landa = speed_of_light / (freq / speed_of_light);
-	return sin((2.0 * M_PI / landa) * r_vec_mod * cos(angle));
+	auto landa = v / freq;
+	auto wavenumber = 2.0 * M_PI / landa;
+	return sin(wavenumber * r_vec_mod * cos(angle));
 }
 
 double func_exp_real_part_3D(const Vector& x, const double freq, const SphericalAngles angles)
 {
 	auto r_vec_mod = sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0) + std::pow(x[2], 2.0));
 	auto angle = acos((x[0] * sin(angles.second) * cos(angles.first) + x[1] * sin(angles.second) * sin(angles.first) + x[2] * cos(angles.second)) / r_vec_mod);
-	auto landa = speed_of_light / (freq / speed_of_light);
-	return cos((2.0 * M_PI / landa) * r_vec_mod * cos(angle));
+	auto landa = v / freq;
+	auto wavenumber = 2.0 * M_PI / landa;
+	return cos(wavenumber * r_vec_mod * cos(angle));
 }
 
 double func_exp_imag_part_3D(const Vector& x, const double freq, const SphericalAngles angles)
 {
 	auto r_vec_mod = sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0) + std::pow(x[2], 2.0));
 	auto angle = acos((x[0] * sin(angles.second) * cos(angles.first) + x[1] * sin(angles.second) * sin(angles.first) + x[2] * cos(angles.second)) / r_vec_mod);
-	auto landa = speed_of_light / (freq / speed_of_light);
-	return sin((2.0 * M_PI / landa) * r_vec_mod * cos(angle));
+	auto landa = v / freq;
+	auto wavenumber = 2.0 * M_PI / landa;
+	return sin(wavenumber * r_vec_mod * cos(angle));
+}
+
+void trimLowMagFreqs(const std::vector<double>& normVal, std::vector<double>& frequencies)
+{
+	const double tol = 1e-3;
+	for (int f = 0; f < frequencies.size(); ++f)
+	{
+		if (normVal[f] < tol)
+		{
+			frequencies.erase(frequencies.begin() + f, frequencies.end());
+			break;
+		}
+	}
 }
 
 Array<int> getNTFFMarker(const int att_size)
@@ -83,7 +100,7 @@ PlaneWaveData RCSManager::buildPlaneWaveData(const json& json)
 	return PlaneWaveData(mean, delay);
 }
 
-std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_path, const std::vector<double>& frequencies)
+std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_path, std::vector<double>& frequencies)
 {
 	std::vector<double> res(frequencies.size(), 0.0);
 	std::vector<double> time;
@@ -97,14 +114,14 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 
 	std::vector<double> gauss_val(time.size());
 	for (int t = 0; t < time.size(); ++t) {
-		gauss_val[t] = exp(-0.5 * std::pow(((time[t] - planewave_data.delay) / planewave_data.mean), 2.0));
+		gauss_val[t] = exp(-0.5 * std::pow(((time[t] - (planewave_data.delay)) / (planewave_data.mean)), 2.0));
 	}
 
 	std::map<double, std::complex<double>> map;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		std::complex<double> freq_val(0.0, 0.0);
 		for (int t{ 0 }; t < time.size(); t++) {
-			auto arg = -2.0 * M_PI * (frequencies[f] / speed_of_light) * time[t] ;
+			auto arg = -2.0 * M_PI * frequencies[f] * time[t] ;
 			auto transformed_val = std::complex<double>(gauss_val[t] * cos(arg), gauss_val[t] * sin(arg));
 			freq_val += transformed_val;
 		}
@@ -121,11 +138,12 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 	myfile.close();
 	myfile.open("../personal-sandbox/Python/TransformData_dgtd.dat");
 	myfile << "Frequency (Hz) " << "Real " << "Imag\n";
-	for (const auto& [f, v] : map) {
-		myfile << f << " " << v.real() << " " << v.imag() << "\n";
+	for (int f = 0; f < frequencies.size(); ++f){
+		myfile << frequencies[f] << " " << map[f].real() << " " << map[f].imag() << "\n";
 	}
 	myfile.close();
 
+	//trimLowMagFreqs(res, frequencies);
 	return res;
 }
 
@@ -200,17 +218,17 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 			for (int f{ 0 }; f < frequencies.size(); f++) {
 				if (res[f].size() != dofs) { res[f].resize(dofs); }
 				for (int i{ 0 }; i < dofs; i++) {
-					auto arg = -2.0 * M_PI * frequencies[f] * time / speed_of_light;
-					res[f][i] += std::conj(std::complex<double>(gf[i] * cos(arg), gf[i] * sin(arg)));
+					auto arg = -2.0 * M_PI * frequencies[f] * time;
+					res[f][i] += std::complex<double>(gf[i] * cos(arg), gf[i] * sin(arg));
 				}
 			}
 		}
 	}
-	for (int f{ 0 }; f < frequencies.size(); f++) {
-		for (int i{ 0 }; i < dofs; i++) {
-			res[f][i] /= time_step_counter;
-		}
-	}
+	//for (int f{ 0 }; f < frequencies.size(); f++) {
+	//	for (int i{ 0 }; i < dofs; i++) {
+	//		res[f][i] /= time_step_counter;
+	//	}
+	//}
 	return res;
 }
 
@@ -256,7 +274,7 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 	return std::pair<std::complex<double>, std::complex<double>>(phi_value, rho_value);
 }
 
-RCSManager::RCSManager(const std::string& path, const std::string& json_path, const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
+RCSManager::RCSManager(const std::string& path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
 	data_path_ = path;
 	
@@ -275,7 +293,7 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, co
 	DFTFreqFieldsComplex FHz{ assembleFreqFields(mesh, frequencies, "/Hz.gf") };
 
 	std::unique_ptr<RCSData> data;
-	double freqdata, const_term, landa;
+	double freqdata, const_term, landa, wavenumber;
 	std::pair<std::complex<double>, std::complex<double>> N_pair, L_pair;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
@@ -283,11 +301,12 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, co
 			case 2:	
 				N_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair);
 				L_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair);
-				landa = speed_of_light / (frequencies[f] / speed_of_light);
-				const_term = std::pow((2.0 * M_PI / landa), 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);
+				landa = v / frequencies[f];
+				wavenumber = 2.0 * M_PI / landa;
+				const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);
 				freqdata = const_term * (std::pow(std::abs(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - eta_0 * N_pair.first), 2.0));
-				data = std::make_unique<RCSData>(freqdata, frequencies[f], angpair);
-				postdata_[angpair][frequencies[f]] += data->RCSvalue;
+				//data = std::make_unique<RCSData>(freqdata, frequencies[f], angpair);
+				postdata_[angpair][frequencies[f]] = freqdata;
 				break;
 			case 3:
 				break;
@@ -302,7 +321,7 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, co
 		myfile.open("../personal-sandbox/Python/RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log10(RCSData/landa)\n";
 		for (const auto& f : frequencies) {
-			auto landa = speed_of_light / (f / speed_of_light);
+			auto landa = v / f;
 			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log10(postdata_[angpair][f]/landa) << "\n";
 		}
 		myfile.close();

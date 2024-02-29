@@ -21,14 +21,13 @@ using namespace mfem;
 
 class RCSTest : public ::testing::Test {
 public:
-std::vector<double> linspace(const double min, const double max, const double stepval) 
+std::vector<double> linspace(const double max, const int steps) 
 {
-	int steps = int(std::round((max - min) / stepval));
-	std::vector<double> res(steps);
-	for (int i = 0; i < steps; i++) {
-		res[i] = min + stepval * i;
+	std::vector<double> res(steps+1);
+	const double step = double(max / steps);
+	for (int i = 0; i <= steps; i++) {
+		res[i] = step * i;
 	}
-	res.push_back(max);
 	return res;
 }
 
@@ -36,11 +35,11 @@ std::vector<double> linspace(const double min, const double max, const double st
 
 TEST_F(RCSTest, circleTest)
 {
-	const double f_min = 1e6;
-	const double f_max = 1e9;
-	const double f_step = 1e6;
+	const double dt = 5e-3;
+	const double f_max = 2.0 / dt;
+	const int steps = 100000;
 
-	auto frequency{ linspace(f_min, f_max, f_step) };
+	auto frequency{ linspace(f_max, steps) };
 
 	std::vector<double> frequencies_manual({ 30e6, 70e6, 100e6, 200e6, 300e6, 400e6, 500e6, 600e6, 700e6, 800e6, 900e6 });
 
