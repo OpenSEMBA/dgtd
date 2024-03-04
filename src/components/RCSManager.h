@@ -51,7 +51,7 @@ struct RCSData {
 class RCSManager {
 public:
 
-	RCSManager(const std::string& data_path, const std::string& json_path, std::vector<double>& frequency, const std::vector<SphericalAngles>& angle);
+	RCSManager(const std::string& data_path, const std::string& json_path, double f_max, int steps, const std::vector<SphericalAngles>& angle);
 
 private:
 
@@ -61,8 +61,7 @@ private:
 	void getFESFromGF(Mesh& mesh);
 	std::vector<double> buildNormalizationTerm(const std::string& json_path, std::vector<double>& frequencies);
 	PlaneWaveData buildPlaneWaveData(const json&);
-	
-	Mesh m_;
+
 	std::string data_path_;
 	std::map<SphericalAngles, Freq2Value> postdata_;
 	std::unique_ptr<FiniteElementSpace> fes_;

@@ -25,7 +25,7 @@ const FieldGridFuncs evalTimeVarFunction(const Time time, SourcesManager& sm)
 			for (int f : {E, H}) {
 				for (int x{ 0 }; x <= Z; x++) {
 					res[f][x] -= func_g_sf[f][x];
-					res[f][x] *= 0.5;
+					res[f][x] *= -0.5;
 				}
 			}
 		}

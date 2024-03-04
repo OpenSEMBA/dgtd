@@ -6,12 +6,36 @@ using namespace mfem;
 
 using json = nlohmann::json;
 
-double mu_0 = 1.0;
-//double mu_0 = 4.0e-7 * M_PI;
-double e_0 = 1.0;
-//double e_0 = 8.8541878128e-12;
+//double mu_0 = 1.0;
+//double e_0 = 1.0;
+double mu_0 = 4.0e-7 * M_PI;
+double e_0 = 8.8541878128e-12;
 double eta_0{ sqrt(mu_0 / e_0) };
 double v{ 1.0/sqrt(mu_0 * e_0) };
+
+std::vector<double> linspace(const double max, const int steps)
+{
+	std::vector<double> res(steps + 1);
+	const double step = double(max / steps);
+	for (int i = 0; i <= steps; i++) {
+		res[i] = step * i * v;
+	}
+	return res;
+}
+
+std::vector<double> logspace(double a, double b, int k) {
+	const auto exp_scale = (b - a) / (k - 1);
+	const auto factor = pow(10, exp_scale);
+	std::vector<double> res;
+	res.reserve(k);
+
+	double val = pow(10, a);
+	for (int i = 0; i < k; i++) {
+		res.push_back(val);
+		val *= factor;
+	}
+	return res;
+}
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
@@ -49,12 +73,12 @@ double func_exp_imag_part_3D(const Vector& x, const double freq, const Spherical
 	return sin(wavenumber * r_vec_mod * cos(angle));
 }
 
-void trimLowMagFreqs(const std::vector<double>& normVal, std::vector<double>& frequencies)
+void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vector<double>& frequencies)
 {
-	const double tol = 1e-3;
+	const double tol = 1e-4;
 	for (int f = 0; f < frequencies.size(); ++f)
 	{
-		if (normVal[f] < tol)
+		if (std::abs(map.at(frequencies[f])) < tol)
 		{
 			frequencies.erase(frequencies.begin() + f, frequencies.end());
 			break;
@@ -97,7 +121,7 @@ PlaneWaveData RCSManager::buildPlaneWaveData(const json& json)
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
-	return PlaneWaveData(mean, delay);
+	return PlaneWaveData(mean / v, delay / v);
 }
 
 std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_path, std::vector<double>& frequencies)
@@ -108,20 +132,20 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 	auto planewave_data{ buildPlaneWaveData(json) };
 	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			time.push_back(getTime(dir_entry.path().generic_string() + "/time.txt"));
+			time.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / v);
 		}
 	}
 
 	std::vector<double> gauss_val(time.size());
 	for (int t = 0; t < time.size(); ++t) {
-		gauss_val[t] = exp(-0.5 * std::pow(((time[t] - (planewave_data.delay)) / (planewave_data.mean)), 2.0));
+		gauss_val[t] = exp(-0.5 * std::pow((time[t] - planewave_data.delay) / planewave_data.mean, 2.0));
 	}
 
 	std::map<double, std::complex<double>> map;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		std::complex<double> freq_val(0.0, 0.0);
 		for (int t{ 0 }; t < time.size(); t++) {
-			auto arg = -2.0 * M_PI * frequencies[f] * time[t] ;
+			auto arg = -2.0 * M_PI * frequencies[f] * time[t];
 			auto transformed_val = std::complex<double>(gauss_val[t] * cos(arg), gauss_val[t] * sin(arg));
 			freq_val += transformed_val;
 		}
@@ -129,6 +153,7 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 		res[f] = e_0 * std::pow(std::abs(freq_val), 2.0);
 	}
 
+	trimLowMagFreqs(map, frequencies);
 	std::ofstream myfile;
 	myfile.open("../personal-sandbox/Python/GaussData_dgtd.dat");
 	myfile << "Time (s) " << "Gaussian Val (mag)\n";
@@ -139,11 +164,10 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 	myfile.open("../personal-sandbox/Python/TransformData_dgtd.dat");
 	myfile << "Frequency (Hz) " << "Real " << "Imag\n";
 	for (int f = 0; f < frequencies.size(); ++f){
-		myfile << frequencies[f] << " " << map[f].real() << " " << map[f].imag() << "\n";
+		myfile << frequencies[f] << " " << map[frequencies[f]].real() << " " << map[frequencies[f]].imag() << "\n";
 	}
 	myfile.close();
 
-	//trimLowMagFreqs(res, frequencies);
 	return res;
 }
 
@@ -212,7 +236,10 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path_)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
 			auto gf{ loadGridFunction(mesh, dir_entry.path().generic_string() + field) };
-			auto time = getTime(dir_entry.path().generic_string() + "/time.txt");
+			if (field == "/Hx.gf" || field == "/Hy.gf" || field == "/Hz.gf") {
+				gf /= eta_0;
+			}
+			auto time = getTime(dir_entry.path().generic_string() + "/time.txt") / v;
 			dofs = gf.Size();
 			time_step_counter++;
 			for (int f{ 0 }; f < frequencies.size(); f++) {
@@ -224,11 +251,11 @@ DFTFreqFieldsComplex RCSManager::assembleFreqFields(Mesh& mesh, const std::vecto
 			}
 		}
 	}
-	//for (int f{ 0 }; f < frequencies.size(); f++) {
-	//	for (int i{ 0 }; i < dofs; i++) {
-	//		res[f][i] /= time_step_counter;
-	//	}
-	//}
+	for (int f{ 0 }; f < frequencies.size(); f++) {
+		for (int i{ 0 }; i < dofs; i++) {
+			res[f][i] /= time_step_counter;
+		}
+	}
 	return res;
 }
 
@@ -274,11 +301,14 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 	return std::pair<std::complex<double>, std::complex<double>>(phi_value, rho_value);
 }
 
-RCSManager::RCSManager(const std::string& path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
+RCSManager::RCSManager(const std::string& path, const std::string& json_path, double dt, int steps, const std::vector<SphericalAngles>& angle_vec)
 {
 	data_path_ = path;
 	
 	Mesh mesh{ Mesh::LoadFromFile(data_path_ + "/mesh", 1, 0) };
+
+	const double f_max = 2.0 / dt;
+	auto frequencies{ linspace(f_max, steps) };
 
 	getFESFromGF(mesh);
 	fillPostDataMaps(frequencies, angle_vec);
@@ -292,20 +322,18 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, st
 	DFTFreqFieldsComplex FHy{ assembleFreqFields(mesh, frequencies, "/Hy.gf") };
 	DFTFreqFieldsComplex FHz{ assembleFreqFields(mesh, frequencies, "/Hz.gf") };
 
-	std::unique_ptr<RCSData> data;
 	double freqdata, const_term, landa, wavenumber;
 	std::pair<std::complex<double>, std::complex<double>> N_pair, L_pair;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			switch (mesh.SpaceDimension()) {
-			case 2:	
-				N_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair);
-				L_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair);
+			case 2:
+				N_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair);
+				L_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair);
 				landa = v / frequencies[f];
 				wavenumber = 2.0 * M_PI / landa;
 				const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);
 				freqdata = const_term * (std::pow(std::abs(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - eta_0 * N_pair.first), 2.0));
-				//data = std::make_unique<RCSData>(freqdata, frequencies[f], angpair);
 				postdata_[angpair][frequencies[f]] = freqdata;
 				break;
 			case 3:
