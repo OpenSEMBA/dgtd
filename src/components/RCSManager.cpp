@@ -13,46 +13,35 @@ double e_0 = 8.8541878128e-12;
 double eta_0{ sqrt(mu_0 / e_0) };
 double v{ 1.0/sqrt(mu_0 * e_0) };
 
-std::vector<double> linspace(const double max, const int steps)
+std::vector<double> logspace(double start, double stop, int num, double base = 10.0) 
+
 {
-	std::vector<double> res(steps + 1);
-	const double step = double(max / steps);
-	for (int i = 0; i <= steps; i++) {
-		res[i] = step * i * v;
-	}
-	return res;
-}
-
-std::vector<double> logspace(double a, double b, int k) {
-	const auto exp_scale = (b - a) / (k - 1);
-	const auto factor = pow(10, exp_scale);
 	std::vector<double> res;
-	res.reserve(k);
+	res.reserve(num);
 
-	double val = pow(10, a);
-	for (int i = 0; i < k; i++) {
-		res.push_back(val);
-		val *= factor;
+	double step = (stop - start) / (num - 1);
+
+	for (int i = 0; i < num; ++i) {
+		res.push_back(std::pow(base, start + i * step));
 	}
+
 	return res;
 }
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto r_vec_mod = sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0));
-	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / r_vec_mod);
+	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / x.Norml2());
 	auto landa = v / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
-	return cos(wavenumber * r_vec_mod * cos(angle));
+	return cos(wavenumber * x.Norml2() * cos(angle));
 }
 
 double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto r_vec_mod = sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0));
-	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / r_vec_mod);
+	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / x.Norml2());
 	auto landa = v / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
-	return sin(wavenumber * r_vec_mod * cos(angle));
+	return sin(wavenumber * x.Norml2() * cos(angle));
 }
 
 double func_exp_real_part_3D(const Vector& x, const double freq, const SphericalAngles angles)
@@ -271,7 +260,7 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& se
 	return res;
 }
 
-std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles)
+std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles, bool isElectric)
 {
 	auto fc_real_l2{ buildFC_2D(frequency, angles.first, true) };
 	auto fc_imag_l2{ buildFC_2D(frequency, angles.first, false) };
@@ -291,6 +280,14 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 		lf_z[i] = std::complex<double>(lf_real_l2_z->Elem(i), lf_imag_l2_z->Elem(i));
 	}
 
+	if (isElectric) {
+		for (int val{ 0 }; val < FAx.size(); ++val) {
+			FAx[val] *= -1.0;
+			FAy[val] *= -1.0;
+			FAz[val] *= -1.0;
+		}
+	}
+
 	auto DCx{ complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) };
 	auto DCy{ complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) };
 	auto DCz{ complexInnerProduct(lf_x, FAy) - complexInnerProduct(lf_y, FAx) };
@@ -308,7 +305,7 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 	Mesh mesh{ Mesh::LoadFromFile(data_path_ + "/mesh", 1, 0) };
 
 	const double f_max = 2.0 / dt;
-	auto frequencies{ linspace(f_max, steps) };
+	auto frequencies{ logspace(6.0,9.0,90) };
 
 	getFESFromGF(mesh);
 	fillPostDataMaps(frequencies, angle_vec);
@@ -328,8 +325,8 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 		for (const auto& angpair : angle_vec) {
 			switch (mesh.SpaceDimension()) {
 			case 2:
-				N_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair);
-				L_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair);
+				N_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair, false);
+				L_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair, true);
 				landa = v / frequencies[f];
 				wavenumber = 2.0 * M_PI / landa;
 				const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);

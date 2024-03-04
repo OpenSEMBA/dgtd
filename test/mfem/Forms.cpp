@@ -5,24 +5,11 @@
 #include <TestUtils.h>
 #include <math.h>
 #include <complex>
+#include <components/RCSManager.cpp>
 
 using namespace maxwell;
 using namespace mfem;
 using namespace mfemExtension;
-
-double speed_of_light{ 299792458.0 };
-
-double func_exp_real_part_2D(const Vector& x, const double freq, const double phi)
-{
-	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-	return cos(2.0 * M_PI * (freq / speed_of_light) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
-}
-
-double func_exp_imag_part_2D(const Vector& x, const double freq, const double phi)
-{
-	auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-	return sin(2.0 * M_PI * (freq / speed_of_light) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
-}
 
 class FormTest : public ::testing::Test 
 {
@@ -95,17 +82,17 @@ TEST_F(FormTest, LinearForms_2D)
 TEST_F(FormTest, RCSForm_2D)
 {
 	
-	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_Triangle_Solo.msh").c_str(), 1, 0)};
+	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_LinearForm_RCS.msh").c_str(), 1, 0)};
 	auto fec{ DG_FECollection(1, 2) };
 	auto fes{ FiniteElementSpace(&m, &fec) };
 
 	GridFunction gf(&fes);
 	gf = 2.0;
 	LinearForm lf(&fes);
-	FunctionCoefficient fc(buildFC_2D(300e6, M_PI, true));
+	FunctionCoefficient fc(buildFC_2D(1e7, 0.0, true));
 	Array<int> bdr_marker(3);
 	bdr_marker = 0;
-	bdr_marker[bdr_marker.Size() - 1] = 1;
+	bdr_marker[1] = 1;
 	lf.AddBdrFaceIntegrator(new RCSBdrFaceIntegrator(fc, X), bdr_marker);
 	lf.Assemble();
 
