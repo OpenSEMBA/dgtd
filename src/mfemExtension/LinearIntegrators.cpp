@@ -160,7 +160,7 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
     const IntegrationRule* ir = IntRule;
     if (ir == NULL)
     {
-        ir = &IntRules.Get(Tr.FaceGeom, 2 * el.GetOrder() + 2);
+        ir = &IntRules.Get(Tr.FaceGeom, el.GetOrder() + 2);
     }
 
     Vector inner_normal(3);
@@ -180,12 +180,14 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
             inner_normal[i] = -normal[i];
         }
 
+        inner_normal /= Tr.Face->Weight();
+
         el.CalcShape(eip, shape_);
         auto coeff_eval{ c_.Eval(*Tr.Face, ip) };
 
-        auto val = Tr.Face->Weight() * ip.weight * coeff_eval * inner_normal[dir_];
+        auto val = ip.weight * coeff_eval * inner_normal[dir_];
 
-        add(elvect, val, shape_, elvect);
+        elvect.Add(val, shape_);
     }
 
 }
