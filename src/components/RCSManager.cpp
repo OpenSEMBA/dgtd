@@ -6,10 +6,10 @@ using namespace mfem;
 
 using json = nlohmann::json;
 
-//double mu_0 = 1.0;
-//double e_0 = 1.0;
-double mu_0 = 4.0e-7 * M_PI;
-double e_0 = 8.8541878128e-12;
+double mu_0 = 1.0;
+double e_0 = 1.0;
+//double mu_0 = 4.0e-7 * M_PI;
+//double e_0 = 8.8541878128e-12;
 double eta_0{ sqrt(mu_0 / e_0) };
 double v{ 1.0 / sqrt(mu_0 * e_0) };
 
@@ -175,7 +175,7 @@ std::vector<double> evaluateGaussianVector(std::vector<double>& time, double del
 }
 void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vector<double>& frequencies)
 {
-	const double tol = 1e-4;
+	const double tol = 1e-2;
 	for (int f = 0; f < frequencies.size(); ++f)
 	{
 		if (std::abs(map.at(frequencies[f])) < tol)
@@ -315,7 +315,7 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 	getFESFromGF(mesh);
 
 	const double f_max = 2.0 / dt;
-	auto frequencies{ logspace(6.0, 9.0, 90) };
+	auto frequencies{ logspace(-2.0, 2.0, 90) };
 	fillPostDataMaps(frequencies, angle_vec);
 
 	auto normalization_term{ buildNormalizationTerm(json_path, frequencies) };

@@ -180,12 +180,10 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
             inner_normal[i] = -normal[i];
         }
 
-        inner_normal /= Tr.Face->Weight();
-
         el.CalcShape(eip, shape_);
         auto coeff_eval{ c_.Eval(*Tr.Face, ip) };
 
-        auto val = ip.weight * coeff_eval * inner_normal[dir_];
+        auto val = Tr.Face->Weight() * ip.weight * coeff_eval * inner_normal[dir_];
 
         elvect.Add(val, shape_);
     }

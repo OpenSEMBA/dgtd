@@ -27,6 +27,18 @@ using ComplexVector = std::vector<std::complex<double>>;
 using FreqFields = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
 
+struct FreqFields {
+
+	ComplexVector Ex;
+	ComplexVector Ey;
+	ComplexVector Ez;
+	ComplexVector Hx;
+	ComplexVector Hy;
+	ComplexVector Hz;
+
+	FreqFields();
+};
+
 struct PlaneWaveData {
 	double mean;
 	double delay;
