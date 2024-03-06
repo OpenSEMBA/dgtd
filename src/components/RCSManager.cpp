@@ -6,12 +6,40 @@ using namespace mfem;
 
 using json = nlohmann::json;
 
-double mu_0 = 1.0;
-double e_0 = 1.0;
-//double mu_0 = 4.0e-7 * M_PI;
-//double e_0 = 8.8541878128e-12;
+
+//double mu_0 = 1.0;
+//double e_0 = 1.0;
+double mu_0 = 4.0e-7 * M_PI;
+double e_0 = 8.8541878128e-12;
 double eta_0{ sqrt(mu_0 / e_0) };
-double v{ 1.0 / sqrt(mu_0 * e_0) };
+double speed_of_wave{ 1.0 / sqrt(mu_0 * e_0) };
+
+void FreqFields::append(Freq2CompVec f2cv, const std::string& field)
+{
+	if (field == "/Ex.gf") {
+		Ex = f2cv;
+	}
+	else if (field == "/Ey.gf")
+	{
+		Ey = f2cv;
+	}
+	else if (field == "/Ez.gf")
+	{
+		Ez = f2cv;
+	}
+	else if (field == "/Hx.gf")
+	{
+		Hx = f2cv;
+	}
+	else if (field == "/Hy.gf")
+	{
+		Hy = f2cv;
+	}
+	else if (field == "/Hz.gf")
+	{
+		Hz = f2cv;
+	}
+};
 
 std::vector<double> logspace(double start, double stop, int num, double base = 10.0) 
 
@@ -41,31 +69,44 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& se
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto landa = v / freq;
+	auto landa = speed_of_wave / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * cos(phi) + x[1] * sin(phi));
 	return cos(rad_term);
 }
 double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto landa = v / freq;
+	auto landa = speed_of_wave / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * cos(phi) + x[1] * sin(phi));
 	return sin(rad_term);
 }
 double func_exp_real_part_3D(const Vector& x, const double freq, const SphericalAngles angles)
 {
-	auto landa = v / freq;
+	auto landa = speed_of_wave / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * sin(angles.second) * cos(angles.first) + x[1] * sin(angles.second) * sin(angles.first) + x[2] * cos(angles.second));
 	return cos(rad_term);
 }
 double func_exp_imag_part_3D(const Vector& x, const double freq, const SphericalAngles angles)
 {
-	auto landa = v / freq;
+	auto landa = speed_of_wave / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * sin(angles.second) * cos(angles.first) + x[1] * sin(angles.second) * sin(angles.first) + x[2] * cos(angles.second));
 	return sin(rad_term);
+}
+
+void RCSManager::getFESFromGF(Mesh& mesh, const std::string& path)
+{
+	for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			std::ifstream inex(dir_entry.path().generic_string() + "/Ex.gf");
+			FiniteElementSpace fes;
+			fes.Load(&mesh, inex);
+			fes_ = std::make_unique<FiniteElementSpace>(fes);
+			break;
+		}
+	}
 }
 
 Array<int> getNTFFMarker(const int att_size)
@@ -114,27 +155,17 @@ const double getTime(const std::string& timePath)
 	return std::stod(timeString);
 }
 
-void RCSManager::getFESFromGF(Mesh& mesh)
+std::map<SphericalAngles, Freq2Value> fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec)
 {
-	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path_)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			std::ifstream inex(dir_entry.path().generic_string() + "/Ex.gf");
-			FiniteElementSpace fes;
-			fes.Load(&mesh, inex);
-			fes_ = std::make_unique<FiniteElementSpace>(fes);
-			break;
-		}
-	}
-}
-void RCSManager::fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec)
-{
+	std::map<SphericalAngles, Freq2Value> res;
 	for (const auto& angpair : angleVec) {
 		Freq2Value inner;
 		for (const auto& f : frequencies) {
 			inner.emplace(f, 0.0);
 		}
-		postdata_.emplace(angpair, inner);
+		res.emplace(angpair, inner);
 	}
+	return res;
 }
 
 
@@ -153,14 +184,14 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
-	return PlaneWaveData(mean / v, delay / v);
+	return PlaneWaveData(mean / speed_of_wave, delay / speed_of_wave);
 }
 std::vector<double> buildTimeVector(const std::string& data_path) 
 {
 	std::vector<double> res;
 	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / v);
+			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_wave);
 		}
 	}
 	return res;
@@ -206,11 +237,11 @@ void exportTransformGaussData(std::vector<double>& frequencies, std::map<double,
 	myfile.close();
 }
 
-std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_path, std::vector<double>& frequencies)
+std::vector<double> buildNormalizationTerm(const std::string& json_path, const std::string& path, std::vector<double>& frequencies)
 {
 
 	auto planewave_data{ buildPlaneWaveData(parseJSONfile(json_path)) };
-	std::vector<double> time{ buildTimeVector(data_path_) };
+	std::vector<double> time{ buildTimeVector(path) };
 	std::vector<double> gauss_val{ evaluateGaussianVector(time, planewave_data.delay, planewave_data.mean) };
 
 	std::map<double, std::complex<double>> freq2complex;
@@ -219,8 +250,7 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 		std::complex<double> freq_val(0.0, 0.0);
 		for (int t{ 0 }; t < time.size(); t++) {
 			auto arg = -2.0 * M_PI * frequencies[f] * time[t];
-			auto transformed_val = std::complex<double>(gauss_val[t] * cos(arg), gauss_val[t] * sin(arg));
-			freq_val += transformed_val;
+			freq_val += std::complex<double>(gauss_val[t] * cos(arg), gauss_val[t] * sin(arg));
 		}
 		freq2complex.emplace(std::make_pair(frequencies[f], freq_val));
 		res[f] = e_0 * std::pow(std::abs(freq_val), 2.0);
@@ -233,34 +263,103 @@ std::vector<double> RCSManager::buildNormalizationTerm(const std::string& json_p
 	return res;
 }
 
-FreqFields RCSManager::assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field)
+Freq2CompVec calculateDFT(const Vector& gf, const std::vector<double>& frequencies, const double time)
 {
-	FreqFields res(frequencies.size());
-	size_t dofs{ 0 };
-	auto time_step_counter{ 0 };
-
-	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path_)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			auto gf{ getGridFunction(mesh, dir_entry.path().generic_string() + field) };
-			if (field == "/Hx.gf" || field == "/Hy.gf" || field == "/Hz.gf") {
-				gf /= eta_0;
-			}
-			auto time = getTime(dir_entry.path().generic_string() + "/time.txt") / v;
-			dofs = gf.Size();
-			time_step_counter++;
-			for (int f{ 0 }; f < frequencies.size(); f++) {
-				if (res[f].size() != dofs) { res[f].resize(dofs); }
-				for (int i{ 0 }; i < dofs; i++) {
-					auto arg = -2.0 * M_PI * frequencies[f] * time;
-					res[f][i] += std::complex<double>(gf[i] * cos(arg), gf[i] * sin(arg));
-				}
-			}
+	Freq2CompVec res(frequencies.size());
+	for (int f{ 0 }; f < frequencies.size(); f++) {
+		res[f].resize(gf.Size());
+		for (int i{ 0 }; i < gf.Size(); i++) {
+			auto arg = -2.0 * M_PI * frequencies[f] * time;
+			res[f][i] += std::complex<double>(gf[i] * cos(arg), gf[i] * sin(arg));
 		}
 	}
-	for (int f{ 0 }; f < frequencies.size(); f++) {
-		for (int i{ 0 }; i < dofs; i++) {
-			res[f][i] /= time_step_counter;
+	return res;
+}
+void normaliseFreqFields(FreqFields& ff, size_t value)
+{
+	for (int f{ 0 }; f < ff.Ex.size(); ++f) {
+		for (int v{ 0 }; v < ff.Ex[f].size(); ++v) {
+			ff.Ex[f][v] /= (double)value;
+			ff.Ey[f][v] /= (double)value;
+			ff.Ez[f][v] /= (double)value;
+			ff.Hx[f][v] /= (double)value;
+			ff.Hy[f][v] /= (double)value;
+			ff.Hz[f][v] /= (double)value;
 		}
+	}
+}
+FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& path)
+{
+	FreqFields res;
+	size_t time_step_counter{ 0 };
+	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
+
+	std::vector<double> time{ buildTimeVector(path) };
+
+	std::vector<GridFunction> Ex;
+	std::vector<GridFunction> Ey;
+	std::vector<GridFunction> Ez;
+	std::vector<GridFunction> Hx;
+	std::vector<GridFunction> Hy;
+	std::vector<GridFunction> Hz;
+
+	for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			Ex.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Ex.gf"));
+			Ey.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Ey.gf"));
+			Ez.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Ez.gf"));
+			Hx.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Hx.gf"));
+			Hy.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Hy.gf"));
+			Hz.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Hz.gf"));
+		}
+	}
+
+	for (int g{ 0 }; g < Hx.size(); ++g) {
+		Hx[g] /= eta_0;
+		Hy[g] /= eta_0;
+		Hz[g] /= eta_0;
+	}
+
+	res.Ex.resize(frequencies.size());
+	res.Ey.resize(frequencies.size());
+	res.Ez.resize(frequencies.size());
+	res.Hx.resize(frequencies.size());
+	res.Hy.resize(frequencies.size());
+	res.Hz.resize(frequencies.size());
+
+	for (int f{ 0 }; f < frequencies.size(); ++f) {
+		std::complex<double> comp_ex(0.0, 0.0), comp_ey(0.0, 0.0), comp_ez(0.0, 0.0), comp_hx(0.0, 0.0), comp_hy(0.0, 0.0), comp_hz(0.0, 0.0);
+		for (int t{ 0 }; t < time.size(); ++t) {
+			auto arg = -2.0 * M_PI * frequencies[f] * time[t];
+			for (int v{ 0 }; v < Ex[f].Size(); ++v) {
+				comp_ex += std::complex<double>(Ex[t][v] * cos(arg), Ex[t][v] * sin(arg));
+				comp_ey += std::complex<double>(Ey[t][v] * cos(arg), Ey[t][v] * sin(arg));
+				comp_ez += std::complex<double>(Ez[t][v] * cos(arg), Ez[t][v] * sin(arg));
+				comp_hx += std::complex<double>(Hx[t][v] * cos(arg), Hx[t][v] * sin(arg));
+				comp_hy += std::complex<double>(Hy[t][v] * cos(arg), Hy[t][v] * sin(arg));
+				comp_hz += std::complex<double>(Hz[t][v] * cos(arg), Hz[t][v] * sin(arg));
+			}
+		}
+		res.Ex[f].push_back(comp_ex);
+		res.Ey[f].push_back(comp_ey);
+		res.Ez[f].push_back(comp_ez);
+		res.Hx[f].push_back(comp_hx);
+		res.Hy[f].push_back(comp_hy);
+		res.Hz[f].push_back(comp_hz);
+	}
+
+	normaliseFreqFields(res, time_step_counter);
+	return res;
+}
+
+ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fes, const Direction& dir) 
+{
+	ComplexVector res;
+	std::unique_ptr<LinearForm> lf_real = assembleLinearForm(fp.first, fes, dir);
+	std::unique_ptr<LinearForm> lf_imag = assembleLinearForm(fp.second, fes, dir);
+	res.resize(lf_real->Size());
+	for (int i{ 0 }; i < res.size(); i++) {
+		res[i] = std::complex<double>(lf_real->Elem(i), lf_imag->Elem(i));
 	}
 	return res;
 }
@@ -270,20 +369,9 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 	auto fc_real{ buildFC_2D(frequency, angles.first, true) };
 	auto fc_imag{ buildFC_2D(frequency, angles.first, false) };
 
-	std::unique_ptr<LinearForm> lf_real_x = assembleLinearForm(fc_real, *fes_.get(), X);
-	std::unique_ptr<LinearForm> lf_real_y = assembleLinearForm(fc_real, *fes_.get(), Y);
-	std::unique_ptr<LinearForm> lf_real_z = assembleLinearForm(fc_real, *fes_.get(), Z);
-	std::unique_ptr<LinearForm> lf_imag_x = assembleLinearForm(fc_imag, *fes_.get(), X);
-	std::unique_ptr<LinearForm> lf_imag_y = assembleLinearForm(fc_imag, *fes_.get(), Y);
-	std::unique_ptr<LinearForm> lf_imag_z = assembleLinearForm(fc_imag, *fes_.get(), Z);
-
-	ComplexVector lf_x(lf_real_x->Size()), lf_y(lf_real_y->Size()), lf_z(lf_real_z->Size());
-
-	for (int i{ 0 }; i < lf_x.size(); i++) {
-		lf_x[i] = std::complex<double>(lf_real_x->Elem(i), lf_imag_x->Elem(i));
-		lf_y[i] = std::complex<double>(lf_real_y->Elem(i), lf_imag_y->Elem(i));
-		lf_z[i] = std::complex<double>(lf_real_z->Elem(i), lf_imag_z->Elem(i));
-	}
+	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real,fc_imag),*fes_.get(),X) };
+	auto lf_y{ assembleComplexLinearForm(std::make_pair(fc_real,fc_imag),*fes_.get(),Y) };
+	auto lf_z{ assembleComplexLinearForm(std::make_pair(fc_real,fc_imag),*fes_.get(),Z) };
 
 	if (isElectric) {
 		for (int val{ 0 }; val < FAx.size(); ++val) {
@@ -301,31 +389,25 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 		DCz = 0.0;
 	}
 
-	auto phi_value = -DCx * sin(angles.first)                      + DCy * cos(angles.first);
-	auto rho_value =  DCx * cos(angles.second) * cos(angles.first) + DCy * cos(angles.second) * sin(angles.first) - DCz * sin(angles.second);
+	auto phi_value   = -DCx * sin(angles.first)                      + DCy * cos(angles.first);
+	auto theta_value =  DCx * cos(angles.second) * cos(angles.first) + DCy * cos(angles.second) * sin(angles.first) - DCz * sin(angles.second);
 
-	return std::pair<std::complex<double>, std::complex<double>>(phi_value, rho_value);
+	return std::pair<std::complex<double>, std::complex<double>>(phi_value, theta_value);
 }
 
 RCSManager::RCSManager(const std::string& path, const std::string& json_path, double dt, int steps, const std::vector<SphericalAngles>& angle_vec)
 {
-	data_path_ = path;
-	
-	Mesh mesh{ Mesh::LoadFromFile(data_path_ + "/mesh", 1, 0) };
-	getFESFromGF(mesh);
+
+	Mesh mesh{ Mesh::LoadFromFile(path + "/mesh", 1, 0) };
+	getFESFromGF(mesh, path);
 
 	const double f_max = 2.0 / dt;
-	auto frequencies{ logspace(-2.0, 2.0, 90) };
-	fillPostDataMaps(frequencies, angle_vec);
+	auto frequencies{ logspace(6.0, 8.0, 10) };
+	auto RCSdata{ fillPostDataMaps(frequencies, angle_vec) };
 
-	auto normalization_term{ buildNormalizationTerm(json_path, frequencies) };
+	auto normalization_term{ buildNormalizationTerm(json_path, path, frequencies) };
 	
-	FreqFields FEx{ assembleFreqFields(mesh, frequencies, "/Ex.gf") };
-	FreqFields FEy{ assembleFreqFields(mesh, frequencies, "/Ey.gf") };
-	FreqFields FEz{ assembleFreqFields(mesh, frequencies, "/Ez.gf") };
- 	FreqFields FHx{ assembleFreqFields(mesh, frequencies, "/Hx.gf") };
-	FreqFields FHy{ assembleFreqFields(mesh, frequencies, "/Hy.gf") };
-	FreqFields FHz{ assembleFreqFields(mesh, frequencies, "/Hz.gf") };
+	FreqFields FreqFields{ calculateFreqFields(mesh, frequencies, path)};
 
 	double freqdata, const_term, landa, wavenumber;
 	std::pair<std::complex<double>, std::complex<double>> N_pair, L_pair;
@@ -333,13 +415,13 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 		for (const auto& angpair : angle_vec) {
 			switch (mesh.SpaceDimension()) {
 			case 2:
-				N_pair = performRCS2DCalculations(FHx[f], FHy[f], FHz[f], frequencies[f], angpair, false);
-				L_pair = performRCS2DCalculations(FEx[f], FEy[f], FEz[f], frequencies[f], angpair, true);
-				landa = v / frequencies[f];
+				N_pair = performRCS2DCalculations(FreqFields.Hx[f], FreqFields.Hy[f], FreqFields.Hz[f], frequencies[f], angpair, false);
+				L_pair = performRCS2DCalculations(FreqFields.Ex[f], FreqFields.Ey[f], FreqFields.Ez[f], frequencies[f], angpair, true);
+				landa = speed_of_wave / frequencies[f];
 				wavenumber = 2.0 * M_PI / landa;
 				const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);
 				freqdata = const_term * (std::pow(std::abs(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - eta_0 * N_pair.first), 2.0));
-				postdata_[angpair][frequencies[f]] = freqdata;
+				RCSdata[angpair][frequencies[f]] = freqdata;
 				break;
 			case 3:
 				break;
@@ -354,8 +436,8 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 		myfile.open("../personal-sandbox/Python/RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log10(RCSData/landa)\n";
 		for (const auto& f : frequencies) {
-			auto landa = v / f;
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log10(postdata_[angpair][f]/landa) << "\n";
+			auto landa = speed_of_wave / f;
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log10(RCSdata[angpair][f]/landa) << "\n";
 		}
 		myfile.close();
 	}

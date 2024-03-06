@@ -23,5 +23,5 @@ target_link_libraries(rcs_tests
 	maxwell-components
 	Eigen3::Eigen
 	GTest::gtest GTest::gtest_main
+	FFTW3::fftw3
 )
-

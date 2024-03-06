@@ -24,19 +24,20 @@ using RCSValue = double;
 using Freq2Value = std::map<Frequency, RCSValue>;
 using SphericalAngles = std::pair<Phi, Rho>;
 using ComplexVector = std::vector<std::complex<double>>;
-using FreqFields = std::vector<ComplexVector>;
+using Freq2CompVec = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
+using FunctionPair = std::pair<FunctionCoefficient, FunctionCoefficient>;
 
 struct FreqFields {
 
-	ComplexVector Ex;
-	ComplexVector Ey;
-	ComplexVector Ez;
-	ComplexVector Hx;
-	ComplexVector Hy;
-	ComplexVector Hz;
+	Freq2CompVec Ex;
+	Freq2CompVec Ey;
+	Freq2CompVec Ez;
+	Freq2CompVec Hx;
+	Freq2CompVec Hy;
+	Freq2CompVec Hz;
 
-	FreqFields();
+	void append(Freq2CompVec, const std::string& field);
 };
 
 struct PlaneWaveData {
@@ -69,12 +70,8 @@ private:
 
 	std::pair<std::complex<double>, std::complex<double>> performRCS2DCalculations(ComplexVector& FAx, ComplexVector& Ay, ComplexVector& Az, const double frequency, const SphericalAngles&, bool isElectric);
 	FreqFields assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field);
-	void fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec);
-	void getFESFromGF(Mesh& mesh);
-	std::vector<double> buildNormalizationTerm(const std::string& json_path, std::vector<double>& frequencies);
+	void getFESFromGF(Mesh& mesh, const std::string& path);
 
-	std::string data_path_;
-	std::map<SphericalAngles, Freq2Value> postdata_;
 	std::unique_ptr<FiniteElementSpace> fes_;
 
 };
