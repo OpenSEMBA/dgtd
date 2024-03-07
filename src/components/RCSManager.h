@@ -37,7 +37,16 @@ struct FreqFields {
 	Freq2CompVec Hy;
 	Freq2CompVec Hz;
 
-	void append(Freq2CompVec, const std::string& field);
+	void append(ComplexVector, const std::string& field, const size_t freq);
+
+	FreqFields(const size_t sizes) {
+		Ex.resize(sizes);
+		Ey.resize(sizes);
+		Ez.resize(sizes);
+		Hx.resize(sizes);
+		Hy.resize(sizes);
+		Hz.resize(sizes);
+	}
 };
 
 struct PlaneWaveData {

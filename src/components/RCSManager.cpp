@@ -14,30 +14,30 @@ double e_0 = 8.8541878128e-12;
 double eta_0{ sqrt(mu_0 / e_0) };
 double speed_of_wave{ 1.0 / sqrt(mu_0 * e_0) };
 
-void FreqFields::append(Freq2CompVec f2cv, const std::string& field)
+void FreqFields::append(ComplexVector vector, const std::string& field, const size_t freq)
 {
 	if (field == "/Ex.gf") {
-		Ex = f2cv;
+		Ex[freq] = vector;
 	}
 	else if (field == "/Ey.gf")
 	{
-		Ey = f2cv;
+		Ey[freq] = vector;
 	}
 	else if (field == "/Ez.gf")
 	{
-		Ez = f2cv;
+		Ez[freq] = vector;
 	}
 	else if (field == "/Hx.gf")
 	{
-		Hx = f2cv;
+		Hx[freq] = vector;
 	}
 	else if (field == "/Hy.gf")
 	{
-		Hy = f2cv;
+		Hy[freq] = vector;
 	}
 	else if (field == "/Hz.gf")
 	{
-		Hz = f2cv;
+		Hz[freq] = vector;
 	}
 };
 
@@ -288,68 +288,39 @@ void normaliseFreqFields(FreqFields& ff, size_t value)
 		}
 	}
 }
+
 FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& path)
 {
-	FreqFields res;
-	size_t time_step_counter{ 0 };
+	FreqFields res(frequencies.size());
 	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
 
 	std::vector<double> time{ buildTimeVector(path) };
 
-	std::vector<GridFunction> Ex;
-	std::vector<GridFunction> Ey;
-	std::vector<GridFunction> Ez;
-	std::vector<GridFunction> Hx;
-	std::vector<GridFunction> Hy;
-	std::vector<GridFunction> Hz;
-
-	for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			Ex.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Ex.gf"));
-			Ey.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Ey.gf"));
-			Ez.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Ez.gf"));
-			Hx.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Hx.gf"));
-			Hy.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Hy.gf"));
-			Hz.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + "/Hz.gf"));
-		}
-	}
-
-	for (int g{ 0 }; g < Hx.size(); ++g) {
-		Hx[g] /= eta_0;
-		Hy[g] /= eta_0;
-		Hz[g] /= eta_0;
-	}
-
-	res.Ex.resize(frequencies.size());
-	res.Ey.resize(frequencies.size());
-	res.Ez.resize(frequencies.size());
-	res.Hx.resize(frequencies.size());
-	res.Hy.resize(frequencies.size());
-	res.Hz.resize(frequencies.size());
-
-	for (int f{ 0 }; f < frequencies.size(); ++f) {
-	ComplexVector comp_ex(Ex[f].Size()), comp_ey(Ey[f].Size()), comp_ez(Ez[f].Size()), comp_hx(Hx[f].Size()), comp_hy(Hy[f].Size()), comp_hz(Hz[f].Size());
-		for (int t{ 0 }; t < time.size(); ++t) {
-			auto arg = -2.0 * M_PI * frequencies[f] * time[t];
-			for (int v{ 0 }; v < Ex[f].Size(); ++v) {
-				comp_ex[v] += std::complex<double>(Ex[t][v] * cos(arg), Ex[t][v] * sin(arg));
-				comp_ey[v] += std::complex<double>(Ey[t][v] * cos(arg), Ey[t][v] * sin(arg));
-				comp_ez[v] += std::complex<double>(Ez[t][v] * cos(arg), Ez[t][v] * sin(arg));
-				comp_hx[v] += std::complex<double>(Hx[t][v] * cos(arg), Hx[t][v] * sin(arg));
-				comp_hy[v] += std::complex<double>(Hy[t][v] * cos(arg), Hy[t][v] * sin(arg));
-				comp_hz[v] += std::complex<double>(Hz[t][v] * cos(arg), Hz[t][v] * sin(arg));
+	for (const auto& field : fields) {
+		std::vector<GridFunction> A;
+		for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
+			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
 			}
-			time_step_counter++;
 		}
-		res.Ex[f] = comp_ex;
-		res.Ey[f] = comp_ey;
-		res.Ez[f] = comp_ez;
-		res.Hx[f] = comp_hx;
-		res.Hy[f] = comp_hy;
-		res.Hz[f] = comp_hz;
+		if (field == "/Hx.gf" || field == "/Hy.gf" || field == "/Hz.gf") {
+			for (int g{ 0 }; g < A.size(); ++g) {
+				A[g] /= eta_0;
+			}
+		}
+		for (int f{ 0 }; f < frequencies.size(); ++f) {
+			ComplexVector comp_vec(A[f].Size());
+			for (int t{ 0 }; t < time.size(); ++t) {
+				auto arg = -2.0 * M_PI * frequencies[f] * time[t];
+				for (int v{ 0 }; v < A[f].Size(); ++v) {
+					comp_vec[v] += std::complex<double>(A[t][v] * cos(arg), A[t][v] * sin(arg));
+				}
+			}
+			res.append(comp_vec, field, f);
+		}
 	}
 
-	normaliseFreqFields(res, time_step_counter / frequencies.size());
+	normaliseFreqFields(res, time.size());
 	return res;
 }
 
@@ -403,7 +374,7 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 	getFESFromGF(mesh, path);
 
 	const double f_max = 2.0 / dt;
-	auto frequencies{ logspace(6.0, 8.0, 10) };
+	auto frequencies{ logspace(6.0, 8.5, 500) };
 	auto RCSdata{ fillPostDataMaps(frequencies, angle_vec) };
 
 	auto normalization_term{ buildNormalizationTerm(json_path, path, frequencies) };
