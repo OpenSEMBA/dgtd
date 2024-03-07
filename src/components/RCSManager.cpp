@@ -116,11 +116,11 @@ Array<int> getNTFFMarker(const int att_size)
 	res[static_cast<int>(BdrCond::NearToFarField) - 1] = 1;
 	return res;
 }
-std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteElementSpace& fes, const Direction& dir)
+std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient* fc, FiniteElementSpace& fes, const Direction& dir)
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
 	auto marker{ getNTFFMarker(fes.GetMesh()->bdr_attributes.Max()) };
-	res->AddBdrFaceIntegrator(new mfemExtension::RCSBdrFaceIntegrator(fc, dir), marker);
+	res->AddBdrFaceIntegrator(new mfemExtension::RCSBdrFaceIntegrator(*fc, dir), marker);
 	res->Assemble();
 	return res;
 }
@@ -350,7 +350,7 @@ ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fe
 	return res;
 }
 
-std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles, bool isElectric)
+std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCSCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles, bool isElectric)
 {
 	std::unique_ptr<FunctionCoefficient> fc_real, fc_imag;
 	
@@ -395,7 +395,7 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 	getFESFromGF(mesh, path);
 
 	const double f_max = 2.0 / dt;
-	auto frequencies{ logspace(6.0, 8.5, 500) };
+	auto frequencies{ logspace(6.0, 8.5, 100) };
 	auto RCSdata{ fillPostDataMaps(frequencies, angle_vec) };
 
 	auto normalization_term{ buildNormalizationTerm(json_path, path, frequencies) };
@@ -406,21 +406,13 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 	std::pair<std::complex<double>, std::complex<double>> N_pair, L_pair;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			switch (mesh.SpaceDimension()) {
-			case 2:
-				N_pair = performRCS2DCalculations(FreqFields.Hx[f], FreqFields.Hy[f], FreqFields.Hz[f], frequencies[f], angpair, false);
-				L_pair = performRCS2DCalculations(FreqFields.Ex[f], FreqFields.Ey[f], FreqFields.Ez[f], frequencies[f], angpair, true);
-				landa = speed_of_wave / frequencies[f];
-				wavenumber = 2.0 * M_PI / landa;
-				const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);
-				freqdata = const_term * (std::pow(std::abs(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - eta_0 * N_pair.first), 2.0));
-				RCSdata[angpair][frequencies[f]] = freqdata;
-				break;
-			case 3:
-				break;
-			default:
-				throw std::runtime_error("RCSManager cannot be applied on dimensions other than 2 and 3.");
-			}
+			N_pair = performRCSCalculations(FreqFields.Hx[f], FreqFields.Hy[f], FreqFields.Hz[f], frequencies[f], angpair, false);
+			L_pair = performRCSCalculations(FreqFields.Ex[f], FreqFields.Ey[f], FreqFields.Ez[f], frequencies[f], angpair, true);
+			landa = speed_of_wave / frequencies[f];
+			wavenumber = 2.0 * M_PI / landa;
+			const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);
+			freqdata = const_term * (std::pow(std::abs(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - eta_0 * N_pair.first), 2.0));
+			RCSdata[angpair][frequencies[f]] = freqdata;
 		}
 	}
 
@@ -430,7 +422,9 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log10(RCSData/landa)\n";
 		for (const auto& f : frequencies) {
 			auto landa = speed_of_wave / f;
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log10(RCSdata[angpair][f]/landa) << "\n";
+			double normalization;
+			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log10(RCSdata[angpair][f]/normalization) << "\n";
 		}
 		myfile.close();
 	}
