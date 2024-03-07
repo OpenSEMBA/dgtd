@@ -328,27 +328,28 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencie
 	res.Hz.resize(frequencies.size());
 
 	for (int f{ 0 }; f < frequencies.size(); ++f) {
-		std::complex<double> comp_ex(0.0, 0.0), comp_ey(0.0, 0.0), comp_ez(0.0, 0.0), comp_hx(0.0, 0.0), comp_hy(0.0, 0.0), comp_hz(0.0, 0.0);
+	ComplexVector comp_ex(Ex[f].Size()), comp_ey(Ey[f].Size()), comp_ez(Ez[f].Size()), comp_hx(Hx[f].Size()), comp_hy(Hy[f].Size()), comp_hz(Hz[f].Size());
 		for (int t{ 0 }; t < time.size(); ++t) {
 			auto arg = -2.0 * M_PI * frequencies[f] * time[t];
 			for (int v{ 0 }; v < Ex[f].Size(); ++v) {
-				comp_ex += std::complex<double>(Ex[t][v] * cos(arg), Ex[t][v] * sin(arg));
-				comp_ey += std::complex<double>(Ey[t][v] * cos(arg), Ey[t][v] * sin(arg));
-				comp_ez += std::complex<double>(Ez[t][v] * cos(arg), Ez[t][v] * sin(arg));
-				comp_hx += std::complex<double>(Hx[t][v] * cos(arg), Hx[t][v] * sin(arg));
-				comp_hy += std::complex<double>(Hy[t][v] * cos(arg), Hy[t][v] * sin(arg));
-				comp_hz += std::complex<double>(Hz[t][v] * cos(arg), Hz[t][v] * sin(arg));
+				comp_ex[v] += std::complex<double>(Ex[t][v] * cos(arg), Ex[t][v] * sin(arg));
+				comp_ey[v] += std::complex<double>(Ey[t][v] * cos(arg), Ey[t][v] * sin(arg));
+				comp_ez[v] += std::complex<double>(Ez[t][v] * cos(arg), Ez[t][v] * sin(arg));
+				comp_hx[v] += std::complex<double>(Hx[t][v] * cos(arg), Hx[t][v] * sin(arg));
+				comp_hy[v] += std::complex<double>(Hy[t][v] * cos(arg), Hy[t][v] * sin(arg));
+				comp_hz[v] += std::complex<double>(Hz[t][v] * cos(arg), Hz[t][v] * sin(arg));
 			}
+			time_step_counter++;
 		}
-		res.Ex[f].push_back(comp_ex);
-		res.Ey[f].push_back(comp_ey);
-		res.Ez[f].push_back(comp_ez);
-		res.Hx[f].push_back(comp_hx);
-		res.Hy[f].push_back(comp_hy);
-		res.Hz[f].push_back(comp_hz);
+		res.Ex[f] = comp_ex;
+		res.Ey[f] = comp_ey;
+		res.Ez[f] = comp_ez;
+		res.Hx[f] = comp_hx;
+		res.Hy[f] = comp_hy;
+		res.Hz[f] = comp_hz;
 	}
 
-	normaliseFreqFields(res, time_step_counter);
+	normaliseFreqFields(res, time_step_counter / frequencies.size());
 	return res;
 }
 
