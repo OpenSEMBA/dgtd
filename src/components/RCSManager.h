@@ -26,7 +26,7 @@ using SphericalAngles = std::pair<Phi, Rho>;
 using ComplexVector = std::vector<std::complex<double>>;
 using Freq2CompVec = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
-using FunctionPair = std::pair<FunctionCoefficient, FunctionCoefficient>;
+using FunctionPair = std::pair<FunctionCoefficient*, FunctionCoefficient*>;
 
 struct FreqFields {
 

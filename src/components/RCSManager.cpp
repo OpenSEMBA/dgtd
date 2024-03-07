@@ -124,7 +124,7 @@ std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteEl
 	res->Assemble();
 	return res;
 }
-FunctionCoefficient buildFC_2D(const double freq, const Phi& phi, bool isReal)
+std::unique_ptr<FunctionCoefficient> buildFC_2D(const double freq, const Phi& phi, bool isReal)
 {
 	std::function<double(const Vector&)> f = 0;
 	switch (isReal) {
@@ -136,7 +136,21 @@ FunctionCoefficient buildFC_2D(const double freq, const Phi& phi, bool isReal)
 		break;
 	}
 	FunctionCoefficient res(f);
-	return res;
+	return std::make_unique<FunctionCoefficient>(res);
+}
+std::unique_ptr<FunctionCoefficient> buildFC_3D(const double freq, const SphericalAngles& angles, bool isReal)
+{
+	std::function<double(const Vector&)> f = 0;
+	switch (isReal) {
+	case true:
+		f = std::bind(&func_exp_real_part_3D, std::placeholders::_1, freq, angles);
+		break;
+	case false:
+		f = std::bind(&func_exp_imag_part_3D, std::placeholders::_1, freq, angles);
+		break;
+	}
+	FunctionCoefficient res(f);
+	return std::make_unique<FunctionCoefficient>(res);
 }
 GridFunction getGridFunction(Mesh& mesh, const std::string& path)
 {
@@ -338,20 +352,21 @@ ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fe
 
 std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCalculations(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles, bool isElectric)
 {
-	auto fc_real{ buildFC_2D(frequency, angles.first, true) };
-	auto fc_imag{ buildFC_2D(frequency, angles.first, false) };
-
-	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real,fc_imag),*fes_.get(),X) };
-	auto lf_y{ assembleComplexLinearForm(std::make_pair(fc_real,fc_imag),*fes_.get(),Y) };
-	auto lf_z{ assembleComplexLinearForm(std::make_pair(fc_real,fc_imag),*fes_.get(),Z) };
-
-	if (isElectric) {
-		for (int val{ 0 }; val < FAx.size(); ++val) {
-			FAx[val] *= -1.0;
-			FAy[val] *= -1.0;
-			FAz[val] *= -1.0;
-		}
+	std::unique_ptr<FunctionCoefficient> fc_real, fc_imag;
+	
+	switch (fes_->GetMesh()->SpaceDimension()) {
+	case 2:
+		fc_real = buildFC_2D(frequency, angles.first, true) ;
+		fc_imag = buildFC_2D(frequency, angles.first, false);
+		break;
+	case 3:
+		fc_real = buildFC_3D(frequency, angles, true) ;
+		fc_imag = buildFC_3D(frequency, angles, false);
 	}
+
+	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),X)};
+	auto lf_y{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),Y) };
+	auto lf_z{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),Z) };
 
 	auto DCx{ complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) };
 	auto DCy{ complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) };
@@ -359,6 +374,12 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCS2DCa
 
 	if (fes_.get()->GetMesh()->SpaceDimension() != 3) {
 		DCz = 0.0;
+	}
+
+	if (isElectric) {
+		DCx *= -1.0;
+		DCy *= -1.0;
+		DCz *= -1.0;
 	}
 
 	auto phi_value   = -DCx * sin(angles.first)                      + DCy * cos(angles.first);
