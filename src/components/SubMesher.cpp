@@ -728,19 +728,17 @@ void NearToFarFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTrans
 void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el_is_ntff)
 {
 	if (trans->Elem2No != NotFound) {
-		if (!el_is_ntff) {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+		if (el_is_ntff) {
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarField);
 		}
-
 	}
-
 }
 
 void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
 {
 	if (faceId != NotFound) {
-		if (!el_is_ntff) {
-			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem1No, faceId));
+		if (el_is_ntff) {
+			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem2No, faceId));
 		}
 	}
 }
