@@ -29,7 +29,14 @@
   "probes": {
     "exporter": {
       "steps": 20
-    }
+    },
+    "neartofarfield": [
+      {
+        "name": "sphere",
+        "steps": 1,
+        "tags": [ 4 ]
+      }
+    ]
   },
 
   "sources": [ 
