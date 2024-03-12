@@ -283,8 +283,8 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<double>& frequenci
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		res[f].resize(gf.Size());
 		for (int i{ 0 }; i < gf.Size(); i++) {
-			auto arg = -2.0 * M_PI * frequencies[f] * time;
-			res[f][i] += std::complex<double>(gf[i] * cos(arg), gf[i] * sin(arg));
+			auto arg = 2.0 * M_PI * frequencies[f] * time;
+			res[f][i] += std::complex<double>(gf[i] * cos(arg), gf[i] * -sin(arg));
 		}
 	}
 	return res;
@@ -416,9 +416,12 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 		}
 	}
 
+	std::string dim;
+	fes_->GetMesh()->SpaceDimension() == 2 ? dim = "2D_" : dim = "3D_";
+
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		myfile.open("../personal-sandbox/Python/RCSData_" + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile.open("../personal-sandbox/Python/RCSData_" + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log10(RCSData/landa)\n";
 		for (const auto& f : frequencies) {
 			auto landa = speed_of_wave / f;
