@@ -182,7 +182,6 @@ std::map<SphericalAngles, Freq2Value> fillPostDataMaps(const std::vector<double>
 	return res;
 }
 
-
 PlaneWaveData buildPlaneWaveData(const json& json)
 {
 	double mean(-1e5), delay(-1e5);
@@ -263,8 +262,9 @@ std::vector<double> buildNormalizationTerm(const std::string& json_path, const s
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		std::complex<double> freq_val(0.0, 0.0);
 		for (int t{ 0 }; t < time.size(); t++) {
-			auto arg = -2.0 * M_PI * frequencies[f] * time[t];
-			freq_val += std::complex<double>(gauss_val[t] * cos(arg), gauss_val[t] * sin(arg));
+			auto arg = 2.0 * M_PI * frequencies[f] * time[t];
+			auto w = std::complex<double>(cos(arg), -sin(arg));
+			freq_val += gauss_val[t] * w;
 		}
 		freq2complex.emplace(std::make_pair(frequencies[f], freq_val));
 		res[f] = e_0 * std::pow(std::abs(freq_val), 2.0);
@@ -281,10 +281,11 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<double>& frequenci
 {
 	Freq2CompVec res(frequencies.size());
 	for (int f{ 0 }; f < frequencies.size(); f++) {
-		res[f].resize(gf.Size());
+		res[f].resize(gf.Size(), std::complex<double>(0.0, 0.0));
 		for (int i{ 0 }; i < gf.Size(); i++) {
 			auto arg = 2.0 * M_PI * frequencies[f] * time;
-			res[f][i] += std::complex<double>(gf[i] * cos(arg), gf[i] * -sin(arg));
+			auto w = std::complex<double>(cos(arg), -sin(arg));
+			res[f][i] += gf[i] * w;
 		}
 	}
 	return res;
