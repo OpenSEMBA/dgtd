@@ -680,7 +680,7 @@ TEST_F(MaxwellProblemTest, 2D_NTFF_Box_Upwind)
 
 TEST_F(MaxwellProblemTest, 2D_NTFF_Circle_Upwind)
 {
-	std::string case_data{ "2D_NTFF_Circle" };
+	std::string case_data{ "2D_RCS" };
 	auto solver{ buildSolver(case_data) };
 
 	solver.run();

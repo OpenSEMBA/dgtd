@@ -83,7 +83,7 @@ TEST_F(FormTest, RCSForm_2D)
 {
 	
 	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_LinearForm_RCS.msh").c_str(), 1, 0)};
-	auto fec{ DG_FECollection(1, 2) };
+	auto fec{ DG_FECollection(3, 2) };
 	auto fes{ FiniteElementSpace(&m, &fec) };
 
 	GridFunction gf(&fes);
@@ -97,5 +97,21 @@ TEST_F(FormTest, RCSForm_2D)
 	lf.Assemble();
 
 	auto solution = mfem::InnerProduct(lf, gf);
+
+}
+
+TEST_F(FormTest, RCSBdrFaceInt)
+{
+	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_BdrIntegrator.msh").c_str(), 1, 0) };
+	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	LinearForm lf(&fes);
+	FunctionCoefficient fc(buildFC_2D(1e7, 0.0, true));
+	Array<int> bdr_marker(3);
+	bdr_marker = 0;
+	bdr_marker[bdr_marker.Size() - 1] = 1;
+	lf.AddBdrFaceIntegrator(new RCSBdrFaceIntegrator(fc, X), bdr_marker);
+	lf.Assemble();
 
 }
