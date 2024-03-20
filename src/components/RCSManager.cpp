@@ -326,9 +326,10 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencie
 		for (int f{ 0 }; f < frequencies.size(); ++f) {
 			ComplexVector comp_vec(A[f].Size());
 			for (int t{ 0 }; t < time.size(); ++t) {
-				auto arg = -2.0 * M_PI * frequencies[f] * time[t];
+				auto arg = 2.0 * M_PI * frequencies[f] * time[t];
+				auto w = std::complex<double>(cos(arg), -sin(arg));
 				for (int v{ 0 }; v < A[f].Size(); ++v) {
-					comp_vec[v] += std::complex<double>(A[t][v] * cos(arg), A[t][v] * sin(arg));
+					comp_vec[v] += A[t][v] * w;
 				}
 			}
 			res.append(comp_vec, field, f);
@@ -365,7 +366,7 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCSCalc
 		fc_imag = buildFC_3D(frequency, angles, false);
 	}
 
-	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),X)};
+	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),X) };
 	auto lf_y{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),Y) };
 	auto lf_z{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),Z) };
 
