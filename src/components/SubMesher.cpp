@@ -631,6 +631,9 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 	if (!elem_to_face_ntff_.empty()) {
 		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
 	}
+	else {
+		throw std::runtime_error("ntff submesh is empty, check orientation of curves/faces.");
+	}
 }
 
 void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
@@ -659,7 +662,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 					m.GetFaceVertices(el_face[f], face_vert);
 					face_vert.Sort();
 					if (face_vert == be_vert) {
-						face_ori >= 0.0 ? el_info = std::make_pair(f, true) : el_info = std::make_pair(f, false);
+						face_ori >= 0.0 ? el_info = std::make_pair(f, false) : el_info = std::make_pair(f, true);
 						break;
 					}
 				}
@@ -731,6 +734,9 @@ void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementT
 		if (el_is_ntff) {
 			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarField);
 		}
+		else {
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+		}
 	}
 }
 
@@ -739,6 +745,9 @@ void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTra
 	if (faceId != NotFound) {
 		if (el_is_ntff) {
 			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem2No, faceId));
+		}
+		else {
+			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem1No, faceId));
 		}
 	}
 }
