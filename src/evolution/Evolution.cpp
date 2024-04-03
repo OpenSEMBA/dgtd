@@ -17,15 +17,15 @@ void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 const FieldGridFuncs evalTimeVarFunction(const Time time, SourcesManager& sm)
 {
 	auto res{ sm.evalTimeVarField(time, sm.getGlobalTFSFSpace()) };
-	sm.markDoFSforTFandSF(res, true);
+	auto func_g_sf = res;
+	sm.markDoFSforTForSF(res, true);
 	{
 		if (sm.getTFSFSubMesher().getSFSubMesh() != NULL) {
-			auto func_g_sf{ sm.evalTimeVarField(time, sm.getGlobalTFSFSpace()) };
-			sm.markDoFSforTFandSF(func_g_sf, false);
+			sm.markDoFSforTForSF(func_g_sf, false);
 			for (int f : {E, H}) {
 				for (int x{ 0 }; x <= Z; x++) {
 					res[f][x] -= func_g_sf[f][x];
-					res[f][x] *= -0.5;
+					res[f][x] *= 0.5;
 				}
 			}
 		}

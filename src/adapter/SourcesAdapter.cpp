@@ -24,6 +24,19 @@ mfem::Vector assemble3DVector(const json& input)
 	return res;
 }
 
+FieldType getFieldType(const std::string& ft) 
+{
+	if (ft == "electric") {
+		return FieldType::E;
+	}
+	else if (ft == "magnetic") {
+		return FieldType::H;
+	}
+	else {
+		throw std::runtime_error("The fieldtype written in the json is neither 'electric' nor 'magnetic'");
+	}
+}
+
 Sources buildSources(const json& case_data)
 {
 	Sources res;
@@ -51,7 +64,8 @@ Sources buildSources(const json& case_data)
 				case_data["sources"][s]["magnitude"]["spread"],
 				case_data["sources"][s]["magnitude"]["delay"],
 				assemble3DVector(case_data["sources"][s]["polarization"]),
-				assemble3DVector(case_data["sources"][s]["propagation"])
+				assemble3DVector(case_data["sources"][s]["propagation"]),
+				getFieldType(case_data["sources"][s]["fieldtype"])
 			);
 		}
 		else {

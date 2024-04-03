@@ -56,16 +56,19 @@ double InitialField::eval(
 Planewave::Planewave(
 	const Function& mag, 
 	const Polarization& p, 
-	const Propagation& dir):
+	const Propagation& dir,
+	const FieldType& ft):
 	magnitude_{ mag.clone() },
 	polarization_{ p },
-	propagation_{ dir }
+	propagation_{ dir },
+	fieldtype_{ ft }
 {}
 
 Planewave::Planewave(const Planewave& rhs) :
 	magnitude_{ rhs.magnitude_->clone() },
 	polarization_{ rhs.polarization_ },
-	propagation_{ rhs.propagation_ }
+	propagation_{ rhs.propagation_ },
+	fieldtype_{ rhs.fieldtype_ }
 {
 	assert(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE);
 	assert(std::abs(1.0 - propagation_.Norml2()) <= TOLERANCE);
@@ -85,11 +88,24 @@ double Planewave::eval(
 	assert(d == X || d == Y || d == Z);
 	
 	mfem::Vector fieldPol(3);
-	if (f == E) {
-		fieldPol = polarization_;
-	}
-	else {
-		fieldPol = crossProduct(propagation_, polarization_);
+
+	switch (fieldtype_) {
+	case E:
+		if (f == E) {
+			fieldPol = polarization_;
+		}
+		else {
+			fieldPol = crossProduct(propagation_, polarization_);
+		}
+		break;
+	case H:
+		if (f == H) {
+			fieldPol = polarization_;
+		}
+		else {
+			fieldPol = crossProduct(polarization_, propagation_);
+		}
+		break;
 	}
 
 	mfem::Vector pos(3);

@@ -230,14 +230,14 @@ void cleanInvalidSubMeshEntries(std::vector<El2Face>& v)
 
 void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const std::pair<Array<int>, BdrCond>& parent_info)
 {
-	if (child.Dimension() == 1) {
-		for (int e = 0; e < child.GetNE(); e++) {
-			Array<int> verts(2);
-			child.GetElementVertices(e, verts);
-			child.AddBdrPoint(verts[0]);
-			child.AddBdrPoint(verts[1]);
-		}
-	}
+	//if (child.Dimension() == 1) {
+	//	for (int e = 0; e < child.GetNE(); e++) {
+	//		Array<int> verts(2);
+	//		child.GetElementVertices(e, verts);
+	//		child.AddBdrPoint(verts[0]);
+	//		child.AddBdrPoint(verts[1]);
+	//	}
+	//}
 	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
 	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };

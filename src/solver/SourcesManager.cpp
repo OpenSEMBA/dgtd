@@ -112,7 +112,7 @@ FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, bool is_tf)
     return res;
 }
 
-void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
+void SourcesManager::markDoFSforTForSF(FieldGridFuncs& gfs, bool isTF)
 {
     auto global_tfsf_map = tfsf_submesher_.getGlobalTFSFSubMesh()->GetParentElementIDMap();
     Array<int> secondary_map;

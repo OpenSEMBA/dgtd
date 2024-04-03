@@ -46,12 +46,13 @@ static Sources buildGaussianPlanewave(
 	double spread,
 	double delay,
 	const Source::Polarization& pol,
-	const Source::Propagation& dir
+	const Source::Propagation& dir,
+	const FieldType ft = FieldType::E
 )
 {
 	Gaussian mag{ spread, mfem::Vector({-delay}) };
 	Sources res;
-	res.add(std::make_unique<Planewave>(mag, pol, dir));
+	res.add(std::make_unique<Planewave>(mag, pol, dir, ft));
 	return res;
 }
 
