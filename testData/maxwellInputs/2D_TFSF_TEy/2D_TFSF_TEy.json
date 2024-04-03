@@ -1,26 +1,26 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 5e-3,
-    "final_time":  20.0,
+    "time_step": 1e-2,
+    "final_time":  10.0,
     "order": 3
   },
 
-  "model": { 
-    "filename": "2D_RCS.msh",
+  "model": {
+    "filename": "2D_TFSF_TEy.msh",
     "materials": [
       {
-        "tags": [ 2, 3 ],
+        "tags": [ 1, 2 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 7 ],
-        "type": "SMA"
+        "tags": [ 4, 6 ],
+        "type": "PMC"
       },
       {
-        "tags": [ 8 ],
+        "tags": [ 1, 3, 5, 7 ],
         "type": "PEC"
       }
     ]
@@ -30,11 +30,15 @@
     "exporter": {
       "steps": 20
     },
-    "neartofarfield": [
+    "field": [
       {
-        "name": "circle",
-        "steps": 1,
-        "tags": [ 3, 4, 5, 6 ]
+        "position": [ 0.0, 0.5 ]
+      },
+      {
+        "position": [ 1.0001, 0.5 ]
+      },
+      {
+        "position": [ 4.0, 0.5 ]
       }
     ]
   },
@@ -42,14 +46,14 @@
   "sources": [ 
     {
       "type": "totalField",
-      "fieldtype":  "magnetic",
-      "polarization": [ 0.0, 0.0, 1.0 ],
+      "fieldtype": "electric",
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3, 4, 5, 6 ],
+      "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.4,
-        "delay": 5.0
+        "delay": 1.0
       }
     }
   ]

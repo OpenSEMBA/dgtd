@@ -51,7 +51,7 @@ private:
 
 class Planewave : public Source {
 public:
-	Planewave(const Function&, const Polarization&, const Propagation&);
+	Planewave(const Function&, const Polarization&, const Propagation&, const FieldType&);
 	Planewave(const Planewave&);
 
 	std::unique_ptr<Source> clone() const;
@@ -64,6 +64,7 @@ private:
 	std::unique_ptr<Function> magnitude_;
 	Polarization polarization_;
 	Propagation propagation_;
+	FieldType fieldtype_;
 };
 
 class Sources {
