@@ -229,20 +229,20 @@ void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vec
 		}
 	}
 }
-void exportIncidentGaussData(std::vector<double>& time, std::vector<double>& gauss_val)
+void exportIncidentGaussData(std::vector<double>& time, std::vector<double>& gauss_val, const std::string& json_data)
 {
 	std::ofstream myfile;
-	myfile.open("../personal-sandbox/Python/GaussData_dgtd.dat");
+	myfile.open("../personal-sandbox/Python/GaussData_" + json_data + "_dgtd.dat");
 	myfile << "Time (s) " << "Gaussian Val (mag)\n";
 	for (int t = 0; t < time.size(); ++t) {
 		myfile << time[t] << " " << gauss_val[t] << "\n";
 	}
 	myfile.close();
 }
-void exportTransformGaussData(std::vector<double>& frequencies, std::map<double, std::complex<double>>& map)
+void exportTransformGaussData(std::vector<double>& frequencies, std::map<double, std::complex<double>>& map, const std::string& json_data)
 {
 	std::ofstream myfile;
-	myfile.open("../personal-sandbox/Python/TransformData_dgtd.dat");
+	myfile.open("../personal-sandbox/Python/TransformData_" + json_data + "_dgtd.dat");
 	myfile << "Frequency (Hz) " << "Real " << "Imag\n";
 	for (int f = 0; f < frequencies.size(); ++f) {
 		myfile << frequencies[f] << " " << map[frequencies[f]].real() << " " << map[frequencies[f]].imag() << "\n";
@@ -269,10 +269,14 @@ std::vector<double> buildNormalizationTerm(const std::string& json_path, const s
 		freq2complex.emplace(std::make_pair(frequencies[f], freq_val));
 		res[f] = e_0 * std::pow(std::abs(freq_val), 2.0);
 	}
+	auto max = *std::max_element(std::begin(res), std::end(res));
+	//for (auto f{ 0 }; f < res.size(); f++) {
+	//	res[f] /= max;
+	//}
 
 	trimLowMagFreqs(freq2complex, frequencies);
-	exportIncidentGaussData(time, gauss_val);
-	exportTransformGaussData(frequencies, freq2complex);
+	exportIncidentGaussData(time, gauss_val, json_path);
+	exportTransformGaussData(frequencies, freq2complex, json_path);
 
 	return res;
 }
@@ -366,17 +370,13 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCSCalc
 		fc_imag = buildFC_3D(frequency, angles, false);
 	}
 
-	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),X) };
-	auto lf_y{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),Y) };
-	auto lf_z{ assembleComplexLinearForm(std::make_pair(fc_real.get(),fc_imag.get()),*fes_.get(),Z) };
+	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real.get(), fc_imag.get()), *fes_.get(), X) };
+	auto lf_y{ assembleComplexLinearForm(std::make_pair(fc_real.get(), fc_imag.get()), *fes_.get(), Y) };
+	auto lf_z{ assembleComplexLinearForm(std::make_pair(fc_real.get(), fc_imag.get()), *fes_.get(), Z) };
 
 	auto DCx{ complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) };
 	auto DCy{ complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) };
 	auto DCz{ complexInnerProduct(lf_x, FAy) - complexInnerProduct(lf_y, FAx) };
-
-	if (fes_.get()->GetMesh()->SpaceDimension() != 3) {
-		DCz = 0.0;
-	}
 
 	if (isElectric) {
 		DCx *= -1.0;
@@ -397,7 +397,8 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 	getFESFromGF(mesh, path);
 
 	const double f_max = 2.0 / dt;
-	auto frequencies{ logspace(6.0, 8.5, 100) };
+	std::vector<double> frequencies;
+	frequencies = logspace(6.0, 7.7, 100);
 	auto RCSdata{ fillPostDataMaps(frequencies, angle_vec) };
 
 	auto normalization_term{ buildNormalizationTerm(json_path, path, frequencies) };
@@ -423,13 +424,13 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		myfile.open("../personal-sandbox/Python/RCSData_" + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
-		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "10*log10(RCSData/landa)\n";
+		myfile.open("../personal-sandbox/Python/RCSData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs\n";
 		for (const auto& f : frequencies) {
 			auto landa = speed_of_wave / f;
 			double normalization;
 			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << 10.0*log10(RCSdata[angpair][f]/normalization) << "\n";
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata[angpair][f] << "\n";
 		}
 		myfile.close();
 	}

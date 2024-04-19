@@ -102,8 +102,8 @@ TEST_F(FormTest, RCSForm_2D)
 
 TEST_F(FormTest, RCSBdrFaceInt)
 {
-	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_BdrIntegrator.msh").c_str(), 1, 0) };
-	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
+	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "2D_BdrIntegratorHalfSize.msh").c_str(), 1, 0) };
+	auto fec{ DG_FECollection(2,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&m, &fec) };
 
 	LinearForm lf(&fes);

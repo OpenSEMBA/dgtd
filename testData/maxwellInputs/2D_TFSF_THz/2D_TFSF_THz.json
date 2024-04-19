@@ -6,8 +6,8 @@
     "order": 3
   },
 
-  "model": { 
-    "filename": "2D_TFSF.msh",
+  "model": {
+    "filename": "2D_TFSF_THz.msh",
     "materials": [
       {
         "tags": [ 1, 2 ],
@@ -21,7 +21,7 @@
       },
       {
         "tags": [ 1, 3, 5, 7 ],
-        "type":  "PEC"
+        "type": "PEC"
       }
     ]
   },

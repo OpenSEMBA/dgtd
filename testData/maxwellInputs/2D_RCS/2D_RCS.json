@@ -2,7 +2,7 @@
   "solver_options": {
     "solver_type": "upwind",
     "time_step": 5e-3,
-    "final_time":  20.0,
+    "final_time":  60.0,
     "order": 3
   },
 
@@ -32,7 +32,7 @@
     },
     "neartofarfield": [
       {
-        "name": "circle",
+        "name": "circle_1m",
         "steps": 1,
         "tags": [ 3, 4, 5, 6 ]
       }

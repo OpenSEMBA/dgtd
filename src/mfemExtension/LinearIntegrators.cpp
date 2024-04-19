@@ -152,21 +152,33 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(
 
 void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect) 
 {
-    auto dofs = el.GetDof();
-    shape_.SetSize(dofs);
-    elvect.SetSize(dofs);
+    // Initialise the shape and return vector, making the latter 0.0 as it will have things added onto it, 
+    // and not overwritten.
+    shape_.SetSize(el.GetDof());
+    elvect.SetSize(el.GetDof());
     elvect = 0.0;
 
-    const IntegrationRule* ir = &IntRules.Get(Tr.GetGeometryType(), el.GetOrder() + 2);
+    // Construct or retrieve an integration rule for the appropriate reference element with the desired order of accuracy, 
+    // taking into account the element's geometry type and an appropiate integration rule order.
+    const IntegrationRule* ir = &IntRules.Get(Tr.GetGeometryType(), el.GetOrder() + Tr.Order());
 
+    // Initialise vectors that will hold normal components.
     Vector inner_normal(3), normal(el.GetDim());
 
+    // Loop over each quadrature point in the reference element
     for (int i = 0; i < ir->GetNPoints(); i++)
     {
+        // Extract the current quadrature point from the integration rule
         const IntegrationPoint& ip = ir->IntPoint(i);
+
+        // Prepare to evaluate the coordinate transformation at the current
+        // quadrature point
         Tr.SetAllIntPoints(&ip);
+
         const IntegrationPoint& eip = Tr.GetElement1IntPoint();
 
+        // In the following lines we merely calculate the normal at the specified face, due to the problem 
+        // we're solving and design choices, we invert said normal as we need it heading into the element.
         inner_normal = 0.0;
         normal = 0.0;
         CalcOrtho(Tr.Jacobian(), normal);
@@ -176,9 +188,14 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
         }
 
         el.CalcShape(eip, shape_);
+
+        // We evaluate the value of the coefficient at the specified point.
         auto coeff_eval{ c_.Eval(*Tr.Face, ip) };
 
-        auto val = Tr.Weight() * ip.weight * coeff_eval * normal[dir_];
+        // Assemble the result of the calculation we wante to perform, that is
+        // Weight of the IntegrationPoint * evaluation of the coefficient * normal on the specified direction / weight of the face surface, to make the normal vector unitary (Taflove p361 eq. 8.22a,b).
+        auto val = ip.weight * coeff_eval * normal[dir_];
+        val /= Tr.Weight();
 
         elvect.Add(val, shape_);
     }

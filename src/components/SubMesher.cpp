@@ -205,7 +205,7 @@ const Vector calculateBarycenterVector(Mesh& m, int be)
 
 	Vector res(barys.first.Size());
 	for (auto i{ 0 }; i < res.Size(); ++i) {
-		res[i] = barys.first[i] - barys.second[i];
+		res[i] = barys.second[i] - barys.first[i];
 	}
 	return res;
 }
@@ -507,10 +507,13 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
+			auto baryvector(calculateBarycenterVector(m, be));
+			auto tangentvector(calculateTangent2D(m, be));
+
 			auto face_ori { calculateCrossCoefficient(
-					calculateBarycenterVector(m, be),
-					calculateTangent2D(m, be))
-			};
+					baryvector,
+					tangentvector
+			)};
 
 			auto fe_trans{ getFaceElementTransformation(m, be) };
 

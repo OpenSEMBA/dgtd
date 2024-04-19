@@ -5,7 +5,7 @@
 #include <iostream>
 #include <filesystem>
 
-#include <math.h>
+#include <cmath>
 #include <complex>
 
 #include <components/Probes.h>

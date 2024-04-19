@@ -1,6 +1,8 @@
 .vs/
 out/
 ParaView/
+NearToFarFieldExports/
+NearToFarFieldExports/circle
 
 *.csv
 *.gf

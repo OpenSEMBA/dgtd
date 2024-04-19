@@ -510,3 +510,13 @@ TEST_F(FiniteElementSpaceTest, JacobiGLNodesPosition_1D)
 	}
 
 }
+
+TEST_F(FiniteElementSpaceTest, PolynomialAndBasis) 
+{
+	auto mesh = Mesh::MakeCartesian1D(2);
+	auto fec = DG_FECollection(1, 1, BasisType::GaussLegendre);
+	auto fes = FiniteElementSpace(&mesh, &fec);
+
+	auto gf = GridFunction(&fes);
+	gf = 1.0;
+}
