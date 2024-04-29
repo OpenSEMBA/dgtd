@@ -1,8 +1,4 @@
-#include <gtest/gtest.h>
-
-#include "TestUtils.h"
 #include "components/EigenvalueEstimator.h"
-#include "evolution/EvolutionMethods.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -24,6 +20,7 @@ protected:
 
 TEST_F(EigenvalueEstimatorTest, verifyNoThrow_Quad)
 {
+	auto map = GeomTagToBoundary{};
 	EXPECT_NO_THROW(EigenvalueEstimator(
 		fesQuad, 
 		Model{ 
