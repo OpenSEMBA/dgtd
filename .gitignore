@@ -1,8 +1,11 @@
 .vs/
+.vscode/
+build/
 out/
 ParaView/
 NearToFarFieldExports/
-NearToFarFieldExports/circle
+external/opensemba-core/
+
 
 *.csv
 *.gf
