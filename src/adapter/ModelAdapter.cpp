@@ -18,7 +18,7 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 		return BdrCond::SMA;
 	}
 	else {
-		throw std::exception(("The defined Boundary Type " + bdr_cond + " is incorrect.").c_str());
+		throw std::runtime_error(("The defined Boundary Type " + bdr_cond + " is incorrect.").c_str());
 	}
 }
 

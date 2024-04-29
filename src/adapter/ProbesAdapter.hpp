@@ -2,7 +2,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "components/probes.h"
+#include "components/Probes.h"
 
 using json = nlohmann::json;
 

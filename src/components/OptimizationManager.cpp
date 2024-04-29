@@ -41,7 +41,8 @@ void OptimizationManager::calculateTimeStepForElements()
 	for (int e = 0; e < model_.getConstMesh().GetNE(); ++e) {
 		
 		auto reqs{ assembleTimeSteppingReqs(e) };
-		auto ev{ EigenvalueEstimator(reqs.first, reqs.second, EvolutionOptions{})};
+		auto eo{ EvolutionOptions{}};
+		auto ev{ EigenvalueEstimator(reqs.first, reqs.second, eo)};
 		auto evs{ ev.getElementMatrix().eigenvalues() };
 		elemIdToMaxEV_.emplace(e, calcHighestModulus(evs));
 

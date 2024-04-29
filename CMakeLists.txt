@@ -25,6 +25,8 @@ include_directories(
 	src/adapter/
 )
 
+include(/home/alejandro/Desktop/workspace/vcpkg/scripts/buildsystems/vcpkg.cmake)
+
 add_subdirectory(src)
 
 if(MAXWELL_ENABLE_PYTHON_BINDINGS)
