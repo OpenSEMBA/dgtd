@@ -12,7 +12,7 @@ const FieldType assignFieldType(const std::string& field_type)
 		return FieldType::H;
 	}
 	else {
-		throw std::exception("Wrong Field Type in Point Probe assignation.");
+		throw std::runtime_error("Wrong Field Type in Point Probe assignation.");
 	}
 }
 
@@ -28,7 +28,7 @@ const Direction assignFieldSpatial(const std::string& direction)
 		return Z;
 	}
 	else {
-		throw std::exception("Wrong Field Polarization in Point Probe assignation.");
+		throw std::runtime_error("Wrong Field Polarization in Point Probe assignation.");
 	}
 }
 
@@ -81,7 +81,7 @@ Probes buildProbes(const json& case_data)
 				probe.tags = tags;
 			}
 			else {
-				throw std::exception("Tags have not been defined in neartofarfield probe.");
+				throw std::runtime_error("Tags have not been defined in neartofarfield probe.");
 			}
 			probes.nearToFarFieldProbes.push_back(probe);
 		}

@@ -4,6 +4,6 @@
 inline void checkIfThrows(bool condition, const std::string& msg)
 {
 	if (!condition) {
-		throw std::exception(msg.c_str());
+		throw std::runtime_error(msg.c_str());
 	}
 }

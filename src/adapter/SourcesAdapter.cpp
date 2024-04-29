@@ -69,7 +69,7 @@ Sources buildSources(const json& case_data)
 			);
 		}
 		else {
-			throw std::exception("Unknown source type in Json.");
+			throw std::runtime_error("Unknown source type in Json.");
 		}
 	}
 }

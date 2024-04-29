@@ -1,7 +1,7 @@
 #pragma once
 
 #include "TestUtils.h"
-#include "components/probes.h"
+#include "components/Probes.h"
 
 namespace maxwell {
 

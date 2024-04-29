@@ -32,7 +32,7 @@ Vector getBarycenterOfElement(Mesh& m, int e)
 		res.SetSize(3);
 		break;
 	default:
-		throw std::exception("Wrong dimension for TFSF barycenter calculation.");
+		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
 	}
 	res = 0.0;
 	for (int v = 0; v < elem_vert.Size(); v++) {
@@ -59,7 +59,7 @@ Vector getBarycenterOfFaceElement(Mesh& m, int f)
 		res.SetSize(3);
 		break;
 	default:
-		throw std::exception("Wrong dimension for TFSF barycenter calculation.");
+		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
 	}
 	res = 0.0;
 	for (int v = 0; v < f_elem_vert.Size(); v++) {
@@ -84,7 +84,7 @@ Vector subtract(const double* bdr_v, const Vector& b_v)
 		res.SetSize(3);
 		break;
 	default:
-		throw std::exception("Wrong dimension for TFSF barycenter calculation.");
+		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
 	}
 	for (int i = 0; i < res.Size(); i++) {
 		res[i] = b_v[i] - bdr_v[i];
@@ -111,7 +111,7 @@ Vector getNormal(FaceElementTransformations& fet)
 		CalcOrtho(fet.Jacobian(), res);
 		break;
 	default:
-		throw std::exception("Wrong Dimension for Element in Normal for TFSF orientations.");
+		throw std::runtime_error("Wrong Dimension for Element in Normal for TFSF orientations.");
 	}
 	return res;
 }
@@ -485,7 +485,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 		assignIndividualTFSFAttsTwoPoints1D(m, marker);
 		break;
 	default:
-		throw std::exception("Only one or two TFSF points can be declared in a 1D Mesh.");
+		throw std::runtime_error("Only one or two TFSF points can be declared in a 1D Mesh.");
 	}
 }
 
@@ -672,7 +672,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 			}
 			else {
 				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
-				throw std::exception(error.c_str());
+				throw std::runtime_error(error.c_str());
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
 			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
@@ -716,7 +716,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m
 			}
 			else {
 				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
-				throw std::exception(error.c_str());
+				throw std::runtime_error(error.c_str());
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
 			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
