@@ -1,8 +1,4 @@
-#include <gtest/gtest.h>
-
-#include "TestUtils.h"
 #include "components/EigenvalueEstimator.h"
-#include "evolution/EvolutionMethods.h"
 
 using namespace maxwell;
 using namespace mfem;
