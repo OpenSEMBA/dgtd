@@ -369,10 +369,11 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCSCalc
 		fc_real = buildFC_3D(frequency, angles, true) ;
 		fc_imag = buildFC_3D(frequency, angles, false);
 	}
-
-	auto lf_x{ assembleComplexLinearForm(std::make_pair(fc_real.get(), fc_imag.get()), *fes_.get(), X) };
-	auto lf_y{ assembleComplexLinearForm(std::make_pair(fc_real.get(), fc_imag.get()), *fes_.get(), Y) };
-	auto lf_z{ assembleComplexLinearForm(std::make_pair(fc_real.get(), fc_imag.get()), *fes_.get(), Z) };
+	
+	auto funcCoeff {std::make_pair(fc_real.get(), fc_imag.get())};
+	auto lf_x{ assembleComplexLinearForm(funcCoeff, *fes_.get(), X) };
+	auto lf_y{ assembleComplexLinearForm(funcCoeff, *fes_.get(), Y) };
+	auto lf_z{ assembleComplexLinearForm(funcCoeff, *fes_.get(), Z) };
 
 	auto DCx{ complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) };
 	auto DCy{ complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) };

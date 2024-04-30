@@ -9,6 +9,8 @@
 
 #define DBL_EPSILON 2.2204460492503131e-016
 
+#define DBL_EPSILON 2.2204460492503131e-16
+
 namespace maxwell {
 
 constexpr double TOLERANCE = 10.0 * DBL_EPSILON;

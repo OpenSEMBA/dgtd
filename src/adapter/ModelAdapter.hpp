@@ -2,7 +2,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "components/model.h"
+#include "components/Model.h"
 
 #include "AdapterHelper.h"
 

@@ -99,7 +99,7 @@ void Model::assembleGeomTagToTypeMap(
 	for (const auto& [geomTag, bdr] : geomTagToCond) {
 
 		if (geomTag <= 0) {
-			throw std::exception("geomTag <= 0 in GeomTagToTypeMap assembly.");
+			throw std::runtime_error("geomTag <= 0 in GeomTagToTypeMap assembly.");
 		}
 
 		auto& marker{ getMarker(bdr, isInterior) };
@@ -143,7 +143,7 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 			return tfsfMarker_;
 		break;
 	default:
-		throw std::exception("Wrong BdrCond in getMarkerForBdrCond getter.");
+		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond getter.");
 	}
 }
 

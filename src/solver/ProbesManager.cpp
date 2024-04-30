@@ -157,7 +157,7 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 		}
 	}
 
-	auto& it{ exporterProbesCollection_.find(&p) };
+	auto it{ exporterProbesCollection_.find(&p) };
 	assert(it != exporterProbesCollection_.end());
 	auto& pd{ it->second };
 
@@ -217,7 +217,7 @@ void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
 		}
 	}
 
-	auto& it{ nearToFarFieldProbesCollection_.find(&p) };
+	auto it{ nearToFarFieldProbesCollection_.find(&p) };
 	assert(it != nearToFarFieldProbesCollection_.end());
 	auto& dc{ it->second };
 
