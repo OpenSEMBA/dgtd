@@ -1,4 +1,3 @@
-#pragma once
 #include "MaxwellAdapter.hpp"
 
 json parseJSONfile(const std::string& case_name)

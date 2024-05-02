@@ -1,3 +1,4 @@
+#pragma once
 #include "solver/Solver.h"
 
 #include "ModelAdapter.hpp"

@@ -3,7 +3,6 @@
 
 #include <gtest/gtest.h>
 
-#include "TestUtils.h"
 #include "evolution/EvolutionMethods.h"
 #include <solver/Solver.h>
 

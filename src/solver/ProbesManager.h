@@ -4,7 +4,11 @@
 #include <fstream>
 #include <mfem.hpp>
 
-#include <general/text.hpp>
+#ifdef __linux__
+#     include <mfem/general/text.hpp>
+#elif _WIN32
+#     include <general/text.hpp>
+#endif
 
 #include <components/Probes.h>
 #include <evolution/Fields.h>
