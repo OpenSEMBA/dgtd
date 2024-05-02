@@ -379,8 +379,11 @@ TEST_F(FiniteElementSpaceTest, DGWithPyramidElementNotSupported)
 	BilinearForm bf{ &fes };
 	ConstantCoefficient one{ 1.0 };
 	bf.AddDomainIntegrator(new MassIntegrator(one));
-
-	EXPECT_EXIT(bf.Assemble(), testing::ExitedWithCode(3), ".*");
+	#ifdef _WIN32
+		EXPECT_EXIT(bf.Assemble(), testing::ExitedWithCode(3), ".*");
+	#elif __linux__
+		EXPECT_EXIT(bf.Assemble(), testing::KilledBySignal(6), ".*");
+	#endif
 }
 TEST_F(FiniteElementSpaceTest, H1WithPyramidElement)
 {
