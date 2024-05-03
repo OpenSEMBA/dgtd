@@ -69,7 +69,14 @@ std::size_t Model::numberOfBoundaryMaterials() const
 
 mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 {
-	mfem::Vector res((int)this->mesh_.attributes.Max());
+	int size{ 0 };
+	for (auto const& [geomTag, mat] : attToMatMap_) {
+		if (geomTag >= size) {
+			size = geomTag;
+		}
+	}
+	assert(size > 0);
+	mfem::Vector res(size);
 	res = 0.0;
 
 	for (auto const& [geomTag, mat] : attToMatMap_) {
