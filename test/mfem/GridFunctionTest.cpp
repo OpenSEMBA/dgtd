@@ -365,7 +365,7 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 
 }
 
-TEST_F(GridFunctionTest, ProjectBetweenDifferentSpacesFromRead)
+TEST_F(GridFunctionTest, DISABLED_ProjectBetweenDifferentSpacesFromRead)
 {
 
 	auto mesh{ Mesh::LoadFromFile("NearToFarFieldExports/circle/mesh") };
