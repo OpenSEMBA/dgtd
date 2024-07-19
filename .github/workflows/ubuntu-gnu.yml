@@ -31,7 +31,7 @@ jobs:
     - name: Builds mfem-geg
       run: | 
         cmake -S external/mfem-geg -B mfem-geg-build/ -DCMAKE_BUILD_TYPE=Release
-        cmake --build mfem-geg-build/ -j
+        cmake --build mfem-geg-build/
         cmake --install mfem-geg-build/ --prefix mfem-geg-install/
   
     - name: Builds semba/dgtd
