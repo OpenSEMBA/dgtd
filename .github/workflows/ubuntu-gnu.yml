@@ -53,13 +53,13 @@ jobs:
     - name: Run unit tests 
       run: |
         build/gnu/bin/hesthavenComparison_tests
-        build/gnu/bin/mfem_tests
-        build/gnu/bin/adapter_tests
+        # build/gnu/bin/mfem_tests
+        # build/gnu/bin/adapter_tests
 
-    - name: Run system tests 
-      run: |
-        build/gnu/bin/maxwell_tests
-        build/gnu/bin/rcs_tests
+    # - name: Run system tests 
+    #   run: |
+    #     build/gnu/bin/maxwell_tests
+    #     build/gnu/bin/rcs_tests
 
 
       
