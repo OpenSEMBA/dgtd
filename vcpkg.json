@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    "gtest",
+    "fftw3",
+    "eigen3",
+    "nlohmann-json"
+  ]
+}
+  
