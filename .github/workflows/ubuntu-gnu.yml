@@ -1,13 +1,9 @@
 name: ubuntu-gnu
 
-permissions:
-  actions: write
-
 on:
   push:
     branches:
       - dev
-      - luis
       
   pull_request:
     branches:
@@ -53,7 +49,7 @@ jobs:
     - name: Run unit tests 
       run: |
         build/gnu/bin/hesthavenComparison_tests
-        # build/gnu/bin/mfem_tests
+        build/gnu/bin/mfem_tests
         # build/gnu/bin/adapter_tests
 
     # - name: Run system tests 

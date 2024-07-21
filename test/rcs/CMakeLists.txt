@@ -14,7 +14,7 @@ include_directories(
 )
 
 add_executable(rcs_tests
-"RCSTest.cpp"
+	"RCSTest.cpp"
 )
 
 target_link_libraries(rcs_tests 
@@ -22,6 +22,7 @@ target_link_libraries(rcs_tests
 	maxwell-mfemExtension
 	maxwell-components
 	Eigen3::Eigen
-	GTest::gtest GTest::gtest_main
+	GTest::gtest 
+	GTest::gtest_main
 	FFTW3::fftw3
 )

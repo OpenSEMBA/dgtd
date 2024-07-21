@@ -385,3 +385,4 @@ test/mfem/CMakeFiles/mfem_tests.dir/flags.make
 test/mfem/CMakeFiles/mfem_tests.dir/link.txt
 test/mfem/CMakeFiles/mfem_tests.dir/progress.make
 /dotvs_backup
+CMakeUserPresets.json

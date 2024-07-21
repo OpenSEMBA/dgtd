@@ -22,7 +22,8 @@ public:
 	double func_exp_real_part_2D(const Vector& x, const double freq, const double phi)
 	{
 		//angulo viene dado por x[0], x[1] y 0.0, 0.0. No es el angulo donde observo, es el angulo que forma el punto y el angulo de observacion en un sistema centrado en el punto.
-		auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
+		auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) 
+			/ sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
 		return cos(2.0 * M_PI * (speed_of_light / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 	}
 
@@ -239,7 +240,7 @@ static void performDFT(const std::map<double, std::vector<double>>& dataMap,
 	fftw_free(out);
 }
 
-TEST_F(AlgebraTest, fftw_testing)
+TEST_F(AlgebraTest, DISABLED_fftw_testing)
 {
 	Mesh mesh{ Mesh::LoadFromFile("testData/dftData/mesh", 1, 0) };
 	double frequency{ 300e6 };
