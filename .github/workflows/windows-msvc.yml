@@ -1,25 +1,33 @@
-name: ubuntu-gnu
+name: windows-msvc
+
+permissions:
+  actions: write
 
 on:
   push:
     branches:
-      - dev
-      
-  pull_request:
-    branches:
       - main
       - dev
 
+  pull_request:
+    branches:
+      - dev
+   
+
 jobs:
-  
-  builds-and-test:
-    runs-on: ubuntu-latest
+  builds-and-tests:
     
-    steps:       
-    - name: Checkout
+    runs-on: windows-latest
+
+    steps:
+    
+    - name: checkout
       uses: actions/checkout@v4
       with:
         submodules: 'recursive'
+
+    - name: getcmake
+      uses: lukka/get-cmake@latest
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
@@ -30,13 +38,13 @@ jobs:
     - name: Builds mfem-geg
       run: | 
         cmake -S external/mfem-geg \
-              -B mfem-geg-build/ \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INSTALL_PREFIX=mfem-geg-install \
-              -G Ninja
+                -B mfem-geg-build/ \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX=mfem-geg-install \
+                -G Ninja
         cmake --build mfem-geg-build/ -j
         cmake --install mfem-geg-build/
-  
+        
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
       env: 
@@ -64,4 +72,5 @@ jobs:
     #     build/gnu/bin/rcs_tests
 
 
-      
+        
+    

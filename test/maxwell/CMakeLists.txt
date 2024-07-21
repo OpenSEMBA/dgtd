@@ -5,7 +5,6 @@ message(STATUS "Creating build system for maxwell_Tests")
 if (MAXWELL_USE_MPI)
 	set(MPI_SRCS "solver/ParSolver2DTest.cpp")
 	add_compile_definitions(MAXWELL_USE_MPI)
-	message(STATUS "MPI_SRCS=" ${MPI_SRCS})
 endif()
 
 option(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT OFF)

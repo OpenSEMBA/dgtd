@@ -8,7 +8,6 @@ include_directories(${MFEM_INCLUDE_DIRS})
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(adapter
-	"AdapterHelper.h"
 	"MaxwellAdapter.cpp"
 	"ModelAdapter.cpp"
 	"ProbesAdapter.cpp"
