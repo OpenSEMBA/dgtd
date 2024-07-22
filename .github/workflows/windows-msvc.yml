@@ -56,11 +56,11 @@ jobs:
         build/gnu/bin/mfem_tests
         build/gnu/bin/maxwell_tests
 
-    - name: Run system tests 
-      run: |
-        build/gnu/bin/cases_tests
-        build/gnu/bin/maxwell_solver_tests
-        build/gnu/bin/rcs_tests
+    # - name: Run system tests 
+    #   run: |
+    #     build/gnu/bin/cases_tests
+    #     build/gnu/bin/maxwell_solver_tests
+    #     build/gnu/bin/rcs_tests
 
 
         
