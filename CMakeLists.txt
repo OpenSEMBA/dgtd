@@ -19,9 +19,12 @@ include_directories(
 
 if (MAXWELL_USE_MFEM_AS_SUBDIRECTORY)
 	add_subdirectory(external/mfem-geg)
+else ()
+	find_package(MFEM CONFIG REQUIRED)
+	include_directories(${MFEM_INCLUDE_DIRS})
 endif()
+# add_definitions(-DMFEM_USE_DOUBLE)
 
-add_definitions(-DMFEM_USE_DOUBLE)
 add_subdirectory(src)
 
 if(MAXWELL_ENABLE_PYTHON_BINDINGS)

@@ -16,9 +16,9 @@
             "type": "FILEPATH",
             "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
           },
-          "MFEM_DIR": {
-            "type": "FILEPATH",
-            "value": "$env{MFEM_DIR}"
+          "MAXWELL_USE_MFEM_AS_SUBDIRECTORY":{
+            "type": "BOOL",
+            "value": true
           },
           "CMAKE_BUILD_TYPE": {
             "type": "STRING",

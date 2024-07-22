@@ -39,8 +39,6 @@ jobs:
   
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
-      env: 
-        MFEM_DIR: 'mfem-geg-install/lib/cmake/mfem/'
       with:
         configurePreset: 'gnu'
         buildPreset: 'gnu'
