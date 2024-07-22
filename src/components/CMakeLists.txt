@@ -6,9 +6,6 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(nlohmann_json CONFIG REQUIRED)
 
-find_package(MFEM CONFIG REQUIRED)
-include_directories(${MFEM_INCLUDE_DIRS})
-
 add_library(maxwell-components STATIC 
 	"Material.cpp"
 	"Model.cpp" 
@@ -17,7 +14,8 @@ add_library(maxwell-components STATIC
 	"OptimizationManager.cpp"
 	"SubMesher.cpp"
 	"RCSManager.cpp" 
-	"RCSExporter.cpp")
+	"RCSExporter.cpp"
+)
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})

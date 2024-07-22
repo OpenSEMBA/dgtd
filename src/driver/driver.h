@@ -6,7 +6,6 @@
 
 using json = nlohmann::json;
 
-
 namespace maxwell::driver {
 	using BoundaryPair = std::pair<GeomTagToBoundary, GeomTagToInteriorConditions>;
 

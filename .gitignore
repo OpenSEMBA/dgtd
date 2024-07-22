@@ -46,8 +46,6 @@ mesh.mesh
 
 *.FCStd1
 
-external/
-
 
 .vs/*
 out/*

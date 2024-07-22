@@ -27,15 +27,15 @@ jobs:
     - name: Setup Ninja
       uses: ashutoshvarma/setup-ninja@master
 
-    - name: Builds mfem-geg
-      run: | 
-        cmake -S external/mfem-geg \
-              -B mfem-geg-build/ \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INSTALL_PREFIX=mfem-geg-install \
-              -G Ninja
-        cmake --build mfem-geg-build/ -j
-        cmake --install mfem-geg-build/
+    # - name: Builds mfem-geg
+    #   run: | 
+    #     cmake -S external/mfem-geg \
+    #           -B mfem-geg-build/ \
+    #           -DCMAKE_BUILD_TYPE=Release \
+    #           -DCMAKE_INSTALL_PREFIX=mfem-geg-install \
+    #           -G Ninja
+    #     cmake --build mfem-geg-build/ -j
+    #     cmake --install mfem-geg-build/
   
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10

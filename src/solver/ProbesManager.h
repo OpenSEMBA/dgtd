@@ -2,9 +2,9 @@
 
 #include <iostream>
 #include <fstream>
-#include <mfem.hpp>
 
-#include <mfem/general/text.hpp>
+#include "mfem.hpp"
+#include "general/text.hpp"
 
 #include <components/Probes.h>
 #include <evolution/Fields.h>

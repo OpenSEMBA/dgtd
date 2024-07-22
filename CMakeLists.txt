@@ -10,11 +10,16 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(MAXWELL_USE_MPI OFF)
 option(MAXWELL_ENABLE_PYTHON_BINDINGS OFF)
+option(MAXWELL_USE_MFEM_AS_SUBDIRECTORY ON)
 
 include_directories(
 	src/ 
 	src/maxwell/
 )
+
+if (MAXWELL_USE_MFEM_AS_SUBDIRECTORY)
+	add_subdirectory(external/mfem-geg)
+endif()
 
 add_definitions(-DMFEM_USE_DOUBLE)
 add_subdirectory(src)
