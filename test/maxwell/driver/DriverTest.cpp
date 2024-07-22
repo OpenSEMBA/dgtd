@@ -113,5 +113,3 @@ TEST_F(DriverTest, adaptsSourcesObjects)
 
 	EXPECT_EQ(1, sources.size());
 }
-
-}

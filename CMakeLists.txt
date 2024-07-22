@@ -27,8 +27,3 @@ enable_testing()
 
 add_subdirectory(test/  )
 
-add_test(maxwell ${CMAKE_BINARY_DIR}/bin/maxwell_tests)
-add_test(mfem ${CMAKE_BINARY_DIR}/bin/mfem_tests)
-add_test(hesthavenComparison ${CMAKE_BINARY_DIR}/bin/hesthavenComparison_tests)
-add_test(adapter ${CMAKE_BINARY_DIR}/bin/adapter_tests)
-add_test(rcs ${CMAKE_BINARY_DIR}/bin/rcs_tests)

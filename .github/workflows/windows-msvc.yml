@@ -50,22 +50,17 @@ jobs:
         buildPreset: 'gnu'
         buildPresetAdditionalArgs: "['--parallel']"
       
-    - name: Run hesthaven comparison tests 
+    - name: Run unit tests 
       run: |
         build/gnu/bin/hesthavenComparison_tests
-
-    - name: Run mfem tests
-      run: |
         build/gnu/bin/mfem_tests
+        build/gnu/bin/maxwell_tests
 
-    - name: Run adapter tests
+    - name: Run system tests 
       run: |
-        build/gnu/bin/adapter_tests
-
-    # - name: Run system tests 
-    #   run: |
-    #     build/gnu/bin/maxwell_tests
-    #     build/gnu/bin/rcs_tests
+        build/gnu/bin/cases_tests
+        build/gnu/bin/maxwell_solver_tests
+        build/gnu/bin/rcs_tests
 
 
         
