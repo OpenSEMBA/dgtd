@@ -253,7 +253,7 @@ void exportTransformGaussData(std::vector<double>& frequencies, std::map<double,
 std::vector<double> buildNormalizationTerm(const std::string& json_path, const std::string& path, std::vector<double>& frequencies)
 {
 
-	auto planewave_data{ buildPlaneWaveData(parseJSONfile(json_path)) };
+	auto planewave_data{ buildPlaneWaveData(driver::parseJSONfile(json_path)) };
 	std::vector<double> time{ buildTimeVector(path) };
 	std::vector<double> gauss_val{ evaluateGaussianVector(time, planewave_data.delay, planewave_data.mean) };
 

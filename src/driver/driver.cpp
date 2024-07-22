@@ -395,7 +395,6 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 
 	return std::make_pair(geomTag2bdr, geomTag2intCond);
 }
-
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
 	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);

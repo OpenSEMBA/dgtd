@@ -3,8 +3,10 @@
 #include "TestUtils.h"
 
 using json = nlohmann::json;
+
 using namespace mfem;
 using namespace maxwell;
+using namespace maxwell::driver;
 
 class CasesTest : public ::testing::Test {
 

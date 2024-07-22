@@ -13,7 +13,6 @@ add_library(maxwell-components STATIC
 	"Material.cpp"
 	"Model.cpp" 
 	"Sources.cpp"
-	"../solver/SolverInput.h"
 	"EigenvalueEstimator.cpp"
 	"OptimizationManager.cpp"
 	"SubMesher.cpp"
@@ -23,4 +22,4 @@ add_library(maxwell-components STATIC
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})
 
-target_link_libraries(maxwell-components adapter mfem Eigen3::Eigen nlohmann_json)
+target_link_libraries(maxwell-components mfem Eigen3::Eigen nlohmann_json)

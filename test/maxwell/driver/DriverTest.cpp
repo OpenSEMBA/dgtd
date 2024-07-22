@@ -2,6 +2,7 @@
 
 #include "driver/driver.h"
 
+using namespace maxwell;
 using namespace maxwell::driver;
 
 class DriverTest : public ::testing::Test {

@@ -13,6 +13,8 @@ find_package(FFTW3f CONFIG REQUIRED)
 
 find_package(FFTW3l CONFIG REQUIRED)
 
+find_package(nlohmann_json CONFIG REQUIRED)
+
 include_directories(
 	./
 )
@@ -29,9 +31,10 @@ target_link_libraries(mfem_tests
 	maxwell-mfemExtension
 	maxwell-components
 	Eigen3::Eigen
-	GTest::gtest GTest::gtest_main
 	FFTW3::fftw3
 	FFTW3::fftw3f
 	FFTW3::fftw3l
+	nlohmann_json
+	GTest::gtest GTest::gtest_main
 )
 
