@@ -1,34 +1,25 @@
-#include <fstream>
-#include <nlohmann/json.hpp>
+#include "TestUtils.h"
 
-#include <adapter/MaxwellAdapter.hpp>
-#include <adapter/ModelAdapter.hpp>
-#include <adapter/ProbesAdapter.hpp>
-#include <adapter/SourcesAdapter.hpp>
-#include <adapter/SolverOptsAdapter.hpp>
+#include "driver/driver.h"
 
-#include <TestUtils.h>
-
-using json = nlohmann::json;
-using namespace mfem;
 using namespace maxwell::driver;
 
-class MaxwellAdapterTest : public ::testing::Test {
+class DriverTest : public ::testing::Test {
 };
 
-TEST_F(MaxwellAdapterTest, testFileFound)
+TEST_F(DriverTest, testFileFound)
 {
 	EXPECT_NO_THROW(maxwellCase("JSON_Parser_Test"));
 }
 
-TEST_F(MaxwellAdapterTest, testFileParsed)
+TEST_F(DriverTest, testFileParsed)
 {
 	auto file_name{ maxwellCase("JSON_Parser_Test") };
 	std::ifstream test_file(file_name);
 	EXPECT_NO_THROW(json::parse(test_file));
 }
 
-TEST_F(MaxwellAdapterTest, jsonFindsExistingNestedObjects)
+TEST_F(DriverTest, jsonFindsExistingNestedObjects)
 {
 	auto file_name{ maxwellCase("JSON_Parser_Test") };
 	std::ifstream test_file(file_name);
@@ -50,7 +41,7 @@ TEST_F(MaxwellAdapterTest, jsonFindsExistingNestedObjects)
 	EXPECT_TRUE(case_data["sources"][1]["magnitude"].contains("mode"));
 }
 
-TEST_F(MaxwellAdapterTest, readsMesh)
+TEST_F(DriverTest, readsMesh)
 {
 	auto file_name{ maxwellCase("2D_Parser_BdrAndInterior") };
 	std::ifstream test_file(file_name);
@@ -61,7 +52,7 @@ TEST_F(MaxwellAdapterTest, readsMesh)
 	EXPECT_EQ(expected, assembleMeshString(case_data["model"]["filename"]));
 }
 
-TEST_F(MaxwellAdapterTest, adaptsModelObjects)
+TEST_F(DriverTest, adaptsModelObjects)
 {
 	auto file_name{ maxwellCase("2D_Parser_BdrAndInterior") };
 	std::ifstream test_file(file_name);
@@ -94,7 +85,7 @@ TEST_F(MaxwellAdapterTest, adaptsModelObjects)
 	}
 }
 
-TEST_F(MaxwellAdapterTest, adaptsProbeObjects) 
+TEST_F(DriverTest, adaptsProbeObjects) 
 {
 	auto file_name{ maxwellCase("1D_PEC") };
 	std::ifstream test_file(file_name);
@@ -110,7 +101,7 @@ TEST_F(MaxwellAdapterTest, adaptsProbeObjects)
 
 }
 
-TEST_F(MaxwellAdapterTest, adaptsSourcesObjects)
+TEST_F(DriverTest, adaptsSourcesObjects)
 {
 	auto file_name{ maxwellCase("2D_Parser_BdrAndInterior") };
 	std::ifstream test_file(file_name);

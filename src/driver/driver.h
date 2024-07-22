@@ -8,6 +8,7 @@ using json = nlohmann::json;
 
 namespace maxwell::driver {
 	json parseJSONfile(const std::string& case_name);
+
 	maxwell::Solver buildSolver(const std::string& case_name);
 	maxwell::Solver buildSolver(const json& case_data);
 

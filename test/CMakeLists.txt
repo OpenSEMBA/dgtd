@@ -8,6 +8,7 @@ include_directories(
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
+add_subdirectory(cases)
 add_subdirectory(maxwell)
 add_subdirectory(mfem)
 add_subdirectory(hesthavenComparison)

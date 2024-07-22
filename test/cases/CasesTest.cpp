@@ -1,19 +1,10 @@
-#include <fstream>
-#include <nlohmann/json.hpp>
+#include "driver/driver.h"
 
-#include <adapter/MaxwellAdapter.hpp>
-#include <adapter/ModelAdapter.hpp>
-#include <adapter/ProbesAdapter.hpp>
-#include <adapter/SourcesAdapter.hpp>
-#include <adapter/SolverOptsAdapter.hpp>
-
-#include <TestUtils.h>
+#include "TestUtils.h"
 
 using json = nlohmann::json;
 using namespace mfem;
-
-namespace maxwell {
-
+using namespace maxwell;
 
 class CasesTest : public ::testing::Test {
 
@@ -843,4 +834,3 @@ TEST_F(CasesTest, 3D_NTFF_Sphere_Upwind)
 	solver.run();
 }
 
-}

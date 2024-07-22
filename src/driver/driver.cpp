@@ -1,4 +1,6 @@
-#include "MaxwellAdapter.hpp"
+#include "driver.h"
+
+namespace maxwell::driver {
 
 inline void checkIfThrows(bool condition, const std::string& msg)
 {
@@ -74,6 +76,53 @@ FieldType getFieldType(const std::string& ft)
 	else {
 		throw std::runtime_error("The fieldtype written in the json is neither 'electric' nor 'magnetic'");
 	}
+}
+
+Sources buildGaussianInitialField(
+	const FieldType& ft = E,
+	const double spread = 0.1,
+	const mfem::Vector& center_ = mfem::Vector({ 0.5 }),
+	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
+	const int dimension = 1)
+{
+	mfem::Vector gaussianCenter(dimension);
+	gaussianCenter = 0.0;
+
+	Sources res;
+	res.add(std::make_unique<InitialField>(
+		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_)
+	);
+	return res;
+}
+
+Sources buildResonantModeInitialField(
+	const FieldType& ft = E,
+	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
+	const std::vector<std::size_t>& modes = { 1 })
+{
+	Sources res;
+	Source::Position center_((int)modes.size());
+	center_ = 0.0;
+	res.add(
+		std::make_unique<InitialField>(
+			SinusoidalMode{ modes }, ft, p, center_
+		)
+	);
+	return res;
+}
+
+Sources buildGaussianPlanewave(
+	double spread,
+	double delay,
+	const Source::Polarization& pol,
+	const Source::Propagation& dir,
+	const FieldType ft = FieldType::E
+)
+{
+	Gaussian mag{ spread, mfem::Vector({-delay}) };
+	Sources res;
+	res.add(std::make_unique<Planewave>(mag, pol, dir, ft));
+	return res;
 }
 
 Sources buildSources(const json& case_data)
@@ -373,8 +422,7 @@ Model buildModel(const json& case_data)
 
 json parseJSONfile(const std::string& case_name)
 {
-	auto file_name{ maxwellCase(case_name) };
-	std::ifstream test_file(file_name);
+	std::ifstream test_file(case_name);
 	return json::parse(test_file);
 }
 
@@ -406,12 +454,14 @@ void postProcessInformation(const json& case_data, maxwell::Model& model)
 
 maxwell::Solver buildSolver(const json& case_data)
 {
-	maxwell::Model model{ maxwell::buildModel(case_data) };
-	maxwell::Probes probes{ maxwell::buildProbes(case_data) };
-	maxwell::Sources sources{ maxwell::buildSources(case_data) };
-	maxwell::SolverOptions solverOpts{ maxwell::buildSolverOptions(case_data) };
+	maxwell::Model model{ buildModel(case_data) };
+	maxwell::Probes probes{ buildProbes(case_data) };
+	maxwell::Sources sources{ buildSources(case_data) };
+	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };
 
 	postProcessInformation(case_data, model);
 
 	return maxwell::Solver(model, probes, sources, solverOpts);
+}
+
 }

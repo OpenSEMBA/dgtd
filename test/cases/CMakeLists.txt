@@ -9,9 +9,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 include_directories(./)
 
-add_executable (adapter_tests
-	"AdapterTest.cpp")
+add_executable (cases_tests
+	"casesTest.cpp")
 
-target_link_libraries(adapter_tests
-	adapter
-	GTest::gtest GTest::gtest_main)
+target_link_libraries(cases_tests maxwell-driver GTest::gtest GTest::gtest_main)

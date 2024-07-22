@@ -7,15 +7,10 @@ include_directories(${MFEM_INCLUDE_DIRS})
 
 find_package(nlohmann_json CONFIG REQUIRED)
 
-add_library(adapter
-	"MaxwellAdapter.cpp"
-	"ModelAdapter.cpp"
-	"ProbesAdapter.cpp"
-	"SourcesAdapter.cpp"
-	"SolverOptsAdapter.cpp"
+add_library(maxwell-driver "driver.cpp"
 )
 
-target_link_libraries(adapter
+target_link_libraries(maxwell-driver
 	mfem
 	maxwell-solver
 	nlohmann_json)

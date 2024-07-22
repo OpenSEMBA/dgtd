@@ -15,7 +15,8 @@ endif()
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_executable(maxwell_tests
-	"MaxwellTestLauncher.cpp"  
+	"MaxwellTestLauncher.cpp" 
+	"driver/DriverTest.cpp"
 	"components/MaterialTest.cpp" 
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 
