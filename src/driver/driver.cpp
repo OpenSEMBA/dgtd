@@ -330,6 +330,9 @@ GeomTagToMaterial assembleAttributeToMaterial(const json& case_data, const mfem:
 
 BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh& mesh)
 {
+	using FaceNo = int;
+	using isInterior = bool;
+	
 	checkIfThrows(case_data["model"].contains("boundaries"),
 		"JSON data does not include 'boundaries' in 'model'.");
 
