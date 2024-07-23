@@ -7,11 +7,6 @@ if (MAXWELL_USE_MPI)
 	add_compile_definitions(MAXWELL_USE_MPI)
 endif()
 
-option(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT OFF)
-if (MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
-	add_compile_definitions(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
-endif()
-
 add_executable(maxwell_tests
 	"driver/DriverTest.cpp"
 	"components/MaterialTest.cpp" 

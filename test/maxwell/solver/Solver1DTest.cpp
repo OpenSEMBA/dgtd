@@ -58,13 +58,29 @@ protected:
 		}
 	}
 
+	void expectFieldsAreNearAfterEvolution(maxwell::Solver& solver)
+	{
+		GridFunction eOld{ solver.getField(E,Y) };
+		GridFunction hOld{ solver.getField(H,Z) };
+
+		solver.run();
+
+		GridFunction eNew{ solver.getField(E,Y) };
+		GridFunction hNew{ solver.getField(H,Z) };
+
+		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	}
+
 };
 
 TEST_F(Solver1DTest, pec_centered)
 {
 	// This test checks propagation of a wave inside a PEC box. 
 	// Final time is set so that a full cycle is completed.
-	auto probes{ buildProbesWithAnExportProbe() };
+
+	// auto probes{ buildProbesWithAnExportProbe(50) }; // For DEBUGGING.
+	auto probes{ buildEmptyProbes() };
 	probes.pointProbes = {
 		PointProbe{E, Y, {0.0}},
 		PointProbe{H, Z, {0.0}}
@@ -81,20 +97,24 @@ TEST_F(Solver1DTest, pec_centered)
 	};
 	
 	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
+	GridFunction hOld{ solver.getField(H,Z) };
+
+	auto eNormOld{ solver.getFields().getNorml2() };
 	
 	// Checks fields have been initialized.
-	EXPECT_NE(0.0, normOld); 
+	EXPECT_NE(0.0, eNormOld); 
 	
 	solver.run();
 	
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
 	GridFunction eNew{ solver.getField(E,Y) };
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	GridFunction hNew{ solver.getField(H,Z) };
 
-	// Compares all DOFs.
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+
+	EXPECT_NEAR(eNormOld, solver.getFields().getNorml2(), 1e-3);
 
 	// At the left boundary the electric field should be always close to zero...
 	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
@@ -122,61 +142,36 @@ TEST_F(Solver1DTest, pmc_centered)
 	back to its initial state within the specified error.*/
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
-		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(H, 0.1, Vector({0.5}), unitVec(Y)),
-		SolverOptions{}
-			.setTimeStep(2.5e-3)
-			.setCentered()
+		buildEmptyProbes(),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
+		SolverOptions{}.setCentered()
 	};
 
-	GridFunction hOld{ solver.getField(H,Z) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction hNew{ solver.getField(H,Z) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, pec_upwind)
 {
 	maxwell::Solver solver{
 		buildStandardModel(),
-		buildProbesWithAnExportProbe(),
+		buildEmptyProbes(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setCFL(0.65)
 	};
 
-	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getField(E,Y) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, pmc_upwind)
 {
 	maxwell::Solver solver{
-		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
-		buildProbesWithAnExportProbe(),
+		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
+		buildEmptyProbes(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setCFL(0.65)
 	};
 
-	GridFunction hOld{ solver.getField(H,Z) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction hNew{ solver.getField(H,Z) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, sma)

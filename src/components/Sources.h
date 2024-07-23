@@ -91,13 +91,12 @@ public:
 	}
 	Sources& operator=(Sources&& rhs)
 	{
-		Sources res;
 		{
 			for (auto& v : rhs) {
 				v_.push_back(std::move(v));
 			}
 		}
-		return res;
+		return *this;
 	}
 
 	std::vector<std::unique_ptr<Source>>::const_iterator begin() const
