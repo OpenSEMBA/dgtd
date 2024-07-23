@@ -15,6 +15,8 @@ add_executable(maxwell_tests
 	"mfemExtension/LinearFormExtensionTest.cpp" 
 	"math/GeometryTest.cpp"
 	"components/EigenvalueEstimator.cpp"
+	"solver/ProbesManagerTest.cpp" 
+	"solver/SourcesTest.cpp"
 )
 
 add_executable(maxwell_solver_tests
@@ -22,9 +24,7 @@ add_executable(maxwell_solver_tests
 	${MPI_SRCS}
 	"solver/Solver1DTest.cpp" 
 	"solver/Solver2DTest.cpp" 
-	"solver/Solver3DTest.cpp"  
-	"solver/ProbesManagerTest.cpp" 
-	"solver/SourcesTest.cpp"
+	"solver/Solver3DTest.cpp" 
 )
 
 target_link_libraries(maxwell_tests

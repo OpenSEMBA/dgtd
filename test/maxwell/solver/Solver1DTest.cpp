@@ -177,14 +177,14 @@ TEST_F(Solver1DTest, pmc_upwind)
 TEST_F(Solver1DTest, sma)
 {
 	maxwell::Solver solver(
-		buildStandardModel(10, BdrCond::SMA, BdrCond::SMA),
-		buildProbesWithAnExportProbe(),
+		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+		buildEmptyProbes(),
 		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), unitVec(Y)),
 		SolverOptions{}
-			.setTimeStep(5e-4)
-			.setFinalTime(1.25)
 			.setOrder(3)
 	);
+
+	EXPECT_NEAR(6.0131571207153787, solver.getFields().getNorml2(), 2e-3);
 
 	solver.run();
 
@@ -197,29 +197,37 @@ TEST_F(Solver1DTest, periodic)
 		Mesh::LoadFromFile((mfemMeshes1DFolder() + "periodic-segment.mesh").c_str(), 1, 0)
 	};
 
-	Model model{ m };
-	auto probes{ buildProbesWithAnExportProbe() };
+	for (auto i{0}; i < 4; ++i) {
+		m.UniformRefinement();
+	}
+
 	maxwell::Solver solver{
-		model,
-		probes,
+		Model{ m },
+		buildEmptyProbes(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
-		SolverOptions{}
-			.setTimeStep(5e-4)
-			.setCentered()
-			.setFinalTime(2.0)
-			.setOrder(5)
+		SolverOptions{}.setFinalTime(1.0)
 	};
 
-	solver.run();
-	
 	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getField(E,Y) };
+	GridFunction hOld{ solver.getField(H,Z) };
 
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	solver.run();
+	{	
+		GridFunction eNew{ solver.getField(E,Y) };
+		GridFunction hNew{ solver.getField(H,Z) };
+		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	}
+
+	solver.setFinalTime(2.0);
+	solver.run();
+	{	
+		GridFunction eNew{ solver.getField(E,Y) };
+		GridFunction hNew{ solver.getField(H,Z) };
+		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	}
+
 }
 
 TEST_F(Solver1DTest, periodic_inhomo)
