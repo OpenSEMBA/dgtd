@@ -12,7 +12,7 @@ static Probes buildProbesWithAnExportProbe(int visSteps = 1)
 	return r;
 }
 
-static Probes buildEmptyProbes()
+static Probes buildProbesEmpty()
 {
 	return { {}, {} };
 }

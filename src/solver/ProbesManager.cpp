@@ -151,7 +151,7 @@ DataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-	if (abs(time - finalTime_) >= 1e-3){
+	if (std::abs(time - finalTime_) >= 1e-3){
 		if (cycle_ % p.visSteps != 0) {
 			return;
 		}

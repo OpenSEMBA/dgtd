@@ -34,7 +34,7 @@ protected:
 		};
 	}
 
-	void setAttributeIntervalMesh1D(
+	void setAttributeOnInterval(
 		const std::map<Attribute, Interval>& attToInterval,
 		Mesh& mesh)
 	{
@@ -80,7 +80,7 @@ TEST_F(Solver1DTest, pec_centered)
 	// Final time is set so that a full cycle is completed.
 
 	// auto probes{ buildProbesWithAnExportProbe(50) }; // For DEBUGGING.
-	auto probes{ buildEmptyProbes() };
+	auto probes{ buildProbesEmpty() };
 	probes.pointProbes = {
 		PointProbe{E, Y, {0.0}},
 		PointProbe{H, Z, {0.0}}
@@ -142,7 +142,7 @@ TEST_F(Solver1DTest, pmc_centered)
 	back to its initial state within the specified error.*/
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
-		buildEmptyProbes(),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}.setCentered()
 	};
@@ -154,7 +154,7 @@ TEST_F(Solver1DTest, pec_upwind)
 {
 	maxwell::Solver solver{
 		buildStandardModel(),
-		buildEmptyProbes(),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 	};
@@ -166,7 +166,7 @@ TEST_F(Solver1DTest, pmc_upwind)
 {
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
-		buildEmptyProbes(),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
 	};
@@ -178,7 +178,7 @@ TEST_F(Solver1DTest, sma)
 {
 	maxwell::Solver solver(
 		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
-		buildEmptyProbes(),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), unitVec(Y)),
 		SolverOptions{}
 			.setOrder(3)
@@ -194,7 +194,7 @@ TEST_F(Solver1DTest, sma)
 TEST_F(Solver1DTest, periodic)
 {
 	auto m{ 
-		Mesh::LoadFromFile((mfemMeshes1DFolder() + "periodic-segment.mesh").c_str(), 1, 0)
+		Mesh::LoadFromFile((mfemMeshes1DFolder() + "periodic-segment.mesh"), 1, 0)
 	};
 
 	for (auto i{0}; i < 4; ++i) {
@@ -203,7 +203,7 @@ TEST_F(Solver1DTest, periodic)
 
 	maxwell::Solver solver{
 		Model{ m },
-		buildEmptyProbes(),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}.setFinalTime(1.0)
 	};
@@ -233,33 +233,20 @@ TEST_F(Solver1DTest, periodic)
 TEST_F(Solver1DTest, periodic_inhomo)
 {
 	Mesh m{ Mesh::LoadFromFile(
-		(mfemMeshes1DFolder() + "periodic-inhomo-segment.mesh").c_str(),1,0) 
+		(mfemMeshes1DFolder() + "periodic-inhomo-segment.mesh"),1,0) 
 	};
-
-	Model model{ m };
-	auto probes{ buildProbesWithAnExportProbe() };
+	for (auto i{0}; i < 2; ++i) {
+		m.UniformRefinement();
+	}
 
 	maxwell::Solver solver{
-		model,
-		probes,
+		{m},
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setTimeStep(5e-4)
-			.setCentered()
-			.setFinalTime(1.0)
-			.setOrder(5)
 	};
 
-	solver.run();
-	
-	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getField(E,Y) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
@@ -270,12 +257,12 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	
 	auto msh{ Mesh::MakeCartesian1D(100) };
 
-	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.50, 1.0) } }, msh);
+	setAttributeOnInterval({ { 2, std::make_pair(0.50, 1.0) } }, msh);
 	
 	Material mat1{1.0, 1.0};
 	Material mat2{4.0, 1.0};
 
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(100) };
 	probes.pointProbes = {
 		PointProbe{ E, Y, {0.00} },
 		PointProbe{ E, Y, {0.75} }
@@ -294,18 +281,16 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 			Source::Polarization(unitVec(Y)),
 			Source::Propagation(unitVec(X))
 		),
-		SolverOptions{}
-			.setCFL(0.65)
-			.setFinalTime(1.0)
+		SolverOptions{}.setFinalTime(1.0)
 	};
 		
 	solver.run();
 
-	auto reflectCoeff{
+	auto expectedReflectCoeff{
 		(mat2.getImpedance() - mat1.getImpedance()) /
 		(mat2.getImpedance() + mat1.getImpedance())
 	};
-	auto transmissionCoeff{ 1 + reflectCoeff };
+	auto expectedTransmissionCoeff{ 1 + expectedReflectCoeff };
 
 	auto timeTolerance{ 0.03 };
 	auto fieldTolerance{ 0.01 };
@@ -314,7 +299,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	{
 		auto frame{ solver.getPointProbe(0).findFrameWithMin() };
 		EXPECT_NEAR(0.75, frame.first, timeTolerance);
-		EXPECT_NEAR(reflectCoeff, frame.second, fieldTolerance);
+		EXPECT_NEAR(expectedReflectCoeff, frame.second, fieldTolerance);
 	}
 
 	// Checks transmitted wave.
@@ -322,7 +307,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
 		auto expectedTimeOfArrival{ 0.25 + 0.25 / mat2.getSpeedOfLight() };
 		EXPECT_NEAR(expectedTimeOfArrival, frame.first, timeTolerance);
-		EXPECT_NEAR(transmissionCoeff, frame.second, fieldTolerance);
+		EXPECT_NEAR(expectedTransmissionCoeff, frame.second, fieldTolerance);
 	}
 
 }
@@ -331,14 +316,14 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 {
 	auto mesh{ 
 		Mesh::LoadFromFile(
-			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "longlineIntBdr.mesh"), 1, 0
 		)
 	};
 	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
 	GeomTagToInteriorConditions attToIntBdr{ {301,BdrCond::TotalFieldIn} };
 	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntBdr };
 
-	auto probes{ buildProbesWithAnExportProbe(20) };
+	auto probes{ buildProbesWithAnExportProbe(50) };
 	probes.pointProbes = {
 		PointProbe{ E, Y, {0.1001} },
 		PointProbe{ E, Y, {1.0} },
@@ -350,10 +335,8 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_centered)
 		probes,
 		buildGaussianPlanewave(0.2, 1.5, unitVec(Y), unitVec(X)),
 		SolverOptions{}
-			.setCFL(0.5)
 			.setCentered()
 			.setFinalTime(4.0)
-			.setOrder(2)
 	};
 
 	solver.run();
@@ -380,7 +363,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_centered)
 {
 	auto mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "longlineIntBdr.mesh"), 1, 0
 		)
 	};
 	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
@@ -428,7 +411,7 @@ TEST_F(Solver1DTest, totalfieldin_intbdr_submesher_upwind)
 {
 	auto mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshes1DFolder() + "longlineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "longlineIntBdr.mesh"), 1, 0
 		)
 	};
 	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
@@ -475,7 +458,7 @@ TEST_F(Solver1DTest, totalfield_doublebdr_submesher_centered)
 {
 	auto mesh{
 		Mesh::LoadFromFileNoBdrFix(
-			(gmshMeshesFolder() + "1D_TFp_line.msh").c_str(), 1, 0
+			(gmshMeshesFolder() + "1D_TFp_line.msh"), 1, 0
 		)
 	};
 	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC} };
@@ -521,7 +504,7 @@ TEST_F(Solver1DTest, totalfield_doublebdr_submesher_centered)
 
 TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 {
-	Mesh mesh{	Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + "LineTFSFInOut.mesh").c_str(), 1, 0)};
+	Mesh mesh{	Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + "LineTFSFInOut.mesh"), 1, 0)};
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 
@@ -579,7 +562,7 @@ TEST_F(Solver1DTest, totalfieldinout_intbdr_submesher_centered)
 
 TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
 {
-	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + + "LineTFSFInOut_RtL.mesh").c_str(), 1, 0) };
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + + "LineTFSFInOut_RtL.mesh"), 1, 0) };
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe(20) };
@@ -638,7 +621,7 @@ TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_centered)
 
 TEST_F(Solver1DTest, totalfieldinout_rtl_intbdr_submesher_upwind)
 {
-	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + +"LineTFSFInOut_RtL.mesh").c_str(), 1, 0) };
+	Mesh mesh{ Mesh::LoadFromFileNoBdrFix((mfemMeshes1DFolder() + +"LineTFSFInOut_RtL.mesh"), 1, 0) };
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
 	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
 	auto probes{ buildProbesWithAnExportProbe(20) };
@@ -698,7 +681,7 @@ TEST_F(Solver1DTest, totalfieldin_shortline_intbdr_submesher_centered)
 {
 	Mesh mesh{
 		Mesh::LoadFromFile(
-			(mfemMeshes1DFolder() + "lineIntBdr.mesh").c_str(), 1, 0
+			(mfemMeshes1DFolder() + "lineIntBdr.mesh"), 1, 0
 		)
 	};
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC} };
@@ -918,7 +901,7 @@ TEST_F(Solver1DTest, fieldProbeThroughSolver)
 
 TEST_F(Solver1DTest, interior_boundary_marking_centered)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
@@ -941,7 +924,7 @@ TEST_F(Solver1DTest, interior_boundary_marking_centered)
 
 TEST_F(Solver1DTest, interior_boundary_marking_upwind)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
@@ -963,7 +946,7 @@ TEST_F(Solver1DTest, interior_boundary_marking_upwind)
 
 TEST_F(Solver1DTest, interior_boundary_marking_centered_RtL)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
@@ -986,7 +969,7 @@ TEST_F(Solver1DTest, interior_boundary_marking_centered_RtL)
 
 TEST_F(Solver1DTest, interior_boundary_marking_upwind_RtL)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
