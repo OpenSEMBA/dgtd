@@ -52,7 +52,7 @@ protected:
 	}
 
 	Vector fieldCenter{{0.5, 0.5}};
-
+	
 	Probes buildProbes_for_1dot5D()
 	{
 		auto probes{buildProbesWithAnExportProbe(20)};
@@ -66,7 +66,17 @@ protected:
 		return probes;
 	}
 
-	void expectFields_for_1dot5D_AreNearAfterEvolution(maxwell::Solver &solver, const double tol=1e-2)
+	Sources buildPlanewaveForPeriodic()
+	{
+		return buildPlanewaveInitialField(
+			Gaussian{0.1},
+			Source::Position({0.5, 0.5}),	  // center_
+			Source::Polarization(unitVec(Z)), // e polarization_
+			Source::Propagation(minusUnitVec(X))	  // propagation direction
+		);
+	}
+
+	void expectFieldsAreNearAfterEvolution_1dot5D(maxwell::Solver &solver, const double tol=1e-2)
 	{
 		GridFunction eOld{solver.getField(E, Y)};
 		GridFunction hOld{solver.getField(H, Z)};
@@ -84,6 +94,25 @@ protected:
 		// (the wave splits in two and doubles at the boundary).
 		EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tol);
 		EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
+	}
+
+	void expectedFieldsAreNearAfterEvolution_Periodic(maxwell::Solver &solver, const double tol=1e-2)
+	{
+		GridFunction eOld{solver.getField(E, Y)};
+		GridFunction hOld{solver.getField(H, Z)};
+
+		solver.run();
+
+		GridFunction eNew{solver.getField(E, Y)};
+		GridFunction hNew{solver.getField(H, Z)};
+
+		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
+		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
+
+		EXPECT_NEAR(1.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tol);
 		EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tol);
 		EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
 	}
@@ -105,7 +134,7 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 			.setOrder(3)
 	};
 
-	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
+	expectFieldsAreNearAfterEvolution_1dot5D(solver);
 }
 
 TEST_F(Solver2DSpectralTest, DISABLED_pec_centered_tris_1dot5D_spectral)
@@ -157,7 +186,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 			.setOrder(3)
 	};
 
-	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
+	expectFieldsAreNearAfterEvolution_1dot5D(solver);
 }
 
 TEST_F(Solver2DSpectralTest, DISABLED_pec_centered_quads_1dot5D_spectral)
@@ -226,7 +255,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 			.setOrder(3)
 	};
 
-	expectFields_for_1dot5D_AreNearAfterEvolution(solver,1.2e-2);
+	expectFieldsAreNearAfterEvolution_1dot5D(solver,1.2e-2);
 }
 
 TEST_F(Solver2DSpectralTest, DISABLED_pec_tris_1dot5D_spectral)
@@ -248,7 +277,7 @@ TEST_F(Solver2DSpectralTest, DISABLED_pec_tris_1dot5D_spectral)
 			.setSpectralEO()
 	};
 
-	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
+	expectFieldsAreNearAfterEvolution_1dot5D(solver);
 }
 
 TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
@@ -279,7 +308,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 		SolverOptions{}.setOrder(3)
 	};
 
-	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
+	expectFieldsAreNearAfterEvolution_1dot5D(solver);
 }
 
 TEST_F(Solver2DTest, pec_tris_1dot5D)
@@ -293,7 +322,7 @@ TEST_F(Solver2DTest, pec_tris_1dot5D)
 		SolverOptions{}.setOrder(5)
 	};
 
-	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
+	expectFieldsAreNearAfterEvolution_1dot5D(solver);
 }
 
 TEST_F(Solver2DTest, pec_quads_1dot5D)
@@ -309,7 +338,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D)
 			.setOrder(5)
 	};
 
-	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
+	expectFieldsAreNearAfterEvolution_1dot5D(solver);
 }
 
 TEST_F(Solver2DSpectralTest, DISABLED_pec_quads_1dot5D_spectral)
@@ -514,6 +543,61 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 {
 	Mesh m;
 	{
+		Mesh square{Mesh::MakeCartesian2D(9, 3, Element::TRIANGLE, false, 1.0, 1.0)};
+		std::vector<Vector> translations{
+			Vector({1.0, 0.0}),
+			Vector({0.0, 1.0}),
+		};
+		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
+	}
+
+	Model model{m};
+
+	maxwell::Solver solver{
+		model,
+		buildProbes_for_1dot5D(),
+		buildPlanewaveForPeriodic(),
+		SolverOptions{}
+			.setTimeStep(5e-3) // Automated time estimation does not work with periodic meshes.
+			.setCentered()
+			.setOrder(3)
+		};
+
+		expectedFieldsAreNearAfterEvolution_Periodic(solver);
+}
+
+TEST_F(Solver2DTest, periodic_centered_quads)
+{
+
+	Mesh m;
+	{
+		Mesh square{Mesh::MakeCartesian2D(9, 9, Element::QUADRILATERAL, false, 1.0, 1.0)};
+		std::vector<Vector> translations{
+			Vector({1.0, 0.0}),
+			Vector({0.0, 1.0}),
+		};
+		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
+	}
+
+	Model model{m};
+
+	maxwell::Solver solver{
+		model,
+		buildProbes_for_1dot5D(),
+		buildPlanewaveForPeriodic(),
+		SolverOptions{}
+			.setTimeStep(5e-3)
+			.setCentered()
+			.setOrder(3)
+	};
+
+	expectedFieldsAreNearAfterEvolution_Periodic(solver);
+}
+
+TEST_F(Solver2DTest, periodic_tris)
+{
+	Mesh m;
+	{
 		Mesh square{Mesh::MakeCartesian2D(9, 9, Element::TRIANGLE, false, 1.0, 1.0)};
 		std::vector<Vector> translations{
 			Vector({1.0, 0.0}),
@@ -527,151 +611,23 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 	maxwell::Solver solver{
 		model,
 		buildProbes_for_1dot5D(),
-		buildPlanewaveInitialField(
-			Gaussian{0.1},
-			Source::Position({0.5, 0.5}),	  // center_
-			Source::Polarization(unitVec(Z)), // e polarization_
-			Source::Propagation(unitVec(X))	  // propagation direction
-		),
+		buildPlanewaveForPeriodic(),
 		SolverOptions{}
-			.setTimeStep(1e-2) // Automated time estimation does not work with periodic meshes.
-			.setCentered()
+			.setTimeStep(5e-3)
 			.setOrder(3)
-		};
+	};
 
-	auto normOld{solver.getFields().getNorml2()};
-	solver.run();
-
-	double tolerance{1e-3};
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 or -1.0
-	// (the wave keeps travelling from left to right).
-	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(2).findFrameWithMin().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(3).findFrameWithMin().second, tolerance);
-}
-
-TEST_F(Solver2DTest, periodic_centered_quads)
-{
-
-	auto probes{buildProbesWithAnExportProbe(200)};
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5}}};
-
-	Mesh m;
-	{
-		Mesh square{Mesh::MakeCartesian2D(9, 9, Element::QUADRILATERAL, false, 2.0, 2.0)};
-		std::vector<Vector> translations{
-			Vector({2.0, 0.0}),
-			Vector({0.0, 2.0}),
-		};
-		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
-	}
-
-	Model model{m};
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildPlanewaveInitialField(
-			Gaussian{0.2},
-			Source::Position({1.0, 1.0}),	  // center_
-			Source::Polarization(unitVec(Z)), // e polarization_
-			Source::Propagation(unitVec(X))	  // propagation direction
-			),
-		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(4.0)
-			.setOrder(3)};
-
-	auto normOld{solver.getFields().getNorml2()};
-	solver.run();
-
-	double tolerance{3e-2};
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 or -1.0
-	// (the wave keeps travelling from left to right).
-	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(2).findFrameWithMin().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(3).findFrameWithMin().second, tolerance);
-}
-
-TEST_F(Solver2DTest, periodic_tris)
-{
-	auto probes{buildProbesWithAnExportProbe(10)};
-	// Probes probes;
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {2.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {2.0, 0.5}}};
-
-	Mesh m;
-	{
-		Mesh square{Mesh::MakeCartesian2D(9, 9, Element::TRIANGLE, false, 2.0, 2.0)};
-		std::vector<Vector> translations{
-			Vector({2.0, 0.0}),
-			Vector({0.0, 2.0}),
-		};
-		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
-	}
-
-	Model model{m};
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildPlanewaveInitialField(
-			Gaussian{0.2},
-			Source::Position({1.0, 1.0}),	  // center_
-			Source::Polarization(unitVec(Z)), // e polarization_
-			Source::Propagation(unitVec(X))	  // propagation direction
-			),
-		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(4.0)
-			.setOrder(3)};
-
-	auto normOld{solver.getFields().getNorml2()};
-	solver.run();
-
-	double tolerance{3e-2};
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 or -1.0
-	// (the wave keeps travelling from left to right).
-	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(2).findFrameWithMin().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(3).findFrameWithMin().second, tolerance);
+	expectedFieldsAreNearAfterEvolution_Periodic(solver);
 }
 
 TEST_F(Solver2DTest, periodic_quads)
 {
-	auto probes{buildProbesWithAnExportProbe(100)};
-	// Probes probes;
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {2.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {2.0, 0.5}}};
-
 	Mesh m;
 	{
-		Mesh square{Mesh::MakeCartesian2D(9, 9, Element::QUADRILATERAL, false, 2.0, 2.0)};
+		Mesh square{Mesh::MakeCartesian2D(9, 9, Element::QUADRILATERAL, false, 1.0, 1.0)};
 		std::vector<Vector> translations{
-			Vector({2.0, 0.0}),
-			Vector({0.0, 2.0}),
+			Vector({1.0, 0.0}),
+			Vector({0.0, 1.0}),
 		};
 		m = Mesh::MakePeriodic(square, square.CreatePeriodicVertexMapping(translations));
 	}
@@ -680,31 +636,14 @@ TEST_F(Solver2DTest, periodic_quads)
 
 	maxwell::Solver solver{
 		model,
-		probes,
-		buildPlanewaveInitialField(
-			Gaussian{0.2},
-			Source::Position({1.0, 1.0}),	  // center_
-			Source::Polarization(unitVec(Z)), // e polarization_
-			Source::Propagation(unitVec(X))	  // propagation direction
-			),
+		buildProbes_for_1dot5D(),
+		buildPlanewaveForPeriodic(),
 		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(4.0)
-			.setOrder(3)};
+			.setTimeStep(5e-3)
+			.setOrder(3)
+	};
 
-	auto normOld{solver.getFields().getNorml2()};
-	solver.run();
-
-	double tolerance{3e-2};
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 or -1.0
-	// (the wave keeps travelling from left to right).
-	EXPECT_NEAR(1.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(1.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(2).findFrameWithMin().second, tolerance);
-	EXPECT_NEAR(-1.0, solver.getPointProbe(3).findFrameWithMin().second, tolerance);
+	expectedFieldsAreNearAfterEvolution_Periodic(solver);
 }
 
 TEST_F(Solver2DTest, pec_totalfieldin_1dot5D)
