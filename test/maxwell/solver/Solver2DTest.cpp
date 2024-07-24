@@ -56,11 +56,13 @@ protected:
 	Probes buildProbes_for_1dot5D()
 	{
 		auto probes{buildProbesWithAnExportProbe(20)};
+		// auto probes{buildProbesEmpty()};
 		probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5}}};
+			PointProbe{E, Z, {0.0, 0.5}},
+			PointProbe{E, Z, {1.0, 0.5}},
+			PointProbe{H, Y, {0.0, 0.5}},
+			PointProbe{H, Y, {1.0, 0.5}}
+		};
 		return probes;
 	}
 
@@ -274,8 +276,7 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 		model,
 		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5, 0.5}), unitVec(Z)),
-		SolverOptions{}
-			.setOrder(3)
+		SolverOptions{}.setOrder(3)
 	};
 
 	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
@@ -283,74 +284,32 @@ TEST_F(Solver2DTest, pec_quads_1dot5D_AMR)
 
 TEST_F(Solver2DTest, pec_tris_1dot5D)
 {
-	auto probes{buildProbesWithAnExportProbe(50)};
-
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.4}},
-		PointProbe{E, Z, {1.0, 0.4}},
-		PointProbe{H, Y, {0.0, 0.4}},
-		PointProbe{H, Y, {1.0, 0.4}}};
-
 	maxwell::Solver solver{
 		buildModel(
-			9, 9, Element::Type::TRIANGLE, 2.0, 2.0,
+			5, 3, Element::Type::TRIANGLE, 1.0, 1.0,
 			BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
-		probes,
-		buildGaussianInitialField(E, 0.2, Vector({1.0, 0.5}), unitVec(Z)),
-		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(4.0)
-			.setOrder(3)};
+		buildProbes_for_1dot5D(),
+		buildGaussianInitialField(E, 0.1, Vector({0.5, 0.5}), unitVec(Z)),
+		SolverOptions{}.setOrder(5)
+	};
 
-	auto normOld{solver.getFields().getNorml2()};
-	solver.run();
-
-	double tolerance{1e-2};
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 or -1.0
-	// (the wave splits in two and doubles at the boundary).
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver2DTest, pec_quads_1dot5D)
 {
-	auto probes{buildProbesWithAnExportProbe(50)};
-
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.4}},
-		PointProbe{E, Z, {1.0, 0.4}},
-		PointProbe{H, Y, {0.0, 0.4}},
-		PointProbe{H, Y, {1.0, 0.4}}};
-
 	maxwell::Solver solver{
 		buildModel(
-			10, 2, Element::Type::QUADRILATERAL, 1.0, 0.4,
+			5, 5, Element::Type::QUADRILATERAL, 1.0, 1.0,
 			BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
-		probes,
+		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(2.0)
-			.setOrder(3)};
+			.setTimeStep(5e-3) // Automated time estimation fails with quad meshes.
+			.setOrder(5)
+	};
 
-	auto normOld{solver.getFields().getNorml2()};
-	solver.run();
-
-	double tolerance{1e-2};
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	// At the left boundary the electric field should be closed to zero and
-	// the magnetic field reaches a maximum close to 1.0 or -1.0
-	// (the wave splits in two and doubles at the boundary).
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tolerance);
-	EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+	expectFields_for_1dot5D_AreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver2DSpectralTest, DISABLED_pec_quads_1dot5D_spectral)
@@ -390,59 +349,43 @@ TEST_F(Solver2DSpectralTest, DISABLED_pec_quads_1dot5D_spectral)
 
 TEST_F(Solver2DTest, sma_tris_1dot5D)
 {
-	auto probes{buildProbesWithAnExportProbe(10)};
-
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.4}},
-		PointProbe{E, Z, {1.0, 0.4}},
-		PointProbe{H, Y, {0.0, 0.4}},
-		PointProbe{H, Y, {1.0, 0.4}}};
-
 	maxwell::Solver solver{
 		buildModel(
-			10, 3, mfem::Element::Type::TRIANGLE, 1.0, 3.0,
+			10, 3, mfem::Element::Type::TRIANGLE, 1.0, 1.0,
 			BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
-		probes,
+		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(2.0)
-			.setOrder(3)};
+			.setFinalTime(1.0)
+			.setOrder(3)
+	};
 
 	GridFunction eOld{solver.getField(E, Z)};
-
 	auto zeros{eOld};
 	zeros = 0.0;
 	EXPECT_TRUE(eOld.DistanceTo(zeros) > 1e-2);
 
 	solver.run();
 
-	double tolerance{1e-2};
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMin().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(2).findFrameWithMin().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+	double tol{1e-3};
+	EXPECT_NEAR(0.0, solver.getField(E,Z).DistanceTo(zeros), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(2).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
 }
 
 TEST_F(Solver2DTest, sma_quads_1dot5D)
 {
-	auto probes{buildProbesWithAnExportProbe(50)};
-	// Probes probes;
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.4}},
-		PointProbe{E, Z, {1.0, 0.4}},
-		PointProbe{H, Y, {0.0, 0.4}},
-		PointProbe{H, Y, {1.0, 0.4}}};
-
 	maxwell::Solver solver{
 		buildModel(
-			11, 11, mfem::Element::Type::QUADRILATERAL, 2.0, 2.0,
+			6, 6, mfem::Element::Type::QUADRILATERAL, 1.0, 1.0,
 			BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
-		probes,
-		buildGaussianInitialField(E, 0.15, Vector{{1.0, 1.0}}, unitVec(Z)),
+		buildProbes_for_1dot5D(),
+		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 		SolverOptions{}
-			.setTimeStep(1e-3)
-			.setFinalTime(5.0)
+			.setTimeStep(3e-3)
+			.setFinalTime(1.0)
 			.setOrder(3)};
 
 	GridFunction eOld{solver.getField(E, Z)};
@@ -453,11 +396,12 @@ TEST_F(Solver2DTest, sma_quads_1dot5D)
 
 	solver.run();
 
-	double tolerance{1e-2};
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMin().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(2).findFrameWithMin().second), tolerance);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tolerance);
+	double tol{1e-3};
+	EXPECT_NEAR(0.0, solver.getField(E,Z).DistanceTo(zeros), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(2).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
 }
 
 TEST_F(Solver2DSpectralTest, DISABLED_periodic_centered_tris_spectral_and_base_comparison)
@@ -568,14 +512,6 @@ TEST_F(Solver2DSpectralTest, DISABLED_periodic_tris_spectral_and_base_comparison
 
 TEST_F(Solver2DTest, periodic_centered_tris)
 {
-	auto probes{buildProbesWithAnExportProbe()};
-	// Probes probes;
-	probes.pointProbes = {
-		PointProbe{E, Z, {0.0, 0.5}},
-		PointProbe{E, Z, {1.0, 0.5}},
-		PointProbe{H, Y, {0.0, 0.5}},
-		PointProbe{H, Y, {1.0, 0.5}}};
-
 	Mesh m;
 	{
 		Mesh square{Mesh::MakeCartesian2D(9, 9, Element::TRIANGLE, false, 1.0, 1.0)};
@@ -590,18 +526,18 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 
 	maxwell::Solver solver{
 		model,
-		probes,
+		buildProbes_for_1dot5D(),
 		buildPlanewaveInitialField(
 			Gaussian{0.1},
 			Source::Position({0.5, 0.5}),	  // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(unitVec(X))	  // propagation direction
-			),
+		),
 		SolverOptions{}
-			.setTimeStep(1e-2)
+			.setTimeStep(1e-2) // Automated time estimation does not work with periodic meshes.
 			.setCentered()
-			.setFinalTime(2.0)
-			.setOrder(3)};
+			.setOrder(3)
+		};
 
 	auto normOld{solver.getFields().getNorml2()};
 	solver.run();
