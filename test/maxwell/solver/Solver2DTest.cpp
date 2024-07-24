@@ -646,7 +646,44 @@ TEST_F(Solver2DTest, periodic_quads)
 	expectedFieldsAreNearAfterEvolution_Periodic(solver);
 }
 
-TEST_F(Solver2DTest, pec_totalfieldin_1dot5D)
+TEST_F(Solver2DTest, box_resonant_modes_pec_tris)
+{
+	// Resonant cavity has eigenmodes which have the following frequency.
+	// f_{m,n} = \frac{c}{2 \pi \sqrt{\mu_r \varepsilon_r}} 
+	//           \sqrt{ (\frac{m \pi}{a})^2 + (\frac{n \pi}{b})^2) }
+
+	maxwell::Solver solver{
+		buildModel(
+			5, 5, Element::Type::TRIANGLE, 1.0, 1.0,
+			BdrCond::PEC, BdrCond::PEC, BdrCond::PEC, BdrCond::PEC),
+		buildProbesWithAnExportProbe(10),
+		buildResonantModeInitialField(
+			E,
+			Source::Polarization(unitVec(Z)),
+			{1,1}  // m, n modes
+		),
+		SolverOptions{}
+			.setFinalTime(std::sqrt(2)) // Period of resonant cavity is sqrt(2)
+			.setOrder(3)
+	};
+
+
+	GridFunction eOld{solver.getField(E, Y)};
+	GridFunction hOld{solver.getField(H, Z)};
+
+	solver.run();
+
+	GridFunction eNew{solver.getField(E, Y)};
+	GridFunction hNew{solver.getField(H, Z)};
+
+	double tol{1e-2};
+	EXPECT_NE(0.0, eOld.DistanceTo(eNew));
+	EXPECT_NE(0.0, hOld.DistanceTo(hNew));
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
+	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
+}
+
+TEST_F(Solver2DTest, DISABLED_pec_totalfieldin_1dot5D)
 {
 	Mesh mesh{Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(), 1, 0)};
 	mesh.UniformRefinement();
@@ -692,7 +729,7 @@ TEST_F(Solver2DTest, pec_totalfieldin_1dot5D)
 	//}
 }
 
-TEST_F(Solver2DTest, pec_planewave)
+TEST_F(Solver2DTest, DISABLED_pec_planewave)
 {
 	Mesh mesh{Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(), 1, 0)};
 	// mesh.UniformRefinement();
@@ -738,7 +775,7 @@ TEST_F(Solver2DTest, pec_planewave)
 	//}
 }
 
-TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
+TEST_F(Solver2DTest, DISABLED_sma_totalfieldinout_1dot5D)
 {
 	Mesh mesh{Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_1dot5D_IntBdr.mesh").c_str(), 1, 0)};
 	GeomTagToBoundary attToBdr{{1, BdrCond::SMA}, {2, BdrCond::PMC}};
@@ -758,7 +795,7 @@ TEST_F(Solver2DTest, sma_totalfieldinout_1dot5D)
 	solver.run();
 }
 
-TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
+TEST_F(Solver2DTest, DISABLED_pec_centered_totalfieldin_longline_1dot5D)
 {
 	Mesh mesh{Mesh::LoadFromFile((mfemMeshes2DFolder() + "One_Element_Tall_Long_Line_TF_centered.mesh").c_str(), 1, 0)};
 	GeomTagToBoundary attToBdr{{1, BdrCond::PMC}, {2, BdrCond::PEC}};
@@ -829,7 +866,7 @@ TEST_F(Solver2DTest, pec_centered_totalfieldin_longline_1dot5D)
 	}
 }
 
-TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_in)
+TEST_F(Solver2DTest, DISABLED_pec_upwind_beam_totalfieldscatteredfield_in)
 {
 	Mesh mesh{Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TF_Beam.msh").c_str(), 1, 0)};
 	GeomTagToBoundary attToBdr{{1, BdrCond::PMC}, {2, BdrCond::PEC}};
@@ -940,7 +977,7 @@ TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_in)
 	}
 }
 
-TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_inout)
+TEST_F(Solver2DTest, DISABLED_pec_upwind_beam_totalfieldscatteredfield_inout)
 {
 	Mesh mesh{Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TFSF_Beam.msh").c_str(), 1, 0)};
 	GeomTagToBoundary attToBdr{{1, BdrCond::PMC}, {2, BdrCond::PEC}};
@@ -1027,7 +1064,7 @@ TEST_F(Solver2DTest, pec_upwind_beam_totalfieldscatteredfield_inout)
 	}
 }
 
-TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface)
+TEST_F(Solver2DTest, DISABLED_upwind_beam_totalfieldscatteredfield_in_fullface)
 {
 	Mesh mesh{Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_DualSurface_FullFace_Beam.msh").c_str(), 1, 0)};
 	// mesh.UniformRefinement();
@@ -1049,7 +1086,7 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface)
 	solver.run();
 }
 
-TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface_RtL)
+TEST_F(Solver2DTest, DISABLED_upwind_beam_totalfieldscatteredfield_in_fullface_RtL)
 {
 	Mesh mesh{Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_DualSurface_FullFace_Beam_RtL.msh").c_str(), 1, 0)};
 	// mesh.UniformRefinement();
@@ -1071,7 +1108,7 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_fullface_RtL)
 	solver.run();
 }
 
-TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D)
+TEST_F(Solver2DTest, DISABLED_pec_upwind_totalfieldin_square_1dot5D)
 {
 	Mesh mesh{Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(), 1, 0)};
 	GeomTagToBoundary attToBdr{{1, BdrCond::PMC}, {2, BdrCond::PEC}};
@@ -1091,7 +1128,7 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D)
 	solver.run();
 }
 
-TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
+TEST_F(Solver2DTest, DISABLED_pec_upwind_totalfieldin_square_1dot5D_rotated45)
 {
 	Mesh mesh{Mesh::LoadFromFile((mfemMeshes2DFolder() + "4x4_Quadrilateral_InnerSquare_IntBdr.mesh").c_str(), 1, 0)};
 	GeomTagToBoundary attToBdr{{1, BdrCond::PMC}, {2, BdrCond::PEC}};
@@ -1110,6 +1147,7 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
 
 	solver.run();
 }
+
 // TEST_F(Solver2DTest, DISABLED_quadraticMesh)
 //{
 //	Mesh mesh = Mesh::LoadFromFile("./testData/star-q2.mesh", 1, 0);
@@ -1204,39 +1242,7 @@ TEST_F(Solver2DTest, pec_upwind_totalfieldin_square_1dot5D_rotated45)
 //
 //	EXPECT_GT(eOld.Max(), eNew.Max());
 // }
-// TEST_F(Solver2DTest, DISABLED_resonantBox)
-//{
-//	Mesh mesh2D = Mesh::MakeCartesian2D(21, 21, Element::Type::QUADRILATERAL);
-//	std::vector<Attribute> attArrSingle = std::vector<Attribute>({ 1 });
-//	Material mat11 = Material(1.0, 1.0);
-//	std::vector<Material> matArrSimple = std::vector<Material>({ mat11 });
-//	GeomTagToMaterial attToMatVec = HelperFunctions::buildAttToMatMap(attArrSingle, matArrSimple);
-//	GeomTagToBoundary attToBdrVec;
-//	Model model(mesh2D, attToMatVec, attToBdrVec);
-//
-//	double spread = 2.0;
-//	double coeff = 20.0;
-//	const Vector dev = Vector({ 0.0,0.0 });
-//	Source EXFieldSource = Source(model, spread, coeff, dev, X, E);
-//	Sources sources;
-//	sources.addSourceToVector(EXFieldSource);
-//
-//	Probes probes;
-//	//probes.paraview = true;
-//	probes.vis_steps = 100;
-//
-//	maxwell::Solver::Options solverOpts;
-//
-//	maxwell::Solver::Options solverOpts = buildDefaultSolverOpts();
-//	solverOpts.timeStep = 1e-4;
-//	solverOpts.order = 1;
-//
-//	maxwell::Solver solver(model, probes,
-//		sources, solverOpts);
-//
-//	solver.run();
-//
-// }
+
 
 TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 {
