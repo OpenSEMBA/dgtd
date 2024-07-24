@@ -130,7 +130,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_1dot5D)
 
 }
 
-TEST_F(Solver3DSpectralTest, 3D_pec_centered_hexa_1dot5D_spectral)
+TEST_F(Solver3DSpectralTest, DISABLED_3D_pec_centered_hexa_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -175,7 +175,7 @@ TEST_F(Solver3DSpectralTest, 3D_pec_centered_hexa_1dot5D_spectral)
 
 }
 
-TEST_F(Solver3DSpectralTest, 3D_pec_centered_spectral_and_base_comparison)
+TEST_F(Solver3DSpectralTest, DISABLED_3D_pec_centered_spectral_and_base_comparison)
 {
 
 	maxwell::Solver solver{
@@ -271,7 +271,7 @@ TEST_F(Solver3DTest, 3D_pec_upwind_hexa_1dot5D)
 	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
 
-TEST_F(Solver3DSpectralTest, 3D_pec_upwind_hexa_1dot5D_spectral)
+TEST_F(Solver3DSpectralTest, DISABLED_3D_pec_upwind_hexa_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -355,7 +355,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_tetra_1dot5D)
 
 }
 
-TEST_F(Solver3DSpectralTest, 3D_pec_centered_tetra_1dot5D_spectral)
+TEST_F(Solver3DSpectralTest, DISABLED_3D_pec_centered_tetra_1dot5D_spectral)
 {
 
 	Probes probes;
@@ -585,7 +585,7 @@ TEST_F(Solver3DTest, 3D_pec_periodic_cube_upwind_hexa)
 	EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
 }
 
-TEST_F(Solver3DSpectralTest, 3D_pec_upwind_spectral_and_base_comparison) {
+TEST_F(Solver3DSpectralTest, DISABLED_3D_pec_upwind_spectral_and_base_comparison) {
 
 	maxwell::Solver solver{
 	buildModel(

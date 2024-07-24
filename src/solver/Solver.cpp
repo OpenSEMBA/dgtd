@@ -117,9 +117,10 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 
 bool checkIfQuadInMesh(const Mesh& mesh) 
 {
-	for (int e = 0; e < mesh.GetNE(); ++e)
-	{
-		if (mesh.GetElementGeometry(e) == Element::QUADRILATERAL) { return true; }
+	for (int e = 0; e < mesh.GetNE(); ++e) 	{
+		if (mesh.GetElementGeometry(e) == mfem::Geometry::Type::SQUARE) { 
+			return true; 
+		}
 	}
 	return false;
 }
@@ -173,17 +174,16 @@ double Solver::estimateTimeStep() const
 		return opts_.cfl * maxTimeStep;
 	}
 	else if (model_.getConstMesh().Dimension() == 2) {
-		if (checkIfQuadInMesh(model_.getConstMesh()) == false) {
 			Mesh mesh{ model_.getConstMesh() };
 			Vector dtscale{ getTimeStepScale(mesh) };
 			double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
-			return dtscale.Min() * rmin * 2.0 / 3.0;
-		}
-		else{
-			throw std::runtime_error("Automatic Time Step Estimation not available for meshes with quadrilateral elements.");
-		}
-	}
-	else{
+			auto dt{dtscale.Min() * rmin * 2.0 / 3.0};
+			if (checkIfQuadInMesh) {
+				return dt/2.0; // This is purely heuristic.
+			} else {
+				return dt;
+			}
+	} else {
 		throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
 	}
 }

@@ -6,10 +6,10 @@
 #include "mfem.hpp"
 #include "general/text.hpp"
 
-#include <components/Probes.h>
-#include <evolution/Fields.h>
-#include <solver/SolverOptions.h>
-#include <components/SubMesher.h>
+#include "components/Probes.h"
+#include "components/SubMesher.h"
+#include "evolution/Fields.h"
+#include "solver/SolverOptions.h"
 
 namespace maxwell {
 
