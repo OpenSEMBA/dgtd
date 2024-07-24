@@ -668,19 +668,23 @@ TEST_F(Solver2DTest, box_resonant_modes_pec_tris)
 	};
 
 
-	GridFunction eOld{solver.getField(E, Y)};
-	GridFunction hOld{solver.getField(H, Z)};
+	GridFunction ezOld{solver.getField(E, Z)};
+	GridFunction hxOld{solver.getField(H, X)};
+	GridFunction hyOld{solver.getField(H, Y)};
 
 	solver.run();
 
-	GridFunction eNew{solver.getField(E, Y)};
-	GridFunction hNew{solver.getField(H, Z)};
+	GridFunction ezNew{solver.getField(E, Z)};
+	GridFunction hxNew{solver.getField(H, X)};
+	GridFunction hyNew{solver.getField(H, Y)};
 
 	double tol{1e-2};
-	EXPECT_NE(0.0, eOld.DistanceTo(eNew));
-	EXPECT_NE(0.0, hOld.DistanceTo(hNew));
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
-	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
+	EXPECT_NE(0.0, ezOld.DistanceTo(ezNew));
+	EXPECT_NE(0.0, hxOld.DistanceTo(hxNew));
+	EXPECT_NE(0.0, hyOld.DistanceTo(hyNew));
+	EXPECT_NEAR(0.0, ezOld.DistanceTo(ezNew), tol);
+	EXPECT_NEAR(0.0, hxOld.DistanceTo(hxNew), tol);
+	EXPECT_NEAR(0.0, hyOld.DistanceTo(hyNew), tol);
 }
 
 TEST_F(Solver2DTest, DISABLED_pec_totalfieldin_1dot5D)
