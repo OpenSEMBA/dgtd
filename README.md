@@ -1,6 +1,7 @@
-# maxwell-dgtd
-Maxwell's curl equations solver using discontinuous Galerkin methods
+[![ubuntu-gnu](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml/badge.svg)](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml)
 
+# semba-dgtd
+Maxwell's curl equations solver using discontinuous Galerkin methods
 
 ## Compiling
 

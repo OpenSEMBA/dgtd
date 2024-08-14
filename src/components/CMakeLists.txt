@@ -6,21 +6,18 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(nlohmann_json CONFIG REQUIRED)
 
-find_package(MFEM CONFIG REQUIRED)
-include_directories(${MFEM_INCLUDE_DIRS})
-
 add_library(maxwell-components STATIC 
 	"Material.cpp"
 	"Model.cpp" 
 	"Sources.cpp"
-	"../solver/SolverInput.h"
 	"EigenvalueEstimator.cpp"
 	"OptimizationManager.cpp"
 	"SubMesher.cpp"
 	"RCSManager.cpp" 
-	"RCSExporter.cpp")
+	"RCSExporter.cpp"
+)
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})
 
-target_link_libraries(maxwell-components adapter mfem Eigen3::Eigen nlohmann_json)
+target_link_libraries(maxwell-components mfem Eigen3::Eigen nlohmann_json)

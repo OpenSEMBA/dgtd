@@ -1,18 +1,7 @@
 #pragma once
 
-#include <mfem.hpp>
-
-#include <iostream>
-#include <filesystem>
-
-#include <cmath>
-#include <complex>
-
-#include <components/Probes.h>
-#include <mfemExtension/LinearIntegrators.h>
-#include <adapter/MaxwellAdapter.hpp>
-
-#include <nlohmann/json.hpp>
+#include "mfemExtension/LinearIntegrators.h"
+#include "driver/driver.h"
 
 namespace maxwell {
 

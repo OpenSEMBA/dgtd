@@ -1,0 +1,59 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+      "major": 3,
+      "minor": 21,
+      "patch": 0
+    },
+    "configurePresets": [
+      {
+        "name": "gnu",
+        "displayName": "GNU release",
+        "binaryDir": "${sourceDir}/build/${presetName}",
+        "generator": "Ninja",
+        "cacheVariables": {
+          "CMAKE_TOOLCHAIN_FILE": {
+            "type": "FILEPATH",
+            "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+          },
+          "MAXWELL_USE_MFEM_AS_SUBDIRECTORY":{
+            "type": "BOOL",
+            "value": true
+          },
+          "CMAKE_BUILD_TYPE": {
+            "type": "STRING",
+            "value": "Release"
+          }
+        }
+      },
+      {
+        "name": "gnu-dbg",
+        "displayName": "GNU debug",
+        "inherits": "gnu",
+        "cacheVariables": {
+          "MFEM_DIR": {
+            "type": "FILEPATH",
+            "value": "$env{MFEM_DBG_DIR}"
+          },
+          "CMAKE_BUILD_TYPE": {
+            "type": "STRING",
+            "value": "Debug"
+          }
+        }
+      }
+    ],
+    "buildPresets": [
+      {
+        "name": "gnu",
+        "configurePreset": "gnu",
+        "displayName": "Build with GNU release",
+        "jobs": 0
+      },
+      {
+        "name": "gnu-dbg",
+        "configurePreset": "gnu-dbg",
+        "displayName": "Build with GNU debug",
+        "jobs": 0
+      }
+    ]
+  }

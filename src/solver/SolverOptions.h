@@ -45,10 +45,6 @@ struct SolverOptions {
         evolution.spectral = spectral;
         return *this;
     }
-    //SolverOptions& setBasis(BasisType bst) {
-    //    basis = bst;
-    //    return *this;
-    //}
 };
 
 }

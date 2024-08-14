@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include <mfem.hpp>
 #include <mfemExtension/BilinearIntegrators.h>
 #include <mfemExtension/LinearIntegrators.h>

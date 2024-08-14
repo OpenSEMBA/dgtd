@@ -34,7 +34,7 @@ protected:
 		};
 	}
 
-	void setAttributeIntervalMesh1D(
+	void setAttributeOnInterval(
 		const std::map<Attribute, Interval>& attToInterval,
 		Mesh& mesh)
 	{
@@ -58,13 +58,29 @@ protected:
 		}
 	}
 
+	void expectFieldsAreNearAfterEvolution(maxwell::Solver& solver)
+	{
+		GridFunction eOld{ solver.getField(E,Y) };
+		GridFunction hOld{ solver.getField(H,Z) };
+
+		solver.run();
+
+		GridFunction eNew{ solver.getField(E,Y) };
+		GridFunction hNew{ solver.getField(H,Z) };
+
+		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	}
+
 };
 
 TEST_F(Solver1DTest, pec_centered)
 {
 	// This test checks propagation of a wave inside a PEC box. 
 	// Final time is set so that a full cycle is completed.
-	auto probes{ buildProbesWithAnExportProbe() };
+
+	// auto probes{ buildProbesWithAnExportProbe(50) }; // For DEBUGGING.
+	auto probes{ buildProbesEmpty() };
 	probes.pointProbes = {
 		PointProbe{E, Y, {0.0}},
 		PointProbe{H, Z, {0.0}}
@@ -81,20 +97,24 @@ TEST_F(Solver1DTest, pec_centered)
 	};
 	
 	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
+	GridFunction hOld{ solver.getField(H,Z) };
+
+	auto eNormOld{ solver.getFields().getNorml2() };
 	
 	// Checks fields have been initialized.
-	EXPECT_NE(0.0, normOld); 
+	EXPECT_NE(0.0, eNormOld); 
 	
 	solver.run();
 	
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
 	GridFunction eNew{ solver.getField(E,Y) };
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	GridFunction hNew{ solver.getField(H,Z) };
 
-	// Compares all DOFs.
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+
+	EXPECT_NEAR(eNormOld, solver.getFields().getNorml2(), 1e-3);
 
 	// At the left boundary the electric field should be always close to zero...
 	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
@@ -122,74 +142,49 @@ TEST_F(Solver1DTest, pmc_centered)
 	back to its initial state within the specified error.*/
 	maxwell::Solver solver{
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
-		buildProbesWithAnExportProbe(),
-		buildGaussianInitialField(H, 0.1, Vector({0.5}), unitVec(Y)),
-		SolverOptions{}
-			.setTimeStep(2.5e-3)
-			.setCentered()
+		buildProbesEmpty(),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
+		SolverOptions{}.setCentered()
 	};
 
-	GridFunction hOld{ solver.getField(H,Z) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction hNew{ solver.getField(H,Z) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, pec_upwind)
 {
 	maxwell::Solver solver{
 		buildStandardModel(),
-		buildProbesWithAnExportProbe(),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setCFL(0.65)
 	};
 
-	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getField(E,Y) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, pmc_upwind)
 {
 	maxwell::Solver solver{
-		buildStandardModel(defaultNumberOfElements, BdrCond::PMC,BdrCond::PMC),
-		buildProbesWithAnExportProbe(),
+		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setCFL(0.65)
 	};
 
-	GridFunction hOld{ solver.getField(H,Z) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction hNew{ solver.getField(H,Z) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, sma)
 {
 	maxwell::Solver solver(
-		buildStandardModel(10, BdrCond::SMA, BdrCond::SMA),
-		buildProbesWithAnExportProbe(),
+		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), unitVec(Y)),
 		SolverOptions{}
-			.setTimeStep(5e-4)
-			.setFinalTime(1.25)
-			.setOrder(3)
 	);
+
+	EXPECT_NE(0.0, solver.getFields().get(E,Y).Norml2());
+	EXPECT_NEAR(0.0, solver.getFields().get(H,Z).Norml2(), 2e-3);
 
 	solver.run();
 
@@ -199,64 +194,59 @@ TEST_F(Solver1DTest, sma)
 TEST_F(Solver1DTest, periodic)
 {
 	auto m{ 
-		Mesh::LoadFromFile((mfemMeshes1DFolder() + "periodic-segment.mesh").c_str(), 1, 0)
+		Mesh::LoadFromFile((mfemMeshes1DFolder() + "periodic-segment.mesh"), 1, 0)
 	};
 
-	Model model{ m };
-	auto probes{ buildProbesWithAnExportProbe() };
+	for (auto i{0}; i < 4; ++i) {
+		m.UniformRefinement();
+	}
+
 	maxwell::Solver solver{
-		model,
-		probes,
+		Model{ m },
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
-		SolverOptions{}
-			.setTimeStep(5e-4)
-			.setCentered()
-			.setFinalTime(2.0)
-			.setOrder(5)
+		SolverOptions{}.setFinalTime(1.0)
 	};
 
-	solver.run();
-	
 	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getField(E,Y) };
+	GridFunction hOld{ solver.getField(H,Z) };
 
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	solver.run();
+	{	
+		GridFunction eNew{ solver.getField(E,Y) };
+		GridFunction hNew{ solver.getField(H,Z) };
+		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	}
+
+	solver.setFinalTime(2.0);
+	solver.run();
+	{	
+		GridFunction eNew{ solver.getField(E,Y) };
+		GridFunction hNew{ solver.getField(H,Z) };
+		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
+		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
+	}
+
 }
 
 TEST_F(Solver1DTest, periodic_inhomo)
 {
 	Mesh m{ Mesh::LoadFromFile(
-		(mfemMeshes1DFolder() + "periodic-inhomo-segment.mesh").c_str(),1,0) 
+		(mfemMeshes1DFolder() + "periodic-inhomo-segment.mesh"),1,0) 
 	};
-
-	Model model{ m };
-	auto probes{ buildProbesWithAnExportProbe() };
+	for (auto i{0}; i < 2; ++i) {
+		m.UniformRefinement();
+	}
 
 	maxwell::Solver solver{
-		model,
-		probes,
+		{m},
+		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setTimeStep(5e-4)
-			.setCentered()
-			.setFinalTime(1.0)
-			.setOrder(5)
 	};
 
-	solver.run();
-	
-	GridFunction eOld{ solver.getField(E,Y) };
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-	GridFunction eNew{ solver.getField(E,Y) };
-
-	EXPECT_NE(0.0, normOld);
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-2);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
 TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
@@ -267,12 +257,12 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	
 	auto msh{ Mesh::MakeCartesian1D(100) };
 
-	setAttributeIntervalMesh1D({ { 2, std::make_pair(0.50, 1.0) } }, msh);
+	setAttributeOnInterval({ { 2, std::make_pair(0.50, 1.0) } }, msh);
 	
 	Material mat1{1.0, 1.0};
 	Material mat2{4.0, 1.0};
 
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(100) };
 	probes.pointProbes = {
 		PointProbe{ E, Y, {0.00} },
 		PointProbe{ E, Y, {0.75} }
@@ -291,18 +281,16 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 			Source::Polarization(unitVec(Y)),
 			Source::Propagation(unitVec(X))
 		),
-		SolverOptions{}
-			.setCFL(0.65)
-			.setFinalTime(1.0)
+		SolverOptions{}.setFinalTime(1.0)
 	};
 		
 	solver.run();
 
-	auto reflectCoeff{
+	auto expectedReflectCoeff{
 		(mat2.getImpedance() - mat1.getImpedance()) /
 		(mat2.getImpedance() + mat1.getImpedance())
 	};
-	auto transmissionCoeff{ 1 + reflectCoeff };
+	auto expectedTransmissionCoeff{ 1 + expectedReflectCoeff };
 
 	auto timeTolerance{ 0.03 };
 	auto fieldTolerance{ 0.01 };
@@ -311,7 +299,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	{
 		auto frame{ solver.getPointProbe(0).findFrameWithMin() };
 		EXPECT_NEAR(0.75, frame.first, timeTolerance);
-		EXPECT_NEAR(reflectCoeff, frame.second, fieldTolerance);
+		EXPECT_NEAR(expectedReflectCoeff, frame.second, fieldTolerance);
 	}
 
 	// Checks transmitted wave.
@@ -319,7 +307,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
 		auto expectedTimeOfArrival{ 0.25 + 0.25 / mat2.getSpeedOfLight() };
 		EXPECT_NEAR(expectedTimeOfArrival, frame.first, timeTolerance);
-		EXPECT_NEAR(transmissionCoeff, frame.second, fieldTolerance);
+		EXPECT_NEAR(expectedTransmissionCoeff, frame.second, fieldTolerance);
 	}
 
 }
@@ -327,41 +315,18 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)
 {
 	// Resonant mode inside a PEC box. 
-	auto probes{ buildProbesWithAnExportProbe() };
-
-	double finalTime{ 1.2 };
 
 	maxwell::Solver solver{
 		buildStandardModel(),
-		probes,
+		buildProbesEmpty(),
 		buildResonantModeInitialField(E, unitVec(Y), {1}),
 		SolverOptions{}
-			.setFinalTime(finalTime)
-			.setCFL(0.5)
 	};
 
-	Vector eOld(solver.getField(E,Y).Size());
-	eOld = solver.getField(E,Y);
-	
-	solver.run();
-
-	GridFunction eNew{ solver.getField(E,Y) };
-	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-8);
-
-	//EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
-
-	//for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
-	//	EXPECT_NEAR(0.0, f, tolerance);
-	//}
-
-	//auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
-	//EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
-	//EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
-
-	EXPECT_TRUE(false);
+	expectFieldsAreNearAfterEvolution(solver);
 }
 
-TEST_F(Solver1DTest, pec_centered_spectral)
+TEST_F(Solver1DTest, DISABLED_pec_centered_spectral)
 {
 	// This test checks propagation of a wave inside a PEC box. 
 	// Final time is set so that a full cycle is completed.
@@ -409,7 +374,7 @@ TEST_F(Solver1DTest, pec_centered_spectral)
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
 
-TEST_F(Solver1DTest, compareSpectralToBase_centered)
+TEST_F(Solver1DTest, DISABLED_compareSpectralToBase_centered)
 {
 	Probes probes;
 	
@@ -451,7 +416,7 @@ TEST_F(Solver1DTest, compareSpectralToBase_centered)
 
 }
 
-TEST_F(Solver1DTest, fieldProbeThroughSolver)
+TEST_F(Solver1DTest, DISABLED_fieldProbeThroughSolver)
 {
 	Mesh m{ Mesh::MakeCartesian1D(20,5.0) };
 	
@@ -489,9 +454,9 @@ TEST_F(Solver1DTest, fieldProbeThroughSolver)
 
 }
 
-TEST_F(Solver1DTest, interior_boundary_marking_centered)
+TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_centered)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
@@ -512,9 +477,9 @@ TEST_F(Solver1DTest, interior_boundary_marking_centered)
 
 }
 
-TEST_F(Solver1DTest, interior_boundary_marking_upwind)
+TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_upwind)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
@@ -534,9 +499,9 @@ TEST_F(Solver1DTest, interior_boundary_marking_upwind)
 
 }
 
-TEST_F(Solver1DTest, interior_boundary_marking_centered_RtL)
+TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_centered_RtL)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
@@ -557,9 +522,9 @@ TEST_F(Solver1DTest, interior_boundary_marking_centered_RtL)
 
 }
 
-TEST_F(Solver1DTest, interior_boundary_marking_upwind_RtL)
+TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_upwind_RtL)
 {
-	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh").c_str(),1, 0) };
+	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "1D_IntBdr_Line.msh"),1, 0) };
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };

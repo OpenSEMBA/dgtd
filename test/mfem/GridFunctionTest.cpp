@@ -398,3 +398,61 @@ TEST_F(GridFunctionTest, DISABLED_ProjectBetweenDifferentSpacesFromRead)
 	nd_gf_Ey.ProjectGridFunction(*Ey.get());
 
 }
+
+TEST_F(GridFunctionTest, HigherVDIMGridFunctions)
+{
+
+	auto mesh{ Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE, true) };
+
+	auto dgfec = DG_FECollection(1, 2);
+	auto dgfes1 = FiniteElementSpace(&mesh, &dgfec, 1);
+	auto dgfes2 = FiniteElementSpace(&mesh, &dgfec, 2);
+
+	GridFunction Ax(&dgfes1);
+	Ax = 1.0;
+	GridFunction Ay(&dgfes1);
+	Ay = 2.0;
+	GridFunction Ag(&dgfes2);
+
+	Ag.SetVector(Ax, 0);
+	Ag.SetVector(Ay, Ax.Size());
+
+	auto ndfec = ND_FECollection(1, 2);
+	auto ndfec1 = FiniteElementSpace(&mesh, &ndfec, 1);
+	auto ndfec2 = FiniteElementSpace(&mesh, &ndfec, 2);
+
+	GridFunction Bx(&dgfes1);
+	Bx = 0.0;
+	GridFunction By(&dgfes1);
+	By = 0.0;
+	GridFunction Bg(&dgfes2);
+	Bg = 0.0;
+
+	GridFunctionCoefficient gfc_x(&Ax);
+	Bx.ProjectCoefficient(gfc_x);
+	GridFunctionCoefficient gfc_y(&Ay);
+	By.ProjectCoefficient(gfc_y);
+	VectorGridFunctionCoefficient gfc_g(&Ag);
+	Bg.ProjectCoefficient(gfc_g);
+
+	auto lin{ LinearForm(&ndfec2) };
+	Vector vx{ {1.0, 0.0} };
+	VectorConstantCoefficient vccx(vx);
+	lin.AddDomainIntegrator(new VectorFEBoundaryTangentLFIntegrator(vccx));
+	lin.Assemble();
+
+	ParaViewDataCollection* pd = NULL;
+	pd = new ParaViewDataCollection("L2toND", &mesh);
+	pd->SetPrefixPath("SpaceSwapping");
+	pd->RegisterField("Galerkin Global Solution", &Ag);
+	pd->RegisterField("Nedelec Solution X", &Bx);
+	pd->RegisterField("Nedelec Global Solution", &Bg);
+	pd->SetLevelsOfDetail(1);
+	pd->SetDataFormat(VTKFormat::BINARY);
+	pd->SetHighOrderOutput(true);
+	pd->SetCycle(0);
+	pd->SetTime(0.0);
+	pd->Save();
+
+
+}

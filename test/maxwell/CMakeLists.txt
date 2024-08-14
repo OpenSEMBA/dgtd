@@ -5,36 +5,39 @@ message(STATUS "Creating build system for maxwell_Tests")
 if (MAXWELL_USE_MPI)
 	set(MPI_SRCS "solver/ParSolver2DTest.cpp")
 	add_compile_definitions(MAXWELL_USE_MPI)
-	message(STATUS "MPI_SRCS=" ${MPI_SRCS})
 endif()
-
-option(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT OFF)
-if (MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
-	add_compile_definitions(MAXWELL_TEST_ALLOW_PARAVIEW_EXPORT)
-endif()
-
-find_package(nlohmann_json CONFIG REQUIRED)
 
 add_executable(maxwell_tests
-	"MaxwellTestLauncher.cpp"  
+	"driver/DriverTest.cpp"
 	"components/MaterialTest.cpp" 
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 
 	"mfemExtension/LinearFormExtensionTest.cpp" 
 	"math/GeometryTest.cpp"
+	"components/EigenvalueEstimator.cpp"
+	"solver/ProbesManagerTest.cpp" 
+	"solver/SourcesTest.cpp"
+)
+
+add_executable(maxwell_solver_tests
+	"MaxwellTestLauncher.cpp" 
 	${MPI_SRCS}
 	"solver/Solver1DTest.cpp" 
 	"solver/Solver2DTest.cpp" 
-	"solver/Solver3DTest.cpp"  
-	"solver/ProbesManagerTest.cpp" 
-	"solver/SourcesTest.cpp"
-	"components/EigenvalueEstimator.cpp")
-
-include_directories(./)
+	"solver/Solver3DTest.cpp" 
+)
 
 target_link_libraries(maxwell_tests
-	nlohmann_json
 	maxwell-solver
+	maxwell-driver
+	GTest::gtest
+	GTest::gtest_main
+)
+
+target_link_libraries(maxwell_solver_tests
+	maxwell-solver
+	maxwell-driver
 	GTest::gtest
 )
 
+include_directories("./")
