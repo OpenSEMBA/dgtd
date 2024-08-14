@@ -48,6 +48,7 @@
       "type": "totalField",
       "polarization": [ 0.0, 0.0, 1.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
+      "fieldtype": "electric",
       "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
