@@ -67,7 +67,7 @@ std::size_t Model::numberOfBoundaryMaterials() const
 	return attToBdrMap_.size();
 }
 
-mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
+mfem::Vector Model::initialiseGeomTagVector() const
 {
 	int size{ 0 };
 	for (auto const& [geomTag, mat] : attToMatMap_) {
@@ -78,6 +78,12 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 	assert(size > 0);
 	mfem::Vector res(size);
 	res = 0.0;
+	return res;
+}
+
+mfem::Vector Model::buildEpsMuPiecewiseVector(const FieldType& f) const
+{
+	auto res{ initialiseGeomTagVector() };
 
 	for (auto const& [geomTag, mat] : attToMatMap_) {
 		switch (f) {
@@ -88,6 +94,17 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 			res[geomTag - 1] = mat.getPermeability();
 			break;
 		}
+	}
+
+	return res;
+}
+
+mfem::Vector Model::buildSigmaPiecewiseVector() const
+{
+	auto res{ initialiseGeomTagVector() };
+
+	for (auto const& [geomTag, mat] : attToMatMap_) {
+		res[geomTag - 1] = mat.getConductivity();
 	}
 
 	return res;

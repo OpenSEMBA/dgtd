@@ -104,7 +104,7 @@ Vector buildNVector(const Direction& d, const FiniteElementSpace& fes)
 
 FiniteElementOperator buildInverseMassMatrix(const FieldType& f, const Model& model, FiniteElementSpace& fes)
 {
-	Vector aux{ model.buildPiecewiseArgVector(f) };
+	Vector aux{ model.buildEpsMuPiecewiseVector(f) };
 	PWConstCoefficient PWCoeff(aux);
 
 	auto MInv = std::make_unique<BilinearForm>(&fes);

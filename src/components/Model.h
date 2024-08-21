@@ -48,7 +48,9 @@ public:
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
 
-	mfem::Vector buildPiecewiseArgVector(const FieldType& f) const;
+	mfem::Vector initialiseGeomTagVector() const;
+	mfem::Vector buildEpsMuPiecewiseVector(const FieldType& f) const;
+	mfem::Vector buildSigmaPiecewiseVector() const;
 
 	std::size_t numberOfMaterials() const;
 	std::size_t numberOfBoundaryMaterials() const;
