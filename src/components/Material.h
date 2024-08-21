@@ -6,7 +6,6 @@ namespace maxwell {
 
 class Material {
 public:
-	Material(double epsilon, double mu);
 	Material(double epsilon, double mu, double sigma_);
 
 	double getPermittivity() const { return epsilon_; }

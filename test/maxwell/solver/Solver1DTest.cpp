@@ -259,8 +259,8 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	setAttributeOnInterval({ { 2, std::make_pair(0.50, 1.0) } }, msh);
 	
-	Material mat1{1.0, 1.0};
-	Material mat2{4.0, 1.0};
+	Material mat1{1.0, 1.0, 0.0};
+	Material mat2{4.0, 1.0, 0.0};
 
 	auto probes{ buildProbesWithAnExportProbe(100) };
 	probes.pointProbes = {

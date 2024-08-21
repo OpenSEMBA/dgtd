@@ -4,7 +4,7 @@
 
 namespace maxwell {
 
-void verifyParameters(double epsilon, double mu) 
+void verifyParameters(double epsilon, double mu, double sigma) 
 {
 	if (epsilon < 1.0) {
 		throw std::runtime_error("Permittivity under 1.0 not allowed.");
@@ -12,21 +12,9 @@ void verifyParameters(double epsilon, double mu)
 	if (mu < 1.0) {
 		throw std::runtime_error("Permeability under 1.0 not allowed.");
 	}
-}
-
-void verifyParameters(double epsilon, double mu, double sigma) 
-{
-	verifyParameters(epsilon, mu);
 	if (sigma < 0.0) {
 		throw std::runtime_error("Conductivity under 0.0 is not allowed.");
 	}
-}
-
-Material::Material(double epsilon, double mu) :
-	epsilon_(epsilon),
-	mu_(mu)
-{
-	verifyParameters(epsilon, mu);
 }
 
 Material::Material(double epsilon, double mu, double sigma) :

@@ -6,7 +6,7 @@ Model::Model(Mesh& mesh, const GeomTagToMaterial& matMap, const GeomTagToBoundar
 	mesh_(mesh)
 {
 	if (matMap.size() == 0) {
-		attToMatMap_.emplace(1, Material(1.0, 1.0));
+		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));
 	}
 	else {
 		attToMatMap_ = matMap;

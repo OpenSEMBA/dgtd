@@ -299,13 +299,17 @@ GeomTagToMaterial assembleAttributeToMaterial(const json& case_data, const mfem:
 		for (auto t = 0; t < case_data["model"]["materials"][m]["tags"].size(); t++) {
 			double eps{ 1.0 };
 			double mu{ 1.0 };
+			double sigma{ 0.0 };
 			if (case_data["model"]["materials"][m].contains("relative_permittivity")) {
 				eps = case_data["model"]["materials"][m]["relative_permittivity"];
 			}
 			if (case_data["model"]["materials"][m].contains("relative_permeability")) {
 				mu = case_data["model"]["materials"][m]["relative_permeability"];
 			}
-			res.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu)));
+			if (case_data["model"]["materials"][m].contains("bulk_conductivity")) {
+				sigma = case_data["model"]["materials"][m]["bulk_conductivity"];
+			}
+			res.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu, sigma)));
 		}
 	}
 
