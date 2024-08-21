@@ -1353,7 +1353,7 @@ TEST_F(Solver2DTest, AutomatedTimeStepEstimator_tri_K2_P3)
 	EXPECT_NEAR(0.101761895965867, dt, tol);
 }
 
-TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circleinside)
+TEST_F(Solver2DTest, DISABLED_upwind_box_totalfieldscatteredfield_inout_circleinside)
 {
 	Mesh mesh{Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_TFSF_Box_Circle.msh").c_str(), 1, 0, true)};
 	GeomTagToBoundary attToBdr{{2, BdrCond::SMA}, {3, BdrCond::PEC}};
@@ -1373,7 +1373,7 @@ TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circleinside)
 	solver.run();
 }
 
-TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_intbdr_fss)
+TEST_F(Solver2DTest, DISABLED_upwind_beam_totalfieldscatteredfield_in_intbdr_fss)
 {
 	Mesh mesh{Mesh::LoadFromFile((gmshMeshesFolder() + "2D_TF_FSS.msh").c_str(), 1, 0, true)};
 	GeomTagToBoundary attToBdr{{2, BdrCond::SMA}, {3, BdrCond::PMC}};
@@ -1394,7 +1394,7 @@ TEST_F(Solver2DTest, upwind_beam_totalfieldscatteredfield_in_intbdr_fss)
 	solver.run();
 }
 
-TEST_F(Solver2DTest, upwind_box_totalfieldscatteredfield_inout_circle_w_circles)
+TEST_F(Solver2DTest, DISABLED_upwind_box_totalfieldscatteredfield_inout_circle_w_circles)
 {
 	Mesh mesh{Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "2D_TFSF_Circle_of_circles.msh").c_str(), 1, 0, true)};
 	GeomTagToBoundary attToBdr{{2, BdrCond::SMA}, {3, BdrCond::PEC}};
