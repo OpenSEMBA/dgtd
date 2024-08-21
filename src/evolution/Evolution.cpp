@@ -123,7 +123,7 @@ Evolution::Evolution(
 		}
 	}
 
-	MJ_ = buildMassInversedConductivityOperator(model_, fes_);
+	MJ_ = buildByMult(*MInv_[E], *buildConductivityOperator(model_, fes_), fes_);
  }
 
 void Evolution::Mult(const Vector& in, Vector& out) const
