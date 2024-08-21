@@ -122,6 +122,8 @@ Evolution::Evolution(
 			}
 		}
 	}
+
+	MJ_ = buildMassInversedConductivityOperator(model_, fes_);
  }
 
 void Evolution::Mult(const Vector& in, Vector& out) const
@@ -189,6 +191,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
 			}
 		}
+
+		MJ_->AddMult(eOld[x], eNew[x], -1.0);
 
 	}
 

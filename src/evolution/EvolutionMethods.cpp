@@ -135,6 +135,20 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	return res;
 }
 
+FiniteElementOperator buildMassInversedConductivityOperator(const Model& model, FiniteElementSpace& fes)
+{
+	Vector aux{ model.buildSigmaPiecewiseVector() };
+	PWConstCoefficient PWCoeff(aux);
+
+	auto res = std::make_unique<BilinearForm>(&fes);
+	res->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
+
+	res->Assemble();
+	res->Finalize();
+	return res;
+
+}
+
 FiniteElementOperator buildFluxOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
 {
 	auto res = std::make_unique<BilinearForm>(&fes);
