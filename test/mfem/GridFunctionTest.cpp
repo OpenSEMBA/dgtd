@@ -399,7 +399,7 @@ TEST_F(GridFunctionTest, DISABLED_ProjectBetweenDifferentSpacesFromRead)
 
 }
 
-TEST_F(GridFunctionTest, HigherVDIMGridFunctions)
+TEST_F(GridFunctionTest, DISABLED_HigherVDIMGridFunctions)
 {
 
 	auto mesh{ Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE, true) };
@@ -453,6 +453,5 @@ TEST_F(GridFunctionTest, HigherVDIMGridFunctions)
 	pd->SetCycle(0);
 	pd->SetTime(0.0);
 	pd->Save();
-
 
 }

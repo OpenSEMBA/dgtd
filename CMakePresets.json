@@ -8,21 +8,36 @@
     "configurePresets": [
       {
         "name": "gnu",
-        "displayName": "Configure GNU release build",
+        "displayName": "GNU release",
         "binaryDir": "${sourceDir}/build/${presetName}",
-        "generator": "Unix Makefiles",
+        "generator": "Ninja",
         "cacheVariables": {
           "CMAKE_TOOLCHAIN_FILE": {
             "type": "FILEPATH",
             "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
           },
-          "MFEM_DIR": {
-            "type": "FILEPATH",
-            "value": "$env{MFEM_DIR}"
+          "MAXWELL_USE_MFEM_AS_SUBDIRECTORY":{
+            "type": "BOOL",
+            "value": true
           },
           "CMAKE_BUILD_TYPE": {
             "type": "STRING",
             "value": "Release"
+          }
+        }
+      },
+      {
+        "name": "gnu-dbg",
+        "displayName": "GNU debug",
+        "inherits": "gnu",
+        "cacheVariables": {
+          "MFEM_DIR": {
+            "type": "FILEPATH",
+            "value": "$env{MFEM_DBG_DIR}"
+          },
+          "CMAKE_BUILD_TYPE": {
+            "type": "STRING",
+            "value": "Debug"
           }
         }
       }
@@ -31,7 +46,14 @@
       {
         "name": "gnu",
         "configurePreset": "gnu",
-        "displayName": "Build with GNU"
+        "displayName": "Build with GNU release",
+        "jobs": 0
+      },
+      {
+        "name": "gnu-dbg",
+        "configurePreset": "gnu-dbg",
+        "displayName": "Build with GNU debug",
+        "jobs": 0
       }
     ]
   }

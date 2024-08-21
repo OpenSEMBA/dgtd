@@ -5,7 +5,6 @@
 #include <components/Probes.h>
 #include <solver/SolverOptions.h>
 
-
 namespace maxwell {
 
 using namespace mfem;

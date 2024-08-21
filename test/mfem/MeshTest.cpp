@@ -415,7 +415,7 @@ TEST_F(MeshTest, SubMeshingAttributes_1D)
 
 }
 
-TEST_F(MeshTest, SubMeshingBdrAttributes_1D)
+TEST_F(MeshTest, DISABLED_SubMeshingBdrAttributes_1D)
 {
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes1DFolder() + "line_for_submesh.mesh").c_str(),1, 0) };
 

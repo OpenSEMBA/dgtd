@@ -17,11 +17,21 @@ static mfem::Vector crossProduct(const mfem::Vector& va, const mfem::Vector& vb)
 
 static mfem::Vector unitVec(int d)
 {
+	
 	mfem::Vector r(3);
 	r = 0.0;
 	r[d] = 1.0;
 	return r;
 }
+
+static mfem::Vector minusUnitVec(int d)
+{
+	auto res{unitVec(d)};
+	res *= -1.0;
+	return res;
+}
+
+
 
 
 }

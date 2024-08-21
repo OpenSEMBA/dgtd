@@ -91,7 +91,7 @@ public:
 	{
 		double res{ 1.0 };
 		for (auto d{ 0 }; d < modes_.size(); ++d) {
-			res *= sin(modes_[d] * 2.0*M_PI * pos[d]);
+			res *= sin(modes_[d] * M_PI * pos[d]);
 		}
 		return res;
 	}

@@ -2,18 +2,14 @@
 
 #include <iostream>
 #include <fstream>
-#include <mfem.hpp>
 
-#ifdef __linux__
-#     include <mfem/general/text.hpp>
-#elif _WIN32
-#     include <general/text.hpp>
-#endif
+#include "mfem.hpp"
+#include "general/text.hpp"
 
-#include <components/Probes.h>
-#include <evolution/Fields.h>
-#include <solver/SolverOptions.h>
-#include <components/SubMesher.h>
+#include "components/Probes.h"
+#include "components/SubMesher.h"
+#include "evolution/Fields.h"
+#include "solver/SolverOptions.h"
 
 namespace maxwell {
 

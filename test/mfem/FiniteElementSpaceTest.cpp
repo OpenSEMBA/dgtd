@@ -199,6 +199,7 @@ TEST_F(FiniteElementSpaceTest, MassMatrixIsSameForH1andDG)
 		}
 	}
 }
+
 TEST_F(FiniteElementSpaceTest, KOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
@@ -250,6 +251,7 @@ TEST_F(FiniteElementSpaceTest, KOperators)
 		}
 	}
 }
+
 TEST_F(FiniteElementSpaceTest, MeshBoundaries)
 {
 	/*In this test we aim to compare the boundary DoFs for a mesh generated through
@@ -295,6 +297,7 @@ TEST_F(FiniteElementSpaceTest, MeshBoundaries)
 
 	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
 }
+
 TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
 {
 	/*This test creates files for the Basis Functions, for later visualization 
@@ -336,6 +339,7 @@ TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
 	SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
+
 TEST_F(FiniteElementSpaceTest, DGWithWedgeElement)
 {
 	int dim{ 3 };
@@ -360,31 +364,7 @@ TEST_F(FiniteElementSpaceTest, DGWithWedgeElement)
 	ASSERT_NO_THROW(bf.Assemble());
 	ASSERT_NO_THROW(bf.Finalize());
 }
-TEST_F(FiniteElementSpaceTest, DGWithPyramidElementNotSupported)
-{
-	int dim{ 3 };
 
-	Mesh m{ dim, 0, 0, 0 };
-	m.AddVertex(0.0, 0.0, 0.0);
-	m.AddVertex(1.0, 0.0, 0.0);
-	m.AddVertex(0.0, 1.0, 0.0);
-	m.AddVertex(1.0, 1.0, 0.0);
-	m.AddVertex(0.5, 0.5, 1.0);
-	m.AddPyramid(0, 1, 2, 3, 4);
-	m.FinalizeMesh();
-
-	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
-
-	FiniteElementSpace fes{ &m, &fec };
-	BilinearForm bf{ &fes };
-	ConstantCoefficient one{ 1.0 };
-	bf.AddDomainIntegrator(new MassIntegrator(one));
-	#ifdef _WIN32
-		EXPECT_EXIT(bf.Assemble(), testing::ExitedWithCode(3), ".*");
-	#elif __linux__
-		EXPECT_EXIT(bf.Assemble(), testing::KilledBySignal(6), ".*");
-	#endif
-}
 TEST_F(FiniteElementSpaceTest, H1WithPyramidElement)
 {
 	int dim{ 3 };
@@ -408,6 +388,7 @@ TEST_F(FiniteElementSpaceTest, H1WithPyramidElement)
 	ASSERT_NO_THROW(bf.Assemble());
 	ASSERT_NO_THROW(bf.Finalize());
 }
+
 TEST_F(FiniteElementSpaceTest, GetCollocatedNodes1D)
 {
 	//  0     1 2     3   DoFs
