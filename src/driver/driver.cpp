@@ -78,7 +78,7 @@ FieldType getFieldType(const std::string& ft)
 	}
 }
 
-Sources buildGaussianInitialField(
+std::unique_ptr<InitialField> buildGaussianInitialField(
 	const FieldType& ft = E,
 	const double spread = 0.1,
 	const mfem::Vector& center_ = mfem::Vector({ 0.5 }),
@@ -88,14 +88,11 @@ Sources buildGaussianInitialField(
 	mfem::Vector gaussianCenter(dimension);
 	gaussianCenter = 0.0;
 
-	Sources res;
-	res.add(std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_)
-	);
-	return res;
+	return std::make_unique<InitialField>(
+		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_);
 }
 
-Sources buildResonantModeInitialField(
+std::unique_ptr<InitialField> buildResonantModeInitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
 	const std::vector<std::size_t>& modes = { 1 })
@@ -103,15 +100,10 @@ Sources buildResonantModeInitialField(
 	Sources res;
 	Source::Position center_((int)modes.size());
 	center_ = 0.0;
-	res.add(
-		std::make_unique<InitialField>(
-			SinusoidalMode{ modes }, ft, p, center_
-		)
-	);
-	return res;
+	return std::make_unique<InitialField>(SinusoidalMode{ modes }, ft, p, center_);
 }
 
-Sources buildGaussianPlanewave(
+std::unique_ptr<Planewave> buildGaussianPlanewave(
 	double spread,
 	double delay,
 	const Source::Polarization& pol,
@@ -120,9 +112,7 @@ Sources buildGaussianPlanewave(
 )
 {
 	Gaussian mag{ spread, mfem::Vector({-delay}) };
-	Sources res;
-	res.add(std::make_unique<Planewave>(mag, pol, dir, ft));
-	return res;
+	return std::make_unique<Planewave>(mag, pol, dir, ft);
 }
 
 Sources buildSources(const json& case_data)
@@ -131,35 +121,36 @@ Sources buildSources(const json& case_data)
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		if (case_data["sources"][s]["type"] == "initial") {
 			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
-				return buildGaussianInitialField(
+				res.add(buildGaussianInitialField(
 					assignFieldType(case_data["sources"][s]["field_type"]),
 					case_data["sources"][s]["magnitude"]["spread"],
 					assembleCenterVector(case_data["sources"][s]["center"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]),
-					case_data["sources"][s]["dimension"]
+					case_data["sources"][s]["dimension"])
 				);
 			}
 			else if (case_data["sources"][s]["magnitude"]["type"] == "resonant") {
-				return buildResonantModeInitialField(
+				res.add(buildResonantModeInitialField(
 					assignFieldType(case_data["sources"][s]["field_type"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]),
-					case_data["sources"][s]["magnitude"]["modes"]
+					case_data["sources"][s]["magnitude"]["modes"])
 				);
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "totalField") {
-			return buildGaussianPlanewave(
+			res.add(buildGaussianPlanewave(
 				case_data["sources"][s]["magnitude"]["spread"],
 				case_data["sources"][s]["magnitude"]["delay"],
 				assemble3DVector(case_data["sources"][s]["polarization"]),
 				assemble3DVector(case_data["sources"][s]["propagation"]),
-				getFieldType(case_data["sources"][s]["fieldtype"])
+				getFieldType(case_data["sources"][s]["fieldtype"]))
 			);
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
 		}
 	}
+	return res;
 }
 
 
