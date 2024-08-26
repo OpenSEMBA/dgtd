@@ -146,6 +146,9 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
+
+
+		MJ_->AddMult(eOld[x], eNew[x], -1.0);
 		
 		//Centered
 		MS_[H][y]		 ->AddMult(eOld[z], hNew[x],-1.0);
@@ -191,9 +194,6 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
 			}
 		}
-
-		MJ_->AddMult(eOld[x], eNew[x], -1.0);
-
 	}
 
 	for (const auto& source : srcmngr_.sources) {

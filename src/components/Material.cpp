@@ -13,7 +13,7 @@ void verifyParameters(double epsilon, double mu, double sigma)
 		throw std::runtime_error("Permeability under 1.0 not allowed.");
 	}
 	if (sigma < 0.0) {
-		throw std::runtime_error("Conductivity under 0.0 is not allowed.");
+		throw std::runtime_error("Conductivity under 0.0 not allowed.");
 	}
 }
 

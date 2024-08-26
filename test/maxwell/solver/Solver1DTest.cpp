@@ -305,11 +305,49 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	// Checks transmitted wave.
 	{
 		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
-		auto expectedTimeOfArrival{ 0.25 + 0.25 / mat2.getSpeedOfLight() };
+		auto expectedTimeOfArrival{ 0.25 + 0.25 / mat2.getSpeedOfWave() };
 		EXPECT_NEAR(expectedTimeOfArrival, frame.first, timeTolerance);
 		EXPECT_NEAR(expectedTransmissionCoeff, frame.second, fieldTolerance);
 	}
 
+}
+
+TEST_F(Solver1DTest, conductivityPreTest)
+{
+	// Sends a wave through a material interface. 
+	// Checks reflection and transmission.
+	// Ref: https://en.wikipedia.org/wiki/Reflection_coefficient
+
+	auto msh{ Mesh::MakeCartesian1D(100, 5.0) };
+
+	setAttributeOnInterval({ { 2, std::make_pair(2.0, 3.0) } }, msh);
+
+	Material mat1{ 1.0, 1.0, 0.0 };
+	Material mat2{ 1.0, 1.0, 2.0 };
+
+	auto probes{ buildProbesWithAnExportProbe(10) };
+	probes.pointProbes = {
+		PointProbe{ E, Y, {0.00} },
+		PointProbe{ E, Y, {4.00} }
+	};
+
+	maxwell::Solver solver{
+		Model{
+			msh,
+			{ {1, mat1}, {2, mat2} },
+			{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
+		},
+		probes,
+		buildPlanewaveInitialField(
+			Gaussian{ 0.1 },
+			Source::Position({ 0.35 }),
+			Source::Polarization(unitVec(Y)),
+			Source::Propagation(unitVec(X))
+		),
+		SolverOptions{}.setFinalTime(10.0)
+	};
+
+	solver.run();
 }
 
 TEST_F(Solver1DTest, DISABLED_resonant_mode_upwind)

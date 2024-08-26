@@ -13,7 +13,7 @@ public:
 	double getConductivity() const { return sigma_; }
 	double getImpedance() const { return sqrt(mu_ / epsilon_); }
 	double getAdmitance() const { return sqrt(epsilon_ / mu_); }
-	double getSpeedOfLight() const { return 1 / sqrt(mu_ * epsilon_); }
+	double getSpeedOfWave() const { return 1 / sqrt(mu_ * epsilon_); }
 private:
 	double epsilon_, mu_, sigma_;
 };

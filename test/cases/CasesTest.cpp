@@ -624,6 +624,14 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 
 }
 
+TEST_F(CasesTest, 2D_Conductivity_Upwind)
+{
+	auto case_data{ parseJSONfile(maxwellCase("2D_COND")) };
+	auto solver{ buildSolver(case_data) };
+
+	solver.run();
+}
+
 TEST_F(CasesTest, DISABLED_2D_NTFF_Box_Upwind) //Unsupported Gmsh element type.
 {
 	std::string case_name{ "2D_NTFF_Box" };
@@ -835,5 +843,14 @@ TEST_F(CasesTest, 3D_NTFF_Sphere_Upwind)
 	auto solver{ buildSolver(maxwellCase(case_name)) };
 
 	solver.run();
+}
+
+TEST_F(CasesTest, 3D_Conductivity_Upwind)
+{
+	auto case_data{ parseJSONfile(maxwellCase("3D_COND")) };
+	auto solver{ buildSolver(case_data) };
+
+	solver.run();
+
 }
 
