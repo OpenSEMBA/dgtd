@@ -234,7 +234,7 @@ GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 
 Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
 {
-	Model submodel(submesh, GeomTagToMaterial{}, assignAttToBdrByDimForSpectral(submesh), GeomTagToInteriorConditions{});
+	Model submodel(submesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh), GeomTagToInteriorBoundary{}));
 	FiniteElementSpace subfes(&submesh, &fec);
 	Eigen::SparseMatrix<double> local;
 	auto numberOfFieldComponents = 2;
@@ -375,9 +375,8 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 		};
 		FiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
 		Model model{ submesh,
-			GeomTagToMaterial{},
-			assignAttToBdrByDimForSpectral(submesh),
-			GeomTagToInteriorConditions{}
+			GeomTagToMaterialInfo{},
+			GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh),GeomTagToInteriorBoundary{})
 		};
 		SourcesManager srcs{ Sources(), submeshFES, fields_ };
 		Evolution evol {

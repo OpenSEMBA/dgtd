@@ -26,11 +26,8 @@ protected:
 		auto msh{ Mesh::MakeCartesian1D(numberOfElements, 1.0) };
 		return Model{
 			msh,
-			GeomTagToMaterial{},
-			GeomTagToBoundary{
-				{1, bdrL},
-				{2, bdrR}
-			}
+			GeomTagToMaterialInfo(),
+			GeomTagToBoundaryInfo(GeomTagToBoundary{{1, bdrL},{2, bdrR}}, GeomTagToInteriorBoundary{})
 		};
 	}
 
@@ -271,8 +268,8 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	maxwell::Solver solver{
 		Model{
 			msh,
-			{ {1, mat1}, {2, mat2} },
-			{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
+			GeomTagToMaterialInfo(GeomTagToMaterial{ {1, mat1}, {2, mat2} }, GeomTagToBoundaryMaterial{}),
+			GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }, GeomTagToInteriorBoundary{})
 		},
 		probes,
 		buildPlanewaveInitialField(
@@ -338,8 +335,8 @@ TEST_F(Solver1DTest, conductivityPreTest)
 	maxwell::Solver solver{
 		Model{
 			msh,
-			{ {1, mat1}, {2, mat2} },
-			{ {1, BdrCond::PEC}, {2, BdrCond::PEC} }
+			GeomTagToMaterialInfo(GeomTagToMaterial{ {1, mat1}, {2, mat2} }, GeomTagToBoundaryMaterial{}),
+			GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::PEC}, {2, BdrCond::PEC} }, GeomTagToInteriorBoundary{})
 		},
 		probes,
 		buildPlanewaveInitialField(
@@ -467,7 +464,7 @@ TEST_F(Solver1DTest, DISABLED_fieldProbeThroughSolver)
 		FieldProbe{{2.0}}
 	};
 
-	Model model{ m, GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{} };
+	Model model{ m, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}) };
 
 	maxwell::Solver solver{
 		model,
@@ -502,8 +499,8 @@ TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_centered)
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond };
+	GeomTagToInteriorBoundary att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2Bdr, att2IntCond) };
 
 	maxwell::Solver solver{
 		model,
@@ -525,8 +522,8 @@ TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_upwind)
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond };
+	GeomTagToInteriorBoundary att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2Bdr, att2IntCond) };
 
 	maxwell::Solver solver{
 		model,
@@ -547,8 +544,8 @@ TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_centered_RtL)
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond};
+	GeomTagToInteriorBoundary att2IntBdr{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2Bdr, att2IntBdr) };
 
 	maxwell::Solver solver{
 		model,
@@ -570,8 +567,8 @@ TEST_F(Solver1DTest, DISABLED_interior_boundary_marking_upwind_RtL)
 	auto probes{ buildProbesWithAnExportProbe(10) };
 
 	GeomTagToBoundary att2Bdr{ {2,BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {3, BdrCond::PEC} };
-	Model model{ mesh, GeomTagToMaterial{}, att2Bdr, att2IntCond };
+	GeomTagToInteriorBoundary att2IntCond{ {3, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2Bdr, att2IntCond) };
 
 	maxwell::Solver solver{
 		model,

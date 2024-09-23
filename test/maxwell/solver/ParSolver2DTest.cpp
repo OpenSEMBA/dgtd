@@ -30,7 +30,7 @@ protected:
 		const BdrCond& bdrT = BdrCond::PEC,
 		const BdrCond& bdrL = BdrCond::PEC) {
 		auto msh{ Mesh::MakeCartesian2D(nx,ny,elType) };
-		return Model(msh, GeomTagToMaterial{}, buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL));
+		return Model(msh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL), GeomTagToInteriorBoundary{});
 	}
 
 	GeomTagToBoundary buildAttrToBdrMap2D(const BdrCond& bdrB, const BdrCond& bdrR, const BdrCond& bdrT, const BdrCond& bdrL)

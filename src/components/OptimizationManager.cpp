@@ -20,7 +20,7 @@ SubMesh OptimizationManager::assembleElementBasedSubMesh(ElementID& id) {
 std::pair<FiniteElementSpace, Model> OptimizationManager::assembleTimeSteppingReqs(ElementID& id) {
 	auto submesh{ assembleElementBasedSubMesh(id) };
 	FiniteElementSpace fes(&submesh, fes_.FEColl());
-	Model model(submesh, GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{});
+	Model model(submesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
 	std::pair<FiniteElementSpace, Model> pair(fes,model);
 	return pair;
 }

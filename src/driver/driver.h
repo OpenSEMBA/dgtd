@@ -7,7 +7,14 @@
 using json = nlohmann::json;
 
 namespace maxwell::driver {
-	using BoundaryPair = std::pair<GeomTagToBoundary, GeomTagToInteriorConditions>;
+
+	using FaceNo = int;
+	using isInterior = bool;
+
+	struct geomTag2Info {
+		std::map<GeomTag, BdrCond> geomTag2BdrCond;
+		std::map<GeomTag, isInterior> geomTag2Interior;
+	};
 
 	json parseJSONfile(const std::string& case_name);
 

@@ -12,8 +12,9 @@ namespace maxwell {
 using FaceId = int;
 using GeomTag = int;
 using GeomTagToMaterial = std::map<GeomTag, Material>;
+using GeomTagToBoundaryMaterial = std::map<GeomTag, Material>;
 using GeomTagToBoundary = std::map<GeomTag, BdrCond>;
-using GeomTagToInteriorConditions = std::map<GeomTag, BdrCond>;
+using GeomTagToInteriorBoundary = std::map<GeomTag, BdrCond>;
 using GeomTagToInteriorSource = std::map<GeomTag, BdrCond>;
 using FaceToGeomTag = std::map<FaceId, GeomTag>;
 using GeomTagToBdrCond = std::map<GeomTag, BdrCond>;
@@ -25,15 +26,48 @@ using InteriorBoundaryCondToMarker = std::map<BdrCond, BoundaryMarker>;
 using TotalFieldScatteredFieldToMarker = std::map<BdrCond, BoundaryMarker>;
 using InteriorSourceToMarker = std::map<BdrCond, BoundaryMarker>;
 
+struct GeomTagToBoundaryInfo {
+	GeomTagToBoundary gt2b;
+	GeomTagToInteriorBoundary gt2ib;
+
+	GeomTagToBoundaryInfo() 
+	{
+		gt2b = GeomTagToBoundary{};
+		gt2ib = GeomTagToInteriorBoundary{};
+	};
+
+	GeomTagToBoundaryInfo(const GeomTagToBoundary& gttb, const GeomTagToInteriorBoundary& gttib)
+	{
+		gt2b = gttb;
+		gt2ib = gttib;
+	}
+};
+
+struct GeomTagToMaterialInfo {
+	GeomTagToMaterial gt2m;
+	GeomTagToBoundaryMaterial gt2bm;
+
+	GeomTagToMaterialInfo()
+	{
+		gt2m = GeomTagToMaterial{};
+		gt2bm = GeomTagToBoundaryMaterial{};
+	};	
+	
+	GeomTagToMaterialInfo(const GeomTagToMaterial& gttm, const GeomTagToBoundaryMaterial& gttbm)
+	{
+		gt2m = gttm;
+		gt2bm = gttbm;
+	};
+};
+
 class Model {
 public:
 	using Mesh = mfem::Mesh;
 	Model() = default;
 	Model(
 		Mesh&, 
-		const GeomTagToMaterial& = GeomTagToMaterial{},
-		const GeomTagToBoundary& = GeomTagToBoundary{},
-		const GeomTagToInteriorConditions& = GeomTagToInteriorConditions{}
+		const GeomTagToMaterialInfo& = GeomTagToMaterialInfo{},
+		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{}
 	);
 
 	Mesh& getMesh() { return mesh_; };
@@ -61,7 +95,7 @@ private:
 	
 	GeomTagToMaterial attToMatMap_;
 	GeomTagToBoundary attToBdrMap_;
-	GeomTagToInteriorConditions attToIntBdrMap_;
+	GeomTagToInteriorBoundary attToIntBdrMap_;
 	GeomTagToInteriorSource attToIntSrcMap_;
 	BoundaryToMarker bdrToMarkerMap_;
 	InteriorBoundaryCondToMarker intBdrToMarkerMap_;

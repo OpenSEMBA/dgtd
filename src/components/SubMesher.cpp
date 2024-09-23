@@ -7,7 +7,7 @@ static const int NotFound{ -1 };
 
 FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be) 
 {
-	switch (m.FaceIsInterior(m.GetBdrFace(be))) {
+	switch (m.FaceIsInterior(m.GetBdrElementFaceIndex(be))) {
 	case true:
 		return m.GetInternalBdrFaceTransformations(be);
 	default:
@@ -160,7 +160,7 @@ double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, in
 const Vector calculateTangent2D(Mesh& m, int be)
 {
 	auto be_trans{ m.GetBdrElementTransformation(be) };
-	auto f{ m.GetFace(m.GetBdrFace(be)) };
+	auto f{ m.GetFace(m.GetBdrElementFaceIndex(be)) };
 	auto v0{ m.GetVertex(f->GetVertices()[0]) };
 	auto v1{ m.GetVertex(f->GetVertices()[1]) };
 	Vector res(2);
@@ -173,7 +173,7 @@ const Vector calculateTangent2D(Mesh& m, int be)
 const Vector calculateNormal3D(Mesh& m, int be)
 {
 	auto be_trans{ m.GetBdrElementTransformation(be) };
-	auto f{ m.GetFace(m.GetBdrFace(be)) };
+	auto f{ m.GetFace(m.GetBdrElementFaceIndex(be)) };
 	auto v0{ m.GetVertex(f->GetVertices()[0]) };
 	auto v1{ m.GetVertex(f->GetVertices()[1]) };
 	double* v2;
@@ -195,7 +195,7 @@ const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be)
 		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, fe_trans->Elem2No));
 	}
 	else {
-		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, m.GetBdrFace(be)));
+		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, m.GetBdrElementFaceIndex(be)));
 	}
 }
 

@@ -33,7 +33,10 @@ protected:
 
 		auto msh{ Mesh::MakeCartesian3D(nx, ny, nz, elType, sx, sy, sz) };
 
-		return Model(msh, GeomTagToMaterial{}, buildAttrToBdrMap3D(bdr1, bdr2, bdr3, bdr4, bdr5, bdr6));
+		return Model(msh, 
+			GeomTagToMaterialInfo{}, 
+			GeomTagToBoundaryInfo(buildAttrToBdrMap3D(bdr1, bdr2, bdr3, bdr4, bdr5, bdr6), 
+			GeomTagToInteriorBoundary{}));
 	}
 
 	static GeomTagToBoundary buildAttrToBdrMap3D(const BdrCond& bdr1, const BdrCond& bdr2, const BdrCond& bdr3, const BdrCond& bdr4, const BdrCond& bdr5, const BdrCond& bdr6)
@@ -450,10 +453,10 @@ TEST_F(Solver3DTest, 3D_gmsh_cube_upwind_tetra)
 	//	PointProbe{H, Z, {2.0, 0.5, 0.5}}
 	//};
 	
-	Mesh m{ Mesh::LoadFromFile((gmshMeshesFolder() + "pureCube.msh").c_str(),1,0)};
+	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "pureCube.msh").c_str(),1,0)};
 
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PMC},{3,BdrCond::PEC},{4,BdrCond::SMA} };
-	Model model{ m, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(attToBdr, GeomTagToInteriorBoundary{}) };
 
 	maxwell::Solver solver{
 		model,
@@ -702,7 +705,7 @@ TEST_F(Solver3DTest, feng_fss)
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "fengfss.msh").c_str(),1,0)};
 	mesh.Transform(rotateMinus90degAlongZAxis);
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
-	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(attToBdr, GeomTagToInteriorBoundary{}) };
 
 	mfem::Vector center_(3);
 	rotateMinus90degAlongZAxis(Vector({ 0.075,0.075,0.06 }), center_);
@@ -756,7 +759,7 @@ TEST_F(Solver3DTest, feng_fss_symmetry)
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "Feng_FSS_Symmetry.msh").c_str(),1,0)};
 	//mesh.Transform(rotateMinus90degAlongZAxis);
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA}};
-	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(attToBdr, GeomTagToInteriorBoundary{}) };
 
 	maxwell::Solver solver{
 	model,
@@ -826,8 +829,8 @@ TEST_F(Solver3DTest, feng_fss_manual)
 		{3, BdrCond::PMC},
 		{4, BdrCond::SMA}
 	};
-	GeomTagToInteriorConditions attToIntBdr{ {5, BdrCond::PEC} };
-	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntBdr };
+	GeomTagToInteriorBoundary attToIntBdr{ {5, BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(attToBdr, attToIntBdr) };
 
 	mfem::Vector center(3);
 	rotateMinus90degAlongZAxis(Vector({ 0.15,0.15,0.06 }), center);
@@ -881,8 +884,8 @@ TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "InteriorPEC3D.msh").c_str(),1,0)};
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC}, {4,BdrCond::SMA } };
-	GeomTagToInteriorConditions attToIntBdr{ {5,BdrCond::PEC} };
-	Model model{ mesh, GeomTagToMaterial{}, attToBdr, attToIntBdr };
+	GeomTagToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(attToBdr, attToIntBdr) };
 
 	auto probes{ buildProbesWithAnExportProbe() };
 
@@ -933,7 +936,7 @@ TEST_F(Solver3DTest, interiorPEC_fss_hexas)
 
 	auto mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "fsshexas.msh").c_str(),1,0)};
 	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC},{4,BdrCond::SMA} };
-	Model model{ mesh, GeomTagToMaterial{}, attToBdr, GeomTagToInteriorConditions{} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(attToBdr, GeomTagToInteriorBoundary{}) };
 
 	Source::Position center = mfem::Vector({70.0, 0.0, 0.0});
 
@@ -975,7 +978,7 @@ TEST_F(Solver3DTest, 3D_minimal_tetra)
 
 	GeomTagToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
 
-	Model model{ mesh, GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{} };
+	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}) };
 
 	maxwell::Solver solver{
 	model,
@@ -1048,7 +1051,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_hexa_totalfieldin)
 	};
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldin.mesh").c_str(), 1, 0) };
 	GeomTagToBoundary att2bdr{ {1, BdrCond::PMC}, {2, BdrCond::PEC}, {3, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
 
 	maxwell::Solver solver{
 		model,
@@ -1115,8 +1118,8 @@ TEST_F(Solver3DTest, feng_fss_flat)
 
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_Feng_FSS_Flat.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::SMA} };
-	GeomTagToInteriorConditions att2IntCond{ {60, BdrCond::PEC} };
-	Model model{ mesh, GeomTagToMaterial{}, attToBdr, att2IntCond };
+	GeomTagToInteriorBoundary att2IntCond{ {60, BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(attToBdr, att2IntCond));
 
 	maxwell::Solver solver{
 	model,
@@ -1138,7 +1141,7 @@ TEST_F(Solver3DTest, 3D_pec_upwind_box_totalfieldscatteredfield)
 
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_MinimalistBox.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::SMA} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
 
 	maxwell::Solver solver{
 		model,
@@ -1165,7 +1168,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_beam_totalfieldscatteredfield)
 	};
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Beam.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PMC}, {1, BdrCond::PEC}, {3, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
 
 	maxwell::Solver solver{
 		model,
@@ -1193,7 +1196,7 @@ TEST_F(Solver3DTest, upwind_beam_totalfieldscatteredfield_inout)
 	};
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Beam.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PMC}, {1, BdrCond::PEC}, {3, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
 
 	maxwell::Solver solver{
 		model,
@@ -1214,7 +1217,7 @@ TEST_F(Solver3DTest, dualintbdr_upwind_beam_totalfieldscatteredfield_in)
 	auto probes{ buildProbesWithAnExportProbe(10) };
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_DualSurface_Beam.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC}, {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
 
 	maxwell::Solver solver{
 		model,
@@ -1237,7 +1240,7 @@ TEST_F(Solver3DTest, 3D_pec_centered_innerbox_totalfieldinout)
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Box.msh").c_str(), 1, 0, true) };
 	mesh.UniformRefinement();
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
 
 	maxwell::Solver solver{
 		model,
@@ -1261,8 +1264,8 @@ TEST_F(Solver3DTest, centered_beam_totalfieldscatteredfield_inout_intbdr)
 
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, att2IntCond);
+	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
 
 	maxwell::Solver solver{
 		model,
@@ -1285,8 +1288,8 @@ TEST_F(Solver3DTest, centered_beam_totalfieldscatteredfield_inout_intbdr_RtL)
 
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam_RtL.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, att2IntCond);
+	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
 
 	maxwell::Solver solver{
 		model,
@@ -1309,8 +1312,8 @@ TEST_F(Solver3DTest, upwind_beam_totalfieldscatteredfield_inout_intbdr)
 
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, att2IntCond);
+	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
 
 	maxwell::Solver solver{
 		model,
@@ -1332,8 +1335,8 @@ TEST_F(Solver3DTest, upwind_beam_totalfieldscatteredfield_inout_intbdr_RtL)
 
 	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam_RtL.msh").c_str(), 1, 0, true) };
 	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorConditions att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), att2bdr, att2IntCond);
+	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
 
 	maxwell::Solver solver{
 		model,
