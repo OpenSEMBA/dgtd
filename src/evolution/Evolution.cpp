@@ -5,6 +5,13 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
+void evalConductivity(const Vector& cond, const Vector& in, Vector& out)
+{
+	for (auto v{ 0 }; v < cond.Size(); v++) {
+		out[v] -= cond[v] * in[v];
+	}
+}
+
 void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 {
 	for (auto f : { E, H }) {
@@ -123,7 +130,7 @@ Evolution::Evolution(
 		}
 	}
 
-	MJ_ = buildByMult(*MInv_[E], *buildConductivityOperator(model_, fes_), fes_);
+	CND_ = buildConductivityCoefficients(model_, fes_);
  }
 
 void Evolution::Mult(const Vector& in, Vector& out) const
@@ -146,10 +153,9 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
-
-
-		MJ_->AddMult(eOld[x], eNew[x], -1.0);
 		
+		evalConductivity(CND_, eOld[x], eNew[x]);
+
 		//Centered
 		MS_[H][y]		 ->AddMult(eOld[z], hNew[x],-1.0);
 		MS_[H][z]		 ->AddMult(eOld[y], hNew[x]);

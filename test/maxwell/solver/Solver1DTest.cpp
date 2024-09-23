@@ -318,33 +318,37 @@ TEST_F(Solver1DTest, conductivityPreTest)
 	// Checks reflection and transmission.
 	// Ref: https://en.wikipedia.org/wiki/Reflection_coefficient
 
-	auto msh{ Mesh::MakeCartesian1D(100, 5.0) };
+	auto msh{ Mesh::MakeCartesian1D(5000, 0.5) };
 
-	setAttributeOnInterval({ { 2, std::make_pair(2.0, 3.0) } }, msh);
+	setAttributeOnInterval({ { 2, std::make_pair(0.3, 0.4) } }, msh);
 
 	Material mat1{ 1.0, 1.0, 0.0 };
-	Material mat2{ 1.0, 1.0, 2.0 };
+	Material mat2{ 1.0, 1.0, 20.0 / physicalConstants::trueFreeSpaceImpedance };
 
-	auto probes{ buildProbesWithAnExportProbe(10) };
+	auto probes{ buildProbesWithAnExportProbe(100) };
 	probes.pointProbes = {
-		PointProbe{ E, Y, {0.00} },
-		PointProbe{ E, Y, {4.00} }
+		PointProbe{ E, Y, {0.00} }
 	};
+
+	SolverOptions opts;
+	opts.setCentered();
+	opts.setFinalTime(10.0);
+	opts.setOrder(4);
 
 	maxwell::Solver solver{
 		Model{
 			msh,
 			{ {1, mat1}, {2, mat2} },
-			{ {1, BdrCond::SMA}, {2, BdrCond::PEC} }
+			{ {1, BdrCond::PEC}, {2, BdrCond::PEC} }
 		},
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{ 0.1 },
-			Source::Position({ 0.35 }),
+			Gaussian{ 5e-3 },
+			Source::Position({ 0.10 }),
 			Source::Polarization(unitVec(Y)),
 			Source::Propagation(unitVec(X))
 		),
-		SolverOptions{}.setFinalTime(10.0)
+		opts
 	};
 
 	solver.run();

@@ -15,12 +15,14 @@ FluxBdrCoefficientsCentered bdrCentCoeff{
 	{BdrCond::PEC               ,	{2.0, 0.0}},
 	{BdrCond::PMC               ,	{0.0, 2.0}},
 	{BdrCond::SMA               ,	{0.0, 0.0}},
+	{BdrCond::SurfaceCond       ,   {1.0, 1.0}},
 };
 
 FluxBdrCoefficientsUpwind bdrUpwindCoeff{
 	{BdrCond::PEC               ,	{2.0, 0.0}},
 	{BdrCond::PMC               ,	{0.0, 2.0}},
 	{BdrCond::SMA               ,	{1.0, 1.0}},
+	{BdrCond::SurfaceCond       ,   {1.0, 1.0}},
 };
 
 FluxSrcCoefficientsCentered srcCentCoeff{
@@ -135,18 +137,38 @@ FiniteElementOperator buildDerivativeOperator(const Direction& d, FiniteElementS
 	return res;
 }
 
-FiniteElementOperator buildConductivityOperator(const Model& model, FiniteElementSpace& fes)
+GridFunction buildConductivityCoefficients(const Model& model, FiniteElementSpace& fes)
 {
+	GridFunction res(&fes);
+	Vector sigma_val{ model.buildSigmaPiecewiseVector() };
+	Vector eps_val{ model.buildEpsMuPiecewiseVector(FieldType::E) };
 
-	Vector sigma_vec{ model.buildSigmaPiecewiseVector()  };
+	for (auto e{ 0 }; e < fes.GetNE(); e++) {
+		Array<int> dofs;
+		fes.GetElementDofs(e, dofs);
+		for (auto dof : dofs) {
+			auto att{ model.getConstMesh().GetElement(e)->GetAttribute() };
+			res[dof] = sigma_val[att - 1] / eps_val[att - 1];
+		}
+	}
 
-	PWConstCoefficient PWCoeff(sigma_vec);
+	return res;
+}
 
+FiniteElementOperator buildSurfaceConductivityOperator(const FieldType& f, const std::vector<Direction>& dirTerms, Model& model, FiniteElementSpace& fes, const EvolutionOptions& opts)
+{
 	auto res = std::make_unique<BilinearForm>(&fes);
-	res->AddDomainIntegrator(new MassIntegrator(PWCoeff));
+
+	for (auto& [bdrCond, marker] : model.getInteriorBoundaryToMarker()) {
+
+		auto c = bdrCoeffCheck(opts.fluxType);
+		res->AddInteriorFaceIntegrator(
+			new MaxwellDGTraceJumpIntegrator(dirTerms, c[bdrCond].at(f)), marker);
+
+	}
+
 	res->Assemble();
 	res->Finalize();
-
 	return res;
 }
 

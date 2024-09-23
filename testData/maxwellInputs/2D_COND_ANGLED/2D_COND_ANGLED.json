@@ -6,7 +6,7 @@
   },
 
   "model": { 
-    "filename": "2D_COND.msh",
+    "filename": "2D_COND_ANGLED.msh",
     "materials": [
       {
         "tags": [ 1 ],
@@ -17,21 +17,17 @@
         "type": "conductive",
         "relative_permittivity": 1.0,
         "relative_permeability": 1.0,
-        "bulk_conductivity": 2.0
+        "bulk_conductivity": 3.0
       }
     ],
     "boundaries": [
       {
-        "tags": [ 4 ],
-        "type": "PMC"
-      },
-      {
-        "tags": [ 1, 3, 5, 7 ],
+        "tags": [ 3, 6 ],
         "type": "PEC"
       },
       {
-        "tags": [6],
-        "type": "SMA"
+        "tags": [ 1, 2, 4, 5 ],
+        "type":  "PMC"
       }
     ]
   },
@@ -46,18 +42,6 @@
     {
       "type": "initial",
       "field_type": "E",
-      "center": [ 1.0, 0.5 ],
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [1.0, 0.0, 0.0],
-      "dimension": 1,
-      "magnitude": {
-        "type": "gaussian",
-        "spread": 0.25
-      }
-    },
-    {
-      "type": "initial",
-      "field_type": "H",
       "center": [ 1.0, 0.5 ],
       "polarization": [ 0.0, 0.0, 1.0 ],
       "propagation": [1.0, 0.0, 0.0],

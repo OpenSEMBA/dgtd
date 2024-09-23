@@ -27,7 +27,8 @@ namespace maxwell {
 	FiniteElementOperator buildCenteredFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 	FiniteElementOperator buildPenaltyOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
-	FiniteElementOperator buildConductivityOperator(const Model& model, FiniteElementSpace& fes);
+	GridFunction buildConductivityCoefficients(const Model& model, FiniteElementSpace& fes);
+	FiniteElementOperator buildSurfaceConductivityOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
 	FiniteElementOperator buildFluxFunctionOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 

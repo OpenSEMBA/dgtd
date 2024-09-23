@@ -632,6 +632,14 @@ TEST_F(CasesTest, 2D_Conductivity_Upwind)
 	solver.run();
 }
 
+TEST_F(CasesTest, 2D_Conductivity_Angled_Upwind)
+{
+	auto case_data{ parseJSONfile(maxwellCase("2D_COND_ANGLED")) };
+	auto solver{ buildSolver(case_data) };
+
+	solver.run();
+}
+
 TEST_F(CasesTest, DISABLED_2D_NTFF_Box_Upwind) //Unsupported Gmsh element type.
 {
 	std::string case_name{ "2D_NTFF_Box" };
