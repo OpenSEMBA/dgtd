@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - luis
       
   pull_request:
     branches:
