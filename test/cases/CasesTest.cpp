@@ -1063,24 +1063,24 @@ TEST_F(CasesTest, DISABLED_feng_fss_manual)
 
 TEST_F(CasesTest, DISABLED_feng_fss_flat)
 {
-	auto probes{ buildProbesWithAnExportProbe(50) };
+	// auto probes{ buildProbesWithAnExportProbe(50) };
 
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_Feng_FSS_Flat.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary attToBdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::SMA} };
-	GeomTagToInteriorBoundary att2IntCond{ {60, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(attToBdr, att2IntCond));
+	// auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_Feng_FSS_Flat.msh").c_str(), 1, 0, true) };
+	// GeomTagToBoundary attToBdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::SMA} };
+	// GeomTagToInteriorBoundary att2IntCond{ {60, BdrCond::PEC} };
+	// Model model(mesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(attToBdr, att2IntCond));
 
-	maxwell::Solver solver{
-	model,
-	probes,
-	buildGaussianPlanewave(0.010, 0.1, unitVec(Y), unitVec(X)),
-	SolverOptions{}
-		.setTimeStep(9e-4)
-		.setFinalTime(1.0)
-		.setOrder(3)
-	};
+	// maxwell::Solver solver{
+	// model,
+	// probes,
+	// buildGaussianPlanewave(0.010, 0.1, unitVec(Y), unitVec(X)),
+	// SolverOptions{}
+	// 	.setTimeStep(9e-4)
+	// 	.setFinalTime(1.0)
+	// 	.setOrder(3)
+	// };
 
-	solver.run();
+	// solver.run();
 
 }
 
