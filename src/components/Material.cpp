@@ -17,7 +17,7 @@ void verifyParameters(double epsilon, double mu, double sigma)
 	}
 }
 
-Material::Material(double epsilon, double mu, double sigma) :
+Material::Material(double epsilon, double mu, double sigma = 0.0) :
 	epsilon_(epsilon),
 	mu_(mu),
 	sigma_(sigma)
@@ -27,7 +27,7 @@ Material::Material(double epsilon, double mu, double sigma) :
 
 Material buildVacuumMaterial()
 {
-	return Material(1.0, 1.0, 0.0);
+	return Material(1.0, 1.0);
 }
 
 }
