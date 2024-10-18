@@ -118,7 +118,7 @@ TEST_F(FormTest, RCSBdrFaceInt)
 
 }
 
-TEST_F(FormTest, disabled_MassMatrixToSingleBlockMatrix)
+TEST_F(FormTest, DISABLED_MassMatrixToSingleBlockMatrix)
 {
 	auto dim = 2;
 	auto order = 1;
