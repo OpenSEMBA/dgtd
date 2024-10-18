@@ -36,7 +36,7 @@ double Material::getImpedance() const
 		return sqrt(mu_ / epsilon_);;
 	}
 	else {
-		throw std::runtime_error("Current implementations does not support impedance calculation for materials with conductivity.");
+		throw std::runtime_error("Current implementation does not support impedance calculation for materials with conductivity.");
 	}
 }
 
@@ -46,7 +46,7 @@ double Material::getAdmitance() const
 		return sqrt(epsilon_ / mu_);;
 	}
 	else {
-		throw std::runtime_error("Current implementations does not support admitance calculation for materials with conductivity.");
+		throw std::runtime_error("Current implementation does not support admitance calculation for materials with conductivity.");
 	}
 }
 
@@ -56,7 +56,7 @@ double Material::getSpeedOfWave() const
 		return 1.0 / sqrt(mu_ * epsilon_);
 	}
 	else {
-		throw std::runtime_error("Current implementations does not support wave speed calculation for materials with conductivity.");
+		throw std::runtime_error("Current implementation does not support wave speed calculation for materials with conductivity.");
 	}
 }
 
