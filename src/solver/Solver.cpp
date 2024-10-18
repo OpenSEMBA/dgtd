@@ -1,6 +1,7 @@
 #include "Solver.h"
 
 #include "components/SubMesher.h"
+#include "math/PhysicalConstants.h"
 
 #include <fstream>
 #include <iostream>
@@ -163,13 +164,12 @@ double getJacobiGQ_RMin(const int order) {
 double Solver::estimateTimeStep() const
 {
 	if (model_.getConstMesh().Dimension() == 1) {
-		double signalSpeed{ 1.0 };
 		double maxTimeStep{ 0.0 };
 		if (opts_.evolution.order == 0) {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / signalSpeed;
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight_SI;
 		}
 		else {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / signalSpeed;
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight_SI;
 		}
 		return opts_.cfl * maxTimeStep;
 	}

@@ -1,18 +1,11 @@
-#include <components/RCSManager.h>
+#include "components/RCSManager.h"
+#include "math/PhysicalConstants.h"
 
 namespace maxwell {
 
 using namespace mfem;
 
 using json = nlohmann::json;
-
-
-//double mu_0 = 1.0;
-//double e_0 = 1.0;
-double mu_0 = 4.0e-7 * M_PI;
-double e_0 = 8.8541878128e-12;
-double eta_0{ sqrt(mu_0 / e_0) };
-double speed_of_wave{ 1.0 / sqrt(mu_0 * e_0) };
 
 void FreqFields::append(ComplexVector vector, const std::string& field, const size_t freq)
 {
@@ -69,28 +62,28 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& se
 
 double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto landa = speed_of_wave / freq;
+	auto landa = physicalConstants::speedOfLight_SI / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * cos(phi) + x[1] * sin(phi));
 	return cos(rad_term);
 }
 double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto landa = speed_of_wave / freq;
+	auto landa = physicalConstants::speedOfLight_SI/  freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * cos(phi) + x[1] * sin(phi));
 	return sin(rad_term);
 }
 double func_exp_real_part_3D(const Vector& x, const double freq, const SphericalAngles angles)
 {
-	auto landa = speed_of_wave / freq;
+	auto landa = physicalConstants::speedOfLight_SI / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * sin(angles.second) * cos(angles.first) + x[1] * sin(angles.second) * sin(angles.first) + x[2] * cos(angles.second));
 	return cos(rad_term);
 }
 double func_exp_imag_part_3D(const Vector& x, const double freq, const SphericalAngles angles)
 {
-	auto landa = speed_of_wave / freq;
+	auto landa = physicalConstants::speedOfLight_SI / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * sin(angles.second) * cos(angles.first) + x[1] * sin(angles.second) * sin(angles.first) + x[2] * cos(angles.second));
 	return sin(rad_term);
@@ -197,14 +190,14 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
-	return PlaneWaveData(mean / speed_of_wave, delay / speed_of_wave);
+	return PlaneWaveData(mean / physicalConstants::speedOfLight_SI, delay / physicalConstants::speedOfLight_SI);
 }
 std::vector<double> buildTimeVector(const std::string& data_path) 
 {
 	std::vector<double> res;
 	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path)) {
 		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / speed_of_wave);
+			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / physicalConstants::speedOfLight_SI);
 		}
 	}
 	return res;
@@ -267,7 +260,7 @@ std::vector<double> buildNormalizationTerm(const std::string& json_path, const s
 			freq_val += gauss_val[t] * w;
 		}
 		freq2complex.emplace(std::make_pair(frequencies[f], freq_val));
-		res[f] = e_0 * std::pow(std::abs(freq_val), 2.0);
+		res[f] = physicalConstants::vacuumPermittivity_SI * std::pow(std::abs(freq_val), 2.0);
 	}
 	auto max = *std::max_element(std::begin(res), std::end(res));
 	//for (auto f{ 0 }; f < res.size(); f++) {
@@ -324,7 +317,7 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencie
 		}
 		if (field == "/Hx.gf" || field == "/Hy.gf" || field == "/Hz.gf") {
 			for (int g{ 0 }; g < A.size(); ++g) {
-				A[g] /= eta_0;
+				A[g] /= physicalConstants::freeSpaceImpedance_SI;
 			}
 		}
 		for (int f{ 0 }; f < frequencies.size(); ++f) {
@@ -412,10 +405,10 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 		for (const auto& angpair : angle_vec) {
 			N_pair = performRCSCalculations(FreqFields.Hx[f], FreqFields.Hy[f], FreqFields.Hz[f], frequencies[f], angpair, false);
 			L_pair = performRCSCalculations(FreqFields.Ex[f], FreqFields.Ey[f], FreqFields.Ez[f], frequencies[f], angpair, true);
-			landa = speed_of_wave / frequencies[f];
+			landa = physicalConstants::speedOfLight_SI / frequencies[f];
 			wavenumber = 2.0 * M_PI / landa;
-			const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * eta_0 * normalization_term[f]);
-			freqdata = const_term * (std::pow(std::abs(L_pair.first + eta_0 * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - eta_0 * N_pair.first), 2.0));
+			const_term = std::pow(wavenumber, 2.0) / (8.0 * M_PI * physicalConstants::freeSpaceImpedance_SI * normalization_term[f]);
+			freqdata = const_term * (std::pow(std::abs(L_pair.first + physicalConstants::freeSpaceImpedance_SI * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - physicalConstants::freeSpaceImpedance_SI * N_pair.first), 2.0));
 			RCSdata[angpair][frequencies[f]] = freqdata;
 		}
 	}
@@ -428,7 +421,7 @@ RCSManager::RCSManager(const std::string& path, const std::string& json_path, do
 		myfile.open("../personal-sandbox/Python/RCSData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs\n";
 		for (const auto& f : frequencies) {
-			auto landa = speed_of_wave / f;
+			auto landa = physicalConstants::speedOfLight_SI / f;
 			double normalization;
 			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
 			myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata[angpair][f] << "\n";
