@@ -25,19 +25,19 @@ public:
 		//angulo viene dado por x[0], x[1] y 0.0, 0.0. No es el angulo donde observo, es el angulo que forma el punto y el angulo de observacion en un sistema centrado en el punto.
 		auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) 
 			/ sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-		return cos(2.0 * M_PI * (physicalConstants::speedOfLight_SI / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+		return cos(2.0 * M_PI * (maxwell::physicalConstants::speedOfLight_SI / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 	}
 
 	double func_exp_imag_part_2D(const Vector& x, const double freq, const double phi)
 	{
 		auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-		return sin(2.0 * M_PI * (physicalConstants::speedOfLight_SI / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
+		return sin(2.0 * M_PI * (maxwell::physicalConstants::speedOfLight_SI / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle));
 	}
 
 	std::complex<double> func_exp_2D(const Vector& x, const double freq, const double phi)
 	{
 		auto angle = acos((x[0] * cos(phi) + x[1] * sin(phi)) / sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)));
-		return exp(std::complex(0.0, 2.0 * M_PI * (physicalConstants::speedOfLight_SI / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle)));
+		return exp(std::complex(0.0, 2.0 * M_PI * (maxwell::physicalConstants::speedOfLight_SI / freq) * sqrt(std::pow(x[0], 2.0) + std::pow(x[1], 2.0)) * cos(angle)));
 	}
 };
 
@@ -133,7 +133,7 @@ TEST_F(AlgebraTest, custom_dft_method)
 	for (int t{ 0 }; t < times.size(); ++t) {
 		for (int f{ 0 }; f < frequencies.size(); ++f) {
 			freq_fields[f].resize(time_fields[t].size());
-			auto time_const{ std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * (times[t] / physicalConstants::speedOfLight_SI))) };
+			auto time_const{ std::exp(std::complex<double>(0.0, -2.0 * M_PI * frequencies[f] * (times[t] / maxwell::physicalConstants::speedOfLight_SI))) };
 			for (int v{ 0 }; v < time_fields[t].size(); ++v) {
 				freq_fields[f][v] += std::complex<double>(time_fields[t][v], 0.0) * time_const;
 			}
@@ -257,8 +257,8 @@ TEST_F(AlgebraTest, DISABLED_fftw_testing)
 				vals[v] = gf[v];
 			}
 			auto time = getTime(dir_entry.path().generic_string() + "/time.txt");
-			times.push_back(time / physicalConstants::speedOfLight_SI);
-			timeToSignal.emplace(std::make_pair(time / physicalConstants::speedOfLight_SI, vals));
+			times.push_back(time / maxwell::physicalConstants::speedOfLight_SI);
+			timeToSignal.emplace(std::make_pair(time / maxwell::physicalConstants::speedOfLight_SI, vals));
 		}
 	}
 

@@ -441,7 +441,7 @@ TEST_F(FiniteElementSpaceTest, calculateOptimalTS1D)
 	
 	double cfl{ 0.8 };
 
-	EXPECT_GE(0.15, (cfl * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * physicalConstants::speedOfLight_SI));
+	EXPECT_GE(0.15, (cfl * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * maxwell::physicalConstants::speedOfLight_SI));
 
 }
 
