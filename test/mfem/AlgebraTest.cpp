@@ -183,7 +183,7 @@ static void performDFT(const std::map<double, std::vector<double>>& dataMap,
 	const std::vector<double>& times,
 	std::vector<double>& frequencies,
 	std::vector<std::vector<double>>& amplitudeSpectra) {
-	int numTimePoints = times.size();
+	int numTimePoints = int(times.size());
 	int numFrequencyPoints = numTimePoints / 2 + 1;
 
 	// Determine the time step (assuming equally spaced samples)

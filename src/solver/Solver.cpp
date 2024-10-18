@@ -178,7 +178,7 @@ double Solver::estimateTimeStep() const
 			Vector dtscale{ getTimeStepScale(mesh) };
 			double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
 			auto dt{dtscale.Min() * rmin * 2.0 / 3.0};
-			if (checkIfQuadInMesh) {
+			if (checkIfQuadInMesh(mesh)) {
 				return dt/2.0; // This is purely heuristic.
 			} else {
 				return dt;

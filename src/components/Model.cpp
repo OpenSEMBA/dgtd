@@ -167,7 +167,7 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 			return tfsfMarker_;
 		break;
 	default:
-		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond getter.");
+		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond.");
 	}
 }
 

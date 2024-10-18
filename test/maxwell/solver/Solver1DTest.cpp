@@ -320,7 +320,7 @@ TEST_F(Solver1DTest, conductivityPreTest)
 	setAttributeOnInterval({ { 2, std::make_pair(0.3, 0.4) } }, msh);
 
 	Material mat1{ 1.0, 1.0, 0.0 };
-	Material mat2{ 1.0, 1.0, 20.0 / physicalConstants::trueFreeSpaceImpedance };
+	Material mat2{ 1.0, 1.0, 20.0 / physicalConstants::freeSpaceImpedance_SI };
 
 	auto probes{ buildProbesWithAnExportProbe(100) };
 	probes.pointProbes = {
