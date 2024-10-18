@@ -53,6 +53,7 @@ enum class BdrCond {
 	PEC,
 	PMC,
 	SMA,
+	SurfaceCond,
 	NearToFarField = 201,
 	TotalFieldIn = 301
 };

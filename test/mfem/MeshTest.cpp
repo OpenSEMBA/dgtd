@@ -444,7 +444,7 @@ TEST_F(MeshTest, MeshIdentifyBoundaryVertex)
 
 	Vector bdrIndex(mesh.GetNBE());
 	for (int i = 0; i < bdrIndex.Size(); ++i) {
-		bdrIndex(i) = int(mesh.GetBdrElementEdgeIndex(i));
+		bdrIndex(i) = int(mesh.GetBdrElementFaceIndex(i));
 	}
 	
 	Vector exp({ 0,2 });
@@ -464,7 +464,7 @@ TEST_F(MeshTest, SubMeshAssignBdrFromParentMesh_1D)
 
 	Vector bdrIndex(mesh.GetNBE());
 	for (int i = 0; i < bdrIndex.Size(); ++i) {
-		bdrIndex(i) = int(mesh.GetBdrElementEdgeIndex(i));
+		bdrIndex(i) = int(mesh.GetBdrElementFaceIndex(i));
 	}
 
 	for (int e = 0; e < mesh.GetNE(); ++e) {

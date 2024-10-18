@@ -20,7 +20,7 @@ protected:
 
 TEST_F(EigenvalueEstimatorTest, verifyNoThrow_Quad)
 {
-	auto model {Model{mQuad,GeomTagToMaterial{},GeomTagToBoundary{},GeomTagToInteriorConditions{}}};
+	auto model {Model(mQuad,GeomTagToMaterialInfo(),GeomTagToBoundaryInfo())};
 	auto eo {EvolutionOptions{}};
 	EXPECT_NO_THROW(EigenvalueEstimator(
 		fesQuad, 
@@ -37,7 +37,7 @@ TEST_F(EigenvalueEstimatorTest, verifyNoThrow_SubMesh_Tri)
 	smTri.SetAttribute(0, 1);
 	FiniteElementSpace smFesTri{ FiniteElementSpace(&smTri, &fec2D) };
 	
-	auto model {Model{smTri,GeomTagToMaterial{},GeomTagToBoundary{},GeomTagToInteriorConditions{}}};
+	auto model { Model(mTri,GeomTagToMaterialInfo(),GeomTagToBoundaryInfo()) };
 	auto eo {EvolutionOptions{}};
 	EXPECT_NO_THROW(EigenvalueEstimator(
 		smFesTri, 
@@ -48,7 +48,7 @@ TEST_F(EigenvalueEstimatorTest, verifyNoThrow_SubMesh_Tri)
 
 TEST_F(EigenvalueEstimatorTest, printMatrix_PEC)
 {
-	auto model {Model{mQuad, GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{}}};
+	auto model{ Model(mQuad,GeomTagToMaterialInfo(),GeomTagToBoundaryInfo()) };
 	auto eo {EvolutionOptions{}};
 	EigenvalueEstimator ev(
 		fesQuad,
@@ -69,7 +69,7 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 {
 	auto att_to_bdr {GeomTagToBoundary{}};
 	att_to_bdr.insert({1,BdrCond::SMA});
-	auto model {Model{mQuad, GeomTagToMaterial{}, att_to_bdr, GeomTagToInteriorConditions{}}};
+	auto model {Model(mQuad, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(att_to_bdr, GeomTagToInteriorBoundary()))};
 	auto eo {EvolutionOptions{}};
 	EigenvalueEstimator ev(
 		fesQuad,
@@ -89,11 +89,11 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 TEST_F(EigenvalueEstimatorTest, comparePECandSMAconditions)
 {
 	auto eo {EvolutionOptions{}};
-	auto model {Model{mQuad, GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{}}};
+	auto model{ Model{mQuad, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo()} };
 	auto evPEC{EigenvalueEstimator(fesQuad, model, eo) };
 	auto att_to_bdr{ GeomTagToBoundary{}};
 	att_to_bdr.insert({1,BdrCond::SMA});
-	auto smaModel {Model{mQuad, GeomTagToMaterial{}, att_to_bdr, GeomTagToInteriorConditions{}}};
+	auto smaModel{ Model{mQuad, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(att_to_bdr, GeomTagToInteriorBoundary{})} };
 	auto evSMA{ EigenvalueEstimator(fesQuad, smaModel, eo) };
 
 	auto eigenvalsPEC{ evPEC.getElementMatrix().eigenvalues() };

@@ -100,9 +100,8 @@ protected:
 			fes, 
 			Model(
 				mesh,
-				GeomTagToMaterial(),
-				GeomTagToBoundary(),
-				GeomTagToInteriorConditions())
+				GeomTagToMaterialInfo(),
+				GeomTagToBoundaryInfo())
 		);
 		return res;
 	}
@@ -170,7 +169,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh,GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh,GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd ZeroNormalOperator{
 		{ 10., -1.12132034, -1.12132034,  2.12132034,  2.12132034,  0.},
@@ -207,7 +206,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd OneNormalOperator{
 		{ 0., -1.5, -1.5,  1.5,  1.5, 0.},
@@ -246,7 +245,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd OneNormalOperator{
 		{ 0.,  1.5,  1.5, -1.5, -1.5, 0.},
@@ -285,7 +284,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd OneNormalOperator{
 		{ 5.,  1.5,  2.5, -1.5, -1.5,  0.},
@@ -324,7 +323,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd OneNormalOperator{
 		{-5., -2.5, -1.5,  1.5,  1.5,  0.},
@@ -363,7 +362,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},
@@ -402,7 +401,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
@@ -441,7 +440,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
@@ -480,7 +479,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 	auto fes{ FiniteElementSpace(&mesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterial(), pecBdr, GeomTagToInteriorConditions());
+	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
 	Eigen::MatrixXd TwoNormalOperator{
 		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},

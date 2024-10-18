@@ -23,11 +23,12 @@ namespace maxwell {
 
 	FiniteElementOperator buildInverseMassMatrix(const FieldType&, const Model&, FiniteElementSpace&);
 	FiniteElementOperator buildDerivativeOperator(const Direction&, FiniteElementSpace&);
-	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const EvolutionOptions&);
-	FiniteElementOperator buildFluxJumpOperator(const FieldType&, const std::vector<Direction>&, bool usePenaltyCoefficients, Model&, FiniteElementSpace&, const EvolutionOptions&);
 	FiniteElementOperator buildFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 	FiniteElementOperator buildCenteredFluxOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&);
 	FiniteElementOperator buildPenaltyOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
+
+	GridFunction buildConductivityCoefficients(const Model& model, FiniteElementSpace& fes);
+	FiniteElementOperator buildSurfaceConductivityOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 
 	FiniteElementOperator buildFluxFunctionOperator(const FieldType&, const std::vector<Direction>&, Model&, FiniteElementSpace&, const EvolutionOptions&);
 

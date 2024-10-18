@@ -16,6 +16,8 @@
 #include <components/RCSManager.h>
 #include <components/RCSManager.cpp>
 
+#include "TestUtils.h"
+
 namespace maxwell {
 
 using namespace mfem;
@@ -32,7 +34,7 @@ TEST_F(RCSTest, circleTest)
 
 	std::vector<std::pair<Phi, Theta>> angles{ {0.0, M_PI_2} };
 
-	RCSManager rcs("NearToFarFieldExports/circle_1m", "2D_RCS", dt, steps, angles);
+	RCSManager rcs("NearToFarFieldExports/circle_1m", maxwellCase("2D_RCS"), dt, steps, angles);
 }
 
 TEST_F(RCSTest, circleTest_sixmeters)
@@ -44,7 +46,7 @@ TEST_F(RCSTest, circleTest_sixmeters)
 
 	std::vector<std::pair<Phi, Theta>> angles{ {0.0, M_PI_2} };
 
-	RCSManager rcs("NearToFarFieldExports/circle_salva", "2D_RCS_Salva", dt, steps, angles);
+	RCSManager rcs("NearToFarFieldExports/circle_salva", maxwellCase("2D_RCS_Salva"), dt, steps, angles);
 }
 
 TEST_F(RCSTest, sphereTest)
@@ -56,7 +58,7 @@ TEST_F(RCSTest, sphereTest)
 
 	std::vector<std::pair<Phi, Theta>> angles{ {0.0, M_PI_2} };
 
-	RCSManager rcs("NearToFarFieldExports/sphere", "3D_RCS", dt, steps, angles);
+	RCSManager rcs("NearToFarFieldExports/sphere", maxwellCase("3D_RCS"), dt, steps, angles);
 }
 
 TEST_F(RCSTest, DiscreteFourierTransform)

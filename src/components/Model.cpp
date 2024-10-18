@@ -2,26 +2,26 @@
 
 namespace maxwell {
 
-Model::Model(Mesh& mesh, const GeomTagToMaterial& matMap, const GeomTagToBoundary& bdrMap, const GeomTagToInteriorConditions& intBdrMap) :
+Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo) :
 	mesh_(mesh)
 {
-	if (matMap.size() == 0) {
-		attToMatMap_.emplace(1, Material(1.0, 1.0));
+	if (matInfo.gt2m.size() == 0) {
+		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));
 	}
 	else {
-		attToMatMap_ = matMap;
+		attToMatMap_ = matInfo.gt2m;
 	}
 
 	auto f2bdr{ mesh.GetFaceToBdrElMap() };
 
-	for (auto i = bdrMap.begin(); i != bdrMap.end(); i++) {
+	for (auto i = bdrInfo.gt2b.begin(); i != bdrInfo.gt2b.end(); i++) {
 		faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
 	}
-	attToBdrMap_ = bdrMap;
+	attToBdrMap_ = bdrInfo.gt2b;
 	
-	if (intBdrMap.size() != 0)
+	if (bdrInfo.gt2ib.size() != 0)
 	{
-		for (auto i = intBdrMap.begin(); i != intBdrMap.end(); i++){
+		for (auto i = bdrInfo.gt2ib.begin(); i != bdrInfo.gt2ib.end(); i++){
 			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA) {
 				faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
 				attToIntBdrMap_.insert(std::make_pair( i->first, i->second ));
@@ -67,7 +67,7 @@ std::size_t Model::numberOfBoundaryMaterials() const
 	return attToBdrMap_.size();
 }
 
-mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
+mfem::Vector Model::initialiseGeomTagVector() const
 {
 	int size{ 0 };
 	for (auto const& [geomTag, mat] : attToMatMap_) {
@@ -78,6 +78,12 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 	assert(size > 0);
 	mfem::Vector res(size);
 	res = 0.0;
+	return res;
+}
+
+mfem::Vector Model::buildEpsMuPiecewiseVector(const FieldType& f) const
+{
+	auto res{ initialiseGeomTagVector() };
 
 	for (auto const& [geomTag, mat] : attToMatMap_) {
 		switch (f) {
@@ -88,6 +94,17 @@ mfem::Vector Model::buildPiecewiseArgVector(const FieldType& f) const
 			res[geomTag - 1] = mat.getPermeability();
 			break;
 		}
+	}
+
+	return res;
+}
+
+mfem::Vector Model::buildSigmaPiecewiseVector() const
+{
+	auto res{ initialiseGeomTagVector() };
+
+	for (auto const& [geomTag, mat] : attToMatMap_) {
+		res[geomTag - 1] = mat.getConductivity();
 	}
 
 	return res;
@@ -150,7 +167,7 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 			return tfsfMarker_;
 		break;
 	default:
-		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond getter.");
+		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond.");
 	}
 }
 

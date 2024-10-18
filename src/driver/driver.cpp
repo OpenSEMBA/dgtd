@@ -78,7 +78,7 @@ FieldType getFieldType(const std::string& ft)
 	}
 }
 
-Sources buildGaussianInitialField(
+std::unique_ptr<InitialField> buildGaussianInitialField(
 	const FieldType& ft = E,
 	const double spread = 0.1,
 	const mfem::Vector& center_ = mfem::Vector({ 0.5 }),
@@ -88,14 +88,11 @@ Sources buildGaussianInitialField(
 	mfem::Vector gaussianCenter(dimension);
 	gaussianCenter = 0.0;
 
-	Sources res;
-	res.add(std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_)
-	);
-	return res;
+	return std::make_unique<InitialField>(
+		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_);
 }
 
-Sources buildResonantModeInitialField(
+std::unique_ptr<InitialField> buildResonantModeInitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0,0.0,1.0 }),
 	const std::vector<std::size_t>& modes = { 1 })
@@ -103,15 +100,10 @@ Sources buildResonantModeInitialField(
 	Sources res;
 	Source::Position center_((int)modes.size());
 	center_ = 0.0;
-	res.add(
-		std::make_unique<InitialField>(
-			SinusoidalMode{ modes }, ft, p, center_
-		)
-	);
-	return res;
+	return std::make_unique<InitialField>(SinusoidalMode{ modes }, ft, p, center_);
 }
 
-Sources buildGaussianPlanewave(
+std::unique_ptr<Planewave> buildGaussianPlanewave(
 	double spread,
 	double delay,
 	const Source::Polarization& pol,
@@ -120,9 +112,7 @@ Sources buildGaussianPlanewave(
 )
 {
 	Gaussian mag{ spread, mfem::Vector({-delay}) };
-	Sources res;
-	res.add(std::make_unique<Planewave>(mag, pol, dir, ft));
-	return res;
+	return std::make_unique<Planewave>(mag, pol, dir, ft);
 }
 
 Sources buildSources(const json& case_data)
@@ -131,35 +121,36 @@ Sources buildSources(const json& case_data)
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		if (case_data["sources"][s]["type"] == "initial") {
 			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
-				return buildGaussianInitialField(
+				res.add(buildGaussianInitialField(
 					assignFieldType(case_data["sources"][s]["field_type"]),
 					case_data["sources"][s]["magnitude"]["spread"],
 					assembleCenterVector(case_data["sources"][s]["center"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]),
-					case_data["sources"][s]["dimension"]
+					case_data["sources"][s]["dimension"])
 				);
 			}
 			else if (case_data["sources"][s]["magnitude"]["type"] == "resonant") {
-				return buildResonantModeInitialField(
+				res.add(buildResonantModeInitialField(
 					assignFieldType(case_data["sources"][s]["field_type"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]),
-					case_data["sources"][s]["magnitude"]["modes"]
+					case_data["sources"][s]["magnitude"]["modes"])
 				);
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "totalField") {
-			return buildGaussianPlanewave(
+			res.add(buildGaussianPlanewave(
 				case_data["sources"][s]["magnitude"]["spread"],
 				case_data["sources"][s]["magnitude"]["delay"],
 				assemble3DVector(case_data["sources"][s]["polarization"]),
 				assemble3DVector(case_data["sources"][s]["propagation"]),
-				getFieldType(case_data["sources"][s]["fieldtype"])
+				getFieldType(case_data["sources"][s]["fieldtype"]))
 			);
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
 		}
 	}
+	return res;
 }
 
 
@@ -286,30 +277,10 @@ std::string assembleMeshString(const std::string& filename)
 	return maxwellInputsFolder() + folder_name + "/" + filename;
 }
 
-GeomTagToMaterial assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh)
+void checkIfAttributesArePresent(const Mesh& mesh, const GeomTagToMaterialInfo& info)
 {
-	GeomTagToMaterial res{};
 
-	checkIfThrows(case_data.contains("model"), "JSON data does not include 'model'.");
-	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
-
-	auto show{ case_data["model"]["materials"] };
-
-	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
-		for (auto t = 0; t < case_data["model"]["materials"][m]["tags"].size(); t++) {
-			double eps{ 1.0 };
-			double mu{ 1.0 };
-			if (case_data["model"]["materials"][m].contains("relative_permittivity")) {
-				eps = case_data["model"]["materials"][m]["relative_permittivity"];
-			}
-			if (case_data["model"]["materials"][m].contains("relative_permeability")) {
-				mu = case_data["model"]["materials"][m]["relative_permeability"];
-			}
-			res.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu)));
-		}
-	}
-
-	for (auto [att, v] : res) {
+	for (auto [att, v] : info.gt2m) {
 		checkIfThrows(
 			mesh.attributes.Find(att) != -1,
 			std::string("There is no attribute") + std::to_string(att) +
@@ -317,22 +288,63 @@ GeomTagToMaterial assembleAttributeToMaterial(const json& case_data, const mfem:
 		);
 	}
 
-	//for (auto att{ 1 }; att < mesh.attributes.Size() + 1; att++) {
-	//	checkIfThrows(
-	//		!(res.find(att) == res.end()),
-	//		std::string("There is no attribute") + std::to_string(att) +
-	//		" defined in the JSON, but it is defined in the mesh."
-	//	);
-	//}
+	for (auto [bdr_att, v] : info.gt2bm) {
+		checkIfThrows(
+			mesh.bdr_attributes.Find(bdr_att) != -1,
+			std::string("There is no bdr_attribute") + std::to_string(bdr_att) +
+			" defined in the mesh, but it is defined in the JSON."
+		);
+	}
+}
+
+GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh)
+{
+	GeomTagToMaterialInfo res{};
+
+	checkIfThrows(case_data.contains("model"), "JSON data does not include 'model'.");
+	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
+
+	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
+		for (auto t = 0; t < case_data["model"]["materials"][m]["tags"].size(); t++) {
+			double eps{ 1.0 }, mu{ 1.0 }, sigma{ 0.0 };
+			if (case_data["model"]["materials"][m].contains("relative_permittivity")) {
+				eps = case_data["model"]["materials"][m]["relative_permittivity"];
+			}
+			if (case_data["model"]["materials"][m].contains("relative_permeability")) {
+				mu = case_data["model"]["materials"][m]["relative_permeability"];
+			}
+			if (case_data["model"]["materials"][m].contains("bulk_conductivity")) {
+				sigma = case_data["model"]["materials"][m]["bulk_conductivity"];
+			}
+			res.gt2m.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu, sigma)));
+		}
+	}
+
+	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
+		for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
+			if (case_data["model"]["boundaries"][b].contains("material")) {
+				double eps{ 1.0 }, mu{ 1.0 }, sigma{ 0.0 };
+				if (case_data["model"]["boundaries"][b].contains("relative_permittivity")) {
+					eps = case_data["model"]["boundaries"][b]["relative_permittivity"];
+				}
+				if (case_data["model"]["boundaries"][b].contains("relative_permeability")) {
+					mu = case_data["model"]["boundaries"][b]["relative_permeability"];
+				}
+				if (case_data["model"]["boundaries"][b].contains("bulk_conductivity")) {
+					sigma = case_data["model"]["boundaries"][b]["bulk_conductivity"];
+				}
+				res.gt2bm.emplace(case_data["model"]["boundaries"][b]["tags"][a], Material(eps, mu, sigma));
+			}
+		}
+	}
+
+	checkIfAttributesArePresent(mesh, res);
 
 	return res;
 }
 
-BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh& mesh)
+void checkBoundaryInputProperties(const json& case_data)
 {
-	using FaceNo = int;
-	using isInterior = bool;
-	
 	checkIfThrows(case_data["model"].contains("boundaries"),
 		"JSON data does not include 'boundaries' in 'model'.");
 
@@ -347,19 +359,24 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 		checkIfThrows(case_data["model"]["boundaries"][b].contains("type"),
 			"Boundary " + std::to_string(b) + " does not have a defined 'type'.");
 	}
+}
 
+GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const mfem::Mesh& mesh)
+{
+
+	checkBoundaryInputProperties(case_data);
 	auto face2BdrEl{ mesh.GetFaceToBdrElMap() };
 
-	std::map<GeomTag, BdrCond> geomTag2bdrCond;
-	std::map<GeomTag, isInterior> geomTag2interior;
+	geomTag2Info gt2i;
+
 	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
 		for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
-			geomTag2bdrCond.emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["type"]));
-			geomTag2interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
+			gt2i.geomTag2BdrCond.emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["type"]));
+			gt2i.geomTag2Interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
 			for (auto f = 0; f < mesh.GetNumFaces(); f++) {
 				if (face2BdrEl[f] != -1) {
 					if (mesh.GetBdrAttribute(face2BdrEl[f]) == a && mesh.FaceIsInterior(f)) {
-						geomTag2interior[a] = true;
+						gt2i.geomTag2Interior[a] = true;
 						break;
 					}
 				}
@@ -367,36 +384,19 @@ BoundaryPair assembleAttributeToBoundary(const json& case_data, const mfem::Mesh
 		}
 	}
 
-	//for (auto [geomTag, v] : geomTag2interior) {
-	//	checkIfThrows(
-	//		mesh.bdr_attributes.Find(geomTag) != -1,
-	//		std::string("There is no boundary geometrical tag ") + std::to_string(geomTag) +
-	//		" defined in the mesh, but it is defined in the JSON."
-	//	);
-	//}
-
-	//for (auto geomTag{ 1 }; geomTag < mesh.bdr_attributes.Size() + 1; geomTag++) {
-	//	checkIfThrows(
-	//		!(geomTag2interior.find(geomTag) == geomTag2interior.end()),
-	//		std::string("There is no  boundary geometrical tag ") + std::to_string(geomTag) +
-	//		" defined in the JSON, but it is defined in the mesh."
-	//	);
-	//}
-
-	GeomTagToBoundary geomTag2bdr{};
-	GeomTagToInteriorConditions geomTag2intCond{};
-	for (auto [att, isInt] : geomTag2interior) {
+	GeomTagToBoundaryInfo res;
+	for (auto [att, isInt] : gt2i.geomTag2Interior) {
 		switch (isInt) {
 		case false:
-			geomTag2bdr.emplace(att, geomTag2bdrCond[att]);
+			res.gt2b.emplace(att, gt2i.geomTag2BdrCond[att]);
 			break;
 		case true:
-			geomTag2intCond.emplace(att, geomTag2bdrCond[att]);
+			res.gt2ib.emplace(att, gt2i.geomTag2BdrCond[att]);
 			break;
 		}
 	}
 
-	return std::make_pair(geomTag2bdr, geomTag2intCond);
+	return res;
 }
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
@@ -415,11 +415,11 @@ Model buildModel(const json& case_data)
 	auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
 	auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
 
-	if (!att_to_bdr_info.second.empty()) {
+	if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
 		mesh = assembleMeshNoFix(assembleMeshString(case_data["model"]["filename"]));
 	}
 
-	return Model(mesh, att_to_material, att_to_bdr_info.first, att_to_bdr_info.second);
+	return Model(mesh, att_to_material, att_to_bdr_info);
 }
 
 json parseJSONfile(const std::string& case_name)

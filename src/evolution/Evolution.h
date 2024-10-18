@@ -28,6 +28,8 @@ private:
 	std::array<FiniteElementOperator, 2> MP_;
 	std::array<FiniteElementOperator, 2> MFF_;
 
+	Vector CND_;
+
 	std::array<std::array<FiniteElementOperator, 3>,2> MBF_;
 
 	std::array<FiniteElementOperator, 2> MPB_;

@@ -7,8 +7,8 @@
 #include <cassert>
 #include <float.h>
 
-#ifndef DBL_EPSILON
-#define DBL_EPSILON 2.2204460492503131e-016
+#ifdef __linux__
+#	define DBL_EPSILON 2.2204460492503131e-16
 #endif
 
 namespace maxwell {

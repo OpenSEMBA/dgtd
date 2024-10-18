@@ -5,6 +5,13 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
+void evalConductivity(const Vector& cond, const Vector& in, Vector& out)
+{
+	for (auto v{ 0 }; v < cond.Size(); v++) {
+		out[v] -= cond[v] * in[v];
+	}
+}
+
 void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 {
 	for (auto f : { E, H }) {
@@ -45,7 +52,7 @@ Evolution::Evolution(
 	if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model.getTotalFieldScatteredFieldToMarker().end()) {
 		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
 		auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
-		Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterial{}, GeomTagToBoundary{}, GeomTagToInteriorConditions{});
+		Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
 			
 		for (auto f : { E, H }) {
 			MInvTFSF_[f] = buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes);
@@ -122,6 +129,8 @@ Evolution::Evolution(
 			}
 		}
 	}
+
+	CND_ = buildConductivityCoefficients(model_, fes_);
  }
 
 void Evolution::Mult(const Vector& in, Vector& out) const
@@ -145,6 +154,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 		
+		evalConductivity(CND_, eOld[x], eNew[x]);
+
 		//Centered
 		MS_[H][y]		 ->AddMult(eOld[z], hNew[x],-1.0);
 		MS_[H][z]		 ->AddMult(eOld[y], hNew[x]);
@@ -189,7 +200,6 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
 			}
 		}
-
 	}
 
 	for (const auto& source : srcmngr_.sources) {

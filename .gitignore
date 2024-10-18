@@ -5,6 +5,7 @@ build/
 out/
 ParaView/
 NearToFarFieldExports/
+resources/*.msh
 
 *.csv
 *.gf
@@ -50,45 +51,10 @@ mesh.mesh
 .vs/*
 out/*
 /CMakeSettings.json
-/tnf_sym_9.txt
-/tnf_sym_8.txt
-/tnf_sym_7.txt
-/tnf_sym_6.txt
-/tnf_sym_5.txt
-/tnf_sym_4.txt
-/tnf_sym_3.txt
-/tnf_sym_2.txt
-/tnf_sym_11.txt
-/tnf_sym_10.txt
-/tnf_sym_1.txt
-/tnf_sym_0.txt
-/tnf_9.txt
-/tnf_8.txt
-/tnf_7.txt
-/tnf_6.txt
-/tnf_5.txt
-/tnf_4.txt
-/tnf_3.txt
-/tnf_2.txt
-/tnf_11.txt
-/tnf_10.txt
-/tnf_1.txt
-/tnf_0.txt
-/fss_sym_9.txt
-/fss_sym_8.txt
-/fss_sym_7.txt
-/fss_sym_6.txt
-/fss_sym_5.txt
-/fss_sym_4.txt
-/fss_sym_3.txt
-/fss_sym_2.txt
-/fss_sym_11.txt
-/fss_sym_10.txt
-/fss_sym_1.txt
-/fss_sym_0.txt
 .vscode/settings.json
 /SpaceSwapping/L2toND
 /testData/dftData
 
 
 CMakeUserPresets.json
+/dotvs_backup
