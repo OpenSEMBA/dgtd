@@ -5,7 +5,6 @@ if (MAXWELL_USE_MPI)
 	add_compile_definitions(MAXWELL_USE_MPI)
 endif()
 
-
 add_subdirectory(driver)
 add_subdirectory(components)
 add_subdirectory(evolution)
