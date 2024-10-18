@@ -30,4 +30,34 @@ Material buildVacuumMaterial()
 	return Material(1.0, 1.0);
 }
 
+double Material::getImpedance() const
+{
+	if (sigma_ == 0.0) {
+		return sqrt(mu_ / epsilon_);;
+	}
+	else {
+		throw std::runtime_error("Current implementations does not support impedance calculation for materials with conductivity.");
+	}
+}
+
+double Material::getAdmitance() const
+{
+	if (sigma_ == 0.0) {
+		return sqrt(epsilon_ / mu_);;
+	}
+	else {
+		throw std::runtime_error("Current implementations does not support admitance calculation for materials with conductivity.");
+	}
+}
+
+double Material::getSpeedOfWave() const 
+{
+	if (sigma_ == 0.0) {
+		return 1.0 / sqrt(mu_ * epsilon_);
+	}
+	else {
+		throw std::runtime_error("Current implementations does not support wave speed calculation for materials with conductivity.");
+	}
+}
+
 }
