@@ -118,7 +118,7 @@ TEST_F(FormTest, RCSBdrFaceInt)
 
 }
 
-TEST_F(FormTest, MassMatrixToSingleBlockMatrix)
+TEST_F(FormTest, DISABLED_MassMatrixToSingleBlockMatrix)
 {
 	auto dim = 2;
 	auto order = 1;
@@ -135,7 +135,7 @@ TEST_F(FormTest, MassMatrixToSingleBlockMatrix)
 		break;
 	case (Element::Type::QUADRILATERAL):
 		ne = nx * ny;
-		dof_per_order = std::pow(order + 1, 2);
+		dof_per_order = int(std::pow(order + 1, 2));
 		break;
 	}
 

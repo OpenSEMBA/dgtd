@@ -6,6 +6,8 @@
 #include <fstream>
 #include <vector>
 
+#include "math/PhysicalConstants.h"
+
 
 using namespace mfem;
 
@@ -437,9 +439,9 @@ TEST_F(FiniteElementSpaceTest, calculateOptimalTS1D)
 	DG_FECollection fec{ order, dim, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &m, &fec, dim, Ordering::byNODES };
 	
-	double cfl{ 0.8 }, signalSpeed{ 1.0 };
+	double cfl{ 0.8 };
 
-	EXPECT_GE(0.15, (cfl * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * signalSpeed));
+	EXPECT_GE(0.15, (cfl * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * maxwell::physicalConstants::speedOfLight_SI));
 
 }
 

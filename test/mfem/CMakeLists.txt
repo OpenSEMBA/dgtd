@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 message(STATUS "Creating build system for mfem_tests")
 
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 find_package(FFTW3 CONFIG REQUIRED)
 
@@ -30,7 +30,8 @@ target_link_libraries(mfem_tests PRIVATE
 	FFTW3::fftw3
 	FFTW3::fftw3f
 	FFTW3::fftw3l
-	GTest::gtest GTest::gtest_main
+	GTest::gtest 
+	GTest::gtest_main
 )
 
 
