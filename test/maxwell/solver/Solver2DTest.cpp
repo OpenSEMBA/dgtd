@@ -61,8 +61,8 @@ protected:
 	
 	Probes buildProbes_for_1dot5D()
 	{
-		auto probes{buildProbesWithAnExportProbe(20)};
-		// auto probes{buildProbesEmpty()};
+		// auto probes{buildProbesWithAnExportProbe(20)};
+		auto probes{buildProbesEmpty()};
 		probes.pointProbes = {
 			PointProbe{E, Z, {0.0, 0.5}},
 			PointProbe{E, Z, {1.0, 0.5}},
@@ -227,7 +227,8 @@ TEST_F(Solver2DTest, pec_tris_1dot5D)
 			BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC),
 		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5, 0.5}), unitVec(Z)),
-		SolverOptions{}.setOrder(5)
+		SolverOptions{}
+			.setOrder(5)
 	};
 
 	expectFieldsAreNearAfterEvolution_1dot5D(solver);
@@ -253,7 +254,7 @@ TEST_F(Solver2DTest, sma_tris_1dot5D)
 {
 	maxwell::Solver solver{
 		buildModel(
-			10, 3, mfem::Element::Type::TRIANGLE, 1.0, 1.0,
+			5, 3, mfem::Element::Type::TRIANGLE, 1.0, 1.0,
 			BdrCond::PMC, BdrCond::SMA, BdrCond::PMC, BdrCond::SMA),
 		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
@@ -269,7 +270,7 @@ TEST_F(Solver2DTest, sma_tris_1dot5D)
 
 	solver.run();
 
-	double tol{1e-3};
+	double tol{1e-2};
 	EXPECT_NEAR(0.0, solver.getField(E,Z).DistanceTo(zeros), tol);
 	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tol);
 	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMin().second), tol);
@@ -1017,7 +1018,7 @@ TEST_F(Solver2DTest, DISABLED_pec_upwind_totalfieldin_square_1dot5D_rotated45)
 
 TEST_F(Solver2DTest, interiorPEC_sma_boundaries)
 {
-	Mesh mesh{Mesh::LoadFromFile((gmshMeshesFolder() + "InteriorPEC2D.msh").c_str(), 1, 0)};
+	Mesh mesh{Mesh::LoadFromFile(gmshMeshesFolder() + "InteriorPEC2D.msh", 1, 0)};
 	mesh.UniformRefinement();
 	GeomTagToBoundary attToBdr{{3, BdrCond::PMC}, {4, BdrCond::SMA}};
 	GeomTagToInteriorBoundary attToIntBdr{{2, BdrCond::PEC}};

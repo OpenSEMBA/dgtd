@@ -30,7 +30,7 @@ double linearDummyFunction(const Vector& v, double time)
 	return v[0] + time;
 }
 
-double RotatedGaussianFunction(Vector& pos, double time) {
+double RotatedGaussianFunction(const Vector& pos, double time) {
 	return 1.0 *
 		exp(
 			-pow(pos[0] - (3.5 * cos(-M_PI / 4.0)) + pos[1] - (3.5 * -sin(-M_PI / 4.0)), 2.0) /

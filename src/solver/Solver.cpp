@@ -152,7 +152,7 @@ Vector getTimeStepScale(Mesh& mesh)
 
 double getJacobiGQ_RMin(const int order) {
 	auto mesh{ Mesh::MakeCartesian1D(1, 2.0) };
-	DG_FECollection fec{ order,1,BasisType::GaussLegendre };
+	DG_FECollection fec{ order,1,BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &mesh, &fec };
 
 	GridFunction nodes(&fes);
@@ -166,10 +166,10 @@ double Solver::estimateTimeStep() const
 	if (model_.getConstMesh().Dimension() == 1) {
 		double maxTimeStep{ 0.0 };
 		if (opts_.evolution.order == 0) {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight_SI;
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight;
 		}
 		else {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight_SI;
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight;
 		}
 		return opts_.cfl * maxTimeStep;
 	}
@@ -177,7 +177,9 @@ double Solver::estimateTimeStep() const
 			Mesh mesh{ model_.getConstMesh() };
 			Vector dtscale{ getTimeStepScale(mesh) };
 			double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
-			auto dt{dtscale.Min() * rmin * 2.0 / 3.0};
+			auto dt{dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight};
+			dt *= opts_.cfl;
+			dt *= 0.75; // Purely heuristic.
 			if (checkIfQuadInMesh(mesh)) {
 				return dt/2.0; // This is purely heuristic.
 			} else {
