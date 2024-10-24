@@ -375,8 +375,9 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 			gt2i.geomTag2Interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
 			for (auto f = 0; f < mesh.GetNumFaces(); f++) {
 				if (face2BdrEl[f] != -1) {
-					if (mesh.GetBdrAttribute(face2BdrEl[f]) == a && mesh.FaceIsInterior(f)) {
-						gt2i.geomTag2Interior[a] = true;
+					if (mesh.GetBdrAttribute(face2BdrEl[f]) == case_data["model"]["boundaries"][b]["tags"][a] 
+						&& mesh.FaceIsInterior(f)) {
+						gt2i.geomTag2Interior[case_data["model"]["boundaries"][b]["tags"][a]] = true;
 						break;
 					}
 				}
