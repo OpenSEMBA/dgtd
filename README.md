@@ -1,4 +1,5 @@
 [![ubuntu-gnu](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml/badge.svg)](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml)
+[![windows-msvc](https://github.com/OpenSEMBA/dgtd/actions/workflows/windows-msvc.yml/badge.svg?branch=alejandro)](https://github.com/OpenSEMBA/dgtd/actions/workflows/windows-msvc.yml)
 
 # semba-dgtd
 Maxwell's curl equations solver using discontinuous Galerkin methods
