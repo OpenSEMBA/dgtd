@@ -151,38 +151,6 @@ TEST_F(Solver3DTest, periodic_cube_hexa)
 	}
 }
 
-TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
-{
-	maxwell::Solver solver{
-	buildModel(
-		12,    4,   4, Element::Type::HEXAHEDRON,
-		30.0, 15.0, 12.0,
-		BdrCond::PEC,BdrCond::PMC,BdrCond::SMA,
-		BdrCond::PMC,BdrCond::SMA,BdrCond::PEC),
-	buildProbesEmpty(),
-	buildGaussianInitialField(
-		E, 3.0,
-		Source::Position({15.0,7.5,6.0}),
-		unitVec(Z)
-	),
-	SolverOptions{}
-		.setTimeStep(5e-1)
-		.setFinalTime(5.0)
-		.setOrder(3)
-	};
-
-	auto normOld{ solver.getFields().getNorml2() };
-	solver.run();
-
-	double tolerance{ 1e-2 };
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
-
-	//EXPECT_NEAR(0.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
-}
-
 TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "InteriorPEC3D.msh").c_str(),1,0)};
@@ -246,42 +214,70 @@ TEST_F(Solver3DTest, DISABLED_minimal_tetra)
 TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 {
 
-	Probes probes{ buildProbesWithAnExportProbe(200) };
-	//probes.pointProbes = {
-	//	PointProbe{E, Z, {0.0, 0.5, 0.5}},
-	//	PointProbe{E, Z, {1.0, 0.5, 0.5}},
-	//	PointProbe{H, Y, {0.0, 0.5, 0.5}},
-	//	PointProbe{H, Y, {1.0, 0.5, 0.5}}
-	//};
+	Probes probes;
+	probes.fieldProbes = {
+		FieldProbe{{0.0, 0.2, 0.2}},
+		FieldProbe{{1.0, 0.2, 0.2}},
+	};
 
 	maxwell::Solver solver{
 		buildModel(
-			10, 2, 2, Element::Type::HEXAHEDRON,
+			10, 2, 2, 
+			Element::Type::HEXAHEDRON,
 			1.0, 0.4, 0.4,
 			BdrCond::PEC, BdrCond::PMC, BdrCond::SMA,
 			BdrCond::PMC, BdrCond::SMA, BdrCond::PEC),
 			probes,
 			buildGaussianInitialField(
 				E, 0.1,
-				Source::Position({ 0.5,0.5,0.5 }),
+				Source::Position({ 0.5, 0.2, 0.2 }),
 				unitVec(Z)
 			),
 			SolverOptions{}
-			.setTimeStep(1e-4)
-			.setFinalTime(2.0)
+			.setTimeStep(7e-3)
+			.setFinalTime(1.0)
 			.setOrder(3)
 	};
 
-	auto normOld{ solver.getFields().getNorml2() };
+
 	solver.run();
 
 	double tolerance{ 1e-2 };
-	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), tolerance);
+	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), tolerance);
 
-	//EXPECT_NEAR(0.0, solver.getPointProbe(0).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(0.0, solver.getPointProbe(1).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(2).findFrameWithMax().second, tolerance);
-	//EXPECT_NEAR(1.0, solver.getPointProbe(3).findFrameWithMax().second, tolerance);
+	{
+		auto expected_t{ 0.5 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			if (abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.5, f.Ez, tolerance);
+				EXPECT_NEAR(0.5, f.Hy, tolerance);
+			}
+		}
+
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			if (abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR( 0.5, f.Ez, tolerance);
+				EXPECT_NEAR(-0.5, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		auto expected_t{ 1.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			if (abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+				EXPECT_NEAR(0.0, f.Hy, tolerance);
+			}
+		}
+
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			if (abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+				EXPECT_NEAR(0.0, f.Hy, tolerance);
+			}
+		}
+	}
 }
 
 TEST_F(Solver3DTest, DISABLED_pec_centered_hexa_totalfieldin)
