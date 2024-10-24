@@ -845,6 +845,14 @@ TEST_F(CasesTest, 3D_NearToFarFieldSmaller_Upwind)
 	solver.run();
 }
 
+TEST_F(CasesTest, 3D_NearToFarField_InteriorPEC_Upwind)
+{
+	std::string case_name{ "3D_TFSF_InteriorPEC" };
+	auto solver{ buildSolver(maxwellCase(case_name)) };
+
+	solver.run();
+}
+
 TEST_F(CasesTest, 3D_NTFF_Sphere_Upwind)
 {
 	std::string case_name{ "3D_RCS" };
