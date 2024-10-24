@@ -151,28 +151,28 @@ TEST_F(Solver3DTest, periodic_cube_hexa)
 	}
 }
 
-TEST_F(Solver3DTest, interiorPEC_sma_boundaries)
+TEST_F(Solver3DTest, DISABLED_interiorPEC_sma_boundaries) //Fix Mesh
 {
 	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "InteriorPEC3D.msh").c_str(),1,0)};
-	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC},{3,BdrCond::PMC}, {4,BdrCond::SMA } };
+	GeomTagToBoundary attToBdr{ {2,BdrCond::PEC}, {3,BdrCond::PMC}, {4,BdrCond::SMA } };
 	GeomTagToInteriorBoundary attToIntBdr{ {5,BdrCond::PEC} };
 	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(attToBdr, attToIntBdr) };
 
-	auto probes{ buildProbesWithAnExportProbe() };
+	auto probes{ buildProbesWithAnExportProbe(5) };
 
 	maxwell::Solver solver{
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{7.5},
-			Source::Position({ 0.0 }), // center
+			Gaussian{10.0},
+			Source::Position({ -1.0 }), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			mfem::Vector({1.0, 0.0, 0.0}) // propagation direction
 	),
 		SolverOptions{}
-			.setTimeStep(1.0)
+			.setTimeStep(1e-2)
 			.setFinalTime(30.0)
-			.setOrder(2)
+			.setOrder(3)
 	};
 
 	auto normOld{ solver.getFields().getNorml2() };
