@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 1e-3,
-    "final_time":  3.0,
+    "time_step": 7e-3,
+    "final_time":  3.25,
     "order": 3
   },
 
@@ -37,6 +37,9 @@
     "field": [
       {
         "position": [ 0.0, 0.5, 0.5 ]
+      },
+      {
+        "position": [ 0.25, 0.5, 0.5 ]
       },
       {
         "position": [ 1.249, 0.5, 0.5 ]
