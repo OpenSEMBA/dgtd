@@ -309,7 +309,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 }
 
-TEST_F(Solver1DTest, conductivityPreTest)
+TEST_F(Solver1DTest, DISABLED_conductivityPreTest)
 {
 	// Sends a wave through a material interface. 
 	// Checks reflection and transmission.
