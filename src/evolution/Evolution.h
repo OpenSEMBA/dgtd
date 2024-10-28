@@ -7,6 +7,8 @@
 #include "EvolutionMethods.h"
 #include "components/SubMesher.h"
 
+#include <chrono>
+
 namespace maxwell {
 
 class Evolution: public mfem::TimeDependentOperator {

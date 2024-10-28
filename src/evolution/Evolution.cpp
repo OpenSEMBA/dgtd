@@ -49,18 +49,36 @@ Evolution::Evolution(
 	opts_{ options }
 {
 
+	auto startTime{ std::chrono::steady_clock::now() };
+
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+
 	if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model.getTotalFieldScatteredFieldToMarker().end()) {
 		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
 		auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
 		Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-			
+		
+		std::cout << "Assembling TFSF Inverse Mass Operators" << std::endl;
+
 		for (auto f : { E, H }) {
 			MInvTFSF_[f] = buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes);
 		}
 
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
+
 		for (auto f : { E, H }) {
 			MP_GTFSF_[f] = buildByMult(*MInvTFSF_[f], *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
+
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
@@ -68,6 +86,11 @@ Evolution::Evolution(
 				}
 			}
 		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
+
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
@@ -79,14 +102,26 @@ Evolution::Evolution(
 		}
 	}
 
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
+
 	for (auto f : { E, H }) {
 		MInv_[f] = buildInverseMassMatrix(f, model_, fes_);
 	}
 
 	if (model_.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
 		for (auto f : { E, H }) {
 			MPB_[f] = buildByMult(*MInv_[f], *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
 		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
+
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
@@ -94,6 +129,11 @@ Evolution::Evolution(
 				} 
 			}
 		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
+
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
@@ -105,14 +145,29 @@ Evolution::Evolution(
 		}
 	}
 
-	for (auto f : { E, H }) {
-		MP_[f] = buildByMult(*MInv_[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
-	}
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
+
 	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
 		}
 	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
+
+	for (auto f : { E, H }) {
+		MP_[f] = buildByMult(*MInv_[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
+	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
+
+
 	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
 			for (auto f2 : { E, H }) {
@@ -120,6 +175,12 @@ Evolution::Evolution(
 			}
 		}
 	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
+
+
 	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
 			for (auto f2 : { E, H }) {
@@ -129,6 +190,11 @@ Evolution::Evolution(
 			}
 		}
 	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Operator assembly finished" << std::endl;
+	std::cout << std::endl;
 
 	CND_ = buildConductivityCoefficients(model_, fes_);
  }

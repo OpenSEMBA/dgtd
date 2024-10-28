@@ -488,6 +488,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model)
 
 maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)
 {
+	
 	maxwell::Model model{ buildModel(case_data, case_path, isTest) };
 	maxwell::Probes probes{ buildProbes(case_data) };
 	maxwell::Sources sources{ buildSources(case_data) };
