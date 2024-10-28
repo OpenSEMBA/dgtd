@@ -1,0 +1,56 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step": 1e-4,
+    "final_time": 1.0,
+    "order": 3
+  },
+
+  "model": { 
+    "filename": "3D_NearToFarFieldSmaller.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 6 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 7 ],
+        "type": "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 2000
+    },
+    "neartofarfield": [
+      {
+        "name": "middle",
+        "steps": 500,
+        "tags": [ 4 ]
+      }
+    ]
+  },
+
+  "sources": [ 
+    {
+      "type": "totalField",
+      "polarization": [ 0.0, 0.0, 1.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "fieldtype": "electric",
+      "tags": [ 4 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.6,
+        "delay": 1.0
+      }
+    }
+  ]
+}

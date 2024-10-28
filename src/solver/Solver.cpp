@@ -1,10 +1,12 @@
 #include "Solver.h"
 
-#include "adapter/OpensembaAdapter.h"
+#include "components/SubMesher.h"
+#include "math/PhysicalConstants.h"
 
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <chrono>
 
 using namespace mfem;
 
@@ -24,18 +26,6 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
-Solver::Solver(const std::string& smbFilename) :
-	Solver{ OpensembaAdapter{smbFilename}.readSolverInput() }
-{}
-
-Solver::Solver(const SolverInput& in) :
-	Solver{in.problem, in.options}
-{}
-
-Solver::Solver(const Problem& problem, const SolverOptions& options) :
-	Solver{problem.model, problem.probes, problem.sources, options}
-{}
-
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
@@ -46,8 +36,8 @@ Solver::Solver(
 	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
 	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
 	fields_{ *fes_ },
-	sourcesManager_{ sources, *fes_ },
-	probesManager_{ probes, *fes_, fields_, opts_ },
+	sourcesManager_{ sources, *fes_, fields_ },
+	probesManager_ { probes , *fes_, fields_, opts_ },
 	time_{0.0}
 {
 	
@@ -64,7 +54,6 @@ Solver::Solver(
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 
-	sourcesManager_.setInitialFields(fields_);
 	maxwellEvol_ = std::make_unique<Evolution>(
 			*fes_, model_, sourcesManager_, opts_.evolution);
 	
@@ -72,7 +61,6 @@ Solver::Solver(
 	odeSolver_->Init(*maxwellEvol_);
 
 	probesManager_.updateProbes(time_);
-
 
 }
 
@@ -107,11 +95,6 @@ const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
 	return probesManager_.getFieldProbe(probe);
 }
 
-//const EnergyProbe& Solver::getEnergyProbe(const std::size_t probe) const
-//{
-//	return probesManager_.getEnergyProbe(probe);
-//}
-
 double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 {
 	GridFunction nodes(&fes);
@@ -136,9 +119,10 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 
 bool checkIfQuadInMesh(const Mesh& mesh) 
 {
-	for (int e = 0; e < mesh.GetNE(); ++e)
-	{
-		if (mesh.GetElementGeometry(e) == Element::QUADRILATERAL) { return true; }
+	for (int e = 0; e < mesh.GetNE(); ++e) 	{
+		if (mesh.GetElementGeometry(e) == mfem::Geometry::Type::SQUARE) { 
+			return true; 
+		}
 	}
 	return false;
 }
@@ -169,7 +153,7 @@ Vector getTimeStepScale(Mesh& mesh)
 
 double getJacobiGQ_RMin(const int order) {
 	auto mesh{ Mesh::MakeCartesian1D(1, 2.0) };
-	DG_FECollection fec{ order,1,BasisType::GaussLegendre };
+	DG_FECollection fec{ order,1,BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &mesh, &fec };
 
 	GridFunction nodes(&fes);
@@ -181,36 +165,63 @@ double getJacobiGQ_RMin(const int order) {
 double Solver::estimateTimeStep() const
 {
 	if (model_.getConstMesh().Dimension() == 1) {
-		double signalSpeed{ 1.0 };
 		double maxTimeStep{ 0.0 };
 		if (opts_.evolution.order == 0) {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / signalSpeed;
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight;
 		}
 		else {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / signalSpeed;
+			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight;
 		}
 		return opts_.cfl * maxTimeStep;
 	}
 	else if (model_.getConstMesh().Dimension() == 2) {
-		if (checkIfQuadInMesh(model_.getConstMesh()) == false) {
 			Mesh mesh{ model_.getConstMesh() };
 			Vector dtscale{ getTimeStepScale(mesh) };
 			double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
-			return dtscale.Min() * rmin * 2.0 / 3.0;
-		}
-		else{
-			throw std::runtime_error("Automatic Time Step Estimation not available for meshes with quadrilateral elements.");
-		}
-	}
-	else{
+			auto dt{dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight};
+			dt *= opts_.cfl;
+			dt *= 0.75; // Purely heuristic.
+			if (checkIfQuadInMesh(mesh)) {
+				return dt/2.0; // This is purely heuristic.
+			} else {
+				return dt;
+			}
+	} else {
 		throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
 	}
 }
 
+void printSimulationInformation(const double time, const double dt, const double finalTime)
+{
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << "Information is updated every 30 seconds." << std::endl;
+	std::cout << "Current Step: " + std::to_string(int(time / dt)) << std::endl;
+	std::cout << "Steps Left  : " + std::to_string(int((finalTime - time) / dt)) << std::endl;
+	std::cout << std::endl;
+	std::cout << "Final Time  : " + std::to_string(finalTime / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
+	std::cout << "Current Time: " + std::to_string(time / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
+	std::cout << "Time Step   : " + std::to_string(dt / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
+	std::cout << std::endl;
+}
+
 void Solver::run()
 {
+	auto lastPrintTime{ std::chrono::steady_clock::now() };
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
+	printSimulationInformation(time_, dt_, opts_.finalTime);
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
+
 		step();
+
+		auto currentTime = std::chrono::steady_clock::now();
+		if (std::chrono::duration_cast<std::chrono::seconds>
+			(currentTime - lastPrintTime).count() >= 30.0) 
+		{
+			printSimulationInformation(time_, dt_, opts_.finalTime);
+			lastPrintTime = currentTime;
+		}
 	}
 }
 
@@ -222,26 +233,26 @@ void Solver::step()
 }
 
 
-AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
+GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 {
 	switch (submesh.Dimension()) {
 	case 1:
-		return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
+		return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
 	case 2:
 		switch (submesh.GetElementType(0)) {
 		case Element::TRIANGLE:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
 		case Element::QUADRILATERAL:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
 		default:
 			throw std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
 		}
 	case 3:
 		switch (submesh.GetElementType(0)) {
 		case Element::TETRAHEDRON:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
 		case Element::HEXAHEDRON:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
+			return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
 		default:
 			throw std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
 		}
@@ -253,7 +264,7 @@ AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 
 Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
 {
-	Model submodel(submesh, AttributeToMaterial{}, assignAttToBdrByDimForSpectral(submesh), AttributeToInteriorConditions{});
+	Model submodel(submesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh), GeomTagToInteriorBoundary{}));
 	FiniteElementSpace subfes(&submesh, &fec);
 	Eigen::SparseMatrix<double> local;
 	auto numberOfFieldComponents = 2;
@@ -394,11 +405,10 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 		};
 		FiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
 		Model model{ submesh,
-			AttributeToMaterial{},
-			assignAttToBdrByDimForSpectral(submesh),
-			AttributeToInteriorConditions{}
+			GeomTagToMaterialInfo{},
+			GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh),GeomTagToInteriorBoundary{})
 		};
-		SourcesManager srcs{ Sources(), submeshFES };
+		SourcesManager srcs{ Sources(), submeshFES, fields_ };
 		Evolution evol {
 			submeshFES,
 			model,

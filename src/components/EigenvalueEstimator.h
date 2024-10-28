@@ -1,6 +1,12 @@
 #include "mfemExtension/BilinearIntegrators.h"
 #include "Model.h"
+
+#include <gtest/gtest.h>
+
 #include "evolution/EvolutionMethods.h"
+#include <solver/Solver.h>
+
+#include <mfem.hpp>
 
 namespace maxwell {
 

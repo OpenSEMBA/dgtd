@@ -1,8 +1,4 @@
-#include <gtest/gtest.h>
-
-#include "TestUtils.h"
 #include "components/EigenvalueEstimator.h"
-#include "evolution/EvolutionMethods.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -24,14 +20,12 @@ protected:
 
 TEST_F(EigenvalueEstimatorTest, verifyNoThrow_Quad)
 {
+	auto model {Model(mQuad,GeomTagToMaterialInfo(),GeomTagToBoundaryInfo())};
+	auto eo {EvolutionOptions{}};
 	EXPECT_NO_THROW(EigenvalueEstimator(
 		fesQuad, 
-		Model{ 
-			mQuad, 
-			AttributeToMaterial{}, 
-			AttributeToBoundary{}, 
-			AttributeToInteriorConditions{} }, 
-		EvolutionOptions{})
+		model,
+		eo)
 	);
 }
 
@@ -42,28 +36,24 @@ TEST_F(EigenvalueEstimatorTest, verifyNoThrow_SubMesh_Tri)
 	auto smTri(SubMesh::CreateFromDomain(mTri, atts));
 	smTri.SetAttribute(0, 1);
 	FiniteElementSpace smFesTri{ FiniteElementSpace(&smTri, &fec2D) };
-
+	
+	auto model { Model(mTri,GeomTagToMaterialInfo(),GeomTagToBoundaryInfo()) };
+	auto eo {EvolutionOptions{}};
 	EXPECT_NO_THROW(EigenvalueEstimator(
 		smFesTri, 
-		Model(
-			smTri, 
-			AttributeToMaterial{},
-			AttributeToBoundary{},
-			AttributeToInteriorConditions{}),
-		EvolutionOptions{})
+		model,
+		eo)
 	);
 }
 
 TEST_F(EigenvalueEstimatorTest, printMatrix_PEC)
 {
+	auto model{ Model(mQuad,GeomTagToMaterialInfo(),GeomTagToBoundaryInfo()) };
+	auto eo {EvolutionOptions{}};
 	EigenvalueEstimator ev(
 		fesQuad,
-		Model{
-			mQuad,
-			AttributeToMaterial{},
-			AttributeToBoundary{},
-			AttributeToInteriorConditions{} },
-		EvolutionOptions{});
+		model,
+		eo);
 
 	auto mat{ ev.getElementMatrix() };
 	
@@ -77,15 +67,14 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_PEC)
 
 TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 {
-
+	auto att_to_bdr {GeomTagToBoundary{}};
+	att_to_bdr.insert({1,BdrCond::SMA});
+	auto model {Model(mQuad, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(att_to_bdr, GeomTagToInteriorBoundary()))};
+	auto eo {EvolutionOptions{}};
 	EigenvalueEstimator ev(
 		fesQuad,
-		Model{
-			mQuad,
-			AttributeToMaterial{},
-			AttributeToBoundary{ {1,BdrCond::SMA} },
-			AttributeToInteriorConditions{} },
-		EvolutionOptions{});
+		model,
+		eo);
 
 	auto mat{ ev.getElementMatrix() };
 
@@ -99,9 +88,13 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 
 TEST_F(EigenvalueEstimatorTest, comparePECandSMAconditions)
 {
-	auto evPEC{EigenvalueEstimator(fesQuad, Model{ mQuad, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
-	auto att_to_bdr{ AttributeToBoundary{{1,BdrCond::SMA}} };
-	auto evSMA{ EigenvalueEstimator(fesQuad, Model{ mQuad, AttributeToMaterial{}, att_to_bdr, AttributeToInteriorConditions{} }, EvolutionOptions{}) };
+	auto eo {EvolutionOptions{}};
+	auto model{ Model{mQuad, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo()} };
+	auto evPEC{EigenvalueEstimator(fesQuad, model, eo) };
+	auto att_to_bdr{ GeomTagToBoundary{}};
+	att_to_bdr.insert({1,BdrCond::SMA});
+	auto smaModel{ Model{mQuad, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(att_to_bdr, GeomTagToInteriorBoundary{})} };
+	auto evSMA{ EigenvalueEstimator(fesQuad, smaModel, eo) };
 
 	auto eigenvalsPEC{ evPEC.getElementMatrix().eigenvalues() };
 	auto eigenvalsSMA{ evSMA.getElementMatrix().eigenvalues() };

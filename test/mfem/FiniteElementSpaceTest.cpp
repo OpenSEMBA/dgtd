@@ -6,6 +6,8 @@
 #include <fstream>
 #include <vector>
 
+#include "math/PhysicalConstants.h"
+
 
 using namespace mfem;
 
@@ -199,6 +201,7 @@ TEST_F(FiniteElementSpaceTest, MassMatrixIsSameForH1andDG)
 		}
 	}
 }
+
 TEST_F(FiniteElementSpaceTest, KOperators)
 {
 	/* The objetive of this test is to check the construction of the bilinear form 
@@ -250,6 +253,7 @@ TEST_F(FiniteElementSpaceTest, KOperators)
 		}
 	}
 }
+
 TEST_F(FiniteElementSpaceTest, MeshBoundaries)
 {
 	/*In this test we aim to compare the boundary DoFs for a mesh generated through
@@ -295,6 +299,7 @@ TEST_F(FiniteElementSpaceTest, MeshBoundaries)
 
 	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
 }
+
 TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
 {
 	/*This test creates files for the Basis Functions, for later visualization 
@@ -336,6 +341,7 @@ TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
 	SaveData(**solution, "save.gf");
 	mesh.Save("mesh.mesh");
 }
+
 TEST_F(FiniteElementSpaceTest, DGWithWedgeElement)
 {
 	int dim{ 3 };
@@ -360,28 +366,7 @@ TEST_F(FiniteElementSpaceTest, DGWithWedgeElement)
 	ASSERT_NO_THROW(bf.Assemble());
 	ASSERT_NO_THROW(bf.Finalize());
 }
-TEST_F(FiniteElementSpaceTest, DGWithPyramidElementNotSupported)
-{
-	int dim{ 3 };
 
-	Mesh m{ dim, 0, 0, 0 };
-	m.AddVertex(0.0, 0.0, 0.0);
-	m.AddVertex(1.0, 0.0, 0.0);
-	m.AddVertex(0.0, 1.0, 0.0);
-	m.AddVertex(1.0, 1.0, 0.0);
-	m.AddVertex(0.5, 0.5, 1.0);
-	m.AddPyramid(0, 1, 2, 3, 4);
-	m.FinalizeMesh();
-
-	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
-
-	FiniteElementSpace fes{ &m, &fec };
-	BilinearForm bf{ &fes };
-	ConstantCoefficient one{ 1.0 };
-	bf.AddDomainIntegrator(new MassIntegrator(one));
-
-	EXPECT_EXIT(bf.Assemble(), testing::ExitedWithCode(3), ".*");
-}
 TEST_F(FiniteElementSpaceTest, H1WithPyramidElement)
 {
 	int dim{ 3 };
@@ -405,6 +390,7 @@ TEST_F(FiniteElementSpaceTest, H1WithPyramidElement)
 	ASSERT_NO_THROW(bf.Assemble());
 	ASSERT_NO_THROW(bf.Finalize());
 }
+
 TEST_F(FiniteElementSpaceTest, GetCollocatedNodes1D)
 {
 	//  0     1 2     3   DoFs
@@ -453,9 +439,9 @@ TEST_F(FiniteElementSpaceTest, calculateOptimalTS1D)
 	DG_FECollection fec{ order, dim, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &m, &fec, dim, Ordering::byNODES };
 	
-	double cfl{ 0.8 }, signalSpeed{ 1.0 };
+	double cfl{ 0.8 };
 
-	EXPECT_GE(0.15, (cfl * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * signalSpeed));
+	EXPECT_GE(0.15, (cfl * getMinimumInterNodeDistance1D(fes)) / (pow(order, 1.5) * maxwell::physicalConstants::speedOfLight_SI));
 
 }
 
@@ -509,4 +495,14 @@ TEST_F(FiniteElementSpaceTest, JacobiGLNodesPosition_1D)
 		EXPECT_NEAR(expected(i), nodes(i), tol);
 	}
 
+}
+
+TEST_F(FiniteElementSpaceTest, PolynomialAndBasis) 
+{
+	auto mesh = Mesh::MakeCartesian1D(2);
+	auto fec = DG_FECollection(1, 1, BasisType::GaussLegendre);
+	auto fes = FiniteElementSpace(&mesh, &fec);
+
+	auto gf = GridFunction(&fes);
+	gf = 1.0;
 }

@@ -11,7 +11,7 @@ public:
 	using Time = double;
 	using Polarization = mfem::Vector;
 	using Propagation = mfem::Vector;
-	using CartesianAngles = std::vector<double>;
+	using CartesianAngles = mfem::Vector;
 
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
@@ -27,8 +27,8 @@ public:
 		const Function&,
 		const FieldType&,
 		const Polarization&,
-		const Position& center_,
-		const CartesianAngles rotAngle = CartesianAngles({ 0.0,0.0,0.0 })
+		const Position& center,
+		const CartesianAngles& angles = CartesianAngles({ 0.0,0.0,0.0 })
 	);
 	InitialField(const InitialField&);
 
@@ -47,12 +47,11 @@ private:
 	FieldType fieldType_{ E };
 	Polarization polarization_;
 	Position center_;
-	CartesianAngles angles_;
 };
 
 class Planewave : public Source {
 public:
-	Planewave(const Function&, const Polarization&, const Propagation&);
+	Planewave(const Function&, const Polarization&, const Propagation&, const FieldType&);
 	Planewave(const Planewave&);
 
 	std::unique_ptr<Source> clone() const;
@@ -65,6 +64,7 @@ private:
 	std::unique_ptr<Function> magnitude_;
 	Polarization polarization_;
 	Propagation propagation_;
+	FieldType fieldtype_;
 };
 
 class Sources {
@@ -91,13 +91,12 @@ public:
 	}
 	Sources& operator=(Sources&& rhs)
 	{
-		Sources res;
 		{
 			for (auto& v : rhs) {
 				v_.push_back(std::move(v));
 			}
 		}
-		return res;
+		return *this;
 	}
 
 	std::vector<std::unique_ptr<Source>>::const_iterator begin() const

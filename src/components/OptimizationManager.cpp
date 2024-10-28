@@ -20,7 +20,7 @@ SubMesh OptimizationManager::assembleElementBasedSubMesh(ElementID& id) {
 std::pair<FiniteElementSpace, Model> OptimizationManager::assembleTimeSteppingReqs(ElementID& id) {
 	auto submesh{ assembleElementBasedSubMesh(id) };
 	FiniteElementSpace fes(&submesh, fes_.FEColl());
-	Model model(submesh, AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{});
+	Model model(submesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
 	std::pair<FiniteElementSpace, Model> pair(fes,model);
 	return pair;
 }
@@ -41,7 +41,8 @@ void OptimizationManager::calculateTimeStepForElements()
 	for (int e = 0; e < model_.getConstMesh().GetNE(); ++e) {
 		
 		auto reqs{ assembleTimeSteppingReqs(e) };
-		auto ev{ EigenvalueEstimator(reqs.first, reqs.second, EvolutionOptions{})};
+		auto eo{ EvolutionOptions{}};
+		auto ev{ EigenvalueEstimator(reqs.first, reqs.second, eo)};
 		auto evs{ ev.getElementMatrix().eigenvalues() };
 		elemIdToMaxEV_.emplace(e, calcHighestModulus(evs));
 

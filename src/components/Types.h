@@ -32,13 +32,20 @@ using FieldMovies = std::map<Time,FieldsForFP>;
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
 
+using FaceId = int;
+using ElementId = int;
+using El2Face = std::pair<ElementId, FaceId>;
+
+using Attribute = int;
+
 enum FieldType { E, H };
 enum class FluxType { Centered, Upwind };
 
 enum SubMeshingMarkers {
 	TotalField = 1000,
 	ScatteredField = 2000,
-	Global_SubMesh = 3000
+	Global_SubMesh = 3000,
+	NearToFarField = 4000
 };
 
 enum class BdrCond {
@@ -46,9 +53,9 @@ enum class BdrCond {
 	PEC,
 	PMC,
 	SMA,
-	TotalFieldIn = 301,
-	TotalFieldOut = 302,
-	TotalFieldInBacked = 303
+	SurfaceCond,
+	NearToFarField = 201,
+	TotalFieldIn = 301
 };
 
 using InteriorFaceCoefficients = std::vector<double>;
@@ -59,10 +66,6 @@ using FluxBdrCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxBdrCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxSrcCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxSrcCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
-
-struct TFSFOrientationCoefficient {
-	double orient;
-};
 
 using Direction = int;
 static const Direction X{ 0 };

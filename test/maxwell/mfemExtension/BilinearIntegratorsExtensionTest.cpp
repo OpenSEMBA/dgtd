@@ -3,6 +3,7 @@
 #include "math/EigenMfemTools.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "components/Types.h"
+#include "TestUtils.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -43,7 +44,7 @@ protected:
 TEST_F(BilinearIntegratorsExtensionTest, checkNormalsOnRotatedQuad)
 {
 	int dim{ 2 };
-	auto m{ Mesh::LoadFromFile("./testData/rotatedquad.mesh",1,0) };
+	auto m{ Mesh::LoadFromFileNoBdrFix((mfemMeshes2DFolder() + "rotatedquad.mesh"),1,0) };
 	DG_FECollection fec{ 1, dim, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &m, &fec };
 

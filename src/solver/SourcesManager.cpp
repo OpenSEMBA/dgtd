@@ -4,10 +4,11 @@ namespace maxwell {
 
 using namespace mfem;
 
-SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes) :
+SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes, Fields& fields) :
     sources{ srcs }, 
     fes_{ fes }
 {
+    setInitialFields(fields);
 }
 
 void SourcesManager::setInitialFields(Fields& fields)
@@ -111,7 +112,7 @@ FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, bool is_tf)
     return res;
 }
 
-void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
+void SourcesManager::markDoFSforTForSF(FieldGridFuncs& gfs, bool isTF)
 {
     auto global_tfsf_map = tfsf_submesher_.getGlobalTFSFSubMesh()->GetParentElementIDMap();
     Array<int> secondary_map;
@@ -141,15 +142,15 @@ void SourcesManager::markDoFSforTFandSF(FieldGridFuncs& gfs, bool isTF)
     }
 }
 
-void SourcesManager::initTFSFPreReqs(const Mesh& m)
+void SourcesManager::initTFSFPreReqs(const Mesh& m, const Array<int>& marker)
 {
-    initTFSFSubMesher(m);
+    initTFSFSubMesher(m, marker);
     initTFSFSpaces();
 }
 
-void SourcesManager::initTFSFSubMesher(const Mesh& m)
+void SourcesManager::initTFSFSubMesher(const Mesh& m, const Array<int>& marker)
 {
-    auto sm = TotalFieldScatteredFieldSubMesher(m);
+    auto sm = TotalFieldScatteredFieldSubMesher(m, marker);
     tfsf_submesher_ = std::move(sm);
 }
 

@@ -17,17 +17,14 @@ public:
     using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
     
-    Solver(const std::string& smbFilename);
-    Solver(const SolverInput&);
-    Solver(const Problem&, const SolverOptions& = SolverOptions());
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
 
     const Fields& getFields() const { return fields_; };
     const GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
-    const PointProbe& getPointProbe(const std::size_t probe) const;
-    const FieldProbe& getFieldProbe(const std::size_t probe) const;
+    const PointProbe& getPointProbe(std::size_t probe) const;
+    const FieldProbe& getFieldProbe(std::size_t probe) const;
 
     double getTime() const { return time_; }
     double getTimeStep() const { return dt_; }
@@ -38,6 +35,10 @@ public:
 
     void run();
     void step();
+
+    void setFinalTime(double finalTime) {
+        opts_.setFinalTime(finalTime);
+    }
 
 private:
     SolverOptions opts_;
@@ -55,11 +56,10 @@ private:
     
     std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
 
-    void checkOptionsAreValid(const SolverOptions&) const;
-    void initializeFieldsFromSources();
+    void checkOptionsAreValid(const SolverOptions&) const; 
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
-    AttributeToBoundary assignAttToBdrByDimForSpectral(Mesh&);
+    GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
     void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
     void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, Evolution&);

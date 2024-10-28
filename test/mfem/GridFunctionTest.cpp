@@ -30,7 +30,7 @@ double linearDummyFunction(const Vector& v, double time)
 	return v[0] + time;
 }
 
-double RotatedGaussianFunction(Vector& pos, double time) {
+double RotatedGaussianFunction(const Vector& pos, double time) {
 	return 1.0 *
 		exp(
 			-pow(pos[0] - (3.5 * cos(-M_PI / 4.0)) + pos[1] - (3.5 * -sin(-M_PI / 4.0)), 2.0) /
@@ -276,9 +276,183 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 	EXPECT_NEAR(proj.GetValue(elArray[0], ipArray[0]), expectedValue[0], 1e-5);
 }
 
+TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
+{
+	// Choose any mesh in 2D, either MFEM-Cartesian or any other format.
+	// auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
+	auto mesh{ Mesh::LoadFromFile("testData/mfemMeshes/2D/square-disc.mesh") };
+
+	// Let us assume we have a L2 space, 2-dimensional, with vdim equal to 1, meaning
+	// our components are individually separated into a GridFunction representing X,
+	// another representing Y, and a third one that would represent Z if it were the case. 
+	auto dgfec{ DG_FECollection(3, 2) };
+	auto dgfes{ FiniteElementSpace(&mesh, &dgfec) };
+
+	// Additionally, we create a L2 space with vdim 2, which we will use later to create a 
+	// GridFunction and store the component values in a single object.
+	auto dgfesv2{ FiniteElementSpace(&mesh, &dgfec, 2) };
+
+	// For the sake of having non-zero GridFunctions, we initialise them to 1.0 in all the
+	// degrees of freedom of the problem. As the vdim 2 GridFunction will be filled with the
+	// previous GridFunctions there is no need to initialise its values.
+	// While we could just create the vdim 2 GridFunction, we are 'simulating' that our 
+	// components are initially separated, thus this step is needed to be closer to our
+	// Solver code.
+	GridFunction dg_x(&dgfes);
+	dg_x = 1.0;
+	GridFunction dg_y(&dgfes);
+	dg_y = 1.0;
+	GridFunction dg_gf(&dgfesv2);
+
+	// The vdim 2 GridFunction has its values ordered byNODES, this means first it stores the X
+	// components, then the Y components, and if it were vdim 3, the Z components. So, we fill
+	// the vector accordingly with our individual GridFunctions.
+	dg_gf.SetVector(dg_x, 0);
+	dg_gf.SetVector(dg_y, dg_x.Size());
+
+	// We create a VectorGridFunctionCoefficient from the vdim 2 GridFunction.
+	VectorGridFunctionCoefficient dg_vgfc(&dg_gf);
+
+	// We create a Nedelec Collection and Finite Element Space with vdim 1, 
+	// through all of this process, the order and dimension between all the
+	// created FEC is the same. As Nedelec spaces are vectorial by nature, 
+	// it doesn't seem we need to initialise the FES with vdim 2, which could feel
+	// like a natural choice.
+	auto ndfec{ ND_FECollection(3, 2) };
+	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
+
+	// We create a Nedelec GridFunction using the Nedelec FES. As we will be 
+	// projecting a solution onto the GridFunction, it is not needed to set its
+	// values to 0.0 
+	GridFunction nd_gf(&ndfes);
+
+	// We project the L2 VGFC onto the Nedelec GridFunction we have previously created, 
+	// it doesn't seem we need to specify where goes what, even if the debugger tells us
+	// that technically the Nedelec GridFunction is only half the size of the VGFC vector, 
+	// it just works. 
+	// I personally still do not understand where the information for the Y-Component goes.
+	// It might have to do with the DegreesOfFreedom(DoF) being Vector(?)DegreesOfFreedom (VDoF)
+	// in this case, thus storing the information at a lower level we cannot trivially see in the debugger.
+	nd_gf.ProjectCoefficient(dg_vgfc);
+
+	// This is the typical paraview exporting code for the GridFunctions and problem.
+	ParaViewDataCollection* pd = NULL;
+	pd = new ParaViewDataCollection("L2toND", &mesh);
+	pd->SetPrefixPath("SpaceSwapping");
+	pd->RegisterField("Galerkin Solution X", &dg_x);
+	pd->RegisterField("Galerkin Solution Y", &dg_y);
+	pd->RegisterField("Nedelec Solution", &nd_gf);
+	pd->SetLevelsOfDetail(1);
+	pd->SetDataFormat(VTKFormat::BINARY);
+	pd->SetHighOrderOutput(true);
+	pd->SetCycle(0);
+	pd->SetTime(0.0);
+	pd->Save();
+	
+	Vector nd_x, nd_y;
+	nd_gf.GetVectorFieldNodalValues(nd_x, 1);
+	nd_gf.GetVectorFieldNodalValues(nd_y, 2);
+
+	// Simple condition to automatise the test. Strange as it is, the component argument in 
+	// GetVectorFieldNodalValues starts at 1 - X, 2 - Y, and not at 0. Only to be lowered by 1,
+	// inside the method.
+	double error{ 1e-6 };
+	for (auto i{ 0 }; i < nd_x.Size(); ++i) {
+		EXPECT_NEAR(1.0, nd_x[i], error);
+		EXPECT_NEAR(1.0, nd_y[i], error);
+	}
 
 
+}
+
+TEST_F(GridFunctionTest, DISABLED_ProjectBetweenDifferentSpacesFromRead)
+{
+
+	auto mesh{ Mesh::LoadFromFile("NearToFarFieldExports/circle/mesh") };
+
+	std::ifstream inEx("NearToFarFieldExports/circle/circle_002000/Ex.gf");
+	std::unique_ptr<GridFunction> Ex = std::make_unique<GridFunction>(&mesh, inEx);
+	std::ifstream inEy("NearToFarFieldExports/circle/circle_002000/Ey.gf");
+	std::unique_ptr<GridFunction> Ey = std::make_unique<GridFunction>(&mesh, inEy);
+
+	auto l2fec{ L2_FECollection(3, 2) };
+	auto l2fes2{ FiniteElementSpace(&mesh, &l2fec, 2) };
+
+	auto ndfec{ ND_FECollection(3, 2) };
+	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
+	auto ndfes2{ FiniteElementSpace(&mesh, &ndfec, 2) };
 
 
+	GridFunction l2_gf(&l2fes2);
+
+	l2_gf.SetVector(*Ex.get(), 0);
+	l2_gf.SetVector(*Ey.get(), Ex->Size());
+
+	GridFunction nd_gf_Ex(&ndfes);
+	GridFunction nd_gf_Ey(&ndfes);
+	GridFunction nd_gf(&ndfes2);
+
+	VectorGridFunctionCoefficient l2_vgfc(&l2_gf);
+
+	nd_gf.ProjectCoefficient(l2_vgfc);
+	nd_gf_Ey.ProjectGridFunction(*Ey.get());
+
+}
+
+TEST_F(GridFunctionTest, DISABLED_HigherVDIMGridFunctions)
+{
+
+	auto mesh{ Mesh::MakeCartesian2D(1, 1, Element::TRIANGLE, true) };
+
+	auto dgfec = DG_FECollection(1, 2);
+	auto dgfes1 = FiniteElementSpace(&mesh, &dgfec, 1);
+	auto dgfes2 = FiniteElementSpace(&mesh, &dgfec, 2);
+
+	GridFunction Ax(&dgfes1);
+	Ax = 1.0;
+	GridFunction Ay(&dgfes1);
+	Ay = 2.0;
+	GridFunction Ag(&dgfes2);
+
+	Ag.SetVector(Ax, 0);
+	Ag.SetVector(Ay, Ax.Size());
+
+	auto ndfec = ND_FECollection(1, 2);
+	auto ndfec1 = FiniteElementSpace(&mesh, &ndfec, 1);
+	auto ndfec2 = FiniteElementSpace(&mesh, &ndfec, 2);
+
+	GridFunction Bx(&dgfes1);
+	Bx = 0.0;
+	GridFunction By(&dgfes1);
+	By = 0.0;
+	GridFunction Bg(&dgfes2);
+	Bg = 0.0;
+
+	GridFunctionCoefficient gfc_x(&Ax);
+	Bx.ProjectCoefficient(gfc_x);
+	GridFunctionCoefficient gfc_y(&Ay);
+	By.ProjectCoefficient(gfc_y);
+	VectorGridFunctionCoefficient gfc_g(&Ag);
+	Bg.ProjectCoefficient(gfc_g);
+
+	auto lin{ LinearForm(&ndfec2) };
+	Vector vx{ {1.0, 0.0} };
+	VectorConstantCoefficient vccx(vx);
+	lin.AddDomainIntegrator(new VectorFEBoundaryTangentLFIntegrator(vccx));
+	lin.Assemble();
+
+	ParaViewDataCollection* pd = NULL;
+	pd = new ParaViewDataCollection("L2toND", &mesh);
+	pd->SetPrefixPath("SpaceSwapping");
+	pd->RegisterField("Galerkin Global Solution", &Ag);
+	pd->RegisterField("Nedelec Solution X", &Bx);
+	pd->RegisterField("Nedelec Global Solution", &Bg);
+	pd->SetLevelsOfDetail(1);
+	pd->SetDataFormat(VTKFormat::BINARY);
+	pd->SetHighOrderOutput(true);
+	pd->SetCycle(0);
+	pd->SetTime(0.0);
+	pd->Save();
 
 
+}

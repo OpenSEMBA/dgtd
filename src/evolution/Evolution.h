@@ -7,6 +7,8 @@
 #include "EvolutionMethods.h"
 #include "components/SubMesher.h"
 
+#include <chrono>
+
 namespace maxwell {
 
 class Evolution: public mfem::TimeDependentOperator {
@@ -19,11 +21,16 @@ public:
 
 private:
 
+	std::array<FiniteElementOperator, 2> MInv_;
+	std::array<FiniteElementOperator, 2> MInvTFSF_;
+
 	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
 	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_;
 	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_;
 	std::array<FiniteElementOperator, 2> MP_;
 	std::array<FiniteElementOperator, 2> MFF_;
+
+	Vector CND_;
 
 	std::array<std::array<FiniteElementOperator, 3>,2> MBF_;
 

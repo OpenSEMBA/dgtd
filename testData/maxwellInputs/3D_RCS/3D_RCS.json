@@ -1,0 +1,56 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step": 5e-3,
+    "final_time":  6.0,
+    "order": 3
+  },
+
+  "model": { 
+    "filename": "3D_RCS.msh",
+    "materials": [
+      {
+        "tags": [ 2, 3 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 6 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 7 ],
+        "type":  "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 20
+    },
+    "neartofarfield": [
+      {
+        "name": "sphere",
+        "steps": 1,
+        "tags": [ 4 ]
+      }
+    ]
+  },
+
+  "sources": [ 
+    {
+      "type": "totalField",
+      "polarization": [ 0.0, 0.0, 1.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "fieldtype": "electric",
+      "tags": [ 4 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.4,
+        "delay": 5.0
+      }
+    }
+  ]
+}

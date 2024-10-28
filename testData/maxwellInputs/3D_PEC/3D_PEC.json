@@ -1,0 +1,58 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step":  1e-2,
+    "order": 3
+  },
+
+  "model": { 
+    "filename": "3D_PEC.msh",
+    "materials": [
+      {
+        "tags": [ 1 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 2, 5, 6 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 3, 4 ],
+        "type":  "PMC"
+      }
+    ]
+  },
+
+  "probes": { 
+    "exporter": { 
+      "steps": 20
+    },
+    "field": [
+      {
+        "position": [ 0.0, 0.5, 0.5 ]
+      },
+      {
+        "position": [ 1.0, 0.5, 0.5 ]
+      },
+      {
+        "position": [ 0.5, 0.5, 0.5 ]
+      }
+    ]
+  },
+
+  "sources": [ 
+    {
+      "type": "initial", 
+      "field_type": "E", 
+      "center": [ 0.5, 0.5, 0.5 ], 
+      "polarization": [ 0.0, 0.0, 1.0 ], 
+      "dimension": 1, 
+      "magnitude": {
+        "type": "gaussian", 
+        "spread": 0.1
+      }
+    }
+  ]
+}

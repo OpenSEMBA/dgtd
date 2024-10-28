@@ -5,6 +5,13 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
+void evalConductivity(const Vector& cond, const Vector& in, Vector& out)
+{
+	for (auto v{ 0 }; v < cond.Size(); v++) {
+		out[v] -= cond[v] * in[v];
+	}
+}
+
 void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 {
 	for (auto f : { E, H }) {
@@ -17,11 +24,11 @@ void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 const FieldGridFuncs evalTimeVarFunction(const Time time, SourcesManager& sm)
 {
 	auto res{ sm.evalTimeVarField(time, sm.getGlobalTFSFSpace()) };
-	sm.markDoFSforTFandSF(res, true);
+	auto func_g_sf = res;
+	sm.markDoFSforTForSF(res, true);
 	{
 		if (sm.getTFSFSubMesher().getSFSubMesh() != NULL) {
-			auto func_g_sf{ sm.evalTimeVarField(time, sm.getGlobalTFSFSpace()) };
-			sm.markDoFSforTFandSF(func_g_sf, false);
+			sm.markDoFSforTForSF(func_g_sf, false);
 			for (int f : {E, H}) {
 				for (int x{ 0 }; x <= Z; x++) {
 					res[f][x] -= func_g_sf[f][x];
@@ -42,54 +49,154 @@ Evolution::Evolution(
 	opts_{ options }
 {
 
-	for (auto f : { E, H }) {
-		MP_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
-		for (auto d{ X }; d <= Z; d++) {
-			MS_[f][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildDerivativeOperator(d, fes_), fes_);
-			for (auto d2{ X }; d2 <= Z; d2++) {
-				for (auto f2 : { E, H }) {
-					MFN_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalOperator(f2, { d }, model_, fes_, opts_), fes_);
-					MFNN_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
-				}
-			}
-		}
-	}
+	auto startTime{ std::chrono::steady_clock::now() };
 
-	for (auto bdr_att = 0; bdr_att < model_.getConstMesh().GetNBE(); bdr_att++) {
-		if (model_.getConstMesh().GetBdrAttribute(bdr_att) == 301) {
-			srcmngr_.initTFSFPreReqs(model_.getConstMesh());
-			auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
-			Model modelGlobal = Model(*globalTFSFfes->GetMesh(), AttributeToMaterial{}, AttributeToBoundary{}, AttributeToInteriorConditions{});
-			
-			for (auto f : { E, H }) {
-				MP_GTFSF_[f] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
-				for (auto d{ X }; d <= Z; d++) {
-					for (auto d2{ X }; d2 <= Z; d2++) {
-						for (auto f2 : { E, H }) {
-							MFN_GTFSF_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildOneNormalOperator(f2, { d }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
-							MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes), *buildTwoNormalOperator(f2, { d, d2 }, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
-						}
-					}
-				}
-			}
-			break;
-		}
-	}
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
 
-	if (model_.getInteriorBoundaryToMarker().size() != 0) {
-		for (auto f : { E, H }) { //IntBdrConds
-			MPB_[f] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
+	if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model.getTotalFieldScatteredFieldToMarker().end()) {
+		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
+		auto globalTFSFfes{ srcmngr_.getGlobalTFSFSpace() };
+		Model modelGlobal = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+		
+		std::cout << "Assembling TFSF Inverse Mass Operators" << std::endl;
+
+		for (auto f : { E, H }) {
+			MInvTFSF_[f] = buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes);
+		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
+
+		for (auto f : { E, H }) {
+			MP_GTFSF_[f] = buildByMult(*MInvTFSF_[f], *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
+
+		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
-				for (auto d2{ X }; d2 <= Z; d2++) {
-					for (auto f2 : { E, H }) {
-						MFNB_[f][f2][d] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
-						MFNNB_[f][f2][d][d2] = buildByMult(*buildInverseMassMatrix(f, model_, fes_), *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+				for (auto f2 : { E, H }) {
+					MFN_GTFSF_[f][f2][d] = buildByMult(*MInvTFSF_[f], *buildOneNormalOperator(f2, {d}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+				}
+			}
+		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
+
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto f2 : { E, H }) {
+					for (auto d2{ X }; d2 <= Z; d2++) {
+						MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*MInvTFSF_[f], *buildTwoNormalOperator(f2, {d, d2}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 					}
 				}
 			}
 		}
 	}
 
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
+
+	for (auto f : { E, H }) {
+		MInv_[f] = buildInverseMassMatrix(f, model_, fes_);
+	}
+
+	if (model_.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
+		for (auto f : { E, H }) {
+			MPB_[f] = buildByMult(*MInv_[f], *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
+		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
+
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto f2 : { E, H }) {
+					MFNB_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
+				} 
+			}
+		}
+
+		std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+			(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
+
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto f2 : { E, H }) {
+					for (auto d2{ X }; d2 <= Z; d2++) {
+						MFNNB_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+					}
+				}
+			}
+		}
+	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
+
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
+		}
+	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
+
+	for (auto f : { E, H }) {
+		MP_[f] = buildByMult(*MInv_[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
+	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
+
+
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			for (auto f2 : { E, H }) {
+				MFN_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalOperator(f2, { d }, model_, fes_, opts_), fes_);
+			}
+		}
+	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
+
+
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			for (auto f2 : { E, H }) {
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					MFNN_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+				}
+			}
+		}
+	}
+
+	std::cout << "Elapsed time (seconds): " + std::to_string(std::chrono::duration_cast<std::chrono::seconds>
+		(std::chrono::steady_clock::now() - startTime).count()) << std::endl;
+	std::cout << "Operator assembly finished" << std::endl;
+	std::cout << std::endl;
+
+	CND_ = buildConductivityCoefficients(model_, fes_);
  }
 
 void Evolution::Mult(const Vector& in, Vector& out) const
@@ -113,6 +220,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 		
+		evalConductivity(CND_, eOld[x], eNew[x]);
+
 		//Centered
 		MS_[H][y]		 ->AddMult(eOld[z], hNew[x],-1.0);
 		MS_[H][z]		 ->AddMult(eOld[y], hNew[x]);
@@ -157,7 +266,6 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
 			}
 		}
-
 	}
 
 	for (const auto& source : srcmngr_.sources) {

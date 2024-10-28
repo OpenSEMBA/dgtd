@@ -20,8 +20,7 @@ TEST_F(ProbesManagerTest, exporterProbe)
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &mesh, &fec };
 	Fields fields{ fes };
-	SourcesManager sM{ buildGaussianInitialField(), fes };
-	sM.setInitialFields(fields);
+	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
 	Probes ps;
 	ps.exporterProbes = { ExporterProbe{"ProbesManagerTest"} };
@@ -37,8 +36,7 @@ TEST_F(ProbesManagerTest, fieldProbe)
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
 	FiniteElementSpace fes{ &m, &fec };
 	Fields fields{ fes };
-	SourcesManager sM{ buildGaussianInitialField(), fes };
-	sM.setInitialFields(fields);
+	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
 	Probes probes;
 	probes.fieldProbes = {

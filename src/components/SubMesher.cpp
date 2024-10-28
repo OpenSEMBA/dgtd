@@ -5,22 +5,296 @@ namespace maxwell {
 using namespace mfem;
 static const int NotFound{ -1 };
 
-TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m)
+FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be) 
+{
+	switch (m.FaceIsInterior(m.GetBdrElementFaceIndex(be))) {
+	case true:
+		return m.GetInternalBdrFaceTransformations(be);
+	default:
+		return m.GetBdrFaceTransformations(be);
+	}
+}
+
+Vector getBarycenterOfElement(Mesh& m, int e)
+{
+	Element* elem{ m.GetElement(e) };
+	Array<int> elem_vert(elem->GetNVertices());
+	elem->GetVertices(elem_vert);
+	Vector res;
+	switch (m.Dimension()) {
+	case 1:
+		res.SetSize(1);
+		break;
+	case 2:
+		res.SetSize(2);
+		break;
+	case 3:
+		res.SetSize(3);
+		break;
+	default:
+		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
+	}
+	res = 0.0;
+	for (int v = 0; v < elem_vert.Size(); v++) {
+		Vector vertexPos(m.GetVertex(elem_vert[v]), m.Dimension());
+		res += vertexPos;
+	}
+	res /= elem_vert.Size();
+	return res;
+}
+
+Vector getBarycenterOfFaceElement(Mesh& m, int f)
+{
+	Array<int> f_elem_vert;
+	m.GetFaceVertices(f, f_elem_vert);
+	Vector res;
+	switch (m.Dimension()) {
+	case 1:
+		res.SetSize(1);
+		break;
+	case 2:
+		res.SetSize(2);
+		break;
+	case 3:
+		res.SetSize(3);
+		break;
+	default:
+		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
+	}
+	res = 0.0;
+	for (int v = 0; v < f_elem_vert.Size(); v++) {
+		Vector vertexPos(m.GetVertex(f_elem_vert[v]), m.Dimension());
+		res += vertexPos;
+	}
+	res /= f_elem_vert.Size();
+	return res;
+}
+
+Vector subtract(const double* bdr_v, const Vector& b_v)
+{
+	Vector res(3);
+	switch (b_v.Size()) {
+	case 1:
+		res.SetSize(1);
+		break;
+	case 2:
+		res.SetSize(2);
+		break;
+	case 3:
+		res.SetSize(3);
+		break;
+	default:
+		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
+	}
+	for (int i = 0; i < res.Size(); i++) {
+		res[i] = b_v[i] - bdr_v[i];
+	}
+	return res;
+}
+
+Vector getNormal(FaceElementTransformations& fet)
+{
+	Vector res;
+	switch (fet.Elem1->GetDimension()) {
+	case 1:
+		res.SetSize(1);
+		res(0) = 1.0;
+		break;
+	case 2:
+		res.SetSize(2);
+		fet.SetIntPoint(&Geometries.GetCenter(fet.GetGeometryType()));
+		CalcOrtho(fet.Jacobian(), res);
+		break;
+	case 3:
+		res.SetSize(3);
+		fet.SetIntPoint(&Geometries.GetCenter(fet.GetGeometryType()));
+		CalcOrtho(fet.Jacobian(), res);
+		break;
+	default:
+		throw std::runtime_error("Wrong Dimension for Element in Normal for TFSF orientations.");
+	}
+	return res;
+}
+
+std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be)
+{
+	auto bdr_vertices{ m.GetBdrElement(be)->GetVertices() };
+	auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
+	auto normal{ getNormal(fet) };
+
+	auto bary1{ getBarycenterOfElement(m, fet.Elem1No) };
+	auto v1{ subtract(bdr_vert,bary1) };
+	auto d1{ mfem::InnerProduct(v1, normal) };
+
+	auto d2 = 0.0;
+	if (fet.Elem2No != NotFound) {
+		auto bary2{ getBarycenterOfElement(m, fet.Elem2No) };
+		auto v2{ subtract(bdr_vert,bary2) };
+		d2 = mfem::InnerProduct(v2, normal);
+	}
+
+	return std::make_pair(d1, d2);
+}
+
+double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, int be)
+{
+	auto coord_v0{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[0]) };
+	auto coord_v1{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[1]) };
+
+	auto bary_e1{ getBarycenterOfElement(m, fet.Elem1No) };
+	auto bary_e2{ getBarycenterOfElement(m, fet.Elem2No) };
+
+	Vector bary_3D(3), vertex_3D(3);
+	bary_3D = 0.0; vertex_3D = 0.0;
+	for (int i = 0; i < m.Dimension(); i++) {
+		bary_3D[i] = bary_e2[i] - bary_e1[i];
+		vertex_3D[i] = coord_v1[i] - coord_v0[i];
+	}
+
+	auto cross{ crossProduct(bary_3D,vertex_3D) };
+
+	return cross[2];
+
+}
+
+const Vector calculateTangent2D(Mesh& m, int be)
+{
+	auto be_trans{ m.GetBdrElementTransformation(be) };
+	auto f{ m.GetFace(m.GetBdrElementFaceIndex(be)) };
+	auto v0{ m.GetVertex(f->GetVertices()[0]) };
+	auto v1{ m.GetVertex(f->GetVertices()[1]) };
+	Vector res(2);
+	for (int i = 0; i < res.Size(); i++) {
+		res[i] = v1[i] - v0[i];
+	}
+	return res;
+}
+
+const Vector calculateNormal3D(Mesh& m, int be)
+{
+	auto be_trans{ m.GetBdrElementTransformation(be) };
+	auto f{ m.GetFace(m.GetBdrElementFaceIndex(be)) };
+	auto v0{ m.GetVertex(f->GetVertices()[0]) };
+	auto v1{ m.GetVertex(f->GetVertices()[1]) };
+	double* v2;
+	f->GetGeometryType() == Geometry::SQUARE ? v2 = m.GetVertex(f->GetVertices()[3]) : v2 = m.GetVertex(f->GetVertices()[2]);
+	Vector aux_vec1(3), aux_vec2(3);
+	for (int i = 0; i < aux_vec1.Size(); i++) {
+		aux_vec1[i] = v1[i] - v0[i];
+		aux_vec2[i] = v2[i] - v0[i];
+	}
+	auto res{ crossProduct(aux_vec1, aux_vec2) };
+	return res;
+}
+
+const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be)
+{
+	auto fe_trans{ getFaceElementTransformation(m, be) };
+
+	if (fe_trans->Elem2No != NotFound) {
+		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, fe_trans->Elem2No));
+	}
+	else {
+		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, m.GetBdrElementFaceIndex(be)));
+	}
+}
+
+const Vector calculateBarycenterVector(Mesh& m, int be)
+{
+	auto barys{ calculateBarycenters(m, be) };
+
+	Vector res(barys.first.Size());
+	for (auto i{ 0 }; i < res.Size(); ++i) {
+		res[i] = barys.second[i] - barys.first[i];
+	}
+	return res;
+}
+
+void restoreElementAttributes(Mesh& m) //Temporary method that has to be reworked when materials are implemented.
+{
+	for (int e = 0; e < m.GetNE(); e++)
+	{
+		m.SetAttribute(e, 1);
+	}
+}
+
+
+void cleanInvalidSubMeshEntries(std::vector<El2Face>& v)
+{
+	auto end_tf = std::remove_if(v.begin(), v.end(), [](const auto& i) {
+		return i.first == -1;
+		});
+	v.erase(end_tf, v.end());
+}
+
+
+void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const std::pair<Array<int>, BdrCond>& parent_info)
+{
+	//if (child.Dimension() == 1) {
+	//	for (int e = 0; e < child.GetNE(); e++) {
+	//		Array<int> verts(2);
+	//		child.GetElementVertices(e, verts);
+	//		child.AddBdrPoint(verts[0]);
+	//		child.AddBdrPoint(verts[1]);
+	//	}
+	//}
+	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
+	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
+	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
+	for (int be = 0; be < parent.GetNBE(); be++) {
+		if (parent_info.first[parent.GetBdrAttribute(be) - 1] == 1) {
+			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(be))], static_cast<int>(parent_info.second));
+		}
+	}
+}
+
+Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
+{
+	Array<int> res(1);
+	switch (bdrCond) {
+	case BdrCond::TotalFieldIn:
+		if (isTF) {
+			res[0] = SubMeshingMarkers::TotalField;
+		}
+		else {
+			res[0] = SubMeshingMarkers::ScatteredField;
+		}
+		break;
+	case BdrCond::NearToFarField:
+		res[0] = SubMeshingMarkers::NearToFarField;
+		break;
+	}
+	return res;
+}
+
+SubMesh createSubMeshFromParent(const Mesh& parent, const std::pair<Array<int>, BdrCond>& parent_info, bool isTF = false)
+{
+	Array<int> marker{ getMarkerForSubMesh(parent_info.second, isTF) };
+
+	auto res{ SubMesh::CreateFromDomain(parent, marker) };
+	setBoundaryAttributesInChild(parent, res, parent_info);
+
+	restoreElementAttributes(res);
+	res.FinalizeMesh();
+	return res;
+}
+
+TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m, const Array<int>& marker)
 {
 	Mesh parent_for_global(m);
 	Mesh parent_for_individual(m);
 
-	setGlobalTFSFAttributesForSubMeshing(parent_for_global);
+	setGlobalTFSFAttributesForSubMeshing(parent_for_global, marker);
 
 	switch (m.Dimension()) {
 	case 1:
-		setIndividualTFSFAttributesForSubMeshing1D(parent_for_individual);
+		setIndividualTFSFAttributesForSubMeshing1D(parent_for_individual, marker);
 		break;
 	case 2:
-		setIndividualTFSFAttributesForSubMeshing2D(parent_for_individual);
+		setIndividualTFSFAttributesForSubMeshing2D(parent_for_individual, marker);
 		break;
 	default:
-		setIndividualTFSFAttributesForSubMeshing3D(parent_for_individual);
+		setIndividualTFSFAttributesForSubMeshing3D(parent_for_individual, marker);
 		break;
 	}
 
@@ -30,76 +304,20 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	global_sm.FinalizeMesh();
 	global_submesh_ = std::make_unique<SubMesh>(global_sm);
 
-	cleanInvalidSubMeshEntries();
+	cleanInvalidSubMeshEntries(elem_to_face_tf_);
+	cleanInvalidSubMeshEntries(elem_to_face_sf_);
 
 	if (!elem_to_face_tf_.empty()) {
-		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, true));
+		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), true));
 	}
 
 	if (!elem_to_face_sf_.empty()) {
-		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, false));
+		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), false));
 	}
 
 };
 
-void TotalFieldScatteredFieldSubMesher::cleanInvalidSubMeshEntries()
-{
-	auto end_tf = std::remove_if(elem_to_face_tf_.begin(), elem_to_face_tf_.end(), [](const auto& i) {
-		return i.first == -1;
-	});
-	elem_to_face_tf_.erase(end_tf, elem_to_face_tf_.end());
 
-	auto end_sf = std::remove_if(elem_to_face_sf_.begin(), elem_to_face_sf_.end(), [](const auto& i) {
-		return i.first == -1;
-	});
-	elem_to_face_sf_.erase(end_sf, elem_to_face_sf_.end());
-}
-
-SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh& parent, bool isTF)
-{
-	Array<int> marker(1); 
-	if (isTF) {
-		marker[0] = SubMeshingMarkers::TotalField;
-	}
-	else {
-		marker[0] = SubMeshingMarkers::ScatteredField;
-	}
-	
-	auto res{ SubMesh::CreateFromDomain(parent, marker) };
-	setBoundaryAttributesInChild(parent, res);
-
-	restoreElementAttributes(res);
-	res.FinalizeMesh();
-	return res;
-}
-
-void TotalFieldScatteredFieldSubMesher::restoreElementAttributes(Mesh& m) //Temporary method that has to be reworked when materials are implemented.
-{
-	for (int e = 0; e < m.GetNE(); e++)
-	{
-		m.SetAttribute(e, 1);
-	}
-}
-
-void TotalFieldScatteredFieldSubMesher::setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child)
-{
-	if (child.Dimension() == 1) {
-		for (int e = 0; e < child.GetNE(); e++) {
-			Array<int> verts(2);
-			child.GetElementVertices(e, verts);
-			child.AddBdrPoint(verts[0]);
-			child.AddBdrPoint(verts[1]);
-		}
-	}
-	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
-	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
-	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
-	for (int i = 0; i < parent.GetNBE(); i++) {
-		if (parent.GetBdrAttribute(i) == static_cast<int>(BdrCond::TotalFieldIn)) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(i))], static_cast<int>(BdrCond::TotalFieldIn));
-		}
-	}
-}
 
 void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
 {
@@ -151,22 +369,12 @@ void TotalFieldScatteredFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceEl
 	storeElementToFaceInformation(trans, facesId, el1_is_tf);
 }
 
-FaceElementTransformations* TotalFieldScatteredFieldSubMesher::getFaceElementTransformation(Mesh&m, int be) 
-{
-	switch (m.FaceIsInterior(m.GetBdrFace(be))) {
-	case true:
-		return m.GetInternalBdrFaceTransformations(be);
-	default:
-		return m.GetBdrFaceTransformations(be);
-	}
-}
 
-void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mesh& m, const Array<int>& marker)
 {
 
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn) || 
-			m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ getFaceElementTransformation(m, be)};
 			if (be_trans->Elem2No != NotFound) {
 				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
@@ -180,148 +388,6 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 			}
 		}
 	}
-}
-
-Vector getBarycenterOfElement(Mesh& m, int e)
-{
-	Element* elem{ m.GetElement(e) };
-	Array<int> elem_vert(elem->GetNVertices());
-	elem->GetVertices(elem_vert);
-	Vector res;
-	switch (m.Dimension()) {
-	case 1:
-		res.SetSize(1);
-		break;
-	case 2:
-		res.SetSize(2);
-		break;
-	case 3:
-		res.SetSize(3);
-		break;
-	default:
-		throw std::exception("Wrong dimension for TFSF barycenter calculation.");
-	}
-	res = 0.0;
-	for (int v = 0; v < elem_vert.Size(); v++) {
-		Vector vertexPos(m.GetVertex(elem_vert[v]), m.Dimension());
-		res += vertexPos;
-	}
-	res /= elem_vert.Size();
-	return res;
-}
-
-Vector getBarycenterOfFaceElement(Mesh& m, int f)
-{
-	Array<int> f_elem_vert;
-	m.GetFaceVertices(f, f_elem_vert);
-	Vector res;
-	switch (m.Dimension()) {
-	case 1:
-		res.SetSize(1);
-		break;
-	case 2:
-		res.SetSize(2);
-		break;
-	case 3:
-		res.SetSize(3);
-		break;
-	default:
-		throw std::exception("Wrong dimension for TFSF barycenter calculation.");
-	}
-	res = 0.0;
-	for (int v = 0; v < f_elem_vert.Size(); v++) {
-		Vector vertexPos(m.GetVertex(f_elem_vert[v]), m.Dimension());
-		res += vertexPos;
-	}
-	res /= f_elem_vert.Size();
-	return res;
-}
-
-Vector subtract(const double* bdr_v, const Vector& b_v)
-{
-	Vector res(3);
-	switch (b_v.Size()) {
-	case 1:
-		res.SetSize(1);
-		break;
-	case 2:
-		res.SetSize(2);
-		break;
-	case 3:
-		res.SetSize(3);
-		break;
-	default:
-		throw std::exception("Wrong dimension for TFSF barycenter calculation.");
-	}
-	for (int i = 0; i < res.Size(); i++) {
-		res[i] = b_v[i] - bdr_v[i];
-	}
-	return res;
-}
-
-Vector getNormal(FaceElementTransformations& fet)
-{
-	Vector res;
-	switch (fet.Elem1->GetDimension()){
-	case 1:
-		res.SetSize(1);
-		res(0) = 1.0;
-		break;
-	case 2: 
-		res.SetSize(2);
-		fet.SetIntPoint(&Geometries.GetCenter(fet.GetGeometryType()));
-		CalcOrtho(fet.Jacobian(), res);
-		break;
-	case 3:
-		res.SetSize(3);
-		fet.SetIntPoint(&Geometries.GetCenter(fet.GetGeometryType()));
-		CalcOrtho(fet.Jacobian(), res);
-		break;
-	default:
-		throw std::exception("Wrong Dimension for Element in Normal for TFSF orientations.");
-	}
-	return res;
-}
-
-std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be)
-{
-	auto bdr_vertices{ m.GetBdrElement(be)->GetVertices() };
-	auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
-	auto normal{ getNormal(fet) };
-	
-	auto bary1{ getBarycenterOfElement(m, fet.Elem1No) };
-	auto v1{ subtract(bdr_vert,bary1) };
-	auto d1{ mfem::InnerProduct(v1, normal) };
-
-	auto d2 = 0.0;
-	if (fet.Elem2No != NotFound) {
-		auto bary2{ getBarycenterOfElement(m, fet.Elem2No) };
-		auto v2{ subtract(bdr_vert,bary2) };
-		d2 = mfem::InnerProduct(v2, normal);
-	}
-
-	return std::make_pair(d1, d2);
-}
-
-double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, int be)
-{
-	auto coord_v0{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[0]) };
-	auto coord_v1{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[1]) };
-
-	auto bary_e1{ getBarycenterOfElement(m, fet.Elem1No) };
-	auto bary_e2{ getBarycenterOfElement(m, fet.Elem2No) };
-
-	Vector bary_3D(3), vertex_3D(3);
-	bary_3D = 0.0; vertex_3D = 0.0;
-	for (int i = 0; i < m.Dimension(); i++) {
-		bary_3D[i] = bary_e2[i] - bary_e1[i];
-		vertex_3D[i] = coord_v1[i] - coord_v0[i];
-	}
-
-	auto cross{ crossProduct(bary_3D,vertex_3D) };
-
-	return cross[2];
-
 }
 
 SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, bool flag)
@@ -354,10 +420,10 @@ SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, 
 	return std::make_pair(set_e1, set_e2);
 }
 
-void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			std::pair<FaceId, IsTF> set_e1;
 			std::pair<FaceId, IsTF> set_e2;
@@ -380,11 +446,11 @@ void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh&
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh& m, const Array<int>& marker)
 {
 	auto flag{ false };
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			SetPairs sets;
 			switch (flag) {
 			case false:
@@ -403,55 +469,53 @@ void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m, const Array<int>& marker)
 {
 	auto be_counter{ 0 };
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			be_counter++;
 		}
 	}
 	switch (be_counter) {
 	case 1:
-		assignIndividualTFSFAttsOnePoint1D(m);
+		assignIndividualTFSFAttsOnePoint1D(m, marker);
 		break;
 	case 2:
-		assignIndividualTFSFAttsTwoPoints1D(m);
+		assignIndividualTFSFAttsTwoPoints1D(m, marker);
 		break;
 	default:
-		throw std::exception("Only one or two TFSF points can be declared in a 1D Mesh.");
+		throw std::runtime_error("Only one or two TFSF points can be declared in a 1D Mesh.");
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m) 
+double calculateCrossCoefficient(const Vector& bary_vec, const Vector& tang_vec)
+{
+	Vector cross_first(3), cross_sec(3);
+	cross_first[0] = bary_vec[0];
+	cross_first[1] = bary_vec[1];
+	cross_first[2] = 0.0;
+	cross_sec[0] = tang_vec[0];
+	cross_sec[1] = tang_vec[1];
+	cross_sec[2] = 0.0;
+	auto cross = crossProduct(cross_first, cross_sec);
+	return cross[2];
+}
+
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
-			auto be_trans{ m.GetBdrElementTransformation(be) };
-			auto f{ m.GetFace(m.GetBdrFace(be)) };
-			auto v0{ m.GetVertex(f->GetVertices()[0]) };
-			auto v1{ m.GetVertex(f->GetVertices()[1]) };
-			Vector normal_be(2);
-			for (int i = 0; i < normal_be.Size(); i++) {
-				normal_be[i] = v1[1-i] - v0[1-i];
-			}
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto fe_trans{ getFaceElementTransformation(m,be) };
+			auto baryvector(calculateBarycenterVector(m, be));
+			auto tangentvector(calculateTangent2D(m, be));
 
-			auto bary1{ getBarycenterOfElement(m, fe_trans->Elem1No) };
-			Vector bary2(2);
-			if (fe_trans->Elem2No != NotFound) {
-				bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
-			}
-			else {
-				bary2 = getBarycenterOfFaceElement(m, m.GetBdrFace(be));
-			}
-			Vector bary_vec(2);
-			for (auto i{ 0 }; i < bary_vec.Size(); ++i) {
-				bary_vec[i] = bary2[i] - bary1[i];
-			}
-			auto face_ori{ mfem::InnerProduct(bary_vec, normal_be) };
+			auto face_ori { calculateCrossCoefficient(
+					baryvector,
+					tangentvector
+			)};
 
+			auto fe_trans{ getFaceElementTransformation(m, be) };
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
@@ -490,41 +554,26 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			}
 			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
-			std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
 			prepareSubMeshInfo(m, fe_trans, facesInfo, set_v1.second);
 		}
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn)) {
-			auto be_trans{ m.GetBdrElementTransformation(be) };
-			Vector normal_be(3);
-			CalcOrtho(be_trans->Jacobian(), normal_be);
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto fe_trans{ getFaceElementTransformation(m,be) };
-
-			auto bary1{ getBarycenterOfElement(m, fe_trans->Elem1No) };
-			Vector bary2(3);
-			if (fe_trans->Elem2No != NotFound) {
-				bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
-			}
-			else {
-				bary2 = getBarycenterOfFaceElement(m, m.GetBdrFace(be));
-			}
-			Vector bary_vec(3);
-			for (auto i{ 0 }; i < bary_vec.Size(); ++i) {
-				bary_vec[i] = bary2[i] - bary1[i];
-			}
-			auto face_ori{ mfem::InnerProduct(bary_vec, normal_be) };
-
+			auto face_ori{ mfem::InnerProduct(
+				calculateBarycenterVector(m, be),
+				calculateNormal3D(m, be))
+			};
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
 			be_vert.Sort();
 
+			auto fe_trans{ getFaceElementTransformation(m,be) };
 			m.GetElementFaces(fe_trans->Elem1No, el1_face, el1_ori);
 
 			std::pair<FaceId, IsTF> set_v1;
@@ -540,19 +589,9 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 			std::pair<FaceId, IsTF> set_v2;
 			if (fe_trans->Elem2No != NotFound) {
-				switch (m.Dimension()) {
-				case 1:
-					m.GetElementVertices(fe_trans->Elem2No, el2_face);
-					break;
-				case 2:
-					m.GetElementEdges(fe_trans->Elem2No, el2_face, el2_ori);
-					break;
-				case 3:
-					m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
-					break;
-				default:
-					throw std::exception("Incorrect Dimension for mesh in TFSF Child Attribute setting.");
-				}
+
+				m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
+
 				for (int f = 0; f < el2_face.Size(); f++) {
 					auto fi{ m.GetFaceInformation(f) };
 					auto ir = Geometries.GetVertices(Geometry::Type::SQUARE);
@@ -570,91 +609,151 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			}
 			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
-			std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
 			prepareSubMeshInfo(m, fe_trans, facesInfo, set_v1.second);
 		}
 	}
 
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing(Mesh& m)
+NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElementSpace& fes, const Array<int>& marker)
 {
-	auto facemap{ m.GetFaceToBdrElMap() };
+
+	original_ = std::make_unique<Mesh>(m);
+
+	switch (original_->SpaceDimension()) {
+	case 2:
+		setIndividualNTFFAttributesForSubMeshing2D(*original_.get(), marker);
+		break;
+	case 3:
+		setIndividualNTFFAttributesForSubMeshing3D(*original_.get(), marker);
+		break;
+	default:
+		throw std::runtime_error("NearToFarField can only be applied to 2D or 3D meshes.");
+	}
+
+	if (!elem_to_face_ntff_.empty()) {
+		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
+	}
+	else {
+		throw std::runtime_error("ntff submesh is empty, check orientation of curves/faces.");
+	}
+}
+
+void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
+{
 	for (int be = 0; be < m.GetNBE(); be++) {
-		if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldIn) ||
-			m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto be_trans{ getFaceElementTransformation(m, be) };
-			auto face_oris{ calculateBaryNormalProduct(m, *be_trans, be) };
+			auto face_ori { calculateCrossCoefficient(
+					calculateBarycenterVector(m, be),
+					calculateTangent2D(m, be))
+			};
 
-			if (m.GetBdrAttribute(be) == static_cast<int>(BdrCond::TotalFieldOut)) {
-				face_oris.first  *= -1.0; 
-				face_oris.second *= -1.0;
-			}
-
-			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
+			Array<int> be_vert, el_face, el_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
 			be_vert.Sort();
 
-			switch (m.Dimension()) {
-			case 2:
-				m.GetElementEdges(be_trans->Elem1No, el1_face, el1_ori);
-				break;
-			case 3:
-				m.GetElementFaces(be_trans->Elem1No, el1_face, el1_ori);
-				break;
-			default:
-				throw std::exception("Incorrect Dimension for mesh in TFSF Child Attribute setting.");
-			}
-			std::pair<FaceId, IsTF> set_v1;
-			for (int f = 0; f < el1_face.Size(); f++) {
-				auto fi{ m.GetFaceInformation(f) };
-				m.GetFaceVertices(el1_face[f], face_vert);
-				face_vert.Sort();
-				if (face_vert == be_vert) {
-					face_oris.first >= 0.0 ? set_v1 = std::make_pair(f, true) : set_v1 = std::make_pair(f, false);
-					break;
-				}
-			}
+			auto fe_trans{ getFaceElementTransformation(m, be) };
 
-			std::pair<FaceId, IsTF> set_v2;
-			if (be_trans->Elem2No != NotFound) {
-				switch (m.Dimension()) {
-				case 1:
-					m.GetElementVertices(be_trans->Elem2No, el2_face);
-					break;
-				case 2:
-					m.GetElementEdges(be_trans->Elem2No, el2_face, el2_ori);
-					break;
-				case 3:
-					m.GetElementFaces(be_trans->Elem2No, el2_face, el2_ori);
-					break;
-				default:
-					throw std::exception("Incorrect Dimension for mesh in TFSF Child Attribute setting.");
-				}
-				for (int f = 0; f < el2_face.Size(); f++) {
+			std::pair<FaceId, IsTF> el_info;
+			if (fe_trans->Elem2No != NotFound) {
+
+				m.GetElementEdges(fe_trans->Elem1No, el_face, el_ori);
+
+				for (int f = 0; f < el_face.Size(); f++) {
 					auto fi{ m.GetFaceInformation(f) };
-					auto ir = Geometries.GetVertices(Geometry::Type::SQUARE);
-					m.GetFaceVertices(el2_face[f], face_vert);
-					auto el_faces = m.GetElement(be_trans->Elem2No)->GetFaceVertices(f);
+					m.GetFaceVertices(el_face[f], face_vert);
 					face_vert.Sort();
 					if (face_vert == be_vert) {
-						face_oris.second >= 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
+						face_ori >= 0.0 ? el_info = std::make_pair(f, false) : el_info = std::make_pair(f, true);
 						break;
 					}
 				}
 			}
 			else {
-				auto set_v2{ std::make_pair(NotFound, false) };
+				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
+				throw std::runtime_error(error.c_str());
 			}
-			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
-			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
-			std::pair<IsTF, IsTF> dirInfo = std::make_pair(set_v1.second, set_v2.second);
-			prepareSubMeshInfo(m, be_trans, facesInfo, set_v1.second);
+			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
+			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
+			prepareSubMeshInfo(m, fe_trans, el_info.first, el_info.second);
+		}
+	}
+
+}
+
+void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
+{
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
+
+			auto face_ori{ mfem::InnerProduct(
+				calculateBarycenterVector(m, be),
+				calculateNormal3D(m, be)
+				)
+			};
+
+			Array<int> be_vert, el2_face, el2_ori, face_vert;
+			m.GetBdrElementVertices(be, be_vert);
+			be_vert.Sort();
+
+			auto fe_trans{ getFaceElementTransformation(m, be) };
+
+			std::pair<FaceId, IsTF> el2_info;
+			if (fe_trans->Elem2No != NotFound) {
+
+				m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
+
+				for (int f = 0; f < el2_face.Size(); f++) {
+					auto fi{ m.GetFaceInformation(f) };
+					m.GetFaceVertices(el2_face[f], face_vert);
+					face_vert.Sort();
+					if (face_vert == be_vert) {
+						face_ori >= 0.0 ? el2_info = std::make_pair(f, false) : el2_info = std::make_pair(f, true);
+						break;
+					}
+				}
+			}
+			else {
+				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
+				throw std::runtime_error(error.c_str());
+			}
+			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
+			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
+			prepareSubMeshInfo(m, fe_trans, el2_info.first, el2_info.second);
 		}
 	}
 }
 
+void NearToFarFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
+{
+	setAttributeForTagging(m, trans, el_is_ntff);
+	storeElementToFaceInformation(trans, faceId, el_is_ntff);
+}
+
+void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el_is_ntff)
+{
+	if (trans->Elem2No != NotFound) {
+		if (el_is_ntff) {
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+		}
+		else {
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+		}
+	}
+}
+
+void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
+{
+	if (faceId != NotFound) {
+		if (el_is_ntff) {
+			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem2No, faceId));
+		}
+		else {
+			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem1No, faceId));
+		}
+	}
+}
 
 MaxwellTransferMap::MaxwellTransferMap(const GridFunction& src,
 	const GridFunction& dst)

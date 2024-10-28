@@ -1,9 +1,7 @@
 [submodule "pythonBindings/pybind11"]
 	path = pythonBindings/pybind11
 	url = git@github.com:pybind/pybind11.git
-[submodule "external/opensemba-core"]
-	path = external/opensemba-core
-	url = git@github.com:OpenSEMBA/core.git
 [submodule "external/mfem-geg"]
 	path = external/mfem-geg
 	url = git@github.com:OpenSEMBA/mfem.git
+	ignore = dirty

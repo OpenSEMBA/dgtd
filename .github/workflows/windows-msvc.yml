@@ -1,0 +1,68 @@
+name: windows-msvc
+
+permissions:
+  actions: write
+
+on:
+  push:
+    branches:
+      - main
+      - alejandro
+
+  pull_request:
+    branches:
+      - main
+      - dev
+   
+
+jobs:
+  builds-and-tests:
+    
+    runs-on: windows-latest
+
+    steps:
+    
+    - name: checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: getcmake
+      uses: lukka/get-cmake@latest
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+
+    - name: Setup Ninja
+      uses: ashutoshvarma/setup-ninja@master
+
+    # - name: Builds mfem-geg
+    #   run: | 
+    #     cmake -S external/mfem-geg -B mfem-geg-build/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=mfem-geg-install -G Ninja
+    #     cmake --build mfem-geg-build/ -j --config Release
+    #     cmake --install mfem-geg-build/ --config Release
+        
+    - name: Builds semba/dgtd
+      uses: lukka/run-cmake@v10
+      env: 
+        MFEM_DIR: 'mfem-geg-install/lib/cmake/mfem/'
+      with:
+        configurePreset: 'gnu'
+        buildPreset: 'gnu'
+        buildPresetAdditionalArgs: "['--parallel']"
+      
+    - name: Run unit tests 
+      run: |
+        build/gnu/bin/hesthavenComparison_tests
+        build/gnu/bin/mfem_tests
+        build/gnu/bin/maxwell_tests
+
+    # - name: Run system tests 
+    #   run: |
+    #     build/gnu/bin/cases_tests
+    #     build/gnu/bin/maxwell_solver_tests
+    #     build/gnu/bin/rcs_tests
+
+
+        
+    

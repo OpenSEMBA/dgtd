@@ -223,7 +223,7 @@ TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 //	mesh_.AddBdrPoint(2, intBdrAttr);
 //	mesh_.FinalizeMesh();
 //
-//	BilinearFormIBFI totalFieldFlux{ fes_.get() };
+//	BilinearFormIBFI totalFieldFlux{ sfes_.get() };
 //	Array<int> intBdrMarker{ mesh_.bdr_attributes.Max() };
 //	intBdrMarker = 0;
 //	intBdrMarker[intBdrAttr - 1] = 1;
@@ -235,7 +235,7 @@ TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 //	totalFieldFlux.Assemble();
 //	totalFieldFlux.Finalize();
 //
-//	GridFunction f{ fes_.get() }, exc{ fes_.get() };
+//	GridFunction f{ sfes_.get() }, exc{ sfes_.get() };
 //	f = 0.0; 
 //	exc[3] = 6.0;
 //	exc[4] = 5.0;
@@ -261,8 +261,8 @@ TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 //	intBdrMarker[intBdrAttr - 1] = 1;
 //	std::vector<VectorConstantCoefficient> n = { VectorConstantCoefficient(Vector({1.0})) };
 //
-//	BilinearForm baseBilinearForm(fes_.get());
-//	BilinearFormIBFI derivedBilinearForm(fes_.get());
+//	BilinearForm baseBilinearForm(sfes_.get());
+//	BilinearFormIBFI derivedBilinearForm(sfes_.get());
 //	baseBilinearForm.AddBdrFaceIntegrator(
 //		new DGTraceIntegrator{ n[0],0.0, 1.0 },
 //		intBdrMarker
@@ -276,7 +276,7 @@ TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 //	derivedBilinearForm.Assemble();
 //	derivedBilinearForm.Finalize();	
 //
-//	GridFunction fbase{ fes_.get() }, fderived{ fes_.get() },exc{ fes_.get() };
+//	GridFunction fbase{ sfes_.get() }, fderived{ sfes_.get() },exc{ sfes_.get() };
 //	exc[3] = 6.0;
 //	exc[4] = 5.0;
 //	baseBilinearForm.Mult(exc, fbase);

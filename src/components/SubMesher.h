@@ -4,15 +4,13 @@
 #include "math/Calculus.h"
 #include "Types.h"
 
-using FaceId = int;
-using ElementId = int;
-using Attribute = int;
-using IsTF = bool;
-using El2Face = std::pair<ElementId, FaceId>;
-using Face2Dir = std::pair<FaceId, IsTF>;
-using SetPairs = std::pair<std::pair<FaceId, IsTF>, std::pair<FaceId, IsTF>>;
 
 namespace maxwell {
+
+using Attribute = int;
+using IsTF = bool;
+using Face2Dir = std::pair<FaceId, IsTF>;
+using SetPairs = std::pair<std::pair<FaceId, IsTF>, std::pair<FaceId, IsTF>>;
 
 using namespace mfem;
 
@@ -21,7 +19,7 @@ class TotalFieldScatteredFieldSubMesher
 public:
 
 	TotalFieldScatteredFieldSubMesher(){};
-	TotalFieldScatteredFieldSubMesher(const Mesh&);
+	TotalFieldScatteredFieldSubMesher(const Mesh&, const Array<int>& marker);
 
 	SubMesh* getTFSubMesh() { return tf_mesh_.get(); }
 	SubMesh* getSFSubMesh() { return sf_mesh_.get(); }
@@ -32,30 +30,18 @@ public:
 
 private:
 
-	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
-	void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child);
-	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
-	void setGlobalTFSFAttributesForSubMeshing(Mesh&);
+	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
+	void setGlobalTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
+	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	
 	SetPairs twoPointAssignator(Mesh&, int be, bool flag);
-	void assignIndividualTFSFAttsOnePoint1D(Mesh&);
-	void assignIndividualTFSFAttsTwoPoints1D(Mesh&);
-	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&);
-	
-	void setIndividualTFSFAttributesForSubMeshing(Mesh&);
-	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&);
+	void assignIndividualTFSFAttsOnePoint1D(Mesh&, const Array<int>& marker);
+	void assignIndividualTFSFAttsTwoPoints1D(Mesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&, const Array<int>& marker);
 
-	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&);
-
-	void cleanInvalidSubMeshEntries();
-
-	void restoreElementAttributes(Mesh&);
-	FaceElementTransformations* getFaceElementTransformation(Mesh&, int bdr_el_no);
-	SubMesh TotalFieldScatteredFieldSubMesher::createSubMeshFromParent(const Mesh&, bool isTF);
-
-	Face2Dir getFaceAndDirOnVertexIteration2D(const Element*, const Array<int>& verts, const Array<int>& be_verts);
-	Face2Dir getFaceAndDirOnVertexIteration3D(Mesh& m, int be);
 
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;
@@ -64,6 +50,31 @@ private:
 	std::unique_ptr<SubMesh> tf_mesh_;
 	std::unique_ptr<SubMesh> sf_mesh_;
 	std::unique_ptr<SubMesh> global_submesh_;
+
+};
+
+class NearToFarFieldSubMesher
+{
+public:
+	NearToFarFieldSubMesher(){};
+	NearToFarFieldSubMesher(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
+
+	const SubMesh* getConstSubMesh() { return ntff_mesh_.get(); }
+	SubMesh* getSubMesh() { return ntff_mesh_.get(); }
+	const std::vector<El2Face> getEl2Face() { return elem_to_face_ntff_; }
+
+private:
+
+	void setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker);
+	void setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker);
+	void prepareSubMeshInfo(Mesh&, const FaceElementTransformations*, int faceId, bool el1_is_tf);
+	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
+	void storeElementToFaceInformation(const FaceElementTransformations*, int faceId, bool el1_is_tf);
+
+	std::unique_ptr<Mesh> original_;
+	std::vector<El2Face> elem_to_face_ntff_;
+	std::vector<ElementId> elems_for_global_submesh_;
+	std::unique_ptr<SubMesh> ntff_mesh_;
 
 };
 

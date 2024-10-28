@@ -1,13 +1,12 @@
 #pragma once
 
 #include <mfem.hpp>
+#include <components/Types.h>
 
 namespace maxwell{
 namespace mfemExtension {
 
 using namespace mfem;
-
-using Direction = int;
 
 /** Integrator for a specialised application of the DG form:
 	beta < k [v], [w] >,

@@ -17,15 +17,15 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	pd.RegisterField("Hz", &fields.get(H,Z));
 	
 	const auto order{ fes_.GetMaxElementOrder() };
-	pd.SetLevelsOfDetail(order);
-	order > 0 ? pd.SetHighOrderOutput(true) : pd.SetHighOrderOutput(false);
+	pd.SetLevelsOfDetail(3);
+	pd.SetHighOrderOutput(true);
 	
 	pd.SetDataFormat(VTKFormat::BINARY);
 
 	return pd;
 }
 
-ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
+ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
 	probes{ pIn },
 	fes_{ fes }
 {
@@ -40,6 +40,18 @@ ProbesManager::ProbesManager(Probes pIn, const mfem::FiniteElementSpace& fes, Fi
 	for (const auto& p : probes.fieldProbes) {
 		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
 	}
+
+	for (const auto& p : probes.nearToFarFieldProbes) {
+		auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
+		if (!dgfec)
+		{
+			throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+		}
+		nearToFarFieldReqs_.emplace(&p, std::make_unique<NearToFarFieldReqs>(NearToFarFieldReqs(p, dgfec, fes_, fields)));
+		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fields));
+	}
+
+	finalTime_ = opts.finalTime;
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -116,10 +128,33 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	};
 }
 
+DataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
+	const NearToFarFieldProbe& p, Fields& gFields) const
+{
+	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
+	{
+		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+	}
+
+	DataCollection res{ p.name, nearToFarFieldReqs_.at(&p)->getSubMesh()};
+	res.SetPrefixPath("NearToFarFieldExports/" + p.name);
+	res.RegisterField("Ex.gf", &nearToFarFieldReqs_.at(&p)->getField(E, X));
+	res.RegisterField("Ey.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Y));
+	res.RegisterField("Ez.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Z));
+	res.RegisterField("Hx.gf", &nearToFarFieldReqs_.at(&p)->getField(H, X));
+	res.RegisterField("Hy.gf", &nearToFarFieldReqs_.at(&p)->getField(H, Y));
+	res.RegisterField("Hz.gf", &nearToFarFieldReqs_.at(&p)->getField(H, Z));
+
+	return res;
+
+}
+
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-	if (cycle_ % p.visSteps != 0) {
-		return;
+	if (std::abs(time - finalTime_) >= 1e-3){
+		if (cycle_ % p.visSteps != 0) {
+			return;
+		}
 	}
 
 	auto it{ exporterProbesCollection_.find(&p) };
@@ -162,6 +197,47 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	);
 }
 
+Fields buildFieldsForProbe(const Fields& src, FiniteElementSpace& fes)
+{
+	Fields res(fes);
+	for (auto f : { E, H }) {
+		for (auto& d : { X, Y, Z }) {
+			TransferMap tm(src.get(f, d), res.get(f, d));
+			tm.   Transfer(src.get(f, d), res.get(f, d));
+		}
+	}
+	return res;
+}
+
+void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
+{
+	if (abs(time - finalTime_) >= 1e-3) {
+		if (cycle_ % p.steps != 0) {
+			return;
+		}
+	}
+
+	auto it{ nearToFarFieldProbesCollection_.find(&p) };
+	assert(it != nearToFarFieldProbesCollection_.end());
+	auto& dc{ it->second };
+
+	nearToFarFieldReqs_.at(&p)->updateFields();
+
+	dc.SetCycle(cycle_);
+	dc.SetTime(time);
+	dc.Save(); //Ideally we wouldn't save the mesh every step but MFEM DataCollection does it. We should redo the method or delete the extra meshes later (suboptimal).
+
+	std::string mesh_path{ dc.GetPrefixPath() + dc.GetCollectionName() + "/mesh" }; //We do want to save the mesh at the base directory, though ideally we'd only do this once. (WIP)
+	auto mesh{ dc.GetMesh() };
+	mesh->Save(dc.GetPrefixPath() + "/mesh");
+
+	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
+	std::ofstream file;
+	file.open(dir_name);
+	file << time;
+	file.close();
+}
+
 void ProbesManager::updateProbes(Time t)
 {
 	for (auto& p : probes.exporterProbes) {
@@ -176,6 +252,57 @@ void ProbesManager::updateProbes(Time t)
 		updateProbe(p, t);
 	}
 
+	for (auto& p : probes.nearToFarFieldProbes) {
+		updateProbe(p, t);
+	}
+
 	cycle_++;
 }
+
+Array<int> buildSurfaceMarker(const std::vector<int>& tags, const FiniteElementSpace& fes)
+{
+	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+	res = 0;
+	for (const auto& t : tags) {
+		res[t - 1] = 1;
+	}
+	return res;
+}
+
+void NearToFarFieldReqs::assignGlobalFieldsReferences(Fields& global)
+{
+	gFields_.get(E, X) = global.get(E, X);
+	gFields_.get(E, Y) = global.get(E, Y);
+	gFields_.get(E, Z) = global.get(E, Z);
+	gFields_.get(H, X) = global.get(H, X);
+	gFields_.get(H, Y) = global.get(H, Y);
+	gFields_.get(H, Z) = global.get(H, Z);
+}
+
+void NearToFarFieldReqs::updateFields()
+{
+	tMaps_.transferFields(gFields_, fields_);
+}
+
+void TransferMaps::transferFields(const Fields& src, Fields& dst)
+{
+	tMapEx.Transfer(src.get(E, X), dst.get(E, X));
+	tMapEy.Transfer(src.get(E, Y), dst.get(E, Y));
+	tMapEz.Transfer(src.get(E, Z), dst.get(E, Z));
+	tMapHx.Transfer(src.get(H, X), dst.get(H, X));
+	tMapHy.Transfer(src.get(H, Y), dst.get(H, Y));
+	tMapHz.Transfer(src.get(H, Z), dst.get(H, Z));
+}
+
+NearToFarFieldReqs::NearToFarFieldReqs(
+	const NearToFarFieldProbe& p, const DG_FECollection* fec, FiniteElementSpace& fes, Fields& global) :
+	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
+	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
+	fields_{ Fields(*sfes_) },
+	gFields_{ global },
+	tMaps_{ TransferMaps(gFields_, fields_) }
+{
+	updateFields();
+}
+
 }

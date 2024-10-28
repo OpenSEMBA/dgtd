@@ -56,8 +56,8 @@ TEST_F(GeometryTest, internal_boundary_orientation_2D)
 	m.FinalizeTopology();
 	m.Finalize();
 
-	EXPECT_TRUE(elementsHaveSameOrientation(&seg1, m.GetFace(m.GetBdrFace(bdr1))));
-	EXPECT_FALSE(elementsHaveSameOrientation(&seg2, m.GetFace(m.GetBdrFace(bdr2))));
+	EXPECT_TRUE(elementsHaveSameOrientation(&seg1, m.GetFace(m.GetBdrElementFaceIndex(bdr1))));
+	EXPECT_FALSE(elementsHaveSameOrientation(&seg2, m.GetFace(m.GetBdrElementFaceIndex(bdr2))));
 
 }
 
@@ -65,7 +65,7 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh)
 {
 	auto m{ mfem::Mesh::LoadFromFile((gmshMeshesFolder() + "twosquares.msh").c_str(), 1, 0, true) };
 
-	EXPECT_TRUE(elementsHaveSameOrientation(m.GetFace( m.GetBdrFace(0)), m.GetFace(m.GetBdrFace(1) )));
+	EXPECT_TRUE(elementsHaveSameOrientation(m.GetFace( m.GetBdrElementFaceIndex(0)), m.GetFace(m.GetBdrElementFaceIndex(1) )));
 
 	EXPECT_FALSE(elementsHaveSameOrientation(m.GetBdrElement(0), m.GetBdrElement(1)));
 }
@@ -82,9 +82,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(2)) };
-		EXPECT_EQ(53, m.GetBdrFace(2));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(2)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(2)) };
+		EXPECT_EQ(53, m.GetBdrElementFaceIndex(2));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(2)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -100,9 +100,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(4)) };
-		EXPECT_EQ(49, m.GetBdrFace(4));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(4)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(4)) };
+		EXPECT_EQ(49, m.GetBdrElementFaceIndex(4));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(4)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -119,9 +119,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(8)) };
-		EXPECT_EQ(54, m.GetBdrFace(8));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(8)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(8)) };
+		EXPECT_EQ(54, m.GetBdrElementFaceIndex(8));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(8)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -137,9 +137,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(15)) };
-		EXPECT_EQ(30, m.GetBdrFace(15));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(15)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(15)) };
+		EXPECT_EQ(30, m.GetBdrElementFaceIndex(15));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(15)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -155,9 +155,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(19)) };
-		EXPECT_EQ(24, m.GetBdrFace(19));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(19)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(19)) };
+		EXPECT_EQ(24, m.GetBdrElementFaceIndex(19));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(19)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -173,9 +173,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(23)) };
-		EXPECT_EQ(28, m.GetBdrFace(23));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(23)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(23)) };
+		EXPECT_EQ(28, m.GetBdrElementFaceIndex(23));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(23)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -200,9 +200,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D_bad_orientation)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(2)) };
-		EXPECT_EQ(53, m.GetBdrFace(2));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(2)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(2)) };
+		EXPECT_EQ(53, m.GetBdrElementFaceIndex(2));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(2)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -216,9 +216,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D_bad_orientation)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(4)) };
-		EXPECT_EQ(49, m.GetBdrFace(4));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(4)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(4)) };
+		EXPECT_EQ(49, m.GetBdrElementFaceIndex(4));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(4)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -233,9 +233,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D_bad_orientation)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(8)) };
-		EXPECT_EQ(54, m.GetBdrFace(8));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(8)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(8)) };
+		EXPECT_EQ(54, m.GetBdrElementFaceIndex(8));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(8)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -249,9 +249,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D_bad_orientation)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(15)) };
-		EXPECT_EQ(30, m.GetBdrFace(15));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(15)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(15)) };
+		EXPECT_EQ(30, m.GetBdrElementFaceIndex(15));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(15)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -265,9 +265,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D_bad_orientation)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(19)) };
-		EXPECT_EQ(24, m.GetBdrFace(19));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(19)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(19)) };
+		EXPECT_EQ(24, m.GetBdrElementFaceIndex(19));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(19)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 
@@ -281,9 +281,9 @@ TEST_F(GeometryTest, orientation_from_gmsh_mesh_3D_bad_orientation)
 		Vector normal_be(3);
 		CalcOrtho(be_trans->Jacobian(), normal_be);
 
-		auto face{ m.GetFace(m.GetBdrFace(23)) };
-		EXPECT_EQ(28, m.GetBdrFace(23));
-		auto f_trans{ m.GetFaceTransformation(m.GetBdrFace(23)) };
+		auto face{ m.GetFace(m.GetBdrElementFaceIndex(23)) };
+		EXPECT_EQ(28, m.GetBdrElementFaceIndex(23));
+		auto f_trans{ m.GetFaceTransformation(m.GetBdrElementFaceIndex(23)) };
 		Vector normal_f(3);
 		CalcOrtho(f_trans->Jacobian(), normal_f);
 

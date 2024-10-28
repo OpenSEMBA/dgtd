@@ -1,6 +1,8 @@
-# maxwell-dgtd
-Maxwell's curl equations solver using discontinuous Galerkin methods
+[![ubuntu-gnu](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml/badge.svg)](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml)
+[![windows-msvc](https://github.com/OpenSEMBA/dgtd/actions/workflows/windows-msvc.yml/badge.svg)](https://github.com/OpenSEMBA/dgtd/actions/workflows/windows-msvc.yml)
 
+# semba-dgtd
+Maxwell's curl equations solver using discontinuous Galerkin methods
 
 ## Compiling
 
@@ -133,6 +135,3 @@ Example of a sources section with all available types of sources defined for doc
 - A totalField source defined on interfaces or boundary faces 1, 2, 3 and 4, polarised on the direction Y for the "E" field and with a propagation vector in the direction X, the wave that will appear will be of type "gaussian" with the defined delay and spread.
 
 https://github.com/OpenSEMBA/dgtd/blob/5dd67ef6435066172e9387d674ea7ccc4c6a8b87/testData/maxwellInputs/1D_PEC_Centered/1D_PEC_Centered.json#L50-L83
-
-  	
-  	  
