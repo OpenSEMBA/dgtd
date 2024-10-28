@@ -36,9 +36,16 @@ int main(int argc, char** argv)
 		}
 		else if (std::string(argv[i]) == "-h") {
 			printHelpArgument();
-			system("pause");
 			return 2;
 		}
+	}
+
+	std::string s_json = ".json";
+	std::string::size_type input_msh = inputFilePath.find(s_json);
+	if (input_msh == std::string::npos)
+	{
+		std::cerr << "Input File is not a .json file." << std::endl;
+		return 3;
 	}
 
 	auto solver = maxwell::driver::buildSolverJson(inputFilePath, false);
