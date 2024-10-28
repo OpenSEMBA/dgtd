@@ -3,7 +3,6 @@ name: ubuntu-gnu
 on:
   push:
     branches:
-      - dev
       - luis
       - alejandro
       
