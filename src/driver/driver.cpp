@@ -277,6 +277,26 @@ std::string assembleMeshString(const std::string& filename)
 	return maxwellInputsFolder() + folder_name + "/" + filename;
 }
 
+std::string assembleLauncherMeshString(const std::string& mesh_name, const std::string& case_path)
+{
+	std::string path{ case_path };
+	std::string s_json = ".json";
+	std::string s_msh  = ".msh";
+	std::string s_mesh = ".mesh";
+
+	std::string::size_type input_json = path.find(s_json);
+	std::string::size_type input_msh = mesh_name.find(s_msh);
+	std::string::size_type input_mesh = mesh_name.find(s_mesh);
+
+	path.erase(input_json, s_json.length());
+	if (input_msh != std::string::npos)
+		path.append(s_msh);
+	if (input_mesh != std::string::npos)
+		path.append(s_mesh);
+
+	return path;
+}
+
 void checkIfAttributesArePresent(const Mesh& mesh, const GeomTagToMaterialInfo& info)
 {
 
@@ -409,15 +429,26 @@ mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, true);
 }
 
-Model buildModel(const json& case_data)
+Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
 {
-	auto mesh{ assembleMesh(assembleMeshString(case_data["model"]["filename"])) };
+	mfem::Mesh mesh;
+	if (isTest) {
+		mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
+	}
+	else {
+		mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+	}
 
 	auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
 	auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
 
 	if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
-		mesh = assembleMeshNoFix(assembleMeshString(case_data["model"]["filename"]));
+		if (isTest) {
+			mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
+		}
+		else {
+			mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+		}
 	}
 
 	return Model(mesh, att_to_material, att_to_bdr_info);
@@ -429,11 +460,11 @@ json parseJSONfile(const std::string& case_name)
 	return json::parse(test_file);
 }
 
-maxwell::Solver buildSolver(const std::string& case_name)
+maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 {
 	auto case_data{ parseJSONfile(case_name) };
 
-	return buildSolver(case_data);
+	return buildSolver(case_data, case_name, isTest);
 }
 
 void postProcessInformation(const json& case_data, maxwell::Model& model) 
@@ -455,9 +486,10 @@ void postProcessInformation(const json& case_data, maxwell::Model& model)
 	}
 }
 
-maxwell::Solver buildSolver(const json& case_data)
+maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)
 {
-	maxwell::Model model{ buildModel(case_data) };
+	
+	maxwell::Model model{ buildModel(case_data, case_path, isTest) };
 	maxwell::Probes probes{ buildProbes(case_data) };
 	maxwell::Sources sources{ buildSources(case_data) };
 	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };

@@ -59,8 +59,8 @@ TEST_F(DriverTest, adaptsModelObjects)
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 
-	EXPECT_NO_THROW(buildModel(case_data));
-	auto model{ buildModel(case_data) };	
+	EXPECT_NO_THROW(buildModel(case_data, file_name, true));
+	auto model{ buildModel(case_data, file_name, true) };
 
 	EXPECT_NO_THROW(model.getConstMesh());
 	

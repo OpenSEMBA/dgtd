@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <chrono>
 
 using namespace mfem;
 
@@ -190,10 +191,37 @@ double Solver::estimateTimeStep() const
 	}
 }
 
+void printSimulationInformation(const double time, const double dt, const double finalTime)
+{
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << "Information is updated every 30 seconds." << std::endl;
+	std::cout << "Current Step: " + std::to_string(int(time / dt)) << std::endl;
+	std::cout << "Steps Left  : " + std::to_string(int((finalTime - time) / dt)) << std::endl;
+	std::cout << std::endl;
+	std::cout << "Final Time  : " + std::to_string(finalTime / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
+	std::cout << "Current Time: " + std::to_string(time / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
+	std::cout << "Time Step   : " + std::to_string(dt / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
+	std::cout << std::endl;
+}
+
 void Solver::run()
 {
+	auto lastPrintTime{ std::chrono::steady_clock::now() };
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
+	printSimulationInformation(time_, dt_, opts_.finalTime);
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
+
 		step();
+
+		auto currentTime = std::chrono::steady_clock::now();
+		if (std::chrono::duration_cast<std::chrono::seconds>
+			(currentTime - lastPrintTime).count() >= 30.0) 
+		{
+			printSimulationInformation(time_, dt_, opts_.finalTime);
+			lastPrintTime = currentTime;
+		}
 	}
 }
 
