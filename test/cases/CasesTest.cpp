@@ -16,7 +16,7 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 {
 
 	std::string case_name{ "1D_PEC" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	GridFunction eOld{ solver.getField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -77,7 +77,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 {
 	auto case_data{ parseJSONfile(maxwellCase("1D_TFSF")) };
 	case_data["solver_options"]["solver_type"] = "centered";
-	auto solver{ buildSolver(case_data) };
+	auto solver{ buildSolver(case_data, maxwellCase("1D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -148,7 +148,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
 {
 	std::string case_name{ "1D_TFSF_TEy" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -217,7 +217,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
 TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 {
 	std::string case_name{ "1D_TFSF_THz" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -289,7 +289,7 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 {
 	auto case_data{ parseJSONfile(maxwellCase("2D_PEC")) };
 	case_data["solver_options"]["solver_type"] = "centered";
-	auto solver{ buildSolver(case_data) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -353,7 +353,7 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 TEST_F(CasesTest, 2D_PEC_Upwind)
 {
 	std::string case_name{"2D_PEC"};
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -417,7 +417,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered)
 {
 	auto case_data{ parseJSONfile(maxwellCase("2D_TFSF_TEy")) };
 	case_data["solver_options"]["solver_type"] = "centered";
-	auto solver{ buildSolver(case_data) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -487,7 +487,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered)
 TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
 {
 	std::string case_name{ "2D_TFSF_TEy" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -557,7 +557,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
 TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 {
 	std::string case_name{ "2D_TFSF_THz" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -627,7 +627,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 TEST_F(CasesTest, 2D_Conductivity_Upwind)
 {
 	auto case_data{ parseJSONfile(maxwellCase("2D_COND")) };
-	auto solver{ buildSolver(case_data) };
+	auto solver{ buildSolverJson(case_data) };
 
 	solver.run();
 }
@@ -635,7 +635,7 @@ TEST_F(CasesTest, 2D_Conductivity_Upwind)
 TEST_F(CasesTest, 2D_Conductivity_Angled_Upwind)
 {
 	auto case_data{ parseJSONfile(maxwellCase("2D_COND_ANGLED")) };
-	auto solver{ buildSolver(case_data) };
+	auto solver{ buildSolverJson(case_data) };
 
 	solver.run();
 }
@@ -643,7 +643,7 @@ TEST_F(CasesTest, 2D_Conductivity_Angled_Upwind)
 TEST_F(CasesTest, DISABLED_2D_NTFF_Box_Upwind) //Unsupported Gmsh element type.
 {
 	std::string case_name{ "2D_NTFF_Box" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -651,7 +651,7 @@ TEST_F(CasesTest, DISABLED_2D_NTFF_Box_Upwind) //Unsupported Gmsh element type.
 TEST_F(CasesTest, 2D_RCS_SubLambda_Hz)
 {
 	std::string case_name{ "2D_RCS" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -659,7 +659,7 @@ TEST_F(CasesTest, 2D_RCS_SubLambda_Hz)
 TEST_F(CasesTest, 2D_RCS_ThreeLambda_Hz)
 {
 	std::string case_name{ "2D_RCS_ThreeLambda" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -667,7 +667,7 @@ TEST_F(CasesTest, 2D_RCS_ThreeLambda_Hz)
 TEST_F(CasesTest, 2D_RCS_Salva_Hz)
 {
 	std::string case_name{ "2D_RCS_Salva" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -675,7 +675,7 @@ TEST_F(CasesTest, 2D_RCS_Salva_Hz)
 TEST_F(CasesTest, 2D_RCS_SalvaConfig_Hz)
 {
 	std::string case_name{ "2D_RCS_SalvaConfig" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -683,7 +683,7 @@ TEST_F(CasesTest, 2D_RCS_SalvaConfig_Hz)
 TEST_F(CasesTest, 2D_PEC_Bounce45_Upwind)
 {
 	std::string case_name{ "2D_PEC_Bounce" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -692,7 +692,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered)
 {
 	auto case_data{ parseJSONfile(maxwellCase("3D_TFSF")) };
 	case_data["solver_options"]["solver_type"] = "centered";
-	auto solver{ buildSolver(case_data) };
+	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -762,7 +762,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered)
 TEST_F(CasesTest, 3D_TFSF_Upwind)
 {
 	std::string case_name{ "3D_TFSF" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -832,7 +832,7 @@ TEST_F(CasesTest, 3D_TFSF_Upwind)
 TEST_F(CasesTest, 3D_NearToFarField_Upwind)
 {
 	std::string case_name{ "3D_NearToFarField" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -840,7 +840,7 @@ TEST_F(CasesTest, 3D_NearToFarField_Upwind)
 TEST_F(CasesTest, 3D_NearToFarFieldSmaller_Upwind)
 {
 	std::string case_name{ "3D_NearToFarFieldSmaller" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -848,7 +848,7 @@ TEST_F(CasesTest, 3D_NearToFarFieldSmaller_Upwind)
 TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 {
 	std::string case_name{ "3D_TFSF_InteriorPEC" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 
@@ -957,7 +957,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 TEST_F(CasesTest, 3D_NTFF_Sphere_Upwind)
 {
 	std::string case_name{ "3D_RCS" };
-	auto solver{ buildSolver(maxwellCase(case_name)) };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	solver.run();
 }
@@ -965,7 +965,7 @@ TEST_F(CasesTest, 3D_NTFF_Sphere_Upwind)
 TEST_F(CasesTest, 3D_Conductivity_Upwind)
 {
 	auto case_data{ parseJSONfile(maxwellCase("3D_COND")) };
-	auto solver{ buildSolver(case_data) };
+	auto solver{ buildSolverJson(case_data) };
 
 	solver.run();
 
