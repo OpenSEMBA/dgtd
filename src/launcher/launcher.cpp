@@ -40,8 +40,8 @@ int main(int argc, char** argv)
 		}
 	}
 
-	std::string s_json = ".json";
-	std::string::size_type input_msh = inputFilePath.find(s_json);
+	const std::string s_json = ".json";
+	const std::string::size_type input_msh = inputFilePath.find(s_json);
 	if (input_msh == std::string::npos)
 	{
 		std::cerr << "Input File is not a .json file." << std::endl;
