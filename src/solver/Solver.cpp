@@ -191,6 +191,7 @@ double Solver::estimateTimeStep() const
 	}
 }
 
+#ifdef SHOW_TIMER_INFORMATION
 void printSimulationInformation(const double time, const double dt, const double finalTime)
 {
 	std::cout << "------------------------------------------------" << std::endl;
@@ -204,17 +205,23 @@ void printSimulationInformation(const double time, const double dt, const double
 	std::cout << "Time Step   : " + std::to_string(dt / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
 	std::cout << std::endl;
 }
+#endif
 
 void Solver::run()
 {
+
+#ifdef SHOW_TIMER_INFORMATION
 	auto lastPrintTime{ std::chrono::steady_clock::now() };
 	std::cout << "------------------------------------------------" << std::endl;
 	std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
 	printSimulationInformation(time_, dt_, opts_.finalTime);
+#endif
+
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
 
 		step();
 
+#ifdef SHOW_TIMER_INFORMATION
 		auto currentTime = std::chrono::steady_clock::now();
 		if (std::chrono::duration_cast<std::chrono::seconds>
 			(currentTime - lastPrintTime).count() >= 30.0) 
@@ -222,6 +229,7 @@ void Solver::run()
 			printSimulationInformation(time_, dt_, opts_.finalTime);
 			lastPrintTime = currentTime;
 		}
+#endif
 	}
 }
 

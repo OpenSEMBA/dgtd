@@ -4,10 +4,7 @@
 #include <mfemExtension/BilinearIntegrators.h>
 #include <mfemExtension/LinearIntegrators.h>
 #include <TestUtils.h>
-#include <math.h>
-#include <complex>
 #include <components/RCSManager.cpp>
-#include <ctime>
 
 using namespace maxwell;
 using namespace mfem;
@@ -115,106 +112,5 @@ TEST_F(FormTest, RCSBdrFaceInt)
 	bdr_marker[bdr_marker.Size() - 1] = 1;
 	lf.AddBdrFaceIntegrator(new RCSBdrFaceIntegrator(fc, X), bdr_marker);
 	lf.Assemble();
-
-}
-
-TEST_F(FormTest, DISABLED_MassMatrixToSingleBlockMatrix)
-{
-	auto dim = 2;
-	auto order = 1;
-	auto element_type = Element::TRIANGLE;
-	auto nx = 2;
-	auto ny = 1;
-	auto ne = 0;
-	auto dof_per_order = 0;
-
-	switch (element_type) {
-	case (Element::Type::TRIANGLE):
-		ne = 2 * nx * ny;
-		dof_per_order = (order + 1) * (order + 2) / 2;
-		break;
-	case (Element::Type::QUADRILATERAL):
-		ne = nx * ny;
-		dof_per_order = int(std::pow(order + 1, 2));
-		break;
-	}
-
-	Vector numbers(ne * dof_per_order);
-	for (int n{ 0 }; n < ne * dof_per_order; n++) {
-		numbers[n] = n;
-	}
-
-	Vector old_method_result(ne * dof_per_order);
-
-	clock_t full_matrix_clock_start{ clock() };
-
-	auto m{ Mesh::MakeCartesian2D(nx, ny, element_type, false, 2.0, 2.0) };
-	auto fec{ DG_FECollection(order, dim, BasisType::GaussLegendre) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
-
-	BilinearForm mass(&fes);
-	ConstantCoefficient coeff_one(1.0);
-	mass.AddDomainIntegrator(new MassIntegrator(coeff_one));
-	mass.Assemble();
-	mass.Finalize();
-
-	for (auto rep{ 0 }; rep < 100000; rep++) {
-		mass.Mult(numbers, old_method_result);
-	}
-
-	clock_t full_matrix_clock_end{ clock() };
-
-	double full_matrix_clock_elapsed{ static_cast<double>(full_matrix_clock_end - full_matrix_clock_start) / CLOCKS_PER_SEC };
-
-	for (auto e{ 0 }; e < m.GetNE(); e++) {
-		assert(element_type == m.GetElementType(e));
-	}
-
-	clock_t single_matrix_clock_start{ clock() };
-
-	auto m_single{ Mesh::MakeCartesian2D(1, 1, element_type) };
-	auto fes_single{ FiniteElementSpace(&m_single, &fec) };
-
-	BilinearForm mass_single(&fes_single);
-	mass_single.AddDomainIntegrator(new MassIntegrator(coeff_one));
-	mass_single.Assemble();
-	mass_single.Finalize();
-
-	Vector reduced_mass_coefficients(ne);
-	reduced_mass_coefficients = 0.0;
-	for (auto d{ 0 }; d < ne; d++) {
-		reduced_mass_coefficients[d] = mass.SpMat().ToDenseMatrix()->Elem(d + dof_per_order, d + dof_per_order) /
-			mass_single.SpMat().ToDenseMatrix()->Elem(0, 0);
-	}
-
-	Vector new_method_result(ne * dof_per_order);
-	auto dense = mass_single.SpMat().ToDenseMatrix();
-	for (auto rep{ 0 }; rep < 100000; rep++) {
-	new_method_result = 0.0;
-	for (auto e{ 0 }; e < ne; e++) {
-		for (auto d{ 0 }; d < dof_per_order; d++) {
-			for (auto d2{ 0 }; d2 < dof_per_order; d2++) {
-				new_method_result[e * dof_per_order + d] +=
-					reduced_mass_coefficients[e] *
-					dense->Elem(d, d2) *
-					numbers[e * dof_per_order + d2];
-				}
-			}
-		}
-	}
-
-	clock_t single_matrix_clock_end{ clock() };
-
-	double single_matrix_clock_elapsed{ static_cast<double>(single_matrix_clock_end - single_matrix_clock_start) / CLOCKS_PER_SEC };
-
-	std::cout << "Program for full matrix in " << full_matrix_clock_elapsed << " seconds." << std::endl;
-	std::cout << "Program for single matrix in " << single_matrix_clock_elapsed << " seconds." << std::endl;
-	
-	double tol{ 1e-2 };
-	for (int v{ 0 }; v < new_method_result.Size(); v++) {
-		ASSERT_NEAR(new_method_result[v], old_method_result[v], tol);
-	}
-
-	ASSERT_TRUE(false);
 
 }

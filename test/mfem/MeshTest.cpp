@@ -415,29 +415,6 @@ TEST_F(MeshTest, SubMeshingAttributes_1D)
 
 }
 
-TEST_F(MeshTest, DISABLED_SubMeshingBdrAttributes_1D)
-{
-	auto mesh{ Mesh::LoadFromFile((mfemMeshes1DFolder() + "line_for_submesh.mesh").c_str(),1, 0) };
-
-	Array<int> subdomain_attribute_1(1); subdomain_attribute_1[0] = 1;
-	Array<int> subdomain_attribute_2(1); subdomain_attribute_2[0] = 2;
-	Array<int> subdomain_attribute_3(1); subdomain_attribute_3[0] = 3;
-
-	auto submesh_att_1{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_1) };
-	auto submesh_att_2{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_2) };
-	auto submesh_att_3{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_3) };
-
-	submesh_att_1.AddBdrPoint(0, 4);
-	submesh_att_3.AddBdrPoint(1, 5);
-
-	EXPECT_EQ(mesh.GetAttribute(0), submesh_att_1.GetAttribute(0));
-	EXPECT_EQ(mesh.GetAttribute(1), submesh_att_2.GetAttribute(0));
-	EXPECT_EQ(mesh.GetAttribute(2), submesh_att_3.GetAttribute(0));
-	EXPECT_EQ(mesh.GetBdrAttribute(0), submesh_att_1.GetBdrAttribute(0));
-	EXPECT_EQ(mesh.GetBdrAttribute(1), submesh_att_3.GetBdrAttribute(0));
-
-}
-
 TEST_F(MeshTest, MeshIdentifyBoundaryVertex)
 {
 	auto mesh{ Mesh::MakeCartesian1D(2) };
@@ -543,57 +520,6 @@ TEST_F(MeshTest, SubMeshingOnX)
 
 
 }
-
-//TEST_F(MeshTest, SubMeshingFromDomain)
-//{
-//	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "TotalFieldScatteredFieldQuads.msh").c_str(), 1, 0)};
-//	
-//	Array<int> domain_atts(2); domain_atts[0] = 201; domain_atts[1] = 202;
-//
-//
-//	std::map<ElementId, FaceToAtt> map_pair;
-//	std::map<BdrId, Attribute> bdr2att_map;
-//	std::map<BdrId, TwoElems> bdr2el_map;
-//	std::map<BdrId, IsInterior> bdr2int_map;
-//	bdr2int_map.emplace(2, false); bdr2int_map.emplace(301, true);
-//
-//	for (int b = 0; b < m.GetNBE(); ++b) {
-//		bdr2att_map.emplace(b,m.GetBdrAttribute(b));
-//		int el, el2, info, info2;
-//		if (bdr2int_map[m.GetBdrAttribute(b)] == true) {
-//			auto facetrans = m.GetFaceElementTransformations(b, 31);
-//			el = facetrans->Elem1No;
-//			el2 = facetrans->Elem2No;
-//		}
-//		else {
-//			auto facetrans = m.GetBdrFaceTransformations(b);
-//			el = facetrans->Elem1No;
-//			el2 = -1;
-//		}
-//		TwoElems twoelems(el,el2);
-//		bdr2el_map.emplace(b,twoelems);
-//	}
-//
-//	auto faceneighs{ m.FindFaceNeighbors(2) };	
-//
-//	for (int e = 0; e < m.GetNE(); ++e) {
-//		for (int i = 0; i < domain_atts.Size(); ++i) {
-//			if (m.GetElement(e)->GetAttribute() == domain_atts[i]) {
-//				Array<int> faces, ori;
-//				for (int f = 0; f < m.GetElement(e)->GetNEdges(); ++f) {
-//					m.GetElementFaces(e, faces, ori);
-//				}
-//
-//			}
-//		}
-//	}
-//
-//	auto sm_dom{ SubMesh::CreateFromDomain(m,domain_atts) };
-//	Array<int> bdr_marker(2); bdr_marker[0] = 2; bdr_marker[1] = 301;
-//	auto sm_bdr{ SubMesh::CreateFromBoundary(m,bdr_marker) };
-//
-//
-//}
 
 TEST_F(MeshTest, ExtendedFindNeighboursMethod2D)
 {
