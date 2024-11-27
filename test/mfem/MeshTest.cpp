@@ -654,3 +654,35 @@ TEST_F(MeshTest, SubMeshingAttributes_2D)
 	EXPECT_EQ(4, submesh_att_4.GetAttribute(0));
 
 }
+
+TEST_F(MeshTest, IdentifyingQuadraticElements_2D)
+{
+	auto m{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Simple_Quadratic.msh",1,0) };
+	auto m_copy{ Mesh(m) };
+	auto tol{ 1e-3 };
+
+	auto m_fes = m.GetNodalFESpace();
+	ASSERT_NE(m_fes->GetNVDofs(), m_fes->GetNDofs());
+	for (auto e{ 0 }; e < m.GetNE(); e++) {
+		ASSERT_EQ(m.GetElement(0)->GetGeometryType(), m.GetElement(e)->GetGeometryType());
+	}
+
+	auto mvol = m.GetElementVolume(0);
+	auto mc_vol = m_copy.GetElementVolume(0);
+	ASSERT_NEAR(mvol, mc_vol, tol);
+
+	m_copy.SetCurvature(1);
+
+	auto m_copy_fes = m_copy.GetNodalFESpace();
+	ASSERT_EQ(m_copy_fes->GetNVDofs(), m_copy_fes->GetNDofs());
+
+	m_copy.SetCurvature(2);
+
+	mc_vol = m_copy.GetElementVolume(0);
+	ASSERT_GT(mvol - mc_vol, tol);
+	
+	ASSERT_EQ(m.GetNodes()->Size(), m_copy.GetNodes()->Size());
+	ASSERT_GT(m.GetNodes()->DistanceSquaredTo(*m_copy.GetNodes()), tol);
+
+	
+}
