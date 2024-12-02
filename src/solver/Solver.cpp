@@ -26,6 +26,19 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
+std::unique_ptr<Evolution> Solver::assignEvolutionOperator(const Mesh& m)
+{
+	if (!m.GetNodalFESpace()) {
+		//if(hesthavenoperator)
+		//return newheasthavenoperator
+		//else
+		return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+	}
+	else {
+		// return newHybridCurvedOperator
+	}
+}
+
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
@@ -54,8 +67,7 @@ Solver::Solver(
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 
-	maxwellEvol_ = std::make_unique<Evolution>(
-			*fes_, model_, sourcesManager_, opts_.evolution);
+	maxwellEvol_ = assignEvolutionOperator(model_.getConstMesh());
 	
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
