@@ -684,5 +684,25 @@ TEST_F(MeshTest, IdentifyingQuadraticElements_2D)
 	ASSERT_EQ(m.GetNodes()->Size(), m_copy.GetNodes()->Size());
 	ASSERT_GT(m.GetNodes()->DistanceSquaredTo(*m_copy.GetNodes()), tol);
 
+}
+
+TEST_F(MeshTest, IdentifyingMeshOrder_2D)
+{
+	auto m_quad { Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Simple_Quadratic.msh", 1, 0) };
+	auto m_lin { Mesh::LoadFromFile(gmshMeshesFolder() + "twosquares.msh", 1, 0) };
+
+	EXPECT_EQ(2, m_quad.GetNodalFESpace()->GetMaxElementOrder());
+
+	//Linear meshes do not have a valid Nodes object, it is not defined, thus the call to GetNodalFESpace() 
+	//will return a null pointer from which we cannot extract order information.
+	//If this call returns said null pointer, we will assume the mesh is linear. If the call returns a valid pointer
+	//to the Nodes FES, then we will ask for the MaxElementOrder of the mesh.
 	
+	auto lin_fes_null{ false };
+	if (!m_lin.GetNodalFESpace()) {
+		lin_fes_null = true;
+	}
+	EXPECT_EQ(true, lin_fes_null);
+
+
 }
