@@ -35,6 +35,7 @@ protected:
 	std::unique_ptr<FiniteElementSpace> fes_;
 
 	double tol_ = 1e-6;
+	Attribute hesthaven_element_tag_ = 777;
 
 	SparseMatrix operatorToSparseMatrix(const Operator* op)
 	{
@@ -124,7 +125,7 @@ protected:
 
 	const int getFaceIntegrationOrder(const FaceElementTransformations* f_trans, const FiniteElementSpace& fes)
 	{
-		int res = f_trans->Elem1->OrderW() + 2.0 * fes.GetFE(f_trans->Elem1No)->GetOrder();
+		int res = f_trans->Elem1->OrderW() + 2 * fes.GetFE(f_trans->Elem1No)->GetOrder();
 		if (fes.GetFE(f_trans->Elem1No)->Space() == FunctionSpace::Pk) {
 			res++;
 		}
@@ -143,6 +144,97 @@ protected:
 			res += fip.weight * f_trans->Weight();
 		}
 		return res;
+	}
+
+	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
+	{
+		// Create backup of attributes
+		auto res{ std::map<int,Attribute>() };
+		for (auto e{ 0 }; e < m.GetNE(); e++) {
+			res[e] = m.GetAttribute(e);
+		}
+		return res;
+	}
+	Eigen::MatrixXd assembleMassMatrix(FiniteElementSpace& fes)
+	{
+		BilinearForm bf(&fes);
+		ConstantCoefficient one(1.0);
+		bf.AddDomainIntegrator(new MassIntegrator(one));
+		bf.Assemble();
+		bf.Finalize();
+
+		return toEigen(*bf.SpMat().ToDenseMatrix());
+	}
+
+
+	Eigen::MatrixXd assembleFluxMatrix(FiniteElementSpace& fes)
+	{
+		BilinearForm bf(&fes);
+		bf.AddInteriorFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0));
+		bf.Assemble();
+		bf.Finalize();
+		return toEigen(*bf.SpMat().ToDenseMatrix());
+	}
+
+	std::map<int, int> mapConnectivityLocal(const Eigen::MatrixXd& flux_mat)
+	{
+		// Make map
+		std::map<int, int> res;
+		for (auto r{ 0 }; r < flux_mat.rows(); r++) {
+			for (auto c{ r + 1 }; c < flux_mat.cols(); c++) {
+				if (flux_mat(r, c) == flux_mat(r, r) && flux_mat(r, r) > 1e-5) {
+					res[r] = c;
+				}
+			}
+		}
+		return res;
+	}
+
+	void restoreOriginalAttributesAfterSubMeshing(const FaceElementTransformations* f_trans, Mesh& m_copy, const std::map<int, Attribute>& att_map)
+	{
+		m_copy.SetAttribute(f_trans->Elem1No, att_map.at(f_trans->Elem1No));
+		m_copy.SetAttribute(f_trans->Elem2No, att_map.at(f_trans->Elem2No));
+	}
+
+	Array<int> getFacesForElement(const Mesh& m_copy, const int el)
+	{
+		auto e2f = m_copy.ElementToEdgeTable();
+		e2f.Finalize();
+		Array<int> res;
+		e2f.GetRow(el, res);
+		return res;
+	}
+
+	FaceElementTransformations* getInteriorFaceTransformation(Mesh& m_copy, const Array<int>& faces)
+	{
+		for (auto f{ 0 }; f < faces.Size(); f++) {
+			FaceElementTransformations* f_trans = m_copy.GetFaceElementTransformations(faces[f]);
+			if (f_trans->GetConfigurationMask() == 31) {
+				return f_trans;
+			}
+			else {
+				throw std::runtime_error("There is no interior face for the selected element in getInteriorFaceTransformation.");
+			}
+		}
+
+	}
+
+	void markElementsForSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy)
+	{
+		m_copy.SetAttribute(f_trans->Elem1No, hesthaven_element_tag_);
+		m_copy.SetAttribute(f_trans->Elem2No, hesthaven_element_tag_);
+	}
+
+	SubMesh createSubMeshFromInteriorFace(Mesh& m_copy, const std::map<int,Attribute>& att_map)
+	{
+		Array<int> sm_tag;
+		sm_tag.Append(hesthaven_element_tag_);
+		auto faces = getFacesForElement(m_copy, 0);
+		auto f_trans = getInteriorFaceTransformation(m_copy, faces);
+		markElementsForSubMeshing(f_trans, m_copy);
+		auto sm = SubMesh::CreateFromDomain(m_copy, sm_tag);
+		restoreOriginalAttributesAfterSubMeshing(f_trans, m_copy, att_map);
+		return sm;
 	}
 };
 
@@ -651,7 +743,7 @@ TEST_F(MFEMHesthaven2D, triangleElementJacobianO1)
 	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&m,&fec) };
 
-	MFEM_ASSERT(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)));
+	ASSERT_NEAR(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)), tol_);
 }
 
 TEST_F(MFEMHesthaven2D, triangleElementJacobianO2)
@@ -661,7 +753,7 @@ TEST_F(MFEMHesthaven2D, triangleElementJacobianO2)
 	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&m,&fec) };
 
-	MFEM_ASSERT(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)));
+	ASSERT_NEAR(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)), tol_);
 }
 
 TEST_F(MFEMHesthaven2D, triangleElementJacobianO3)
@@ -671,7 +763,7 @@ TEST_F(MFEMHesthaven2D, triangleElementJacobianO3)
 	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&m,&fec) };
 
-	MFEM_ASSERT(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)));
+	ASSERT_NEAR(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)), tol_);
 }
 
 TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO1)
@@ -682,8 +774,8 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO1)
 	auto fes{ FiniteElementSpace(&m,&fec) };
 
 	auto f_trans = m.GetFaceElementTransformations(0);
-	MFEM_ASSERT(31, f_trans->GetConfigurationMask());
-	MFEM_ASSERT(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes));
+	ASSERT_EQ(31, f_trans->GetConfigurationMask());
+	ASSERT_NEAR(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes), tol_);
 }
 
 TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO2)
@@ -694,8 +786,8 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO2)
 	auto fes{ FiniteElementSpace(&m,&fec) };
 
 	auto f_trans = m.GetFaceElementTransformations(0);
-	MFEM_ASSERT(31, f_trans->GetConfigurationMask());
-	MFEM_ASSERT(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes));
+	ASSERT_EQ(31, f_trans->GetConfigurationMask());
+	ASSERT_NEAR(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes), tol_);
 }
 
 TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
@@ -706,6 +798,37 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
 	auto fes{ FiniteElementSpace(&m,&fec) };
 
 	auto f_trans = m.GetFaceElementTransformations(0);
-	MFEM_ASSERT(31, f_trans->GetConfigurationMask());
-	MFEM_ASSERT(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes));
+	ASSERT_EQ(31, f_trans->GetConfigurationMask());
+	ASSERT_NEAR(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes), tol_);
+}
+
+
+TEST_F(MFEMHesthaven2D, mapI)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+}
+
+TEST_F(MFEMHesthaven2D, connectivityMap)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto att_map{ mapOriginalAttributes(m) };
+	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+
+	// Compute two-element flux matrix
+	auto sm_fes{ FiniteElementSpace(&sm, &fec) };
+	auto flux_mat{ assembleFluxMatrix(sm_fes) };
+
+	// Make connectivity map
+	auto map{ mapConnectivityLocal(flux_mat) };
+	ASSERT_EQ(4, map.at(0));
+	ASSERT_EQ(3, map.at(1));
 }
