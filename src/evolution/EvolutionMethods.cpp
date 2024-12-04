@@ -76,20 +76,6 @@ FiniteElementOperator buildByMult(
 	return res;
 }
 
-//FiniteElementIBFIOperator buildIBFIByMult(
-//	const BilinearForm& op1,
-//	const BilinearFormIBFI& op2,
-//	FiniteElementSpace& fes)
-//{
-//	auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
-//	auto res = std::make_unique<BilinearFormIBFI>(&fes);
-//	res->Assemble();
-//	res->Finalize();
-//	res->SpMat().Swap(*aux);
-//
-//	return res;
-//}
-
 Vector buildNVector(const Direction& d, const FiniteElementSpace& fes)
 {
 	const auto dim{ fes.GetMesh()->Dimension() };

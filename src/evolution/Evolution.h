@@ -69,4 +69,38 @@ private:
 
 };
 
+class HesthavenEvolution : public mfem::TimeDependentOperator 
+{
+public:
+	static const int numberOfFieldComponents = 2;
+	static const int numberOfMaxDimensions = 3;
+
+	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
+
+private:
+
+	mfem::FiniteElementSpace& fes_;
+	Model& model_;
+	SourcesManager& srcmngr_;
+	EvolutionOptions& opts_;
+};
+
+class CurvedEvolution : public mfem::TimeDependentOperator 
+{
+public:
+	static const int numberOfFieldComponents = 2;
+	static const int numberOfMaxDimensions = 3;
+
+	CurvedEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
+
+private:
+
+	mfem::FiniteElementSpace& fes_;
+	Model& model_;
+	SourcesManager& srcmngr_;
+	EvolutionOptions& opts_;
+};
+
 }

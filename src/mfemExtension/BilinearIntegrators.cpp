@@ -569,7 +569,7 @@ void HesthavenFluxIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
         if (ndof2) {
             el2.CalcShape(eip2, shape2_);
         }
-        double w = ip.weight;
+        double w = ip.weight * 2.0;
         //w *= Trans.Weight();
         if (w != 0.0) {
             buildFaceMatrix(w, ndof1, ndof1, 0, 0, shape1_, shape1_, elmat);//TL

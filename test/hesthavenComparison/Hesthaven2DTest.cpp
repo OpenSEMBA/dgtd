@@ -4,6 +4,7 @@
 #include "HesthavenFunctions.h"
 #include "math/EigenMfemTools.h"
 #include "evolution/EvolutionMethods.h"
+#include "mfemExtension/BilinearIntegrators.h"
 
 using namespace mfem;
 using namespace maxwell;
@@ -103,6 +104,44 @@ protected:
 				GeomTagToMaterialInfo(),
 				GeomTagToBoundaryInfo())
 		);
+		return res;
+	}
+
+	const double calculateElementJacobian(const FiniteElement* fe, ElementTransformation* e_trans) 
+	{
+		const int order = fe->GetOrder() + fe->GetOrder() + e_trans->OrderW();
+		const IntegrationRule& ir = IntRules.Get(e_trans->GetGeometryType(),
+			order);
+		double res = 0.0;
+		for (int i = 0; i < ir.GetNPoints(); i++)
+		{
+			const IntegrationPoint& ip = ir.IntPoint(i);
+			e_trans->SetIntPoint(&ip);
+			res += ip.weight * e_trans->Weight();
+		}
+		return res;
+	}
+
+	const int getFaceIntegrationOrder(const FaceElementTransformations* f_trans, const FiniteElementSpace& fes)
+	{
+		int res = f_trans->Elem1->OrderW() + 2.0 * fes.GetFE(f_trans->Elem1No)->GetOrder();
+		if (fes.GetFE(f_trans->Elem1No)->Space() == FunctionSpace::Pk) {
+			res++;
+		}
+		return res;
+	}
+
+	const double calculateSurfaceJacobian(const FiniteElement* fe, FaceElementTransformations* f_trans, const FiniteElementSpace& fes)
+	{
+		auto order = getFaceIntegrationOrder(f_trans, fes);
+		const IntegrationRule& fir = IntRules.Get(f_trans->GetGeometryType(), order);
+		double res = 0.0;
+		for (int i = 0; i < fir.GetNPoints(); i++)
+		{
+			const IntegrationPoint& fip = fir.IntPoint(i);
+			f_trans->SetIntPoint(&fip);
+			res += fip.weight * f_trans->Weight();
+		}
 		return res;
 	}
 };
@@ -603,4 +642,70 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 	};
 
 	EXPECT_TRUE(hesthavenNodes.isApprox(rotatedMfemNodes));
+}
+
+TEST_F(MFEMHesthaven2D, triangleElementJacobianO1)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m,&fec) };
+
+	MFEM_ASSERT(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)));
+}
+
+TEST_F(MFEMHesthaven2D, triangleElementJacobianO2)
+{
+	const int basis_order = 2;
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m,&fec) };
+
+	MFEM_ASSERT(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)));
+}
+
+TEST_F(MFEMHesthaven2D, triangleElementJacobianO3)
+{
+	const int basis_order = 3;
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m,&fec) };
+
+	MFEM_ASSERT(0.5, calculateElementJacobian(fes.GetFE(0), fes.GetElementTransformation(0)));
+}
+
+TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO1)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m,&fec) };
+
+	auto f_trans = m.GetFaceElementTransformations(0);
+	MFEM_ASSERT(31, f_trans->GetConfigurationMask());
+	MFEM_ASSERT(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes));
+}
+
+TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO2)
+{
+	const int basis_order = 2;
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m,&fec) };
+
+	auto f_trans = m.GetFaceElementTransformations(0);
+	MFEM_ASSERT(31, f_trans->GetConfigurationMask());
+	MFEM_ASSERT(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes));
+}
+
+TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
+{
+	const int basis_order = 3;
+	auto m{ Mesh::MakeCartesian2D(1,1,Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order,2,BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m,&fec) };
+
+	auto f_trans = m.GetFaceElementTransformations(0);
+	MFEM_ASSERT(31, f_trans->GetConfigurationMask());
+	MFEM_ASSERT(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes));
 }
