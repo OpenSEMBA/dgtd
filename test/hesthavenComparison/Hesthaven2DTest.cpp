@@ -36,6 +36,7 @@ protected:
 
 	double tol_ = 1e-6;
 	Attribute hesthaven_element_tag_ = 777;
+	double hesthaven_triangle_scaling_factor = 0.25;
 
 	SparseMatrix operatorToSparseMatrix(const Operator* op)
 	{
@@ -208,9 +209,9 @@ protected:
 	FaceElementTransformations* getInteriorFaceTransformation(Mesh& m_copy, const Array<int>& faces)
 	{
 		for (auto f{ 0 }; f < faces.Size(); f++) {
-			FaceElementTransformations* f_trans = m_copy.GetFaceElementTransformations(faces[f]);
-			if (f_trans->GetConfigurationMask() == 31) {
-				return f_trans;
+			FaceElementTransformations* res = m_copy.GetFaceElementTransformations(faces[f]);
+			if (res->GetConfigurationMask() == 31) {
+				return res;
 			}
 			else {
 				throw std::runtime_error("There is no interior face for the selected element in getInteriorFaceTransformation.");
@@ -232,10 +233,35 @@ protected:
 		auto faces = getFacesForElement(m_copy, 0);
 		auto f_trans = getInteriorFaceTransformation(m_copy, faces);
 		markElementsForSubMeshing(f_trans, m_copy);
-		auto sm = SubMesh::CreateFromDomain(m_copy, sm_tag);
+		auto res = SubMesh::CreateFromDomain(m_copy, sm_tag);
 		restoreOriginalAttributesAfterSubMeshing(f_trans, m_copy, att_map);
-		return sm;
+		return res;
 	}
+
+	Eigen::MatrixXd loadMatrixWithValues(const Eigen::MatrixXd& global, const int start_row, const int start_col)
+	{
+		Eigen::MatrixXd res;
+		res.resize(int(global.rows() / 2), int(global.cols() / 2));
+		for (auto r{ start_row }; r < start_row + int(global.rows()/2); r++){
+			for (auto c{ start_col }; c < start_col + int(global.cols() / 2); c++) {
+				res(r-start_row,c-start_col) = global(r, c);
+			}
+		}
+		return res;
+	}
+
+	Eigen::MatrixXd getElementMassMatrixFromGlobal(const int el, const Eigen::MatrixXd& global)
+	{
+		switch (el) {
+		case 0:
+			return loadMatrixWithValues(global, 0, 0);
+		case 1:
+			return loadMatrixWithValues(global, int(global.rows() / 2), int(global.cols() / 2));
+		default:
+			throw std::runtime_error("Incorrect element index for getElementMassMatrixFromGlobal");
+		}
+	}
+
 };
 
 TEST_F(MFEMHesthaven2D, massMatrix)
@@ -831,4 +857,75 @@ TEST_F(MFEMHesthaven2D, connectivityMap)
 	auto map{ mapConnectivityLocal(flux_mat) };
 	ASSERT_EQ(4, map.at(0));
 	ASSERT_EQ(3, map.at(1));
+}
+
+TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto att_map{ mapOriginalAttributes(m) };
+	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+
+	// Compute two-element flux matrix
+	auto sm_fes{ FiniteElementSpace(&sm, &fec) };
+
+	auto mass_mat{ assembleMassMatrix(sm_fes) };
+
+	Eigen::MatrixXd el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
+	Eigen::MatrixXd el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
+
+	Eigen::Matrix3d expectedInverseMass{
+		{ 4.5000, -1.5000, -1.5000},
+		{-1.5000,  4.5000, -1.5000},
+		{-1.5000, -1.5000,  4.5000}
+	};
+
+	for (auto r{ 0 }; r < expectedInverseMass.rows(); r++) {
+		for (auto c{ 0 }; c < expectedInverseMass.cols(); c++) {
+			ASSERT_NEAR(expectedInverseMass(r,c), el_0_mass_inverse(r,c) * hesthaven_triangle_scaling_factor, tol_);
+			ASSERT_NEAR(expectedInverseMass(r,c), el_1_mass_inverse(r,c) * hesthaven_triangle_scaling_factor, tol_);
+		}
+	}
+}
+
+TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
+{
+	const int basis_order = 2;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto att_map{ mapOriginalAttributes(m) };
+	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+
+	// Compute two-element flux matrix
+	auto sm_fes{ FiniteElementSpace(&sm, &fec) };
+
+	auto mass_mat{ assembleMassMatrix(sm_fes) };
+
+	Eigen::MatrixXd el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
+	Eigen::MatrixXd el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
+
+	Eigen::MatrixXd expectedInverseMass{
+		{18.0000, -0.7500,  3.0000, -0.7500,  3.0000,  3.0000},
+		{-0.7500,  4.8750, -0.7500, -1.6875, -1.6875,  3.0000},
+		{ 3.0000, -0.7500, 18.0000,  3.0000, -0.7500,  3.0000},
+		{-0.7500, -1.6875,  3.0000,  4.8750, -1.6875, -0.7500},
+		{ 3.0000, -1.6875, -0.7500, -1.6875,  4.8750, -0.7500},
+		{ 3.0000,  3.0000,  3.0000, -0.7500, -0.7500, 18.0000}
+	};
+
+	for (auto r{ 0 }; r < expectedInverseMass.rows(); r++) {
+		for (auto c{ 0 }; c < expectedInverseMass.cols(); c++) {
+			ASSERT_NEAR(expectedInverseMass(r, c), el_0_mass_inverse(r, c) * hesthaven_triangle_scaling_factor, tol_);
+			ASSERT_NEAR(expectedInverseMass(r, c), el_1_mass_inverse(r, c) * hesthaven_triangle_scaling_factor, tol_);
+		}
+	}
 }
