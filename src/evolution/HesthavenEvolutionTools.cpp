@@ -116,17 +116,22 @@ namespace maxwell {
 
 	void removeZeroColumns(Eigen::MatrixXd& matrix)
 	{
+		std::vector<int> cols_to_del;
 		for (auto c{ 0 }; c < matrix.cols(); c++) {
 			bool isZero = true;
 			for (auto r{ 0 }; r < matrix.rows(); r++) {
 				if (matrix(r, c) != 0.0)
 				{
 					isZero = false;
+					break;
 				}
 			}
 			if (isZero == true) {
-				removeColumn(matrix, c);
+				cols_to_del.emplace_back(c);
 			}
+		}
+		for (auto it = cols_to_del.rbegin(); it != cols_to_del.rend(); ++it) {
+			removeColumn(matrix, *it);
 		}
 	}
 

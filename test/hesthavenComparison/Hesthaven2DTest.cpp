@@ -837,7 +837,7 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 	}
 }
 
-TEST_F(MFEMHesthaven2D, Emat)
+TEST_F(MFEMHesthaven2D, EmatO1)
 {
 	const int basis_order = 1;
 	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
@@ -867,6 +867,49 @@ TEST_F(MFEMHesthaven2D, Emat)
 	   {0.3333, 0.6667, 0.6667, 0.3333, 0.0000, 0.0000},
 	   {0.0000, 0.0000, 0.3333, 0.6667, 0.3333, 0.6667}
 	};
+
+	for (auto r{ 0 }; r < emat.rows(); r++) {
+		for (auto c{ 0 }; c < emat.cols(); c++) {
+			EXPECT_NEAR(expected_emat(r, c), emat(r, c), tol_);
+		}
+	}
+}
+
+TEST_F(MFEMHesthaven2D, EmatO2)
+{
+	const int basis_order = 2;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto att_map{ mapOriginalAttributes(m) };
+
+	Array<int> marker;
+	marker.Append(hesthaven_element_tag_);
+	m_copy.SetAttribute(0, hesthaven_element_tag_);
+	auto sm = SubMesh::CreateFromDomain(m_copy, marker);
+	FiniteElementSpace sm_fes(&sm, &fec);
+
+	auto boundary_markers = assembleBoundaryMarkers(sm_fes);
+
+	for (auto f{ 0 }; f < sm_fes.GetNF(); f++) {
+		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
+	}
+
+	Eigen::MatrixXd emat = assembleEmat(sm_fes, boundary_markers);
+
+	Eigen::MatrixXd expected_emat{
+    { 0.2667, 0.1333, -0.0667,  0.0000, 0.0000,  0.0000,  0.2667, 0.1333, -0.0667},
+    { 0.1333, 1.0667,  0.1333,  0.0000, 0.0000,  0.0000,  0.0000, 0.0000,  0.0000},
+    {-0.0667, 0.1333,  0.2667,  0.2667, 0.1333, -0.0667,  0.0000, 0.0000,  0.0000},
+    { 0.0000, 0.0000,  0.0000,  0.0000, 0.0000,  0.0000,  0.1333, 1.0667,  0.1333},
+    { 0.0000, 0.0000,  0.0000,  0.1333, 1.0667,  0.1333,  0.0000, 0.0000,  0.0000},
+    { 0.0000, 0.0000,  0.0000, -0.0667, 0.1333,  0.2667, -0.0667, 0.1333,  0.2667}
+	};
+
+	std::cout << emat << std::endl;
 
 	for (auto r{ 0 }; r < emat.rows(); r++) {
 		for (auto c{ 0 }; c < emat.cols(); c++) {
