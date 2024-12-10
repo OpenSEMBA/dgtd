@@ -1,11 +1,6 @@
 name: ubuntu-gnu
 
-on:
-  push:
-    branches:
-      - luis
-      - alejandro
-      
+on:    
   pull_request:
     branches:
       - main
