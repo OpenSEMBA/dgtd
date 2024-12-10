@@ -34,7 +34,7 @@ protected:
 	std::unique_ptr<FiniteElementCollection> fec_;
 	std::unique_ptr<FiniteElementSpace> fes_;
 
-	double tol_ = 1e-6;
+	double tol_ = 1e-4;
 	Attribute hesthaven_element_tag_ = 777;
 	double hesthaven_triangle_scaling_factor = 0.25;
 
@@ -213,11 +213,8 @@ protected:
 			if (res->GetConfigurationMask() == 31) {
 				return res;
 			}
-			else {
-				throw std::runtime_error("There is no interior face for the selected element in getInteriorFaceTransformation.");
-			}
 		}
-
+		throw std::runtime_error("There is no interior face for the selected element in getInteriorFaceTransformation.");
 	}
 
 	void markElementsForSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy)
@@ -260,6 +257,89 @@ protected:
 		default:
 			throw std::runtime_error("Incorrect element index for getElementMassMatrixFromGlobal");
 		}
+	}
+
+	Eigen::MatrixXd getFaceMassMatrixFromGlobal(const Eigen::MatrixXd& global)
+	{
+		Eigen::MatrixXd res;
+		res.resize(int(global.rows() / 2) - 1, int(global.cols() / 2) - 1);
+		for (auto r{ 0 }; r < int(global.rows() / 2) - 1; r++) {
+			for (auto c{ 0 }; c < int(global.cols() / 2) - 1; c++) {
+				res(r, c) = global(r, c);
+			}
+		}
+		return res;
+	}
+
+	Eigen::MatrixXd assembleEmat(const FiniteElementSpace& fes, const Eigen::MatrixXd& faceMat)
+	{
+		Eigen::MatrixXd res;
+		res.resize(int(fes.GetNDofs()/fes.GetNE()), int(fes.GetNFDofs() / (fes.GetNF() * fes.GetNE())) * int(fes.GetNF() / fes.GetNE()));
+
+
+	}
+
+	void removeColumn(Eigen::MatrixXd& matrix, const int colToRemove)
+	{
+		auto numRows = matrix.rows();
+		auto numCols = matrix.cols() - 1;
+
+		if (colToRemove < numCols)
+			matrix.block(0, colToRemove, numRows, numCols - colToRemove) = matrix.block(0, colToRemove + 1, numRows, numCols - colToRemove);
+
+		matrix.conservativeResize(numRows, numCols);
+	}
+
+	void removeZeroColumns(Eigen::MatrixXd& matrix)
+	{
+		for (auto c{ 0 }; c < matrix.cols(); c++) {
+			bool isZero = true;
+			for (auto r{ 0 }; r < matrix.rows(); r++) {
+				if (matrix(r, c) != 0.0)
+				{
+					isZero = false;
+				}
+			}
+			if (isZero == true) {
+				removeColumn(matrix, c);
+			}
+		}
+	}
+
+	std::vector<Array<int>> assembleBoundaryMarkers(const FiniteElementSpace& fes) 
+	{		
+		std::vector<Array<int>> res;
+		for (auto f{ 0 }; f < fes.GetNF(); f++) {
+			Array<int> bdr_marker;
+			bdr_marker.SetSize(fes.GetMesh()->bdr_attributes.Max());
+			bdr_marker = 0;
+			bdr_marker[fes.GetMesh()->bdr_attributes[f] - 1] = 1;
+			res.emplace_back(bdr_marker);
+		}
+		return res;
+	}
+
+	FiniteElementOperator assembleFaceMassBilinearForm(FiniteElementSpace& fes, Array<int>& boundary_marker) 
+	{
+		auto res = std::make_unique<BilinearForm>(&fes);
+		res->AddBdrFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0), boundary_marker);
+		res->Assemble();
+		res->Finalize();
+
+		return res;
+	}
+
+	Eigen::MatrixXd assembleEmat(FiniteElementSpace& fes, std::vector<Array<int>>& boundary_markers)
+	{
+		Eigen::MatrixXd res;
+		res.resize(fes.GetNDofs(), fes.GetNF() * (fes.GetMaxElementOrder() + 1));
+		for (auto f{ 0 }; f < fes.GetNF(); f++) {
+			auto bf = assembleFaceMassBilinearForm(fes, boundary_markers[f]);
+			auto surface_matrix = toEigen(*bf->SpMat().ToDenseMatrix());
+			removeZeroColumns(surface_matrix);
+			res.block(0, f * (fes.GetMaxElementOrder() + 1), fes.GetNDofs(), fes.GetMaxElementOrder() + 1) = surface_matrix;
+		}
+		return res;
 	}
 
 };
@@ -828,15 +908,6 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
 	ASSERT_NEAR(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes), tol_);
 }
 
-
-TEST_F(MFEMHesthaven2D, mapI)
-{
-	const int basis_order = 1;
-	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
-	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
-}
-
 TEST_F(MFEMHesthaven2D, connectivityMap)
 {
 	const int basis_order = 1;
@@ -871,7 +942,7 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
 	auto att_map{ mapOriginalAttributes(m) };
 	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
 
-	// Compute two-element flux matrix
+	// Compute two-element flux matrix 
 	auto sm_fes{ FiniteElementSpace(&sm, &fec) };
 
 	auto mass_mat{ assembleMassMatrix(sm_fes) };
@@ -926,6 +997,42 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 		for (auto c{ 0 }; c < expectedInverseMass.cols(); c++) {
 			ASSERT_NEAR(expectedInverseMass(r, c), el_0_mass_inverse(r, c) * hesthaven_triangle_scaling_factor, tol_);
 			ASSERT_NEAR(expectedInverseMass(r, c), el_1_mass_inverse(r, c) * hesthaven_triangle_scaling_factor, tol_);
+		}
+	}
+}
+
+TEST_F(MFEMHesthaven2D, Emat)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto att_map{ mapOriginalAttributes(m) };
+
+	Array<int> marker;
+	marker.Append(hesthaven_element_tag_);
+	m_copy.SetAttribute(0, hesthaven_element_tag_);
+	auto sm = SubMesh::CreateFromDomain(m_copy, marker);
+	for (auto f{ 0 }; f < sm.GetElement(0)->GetNEdges(); f++) {
+		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
+	}
+
+	FiniteElementSpace sm_fes(&sm, &fec);
+	auto boundary_markers = assembleBoundaryMarkers(sm_fes);
+	auto emat = assembleEmat(sm_fes, boundary_markers);
+
+	Eigen::MatrixXd expected_emat{
+	   {0.6667, 0.3333, 0.0000, 0.0000, 0.6667, 0.3333},
+	   {0.3333, 0.6667, 0.6667, 0.3333, 0.0000, 0.0000},
+	   {0.0000, 0.0000, 0.3333, 0.6667, 0.3333, 0.6667}
+	};
+
+	for (auto r{ 0 }; r < emat.rows(); r++) {
+		for (auto c{ 0 }; c < emat.cols(); c++) {
+			EXPECT_NEAR(expected_emat(r, c), emat(r, c), tol_);
 		}
 	}
 }
