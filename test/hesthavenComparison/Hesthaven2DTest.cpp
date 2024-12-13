@@ -36,7 +36,6 @@ protected:
 	std::unique_ptr<FiniteElementSpace> fes_;
 
 	double tol_ = 1e-4;
-	Attribute hesthaven_element_tag_ = 777;
 	double hesthaven_triangle_scaling_factor = 0.25;
 
 	SparseMatrix operatorToSparseMatrix(const Operator* op)
@@ -157,7 +156,7 @@ protected:
 		}
 		return res;
 	}
-	Eigen::MatrixXd assembleMassMatrix(FiniteElementSpace& fes)
+	DynamicMatrix assembleMassMatrix(FiniteElementSpace& fes)
 	{
 		BilinearForm bf(&fes);
 		ConstantCoefficient one(1.0);
@@ -165,16 +164,6 @@ protected:
 		bf.Assemble();
 		bf.Finalize();
 
-		return toEigen(*bf.SpMat().ToDenseMatrix());
-	}
-
-
-	Eigen::MatrixXd assembleFluxMatrix(FiniteElementSpace& fes)
-	{
-		BilinearForm bf(&fes);
-		bf.AddInteriorFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0));
-		bf.Assemble();
-		bf.Finalize();
 		return toEigen(*bf.SpMat().ToDenseMatrix());
 	}
 
@@ -191,7 +180,7 @@ TEST_F(MFEMHesthaven2D, massMatrix)
 	// The jacobian is 
 	// $$ J = A / A_r = 0.25 $$
 
-	Eigen::MatrixXd vanderProdInverse{
+	DynamicMatrix vanderProdInverse{
 		{0.33333, 0.16667, 0.16667,     0.0,     0.0,     0.0},
 		{0.16667, 0.33333, 0.16667,     0.0,     0.0,     0.0},
 		{0.16667, 0.16667, 0.33333,     0.0,     0.0,     0.0},
@@ -211,7 +200,7 @@ TEST_F(MFEMHesthaven2D, DrOperator)
 {
 	setFES(2);
 
-	Eigen::MatrixXd DrOperatorHesthaven{
+	DynamicMatrix DrOperatorHesthaven{
 		{ -1.5,  2.0, -0.5,  0.0, 0.0, 0.0},
 		{ -0.5,  0.0,  0.5,  0.0, 0.0, 0.0},
 		{  0.5, -2.0,  1.5,  0.0, 0.0, 0.0},
@@ -226,7 +215,7 @@ TEST_F(MFEMHesthaven2D, DrOperator)
 	globalDrHesthaven.block(0, 0, 6, 6) = -1.0 * rotatedDrHesthaven;
 	globalDrHesthaven.block(6, 6, 6, 6) = rotatedDrHesthaven;
 
-	Eigen::MatrixXd DrOperatorMFEM{
+	DynamicMatrix DrOperatorMFEM{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(Y,*fes_)
 	};
 
@@ -244,7 +233,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh,GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd ZeroNormalOperator{
+	DynamicMatrix ZeroNormalOperator{
 		{ 10., -1.12132034, -1.12132034,  2.12132034,  2.12132034,  0.},
 		{ -2.,  8.53553391, -2.29289322, -0.70710678, -3.53553391,  0.},
 		{ -2., -2.29289322,  8.53553391, -3.53553391, -0.70710678,  0.},
@@ -281,7 +270,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd OneNormalOperator{
+	DynamicMatrix OneNormalOperator{
 		{ 0., -1.5, -1.5,  1.5,  1.5, 0.},
 		{ 0.,  2.5,  0.5, -0.5, -2.5, 0.},
 		{ 0.,  0.5,  2.5, -2.5, -0.5, 0.},
@@ -320,7 +309,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd OneNormalOperator{
+	DynamicMatrix OneNormalOperator{
 		{ 0.,  1.5,  1.5, -1.5, -1.5, 0.},
 		{ 0., -2.5, -0.5,  0.5,  2.5, 0.},
 		{ 0., -0.5, -2.5,  2.5,  0.5, 0.},
@@ -359,7 +348,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd OneNormalOperator{
+	DynamicMatrix OneNormalOperator{
 		{ 5.,  1.5,  2.5, -1.5, -1.5,  0.},
 		{-3., -2.5, -3.5,  0.5,  2.5,  0.},
 		{ 1., -0.5,  2.5,  2.5,  0.5,  0.},
@@ -398,7 +387,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd OneNormalOperator{
+	DynamicMatrix OneNormalOperator{
 		{-5., -2.5, -1.5,  1.5,  1.5,  0.},
 		{-1., -2.5,  0.5, -0.5, -2.5,  0.},
 		{ 3.,  3.5,  2.5, -2.5, -0.5,  0.},
@@ -437,7 +426,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd TwoNormalOperator{
+	DynamicMatrix TwoNormalOperator{
 		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},
 		{ 0.,  1.76776695,  0.35355339, -0.35355339, -1.76776695,  0.},
 		{ 0.,  0.35355339,  1.76776695, -1.76776695, -0.35355339,  0.},
@@ -476,7 +465,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd TwoNormalOperator{
+	DynamicMatrix TwoNormalOperator{
 		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
 		{ 0., -1.76776695, -0.35355339,  0.35355339,  1.76776695, 0.},
 		{ 0., -0.35355339, -1.76776695,  1.76776695,  0.35355339, 0.},
@@ -515,7 +504,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd TwoNormalOperator{
+	DynamicMatrix TwoNormalOperator{
 		{ 0.,  1.06066017,  1.06066017, -1.06066017, -1.06066017, 0.},
 		{ 0., -1.76776695, -0.35355339,  0.35355339,  1.76776695, 0.},
 		{ 0., -0.35355339, -1.76776695,  1.76776695,  0.35355339, 0.},
@@ -554,7 +543,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
 
-	Eigen::MatrixXd TwoNormalOperator{
+	DynamicMatrix TwoNormalOperator{
 		{ 0., -1.06066017, -1.06066017,  1.06066017,  1.06066017,  0.},
 		{ 0.,  1.76776695,  0.35355339, -0.35355339, -1.76776695,  0.},
 		{ 0.,  0.35355339,  1.76776695, -1.76776695, -0.35355339,  0.},
@@ -587,7 +576,7 @@ TEST_F(MFEMHesthaven2D, DsOperator)
 {
 	setFES(2);
 
-	Eigen::MatrixXd DsOperatorHesthaven{
+	DynamicMatrix DsOperatorHesthaven{
 	{ -1.5,  0.0, 0.0,  2.0, 0.0, -0.5},
 	{ -0.5, -1.0, 0.0,  1.0, 1.0, -0.5},
 	{  0.5, -2.0, 0.0,  0.0, 2.0, -0.5},
@@ -602,7 +591,7 @@ TEST_F(MFEMHesthaven2D, DsOperator)
 	globalDsHesthaven.block(0, 0, 6, 6) = rotatedDsHesthaven;
 	globalDsHesthaven.block(6, 6, 6, 6) = -1.0 * rotatedDsHesthaven;
 
-	Eigen::MatrixXd DsOperatorMFEM{
+	DynamicMatrix DsOperatorMFEM{
 		buildInverseMassMatrixEigen(*fes_) * buildNormalStiffnessMatrixEigen(X,*fes_)
 	};
 
@@ -660,7 +649,7 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 		rotatedMfemNodes(i, 1) = rotatedMfemNodesVector(i + rotatedMfemNodesVector.rows()/2);
 	}
 
-	Eigen::MatrixXd hesthavenNodes{
+	DynamicMatrix hesthavenNodes{
 		{ 0.0, 1.0 },
 		{ 0.0, 0.5 },
 		{ 0.0, 0.0 },
@@ -744,26 +733,46 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
 	ASSERT_NEAR(sqrt(2.0), calculateSurfaceJacobian(f_trans->GetFE(), f_trans, fes), tol_);
 }
 
-TEST_F(MFEMHesthaven2D, connectivityMap)
+TEST_F(MFEMHesthaven2D, connectivityMapO1)
 {
 	const int basis_order = 1;
 	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
 	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&m, &fec) };
 
-	// Not touching the original mesh.
-	auto m_copy{ Mesh(m) };
-	auto att_map{ mapOriginalAttributes(m) };
-	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, fec);
 
-	// Compute two-element flux matrix
-	auto sm_fes{ FiniteElementSpace(&sm, &fec) };
-	auto flux_mat{ assembleFluxMatrix(sm_fes) };
+	std::vector<std::pair<int, int>> expected_connectivity_pairs({ 
+		{0,4}, {1,3},
+		{1,1}, {2,2},
+		{0,0}, {2,2}, 
+		{4,0}, {3,1},
+		{4,4}, {5,5}, 
+		{3,3}, {5,5} });
+	for (auto p{ 0 }; p < expected_connectivity_pairs.size(); p++) {
+		EXPECT_EQ(expected_connectivity_pairs[p], element_connectivity_map[p]);
+	}
+}
 
-	// Make connectivity map
-	auto map{ mapConnectivityLocal(flux_mat) };
-	ASSERT_EQ(4, map.at(0));
-	ASSERT_EQ(3, map.at(1));
+TEST_F(MFEMHesthaven2D, connectivityMapO2)
+{
+	const int basis_order = 2;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, fec);
+
+	std::vector<std::pair<int, int>> expected_connectivity_pairs({ 
+		{0,8}, {1,7}, {2,6}, 
+		{2,2}, {4,4}, {5,5}, 
+		{0,0}, {3,3}, {5,5}, 
+		{8,0}, {7,1}, {6,2}, 
+		{8,8}, {10,10}, {11,11}, 
+		{6,6}, {9,9}, {11,11} });
+	for (auto p{ 0 }; p < expected_connectivity_pairs.size(); p++) {
+		EXPECT_EQ(expected_connectivity_pairs[p], element_connectivity_map[p]);
+	}
 }
 
 TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
@@ -783,10 +792,10 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
 
 	auto mass_mat{ assembleMassMatrix(sm_fes) };
 
-	Eigen::MatrixXd el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
-	Eigen::MatrixXd el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
+	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
+	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
 
-	Eigen::Matrix3d expectedInverseMass{
+	DynamicMatrix expectedInverseMass{
 		{ 4.5000, -1.5000, -1.5000},
 		{-1.5000,  4.5000, -1.5000},
 		{-1.5000, -1.5000,  4.5000}
@@ -817,10 +826,10 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 
 	auto mass_mat{ assembleMassMatrix(sm_fes) };
 
-	Eigen::MatrixXd el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
-	Eigen::MatrixXd el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
+	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
+	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
 
-	Eigen::MatrixXd expectedInverseMass{
+	DynamicMatrix expectedInverseMass{
 		{18.0000, -0.7500,  3.0000, -0.7500,  3.0000,  3.0000},
 		{-0.7500,  4.8750, -0.7500, -1.6875, -1.6875,  3.0000},
 		{ 3.0000, -0.7500, 18.0000,  3.0000, -0.7500,  3.0000},
@@ -846,11 +855,10 @@ TEST_F(MFEMHesthaven2D, EmatO1)
 
 	// Not touching the original mesh.
 	auto m_copy{ Mesh(m) };
-	auto att_map{ mapOriginalAttributes(m) };
 
 	Array<int> marker;
-	marker.Append(hesthaven_element_tag_);
-	m_copy.SetAttribute(0, hesthaven_element_tag_);
+	marker.Append(hesthaven_submeshing_tag);
+	m_copy.SetAttribute(0, hesthaven_submeshing_tag);
 	auto sm = SubMesh::CreateFromDomain(m_copy, marker);
 	FiniteElementSpace sm_fes(&sm, &fec);
 
@@ -860,9 +868,9 @@ TEST_F(MFEMHesthaven2D, EmatO1)
 		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 	}
 
-	Eigen::MatrixXd emat = assembleEmat(sm_fes, boundary_markers);
+	DynamicMatrix emat = assembleEmat(sm_fes, boundary_markers);
 
-	Eigen::MatrixXd expected_emat{
+	DynamicMatrix expected_emat{
 	   {0.6667, 0.3333, 0.0000, 0.0000, 0.6667, 0.3333},
 	   {0.3333, 0.6667, 0.6667, 0.3333, 0.0000, 0.0000},
 	   {0.0000, 0.0000, 0.3333, 0.6667, 0.3333, 0.6667}
@@ -884,23 +892,23 @@ TEST_F(MFEMHesthaven2D, EmatO2)
 
 	// Not touching the original mesh.
 	auto m_copy{ Mesh(m) };
-	auto att_map{ mapOriginalAttributes(m) };
 
+	// Create a singular element submesh.
 	Array<int> marker;
-	marker.Append(hesthaven_element_tag_);
-	m_copy.SetAttribute(0, hesthaven_element_tag_);
+	marker.Append(hesthaven_submeshing_tag);
+	m_copy.SetAttribute(0, hesthaven_submeshing_tag);
 	auto sm = SubMesh::CreateFromDomain(m_copy, marker);
-	FiniteElementSpace sm_fes(&sm, &fec);
 
+	FiniteElementSpace sm_fes(&sm, &fec);
 	auto boundary_markers = assembleBoundaryMarkers(sm_fes);
 
 	for (auto f{ 0 }; f < sm_fes.GetNF(); f++) {
 		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 	}
 
-	Eigen::MatrixXd emat = assembleEmat(sm_fes, boundary_markers);
+	DynamicMatrix emat = assembleEmat(sm_fes, boundary_markers);
 
-	Eigen::MatrixXd expected_emat{
+	DynamicMatrix expected_emat{
     { 0.2667, 0.1333, -0.0667,  0.0000, 0.0000,  0.0000,  0.2667, 0.1333, -0.0667},
     { 0.1333, 1.0667,  0.1333,  0.0000, 0.0000,  0.0000,  0.0000, 0.0000,  0.0000},
     {-0.0667, 0.1333,  0.2667,  0.2667, 0.1333, -0.0667,  0.0000, 0.0000,  0.0000},
@@ -916,4 +924,94 @@ TEST_F(MFEMHesthaven2D, EmatO2)
 			EXPECT_NEAR(expected_emat(r, c), emat(r, c), tol_);
 		}
 	}
+}
+
+TEST_F(MFEMHesthaven2D, normals)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto att_map{ mapOriginalAttributes(m) };
+
+	// Create a singular element submesh
+	Array<int> marker;
+	marker.Append(hesthaven_submeshing_tag);
+
+	DynamicMatrix normal_mat_x, normal_mat_y;
+	normal_mat_x.resize((basis_order + 1) * FacesPerGeom::TRIANGLE, fes.GetNE());
+	normal_mat_y.resizeLike(normal_mat_x);
+
+	for (auto e{ 0 }; e < fes.GetNE(); e++) {
+
+		m_copy.SetAttribute(e, hesthaven_submeshing_tag);
+		auto sm = SubMesh::CreateFromDomain(m_copy, marker);
+		FiniteElementSpace sm_fes(&sm, &fec);
+		m_copy.SetAttribute(e, att_map[e]);
+
+		for (auto f{ 0 }; f < sm_fes.GetMesh()->GetNEdges(); f++){
+			Vector normal(sm_fes.GetMesh()->SpaceDimension());
+			ElementTransformation* f_trans = sm_fes.GetMesh()->GetEdgeTransformation(f);
+			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
+			CalcOrtho(f_trans->Jacobian(), normal);
+		
+			normal_mat_x( 2 * f     , e) = normal[0] / normal.Norml2();
+			normal_mat_x((2 * f) + 1, e) = normal[0] / normal.Norml2();
+			normal_mat_y( 2 * f     , e) = normal[1] / normal.Norml2();
+			normal_mat_y((2 * f) + 1, e) = normal[1] / normal.Norml2();
+		}
+	}
+
+	DynamicMatrix expected_normal_x{
+	  {-1.0000, -0.7071},
+	  {-1.0000, -0.7071},
+	  { 0.7071,  0.0000},
+	  { 0.7071,  0.0000},
+	  { 0.0000,  1.0000},
+	  { 0.0000,  1.0000}
+	};
+
+	DynamicMatrix expected_normal_y{
+	  {-0.0000,  0.7071},
+	  {-0.0000,  0.7071},
+	  {-0.7071, -1.0000},
+	  {-0.7071, -1.0000},
+	  { 1.0000,  0.0000},
+	  { 1.0000,  0.0000}
+	};
+
+	// Face ordering is different between Hesthaven and MFEM
+	// Values are manually checked based on ordering
+
+	EXPECT_NEAR(expected_normal_x(0, 0), normal_mat_x(4, 0), tol_);
+	EXPECT_NEAR(expected_normal_x(1, 0), normal_mat_x(5, 0), tol_);
+	EXPECT_NEAR(expected_normal_x(2, 0), normal_mat_x(0, 0), tol_);
+	EXPECT_NEAR(expected_normal_x(3, 0), normal_mat_x(1, 0), tol_);
+	EXPECT_NEAR(expected_normal_x(4, 0), normal_mat_x(2, 0), tol_);
+	EXPECT_NEAR(expected_normal_x(5, 0), normal_mat_x(3, 0), tol_);
+
+	EXPECT_NEAR(expected_normal_x(0, 1), normal_mat_x(0, 1), tol_);
+	EXPECT_NEAR(expected_normal_x(1, 1), normal_mat_x(1, 1), tol_);
+	EXPECT_NEAR(expected_normal_x(2, 1), normal_mat_x(2, 1), tol_);
+	EXPECT_NEAR(expected_normal_x(3, 1), normal_mat_x(3, 1), tol_);
+	EXPECT_NEAR(expected_normal_x(4, 1), normal_mat_x(4, 1), tol_);
+	EXPECT_NEAR(expected_normal_x(5, 1), normal_mat_x(5, 1), tol_);
+
+	EXPECT_NEAR(expected_normal_y(0, 0), normal_mat_y(4, 0), tol_);
+	EXPECT_NEAR(expected_normal_y(1, 0), normal_mat_y(5, 0), tol_);
+	EXPECT_NEAR(expected_normal_y(2, 0), normal_mat_y(0, 0), tol_);
+	EXPECT_NEAR(expected_normal_y(3, 0), normal_mat_y(1, 0), tol_);
+	EXPECT_NEAR(expected_normal_y(4, 0), normal_mat_y(2, 0), tol_);
+	EXPECT_NEAR(expected_normal_y(5, 0), normal_mat_y(3, 0), tol_);
+
+	EXPECT_NEAR(expected_normal_y(0, 1), normal_mat_y(0, 1), tol_);
+	EXPECT_NEAR(expected_normal_y(1, 1), normal_mat_y(1, 1), tol_);
+	EXPECT_NEAR(expected_normal_y(2, 1), normal_mat_y(2, 1), tol_);
+	EXPECT_NEAR(expected_normal_y(3, 1), normal_mat_y(3, 1), tol_);
+	EXPECT_NEAR(expected_normal_y(4, 1), normal_mat_y(4, 1), tol_);
+	EXPECT_NEAR(expected_normal_y(5, 1), normal_mat_y(5, 1), tol_);
+
 }
