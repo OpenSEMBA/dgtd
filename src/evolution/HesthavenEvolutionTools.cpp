@@ -247,10 +247,11 @@ namespace maxwell {
 		GridFunction gf_son(&sm_fes);
 		auto mesh = dynamic_cast<SubMesh*>(sm_fes.GetMesh());
 		auto transfer_map = mesh->CreateTransferMap(gf_son, gf_parent);
+		ConstantCoefficient zero(0.0);
 		for (auto r{ 0 }; r < surface_matrix.rows(); r++) {
 			if (surface_matrix(r, 0) != 0.0) {
-				gf_son.ProjectCoefficient(ConstantCoefficient(0.0));
-				gf_parent.ProjectCoefficient(ConstantCoefficient(0.0));
+				gf_son.ProjectCoefficient(zero);
+				gf_parent.ProjectCoefficient(zero);
 				gf_son[r] = 1.0;
 				transfer_map.Transfer(gf_son, gf_parent);
 				for (auto v{ 0 }; v < gf_parent.Size(); v++) {

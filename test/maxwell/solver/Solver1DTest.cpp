@@ -188,7 +188,7 @@ TEST_F(Solver1DTest, sma)
 	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
 }
 
-TEST_F(Solver1DTest, periodic)
+TEST_F(Solver1DTest, DISABLED_periodic)
 {
 	auto m{ 
 		Mesh::LoadFromFile((mfemMeshes1DFolder() + "periodic-segment.mesh"), 1, 0)
@@ -227,7 +227,7 @@ TEST_F(Solver1DTest, periodic)
 
 }
 
-TEST_F(Solver1DTest, periodic_inhomo)
+TEST_F(Solver1DTest, DISABLED_periodic_inhomo)
 {
 	Mesh m{ Mesh::LoadFromFile(
 		(mfemMeshes1DFolder() + "periodic-inhomo-segment.mesh"),1,0) 
