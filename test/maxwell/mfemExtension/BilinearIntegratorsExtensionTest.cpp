@@ -54,27 +54,3 @@ TEST_F(BilinearIntegratorsExtensionTest, checkNormalsOnRotatedQuad)
 	bf.Finalize();
 
 }
-TEST_F(BilinearIntegratorsExtensionTest, DISABLED_compareDGTraceWithMaxwellDG1D)
-{
-	setFES1D(1, 3);
-
-	BilinearForm DGmat(fes_.get());
-	std::vector<VectorConstantCoefficient> n{ VectorConstantCoefficient(Vector({1.0})) };
-	DGmat.AddInteriorFaceIntegrator(
-		new DGTraceIntegrator(n[0], 0.0, 1.0));
-	DGmat.Assemble();
-	DGmat.Finalize();
-
-	BilinearForm maxwellMat(fes_.get());
-	maxwellMat.AddInteriorFaceIntegrator(new MaxwellDGTraceJumpIntegrator({X}, 1.0));
-	maxwellMat.Assemble();
-	maxwellMat.Finalize();
-
-	std::cout << toEigen(*DGmat.SpMat().ToDenseMatrix()) << std::endl;
-	std::cout << toEigen(*maxwellMat.SpMat().ToDenseMatrix()) << std::endl;
-
-	EXPECT_TRUE(false);
-}
-
-
-

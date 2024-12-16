@@ -26,6 +26,19 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
+std::unique_ptr<Evolution> Solver::assignEvolutionOperator(const Mesh& m)
+{
+	if (!m.GetNodalFESpace()) {
+		//if(hesthavenoperator)
+		//return newheasthavenoperator
+		//else
+		return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+	}
+	else {
+		// return newHybridCurvedOperator
+	}
+}
+
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
@@ -54,8 +67,7 @@ Solver::Solver(
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 
-	maxwellEvol_ = std::make_unique<Evolution>(
-			*fes_, model_, sourcesManager_, opts_.evolution);
+	maxwellEvol_ = assignEvolutionOperator(model_.getConstMesh());
 	
 	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
@@ -191,6 +203,7 @@ double Solver::estimateTimeStep() const
 	}
 }
 
+#ifdef SHOW_TIMER_INFORMATION
 void printSimulationInformation(const double time, const double dt, const double finalTime)
 {
 	std::cout << "------------------------------------------------" << std::endl;
@@ -204,17 +217,23 @@ void printSimulationInformation(const double time, const double dt, const double
 	std::cout << "Time Step   : " + std::to_string(dt / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
 	std::cout << std::endl;
 }
+#endif
 
 void Solver::run()
 {
+
+#ifdef SHOW_TIMER_INFORMATION
 	auto lastPrintTime{ std::chrono::steady_clock::now() };
 	std::cout << "------------------------------------------------" << std::endl;
 	std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
 	printSimulationInformation(time_, dt_, opts_.finalTime);
+#endif
+
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
 
 		step();
 
+#ifdef SHOW_TIMER_INFORMATION
 		auto currentTime = std::chrono::steady_clock::now();
 		if (std::chrono::duration_cast<std::chrono::seconds>
 			(currentTime - lastPrintTime).count() >= 30.0) 
@@ -222,6 +241,7 @@ void Solver::run()
 			printSimulationInformation(time_, dt_, opts_.finalTime);
 			lastPrintTime = currentTime;
 		}
+#endif
 	}
 }
 

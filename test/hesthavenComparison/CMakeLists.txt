@@ -13,6 +13,7 @@ add_executable(hesthavenComparison_tests
 
 target_link_libraries(hesthavenComparison_tests
 	maxwell-solver
+	maxwell-mfemExtension
 	Eigen3::Eigen
 	GTest::gtest GTest::gtest_main
 )

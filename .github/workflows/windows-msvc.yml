@@ -4,11 +4,6 @@ permissions:
   actions: write
 
 on:
-  push:
-    branches:
-      - main
-      - alejandro
-
   pull_request:
     branches:
       - main

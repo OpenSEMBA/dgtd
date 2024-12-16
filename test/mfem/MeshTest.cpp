@@ -415,29 +415,6 @@ TEST_F(MeshTest, SubMeshingAttributes_1D)
 
 }
 
-TEST_F(MeshTest, DISABLED_SubMeshingBdrAttributes_1D)
-{
-	auto mesh{ Mesh::LoadFromFile((mfemMeshes1DFolder() + "line_for_submesh.mesh").c_str(),1, 0) };
-
-	Array<int> subdomain_attribute_1(1); subdomain_attribute_1[0] = 1;
-	Array<int> subdomain_attribute_2(1); subdomain_attribute_2[0] = 2;
-	Array<int> subdomain_attribute_3(1); subdomain_attribute_3[0] = 3;
-
-	auto submesh_att_1{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_1) };
-	auto submesh_att_2{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_2) };
-	auto submesh_att_3{ SubMesh::CreateFromDomain(mesh, subdomain_attribute_3) };
-
-	submesh_att_1.AddBdrPoint(0, 4);
-	submesh_att_3.AddBdrPoint(1, 5);
-
-	EXPECT_EQ(mesh.GetAttribute(0), submesh_att_1.GetAttribute(0));
-	EXPECT_EQ(mesh.GetAttribute(1), submesh_att_2.GetAttribute(0));
-	EXPECT_EQ(mesh.GetAttribute(2), submesh_att_3.GetAttribute(0));
-	EXPECT_EQ(mesh.GetBdrAttribute(0), submesh_att_1.GetBdrAttribute(0));
-	EXPECT_EQ(mesh.GetBdrAttribute(1), submesh_att_3.GetBdrAttribute(0));
-
-}
-
 TEST_F(MeshTest, MeshIdentifyBoundaryVertex)
 {
 	auto mesh{ Mesh::MakeCartesian1D(2) };
@@ -543,57 +520,6 @@ TEST_F(MeshTest, SubMeshingOnX)
 
 
 }
-
-//TEST_F(MeshTest, SubMeshingFromDomain)
-//{
-//	auto m{ Mesh::LoadFromFile((gmshMeshesFolder() + "TotalFieldScatteredFieldQuads.msh").c_str(), 1, 0)};
-//	
-//	Array<int> domain_atts(2); domain_atts[0] = 201; domain_atts[1] = 202;
-//
-//
-//	std::map<ElementId, FaceToAtt> map_pair;
-//	std::map<BdrId, Attribute> bdr2att_map;
-//	std::map<BdrId, TwoElems> bdr2el_map;
-//	std::map<BdrId, IsInterior> bdr2int_map;
-//	bdr2int_map.emplace(2, false); bdr2int_map.emplace(301, true);
-//
-//	for (int b = 0; b < m.GetNBE(); ++b) {
-//		bdr2att_map.emplace(b,m.GetBdrAttribute(b));
-//		int el, el2, info, info2;
-//		if (bdr2int_map[m.GetBdrAttribute(b)] == true) {
-//			auto facetrans = m.GetFaceElementTransformations(b, 31);
-//			el = facetrans->Elem1No;
-//			el2 = facetrans->Elem2No;
-//		}
-//		else {
-//			auto facetrans = m.GetBdrFaceTransformations(b);
-//			el = facetrans->Elem1No;
-//			el2 = -1;
-//		}
-//		TwoElems twoelems(el,el2);
-//		bdr2el_map.emplace(b,twoelems);
-//	}
-//
-//	auto faceneighs{ m.FindFaceNeighbors(2) };	
-//
-//	for (int e = 0; e < m.GetNE(); ++e) {
-//		for (int i = 0; i < domain_atts.Size(); ++i) {
-//			if (m.GetElement(e)->GetAttribute() == domain_atts[i]) {
-//				Array<int> faces, ori;
-//				for (int f = 0; f < m.GetElement(e)->GetNEdges(); ++f) {
-//					m.GetElementFaces(e, faces, ori);
-//				}
-//
-//			}
-//		}
-//	}
-//
-//	auto sm_dom{ SubMesh::CreateFromDomain(m,domain_atts) };
-//	Array<int> bdr_marker(2); bdr_marker[0] = 2; bdr_marker[1] = 301;
-//	auto sm_bdr{ SubMesh::CreateFromBoundary(m,bdr_marker) };
-//
-//
-//}
 
 TEST_F(MeshTest, ExtendedFindNeighboursMethod2D)
 {
@@ -726,5 +652,57 @@ TEST_F(MeshTest, SubMeshingAttributes_2D)
 	EXPECT_EQ(2, submesh_att_2.GetAttribute(0));
 	EXPECT_EQ(3, submesh_att_3.GetAttribute(0));
 	EXPECT_EQ(4, submesh_att_4.GetAttribute(0));
+
+}
+
+TEST_F(MeshTest, IdentifyingQuadraticElements_2D)
+{
+	auto m{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Simple_Quadratic.msh",1,0) };
+	auto m_copy{ Mesh(m) };
+	auto tol{ 1e-3 };
+
+	auto m_fes = m.GetNodalFESpace();
+	ASSERT_NE(m_fes->GetNVDofs(), m_fes->GetNDofs());
+	for (auto e{ 0 }; e < m.GetNE(); e++) {
+		ASSERT_EQ(m.GetElement(0)->GetGeometryType(), m.GetElement(e)->GetGeometryType());
+	}
+
+	auto mvol = m.GetElementVolume(0);
+	auto mc_vol = m_copy.GetElementVolume(0);
+	ASSERT_NEAR(mvol, mc_vol, tol);
+
+	m_copy.SetCurvature(1);
+
+	auto m_copy_fes = m_copy.GetNodalFESpace();
+	ASSERT_EQ(m_copy_fes->GetNVDofs(), m_copy_fes->GetNDofs());
+
+	m_copy.SetCurvature(2);
+
+	mc_vol = m_copy.GetElementVolume(0);
+	ASSERT_GT(mvol - mc_vol, tol);
+	
+	ASSERT_EQ(m.GetNodes()->Size(), m_copy.GetNodes()->Size());
+	ASSERT_GT(m.GetNodes()->DistanceSquaredTo(*m_copy.GetNodes()), tol);
+
+}
+
+TEST_F(MeshTest, IdentifyingMeshOrder_2D)
+{
+	auto m_quad { Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Simple_Quadratic.msh", 1, 0) };
+	auto m_lin { Mesh::LoadFromFile(gmshMeshesFolder() + "twosquares.msh", 1, 0) };
+
+	EXPECT_EQ(2, m_quad.GetNodalFESpace()->GetMaxElementOrder());
+
+	//Linear meshes do not have a valid Nodes object, it is not defined, thus the call to GetNodalFESpace() 
+	//will return a null pointer from which we cannot extract order information.
+	//If this call returns said null pointer, we will assume the mesh is linear. If the call returns a valid pointer
+	//to the Nodes FES, then we will ask for the MaxElementOrder of the mesh.
+	
+	auto lin_fes_null{ false };
+	if (!m_lin.GetNodalFESpace()) {
+		lin_fes_null = true;
+	}
+	EXPECT_EQ(true, lin_fes_null);
+
 
 }

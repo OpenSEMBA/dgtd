@@ -57,6 +57,7 @@ private:
     std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
+    std::unique_ptr<Evolution> assignEvolutionOperator(const Mesh&);
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);
