@@ -355,6 +355,81 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	}
 }
 
+void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const FaceId f, HesthavenElement& hestElemInfo)
+{
+	std::set<DynamicMatrix, MatrixCompare>::iterator it = matrixStorage_.find(surface_matrix);
+	switch (f) {
+	case 0:
+		hestElemInfo.emat.face0 = &(*it);
+		break;
+	case 1:
+		hestElemInfo.emat.face1 = &(*it);
+		break;
+	case 2:
+		hestElemInfo.emat.face2 = &(*it);
+		break;
+	default:
+		throw std::runtime_error("Hesthaven Evolution only supports triangles for now.");
+	}
+}
+
+HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
+	fes_(fes),
+	model_(model),
+	srcmngr_(srcmngr),
+	opts_(opts)
+{
+	Array<int> elementMarker;
+	elementMarker.Append(hesthavenMeshingTag);
+
+	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
+	{
+		HesthavenElement hestElemInfo;
+		hestElemInfo.id = e;
+		hestElemInfo.geom = model.getConstMesh().GetElementBaseGeometry(e);
+
+		// Assemble emat and store them in the emat storage
+		auto m{ Mesh(model.getMesh()) };
+
+		m.SetAttribute(e, hesthavenMeshingTag);
+		auto sm = SubMesh::CreateFromDomain(m, elementMarker);
+		FiniteElementSpace sm_fes(&sm, dynamic_cast<const L2_FECollection*>(fes.FEColl()));
+
+		auto boundary_markers = assembleBoundaryMarkers(sm_fes);
+		for (auto f{ 0 }; f < sm_fes.GetNF(); f++) {
+			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
+		}
+
+		for (auto f{ 0 }; f < sm.GetNEdges(); f++){
+			auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[f]) };
+			std::set<DynamicMatrix, MatrixCompare>::iterator it = matrixStorage_.find(surface_matrix);
+			if (it == matrixStorage_.end()) {
+				matrixStorage_.insert(surface_matrix);
+				emplaceEmat(surface_matrix, f, hestElemInfo);
+			}
+			else {
+				emplaceEmat(surface_matrix, f, hestElemInfo);
+			}
+		}
+
+		for (auto f{ 0 }; f < sm.GetNEdges(); f++) {
+			Vector normal(sm_fes.GetMesh()->SpaceDimension());
+			ElementTransformation* f_trans = sm_fes.GetMesh()->GetEdgeTransformation(f);
+			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
+			CalcOrtho(f_trans->Jacobian(), normal);
+			for (auto b{ 0 }; b < sm_fes.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
+				hestElemInfo.normals.X.push_back(normal[0]);
+				hestElemInfo.normals.Y.push_back(normal[1]);
+				hestElemInfo.fscale.push_back(abs(normal[0]) + abs(normal[1])); //likewise for fscale, surface per volume per node at face
+			}
+		}
+
+
+	}
+
+
+}
+
 
 
 }

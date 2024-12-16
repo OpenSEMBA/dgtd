@@ -3,8 +3,9 @@
 #include "TestUtils.h"
 #include "HesthavenFunctions.h"
 #include "components/Model.h"
+#include "components/Types.h"
 #include "evolution/EvolutionMethods.h"
-#include "evolution/HesthavenEvolutionTools.cpp"
+#include "evolution/HesthavenEvolutionTools.h"
 #include "math/EigenMfemTools.h"
 
 using namespace mfem;
@@ -846,6 +847,82 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 	}
 }
 
+TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
+{
+	const int basis_order = 1;
+	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+
+	Array<int> marker;
+	marker.Append(hesthavenMeshingTag);
+	m_copy.SetAttribute(0, hesthavenMeshingTag);
+	auto sm = SubMesh::CreateFromDomain(m_copy, marker);
+	FiniteElementSpace sm_fes(&sm, &fec);
+
+	auto boundary_markers = assembleBoundaryMarkers(sm_fes);
+
+	for (auto f{ 0 }; f < sm_fes.GetNF(); f++) {
+		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
+	}
+
+	{
+		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[0]) };
+
+		DynamicMatrix expected_emat{
+			{0.6667, 0.3333},
+			{0.3333, 0.6667},
+			{0.0000, 0.0000}
+		};
+
+		for (auto r{ 0 }; r < surface_matrix.rows(); r++) {
+			for (auto c{ 0 }; c < surface_matrix.cols(); c++) {
+				EXPECT_NEAR(expected_emat(r, c), surface_matrix(r, c), tol_);
+			}
+		}
+
+	}
+
+	{
+		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[1]) };
+
+		DynamicMatrix expected_emat{
+			{0.0000, 0.0000},
+			{0.6667, 0.3333},
+			{0.3333, 0.6667}
+		};
+
+		for (auto r{ 0 }; r < surface_matrix.rows(); r++) {
+			for (auto c{ 0 }; c < surface_matrix.cols(); c++) {
+				EXPECT_NEAR(expected_emat(r, c), surface_matrix(r, c), tol_);
+			}
+		}
+
+	}
+
+	{
+		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[2]) };
+
+		DynamicMatrix expected_emat{
+			{0.6667, 0.3333},
+			{0.0000, 0.0000},
+			{0.3333, 0.6667}
+		};
+
+		for (auto r{ 0 }; r < surface_matrix.rows(); r++) {
+			for (auto c{ 0 }; c < surface_matrix.cols(); c++) {
+				EXPECT_NEAR(expected_emat(r, c), surface_matrix(r, c), tol_);
+			}
+		}
+
+	}
+
+
+}
+
 TEST_F(MFEMHesthaven2D, EmatO1)
 {
 	const int basis_order = 1;
@@ -857,8 +934,8 @@ TEST_F(MFEMHesthaven2D, EmatO1)
 	auto m_copy{ Mesh(m) };
 
 	Array<int> marker;
-	marker.Append(hesthaven_submeshing_tag);
-	m_copy.SetAttribute(0, hesthaven_submeshing_tag);
+	marker.Append(hesthavenMeshingTag);
+	m_copy.SetAttribute(0, hesthavenMeshingTag);
 	auto sm = SubMesh::CreateFromDomain(m_copy, marker);
 	FiniteElementSpace sm_fes(&sm, &fec);
 
@@ -895,8 +972,8 @@ TEST_F(MFEMHesthaven2D, EmatO2)
 
 	// Create a singular element submesh.
 	Array<int> marker;
-	marker.Append(hesthaven_submeshing_tag);
-	m_copy.SetAttribute(0, hesthaven_submeshing_tag);
+	marker.Append(hesthavenMeshingTag);
+	m_copy.SetAttribute(0, hesthavenMeshingTag);
 	auto sm = SubMesh::CreateFromDomain(m_copy, marker);
 
 	FiniteElementSpace sm_fes(&sm, &fec);
@@ -939,7 +1016,7 @@ TEST_F(MFEMHesthaven2D, normals)
 
 	// Create a singular element submesh
 	Array<int> marker;
-	marker.Append(hesthaven_submeshing_tag);
+	marker.Append(hesthavenMeshingTag);
 
 	DynamicMatrix normal_mat_x, normal_mat_y;
 	normal_mat_x.resize((basis_order + 1) * FacesPerGeom::TRIANGLE, fes.GetNE());
@@ -947,7 +1024,7 @@ TEST_F(MFEMHesthaven2D, normals)
 
 	for (auto e{ 0 }; e < fes.GetNE(); e++) {
 
-		m_copy.SetAttribute(e, hesthaven_submeshing_tag);
+		m_copy.SetAttribute(e, hesthavenMeshingTag);
 		auto sm = SubMesh::CreateFromDomain(m_copy, marker);
 		FiniteElementSpace sm_fes(&sm, &fec);
 		m_copy.SetAttribute(e, att_map[e]);
