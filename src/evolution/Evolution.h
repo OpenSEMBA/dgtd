@@ -79,7 +79,7 @@ public:
 	static const int numberOfMaxDimensions = 3;
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-	void emplaceEmat(const DynamicMatrix& surface_matrix, const FaceId f, HesthavenElement& hestElemInfo);
+	void emplaceEmat(const DynamicMatrix&, const FaceId, HesthavenElement&);
 
 private:
 
@@ -88,7 +88,7 @@ private:
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
 	std::set<DynamicMatrix, MatrixCompare> matrixStorage_;
-	std::set<HesthavenElement> hestElemInfoStorage_;
+	std::set<HesthavenElement> hestElemStorage_;
 };
 
 class CurvedEvolution : public mfem::TimeDependentOperator 

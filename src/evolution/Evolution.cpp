@@ -355,18 +355,18 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	}
 }
 
-void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const FaceId f, HesthavenElement& hestElemInfo)
+void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const FaceId f, HesthavenElement& hestElem)
 {
 	std::set<DynamicMatrix, MatrixCompare>::iterator it = matrixStorage_.find(surface_matrix);
 	switch (f) {
 	case 0:
-		hestElemInfo.emat.face0 = &(*it);
+		hestElem.emat.face0 = &(*it);
 		break;
 	case 1:
-		hestElemInfo.emat.face1 = &(*it);
+		hestElem.emat.face1 = &(*it);
 		break;
 	case 2:
-		hestElemInfo.emat.face2 = &(*it);
+		hestElem.emat.face2 = &(*it);
 		break;
 	default:
 		throw std::runtime_error("Hesthaven Evolution only supports triangles for now.");
@@ -384,9 +384,9 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 
 	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
 	{
-		HesthavenElement hestElemInfo;
-		hestElemInfo.id = e;
-		hestElemInfo.geom = model.getConstMesh().GetElementBaseGeometry(e);
+		HesthavenElement hestElem;
+		hestElem.id = e;
+		hestElem.geom = model.getConstMesh().GetElementBaseGeometry(e);
 
 		// Assemble emat and store them in the emat storage
 		auto m{ Mesh(model.getMesh()) };
@@ -405,10 +405,10 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 			std::set<DynamicMatrix, MatrixCompare>::iterator it = matrixStorage_.find(surface_matrix);
 			if (it == matrixStorage_.end()) {
 				matrixStorage_.insert(surface_matrix);
-				emplaceEmat(surface_matrix, f, hestElemInfo);
+				emplaceEmat(surface_matrix, f, hestElem);
 			}
 			else {
-				emplaceEmat(surface_matrix, f, hestElemInfo);
+				emplaceEmat(surface_matrix, f, hestElem);
 			}
 		}
 
@@ -418,9 +418,9 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
 			CalcOrtho(f_trans->Jacobian(), normal);
 			for (auto b{ 0 }; b < sm_fes.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
-				hestElemInfo.normals.X.push_back(normal[0]);
-				hestElemInfo.normals.Y.push_back(normal[1]);
-				hestElemInfo.fscale.push_back(abs(normal[0]) + abs(normal[1])); //likewise for fscale, surface per volume per node at face
+				hestElem.normals.X.push_back(normal[0]);
+				hestElem.normals.Y.push_back(normal[1]);
+				hestElem.fscale.push_back(abs(normal[0]) + abs(normal[1])); //likewise for fscale, surface per volume per node at face
 			}
 		}
 
