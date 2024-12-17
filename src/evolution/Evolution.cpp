@@ -357,7 +357,7 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 
 void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const FaceId f, HesthavenElement& hestElem)
 {
-	std::set<DynamicMatrix, MatrixCompare>::iterator it = matrixStorage_.find(surface_matrix);
+	std::set<DynamicMatrix, MatrixCompareLessThan>::iterator it = matrixStorage_.find(surface_matrix);
 	switch (f) {
 	case 0:
 		hestElem.emat.face0 = &(*it);
@@ -398,7 +398,7 @@ DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, const int order)
 	return res;
 }
 
-HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
+HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
 	srcmngr_(srcmngr),
@@ -408,19 +408,13 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 	elementMarker.Append(hesthavenMeshingTag);
 
 	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(), fes_.FEColl()->GetOrder()) };
-	auto connectivity{ assembleGlobalConnectivityMap(model_.getMesh(), dynamic_cast<const L2_FECollection*>(fes.FEColl()))};
+	connectivity_ =  assembleGlobalConnectivityMap(model_.getMesh(), dynamic_cast<const L2_FECollection*>(fes.FEColl()));
 
 	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
 	{
 		HesthavenElement hestElem;
 		hestElem.id = e;
 		hestElem.geom = model.getConstMesh().GetElementBaseGeometry(e);
-		
-
-		auto nodesTimesFaces = model.getConstMesh().GetElement(e)->GetNEdges() * (dynamic_cast<const L2_FECollection*>(fes.FEColl())->GetOrder() + 1);
-		for (auto v{ 0 }; v < e * nodesTimesFaces; v++) {
-			hestElem.connect[v] = connectivity[e * nodesTimesFaces + v];
-		}
 
 		auto m{ Mesh(model.getMesh()) };
 
@@ -436,7 +430,7 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 
 		for (auto f{ 0 }; f < sm.GetNEdges(); f++){
 			auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[f]) };
-			std::set<DynamicMatrix, MatrixCompare>::iterator it = matrixStorage_.find(surface_matrix);
+			std::set<DynamicMatrix, MatrixCompareLessThan>::iterator it = matrixStorage_.find(surface_matrix);
 			if (it == matrixStorage_.end()) {
 				matrixStorage_.insert(surface_matrix);
 				emplaceEmat(surface_matrix, f, hestElem);
@@ -463,7 +457,32 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 
 }
 
+void HesthavenEvolution::Mult(const Vector& in, Vector& out)
+{
+	const Eigen::Map<Eigen::VectorXd> Ex_in(in.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	const Eigen::Map<Eigen::VectorXd> Ey_in(in.GetData() + 1 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	const Eigen::Map<Eigen::VectorXd> Ez_in(in.GetData() + 2 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	const Eigen::Map<Eigen::VectorXd> Hx_in(in.GetData() + 3 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	const Eigen::Map<Eigen::VectorXd> Hy_in(in.GetData() + 4 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	const Eigen::Map<Eigen::VectorXd> Hz_in(in.GetData() + 5 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 
+	// ---JUMPS--- //
+
+	Eigen::VectorXd dEx(fes_.GetNDofs()), dEy(fes_.GetNDofs()), dEz(fes_.GetNDofs()),
+					dHx(fes_.GetNDofs()), dHy(fes_.GetNDofs()), dHz(fes_.GetNDofs());
+
+	for (auto v{ 0 }; v < fes_.GetNDofs(); v++) {
+		dEx[v] = Ex_in[connectivity_[v].first] - Ex_in[connectivity_[v].second];
+		dEy[v] = Ey_in[connectivity_[v].first] - Ey_in[connectivity_[v].second];
+		dEz[v] = Ez_in[connectivity_[v].first] - Ez_in[connectivity_[v].second];
+		dHx[v] = Hx_in[connectivity_[v].first] - Hx_in[connectivity_[v].second];
+		dHy[v] = Hy_in[connectivity_[v].first] - Hy_in[connectivity_[v].second];
+		dHz[v] = Hz_in[connectivity_[v].first] - Hz_in[connectivity_[v].second];
+	}
+
+	// ----------- //
+
+}
 
 }
 
