@@ -2,7 +2,7 @@
 
 namespace maxwell {
 
-    struct MatrixCompare {
+    struct MatrixCompareLessThan {
 
         bool operator()(const Eigen::MatrixXd& lhs, const Eigen::MatrixXd& rhs) const {
             

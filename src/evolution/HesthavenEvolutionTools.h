@@ -42,13 +42,6 @@ namespace maxwell {
 		std::vector<int> vmapB;
 	};
 
-	enum FacesPerGeom {
-		TRIANGLE = 3,
-		QUADRILATERAL = 4,
-		TETRAHEDRON = 4,
-		HEXAHEDRON = 6
-	};
-
 	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& flux_mat);
 	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy, const std::map<int, Attribute>& att_map);
 	Array<int> getFacesForElement(const Mesh& m_copy, const int el);

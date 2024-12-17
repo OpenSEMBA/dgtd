@@ -1043,7 +1043,7 @@ TEST_F(MFEMHesthaven2D, normals)
 	marker.Append(hesthavenMeshingTag);
 
 	DynamicMatrix normal_mat_x, normal_mat_y;
-	normal_mat_x.resize((basis_order + 1) * FacesPerGeom::TRIANGLE, fes.GetNE());
+	normal_mat_x.resize((basis_order + 1) * m.GetElement(0)->GetNEdges(), fes.GetNE());
 	normal_mat_y.resizeLike(normal_mat_x);
 
 	for (auto e{ 0 }; e < fes.GetNE(); e++) {
