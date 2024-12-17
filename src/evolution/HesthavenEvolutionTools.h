@@ -13,6 +13,7 @@ namespace maxwell {
 	using InteriorFaceConnectivityMaps = std::pair<std::vector<int>, std::vector<int>>;
 	using DynamicMatrix = Eigen::MatrixXd;
 	using GlobalConnectivityMap = std::vector<std::pair<int, int>>;
+	using ConnectivityMap = std::vector<std::pair<int, int>>;
 
 	struct Normals {
 		std::vector<double> X;
@@ -32,6 +33,7 @@ namespace maxwell {
 		Emat emat;
 		Normals normals;
 		std::vector<double> fscale;
+		ConnectivityMap connect;
 	};
 
 	struct ConnectivityMaps {

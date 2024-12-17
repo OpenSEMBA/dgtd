@@ -415,6 +415,12 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 		HesthavenElement hestElem;
 		hestElem.id = e;
 		hestElem.geom = model.getConstMesh().GetElementBaseGeometry(e);
+		
+
+		auto nodesTimesFaces = model.getConstMesh().GetElement(e)->GetNEdges() * (dynamic_cast<const L2_FECollection*>(fes.FEColl())->GetOrder() + 1);
+		for (auto v{ 0 }; v < e * nodesTimesFaces; v++) {
+			hestElem.connect[v] = connectivity[e * nodesTimesFaces + v];
+		}
 
 		auto m{ Mesh(model.getMesh()) };
 

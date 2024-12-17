@@ -744,12 +744,19 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, &fec);
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({
-		{0,4}, {1,3},
-		{1,1}, {2,2},
-		{0,0}, {2,2},
-		{4,0}, {3,1},
-		{4,4}, {5,5},
-		{3,3}, {5,5}
+		{0,4},
+		{1,3},
+		{1,1},
+		{2,2}, 
+		{0,0},
+		{2,2}, 
+		
+		{4,0}, 
+		{3,1}, 
+		{4,4},
+		{5,5},
+		{3,3},
+		{5,5}
 	});
 
 	for (auto p{ 0 }; p < expected_connectivity_pairs.size(); p++) {
@@ -767,12 +774,25 @@ TEST_F(MFEMHesthaven2D, connectivityMapO2)
 	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, &fec);
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({ 
-		{0,8},   {1,7},   {2,6}, 
-		{2,2},   {4,4},   {5,5}, 
-		{0,0},   {3,3},   {5,5}, 
-		{8,0},   {7,1},   {6,2}, 
-		{8,8}, {10,10}, {11,11}, 
-		{6,6},   {9,9}, {11,11} 
+		{0,8},   
+		{1,7}, 
+		{2,6},
+		{2,2},
+		{4,4},
+		{5,5},
+		{0,0},
+		{3,3},
+	    {5,5}, 	
+		
+		{8,0},
+		{7,1},
+		{6,2},
+		{8,8},
+		{10,10},
+		{11,11},
+		{6,6},
+		{9,9},
+		{11,11} 
 	});
 
 	for (auto p{ 0 }; p < expected_connectivity_pairs.size(); p++) {
