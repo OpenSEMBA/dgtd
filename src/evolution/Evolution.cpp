@@ -398,7 +398,6 @@ DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, const int order)
 	return res;
 }
 
-
 HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
@@ -409,6 +408,7 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 	elementMarker.Append(hesthavenMeshingTag);
 
 	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(), fes_.FEColl()->GetOrder()) };
+	auto connectivity{ assembleGlobalConnectivityMap(model_.getMesh(), dynamic_cast<const L2_FECollection*>(fes.FEColl()))};
 
 	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
 	{
@@ -416,11 +416,11 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 		hestElem.id = e;
 		hestElem.geom = model.getConstMesh().GetElementBaseGeometry(e);
 
-		// Assemble emat and store them in the emat storage
 		auto m{ Mesh(model.getMesh()) };
 
 		m.SetAttribute(e, hesthavenMeshingTag);
 		auto sm = SubMesh::CreateFromDomain(m, elementMarker);
+		auto fec = dynamic_cast<const L2_FECollection*>(fes.FEColl());
 		FiniteElementSpace sm_fes(&sm, dynamic_cast<const L2_FECollection*>(fes.FEColl()));
 
 		auto boundary_markers = assembleBoundaryMarkers(sm_fes);

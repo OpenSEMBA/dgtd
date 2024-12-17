@@ -251,10 +251,10 @@ namespace maxwell {
 		sm.bdr_attributes.Append(hesthavenMeshingTag);
 	}
 
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, L2_FECollection& fec)
+	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
 	{
 		GlobalConnectivityMap res;
-		FiniteElementSpace fes(&m, &fec);
+		FiniteElementSpace fes(&m, fec);
 
 		std::map<FaceId, bool> global_face_is_interior;
 		for (auto f{ 0 }; f < m.GetNEdges(); f++) {
@@ -284,7 +284,7 @@ namespace maxwell {
 					m_copy.SetAttribute(e, hesthavenMeshingTag);
 					auto sm = SubMesh::CreateFromDomain(m_copy, volume_marker);
 					tagBdrAttributesForSubMesh(local_edge, sm);
-					FiniteElementSpace sm_fes(&sm, &fec);
+					FiniteElementSpace sm_fes(&sm, fec);
 					appendConnectivityMapsFromBoundaryFace(
 						fes,
 						sm_fes,
@@ -296,7 +296,7 @@ namespace maxwell {
 
 					FaceElementTransformations* f_trans = m_copy.GetFaceElementTransformations(local_edge_index_to_global_edge_index[local_edge]);
 					auto sm = assembleInteriorFaceSubMesh(m_copy, *f_trans);
-					FiniteElementSpace sm_fes(&sm, &fec);
+					FiniteElementSpace sm_fes(&sm, fec);
 					appendConnectivityMapsFromInteriorFace(
 						*f_trans,
 						e,

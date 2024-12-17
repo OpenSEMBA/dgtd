@@ -68,7 +68,7 @@ namespace maxwell {
 	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, const int element_index, FiniteElementSpace& fes, GlobalConnectivityMap& map);
 	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& fes, FiniteElementSpace& sm_fes, const DynamicMatrix& surface_matrix, GlobalConnectivityMap& map);
 	void tagBdrAttributesForSubMesh(const int edge, SubMesh& sm);
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, L2_FECollection& fec);
+	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec);
 
 
 
