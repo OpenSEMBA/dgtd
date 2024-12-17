@@ -373,6 +373,31 @@ void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const 
 	}
 }
 
+DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, FiniteElementSpace& fes)
+{
+	auto m{ Mesh::MakeCartesian2D(1, 1, mesh.GetElementType(0)) };
+	auto fec{ L2_FECollection(fes.FEColl()->GetOrder(), 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto mass_mat{ assembleInverseMassMatrix(fes) };
+
+	DynamicMatrix res = getElementMassMatrixFromGlobal(0, mass_mat);
+	return res;
+}
+
+DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
+{
+	BilinearForm bf(&fes);
+	ConstantCoefficient one(1.0);
+	bf.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
+	bf.Assemble();
+	bf.Finalize();
+
+	return toEigen(*bf.SpMat().ToDenseMatrix());
+}
+
 HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
@@ -381,6 +406,8 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 {
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
+
+	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(),fes_) };
 
 	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
 	{
@@ -413,17 +440,16 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 		}
 
 		for (auto f{ 0 }; f < sm.GetNEdges(); f++) {
-			Vector normal(sm_fes.GetMesh()->SpaceDimension());
-			ElementTransformation* f_trans = sm_fes.GetMesh()->GetEdgeTransformation(f);
+			Vector normal(sm.SpaceDimension());
+			ElementTransformation* f_trans = sm.GetEdgeTransformation(f);
 			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
 			CalcOrtho(f_trans->Jacobian(), normal);
 			for (auto b{ 0 }; b < sm_fes.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
 				hestElem.normals.X.push_back(normal[0]);
 				hestElem.normals.Y.push_back(normal[1]);
-				hestElem.fscale.push_back(abs(normal[0]) + abs(normal[1])); //likewise for fscale, surface per volume per node at face
+				hestElem.fscale.push_back(abs(normal[0]) + abs(normal[1])); //likewise for fscale, surface per volume ratio per node at face
 			}
 		}
-
 
 	}
 
