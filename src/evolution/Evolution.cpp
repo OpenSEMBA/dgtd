@@ -407,7 +407,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
 
-	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(), fes_.FEColl()->GetOrder()) };
 	connectivity_ =  assembleGlobalConnectivityMap(model_.getMesh(), dynamic_cast<const L2_FECollection*>(fes.FEColl()));
 
 	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
@@ -452,6 +451,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			}
 		}
 
+		hestElemStorage_.push_back(hestElem);
+
 	}
 
 
@@ -471,7 +472,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 	Eigen::VectorXd dEx(fes_.GetNDofs()), dEy(fes_.GetNDofs()), dEz(fes_.GetNDofs()),
 					dHx(fes_.GetNDofs()), dHy(fes_.GetNDofs()), dHz(fes_.GetNDofs());
 
-	for (auto v{ 0 }; v < fes_.GetNDofs(); v++) {
+	for (auto v{ 0 }; v < connectivity_.size(); v++) {
 		dEx[v] = Ex_in[connectivity_[v].first] - Ex_in[connectivity_[v].second];
 		dEy[v] = Ey_in[connectivity_[v].first] - Ey_in[connectivity_[v].second];
 		dEz[v] = Ez_in[connectivity_[v].first] - Ez_in[connectivity_[v].second];
@@ -481,6 +482,17 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 	}
 
 	// ----------- //
+
+	// Extend to all elements
+
+	auto ndotdH = hestElemStorage_[0].normals.X.asDiagonal() * dHx + hestElemStorage_[0].normals.Y.asDiagonal() * dHy + hestElemStorage_[0].normals.Z.asDiagonal() * dHz;
+	auto ndotdE = hestElemStorage_[0].normals.X.asDiagonal() * dEx + hestElemStorage_[0].normals.Y.asDiagonal() * dEy + hestElemStorage_[0].normals.Z.asDiagonal() * dEz;
+
+	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(), fes_.FEColl()->GetOrder()) };
+
+	inverseMassMatrix * *hestElemStorage_[0].emat.face0 * hestElemStorage_[0].fscale
+
+
 
 }
 

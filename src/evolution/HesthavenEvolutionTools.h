@@ -16,15 +16,15 @@ namespace maxwell {
 	using ConnectivityMap = std::vector<std::pair<int, int>>;
 
 	struct Normals {
-		std::vector<double> X;
-		std::vector<double> Y;
-		std::vector<double> Z;
+		Eigen::VectorXd X;
+		Eigen::VectorXd Y;
+		Eigen::VectorXd Z;
 	};
 
 	struct Emat {
-		const DynamicMatrix* face0;
-		const DynamicMatrix* face1;
-		const DynamicMatrix* face2;
+		DynamicMatrix* face0;
+		DynamicMatrix* face1;
+		DynamicMatrix* face2;
 	};
 
 	struct HesthavenElement {
@@ -32,7 +32,7 @@ namespace maxwell {
 		Geometry::Type geom;
 		Emat emat;
 		Normals normals;
-		std::vector<double> fscale;
+		Eigen::VectorXd fscale;
 		ConnectivityMap connect;
 	};
 

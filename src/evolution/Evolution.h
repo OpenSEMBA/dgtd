@@ -89,7 +89,7 @@ private:
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
-	std::set<HesthavenElement> hestElemStorage_;
+	std::vector<HesthavenElement> hestElemStorage_;
 	GlobalConnectivityMap connectivity_;
 };
 
