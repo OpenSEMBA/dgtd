@@ -373,20 +373,6 @@ void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const 
 	}
 }
 
-DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, FiniteElementSpace& fes)
-{
-	auto m{ Mesh::MakeCartesian2D(1, 1, mesh.GetElementType(0)) };
-	auto fec{ L2_FECollection(fes.FEColl()->GetOrder(), 2, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
-
-	// Not touching the original mesh.
-	auto m_copy{ Mesh(m) };
-	auto mass_mat{ assembleInverseMassMatrix(fes) };
-
-	DynamicMatrix res = getElementMassMatrixFromGlobal(0, mass_mat);
-	return res;
-}
-
 DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 {
 	BilinearForm bf(&fes);
@@ -398,6 +384,21 @@ DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	return toEigen(*bf.SpMat().ToDenseMatrix());
 }
 
+DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, const int order)
+{
+	auto m{ Mesh::MakeCartesian2D(1, 1, mesh.GetElementType(0)) };
+	auto fec{ L2_FECollection(order, 2, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	// Not touching the original mesh.
+	auto m_copy{ Mesh(m) };
+	auto mass_mat{ assembleInverseMassMatrix(fes) };
+
+	DynamicMatrix res = getElementMassMatrixFromGlobal(0, mass_mat);
+	return res;
+}
+
+
 HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
@@ -407,7 +408,7 @@ HesthavenEvolution::HesthavenEvolution(mfem::FiniteElementSpace& fes, Model& mod
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
 
-	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(),fes_) };
+	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(), fes_.FEColl()->GetOrder()) };
 
 	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
 	{

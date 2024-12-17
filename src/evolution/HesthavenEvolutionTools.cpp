@@ -1,5 +1,3 @@
-#pragma once
-
 #include "evolution/HesthavenEvolutionTools.h"
 
 namespace maxwell {
