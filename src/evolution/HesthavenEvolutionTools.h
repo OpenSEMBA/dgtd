@@ -22,9 +22,9 @@ namespace maxwell {
 	};
 
 	struct Emat {
-		DynamicMatrix* face0;
-		DynamicMatrix* face1;
-		DynamicMatrix* face2;
+		const DynamicMatrix* face0;
+		const DynamicMatrix* face1;
+		const DynamicMatrix* face2;
 	};
 
 	struct HesthavenElement {

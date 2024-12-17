@@ -444,10 +444,13 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			ElementTransformation* f_trans = sm.GetEdgeTransformation(f);
 			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
 			CalcOrtho(f_trans->Jacobian(), normal);
+			hestElem.normals.X.resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.normals.Y.resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.fscale   .resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
 			for (auto b{ 0 }; b < sm_fes.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
-				hestElem.normals.X.push_back(normal[0]);
-				hestElem.normals.Y.push_back(normal[1]);
-				hestElem.fscale.push_back(abs(normal[0]) + abs(normal[1])); //likewise for fscale, surface per volume ratio per node at face
+				hestElem.normals.X[b] = normal[0];
+				hestElem.normals.Y[b] = normal[1];
+				hestElem.fscale[b] = abs(normal[0]) + abs(normal[1]); //likewise for fscale, surface per volume ratio per node at face
 			}
 		}
 
@@ -489,8 +492,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 	auto ndotdE = hestElemStorage_[0].normals.X.asDiagonal() * dEx + hestElemStorage_[0].normals.Y.asDiagonal() * dEy + hestElemStorage_[0].normals.Z.asDiagonal() * dEz;
 
 	auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(), fes_.FEColl()->GetOrder()) };
-
-	inverseMassMatrix * *hestElemStorage_[0].emat.face0 * hestElemStorage_[0].fscale
 
 
 
