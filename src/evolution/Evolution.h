@@ -9,7 +9,6 @@
 
 #include "evolution/EvolutionMethods.h"
 #include "evolution/HesthavenEvolutionTools.h"
-#include "evolution/EigenExtension.cpp"
 
 #include <chrono>
 

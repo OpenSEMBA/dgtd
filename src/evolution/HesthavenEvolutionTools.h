@@ -14,6 +14,23 @@ namespace maxwell {
 	using DynamicMatrix = Eigen::MatrixXd;
 	using GlobalConnectivityMap = std::vector<std::pair<int, int>>;
 	using ConnectivityMap = std::vector<std::pair<int, int>>;
+
+	struct MatrixCompareLessThan {
+
+		bool operator()(const Eigen::MatrixXd& lhs, const Eigen::MatrixXd& rhs) const {
+
+			for (int i{ 0 }; i < lhs.rows(); i++) {
+				for (int j{ 0 }; j < lhs.cols(); j++) {
+					if (lhs(i, j) != rhs(i, j)) {
+						return lhs(i, j) < rhs(i, j);
+					}
+				}
+			}
+			return false;
+		}
+
+	};
+
 	using StorageIterator = std::set<DynamicMatrix, MatrixCompareLessThan>::iterator;
 
 	struct Normals {
