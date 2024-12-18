@@ -355,9 +355,8 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	}
 }
 
-void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const FaceId f, HesthavenElement& hestElem)
+void HesthavenEvolution::emplaceEmat(const StorageIterator& it, const FaceId f, HesthavenElement& hestElem)
 {
-	std::set<DynamicMatrix, MatrixCompareLessThan>::iterator it = matrixStorage_.find(surface_matrix);
 	switch (f) {
 	case 0:
 		hestElem.emat.face0 = &(*it);
@@ -373,9 +372,8 @@ void HesthavenEvolution::emplaceEmat(const DynamicMatrix& surface_matrix, const 
 	}
 }
 
-void HesthavenEvolution::emplaceDir(const DynamicMatrix& derivative_matrix, const Direction d, HesthavenElement& hestElem)
+void HesthavenEvolution::emplaceDir(const StorageIterator& it, const Direction d, HesthavenElement& hestElem)
 {
-	std::set<DynamicMatrix, MatrixCompareLessThan>::iterator it = matrixStorage_.find(derivative_matrix);
 	switch (d) {
 	case X:
 		hestElem.dir.X = &(*it);
@@ -443,27 +441,40 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
 
+		auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm, sm_fes.FEColl()->GetOrder()) };
+		StorageIterator it = matrixStorage_.find(inverseMassMatrix);
+		if (it == matrixStorage_.end()) {
+			matrixStorage_.insert(inverseMassMatrix);
+			StorageIterator it = matrixStorage_.find(inverseMassMatrix);
+			hestElem.invmass = &(*it);
+		}
+		else {
+			hestElem.invmass = &(*it);
+		}
+
 		for (auto f{ 0 }; f < sm.GetNEdges(); f++){
 			auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[f]) };
-			std::set<DynamicMatrix, MatrixCompareLessThan>::iterator it = matrixStorage_.find(surface_matrix);
+			StorageIterator it = matrixStorage_.find(surface_matrix);
 			if (it == matrixStorage_.end()) {
 				matrixStorage_.insert(surface_matrix);
-				emplaceEmat(surface_matrix, f, hestElem);
+				StorageIterator it = matrixStorage_.find(surface_matrix);
+				emplaceEmat(it, f, hestElem);
 			}
 			else {
-				emplaceEmat(surface_matrix, f, hestElem);
+				emplaceEmat(it, f, hestElem);
 			}
 		}
 
 		for (auto d{ X }; d <= Z; d++) {
 			auto derivative_matrix{ toEigen(*buildDerivativeOperator(d, sm_fes)->SpMat().ToDenseMatrix())};
-			std::set<DynamicMatrix, MatrixCompareLessThan>::iterator it = matrixStorage_.find(derivative_matrix);
+			StorageIterator it = matrixStorage_.find(derivative_matrix);
 			if (it == matrixStorage_.end()) {
 				matrixStorage_.insert(derivative_matrix);
-				emplaceDir(derivative_matrix, d, hestElem);
+				StorageIterator it = matrixStorage_.find(derivative_matrix);
+				emplaceDir(it, d, hestElem);
 			}
 			else {
-				emplaceDir(derivative_matrix, d, hestElem);
+				emplaceDir(it, d, hestElem);
 			}
 		}
 
@@ -532,8 +543,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 
 		auto ndotdH = hestElemStorage_[e].normals.X.asDiagonal() * dHx_Elem + hestElemStorage_[e].normals.Y.asDiagonal() * dHy_Elem + hestElemStorage_[e].normals.Z.asDiagonal() * dHz_Elem;
 		auto ndotdE = hestElemStorage_[e].normals.X.asDiagonal() * dEx_Elem + hestElemStorage_[e].normals.Y.asDiagonal() * dEy_Elem + hestElemStorage_[e].normals.Z.asDiagonal() * dEz_Elem;
-
-		auto inverseMassMatrix{ getReferenceInverseMassMatrix(model_.getConstMesh(), fes_.FEColl()->GetOrder()) };
 
 		double alpha{ 1.0 }; // upwind term, to relate to options later.
 

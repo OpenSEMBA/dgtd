@@ -14,6 +14,7 @@ namespace maxwell {
 	using DynamicMatrix = Eigen::MatrixXd;
 	using GlobalConnectivityMap = std::vector<std::pair<int, int>>;
 	using ConnectivityMap = std::vector<std::pair<int, int>>;
+	using StorageIterator = std::set<DynamicMatrix, MatrixCompareLessThan>::iterator;
 
 	struct Normals {
 		Eigen::VectorXd X;
@@ -38,6 +39,7 @@ namespace maxwell {
 		Geometry::Type geom;
 		Directional dir;
 		Emat emat;
+		const DynamicMatrix* invmass;
 		Normals normals;
 		Eigen::VectorXd fscale;
 	};
