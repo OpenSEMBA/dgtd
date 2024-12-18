@@ -27,13 +27,19 @@ namespace maxwell {
 		const DynamicMatrix* face2;
 	};
 
+	struct Directional {
+		const DynamicMatrix* X;
+		const DynamicMatrix* Y;
+		const DynamicMatrix* Z;
+	};
+
 	struct HesthavenElement {
 		ElementId id;
 		Geometry::Type geom;
+		Directional dir;
 		Emat emat;
 		Normals normals;
 		Eigen::VectorXd fscale;
-		ConnectivityMap connect;
 	};
 
 	struct ConnectivityMaps {

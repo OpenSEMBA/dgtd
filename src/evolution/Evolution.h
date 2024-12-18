@@ -7,6 +7,7 @@
 #include "EvolutionMethods.h"
 #include "components/SubMesher.h"
 
+#include "evolution/EvolutionMethods.h"
 #include "evolution/HesthavenEvolutionTools.h"
 #include "evolution/EigenExtension.cpp"
 
@@ -81,6 +82,7 @@ public:
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	void Mult(const mfem::Vector& in, mfem::Vector& out);
 	void emplaceEmat(const DynamicMatrix&, const FaceId, HesthavenElement&);
+	void emplaceDir(const DynamicMatrix&, const Direction, HesthavenElement&);
 
 private:
 
