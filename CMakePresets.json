@@ -80,7 +80,7 @@
         "name": "msvc-x64-release",
         "configurePreset": "msvc-x64-release",
         "configuration": "Release",
-        "jobs": 0
+        "jobs": 8
       }
 
     ]
