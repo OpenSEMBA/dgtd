@@ -355,38 +355,6 @@ void Evolution::Mult(const Vector& in, Vector& out) const
 	}
 }
 
-void HesthavenEvolution::emplaceEmat(const StorageIterator& it, const FaceId f, HesthavenElement& hestElem)
-{
-	switch (f) {
-	case 0:
-		hestElem.emat.face0 = &(*it);
-		break;
-	case 1:
-		hestElem.emat.face1 = &(*it);
-		break;
-	case 2:
-		hestElem.emat.face2 = &(*it);
-		break;
-	default:
-		throw std::runtime_error("Hesthaven Evolution only supports triangles for now.");
-	}
-}
-
-void HesthavenEvolution::emplaceDir(const StorageIterator& it, const Direction d, HesthavenElement& hestElem)
-{
-	switch (d) {
-	case X:
-		hestElem.dir.X = &(*it);
-		break;
-	case Y:
-		hestElem.dir.Y = &(*it);
-		break;
-	case Z:
-		hestElem.dir.Z = &(*it);
-		break;
-	}
-}
-
 DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 {
 	BilinearForm bf(&fes);
@@ -483,10 +451,10 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			if (it == matrixStorage_.end()) {
 				matrixStorage_.insert(surface_matrix);
 				StorageIterator it = matrixStorage_.find(surface_matrix);
-				emplaceEmat(it, f, hestElem);
+				hestElem.emat.push_back(&(*it));
 			}
 			else {
-				emplaceEmat(it, f, hestElem);
+				hestElem.emat.push_back(&(*it));
 			}
 		}
 
@@ -496,10 +464,10 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			if (it == matrixStorage_.end()) {
 				matrixStorage_.insert(derivative_matrix);
 				StorageIterator it = matrixStorage_.find(derivative_matrix);
-				emplaceDir(it, d, hestElem);
+				hestElem.dir[d] = &(*it);
 			}
 			else {
-				emplaceDir(it, d, hestElem);
+				hestElem.dir[d] = &(*it);
 			}
 		}
 
@@ -508,13 +476,21 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			ElementTransformation* f_trans = sm.GetEdgeTransformation(f);
 			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
 			CalcOrtho(f_trans->Jacobian(), normal);
-			hestElem.normals.X.resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.normals.Y.resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.fscale   .resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.normals[X].resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.normals[Y].resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.normals[Z].resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.fscale    .resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
 			for (auto b{ 0 }; b < sm_fes.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
-				hestElem.normals.X[b] = normal[0];
-				hestElem.normals.Y[b] = normal[1];
-				hestElem.fscale[b] = abs(normal[0]) + abs(normal[1]); //likewise for fscale, surface per volume ratio per node at face
+				hestElem.normals[X][b] = normal[0];
+				hestElem.fscale[b] = abs(normal[0]); //likewise for fscale, surface per volume ratio per node at face
+				if (sm.SpaceDimension() >= 2) {
+					hestElem.normals[Y][b] = normal[1];
+					hestElem.fscale[b] += abs(normal[1]);
+				}
+				if (sm.SpaceDimension() == 3) {
+					hestElem.normals[Z][b] = normal[2];
+					hestElem.fscale[b] += abs(normal[2]);
+				}
 			}
 		}
 
@@ -601,21 +577,17 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 		const Eigen::Map<Eigen::VectorXd> dHy_Elem(dHy.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
 		const Eigen::Map<Eigen::VectorXd> dHz_Elem(dHz.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
 
-		auto ndotdH = hestElemStorage_[e].normals.X.asDiagonal() * dHx_Elem + hestElemStorage_[e].normals.Y.asDiagonal() * dHy_Elem + hestElemStorage_[e].normals.Z.asDiagonal() * dHz_Elem;
-		auto ndotdE = hestElemStorage_[e].normals.X.asDiagonal() * dEx_Elem + hestElemStorage_[e].normals.Y.asDiagonal() * dEy_Elem + hestElemStorage_[e].normals.Z.asDiagonal() * dEz_Elem;
+		auto ndotdH = hestElemStorage_[e].normals[X].asDiagonal() * dHx_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dHy_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dHz_Elem;
+		auto ndotdE = hestElemStorage_[e].normals[X].asDiagonal() * dEx_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dEy_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dEz_Elem;
 
 		double alpha{ 1.0 }; // upwind term, to relate to options later.
 
-		auto fluxHx = -1.0 * hestElemStorage_[e].normals.Y.asDiagonal() * dEz_Elem + hestElemStorage_[e].normals.Z.asDiagonal() * dEy_Elem + alpha * (dHx_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals.X);
-		auto fluxHy = -1.0 * hestElemStorage_[e].normals.Z.asDiagonal() * dEx_Elem + hestElemStorage_[e].normals.X.asDiagonal() * dEz_Elem + alpha * (dHy_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals.Y);
-		auto fluxHz = -1.0 * hestElemStorage_[e].normals.X.asDiagonal() * dEy_Elem + hestElemStorage_[e].normals.Y.asDiagonal() * dEx_Elem + alpha * (dHz_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals.Z);
-		auto fluxEx =        hestElemStorage_[e].normals.Y.asDiagonal() * dHz_Elem + hestElemStorage_[e].normals.Z.asDiagonal() * dHy_Elem + alpha * (dEx_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals.X);
-		auto fluxEy =        hestElemStorage_[e].normals.Z.asDiagonal() * dHx_Elem + hestElemStorage_[e].normals.X.asDiagonal() * dHz_Elem + alpha * (dEy_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals.Y);
-		auto fluxEz =        hestElemStorage_[e].normals.X.asDiagonal() * dHy_Elem + hestElemStorage_[e].normals.Y.asDiagonal() * dHx_Elem + alpha * (dEz_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals.Z);
-
-
-
-
+		auto fluxHx = -1.0 * hestElemStorage_[e].normals[Y].asDiagonal() * dEz_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dEy_Elem + alpha * (dHx_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[X]);
+		auto fluxHy = -1.0 * hestElemStorage_[e].normals[Z].asDiagonal() * dEx_Elem + hestElemStorage_[e].normals[X].asDiagonal() * dEz_Elem + alpha * (dHy_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Y]);
+		auto fluxHz = -1.0 * hestElemStorage_[e].normals[X].asDiagonal() * dEy_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dEx_Elem + alpha * (dHz_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Z]);
+		auto fluxEx =        hestElemStorage_[e].normals[Y].asDiagonal() * dHz_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dHy_Elem + alpha * (dEx_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[X]);
+		auto fluxEy =        hestElemStorage_[e].normals[Z].asDiagonal() * dHx_Elem + hestElemStorage_[e].normals[X].asDiagonal() * dHz_Elem + alpha * (dEy_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Y]);
+		auto fluxEz =        hestElemStorage_[e].normals[X].asDiagonal() * dHy_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dHx_Elem + alpha * (dEz_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Z]);
 
 		Eigen::Map<Eigen::VectorXd> Ex_out(out.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 		Eigen::Map<Eigen::VectorXd> Ey_out(out.GetData() + 1 * fes_.GetNDofs(), fes_.GetNDofs(), 1);

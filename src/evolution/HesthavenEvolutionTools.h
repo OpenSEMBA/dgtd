@@ -16,6 +16,9 @@ namespace maxwell {
 	using BdrCondToNodes = std::pair<BdrCond, std::vector<int>>;
 	using GlobalBoundaryMap = std::vector<BdrCondToNodes>;
 	using ConnectivityMap = std::vector<std::pair<int, int>>;
+	using Emat = std::vector<const DynamicMatrix*>;
+	using Directional = std::array<const DynamicMatrix*, 3>;
+	using Normals = std::array<Eigen::VectorXd, 3> ;
 
 	struct MatrixCompareLessThan {
 
@@ -34,24 +37,6 @@ namespace maxwell {
 	};
 
 	using StorageIterator = std::set<DynamicMatrix, MatrixCompareLessThan>::iterator;
-
-	struct Normals {
-		Eigen::VectorXd X;
-		Eigen::VectorXd Y;
-		Eigen::VectorXd Z;
-	};
-
-	struct Emat {
-		const DynamicMatrix* face0;
-		const DynamicMatrix* face1;
-		const DynamicMatrix* face2;
-	};
-
-	struct Directional {
-		const DynamicMatrix* X;
-		const DynamicMatrix* Y;
-		const DynamicMatrix* Z;
-	};
 
 	struct HesthavenElement {
 		ElementId id;
