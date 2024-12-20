@@ -7,6 +7,9 @@
 #include "EvolutionMethods.h"
 #include "components/SubMesher.h"
 
+#include "evolution/EvolutionMethods.h"
+#include "evolution/HesthavenEvolutionTools.h"
+
 #include <chrono>
 
 namespace maxwell {
@@ -76,7 +79,7 @@ public:
 	static const int numberOfMaxDimensions = 3;
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
+	void Mult(const mfem::Vector& in, mfem::Vector& out);
 
 private:
 
@@ -84,6 +87,11 @@ private:
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
+	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
+	std::vector<HesthavenElement> hestElemStorage_;
+	GlobalConnectivityMap connectivity_;
+	GlobalBoundaryMap bdr_connectivity_;
+
 };
 
 class CurvedEvolution : public mfem::TimeDependentOperator 

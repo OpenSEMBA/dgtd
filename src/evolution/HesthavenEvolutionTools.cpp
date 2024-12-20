@@ -1,30 +1,8 @@
-#pragma once
-
-#include "mfemExtension/BilinearIntegrators.h"
-#include "math/EigenMfemTools.h"
-
-using namespace mfem;
+#include "evolution/HesthavenEvolutionTools.h"
 
 namespace maxwell {
 
-	using InteriorFaceConnectivityMaps = std::pair<std::vector<int>, std::vector<int>>;
-	using DynamicMatrix = Eigen::MatrixXd;
-	using GlobalConnectivityMap = std::vector<std::pair<int, int>>;
-
-	struct ConnectivityMaps {
-		std::vector<int> vmapM;
-		std::vector<int> vmapP;
-		std::vector<int> vmapB;
-	};
-
-	enum FacesPerGeom {
-		TRIANGLE = 3,
-		QUADRILATERAL = 4,
-		TETRAHEDRON = 4,
-		HEXAHEDRON = 6
-	};
-
-	Attribute hesthaven_submeshing_tag = 777;
+	using namespace mfem;
 
 	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& flux_mat)
 	{
@@ -71,14 +49,14 @@ namespace maxwell {
 
 	void markElementsForSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy)
 	{
-		m_copy.SetAttribute(f_trans->Elem1No, hesthaven_submeshing_tag);
-		m_copy.SetAttribute(f_trans->Elem2No, hesthaven_submeshing_tag);
+		m_copy.SetAttribute(f_trans->Elem1No, hesthavenMeshingTag);
+		m_copy.SetAttribute(f_trans->Elem2No, hesthavenMeshingTag);
 	}
 
 	SubMesh createSubMeshFromInteriorFace(Mesh& m_copy, const std::map<int, Attribute>& att_map)
 	{
 		Array<int> sm_tag;
-		sm_tag.Append(hesthaven_submeshing_tag);
+		sm_tag.Append(hesthavenMeshingTag);
 		auto faces = getFacesForElement(m_copy, 0);
 		auto f_trans = getInteriorFaceTransformation(m_copy, faces);
 		markElementsForSubMeshing(f_trans, m_copy);
@@ -199,10 +177,10 @@ namespace maxwell {
 
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans)
 	{
-		m.SetAttribute(trans.Elem1No, hesthaven_submeshing_tag);
-		m.SetAttribute(trans.Elem2No, hesthaven_submeshing_tag);
+		m.SetAttribute(trans.Elem1No, hesthavenMeshingTag);
+		m.SetAttribute(trans.Elem2No, hesthavenMeshingTag);
 		Array<int> volume_marker;
-		volume_marker.Append(hesthaven_submeshing_tag);
+		volume_marker.Append(hesthavenMeshingTag);
 		return SubMesh::CreateFromDomain(m, volume_marker);
 	}
 
@@ -269,14 +247,14 @@ namespace maxwell {
 		for (auto b{ 0 }; b < sm.bdr_attributes.Size(); b++) {
 			sm.SetBdrAttribute(b, 1);
 		}
-		sm.SetBdrAttribute(edge, hesthaven_submeshing_tag);
-		sm.bdr_attributes.Append(hesthaven_submeshing_tag);
+		sm.SetBdrAttribute(edge, hesthavenMeshingTag);
+		sm.bdr_attributes.Append(hesthavenMeshingTag);
 	}
 
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, L2_FECollection& fec)
+	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
 	{
 		GlobalConnectivityMap res;
-		FiniteElementSpace fes(&m, &fec);
+		FiniteElementSpace fes(&m, fec);
 
 		std::map<FaceId, bool> global_face_is_interior;
 		for (auto f{ 0 }; f < m.GetNEdges(); f++) {
@@ -286,11 +264,11 @@ namespace maxwell {
 		Table global_element_to_edge = m.ElementToEdgeTable();
 
 		Array<int> volume_marker;
-		volume_marker.Append(hesthaven_submeshing_tag);
+		volume_marker.Append(hesthavenMeshingTag);
 
-		Array<int> boundary_marker(hesthaven_submeshing_tag);
+		Array<int> boundary_marker(hesthavenMeshingTag);
 		boundary_marker = 0;
-		boundary_marker[hesthaven_submeshing_tag - 1] = 1;
+		boundary_marker[hesthavenMeshingTag - 1] = 1;
 
 		for (auto e{ 0 }; e < m.GetNE(); e++) {
 
@@ -303,10 +281,10 @@ namespace maxwell {
 
 				if (!global_face_is_interior[local_edge_index_to_global_edge_index[local_edge]]) {
 
-					m_copy.SetAttribute(e, hesthaven_submeshing_tag);
+					m_copy.SetAttribute(e, hesthavenMeshingTag);
 					auto sm = SubMesh::CreateFromDomain(m_copy, volume_marker);
 					tagBdrAttributesForSubMesh(local_edge, sm);
-					FiniteElementSpace sm_fes(&sm, &fec);
+					FiniteElementSpace sm_fes(&sm, fec);
 					appendConnectivityMapsFromBoundaryFace(
 						fes,
 						sm_fes,
@@ -318,7 +296,7 @@ namespace maxwell {
 
 					FaceElementTransformations* f_trans = m_copy.GetFaceElementTransformations(local_edge_index_to_global_edge_index[local_edge]);
 					auto sm = assembleInteriorFaceSubMesh(m_copy, *f_trans);
-					FiniteElementSpace sm_fes(&sm, &fec);
+					FiniteElementSpace sm_fes(&sm, fec);
 					appendConnectivityMapsFromInteriorFace(
 						*f_trans,
 						e,
