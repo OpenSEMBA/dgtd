@@ -80,8 +80,6 @@ public:
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	void Mult(const mfem::Vector& in, mfem::Vector& out);
-	void emplaceEmat(const StorageIterator&, const FaceId, HesthavenElement&);
-	void emplaceDir(const StorageIterator&, const Direction, HesthavenElement&);
 
 private:
 
