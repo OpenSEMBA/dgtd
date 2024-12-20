@@ -412,6 +412,30 @@ DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, const int order)
 	return res;
 }
 
+GlobalBoundaryMap assembleGlobalBoundaryMap(Model& model, FiniteElementSpace& fes)
+{
+	GlobalBoundaryMap res;
+
+	auto markers = model.getBoundaryToMarker();
+
+	for (auto& [bdr_cond, marker] : markers) {
+		auto bf{ BilinearForm(&fes) };
+		bf.AddBdrFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0), markers[bdr_cond]);
+		bf.Assemble();
+		bf.Finalize();
+		auto bdr_matrix{ toEigen(*bf.SpMat().ToDenseMatrix()) };
+		std::vector<int> nodes;
+		for (auto r{ 0 }; r < bdr_matrix.rows(); r++) {
+			if (bdr_matrix(r, r) != 0.0) { //These conditions would be those of a node on itself, thus we only need to check if the 'self-value' is not zero.
+					nodes.push_back(r);
+			}
+		}
+		res.push_back(std::make_pair(bdr_cond, nodes));
+	}
+
+	return res;
+}
+
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
@@ -422,6 +446,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	elementMarker.Append(hesthavenMeshingTag);
 
 	connectivity_ =  assembleGlobalConnectivityMap(model_.getMesh(), dynamic_cast<const L2_FECollection*>(fes.FEColl()));
+	bdr_connectivity_ = assembleGlobalBoundaryMap(model, fes_);
 
 	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
 	{
@@ -524,6 +549,41 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 	}
 
 	// ----------- //
+
+	// --BOUNDARIES-- //
+
+	for (auto m{ 0 }; m < bdr_connectivity_.size(); m++) {
+		switch (bdr_connectivity_[m].first) {
+		case BdrCond::PEC:
+			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
+				dEx[bdr_connectivity_[m].second[v]] *= -2.0;
+				dEy[bdr_connectivity_[m].second[v]] *= -2.0;
+				dEz[bdr_connectivity_[m].second[v]] *= -2.0;
+			}
+			break;
+		case BdrCond::PMC:
+			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
+				dHx[bdr_connectivity_[m].second[v]] *= -2.0;
+				dHy[bdr_connectivity_[m].second[v]] *= -2.0;
+				dHz[bdr_connectivity_[m].second[v]] *= -2.0;
+			}
+			break;
+		case BdrCond::SMA:
+			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
+				dEx[bdr_connectivity_[m].second[v]] *= -1.0;
+				dEy[bdr_connectivity_[m].second[v]] *= -1.0;
+				dEz[bdr_connectivity_[m].second[v]] *= -1.0;
+				dHx[bdr_connectivity_[m].second[v]] *= -1.0;
+				dHy[bdr_connectivity_[m].second[v]] *= -1.0;
+				dHz[bdr_connectivity_[m].second[v]] *= -1.0;
+			}
+			break;
+		default:
+			throw std::runtime_error("Other BdrConds are yet to be implemented for Hesthaven Evolution Operator.");
+		}
+	}
+
+	// -------------- //
 
 	// Extend to all elements
 

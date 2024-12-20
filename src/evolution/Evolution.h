@@ -92,6 +92,8 @@ private:
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;
 	GlobalConnectivityMap connectivity_;
+	GlobalBoundaryMap bdr_connectivity_;
+
 };
 
 class CurvedEvolution : public mfem::TimeDependentOperator 

@@ -13,6 +13,8 @@ namespace maxwell {
 	using InteriorFaceConnectivityMaps = std::pair<std::vector<int>, std::vector<int>>;
 	using DynamicMatrix = Eigen::MatrixXd;
 	using GlobalConnectivityMap = std::vector<std::pair<int, int>>;
+	using BdrCondToNodes = std::pair<BdrCond, std::vector<int>>;
+	using GlobalBoundaryMap = std::vector<BdrCondToNodes>;
 	using ConnectivityMap = std::vector<std::pair<int, int>>;
 
 	struct MatrixCompareLessThan {
