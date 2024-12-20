@@ -40,6 +40,27 @@
             "value": "Debug"
           }
         }
+      },
+      {
+        "name": "msvc-x64-release",
+        "generator": "Visual Studio 17 2022",
+        "architecture": "x64",
+        "toolset": "host=x64",
+        "binaryDir": "${sourceDir}/build/${presetName}",
+        "cacheVariables": {
+          "CMAKE_TOOLCHAIN_FILE": {
+            "type": "FILEPATH",
+            "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+          },
+          "MAXWELL_USE_MFEM_AS_SUBDIRECTORY": {
+            "type": "BOOL",
+            "value": true
+          },
+          "CMAKE_BUILD_TYPE": {
+            "type": "STRING",
+            "value": "Release"
+          }
+        }
       }
     ],
     "buildPresets": [
@@ -54,6 +75,13 @@
         "configurePreset": "gnu-dbg",
         "displayName": "Build with GNU debug",
         "jobs": 0
+      },
+      {
+        "name": "msvc-x64-release",
+        "configurePreset": "msvc-x64-release",
+        "configuration": "Release",
+        "jobs": 0
       }
+
     ]
   }

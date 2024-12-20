@@ -9,7 +9,6 @@ on:
       - main
       - dev
    
-
 jobs:
   builds-and-tests:
     
@@ -42,20 +41,27 @@ jobs:
       env: 
         MFEM_DIR: 'mfem-geg-install/lib/cmake/mfem/'
       with:
-        configurePreset: 'gnu'
-        buildPreset: 'gnu'
+        configurePreset: 'msvc-x64-release'
+        buildPreset: 'msvc-x64-release'
         buildPresetAdditionalArgs: "['--parallel']"
       
-    - name: Run unit tests 
-      run: |
-        build/gnu/bin/hesthavenComparison_tests
-        build/gnu/bin/mfem_tests
-        build/gnu/bin/maxwell_tests
+    - name: Run hesthaven comparison tests 
+      run: build/msvc-x64-release/bin/hesthavenComparison_tests
+
+    - name: Run maxwell mfem tests 
+      run: build/msvc-x64-release/bin/mfem_tests
+
+    - name: Run maxwell tests 
+      run: build/msvc-x64-release/bin/maxwell_tests
+
+    - name: Run maxwell solver tests 
+      run: build/msvc-x64-release/bin/maxwell_solver_tests
+
+    - name: Run cases tests 
+      run: build/msvc-x64-release/bin/cases_tests
 
     # - name: Run system tests 
     #   run: |
-    #     build/gnu/bin/cases_tests
-    #     build/gnu/bin/maxwell_solver_tests
     #     build/gnu/bin/rcs_tests
 
 

@@ -52,9 +52,11 @@ jobs:
     - name: Run maxwell solver tests
       run: build/gnu/bin/maxwell_solver_tests
 
+    - name: Run maxwell cases tests
+      run: build/gnu/bin/cases_tests
+
     # - name: Run system tests 
     #   run: |
-    #     build/gnu/bin/cases_tests
     #     build/gnu/bin/rcs_tests
 
 
