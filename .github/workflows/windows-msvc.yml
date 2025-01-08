@@ -43,7 +43,10 @@ jobs:
       with:
         configurePreset: 'x64-Release'
         buildPreset: 'x64-Release'
-        buildPresetAdditionalArgs: "['--parallel']"
+        buildPresetAdditionalArgs: "['--parallel', '--verbose']"
+
+    - name: Verify test files exist
+      run: dir build/x64-Release/bin/
       
     - name: Run maxwell mfem tests 
       run: build/x64-Release/bin/mfem_tests.exe
