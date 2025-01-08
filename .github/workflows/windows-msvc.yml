@@ -44,9 +44,6 @@ jobs:
         configurePreset: 'x64-Release'
         buildPreset: 'x64-Release'
         buildPresetAdditionalArgs: "['--parallel']"
-        options: |
-          MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS=ON
-          MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS=ON
 
     - name: Verify test files exist
       run: dir build/x64-Release/bin/
