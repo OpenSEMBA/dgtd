@@ -80,7 +80,7 @@
         "name": "x64-Release",
         "configurePreset": "x64-Release",
         "configuration": "Release",
-        "jobs": 0
+        "jobs": 8
       }
 
     ]
