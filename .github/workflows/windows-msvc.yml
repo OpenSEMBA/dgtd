@@ -46,19 +46,19 @@ jobs:
         buildPresetAdditionalArgs: "['--parallel']"
       
     - name: Run maxwell mfem tests 
-      run: build/x64-Release/bin/mfem_tests
+      run: build/x64-Release/bin/mfem_tests.exe
 
     - name: Run hesthaven comparison tests 
-      run: build/x64-Release/bin/hesthavenComparison_tests
+      run: build/x64-Release/bin/hesthavenComparison_tests.exe
 
     - name: Run maxwell tests 
-      run: build/x64-Release/bin/maxwell_tests
+      run: build/x64-Release/bin/maxwell_tests.exe
 
     - name: Run maxwell solver tests 
-      run: build/x64-Release/bin/maxwell_solver_tests
+      run: build/x64-Release/bin/maxwell_solver_tests.exe
 
     - name: Run cases tests 
-      run: build/x64-Release/bin/cases_tests
+      run: build/x64-Release/bin/cases_tests.exe
 
     # - name: Run system tests 
     #   run: |
