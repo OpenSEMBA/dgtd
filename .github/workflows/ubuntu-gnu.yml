@@ -1,10 +1,10 @@
 name: ubuntu-gnu
 
-on:    
-  pull_request:
-    branches:
-      - main
-      - dev
+# on:    
+#   pull_request:
+#     branches:
+#       - main
+#       - dev
 
 jobs:
   
