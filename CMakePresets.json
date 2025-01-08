@@ -43,7 +43,7 @@
       },
       {
         "name": "x64-Release",
-        "generator": "Visual Studio 17 2022",
+        "generator": "Ninja",
         "architecture": "x64",
         "toolset": "host=x64",
         "binaryDir": "${sourceDir}/build/${presetName}",

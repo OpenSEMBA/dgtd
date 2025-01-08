@@ -43,25 +43,22 @@ jobs:
       with:
         configurePreset: 'x64-Release'
         buildPreset: 'x64-Release'
-        buildPresetAdditionalArgs: "['--parallel', '--verbose']"
+        buildPresetAdditionalArgs: "['--parallel']"
 
     - name: Verify test files exist
-      run: dir build/x64-Release/bin/Release
-
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
+      run: dir build/x64-Release/bin/
       
     - name: Run maxwell mfem tests 
-      run: build/x64-Release/bin/Release/mfem_tests.exe
+      run: build/x64-Release/bin/mfem_tests.exe
 
     - name: Run hesthaven comparison tests 
-      run: build/x64-Release/bin/Release/hesthavenComparison_tests.exe
+      run: build/x64-Release/bin/hesthavenComparison_tests.exe
 
     - name: Run maxwell tests 
-      run: build/x64-Release/bin/Release/maxwell_tests.exe
+      run: build/x64-Release/bin/maxwell_tests.exe
 
     - name: Run maxwell solver tests 
-      run: build/x64-Release/bin/Release/maxwell_solver_tests.exe
+      run: build/x64-Release/bin/maxwell_solver_tests.exe
 
     - name: Run cases tests 
       run: build/x64-Release/bin/Release/cases_tests.exe
