@@ -61,7 +61,7 @@ jobs:
       run: build/x64-Release/bin/maxwell_solver_tests.exe
 
     - name: Run cases tests 
-      run: build/x64-Release/bin/Release/cases_tests.exe
+      run: build/x64-Release/bin/cases_tests.exe
 
     # - name: Run system tests 
     #   run: |
