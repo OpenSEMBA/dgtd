@@ -44,8 +44,6 @@
       {
         "name": "x64-Release",
         "generator": "Ninja",
-        "architecture": "x64",
-        "toolset": "host=x64",
         "binaryDir": "${sourceDir}/build/${presetName}",
         "cacheVariables": {
           "CMAKE_TOOLCHAIN_FILE": {
