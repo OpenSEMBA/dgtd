@@ -32,10 +32,6 @@ jobs:
     #           -G Ninja
     #     cmake --build mfem-geg-build/ -j
     #     cmake --install mfem-geg-build/
-  
-
-    - name: Gives info on files on directory
-      run: dir /home/runner/work/dgtd/dgtd
 
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
