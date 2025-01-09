@@ -186,6 +186,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setSpectralEO(case_data["solver_options"]["spectral"]);
 		}
 
+		if (case_data["solver_options"].contains("high_order_mesh")) {
+			res.meshTypeCurved = true;
+		}
+
 	}
 	return res;
 }

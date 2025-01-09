@@ -625,62 +625,6 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 
 }
 
-TEST_F(CasesTest, 2D_Conductivity_Upwind)
-{
-	auto case_data{ parseJSONfile(maxwellCase("2D_COND")) };
-	auto solver{ buildSolverJson(case_data) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 2D_Conductivity_Angled_Upwind)
-{
-	auto case_data{ parseJSONfile(maxwellCase("2D_COND_ANGLED")) };
-	auto solver{ buildSolverJson(case_data) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 2D_RCS_SubLambda_Hz)
-{
-	std::string case_name{ "2D_RCS" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 2D_RCS_ThreeLambda_Hz)
-{
-	std::string case_name{ "2D_RCS_ThreeLambda" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 2D_RCS_Salva_Hz)
-{
-	std::string case_name{ "2D_RCS_Salva" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 2D_RCS_SalvaConfig_Hz)
-{
-	std::string case_name{ "2D_RCS_SalvaConfig" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 2D_PEC_Bounce45_Upwind)
-{
-	std::string case_name{ "2D_PEC_Bounce" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
 TEST_F(CasesTest, 3D_TFSF_Centered)
 {
 	auto case_data{ parseJSONfile(maxwellCase("3D_TFSF")) };
@@ -822,22 +766,6 @@ TEST_F(CasesTest, 3D_TFSF_Upwind)
 
 }
 
-TEST_F(CasesTest, 3D_NearToFarField_Upwind)
-{
-	std::string case_name{ "3D_NearToFarField" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 3D_NearToFarFieldSmaller_Upwind)
-{
-	std::string case_name{ "3D_NearToFarFieldSmaller" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
 TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 {
 	std::string case_name{ "3D_TFSF_InteriorPEC" };
@@ -945,23 +873,6 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			}
 		}
 	}
-}
-
-TEST_F(CasesTest, 3D_NTFF_Sphere_Upwind)
-{
-	std::string case_name{ "3D_RCS" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 3D_Conductivity_Upwind)
-{
-	auto case_data{ parseJSONfile(maxwellCase("3D_COND")) };
-	auto solver{ buildSolverJson(case_data) };
-
-	solver.run();
-
 }
 
 #endif

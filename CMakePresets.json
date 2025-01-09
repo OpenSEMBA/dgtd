@@ -40,6 +40,18 @@
             "value": "Debug"
           }
         }
+      },
+      {
+        "name": "x64-Release",
+        "generator": "Ninja",
+        "binaryDir": "${sourceDir}/build/${presetName}",
+        "cacheVariables": {
+          "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+          "MAXWELL_USE_MFEM_AS_SUBDIRECTORY": "ON",
+          "MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+          "MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+          "CMAKE_BUILD_TYPE": "Release"
+        }
       }
     ],
     "buildPresets": [
@@ -54,6 +66,13 @@
         "configurePreset": "gnu-dbg",
         "displayName": "Build with GNU debug",
         "jobs": 0
+      },
+      {
+        "name": "x64-Release",
+        "configurePreset": "x64-Release",
+        "configuration": "Release",
+        "jobs": 8
       }
+
     ]
   }
