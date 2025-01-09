@@ -41,5 +41,25 @@
         "CMAKE_BUILD_TYPE": "Release"
       }
     }
+  ],
+  "buildPresets": [
+    {
+      "name": "gnu",
+      "configurePreset": "gnu",
+      "displayName": "Build with GNU release",
+      "jobs": 0
+    },
+    {
+      "name": "gnu-dbg",
+      "configurePreset": "gnu-dbg",
+      "displayName": "Build with GNU debug",
+      "jobs": 0
+    },
+    {
+      "name": "x64-Release",
+      "configurePreset": "x64-Release",
+      "configuration": "Release",
+      "jobs": 0
+    }
   ]
 }
