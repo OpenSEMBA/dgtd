@@ -33,13 +33,17 @@ jobs:
     #     cmake --build mfem-geg-build/ -j
     #     cmake --install mfem-geg-build/
   
+
+    - name: Gives info on files on directory
+      run: dir /home/runner/work/dgtd/dgtd
+
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
       with:
         configurePreset: 'gnu'
         buildPreset: 'gnu'
         buildPresetAdditionalArgs: "['--parallel']"
-      
+
     - name: Run hesthavenComparison tests 
       run: build/gnu/bin/hesthavenComparison_tests
 
