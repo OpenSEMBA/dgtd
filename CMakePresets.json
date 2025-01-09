@@ -30,6 +30,16 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
+    },
+    {
+      "name": "x64-Release",
+      "displayName": "x64 Release",
+      "inherits": "default",
+      "cacheVariables": {
+        "MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+        "MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ]
 }
