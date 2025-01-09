@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.5)
-
 message(STATUS "Creating build system for maxwell_Tests")
 
 if (MAXWELL_USE_MPI)

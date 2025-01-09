@@ -75,7 +75,7 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 
 TEST_F(CasesTest, 1D_TFSF_Centered)
 {
-	auto case_data{ parseJSONfile(maxwellCase("1D_TFSF")) };
+	auto case_data = parseJSONfile(maxwellCase("1D_TFSF"));
 	case_data["solver_options"]["solver_type"] = "centered";
 	auto solver{ buildSolver(case_data, maxwellCase("1D_TFSF"), true) };
 
@@ -288,7 +288,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 
 TEST_F(CasesTest, 2D_PEC_Centered)
 {
-	auto case_data{ parseJSONfile(maxwellCase("2D_PEC")) };
+	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["solver_type"] = "centered";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
@@ -416,7 +416,7 @@ TEST_F(CasesTest, 2D_PEC_Upwind)
 
 TEST_F(CasesTest, 2D_TFSF_Centered)
 {
-	auto case_data{ parseJSONfile(maxwellCase("2D_TFSF_TEy")) };
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
 	case_data["solver_options"]["solver_type"] = "centered";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
 
@@ -627,7 +627,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 
 TEST_F(CasesTest, 3D_TFSF_Centered)
 {
-	auto case_data{ parseJSONfile(maxwellCase("3D_TFSF")) };
+	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"]["solver_type"] = "centered";
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
 
