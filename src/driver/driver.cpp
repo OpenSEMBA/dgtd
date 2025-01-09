@@ -466,7 +466,7 @@ json parseJSONfile(const std::string& case_name)
 
 maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 {
-	auto case_data{ parseJSONfile(case_name) };
+	auto case_data = parseJSONfile(case_name);
 
 	return buildSolver(case_data, case_name, isTest);
 }
