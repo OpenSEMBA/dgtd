@@ -20,6 +20,8 @@
       "displayName": "GNU release",
       "inherits": "default",
       "cacheVariables": {
+        "MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+        "MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
