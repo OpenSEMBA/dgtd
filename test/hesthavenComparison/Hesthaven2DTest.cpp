@@ -740,11 +740,11 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
 TEST_F(MFEMHesthaven2D, connectivityMapO1)
 {
 	const int basis_order = 1;
-	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
-	const auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
 
-	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, &fec);
+	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(
+		Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE), 
+		&L2_FECollection(basis_order, 2, BasisType::GaussLobatto)
+	);
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({
 		{0,4},
@@ -770,11 +770,11 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 TEST_F(MFEMHesthaven2D, connectivityMapO2)
 {
 	const int basis_order = 2;
-	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
-	const auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
 
-	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, &fec);
+	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(
+		Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE), 
+		&L2_FECollection(basis_order, 2, BasisType::GaussLobatto)
+	);
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({ 
 		{0,8},   

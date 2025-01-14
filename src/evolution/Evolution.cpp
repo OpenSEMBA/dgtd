@@ -429,14 +429,13 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		mesh.SetAttribute(e, hesthavenMeshingTag);
 		auto sm = SubMesh::CreateFromDomain(mesh, elementMarker);
 		restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
-		FiniteElementSpace sm_fes(&sm, dynamic_cast<const L2_FECollection*>(fes.FEColl()));
+		FiniteElementSpace subFES(&sm, dynamic_cast<const L2_FECollection*>(fes.FEColl()));
 
-		auto boundary_markers = assembleBoundaryMarkers(sm_fes);
-		for (auto f{ 0 }; f < sm_fes.GetNF(); f++) {
+		for (auto f{ 0 }; f < subFES.GetNF(); f++) {
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
 
-		auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm, sm_fes.FEColl()->GetOrder()) };
+		auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm, subFES.FEColl()->GetOrder()) };
 		StorageIterator it = matrixStorage_.find(inverseMassMatrix);
 		if (it == matrixStorage_.end()) {
 			matrixStorage_.insert(inverseMassMatrix);
@@ -447,12 +446,13 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			hestElem.invmass = &(*it);
 		}
 
+		auto boundaryMarkers = assembleBoundaryMarkers(subFES);
 		for (auto f{ 0 }; f < sm.GetNEdges(); f++){
-			auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[f]) };
-			StorageIterator it = matrixStorage_.find(surface_matrix);
+			auto surfaceMatrix{ assembleConnectivityFaceMassMatrix(subFES, boundaryMarkers[f]) };
+			StorageIterator it = matrixStorage_.find(surfaceMatrix);
 			if (it == matrixStorage_.end()) {
-				matrixStorage_.insert(surface_matrix);
-				StorageIterator it = matrixStorage_.find(surface_matrix);
+				matrixStorage_.insert(surfaceMatrix);
+				StorageIterator it = matrixStorage_.find(surfaceMatrix);
 				hestElem.emat.push_back(&(*it));
 			}
 			else {
@@ -461,11 +461,11 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		}
 
 		for (auto d{ X }; d <= Z; d++) {
-			auto derivative_matrix{ toEigen(*buildDerivativeOperator(d, sm_fes)->SpMat().ToDenseMatrix())};
-			StorageIterator it = matrixStorage_.find(derivative_matrix);
+			auto derivativeMatrix{ toEigen(*buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix())};
+			StorageIterator it = matrixStorage_.find(derivativeMatrix);
 			if (it == matrixStorage_.end()) {
-				matrixStorage_.insert(derivative_matrix);
-				StorageIterator it = matrixStorage_.find(derivative_matrix);
+				matrixStorage_.insert(derivativeMatrix);
+				StorageIterator it = matrixStorage_.find(derivativeMatrix);
 				hestElem.dir[d] = &(*it);
 			}
 			else {
@@ -475,14 +475,14 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 		for (auto f{ 0 }; f < sm.GetNEdges(); f++) {
 			Vector normal(sm.SpaceDimension());
-			ElementTransformation* f_trans = sm.GetEdgeTransformation(f);
-			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
-			CalcOrtho(f_trans->Jacobian(), normal);
-			hestElem.normals[X].resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.normals[Y].resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.normals[Z].resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.fscale    .resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			for (auto b{ 0 }; b < sm_fes.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
+			ElementTransformation* faceTrans = sm.GetEdgeTransformation(f);
+			faceTrans->SetIntPoint(&Geometries.GetCenter(faceTrans->GetGeometryType()));
+			CalcOrtho(faceTrans->Jacobian(), normal);
+			hestElem.normals[X].resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
+			hestElem.normals[Y].resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
+			hestElem.normals[Z].resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
+			hestElem.fscale    .resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
+			for (auto b{ 0 }; b < subFES.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
 				hestElem.normals[X][b] = normal[0];
 				hestElem.fscale[b] = abs(normal[0]); //likewise for fscale, surface per volume ratio per node at face
 				if (sm.SpaceDimension() >= 2) {
