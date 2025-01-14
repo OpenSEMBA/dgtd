@@ -19,6 +19,16 @@ namespace maxwell {
 		return std::make_pair(vmapM, vmapP);
 	}
 
+	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
+	{
+		// Create backup of attributes
+		auto res{ std::map<int,Attribute>() };
+		for (auto e{ 0 }; e < m.GetNE(); e++) {
+			res[e] = m.GetAttribute(e);
+		}
+		return res;
+	}
+
 	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy, const std::map<int, Attribute>& att_map)
 	{
 		m_copy.SetAttribute(f_trans->Elem1No, att_map.at(f_trans->Elem1No));
@@ -51,18 +61,6 @@ namespace maxwell {
 	{
 		m_copy.SetAttribute(f_trans->Elem1No, hesthavenMeshingTag);
 		m_copy.SetAttribute(f_trans->Elem2No, hesthavenMeshingTag);
-	}
-
-	SubMesh createSubMeshFromInteriorFace(Mesh& m_copy, const std::map<int, Attribute>& att_map)
-	{
-		Array<int> sm_tag;
-		sm_tag.Append(hesthavenMeshingTag);
-		auto faces = getFacesForElement(m_copy, 0);
-		auto f_trans = getInteriorFaceTransformation(m_copy, faces);
-		markElementsForSubMeshing(f_trans, m_copy);
-		auto res = SubMesh::CreateFromDomain(m_copy, sm_tag);
-		restoreOriginalAttributesAfterSubMeshing(f_trans, m_copy, att_map);
-		return res;
 	}
 
 	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int start_row, const int start_col)

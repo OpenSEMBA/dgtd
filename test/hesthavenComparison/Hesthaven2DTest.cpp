@@ -148,15 +148,6 @@ protected:
 		return res;
 	}
 
-	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
-	{
-		// Create backup of attributes
-		auto res{ std::map<int,Attribute>() };
-		for (auto e{ 0 }; e < m.GetNE(); e++) {
-			res[e] = m.GetAttribute(e);
-		}
-		return res;
-	}
 	DynamicMatrix assembleMassMatrix(FiniteElementSpace& fes)
 	{
 		BilinearForm bf(&fes);
@@ -166,6 +157,18 @@ protected:
 		bf.Finalize();
 
 		return toEigen(*bf.SpMat().ToDenseMatrix());
+	}
+
+	SubMesh assembleInteriorFaceSubMesh(Mesh& m_copy, const std::map<int, Attribute>& att_map)
+	{
+		Array<int> sm_tag;
+		sm_tag.Append(hesthavenMeshingTag);
+		auto faces = getFacesForElement(m_copy, 0);
+		auto f_trans = getInteriorFaceTransformation(m_copy, faces);
+		markElementsForSubMeshing(f_trans, m_copy);
+		auto res = SubMesh::CreateFromDomain(m_copy, sm_tag);
+		restoreOriginalAttributesAfterSubMeshing(f_trans, m_copy, att_map);
+		return res;
 	}
 
 };
@@ -810,7 +813,7 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
 	// Not touching the original mesh.
 	auto m_copy{ Mesh(m) };
 	auto att_map{ mapOriginalAttributes(m) };
-	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+	auto sm{ assembleInteriorFaceSubMesh(m_copy, att_map) };
 
 	// Compute two-element flux matrix 
 	auto sm_fes{ FiniteElementSpace(&sm, &fec) };
@@ -844,7 +847,7 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 	// Not touching the original mesh.
 	auto m_copy{ Mesh(m) };
 	auto att_map{ mapOriginalAttributes(m) };
-	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+	auto sm{ assembleInteriorFaceSubMesh(m_copy, att_map) };
 
 	// Compute two-element flux matrix
 	auto sm_fes{ FiniteElementSpace(&sm, &fec) };

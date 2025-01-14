@@ -413,20 +413,62 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
 
-	connectivity_ =  assembleGlobalConnectivityMap(model_.getMesh(), dynamic_cast<const L2_FECollection*>(fes.FEColl()));
+	auto fec{ dynamic_cast<const L2_FECollection*>(fes.FEColl()) };
+
+	connectivity_ =  assembleGlobalConnectivityMap(model_.getMesh(), fec);
 	bdr_connectivity_ = assembleGlobalBoundaryMap(model, fes_);
 
-	for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++)
+	const auto* cmesh = &model.getConstMesh();
+	auto mesh = Mesh(model.getMesh());
+	auto attMap{ mapOriginalAttributes(mesh) };
+	auto face2bdrface{ cmesh->GetFaceToBdrElMap() };
+
+	Array<int> volumeMarker;
+	volumeMarker.Append(hesthavenMeshingTag);
+	Array<int> boundaryMarker(hesthavenMeshingTag);
+	boundaryMarker = 0;
+	boundaryMarker[hesthavenMeshingTag - 1] = 1;
+
+	for (auto b{ 0 }; b < cmesh->GetNBE(); b++)
+	{
+
+		auto faceid{ face2bdrface.Find(b) };
+
+		if (faceid != -1) {
+
+			auto faceTrans{ mesh.GetFaceElementTransformations(faceid) };
+
+		    if(faceTrans->Elem2No != -1) {
+
+				auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans);
+				restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
+				FiniteElementSpace sm_fes(&sm, fec);
+
+			}
+			else {
+
+				//Need to tag the specific face through parent to child mapping;
+				mesh.SetAttribute(faceTrans->Elem1No, hesthavenMeshingTag);
+				auto sm = SubMesh::CreateFromDomain(mesh, volumeMarker);
+				restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
+				tagBdrAttributesForSubMesh(faceid, sm);
+				FiniteElementSpace sm_fes(&sm, fec);
+
+			}
+		}
+			
+	}
+
+	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
 	{
 		HesthavenElement hestElem;
 		hestElem.id = e;
-		hestElem.geom = model.getConstMesh().GetElementBaseGeometry(e);
+		hestElem.geom = cmesh->GetElementBaseGeometry(e);
 
 		auto m{ Mesh(model.getMesh()) };
 
 		m.SetAttribute(e, hesthavenMeshingTag);
 		auto sm = SubMesh::CreateFromDomain(m, elementMarker);
-		auto fec = dynamic_cast<const L2_FECollection*>(fes.FEColl());
 		FiniteElementSpace sm_fes(&sm, dynamic_cast<const L2_FECollection*>(fes.FEColl()));
 
 		auto boundary_markers = assembleBoundaryMarkers(sm_fes);
@@ -476,10 +518,10 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			ElementTransformation* f_trans = sm.GetEdgeTransformation(f);
 			f_trans->SetIntPoint(&Geometries.GetCenter(f_trans->GetGeometryType()));
 			CalcOrtho(f_trans->Jacobian(), normal);
-			hestElem.normals[X].resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.normals[Y].resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.normals[Z].resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
-			hestElem.fscale    .resize(model.getConstMesh().GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.normals[X].resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.normals[Y].resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.normals[Z].resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
+			hestElem.fscale    .resize(cmesh->GetElement(e)->GetNEdges() * (sm_fes.FEColl()->GetOrder() + 1));
 			for (auto b{ 0 }; b < sm_fes.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
 				hestElem.normals[X][b] = normal[0];
 				hestElem.fscale[b] = abs(normal[0]); //likewise for fscale, surface per volume ratio per node at face
