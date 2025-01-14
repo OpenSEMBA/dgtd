@@ -81,6 +81,11 @@ public:
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
+	GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() { return attToIntBdrMap_; }
+	const GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() const { return attToIntBdrMap_; }	
+	GeomTagToBoundary& getGeomTagToBoundaryCond() { return attToBdrMap_; }
+	const GeomTagToBoundary& getGeomTagToBoundaryCond() const { return attToBdrMap_; }
+
 
 	mfem::Vector initialiseGeomTagVector() const;
 	mfem::Vector buildEpsMuPiecewiseVector(const FieldType& f) const;

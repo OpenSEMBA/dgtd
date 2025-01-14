@@ -415,49 +415,14 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes.FEColl()) };
 
-	connectivity_ =  assembleGlobalConnectivityMap(model_.getMesh(), fec);
+	auto connectivityMesh = Mesh(model.getMesh());
+
+	connectivity_ =  assembleGlobalConnectivityMap(connectivityMesh, fec);
 	bdr_connectivity_ = assembleGlobalBoundaryMap(model, fes_);
 
 	const auto* cmesh = &model.getConstMesh();
-	auto mesh = Mesh(model.getMesh());
+	auto mesh = Mesh(model.getMesh()); 
 	auto attMap{ mapOriginalAttributes(mesh) };
-	auto face2bdrface{ cmesh->GetFaceToBdrElMap() };
-
-	Array<int> volumeMarker;
-	volumeMarker.Append(hesthavenMeshingTag);
-	Array<int> boundaryMarker(hesthavenMeshingTag);
-	boundaryMarker = 0;
-	boundaryMarker[hesthavenMeshingTag - 1] = 1;
-
-	for (auto b{ 0 }; b < cmesh->GetNBE(); b++)
-	{
-
-		auto faceid{ face2bdrface.Find(b) };
-
-		if (faceid != -1) {
-
-			auto faceTrans{ mesh.GetFaceElementTransformations(faceid) };
-
-		    if(faceTrans->Elem2No != -1) {
-
-				auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans);
-				restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
-				FiniteElementSpace sm_fes(&sm, fec);
-
-			}
-			else {
-
-				//Need to tag the specific face through parent to child mapping;
-				mesh.SetAttribute(faceTrans->Elem1No, hesthavenMeshingTag);
-				auto sm = SubMesh::CreateFromDomain(mesh, volumeMarker);
-				restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
-				tagBdrAttributesForSubMesh(faceid, sm);
-				FiniteElementSpace sm_fes(&sm, fec);
-
-			}
-		}
-			
-	}
 
 	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
 	{
@@ -465,10 +430,9 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		hestElem.id = e;
 		hestElem.geom = cmesh->GetElementBaseGeometry(e);
 
-		auto m{ Mesh(model.getMesh()) };
-
-		m.SetAttribute(e, hesthavenMeshingTag);
-		auto sm = SubMesh::CreateFromDomain(m, elementMarker);
+		mesh.SetAttribute(e, hesthavenMeshingTag);
+		auto sm = SubMesh::CreateFromDomain(mesh, elementMarker);
+		restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
 		FiniteElementSpace sm_fes(&sm, dynamic_cast<const L2_FECollection*>(fes.FEColl()));
 
 		auto boundary_markers = assembleBoundaryMarkers(sm_fes);
@@ -631,14 +595,15 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 		auto fluxEy =        hestElemStorage_[e].normals[Z].asDiagonal() * dHx_Elem + hestElemStorage_[e].normals[X].asDiagonal() * dHz_Elem + alpha * (dEy_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Y]);
 		auto fluxEz =        hestElemStorage_[e].normals[X].asDiagonal() * dHy_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dHx_Elem + alpha * (dEz_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Z]);
 
-		Eigen::Map<Eigen::VectorXd> Ex_out(out.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-		Eigen::Map<Eigen::VectorXd> Ey_out(out.GetData() + 1 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-		Eigen::Map<Eigen::VectorXd> Ez_out(out.GetData() + 2 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-		Eigen::Map<Eigen::VectorXd> Hx_out(out.GetData() + 3 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-		Eigen::Map<Eigen::VectorXd> Hy_out(out.GetData() + 4 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-		Eigen::Map<Eigen::VectorXd> Hz_out(out.GetData() + 5 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-
 	}
+
+	//May have to pull outside the loop
+	Eigen::Map<Eigen::VectorXd> Ex_out(out.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Ey_out(out.GetData() + 1 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Ez_out(out.GetData() + 2 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Hx_out(out.GetData() + 3 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Hy_out(out.GetData() + 4 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Hz_out(out.GetData() + 5 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 
 }
 

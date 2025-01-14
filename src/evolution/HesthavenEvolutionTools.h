@@ -60,32 +60,33 @@ namespace maxwell {
 		std::vector<int> vmapB;
 	};
 
-	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy, const std::map<int, Attribute>& att_map);
-	void markElementsForSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy);
-	void removeColumn(DynamicMatrix& matrix, const int colToRemove);
-	void removeZeroColumns(DynamicMatrix& matrix);
-	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, const int element_index, FiniteElementSpace& fes, GlobalConnectivityMap& map);
-	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& fes, FiniteElementSpace& sm_fes, const DynamicMatrix& surface_matrix, GlobalConnectivityMap& map);
-	void tagBdrAttributesForSubMesh(const int edge, SubMesh& sm);
+	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* faceTrans, Mesh&, const std::map<int, Attribute>&);
+	void restoreOriginalAttributesAfterSubMeshing(ElementId, Mesh&, const std::map<int, Attribute>&);
+	void markElementsForSubMeshing(FaceElementTransformations* faceTrans, Mesh&);
+	void removeColumn(DynamicMatrix&, const int colToRemove);
+	void removeZeroColumns(DynamicMatrix&);
+	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, const ElementId, FiniteElementSpace&, GlobalConnectivityMap&);
+	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivityMap&);
+	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
 
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m);
 
-	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int start_row, const int start_col);
+	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int startRow, const int startCol);
 	DynamicMatrix getElementMassMatrixFromGlobal(const int el, const DynamicMatrix& global);
 	DynamicMatrix getFaceMassMatrixFromGlobal(const DynamicMatrix& global);
-	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& fes, Array<int> boundary_marker);
-	DynamicMatrix assembleEmat(FiniteElementSpace& fes, std::vector<Array<int>>& boundary_markers);
-	DynamicMatrix assembleInteriorFluxMatrix(FiniteElementSpace& fes);
-	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace& fes);
+	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& fes, Array<int> boundaryMarker);
+	DynamicMatrix assembleEmat(FiniteElementSpace& fes, std::vector<Array<int>>& boundaryMarkers);
+	DynamicMatrix assembleInteriorFluxMatrix(FiniteElementSpace&);
+	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace&);
 	
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans);
 	
-	std::vector<Array<int>> assembleBoundaryMarkers(FiniteElementSpace& fes);
-	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace& fes, Array<int>& boundary_marker);
-	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& flux_mat);
-	Array<int> getFacesForElement(const Mesh& m, const int el);
-	FaceElementTransformations* getInteriorFaceTransformation(Mesh& m, const Array<int>& faces);
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec);
+	std::vector<Array<int>> assembleBoundaryMarkers(FiniteElementSpace&);
+	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace&, Array<int>& boundaryMarker);
+	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& fluxMatrix);
+	Array<int> getFacesForElement(const Mesh&, const ElementId);
+	FaceElementTransformations* getInteriorFaceTransformation(Mesh&, const Array<int>& faces);
+	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh&, const L2_FECollection*);
 
 
 
