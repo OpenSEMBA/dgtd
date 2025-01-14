@@ -254,7 +254,7 @@ namespace maxwell {
 		sm.bdr_attributes.Append(hesthavenMeshingTag);
 	}
 
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
+	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh m, const L2_FECollection* fec)
 	{
 		GlobalConnectivityMap res;
 		FiniteElementSpace fes(&m, fec);

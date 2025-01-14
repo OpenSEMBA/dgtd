@@ -380,11 +380,9 @@ DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, const int order)
 	return res;
 }
 
-GlobalBoundaryMap assembleGlobalBoundaryMap(Model& model, FiniteElementSpace& fes)
+GlobalBoundaryMap assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteElementSpace& fes)
 {
 	GlobalBoundaryMap res;
-
-	auto markers = model.getBoundaryToMarker();
 
 	for (auto& [bdr_cond, marker] : markers) {
 		auto bf{ BilinearForm(&fes) };
@@ -415,10 +413,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes.FEColl()) };
 
-	auto connectivityMesh = Mesh(model.getMesh());
-
-	connectivity_ =  assembleGlobalConnectivityMap(connectivityMesh, fec);
-	bdr_connectivity_ = assembleGlobalBoundaryMap(model, fes_);
+	connectivity_ =  assembleGlobalConnectivityMap(Mesh(model.getMesh()), fec);
+	bdr_connectivity_ = assembleGlobalBoundaryMap(model.getBoundaryToMarker(), fes_);
 
 	const auto* cmesh = &model.getConstMesh();
 	auto mesh = Mesh(model.getMesh()); 
