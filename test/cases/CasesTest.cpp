@@ -875,16 +875,4 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 	}
 }
 
-TEST_F(CasesTest, 2D_Boundary_Tests)
-{
-	auto case_data = parseJSONfile(maxwellCase("2D_Boundary_Tests"));
-	auto solver{ buildSolver(case_data, maxwellCase("2D_Boundary_Tests"), true) };
-	auto mesh = Mesh(solver.getModel().getMesh());
-	const auto cmesh = Mesh(solver.getModel().getMesh());
-	FiniteElementSpace& fes = solver.getFES();
-
-	
-	
-}
-
 #endif
