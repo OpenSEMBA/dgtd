@@ -254,17 +254,18 @@ namespace maxwell {
 		sm.bdr_attributes.Append(hesthavenMeshingTag);
 	}
 
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh m, const L2_FECollection* fec)
+	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
 	{
 		GlobalConnectivityMap res;
-		FiniteElementSpace fes(&m, fec);
+		auto mesh{ Mesh(m) };
+		FiniteElementSpace fes(&mesh, fec);
 
 		std::map<FaceId, bool> global_face_is_interior;
-		for (auto f{ 0 }; f < m.GetNEdges(); f++) {
-			global_face_is_interior[f] = m.FaceIsInterior(f);
+		for (auto f{ 0 }; f < mesh.GetNEdges(); f++) {
+			global_face_is_interior[f] = mesh.FaceIsInterior(f);
 		}
 
-		Table globalElementToEdge = m.ElementToEdgeTable();
+		Table globalElementToEdge = mesh.ElementToEdgeTable();
 
 		Array<int> volumeMarker;
 		volumeMarker.Append(hesthavenMeshingTag);
@@ -273,15 +274,14 @@ namespace maxwell {
 		boundaryMarker = 0;
 		boundaryMarker[hesthavenMeshingTag - 1] = 1;
 
-		auto mesh{ Mesh(m) };
 		auto attMap{ mapOriginalAttributes(mesh) };
 
-		for (auto e{ 0 }; e < m.GetNE(); e++) {
+		for (auto e{ 0 }; e < mesh.GetNE(); e++) {
 
 			Array<int> localEdgeIndexToGlobalEdgeIndex;
 			globalElementToEdge.GetRow(e, localEdgeIndexToGlobalEdgeIndex);
 
-			for (auto localEdge{ 0 }; localEdge < m.GetElement(e)->GetNEdges(); localEdge++) {
+			for (auto localEdge{ 0 }; localEdge < mesh.GetElement(e)->GetNEdges(); localEdge++) {
 
 				if (!global_face_is_interior[localEdgeIndexToGlobalEdgeIndex[localEdge]]) {
 

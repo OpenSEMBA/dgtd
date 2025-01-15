@@ -86,8 +86,6 @@ namespace maxwell {
 	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& fluxMatrix);
 	Array<int> getFacesForElement(const Mesh&, const ElementId);
 	FaceElementTransformations* getInteriorFaceTransformation(Mesh&, const Array<int>& faces);
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh, const L2_FECollection*);
-
-
+	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh&, const L2_FECollection*);
 
 }

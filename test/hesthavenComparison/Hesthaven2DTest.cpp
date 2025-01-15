@@ -741,11 +741,9 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 {
 	const int basis_order = 1;
 	auto mesh { Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 
-	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(
-		Mesh(mesh),
-		&L2_FECollection(basis_order, 2, BasisType::GaussLobatto)
-	);
+	GlobalConnectivityMap element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({
 		{0,4},
@@ -773,11 +771,9 @@ TEST_F(MFEMHesthaven2D, connectivityMapO2)
 	const int basis_order = 2;
 
 	auto mesh{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 
-	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(
-		Mesh(mesh),
-		&L2_FECollection(basis_order, 2, BasisType::GaussLobatto)
-	);
+	GlobalConnectivityMap element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({ 
 		{0,8},   
