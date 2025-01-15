@@ -411,13 +411,15 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
 
+	auto mesh{ Mesh(model.getMesh()) };
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes.FEColl()) };
 
-	connectivity_ =  assembleGlobalConnectivityMap(Mesh(model.getMesh()), fec);
+
+	connectivity_ =  assembleGlobalConnectivityMap(mesh, fec);
 	bdr_connectivity_ = assembleGlobalBoundaryMap(model.getBoundaryToMarker(), fes_);
 
 	const auto* cmesh = &model.getConstMesh();
-	auto mesh = Mesh(model.getMesh()); 
+	mesh = Mesh(model.getMesh()); 
 	auto attMap{ mapOriginalAttributes(mesh) };
 
 	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
