@@ -420,7 +420,7 @@ const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, cons
 {
 	Eigen::VectorXd res(flux.size());
 	const auto numFaces{ returnFaces(hestElem.geom) };
-	for (auto f{ 0 }; f < numFaces; f++) {
+	for (auto f{ 0 }; f <= numFaces; f++) {
 		const int cols{ int(hestElem.emat[f]->cols()) };
 		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = *hestElem.invmass * *hestElem.emat[f] * 
 			(hestElem.fscale(Eigen::seq(f * cols, (f * cols + cols) - 1)).asDiagonal() * flux(Eigen::seq(f * cols, (f * cols + cols) - 1)));
