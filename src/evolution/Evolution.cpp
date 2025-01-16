@@ -366,14 +366,21 @@ DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	return toEigen(*bf.SpMat().ToDenseMatrix());
 }
 
-DynamicMatrix getReferenceInverseMassMatrix(const Mesh& mesh, const int order)
+DynamicMatrix getReferenceInverseMassMatrix(const Element::Type elType, const int order, const int dimension)
 {
-	auto m{ Mesh::MakeCartesian2D(1, 1, mesh.GetElementType(0)) };
-	auto fec{ L2_FECollection(order, 2, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
-
-	// Not touching the original mesh.
-	auto m_copy{ Mesh(m) };
+	std::unique_ptr<Mesh> m;
+	switch (dimension) {
+	case 2:
+		m = std::make_unique<Mesh>(Mesh::MakeCartesian2D(1, 1, elType));
+		break;
+	case 3:
+		m = std::make_unique<Mesh>(Mesh::MakeCartesian3D(1, 1, 1, elType));
+		break;
+	default:
+		throw std::runtime_error("Hesthaven Evolution Operator only supports dimensions 2 or 3.");
+	}
+	auto fec{ L2_FECollection(order, dimension, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(m.get(), &fec)};
 	auto mass_mat{ assembleInverseMassMatrix(fes) };
 
 	DynamicMatrix res = getElementMassMatrixFromGlobal(0, mass_mat);
@@ -402,6 +409,25 @@ GlobalBoundaryMap assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteEle
 	return res;
 }
 
+const int returnFaces(const Geometry::Type& geom)
+{
+	int res;
+	Geometry::Dimension[geom] == 2 ? res = Geometry::NumEdges[geom] : res = Geometry::NumFaces[geom];
+	return res;
+}
+
+const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, const Eigen::VectorXd& flux)
+{
+	Eigen::VectorXd res(flux.size());
+	const auto numFaces{ returnFaces(hestElem.geom) };
+	for (auto f{ 0 }; f < numFaces; f++) {
+		const int cols{ int(hestElem.emat[f]->cols()) };
+		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = *hestElem.invmass * *hestElem.emat[f] * flux(Eigen::seq(f * cols, (f * cols + cols) - 1));
+	}
+	res /= 2.0;
+	return res;
+}
+
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
@@ -413,7 +439,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	auto mesh{ Mesh(model.getMesh()) };
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes.FEColl()) };
-
 
 	connectivity_ =  assembleGlobalConnectivityMap(mesh, fec);
 	bdr_connectivity_ = assembleGlobalBoundaryMap(model.getBoundaryToMarker(), fes_);
@@ -437,7 +462,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
 
-		auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm, subFES.FEColl()->GetOrder()) };
+		auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm.GetElementType(0), subFES.FEColl()->GetOrder(), sm.Dimension())};
 		StorageIterator it = matrixStorage_.find(inverseMassMatrix);
 		if (it == matrixStorage_.end()) {
 			matrixStorage_.insert(inverseMassMatrix);
@@ -507,6 +532,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 {
+	// --MAP BETWEEN MFEM VECTOR AND EIGEN VECTOR-- //
+
 	const Eigen::Map<Eigen::VectorXd> Ex_in(in.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 	const Eigen::Map<Eigen::VectorXd> Ey_in(in.GetData() + 1 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 	const Eigen::Map<Eigen::VectorXd> Ez_in(in.GetData() + 2 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
@@ -514,10 +541,17 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 	const Eigen::Map<Eigen::VectorXd> Hy_in(in.GetData() + 4 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 	const Eigen::Map<Eigen::VectorXd> Hz_in(in.GetData() + 5 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 
+	Eigen::Map<Eigen::VectorXd> Ex_out(out.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Ey_out(out.GetData() + 1 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Ez_out(out.GetData() + 2 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Hx_out(out.GetData() + 3 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Hy_out(out.GetData() + 4 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+	Eigen::Map<Eigen::VectorXd> Hz_out(out.GetData() + 5 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
+
 	// ---JUMPS--- //
 
-	Eigen::VectorXd dEx(fes_.GetNDofs()), dEy(fes_.GetNDofs()), dEz(fes_.GetNDofs()),
-					dHx(fes_.GetNDofs()), dHy(fes_.GetNDofs()), dHz(fes_.GetNDofs());
+	Eigen::VectorXd dEx(connectivity_.size()), dEy(connectivity_.size()), dEz(connectivity_.size()),
+					dHx(connectivity_.size()), dHy(connectivity_.size()), dHz(connectivity_.size());
 
 	for (auto v{ 0 }; v < connectivity_.size(); v++) {
 		dEx[v] = Ex_in[connectivity_[v].first] - Ex_in[connectivity_[v].second];
@@ -528,42 +562,38 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 		dHz[v] = Hz_in[connectivity_[v].first] - Hz_in[connectivity_[v].second];
 	}
 
-	// ----------- //
-
 	// --BOUNDARIES-- //
 
 	for (auto m{ 0 }; m < bdr_connectivity_.size(); m++) {
 		switch (bdr_connectivity_[m].first) {
 		case BdrCond::PEC:
 			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
-				dEx[bdr_connectivity_[m].second[v]] *= -2.0;
-				dEy[bdr_connectivity_[m].second[v]] *= -2.0;
-				dEz[bdr_connectivity_[m].second[v]] *= -2.0;
+				dEx[bdr_connectivity_[m].second[v]] -= 2.0 * Ex_in[bdr_connectivity_[m].second[v]];
+				dEy[bdr_connectivity_[m].second[v]] -= 2.0 * Ey_in[bdr_connectivity_[m].second[v]];
+				dEz[bdr_connectivity_[m].second[v]] -= 2.0 * Ez_in[bdr_connectivity_[m].second[v]];
 			}
 			break;
 		case BdrCond::PMC:
 			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
-				dHx[bdr_connectivity_[m].second[v]] *= -2.0;
-				dHy[bdr_connectivity_[m].second[v]] *= -2.0;
-				dHz[bdr_connectivity_[m].second[v]] *= -2.0;
+				dHx[bdr_connectivity_[m].second[v]] -= 2.0 * Hx_in[bdr_connectivity_[m].second[v]];
+				dHy[bdr_connectivity_[m].second[v]] -= 2.0 * Hy_in[bdr_connectivity_[m].second[v]];
+				dHz[bdr_connectivity_[m].second[v]] -= 2.0 * Hz_in[bdr_connectivity_[m].second[v]];
 			}
 			break;
 		case BdrCond::SMA:
 			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
-				dEx[bdr_connectivity_[m].second[v]] *= -1.0;
-				dEy[bdr_connectivity_[m].second[v]] *= -1.0;
-				dEz[bdr_connectivity_[m].second[v]] *= -1.0;
-				dHx[bdr_connectivity_[m].second[v]] *= -1.0;
-				dHy[bdr_connectivity_[m].second[v]] *= -1.0;
-				dHz[bdr_connectivity_[m].second[v]] *= -1.0;
+				dEx[bdr_connectivity_[m].second[v]] -= 1.0 * Ex_in[bdr_connectivity_[m].second[v]];
+				dEy[bdr_connectivity_[m].second[v]] -= 1.0 * Ey_in[bdr_connectivity_[m].second[v]];
+				dEz[bdr_connectivity_[m].second[v]] -= 1.0 * Ez_in[bdr_connectivity_[m].second[v]];
+				dHx[bdr_connectivity_[m].second[v]] -= 1.0 * Hx_in[bdr_connectivity_[m].second[v]];
+				dHy[bdr_connectivity_[m].second[v]] -= 1.0 * Hy_in[bdr_connectivity_[m].second[v]];
+				dHz[bdr_connectivity_[m].second[v]] -= 1.0 * Hz_in[bdr_connectivity_[m].second[v]];
 			}
 			break;
 		default:
 			throw std::runtime_error("Other BdrConds are yet to be implemented for Hesthaven Evolution Operator.");
 		}
 	}
-
-	// -------------- //
 
 	// Extend to all elements
 
@@ -574,34 +604,46 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 
 		// Dof ordering will always be incremental due to L2 space (i.e: element 0 will have 0, 1, 2... element 1 will have 3, 4, 5...)
 
-		const Eigen::Map<Eigen::VectorXd> dEx_Elem(dEx.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dEy_Elem(dEy.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dEz_Elem(dEz.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dHx_Elem(dHx.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dHy_Elem(dHy.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dHz_Elem(dHz.data() + e * el2dofs->Size(), el2dofs->Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> dEx_Elem(dEx.data() + e * dofs.Size(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> dEy_Elem(dEy.data() + e * dofs.Size(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> dEz_Elem(dEz.data() + e * dofs.Size(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> dHx_Elem(dHx.data() + e * dofs.Size(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> dHy_Elem(dHy.data() + e * dofs.Size(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> dHz_Elem(dHz.data() + e * dofs.Size(), dofs.Size(), 1);
 
-		auto ndotdH = hestElemStorage_[e].normals[X].asDiagonal() * dHx_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dHy_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dHz_Elem;
-		auto ndotdE = hestElemStorage_[e].normals[X].asDiagonal() * dEx_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dEy_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dEz_Elem;
+		const Eigen::Map<Eigen::VectorXd> Ex_Elem(in.GetData() + e * dofs.Size() + 0 * fes_.GetNDofs(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> Ey_Elem(in.GetData() + e * dofs.Size() + 1 * fes_.GetNDofs(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> Ez_Elem(in.GetData() + e * dofs.Size() + 2 * fes_.GetNDofs(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> Hx_Elem(in.GetData() + e * dofs.Size() + 3 * fes_.GetNDofs(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> Hy_Elem(in.GetData() + e * dofs.Size() + 4 * fes_.GetNDofs(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> Hz_Elem(in.GetData() + e * dofs.Size() + 5 * fes_.GetNDofs(), dofs.Size(), 1);
+
+		auto ndotdH =	hestElemStorage_[e].normals[X].asDiagonal() * dHx_Elem + 
+						hestElemStorage_[e].normals[Y].asDiagonal() * dHy_Elem + 
+						hestElemStorage_[e].normals[Z].asDiagonal() * dHz_Elem ;
+
+		auto ndotdE =	hestElemStorage_[e].normals[X].asDiagonal() * dEx_Elem + 
+						hestElemStorage_[e].normals[Y].asDiagonal() * dEy_Elem + 
+						hestElemStorage_[e].normals[Z].asDiagonal() * dEz_Elem ;
 
 		double alpha{ 1.0 }; // upwind term, to relate to options later.
 
-		auto fluxHx = -1.0 * hestElemStorage_[e].normals[Y].asDiagonal() * dEz_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dEy_Elem + alpha * (dHx_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[X]);
-		auto fluxHy = -1.0 * hestElemStorage_[e].normals[Z].asDiagonal() * dEx_Elem + hestElemStorage_[e].normals[X].asDiagonal() * dEz_Elem + alpha * (dHy_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Y]);
-		auto fluxHz = -1.0 * hestElemStorage_[e].normals[X].asDiagonal() * dEy_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dEx_Elem + alpha * (dHz_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Z]);
-		auto fluxEx =        hestElemStorage_[e].normals[Y].asDiagonal() * dHz_Elem + hestElemStorage_[e].normals[Z].asDiagonal() * dHy_Elem + alpha * (dEx_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[X]);
-		auto fluxEy =        hestElemStorage_[e].normals[Z].asDiagonal() * dHx_Elem + hestElemStorage_[e].normals[X].asDiagonal() * dHz_Elem + alpha * (dEy_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Y]);
-		auto fluxEz =        hestElemStorage_[e].normals[X].asDiagonal() * dHy_Elem + hestElemStorage_[e].normals[Y].asDiagonal() * dHx_Elem + alpha * (dEz_Elem + ndotdH.asDiagonal() * hestElemStorage_[e].normals[Z]);
+		Eigen::VectorXd fluxHx = -1.0 * hestElemStorage_[e].normals[Y].asDiagonal() * dEz_Elem +	   hestElemStorage_[e].normals[Z].asDiagonal() * dEy_Elem + alpha * (dHx_Elem - ndotdH.asDiagonal() * hestElemStorage_[e].normals[X]);
+		Eigen::VectorXd fluxHy = -1.0 * hestElemStorage_[e].normals[Z].asDiagonal() * dEx_Elem +	   hestElemStorage_[e].normals[X].asDiagonal() * dEz_Elem + alpha * (dHy_Elem - ndotdH.asDiagonal() * hestElemStorage_[e].normals[Y]);
+		Eigen::VectorXd fluxHz = -1.0 * hestElemStorage_[e].normals[X].asDiagonal() * dEy_Elem +	   hestElemStorage_[e].normals[Y].asDiagonal() * dEx_Elem + alpha * (dHz_Elem - ndotdH.asDiagonal() * hestElemStorage_[e].normals[Z]);
+		Eigen::VectorXd fluxEx =        hestElemStorage_[e].normals[Y].asDiagonal() * dHz_Elem - 1.0 * hestElemStorage_[e].normals[Z].asDiagonal() * dHy_Elem + alpha * (dEx_Elem - ndotdE.asDiagonal() * hestElemStorage_[e].normals[X]);
+		Eigen::VectorXd fluxEy =        hestElemStorage_[e].normals[Z].asDiagonal() * dHx_Elem - 1.0 * hestElemStorage_[e].normals[X].asDiagonal() * dHz_Elem + alpha * (dEy_Elem - ndotdE.asDiagonal() * hestElemStorage_[e].normals[Y]);
+		Eigen::VectorXd fluxEz =        hestElemStorage_[e].normals[X].asDiagonal() * dHy_Elem - 1.0 * hestElemStorage_[e].normals[Y].asDiagonal() * dHx_Elem + alpha * (dEz_Elem - ndotdE.asDiagonal() * hestElemStorage_[e].normals[Z]);
+
+		Hx_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) = -1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Y] * Ez_Elem +       *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Z] * Ey_Elem + applyScalingFactors(hestElemStorage_[e], fluxHx);
+		Hy_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) = -1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Z] * Ex_Elem +       *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[X] * Ez_Elem + applyScalingFactors(hestElemStorage_[e], fluxHy);
+		Hz_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) = -1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[X] * Ey_Elem +       *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Y] * Ex_Elem + applyScalingFactors(hestElemStorage_[e], fluxHz);
+		Ex_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) =		  *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Y] * Hz_Elem - 1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Z] * Hy_Elem + applyScalingFactors(hestElemStorage_[e], fluxEx);
+		Ey_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) =	      *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Z] * Hx_Elem - 1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[X] * Hz_Elem + applyScalingFactors(hestElemStorage_[e], fluxEy);
+		Ez_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) =		  *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[X] * Hy_Elem - 1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Y] * Hx_Elem + applyScalingFactors(hestElemStorage_[e], fluxEz);
+
 
 	}
-
-	//May have to pull outside the loop
-	Eigen::Map<Eigen::VectorXd> Ex_out(out.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-	Eigen::Map<Eigen::VectorXd> Ey_out(out.GetData() + 1 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-	Eigen::Map<Eigen::VectorXd> Ez_out(out.GetData() + 2 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-	Eigen::Map<Eigen::VectorXd> Hx_out(out.GetData() + 3 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-	Eigen::Map<Eigen::VectorXd> Hy_out(out.GetData() + 4 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
-	Eigen::Map<Eigen::VectorXd> Hz_out(out.GetData() + 5 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
 
 }
 
