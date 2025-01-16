@@ -416,11 +416,18 @@ const int returnFaces(const Geometry::Type& geom)
 	return res;
 }
 
+const int getNodesForFace(const Geometry::Type& geom, const int order)
+{
+	int res;
+	geom == Geometry::Type::TRIANGLE ? res = ((order + 1) * (order + 2) / 2) : res = (order + 1) * (order + 1);
+	return res;
+}
+
 const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, const Eigen::VectorXd& flux)
 {
 	Eigen::VectorXd res(flux.size());
 	const auto numFaces{ returnFaces(hestElem.geom) };
-	for (auto f{ 0 }; f <= numFaces; f++) {
+	for (auto f{ 0 }; f < numFaces; f++) {
 		const int cols{ int(hestElem.emat[f]->cols()) };
 		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = *hestElem.invmass * *hestElem.emat[f] * 
 			(hestElem.fscale(Eigen::seq(f * cols, (f * cols + cols) - 1)).asDiagonal() * flux(Eigen::seq(f * cols, (f * cols + cols) - 1)));
@@ -501,23 +508,30 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			}
 		}
 
-		for (auto f{ 0 }; f < sm.GetNEdges(); f++) {
-			Vector normal(sm.SpaceDimension());
-			ElementTransformation* faceTrans = sm.GetEdgeTransformation(f);
+		int numFaces;
+		sm.Dimension() == 2 ? numFaces = sm.GetNEdges() : numFaces = sm.GetNFaces();
+		for (auto f{ 0 }; f < numFaces; f++) {
+			
+			Vector normal(sm.Dimension());
+			ElementTransformation* faceTrans;
+			sm.Dimension() == 2 ? faceTrans = sm.GetEdgeTransformation(f) : faceTrans = sm.GetFaceTransformation(f);
 			faceTrans->SetIntPoint(&Geometries.GetCenter(faceTrans->GetGeometryType()));
 			CalcOrtho(faceTrans->Jacobian(), normal);
-			hestElem.normals[X].resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
-			hestElem.normals[Y].resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
-			hestElem.normals[Z].resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
-			hestElem.fscale    .resize(cmesh->GetElement(e)->GetNEdges() * (subFES.FEColl()->GetOrder() + 1));
-			for (auto b{ 0 }; b < subFES.FEColl()->GetOrder() + 1; b++) { //hesthaven requires normals to be stored per node at face
+
+			int numNodesAtFace;
+			sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getNodesForFace(faceTrans->GetGeometryType(), subFES.FEColl()->GetOrder());
+			hestElem.normals[X].resize(numFaces * numNodesAtFace);
+			hestElem.normals[Y].resize(numFaces * numNodesAtFace);
+			hestElem.normals[Z].resize(numFaces * numNodesAtFace);
+			hestElem.fscale    .resize(numFaces * numNodesAtFace);
+			for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
 				hestElem.normals[X][b] = normal[0];
 				hestElem.fscale[b] = abs(normal[0]); //likewise for fscale, surface per volume ratio per node at face
-				if (sm.SpaceDimension() >= 2) {
+				if (sm.Dimension() >= 2) {
 					hestElem.normals[Y][b] = normal[1];
 					hestElem.fscale[b] += abs(normal[1]);
 				}
-				if (sm.SpaceDimension() == 3) {
+				if (sm.Dimension() == 3) {
 					hestElem.normals[Z][b] = normal[2];
 					hestElem.fscale[b] += abs(normal[2]);
 				}
