@@ -532,6 +532,9 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 {
+	double alpha;
+	opts_.fluxType == FluxType::Upwind ? alpha = 1.0 : alpha = 0.0;
+
 	// --MAP BETWEEN MFEM VECTOR AND EIGEN VECTOR-- //
 
 	const Eigen::Map<Eigen::VectorXd> Ex_in(in.GetData() + 0 * fes_.GetNDofs(), fes_.GetNDofs(), 1);
@@ -595,8 +598,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 		}
 	}
 
-	// Extend to all elements
-
 	for (auto e{ 0 }; e < fes_.GetNE(); e++) {
 
 		Array<int> dofs;
@@ -626,8 +627,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 						hestElemStorage_[e].normals[Y].asDiagonal() * dEy_Elem + 
 						hestElemStorage_[e].normals[Z].asDiagonal() * dEz_Elem ;
 
-		double alpha{ 1.0 }; // upwind term, to relate to options later.
-
 		Eigen::VectorXd fluxHx = -1.0 * hestElemStorage_[e].normals[Y].asDiagonal() * dEz_Elem +	   hestElemStorage_[e].normals[Z].asDiagonal() * dEy_Elem + alpha * (dHx_Elem - ndotdH.asDiagonal() * hestElemStorage_[e].normals[X]);
 		Eigen::VectorXd fluxHy = -1.0 * hestElemStorage_[e].normals[Z].asDiagonal() * dEx_Elem +	   hestElemStorage_[e].normals[X].asDiagonal() * dEz_Elem + alpha * (dHy_Elem - ndotdH.asDiagonal() * hestElemStorage_[e].normals[Y]);
 		Eigen::VectorXd fluxHz = -1.0 * hestElemStorage_[e].normals[X].asDiagonal() * dEy_Elem +	   hestElemStorage_[e].normals[Y].asDiagonal() * dEx_Elem + alpha * (dHz_Elem - ndotdH.asDiagonal() * hestElemStorage_[e].normals[Z]);
@@ -641,7 +640,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 		Ex_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) =		  *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Y] * Hz_Elem - 1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Z] * Hy_Elem + applyScalingFactors(hestElemStorage_[e], fluxEx);
 		Ey_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) =	      *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Z] * Hx_Elem - 1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[X] * Hz_Elem + applyScalingFactors(hestElemStorage_[e], fluxEy);
 		Ez_out(Eigen::seq(e * dofs.Size(), (e * dofs.Size() + dofs.Size()) - 1)) =		  *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[X] * Hy_Elem - 1.0 * *hestElemStorage_[e].invmass * *hestElemStorage_[e].dir[Y] * Hx_Elem + applyScalingFactors(hestElemStorage_[e], fluxEz);
-
 
 	}
 
