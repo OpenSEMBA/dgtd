@@ -602,15 +602,16 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 
 		Array<int> dofs;
 		auto el2dofs = fes_.GetElementDofs(e, dofs);
+		auto elemFluxSize{ hestElemStorage_[e].fscale.size() };
 
 		// Dof ordering will always be incremental due to L2 space (i.e: element 0 will have 0, 1, 2... element 1 will have 3, 4, 5...)
 
-		const Eigen::Map<Eigen::VectorXd> dEx_Elem(dEx.data() + e * dofs.Size(), dofs.Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dEy_Elem(dEy.data() + e * dofs.Size(), dofs.Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dEz_Elem(dEz.data() + e * dofs.Size(), dofs.Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dHx_Elem(dHx.data() + e * dofs.Size(), dofs.Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dHy_Elem(dHy.data() + e * dofs.Size(), dofs.Size(), 1);
-		const Eigen::Map<Eigen::VectorXd> dHz_Elem(dHz.data() + e * dofs.Size(), dofs.Size(), 1);
+		const Eigen::Map<Eigen::VectorXd> dEx_Elem(dEx.data() + e * elemFluxSize, elemFluxSize, 1);
+		const Eigen::Map<Eigen::VectorXd> dEy_Elem(dEy.data() + e * elemFluxSize, elemFluxSize, 1);
+		const Eigen::Map<Eigen::VectorXd> dEz_Elem(dEz.data() + e * elemFluxSize, elemFluxSize, 1);
+		const Eigen::Map<Eigen::VectorXd> dHx_Elem(dHx.data() + e * elemFluxSize, elemFluxSize, 1);
+		const Eigen::Map<Eigen::VectorXd> dHy_Elem(dHy.data() + e * elemFluxSize, elemFluxSize, 1);
+		const Eigen::Map<Eigen::VectorXd> dHz_Elem(dHz.data() + e * elemFluxSize, elemFluxSize, 1);
 
 		const Eigen::Map<Eigen::VectorXd> Ex_Elem(in.GetData() + e * dofs.Size() + 0 * fes_.GetNDofs(), dofs.Size(), 1);
 		const Eigen::Map<Eigen::VectorXd> Ey_Elem(in.GetData() + e * dofs.Size() + 1 * fes_.GetNDofs(), dofs.Size(), 1);
