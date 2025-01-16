@@ -422,7 +422,7 @@ const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, cons
 	const auto numFaces{ returnFaces(hestElem.geom) };
 	for (auto f{ 0 }; f < numFaces; f++) {
 		const int cols{ int(hestElem.emat[f]->cols()) };
-		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = *hestElem.invmass * *hestElem.emat[f] * flux(Eigen::seq(f * cols, (f * cols + cols) - 1));
+		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = *hestElem.invmass * *hestElem.emat[f] * (hestElem.fscale.asDiagonal() * flux(Eigen::seq(f * cols, (f * cols + cols) - 1)));
 	}
 	res /= 2.0;
 	return res;
