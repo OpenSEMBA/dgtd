@@ -69,6 +69,9 @@ namespace maxwell {
 	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivityMap&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
 
+	const int getNumFaces(const Geometry::Type&); 
+	const int getNodesForFace(const Geometry::Type&, const int order);
+
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m);
 
 	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int startRow, const int startCol);

@@ -400,7 +400,7 @@ GlobalBoundaryMap assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteEle
 		std::vector<int> nodes;
 		for (auto r{ 0 }; r < bdr_matrix.rows(); r++) {
 			if (bdr_matrix(r, r) != 0.0) { //These conditions would be those of a node on itself, thus we only need to check if the 'self-value' is not zero.
-					nodes.push_back(r);
+				nodes.push_back(r);
 			}
 		}
 		res.push_back(std::make_pair(bdr_cond, nodes));
@@ -409,27 +409,13 @@ GlobalBoundaryMap assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteEle
 	return res;
 }
 
-const int returnFaces(const Geometry::Type& geom)
-{
-	int res;
-	Geometry::Dimension[geom] == 2 ? res = Geometry::NumEdges[geom] : res = Geometry::NumFaces[geom];
-	return res;
-}
-
-const int getNodesForFace(const Geometry::Type& geom, const int order)
-{
-	int res;
-	geom == Geometry::Type::TRIANGLE ? res = ((order + 1) * (order + 2) / 2) : res = (order + 1) * (order + 1);
-	return res;
-}
-
 const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, const Eigen::VectorXd& flux)
 {
 	Eigen::VectorXd res(flux.size());
-	const auto numFaces{ returnFaces(hestElem.geom) };
+	const auto numFaces{ getNumFaces(hestElem.geom) };
 	for (auto f{ 0 }; f < numFaces; f++) {
 		const int cols{ int(hestElem.emat[f]->cols()) };
-		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = *hestElem.invmass * *hestElem.emat[f] * 
+		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = *hestElem.invmass * *hestElem.emat[f] *
 			(hestElem.fscale(Eigen::seq(f * cols, (f * cols + cols) - 1)).asDiagonal() * flux(Eigen::seq(f * cols, (f * cols + cols) - 1)));
 	}
 	res /= 2.0;
