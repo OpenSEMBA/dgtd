@@ -94,6 +94,8 @@ namespace maxwell {
 	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, const ElementId, FiniteElementSpace&, GlobalConnectivityMap&);
 	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivityMap&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
+	void applyBoundaryConditionsToNodes(const GlobalBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyInteriorBoundaryConditionsToNodes(const GlobalInteriorBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out);
 
 	const int getNumFaces(const Geometry::Type&); 
 	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes);

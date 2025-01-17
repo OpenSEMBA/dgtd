@@ -576,38 +576,14 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 
 	// --BOUNDARIES-- //
 
-	for (auto m{ 0 }; m < bdr_connectivity_.size(); m++) {
-		switch (bdr_connectivity_[m].first) {
-		case BdrCond::PEC:
-			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
-				for (int d = X; d <= Z; d++) {
-					jumps.e_[d][bdr_connectivity_[m].second[v]] -= 2.0 * fieldsIn.e_[d][bdr_connectivity_[m].second[v]];
-				}
-			}
-			break;
-		case BdrCond::PMC:
-			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
-				for (int d = X; d <= Z; d++) {
-					jumps.h_[d][bdr_connectivity_[m].second[v]] -= 2.0 * fieldsIn.h_[d][bdr_connectivity_[m].second[v]];
-				}
-			}
-			break;
-		case BdrCond::SMA:
-			for (auto v{ 0 }; v < bdr_connectivity_[m].second.size(); v++) {
-				for (int d = X; d <= Z; d++) {
-					jumps.e_[d][bdr_connectivity_[m].second[v]] -= 2.0 * fieldsIn.e_[d][bdr_connectivity_[m].second[v]];
-					jumps.h_[d][bdr_connectivity_[m].second[v]] -= 2.0 * fieldsIn.h_[d][bdr_connectivity_[m].second[v]];
-				}
-			}
-			break;
-		default:
-			throw std::runtime_error("Other BdrConds are yet to be implemented for Hesthaven Evolution Operator.");
-		}
-	}
+	applyBoundaryConditionsToNodes(bdr_connectivity_, fieldsIn, jumps);
 
 	// --INTERIOR BOUNDARIES-- //
+	
+	applyInteriorBoundaryConditionsToNodes(int_bdr_connectivity_, fieldsIn, jumps);
 
 	// --TOTAL FIELD SCATTERED FIELD-- //
+
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //
 

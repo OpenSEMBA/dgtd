@@ -74,6 +74,43 @@ namespace maxwell {
 		return std::make_pair(vmapM, vmapP);
 	}
 
+	void applyBoundaryConditionsToNodes(const GlobalBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out) 
+	{
+		for (auto m{ 0 }; m < map.size(); m++) {
+			switch (map[m].first) {
+			case BdrCond::PEC:
+				for (auto v{ 0 }; v < map[m].second.size(); v++) {
+					for (int d = X; d <= Z; d++) {
+						out.e_[d][map[m].second[v]] -= 2.0 * in.e_[d][map[m].second[v]];
+					}
+				}
+				break;
+			case BdrCond::PMC:
+				for (auto v{ 0 }; v < map[m].second.size(); v++) {
+					for (int d = X; d <= Z; d++) {
+						out.h_[d][map[m].second[v]] -= 2.0 * in.h_[d][map[m].second[v]];
+					}
+				}
+				break;
+			case BdrCond::SMA:
+				for (auto v{ 0 }; v < map[m].second.size(); v++) {
+					for (int d = X; d <= Z; d++) {
+						out.e_[d][map[m].second[v]] -= 2.0 * in.e_[d][map[m].second[v]];
+						out.h_[d][map[m].second[v]] -= 2.0 * in.h_[d][map[m].second[v]];
+					}
+				}
+				break;
+			default:
+				throw std::runtime_error("Other BdrConds are yet to be implemented for Hesthaven Evolution Operator.");
+			}
+		}
+	}
+
+	void applyInteriorBoundaryConditionsToNodes(const GlobalInteriorBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out)
+	{
+		applyBoundaryConditionsToNodes(map, in, out);
+	}
+
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
 	{
 		// Create backup of attributes
