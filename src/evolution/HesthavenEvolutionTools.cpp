@@ -4,13 +4,13 @@ namespace maxwell {
 
 	using namespace mfem;
 
-	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& flux_mat)
+	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& fluxMatrix)
 	{
 		// Make map
 		std::vector<int> vmapM, vmapP;
-		for (auto r{ 0 }; r < flux_mat.rows() / 2; r++) {
-			for (auto c{ 0 }; c < flux_mat.cols(); c++) {
-				if (r != c && flux_mat(r, c) == flux_mat(r, r) && flux_mat(r, r) > 1e-5) {
+		for (auto r{ 0 }; r < fluxMatrix.rows() / 2; r++) {
+			for (auto c{ 0 }; c < fluxMatrix.cols(); c++) {
+				if (r != c && fluxMatrix(r, c) == fluxMatrix(r, r) && fluxMatrix(r, r) > 1e-5) {
 					vmapM.emplace_back(r);
 					vmapP.emplace_back(c);
 				}
@@ -19,20 +19,59 @@ namespace maxwell {
 		return std::make_pair(vmapM, vmapP);
 	}
 
-	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy, const std::map<int, Attribute>& att_map)
+	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
 	{
-		m_copy.SetAttribute(f_trans->Elem1No, att_map.at(f_trans->Elem1No));
-		if (f_trans->Elem2No) {
-			m_copy.SetAttribute(f_trans->Elem2No, att_map.at(f_trans->Elem2No));
+		// Create backup of attributes
+		auto res{ std::map<int,Attribute>() };
+		for (auto e{ 0 }; e < m.GetNE(); e++) {
+			res[e] = m.GetAttribute(e);
+		}
+		return res;
+	}
+
+	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* faceTrans, Mesh& m, const std::map<int, Attribute>& attMap)
+	{
+		m.SetAttribute(faceTrans->Elem1No, attMap.at(faceTrans->Elem1No));
+		if (faceTrans->Elem2No) {
+			m.SetAttribute(faceTrans->Elem2No, attMap.at(faceTrans->Elem2No));
 		}
 	}
 
-	Array<int> getFacesForElement(const Mesh& m_copy, const int el)
+	void restoreOriginalAttributesAfterSubMeshing(ElementId e, Mesh& m, const std::map<int, Attribute>& attMap) 
 	{
-		auto e2f = m_copy.ElementToEdgeTable();
+		m.SetAttribute(e, attMap.at(e));
+	}
+
+	Array<int> getFacesForElement(const Mesh& m, const ElementId e)
+	{
+		auto e2f = m.ElementToEdgeTable();
 		e2f.Finalize();
 		Array<int> res;
-		e2f.GetRow(el, res);
+		e2f.GetRow(e, res);
+		return res;
+	}
+
+	const int getNumFaces(const Geometry::Type& geom)
+	{
+		int res;
+		Geometry::Dimension[geom] == 2 ? res = Geometry::NumEdges[geom] : res = Geometry::NumFaces[geom];
+		return res;
+	}
+
+	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes)
+	{
+		int res;
+		int order = fes.FEColl()->GetOrder();
+		switch (fes.GetMesh()->Dimension()) {
+		case 2:
+			res = order + 1;
+			break;
+		case 3:
+			fes.GetFE(0)->GetGeomType() == Geometry::Type::TRIANGLE ? res = ((order + 1) * (order + 2) / 2) : res = (order + 1) * (order + 1);
+			break;
+		default:
+			throw std::runtime_error("Method only supports 2D and 3D problems.");
+		}
 		return res;
 	}
 
@@ -47,39 +86,27 @@ namespace maxwell {
 		throw std::runtime_error("There is no interior face for the selected element in getInteriorFaceTransformation.");
 	}
 
-	void markElementsForSubMeshing(FaceElementTransformations* f_trans, Mesh& m_copy)
+	void markElementsForSubMeshing(FaceElementTransformations* faceTrans, Mesh& m)
 	{
-		m_copy.SetAttribute(f_trans->Elem1No, hesthavenMeshingTag);
-		m_copy.SetAttribute(f_trans->Elem2No, hesthavenMeshingTag);
+		m.SetAttribute(faceTrans->Elem1No, hesthavenMeshingTag);
+		m.SetAttribute(faceTrans->Elem2No, hesthavenMeshingTag);
 	}
 
-	SubMesh createSubMeshFromInteriorFace(Mesh& m_copy, const std::map<int, Attribute>& att_map)
-	{
-		Array<int> sm_tag;
-		sm_tag.Append(hesthavenMeshingTag);
-		auto faces = getFacesForElement(m_copy, 0);
-		auto f_trans = getInteriorFaceTransformation(m_copy, faces);
-		markElementsForSubMeshing(f_trans, m_copy);
-		auto res = SubMesh::CreateFromDomain(m_copy, sm_tag);
-		restoreOriginalAttributesAfterSubMeshing(f_trans, m_copy, att_map);
-		return res;
-	}
-
-	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int start_row, const int start_col)
+	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int startRow, const int startCol)
 	{
 		DynamicMatrix res;
 		res.resize(int(global.rows() / 2), int(global.cols() / 2));
-		for (auto r{ start_row }; r < start_row + int(global.rows() / 2); r++) {
-			for (auto c{ start_col }; c < start_col + int(global.cols() / 2); c++) {
-				res(r - start_row, c - start_col) = global(r, c);
+		for (auto r{ startRow }; r < startRow + int(global.rows() / 2); r++) {
+			for (auto c{ startCol }; c < startCol + int(global.cols() / 2); c++) {
+				res(r - startRow, c - startCol) = global(r, c);
 			}
 		}
 		return res;
 	}
 
-	DynamicMatrix getElementMassMatrixFromGlobal(const int el, const DynamicMatrix& global)
+	DynamicMatrix getElementMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global)
 	{
-		switch (el) {
+		switch (e) {
 		case 0:
 			return loadMatrixWithValues(global, 0, 0);
 		case 1:
@@ -146,31 +173,32 @@ namespace maxwell {
 		return res;
 	}
 
-	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace& fes, Array<int>& boundary_marker)
+	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace& fes, Array<int>& boundaryMarker)
 	{
 		auto res = std::make_unique<BilinearForm>(&fes);
-		res->AddBdrFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0), boundary_marker);
+		res->AddBdrFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0), boundaryMarker);
 		res->Assemble();
 		res->Finalize();
 
 		return res;
 	}
 
-	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& fes, Array<int> boundary_marker)
+	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& fes, Array<int> boundaryMarker)
 	{
-		auto bf = assembleFaceMassBilinearForm(fes, boundary_marker);
+		auto bf = assembleFaceMassBilinearForm(fes, boundaryMarker);
 		auto res = toEigen(*bf->SpMat().ToDenseMatrix());
 		removeZeroColumns(res);
 		return res;
 	}
 
-	DynamicMatrix assembleEmat(FiniteElementSpace& fes, std::vector<Array<int>>& boundary_markers)
+	DynamicMatrix assembleEmat(FiniteElementSpace& fes, std::vector<Array<int>>& boundaryMarkers)
 	{
 		DynamicMatrix res;
-		res.resize(fes.GetNDofs(), fes.GetNF() * (fes.GetMaxElementOrder() + 1));
+		auto numNodesAtFace = getFaceNodeNumByGeomType(fes);
+		res.resize(fes.GetNDofs(), fes.GetNF() * numNodesAtFace);
 		for (auto f{ 0 }; f < fes.GetNF(); f++) {
-			auto surface_matrix{ assembleConnectivityFaceMassMatrix(fes, boundary_markers[f]) };
-			res.block(0, f * (fes.GetMaxElementOrder() + 1), fes.GetNDofs(), fes.GetMaxElementOrder() + 1) = surface_matrix;
+			auto surface_matrix{ assembleConnectivityFaceMassMatrix(fes, boundaryMarkers[f]) };
+			res.block(0, f * numNodesAtFace, fes.GetNDofs(), numNodesAtFace) = surface_matrix;
 		}
 		return res;
 	}
@@ -202,15 +230,15 @@ namespace maxwell {
 		return toEigen(*bf.SpMat().ToDenseMatrix());
 	}
 
-	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, const int element_index, FiniteElementSpace& fes, GlobalConnectivityMap& map)
+	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, const ElementId e, FiniteElementSpace& fes, GlobalConnectivityMap& map)
 	{
-		auto int_flux_mat{ assembleInteriorFluxMatrix(fes) };
-		auto maps{ mapConnectivity(int_flux_mat) };
+		auto matrix{ assembleInteriorFluxMatrix(fes) };
+		auto maps{ mapConnectivity(matrix) };
 		for (auto index{ 0 }; index < maps.first.size(); index++) {
-			if (trans.Elem1No == element_index) {
+			if (trans.Elem1No == e) {
 				map.push_back(std::pair(maps.first[index], maps.second[index]));
 			}
-			else if (trans.Elem2No == element_index) {
+			else if (trans.Elem2No == e) {
 				map.push_back(std::pair(maps.second[index], maps.first[index]));
 			}
 			else {
@@ -219,21 +247,21 @@ namespace maxwell {
 		}
 	}
 
-	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& fes, FiniteElementSpace& sm_fes, const DynamicMatrix& surface_matrix, GlobalConnectivityMap& map)
+	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivityMap& map)
 	{
-		GridFunction gf_parent(&fes);
-		GridFunction gf_son(&sm_fes);
-		auto mesh = dynamic_cast<SubMesh*>(sm_fes.GetMesh());
-		auto transfer_map = mesh->CreateTransferMap(gf_son, gf_parent);
+		GridFunction gfParent(&globalFES);
+		GridFunction gfChild(&submeshFES);
+		auto mesh = dynamic_cast<SubMesh*>(submeshFES.GetMesh());
+		auto transferMap = mesh->CreateTransferMap(gfChild, gfParent);
 		ConstantCoefficient zero(0.0);
-		for (auto r{ 0 }; r < surface_matrix.rows(); r++) {
-			if (surface_matrix(r, 0) != 0.0) {
-				gf_son.ProjectCoefficient(zero);
-				gf_parent.ProjectCoefficient(zero);
-				gf_son[r] = 1.0;
-				transfer_map.Transfer(gf_son, gf_parent);
-				for (auto v{ 0 }; v < gf_parent.Size(); v++) {
-					if (gf_parent[v] != 0.0) {
+		for (auto r{ 0 }; r < surfaceMatrix.rows(); r++) {
+			if (surfaceMatrix(r, 0) != 0.0) {
+				gfChild.ProjectCoefficient(zero);
+				gfParent.ProjectCoefficient(zero);
+				gfChild[r] = 1.0;
+				transferMap.Transfer(gfChild, gfParent);
+				for (auto v{ 0 }; v < gfParent.Size(); v++) {
+					if (gfParent[v] != 0.0) {
 						map.push_back(std::make_pair(v, v));
 						break;
 					}
@@ -254,53 +282,62 @@ namespace maxwell {
 	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
 	{
 		GlobalConnectivityMap res;
-		FiniteElementSpace fes(&m, fec);
+		auto mesh{ Mesh(m) };
+		FiniteElementSpace fes(&mesh, fec);
 
 		std::map<FaceId, bool> global_face_is_interior;
-		for (auto f{ 0 }; f < m.GetNEdges(); f++) {
-			global_face_is_interior[f] = m.FaceIsInterior(f);
+		int numFaces;
+		m.Dimension() == 2 ? numFaces = mesh.GetNEdges() : numFaces = mesh.GetNFaces();
+		for (auto f{ 0 }; f < numFaces; f++) {
+			global_face_is_interior[f] = mesh.FaceIsInterior(f);
 		}
 
-		Table global_element_to_edge = m.ElementToEdgeTable();
+		Table globalElementToFace;
+		m.Dimension() == 2 ? globalElementToFace = mesh.ElementToEdgeTable() : globalElementToFace = mesh.ElementToFaceTable();
 
-		Array<int> volume_marker;
-		volume_marker.Append(hesthavenMeshingTag);
+		Array<int> volumeMarker;
+		volumeMarker.Append(hesthavenMeshingTag);
 
-		Array<int> boundary_marker(hesthavenMeshingTag);
-		boundary_marker = 0;
-		boundary_marker[hesthavenMeshingTag - 1] = 1;
+		Array<int> boundaryMarker(hesthavenMeshingTag);
+		boundaryMarker = 0;
+		boundaryMarker[hesthavenMeshingTag - 1] = 1;
 
-		for (auto e{ 0 }; e < m.GetNE(); e++) {
+		auto attMap{ mapOriginalAttributes(mesh) };
 
-			Array<int> local_edge_index_to_global_edge_index;
-			global_element_to_edge.GetRow(e, local_edge_index_to_global_edge_index);
 
-			for (auto local_edge{ 0 }; local_edge < m.GetElement(e)->GetNEdges(); local_edge++) {
+		for (auto e{ 0 }; e < mesh.GetNE(); e++) {
 
-				auto m_copy{ Mesh(m) };
+			Array<int> localFaceIndexToGlobalFaceIndex;
+			globalElementToFace.GetRow(e, localFaceIndexToGlobalFaceIndex);
 
-				if (!global_face_is_interior[local_edge_index_to_global_edge_index[local_edge]]) {
+			int numLocalFaces;
+			mesh.Dimension() == 2 ? numLocalFaces = mesh.GetElement(e)->GetNEdges() : numLocalFaces = mesh.GetElement(e)->GetNFaces();
+			for (auto localFace{ 0 }; localFace < numLocalFaces; localFace++) {
 
-					m_copy.SetAttribute(e, hesthavenMeshingTag);
-					auto sm = SubMesh::CreateFromDomain(m_copy, volume_marker);
-					tagBdrAttributesForSubMesh(local_edge, sm);
-					FiniteElementSpace sm_fes(&sm, fec);
+				if (!global_face_is_interior[localFaceIndexToGlobalFaceIndex[localFace]]) {
+
+					mesh.SetAttribute(e, hesthavenMeshingTag);
+					auto sm = SubMesh::CreateFromDomain(mesh, volumeMarker);
+					restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
+					tagBdrAttributesForSubMesh(localFace, sm);
+					FiniteElementSpace smFES(&sm, fec);
 					appendConnectivityMapsFromBoundaryFace(
 						fes,
-						sm_fes,
-						assembleConnectivityFaceMassMatrix(sm_fes, boundary_marker),
+						smFES,
+						assembleConnectivityFaceMassMatrix(smFES, boundaryMarker),
 						res);
 
 				}
 				else {
 
-					FaceElementTransformations* f_trans = m_copy.GetFaceElementTransformations(local_edge_index_to_global_edge_index[local_edge]);
-					auto sm = assembleInteriorFaceSubMesh(m_copy, *f_trans);
-					FiniteElementSpace sm_fes(&sm, fec);
+					FaceElementTransformations* faceTrans = mesh.GetFaceElementTransformations(localFaceIndexToGlobalFaceIndex[localFace]);
+					auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans);
+					restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
+					FiniteElementSpace smFES(&sm, fec);
 					appendConnectivityMapsFromInteriorFace(
-						*f_trans,
+						*faceTrans,
 						e,
-						sm_fes,
+						smFES,
 						res);
 
 				}

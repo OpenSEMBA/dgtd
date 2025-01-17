@@ -1,0 +1,27 @@
+$MeshFormat
+2.2 0 8
+$EndMeshFormat
+$PhysicalNames
+3
+1 2 "TruePEC"
+1 3 "IntPEC"
+2 1 "Vacuum"
+$EndPhysicalNames
+$Nodes
+6
+1 0 0 0
+2 1 0 0
+3 1 1 0
+4 0 1 0
+5 2 0 0
+6 2 1 0
+$EndNodes
+$Elements
+6
+1 1 2 3 2 2 3
+2 1 2 2 4 4 1
+3 2 2 1 1 2 4 1
+4 2 2 1 1 2 3 4
+5 2 2 1 2 5 2 3
+6 2 2 1 2 5 3 6
+$EndElements

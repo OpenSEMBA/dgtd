@@ -148,15 +148,6 @@ protected:
 		return res;
 	}
 
-	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
-	{
-		// Create backup of attributes
-		auto res{ std::map<int,Attribute>() };
-		for (auto e{ 0 }; e < m.GetNE(); e++) {
-			res[e] = m.GetAttribute(e);
-		}
-		return res;
-	}
 	DynamicMatrix assembleMassMatrix(FiniteElementSpace& fes)
 	{
 		BilinearForm bf(&fes);
@@ -166,6 +157,18 @@ protected:
 		bf.Finalize();
 
 		return toEigen(*bf.SpMat().ToDenseMatrix());
+	}
+
+	SubMesh assembleInteriorFaceSubMesh(Mesh& m_copy, const std::map<int, Attribute>& att_map)
+	{
+		Array<int> sm_tag;
+		sm_tag.Append(hesthavenMeshingTag);
+		auto faces = getFacesForElement(m_copy, 0);
+		auto f_trans = getInteriorFaceTransformation(m_copy, faces);
+		markElementsForSubMeshing(f_trans, m_copy);
+		auto res = SubMesh::CreateFromDomain(m_copy, sm_tag);
+		restoreOriginalAttributesAfterSubMeshing(f_trans, m_copy, att_map);
+		return res;
 	}
 
 };
@@ -737,11 +740,10 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
 TEST_F(MFEMHesthaven2D, connectivityMapO1)
 {
 	const int basis_order = 1;
-	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
-	const auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
+	auto mesh { Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 
-	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, &fec);
+	GlobalConnectivityMap element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({
 		{0,4},
@@ -767,11 +769,11 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 TEST_F(MFEMHesthaven2D, connectivityMapO2)
 {
 	const int basis_order = 2;
-	auto m{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
-	const auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&m, &fec) };
 
-	GlobalConnectivityMap element_connectivity_map = assembleGlobalConnectivityMap(m, &fec);
+	auto mesh{ Mesh::MakeCartesian2D(1, 1, Element::Type::TRIANGLE) };
+	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+
+	GlobalConnectivityMap element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({ 
 		{0,8},   
@@ -810,7 +812,7 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
 	// Not touching the original mesh.
 	auto m_copy{ Mesh(m) };
 	auto att_map{ mapOriginalAttributes(m) };
-	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+	auto sm{ assembleInteriorFaceSubMesh(m_copy, att_map) };
 
 	// Compute two-element flux matrix 
 	auto sm_fes{ FiniteElementSpace(&sm, &fec) };
@@ -844,7 +846,7 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 	// Not touching the original mesh.
 	auto m_copy{ Mesh(m) };
 	auto att_map{ mapOriginalAttributes(m) };
-	auto sm{ createSubMeshFromInteriorFace(m_copy, att_map) };
+	auto sm{ assembleInteriorFaceSubMesh(m_copy, att_map) };
 
 	// Compute two-element flux matrix
 	auto sm_fes{ FiniteElementSpace(&sm, &fec) };

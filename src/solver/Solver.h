@@ -28,6 +28,9 @@ public:
 
     double getTime() const { return time_; }
     double getTimeStep() const { return dt_; }
+
+    Model& getModel() { return model_; }
+    FiniteElementSpace& getFES() { return *fes_.get(); }
     
     double estimateTimeStep() const;
 
