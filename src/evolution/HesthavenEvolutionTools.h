@@ -15,6 +15,7 @@ namespace maxwell {
 	using GlobalConnectivityMap = std::vector<std::pair<int, int>>;
 	using BdrCondToNodes = std::pair<BdrCond, std::vector<int>>;
 	using GlobalBoundaryMap = std::vector<BdrCondToNodes>;
+	using GlobalInteriorBoundaryMap = GlobalBoundaryMap;
 	using ConnectivityMap = std::vector<std::pair<int, int>>;
 	using Emat = std::vector<const DynamicMatrix*>;
 	using Directional = std::array<const DynamicMatrix*, 3>;
@@ -58,6 +59,31 @@ namespace maxwell {
 		std::vector<int> vmapM;
 		std::vector<int> vmapP;
 		std::vector<int> vmapB;
+	};
+
+	struct HesthavenFields {
+		HesthavenFields(int size);
+		std::array<Eigen::VectorXd, 3> e_, h_;
+	};
+
+	struct FieldsElementMaps {
+		FieldsElementMaps(const Vector& in, FiniteElementSpace&, const ElementId& id);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+	};
+
+	struct FieldsInputMaps {
+		FieldsInputMaps(const Vector& in, FiniteElementSpace&);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+	};	
+
+	struct FieldsOutputMaps {
+		FieldsOutputMaps(Vector& out, FiniteElementSpace&);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+	};
+
+	struct HesthavenElementJumps {
+		HesthavenElementJumps(HesthavenFields& in, ElementId id, Eigen::Index& elFluxSize);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
 	};
 
 	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* faceTrans, Mesh&, const std::map<int, Attribute>&);

@@ -4,6 +4,61 @@ namespace maxwell {
 
 	using namespace mfem;
 
+	HesthavenFields::HesthavenFields(int size)
+	{
+		for (int d = X; d <= Z; d++) {
+			e_[d].resize(size);
+			h_[d].resize(size);
+		}
+	}
+
+	FieldsInputMaps::FieldsInputMaps(const Vector& in, FiniteElementSpace& fes)
+	{
+
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 0 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 1 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 2 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 3 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 4 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 5 * fes.GetNDofs(), fes.GetNDofs(), 1));
+	}
+
+	FieldsOutputMaps::FieldsOutputMaps(Vector& out, FiniteElementSpace& fes)
+	{
+
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 0 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 1 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 2 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 3 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 4 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 5 * fes.GetNDofs(), fes.GetNDofs(), 1));
+	}
+
+	FieldsElementMaps::FieldsElementMaps(const Vector& in, FiniteElementSpace& fes, const ElementId& id)
+	{
+
+		Array<int> dofs;
+		auto el2dofs = fes.GetElementDofs(id, dofs);
+
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 0 * fes.GetNDofs(), dofs.Size(), 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 1 * fes.GetNDofs(), dofs.Size(), 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 2 * fes.GetNDofs(), dofs.Size(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 3 * fes.GetNDofs(), dofs.Size(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 4 * fes.GetNDofs(), dofs.Size(), 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 5 * fes.GetNDofs(), dofs.Size(), 1));
+	}
+
+	HesthavenElementJumps::HesthavenElementJumps(HesthavenFields& in, ElementId id, Eigen::Index& elFluxSize)
+	{
+
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.e_[X].data() + id * elFluxSize, elFluxSize, 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.e_[Y].data() + id * elFluxSize, elFluxSize, 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.e_[Z].data() + id * elFluxSize, elFluxSize, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.h_[X].data() + id * elFluxSize, elFluxSize, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.h_[Y].data() + id * elFluxSize, elFluxSize, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.h_[Z].data() + id * elFluxSize, elFluxSize, 1));
+	}
+
 	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& fluxMatrix)
 	{
 		// Make map
