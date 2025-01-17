@@ -599,6 +599,8 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 		}
 	}
 
+	// --TOTAL FIELD SCATTERED FIELD-- //
+
 	for (auto e{ 0 }; e < fes_.GetNE(); e++) {
 
 		Array<int> dofs;
