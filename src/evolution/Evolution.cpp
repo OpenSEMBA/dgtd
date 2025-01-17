@@ -505,7 +505,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			CalcOrtho(faceTrans->Jacobian(), normal);
 
 			int numNodesAtFace;
-			sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getNodesForFace(faceTrans->GetGeometryType(), subFES.FEColl()->GetOrder());
+			sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
 			hestElem.normals[X].resize(numFaces * numNodesAtFace);
 			hestElem.normals[Y].resize(numFaces * numNodesAtFace);
 			hestElem.normals[Z].resize(numFaces * numNodesAtFace);

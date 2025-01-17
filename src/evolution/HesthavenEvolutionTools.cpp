@@ -58,10 +58,20 @@ namespace maxwell {
 		return res;
 	}
 
-	const int getNodesForFace(const Geometry::Type& geom, const int order)
+	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes)
 	{
 		int res;
-		geom == Geometry::Type::TRIANGLE ? res = ((order + 1) * (order + 2) / 2) : res = (order + 1) * (order + 1);
+		int order = fes.FEColl()->GetOrder();
+		switch (fes.GetMesh()->Dimension()) {
+		case 2:
+			res = order + 1;
+			break;
+		case 3:
+			fes.GetFE(0)->GetGeomType() == Geometry::Type::TRIANGLE ? res = ((order + 1) * (order + 2) / 2) : res = (order + 1) * (order + 1);
+			break;
+		default:
+			throw std::runtime_error("Method only supports 2D and 3D problems.");
+		}
 		return res;
 	}
 
@@ -184,7 +194,7 @@ namespace maxwell {
 	DynamicMatrix assembleEmat(FiniteElementSpace& fes, std::vector<Array<int>>& boundaryMarkers)
 	{
 		DynamicMatrix res;
-		auto numNodesAtFace = getNodesForFace(fes.GetMesh()->GetElementGeometry(0), fes.GetElementOrder(0));
+		auto numNodesAtFace = getFaceNodeNumByGeomType(fes);
 		res.resize(fes.GetNDofs(), fes.GetNF() * numNodesAtFace);
 		for (auto f{ 0 }; f < fes.GetNF(); f++) {
 			auto surface_matrix{ assembleConnectivityFaceMassMatrix(fes, boundaryMarkers[f]) };

@@ -70,7 +70,7 @@ namespace maxwell {
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
 
 	const int getNumFaces(const Geometry::Type&); 
-	const int getNodesForFace(const Geometry::Type&, const int order);
+	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes);
 
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m);
 
