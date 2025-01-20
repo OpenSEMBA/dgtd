@@ -91,6 +91,7 @@ private:
 	std::vector<HesthavenElement> hestElemStorage_;
 	GlobalConnectivityMap connectivity_;
 	GlobalBoundaryMap bdr_connectivity_;
+	GlobalInteriorBoundaryMap int_bdr_connectivity_;
 
 };
 

@@ -15,6 +15,7 @@ namespace maxwell {
 	using GlobalConnectivityMap = std::vector<std::pair<int, int>>;
 	using BdrCondToNodes = std::pair<BdrCond, std::vector<int>>;
 	using GlobalBoundaryMap = std::vector<BdrCondToNodes>;
+	using GlobalInteriorBoundaryMap = GlobalBoundaryMap;
 	using ConnectivityMap = std::vector<std::pair<int, int>>;
 	using Emat = std::vector<const DynamicMatrix*>;
 	using Directional = std::array<const DynamicMatrix*, 3>;
@@ -60,6 +61,31 @@ namespace maxwell {
 		std::vector<int> vmapB;
 	};
 
+	struct HesthavenFields {
+		HesthavenFields(int size);
+		std::array<Eigen::VectorXd, 3> e_, h_;
+	};
+
+	struct FieldsElementMaps {
+		FieldsElementMaps(const Vector& in, FiniteElementSpace&, const ElementId& id);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+	};
+
+	struct FieldsInputMaps {
+		FieldsInputMaps(const Vector& in, FiniteElementSpace&);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+	};	
+
+	struct FieldsOutputMaps {
+		FieldsOutputMaps(Vector& out, FiniteElementSpace&);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+	};
+
+	struct HesthavenElementJumps {
+		HesthavenElementJumps(HesthavenFields& in, ElementId id, Eigen::Index& elFluxSize);
+		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+	};
+
 	void restoreOriginalAttributesAfterSubMeshing(FaceElementTransformations* faceTrans, Mesh&, const std::map<int, Attribute>&);
 	void restoreOriginalAttributesAfterSubMeshing(ElementId, Mesh&, const std::map<int, Attribute>&);
 	void markElementsForSubMeshing(FaceElementTransformations* faceTrans, Mesh&);
@@ -68,6 +94,8 @@ namespace maxwell {
 	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, const ElementId, FiniteElementSpace&, GlobalConnectivityMap&);
 	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivityMap&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
+	void applyBoundaryConditionsToNodes(const GlobalBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyInteriorBoundaryConditionsToNodes(const GlobalInteriorBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out);
 
 	const int getNumFaces(const Geometry::Type&); 
 	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes);
