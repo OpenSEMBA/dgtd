@@ -61,7 +61,7 @@ TEST_F(SubMesherTest, barycenterOfFaceElements_2D)
 	}
 }
 
-TEST_F(SubMesherTest, calculateBarycentersOfTwoElements)
+TEST_F(SubMesherTest, barycentersOfTwoElements_2D)
 {
 	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
@@ -75,7 +75,7 @@ TEST_F(SubMesherTest, calculateBarycentersOfTwoElements)
 	}
 }
 
-TEST_F(SubMesherTest, calculateBarycenterVectorOfTwoElements)
+TEST_F(SubMesherTest, barycenterVectorOfTwoElements_2D)
 {
 	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
@@ -87,7 +87,7 @@ TEST_F(SubMesherTest, calculateBarycenterVectorOfTwoElements)
 	}
 }
 
-TEST_F(SubMesherTest, calculateTangentVector)
+TEST_F(SubMesherTest, tangentVector_2D)
 {
 	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
@@ -99,7 +99,7 @@ TEST_F(SubMesherTest, calculateTangentVector)
 	}
 }
 
-TEST_F(SubMesherTest, calculateCrossProductBaryTangent)
+TEST_F(SubMesherTest, crossProductBaryTangent_2D)
 {
 	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
@@ -108,4 +108,52 @@ TEST_F(SubMesherTest, calculateCrossProductBaryTangent)
 	auto expectedCrossValue{ 2.0 / 3.0 };
 
 	EXPECT_NEAR(expectedCrossValue, crossValue, tol_);
+}
+
+TEST_F(SubMesherTest, calculateNormal_3D)
+{
+	auto mesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::HEXAHEDRON) };
+
+	{
+		auto normal = calculateNormal3D(mesh, 0);
+		Vector expectedNormal({ 0.0, 0.0, -1.0 });
+		for (auto i{ 0 }; i < normal.Size(); i++) {
+			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
+		}
+	}
+	{
+		auto normal = calculateNormal3D(mesh, 1);
+		Vector expectedNormal({ 0.0, 0.0,  1.0 });
+		for (auto i{ 0 }; i < normal.Size(); i++) {
+			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
+		}
+	}
+	{
+		auto normal = calculateNormal3D(mesh, 2);
+		Vector expectedNormal({ -1.0, 0.0, 0.0 });
+		for (auto i{ 0 }; i < normal.Size(); i++) {
+			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
+		}
+	}
+	{
+		auto normal = calculateNormal3D(mesh, 3);
+		Vector expectedNormal({  1.0, 0.0, 0.0 });
+		for (auto i{ 0 }; i < normal.Size(); i++) {
+			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
+		}
+	}
+	{
+		auto normal = calculateNormal3D(mesh, 4);
+		Vector expectedNormal({ 0.0, -1.0, 0.0 });
+		for (auto i{ 0 }; i < normal.Size(); i++) {
+			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
+		}
+	}
+	{
+		auto normal = calculateNormal3D(mesh, 5);
+		Vector expectedNormal({ 0.0,  1.0, 0.0 });
+		for (auto i{ 0 }; i < normal.Size(); i++) {
+			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
+		}
+	}
 }
