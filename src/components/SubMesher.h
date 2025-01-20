@@ -94,4 +94,15 @@ private:
 
 };
 
+FaceElementTransformations* getFaceElementTransformation(Mesh& m, int be);
+Vector getBarycenterOfElement(Mesh& m, int e);
+Vector getBarycenterOfFaceElement(Mesh& m, int f);
+Vector getNormal(FaceElementTransformations& fet);
+std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be);
+double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, int be);
+const Vector calculateTangent2D(Mesh& m, int be);
+const Vector calculateNormal3D(Mesh& m, int be);
+const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be);
+const Vector calculateBarycenterVector(Mesh& m, int be);
+
 };
