@@ -84,6 +84,7 @@ public:
 private:
 
 	void assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations*, double faceOri);
+	void evaluateTFSF(HesthavenFields& jumps);
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;

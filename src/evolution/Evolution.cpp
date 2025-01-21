@@ -463,6 +463,19 @@ void HesthavenEvolution::assembleTFSFConnectivity(const DynamicMatrix& matrix, F
 	}
 }
 
+void HesthavenEvolution::evaluateTFSF(HesthavenFields& jumps)
+{
+	auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
+	for (auto i{ 0 }; i < tfsf_connectivity_.size(); i++) {
+		auto it = std::find(connectivity_.begin(), connectivity_.end(), tfsf_connectivity_[i].first);
+		auto connId = std::distance(std::begin(connectivity_), it);
+		for (int d = X; d <= Z; d++) {
+			jumps.e_[d][connId] += func[E][d][tfsf_connectivity_[i].first.first] * tfsf_connectivity_[i].second.first;
+			jumps.h_[d][connId] += func[H][d][tfsf_connectivity_[i].first.second] * tfsf_connectivity_[i].second.second;
+		}
+	}
+}
+
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
@@ -616,7 +629,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 
 	// --TOTAL FIELD SCATTERED FIELD-- //
 
-
+	evaluateTFSF(jumps);
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //
 
