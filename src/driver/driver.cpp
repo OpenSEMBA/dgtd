@@ -190,6 +190,9 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.meshTypeCurved = true;
 		}
 
+		if (case_data["solver_options"].contains("hesthaven_operator")) {
+			res.hesthavenOperator = true;
+		}
 	}
 	return res;
 }

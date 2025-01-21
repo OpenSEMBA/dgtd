@@ -26,13 +26,15 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
-std::unique_ptr<Evolution> Solver::assignEvolutionOperator()
+std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 {
 	if (!opts_.meshTypeCurved) {
-		//if(hesthavenoperator)
-		//return newheasthavenoperator
-		//else
-		return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+		if (opts_.hesthavenOperator) {
+			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+		}
+		else {
+			return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+		}
 	}
 	else {
 		// return newHybridCurvedOperator

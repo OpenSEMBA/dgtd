@@ -9,6 +9,7 @@ struct SolverOptions {
     double finalTime = 2.0;
     double cfl = 0.8;
     bool meshTypeCurved = false;
+    bool hesthavenOperator = false;
 
     EvolutionOptions evolution;
     
