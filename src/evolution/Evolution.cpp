@@ -444,6 +444,25 @@ const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, cons
 	return res;
 }
 
+void HesthavenEvolution::assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations* faceTrans, double faceOri)
+{
+	for (auto r{ 0 }; r < matrix.rows() / 2; r++) {
+		for (auto c{ 0 }; c < matrix.cols(); c++) {
+			if (matrix(r, c) != 0.0 && c != matrix.cols() - 1) {
+				for (auto c2{ c + 1 }; c2 < matrix.cols(); c2++) {
+					if (matrix(r, c2) != 0.0) {
+						auto elem1GlobalNodeID = (faceTrans->Elem1No * int(matrix.cols()) / 2) + c;
+						auto elem2GlobalNodeID = (faceTrans->Elem2No * int(matrix.cols()) / 2) + c2 - (int(matrix.cols()) / 2);
+						TFSFSigns signs;
+						faceOri >= 0.0 ? signs = std::make_pair(-1.0, 1.0) : signs = std::make_pair(-1.0, 1.0); // Face Ori >= 0.0 means elem1 is SF, elem2 is TF.
+						tfsf_connectivity_.push_back(std::make_pair(std::make_pair(elem1GlobalNodeID, elem2GlobalNodeID), signs));
+					}
+				}
+			}
+		}
+	}
+}
+
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	fes_(fes),
 	model_(model),
@@ -471,17 +490,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			auto sm{ assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap) };
 			FiniteElementSpace smFES(&sm, fec);
 			auto matrix{ assembleInteriorFluxMatrix(smFES) };
-			for (auto r{ 0 }; r < matrix.rows(); r++) {
-				for (auto c{ 0 }; c < matrix.cols(); c++) {
-					if (matrix(r, c) != 0.0) {
-
-					}
-				}
-			}
-			
-			
-			
-			
+			assembleTFSFConnectivity(matrix, faceTrans, faceOri);			
 		}
 	}
 

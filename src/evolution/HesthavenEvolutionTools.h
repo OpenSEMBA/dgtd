@@ -13,10 +13,11 @@ namespace maxwell {
 
 	using InteriorFaceConnectivityMaps = std::pair<std::vector<int>, std::vector<int>>;
 	using DynamicMatrix = Eigen::MatrixXd;
-	using NodePair = std::pair<int, int>;
+	using NodeId = int;
+	using NodePair = std::pair<NodeId, NodeId>;
 	using ConnectivityMap = std::vector<NodePair>;
 	using GlobalConnectivity = ConnectivityMap;
-	using BdrCondToNodes = std::pair<BdrCond, std::vector<int>>;
+	using BdrCondToNodes = std::pair<BdrCond, std::vector<NodeId>>;
 	using GlobalBoundary = std::vector<BdrCondToNodes>;
 	using GlobalInteriorBoundary = GlobalBoundary;
 	using Emat = std::vector<const DynamicMatrix*>;
