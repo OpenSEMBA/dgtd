@@ -22,7 +22,7 @@ using GeomTagToBdrCond = std::map<GeomTag, BdrCond>;
 using BoundaryMarker = mfem::Array<int>;
 using InteriorBoundaryMarker = BoundaryMarker;
 using BoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
-using InteriorBoundaryCondToMarker = std::map<BdrCond, BoundaryMarker>;
+using InteriorBoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
 using TotalFieldScatteredFieldToMarker = std::map<BdrCond, BoundaryMarker>;
 using InteriorSourceToMarker = std::map<BdrCond, BoundaryMarker>;
 
@@ -77,7 +77,7 @@ public:
 	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
-	InteriorBoundaryCondToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
+	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
@@ -103,7 +103,7 @@ private:
 	GeomTagToInteriorBoundary attToIntBdrMap_;
 	GeomTagToInteriorSource attToIntSrcMap_;
 	BoundaryToMarker bdrToMarkerMap_;
-	InteriorBoundaryCondToMarker intBdrToMarkerMap_;
+	InteriorBoundaryToMarker intBdrToMarkerMap_;
 	TotalFieldScatteredFieldToMarker tfsfToMarkerMap_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
 	FaceToGeomTag faceToGeomTag_;

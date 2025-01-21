@@ -409,7 +409,7 @@ GlobalBoundaryMap assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteEle
 	return res;
 }
 
-GlobalInteriorBoundaryMap assembleGlobalInteriorBoundaryMap(InteriorBoundaryCondToMarker& markers, FiniteElementSpace& fes)
+GlobalInteriorBoundaryMap assembleGlobalInteriorBoundaryMap(InteriorBoundaryToMarker& markers, FiniteElementSpace& fes)
 {
 	GlobalInteriorBoundaryMap res;
 
@@ -461,8 +461,22 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	int_bdr_connectivity_ = assembleGlobalInteriorBoundaryMap(model.getInteriorBoundaryToMarker(), fes_);
 
 	const auto* cmesh = &model.getConstMesh();
+	auto attMap{ mapOriginalAttributes(model.getMesh()) };
+
+	auto mesh_tfsf{ Mesh(model.getMesh()) };
+	for (auto b{ 0 }; b < mesh_tfsf.GetNBE(); b++) {
+		if (mesh_tfsf.GetBdrAttribute(b) - 1 == model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn).Find(1)) {
+			auto faceTrans{ mesh_tfsf.GetInternalBdrFaceTransformations(b) };
+			calculateCrossBaryVertexSign(mesh_tfsf, *faceTrans, b);
+			mesh_tfsf.SetAttribute(faceTrans->Elem1No, hesthavenMeshingTag);
+			mesh_tfsf.SetAttribute(faceTrans->Elem2No, hesthavenMeshingTag);
+			auto sm = SubMesh::CreateFromDomain(mesh_tfsf, elementMarker);
+			restoreOriginalAttributesAfterSubMeshing(faceTrans->Elem1No, mesh_tfsf, attMap);
+			restoreOriginalAttributesAfterSubMeshing(faceTrans->Elem2No, mesh_tfsf, attMap);
+		}
+	}
+
 	mesh = Mesh(model.getMesh()); 
-	auto attMap{ mapOriginalAttributes(mesh) };
 
 	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
 	{
@@ -583,6 +597,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out)
 	applyInteriorBoundaryConditionsToNodes(int_bdr_connectivity_, fieldsIn, jumps);
 
 	// --TOTAL FIELD SCATTERED FIELD-- //
+
 
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //

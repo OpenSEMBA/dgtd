@@ -502,18 +502,29 @@ double calculateCrossCoefficient(const Vector& bary_vec, const Vector& tang_vec)
 	return cross[2];
 }
 
+double calculateFaceOrientation(Mesh& mesh, int be)
+{
+	switch (mesh.Dimension())
+	{
+	case 2:
+		return calculateCrossCoefficient(
+			calculateBarycenterVector(mesh, be),
+			calculateTangent2D(mesh, be));
+	case 3:
+		return mfem::InnerProduct(
+			calculateBarycenterVector(mesh, be),
+			calculateNormal3D(mesh, be));
+	default:
+		throw std::runtime_error("Method only supports 2D and 3D.");
+	}
+}
+
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto baryvector(calculateBarycenterVector(m, be));
-			auto tangentvector(calculateTangent2D(m, be));
-
-			auto face_ori { calculateCrossCoefficient(
-					baryvector,
-					tangentvector
-			)};
+			auto face_ori{ calculateFaceOrientation(m, be) };
 
 			auto fe_trans{ getFaceElementTransformation(m, be) };
 
@@ -564,10 +575,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto face_ori{ mfem::InnerProduct(
-				calculateBarycenterVector(m, be),
-				calculateNormal3D(m, be))
-			};
+			auto face_ori{ calculateFaceOrientation(m, be) };
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
@@ -644,10 +652,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto face_ori { calculateCrossCoefficient(
-					calculateBarycenterVector(m, be),
-					calculateTangent2D(m, be))
-			};
+			auto face_ori{ calculateFaceOrientation(m, be) };
 
 			Array<int> be_vert, el_face, el_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
@@ -687,11 +692,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto face_ori{ mfem::InnerProduct(
-				calculateBarycenterVector(m, be),
-				calculateNormal3D(m, be)
-				)
-			};
+			auto face_ori{ calculateFaceOrientation(m, be) };
 
 			Array<int> be_vert, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
