@@ -497,7 +497,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	auto mesh_tfsf{ Mesh(model.getMesh()) };
 	for (auto b{ 0 }; b < mesh_tfsf.GetNBE(); b++) {
-		if (mesh_tfsf.GetBdrAttribute(b) - 1 == model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn).Find(1)) {
+		if (mesh_tfsf.GetBdrAttribute(b) == model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn).Find(1) + 1) {
 			auto faceOri{ calculateFaceOrientation(mesh, b) };
 			auto faceTrans{ mesh_tfsf.GetInternalBdrFaceTransformations(b) };
 			auto sm{ assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap) };
@@ -520,6 +520,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
 		FiniteElementSpace subFES(&sm, dynamic_cast<const L2_FECollection*>(fes.FEColl()));
 
+		sm.bdr_attributes.SetSize(subFES.GetNF());
 		for (auto f{ 0 }; f < subFES.GetNF(); f++) {
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
@@ -535,8 +536,11 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			hestElem.invmass = &(*it);
 		}
 
+		int numFaces;
+		sm.Dimension() == 2 ? numFaces = sm.GetNEdges() : numFaces = sm.GetNFaces();
+
 		auto boundaryMarkers = assembleBoundaryMarkers(subFES);
-		for (auto f{ 0 }; f < sm.GetNEdges(); f++){
+		for (auto f{ 0 }; f < numFaces; f++){
 			auto surfaceMatrix{ assembleConnectivityFaceMassMatrix(subFES, boundaryMarkers[f]) };
 			StorageIterator it = matrixStorage_.find(surfaceMatrix);
 			if (it == matrixStorage_.end()) {
@@ -562,8 +566,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			}
 		}
 
-		int numFaces;
-		sm.Dimension() == 2 ? numFaces = sm.GetNEdges() : numFaces = sm.GetNFaces();
 		for (auto f{ 0 }; f < numFaces; f++) {
 			
 			Vector normal(sm.Dimension());

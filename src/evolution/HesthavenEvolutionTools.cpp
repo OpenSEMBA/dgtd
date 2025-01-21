@@ -257,9 +257,9 @@ namespace maxwell {
 		std::vector<Array<int>> res;
 		for (auto f{ 0 }; f < fes.GetNF(); f++) {
 			Array<int> bdr_marker;
-			bdr_marker.SetSize(fes.GetMesh()->bdr_attributes.Max());
+			bdr_marker.SetSize(fes.GetNF());
 			bdr_marker = 0;
-			bdr_marker[fes.GetMesh()->bdr_attributes[f] - 1] = 1;
+			bdr_marker[f] = 1;
 			res.emplace_back(bdr_marker);
 		}
 		return res;
