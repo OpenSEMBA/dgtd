@@ -387,9 +387,9 @@ DynamicMatrix getReferenceInverseMassMatrix(const Element::Type elType, const in
 	return res;
 }
 
-GlobalBoundaryMap assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteElementSpace& fes)
+GlobalBoundary assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteElementSpace& fes)
 {
-	GlobalBoundaryMap res;
+	GlobalBoundary res;
 
 	for (auto& [bdr_cond, marker] : markers) {
 		auto bf{ BilinearForm(&fes) };
@@ -409,9 +409,9 @@ GlobalBoundaryMap assembleGlobalBoundaryMap(BoundaryToMarker& markers, FiniteEle
 	return res;
 }
 
-GlobalInteriorBoundaryMap assembleGlobalInteriorBoundaryMap(InteriorBoundaryToMarker& markers, FiniteElementSpace& fes)
+GlobalInteriorBoundary assembleGlobalInteriorBoundaryMap(InteriorBoundaryToMarker& markers, FiniteElementSpace& fes)
 {
-	GlobalInteriorBoundaryMap res;
+	GlobalInteriorBoundary res;
 
 	for (auto& [bdr_cond, marker] : markers) {
 		auto bf{ BilinearForm(&fes) };
@@ -466,13 +466,22 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	auto mesh_tfsf{ Mesh(model.getMesh()) };
 	for (auto b{ 0 }; b < mesh_tfsf.GetNBE(); b++) {
 		if (mesh_tfsf.GetBdrAttribute(b) - 1 == model.getInteriorBoundaryToMarker().at(BdrCond::TotalFieldIn).Find(1)) {
+			auto faceOri{ calculateFaceOrientation(mesh, b) };
 			auto faceTrans{ mesh_tfsf.GetInternalBdrFaceTransformations(b) };
-			calculateCrossBaryVertexSign(mesh_tfsf, *faceTrans, b);
-			mesh_tfsf.SetAttribute(faceTrans->Elem1No, hesthavenMeshingTag);
-			mesh_tfsf.SetAttribute(faceTrans->Elem2No, hesthavenMeshingTag);
-			auto sm = SubMesh::CreateFromDomain(mesh_tfsf, elementMarker);
-			restoreOriginalAttributesAfterSubMeshing(faceTrans->Elem1No, mesh_tfsf, attMap);
-			restoreOriginalAttributesAfterSubMeshing(faceTrans->Elem2No, mesh_tfsf, attMap);
+			auto sm{ assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap) };
+			FiniteElementSpace smFES(&sm, fec);
+			auto matrix{ assembleInteriorFluxMatrix(smFES) };
+			for (auto r{ 0 }; r < matrix.rows(); r++) {
+				for (auto c{ 0 }; c < matrix.cols(); c++) {
+					if (matrix(r, c) != 0.0) {
+
+					}
+				}
+			}
+			
+			
+			
+			
 		}
 	}
 

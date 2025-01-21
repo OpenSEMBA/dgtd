@@ -74,7 +74,7 @@ namespace maxwell {
 		return std::make_pair(vmapM, vmapP);
 	}
 
-	void applyBoundaryConditionsToNodes(const GlobalBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out) 
+	void applyBoundaryConditionsToNodes(const GlobalBoundary& map, const FieldsInputMaps& in, HesthavenFields& out) 
 	{
 		for (auto m{ 0 }; m < map.size(); m++) {
 			switch (map[m].first) {
@@ -106,7 +106,7 @@ namespace maxwell {
 		}
 	}
 
-	void applyInteriorBoundaryConditionsToNodes(const GlobalInteriorBoundaryMap& map, const FieldsInputMaps& in, HesthavenFields& out)
+	void applyInteriorBoundaryConditionsToNodes(const GlobalInteriorBoundary& map, const FieldsInputMaps& in, HesthavenFields& out)
 	{
 		applyBoundaryConditionsToNodes(map, in, out);
 	}
@@ -295,13 +295,16 @@ namespace maxwell {
 		return res;
 	}
 
-	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans)
+	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap)
 	{
-		m.SetAttribute(trans.Elem1No, hesthavenMeshingTag);
-		m.SetAttribute(trans.Elem2No, hesthavenMeshingTag);
 		Array<int> volume_marker;
 		volume_marker.Append(hesthavenMeshingTag);
-		return SubMesh::CreateFromDomain(m, volume_marker);
+		m.SetAttribute(trans.Elem1No, hesthavenMeshingTag);
+		m.SetAttribute(trans.Elem2No, hesthavenMeshingTag);
+		auto res{ SubMesh::CreateFromDomain(m, volume_marker) };
+		restoreOriginalAttributesAfterSubMeshing(trans.Elem1No, m, attMap);
+		restoreOriginalAttributesAfterSubMeshing(trans.Elem2No, m, attMap);
+		return res;
 	}
 
 	DynamicMatrix assembleInteriorFluxMatrix(FiniteElementSpace& fes)
@@ -322,7 +325,7 @@ namespace maxwell {
 		return toEigen(*bf.SpMat().ToDenseMatrix());
 	}
 
-	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, const ElementId e, FiniteElementSpace& fes, GlobalConnectivityMap& map)
+	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, const ElementId e, FiniteElementSpace& fes, GlobalConnectivity& map)
 	{
 		auto matrix{ assembleInteriorFluxMatrix(fes) };
 		auto maps{ mapConnectivity(matrix) };
@@ -339,7 +342,7 @@ namespace maxwell {
 		}
 	}
 
-	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivityMap& map)
+	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity& map)
 	{
 		GridFunction gfParent(&globalFES);
 		GridFunction gfChild(&submeshFES);
@@ -371,9 +374,9 @@ namespace maxwell {
 		sm.bdr_attributes.Append(hesthavenMeshingTag);
 	}
 
-	GlobalConnectivityMap assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
+	GlobalConnectivity assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
 	{
-		GlobalConnectivityMap res;
+		GlobalConnectivity res;
 		auto mesh{ Mesh(m) };
 		FiniteElementSpace fes(&mesh, fec);
 
@@ -423,7 +426,7 @@ namespace maxwell {
 				else {
 
 					FaceElementTransformations* faceTrans = mesh.GetFaceElementTransformations(localFaceIndexToGlobalFaceIndex[localFace]);
-					auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans);
+					auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap);
 					restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
 					FiniteElementSpace smFES(&sm, fec);
 					appendConnectivityMapsFromInteriorFace(

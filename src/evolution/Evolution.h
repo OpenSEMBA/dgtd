@@ -89,9 +89,10 @@ private:
 	EvolutionOptions& opts_;
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;
-	GlobalConnectivityMap connectivity_;
-	GlobalBoundaryMap bdr_connectivity_;
-	GlobalInteriorBoundaryMap int_bdr_connectivity_;
+	GlobalConnectivity connectivity_;
+	GlobalBoundary bdr_connectivity_;
+	GlobalInteriorBoundary int_bdr_connectivity_;
+	TFSFConnectivity tfsf_connectivity_;
 
 };
 

@@ -12,4 +12,4 @@ add_library(maxwell-evolution STATIC
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})
 
-target_link_libraries(maxwell-evolution mfem maxwell-mfemExtension Eigen3::Eigen)
+target_link_libraries(maxwell-evolution maxwell-components mfem maxwell-mfemExtension Eigen3::Eigen)
