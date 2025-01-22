@@ -28,7 +28,20 @@ namespace maxwell {
 
 	struct MatrixCompareLessThan {
 
-		bool operator()(const Eigen::MatrixXd& lhs, const Eigen::MatrixXd& rhs) const {
+		bool operator()(const Eigen::MatrixXd& lhs, const Eigen::MatrixXd& rhs) const  {
+			if (lhs.rows() < rhs.rows()) {
+				return true;
+			}
+			else if (lhs.rows() > rhs.rows()) {
+				return false;
+			}
+
+			if (lhs.cols() < rhs.cols()) {
+				return true;
+			}
+			else if (lhs.cols() > rhs.cols()) {
+				return false;
+			}
 
 			for (int i{ 0 }; i < lhs.rows(); i++) {
 				for (int j{ 0 }; j < lhs.cols(); j++) {
