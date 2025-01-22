@@ -15,8 +15,8 @@ namespace maxwell {
 	using DynamicMatrix = Eigen::MatrixXd;
 	using NodeId = int;
 	using NodePair = std::pair<NodeId, NodeId>;
-	using ConnectivityMap = std::vector<NodePair>;
-	using GlobalConnectivity = ConnectivityMap;
+	using ConnectivityVector = std::vector<NodePair>;
+	using GlobalConnectivity = ConnectivityVector;
 	using BdrCondToNodes = std::pair<BdrCond, std::vector<NodeId>>;
 	using GlobalBoundary = std::vector<BdrCondToNodes>;
 	using GlobalInteriorBoundary = GlobalBoundary;
@@ -109,11 +109,11 @@ namespace maxwell {
 	void markElementsForSubMeshing(FaceElementTransformations* faceTrans, Mesh&);
 	void removeColumn(DynamicMatrix&, const int colToRemove);
 	void removeZeroColumns(DynamicMatrix&);
-	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, const ElementId, FiniteElementSpace&, GlobalConnectivity&);
-	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity&);
+	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity&, ElementId);
+	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& smFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
-	void applyBoundaryConditionsToNodes(const GlobalBoundary& map, const FieldsInputMaps& in, HesthavenFields& out);
-	void applyInteriorBoundaryConditionsToNodes(const GlobalInteriorBoundary& map, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyBoundaryConditionsToNodes(const GlobalConnectivity&, const GlobalBoundary&, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyInteriorBoundaryConditionsToNodes(const GlobalConnectivity&, const GlobalInteriorBoundary&, const FieldsInputMaps& in, HesthavenFields& out);
 
 	const int getNumFaces(const Geometry::Type&); 
 	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes);
@@ -123,8 +123,8 @@ namespace maxwell {
 	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int startRow, const int startCol);
 	DynamicMatrix getElementMassMatrixFromGlobal(const int el, const DynamicMatrix& global);
 	DynamicMatrix getFaceMassMatrixFromGlobal(const DynamicMatrix& global);
-	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& fes, Array<int> boundaryMarker);
-	DynamicMatrix assembleEmat(FiniteElementSpace& fes, std::vector<Array<int>>& boundaryMarkers);
+	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace&, Array<int> boundaryMarker);
+	DynamicMatrix assembleEmat(FiniteElementSpace&, std::vector<Array<int>>& boundaryMarkers);
 	DynamicMatrix assembleInteriorFluxMatrix(FiniteElementSpace&);
 	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace&);
 	

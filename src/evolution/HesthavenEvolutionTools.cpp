@@ -74,29 +74,29 @@ namespace maxwell {
 		return std::make_pair(vmapM, vmapP);
 	}
 
-	void applyBoundaryConditionsToNodes(const GlobalBoundary& map, const FieldsInputMaps& in, HesthavenFields& out) 
+	void applyBoundaryConditionsToNodes(const GlobalConnectivity& vmaps, const GlobalBoundary& vmapB, const FieldsInputMaps& in, HesthavenFields& out) 
 	{
-		for (auto m{ 0 }; m < map.size(); m++) {
-			switch (map[m].first) {
+		for (auto m{ 0 }; m < vmapB.size(); m++) {
+			switch (vmapB[m].first) {
 			case BdrCond::PEC:
-				for (auto v{ 0 }; v < map[m].second.size(); v++) {
+				for (auto v{ 0 }; v < vmapB[m].second.size(); v++) {
 					for (int d = X; d <= Z; d++) {
-						out.e_[d][map[m].second[v]] -= 2.0 * in.e_[d][map[m].second[v]];
+						out.e_[d][vmapB[m].second[v]] -= 2.0 * in.e_[d][vmapB[m].second[v]];
 					}
 				}
 				break;
 			case BdrCond::PMC:
-				for (auto v{ 0 }; v < map[m].second.size(); v++) {
+				for (auto v{ 0 }; v < vmapB[m].second.size(); v++) {
 					for (int d = X; d <= Z; d++) {
-						out.h_[d][map[m].second[v]] -= 2.0 * in.h_[d][map[m].second[v]];
+						out.h_[d][vmapB[m].second[v]] -= 2.0 * in.h_[d][vmapB[m].second[v]];
 					}
 				}
 				break;
 			case BdrCond::SMA:
-				for (auto v{ 0 }; v < map[m].second.size(); v++) {
+				for (auto v{ 0 }; v < vmapB[m].second.size(); v++) {
 					for (int d = X; d <= Z; d++) {
-						out.e_[d][map[m].second[v]] -= 2.0 * in.e_[d][map[m].second[v]];
-						out.h_[d][map[m].second[v]] -= 2.0 * in.h_[d][map[m].second[v]];
+						out.e_[d][vmapB[m].second[v]] -= 2.0 * in.e_[d][vmapB[m].second[v]];
+						out.h_[d][vmapB[m].second[v]] -= 2.0 * in.h_[d][vmapB[m].second[v]];
 					}
 				}
 				break;
@@ -106,9 +106,9 @@ namespace maxwell {
 		}
 	}
 
-	void applyInteriorBoundaryConditionsToNodes(const GlobalInteriorBoundary& map, const FieldsInputMaps& in, HesthavenFields& out)
+	void applyInteriorBoundaryConditionsToNodes(const GlobalConnectivity& vmaps, const GlobalInteriorBoundary& map, const FieldsInputMaps& in, HesthavenFields& out)
 	{
-		applyBoundaryConditionsToNodes(map, in, out);
+		applyBoundaryConditionsToNodes(vmaps, map, in, out);
 	}
 
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
@@ -325,20 +325,36 @@ namespace maxwell {
 		return toEigen(*bf.SpMat().ToDenseMatrix());
 	}
 
-	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, const ElementId e, FiniteElementSpace& fes, GlobalConnectivity& map)
+	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity& map, ElementId e)
 	{
-		auto matrix{ assembleInteriorFluxMatrix(fes) };
+		auto matrix{ assembleInteriorFluxMatrix(smFES) };
 		auto maps{ mapConnectivity(matrix) };
-		for (auto index{ 0 }; index < maps.first.size(); index++) {
-			if (trans.Elem1No == e) {
-				map.push_back(std::pair(maps.first[index], maps.second[index]));
+		Array<int> dofs1, dofs2;
+		globalFES.GetElementDofs(trans.Elem1No, dofs1);
+		globalFES.GetElementDofs(trans.Elem2No, dofs2);
+
+		ConnectivityVector sortingVector;
+		if (trans.Elem1No == e) {
+			for (auto v{ 0 }; v < maps.first.size(); v++) {
+				sortingVector.push_back(std::pair(dofs1[maps.first[v]], dofs2[maps.second[v] - dofs1.Size()]));
 			}
-			else if (trans.Elem2No == e) {
-				map.push_back(std::pair(maps.second[index], maps.first[index]));
+			sort(sortingVector.begin(), sortingVector.end());
+		}
+		else if (trans.Elem2No == e){
+			for (auto v{ 0 }; v < maps.first.size(); v++) {
+				sortingVector.push_back(std::pair(dofs2[maps.second[v] - dofs1.Size()], dofs1[maps.first[v]]));
 			}
-			else {
-				throw std::runtime_error("Wrong element number in connectivity map assembly.");
-			}
+			std::sort(sortingVector.begin(), sortingVector.end(), [](const std::pair<int, int>& left, const std::pair<int, int>& right) {
+				return left.second < right.second;
+			});
+		}
+		else {
+			throw std::runtime_error("incorrect element id to element ids in FaceElementTransformation");
+		}
+
+
+		for (auto v{ 0 }; v < sortingVector.size(); v++) {
+			map.push_back(sortingVector[v]);
 		}
 	}
 
@@ -354,12 +370,17 @@ namespace maxwell {
 				gfChild.ProjectCoefficient(zero);
 				gfParent.ProjectCoefficient(zero);
 				gfChild[r] = 1.0;
-				transferMap.Transfer(gfChild, gfParent);
+				transferMap.Transfer(gfChild, gfParent); 
+				ConnectivityVector sortingVector;
 				for (auto v{ 0 }; v < gfParent.Size(); v++) {
 					if (gfParent[v] != 0.0) {
-						map.push_back(std::make_pair(v, v));
+						sortingVector.push_back(std::make_pair(v, v));
 						break;
 					}
+				}
+				sort(sortingVector.begin(), sortingVector.end());
+				for (auto v{ 0 }; v < sortingVector.size(); v++) {
+					map.push_back(sortingVector[0]);
 				}
 			}
 		}
@@ -368,6 +389,7 @@ namespace maxwell {
 	void tagBdrAttributesForSubMesh(const int edge, SubMesh& sm)
 	{
 		for (auto b{ 0 }; b < sm.bdr_attributes.Size(); b++) {
+			sm.bdr_attributes[b] = 1;
 			sm.SetBdrAttribute(b, 1);
 		}
 		sm.SetBdrAttribute(edge, hesthavenMeshingTag);
@@ -378,7 +400,7 @@ namespace maxwell {
 	{
 		GlobalConnectivity res;
 		auto mesh{ Mesh(m) };
-		FiniteElementSpace fes(&mesh, fec);
+		FiniteElementSpace globalFES(&mesh, fec);
 
 		std::map<FaceId, bool> global_face_is_interior;
 		int numFaces;
@@ -417,7 +439,7 @@ namespace maxwell {
 					tagBdrAttributesForSubMesh(localFace, sm);
 					FiniteElementSpace smFES(&sm, fec);
 					appendConnectivityMapsFromBoundaryFace(
-						fes,
+						globalFES,
 						smFES,
 						assembleConnectivityFaceMassMatrix(smFES, boundaryMarker),
 						res);
@@ -431,9 +453,10 @@ namespace maxwell {
 					FiniteElementSpace smFES(&sm, fec);
 					appendConnectivityMapsFromInteriorFace(
 						*faceTrans,
-						e,
+						globalFES,
 						smFES,
-						res);
+						res,
+						e);
 
 				}
 			}

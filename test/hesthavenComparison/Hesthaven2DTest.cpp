@@ -892,6 +892,7 @@ TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
 	auto boundary_markers = assembleBoundaryMarkers(sm_fes);
 
 	for (auto f{ 0 }; f < sm_fes.GetNF(); f++) {
+		sm.bdr_attributes[f] = f + 1;
 		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 	}
 
