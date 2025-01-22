@@ -351,6 +351,72 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 
 }
 
+TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
+	case_data["solver_options"]["solver_type"] = "centered";
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
+
+	GridFunction eOld{ solver.getField(E,Z) };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	double tolerance{ 2e-2 };
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion 
+	// of a cycle.
+	GridFunction eNew{ solver.getField(E,Z) };
+	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
+
+	// Compares all DOFs.
+	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
+
+	// At the left boundary and right boundaries the electric field should be always close to zero 
+	// while the magnetic field should reach +- 2.0 at specific times...
+	{
+		auto expected_t_half{ 0.5 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(1.0, f.Hy, tolerance);
+			}
+		}
+
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			if (abs(t - expected_t_half) <= 1e-3) {
+				EXPECT_NEAR(-1.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	//...and at the start and end of the simulation, in the center of the problem,
+	// the electric field should be always close to 1.0 due to dimensions of the box.
+
+	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		auto expected_t_initial{ 0.0 };
+		auto expected_t_final{ 2.0 };
+		if (abs(t - expected_t_initial) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+		}
+		if (abs(t - expected_t_final) <= 1e-3) {
+			EXPECT_NEAR(1.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+		}
+	}
+
+}
+
 TEST_F(CasesTest, 2D_PEC_Upwind)
 {
 	std::string case_name{"2D_PEC"};
@@ -489,6 +555,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
 	case_data["solver_options"]["solver_type"] = "centered";
+	case_data["solver_options"]["order"] = 1;
 	case_data["solver_options"]["hesthaven_operator"] = true;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
 

@@ -79,12 +79,12 @@ public:
 	static const int numberOfMaxDimensions = 3;
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-	void Mult(const mfem::Vector& in, mfem::Vector& out);
+	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
 
 private:
 
 	void assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations*, double faceOri);
-	void evaluateTFSF(HesthavenFields& jumps);
+	void evaluateTFSF(HesthavenFields& jumps) const;
 	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
