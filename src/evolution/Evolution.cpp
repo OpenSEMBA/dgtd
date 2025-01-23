@@ -434,17 +434,34 @@ GlobalInteriorBoundary assembleGlobalInteriorBoundaryMap(InteriorBoundaryToMarke
 
 const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, const Eigen::VectorXd& flux)
 {
-	Eigen::VectorXd res(flux.size());
+	Eigen::VectorXd res(hestElem.invmass->rows());
 	const auto numFaces{ getNumFaces(hestElem.geom) };
+	const auto& invmass = *hestElem.invmass;
+	const auto& fscale = hestElem.fscale.asDiagonal();
+	const auto ematRows = hestElem.emat[0]->rows();
+	const auto ematCols = hestElem.emat[0]->cols();
+	DynamicMatrix emat(ematRows, ematCols * numFaces);
 	for (auto f{ 0 }; f < numFaces; f++) {
-		const int cols{ int(hestElem.emat[f]->cols()) };
-		const auto& invmass = *hestElem.invmass;
-		const auto& emat = *hestElem.emat[f];
-		res(Eigen::seq(f * cols, (f * cols + cols) - 1)) = invmass * emat *
-			(hestElem.fscale(Eigen::seq(f * cols, (f * cols + cols) - 1)).asDiagonal() * flux(Eigen::seq(f * cols, (f * cols + cols) - 1)));
+		emat.block(0, f * ematCols, ematRows, ematCols) = hestElem.emat[f]->block(0, 0, ematRows, ematCols);
 	}
-	res /= 2.0;
+	res = invmass * emat * fscale * flux / 2.0;
 	return res;
+}
+
+void initNormalVectors(HesthavenElement& hestElem, const int size)
+{
+	hestElem.normals[X].resize(size);
+	hestElem.normals[Y].resize(size);
+	hestElem.normals[Z].resize(size);
+	hestElem.normals[X].setZero();
+	hestElem.normals[Y].setZero();
+	hestElem.normals[Z].setZero();
+}
+
+void initFscale(HesthavenElement& hestElem, const int size)
+{
+	hestElem.fscale.resize(size);
+	hestElem.fscale.setZero();
 }
 
 void HesthavenEvolution::assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations* faceTrans, double faceOri)
@@ -480,6 +497,7 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& jumps) const
 }
 
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
+	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
 	fes_(fes),
 	model_(model),
 	srcmngr_(srcmngr),
@@ -515,6 +533,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	mesh = Mesh(model.getMesh()); 
 
+	hestElemStorage_.resize(cmesh->GetNE());
+
 	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
 	{
 		HesthavenElement hestElem;
@@ -532,7 +552,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
 
-		auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm.GetElementType(0), fec->GetOrder(), sm.Dimension())};
+		auto inverseMassMatrix = assembleInverseMassMatrix(subFES);
+		//auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm.GetElementType(0), fec->GetOrder(), sm.Dimension())};
 		StorageIterator it = matrixStorage_.find(inverseMassMatrix);
 		if (it == matrixStorage_.end()) {
 			matrixStorage_.insert(inverseMassMatrix);
@@ -583,10 +604,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 			int numNodesAtFace;
 			sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = fec->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
-			hestElem.normals[X].resize(numFaces * numNodesAtFace);
-			hestElem.normals[Y].resize(numFaces * numNodesAtFace);
-			hestElem.normals[Z].resize(numFaces * numNodesAtFace);
-			hestElem.fscale    .resize(numFaces * numNodesAtFace);
+			initNormalVectors(hestElem, numFaces * numNodesAtFace);
+			initFscale		 (hestElem, numFaces * numNodesAtFace);
 			for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
 				hestElem.normals[X][b] = normal[0];
 				hestElem.fscale[b] = abs(normal[0]); //likewise for fscale, surface per volume ratio per node at face
@@ -601,7 +620,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			}
 		}
 
-		hestElemStorage_.push_back(hestElem);
+		hestElemStorage_[e] = hestElem;
 
 	}
 
@@ -615,7 +634,16 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 	// --MAP BETWEEN MFEM VECTOR AND EIGEN VECTOR-- //
 
 	FieldsInputMaps fieldsIn(in, fes_);
-	FieldsOutputMaps fieldsOut(out, fes_);
+	std::array<GridFunction, 3> eOut, hOut;
+
+	for (int d = X; d <= Z; d++) {
+		eOut[d].SetSpace(&fes_);
+		hOut[d].SetSpace(&fes_);
+		eOut[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
+		hOut[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
+		eOut[d] = 0.0;
+		hOut[d] = 0.0;
+	}
 
 	// ---JUMPS--- //
 
@@ -683,8 +711,17 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			const auto& dir1 = *hestElemStorage_[e].dir[y];
 			const auto& dir2 = *hestElemStorage_[e].dir[z];
 			
-			fieldsOut.h_[x](Eigen::seq(e* dofs.Size(), (e* dofs.Size() + dofs.Size()) - 1)) = -1.0 * invmass * dir1 * fieldsElem.e_[z] +	   invmass * dir2 * fieldsElem.e_[y] + applyScalingFactors(hestElemStorage_[e], elemFlux.h_[x]);
-			fieldsOut.e_[x](Eigen::seq(e* dofs.Size(), (e* dofs.Size() + dofs.Size()) - 1)) =		 invmass * dir1 * fieldsElem.h_[z] - 1.0 * invmass * dir2 * fieldsElem.h_[y] + applyScalingFactors(hestElemStorage_[e], elemFlux.e_[x]);
+			const Eigen::VectorXd& hResult = -1.0 * invmass * dir1 * fieldsElem.e_[z] +       invmass * dir2 * fieldsElem.e_[y] + applyScalingFactors(hestElemStorage_[e], elemFlux.h_[x]);
+			const Eigen::VectorXd& eResult =        invmass * dir1 * fieldsElem.h_[z] - 1.0 * invmass * dir2 * fieldsElem.h_[y] + applyScalingFactors(hestElemStorage_[e], elemFlux.e_[x]);
+			const int startIndex = e * dofs.Size();
+			mfem::real_t* mfemHFieldVals = new mfem::real_t[hResult.size()];
+			mfem::real_t* mfemEFieldVals = new mfem::real_t[eResult.size()];
+			for (auto v{ 0 }; v < hResult.size(); v++) {
+				mfemHFieldVals[v] = hResult.data()[v];
+				mfemEFieldVals[v] = eResult.data()[v];
+			}
+			hOut[x].SetSubVector(dofs, mfemHFieldVals);
+			eOut[x].SetSubVector(dofs, mfemEFieldVals);
 
 		}
 

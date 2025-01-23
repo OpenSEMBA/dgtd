@@ -355,6 +355,7 @@ TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["solver_type"] = "centered";
+	case_data["solver_options"]["order"] = 2;
 	case_data["solver_options"]["hesthaven_operator"] = true;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 

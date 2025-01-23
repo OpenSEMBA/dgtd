@@ -14,7 +14,6 @@ namespace maxwell {
 
 	FieldsInputMaps::FieldsInputMaps(const Vector& in, FiniteElementSpace& fes)
 	{
-
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 0 * fes.GetNDofs(), fes.GetNDofs(), 1));
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 1 * fes.GetNDofs(), fes.GetNDofs(), 1));
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 2 * fes.GetNDofs(), fes.GetNDofs(), 1));
@@ -25,7 +24,6 @@ namespace maxwell {
 
 	FieldsOutputMaps::FieldsOutputMaps(Vector& out, FiniteElementSpace& fes)
 	{
-
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 0 * fes.GetNDofs(), fes.GetNDofs(), 1));
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 1 * fes.GetNDofs(), fes.GetNDofs(), 1));
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 2 * fes.GetNDofs(), fes.GetNDofs(), 1));
@@ -50,7 +48,6 @@ namespace maxwell {
 
 	HesthavenElementJumps::HesthavenElementJumps(HesthavenFields& in, ElementId id, Eigen::Index& elFluxSize)
 	{
-
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.e_[X].data() + id * elFluxSize, elFluxSize, 1));
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.e_[Y].data() + id * elFluxSize, elFluxSize, 1));
 		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.e_[Z].data() + id * elFluxSize, elFluxSize, 1));
@@ -74,29 +71,29 @@ namespace maxwell {
 		return std::make_pair(vmapM, vmapP);
 	}
 
-	void applyBoundaryConditionsToNodes(const GlobalConnectivity& vmaps, const GlobalBoundary& vmapB, const FieldsInputMaps& in, HesthavenFields& out) 
+	void applyBoundaryConditionsToNodes(const GlobalConnectivity& vmaps, const GlobalBoundary& mapB, const FieldsInputMaps& in, HesthavenFields& out) 
 	{
-		for (auto m{ 0 }; m < vmapB.size(); m++) {
-			switch (vmapB[m].first) {
+		for (auto m{ 0 }; m < mapB.size(); m++) {
+			switch (mapB[m].first) {
 			case BdrCond::PEC:
-				for (auto v{ 0 }; v < vmapB[m].second.size(); v++) {
+				for (auto v{ 0 }; v < mapB[m].second.size(); v++) {
 					for (int d = X; d <= Z; d++) {
-						out.e_[d][vmapB[m].second[v]] -= 2.0 * in.e_[d][vmapB[m].second[v]];
+						out.e_[d][mapB[m].second[v]] -= 2.0 * in.e_[d][vmaps[mapB[m].second[v]].first];
 					}
 				}
 				break;
 			case BdrCond::PMC:
-				for (auto v{ 0 }; v < vmapB[m].second.size(); v++) {
+				for (auto v{ 0 }; v < mapB[m].second.size(); v++) {
 					for (int d = X; d <= Z; d++) {
-						out.h_[d][vmapB[m].second[v]] -= 2.0 * in.h_[d][vmapB[m].second[v]];
+						out.h_[d][mapB[m].second[v]] -= 2.0 * in.h_[d][vmaps[mapB[m].second[v]].first];
 					}
 				}
 				break;
 			case BdrCond::SMA:
-				for (auto v{ 0 }; v < vmapB[m].second.size(); v++) {
+				for (auto v{ 0 }; v < mapB[m].second.size(); v++) {
 					for (int d = X; d <= Z; d++) {
-						out.e_[d][vmapB[m].second[v]] -= 2.0 * in.e_[d][vmapB[m].second[v]];
-						out.h_[d][vmapB[m].second[v]] -= 2.0 * in.h_[d][vmapB[m].second[v]];
+						out.e_[d][mapB[m].second[v]] -= 2.0 * in.e_[d][vmaps[mapB[m].second[v]].first];
+						out.h_[d][mapB[m].second[v]] -= 2.0 * in.h_[d][vmaps[mapB[m].second[v]].first];
 					}
 				}
 				break;
@@ -237,7 +234,7 @@ namespace maxwell {
 		for (auto c{ 0 }; c < matrix.cols(); c++) {
 			bool isZero = true;
 			for (auto r{ 0 }; r < matrix.rows(); r++) {
-				if (matrix(r, c) != 0.0)
+				if (abs(matrix(r, c) - 0.0) >= 1e-6)
 				{
 					isZero = false;
 					break;
