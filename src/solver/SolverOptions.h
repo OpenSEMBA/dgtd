@@ -47,6 +47,11 @@ struct SolverOptions {
         evolution.spectral = spectral;
         return *this;
     }
+
+    SolverOptions& setHesthavenOperator(bool enabled = false) {
+        hesthavenOperator = enabled;
+        return *this;
+    }
 };
 
 }
