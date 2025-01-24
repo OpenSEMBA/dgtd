@@ -510,6 +510,56 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes.FEColl()) };
 
 	connectivity_ =  assembleGlobalConnectivityMap(mesh, fec);
+
+	std::vector<NodeId> mapB;
+	for (auto i{ 0 }; i < connectivity_.size(); i++) {
+		if (connectivity_[i].first == connectivity_[i].second) {
+			mapB.push_back(i);
+		}
+	}
+
+	std::vector<NodeId> vmapB(mapB.size());
+	for (auto i{ 0 }; i < mapB.size(); i++) {
+		vmapB[i] = connectivity_[mapB[i]].first;
+	}	
+
+	std::vector<std::pair<BdrElementId, BdrAttribute>> bdr2cond(fes.GetNBE());
+	std::vector<std::pair<BdrElementId, std::vector<NodeId>>> bdr2nodes(fes.GetNBE());
+
+	std::vector<Array<int>> bdrNodeMarkers(fes.GetNBE());
+	auto bdrNodeMesh{ Mesh(model.getMesh()) };
+	bdrNodeMesh.bdr_attributes.SetSize(fes.GetNBE());
+	for (auto b{ 0 }; b < fes.GetNBE(); b++) {
+		bdrNodeMesh.bdr_attributes[b] = b + 1;
+		bdrNodeMesh.SetBdrAttribute(b, bdrNodeMesh.bdr_attributes[b]);
+		Array<int> bdr_marker;
+		bdr_marker.SetSize(fes.GetNBE());
+		bdr_marker = 0;
+		bdr_marker[b] = 1;
+		bdrNodeMarkers[b] = bdr_marker;
+	}
+
+	for (auto b{ 0 }; b < bdrNodeMarkers.size(); b++) {
+		BilinearForm bdrNoders(&fes);
+		bdrNoders.AddBdrFaceIntegrator(new HesthavenFluxIntegrator(1.0), bdrNodeMarkers[b]);
+		bdrNoders.Assemble();
+		bdrNoders.Finalize();
+		auto bdrNodeMat{ toEigen(*bdrNoders.SpMat().ToDenseMatrix()) };
+		std::vector<NodeId> bdrNodes;
+		for (auto r{ 0 }; r < bdrNodeMat.rows(); r++) {
+			if (abs(bdrNodeMat(r, r)) > 1e-5) {
+				for (auto c{ r }; c < bdrNodeMat.cols(); c++) {
+					if (abs(bdrNodeMat(r, c)) > 1e-5) {
+						bdrNodes.push_back(c);
+					}
+				}
+			}
+			break;
+		}
+		bdr2cond[b] = std::make_pair(b, fes.GetBdrAttribute(b));
+		bdr2nodes[b] = std::make_pair(b, bdrNodes);
+	}
+
 	bdr_connectivity_ = assembleGlobalBoundaryMap(connectivity_, model.getBoundaryToMarker(), fes_);
 	if (model.getInteriorBoundaryToMarker().size() != 0) {
 		int_bdr_connectivity_ = assembleGlobalInteriorBoundaryMap(model.getInteriorBoundaryToMarker(), fes_);
