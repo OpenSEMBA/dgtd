@@ -594,6 +594,13 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			}
 		}
 
+		int numNodesAtFace;
+		sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = fec->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
+		initNormalVectors(hestElem, numFaces * numNodesAtFace);
+		initFscale(hestElem, numFaces * numNodesAtFace);
+
+		auto elementVolume = sm.GetElementVolume(0);
+
 		for (auto f{ 0 }; f < numFaces; f++) {
 			
 			Vector normal(sm.Dimension());
@@ -601,21 +608,18 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			sm.Dimension() == 2 ? faceTrans = sm.GetEdgeTransformation(f) : faceTrans = sm.GetFaceTransformation(f);
 			faceTrans->SetIntPoint(&Geometries.GetCenter(faceTrans->GetGeometryType()));
 			CalcOrtho(faceTrans->Jacobian(), normal);
+			normal /= faceTrans->Weight();
 
-			int numNodesAtFace;
-			sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = fec->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
-			initNormalVectors(hestElem, numFaces * numNodesAtFace);
-			initFscale		 (hestElem, numFaces * numNodesAtFace);
 			for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
-				hestElem.normals[X][b] = normal[0];
-				hestElem.fscale[b] = abs(normal[0]); //likewise for fscale, surface per volume ratio per node at face
+				hestElem.normals[X][f * numNodesAtFace + b] = normal[0];
+				hestElem.fscale[f * numNodesAtFace + b] = abs(normal[0] / elementVolume); //likewise for fscale, surface per volume ratio per node at face
 				if (sm.Dimension() >= 2) {
-					hestElem.normals[Y][b] = normal[1];
-					hestElem.fscale[b] += abs(normal[1]);
+					hestElem.normals[Y][f * numNodesAtFace + b] = normal[1];
+					hestElem.fscale[f * numNodesAtFace + b] += abs(normal[1] / elementVolume);
 				}
 				if (sm.Dimension() == 3) {
-					hestElem.normals[Z][b] = normal[2];
-					hestElem.fscale[b] += abs(normal[2]);
+					hestElem.normals[Z][f * numNodesAtFace + b] = normal[2];
+					hestElem.fscale[f * numNodesAtFace + b] += abs(normal[2] / elementVolume);
 				}
 			}
 		}
