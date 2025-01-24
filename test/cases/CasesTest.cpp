@@ -351,12 +351,22 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 
 }
 
+TEST_F(CasesTest, 2D_PEC_Centered_K2_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_Hesthaven_K2"));
+	auto solver{ buildSolver(case_data, maxwellCase("2D_Hesthaven_K2"), true) };
+
+	solver.run();
+
+}
+
 TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["solver_type"] = "centered";
 	case_data["solver_options"]["order"] = 2;
 	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["probes"]["exporter"]["steps"] = 1;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
