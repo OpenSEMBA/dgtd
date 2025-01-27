@@ -85,7 +85,8 @@ private:
 
 	void assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations*, double faceOri);
 	void evaluateTFSF(HesthavenFields& jumps) const;
-	mfem::FiniteElementSpace& fes_;
+	void initBdrConnectivityMaps(const std::vector<std::vector<NodeId>>& bdr2nodes);
+	FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
