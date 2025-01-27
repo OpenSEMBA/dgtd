@@ -495,6 +495,52 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& jumps) const
 	}
 }
 
+std::vector<Array<int>> assembleBdrMarkersForAllBdrElements(Mesh& bdrMesh, const int numBdrElems)
+{
+	std::vector<Array<int>> res(numBdrElems);
+	bdrMesh.bdr_attributes.SetSize(numBdrElems);
+	for (auto b{ 0 }; b < numBdrElems; b++) {
+		bdrMesh.bdr_attributes[b] = b + 1;
+		bdrMesh.SetBdrAttribute(b, bdrMesh.bdr_attributes[b]);
+		Array<int> bdr_marker;
+		bdr_marker.SetSize(numBdrElems);
+		bdr_marker = 0;
+		bdr_marker[b] = 1;
+		res[b] = bdr_marker;
+	}
+	return res;
+}
+
+std::vector<NodeId> findNodesPerBdrFace(const DynamicMatrix& bdrNodeMat)
+{
+	std::vector<NodeId> res;
+	for (auto r{ 0 }; r < bdrNodeMat.rows(); r++) {
+		if (abs(bdrNodeMat(r, r)) > 1e-5) {
+			for (auto c{ r }; c < bdrNodeMat.cols(); c++) {
+				if (abs(bdrNodeMat(r, c)) > 1e-5) {
+					res.push_back(c);
+				}
+			}
+			break;
+		}
+	}
+	return res;
+}
+
+std::vector<std::vector<NodeId>> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNodeMarkers, Mesh& bdrMesh, const L2_FECollection* fec)
+{
+	auto bdrNodeFES = FiniteElementSpace(&bdrMesh, fec);
+	std::vector<std::vector<NodeId>> res(bdrNodeFES.GetNBE());
+
+	for (auto b{ 0 }; b < bdrNodeMarkers.size(); b++) {
+		auto bdrNodeFinderOperator{ assembleFaceMassBilinearForm(bdrNodeFES, bdrNodeMarkers[b]) };
+		auto bdrNodeMat{ toEigen(*bdrNodeFinderOperator->SpMat().ToDenseMatrix()) };
+		res[b] =  findNodesPerBdrFace(bdrNodeMat);
+	}
+
+	return res;
+}
+
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
 	fes_(fes),
@@ -522,55 +568,25 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		vmapB[i] = connectivity_[mapB[i]].first;
 	}	
 
-	std::vector<std::vector<NodeId>> bdr2nodes(fes.GetNBE());
-
-	std::vector<Array<int>> bdrNodeMarkers(fes.GetNBE());
 	auto bdrNodeMesh{ Mesh(model.getMesh()) };
-	bdrNodeMesh.bdr_attributes.SetSize(fes.GetNBE());
-	for (auto b{ 0 }; b < fes.GetNBE(); b++) {
-		bdrNodeMesh.bdr_attributes[b] = b + 1;
-		bdrNodeMesh.SetBdrAttribute(b, bdrNodeMesh.bdr_attributes[b]);
-		Array<int> bdr_marker;
-		bdr_marker.SetSize(fes.GetNBE());
-		bdr_marker = 0;
-		bdr_marker[b] = 1;
-		bdrNodeMarkers[b] = bdr_marker;
-	}
-
-	auto bdrNodeFES = FiniteElementSpace(&bdrNodeMesh, fec);
-
-	for (auto b{ 0 }; b < bdrNodeMarkers.size(); b++) {
-		BilinearForm bdrNodeFinderOperator(&bdrNodeFES);
-		bdrNodeFinderOperator.AddBdrFaceIntegrator(new HesthavenFluxIntegrator(1.0), bdrNodeMarkers[b]);
-		bdrNodeFinderOperator.Assemble();
-		bdrNodeFinderOperator.Finalize();
-		auto bdrNodeMat{ toEigen(*bdrNodeFinderOperator.SpMat().ToDenseMatrix()) };
-		std::vector<NodeId> bdrNodes;
-		for (auto r{ 0 }; r < bdrNodeMat.rows(); r++) {
-			if (abs(bdrNodeMat(r, r)) > 1e-5) {
-				for (auto c{ r }; c < bdrNodeMat.cols(); c++) {
-					if (abs(bdrNodeMat(r, c)) > 1e-5) {
-						bdrNodes.push_back(c);
-					}
-				}
-				break;
-			}
-		}
-		bdr2nodes[b] = bdrNodes;
-	}
+	std::vector<Array<int>> bdrNodeMarkers{ assembleBdrMarkersForAllBdrElements(bdrNodeMesh, fes.GetNBE()) };
+	auto bdr2nodes{ assembleNodeVectorPerBdrFace(bdrNodeMarkers, bdrNodeMesh, fec) };
 
 	auto modelBdrMarkers = model.getBoundaryToMarker(); //Only for true boundary types (not interior)...
 	for (auto b{ 0 }; b < bdr2nodes.size(); b++) { //For each one of our bdr elements...
 		for (const auto& marker : modelBdrMarkers) { //Fetch each one of our bdrMarkers in the model...
 			if (marker.second[fes.GetBdrAttribute(b) - 1] == 1) { //And check if that BdrCond is active for the specified bdrAtt of that bdr element, which means the bdr element is of that type...
 				for (auto n{ 0 }; n < vmapB.size(); n++) { //Then sweep vmapB...
-					if (bdr2nodes[b][0] == vmapB[n]) { //To find the nodes in vmapB that are equal to the first node in our bdr element (as they are sorted when built), because it can happen...
-						std::vector<NodeId> potVec(bdr2nodes[b].size()); //... that we have multiple instances of a Hesthaven type node appearing twice on vmapB (i.e. corner node)...
+					if (bdr2nodes[b][0] == connectivity_[mapB[n]].first) { //To find the nodes in vmapB that are equal to the first node in our bdr element (as they are sorted when built), because it can happen...
+						std::vector<NodeId> mapBToStore(bdr2nodes[b].size()); //... that we have multiple instances of a Hesthaven type node appearing twice on vmapB (i.e. corner node)...
+						std::vector<NodeId> vmapBToStore(bdr2nodes[b].size()); //... that we have multiple instances of a Hesthaven type node appearing twice on vmapB (i.e. corner node)...
 						for (auto m{ 0 }; m < bdr2nodes[b].size(); m++) {
-							potVec[m] = vmapB[n + m]; //Then make a temporary vector that we'll fill the next nodesize worth of nodes from vmapB, starting at the compared and equal node...
+							mapBToStore[m] = mapB[n + m];
+							vmapBToStore[m] = connectivity_[mapB[n + m]].first; //Then make a temporary vector that we'll fill the next nodesize worth of nodes from vmapB, starting at the compared and equal node...
 						}
-						if (bdr2nodes[b] == potVec) { //As bdr2nodes[b] is already sorted when built, potVec also has to be sorted to match...
-							bdr_connectivity_.push_back(std::make_pair(marker.first, potVec));  //If that's true, these nodes are of the checked marker bdrcond type, which can be PEC, PMC, etc...
+						if (bdr2nodes[b] == vmapBToStore) { //As bdr2nodes[b] is already sorted when built, potVec also has to be sorted to match...
+							bdr_connectivity_.mapB.push_back(mapBToStore);
+							bdr_connectivity_.vmapB.push_back(std::make_pair(marker.first, vmapBToStore));  //If that's true, these nodes are of the checked marker bdrcond type, which can be PEC, PMC, etc...
 							break; // And as we only support one bdrcond per face/edge/bdrwhatever, we're done for this bdr element...
 						}     // As this method is completely non-dependent on dimensions or geometries, could be assumed is as generic as it could get.
 					}
@@ -579,9 +595,9 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		}
 	}
 	
-	if (model.getInteriorBoundaryToMarker().size() != 0) {
-		int_bdr_connectivity_ = assembleGlobalInteriorBoundaryMap(model.getInteriorBoundaryToMarker(), fes_);
-	}
+	//if (model.getInteriorBoundaryToMarker().size() != 0) {
+	//	int_bdr_connectivity_ = assembleGlobalInteriorBoundaryMap(model.getInteriorBoundaryToMarker(), fes_);
+	//}
 	const auto* cmesh = &model.getConstMesh();
 	auto attMap{ mapOriginalAttributes(model.getMesh()) };
 
@@ -734,9 +750,9 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	// --INTERIOR BOUNDARIES-- //
 
-	if (int_bdr_connectivity_.size() != 0) {
-		applyInteriorBoundaryConditionsToNodes(connectivity_, int_bdr_connectivity_ , fieldsIn, jumps);
-	}
+	//if (int_bdr_connectivity_.size() != 0) {
+	//	applyInteriorBoundaryConditionsToNodes(connectivity_, int_bdr_connectivity_ , fieldsIn, jumps);
+	//}
 
 	// --TOTAL FIELD SCATTERED FIELD-- //
 

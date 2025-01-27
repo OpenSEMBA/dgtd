@@ -67,6 +67,15 @@ namespace maxwell {
 		Eigen::VectorXd fscale;
 	};
 
+	struct BoundaryMaps {
+		std::vector<std::vector<NodeId>> mapB;
+		std::vector<BdrCondToNodes> vmapB;
+	};
+
+	struct InteriorBoundaryMaps : BoundaryMaps {
+
+	};
+
 	struct BoundaryElement {
 		Array<FaceId> globalFaceIndex;
 		Array<Attribute> faceAttributes;
@@ -112,8 +121,8 @@ namespace maxwell {
 	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity&, ElementId);
 	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& smFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
-	void applyBoundaryConditionsToNodes(const GlobalConnectivity&, const GlobalBoundary&, const FieldsInputMaps& in, HesthavenFields& out);
-	void applyInteriorBoundaryConditionsToNodes(const GlobalConnectivity&, const GlobalInteriorBoundary&, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyBoundaryConditionsToNodes(const GlobalConnectivity&, const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyInteriorBoundaryConditionsToNodes(const GlobalConnectivity&, const InteriorBoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
 
 	const int getNumFaces(const Geometry::Type&); 
 	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes);

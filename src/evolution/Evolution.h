@@ -92,8 +92,8 @@ private:
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;
 	GlobalConnectivity connectivity_;
-	GlobalBoundary bdr_connectivity_;
-	GlobalInteriorBoundary int_bdr_connectivity_;
+	BoundaryMaps bdr_connectivity_;
+	InteriorBoundaryMaps int_bdr_connectivity_;
 	TFSFConnectivity tfsf_connectivity_;
 
 };
