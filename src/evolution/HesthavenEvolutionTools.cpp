@@ -71,29 +71,31 @@ namespace maxwell {
 		return std::make_pair(vmapM, vmapP);
 	}
 
-	void applyBoundaryConditionsToNodes(const GlobalConnectivity& vmaps, const BoundaryMaps& bdrMaps, const FieldsInputMaps& in, HesthavenFields& out) 
+	void applyBoundaryConditionsToNodes(const BoundaryMaps& bdrMaps, const FieldsInputMaps& in, HesthavenFields& out) 
 	{
 		for (auto m{ 0 }; m < bdrMaps.vmapB.size(); m++) {
 			switch (bdrMaps.vmapB[m].first) {
 			case BdrCond::PEC:
-				for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
-					for (int d = X; d <= Z; d++) {
-						out.e_[d][bdrMaps.mapB[m][v]] = 2.0 * in.e_[d][vmaps[bdrMaps.vmapB[m].second[v]].first];
+				for (int d = X; d <= Z; d++) {
+					for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
+						out.e_[d][bdrMaps.mapB[m][v]] = -2.0 * in.e_[d][bdrMaps.vmapB[m].second[v]];
+						out.h_[d][bdrMaps.mapB[m][v]] = 0.0;
 					}
 				}
 				break;
 			case BdrCond::PMC:
-				for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
-					for (int d = X; d <= Z; d++) {
-						out.h_[d][bdrMaps.mapB[m][v]] = 2.0 * in.h_[d][vmaps[bdrMaps.vmapB[m].second[v]].first];
+				for (int d = X; d <= Z; d++) {
+					for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
+						out.e_[d][bdrMaps.mapB[m][v]] = 0.0;
+						out.h_[d][bdrMaps.mapB[m][v]] = -2.0 * in.h_[d][bdrMaps.vmapB[m].second[v]];
 					}
 				}
 				break;
 			case BdrCond::SMA:
-				for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
-					for (int d = X; d <= Z; d++) {
-						out.e_[d][bdrMaps.mapB[m][v]] = 2.0 * in.e_[d][vmaps[bdrMaps.vmapB[m].second[v]].first];
-						out.h_[d][bdrMaps.mapB[m][v]] = 2.0 * in.h_[d][vmaps[bdrMaps.vmapB[m].second[v]].first];
+				for (int d = X; d <= Z; d++) {
+					for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
+						out.e_[d][bdrMaps.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.vmapB[m].second[v]];
+						out.h_[d][bdrMaps.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.vmapB[m].second[v]];
 					}
 				}
 				break;
@@ -103,9 +105,9 @@ namespace maxwell {
 		}
 	}
 
-	void applyInteriorBoundaryConditionsToNodes(const GlobalConnectivity& vmaps, const InteriorBoundaryMaps& intBdrMaps, const FieldsInputMaps& in, HesthavenFields& out)
+	void applyInteriorBoundaryConditionsToNodes(const InteriorBoundaryMaps& intBdrMaps, const FieldsInputMaps& in, HesthavenFields& out)
 	{
-		applyBoundaryConditionsToNodes(vmaps, intBdrMaps, in, out);
+		applyBoundaryConditionsToNodes(intBdrMaps, in, out);
 	}
 
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)

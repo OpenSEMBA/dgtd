@@ -86,12 +86,15 @@ private:
 	void assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations*, double faceOri);
 	void evaluateTFSF(HesthavenFields& jumps) const;
 	void initBdrConnectivityMaps(const std::vector<std::vector<NodeId>>& bdr2nodes);
+	const Eigen::VectorXd applyScalingFactors(const ElementId, const Eigen::VectorXd& flux) const;
 	FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;
+	DynamicMatrix refInvMass_;
+	DynamicMatrix refLIFT_;
 	GlobalConnectivity connectivity_;
 	BoundaryMaps bdr_connectivity_;
 	InteriorBoundaryMaps int_bdr_connectivity_;

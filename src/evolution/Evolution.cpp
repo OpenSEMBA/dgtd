@@ -176,6 +176,10 @@ Evolution::Evolution(
 	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
+			std::cout << "InvMat" << std::endl;
+			std::cout << toEigen(*MInv_[E].get()->SpMat().ToDenseMatrix()) << std::endl << std::endl;
+			std::cout << "DerivX" << std::endl;
+			std::cout << toEigen(*buildDerivativeOperator(d, fes_)->SpMat().ToDenseMatrix()) << std::endl << std::endl;
 		}
 	}
 
@@ -366,25 +370,53 @@ DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	return toEigen(*bf.SpMat().ToDenseMatrix());
 }
 
-DynamicMatrix getReferenceInverseMassMatrix(const Element::Type elType, const int order, const int dimension)
+Mesh getMeshForReferenceElementBasedOnGeomType(const Element::Type elType, const int dimension)
 {
-	std::unique_ptr<Mesh> m;
 	switch (dimension) {
 	case 2:
-		m = std::make_unique<Mesh>(Mesh::MakeCartesian2D(1, 1, elType));
-		break;
+		switch (elType) {
+		case Element::Type::TRIANGLE:
+			return Mesh::MakeCartesian2D(1, 1, elType, true, 2.0, 2.0);
+		case Element::Type::QUADRILATERAL:
+			return Mesh::MakeCartesian2D(1, 1, elType);
+		default:
+			throw std::runtime_error("Incorrect Element Type for dimension 2 mesh.");
+		}
 	case 3:
-		m = std::make_unique<Mesh>(Mesh::MakeCartesian3D(1, 1, 1, elType));
-		break;
+		return Mesh::MakeCartesian3D(1, 1, 1, elType);
 	default:
 		throw std::runtime_error("Hesthaven Evolution Operator only supports dimensions 2 or 3.");
 	}
+}
+
+DynamicMatrix assembleHesthavenReferenceElementInverseMassMatrix(const Element::Type elType, const int order, const int dimension)
+{
+	auto m{ getMeshForReferenceElementBasedOnGeomType(elType, dimension) };
 	auto fec{ L2_FECollection(order, dimension, BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(m.get(), &fec)};
+	auto fes{ FiniteElementSpace(&m, &fec)};
 	auto mass_mat{ assembleInverseMassMatrix(fes) };
 
-	DynamicMatrix res = getElementMassMatrixFromGlobal(0, mass_mat);
-	return res;
+	return getElementMassMatrixFromGlobal(0, mass_mat);
+}
+
+DynamicMatrix assembleHesthavenReferenceElementEmat(const Element::Type elType, const int order, const int dimension)
+{
+	auto m{ getMeshForReferenceElementBasedOnGeomType(elType, dimension) };
+	m.SetAttribute(0, hesthavenMeshingTag);
+	Array<int> elementMarker;
+	elementMarker.Append(hesthavenMeshingTag);
+	auto sm{ SubMesh::CreateFromDomain(m, elementMarker) };
+	auto fec{ L2_FECollection(order, dimension, BasisType::GaussLobatto) };
+	FiniteElementSpace subFES(&sm, &fec);
+
+	auto boundary_markers = assembleBoundaryMarkers(subFES);
+
+	for (auto f{ 0 }; f < subFES.GetNF(); f++) {
+		sm.bdr_attributes[f] = f + 1;
+		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
+	}
+
+	return assembleEmat(subFES, boundary_markers);
 }
 
 GlobalBoundary assembleGlobalBoundaryMap(const GlobalConnectivity& vmaps, BoundaryToMarker& markers, FiniteElementSpace& fes)
@@ -430,22 +462,6 @@ GlobalInteriorBoundary assembleGlobalInteriorBoundaryMap(InteriorBoundaryToMarke
 		res.push_back(std::make_pair(bdr_cond, nodes));
 	}
 
-	return res;
-}
-
-const Eigen::VectorXd applyScalingFactors(const HesthavenElement& hestElem, const Eigen::VectorXd& flux)
-{
-	Eigen::VectorXd res(hestElem.invmass->rows());
-	const auto numFaces{ getNumFaces(hestElem.geom) };
-	const auto& invmass = *hestElem.invmass;
-	const auto& fscale = hestElem.fscale.asDiagonal();
-	const auto ematRows = hestElem.emat[0]->rows();
-	const auto ematCols = hestElem.emat[0]->cols();
-	DynamicMatrix emat(ematRows, ematCols * numFaces);
-	for (auto f{ 0 }; f < numFaces; f++) {
-		emat.block(0, f * ematCols, ematRows, ematCols) = hestElem.emat[f]->block(0, 0, ematRows, ematCols);
-	}
-	res = invmass * emat * fscale * flux / 2.0;
 	return res;
 }
 
@@ -495,6 +511,12 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& jumps) const
 	}
 }
 
+const Eigen::VectorXd HesthavenEvolution::applyScalingFactors(const ElementId e, const Eigen::VectorXd& flux) const
+{
+	const auto& fscale = hestElemStorage_[e].fscale.asDiagonal();
+	return this->refLIFT_ * (fscale * flux) / 2.0;
+}
+
 std::vector<Array<int>> assembleBdrMarkersForAllBdrElements(Mesh& bdrMesh, const int numBdrElems)
 {
 	std::vector<Array<int>> res(numBdrElems);
@@ -527,13 +549,13 @@ std::vector<NodeId> findNodesPerBdrFace(const DynamicMatrix& bdrNodeMat)
 	return res;
 }
 
-std::vector<std::vector<NodeId>> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNodeMarkers, Mesh& bdrMesh, const L2_FECollection* fec)
+std::vector<std::vector<NodeId>> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNodeMarkers, FiniteElementSpace& bdrFES, const int size)
 {
-	auto bdrNodeFES = FiniteElementSpace(&bdrMesh, fec);
-	std::vector<std::vector<NodeId>> res(bdrNodeFES.GetNBE());
+	
+	std::vector<std::vector<NodeId>> res(size);
 
 	for (auto b{ 0 }; b < bdrNodeMarkers.size(); b++) {
-		auto bdrNodeFinderOperator{ assembleFaceMassBilinearForm(bdrNodeFES, bdrNodeMarkers[b]) };
+		auto bdrNodeFinderOperator{ assembleFaceMassBilinearForm(bdrFES, bdrNodeMarkers[b]) };
 		auto bdrNodeMat{ toEigen(*bdrNodeFinderOperator->SpMat().ToDenseMatrix()) };
 		res[b] =  findNodesPerBdrFace(bdrNodeMat);
 	}
@@ -558,6 +580,17 @@ std::vector<NodeId> initVMapB(const GlobalConnectivity& connectivity, const std:
 	std::vector<NodeId> res(mapB.size());
 	for (auto i{ 0 }; i < mapB.size(); i++) {
 		res[i] = connectivity[mapB[i]].first;
+	}
+	return res;
+}
+
+const std::map<bool, std::vector<BdrElementId>> assembleInteriorOrTrueBdrMap(const FiniteElementSpace& fes)
+{
+	std::map<bool, std::vector<BdrElementId>> res;
+	auto f2bdr{ fes.GetMesh()->GetFaceToBdrElMap() };
+	for (auto b{ 0 }; b < fes.GetNBE(); b++) {
+		fes.GetMesh()->FaceIsInterior(f2bdr.Find(b)) ==
+			true ? res[true].push_back(b) : res[false].push_back(b);
 	}
 	return res;
 }
@@ -606,9 +639,12 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	connectivity_ =  assembleGlobalConnectivityMap(mesh, fec);
 
+	const auto isInteriorMap{ assembleInteriorOrTrueBdrMap(fes_) };
+
 	auto bdrNodeMesh{ Mesh(model_.getMesh()) };
-	std::vector<Array<int>> bdrNodeMarkers{ assembleBdrMarkersForAllBdrElements(bdrNodeMesh, fes_.GetNBE()) };
-	auto bdr2nodes{ assembleNodeVectorPerBdrFace(bdrNodeMarkers, bdrNodeMesh, fec) };
+	std::vector<Array<int>> bdrNodeMarkers{ assembleBdrMarkersForAllBdrElements(bdrNodeMesh, isInteriorMap.at(false).size())};
+	auto bdrNodeFES = FiniteElementSpace(&bdrNodeMesh, fec);
+	const auto bdr2nodes{ assembleNodeVectorPerBdrFace(bdrNodeMarkers, bdrNodeFES, isInteriorMap.at(false).size()) };
 	initBdrConnectivityMaps(bdr2nodes);
 	
 	//if (model.getInteriorBoundaryToMarker().size() != 0) {
@@ -636,14 +672,33 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	hestElemStorage_.resize(cmesh->GetNE());
 
+	bool allElementsSameGeom = true;
+	{
+		const auto firstElemGeom = cmesh->GetElementGeometry(0);
+		for (auto e{ 0 }; e < cmesh->GetNE(); e++)
+		{
+			if (firstElemGeom != cmesh->GetElementGeometry(e))
+			{
+				allElementsSameGeom = false;
+			}
+		}
+	}
+	
+	if (allElementsSameGeom) 
+	{
+		refInvMass_ = assembleHesthavenReferenceElementInverseMassMatrix(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
+		refLIFT_ = refInvMass_ * assembleHesthavenReferenceElementEmat(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
+	}
+
 	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
 	{
 		HesthavenElement hestElem;
 		hestElem.id = e;
 		hestElem.geom = cmesh->GetElementBaseGeometry(e);
+		hestElem.vol = mesh.GetElementVolume(e);
 
 		mesh.SetAttribute(e, hesthavenMeshingTag);
-		auto sm = SubMesh::CreateFromDomain(mesh, elementMarker);
+		auto sm{ SubMesh::CreateFromDomain(mesh, elementMarker) };
 		restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
 		FiniteElementSpace subFES(&sm, fec);
 
@@ -651,35 +706,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		for (auto f{ 0 }; f < subFES.GetNF(); f++) {
 			sm.bdr_attributes[f] = f + 1;
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
-		}
-
-		auto inverseMassMatrix = assembleInverseMassMatrix(subFES);
-		//auto inverseMassMatrix{ getReferenceInverseMassMatrix(sm.GetElementType(0), fec->GetOrder(), sm.Dimension())};
-		StorageIterator it = matrixStorage_.find(inverseMassMatrix);
-		if (it == matrixStorage_.end()) {
-			matrixStorage_.insert(inverseMassMatrix);
-			StorageIterator it = matrixStorage_.find(inverseMassMatrix);
-			hestElem.invmass = &(*it);
-		}
-		else {
-			hestElem.invmass = &(*it);
-		}
-
-		int numFaces;
-		sm.Dimension() == 2 ? numFaces = sm.GetNEdges() : numFaces = sm.GetNFaces();
-
-		auto boundaryMarkers = assembleBoundaryMarkers(subFES);
-		for (auto f{ 0 }; f < numFaces; f++){
-			auto surfaceMatrix{ assembleConnectivityFaceMassMatrix(subFES, boundaryMarkers[f]) };
-			StorageIterator it = matrixStorage_.find(surfaceMatrix);
-			if (it == matrixStorage_.end()) {
-				matrixStorage_.insert(surfaceMatrix);
-				StorageIterator it = matrixStorage_.find(surfaceMatrix);
-				hestElem.emat.push_back(&(*it));
-			}
-			else {
-				hestElem.emat.push_back(&(*it));
-			}
 		}
 
 		for (auto d{ X }; d <= Z; d++) {
@@ -695,7 +721,9 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			}
 		}
 
-		int numNodesAtFace;
+
+		int numFaces, numNodesAtFace;
+		sm.Dimension() == 2 ? numFaces = sm.GetNEdges() : numFaces = sm.GetNFaces();
 		sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = fec->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
 		initNormalVectors(hestElem, numFaces * numNodesAtFace);
 		initFscale(hestElem, numFaces * numNodesAtFace);
@@ -756,14 +784,14 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	for (auto v{ 0 }; v < connectivity_.size(); v++) {
 		for (int d = X; d <= Z; d++) {
-			jumps.e_[d][v] = fieldsIn.e_[d][connectivity_[v].first] - fieldsIn.e_[d][connectivity_[v].second];
-			jumps.h_[d][v] = fieldsIn.h_[d][connectivity_[v].first] - fieldsIn.h_[d][connectivity_[v].second];
+			jumps.e_[d][v] = fieldsIn.e_[d][connectivity_[v].second] - fieldsIn.e_[d][connectivity_[v].first];
+			jumps.h_[d][v] = fieldsIn.h_[d][connectivity_[v].second] - fieldsIn.h_[d][connectivity_[v].first];
 		}
 	}
 
 	// --BOUNDARIES-- //
 
-	applyBoundaryConditionsToNodes(connectivity_, bdr_connectivity_, fieldsIn, jumps);
+	applyBoundaryConditionsToNodes(bdr_connectivity_, fieldsIn, jumps);
 
 	// --INTERIOR BOUNDARIES-- //
 
@@ -791,10 +819,13 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 		const auto fieldsElem{ FieldsElementMaps(in, fes_, e) };
 
 		Eigen::VectorXd ndotdH(jumpsElem.h_[X].size()), ndotdE(jumpsElem.e_[X].size());
+		ndotdH.setZero(); ndotdE.setZero();
+
+
 		
 		for (int d = X; d <= Z; d++) {
 			ndotdH += hestElemStorage_[e].normals[d].asDiagonal() * jumpsElem.h_[d];
-			ndotdH += hestElemStorage_[e].normals[d].asDiagonal() * jumpsElem.e_[d];
+			ndotdE += hestElemStorage_[e].normals[d].asDiagonal() * jumpsElem.e_[d];
 		}
 
 		HesthavenFields elemFlux(elemFluxSize);
@@ -803,8 +834,12 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			elemFlux.h_[x] = -1.0 * hestElemStorage_[e].normals[y].asDiagonal() * jumpsElem.e_[z] +       hestElemStorage_[e].normals[z].asDiagonal() * jumpsElem.e_[y] + alpha * (jumpsElem.h_[x] - ndotdH.asDiagonal() * hestElemStorage_[e].normals[x]);
-			elemFlux.e_[x] =        hestElemStorage_[e].normals[y].asDiagonal() * jumpsElem.h_[z] - 1.0 * hestElemStorage_[e].normals[z].asDiagonal() * jumpsElem.h_[y] + alpha * (jumpsElem.e_[x] - ndotdE.asDiagonal() * hestElemStorage_[e].normals[x]);
+			const auto& norx = hestElemStorage_[e].normals[x];
+			const auto& nory = hestElemStorage_[e].normals[y];
+			const auto& norz = hestElemStorage_[e].normals[z];
+
+			elemFlux.h_[x] = -1.0 * nory.asDiagonal() * jumpsElem.e_[z] +       norz.asDiagonal() * jumpsElem.e_[y] + alpha * (jumpsElem.h_[x] - ndotdH.asDiagonal() * norx);
+			elemFlux.e_[x] =        nory.asDiagonal() * jumpsElem.h_[z] - 1.0 * norz.asDiagonal() * jumpsElem.h_[y] + alpha * (jumpsElem.e_[x] - ndotdE.asDiagonal() * norx);
 
 		}
 
@@ -812,15 +847,13 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const auto& invmass = *hestElemStorage_[e].invmass;
+			const auto& invmass = this->refInvMass_ * hestElemStorage_[e].vol;
 			const auto& dir1 = *hestElemStorage_[e].dir[y];
 			const auto& dir2 = *hestElemStorage_[e].dir[z];
 
-			const DynamicMatrix result = invmass * dir1;
-			
-			const Eigen::VectorXd& hResult = -1.0 * invmass * dir1 * fieldsElem.e_[z] +       invmass * dir2 * fieldsElem.e_[y] + applyScalingFactors(hestElemStorage_[e], elemFlux.h_[x]);
-			const Eigen::VectorXd& eResult =        invmass * dir1 * fieldsElem.h_[z] - 1.0 * invmass * dir2 * fieldsElem.h_[y] + applyScalingFactors(hestElemStorage_[e], elemFlux.e_[x]);
-			const int startIndex = e * dofs.Size();
+			const Eigen::VectorXd& hResult = -1.0 * invmass * dir1 * fieldsElem.e_[z] +       invmass * dir2 * fieldsElem.e_[y] + applyScalingFactors(e, elemFlux.h_[x]);
+			const Eigen::VectorXd& eResult =        invmass * dir1 * fieldsElem.h_[z] - 1.0 * invmass * dir2 * fieldsElem.h_[y] + applyScalingFactors(e, elemFlux.e_[x]);
+
 			mfem::real_t* mfemHFieldVals = new mfem::real_t[hResult.size()];
 			mfem::real_t* mfemEFieldVals = new mfem::real_t[eResult.size()];
 			for (auto v{ 0 }; v < hResult.size(); v++) {

@@ -14,6 +14,7 @@ namespace maxwell {
 	using InteriorFaceConnectivityMaps = std::pair<std::vector<int>, std::vector<int>>;
 	using DynamicMatrix = Eigen::MatrixXd;
 	using NodeId = int;
+	using Volume = double;
 	using NodePair = std::pair<NodeId, NodeId>;
 	using ConnectivityVector = std::vector<NodePair>;
 	using GlobalConnectivity = ConnectivityVector;
@@ -60,6 +61,7 @@ namespace maxwell {
 	struct HesthavenElement {
 		ElementId id;
 		Geometry::Type geom;
+		Volume vol;
 		Directional dir;
 		Emat emat;
 		const DynamicMatrix* invmass;
@@ -80,12 +82,6 @@ namespace maxwell {
 		Array<FaceId> globalFaceIndex;
 		Array<Attribute> faceAttributes;
 		Array<ElementId> elementId;
-	};
-
-	struct ConnectivityMaps {
-		std::vector<int> vmapM;
-		std::vector<int> vmapP;
-		std::vector<int> vmapB;
 	};
 
 	struct HesthavenFields {
@@ -121,8 +117,8 @@ namespace maxwell {
 	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity&, ElementId);
 	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& smFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
-	void applyBoundaryConditionsToNodes(const GlobalConnectivity&, const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
-	void applyInteriorBoundaryConditionsToNodes(const GlobalConnectivity&, const InteriorBoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyBoundaryConditionsToNodes(const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
+	void applyInteriorBoundaryConditionsToNodes(const InteriorBoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
 
 	const int getNumFaces(const Geometry::Type&); 
 	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes);
