@@ -14,6 +14,8 @@
 
 namespace maxwell {
 
+using MatrixStorageLT = std::set<DynamicMatrix, MatrixCompareLessThan>;
+
 class Evolution: public mfem::TimeDependentOperator {
 public:
 	static const int numberOfFieldComponents = 2;
@@ -91,7 +93,7 @@ private:
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
-	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
+	MatrixStorageLT matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;
 	DynamicMatrix refInvMass_;
 	DynamicMatrix refLIFT_;

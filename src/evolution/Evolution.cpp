@@ -557,7 +557,7 @@ std::vector<std::vector<NodeId>> assembleNodeVectorPerBdrFace(std::vector<Array<
 	for (auto b{ 0 }; b < bdrNodeMarkers.size(); b++) {
 		auto bdrNodeFinderOperator{ assembleFaceMassBilinearForm(bdrFES, bdrNodeMarkers[b]) };
 		auto bdrNodeMat{ toEigen(*bdrNodeFinderOperator->SpMat().ToDenseMatrix()) };
-		res[b] =  findNodesPerBdrFace(bdrNodeMat);
+		res[b] = findNodesPerBdrFace(bdrNodeMat);
 	}
 
 	return res;
@@ -619,6 +619,54 @@ void HesthavenEvolution::initBdrConnectivityMaps(const std::vector<std::vector<N
 						}     // As this method is completely non-dependent on dimensions or geometries, could be assumed is as generic as it could get.
 					}
 				}
+			}
+		}
+	}
+}
+
+void assembleDerivativeMatrices(FiniteElementSpace& subFES, MatrixStorageLT& matStLt, HesthavenElement& hestElem)
+{
+	for (auto d{ X }; d <= Z; d++) {
+		auto derivativeMatrix{ toEigen(*buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix()) };
+		StorageIterator it = matStLt.find(derivativeMatrix);
+		if (it == matStLt.end()) {
+			matStLt.insert(derivativeMatrix);
+			StorageIterator it = matStLt.find(derivativeMatrix);
+			hestElem.der[d] = &(*it);
+		}
+		else {
+			hestElem.der[d] = &(*it);
+		}
+	}
+}
+
+void assembleFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem)
+{
+
+	int numFaces, numNodesAtFace;
+	const auto& dim = subFES.GetMesh()->Dimension();
+	dim == 2 ? numFaces = subFES.GetMesh()->GetNEdges() : numFaces = subFES.GetMesh()->GetNFaces();
+	dim == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
+	initNormalVectors(hestElem, numFaces * numNodesAtFace);
+	initFscale(hestElem, numFaces * numNodesAtFace);
+
+	for (auto f{ 0 }; f < numFaces; f++) {
+
+		Vector normal(dim);
+		ElementTransformation* faceTrans;
+		dim == 2 ? faceTrans = subFES.GetMesh()->GetEdgeTransformation(f) : faceTrans = subFES.GetMesh()->GetFaceTransformation(f);
+		faceTrans->SetIntPoint(&Geometries.GetCenter(faceTrans->GetGeometryType()));
+		CalcOrtho(faceTrans->Jacobian(), normal);
+		const auto sJ{ faceTrans->Weight() };
+
+		for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
+			hestElem.normals[X][f * numNodesAtFace + b] = normal[0] / sJ;
+			hestElem.fscale[f * numNodesAtFace + b] = sJ / hestElem.vol; //likewise for fscale, surface per volume ratio per node at face
+			if (dim >= 2) {
+				hestElem.normals[Y][f * numNodesAtFace + b] = normal[1] / sJ;
+			}
+			if (dim == 3) {
+				hestElem.normals[Z][f * numNodesAtFace + b] = normal[2] / sJ;
 			}
 		}
 	}
@@ -708,50 +756,9 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
 
-		for (auto d{ X }; d <= Z; d++) {
-			auto derivativeMatrix{ toEigen(*buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix())};
-			StorageIterator it = matrixStorage_.find(derivativeMatrix);
-			if (it == matrixStorage_.end()) {
-				matrixStorage_.insert(derivativeMatrix);
-				StorageIterator it = matrixStorage_.find(derivativeMatrix);
-				hestElem.dir[d] = &(*it);
-			}
-			else {
-				hestElem.dir[d] = &(*it);
-			}
-		}
+		assembleDerivativeMatrices(subFES, matrixStorage_, hestElem);
 
-
-		int numFaces, numNodesAtFace;
-		sm.Dimension() == 2 ? numFaces = sm.GetNEdges() : numFaces = sm.GetNFaces();
-		sm.Dimension() == 2 ? numNodesAtFace = numNodesAtFace = fec->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
-		initNormalVectors(hestElem, numFaces * numNodesAtFace);
-		initFscale(hestElem, numFaces * numNodesAtFace);
-
-		auto elementVolume = sm.GetElementVolume(0);
-
-		for (auto f{ 0 }; f < numFaces; f++) {
-			
-			Vector normal(sm.Dimension());
-			ElementTransformation* faceTrans;
-			sm.Dimension() == 2 ? faceTrans = sm.GetEdgeTransformation(f) : faceTrans = sm.GetFaceTransformation(f);
-			faceTrans->SetIntPoint(&Geometries.GetCenter(faceTrans->GetGeometryType()));
-			CalcOrtho(faceTrans->Jacobian(), normal);
-			normal /= faceTrans->Weight();
-
-			for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
-				hestElem.normals[X][f * numNodesAtFace + b] = normal[0];
-				hestElem.fscale[f * numNodesAtFace + b] = abs(normal[0] / elementVolume); //likewise for fscale, surface per volume ratio per node at face
-				if (sm.Dimension() >= 2) {
-					hestElem.normals[Y][f * numNodesAtFace + b] = normal[1];
-					hestElem.fscale[f * numNodesAtFace + b] += abs(normal[1] / elementVolume);
-				}
-				if (sm.Dimension() == 3) {
-					hestElem.normals[Z][f * numNodesAtFace + b] = normal[2];
-					hestElem.fscale[f * numNodesAtFace + b] += abs(normal[2] / elementVolume);
-				}
-			}
-		}
+		assembleFaceInformation(subFES, hestElem);
 
 		hestElemStorage_[e] = hestElem;
 
@@ -821,8 +828,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 		Eigen::VectorXd ndotdH(jumpsElem.h_[X].size()), ndotdE(jumpsElem.e_[X].size());
 		ndotdH.setZero(); ndotdE.setZero();
 
-
-		
 		for (int d = X; d <= Z; d++) {
 			ndotdH += hestElemStorage_[e].normals[d].asDiagonal() * jumpsElem.h_[d];
 			ndotdE += hestElemStorage_[e].normals[d].asDiagonal() * jumpsElem.e_[d];
@@ -847,12 +852,12 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const auto& invmass = this->refInvMass_ * hestElemStorage_[e].vol;
-			const auto& dir1 = *hestElemStorage_[e].dir[y];
-			const auto& dir2 = *hestElemStorage_[e].dir[z];
+			const DynamicMatrix& invmass = this->refInvMass_ * (2.0 / hestElemStorage_[e].vol);
+			const auto& der1 = *hestElemStorage_[e].der[y];
+			const auto& der2 = *hestElemStorage_[e].der[z];
 
-			const Eigen::VectorXd& hResult = -1.0 * invmass * dir1 * fieldsElem.e_[z] +       invmass * dir2 * fieldsElem.e_[y] + applyScalingFactors(e, elemFlux.h_[x]);
-			const Eigen::VectorXd& eResult =        invmass * dir1 * fieldsElem.h_[z] - 1.0 * invmass * dir2 * fieldsElem.h_[y] + applyScalingFactors(e, elemFlux.e_[x]);
+			const Eigen::VectorXd& hResult = -1.0 * invmass * der1 * fieldsElem.e_[z] +       invmass * der2 * fieldsElem.e_[y] + applyScalingFactors(e, elemFlux.h_[x]);
+			const Eigen::VectorXd& eResult =        invmass * der1 * fieldsElem.h_[z] - 1.0 * invmass * der2 * fieldsElem.h_[y] + applyScalingFactors(e, elemFlux.e_[x]);
 
 			mfem::real_t* mfemHFieldVals = new mfem::real_t[hResult.size()];
 			mfem::real_t* mfemEFieldVals = new mfem::real_t[eResult.size()];

@@ -62,7 +62,7 @@ namespace maxwell {
 		ElementId id;
 		Geometry::Type geom;
 		Volume vol;
-		Directional dir;
+		Directional der;
 		Emat emat;
 		const DynamicMatrix* invmass;
 		Normals normals;

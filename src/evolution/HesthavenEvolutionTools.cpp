@@ -343,9 +343,10 @@ namespace maxwell {
 			for (auto v{ 0 }; v < maps.first.size(); v++) {
 				sortingVector.push_back(std::pair(dofs2[maps.second[v] - dofs1.Size()], dofs1[maps.first[v]]));
 			}
-			std::sort(sortingVector.begin(), sortingVector.end(), [](const std::pair<int, int>& left, const std::pair<int, int>& right) {
-				return left.second < right.second;
-			});
+			sort(sortingVector.begin(), sortingVector.end());
+			//std::sort(sortingVector.begin(), sortingVector.end(), [](const std::pair<int, int>& left, const std::pair<int, int>& right) {
+			//	return left.second < right.second;
+			//});
 		}
 		else {
 			throw std::runtime_error("incorrect element id to element ids in FaceElementTransformation");
