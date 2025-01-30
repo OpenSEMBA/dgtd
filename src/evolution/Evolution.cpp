@@ -176,10 +176,6 @@ Evolution::Evolution(
 	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
 			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
-			std::cout << "InvMat" << std::endl;
-			std::cout << toEigen(*MInv_[E].get()->SpMat().ToDenseMatrix()) << std::endl << std::endl;
-			std::cout << "DerivX" << std::endl;
-			std::cout << toEigen(*buildDerivativeOperator(d, fes_)->SpMat().ToDenseMatrix()) << std::endl << std::endl;
 		}
 	}
 

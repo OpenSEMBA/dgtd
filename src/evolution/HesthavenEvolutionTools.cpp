@@ -60,9 +60,10 @@ namespace maxwell {
 	{
 		// Make map
 		std::vector<int> vmapM, vmapP;
+		double tol = 1e-5;
 		for (auto r{ 0 }; r < fluxMatrix.rows() / 2; r++) {
 			for (auto c{ 0 }; c < fluxMatrix.cols(); c++) {
-				if (r != c && fluxMatrix(r, c) == fluxMatrix(r, r) && fluxMatrix(r, r) > 1e-5) {
+				if (r != c && abs(fluxMatrix(r, c) - fluxMatrix(r, r)) < tol && fluxMatrix(r, r) > tol) {
 					vmapM.emplace_back(r);
 					vmapP.emplace_back(c);
 				}
@@ -327,6 +328,7 @@ namespace maxwell {
 	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity& map, ElementId e)
 	{
 		auto matrix{ assembleInteriorFluxMatrix(smFES) };
+		std::cout << matrix << std::endl << std::endl;
 		auto maps{ mapConnectivity(matrix) };
 		Array<int> dofs1, dofs2;
 		globalFES.GetElementDofs(trans.Elem1No, dofs1);
@@ -365,8 +367,9 @@ namespace maxwell {
 		auto mesh = dynamic_cast<SubMesh*>(submeshFES.GetMesh());
 		auto transferMap = mesh->CreateTransferMap(gfChild, gfParent);
 		ConstantCoefficient zero(0.0);
+		double tol{ 1e-8 };
 		for (auto r{ 0 }; r < surfaceMatrix.rows(); r++) {
-			if (surfaceMatrix(r, 0) != 0.0) {
+			if (abs(surfaceMatrix(r, 0)) > tol) {
 				gfChild.ProjectCoefficient(zero);
 				gfParent.ProjectCoefficient(zero);
 				gfChild[r] = 1.0;
