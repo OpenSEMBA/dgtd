@@ -328,7 +328,6 @@ namespace maxwell {
 	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity& map, ElementId e)
 	{
 		auto matrix{ assembleInteriorFluxMatrix(smFES) };
-		std::cout << matrix << std::endl << std::endl;
 		auto maps{ mapConnectivity(matrix) };
 		Array<int> dofs1, dofs2;
 		globalFES.GetElementDofs(trans.Elem1No, dofs1);

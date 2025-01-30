@@ -293,8 +293,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMFN << std::endl;
-
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
 			ASSERT_TRUE(abs(EigenMFN(i, j) - OneNormalOperator(i, j)) < 1e-8);
@@ -331,8 +329,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 			fes
 		)->SpMat().ToDenseMatrix()
 	);
-
-	std::cout << EigenMFN << std::endl;
 
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
@@ -371,8 +367,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMFN << std::endl;
-
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
 			ASSERT_TRUE(abs(EigenMFN(i, j) - OneNormalOperator(i, j)) < 1e-8);
@@ -409,8 +403,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 			fes
 		)->SpMat().ToDenseMatrix()
 	);
-
-	std::cout << EigenMFN << std::endl;
 
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
@@ -449,8 +441,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMFNN << std::endl;
-
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {
 			ASSERT_TRUE(abs(EigenMFNN(i, j) - TwoNormalOperator(i, j)) < 1e-3);
@@ -487,8 +477,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 			fes
 		)->SpMat().ToDenseMatrix()
 	);
-
-	std::cout << EigenMFNN << std::endl;
 
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {
@@ -527,8 +515,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 		)->SpMat().ToDenseMatrix()
 	);
 
-	std::cout << EigenMFNN << std::endl;
-
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {
 			ASSERT_TRUE(abs(EigenMFNN(i, j) - TwoNormalOperator(i, j)) < 1e-8);
@@ -565,8 +551,6 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 			fes
 		)->SpMat().ToDenseMatrix()
 	);
-
-	std::cout << EigenMFNN << std::endl;
 
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {
@@ -627,8 +611,6 @@ TEST_F(MFEMHesthaven2D, nodalPosition)
 
 	GridFunction mfemNodes(fesAuto.get());
 	meshAuto.GetNodes(mfemNodes);
-
-	std::cout << mfemNodes << std::endl;
 
 	Eigen::Matrix<double, 6, 6> identity;
 	identity.setIdentity();
@@ -753,8 +735,8 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 		{0,0},
 		{2,2}, 
 		
-		{4,0}, 
 		{3,1}, 
+		{4,0}, 
 		{4,4},
 		{5,5},
 		{3,3},
@@ -785,9 +767,9 @@ TEST_F(MFEMHesthaven2D, connectivityMapO2)
 		{3,3},
 	    {5,5}, 	
 		
-		{8,0},
-		{7,1},
 		{6,2},
+		{7,1},
+		{8,0},
 		{8,8},
 		{10,10},
 		{11,11},
@@ -1021,8 +1003,6 @@ TEST_F(MFEMHesthaven2D, EmatO2)
     { 0.0000, 0.0000,  0.0000,  0.1333, 1.0667,  0.1333,  0.0000, 0.0000,  0.0000},
     { 0.0000, 0.0000,  0.0000, -0.0667, 0.1333,  0.2667, -0.0667, 0.1333,  0.2667}
 	};
-
-	std::cout << emat << std::endl;
 
 	for (auto r{ 0 }; r < emat.rows(); r++) {
 		for (auto c{ 0 }; c < emat.cols(); c++) {
