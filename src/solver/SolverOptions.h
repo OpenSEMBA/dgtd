@@ -8,7 +8,7 @@ struct SolverOptions {
     double timeStep = 0.0;
     double finalTime = 2.0;
     double cfl = 0.8;
-    bool curvedOperator = false;
+    bool highOrderMesh = false;
     bool hesthavenOperator = false;
 
     EvolutionOptions evolution;

@@ -28,7 +28,7 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 
 std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 {
-	if (!opts_.curvedOperator) {
+	if (!opts_.highOrderMesh) {
 		if (opts_.hesthavenOperator) {
 			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 		}
@@ -172,7 +172,7 @@ double getJacobiGQ_RMin(const int order) {
 	GridFunction nodes(&fes);
 	mesh.GetNodes(nodes);
 
-	return abs(nodes(0) - nodes(1));
+	return std::abs(nodes(0) - nodes(1));
 }
 
 double Solver::estimateTimeStep() const

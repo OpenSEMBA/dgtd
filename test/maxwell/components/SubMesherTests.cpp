@@ -79,7 +79,7 @@ TEST_F(SubMesherTest, barycenterVectorOfTwoElements_2D)
 {
 	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
-	auto baryVector{ calculateBarycenterVector(mesh, 0) };
+	auto baryVector{ buildBarycenterPosition(mesh, 0) };
 	Vector expectedBaryVector({ (1.0 + 1.0 / 3.0) - (2.0 / 3.0), (1.0 / 3.0) - (2.0 / 3.0) });
 
 	for (auto i{ 0 }; i < baryVector.Size(); i++) {
@@ -91,7 +91,7 @@ TEST_F(SubMesherTest, tangentVector_2D)
 {
 	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
-	auto tangentVector{ calculateTangent2D(mesh, 0) };
+	auto tangentVector{ buildTangent2D(mesh, 0) };
 	Vector expectedTangent({ 0.0, 1.0 });
 
 	for (auto i{ 0 }; i < tangentVector.Size(); i++) {
@@ -115,42 +115,42 @@ TEST_F(SubMesherTest, calculateNormal_3D)
 	auto mesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::HEXAHEDRON) };
 
 	{
-		auto normal = calculateNormal3D(mesh, 0);
+		auto normal = buildNormal3D(mesh, 0);
 		Vector expectedNormal({ 0.0, 0.0, -1.0 });
 		for (auto i{ 0 }; i < normal.Size(); i++) {
 			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
 		}
 	}
 	{
-		auto normal = calculateNormal3D(mesh, 1);
+		auto normal = buildNormal3D(mesh, 1);
 		Vector expectedNormal({ 0.0, 0.0,  1.0 });
 		for (auto i{ 0 }; i < normal.Size(); i++) {
 			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
 		}
 	}
 	{
-		auto normal = calculateNormal3D(mesh, 2);
+		auto normal = buildNormal3D(mesh, 2);
 		Vector expectedNormal({ -1.0, 0.0, 0.0 });
 		for (auto i{ 0 }; i < normal.Size(); i++) {
 			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
 		}
 	}
 	{
-		auto normal = calculateNormal3D(mesh, 3);
+		auto normal = buildNormal3D(mesh, 3);
 		Vector expectedNormal({  1.0, 0.0, 0.0 });
 		for (auto i{ 0 }; i < normal.Size(); i++) {
 			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
 		}
 	}
 	{
-		auto normal = calculateNormal3D(mesh, 4);
+		auto normal = buildNormal3D(mesh, 4);
 		Vector expectedNormal({ 0.0, -1.0, 0.0 });
 		for (auto i{ 0 }; i < normal.Size(); i++) {
 			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
 		}
 	}
 	{
-		auto normal = calculateNormal3D(mesh, 5);
+		auto normal = buildNormal3D(mesh, 5);
 		Vector expectedNormal({ 0.0,  1.0, 0.0 });
 		for (auto i{ 0 }; i < normal.Size(); i++) {
 			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);

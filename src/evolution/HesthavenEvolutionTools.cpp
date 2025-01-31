@@ -63,7 +63,7 @@ namespace maxwell {
 		double tol = 1e-5;
 		for (auto r{ 0 }; r < fluxMatrix.rows() / 2; r++) {
 			for (auto c{ 0 }; c < fluxMatrix.cols(); c++) {
-				if (r != c && abs(fluxMatrix(r, c) - fluxMatrix(r, r)) < tol && fluxMatrix(r, r) > tol) {
+				if (r != c && std::abs(fluxMatrix(r, c) - fluxMatrix(r, r)) < tol && fluxMatrix(r, r) > tol) {
 					vmapM.emplace_back(r);
 					vmapP.emplace_back(c);
 				}
@@ -237,7 +237,7 @@ namespace maxwell {
 		for (auto c{ 0 }; c < matrix.cols(); c++) {
 			bool isZero = true;
 			for (auto r{ 0 }; r < matrix.rows(); r++) {
-				if (abs(matrix(r, c) - 0.0) >= 1e-6)
+				if (std::abs(matrix(r, c) - 0.0) >= 1e-6)
 				{
 					isZero = false;
 					break;
@@ -368,7 +368,7 @@ namespace maxwell {
 		ConstantCoefficient zero(0.0);
 		double tol{ 1e-8 };
 		for (auto r{ 0 }; r < surfaceMatrix.rows(); r++) {
-			if (abs(surfaceMatrix(r, 0)) > tol) {
+			if (std::abs(surfaceMatrix(r, 0)) > tol) {
 				gfChild.ProjectCoefficient(zero);
 				gfParent.ProjectCoefficient(zero);
 				gfChild[r] = 1.0;

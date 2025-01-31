@@ -42,14 +42,14 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 		auto expected_t_half{ 0.5 };
 		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 			}
 		}
 
 		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
 			}
 		}
@@ -61,11 +61,11 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
 		auto expected_t_initial{ 0.0 };
 		auto expected_t_final{ 2.0 };
-		if (abs(t - expected_t_initial) <= 1e-3) {
+		if (std::abs(t - expected_t_initial) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
 		}
-		if (abs(t - expected_t_final) <= 1e-3) {
+		if (std::abs(t - expected_t_final) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
 		}
@@ -93,7 +93,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(2.0, f.Hy, tolerance);
 			}
@@ -107,7 +107,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Ez, tolerance);
 				EXPECT_NEAR(1.0, f.Hy, tolerance);
 			}
@@ -121,7 +121,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Ez, tolerance);
 				EXPECT_NEAR(1.0, f.Hy, tolerance);
 			}
@@ -135,7 +135,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(2.0, f.Hy, tolerance);
 			}
@@ -164,7 +164,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
 			}
@@ -178,7 +178,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ey, tolerance);
 				EXPECT_NEAR(2.0, f.Hz, tolerance);
 			}
@@ -192,7 +192,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Ey, tolerance);
 				EXPECT_NEAR( 1.0, f.Hz, tolerance);
 			}
@@ -206,7 +206,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ey, tolerance);
 				EXPECT_NEAR(2.0, f.Hz, tolerance);
 			}
@@ -233,7 +233,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ey, tolerance);
 				EXPECT_NEAR(2.0, f.Hz, tolerance);
 			}
@@ -247,7 +247,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
 			}
@@ -261,7 +261,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Ey, tolerance);
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
 			}
@@ -275,7 +275,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ey, tolerance);
 				EXPECT_NEAR(2.0, f.Hz, tolerance);
 			}
@@ -318,7 +318,7 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hy, tolerance);
 			}
 		}
@@ -327,7 +327,7 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
 		}
@@ -339,11 +339,11 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
 		auto expected_t_initial{ 0.0 };
 		auto expected_t_final{ 2.0 };
-		if (abs(t - expected_t_initial) <= 1e-3) {
+		if (std::abs(t - expected_t_initial) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
-		if (abs(t - expected_t_final) <= 1e-3) {
+		if (std::abs(t - expected_t_final) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
@@ -413,7 +413,7 @@ TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hy, tolerance);
 			}
 		}
@@ -422,7 +422,7 @@ TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
 		}
@@ -434,11 +434,11 @@ TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
 	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
 		auto expected_t_initial{ 0.0 };
 		auto expected_t_final{ 2.0 };
-		if (abs(t - expected_t_initial) <= 1e-3) {
+		if (std::abs(t - expected_t_initial) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
-		if (abs(t - expected_t_final) <= 1e-3) {
+		if (std::abs(t - expected_t_final) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
@@ -478,7 +478,7 @@ TEST_F(CasesTest, 2D_PEC_Upwind_Hesthaven)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hy, tolerance);
 			}
 		}
@@ -487,7 +487,7 @@ TEST_F(CasesTest, 2D_PEC_Upwind_Hesthaven)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
 		}
@@ -498,11 +498,11 @@ TEST_F(CasesTest, 2D_PEC_Upwind_Hesthaven)
 	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
 		auto expected_t_initial{ 0.0 };
 		auto expected_t_final{ 2.0 };
-		if (abs(t - expected_t_initial) <= 1e-3) {
+		if (std::abs(t - expected_t_initial) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
-		if (abs(t - expected_t_final) <= 1e-3) {
+		if (std::abs(t - expected_t_final) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
@@ -541,7 +541,7 @@ TEST_F(CasesTest, 2D_PEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hy, tolerance);
 			}
 		}
@@ -550,7 +550,7 @@ TEST_F(CasesTest, 2D_PEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t_half) <= 1e-3) {
+			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
 		}
@@ -561,11 +561,11 @@ TEST_F(CasesTest, 2D_PEC_Upwind)
 	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
 		auto expected_t_initial{ 0.0 };
 		auto expected_t_final{ 2.0 };
-		if (abs(t - expected_t_initial) <= 1e-3) {
+		if (std::abs(t - expected_t_initial) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
-		if (abs(t - expected_t_final) <= 1e-3) {
+		if (std::abs(t - expected_t_final) <= 1e-3) {
 			EXPECT_NEAR(1.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 		}
@@ -593,7 +593,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Hz, tolerance);
 				EXPECT_NEAR(2.0, f.Ey, tolerance);
 			}
@@ -607,7 +607,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 			}
@@ -621,7 +621,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 			}
@@ -635,7 +635,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Hz, tolerance);
 				EXPECT_NEAR(2.0, f.Ey, tolerance);
 			}
@@ -663,7 +663,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Hz, tolerance);
 				EXPECT_NEAR(2.0, f.Ey, tolerance);
 			}
@@ -677,7 +677,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 			}
@@ -691,7 +691,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 			}
@@ -705,7 +705,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Hz, tolerance);
 				EXPECT_NEAR(2.0, f.Ey, tolerance);
 			}
@@ -733,7 +733,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Hz, tolerance);
 				EXPECT_NEAR(2.0, f.Ey, tolerance);
 			}
@@ -747,7 +747,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 			}
@@ -761,7 +761,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 				EXPECT_NEAR(1.0, f.Ey, tolerance);
 			}
@@ -775,7 +775,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Hz, tolerance);
 				EXPECT_NEAR(2.0, f.Ey, tolerance);
 			}
@@ -804,7 +804,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(-0.5, f.Hy, tolerance);
 			}
@@ -818,7 +818,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Ez, tolerance);
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
@@ -832,7 +832,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Ez, tolerance);
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
@@ -846,7 +846,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(-2.0, f.Hy, tolerance);
 			}
@@ -874,7 +874,7 @@ TEST_F(CasesTest, 3D_TFSF_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(-0.5, f.Hy, tolerance);
 			}
@@ -888,7 +888,7 @@ TEST_F(CasesTest, 3D_TFSF_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Ez, tolerance);
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
@@ -902,7 +902,7 @@ TEST_F(CasesTest, 3D_TFSF_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Ez, tolerance);
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
@@ -916,7 +916,7 @@ TEST_F(CasesTest, 3D_TFSF_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(-2.0, f.Hy, tolerance);
 			}
@@ -941,7 +941,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);
 			}
@@ -952,7 +952,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Ez, tolerance);
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
@@ -964,7 +964,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);
 			}
@@ -980,7 +980,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(-2.0, f.Hy, tolerance);
 			}
@@ -991,7 +991,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);
 			}
@@ -1005,7 +1005,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Ez, tolerance);
 				EXPECT_NEAR(-1.0, f.Hy, tolerance);
 			}
@@ -1016,7 +1016,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 			}
 		}
@@ -1026,7 +1026,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (abs(t - expected_t) <= 1e-3) {
+			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);
 			}

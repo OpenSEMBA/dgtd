@@ -533,9 +533,9 @@ std::vector<NodeId> findNodesPerBdrFace(const DynamicMatrix& bdrNodeMat)
 {
 	std::vector<NodeId> res;
 	for (auto r{ 0 }; r < bdrNodeMat.rows(); r++) {
-		if (abs(bdrNodeMat(r, r)) > 1e-5) {
+		if (std::abs(bdrNodeMat(r, r)) > 1e-5) {
 			for (auto c{ r }; c < bdrNodeMat.cols(); c++) {
-				if (abs(bdrNodeMat(r, c)) > 1e-5) {
+				if (std::abs(bdrNodeMat(r, c)) > 1e-5) {
 					res.push_back(c);
 				}
 			}
@@ -702,7 +702,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		auto mesh_tfsf{ Mesh(model_.getMesh()) };
 		for (auto b{ 0 }; b < mesh_tfsf.GetNBE(); b++) {
 			if (mesh_tfsf.GetBdrAttribute(b) == model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn).Find(1) + 1) {
-				auto faceOri{ calculateFaceOrientation(mesh, b) };
+				auto faceOri{ buildFaceOrientation(mesh, b) };
 				auto faceTrans{ mesh_tfsf.GetInternalBdrFaceTransformations(b) };
 				auto sm{ assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap) };
 				FiniteElementSpace smFES(&sm, fec);

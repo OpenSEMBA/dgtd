@@ -157,7 +157,7 @@ double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, in
 
 }
 
-const Vector calculateTangent2D(Mesh& m, int be)
+const Vector buildTangent2D(Mesh& m, int be)
 {
 	auto be_trans{ m.GetBdrElementTransformation(be) };
 	auto f{ m.GetFace(m.GetBdrElementFaceIndex(be)) };
@@ -170,7 +170,7 @@ const Vector calculateTangent2D(Mesh& m, int be)
 	return res;
 }
 
-const Vector calculateNormal3D(Mesh& m, int be)
+const Vector buildNormal3D(Mesh& m, int be)
 {
 	auto be_trans{ m.GetBdrElementTransformation(be) };
 	auto f{ m.GetFace(m.GetBdrElementFaceIndex(be)) };
@@ -199,7 +199,7 @@ const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be)
 	}
 }
 
-const Vector calculateBarycenterVector(Mesh& m, int be)
+const Vector buildBarycenterPosition(Mesh& m, int be)
 {
 	auto barys{ calculateBarycenters(m, be) };
 
@@ -489,7 +489,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	}
 }
 
-double calculateCrossCoefficient(const Vector& bary_vec, const Vector& tang_vec)
+double buildCrossCoefficient(const Vector& bary_vec, const Vector& tang_vec)
 {
 	Vector cross_first(3), cross_sec(3);
 	cross_first[0] = bary_vec[0];
@@ -502,18 +502,18 @@ double calculateCrossCoefficient(const Vector& bary_vec, const Vector& tang_vec)
 	return cross[2];
 }
 
-double calculateFaceOrientation(Mesh& mesh, int be)
+double buildFaceOrientation(Mesh& mesh, int be)
 {
 	switch (mesh.Dimension())
 	{
 	case 2:
-		return calculateCrossCoefficient(
-			calculateBarycenterVector(mesh, be),
-			calculateTangent2D(mesh, be));
+		return buildCrossCoefficient(
+			buildBarycenterPosition(mesh, be),
+			buildTangent2D(mesh, be));
 	case 3:
 		return mfem::InnerProduct(
-			calculateBarycenterVector(mesh, be),
-			calculateNormal3D(mesh, be));
+			buildBarycenterPosition(mesh, be),
+			buildNormal3D(mesh, be));
 	default:
 		throw std::runtime_error("Method only supports 2D and 3D.");
 	}
@@ -524,7 +524,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto face_ori{ calculateFaceOrientation(m, be) };
+			auto face_ori{ buildFaceOrientation(m, be) };
 
 			auto fe_trans{ getFaceElementTransformation(m, be) };
 
@@ -575,7 +575,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto face_ori{ calculateFaceOrientation(m, be) };
+			auto face_ori{ buildFaceOrientation(m, be) };
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
@@ -652,7 +652,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto face_ori{ calculateFaceOrientation(m, be) };
+			auto face_ori{ buildFaceOrientation(m, be) };
 
 			Array<int> be_vert, el_face, el_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
@@ -692,7 +692,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
-			auto face_ori{ calculateFaceOrientation(m, be) };
+			auto face_ori{ buildFaceOrientation(m, be) };
 
 			Array<int> be_vert, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
