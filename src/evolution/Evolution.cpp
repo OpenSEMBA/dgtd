@@ -415,52 +415,6 @@ DynamicMatrix assembleHesthavenReferenceElementEmat(const Element::Type elType, 
 	return assembleEmat(subFES, boundary_markers);
 }
 
-GlobalBoundary assembleGlobalBoundaryMap(const GlobalConnectivity& vmaps, BoundaryToMarker& markers, FiniteElementSpace& fes)
-{
-	GlobalBoundary res;
-
-	for (auto& [bdr_cond, marker] : markers) {
-		auto bf{ BilinearForm(&fes) };
-		bf.AddBdrFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0), markers[bdr_cond]);
-		bf.Assemble();
-		bf.Finalize();
-		auto bdr_matrix{ toEigen(*bf.SpMat().ToDenseMatrix()) };
-		std::cout << bdr_matrix << std::endl;
-		std::vector<int> nodes;
-		for (auto r{ 0 }; r < bdr_matrix.rows(); r++) {
-			if (bdr_matrix(r, r) != 0.0) { //These conditions would be those of a node on itself, thus we only need to check if the 'self-value' is not zero.
-				auto id = std::distance(vmaps.begin(), std::find_if(vmaps.begin(), vmaps.end(), [&](const auto& pair) { return pair.first == r && pair.second == r; }));
-				nodes.push_back(id);
-			}
-		}
-		res.push_back(std::make_pair(bdr_cond, nodes));
-	}
-
-	return res;
-}
-
-GlobalInteriorBoundary assembleGlobalInteriorBoundaryMap(InteriorBoundaryToMarker& markers, FiniteElementSpace& fes)
-{
-	GlobalInteriorBoundary res;
-
-	for (auto& [bdr_cond, marker] : markers) {
-		auto bf{ BilinearForm(&fes) };
-		bf.AddInternalBoundaryFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0), markers[bdr_cond]);
-		bf.Assemble();
-		bf.Finalize();
-		auto int_bdr_matrix{ toEigen(*bf.SpMat().ToDenseMatrix()) };
-		std::vector<int> nodes;
-		for (auto r{ 0 }; r < int_bdr_matrix.rows(); r++) {
-			if (int_bdr_matrix(r, r) != 0.0) {
-				nodes.push_back(r);
-			}
-		}
-		res.push_back(std::make_pair(bdr_cond, nodes));
-	}
-
-	return res;
-}
-
 void initNormalVectors(HesthavenElement& hestElem, const int size)
 {
 	for (auto d{ X }; d <= Z; d++) {

@@ -11,16 +11,15 @@ namespace maxwell {
 
 	using namespace mfem;
 
-	using InteriorFaceConnectivityMaps = std::pair<std::vector<int>, std::vector<int>>;
-	using DynamicMatrix = Eigen::MatrixXd;
 	using NodeId = int;
 	using Volume = double;
+	using Nodes = std::vector<NodeId>;
+	using DynamicMatrix = Eigen::MatrixXd;
+	using InteriorFaceConnectivityMaps = std::pair<Nodes, Nodes>;
 	using NodePair = std::pair<NodeId, NodeId>;
 	using ConnectivityVector = std::vector<NodePair>;
 	using GlobalConnectivity = ConnectivityVector;
-	using BdrCondToNodes = std::pair<BdrCond, std::vector<NodeId>>;
-	using GlobalBoundary = std::vector<BdrCondToNodes>;
-	using GlobalInteriorBoundary = GlobalBoundary;
+	using BdrCondToNodes = std::pair<BdrCond, Nodes>;
 	using Emat = std::vector<const DynamicMatrix*>;
 	using Directional = std::array<const DynamicMatrix*, 3>;
 	using Normals = std::array<Eigen::VectorXd, 3>;

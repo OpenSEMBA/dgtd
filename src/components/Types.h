@@ -51,7 +51,6 @@ enum SubMeshingMarkers {
 };
 
 enum class BdrCond {
-	NONE,
 	PEC,
 	PMC,
 	SMA,
