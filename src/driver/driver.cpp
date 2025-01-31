@@ -187,9 +187,12 @@ SolverOptions buildSolverOptions(const json& case_data)
 		}
 
 		if (case_data["solver_options"].contains("high_order_mesh")) {
-			res.meshTypeCurved = true;
+			res.highOrderMesh = true;
 		}
 
+		if (case_data["solver_options"].contains("hesthaven_operator")) {
+			res.setHesthavenOperator(case_data["solver_options"]["hesthaven_operator"]);
+		}
 	}
 	return res;
 }

@@ -26,16 +26,18 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
 }
 
-std::unique_ptr<Evolution> Solver::assignEvolutionOperator()
+std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 {
-	if (!opts_.meshTypeCurved) {
-		//if(hesthavenoperator)
-		//return newheasthavenoperator
-		//else
-		return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+	if (!opts_.highOrderMesh) {
+		if (opts_.hesthavenOperator) {
+			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+		}
+		else {
+			return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+		}
 	}
 	else {
-		// return newHybridCurvedOperator
+		throw std::runtime_error("Optimised Curved Operators are not supported at the moment.");
 	}
 }
 
@@ -170,7 +172,7 @@ double getJacobiGQ_RMin(const int order) {
 	GridFunction nodes(&fes);
 	mesh.GetNodes(nodes);
 
-	return abs(nodes(0) - nodes(1));
+	return std::abs(nodes(0) - nodes(1));
 }
 
 double Solver::estimateTimeStep() const

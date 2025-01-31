@@ -8,7 +8,8 @@ struct SolverOptions {
     double timeStep = 0.0;
     double finalTime = 2.0;
     double cfl = 0.8;
-    bool meshTypeCurved = false;
+    bool highOrderMesh = false;
+    bool hesthavenOperator = false;
 
     EvolutionOptions evolution;
     
@@ -44,6 +45,11 @@ struct SolverOptions {
 
     SolverOptions& setSpectralEO(bool spectral = true) {
         evolution.spectral = spectral;
+        return *this;
+    }
+
+    SolverOptions& setHesthavenOperator(bool enabled = false) {
+        hesthavenOperator = enabled;
         return *this;
     }
 };

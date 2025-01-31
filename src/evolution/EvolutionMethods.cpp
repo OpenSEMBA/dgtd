@@ -66,7 +66,7 @@ FiniteElementOperator buildByMult(
 	const BilinearForm& op1,
 	const BilinearForm& op2,
 	FiniteElementSpace& fes)
-{
+{	
 	auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
 	auto res = std::make_unique<BilinearForm>(&fes);
 	res->Assemble();

@@ -14,6 +14,8 @@
 
 namespace maxwell {
 
+using MatrixStorageLT = std::set<DynamicMatrix, MatrixCompareLessThan>;
+
 class Evolution: public mfem::TimeDependentOperator {
 public:
 	static const int numberOfFieldComponents = 2;
@@ -79,18 +81,26 @@ public:
 	static const int numberOfMaxDimensions = 3;
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-	void Mult(const mfem::Vector& in, mfem::Vector& out);
+	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
 
 private:
 
-	mfem::FiniteElementSpace& fes_;
+	void assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations*, double faceOri);
+	void evaluateTFSF(HesthavenFields& jumps) const;
+	void initBdrConnectivityMaps(const std::vector<std::vector<NodeId>>& bdr2nodes);
+	const Eigen::VectorXd applyScalingFactors(const ElementId, const Eigen::VectorXd& flux) const;
+	FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
-	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
+	MatrixStorageLT matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;
-	GlobalConnectivityMap connectivity_;
-	GlobalBoundaryMap bdr_connectivity_;
+	DynamicMatrix refInvMass_;
+	DynamicMatrix refLIFT_;
+	GlobalConnectivity connectivity_;
+	BoundaryMaps bdr_connectivity_;
+	InteriorBoundaryMaps int_bdr_connectivity_;
+	TFSFConnectivity tfsf_connectivity_;
 
 };
 
