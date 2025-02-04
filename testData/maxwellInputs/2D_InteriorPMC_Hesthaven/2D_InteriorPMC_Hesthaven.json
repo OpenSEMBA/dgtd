@@ -7,7 +7,7 @@
   },
 
   "model": { 
-    "filename": "2D_InteriorPEC_Hesthaven.msh",
+    "filename": "2D_InteriorPMC_Hesthaven.msh",
     "materials": [
       {
         "tags": [ 1, 2 ],
@@ -16,11 +16,11 @@
     ],
     "boundaries": [
       {
-        "tags": [ 6, 7 ],
-        "type": "PEC"
+        "tags": [ 1, 2, 4, 5 ],
+        "type": "PMC"
       },
       {
-        "tags": [ 1, 2, 4, 5 ],
+        "tags": [ 6, 7 ],
         "type":  "PMC"
       },
       {
@@ -53,9 +53,9 @@
   "sources": [ 
     {
       "type": "initial", 
-      "field_type": "E", 
+      "field_type": "H", 
       "center": [ 1.0, 0.0 ], 
-      "polarization": [ 0.0, 0.0, 1.0 ], 
+      "polarization": [ 0.0, 1.0, 0.0 ], 
       "dimension": 1, 
       "magnitude": {
         "type": "gaussian", 
