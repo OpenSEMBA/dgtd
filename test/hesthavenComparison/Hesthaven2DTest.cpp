@@ -722,7 +722,7 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
 TEST_F(MFEMHesthaven2D, connectivityMapO1)
 {
 	const int basis_order = 1;
-	auto mesh { Mesh::LoadFromFile(maxwellInputsFolder() + "2D_Hesthaven_K2/2D_Hesthaven_K2.msh")};
+	auto mesh { Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Hesthaven_K2.msh")};
 	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 
 	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
@@ -751,7 +751,7 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 TEST_F(MFEMHesthaven2D, connectivityMapO2)
 {
 	const int basis_order = 2;
-	auto mesh{ Mesh::LoadFromFile(maxwellInputsFolder() + "2D_Hesthaven_K2/2D_Hesthaven_K2.msh") };
+	auto mesh{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Hesthaven_K2.msh") };
 	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 
 	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };

@@ -60,11 +60,14 @@ namespace maxwell {
 	{
 		std::vector<int> vmapM, vmapP;
 		double tol{ 1e-6 };
+		Array<int> cols;
+		Vector vals;
 		for (auto r{ 0 }; r < fluxMatrix->NumRows() / 2; r++) {
-			for (auto c{ 0 }; c < fluxMatrix->NumCols(); c++) {
-				if (r != c && std::abs(fluxMatrix->Elem(r, c) - fluxMatrix->Elem(r, r)) < tol && std::abs(fluxMatrix->Elem(r, r)) > tol) {
+			fluxMatrix->SpMat().GetRow(r, cols, vals);
+			for (auto c{ 0 }; c < cols.Size(); c++) {
+				if (vals.Size() && r != cols[c] && std::abs(vals[c] - vals[cols.Find(r)]) < tol && std::abs(vals[cols.Find(r)]) > tol) {
 					vmapM.emplace_back(r);
-					vmapP.emplace_back(c);
+					vmapP.emplace_back(cols[c]);
 				}
 			}
 		}
