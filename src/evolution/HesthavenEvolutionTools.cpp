@@ -56,14 +56,13 @@ namespace maxwell {
 		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.h_[Z].data() + id * elFluxSize, elFluxSize, 1));
 	}
 
-	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& fluxMatrix)
+	InteriorFaceConnectivityMaps mapConnectivity(const BilinearForm* fluxMatrix)
 	{
-		// Make map
 		std::vector<int> vmapM, vmapP;
-		double tol = 1e-5;
-		for (auto r{ 0 }; r < fluxMatrix.rows() / 2; r++) {
-			for (auto c{ 0 }; c < fluxMatrix.cols(); c++) {
-				if (r != c && std::abs(fluxMatrix(r, c) - fluxMatrix(r, r)) < tol && fluxMatrix(r, r) > tol) {
+		double tol{ 1e-6 };
+		for (auto r{ 0 }; r < fluxMatrix->NumRows() / 2; r++) {
+			for (auto c{ 0 }; c < fluxMatrix->NumCols(); c++) {
+				if (r != c && std::abs(fluxMatrix->Elem(r, c) - fluxMatrix->Elem(r, r)) < tol && std::abs(fluxMatrix->Elem(r, r)) > tol) {
 					vmapM.emplace_back(r);
 					vmapP.emplace_back(c);
 				}
@@ -300,9 +299,9 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& fes, Array<int> boundaryMarker)
+	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& subFES, Array<int> boundaryMarker)
 	{
-		auto bf = assembleFaceMassBilinearForm(fes, boundaryMarker);
+		auto bf = assembleFaceMassBilinearForm(subFES, boundaryMarker);
 		auto res = toEigen(*bf->SpMat().ToDenseMatrix());
 		removeZeroColumns(res);
 		return res;
@@ -332,13 +331,13 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix assembleInteriorFluxMatrix(FiniteElementSpace& fes)
+	std::unique_ptr<BilinearForm> assembleInteriorFluxMatrix(FiniteElementSpace& fes)
 	{
-		BilinearForm bf(&fes);
-		bf.AddInteriorFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0));
-		bf.Assemble();
-		bf.Finalize();
-		return toEigen(*bf.SpMat().ToDenseMatrix());
+		auto bf{ std::make_unique<BilinearForm>(&fes) };
+		bf->AddInteriorFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0));
+		bf->Assemble();
+		bf->Finalize();
+		return bf;
 	}
 
 	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace& fes)
@@ -352,8 +351,8 @@ namespace maxwell {
 
 	void appendConnectivityMapsForInteriorFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity& map, ElementId e)
 	{
-		auto matrix{ assembleInteriorFluxMatrix(smFES) };
-		auto maps{ mapConnectivity(matrix) };
+		auto bf{ assembleInteriorFluxMatrix(smFES) };
+		auto maps{ mapConnectivity(bf.get()) };
 		Array<int> dofs1, dofs2;
 		globalFES.GetElementDofs(trans.Elem1No, dofs1);
 		globalFES.GetElementDofs(trans.Elem2No, dofs2);
@@ -383,7 +382,7 @@ namespace maxwell {
 	std::pair<Nodes,Nodes> buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
 	{
 		auto matrix{ assembleInteriorFluxMatrix(smFES) };
-		auto maps{ mapConnectivity(matrix) };
+		auto maps{ mapConnectivity(matrix.get()) };
 		Array<int> dofs1, dofs2;
 		globalFES.GetElementDofs(trans.Elem1No, dofs1);
 		globalFES.GetElementDofs(trans.Elem2No, dofs2);

@@ -85,7 +85,7 @@ public:
 
 private:
 
-	void assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations*, double faceOri);
+	void assembleTFSFConnectivity(const BilinearForm* matrix, FaceElementTransformations*, double faceOri);
 	void evaluateTFSF(HesthavenFields& jumps) const;
 	void initBdrConnectivityMaps(const std::vector<Nodes>& bdr2nodes);
 	const Eigen::VectorXd applyScalingFactors(const ElementId, const Eigen::VectorXd& flux) const;

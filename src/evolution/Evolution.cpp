@@ -429,22 +429,34 @@ void initFscale(HesthavenElement& hestElem, const int size)
 	hestElem.fscale.setZero();
 }
 
-void HesthavenEvolution::assembleTFSFConnectivity(const DynamicMatrix& matrix, FaceElementTransformations* faceTrans, double faceOri)
+void HesthavenEvolution::assembleTFSFConnectivity(const BilinearForm* matrix, FaceElementTransformations* faceTrans, double faceOri)
 {
-	for (auto r{ 0 }; r < matrix.rows() / 2; r++) {
-		for (auto c{ 0 }; c < matrix.cols(); c++) {
-			if (matrix(r, c) != 0.0 && c != matrix.cols() - 1) {
-				for (auto c2{ c + 1 }; c2 < matrix.cols(); c2++) {
-					if (matrix(r, c2) != 0.0) {
-						auto elem1GlobalNodeID = (faceTrans->Elem1No * int(matrix.cols()) / 2) + c;
-						auto elem2GlobalNodeID = (faceTrans->Elem2No * int(matrix.cols()) / 2) + c2 - (int(matrix.cols()) / 2);
-						TFSFSigns signs;
-						faceOri >= 0.0 ? signs = std::make_pair(-1.0, 1.0) : signs = std::make_pair(-1.0, 1.0); // Face Ori >= 0.0 means elem1 is SF, elem2 is TF.
-						tfsf_connectivity_.push_back(std::make_pair(std::make_pair(elem1GlobalNodeID, elem2GlobalNodeID), signs));
+	Array<int> cols;
+	Vector vals;
+	double tol{ 1e-6 };
+	for (auto r{ 0 }; r < matrix->NumRows() / 2; r++) {
+		matrix->SpMat().GetRow(r, cols, vals);
+		Nodes vmapBelem1, vmapBelem2;
+		for (auto c{ 0 }; c < cols.Size(); c++) {
+			if (std::abs(vals[c]) > tol && cols[c] != matrix->NumCols() - 1) {
+				for (auto c2{ c + 1 }; c2 < cols.Size(); c2++) {
+					if (std::abs(vals[c2]) > tol) {
+						vmapBelem1.push_back((faceTrans->Elem1No * int(matrix->NumCols()) / 2) + cols[c]);
+						vmapBelem2.push_back((faceTrans->Elem2No * int(matrix->NumCols()) / 2) + cols[c2] - (int(matrix->NumCols()) / 2));
 					}
 				}
 			}
 		}
+		faceOri >= 0.0 ? bdr_connectivity_.TFSF.signs.push_back(std::make_pair(-1.0, 1.0)) : bdr_connectivity_.TFSF.signs.push_back(std::make_pair(-1.0, 1.0)); // Face Ori >= 0.0 means elem1 is SF, elem2 is TF.
+		Nodes mapBElem1(vmapBelem1.size()), mapBElem2(vmapBelem2.size());
+		for (auto v{ 0 }; v < mapBElem1.size(); v++) {
+			mapBElem1[v] = std::distance(std::begin(connectivity_), std::find(connectivity_.begin(), connectivity_.end(), std::make_pair(vmapBelem1[v], vmapBelem2[v])));
+			mapBElem2[v] = std::distance(std::begin(connectivity_), std::find(connectivity_.begin(), connectivity_.end(), std::make_pair(vmapBelem2[v], vmapBelem1[v])));
+		}
+		bdr_connectivity_.TFSF.mapBElem1.push_back(mapBElem1);
+		bdr_connectivity_.TFSF.mapBElem2.push_back(mapBElem2);
+		bdr_connectivity_.TFSF.vmapBElem1.push_back(vmapBelem1);
+		bdr_connectivity_.TFSF.vmapBElem2.push_back(vmapBelem2);
 	}
 }
 
@@ -483,14 +495,18 @@ std::vector<Array<int>> assembleBdrMarkersForBdrElements(Mesh& bdrMesh, const in
 	return res;
 }
 
-Nodes findNodesPerBdrFace(const DynamicMatrix& bdrNodeMat)
+Nodes findNodesPerBdrFace(const BilinearForm* bdrNodeMat)
 {
 	Nodes res;
-	for (auto r{ 0 }; r < bdrNodeMat.rows(); r++) {
-		if (std::abs(bdrNodeMat(r, r)) > 1e-5) {
-			for (auto c{ r }; c < bdrNodeMat.cols(); c++) {
-				if (std::abs(bdrNodeMat(r, c)) > 1e-5) {
-					res.push_back(c);
+	Array<int> cols;
+	Vector vals;
+	double tol{ 1e-6 };
+	for (auto r{ 0 }; r < bdrNodeMat->NumRows(); r++) {
+		bdrNodeMat->SpMat().GetRow(r, cols, vals);
+		if (vals.Size() && std::abs(vals[cols.Find(r)]) > tol) {
+			for (auto c{ 0 }; c < cols.Size(); c++) {
+				if (std::abs(vals[c]) > 1e-5) {
+					res.push_back(cols[c]);
 				}
 			}
 			break;
@@ -506,8 +522,7 @@ std::vector<Nodes> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNode
 
 	for (auto b{ 0 }; b < isInteriorMap.at(false).size(); b++) {
 		auto bdrNodeFinderOperator{ assembleFaceMassBilinearForm(bdrFES, bdrNodeMarkers[isInteriorMap.at(false)[b]]) };
-		auto bdrNodeMat{ toEigen(*bdrNodeFinderOperator->SpMat().ToDenseMatrix()) };
-		res[b] = findNodesPerBdrFace(bdrNodeMat);
+		res[b] = findNodesPerBdrFace(bdrNodeFinderOperator.get());
 	}
 
 	return res;
@@ -559,8 +574,8 @@ void HesthavenEvolution::initBdrConnectivityMaps(const std::vector<Nodes>& bdr2n
 						Nodes mapBToStore(bdr2nodes[b].size()); //... that we have multiple instances of a Hesthaven type node appearing twice on vmapB (i.e. corner node)...
 						Nodes vmapBToStore(bdr2nodes[b].size()); //... so we need to save the mapB 2 vmapB pairs so the nodes are properly linked when defining boundary conditions...
 						for (auto m{ 0 }; m < bdr2nodes[b].size(); m++) {
-							mapBToStore[m] = mapB[n + m]; //Then make a temporary vector that we'll fill the next nodesize worth of nodes for mapB and vmapB, starting at the compared and equal node...
-							vmapBToStore[m] = connectivity_[mapB[n + m]].first;
+							mapBToStore[m] = mapB[n - m]; //Then make a temporary vector that we'll fill the next nodesize worth of nodes for mapB and vmapB, starting at the compared and equal node...
+							vmapBToStore[m] = connectivity_[mapB[n - m]].first;
 						}
 						if (bdr2nodes[b] == vmapBToStore) { //As bdr2nodes[b] is already sorted when built, potVec also has to be sorted to match...
 							switch (marker.first) {
@@ -703,9 +718,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 								throw std::runtime_error("Incorrect boundary condition for interior assignment.");
 						}
 					}
-					else {
-						//We do total field here.
-					}
 				}
 			}
 		}
@@ -714,13 +726,15 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	if (model_.getTotalFieldScatteredFieldToMarker().size() != 0) {
 		auto mesh_tfsf{ Mesh(model_.getMesh()) };
 		for (auto b{ 0 }; b < mesh_tfsf.GetNBE(); b++) {
-			if (mesh_tfsf.GetBdrAttribute(b) == model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn).Find(1) + 1) {
-				auto faceOri{ buildFaceOrientation(mesh, b) };
-				auto faceTrans{ mesh_tfsf.GetInternalBdrFaceTransformations(b) };
-				auto sm{ assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap) };
-				FiniteElementSpace smFES(&sm, fec);
-				auto matrix{ assembleInteriorFluxMatrix(smFES) };
-				assembleTFSFConnectivity(matrix, faceTrans, faceOri);
+			for (const auto& marker : model_.getTotalFieldScatteredFieldToMarker()) {
+				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+					auto faceOri{ buildFaceOrientation(mesh, b) };
+					auto faceTrans{ mesh_tfsf.GetInternalBdrFaceTransformations(b) };
+					auto sm{ assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap) };
+					FiniteElementSpace smFES(&sm, fec);
+					auto matrix{ assembleInteriorFluxMatrix(smFES) };
+					assembleTFSFConnectivity(matrix.get(), faceTrans, faceOri);
+				}
 			}
 		}
 	}
