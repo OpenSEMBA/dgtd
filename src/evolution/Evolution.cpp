@@ -463,12 +463,14 @@ void HesthavenEvolution::assembleTFSFConnectivity(const BilinearForm* matrix, Fa
 void HesthavenEvolution::evaluateTFSF(HesthavenFields& jumps) const
 {
 	auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
-	for (auto i{ 0 }; i < tfsf_connectivity_.size(); i++) {
-		auto it = std::find(connectivity_.begin(), connectivity_.end(), tfsf_connectivity_[i].first);
-		auto connId = std::distance(std::begin(connectivity_), it);
+	for (auto m{ 0 }; m < bdr_connectivity_.TFSF.mapBElem1.size(); m++) {
 		for (int d = X; d <= Z; d++) {
-			jumps.e_[d][connId] += func[E][d][tfsf_connectivity_[i].first.first] * tfsf_connectivity_[i].second.first;
-			jumps.h_[d][connId] += func[H][d][tfsf_connectivity_[i].first.second] * tfsf_connectivity_[i].second.second;
+			for (auto v{ 0 }; v < bdr_connectivity_.TFSF.mapBElem1.size(); v++) {
+				jumps.e_[d][bdr_connectivity_.TFSF.mapBElem1[m][v]] += func[E][d][bdr_connectivity_.TFSF.vmapBElem1[m][v]] * bdr_connectivity_.TFSF.signs[m].first;
+				jumps.h_[d][bdr_connectivity_.TFSF.mapBElem1[m][v]] += func[H][d][bdr_connectivity_.TFSF.vmapBElem1[m][v]] * bdr_connectivity_.TFSF.signs[m].first;
+				jumps.e_[d][bdr_connectivity_.TFSF.mapBElem2[m][v]] += func[E][d][bdr_connectivity_.TFSF.vmapBElem2[m][v]] * bdr_connectivity_.TFSF.signs[m].second;
+				jumps.h_[d][bdr_connectivity_.TFSF.mapBElem2[m][v]] += func[H][d][bdr_connectivity_.TFSF.vmapBElem2[m][v]] * bdr_connectivity_.TFSF.signs[m].second;
+			}
 		}
 	}
 }
