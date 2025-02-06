@@ -85,10 +85,13 @@ public:
 
 private:
 
-	void assembleTFSFConnectivity(const BilinearForm* matrix, FaceElementTransformations*, double faceOri);
 	void evaluateTFSF(HesthavenFields& jumps) const;
-	void initBdrConnectivityMaps(const std::vector<Nodes>& bdr2nodes);
+	void initBdrConnectivityMaps(const std::vector<Nodes>& bdr2nodes, const std::map<bool, std::vector<BdrElementId>>& isInteriorMap);
+	void initIntFaceConnectivityMaps(const BoundaryToMarker& markers);
+	void loadIntBdrConditions(const InteriorFaceConnectivityMaps& mapB, const InteriorFaceConnectivityMaps&, const BdrCond&, const double faceOri);
 	const Eigen::VectorXd applyScalingFactors(const ElementId, const Eigen::VectorXd& flux) const;
+	void initDoFPositions();
+	InteriorFaceConnectivityMaps initInteriorFacesMapB(const InteriorFaceConnectivityMaps& nodePairs) const;
 	FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
@@ -100,6 +103,7 @@ private:
 	GlobalConnectivity connectivity_;
 	BoundaryMaps bdr_connectivity_;
 	TFSFConnectivity tfsf_connectivity_;
+	std::vector<Source::Position> positions_;
 
 };
 

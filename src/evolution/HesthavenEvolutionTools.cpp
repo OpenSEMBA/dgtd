@@ -382,7 +382,7 @@ namespace maxwell {
 		}
 	}
 
-	std::pair<Nodes,Nodes> buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
+	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
 	{
 		auto matrix{ assembleInteriorFluxMatrix(smFES) };
 		auto maps{ mapConnectivity(matrix.get()) };

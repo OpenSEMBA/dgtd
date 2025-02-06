@@ -81,11 +81,10 @@ namespace maxwell {
 	};
 
 	struct TotalFieldScatteredFieldMaps {
-		std::vector<Nodes> mapBElem1;
-		std::vector<Nodes> mapBElem2;
-		std::vector<Nodes> vmapBElem1;
-		std::vector<Nodes> vmapBElem2;
-		std::vector<TFSFSigns> signs;
+		std::vector<Nodes> mapBSF;
+		std::vector<Nodes> mapBTF;
+		std::vector<Nodes> vmapBSF;
+		std::vector<Nodes> vmapBTF;
 	};
 
 	struct BoundaryMaps {
