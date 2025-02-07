@@ -146,8 +146,8 @@ namespace maxwell {
 
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m);
 
-	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int startRow, const int startCol);
-	DynamicMatrix getElementMassMatrixFromGlobal(const int el, const DynamicMatrix& global, const Element::Type elType);
+	DynamicMatrix loadMatrixForTris(const DynamicMatrix& global, const int startRow, const int startCol);
+	DynamicMatrix getElemMassMatrixFromGlobal(const int el, const DynamicMatrix& global, const Element::Type elType);
 	DynamicMatrix getFaceMassMatrixFromGlobal(const DynamicMatrix& global);
 	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace&, Array<int> boundaryMarker);
 	DynamicMatrix assembleEmat(FiniteElementSpace&, std::vector<Array<int>>& boundaryMarkers);

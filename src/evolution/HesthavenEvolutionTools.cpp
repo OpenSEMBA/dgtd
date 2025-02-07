@@ -186,7 +186,7 @@ namespace maxwell {
 			res = order + 1;
 			break;
 		case 3:
-			fes.GetFE(0)->GetGeomType() == Geometry::Type::TRIANGLE ? res = ((order + 1) * (order + 2) / 2) : res = (order + 1) * (order + 1);
+			fes.GetFE(0)->GetGeomType() == Geometry::Type::TETRAHEDRON ? res = ((order + 1) * (order + 2) / 2) : res = (order + 1) * (order + 1);
 			break;
 		default:
 			throw std::runtime_error("Method only supports 2D and 3D problems.");
@@ -211,7 +211,7 @@ namespace maxwell {
 		m.SetAttribute(faceTrans->Elem2No, hesthavenMeshingTag);
 	}
 
-	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int startRow, const int startCol)
+	DynamicMatrix loadMatrixForTris(const DynamicMatrix& global, const int startRow, const int startCol)
 	{
 		DynamicMatrix res;
 		res.resize(int(global.rows() / 2), int(global.cols() / 2));
@@ -223,19 +223,35 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix getElementMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global, const Element::Type elType)
+	DynamicMatrix loadMatrixForTetras(const DynamicMatrix& global, const int startRow, const int startCol)
+	{
+		DynamicMatrix res;
+		res.resize(int(global.rows() / 6), int(global.cols() / 6));
+		for (auto r{ startRow }; r < startRow + int(global.rows() / 6); r++) {
+			for (auto c{ startCol }; c < startCol + int(global.cols() / 6); c++) {
+				res(r - startRow, c - startCol) = global(r, c);
+			}
+		}
+		return res;
+	}
+
+	DynamicMatrix getElemMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global, const Element::Type elType)
 	{
 		switch (elType) {
 		case Element::Type::TRIANGLE:
 			switch (e) {
 			case 0:
-				return loadMatrixWithValues(global, 0, 0);
+				return loadMatrixForTris(global, 0, 0);
 			case 1:
-				return loadMatrixWithValues(global, int(global.rows() / 2), int(global.cols() / 2));
+				return loadMatrixForTris(global, int(global.rows() / 2), int(global.cols() / 2));
 			default:
 				throw std::runtime_error("Incorrect element index for getElementMassMatrixFromGlobal");
 			}
 		case Element::Type::QUADRILATERAL:
+			return global;
+		case Element::Type::TETRAHEDRON:
+			return loadMatrixForTetras(global, 0, 0);
+		case Element::Type::HEXAHEDRON:
 			return global;
 		default:
 			throw std::runtime_error("Unsupported Element Type.");
