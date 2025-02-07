@@ -223,15 +223,22 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix getElementMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global)
+	DynamicMatrix getElementMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global, const Element::Type elType)
 	{
-		switch (e) {
-		case 0:
-			return loadMatrixWithValues(global, 0, 0);
-		case 1:
-			return loadMatrixWithValues(global, int(global.rows() / 2), int(global.cols() / 2));
+		switch (elType) {
+		case Element::Type::TRIANGLE:
+			switch (e) {
+			case 0:
+				return loadMatrixWithValues(global, 0, 0);
+			case 1:
+				return loadMatrixWithValues(global, int(global.rows() / 2), int(global.cols() / 2));
+			default:
+				throw std::runtime_error("Incorrect element index for getElementMassMatrixFromGlobal");
+			}
+		case Element::Type::QUADRILATERAL:
+			return global;
 		default:
-			throw std::runtime_error("Incorrect element index for getElementMassMatrixFromGlobal");
+			throw std::runtime_error("Unsupported Element Type.");
 		}
 	}
 

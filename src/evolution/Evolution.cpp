@@ -392,7 +392,7 @@ DynamicMatrix assembleHesthavenReferenceElementInverseMassMatrix(const Element::
 	auto fes{ FiniteElementSpace(&m, &fec)};
 	auto mass_mat{ assembleInverseMassMatrix(fes) };
 
-	return getElementMassMatrixFromGlobal(0, mass_mat);
+	return getElementMassMatrixFromGlobal(0, mass_mat, elType);
 }
 
 DynamicMatrix assembleHesthavenReferenceElementEmat(const Element::Type elType, const int order, const int dimension)
