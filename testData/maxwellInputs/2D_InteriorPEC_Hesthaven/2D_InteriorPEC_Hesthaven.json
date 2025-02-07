@@ -1,29 +1,38 @@
 {
   "solver_options": {
-    "solver_type": "centered",
-    "order": 1,
-    "hesthaven_operator":  true
+    "solver_type": "upwind",
+    "final_time":  5.0,
+    "hesthaven_operator": true,
+    "order": 3
   },
 
   "model": { 
-    "filename": "2D_Hesthaven_K2.msh",
+    "filename": "2D_InteriorPEC_Hesthaven.msh",
     "materials": [
       {
-        "tags": [ 1 ],
+        "tags": [ 1, 2 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2, 3, 4 ],
+        "tags": [ 6, 7 ],
         "type": "PEC"
+      },
+      {
+        "tags": [ 1, 2, 4, 5 ],
+        "type":  "PMC"
+      },
+      {
+        "tags": [ 3 ],
+        "type": "SMA"
       }
     ]
   },
 
-  "probes": { 
-    "exporter": { 
-      "steps": 1
+  "probes": {
+    "exporter": {
+      "steps": 10
     },
     "field": [
       {
@@ -33,7 +42,10 @@
         "position": [ 1.0, 0.5 ]
       },
       {
-        "position": [ 0.5, 0.5 ]
+        "position": [ 2.5, 0.5 ]
+      },
+      {
+        "position": [ 3.0, 0.5 ]
       }
     ]
   },
@@ -42,12 +54,12 @@
     {
       "type": "initial", 
       "field_type": "E", 
-      "center": [ 0.5, 0.5 ], 
+      "center": [ 1.0, 0.0 ], 
       "polarization": [ 0.0, 0.0, 1.0 ], 
       "dimension": 1, 
       "magnitude": {
         "type": "gaussian", 
-        "spread": 0.1
+        "spread": 0.2
       }
     }
   ]

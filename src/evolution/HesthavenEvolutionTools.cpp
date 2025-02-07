@@ -56,16 +56,18 @@ namespace maxwell {
 		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.h_[Z].data() + id * elFluxSize, elFluxSize, 1));
 	}
 
-	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& fluxMatrix)
+	InteriorFaceConnectivityMaps mapConnectivity(const BilinearForm* fluxMatrix)
 	{
-		// Make map
 		std::vector<int> vmapM, vmapP;
-		double tol = 1e-5;
-		for (auto r{ 0 }; r < fluxMatrix.rows() / 2; r++) {
-			for (auto c{ 0 }; c < fluxMatrix.cols(); c++) {
-				if (r != c && std::abs(fluxMatrix(r, c) - fluxMatrix(r, r)) < tol && fluxMatrix(r, r) > tol) {
+		double tol{ 1e-6 };
+		Array<int> cols;
+		Vector vals;
+		for (auto r{ 0 }; r < fluxMatrix->NumRows() / 2; r++) {
+			fluxMatrix->SpMat().GetRow(r, cols, vals);
+			for (auto c{ 0 }; c < cols.Size(); c++) {
+				if (vals.Size() && r != cols[c] && std::abs(vals[c] - vals[cols.Find(r)]) < tol && std::abs(vals[cols.Find(r)]) > tol) {
 					vmapM.emplace_back(r);
-					vmapP.emplace_back(c);
+					vmapP.emplace_back(cols[c]);
 				}
 			}
 		}
@@ -74,41 +76,66 @@ namespace maxwell {
 
 	void applyBoundaryConditionsToNodes(const BoundaryMaps& bdrMaps, const FieldsInputMaps& in, HesthavenFields& out) 
 	{
-		for (auto m{ 0 }; m < bdrMaps.vmapB.size(); m++) {
-			switch (bdrMaps.vmapB[m].first) {
-			case BdrCond::PEC:
-				for (int d = X; d <= Z; d++) {
-					for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
-						out.e_[d][bdrMaps.mapB[m][v]] = -2.0 * in.e_[d][bdrMaps.vmapB[m].second[v]];
-						out.h_[d][bdrMaps.mapB[m][v]] = 0.0;
-					}
+		for (auto m{ 0 }; m < bdrMaps.PEC.vmapB.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (auto v{ 0 }; v < bdrMaps.PEC.vmapB[m].size(); v++) {
+					out.e_[d][bdrMaps.PEC.mapB[m][v]] = -2.0 * in.e_[d][bdrMaps.PEC.vmapB[m][v]];
+					out.h_[d][bdrMaps.PEC.mapB[m][v]] = 0.0;
 				}
-				break;
-			case BdrCond::PMC:
-				for (int d = X; d <= Z; d++) {
-					for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
-						out.e_[d][bdrMaps.mapB[m][v]] = 0.0;
-						out.h_[d][bdrMaps.mapB[m][v]] = -2.0 * in.h_[d][bdrMaps.vmapB[m].second[v]];
-					}
-				}
-				break;
-			case BdrCond::SMA:
-				for (int d = X; d <= Z; d++) {
-					for (auto v{ 0 }; v < bdrMaps.vmapB[m].second.size(); v++) {
-						out.e_[d][bdrMaps.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.vmapB[m].second[v]];
-						out.h_[d][bdrMaps.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.vmapB[m].second[v]];
-					}
-				}
-				break;
-			default:
-				throw std::runtime_error("Other BdrConds are yet to be implemented for Hesthaven Evolution Operator.");
 			}
 		}
-	}
 
-	void applyInteriorBoundaryConditionsToNodes(const InteriorBoundaryMaps& intBdrMaps, const FieldsInputMaps& in, HesthavenFields& out)
-	{
-		applyBoundaryConditionsToNodes(intBdrMaps, in, out);
+		for (auto m{ 0 }; m < bdrMaps.PMC.vmapB.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (auto v{ 0 }; v < bdrMaps.PMC.vmapB[m].size(); v++) {
+					out.e_[d][bdrMaps.PMC.mapB[m][v]] = 0.0;
+					out.h_[d][bdrMaps.PMC.mapB[m][v]] = -2.0 * in.h_[d][bdrMaps.PMC.vmapB[m][v]];
+				}
+			}
+		}
+
+		for (auto m{ 0 }; m < bdrMaps.SMA.mapB.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (auto v{ 0 }; v < bdrMaps.SMA.vmapB[m].size(); v++) {
+					out.e_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.SMA.vmapB[m][v]];
+					out.h_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.SMA.vmapB[m][v]];
+				}
+			}
+		}
+
+		for (auto m{ 0 }; m < bdrMaps.intPEC.mapBElem1.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (auto v{ 0 }; v < bdrMaps.intPEC.mapBElem1[m].size(); v++) { //Condition is applied twice, so we halve the coefficients for interior operators
+					out.e_[d][bdrMaps.intPEC.mapBElem1[m][v]] = -1.0 * in.e_[d][bdrMaps.intPEC.vmapBElem1[m][v]];
+					out.e_[d][bdrMaps.intPEC.mapBElem2[m][v]] = -1.0 * in.e_[d][bdrMaps.intPEC.vmapBElem2[m][v]];
+					out.h_[d][bdrMaps.intPEC.mapBElem1[m][v]] = 0.0;
+					out.h_[d][bdrMaps.intPEC.mapBElem2[m][v]] = 0.0;
+				}
+			}
+		}
+
+		for (auto m{ 0 }; m < bdrMaps.intPMC.mapBElem1.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (auto v{ 0 }; v < bdrMaps.intPMC.mapBElem1[m].size(); v++) {
+					out.e_[d][bdrMaps.intPMC.mapBElem1[m][v]] = 0.0;
+					out.e_[d][bdrMaps.intPMC.mapBElem2[m][v]] = 0.0;
+					out.h_[d][bdrMaps.intPMC.mapBElem1[m][v]] = -1.0 * in.h_[d][bdrMaps.intPMC.vmapBElem1[m][v]];
+					out.h_[d][bdrMaps.intPMC.mapBElem2[m][v]] = -1.0 * in.h_[d][bdrMaps.intPMC.vmapBElem2[m][v]];
+				}
+			}
+		}
+
+		for (auto m{ 0 }; m < bdrMaps.intSMA.mapBElem1.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (auto v{ 0 }; v < bdrMaps.intSMA.mapBElem1[m].size(); v++) {
+					out.e_[d][bdrMaps.intSMA.mapBElem1[m][v]] = -0.5 * in.e_[d][bdrMaps.intSMA.vmapBElem1[m][v]];
+					out.h_[d][bdrMaps.intSMA.mapBElem1[m][v]] = -0.5 * in.h_[d][bdrMaps.intSMA.vmapBElem1[m][v]];
+					out.e_[d][bdrMaps.intSMA.mapBElem2[m][v]] = -0.5 * in.e_[d][bdrMaps.intSMA.vmapBElem2[m][v]];
+					out.h_[d][bdrMaps.intSMA.mapBElem2[m][v]] = -0.5 * in.h_[d][bdrMaps.intSMA.vmapBElem2[m][v]];
+				}
+			}
+		}
+		
 	}
 
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
@@ -196,15 +223,22 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix getElementMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global)
+	DynamicMatrix getElementMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global, const Element::Type elType)
 	{
-		switch (e) {
-		case 0:
-			return loadMatrixWithValues(global, 0, 0);
-		case 1:
-			return loadMatrixWithValues(global, int(global.rows() / 2), int(global.cols() / 2));
+		switch (elType) {
+		case Element::Type::TRIANGLE:
+			switch (e) {
+			case 0:
+				return loadMatrixWithValues(global, 0, 0);
+			case 1:
+				return loadMatrixWithValues(global, int(global.rows() / 2), int(global.cols() / 2));
+			default:
+				throw std::runtime_error("Incorrect element index for getElementMassMatrixFromGlobal");
+			}
+		case Element::Type::QUADRILATERAL:
+			return global;
 		default:
-			throw std::runtime_error("Incorrect element index for getElementMassMatrixFromGlobal");
+			throw std::runtime_error("Unsupported Element Type.");
 		}
 	}
 
@@ -275,9 +309,9 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& fes, Array<int> boundaryMarker)
+	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& subFES, Array<int> boundaryMarker)
 	{
-		auto bf = assembleFaceMassBilinearForm(fes, boundaryMarker);
+		auto bf = assembleFaceMassBilinearForm(subFES, boundaryMarker);
 		auto res = toEigen(*bf->SpMat().ToDenseMatrix());
 		removeZeroColumns(res);
 		return res;
@@ -307,13 +341,13 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix assembleInteriorFluxMatrix(FiniteElementSpace& fes)
+	std::unique_ptr<BilinearForm> assembleInteriorFluxMatrix(FiniteElementSpace& fes)
 	{
-		BilinearForm bf(&fes);
-		bf.AddInteriorFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0));
-		bf.Assemble();
-		bf.Finalize();
-		return toEigen(*bf.SpMat().ToDenseMatrix());
+		auto bf{ std::make_unique<BilinearForm>(&fes) };
+		bf->AddInteriorFaceIntegrator(new mfemExtension::HesthavenFluxIntegrator(1.0));
+		bf->Assemble();
+		bf->Finalize();
+		return bf;
 	}
 
 	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace& fes)
@@ -325,10 +359,10 @@ namespace maxwell {
 		return toEigen(*bf.SpMat().ToDenseMatrix());
 	}
 
-	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity& map, ElementId e)
+	void appendConnectivityMapsForInteriorFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity& map, ElementId e)
 	{
-		auto matrix{ assembleInteriorFluxMatrix(smFES) };
-		auto maps{ mapConnectivity(matrix) };
+		auto bf{ assembleInteriorFluxMatrix(smFES) };
+		auto maps{ mapConnectivity(bf.get()) };
 		Array<int> dofs1, dofs2;
 		globalFES.GetElementDofs(trans.Elem1No, dofs1);
 		globalFES.GetElementDofs(trans.Elem2No, dofs2);
@@ -345,21 +379,36 @@ namespace maxwell {
 				sortingVector.push_back(std::pair(dofs2[maps.second[v] - dofs1.Size()], dofs1[maps.first[v]]));
 			}
 			sort(sortingVector.begin(), sortingVector.end());
-			//std::sort(sortingVector.begin(), sortingVector.end(), [](const std::pair<int, int>& left, const std::pair<int, int>& right) {
-			//	return left.second < right.second;
-			//});
 		}
 		else {
 			throw std::runtime_error("incorrect element id to element ids in FaceElementTransformation");
 		}
-
 
 		for (auto v{ 0 }; v < sortingVector.size(); v++) {
 			map.push_back(sortingVector[v]);
 		}
 	}
 
-	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity& map)
+	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
+	{
+		auto matrix{ assembleInteriorFluxMatrix(smFES) };
+		auto maps{ mapConnectivity(matrix.get()) };
+		Array<int> dofs1, dofs2;
+		globalFES.GetElementDofs(trans.Elem1No, dofs1);
+		globalFES.GetElementDofs(trans.Elem2No, dofs2);
+
+		Nodes elem1, elem2;
+		
+		for (auto v{ 0 }; v < maps.first.size(); v++) {
+			elem1.push_back(dofs1[maps.first[v]]);
+			elem2.push_back(dofs2[maps.second[v] - dofs1.Size()]);
+		}
+
+		return std::make_pair(elem1, elem2);
+
+	}
+
+	void appendConnectivityMapsForBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& submeshFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity& map)
 	{
 		GridFunction gfParent(&globalFES);
 		GridFunction gfChild(&submeshFES);
@@ -440,7 +489,7 @@ namespace maxwell {
 					restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
 					tagBdrAttributesForSubMesh(localFace, sm);
 					FiniteElementSpace smFES(&sm, fec);
-					appendConnectivityMapsFromBoundaryFace(
+					appendConnectivityMapsForBoundaryFace(
 						globalFES,
 						smFES,
 						assembleConnectivityFaceMassMatrix(smFES, boundaryMarker),
@@ -453,7 +502,7 @@ namespace maxwell {
 					auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap);
 					restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
 					FiniteElementSpace smFES(&sm, fec);
-					appendConnectivityMapsFromInteriorFace(
+					appendConnectivityMapsForInteriorFace(
 						*faceTrans,
 						globalFES,
 						smFES,

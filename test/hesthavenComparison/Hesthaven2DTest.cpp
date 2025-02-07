@@ -722,7 +722,7 @@ TEST_F(MFEMHesthaven2D, segmentFromTriangleJacobianO3)
 TEST_F(MFEMHesthaven2D, connectivityMapO1)
 {
 	const int basis_order = 1;
-	auto mesh { Mesh::LoadFromFile(maxwellInputsFolder() + "2D_Hesthaven_K2/2D_Hesthaven_K2.msh")};
+	auto mesh { Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Hesthaven_K2.msh")};
 	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 
 	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
@@ -751,7 +751,7 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 TEST_F(MFEMHesthaven2D, connectivityMapO2)
 {
 	const int basis_order = 2;
-	auto mesh{ Mesh::LoadFromFile(maxwellInputsFolder() + "2D_Hesthaven_K2/2D_Hesthaven_K2.msh") };
+	auto mesh{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Hesthaven_K2.msh") };
 	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
 
 	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
@@ -800,8 +800,8 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
 
 	auto mass_mat{ assembleMassMatrix(sm_fes) };
 
-	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
-	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
+	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat, sm.GetElementType(0)).inverse();
+	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat, sm.GetElementType(1)).inverse();
 
 	DynamicMatrix expectedInverseMass{
 		{ 4.5000, -1.5000, -1.5000},
@@ -834,8 +834,8 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 
 	auto mass_mat{ assembleMassMatrix(sm_fes) };
 
-	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat).inverse();
-	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat).inverse();
+	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat, sm.GetElementType(0)).inverse();
+	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat, sm.GetElementType(1)).inverse();
 
 	DynamicMatrix expectedInverseMass{
 		{18.0000, -0.7500,  3.0000, -0.7500,  3.0000,  3.0000},

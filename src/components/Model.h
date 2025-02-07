@@ -22,9 +22,9 @@ using GeomTagToBdrCond = std::map<GeomTag, BdrCond>;
 using BoundaryMarker = mfem::Array<int>;
 using InteriorBoundaryMarker = BoundaryMarker;
 using BoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
-using InteriorBoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
-using TotalFieldScatteredFieldToMarker = std::map<BdrCond, BoundaryMarker>;
-using InteriorSourceToMarker = std::map<BdrCond, BoundaryMarker>;
+using InteriorBoundaryToMarker = BoundaryToMarker;
+using TotalFieldScatteredFieldToMarker = BoundaryToMarker;
+using InteriorSourceToMarker = BoundaryToMarker;
 
 struct GeomTagToBoundaryInfo {
 	GeomTagToBoundary gt2b;

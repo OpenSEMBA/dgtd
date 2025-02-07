@@ -68,12 +68,34 @@ namespace maxwell {
 		Eigen::VectorXd fscale;
 	};
 
-	struct BoundaryMaps {
-		std::vector<std::vector<NodeId>> mapB;
-		std::vector<BdrCondToNodes> vmapB;
+	struct TrueBoundaryMaps {
+		std::vector<Nodes> mapB;
+		std::vector<Nodes> vmapB;
 	};
 
-	struct InteriorBoundaryMaps : BoundaryMaps {
+	struct InteriorBoundaryMaps {
+		std::vector<Nodes> mapBElem1;
+		std::vector<Nodes> mapBElem2;
+		std::vector<Nodes> vmapBElem1;
+		std::vector<Nodes> vmapBElem2;
+	};
+
+	struct TotalFieldScatteredFieldMaps {
+		std::vector<Nodes> mapBSF;
+		std::vector<Nodes> mapBTF;
+		std::vector<Nodes> vmapBSF;
+		std::vector<Nodes> vmapBTF;
+	};
+
+	struct BoundaryMaps {
+
+		TrueBoundaryMaps PEC;
+		TrueBoundaryMaps PMC;
+		TrueBoundaryMaps SMA;
+		InteriorBoundaryMaps intPEC;
+		InteriorBoundaryMaps intPMC;
+		InteriorBoundaryMaps intSMA;
+		TotalFieldScatteredFieldMaps TFSF;
 
 	};
 
@@ -113,8 +135,8 @@ namespace maxwell {
 	void markElementsForSubMeshing(FaceElementTransformations* faceTrans, Mesh&);
 	void removeColumn(DynamicMatrix&, const int colToRemove);
 	void removeZeroColumns(DynamicMatrix&);
-	void appendConnectivityMapsFromInteriorFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity&, ElementId);
-	void appendConnectivityMapsFromBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& smFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity&);
+	void appendConnectivityMapsForInteriorFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity&, ElementId);
+	void appendConnectivityMapsForBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& smFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
 	void applyBoundaryConditionsToNodes(const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
 	void applyInteriorBoundaryConditionsToNodes(const InteriorBoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
@@ -125,18 +147,19 @@ namespace maxwell {
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m);
 
 	DynamicMatrix loadMatrixWithValues(const DynamicMatrix& global, const int startRow, const int startCol);
-	DynamicMatrix getElementMassMatrixFromGlobal(const int el, const DynamicMatrix& global);
+	DynamicMatrix getElementMassMatrixFromGlobal(const int el, const DynamicMatrix& global, const Element::Type elType);
 	DynamicMatrix getFaceMassMatrixFromGlobal(const DynamicMatrix& global);
 	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace&, Array<int> boundaryMarker);
 	DynamicMatrix assembleEmat(FiniteElementSpace&, std::vector<Array<int>>& boundaryMarkers);
-	DynamicMatrix assembleInteriorFluxMatrix(FiniteElementSpace&);
+	std::unique_ptr<BilinearForm> assembleInteriorFluxMatrix(FiniteElementSpace&);
 	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace&);
 	
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap);
 	
+	std::pair<Nodes, Nodes> buildConnectivityForInteriorBdrFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES);
 	std::vector<Array<int>> assembleBoundaryMarkers(FiniteElementSpace&);
 	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace&, Array<int>& boundaryMarker);
-	InteriorFaceConnectivityMaps mapConnectivity(const DynamicMatrix& fluxMatrix);
+	InteriorFaceConnectivityMaps mapConnectivity(const BilinearForm* fluxMatrix);
 	Array<int> getFacesForElement(const Mesh&, const ElementId);
 	FaceElementTransformations* getInteriorFaceTransformation(Mesh&, const Array<int>& faces);
 	GlobalConnectivity assembleGlobalConnectivityMap(Mesh&, const L2_FECollection*);
