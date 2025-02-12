@@ -59,7 +59,7 @@ namespace maxwell {
 
 	struct HesthavenElement {
 		ElementId id;
-		Geometry::Type geom;
+		Element::Type type;
 		Volume vol;
 		Directional der;
 		Emat emat;
@@ -155,7 +155,8 @@ namespace maxwell {
 	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace&);
 	
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap);
-	
+	Mesh buildHesthavenRefTetrahedra();
+
 	std::pair<Nodes, Nodes> buildConnectivityForInteriorBdrFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES);
 	std::vector<Array<int>> assembleBoundaryMarkers(FiniteElementSpace&);
 	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace&, Array<int>& boundaryMarker);

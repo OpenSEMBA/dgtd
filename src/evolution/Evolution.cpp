@@ -379,7 +379,7 @@ Mesh getRefMeshForGeomType(const Element::Type elType, const int dimension)
 			throw std::runtime_error("Incorrect Element Type for dimension 2 mesh.");
 		}
 	case 3:
-		return Mesh::MakeCartesian3D(1, 1, 1, elType);
+		return buildHesthavenRefTetrahedra();
 	default:
 		throw std::runtime_error("Hesthaven Evolution Operator only supports dimensions 2 or 3.");
 	}
@@ -715,6 +715,22 @@ void assembleDerivativeMatrices(FiniteElementSpace& subFES, MatrixStorageLT& mat
 	}
 }
 
+double getReferenceVolume(const Element::Type geom)
+{
+	switch (geom) {
+	case Element::Type::TRIANGLE:
+		return 2.0; //Hesthaven definition (-1,-1), (-1,1), (1,-1)
+	case Element::Type::QUADRILATERAL:
+		return 4.0; //Assuming x,y (-1, 1)
+	case Element::Type::TETRAHEDRON:
+		return 8.0/6.0; //Hesthaven definition (-1,-1,-1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1)
+	case Element::Type::HEXAHEDRON:
+		return 8.0; //Assuming x,y,z (-1, 1)
+	default:
+		throw std::runtime_error("Unsupported geometry for reference volume.");
+	}
+}
+
 void assembleFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem)
 {
 
@@ -724,19 +740,19 @@ void assembleFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestE
 	dim == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
 	initNormalVectors(hestElem, numFaces * numNodesAtFace);
 	initFscale(hestElem, numFaces * numNodesAtFace);
+	auto J{ subFES.GetMesh()->GetElementTransformation(0)->Weight()};
 
 	for (auto f{ 0 }; f < numFaces; f++) {
 
 		Vector normal(dim);
 		ElementTransformation* faceTrans;
 		dim == 2 ? faceTrans = subFES.GetMesh()->GetEdgeTransformation(f) : faceTrans = subFES.GetMesh()->GetFaceTransformation(f);
-		faceTrans->SetIntPoint(&Geometries.GetCenter(faceTrans->GetGeometryType()));
 		CalcOrtho(faceTrans->Jacobian(), normal);
-		const auto sJ{ faceTrans->Weight() };
+		auto sJ{ faceTrans->Weight() };
 
 		for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
 			hestElem.normals[X][f * numNodesAtFace + b] = normal[0] / sJ;
-			hestElem.fscale[f * numNodesAtFace + b] = sJ / hestElem.vol; //likewise for fscale, surface per volume ratio per node at face
+			hestElem.fscale[f * numNodesAtFace + b] = sJ * 2.0 / J; //likewise for fscale, surface per volume ratio per node at face
 			if (dim >= 2) {
 				hestElem.normals[Y][f * numNodesAtFace + b] = normal[1] / sJ;
 			}
@@ -827,7 +843,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	{
 		HesthavenElement hestElem;
 		hestElem.id = e;
-		hestElem.geom = cmesh->GetElementBaseGeometry(e);
+		hestElem.type = cmesh->GetElementType(e);
 		hestElem.vol = mesh.GetElementVolume(e);
 
 		mesh.SetAttribute(e, hesthavenMeshingTag);

@@ -223,18 +223,6 @@ namespace maxwell {
 		return res;
 	}
 
-	DynamicMatrix loadMatrixForTetras(const DynamicMatrix& global, const int startRow, const int startCol)
-	{
-		DynamicMatrix res;
-		res.resize(int(global.rows() / 6), int(global.cols() / 6));
-		for (auto r{ startRow }; r < startRow + int(global.rows() / 6); r++) {
-			for (auto c{ startCol }; c < startCol + int(global.cols() / 6); c++) {
-				res(r - startRow, c - startCol) = global(r, c);
-			}
-		}
-		return res;
-	}
-
 	DynamicMatrix getElemMassMatrixFromGlobal(const ElementId e, const DynamicMatrix& global, const Element::Type elType)
 	{
 		switch (elType) {
@@ -250,7 +238,7 @@ namespace maxwell {
 		case Element::Type::QUADRILATERAL:
 			return global;
 		case Element::Type::TETRAHEDRON:
-			return loadMatrixForTetras(global, 0, 0);
+			return global;
 		case Element::Type::HEXAHEDRON:
 			return global;
 		default:
@@ -313,6 +301,19 @@ namespace maxwell {
 			res.emplace_back(bdr_marker);
 		}
 		return res;
+	}
+
+	Mesh buildHesthavenRefTetrahedra()
+	{
+		Mesh m(3, 0, 0, 0, 3);
+		m.AddVertex(0.0, 0.0, 0.0);
+		m.AddVertex(2.0, 0.0, 0.0);
+		m.AddVertex(0.0, 2.0, 0.0);
+		m.AddVertex(0.0, 0.0, 2.0);
+		m.AddTet(0, 1, 2, 3, 777);
+		m.FinalizeMesh();
+
+		return m;
 	}
 
 	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace& fes, Array<int>& boundaryMarker)
