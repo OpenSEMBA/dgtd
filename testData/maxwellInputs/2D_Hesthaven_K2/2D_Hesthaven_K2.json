@@ -1,0 +1,54 @@
+{
+  "solver_options": {
+    "solver_type": "centered",
+    "order": 1,
+    "hesthaven_operator": true
+  },
+
+  "model": {
+    "filename": "2D_Hesthaven_K2.msh",
+    "materials": [
+      {
+        "tags": [ 1 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 2, 3, 4 ],
+        "type": "PEC"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 1
+    },
+    "field": [
+      {
+        "position": [ 0.0, 0.5 ]
+      },
+      {
+        "position": [ 1.0, 0.5 ]
+      },
+      {
+        "position": [ 0.5, 0.5 ]
+      }
+    ]
+  },
+
+  "sources": [
+    {
+      "type": "initial",
+      "field_type": "E",
+      "center": [ 0.5, 0.5 ],
+      "polarization": [ 0.0, 0.0, 1.0 ],
+      "dimension": 1,
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.1
+      }
+    }
+  ]
+}
