@@ -330,7 +330,9 @@ namespace maxwell {
 	{
 		auto bf = assembleFaceMassBilinearForm(subFES, boundaryMarker);
 		auto res = toEigen(*bf->SpMat().ToDenseMatrix());
-		removeZeroColumns(res);
+		//std::cout << res << std::endl << std::endl;
+		//removeZeroColumns(res);
+		//std::cout << res << std::endl << std::endl;
 		return res;
 	}
 
@@ -341,6 +343,7 @@ namespace maxwell {
 		res.resize(fes.GetNDofs(), fes.GetNF() * numNodesAtFace);
 		for (auto f{ 0 }; f < fes.GetNF(); f++) {
 			auto surface_matrix{ assembleConnectivityFaceMassMatrix(fes, boundaryMarkers[f]) };
+			removeZeroColumns(surface_matrix);
 			res.block(0, f * numNodesAtFace, fes.GetNDofs(), numNodesAtFace) = surface_matrix;
 		}
 		return res;
@@ -434,7 +437,7 @@ namespace maxwell {
 		ConstantCoefficient zero(0.0);
 		double tol{ 1e-8 };
 		for (auto r{ 0 }; r < surfaceMatrix.rows(); r++) {
-			if (std::abs(surfaceMatrix(r, 0)) > tol) {
+			if (std::abs(surfaceMatrix(r, r)) > tol) {
 				gfChild.ProjectCoefficient(zero);
 				gfParent.ProjectCoefficient(zero);
 				gfChild[r] = 1.0;

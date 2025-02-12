@@ -879,6 +879,7 @@ TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
 
 	{
 		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[0]) };
+		removeZeroColumns(surface_matrix);
 
 		DynamicMatrix expected_emat{
 			{0.6667, 0.3333},
@@ -896,6 +897,7 @@ TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
 
 	{
 		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[1]) };
+		removeZeroColumns(surface_matrix);
 
 		DynamicMatrix expected_emat{
 			{0.0000, 0.0000},
@@ -913,6 +915,7 @@ TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
 
 	{
 		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[2]) };
+		removeZeroColumns(surface_matrix);
 
 		DynamicMatrix expected_emat{
 			{0.6667, 0.3333},
