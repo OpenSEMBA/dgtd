@@ -4,6 +4,7 @@
 #include "HesthavenFunctions.h"
 #include "math/EigenMfemTools.h"
 #include "evolution/EvolutionMethods.h"
+#include "evolution/HesthavenEvolutionTools.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -44,6 +45,31 @@ protected:
 		{0,1,0,0},
 		{0,0,1,0}
 	};
+
+	static GeomTagToBoundary buildAttrToBdrMap3D(const BdrCond& bdr1, const BdrCond& bdr2, const BdrCond& bdr3, const BdrCond& bdr4, const BdrCond& bdr5, const BdrCond& bdr6)
+	{
+		return {
+			{1, bdr1},
+			{2, bdr2},
+			{3, bdr3},
+			{4, bdr4},
+			{5, bdr5},
+			{6, bdr6},
+		};
+	}
+
+	bool OrEqual(double testValue, double option1, double option2)
+	{
+		if (testValue == option1 ||
+			testValue == option2)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
 
 };
 
@@ -200,6 +226,96 @@ TEST_F(MFEMHesthaven3D, faceChecker)
 		std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
 	}
 
-
 }
 
+TEST_F(MFEMHesthaven3D, EmatO1)
+{
+	const int basis_order = 1;
+	auto m{ buildHesthavenRefTetrahedra() };
+	auto fec{ L2_FECollection(basis_order, 3, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	auto boundary_markers = assembleBoundaryMarkers(fes);
+
+	m.bdr_attributes.SetSize(fes.GetNF());
+	for (auto f{ 0 }; f < fes.GetNF(); f++) {
+		m.bdr_attributes[f] = f + 1;
+		m.SetBdrAttribute(f, m.bdr_attributes[f]);
+	}
+
+	DynamicMatrix emat = assembleEmat(fes, boundary_markers);
+
+	emat *= 2.0;
+
+	std::cout << emat << std::endl;
+
+	DynamicMatrix expected_emat{
+		{0.0000, 0.0000, 0.0000, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667},
+		{0.3333, 0.1667, 0.1667, 0.0000, 0.0000, 0.0000, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667},
+		{0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.0000, 0.0000, 0.0000, 0.1667, 0.1667, 0.3333},
+		{0.1667, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.0000, 0.0000, 0.0000}
+	};
+
+	for (auto r{ 0 }; r < emat.rows(); r++) {
+		for (auto c{ 0 }; c < emat.cols(); c++) {
+			EXPECT_NEAR(expected_emat(r, c), emat(r, c), 1e-3);
+		}
+	}
+}
+
+TEST_F(MFEMHesthaven3D, bdrTetraInformation)
+{
+	auto m{ Mesh::LoadFromFile(gmshMeshesFolder() + "3D_Bdr_Cube.msh", 1,0) };
+	auto gttb { buildAttrToBdrMap3D(BdrCond::PEC, BdrCond::PEC, BdrCond::PMC, BdrCond::PMC, BdrCond::SMA, BdrCond::SMA)};
+	auto gttbi{ GeomTagToBoundaryInfo(gttb, GeomTagToInteriorBoundary{}) };
+	auto model = Model(m, GeomTagToMaterialInfo{}, gttbi);
+
+	auto order = 1;
+	auto dimension = 3;
+	auto fec{ DG_FECollection(order, dimension, BasisType::GaussLobatto) };
+
+	auto fes{ FiniteElementSpace(&model.getMesh(), &fec)};
+
+	auto connect{ Connectivities(model, fes) };
+
+	auto sides_per_bdr = 2;
+	auto tetrafaces_per_side = 4;
+	auto nodes_per_tetraface = (order + 1) * (order + 2) / 2;
+
+	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side, connect.boundary.PEC.vmapB.size());
+	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side, connect.boundary.PMC.vmapB.size());
+	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side, connect.boundary.SMA.vmapB.size());
+
+	EXPECT_EQ(connect.boundary.PEC.vmapB.size(), connect.boundary.PMC.vmapB.size());
+	EXPECT_EQ(connect.boundary.PEC.vmapB.size(), connect.boundary.SMA.vmapB.size());
+
+	int pecNodeNum{ 0 }, pmcNodeNum{ 0 }, smaNodeNum{ 0 };
+	for (auto n{ 0 }; n < connect.boundary.PEC.vmapB.size(); n++) {
+		pecNodeNum += connect.boundary.PEC.vmapB[n].size();
+		pmcNodeNum += connect.boundary.PMC.vmapB[n].size();
+		smaNodeNum += connect.boundary.SMA.vmapB[n].size();
+	}
+	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pecNodeNum);
+	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pmcNodeNum);
+	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, smaNodeNum);
+
+	auto positions{ buildDoFPositions(fes) };
+
+	for (auto m{ 0 }; m < connect.boundary.PEC.vmapB.size(); m++) {
+		for (auto n{ 0 }; n < connect.boundary.PEC.vmapB[n].size(); n){
+			EXPECT_TRUE(OrEqual(positions[connect.boundary.PEC.vmapB[n][m]][X], 0.0, 1.0));
+		}
+	}
+
+	for (auto m{ 0 }; m < connect.boundary.PMC.vmapB.size(); m++) {
+		for (auto n{ 0 }; n < connect.boundary.PMC.vmapB[n].size(); n) {
+			EXPECT_TRUE(OrEqual(positions[connect.boundary.PMC.vmapB[n][m]][Y], 0.0, 1.0));
+		}
+	}
+
+	for (auto m{ 0 }; m < connect.boundary.SMA.vmapB.size(); m++) {
+		for (auto n{ 0 }; n < connect.boundary.SMA.vmapB[n].size(); n) {
+			EXPECT_TRUE(OrEqual(positions[connect.boundary.SMA.vmapB[n][m]][Z], 0.0, 1.0));
+		}
+	}
+}

@@ -138,6 +138,21 @@ namespace maxwell {
 		
 	}
 
+	const std::vector<Source::Position> buildDoFPositions(const FiniteElementSpace& fes)
+	{
+		auto fec{ dynamic_cast<const L2_FECollection*>(fes.FEColl()) };
+		auto vdimfes = FiniteElementSpace(fes.GetMesh(), fec, 3);
+		GridFunction nodes(&vdimfes);
+		fes.GetMesh()->GetNodes(nodes);
+		auto dirSize{ nodes.Size() / 3 };
+		std::vector<Source::Position> res;
+		res.resize(dirSize);
+		for (auto i{ 0 }; i < dirSize; i++) {
+			res[i] = Source::Position({ nodes[i], nodes[i + dirSize], nodes[i + dirSize * 2] });
+		}
+		return res;
+	}
+
 	std::map<int, Attribute> mapOriginalAttributes(const Mesh& m)
 	{
 		// Create backup of attributes
@@ -330,9 +345,6 @@ namespace maxwell {
 	{
 		auto bf = assembleFaceMassBilinearForm(subFES, boundaryMarker);
 		auto res = toEigen(*bf->SpMat().ToDenseMatrix());
-		//std::cout << res << std::endl << std::endl;
-		//removeZeroColumns(res);
-		//std::cout << res << std::endl << std::endl;
 		return res;
 	}
 
@@ -409,7 +421,7 @@ namespace maxwell {
 		}
 	}
 
-	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
+	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
 	{
 		auto matrix{ assembleInteriorFluxMatrix(smFES) };
 		auto maps{ mapConnectivity(matrix.get()) };
@@ -457,6 +469,22 @@ namespace maxwell {
 		}
 	}
 
+	std::vector<Array<int>> assembleBdrMarkersForBdrElements(Mesh& bdrMesh, const int numBdrElems)
+	{
+		std::vector<Array<int>> res(numBdrElems);
+		bdrMesh.bdr_attributes.SetSize(numBdrElems);
+		for (auto b{ 0 }; b < numBdrElems; b++) {
+			bdrMesh.bdr_attributes[b] = b + 1;
+			bdrMesh.SetBdrAttribute(b, bdrMesh.bdr_attributes[b]);
+			Array<int> bdr_marker;
+			bdr_marker.SetSize(numBdrElems);
+			bdr_marker = 0;
+			bdr_marker[b] = 1;
+			res[b] = bdr_marker;
+		}
+		return res;
+	}
+
 	void tagBdrAttributesForSubMesh(const int edge, SubMesh& sm)
 	{
 		for (auto b{ 0 }; b < sm.bdr_attributes.Size(); b++) {
@@ -465,6 +493,238 @@ namespace maxwell {
 		}
 		sm.SetBdrAttribute(edge, hesthavenMeshingTag);
 		sm.bdr_attributes.Append(hesthavenMeshingTag);
+	}
+
+	Nodes findNodesPerBdrFace(const BilinearForm* bdrNodeMat)
+	{
+		Nodes res;
+		Array<int> cols;
+		Vector vals;
+		double tol{ 1e-6 };
+		for (auto r{ 0 }; r < bdrNodeMat->NumRows(); r++) {
+			bdrNodeMat->SpMat().GetRow(r, cols, vals);
+			if (vals.Size() && cols.Find(r) != -1 && std::abs(vals[cols.Find(r)]) > tol) {
+				res.push_back(r);
+			}
+		}
+
+		return res;
+	}
+
+	std::vector<Nodes> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNodeMarkers, FiniteElementSpace& bdrFES, const std::map<bool, std::vector<BdrElementId>>& isInteriorMap)
+	{
+
+		std::vector<Nodes> res(isInteriorMap.at(false).size());
+
+		for (auto b{ 0 }; b < isInteriorMap.at(false).size(); b++) {
+			auto bdrNodeFinderOperator{ assembleFaceMassBilinearForm(bdrFES, bdrNodeMarkers[isInteriorMap.at(false)[b]]) };
+			res[b] = findNodesPerBdrFace(bdrNodeFinderOperator.get());
+		}
+
+		return res;
+	}
+
+	const std::map<bool, std::vector<BdrElementId>> assembleInteriorOrTrueBdrMap(const FiniteElementSpace& fes)
+	{
+		std::map<bool, std::vector<BdrElementId>> res;
+		auto f2bdr{ fes.GetMesh()->GetFaceToBdrElMap() };
+		for (auto b{ 0 }; b < fes.GetNBE(); b++) {
+			fes.GetMesh()->FaceIsInterior(f2bdr.Find(b)) ==
+				true ? res[true].push_back(b) : res[false].push_back(b);
+		}
+		return res;
+	}
+
+	Connectivities::Connectivities(Model& model, const FiniteElementSpace& fes) :
+		model_(model),
+		fes_(fes)
+	{
+		auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
+		global = assembleGlobalConnectivityMap(model.getMesh(), fec);
+
+		const auto isInteriorMap{ assembleInteriorOrTrueBdrMap(fes_) };
+
+		{
+			auto bdrNodeMesh{ Mesh(model_.getMesh()) };
+			std::vector<Array<int>> bdrNodeMarkers{ assembleBdrMarkersForBdrElements(bdrNodeMesh, model_.getConstMesh().GetNBE()) };
+			auto bdrNodeFES = FiniteElementSpace(&bdrNodeMesh, fec);
+			std::vector<int> atts;
+			for (auto b = 0; b < model_.getConstMesh().GetNBE(); b++) {
+				atts.push_back(model.getConstMesh().GetBdrAttribute(b));
+			}
+			const auto bdr2nodes{ assembleNodeVectorPerBdrFace(bdrNodeMarkers, bdrNodeFES, isInteriorMap) };
+			initBdrConnectivityMaps(bdr2nodes, isInteriorMap);
+		}
+
+		{
+			if (model_.getInteriorBoundaryToMarker().size() != 0) {
+				initIntFaceConnectivityMaps(model_.getInteriorBoundaryToMarker());
+			}
+		}
+
+		{
+			if (model_.getTotalFieldScatteredFieldToMarker().size() != 0) {
+				initIntFaceConnectivityMaps(model.getTotalFieldScatteredFieldToMarker());
+			}
+		}
+
+	}
+
+	void Connectivities::loadIntBdrConditions(const InteriorFaceConnectivityMaps& mapB, const InteriorFaceConnectivityMaps& nodePairs, const BdrCond& bdrCond, const double ori = 0.0)
+	{
+		if (bdrCond != BdrCond::TotalFieldIn) {
+			switch (bdrCond) {
+			case BdrCond::PEC:
+				boundary.intPEC.mapBElem1.push_back(mapB.first);
+				boundary.intPEC.mapBElem2.push_back(mapB.second);
+				boundary.intPEC.vmapBElem1.push_back(nodePairs.first);
+				boundary.intPEC.vmapBElem2.push_back(nodePairs.second);
+				break;
+			case BdrCond::PMC:
+				boundary.intPMC.mapBElem1.push_back(mapB.first);
+				boundary.intPMC.mapBElem2.push_back(mapB.second);
+				boundary.intPMC.vmapBElem1.push_back(nodePairs.first);
+				boundary.intPMC.vmapBElem2.push_back(nodePairs.second);
+				break;
+			case BdrCond::SMA:
+				boundary.intSMA.mapBElem1.push_back(mapB.first);
+				boundary.intSMA.mapBElem2.push_back(mapB.second);
+				boundary.intSMA.vmapBElem1.push_back(nodePairs.first);
+				boundary.intSMA.vmapBElem2.push_back(nodePairs.second);
+				break;
+			default:
+				throw std::runtime_error("Incorrect boundary condition for interior assignment.");
+			}
+		}
+		else if (bdrCond == BdrCond::TotalFieldIn) {
+			if (ori >= 0.0) {
+				boundary.TFSF.mapBSF.push_back(mapB.first);
+				boundary.TFSF.mapBTF.push_back(mapB.second);
+				boundary.TFSF.vmapBSF.push_back(nodePairs.first);
+				boundary.TFSF.vmapBTF.push_back(nodePairs.second);
+			}
+			else {
+				boundary.TFSF.mapBSF.push_back(mapB.second);
+				boundary.TFSF.mapBTF.push_back(mapB.first);
+				boundary.TFSF.vmapBSF.push_back(nodePairs.second);
+				boundary.TFSF.vmapBTF.push_back(nodePairs.first);
+			}
+		}
+	}
+
+	InteriorFaceConnectivityMaps Connectivities::initInteriorFacesMapB(const InteriorFaceConnectivityMaps& nodePairs) const
+	{
+		InteriorFaceConnectivityMaps res;
+		res.first.resize(nodePairs.first.size());
+		res.second.resize(nodePairs.second.size());
+		for (auto v{ 0 }; v < res.first.size(); v++) {
+			res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(nodePairs.first[v], nodePairs.second[v])));
+			res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(nodePairs.second[v], nodePairs.first[v])));
+		}
+		return res;
+	}
+
+	void Connectivities::initIntFaceConnectivityMaps(const BoundaryToMarker& markers)
+	{
+		Array<int> elementMarker;
+		elementMarker.Append(hesthavenMeshingTag);
+
+		auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
+		auto attMap{ mapOriginalAttributes(model_.getConstMesh()) };
+
+		auto intBdrNodeMesh{ Mesh(model_.getConstMesh()) };
+		for (auto b{ 0 }; b < model_.getConstMesh().GetNBE(); b++) {
+			for (const auto& marker : markers) {
+				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+					const auto faceTrans{ model_.getMesh().GetInternalBdrFaceTransformations(b) };
+					auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
+					FiniteElementSpace subFES(&twoElemSubMesh, fec);
+					auto nodePairs{ buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES) };
+					auto mapsB{ initInteriorFacesMapB(nodePairs) };
+					loadIntBdrConditions(mapsB, nodePairs, marker.first);
+				}
+			}
+		}
+	}
+
+	std::vector<NodeId> findMapBIDForFaceNodes(const Nodes& expectedNodes, const GlobalConnectivity& connectivity)
+	{
+		Nodes sortedNodes = expectedNodes;
+		std::sort(sortedNodes.begin(), sortedNodes.end());
+		std::vector<NodeId> res(sortedNodes.size());
+		Nodes connNodes(sortedNodes.size());
+		for (auto n{ 0 }; n < connectivity.size(); n++) {
+			if (sortedNodes[0] == connectivity[n].first && n + sortedNodes.size() - 1 < connectivity.size()) {
+				for (auto v{ 0 }; v < sortedNodes.size(); v++) {
+					connNodes[v] = connectivity[n + v].first;
+				}
+				if (sortedNodes == connNodes) {
+					for (auto v{ 0 }; v < sortedNodes.size(); v++) {
+						res[v] = n + v;
+					}
+					return res;
+				}
+			}
+		}
+	}
+
+	Nodes initMapB(const GlobalConnectivity& connectivity)
+	{
+		Nodes res;
+		for (auto i{ 0 }; i < connectivity.size(); i++) {
+			if (connectivity[i].first == connectivity[i].second) {
+				res.push_back(i);
+			}
+		}
+		return res;
+	}
+
+
+	Nodes initVMapB(const GlobalConnectivity& connectivity, const Nodes& mapB)
+	{
+		Nodes res(mapB.size());
+		for (auto i{ 0 }; i < mapB.size(); i++) {
+			res[i] = connectivity[mapB[i]].first;
+		}
+		return res;
+	}
+
+	void Connectivities::initBdrConnectivityMaps(const std::vector<Nodes>& bdr2nodes, const std::map<bool, std::vector<BdrElementId>>& isInteriorMap)
+	{
+		auto mapB{ initMapB(global) };
+		auto vmapB{ initVMapB(global, mapB) };
+
+		auto modelBdrMarkers = model_.getBoundaryToMarker(); //Only for true boundary types (not interior)...
+		for (auto b{ 0 }; b < bdr2nodes.size(); b++) { //For each one of our bdr elements...
+			for (const auto& marker : modelBdrMarkers) { //Fetch each one of our bdrMarkers in the model...
+				if (marker.second[fes_.GetBdrAttribute(isInteriorMap.at(false)[b]) - 1] == 1) { //And check if that BdrCond is active for the specified bdrAtt of that bdr element, which means the bdr element is of that type...
+					for (auto n{ 0 }; n < vmapB.size(); n++) { //Then sweep vmapB...
+						auto mapBIds{ findMapBIDForFaceNodes(bdr2nodes[b], global) }; //To find the nodes in vmapB that are equal to the first node in our bdr element (as they are sorted when built), because it can happen...
+						Nodes mapBToStore(bdr2nodes[b].size()); //... that we have multiple instances of a Hesthaven type node appearing twice on vmapB (i.e. corner node)...
+						Nodes vmapBToStore(bdr2nodes[b].size()); //... so we need to save the mapB 2 vmapB pairs so the nodes are properly linked when defining boundary conditions...
+						for (auto m{ 0 }; m < mapBIds.size(); m++) {
+							mapBToStore[m] = mapBIds[m]; //Then make a temporary vector that we'll fill the next nodesize worth of nodes for mapB and vmapB, starting at the compared and equal node...
+							vmapBToStore[m] = global[mapBIds[m]].first;
+						}
+						switch (marker.first) {
+						case BdrCond::PEC:
+							boundary.PEC.mapB.push_back(mapBToStore);
+							boundary.PEC.vmapB.push_back(vmapBToStore);
+							break;
+						case BdrCond::PMC:
+							boundary.PMC.mapB.push_back(mapBToStore);
+							boundary.PMC.vmapB.push_back(vmapBToStore);
+							break;
+						case BdrCond::SMA:
+							boundary.SMA.mapB.push_back(mapBToStore);
+							boundary.SMA.vmapB.push_back(vmapBToStore);
+							break;
+						}
+						break; // And as we only support one bdrcond per face/edge/bdrwhatever, we're done for this bdr element...
+					}     // As this method is completely non-dependent on dimensions or geometries, could be assumed is as generic as it could get.
+				}
+			}
+		}
 	}
 
 	GlobalConnectivity assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)

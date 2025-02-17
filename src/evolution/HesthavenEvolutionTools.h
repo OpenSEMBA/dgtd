@@ -3,6 +3,7 @@
 #include <unordered_set>
 
 #include "mfemExtension/BilinearIntegrators.h"
+#include "solver/SourcesManager.h"
 #include "math/EigenMfemTools.h"
 #include "components/Types.h"
 #include "components/Model.h"
@@ -23,8 +24,6 @@ namespace maxwell {
 	using Emat = std::vector<const DynamicMatrix*>;
 	using Directional = std::array<const DynamicMatrix*, 3>;
 	using Normals = std::array<Eigen::VectorXd, 3>;
-	using TFSFSigns = std::pair<double, double>;
-	using TFSFConnectivity = std::vector<std::pair<NodePair, TFSFSigns>>;
 
 	struct MatrixCompareLessThan {
 
@@ -88,7 +87,6 @@ namespace maxwell {
 	};
 
 	struct BoundaryMaps {
-
 		TrueBoundaryMaps PEC;
 		TrueBoundaryMaps PMC;
 		TrueBoundaryMaps SMA;
@@ -96,6 +94,25 @@ namespace maxwell {
 		InteriorBoundaryMaps intPMC;
 		InteriorBoundaryMaps intSMA;
 		TotalFieldScatteredFieldMaps TFSF;
+	};
+
+	class Connectivities {
+	public:
+
+		Connectivities(Model& model, const FiniteElementSpace& fes);
+
+		GlobalConnectivity global;
+		BoundaryMaps boundary;
+
+	private:
+
+		void initBdrConnectivityMaps(const std::vector<Nodes>& bdr2nodes, const std::map<bool, std::vector<BdrElementId>>& isInteriorMap);
+		void initIntFaceConnectivityMaps(const BoundaryToMarker& markers);
+		void loadIntBdrConditions(const InteriorFaceConnectivityMaps& mapB, const InteriorFaceConnectivityMaps&, const BdrCond&, const double faceOri);
+		InteriorFaceConnectivityMaps initInteriorFacesMapB(const InteriorFaceConnectivityMaps& nodePairs) const;
+
+		Model& model_;
+		const FiniteElementSpace& fes_;
 
 	};
 
@@ -154,6 +171,8 @@ namespace maxwell {
 	std::unique_ptr<BilinearForm> assembleInteriorFluxMatrix(FiniteElementSpace&);
 	DynamicMatrix assembleBoundaryFluxMatrix(FiniteElementSpace&);
 	
+	const std::vector<Source::Position> buildDoFPositions(const FiniteElementSpace&);
+
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap);
 	Mesh buildHesthavenRefTetrahedra();
 
