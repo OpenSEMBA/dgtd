@@ -279,16 +279,16 @@ TEST_F(MFEMHesthaven3D, bdrTetraInformation)
 		auto connect{ Connectivities(model, fes) };
 
 		auto sides_per_bdr = 2;
-		auto tetrafaces_per_side = 4;
-		auto nodes_per_tetraface = (order + 1) * (order + 2) / 2;
+		auto trisfaces_per_side = 4;
+		auto nodes_per_trisface = (order + 1) * (order + 2) / 2;
 
 		const auto& vmapBPEC = connect.boundary.PEC.vmapB;
 		const auto& vmapBPMC = connect.boundary.PMC.vmapB;
 		const auto& vmapBSMA = connect.boundary.SMA.vmapB;
 
-		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side, vmapBPEC.size());
-		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side, vmapBPMC.size());
-		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side, vmapBSMA.size());
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side, vmapBPEC.size());
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side, vmapBPMC.size());
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side, vmapBSMA.size());
 
 		ASSERT_EQ(vmapBPEC.size(), vmapBPMC.size());
 		ASSERT_EQ(vmapBPEC.size(), vmapBSMA.size());
@@ -299,9 +299,76 @@ TEST_F(MFEMHesthaven3D, bdrTetraInformation)
 			pmcNodeNum += vmapBPMC[n].size();
 			smaNodeNum += vmapBSMA[n].size();
 		}
-		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pecNodeNum);
-		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pmcNodeNum);
-		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, smaNodeNum);
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side * nodes_per_trisface, pecNodeNum);
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side * nodes_per_trisface, pmcNodeNum);
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side * nodes_per_trisface, smaNodeNum);
+
+		auto positions{ buildDoFPositions(fes) };
+
+		double tol{ 1e-8 };
+		for (auto m{ 0 }; m < vmapBPEC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPEC[m].size(); n++) {
+				const auto& val = positions[vmapBPEC[m][n]][X];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
+		}
+
+		for (auto m{ 0 }; m < vmapBPMC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPMC[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
+		}
+
+		for (auto m{ 0 }; m < vmapBSMA.size(); m++) {
+			for (auto n{ 0 }; n < vmapBSMA[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+
+			}
+		}
+	}
+}
+
+TEST_F(MFEMHesthaven3D, bdrHexaInformation)
+{
+	auto mesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::HEXAHEDRON) };
+	auto gttb{ buildAttrToBdrMap3D(BdrCond::SMA, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC, BdrCond::SMA) };
+	auto gttbi{ GeomTagToBoundaryInfo(gttb, GeomTagToInteriorBoundary{}) };
+	auto model = Model(mesh, GeomTagToMaterialInfo{}, gttbi);
+
+	for (auto order{ 1 }; order < 6; order++) {
+		auto dimension = 3;
+		auto fec{ DG_FECollection(order, dimension, BasisType::GaussLobatto) };
+
+		auto fes{ FiniteElementSpace(&model.getMesh(), &fec) };
+
+		auto connect{ Connectivities(model, fes) };
+
+		auto sides_per_bdr = 2;
+		auto quadfaces_per_side = 1;
+		auto nodes_per_quadface = (order + 1) * (order + 1);
+
+		const auto& vmapBPEC = connect.boundary.PEC.vmapB;
+		const auto& vmapBPMC = connect.boundary.PMC.vmapB;
+		const auto& vmapBSMA = connect.boundary.SMA.vmapB;
+
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side, vmapBPEC.size());
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side, vmapBPMC.size());
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side, vmapBSMA.size());
+
+		ASSERT_EQ(vmapBPEC.size(), vmapBPMC.size());
+		ASSERT_EQ(vmapBPEC.size(), vmapBSMA.size());
+
+		int pecNodeNum{ 0 }, pmcNodeNum{ 0 }, smaNodeNum{ 0 };
+		for (auto n{ 0 }; n < vmapBPEC.size(); n++) {
+			pecNodeNum += vmapBPEC[n].size();
+			pmcNodeNum += vmapBPMC[n].size();
+			smaNodeNum += vmapBSMA[n].size();
+		}
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side * nodes_per_quadface, pecNodeNum);
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side * nodes_per_quadface, pmcNodeNum);
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side * nodes_per_quadface, smaNodeNum);
 
 		auto positions{ buildDoFPositions(fes) };
 
