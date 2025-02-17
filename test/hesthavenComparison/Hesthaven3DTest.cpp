@@ -265,57 +265,67 @@ TEST_F(MFEMHesthaven3D, EmatO1)
 
 TEST_F(MFEMHesthaven3D, bdrTetraInformation)
 {
-	auto m{ Mesh::LoadFromFile(gmshMeshesFolder() + "3D_Bdr_Cube.msh", 1,0) };
+	auto mesh{ Mesh::LoadFromFile(gmshMeshesFolder() + "3D_Bdr_Cube.msh", 1,0) };
 	auto gttb { buildAttrToBdrMap3D(BdrCond::PEC, BdrCond::PEC, BdrCond::PMC, BdrCond::PMC, BdrCond::SMA, BdrCond::SMA)};
 	auto gttbi{ GeomTagToBoundaryInfo(gttb, GeomTagToInteriorBoundary{}) };
-	auto model = Model(m, GeomTagToMaterialInfo{}, gttbi);
+	auto model = Model(mesh, GeomTagToMaterialInfo{}, gttbi);
 
-	auto order = 1;
-	auto dimension = 3;
-	auto fec{ DG_FECollection(order, dimension, BasisType::GaussLobatto) };
+	for (auto order{ 1 }; order < 6; order++) {
+		auto dimension = 3;
+		auto fec{ DG_FECollection(order, dimension, BasisType::GaussLobatto) };
 
-	auto fes{ FiniteElementSpace(&model.getMesh(), &fec)};
+		auto fes{ FiniteElementSpace(&model.getMesh(), &fec) };
 
-	auto connect{ Connectivities(model, fes) };
+		auto connect{ Connectivities(model, fes) };
 
-	auto sides_per_bdr = 2;
-	auto tetrafaces_per_side = 4;
-	auto nodes_per_tetraface = (order + 1) * (order + 2) / 2;
+		auto sides_per_bdr = 2;
+		auto tetrafaces_per_side = 4;
+		auto nodes_per_tetraface = (order + 1) * (order + 2) / 2;
 
-	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side, connect.boundary.PEC.vmapB.size());
-	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side, connect.boundary.PMC.vmapB.size());
-	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side, connect.boundary.SMA.vmapB.size());
+		const auto& vmapBPEC = connect.boundary.PEC.vmapB;
+		const auto& vmapBPMC = connect.boundary.PMC.vmapB;
+		const auto& vmapBSMA = connect.boundary.SMA.vmapB;
 
-	EXPECT_EQ(connect.boundary.PEC.vmapB.size(), connect.boundary.PMC.vmapB.size());
-	EXPECT_EQ(connect.boundary.PEC.vmapB.size(), connect.boundary.SMA.vmapB.size());
+		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side, vmapBPEC.size());
+		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side, vmapBPMC.size());
+		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side, vmapBSMA.size());
 
-	int pecNodeNum{ 0 }, pmcNodeNum{ 0 }, smaNodeNum{ 0 };
-	for (auto n{ 0 }; n < connect.boundary.PEC.vmapB.size(); n++) {
-		pecNodeNum += connect.boundary.PEC.vmapB[n].size();
-		pmcNodeNum += connect.boundary.PMC.vmapB[n].size();
-		smaNodeNum += connect.boundary.SMA.vmapB[n].size();
-	}
-	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pecNodeNum);
-	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pmcNodeNum);
-	EXPECT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, smaNodeNum);
+		ASSERT_EQ(vmapBPEC.size(), vmapBPMC.size());
+		ASSERT_EQ(vmapBPEC.size(), vmapBSMA.size());
 
-	auto positions{ buildDoFPositions(fes) };
-
-	for (auto m{ 0 }; m < connect.boundary.PEC.vmapB.size(); m++) {
-		for (auto n{ 0 }; n < connect.boundary.PEC.vmapB[n].size(); n){
-			EXPECT_TRUE(OrEqual(positions[connect.boundary.PEC.vmapB[n][m]][X], 0.0, 1.0));
+		int pecNodeNum{ 0 }, pmcNodeNum{ 0 }, smaNodeNum{ 0 };
+		for (auto n{ 0 }; n < vmapBPEC.size(); n++) {
+			pecNodeNum += vmapBPEC[n].size();
+			pmcNodeNum += vmapBPMC[n].size();
+			smaNodeNum += vmapBSMA[n].size();
 		}
-	}
+		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pecNodeNum);
+		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, pmcNodeNum);
+		ASSERT_EQ(sides_per_bdr * tetrafaces_per_side * nodes_per_tetraface, smaNodeNum);
 
-	for (auto m{ 0 }; m < connect.boundary.PMC.vmapB.size(); m++) {
-		for (auto n{ 0 }; n < connect.boundary.PMC.vmapB[n].size(); n) {
-			EXPECT_TRUE(OrEqual(positions[connect.boundary.PMC.vmapB[n][m]][Y], 0.0, 1.0));
+		auto positions{ buildDoFPositions(fes) };
+
+		double tol{ 1e-8 };
+		for (auto m{ 0 }; m < vmapBPEC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPEC[m].size(); n++) {
+				const auto& val = positions[vmapBPEC[m][n]][X];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
 		}
-	}
 
-	for (auto m{ 0 }; m < connect.boundary.SMA.vmapB.size(); m++) {
-		for (auto n{ 0 }; n < connect.boundary.SMA.vmapB[n].size(); n) {
-			EXPECT_TRUE(OrEqual(positions[connect.boundary.SMA.vmapB[n][m]][Z], 0.0, 1.0));
+		for (auto m{ 0 }; m < vmapBPMC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPMC[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
+		}
+
+		for (auto m{ 0 }; m < vmapBSMA.size(); m++) {
+			for (auto n{ 0 }; n < vmapBSMA[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+
+			}
 		}
 	}
 }
