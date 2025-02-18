@@ -611,6 +611,17 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 }
 
+void loadOutVectors(const Eigen::VectorXd& data, const FiniteElementSpace& fes, const ElementId& e, GridFunction& out) 
+{
+	Array<int> dofs;
+	auto el2dofs = fes.GetElementDofs(e, dofs);
+	std::unique_ptr<mfem::real_t[]> mfemFieldVars = std::make_unique<mfem::real_t[]>(data.size());
+	for (auto v{ 0 }; v < data.size(); v++) {
+		mfemFieldVars.get()[v] = data.data()[v];
+	}
+	out.SetSubVector(dofs, mfemFieldVars.get());
+}
+
 void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 {
 	double alpha;
@@ -653,10 +664,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	for (auto e{ 0 }; e < fes_.GetNE(); e++) {
 
-		Array<int> dofs;
-		auto el2dofs = fes_.GetElementDofs(e, dofs);
 		auto elemFluxSize{ hestElemStorage_[e].fscale.size() };
-		auto refVol{ getReferenceVolume(hestElemStorage_[e].type) };
 
 		// Dof ordering will always be incremental due to L2 space (i.e: element 0 will have 0, 1, 2... element 1 will have 3, 4, 5...)
 
@@ -686,26 +694,21 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 		}
 
+		auto refVol{ getReferenceVolume(hestElemStorage_[e].type) };
+		const DynamicMatrix& invmass = this->refInvMass_ * refVol / hestElemStorage_[e].vol;
+
 		for (int x = X; x <= Z; x++) {
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const DynamicMatrix& invmass = this->refInvMass_ * getReferenceVolume(hestElemStorage_[e].type) / hestElemStorage_[e].vol;
 			const auto& der1 = *hestElemStorage_[e].der[y];
 			const auto& der2 = *hestElemStorage_[e].der[z];
 
 			const Eigen::VectorXd& hResult = -1.0 * invmass * der1 * fieldsElem.e_[z] +       invmass * der2 * fieldsElem.e_[y] + applyScalingFactors(e, elemFlux.h_[x]);
 			const Eigen::VectorXd& eResult =        invmass * der1 * fieldsElem.h_[z] - 1.0 * invmass * der2 * fieldsElem.h_[y] + applyScalingFactors(e, elemFlux.e_[x]);
 
-			mfem::real_t* mfemHFieldVals = new mfem::real_t[hResult.size()];
-			mfem::real_t* mfemEFieldVals = new mfem::real_t[eResult.size()];
-			for (auto v{ 0 }; v < hResult.size(); v++) {
-				mfemHFieldVals[v] = hResult.data()[v];
-				mfemEFieldVals[v] = eResult.data()[v];
-			}
-			hOut[x].SetSubVector(dofs, mfemHFieldVals);
-			eOut[x].SetSubVector(dofs, mfemEFieldVals);
-
+			loadOutVectors(hResult, fes_, e, hOut[x]);
+			loadOutVectors(eResult, fes_, e, eOut[x]);
 		}
 
 	}
