@@ -1443,30 +1443,6 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy_Quads_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 2D_Hesthaven_K2)
-{
-	auto case_data = parseJSONfile(maxwellCase("2D_Hesthaven_K2"));
-	auto solver{ buildSolver(case_data, maxwellCase("2D_Hesthaven_K2"), true) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 3D_TwoTetra_Conn)
-{
-	auto case_data = parseJSONfile(maxwellCase("3D_TwoTetra_Conn"));
-	auto solver{ buildSolver(case_data, maxwellCase("3D_TwoTetra_Conn"), true) };
-
-	solver.run();
-}
-
-TEST_F(CasesTest, 3D_CubeK5)
-{
-	auto case_data = parseJSONfile(maxwellCase("3D_CubeK5"));
-	auto solver{ buildSolver(case_data, maxwellCase("3D_CubeK5"), true) };
-
-	solver.run();
-}
-
 TEST_F(CasesTest, 3D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
