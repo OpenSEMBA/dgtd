@@ -656,6 +656,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 		Array<int> dofs;
 		auto el2dofs = fes_.GetElementDofs(e, dofs);
 		auto elemFluxSize{ hestElemStorage_[e].fscale.size() };
+		auto refVol{ getReferenceVolume(hestElemStorage_[e].type) };
 
 		// Dof ordering will always be incremental due to L2 space (i.e: element 0 will have 0, 1, 2... element 1 will have 3, 4, 5...)
 
@@ -689,7 +690,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const DynamicMatrix& invmass = this->refInvMass_ * (2.0 / hestElemStorage_[e].vol);
+			const DynamicMatrix& invmass = this->refInvMass_ * getReferenceVolume(hestElemStorage_[e].type) / hestElemStorage_[e].vol;
 			const auto& der1 = *hestElemStorage_[e].der[y];
 			const auto& der2 = *hestElemStorage_[e].der[z];
 
