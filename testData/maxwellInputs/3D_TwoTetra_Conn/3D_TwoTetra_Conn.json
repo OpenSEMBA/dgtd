@@ -4,7 +4,7 @@
     "hesthaven_operator": true,
     "time_step": 1e-2,
     "final_time":  1.0,
-    "order": 1
+    "order": 2
   },
 
   "model": { 

@@ -81,6 +81,7 @@ public:
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
+	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemStorage_[e]; }
 
 private:
 
