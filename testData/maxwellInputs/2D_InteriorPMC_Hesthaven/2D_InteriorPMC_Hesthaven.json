@@ -1,0 +1,66 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "final_time":  5.0,
+    "hesthaven_operator": true,
+    "order": 3
+  },
+
+  "model": { 
+    "filename": "2D_InteriorPMC_Hesthaven.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 2, 4, 5 ],
+        "type": "PMC"
+      },
+      {
+        "tags": [ 6, 7 ],
+        "type":  "PMC"
+      },
+      {
+        "tags": [ 3 ],
+        "type": "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 10
+    },
+    "field": [
+      {
+        "position": [ 0.0, 0.5 ]
+      },
+      {
+        "position": [ 1.0, 0.5 ]
+      },
+      {
+        "position": [ 2.5, 0.5 ]
+      },
+      {
+        "position": [ 3.0, 0.5 ]
+      }
+    ]
+  },
+
+  "sources": [ 
+    {
+      "type": "initial", 
+      "field_type": "H", 
+      "center": [ 1.0, 0.0 ], 
+      "polarization": [ 0.0, 1.0, 0.0 ], 
+      "dimension": 1, 
+      "magnitude": {
+        "type": "gaussian", 
+        "spread": 0.2
+      }
+    }
+  ]
+}

@@ -240,39 +240,3 @@ static void performDFT(const std::map<double, std::vector<double>>& dataMap,
 	fftw_free(in);
 	fftw_free(out);
 }
-
-TEST_F(AlgebraTest, DISABLED_fftw_testing)
-{
-	Mesh mesh{ Mesh::LoadFromFile("testData/dftData/mesh", 1, 0) };
-	double frequency{ 300e6 };
-	std::map<double, std::vector<double>> timeToSignal;
-	std::vector<double> times;
-
-	for (auto const& dir_entry : std::filesystem::directory_iterator("testData/dftData/")) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			std::ifstream in(dir_entry.path().generic_string() + "/Ez.gf");
-			GridFunction gf(&mesh, in);
-			std::vector<double> vals(gf.Size());
-			for (int v{ 0 }; v < gf.Size(); ++v) {
-				vals[v] = gf[v];
-			}
-			auto time = getTime(dir_entry.path().generic_string() + "/time.txt");
-			times.push_back(time / maxwell::physicalConstants::speedOfLight_SI);
-			timeToSignal.emplace(std::make_pair(time / maxwell::physicalConstants::speedOfLight_SI, vals));
-		}
-	}
-
-	std::vector<double> frequencies;
-	std::vector<std::vector<double>> amplitudeSpectra;
-
-	performDFT(timeToSignal, times, frequencies, amplitudeSpectra);
-
-	// Output the result (frequency domain representation with frequencies and amplitude spectra)
-	for (int i = 0; i < frequencies.size(); ++i) {
-		std::cout << "Frequency: " << frequencies[i] << std::endl;
-		for (int j = 0; j < amplitudeSpectra[i].size(); ++j) {
-			std::cout << "Component " << j << " Amplitude: " << amplitudeSpectra[i][j] << std::endl;
-		}
-	}
-
-}

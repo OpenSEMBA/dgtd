@@ -1,0 +1,50 @@
+{
+  "solver_options": {
+    "solver_type": "centered",
+    "hesthaven_operator": true,
+    "time_step": 1e-2,
+    "final_time":  1.0,
+    "order": 2
+  },
+
+  "model": { 
+    "filename": "3D_TwoTetra_Conn.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 2, 3 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 5, 6, 7 ],
+        "type":  "PMC"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 100
+    }
+  },
+
+  "sources": [
+    {
+      "type": "totalField",
+      "polarization": [ 0.0, 0.0, 1.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "fieldtype": "electric",
+      "tags": [ 4 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.6,
+        "delay": 1.0
+      }
+    }
+  ]
+}

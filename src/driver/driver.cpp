@@ -186,6 +186,13 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setSpectralEO(case_data["solver_options"]["spectral"]);
 		}
 
+		if (case_data["solver_options"].contains("high_order_mesh")) {
+			res.highOrderMesh = true;
+		}
+
+		if (case_data["solver_options"].contains("hesthaven_operator")) {
+			res.setHesthavenOperator(case_data["solver_options"]["hesthaven_operator"]);
+		}
 	}
 	return res;
 }
@@ -462,7 +469,7 @@ json parseJSONfile(const std::string& case_name)
 
 maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 {
-	auto case_data{ parseJSONfile(case_name) };
+	auto case_data = parseJSONfile(case_name);
 
 	return buildSolver(case_data, case_name, isTest);
 }

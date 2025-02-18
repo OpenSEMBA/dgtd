@@ -1,11 +1,6 @@
 name: ubuntu-gnu
 
-on:
-  push:
-    branches:
-      - luis
-      - alejandro
-      
+on:    
   pull_request:
     branches:
       - main
@@ -37,14 +32,14 @@ jobs:
     #           -G Ninja
     #     cmake --build mfem-geg-build/ -j
     #     cmake --install mfem-geg-build/
-  
+
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
       with:
         configurePreset: 'gnu'
         buildPreset: 'gnu'
         buildPresetAdditionalArgs: "['--parallel']"
-      
+
     - name: Run hesthavenComparison tests 
       run: build/gnu/bin/hesthavenComparison_tests
 
@@ -57,9 +52,11 @@ jobs:
     - name: Run maxwell solver tests
       run: build/gnu/bin/maxwell_solver_tests
 
+    - name: Run maxwell cases tests
+      run: build/gnu/bin/cases_tests
+
     # - name: Run system tests 
     #   run: |
-    #     build/gnu/bin/cases_tests
     #     build/gnu/bin/rcs_tests
 
 

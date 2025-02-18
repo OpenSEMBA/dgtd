@@ -4,6 +4,7 @@
 #include "HesthavenFunctions.h"
 #include "math/EigenMfemTools.h"
 #include "evolution/EvolutionMethods.h"
+#include "evolution/HesthavenEvolutionTools.h"
 
 using namespace maxwell;
 using namespace mfem;
@@ -44,6 +45,31 @@ protected:
 		{0,1,0,0},
 		{0,0,1,0}
 	};
+
+	static GeomTagToBoundary buildAttrToBdrMap3D(const BdrCond& bdr1, const BdrCond& bdr2, const BdrCond& bdr3, const BdrCond& bdr4, const BdrCond& bdr5, const BdrCond& bdr6)
+	{
+		return {
+			{1, bdr1},
+			{2, bdr2},
+			{3, bdr3},
+			{4, bdr4},
+			{5, bdr5},
+			{6, bdr6},
+		};
+	}
+
+	bool OrEqual(double testValue, double option1, double option2)
+	{
+		if (testValue == option1 ||
+			testValue == option2)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
 
 };
 
@@ -200,6 +226,173 @@ TEST_F(MFEMHesthaven3D, faceChecker)
 		std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
 	}
 
-
 }
 
+TEST_F(MFEMHesthaven3D, EmatO1)
+{
+	const int basis_order = 1;
+	auto m{ buildHesthavenRefTetrahedra() };
+	auto fec{ L2_FECollection(basis_order, 3, BasisType::GaussLobatto) };
+	auto fes{ FiniteElementSpace(&m, &fec) };
+
+	auto boundary_markers = assembleBoundaryMarkers(fes);
+
+	m.bdr_attributes.SetSize(fes.GetNF());
+	for (auto f{ 0 }; f < fes.GetNF(); f++) {
+		m.bdr_attributes[f] = f + 1;
+		m.SetBdrAttribute(f, m.bdr_attributes[f]);
+	}
+
+	DynamicMatrix emat = assembleEmat(fes, boundary_markers);
+
+	emat *= 2.0;
+
+	std::cout << emat << std::endl;
+
+	DynamicMatrix expected_emat{
+		{0.0000, 0.0000, 0.0000, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667},
+		{0.3333, 0.1667, 0.1667, 0.0000, 0.0000, 0.0000, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667},
+		{0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.0000, 0.0000, 0.0000, 0.1667, 0.1667, 0.3333},
+		{0.1667, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.0000, 0.0000, 0.0000}
+	};
+
+	for (auto r{ 0 }; r < emat.rows(); r++) {
+		for (auto c{ 0 }; c < emat.cols(); c++) {
+			EXPECT_NEAR(expected_emat(r, c), emat(r, c), 1e-3);
+		}
+	}
+}
+
+TEST_F(MFEMHesthaven3D, bdrTetraInformation)
+{
+	auto mesh{ Mesh::LoadFromFile(gmshMeshesFolder() + "3D_Bdr_Cube.msh", 1,0) };
+	auto gttb { buildAttrToBdrMap3D(BdrCond::PEC, BdrCond::PEC, BdrCond::PMC, BdrCond::PMC, BdrCond::SMA, BdrCond::SMA)};
+	auto gttbi{ GeomTagToBoundaryInfo(gttb, GeomTagToInteriorBoundary{}) };
+	auto model = Model(mesh, GeomTagToMaterialInfo{}, gttbi);
+
+	for (auto order{ 1 }; order < 6; order++) {
+		auto dimension = 3;
+		auto fec{ DG_FECollection(order, dimension, BasisType::GaussLobatto) };
+
+		auto fes{ FiniteElementSpace(&model.getMesh(), &fec) };
+
+		auto connect{ Connectivities(model, fes) };
+
+		auto sides_per_bdr = 2;
+		auto trisfaces_per_side = 4;
+		auto nodes_per_trisface = (order + 1) * (order + 2) / 2;
+
+		const auto& vmapBPEC = connect.boundary.PEC.vmapB;
+		const auto& vmapBPMC = connect.boundary.PMC.vmapB;
+		const auto& vmapBSMA = connect.boundary.SMA.vmapB;
+
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side, vmapBPEC.size());
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side, vmapBPMC.size());
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side, vmapBSMA.size());
+
+		ASSERT_EQ(vmapBPEC.size(), vmapBPMC.size());
+		ASSERT_EQ(vmapBPEC.size(), vmapBSMA.size());
+
+		int pecNodeNum{ 0 }, pmcNodeNum{ 0 }, smaNodeNum{ 0 };
+		for (auto n{ 0 }; n < vmapBPEC.size(); n++) {
+			pecNodeNum += vmapBPEC[n].size();
+			pmcNodeNum += vmapBPMC[n].size();
+			smaNodeNum += vmapBSMA[n].size();
+		}
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side * nodes_per_trisface, pecNodeNum);
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side * nodes_per_trisface, pmcNodeNum);
+		ASSERT_EQ(sides_per_bdr * trisfaces_per_side * nodes_per_trisface, smaNodeNum);
+
+		auto positions{ buildDoFPositions(fes) };
+
+		double tol{ 1e-8 };
+		for (auto m{ 0 }; m < vmapBPEC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPEC[m].size(); n++) {
+				const auto& val = positions[vmapBPEC[m][n]][X];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
+		}
+
+		for (auto m{ 0 }; m < vmapBPMC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPMC[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
+		}
+
+		for (auto m{ 0 }; m < vmapBSMA.size(); m++) {
+			for (auto n{ 0 }; n < vmapBSMA[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+
+			}
+		}
+	}
+}
+
+TEST_F(MFEMHesthaven3D, bdrHexaInformation)
+{
+	auto mesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::HEXAHEDRON) };
+	auto gttb{ buildAttrToBdrMap3D(BdrCond::SMA, BdrCond::PMC, BdrCond::PEC, BdrCond::PMC, BdrCond::PEC, BdrCond::SMA) };
+	auto gttbi{ GeomTagToBoundaryInfo(gttb, GeomTagToInteriorBoundary{}) };
+	auto model = Model(mesh, GeomTagToMaterialInfo{}, gttbi);
+
+	for (auto order{ 1 }; order < 6; order++) {
+		auto dimension = 3;
+		auto fec{ DG_FECollection(order, dimension, BasisType::GaussLobatto) };
+
+		auto fes{ FiniteElementSpace(&model.getMesh(), &fec) };
+
+		auto connect{ Connectivities(model, fes) };
+
+		auto sides_per_bdr = 2;
+		auto quadfaces_per_side = 1;
+		auto nodes_per_quadface = (order + 1) * (order + 1);
+
+		const auto& vmapBPEC = connect.boundary.PEC.vmapB;
+		const auto& vmapBPMC = connect.boundary.PMC.vmapB;
+		const auto& vmapBSMA = connect.boundary.SMA.vmapB;
+
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side, vmapBPEC.size());
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side, vmapBPMC.size());
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side, vmapBSMA.size());
+
+		ASSERT_EQ(vmapBPEC.size(), vmapBPMC.size());
+		ASSERT_EQ(vmapBPEC.size(), vmapBSMA.size());
+
+		int pecNodeNum{ 0 }, pmcNodeNum{ 0 }, smaNodeNum{ 0 };
+		for (auto n{ 0 }; n < vmapBPEC.size(); n++) {
+			pecNodeNum += vmapBPEC[n].size();
+			pmcNodeNum += vmapBPMC[n].size();
+			smaNodeNum += vmapBSMA[n].size();
+		}
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side * nodes_per_quadface, pecNodeNum);
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side * nodes_per_quadface, pmcNodeNum);
+		ASSERT_EQ(sides_per_bdr * quadfaces_per_side * nodes_per_quadface, smaNodeNum);
+
+		auto positions{ buildDoFPositions(fes) };
+
+		double tol{ 1e-8 };
+		for (auto m{ 0 }; m < vmapBPEC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPEC[m].size(); n++) {
+				const auto& val = positions[vmapBPEC[m][n]][X];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
+		}
+
+		for (auto m{ 0 }; m < vmapBPMC.size(); m++) {
+			for (auto n{ 0 }; n < vmapBPMC[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+			}
+		}
+
+		for (auto m{ 0 }; m < vmapBSMA.size(); m++) {
+			for (auto n{ 0 }; n < vmapBSMA[m].size(); n++) {
+				const auto& val = positions[vmapBPMC[m][n]][Y];
+				ASSERT_TRUE(std::abs(val - 0.0) <= tol || std::abs(val - 1.0) <= tol);
+
+			}
+		}
+	}
+}

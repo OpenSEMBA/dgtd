@@ -7,6 +7,7 @@
 
 #include "evolution/Fields.h"
 #include "evolution/Evolution.h"
+#include "evolution/HesthavenEvolutionTools.h"
 
 namespace maxwell {
 
@@ -28,6 +29,9 @@ public:
 
     double getTime() const { return time_; }
     double getTimeStep() const { return dt_; }
+
+    Model& getModel() { return model_; }
+    FiniteElementSpace& getFES() { return *fes_.get(); }
     
     double estimateTimeStep() const;
 
@@ -57,6 +61,7 @@ private:
     std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
+    std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);

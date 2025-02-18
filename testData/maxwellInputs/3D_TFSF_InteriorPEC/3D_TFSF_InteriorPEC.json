@@ -1,7 +1,6 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 7e-3,
     "final_time":  3.25,
     "order": 3
   },

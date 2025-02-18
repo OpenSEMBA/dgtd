@@ -22,9 +22,9 @@ using GeomTagToBdrCond = std::map<GeomTag, BdrCond>;
 using BoundaryMarker = mfem::Array<int>;
 using InteriorBoundaryMarker = BoundaryMarker;
 using BoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
-using InteriorBoundaryCondToMarker = std::map<BdrCond, BoundaryMarker>;
-using TotalFieldScatteredFieldToMarker = std::map<BdrCond, BoundaryMarker>;
-using InteriorSourceToMarker = std::map<BdrCond, BoundaryMarker>;
+using InteriorBoundaryToMarker = BoundaryToMarker;
+using TotalFieldScatteredFieldToMarker = BoundaryToMarker;
+using InteriorSourceToMarker = BoundaryToMarker;
 
 struct GeomTagToBoundaryInfo {
 	GeomTagToBoundary gt2b;
@@ -77,10 +77,15 @@ public:
 	
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
-	InteriorBoundaryCondToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
+	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
+	GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() { return attToIntBdrMap_; }
+	const GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() const { return attToIntBdrMap_; }	
+	GeomTagToBoundary& getGeomTagToBoundaryCond() { return attToBdrMap_; }
+	const GeomTagToBoundary& getGeomTagToBoundaryCond() const { return attToBdrMap_; }
+
 
 	mfem::Vector initialiseGeomTagVector() const;
 	mfem::Vector buildEpsMuPiecewiseVector(const FieldType& f) const;
@@ -98,7 +103,7 @@ private:
 	GeomTagToInteriorBoundary attToIntBdrMap_;
 	GeomTagToInteriorSource attToIntSrcMap_;
 	BoundaryToMarker bdrToMarkerMap_;
-	InteriorBoundaryCondToMarker intBdrToMarkerMap_;
+	InteriorBoundaryToMarker intBdrToMarkerMap_;
 	TotalFieldScatteredFieldToMarker tfsfToMarkerMap_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
 	FaceToGeomTag faceToGeomTag_;

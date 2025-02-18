@@ -34,9 +34,11 @@ using Points = std::vector<Point>;
 
 using FaceId = int;
 using ElementId = int;
+using BdrElementId = ElementId;
 using El2Face = std::pair<ElementId, FaceId>;
 
 using Attribute = int;
+using BdrAttribute = Attribute;
 
 enum FieldType { E, H };
 enum class FluxType { Centered, Upwind };
@@ -49,7 +51,6 @@ enum SubMeshingMarkers {
 };
 
 enum class BdrCond {
-	NONE,
 	PEC,
 	PMC,
 	SMA,
@@ -71,6 +72,8 @@ using Direction = int;
 static const Direction X{ 0 };
 static const Direction Y{ 1 };
 static const Direction Z{ 2 };
+
+static const Attribute hesthavenMeshingTag{ 777 };
 
 
 }

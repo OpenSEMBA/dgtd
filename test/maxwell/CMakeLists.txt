@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.5)
-
 message(STATUS "Creating build system for maxwell_Tests")
 
 if (MAXWELL_USE_MPI)
@@ -17,7 +15,7 @@ add_executable(maxwell_tests
 	"components/EigenvalueEstimator.cpp"
 	"solver/ProbesManagerTest.cpp" 
 	"solver/SourcesTest.cpp"
-)
+	"components/SubMesherTests.cpp")
 
 add_executable(maxwell_solver_tests
 	"MaxwellTestLauncher.cpp" 
@@ -25,11 +23,12 @@ add_executable(maxwell_solver_tests
 	"solver/Solver1DTest.cpp" 
 	"solver/Solver2DTest.cpp" 
 	"solver/Solver3DTest.cpp" 
-)
+	)
 
 target_link_libraries(maxwell_tests
 	maxwell-solver
 	maxwell-driver
+	maxwell-components
 	GTest::gtest
 	GTest::gtest_main
 )

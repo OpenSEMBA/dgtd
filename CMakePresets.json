@@ -1,59 +1,67 @@
 {
-    "version": 6,
-    "cmakeMinimumRequired": {
-      "major": 3,
-      "minor": 21,
-      "patch": 0
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "MAXWELL_USE_MFEM_AS_SUBDIRECTORY": "ON"
+      }
     },
-    "configurePresets": [
-      {
-        "name": "gnu",
-        "displayName": "GNU release",
-        "binaryDir": "${sourceDir}/build/${presetName}",
-        "generator": "Ninja",
-        "cacheVariables": {
-          "CMAKE_TOOLCHAIN_FILE": {
-            "type": "FILEPATH",
-            "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-          },
-          "MAXWELL_USE_MFEM_AS_SUBDIRECTORY":{
-            "type": "BOOL",
-            "value": true
-          },
-          "CMAKE_BUILD_TYPE": {
-            "type": "STRING",
-            "value": "Release"
-          }
-        }
-      },
-      {
-        "name": "gnu-dbg",
-        "displayName": "GNU debug",
-        "inherits": "gnu",
-        "cacheVariables": {
-          "MFEM_DIR": {
-            "type": "FILEPATH",
-            "value": "$env{MFEM_DBG_DIR}"
-          },
-          "CMAKE_BUILD_TYPE": {
-            "type": "STRING",
-            "value": "Debug"
-          }
-        }
+    {
+      "name": "gnu",
+      "displayName": "GNU release",
+      "inherits": "default",
+      "cacheVariables": {
+        "MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+        "MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+        "CMAKE_BUILD_TYPE": "Release"
       }
-    ],
-    "buildPresets": [
-      {
-        "name": "gnu",
-        "configurePreset": "gnu",
-        "displayName": "Build with GNU release",
-        "jobs": 0
-      },
-      {
-        "name": "gnu-dbg",
-        "configurePreset": "gnu-dbg",
-        "displayName": "Build with GNU debug",
-        "jobs": 0
+    },
+    {
+      "name": "gnu-dbg",
+      "displayName": "GNU debug",
+      "inherits": "default",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
       }
-    ]
-  }
+    },
+    {
+      "name": "x64-Release",
+      "displayName": "x64 Release",
+      "inherits": "default",
+      "cacheVariables": {
+        "MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+        "MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "gnu",
+      "configurePreset": "gnu",
+      "displayName": "Build with GNU release",
+      "jobs": 0
+    },
+    {
+      "name": "gnu-dbg",
+      "configurePreset": "gnu-dbg",
+      "displayName": "Build with GNU debug",
+      "jobs": 0
+    },
+    {
+      "name": "x64-Release",
+      "configurePreset": "x64-Release",
+      "configuration": "Release",
+      "jobs": 0
+    }
+  ]
+}

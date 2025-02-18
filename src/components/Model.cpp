@@ -164,7 +164,7 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 		}
 		break;
 	case BdrCond::TotalFieldIn:
-			return tfsfMarker_;
+		return tfsfMarker_;
 		break;
 	default:
 		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond.");

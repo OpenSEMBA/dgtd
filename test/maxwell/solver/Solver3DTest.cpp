@@ -5,6 +5,8 @@
 
 #include "solver/Solver.h"
 
+#include "TestUtils.h"
+
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
@@ -50,10 +52,11 @@ protected:
 			{6, bdr6},
 		};
 	}
-
 };
 
-TEST_F(Solver3DTest, pec_1dot5D)
+#ifdef ENABLE_EXTENSIVE_SOLVER_TESTS
+
+TEST_F(Solver3DTest, pec_global_1dot5D)
 {
 	const double tol{ 6e-2 };
 
@@ -100,7 +103,7 @@ TEST_F(Solver3DTest, pec_1dot5D)
 	}
 }
 
-TEST_F(Solver3DTest, periodic_cube_hexa)
+TEST_F(Solver3DTest, periodic_global_cube_hexa)
 { 
 	
 	const double tol{ 50e-2 };
@@ -151,35 +154,7 @@ TEST_F(Solver3DTest, periodic_cube_hexa)
 	}
 }
 
-TEST_F(Solver3DTest, DISABLED_minimal_tetra)
-{
-	auto probes{ buildProbesWithAnExportProbe() };
-	Mesh mesh{ Mesh::LoadFromFile((gmshMeshesFolder() + "twotetras.msh").c_str(),1,0)};
-
-	GeomTagToBoundary attToBdr{ {1, BdrCond::PEC},{2, BdrCond::PMC},{3, BdrCond::PMC},{4, BdrCond::PMC},{5, BdrCond::PMC},{6, BdrCond::PEC} };
-
-	Model model{ mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}) };
-
-	maxwell::Solver solver{
-	model,
-	probes,
-	buildPlanewaveInitialField(
-		Gaussian{0.16},
-		Source::Position({ 0.7, 0.0, 0.0 }), // center
-		Source::Polarization(unitVec(Z)), // e polarization
-		mfem::Vector(unitVec(X)) // propagation direction
-	),
-	SolverOptions{}
-		.setTimeStep(1e-2)
-		.setFinalTime(2.0)
-		.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
+TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 {
 
 	Probes probes;
@@ -248,290 +223,4 @@ TEST_F(Solver3DTest, sma_upwind_hex_1dot5D)
 	}
 }
 
-TEST_F(Solver3DTest, DISABLED_pec_centered_hexa_totalfieldin)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-	probes.pointProbes = {
-		PointProbe{E, Z, {3.0, 0.5, 0.5}},
-		PointProbe{E, Z, {5.0, 0.5, 0.5}},
-		PointProbe{H, Y, {3.0, 0.5, 0.5}},
-		PointProbe{H, Y, {5.0, 0.5, 0.5}}
-	};
-	auto mesh{ Mesh::LoadFromFile((mfemMeshes3DFolder() + "beam_hex_totalfieldin.mesh").c_str(), 1, 0) };
-	GeomTagToBoundary att2bdr{ {1, BdrCond::PMC}, {2, BdrCond::PEC}, {3, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setCentered()
-			.setFinalTime(8.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-	
-	{
-		auto frame{ solver.getPointProbe(0).getFieldMovie()};
-		auto expected_t = 6.0;
-		for (const auto& [t, f] : frame)
-		{
-			if (abs(expected_t - t) <= 1e-2) {
-				EXPECT_NEAR(1.0, f, 1e-2);
-			}
-		}
-	}
-
-	{
-		auto frame{ solver.getPointProbe(1).getFieldMovie() };
-		auto expected_t = 8.0;
-		for (const auto& [t, f] : frame)
-		{
-			if (abs(expected_t - t) <= 1e-2) {
-				EXPECT_NEAR(1.0, f, 1e-2);
-			}
-		}
-	}
-
-	{
-		auto frame{ solver.getPointProbe(2).getFieldMovie() };
-		auto expected_t = 6.0;
-		for (const auto& [t, f] : frame)
-		{
-			if (abs(expected_t - t) <= 1e-2) {
-				EXPECT_NEAR(-1.0, f, 1e-2);
-			}
-		}
-	}
-
-	{
-		auto frame{ solver.getPointProbe(3).getFieldMovie() };
-		auto expected_t = 8.0;
-		for (const auto& [t, f] : frame)
-		{
-			if (abs(expected_t - t) <= 1e-2) {
-				EXPECT_NEAR(-1.0, f, 1e-2);
-			}
-		}
-	}
-
-}
-
-TEST_F(Solver3DTest, DISABLED_pec_upwind_box_totalfieldscatteredfield)
-{
-	auto probes{ buildProbesWithAnExportProbe(30) };
-
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_MinimalistBox.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::SMA} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.5, 5.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(5e-3)
-			.setFinalTime(10.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_pec_centered_beam_totalfieldscatteredfield)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-	probes.pointProbes = {
-		PointProbe{E, Z, {2.0, 0.5, 0.5}},
-		PointProbe{E, Z, {5.0, 0.5, 0.5}},
-		PointProbe{H, Y, {2.0, 0.5, 0.5}},
-		PointProbe{H, Y, {5.0, 0.5, 0.5}}
-	};
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Beam.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PMC}, {1, BdrCond::PEC}, {3, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(0.7, 3.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setCentered()
-			.setFinalTime(20.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_upwind_beam_totalfieldscatteredfield_inout)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-	probes.pointProbes = {
-		PointProbe{E, Z, {2.0, 0.5, 0.5}},
-		PointProbe{E, Z, {5.0, 0.5, 0.5}},
-		PointProbe{H, Y, {2.0, 0.5, 0.5}},
-		PointProbe{H, Y, {5.0, 0.5, 0.5}}
-	};
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Beam.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PMC}, {1, BdrCond::PEC}, {3, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(0.7, 3.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setFinalTime(20.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_dualintbdr_upwind_beam_totalfieldscatteredfield_in)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_DualSurface_Beam.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC}, {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(0.7, 2.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setFinalTime(10.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_pec_centered_innerbox_totalfieldinout)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TFSF_Box.msh").c_str(), 1, 0, true) };
-	mesh.UniformRefinement();
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, GeomTagToInteriorBoundary()));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setCentered()
-			.setFinalTime(10.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_centered_beam_totalfieldscatteredfield_inout_intbdr)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setCentered()
-			.setFinalTime(20.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_centered_beam_totalfieldscatteredfield_inout_intbdr_RtL)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam_RtL.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.0, 8.0, unitVec(Z), Vector{{-1.0, 0.0, 0.0}}),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setCentered()
-			.setFinalTime(20.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_upwind_beam_totalfieldscatteredfield_inout_intbdr)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.0, 3.0, unitVec(Z), unitVec(X)),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setFinalTime(20.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
-
-TEST_F(Solver3DTest, DISABLED_upwind_beam_totalfieldscatteredfield_inout_intbdr_RtL)
-{
-	auto probes{ buildProbesWithAnExportProbe(10) };
-
-	auto mesh{ Mesh::LoadFromFileNoBdrFix((gmshMeshesFolder() + "3D_TF_IntBdr_Beam_RtL.msh").c_str(), 1, 0, true) };
-	GeomTagToBoundary att2bdr{ {2, BdrCond::PEC}, {3, BdrCond::PMC}, {4, BdrCond::PEC} };
-	GeomTagToInteriorBoundary att2IntCond{ {5, BdrCond::PEC} };
-	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(att2bdr, att2IntCond));
-
-	maxwell::Solver solver{
-		model,
-		probes,
-		buildGaussianPlanewave(1.0, 8.0, unitVec(Z), Vector{{-1.0, 0.0, 0.0}}),
-		SolverOptions{}
-			.setTimeStep(1e-2)
-			.setFinalTime(20.0)
-			.setOrder(3)
-	};
-
-	solver.run();
-
-}
+#endif

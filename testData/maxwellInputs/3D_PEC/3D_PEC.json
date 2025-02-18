@@ -27,7 +27,7 @@
 
   "probes": { 
     "exporter": { 
-      "steps": 20
+      "steps": 1
     },
     "field": [
       {
@@ -51,7 +51,7 @@
       "dimension": 1, 
       "magnitude": {
         "type": "gaussian", 
-        "spread": 0.1
+        "spread": 0.07
       }
     }
   ]
