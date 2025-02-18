@@ -366,7 +366,7 @@ DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	return toEigen(*bf.SpMat().ToDenseMatrix());
 }
 
-Mesh getMeshForReferenceElementBasedOnGeomType(const Element::Type elType, const int dimension)
+Mesh getRefMeshForGeomType(const Element::Type elType, const int dimension)
 {
 	switch (dimension) {
 	case 2:
@@ -379,25 +379,25 @@ Mesh getMeshForReferenceElementBasedOnGeomType(const Element::Type elType, const
 			throw std::runtime_error("Incorrect Element Type for dimension 2 mesh.");
 		}
 	case 3:
-		return Mesh::MakeCartesian3D(1, 1, 1, elType);
+		return buildHesthavenRefTetrahedra();
 	default:
 		throw std::runtime_error("Hesthaven Evolution Operator only supports dimensions 2 or 3.");
 	}
 }
 
-DynamicMatrix assembleHesthavenReferenceElementInverseMassMatrix(const Element::Type elType, const int order, const int dimension)
+DynamicMatrix assembleHesthavenRefElemInvMassMatrix(const Element::Type elType, const int order, const int dimension)
 {
-	auto m{ getMeshForReferenceElementBasedOnGeomType(elType, dimension) };
+	auto m{ getRefMeshForGeomType(elType, dimension) };
 	auto fec{ L2_FECollection(order, dimension, BasisType::GaussLobatto) };
 	auto fes{ FiniteElementSpace(&m, &fec)};
 	auto mass_mat{ assembleInverseMassMatrix(fes) };
 
-	return getElementMassMatrixFromGlobal(0, mass_mat, elType);
+	return getElemMassMatrixFromGlobal(0, mass_mat, elType);
 }
 
-DynamicMatrix assembleHesthavenReferenceElementEmat(const Element::Type elType, const int order, const int dimension)
+DynamicMatrix assembleHesthavenRefElemEmat(const Element::Type elType, const int order, const int dimension)
 {
-	auto m{ getMeshForReferenceElementBasedOnGeomType(elType, dimension) };
+	auto m{ getRefMeshForGeomType(elType, dimension) };
 	m.SetAttribute(0, hesthavenMeshingTag);
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
@@ -407,12 +407,19 @@ DynamicMatrix assembleHesthavenReferenceElementEmat(const Element::Type elType, 
 
 	auto boundary_markers = assembleBoundaryMarkers(subFES);
 
+	sm.bdr_attributes.SetSize(boundary_markers.size());
 	for (auto f{ 0 }; f < subFES.GetNF(); f++) {
 		sm.bdr_attributes[f] = f + 1;
 		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 	}
 
-	return assembleEmat(subFES, boundary_markers);
+	DynamicMatrix emat = assembleEmat(subFES, boundary_markers);
+	if (dimension == 3 && elType == Element::Type::TETRAHEDRON)
+	{
+		emat *= 2.0;
+	}
+
+	return emat;
 }
 
 void initNormalVectors(HesthavenElement& hestElem, const int size)
@@ -429,121 +436,13 @@ void initFscale(HesthavenElement& hestElem, const int size)
 	hestElem.fscale.setZero();
 }
 
-void HesthavenEvolution::loadIntBdrConditions(const InteriorFaceConnectivityMaps& mapB, const InteriorFaceConnectivityMaps& nodePairs, const BdrCond& bdrCond, const double ori = 0.0)
-{
-	if (bdrCond != BdrCond::TotalFieldIn) {
-		switch (bdrCond) {
-		case BdrCond::PEC:
-			bdr_connectivity_.intPEC.mapBElem1.push_back(mapB.first);
-			bdr_connectivity_.intPEC.mapBElem2.push_back(mapB.second);
-			bdr_connectivity_.intPEC.vmapBElem1.push_back(nodePairs.first);
-			bdr_connectivity_.intPEC.vmapBElem2.push_back(nodePairs.second);
-			break;
-		case BdrCond::PMC:
-			bdr_connectivity_.intPMC.mapBElem1.push_back(mapB.first);
-			bdr_connectivity_.intPMC.mapBElem2.push_back(mapB.second);
-			bdr_connectivity_.intPMC.vmapBElem1.push_back(nodePairs.first);
-			bdr_connectivity_.intPMC.vmapBElem2.push_back(nodePairs.second);
-			break;
-		case BdrCond::SMA:
-			bdr_connectivity_.intSMA.mapBElem1.push_back(mapB.first);
-			bdr_connectivity_.intSMA.mapBElem2.push_back(mapB.second);
-			bdr_connectivity_.intSMA.vmapBElem1.push_back(nodePairs.first);
-			bdr_connectivity_.intSMA.vmapBElem2.push_back(nodePairs.second);
-			break;
-		default:
-			throw std::runtime_error("Incorrect boundary condition for interior assignment.");
-		}
-	}
-	else if (bdrCond == BdrCond::TotalFieldIn) {
-		if (ori >= 0.0) {
-			bdr_connectivity_.TFSF.mapBSF.push_back(mapB.first);
-			bdr_connectivity_.TFSF.mapBTF.push_back(mapB.second);
-			bdr_connectivity_.TFSF.vmapBSF.push_back(nodePairs.first);
-			bdr_connectivity_.TFSF.vmapBTF.push_back(nodePairs.second);
-		}
-		else {
-			bdr_connectivity_.TFSF.mapBSF.push_back(mapB.second);
-			bdr_connectivity_.TFSF.mapBTF.push_back(mapB.first);
-			bdr_connectivity_.TFSF.vmapBSF.push_back(nodePairs.second);
-			bdr_connectivity_.TFSF.vmapBTF.push_back(nodePairs.first);
-		}
-	}
-}
-
-InteriorFaceConnectivityMaps HesthavenEvolution::initInteriorFacesMapB(const InteriorFaceConnectivityMaps& nodePairs) const
-{
-	InteriorFaceConnectivityMaps res;
-	res.first.resize(nodePairs.first.size());
-	res.second.resize(nodePairs.second.size());
-	for (auto v{ 0 }; v < res.first.size(); v++) {
-		res.first[v] = std::distance(std::begin(connectivity_), std::find(connectivity_.begin(), connectivity_.end(), std::make_pair(nodePairs.first[v], nodePairs.second[v])));
-		res.second[v] = std::distance(std::begin(connectivity_), std::find(connectivity_.begin(), connectivity_.end(), std::make_pair(nodePairs.second[v], nodePairs.first[v])));
-	}
-	return res;
-}
-
-void HesthavenEvolution::initIntFaceConnectivityMaps(const BoundaryToMarker& markers)
-{
-	Array<int> elementMarker;
-	elementMarker.Append(hesthavenMeshingTag);
-
-	auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
-	auto attMap{ mapOriginalAttributes(model_.getMesh()) };
-
-	auto intBdrNodeMesh{ Mesh(model_.getMesh()) };
-	for (auto b{ 0 }; b < model_.getConstMesh().GetNBE(); b++) {
-		for (const auto& marker : markers) {
-			if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-				const auto faceTrans{ model_.getMesh().GetInternalBdrFaceTransformations(b) };
-				auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
-				FiniteElementSpace subFES(&twoElemSubMesh, fec);
-				auto nodePairs{ buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES) };
-				auto mapsB{ initInteriorFacesMapB(nodePairs) };
-				loadIntBdrConditions(mapsB, nodePairs, marker.first);
-			}
-		}
-	}
-}
-
-//void HesthavenEvolution::assembleTFSFConnectivity(const BilinearForm* matrix, FaceElementTransformations* faceTrans, double faceOri)
-//{
-//	Array<int> cols;
-//	Vector vals;
-//	double tol{ 1e-6 };
-//	for (auto r{ 0 }; r < matrix->NumRows() / 2; r++) {
-//		matrix->SpMat().GetRow(r, cols, vals);
-//		Nodes vmapBelem1, vmapBelem2;
-//		for (auto c{ 0 }; c < cols.Size(); c++) {
-//			if (std::abs(vals[c]) > tol && cols[c] != matrix->NumCols() - 1) {
-//				for (auto c2{ c + 1 }; c2 < cols.Size(); c2++) {
-//					if (std::abs(vals[c2]) > tol) {
-//						vmapBelem1.push_back((faceTrans->Elem1No * int(matrix->NumCols()) / 2) + cols[c]);
-//						vmapBelem2.push_back((faceTrans->Elem2No * int(matrix->NumCols()) / 2) + cols[c2] - (int(matrix->NumCols()) / 2));
-//					}
-//				}
-//			}
-//		}
-//		faceOri >= 0.0 ? bdr_connectivity_.TFSF.signs.push_back(std::make_pair(-1.0, 1.0)) : bdr_connectivity_.TFSF.signs.push_back(std::make_pair(-1.0, 1.0)); // Face Ori >= 0.0 means elem1 is SF, elem2 is TF.
-//		Nodes mapBElem1(vmapBelem1.size()), mapBElem2(vmapBelem2.size());
-//		for (auto v{ 0 }; v < mapBElem1.size(); v++) {
-//			mapBElem1[v] = std::distance(std::begin(connectivity_), std::find(connectivity_.begin(), connectivity_.end(), std::make_pair(vmapBelem1[v], vmapBelem2[v])));
-//			mapBElem2[v] = std::distance(std::begin(connectivity_), std::find(connectivity_.begin(), connectivity_.end(), std::make_pair(vmapBelem2[v], vmapBelem1[v])));
-//		}
-//		bdr_connectivity_.TFSF.mapBElem1.push_back(mapBElem1);
-//		bdr_connectivity_.TFSF.mapBElem2.push_back(mapBElem2);
-//		bdr_connectivity_.TFSF.vmapBElem1.push_back(vmapBelem1);
-//		bdr_connectivity_.TFSF.vmapBElem2.push_back(vmapBelem2);
-//	}
-//}
-
 void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 {
 	std::array<std::array<double, 3>, 2> fields;
-	const auto& mapBSF = bdr_connectivity_.TFSF.mapBSF;
-	const auto& mapBTF = bdr_connectivity_.TFSF.mapBTF;
-	const auto& vmapBSF = bdr_connectivity_.TFSF.vmapBSF;
-	const auto& vmapBTF = bdr_connectivity_.TFSF.vmapBTF;
+	const auto& mapBSF = connectivity_.boundary.TFSF.mapBSF;
+	const auto& mapBTF = connectivity_.boundary.TFSF.mapBTF;
+	const auto& vmapBSF = connectivity_.boundary.TFSF.vmapBSF;
+	const auto& vmapBTF = connectivity_.boundary.TFSF.vmapBTF;
 	for (const auto& source : srcmngr_.sources) {
 		auto pw = dynamic_cast<Planewave*>(source.get());
 		if (pw == nullptr) {
@@ -570,145 +469,10 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 
 }
 
-void HesthavenEvolution::initDoFPositions()
-{
-	auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
-	auto fes = FiniteElementSpace(fes_.GetMesh(), fec, 3);
-	GridFunction nodes(&fes);
-	fes.GetMesh()->GetNodes(nodes);
-	auto dirSize{ nodes.Size() / 3 };
-	positions_.resize(dirSize);
-	for (auto i{ 0 }; i < dirSize; i++) {
-		positions_[i] = Source::Position({ nodes[i], nodes[i + dirSize], nodes[i + dirSize * 2] });
-	}
-}
-
 const Eigen::VectorXd HesthavenEvolution::applyScalingFactors(const ElementId e, const Eigen::VectorXd& flux) const
 {
 	const auto& fscale = hestElemStorage_[e].fscale.asDiagonal();
 	return this->refLIFT_ * (fscale * flux) / 2.0;
-}
-
-std::vector<Array<int>> assembleBdrMarkersForBdrElements(Mesh& bdrMesh, const int numBdrElems)
-{
-	std::vector<Array<int>> res(numBdrElems);
-	bdrMesh.bdr_attributes.SetSize(numBdrElems);
-	for (auto b{ 0 }; b < numBdrElems; b++) {
-		bdrMesh.bdr_attributes[b] = b + 1;
-		bdrMesh.SetBdrAttribute(b, bdrMesh.bdr_attributes[b]);
-		Array<int> bdr_marker;
-		bdr_marker.SetSize(numBdrElems);
-		bdr_marker = 0;
-		bdr_marker[b] = 1;
-		res[b] = bdr_marker;
-	}
-	return res;
-}
-
-Nodes findNodesPerBdrFace(const BilinearForm* bdrNodeMat)
-{
-	Nodes res;
-	Array<int> cols;
-	Vector vals;
-	double tol{ 1e-6 };
-	for (auto r{ 0 }; r < bdrNodeMat->NumRows(); r++) {
-		bdrNodeMat->SpMat().GetRow(r, cols, vals);
-		if (vals.Size() && std::abs(vals[cols.Find(r)]) > tol) {
-			for (auto c{ 0 }; c < cols.Size(); c++) {
-				if (std::abs(vals[c]) > 1e-5) {
-					res.push_back(cols[c]);
-				}
-			}
-			break;
-		}
-	}
-	return res;
-}
-
-std::vector<Nodes> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNodeMarkers, FiniteElementSpace& bdrFES, const std::map<bool, std::vector<BdrElementId>>& isInteriorMap)
-{
-	
-	std::vector<Nodes> res(isInteriorMap.at(false).size());
-
-	for (auto b{ 0 }; b < isInteriorMap.at(false).size(); b++) {
-		auto bdrNodeFinderOperator{ assembleFaceMassBilinearForm(bdrFES, bdrNodeMarkers[isInteriorMap.at(false)[b]]) };
-		res[b] = findNodesPerBdrFace(bdrNodeFinderOperator.get());
-	}
-
-	return res;
-}
-
-Nodes initMapB(const GlobalConnectivity& connectivity)
-{
-	Nodes res;
-	for (auto i{ 0 }; i < connectivity.size(); i++) {
-		if (connectivity[i].first == connectivity[i].second) {
-			res.push_back(i);
-		}
-	}
-	return res;
-}
-
-
-Nodes initVMapB(const GlobalConnectivity& connectivity, const Nodes& mapB)
-{
-	Nodes res(mapB.size());
-	for (auto i{ 0 }; i < mapB.size(); i++) {
-		res[i] = connectivity[mapB[i]].first;
-	}
-	return res;
-}
-
-const std::map<bool, std::vector<BdrElementId>> assembleInteriorOrTrueBdrMap(const FiniteElementSpace& fes)
-{
-	std::map<bool, std::vector<BdrElementId>> res;
-	auto f2bdr{ fes.GetMesh()->GetFaceToBdrElMap() };
-	for (auto b{ 0 }; b < fes.GetNBE(); b++) {
-		fes.GetMesh()->FaceIsInterior(f2bdr.Find(b)) ==
-			true ? res[true].push_back(b) : res[false].push_back(b);
-	}
-	return res;
-}
-
-void HesthavenEvolution::initBdrConnectivityMaps(const std::vector<Nodes>& bdr2nodes, const std::map<bool, std::vector<BdrElementId>>& isInteriorMap)
-{
-	auto mapB{ initMapB(connectivity_) };
-	auto vmapB{ initVMapB(connectivity_, mapB) };
-
-	auto modelBdrMarkers = model_.getBoundaryToMarker(); //Only for true boundary types (not interior)...
-	for (auto b{ 0 }; b < bdr2nodes.size(); b++) { //For each one of our bdr elements...
-		for (const auto& marker : modelBdrMarkers) { //Fetch each one of our bdrMarkers in the model...
-			if (marker.second[fes_.GetBdrAttribute(isInteriorMap.at(false)[b]) - 1] == 1) { //And check if that BdrCond is active for the specified bdrAtt of that bdr element, which means the bdr element is of that type...
-				for (auto n{ 0 }; n < vmapB.size(); n++) { //Then sweep vmapB...
-					if (bdr2nodes[b][0] == connectivity_[mapB[n]].first) { //To find the nodes in vmapB that are equal to the first node in our bdr element (as they are sorted when built), because it can happen...
-						Nodes mapBToStore(bdr2nodes[b].size()); //... that we have multiple instances of a Hesthaven type node appearing twice on vmapB (i.e. corner node)...
-						Nodes vmapBToStore(bdr2nodes[b].size()); //... so we need to save the mapB 2 vmapB pairs so the nodes are properly linked when defining boundary conditions...
-						for (auto m{ 0 }; m < bdr2nodes[b].size(); m++) {
-							mapBToStore[m] = mapB[n - m]; //Then make a temporary vector that we'll fill the next nodesize worth of nodes for mapB and vmapB, starting at the compared and equal node...
-							vmapBToStore[m] = connectivity_[mapB[n - m]].first;
-						}
-						if (bdr2nodes[b] == vmapBToStore) { //As bdr2nodes[b] is already sorted when built, potVec also has to be sorted to match...
-							switch (marker.first) {
-							case BdrCond::PEC:
-								bdr_connectivity_.PEC.mapB.push_back(mapBToStore);
-								bdr_connectivity_.PEC.vmapB.push_back(vmapBToStore);
-								break;
-							case BdrCond::PMC:
-								bdr_connectivity_.PMC.mapB.push_back(mapBToStore);
-								bdr_connectivity_.PMC.vmapB.push_back(vmapBToStore);
-								break;
-							case BdrCond::SMA:
-								bdr_connectivity_.SMA.mapB.push_back(mapBToStore);
-								bdr_connectivity_.SMA.vmapB.push_back(vmapBToStore);
-								break;
-							}
-							break; // And as we only support one bdrcond per face/edge/bdrwhatever, we're done for this bdr element...
-						}     // As this method is completely non-dependent on dimensions or geometries, could be assumed is as generic as it could get.
-					}
-				}
-			}
-		}
-	}
 }
 
 void assembleDerivativeMatrices(FiniteElementSpace& subFES, MatrixStorageLT& matStLt, HesthavenElement& hestElem)
@@ -727,6 +491,22 @@ void assembleDerivativeMatrices(FiniteElementSpace& subFES, MatrixStorageLT& mat
 	}
 }
 
+double getReferenceVolume(const Element::Type geom)
+{
+	switch (geom) {
+	case Element::Type::TRIANGLE:
+		return 2.0; //Hesthaven definition (-1,-1), (-1,1), (1,-1)
+	case Element::Type::QUADRILATERAL:
+		return 4.0; //Assuming x,y (-1, 1)
+	case Element::Type::TETRAHEDRON:
+		return 8.0/6.0; //Hesthaven definition (-1,-1,-1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1)
+	case Element::Type::HEXAHEDRON:
+		return 8.0; //Assuming x,y,z (-1, 1)
+	default:
+		throw std::runtime_error("Unsupported geometry for reference volume.");
+	}
+}
+
 void assembleFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem)
 {
 
@@ -736,19 +516,19 @@ void assembleFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestE
 	dim == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
 	initNormalVectors(hestElem, numFaces * numNodesAtFace);
 	initFscale(hestElem, numFaces * numNodesAtFace);
+	auto J{ subFES.GetMesh()->GetElementTransformation(0)->Weight()};
 
 	for (auto f{ 0 }; f < numFaces; f++) {
 
 		Vector normal(dim);
 		ElementTransformation* faceTrans;
 		dim == 2 ? faceTrans = subFES.GetMesh()->GetEdgeTransformation(f) : faceTrans = subFES.GetMesh()->GetFaceTransformation(f);
-		faceTrans->SetIntPoint(&Geometries.GetCenter(faceTrans->GetGeometryType()));
 		CalcOrtho(faceTrans->Jacobian(), normal);
-		const auto sJ{ faceTrans->Weight() };
+		auto sJ{ faceTrans->Weight() };
 
 		for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
 			hestElem.normals[X][f * numNodesAtFace + b] = normal[0] / sJ;
-			hestElem.fscale[f * numNodesAtFace + b] = sJ / hestElem.vol; //likewise for fscale, surface per volume ratio per node at face
+			hestElem.fscale[f * numNodesAtFace + b] = sJ * 2.0 / J; //likewise for fscale, surface per volume ratio per node at face
 			if (dim >= 2) {
 				hestElem.normals[Y][f * numNodesAtFace + b] = normal[1] / sJ;
 			}
@@ -764,7 +544,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	fes_(fes),
 	model_(model),
 	srcmngr_(srcmngr),
-	opts_(opts)
+	opts_(opts),
+	connectivity_(model, fes)
 {
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
@@ -772,34 +553,11 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	const auto* cmesh = &model_.getConstMesh();
 	auto mesh{ Mesh(model_.getMesh()) };
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
-	auto attMap{ mapOriginalAttributes(model_.getMesh()) };
+	auto attMap{ mapOriginalAttributes(model_.getMesh()) };	
 
-	const auto isInteriorMap{ assembleInteriorOrTrueBdrMap(fes_) };
-	
-	connectivity_ =  assembleGlobalConnectivityMap(mesh, fec);
-
-	{
-		auto bdrNodeMesh{ Mesh(model_.getMesh()) };
-		std::vector<Array<int>> bdrNodeMarkers{ assembleBdrMarkersForBdrElements(bdrNodeMesh, model_.getConstMesh().GetNBE()) };
-		auto bdrNodeFES = FiniteElementSpace(&bdrNodeMesh, fec);
-		std::vector<int> atts;
-		for (auto b = 0; b < model_.getConstMesh().GetNBE(); b++) {
-			atts.push_back(model.getConstMesh().GetBdrAttribute(b));
-		}
-		const auto bdr2nodes{ assembleNodeVectorPerBdrFace(bdrNodeMarkers, bdrNodeFES, isInteriorMap) };
-		initBdrConnectivityMaps(bdr2nodes, isInteriorMap);
-	}
-
-	{
-		if (model_.getInteriorBoundaryToMarker().size() != 0) {
-			initIntFaceConnectivityMaps(model_.getInteriorBoundaryToMarker());
-		}
-	}
-	
 	{
 		if (model_.getTotalFieldScatteredFieldToMarker().size() != 0) {
-			initDoFPositions();
-			initIntFaceConnectivityMaps(model.getTotalFieldScatteredFieldToMarker());
+			positions_ = buildDoFPositions(fes_);
 		}
 	}
 
@@ -821,15 +579,15 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	
 	if (allElementsSameGeom) 
 	{
-		refInvMass_ = assembleHesthavenReferenceElementInverseMassMatrix(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
-		refLIFT_ = refInvMass_ * assembleHesthavenReferenceElementEmat(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
+		refInvMass_ = assembleHesthavenRefElemInvMassMatrix(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
+		refLIFT_ = refInvMass_ * assembleHesthavenRefElemEmat(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
 	}
 
 	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
 	{
 		HesthavenElement hestElem;
 		hestElem.id = e;
-		hestElem.geom = cmesh->GetElementBaseGeometry(e);
+		hestElem.type = cmesh->GetElementType(e);
 		hestElem.vol = mesh.GetElementVolume(e);
 
 		mesh.SetAttribute(e, hesthavenMeshingTag);
@@ -853,6 +611,17 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 }
 
+void loadOutVectors(const Eigen::VectorXd& data, const FiniteElementSpace& fes, const ElementId& e, GridFunction& out) 
+{
+	Array<int> dofs;
+	auto el2dofs = fes.GetElementDofs(e, dofs);
+	std::unique_ptr<mfem::real_t[]> mfemFieldVars = std::make_unique<mfem::real_t[]>(data.size());
+	for (auto v{ 0 }; v < data.size(); v++) {
+		mfemFieldVars.get()[v] = data.data()[v];
+	}
+	out.SetSubVector(dofs, mfemFieldVars.get());
+}
+
 void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 {
 	double alpha;
@@ -874,18 +643,18 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	// ---JUMPS--- //
 
-	auto jumps{ HesthavenFields(connectivity_.size()) };
+	auto jumps{ HesthavenFields(connectivity_.global.size()) };
 
-	for (auto v{ 0 }; v < connectivity_.size(); v++) {
+	for (auto v{ 0 }; v < connectivity_.global.size(); v++) {
 		for (int d = X; d <= Z; d++) {
-			jumps.e_[d][v] = fieldsIn.e_[d][connectivity_[v].second] - fieldsIn.e_[d][connectivity_[v].first];
-			jumps.h_[d][v] = fieldsIn.h_[d][connectivity_[v].second] - fieldsIn.h_[d][connectivity_[v].first];
+			jumps.e_[d][v] = fieldsIn.e_[d][connectivity_.global[v].second] - fieldsIn.e_[d][connectivity_.global[v].first];
+			jumps.h_[d][v] = fieldsIn.h_[d][connectivity_.global[v].second] - fieldsIn.h_[d][connectivity_.global[v].first];
 		}
 	}
 
 	// --BOUNDARIES-- //
 
-	applyBoundaryConditionsToNodes(bdr_connectivity_, fieldsIn, jumps);
+	applyBoundaryConditionsToNodes(connectivity_.boundary, fieldsIn, jumps);
 
 	// --TOTAL FIELD SCATTERED FIELD-- //
 
@@ -895,8 +664,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	for (auto e{ 0 }; e < fes_.GetNE(); e++) {
 
-		Array<int> dofs;
-		auto el2dofs = fes_.GetElementDofs(e, dofs);
 		auto elemFluxSize{ hestElemStorage_[e].fscale.size() };
 
 		// Dof ordering will always be incremental due to L2 space (i.e: element 0 will have 0, 1, 2... element 1 will have 3, 4, 5...)
@@ -927,26 +694,21 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 		}
 
+		auto refVol{ getReferenceVolume(hestElemStorage_[e].type) };
+		const DynamicMatrix& invmass = this->refInvMass_ * refVol / hestElemStorage_[e].vol;
+
 		for (int x = X; x <= Z; x++) {
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const DynamicMatrix& invmass = this->refInvMass_ * (2.0 / hestElemStorage_[e].vol);
 			const auto& der1 = *hestElemStorage_[e].der[y];
 			const auto& der2 = *hestElemStorage_[e].der[z];
 
 			const Eigen::VectorXd& hResult = -1.0 * invmass * der1 * fieldsElem.e_[z] +       invmass * der2 * fieldsElem.e_[y] + applyScalingFactors(e, elemFlux.h_[x]);
 			const Eigen::VectorXd& eResult =        invmass * der1 * fieldsElem.h_[z] - 1.0 * invmass * der2 * fieldsElem.h_[y] + applyScalingFactors(e, elemFlux.e_[x]);
 
-			mfem::real_t* mfemHFieldVals = new mfem::real_t[hResult.size()];
-			mfem::real_t* mfemEFieldVals = new mfem::real_t[eResult.size()];
-			for (auto v{ 0 }; v < hResult.size(); v++) {
-				mfemHFieldVals[v] = hResult.data()[v];
-				mfemEFieldVals[v] = eResult.data()[v];
-			}
-			hOut[x].SetSubVector(dofs, mfemHFieldVals);
-			eOut[x].SetSubVector(dofs, mfemEFieldVals);
-
+			loadOutVectors(hResult, fes_, e, hOut[x]);
+			loadOutVectors(eResult, fes_, e, eOut[x]);
 		}
 
 	}

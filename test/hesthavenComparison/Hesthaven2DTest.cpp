@@ -800,8 +800,8 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO1)
 
 	auto mass_mat{ assembleMassMatrix(sm_fes) };
 
-	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat, sm.GetElementType(0)).inverse();
-	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat, sm.GetElementType(1)).inverse();
+	DynamicMatrix el_0_mass_inverse = getElemMassMatrixFromGlobal(0, mass_mat, sm.GetElementType(0)).inverse();
+	DynamicMatrix el_1_mass_inverse = getElemMassMatrixFromGlobal(1, mass_mat, sm.GetElementType(1)).inverse();
 
 	DynamicMatrix expectedInverseMass{
 		{ 4.5000, -1.5000, -1.5000},
@@ -834,8 +834,8 @@ TEST_F(MFEMHesthaven2D, inverseMassMatrixFromSubMeshO2)
 
 	auto mass_mat{ assembleMassMatrix(sm_fes) };
 
-	DynamicMatrix el_0_mass_inverse = getElementMassMatrixFromGlobal(0, mass_mat, sm.GetElementType(0)).inverse();
-	DynamicMatrix el_1_mass_inverse = getElementMassMatrixFromGlobal(1, mass_mat, sm.GetElementType(1)).inverse();
+	DynamicMatrix el_0_mass_inverse = getElemMassMatrixFromGlobal(0, mass_mat, sm.GetElementType(0)).inverse();
+	DynamicMatrix el_1_mass_inverse = getElemMassMatrixFromGlobal(1, mass_mat, sm.GetElementType(1)).inverse();
 
 	DynamicMatrix expectedInverseMass{
 		{18.0000, -0.7500,  3.0000, -0.7500,  3.0000,  3.0000},
@@ -879,6 +879,7 @@ TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
 
 	{
 		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[0]) };
+		removeZeroColumns(surface_matrix);
 
 		DynamicMatrix expected_emat{
 			{0.6667, 0.3333},
@@ -896,6 +897,7 @@ TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
 
 	{
 		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[1]) };
+		removeZeroColumns(surface_matrix);
 
 		DynamicMatrix expected_emat{
 			{0.0000, 0.0000},
@@ -913,6 +915,7 @@ TEST_F(MFEMHesthaven2D, massMatrixTriangleFaceO1)
 
 	{
 		auto surface_matrix{ assembleConnectivityFaceMassMatrix(sm_fes, boundary_markers[2]) };
+		removeZeroColumns(surface_matrix);
 
 		DynamicMatrix expected_emat{
 			{0.6667, 0.3333},

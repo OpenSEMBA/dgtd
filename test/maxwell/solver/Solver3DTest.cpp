@@ -5,6 +5,8 @@
 
 #include "solver/Solver.h"
 
+#include "TestUtils.h"
+
 using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
@@ -50,7 +52,6 @@ protected:
 			{6, bdr6},
 		};
 	}
-
 };
 
 #ifdef ENABLE_EXTENSIVE_SOLVER_TESTS

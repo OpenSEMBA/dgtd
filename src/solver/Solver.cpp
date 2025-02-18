@@ -58,6 +58,13 @@ Solver::Solver(
 	
 	checkOptionsAreValid(opts_);
 
+	if (opts_.evolution.spectral == true) {
+		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
+	}
+
+	maxwellEvol_ = assignEvolutionOperator();
+	maxwellEvol_->SetTime(time_);
+
 	if (opts_.timeStep == 0.0) {
 		dt_ = estimateTimeStep();
 	}
@@ -65,12 +72,6 @@ Solver::Solver(
 		dt_ = opts_.timeStep;
 	}
 
-	if (opts_.evolution.spectral == true) {
-		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
-	}
-
-	maxwellEvol_ = assignEvolutionOperator();
-	maxwellEvol_->SetTime(time_);
 	odeSolver_->Init(*maxwellEvol_);
 
 	probesManager_.updateProbes(time_);
@@ -82,12 +83,6 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 	if ((opts.evolution.order < 0) ||
 		(opts.finalTime < 0)) {
 		throw std::runtime_error("Incorrect parameters in Options");
-	}
-
-	if (opts.timeStep == 0.0) {
-		if (fes_->GetMesh()->Dimension() > 2) {
-			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 2.");
-		}
 	}
 
 	for (const auto& bdrMarker : model_.getBoundaryToMarker())
@@ -130,11 +125,11 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 	return res;
 }
 
-bool checkIfQuadInMesh(const Mesh& mesh) 
+bool checkIfElemTypeInMesh(const Mesh& mesh, const Element::Type& type)
 {
-	for (int e = 0; e < mesh.GetNE(); ++e) 	{
-		if (mesh.GetElementGeometry(e) == mfem::Geometry::Type::SQUARE) { 
-			return true; 
+	for (int e = 0; e < mesh.GetNE(); ++e) {
+		if (mesh.GetElementType(e) == type) {
+			return true;
 		}
 	}
 	return false;
@@ -143,23 +138,22 @@ bool checkIfQuadInMesh(const Mesh& mesh)
 
 Vector getTimeStepScale(Mesh& mesh)
 {
-	Vector area(mesh.GetNE()), dtscale(mesh.GetNE());
-	for (int it = 0; it < mesh.GetNE(); ++it) {
-		auto el{ mesh.GetElement(it) };
-		Vector sper(mesh.GetNumFaces());
-		sper = 0.0;
-		for (int f = 0; f < mesh.GetElement(it)->GetNEdges(); ++f) {
+	Vector vol(mesh.GetNE()), dtscale(mesh.GetNE());
+	for (int e = 0; e < mesh.GetNE(); ++e) {
+		auto el{ mesh.GetElement(e) };
+		Vector areasum(mesh.GetNumFaces());
+		areasum = 0.0;
+		for (int f = 0; f < mesh.GetElement(e)->GetNEdges(); ++f) {
 			ElementTransformation* T{ mesh.GetFaceTransformation(f)};
 			const IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
 			for (int p = 0; p < ir.GetNPoints(); p++)
 			{
 				const IntegrationPoint& ip = ir.IntPoint(p);
-				sper(it) += ip.weight * T->Weight();
+				areasum(e) += ip.weight * T->Weight();
 			}
 		}
-		sper /= 2.0;
-		area(it) = mesh.GetElementVolume(it);
-		dtscale(it) = area(it) / sper(it);
+		vol(e) = mesh.GetElementVolume(e);
+		dtscale(e) = vol(e) / (areasum(e) / 2.0);
 	}
 	return dtscale;
 }
@@ -174,33 +168,101 @@ double getJacobiGQ_RMin(const int order) {
 
 	return std::abs(nodes(0) - nodes(1));
 }
+std::vector<Source::Position> getVerticesCoordsForElem(const FiniteElementSpace& fes, const ElementId& e, const std::vector<Source::Position>& positions)
+{
+	Array<int> vertices;
+	fes.GetElementVertices(e, vertices);
+	std::vector<Source::Position> res(vertices.Size());
+	for (auto v{ 0 }; v < vertices.Size(); v++) {
+		res[v] = positions[vertices[v]];
+	}
+	return res;
+}
+
+double getSideLength(const Source::Position& va, const Source::Position& vb) {
+	return std::sqrt((vb[0] - va[0]) * (vb[0] - va[0]) + (vb[1] - va[1]) * (vb[1] - va[1]));
+}
+
+double getElementPerimeter(const std::vector<Source::Position>& vertCoords)
+{
+	double res = 0.0;
+	int n = vertCoords.size();
+	for (int i = 0; i < n; i++) {
+		res += getSideLength(vertCoords[i], vertCoords[(i + 1) % n]);
+	}
+	return res;
+}
+
+double calc2DMeshTimeStep(FiniteElementSpace& fes)
+{
+	Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
+	double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
+	auto dt{ dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight };
+	dt *= 0.75; // Purely heuristic.
+	if (checkIfElemTypeInMesh(*fes.GetMesh(),Element::Type::QUADRILATERAL)) {
+		return dt / 2.0; // This is purely heuristic.
+	}
+	else {
+		return dt;
+	}
+}
+
+double calc3DMeshTimeStep(FiniteElementSpace& fes)
+{
+	Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
+	double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
+	auto dt{ dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight };
+	dt *= 0.75; // Purely heuristic.
+	if (checkIfElemTypeInMesh(*fes.GetMesh(), Element::Type::HEXAHEDRON)) {
+		return dt / 6.0; // This is purely heuristic.
+	}
+	else {
+		return dt;
+	}
+}
 
 double Solver::estimateTimeStep() const
 {
-	if (model_.getConstMesh().Dimension() == 1) {
-		double maxTimeStep{ 0.0 };
-		if (opts_.evolution.order == 0) {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight;
+	if (opts_.hesthavenOperator != true) {
+		if (model_.getConstMesh().Dimension() == 1) {
+			double maxTimeStep{ 0.0 };
+			if (opts_.evolution.order == 0) {
+				maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight;
+			}
+			else {
+				maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight;
+			}
+			return opts_.cfl * maxTimeStep;
+		}
+		else if (model_.getConstMesh().Dimension() == 2) {
+			return calc2DMeshTimeStep(*fes_.get()) * opts_.cfl;
+		}
+		else if (model_.getConstMesh().Dimension() == 3) {
+			return calc3DMeshTimeStep(*fes_.get()) * opts_.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
 		}
 		else {
-			maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight;
+			throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
 		}
-		return opts_.cfl * maxTimeStep;
 	}
-	else if (model_.getConstMesh().Dimension() == 2) {
-			Mesh mesh{ model_.getConstMesh() };
-			Vector dtscale{ getTimeStepScale(mesh) };
-			double rmin{ getJacobiGQ_RMin(fes_->FEColl()->GetOrder()) };
-			auto dt{dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight};
-			dt *= opts_.cfl;
-			dt *= 0.75; // Purely heuristic.
-			if (checkIfQuadInMesh(mesh)) {
-				return dt/2.0; // This is purely heuristic.
-			} else {
-				return dt;
+	else {
+		if (model_.getConstMesh().Dimension() == 2) {
+			return calc2DMeshTimeStep(*fes_.get()) * opts_.cfl;
+		}
+		else if (model_.getConstMesh().Dimension() == 3) {
+			auto maxFscaleVal{ 0.0 };
+			const auto& evol = dynamic_cast<HesthavenEvolution*>(this->maxwellEvol_.get());
+			for (auto e{ 0 }; e < model_.getConstMesh().GetNE(); e++) {
+				const auto& fscaleMax{ evol->getHesthavenElement(e).fscale.maxCoeff() };
+				if (fscaleMax > maxFscaleVal) {
+					maxFscaleVal = fscaleMax;
+				}
 			}
-	} else {
-		throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
+			const auto& order = fes_->FEColl()->GetOrder();
+			return 1.0 * opts_.cfl / (maxFscaleVal * order * order);
+		}
+		else {
+			throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
+		}
 	}
 }
 

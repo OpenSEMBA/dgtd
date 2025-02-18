@@ -3,7 +3,6 @@
 #include "mfemExtension/BilinearIntegrators.h"
 
 #include "components/Model.h"
-#include "solver/SourcesManager.h"
 #include "EvolutionMethods.h"
 #include "components/SubMesher.h"
 
@@ -82,16 +81,12 @@ public:
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
+	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemStorage_[e]; }
 
 private:
 
 	void evaluateTFSF(HesthavenFields& jumps) const;
-	void initBdrConnectivityMaps(const std::vector<Nodes>& bdr2nodes, const std::map<bool, std::vector<BdrElementId>>& isInteriorMap);
-	void initIntFaceConnectivityMaps(const BoundaryToMarker& markers);
-	void loadIntBdrConditions(const InteriorFaceConnectivityMaps& mapB, const InteriorFaceConnectivityMaps&, const BdrCond&, const double faceOri);
 	const Eigen::VectorXd applyScalingFactors(const ElementId, const Eigen::VectorXd& flux) const;
-	void initDoFPositions();
-	InteriorFaceConnectivityMaps initInteriorFacesMapB(const InteriorFaceConnectivityMaps& nodePairs) const;
 	FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
@@ -100,9 +95,7 @@ private:
 	std::vector<HesthavenElement> hestElemStorage_;
 	DynamicMatrix refInvMass_;
 	DynamicMatrix refLIFT_;
-	GlobalConnectivity connectivity_;
-	BoundaryMaps bdr_connectivity_;
-	TFSFConnectivity tfsf_connectivity_;
+	Connectivities connectivity_;
 	std::vector<Source::Position> positions_;
 
 };
