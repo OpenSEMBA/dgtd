@@ -353,8 +353,11 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 
 TEST_F(CasesTest, 2D_InteriorPEC_Hesthaven)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_InteriorPEC_Hesthaven"));
-	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorPEC_Hesthaven"), true) };
+	auto case_data = parseJSONfile(maxwellCase("2D_InteriorBdr_Hesthaven"));
+	case_data["model"]["boundaries"][0]["tags"] = { 6, 7 };       // PEC Int
+	case_data["model"]["boundaries"][1]["tags"] = { 1, 2, 4, 5 }; // PMC
+	case_data["model"]["boundaries"][2]["tags"] = { 3 };          // SMA
+	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorBdr_Hesthaven"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -437,8 +440,14 @@ TEST_F(CasesTest, 2D_InteriorPEC_Hesthaven)
 
 TEST_F(CasesTest, 2D_InteriorPMC_Hesthaven)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_InteriorPMC_Hesthaven"));
-	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorPMC_Hesthaven"), true) };
+	auto case_data = parseJSONfile(maxwellCase("2D_InteriorBdr_Hesthaven"));
+	case_data["model"]["boundaries"][0]["tags"] = { 6, 7 };       // PMC Int
+	case_data["model"]["boundaries"][0]["type"] = "PMC";          // PMC Int
+	case_data["model"]["boundaries"][1]["tags"] = { 1, 2, 4, 5 }; // PMC
+	case_data["model"]["boundaries"][2]["tags"] = { 3 };          // SMA
+	case_data["sources"][0]["field_type"] = "H";                  
+	case_data["sources"][0]["polarization"] = { 0.0, 1.0, 0.0 };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorBdr_Hesthaven"), true) };
 
 	GridFunction eOld{ solver.getField(H, Y) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -521,8 +530,13 @@ TEST_F(CasesTest, 2D_InteriorPMC_Hesthaven)
 
 TEST_F(CasesTest, 2D_InteriorSMA_Hesthaven)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_InteriorSMA_Hesthaven"));
-	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorSMA_Hesthaven"), true) };
+	auto case_data = parseJSONfile(maxwellCase("2D_InteriorBdr_Hesthaven"));
+	case_data["model"]["boundaries"][0]["tags"] = { 1, 2, 4, 5 }; // PMC
+	case_data["model"]["boundaries"][0]["type"] = "PMC";          // PMC
+	case_data["model"]["boundaries"][1]["tags"] = { 3, 6, 7 };    // SMA
+	case_data["model"]["boundaries"][1]["type"] = "SMA";          // SMA Int
+	case_data["model"]["boundaries"].erase(2);                    // Delete unnecessary entry
+	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorBdr_Hesthaven"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
@@ -615,7 +629,6 @@ TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["solver_type"] = "centered";
-	case_data["solver_options"]["order"] = 3;
 	case_data["solver_options"]["hesthaven_operator"] = true;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
