@@ -7,6 +7,7 @@
 
 #include "evolution/Fields.h"
 #include "evolution/Evolution.h"
+#include "evolution/HesthavenEvolution.h"
 #include "evolution/HesthavenEvolutionTools.h"
 
 namespace maxwell {

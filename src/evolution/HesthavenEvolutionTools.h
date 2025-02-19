@@ -60,9 +60,8 @@ namespace maxwell {
 		ElementId id;
 		Element::Type type;
 		Volume vol;
-		Directional der;
+		Directional dir;
 		Emat emat;
-		const DynamicMatrix* invmass;
 		Normals normals;
 		Eigen::VectorXd fscale;
 	};

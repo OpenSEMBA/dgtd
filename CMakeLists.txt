@@ -8,15 +8,15 @@ project(dgtd)
 
 set(CMAKE_CXX_STANDARD 17)
 
-option(SEMBA_DGTD_ENABLE_MPI OFF "Enable MPI support")
-option(SEMBA_DGTD_ENABLE_PYTHON_BINDINGS OFF "Enable Python bindings")
-option(SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY ON "Use MFEM as a subdirectory")
+option(SEMBA_DGTD_ENABLE_MPI "Enable MPI support" OFF )
+option(SEMBA_DGTD_ENABLE_PYTHON_BINDINGS "Enable Python bindings" OFF )
+option(SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY "Use MFEM as a subdirectory" ON )
 
-option(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS ON "Enable extensive case tests")
-option(SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS ON "Enable extensive solver tests")
-option(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS ON "Enable extensive RCS tests")
+option(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS "Enable extensive case tests" ON )
+option(SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS "Enable extensive solver tests" ON )
+option(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS "Enable extensive RCS tests" ON )
 
-option(SEMBA_DGTD_ENABLE_TIMER_INFORMATION OFF "Enable timer information")
+option(SEMBA_DGTD_ENABLE_TIMER_INFORMATION "Enable timer information" OFF)
 
 include_directories(
 	src/ 

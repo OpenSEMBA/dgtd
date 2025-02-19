@@ -8,6 +8,7 @@ add_executable (cases_tests
 	"CasesTest.cpp")
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS)
+	message(STATUS "Appending ExtensiveCasesTests to cases_tests")
 	target_sources(cases_tests PRIVATE
 		"ExtensiveCasesTest.cpp")
 endif()

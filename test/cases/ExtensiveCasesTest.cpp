@@ -8,11 +8,11 @@ using namespace mfem;
 using namespace maxwell;
 using namespace maxwell::driver;
 
-class CasesTest : public ::testing::Test {
+class ExtensiveCasesTest : public ::testing::Test {
 
 };
 
-TEST_F(CasesTest, 2D_PEC_Centered)
+TEST_F(ExtensiveCasesTest, 2D_PEC_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -36,7 +36,7 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 	// Compares all DOFs.
 	EXPECT_NEAR(normOld, solver.getFields().getNorml2(), 1e-3);
 
-	// At the left boundary and right boundaries the electric field should be always close to zero 
+	// At the left boundary and right boundaries the electric field should be always close to zero S
 	// while the magnetic field should reach +- 2.0 at specific times...
 	{
 		auto expected_t_half{ 0.5 };
@@ -77,7 +77,7 @@ TEST_F(CasesTest, 2D_PEC_Centered)
 
 }
 
-TEST_F(CasesTest, 2D_InteriorPEC_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_InteriorPEC_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_InteriorPEC_Hesthaven"));
 	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorPEC_Hesthaven"), true) };
@@ -161,7 +161,7 @@ TEST_F(CasesTest, 2D_InteriorPEC_Hesthaven)
 	}
 }
 
-TEST_F(CasesTest, 2D_InteriorPMC_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_InteriorPMC_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_InteriorPMC_Hesthaven"));
 	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorPMC_Hesthaven"), true) };
@@ -245,7 +245,7 @@ TEST_F(CasesTest, 2D_InteriorPMC_Hesthaven)
 	}
 }
 
-TEST_F(CasesTest, 2D_InteriorSMA_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_InteriorSMA_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_InteriorSMA_Hesthaven"));
 	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorSMA_Hesthaven"), true) };
@@ -337,7 +337,7 @@ TEST_F(CasesTest, 2D_InteriorSMA_Hesthaven)
 	}
 }
 
-TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -404,7 +404,7 @@ TEST_F(CasesTest, 2D_PEC_Centered_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 2D_PEC_Upwind_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["hesthaven_operator"] = true;
@@ -468,7 +468,7 @@ TEST_F(CasesTest, 2D_PEC_Upwind_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 2D_PEC_Upwind)
+TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind)
 {
 	std::string case_name{"2D_PEC"};
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
@@ -531,7 +531,7 @@ TEST_F(CasesTest, 2D_PEC_Upwind)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Centered_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -603,7 +603,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Upwind_TEy_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
 	case_data["solver_options"]["hesthaven_operator"] = true;
@@ -674,7 +674,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Centered)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -745,7 +745,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 {
 	std::string case_name{ "2D_TFSF_TEy" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
@@ -815,7 +815,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_THz)
 {
 	std::string case_name{ "2D_TFSF_THz" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
@@ -885,7 +885,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_THz)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Centered_TEy_Quads)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -956,7 +956,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered_TEy_Quads)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Upwind_TEy_Quads)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Quads)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy_Quads"), true) };
@@ -1026,7 +1026,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy_Quads)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Centered_TEy_Quads_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -1098,7 +1098,7 @@ TEST_F(CasesTest, 2D_TFSF_Centered_TEy_Quads_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 2D_TFSF_Upwind_TEy_Quads_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Quads_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
 	case_data["solver_options"]["hesthaven_operator"] = true;
@@ -1169,7 +1169,7 @@ TEST_F(CasesTest, 2D_TFSF_Upwind_TEy_Quads_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 2D_Hesthaven_K2)
+TEST_F(ExtensiveCasesTest, 2D_Hesthaven_K2)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_Hesthaven_K2"));
 	auto solver{ buildSolver(case_data, maxwellCase("2D_Hesthaven_K2"), true) };
@@ -1177,7 +1177,7 @@ TEST_F(CasesTest, 2D_Hesthaven_K2)
 	solver.run();
 }
 
-TEST_F(CasesTest, 3D_TwoTetra_Conn)
+TEST_F(ExtensiveCasesTest, 3D_TwoTetra_Conn)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TwoTetra_Conn"));
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TwoTetra_Conn"), true) };
@@ -1185,7 +1185,7 @@ TEST_F(CasesTest, 3D_TwoTetra_Conn)
 	solver.run();
 }
 
-TEST_F(CasesTest, 3D_CubeK5)
+TEST_F(ExtensiveCasesTest, 3D_CubeK5)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_CubeK5"));
 	auto solver{ buildSolver(case_data, maxwellCase("3D_CubeK5"), true) };
@@ -1193,7 +1193,7 @@ TEST_F(CasesTest, 3D_CubeK5)
 	solver.run();
 }
 
-TEST_F(CasesTest, 3D_TFSF_Centered)
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -1265,7 +1265,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered)
 }
 
 
-TEST_F(CasesTest, 3D_TFSF_Centered_Hesthaven)
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -1337,7 +1337,7 @@ TEST_F(CasesTest, 3D_TFSF_Centered_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 3D_TFSF_Upwind)
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind)
 {
 	std::string case_name{ "3D_TFSF" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
@@ -1407,7 +1407,7 @@ TEST_F(CasesTest, 3D_TFSF_Upwind)
 
 }
 
-TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
+TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind)
 {
 	std::string case_name{ "3D_TFSF_InteriorPEC" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
@@ -1517,7 +1517,7 @@ TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind)
 }
 
 
-TEST_F(CasesTest, 3D_TFSF_Upwind_Hesthaven)
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"]["hesthaven_operator"] = true;
@@ -1588,7 +1588,7 @@ TEST_F(CasesTest, 3D_TFSF_Upwind_Hesthaven)
 
 }
 
-TEST_F(CasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
+TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_InteriorPEC"));
 	case_data["solver_options"]["hesthaven_operator"] = true;

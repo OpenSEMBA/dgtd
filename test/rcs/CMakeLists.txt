@@ -10,7 +10,7 @@ include_directories(
 
 add_executable(rcs_tests
 	"RCSTest.cpp"
-)
+ )
 
 target_link_libraries(rcs_tests 
 	mfem 
@@ -24,6 +24,8 @@ target_link_libraries(rcs_tests
 )
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
-	add_definitions(-DENABLE_EXTENSIVE_RCS_TESTS)
+		message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
+	target_sources(rcs_tests PRIVATE
+		"ExtensiveRCSTest.cpp")
 endif()
 
