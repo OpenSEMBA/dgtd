@@ -36,15 +36,6 @@ if(SEMBA_DGTD_ENABLE_PYTHON_BINDINGS)
 	add_subdirectory(pythonBindings)
 endif()
 
-if(SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS)
-	add_definitions(-DENABLE_EXTENSIVE_SOLVER_TESTS)
-endif()
-
-if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
-	add_definitions(-DENABLE_EXTENSIVE_RCS_TESTS)
-endif()
-
-
 enable_testing()
 
 add_subdirectory(test/  )

@@ -39,4 +39,8 @@ target_link_libraries(maxwell_solver_tests
 	GTest::gtest
 )
 
+if(SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS)
+	add_definitions(-DENABLE_EXTENSIVE_SOLVER_TESTS)
+endif()
+
 include_directories("./")

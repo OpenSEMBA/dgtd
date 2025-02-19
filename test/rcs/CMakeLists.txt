@@ -1,4 +1,4 @@
-message(STATUS "Creating build system for mfem_tests")
+message(STATUS "Creating build system for rcs_tests")
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -22,3 +22,8 @@ target_link_libraries(rcs_tests
 	GTest::gtest_main
 	FFTW3::fftw3
 )
+
+if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
+	add_definitions(-DENABLE_EXTENSIVE_RCS_TESTS)
+endif()
+
