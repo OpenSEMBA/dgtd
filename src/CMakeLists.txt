@@ -1,6 +1,6 @@
-if (MAXWELL_USE_MPI)
-	message(STATUS "MAXWELL_USE_MPI:" ${MAXWELL_USE_MPI})
-	add_compile_definitions(MAXWELL_USE_MPI)
+if (SEMBA_DGTD_ENABLE_MPI)
+	message(STATUS "SEMBA_DGTD_ENABLE_MPI:" ${SEMBA_DGTD_ENABLE_MPI})
+	add_compile_definitions(SEMBA_DGTD_ENABLE_MPI)
 endif()
 
 add_subdirectory(launcher)

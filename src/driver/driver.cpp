@@ -390,6 +390,12 @@ void checkBoundaryInputProperties(const json& case_data)
 
 GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const mfem::Mesh& mesh)
 {
+	using isInterior = bool;
+
+	struct geomTag2Info {
+		std::map<GeomTag, BdrCond> geomTag2BdrCond;
+		std::map<GeomTag, isInterior> geomTag2Interior;
+	};
 
 	checkBoundaryInputProperties(case_data);
 	auto face2BdrEl{ mesh.GetFaceToBdrElMap() };

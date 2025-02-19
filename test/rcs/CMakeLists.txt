@@ -1,4 +1,4 @@
-message(STATUS "Creating build system for mfem_tests")
+message(STATUS "Creating build system for rcs_tests")
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -10,7 +10,13 @@ include_directories(
 
 add_executable(rcs_tests
 	"RCSTest.cpp"
-)
+ )
+
+if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
+		message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
+	target_sources(rcs_tests PRIVATE
+		"ExtensiveRCSTest.cpp")
+endif()
 
 target_link_libraries(rcs_tests 
 	mfem 
@@ -22,3 +28,5 @@ target_link_libraries(rcs_tests
 	GTest::gtest_main
 	FFTW3::fftw3
 )
+
+
