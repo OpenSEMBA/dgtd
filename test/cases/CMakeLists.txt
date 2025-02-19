@@ -7,4 +7,9 @@ include_directories(./)
 add_executable (cases_tests
 	"CasesTest.cpp")
 
+if(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS)
+	target_sources(cases_tests PRIVATE
+		"ExtensiveCasesTest.cpp")
+endif()
+
 target_link_libraries(cases_tests maxwell-driver GTest::gtest GTest::gtest_main)

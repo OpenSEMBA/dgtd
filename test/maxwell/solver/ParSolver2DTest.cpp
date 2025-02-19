@@ -15,7 +15,7 @@ using namespace maxwell;
 using namespace mfem;
 using namespace fixtures::sources;
 
-#ifdef MAXWELL_USE_MPI
+#ifdef SEMBA_DGTD_ENABLE_MPI
 class ParSolver2DTest : public ::testing::Test {
 protected:
 	static const int defaultNumberOfElements_X{ 3 };
