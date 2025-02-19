@@ -146,7 +146,7 @@ void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, co
 {
 	for (auto d{ X }; d <= Z; d++) {
 		auto denseMat = buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix();
-		auto dirMat{ refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol };
+		DynamicMatrix dirMat{ refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol };
 		delete denseMat;
 		StorageIterator it = matrixStorage_.find(dirMat);
 		if (it == matrixStorage_.end()) {
@@ -160,7 +160,7 @@ void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, co
 	}
 }
 
-void assembleFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem)
+void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem)
 {
 
 	int numFaces, numNodesAtFace;
@@ -257,7 +257,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 		storeDirectionalMatrices(subFES, refInvMass, hestElem);
 
-		assembleFaceInformation(subFES, hestElem);
+		storeFaceInformation(subFES, hestElem);
 
 		hestElemStorage_[e] = hestElem;
 
@@ -339,23 +339,21 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const auto& norx = hestElemStorage_[e].normals[x];
-			const auto& nory = hestElemStorage_[e].normals[y];
-			const auto& norz = hestElemStorage_[e].normals[z];
+			const Eigen::VectorXd& norx = hestElemStorage_[e].normals[x];
+			const Eigen::VectorXd& nory = hestElemStorage_[e].normals[y];
+			const Eigen::VectorXd& norz = hestElemStorage_[e].normals[z];
 
 			elemFlux.h_[x] = -1.0 * nory.asDiagonal() * jumpsElem.e_[z] +       norz.asDiagonal() * jumpsElem.e_[y] + alpha * (jumpsElem.h_[x] - ndotdH.asDiagonal() * norx);
 			elemFlux.e_[x] =        nory.asDiagonal() * jumpsElem.h_[z] - 1.0 * norz.asDiagonal() * jumpsElem.h_[y] + alpha * (jumpsElem.e_[x] - ndotdE.asDiagonal() * norx);
 
 		}
 
-		auto refVol{ getReferenceVolume(hestElemStorage_[e].type) };
-
 		for (int x = X; x <= Z; x++) {
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const auto& dir1 = *hestElemStorage_[e].dir[y] * refVol / hestElemStorage_[e].vol;
-			const auto& dir2 = *hestElemStorage_[e].dir[z] * refVol / hestElemStorage_[e].vol;
+			const DynamicMatrix& dir1 = *hestElemStorage_[e].dir[y];
+			const DynamicMatrix& dir2 = *hestElemStorage_[e].dir[z];
 
 			const Eigen::VectorXd& hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(e, elemFlux.h_[x]);
 			const Eigen::VectorXd& eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(e, elemFlux.e_[x]);

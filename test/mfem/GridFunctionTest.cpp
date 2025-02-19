@@ -336,18 +336,18 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 	nd_gf.ProjectCoefficient(dg_vgfc);
 
 	// This is the typical paraview exporting code for the GridFunctions and problem.
-	ParaViewDataCollection* pd = NULL;
-	pd = new ParaViewDataCollection("L2toND", &mesh);
-	pd->SetPrefixPath("SpaceSwapping");
-	pd->RegisterField("Galerkin Solution X", &dg_x);
-	pd->RegisterField("Galerkin Solution Y", &dg_y);
-	pd->RegisterField("Nedelec Solution", &nd_gf);
-	pd->SetLevelsOfDetail(1);
-	pd->SetDataFormat(VTKFormat::BINARY);
-	pd->SetHighOrderOutput(true);
-	pd->SetCycle(0);
-	pd->SetTime(0.0);
-	pd->Save();
+	//ParaViewDataCollection* pd = NULL;
+	//pd = new ParaViewDataCollection("L2toND", &mesh);
+	//pd->SetPrefixPath("SpaceSwapping");
+	//pd->RegisterField("Galerkin Solution X", &dg_x);
+	//pd->RegisterField("Galerkin Solution Y", &dg_y);
+	//pd->RegisterField("Nedelec Solution", &nd_gf);
+	//pd->SetLevelsOfDetail(1);
+	//pd->SetDataFormat(VTKFormat::BINARY);
+	//pd->SetHighOrderOutput(true);
+	//pd->SetCycle(0);
+	//pd->SetTime(0.0);
+	//pd->Save();
 	
 	Vector nd_x, nd_y;
 	nd_gf.GetVectorFieldNodalValues(nd_x, 1);

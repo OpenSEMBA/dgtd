@@ -61,7 +61,6 @@ namespace maxwell {
 		Element::Type type;
 		Volume vol;
 		Directional dir;
-		Emat emat;
 		Normals normals;
 		Eigen::VectorXd fscale;
 	};
