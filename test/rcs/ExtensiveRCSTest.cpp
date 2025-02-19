@@ -14,7 +14,6 @@
 
 #include <components/RCSExporter.h>
 #include <components/RCSManager.h>
-#include <components/RCSManager.cpp>
 
 #include "TestUtils.h"
 

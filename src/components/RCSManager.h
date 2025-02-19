@@ -17,6 +17,8 @@ using Freq2CompVec = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
 using FunctionPair = std::pair<FunctionCoefficient*, FunctionCoefficient*>;
 
+Freq2CompVec calculateDFT(const Vector&, const std::vector<double>& frequencies, const double time);
+
 struct FreqFields {
 
 	Freq2CompVec Ex;

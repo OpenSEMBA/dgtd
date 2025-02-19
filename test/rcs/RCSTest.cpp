@@ -12,9 +12,7 @@
 #include <math.h>
 #include <complex>
 
-#include <components/RCSExporter.h>
 #include <components/RCSManager.h>
-#include <components/RCSManager.cpp>
 
 #include "TestUtils.h"
 
@@ -23,9 +21,6 @@ namespace maxwell {
 using namespace mfem;
 
 class RCSToolsTest : public ::testing::Test{
-};
-
-class RCSTest : public ::testing::Test {
 };
 
 TEST_F(RCSToolsTest, DiscreteFourierTransform)

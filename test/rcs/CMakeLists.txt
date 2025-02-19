@@ -12,6 +12,12 @@ add_executable(rcs_tests
 	"RCSTest.cpp"
  )
 
+if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
+		message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
+	target_sources(rcs_tests PRIVATE
+		"ExtensiveRCSTest.cpp")
+endif()
+
 target_link_libraries(rcs_tests 
 	mfem 
 	maxwell-mfemExtension
@@ -23,9 +29,4 @@ target_link_libraries(rcs_tests
 	FFTW3::fftw3
 )
 
-if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
-		message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
-	target_sources(rcs_tests PRIVATE
-		"ExtensiveRCSTest.cpp")
-endif()
 
