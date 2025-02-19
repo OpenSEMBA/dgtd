@@ -13,7 +13,6 @@
 
 namespace maxwell {
 
-using MatrixStorageLT = std::set<DynamicMatrix, MatrixCompareLessThan>;
 
 class Evolution: public mfem::TimeDependentOperator {
 public:
@@ -81,40 +80,27 @@ public:
 
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
+
 	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemStorage_[e]; }
 
 private:
-
+	
 	void evaluateTFSF(HesthavenFields& jumps) const;
-	const Eigen::VectorXd applyScalingFactors(const ElementId, const Eigen::VectorXd& flux) const;
+	const Eigen::VectorXd applyLIFT(const ElementId, Eigen::VectorXd& flux) const;
+
 	FiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
-	MatrixStorageLT matrixStorage_;
+
+	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;
-	DynamicMatrix refInvMass_;
+	DynamicMatrix refInvMass_; // Move to derivatives.
 	DynamicMatrix refLIFT_;
 	Connectivities connectivity_;
 	std::vector<Source::Position> positions_;
 
 };
 
-class CurvedEvolution : public mfem::TimeDependentOperator 
-{
-public:
-	static const int numberOfFieldComponents = 2;
-	static const int numberOfMaxDimensions = 3;
-
-	CurvedEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
-
-private:
-
-	mfem::FiniteElementSpace& fes_;
-	Model& model_;
-	SourcesManager& srcmngr_;
-	EvolutionOptions& opts_;
-};
 
 }

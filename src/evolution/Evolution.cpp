@@ -5,6 +5,9 @@ namespace maxwell {
 using namespace mfem;
 using namespace mfemExtension;
 
+using MatricesSet = std::set<DynamicMatrix, MatrixCompareLessThan>;
+
+
 void evalConductivity(const Vector& cond, const Vector& in, Vector& out)
 {
 	for (auto v{ 0 }; v < cond.Size(); v++) {
@@ -469,23 +472,26 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 
 }
 
-const Eigen::VectorXd HesthavenEvolution::applyScalingFactors(const ElementId e, const Eigen::VectorXd& flux) const
+const Eigen::VectorXd HesthavenEvolution::applyLIFT(const ElementId e, Eigen::VectorXd& flux) const
 {
-	const auto& fscale = hestElemStorage_[e].fscale.asDiagonal();
-	return this->refLIFT_ * (fscale * flux) / 2.0;
+	for (auto i{0}; i < flux.size(); i++) {
+		flux[i] *= hestElemStorage_[e].fscale[i] / 2.0 ;
+	}
+	return this->refLIFT_ * flux;
 }
 
-void assembleDerivativeMatrices(FiniteElementSpace& subFES, MatrixStorageLT& matStLt, HesthavenElement& hestElem)
+void storeDirectionalMatrices(FiniteElementSpace& subFES, MatricesSet& matStLt, HesthavenElement& hestElem)
 {
 	for (auto d{ X }; d <= Z; d++) {
-		auto derivativeMatrix{ toEigen(*buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix()) };
+		auto denseMat = std::make_unique<mfem::DenseMatrix>(
+			buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix());
+		auto derivativeMatrix{ toEigen(*denseMat) };
 		StorageIterator it = matStLt.find(derivativeMatrix);
 		if (it == matStLt.end()) {
 			matStLt.insert(derivativeMatrix);
 			StorageIterator it = matStLt.find(derivativeMatrix);
 			hestElem.der[d] = &(*it);
-		}
-		else {
+		} else {
 			hestElem.der[d] = &(*it);
 		}
 	}
@@ -601,7 +607,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
 
-		assembleDerivativeMatrices(subFES, matrixStorage_, hestElem);
+		storeDirectionalMatrices(subFES, matrixStorage_, hestElem);
 
 		assembleFaceInformation(subFES, hestElem);
 
@@ -704,8 +710,8 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			const auto& der1 = *hestElemStorage_[e].der[y];
 			const auto& der2 = *hestElemStorage_[e].der[z];
 
-			const Eigen::VectorXd& hResult = -1.0 * invmass * der1 * fieldsElem.e_[z] +       invmass * der2 * fieldsElem.e_[y] + applyScalingFactors(e, elemFlux.h_[x]);
-			const Eigen::VectorXd& eResult =        invmass * der1 * fieldsElem.h_[z] - 1.0 * invmass * der2 * fieldsElem.h_[y] + applyScalingFactors(e, elemFlux.e_[x]);
+			const Eigen::VectorXd& hResult = -1.0 * invmass * der1 * fieldsElem.e_[z] +       invmass * der2 * fieldsElem.e_[y] + applyLIFT(e, elemFlux.h_[x]);
+			const Eigen::VectorXd& eResult =        invmass * der1 * fieldsElem.h_[z] - 1.0 * invmass * der2 * fieldsElem.h_[y] + applyLIFT(e, elemFlux.e_[x]);
 
 			loadOutVectors(hResult, fes_, e, hOut[x]);
 			loadOutVectors(eResult, fes_, e, eOut[x]);
