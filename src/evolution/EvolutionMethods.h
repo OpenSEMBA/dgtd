@@ -13,6 +13,17 @@
 
 namespace maxwell {
 
+	struct IndexInfo {
+		IndexInfo(const int blockSize);
+		const Array<int>& getIndices(const FieldType f, const Direction d) const;
+		Array<int> Ex;
+		Array<int> Ey;
+		Array<int> Ez;
+		Array<int> Hx;
+		Array<int> Hy;
+		Array<int> Hz;
+	};
+
 	using namespace mfem;
 	//using FiniteElementIBFIOperator = std::unique_ptr<mfemExtension::BilinearFormIBFI>;
 	using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;

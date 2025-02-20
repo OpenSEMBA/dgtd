@@ -33,7 +33,7 @@ std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 		}
 		else {
-			return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+			return std::make_unique<MaxwellEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 		}
 	}
 	else {
@@ -438,7 +438,7 @@ void reassembleSpectralBdrForSubmesh(SubMesh* submesh)
 
 void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	Eigen::VectorXcd& eigenvals, 
-	Evolution& maxwellEvol)
+	MaxwellEvolution& maxwellEvol)
 {
 	auto real { toMFEMVector(eigenvals.real()) };
 	auto realPre = real;
@@ -492,7 +492,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 			GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh),GeomTagToInteriorBoundary{})
 		};
 		SourcesManager srcs{ Sources(), submeshFES, fields_ };
-		Evolution evol {
+		MaxwellEvolution evol {
 			submeshFES,
 			model,
 			srcs,

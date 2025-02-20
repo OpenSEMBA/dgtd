@@ -40,13 +40,15 @@ const FieldGridFuncs evalTimeVarFunction(const Time time, SourcesManager& sm)
 	return res;
 }
 
-Evolution::Evolution(
+MaxwellEvolution::MaxwellEvolution(
 	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 	fes_{ fes },
 	model_{ model },
 	srcmngr_{ srcmngr },
-	opts_{ options }
+	opts_{ options },
+	TFSFOperator_{ srcmngr_.getGlobalTFSFSpace()->GetNDofs()},
+	globalOperator_{ numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs() }
 {
 #ifdef SHOW_TIMER_INFORMATION
 	auto startTime{ std::chrono::high_resolution_clock::now() };
@@ -68,9 +70,9 @@ Evolution::Evolution(
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Assembling TFSF Inverse Mass Operators" << std::endl;
 #endif
-
+		std::array<FiniteElementOperator, 2> MInvTFSF;
 		for (auto f : { E, H }) {
-			MInvTFSF_[f] = buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes);
+			MInvTFSF[f] = buildInverseMassMatrix(f, modelGlobal, *globalTFSFfes);
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -80,7 +82,7 @@ Evolution::Evolution(
 #endif
 
 		for (auto f : { E, H }) {
-			MP_GTFSF_[f] = buildByMult(*MInvTFSF_[f], *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+			MP_GTFSF_[f] = buildByMult(*MInvTFSF[f], *buildZeroNormalOperator(f, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -92,7 +94,7 @@ Evolution::Evolution(
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
-					MFN_GTFSF_[f][f2][d] = buildByMult(*MInvTFSF_[f], *buildOneNormalOperator(f2, {d}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+					MFN_GTFSF_[f][f2][d] = buildByMult(*MInvTFSF[f], *buildOneNormalOperator(f2, {d}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 				}
 			}
 		}
@@ -107,7 +109,7 @@ Evolution::Evolution(
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
 					for (auto d2{ X }; d2 <= Z; d2++) {
-						MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*MInvTFSF_[f], *buildTwoNormalOperator(f2, {d, d2}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
+						MFNN_GTFSF_[f][f2][d][d2] = buildByMult(*MInvTFSF[f], *buildTwoNormalOperator(f2, {d, d2}, modelGlobal, *globalTFSFfes, opts_), *globalTFSFfes);
 					}
 				}
 			}
@@ -120,21 +122,10 @@ Evolution::Evolution(
 	std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
 #endif
 
-	for (auto f : { E, H }) {
-		MInv_[f] = buildInverseMassMatrix(f, model_, fes_);
-	}
+	IndexInfo globalId(fes_.GetNDofs());
+	std::unique_ptr<DenseMatrix> denseMat;
 
 	if (model_.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
-
-#ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
-#endif
-
-		for (auto f : { E, H }) {
-			MPB_[f] = buildByMult(*MInv_[f], *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
-		}
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -145,22 +136,44 @@ Evolution::Evolution(
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
-					MFNB_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_), fes_);
+					auto MFNB = buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_);
+					denseMat = std::make_unique<DenseMatrix>(MFNB->SpMat().ToDenseMatrix());
+					globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d), *denseMat);
 				} 
 			}
 		}
 
-#ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
-#endif
+		if (opts_.fluxType == FluxType::Upwind) {
 
-		for (auto f : { E, H }) {
-			for (auto d{ X }; d <= Z; d++) {
-				for (auto f2 : { E, H }) {
-					for (auto d2{ X }; d2 <= Z; d2++) {
-						MFNNB_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+
+			#ifdef SHOW_TIMER_INFORMATION
+			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
+			#endif
+
+			for (auto f : { E, H }) {
+				auto MPB = buildZeroNormalIBFIOperator(f, model_, fes_, opts_);
+				denseMat = std::make_unique<DenseMatrix>(MPB->SpMat().ToDenseMatrix());
+				for (auto d : { X, Y, Z }) {
+					globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f, d), *denseMat);
+				}
+			}
+
+			#ifdef SHOW_TIMER_INFORMATION
+					std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+						(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+					std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
+			#endif
+
+			for (auto f : { E, H }) {
+				for (auto d{ X }; d <= Z; d++) {
+					for (auto f2 : { E, H }) {
+						for (auto d2{ X }; d2 <= Z; d2++) {
+							auto MFNNB = buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_);
+							denseMat = std::make_unique<DenseMatrix>(MFNNB->SpMat().ToDenseMatrix());
+							globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d2), *denseMat);
+						}
 					}
 				}
 			}
@@ -175,18 +188,10 @@ Evolution::Evolution(
 
 	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
-			MS_[f][d] = buildByMult(*MInv_[f], *buildDerivativeOperator(d, fes_), fes_);
+			auto der = buildDerivativeOperator(d, fes_);
+			denseMat = std::make_unique<DenseMatrix>(der->SpMat().ToDenseMatrix());
+			globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f, d), *denseMat);
 		}
-	}
-
-#ifdef SHOW_TIMER_INFORMATION
-	std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-		(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-	std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
-#endif
-
-	for (auto f : { E, H }) {
-		MP_[f] = buildByMult(*MInv_[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
 	}
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -198,22 +203,43 @@ Evolution::Evolution(
 	for (auto f : { E, H }) {
 		for (auto d{ X }; d <= Z; d++) {
 			for (auto f2 : { E, H }) {
-				MFN_[f][f2][d] = buildByMult(*MInv_[f], *buildOneNormalOperator(f2, { d }, model_, fes_, opts_), fes_);
+				auto fluxOneNormal = buildOneNormalOperator(f2, { d }, model_, fes_, opts_);
+				denseMat = std::make_unique<DenseMatrix>(fluxOneNormal->SpMat().ToDenseMatrix());
+				globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d), *denseMat);
 			}
 		}
 	}
 
-#ifdef SHOW_TIMER_INFORMATION
-	std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-		(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-	std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
-#endif
+	if (opts_.fluxType == FluxType::Upwind) {
 
-	for (auto f : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			for (auto f2 : { E, H }) {
-				for (auto d2{ X }; d2 <= Z; d2++) {
-					MFNN_[f][f2][d][d2] = buildByMult(*MInv_[f], *buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_), fes_);
+	#ifdef SHOW_TIMER_INFORMATION
+			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
+	#endif
+
+		for (auto f : { E, H }) {
+			auto fluxZeroNormal = buildZeroNormalOperator(f, model_, fes_, opts_);
+			denseMat = std::make_unique<DenseMatrix>(fluxZeroNormal->SpMat().ToDenseMatrix());
+			for (auto d : { X, Y, Z }) {
+				globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f, d), *denseMat);
+			}
+		}
+
+	#ifdef SHOW_TIMER_INFORMATION
+			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
+	#endif
+
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto f2 : { E, H }) {
+					for (auto d2{ X }; d2 <= Z; d2++) {
+						auto fluxTwoNormal = buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_);
+						denseMat = std::make_unique<DenseMatrix>(fluxTwoNormal->SpMat().ToDenseMatrix());
+						globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d2), *denseMat);
+					}
 				}
 			}
 		}
@@ -226,10 +252,29 @@ Evolution::Evolution(
 	std::cout << std::endl;
 #endif
 
-	CND_ = buildConductivityCoefficients(model_, fes_);
+	//CND_ = buildConductivityCoefficients(model_, fes_);
+	std::array<std::unique_ptr<DenseMatrix>, 2> MInv;
+	MInv[E] = std::make_unique<DenseMatrix>(buildInverseMassMatrix(E, model_, fes_)->SpMat().ToDenseMatrix());
+	MInv[H] = std::make_unique<DenseMatrix>(buildInverseMassMatrix(H, model_, fes_)->SpMat().ToDenseMatrix());
+
+	std::unique_ptr<DenseMatrix> invMass;
+	std::unique_ptr<DenseMatrix> global = std::make_unique<DenseMatrix>(globalOperator_.ToDenseMatrix());
+	for (auto f : { E, H }) {
+		f == E ? invMass = std::make_unique<DenseMatrix>(MInv[E]) : invMass = std::make_unique<DenseMatrix>(MInv[H]);
+		for (auto d : { X, Y, Z }) {
+			const auto& nodes = globalId.getIndices(f, d);
+			for (auto r{ 0 }; r < nodes.Size(); r++) {
+				for(auto c{ 0 }; c < nodes.Size(); c++) {
+					global->Elem(nodes[r], nodes[c]) *= invMass->Elem(r, c);
+				}
+			}
+		}
+	}
+	
+
  }
 
-void Evolution::Mult(const Vector& in, Vector& out) const
+void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 {
 	const auto& dim{ fes_.GetMesh()->Dimension() };
 

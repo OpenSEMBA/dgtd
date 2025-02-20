@@ -68,6 +68,6 @@ private:
     GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
     void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
-    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, Evolution&);
+    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution&);
 };
 }

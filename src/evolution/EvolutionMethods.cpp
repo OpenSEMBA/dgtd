@@ -33,6 +33,49 @@ FluxSrcCoefficientsUpwind srcUpwindCoeff{
 	{BdrCond::TotalFieldIn      ,	{ 1.0, 1.0}},
 };
 
+IndexInfo::IndexInfo(const int blockSize) 
+{
+	this->Ex.SetSize(blockSize);
+	this->Ey.SetSize(blockSize);
+	this->Ez.SetSize(blockSize);
+	this->Hx.SetSize(blockSize);
+	this->Hy.SetSize(blockSize);
+	this->Hz.SetSize(blockSize);
+	for (auto i{ 0 }; i < blockSize; i++) {
+		this->Ex[i] = i + 0 * blockSize;
+		this->Ey[i] = i + 1 * blockSize;
+		this->Ez[i] = i + 2 * blockSize;
+		this->Hx[i] = i + 3 * blockSize;
+		this->Hy[i] = i + 4 * blockSize;
+		this->Hz[i] = i + 5 * blockSize;
+	}
+}
+
+const Array<int>& IndexInfo::getIndices(const FieldType f, const Direction d) const 
+{
+	switch (f) {
+	case E:
+		switch (d) {
+		case X:
+			return this->Ex;
+		case Y:
+			return this->Ey;
+		case Z:
+			return this->Ez;
+
+		}
+	case H:
+		switch (d) {
+		case X:
+			return this->Hx;
+		case Y:
+			return this->Hy;
+		case Z:
+			return this->Hz;
+		}
+	}
+}
+
 std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const FluxType& ft)
 {
 	std::map<BdrCond, std::vector<double>> res;

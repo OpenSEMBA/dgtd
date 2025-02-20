@@ -14,18 +14,18 @@
 namespace maxwell {
 
 
-class Evolution: public mfem::TimeDependentOperator {
+class MaxwellEvolution: public mfem::TimeDependentOperator {
 public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	Evolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+	MaxwellEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
 
 private:
 
-	std::array<FiniteElementOperator, 2> MInv_;
-	std::array<FiniteElementOperator, 2> MInvTFSF_;
+	SparseMatrix globalOperator_;
+	SparseMatrix TFSFOperator_;
 
 	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
 	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_;
