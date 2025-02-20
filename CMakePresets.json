@@ -12,7 +12,7 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "MAXWELL_USE_MFEM_AS_SUBDIRECTORY": "ON"
+        "SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY": "ON"
       }
     },
     {
@@ -20,8 +20,8 @@
       "displayName": "GNU release",
       "inherits": "default",
       "cacheVariables": {
-        "MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
-        "MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
@@ -38,8 +38,8 @@
       "displayName": "x64 Release",
       "inherits": "default",
       "cacheVariables": {
-        "MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
-        "MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Release"
       }
     }

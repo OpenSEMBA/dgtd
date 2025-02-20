@@ -2,7 +2,7 @@
   "solver_options": {
     "solver_type": "upwind",
     "final_time":  3.25,
-    "order": 3
+    "order": 2
   },
 
   "model": { 

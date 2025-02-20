@@ -14,7 +14,7 @@ namespace maxwell {
 
 std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
 {
-#ifdef MAXWELL_USE_MPI	
+#ifdef SEMBA_DGTD_ENABLE_MPI	
 	if (dynamic_cast<ParMesh*>(m) != nullptr) {
 		auto pm{ dynamic_cast<ParMesh*>(m) };
 		return std::make_unique<ParFiniteElementSpace>(pm, fec);
