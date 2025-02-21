@@ -13,15 +13,9 @@
 
 namespace maxwell {
 
-	struct IndexInfo {
-		IndexInfo(const int blockSize);
-		const Array<int>& getIndices(const FieldType f, const Direction d) const;
-		Array<int> Ex;
-		Array<int> Ey;
-		Array<int> Ez;
-		Array<int> Hx;
-		Array<int> Hy;
-		Array<int> Hz;
+	struct GlobalIndices {
+		GlobalIndices(const int blockSize);
+		std::array<std::array<mfem::Array<int>, 3>, 2> index;
 	};
 
 	using namespace mfem;

@@ -47,7 +47,7 @@ MaxwellEvolution::MaxwellEvolution(
 	model_{ model },
 	srcmngr_{ srcmngr },
 	opts_{ options },
-	TFSFOperator_{ srcmngr_.getGlobalTFSFSpace()->GetNDofs()},
+	TFSFOperator_{ 0 },
 	globalOperator_{ numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs() }
 {
 #ifdef SHOW_TIMER_INFORMATION
@@ -122,8 +122,12 @@ MaxwellEvolution::MaxwellEvolution(
 	std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
 #endif
 
-	IndexInfo globalId(fes_.GetNDofs());
-	std::unique_ptr<DenseMatrix> denseMat;
+	GlobalIndices globalId(fes_.GetNDofs());
+	std::array<FiniteElementOperator, 2> MInv;
+	MInv[E] = buildInverseMassMatrix(E, model_, fes_);
+	MInv[H] = buildInverseMassMatrix(H, model_, fes_);
+
+	DenseMatrix* denseMat;
 
 	if (model_.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
@@ -134,12 +138,23 @@ MaxwellEvolution::MaxwellEvolution(
 #endif
 
 		for (auto f : { E, H }) {
-			for (auto d{ X }; d <= Z; d++) {
-				for (auto f2 : { E, H }) {
-					auto MFNB = buildOneNormalIBFIOperator(f2, { d }, model_, fes_, opts_);
-					denseMat = std::make_unique<DenseMatrix>(MFNB->SpMat().ToDenseMatrix());
-					globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d), *denseMat);
-				} 
+			for (auto x{ X }; x <= Z; x++) {
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto intBdrFluxOneNormal = buildByMult(*MInv[f], *buildOneNormalIBFIOperator(altField(f), { x }, model_, fes_, opts_), fes_);
+				denseMat = intBdrFluxOneNormal->SpMat().ToDenseMatrix();
+				*denseMat *= -1.0 + double(f) * 2.0; //anticyclic permutations are negative for E, positive for H.
+				globalOperator_.AddSubMatrix(globalId.index[f][y], globalId.index[altField(f)][z], *denseMat);
+				delete denseMat;
+			}
+			for (auto x{ X }; x <= Z; x++) {
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto intBdrFluxOneNormal = buildByMult(*MInv[f], *buildOneNormalIBFIOperator(altField(f), { x }, model_, fes_, opts_), fes_);
+				denseMat = intBdrFluxOneNormal->SpMat().ToDenseMatrix();
+				*denseMat *= 1.0 - double(f) * 2.0; //cyclic permutations are positive for E, negative for H.
+				globalOperator_.AddSubMatrix(globalId.index[f][z], globalId.index[altField(f)][y], *denseMat); // rows = time derivative of field ; cols = field vector multiplied 
+				delete denseMat;
 			}
 		}
 
@@ -153,11 +168,13 @@ MaxwellEvolution::MaxwellEvolution(
 			#endif
 
 			for (auto f : { E, H }) {
-				auto MPB = buildZeroNormalIBFIOperator(f, model_, fes_, opts_);
-				denseMat = std::make_unique<DenseMatrix>(MPB->SpMat().ToDenseMatrix());
+				auto intBdrFluxZeroNormal = buildByMult(*MInv[f], *buildZeroNormalIBFIOperator(f, model_, fes_, opts_), fes_);
+				denseMat = intBdrFluxZeroNormal->SpMat().ToDenseMatrix();
+				*denseMat *= -1.0;
 				for (auto d : { X, Y, Z }) {
-					globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f, d), *denseMat);
+					globalOperator_.AddSubMatrix(globalId.index[f][d], globalId.index[f][d], *denseMat);
 				}
+				delete denseMat;
 			}
 
 			#ifdef SHOW_TIMER_INFORMATION
@@ -168,12 +185,11 @@ MaxwellEvolution::MaxwellEvolution(
 
 			for (auto f : { E, H }) {
 				for (auto d{ X }; d <= Z; d++) {
-					for (auto f2 : { E, H }) {
-						for (auto d2{ X }; d2 <= Z; d2++) {
-							auto MFNNB = buildTwoNormalIBFIOperator(f2, { d, d2 }, model_, fes_, opts_);
-							denseMat = std::make_unique<DenseMatrix>(MFNNB->SpMat().ToDenseMatrix());
-							globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d2), *denseMat);
-						}
+					for (auto d2{ X }; d2 <= Z; d2++) {
+						auto intBdrFluxTwoNormal = buildByMult(*MInv[f], *buildTwoNormalIBFIOperator(f, { d, d2 }, model_, fes_, opts_), fes_);
+						auto denseMat = intBdrFluxTwoNormal->SpMat().ToDenseMatrix();
+						globalOperator_.AddSubMatrix(globalId.index[f][d], globalId.index[f][d2], *denseMat); // rows = time derivative of field ; cols = field vector multiplied 
+						delete denseMat;
 					}
 				}
 			}
@@ -187,10 +203,23 @@ MaxwellEvolution::MaxwellEvolution(
 #endif
 
 	for (auto f : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			auto der = buildDerivativeOperator(d, fes_);
-			denseMat = std::make_unique<DenseMatrix>(der->SpMat().ToDenseMatrix());
-			globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f, d), *denseMat);
+		for (auto x{ X }; x <= Z; x++) { 
+			auto y = (x + 1) % 3;
+			auto z = (x + 2) % 3;
+			auto dir = buildByMult(*MInv[f], *buildDerivativeOperator(x, fes_), fes_); // Example: field E, directional x, dt Ez, applied on Hy, +1.0.
+			denseMat = dir->SpMat().ToDenseMatrix();
+			*denseMat *= 1.0 - double(f) * 2.0; //cyclic permutations are positive for E, negative for H. Cyclic implies order: dt field polariz. (z) -> direction (x) -> applied field (y).
+			globalOperator_.AddSubMatrix(globalId.index[f][z], globalId.index[altField(f)][y], *denseMat); // rows = time derivative of field ; cols = field vector multiplied 
+			delete denseMat;
+		}
+		for (auto x{ X }; x <= Z; x++) {                                               // Example: field E, directional x, dt Ey, applied on Hz, +1.0.
+			auto y = (x + 1) % 3;
+			auto z = (x + 2) % 3;
+			auto dir = buildByMult(*MInv[f], *buildDerivativeOperator(x, fes_), fes_);
+			denseMat = dir->SpMat().ToDenseMatrix();
+			*denseMat *= - 1.0 + double(f) * 2.0; //anticyclic permutations are negative for E, positive for H.
+			globalOperator_.AddSubMatrix(globalId.index[f][y], globalId.index[altField(f)][z], *denseMat);
+			delete denseMat;
 		}
 	}
 
@@ -201,12 +230,23 @@ MaxwellEvolution::MaxwellEvolution(
 #endif
 
 	for (auto f : { E, H }) {
-		for (auto d{ X }; d <= Z; d++) {
-			for (auto f2 : { E, H }) {
-				auto fluxOneNormal = buildOneNormalOperator(f2, { d }, model_, fes_, opts_);
-				denseMat = std::make_unique<DenseMatrix>(fluxOneNormal->SpMat().ToDenseMatrix());
-				globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d), *denseMat);
-			}
+		for (auto x{ X }; x <= Z; x++) {
+			auto y = (x + 1) % 3;
+			auto z = (x + 2) % 3;
+			auto fluxOneNormal = buildByMult(*MInv[f], *buildOneNormalOperator(altField(f), { x }, model_, fes_, opts_), fes_);
+			denseMat = fluxOneNormal->SpMat().ToDenseMatrix();
+			*denseMat *= 1.0 - double(f) * 2.0; //anticyclic permutations are positive for E, negative for H.
+			globalOperator_.AddSubMatrix(globalId.index[f][y], globalId.index[altField(f)][z], *denseMat);
+			delete denseMat;
+		}
+		for (auto x{ X }; x <= Z; x++) {
+			auto y = (x + 1) % 3;
+			auto z = (x + 2) % 3;
+			auto fluxOneNormal = buildByMult(*MInv[f], *buildOneNormalOperator(altField(f), { x }, model_, fes_, opts_), fes_);
+			denseMat = fluxOneNormal->SpMat().ToDenseMatrix();
+			*denseMat *= - 1.0 + double(f) * 2.0; //cyclic permutations are negative for E, positive for H.
+			globalOperator_.AddSubMatrix(globalId.index[f][z], globalId.index[altField(f)][y], *denseMat); // rows = time derivative of field ; cols = field vector multiplied 
+			delete denseMat;
 		}
 	}
 
@@ -219,11 +259,13 @@ MaxwellEvolution::MaxwellEvolution(
 	#endif
 
 		for (auto f : { E, H }) {
-			auto fluxZeroNormal = buildZeroNormalOperator(f, model_, fes_, opts_);
-			denseMat = std::make_unique<DenseMatrix>(fluxZeroNormal->SpMat().ToDenseMatrix());
+			auto fluxZeroNormal = buildByMult(*MInv[f], *buildZeroNormalOperator(f, model_, fes_, opts_), fes_);
+			denseMat = fluxZeroNormal->SpMat().ToDenseMatrix();
+			*denseMat *= -1.0;
 			for (auto d : { X, Y, Z }) {
-				globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f, d), *denseMat);
+				globalOperator_.AddSubMatrix(globalId.index[f][d], globalId.index[f][d], *denseMat);
 			}
+			delete denseMat;
 		}
 
 	#ifdef SHOW_TIMER_INFORMATION
@@ -234,16 +276,17 @@ MaxwellEvolution::MaxwellEvolution(
 
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
-				for (auto f2 : { E, H }) {
-					for (auto d2{ X }; d2 <= Z; d2++) {
-						auto fluxTwoNormal = buildTwoNormalOperator(f2, { d, d2 }, model_, fes_, opts_);
-						denseMat = std::make_unique<DenseMatrix>(fluxTwoNormal->SpMat().ToDenseMatrix());
-						globalOperator_.AddSubMatrix(globalId.getIndices(f, d), globalId.getIndices(f2, d2), *denseMat);
-					}
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					auto fluxTwoNormal = buildByMult(*MInv[f], *buildTwoNormalOperator(f, { d, d2 }, model_, fes_, opts_), fes_);
+					auto denseMat = fluxTwoNormal->SpMat().ToDenseMatrix();
+					globalOperator_.AddSubMatrix(globalId.index[f][d], globalId.index[f][d2], *denseMat); // rows = time derivative of field; cols = field vector multiplied
+					delete denseMat;
 				}
 			}
 		}
-	}
+    }
+
+	globalOperator_.Finalize();
 
 #ifdef SHOW_TIMER_INFORMATION
 	std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -253,26 +296,8 @@ MaxwellEvolution::MaxwellEvolution(
 #endif
 
 	//CND_ = buildConductivityCoefficients(model_, fes_);
-	std::array<std::unique_ptr<DenseMatrix>, 2> MInv;
-	MInv[E] = std::make_unique<DenseMatrix>(buildInverseMassMatrix(E, model_, fes_)->SpMat().ToDenseMatrix());
-	MInv[H] = std::make_unique<DenseMatrix>(buildInverseMassMatrix(H, model_, fes_)->SpMat().ToDenseMatrix());
 
-	std::unique_ptr<DenseMatrix> invMass;
-	std::unique_ptr<DenseMatrix> global = std::make_unique<DenseMatrix>(globalOperator_.ToDenseMatrix());
-	for (auto f : { E, H }) {
-		f == E ? invMass = std::make_unique<DenseMatrix>(MInv[E]) : invMass = std::make_unique<DenseMatrix>(MInv[H]);
-		for (auto d : { X, Y, Z }) {
-			const auto& nodes = globalId.getIndices(f, d);
-			for (auto r{ 0 }; r < nodes.Size(); r++) {
-				for(auto c{ 0 }; c < nodes.Size(); c++) {
-					global->Elem(nodes[r], nodes[c]) *= invMass->Elem(r, c);
-				}
-			}
-		}
-	}
-	
-
- }
+}
 
 void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 {
@@ -281,8 +306,6 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 	std::array<Vector, 3> eOld, hOld;
 	std::array<GridFunction, 3> eNew, hNew;
 	for (int d = X; d <= Z; d++) {
-		eOld[d].SetDataAndSize(in.GetData() + d * fes_.GetNDofs(), fes_.GetNDofs());
-		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
 		eNew[d].SetSpace(&fes_);
 		hNew[d].SetSpace(&fes_);
 		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
@@ -291,57 +314,7 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 		hNew[d] = 0.0;
 	}
 
-	for (int x = X; x <= Z; x++) {
-		int y = (x + 1) % 3;
-		int z = (x + 2) % 3;
-		
-		evalConductivity(CND_, eOld[x], eNew[x]);
-
-		//Centered
-		MS_[H][y]		 ->AddMult(eOld[z], hNew[x],-1.0);
-		MS_[H][z]		 ->AddMult(eOld[y], hNew[x]);
-		MS_[E][y]		 ->AddMult(hOld[z], eNew[x]);
-		MS_[E][z]		 ->AddMult(hOld[y], eNew[x],-1.0);
-		
-		MFN_[H][E][y]  	 ->AddMult(eOld[z], hNew[x], 1.0);
-		MFN_[H][E][z]	 ->AddMult(eOld[y], hNew[x],-1.0);
-		MFN_[E][H][y]  	 ->AddMult(hOld[z], eNew[x],-1.0);
-		MFN_[E][H][z]	 ->AddMult(hOld[y], eNew[x], 1.0);
-
-		if (opts_.fluxType == FluxType::Upwind) {
-
-			MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], 1.0);
-			MFNN_[H][H][Y][x]->AddMult(hOld[Y], hNew[x], 1.0);
-			MFNN_[H][H][Z][x]->AddMult(hOld[Z], hNew[x], 1.0);
-			MP_[H]			 ->AddMult(hOld[x], hNew[x],-1.0);
-			
-			MFNN_[E][E][Y][x]->AddMult(eOld[Y], eNew[x], 1.0);
-			MFNN_[E][E][X][x]->AddMult(eOld[X], eNew[x], 1.0);
-			MFNN_[E][E][Z][x]->AddMult(eOld[Z], eNew[x], 1.0);
-			MP_[E]			 ->AddMult(eOld[x], eNew[x],-1.0);
-		}
-
-		if (model_.getInteriorBoundaryToMarker().size() != 0) {
-			
-			MFNB_[H][E][y]->AddMult(eOld[z], hNew[x]);
-			MFNB_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-			MFNB_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-			MFNB_[E][H][z]->AddMult(hOld[y], eNew[x]);
-
-			if (opts_.fluxType == FluxType::Upwind) {
-
-				MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
-				MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
-				MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
-				MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
-
-				MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
-				MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
-				MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
-				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
-			}
-		}
-	}
+	globalOperator_.AddMult(in, out);
 
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<Planewave*>(source.get())) {

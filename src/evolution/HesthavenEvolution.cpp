@@ -146,12 +146,12 @@ void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, co
 {
 	for (auto d{ X }; d <= Z; d++) {
 		auto denseMat = buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix();
-		DynamicMatrix dirMat{ refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol };
+		DynamicMatrix dirMat = refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol;
 		delete denseMat;
 		StorageIterator it = matrixStorage_.find(dirMat);
 		if (it == matrixStorage_.end()) {
 			matrixStorage_.insert(dirMat);
-			StorageIterator it = matrixStorage_.find(dirMat);
+			it = matrixStorage_.find(dirMat);
 			hestElem.dir[d] = &(*it);
 		}
 		else {
