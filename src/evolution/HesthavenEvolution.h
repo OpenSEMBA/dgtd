@@ -5,8 +5,8 @@
 #include "components/Model.h"
 #include "components/SubMesher.h"
 
-#include "evolution/EvolutionMethods.h"
-#include "evolution/HesthavenEvolutionTools.h"
+#include "evolution/MaxwellEvolutionMethods.h"
+#include "evolution/HesthavenEvolutionMethods.h"
 
 namespace maxwell {
 

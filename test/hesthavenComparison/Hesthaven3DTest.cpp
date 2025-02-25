@@ -3,8 +3,8 @@
 #include "TestUtils.h"
 #include "HesthavenFunctions.h"
 #include "math/EigenMfemTools.h"
-#include "evolution/EvolutionMethods.h"
-#include "evolution/HesthavenEvolutionTools.h"
+#include "evolution/MaxwellEvolutionMethods.h"
+#include "evolution/HesthavenEvolutionMethods.h"
 
 using namespace maxwell;
 using namespace mfem;

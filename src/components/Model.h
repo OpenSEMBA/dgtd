@@ -78,6 +78,7 @@ public:
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
+	const InteriorBoundaryToMarker& getInteriorBoundaryToMarker() const { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }

@@ -2,7 +2,8 @@
 
 #include "HesthavenFunctions.h"
 #include "math/EigenMfemTools.h"
-#include "evolution/EvolutionMethods.h"
+#include "evolution/MaxwellEvolutionMethods.h"
+#include "components/DGOperatorFactory.h"
 
 using namespace mfem;
 using namespace maxwell;
@@ -105,17 +106,16 @@ TEST_F(MFEMHesthaven1D, DOperator_O4)
 TEST_F(MFEMHesthaven1D, MSOperator)
 {
 	setFES(2, 4);
-	auto MS_MFEM4E = toEigen(*buildByMult(
-		*buildInverseMassMatrix(E, Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{})), *fes_),
-		*buildDerivativeOperator(X, *fes_), *fes_)
-		.get()->SpMat().ToDenseMatrix());
+	ProblemDescription pd(Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{})), Probes{}, Sources{}, EvolutionOptions{});
+	DGOperatorFactory dgops4E(pd, *fes_);
+	
+	auto MS_MFEM4E = toEigen(*buildByMult(*dgops4E.buildInverseMassMatrixSubOperator(E), *dgops4E.buildDerivativeSubOperator(X), *fes_)->SpMat().ToDenseMatrix());
 	auto MS_Hesthaven4E = buildMatrixForMSTest4E();
 
 	setFES(2, 3);
-	auto MS_MFEM3E = toEigen(*buildByMult(
-		*buildInverseMassMatrix(E, Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{})), *fes_),
-		*buildDerivativeOperator(X, *fes_), *fes_)
-		.get()->SpMat().ToDenseMatrix());
+	pd = ProblemDescription(Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{})), Probes{}, Sources{}, EvolutionOptions{});
+	DGOperatorFactory dgops3E(pd, *fes_);
+	auto MS_MFEM3E = toEigen(*buildByMult(*dgops3E.buildInverseMassMatrixSubOperator(E), *dgops3E.buildDerivativeSubOperator(X), *fes_)->SpMat().ToDenseMatrix());
 	Eigen::MatrixXd MS_Hesthaven3E{
 		{  9.0, -12.0,  3.0,  0.0,   0.0,  0.0,  0.0,   0.0,  0.0},
 		{  3.0,   0.0, -3.0,  0.0,   0.0,  0.0,  0.0,   0.0,  0.0},

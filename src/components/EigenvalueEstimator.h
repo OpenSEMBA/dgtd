@@ -3,8 +3,10 @@
 
 #include <gtest/gtest.h>
 
-#include "evolution/EvolutionMethods.h"
+#include "evolution/MaxwellEvolutionMethods.h"
 #include <solver/Solver.h>
+
+#include "components/DGOperatorFactory.h"
 
 #include <mfem.hpp>
 

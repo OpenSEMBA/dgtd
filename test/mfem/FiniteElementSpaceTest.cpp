@@ -277,9 +277,9 @@ TEST_F(FiniteElementSpaceTest, MeshBoundaries)
 	Mesh meshAuto{ Mesh::MakeCartesian2D(nx, ny, Element::QUADRILATERAL, generateEdges) };
 	Mesh meshManual(*getFilename("square3x3.mesh").c_str(), 1, 1);
 
-	auto fec = new DG_FECollection(order, dimension, BasisType::GaussLegendre);
-	auto fesAuto = new FiniteElementSpace(&meshAuto, fec);
-	auto fesManual = new FiniteElementSpace(&meshManual, fec);
+	std::unique_ptr<DG_FECollection> fec = std::make_unique<DG_FECollection>(order, dimension, BasisType::GaussLegendre);
+	auto fesAuto = new FiniteElementSpace(&meshAuto, fec.get());
+	auto fesManual = new FiniteElementSpace(&meshManual, fec.get());
 
 	Array<int> ess_tdof_list_auto;
 	if (meshAuto.bdr_attributes.Size())
@@ -298,48 +298,6 @@ TEST_F(FiniteElementSpaceTest, MeshBoundaries)
 	}
 
 	EXPECT_EQ(ess_tdof_list_auto, ess_tdof_list_manual);
-}
-
-TEST_F(FiniteElementSpaceTest, printGLVISDataForBasisFunctionNodes)
-{
-	/*This test creates files for the Basis Functions, for later visualization 
-	through GLVIS.
-	
-	First, the basic variables and objects to create a FiniteElementSpace are
-	declared.
-
-	Then, the number of VDoFs are extracted from the fes.
-
-	Lastly, for each DoF, a 1.0 is assigned to only one of the nodes, while the rest
-	are left at 0.0, then a file is written through the GridFunction SaveData function
-	for each of the Basis Functions. The mesh too, is saved as a file.
-	*/
-	
-	const int dimension = 1;
-	const int order = 2;
-
-	Vector nodalVector(order + 1);
-	Vector dofVector(order + 1);
-	Array<int> vdofs;
-
-	Mesh mesh = Mesh::MakeCartesian1D(1);
-	auto fecDG = new DG_FECollection(order, dimension);
-	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
-
-	int ndof = fesDG->GetVSize();
-	fesDG->GetElementVDofs(0, vdofs);
-
-	GridFunction** solution = new GridFunction * [ndof];
-
-	for (int i = 0; i < ndof; i++) {
-		solution[i] = new GridFunction(fesDG);
-		*solution[i] = 0.0;
-		(*solution[i])(vdofs[i]) = 1.0;
-		std::string stringName = "L2_O" + std::to_string(order) + "_SEG_N" + std::to_string(i) + ".gf";
-		SaveData(*solution[i], stringName.c_str());
-	}
-	SaveData(**solution, "save.gf");
-	mesh.Save("mesh.mesh");
 }
 
 TEST_F(FiniteElementSpaceTest, DGWithWedgeElement)

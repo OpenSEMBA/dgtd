@@ -301,10 +301,10 @@ TEST_F(MeshTest, DataValueOutsideNodesForOneElementMeshes)
 	the values to be 2 times the xVal.*/
 	
 	Mesh mesh = Mesh::MakeCartesian1D(1);
-	auto fecDG = new DG_FECollection(1, 1, BasisType::GaussLobatto);
-	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
+	std::unique_ptr<DG_FECollection> fecDG = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
+	auto fesDG = FiniteElementSpace(&mesh, fecDG.get());
 
-	GridFunction solution{ fesDG };
+	GridFunction solution(&fesDG);
 	FunctionCoefficient fc{ linearFunction };
 	solution.ProjectCoefficient(fc);
 	IntegrationPoint integPoint;
