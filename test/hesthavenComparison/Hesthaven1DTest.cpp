@@ -108,14 +108,17 @@ TEST_F(MFEMHesthaven1D, MSOperator)
 	setFES(2, 4);
 	Probes probes;
 	Sources sources;
-	ProblemDescription pd(Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{})), probes, sources, EvolutionOptions{});
+	Model model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{}));
+	EvolutionOptions opts;
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops4E(pd, *fes_);
 	
 	auto MS_MFEM4E = toEigen(*buildByMult(*dgops4E.buildInverseMassMatrixSubOperator(E), *dgops4E.buildDerivativeSubOperator(X), *fes_)->SpMat().ToDenseMatrix());
 	auto MS_Hesthaven4E = buildMatrixForMSTest4E();
 
 	setFES(2, 3);
-	pd = ProblemDescription(Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{})), probes, sources, EvolutionOptions{});
+	model = Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{}));
+	pd = ProblemDescription(model, probes, sources, opts);
 	DGOperatorFactory dgops3E(pd, *fes_);
 	auto MS_MFEM3E = toEigen(*buildByMult(*dgops3E.buildInverseMassMatrixSubOperator(E), *dgops3E.buildDerivativeSubOperator(X), *fes_)->SpMat().ToDenseMatrix());
 	Eigen::MatrixXd MS_Hesthaven3E{
