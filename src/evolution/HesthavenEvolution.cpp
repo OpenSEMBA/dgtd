@@ -145,7 +145,8 @@ double getReferenceVolume(const Element::Type geom)
 void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement& hestElem)
 {
 	Model model(*subFES.GetMesh(), GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo{});
-	ProblemDescription pd(model, Probes{}, srcmngr_.sources, opts_);
+	Probes probes;
+	ProblemDescription pd(model, probes, srcmngr_.sources, opts_);
 	DGOperatorFactory dgops(pd, subFES);
 	for (auto d{ X }; d <= Z; d++) {
 		auto denseMat = dgops.buildDerivativeSubOperator(d)->SpMat().ToDenseMatrix();

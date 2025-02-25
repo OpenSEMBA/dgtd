@@ -46,7 +46,9 @@ EigenvalueEstimator::EigenvalueEstimator(
 
 	mat_.setConstant(0.0);
 
-	ProblemDescription pd(model, Probes{}, Sources{}, opts_);
+	Probes probes;
+	Sources sources;
+	ProblemDescription pd(model, probes, sources, opts_);
 	DGOperatorFactory dgops(pd, fes_);
 
 	auto invM_E{ toEigen(*dgops.buildInverseMassMatrixSubOperator(E)->SpMat().ToDenseMatrix()) };

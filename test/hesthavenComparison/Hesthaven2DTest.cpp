@@ -38,6 +38,9 @@ protected:
 
 	double tol_ = 1e-4;
 	double hesthaven_triangle_scaling_factor = 0.25;
+	
+	Probes probes;
+	Sources sources;
 
 	SparseMatrix operatorToSparseMatrix(const Operator* op)
 	{
@@ -249,7 +252,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
 
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMP = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildZeroNormalSubOperator(E), fes)->SpMat().ToDenseMatrix());
@@ -284,7 +287,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
 
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, {X}), fes)->SpMat().ToDenseMatrix());
@@ -318,7 +321,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, { Y }), fes)->SpMat().ToDenseMatrix());
@@ -352,7 +355,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildOneNormalSubOperator(E, {Y}), fes)->SpMat().ToDenseMatrix());
@@ -386,7 +389,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildOneNormalSubOperator(E, { X }), fes)->SpMat().ToDenseMatrix());
@@ -421,7 +424,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
 
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFNN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { X, X }), fes)->SpMat().ToDenseMatrix());
@@ -456,7 +459,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
 
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFNN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { X, Y }), fes)->SpMat().ToDenseMatrix());
@@ -491,7 +494,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
 
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFNN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { Y, X }), fes)->SpMat().ToDenseMatrix());
@@ -526,7 +529,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
 
-	ProblemDescription pd(model, Probes{}, Sources{}, opts);
+	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
 	auto EigenMFNN = toEigen(*buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { Y, Y }), fes)->SpMat().ToDenseMatrix());

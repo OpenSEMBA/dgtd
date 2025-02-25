@@ -25,6 +25,7 @@ GlobalEvolution::GlobalEvolution(
 	std::cout << std::endl;
 #endif
 
+	Probes probes;
 	if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
 
 		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
@@ -33,15 +34,15 @@ GlobalEvolution::GlobalEvolution(
 		auto tfsfMesh = globalTFSFfes->GetMesh();
 
 		Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-
-		ProblemDescription tfsfpd(tfsfModel, Probes{}, srcmngr_.sources, opts_);
+		
+		ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
 		DGOperatorFactory tfsfops(tfsfpd, *globalTFSFfes);
 
 		TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
 
 	}
 
-	ProblemDescription pd(model_, Probes{}, srcmngr_.sources, opts_);
+	ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
 	DGOperatorFactory dgops(pd, fes_);
 
 	globalOperator_ = dgops.buildGlobalOperator();
