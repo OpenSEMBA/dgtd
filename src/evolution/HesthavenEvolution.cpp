@@ -4,7 +4,7 @@ namespace maxwell {
 
 using MatricesSet = std::set<DynamicMatrix, MatrixCompareLessThan>;
 
-DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
+static DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 {
 	BilinearForm bf(&fes);
 	ConstantCoefficient one(1.0);
@@ -159,7 +159,7 @@ void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, co
 		}
 		else {
 			hestElem.dir[d] = &(*it);
-		}
+		} 
 	}
 }
 
