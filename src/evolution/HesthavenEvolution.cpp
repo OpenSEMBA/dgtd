@@ -232,6 +232,27 @@ std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndLinea
 	return res;
 }
 
+void HesthavenEvolution::checkForTFSFInCurvedElements()
+{
+	if (model_.getTotalFieldScatteredFieldToMarker().size()) {
+		for (const auto& [k, marker] : model_.getTotalFieldScatteredFieldToMarker()) {
+			for (auto b{ 0 }; b < fes_.GetNBE(); b++) {
+				if (marker[model_.getMesh().GetBdrAttribute(b) - 1] == 1) {
+					auto be_trans{ getFaceElementTransformation(model_.getMesh(), b) };
+					if (curvedElements_.find(be_trans->Elem1No) != curvedElements_.end()) {
+						throw std::runtime_error("TFSF defined on curved elements is not supported.");
+					}
+					if (be_trans->Elem2No != -1) {
+						if (curvedElements_.find(be_trans->Elem2No) != curvedElements_.end()) {
+							throw std::runtime_error("TFSF defined on curved elements is not supported.");
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
 	fes_(fes),
@@ -253,7 +274,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	linearElements_ = elemOrderList.first;
 	curvedElements_ = elemOrderList.second;
 
-	mesh = Mesh(model_.getMesh());
+	checkForTFSFInCurvedElements();
 
 	hestElemLinearStorage_.resize(cmesh->GetNE());
 

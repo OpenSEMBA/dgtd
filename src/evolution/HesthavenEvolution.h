@@ -29,6 +29,7 @@ private:
 
 	void evaluateTFSF(HesthavenFields& jumps) const;
 	void storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement&);
+	void checkForTFSFInCurvedElements();
 	
 	const Eigen::VectorXd applyLIFT(const ElementId, Eigen::VectorXd& flux) const;
 	
