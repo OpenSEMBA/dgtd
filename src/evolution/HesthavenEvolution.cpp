@@ -4,7 +4,7 @@ namespace maxwell {
 
 using MatricesSet = std::set<DynamicMatrix, MatrixCompareLessThan>;
 
-DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
+static DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 {
 	BilinearForm bf(&fes);
 	ConstantCoefficient one(1.0);
@@ -144,19 +144,23 @@ double getReferenceVolume(const Element::Type geom)
 
 void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement& hestElem)
 {
+	Model model(*subFES.GetMesh(), GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo{});
+	Probes probes;
+	ProblemDescription pd(model, probes, srcmngr_.sources, opts_);
+	DGOperatorFactory dgops(pd, subFES);
 	for (auto d{ X }; d <= Z; d++) {
-		auto denseMat = buildDerivativeOperator(d, subFES)->SpMat().ToDenseMatrix();
-		DynamicMatrix dirMat{ refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol };
+		auto denseMat = dgops.buildDerivativeSubOperator(d)->SpMat().ToDenseMatrix();
+		DynamicMatrix dirMat = refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol;
 		delete denseMat;
 		StorageIterator it = matrixStorage_.find(dirMat);
 		if (it == matrixStorage_.end()) {
 			matrixStorage_.insert(dirMat);
-			StorageIterator it = matrixStorage_.find(dirMat);
+			it = matrixStorage_.find(dirMat);
 			hestElem.dir[d] = &(*it);
 		}
 		else {
 			hestElem.dir[d] = &(*it);
-		}
+		} 
 	}
 }
 

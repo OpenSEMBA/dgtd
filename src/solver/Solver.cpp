@@ -1,13 +1,5 @@
 #include "Solver.h"
 
-#include "components/SubMesher.h"
-#include "math/PhysicalConstants.h"
-
-#include <fstream>
-#include <iostream>
-#include <algorithm>
-#include <chrono>
-
 using namespace mfem;
 
 namespace maxwell {
@@ -33,7 +25,8 @@ std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 		}
 		else {
-			return std::make_unique<Evolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+			ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
+			return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);
 		}
 	}
 	else {
@@ -354,31 +347,35 @@ Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh
 	auto numberofMaxDimensions = 3;
 	local.resize(numberOfFieldComponents * numberofMaxDimensions * subfes.GetNDofs(), 
 		numberOfFieldComponents * numberofMaxDimensions * subfes.GetNDofs());
+
+	EvolutionOptions localopts(opts);
+	ProblemDescription pd(submodel, probesManager_.probes, sourcesManager_.sources, localopts);
+	DGOperatorFactory dgops(pd, subfes);
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildDerivativeSubOperator(y), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildDerivativeSubOperator(z), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildDerivativeSubOperator(y), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildDerivativeSubOperator(z), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
 
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildOneNormalSubOperator(E, { y }), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildOneNormalSubOperator(E, { z }), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, { y }), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
+		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, { z }), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
 
 		if (opts.fluxType == FluxType::Upwind) {
 
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildZeroNormalOperator(H, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildZeroNormalOperator(E, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildZeroNormalSubOperator(H), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildZeroNormalSubOperator(E), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
 
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { X, x }), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { Y, x }), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { Z, x }), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildTwoNormalSubOperator(E, { X, x }), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildTwoNormalSubOperator(E, { Y, x }), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
+			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildTwoNormalSubOperator(E, { Z, x }), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
 
 		}
 
@@ -438,7 +435,7 @@ void reassembleSpectralBdrForSubmesh(SubMesh* submesh)
 
 void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	Eigen::VectorXcd& eigenvals, 
-	Evolution& maxwellEvol)
+	MaxwellEvolution& maxwellEvol)
 {
 	auto real { toMFEMVector(eigenvals.real()) };
 	auto realPre = real;
@@ -492,12 +489,8 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 			GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh),GeomTagToInteriorBoundary{})
 		};
 		SourcesManager srcs{ Sources(), submeshFES, fields_ };
-		Evolution evol {
-			submeshFES,
-			model,
-			srcs,
-			opts_.evolution
-		};
+		ProblemDescription pd(model, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
+		MaxwellEvolution evol(pd, submeshFES, sourcesManager_);
 		evaluateStabilityByEigenvalueEvolutionFunction(eigenvals, evol);
 	}
 }

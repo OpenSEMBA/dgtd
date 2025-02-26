@@ -97,7 +97,7 @@ TEST_F(LinearFormExtensionTest, checkLinearFormFunctionUsage)
 	m.Finalize();
 	b.Assemble();
 	
-	ODESolver* odeSolver = new RK4Solver ;
+	std::unique_ptr<ODESolver> odeSolver = std::make_unique<RK4Solver>() ;
 
 	std::unique_ptr<TimeDependentOperator> evol = std::make_unique<SimpleFEEvol>(m, b);
 	
