@@ -121,7 +121,7 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 const Eigen::VectorXd HesthavenEvolution::applyLIFT(const ElementId e, Eigen::VectorXd& flux) const
 {
 	for (auto i{ 0 }; i < flux.size(); i++) {
-		flux[i] *= hestElemStorage_[e].fscale[i] / 2.0;
+		flux[i] *= hestElemLinearStorage_[e].fscale[i] / 2.0;
 	}
 	return this->refLIFT_ * flux;
 }
@@ -196,7 +196,7 @@ void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem
 	}
 }
 
-std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndStraightElementsInfo(const FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos)
+std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndLinearElementsLists(const FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos)
 {
 	Mesh mesh_p1(*fes.GetMesh());
 	FiniteElementSpace fes_p1(&mesh_p1, fes.FEColl());
@@ -249,13 +249,13 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	auto attMap{ mapOriginalAttributes(model_.getMesh()) };
 
 	positions_ = buildDoFPositions(fes_);
-	auto elemOrderList = initCurvedAndStraightElementsInfo(fes_, positions_);
+	auto elemOrderList = initCurvedAndLinearElementsLists(fes_, positions_);
 	linearElements_ = elemOrderList.first;
 	curvedElements_ = elemOrderList.second;
 
 	mesh = Mesh(model_.getMesh());
 
-	hestElemStorage_.resize(cmesh->GetNE());
+	hestElemLinearStorage_.resize(cmesh->GetNE());
 
 	bool allElementsSameGeomType = true;
 	{
@@ -276,7 +276,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		refLIFT_ = refInvMass * assembleHesthavenRefElemEmat(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
 	}
 
-	hestElemStorage_.resize(linearElements_.Size());
+	hestElemLinearStorage_.resize(linearElements_.Size());
 	for (const auto& e : linearElements_)
 	{
 		HesthavenElement hestElem;
@@ -299,7 +299,31 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 		storeFaceInformation(subFES, hestElem);
 
-		hestElemStorage_[e] = hestElem;
+		hestElemLinearStorage_[e] = hestElem;
+	}
+	
+	if (curvedElements_.size()) {
+	
+		hestElemCurvedStorage_.resize(curvedElements_.size());
+		Probes probes;
+		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
+		DGOperatorFactory dgops(pd, fes_);
+		auto global = dgops.buildGlobalOperator();
+		for (const auto& [e, dofs]: curvedElements_) {
+			HesthavenCurvedElement hestCurElem;
+			hestCurElem.id = e;
+			hestCurElem.type = cmesh->GetElementType(e);
+			hestCurElem.dofs = dofs;
+			SparseMatrix spmat = SparseMatrix(dofs.Size(), numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs());
+			Array<int> cols; 
+			Vector vals;
+			for (auto d{ 0 }; d < dofs.Size(); d++) {
+				global->GetRow(dofs[d], cols, vals);
+				spmat.AddRow(d, cols, vals);
+			}
+			hestCurElem.matrix = spmat;
+			hestElemCurvedStorage_[e] = hestCurElem;
+		}
 	}
 
 }
@@ -355,9 +379,9 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //
 
-	for (auto e{ 0 }; e < fes_.GetNE(); e++) {
+	for (auto e{ 0 }; e < linearElements_.Size(); e++) {
 
-		auto elemFluxSize{ hestElemStorage_[e].fscale.size() };
+		auto elemFluxSize{ hestElemLinearStorage_[e].fscale.size() };
 
 		// Dof ordering will always be incremental due to L2 space (i.e: element 0 will have 0, 1, 2... element 1 will have 3, 4, 5...)
 
@@ -368,8 +392,8 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 		ndotdH.setZero(); ndotdE.setZero();
 
 		for (int d = X; d <= Z; d++) {
-			ndotdH += hestElemStorage_[e].normals[d].asDiagonal() * jumpsElem.h_[d];
-			ndotdE += hestElemStorage_[e].normals[d].asDiagonal() * jumpsElem.e_[d];
+			ndotdH += hestElemLinearStorage_[e].normals[d].asDiagonal() * jumpsElem.h_[d];
+			ndotdE += hestElemLinearStorage_[e].normals[d].asDiagonal() * jumpsElem.e_[d];
 		}
 
 		HesthavenFields elemFlux(elemFluxSize);
@@ -378,9 +402,9 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const Eigen::VectorXd& norx = hestElemStorage_[e].normals[x];
-			const Eigen::VectorXd& nory = hestElemStorage_[e].normals[y];
-			const Eigen::VectorXd& norz = hestElemStorage_[e].normals[z];
+			const Eigen::VectorXd& norx = hestElemLinearStorage_[e].normals[x];
+			const Eigen::VectorXd& nory = hestElemLinearStorage_[e].normals[y];
+			const Eigen::VectorXd& norz = hestElemLinearStorage_[e].normals[z];
 
 			elemFlux.h_[x] = -1.0 * nory.asDiagonal() * jumpsElem.e_[z] +       norz.asDiagonal() * jumpsElem.e_[y] + alpha * (jumpsElem.h_[x] - ndotdH.asDiagonal() * norx);
 			elemFlux.e_[x] =        nory.asDiagonal() * jumpsElem.h_[z] - 1.0 * norz.asDiagonal() * jumpsElem.h_[y] + alpha * (jumpsElem.e_[x] - ndotdE.asDiagonal() * norx);
@@ -391,8 +415,8 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const DynamicMatrix& dir1 = *hestElemStorage_[e].dir[y];
-			const DynamicMatrix& dir2 = *hestElemStorage_[e].dir[z];
+			const DynamicMatrix& dir1 = *hestElemLinearStorage_[e].dir[y];
+			const DynamicMatrix& dir2 = *hestElemLinearStorage_[e].dir[z];
 
 			const Eigen::VectorXd& hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(e, elemFlux.h_[x]);
 			const Eigen::VectorXd& eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(e, elemFlux.e_[x]);
@@ -401,6 +425,10 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 			loadOutVectors(eResult, fes_, e, eOut[x]);
 		}
 
+	}
+
+	for (auto e{ 0 }; e < curvedElements_.size(); e++) {
+		hestElemCurvedStorage_[e].matrix.AddMult(in, out);
 	}
 
 }

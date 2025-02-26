@@ -723,7 +723,7 @@ TEST_F(MeshTest, IdentifyCurvedElements_2D)
 	DG_FECollection fec_p2(2, mesh_p2.Dimension(), BasisType::GaussLobatto);
 	FiniteElementSpace fes_p2(&mesh_p2, &fec_p2);
 	
-	auto lists{ ::initCurvedAndStraightElementsInfo(fes_p2, buildDoFPositions(fes_p2)) };
+	auto lists{ ::initCurvedAndLinearElementsLists(fes_p2, buildDoFPositions(fes_p2)) };
 	Array<ElementId> curvedElements;
 	for (const auto& [k, v] : lists.second) {
 		curvedElements.Append(k);

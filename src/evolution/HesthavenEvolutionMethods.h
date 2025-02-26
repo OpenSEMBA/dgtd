@@ -59,8 +59,8 @@ namespace maxwell {
 	struct HesthavenCurvedElement {
 		ElementId id;
 		Element::Type type;
-		Nodes dofs;
-		std::unique_ptr<SparseMatrix> matrix;
+		Array<int> dofs;
+		SparseMatrix matrix;
 	};
 
 	struct HesthavenElement {

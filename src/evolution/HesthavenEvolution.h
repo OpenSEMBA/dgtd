@@ -12,7 +12,7 @@ namespace maxwell {
 
 	using straightElemList = mfem::Array<ElementId>;
 	using curvedElemMap = std::map<ElementId, mfem::Array<NodeId>>;
-	std::pair<straightElemList, curvedElemMap> initCurvedAndStraightElementsInfo(const mfem::FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos);
+	std::pair<straightElemList, curvedElemMap> initCurvedAndLinearElementsLists(const mfem::FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos);
 
 class HesthavenEvolution : public mfem::TimeDependentOperator
 {
@@ -23,7 +23,7 @@ public:
 	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
 
-	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemStorage_[e]; }
+	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemLinearStorage_[e]; }
 
 private:
 
@@ -41,7 +41,8 @@ private:
 	std::map<ElementId, Array<NodeId>> curvedElements_;
 
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
-	std::vector<HesthavenElement> hestElemStorage_;
+	std::vector<HesthavenElement> hestElemLinearStorage_;
+	std::vector<HesthavenCurvedElement> hestElemCurvedStorage_;
 	DynamicMatrix refLIFT_;
 	Connectivities connectivity_;
 	std::vector<Source::Position> positions_;
