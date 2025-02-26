@@ -10,6 +10,10 @@
 
 namespace maxwell {
 
+	using straightElemList = mfem::Array<ElementId>;
+	using curvedElemMap = std::map<ElementId, mfem::Array<NodeId>>;
+	std::pair<straightElemList, curvedElemMap> initCurvedAndStraightElementsInfo(const mfem::FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos);
+
 class HesthavenEvolution : public mfem::TimeDependentOperator
 {
 public:
@@ -32,6 +36,9 @@ private:
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
+
+	Array<ElementId> linearElements_;
+	std::map<ElementId, Array<NodeId>> curvedElements_;
 
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
 	std::vector<HesthavenElement> hestElemStorage_;

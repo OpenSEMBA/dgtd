@@ -196,6 +196,42 @@ void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem
 	}
 }
 
+std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndStraightElementsInfo(const FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos)
+{
+	Mesh mesh_p1(*fes.GetMesh());
+	FiniteElementSpace fes_p1(&mesh_p1, fes.FEColl());
+
+	mesh_p1.SetCurvature(1);
+
+	const auto& pos_cur = curved_pos;
+	const auto pos_lin = buildDoFPositions(fes_p1);
+
+	double tol{ 1e-5 };
+	std::pair<Array<ElementId>, std::map<ElementId, Array<NodeId>>> res;
+	for (auto e{ 0 }; e < mesh_p1.GetNE(); e++) {
+		Array<int> elemdofs_p1, elemdofs_p2;
+		fes_p1.GetElementDofs(e, elemdofs_p1);
+		fes   .GetElementDofs(e, elemdofs_p2);
+		MFEM_ASSERT(elemdofs_p1, elemdofs_p2);
+		auto isCurved = false;
+		for (auto d{ 0 }; d < elemdofs_p1.Size(); d++) {
+			if (std::abs(pos_lin[elemdofs_p1[d]][0] - pos_cur[elemdofs_p2[d]][0]) > tol ||
+				std::abs(pos_lin[elemdofs_p1[d]][1] - pos_cur[elemdofs_p2[d]][1]) > tol ||
+				std::abs(pos_lin[elemdofs_p1[d]][2] - pos_cur[elemdofs_p2[d]][2]) > tol) 
+			{
+				isCurved = true;
+			}
+		}
+		if (isCurved) {
+			res.second[e] = elemdofs_p2;
+		}
+		else {
+			res.first.Append(e);
+		}
+	}
+	return res;
+}
+
 HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
 	fes_(fes),
@@ -212,36 +248,36 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
 	auto attMap{ mapOriginalAttributes(model_.getMesh()) };
 
-	{
-		if (model_.getTotalFieldScatteredFieldToMarker().size() != 0) {
-			positions_ = buildDoFPositions(fes_);
-		}
-	}
+	positions_ = buildDoFPositions(fes_);
+	auto elemOrderList = initCurvedAndStraightElementsInfo(fes_, positions_);
+	linearElements_ = elemOrderList.first;
+	curvedElements_ = elemOrderList.second;
 
 	mesh = Mesh(model_.getMesh());
 
 	hestElemStorage_.resize(cmesh->GetNE());
 
-	bool allElementsSameGeom = true;
+	bool allElementsSameGeomType = true;
 	{
-		const auto firstElemGeom = cmesh->GetElementGeometry(0);
+		const auto firstElemGeomType = cmesh->GetElementGeometry(0);
 		for (auto e{ 0 }; e < cmesh->GetNE(); e++)
 		{
-			if (firstElemGeom != cmesh->GetElementGeometry(e))
+			if (firstElemGeomType != cmesh->GetElementGeometry(e))
 			{
-				allElementsSameGeom = false;
+				allElementsSameGeomType = false;
 			}
 		}
 	}
 
 	DynamicMatrix refInvMass;
-	if (allElementsSameGeom)
+	if (allElementsSameGeomType)
 	{
 		refInvMass = assembleHesthavenRefElemInvMassMatrix(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
 		refLIFT_ = refInvMass * assembleHesthavenRefElemEmat(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
 	}
 
-	for (auto e{ 0 }; e < cmesh->GetNE(); e++)
+	hestElemStorage_.resize(linearElements_.Size());
+	for (const auto& e : linearElements_)
 	{
 		HesthavenElement hestElem;
 		hestElem.id = e;
@@ -264,7 +300,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		storeFaceInformation(subFES, hestElem);
 
 		hestElemStorage_[e] = hestElem;
-
 	}
 
 }

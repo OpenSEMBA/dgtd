@@ -56,6 +56,13 @@ namespace maxwell {
 
 	using StorageIterator = std::set<DynamicMatrix, MatrixCompareLessThan>::iterator;
 
+	struct HesthavenCurvedElement {
+		ElementId id;
+		Element::Type type;
+		Nodes dofs;
+		std::unique_ptr<SparseMatrix> matrix;
+	};
+
 	struct HesthavenElement {
 		ElementId id;
 		Element::Type type;
