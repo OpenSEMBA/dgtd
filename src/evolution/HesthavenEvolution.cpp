@@ -168,6 +168,7 @@ void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem
 {
 
 	int numFaces, numNodesAtFace;
+	subFES.GetMesh()->SetCurvature(1);
 	const auto& dim = subFES.GetMesh()->Dimension();
 	dim == 2 ? numFaces = subFES.GetMesh()->GetNEdges() : numFaces = subFES.GetMesh()->GetNFaces();
 	dim == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
@@ -175,11 +176,13 @@ void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem
 	initFscale(hestElem, numFaces * numNodesAtFace);
 	auto J{ subFES.GetMesh()->GetElementTransformation(0)->Weight() };
 
+	ElementTransformation* faceTrans;
 	for (auto f{ 0 }; f < numFaces; f++) {
 
 		Vector normal(dim);
-		ElementTransformation* faceTrans;
 		dim == 2 ? faceTrans = subFES.GetMesh()->GetEdgeTransformation(f) : faceTrans = subFES.GetMesh()->GetFaceTransformation(f);
+		auto ir{ &IntRules.Get(faceTrans->GetGeometryType(), faceTrans->OrderW() + 2 * faceTrans->Order()) };
+		faceTrans->SetIntPoint(&ir->IntPoint(0)); // Face is always order 1, thus we don't need more than one point to calculate the normal at the face.
 		CalcOrtho(faceTrans->Jacobian(), normal);
 		auto sJ{ faceTrans->Weight() };
 
@@ -298,16 +301,16 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	}
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
-	for (const auto& e : linearElements_)
+	for (auto e {0}; e < linearElements_.Size(); e++)
 	{
 		HesthavenElement hestElem;
-		hestElem.id = e;
-		hestElem.type = cmesh->GetElementType(e);
-		hestElem.vol = mesh.GetElementVolume(e);
+		hestElem.id = linearElements_[e];
+		hestElem.type = cmesh->GetElementType(linearElements_[e]);
+		hestElem.vol = mesh.GetElementVolume(linearElements_[e]);
 
-		mesh.SetAttribute(e, hesthavenMeshingTag);
+		mesh.SetAttribute(linearElements_[e], hesthavenMeshingTag);
 		auto sm{ SubMesh::CreateFromDomain(mesh, elementMarker) };
-		restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
+		restoreOriginalAttributesAfterSubMeshing(linearElements_[e], mesh, attMap);
 		FiniteElementSpace subFES(&sm, fec);
 
 		sm.bdr_attributes.SetSize(subFES.GetNF());
@@ -325,7 +328,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	
 	if (curvedElements_.size()) {
 	
-		hestElemCurvedStorage_.resize(curvedElements_.size());
 		Probes probes;
 		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
 		DGOperatorFactory dgops(pd, fes_);
@@ -343,7 +345,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 				spmat.AddRow(d, cols, vals);
 			}
 			hestCurElem.matrix = spmat;
-			hestElemCurvedStorage_[e] = hestCurElem;
+			hestElemCurvedStorage_.push_back(hestCurElem);
 		}
 	}
 

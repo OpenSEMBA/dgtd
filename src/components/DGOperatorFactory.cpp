@@ -63,7 +63,7 @@ namespace maxwell {
 		const BilinearForm& op2,
 		FiniteElementSpace& fes)
 	{
-		auto aux = mfem::Mult(op1.SpMat(), op2.SpMat());
+		auto aux = std::unique_ptr<SparseMatrix>(mfem::Mult(op1.SpMat(), op2.SpMat()));
 		auto res = std::make_unique<BilinearForm>(&fes);
 		res->Assemble();
 		res->Finalize();
@@ -397,15 +397,16 @@ namespace maxwell {
 		GlobalIndices globalId(fes_.GetNDofs());
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
-			auto intBdrFluxZeroNormal = buildByMult(*MInv[f], *buildZeroNormalIBFISubOperator(f), fes_);
+			auto dense = buildByMult(*MInv[f], *buildZeroNormalIBFISubOperator(f), fes_)->SpMat().ToDenseMatrix();
 			for (auto d : { X, Y, Z }) {
 				loadBlockInGlobalAtIndices(
-					*intBdrFluxZeroNormal->SpMat().ToDenseMatrix(),
+					*dense,
 					*global,
 					std::make_pair(globalId.index[f][d], globalId.index[f][d]),
 					-1.0
 				);
 			}
+			delete dense;
 		}
 	}
 	void DGOperatorFactory::addGlobalOneNormalIBFIOperators(SparseMatrix* global)
@@ -416,18 +417,20 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
+				auto dense = buildByMult(*MInv[f], *buildOneNormalIBFISubOperator(altField(f), { x }), fes_)->SpMat().ToDenseMatrix();
 				loadBlockInGlobalAtIndices(
-					*buildByMult(*MInv[f], *buildOneNormalIBFISubOperator(altField(f), { x }), fes_)->SpMat().ToDenseMatrix(),
+					*dense,
 					*global,
 					std::make_pair(globalId.index[f][y], globalId.index[altField(f)][z]),
-					-1.0 + double(f) * 2.0
-				);
-				loadBlockInGlobalAtIndices(
-					*buildByMult(*MInv[f], *buildOneNormalIBFISubOperator(altField(f), { x }), fes_)->SpMat().ToDenseMatrix(),
-					*global,
-					std::make_pair(globalId.index[f][z], globalId.index[altField(f)][y]),
 					1.0 - double(f) * 2.0
 				);
+				loadBlockInGlobalAtIndices(
+					*dense,
+					*global,
+					std::make_pair(globalId.index[f][z], globalId.index[altField(f)][y]),
+					-1.0 + double(f) * 2.0
+				);
+				delete dense;
 			}
 		}
 	}
@@ -438,11 +441,13 @@ namespace maxwell {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
+					auto dense = buildByMult(*MInv[f], *buildTwoNormalIBFISubOperator(f, { d, d2 }), fes_)->SpMat().ToDenseMatrix();
 					loadBlockInGlobalAtIndices(
-						*buildByMult(*MInv[f], *buildTwoNormalIBFISubOperator(f, { d, d2 }), fes_)->SpMat().ToDenseMatrix(),
+						*dense,
 						*global,
 						std::make_pair(globalId.index[f][d], globalId.index[f][d2])
 					);
+					delete dense;
 				}
 			}
 		}
@@ -455,19 +460,20 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto dir = buildByMult(*MInv[f], *buildDerivativeSubOperator(x), fes_);
+				auto dense = buildByMult(*MInv[f], *buildDerivativeSubOperator(x), fes_)->SpMat().ToDenseMatrix();
 				loadBlockInGlobalAtIndices(
-					*dir->SpMat().ToDenseMatrix(),
+					*dense,
 					*global,
 					std::make_pair(globalId.index[f][z], globalId.index[altField(f)][y]),
 					1.0 - double(f) * 2.0
 				);
 				loadBlockInGlobalAtIndices(
-					*dir->SpMat().ToDenseMatrix(),
+					*dense,
 					*global,
 					std::make_pair(globalId.index[f][y], globalId.index[altField(f)][z]),
 					-1.0 + double(f) * 2.0
 				);
+				delete dense;
 			}
 		}
 	}
@@ -476,15 +482,16 @@ namespace maxwell {
 		GlobalIndices globalId(fes_.GetNDofs());
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
-			auto fluxZeroNormal = buildByMult(*MInv[f], *buildZeroNormalSubOperator(f), fes_);
+			auto dense = buildByMult(*MInv[f], *buildZeroNormalSubOperator(f), fes_)->SpMat().ToDenseMatrix();
 			for (auto d : { X, Y, Z }) {
 				loadBlockInGlobalAtIndices(
-					*fluxZeroNormal->SpMat().ToDenseMatrix(),
+					*dense,
 					*global,
 					std::make_pair(globalId.index[f][d], globalId.index[f][d]),
 					-1.0
 				);
 			}
+			delete dense;
 		}
 	}
 	void DGOperatorFactory::addGlobalOneNormalOperators(SparseMatrix* global)
@@ -495,21 +502,20 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-
-				auto oneNormal = buildByMult(*MInv[f], *buildOneNormalSubOperator(altField(f), { x }), fes_);
-
+				auto dense = buildByMult(*MInv[f], *buildOneNormalSubOperator(altField(f), { x }), fes_)->SpMat().ToDenseMatrix();
 				loadBlockInGlobalAtIndices(
-					*oneNormal->SpMat().ToDenseMatrix(),
+					*dense,
 					*global,
 					std::make_pair(globalId.index[f][y], globalId.index[altField(f)][z]),
 					1.0 - double(f) * 2.0
 				);
 				loadBlockInGlobalAtIndices(
-					*oneNormal->SpMat().ToDenseMatrix(),
+					*dense,
 					*global,
 					std::make_pair(globalId.index[f][z], globalId.index[altField(f)][y]),
 					-1.0 + double(f) * 2.0
 				);
+				delete dense;
 			}
 		}
 	}
@@ -520,11 +526,13 @@ namespace maxwell {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
+					auto dense = buildByMult(*MInv[f], *buildTwoNormalSubOperator(f, { d, d2 }), fes_)->SpMat().ToDenseMatrix();
 					loadBlockInGlobalAtIndices(
-						*buildByMult(*MInv[f], *buildTwoNormalSubOperator(f, { d, d2 }), fes_)->SpMat().ToDenseMatrix(),
+						*dense,
 						*global,
 						std::make_pair(globalId.index[f][d], globalId.index[f][d2])
 					);
+					delete dense;
 				}
 			}
 		}
@@ -533,7 +541,7 @@ namespace maxwell {
 	std::unique_ptr<SparseMatrix> DGOperatorFactory::buildTFSFGlobalOperator()
 	{
 
-		std::unique_ptr<SparseMatrix> res;
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -541,7 +549,7 @@ namespace maxwell {
 		std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
 #endif
 
-		addGlobalOneNormalIBFIOperators(res.get());
+		addGlobalOneNormalOperators(res.get());
 
 		if (pd_.opts.fluxType == FluxType::Upwind) {
 
@@ -551,7 +559,7 @@ namespace maxwell {
 			std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
 #endif	
 
-			addGlobalZeroNormalIBFIOperators(res.get());
+			addGlobalZeroNormalOperators(res.get());
 
 
 #ifdef SHOW_TIMER_INFORMATION	
@@ -560,7 +568,7 @@ namespace maxwell {
 			std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
 #endif	
 
-			addGlobalTwoNormalIBFIOperators(res.get());
+			addGlobalTwoNormalOperators(res.get());
 
 		}
 		
@@ -571,7 +579,7 @@ namespace maxwell {
 	std::unique_ptr<SparseMatrix> DGOperatorFactory::buildGlobalOperator()
 	{
 
-		std::unique_ptr<SparseMatrix> res;
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
 
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 

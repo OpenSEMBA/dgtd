@@ -1,4 +1,4 @@
-#include "GlobalMethods.h"
+#include "GlobalEvolution.h"
 
 namespace maxwell {
 
@@ -16,7 +16,7 @@ GlobalEvolution::GlobalEvolution(
 	auto startTime{ std::chrono::high_resolution_clock::now() };
 #endif
 
-	globalOperator_ = std::make_unique<SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
+	globalOperator_ = std::make_unique<SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
 
 #ifdef SHOW_TIMER_INFORMATION
 	std::cout << "------------------------------------------------" << std::endl;
@@ -40,6 +40,8 @@ GlobalEvolution::GlobalEvolution(
 
 		TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
 
+		auto src_sm = static_cast<SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+		SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
 	}
 
 	ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
@@ -47,6 +49,19 @@ GlobalEvolution::GlobalEvolution(
 
 	globalOperator_ = dgops.buildGlobalOperator();
 
+}
+
+const Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
+{
+	Vector res(6 * func[0][0].Size());
+	for (auto f : { E, H }) {
+		for (auto d : { X, Y, Z }) {
+			for (auto v{ 0 }; v < func[f][d].Size(); v++) {
+				res[v + (f * 3 + d) * func[f][d].Size()] = func[f][d][v];
+			}
+		}
+	}
+	return res;
 }
 
 void GlobalEvolution::Mult(const Vector& in, Vector& out) const
@@ -69,6 +84,17 @@ void GlobalEvolution::Mult(const Vector& in, Vector& out) const
 		if (dynamic_cast<Planewave*>(source.get())) {
 
 			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
+			Vector assembledFunc = buildSingleVectorTFSFFunc(func), tempTFSF(assembledFunc.Size());
+			TFSFOperator_->Mult(assembledFunc, tempTFSF);
+			for (auto f : { E, H }) {
+				for (auto d : { X, Y, Z }) {
+					for (auto v{ 0 }; v < sub_to_parent_ids_.Size(); v++) {
+						if (tempTFSF[(f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v] != 0.0) {
+							out[(f * 3 + d) * fes_.GetNDofs() + sub_to_parent_ids_[v]] -= tempTFSF[(f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v];
+						}
+					}
+				}
+			}
 
 		}
 	}

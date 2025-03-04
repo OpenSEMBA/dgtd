@@ -78,6 +78,29 @@ TEST_F(FormTest, LinearForms_2D)
 	
 }
 
+TEST_F(FormTest, LinearForm_w_High_VDIM)
+{
+	auto vdim = 6;
+	auto m = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::HEXAHEDRON);
+	auto fec = DG_FECollection(1, m.Dimension());
+	auto fes = FiniteElementSpace(&m, &fec, vdim, Ordering::byNODES);
+
+	ConstantCoefficient one(1.0);
+	Vector vecone(vdim);
+	VectorConstantCoefficient vone(vecone);
+
+	//auto bf{ BilinearForm(&fes) };
+	//bf.AddBdrFaceIntegrator(new VectorDivergenceIntegrator(one));
+	//bf.Assemble();
+	//bf.Finalize();
+
+	auto lf{ LinearForm(&fes) };
+	lf = 0.0;
+	lf.AddBdrFaceIntegrator(new DGElasticityDirichletLFIntegrator(vone, one, one, 1.0, 1.0));
+	lf.Assemble();
+
+}
+
 TEST_F(FormTest, RCSForm_2D)
 {
 	
