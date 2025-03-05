@@ -30,8 +30,10 @@ private:
 	void evaluateTFSF(HesthavenFields& jumps) const;
 	void storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement&);
 	void checkForTFSFInCurvedElements();
+	void applyBoundaryConditionsToNodes(const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out) const;
+	bool isDoFinCurvedElement(const NodeId& d) const;
 	
-	const Eigen::VectorXd applyLIFT(const ElementId, Eigen::VectorXd& flux) const;
+	const Eigen::VectorXd applyLIFT(const Eigen::VectorXd& fscale, Eigen::VectorXd& flux) const;
 	
 	FiniteElementSpace& fes_;
 	Model& model_;
