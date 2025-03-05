@@ -114,7 +114,12 @@ public:
 	double eval(const mfem::Vector& pos) const
 	{
 		double alpha6 = 13.589290170541217;
-		double besselj6 = _jn(6, alpha6 * std::sqrt(std::pow(pos[0], 2.0) + std::pow(pos[1], 2.0)));
+		double besselj6;
+		#ifdef _WIN32 
+			besselj6 = _jn(6, alpha6 * std::sqrt(std::pow(pos[0], 2.0) + std::pow(pos[1], 2.0)));
+		#elif __linux__
+			besselj6 = jn(6, alpha6 * std::sqrt(std::pow(pos[0], 2.0) + std::pow(pos[1], 2.0)));
+		#endif
 		double cosinetheta = std::cos(6.0 * std::atan2(pos[1], pos[0]));
 		double cosinetime = 1.0; // t = 0 in cos(alpha6 * t)
 		return besselj6 * cosinetheta * cosinetime;
