@@ -8,22 +8,22 @@ project(dgtd)
 
 set(CMAKE_CXX_STANDARD 17)
 
-option(MAXWELL_USE_MPI OFF)
-option(MAXWELL_ENABLE_PYTHON_BINDINGS OFF)
-option(MAXWELL_USE_MFEM_AS_SUBDIRECTORY ON)
+option(SEMBA_DGTD_ENABLE_MPI "Enable MPI support" OFF )
+option(SEMBA_DGTD_ENABLE_PYTHON_BINDINGS "Enable Python bindings" OFF )
+option(SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY "Use MFEM as a subdirectory" ON )
 
-option(MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS ON)
-option(MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS ON)
-option(MAXWELL_ENABLE_EXTENSIVE_RCS_TESTS ON)
+option(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS "Enable extensive case tests" ON )
+option(SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS "Enable extensive solver tests" ON )
+option(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS "Enable extensive RCS tests" ON )
 
-option(MAXWELL_SHOW_TIMER_INFORMATION OFF)
+option(SEMBA_DGTD_ENABLE_TIMER_INFORMATION "Enable timer information" OFF)
 
 include_directories(
 	src/ 
 	src/maxwell/
 )
 
-if (MAXWELL_USE_MFEM_AS_SUBDIRECTORY)
+if (SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY)
 	add_subdirectory(external/mfem-geg)
 else ()
 	find_package(MFEM CONFIG REQUIRED)
@@ -32,24 +32,8 @@ endif()
 
 add_subdirectory(src)
 
-if(MAXWELL_ENABLE_PYTHON_BINDINGS)
+if(SEMBA_DGTD_ENABLE_PYTHON_BINDINGS)
 	add_subdirectory(pythonBindings)
-endif()
-
-if(MAXWELL_ENABLE_EXTENSIVE_CASE_TESTS)
-	add_definitions(-DENABLE_EXTENSIVE_CASE_TESTS)
-endif()
-
-if(MAXWELL_ENABLE_EXTENSIVE_SOLVER_TESTS)
-	add_definitions(-DENABLE_EXTENSIVE_SOLVER_TESTS)
-endif()
-
-if(MAXWELL_ENABLE_EXTENSIVE_RCS_TESTS)
-	add_definitions(-DENABLE_EXTENSIVE_RCS_TESTS)
-endif()
-
-if(MAXWELL_SHOW_TIMER_INFORMATION)
-	add_definitions(-DSHOW_TIMER_INFORMATION)
 endif()
 
 enable_testing()

@@ -22,6 +22,7 @@ add_executable(mfem_tests
 target_link_libraries(mfem_tests PRIVATE
 	mfem 
 	maxwell-mfemExtension
+	maxwell-evolution
 	maxwell-components 
 	maxwell-driver
 	Eigen3::Eigen

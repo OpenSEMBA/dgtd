@@ -6,7 +6,11 @@
 #include "components/SubMesher.h"
 #include "components/Types.h"
 
+#include "evolution/HesthavenEvolutionMethods.h"
+#include <evolution/HesthavenEvolution.h>
+
 using namespace mfem;
+using namespace maxwell;
 
 using NodeId = int;
 using FaceId = int;
@@ -301,10 +305,10 @@ TEST_F(MeshTest, DataValueOutsideNodesForOneElementMeshes)
 	the values to be 2 times the xVal.*/
 	
 	Mesh mesh = Mesh::MakeCartesian1D(1);
-	auto fecDG = new DG_FECollection(1, 1, BasisType::GaussLobatto);
-	auto* fesDG = new FiniteElementSpace(&mesh, fecDG);
+	std::unique_ptr<DG_FECollection> fecDG = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
+	auto fesDG = FiniteElementSpace(&mesh, fecDG.get());
 
-	GridFunction solution{ fesDG };
+	GridFunction solution(&fesDG);
 	FunctionCoefficient fc{ linearFunction };
 	solution.ProjectCoefficient(fc);
 	IntegrationPoint integPoint;
@@ -704,5 +708,27 @@ TEST_F(MeshTest, IdentifyingMeshOrder_2D)
 	}
 	EXPECT_EQ(true, lin_fes_null);
 
+}
+
+TEST_F(MeshTest, IdentifyCurvedElements_2D)
+{
+	auto gmsh_starting_element{ 15 }; //Gmsh element Id is not unique for each dimensional element. 1D edges count as elements for the id tagging. 15 is the ID for the first 2D element in the mesh.
+	Array<ElementId> expectedCurvedElements({ 25, 33, 34, 23, 46, 39, 47, 24, 37, 38, 26, 35, 36 });
+	std::sort(expectedCurvedElements.begin(), expectedCurvedElements.end());
+	for (auto e{ 0 }; e < expectedCurvedElements.Size(); e++) {
+		expectedCurvedElements[e] -= gmsh_starting_element;
+	}
+
+	auto mesh_p2{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_CurvedElementsCircle.msh", 1, 0) };
+	DG_FECollection fec_p2(2, mesh_p2.Dimension(), BasisType::GaussLobatto);
+	FiniteElementSpace fes_p2(&mesh_p2, &fec_p2);
+	
+	auto lists{ ::initCurvedAndLinearElementsLists(fes_p2, buildDoFPositions(fes_p2)) };
+	Array<ElementId> curvedElements;
+	for (const auto& [k, v] : lists.second) {
+		curvedElements.Append(k);
+	}
+
+	EXPECT_EQ(expectedCurvedElements, curvedElements);
 
 }

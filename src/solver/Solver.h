@@ -1,13 +1,24 @@
 #pragma once
 
-#include "SolverInput.h"
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
 
 #include "evolution/Fields.h"
-#include "evolution/Evolution.h"
-#include "evolution/HesthavenEvolutionTools.h"
+#include "evolution/MaxwellEvolution.h"
+#include "evolution/GlobalEvolution.h"
+#include "evolution/HesthavenEvolution.h"
+#include "evolution/HesthavenEvolutionMethods.h"
+
+#include "components/DGOperatorFactory.h"
+
+#include "components/SubMesher.h"
+#include "math/PhysicalConstants.h"
+
+#include <fstream>
+#include <iostream>
+#include <algorithm>
+#include <chrono>
 
 namespace maxwell {
 
@@ -67,6 +78,6 @@ private:
     GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
     void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
-    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, Evolution&);
+    void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution&);
 };
 }

@@ -1,0 +1,41 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step": 5e-3,
+    "final_time":  3.0,
+    "order": 2
+  },
+
+  "model": { 
+    "filename": "2D_Bessel.msh",
+    "materials": [
+      {
+        "tags": [ 1 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1 ],
+        "type": "PEC"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 20
+    }
+  },
+
+  "sources": [ 
+    {
+      "type": "initial", 
+      "field_type": "E", 
+      "polarization": [ 0.0, 0.0, 1.0 ],  
+      "magnitude": {
+        "type": "besselj6"
+      }
+    }
+  ]
+}

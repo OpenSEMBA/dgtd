@@ -3,6 +3,7 @@
 #include <mfem.hpp>
 #include <components/Types.h>
 #include <mfemExtension/IntegratorFunctions.h>
+#include <math/PhysicalConstants.h>
 
 namespace maxwell {
 namespace mfemExtension {
@@ -66,5 +67,34 @@ private:
     mfem::Vector shape_;
 
 };
+//
+//class VectorNTFFBdrFaceIntegrator : public mfem::LinearFormIntegrator {
+//public:
+//    VectorNTFFBdrFaceIntegrator(const std::vector<std::complex<double>>& FE, const Vector& H, const double freq, const double phi, const double theta = 0.0, const bool isReal = true) :
+//        A_(A), freq_(freq), phi_(phi), theta_(theta), isReal_(isReal) {}
+//
+//    void AssembleRHSElementVect(const mfem::FiniteElement& el,
+//        mfem::ElementTransformation& Tr,
+//        mfem::Vector& elvect);
+//
+//    void AssembleRHSElementVect(const mfem::FiniteElement& el1,
+//        const mfem::FiniteElement& el2,
+//        mfem::FaceElementTransformations& Tr,
+//        mfem::Vector& elvect);
+//
+//    void AssembleRHSElementVect(const mfem::FiniteElement& el,
+//        mfem::FaceElementTransformations& Tr,
+//        mfem::Vector& elvect);
+//
+//private:
+//    const Vector& A_;
+//    double freq_;
+//    double phi_;
+//    double theta_;
+//    bool isReal_;
+//
+//    mfem::Vector shape_;
+//
+//};
 }
 }

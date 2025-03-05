@@ -17,6 +17,8 @@ using Freq2CompVec = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
 using FunctionPair = std::pair<FunctionCoefficient*, FunctionCoefficient*>;
 
+Freq2CompVec calculateDFT(const Vector&, const std::vector<double>& frequencies, const double time);
+
 struct FreqFields {
 
 	Freq2CompVec Ex;
@@ -62,7 +64,7 @@ struct RCSData {
 class RCSManager {
 public:
 
-	RCSManager(const std::string& data_path, const std::string& json_path, double f_max, int steps, const std::vector<SphericalAngles>& angle);
+	RCSManager(const std::string& data_path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle);
 
 private:
 

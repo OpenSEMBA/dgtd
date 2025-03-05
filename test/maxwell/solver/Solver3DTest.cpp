@@ -54,8 +54,6 @@ protected:
 	}
 };
 
-#ifdef ENABLE_EXTENSIVE_SOLVER_TESTS
-
 TEST_F(Solver3DTest, pec_global_1dot5D)
 {
 	const double tol{ 6e-2 };
@@ -222,5 +220,3 @@ TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 		}
 	}
 }
-
-#endif
