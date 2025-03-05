@@ -56,6 +56,13 @@ namespace maxwell {
 
 	using StorageIterator = std::set<DynamicMatrix, MatrixCompareLessThan>::iterator;
 
+	struct HesthavenCurvedElement {
+		ElementId id;
+		Element::Type type;
+		Array<int> dofs;
+		SparseMatrix matrix;
+	};
+
 	struct HesthavenElement {
 		ElementId id;
 		Element::Type type;
@@ -153,8 +160,6 @@ namespace maxwell {
 	void appendConnectivityMapsForInteriorFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES, GlobalConnectivity&, ElementId);
 	void appendConnectivityMapsForBoundaryFace(FiniteElementSpace& globalFES, FiniteElementSpace& smFES, const DynamicMatrix& surfaceMatrix, GlobalConnectivity&);
 	void tagBdrAttributesForSubMesh(const FaceId, SubMesh& sm);
-	void applyBoundaryConditionsToNodes(const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
-	void applyInteriorBoundaryConditionsToNodes(const InteriorBoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out);
 
 	const int getNumFaces(const Geometry::Type&); 
 	const int getFaceNodeNumByGeomType(const FiniteElementSpace& fes);

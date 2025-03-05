@@ -41,6 +41,7 @@ public:
 	FieldType& fieldType() { return fieldType_; }
 	Polarization& polarization() { return polarization_; }
 	Function* magnitude() { return magnitude_.get(); }
+	Position& center() { return center_; }
 
 private:
 	std::unique_ptr<Function> magnitude_;

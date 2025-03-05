@@ -98,9 +98,18 @@ std::unique_ptr<InitialField> buildResonantModeInitialField(
 	const std::vector<std::size_t>& modes = { 1 })
 {
 	Sources res;
-	Source::Position center_((int)modes.size());
-	center_ = 0.0;
-	return std::make_unique<InitialField>(SinusoidalMode{ modes }, ft, p, center_);
+	Source::Position center((int)modes.size());
+	center = 0.0;
+	return std::make_unique<InitialField>(SinusoidalMode{ modes }, ft, p, center);
+}
+
+std::unique_ptr<InitialField> buildBesselJ6InitialField(
+	const FieldType& ft = E,
+	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }))
+{
+	Sources res;
+	Source::Position center = Source::Position({ 0.0, 0.0, 0.0 });
+	return std::make_unique<InitialField>(BesselJ6(), ft, p, center);
 }
 
 std::unique_ptr<Planewave> buildGaussianPlanewave(
@@ -134,6 +143,12 @@ Sources buildSources(const json& case_data)
 					assignFieldType(case_data["sources"][s]["field_type"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]),
 					case_data["sources"][s]["magnitude"]["modes"])
+				);
+			}
+			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6") {
+				res.add(buildBesselJ6InitialField(
+					assignFieldType(case_data["sources"][s]["field_type"]),
+					assemble3DVector(case_data["sources"][s]["polarization"]))
 				);
 			}
 		}
@@ -192,6 +207,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 
 		if (case_data["solver_options"].contains("hesthaven_operator")) {
 			res.setHesthavenOperator(case_data["solver_options"]["hesthaven_operator"]);
+		}
+
+		if (case_data["solver_options"].contains("global_operator")) {
+			res.setGlobalOperator(case_data["solver_options"]["global_operator"]);
 		}
 	}
 	return res;

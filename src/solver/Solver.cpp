@@ -24,6 +24,9 @@ std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 		if (opts_.hesthavenOperator) {
 			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 		}
+		else if (opts_.globalOperator) {
+			return std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+		}
 		else {
 			ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
 			return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);

@@ -7,8 +7,10 @@
 #include "components/Types.h"
 
 #include "evolution/HesthavenEvolutionMethods.h"
+#include <evolution/HesthavenEvolution.h>
 
 using namespace mfem;
+using namespace maxwell;
 
 using NodeId = int;
 using FaceId = int;
@@ -710,66 +712,23 @@ TEST_F(MeshTest, IdentifyingMeshOrder_2D)
 
 TEST_F(MeshTest, IdentifyCurvedElements_2D)
 {
-	auto gmsh_starting_element{ 15 };
-	std::vector<ElementId> curvedIds({ 25, 33, 34, 23, 46, 39, 47, 24, 37, 38, 26, 35, 36 });
-	std::sort(curvedIds.begin(), curvedIds.end());
-	for (auto e{ 0 }; e < curvedIds.size(); e++) {
-		curvedIds[e] -= gmsh_starting_element;
+	auto gmsh_starting_element{ 15 }; //Gmsh element Id is not unique for each dimensional element. 1D edges count as elements for the id tagging. 15 is the ID for the first 2D element in the mesh.
+	Array<ElementId> expectedCurvedElements({ 25, 33, 34, 23, 46, 39, 47, 24, 37, 38, 26, 35, 36 });
+	std::sort(expectedCurvedElements.begin(), expectedCurvedElements.end());
+	for (auto e{ 0 }; e < expectedCurvedElements.Size(); e++) {
+		expectedCurvedElements[e] -= gmsh_starting_element;
 	}
 
 	auto mesh_p2{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_CurvedElementsCircle.msh", 1, 0) };
-	Mesh mesh_p1(mesh_p2);
-	DG_FECollection fec_p1(2, mesh_p1.Dimension(), BasisType::GaussLobatto);
 	DG_FECollection fec_p2(2, mesh_p2.Dimension(), BasisType::GaussLobatto);
-	FiniteElementSpace fes_p1(&mesh_p1, &fec_p1);
 	FiniteElementSpace fes_p2(&mesh_p2, &fec_p2);
-
-	mesh_p1.SetCurvature(1);
-
-	auto vdimfes_p1 = FiniteElementSpace(fes_p1.GetMesh(), &fec_p1, 3);
-	auto vdimfes_p2 = FiniteElementSpace(fes_p2.GetMesh(), &fec_p2, 3);
-
-	GridFunction gf_lin(&vdimfes_p1), gf_cur(&vdimfes_p2);
-	mesh_p1.GetNodes(gf_lin);
-	mesh_p2.GetNodes(gf_cur);
-	std::vector<std::array<double, 3>> pos_lin(fes_p1.GetNDofs()), pos_cur(fes_p2.GetNDofs());
-	for (auto d{ 0 }; d < (gf_lin.Size() / 3); d++) {
-		pos_lin[d][0] = gf_lin[d];
-		pos_lin[d][1] = gf_lin[d + (gf_lin.Size() / 3)];
-		pos_lin[d][2] = gf_lin[d + 2 * (gf_lin.Size() / 3)];
-		pos_cur[d][0] = gf_cur[d];
-		pos_cur[d][1] = gf_cur[d + (gf_cur.Size() / 3)];
-		pos_cur[d][2] = gf_cur[d + 2 * (gf_cur.Size() / 3)];
+	
+	auto lists{ ::initCurvedAndLinearElementsLists(fes_p2, buildDoFPositions(fes_p2)) };
+	Array<ElementId> curvedElements;
+	for (const auto& [k, v] : lists.second) {
+		curvedElements.Append(k);
 	}
 
-	double tol{ 1e-5 };
-	for (auto e{ 0 }; e < mesh_p1.GetNE(); e++) {
-		Array<int> elemdofs_p1, elemdofs_p2;
-		fes_p1.GetElementDofs(e, elemdofs_p1);
-		fes_p2.GetElementDofs(e, elemdofs_p2);
-		EXPECT_EQ(elemdofs_p1, elemdofs_p2);
-		if (std::find(curvedIds.begin(), curvedIds.end(), e) == curvedIds.end()) {
-			for (auto d{ 0 }; d < elemdofs_p1.Size(); d++) {
-				pos_lin[elemdofs_p1[d]][0] = pos_cur[elemdofs_p2[d]][0];
-				pos_lin[elemdofs_p1[d]][1] = pos_cur[elemdofs_p2[d]][1];
-				pos_lin[elemdofs_p1[d]][2] = pos_cur[elemdofs_p2[d]][2];
-			}
-		}
-		else {
-			auto nodes_equal = true;
-			for (auto d{ 0 }; d < elemdofs_p1.Size(); d++) {
-				if (std::abs(pos_lin[elemdofs_p1[d]][0] - pos_cur[elemdofs_p2[d]][0]) > tol ||
-					std::abs(pos_lin[elemdofs_p1[d]][1] - pos_cur[elemdofs_p2[d]][1]) > tol ||
-					std::abs(pos_lin[elemdofs_p1[d]][2] - pos_cur[elemdofs_p2[d]][2]) > tol) {
-
-					nodes_equal = false;
-					break;
-				}
-			}
-			EXPECT_FALSE(nodes_equal);
-		}
-	}
-
-
+	EXPECT_EQ(expectedCurvedElements, curvedElements);
 
 }

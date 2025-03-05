@@ -69,7 +69,7 @@ double func_exp_real_part_2D(const Vector& x, const double freq, const Phi phi)
 }
 double func_exp_imag_part_2D(const Vector& x, const double freq, const Phi phi)
 {
-	auto landa = physicalConstants::speedOfLight_SI/  freq;
+	auto landa = physicalConstants::speedOfLight_SI / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto rad_term = wavenumber * (x[0] * cos(phi) + x[1] * sin(phi));
 	return sin(rad_term);
@@ -162,15 +162,15 @@ const double getTime(const std::string& timePath)
 	return std::stod(timeString);
 }
 
-std::map<SphericalAngles, Freq2Value> fillPostDataMaps(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec)
+std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec)
 {
 	std::map<SphericalAngles, Freq2Value> res;
 	for (const auto& angpair : angleVec) {
-		Freq2Value inner;
+		Freq2Value f2v;
 		for (const auto& f : frequencies) {
-			inner.emplace(f, 0.0);
+			f2v.emplace(f, 0.0);
 		}
-		res.emplace(angpair, inner);
+		res.emplace(angpair, f2v);
 	}
 	return res;
 }
@@ -186,7 +186,7 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 		}
 	}
 
-	if (mean == -1e5 || delay == -1e5) {
+	if (std::abs(mean - 1e5) > 1e-6 || std::abs(delay - 1e5) > 1e-6) {
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
@@ -263,9 +263,9 @@ std::vector<double> buildNormalizationTerm(const std::string& json_path, const s
 		res[f] = physicalConstants::vacuumPermittivity_SI * std::pow(std::abs(freq_val), 2.0);
 	}
 	auto max = *std::max_element(std::begin(res), std::end(res));
-	//for (auto f{ 0 }; f < res.size(); f++) {
-	//	res[f] /= max;
-	//}
+	for (auto f{ 0 }; f < res.size(); f++) {
+		res[f] /= max;
+	}
 
 	trimLowMagFreqs(freq2complex, frequencies);
 	exportIncidentGaussData(time, gauss_val, json_path);
@@ -384,16 +384,13 @@ std::pair<std::complex<double>, std::complex<double>> RCSManager::performRCSCalc
 	return std::pair<std::complex<double>, std::complex<double>>(phi_value, theta_value);
 }
 
-RCSManager::RCSManager(const std::string& path, const std::string& json_path, double dt, int steps, const std::vector<SphericalAngles>& angle_vec)
+RCSManager::RCSManager(const std::string& path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
 
 	Mesh mesh{ Mesh::LoadFromFile(path + "/mesh", 1, 0) };
 	getFESFromGF(mesh, path);
 
-	const double f_max = 2.0 / dt;
-	std::vector<double> frequencies;
-	frequencies = logspace(6.0, 7.7, 100);
-	auto RCSdata{ fillPostDataMaps(frequencies, angle_vec) };
+	auto RCSdata{ initAngles2FreqValues(frequencies, angle_vec) };
 
 	auto normalization_term{ buildNormalizationTerm(json_path, path, frequencies) };
 	

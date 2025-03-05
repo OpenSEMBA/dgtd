@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ProblemDefinition.h"
-#include "evolution/GlobalMethods.h"
+#include "evolution/GlobalEvolution.h"
 #include "evolution/HesthavenEvolutionMethods.h"
 #include "evolution/MaxwellEvolutionMethods.h"
 

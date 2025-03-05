@@ -47,7 +47,6 @@ double InitialField::eval(
 	const Position& p, const Time& t,
 	const FieldType& f, const Direction& d) const
 {
-	assert(p.Size() == center_.Size());
 	
 	if (f != fieldType_) {
 		return 0.0;

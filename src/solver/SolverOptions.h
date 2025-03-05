@@ -10,6 +10,7 @@ struct SolverOptions {
     double cfl = 0.8;
     bool highOrderMesh = false;
     bool hesthavenOperator = false;
+    bool globalOperator = false;
 
     EvolutionOptions evolution;
     
@@ -50,6 +51,11 @@ struct SolverOptions {
 
     SolverOptions& setHesthavenOperator(bool enabled = false) {
         hesthavenOperator = enabled;
+        return *this;
+    }    
+    
+    SolverOptions& setGlobalOperator(bool enabled = false) {
+        globalOperator = enabled;
         return *this;
     }
 };

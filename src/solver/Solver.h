@@ -6,6 +6,7 @@
 
 #include "evolution/Fields.h"
 #include "evolution/MaxwellEvolution.h"
+#include "evolution/GlobalEvolution.h"
 #include "evolution/HesthavenEvolution.h"
 #include "evolution/HesthavenEvolutionMethods.h"
 

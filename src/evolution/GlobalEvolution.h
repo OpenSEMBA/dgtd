@@ -18,6 +18,7 @@ namespace maxwell {
 
 		std::unique_ptr<mfem::SparseMatrix> globalOperator_;
 		std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
+		Array<int> sub_to_parent_ids_;
 
 		mfem::FiniteElementSpace& fes_;
 		Model& model_;
