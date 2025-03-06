@@ -2,6 +2,7 @@
 
 #include "Types.h"
 #include "math/Function.h"
+#include "Spherical.h"
 
 namespace maxwell {
 
@@ -66,6 +67,23 @@ private:
 	Polarization polarization_;
 	Propagation propagation_;
 	FieldType fieldtype_;
+};
+
+class Dipole : public Source {
+public:
+	Dipole(const double length, const Gaussian&);
+	Dipole(const Dipole&);
+
+	std::unique_ptr<Source> clone() const;
+	
+	double eval(
+		const Position&, const Time&,
+		const FieldType&, const Direction&) const;
+
+private:
+	double len_;
+	std::unique_ptr<Gaussian> gaussian_;
+
 };
 
 class Sources {

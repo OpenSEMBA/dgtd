@@ -44,6 +44,8 @@ public:
 		return std::make_unique<Gaussian>(*this);
 	}
 
+	const double getSpread() const{ return spread_; }
+
 	double eval(const mfem::Vector& pos) const 
 	{
 		assert(dimension_ <= pos.Size());

@@ -14,7 +14,8 @@ add_library(maxwell-components STATIC
 	"RCSManager.cpp" 
 	"RCSExporter.cpp"
 	"ProblemDefinition.cpp"
-	"DGOperatorFactory.cpp")
+	"DGOperatorFactory.cpp" 
+	"Spherical.cpp")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})
