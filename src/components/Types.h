@@ -7,6 +7,8 @@
 
 namespace maxwell {
 
+constexpr double TOLERANCE = 10.0 * DBL_EPSILON;
+
 struct GridFuncForFP {
 	mfem::GridFunction Ex;
 	mfem::GridFunction Ey;
@@ -44,10 +46,10 @@ enum FieldType { E, H };
 enum class FluxType { Centered, Upwind };
 
 enum SubMeshingMarkers {
-	TotalField = 1000,
-	ScatteredField = 2000,
-	Global_SubMesh = 3000,
-	NearToFarField = 4000
+	TotalFieldMarker = 1000,
+	ScatteredFieldMarker = 2000,
+	GlobalSubMeshMarker = 3000,
+	NearToFarFieldMarker = 4000
 };
 
 enum class BdrCond {

@@ -2,14 +2,6 @@
 
 namespace maxwell {
 
-SphericalVector::SphericalVector(const double x, const double y, const double z)
-{
-	radius = std::sqrt(std::pow(x, 2.0) + std::pow(y, 2.0) + std::pow(z, 2.0));
-	theta = std::acos(z / radius);
-	phi = std::atan(y / x);
-}
-
-
 SphericalVector::SphericalVector(const std::vector<double>& p)
 {
 	assert(p.size() > 1 && p.size() < 4);

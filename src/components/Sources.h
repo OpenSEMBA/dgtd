@@ -3,6 +3,12 @@
 #include "Types.h"
 #include "math/Function.h"
 #include "Spherical.h"
+#include <functional>
+#include "math/PhysicalConstants.h"
+#include "math/Calculus.h"
+#include <memory>
+#include <cassert>
+#include <float.h>
 
 namespace maxwell {
 
@@ -17,9 +23,6 @@ public:
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
 
-	virtual double eval(
-		const Position&, const Time&,
-		const FieldType&, const Direction&) const = 0;
 };
 
 class InitialField : public Source {
@@ -51,39 +54,19 @@ private:
 	Position center_;
 };
 
-class Planewave : public Source {
+class TotalField : public Source {
 public:
-	Planewave(const Function&, const Polarization&, const Propagation&, const FieldType&);
-	Planewave(const Planewave&);
+	TotalField(const EHFieldFunction&, const Polarization&, const Propagation&, const FieldType&);
+	TotalField(const TotalField&);
 
 	std::unique_ptr<Source> clone() const;
 
-	double eval(
-		const Position&, const Time&,
-		const FieldType&, const Direction&) const;
+	VectorTF eval(
+		const Position&, const Time&) const;
 
 private: 
-	std::unique_ptr<Function> magnitude_;
-	Polarization polarization_;
-	Propagation propagation_;
+	std::unique_ptr<EHFieldFunction> function_;
 	FieldType fieldtype_;
-};
-
-class Dipole : public Source {
-public:
-	Dipole(const double length, const Gaussian&);
-	Dipole(const Dipole&);
-
-	std::unique_ptr<Source> clone() const;
-	
-	double eval(
-		const Position&, const Time&,
-		const FieldType&, const Direction&) const;
-
-private:
-	double len_;
-	std::unique_ptr<Gaussian> gaussian_;
-
 };
 
 class Sources {

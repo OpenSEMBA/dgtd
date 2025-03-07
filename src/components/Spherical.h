@@ -11,11 +11,6 @@ namespace maxwell {
 class SphericalVector {
 public:
 
-    /*
-	* @brief Create a Spherical Vector from three different Cartesian coordinates.
-	*/
-	SphericalVector(const double x, const double y, const double z);
-
 	/*
 	* @brief Create a Spherical Vector from a Cartesian vector.
 	* @param[in] p -> Standard Vector of doubles which must have size 2 or 3.
