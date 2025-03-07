@@ -172,7 +172,7 @@ TEST_F(ExtensiveCasesTest, 2D_InteriorPMC_Hesthaven)
 	case_data["model"]["boundaries"][0]["type"] = "PMC";          // PMC Int
 	case_data["model"]["boundaries"][1]["tags"] = { 1, 2, 4, 5 }; // PMC
 	case_data["model"]["boundaries"][2]["tags"] = { 3 };          // SMA
-	case_data["sources"][0]["field_type"] = "H";
+	case_data["sources"][0]["field_type"] = "magnetic";
 	case_data["sources"][0]["polarization"] = { 0.0, 1.0, 0.0 };
 	auto solver{ buildSolver(case_data, maxwellCase("2D_InteriorBdr_Hesthaven"), true) };
 

@@ -169,7 +169,7 @@ Sources buildSources(const json& case_data)
 				case_data["sources"][s]["magnitude"]["delay"],
 				assemble3DVector(case_data["sources"][s]["polarization"]),
 				assemble3DVector(case_data["sources"][s]["propagation"]),
-				getFieldType(case_data["sources"][s]["fieldtype"]))
+				FieldType::E)
 			);
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
@@ -521,7 +521,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model)
 {
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		mfem::Array<int> tfsf_tags;
-		if (case_data["sources"][s]["type"] == "totalField") {
+		if (case_data["sources"][s]["type"] == "planewave" || case_data["sources"][s]["type"] == "dipole") {
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
 			}

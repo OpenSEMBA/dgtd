@@ -12,8 +12,6 @@ class SourcesManager {
 public:
     SourcesManager(const Sources&, mfem::FiniteElementSpace&, Fields& fields);
 
-    FieldGridFuncs evalTimeVarField(const Time);
-    FieldGridFuncs evalTimeVarField(const Time, bool is_tf);
     FieldGridFuncs evalTimeVarField(const Time, FiniteElementSpace*);
     void initTFSFPreReqs(const Mesh&, const Array<int>& marker);
     FiniteElementSpace* getTFSpace() { return tf_fes_.get(); }
