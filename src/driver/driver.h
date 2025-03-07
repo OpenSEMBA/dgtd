@@ -3,6 +3,8 @@
 #include <nlohmann/json.hpp>
 
 #include "solver/Solver.h"
+#include "components/Sources.h"
+#include "math/Function.h"
 
 using json = nlohmann::json;
 

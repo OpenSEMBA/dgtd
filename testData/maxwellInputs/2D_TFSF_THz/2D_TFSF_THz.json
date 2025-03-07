@@ -43,11 +43,10 @@
     ]
   },
 
-  "sources": [ 
+  "sources": [
     {
-      "type": "totalField",
-      "fieldtype": "magnetic",
-      "polarization": [ 0.0, 0.0, 1.0 ],
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
       "tags": [ 2 ],
       "magnitude": {

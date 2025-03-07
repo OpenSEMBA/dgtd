@@ -11,10 +11,10 @@ inline void checkIfThrows(bool condition, const std::string& msg)
 
 const FieldType assignFieldType(const std::string& field_type)
 {
-	if (field_type == "E") {
+	if (field_type == "electric") {
 		return FieldType::E;
 	}
-	else if (field_type == "H") {
+	else if (field_type == "magnetic") {
 		return FieldType::H;
 	}
 	else {
@@ -88,8 +88,8 @@ std::unique_ptr<InitialField> buildGaussianInitialField(
 	mfem::Vector gaussianCenter(dimension);
 	gaussianCenter = 0.0;
 
-	return std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_);
+	Gaussian gauss(spread, gaussianCenter, dimension);
+	return std::make_unique<InitialField>(gauss, ft, p, center_);
 }
 
 std::unique_ptr<InitialField> buildResonantModeInitialField(
@@ -112,7 +112,7 @@ std::unique_ptr<InitialField> buildBesselJ6InitialField(
 	return std::make_unique<InitialField>(BesselJ6(), ft, p, center);
 }
 
-std::unique_ptr<Planewave> buildGaussianPlanewave(
+std::unique_ptr<TotalField> buildGaussianPlanewave(
 	double spread,
 	double delay,
 	const Source::Polarization& pol,
@@ -120,8 +120,19 @@ std::unique_ptr<Planewave> buildGaussianPlanewave(
 	const FieldType ft = FieldType::E
 )
 {
-	Gaussian mag{ spread, mfem::Vector({-delay}) };
-	return std::make_unique<Planewave>(mag, pol, dir, ft);
+	Gaussian gauss{ spread, mfem::Vector({-delay}) };
+	Planewave pw(gauss, pol, dir, ft);
+	return std::make_unique<TotalField>(pw);
+}
+
+std::unique_ptr<TotalField> buildDerivGaussDipole(
+	const double length, 
+	const double gaussianSpread, 
+	const double gaussDelay
+) 
+{
+	DerivGaussDipole dip(length, gaussianSpread, gaussDelay);
+	return std::make_unique<TotalField>(dip);
 }
 
 Sources buildSources(const json& case_data)
@@ -152,13 +163,20 @@ Sources buildSources(const json& case_data)
 				);
 			}
 		}
-		else if (case_data["sources"][s]["type"] == "totalField") {
+		else if (case_data["sources"][s]["type"] == "planewave") {
 			res.add(buildGaussianPlanewave(
 				case_data["sources"][s]["magnitude"]["spread"],
 				case_data["sources"][s]["magnitude"]["delay"],
 				assemble3DVector(case_data["sources"][s]["polarization"]),
 				assemble3DVector(case_data["sources"][s]["propagation"]),
 				getFieldType(case_data["sources"][s]["fieldtype"]))
+			);
+		}
+		else if (case_data["sources"][s]["type"] == "dipole") {
+			res.add(buildDerivGaussDipole(
+				case_data["sources"][s]["magnitude"]["length"],
+				case_data["sources"][s]["magnitude"]["spread"],
+				case_data["sources"][s]["magnitude"]["delay"])
 			);
 		}
 		else {

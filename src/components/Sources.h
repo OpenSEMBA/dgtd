@@ -23,6 +23,10 @@ public:
 	virtual ~Source() = default;
 	virtual std::unique_ptr<Source> clone() const = 0;
 
+	virtual double eval(
+		const Position&, const Time&,
+		const FieldType&, const Direction&) const = 0;
+
 };
 
 class InitialField : public Source {
@@ -44,11 +48,11 @@ public:
 
 	FieldType& fieldType() { return fieldType_; }
 	Polarization& polarization() { return polarization_; }
-	Function* magnitude() { return magnitude_.get(); }
+	Function* function() { return function_.get(); }
 	Position& center() { return center_; }
 
 private:
-	std::unique_ptr<Function> magnitude_;
+	std::unique_ptr<Function> function_;
 	FieldType fieldType_{ E };
 	Polarization polarization_;
 	Position center_;
@@ -56,17 +60,17 @@ private:
 
 class TotalField : public Source {
 public:
-	TotalField(const EHFieldFunction&, const Polarization&, const Propagation&, const FieldType&);
+	TotalField(const EHFieldFunction&);
 	TotalField(const TotalField&);
 
 	std::unique_ptr<Source> clone() const;
 
-	VectorTF eval(
-		const Position&, const Time&) const;
+	double eval(
+		const Position&, const Time&,
+		const FieldType&, const Direction&) const;
 
 private: 
 	std::unique_ptr<EHFieldFunction> function_;
-	FieldType fieldtype_;
 };
 
 class Sources {
