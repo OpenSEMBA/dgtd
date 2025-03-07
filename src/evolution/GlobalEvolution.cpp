@@ -81,7 +81,7 @@ void GlobalEvolution::Mult(const Vector& in, Vector& out) const
 	globalOperator_->Mult(in, out);
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<Planewave*>(source.get())) {
+		if (dynamic_cast<TotalField*>(source.get())) {
 
 			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
 			Vector assembledFunc = buildSingleVectorTFSFFunc(func), tempTFSF(assembledFunc.Size());

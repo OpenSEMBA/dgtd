@@ -2,6 +2,7 @@
 
 #include "components/Sources.h"
 #include "math/Calculus.h"
+#include "math/Function.h"
 
 namespace maxwell {
 namespace fixtures {
@@ -17,9 +18,9 @@ static Sources buildGaussianInitialField(
 	mfem::Vector gaussianCenter(dimension);
 	gaussianCenter = 0.0;
 	
+	Gaussian gauss{ spread, gaussianCenter, dimension };
 	Sources res;
-	res.add(std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_)
+	res.add(std::make_unique<InitialField>(gauss, ft, p, center_)
 	);
 	return res;
 }
@@ -49,8 +50,20 @@ static Sources buildGaussianPlanewave(
 )
 {
 	Gaussian mag{ spread, mfem::Vector({-delay}) };
+	Planewave pw(mag, pol, dir, ft);
 	Sources res;
-	res.add(std::make_unique<Planewave>(mag, pol, dir, ft));
+	res.add(std::make_unique<TotalField>(pw));
+	return res;
+}
+
+static Sources buildDerivGaussDipole(
+	const double length,
+	const double spread,
+	const double delay)
+{
+	DerivGaussDipole dgd(length, spread, delay);
+	Sources res;
+	res.add(std::make_unique<TotalField>(dgd));
 	return res;
 }
 

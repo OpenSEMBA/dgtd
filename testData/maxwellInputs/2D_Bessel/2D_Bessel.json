@@ -31,7 +31,7 @@
   "sources": [ 
     {
       "type": "initial", 
-      "field_type": "E", 
+      "field_type": "electric", 
       "polarization": [ 0.0, 0.0, 1.0 ],  
       "magnitude": {
         "type": "besselj6"

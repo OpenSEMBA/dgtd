@@ -254,14 +254,14 @@ Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
 	switch (bdrCond) {
 	case BdrCond::TotalFieldIn:
 		if (isTF) {
-			res[0] = SubMeshingMarkers::TotalField;
+			res[0] = SubMeshingMarkers::TotalFieldMarker;
 		}
 		else {
-			res[0] = SubMeshingMarkers::ScatteredField;
+			res[0] = SubMeshingMarkers::ScatteredFieldMarker;
 		}
 		break;
 	case BdrCond::NearToFarField:
-		res[0] = SubMeshingMarkers::NearToFarField;
+		res[0] = SubMeshingMarkers::NearToFarFieldMarker;
 		break;
 	}
 	return res;
@@ -298,7 +298,7 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 		break;
 	}
 
-	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::Global_SubMesh;
+	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::GlobalSubMeshMarker;
 	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
@@ -323,20 +323,20 @@ void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const Fa
 {
 	if (trans->Elem2No != NotFound) {
 		if (el1_is_tf) {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalField);
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::ScatteredField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalFieldMarker);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::ScatteredFieldMarker);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredField);
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::TotalField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredFieldMarker);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::TotalFieldMarker);
 		}
 	}
 	else {
 		if (el1_is_tf) {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalFieldMarker);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredFieldMarker);
 		}
 	}
 }
@@ -377,13 +377,13 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ getFaceElementTransformation(m, be)};
 			if (be_trans->Elem2No != NotFound) {
-				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
-				m.GetElement(be_trans->Elem2No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
+				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
+				m.GetElement(be_trans->Elem2No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
 				elems_for_global_submesh_.push_back(be_trans->Elem1No);
 				elems_for_global_submesh_.push_back(be_trans->Elem2No);
 			}
 			else {
-				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
+				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
 				elems_for_global_submesh_.push_back(be_trans->Elem1No);
 			}
 		}
@@ -736,10 +736,10 @@ void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementT
 {
 	if (trans->Elem2No != NotFound) {
 		if (el_is_ntff) {
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
 		}
 	}
 }

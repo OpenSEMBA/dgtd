@@ -35,77 +35,22 @@ void SourcesManager::setInitialFields(Fields& fields)
     }
 }
 
-FieldGridFuncs SourcesManager::evalTimeVarField(const Time time)
-{
-    std::array<std::array<GridFunction, 3>, 2> res;
-    for (const auto& source : sources) {
-        auto pw = dynamic_cast<Planewave*>(source.get());
-        if (pw == nullptr) {
-            continue;
-        }
-        for (auto ft : { E, H }) {
-            for (auto d : { X, Y, Z }) {
-                std::function<double(const Source::Position&, Source::Time)> f = 0;
-                f = std::bind(&Planewave::eval, pw, 
-                    std::placeholders::_1, std::placeholders::_2, ft, d);
-                FunctionCoefficient func(f);
-                func.SetTime(time);
-                
-                res[ft][d].SetSpace(&fes_);
-                res[ft][d].ProjectCoefficient(func);
-            }
-        }
-    }
-    return res;
-}
-
 FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, FiniteElementSpace* fes)
 {
     std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
-        auto pw = dynamic_cast<Planewave*>(source.get());
-        if (pw == nullptr) {
+        auto tf = dynamic_cast<TotalField*>(source.get());
+        if (tf == nullptr) {
             continue;
         }
         for (auto ft : { E, H }) {
             for (auto d : { X, Y, Z }) {
                 std::function<double(const Source::Position&, Source::Time)> f = 0;
-                f = std::bind(&Planewave::eval, pw,
+                f = std::bind(&TotalField::eval, tf,
                     std::placeholders::_1, std::placeholders::_2, ft, d);
                 FunctionCoefficient func(f);
                 func.SetTime(time);
                 res[ft][d].SetSpace(fes);
-                res[ft][d].ProjectCoefficient(func);
-            }
-        }
-    }
-    return res;
-}
-
-FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, bool is_tf)
-{
-    std::array<std::array<GridFunction, 3>, 2> res;
-    for (const auto& source : sources) {
-        auto pw = dynamic_cast<Planewave*>(source.get());
-        if (pw == nullptr) {
-            continue;
-        }
-        for (auto ft : { E, H }) {
-            for (auto d : { X, Y, Z }) {
-                std::function<double(const Source::Position&, Source::Time)> f = 0;
-                f = std::bind(&Planewave::eval, pw,
-                    std::placeholders::_1, std::placeholders::_2, ft, d);
-                FunctionCoefficient func(f);
-                func.SetTime(time);
-
-                switch (is_tf) {
-                case true:
-                    res[ft][d].SetSpace(tf_fes_.get());
-                    break;
-                case false:
-                    res[ft][d].SetSpace(sf_fes_.get());
-                    break;
-                }
                 res[ft][d].ProjectCoefficient(func);
             }
         }

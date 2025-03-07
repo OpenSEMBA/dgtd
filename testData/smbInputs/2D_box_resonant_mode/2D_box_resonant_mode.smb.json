@@ -35,7 +35,7 @@
   "sources": [
     {
       "sourceType": "initialField",
-      "function": {
+      "magnitude": {
         "type": "sinusoidalMode",
         "modes": [2, 2]
       },

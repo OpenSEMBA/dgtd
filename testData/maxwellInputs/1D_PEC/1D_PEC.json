@@ -43,7 +43,7 @@
   "sources": [
     {
       "type": "initial",
-      "field_type": "E",
+      "field_type": "electric",
       "center": [ 0.5 ],
       "polarization": [ 0.0, 1.0, 0.0 ],
       "dimension": 1,

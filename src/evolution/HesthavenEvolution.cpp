@@ -93,7 +93,7 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 	const auto& vmapBSF = connectivity_.boundary.TFSF.vmapBSF;
 	const auto& vmapBTF = connectivity_.boundary.TFSF.vmapBTF;
 	for (const auto& source : srcmngr_.sources) {
-		auto pw = dynamic_cast<Planewave*>(source.get());
+		auto pw = dynamic_cast<TotalField*>(source.get());
 		if (pw == nullptr) {
 			continue;
 		}

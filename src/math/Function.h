@@ -3,18 +3,43 @@
 #include <mfem.hpp>
 #include <math.h>
 #include <cmath>
+#include "math/PhysicalConstants.h"
+#include "evolution/Fields.h"
+#include "components/Spherical.h"
+#include "math/Calculus.h"
+#include "components/Types.h"
 
 namespace maxwell {
 
+using VectorTF = std::array<std::array<double, 3>, 2>;
+
+using Position = mfem::Vector;
+using Time = double;
+using Polarization = mfem::Vector;
+using Propagation = mfem::Vector;
+using CartesianAngles = mfem::Vector;
+
 class Function {
 public:
+
 	virtual ~Function() = default;
 
 	virtual std::unique_ptr<Function> clone() const = 0;
 
-	virtual double eval(const mfem::Vector&) const = 0;
+	virtual double eval(const Position&) const = 0;
 	
 	virtual int dimension() const = 0;
+
+};
+
+class EHFieldFunction {
+public:
+
+	virtual ~EHFieldFunction() = default;
+
+	virtual std::unique_ptr<EHFieldFunction> clone() const = 0;
+
+	virtual double eval(const Position&, const Time&, const FieldType&, const Direction&) const = 0;
 
 };
 
@@ -28,7 +53,7 @@ public:
 	*/
 	Gaussian(
 		double spread, 
-		const mfem::Vector center = mfem::Vector({0.0}), 
+		const Position center = Position({0.0}),
 		int dim = 1
 	) :
 		spread_{ spread },
@@ -44,8 +69,7 @@ public:
 		return std::make_unique<Gaussian>(*this);
 	}
 
-	double eval(const mfem::Vector& pos) const 
-	{
+	double eval(const Position& pos) const {
 		assert(dimension_ <= pos.Size());
 		switch (dimension_) {
 		case 1:
@@ -72,7 +96,7 @@ public:
 
 private:
 	double spread_{ 2.0 };
-	mfem::Vector center_;
+	Position center_;
 	int dimension_;
 };
 
@@ -88,7 +112,7 @@ public:
 		return std::make_unique<SinusoidalMode>(*this);
 	}
 
-	double eval(const mfem::Vector& pos) const 
+	double eval(const Position& pos) const
 	{
 		double res{ 1.0 };
 		for (auto d{ 0 }; d < modes_.size(); ++d) {
@@ -111,7 +135,7 @@ public:
 
 	int dimension() const { return 2; }
 
-	double eval(const mfem::Vector& pos) const
+	double eval(const Position& pos) const
 	{
 		double alpha6 = 13.589290170541217;
 		double besselj6;
@@ -125,6 +149,173 @@ public:
 		return besselj6 * cosinetheta * cosinetime;
 	}
 
+};
+
+class DerivGaussDipole : public EHFieldFunction {
+public:
+	DerivGaussDipole(const double length, const double gaussianSpread, const double gaussDelay) :
+		len_(length),
+		gaussSpread_(gaussianSpread),
+		gaussDelay_(gaussDelay)
+	{
+	}
+
+	DerivGaussDipole(const DerivGaussDipole& rhs) :
+		len_{ rhs.len_ },
+		gaussSpread_{ rhs.gaussSpread_ },
+		gaussDelay_{ rhs.gaussDelay_ }
+	{
+	}
+
+	std::unique_ptr<EHFieldFunction> clone() const {
+		return std::make_unique<DerivGaussDipole>(*this);
+	}
+
+	double eval(
+		const Position& p, const Time& t,
+		const FieldType& ft, const Direction& d) const {
+
+		VectorTF res;
+		SphericalVector pos(p);
+
+		const auto& cs = physicalConstants::speedOfLight_SI;
+		auto cs2 = cs * cs;
+		auto delay = t - pos.radius / cs;
+
+		auto radius = pos.radius;
+		auto radius2 = radius * radius;
+		auto radius3 = radius2 * radius;
+
+		auto invSpeed = 1.0 / cs;
+		auto invSpeed2 = invSpeed * invSpeed;
+		auto invSpeedRho = invSpeed / radius;
+		auto invSpeed2Rho = invSpeed2 / radius;
+		auto invSpeedRho2 = invSpeed / radius2;
+
+		auto sint = std::sin(pos.theta);
+		auto cost = std::cos(pos.theta);
+
+		auto spreadterm = gaussSpread_ * std::sqrt(2.0);
+		auto spreadsqrt2 = spreadterm * spreadterm;
+
+		auto expArg = (t - gaussDelay_) / (spreadsqrt2);
+		auto expArg2 = expArg * expArg;
+
+		auto iret = -expArg * std::exp(-expArg / 2.0);
+		auto diret = -iret * 2.0 * expArg / spreadsqrt2;
+		auto doublediret = diret * (-2.0) * expArg / spreadsqrt2 + iret * (-2.0) / spreadsqrt2 / spreadsqrt2;
+
+		const auto& ifpe0 = physicalConstants::invFourPiEps0_SI;
+		const auto& ifp = physicalConstants::invFourPi;
+		
+		auto er = len_ * ifpe0 * 2.0 * cost * (iret / radius3 + diret / (cs * radius2));
+		auto et = len_ * ifpe0 * sint * (iret / radius3 + diret / (cs * radius2) + doublediret / (cs2 * radius));
+		auto hp = len_ * ifp * sint * (doublediret / (radius * cs) + diret / radius2);
+
+		std::vector<double> resField;
+		switch (ft) {
+			case E:
+				resField = pos.convertSphericalVectorFieldToCartesian(er, et, 0.0);
+				switch (d) {
+					case X:
+						return resField[0];
+					case Y:
+						return resField[1];
+					case Z:
+						return resField[2];
+				}
+			case H:
+				resField = pos.convertSphericalVectorFieldToCartesian(0.0, 0.0, hp);
+				switch (d) {
+					case X:
+						return resField[0];
+					case Y:
+						return resField[1];
+					case Z:
+						return resField[2];
+				}
+		}
+	}
+
+private:
+	double len_;
+	double gaussSpread_;
+	double gaussDelay_;
+
+};
+
+class Planewave : public EHFieldFunction {
+public:
+	Planewave(const Function& func, const Polarization& p, const Propagation& dir, const FieldType& ft) :
+		function_{ func.clone() },
+		polarization_{ p },
+		propagation_{ dir },
+		fieldtype_{ ft }
+	{}
+
+	Planewave(const Planewave& rhs) :
+		function_{ rhs.function_->clone() },
+		polarization_{ rhs.polarization_ },
+		propagation_{ rhs.propagation_ },
+		fieldtype_{ rhs.fieldtype_ }
+	{
+		assert(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE);
+		assert(std::abs(1.0 - propagation_.Norml2()) <= TOLERANCE);
+	}
+
+	std::unique_ptr<EHFieldFunction> clone() const {
+		return std::make_unique<Planewave>(*this);
+	};
+
+	double eval(
+		const Position& p, const Time& t,
+		const FieldType& ft, const Direction& d) const {
+		assert(p.Size() <= 3);
+
+		Polarization pol(3);
+
+		switch (fieldtype_) {
+		case E:
+			if (ft == E) {
+				pol = polarization_;
+			}
+			else {
+				pol = crossProduct(propagation_, polarization_);
+			}
+			break;
+		case H:
+			if (ft == H) {
+				pol = polarization_;
+			}
+			else {
+				pol = crossProduct(polarization_, propagation_);
+			}
+			break;
+		}
+
+		Position pos(3);
+		if (p.Size() == 1) {
+			pos = Position({ p[0],  0.0, 0.0 });
+		}
+		else if (p.Size() == 2) {
+			pos = Position({ p[0], p[1], 0.0 });
+		}
+		else {
+			pos = p;
+		}
+
+		auto phaseDelay{ pos * propagation_ / physicalConstants::speedOfLight };
+
+		
+		return function_->eval(Position({ phaseDelay - t })) * pol[d];
+		
+	};
+
+private:
+	std::unique_ptr<Function> function_;
+	Polarization polarization_;
+	Propagation propagation_;
+	FieldType fieldtype_;
 };
 
 }
