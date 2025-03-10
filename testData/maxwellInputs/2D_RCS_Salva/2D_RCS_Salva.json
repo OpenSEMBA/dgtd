@@ -30,7 +30,7 @@
     "exporter": {
       "steps": 20
     },
-    "neartofarfield": [
+    "surfacefield": [
       {
         "name": "circle_salva",
         "steps": 1,

@@ -11,8 +11,8 @@ struct ExporterProbe {
     int visSteps{ 10 };
 };
 
-struct NearToFarFieldProbe {
-    std::string name{ "NearToFarField" };
+struct SurfaceProbe {
+    std::string name{ "SurfaceProbe" };
     int steps{ 10 };
     std::vector<int> tags;
 };
@@ -83,7 +83,7 @@ struct Probes {
     std::vector<PointProbe> pointProbes;
     std::vector<ExporterProbe> exporterProbes;
     std::vector<FieldProbe> fieldProbes;
-    std::vector<NearToFarFieldProbe> nearToFarFieldProbes;
+    std::vector<SurfaceProbe> nearToFarFieldProbes;
 };
 
 }

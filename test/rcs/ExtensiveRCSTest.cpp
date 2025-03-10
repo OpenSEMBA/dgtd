@@ -12,7 +12,7 @@
 #include <math.h>
 #include <complex>
 
-#include <components/RCSExporter.h>
+#include <components/NearFieldExporter.h>
 #include <components/RCSManager.h>
 
 #include "TestUtils.h"

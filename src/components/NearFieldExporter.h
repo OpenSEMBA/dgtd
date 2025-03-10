@@ -9,9 +9,9 @@ namespace maxwell {
 
 using namespace mfem;
 
-class RCSCollection : public DataCollection {
+class NearFieldCollection : public DataCollection {
 public:
-	RCSCollection(const NearToFarFieldProbe&, const SolverOptions&);
+	NearFieldCollection(const SurfaceProbe&, const SolverOptions&);
 
 	void Save();
 private:

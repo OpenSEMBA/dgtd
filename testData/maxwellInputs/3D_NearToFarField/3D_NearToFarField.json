@@ -30,7 +30,7 @@
     "exporter": {
       "steps": 200
     },
-    "neartofarfield": [
+    "surfacefield": [
       {
         "name": "middle",
         "steps": 200,

@@ -258,24 +258,24 @@ Probes buildProbes(const json& case_data)
 		}
 	}
 
-	if (case_data["probes"].contains("neartofarfield")) {
-		for (int p{ 0 }; p < case_data["probes"]["neartofarfield"].size(); p++) {
-			NearToFarFieldProbe probe;
-			if (case_data["probes"]["neartofarfield"][p].contains("name")) {
-				probe.name = case_data["probes"]["neartofarfield"][p]["name"];
+	if (case_data["probes"].contains("surfacefield")) {
+		for (int p{ 0 }; p < case_data["probes"]["surfacefield"].size(); p++) {
+			SurfaceProbe probe;
+			if (case_data["probes"]["surfacefield"][p].contains("name")) {
+				probe.name = case_data["probes"]["surfacefield"][p]["name"];
 			}
-			if (case_data["probes"]["neartofarfield"][p].contains("steps")) {
-				probe.steps = case_data["probes"]["neartofarfield"][p]["steps"];
+			if (case_data["probes"]["surfacefield"][p].contains("steps")) {
+				probe.steps = case_data["probes"]["surfacefield"][p]["steps"];
 			}
-			if (case_data["probes"]["neartofarfield"][p].contains("tags")) {
+			if (case_data["probes"]["surfacefield"][p].contains("tags")) {
 				std::vector<int> tags;
-				for (int t{ 0 }; t < case_data["probes"]["neartofarfield"][p]["tags"].size(); t++) {
-					tags.push_back(case_data["probes"]["neartofarfield"][p]["tags"][t]);
+				for (int t{ 0 }; t < case_data["probes"]["surfacefield"][p]["tags"].size(); t++) {
+					tags.push_back(case_data["probes"]["surfacefield"][p]["tags"][t]);
 				}
 				probe.tags = tags;
 			}
 			else {
-				throw std::runtime_error("Tags have not been defined in neartofarfield probe.");
+				throw std::runtime_error("Tags have not been defined in surfacefield probe.");
 			}
 			probes.nearToFarFieldProbes.push_back(probe);
 		}

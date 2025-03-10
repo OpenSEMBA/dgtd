@@ -65,8 +65,8 @@ public:
 
 private:
 
-	void setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker);
-	void setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker);
+	void setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker);
+	void setSurfaceAttributesForSubMesh3D(Mesh& m, const Array<int>& marker);
 	void prepareSubMeshInfo(Mesh&, const FaceElementTransformations*, int faceId, bool el1_is_tf);
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
 	void storeElementToFaceInformation(const FaceElementTransformations*, int faceId, bool el1_is_tf);

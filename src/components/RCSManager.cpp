@@ -1,5 +1,4 @@
 #include "components/RCSManager.h"
-#include "math/PhysicalConstants.h"
 
 namespace maxwell {
 
@@ -102,17 +101,17 @@ void RCSManager::getFESFromGF(Mesh& mesh, const std::string& path)
 	}
 }
 
-Array<int> getNTFFMarker(const int att_size)
+Array<int> getSurfaceFieldsMarker(const int att_size)
 {
 	Array<int> res(att_size);
 	res = 0;
-	res[static_cast<int>(BdrCond::NearToFarField) - 1] = 1;
+	res[static_cast<int>(BdrCond::SurfaceField) - 1] = 1;
 	return res;
 }
 std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient* fc, FiniteElementSpace& fes, const Direction& dir)
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
-	auto marker{ getNTFFMarker(fes.GetMesh()->bdr_attributes.Max()) };
+	auto marker{ getSurfaceFieldsMarker(fes.GetMesh()->bdr_attributes.Max()) };
 	res->AddBdrFaceIntegrator(new mfemExtension::RCSBdrFaceIntegrator(*fc, dir), marker);
 	res->Assemble();
 	return res;

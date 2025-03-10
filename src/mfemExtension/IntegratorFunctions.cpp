@@ -1,7 +1,4 @@
 #include "IntegratorFunctions.h"
-#include "components/Types.h"
-
-#include <exception>
 
 namespace maxwell::mfemExtension {
     

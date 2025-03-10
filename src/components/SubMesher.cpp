@@ -260,7 +260,7 @@ Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
 			res[0] = SubMeshingMarkers::ScatteredFieldMarker;
 		}
 		break;
-	case BdrCond::NearToFarField:
+	case BdrCond::SurfaceField:
 		res[0] = SubMeshingMarkers::NearToFarFieldMarker;
 		break;
 	}
@@ -630,24 +630,24 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 
 	switch (original_->SpaceDimension()) {
 	case 2:
-		setIndividualNTFFAttributesForSubMeshing2D(*original_.get(), marker);
+		setSurfaceAttributesForSubMesh2D(*original_.get(), marker);
 		break;
 	case 3:
-		setIndividualNTFFAttributesForSubMeshing3D(*original_.get(), marker);
+		setSurfaceAttributesForSubMesh3D(*original_.get(), marker);
 		break;
 	default:
-		throw std::runtime_error("NearToFarField can only be applied to 2D or 3D meshes.");
+		throw std::runtime_error("SurfaceField can only be applied to 2D or 3D meshes.");
 	}
 
 	if (!elem_to_face_ntff_.empty()) {
-		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
+		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::SurfaceField)));
 	}
 	else {
 		throw std::runtime_error("ntff submesh is empty, check orientation of curves/faces.");
 	}
 }
 
-void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
+void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -676,7 +676,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 				}
 			}
 			else {
-				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
+				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify that SurfaceField orientations on the mesh follow the intended convention." };
 				throw std::runtime_error(error.c_str());
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
@@ -687,7 +687,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 
 }
 
-void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
+void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh3D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {

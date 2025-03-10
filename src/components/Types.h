@@ -3,11 +3,12 @@
 #include <array>
 #include <vector>
 #include <map>
+#include <cfloat>
 #include <mfem.hpp>
 
 namespace maxwell {
 
-constexpr double TOLERANCE = 10.0 * DBL_EPSILON;
+const double TOLERANCE = 10.0 * std::numeric_limits<double>::epsilon();
 
 struct GridFuncForFP {
 	mfem::GridFunction Ex;
@@ -57,7 +58,7 @@ enum class BdrCond {
 	PMC,
 	SMA,
 	SurfaceCond,
-	NearToFarField = 201,
+	SurfaceField = 201,
 	TotalFieldIn = 301
 };
 

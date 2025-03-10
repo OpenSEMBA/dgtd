@@ -129,7 +129,7 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 }
 
 DataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
-	const NearToFarFieldProbe& p, Fields& gFields) const
+	const SurfaceProbe& p, Fields& gFields) const
 {
 	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
 	{
@@ -209,7 +209,7 @@ Fields buildFieldsForProbe(const Fields& src, FiniteElementSpace& fes)
 	return res;
 }
 
-void ProbesManager::updateProbe(NearToFarFieldProbe& p, Time time)
+void ProbesManager::updateProbe(SurfaceProbe& p, Time time)
 {
 	if (abs(time - finalTime_) >= 1e-3) {
 		if (cycle_ % p.steps != 0) {
@@ -295,7 +295,7 @@ void TransferMaps::transferFields(const Fields& src, Fields& dst)
 }
 
 NearToFarFieldReqs::NearToFarFieldReqs(
-	const NearToFarFieldProbe& p, const DG_FECollection* fec, FiniteElementSpace& fes, Fields& global) :
+	const SurfaceProbe& p, const DG_FECollection* fec, FiniteElementSpace& fes, Fields& global) :
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
 	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
 	fields_{ Fields(*sfes_) },

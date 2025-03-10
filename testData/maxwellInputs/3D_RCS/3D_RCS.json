@@ -30,7 +30,7 @@
     "exporter": {
       "steps": 20
     },
-    "neartofarfield": [
+    "surfacefield": [
       {
         "name": "sphere",
         "steps": 1,

@@ -12,7 +12,7 @@ add_library(maxwell-components STATIC
 	"OptimizationManager.cpp"
 	"SubMesher.cpp"
 	"RCSManager.cpp" 
-	"RCSExporter.cpp"
+	"NearFieldExporter.cpp"
 	"ProblemDefinition.cpp"
 	"DGOperatorFactory.cpp" 
 	"Spherical.cpp")

@@ -37,7 +37,7 @@ struct TransferMaps {
 class NearToFarFieldReqs {
 public:
 
-    NearToFarFieldReqs(const NearToFarFieldProbe&, const mfem::DG_FECollection* fec, mfem::FiniteElementSpace& fes, Fields&);
+    NearToFarFieldReqs(const SurfaceProbe&, const mfem::DG_FECollection* fec, mfem::FiniteElementSpace& fes, Fields&);
 
     mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
     const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
@@ -102,21 +102,21 @@ private:
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
-    std::map<const NearToFarFieldProbe*, DataCollection> nearToFarFieldProbesCollection_;
+    std::map<const SurfaceProbe*, DataCollection> nearToFarFieldProbesCollection_;
     
     mfem::FiniteElementSpace& fes_;
 
-    std::map<const NearToFarFieldProbe*, std::unique_ptr<NearToFarFieldReqs>> nearToFarFieldReqs_;
+    std::map<const SurfaceProbe*, std::unique_ptr<NearToFarFieldReqs>> nearToFarFieldReqs_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    DataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, Fields&) const;
+    DataCollection buildNearToFarFieldDataCollectionInfo(const SurfaceProbe&, Fields&) const;
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(PointProbe&, Time);
     void updateProbe(FieldProbe&, Time);
-    void updateProbe(NearToFarFieldProbe&, Time);
+    void updateProbe(SurfaceProbe&, Time);
 };
 
 

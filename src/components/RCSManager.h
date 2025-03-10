@@ -2,6 +2,7 @@
 
 #include "mfemExtension/LinearIntegrators.h"
 #include "driver/driver.h"
+#include "math/PhysicalConstants.h"
 
 namespace maxwell {
 

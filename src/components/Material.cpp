@@ -1,7 +1,5 @@
 #include "Material.h"
 
-#include <stdexcept>
-
 namespace maxwell {
 
 void verifyParameters(double epsilon, double mu, double sigma) 
