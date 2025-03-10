@@ -4,17 +4,15 @@
 #include <fftw3.h>
 
 #include <mfem.hpp>
-#include <components/Types.h>
 
 #include <iostream>
 #include <filesystem>
-
 #include <math.h>
 #include <complex>
 
-#include <components/NearFieldExporter.h>
-#include <components/RCSManager.h>
 
+#include "components/Types.h"
+#include "components/RCSManager.h"
 #include "TestUtils.h"
 
 namespace maxwell {

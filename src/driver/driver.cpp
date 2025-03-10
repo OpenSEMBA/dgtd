@@ -249,18 +249,18 @@ Probes buildProbes(const json& case_data)
 		probes.exporterProbes.push_back(exporter_probe);
 	}
 
-	if (case_data["probes"].contains("field")) {
-		for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
-			FieldProbe field_probe(
-				assembleVector(case_data["probes"]["field"][p]["position"])
+	if (case_data["probes"].contains("point")) {
+		for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
+			PointProbe field_probe(
+				assembleVector(case_data["probes"]["point"][p]["position"])
 			);
-			probes.fieldProbes.push_back(field_probe);
+			probes.pointProbes.push_back(field_probe);
 		}
 	}
 
 	if (case_data["probes"].contains("surfacefield")) {
 		for (int p{ 0 }; p < case_data["probes"]["surfacefield"].size(); p++) {
-			SurfaceProbe probe;
+			NearFieldProbe probe;
 			if (case_data["probes"]["surfacefield"][p].contains("name")) {
 				probe.name = case_data["probes"]["surfacefield"][p]["name"];
 			}
@@ -277,7 +277,7 @@ Probes buildProbes(const json& case_data)
 			else {
 				throw std::runtime_error("Tags have not been defined in surfacefield probe.");
 			}
-			probes.nearToFarFieldProbes.push_back(probe);
+			probes.nearFieldProbes.push_back(probe);
 		}
 	}
 

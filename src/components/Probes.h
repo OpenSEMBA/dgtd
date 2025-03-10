@@ -11,15 +11,15 @@ struct ExporterProbe {
     int visSteps{ 10 };
 };
 
-struct SurfaceProbe {
-    std::string name{ "SurfaceProbe" };
+struct NearFieldProbe {
+    std::string name{ "NearFieldProbe" };
     int steps{ 10 };
     std::vector<int> tags;
 };
 
-class PointProbe {
+class FieldProbe {
 public:
-    PointProbe(const FieldType& ft, const Direction& d, const Point& p) :
+    FieldProbe(const FieldType& ft, const Direction& d, const Point& p) :
         fieldToExtract_{ ft },
         directionToExtract_{ d },
         point_{ p }
@@ -61,15 +61,15 @@ private:
     FieldMovie fieldMovie_;
 };
 
-class FieldProbe {
+class PointProbe {
 public:
-    FieldProbe(const Point& p) :
+    PointProbe(const Point& p) :
         point_{ p }
     {}
 
     const FieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
-    void addFieldsToMovies(Time t, const FieldsForFP& fields) { fieldMovies_.emplace(t, fields); };
+    void addFieldsToMovies(Time t, const FieldsForPointProbe& fields) { fieldMovies_.emplace(t, fields); };
 
 
 private:
@@ -80,10 +80,10 @@ private:
 };
 
 struct Probes {
-    std::vector<PointProbe> pointProbes;
-    std::vector<ExporterProbe> exporterProbes;
     std::vector<FieldProbe> fieldProbes;
-    std::vector<SurfaceProbe> nearToFarFieldProbes;
+    std::vector<ExporterProbe> exporterProbes;
+    std::vector<PointProbe> pointProbes;
+    std::vector<NearFieldProbe> nearFieldProbes;
 };
 
 }

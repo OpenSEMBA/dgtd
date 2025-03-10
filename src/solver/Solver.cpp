@@ -89,12 +89,12 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 	}
 }
 
-const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
+const FieldProbe& Solver::getPointProbe(const std::size_t probe) const 
 { 
 	return probesManager_.getPointProbe(probe); 
 }
 
-const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
+const PointProbe& Solver::getFieldProbe(const std::size_t probe) const
 {
 	return probesManager_.getFieldProbe(probe);
 }

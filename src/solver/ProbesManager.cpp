@@ -33,40 +33,40 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
 	}
 
-	for (const auto& p : probes.pointProbes) {
+	for (const auto& p : probes.fieldProbes) {
 		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
 	}
 
-	for (const auto& p : probes.fieldProbes) {
+	for (const auto& p : probes.pointProbes) {
 		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
 	}
 
-	for (const auto& p : probes.nearToFarFieldProbes) {
+	for (const auto& p : probes.nearFieldProbes) {
 		auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
 		if (!dgfec)
 		{
 			throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
 		}
-		nearToFarFieldReqs_.emplace(&p, std::make_unique<NearToFarFieldReqs>(NearToFarFieldReqs(p, dgfec, fes_, fields)));
-		nearToFarFieldProbesCollection_.emplace(&p, buildNearToFarFieldDataCollectionInfo(p, fields));
+		nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
+		nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
 	}
 
 	finalTime_ = opts.finalTime;
 }
 
-const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
-{
-	assert(i < probes.pointProbes.size());
-	return probes.pointProbes[i];
-}
-
-const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
+const FieldProbe& ProbesManager::getPointProbe(const std::size_t i) const
 {
 	assert(i < probes.fieldProbes.size());
 	return probes.fieldProbes[i];
 }
 
-const GridFunction& getFieldView(const PointProbe& p, Fields& fields)
+const PointProbe& ProbesManager::getFieldProbe(const std::size_t i) const
+{
+	assert(i < probes.pointProbes.size());
+	return probes.pointProbes[i];
+}
+
+const GridFunction& getFieldView(const FieldProbe& p, Fields& fields)
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
@@ -88,7 +88,7 @@ DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 }
 
 ProbesManager::PointProbeCollection
-ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields) const
+ProbesManager::buildPointProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
 {
 	
 	Array<int> elemIdArray;
@@ -106,7 +106,7 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 }
 
 ProbesManager::FieldProbeCollection
-ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
+ProbesManager::buildFieldProbeCollectionInfo(const PointProbe& p, Fields& fields) const
 {
 
 	Array<int> elemIdArray;
@@ -128,22 +128,22 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 	};
 }
 
-DataCollection ProbesManager::buildNearToFarFieldDataCollectionInfo(
-	const SurfaceProbe& p, Fields& gFields) const
+DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
+	const NearFieldProbe& p, Fields& gFields) const
 {
 	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
 	{
 		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
 	}
 
-	DataCollection res{ p.name, nearToFarFieldReqs_.at(&p)->getSubMesh()};
+	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh()};
 	res.SetPrefixPath("NearToFarFieldExports/" + p.name);
-	res.RegisterField("Ex.gf", &nearToFarFieldReqs_.at(&p)->getField(E, X));
-	res.RegisterField("Ey.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Y));
-	res.RegisterField("Ez.gf", &nearToFarFieldReqs_.at(&p)->getField(E, Z));
-	res.RegisterField("Hx.gf", &nearToFarFieldReqs_.at(&p)->getField(H, X));
-	res.RegisterField("Hy.gf", &nearToFarFieldReqs_.at(&p)->getField(H, Y));
-	res.RegisterField("Hz.gf", &nearToFarFieldReqs_.at(&p)->getField(H, Z));
+	res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getField(E, X));
+	res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getField(E, Y));
+	res.RegisterField("Ez.gf", &nearFieldReqs_.at(&p)->getField(E, Z));
+	res.RegisterField("Hx.gf", &nearFieldReqs_.at(&p)->getField(H, X));
+	res.RegisterField("Hy.gf", &nearFieldReqs_.at(&p)->getField(H, Y));
+	res.RegisterField("Hz.gf", &nearFieldReqs_.at(&p)->getField(H, Z));
 
 	return res;
 
@@ -166,7 +166,7 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 	pd.Save();
 }
 
-void ProbesManager::updateProbe(PointProbe& p, Time time)
+void ProbesManager::updateProbe(FieldProbe& p, Time time)
 {
 	const auto& it{ pointProbesCollection_.find(&p) };
 	assert(it != pointProbesCollection_.end());
@@ -177,12 +177,12 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	);
 }
 
-void ProbesManager::updateProbe(FieldProbe& p, Time time)
+void ProbesManager::updateProbe(PointProbe& p, Time time)
 {
 	const auto& it{ fieldProbesCollection_.find(&p) };
 	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
-	FieldsForFP f4FP;
+	FieldsForPointProbe f4FP;
 	{
 		f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 		f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
@@ -209,7 +209,7 @@ Fields buildFieldsForProbe(const Fields& src, FiniteElementSpace& fes)
 	return res;
 }
 
-void ProbesManager::updateProbe(SurfaceProbe& p, Time time)
+void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 {
 	if (abs(time - finalTime_) >= 1e-3) {
 		if (cycle_ % p.steps != 0) {
@@ -217,11 +217,11 @@ void ProbesManager::updateProbe(SurfaceProbe& p, Time time)
 		}
 	}
 
-	auto it{ nearToFarFieldProbesCollection_.find(&p) };
-	assert(it != nearToFarFieldProbesCollection_.end());
+	auto it{ nearFieldProbesCollection_.find(&p) };
+	assert(it != nearFieldProbesCollection_.end());
 	auto& dc{ it->second };
 
-	nearToFarFieldReqs_.at(&p)->updateFields();
+	nearFieldReqs_.at(&p)->updateFields();
 
 	dc.SetCycle(cycle_);
 	dc.SetTime(time);
@@ -244,15 +244,15 @@ void ProbesManager::updateProbes(Time t)
 		updateProbe(p, t);
 	}
 	
-	for (auto& p : probes.pointProbes) {
-		updateProbe(p, t);
-	}
-
 	for (auto& p : probes.fieldProbes) {
 		updateProbe(p, t);
 	}
 
-	for (auto& p : probes.nearToFarFieldProbes) {
+	for (auto& p : probes.pointProbes) {
+		updateProbe(p, t);
+	}
+
+	for (auto& p : probes.nearFieldProbes) {
 		updateProbe(p, t);
 	}
 
@@ -269,7 +269,7 @@ Array<int> buildSurfaceMarker(const std::vector<int>& tags, const FiniteElementS
 	return res;
 }
 
-void NearToFarFieldReqs::assignGlobalFieldsReferences(Fields& global)
+void NearFieldReqs::assignGlobalFieldsReferences(Fields& global)
 {
 	gFields_.get(E, X) = global.get(E, X);
 	gFields_.get(E, Y) = global.get(E, Y);
@@ -279,7 +279,7 @@ void NearToFarFieldReqs::assignGlobalFieldsReferences(Fields& global)
 	gFields_.get(H, Z) = global.get(H, Z);
 }
 
-void NearToFarFieldReqs::updateFields()
+void NearFieldReqs::updateFields()
 {
 	tMaps_.transferFields(gFields_, fields_);
 }
@@ -294,8 +294,8 @@ void TransferMaps::transferFields(const Fields& src, Fields& dst)
 	tMapHz.Transfer(src.get(H, Z), dst.get(H, Z));
 }
 
-NearToFarFieldReqs::NearToFarFieldReqs(
-	const SurfaceProbe& p, const DG_FECollection* fec, FiniteElementSpace& fes, Fields& global) :
+NearFieldReqs::NearFieldReqs(
+	const NearFieldProbe& p, const DG_FECollection* fec, FiniteElementSpace& fes, Fields& global) :
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
 	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
 	fields_{ Fields(*sfes_) },

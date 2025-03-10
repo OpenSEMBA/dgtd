@@ -10,16 +10,7 @@ namespace maxwell {
 
 const double TOLERANCE = 10.0 * std::numeric_limits<double>::epsilon();
 
-struct GridFuncForFP {
-	mfem::GridFunction Ex;
-	mfem::GridFunction Ey;
-	mfem::GridFunction Ez;
-	mfem::GridFunction Hx;
-	mfem::GridFunction Hy;
-	mfem::GridFunction Hz;
-};
-
-struct FieldsForFP {
+struct FieldsForPointProbe {
 	double Ex;
 	double Ey;
 	double Ez;
@@ -30,7 +21,7 @@ struct FieldsForFP {
 
 using Time = double;
 using FieldMovie = std::map<Time, double>;
-using FieldMovies = std::map<Time,FieldsForFP>;
+using FieldMovies = std::map<Time,FieldsForPointProbe>;
 
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
