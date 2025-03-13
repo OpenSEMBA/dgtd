@@ -1,0 +1,50 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step": 5e-3,
+    "final_time":  3.0,
+    "order": 1
+  },
+
+  "model": { 
+    "filename": "3D_Dipole_Sphere_Slice.msh",
+    "materials": [
+      {
+        "tags": [ 1, 3, 4 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 5 ],
+        "type":  "SMA"
+      },
+      {
+        "tags": [ 7, 11, 14 ],
+        "type":  "PEC"
+      },
+      {
+        "tags": [ 6, 8, 10, 12, 15, 16 ],
+        "type":  "PMC"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 20
+    }
+  },
+
+  "sources": [
+    {
+      "type": "dipole",
+      "tags": [ 13 ],
+      "magnitude": {
+        "length": 0.1,
+        "spread": 0.2,
+        "delay": 0.8
+      }
+    }
+  ]
+}

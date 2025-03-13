@@ -243,8 +243,8 @@ Probes buildProbes(const json& case_data)
 	if (case_data["probes"].contains("exporter")) {
 		ExporterProbe exporter_probe;
 		exporter_probe.name = case_data["model"]["filename"];
-		if (case_data["probes"]["exporter"].contains("steps")) {
-			exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
+		if (case_data["probes"]["exporter"].contains("expSteps")) {
+			exporter_probe.visSteps = case_data["probes"]["exporter"]["expSteps"];
 		}
 		probes.exporterProbes.push_back(exporter_probe);
 	}
@@ -258,24 +258,27 @@ Probes buildProbes(const json& case_data)
 		}
 	}
 
-	if (case_data["probes"].contains("surfacefield")) {
-		for (int p{ 0 }; p < case_data["probes"]["surfacefield"].size(); p++) {
+	if (case_data["probes"].contains("farfield")) {
+		for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
 			NearFieldProbe probe;
-			if (case_data["probes"]["surfacefield"][p].contains("name")) {
-				probe.name = case_data["probes"]["surfacefield"][p]["name"];
+			if (case_data["probes"]["farfield"][p].contains("name")) {
+				probe.name = case_data["probes"]["farfield"][p]["name"];
 			}
-			if (case_data["probes"]["surfacefield"][p].contains("steps")) {
-				probe.steps = case_data["probes"]["surfacefield"][p]["steps"];
+			if (case_data["probes"]["farfield"][p].contains("export_path")) {
+				probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
 			}
-			if (case_data["probes"]["surfacefield"][p].contains("tags")) {
+			if (case_data["probes"]["farfield"][p].contains("export_steps")) {
+				probe.expSteps = case_data["probes"]["farfield"][p]["export_steps"];
+			}
+			if (case_data["probes"]["farfield"][p].contains("tags")) {
 				std::vector<int> tags;
-				for (int t{ 0 }; t < case_data["probes"]["surfacefield"][p]["tags"].size(); t++) {
-					tags.push_back(case_data["probes"]["surfacefield"][p]["tags"][t]);
+				for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
+					tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
 				}
 				probe.tags = tags;
 			}
 			else {
-				throw std::runtime_error("Tags have not been defined in surfacefield probe.");
+				throw std::runtime_error("Tags have not been defined in farfield probe.");
 			}
 			probes.nearFieldProbes.push_back(probe);
 		}

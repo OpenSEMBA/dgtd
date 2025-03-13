@@ -13,7 +13,8 @@ struct ExporterProbe {
 
 struct NearFieldProbe {
     std::string name{ "NearFieldProbe" };
-    int steps{ 10 };
+    std::string exportPath{ "./defaultExportPath/" + name + "/"};
+    int expSteps{ 10 };
     std::vector<int> tags;
 };
 
@@ -69,7 +70,7 @@ public:
 
     const FieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
-    void addFieldsToMovies(Time t, const FieldsForPointProbe& fields) { fieldMovies_.emplace(t, fields); };
+    void addFieldsToMovies(Time t, const FieldsForMovie& fields) { fieldMovies_.emplace(t, fields); };
 
 
 private:

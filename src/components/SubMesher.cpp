@@ -260,7 +260,7 @@ Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
 			res[0] = SubMeshingMarkers::ScatteredFieldMarker;
 		}
 		break;
-	case BdrCond::SurfaceField:
+	case BdrCond::NearToFarField:
 		res[0] = SubMeshingMarkers::NearToFarFieldMarker;
 		break;
 	}
@@ -636,11 +636,11 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 		setSurfaceAttributesForSubMesh3D(*original_.get(), marker);
 		break;
 	default:
-		throw std::runtime_error("SurfaceField can only be applied to 2D or 3D meshes.");
+		throw std::runtime_error("NearToFarField can only be applied to 2D or 3D meshes.");
 	}
 
 	if (!elem_to_face_ntff_.empty()) {
-		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::SurfaceField)));
+		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
 	}
 	else {
 		throw std::runtime_error("ntff submesh is empty, check orientation of curves/faces.");
@@ -676,7 +676,7 @@ void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Ar
 				}
 			}
 			else {
-				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify that SurfaceField orientations on the mesh follow the intended convention." };
+				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify that NearToFarField orientations on the mesh follow the intended convention." };
 				throw std::runtime_error(error.c_str());
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)

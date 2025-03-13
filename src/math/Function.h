@@ -178,9 +178,9 @@ public:
 		VectorTF res;
 		SphericalVector pos(p);
 
-		const auto& cs = physicalConstants::speedOfLight_SI;
+		const auto& cs = physicalConstants::speedOfLight;
 		auto cs2 = cs * cs;
-		auto delay = t - pos.radius / cs;
+		auto delay = t  - pos.radius / cs;
 
 		auto radius = pos.radius;
 		auto radius2 = radius * radius;
@@ -195,17 +195,19 @@ public:
 		auto sint = std::sin(pos.theta);
 		auto cost = std::cos(pos.theta);
 
-		auto spreadterm = gaussSpread_ * std::sqrt(2.0);
-		auto spreadsqrt2 = spreadterm * spreadterm;
+		auto spreadsqrt2 = gaussSpread_ * std::sqrt(2.0);
 
-		auto expArg = (t - gaussDelay_) / (spreadsqrt2);
+		auto expArg = (t - gaussDelay_) / spreadsqrt2;
 		auto expArg2 = expArg * expArg;
 
-		auto iret = -expArg * std::exp(-expArg / 2.0);
-		auto diret = -iret * 2.0 * expArg / spreadsqrt2;
-		auto doublediret = diret * (-2.0) * expArg / spreadsqrt2 + iret * (-2.0) / spreadsqrt2 / spreadsqrt2;
+		auto maxMagnitude = 1.0;
+		auto scalingFactor = maxMagnitude * gaussSpread_ * std::sqrt(2.0 * std::exp(1.0));
 
-		const auto& ifpe0 = physicalConstants::invFourPiEps0_SI;
+		auto iret = scalingFactor * std::exp(-expArg2);
+		auto diret = scalingFactor * ( -iret * 2.0 * expArg / spreadsqrt2);
+		auto doublediret = scalingFactor * (diret * (-2.0) * expArg / spreadsqrt2 + iret * (-2.0) / spreadsqrt2 / spreadsqrt2);
+
+		const auto& ifpe0 = physicalConstants::invFourPiEps0;
 		const auto& ifp = physicalConstants::invFourPi;
 		
 		auto er = len_ * ifpe0 * 2.0 * cost * (iret / radius3 + diret / (cs * radius2));

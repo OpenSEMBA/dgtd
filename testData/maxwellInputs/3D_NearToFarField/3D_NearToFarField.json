@@ -30,7 +30,7 @@
     "exporter": {
       "steps": 200
     },
-    "surfacefield": [
+    "farfield": [
       {
         "name": "middle",
         "steps": 200,

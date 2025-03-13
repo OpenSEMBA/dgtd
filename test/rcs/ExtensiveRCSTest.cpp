@@ -10,7 +10,6 @@
 #include <math.h>
 #include <complex>
 
-
 #include "components/Types.h"
 #include "components/RCSManager.h"
 #include "TestUtils.h"

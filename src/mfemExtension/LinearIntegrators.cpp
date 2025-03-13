@@ -134,7 +134,7 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
     }
 }
 
-void RCSBdrFaceIntegrator::AssembleRHSElementVect(
+void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement& el, mfem::ElementTransformation& Tr, mfem::Vector& elvect)
 {
     mfem_error("RCSBoundaryIntegrator::AssembleRHSElementVect\n"
@@ -143,14 +143,14 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(
         "  LinearForm::AddBoundaryIntegrator.");
 }
 
-void RCSBdrFaceIntegrator::AssembleRHSElementVect(
+void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement& el1, const mfem::FiniteElement& el2, mfem::FaceElementTransformations& Tr, mfem::Vector& elvect)
 {
     mfem_error("RCSBoundaryIntegrator::AssembleRHSElementVect\n"
         "  is not implemented for two element purposes!\n");
 }
 
-void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect) 
+void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect) 
 {
     // Initialise the shape and return vector, making the latter 0.0 as it will have things added onto it, 
     // and not overwritten.
@@ -177,7 +177,7 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
 
         const IntegrationPoint& eip = Tr.GetElement1IntPoint();
 
-        // In the following lines we merely calculate the normal at the specified face, due to the problem 
+        // We calculate the normal at the specified face, due to the problem 
         // we're solving and design choices, we invert said normal as we need it heading into the element.
         inner_normal = 0.0;
         normal = 0.0;

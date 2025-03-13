@@ -30,7 +30,7 @@
     "exporter": {
       "steps": 20
     },
-    "surfacefield": [
+    "farfield": [
       {
         "name": "circle_biglambda",
         "steps": 1,

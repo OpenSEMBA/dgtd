@@ -182,7 +182,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	const auto& it{ fieldProbesCollection_.find(&p) };
 	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
-	FieldsForPointProbe f4FP;
+	FieldsForMovie f4FP;
 	{
 		f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 		f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
@@ -212,7 +212,7 @@ Fields buildFieldsForProbe(const Fields& src, FiniteElementSpace& fes)
 void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 {
 	if (abs(time - finalTime_) >= 1e-3) {
-		if (cycle_ % p.steps != 0) {
+		if (cycle_ % p.expSteps != 0) {
 			return;
 		}
 	}

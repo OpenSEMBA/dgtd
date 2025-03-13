@@ -41,10 +41,10 @@ private:
 
 };
 
-class RCSBdrFaceIntegrator : public mfem::LinearFormIntegrator
+class FarFieldBdrFaceIntegrator : public mfem::LinearFormIntegrator
 {
 public:
-    RCSBdrFaceIntegrator(mfem::Coefficient& c, const Direction& outputDir) :
+    FarFieldBdrFaceIntegrator(mfem::Coefficient& c, const Direction& outputDir) :
         c_(c), dir_(outputDir) {}
 
     void AssembleRHSElementVect(const mfem::FiniteElement& el,

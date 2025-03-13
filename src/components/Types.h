@@ -10,7 +10,7 @@ namespace maxwell {
 
 const double TOLERANCE = 10.0 * std::numeric_limits<double>::epsilon();
 
-struct FieldsForPointProbe {
+struct FieldsForMovie {
 	double Ex;
 	double Ey;
 	double Ez;
@@ -21,7 +21,7 @@ struct FieldsForPointProbe {
 
 using Time = double;
 using FieldMovie = std::map<Time, double>;
-using FieldMovies = std::map<Time,FieldsForPointProbe>;
+using FieldMovies = std::map<Time,FieldsForMovie>;
 
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
@@ -49,7 +49,7 @@ enum class BdrCond {
 	PMC,
 	SMA,
 	SurfaceCond,
-	SurfaceField = 201,
+	NearToFarField = 201,
 	TotalFieldIn = 301
 };
 

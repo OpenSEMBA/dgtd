@@ -533,7 +533,7 @@ namespace maxwell {
 			}
 		}
 		else if (bdrCond == BdrCond::TotalFieldIn) {
-			if (ori >= 0.0) {
+			if (ori < 0.0) {
 				boundary.TFSF.mapBSF.push_back(mapB.first);
 				boundary.TFSF.mapBTF.push_back(mapB.second);
 				boundary.TFSF.vmapBSF.push_back(nodePairs.first);
@@ -568,16 +568,18 @@ namespace maxwell {
 		auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
 		auto attMap{ mapOriginalAttributes(model_.getConstMesh()) };
 
+		double ori{ 0.0 };
 		auto intBdrNodeMesh{ Mesh(model_.getConstMesh()) };
 		for (auto b{ 0 }; b < model_.getConstMesh().GetNBE(); b++) {
 			for (const auto& marker : markers) {
 				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-					const auto faceTrans{ model_.getMesh().GetInternalBdrFaceTransformations(b) };
+					auto faceTrans{ model_.getMesh().GetInternalBdrFaceTransformations(b) };
+					fes_.GetMesh()->Dimension() == 2 ? ori = calculateCrossBaryVertexSign(*fes_.GetMesh(), *faceTrans, b) : ori = buildFaceOrientation(*fes_.GetMesh(), b);
 					auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
 					FiniteElementSpace subFES(&twoElemSubMesh, fec);
 					auto nodePairs{ buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES) };
 					auto mapsB{ initInteriorFacesMapB(nodePairs) };
-					loadIntBdrConditions(mapsB, nodePairs, marker.first);
+					loadIntBdrConditions(mapsB, nodePairs, marker.first, ori);
 				}
 			}
 		}

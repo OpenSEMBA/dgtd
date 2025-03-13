@@ -115,7 +115,7 @@ TEST_F(FormTest, RCSForm_2D)
 	Array<int> bdr_marker(3);
 	bdr_marker = 0;
 	bdr_marker[1] = 1;
-	lf.AddBdrFaceIntegrator(new RCSBdrFaceIntegrator(fc, X), bdr_marker);
+	lf.AddBdrFaceIntegrator(new FarFieldBdrFaceIntegrator(fc, X), bdr_marker);
 	lf.Assemble();
 
 	auto solution = mfem::InnerProduct(lf, gf);
@@ -133,7 +133,7 @@ TEST_F(FormTest, RCSBdrFaceInt)
 	Array<int> bdr_marker(3);
 	bdr_marker = 0;
 	bdr_marker[bdr_marker.Size() - 1] = 1;
-	lf.AddBdrFaceIntegrator(new RCSBdrFaceIntegrator(fc, X), bdr_marker);
+	lf.AddBdrFaceIntegrator(new FarFieldBdrFaceIntegrator(fc, X), bdr_marker);
 	lf.Assemble();
 
 }
