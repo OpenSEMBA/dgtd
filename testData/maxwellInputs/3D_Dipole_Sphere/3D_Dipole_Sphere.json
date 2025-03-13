@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 1e-4,
-    "final_time":  6.0,
+    "time_step": 5e-3,
+    "final_time":  3.0,
     "order": 1
   },
 
@@ -34,8 +34,8 @@
       "tags": [ 1 ],
       "magnitude": {
         "length": 0.1,
-        "spread": 0.3,
-        "delay": 0.5
+        "spread": 0.2,
+        "delay": 0.8
       }
     }
   ]

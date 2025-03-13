@@ -2,7 +2,7 @@
   "solver_options": {
     "solver_type": "upwind",
     "time_step": 0.0,
-    "final_time":  3.0,
+    "final_time":  6.0,
     "order": 1
   },
 
@@ -33,9 +33,9 @@
       "type": "dipole",
       "tags": [ 1 ],
       "magnitude": {
-        "length": 0.2,
-        "spread": 0.3,
-        "delay": 0.5
+        "length": 0.1,
+        "spread": 0.2,
+        "delay": 0.8
       }
     }
   ]

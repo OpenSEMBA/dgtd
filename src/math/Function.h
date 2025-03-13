@@ -201,9 +201,9 @@ public:
 		auto expArg2 = expArg * expArg;
 
 		auto maxMagnitude = 1.0;
-		auto scalingFactor = maxMagnitude * gaussSpread_ * std::sqrt(2.0 * std::exp(1.0));
+		auto scalingFactor = (spreadsqrt2 * std::exp(1.0) / 2.0) * maxMagnitude;
 
-		auto iret = scalingFactor * std::exp(-expArg2);
+		auto iret = std::exp(-expArg2);
 		auto diret = scalingFactor * ( -iret * 2.0 * expArg / spreadsqrt2);
 		auto doublediret = scalingFactor * (diret * (-2.0) * expArg / spreadsqrt2 + iret * (-2.0) / spreadsqrt2 / spreadsqrt2);
 
