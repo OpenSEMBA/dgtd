@@ -104,6 +104,6 @@ double buildFaceOrientation(Mesh& mesh, int be);
 const Vector buildTangent2D(Mesh& m, int be);
 const Vector buildNormal3D(Mesh& m, int be);
 const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be);
-const Vector buildBarycenterPosition(Mesh& m, int be);
+const Vector buildElem1ToElem2BarycenterVector(Mesh& m, int be);
 
 };
