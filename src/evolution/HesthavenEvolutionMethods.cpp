@@ -533,7 +533,7 @@ namespace maxwell {
 			}
 		}
 		else if (bdrCond == BdrCond::TotalFieldIn) {
-			if (ori < 0.0) {
+			if (ori >= 0.0) {
 				boundary.TFSF.mapBSF.push_back(mapB.first);
 				boundary.TFSF.mapBTF.push_back(mapB.second);
 				boundary.TFSF.vmapBSF.push_back(nodePairs.first);
