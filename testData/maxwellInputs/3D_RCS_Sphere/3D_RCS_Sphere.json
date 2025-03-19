@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 5e-3,
-    "final_time":  3.0,
+    "time_step": 2.5e-3,
+    "final_time":  7.0,
     "order": 1
   },
 
@@ -10,17 +10,17 @@
     "filename": "3D_RCS_Sphere.msh",
     "materials": [
       {
-        "tags": [ 2, 3 ],
+        "tags": [ 4, 5 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [ 3 ],
         "type":  "PEC"
       },
       {
-        "tags": [ 5 ],
+        "tags": [ 4 ],
         "type":  "SMA"
       }
     ]
@@ -28,8 +28,15 @@
 
   "probes": {
     "exporter": {
-      "steps": 10
+      "steps": 20
     },
+    "farfield": [
+      {
+        "name": "circle_1m",
+        "steps": 1,
+        "tags": [ 5 ]
+      }
+    ]
   },
 
   "sources": [
@@ -37,11 +44,11 @@
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0],
       "propagation": [1.0, 0.0, 0.0],
-      "tags": [ 4 ],
+      "tags": [ 5 ],
       "magnitude": {
         "length": 0.1,
-        "spread": 0.3,
-        "delay": 0.8
+        "spread": 0.4,
+        "delay": 1.8
       }
     }
   ]

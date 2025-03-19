@@ -2286,3 +2286,13 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_PropZ_Upwind_Hesthaven)
 
 	solver.run();
 }
+
+
+TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere"), true) };
+
+	solver.run();
+}
