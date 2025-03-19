@@ -474,12 +474,12 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 }
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
-	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
+	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, false);
 }
 
 mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 {
-	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, true);
+	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, false);
 }
 
 Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)

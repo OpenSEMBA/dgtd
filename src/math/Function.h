@@ -180,9 +180,8 @@ public:
 
 		const auto& cs = physicalConstants::speedOfLight;
 		auto cs2 = cs * cs;
-		auto delay = t  - pos.radius / cs;
 
-		auto radius = pos.radius;
+		auto radius = pos.radius / cs;
 		auto radius2 = radius * radius;
 		auto radius3 = radius2 * radius;
 
@@ -195,24 +194,28 @@ public:
 		auto sint = std::sin(pos.theta);
 		auto cost = std::cos(pos.theta);
 
-		auto spreadsqrt2 = gaussSpread_ * std::sqrt(2.0);
+		auto spreadsqrt2 = gaussSpread_ * std::sqrt(2.0) ;
 
-		auto expArg = (t - gaussDelay_) / spreadsqrt2;
+		auto expArg = (t - gaussDelay_ - pos.radius / cs) / spreadsqrt2;
 		auto expArg2 = expArg * expArg;
 
 		auto maxMagnitude = 1.0;
 		auto scalingFactor = (spreadsqrt2 * std::exp(1.0) / 2.0) * maxMagnitude;
 
-		auto iret = std::exp(-expArg2);
+		auto iret = scalingFactor * std::exp(-expArg2);
 		auto diret = scalingFactor * ( -iret * 2.0 * expArg / spreadsqrt2);
 		auto doublediret = scalingFactor * (diret * (-2.0) * expArg / spreadsqrt2 + iret * (-2.0) / spreadsqrt2 / spreadsqrt2);
 
 		const auto& ifpe0 = physicalConstants::invFourPiEps0;
 		const auto& ifp = physicalConstants::invFourPi;
-		
-		auto er = len_ * ifpe0 * 2.0 * cost * (iret / radius3 + diret / (cs * radius2));
-		auto et = len_ * ifpe0 * sint * (iret / radius3 + diret / (cs * radius2) + doublediret / (cs2 * radius));
-		auto hp = len_ * ifp * sint * (doublediret / (radius * cs) + diret / radius2);
+
+		//auto er = 0.0;
+		//auto et = (len_ / cs) * ifpe0 * sint * (doublediret / (cs2 * radius));
+		//auto hp = (len_ / cs) * ifp * sint * (doublediret / (radius * cs));
+
+		auto er = (len_ / cs) * ifpe0 * 2.0 * cost * (iret / radius3 + diret / (cs * radius2));
+		auto et = (len_ / cs) * ifpe0 * sint * (-iret / radius3 - diret / (cs * radius2) + doublediret / (cs2 * radius));
+		auto hp = (len_ / cs) * ifp * sint * (doublediret / (radius * cs) + diret / radius2);
 
 		std::vector<double> resField;
 		switch (ft) {
@@ -250,10 +253,15 @@ class Planewave : public EHFieldFunction {
 public:
 	Planewave(const Function& func, const Polarization& p, const Propagation& dir, const FieldType& ft) :
 		function_{ func.clone() },
-		polarization_{ p },
-		propagation_{ dir },
 		fieldtype_{ ft }
-	{}
+	{
+		polarization_.SetSize(p.Size());
+		propagation_.SetSize(dir.Size());
+		for (auto d{ 0 }; d < polarization_.Size(); d++) {
+			polarization_[d] = p[d] / p.Norml2();
+			propagation_[d] = dir[d] / dir.Norml2();
+		}
+	}
 
 	Planewave(const Planewave& rhs) :
 		function_{ rhs.function_->clone() },
@@ -261,8 +269,12 @@ public:
 		propagation_{ rhs.propagation_ },
 		fieldtype_{ rhs.fieldtype_ }
 	{
-		assert(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE);
-		assert(std::abs(1.0 - propagation_.Norml2()) <= TOLERANCE);
+		if (!(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE)) {
+			throw std::runtime_error("Polarization is not normalised.");
+		}
+		if (!(std::abs(1.0 - propagation_.Norml2()) <= TOLERANCE)) {
+			throw std::runtime_error("Propagation is not normalised.");
+		}
 	}
 
 	std::unique_ptr<EHFieldFunction> clone() const {

@@ -107,3 +107,20 @@ TEST_F(SphericalTest, convertFieldToCartesian)
 	EXPECT_NEAR(expected_HY, res_H[1], tol);
 	EXPECT_NEAR(expected_HZ, res_H[2], tol);
 }
+
+TEST_F(SphericalTest, trivialtest)
+{
+	auto Ar = 0.0;
+	auto At = 1.0;
+	auto Ap = 0.0;
+
+	std::vector<double> vec({ 0.0,1.0,0.0 });
+	SphericalVector sph_vec(vec);
+
+	auto res = sph_vec.convertSphericalVectorFieldToCartesian(Ar, At, Ap);
+	auto tol{ 1e-2 };
+	EXPECT_NEAR(0.0, res[0], tol);
+	EXPECT_NEAR(0.0, res[1], tol);
+	EXPECT_NEAR(-1.0, res[2], tol);
+
+}

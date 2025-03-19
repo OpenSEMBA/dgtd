@@ -2,21 +2,21 @@
   "solver_options": {
     "solver_type": "upwind",
     "time_step": 0.0,
-    "final_time":  3.0,
+    "final_time":  10.0,
     "order": 2
   },
 
-  "model": { 
-    "filename": "2D_Dipole.msh",
+  "model": {
+    "filename": "2D_TFSF_Dipole_Distant_Box.msh",
     "materials": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [ 4, 5 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 2 ],
+        "tags": [ 1, 2, 3, 4 ],
         "type": "SMA"
       }
     ]
@@ -31,11 +31,11 @@
   "sources": [ 
     {
       "type": "dipole",
-      "tags": [ 1 ],
+      "tags": [ 5, 6, 7, 8 ],
       "magnitude": {
-        "length": 0.1,
-        "spread": 0.2,
-        "delay": 0.8
+        "length": 1.0,
+        "spread": 0.5,
+        "delay": -99998.0
       }
     }
   ]

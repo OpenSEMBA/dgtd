@@ -573,7 +573,8 @@ namespace maxwell {
 		for (auto b{ 0 }; b < model_.getConstMesh().GetNBE(); b++) {
 			for (const auto& marker : markers) {
 				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-					auto faceTrans{ model_.getMesh().GetInternalBdrFaceTransformations(b) };
+					FaceElementTransformations* faceTrans;
+					model_.getConstMesh().FaceIsInterior(model_.getMesh().GetFaceElementTransformations(model_.getConstMesh().GetBdrFace(b))->ElementNo) ? faceTrans = model_.getMesh().GetInternalBdrFaceTransformations(b) : faceTrans = model_.getMesh().GetBdrFaceTransformations(b);
 					fes_.GetMesh()->Dimension() == 2 ? ori = calculateCrossBaryVertexSign(*fes_.GetMesh(), *faceTrans, b) : ori = buildFaceOrientation(*fes_.GetMesh(), b);
 					auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
 					FiniteElementSpace subFES(&twoElemSubMesh, fec);

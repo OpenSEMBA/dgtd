@@ -2223,3 +2223,66 @@ TEST_F(ExtensiveCasesTest, 3D_Dipole_Sphere_Slice_Upwind_Hesthaven)
 
 	solver.run();
 }
+
+TEST_F(ExtensiveCasesTest, 2D_Dipole_FarField_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_Dipole_FarField"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("2D_Dipole_FarField"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Dipole_Distant_Box_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Dipole_Distant_Box"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Dipole_Distant_Box"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Dipole_Distant_Box)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_Dipole_Distant_Box"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole_Distant_Box"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Dipole_Distant_Line_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Dipole_Distant_Line"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Dipole_Distant_Line"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Oblique_Upwind_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Oblique"));
+	case_data["solver_options"]["hesthaven_operator"] = false;
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Oblique"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Oblique_Rotated_Upwind_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Oblique_Rotated"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Oblique_Rotated"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 3D_TFSF_PropZ_Upwind_Hesthaven)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_PropZ"));
+	case_data["solver_options"]["hesthaven_operator"] = false;
+	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_PropZ"), true) };
+
+	solver.run();
+}

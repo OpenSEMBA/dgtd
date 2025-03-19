@@ -479,11 +479,11 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	// --BOUNDARIES-- //
 
+	evaluateTFSF(jumps);
 	applyBoundaryConditionsToNodes(connectivity_.boundary, fieldsIn, jumps);
 
 	// --TOTAL FIELD SCATTERED FIELD-- //
 
-	evaluateTFSF(jumps);
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //
 

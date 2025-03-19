@@ -17,7 +17,7 @@ FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be)
 
 Vector getBarycenterOfElement(Mesh& m, int e)
 {
-	Element* elem{ m.GetElement(e) };
+	auto elem{ m.GetElement(e) };
 	Array<int> elem_vert(elem->GetNVertices());
 	elem->GetVertices(elem_vert);
 	Vector res;
@@ -141,13 +141,12 @@ double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, in
 	auto coord_v0{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[0]) };
 	auto coord_v1{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[1]) };
 
-	auto bary_e1{ getBarycenterOfElement(m, fet.Elem1No) };
-	auto bary_e2{ getBarycenterOfElement(m, fet.Elem2No) };
+	auto baris = calculateBarycenters(m, be);
 
 	Vector bary_3D(3), vertex_3D(3);
 	bary_3D = 0.0; vertex_3D = 0.0;
 	for (int i = 0; i < m.Dimension(); i++) {
-		bary_3D[i] = bary_e2[i] - bary_e1[i];
+		bary_3D[i] = baris.second[i] - baris.first[i];
 		vertex_3D[i] = coord_v1[i] - coord_v0[i];
 	}
 
@@ -195,7 +194,7 @@ const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be)
 		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, fe_trans->Elem2No));
 	}
 	else {
-		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, m.GetBdrElementFaceIndex(be)));
+		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be)));
 	}
 }
 
@@ -540,7 +539,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				m.GetEdgeVertices(el1_face[f], face_vert);
 				face_vert.Sort();
 				if (face_vert == be_vert) {
-					face_ori >= 0.0 ? set_v1 = std::make_pair(f, false) : set_v1 = std::make_pair(f, true);
+					face_ori < 0.0 ? set_v1 = std::make_pair(f, false) : set_v1 = std::make_pair(f, true);
 					break;
 				}
 			}
@@ -555,7 +554,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 					auto el_faces = m.GetElement(fe_trans->Elem2No)->GetEdgeVertices(f);
 					face_vert.Sort();
 					if (face_vert == be_vert) {
-						face_ori >= 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
+						face_ori < 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
 						break;
 					}
 				}
