@@ -150,7 +150,7 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 		}
 	}
 
-	if (std::abs(mean - 1e5) > 1e-6 || std::abs(delay - 1e5) > 1e-6) {
+	if (std::abs(mean - 1e5) < 1e-6 || std::abs(delay - 1e5) < 1e-6) {
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
