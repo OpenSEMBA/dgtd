@@ -42,12 +42,27 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 
 RCSManager::RCSManager(const std::string& data_path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
-
-	auto pot_inc{ buildNormalizationTerm(json_path, data_path, frequencies) };
+	auto dim{ Mesh::LoadFromFile(data_path + "/mesh", 1, 0).Dimension() };
+	std::string dim_str;
+	Mesh::LoadFromFile(data_path + "/mesh", 1, 0).Dimension() == 2 ? dim_str = "2D_" : dim_str = "3D_";
 
 	FarField ff(data_path, json_path, frequencies, angle_vec);
 
 	double freqdata, const_term, landa, wavenumber;
+	for (const auto& angpair : angle_vec) {
+		std::ofstream myfile;
+		myfile.open(data_path + "/farfield/farfieldData_" + json_path + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
+		for (const auto& f : frequencies) {
+			landa = physicalConstants::speedOfLight_SI / frequencies[f];
+			double normalization;
+			dim == 2 ? normalization = landa : normalization = landa * landa;
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << ff.getPotRad(angpair, f) << normalization << "\n";
+		}
+		myfile.close();
+	}
+
+	auto pot_inc{ buildNormalizationTerm(json_path, data_path, frequencies) };
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			landa = physicalConstants::speedOfLight_SI / frequencies[f];
@@ -56,30 +71,15 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		}
 	}
 
-	std::string dim;
-	fes_->GetMesh()->SpaceDimension() == 2 ? dim = "2D_" : dim = "3D_";
 
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		myfile.open(data_path + "/farfield/farfieldData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
-		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
-		for (const auto& f : frequencies) {
-			landa = physicalConstants::speedOfLight_SI / frequencies[f];
-			double normalization;
-			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << ff.getPotRad(angpair, f) << normalization << "\n";
-		}
-		myfile.close();
-	}
-
-	for (const auto& angpair : angle_vec) {
-		std::ofstream myfile;
-		myfile.open(data_path + "/rcs/rcsData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile.open(data_path + "/rcs/rcsData_" + json_path + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
 		for (const auto& f : frequencies) {
 			auto landa = physicalConstants::speedOfLight_SI / f;
 			double normalization;
-			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
+			dim == 2 ? normalization = landa : normalization = landa * landa;
 			myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata_[angpair][f] << normalization << "\n";
 		}
 		myfile.close();

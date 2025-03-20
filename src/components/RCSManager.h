@@ -28,7 +28,6 @@ public:
 
 private:
 
-	std::unique_ptr<FiniteElementSpace> fes_;
 	std::map<SphericalAngles, Freq2Value> RCSdata_;
 
 };
