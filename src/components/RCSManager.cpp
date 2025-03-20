@@ -44,7 +44,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 {
 	auto dim{ Mesh::LoadFromFile(data_path + "/mesh", 1, 0).Dimension() };
 	std::string dim_str;
-	Mesh::LoadFromFile(data_path + "/mesh", 1, 0).Dimension() == 2 ? dim_str = "2D_" : dim_str = "3D_";
+	dim == 2 ? dim_str = "2D_" : dim_str = "3D_";
 
 	FarField ff(data_path, json_path, frequencies, angle_vec);
 
@@ -54,7 +54,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		myfile.open(data_path + "/farfield/farfieldData_" + json_path + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
 		for (const auto& f : frequencies) {
-			landa = physicalConstants::speedOfLight_SI / frequencies[f];
+			landa = physicalConstants::speedOfLight_SI / f;
 			double normalization;
 			dim == 2 ? normalization = landa : normalization = landa * landa;
 			myfile << angpair.first << " " << angpair.second << " " << f << " " << ff.getPotRad(angpair, f) << normalization << "\n";
@@ -77,7 +77,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		myfile.open(data_path + "/rcs/rcsData_" + json_path + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
 		for (const auto& f : frequencies) {
-			auto landa = physicalConstants::speedOfLight_SI / f;
+			landa = physicalConstants::speedOfLight_SI / f;
 			double normalization;
 			dim == 2 ? normalization = landa : normalization = landa * landa;
 			myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata_[angpair][f] << normalization << "\n";
