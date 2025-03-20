@@ -50,6 +50,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	double freqdata, const_term, landa, wavenumber;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
+			landa = physicalConstants::speedOfLight_SI / frequencies[f];
 			const_term = 4.0 * M_PI / pot_inc[f];
 			RCSdata_[angpair][frequencies[f]] = const_term * ff.getPotRad(angpair, frequencies[f]);
 		}
@@ -63,6 +64,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		myfile.open(data_path + "/farfield/farfieldData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
 		for (const auto& f : frequencies) {
+			landa = physicalConstants::speedOfLight_SI / frequencies[f];
 			double normalization;
 			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
 			myfile << angpair.first << " " << angpair.second << " " << f << " " << ff.getPotRad(angpair, f) << normalization << "\n";
