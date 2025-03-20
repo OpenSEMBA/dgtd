@@ -73,7 +73,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 			myfile.close();
 		}
 		else {
-			throw std::exception("Could not open file to write FarField data.");
+			throw std::runtime_error("Could not open file to write FarField data.");
 		}
 	}
 
@@ -100,7 +100,8 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 			myfile.close();
 		}
 		else {
-			throw std::exception("Could not open file to write RCS data.");
+			throw std::runtime_error("Could not open file to write RCS data.");
+
 		}
 	}
 
