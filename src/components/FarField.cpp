@@ -144,7 +144,7 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 	double mean(-1e5), delay(-1e5);
 
 	for (auto s{ 0 }; s < json["sources"].size(); s++) {
-		if (json["sources"][s]["type"] == "totalField") {
+		if (json["sources"][s]["type"] == "planewave") {
 			mean = json["sources"][s]["magnitude"]["spread"];
 			delay = json["sources"][s]["magnitude"]["delay"];
 		}
