@@ -55,21 +55,33 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		}
 	}
 
-	//std::string dim;
-	//fes_->GetMesh()->SpaceDimension() == 2 ? dim = "2D_" : dim = "3D_";
+	std::string dim;
+	fes_->GetMesh()->SpaceDimension() == 2 ? dim = "2D_" : dim = "3D_";
 
-	//for (const auto& angpair : angle_vec) {
-	//	std::ofstream myfile;
-	//	myfile.open("../personal-sandbox/Python/RCSData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
-	//	myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs\n";
-	//	for (const auto& f : frequencies) {
-	//		auto landa = physicalConstants::speedOfLight_SI / f;
-	//		double normalization;
-	//		fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
-	//		myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata[angpair][f] << "\n";
-	//	}
-	//	myfile.close();
-	//}
+	for (const auto& angpair : angle_vec) {
+		std::ofstream myfile;
+		myfile.open(data_path + "/farfield/farfieldData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
+		for (const auto& f : frequencies) {
+			double normalization;
+			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << ff.getPotRad(angpair, f) << normalization << "\n";
+		}
+		myfile.close();
+	}
+
+	for (const auto& angpair : angle_vec) {
+		std::ofstream myfile;
+		myfile.open(data_path + "/rcs/rcsData_" + json_path + dim + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
+		for (const auto& f : frequencies) {
+			auto landa = physicalConstants::speedOfLight_SI / f;
+			double normalization;
+			fes_->GetMesh()->SpaceDimension() == 2 ? normalization = landa : normalization = landa * landa;
+			myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata_[angpair][f] << normalization << "\n";
+		}
+		myfile.close();
+	}
 
 }
 
