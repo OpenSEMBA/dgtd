@@ -161,7 +161,10 @@ std::vector<double> buildTimeVector(const std::string& data_path)
 {
 	std::vector<double> res;
 	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" && 
+			dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs"  &&
+			dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") 
+		{
 			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / physicalConstants::speedOfLight_SI);
 		}
 	}
@@ -215,7 +218,9 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencie
 	for (const auto& field : fields) {
 		std::vector<GridFunction> A;
 		for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
-			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
+			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
 				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
 			}
 		}

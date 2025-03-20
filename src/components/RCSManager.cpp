@@ -46,23 +46,37 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	std::string dim_str;
 	dim == 2 ? dim_str = "2D_" : dim_str = "3D_";
 
+	auto pot_inc{ buildNormalizationTerm(json_path, data_path, frequencies) };
 	FarField ff(data_path, json_path, frequencies, angle_vec);
+
+	if (!std::filesystem::is_directory(data_path + "/farfield") || !std::filesystem::exists(data_path + "/farfield")) {
+		std::filesystem::create_directory(data_path + "/farfield");
+	}
+
+	if (!std::filesystem::is_directory(data_path + "/rcs") || !std::filesystem::exists(data_path + "/rcs")) {
+		std::filesystem::create_directory(data_path + "/rcs");
+	}
 
 	double freqdata, const_term, landa, wavenumber;
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		myfile.open(data_path + "/farfield/farfieldData_" + json_path + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
-		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
-		for (const auto& f : frequencies) {
-			landa = physicalConstants::speedOfLight_SI / f;
-			double normalization;
-			dim == 2 ? normalization = landa : normalization = landa * landa;
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << ff.getPotRad(angpair, f) << normalization << "\n";
+		std::string path(data_path + "/farfield/farfieldData_" + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile.open(path);
+		if (myfile.is_open()) {
+			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
+			for (const auto& f : frequencies) {
+				landa = physicalConstants::speedOfLight_SI / f;
+				double normalization;
+				dim == 2 ? normalization = landa : normalization = landa * landa;
+				myfile << angpair.first << " " << angpair.second << " " << f << " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
+			}
+			myfile.close();
 		}
-		myfile.close();
+		else {
+			throw std::exception("Could not open file to write FarField data.");
+		}
 	}
 
-	auto pot_inc{ buildNormalizationTerm(json_path, data_path, frequencies) };
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			landa = physicalConstants::speedOfLight_SI / frequencies[f];
@@ -71,18 +85,23 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		}
 	}
 
-
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		myfile.open(data_path + "/rcs/rcsData_" + json_path + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
-		myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
-		for (const auto& f : frequencies) {
-			landa = physicalConstants::speedOfLight_SI / f;
-			double normalization;
-			dim == 2 ? normalization = landa : normalization = landa * landa;
-			myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata_[angpair][f] << normalization << "\n";
+		std::string path(data_path + "/rcs/rcsData_" + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		myfile.open(path);
+		if (myfile.is_open()) {
+			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
+			for (const auto& f : frequencies) {
+				landa = physicalConstants::speedOfLight_SI / f;
+				double normalization;
+				dim == 2 ? normalization = landa : normalization = landa * landa;
+				myfile << angpair.first << " " << angpair.second << " " << f << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
+			}
+			myfile.close();
 		}
-		myfile.close();
+		else {
+			throw std::exception("Could not open file to write RCS data.");
+		}
 	}
 
 }
