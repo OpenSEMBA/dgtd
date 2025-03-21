@@ -520,6 +520,33 @@ double buildFaceOrientation(Mesh& mesh, int be)
 
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
 {
+
+	/*
+							 @   MFEM numbering convention is read from
+							@@@@   the GMSH element order, thus we need to ensure
+						  @@ @  @@   when designing the mesh that the numbering order
+						@@   @    @   of the elements and the 2D vector along the face align
+					  @@     @     @@   with out TFSF designation intent
+					 @       @       @@
+				   @@        @         @@  For 2D meshes, MFEM will not correct boundary normals nor
+				 @@          A           @@  vectors, thus we can exploit this when designing problems
+				@            |            @@
+			  @@    SF       |      TF      @@
+			@@               |                @
+		   @@    elem 1  ----+---> elem 2      @
+			 @@   i.e. 75    |    i.e. 90   @@
+			  @@             |             @@
+				@@           |           @@
+				  @@         @          @
+					@@       @        @@
+					  @@     @      @@
+					   @@    @     @
+						 @@  @   @@
+						   @ @ @@
+							@@@
+							 @
+	 */
+
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
@@ -539,7 +566,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				m.GetEdgeVertices(el1_face[f], face_vert);
 				face_vert.Sort();
 				if (face_vert == be_vert) {
-					face_ori < 0.0 ? set_v1 = std::make_pair(f, false) : set_v1 = std::make_pair(f, true);
+					face_ori >= 0.0 ? set_v1 = std::make_pair(f, false) : set_v1 = std::make_pair(f, true);
 					break;
 				}
 			}
@@ -554,7 +581,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 					auto el_faces = m.GetElement(fe_trans->Elem2No)->GetEdgeVertices(f);
 					face_vert.Sort();
 					if (face_vert == be_vert) {
-						face_ori < 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
+						face_ori >= 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
 						break;
 					}
 				}
@@ -562,7 +589,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			else {
 				auto set_v2{ std::make_pair(NotFound, false) };
 			}
-			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
+
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
 			prepareSubMeshInfo(m, fe_trans, facesInfo, set_v1.second);
 		}
