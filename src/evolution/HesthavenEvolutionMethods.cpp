@@ -280,7 +280,9 @@ namespace maxwell {
 	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& subFES, Array<int> boundaryMarker)
 	{
 		auto bf = assembleFaceMassBilinearForm(subFES, boundaryMarker);
-		auto res = toEigen(*bf->SpMat().ToDenseMatrix());
+		auto dense = bf->SpMat().ToDenseMatrix();
+		auto res = toEigen(*dense);
+		delete dense;
 		return res;
 	}
 

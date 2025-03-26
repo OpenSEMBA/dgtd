@@ -27,7 +27,7 @@ public:
 		auto the_incr{ (end_theta - start_theta) / steps_theta };
 		for (auto p{ 0 }; p < steps_phi; p++) {
 			for (auto t{ 0 }; t < steps_theta; t++) {
-				res.push_back({ start_phi + p * phi_incr, start_theta + t * steps_theta });
+				res.push_back({ start_phi + p * phi_incr, start_theta + t * the_incr });
 			}
 		}
 		return res;
@@ -40,7 +40,7 @@ TEST_F(ExtensiveRCSTest, circleTest)
 
 	std::vector<double> frequencies_manual({ 3e8 });
 
-	auto angles{ buildAngleVector(0.0, 2.0 * M_PI, 16, 0.0, 0.0, 1) };
+	auto angles{ buildAngleVector(0.0, M_PI_2, 2, 0.0, M_PI, 128) };
 	RCSManager rcs("NearToFarFieldExports/circle_1m", maxwellCase("3D_RCS_Sphere"), frequencies_manual, angles);
 }
 

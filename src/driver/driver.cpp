@@ -486,10 +486,10 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 {
 	mfem::Mesh mesh;
 	if (isTest) {
-		mesh = assembleMeshNoFix(assembleMeshString(case_data["model"]["filename"]));
+		mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
 	}
 	else {
-		mesh = assembleMeshNoFix(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+		mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
 	}
 
 	auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
@@ -497,10 +497,10 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
 	if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
 		if (isTest) {
-			mesh = assembleMeshNoFix(assembleMeshString(case_data["model"]["filename"]));
+			mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
 		}
 		else {
-			mesh = assembleMeshNoFix(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+			mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
 		}
 	}
 

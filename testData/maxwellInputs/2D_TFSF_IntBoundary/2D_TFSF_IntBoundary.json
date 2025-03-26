@@ -2,8 +2,7 @@
   "solver_options": {
     "solver_type": "upwind",
     "final_time": 5.0,
-    "time_step":  5e-3,
-    "hesthaven_operator": true,
+    "time_step":  1e-3,
     "order": 2
   },
 
@@ -60,7 +59,7 @@
       "magnitude": {
         "type": "gaussian", 
         "spread": 0.3,
-        "delay": 0.8
+        "delay": 1.0
       }
     }
   ]

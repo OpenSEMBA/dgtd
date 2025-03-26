@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 2.5e-3,
-    "final_time":  7.0,
+    "time_step": 1e-3,
+    "final_time":  12.0,
     "order": 1
   },
 
@@ -28,7 +28,7 @@
 
   "probes": {
     "exporter": {
-      "steps": 20
+      "steps": 200
     },
     "farfield": [
       {
@@ -42,13 +42,12 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0],
-      "propagation": [1.0, 0.0, 0.0],
+      "polarization": [ 1.0, 0.0, 0.0 ],
+      "propagation": [ 0.0, 0.0, 1.0 ],
       "tags": [ 5 ],
       "magnitude": {
-        "length": 0.1,
-        "spread": 0.4,
-        "delay": 1.8
+        "spread": 0.2,
+        "delay": 2.5
       }
     }
   ]

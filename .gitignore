@@ -6,6 +6,8 @@ out/
 ParaView/
 NearToFarFieldExports/
 resources/*.msh
+vcpkg_installed/
+CMakeFiles/
 
 *.csv
 *.gf
@@ -58,3 +60,5 @@ out/*
 
 CMakeUserPresets.json
 /dotvs_backup
+valgrind-opensemba.txt
+CMakeCache.txt
