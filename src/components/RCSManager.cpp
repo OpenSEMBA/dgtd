@@ -28,10 +28,10 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 	}
 
 	//normalize by max val
-	auto max = *std::max_element(std::begin(res), std::end(res));
-	for (auto f{ 0 }; f < res.size(); f++) {
-		res[f] /= max;
-	}
+	// auto max = *std::max_element(std::begin(res), std::end(res));
+	// for (auto f{ 0 }; f < res.size(); f++) {
+	// 	res[f] /= max;
+	// }
 
 	//trimLowMagFreqs(freq2complex, frequencies);
 	//exportIncidentGaussData(time, gauss_val, json_path);

@@ -1,8 +1,9 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 1e-3,
-    "final_time":  12.0,
+    "time_step": 5e-4,
+    "hesthaven_operator": true,
+    "final_time":  14.0,
     "order": 1
   },
 
@@ -32,7 +33,7 @@
     },
     "farfield": [
       {
-        "name": "circle_1m",
+        "name": "circle_1m_O1",
         "steps": 1,
         "tags": [ 5 ]
       }
@@ -42,12 +43,12 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 1.0, 0.0, 0.0 ],
-      "propagation": [ 0.0, 0.0, 1.0 ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
       "tags": [ 5 ],
       "magnitude": {
         "spread": 0.2,
-        "delay": 2.5
+        "delay": 3.5
       }
     }
   ]

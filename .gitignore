@@ -60,5 +60,5 @@ out/*
 
 CMakeUserPresets.json
 /dotvs_backup
-valgrind-opensemba.txt
+valgrind*.txt
 CMakeCache.txt

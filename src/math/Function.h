@@ -287,33 +287,32 @@ public:
 		assert(p.Size() <= 3);
 
 		Polarization pol;
-
+		
+		double polDir;
 		switch (fieldtype_) {
 		case E:
 			if (ft == E) {
-				pol.SetDataAndSize(polarization_.GetData(), 3);
+				polDir = polarization_[d];
 			}
 			else {
 				{
 					const auto cross = crossProduct(propagation_, polarization_);
-					pol.SetDataAndSize(cross.GetData(), 3);
+					polDir = cross[d];
 				}
 			}
 			break;
 		case H:
 			if (ft == H) {
-				pol.SetDataAndSize(polarization_.GetData(), 3);
+				polDir = polarization_[d];
 			}
 			else {
 				{
 					const auto cross = crossProduct(polarization_, propagation_);
-					pol.SetDataAndSize(cross.GetData(), 3);
+					polDir = cross[d];
 				}
 			}
 			break;
 		}
-
-		const auto polDir = pol[d];
 
 		Position pos;
 		if (p.Size() == 1) {
