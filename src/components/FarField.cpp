@@ -346,16 +346,15 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 
 	FreqFields freqfields{ calculateFreqFields(mesh, frequencies, data_path) };
 
-	double freq_val, const_term, landa, wavenumber;
 	std::pair<std::complex<double>, std::complex<double>> N_pair, L_pair;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			N_pair = calcNLpair(freqfields.Hx[f], freqfields.Hy[f], freqfields.Hz[f], frequencies[f], angpair, false);
 			L_pair = calcNLpair(freqfields.Ex[f], freqfields.Ey[f], freqfields.Ez[f], frequencies[f], angpair, true);
-			landa = physicalConstants::speedOfLight / frequencies[f];
-			wavenumber = 2.0 * M_PI / landa;
-			const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance);
-			freq_val = const_term * (std::pow(std::abs(L_pair.first + physicalConstants::freeSpaceImpedance * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - physicalConstants::freeSpaceImpedance * N_pair.first), 2.0));
+			auto landa = physicalConstants::speedOfLight / frequencies[f];
+			auto wavenumber = 2.0 * M_PI / landa;
+			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance);
+			auto freq_val = const_term * (std::pow(std::abs(L_pair.first + physicalConstants::freeSpaceImpedance * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - physicalConstants::freeSpaceImpedance * N_pair.first), 2.0));
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}
