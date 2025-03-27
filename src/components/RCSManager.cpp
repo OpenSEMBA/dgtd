@@ -19,7 +19,6 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 		std::complex<double> freq_val(0.0, 0.0);
 		for (int t{ 0 }; t < time.size(); t++) {
 			auto arg = 2.0 * M_PI * frequencies[f] * time[t];
-			// arg *= 2.0 * M_PI; //This is a term that we add because it seems frequency is reduced by 2pi for some reason.
 			auto w = std::complex<double>(cos(arg), -sin(arg));
 			freq_val += gauss_val[t] * w;
 		}
@@ -50,6 +49,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	std::vector<double> rescaled_frequencies(frequencies.size());
 	for (auto f{0}; f < frequencies.size(); f++){
 		rescaled_frequencies[f] = frequencies[f] / physicalConstants::speedOfLight_SI;
+		rescaled_frequencies[f] *= 2.0 * M_PI; //Term added due to the dft only covering the interval [0, 2pi]
 	}
 
 	auto pot_inc{ buildNormalizationTerm(json_path, data_path, rescaled_frequencies) };
@@ -74,7 +74,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI << " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
+				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI / 2.0 / M_PI << " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
@@ -100,7 +100,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
+				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI / 2.0 / M_PI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}

@@ -233,7 +233,6 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencie
 			ComplexVector comp_vec(A[f].Size());
 			for (int t{ 0 }; t < time.size(); ++t) {
 				auto arg = 2.0 * M_PI * frequencies[f] * time[t];
-				// arg *= 2.0 * M_PI; //This is a term that we add because it seems frequency is reduced by 2pi for some reason.
 				auto w = std::complex<double>(cos(arg), -sin(arg));
 				for (int v{ 0 }; v < A[f].Size(); ++v) {
 					comp_vec[v] += A[t][v] * w;

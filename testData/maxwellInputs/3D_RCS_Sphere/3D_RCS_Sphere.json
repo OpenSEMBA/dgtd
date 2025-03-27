@@ -1,7 +1,7 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 5e-4,
+    "time_step": 1e-3,
     "hesthaven_operator": true,
     "final_time":  14.0,
     "order": 1
