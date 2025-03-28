@@ -20,18 +20,31 @@ using namespace mfem;
 
 class ExtensiveRCSTest : public ::testing::Test {
 public:
+
+	template <typename T>
+	std::vector<T> linspace(T a, T b, size_t N) {
+		T h = (b - a) / static_cast<T>(N-1);
+		std::vector<T> xs(N);
+		typename std::vector<T>::iterator x;
+		T val;
+		for (x = xs.begin(), val = a; x != xs.end(); ++x, val += h)
+			*x = val;
+		return xs;
+	}
+
 	std::vector<SphericalAngles> buildAngleVector(double start_phi, double end_phi, int steps_phi, double start_theta, double end_theta, int steps_theta)
 	{
 		std::vector<SphericalAngles> res;
-		auto phi_incr{ (end_phi - start_phi) / steps_phi };
-		auto the_incr{ (end_theta - start_theta) / steps_theta };
-		for (auto p{ 0 }; p < steps_phi; p++) {
-			for (auto t{ 0 }; t < steps_theta; t++) {
-				res.push_back({ start_phi + p * phi_incr, start_theta + t * steps_theta });
+		auto phi {linspace(start_phi, end_phi, steps_phi)};
+		auto theta {linspace(start_theta, end_theta, steps_theta)};
+		for (auto p {0}; p < phi.size(); p++){
+			for (auto t{0}; t < phi.size(); t++){
+				res.push_back({phi[p], theta[t]});
 			}
 		}
 		return res;
 	}
+
 
 };
 
@@ -40,27 +53,8 @@ TEST_F(ExtensiveRCSTest, circleTest)
 
 	std::vector<double> frequencies_manual({ 3e8 });
 
-	auto angles{ buildAngleVector(0.0, 2.0 * M_PI, 16, 0.0, 0.0, 1) };
-	RCSManager rcs("NearToFarFieldExports/circle_1m", maxwellCase("3D_RCS_Sphere"), frequencies_manual, angles);
+	auto angles{ buildAngleVector(0.0, M_PI_2, 2, 0.0, M_PI, 128) };
+	RCSManager rcs("NearToFarFieldExports/circle_1m_O1_X", maxwellCase("3D_RCS_Sphere_X"), frequencies_manual, angles);
 }
 
-TEST_F(ExtensiveRCSTest, circleTest_sixmeters)
-{
-
-	std::vector<double> frequencies_manual({ 30e6, 70e6, 100e6, 200e6, 300e6, 400e6, 500e6, 600e6, 700e6, 800e6, 900e6 });
-
-	std::vector<std::pair<Phi, Theta>> angles{ {0.0, M_PI_2} };
-
-	RCSManager rcs("NearToFarFieldExports/circle_salva", maxwellCase("2D_RCS_Salva"), frequencies_manual, angles);
-}
-
-TEST_F(ExtensiveRCSTest, sphereTest)
-{
-
-	std::vector<double> frequencies_manual({ 30e6, 70e6, 100e6, 200e6, 300e6, 400e6, 500e6, 600e6, 700e6, 800e6, 900e6 });
-
-	std::vector<std::pair<Phi, Theta>> angles{ {0.0, M_PI_2} };
-
-	RCSManager rcs("NearToFarFieldExports/sphere", maxwellCase("3D_RCS"), frequencies_manual, angles);
-}
 }
