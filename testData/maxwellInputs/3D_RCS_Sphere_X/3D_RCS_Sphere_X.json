@@ -2,12 +2,12 @@
   "solver_options": {
     "solver_type": "upwind",
     "time_step": 2.5e-3,
-    "final_time":  7.0,
+    "final_time":  16.0,
     "order": 1
   },
 
   "model": { 
-    "filename": "3D_RCS_Sphere.msh",
+    "filename": "3D_RCS_Sphere_X.msh",
     "materials": [
       {
         "tags": [ 4, 5 ],
@@ -28,11 +28,11 @@
 
   "probes": {
     "exporter": {
-      "steps": 20
+      "steps": 400
     },
     "farfield": [
       {
-        "name": "circle_1m",
+        "name": "circle_1m_O1_X",
         "steps": 1,
         "tags": [ 5 ]
       }
@@ -46,9 +46,8 @@
       "propagation": [1.0, 0.0, 0.0],
       "tags": [ 5 ],
       "magnitude": {
-        "length": 0.1,
-        "spread": 0.4,
-        "delay": 1.8
+        "spread": 0.2,
+        "delay": 2.5
       }
     }
   ]
