@@ -286,28 +286,35 @@ public:
 		const FieldType& ft, const Direction& d) const {
 		assert(p.Size() <= 3);
 
-		Polarization pol(3);
+		double polDir;
 
 		switch (fieldtype_) {
 		case E:
 			if (ft == E) {
-				pol = polarization_;
+				polDir = polarization_[d];
 			}
 			else {
-				pol = crossProduct(propagation_, polarization_);
+				{
+					const auto cross = crossProduct(propagation_, polarization_);
+					polDir = cross[d];
+				}
 			}
 			break;
 		case H:
 			if (ft == H) {
-				pol = polarization_;
+				polDir = polarization_[d];
 			}
 			else {
-				pol = crossProduct(polarization_, propagation_);
+				{
+					const auto cross = crossProduct(polarization_, propagation_);
+					polDir = cross[d];
+				}
 			}
 			break;
 		}
 
-		Position pos(3);
+		Position pos;
+
 		if (p.Size() == 1) {
 			pos = Position({ p[0],  0.0, 0.0 });
 		}
@@ -315,14 +322,13 @@ public:
 			pos = Position({ p[0], p[1], 0.0 });
 		}
 		else {
-			pos = p;
+			pos.SetDataAndSize(p.GetData(), 3);
 		}
 
 		auto phaseDelay{ pos * propagation_ / physicalConstants::speedOfLight };
 
-		
-		return function_->eval(Position({ phaseDelay - t })) * pol[d];
-		
+		return function_->eval(Position({ phaseDelay - t })) * polDir;
+
 	};
 
 private:

@@ -11,8 +11,11 @@ static DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	bf.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
 	bf.Assemble();
 	bf.Finalize();
-
-	return toEigen(*bf.SpMat().ToDenseMatrix());
+	
+	auto dense = bf.SpMat().ToDenseMatrix();
+	const auto res = toEigen(*dense);
+	delete dense;
+	return res;
 }
 
 Mesh getRefMeshForGeomType(const Element::Type elType, const int dimension)
