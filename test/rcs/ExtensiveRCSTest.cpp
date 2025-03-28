@@ -38,7 +38,7 @@ public:
 		auto phi {linspace(start_phi, end_phi, steps_phi)};
 		auto theta {linspace(start_theta, end_theta, steps_theta)};
 		for (auto p {0}; p < phi.size(); p++){
-			for (auto t{0}; t < phi.size(); t++){
+			for (auto t{0}; t < theta.size(); t++){
 				res.push_back({phi[p], theta[t]});
 			}
 		}
@@ -53,7 +53,7 @@ TEST_F(ExtensiveRCSTest, circleTest)
 
 	std::vector<double> frequencies_manual({ 3e8 });
 
-	auto angles{ buildAngleVector(0.0, M_PI_2, 2, 0.0, M_PI, 128) };
+	auto angles{ buildAngleVector(0.0, M_PI_2, 3, 0.0, M_PI, 128) };
 	RCSManager rcs("NearToFarFieldExports/circle_1m_O1_X", maxwellCase("3D_RCS_Sphere_X"), frequencies_manual, angles);
 }
 

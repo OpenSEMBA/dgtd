@@ -85,7 +85,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	for (int f{ 0 }; f < rescaled_frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
 			const_term = 4.0 * M_PI / pot_inc[f];
-			RCSdata_[angpair][frequencies[f]] = const_term * ff.getPotRad(angpair, frequencies[f]);
+			RCSdata_[angpair][rescaled_frequencies[f]] = const_term * ff.getPotRad(angpair, rescaled_frequencies[f]);
 		}
 	}
 
