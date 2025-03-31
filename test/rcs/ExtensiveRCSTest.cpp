@@ -32,13 +32,13 @@ public:
 		return xs;
 	}
 
-	std::vector<SphericalAngles> buildAngleVector(double start_phi, double end_phi, int steps_phi, double start_theta, double end_theta, int steps_theta)
+	std::vector<SphericalAngles> buildAngleVector(double start_theta, double end_theta, int steps_theta, double start_phi, double end_phi, int steps_phi)
 	{
 		std::vector<SphericalAngles> res;
-		auto phi {linspace(start_phi, end_phi, steps_phi)};
 		auto theta {linspace(start_theta, end_theta, steps_theta)};
-		for (auto p {0}; p < phi.size(); p++){
-			for (auto t{0}; t < theta.size(); t++){
+		auto phi {linspace(start_phi, end_phi, steps_phi)};
+		for (auto t{0}; t < theta.size(); t++){
+			for (auto p {0}; p < phi.size(); p++){
 				res.push_back({theta[t], phi[p]});
 			}
 		}
@@ -51,9 +51,9 @@ public:
 TEST_F(ExtensiveRCSTest, circleTest)
 {
 
-	std::vector<double> frequencies_manual({ 3e8 });
+	std::vector<double> frequencies_manual({ 3e8 / 2.0 / M_PI });
 
-	auto angles{ buildAngleVector(0.0, M_PI_2, 3, 0.0, M_PI, 128) };
+	auto angles{ buildAngleVector(0.0, M_PI, 256, 0.0, M_PI_2, 2) };
 	RCSManager rcs("NearToFarFieldExports/circle_1m_O1_Z", maxwellCase("3D_RCS_Sphere_Z"), frequencies_manual, angles);
 }
 

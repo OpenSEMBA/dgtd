@@ -61,15 +61,15 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	double freqdata, const_term, landa, wavenumber;
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		std::string path(data_path + "/farfield/farfieldData_" + dim_str + std::to_string(angpair.phi) + "_" + std::to_string(angpair.theta) + "_dgtd.dat");
+		std::string path(data_path + "/farfield/farfieldData_" + dim_str + "Th_" + std::to_string(angpair.theta) + "_" + "Phi_" + std::to_string(angpair.phi) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
-			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
+			myfile << "Angle Theta " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.phi << " " << angpair.theta << " " << f * physicalConstants::speedOfLight_SI<< " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
+				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI<< " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
@@ -87,15 +87,15 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		std::string path(data_path + "/rcs/rcsData_" + dim_str + std::to_string(angpair.phi) + "_" + std::to_string(angpair.theta) + "_dgtd.dat");
+		std::string path(data_path + "/rcs/rcsData_" + dim_str + "Th_" + std::to_string(angpair.theta) + "_" + "Phi_" + std::to_string(angpair.phi) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
-			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
+			myfile << "Angle Theta " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.phi << " " << angpair.theta << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
+				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
