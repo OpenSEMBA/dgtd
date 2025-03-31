@@ -23,7 +23,7 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 			freq_val += gauss_val[t] * w;
 		}
 		freq2complex.emplace(std::make_pair(frequencies[f], freq_val));
-		res[f] = physicalConstants::vacuumPermittivity_SI * std::pow(std::abs(freq_val), 2.0);
+		res[f] = physicalConstants::vacuumPermittivity * std::pow(std::abs(freq_val), 2.0);
 	}
 
 	//normalize by max val
@@ -31,10 +31,6 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 	for (auto f{ 0 }; f < res.size(); f++) {
 		res[f] /= max;
 	}
-
-	//trimLowMagFreqs(freq2complex, frequencies);
-	//exportIncidentGaussData(time, gauss_val, json_path);
-	//exportTransformGaussData(frequencies, freq2complex, json_path);
 
 	return res;
 }
@@ -65,7 +61,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	double freqdata, const_term, landa, wavenumber;
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		std::string path(data_path + "/farfield/farfieldData_" + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		std::string path(data_path + "/farfield/farfieldData_" + dim_str + std::to_string(angpair.phi) + "_" + std::to_string(angpair.theta) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
 			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
@@ -73,7 +69,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI<< " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
+				myfile << angpair.phi << " " << angpair.theta << " " << f * physicalConstants::speedOfLight_SI<< " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
@@ -91,7 +87,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
-		std::string path(data_path + "/rcs/rcsData_" + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
+		std::string path(data_path + "/rcs/rcsData_" + dim_str + std::to_string(angpair.phi) + "_" + std::to_string(angpair.theta) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
 			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
@@ -99,7 +95,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
+				myfile << angpair.phi << " " << angpair.theta << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}

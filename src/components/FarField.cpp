@@ -4,54 +4,86 @@ namespace maxwell {
 
 using namespace mfem;
 
-double func_exp_real_part_2D(const Vector& p, const double freq, const Phi phi)
+const Vector buildObsPointVec(const SphericalAngles& angles) 
+{
+	const auto r{ 1.0 };
+	const auto& phi{ angles.phi };
+	const auto& theta{ angles.theta };
+	const auto x{ r * std::sin(theta) * std::cos(phi) };
+	const auto y{ r * std::sin(theta) * std::sin(phi) };
+	const auto z{ r * std::cos(theta) };
+	const Vector res({ x, y, z });
+	return res;
+}
+
+double calcPsiAngle2D(const Vector& p, const SphericalAngles& angles)
+{
+	auto vec{ buildObsPointVec(angles) };
+	Vector surfVec(vec.Size());
+	surfVec[0] = p[0];
+	surfVec[1] = p[1];
+	surfVec[2] = 0.0;
+	return std::acos((vec * p) / (vec.Norml2() * p.Norml2()));
+}
+
+double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
+{
+	auto vec{ buildObsPointVec(angles) };
+	return std::acos((vec * p) / (vec.Norml2() * p.Norml2()));
+}
+
+double func_exp_real_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
-	auto rad_term = wavenumber * (p[0] * cos(phi) + p[1] * sin(phi));
+	auto psi = calcPsiAngle2D(p, angles);
+	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
 	return cos(rad_term);
 }
 
-double func_exp_imag_part_2D(const Vector& p, const double freq, const Phi phi)
+double func_exp_imag_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
-	auto rad_term = wavenumber * (p[0] * cos(phi) + p[1] * sin(phi));
+	auto psi = calcPsiAngle2D(p, angles);
+	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
 	return sin(rad_term);
 }
 
-double func_exp_real_part_3D(const Vector& p, const double freq, const SphericalAngles angles)
+double func_exp_real_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
-	auto rad_term = wavenumber * (p[0] * sin(angles.second) * cos(angles.first) + p[1] * sin(angles.second) * sin(angles.first) + p[2] * cos(angles.second));
+	auto psi = calcPsiAngle3D(p, angles);
+	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
 	return cos(rad_term);
 }
 
-double func_exp_imag_part_3D(const Vector& p, const double freq, const SphericalAngles angles)
+double func_exp_imag_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
-	auto rad_term = wavenumber * (p[0] * sin(angles.second) * cos(angles.first) + p[1] * sin(angles.second) * sin(angles.first) + p[2] * cos(angles.second));
+	auto psi = calcPsiAngle3D(p, angles);
+	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
 	return sin(rad_term);
 }
 
-std::unique_ptr<FunctionCoefficient> buildFC_2D(const double freq, const Phi& phi, bool isReal)
+std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency freq, const SphericalAngles& angles, bool isReal)
 {
 	std::function<double(const Vector&)> f = 0;
 	switch (isReal) {
 	case true:
-		f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, phi);
+		f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, angles);
 		break;
 	case false:
-		f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, phi);
+		f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, angles);
 		break;
 	}
 	FunctionCoefficient res(f);
 	return std::make_unique<FunctionCoefficient>(res);
 }
 
-std::unique_ptr<FunctionCoefficient> buildFC_3D(const double freq, const SphericalAngles& angles, bool isReal)
+std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency freq, const SphericalAngles& angles, bool isReal)
 {
 	std::function<double(const Vector&)> f = 0;
 	switch (isReal) {
@@ -108,7 +140,7 @@ std::unique_ptr<FiniteElementSpace> buildFESFromGF(Mesh& mesh, const std::string
 	throw std::runtime_error("FES from GridFunciton not returned. Verify input path.");
 }
 
-std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<double>& frequencies, const std::vector<SphericalAngles>& angleVec)
+std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angleVec)
 {
 	std::map<SphericalAngles, Freq2Value> res;
 	for (const auto& angpair : angleVec) {
@@ -171,7 +203,7 @@ std::vector<double> buildTimeVector(const std::string& data_path)
 	return res;
 }
 
-std::vector<double> evaluateGaussianVector(std::vector<double>& time, double delay, double mean)
+std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double delay, double mean)
 {
 	std::vector<double> res(time.size());
 	for (int t = 0; t < time.size(); ++t) {
@@ -180,7 +212,7 @@ std::vector<double> evaluateGaussianVector(std::vector<double>& time, double del
 	return res;
 }
 
-void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vector<double>& frequencies)
+void trimLowMagFreqs(const std::map<Frequency, std::complex<double>>& map, std::vector<Frequency>& frequencies)
 {
 	const double tol = 1e-2;
 	for (int f = 0; f < frequencies.size(); ++f)
@@ -193,7 +225,7 @@ void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vec
 	}
 }
 
-Freq2CompVec calculateDFT(const Vector& gf, const std::vector<double>& frequencies, const Time time)
+Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>& frequencies, const Time time)
 {
 	Freq2CompVec res(frequencies.size());
 	for (int f{ 0 }; f < frequencies.size(); f++) {
@@ -208,7 +240,7 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<double>& frequenci
 }
 
 
-FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& path)
+FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequencies, const std::string& path)
 {
 	FreqFields res(frequencies.size());
 	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
@@ -260,14 +292,14 @@ ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fe
 }
 
 
-std::pair<std::complex<double>, std::complex<double>> FarField::calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles, bool isElectric)
+std::pair<std::complex<double>, std::complex<double>> FarField::calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const Frequency frequency, const SphericalAngles& angles, bool isElectric)
 {
 	std::unique_ptr<FunctionCoefficient> fc_real, fc_imag;
 
 	switch (fes_->GetMesh()->SpaceDimension()) {
 	case 2:
-		fc_real = buildFC_2D(frequency, angles.first, true);
-		fc_imag = buildFC_2D(frequency, angles.first, false);
+		fc_real = buildFC_2D(frequency, angles, true);
+		fc_imag = buildFC_2D(frequency, angles, false);
 		break;
 	case 3:
 		fc_real = buildFC_3D(frequency, angles, true);
@@ -290,8 +322,8 @@ std::pair<std::complex<double>, std::complex<double>> FarField::calcNLpair(Compl
 		DCz *= -1.0;
 	}
 
-	auto phi_value = -DCx * sin(angles.first) + DCy * cos(angles.first);
-	auto theta_value = DCx * cos(angles.second) * cos(angles.first) + DCy * cos(angles.second) * sin(angles.first) - DCz * sin(angles.second);
+	auto phi_value = -DCx * sin(angles.phi) + DCy * cos(angles.phi);
+	auto theta_value = DCx * cos(angles.theta) * cos(angles.phi) + DCy * cos(angles.theta) * sin(angles.phi) - DCz * sin(angles.theta);
 
 	return std::pair<std::complex<double>, std::complex<double>>(phi_value, theta_value);
 }
@@ -337,7 +369,7 @@ void FreqFields::normaliseFields(const double value)
 	}
 }
 
-FarField::FarField(const std::string& data_path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
+FarField::FarField(const std::string& data_path, const std::string& json_path, std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
 	Mesh mesh{ Mesh::LoadFromFile(data_path + "/mesh", 1, 0) };
 	fes_ = buildFESFromGF(mesh, data_path);

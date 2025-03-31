@@ -19,11 +19,21 @@ using Phi = double;
 using Frequency = double;
 using ScPot = double;
 using Freq2Value = std::map<Frequency, ScPot>;
-using SphericalAngles = std::pair<Phi, Theta>;
 using ComplexVector = std::vector<std::complex<double>>;
 using Freq2CompVec = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
 using FunctionPair = std::pair<FunctionCoefficient*, FunctionCoefficient*>;
+
+struct SphericalAngles {
+	double theta;
+	double phi;
+
+	bool operator < (const SphericalAngles& angles) const {
+		return std::tie(theta, phi) < std::tie(angles.theta, angles.phi);
+	}
+};
+
+
 
 struct PlaneWaveData {
 	double mean;
@@ -57,19 +67,19 @@ struct FreqFields {
 	void normaliseFields(const double val);
 };
 
-double func_exp_real_part_2D(const Vector& pos, const double freq, const Phi phi);
-double func_exp_imag_part_2D(const Vector& pos, const double freq, const Phi phi);
-double func_exp_real_part_3D(const Vector& pos, const double freq, const SphericalAngles angles);
-double func_exp_imag_part_3D(const Vector& pos, const double freq, const SphericalAngles angles);
+double func_exp_real_part_2D(const Position&, const Frequency, const SphericalAngles&);
+double func_exp_imag_part_2D(const Position&, const Frequency, const SphericalAngles&);
+double func_exp_real_part_3D(const Position&, const Frequency, const SphericalAngles&);
+double func_exp_imag_part_3D(const Position&, const Frequency, const SphericalAngles&);
 
-std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency, const Phi&, bool isReal);
+std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency, const SphericalAngles&, bool isReal);
 std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency, const SphericalAngles&, bool isReal);
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second);
 
 std::unique_ptr<FiniteElementSpace> buildFESFromGF(Mesh&, const std::string& data_path);
 
-std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<double>& frequencies, const std::vector<SphericalAngles>&);
+std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Frequency>&, const std::vector<SphericalAngles>&);
 
 PlaneWaveData buildPlaneWaveData(const json&);
 std::vector<double> buildTimeVector(const std::string& data_path);
@@ -77,11 +87,11 @@ std::vector<double> buildTimeVector(const std::string& data_path);
 GridFunction getGridFunction(Mesh&, const std::string& data_path);
 const Time getTime(const std::string& timePath);
 std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double delay, double mean);
-void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vector<double>& frequencies);
+void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vector<Frequency>&);
 
-Freq2CompVec calculateDFT(const Vector& gf, const std::vector<double>& frequencies, const Time);
+Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>&, const Time);
 
-FreqFields calculateFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& path);
+FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>&, const std::string& path);
 
 ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace&, const Direction&);
 
@@ -91,12 +101,12 @@ std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteEl
 
 class FarField {
 public:
-	FarField(const std::string& data_path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec);
+	FarField(const std::string& data_path, const std::string& json_path, std::vector<Frequency>&, const std::vector<SphericalAngles>& angle_vec);
 	const double getPotRad(const SphericalAngles& angpair, const Frequency& freq) const { return pot_rad_.at(angpair).at(freq); }
 
 private:
 	
-	std::pair<std::complex<double>, std::complex<double>> calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const double frequency, const SphericalAngles& angles, bool isElectric);
+	std::pair<std::complex<double>, std::complex<double>> calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const Frequency, const SphericalAngles& angles, bool isElectric);
 
 	std::unique_ptr<FiniteElementSpace> fes_;
 	std::map<SphericalAngles, Freq2Value> pot_rad_;
