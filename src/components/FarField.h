@@ -33,8 +33,6 @@ struct SphericalAngles {
 	}
 };
 
-
-
 struct PlaneWaveData {
 	double mean;
 	double delay;

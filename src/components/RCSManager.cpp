@@ -64,12 +64,12 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		std::string path(data_path + "/farfield/farfieldData_" + dim_str + "Th_" + std::to_string(angpair.theta) + "_" + "Phi_" + std::to_string(angpair.phi) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
-			myfile << "Angle Theta " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
+			myfile << "Theta (rad) // " << "Phi (rad) // " << "Frequency (Hz) // " << "r2 * pot // " << "normalization_term\n";
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI<< " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
+				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI << " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
@@ -80,7 +80,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 
 	for (int f{ 0 }; f < rescaled_frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			const_term = 4.0 * M_PI / pot_inc[f];
+			const_term = 4.0 * M_PI / pot_inc[f]; // We defined FarField as r^2 * magnitude, thus we do not include the r^2 found in Equation 8.36 in Taflove's book.
 			RCSdata_[angpair][rescaled_frequencies[f]] = const_term * ff.getPotRad(angpair, rescaled_frequencies[f]);
 		}
 	}
@@ -90,7 +90,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		std::string path(data_path + "/rcs/rcsData_" + dim_str + "Th_" + std::to_string(angpair.theta) + "_" + "Phi_" + std::to_string(angpair.phi) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
-			myfile << "Angle Theta " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
+			myfile <<  "Theta (rad) // " << "Phi (rad) // " << "Frequency (Hz) // " << "rcs // " << "normalization_term\n";
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;

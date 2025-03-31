@@ -6,7 +6,7 @@ using namespace mfem;
 
 const Vector buildObsPointVec(const SphericalAngles& angles) 
 {
-	const auto r{ 1.0 };
+	const auto r{ 1.0 }; //Observation point radius distance. As radius does not matter for an observation point that could be found in the infinite, we set it to be one.
 	const auto& phi{ angles.phi };
 	const auto& theta{ angles.theta };
 	const auto x{ r * std::sin(theta) * std::cos(phi) };
@@ -32,6 +32,8 @@ double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
 	return std::acos((vec * p) / (vec.Norml2() * p.Norml2()));
 }
 
+/* These functions represent the exponential part of e^(+j k r' cos(psi)) found in Equations 8.31 and 8.32 of Taflove's Computational Electrodynamics: The Finite-Difference Time-Domain Method. 
+   Due to MFEM not supporting complex numbers in its Coefficient class, we separate real and imaginary parts for either 2D or 3D, returning cosine or sine as needed. */
 double func_exp_real_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
@@ -378,16 +380,14 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 
 	FreqFields freqfields{ calculateFreqFields(mesh, frequencies, data_path) };
 
-	double freq_val, const_term, landa, wavenumber;
-	std::pair<std::complex<double>, std::complex<double>> N_pair, L_pair;
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			N_pair = calcNLpair(freqfields.Hx[f], freqfields.Hy[f], freqfields.Hz[f], frequencies[f], angpair, false);
-			L_pair = calcNLpair(freqfields.Ex[f], freqfields.Ey[f], freqfields.Ez[f], frequencies[f], angpair, true);
-			landa = physicalConstants::speedOfLight / frequencies[f];
-			wavenumber = 2.0 * M_PI / landa;
-			const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance);
-			freq_val = const_term * (std::pow(std::abs(L_pair.first + physicalConstants::freeSpaceImpedance * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - physicalConstants::freeSpaceImpedance * N_pair.first), 2.0));
+			auto N_pair = calcNLpair(freqfields.Hx[f], freqfields.Hy[f], freqfields.Hz[f], frequencies[f], angpair, false);
+			auto L_pair = calcNLpair(freqfields.Ex[f], freqfields.Ey[f], freqfields.Ez[f], frequencies[f], angpair, true);
+			auto landa = physicalConstants::speedOfLight / frequencies[f];
+			auto wavenumber = 2.0 * M_PI / landa;
+			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance);
+			auto freq_val = const_term * (std::pow(std::abs(L_pair.first + physicalConstants::freeSpaceImpedance * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - physicalConstants::freeSpaceImpedance * N_pair.first), 2.0));
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}
