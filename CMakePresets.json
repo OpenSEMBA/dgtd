@@ -38,8 +38,9 @@
       "displayName": "x64 Release",
       "inherits": "default",
       "cacheVariables": {
-        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON",
         "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
         "CMAKE_BUILD_TYPE": "Release"
       }
     }

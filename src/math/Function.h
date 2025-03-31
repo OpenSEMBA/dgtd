@@ -286,9 +286,8 @@ public:
 		const FieldType& ft, const Direction& d) const {
 		assert(p.Size() <= 3);
 
-		Polarization pol;
-		
 		double polDir;
+
 		switch (fieldtype_) {
 		case E:
 			if (ft == E) {
@@ -315,6 +314,7 @@ public:
 		}
 
 		Position pos;
+
 		if (p.Size() == 1) {
 			pos = Position({ p[0],  0.0, 0.0 });
 		}
@@ -328,7 +328,7 @@ public:
 		auto phaseDelay{ pos * propagation_ / physicalConstants::speedOfLight };
 
 		return function_->eval(Position({ phaseDelay - t })) * polDir;
-		
+
 	};
 
 private:

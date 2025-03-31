@@ -1,14 +1,13 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 1e-3,
-    "hesthaven_operator": true,
-    "final_time":  14.0,
+    "time_step": 2.5e-3,
+    "final_time":  16.0,
     "order": 1
   },
 
   "model": { 
-    "filename": "3D_RCS_Sphere.msh",
+    "filename": "3D_RCS_Sphere_X.msh",
     "materials": [
       {
         "tags": [ 4, 5 ],
@@ -29,11 +28,11 @@
 
   "probes": {
     "exporter": {
-      "steps": 200
+      "steps": 400
     },
     "farfield": [
       {
-        "name": "circle_1m_O1",
+        "name": "circle_1m_O1_X",
         "steps": 1,
         "tags": [ 5 ]
       }
@@ -43,12 +42,12 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
+      "polarization": [ 0.0, 1.0, 0.0],
+      "propagation": [1.0, 0.0, 0.0],
       "tags": [ 5 ],
       "magnitude": {
         "spread": 0.2,
-        "delay": 3.5
+        "delay": 2.5
       }
     }
   ]

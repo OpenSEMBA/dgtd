@@ -23,14 +23,14 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 			freq_val += gauss_val[t] * w;
 		}
 		freq2complex.emplace(std::make_pair(frequencies[f], freq_val));
-		res[f] = physicalConstants::vacuumPermittivity * std::pow(std::abs(freq_val), 2.0);
+		res[f] = physicalConstants::vacuumPermittivity_SI * std::pow(std::abs(freq_val), 2.0);
 	}
 
 	//normalize by max val
-	// auto max = *std::max_element(std::begin(res), std::end(res));
-	// for (auto f{ 0 }; f < res.size(); f++) {
-	// 	res[f] /= max;
-	// }
+	auto max = *std::max_element(std::begin(res), std::end(res));
+	for (auto f{ 0 }; f < res.size(); f++) {
+		res[f] /= max;
+	}
 
 	//trimLowMagFreqs(freq2complex, frequencies);
 	//exportIncidentGaussData(time, gauss_val, json_path);
@@ -47,9 +47,8 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	dim == 2 ? dim_str = "2D_" : dim_str = "3D_";
 
 	std::vector<double> rescaled_frequencies(frequencies.size());
-	for (auto f{0}; f < frequencies.size(); f++){
+	for (auto f{0}; f < rescaled_frequencies.size(); f++){
 		rescaled_frequencies[f] = frequencies[f] / physicalConstants::speedOfLight_SI;
-		rescaled_frequencies[f] *= 2.0 * M_PI; //Term added due to the dft only covering the interval [0, 2pi]
 	}
 
 	auto pot_inc{ buildNormalizationTerm(json_path, data_path, rescaled_frequencies) };
@@ -69,12 +68,12 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		std::string path(data_path + "/farfield/farfieldData_" + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
-			myfile << "Angle_Phi " << "Angle_Theta " << "Frequency_(Hz) " << "r2_pot " << "normalization_term\n";
+			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "r2 * pot" << "normalization_term\n";
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI / 2.0 / M_PI << " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
+				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI<< " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
@@ -95,12 +94,12 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		std::string path(data_path + "/rcs/rcsData_" + dim_str + std::to_string(angpair.first) + "_" + std::to_string(angpair.second) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
-			myfile << "Angle_Phi " << "Angle_Theta " << "Frequency_(Hz) " << "rcs " << "normalization_term\n";
+			myfile << "Angle Rho " << "Angle Phi " << "Frequency (Hz) " << "rcs" << "normalization_term\n";
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI / 2.0 / M_PI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
+				myfile << angpair.first << " " << angpair.second << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}

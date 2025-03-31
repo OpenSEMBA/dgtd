@@ -11,7 +11,7 @@ static DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	bf.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
 	bf.Assemble();
 	bf.Finalize();
-
+	
 	auto dense = bf.SpMat().ToDenseMatrix();
 	const auto res = toEigen(*dense);
 	delete dense;
