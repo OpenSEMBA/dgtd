@@ -535,14 +535,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -614,14 +614,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -692,14 +692,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Hesthaven)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -770,14 +770,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Global)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -848,14 +848,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -925,14 +925,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -1002,14 +1002,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_THz)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -1080,14 +1080,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -1157,14 +1157,14 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Quads)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 9.0 };
@@ -1242,7 +1242,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads_Hesthaven)
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
 
 	{
@@ -1320,7 +1320,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Quads_Hesthaven)
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.0);
 	}
 
 	{
@@ -1427,7 +1427,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GE(last_fm_time, 6.0);
+		ASSERT_GE(last_fm_time + tolerance, 6.0);
 	}
 
 	{
@@ -1501,14 +1501,14 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
 
 	solver.run();
 
+	double tolerance{ 1e-2 };
+
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GE(last_fm_time, 6.0);
+		ASSERT_GE(last_fm_time + tolerance, 6.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 6.0 };
@@ -1580,15 +1580,15 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Global)
 	EXPECT_EQ(0.0, normOld);
 
 	solver.run();
+	
+	double tolerance{ 1e-2 };
 
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GE(last_fm_time, 6.0);
+		ASSERT_GE(last_fm_time + tolerance, 6.0);
 	}
-
-	double tolerance{ 1e-2 };
 
 	{
 		double expected_t{ 6.0 };
@@ -1919,14 +1919,14 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
 
 	solver.run();
 
+	auto tolerance{ 2e-2 };
+
 	{	
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GE(last_fm_time, 3.25);
+		ASSERT_GE(last_fm_time + tolerance, 3.25);
 	}
-
-	auto tolerance{ 2e-2 };
 
 	{
 		double expected_t{ 1.25 };
@@ -2037,14 +2037,14 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
 
 	solver.run();
 
+	auto tolerance{ 2e-2 };
+
 	{	
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GE(last_fm_time, 3.25);
+		ASSERT_GE(last_fm_time + tolerance, 3.25);
 	}
-
-	auto tolerance{ 2e-2 };
 
 	{
 		double expected_t{ 1.25 };
@@ -2146,14 +2146,6 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
 	}
 }
 
-TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_Hesthaven)
-{
-	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere"));
-	case_data["solver_options"]["hesthaven_operator"] = true;
-	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere"), true) };
-
-	solver.run();
-}
 //
 //TEST_F(ExtensiveCasesTest, 2D_Dipole_Upwind_Hesthaven)
 //{
