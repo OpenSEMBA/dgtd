@@ -2247,11 +2247,20 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
 //}
 //
 //
-//TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
-//	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere"), true) };
-//
-//	solver.run();
-//}
+TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_O2"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_O2"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 3D_Mixed_O2)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_Mixed_O2"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("3D_Mixed_O2"), true) };
+
+	solver.run();
+}

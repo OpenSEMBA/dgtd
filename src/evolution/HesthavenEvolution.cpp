@@ -412,7 +412,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	}
 	
 	if (curvedElements_.size()) {
-	
 		Probes probes;
 		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
 		DGOperatorFactory dgops(pd, fes_);
