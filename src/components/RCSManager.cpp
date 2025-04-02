@@ -94,8 +94,8 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
-				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
+				dim == 2 ? normalization = landa : normalization = landa * landa; // We will add 2.0 * M_PI to the RCSdata due to the limits regarding a DFT, as we need to increase the range.
+				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI << " " << 2.0 * M_PI * RCSdata_[angpair][f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
