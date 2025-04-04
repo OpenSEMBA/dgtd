@@ -20,16 +20,10 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 		for (int t{ 0 }; t < time.size(); t++) {
 			auto arg = 2.0 * M_PI * frequencies[f] * time[t];
 			auto w = std::complex<double>(cos(arg), -sin(arg));
-			freq_val += gauss_val[t] * w;
+			freq_val += gauss_val[t] * w; 
 		}
-		freq2complex.emplace(std::make_pair(frequencies[f], freq_val));
+		freq2complex.emplace(std::make_pair(frequencies[f],freq_val));
 		res[f] = physicalConstants::vacuumPermittivity * std::pow(std::abs(freq_val), 2.0);
-	}
-
-	//normalize by max val
-	auto max = *std::max_element(std::begin(res), std::end(res));
-	for (auto f{ 0 }; f < res.size(); f++) {
-		res[f] /= max;
 	}
 
 	return res;
@@ -94,8 +88,8 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
-				dim == 2 ? normalization = landa : normalization = landa * landa; // We will add 2.0 * M_PI to the RCSdata due to the limits regarding a DFT, as we need to increase the range.
-				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI << " " << 2.0 * M_PI * RCSdata_[angpair][f] << " " << normalization << "\n";
+				dim == 2 ? normalization = landa : normalization = landa * landa;
+				myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI << " " << RCSdata_[angpair][f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
