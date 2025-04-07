@@ -17,7 +17,7 @@ FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be)
 
 Vector getBarycenterOfElement(Mesh& m, int e)
 {
-	Element* elem{ m.GetElement(e) };
+	auto elem{ m.GetElement(e) };
 	Array<int> elem_vert(elem->GetNVertices());
 	elem->GetVertices(elem_vert);
 	Vector res;
@@ -141,13 +141,12 @@ double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, in
 	auto coord_v0{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[0]) };
 	auto coord_v1{ m.GetVertex(m.GetBdrElement(be)->GetVertices()[1]) };
 
-	auto bary_e1{ getBarycenterOfElement(m, fet.Elem1No) };
-	auto bary_e2{ getBarycenterOfElement(m, fet.Elem2No) };
+	auto baris = calculateBarycenters(m, be);
 
 	Vector bary_3D(3), vertex_3D(3);
 	bary_3D = 0.0; vertex_3D = 0.0;
 	for (int i = 0; i < m.Dimension(); i++) {
-		bary_3D[i] = bary_e2[i] - bary_e1[i];
+		bary_3D[i] = baris.second[i] - baris.first[i];
 		vertex_3D[i] = coord_v1[i] - coord_v0[i];
 	}
 
@@ -195,11 +194,11 @@ const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be)
 		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, fe_trans->Elem2No));
 	}
 	else {
-		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, m.GetBdrElementFaceIndex(be)));
+		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be)));
 	}
 }
 
-const Vector buildBarycenterPosition(Mesh& m, int be)
+const Vector buildElem1ToElem2BarycenterVector(Mesh& m, int be)
 {
 	auto barys{ calculateBarycenters(m, be) };
 
@@ -254,14 +253,14 @@ Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
 	switch (bdrCond) {
 	case BdrCond::TotalFieldIn:
 		if (isTF) {
-			res[0] = SubMeshingMarkers::TotalField;
+			res[0] = SubMeshingMarkers::TotalFieldMarker;
 		}
 		else {
-			res[0] = SubMeshingMarkers::ScatteredField;
+			res[0] = SubMeshingMarkers::ScatteredFieldMarker;
 		}
 		break;
 	case BdrCond::NearToFarField:
-		res[0] = SubMeshingMarkers::NearToFarField;
+		res[0] = SubMeshingMarkers::NearToFarFieldMarker;
 		break;
 	}
 	return res;
@@ -298,7 +297,7 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 		break;
 	}
 
-	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::Global_SubMesh;
+	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::GlobalSubMeshMarker;
 	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
@@ -323,20 +322,20 @@ void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const Fa
 {
 	if (trans->Elem2No != NotFound) {
 		if (el1_is_tf) {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalField);
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::ScatteredField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalFieldMarker);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::ScatteredFieldMarker);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredField);
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::TotalField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredFieldMarker);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::TotalFieldMarker);
 		}
 	}
 	else {
 		if (el1_is_tf) {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalFieldMarker);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::ScatteredFieldMarker);
 		}
 	}
 }
@@ -377,13 +376,13 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ getFaceElementTransformation(m, be)};
 			if (be_trans->Elem2No != NotFound) {
-				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
-				m.GetElement(be_trans->Elem2No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
+				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
+				m.GetElement(be_trans->Elem2No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
 				elems_for_global_submesh_.push_back(be_trans->Elem1No);
 				elems_for_global_submesh_.push_back(be_trans->Elem2No);
 			}
 			else {
-				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::Global_SubMesh);
+				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
 				elems_for_global_submesh_.push_back(be_trans->Elem1No);
 			}
 		}
@@ -508,11 +507,11 @@ double buildFaceOrientation(Mesh& mesh, int be)
 	{
 	case 2:
 		return buildCrossCoefficient(
-			buildBarycenterPosition(mesh, be),
+			buildElem1ToElem2BarycenterVector(mesh, be),
 			buildTangent2D(mesh, be));
 	case 3:
 		return mfem::InnerProduct(
-			buildBarycenterPosition(mesh, be),
+			buildElem1ToElem2BarycenterVector(mesh, be),
 			buildNormal3D(mesh, be));
 	default:
 		throw std::runtime_error("Method only supports 2D and 3D.");
@@ -521,6 +520,33 @@ double buildFaceOrientation(Mesh& mesh, int be)
 
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
 {
+
+	/*
+							 @   MFEM numbering convention is read from
+							@@@@   the GMSH element order, thus we need to ensure
+						  @@ @  @@   when designing the mesh that the numbering order
+						@@   @    @   of the elements and the 2D vector along the face align
+					  @@     @     @@   with out TFSF designation intent
+					 @       @       @@
+				   @@        @         @@  For 2D meshes, MFEM will not correct boundary normals nor
+				 @@          A           @@  vectors, thus we can exploit this when designing problems
+				@            |            @@
+			  @@    SF       |      TF      @@
+			@@               |                @
+		   @@    elem 1  ----+---> elem 2      @
+			 @@   i.e. 75    |    i.e. 90   @@
+			  @@             |             @@
+				@@           |           @@
+				  @@         @          @
+					@@       @        @@
+					  @@     @      @@
+					   @@    @     @
+						 @@  @   @@
+						   @ @ @@
+							@@@
+							 @
+	 */
+
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 
@@ -563,7 +589,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			else {
 				auto set_v2{ std::make_pair(NotFound, false) };
 			}
-			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
+
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
 			prepareSubMeshInfo(m, fe_trans, facesInfo, set_v1.second);
 		}
@@ -630,10 +656,10 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 
 	switch (original_->SpaceDimension()) {
 	case 2:
-		setIndividualNTFFAttributesForSubMeshing2D(*original_.get(), marker);
+		setSurfaceAttributesForSubMesh2D(*original_.get(), marker);
 		break;
 	case 3:
-		setIndividualNTFFAttributesForSubMeshing3D(*original_.get(), marker);
+		setSurfaceAttributesForSubMesh3D(*original_.get(), marker);
 		break;
 	default:
 		throw std::runtime_error("NearToFarField can only be applied to 2D or 3D meshes.");
@@ -647,7 +673,7 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 	}
 }
 
-void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
+void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -676,7 +702,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 				}
 			}
 			else {
-				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
+				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify that NearToFarField orientations on the mesh follow the intended convention." };
 				throw std::runtime_error(error.c_str());
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
@@ -687,7 +713,7 @@ void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing2D(Mesh& m
 
 }
 
-void NearToFarFieldSubMesher::setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
+void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh3D(Mesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -736,10 +762,10 @@ void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementT
 {
 	if (trans->Elem2No != NotFound) {
 		if (el_is_ntff) {
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
 		}
 		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarField);
+			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
 		}
 	}
 }

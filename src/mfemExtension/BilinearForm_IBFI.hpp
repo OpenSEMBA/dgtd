@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mfem.hpp>
+#include <cstddef>
 
 namespace maxwell {
 namespace mfemExtension{

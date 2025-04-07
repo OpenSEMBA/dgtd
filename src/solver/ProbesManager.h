@@ -34,10 +34,10 @@ struct TransferMaps {
     void transferFields(const Fields&, Fields&);
 };
 
-class NearToFarFieldReqs {
+class NearFieldReqs {
 public:
 
-    NearToFarFieldReqs(const NearToFarFieldProbe&, const mfem::DG_FECollection* fec, mfem::FiniteElementSpace& fes, Fields&);
+    NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::FiniteElementSpace& fes, Fields&);
 
     mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
     const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
@@ -69,8 +69,8 @@ public:
 
     void updateProbes(Time);
 
-    const PointProbe& getPointProbe(const std::size_t i) const;
-    const FieldProbe& getFieldProbe(const std::size_t i) const;
+    const FieldProbe& getPointProbe(const std::size_t i) const;
+    const PointProbe& getFieldProbe(const std::size_t i) const;
 
     Probes probes;
 
@@ -100,23 +100,23 @@ private:
     double finalTime_;
 
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
-    std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
-    std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
-    std::map<const NearToFarFieldProbe*, DataCollection> nearToFarFieldProbesCollection_;
+    std::map<const FieldProbe*, PointProbeCollection> pointProbesCollection_;
+    std::map<const PointProbe*, FieldProbeCollection> fieldProbesCollection_;
+    std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
     
     mfem::FiniteElementSpace& fes_;
 
-    std::map<const NearToFarFieldProbe*, std::unique_ptr<NearToFarFieldReqs>> nearToFarFieldReqs_;
+    std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
-    PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
-    FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    DataCollection buildNearToFarFieldDataCollectionInfo(const NearToFarFieldProbe&, Fields&) const;
+    PointProbeCollection buildPointProbeCollectionInfo(const FieldProbe&, Fields&) const;
+    FieldProbeCollection buildFieldProbeCollectionInfo(const PointProbe&, Fields&) const;
+    DataCollection buildNearFieldDataCollectionInfo(const NearFieldProbe&, Fields&) const;
 
     void updateProbe(ExporterProbe&, Time);
-    void updateProbe(PointProbe&, Time);
     void updateProbe(FieldProbe&, Time);
-    void updateProbe(NearToFarFieldProbe&, Time);
+    void updateProbe(PointProbe&, Time);
+    void updateProbe(NearFieldProbe&, Time);
 };
 
 

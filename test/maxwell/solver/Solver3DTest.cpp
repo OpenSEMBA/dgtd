@@ -156,9 +156,9 @@ TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 {
 
 	Probes probes;
-	probes.fieldProbes = {
-		FieldProbe{{0.0, 0.2, 0.2}},
-		FieldProbe{{1.0, 0.2, 0.2}},
+	probes.pointProbes = {
+		PointProbe{{0.0, 0.2, 0.2}},
+		PointProbe{{1.0, 0.2, 0.2}},
 	};
 
 	maxwell::Solver solver{

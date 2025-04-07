@@ -1,0 +1,42 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step": 0.0,
+    "final_time":  10.0,
+    "order": 2
+  },
+
+  "model": {
+    "filename": "2D_TFSF_Dipole_Distant_Box.msh",
+    "materials": [
+      {
+        "tags": [ 4, 5 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 2, 3, 4 ],
+        "type": "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 20
+    }
+  },
+
+  "sources": [ 
+    {
+      "type": "dipole",
+      "tags": [ 5, 6, 7, 8 ],
+      "magnitude": {
+        "length": 1.0,
+        "spread": 0.5,
+        "delay": -99998.0
+      }
+    }
+  ]
+}

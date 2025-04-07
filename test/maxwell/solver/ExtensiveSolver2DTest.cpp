@@ -63,11 +63,11 @@ protected:
 	{
 		// auto probes{buildProbesWithAnExportProbe(20)};
 		auto probes{buildProbesEmpty()};
-		probes.pointProbes = {
-			PointProbe{E, Z, {0.0, 0.5}},
-			PointProbe{E, Z, {1.0, 0.5}},
-			PointProbe{H, Y, {0.0, 0.5}},
-			PointProbe{H, Y, {1.0, 0.5}}
+		probes.fieldProbes = {
+			FieldProbe{E, Z, {0.0, 0.5}},
+			FieldProbe{E, Z, {1.0, 0.5}},
+			FieldProbe{H, Y, {0.0, 0.5}},
+			FieldProbe{H, Y, {1.0, 0.5}}
 		};
 		return probes;
 	}

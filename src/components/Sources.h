@@ -2,6 +2,13 @@
 
 #include "Types.h"
 #include "math/Function.h"
+#include "Spherical.h"
+#include <functional>
+#include "math/PhysicalConstants.h"
+#include "math/Calculus.h"
+#include <memory>
+#include <cassert>
+#include <float.h>
 
 namespace maxwell {
 
@@ -19,6 +26,7 @@ public:
 	virtual double eval(
 		const Position&, const Time&,
 		const FieldType&, const Direction&) const = 0;
+
 };
 
 class InitialField : public Source {
@@ -40,20 +48,20 @@ public:
 
 	FieldType& fieldType() { return fieldType_; }
 	Polarization& polarization() { return polarization_; }
-	Function* magnitude() { return magnitude_.get(); }
+	Function* function() { return function_.get(); }
 	Position& center() { return center_; }
 
 private:
-	std::unique_ptr<Function> magnitude_;
+	std::unique_ptr<Function> function_;
 	FieldType fieldType_{ E };
 	Polarization polarization_;
 	Position center_;
 };
 
-class Planewave : public Source {
+class TotalField : public Source {
 public:
-	Planewave(const Function&, const Polarization&, const Propagation&, const FieldType&);
-	Planewave(const Planewave&);
+	TotalField(const EHFieldFunction&);
+	TotalField(const TotalField&);
 
 	std::unique_ptr<Source> clone() const;
 
@@ -62,10 +70,7 @@ public:
 		const FieldType&, const Direction&) const;
 
 private: 
-	std::unique_ptr<Function> magnitude_;
-	Polarization polarization_;
-	Propagation propagation_;
-	FieldType fieldtype_;
+	std::unique_ptr<EHFieldFunction> function_;
 };
 
 class Sources {

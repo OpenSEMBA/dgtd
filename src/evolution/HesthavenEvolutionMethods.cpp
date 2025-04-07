@@ -280,7 +280,9 @@ namespace maxwell {
 	DynamicMatrix assembleConnectivityFaceMassMatrix(FiniteElementSpace& subFES, Array<int> boundaryMarker)
 	{
 		auto bf = assembleFaceMassBilinearForm(subFES, boundaryMarker);
-		auto res = toEigen(*bf->SpMat().ToDenseMatrix());
+		auto dense = bf->SpMat().ToDenseMatrix();
+		auto res = toEigen(*dense);
+		delete dense;
 		return res;
 	}
 
@@ -568,16 +570,19 @@ namespace maxwell {
 		auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
 		auto attMap{ mapOriginalAttributes(model_.getConstMesh()) };
 
+		double ori{ 0.0 };
 		auto intBdrNodeMesh{ Mesh(model_.getConstMesh()) };
 		for (auto b{ 0 }; b < model_.getConstMesh().GetNBE(); b++) {
 			for (const auto& marker : markers) {
 				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-					const auto faceTrans{ model_.getMesh().GetInternalBdrFaceTransformations(b) };
+					FaceElementTransformations* faceTrans;
+					model_.getConstMesh().FaceIsInterior(model_.getMesh().GetFaceElementTransformations(model_.getConstMesh().GetBdrFace(b))->ElementNo) ? faceTrans = model_.getMesh().GetInternalBdrFaceTransformations(b) : faceTrans = model_.getMesh().GetBdrFaceTransformations(b);
+					fes_.GetMesh()->Dimension() == 2 ? ori = calculateCrossBaryVertexSign(*fes_.GetMesh(), *faceTrans, b) : ori = buildFaceOrientation(*fes_.GetMesh(), b);
 					auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
 					FiniteElementSpace subFES(&twoElemSubMesh, fec);
 					auto nodePairs{ buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES) };
 					auto mapsB{ initInteriorFacesMapB(nodePairs) };
-					loadIntBdrConditions(mapsB, nodePairs, marker.first);
+					loadIntBdrConditions(mapsB, nodePairs, marker.first, ori);
 				}
 			}
 		}

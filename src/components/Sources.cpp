@@ -1,12 +1,5 @@
 #include "Sources.h"
 
-#include <functional>
-#include "math/PhysicalConstants.h"
-#include "math/Calculus.h"
-#include <memory>
-#include <cassert>
-#include <float.h>
-
 #ifdef __linux__
 #ifndef DBL_EPSILON
 #	define DBL_EPSILON 2.2204460492503131e-16
@@ -15,15 +8,13 @@
 
 namespace maxwell {
 
-constexpr double TOLERANCE = 10.0 * DBL_EPSILON;
-
 InitialField::InitialField(
 	const Function& f, 
 	const FieldType& fT, 
 	const Polarization& p,
 	const Position& centerIn,
 	const CartesianAngles& angles) :
-	magnitude_{ f.clone() },
+	function_{ f.clone() },
 	fieldType_{ fT },
 	polarization_{ p },
 	center_{ centerIn }
@@ -32,7 +23,7 @@ InitialField::InitialField(
 }
 
 InitialField::InitialField(const InitialField& rhs) :
-	magnitude_{ rhs.magnitude_->clone() },
+	function_{ rhs.function_->clone() },
 	fieldType_{ rhs.fieldType_ },
 	polarization_{ rhs.polarization_ },
 	center_{ rhs.center_ }
@@ -57,77 +48,29 @@ double InitialField::eval(
 		pos[i] = p[i] - center_[i];
 	}
 	
-	return magnitude_->eval(pos) * polarization_[d];
+	return function_->eval(pos) * polarization_[d];
 }
 
-Planewave::Planewave(
-	const Function& mag, 
-	const Polarization& p, 
-	const Propagation& dir,
-	const FieldType& ft):
-	magnitude_{ mag.clone() },
-	polarization_{ p },
-	propagation_{ dir },
-	fieldtype_{ ft }
+TotalField::TotalField(
+	const EHFieldFunction& func):
+	function_{ func.clone() }
 {}
 
-Planewave::Planewave(const Planewave& rhs) :
-	magnitude_{ rhs.magnitude_->clone() },
-	polarization_{ rhs.polarization_ },
-	propagation_{ rhs.propagation_ },
-	fieldtype_{ rhs.fieldtype_ }
+TotalField::TotalField(const TotalField& rhs) :
+	function_{ rhs.function_->clone() }
 {
-	assert(std::abs(1.0 - polarization_.Norml2()) <= TOLERANCE);
-	assert(std::abs(1.0 - propagation_.Norml2()) <= TOLERANCE);
 }
 
-std::unique_ptr<Source> Planewave::clone() const
+std::unique_ptr<Source> TotalField::clone() const
 {
-	return std::make_unique<Planewave>(*this);
+	return std::make_unique<TotalField>(*this);
 }
 
-double Planewave::eval(
+double TotalField::eval(
 	const Position& p, const Time& t,
-	const FieldType& f, const Direction& d) const
+	const FieldType& ft, const Direction& d) const
 {
-	assert(p.Size() <= 3);
-	assert(f == E || f == H);
-	assert(d == X || d == Y || d == Z);
-	
-	mfem::Vector fieldPol(3);
-
-	switch (fieldtype_) {
-	case E:
-		if (f == E) {
-			fieldPol = polarization_;
-		}
-		else {
-			fieldPol = crossProduct(propagation_, polarization_);
-		}
-		break;
-	case H:
-		if (f == H) {
-			fieldPol = polarization_;
-		}
-		else {
-			fieldPol = crossProduct(polarization_, propagation_);
-		}
-		break;
-	}
-
-	mfem::Vector pos(3);
-	if (p.Size() == 1) {
-		pos = mfem::Vector({ p[0],  0.0, 0.0 });
-	}
-	else if (p.Size() == 2) {
-		pos = mfem::Vector({ p[0], p[1], 0.0 });
-	}
-	else {
-		pos = p;
-	}
-	auto phaseDelay{ pos * propagation_ / physicalConstants::speedOfLight };
-
-	return magnitude_->eval(mfem::Vector({phaseDelay - t})) * fieldPol[d];
+	return function_->eval(p, t, ft, d);
 }
 
 }

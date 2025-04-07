@@ -35,7 +35,7 @@ TEST_F(DriverTest, jsonFindsExistingNestedObjects)
 
 	EXPECT_TRUE(case_data.contains("probes"));
 	EXPECT_TRUE(case_data["probes"].contains("exporter"));
-	EXPECT_TRUE(case_data["probes"]["field"][0].contains("position"));
+	EXPECT_TRUE(case_data["probes"]["point"][0].contains("position"));
 
 	EXPECT_TRUE(case_data.contains("sources"));
 	EXPECT_TRUE(case_data["sources"][0]["magnitude"].contains("delay"));
@@ -98,7 +98,7 @@ TEST_F(DriverTest, adaptsProbeObjects)
 
 	// ...and as per our problem definition, we expect to find an exporter probe and three field probes.
 	EXPECT_EQ(1, probes.exporterProbes.size());
-	EXPECT_EQ(3, probes.fieldProbes.size());
+	EXPECT_EQ(3, probes.pointProbes.size());
 
 }
 

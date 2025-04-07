@@ -3,20 +3,14 @@
 #include <array>
 #include <vector>
 #include <map>
+#include <cfloat>
 #include <mfem.hpp>
 
 namespace maxwell {
 
-struct GridFuncForFP {
-	mfem::GridFunction Ex;
-	mfem::GridFunction Ey;
-	mfem::GridFunction Ez;
-	mfem::GridFunction Hx;
-	mfem::GridFunction Hy;
-	mfem::GridFunction Hz;
-};
+const double TOLERANCE = 10.0 * std::numeric_limits<double>::epsilon();
 
-struct FieldsForFP {
+struct FieldsForMovie {
 	double Ex;
 	double Ey;
 	double Ez;
@@ -27,7 +21,7 @@ struct FieldsForFP {
 
 using Time = double;
 using FieldMovie = std::map<Time, double>;
-using FieldMovies = std::map<Time,FieldsForFP>;
+using FieldMovies = std::map<Time,FieldsForMovie>;
 
 using Point = std::vector<double>;
 using Points = std::vector<Point>;
@@ -44,10 +38,10 @@ enum FieldType { E, H };
 enum class FluxType { Centered, Upwind };
 
 enum SubMeshingMarkers {
-	TotalField = 1000,
-	ScatteredField = 2000,
-	Global_SubMesh = 3000,
-	NearToFarField = 4000
+	TotalFieldMarker = 1000,
+	ScatteredFieldMarker = 2000,
+	GlobalSubMeshMarker = 3000,
+	NearToFarFieldMarker = 4000
 };
 
 enum class BdrCond {

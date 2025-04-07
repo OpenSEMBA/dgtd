@@ -30,7 +30,7 @@
     "exporter": {
       "steps": 20
     },
-    "neartofarfield": [
+    "farfield": [
       {
         "name": "circle_salva",
         "steps": 1,
@@ -41,9 +41,8 @@
 
   "sources": [ 
     {
-      "type": "totalField",
-      "fieldtype": "magnetic",
-      "polarization": [ 0.0, 0.0, 1.0 ],
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
       "tags": [ 3, 4, 5, 6 ],
       "magnitude": {

@@ -2,7 +2,7 @@
   "solver_options": {
     "solver_type": "upwind",
     "final_time":  3.25,
-    "order": 2
+    "order": 3
   },
 
   "model": { 
@@ -15,12 +15,12 @@
     ],
     "boundaries": [
       {
-        "tags": [ 28, 29, 31, 33, 38, 39, 34 ],
-        "type": "PEC"
+        "tags": [ 28, 29, 31, 33, 38, 39 ],
+        "type": "PMC"
       },
       {
-        "tags": [ 26, 27, 30, 32, 36, 37 ],
-        "type":  "PMC"
+        "tags": [ 26, 27, 30, 32, 34, 36, 37 ],
+        "type":  "PEC"
       },
       {
         "tags": [ 25, 35 ],
@@ -33,12 +33,12 @@
     "exporter": {
       "steps": 20
     },
-    "field": [
+    "point": [
       {
         "position": [ 0.0, 0.5, 0.5 ]
       },
       {
-        "position": [ 0.25, 0.5, 0.5 ]
+        "position": [ 0.251, 0.5, 0.5 ]
       },
       {
         "position": [ 1.249, 0.5, 0.5 ]
@@ -49,12 +49,11 @@
     ]
   },
 
-  "sources": [ 
+  "sources": [
     {
-      "type": "totalField",
-      "polarization": [ 0.0, 0.0, 1.0 ],
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "fieldtype": "electric",
       "tags": [ 19 ],
       "magnitude": {
         "type": "gaussian",

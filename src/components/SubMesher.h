@@ -65,8 +65,8 @@ public:
 
 private:
 
-	void setIndividualNTFFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker);
-	void setIndividualNTFFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker);
+	void setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker);
+	void setSurfaceAttributesForSubMesh3D(Mesh& m, const Array<int>& marker);
 	void prepareSubMeshInfo(Mesh&, const FaceElementTransformations*, int faceId, bool el1_is_tf);
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
 	void storeElementToFaceInformation(const FaceElementTransformations*, int faceId, bool el1_is_tf);
@@ -104,6 +104,6 @@ double buildFaceOrientation(Mesh& mesh, int be);
 const Vector buildTangent2D(Mesh& m, int be);
 const Vector buildNormal3D(Mesh& m, int be);
 const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be);
-const Vector buildBarycenterPosition(Mesh& m, int be);
+const Vector buildElem1ToElem2BarycenterVector(Mesh& m, int be);
 
 };

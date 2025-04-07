@@ -221,7 +221,7 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 	}
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<Planewave*>(source.get())) {
+		if (dynamic_cast<TotalField*>(source.get())) {
 
 			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
 

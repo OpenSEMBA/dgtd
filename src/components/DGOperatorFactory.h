@@ -23,7 +23,7 @@ namespace maxwell {
 		std::array<std::array<mfem::Array<int>, 3>, 2> index;
 	};
 
-	void loadBlockInGlobalAtIndices(const DenseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign = 1.0);
+	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign = 1.0);
 
 	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const FluxType& ft);
 

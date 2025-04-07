@@ -12,9 +12,10 @@ add_library(maxwell-components STATIC
 	"OptimizationManager.cpp"
 	"SubMesher.cpp"
 	"RCSManager.cpp" 
-	"RCSExporter.cpp"
 	"ProblemDefinition.cpp"
-	"DGOperatorFactory.cpp")
+	"DGOperatorFactory.cpp" 
+	"Spherical.cpp" 
+	"FarField.cpp")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})

@@ -11,8 +11,11 @@ static DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	bf.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
 	bf.Assemble();
 	bf.Finalize();
-
-	return toEigen(*bf.SpMat().ToDenseMatrix());
+	
+	auto dense = bf.SpMat().ToDenseMatrix();
+	const auto res = toEigen(*dense);
+	delete dense;
+	return res;
 }
 
 Mesh getRefMeshForGeomType(const Element::Type elType, const int dimension)
@@ -93,14 +96,9 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 	const auto& vmapBSF = connectivity_.boundary.TFSF.vmapBSF;
 	const auto& vmapBTF = connectivity_.boundary.TFSF.vmapBTF;
 	for (const auto& source : srcmngr_.sources) {
-		auto pw = dynamic_cast<Planewave*>(source.get());
-		if (pw == nullptr) {
+		auto tf = dynamic_cast<TotalField*>(source.get());
+		if (tf == nullptr) {
 			continue;
-		}
-		for (auto v = 0; v < positions_.size(); v++) {
-			if (std::abs(positions_[v][0] - 1.0) < 1e-2 && std::abs(positions_[v][1] - 0.0) < 1e-2) {
-				int a = 0;
-			}
 		}
 		for (auto m{ 0 }; m < mapBSF.size(); m++) {
 			for (auto v{ 0 }; v < mapBSF[m].size(); v++) {
@@ -414,7 +412,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	}
 	
 	if (curvedElements_.size()) {
-	
 		Probes probes;
 		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
 		DGOperatorFactory dgops(pd, fes_);
@@ -484,11 +481,11 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	// --BOUNDARIES-- //
 
+	evaluateTFSF(jumps);
 	applyBoundaryConditionsToNodes(connectivity_.boundary, fieldsIn, jumps);
 
 	// --TOTAL FIELD SCATTERED FIELD-- //
 
-	evaluateTFSF(jumps);
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //
 

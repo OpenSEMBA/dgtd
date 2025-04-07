@@ -1,0 +1,44 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "time_step": 5e-3,
+    "final_time":  6.0,
+    "order": 2
+  },
+
+  "model": {
+    "filename": "3D_TFSF_PropZ.msh",
+    "materials": [
+      {
+        "tags": [ 2, 4 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 7, 8, 9, 10, 11, 12 ],
+        "type": "PEC"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 100
+    }
+  },
+
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 1.0 ],
+      "propagation": [ 1.0, 0.0, 1.0 ],
+      "tags": [ 1, 2, 3, 4, 5, 6 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.3,
+        "delay": 1.5
+      }
+    }
+  ]
+}

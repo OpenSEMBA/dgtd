@@ -72,11 +72,18 @@ namespace maxwell {
 		return res;
 	}
 
-	void loadBlockInGlobalAtIndices(const DenseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign)
+	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign)
 	{
-		DenseMatrix denseTFSFmat = DenseMatrix(blk);
-		denseTFSFmat *= fieldSign;
-		dst.AddSubMatrix(ids.first, ids.second, denseTFSFmat);
+		MFEM_ASSERT(blk.NumRows() == ids.first.Size(),  "Block Sparse NumRows does not match intended number of Rows.");
+		MFEM_ASSERT(blk.NumCols() == ids.second.Size(), "Block Sparse NumCols does not match intended number of Cols.");
+		Array<int> cols;
+		Vector vals;
+		for (auto r{ 0 }; r < ids.first.Size(); r++) {
+			blk.GetRow(r, cols, vals);
+			for (auto c{ 0 }; c < cols.Size(); c++) {
+				dst.Add(ids.first[r], ids.second[cols[c]], vals[c] * fieldSign);
+			}
+		}
 	}
 
 	GlobalIndices::GlobalIndices(const int blockSize)
@@ -397,16 +404,15 @@ namespace maxwell {
 		GlobalIndices globalId(fes_.GetNDofs());
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
-			auto dense = buildByMult(*MInv[f], *buildZeroNormalIBFISubOperator(f), fes_)->SpMat().ToDenseMatrix();
+			auto op = buildByMult(*MInv[f], *buildZeroNormalIBFISubOperator(f), fes_);
 			for (auto d : { X, Y, Z }) {
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][d], globalId.index[f][d]),
 					-1.0
 				);
 			}
-			delete dense;
 		}
 	}
 	void DGOperatorFactory::addGlobalOneNormalIBFIOperators(SparseMatrix* global)
@@ -417,20 +423,19 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto dense = buildByMult(*MInv[f], *buildOneNormalIBFISubOperator(altField(f), { x }), fes_)->SpMat().ToDenseMatrix();
+				auto op = buildByMult(*MInv[f], *buildOneNormalIBFISubOperator(altField(f), { x }), fes_);
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][y], globalId.index[altField(f)][z]),
 					1.0 - double(f) * 2.0
 				);
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][z], globalId.index[altField(f)][y]),
 					-1.0 + double(f) * 2.0
 				);
-				delete dense;
 			}
 		}
 	}
@@ -441,13 +446,12 @@ namespace maxwell {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
-					auto dense = buildByMult(*MInv[f], *buildTwoNormalIBFISubOperator(f, { d, d2 }), fes_)->SpMat().ToDenseMatrix();
+					auto op = buildByMult(*MInv[f], *buildTwoNormalIBFISubOperator(f, { d, d2 }), fes_);
 					loadBlockInGlobalAtIndices(
-						*dense,
+						op->SpMat(),
 						*global,
 						std::make_pair(globalId.index[f][d], globalId.index[f][d2])
 					);
-					delete dense;
 				}
 			}
 		}
@@ -460,20 +464,19 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto dense = buildByMult(*MInv[f], *buildDerivativeSubOperator(x), fes_)->SpMat().ToDenseMatrix();
+				auto op = buildByMult(*MInv[f], *buildDerivativeSubOperator(x), fes_);
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][z], globalId.index[altField(f)][y]),
 					1.0 - double(f) * 2.0
 				);
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][y], globalId.index[altField(f)][z]),
 					-1.0 + double(f) * 2.0
 				);
-				delete dense;
 			}
 		}
 	}
@@ -482,16 +485,15 @@ namespace maxwell {
 		GlobalIndices globalId(fes_.GetNDofs());
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
-			auto dense = buildByMult(*MInv[f], *buildZeroNormalSubOperator(f), fes_)->SpMat().ToDenseMatrix();
+			auto op = buildByMult(*MInv[f], *buildZeroNormalSubOperator(f), fes_);
 			for (auto d : { X, Y, Z }) {
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][d], globalId.index[f][d]),
 					-1.0
 				);
 			}
-			delete dense;
 		}
 	}
 	void DGOperatorFactory::addGlobalOneNormalOperators(SparseMatrix* global)
@@ -502,20 +504,19 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto dense = buildByMult(*MInv[f], *buildOneNormalSubOperator(altField(f), { x }), fes_)->SpMat().ToDenseMatrix();
+				auto op = buildByMult(*MInv[f], *buildOneNormalSubOperator(altField(f), { x }), fes_);
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][y], globalId.index[altField(f)][z]),
 					1.0 - double(f) * 2.0
 				);
 				loadBlockInGlobalAtIndices(
-					*dense,
+					op->SpMat(),
 					*global,
 					std::make_pair(globalId.index[f][z], globalId.index[altField(f)][y]),
 					-1.0 + double(f) * 2.0
 				);
-				delete dense;
 			}
 		}
 	}
@@ -526,13 +527,12 @@ namespace maxwell {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
-					auto dense = buildByMult(*MInv[f], *buildTwoNormalSubOperator(f, { d, d2 }), fes_)->SpMat().ToDenseMatrix();
+					auto op = buildByMult(*MInv[f], *buildTwoNormalSubOperator(f, { d, d2 }), fes_);
 					loadBlockInGlobalAtIndices(
-						*dense,
+						op->SpMat(),
 						*global,
 						std::make_pair(globalId.index[f][d], globalId.index[f][d2])
 					);
-					delete dense;
 				}
 			}
 		}

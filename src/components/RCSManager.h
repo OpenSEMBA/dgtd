@@ -1,53 +1,15 @@
 #pragma once
 
-#include "mfemExtension/LinearIntegrators.h"
 #include "driver/driver.h"
+#include "FarField.h"
+#include <filesystem>
+#include <fstream>
 
 namespace maxwell {
 
 using namespace mfem;
-using Theta = double;
-using Phi = double;
-using Frequency = double;
-using RCSValue = double;
-using Freq2Value = std::map<Frequency, RCSValue>;
-using SphericalAngles = std::pair<Phi, Theta>;
-using ComplexVector = std::vector<std::complex<double>>;
-using Freq2CompVec = std::vector<ComplexVector>;
-using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
-using FunctionPair = std::pair<FunctionCoefficient*, FunctionCoefficient*>;
 
 Freq2CompVec calculateDFT(const Vector&, const std::vector<double>& frequencies, const double time);
-
-struct FreqFields {
-
-	Freq2CompVec Ex;
-	Freq2CompVec Ey;
-	Freq2CompVec Ez;
-	Freq2CompVec Hx;
-	Freq2CompVec Hy;
-	Freq2CompVec Hz;
-
-	void append(ComplexVector, const std::string& field, const size_t freq);
-
-	FreqFields(const size_t sizes) {
-		Ex.resize(sizes);
-		Ey.resize(sizes);
-		Ez.resize(sizes);
-		Hx.resize(sizes);
-		Hy.resize(sizes);
-		Hz.resize(sizes);
-	}
-};
-
-struct PlaneWaveData {
-	double mean;
-	double delay;
-
-	PlaneWaveData(double m, double dl) :
-		mean(m),
-		delay(dl) {};
-};
 
 struct RCSData {
 	double RCSvalue;
@@ -63,16 +25,18 @@ struct RCSData {
 
 class RCSManager {
 public:
-
-	RCSManager(const std::string& data_path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle);
+	/** @brief Performs a RCS calculation of previously exported data through a farfield type probe. The calculated files can be found in data_path in the folders farfield and rcs, with the following naming convention:
+	 *  Data_dimensionstring_Th_thetaangle_Phi_phiangle_dgtd.dat
+	 * @param[in] data_path Root folder where the farfield probe has exported the simulation data.
+	 * @param[in] json_path Root folder with the .json file used to define the simulation.
+	 * @param[in] frequencies Standard Library vector of doubles with frequencies defined in the International System (Hz).
+	 * @param[in] angles Standard Library vector of SphericalAngles, a struct with theta and phi angles at the desired observation point.
+	  */
+	RCSManager(const std::string& data_path, const std::string& json_path, std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angles);
 
 private:
 
-	std::pair<std::complex<double>, std::complex<double>> performRCSCalculations(ComplexVector& FAx, ComplexVector& Ay, ComplexVector& Az, const double frequency, const SphericalAngles&, bool isElectric);
-	FreqFields assembleFreqFields(Mesh& mesh, const std::vector<double>& frequencies, const std::string& field);
-	void getFESFromGF(Mesh& mesh, const std::string& path);
-
-	std::unique_ptr<FiniteElementSpace> fes_;
+	std::map<SphericalAngles, Freq2Value> RCSdata_;
 
 };
 
