@@ -22,7 +22,9 @@ jobs:
         submodules: 'recursive'
 
     - name: getcmake
-      uses: lukka/get-cmake@3.25.0
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.25.0"
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
