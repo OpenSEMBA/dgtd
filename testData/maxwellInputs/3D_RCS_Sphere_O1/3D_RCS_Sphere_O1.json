@@ -4,10 +4,10 @@
     "global_operator": true,
     "time_step": 0.001,
     "final_time": 15.0,
-    "order": 2
+    "order": 1
   },
   "model": {
-    "filename": "3D_RCS_Sphere_O2.msh",
+    "filename": "3D_RCS_Sphere_O1.msh",
     "materials": [
       {
         "tags": [
@@ -38,7 +38,7 @@
     },
     "farfield": [
       {
-        "name": "circle_1m_O2",
+        "name": "circle_1m_O1",
         "steps": 1,
         "tags": [
           3

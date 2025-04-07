@@ -23,7 +23,7 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 			freq_val += gauss_val[t] * w; 
 		}
 		freq2complex.emplace(std::make_pair(frequencies[f],freq_val));
-		res[f] = physicalConstants::vacuumPermittivity * std::pow(std::abs(freq_val), 2.0);
+		res[f] = std::pow(std::abs(freq_val), 2.0) / (2.0 * physicalConstants::freeSpaceImpedance);
 	}
 
 	return res;
@@ -58,7 +58,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		std::string path(data_path + "/farfield/farfieldData_" + dim_str + "Th_" + std::to_string(angpair.theta) + "_" + "Phi_" + std::to_string(angpair.phi) + "_dgtd.dat");
 		myfile.open(path);
 		if (myfile.is_open()) {
-			myfile << "Theta (rad) // " << "Phi (rad) // " << "Frequency (Hz) // " << "r2 * pot // " << "normalization_term\n";
+			myfile << "Theta (rad) // " << "Phi (rad) // " << "Frequency (Hz) // " << "pot // " << "normalization_term\n";
 			for (const auto& f : rescaled_frequencies) {
 				landa = physicalConstants::speedOfLight / f;
 				double normalization;
@@ -74,7 +74,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 
 	for (int f{ 0 }; f < rescaled_frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			const_term = 4.0 * M_PI / pot_inc[f]; // We defined FarField as r^2 * magnitude, thus we do not include the r^2 found in Equation 8.36 in Taflove's book.
+			const_term = 4.0 * M_PI * std::pow(obs_radius, 2.0) / pot_inc[f]; // We defined FarField as magnitude, thus we need to include the r^2 found in Equation 8.36 in Taflove's book.
 			RCSdata_[angpair][rescaled_frequencies[f]] = const_term * ff.getPotRad(angpair, rescaled_frequencies[f]);
 		}
 	}

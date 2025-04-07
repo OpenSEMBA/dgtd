@@ -24,6 +24,8 @@ using Freq2CompVec = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
 using FunctionPair = std::pair<FunctionCoefficient*, FunctionCoefficient*>;
 
+const auto obs_radius{ 1e6 }; //Observation point radius distance. We consider a fairly distant enough radius.
+
 struct SphericalAngles {
 	double theta;
 	double phi;
