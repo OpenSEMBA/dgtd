@@ -10,3 +10,8 @@ target_link_libraries(maxwell-driver
 	mfem
 	nlohmann_json
 )
+
+if (SEMBA_DGTD_ENABLE_OPEN_MP)
+	message(STATUS "Linking maxwell-driver with OpenMP libraries")
+	target_link_libraries(maxwell-driver OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
+endif()
