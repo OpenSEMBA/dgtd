@@ -64,7 +64,7 @@ TEST_F(ExtensiveRCSTest, circle_1m_O1)
 	// std::vector<double> frequencies_manual({ 3.75e7, 7.5e7 });
 
 	auto angles{ buildAngleVector(0.0, M_PI, 256, 0.0, 0.0, 1) };
-	RCSManager rcs("NearToFarFieldExports/circle_1m_O1_fine", maxwellCase("3D_RCS_Sphere_O1"), frequencies_manual, angles);
+	RCSManager rcs("NearToFarFieldExports/circle_1m_O1", maxwellCase("3D_RCS_Sphere_O1"), frequencies_manual, angles);
 }
 
 TEST_F(ExtensiveRCSTest, circle_1m_O2)

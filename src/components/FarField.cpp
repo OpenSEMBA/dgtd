@@ -395,6 +395,8 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 		}
 	}
 
+	delete fec;
+
 }
 
 }
