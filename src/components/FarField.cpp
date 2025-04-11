@@ -321,7 +321,7 @@ std::pair<std::complex<double>, std::complex<double>> FarField::calcNLpair(Compl
 	auto phi_value = -DCx * sin(angles.phi) + DCy * cos(angles.phi);
 	auto theta_value = DCx * cos(angles.theta) * cos(angles.phi) + DCy * cos(angles.theta) * sin(angles.phi) - DCz * sin(angles.theta);
 
-	return std::pair<std::complex<double>, std::complex<double>>(phi_value, theta_value);
+	return std::pair<std::complex<double>, std::complex<double>>(theta_value, phi_value);
 }
 
 void FreqFields::append(ComplexVector vector, const std::string& field, const size_t freq)
@@ -377,6 +377,8 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 	NearToFarFieldSubMesher ntff_sub(full_mesh, full_fes, buildSurfaceMarker(probes.nearFieldProbes[0].tags, full_fes));
 
 	auto mesh = ntff_sub.getSubMesh();
+	mesh->SetCurvature(case_data["solver_options"]["order"]);
+	mesh->Finalize();
 	fes_ = buildFESFromGF(*mesh, data_path);
 
 	pot_rad_ = initAngles2FreqValues(frequencies, angle_vec);
@@ -390,7 +392,7 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 			auto landa = physicalConstants::speedOfLight / frequencies[f];
 			auto wavenumber = 2.0 * M_PI / landa;
 			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance * std::pow(obs_radius, 2.0));
-			auto freq_val = const_term * (std::pow(std::abs(L_pair.first + physicalConstants::freeSpaceImpedance * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - physicalConstants::freeSpaceImpedance * N_pair.first), 2.0));
+			auto freq_val = const_term * (std::pow(std::abs(L_pair.second + physicalConstants::freeSpaceImpedance * N_pair.first), 2.0) + std::pow(std::abs(L_pair.first - physicalConstants::freeSpaceImpedance * N_pair.second), 2.0));
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}
