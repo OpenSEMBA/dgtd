@@ -13,6 +13,8 @@
 
 namespace maxwell {
 
+Array<int> buildSurfaceMarker(const std::vector<int>& tags, const FiniteElementSpace&);
+
 struct TransferMaps {
 
     mfem::TransferMap tMapEx;

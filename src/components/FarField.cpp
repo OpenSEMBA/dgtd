@@ -367,12 +367,21 @@ void FreqFields::normaliseFields(const double value)
 
 FarField::FarField(const std::string& data_path, const std::string& json_path, std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
-	Mesh mesh{ Mesh::LoadFromFile(data_path + "/mesh", 1, 0) };
-	fes_ = buildFESFromGF(mesh, data_path);
+	auto case_data = driver::parseJSONfile(json_path);
+	auto mesh_string = driver::assembleMeshString(case_data["model"]["filename"]);
+	auto full_mesh = Mesh::LoadFromFile(mesh_string, 1, 0);
+	auto fec = new DG_FECollection(case_data["solver_options"]["order"], full_mesh.Dimension(), BasisType::GaussLobatto);
+	auto full_fes = FiniteElementSpace(&full_mesh, fec);
+
+	Probes probes = driver::buildProbes(case_data);
+	NearToFarFieldSubMesher ntff_sub(full_mesh, full_fes, buildSurfaceMarker(probes.nearFieldProbes[0].tags, full_fes));
+
+	auto mesh = ntff_sub.getSubMesh();
+	fes_ = buildFESFromGF(*mesh, data_path);
 
 	pot_rad_ = initAngles2FreqValues(frequencies, angle_vec);
 
-	FreqFields freqfields{ calculateFreqFields(mesh, frequencies, data_path) };
+	FreqFields freqfields{ calculateFreqFields(*mesh, frequencies, data_path) };
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
