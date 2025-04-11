@@ -144,11 +144,10 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 	std::string path(data_folder + "/RCS_LUIS.dat");
 	myfile.open(path);
 	if (myfile.is_open()) {
-		myfile << "N:\n";
+		myfile << "N: ";
 		myfile << std::to_string(fec->GetOrder()) + "\n";
-		myfile << "NODETOL:\n";
-		myfile << std::to_string(1e-10) + "\n";
-		myfile << "Nm\n";
+		myfile << "NODETOL: ";
+		myfile << std::to_string(1e-10) + "Nm \n";
 		assert(nx.size() == ny.size() == nz.size());
 		myfile << "nx ny nz:\n";
 		for (int n = 0; n < nx.size(); n++) {
@@ -166,11 +165,8 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 		}
 		myfile << "END HEADER\n";
 
-		myfile << "RCSSTEP:\n";
-		myfile << std::to_string(time.size());
-		myfile << "END RCSSTEP\n";
-
 		for (int t = 0; t < time.size(); t++) { // We need to correct the time to SI with c.
+			myfile << "RCSSTEP:\n";
 			myfile << "time:\n";
 			myfile << std::to_string(time[t] / physicalConstants::speedOfLight_SI) + "\n";
 
@@ -187,6 +183,7 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 			assert(Hx.size() == Hy.size() == Hz.size());
 			myfile << "Hx Hy Hz:\n";
 			myfile << std::to_string(Hx[t] / physicalConstants::freeSpaceImpedance_SI) + " " + std::to_string(Hy[t] / physicalConstants::freeSpaceImpedance_SI) + " " + std::to_string(Hz[t] / physicalConstants::freeSpaceImpedance_SI) + "\n";
+			myfile << "END RCSSTEP\n";
 		}
 
 		myfile.close();
