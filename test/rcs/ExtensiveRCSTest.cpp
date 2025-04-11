@@ -12,6 +12,7 @@
 
 #include "components/Types.h"
 #include "components/RCSManager.h"
+#include "components/RCSDataExtractor.h"
 #include "TestUtils.h"
 
 namespace maxwell {
@@ -87,22 +88,11 @@ TEST_F(ExtensiveRCSTest, circle_1m_O3)
 	RCSManager rcs("NearToFarFieldExports/circle_1m_O3", maxwellCase("3D_RCS_Sphere_O3"), frequencies_manual, angles);
 }
 
-TEST_F(ExtensiveRCSTest, MeshPrinter)
+
+TEST_F(ExtensiveRCSTest, RCSDataExporter)
 {
-	{
-		Mesh mesh = Mesh::LoadFromFile("NearToFarFieldExports/circle_1m_O1/circle_1m_O1_000000/mesh");
-		mesh.PrintVTU("example_mesh_o1");
-	}
-
-	{
-		Mesh mesh = Mesh::LoadFromFile("NearToFarFieldExports/circle_1m_O2/circle_1m_O2_000000/mesh");
-		mesh.PrintVTU("example_mesh_o2",mfem::VTKFormat::ASCII,true);
-	}
-
-	{
-		Mesh mesh = Mesh::LoadFromFile("NearToFarFieldExports/circle_1m_O3/circle_1m_O3_000000/mesh");
-		mesh.PrintVTU("example_mesh_o3",mfem::VTKFormat::ASCII,true);
-	}
+	EXPECT_NO_THROW(RCSDataExtractor rcsExt("NearToFarFieldExports/circle_1m_O1", "3D_RCS_Sphere_O1"));
 }
+
 
 }

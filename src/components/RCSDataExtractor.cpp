@@ -27,17 +27,27 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 	GridFunction nodepos(&crown_fes_vdim3);
 	crown_mesh.GetNodes(nodepos);
 	auto nodepos_dimension_size = nodepos.Size() / 3;
-	
+
+	ParaViewDataCollection pd("crown_mesh", &crown_mesh);
+	pd.SetPrefixPath("ParaView");
+	const auto order{ 1 };
+	pd.SetLevelsOfDetail(1);
+	pd.SetHighOrderOutput(false);
+	pd.SetDataFormat(VTKFormat::BINARY);
+	pd.Save();
+
+	const auto isInteriorMap{ assembleInteriorOrTrueBdrMap(crown_fes) };
+
 	// We initialise our storage vectors to load the values as we iterate through the faces.
 	std::vector<double> x, y, z, vx, vy, vz, nx, ny, nz, Ex, Ey, Ez, Hx, Hy, Hz;
 	for (int f = 0; f < crown_fes.GetNBE(); f++) {
 		//Only the NTFF surface faces are marked with this specific boundary attribute.
-		if (crown_fes.GetBdrAttribute(f) == (static_cast<int>(BdrCond::NearToFarField) - 1))
+		if (crown_fes.GetBdrAttribute(f) == static_cast<int>(BdrCond::NearToFarField))
 		{
 
 			// This takes care of positions of the nodes.
 			Array<int> facedofs;
-			crown_fes.GetBdrElementDofs(f, facedofs);
+			crown_fes.GetFaceVDofs(f, facedofs);
 			for (int d = 0; d < facedofs.Size(); d++) {
 				x.push_back(nodepos[facedofs[f]]);
 				y.push_back(nodepos[facedofs[f] + nodepos_dimension_size]);
@@ -76,49 +86,48 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 			// to the field vector it belongs to in the same order we organise our facedofs in the previous steps.
 			std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
 			for (const auto& field : fields) {
-				GridFunction A;
 				for (auto const& dir_entry : std::filesystem::directory_iterator(data_folder)) {
 					if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
 						dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
 						dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
-						A = getGridFunction(crown_mesh, dir_entry.path().generic_string() + field);
-					}
-					if (field == "/Ex.gf") {
-						for (int d = 0; d < facedofs.Size(); d++) {
-							Ex.push_back(A[d]);
+						auto A = getGridFunction(crown_mesh, dir_entry.path().generic_string() + field);
+						if (field == "/Ex.gf") {
+							for (int d = 0; d < facedofs.Size(); d++) {
+								Ex.push_back(A[d]);
+							}
 						}
-					}
-					if (field == "/Ey.gf") {
-						for (int d = 0; d < facedofs.Size(); d++) {
-							Ey.push_back(A[d]);
+						if (field == "/Ey.gf") {
+							for (int d = 0; d < facedofs.Size(); d++) {
+								Ey.push_back(A[d]);
+							}
 						}
-					}
-					if (field == "/Ez.gf") {
-						for (int d = 0; d < facedofs.Size(); d++) {
-							Ez.push_back(A[d]);
+						if (field == "/Ez.gf") {
+							for (int d = 0; d < facedofs.Size(); d++) {
+								Ez.push_back(A[d]);
+							}
 						}
-					}
-					if (field == "/Hx.gf") {
-						for (int d = 0; d < facedofs.Size(); d++) {
-							Hx.push_back(A[d]);
+						if (field == "/Hx.gf") {
+							for (int d = 0; d < facedofs.Size(); d++) {
+								Hx.push_back(A[d]);
+							}
 						}
-					}
-					if (field == "/Hy.gf") {
-						for (int d = 0; d < facedofs.Size(); d++) {
-							Hy.push_back(A[d]);
+						if (field == "/Hy.gf") {
+							for (int d = 0; d < facedofs.Size(); d++) {
+								Hy.push_back(A[d]);
+							}
 						}
-					}
-					if (field == "/Hz.gf") {
-						for (int d = 0; d < facedofs.Size(); d++) {
-							Hz.push_back(A[d]);
+						if (field == "/Hz.gf") {
+							for (int d = 0; d < facedofs.Size(); d++) {
+								Hz.push_back(A[d]);
+							}
+
 						}
 					}
 				}
 			}
-
 		}
 	}
-	
+
 	// This takes care of assembling the time vector, by reading through the time.txt files in the data folders.
 	std::vector<double> time{ buildTimeVector(data_folder) };
 
@@ -126,7 +135,7 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 	auto planewave_data{ buildPlaneWaveData(case_data) };
 	Gaussian gauss{ planewave_data.mean, mfem::Vector({-planewave_data.delay}) };
 	auto sources = driver::buildSources(case_data);
-	std::vector<double> ExInc(time.size()) , EyInc(time.size()), EzInc(time.size());
+	std::vector<double> ExInc(time.size()), EyInc(time.size()), EzInc(time.size());
 	for (const auto& source : sources) {
 		if (dynamic_cast<TotalField*>(source.get())) {
 			Position pos({ 0.0, 0.0, 0.0 });
@@ -141,7 +150,7 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 	// Finally, we write the file following the pattern used by Luis in his code. (dgtd-rcs 2008)
 
 	std::ofstream myfile;
-	std::string path(data_folder + "/RCS_LUIS.dat");
+	std::string path("./testData/maxwellInputs/" + case_name + "/RCS_LUIS.dat");
 	myfile.open(path);
 	if (myfile.is_open()) {
 		myfile << "N: ";

@@ -6,6 +6,7 @@
 #include "SubMesher.h"
 #include "../test/TestUtils.h"
 #include "math/PhysicalConstants.h"
+#include "evolution/HesthavenEvolutionMethods.h"
 
 namespace maxwell {
 
