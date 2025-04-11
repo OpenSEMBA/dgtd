@@ -51,12 +51,6 @@ Solver::Solver(
 	probesManager_ { probes , *fes_, fields_, opts_ },
 	time_{0.0}
 {
-	
-	const char* device_config = "cpu";
-	#ifdef SEMBA_DGTD_ENABLE_CUDA
-		device_config = "cuda";
-	#endif
-	device_ = std::make_unique<Device>(device_config);
 
 	checkOptionsAreValid(opts_);
 
