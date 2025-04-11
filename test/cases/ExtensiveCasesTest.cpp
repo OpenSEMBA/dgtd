@@ -918,9 +918,6 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 {
-	const char* config_device = "cuda";
-	Device device(config_device);
-	device.Print();
 
 	std::string case_name{ "2D_TFSF_TEy" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
