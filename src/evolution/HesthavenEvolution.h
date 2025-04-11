@@ -7,7 +7,6 @@
 
 #include "evolution/MaxwellEvolutionMethods.h"
 #include "evolution/HesthavenEvolutionMethods.h"
-#include <general/forall.hpp>
 
 namespace maxwell {
 

@@ -3,7 +3,7 @@
     "solver_type": "upwind",
     "global_operator": true,
     "time_step": 0.001,
-    "final_time": 15.0,
+    "final_time": 0.01,
     "order": 2
   },
   "model": {

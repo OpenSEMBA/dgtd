@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "global_operator": true,
-    "time_step": 0.001,
+    "hesthaven_operator": true,
+    "time_step": 0.0005,
     "final_time": 15.0,
     "order": 1
   },
@@ -34,11 +34,11 @@
   },
   "probes": {
     "exporter": {
-      "steps": 100
+      "steps": 200
     },
     "farfield": [
       {
-        "name": "circle_1m_O1",
+        "name": "circle_1m_O1_fine",
         "steps": 1,
         "tags": [
           3

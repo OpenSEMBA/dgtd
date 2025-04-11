@@ -100,9 +100,7 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 		if (tf == nullptr) {
 			continue;
 		}
-		#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-		#pragma omp parallel for
-		#endif
+
 		for (int m = 0; m < mapBSF.size(); m++) {
 			for (int v = 0; v < mapBSF[m].size(); v++) {
 				for (int d : { X, Y, Z }) {
@@ -121,9 +119,6 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 
 const Eigen::VectorXd HesthavenEvolution::applyLIFT(const Eigen::VectorXd& fscale, Eigen::VectorXd& flux) const
 {
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int i = 0; i < flux.size(); i++) {
 		flux[i] *= fscale[i] / 2.0;
 	}
@@ -215,9 +210,6 @@ std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndLinea
 
 	double tol{ 1e-5 };
 	std::pair<Array<ElementId>, std::map<ElementId, Array<NodeId>>> res;
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int e = 0; e < mesh_p1.GetNE(); e++) {
 		Array<int> elemdofs_p1, elemdofs_p2;
 		fes_p1.GetElementDofs(e, elemdofs_p1);
@@ -276,9 +268,6 @@ bool HesthavenEvolution::isDoFinCurvedElement(const NodeId& d) const
 
 void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrMaps, const FieldsInputMaps& in, HesthavenFields& out) const
 {
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int m = 0; m < bdrMaps.PEC.vmapB.size(); m++) {
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.PEC.vmapB[m].size(); v++) {
@@ -290,9 +279,6 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int m = 0; m < bdrMaps.PMC.vmapB.size(); m++) {
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.PMC.vmapB[m].size(); v++) {
@@ -304,9 +290,6 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int m = 0; m < bdrMaps.SMA.mapB.size(); m++) {
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.SMA.vmapB[m].size(); v++) {
@@ -318,9 +301,6 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int m = 0; m < bdrMaps.intPEC.mapBElem1.size(); m++) {
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.intPEC.mapBElem1[m].size(); v++) { //Condition is applied twice, so we halve the coefficients for interior operators
@@ -334,9 +314,6 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int m = 0; m < bdrMaps.intPMC.mapBElem1.size(); m++) {
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.intPMC.mapBElem1[m].size(); v++) {
@@ -350,9 +327,6 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int m = 0; m < bdrMaps.intSMA.mapBElem1.size(); m++) {
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.intSMA.mapBElem1[m].size(); v++) {
@@ -414,9 +388,6 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
 
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int e = 0; e < linearElements_.Size(); e++)
 	{
 		HesthavenElement hestElem;
@@ -522,9 +493,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 	evaluateTFSF(jumps);
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
+
 	for (int e = 0 ; e < linearElements_.Size(); e++) {
 		auto elemFluxSize{ hestElemLinearStorage_[e].fscale.size() };
 
@@ -572,9 +541,6 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	}
 
-	#ifdef SEMBA_DGTD_ENABLE_OPEN_MP
-	#pragma omp parallel for
-	#endif
 	for (int e = 0; e < hestElemCurvedStorage_.size(); e++) {
 		hestElemCurvedStorage_[e].matrix.AddMult(in, out);
     }

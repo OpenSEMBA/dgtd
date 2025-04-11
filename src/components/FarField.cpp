@@ -23,13 +23,13 @@ double calcPsiAngle2D(const Vector& p, const SphericalAngles& angles)
 	surfVec[0] = p[0];
 	surfVec[1] = p[1];
 	surfVec[2] = 0.0;
-	return std::acos((vec * p) / (vec.Norml2() * p.Norml2()));
+	return std::acos((vec[0] * surfVec[0] + vec[1] * surfVec[1] + vec[2] * surfVec[2])  / (vec.Norml2() * surfVec.Norml2()));
 }
 
 double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
 {
 	auto vec{ buildObsPointVec(angles) };
-	return std::acos((vec * p) / (vec.Norml2() * p.Norml2()));
+	return std::acos((vec[0] * p[0] + vec[1] * p[1] + vec[2] * p[2]) / (vec.Norml2() * p.Norml2()));
 }
 
 /* These functions represent the exponential part of e^(+j k r' cos(psi)) found in Equations 8.31 and 8.32 of Taflove's Computational Electrodynamics: The Finite-Difference Time-Domain Method. 
@@ -241,7 +241,6 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>& freque
 	return res;
 }
 
-
 FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequencies, const std::string& path)
 {
 	FreqFields res(frequencies.size());
@@ -258,11 +257,6 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequen
 				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
 			}
 		}
-		// if (field == "/Hx.gf" || field == "/Hy.gf" || field == "/Hz.gf") {
-		// 	for (int g{ 0 }; g < A.size(); ++g) {
-		// 		A[g] /= physicalConstants::freeSpaceImpedance;
-		// 	}
-		// }
 		for (int f{ 0 }; f < frequencies.size(); ++f) {
 			ComplexVector comp_vec(A[f].Size());
 			for (int t{ 0 }; t < time.size(); ++t) {

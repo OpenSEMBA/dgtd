@@ -333,6 +333,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Global)
 
 TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Hesthaven)
 {
+
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["hesthaven_operator"] = true;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
@@ -917,6 +918,10 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 {
+	const char* config_device = "cuda";
+	Device device(config_device);
+	device.Print();
+
 	std::string case_name{ "2D_TFSF_TEy" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
@@ -2256,14 +2261,14 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
 // 	solver.run();
 // }
 
-// TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
-// {
-// 	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_O2"));
-// 	case_data["solver_options"]["hesthaven_operator"] = true;
-// 	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_O2"), true) };
+TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_O2"));
+	case_data["solver_options"]["hesthaven_operator"] = true;
+	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_O2"), true) };
 
-// 	solver.run();
-// }
+	solver.run();
+}
 
 // TEST_F(ExtensiveCasesTest, 3D_Mixed_O2)
 // {

@@ -1,8 +1,6 @@
 message(STATUS "Creating build system for maxwell-math")
 
-add_library(maxwell-math STATIC 
-	"Geometry.cpp"
-)
+add_library(maxwell-math STATIC "Geometry.cpp")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})
