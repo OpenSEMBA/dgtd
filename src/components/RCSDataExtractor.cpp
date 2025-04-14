@@ -2,6 +2,79 @@
 
 namespace maxwell {
 
+std::unique_ptr<SparseMatrix> assembleNtFFMatrix(FiniteElementSpace& fes) {
+
+	Array<int> n2ffmarker(static_cast<int>(BdrCond::NearToFarField));
+	n2ffmarker = 0;
+	n2ffmarker[static_cast<int>(BdrCond::NearToFarField) - 1] = 1;
+	BilinearForm boundaryForm(&fes);
+	boundaryForm.AddBdrFaceIntegrator(new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(1.0), n2ffmarker);
+	boundaryForm.Assemble();
+	boundaryForm.Finalize();
+
+	return std::make_unique<SparseMatrix>(boundaryForm.SpMat());
+
+}
+
+struct ArrayLess
+{
+	bool operator()(const Array<int>& a, const Array<int>& b) const
+	{
+		if (a.Size() != b.Size()) return a.Size() < b.Size();
+		for (int i = 0; i < a.Size(); ++i)
+		{
+			if (a[i] != b[i]) return a[i] < b[i];
+		}
+		return false;
+	}
+};
+
+std::map<FaceId, Array<int>> getNodesFromNtFFFaces(FiniteElementSpace& fes) {
+
+	std::map<FaceId, Array<int>> res;
+
+	auto spmat = assembleNtFFMatrix(fes);
+
+	std::set<NodeId> nodes;
+
+	double tol = 1e-10;
+	for (auto r = 0; r < spmat->NumRows(); r++) {
+		Array<int> cols;
+		Vector vals;
+		Nodes nonZeroEntries;
+		spmat->GetRow(r, cols, vals);
+		for (auto v = 0; v < vals.Size(); v++) {
+			if (std::abs(vals[v]) > tol) {
+				nodes.insert(cols[v]);
+			}
+		}
+	}
+
+	std::vector<Array<int>> tempNodeSet;
+	auto it = nodes.begin();
+	while (std::distance(it, nodes.end()) >= 3) {
+		Array<int> nodesToMap(3);
+		for (int i = 0; i < 3; ++i) {
+			nodesToMap[i] = *it;
+			++it;
+		}
+		tempNodeSet.push_back(nodesToMap);
+	}
+
+	std::vector<FaceId> taggedFaces;
+	for (auto b = 0; b < fes.GetNBE(); b++) {
+		if (fes.GetBdrAttribute(b) == static_cast<int>(BdrCond::NearToFarField)) {
+			taggedFaces.push_back(b);
+		}
+	}
+
+	for (auto b = 0; b < taggedFaces.size(); b++) {
+		res[taggedFaces[b]] = tempNodeSet[b];
+	}
+
+	return res;
+}
+
 RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::string case_name)
 {
 	// We parse the json file to get info about the simulation data.
@@ -36,100 +109,99 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 	pd.SetDataFormat(VTKFormat::BINARY);
 	pd.Save();
 
-	const auto isInteriorMap{ assembleInteriorOrTrueBdrMap(crown_fes) };
+	auto nodeIds = getNodesFromNtFFFaces(crown_fes);
 
 	// We initialise our storage vectors to load the values as we iterate through the faces.
-	std::vector<double> x, y, z, vx, vy, vz, nx, ny, nz, Ex, Ey, Ez, Hx, Hy, Hz;
-	for (int f = 0; f < crown_fes.GetNBE(); f++) {
-		//Only the NTFF surface faces are marked with this specific boundary attribute.
-		if (crown_fes.GetBdrAttribute(f) == static_cast<int>(BdrCond::NearToFarField))
-		{
+	std::vector<double> x, y, z, vx, vy, vz, nx, ny, nz;
+	std::vector<std::vector<double>> Ex, Ey, Ez, Hx, Hy, Hz;
+	for (const auto& [f, nodes] : nodeIds) {
 
-			// This takes care of positions of the nodes.
-			Array<int> facedofs;
-			crown_fes.GetFaceVDofs(f, facedofs);
-			for (int d = 0; d < facedofs.Size(); d++) {
-				x.push_back(nodepos[facedofs[f]]);
-				y.push_back(nodepos[facedofs[f] + nodepos_dimension_size]);
-				z.push_back(nodepos[facedofs[f] + nodepos_dimension_size * 2]);
-			}
+		// This takes care of positions of the nodes.
+		for (int d = 0; d < nodes.Size(); d++) {
+			x.push_back(nodepos[nodes[d]]);
+			y.push_back(nodepos[nodes[d] + nodepos_dimension_size]);
+			z.push_back(nodepos[nodes[d] + nodepos_dimension_size * 2]);
+		}
 
-			// This takes care of the positions of the geometrical vertices.
-			auto be_trans{ crown_mesh.GetBdrElementTransformation(f) };
-			auto face{ crown_mesh.GetFace(crown_mesh.GetBdrElementFaceIndex(f)) };
-			auto v0{ crown_mesh.GetVertex(face->GetVertices()[0]) };
-			auto v1{ crown_mesh.GetVertex(face->GetVertices()[1]) };
-			auto v2{ crown_mesh.GetVertex(face->GetVertices()[2]) };
-			vx.push_back(v0[0]);
-			vx.push_back(v1[0]);
-			vx.push_back(v2[0]);
-			vy.push_back(v0[1]);
-			vy.push_back(v1[1]);
-			vy.push_back(v2[1]);
-			vz.push_back(v0[2]);
-			vz.push_back(v1[2]);
-			vz.push_back(v2[2]);
+		// This takes care of the positions of the geometrical vertices. This is order 1, so x = vx, y = vy, z = vz.
+		auto be_trans{ crown_mesh.GetBdrElementTransformation(f) };
+		auto face{ crown_mesh.GetFace(crown_mesh.GetBdrElementFaceIndex(f)) };
+		//auto v0{ crown_mesh.GetVertex(face->GetVertices()[0]) }; //These vertices wouldn't be ordered in a similar way to 
+		//auto v1{ crown_mesh.GetVertex(face->GetVertices()[1]) }; //the node order
+		//auto v2{ crown_mesh.GetVertex(face->GetVertices()[2]) };
+		for (int d = 0; d < nodes.Size(); d++) {
+			vx.push_back(nodepos[nodes[d]]);
+			vy.push_back(nodepos[nodes[d] + nodepos_dimension_size]);
+			vz.push_back(nodepos[nodes[d] + nodepos_dimension_size * 2]);
+		}
 
-			// This takes care of the normal values, this assumes we're only considering order 1 isoparametric problems AND 
-			// that we need to invert the direction of the normal because it points towards the origin by default.
-			Vector normals(crown_mesh.Dimension());
-			be_trans->SetIntPoint(&Geometries.GetCenter(be_trans->GetGeometryType()));
-			CalcOrtho(be_trans->Jacobian(), normals);
-			for (auto v = 0; v < face->GetNVertices(); v++) {
-				nx.push_back(normals[0] * -1.0);
-				ny.push_back(normals[1] * -1.0);
-				nz.push_back(normals[2] * -1.0);
-			}
+		// This takes care of the normal values, this assumes we're only considering order 1 isoparametric problems AND 
+		// that we need to invert the direction of the normal because it points towards the origin by default.
+		Vector normals(crown_mesh.Dimension());
+		be_trans->SetIntPoint(&Geometries.GetCenter(be_trans->GetGeometryType()));
+		CalcOrtho(be_trans->Jacobian(), normals);
+		for (auto v = 0; v < face->GetNVertices(); v++) {
+			nx.push_back(normals[0] * -1.0);
+			ny.push_back(normals[1] * -1.0);
+			nz.push_back(normals[2] * -1.0);
+		}
+	}
 
-			// This takes care of reading the exported GridFunction files at each specific time and
-			// then add the field value at the specific degrees of freedom regarding the facedofs
-			// to the field vector it belongs to in the same order we organise our facedofs in the previous steps.
-			std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
-			for (const auto& field : fields) {
-				for (auto const& dir_entry : std::filesystem::directory_iterator(data_folder)) {
-					if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
-						dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
-						dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
-						auto A = getGridFunction(crown_mesh, dir_entry.path().generic_string() + field);
-						if (field == "/Ex.gf") {
-							for (int d = 0; d < facedofs.Size(); d++) {
-								Ex.push_back(A[d]);
-							}
-						}
-						if (field == "/Ey.gf") {
-							for (int d = 0; d < facedofs.Size(); d++) {
-								Ey.push_back(A[d]);
-							}
-						}
-						if (field == "/Ez.gf") {
-							for (int d = 0; d < facedofs.Size(); d++) {
-								Ez.push_back(A[d]);
-							}
-						}
-						if (field == "/Hx.gf") {
-							for (int d = 0; d < facedofs.Size(); d++) {
-								Hx.push_back(A[d]);
-							}
-						}
-						if (field == "/Hy.gf") {
-							for (int d = 0; d < facedofs.Size(); d++) {
-								Hy.push_back(A[d]);
-							}
-						}
-						if (field == "/Hz.gf") {
-							for (int d = 0; d < facedofs.Size(); d++) {
-								Hz.push_back(A[d]);
-							}
+	Nodes allNodes;
+	for (const auto& [k, nodes] : nodeIds) {
+		for (auto node : nodes) {
+			allNodes.push_back(node);
+		}
+	}
 
-						}
-					}
-				}
+	// This takes care of reading the exported GridFunction files at each specific time and
+	// then add the field value at the specific degrees of freedom regarding the facedofs
+	// to the field vector it belongs to in the same order we organise our facedofs in the previous steps.
+
+	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
+
+	std::map<std::string, std::vector<GridFunction>> GridFuncs;
+	for (const auto& field : fields) {
+		std::vector<GridFunction> A;
+		for (auto const& dir_entry : std::filesystem::directory_iterator(data_folder)) {
+			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
+				A.push_back(getGridFunction(crown_mesh, dir_entry.path().generic_string() + field));
 			}
 		}
+		GridFuncs[field] = A;
 	}
 
 	// This takes care of assembling the time vector, by reading through the time.txt files in the data folders.
 	std::vector<double> time{ buildTimeVector(data_folder) };
+
+	for (const auto& field : fields) {
+		for (auto g = 0; g < GridFuncs[field].size(); g++) {
+			std::vector<double> fieldvals(allNodes.size());
+			for (auto v = 0; v < fieldvals.size(); v++) {
+				fieldvals[v] = GridFuncs[field][g][allNodes[v]];
+			}
+			if (field == "/Ex.gf") {
+				Ex.push_back(fieldvals);
+			}
+			if (field == "/Ey.gf") {
+				Ey.push_back(fieldvals);
+			}
+			if (field == "/Ez.gf") {
+				Ez.push_back(fieldvals);
+			}
+			if (field == "/Hx.gf") {
+				Hx.push_back(fieldvals);
+			}
+			if (field == "/Hy.gf") {
+				Hy.push_back(fieldvals);
+			}
+			if (field == "/Hz.gf") {
+				Hz.push_back(fieldvals);
+			}
+		}
+	}
 
 	// This takes care of assembling the incoming field values for the incident planewave.
 	auto planewave_data{ buildPlaneWaveData(case_data) };
@@ -149,49 +221,89 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 
 	// Finally, we write the file following the pattern used by Luis in his code. (dgtd-rcs 2008)
 
+
 	std::ofstream myfile;
+	myfile << std::scientific << std::setprecision(10);
 	std::string path("./testData/maxwellInputs/" + case_name + "/RCS_LUIS.dat");
 	myfile.open(path);
+
 	if (myfile.is_open()) {
 		myfile << "N: ";
-		myfile << std::to_string(fec->GetOrder()) + "\n";
+		std::ostringstream ss;
+		ss << fec->GetOrder();
+		myfile << ss.str() + "\n";
+
 		myfile << "NODETOL: ";
-		myfile << std::to_string(1e-10) + "Nm \n";
+		ss.str("");
+		ss.clear();
+		ss << 1e-10;
+		myfile << ss.str() + " Nm \n";
+
 		assert(nx.size() == ny.size() == nz.size());
 		myfile << "nx ny nz:\n";
 		for (int n = 0; n < nx.size(); n++) {
-			myfile << std::to_string(nx[n]) + " " + std::to_string(ny[n]) + " " + std::to_string(nz[n]) + "\n";
+			ss.str("");
+			ss.clear();
+			ss << nx[n] << " " << ny[n] << " " << nz[n];
+			myfile << ss.str() + "\n";
 		}
+
 		assert(x.size() == y.size() == z.size());
 		myfile << "x y z:\n";
 		for (int n = 0; n < x.size(); n++) {
-			myfile << std::to_string(x[n]) + " " + std::to_string(y[n]) + " " + std::to_string(z[n]) + "\n";
+			ss.str("");
+			ss.clear();
+			ss << x[n] << " " << y[n] << " " << z[n];
+			myfile << ss.str() + "\n";
 		}
+
 		assert(vx.size() == vy.size() == vz.size());
 		myfile << "vx vy vz:\n";
 		for (int n = 0; n < vx.size(); n++) {
-			myfile << std::to_string(vx[n]) + " " + std::to_string(vy[n]) + " " + std::to_string(vz[n]) + "\n";
+			ss.str("");
+			ss.clear();
+			ss << vx[n] << " " << vy[n] << " " << vz[n];
+			myfile << ss.str() + "\n";
 		}
+
 		myfile << "END HEADER\n";
 
-		for (int t = 0; t < time.size(); t++) { // We need to correct the time to SI with c.
+		for (int t = 0; t < time.size(); t++) {
 			myfile << "RCSSTEP:\n";
 			myfile << "time:\n";
-			myfile << std::to_string(time[t] / physicalConstants::speedOfLight_SI) + "\n";
+
+			ss.str("");
+			ss.clear();
+			ss << time[t] / physicalConstants::speedOfLight_SI;
+			myfile << ss.str() + "\n";
 
 			assert(ExInc.size() == EyInc.size() == EzInc.size());
 			myfile << "ExInc EyInc EzInc:\n";
-			myfile << std::to_string(ExInc[t]) + " " + std::to_string(EyInc[t]) + " " + std::to_string(EzInc[t]) + "\n";
-
+			ss.str("");
+			ss.clear();
+			ss << ExInc[t] << " " << EyInc[t] << " " << EzInc[t];
+			myfile << ss.str() + "\n";
 
 			assert(Ex.size() == Ey.size() == Ez.size());
 			myfile << "Ex Ey Ez:\n";
-			myfile << std::to_string(Ex[t]) + " " + std::to_string(Ey[t]) + " " + std::to_string(Ez[t]) + "\n";
-
+			for (auto v = 0; v < Ex[t].size(); v++) {
+				ss.str("");
+				ss.clear();
+				ss << Ex[t][v] << " " << Ey[t][v] << " " << Ez[t][v];
+				myfile << ss.str() + "\n";
+			}
 
 			assert(Hx.size() == Hy.size() == Hz.size());
 			myfile << "Hx Hy Hz:\n";
-			myfile << std::to_string(Hx[t] / physicalConstants::freeSpaceImpedance_SI) + " " + std::to_string(Hy[t] / physicalConstants::freeSpaceImpedance_SI) + " " + std::to_string(Hz[t] / physicalConstants::freeSpaceImpedance_SI) + "\n";
+			for (auto v = 0; v < Hx[t].size(); v++) {
+				ss.str("");
+				ss.clear();
+				ss  << Hx[t][v] / physicalConstants::freeSpaceImpedance_SI << " "
+					<< Hy[t][v] / physicalConstants::freeSpaceImpedance_SI << " "
+					<< Hz[t][v] / physicalConstants::freeSpaceImpedance_SI;
+				myfile << ss.str() + "\n";
+			}
+
 			myfile << "END RCSSTEP\n";
 		}
 

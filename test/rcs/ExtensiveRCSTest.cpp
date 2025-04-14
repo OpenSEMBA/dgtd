@@ -64,8 +64,8 @@ TEST_F(ExtensiveRCSTest, circle_1m_O1)
 	std::vector<double> frequencies_manual({ 3.75e7, 3e8/2.0/M_PI, 7.5e7, 1.5e8, 3e8, 6e8, 1e9 });
 	// std::vector<double> frequencies_manual({ 3.75e7, 7.5e7 });
 
-	auto angles{ buildAngleVector(0.0, M_PI, 256, 0.0, 0.0, 1) };
-	RCSManager rcs("NearToFarFieldExports/circle_1m_O1", maxwellCase("3D_RCS_Sphere_O1"), frequencies_manual, angles);
+	auto angles{ buildAngleVector(M_PI_2, M_PI_2, 1, 0.0, M_PI, 256) };
+	RCSManager rcs("NearToFarFieldExports/circle_1m_O1_X", maxwellCase("3D_RCS_Sphere_O1"), frequencies_manual, angles);
 }
 
 TEST_F(ExtensiveRCSTest, circle_1m_O2)
@@ -91,7 +91,7 @@ TEST_F(ExtensiveRCSTest, circle_1m_O3)
 
 TEST_F(ExtensiveRCSTest, RCSDataExporter)
 {
-	EXPECT_NO_THROW(RCSDataExtractor rcsExt("NearToFarFieldExports/circle_1m_O1", "3D_RCS_Sphere_O1"));
+	EXPECT_NO_THROW(RCSDataExtractor rcsExt("NearToFarFieldExports/circle_1m_O1_X", "3D_RCS_Sphere_O1"));
 }
 
 
