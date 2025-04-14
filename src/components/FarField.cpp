@@ -23,13 +23,13 @@ double calcPsiAngle2D(const Vector& p, const SphericalAngles& angles)
 	surfVec[0] = p[0];
 	surfVec[1] = p[1];
 	surfVec[2] = 0.0;
-	return std::acos((vec * p) / (vec.Norml2() * p.Norml2()));
+	return std::acos((vec[0] * surfVec[0] + vec[1] * surfVec[1] + vec[2] * surfVec[2])  / (vec.Norml2() * surfVec.Norml2()));
 }
 
 double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
 {
 	auto vec{ buildObsPointVec(angles) };
-	return std::acos((vec * p) / (vec.Norml2() * p.Norml2()));
+	return std::acos((vec[0] * p[0] + vec[1] * p[1] + vec[2] * p[2]) / (vec.Norml2() * p.Norml2()));
 }
 
 /* These functions represent the exponential part of e^(+j k r' cos(psi)) found in Equations 8.31 and 8.32 of Taflove's Computational Electrodynamics: The Finite-Difference Time-Domain Method. 
@@ -241,7 +241,6 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>& freque
 	return res;
 }
 
-
 FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequencies, const std::string& path)
 {
 	FreqFields res(frequencies.size());
@@ -258,11 +257,6 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequen
 				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
 			}
 		}
-		// if (field == "/Hx.gf" || field == "/Hy.gf" || field == "/Hz.gf") {
-		// 	for (int g{ 0 }; g < A.size(); ++g) {
-		// 		A[g] /= physicalConstants::freeSpaceImpedance;
-		// 	}
-		// }
 		for (int f{ 0 }; f < frequencies.size(); ++f) {
 			ComplexVector comp_vec(A[f].Size());
 			for (int t{ 0 }; t < time.size(); ++t) {
@@ -327,7 +321,7 @@ std::pair<std::complex<double>, std::complex<double>> FarField::calcNLpair(Compl
 	auto phi_value = -DCx * sin(angles.phi) + DCy * cos(angles.phi);
 	auto theta_value = DCx * cos(angles.theta) * cos(angles.phi) + DCy * cos(angles.theta) * sin(angles.phi) - DCz * sin(angles.theta);
 
-	return std::pair<std::complex<double>, std::complex<double>>(phi_value, theta_value);
+	return std::pair<std::complex<double>, std::complex<double>>(theta_value, phi_value);
 }
 
 void FreqFields::append(ComplexVector vector, const std::string& field, const size_t freq)
@@ -373,12 +367,23 @@ void FreqFields::normaliseFields(const double value)
 
 FarField::FarField(const std::string& data_path, const std::string& json_path, std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
-	Mesh mesh{ Mesh::LoadFromFile(data_path + "/mesh", 1, 0) };
-	fes_ = buildFESFromGF(mesh, data_path);
+	auto case_data = driver::parseJSONfile(json_path);
+	auto mesh_string = driver::assembleMeshString(case_data["model"]["filename"]);
+	auto full_mesh = Mesh::LoadFromFile(mesh_string, 1, 0);
+	auto fec = new DG_FECollection(case_data["solver_options"]["order"], full_mesh.Dimension(), BasisType::GaussLobatto);
+	auto full_fes = FiniteElementSpace(&full_mesh, fec);
+
+	Probes probes = driver::buildProbes(case_data);
+	NearToFarFieldSubMesher ntff_sub(full_mesh, full_fes, buildSurfaceMarker(probes.nearFieldProbes[0].tags, full_fes));
+
+	auto mesh = ntff_sub.getSubMesh();
+	mesh->SetCurvature(case_data["solver_options"]["order"]);
+	mesh->Finalize();
+	fes_ = buildFESFromGF(*mesh, data_path);
 
 	pot_rad_ = initAngles2FreqValues(frequencies, angle_vec);
 
-	FreqFields freqfields{ calculateFreqFields(mesh, frequencies, data_path) };
+	FreqFields freqfields{ calculateFreqFields(*mesh, frequencies, data_path) };
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
@@ -387,10 +392,12 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 			auto landa = physicalConstants::speedOfLight / frequencies[f];
 			auto wavenumber = 2.0 * M_PI / landa;
 			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance * std::pow(obs_radius, 2.0));
-			auto freq_val = const_term * (std::pow(std::abs(L_pair.first + physicalConstants::freeSpaceImpedance * N_pair.second), 2.0) + std::pow(std::abs(L_pair.second - physicalConstants::freeSpaceImpedance * N_pair.first), 2.0));
+			auto freq_val = const_term * (std::pow(std::abs(L_pair.second + physicalConstants::freeSpaceImpedance * N_pair.first), 2.0) + std::pow(std::abs(L_pair.first - physicalConstants::freeSpaceImpedance * N_pair.second), 2.0));
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}
+
+	delete fec;
 
 }
 

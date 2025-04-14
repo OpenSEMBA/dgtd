@@ -34,6 +34,17 @@
       }
     },
     {
+      "name": "x64-Debug",
+      "displayName": "x64 Debug",
+      "inherits": "default",
+      "cacheVariables": {
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON",
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
+        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
       "name": "x64-Release",
       "displayName": "x64 Release",
       "inherits": "default",
@@ -50,19 +61,25 @@
       "name": "gnu",
       "configurePreset": "gnu",
       "displayName": "Build with GNU release",
-      "jobs": 0
+      "jobs": 4
     },
     {
       "name": "gnu-dbg",
       "configurePreset": "gnu-dbg",
       "displayName": "Build with GNU debug",
-      "jobs": 0
+      "jobs": 4
+    },
+    {
+      "name": "x64-Debug",
+      "configurePreset": "x64-Debug",
+      "configuration": "Debug",
+      "jobs": 4
     },
     {
       "name": "x64-Release",
       "configurePreset": "x64-Release",
       "configuration": "Release",
-      "jobs": 0
+      "jobs": 4
     }
   ]
 }

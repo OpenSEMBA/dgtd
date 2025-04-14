@@ -49,6 +49,7 @@ int main(int argc, char** argv)
 	}
 
 	auto solver = maxwell::driver::buildSolverJson(inputFilePath, false);
+
 	solver.run();
 
 	std::cout << "Solver has finished performing its operations." << std::endl;

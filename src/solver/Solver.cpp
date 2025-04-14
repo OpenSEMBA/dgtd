@@ -51,7 +51,7 @@ Solver::Solver(
 	probesManager_ { probes , *fes_, fields_, opts_ },
 	time_{0.0}
 {
-	
+
 	checkOptionsAreValid(opts_);
 
 	if (opts_.evolution.spectral == true) {

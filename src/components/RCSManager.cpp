@@ -41,8 +41,8 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		rescaled_frequencies[f] = frequencies[f] / physicalConstants::speedOfLight_SI;
 	}
 
-	auto pot_inc{ buildNormalizationTerm(json_path, data_path, rescaled_frequencies) };
 	FarField ff(data_path, json_path, rescaled_frequencies, angle_vec);
+	auto pot_inc{ buildNormalizationTerm(json_path, data_path, rescaled_frequencies) };
 
 	if (!std::filesystem::is_directory(data_path + "/farfield") || !std::filesystem::exists(data_path + "/farfield")) {
 		std::filesystem::create_directory(data_path + "/farfield");
@@ -52,7 +52,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		std::filesystem::create_directory(data_path + "/rcs");
 	}
 
-	double freqdata, const_term, landa, wavenumber;
+	double landa;
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
 		std::string path(data_path + "/farfield/farfieldData_" + dim_str + "Th_" + std::to_string(angpair.theta) + "_" + "Phi_" + std::to_string(angpair.phi) + "_dgtd.dat");
@@ -74,7 +74,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 
 	for (int f{ 0 }; f < rescaled_frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			const_term = 4.0 * M_PI * std::pow(obs_radius, 2.0) / pot_inc[f]; // We defined FarField as magnitude, thus we need to include the r^2 found in Equation 8.36 in Taflove's book.
+			auto const_term = 4.0 * M_PI * std::pow(obs_radius, 2.0) / pot_inc[f]; // We defined FarField as magnitude, thus we need to include the r^2 found in Equation 8.36 in Taflove's book.
 			RCSdata_[angpair][rescaled_frequencies[f]] = const_term * ff.getPotRad(angpair, rescaled_frequencies[f]);
 		}
 	}

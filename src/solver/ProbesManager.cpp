@@ -161,6 +161,11 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 	assert(it != exporterProbesCollection_.end());
 	auto& pd{ it->second };
 
+	bool highOrder = false;
+	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+	geomElemOrder > 1 ? highOrder = true : highOrder = false;
+	pd.SetHighOrderOutput(highOrder);
+	pd.SetLevelsOfDetail(geomElemOrder);
 	pd.SetCycle(cycle_);
 	pd.SetTime(time);
 	pd.Save();
@@ -229,6 +234,8 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 
 	std::string mesh_path{ dc.GetPrefixPath() + dc.GetCollectionName() + "/mesh" }; //We do want to save the mesh at the base directory, though ideally we'd only do this once. (WIP)
 	auto mesh{ dc.GetMesh() };
+	auto elemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+	mesh->SetCurvature(elemOrder);
 	mesh->Save(dc.GetPrefixPath() + "/mesh");
 
 	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
