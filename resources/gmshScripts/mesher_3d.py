@@ -57,13 +57,12 @@ class ShapesClassification:
 
     @staticmethod
     def get_entities_with_label_and_dim(entity_tags, label: str, dim: int):
-        shapes = dict()
+        shapes = []
         for s in entity_tags:
             name = gmsh.model.get_entity_name(*s)
             if s[0] != dim or label not in name:
                 continue
-            num = ShapesClassification.getNumberFromName(name, label)
-            shapes[num] = [s]
+            shapes.append(s)
 
         return shapes
 
@@ -89,19 +88,30 @@ def meshFromStep(
     # --- Geometry manipulation ---
     # Assumes SMA is the most external shape.
     tools = []
-    tools.extend(classifiedShapes.pec_volumes[0])
-    tools.extend(classifiedShapes.totalField_volumes[0])
-    gmsh.model.occ.cut( classifiedShapes.sma_volumes[0], tools, removeObject=True, removeTool=False)
+    tools.extend(classifiedShapes.pec_volumes)
+    tools.extend(classifiedShapes.totalField_volumes)
+    scatteredField_volumes = gmsh.model.occ.cut( classifiedShapes.sma_volumes, tools, removeObject=True, removeTool=False)[0]
     gmsh.model.occ.synchronize()
 
     tools = []
-    tools.extend(classifiedShapes.pec_volumes[0])
-    gmsh.model.occ.cut( classifiedShapes.totalField_volumes[0], tools, removeObject=True, removeTool=True)
+    tools.extend(classifiedShapes.pec_volumes)
+    gmsh.model.occ.cut( classifiedShapes.totalField_volumes, tools, removeObject=True, removeTool=True)
     gmsh.model.occ.synchronize()
     
 
     # --- Physical groups ---
+    for v in classifiedShapes.totalField_volumes:
+        gmsh.model.addPhysicalGroup(3, [v[1]], tag=v[1], name="vacuum_totalField")
+    for v in scatteredField_volumes:
+        gmsh.model.addPhysicalGroup(3, [v[1]], tag=v[1], name="vacuum_scatteredField")
     
+    for s in classifiedShapes.pec_surfaces:
+        gmsh.model.addPhysicalGroup(2, [s[1]], tag=s[1], name="pec")
+    for s in classifiedShapes.sma_surfaces:
+        gmsh.model.addPhysicalGroup(2, [s[1]], tag=s[1], name="sma")
+    for s in classifiedShapes.totalField_surfaces:
+        gmsh.model.addPhysicalGroup(2, [s[1]], tag=s[1], name="totalField")
+
     
     # Meshing.
     for [opt, val] in meshing_options.items():
