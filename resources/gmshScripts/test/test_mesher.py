@@ -1,13 +1,13 @@
 import gmsh
 import os
-from .mesher_3d import *
+from resources.gmshScripts.mesher_3d import *
 import sys
 
 sys.path.insert(0, '.')
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
-testdata_path = dir_path + './testData/'
+testdata_path = dir_path + '../testData/'
 
 
 def countEntitiesInPhysicalGroupWithName(name: str):

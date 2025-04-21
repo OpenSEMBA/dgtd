@@ -20,17 +20,34 @@ DEFAULT_MESHING_OPTIONS = {
     # "Geometry.Tolerance": 1e-3,
 }
 
-RUN_GUI=True
+RUN_GUI=False
 
 class ShapesClassification:
     def __init__(self, shapes):
+        # Assumes that input shapes are volumes.
+        
         gmsh.model.occ.synchronize()
 
-        self.allShapes = shapes
+        # Renames surfaces defining volumes.
+        for s in shapes:
+            if s[0] != 3:
+                continue
+            name = gmsh.model.get_entity_name(*s)
+            boundaries = gmsh.model.get_boundary([s])
+            for b in boundaries:
+                gmsh.model.set_entity_name(*b, name)
 
-        self.pecs = self.get_surfaces_with_label(shapes, "PEC_")
-        self.sma = self.get_surfaces_with_label(shapes, "SMA_")
-        self.totalField = self.get_surfaces_with_label(shapes, "TF_")      
+        
+        # Stores volumes.
+        self.pec_volumes = self.get_entities_with_label_and_dim(shapes, "PEC_", 3)
+        self.totalField_volumes = self.get_entities_with_label_and_dim(shapes, "TF_", 3)      
+        self.sma_volumes = self.get_entities_with_label_and_dim(shapes, "SMA_", 3)
+        
+        # Stores surfaces
+        self.pec_surfaces = self.get_entities_with_label_and_dim(shapes, "PEC_", 2)
+        self.totalField_surfaces = self.get_entities_with_label_and_dim(shapes, "TF_", 2)
+        self.sma_surfaces = self.get_entities_with_label_and_dim(shapes, "SMA_", 2)
+
 
     @staticmethod
     def getNumberFromName(entity_name: str, label: str):
@@ -39,23 +56,16 @@ class ShapesClassification:
         return num
 
     @staticmethod
-    def get_surfaces_with_label(entity_tags, label: str):
-        surfaces = dict()
+    def get_entities_with_label_and_dim(entity_tags, label: str, dim: int):
+        shapes = dict()
         for s in entity_tags:
             name = gmsh.model.get_entity_name(*s)
-            if s[0] != 2 or label not in name:
+            if s[0] != dim or label not in name:
                 continue
             num = ShapesClassification.getNumberFromName(name, label)
-            surfaces[num] = [s]
+            shapes[num] = [s]
 
-        return surfaces
-
-    def buildVacuumDomain(self):       
-        dom = gmsh.model.occ.cut(
-            dom, surfsToRemove, removeObject=False, removeTool=False)[0]
-        gmsh.model.occ.synchronize()
-
-        return dom
+        return shapes
 
 
 def getPhysicalGrupWithName(name: str):
@@ -73,25 +83,33 @@ def meshFromStep(
 
     # Importing from FreeCAD generated steps.
     # STEP default units are mm.
-    allShapes = ShapesClassification(
-        gmsh.model.occ.importShapes(inputFile, highestDimOnly=False)
-    )
-
+    classifiedShapes = ShapesClassification(
+        gmsh.model.occ.importShapes(inputFile, highestDimOnly=False))
+    
     # --- Geometry manipulation ---
-    # -- Domains
+    # Assumes SMA is the most external shape.
+    tools = []
+    tools.extend(classifiedShapes.pec_volumes[0])
+    tools.extend(classifiedShapes.totalField_volumes[0])
+    gmsh.model.occ.cut( classifiedShapes.sma_volumes[0], tools, removeObject=True, removeTool=False)
+    gmsh.model.occ.synchronize()
+
+    tools = []
+    tools.extend(classifiedShapes.pec_volumes[0])
+    gmsh.model.occ.cut( classifiedShapes.totalField_volumes[0], tools, removeObject=True, removeTool=True)
+    gmsh.model.occ.synchronize()
     
 
-    # -- Boundaries
-    pec_bdrs = extractBoundaries(allShapes.pecs)
-    sma_bdrs = extractBoundaries(allShapes.sma)
-
-   
+    # --- Physical groups ---
+    
     
     # Meshing.
     for [opt, val] in meshing_options.items():
         gmsh.option.setNumber(opt, val)
+        
+    gmsh.model.mesh.generate(3)
 
-    gmsh.model.mesh.generate(2)
+    gmsh.fltk.run() # For debugging only.
     
 
 def runFromInput(inputFile):
@@ -116,7 +134,9 @@ def runCase(
     meshFromStep(inputFile, case_name, meshing_options)
     
     gmsh.write(case_name + '.msh')
-    if RUN_GUI: # for debugging only.
+    if RUN_GUI: # For debugging only.
         gmsh.fltk.run()
+
+    gmsh.write(case_name + '.vtk') # For debugging only
 
     gmsh.finalize()
