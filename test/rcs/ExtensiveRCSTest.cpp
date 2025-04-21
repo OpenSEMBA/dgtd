@@ -94,5 +94,9 @@ TEST_F(ExtensiveRCSTest, RCSDataExporter)
 	EXPECT_NO_THROW(RCSDataExtractor rcsExt("NearToFarFieldExports/circle_1m_O1_X", "3D_RCS_Sphere_O1"));
 }
 
+TEST_F(ExtensiveRCSTest, RCSDataExporter_1m)
+{
+	EXPECT_NO_THROW(RCSDataExtractor rcsExt("NearToFarFieldExports/sphere_1m_O1", "3D_RCS_Sphere_1m_O1"));
+}
 
 }
