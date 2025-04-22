@@ -1,18 +1,17 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "hesthaven_operator": true,
-    "time_step": 0.0005,
-    "final_time": 15.0,
+    "global_operator": false,
+    "final_time": 5.0,
     "order": 1
   },
   "model": {
-    "filename": "3D_RCS_Sphere_1m_O1.msh",
+    "filename": "3D_RCS_Sphere_O1_r1m.msh",
     "materials": [
       {
         "tags": [
-          4,
-          5
+          2,
+          3
         ],
         "type": "vacuum"
       }
@@ -20,13 +19,13 @@
     "boundaries": [
       {
         "tags": [
-          3
+          1
         ],
         "type": "PEC"
       },
       {
         "tags": [
-          4
+          3
         ],
         "type": "SMA"
       }
@@ -34,14 +33,14 @@
   },
   "probes": {
     "exporter": {
-      "steps": 1000
+      "steps": 100
     },
     "farfield": [
       {
-        "name": "sphere_1m_O1",
+        "name": "farfield",
         "steps": 1,
         "tags": [
-          5
+          2
         ]
       }
     ]
@@ -60,11 +59,11 @@
         0.0
       ],
       "tags": [
-        5
+        2
       ],
       "magnitude": {
         "spread": 0.12,
-        "delay": 3.0
+        "delay": 2.0
       }
     }
   ]

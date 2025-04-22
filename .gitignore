@@ -54,6 +54,7 @@ out/*
 .vscode/settings.json
 /SpaceSwapping/L2toND
 /testData/dftData
+tmp_cases/
 
 
 CMakeUserPresets.json
