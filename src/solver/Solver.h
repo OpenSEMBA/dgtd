@@ -61,6 +61,7 @@ private:
     mfem::DG_FECollection fec_;
     std::unique_ptr<mfem::FiniteElementSpace> fes_;
     Fields fields_;
+    std::unique_ptr<Device> device_;
     
     SourcesManager sourcesManager_;
     ProbesManager probesManager_;

@@ -62,3 +62,4 @@ CMakeUserPresets.json
 valgrind*
 vcpkg_installed/*
 CMakeFiles/*
+*.dat

@@ -10,6 +10,9 @@
 
 #include "mfemExtension/LinearIntegrators.h"
 
+#include "components/SubMesher.h"
+#include "solver/ProbesManager.h"
+
 namespace maxwell {
 
 using namespace mfem;

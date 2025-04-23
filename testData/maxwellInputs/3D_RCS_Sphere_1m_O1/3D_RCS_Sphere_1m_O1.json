@@ -1,18 +1,18 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "global_operator": true,
-    "time_step": 0.001,
-    "final_time": 0.01,
-    "order": 2
+    "hesthaven_operator": true,
+    "time_step": 0.0005,
+    "final_time": 15.0,
+    "order": 1
   },
   "model": {
-    "filename": "3D_RCS_Sphere_O2.msh",
+    "filename": "3D_RCS_Sphere_1m_O1.msh",
     "materials": [
       {
         "tags": [
-          2,
-          4
+          4,
+          5
         ],
         "type": "vacuum"
       }
@@ -20,13 +20,13 @@
     "boundaries": [
       {
         "tags": [
-          4
+          3
         ],
         "type": "PEC"
       },
       {
         "tags": [
-          5
+          4
         ],
         "type": "SMA"
       }
@@ -34,14 +34,14 @@
   },
   "probes": {
     "exporter": {
-      "steps": 100
+      "steps": 1000
     },
     "farfield": [
       {
-        "name": "circle_1m_O2",
+        "name": "sphere_1m_O1",
         "steps": 1,
         "tags": [
-          3
+          5
         ]
       }
     ]
@@ -50,21 +50,21 @@
     {
       "type": "planewave",
       "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
         1.0,
         0.0,
         0.0
       ],
-      "propagation": [
-        0.0,
-        0.0,
-        1.0
-      ],
       "tags": [
-        3
+        5
       ],
       "magnitude": {
         "spread": 0.12,
-        "delay": 2.0
+        "delay": 3.0
       }
     }
   ]

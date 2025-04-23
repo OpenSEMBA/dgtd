@@ -14,3 +14,8 @@ get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})
 
 target_link_libraries(maxwell-evolution maxwell-components mfem maxwell-mfemExtension Eigen3::Eigen)
+
+if (SEMBA_DGTD_ENABLE_OPENMP)
+	message(STATUS "Linking maxwell-evolution with OpenMP libraries")
+	target_link_libraries(maxwell-evolution OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
+endif()
