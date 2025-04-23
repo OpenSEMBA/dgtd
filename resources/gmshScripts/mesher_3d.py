@@ -5,7 +5,7 @@ from pathlib import Path
 DEFAULT_MESHING_OPTIONS = {
     
     "Mesh.MshFileVersion": 2.2,   # Mandatory for MFEM compatibility
-    # "Mesh.MeshSizeFromCurvature": 50,
+    "Mesh.MeshSizeFromCurvature": 50,
     "Mesh.ElementOrder": 1,
     "Mesh.ScalingFactor": 1e-3, # Assumes input in mm, output in m.
     "Mesh.SurfaceFaces": 1,
@@ -29,24 +29,22 @@ class ShapesClassification:
         gmsh.model.occ.synchronize()
 
         # Renames surfaces defining volumes.
-        for s in shapes:
-            if s[0] != 3:
-                continue
+        for s in gmsh.model.get_entities(3):
             name = gmsh.model.get_entity_name(*s)
             boundaries = gmsh.model.get_boundary([s])
             for b in boundaries:
                 gmsh.model.set_entity_name(*b, name)
-
-        
+        gmsh.model.occ.synchronize()
+                
         # Stores volumes.
-        self.pec_volumes = self.get_entities_with_label_and_dim(shapes, "PEC_", 3)
-        self.totalField_volumes = self.get_entities_with_label_and_dim(shapes, "TF_", 3)      
-        self.sma_volumes = self.get_entities_with_label_and_dim(shapes, "SMA_", 3)
-        
+        self.pec_volumes = self.get_entities_with_label_and_dim("PEC_", 3)
+        self.totalField_volumes = self.get_entities_with_label_and_dim("TF_", 3)      
+        self.sma_volumes = self.get_entities_with_label_and_dim("SMA_", 3)
+                
         # Stores surfaces
-        self.pec_surfaces = self.get_entities_with_label_and_dim(shapes, "PEC_", 2)
-        self.totalField_surfaces = self.get_entities_with_label_and_dim(shapes, "TF_", 2)
-        self.sma_surfaces = self.get_entities_with_label_and_dim(shapes, "SMA_", 2)
+        self.pec_surfaces = self.get_entities_with_label_and_dim("PEC_", 2)
+        self.totalField_surfaces = self.get_entities_with_label_and_dim("TF_", 2)
+        self.sma_surfaces = self.get_entities_with_label_and_dim("SMA_", 2)
 
 
     @staticmethod
@@ -56,9 +54,9 @@ class ShapesClassification:
         return num
 
     @staticmethod
-    def get_entities_with_label_and_dim(entity_tags, label: str, dim: int):
+    def get_entities_with_label_and_dim(label: str, dim: int):
         shapes = []
-        for s in entity_tags:
+        for s in gmsh.model.get_entities(dim):
             name = gmsh.model.get_entity_name(*s)
             if s[0] != dim or label not in name:
                 continue
@@ -90,17 +88,26 @@ def meshFromStep(
     tools = []
     tools.extend(classifiedShapes.pec_volumes)
     tools.extend(classifiedShapes.totalField_volumes)
-    scatteredField_volumes = gmsh.model.occ.cut( classifiedShapes.sma_volumes, tools, removeObject=True, removeTool=False)[0]
+    scatteredField_volumes = gmsh.model.occ.cut( 
+        classifiedShapes.sma_volumes, 
+        tools, 
+        removeObject=True, 
+        removeTool=False)[0]
     gmsh.model.occ.synchronize()
 
     tools = []
     tools.extend(classifiedShapes.pec_volumes)
-    gmsh.model.occ.cut( classifiedShapes.totalField_volumes, tools, removeObject=True, removeTool=True)
+    totalField_volumes = gmsh.model.occ.cut( 
+        classifiedShapes.totalField_volumes, 
+        tools, 
+        tag=gmsh.model.occ.getMaxTag(3)+1, 
+        removeObject=True, 
+        removeTool=False)[0]
     gmsh.model.occ.synchronize()
     
 
     # --- Physical groups ---
-    for v in classifiedShapes.totalField_volumes:
+    for v in totalField_volumes:
         gmsh.model.addPhysicalGroup(3, [v[1]], tag=v[1], name="vacuum_totalField")
     for v in scatteredField_volumes:
         gmsh.model.addPhysicalGroup(3, [v[1]], tag=v[1], name="vacuum_scatteredField")
@@ -111,15 +118,14 @@ def meshFromStep(
         gmsh.model.addPhysicalGroup(2, [s[1]], tag=s[1], name="sma")
     for s in classifiedShapes.totalField_surfaces:
         gmsh.model.addPhysicalGroup(2, [s[1]], tag=s[1], name="totalField")
-
-    
+   
     # Meshing.
     for [opt, val] in meshing_options.items():
         gmsh.option.setNumber(opt, val)
         
     gmsh.model.mesh.generate(3)
 
-    gmsh.fltk.run() # For debugging only.
+    # gmsh.fltk.run() # For debugging only.
     
 
 def runFromInput(inputFile):
