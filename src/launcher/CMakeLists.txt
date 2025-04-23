@@ -7,7 +7,7 @@ target_link_libraries(opensemba_dgtd
 		mfem
 )
 
-if (SEMBA_DGTD_ENABLE_OPEN_MP)
+if (SEMBA_DGTD_ENABLE_OPENMP)
 	message(STATUS "Linking opensemba_dgtd with OpenMP libraries")
 	target_link_libraries(opensemba_dgtd OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
 endif()

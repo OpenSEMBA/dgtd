@@ -7,7 +7,7 @@ include_directories(${PARENT_DIR})
 
 target_link_libraries(maxwell-math mfem)
 
-if (SEMBA_DGTD_ENABLE_OPEN_MP)
+if (SEMBA_DGTD_ENABLE_OPENMP)
 	message(STATUS "Linking maxwell-math with OpenMP libraries")
 	target_link_libraries(maxwell-math OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
 endif()

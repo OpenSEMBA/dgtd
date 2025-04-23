@@ -1,18 +1,6 @@
-#include <mfem.hpp>
-#include <filesystem>
-#include <fstream>
-#include <sstream>
-#include <iomanip>  
+#include <string>
 
-#include "RCSManager.h"
-#include "SubMesher.h"
-#include "../test/TestUtils.h"
-#include "math/PhysicalConstants.h"
-#include "evolution/HesthavenEvolutionMethods.h"
-
-namespace maxwell {
-
-using namespace mfem;
+ namespace maxwell {
 
 class RCSDataExtractor {
 public:

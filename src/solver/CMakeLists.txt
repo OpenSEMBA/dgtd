@@ -16,7 +16,7 @@ target_link_libraries(maxwell-solver
 	mfem
 )
 
-if (SEMBA_DGTD_ENABLE_OPEN_MP)
+if (SEMBA_DGTD_ENABLE_OPENMP)
 	message(STATUS "Linking maxwell-solver with OpenMP libraries")
 	target_link_libraries(maxwell-solver OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
 endif()

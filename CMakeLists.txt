@@ -9,7 +9,7 @@ project(dgtd)
 set(CMAKE_CXX_STANDARD 17)
 
 option(SEMBA_DGTD_ENABLE_MPI "Enable MPI support" OFF )
-option(SEMBA_DGTD_ENABLE_OPEN_MP "Enable OpenMP support" OFF )
+option(SEMBA_DGTD_ENABLE_OPENMP "Enable OpenMP support" OFF )
 option(SEMBA_DGTD_ENABLE_CUDA "Enable CUDA support" OFF )
 option(SEMBA_DGTD_ENABLE_PYTHON_BINDINGS "Enable Python bindings" OFF )
 option(SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY "Use MFEM as a subdirectory" ON )
