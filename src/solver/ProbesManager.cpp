@@ -163,9 +163,12 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 
 	bool highOrder = false;
 	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+	auto fecorder = fes_.FEColl()->GetOrder();
 	geomElemOrder > 1 ? highOrder = true : highOrder = false;
-	pd.SetHighOrderOutput(highOrder);
-	pd.SetLevelsOfDetail(geomElemOrder);
+	auto maxDetail = 1;
+	geomElemOrder > fecorder ? maxDetail = geomElemOrder - 1 : maxDetail = fecorder - 1;
+	pd.SetHighOrderOutput(maxDetail);
+	pd.SetLevelsOfDetail(maxDetail);
 	pd.SetCycle(cycle_);
 	pd.SetTime(time);
 	pd.Save();

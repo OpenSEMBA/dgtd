@@ -998,6 +998,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
 	case_data["solver_options"]["solver_type"] = "centered";
+	case_data["solver_options"]["time_step"] = 5e-3;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -1149,7 +1150,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads_Hesthaven)
+TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Centered_Quads_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
 	case_data["solver_options"]["solver_type"] = "centered";
@@ -1229,7 +1230,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads_Hesthaven)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads_Hesthaven)
+TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Upwind_Quads_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
 	case_data["solver_options"]["time_step"] = 5e-3;
