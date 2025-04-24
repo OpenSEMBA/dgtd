@@ -38,7 +38,7 @@ TEST_F(DriverTest, jsonFindsExistingNestedObjects)
 	EXPECT_TRUE(case_data["probes"]["point"][0].contains("position"));
 
 	EXPECT_TRUE(case_data.contains("sources"));
-	EXPECT_TRUE(case_data["sources"][0]["magnitude"].contains("delay"));
+	EXPECT_TRUE(case_data["sources"][0]["magnitude"].contains("mean"));
 	EXPECT_TRUE(case_data["sources"][1]["magnitude"].contains("mode"));
 }
 

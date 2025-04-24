@@ -114,13 +114,18 @@ std::unique_ptr<InitialField> buildBesselJ6InitialField(
 
 std::unique_ptr<TotalField> buildGaussianPlanewave(
 	double spread,
-	double delay,
+	const Source::Position mean,
 	const Source::Polarization& pol,
 	const Source::Propagation& dir,
 	const FieldType ft = FieldType::E
 )
 {
-	Gaussian gauss{ spread, mfem::Vector({-delay}) };
+	Position projMean(3);
+	projMean = 0.0;
+	for (auto v = 0; v < mean.Size(); v++) {
+		projMean[v] = mean[v];
+	}
+	Gaussian gauss{ spread, mfem::Vector({projMean * dir / dir.Norml2()})};
 	Planewave pw(gauss, pol, dir, ft);
 	return std::make_unique<TotalField>(pw);
 }
@@ -128,10 +133,10 @@ std::unique_ptr<TotalField> buildGaussianPlanewave(
 std::unique_ptr<TotalField> buildDerivGaussDipole(
 	const double length, 
 	const double gaussianSpread, 
-	const double gaussDelay
+	const double gaussMean
 ) 
 {
-	DerivGaussDipole dip(length, gaussianSpread, gaussDelay);
+	DerivGaussDipole dip(length, gaussianSpread, gaussMean);
 	return std::make_unique<TotalField>(dip);
 }
 
@@ -166,7 +171,7 @@ Sources buildSources(const json& case_data)
 		else if (case_data["sources"][s]["type"] == "planewave") {
 			res.add(buildGaussianPlanewave(
 				case_data["sources"][s]["magnitude"]["spread"],
-				case_data["sources"][s]["magnitude"]["delay"],
+				assemble3DVector(case_data["sources"][s]["magnitude"]["mean"]),
 				assemble3DVector(case_data["sources"][s]["polarization"]),
 				assemble3DVector(case_data["sources"][s]["propagation"]),
 				FieldType::E)
@@ -176,7 +181,7 @@ Sources buildSources(const json& case_data)
 			res.add(buildDerivGaussDipole(
 				case_data["sources"][s]["magnitude"]["length"],
 				case_data["sources"][s]["magnitude"]["spread"],
-				case_data["sources"][s]["magnitude"]["delay"])
+				case_data["sources"][s]["magnitude"]["mean"])
 			);
 		}
 		else {

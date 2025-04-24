@@ -48,19 +48,19 @@ public:
 	/** 
 	* A Gaussian function from R^{dim} to R. 
 	* @param spread controls the width.
-	* @param center_ must be of the same Size as dim.
+	* @param mean_ must be of the same Size as dim.
 	* @param dim between 1 and 3 for the dimension.
 	*/
 	Gaussian(
 		double spread, 
-		const Position center = Position({0.0}),
+		const Position mean,
 		int dim = 1
 	) :
 		spread_{ spread },
-		center_{ center },
+		mean_{ mean },
 		dimension_{ dim }
 	{
-		assert(center_.Size() == dimension_);
+		assert(mean_.Size() == dimension_);
 	}
 
 	int dimension() const { return dimension_; }
@@ -73,20 +73,20 @@ public:
 		assert(dimension_ <= pos.Size());
 		switch (dimension_) {
 		case 1:
-			return 	exp(-pow(pos[X] - center_[X], 2) /
+			return 	exp(-pow(pos[X] - mean_[X], 2) /
 					(2.0 * pow(spread_, 2))
 				);
 		case 2:
 			return 	exp(
-					-(pow(pos[X] - center_[X], 2.0)
-					+ pow(pos[Y] - center_[Y], 2.0)) /
+					-(pow(pos[X] - mean_[X], 2.0)
+					+ pow(pos[Y] - mean_[Y], 2.0)) /
 					(2.0 * pow(spread_, 2.0))
 				);
 		case 3:
 			return exp(
-					-(pow(pos[X] - center_[X], 2.0)
-					+ pow(pos[Y] - center_[Y], 2.0)
-					+ pow(pos[Z] - center_[Z], 2.0)) /
+					-(pow(pos[X] - mean_[X], 2.0)
+					+ pow(pos[Y] - mean_[Y], 2.0)
+					+ pow(pos[Z] - mean_[Z], 2.0)) /
 					(2.0 * pow(spread_, 2.0))
 				);
 		default:
@@ -95,8 +95,8 @@ public:
 	}
 
 private:
-	double spread_{ 2.0 };
-	Position center_;
+	double spread_;
+	Position mean_;
 	int dimension_;
 };
 
@@ -153,17 +153,17 @@ public:
 
 class DerivGaussDipole : public EHFieldFunction {
 public:
-	DerivGaussDipole(const double length, const double gaussianSpread, const double gaussDelay) :
+	DerivGaussDipole(const double length, const double gaussianSpread, const double gaussMean) :
 		len_(length),
 		gaussSpread_(gaussianSpread),
-		gaussDelay_(gaussDelay)
+		gaussMean_(gaussMean)
 	{
 	}
 
 	DerivGaussDipole(const DerivGaussDipole& rhs) :
 		len_{ rhs.len_ },
 		gaussSpread_{ rhs.gaussSpread_ },
-		gaussDelay_{ rhs.gaussDelay_ }
+		gaussMean_{ rhs.gaussMean_ }
 	{
 	}
 
@@ -196,7 +196,7 @@ public:
 
 		auto spreadsqrt2 = gaussSpread_ * std::sqrt(2.0) ;
 
-		auto expArg = (t - gaussDelay_ - pos.radius / cs) / spreadsqrt2;
+		auto expArg = (t - gaussMean_ - pos.radius / cs) / spreadsqrt2;
 		auto expArg2 = expArg * expArg;
 
 		auto maxMagnitude = 1.0;
@@ -245,7 +245,7 @@ public:
 private:
 	double len_;
 	double gaussSpread_;
-	double gaussDelay_;
+	double gaussMean_;
 
 };
 

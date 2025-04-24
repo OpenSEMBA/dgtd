@@ -47,7 +47,7 @@
       "tags": [ 5 ],
       "magnitude": {
         "spread": 0.2,
-        "delay": 2.5
+        "mean": 2.5
       }
     }
   ]

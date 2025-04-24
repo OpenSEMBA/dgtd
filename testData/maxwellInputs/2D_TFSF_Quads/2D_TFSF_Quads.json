@@ -7,7 +7,7 @@
   },
 
   "model": {
-    "filename": "2D_TFSF_THz.msh",
+    "filename": "2D_TFSF_Quads.msh",
     "materials": [
       {
         "tags": [ 1, 2 ],
@@ -52,7 +52,7 @@
       "magnitude": {
         "type": "gaussian",
         "spread": 0.4,
-        "delay": 1.0
+        "mean": [ -1.0, 0.5 ]
       }
     }
   ]

@@ -64,7 +64,7 @@
       ],
       "magnitude": {
         "spread": 0.12,
-        "delay": 2.0
+        "mean": 2.0
       }
     }
   ]

@@ -131,7 +131,7 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 			buildProbesEmpty(),
 			// buildProbesWithAnExportProbe(5),
 			buildPlanewaveInitialField(
-				Gaussian{0.1}, 
+				Gaussian{0.1, Position(0.0)},
 				Source::Position    ({0.5, 0.5, 0.5}), 
 				Source::Polarization(unitVec(Y)),
 				Source::Propagation(unitVec(X)) 
