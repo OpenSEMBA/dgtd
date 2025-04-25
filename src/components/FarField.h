@@ -39,12 +39,12 @@ struct SphericalAngles {
 };
 
 struct PlaneWaveData {
+	double spread;
 	double mean;
-	double delay;
 
-	PlaneWaveData(double m, double dl) :
-		mean(m),
-		delay(dl) {};
+	PlaneWaveData(double s, double m) :
+		spread(s),
+		mean(m) {};
 };
 
 struct FreqFields {

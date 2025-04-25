@@ -175,20 +175,24 @@ const Time getTime(const std::string& timePath)
 
 PlaneWaveData buildPlaneWaveData(const json& json)
 {
-	double mean(-1e5), delay(-1e5);
+	double spread(-1e5);
+	mfem::Vector mean;
+	double projMean(-1e5);
 
 	for (auto s{ 0 }; s < json["sources"].size(); s++) {
 		if (json["sources"][s]["type"] == "planewave") {
-			mean = json["sources"][s]["magnitude"]["spread"];
-			delay = json["sources"][s]["magnitude"]["mean"];
+			spread = json["sources"][s]["magnitude"]["spread"];
+			mean = driver::assemble3DVector(json["sources"][s]["magnitude"]["mean"]);
+		    mfem::Vector propagation = driver::assemble3DVector(json["sources"][s]["propagation"]);
+			projMean = mean * propagation / propagation.Norml2();
 		}
 	}
 
-	if (std::abs(mean - 1e5) < 1e-6 || std::abs(delay - 1e5) < 1e-6) {
+	if (std::abs(spread - 1e5) < 1e-6 || std::abs(projMean - 1e5) < 1e-6) {
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
-	return PlaneWaveData(mean / physicalConstants::speedOfLight, delay / physicalConstants::speedOfLight);
+	return PlaneWaveData(spread, projMean);
 }
 
 std::vector<double> buildTimeVector(const std::string& data_path)

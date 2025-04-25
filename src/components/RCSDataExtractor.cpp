@@ -216,8 +216,11 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 	}
 
 	// This takes care of assembling the incoming field values for the incident planewave.
-	auto planewave_data{ buildPlaneWaveData(case_data) };
-	Gaussian gauss{ planewave_data.mean, mfem::Vector({-planewave_data.delay}) };
+	auto planewave_spread = case_data["sources"][0]["magnitude"]["spread"];
+	auto planewave_mean = driver::assemble3DVector(case_data["sources"][0]["magnitude"]["mean"]);
+	auto planewave_propagation = driver::assemble3DVector(case_data["sources"][0]["propagation"]);
+	auto proj_mean = planewave_mean * planewave_propagation / planewave_propagation.Norml2();
+	Gaussian gauss{ planewave_spread, mfem::Vector({proj_mean}) };
 	auto sources = driver::buildSources(case_data);
 	std::vector<double> ExInc(time.size()), EyInc(time.size()), EzInc(time.size());
 	for (const auto& source : sources) {

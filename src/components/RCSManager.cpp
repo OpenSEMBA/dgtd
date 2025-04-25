@@ -9,9 +9,13 @@ using json = nlohmann::json;
 static std::vector<double> buildNormalizationTerm(const std::string& json_path, const std::string& path, std::vector<double>& frequencies)
 {
 
-	auto planewave_data{ buildPlaneWaveData(driver::parseJSONfile(json_path)) };
+	auto case_data = driver::parseJSONfile(json_path);
+	double spread = case_data["sources"][0]["magnitude"]["spread"];
+	mfem::Vector mean = driver::assemble3DVector(case_data["sources"][0]["magnitude"]["mean"]);
+	mfem::Vector propagation = driver::assemble3DVector(case_data["sources"][0]["propagation"]);
+	double projMean = mean * propagation / propagation.Norml2();;
 	std::vector<double> time{ buildTimeVector(path) };
-	std::vector<double> gauss_val{ evaluateGaussianVector(time, planewave_data.delay, planewave_data.mean) };
+	std::vector<double> gauss_val{ evaluateGaussianVector(time, spread, projMean) };
 
 	std::map<double, std::complex<double>> freq2complex;
 	std::vector<double> res(frequencies.size(), 0.0);
