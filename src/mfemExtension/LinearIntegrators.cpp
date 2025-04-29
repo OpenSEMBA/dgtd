@@ -194,7 +194,7 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
 
         // Assemble the result of the calculation we wante to perform, that is
         // Weight of the IntegrationPoint * evaluation of the coefficient * normal on the specified direction / weight of the face surface, to make the normal vector unitary (Taflove p361 eq. 8.22a,b).
-        auto val = ip.weight * coeff_eval * normal[dir_];
+        auto val = ip.weight * coeff_eval * inner_normal[dir_];
         val /= Tr.Weight();
 
         elvect.Add(val, shape_);
