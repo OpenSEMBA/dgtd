@@ -78,6 +78,8 @@ double func_exp_imag_part_3D(const Position&, const Frequency, const SphericalAn
 std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency, const SphericalAngles&, bool isReal);
 std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency, const SphericalAngles&, bool isReal);
 
+double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles);
+
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second);
 
 std::unique_ptr<FiniteElementSpace> buildFESFromGF(Mesh&, const std::string& data_path);

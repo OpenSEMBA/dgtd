@@ -97,7 +97,7 @@ std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency freq, const Sphe
 		break;
 	}
 	FunctionCoefficient res(f);
-	return std::make_unique<FunctionCoefficient>(res);
+	return std::make_unique<FunctionCoefficient>(res); 
 }
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second)
@@ -209,11 +209,11 @@ std::vector<double> buildTimeVector(const std::string& data_path)
 	return res;
 }
 
-std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double delay, double mean)
+std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double spread, double mean)
 {
 	std::vector<double> res(time.size());
 	for (int t = 0; t < time.size(); ++t) {
-		res[t] = exp(-0.5 * std::pow((time[t] - delay) / mean, 2.0));
+		res[t] = exp(-0.5 * std::pow((time[t] - std::abs(mean)) / spread, 2.0));
 	}
 	return res;
 }
