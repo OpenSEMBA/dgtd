@@ -47,6 +47,7 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	}
 
 	finalTime_ = opts.finalTime;
+	fields_ = &fields;
 }
 
 const FieldProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -166,6 +167,9 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 	pd.SetLevelsOfDetail(maxDetail);
 	pd.SetCycle(cycle_);
 	pd.SetTime(time);
+
+	fields_->updateGlobal();
+
 	pd.Save();
 }
 

@@ -107,6 +107,7 @@ private:
     std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
     
     mfem::FiniteElementSpace& fes_;
+    Fields* fields_;
 
     std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;
     
