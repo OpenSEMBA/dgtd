@@ -8,15 +8,10 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
 	pd.SetPrefixPath("ParaView");
+
+	pd.RegisterField("E", &fields.get(E));
+	pd.RegisterField("H", &fields.get(H));
 	
-	pd.RegisterField("Ex", &fields.get(E,X));
-	pd.RegisterField("Ey", &fields.get(E,Y));
-	pd.RegisterField("Ez", &fields.get(E,Z));
-	pd.RegisterField("Hx", &fields.get(H,X));
-	pd.RegisterField("Hy", &fields.get(H,Y));
-	pd.RegisterField("Hz", &fields.get(H,Z));
-	
-	const auto order{ fes_.GetMaxElementOrder() };
 	pd.SetLevelsOfDetail(3);
 	pd.SetHighOrderOutput(true);
 	
