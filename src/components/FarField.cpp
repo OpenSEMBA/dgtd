@@ -16,15 +16,15 @@ const Vector buildObsPointVec(const SphericalAngles& angles)
 	return res;
 }
 
-double calcPsiAngle2D(const Vector& p, const SphericalAngles& angles)
-{
-	auto vec{ buildObsPointVec(angles) };
-	Vector surfVec(vec.Size());
-	surfVec[0] = p[0];
-	surfVec[1] = p[1];
-	surfVec[2] = 0.0;
-	return std::acos((vec[0] * surfVec[0] + vec[1] * surfVec[1] + vec[2] * surfVec[2])  / (vec.Norml2() * surfVec.Norml2()));
-}
+//double calcPsiAngle2D(const Vector& p, const SphericalAngles& angles)
+//{
+//	auto vec{ buildObsPointVec(angles) };
+//	Vector surfVec(vec.Size());
+//	surfVec[0] = p[0];
+//	surfVec[1] = p[1];
+//	surfVec[2] = 0.0;
+//	return std::acos((vec[0] * surfVec[0] + vec[1] * surfVec[1] + vec[2] * surfVec[2])  / (vec.Norml2() * surfVec.Norml2()));
+//}
 
 double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
 {
@@ -34,70 +34,71 @@ double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
 
 /* These functions represent the exponential part of e^(+j k r' cos(psi)) found in Equations 8.31 and 8.32 of Taflove's Computational Electrodynamics: The Finite-Difference Time-Domain Method. 
    Due to MFEM not supporting complex numbers in its Coefficient class, we separate real and imaginary parts for either 2D or 3D, returning cosine or sine as needed. */
-double func_exp_real_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
-{
-	auto landa = physicalConstants::speedOfLight / freq;
-	auto wavenumber = 2.0 * M_PI / landa;
-	auto psi = calcPsiAngle2D(p, angles);
-	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return cos(rad_term);
-}
+//double func_exp_real_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
+//{
+//	auto landa = physicalConstants::speedOfLight / freq;
+//	auto wavenumber = 2.0 * M_PI / landa;
+//	auto psi = calcPsiAngle2D(p, angles);
+//	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
+//	return cos(rad_term);
+//}
+//
+//double func_exp_imag_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
+//{
+//	auto landa = physicalConstants::speedOfLight / freq;
+//	auto wavenumber = 2.0 * M_PI / landa;
+//	auto psi = calcPsiAngle2D(p, angles);
+//	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
+//	return sin(rad_term);
+//}
 
-double func_exp_imag_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
-{
-	auto landa = physicalConstants::speedOfLight / freq;
-	auto wavenumber = 2.0 * M_PI / landa;
-	auto psi = calcPsiAngle2D(p, angles);
-	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return sin(rad_term);
-}
 
-double func_exp_real_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
-{
-	auto landa = physicalConstants::speedOfLight / freq;
-	auto wavenumber = 2.0 * M_PI / landa;
-	auto psi = calcPsiAngle3D(p, angles);
-	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return cos(rad_term);
-}
-
-double func_exp_imag_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
+void func_exp_real_part_3D(const Vector& p, Vector& out, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto psi = calcPsiAngle3D(p, angles);
 	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return sin(rad_term);
+	out[0] = cos(rad_term);
 }
 
-std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency freq, const SphericalAngles& angles, bool isReal)
+void func_exp_imag_part_3D(const Vector& p, Vector& out, const Frequency freq, const SphericalAngles& angles)
 {
-	std::function<double(const Vector&)> f = 0;
-	switch (isReal) {
-	case true:
-		f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, angles);
-		break;
-	case false:
-		f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, angles);
-		break;
-	}
-	FunctionCoefficient res(f);
-	return std::make_unique<FunctionCoefficient>(res);
+	auto landa = physicalConstants::speedOfLight / freq;
+	auto wavenumber = 2.0 * M_PI / landa;
+	auto psi = calcPsiAngle3D(p, angles);
+	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
+	out[0] = sin(rad_term);
 }
 
-std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency freq, const SphericalAngles& angles, bool isReal)
+//std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency freq, const SphericalAngles& angles, bool isReal)
+//{
+//	std::function<double(const Vector&)> f = 0;
+//	switch (isReal) {
+//	case true:
+//		f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, angles);
+//		break;
+//	case false:
+//		f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, angles);
+//		break;
+//	}
+//	FunctionCoefficient res(f);
+//	return std::make_unique<FunctionCoefficient>(res);
+//}
+
+std::unique_ptr<VectorFunctionCoefficient> buildVFC_3D(const Frequency freq, const SphericalAngles& angles, bool isReal)
 {
-	std::function<double(const Vector&)> f = 0;
+	std::function<void(const Vector&, Vector&)> f = 0;
 	switch (isReal) {
 	case true:
-		f = std::bind(&func_exp_real_part_3D, std::placeholders::_1, freq, angles);
+		f = std::bind(&func_exp_real_part_3D, std::placeholders::_1, std::placeholders::_2, freq, angles);
 		break;
 	case false:
-		f = std::bind(&func_exp_imag_part_3D, std::placeholders::_1, freq, angles);
+		f = std::bind(&func_exp_imag_part_3D, std::placeholders::_1, std::placeholders::_2, freq, angles);
 		break;
 	}
-	FunctionCoefficient res(f);
-	return std::make_unique<FunctionCoefficient>(res); 
+	VectorFunctionCoefficient res(1, f);
+	return std::make_unique<VectorFunctionCoefficient>(res);
 }
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second)
@@ -120,11 +121,11 @@ Array<int> getNearToFarFieldMarker(const int att_size)
 	return res;
 }
 
-std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteElementSpace& fes, const Direction& dir)
+std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& fc, FiniteElementSpace& fes)
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
 	auto marker{ getNearToFarFieldMarker(fes.GetMesh()->bdr_attributes.Max()) };
-	res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, dir), marker);
+	res->AddBoundaryIntegrator(new VectorFEBoundaryTangentLFIntegrator(fc), marker);
 	res->Assemble();
 	return res;
 }
@@ -245,12 +246,26 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>& freque
 	return res;
 }
 
-FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequencies, const std::string& path)
+NedelecFields buildNedelecFields(Mesh& mesh, FiniteElementSpace& dgfes, const std::string& path)
 {
-	FreqFields res(frequencies.size());
+
+	NedelecFields res;
 	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
 
 	std::vector<double> time{ buildTimeVector(path) };
+
+	auto dgfec = dynamic_cast<const DG_FECollection*>(dgfes.FEColl());
+	auto dgfesv3 = FiniteElementSpace(&mesh, dgfec, 3);
+	auto ndfec = ND_FECollection(dgfec->GetOrder(), mesh.Dimension());
+	auto ndfes = FiniteElementSpace(&mesh, &ndfec);
+
+	std::vector<GridFunction> L2Ex, L2Ey, L2Ez, L2Hx, L2Hy, L2Hz;
+	L2Ex.reserve((time.size()));
+	L2Ey.reserve((time.size()));
+	L2Ez.reserve((time.size()));
+	L2Hx.reserve((time.size()));
+	L2Hy.reserve((time.size()));
+	L2Hz.reserve((time.size()));
 
 	for (const auto& field : fields) {
 		std::vector<GridFunction> A;
@@ -258,32 +273,56 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequen
 			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
 				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
 				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
-				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
-			}
-		}
-		for (int f{ 0 }; f < frequencies.size(); ++f) {
-			ComplexVector comp_vec(A[f].Size());
-			for (int t{ 0 }; t < time.size(); ++t) {
-				auto arg = 2.0 * M_PI * frequencies[f] * time[t];
-				auto w = std::complex<double>(cos(arg), -sin(arg));
-				for (int v{ 0 }; v < A[f].Size(); ++v) {
-					comp_vec[v] += A[t][v] * w;
+				if (field == "/Ex.gf") {
+					L2Ex.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
+				}
+				if (field == "/Ey.gf") {
+					L2Ey.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
+				}
+				if (field == "/Ez.gf") {
+					L2Ez.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
+				}
+				if (field == "/Hx.gf") {
+					L2Hx.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
+				}
+				if (field == "/Hy.gf") {
+					L2Hy.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
+				}
+				if (field == "/Hz.gf") {
+					L2Hz.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
 				}
 			}
-			res.append(comp_vec, field, f);
 		}
 	}
 
-	res.normaliseFields(time.size());
+	for (auto f : { E , H }) {
+		GridFunction l2field(&dgfesv3);
+		for (auto t = 0; t < time.size(); t++) {
+			if (f == E) {
+				l2field.SetVector(L2Ex[t], 0);
+				l2field.SetVector(L2Ey[t], L2Ex.size());
+				l2field.SetVector(L2Ez[t], 2 * L2Ex.size());
+				VectorGridFunctionCoefficient dg_vgfc(&l2field);
+				res.NdE[t].ProjectCoefficient(dg_vgfc);
+			}
+			if (f == H) {
+				l2field.SetVector(L2Hx[t], 0);
+				l2field.SetVector(L2Hy[t], L2Hx.size());
+				l2field.SetVector(L2Hz[t], 2 * L2Hx.size());
+				VectorGridFunctionCoefficient dg_vgfc(&l2field);
+				res.NdH[t].ProjectCoefficient(dg_vgfc);
+			}
+		}
+	}
 
 	return res;
 }
 
-ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fes, const Direction& dir)
+ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fes)
 {
 	ComplexVector res;
-	std::unique_ptr<LinearForm> lf_real = assembleLinearForm(*fp.first, fes, dir);
-	std::unique_ptr<LinearForm> lf_imag = assembleLinearForm(*fp.second, fes, dir);
+	std::unique_ptr<LinearForm> lf_real = assembleLinearForm(*fp.first, fes);
+	std::unique_ptr<LinearForm> lf_imag = assembleLinearForm(*fp.second, fes);
 	res.resize(lf_real->Size());
 	for (int i{ 0 }; i < res.size(); i++) {
 		res[i] = std::complex<double>(lf_real->Elem(i), lf_imag->Elem(i));
@@ -292,38 +331,41 @@ ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fe
 }
 
 
-std::pair<std::complex<double>, std::complex<double>> FarField::calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const Frequency frequency, const SphericalAngles& angles, bool isElectric)
+std::pair<std::complex<double>, std::complex<double>> FarField::buildCurrentIntegrands(const NedelecFields& nf, const Frequency frequency, const SphericalAngles& angles, bool isElectric)
 {
-	std::unique_ptr<FunctionCoefficient> fc_real, fc_imag;
+	std::unique_ptr<VectorFunctionCoefficient> fc_real, fc_imag;
 
-	switch (fes_->GetMesh()->SpaceDimension()) {
-	case 2:
-		fc_real = buildFC_2D(frequency, angles, true);
-		fc_imag = buildFC_2D(frequency, angles, false);
-		break;
+	switch (dgfes_->GetMesh()->SpaceDimension()) {
+	//case 2:
+	//	fc_real = buildFC_2D(frequency, angles, true);
+	//	fc_imag = buildFC_2D(frequency, angles, false);
+	//	break;
 	case 3:
-		fc_real = buildFC_3D(frequency, angles, true);
-		fc_imag = buildFC_3D(frequency, angles, false);
+		fc_real = buildVFC_3D(frequency, angles, true);
+		fc_imag = buildVFC_3D(frequency, angles, false);
 	}
+
+	auto lf_real = assembleLinearForm(*fc_real, *ndfes_);
+
+	auto current = lf_real * nf.NdE[0];
 
 	auto funcCoeff{ std::make_pair(fc_real.get(), fc_imag.get())};
-	auto lf_x{ assembleComplexLinearForm(funcCoeff, *fes_.get(), X) };
-	auto lf_y{ assembleComplexLinearForm(funcCoeff, *fes_.get(), Y) };
-	auto lf_z{ assembleComplexLinearForm(funcCoeff, *fes_.get(), Z) };
+	auto lf{ assembleComplexLinearForm(funcCoeff, *ndfes_.get()) };
+	
 
-	auto DCx{ complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) };
-	auto DCy{ complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) };
-	auto DCz{ complexInnerProduct(lf_x, FAy) - complexInnerProduct(lf_y, FAx) };
+	//auto DCx{ complexInnerProduct(lf_y, FAz) - complexInnerProduct(lf_z, FAy) };
+	//auto DCy{ complexInnerProduct(lf_z, FAx) - complexInnerProduct(lf_x, FAz) };
+	//auto DCz{ complexInnerProduct(lf_x, FAy) - complexInnerProduct(lf_y, FAx) };
 
-	// Currents are defined as J = n x H and M = -n x E. We change the sign of M due to the normal here.
-	if (isElectric) {
-		DCx *= -1.0;
-		DCy *= -1.0;
-		DCz *= -1.0;
-	}
+	//// Currents are defined as J = n x H and M = -n x E. We change the sign of M due to the normal here.
+	//if (isElectric) {
+	//	DCx *= -1.0;
+	//	DCy *= -1.0;
+	//	DCz *= -1.0;
+	//}
 
-	auto phi_value = -DCx * sin(angles.phi) + DCy * cos(angles.phi);
-	auto theta_value = DCx * cos(angles.theta) * cos(angles.phi) + DCy * cos(angles.theta) * sin(angles.phi) - DCz * sin(angles.theta);
+	//auto phi_value = -DCx * sin(angles.phi) + DCy * cos(angles.phi);
+	//auto theta_value = DCx * cos(angles.theta) * cos(angles.phi) + DCy * cos(angles.theta) * sin(angles.phi) - DCz * sin(angles.theta);
 
 	return std::pair<std::complex<double>, std::complex<double>>(theta_value, phi_value);
 }
@@ -383,16 +425,21 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 	auto mesh = ntff_sub.getSubMesh();
 	mesh->SetCurvature(case_data["solver_options"]["order"]);
 	mesh->Finalize();
-	fes_ = buildFESFromGF(*mesh, data_path);
+	dgfes_ = buildFESFromGF(*mesh, data_path);
+
+	auto dgfec = dynamic_cast<const DG_FECollection*>(dgfes_->FEColl());
+	auto dgfesv3 = FiniteElementSpace(mesh, dgfec, 3);
+	auto ndfec = ND_FECollection(dgfec->GetOrder(), mesh->Dimension());
+	ndfes_ = std::make_unique<FiniteElementSpace>(mesh, &ndfec);
 
 	pot_rad_ = initAngles2FreqValues(frequencies, angle_vec);
 
-	FreqFields freqfields{ calculateFreqFields(*mesh, frequencies, data_path) };
+	NedelecFields nedFields{ buildNedelecFields(*mesh, *dgfes_ , data_path) };
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			auto N_pair = calcNLpair(freqfields.Hx[f], freqfields.Hy[f], freqfields.Hz[f], frequencies[f], angpair, false);
-			auto L_pair = calcNLpair(freqfields.Ex[f], freqfields.Ey[f], freqfields.Ez[f], frequencies[f], angpair, true);
+			auto N_pair = buildCurrentIntegrands(nedFields, frequencies[f], angpair, false);
+			auto L_pair = buildCurrentIntegrands(nedFields, frequencies[f], angpair, true);
 			auto landa = physicalConstants::speedOfLight / frequencies[f];
 			auto wavenumber = 2.0 * M_PI / landa;
 			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance * std::pow(obs_radius, 2.0));

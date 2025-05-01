@@ -25,7 +25,7 @@ using Freq2Value = std::map<Frequency, ScPot>;
 using ComplexVector = std::vector<std::complex<double>>;
 using Freq2CompVec = std::vector<ComplexVector>;
 using DFTFreqFieldsDouble = std::vector<std::vector<double>>;
-using FunctionPair = std::pair<FunctionCoefficient*, FunctionCoefficient*>;
+using FunctionPair = std::pair<VectorFunctionCoefficient*, VectorFunctionCoefficient*>;
 
 const auto obs_radius{ 1e6 }; //Observation point radius distance. We consider a fairly distant enough radius.
 
@@ -45,6 +45,11 @@ struct PlaneWaveData {
 	PlaneWaveData(double s, double m) :
 		spread(s),
 		mean(m) {};
+};
+
+struct NedelecFields {
+	std::vector<GridFunction> NdE;
+	std::vector<GridFunction> NdH;
 };
 
 struct FreqFields {
@@ -70,13 +75,13 @@ struct FreqFields {
 	void normaliseFields(const double val);
 };
 
-double func_exp_real_part_2D(const Position&, const Frequency, const SphericalAngles&);
-double func_exp_imag_part_2D(const Position&, const Frequency, const SphericalAngles&);
-double func_exp_real_part_3D(const Position&, const Frequency, const SphericalAngles&);
-double func_exp_imag_part_3D(const Position&, const Frequency, const SphericalAngles&);
+//double func_exp_real_part_2D(const Position&, const Frequency, const SphericalAngles&);
+//double func_exp_imag_part_2D(const Position&, const Frequency, const SphericalAngles&);
+void func_exp_real_part_3D(const Position&, Vector& out, const Frequency, const SphericalAngles&);
+void func_exp_imag_part_3D(const Position&, Vector& out, const Frequency, const SphericalAngles&);
 
-std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency, const SphericalAngles&, bool isReal);
-std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency, const SphericalAngles&, bool isReal);
+//std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency, const SphericalAngles&, bool isReal);
+std::unique_ptr<VectorFunctionCoefficient> buildVFC_3D(const Frequency, const SphericalAngles&, bool isReal);
 
 double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles);
 
@@ -96,13 +101,13 @@ void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vec
 
 Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>&, const Time);
 
-FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>&, const std::string& path);
+NedelecFields buildNedelecFields(Mesh& mesh, FiniteElementSpace& dgfes, const std::string& path);
 
-ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace&, const Direction&);
+ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace&);
 
 Array<int> getNearToFarFieldMarker(const int att_size);
 
-std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteElementSpace& fes, const Direction& dir);
+std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& fc, FiniteElementSpace& fes);
 
 class FarField {
 public:
@@ -111,9 +116,9 @@ public:
 
 private:
 	
-	std::pair<std::complex<double>, std::complex<double>> calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const Frequency, const SphericalAngles& angles, bool isElectric);
+	std::pair<std::complex<double>, std::complex<double>> buildCurrentIntegrands(const NedelecFields& nf, const Frequency, const SphericalAngles& angles, bool isElectric);
 
-	std::unique_ptr<FiniteElementSpace> fes_;
+	std::unique_ptr<FiniteElementSpace> dgfes_, ndfes_;
 	std::map<SphericalAngles, Freq2Value> pot_rad_;
 };
 
