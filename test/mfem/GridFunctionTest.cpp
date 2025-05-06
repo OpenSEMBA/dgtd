@@ -301,7 +301,7 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 	GridFunction dg_x(&dgfes);
 	dg_x = 1.0;
 	GridFunction dg_y(&dgfes);
-	dg_y = 1.0;
+	dg_y = 2.0;
 	GridFunction dg_gf(&dgfesv2);
 
 	// The vdim 2 GridFunction has its values ordered byNODES, this means first it stores the X
@@ -359,7 +359,7 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 	double error{ 1e-6 };
 	for (auto i{ 0 }; i < nd_x.Size(); ++i) {
 		EXPECT_NEAR(1.0, nd_x[i], error);
-		EXPECT_NEAR(1.0, nd_y[i], error);
+		EXPECT_NEAR(2.0, nd_y[i], error);
 	}
 
 

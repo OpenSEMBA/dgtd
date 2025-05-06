@@ -48,8 +48,38 @@ struct PlaneWaveData {
 };
 
 struct NedelecFields {
-	std::vector<GridFunction> NdE;
-	std::vector<GridFunction> NdH;
+	std::vector<GridFunction> electric;
+	std::vector<GridFunction> magnetic;
+
+	NedelecFields(FiniteElementSpace& fes, int size) {
+		electric.resize(size);
+		magnetic.resize(size);
+		for (auto g = 0; g < size; g++) {
+			electric[g].SetSpace(&fes);
+			magnetic[g].SetSpace(&fes);
+			electric[g] = 0.0;
+			magnetic[g] = 0.0;
+		}
+	}
+};
+
+struct FreqNedelecComponents {
+	GridFunction electric;
+	GridFunction magnetic;
+};
+
+using RealImagFreqFields = std::pair<FreqNedelecComponents, FreqNedelecComponents>;
+using RealImagFreqCurrents = std::pair<FreqNedelecComponents, FreqNedelecComponents>;
+using Freq2NedFields = std::map<Frequency, RealImagFreqFields>;
+
+struct ThetaPhiTerms{
+	std::complex<double> theta;
+	std::complex<double> phi;
+};
+
+struct NLTerms {
+	ThetaPhiTerms N;
+	ThetaPhiTerms L;
 };
 
 struct FreqFields {
@@ -115,8 +145,9 @@ public:
 	const double getPotRad(const SphericalAngles& angpair, const Frequency& freq) const { return pot_rad_.at(angpair).at(freq); }
 
 private:
-	
-	std::pair<std::complex<double>, std::complex<double>> buildCurrentIntegrands(const NedelecFields& nf, const Frequency, const SphericalAngles& angles, bool isElectric);
+
+	RealImagFreqCurrents integrateCurrents(const RealImagFreqFields&, const Frequency, const SphericalAngles& angles);
+	RealImagFreqFields buildFrequencyFields(const NedelecFields& time_fields, const std::vector<Time>& time, const Frequency frequency);
 
 	std::unique_ptr<FiniteElementSpace> dgfes_, ndfes_;
 	std::map<SphericalAngles, Freq2Value> pot_rad_;
