@@ -166,6 +166,9 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 		}
 	}
 
+	// This takes care of assembling the time vector, by reading through the time.txt files in the data folders.
+	std::vector<double> time{ buildTimeVector(data_folder) };
+
 	// This takes care of reading the exported GridFunction files at each specific time and
 	// then add the field value at the specific degrees of freedom regarding the facedofs
 	// to the field vector it belongs to in the same order we organise our facedofs in the previous steps.
@@ -175,6 +178,7 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 	std::map<std::string, std::vector<GridFunction>> GridFuncs;
 	for (const auto& field : fields) {
 		std::vector<GridFunction> A;
+		A.reserve(time.size());
 		for (auto const& dir_entry : std::filesystem::directory_iterator(data_folder)) {
 			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
 				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
@@ -184,9 +188,6 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 		}
 		GridFuncs[field] = A;
 	}
-
-	// This takes care of assembling the time vector, by reading through the time.txt files in the data folders.
-	std::vector<double> time{ buildTimeVector(data_folder) };
 
 	for (const auto& field : fields) {
 		for (auto g = 0; g < GridFuncs[field].size(); g++) {

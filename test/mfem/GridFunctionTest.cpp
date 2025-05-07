@@ -278,47 +278,51 @@ TEST_F(GridFunctionTest, ProjectFunctionOnMesh)
 
 TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 {
-	// Choose any mesh in 2D, either MFEM-Cartesian or any other format.
+	// Choose any mesh in 3D, either MFEM-Cartesian or any other format.
 	// auto mesh{ Mesh::MakeCartesian2D(3, 3, Element::TRIANGLE, true) };
-	auto mesh{ Mesh::LoadFromFile("testData/mfemMeshes/2D/square-disc.mesh") };
+	//auto mesh{ Mesh::LoadFromFile("testData/mfemMeshes/2D/square-disc.mesh") };
+	auto mesh{ Mesh::LoadFromFile("testData/gmshMeshes/3D_TFSF_Beam.msh") };
 
-	// Let us assume we have a L2 space, 2-dimensional, with vdim equal to 1, meaning
+	// Let us assume we have a L2 space, basis order 1, 3-dimensional, with vdim equal to 1, meaning
 	// our components are individually separated into a GridFunction representing X,
 	// another representing Y, and a third one that would represent Z if it were the case. 
-	auto dgfec{ DG_FECollection(3, 2) };
+	auto dgfec{ DG_FECollection(1, 3, BasisType::GaussLobatto) };
 	auto dgfes{ FiniteElementSpace(&mesh, &dgfec) };
 
-	// Additionally, we create a L2 space with vdim 2, which we will use later to create a 
+	// Additionally, we create a L2 space with vdim 3, which we will use later to create a 
 	// GridFunction and store the component values in a single object.
-	auto dgfesv2{ FiniteElementSpace(&mesh, &dgfec, 2) };
+	auto dgfesv3{ FiniteElementSpace(&mesh, &dgfec, 3) };
 
-	// For the sake of having non-zero GridFunctions, we initialise them to 1.0 in all the
-	// degrees of freedom of the problem. As the vdim 2 GridFunction will be filled with the
+	// For the sake of having non-zero GridFunctions, we initialise them to 1.0, 2.0 and 3.0 in all the
+	// degrees of freedom of the problem. As the vdim 3 GridFunction will be filled with the
 	// previous GridFunctions there is no need to initialise its values.
-	// While we could just create the vdim 2 GridFunction, we are 'simulating' that our 
+	// While we could just create the vdim 3 GridFunction, we are 'simulating' that our 
 	// components are initially separated, thus this step is needed to be closer to our
 	// Solver code.
 	GridFunction dg_x(&dgfes);
 	dg_x = 1.0;
 	GridFunction dg_y(&dgfes);
 	dg_y = 2.0;
-	GridFunction dg_gf(&dgfesv2);
+	GridFunction dg_z(&dgfes);
+	dg_z = 3.0;
+	GridFunction dg_gf(&dgfesv3);
 
-	// The vdim 2 GridFunction has its values ordered byNODES, this means first it stores the X
-	// components, then the Y components, and if it were vdim 3, the Z components. So, we fill
+	// The vdim 3 GridFunction has its values ordered byNODES, this means first it stores the X
+	// components, then the Y components, and lastly the Z components. So, we fill
 	// the vector accordingly with our individual GridFunctions.
 	dg_gf.SetVector(dg_x, 0);
 	dg_gf.SetVector(dg_y, dg_x.Size());
+	dg_gf.SetVector(dg_z, 2 * dg_x.Size());
 
-	// We create a VectorGridFunctionCoefficient from the vdim 2 GridFunction.
+	// We create a VectorGridFunctionCoefficient from the vdim 3 GridFunction.
 	VectorGridFunctionCoefficient dg_vgfc(&dg_gf);
 
 	// We create a Nedelec Collection and Finite Element Space with vdim 1, 
 	// through all of this process, the order and dimension between all the
 	// created FEC is the same. As Nedelec spaces are vectorial by nature, 
-	// it doesn't seem we need to initialise the FES with vdim 2, which could feel
+	// it doesn't seem we need to initialise the FES with vdim 3, which could feel
 	// like a natural choice.
-	auto ndfec{ ND_FECollection(3, 2) };
+	auto ndfec{ ND_FECollection(1, 3) };
 	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
 
 	// We create a Nedelec GridFunction using the Nedelec FES. As we will be 
@@ -349,17 +353,72 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 	//pd->SetTime(0.0);
 	//pd->Save();
 	
-	Vector nd_x, nd_y;
+	Vector nd_x, nd_y, nd_z;
 	nd_gf.GetVectorFieldNodalValues(nd_x, 1);
 	nd_gf.GetVectorFieldNodalValues(nd_y, 2);
+	nd_gf.GetVectorFieldNodalValues(nd_z, 3);
 
 	// Simple condition to automatise the test. Strange as it is, the component argument in 
-	// GetVectorFieldNodalValues starts at 1 - X, 2 - Y, and not at 0. Only to be lowered by 1,
+	// GetVectorFieldNodalValues starts at 1 - X, 2 - Y, 3 - Z and not at 0. Only to be lowered by 1,
 	// inside the method.
 	double error{ 1e-6 };
 	for (auto i{ 0 }; i < nd_x.Size(); ++i) {
 		EXPECT_NEAR(1.0, nd_x[i], error);
 		EXPECT_NEAR(2.0, nd_y[i], error);
+		EXPECT_NEAR(3.0, nd_z[i], error);
+	}
+
+}
+
+TEST_F(GridFunctionTest, ProjectBetweenDifferentSpacesFromData)
+{
+	std::string folder("NearToFarFieldExports/sphere_1m_O1_Z/");
+
+	auto mesh{ Mesh::LoadFromFile(folder + "mesh") };
+
+	std::ifstream in(folder + "sphere_1m_O1_Z_000000/Ex.gf");
+	FiniteElementSpace dgfes;
+	dgfes.Load(&mesh, in);
+	auto dgfec = dynamic_cast<const DG_FECollection*>(dgfes.FEColl());
+
+	auto dgfesv3{ FiniteElementSpace(&mesh, dgfec, 3) };
+
+	std::ifstream inex(folder + "sphere_1m_O1_Z_000000/Ex.gf");
+	std::ifstream iney(folder + "sphere_1m_O1_Z_000000/Ey.gf");
+	std::ifstream inez(folder + "sphere_1m_O1_Z_000000/Ez.gf");
+	GridFunction dg_x(&mesh, inex);
+	GridFunction dg_y(&mesh, iney);
+	GridFunction dg_z(&mesh, inez);
+	GridFunction dg_gf(&dgfesv3);
+
+	std::vector<GridFunction> contEx, contEy, contEz;
+	contEx.push_back(dg_x);
+	contEy.push_back(dg_y);
+	contEz.push_back(dg_z);
+
+	dg_gf.SetVector(contEx[0], 0);
+	dg_gf.SetVector(contEy[0], dg_x.Size());
+	dg_gf.SetVector(contEz[0], 2 * dg_x.Size());
+
+	VectorGridFunctionCoefficient dg_vgfc(&dg_gf);
+
+	auto ndfec{ ND_FECollection(1, 3) };
+	auto ndfes{ FiniteElementSpace(&mesh, &ndfec) };
+
+	GridFunction nd_gf(&ndfes);
+
+	nd_gf.ProjectCoefficient(dg_vgfc);
+
+	Vector nd_x, nd_y, nd_z;
+	nd_gf.GetVectorFieldNodalValues(nd_x, 1);
+	nd_gf.GetVectorFieldNodalValues(nd_y, 2);
+	nd_gf.GetVectorFieldNodalValues(nd_z, 3);
+
+	double error{ 1e-6 };
+	for (auto i{ 0 }; i < nd_x.Size(); ++i) {
+		EXPECT_NEAR(0.0, nd_x[i], error);
+		EXPECT_NEAR(0.0, nd_y[i], error);
+		EXPECT_NEAR(0.0, nd_z[i], error);
 	}
 
 

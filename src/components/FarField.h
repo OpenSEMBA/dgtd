@@ -131,8 +131,6 @@ void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vec
 
 Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>&, const Time);
 
-NedelecFields buildNedelecFields(Mesh& mesh, FiniteElementSpace& dgfes, const std::string& path);
-
 ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace&);
 
 Array<int> getNearToFarFieldMarker(const int att_size);
@@ -146,6 +144,7 @@ public:
 
 private:
 
+	NedelecFields buildNedelecFields(Mesh& mesh, FiniteElementSpace& dgfes, const std::string& path);
 	RealImagFreqCurrents integrateCurrents(const RealImagFreqFields&, const Frequency, const SphericalAngles& angles);
 	RealImagFreqFields buildFrequencyFields(const NedelecFields& time_fields, const std::vector<Time>& time, const Frequency frequency);
 
