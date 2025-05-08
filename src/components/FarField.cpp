@@ -380,7 +380,7 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			auto freq_currents = integrateCurrents(frequency_fields[f], frequencies[f], angpair);
+			auto freq_currents = integrateCurrents(frequency_fields[frequencies[f]], frequencies[f], angpair);
 			auto landa = physicalConstants::speedOfLight / frequencies[f];
 			auto wavenumber = 2.0 * M_PI / landa;
 			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance * std::pow(obs_radius, 2.0));
