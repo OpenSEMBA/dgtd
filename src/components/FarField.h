@@ -60,6 +60,11 @@ struct NedelecFields {
 struct FreqNedelecComponents {
 	GridFunction electric;
 	GridFunction magnetic;
+
+	void SetSpace(FiniteElementSpace* fes) {
+		this->electric.SetSpace(fes);
+		this->magnetic.SetSpace(fes);
+	}
 };
 
 using RealImagFreqFields = std::pair<FreqNedelecComponents, FreqNedelecComponents>;

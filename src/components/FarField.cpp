@@ -22,13 +22,13 @@ double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
 	return std::acos((vec[0] * p[0] + vec[1] * p[1] + vec[2] * p[2]) / (vec.Norml2() * p.Norml2()));
 }
 
-void func_exp_real_part_3D(const Vector& p, Vector& out, const Frequency freq, const SphericalAngles& angles)
+double func_exp_real_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto psi = calcPsiAngle3D(p, angles);
 	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	out[0] = cos(rad_term);
+	return cos(rad_term);
 }
 
 void func_exp_imag_part_3D(const Vector& p, Vector& out, const Frequency freq, const SphericalAngles& angles)
@@ -349,10 +349,12 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 	Freq2NedFields frequency_fields;
 	for (int f = 0; f < frequencies.size(); f++) {
 		auto freq_field = buildFrequencyFields(nedFields, time, frequencies[f]);
-		frequency_fields[f].first.electric = freq_field.first.electric;
-		frequency_fields[f].first.magnetic = freq_field.first.magnetic;
-		frequency_fields[f].second.electric = freq_field.second.electric;
-		frequency_fields[f].second.magnetic = freq_field.second.magnetic;
+		frequency_fields[frequencies[f]].first.SetSpace(ndfes_.get());
+		frequency_fields[frequencies[f]].second.SetSpace(ndfes_.get());
+		frequency_fields[frequencies[f]].first.electric = freq_field.first.electric;
+		frequency_fields[frequencies[f]].first.magnetic = freq_field.first.magnetic;
+		frequency_fields[frequencies[f]].second.electric = freq_field.second.electric;
+		frequency_fields[frequencies[f]].second.magnetic = freq_field.second.magnetic;
 	}
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
