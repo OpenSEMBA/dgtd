@@ -104,13 +104,10 @@ struct FreqFields {
 	void normaliseFields(const double val);
 };
 
-//double func_exp_real_part_2D(const Position&, const Frequency, const SphericalAngles&);
-//double func_exp_imag_part_2D(const Position&, const Frequency, const SphericalAngles&);
-void func_exp_real_part_3D(const Position&, Vector& out, const Frequency, const SphericalAngles&);
-void func_exp_imag_part_3D(const Position&, Vector& out, const Frequency, const SphericalAngles&);
+double func_exp_real_part_3D(const Position& const Frequency, const SphericalAngles&);
+double func_exp_imag_part_3D(const Position& const Frequency, const SphericalAngles&);
 
-//std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency, const SphericalAngles&, bool isReal);
-std::unique_ptr<VectorFunctionCoefficient> buildVFC_3D(const Frequency, const SphericalAngles&, bool isReal);
+std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency, const SphericalAngles&, bool isReal);
 
 double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles);
 
@@ -134,7 +131,7 @@ ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace&);
 
 Array<int> getNearToFarFieldMarker(const int att_size);
 
-std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& fc, FiniteElementSpace& fes);
+std::unique_ptr<LinearForm> assembleLinearForm(ScalarVectorProductCoefficient& fc, FiniteElementSpace& fes);
 
 class FarField {
 public:

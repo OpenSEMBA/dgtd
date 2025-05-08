@@ -31,28 +31,28 @@ double func_exp_real_part_3D(const Vector& p, const Frequency freq, const Spheri
 	return cos(rad_term);
 }
 
-void func_exp_imag_part_3D(const Vector& p, Vector& out, const Frequency freq, const SphericalAngles& angles)
+double func_exp_imag_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
 	auto psi = calcPsiAngle3D(p, angles);
 	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	out[0] = sin(rad_term);
+	return sin(rad_term);
 }
 
-std::unique_ptr<VectorFunctionCoefficient> buildVFC_3D(const Frequency freq, const SphericalAngles& angles, bool isReal)
+std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency freq, const SphericalAngles& angles, bool isReal)
 {
-	std::function<void(const Vector&, Vector&)> f = 0;
+	std::function<double(const Vector&)> f = 0;
 	switch (isReal) {
 	case true:
-		f = std::bind(&func_exp_real_part_3D, std::placeholders::_1, std::placeholders::_2, freq, angles);
+		f = std::bind(&func_exp_real_part_3D, std::placeholders::_1, freq, angles);
 		break;
 	case false:
-		f = std::bind(&func_exp_imag_part_3D, std::placeholders::_1, std::placeholders::_2, freq, angles);
+		f = std::bind(&func_exp_imag_part_3D, std::placeholders::_1, freq, angles);
 		break;
 	}
-	VectorFunctionCoefficient res(1, f);
-	return std::make_unique<VectorFunctionCoefficient>(res);
+	FunctionCoefficient res(f);
+	return std::make_unique<FunctionCoefficient>(res);
 }
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second)
@@ -75,11 +75,11 @@ Array<int> getNearToFarFieldMarker(const int att_size)
 	return res;
 }
 
-std::unique_ptr<LinearForm> assembleLinearForm(VectorFunctionCoefficient& fc, FiniteElementSpace& fes)
+std::unique_ptr<LinearForm> assembleLinearForm(ScalarVectorProductCoefficient& vc, FiniteElementSpace& fes)
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
 	auto marker{ getNearToFarFieldMarker(fes.GetMesh()->bdr_attributes.Max()) };
-	res->AddBoundaryIntegrator(new VectorFEBoundaryTangentLFIntegrator(fc), marker);
+	res->AddBoundaryIntegrator(new VectorFEBoundaryTangentLFIntegrator(vc), marker);
 	res->Assemble();
 	return res;
 }
@@ -239,17 +239,17 @@ NedelecFields FarField::buildNedelecFields(Mesh& mesh, FiniteElementSpace& dgfes
 	return res;
 }
 
-ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fes)
-{
-	ComplexVector res;
-	std::unique_ptr<LinearForm> lf_real = assembleLinearForm(*fp.first, fes);
-	std::unique_ptr<LinearForm> lf_imag = assembleLinearForm(*fp.second, fes);
-	res.resize(lf_real->Size());
-	for (int i{ 0 }; i < res.size(); i++) {
-		res[i] = std::complex<double>(lf_real->Elem(i), lf_imag->Elem(i));
-	}
-	return res;
-}
+//ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fes)
+//{
+//	ComplexVector res;
+//	std::unique_ptr<LinearForm> lf_real = assembleLinearForm(*fp.first, fes);
+//	std::unique_ptr<LinearForm> lf_imag = assembleLinearForm(*fp.second, fes);
+//	res.resize(lf_real->Size());
+//	for (int i{ 0 }; i < res.size(); i++) {
+//		res[i] = std::complex<double>(lf_real->Elem(i), lf_imag->Elem(i));
+//	}
+//	return res;
+//}
 
 
 RealImagFreqFields FarField::buildFrequencyFields(const NedelecFields& time_fields, const std::vector<Time>& time, const Frequency frequency)
@@ -289,33 +289,54 @@ RealImagFreqFields FarField::buildFrequencyFields(const NedelecFields& time_fiel
 
 RealImagFreqCurrents FarField::integrateCurrents(const RealImagFreqFields& nf, const Frequency frequency, const SphericalAngles& angles)
 {
-	std::unique_ptr<VectorFunctionCoefficient> fc_real, fc_imag;
+	
 
+	std::unique_ptr<FunctionCoefficient> fc_real, fc_imag;
 	switch (dgfes_->GetMesh()->SpaceDimension()) {
 	case 3:
-		fc_real = buildVFC_3D(frequency, angles, true);
-		fc_imag = buildVFC_3D(frequency, angles, false);
+		fc_real = buildFC_3D(frequency, angles, true);
+		fc_imag = buildFC_3D(frequency, angles, false);
 		break;
 	default:
 		throw std::runtime_error("RCS currently only supported for 3D problems.");
 	}
 
-	auto lf_real = assembleLinearForm(*fc_real, *ndfes_);
-	auto lf_imag = assembleLinearForm(*fc_imag, *ndfes_);
+	VectorGridFunctionCoefficient vgfc_e_real(&nf.first.electric), vgfc_e_imag(&nf.second.electric),
+								  vgfc_h_real(&nf.first.magnetic), vgfc_h_imag(&nf.second.magnetic);
 
-	RealImagFreqCurrents res;
-	res.first.electric.SetSpace(ndfes_.get());
-	res.first.magnetic.SetSpace(ndfes_.get());
-	res.second.electric.SetSpace(ndfes_.get());
-	res.second.magnetic.SetSpace(ndfes_.get());
-	for (auto d = 0; d < res.first.electric.Size(); d++) {
-		res.first.electric [d] = lf_real->Elem(d) * nf.first.magnetic[d];
-		res.first.magnetic [d] = lf_real->Elem(d) * nf.first.electric[d] * -1.0;
-		res.second.electric[d] = lf_imag->Elem(d) * nf.first.magnetic[d];
-		res.second.magnetic[d] = lf_imag->Elem(d) * nf.first.electric[d] * -1.0;
-	}
+	ScalarVectorProductCoefficient svpc_e_real_real(*fc_real, vgfc_e_real);
+	ScalarVectorProductCoefficient svpc_e_real_imag(*fc_real, vgfc_e_imag);
+	ScalarVectorProductCoefficient svpc_e_imag_real(*fc_imag, vgfc_e_real);
+	ScalarVectorProductCoefficient svpc_e_imag_imag(*fc_imag, vgfc_e_imag);
 
-	return res;
+	ScalarVectorProductCoefficient svpc_h_real_real(*fc_real, vgfc_h_real);
+	ScalarVectorProductCoefficient svpc_h_real_imag(*fc_real, vgfc_h_imag);
+	ScalarVectorProductCoefficient svpc_h_imag_real(*fc_imag, vgfc_h_real);
+	ScalarVectorProductCoefficient svpc_h_imag_imag(*fc_imag, vgfc_h_imag);
+
+	auto lf_e_real_real = assembleLinearForm(svpc_e_real_real, *ndfes_);
+	auto lf_e_real_imag = assembleLinearForm(svpc_e_real_imag, *ndfes_);
+	auto lf_e_imag_real = assembleLinearForm(svpc_e_imag_real, *ndfes_);
+	auto lf_e_imag_imag = assembleLinearForm(svpc_e_imag_imag, *ndfes_);
+
+	auto lf_h_real_real = assembleLinearForm(svpc_h_real_real, *ndfes_);
+	auto lf_h_real_imag = assembleLinearForm(svpc_h_real_imag, *ndfes_);
+	auto lf_h_imag_real = assembleLinearForm(svpc_h_imag_real, *ndfes_);
+	auto lf_h_imag_imag = assembleLinearForm(svpc_h_imag_imag, *ndfes_);
+
+	//RealImagFreqCurrents res;
+	//res.first.electric.SetSpace(ndfes_.get());
+	//res.first.magnetic.SetSpace(ndfes_.get());
+	//res.second.electric.SetSpace(ndfes_.get());
+	//res.second.magnetic.SetSpace(ndfes_.get());
+	//for (auto d = 0; d < res.first.electric.Size(); d++) {
+	//	res.first.electric [d] = lf_real->Elem(d) * nf.first.magnetic[d];
+	//	res.first.magnetic [d] = lf_real->Elem(d) * nf.first.electric[d] * -1.0;
+	//	res.second.electric[d] = lf_imag->Elem(d) * nf.first.magnetic[d];
+	//	res.second.magnetic[d] = lf_imag->Elem(d) * nf.first.electric[d] * -1.0;
+	//}
+
+	return RealImagFreqCurrents();
 }
 
 FarField::FarField(const std::string& data_path, const std::string& json_path, std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angle_vec)
