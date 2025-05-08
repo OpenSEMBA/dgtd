@@ -51,15 +51,9 @@ struct NedelecFields {
 	std::vector<GridFunction> electric;
 	std::vector<GridFunction> magnetic;
 
-	NedelecFields(FiniteElementSpace& fes, int size) {
-		electric.resize(size);
-		magnetic.resize(size);
-		for (auto g = 0; g < size; g++) {
-			electric[g].SetSpace(&fes);
-			magnetic[g].SetSpace(&fes);
-			electric[g] = 0.0;
-			magnetic[g] = 0.0;
-		}
+	NedelecFields(int size) {
+		electric.reserve(size);
+		magnetic.reserve(size);
 	}
 };
 

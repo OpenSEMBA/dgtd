@@ -190,85 +190,49 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>& freque
 NedelecFields FarField::buildNedelecFields(Mesh& mesh, FiniteElementSpace& dgfes, const std::string& path)
 {
 
-	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
-
 	std::vector<double> time{ buildTimeVector(path) };
-
-	std::vector<GridFunction> L2Ex, L2Ey, L2Ez, L2Hx, L2Hy, L2Hz;
-	L2Ex.reserve((time.size()));
-	L2Ey.reserve((time.size()));
-	L2Ez.reserve((time.size()));
-	L2Hx.reserve((time.size()));
-	L2Hy.reserve((time.size()));
-	L2Hz.reserve((time.size()));
-
-	for (const auto& field : fields) {
-		for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
-			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
-				std::ifstream in(dir_entry.path().generic_string() + field);
-				if (field == "/Ex.gf") {
-					GridFunction gf(&mesh, in);
-					gf.SetSpace(dgfes_.get());
-					L2Ex.push_back(gf);
-					continue;
-				}
-				if (field == "/Ey.gf") {
-					GridFunction gf(&mesh, in);
-					gf.SetSpace(dgfes_.get());
-					L2Ey.push_back(gf);
-					continue;
-				}
-				if (field == "/Ez.gf") {
-					GridFunction gf(&mesh, in);
-					gf.SetSpace(dgfes_.get());
-					L2Ez.push_back(gf);
-					continue;
-				}
-				if (field == "/Hx.gf") {
-					GridFunction gf(&mesh, in);
-					gf.SetSpace(dgfes_.get());
-					L2Hx.push_back(gf);
-					continue;
-				}
-				if (field == "/Hy.gf") {
-					GridFunction gf(&mesh, in);
-					gf.SetSpace(dgfes_.get());
-					L2Hy.push_back(gf);
-					continue;
-				}
-				if (field == "/Hz.gf") {
-					GridFunction gf(&mesh, in);
-					gf.SetSpace(dgfes_.get());
-					L2Hz.push_back(gf);
-					continue;
-				}
-			}
-		}
-	}
-
 
 	auto dgfec = dynamic_cast<const DG_FECollection*>(dgfes.FEColl());
 	auto dgfesv3 = FiniteElementSpace(&mesh, dgfec, 3);
-	NedelecFields res(*ndfes_, time.size());
-	for (auto f : { E , H }) {
-		GridFunction dg_gf(&dgfesv3);
-		for (auto t = 0; t < time.size(); t++) {
-			if (f == E) {
-				dg_gf.SetVector(L2Ex[t], 0);
-				dg_gf.SetVector(L2Ey[t], L2Ex.size());
-				dg_gf.SetVector(L2Ez[t], 2 * L2Ex.size());
-				VectorGridFunctionCoefficient dg_vgfc(&dg_gf);
-				res.electric[t].ProjectCoefficient(dg_vgfc);
-			}
-			if (f == H) {
-				dg_gf.SetVector(L2Hx[t], 0);
-				dg_gf.SetVector(L2Hy[t], L2Hx.size());
-				dg_gf.SetVector(L2Hz[t], 2 * L2Hx.size());
-				VectorGridFunctionCoefficient dg_vgfc(&dg_gf);
-				res.magnetic[t].ProjectCoefficient(dg_vgfc);
-			}
+	NedelecFields res(time.size());
+
+	for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
+		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
+			dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
+			dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
+
+				std::ifstream inex(dir_entry.path().generic_string() + "/Ex.gf");
+				std::ifstream iney(dir_entry.path().generic_string() + "/Ey.gf");
+				std::ifstream inez(dir_entry.path().generic_string() + "/Ez.gf");
+				std::ifstream inhx(dir_entry.path().generic_string() + "/Hx.gf");
+				std::ifstream inhy(dir_entry.path().generic_string() + "/Hy.gf");
+				std::ifstream inhz(dir_entry.path().generic_string() + "/Hz.gf");
+
+				GridFunction gfex(&mesh, inex);
+				GridFunction gfey(&mesh, iney);
+				GridFunction gfez(&mesh, inez);
+				GridFunction gfhx(&mesh, inhx);
+				GridFunction gfhy(&mesh, inhy);
+				GridFunction gfhz(&mesh, inhz);
+
+				GridFunction dg_gf_electric(&dgfesv3), dg_gf_magnetic(&dgfesv3);
+
+				dg_gf_electric.SetVector(gfex, 0);
+				dg_gf_electric.SetVector(gfey, gfex.Size());
+				dg_gf_electric.SetVector(gfez, 2 * gfex.Size());
+				VectorGridFunctionCoefficient dg_vgfc_electric(&dg_gf_electric);
+				GridFunction nd_gf_electric(ndfes_.get());
+				nd_gf_electric.ProjectCoefficient(dg_vgfc_electric);
+				res.electric.emplace_back(nd_gf_electric);
+
+				dg_gf_magnetic.SetVector(gfhx, 0);
+				dg_gf_magnetic.SetVector(gfhy, gfhx.Size());
+				dg_gf_magnetic.SetVector(gfhz, 2 * gfhx.Size());
+				VectorGridFunctionCoefficient dg_vgfc_magnetic(&dg_gf_magnetic);
+				GridFunction nd_gf_magnetic(ndfes_.get());
+				nd_gf_magnetic.ProjectCoefficient(dg_vgfc_electric);
+				res.magnetic.emplace_back(nd_gf_magnetic);
+
 		}
 	}
 
@@ -384,7 +348,11 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 
 	Freq2NedFields frequency_fields;
 	for (int f = 0; f < frequencies.size(); f++) {
-		frequency_fields[f] = buildFrequencyFields(nedFields, time, frequencies[f]);
+		auto freq_field = buildFrequencyFields(nedFields, time, frequencies[f]);
+		frequency_fields[f].first.electric = freq_field.first.electric;
+		frequency_fields[f].first.magnetic = freq_field.first.magnetic;
+		frequency_fields[f].second.electric = freq_field.second.electric;
+		frequency_fields[f].second.magnetic = freq_field.second.magnetic;
 	}
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
