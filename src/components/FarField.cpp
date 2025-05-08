@@ -42,15 +42,15 @@ double func_exp_imag_part_3D(const Vector& p, const Frequency freq, const Spheri
 
 std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency freq, const SphericalAngles& angles, bool isReal)
 {
-	std::function<double(const Vector&)> f = 0;
-	switch (isReal) {
-	case true:
-		f = std::bind(&func_exp_real_part_3D, std::placeholders::_1, freq, angles);
-		break;
-	case false:
-		f = std::bind(&func_exp_imag_part_3D, std::placeholders::_1, freq, angles);
-		break;
+	std::function<double(const Vector&)> f;
+
+	if (isReal) {
+		f = [freq, angles](const Vector& p) { return func_exp_real_part_3D(p, freq, angles); };
 	}
+	else {
+		f = [freq, angles](const Vector& p) { return func_exp_imag_part_3D(p, freq, angles); };
+	}
+
 	FunctionCoefficient res(f);
 	return std::make_unique<FunctionCoefficient>(res);
 }
