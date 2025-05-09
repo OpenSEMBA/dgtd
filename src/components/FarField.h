@@ -104,8 +104,8 @@ struct FreqFields {
 	void normaliseFields(const double val);
 };
 
-double func_exp_real_part_3D(const Position& const Frequency, const SphericalAngles&);
-double func_exp_imag_part_3D(const Position& const Frequency, const SphericalAngles&);
+double func_exp_real_part_3D(const Position&, const Frequency, const SphericalAngles&);
+double func_exp_imag_part_3D(const Position&, const Frequency, const SphericalAngles&);
 
 std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency, const SphericalAngles&, bool isReal);
 
