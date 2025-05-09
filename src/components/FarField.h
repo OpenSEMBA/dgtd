@@ -47,6 +47,11 @@ struct PlaneWaveData {
 		mean(m) {};
 };
 
+struct CurrentTerms {
+	std::complex<double> J;
+	std::complex<double> M;
+};
+
 struct NedelecFields {
 	std::vector<GridFunction> electric;
 	std::vector<GridFunction> magnetic;
@@ -141,7 +146,7 @@ public:
 private:
 
 	NedelecFields buildNedelecFields(Mesh& mesh, FiniteElementSpace& dgfes, const std::string& path);
-	RealImagFreqCurrents integrateCurrents(const RealImagFreqFields&, const Frequency, const SphericalAngles& angles);
+	CurrentTerms integrateCurrents(const RealImagFreqFields&, const Frequency, const SphericalAngles& angles);
 	RealImagFreqFields buildFrequencyFields(const NedelecFields& time_fields, const std::vector<Time>& time, const Frequency frequency);
 
 	std::unique_ptr<FiniteElementSpace> dgfes_, ndfes_;
