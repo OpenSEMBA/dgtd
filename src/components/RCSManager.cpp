@@ -48,40 +48,11 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	FarField ff(data_path, json_path, rescaled_frequencies, angle_vec);
 	auto pot_inc{ buildNormalizationTerm(json_path, data_path, rescaled_frequencies) };
 
-	//if (!std::filesystem::is_directory(data_path + "/farfield") || !std::filesystem::exists(data_path + "/farfield")) {
-	//	std::filesystem::create_directory(data_path + "/farfield");
-	//}
-
 	if (!std::filesystem::is_directory(data_path + "/rcs") || !std::filesystem::exists(data_path + "/rcs")) {
 		std::filesystem::create_directory(data_path + "/rcs");
 	}
 
 	double landa;
-	//for (const auto& angpair : angle_vec) {
-	//	std::ofstream myfile;
-	//	std::string path(data_path + "/farfield/farfieldData_" + dim_str + "Th_" + std::to_string(angpair.theta) + "_" + "Phi_" + std::to_string(angpair.phi) + "_dgtd.dat");
-	//	myfile.open(path);
-	//	if (myfile.is_open()) {
-	//		myfile << "Theta (rad) // " << "Phi (rad) // " << "Frequency (Hz) // " << "pot // " << "normalization_term\n";
-	//		for (const auto& f : rescaled_frequencies) {
-	//			landa = physicalConstants::speedOfLight / f;
-	//			double normalization;
-	//			dim == 2 ? normalization = landa : normalization = landa * landa;
-	//			myfile << angpair.theta << " " << angpair.phi << " " << f * physicalConstants::speedOfLight_SI << " " << ff.getPotRad(angpair, f) << " " << normalization << "\n";
-	//		}
-	//		myfile.close();
-	//	}
-	//	else {
-	//		throw std::runtime_error("Could not open file to write FarField data.");
-	//	}
-	//}
-
-	//for (int f{ 0 }; f < rescaled_frequencies.size(); f++) {
-	//	for (const auto& angpair : angle_vec) {
-	//		auto const_term = 1.0 / pot_inc[f];
-	//		RCSdata_[angpair][rescaled_frequencies[f]] = const_term * ff.getPotRad(angpair, rescaled_frequencies[f]);
-	//	}
-	//}
 
 	for (const auto& angpair : angle_vec) {
 		std::ofstream myfile;
@@ -93,7 +64,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 				landa = physicalConstants::speedOfLight / frequencies[f];
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.theta << " " << angpair.phi << " " << frequencies[f] * physicalConstants::speedOfLight_SI << " " << ff.getPotRad(angpair, frequencies[f]) / pot_inc[frequencies[f]] << " " << normalization << "\n";
+				myfile << angpair.theta << " " << angpair.phi << " " << frequencies[f] * physicalConstants::speedOfLight_SI << " " << ff.getPotRad(angpair, rescaled_frequencies[f]) / pot_inc[f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
