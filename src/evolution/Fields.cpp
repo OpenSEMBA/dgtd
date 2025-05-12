@@ -16,8 +16,8 @@ Fields::Fields(FiniteElementSpace& fes)
         h_[d].SetSpace(&fes);
     }
 
-    e_global_.SetSize(global_fes_->GetNDofs());
-    h_global_.SetSize(global_fes_->GetNDofs());
+    e_global_.SetSpace(global_fes_.get());
+    h_global_.SetSpace(global_fes_.get());
 
     e_global_.SetVector(e_[X], 0);
     e_global_.SetVector(e_[Y], fes.GetNDofs());
@@ -65,7 +65,7 @@ GridFunction& Fields::get(const FieldType& f)
 
 void Fields::updateGlobal() 
 {
-    auto offset = global_fes_->GetNDofs() / 3;
+    auto offset = global_fes_->GetNDofs();
     e_global_.SetVector(e_[X], 0);
     e_global_.SetVector(e_[Y], offset);
     e_global_.SetVector(e_[Z], 2 * offset);
