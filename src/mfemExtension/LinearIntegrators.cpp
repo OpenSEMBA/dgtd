@@ -175,8 +175,6 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
         // quadrature point
         Tr.SetAllIntPoints(&ip);
 
-        const IntegrationPoint& eip = Tr.GetElement1IntPoint();
-
         // We calculate the normal at the specified face, due to the problem 
         // we're solving and design choices, we invert said normal as we need it heading into the element.
         inner_normal = 0.0;
@@ -187,7 +185,7 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
             inner_normal[i] = -normal[i];
         }
 
-        el.CalcShape(eip, shape_);
+        el.CalcShape(ip, shape_);
 
         // We evaluate the value of the coefficient at the specified point.
         auto coeff_eval{ c_.Eval(*Tr.Face, ip) };

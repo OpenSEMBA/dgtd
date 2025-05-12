@@ -107,7 +107,7 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& se
 	}
 	std::complex<double> res(0.0, 0.0);
 	for (int i{ 0 }; i < first.size(); i++) {
-		res += first[i] * std::conj(second[i]); //<x,y> = sum(x_i * conj(y_i))
+		res += first[i] * second[i]; //<x,y> = sum(conj(x_i) * y_i)
 	}
 	return res;
 }
