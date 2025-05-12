@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mfem.hpp>
+#include <exception>
 
 #include "components/Types.h"
 

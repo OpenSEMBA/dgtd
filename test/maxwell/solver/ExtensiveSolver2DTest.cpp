@@ -63,11 +63,11 @@ protected:
 	{
 		// auto probes{buildProbesWithAnExportProbe(20)};
 		auto probes{buildProbesEmpty()};
-		probes.pointProbes = {
-			PointProbe{E, Z, {0.0, 0.5}},
-			PointProbe{E, Z, {1.0, 0.5}},
-			PointProbe{H, Y, {0.0, 0.5}},
-			PointProbe{H, Y, {1.0, 0.5}}
+		probes.fieldProbes = {
+			FieldProbe{E, Z, {0.0, 0.5}},
+			FieldProbe{E, Z, {1.0, 0.5}},
+			FieldProbe{H, Y, {0.0, 0.5}},
+			FieldProbe{H, Y, {1.0, 0.5}}
 		};
 		return probes;
 	}
@@ -75,7 +75,7 @@ protected:
 	Sources buildPlanewaveForPeriodic()
 	{
 		return buildPlanewaveInitialField(
-			Gaussian{0.1},
+			Gaussian{ 0.1, Position({0.0}) },
 			Source::Position({0.5, 0.5}),	  // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(minusUnitVec(X))	  // propagation direction

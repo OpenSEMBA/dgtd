@@ -134,7 +134,7 @@ void BoundaryDGJumpIntegrator::AssembleRHSElementVect(
     }
 }
 
-void RCSBdrFaceIntegrator::AssembleRHSElementVect(
+void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement& el, mfem::ElementTransformation& Tr, mfem::Vector& elvect)
 {
     mfem_error("RCSBoundaryIntegrator::AssembleRHSElementVect\n"
@@ -143,14 +143,14 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(
         "  LinearForm::AddBoundaryIntegrator.");
 }
 
-void RCSBdrFaceIntegrator::AssembleRHSElementVect(
+void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement& el1, const mfem::FiniteElement& el2, mfem::FaceElementTransformations& Tr, mfem::Vector& elvect)
 {
     mfem_error("RCSBoundaryIntegrator::AssembleRHSElementVect\n"
         "  is not implemented for two element purposes!\n");
 }
 
-void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect) 
+void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect) 
 {
     // Initialise the shape and return vector, making the latter 0.0 as it will have things added onto it, 
     // and not overwritten.
@@ -175,9 +175,7 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
         // quadrature point
         Tr.SetAllIntPoints(&ip);
 
-        const IntegrationPoint& eip = Tr.GetElement1IntPoint();
-
-        // In the following lines we merely calculate the normal at the specified face, due to the problem 
+        // We calculate the normal at the specified face, due to the problem 
         // we're solving and design choices, we invert said normal as we need it heading into the element.
         inner_normal = 0.0;
         normal = 0.0;
@@ -187,14 +185,14 @@ void RCSBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceE
             inner_normal[i] = -normal[i];
         }
 
-        el.CalcShape(eip, shape_);
+        el.CalcShape(ip, shape_);
 
         // We evaluate the value of the coefficient at the specified point.
         auto coeff_eval{ c_.Eval(*Tr.Face, ip) };
 
         // Assemble the result of the calculation we wante to perform, that is
         // Weight of the IntegrationPoint * evaluation of the coefficient * normal on the specified direction / weight of the face surface, to make the normal vector unitary (Taflove p361 eq. 8.22a,b).
-        auto val = ip.weight * coeff_eval * normal[dir_];
+        auto val = ip.weight * coeff_eval * inner_normal[dir_];
         val /= Tr.Weight();
 
         elvect.Add(val, shape_);

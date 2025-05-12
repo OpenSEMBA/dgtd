@@ -79,7 +79,7 @@ TEST_F(SubMesherTest, barycenterVectorOfTwoElements_2D)
 {
 	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
-	auto baryVector{ buildBarycenterPosition(mesh, 0) };
+	auto baryVector{ buildElem1ToElem2BarycenterVector(mesh, 0) };
 	Vector expectedBaryVector({ (1.0 + 1.0 / 3.0) - (2.0 / 3.0), (1.0 / 3.0) - (2.0 / 3.0) });
 
 	for (auto i{ 0 }; i < baryVector.Size(); i++) {

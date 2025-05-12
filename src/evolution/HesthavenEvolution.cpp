@@ -11,8 +11,11 @@ static DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 	bf.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
 	bf.Assemble();
 	bf.Finalize();
-
-	return toEigen(*bf.SpMat().ToDenseMatrix());
+	
+	auto dense = bf.SpMat().ToDenseMatrix();
+	const auto res = toEigen(*dense);
+	delete dense;
+	return res;
 }
 
 Mesh getRefMeshForGeomType(const Element::Type elType, const int dimension)
@@ -57,7 +60,7 @@ DynamicMatrix assembleHesthavenRefElemEmat(const Element::Type elType, const int
 	auto boundary_markers = assembleBoundaryMarkers(subFES);
 
 	sm.bdr_attributes.SetSize(boundary_markers.size());
-	for (auto f{ 0 }; f < subFES.GetNF(); f++) {
+	for (auto f= 0; f < subFES.GetNF(); f++) {
 		sm.bdr_attributes[f] = f + 1;
 		sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 	}
@@ -93,18 +96,14 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 	const auto& vmapBSF = connectivity_.boundary.TFSF.vmapBSF;
 	const auto& vmapBTF = connectivity_.boundary.TFSF.vmapBTF;
 	for (const auto& source : srcmngr_.sources) {
-		auto pw = dynamic_cast<Planewave*>(source.get());
-		if (pw == nullptr) {
+		auto tf = dynamic_cast<TotalField*>(source.get());
+		if (tf == nullptr) {
 			continue;
 		}
-		for (auto v = 0; v < positions_.size(); v++) {
-			if (std::abs(positions_[v][0] - 1.0) < 1e-2 && std::abs(positions_[v][1] - 0.0) < 1e-2) {
-				int a = 0;
-			}
-		}
-		for (auto m{ 0 }; m < mapBSF.size(); m++) {
-			for (auto v{ 0 }; v < mapBSF[m].size(); v++) {
-				for (auto d : { X, Y, Z }) {
+
+		for (int m = 0; m < mapBSF.size(); m++) {
+			for (int v = 0; v < mapBSF[m].size(); v++) {
+				for (int d : { X, Y, Z }) {
 					fields[E][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), E, d);
 					fields[H][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), H, d);
 					out.e_[d][mapBSF[m][v]] -= fields[E][d];
@@ -120,7 +119,7 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 
 const Eigen::VectorXd HesthavenEvolution::applyLIFT(const Eigen::VectorXd& fscale, Eigen::VectorXd& flux) const
 {
-	for (auto i{ 0 }; i < flux.size(); i++) {
+	for (int i = 0; i < flux.size(); i++) {
 		flux[i] *= fscale[i] / 2.0;
 	}
 	return this->refLIFT_ * flux;
@@ -148,7 +147,7 @@ void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, co
 	Probes probes;
 	ProblemDescription pd(model, probes, srcmngr_.sources, opts_);
 	DGOperatorFactory dgops(pd, subFES);
-	for (auto d{ X }; d <= Z; d++) {
+	for (int d = X; d <= Z; d++) {
 		auto denseMat = dgops.buildDerivativeSubOperator(d)->SpMat().ToDenseMatrix();
 		DynamicMatrix dirMat = refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol;
 		delete denseMat;
@@ -177,7 +176,7 @@ void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem
 	auto J{ subFES.GetMesh()->GetElementTransformation(0)->Weight() };
 
 	ElementTransformation* faceTrans;
-	for (auto f{ 0 }; f < numFaces; f++) {
+	for (int f = 0; f < numFaces; f++) {
 
 		Vector normal(dim);
 		dim == 2 ? faceTrans = subFES.GetMesh()->GetEdgeTransformation(f) : faceTrans = subFES.GetMesh()->GetFaceTransformation(f);
@@ -186,7 +185,7 @@ void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem
 		CalcOrtho(faceTrans->Jacobian(), normal);
 		auto sJ{ faceTrans->Weight() };
 
-		for (auto b{ 0 }; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
+		for (auto b= 0; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
 			hestElem.normals[X][f * numNodesAtFace + b] = normal[0] / sJ;
 			hestElem.fscale[f * numNodesAtFace + b] = sJ * 2.0 / J; //likewise for fscale, surface per volume ratio per node at face
 			if (dim >= 2) {
@@ -211,13 +210,13 @@ std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndLinea
 
 	double tol{ 1e-5 };
 	std::pair<Array<ElementId>, std::map<ElementId, Array<NodeId>>> res;
-	for (auto e{ 0 }; e < mesh_p1.GetNE(); e++) {
+	for (int e = 0; e < mesh_p1.GetNE(); e++) {
 		Array<int> elemdofs_p1, elemdofs_p2;
 		fes_p1.GetElementDofs(e, elemdofs_p1);
 		fes   .GetElementDofs(e, elemdofs_p2);
 		MFEM_ASSERT(elemdofs_p1, elemdofs_p2);
 		auto isCurved = false;
-		for (auto d{ 0 }; d < elemdofs_p1.Size(); d++) {
+		for (auto d= 0; d < elemdofs_p1.Size(); d++) {
 			if (std::abs(pos_lin[elemdofs_p1[d]][0] - pos_cur[elemdofs_p2[d]][0]) > tol ||
 				std::abs(pos_lin[elemdofs_p1[d]][1] - pos_cur[elemdofs_p2[d]][1]) > tol ||
 				std::abs(pos_lin[elemdofs_p1[d]][2] - pos_cur[elemdofs_p2[d]][2]) > tol) 
@@ -239,7 +238,7 @@ void HesthavenEvolution::checkForTFSFInCurvedElements()
 {
 	if (model_.getTotalFieldScatteredFieldToMarker().size()) {
 		for (const auto& [k, marker] : model_.getTotalFieldScatteredFieldToMarker()) {
-			for (auto b{ 0 }; b < fes_.GetNBE(); b++) {
+			for (auto b= 0; b < fes_.GetNBE(); b++) {
 				if (marker[model_.getMesh().GetBdrAttribute(b) - 1] == 1) {
 					auto be_trans{ getFaceElementTransformation(model_.getMesh(), b) };
 					if (curvedElements_.find(be_trans->Elem1No) != curvedElements_.end()) {
@@ -258,7 +257,7 @@ void HesthavenEvolution::checkForTFSFInCurvedElements()
 
 bool HesthavenEvolution::isDoFinCurvedElement(const NodeId& d) const
 {
-	for (auto c{ 0 }; c < hestElemCurvedStorage_.size(); c++)
+	for (int c = 0; c < hestElemCurvedStorage_.size(); c++)
 	{
 		if (std::find(hestElemCurvedStorage_[c].dofs.begin(), hestElemCurvedStorage_[c].dofs.end(), d) != hestElemCurvedStorage_[c].dofs.end()) {
 			return true;
@@ -269,9 +268,9 @@ bool HesthavenEvolution::isDoFinCurvedElement(const NodeId& d) const
 
 void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrMaps, const FieldsInputMaps& in, HesthavenFields& out) const
 {
-	for (auto m{ 0 }; m < bdrMaps.PEC.vmapB.size(); m++) {
+	for (int m = 0; m < bdrMaps.PEC.vmapB.size(); m++) {
 		for (int d = X; d <= Z; d++) {
-			for (auto v{ 0 }; v < bdrMaps.PEC.vmapB[m].size(); v++) {
+			for (int v = 0; v < bdrMaps.PEC.vmapB[m].size(); v++) {
 				if (!isDoFinCurvedElement(bdrMaps.PEC.vmapB[m][v])) {
 					out.e_[d][bdrMaps.PEC.mapB[m][v]] = -2.0 * in.e_[d][bdrMaps.PEC.vmapB[m][v]];
 					out.h_[d][bdrMaps.PEC.mapB[m][v]] = 0.0;
@@ -280,9 +279,9 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	for (auto m{ 0 }; m < bdrMaps.PMC.vmapB.size(); m++) {
+	for (int m = 0; m < bdrMaps.PMC.vmapB.size(); m++) {
 		for (int d = X; d <= Z; d++) {
-			for (auto v{ 0 }; v < bdrMaps.PMC.vmapB[m].size(); v++) {
+			for (int v = 0; v < bdrMaps.PMC.vmapB[m].size(); v++) {
 				if (!isDoFinCurvedElement(bdrMaps.PMC.vmapB[m][v])) {
 					out.e_[d][bdrMaps.PMC.mapB[m][v]] = 0.0;
 					out.h_[d][bdrMaps.PMC.mapB[m][v]] = -2.0 * in.h_[d][bdrMaps.PMC.vmapB[m][v]];
@@ -291,9 +290,9 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	for (auto m{ 0 }; m < bdrMaps.SMA.mapB.size(); m++) {
+	for (int m = 0; m < bdrMaps.SMA.mapB.size(); m++) {
 		for (int d = X; d <= Z; d++) {
-			for (auto v{ 0 }; v < bdrMaps.SMA.vmapB[m].size(); v++) {
+			for (int v = 0; v < bdrMaps.SMA.vmapB[m].size(); v++) {
 				if (!isDoFinCurvedElement(bdrMaps.SMA.vmapB[m][v])) {
 					out.e_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.SMA.vmapB[m][v]];
 					out.h_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.SMA.vmapB[m][v]];
@@ -302,9 +301,9 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	for (auto m{ 0 }; m < bdrMaps.intPEC.mapBElem1.size(); m++) {
+	for (int m = 0; m < bdrMaps.intPEC.mapBElem1.size(); m++) {
 		for (int d = X; d <= Z; d++) {
-			for (auto v{ 0 }; v < bdrMaps.intPEC.mapBElem1[m].size(); v++) { //Condition is applied twice, so we halve the coefficients for interior operators
+			for (int v = 0; v < bdrMaps.intPEC.mapBElem1[m].size(); v++) { //Condition is applied twice, so we halve the coefficients for interior operators
 				if (!isDoFinCurvedElement(bdrMaps.intPEC.vmapBElem1[m][v]) || !isDoFinCurvedElement(bdrMaps.intPEC.vmapBElem2[m][v])) {
 					out.e_[d][bdrMaps.intPEC.mapBElem1[m][v]] = -1.0 * in.e_[d][bdrMaps.intPEC.vmapBElem1[m][v]];
 					out.e_[d][bdrMaps.intPEC.mapBElem2[m][v]] = -1.0 * in.e_[d][bdrMaps.intPEC.vmapBElem2[m][v]];
@@ -315,9 +314,9 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	for (auto m{ 0 }; m < bdrMaps.intPMC.mapBElem1.size(); m++) {
+	for (int m = 0; m < bdrMaps.intPMC.mapBElem1.size(); m++) {
 		for (int d = X; d <= Z; d++) {
-			for (auto v{ 0 }; v < bdrMaps.intPMC.mapBElem1[m].size(); v++) {
+			for (int v = 0; v < bdrMaps.intPMC.mapBElem1[m].size(); v++) {
 				if (!isDoFinCurvedElement(bdrMaps.intPMC.vmapBElem1[m][v]) || !isDoFinCurvedElement(bdrMaps.intPMC.vmapBElem2[m][v])) {
 					out.e_[d][bdrMaps.intPMC.mapBElem1[m][v]] = 0.0;
 					out.e_[d][bdrMaps.intPMC.mapBElem2[m][v]] = 0.0;
@@ -328,9 +327,9 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		}
 	}
 
-	for (auto m{ 0 }; m < bdrMaps.intSMA.mapBElem1.size(); m++) {
+	for (int m = 0; m < bdrMaps.intSMA.mapBElem1.size(); m++) {
 		for (int d = X; d <= Z; d++) {
-			for (auto v{ 0 }; v < bdrMaps.intSMA.mapBElem1[m].size(); v++) {
+			for (int v = 0; v < bdrMaps.intSMA.mapBElem1[m].size(); v++) {
 				if (!isDoFinCurvedElement(bdrMaps.intSMA.vmapBElem1[m][v]) || !isDoFinCurvedElement(bdrMaps.intSMA.vmapBElem2[m][v])) {
 					out.e_[d][bdrMaps.intSMA.mapBElem1[m][v]] = -0.5 * in.e_[d][bdrMaps.intSMA.vmapBElem1[m][v]];
 					out.h_[d][bdrMaps.intSMA.mapBElem1[m][v]] = -0.5 * in.h_[d][bdrMaps.intSMA.vmapBElem1[m][v]];
@@ -371,7 +370,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	bool allElementsSameGeomType = true;
 	{
 		const auto firstElemGeomType = cmesh->GetElementGeometry(0);
-		for (auto e{ 0 }; e < cmesh->GetNE(); e++)
+		for (auto e= 0; e < cmesh->GetNE(); e++)
 		{
 			if (firstElemGeomType != cmesh->GetElementGeometry(e))
 			{
@@ -388,7 +387,8 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	}
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
-	for (auto e {0}; e < linearElements_.Size(); e++)
+
+	for (int e = 0; e < linearElements_.Size(); e++)
 	{
 		HesthavenElement hestElem;
 		hestElem.id = linearElements_[e];
@@ -401,7 +401,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		FiniteElementSpace subFES(&sm, fec);
 
 		sm.bdr_attributes.SetSize(subFES.GetNF());
-		for (auto f{ 0 }; f < subFES.GetNF(); f++) {
+		for (auto f= 0; f < subFES.GetNF(); f++) {
 			sm.bdr_attributes[f] = f + 1;
 			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
 		}
@@ -414,11 +414,11 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	}
 	
 	if (curvedElements_.size()) {
-	
 		Probes probes;
 		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
 		DGOperatorFactory dgops(pd, fes_);
 		auto global = dgops.buildGlobalOperator();
+
 		for (const auto& [e, dofs]: curvedElements_) {
 			HesthavenCurvedElement hestCurElem;
 			hestCurElem.id = e;
@@ -428,7 +428,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 			Array<int> cols; 
 			Vector vals;
 			for (auto d : dofs) {
-				for (auto ft{ 0 }; ft < numberOfFieldComponents * numberOfMaxDimensions; ft++) {
+				for (auto ft= 0; ft < numberOfFieldComponents * numberOfMaxDimensions; ft++) {
 					global->GetRow(d + ft * fes_.GetNDofs(), cols, vals);
 					spmat.SetRow(d + ft * fes_.GetNDofs(), cols, vals);
 				}
@@ -446,7 +446,7 @@ void loadOutVectors(const Eigen::VectorXd& data, const FiniteElementSpace& fes, 
 	Array<int> dofs;
 	auto el2dofs = fes.GetElementDofs(e, dofs);
 	std::unique_ptr<mfem::real_t[]> mfemFieldVars = std::make_unique<mfem::real_t[]>(data.size());
-	for (auto v{ 0 }; v < data.size(); v++) {
+	for (int v = 0; v < data.size(); v++) {
 		mfemFieldVars.get()[v] = data.data()[v];
 	}
 	out.SetSubVector(dofs, mfemFieldVars.get());
@@ -456,6 +456,8 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 {
 	double alpha;
 	opts_.fluxType == FluxType::Upwind ? alpha = 1.0 : alpha = 0.0;
+	in.UseDevice(true);
+	out.UseDevice(true);
 
 	// --MAP BETWEEN MFEM VECTOR AND EIGEN VECTOR-- //
 
@@ -475,7 +477,7 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	auto jumps{ HesthavenFields(connectivity_.global.size()) };
 
-	for (auto v{ 0 }; v < connectivity_.global.size(); v++) {
+	for (int v = 0; v < connectivity_.global.size(); v++) {
 		for (int d = X; d <= Z; d++) {
 			jumps.e_[d][v] = fieldsIn.e_[d][connectivity_.global[v].second] - fieldsIn.e_[d][connectivity_.global[v].first];
 			jumps.h_[d][v] = fieldsIn.h_[d][connectivity_.global[v].second] - fieldsIn.h_[d][connectivity_.global[v].first];
@@ -485,15 +487,14 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 	// --BOUNDARIES-- //
 
 	applyBoundaryConditionsToNodes(connectivity_.boundary, fieldsIn, jumps);
-
+	
 	// --TOTAL FIELD SCATTERED FIELD-- //
-
+	
 	evaluateTFSF(jumps);
 
 	// --ELEMENT BY ELEMENT EVOLUTION-- //
 
-	for (auto e{ 0 }; e < linearElements_.Size(); e++) {
-
+	for (int e = 0 ; e < linearElements_.Size(); e++) {
 		auto elemFluxSize{ hestElemLinearStorage_[e].fscale.size() };
 
 		// Dof ordering will always be incremental due to L2 space (i.e: element 0 will have 0, 1, 2... element 1 will have 3, 4, 5...)
@@ -540,9 +541,9 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 
 	}
 
-	for (auto e{ 0 }; e < hestElemCurvedStorage_.size(); e++) {
+	for (int e = 0; e < hestElemCurvedStorage_.size(); e++) {
 		hestElemCurvedStorage_[e].matrix.AddMult(in, out);
-	}
+    }
 
 }
 }

@@ -1,0 +1,66 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "final_time": 5.0,
+    "time_step":  1e-3,
+    "order": 2
+  },
+
+  "model": { 
+    "filename": "2D_TFSF_IntBoundary.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2, 3 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 18 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 13, 15, 17, 19, 20, 22 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 16, 21 ],
+        "type": "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 10
+    },
+    "point": [
+      {
+        "position": [ 0.001, 0.5 ]
+      },
+      {
+        "position": [ 0.201, 0.5 ]
+      },
+      {
+        "position": [ 0.999, 0.5 ]
+      },
+      {
+        "position": [ 1.199, 0.5 ]
+      }
+    ]
+  },
+
+  "sources": [ 
+    {
+      "type": "planewave", 
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 14 ],
+      "magnitude": {
+        "type": "gaussian", 
+        "spread": 0.3,
+        "mean": [ -1.0, 0.5 ]
+      }
+    }
+  ]
+}

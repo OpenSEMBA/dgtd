@@ -1,5 +1,4 @@
 #include "BilinearForm_IBFI.hpp"
-#include <cstddef>
 
 namespace maxwell {
 namespace mfemExtension {

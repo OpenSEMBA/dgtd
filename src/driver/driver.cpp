@@ -11,10 +11,10 @@ inline void checkIfThrows(bool condition, const std::string& msg)
 
 const FieldType assignFieldType(const std::string& field_type)
 {
-	if (field_type == "E") {
+	if (field_type == "electric") {
 		return FieldType::E;
 	}
-	else if (field_type == "H") {
+	else if (field_type == "magnetic") {
 		return FieldType::H;
 	}
 	else {
@@ -88,8 +88,8 @@ std::unique_ptr<InitialField> buildGaussianInitialField(
 	mfem::Vector gaussianCenter(dimension);
 	gaussianCenter = 0.0;
 
-	return std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_);
+	Gaussian gauss(spread, gaussianCenter, dimension);
+	return std::make_unique<InitialField>(gauss, ft, p, center_);
 }
 
 std::unique_ptr<InitialField> buildResonantModeInitialField(
@@ -112,16 +112,32 @@ std::unique_ptr<InitialField> buildBesselJ6InitialField(
 	return std::make_unique<InitialField>(BesselJ6(), ft, p, center);
 }
 
-std::unique_ptr<Planewave> buildGaussianPlanewave(
+std::unique_ptr<TotalField> buildGaussianPlanewave(
 	double spread,
-	double delay,
+	const Source::Position mean,
 	const Source::Polarization& pol,
 	const Source::Propagation& dir,
 	const FieldType ft = FieldType::E
 )
 {
-	Gaussian mag{ spread, mfem::Vector({-delay}) };
-	return std::make_unique<Planewave>(mag, pol, dir, ft);
+	Position projMean(3);
+	projMean = 0.0;
+	for (auto v = 0; v < mean.Size(); v++) {
+		projMean[v] = mean[v];
+	}
+	Gaussian gauss{ spread, mfem::Vector({projMean * dir / dir.Norml2()})};
+	Planewave pw(gauss, pol, dir, ft);
+	return std::make_unique<TotalField>(pw);
+}
+
+std::unique_ptr<TotalField> buildDerivGaussDipole(
+	const double length, 
+	const double gaussianSpread, 
+	const double gaussMean
+) 
+{
+	DerivGaussDipole dip(length, gaussianSpread, gaussMean);
+	return std::make_unique<TotalField>(dip);
 }
 
 Sources buildSources(const json& case_data)
@@ -152,13 +168,20 @@ Sources buildSources(const json& case_data)
 				);
 			}
 		}
-		else if (case_data["sources"][s]["type"] == "totalField") {
+		else if (case_data["sources"][s]["type"] == "planewave") {
 			res.add(buildGaussianPlanewave(
 				case_data["sources"][s]["magnitude"]["spread"],
-				case_data["sources"][s]["magnitude"]["delay"],
+				assemble3DVector(case_data["sources"][s]["magnitude"]["mean"]),
 				assemble3DVector(case_data["sources"][s]["polarization"]),
 				assemble3DVector(case_data["sources"][s]["propagation"]),
-				getFieldType(case_data["sources"][s]["fieldtype"]))
+				FieldType::E)
+			);
+		}
+		else if (case_data["sources"][s]["type"] == "dipole") {
+			res.add(buildDerivGaussDipole(
+				case_data["sources"][s]["magnitude"]["length"],
+				case_data["sources"][s]["magnitude"]["spread"],
+				case_data["sources"][s]["magnitude"]["mean"])
 			);
 		}
 		else {
@@ -225,41 +248,44 @@ Probes buildProbes(const json& case_data)
 	if (case_data["probes"].contains("exporter")) {
 		ExporterProbe exporter_probe;
 		exporter_probe.name = case_data["model"]["filename"];
-		if (case_data["probes"]["exporter"].contains("steps")) {
-			exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
+		if (case_data["probes"]["exporter"].contains("expSteps")) {
+			exporter_probe.visSteps = case_data["probes"]["exporter"]["expSteps"];
 		}
 		probes.exporterProbes.push_back(exporter_probe);
 	}
 
-	if (case_data["probes"].contains("field")) {
-		for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
-			FieldProbe field_probe(
-				assembleVector(case_data["probes"]["field"][p]["position"])
+	if (case_data["probes"].contains("point")) {
+		for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
+			PointProbe field_probe(
+				assembleVector(case_data["probes"]["point"][p]["position"])
 			);
-			probes.fieldProbes.push_back(field_probe);
+			probes.pointProbes.push_back(field_probe);
 		}
 	}
 
-	if (case_data["probes"].contains("neartofarfield")) {
-		for (int p{ 0 }; p < case_data["probes"]["neartofarfield"].size(); p++) {
-			NearToFarFieldProbe probe;
-			if (case_data["probes"]["neartofarfield"][p].contains("name")) {
-				probe.name = case_data["probes"]["neartofarfield"][p]["name"];
+	if (case_data["probes"].contains("farfield")) {
+		for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
+			NearFieldProbe probe;
+			if (case_data["probes"]["farfield"][p].contains("name")) {
+				probe.name = case_data["probes"]["farfield"][p]["name"];
 			}
-			if (case_data["probes"]["neartofarfield"][p].contains("steps")) {
-				probe.steps = case_data["probes"]["neartofarfield"][p]["steps"];
+			if (case_data["probes"]["farfield"][p].contains("export_path")) {
+				probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
 			}
-			if (case_data["probes"]["neartofarfield"][p].contains("tags")) {
+			if (case_data["probes"]["farfield"][p].contains("export_steps")) {
+				probe.expSteps = case_data["probes"]["farfield"][p]["export_steps"];
+			}
+			if (case_data["probes"]["farfield"][p].contains("tags")) {
 				std::vector<int> tags;
-				for (int t{ 0 }; t < case_data["probes"]["neartofarfield"][p]["tags"].size(); t++) {
-					tags.push_back(case_data["probes"]["neartofarfield"][p]["tags"][t]);
+				for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
+					tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
 				}
 				probe.tags = tags;
 			}
 			else {
-				throw std::runtime_error("Tags have not been defined in neartofarfield probe.");
+				throw std::runtime_error("Tags have not been defined in farfield probe.");
 			}
-			probes.nearToFarFieldProbes.push_back(probe);
+			probes.nearFieldProbes.push_back(probe);
 		}
 	}
 
@@ -453,12 +479,12 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 }
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
-	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
+	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, false);
 }
 
 mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 {
-	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, true);
+	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, false);
 }
 
 Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
@@ -503,7 +529,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model)
 {
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		mfem::Array<int> tfsf_tags;
-		if (case_data["sources"][s]["type"] == "totalField") {
+		if (case_data["sources"][s]["type"] == "planewave" || case_data["sources"][s]["type"] == "dipole") {
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
 			}

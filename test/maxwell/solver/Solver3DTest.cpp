@@ -131,7 +131,7 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 			buildProbesEmpty(),
 			// buildProbesWithAnExportProbe(5),
 			buildPlanewaveInitialField(
-				Gaussian{0.1}, 
+				Gaussian{0.1, Position({0.0})},
 				Source::Position    ({0.5, 0.5, 0.5}), 
 				Source::Polarization(unitVec(Y)),
 				Source::Propagation(unitVec(X)) 
@@ -156,9 +156,9 @@ TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 {
 
 	Probes probes;
-	probes.fieldProbes = {
-		FieldProbe{{0.0, 0.2, 0.2}},
-		FieldProbe{{1.0, 0.2, 0.2}},
+	probes.pointProbes = {
+		PointProbe{{0.0, 0.2, 0.2}},
+		PointProbe{{1.0, 0.2, 0.2}},
 	};
 
 	maxwell::Solver solver{

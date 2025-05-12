@@ -33,30 +33,30 @@
     "exporter": { 
       "steps": 1 
     },
-    "field": [ 
+    "point": [ 
       {
         "position": [ 0.0 ] 
       }
     ]
   },
 
-  "sources": [ 
+  "sources": [
     {
-      "type": "initial", 
-      "field_type": "E", 
-      "center": [ 0.5 ], 
-      "polarization": [ 0.0, 1.0, 0.0 ], 
-      "dimension": 1, 
+      "type": "initial",
+      "field_type": "electric",
+      "center": [ 0.5 ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "dimension": 1,
       "magnitude": {
-        "type": "gaussian", 
-        "spread": 0.15, 
-        "delay": 1.0
+        "type": "gaussian",
+        "spread": 0.15,
+        "mean": 1.0
       }
     },
     {
-      "type": "initial", 
-      "field_type": "E", 
-      "polarization": [ 0.0, 1.0, 0.0 ], 
+      "type": "initial",
+      "field_type": "electric",
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "magnitude": {
         "type": "resonant",
         "mode": [ 2 ]

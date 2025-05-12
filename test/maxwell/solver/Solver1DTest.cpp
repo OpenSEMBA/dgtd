@@ -78,9 +78,9 @@ TEST_F(Solver1DTest, pec_centered)
 
 	// auto probes{ buildProbesWithAnExportProbe(50) }; // For DEBUGGING.
 	auto probes{ buildProbesEmpty() };
-	probes.pointProbes = {
-		PointProbe{E, Y, {0.0}},
-		PointProbe{H, Z, {0.0}}
+	probes.fieldProbes = {
+		FieldProbe{E, Y, {0.0}},
+		FieldProbe{H, Z, {0.0}}
 	};
 
 	double tolerance{ 1e-3 };
@@ -260,9 +260,9 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 	Material mat2{4.0, 1.0, 0.0};
 
 	auto probes{ buildProbesWithAnExportProbe(100) };
-	probes.pointProbes = {
-		PointProbe{ E, Y, {0.00} },
-		PointProbe{ E, Y, {0.75} }
+	probes.fieldProbes = {
+		FieldProbe{ E, Y, {0.00} },
+		FieldProbe{ E, Y, {0.75} }
 	};
 	
 	maxwell::Solver solver{
@@ -273,7 +273,7 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 		},
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{ 0.05 },
+			Gaussian{ 0.05,  Position({0.0}) },
 			Source::Position({ 0.25 }),
 			Source::Polarization(unitVec(Y)),
 			Source::Propagation(unitVec(X))

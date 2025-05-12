@@ -134,6 +134,7 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 
 }
 
+
 TEST_F(CasesTest, 1D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("1D_TFSF"));
@@ -148,78 +149,35 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 	double tolerance{ 2e-2 };
 
 	{
-		double expected_t{ 7.0 };
+		double expected_t{ 2.0 };
 		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Ez, tolerance);
-				EXPECT_NEAR(2.0, f.Hy, tolerance);
+				EXPECT_NEAR(1.0, f.Ey, tolerance);
+				EXPECT_NEAR(1.0, f.Hz, tolerance);
 			}
 		}
 	}
 
 	{
-		double expected_t{ 2.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Ey, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(-1.0, f.Ez, tolerance);
-				EXPECT_NEAR(1.0, f.Hy, tolerance);
-			}
-		}
-	}
-
-	{
-		double expected_t{ 6.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Ey, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(1.0, f.Ez, tolerance);
-				EXPECT_NEAR(1.0, f.Hy, tolerance);
-			}
-		}
-	}
-
-	{
-		double expected_t{ 4.0 };
+		double expected_t{ 8.0 };
 		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Ez, tolerance);
-				EXPECT_NEAR(2.0, f.Hy, tolerance);
+				EXPECT_NEAR(1.0, f.Ey, tolerance);
+				EXPECT_NEAR(1.0, f.Hz, tolerance);
 			}
 		}
 	}
 
-}
-
-
-TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
-{
-	std::string case_name{ "1D_TFSF_TEy" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	auto normOld{ solver.getFields().getNorml2() };
-	EXPECT_EQ(0.0, normOld);
-
-	solver.run();
-
-	double tolerance{ 2e-2 };
-
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 5.0 };
 		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
@@ -233,51 +191,28 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_TEy)
 	}
 
 	{
-		double expected_t{ 4.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getFieldProbe(3).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Ey, tolerance);
-				EXPECT_NEAR(2.0, f.Hz, tolerance);
-			}
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
 		}
-	}
-
-	{
-		double expected_t{ 6.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getFieldProbe(4).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(-1.0, f.Ey, tolerance);
-				EXPECT_NEAR( 1.0, f.Hz, tolerance);
-			}
-		}
-	}
-
-	{
-		double expected_t{ 7.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Ey, tolerance);
-				EXPECT_NEAR(2.0, f.Hz, tolerance);
-			}
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
 		}
 	}
 }
 
-TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
+TEST_F(CasesTest, 1D_TFSF_Upwind)
 {
-	std::string case_name{ "1D_TFSF_THz" };
+	std::string case_name{ "1D_TFSF" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -288,21 +223,35 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 	double tolerance{ 2e-2 };
 
 	{
-		double expected_t{ 7.0 };
+		double expected_t{ 2.0 };
 		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Ey, tolerance);
-				EXPECT_NEAR(2.0, f.Hz, tolerance);
+				EXPECT_NEAR(1.0, f.Ey, tolerance);
+				EXPECT_NEAR(1.0, f.Hz, tolerance);
 			}
 		}
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 8.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(1.0, f.Ey, tolerance);
+				EXPECT_NEAR(1.0, f.Hz, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 5.0 };
 		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
@@ -316,31 +265,99 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_THz)
 	}
 
 	{
-		double expected_t{ 6.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getFieldProbe(3).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+		}
+		for (const auto& [t, f] : solver.getFieldProbe(4).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+		}
+	}
+}
+
+TEST_F(CasesTest, 1D_TFSF_Upwind_Negative_K)
+{
+	auto case_data = parseJSONfile(maxwellCase("1D_TFSF"));
+	case_data["probes"]["point"][0]["position"] = {2.99999};
+	case_data["probes"]["point"][2]["position"] = { -2.99999 };
+	case_data["sources"][0]["propagation"] = { -1.0, 0.0, 0.0 };
+	case_data["sources"][0]["magnitude"]["mean"] = { 5.0 };
+	auto solver{ buildSolver(case_data, maxwellCase("1D_TFSF"), true) };
+
+	auto normOld{ solver.getFields().getNorml2() };
+	EXPECT_EQ(0.0, normOld);
+
+	solver.run();
+
+	double tolerance{ 2e-2 };
+
+	{
+		double expected_t{ 2.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(-1.0, f.Ey, tolerance);
-				EXPECT_NEAR(1.0, f.Hz, tolerance);
+				EXPECT_NEAR(1.0, f.Ey, tolerance);
+				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 			}
 		}
 	}
 
 	{
-		double expected_t{ 4.0 };
+		double expected_t{ 8.0 };
 		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
 			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Ey, tolerance);
-				EXPECT_NEAR(2.0, f.Hz, tolerance);
+				EXPECT_NEAR(1.0, f.Ey, tolerance);
+				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 			}
 		}
 	}
 
+	{
+		double expected_t{ 5.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(1.0, f.Ey, tolerance);
+				EXPECT_NEAR(-1.0, f.Hz, tolerance);
+			}
+		}
+	}
+
+	{
+		for (const auto& [t, f] : solver.getFieldProbe(3).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+		}
+		for (const auto& [t, f] : solver.getFieldProbe(4).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ez, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hy, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+		}
+	}
 }

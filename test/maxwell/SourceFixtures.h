@@ -2,6 +2,7 @@
 
 #include "components/Sources.h"
 #include "math/Calculus.h"
+#include "math/Function.h"
 
 namespace maxwell {
 namespace fixtures {
@@ -17,9 +18,9 @@ static Sources buildGaussianInitialField(
 	mfem::Vector gaussianCenter(dimension);
 	gaussianCenter = 0.0;
 	
+	Gaussian gauss{ spread, gaussianCenter, dimension };
 	Sources res;
-	res.add(std::make_unique<InitialField>(
-		Gaussian{ spread, gaussianCenter, dimension }, ft, p, center_)
+	res.add(std::make_unique<InitialField>(gauss, ft, p, center_)
 	);
 	return res;
 }
@@ -42,15 +43,50 @@ static Sources buildResonantModeInitialField(
 
 static Sources buildGaussianPlanewave(
 	double spread,
-	double delay,
+	const Source::Position mean,
 	const Source::Polarization& pol,
 	const Source::Propagation& dir,
 	const FieldType ft = FieldType::E
 )
 {
-	Gaussian mag{ spread, mfem::Vector({-delay}) };
+	Position projMean(3);
+	projMean = 0.0;
+	for (auto v = 0; v < mean.Size(); v++) {
+		projMean[v] = mean[v];
+	}
+	Gaussian mag{ spread, mfem::Vector({projMean * dir / dir.Norml2()}) };
 	Sources res;
-	res.add(std::make_unique<Planewave>(mag, pol, dir, ft));
+	Planewave pw(mag, pol, dir, ft);
+	res.add(std::make_unique<TotalField>(pw));
+	return res;
+}
+
+static Sources buildGaussianPlanewave(
+	double spread,
+	const double mean,
+	const Source::Polarization& pol,
+	const Source::Propagation& dir,
+	const FieldType ft = FieldType::E
+)
+{
+	Position projMean(3);
+	projMean = 0.0;
+	projMean[X] = mean;
+	Gaussian mag{ spread, mfem::Vector({projMean * dir / dir.Norml2()}) };
+	Sources res;
+	Planewave pw(mag, pol, dir, ft);
+	res.add(std::make_unique<TotalField>(pw));
+	return res;
+}
+
+static Sources buildDerivGaussDipole(
+	const double length,
+	const double spread,
+	const double delay)
+{
+	DerivGaussDipole dgd(length, spread, delay);
+	Sources res;
+	res.add(std::make_unique<TotalField>(dgd));
 	return res;
 }
 

@@ -39,8 +39,8 @@ TEST_F(ProbesManagerTest, fieldProbe)
 	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
 	Probes probes;
-	probes.fieldProbes = {
-		FieldProbe{{0.5}}
+	probes.pointProbes = {
+		PointProbe{{0.5}}
 	};
 
 	ProbesManager pM{ probes, fes, fields, SolverOptions{} };

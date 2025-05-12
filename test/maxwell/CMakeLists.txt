@@ -15,7 +15,9 @@ add_executable(maxwell_tests
 	"components/EigenvalueEstimator.cpp"
 	"solver/ProbesManagerTest.cpp" 
 	"solver/SourcesTest.cpp"
-	"components/SubMesherTests.cpp")
+	"components/SubMesherTests.cpp" 
+	"components/SphericalTest.cpp" 
+	"math/FunctionTest.cpp")
 
 add_executable(maxwell_solver_tests
 	"MaxwellTestLauncher.cpp" 

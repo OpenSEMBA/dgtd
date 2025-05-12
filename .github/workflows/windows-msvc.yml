@@ -23,6 +23,8 @@ jobs:
 
     - name: getcmake
       uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.25.0"
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
@@ -37,7 +39,7 @@ jobs:
     #     cmake --install mfem-geg-build/ --config Release
         
     - name: Builds semba/dgtd
-      uses: lukka/run-cmake@v10
+      uses: lukka/run-cmake@v10.8
       env: 
         MFEM_DIR: 'mfem-geg-install/lib/cmake/mfem/'
       with:

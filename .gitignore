@@ -58,3 +58,8 @@ out/*
 
 CMakeUserPresets.json
 /dotvs_backup
+
+valgrind*
+vcpkg_installed/*
+CMakeFiles/*
+*.dat

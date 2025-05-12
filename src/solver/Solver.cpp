@@ -51,7 +51,7 @@ Solver::Solver(
 	probesManager_ { probes , *fes_, fields_, opts_ },
 	time_{0.0}
 {
-	
+
 	checkOptionsAreValid(opts_);
 
 	if (opts_.evolution.spectral == true) {
@@ -89,12 +89,12 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 	}
 }
 
-const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
+const FieldProbe& Solver::getPointProbe(const std::size_t probe) const 
 { 
 	return probesManager_.getPointProbe(probe); 
 }
 
-const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
+const PointProbe& Solver::getFieldProbe(const std::size_t probe) const
 {
 	return probesManager_.getFieldProbe(probe);
 }
@@ -300,6 +300,12 @@ void Solver::run()
 			printSimulationInformation(time_, dt_, opts_.finalTime);
 			lastPrintTime = currentTime;
 		}
+		if (this->fields_.getNorml2() > 1e100){
+			std::cout << "------------------------------------------------------------------------" << std::endl;
+			std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
+			std::cout << "------------------------------------------------------------------------" << std::endl;
+		}
+
 #endif
 	}
 }

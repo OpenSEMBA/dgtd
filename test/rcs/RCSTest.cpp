@@ -13,6 +13,7 @@
 #include <complex>
 
 #include <components/RCSManager.h>
+#include "components/FarField.h"
 
 #include "TestUtils.h"
 
@@ -53,6 +54,68 @@ TEST_F(RCSToolsTest, DiscreteFourierTransform)
 
 	fftw_destroy_plan(p);
 	fftw_free(out);
+}
+
+TEST_F(RCSToolsTest, PsiAngle) 
+{
+	SphericalAngles angleDirX;
+	angleDirX.theta = M_PI_2;
+	angleDirX.phi = 0.0;
+	Vector vecDirX({ 1.0, 0.0, 0.0 });
+	Vector vecDirY({ 0.0, 1.0, 0.0 });
+	Vector vecDirZ({ 0.0, 0.0, 1.0 });
+	Vector vecDirXY({ 1.0, 1.0, 0.0 });
+	EXPECT_EQ(0.0, calcPsiAngle3D(vecDirX, angleDirX));
+	double tol{ 1e-8 };
+	EXPECT_NEAR(M_PI_2, calcPsiAngle3D(vecDirY, angleDirX), tol);
+	EXPECT_NEAR(M_PI_2, calcPsiAngle3D(vecDirZ, angleDirX), tol);
+	EXPECT_NEAR(M_PI_4, calcPsiAngle3D(vecDirXY, angleDirX), tol);
+}
+
+TEST_F(RCSToolsTest, FunctionEval)
+{
+	Vector p({ 1.0, 1.0, 0.0 });
+	SphericalAngles angles;
+	angles.theta = M_PI_2;
+	angles.phi = 0.0;
+	Frequency freq(3e8 / physicalConstants::speedOfLight_SI);
+
+	double tol{ 1e-10 };
+	EXPECT_NEAR(0.9999905398146485235, func_exp_real_part_3D(p, freq, angles), tol);
+	EXPECT_NEAR(0.0043497449589425407, func_exp_imag_part_3D(p, freq, angles), tol);
+}
+
+TEST_F(RCSToolsTest, LinearFormEval)
+{
+	SphericalAngles angles;
+	angles.theta = M_PI_2;
+	angles.phi = 0.0;
+	Frequency freq(3e8 / physicalConstants::speedOfLight_SI);
+
+	Mesh mesh(1, 1, 1, Element::Type::TETRAHEDRON);
+	L2_FECollection fec(1, 3, BasisType::GaussLobatto);
+	FiniteElementSpace fes(&mesh, &fec);
+	FiniteElementSpace fes_v3(&mesh, &fec, 3);
+
+	GridFunction gf(&fes);
+	gf = 0.0;
+	gf[0] = 1.0;
+	gf[1] = 1.0;
+	gf[2] = 1.0;
+	gf[3] = 1.0;
+
+	GridFunction nodes(&fes_v3);
+	mesh.GetNodes(nodes);
+	std::vector<std::vector<double>> nodepos;
+	for (auto v = 0; v < fes.GetNDofs(); v++) {
+		nodepos.push_back({ nodes[v], nodes[v + fes.GetNDofs()], nodes[v + 2 * fes.GetNDofs()] });
+	}
+	
+	auto fc = buildFC_3D(freq, angles, true);
+	auto res{ std::make_unique<LinearForm>(&fes) };
+	res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(*fc.get(), X));
+	res->Assemble();
+
 }
 
 }
