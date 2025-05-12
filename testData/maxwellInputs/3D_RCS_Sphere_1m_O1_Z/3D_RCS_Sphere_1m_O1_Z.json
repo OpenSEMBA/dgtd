@@ -40,7 +40,7 @@
         "name": "sphere_1m_O1_Z",
         "steps": 1,
         "tags": [
-          3
+          6
         ]
       }
     ]
@@ -59,7 +59,7 @@
         -1.0
       ],
       "tags": [
-        3
+        6
       ],
       "magnitude": {
         "spread": 0.15,
