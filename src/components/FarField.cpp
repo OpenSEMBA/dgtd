@@ -341,7 +341,7 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 			auto landa = physicalConstants::speedOfLight / frequencies[f];
 			auto wavenumber = 2.0 * M_PI / landa;
 			auto const_term = std::pow(wavenumber, 2.0) / (4.0 * M_PI);
-			auto freq_val = const_term * std::pow(std::abs(physicalConstants::freeSpaceImpedance * freq_currents.J - freq_currents.M),2.0);
+			auto freq_val = const_term * std::pow(std::abs(physicalConstants::freeSpaceImpedance * freq_currents.J - freq_currents.M), 2.0);
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}

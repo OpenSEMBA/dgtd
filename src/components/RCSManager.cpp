@@ -45,15 +45,21 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		rescaled_frequencies[f] = frequencies[f] / physicalConstants::speedOfLight_SI;
 	}
 
+	std::filesystem::path rcs_path(data_path + "/rcs");
+	if (std::filesystem::exists(rcs_path)) {
+		std::error_code ec;
+		std::filesystem::remove_all(rcs_path, ec);
+		if (ec) {
+			std::cerr << "Error removing directory: " << ec.message() << '\n';
+		}
+	}
+
 	FarField ff(data_path, json_path, rescaled_frequencies, angle_vec);
 	auto pot_inc{ buildNormalizationTerm(json_path, data_path, rescaled_frequencies) };
 
-	if (std::filesystem::exists(data_path + "/rcs")) {
-		std::filesystem::remove_all(data_path + "/rcs");
-	}
 
-	if (!std::filesystem::is_directory(data_path + "/rcs") || !std::filesystem::exists(data_path + "/rcs")) {
-		std::filesystem::create_directory(data_path + "/rcs");
+	if (!std::filesystem::exists(rcs_path)) {
+		std::filesystem::create_directory(rcs_path);
 	}
 
 	double landa;
@@ -65,7 +71,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 		if (myfile.is_open()) {
 			myfile <<  "Theta (rad) // " << "Phi (rad) // " << "Frequency (Hz) // " << "rcs // " << "normalization_term\n";
 			for (auto f = 0; f < frequencies.size(); f++) {
-				landa = physicalConstants::speedOfLight / frequencies[f];
+				landa = physicalConstants::speedOfLight / rescaled_frequencies[f];
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
 				myfile << angpair.theta << " " << angpair.phi << " " << frequencies[f] << " " << ff.getPotRad(angpair, rescaled_frequencies[f]) / pot_inc[f] << " " << normalization << "\n";
