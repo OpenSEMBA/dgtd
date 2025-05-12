@@ -75,7 +75,7 @@ protected:
 	Sources buildPlanewaveForPeriodic()
 	{
 		return buildPlanewaveInitialField(
-			Gaussian{0.1, Position(0.0) },
+			Gaussian{ 0.1, Position({0.0}) },
 			Source::Position({0.5, 0.5}),	  // center_
 			Source::Polarization(unitVec(Z)), // e polarization_
 			Source::Propagation(minusUnitVec(X))	  // propagation direction
