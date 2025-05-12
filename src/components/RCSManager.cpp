@@ -68,7 +68,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 				landa = physicalConstants::speedOfLight / frequencies[f];
 				double normalization;
 				dim == 2 ? normalization = landa : normalization = landa * landa;
-				myfile << angpair.theta << " " << angpair.phi << " " << frequencies[f] * physicalConstants::speedOfLight_SI << " " << ff.getPotRad(angpair, frequencies[f]) / pot_inc[frequencies[f]] << " " << normalization << "\n";
+				myfile << angpair.theta << " " << angpair.phi << " " << frequencies[f] << " " << ff.getPotRad(angpair, rescaled_frequencies[f]) / pot_inc[f] << " " << normalization << "\n";
 			}
 			myfile.close();
 		}
