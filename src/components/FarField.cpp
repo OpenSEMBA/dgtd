@@ -107,7 +107,7 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& se
 	}
 	std::complex<double> res(0.0, 0.0);
 	for (int i{ 0 }; i < first.size(); i++) {
-		res += first[i] * second[i]; //<x,y> = sum(conj(x_i) * y_i)
+		res += first[i] * second[i];
 	}
 	return res;
 }
@@ -256,8 +256,8 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequen
 		std::vector<GridFunction> A;
 		for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
 			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "/rcs" &&
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 9) != "/farfield") {
 				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
 			}
 		}

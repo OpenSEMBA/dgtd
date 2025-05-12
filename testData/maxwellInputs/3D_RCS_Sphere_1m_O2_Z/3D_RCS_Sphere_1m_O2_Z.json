@@ -2,12 +2,11 @@
   "solver_options": {
     "solver_type": "upwind",
     "hesthaven_operator": true,
-    "time_step": 0.001,
     "final_time": 15.0,
-    "order": 1
+    "order": 2
   },
   "model": {
-    "filename": "3D_RCS_Sphere_O1.msh",
+    "filename": "3D_RCS_Sphere_1m_O2_Z.msh",
     "materials": [
       {
         "tags": [
@@ -34,11 +33,11 @@
   },
   "probes": {
     "exporter": {
-      "steps": 200
+      "steps": 500
     },
     "farfield": [
       {
-        "name": "circle_1m_O1_X",
+        "name": "sphere_1m_O2_Z",
         "steps": 1,
         "tags": [
           3
@@ -50,21 +49,21 @@
     {
       "type": "planewave",
       "polarization": [
-        0.0,
         1.0,
+        0.0,
         0.0
       ],
       "propagation": [
-        1.0,
         0.0,
-        0.0
+        0.0,
+        -1.0
       ],
       "tags": [
         3
       ],
       "magnitude": {
-        "spread": 0.12,
-        "mean": 2.0
+        "spread": 0.15,
+        "mean": [0.0,0.0,4.0]
       }
     }
   ]
