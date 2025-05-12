@@ -1,58 +1,59 @@
 {
   "solver_options": {
     "solver_type": "upwind",
-    "time_step": 0.0,
-    "final_time":  6.0,
+    "final_time":  8.0,
     "order": 3
   },
 
   "model": { 
-    "filename": "3D_TFSF.msh",
+    "filename": "1D_TFSF.msh",
     "materials": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [ 1, 2, 3 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 7, 5, 6, 10, 11 ],
+        "tags": [ 1, 2 ],
         "type": "PEC"
-      },
-      {
-        "tags": [ 3, 4, 8, 9 ],
-        "type":  "PMC"
       }
     ]
   },
 
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 20
     },
     "point": [
       {
-        "position": [ 0.0, 0.5, 0.5 ]
+        "position": [ -2.999999 ]
       },
       {
-        "position": [ 1.0, 0.5, 0.5 ]
+        "position": [ 0.0 ]
       },
       {
-        "position": [ 3.0, 0.5, 0.5 ]
+        "position": [ 2.999999 ]
+      },
+      {
+        "position": [ -4.0 ]
+      },
+      {
+        "position": [ 4.0 ]
       }
     ]
   },
 
-  "sources": [
+  "sources": [ 
     {
       "type": "planewave",
-      "polarization": [ 0.0, 0.0, 1.0 ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2 ],
+      "tags": [ 3, 4 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.6,
-        "mean": [ -1.0, 0.5, 0.5 ]
+        "mean": [ -5.0 ]
       }
     }
   ]

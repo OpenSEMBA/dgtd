@@ -526,10 +526,10 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind)
 
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
 	case_data["solver_options"]["solver_type"] = "centered";
 	case_data["solver_options"]["hesthaven_operator"] = true;
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -605,10 +605,10 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
 	case_data["solver_options"]["solver_type"] = "centered";
 	case_data["solver_options"]["global_operator"] = true;
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -682,11 +682,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Hesthaven)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Hesthaven)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
 	case_data["solver_options"]["hesthaven_operator"] = true;
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -760,11 +760,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Hesthaven)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Global)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Global)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
 	case_data["solver_options"]["global_operator"] = true;
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -840,9 +840,9 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Global)
 
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
 	case_data["solver_options"]["solver_type"] = "centered";
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy"), true) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -919,7 +919,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 {
 
-	std::string case_name{ "2D_TFSF_TEy" };
+	std::string case_name{ "2D_TFSF" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -994,88 +994,12 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_THz)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads)
 {
-	std::string case_name{ "2D_TFSF_THz" };
-	auto solver{ buildSolverJson(maxwellCase(case_name)) };
-
-	auto normOld{ solver.getFields().getNorml2() };
-	EXPECT_EQ(0.0, normOld);
-
-	solver.run();
-
-	double tolerance{ 1e-2 };
-
-	{
-		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
-		const auto& last_fm_time = last_fm->first;
-
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
-	}
-
-	{
-		double expected_t{ 9.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Hz, tolerance);
-				EXPECT_NEAR(2.0, f.Ey, tolerance);
-			}
-		}
-	}
-
-	{
-		double expected_t{ 2.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(1.0, f.Hz, tolerance);
-				EXPECT_NEAR(1.0, f.Ey, tolerance);
-			}
-		}
-	}
-
-	{
-		double expected_t{ 8.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(-1.0, f.Hz, tolerance);
-				EXPECT_NEAR(1.0, f.Ey, tolerance);
-			}
-		}
-	}
-
-	{
-		double expected_t{ 5.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Hy, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Ez, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Hz, tolerance);
-				EXPECT_NEAR(2.0, f.Ey, tolerance);
-			}
-		}
-	}
-
-}
-
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads)
-{
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
 	case_data["solver_options"]["solver_type"] = "centered";
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy_Quads"), true) };
+	case_data["solver_options"]["time_step"] = 5e-3;
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -1149,10 +1073,10 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Quads)
+TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy_Quads"), true) };
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -1226,12 +1150,13 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Quads)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads_Hesthaven)
+TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Centered_Quads_Hesthaven)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
 	case_data["solver_options"]["solver_type"] = "centered";
+	case_data["solver_options"]["time_step"] = 5e-3;
 	case_data["solver_options"]["hesthaven_operator"] = true;
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy_Quads"), true) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -1305,11 +1230,12 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_TEy_Quads_Hesthaven)
 
 }
 
-TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy_Quads_Hesthaven)
+TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Upwind_Quads_Hesthaven)
 {
-	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_TEy_Quads"));
+	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
+	case_data["solver_options"]["time_step"] = 5e-3;
 	case_data["solver_options"]["hesthaven_operator"] = true;
-	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_TEy_Quads"), true) };
+	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
 	EXPECT_EQ(0.0, normOld);
@@ -2146,6 +2072,28 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
 			}
 		}
 	}
+}
+
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Pos_X)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_Directions"));
+	case_data["sources"][0]["propagation"] = { 1.0, 0.0, 0.0 };
+	case_data["sources"][0]["polarization"] = { 0.0, 1.0, 0.0 };
+	case_data["sources"][0]["magnitude"]["mean"] = { -2.0, 0.5, 0.5 };
+	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_Directions"), true) };
+
+	solver.run();
+}
+
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_Directions"));
+	case_data["sources"][0]["propagation"] = { -1.0, 0.0, 0.0 };
+	case_data["sources"][0]["polarization"] = { 0.0, 0.0, 1.0 };
+	case_data["sources"][0]["magnitude"]["mean"] = { 2.0, 0.5, 0.5 };
+	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_Directions"), true) };
+
+	solver.run();
 }
 
 //

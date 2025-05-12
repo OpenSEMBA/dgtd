@@ -35,7 +35,7 @@
       "magnitude": {
         "length": 0.1,
         "spread": 0.2,
-        "delay": 0.8
+        "mean": [ 0.8 ]
       }
     }
   ]

@@ -8,15 +8,10 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
 	pd.SetPrefixPath("ParaView");
+
+	pd.RegisterField("E", &fields.get(E));
+	pd.RegisterField("H", &fields.get(H));
 	
-	pd.RegisterField("Ex", &fields.get(E,X));
-	pd.RegisterField("Ey", &fields.get(E,Y));
-	pd.RegisterField("Ez", &fields.get(E,Z));
-	pd.RegisterField("Hx", &fields.get(H,X));
-	pd.RegisterField("Hy", &fields.get(H,Y));
-	pd.RegisterField("Hz", &fields.get(H,Z));
-	
-	const auto order{ fes_.GetMaxElementOrder() };
 	pd.SetLevelsOfDetail(3);
 	pd.SetHighOrderOutput(true);
 	
@@ -52,6 +47,7 @@ ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& 
 	}
 
 	finalTime_ = opts.finalTime;
+	fields_ = &fields;
 }
 
 const FieldProbe& ProbesManager::getPointProbe(const std::size_t i) const
@@ -163,11 +159,17 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 
 	bool highOrder = false;
 	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+	auto fecorder = fes_.FEColl()->GetOrder();
 	geomElemOrder > 1 ? highOrder = true : highOrder = false;
-	pd.SetHighOrderOutput(highOrder);
-	pd.SetLevelsOfDetail(geomElemOrder);
+	auto maxDetail = 1;
+	geomElemOrder > fecorder ? maxDetail = geomElemOrder - 1 : maxDetail = fecorder - 1;
+	pd.SetHighOrderOutput(maxDetail);
+	pd.SetLevelsOfDetail(maxDetail);
 	pd.SetCycle(cycle_);
 	pd.SetTime(time);
+
+	fields_->updateGlobal();
+
 	pd.Save();
 }
 

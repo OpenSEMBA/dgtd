@@ -97,7 +97,7 @@ std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency freq, const Sphe
 		break;
 	}
 	FunctionCoefficient res(f);
-	return std::make_unique<FunctionCoefficient>(res);
+	return std::make_unique<FunctionCoefficient>(res); 
 }
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second)
@@ -107,7 +107,7 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& se
 	}
 	std::complex<double> res(0.0, 0.0);
 	for (int i{ 0 }; i < first.size(); i++) {
-		res += first[i] * std::conj(second[i]); //<x,y> = sum(x_i * conj(y_i))
+		res += first[i] * second[i];
 	}
 	return res;
 }
@@ -175,20 +175,24 @@ const Time getTime(const std::string& timePath)
 
 PlaneWaveData buildPlaneWaveData(const json& json)
 {
-	double mean(-1e5), delay(-1e5);
+	double spread(-1e5);
+	mfem::Vector mean;
+	double projMean(-1e5);
 
 	for (auto s{ 0 }; s < json["sources"].size(); s++) {
 		if (json["sources"][s]["type"] == "planewave") {
-			mean = json["sources"][s]["magnitude"]["spread"];
-			delay = json["sources"][s]["magnitude"]["delay"];
+			spread = json["sources"][s]["magnitude"]["spread"];
+			mean = driver::assemble3DVector(json["sources"][s]["magnitude"]["mean"]);
+		    mfem::Vector propagation = driver::assemble3DVector(json["sources"][s]["propagation"]);
+			projMean = mean * propagation / propagation.Norml2();
 		}
 	}
 
-	if (std::abs(mean - 1e5) < 1e-6 || std::abs(delay - 1e5) < 1e-6) {
+	if (std::abs(spread - 1e5) < 1e-6 || std::abs(projMean - 1e5) < 1e-6) {
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
-	return PlaneWaveData(mean / physicalConstants::speedOfLight, delay / physicalConstants::speedOfLight);
+	return PlaneWaveData(spread, projMean);
 }
 
 std::vector<double> buildTimeVector(const std::string& data_path)
@@ -205,11 +209,11 @@ std::vector<double> buildTimeVector(const std::string& data_path)
 	return res;
 }
 
-std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double delay, double mean)
+std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double spread, double mean)
 {
 	std::vector<double> res(time.size());
 	for (int t = 0; t < time.size(); ++t) {
-		res[t] = exp(-0.5 * std::pow((time[t] - delay) / mean, 2.0));
+		res[t] = exp(-0.5 * std::pow((time[t] - std::abs(mean)) / spread, 2.0));
 	}
 	return res;
 }
@@ -252,8 +256,8 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequen
 		std::vector<GridFunction> A;
 		for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
 			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") {
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "/rcs" &&
+				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 9) != "/farfield") {
 				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
 			}
 		}

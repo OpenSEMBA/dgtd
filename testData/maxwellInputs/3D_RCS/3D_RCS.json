@@ -48,7 +48,7 @@
       "magnitude": {
         "type": "gaussian",
         "spread": 0.4,
-        "delay": 5.0
+        "mean": 5.0
       }
     }
   ]

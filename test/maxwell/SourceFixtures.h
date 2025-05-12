@@ -43,15 +43,38 @@ static Sources buildResonantModeInitialField(
 
 static Sources buildGaussianPlanewave(
 	double spread,
-	double delay,
+	const Source::Position mean,
 	const Source::Polarization& pol,
 	const Source::Propagation& dir,
 	const FieldType ft = FieldType::E
 )
 {
-	Gaussian mag{ spread, mfem::Vector({-delay}) };
-	Planewave pw(mag, pol, dir, ft);
+	Position projMean(3);
+	projMean = 0.0;
+	for (auto v = 0; v < mean.Size(); v++) {
+		projMean[v] = mean[v];
+	}
+	Gaussian mag{ spread, mfem::Vector({projMean * dir / dir.Norml2()}) };
 	Sources res;
+	Planewave pw(mag, pol, dir, ft);
+	res.add(std::make_unique<TotalField>(pw));
+	return res;
+}
+
+static Sources buildGaussianPlanewave(
+	double spread,
+	const double mean,
+	const Source::Polarization& pol,
+	const Source::Propagation& dir,
+	const FieldType ft = FieldType::E
+)
+{
+	Position projMean(3);
+	projMean = 0.0;
+	projMean[X] = mean;
+	Gaussian mag{ spread, mfem::Vector({projMean * dir / dir.Norml2()}) };
+	Sources res;
+	Planewave pw(mag, pol, dir, ft);
 	res.add(std::make_unique<TotalField>(pw));
 	return res;
 }

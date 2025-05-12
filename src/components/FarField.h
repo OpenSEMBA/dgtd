@@ -39,12 +39,12 @@ struct SphericalAngles {
 };
 
 struct PlaneWaveData {
+	double spread;
 	double mean;
-	double delay;
 
-	PlaneWaveData(double m, double dl) :
-		mean(m),
-		delay(dl) {};
+	PlaneWaveData(double s, double m) :
+		spread(s),
+		mean(m) {};
 };
 
 struct FreqFields {
@@ -77,6 +77,8 @@ double func_exp_imag_part_3D(const Position&, const Frequency, const SphericalAn
 
 std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency, const SphericalAngles&, bool isReal);
 std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency, const SphericalAngles&, bool isReal);
+
+double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles);
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second);
 
