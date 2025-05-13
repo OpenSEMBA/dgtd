@@ -44,7 +44,7 @@ Solver::Solver(
 	const SolverOptions& options) :
 	opts_{ options },
 	model_{ model },
-	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
+	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), opts_.basisType},
 	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
 	fields_{ *fes_ },
 	sourcesManager_{ sources, *fes_, fields_ },

@@ -11,6 +11,7 @@ struct SolverOptions {
     bool highOrderMesh = false;
     bool hesthavenOperator = false;
     bool globalOperator = false;
+    int basisType = mfem::BasisType::GaussLobatto;
 
     EvolutionOptions evolution;
     
@@ -56,6 +57,11 @@ struct SolverOptions {
     
     SolverOptions& setGlobalOperator(bool enabled = false) {
         globalOperator = enabled;
+        return *this;
+    }
+
+    SolverOptions& setBasisType(int bt = mfem::BasisType::GaussLobatto) {
+        basisType = bt;
         return *this;
     }
 };

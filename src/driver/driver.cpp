@@ -235,6 +235,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 		if (case_data["solver_options"].contains("global_operator")) {
 			res.setGlobalOperator(case_data["solver_options"]["global_operator"]);
 		}
+
+		if (case_data["solver_options"].contains("basis_type")) {
+			res.setBasisType(case_data["solver_options"]["basis_type"]);
+		}
 	}
 	return res;
 }
