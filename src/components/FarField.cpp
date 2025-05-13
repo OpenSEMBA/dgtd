@@ -124,8 +124,20 @@ std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteEl
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
 	auto marker{ getNearToFarFieldMarker(fes.GetMesh()->bdr_attributes.Max()) };
-	res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, dir), marker);
+	Direction final_dir;
+	if (dir == Z) {
+		if (fes.GetMesh()->Dimension() == 2) {
+			final_dir = X;
+		}
+		else {
+			final_dir = dir;
+		}
+	}
+	res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
 	res->Assemble();
+	if (fes.GetMesh()->Dimension() == 2) {
+		res.get()->Set(0.0, *res.get());
+	}
 	return res;
 }
 

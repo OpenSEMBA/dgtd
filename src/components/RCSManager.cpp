@@ -33,12 +33,24 @@ static std::vector<double> buildNormalizationTerm(const std::string& json_path, 
 	return res;
 }
 
+void checkAnglesFor2DProblems(const int dim, const std::vector<SphericalAngles>& angle_vec)
+{
+	if (dim == 2) {
+		for (const auto& angles : angle_vec) {
+			if (angles.theta != M_PI_2) {
+				throw std::runtime_error("For 2D RCS Post-Processing, angle theta must be pi/2 in every angle pair.");
+			}
+		}
+	}
+}
 
 RCSManager::RCSManager(const std::string& data_path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
 	auto dim{ Mesh::LoadFromFile(data_path + "/mesh", 1, 0).Dimension() };
 	std::string dim_str;
 	dim == 2 ? dim_str = "2D_" : dim_str = "3D_";
+
+	checkAnglesFor2DProblems(dim, angle_vec);
 
 	std::vector<double> rescaled_frequencies(frequencies.size());
 	for (auto f{0}; f < rescaled_frequencies.size(); f++){
