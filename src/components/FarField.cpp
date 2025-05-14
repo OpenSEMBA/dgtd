@@ -124,19 +124,28 @@ std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteEl
 {
 	auto res{ std::make_unique<LinearForm>(&fes) };
 	auto marker{ getNearToFarFieldMarker(fes.GetMesh()->bdr_attributes.Max()) };
-	Direction final_dir;
-	if (dir == Z) {
-		if (fes.GetMesh()->Dimension() == 2) {
+	Direction final_dir = dir;
+	switch (fes.GetMesh()->Dimension()) {
+	case 2:
+		if (dir == Z) {
 			final_dir = X;
+			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->Assemble();
+			res.get()->Set(0.0, *res.get());
+			break;
 		}
 		else {
-			final_dir = dir;
+			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->Assemble();
+			break;
 		}
-	}
-	res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
-	res->Assemble();
-	if (fes.GetMesh()->Dimension() == 2) {
-		res.get()->Set(0.0, *res.get());
+		break;
+	case 3:
+		res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+		res->Assemble();
+		break;
+	default:
+		throw std::runtime_error("RCS Post processing only supported for dimensions 2 and 3.");
 	}
 	return res;
 }
@@ -383,23 +392,12 @@ void FreqFields::normaliseFields(const double value)
 
 FarField::FarField(const std::string& data_path, const std::string& json_path, std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
-	auto case_data = driver::parseJSONfile(json_path);
-	auto mesh_string = driver::assembleMeshString(case_data["model"]["filename"]);
-	auto full_mesh = Mesh::LoadFromFile(mesh_string, 1, 0);
-	auto fec = new DG_FECollection(case_data["solver_options"]["order"], full_mesh.Dimension(), BasisType::GaussLobatto);
-	auto full_fes = FiniteElementSpace(&full_mesh, fec);
-
-	Probes probes = driver::buildProbes(case_data);
-	NearToFarFieldSubMesher ntff_sub(full_mesh, full_fes, buildSurfaceMarker(probes.nearFieldProbes[0].tags, full_fes));
-
-	auto mesh = ntff_sub.getSubMesh();
-	mesh->SetCurvature(case_data["solver_options"]["order"]);
-	mesh->Finalize();
-	fes_ = buildFESFromGF(*mesh, data_path);
+	auto mesh = Mesh::LoadFromFile(data_path + "/mesh");
+	fes_ = buildFESFromGF(mesh, data_path);
 
 	pot_rad_ = initAngles2FreqValues(frequencies, angle_vec);
 
-	FreqFields freqfields{ calculateFreqFields(*mesh, frequencies, data_path) };
+	FreqFields freqfields{ calculateFreqFields(mesh, frequencies, data_path) };
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
@@ -412,9 +410,6 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}
-
-	delete fec;
-
 }
 
 }

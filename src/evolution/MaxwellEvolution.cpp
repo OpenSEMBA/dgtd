@@ -41,7 +41,7 @@ namespace maxwell {
 
 		if (pd_.model.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != pd_.model.getTotalFieldScatteredFieldToMarker().end()) {
 			srcmngr.initTFSFPreReqs(pd_.model.getConstMesh(), pd_.model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
-			auto globalTFSFfes{ srcmngr.getGlobalTFSFSpace() };
+			auto globalTFSFfes{ srcmngr.getGlobalTFSFSpace() };			
 			Model tfsfModel = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
 			ProblemDescription tfsfPD(tfsfModel, pd_.probes, pd_.sources, pd_.opts);
 			DGOperatorFactory tfsfFactory(tfsfPD, *globalTFSFfes);

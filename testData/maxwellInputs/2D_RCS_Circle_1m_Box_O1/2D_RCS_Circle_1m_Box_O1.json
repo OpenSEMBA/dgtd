@@ -4,15 +4,15 @@
     "hesthaven_operator": true,
 	  "time_step": 1e-2,
     "final_time": 15.0,
-    "order": 3
+    "order": 1
   },
   "model": {
-    "filename": "2D_RCS_Circle_1m_Box_O3.msh",
+    "filename": "2D_RCS_Circle_1m_Box_O1.msh",
     "materials": [
       {
         "tags": [
           1,
-          2
+          3
         ],
         "type": "vacuum"
       }
@@ -38,7 +38,7 @@
     },
     "farfield": [
       {
-        "name": "circle_1m_Box_O3",
+        "name": "circle_1m_Box_O1",
         "steps": 1,
         "tags": [
           3, 4, 5, 6
