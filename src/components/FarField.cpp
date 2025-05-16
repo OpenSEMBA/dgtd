@@ -234,7 +234,7 @@ std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double sprea
 {
 	std::vector<double> res(time.size());
 	for (int t = 0; t < time.size(); ++t) {
-		res[t] = exp(-0.5 * std::pow((time[t] - std::abs(mean)) / spread, 2.0));
+		res[t] = std::exp(-std::pow(time[t] - std::abs(mean), 2.0) / (2.0 * std::pow(spread, 2.0)));
 	}
 	return res;
 }
