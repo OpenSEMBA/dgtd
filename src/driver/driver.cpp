@@ -276,8 +276,8 @@ Probes buildProbes(const json& case_data)
 			if (case_data["probes"]["farfield"][p].contains("export_path")) {
 				probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
 			}
-			if (case_data["probes"]["farfield"][p].contains("export_steps")) {
-				probe.expSteps = case_data["probes"]["farfield"][p]["export_steps"];
+			if (case_data["probes"]["farfield"][p].contains("steps")) {
+				probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
 			}
 			if (case_data["probes"]["farfield"][p].contains("tags")) {
 				std::vector<int> tags;
