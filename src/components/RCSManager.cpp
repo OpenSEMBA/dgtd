@@ -6,7 +6,7 @@ using namespace mfem;
 
 using json = nlohmann::json;
 
-static std::vector<double> buildNormalizationTerm(const std::string& json_path, const std::string& path, std::vector<double>& frequencies)
+static std::vector<double> buildIncomingPowerTerm(const std::string& json_path, const std::string& path, std::vector<double>& frequencies)
 {
 
 	auto case_data = driver::parseJSONfile(json_path);
@@ -51,8 +51,6 @@ void checkAnglesFor2DProblems(const int dim, const std::vector<SphericalAngles>&
 RCSManager::RCSManager(const std::string& data_path, const std::string& json_path, std::vector<double>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
 	auto dim{ Mesh::LoadFromFile(data_path + "/mesh", 1, 0).Dimension() };
-	std::string dim_str;
-	dim == 2 ? dim_str = "2D_" : dim_str = "3D_";
 
 	checkAnglesFor2DProblems(dim, angle_vec);
 
@@ -70,7 +68,7 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 	}
 
 	FarField ff(data_path, json_path, rescaled_frequencies, angle_vec);
-	auto pot_inc{ buildNormalizationTerm(json_path, data_path, rescaled_frequencies) };
+	auto pot_inc{ buildIncomingPowerTerm(json_path, data_path, rescaled_frequencies) };
 
 	if (!std::filesystem::is_directory(data_path + "/farfield") || !std::filesystem::exists(data_path + "/farfield")) {
 		std::filesystem::create_directory(data_path + "/farfield");
@@ -102,8 +100,9 @@ RCSManager::RCSManager(const std::string& data_path, const std::string& json_pat
 
 	for (int f{ 0 }; f < rescaled_frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
-			//landa = physicalConstants::speedOfLight / rescaled_frequencies[f];
-			auto const_term = 4.0 * M_PI * std::pow(obs_radius, 2.0) / pot_inc[f]; // We defined FarField as magnitude, thus we need to include the r^2 found in Equation 8.36 in Taflove's book.
+			auto const_term = 4.0 * M_PI / pot_inc[f];
+			// dim == 2 ? const_term /= 2.0 : const_term /= M_PI; // If problem is 2D, we divide by the visible length of the circle area of rad 1 (2.0). 
+															      // If 3D, by the equivalent surface area of the visible face of the sphere of rad 1 (PI).
 			RCSdata_[angpair][rescaled_frequencies[f]] = const_term * ff.getPotRad(angpair, rescaled_frequencies[f]);
 		}
 	}
