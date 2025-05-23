@@ -174,8 +174,8 @@ TEST_F(Solver1DTest, pmc_upwind)
 TEST_F(Solver1DTest, sma_centered)
 {
 	SolverOptions opts{};
-	opts.evolution.fluxType = FluxType::Centered;
-	opts.evolution.alpha = 1.0;
+	opts.evolution.fluxType = FluxType::Upwind;
+	opts.evolution.alpha = 0.025;
 
 	Probes probes{ buildProbesEmpty() };
 	probes.exporterProbes = {

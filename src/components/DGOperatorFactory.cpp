@@ -17,7 +17,7 @@ namespace maxwell {
 	FluxBdrCoefficientsCentered bdrCentCoeff{
 		{BdrCond::PEC               ,	{2.0, 0.0}},
 		{BdrCond::PMC               ,	{0.0, 2.0}},
-		{BdrCond::SMA               ,	{0.0, 0.0}},
+		{BdrCond::SMA               ,	{1.0, 1.0}},
 		{BdrCond::SurfaceCond       ,   {1.0, 1.0}},
 	};
 
