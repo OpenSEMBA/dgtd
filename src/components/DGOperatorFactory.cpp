@@ -162,7 +162,7 @@ namespace maxwell {
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator({}, c[kv.first].at(f)), kv.second);
+					new mfemExtension::MaxwellSMAJumpIntegrator({}, 1.0), kv.second);
 			}
 		}
 
@@ -193,7 +193,7 @@ namespace maxwell {
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
 			}
 		}
 
@@ -224,7 +224,7 @@ namespace maxwell {
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
 			}
 		}
 
@@ -242,7 +242,7 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator({}, c[kv.first].at(f)), kv.second);
+						new mfemExtension::MaxwellSMAJumpIntegrator({}, 1.0), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
@@ -266,7 +266,7 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
@@ -290,7 +290,7 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(

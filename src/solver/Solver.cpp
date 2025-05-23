@@ -76,17 +76,16 @@ Solver::Solver(
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
+	
 	if ((opts.evolution.order < 0) ||
 		(opts.finalTime < 0)) {
 		throw std::runtime_error("Incorrect parameters in Options");
 	}
 
-	for (const auto& bdrMarker : model_.getBoundaryToMarker())
-	{
-		if (bdrMarker.first == BdrCond::SMA && opts_.evolution.fluxType == FluxType::Centered) {
-			throw std::runtime_error("SMA and Centered FluxType are not compatible.");
-		}
+	if (opts.cfl <= 0.0) {
+		throw std::runtime_error("CFL must be positive");
 	}
+
 }
 
 const FieldProbe& Solver::getPointProbe(const std::size_t probe) const 
