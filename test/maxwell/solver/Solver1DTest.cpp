@@ -171,6 +171,31 @@ TEST_F(Solver1DTest, pmc_upwind)
 	expectFieldsAreNearAfterEvolution(solver);
 }
 
+TEST_F(Solver1DTest, sma_centered)
+{
+	SolverOptions opts{};
+	opts.evolution.fluxType = FluxType::Centered;
+	opts.evolution.alpha = 1.0;
+
+	Probes probes{ buildProbesEmpty() };
+	probes.exporterProbes = {
+		ExporterProbe{ "sma_centered", 1 }
+	};
+	maxwell::Solver solver(
+		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+		probes,
+		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), unitVec(Y)),
+		opts
+	);
+
+	EXPECT_NE(0.0, solver.getFields().get(E,Y).Norml2());
+	EXPECT_NEAR(0.0, solver.getFields().get(H,Z).Norml2(), 2e-3);
+
+	solver.run();
+
+	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
+}
+
 TEST_F(Solver1DTest, sma)
 {
 	maxwell::Solver solver(

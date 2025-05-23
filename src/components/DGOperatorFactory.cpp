@@ -1,5 +1,9 @@
 #include "DGOperatorFactory.h"
 
+#include <chrono>
+#include <iostream>
+#include <string>
+
 namespace maxwell {
 	
 	using namespace mfem;
@@ -101,12 +105,7 @@ namespace maxwell {
 	DGOperatorFactory::DGOperatorFactory(ProblemDescription& pd, FiniteElementSpace& fes) :
 		pd_(pd),
 		fes_(fes)
-	{
-		if (pd_.opts.alpha != 1.0 && pd_.opts.fluxType == FluxType::Upwind) {
-			intCoeff[FluxType::Upwind][1] = pd_.opts.alpha;
-		}
-
-	}
+	{}
 
 	FiniteElementOperator DGOperatorFactory::buildInverseMassMatrixSubOperator(const FieldType& f)
 	{
@@ -145,12 +144,12 @@ namespace maxwell {
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(
-					new MaxwellDGZeroNormalJumpIntegrator(intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType))), kv.second);
+					new MaxwellDGZeroNormalJumpIntegrator(intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha), kv.second);
 			}
 		}
 		else {
 			res->AddInteriorFaceIntegrator(
-				new MaxwellDGZeroNormalJumpIntegrator(intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType))));
+				new MaxwellDGZeroNormalJumpIntegrator(intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha));
 		}
 
 		for (auto& kv : pd_.model.getBoundaryToMarker()) {
@@ -158,11 +157,11 @@ namespace maxwell {
 			auto c = bdrCoeffCheck(pd_.opts.fluxType);
 			if (kv.first != BdrCond::SMA) {
 				res->AddBdrFaceIntegrator(
-					new MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f)), kv.second);
+					new MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f) * pd_.opts.alpha), kv.second);
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator({}, 1.0), kv.second);
+					new mfemExtension::MaxwellSMAJumpIntegrator({}), kv.second);
 			}
 		}
 
@@ -193,7 +192,7 @@ namespace maxwell {
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
+					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
 			}
 		}
 
@@ -207,12 +206,12 @@ namespace maxwell {
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(
-					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType))), kv.second);
+					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha), kv.second);
 			}
 		}
 		else {
 			res->AddInteriorFaceIntegrator(
-				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType))));
+				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha));
 		}
 
 		for (auto& kv : pd_.model.getBoundaryToMarker()) {
@@ -220,11 +219,11 @@ namespace maxwell {
 			auto c = bdrCoeffCheck(pd_.opts.fluxType);
 			if (kv.first != BdrCond::SMA) {
 				res->AddBdrFaceIntegrator(
-					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
+					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
 			}
 		}
 
@@ -242,11 +241,11 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator({}, 1.0), kv.second);
+						new mfemExtension::MaxwellSMAJumpIntegrator({}), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, c[kv.first].at(f)), kv.second);
+						new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
 					break;
 				}
 			}
@@ -266,7 +265,7 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
+						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
@@ -290,11 +289,11 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms, 1.0), kv.second);
+						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
 					break;
 				}
 			}
@@ -546,10 +545,15 @@ namespace maxwell {
 	std::unique_ptr<SparseMatrix> DGOperatorFactory::buildTFSFGlobalOperator()
 	{
 
+#ifdef SHOW_TIMER_INFORMATION
+		auto startTime{ std::chrono::high_resolution_clock::now() };
+#endif
+
 		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
 
+
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
 #endif
@@ -559,7 +563,7 @@ namespace maxwell {
 		if (pd_.opts.fluxType == FluxType::Upwind) {
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
 #endif	
@@ -568,7 +572,7 @@ namespace maxwell {
 
 
 #ifdef SHOW_TIMER_INFORMATION	
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
 #endif	
@@ -581,15 +585,19 @@ namespace maxwell {
 		return res;
 
 	}
+
 	std::unique_ptr<SparseMatrix> DGOperatorFactory::buildGlobalOperator()
 	{
 
+#ifdef SHOW_TIMER_INFORMATION
+		auto startTime{ std::chrono::high_resolution_clock::now() };
+#endif
 		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
 
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
 #endif
@@ -598,9 +606,8 @@ namespace maxwell {
 
 			if (pd_.opts.fluxType == FluxType::Upwind) {
 
-
 #ifdef SHOW_TIMER_INFORMATION
-				std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 				std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
@@ -608,7 +615,7 @@ namespace maxwell {
 				addGlobalZeroNormalIBFIOperators(res.get());
 
 #ifdef SHOW_TIMER_INFORMATION
-				std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 				std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
 #endif
@@ -619,7 +626,7 @@ namespace maxwell {
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
 #endif
@@ -627,7 +634,7 @@ namespace maxwell {
 		addGlobalDirectionalOperators(res.get());
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
 #endif
@@ -637,7 +644,7 @@ namespace maxwell {
 		if (pd_.opts.fluxType == FluxType::Upwind) {
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
@@ -645,7 +652,7 @@ namespace maxwell {
 
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
 #endif

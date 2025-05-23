@@ -1,5 +1,10 @@
 #include "MaxwellEvolution.h"
 
+#include <chrono>
+#include <algorithm>
+#include <iostream>
+#include <string>
+
 namespace maxwell {
 
 	using namespace mfem;
@@ -53,7 +58,7 @@ namespace maxwell {
 			MInvTFSF_ = tfsfFactory.buildMaxwellInverseMassMatrixOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
@@ -61,14 +66,14 @@ namespace maxwell {
 			MP_GTFSF_ = tfsfFactory.buildMaxwellZeroNormalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
 #endif
 			MFN_GTFSF_ = tfsfFactory.buildMaxwellOneNormalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
 #endif
@@ -78,7 +83,7 @@ namespace maxwell {
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
 #endif
@@ -88,21 +93,21 @@ namespace maxwell {
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
 			MPB_ = dgFactory.buildMaxwellIntBdrZeroNormalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
 #endif
 			MFNB_ = dgFactory.buildMaxwellIntBdrOneNormalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
 #endif
@@ -112,7 +117,7 @@ namespace maxwell {
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
 #endif
@@ -120,7 +125,7 @@ namespace maxwell {
 		MS_ = dgFactory.buildMaxwellDirectionalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
@@ -128,7 +133,7 @@ namespace maxwell {
 		MP_ = dgFactory.buildMaxwellZeroNormalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
 #endif
@@ -136,7 +141,7 @@ namespace maxwell {
 		MFN_ = dgFactory.buildMaxwellOneNormalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
 #endif
@@ -144,7 +149,7 @@ namespace maxwell {
 		MFNN_ = dgFactory.buildMaxwellTwoNormalOperator();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Operator assembly finished" << std::endl;
 		std::cout << std::endl;

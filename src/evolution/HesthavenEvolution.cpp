@@ -1,5 +1,9 @@
 #include "HesthavenEvolution.h"
 
+#include <chrono>
+#include <iostream>
+#include <string>
+
 namespace maxwell {
 
 using MatricesSet = std::set<DynamicMatrix, MatrixCompareLessThan>;
@@ -294,8 +298,8 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.SMA.vmapB[m].size(); v++) {
 				if (!isDoFinCurvedElement(bdrMaps.SMA.vmapB[m][v])) {
-					out.e_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.SMA.vmapB[m][v]];
-					out.h_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.SMA.vmapB[m][v]];
+					out.e_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.SMA.vmapB[m][v]] / opts_.alpha;
+					out.h_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.SMA.vmapB[m][v]] / opts_.alpha;
 				}
 			}
 		}
@@ -400,7 +404,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 #ifdef SHOW_TIMER_INFORMATION
 	std::cout << "------------------------------------------------" << std::endl;
 	std::cout << std::endl;
-	std::cout << std::tostring(linearElements_.Size()) + " linear elements out of " + std::tostring(->GetNE()) + " total elements." << std::endl;
+	std::cout << std::to_string(linearElements_.Size()) + " linear elements out of " + std::to_string(cmesh->GetNE()) + " total elements." << std::endl;
 	std::cout << std::endl;
 	std::cout << "------------------------------------------------" << std::endl;
 #endif
@@ -433,7 +437,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 #ifdef SHOW_TIMER_INFORMATION
 	std::cout << "------------------------------------------------" << std::endl;
 	std::cout << std::endl;
-	std::cout << std::tostring(curvedElements_.Size()) + " linear elements out of " + std::tostring(->GetNE()) + " total elements." << std::endl;
+	std::cout << std::to_string(curvedElements_.size()) + " linear elements out of " + std::to_string(cmesh->GetNE()) + " total elements." << std::endl;
 	std::cout << std::endl;
 	std::cout << "------------------------------------------------" << std::endl;
 #endif

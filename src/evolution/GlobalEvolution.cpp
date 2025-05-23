@@ -1,5 +1,7 @@
 #include "GlobalEvolution.h"
 
+#include <chrono>
+
 namespace maxwell {
 
 GlobalEvolution::GlobalEvolution(
