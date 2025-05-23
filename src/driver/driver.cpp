@@ -204,6 +204,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 			else if (case_data["solver_options"]["solver_type"] == "upwind") {}
 		}
 
+		if (case_data["solver_options"].contains("upwind_alpha")) {
+			res.setUpwindAlpha(case_data["solver_options"]["upwind_alpha"]);
+		}
+
 		if (case_data["solver_options"].contains("time_step")) {
 			res.setTimeStep(case_data["solver_options"]["time_step"]);
 		}

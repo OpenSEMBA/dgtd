@@ -33,6 +33,12 @@ struct SolverOptions {
         return *this;
     };
 
+        SolverOptions& setUpwindAlpha(double alpha) 
+    {
+        evolution.alpha = alpha;
+        return *this;
+    };
+
     SolverOptions& setCFL(double cfl) 
     {
         cfl = cfl;

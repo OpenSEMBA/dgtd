@@ -101,7 +101,12 @@ namespace maxwell {
 	DGOperatorFactory::DGOperatorFactory(ProblemDescription& pd, FiniteElementSpace& fes) :
 		pd_(pd),
 		fes_(fes)
-	{}
+	{
+		if (pd_.opts.alpha != 1.0 && pd_.opts.fluxType == FluxType::Upwind) {
+			intCoeff[FluxType::Upwind][1] = pd_.opts.alpha;
+		}
+
+	}
 
 	FiniteElementOperator DGOperatorFactory::buildInverseMassMatrixSubOperator(const FieldType& f)
 	{
