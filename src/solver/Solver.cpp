@@ -300,7 +300,7 @@ void Solver::run()
 			printSimulationInformation(time_, dt_, opts_.finalTime);
 			lastPrintTime = currentTime;
 		}
-		if (this->fields_.getNorml2() > 1e100){
+		if (this->fields_.getNorml2() > 1e20){
 			std::cout << "------------------------------------------------------------------------" << std::endl;
 			std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
 			std::cout << "------------------------------------------------------------------------" << std::endl;

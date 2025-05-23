@@ -350,6 +350,15 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	opts_(opts),
 	connectivity_(model, fes)
 {
+
+#ifdef SHOW_TIMER_INFORMATION
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << "Hesthaven Evolution Operator is being initialized." << std::endl;
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+#endif
+
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
 
@@ -388,6 +397,14 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
 
+#ifdef SHOW_TIMER_INFORMATION
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << std::tostring(linearElements_.Size()) + " linear elements out of " + std::tostring(->GetNE()) + " total elements." << std::endl;
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+#endif
+
 	for (int e = 0; e < linearElements_.Size(); e++)
 	{
 		HesthavenElement hestElem;
@@ -413,6 +430,14 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		hestElemLinearStorage_[e] = hestElem;
 	}
 	
+#ifdef SHOW_TIMER_INFORMATION
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << std::tostring(curvedElements_.Size()) + " linear elements out of " + std::tostring(->GetNE()) + " total elements." << std::endl;
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+#endif
+
 	if (curvedElements_.size()) {
 		Probes probes;
 		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);

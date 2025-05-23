@@ -1,0 +1,71 @@
+{
+  "solver_options": {
+    "solver_type": "upwind",
+    "global_operator": true,
+	  "time_step": 1e-2,
+    "final_time": 30.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "3D_RCS_Sphere_Box_1m_O3.msh",
+    "materials": [
+      {
+        "tags": [
+          2,
+          4
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          9
+        ],
+        "type": "PEC"
+      },
+      {
+        "tags": [
+          10
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "steps": 500
+    },
+    "farfield": [
+      {
+        "name": "sphere_Box_1m_O3",
+        "steps": 5,
+        "tags": [
+          3, 4, 5, 6, 7, 8
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "propagation": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        3, 4, 5, 6, 7, 8
+      ],
+      "magnitude": {
+        "spread": 0.20,
+        "mean": [0.0, 0.0, -4.0]
+      }
+    }
+  ]
+}

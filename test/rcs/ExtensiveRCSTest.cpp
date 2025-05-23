@@ -98,6 +98,68 @@ TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_1m_O1_Z)
 	RCSManager rcs("NearToFarFieldExports/sphere_1m_O1_Z", maxwellCase("3D_RCS_Sphere_1m_O1_Z"), frequencies_manual, angles);
 }
 
+TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O1_monostatic)
+{
+
+	//std::vector<double> frequencies_manual({ 3.75e7, 3e8 / 2.0 / M_PI, 7.5e7, 1.5e8, 3e8, 6e8, 1e9 });
+	//  std::vector<double> frequencies_manual({ 1e8 });
+	 auto frequencies_manual = linspace(1e6, 1e9, 200);
+
+	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
+	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_O1", maxwellCase("3D_RCS_Sphere_Box_1m_O1"), frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O2_monostatic)
+{
+
+	//std::vector<double> frequencies_manual({ 3.75e7, 3e8 / 2.0 / M_PI, 7.5e7, 1.5e8, 3e8, 6e8, 1e9 });
+	//  std::vector<double> frequencies_manual({ 1e8 });
+	auto frequencies_manual = linspace(1e6, 1e9, 200);
+
+	 auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
+	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_O2", maxwellCase("3D_RCS_Sphere_Box_1m_O2"), frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O3_monostatic)
+{
+
+	//std::vector<double> frequencies_manual({ 3.75e7, 3e8 / 2.0 / M_PI, 7.5e7, 1.5e8, 3e8, 6e8, 1e9 });
+	//  std::vector<double> frequencies_manual({ 1e8 });
+	auto frequencies_manual = linspace(1e6, 1e9, 200);
+
+	 auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
+	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_O3", maxwellCase("3D_RCS_Sphere_Box_1m_O3"), frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O1_bistatic)
+{
+
+	//std::vector<double> frequencies_manual({ 3.75e7, 3e8 / 2.0 / M_PI, 7.5e7, 1.5e8, 3e8, 6e8, 1e9 });
+	std::vector<double> frequencies_manual({ 1e8 });
+
+	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
+	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_O1", maxwellCase("3D_RCS_Sphere_Box_1m_O1"), frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O2_bistatic)
+{
+
+	//std::vector<double> frequencies_manual({ 3.75e7, 3e8 / 2.0 / M_PI, 7.5e7, 1.5e8, 3e8, 6e8, 1e9 });
+	std::vector<double> frequencies_manual({ 1e8 });
+
+	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
+	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_O2", maxwellCase("3D_RCS_Sphere_Box_1m_O2"), frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O3_bistatic)
+{
+
+	//std::vector<double> frequencies_manual({ 3.75e7, 3e8 / 2.0 / M_PI, 7.5e7, 1.5e8, 3e8, 6e8, 1e9 });
+	std::vector<double> frequencies_manual({ 1e8 });
+
+	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
+	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_O3", maxwellCase("3D_RCS_Sphere_Box_1m_O3"), frequencies_manual, angles);
+}
 
 TEST_F(ExtensiveRCSTest, RCSDataExporter)
 {
