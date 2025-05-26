@@ -21,13 +21,13 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 {
 	if (!opts_.highOrderMesh) {
-		if (opts_.hesthavenOperator) {
+		if (opts_.evolution.op == EvolutionOperatorType::Hesthaven) {
 			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 		}
-		else if (opts_.globalOperator) {
+		else if (opts_.evolution.op == EvolutionOperatorType::Global) {
 			return std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 		}
-		else {
+		else if (opts_.evolution.op == EvolutionOperatorType::Maxwell){
 			ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
 			return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);
 		}
@@ -58,17 +58,17 @@ Solver::Solver(
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 
-	maxwellEvol_ = assignEvolutionOperator();
-	maxwellEvol_->SetTime(time_);
+	evolTDO_ = assignEvolutionOperator();
+	evolTDO_->SetTime(time_);
 
 	if (opts_.timeStep == 0.0) {
-		dt_ = estimateTimeStep();
+		dt_ = estimateTimeStep(model_, opts_, *fes_, evolTDO_.get());
 	}
 	else {
 		dt_ = opts_.timeStep;
 	}
 
-	odeSolver_->Init(*maxwellEvol_);
+	odeSolver_->Init(*evolTDO_);
 
 	probesManager_.updateProbes(time_);
 
@@ -216,44 +216,44 @@ double calc3DMeshTimeStep(FiniteElementSpace& fes)
 	}
 }
 
-double Solver::estimateTimeStep() const
+double estimateTimeStep(const Model& model, const SolverOptions& opts, FiniteElementSpace& fes, const TimeDependentOperator* tdo)
 {
-	if (opts_.hesthavenOperator != true) {
-		if (model_.getConstMesh().Dimension() == 1) {
+	if (opts.evolution.op != EvolutionOperatorType::Hesthaven) {
+		if (model.getConstMesh().Dimension() == 1) {
 			double maxTimeStep{ 0.0 };
-			if (opts_.evolution.order == 0) {
-				maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight;
+			if (opts.evolution.order == 0) {
+				maxTimeStep = getMinimumInterNodeDistance(fes) / physicalConstants::speedOfLight;
 			}
 			else {
-				maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight;
+				maxTimeStep = getMinimumInterNodeDistance(fes) / pow(opts.evolution.order, 1.5) / physicalConstants::speedOfLight;
 			}
-			return opts_.cfl * maxTimeStep;
+			return opts.cfl * maxTimeStep;
 		}
-		else if (model_.getConstMesh().Dimension() == 2) {
-			return calc2DMeshTimeStep(*fes_.get()) * opts_.cfl;
+		else if (model.getConstMesh().Dimension() == 2) {
+			return calc2DMeshTimeStep(fes) * opts.cfl;
 		}
-		else if (model_.getConstMesh().Dimension() == 3) {
-			return calc3DMeshTimeStep(*fes_.get()) * opts_.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
+		else if (model.getConstMesh().Dimension() == 3) {
+			return calc3DMeshTimeStep(fes) * opts.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
 		}
 		else {
 			throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
 		}
 	}
 	else {
-		if (model_.getConstMesh().Dimension() == 2) {
-			return calc2DMeshTimeStep(*fes_.get()) * opts_.cfl;
+		if (model.getConstMesh().Dimension() == 2) {
+			return calc2DMeshTimeStep(fes) * opts.cfl;
 		}
-		else if (model_.getConstMesh().Dimension() == 3) {
+		else if (model.getConstMesh().Dimension() == 3) {
 			auto maxFscaleVal{ 0.0 };
-			const auto& evol = dynamic_cast<HesthavenEvolution*>(this->maxwellEvol_.get());
-			for (auto e{ 0 }; e < model_.getConstMesh().GetNE(); e++) {
+			const auto& evol = dynamic_cast<const HesthavenEvolution*>(tdo);
+			for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++) {
 				const auto& fscaleMax{ evol->getHesthavenElement(e).fscale.maxCoeff() };
 				if (fscaleMax > maxFscaleVal) {
 					maxFscaleVal = fscaleMax;
 				}
 			}
-			const auto& order = fes_->FEColl()->GetOrder();
-			return 1.0 * opts_.cfl / (maxFscaleVal * order * order);
+			const auto& order = fes.FEColl()->GetOrder();
+			return 1.0 * opts.cfl / (maxFscaleVal * order * order);
 		}
 		else {
 			throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");

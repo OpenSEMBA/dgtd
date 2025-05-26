@@ -232,12 +232,19 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.highOrderMesh = true;
 		}
 
-		if (case_data["solver_options"].contains("hesthaven_operator")) {
-			res.setHesthavenOperator(case_data["solver_options"]["hesthaven_operator"]);
-		}
-
-		if (case_data["solver_options"].contains("global_operator")) {
-			res.setGlobalOperator(case_data["solver_options"]["global_operator"]);
+		if (case_data["solver_options"].contains("evolution_operator")) {
+			if (case_data["solver_options"]["evolution_operator"] == "maxwell") {
+				res.setEvolutionOperator(EvolutionOperatorType::Maxwell);
+			}
+			else if (case_data["solver_options"]["evolution_operator"] == "global") {
+				res.setEvolutionOperator(EvolutionOperatorType::Global);
+			}
+			else if (case_data["solver_options"]["evolution_operator"] == "hesthaven") {
+				res.setEvolutionOperator(EvolutionOperatorType::Hesthaven);
+			}
+			else {
+				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none chosen, it will default to 'global'.");
+			}
 		}
 
 		if (case_data["solver_options"].contains("basis_type")) {

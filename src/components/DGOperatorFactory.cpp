@@ -604,7 +604,7 @@ namespace maxwell {
 
 			addGlobalOneNormalIBFIOperators(res.get());
 
-			// if (pd_.opts.fluxType == FluxType::Upwind) {
+			if (pd_.opts.alpha != 0.0) {
 
 #ifdef SHOW_TIMER_INFORMATION
 				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -622,7 +622,7 @@ namespace maxwell {
 
 				addGlobalTwoNormalIBFIOperators(res.get());
 
-			// }
+			}
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -641,7 +641,7 @@ namespace maxwell {
 
 		addGlobalOneNormalOperators(res.get());
 
-		// if (pd_.opts.fluxType == FluxType::Upwind) {
+		if (pd_.opts.alpha != 0.0) {
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -659,7 +659,7 @@ namespace maxwell {
 
 			addGlobalTwoNormalOperators(res.get());
 
-		// }
+		}
 
 		res->Finalize();
 		return res;

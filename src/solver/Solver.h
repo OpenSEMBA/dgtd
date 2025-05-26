@@ -22,6 +22,9 @@
 
 namespace maxwell {
 
+std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec);
+double estimateTimeStep(const Model&, const SolverOptions&, FiniteElementSpace&, const TimeDependentOperator*);
+
 class Solver {
 public:
     using Vector = mfem::Vector;
@@ -43,10 +46,8 @@ public:
 
     Model& getModel() { return model_; }
     FiniteElementSpace& getFES() { return *fes_.get(); }
-    
-    double estimateTimeStep() const;
 
-    const mfem::TimeDependentOperator* getFEEvol() const { return maxwellEvol_.get(); }
+    const mfem::TimeDependentOperator* getFEEvol() const { return evolTDO_.get(); }
 
     void run();
     void step();
@@ -70,7 +71,7 @@ private:
     double dt_;
     std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
     
-    std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
+    std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
