@@ -198,12 +198,6 @@ SolverOptions buildSolverOptions(const json& case_data)
 
 	if (case_data.contains("solver_options")) {
 
-		if (case_data["solver_options"].contains("solver_type")) {
-			if (case_data["solver_options"]["solver_type"] == "centered")
-				res.setCentered();
-			else if (case_data["solver_options"]["solver_type"] == "upwind") {}
-		}
-
 		if (case_data["solver_options"].contains("upwind_alpha")) {
 			res.setUpwindAlpha(case_data["solver_options"]["upwind_alpha"]);
 		}

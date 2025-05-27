@@ -90,7 +90,7 @@ TEST_F(Solver1DTest, pec_centered)
 		probes,
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setCentered()
+			.setUpwindAlpha(0.0)
 	};
 	
 	GridFunction eOld{ solver.getField(E,Y) };
@@ -141,7 +141,7 @@ TEST_F(Solver1DTest, pmc_centered)
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
 		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
-		SolverOptions{}.setCentered()
+		SolverOptions{}.setUpwindAlpha(0.0)
 	};
 
 	expectFieldsAreNearAfterEvolution(solver);
@@ -174,7 +174,6 @@ TEST_F(Solver1DTest, pmc_upwind)
 TEST_F(Solver1DTest, sma_centered)
 {
 	SolverOptions opts{};
-	opts.evolution.fluxType = FluxType::Upwind;
 	opts.evolution.alpha = 0.025;
 
 	Probes probes{ buildProbesEmpty() };

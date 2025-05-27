@@ -9,11 +9,6 @@ namespace maxwell {
 	using namespace mfem;
 	using namespace mfemExtension;
 
-	InteriorCoefficients intCoeff{
-		{FluxType::Centered, { 1.0, 0.0 }},
-		{FluxType::Upwind  , { 1.0, 1.0 }}
-	};
-
 	FluxBdrCoefficientsCentered bdrCentCoeff{
 		{BdrCond::PEC               ,	{2.0, 0.0}},
 		{BdrCond::PMC               ,	{0.0, 2.0}},
@@ -29,11 +24,11 @@ namespace maxwell {
 	};
 
 	FluxSrcCoefficientsCentered srcCentCoeff{
-		{BdrCond::TotalFieldIn      ,	{ 1.0, 1.0}},
+		{BdrCond::TotalFieldIn      ,	{1.0, 1.0}},
 	};
 
 	FluxSrcCoefficientsUpwind srcUpwindCoeff{
-		{BdrCond::TotalFieldIn      ,	{ 1.0, 1.0}},
+		{BdrCond::TotalFieldIn      ,	{1.0, 1.0}},
 	};
 
 	FieldType altField(const FieldType& f)
@@ -48,16 +43,14 @@ namespace maxwell {
 		}
 	}
 
-	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const FluxType& ft)
+	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(double alpha)
 	{
 		std::map<BdrCond, std::vector<double>> res;
-		switch (ft) {
-		case(FluxType::Centered):
+		if (alpha == 0.0) {
 			res = bdrCentCoeff;
-			break;
-		case(FluxType::Upwind):
+		}
+		else{
 			res = bdrUpwindCoeff;
-			break;
 		}
 		return res;
 	}
@@ -119,6 +112,7 @@ namespace maxwell {
 		res->Finalize();
 		return res;
 	}
+
 	FiniteElementOperator DGOperatorFactory::buildDerivativeSubOperator(const Direction& d)
 	{
 		auto res = std::make_unique<BilinearForm>(&fes_);
@@ -138,23 +132,24 @@ namespace maxwell {
 		res->Finalize();
 		return res;
 	}
+
 	FiniteElementOperator DGOperatorFactory::buildZeroNormalSubOperator(const FieldType& f)
 	{
 		auto res = std::make_unique<BilinearForm>(&fes_);
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(
-					new MaxwellDGZeroNormalJumpIntegrator(intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha), kv.second);
+					new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha), kv.second);
 			}
 		}
 		else {
 			res->AddInteriorFaceIntegrator(
-				new MaxwellDGZeroNormalJumpIntegrator(intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha));
+				new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha));
 		}
 
 		for (auto& kv : pd_.model.getBoundaryToMarker()) {
 
-			auto c = bdrCoeffCheck(pd_.opts.fluxType);
+			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA) {
 				res->AddBdrFaceIntegrator(
 					new MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f) * pd_.opts.alpha), kv.second);
@@ -169,23 +164,25 @@ namespace maxwell {
 		res->Finalize();
 		return res;
 	}
+
 	FiniteElementOperator DGOperatorFactory::buildOneNormalSubOperator(const FieldType& f, const std::vector<Direction>& dirTerms)
 	{
 		auto res = std::make_unique<BilinearForm>(&fes_);
+		ConstantCoefficient one(1.0);
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(
-					new MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType))), kv.second);
+					new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0), kv.second);
 			}
 		}
 		else {
 			res->AddInteriorFaceIntegrator(
-				new MaxwellDGOneNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType))));
+				new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0));
 		}
 
 		for (auto& kv : pd_.model.getBoundaryToMarker()) {
 
-			auto c = bdrCoeffCheck(pd_.opts.fluxType);
+			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA) {
 				res->AddBdrFaceIntegrator(
 					new MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
@@ -206,17 +203,17 @@ namespace maxwell {
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(
-					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha), kv.second);
+					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), kv.second);
 			}
 		}
 		else {
 			res->AddInteriorFaceIntegrator(
-				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, intCoeff[pd_.opts.fluxType].at(int(pd_.opts.fluxType)) * pd_.opts.alpha));
+				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha));
 		}
 
 		for (auto& kv : pd_.model.getBoundaryToMarker()) {
 
-			auto c = bdrCoeffCheck(pd_.opts.fluxType);
+			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA) {
 				res->AddBdrFaceIntegrator(
 					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
@@ -237,7 +234,7 @@ namespace maxwell {
 
 		for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 			if (kv.first != BdrCond::TotalFieldIn) {
-				auto c = bdrCoeffCheck(pd_.opts.fluxType);
+				auto c = bdrCoeffCheck(pd_.opts.alpha);
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
@@ -261,7 +258,7 @@ namespace maxwell {
 
 		for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 			if (kv.first != BdrCond::TotalFieldIn) {
-				auto c = bdrCoeffCheck(pd_.opts.fluxType);
+				auto c = bdrCoeffCheck(pd_.opts.alpha);
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
@@ -285,7 +282,7 @@ namespace maxwell {
 
 		for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 			if (kv.first != BdrCond::TotalFieldIn) {
-				auto c = bdrCoeffCheck(pd_.opts.fluxType);
+				auto c = bdrCoeffCheck(pd_.opts.alpha);
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
@@ -560,7 +557,7 @@ namespace maxwell {
 
 		addGlobalOneNormalOperators(res.get());
 
-		if (pd_.opts.fluxType == FluxType::Upwind) {
+		if (pd_.opts.alpha > 0.0) {
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>

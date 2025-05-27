@@ -483,8 +483,7 @@ void loadOutVectors(const Eigen::VectorXd& data, const FiniteElementSpace& fes, 
 
 void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 {
-	double alpha;
-	opts_.fluxType == FluxType::Upwind ? alpha = opts_.alpha : alpha = 0.0;
+	double alpha = opts_.alpha;
 	in.UseDevice(true);
 	out.UseDevice(true);
 

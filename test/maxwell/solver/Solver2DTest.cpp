@@ -132,7 +132,7 @@ TEST_F(Solver2DTest, pec_centered_tris_1dot5D)
 		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, mfem::Vector({0.5, 0.5})),
 		SolverOptions{}
-			.setCentered()
+			.setUpwindAlpha(0.0)
 			.setOrder(3)
 	};
 
@@ -148,7 +148,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D)
 		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, fieldCenter, unitVec(Z)),
 		SolverOptions{}
-			.setCentered()
+			.setUpwindAlpha(0.0)
 			.setOrder(3)
 	};
 
@@ -265,7 +265,7 @@ TEST_F(Solver2DTest, periodic_centered_tris)
 		buildPlanewaveForPeriodic(),
 		SolverOptions{}
 			.setTimeStep(5e-3) // Automated time estimation does not work with periodic meshes.
-			.setCentered()
+			.setUpwindAlpha(0.0)
 			.setOrder(3)
 		};
 
@@ -293,7 +293,7 @@ TEST_F(Solver2DTest, periodic_centered_quads)
 		buildPlanewaveForPeriodic(),
 		SolverOptions{}
 			.setTimeStep(5e-3)
-			.setCentered()
+			.setUpwindAlpha(0.0)
 			.setOrder(3)
 	};
 
@@ -481,7 +481,7 @@ TEST_F(Solver2DTest, pec_centered_quads_1dot5D_AMR)
 		buildProbes_for_1dot5D(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5, 0.5}), unitVec(Z)),
 		SolverOptions{}
-			.setCentered()
+			.setUpwindAlpha(0.0)
 			.setOrder(3)
 	};
 

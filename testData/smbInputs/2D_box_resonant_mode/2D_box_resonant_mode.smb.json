@@ -7,7 +7,7 @@
     "solverOptions": {
       "evolution": {
         "order": 2,
-        "fluxType": "centered",
+        "alpha":  0.0,
         "spectral": false
       },
       "finalTime": 2.0,

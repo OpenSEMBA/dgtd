@@ -15,7 +15,7 @@ class CasesTest : public ::testing::Test {
 TEST_F(CasesTest, 1D_PEC_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("1D_PEC"));
-	case_data["solver_options"]["solver_type"] = "centered";
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("1D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Y) };
@@ -138,7 +138,7 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 TEST_F(CasesTest, 1D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("1D_TFSF"));
-	case_data["solver_options"]["solver_type"] = "centered";
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("1D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };

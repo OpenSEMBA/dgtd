@@ -1,6 +1,6 @@
 {
   "solver_options": {
-    "solver_type": "upwind",
+    "upwind_alpha": 1.0,
     "order": 3
   },
 

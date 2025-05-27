@@ -15,7 +15,7 @@ class ExtensiveCasesTest : public ::testing::Test {
 TEST_F(ExtensiveCasesTest, 2D_PEC_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
-	case_data["solver_options"]["solver_type"] = "centered";
+        case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
@@ -80,7 +80,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_InteriorPEC_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_IntBoundary"));
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_IntBoundary"), true) };
 
 
@@ -200,9 +200,9 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_InteriorPEC_Hesthaven)
 TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
-	case_data["solver_options"]["solver_type"] = "centered";
+        case_data["solver_options"]["upwind_alpha"] = 0.0;
 	case_data["solver_options"]["order"] = 3;
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
@@ -267,9 +267,9 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Hesthaven)
 TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
-	case_data["solver_options"]["solver_type"] = "centered";
+        case_data["solver_options"]["upwind_alpha"] = 0.0;
 	case_data["solver_options"]["order"] = 3;
-	case_data["solver_options"]["global_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
@@ -335,7 +335,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Hesthaven)
 {
 
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
@@ -400,7 +400,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Hesthaven)
 TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
-	case_data["solver_options"]["global_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };
@@ -527,8 +527,8 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
-	case_data["solver_options"]["solver_type"] = "centered";
-	case_data["solver_options"]["hesthaven_operator"] = true;
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -606,8 +606,8 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
-	case_data["solver_options"]["solver_type"] = "centered";
-	case_data["solver_options"]["global_operator"] = true;
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
+	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -685,7 +685,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -763,7 +763,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Hesthaven)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
-	case_data["solver_options"]["global_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -841,7 +841,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Global)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF"));
-	case_data["solver_options"]["solver_type"] = "centered";
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -997,7 +997,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
-	case_data["solver_options"]["solver_type"] = "centered";
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	case_data["solver_options"]["time_step"] = 5e-3;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
@@ -1153,9 +1153,9 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads)
 TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Centered_Quads_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
-	case_data["solver_options"]["solver_type"] = "centered";
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	case_data["solver_options"]["time_step"] = 5e-3;
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -1234,7 +1234,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Upwind_Quads_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Quads"));
 	case_data["solver_options"]["time_step"] = 5e-3;
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Quads"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -1321,7 +1321,7 @@ TEST_F(ExtensiveCasesTest, 2D_Bessel_TEz)
 TEST_F(ExtensiveCasesTest, 2D_Bessel_TEz_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_Bessel"));
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_Bessel"), true) };
 
 	EXPECT_NO_THROW(solver.run());
@@ -1331,7 +1331,7 @@ TEST_F(ExtensiveCasesTest, 2D_Bessel_TEz_Hesthaven)
 TEST_F(ExtensiveCasesTest, 2D_Bessel_TEz_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_Bessel"));
-	case_data["solver_options"]["global_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_Bessel"), true) };
 
 	EXPECT_NO_THROW(solver.run());
@@ -1341,7 +1341,7 @@ TEST_F(ExtensiveCasesTest, 2D_Bessel_TEz_Global)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
-	case_data["solver_options"]["solver_type"] = "centered";
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -1420,8 +1420,8 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
-	case_data["solver_options"]["solver_type"] = "centered";
-	case_data["solver_options"]["hesthaven_operator"] = true;
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -1500,8 +1500,8 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
-	case_data["solver_options"]["solver_type"] = "centered";
-	case_data["solver_options"]["global_operator"] = true;
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
+	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -1771,7 +1771,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
@@ -1842,7 +1842,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Hesthaven)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_InteriorPEC"));
-	case_data["solver_options"]["hesthaven_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_InteriorPEC"), true) };
 
 	solver.run();
@@ -1960,7 +1960,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_InteriorPEC"));
-	case_data["solver_options"]["global_operator"] = true;
+	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_InteriorPEC"), true) };
 
 	solver.run();
@@ -2100,7 +2100,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 2D_Dipole_Upwind_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("2D_Dipole"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("2D_Dipole"), true) };
 //
 //	solver.run();
@@ -2109,7 +2109,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 3D_Dipole_Box_Upwind_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("3D_Dipole"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole"), true) };
 //
 //	solver.run();
@@ -2118,7 +2118,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 3D_Dipole_Sphere_Upwind_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("3D_Dipole_Sphere"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole_Sphere"), true) };
 //
 //	solver.run();
@@ -2127,7 +2127,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 3D_Dipole_Sphere_Slice_Upwind_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("3D_Dipole_Sphere_Slice"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole_Sphere_Slice"), true) };
 //
 //	solver.run();
@@ -2136,7 +2136,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 2D_Dipole_FarField_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("2D_Dipole_FarField"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("2D_Dipole_FarField"), true) };
 //
 //	solver.run();
@@ -2145,7 +2145,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 2D_TFSF_Dipole_Distant_Box_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Dipole_Distant_Box"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Dipole_Distant_Box"), true) };
 //
 //	solver.run();
@@ -2154,7 +2154,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 3D_TFSF_Dipole_Distant_Box)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("3D_Dipole_Distant_Box"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole_Distant_Box"), true) };
 //
 //	solver.run();
@@ -2163,7 +2163,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 2D_TFSF_Dipole_Distant_Line_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Dipole_Distant_Line"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Dipole_Distant_Line"), true) };
 //
 //	solver.run();
@@ -2181,7 +2181,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //TEST_F(ExtensiveCasesTest, 2D_TFSF_Oblique_Rotated_Upwind_Hesthaven)
 //{
 //	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Oblique_Rotated"));
-//	case_data["solver_options"]["hesthaven_operator"] = true;
+//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Oblique_Rotated"), true) };
 //
 //	solver.run();
@@ -2201,7 +2201,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //  TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O1)
 //  {
 //  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_O1"));
-// 	case_data["solver_options"]["hesthaven_operator"] = true;
+// 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 //  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_O1"), true) };
 
 //  	solver.run();
@@ -2210,7 +2210,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 // TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
 // {
 // 	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_O2"));
-// 	// case_data["solver_options"]["hesthaven_operator"] = true;
+// 	// case_data["solver_options"]["evolution_operator"] = "hesthaven";
 // 	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_O2"), true) };
 
 // 	solver.run();
@@ -2219,7 +2219,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 // TEST_F(ExtensiveCasesTest, 3D_Mixed_O2)
 // {
 // 	auto case_data = parseJSONfile(maxwellCase("3D_Mixed_O2"));
-// 	case_data["solver_options"]["hesthaven_operator"] = true;
+// 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 // 	auto solver{ buildSolver(case_data, maxwellCase("3D_Mixed_O2"), true) };
 
 // 	solver.run();

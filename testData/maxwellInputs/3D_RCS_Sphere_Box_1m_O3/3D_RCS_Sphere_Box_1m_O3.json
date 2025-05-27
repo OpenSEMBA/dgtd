@@ -1,8 +1,7 @@
 {
   "solver_options": {
-    "solver_type": "upwind",
-    "alpha": 0.025,
-    "global_operator": true,
+    "upwind_alpha": 1.0,
+    "evolution_operator": "global",
 	  "time_step": 1e-2,
     "final_time": 30.0,
     "order": 3

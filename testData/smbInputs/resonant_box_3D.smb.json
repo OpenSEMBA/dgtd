@@ -5,7 +5,7 @@
     "solver": "opensemba/dgtd",
     "evolutionOptions": {
       "order": 2,
-      "fluxType": "centered",
+      "alpha": 0.0,
       "spectral": true
     },
     "finalTime": 3e-09,

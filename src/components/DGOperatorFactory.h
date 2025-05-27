@@ -25,8 +25,6 @@ namespace maxwell {
 
 	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign = 1.0);
 
-	std::map<BdrCond, std::vector<double>> bdrCoeffCheck(const FluxType& ft);
-
 	class DGOperatorFactory {
 	public:
 

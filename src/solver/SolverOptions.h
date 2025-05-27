@@ -25,12 +25,6 @@ struct SolverOptions {
         return *this; 
     };
 
-    SolverOptions& setCentered() 
-    {
-        evolution.fluxType = FluxType::Centered;
-        return *this;
-    };
-
     SolverOptions& setUpwindAlpha(double alpha) 
     {
         evolution.alpha = alpha;

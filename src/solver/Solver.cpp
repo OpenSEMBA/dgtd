@@ -373,7 +373,7 @@ Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh
 		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, { y }), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
 		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, { z }), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
 
-		if (opts.fluxType == FluxType::Upwind) {
+		if (opts.alpha > 0.0) {
 
 			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildZeroNormalSubOperator(H), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
 			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildZeroNormalSubOperator(E), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);

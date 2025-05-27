@@ -1,8 +1,8 @@
 {
   "solver_options": {
-    "solver_type": "upwind",
-    "global_operator": true,
-	  "time_step": 1e-3,
+    "upwind_alpha": 1.0,
+    "evolution_operator": "global",
+	  "time_step": 1e-2,
     "final_time": 30.0,
     "order": 2
   },
@@ -34,12 +34,12 @@
   },
   "probes": {
     "exporter": {
-      "steps": 5000
+      "steps": 500
     },
     "farfield": [
       {
         "name": "sphere_Box_1m_O2",
-        "steps": 50,
+        "steps": 5,
         "tags": [
           3, 4, 5, 6, 7, 8
         ]

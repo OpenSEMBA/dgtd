@@ -58,9 +58,9 @@ TEST_F(Solver3DTest, pec_global_1dot5D)
 {
 	const double tol{ 6e-2 };
 
-	for (const auto& flux : {
-				FluxType::Centered, 
-				FluxType::Upwind}) {
+	for (const auto& alpha : {
+				0.0, 
+				1.0}) {
 		for (const auto& elementType : {
 					Element::Type::HEXAHEDRON, 
 					Element::Type::TETRAHEDRON}) {
@@ -69,7 +69,7 @@ TEST_F(Solver3DTest, pec_global_1dot5D)
 			opts.setTimeStep(10e-3)
 				.setFinalTime(2.0)
 				.setOrder(3);		
-			opts.evolution.fluxType = flux;
+			opts.evolution.alpha = alpha;
 			
 			maxwell::Solver solver{
 				buildModel(
@@ -106,9 +106,9 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 	
 	const double tol{ 50e-2 };
 
-	for (const auto& flux : {
-				FluxType::Centered, 
-				FluxType::Upwind}) {
+	for (const auto& alpha : {
+				0.0, 
+				1.0}) {
 		Mesh m;
 		{
 			Mesh cube{ Mesh::MakeCartesian3D(6,3,3,Element::HEXAHEDRON,1.0,1.0,1.0) };
@@ -124,7 +124,7 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 		opts.setTimeStep(15e-3)
 			.setFinalTime(1.0)
 			.setOrder(3);
-		opts.evolution.fluxType = flux;
+		opts.evolution.alpha = alpha;
 
 		maxwell::Solver solver{
 			Model{m},
