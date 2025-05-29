@@ -11,7 +11,7 @@ struct SGBCTransferMap {
 
 class SGBCSolver {
 
-	SGBCSolver::SGBCSolver(const Model&, const Probes&, const Sources&, const SolverOptions&);
+	SGBCSolver(const Model&, const Probes&, const Sources&, const SolverOptions&);
 	SGBCSolver(const SGBCSolver&) = delete;
 	SGBCSolver& operator=(const SGBCSolver&) = delete;
 		
