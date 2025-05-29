@@ -20,20 +20,15 @@ std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteEleme
 
 std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 {
-	if (!opts_.highOrderMesh) {
-		if (opts_.evolution.op == EvolutionOperatorType::Hesthaven) {
-			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
-		}
-		else if (opts_.evolution.op == EvolutionOperatorType::Global) {
-			return std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
-		}
-		else if (opts_.evolution.op == EvolutionOperatorType::Maxwell){
-			ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
-			return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);
-		}
+	if (opts_.evolution.op == EvolutionOperatorType::Hesthaven) {
+		return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
 	}
-	else {
-		throw std::runtime_error("Optimised Curved Operators are not supported at the moment.");
+	else if (opts_.evolution.op == EvolutionOperatorType::Global) {
+		return std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+	}
+	else if (opts_.evolution.op == EvolutionOperatorType::Maxwell){
+		ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
+		return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);
 	}
 }
 

@@ -2198,14 +2198,13 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //
 //
 
-//  TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O1)
-//  {
-//  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_O1"));
-// 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_O1"), true) };
+  TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O1)
+  {
+  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_O1"));
+  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_O1"), true) };
 
-//  	solver.run();
-//  }
+  	solver.run();
+  }
 
 // TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
 // {
