@@ -156,7 +156,7 @@ namespace maxwell {
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator({}), kv.second);
+					new MaxwellDGZeroNormalJumpIntegrator(1.0), kv.second);
 			}
 		}
 
@@ -189,7 +189,7 @@ namespace maxwell {
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
+					new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0), kv.second);
 			}
 		}
 
@@ -220,7 +220,7 @@ namespace maxwell {
 			}
 			else {
 				res->AddBdrFaceIntegrator(
-					new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
+					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, 1.0), kv.second);
 			}
 		}
 
@@ -238,7 +238,7 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator({}), kv.second);
+						new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, 1.0), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
@@ -262,7 +262,7 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
+						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
@@ -286,7 +286,7 @@ namespace maxwell {
 				switch (kv.first) {
 				case (BdrCond::SMA):
 					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellSMAJumpIntegrator(dirTerms), kv.second);
+						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
 					break;
 				default:
 					res->AddInternalBoundaryFaceIntegrator(
@@ -557,7 +557,7 @@ namespace maxwell {
 
 		addGlobalOneNormalOperators(res.get());
 
-		if (pd_.opts.alpha > 0.0) {
+		//if (pd_.opts.alpha > 0.0) {
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -576,7 +576,7 @@ namespace maxwell {
 
 			addGlobalTwoNormalOperators(res.get());
 
-		}
+		//}
 		
 		res->Finalize();
 		return res;
@@ -601,7 +601,7 @@ namespace maxwell {
 
 			addGlobalOneNormalIBFIOperators(res.get());
 
-			if (pd_.opts.alpha != 0.0) {
+			//if (pd_.opts.alpha != 0.0) {
 
 #ifdef SHOW_TIMER_INFORMATION
 				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -619,7 +619,7 @@ namespace maxwell {
 
 				addGlobalTwoNormalIBFIOperators(res.get());
 
-			}
+			//}
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -638,7 +638,7 @@ namespace maxwell {
 
 		addGlobalOneNormalOperators(res.get());
 
-		if (pd_.opts.alpha != 0.0) {
+		//if (pd_.opts.alpha != 0.0) {
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -656,7 +656,7 @@ namespace maxwell {
 
 			addGlobalTwoNormalOperators(res.get());
 
-		}
+		//}
 
 		res->Finalize();
 		return res;
