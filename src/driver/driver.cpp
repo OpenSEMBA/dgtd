@@ -541,7 +541,7 @@ maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 	return buildSolver(case_data, case_name, isTest);
 }
 
-void postProcessInformation(const json& case_data, maxwell::Model& model) 
+void postProcessInformation(const json& case_data, maxwell::Model& model, maxwell::SolverOptions& solverOpts) 
 {
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		mfem::Array<int> tfsf_tags;
@@ -558,6 +558,10 @@ void postProcessInformation(const json& case_data, maxwell::Model& model)
 		model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, marker));
 		}
 	}
+
+	if (model.getBoundaryToMarker().at(BdrCond::SMA) && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
+		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
+	}
 }
 
 maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)
@@ -568,7 +572,7 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 	maxwell::Sources sources{ buildSources(case_data) };
 	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };
 
-	postProcessInformation(case_data, model);
+	postProcessInformation(case_data, model, solverOpts);
 
 	return maxwell::Solver(model, probes, sources, solverOpts);
 }
