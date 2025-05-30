@@ -24,7 +24,7 @@
 
   "probes": {
     "exporter": {
-      "steps": 20
+      "steps": 500
     },
     "point": [
       {

@@ -1,0 +1,61 @@
+{
+  "solver_options": {
+    "upwind_alpha": 0.0,
+    "time_step": 1e-2,
+    "final_time":  45.0,
+    "order": 2
+  },
+
+  "model": {
+    "filename": "3D_Curved_Element_Test.msh",
+    "materials": [
+      {
+        "tags": [ 1, 4 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 3, 4, 7, 9, 11 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 5, 6, 8, 10 ],
+        "type": "PMC"
+      },
+      {
+        "tags": [ 1 ],
+        "type": "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 10
+    }
+  },
+
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2
+      ],
+      "magnitude": {
+        "spread": 0.20,
+        "mean": [ 0.0, 0.0, -1.0 ]
+      }
+    }
+  ]
+}

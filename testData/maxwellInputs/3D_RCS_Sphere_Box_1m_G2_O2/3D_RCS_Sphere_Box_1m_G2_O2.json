@@ -34,7 +34,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 500
+      "steps": 10
     },
     "farfield": [
       {

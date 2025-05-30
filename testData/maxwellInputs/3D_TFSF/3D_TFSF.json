@@ -1,7 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 0.0,
+    "time_step": 1e-2,
     "final_time":  6.0,
     "order": 3
   },
@@ -28,7 +28,7 @@
 
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 10
     },
     "point": [
       {

@@ -252,9 +252,14 @@ Probes buildProbes(const json& case_data)
 
 	if (case_data["probes"].contains("exporter")) {
 		ExporterProbe exporter_probe;
-		exporter_probe.name = case_data["model"]["filename"];
-		if (case_data["probes"]["exporter"].contains("expSteps")) {
-			exporter_probe.visSteps = case_data["probes"]["exporter"]["expSteps"];
+		if (case_data["probes"]["exporter"].contains("name")) {
+			exporter_probe.name = case_data["probes"]["exporter"]["name"];
+		}
+		else{
+			exporter_probe.name = case_data["model"]["filename"];
+		}
+		if (case_data["probes"]["exporter"].contains("steps")) {
+			exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
 		}
 		probes.exporterProbes.push_back(exporter_probe);
 	}
@@ -511,6 +516,12 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 		}
 		else {
 			mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+		}
+	}
+
+	if (mesh.GetNodalFESpace()){
+		if (mesh.GetNodalFESpace()->GetMaxElementOrder() > 1) {
+			mesh.SetCurvature(mesh.GetNodalFESpace()->GetMaxElementOrder(), true, mesh.SpaceDimension());
 		}
 	}
 

@@ -1417,6 +1417,91 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 }
 
 
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_SMA)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
+	case_data["probes"]["exporter"].push_back({"name", "3D_TFSF_Centered_SMA"});
+	case_data["model"]["boundaries"][0]["tags"].erase(1);
+	case_data["model"]["boundaries"].push_back({
+        { "tags", {1} },
+        { "type", "SMA" }
+    });
+	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
+
+	auto normOld{ solver.getFields().getNorml2() };
+	EXPECT_EQ(0.0, normOld);
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+
+	{
+		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
+		const auto& last_fm_time = last_fm->first;
+
+		ASSERT_GE(last_fm_time + tolerance, 6.0);
+	}
+
+	{
+		double expected_t{ 6.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+					EXPECT_NEAR(0.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 2.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(1.0, f.Ez, tolerance);
+				EXPECT_NEAR(-1.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 6.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(-1.0, f.Ez, tolerance);
+				EXPECT_NEAR(-1.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 4.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+				EXPECT_NEAR(-2.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+}
+
+
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
@@ -1603,6 +1688,89 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind)
 			if (std::abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(-0.5, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 2.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(1.0, f.Ez, tolerance);
+				EXPECT_NEAR(-1.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 6.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(-1.0, f.Ez, tolerance);
+				EXPECT_NEAR(-1.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 4.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+				EXPECT_NEAR(-2.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+}
+
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_SMA)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
+	case_data["model"]["boundaries"][0]["tags"].erase(1);
+	case_data["model"]["boundaries"].push_back({
+        { "tags", {1} },
+        { "type", "SMA" }
+    });
+	case_data["probes"]["exporter"].push_back({"name", "3D_TFSF_Upwind_SMA"});
+	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
+
+	auto normOld{ solver.getFields().getNorml2() };
+	EXPECT_EQ(0.0, normOld);
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+
+	{
+		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
+		const auto& last_fm_time = last_fm->first;
+
+		ASSERT_GE(last_fm_time + tolerance, 6.0);
+	}
+
+	{
+		double expected_t{ 6.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+					EXPECT_NEAR(0.0, f.Hy, tolerance);
 			}
 		}
 	}
@@ -2200,8 +2368,16 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 
   TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O1)
   {
-  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_O1"));
-  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_O1"), true) };
+  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"));
+  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"), true) };
+
+  	solver.run();
+  }
+
+    TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
+  {
+  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"));
+  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"), true) };
 
   	solver.run();
   }
