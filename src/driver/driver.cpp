@@ -241,9 +241,6 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setBasisType(case_data["solver_options"]["basis_type"]);
 		}
 
-		if (case_data["solver_options"].contains("write_stats")) {
-			res.setWriteStats(case_data["solver_options"]["basis_type"]);
-		}
 	}
 	return res;
 }
@@ -565,7 +562,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 		}
 	}
 
-	if (model.getBoundaryToMarker().at(BdrCond::SMA) && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
+	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getTotalFieldScatteredFieldToMarker().end() != 0 && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
 		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
 	}
 }
