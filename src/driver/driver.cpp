@@ -1,4 +1,5 @@
 #include "driver.h"
+#include "string"
 
 namespace maxwell::driver {
 
@@ -527,7 +528,16 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 	}
 
 	Model res(mesh, att_to_material, att_to_bdr_info);
-	res.meshName_ = case_path;
+	std::string filename = case_data["model"]["filename"];
+	size_t dot_position = filename.rfind(".msh");
+
+	if (dot_position != std::string::npos && dot_position == filename.size() - 4) {
+		res.meshName_ = filename.substr(0, dot_position);
+	}
+	else {
+		throw std::runtime_error("File format for mesh is not name.msh");
+	}
+
 	return res;
 }
 
@@ -562,7 +572,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 		}
 	}
 
-	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getTotalFieldScatteredFieldToMarker().end() != 0 && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
+	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getBoundaryToMarker().end() && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
 		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
 	}
 }

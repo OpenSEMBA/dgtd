@@ -51,10 +51,14 @@ Solver::Solver(
 
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initStartTime = std::chrono::steady_clock::now();
-	if (std::filesystem::is_directory("StatisticsExport/" + model_.meshName_ + "/") || std::filesystem::exists("StatisticsExport/" + model_.meshName_ + "/")) {
-		std::filesystem::remove_all("StatisticsExport/" + model_.meshName_ + "/");
-		std::filesystem::create_directory("StatisticsExport/" + model_.meshName_ + "/");
+	if (!std::filesystem::is_directory("StatisticsExport/") || !std::filesystem::exists("StatisticsExport/")) {
+		std::filesystem::create_directory("StatisticsExport/");
 	}
+	std::filesystem::path statspath("StatisticsExport/" + model_.meshName_ + "/");
+	if (std::filesystem::is_directory(statspath) || std::filesystem::exists(statspath)) {
+		std::filesystem::remove_all(statspath);
+	}
+	std::filesystem::create_directory(statspath);
 	
 #endif
 
@@ -83,7 +87,7 @@ Solver::Solver(
 	auto initEndTime = std::chrono::steady_clock::now();
 	std::ofstream myfile;
 	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
-	myfile.open(path);
+	myfile.open(path, std::ios::app);
 	if (myfile.is_open()) {
 		myfile << "Initialization Time: " << std::chrono::duration_cast<std::chrono::seconds>(initEndTime - initStartTime).count() + " (s)\n";
 	}
@@ -334,7 +338,7 @@ void Solver::run()
 	auto runEndTime = std::chrono::steady_clock::now();
 	std::ofstream myfile;
 	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
-	myfile.open(path);
+	myfile.open(path, std::ios::app);
 	if (myfile.is_open()) {
 		myfile << "Simulation Run Time: " << std::chrono::duration_cast<std::chrono::seconds>(runEndTime - runStartTime).count() + " (s)\n";
 		myfile << "Final Time: " << std::to_string(opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
