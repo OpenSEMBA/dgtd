@@ -1420,7 +1420,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_SMA)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
-	case_data["solver_options"].push_back({ "evolution_operator", "global" });
+	case_data["solver_options"].push_back({ "evolution_operator", "maxwell" });
     case_data["solver_options"]["upwind_alpha"] = 0.0;
 	case_data["solver_options"]["final_time"] = 12.0;
 	case_data["probes"]["exporter"].push_back({"name", "3D_TFSF_Centered_SMA"});
@@ -1734,7 +1734,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_SMA)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
-	case_data["solver_options"].push_back({ "evolution_operator", "global" });
+	case_data["solver_options"].push_back({ "evolution_operator", "maxwell" });
 	case_data["solver_options"]["upwind_alpha"] = 1.0;
 	case_data["solver_options"]["final_time"] = 10.0;
 	case_data["model"]["boundaries"][0]["tags"].erase(
