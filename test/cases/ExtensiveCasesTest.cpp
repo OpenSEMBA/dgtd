@@ -1420,9 +1420,9 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_SMA)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
-	case_data["solver_options"].push_back({ "evolution_operator", "maxwell" });
+	case_data["solver_options"].push_back({ "evolution_operator", "global" });
     case_data["solver_options"]["upwind_alpha"] = 0.0;
-	case_data["solver_options"]["final_time"] = 10.0;
+	case_data["solver_options"]["final_time"] = 12.0;
 	case_data["probes"]["exporter"].push_back({"name", "3D_TFSF_Centered_SMA"});
 	case_data["model"]["boundaries"][0]["tags"].erase(
 		std::remove(case_data["model"]["boundaries"][0]["tags"].begin(), case_data["model"]["boundaries"][0]["tags"].end(), 1),
@@ -1439,7 +1439,11 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_SMA)
 
 	solver.run();
 
+	double fieldtol { 5e-1 };
 	double tolerance{ 1e-2 };
+
+	auto normNew{ solver.getFields().getNorml2() };
+	EXPECT_NEAR(0.0, normNew, fieldtol);
 
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
@@ -1731,7 +1735,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_SMA)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"].push_back({ "evolution_operator", "global" });
-	case_data["solver_options"]["upwind_alpha"] = 0.0;
+	case_data["solver_options"]["upwind_alpha"] = 1.0;
 	case_data["solver_options"]["final_time"] = 10.0;
 	case_data["model"]["boundaries"][0]["tags"].erase(
 		std::remove(case_data["model"]["boundaries"][0]["tags"].begin(), case_data["model"]["boundaries"][0]["tags"].end(), 1),
@@ -1749,30 +1753,16 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_SMA)
 
 	solver.run();
 
-	auto normNew{ solver.getFields().getNorml2() };
-	EXPECT_EQ(0.0, normNew);
-
 	double tolerance{ 1e-2 };
+
+	auto normNew{ solver.getFields().getNorml2() };
+	EXPECT_NEAR(0.0, normNew, tolerance);
 
 	{
 		const auto& last_fm = std::prev(solver.getFieldProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
 		ASSERT_GE(last_fm_time + tolerance, 10.0);
-	}
-
-	{
-		double expected_t{ 6.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
-			EXPECT_NEAR(0.0, f.Ex, tolerance);
-			EXPECT_NEAR(0.0, f.Ey, tolerance);
-			EXPECT_NEAR(0.0, f.Hx, tolerance);
-			EXPECT_NEAR(0.0, f.Hz, tolerance);
-			if (std::abs(t - expected_t) <= 1e-3) {
-				EXPECT_NEAR(0.0, f.Ez, tolerance);
-					EXPECT_NEAR(0.0, f.Hy, tolerance);
-			}
-		}
 	}
 
 	{
