@@ -178,6 +178,7 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 		int z = (x + 2) % 3;
 
 		//Centered
+
 		MS_[H][y]->AddMult(eOld[z], hNew[x], -1.0);
 		MS_[H][z]->AddMult(eOld[y], hNew[x]);
 		MS_[E][y]->AddMult(hOld[z], eNew[x]);
@@ -188,18 +189,18 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 		MFN_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
 		MFN_[E][H][z]->AddMult(hOld[y], eNew[x], 1.0);
 
-		if (pd_.opts.alpha > 0.0) {
+		//Upwind
 
-			MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], 1.0);
-			MFNN_[H][H][Y][x]->AddMult(hOld[Y], hNew[x], 1.0);
-			MFNN_[H][H][Z][x]->AddMult(hOld[Z], hNew[x], 1.0);
-			MP_[H]->AddMult(hOld[x], hNew[x], -1.0);
+		MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], 1.0);
+		MFNN_[H][H][Y][x]->AddMult(hOld[Y], hNew[x], 1.0);
+		MFNN_[H][H][Z][x]->AddMult(hOld[Z], hNew[x], 1.0);
+		MP_[H]->AddMult(hOld[x], hNew[x], -1.0);
 
-			MFNN_[E][E][Y][x]->AddMult(eOld[Y], eNew[x], 1.0);
-			MFNN_[E][E][X][x]->AddMult(eOld[X], eNew[x], 1.0);
-			MFNN_[E][E][Z][x]->AddMult(eOld[Z], eNew[x], 1.0);
-			MP_[E]->AddMult(eOld[x], eNew[x], -1.0);
-		}
+		MFNN_[E][E][Y][x]->AddMult(eOld[Y], eNew[x], 1.0);
+		MFNN_[E][E][X][x]->AddMult(eOld[X], eNew[x], 1.0);
+		MFNN_[E][E][Z][x]->AddMult(eOld[Z], eNew[x], 1.0);
+		MP_[E]->AddMult(eOld[x], eNew[x], -1.0);
+		
 
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 
@@ -208,18 +209,18 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 			MFNB_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
 			MFNB_[E][H][z]->AddMult(hOld[y], eNew[x]);
 
-			if (pd_.opts.alpha > 0.0) {
+			//Upwind
 
-				MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
-				MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
-				MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
-				MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
+			MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
+			MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
+			MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
+			MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
 
-				MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
-				MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
-				MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
-				MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
-			}
+			MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
+			MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
+			MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
+			MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
+			
 		}
 	}
 
@@ -255,25 +256,25 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 				MFN_GTFSF_[E][H][z]->Mult(func[H][y], eTemp[x]);
 				eMap.TransferSub(eTemp[x], eNew[x]);
 
-				if (pd_.opts.alpha > 0.0) {
-					MFNN_GTFSF_[H][H][X][x]->Mult(func[H][X], hTemp[x]);
-					hMap.TransferSub(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Y][x]->Mult(func[H][Y], hTemp[x]);
-					hMap.TransferSub(hTemp[x], hNew[x]);
-					MFNN_GTFSF_[H][H][Z][x]->Mult(func[H][Z], hTemp[x]);
-					hMap.TransferSub(hTemp[x], hNew[x]);
-					MP_GTFSF_[H]->Mult(func[H][x], hTemp[x]);
-					hMap.TransferAdd(hTemp[x], hNew[x]);
+				//Upwind
 
-					MFNN_GTFSF_[E][E][X][x]->Mult(func[E][X], eTemp[x]);
-					eMap.TransferSub(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Y][x]->Mult(func[E][Y], eTemp[x]);
-					eMap.TransferSub(eTemp[x], eNew[x]);
-					MFNN_GTFSF_[E][E][Z][x]->Mult(func[E][Z], eTemp[x]);
-					eMap.TransferSub(eTemp[x], eNew[x]);
-					MP_GTFSF_[E]->Mult(func[E][x], eTemp[x]);
-					eMap.TransferAdd(eTemp[x], eNew[x]);
-				}
+				MFNN_GTFSF_[H][H][X][x]->Mult(func[H][X], hTemp[x]);
+				hMap.TransferSub(hTemp[x], hNew[x]);
+				MFNN_GTFSF_[H][H][Y][x]->Mult(func[H][Y], hTemp[x]);
+				hMap.TransferSub(hTemp[x], hNew[x]);
+				MFNN_GTFSF_[H][H][Z][x]->Mult(func[H][Z], hTemp[x]);
+				hMap.TransferSub(hTemp[x], hNew[x]);
+				MP_GTFSF_[H]->Mult(func[H][x], hTemp[x]);
+				hMap.TransferAdd(hTemp[x], hNew[x]);
+
+				MFNN_GTFSF_[E][E][X][x]->Mult(func[E][X], eTemp[x]);
+				eMap.TransferSub(eTemp[x], eNew[x]);
+				MFNN_GTFSF_[E][E][Y][x]->Mult(func[E][Y], eTemp[x]);
+				eMap.TransferSub(eTemp[x], eNew[x]);
+				MFNN_GTFSF_[E][E][Z][x]->Mult(func[E][Z], eTemp[x]);
+				eMap.TransferSub(eTemp[x], eNew[x]);
+				MP_GTFSF_[E]->Mult(func[E][x], eTemp[x]);
+				eMap.TransferAdd(eTemp[x], eNew[x]);
 
 			}
 		}
