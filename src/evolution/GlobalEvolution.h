@@ -14,6 +14,8 @@ namespace maxwell {
 		GlobalEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 		virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
 
+		const SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
+
 	private:
 
 		std::unique_ptr<mfem::SparseMatrix> globalOperator_;

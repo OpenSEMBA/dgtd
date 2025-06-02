@@ -1,4 +1,6 @@
 #include "Solver.h"
+#include <filesystem>
+#include <fstream>
 
 using namespace mfem;
 
@@ -47,6 +49,15 @@ Solver::Solver(
 	time_{0.0}
 {
 
+#ifdef ENABLE_STATISTICS_RECORD
+	auto initStartTime = std::chrono::steady_clock::now();
+	if (std::filesystem::is_directory("StatisticsExport/" + model_.meshName_ + "/") || std::filesystem::exists("StatisticsExport/" + model_.meshName_ + "/")) {
+		std::filesystem::remove_all("StatisticsExport/" + model_.meshName_ + "/");
+		std::filesystem::create_directory("StatisticsExport/" + model_.meshName_ + "/");
+	}
+	
+#endif
+
 	checkOptionsAreValid(opts_);
 
 	if (opts_.evolution.spectral == true) {
@@ -66,6 +77,18 @@ Solver::Solver(
 	odeSolver_->Init(*evolTDO_);
 
 	probesManager_.updateProbes(time_);
+
+
+#ifdef ENABLE_STATISTICS_RECORD
+	auto initEndTime = std::chrono::steady_clock::now();
+	std::ofstream myfile;
+	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
+	myfile.open(path);
+	if (myfile.is_open()) {
+		myfile << "Initialization Time: " << std::chrono::duration_cast<std::chrono::seconds>(initEndTime - initStartTime).count() + " (s)\n";
+	}
+	myfile.close();
+#endif
 
 }
 
@@ -275,6 +298,10 @@ void printSimulationInformation(const double time, const double dt, const double
 void Solver::run()
 {
 
+#ifdef ENABLE_STATISTICS_RECORD
+	auto runStartTime = std::chrono::steady_clock::now();
+#endif
+
 #ifdef SHOW_TIMER_INFORMATION
 	auto lastPrintTime{ std::chrono::steady_clock::now() };
 	std::cout << "------------------------------------------------" << std::endl;
@@ -302,6 +329,26 @@ void Solver::run()
 
 #endif
 	}
+
+#ifdef ENABLE_STATISTICS_RECORD
+	auto runEndTime = std::chrono::steady_clock::now();
+	std::ofstream myfile;
+	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
+	myfile.open(path);
+	if (myfile.is_open()) {
+		myfile << "Simulation Run Time: " << std::chrono::duration_cast<std::chrono::seconds>(runEndTime - runStartTime).count() + " (s)\n";
+		myfile << "Final Time: " << std::to_string(opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+		myfile << "Time Step: " << std::to_string(dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+		myfile << "Number of Elements: " << std::to_string(fes_.get()->GetNE()) << "\n";
+		myfile << "Number of Degrees of Freedom: " << std::to_string(fes_.get()->GetNDofs()) << "\n";
+		if (opts_.evolution.op == Global) {
+			auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
+			myfile << "Number of Global Total Entries: " << std::to_string(std::pow(global->getConstGlobalOperator().Size(), 2.0)) << "\n";
+			myfile << "Number of Global Non-Zero Entries: " << std::to_string(global->getConstGlobalOperator().NumNonZeroElems()) << "\n";
+		}
+	}
+	myfile.close();
+#endif
 }
 
 void Solver::step()

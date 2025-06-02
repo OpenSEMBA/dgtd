@@ -97,6 +97,8 @@ public:
 	std::size_t numberOfMaterials() const;
 	std::size_t numberOfBoundaryMaterials() const;
 
+	std::string meshName_;
+
 private:
 
 	Mesh mesh_;

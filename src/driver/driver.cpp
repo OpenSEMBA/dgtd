@@ -240,6 +240,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 		if (case_data["solver_options"].contains("basis_type")) {
 			res.setBasisType(case_data["solver_options"]["basis_type"]);
 		}
+
+		if (case_data["solver_options"].contains("write_stats")) {
+			res.setWriteStats(case_data["solver_options"]["basis_type"]);
+		}
 	}
 	return res;
 }
@@ -525,7 +529,9 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 		}
 	}
 
-	return Model(mesh, att_to_material, att_to_bdr_info);
+	Model res(mesh, att_to_material, att_to_bdr_info);
+	res.meshName_ = case_path;
+	return res;
 }
 
 json parseJSONfile(const std::string& case_name)
@@ -567,10 +573,10 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)
 {
 	
-	maxwell::Model model{ buildModel(case_data, case_path, isTest) };
-	maxwell::Probes probes{ buildProbes(case_data) };
-	maxwell::Sources sources{ buildSources(case_data) };
 	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };
+	maxwell::Sources sources{ buildSources(case_data) };
+	maxwell::Probes probes{ buildProbes(case_data) };
+	maxwell::Model model{ buildModel(case_data, case_path, isTest) };
 
 	postProcessInformation(case_data, model, solverOpts);
 

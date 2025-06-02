@@ -9,6 +9,7 @@ struct SolverOptions {
     double finalTime = 2.0;
     double cfl = 0.8;
     int basisType = mfem::BasisType::GaussLobatto;
+    bool writeStats = false;
 
     EvolutionOptions evolution;
     
@@ -55,6 +56,10 @@ struct SolverOptions {
     SolverOptions& setBasisType(int bt = mfem::BasisType::GaussLobatto) {
         basisType = bt;
         return *this;
+    }
+
+    SolverOptions& setWriteStats(bool flag = false) {
+        writeStats = flag;
     }
 };
 
