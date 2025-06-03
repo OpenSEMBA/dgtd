@@ -89,7 +89,10 @@ Solver::Solver(
 	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
 	myfile.open(path, std::ios::app);
 	if (myfile.is_open()) {
-		myfile << "Initialization Time: " << std::chrono::duration_cast<std::chrono::seconds>(initEndTime - initStartTime).count() + " (s)\n";
+		auto runtime = std::chrono::duration<double>(initEndTime - initStartTime).count();
+		myfile << std::scientific << std::setprecision(5);
+		myfile << "Initialization Time: " << runtime << " (s)\n";
+		myfile << std::defaultfloat;
 	}
 	myfile.close();
 #endif
@@ -340,14 +343,17 @@ void Solver::run()
 	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
 	myfile.open(path, std::ios::app);
 	if (myfile.is_open()) {
-		myfile << "Simulation Run Time: " << std::chrono::duration_cast<std::chrono::seconds>(runEndTime - runStartTime).count() + " (s)\n";
+		auto runtime = std::chrono::duration<double>(runEndTime - runStartTime).count();
+		myfile << std::scientific << std::setprecision(5);
+		myfile << "Simulation Run Time: " << runtime << " (s)\n";
+		myfile << std::defaultfloat;
 		myfile << "Final Time: " << std::to_string(opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
 		myfile << "Time Step: " << std::to_string(dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
 		myfile << "Number of Elements: " << std::to_string(fes_.get()->GetNE()) << "\n";
 		myfile << "Number of Degrees of Freedom: " << std::to_string(fes_.get()->GetNDofs()) << "\n";
 		if (opts_.evolution.op == Global) {
 			auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
-			myfile << "Number of Global Total Entries: " << std::to_string(std::pow(global->getConstGlobalOperator().Size(), 2.0)) << "\n";
+			myfile << "Number of Global Total Entries: " << std::to_string(int(std::pow(global->getConstGlobalOperator().Size(), 2.0))) << "\n";
 			myfile << "Number of Global Non-Zero Entries: " << std::to_string(global->getConstGlobalOperator().NumNonZeroElems()) << "\n";
 		}
 	}
