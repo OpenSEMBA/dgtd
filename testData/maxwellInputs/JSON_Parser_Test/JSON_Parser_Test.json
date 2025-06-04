@@ -2,6 +2,7 @@
   "solver_options": { 
     "upwind_alpha": 0.0, 
     "final_time": 2.0, 
+    "evolution_operator": "global",
     "time_step": 1e-2, 
     "cfl": 0.7,  
     "order": 3, 
