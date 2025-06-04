@@ -65,7 +65,6 @@ namespace maxwell {
 		res->Assemble();
 		res->Finalize();
 		res->SpMat().Swap(*matrix);
-		res->Finalize();
 		
 		delete matrix;
 
@@ -546,7 +545,6 @@ namespace maxwell {
 	{
 
 		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
-		res->Finalize();
 
 #ifdef SHOW_TIMER_INFORMATION
 		auto startTime{ std::chrono::high_resolution_clock::now() };
@@ -578,7 +576,7 @@ namespace maxwell {
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 #endif
-
+		res->Finalize();
 		return res;
 
 	}
@@ -587,7 +585,6 @@ namespace maxwell {
 	{
 
 		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
-		res->Finalize();
 
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
@@ -673,7 +670,7 @@ namespace maxwell {
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 #endif
-
+		res->Finalize();
 		return res;
 	}
 
