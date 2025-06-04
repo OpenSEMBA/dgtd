@@ -16,7 +16,7 @@ namespace maxwell {
 
 	FieldType altField(const FieldType& f);
 
-	FiniteElementOperator buildByMult(const BilinearForm& op1, const BilinearForm& op2, FiniteElementSpace& fes);
+	FiniteElementOperator buildByMult(const SparseMatrix& op1, const SparseMatrix& op2, FiniteElementSpace& fes);
 
 	struct GlobalIndices {
 		GlobalIndices(const int blockSize);

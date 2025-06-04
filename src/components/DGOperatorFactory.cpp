@@ -56,15 +56,19 @@ namespace maxwell {
 	}
 
 	FiniteElementOperator buildByMult(
-		const BilinearForm& op1,
-		const BilinearForm& op2,
+		const SparseMatrix& op1,
+		const SparseMatrix& op2,
 		FiniteElementSpace& fes)
 	{
-		auto aux = std::unique_ptr<SparseMatrix>(mfem::Mult(op1.SpMat(), op2.SpMat()));
+		auto matrix = new SparseMatrix(fes.GetNDofs(), fes.GetNDofs());
+		matrix = mfem::Mult(op1, op2);
 		auto res = std::make_unique<BilinearForm>(&fes);
 		res->Assemble();
 		res->Finalize();
-		res->SpMat().Swap(*aux);
+		res->SpMat().Swap(*matrix);
+		res->Finalize();
+		
+		delete matrix;
 
 		return res;
 	}
@@ -315,7 +319,7 @@ namespace maxwell {
 		for (auto f : { E, H }) {
 			auto MInv = buildInverseMassMatrixSubOperator(f);
 			for (auto d{ X }; d <= Z; d++) {
-				res[f][d] = buildByMult(*MInv, *buildDerivativeSubOperator(d), fes_);
+				res[f][d] = buildByMult(MInv->SpMat(), buildDerivativeSubOperator(d)->SpMat(), fes_);
 			}
 		}
 		return res;
@@ -325,7 +329,7 @@ namespace maxwell {
 		std::array<FiniteElementOperator, 2> res;
 		for (auto f : { E, H }) {
 			auto MInv = buildInverseMassMatrixSubOperator(f);
-			res[f] = buildByMult(*MInv, *buildZeroNormalSubOperator(f), fes_);
+			res[f] = buildByMult(MInv->SpMat(), buildZeroNormalSubOperator(f)->SpMat(), fes_);
 		}
 		return res;
 	}
@@ -336,7 +340,7 @@ namespace maxwell {
 			auto MInv = buildInverseMassMatrixSubOperator(f);
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
-					res[f][f2][d] = buildByMult(*MInv, *buildOneNormalSubOperator(f2, { d }), fes_);
+					res[f][f2][d] = buildByMult(MInv->SpMat(), buildOneNormalSubOperator(f2, { d })->SpMat(), fes_);
 				}
 			}
 		}
@@ -350,7 +354,7 @@ namespace maxwell {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
 					for (auto d2{ X }; d2 <= Z; d2++) {
-						res[f][f2][d][d2] = buildByMult(*MInv, *buildTwoNormalSubOperator(f2, { d, d2 }), fes_);
+						res[f][f2][d][d2] = buildByMult(MInv->SpMat(), buildTwoNormalSubOperator(f2, { d, d2 })->SpMat(), fes_);
 					}
 				}
 			}
@@ -362,7 +366,7 @@ namespace maxwell {
 		std::array<FiniteElementOperator, 2> res;
 		for (auto f : { E, H }) {
 			auto MInv = buildInverseMassMatrixSubOperator(f);
-			res[f] = buildByMult(*MInv, *buildZeroNormalIBFISubOperator(f), fes_);
+			res[f] = buildByMult(MInv->SpMat(), buildZeroNormalIBFISubOperator(f)->SpMat(), fes_);
 		}
 		return res;
 	}
@@ -373,7 +377,7 @@ namespace maxwell {
 			auto MInv = buildInverseMassMatrixSubOperator(f);
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
-					res[f][f2][d] = buildByMult(*MInv, *buildOneNormalIBFISubOperator(f2, { d }), fes_);
+					res[f][f2][d] = buildByMult(MInv->SpMat(), buildOneNormalIBFISubOperator(f2, { d })->SpMat(), fes_);
 				}
 			}
 		}
@@ -387,7 +391,7 @@ namespace maxwell {
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto f2 : { E, H }) {
 					for (auto d2{ X }; d2 <= Z; d2++) {
-						res[f][f2][d][d2] = buildByMult(*MInv, *buildTwoNormalIBFISubOperator(f2, { d, d2 }), fes_);
+						res[f][f2][d][d2] = buildByMult(MInv->SpMat(), buildTwoNormalIBFISubOperator(f2, { d, d2 })->SpMat(), fes_);
 					}
 				}
 			}
@@ -405,7 +409,7 @@ namespace maxwell {
 		GlobalIndices globalId(fes_.GetNDofs());
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
-			auto op = buildByMult(*MInv[f], *buildZeroNormalIBFISubOperator(f), fes_);
+			auto op = buildByMult(MInv[f]->SpMat(), buildZeroNormalIBFISubOperator(f)->SpMat(), fes_);
 			for (auto d : { X, Y, Z }) {
 				loadBlockInGlobalAtIndices(
 					op->SpMat(),
@@ -424,7 +428,7 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto op = buildByMult(*MInv[f], *buildOneNormalIBFISubOperator(altField(f), { x }), fes_);
+				auto op = buildByMult(MInv[f]->SpMat(), buildOneNormalIBFISubOperator(altField(f), { x })->SpMat(), fes_);
 				loadBlockInGlobalAtIndices(
 					op->SpMat(),
 					*global,
@@ -447,7 +451,7 @@ namespace maxwell {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
-					auto op = buildByMult(*MInv[f], *buildTwoNormalIBFISubOperator(f, { d, d2 }), fes_);
+					auto op = buildByMult(MInv[f]->SpMat(), buildTwoNormalIBFISubOperator(f, { d, d2 })->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
 						*global,
@@ -465,7 +469,7 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto op = buildByMult(*MInv[f], *buildDerivativeSubOperator(x), fes_);
+				auto op = buildByMult(MInv[f]->SpMat(), buildDerivativeSubOperator(x)->SpMat(), fes_);
 				loadBlockInGlobalAtIndices(
 					op->SpMat(),
 					*global,
@@ -486,7 +490,7 @@ namespace maxwell {
 		GlobalIndices globalId(fes_.GetNDofs());
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
-			auto op = buildByMult(*MInv[f], *buildZeroNormalSubOperator(f), fes_);
+			auto op = buildByMult(MInv[f]->SpMat(), buildZeroNormalSubOperator(f)->SpMat(), fes_);
 			for (auto d : { X, Y, Z }) {
 				loadBlockInGlobalAtIndices(
 					op->SpMat(),
@@ -505,7 +509,7 @@ namespace maxwell {
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto op = buildByMult(*MInv[f], *buildOneNormalSubOperator(altField(f), { x }), fes_);
+				auto op = buildByMult(MInv[f]->SpMat(), buildOneNormalSubOperator(altField(f), { x })->SpMat(), fes_);
 				loadBlockInGlobalAtIndices(
 					op->SpMat(),
 					*global,
@@ -528,7 +532,7 @@ namespace maxwell {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
-					auto op = buildByMult(*MInv[f], *buildTwoNormalSubOperator(f, { d, d2 }), fes_);
+					auto op = buildByMult(MInv[f]->SpMat(), buildTwoNormalSubOperator(f, {d, d2})->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
 						*global,
@@ -550,18 +554,15 @@ namespace maxwell {
 
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 		std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
 #endif
 
 		addGlobalOneNormalOperators(res.get());
 
-		//if (pd_.opts.alpha > 0.0) {
-
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
 			std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
 #endif	
 
@@ -571,12 +572,16 @@ namespace maxwell {
 #ifdef SHOW_TIMER_INFORMATION	
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
 			std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
 #endif	
 
 			addGlobalTwoNormalOperators(res.get());
 
-		//}
+#ifdef SHOW_TIMER_INFORMATION	
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+#endif
 		
 		res->Finalize();
 		return res;
@@ -594,8 +599,6 @@ namespace maxwell {
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
 #endif
 
@@ -606,6 +609,7 @@ namespace maxwell {
 #ifdef SHOW_TIMER_INFORMATION
 				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+				startTime = std::chrono::high_resolution_clock::now();
 				std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
 
@@ -614,6 +618,7 @@ namespace maxwell {
 #ifdef SHOW_TIMER_INFORMATION
 				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+				startTime = std::chrono::high_resolution_clock::now();
 				std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
 #endif
 
@@ -625,6 +630,7 @@ namespace maxwell {
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+		startTime = std::chrono::high_resolution_clock::now();
 		std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
 #endif
 
@@ -633,6 +639,7 @@ namespace maxwell {
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+		startTime = std::chrono::high_resolution_clock::now();
 		std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
 #endif
 
@@ -643,6 +650,7 @@ namespace maxwell {
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
 			std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
 			addGlobalZeroNormalOperators(res.get());
@@ -651,12 +659,16 @@ namespace maxwell {
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
 			std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
 #endif
 
 			addGlobalTwoNormalOperators(res.get());
 
-		//}
+#ifdef SHOW_TIMER_INFORMATION
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+#endif
 
 		res->Finalize();
 		return res;

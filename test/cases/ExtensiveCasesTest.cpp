@@ -267,7 +267,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Hesthaven)
 TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
-        case_data["solver_options"]["upwind_alpha"] = 0.0;
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	case_data["solver_options"]["order"] = 3;
 	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
@@ -2364,10 +2364,10 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
   	solver.run();
   }
 
-    TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
+    TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O3)
   {
-  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"));
-  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"), true) };
+  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G3_O3"));
+  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G3_O3"), true) };
 
   	solver.run();
   }
