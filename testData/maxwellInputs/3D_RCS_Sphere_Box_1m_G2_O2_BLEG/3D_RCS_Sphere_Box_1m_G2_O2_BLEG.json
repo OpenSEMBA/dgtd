@@ -1,8 +1,9 @@
 {
   "solver_options": {
-    "upwind_alpha": 0.5,
+    "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-4,
+    "basis_type": 0,
+	  "time_step": 1e-2,
     "final_time": 30.0,
     "order": 2
   },
@@ -34,12 +35,11 @@
   },
   "probes": {
     "exporter": {
-      "name": "low_dt",
-      "steps": 1000
+      "steps": 10
     },
     "farfield": [
       {
-        "name": "sphere_Box_1m_G2_O2_BLEG_LOWDT",
+        "name": "sphere_Box_1m_G2_O2_BLEG",
         "steps": 5,
         "tags": [
           3, 4, 5, 6, 7, 8

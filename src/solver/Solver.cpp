@@ -353,8 +353,10 @@ void Solver::run()
 		myfile << "Number of Degrees of Freedom: " << std::to_string(fes_.get()->GetNDofs()) << "\n";
 		if (opts_.evolution.op == Global) {
 			auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
-			myfile << "Number of Global Total Entries: " << std::to_string(int(std::pow(global->getConstGlobalOperator().Size(), 2.0))) << "\n";
-			myfile << "Number of Global Non-Zero Entries: " << std::to_string(global->getConstGlobalOperator().NumNonZeroElems()) << "\n";
+			int64_t globalSize = (std::pow(global->getConstGlobalOperator().Size(), 2.0));
+			myfile << "Number of Global Total Entries: " << std::to_string(globalSize) << "\n";
+			int64_t nonZeroEntries = global->getConstGlobalOperator().NumNonZeroElems();
+			myfile << "Number of Global Non-Zero Entries: " << std::to_string(nonZeroEntries) << "\n";
 		}
 	}
 	myfile.close();
