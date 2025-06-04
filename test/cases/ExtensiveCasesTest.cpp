@@ -1997,6 +1997,78 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Hesthaven)
 
 }
 
+
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Global)
+{
+	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
+	case_data["solver_options"]["evolution_operator"] = "global";
+	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF"), true) };
+
+	auto normOld{ solver.getFields().getNorml2() };
+	EXPECT_EQ(0.0, normOld);
+
+	solver.run();
+
+	double tolerance{ 1e-2 };
+
+	{
+		double expected_t{ 6.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+				EXPECT_NEAR(-0.5, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 2.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(1.0, f.Ez, tolerance);
+				EXPECT_NEAR(-1.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 6.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(-1.0, f.Ez, tolerance);
+				EXPECT_NEAR(-1.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+	{
+		double expected_t{ 4.0 };
+		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+			EXPECT_NEAR(0.0, f.Ex, tolerance);
+			EXPECT_NEAR(0.0, f.Ey, tolerance);
+			EXPECT_NEAR(0.0, f.Hx, tolerance);
+			EXPECT_NEAR(0.0, f.Hz, tolerance);
+			if (std::abs(t - expected_t) <= 1e-3) {
+				EXPECT_NEAR(0.0, f.Ez, tolerance);
+				EXPECT_NEAR(-2.0, f.Hy, tolerance);
+			}
+		}
+	}
+
+}
+
 TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_InteriorPEC"));

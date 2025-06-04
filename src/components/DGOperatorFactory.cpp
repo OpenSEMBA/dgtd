@@ -60,8 +60,7 @@ namespace maxwell {
 		const SparseMatrix& op2,
 		FiniteElementSpace& fes)
 	{
-		auto matrix = new SparseMatrix(fes.GetNDofs(), fes.GetNDofs());
-		matrix = mfem::Mult(op1, op2);
+		SparseMatrix* matrix = mfem::Mult(op1, op2);
 		auto res = std::make_unique<BilinearForm>(&fes);
 		res->Assemble();
 		res->Finalize();
@@ -546,14 +545,11 @@ namespace maxwell {
 	std::unique_ptr<SparseMatrix> DGOperatorFactory::buildTFSFGlobalOperator()
 	{
 
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
+		res->Finalize();
+
 #ifdef SHOW_TIMER_INFORMATION
 		auto startTime{ std::chrono::high_resolution_clock::now() };
-#endif
-
-		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
-
-
-#ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
 #endif
 
@@ -582,8 +578,7 @@ namespace maxwell {
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 #endif
-		
-		res->Finalize();
+
 		return res;
 
 	}
@@ -591,12 +586,14 @@ namespace maxwell {
 	std::unique_ptr<SparseMatrix> DGOperatorFactory::buildGlobalOperator()
 	{
 
-#ifdef SHOW_TIMER_INFORMATION
-		auto startTime{ std::chrono::high_resolution_clock::now() };
-#endif
 		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
+		res->Finalize();
 
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
+
+#ifdef SHOW_TIMER_INFORMATION
+			auto startTime{ std::chrono::high_resolution_clock::now() };
+#endif
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
@@ -624,13 +621,20 @@ namespace maxwell {
 
 				addGlobalTwoNormalIBFIOperators(res.get());
 
+				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+
 			//}
+		}
+		else{
+#ifdef SHOW_TIMER_INFORMATION		
+				std::cout << "No Interior Boundary Operators to Assemble." << std::endl;
+#endif
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		startTime = std::chrono::high_resolution_clock::now();
+
+		std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 		std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
 #endif
 
@@ -670,7 +674,6 @@ namespace maxwell {
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 #endif
 
-		res->Finalize();
 		return res;
 	}
 
