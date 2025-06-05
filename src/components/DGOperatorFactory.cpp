@@ -71,7 +71,7 @@ namespace maxwell {
 		return res;
 	}
 
-	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign)
+	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign, bool temp_dbg)
 	{
 		MFEM_ASSERT(blk.NumRows() == ids.first.Size(),  "Block Sparse NumRows does not match intended number of Rows.");
 		MFEM_ASSERT(blk.NumCols() == ids.second.Size(), "Block Sparse NumCols does not match intended number of Cols.");
@@ -80,6 +80,11 @@ namespace maxwell {
 		for (auto r{ 0 }; r < ids.first.Size(); r++) {
 			blk.GetRow(r, cols, vals);
 			for (auto c{ 0 }; c < cols.Size(); c++) {
+				#ifdef SHOW_TIMER_INFORMATION
+				if (temp_dbg){
+					std::cout << "Row: " << std::to_string(ids.first[r]) << " / column: " << ids.second[cols[c]] << "\n" << std::endl;
+				}
+				#endif
 				dst.Add(ids.first[r], ids.second[cols[c]], vals[c] * fieldSign);
 			}
 		}
@@ -526,15 +531,21 @@ namespace maxwell {
 	void DGOperatorFactory::addGlobalTwoNormalOperators(SparseMatrix* global)
 	{
 		GlobalIndices globalId(fes_.GetNDofs());
+		temp_dbg = true;
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
+					#ifdef SHOW_TIMER_INFORMATION
+					if (temp_dbg){
+						std::cout << "Assembling field " << std::to_string(f) << " with dirs " << std::to_string(d) << " and " << std::to_string(d2) << "\n" << std::endl;
+					}
+					#endif
 					auto op = buildByMult(MInv[f]->SpMat(), buildTwoNormalSubOperator(f, {d, d2})->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
 						*global,
-						std::make_pair(globalId.index[f][d], globalId.index[f][d2])
+						std::make_pair(globalId.index[f][d], globalId.index[f][d2]), temp_dbg
 					);
 				}
 			}
@@ -630,7 +641,6 @@ namespace maxwell {
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
-
 		std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 		std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
 #endif
@@ -646,29 +656,28 @@ namespace maxwell {
 
 		addGlobalOneNormalOperators(res.get());
 
-		//if (pd_.opts.alpha != 0.0) {
-
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-			startTime = std::chrono::high_resolution_clock::now();
-			std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+		startTime = std::chrono::high_resolution_clock::now();
+		std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
-			addGlobalZeroNormalOperators(res.get());
+		addGlobalZeroNormalOperators(res.get());
 
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-			startTime = std::chrono::high_resolution_clock::now();
-			std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+		startTime = std::chrono::high_resolution_clock::now();
+		std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
 #endif
 
-			addGlobalTwoNormalOperators(res.get());
+		addGlobalTwoNormalOperators(res.get());
 
 #ifdef SHOW_TIMER_INFORMATION
-			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+		std::cout << "All operators assembled. Finalising global operator matrix." << std::endl;
 #endif
 		res->Finalize();
 		return res;
