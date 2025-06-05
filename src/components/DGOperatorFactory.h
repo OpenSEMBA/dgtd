@@ -23,7 +23,7 @@ namespace maxwell {
 		std::array<std::array<mfem::Array<int>, 3>, 2> index;
 	};
 
-	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign = 1.0, bool temp_dbg = false);
+	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign = 1.0);
 
 	class DGOperatorFactory {
 	public:

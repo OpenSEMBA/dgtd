@@ -71,7 +71,7 @@ namespace maxwell {
 		return res;
 	}
 
-	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign, bool temp_dbg)
+	void loadBlockInGlobalAtIndices(const SparseMatrix& blk, SparseMatrix& dst, const std::pair<Array<int>, Array<int>>& ids, const double fieldSign)
 	{
 		MFEM_ASSERT(blk.NumRows() == ids.first.Size(),  "Block Sparse NumRows does not match intended number of Rows.");
 		MFEM_ASSERT(blk.NumCols() == ids.second.Size(), "Block Sparse NumCols does not match intended number of Cols.");
@@ -80,11 +80,6 @@ namespace maxwell {
 		for (auto r{ 0 }; r < ids.first.Size(); r++) {
 			blk.GetRow(r, cols, vals);
 			for (auto c{ 0 }; c < cols.Size(); c++) {
-				#ifdef SHOW_TIMER_INFORMATION
-				if (temp_dbg){
-					std::cout << "Row: " << std::to_string(ids.first[r]) << " / column: " << ids.second[cols[c]] << "\n" << std::endl;
-				}
-				#endif
 				dst.Add(ids.first[r], ids.second[cols[c]], vals[c] * fieldSign);
 			}
 		}
@@ -531,21 +526,15 @@ namespace maxwell {
 	void DGOperatorFactory::addGlobalTwoNormalOperators(SparseMatrix* global)
 	{
 		GlobalIndices globalId(fes_.GetNDofs());
-		temp_dbg = true;
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator();
 			for (auto d{ X }; d <= Z; d++) {
 				for (auto d2{ X }; d2 <= Z; d2++) {
-					#ifdef SHOW_TIMER_INFORMATION
-					if (temp_dbg){
-						std::cout << "Assembling field " << std::to_string(f) << " with dirs " << std::to_string(d) << " and " << std::to_string(d2) << "\n" << std::endl;
-					}
-					#endif
 					auto op = buildByMult(MInv[f]->SpMat(), buildTwoNormalSubOperator(f, {d, d2})->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
 						*global,
-						std::make_pair(globalId.index[f][d], globalId.index[f][d2]), temp_dbg
+						std::make_pair(globalId.index[f][d], globalId.index[f][d2])
 					);
 				}
 			}
