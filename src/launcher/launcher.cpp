@@ -40,6 +40,11 @@ int main(int argc, char** argv)
 		}
 	}
 
+	mfem::Mpi::Init(argc, argv);
+	int num_procs = mfem::Mpi::WorldSize();
+	int myid = mfem::Mpi::WorldRank();
+	mfem::Hypre::Init();
+
 	const std::string s_json = ".json";
 	const std::string::size_type input_msh = inputFilePath.find(s_json);
 	if (input_msh == std::string::npos)
