@@ -521,12 +521,6 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 		}
 	}
 
-	if (mesh.GetNodalFESpace()){
-		if (mesh.GetNodalFESpace()->GetMaxElementOrder() > 1) {
-			mesh.SetCurvature(mesh.GetNodalFESpace()->GetMaxElementOrder(), true, mesh.SpaceDimension());
-		}
-	}
-
 	Model res(mesh, att_to_material, att_to_bdr_info);
 	std::string filename = case_data["model"]["filename"];
 	size_t dot_position = filename.rfind(".msh");

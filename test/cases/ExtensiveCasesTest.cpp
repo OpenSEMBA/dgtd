@@ -14,8 +14,9 @@ class ExtensiveCasesTest : public ::testing::Test {
 
 TEST_F(ExtensiveCasesTest, 2D_PEC_Centered)
 {
+	
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
-        case_data["solver_options"]["upwind_alpha"] = 0.0;
+    case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };

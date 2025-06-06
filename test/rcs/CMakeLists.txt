@@ -9,6 +9,7 @@ include_directories(
 )
 
 add_executable(rcs_tests
+	$<TARGET_OBJECTS:TestLauncher>
 	"RCSTest.cpp"
  )
 
@@ -25,7 +26,6 @@ target_link_libraries(rcs_tests
 	maxwell-driver
 	Eigen3::Eigen
 	GTest::gtest 
-	GTest::gtest_main
 	FFTW3::fftw3
 )
 
