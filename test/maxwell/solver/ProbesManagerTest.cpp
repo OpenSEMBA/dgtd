@@ -16,9 +16,10 @@ class ProbesManagerTest : public ::testing::Test {
 
 TEST_F(ProbesManagerTest, exporterProbe)
 {
-	Mesh mesh{ Mesh::MakeCartesian1D(20, 1.0) };
+	Mesh smesh{ Mesh::MakeCartesian1D(20, 1.0) };
+	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
-	FiniteElementSpace fes{ &mesh, &fec };
+	ParFiniteElementSpace fes{ &mesh, &fec };
 	Fields fields{ fes };
 	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
@@ -32,9 +33,10 @@ TEST_F(ProbesManagerTest, exporterProbe)
 
 TEST_F(ProbesManagerTest, fieldProbe)
 {
-	Mesh m{ Mesh::MakeCartesian1D(5) };
+	Mesh smesh{ Mesh::MakeCartesian1D(5) };
+	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
-	FiniteElementSpace fes{ &m, &fec };
+	ParFiniteElementSpace fes{ &mesh, &fec };
 	Fields fields{ fes };
 	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 

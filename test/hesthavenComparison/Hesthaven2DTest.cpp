@@ -235,7 +235,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh,GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -270,7 +271,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -305,7 +307,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -339,7 +342,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -373,7 +377,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -407,7 +412,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -442,7 +448,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -477,7 +484,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));
@@ -512,7 +520,8 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 
 	auto mesh{ Mesh::LoadFromFile((mfemMeshes2DFolder() + "Maxwell2D_K2.mesh").c_str(),1,0) };
 	auto fec{ DG_FECollection(1,2,BasisType::GaussLobatto) };
-	auto fes{ FiniteElementSpace(&mesh,&fec) };
+	auto parmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto fes{ ParFiniteElementSpace(&parmesh,&fec) };
 
 	GeomTagToBoundary pecBdr{ {2,BdrCond::PEC} };
 	Model model(mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()));

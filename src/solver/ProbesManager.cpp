@@ -20,7 +20,7 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	return pd;
 }
 
-ProbesManager::ProbesManager(Probes pIn, mfem::FiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
+ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
 	probes{ pIn },
 	fes_{ fes }
 {
@@ -204,7 +204,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	);
 }
 
-Fields buildFieldsForProbe(const Fields& src, FiniteElementSpace& fes)
+Fields buildFieldsForProbe(const Fields& src, ParFiniteElementSpace& fes)
 {
 	Fields res(fes);
 	for (auto f : { E, H }) {
@@ -268,7 +268,7 @@ void ProbesManager::updateProbes(Time t)
 	cycle_++;
 }
 
-Array<int> buildSurfaceMarker(const std::vector<int>& tags, const FiniteElementSpace& fes)
+Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace& fes)
 {
 	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
 	res = 0;
@@ -304,9 +304,9 @@ void TransferMaps::transferFields(const Fields& src, Fields& dst)
 }
 
 NearFieldReqs::NearFieldReqs(
-	const NearFieldProbe& p, const DG_FECollection* fec, FiniteElementSpace& fes, Fields& global) :
+	const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields& global) :
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
-	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
+	sfes_{ std::make_unique<ParFiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
 	fields_{ Fields(*sfes_) },
 	gFields_{ global },
 	tMaps_{ TransferMaps(gFields_, fields_) }

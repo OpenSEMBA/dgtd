@@ -12,11 +12,11 @@
 
 namespace maxwell {
 
-	using FiniteElementOperator = std::unique_ptr<mfemExtension::BilinearForm>;
+	using FiniteElementOperator = std::unique_ptr<mfemExtension::ParBilinearForm>;
 
 	FieldType altField(const FieldType& f);
 
-	FiniteElementOperator buildByMult(const SparseMatrix& op1, const SparseMatrix& op2, FiniteElementSpace& fes);
+	FiniteElementOperator buildByMult(const SparseMatrix& op1, const SparseMatrix& op2, ParFiniteElementSpace& fes);
 
 	struct GlobalIndices {
 		GlobalIndices(const int blockSize);
@@ -28,7 +28,7 @@ namespace maxwell {
 	class DGOperatorFactory {
 	public:
 
-		DGOperatorFactory(ProblemDescription& pd, mfem::FiniteElementSpace& fes);
+		DGOperatorFactory(ProblemDescription& pd, mfem::ParFiniteElementSpace& fes);
 
 		// Methods for speficic FieldType or Direction Operators //
 
@@ -73,8 +73,7 @@ namespace maxwell {
 	private:
 
 		ProblemDescription pd_;
-		mfem::FiniteElementSpace fes_;
-		bool temp_dbg = false;
+		mfem::ParFiniteElementSpace fes_;
 };
 
 }

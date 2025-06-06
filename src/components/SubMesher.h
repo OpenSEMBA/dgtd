@@ -19,37 +19,37 @@ class TotalFieldScatteredFieldSubMesher
 public:
 
 	TotalFieldScatteredFieldSubMesher(){};
-	TotalFieldScatteredFieldSubMesher(const Mesh&, const Array<int>& marker);
+	TotalFieldScatteredFieldSubMesher(const ParMesh&, const Array<int>& marker);
 
-	SubMesh* getTFSubMesh() { return tf_mesh_.get(); }
-	SubMesh* getSFSubMesh() { return sf_mesh_.get(); }
-	SubMesh* getGlobalTFSFSubMesh() { return global_submesh_.get(); }
-	const SubMesh* getTFConstSubMesh() const { return tf_mesh_.get(); }
-	const SubMesh* getSFConstSubMesh() const { return sf_mesh_.get(); }
-	const SubMesh* getGlobalTFSFConstSubMesh() const { return global_submesh_.get(); }
+	ParSubMesh* getTFSubMesh() { return tf_mesh_.get(); }
+	ParSubMesh* getSFSubMesh() { return sf_mesh_.get(); }
+	ParSubMesh* getGlobalTFSFSubMesh() { return global_submesh_.get(); }
+	const ParSubMesh* getTFConstSubMesh() const { return tf_mesh_.get(); }
+	const ParSubMesh* getSFConstSubMesh() const { return sf_mesh_.get(); }
+	const ParSubMesh* getGlobalTFSFConstSubMesh() const { return global_submesh_.get(); }
 
 private:
 
-	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
-	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
-	void setGlobalTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
+	void prepareSubMeshInfo(ParMesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
+	void setAttributeForTagging(ParMesh&, const FaceElementTransformations*, bool el1_is_tf);
+	void setGlobalTFSFAttributesForSubMeshing(ParMesh&, const Array<int>& marker);
 	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	
-	SetPairs twoPointAssignator(Mesh&, int be, bool flag);
-	void assignIndividualTFSFAttsOnePoint1D(Mesh&, const Array<int>& marker);
-	void assignIndividualTFSFAttsTwoPoints1D(Mesh&, const Array<int>& marker);
-	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&, const Array<int>& marker);
-	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&, const Array<int>& marker);
-	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&, const Array<int>& marker);
+	SetPairs twoPointAssignator(ParMesh&, int be, bool flag);
+	void assignIndividualTFSFAttsOnePoint1D(ParMesh&, const Array<int>& marker);
+	void assignIndividualTFSFAttsTwoPoints1D(ParMesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing1D(ParMesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing2D(ParMesh&, const Array<int>& marker);
+	void setIndividualTFSFAttributesForSubMeshing3D(ParMesh&, const Array<int>& marker);
 
 
 	std::vector<El2Face> elem_to_face_tf_;
 	std::vector<El2Face> elem_to_face_sf_;
 	std::vector<ElementId> elems_for_global_submesh_;
 
-	std::unique_ptr<SubMesh> tf_mesh_;
-	std::unique_ptr<SubMesh> sf_mesh_;
-	std::unique_ptr<SubMesh> global_submesh_;
+	std::unique_ptr<ParSubMesh> tf_mesh_;
+	std::unique_ptr<ParSubMesh> sf_mesh_;
+	std::unique_ptr<ParSubMesh> global_submesh_;
 
 };
 
@@ -57,24 +57,24 @@ class NearToFarFieldSubMesher
 {
 public:
 	NearToFarFieldSubMesher(){};
-	NearToFarFieldSubMesher(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
+	NearToFarFieldSubMesher(const Mesh&, const ParFiniteElementSpace&, const Array<int>& marker);
 
-	const SubMesh* getConstSubMesh() { return ntff_mesh_.get(); }
-	SubMesh* getSubMesh() { return ntff_mesh_.get(); }
+	const ParSubMesh* getConstSubMesh() { return ntff_mesh_.get(); }
+	ParSubMesh* getSubMesh() { return ntff_mesh_.get(); }
 	const std::vector<El2Face> getEl2Face() { return elem_to_face_ntff_; }
 
 private:
 
-	void setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker);
-	void setSurfaceAttributesForSubMesh3D(Mesh& m, const Array<int>& marker);
-	void prepareSubMeshInfo(Mesh&, const FaceElementTransformations*, int faceId, bool el1_is_tf);
-	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
+	void setSurfaceAttributesForSubMesh2D(ParMesh& m, const Array<int>& marker);
+	void setSurfaceAttributesForSubMesh3D(ParMesh& m, const Array<int>& marker);
+	void prepareSubMeshInfo(ParMesh&, const FaceElementTransformations*, int faceId, bool el1_is_tf);
+	void setAttributeForTagging(ParMesh&, const FaceElementTransformations*, bool el1_is_tf);
 	void storeElementToFaceInformation(const FaceElementTransformations*, int faceId, bool el1_is_tf);
 
-	std::unique_ptr<Mesh> original_;
+	std::unique_ptr<ParMesh> original_;
 	std::vector<El2Face> elem_to_face_ntff_;
 	std::vector<ElementId> elems_for_global_submesh_;
-	std::unique_ptr<SubMesh> ntff_mesh_;
+	std::unique_ptr<ParSubMesh> ntff_mesh_;
 
 };
 
@@ -82,10 +82,10 @@ class MaxwellTransferMap
 {
 public:
 	
-	MaxwellTransferMap(const GridFunction& src, const GridFunction& dst);
+	MaxwellTransferMap(const ParGridFunction& src, const ParGridFunction& dst);
 	
-	void TransferAdd(const GridFunction& src, GridFunction& dst) const;
-	void TransferSub(const GridFunction& src, GridFunction& dst) const;
+	void TransferAdd(const ParGridFunction& src, ParGridFunction& dst) const;
+	void TransferSub(const ParGridFunction& src, ParGridFunction& dst) const;
 
 private:
 

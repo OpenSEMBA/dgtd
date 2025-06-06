@@ -13,7 +13,7 @@
 
 namespace maxwell {
 
-Array<int> buildSurfaceMarker(const std::vector<int>& tags, const FiniteElementSpace&);
+Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace&);
 
 struct TransferMaps {
 
@@ -39,11 +39,11 @@ struct TransferMaps {
 class NearFieldReqs {
 public:
 
-    NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::FiniteElementSpace& fes, Fields&);
+    NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::ParFiniteElementSpace& fes, Fields&);
 
-    mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
-    const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
-    mfem::GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    mfem::ParSubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
+    const mfem::ParGridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    mfem::ParGridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
     void updateFields();
 
 private:
@@ -51,7 +51,7 @@ private:
     void assignGlobalFieldsReferences(Fields& global);
 
     NearToFarFieldSubMesher ntff_smsh_;
-    std::unique_ptr<mfem::FiniteElementSpace> sfes_;
+    std::unique_ptr<mfem::ParFiniteElementSpace> sfes_;
     Fields fields_;
     Fields& gFields_;
     TransferMaps tMaps_;
@@ -61,7 +61,7 @@ private:
 class ProbesManager {
 public:
     ProbesManager() = delete;
-    ProbesManager(Probes, mfem::FiniteElementSpace&, Fields&, const SolverOptions&);
+    ProbesManager(Probes, mfem::ParFiniteElementSpace&, Fields&, const SolverOptions&);
     
     ProbesManager(const ProbesManager&) = delete;
     ProbesManager(ProbesManager&&) = default;
@@ -106,7 +106,7 @@ private:
     std::map<const PointProbe*, FieldProbeCollection> fieldProbesCollection_;
     std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
     
-    mfem::FiniteElementSpace& fes_;
+    mfem::ParFiniteElementSpace& fes_;
     Fields* fields_;
 
     std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;

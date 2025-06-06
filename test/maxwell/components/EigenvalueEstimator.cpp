@@ -7,14 +7,17 @@ using Solver = maxwell::Solver;
 
 class EigenvalueEstimatorTest : public ::testing::Test {
 protected:
-	Mesh mTri { Mesh::MakeCartesian2D(1, 1,    Element::TRIANGLE     , true) };
-	Mesh mQuad{ Mesh::MakeCartesian2D(1, 1,    Element::QUADRILATERAL, true) };
-	Mesh mHexa{ Mesh::MakeCartesian3D(1, 1, 1, Element::HEXAHEDRON) };
+	Mesh smTri { Mesh::MakeCartesian2D(1, 1,    Element::TRIANGLE     , true) };
+	Mesh smQuad{ Mesh::MakeCartesian2D(1, 1,    Element::QUADRILATERAL, true) };
+	Mesh smHexa{ Mesh::MakeCartesian3D(1, 1, 1, Element::HEXAHEDRON) };
+	ParMesh mTri = ParMesh(MPI_COMM_WORLD, smTri);
+	ParMesh mQuad = ParMesh(MPI_COMM_WORLD, smQuad);
+	ParMesh mHexa = ParMesh(MPI_COMM_WORLD, smHexa);
 	DG_FECollection fec2D{ DG_FECollection(1, 2,BasisType::GaussLegendre) };
 	DG_FECollection fec3D{ DG_FECollection(1, 3,BasisType::GaussLegendre) };
-	FiniteElementSpace fesTri{  FiniteElementSpace(&mTri,  &fec2D) };
-	FiniteElementSpace fesQuad{ FiniteElementSpace(&mQuad, &fec2D) };
-	FiniteElementSpace fesHexa{ FiniteElementSpace(&mHexa, &fec3D) };
+	ParFiniteElementSpace fesTri  = ParFiniteElementSpace(&mTri,  &fec2D);
+	ParFiniteElementSpace fesQuad = ParFiniteElementSpace(&mQuad, &fec2D);
+	ParFiniteElementSpace fesHexa = ParFiniteElementSpace(&mHexa, &fec3D);
 
 };
 
@@ -33,9 +36,9 @@ TEST_F(EigenvalueEstimatorTest, verifyNoThrow_SubMesh_Tri)
 {
 	mTri.SetAttribute(0, 300);
 	Array<int> atts(1); atts[0] = 300;
-	auto smTri(SubMesh::CreateFromDomain(mTri, atts));
+	auto smTri(ParSubMesh::CreateFromDomain(mTri, atts));
 	smTri.SetAttribute(0, 1);
-	FiniteElementSpace smFesTri{ FiniteElementSpace(&smTri, &fec2D) };
+	ParFiniteElementSpace smFesTri{ ParFiniteElementSpace(&smTri, &fec2D) };
 	
 	auto model { Model(mTri,GeomTagToMaterialInfo(),GeomTagToBoundaryInfo()) };
 	auto eo {EvolutionOptions{}};

@@ -27,7 +27,7 @@ namespace maxwell {
 	}
 
 	MaxwellEvolution::MaxwellEvolution(
-		ProblemDescription& pd, FiniteElementSpace& fes, SourcesManager& srcmngr) :
+		ProblemDescription& pd, ParFiniteElementSpace& fes, SourcesManager& srcmngr) :
 		TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
 		pd_(pd),
 		fes_(fes),
@@ -161,7 +161,7 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 {
 
 	std::array<Vector, 3> eOld, hOld;
-	std::array<GridFunction, 3> eNew, hNew;
+	std::array<ParGridFunction, 3> eNew, hNew;
 	for (int d = X; d <= Z; d++) {
 		eOld[d].SetDataAndSize(in.GetData() + d * fes_.GetNDofs(), fes_.GetNDofs());
 		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
@@ -229,7 +229,7 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 
 			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
 
-			std::array<GridFunction, 3> eTemp, hTemp;
+			std::array<ParGridFunction, 3> eTemp, hTemp;
 
 			for (int d = X; d <= Z; d++) {
 				eTemp[d].SetSpace(srcmngr_.getGlobalTFSFSpace());

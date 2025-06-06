@@ -11,7 +11,7 @@ namespace maxwell {
 		static const int numberOfFieldComponents = 2;
 		static const int numberOfMaxDimensions = 3;
 
-		GlobalEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+		GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 		virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
 
 		const SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
@@ -22,7 +22,7 @@ namespace maxwell {
 		std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
 		Array<int> sub_to_parent_ids_;
 
-		mfem::FiniteElementSpace& fes_;
+		mfem::ParFiniteElementSpace& fes_;
 		Model& model_;
 		SourcesManager& srcmngr_;
 		EvolutionOptions& opts_;

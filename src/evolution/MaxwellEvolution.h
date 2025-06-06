@@ -19,7 +19,7 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	MaxwellEvolution(ProblemDescription& pd, mfem::FiniteElementSpace& fes, SourcesManager& srcmngr);
+	MaxwellEvolution(ProblemDescription& pd, mfem::ParFiniteElementSpace& fes, SourcesManager& srcmngr);
 	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
 
 private:

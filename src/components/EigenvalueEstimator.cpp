@@ -33,7 +33,7 @@ int EigenvalueEstimator::getOffset(const FieldType& ft, const Direction& d)
 }
 
 EigenvalueEstimator::EigenvalueEstimator(
-	FiniteElementSpace& fes,
+	ParFiniteElementSpace& fes,
 	Model& model,
 	EvolutionOptions& options) :
 	fes_{ fes },

@@ -5,7 +5,7 @@
 namespace maxwell {
 
 GlobalEvolution::GlobalEvolution(
-	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
+	ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
 	fes_{ fes },
 	model_{ model },

@@ -9,6 +9,8 @@
 
 namespace maxwell {
 
+using namespace mfem;
+
 using FaceId = int;
 using GeomTag = int;
 using GeomTagToMaterial = std::map<GeomTag, Material>;
@@ -63,7 +65,7 @@ struct GeomTagToMaterialInfo {
 
 class Model {
 public:
-	using Mesh = mfem::Mesh;
+
 	Model() = default;
 	Model(
 		Mesh&, 
@@ -71,8 +73,8 @@ public:
 		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{}
 	);
 
-	Mesh& getMesh() { return mesh_; };
-	const Mesh& getConstMesh() const { return mesh_; }
+	ParMesh& getMesh() { return pmesh_; };
+	const ParMesh& getConstMesh() const { return pmesh_; }
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
@@ -101,7 +103,7 @@ public:
 
 private:
 
-	Mesh mesh_;
+	ParMesh pmesh_;
 	
 	GeomTagToMaterial attToMatMap_;
 	GeomTagToBoundary attToBdrMap_;

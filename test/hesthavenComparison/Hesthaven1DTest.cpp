@@ -13,21 +13,24 @@ protected:
 
 	void SetUp() override 
 	{
-		mesh_ = Mesh::MakeCartesian1D(1);
+		smesh_ = Mesh::MakeCartesian1D(1);
+		mesh_ = ParMesh(MPI_COMM_WORLD, smesh_);
 		fec_ = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
-		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+		fes_ = std::make_unique<ParFiniteElementSpace>(&mesh_, fec_.get());
 	}
 
 	void setFES(const int order, const int elements = 1)
 	{
-		mesh_ = Mesh::MakeCartesian1D(elements);
+		smesh_ = Mesh::MakeCartesian1D(1);
+		mesh_ = ParMesh(MPI_COMM_WORLD, smesh_);
 		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
-		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
+		fes_ = std::make_unique<ParFiniteElementSpace>(&mesh_, fec_.get());
 	}
 
-	Mesh mesh_;
+	Mesh smesh_;
+	ParMesh mesh_;
 	std::unique_ptr<FiniteElementCollection> fec_;
-	std::unique_ptr<FiniteElementSpace> fes_;
+	std::unique_ptr<ParFiniteElementSpace> fes_;
 
 	double tol_ = 1e-6;
 

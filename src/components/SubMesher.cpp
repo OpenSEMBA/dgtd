@@ -5,7 +5,7 @@ namespace maxwell {
 using namespace mfem;
 static const int NotFound{ -1 };
 
-FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be) 
+FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be)
 {
 	switch (m.FaceIsInterior(m.GetBdrElementFaceIndex(be))) {
 	case true:
@@ -116,7 +116,7 @@ Vector getNormal(FaceElementTransformations& fet)
 	return res;
 }
 
-std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be)
+std::pair<double, double> calculateBaryNormalProduct(ParMesh& m, FaceElementTransformations& fet, int be)
 {
 	auto bdr_vertices{ m.GetBdrElement(be)->GetVertices() };
 	auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
@@ -209,7 +209,7 @@ const Vector buildElem1ToElem2BarycenterVector(Mesh& m, int be)
 	return res;
 }
 
-void restoreElementAttributes(Mesh& m) //Temporary method that has to be reworked when materials are implemented.
+void restoreElementAttributes(ParMesh& m) //Temporary method that has to be reworked when materials are implemented.
 {
 	for (int e = 0; e < m.GetNE(); e++)
 	{
@@ -227,7 +227,7 @@ void cleanInvalidSubMeshEntries(std::vector<El2Face>& v)
 }
 
 
-void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const std::pair<Array<int>, BdrCond>& parent_info)
+void setBoundaryAttributesInChild(const ParMesh& parent, ParSubMesh& child, const std::pair<Array<int>, BdrCond>& parent_info)
 {
 	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
 	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
@@ -258,11 +258,11 @@ Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
 	return res;
 }
 
-SubMesh createSubMeshFromParent(const Mesh& parent, const std::pair<Array<int>, BdrCond>& parent_info, bool isTF = false)
+ParSubMesh createSubMeshFromParent(const ParMesh& parent, const std::pair<Array<int>, BdrCond>& parent_info, bool isTF = false)
 {
 	Array<int> marker{ getMarkerForSubMesh(parent_info.second, isTF) };
 
-	auto res{ SubMesh::CreateFromDomain(parent, marker) };
+	auto res{ ParSubMesh::CreateFromDomain(parent, marker) };
 	setBoundaryAttributesInChild(parent, res, parent_info);
 
 	restoreElementAttributes(res);
@@ -270,10 +270,10 @@ SubMesh createSubMeshFromParent(const Mesh& parent, const std::pair<Array<int>, 
 	return res;
 }
 
-TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m, const Array<int>& marker)
+TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const ParMesh& m, const Array<int>& marker)
 {
-	Mesh parent_for_global(m);
-	Mesh parent_for_individual(m);
+	ParMesh parent_for_global(m);
+	ParMesh parent_for_individual(m);
 
 	setGlobalTFSFAttributesForSubMeshing(parent_for_global, marker);
 
@@ -290,27 +290,27 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	}
 
 	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::GlobalSubMeshMarker;
-	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
+	auto global_sm{ ParSubMesh::CreateFromDomain(parent_for_global, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
-	global_submesh_ = std::make_unique<SubMesh>(global_sm);
+	global_submesh_ = std::make_unique<ParSubMesh>(global_sm);
 
 	cleanInvalidSubMeshEntries(elem_to_face_tf_);
 	cleanInvalidSubMeshEntries(elem_to_face_sf_);
 
 	if (!elem_to_face_tf_.empty()) {
-		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), true));
+		tf_mesh_ = std::make_unique<ParSubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), true));
 	}
 
 	if (!elem_to_face_sf_.empty()) {
-		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), false));
+		sf_mesh_ = std::make_unique<ParSubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), false));
 	}
 
 };
 
 
 
-void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
+void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(ParMesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
 {
 	if (trans->Elem2No != NotFound) {
 		if (el1_is_tf) {
@@ -354,14 +354,14 @@ void TotalFieldScatteredFieldSubMesher::storeElementToFaceInformation(const Face
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf)
+void TotalFieldScatteredFieldSubMesher::prepareSubMeshInfo(ParMesh& m, const FaceElementTransformations* trans, const std::pair<int, int> facesId, bool el1_is_tf)
 {
 	setAttributeForTagging(m, trans, el1_is_tf);
 	storeElementToFaceInformation(trans, facesId, el1_is_tf);
 }
 
 
-void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mesh& m, const Array<int>& marker)
+void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(ParMesh& m, const Array<int>& marker)
 {
 
 	for (int be = 0; be < m.GetNBE(); be++) {
@@ -381,7 +381,7 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 	}
 }
 
-SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, bool flag)
+SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(ParMesh& m, int be, bool flag)
 {
 	auto be_trans{ getFaceElementTransformation(m, be) };
 	std::pair<FaceId, IsTF> set_e1;
@@ -411,7 +411,7 @@ SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, 
 	return std::make_pair(set_e1, set_e2);
 }
 
-void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh& m, const Array<int>& marker)
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(ParMesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -437,7 +437,7 @@ void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh&
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh& m, const Array<int>& marker)
+void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(ParMesh& m, const Array<int>& marker)
 {
 	auto flag{ false };
 	for (int be = 0; be < m.GetNBE(); be++) {
@@ -460,7 +460,7 @@ void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsTwoPoints1D(Mesh
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(Mesh& m, const Array<int>& marker)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing1D(ParMesh& m, const Array<int>& marker)
 {
 	auto be_counter{ 0 };
 	for (int be = 0; be < m.GetNBE(); be++) {
@@ -510,7 +510,7 @@ double buildFaceOrientation(Mesh& mesh, int be)
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(Mesh& m, const Array<int>& marker)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing2D(ParMesh& m, const Array<int>& marker)
 {
 
 	/*
@@ -588,7 +588,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	}
 }
 
-void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
+void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(ParMesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -641,10 +641,11 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 }
 
-NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElementSpace& fes, const Array<int>& marker)
+NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const ParFiniteElementSpace& fes, const Array<int>& marker)
 {
-
-	original_ = std::make_unique<Mesh>(m);
+	Mesh tmesh(m);
+	ParMesh pmesh = ParMesh(MPI_COMM_WORLD, tmesh);
+	original_ = std::make_unique<ParMesh>(pmesh);
 
 	switch (original_->SpaceDimension()) {
 	case 2:
@@ -658,14 +659,14 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElem
 	}
 
 	if (!elem_to_face_ntff_.empty()) {
-		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
+		ntff_mesh_ = std::make_unique<ParSubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
 	}
 	else {
 		throw std::runtime_error("ntff submesh is empty, check orientation of curves/faces.");
 	}
 }
 
-void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker)
+void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(ParMesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -705,7 +706,7 @@ void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Ar
 
 }
 
-void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh3D(Mesh& m, const Array<int>& marker)
+void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh3D(ParMesh& m, const Array<int>& marker)
 {
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -744,13 +745,13 @@ void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh3D(Mesh& m, const Ar
 	}
 }
 
-void NearToFarFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
+void NearToFarFieldSubMesher::prepareSubMeshInfo(ParMesh& m, const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
 {
 	setAttributeForTagging(m, trans, el_is_ntff);
 	storeElementToFaceInformation(trans, faceId, el_is_ntff);
 }
 
-void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el_is_ntff)
+void NearToFarFieldSubMesher::setAttributeForTagging(ParMesh& m, const FaceElementTransformations* trans, bool el_is_ntff)
 {
 	if (trans->Elem2No != NotFound) {
 		if (el_is_ntff) {
@@ -774,8 +775,8 @@ void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTra
 	}
 }
 
-MaxwellTransferMap::MaxwellTransferMap(const GridFunction& src,
-	const GridFunction& dst)
+MaxwellTransferMap::MaxwellTransferMap(const ParGridFunction& src,
+	const ParGridFunction& dst)
 {
 	const FiniteElementSpace* parentfes = nullptr, * subfes = nullptr;
 	SubMesh* src_sm = static_cast<SubMesh*>(src.FESpace()->GetMesh());
@@ -788,7 +789,7 @@ MaxwellTransferMap::MaxwellTransferMap(const GridFunction& src,
 		sub_to_parent_map_);
 }
 
-void MaxwellTransferMap::TransferAdd(const GridFunction& src, GridFunction& dst) const
+void MaxwellTransferMap::TransferAdd(const ParGridFunction& src, ParGridFunction& dst) const
 {
 	for (int i = 0; i < sub_to_parent_map_.Size(); i++)
 	{
@@ -796,7 +797,7 @@ void MaxwellTransferMap::TransferAdd(const GridFunction& src, GridFunction& dst)
 	}
 }
 
-void MaxwellTransferMap::TransferSub(const GridFunction& src, GridFunction& dst) const
+void MaxwellTransferMap::TransferSub(const ParGridFunction& src, ParGridFunction& dst) const
 {
 	for (int i = 0; i < sub_to_parent_map_.Size(); i++)
 	{

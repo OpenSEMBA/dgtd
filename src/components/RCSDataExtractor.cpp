@@ -94,22 +94,23 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 
 	// We assemble the full FES of the original simulation. This is done to ensure the mesh is the original one that 
 	// was used during the simulation, to ensure high order meshes if it were necessary.
-	auto full_mesh = Mesh::LoadFromFile(driver::assembleMeshString(case_data["model"]["filename"]), 1, 0);
-	auto fec = new DG_FECollection(case_data["solver_options"]["order"], full_mesh.Dimension(), BasisType::GaussLobatto);
-	auto full_fes = FiniteElementSpace(&full_mesh, fec);
+	auto mesh = Mesh::LoadFromFile(driver::assembleMeshString(case_data["model"]["filename"]), 1, 0);
+	auto fec = new DG_FECollection(case_data["solver_options"]["order"], mesh.Dimension(), BasisType::GaussLobatto);
 
 	// This prepares a NTFF submesher that will cut the 'crown mesh' defined by the elements immediately
 	// adjacent to the NTFF surface in the scattered field region.
 	Probes probes = driver::buildProbes(case_data);
-	NearToFarFieldSubMesher ntff_sub(full_mesh, full_fes, buildSurfaceMarker(probes.nearFieldProbes[0].tags, full_fes));
-	Mesh crown_mesh(static_cast<Mesh>(*ntff_sub.getSubMesh()));
-	auto crown_fes = FiniteElementSpace(&crown_mesh, fec);
+	ParMesh full_mesh = ParMesh(MPI_COMM_WORLD, mesh);
+	ParFiniteElementSpace pfull_fes(&full_mesh, fec);
+	NearToFarFieldSubMesher ntff_sub(full_mesh, pfull_fes, buildSurfaceMarker(probes.nearFieldProbes[0].tags, pfull_fes));
+	ParMesh crown_mesh(static_cast<ParMesh>(*ntff_sub.getSubMesh()));
+	auto crown_fes = ParFiniteElementSpace(&crown_mesh, fec);
 
 	// In order to extract x, y and z node information from MFEM meshes/FES, we need to create a temporary vdim 3 FES
 	// and assign a GF to it, then use the crown mesh to get the node coordinate information from them.
 	// The nodes are ordered such as X0, X1, X2... Y0, Y1, Y2... Z0, Z1, Z2...
-	auto crown_fes_vdim3 = FiniteElementSpace(&crown_mesh, fec, 3);
-	GridFunction nodepos(&crown_fes_vdim3);
+	auto crown_fes_vdim3 = ParFiniteElementSpace(&crown_mesh, fec, 3);
+	ParGridFunction nodepos(&crown_fes_vdim3);
 	crown_mesh.GetNodes(nodepos);
 	auto nodepos_dimension_size = nodepos.Size() / 3;
 
@@ -172,9 +173,9 @@ RCSDataExtractor::RCSDataExtractor(const std::string data_folder, const std::str
 
 	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
 
-	std::map<std::string, std::vector<GridFunction>> GridFuncs;
+	std::map<std::string, std::vector<ParGridFunction>> GridFuncs;
 	for (const auto& field : fields) {
-		std::vector<GridFunction> A;
+		std::vector<ParGridFunction> A;
 		for (auto const& dir_entry : std::filesystem::directory_iterator(data_folder)) {
 			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
 				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs" &&

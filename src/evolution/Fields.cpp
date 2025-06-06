@@ -4,9 +4,12 @@ namespace maxwell {
 
 using namespace mfem;
 
-Fields::Fields(FiniteElementSpace& fes)
+Fields::Fields(ParFiniteElementSpace& fes)
 {
-    global_fes_ = std::make_unique<FiniteElementSpace>(fes.GetMesh(), dynamic_cast<const DG_FECollection*>(fes.FEColl()), 3);
+    ParMesh pmesh(MPI_COMM_WORLD, *fes.GetMesh());
+    auto fecdg = dynamic_cast<const DG_FECollection*>(fes.FEColl());
+    auto fec = DG_FECollection(fes.FEColl()->GetOrder(), pmesh.Dimension(), fecdg->GetBasisType());
+    global_fes_ = std::make_unique<ParFiniteElementSpace>(&pmesh, &fec, 3);
     allDOFs_.SetSize(6 * fes.GetNDofs());
     allDOFs_ = 0.0;
     for (int d = X; d <= Z; d++) {
@@ -28,7 +31,7 @@ Fields::Fields(FiniteElementSpace& fes)
 
 }
 
-GridFunction& Fields::get(const FieldType& f, const Direction& d)
+ParGridFunction& Fields::get(const FieldType& f, const Direction& d)
 {
     assert(f == E || f == H);
     assert(d == X || d == Y || d == Z);
@@ -40,7 +43,7 @@ GridFunction& Fields::get(const FieldType& f, const Direction& d)
     }
 }
 
-const GridFunction& Fields::get(const FieldType& f, const Direction& d) const
+const ParGridFunction& Fields::get(const FieldType& f, const Direction& d) const
 {
     assert(f == E || f == H);
     assert(d == X || d == Y || d == Z);
@@ -52,7 +55,7 @@ const GridFunction& Fields::get(const FieldType& f, const Direction& d) const
     }
 }
 
-GridFunction& Fields::get(const FieldType& f)
+ParGridFunction& Fields::get(const FieldType& f)
 {
     assert(f == E || f == H);
     if (f == E) {

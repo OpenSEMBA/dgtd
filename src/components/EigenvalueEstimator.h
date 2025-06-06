@@ -17,7 +17,7 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	EigenvalueEstimator(mfem::FiniteElementSpace&, Model&, EvolutionOptions&);
+	EigenvalueEstimator(mfem::ParFiniteElementSpace&, Model&, EvolutionOptions&);
 
 	const Eigen::MatrixXd& getElementMatrix() { return mat_; };
 
@@ -25,7 +25,7 @@ private:
 
 	int getOffset(const FieldType&, const Direction&);
 
-	mfem::FiniteElementSpace& fes_;
+	mfem::ParFiniteElementSpace& fes_;
 	Model& model_;
 	EvolutionOptions& opts_;
 

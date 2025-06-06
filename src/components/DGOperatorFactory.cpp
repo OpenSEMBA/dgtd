@@ -58,10 +58,10 @@ namespace maxwell {
 	FiniteElementOperator buildByMult(
 		const SparseMatrix& op1,
 		const SparseMatrix& op2,
-		FiniteElementSpace& fes)
+		ParFiniteElementSpace& fes)
 	{
 		SparseMatrix* matrix = mfem::Mult(op1, op2);
-		auto res = std::make_unique<BilinearForm>(&fes);
+		auto res = std::make_unique<ParBilinearForm>(&fes);
 		res->Assemble();
 		res->Finalize();
 		res->SpMat().Swap(*matrix);
@@ -97,7 +97,7 @@ namespace maxwell {
 		}
 	}
 
-	DGOperatorFactory::DGOperatorFactory(ProblemDescription& pd, FiniteElementSpace& fes) :
+	DGOperatorFactory::DGOperatorFactory(ProblemDescription& pd, ParFiniteElementSpace& fes) :
 		pd_(pd),
 		fes_(fes)
 	{}
@@ -107,7 +107,7 @@ namespace maxwell {
 		Vector aux{ pd_.model.buildEpsMuPiecewiseVector(f) };
 		PWConstCoefficient PWCoeff(aux);
 
-		auto res = std::make_unique<BilinearForm>(&fes_);
+		auto res = std::make_unique<ParBilinearForm>(&fes_);
 		res->AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(PWCoeff)));
 
 		res->Assemble();
@@ -117,7 +117,7 @@ namespace maxwell {
 
 	FiniteElementOperator DGOperatorFactory::buildDerivativeSubOperator(const Direction& d)
 	{
-		auto res = std::make_unique<BilinearForm>(&fes_);
+		auto res = std::make_unique<ParBilinearForm>(&fes_);
 
 		if (d >= fes_.GetMesh()->Dimension()) {
 			res->Assemble();
@@ -137,7 +137,7 @@ namespace maxwell {
 
 	FiniteElementOperator DGOperatorFactory::buildZeroNormalSubOperator(const FieldType& f)
 	{
-		auto res = std::make_unique<BilinearForm>(&fes_);
+		auto res = std::make_unique<ParBilinearForm>(&fes_);
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(
@@ -169,7 +169,7 @@ namespace maxwell {
 
 	FiniteElementOperator DGOperatorFactory::buildOneNormalSubOperator(const FieldType& f, const std::vector<Direction>& dirTerms)
 	{
-		auto res = std::make_unique<BilinearForm>(&fes_);
+		auto res = std::make_unique<ParBilinearForm>(&fes_);
 		ConstantCoefficient one(1.0);
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
@@ -201,7 +201,7 @@ namespace maxwell {
 	}
 	FiniteElementOperator DGOperatorFactory::buildTwoNormalSubOperator(const FieldType& f, const std::vector<Direction>& dirTerms)
 	{
-		auto res = std::make_unique<BilinearForm>(&fes_);
+		auto res = std::make_unique<ParBilinearForm>(&fes_);
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(
@@ -232,7 +232,7 @@ namespace maxwell {
 	}
 	FiniteElementOperator DGOperatorFactory::buildZeroNormalIBFISubOperator(const FieldType& f)
 	{
-		auto res = std::make_unique<mfemExtension::BilinearForm>(&fes_);
+		auto res = std::make_unique<mfemExtension::ParBilinearForm>(&fes_);
 
 		for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 			if (kv.first != BdrCond::TotalFieldIn) {
@@ -256,7 +256,7 @@ namespace maxwell {
 	}
 	FiniteElementOperator DGOperatorFactory::buildOneNormalIBFISubOperator(const FieldType& f, const std::vector<Direction>& dirTerms)
 	{
-		auto res = std::make_unique<mfemExtension::BilinearForm>(&fes_);
+		auto res = std::make_unique<mfemExtension::ParBilinearForm>(&fes_);
 
 		for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 			if (kv.first != BdrCond::TotalFieldIn) {
@@ -280,7 +280,7 @@ namespace maxwell {
 	}
 	FiniteElementOperator DGOperatorFactory::buildTwoNormalIBFISubOperator(const FieldType& f, const std::vector<Direction>& dirTerms)
 	{
-		auto res = std::make_unique<mfemExtension::BilinearForm>(&fes_);
+		auto res = std::make_unique<mfemExtension::ParBilinearForm>(&fes_);
 
 		for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 			if (kv.first != BdrCond::TotalFieldIn) {

@@ -20,7 +20,7 @@ private:
     SolverOptions opts_;
     Model model_;
     mfem::DG_FECollection fec_;
-    std::unique_ptr<mfem::FiniteElementSpace> fes_;
+    std::unique_ptr<mfem::ParFiniteElementSpace> fes_;
     Fields fields_;
     std::unique_ptr<Device> device_;
 
@@ -39,10 +39,10 @@ private:
     void checkOptionsAreValid(const SolverOptions&) const;
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
 
-    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
-    GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);
+    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
+    GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
-    void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
+    void performSpectralAnalysis(const ParFiniteElementSpace&, Model&, const EvolutionOptions&);
     void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution&);
 
 };

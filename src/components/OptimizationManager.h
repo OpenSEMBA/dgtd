@@ -10,17 +10,17 @@ namespace maxwell {
 class OptimizationManager {
 public:
 
-	OptimizationManager(mfem::FiniteElementSpace&, Model&);
+	OptimizationManager(mfem::ParFiniteElementSpace&, Model&);
 
 private:
 
 	void calculateTimeStepForElements();
 	void assembleElemIdToElemAtt();
 
-	SubMesh assembleElementBasedSubMesh(ElementID&);
-	std::pair<FiniteElementSpace, Model> assembleTimeSteppingReqs(ElementID&);
+	ParSubMesh assembleElementBasedSubMesh(ElementID&);
+	std::pair<ParFiniteElementSpace, Model> assembleTimeSteppingReqs(ElementID&);
 
-	mfem::FiniteElementSpace& fes_;
+	mfem::ParFiniteElementSpace& fes_;
 	Model& model_;
 
 	int taggerAttribute_ = 999;

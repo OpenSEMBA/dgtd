@@ -6,18 +6,9 @@ using namespace mfem;
 
 namespace maxwell {
 
-std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
+std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec)
 {
-#ifdef SEMBA_DGTD_ENABLE_MPI	
-	if (dynamic_cast<ParMesh*>(m) != nullptr) {
-		auto pm{ dynamic_cast<ParMesh*>(m) };
-		return std::make_unique<ParFiniteElementSpace>(pm, fec);
-	}
-#endif
-	if (dynamic_cast<Mesh*>(m) != nullptr) {
-		return std::make_unique<FiniteElementSpace>(m, fec);
-	}
-	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
+	return std::make_unique<ParFiniteElementSpace>(m, fec);
 }
 
 std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
@@ -123,9 +114,9 @@ const PointProbe& Solver::getFieldProbe(const std::size_t probe) const
 	return probesManager_.getFieldProbe(probe);
 }
 
-double getMinimumInterNodeDistance(FiniteElementSpace& fes)
+double getMinimumInterNodeDistance(ParFiniteElementSpace& fes)
 {
-	GridFunction nodes(&fes);
+	ParGridFunction nodes(&fes);
 	fes.GetMesh()->GetNodes(nodes);
 	double res{ std::numeric_limits<double>::max() };
 	for (int e = 0; e < fes.GetMesh()->ElementToElementTable().Size(); ++e) {
@@ -188,7 +179,7 @@ double getJacobiGQ_RMin(const int order) {
 
 	return std::abs(nodes(0) - nodes(1));
 }
-std::vector<Source::Position> getVerticesCoordsForElem(const FiniteElementSpace& fes, const ElementId& e, const std::vector<Source::Position>& positions)
+std::vector<Source::Position> getVerticesCoordsForElem(const ParFiniteElementSpace& fes, const ElementId& e, const std::vector<Source::Position>& positions)
 {
 	Array<int> vertices;
 	fes.GetElementVertices(e, vertices);
@@ -213,7 +204,7 @@ double getElementPerimeter(const std::vector<Source::Position>& vertCoords)
 	return res;
 }
 
-double calc2DMeshTimeStep(FiniteElementSpace& fes)
+double calc2DMeshTimeStep(ParFiniteElementSpace& fes)
 {
 	Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
 	double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
@@ -227,7 +218,7 @@ double calc2DMeshTimeStep(FiniteElementSpace& fes)
 	}
 }
 
-double calc3DMeshTimeStep(FiniteElementSpace& fes)
+double calc3DMeshTimeStep(ParFiniteElementSpace& fes)
 {
 	Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
 	double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
@@ -241,7 +232,7 @@ double calc3DMeshTimeStep(FiniteElementSpace& fes)
 	}
 }
 
-double estimateTimeStep(const Model& model, const SolverOptions& opts, FiniteElementSpace& fes, const TimeDependentOperator* tdo)
+double estimateTimeStep(const Model& model, const SolverOptions& opts, ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
 {
 	if (opts.evolution.op != EvolutionOperatorType::Hesthaven) {
 		if (model.getConstMesh().Dimension() == 1) {
@@ -371,7 +362,7 @@ void Solver::step()
 }
 
 
-GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
+GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(ParMesh& submesh)
 {
 	switch (submesh.Dimension()) {
 	case 1:
@@ -400,10 +391,10 @@ GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 
 }
 
-Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
+Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(ParMesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
 {
 	Model submodel(submesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh), GeomTagToInteriorBoundary{}));
-	FiniteElementSpace subfes(&submesh, &fec);
+	ParFiniteElementSpace subfes(&submesh, &fec);
 	Eigen::SparseMatrix<double> local;
 	auto numberOfFieldComponents = 2;
 	auto numberofMaxDimensions = 3;
@@ -457,7 +448,7 @@ double Solver::findMaxEigenvalueModulus(const Eigen::VectorXcd& eigvals)
 	return res;
 }
 
-void reassembleSpectralBdrForSubmesh(SubMesh* submesh) 
+void reassembleSpectralBdrForSubmesh(ParSubMesh* submesh) 
 {
 	switch (submesh->GetElementType(0)) {
 	case Element::SEGMENT:
@@ -525,7 +516,7 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	}
 }
 
-void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
+void Solver::performSpectralAnalysis(const ParFiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
 {
 	Array<int> domainAtts(1);
 	domainAtts[0] = 501;
@@ -536,7 +527,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 
 		auto preAtt(meshCopy.GetAttribute(elem));
 		meshCopy.SetAttribute(elem, domainAtts[0]);
-		auto submesh{ SubMesh::CreateFromDomain(meshCopy,domainAtts) };
+		auto submesh{ ParSubMesh::CreateFromDomain(meshCopy,domainAtts) };
 		meshCopy.SetAttribute(elem, preAtt);
 		submesh.SetAttribute(0, preAtt);
 
@@ -545,7 +536,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 		auto eigenvals{ 
 			assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues() 
 		};
-		FiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
+		ParFiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
 		Model model{ submesh,
 			GeomTagToMaterialInfo{},
 			GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh),GeomTagToInteriorBoundary{})
