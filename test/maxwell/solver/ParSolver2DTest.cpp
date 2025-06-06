@@ -1,15 +1,15 @@
 #include <gtest/gtest.h>
 
 #include "SourceFixtures.h"
-#include "maxwell/Solver.h"
+#include "solver/Solver.h"
 
-#include "maxwell/Types.h"
+#include "components/Types.h"
 #include "mfem.hpp"
-#include "maxwell/Model.h"
-#include "maxwell/mfemExtension/BilinearIntegrators.h"
-#include "maxwell/mfemExtension/BilinearForm_IBFI.hpp"
-#include "maxwell/mfemExtension/LinearIntegrators.h"
-#include "maxwell/mfemExtension/LinearForm_IBFI.hpp"
+#include "components/Model.h"
+#include "mfemExtension/BilinearIntegrators.h"
+#include "mfemExtension/BilinearForm_IBFI.hpp"
+#include "mfemExtension/LinearIntegrators.h"
+#include "mfemExtension/LinearForm_IBFI.hpp"
 
 using namespace maxwell;
 using namespace mfem;
@@ -30,7 +30,7 @@ protected:
 		const BdrCond& bdrT = BdrCond::PEC,
 		const BdrCond& bdrL = BdrCond::PEC) {
 		auto msh{ Mesh::MakeCartesian2D(nx,ny,elType) };
-		return Model(msh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL), GeomTagToInteriorBoundary{});
+		return Model(msh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(buildAttrToBdrMap2D(bdrB, bdrR, bdrT, bdrL), GeomTagToInteriorBoundary{}));
 	}
 
 	GeomTagToBoundary buildAttrToBdrMap2D(const BdrCond& bdrB, const BdrCond& bdrR, const BdrCond& bdrT, const BdrCond& bdrL)
@@ -91,7 +91,7 @@ TEST_F(ParSolver2DTest, periodic_tris_mpi)
 		model,
 		probes,
 		buildPlanewaveInitialField(
-			Gaussian{0.2},
+			Gaussian{0.2, Position({0.0})},
 			Source::Position({1.0, 1.0}), // center
 			Source::Polarization(unitVec(Z)), // e polarization
 			Source::Propagation(unitVec(X))  // propagation direction
