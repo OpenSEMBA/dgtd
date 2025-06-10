@@ -7,6 +7,7 @@ using namespace mfem;
 Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo)
 {
 	pmesh_ = ParMesh(MPI_COMM_WORLD, mesh);
+
 	if (matInfo.gt2m.size() == 0) {
 		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));
 	}

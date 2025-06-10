@@ -12,8 +12,15 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	pd.RegisterField("E", &fields.get(E));
 	pd.RegisterField("H", &fields.get(H));
 	
-	pd.SetLevelsOfDetail(3);
-	pd.SetHighOrderOutput(true);
+
+	bool highOrder = false;
+	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+	auto fecorder = fes_.FEColl()->GetOrder();
+	geomElemOrder > 1 ? highOrder = true : highOrder = false;
+	auto maxDetail = 1;
+	geomElemOrder >= fecorder ? maxDetail = geomElemOrder : maxDetail = fecorder;
+	pd.SetHighOrderOutput(highOrder);
+	pd.SetLevelsOfDetail(maxDetail);
 	
 	pd.SetDataFormat(VTKFormat::BINARY);
 
@@ -28,11 +35,11 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
 	}
 
-	for (const auto& p : probes.fieldProbes) {
+	for (const auto& p : probes.pointProbes) {
 		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
 	}
 
-	for (const auto& p : probes.pointProbes) {
+	for (const auto& p : probes.fieldProbes) {
 		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
 	}
 
@@ -50,13 +57,13 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
 	fields_ = &fields;
 }
 
-const FieldProbe& ProbesManager::getPointProbe(const std::size_t i) const
+const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
 {
 	assert(i < probes.fieldProbes.size());
 	return probes.fieldProbes[i];
 }
 
-const PointProbe& ProbesManager::getFieldProbe(const std::size_t i) const
+const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
 {
 	assert(i < probes.pointProbes.size());
 	return probes.pointProbes[i];
@@ -84,43 +91,43 @@ DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 }
 
 ProbesManager::PointProbeCollection
-ProbesManager::buildPointProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
+ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields) const
 {
 	
 	Array<int> elemIdArray;
 	Array<IntegrationPoint> integPointArray;
 	auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
-	fes_.GetMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
+	fes_.GetParMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
 	assert(elemIdArray.Size() == 1);
 	assert(integPointArray.Size() == 1);
 	FESPoint fesPoints { elemIdArray[0], integPointArray[0] };
 	
 	return { 
 		fesPoints, 
-		getFieldView(p, fields)
-	};
-}
-
-ProbesManager::FieldProbeCollection
-ProbesManager::buildFieldProbeCollectionInfo(const PointProbe& p, Fields& fields) const
-{
-
-	Array<int> elemIdArray;
-	Array<IntegrationPoint> integPointArray;
-	auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
-	fes_.GetMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
-	assert(elemIdArray.Size() == 1);
-	assert(integPointArray.Size() == 1);
-	FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
-
-	return {
-		fesPoints,
 		fields.get(E, X),
 		fields.get(E, Y),
 		fields.get(E, Z),
 		fields.get(H, X),
 		fields.get(H, Y),
 		fields.get(H, Z)
+	};
+}
+
+ProbesManager::FieldProbeCollection
+ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
+{
+
+	Array<int> elemIdArray;
+	Array<IntegrationPoint> integPointArray;
+	auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
+	fes_.GetParMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
+	assert(elemIdArray.Size() == 1);
+	assert(integPointArray.Size() == 1);
+	FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
+
+	return {
+		fesPoints,
+		getFieldView(p, fields)
 	};
 }
 
@@ -157,14 +164,6 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 	assert(it != exporterProbesCollection_.end());
 	auto& pd{ it->second };
 
-	bool highOrder = false;
-	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
-	auto fecorder = fes_.FEColl()->GetOrder();
-	geomElemOrder > 1 ? highOrder = true : highOrder = false;
-	auto maxDetail = 1;
-	geomElemOrder >= fecorder ? maxDetail = geomElemOrder : maxDetail = fecorder;
-	pd.SetHighOrderOutput(highOrder);
-	pd.SetLevelsOfDetail(maxDetail);
 	pd.SetCycle(cycle_);
 	pd.SetTime(time);
 
@@ -175,8 +174,8 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 
 void ProbesManager::updateProbe(FieldProbe& p, Time time)
 {
-	const auto& it{ pointProbesCollection_.find(&p) };
-	assert(it != pointProbesCollection_.end());
+	const auto& it{ fieldProbesCollection_.find(&p) };
+	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
 	p.addFieldToMovies(
 		time, 
@@ -186,8 +185,8 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 
 void ProbesManager::updateProbe(PointProbe& p, Time time)
 {
-	const auto& it{ fieldProbesCollection_.find(&p) };
-	assert(it != fieldProbesCollection_.end());
+	const auto& it{ pointProbesCollection_.find(&p) };
+	assert(it != pointProbesCollection_.end());
 	const auto& pC{ it->second };
 	FieldsForMovie f4FP;
 	{

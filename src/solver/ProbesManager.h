@@ -71,8 +71,8 @@ public:
 
     void updateProbes(Time);
 
-    const FieldProbe& getPointProbe(const std::size_t i) const;
-    const PointProbe& getFieldProbe(const std::size_t i) const;
+    const FieldProbe& getFieldProbe(const std::size_t i) const;
+    const PointProbe& getPointProbe(const std::size_t i) const;
 
     Probes probes;
 
@@ -85,11 +85,6 @@ private:
 
     struct PointProbeCollection {
         FESPoint fesPoint;
-        const mfem::GridFunction& field;
-    };
-
-    struct FieldProbeCollection {
-        FESPoint fesPoint;
         const mfem::GridFunction& field_Ex;
         const mfem::GridFunction& field_Ey;
         const mfem::GridFunction& field_Ez;
@@ -98,12 +93,17 @@ private:
         const mfem::GridFunction& field_Hz;
     };
 
+    struct FieldProbeCollection {
+        FESPoint fesPoint;
+        const mfem::GridFunction& field;
+    };
+
     int cycle_{ 0 };
     double finalTime_;
 
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
-    std::map<const FieldProbe*, PointProbeCollection> pointProbesCollection_;
-    std::map<const PointProbe*, FieldProbeCollection> fieldProbesCollection_;
+    std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
+    std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
     std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
     
     mfem::ParFiniteElementSpace& fes_;
@@ -112,8 +112,8 @@ private:
     std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
-    PointProbeCollection buildPointProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    FieldProbeCollection buildFieldProbeCollectionInfo(const PointProbe&, Fields&) const;
+    PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
+    FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
     DataCollection buildNearFieldDataCollectionInfo(const NearFieldProbe&, Fields&) const;
 
     void updateProbe(ExporterProbe&, Time);

@@ -40,14 +40,14 @@ TEST_F(CasesTest, 1D_PEC_Centered)
 	// while the magnetic field should reach +- 2.0 at specific times...
 	{
 		auto expected_t_half{ 0.5 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 			}
 		}
 
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
@@ -58,7 +58,7 @@ TEST_F(CasesTest, 1D_PEC_Centered)
 	//...and at the start and end of the simulation, 
 	// the electric field should be always close to one due to symmetries in the problem.
 
-	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+	for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 		auto expected_t_initial{ 0.0 };
 		auto expected_t_final{ 2.0 };
 		if (std::abs(t - expected_t_initial) <= 1e-3) {
@@ -101,14 +101,14 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 	// while the magnetic field should reach +- 2.0 at specific times...
 	{
 		auto expected_t_half{ 0.5 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(-1.0, f.Hz, tolerance);
 			}
 		}
 
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			if (std::abs(t - expected_t_half) <= 1e-3) {
 				EXPECT_NEAR(1.0, f.Hz, tolerance);
@@ -119,7 +119,7 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 	//...and at the start and end of the simulation, 
 	// the electric field should be always close to one due to symmetries in the problem.
 
-	for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+	for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 		auto expected_t_initial{ 0.0 };
 		auto expected_t_final{ 2.0 };
 		if (std::abs(t - expected_t_initial) <= 1e-3) {
@@ -150,7 +150,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 
 	{
 		double expected_t{ 2.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -164,7 +164,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 
 	{
 		double expected_t{ 8.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -178,7 +178,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 
 	{
 		double expected_t{ 5.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -191,7 +191,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 	}
 
 	{
-		for (const auto& [t, f] : solver.getFieldProbe(3).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(3).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -199,7 +199,7 @@ TEST_F(CasesTest, 1D_TFSF_Centered)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
 		}
-		for (const auto& [t, f] : solver.getFieldProbe(4).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(4).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -224,7 +224,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind)
 
 	{
 		double expected_t{ 2.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -238,7 +238,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind)
 
 	{
 		double expected_t{ 8.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -252,7 +252,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind)
 
 	{
 		double expected_t{ 5.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -265,7 +265,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind)
 	}
 
 	{
-		for (const auto& [t, f] : solver.getFieldProbe(3).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(3).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -273,7 +273,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
 		}
-		for (const auto& [t, f] : solver.getFieldProbe(4).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(4).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -302,7 +302,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_Negative_K)
 
 	{
 		double expected_t{ 2.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -316,7 +316,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_Negative_K)
 
 	{
 		double expected_t{ 8.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(2).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -330,7 +330,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_Negative_K)
 
 	{
 		double expected_t{ 5.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -343,7 +343,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_Negative_K)
 	}
 
 	{
-		for (const auto& [t, f] : solver.getFieldProbe(3).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(3).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);
@@ -351,7 +351,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_Negative_K)
 			EXPECT_NEAR(0.0, f.Ey, tolerance);
 			EXPECT_NEAR(0.0, f.Hz, tolerance);
 		}
-		for (const auto& [t, f] : solver.getFieldProbe(4).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(4).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
 			EXPECT_NEAR(0.0, f.Hx, tolerance);

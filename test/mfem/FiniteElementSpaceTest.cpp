@@ -455,12 +455,18 @@ TEST_F(FiniteElementSpaceTest, JacobiGLNodesPosition_1D)
 
 }
 
-TEST_F(FiniteElementSpaceTest, PolynomialAndBasis) 
+TEST_F(FiniteElementSpaceTest, ParallelSpaces) 
 {
-	auto mesh = Mesh::MakeCartesian1D(2);
+	auto mesh = Mesh::MakeCartesian1D(10);
 	auto fec = DG_FECollection(1, 1, BasisType::GaussLegendre);
-	auto fes = FiniteElementSpace(&mesh, &fec);
+	auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto pfes = ParFiniteElementSpace(&pmesh,&fec);
 
-	auto gf = GridFunction(&fes);
-	gf = 1.0;
+	auto parbf = ParBilinearForm(&pfes);
+	ConstantCoefficient one(1.0);
+	parbf.AddDomainIntegrator(new MassIntegrator(one));
+	parbf.Assemble();
+	parbf.Finalize();
+
+	std::cout << toEigen(*parbf.SpMat().ToDenseMatrix()) << std::endl;
 }

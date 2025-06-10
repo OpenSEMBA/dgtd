@@ -114,13 +114,13 @@ TEST_F(Solver1DTest, pec_centered)
 	EXPECT_NEAR(eNormOld, solver.getFields().getNorml2(), 1e-3);
 
 	// At the left boundary the electric field should be always close to zero...
-	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovie()) {
 		EXPECT_NEAR(0.0, f, tolerance);
 	}
 	
 	// ... and the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
-	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	auto hMaxFrame{ solver.getFieldProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
@@ -318,14 +318,14 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	// Checks reflected wave.
 	{
-		auto frame{ solver.getPointProbe(0).findFrameWithMin() };
+		auto frame{ solver.getFieldProbe(0).findFrameWithMin() };
 		EXPECT_NEAR(0.75, frame.first, timeTolerance);
 		EXPECT_NEAR(expectedReflectCoeff, frame.second, fieldTolerance);
 	}
 
 	// Checks transmitted wave.
 	{
-		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		auto frame{ solver.getFieldProbe(1).findFrameWithMax() };
 		auto expectedTimeOfArrival{ 0.25 + 0.25 / mat2.getSpeedOfWave() };
 		EXPECT_NEAR(expectedTimeOfArrival, frame.first, timeTolerance);
 		EXPECT_NEAR(expectedTransmissionCoeff, frame.second, fieldTolerance);

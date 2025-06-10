@@ -6,10 +6,10 @@ using namespace mfem;
 
 Fields::Fields(ParFiniteElementSpace& fes)
 {
-    ParMesh pmesh(MPI_COMM_WORLD, *fes.GetMesh());
+
     auto fecdg = dynamic_cast<const DG_FECollection*>(fes.FEColl());
-    auto fec = DG_FECollection(fes.FEColl()->GetOrder(), pmesh.Dimension(), fecdg->GetBasisType());
-    global_fes_ = std::make_unique<ParFiniteElementSpace>(&pmesh, &fec, 3);
+    fec_ = std::make_unique<DG_FECollection>(fes.FEColl()->GetOrder(), fes.GetParMesh()->Dimension(), fecdg->GetBasisType());
+    global_fes_ = std::make_unique<ParFiniteElementSpace>(fes.GetParMesh(), fec_.get(), 3);
     allDOFs_.SetSize(6 * fes.GetNDofs());
     allDOFs_ = 0.0;
     for (int d = X; d <= Z; d++) {
@@ -22,12 +22,14 @@ Fields::Fields(ParFiniteElementSpace& fes)
     e_global_.SetSpace(global_fes_.get());
     h_global_.SetSpace(global_fes_.get());
 
+    auto dofsize = global_fes_->GetNDofs() / 3;
+
     e_global_.SetVector(e_[X], 0);
-    e_global_.SetVector(e_[Y], fes.GetNDofs());
-    e_global_.SetVector(e_[Z], 2 * fes.GetNDofs());
+    e_global_.SetVector(e_[Y], dofsize);
+    e_global_.SetVector(e_[Z], 2 * dofsize);
     h_global_.SetVector(h_[X], 0);
-    h_global_.SetVector(h_[Y], fes.GetNDofs());
-    h_global_.SetVector(h_[Z], 2 * fes.GetNDofs());
+    h_global_.SetVector(h_[Y], dofsize);
+    h_global_.SetVector(h_[Z], 2 * dofsize);
 
 }
 

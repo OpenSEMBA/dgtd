@@ -188,14 +188,14 @@ TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 
 	{
 		auto expected_t{ 0.5 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.5, f.Ez, tolerance);
 				EXPECT_NEAR(0.5, f.Hy, tolerance);
 			}
 		}
 
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR( 0.5, f.Ez, tolerance);
 				EXPECT_NEAR(-0.5, f.Hy, tolerance);
@@ -205,14 +205,14 @@ TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 
 	{
 		auto expected_t{ 1.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);
 			}
 		}
 
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);

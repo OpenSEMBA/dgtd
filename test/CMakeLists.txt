@@ -18,8 +18,6 @@ add_subdirectory(maxwell)
 add_subdirectory(cases)
 add_subdirectory(rcs)
 
-set(NUM_MPI_PROCS 4)
-
 add_test(NAME mfem
          COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${NUM_MPI_PROCS} ${CMAKE_BINARY_DIR}/bin/mfem_tests)
 

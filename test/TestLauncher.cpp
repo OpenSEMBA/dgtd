@@ -5,6 +5,10 @@
 
 int main(int argc, char** argv) 
 {
+
+    std::cout << "PID " << getpid() << " ready to be attached. Press Enter to continue...\n";
+    std::cin.get();
+
     mfem::Mpi::Init(argc, argv);
     mfem::Hypre::Init();
 
@@ -29,5 +33,5 @@ int main(int argc, char** argv)
     int result = RUN_ALL_TESTS();
 
     mfem::Mpi::Finalize();
-	return RUN_ALL_TESTS();
+    return result;
 }
