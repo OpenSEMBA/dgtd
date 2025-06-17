@@ -68,8 +68,8 @@ struct GeomTagToMaterialInfo {
 	};
 };
 
-std::map<GlobalElementId, Position> buildSerialElem2CenterMap(FiniteElementSpace&);
-std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParFiniteElementSpace&);
+std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh&);
+std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParMesh&);
 std::map<GlobalElementId, LocalElementId> buildGlobalToPartitionLocalElementMap(
 	const std::map<GlobalElementId, Position>& serial, const std::map<LocalElementId, Position>& local);
 

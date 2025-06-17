@@ -5,22 +5,22 @@ namespace maxwell {
 using namespace mfem;
 
 
-std::map<GlobalElementId, Position> buildSerialElem2CenterMap(FiniteElementSpace& fes){
+std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh& mesh){
 	std::map<GlobalElementId, Position> res;
-	for (auto e = 0; e < fes.GetNE(); e++){
+	for (auto e = 0; e < mesh.GetNE(); e++){
 		Vector center;
-		fes.GetMesh()->GetElementCenter(e, center);
+		mesh.GetElementCenter(e, center);
 		res[e] = center;
 	}
 	return res;
 }
 
 
-std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParFiniteElementSpace& pfes){
+std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParMesh& pmesh){
 	std::map<LocalElementId, Position> res;
-	for (auto e = 0; e < pfes.GetNE(); e++){
+	for (auto e = 0; e < pmesh.GetNE(); e++){
 		Vector center;
-		pfes.GetParMesh()->GetElementCenter(e, center);
+		pmesh.GetElementCenter(e, center);
 		res[e] = center;
 	}
 	return res;

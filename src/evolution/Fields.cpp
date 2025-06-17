@@ -6,7 +6,6 @@ using namespace mfem;
 
 Fields::Fields(ParFiniteElementSpace& fes)
 {
-
     auto fecdg = dynamic_cast<const DG_FECollection*>(fes.FEColl());
     fec_ = std::make_unique<DG_FECollection>(fes.FEColl()->GetOrder(), fes.GetParMesh()->Dimension(), fecdg->GetBasisType());
     global_fes_ = std::make_unique<ParFiniteElementSpace>(fes.GetParMesh(), fec_.get(), 3);
@@ -30,8 +29,6 @@ Fields::Fields(ParFiniteElementSpace& fes)
     h_global_.SetVector(h_[X], 0);
     h_global_.SetVector(h_[Y], dofsize);
     h_global_.SetVector(h_[Z], 2 * dofsize);
-
-
 }
 
 ParGridFunction& Fields::get(const FieldType& f, const Direction& d)

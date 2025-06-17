@@ -471,8 +471,8 @@ TEST_F(FiniteElementSpaceTest, GlobalToLocalPartitionElementMaps_np2){
 	auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
 	auto pfes = ParFiniteElementSpace(&pmesh,&fec);
 
-	auto serial_element_to_center = buildSerialElem2CenterMap(fes);
-	auto part_element_to_center = buildPartitionElem2CenterMap(pfes);
+	auto serial_element_to_center = buildSerialElem2CenterMap(*fes.GetMesh());
+	auto part_element_to_center = buildPartitionElem2CenterMap(*pfes.GetParMesh());
 	auto g2l_element_map = buildGlobalToPartitionLocalElementMap(serial_element_to_center, part_element_to_center);
 
 	if (Mpi::WorldRank() == 0){
@@ -499,8 +499,8 @@ TEST_F(FiniteElementSpaceTest, GlobalToLocalPartitionDoFMaps_np2)
 
 	pfes.ExchangeFaceNbrData();
 
-	auto serial_element_to_center = buildSerialElem2CenterMap(fes);
-	auto part_element_to_center = buildPartitionElem2CenterMap(pfes);
+	auto serial_element_to_center = buildSerialElem2CenterMap(*fes.GetMesh());
+	auto part_element_to_center = buildPartitionElem2CenterMap(*pfes.GetParMesh());
 	auto g2l_element_map = buildGlobalToPartitionLocalElementMap(serial_element_to_center, part_element_to_center);
 
 	auto global_dof_table = fes.GetElementToDofTable();
@@ -558,8 +558,8 @@ TEST_F(FiniteElementSpaceTest, Scaling2D)
 	auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
 	auto pfes = ParFiniteElementSpace(&pmesh,&fec);
 
-	auto serial_element_to_center = buildSerialElem2CenterMap(fes);
-	auto part_element_to_center = buildPartitionElem2CenterMap(pfes);
+	auto serial_element_to_center = buildSerialElem2CenterMap(*fes.GetMesh());
+	auto part_element_to_center = buildPartitionElem2CenterMap(*pfes.GetParMesh());
 	auto g2l_element_map = buildGlobalToPartitionLocalElementMap(serial_element_to_center, part_element_to_center);
 
 	auto ndof_per_geom = 4; //Order 1 quadrilaterals = 4 dofs;
