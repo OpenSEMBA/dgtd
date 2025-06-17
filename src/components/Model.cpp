@@ -40,10 +40,22 @@ std::map<GlobalElementId, LocalElementId> buildGlobalToPartitionLocalElementMap(
 	return res;
 }
 
+void ensureElementTypeIsSame(const Mesh& mesh)
+{
+	const auto type = mesh.GetElementType(0);
+	for (auto e = 1; e < mesh.GetNE(); e++){
+		if (type != mesh.GetElementType(e)){
+			throw std::runtime_error("Parallelization only works if all mesh elements are of the same type");
+		}	
+	}
+}
+
 Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo)
 {
 	serialMesh_ = Mesh(mesh);
 	pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_);
+
+	ensureElementTypeIsSame(mesh);
 
 	if (matInfo.gt2m.size() == 0) {
 		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));
@@ -72,6 +84,11 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 	assembleGeomTagToTypeMap(attToBdrMap_, false);
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
 	assembleBdrToMarkerMaps();
+
+	g2lElMap_ = buildGlobalToPartitionLocalElementMap(buildSerialElem2CenterMap(mesh), buildPartitionElem2CenterMap(pmesh_));
+	if (g2lElMap_.size() == 0){
+		throw std::runtime_error("Global to Local Element Map for rank " + std::to_string(Mpi::WorldRank()) + " is empty.");
+	}
 
 }
 

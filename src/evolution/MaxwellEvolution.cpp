@@ -7,35 +7,63 @@
 
 namespace maxwell {
 
-	using namespace mfem;
-	using namespace mfemExtension;
+using namespace mfem;
+using namespace mfemExtension;
 
-	void evalConductivity(const Vector& cond, const Vector& in, Vector& out)
-	{
-		for (auto v{ 0 }; v < cond.Size(); v++) {
-			out[v] -= cond[v] * in[v];
+void evalConductivity(const Vector& cond, const Vector& in, Vector& out)
+{
+	for (auto v{ 0 }; v < cond.Size(); v++) {
+		out[v] -= cond[v] * in[v];
+	}
+}
+
+void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
+{
+	for (auto f : { E, H }) {
+		for (auto d{ X }; d <= Z; d++) {
+			gfs[f][d] *= -1.0;
 		}
 	}
+}
 
-	void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
-	{
-		for (auto f : { E, H }) {
-			for (auto d{ X }; d <= Z; d++) {
-				gfs[f][d] *= -1.0;
-			}
+void buildGlobalToLocalDoFMapping(const Model& model, const ParFiniteElementSpace& pfes)
+{
+	Array<int> dofs;
+	pfes.GetElementDofs(0, dofs);
+	const auto& ndof_per_geom = dofs.Size();
+	const auto& g2l_element_map = model.getGlobal2LocalElementMap();
+	std::vector<int> global_dof_indices;
+	global_dof_indices.reserve(ndof_per_geom * g2l_element_map.size());
+	for (const auto& [global, vals] : g2l_element_map){
+		for (auto d = 0; d < ndof_per_geom; d++){
+			global_dof_indices.push_back(global * ndof_per_geom + d);
 		}
 	}
+}
 
-	MaxwellEvolution::MaxwellEvolution(
-		ProblemDescription& pd, ParFiniteElementSpace& fes, SourcesManager& srcmngr) :
-		TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
-		pd_(pd),
-		fes_(fes),
-		srcmngr_(srcmngr)
-	{
+void loadFluxVector(const ParGridFunction& local, const Vector& nbr, Vector& flux)
+{
+	flux.SetSize(local.Size() + nbr.Size());
+	for (auto v = 0; v < local.Size(); v++){
+		flux[v] = local[v];
+	}
+	for (auto v = 0; v < nbr.Size(); v++){
+		flux[v+local.Size()] = nbr[v];
+	}
+}
+
+MaxwellEvolution::MaxwellEvolution(
+	ProblemDescription& pd, ParFiniteElementSpace& fes, SourcesManager& srcmngr) :
+	TimeDependentOperator(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs()),
+	pd_(pd),
+	fes_(fes),
+	srcmngr_(srcmngr)
+{
 #ifdef SHOW_TIMER_INFORMATION
 		auto startTime{ std::chrono::high_resolution_clock::now() };
 #endif
+		fes_.ExchangeFaceNbrData();
+		buildGlobalToLocalDoFMapping(pd_.model, fes_);
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "------------------------------------------------" << std::endl;
@@ -88,7 +116,7 @@ namespace maxwell {
 		std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
 #endif
 
-		DGOperatorFactory dgFactory(pd_, fes);
+		DGOperatorFactory dgFactory(pd_, fes_);
 
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
@@ -155,16 +183,24 @@ namespace maxwell {
 		std::cout << std::endl;
 #endif
 
-	}
+}
 
 void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 {
 
-	std::array<Vector, 3> eOld, hOld;
-	std::array<ParGridFunction, 3> eNew, hNew;
+	std::array<ParGridFunction, 3> eOld, hOld, eNew, hNew, eFlux, hFlux;
 	for (int d = X; d <= Z; d++) {
+		eOld[d].SetSpace(&fes_);
+		hOld[d].SetSpace(&fes_);
 		eOld[d].SetDataAndSize(in.GetData() + d * fes_.GetNDofs(), fes_.GetNDofs());
 		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
+		eOld[d].ExchangeFaceNbrData();
+		hOld[d].ExchangeFaceNbrData();
+		auto faceNbrField = eOld[d].FaceNbrData();
+		loadFluxVector(eOld[d], faceNbrField, eFlux[d]);
+		faceNbrField = hOld[d].FaceNbrData();
+		loadFluxVector(hOld[d], faceNbrField, hFlux[d]);
+
 		eNew[d].SetSpace(&fes_);
 		hNew[d].SetSpace(&fes_);
 		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
@@ -184,42 +220,42 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 		MS_[E][y]->AddMult(hOld[z], eNew[x]);
 		MS_[E][z]->AddMult(hOld[y], eNew[x], -1.0);
 
-		MFN_[H][E][y]->AddMult(eOld[z], hNew[x], 1.0);
-		MFN_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-		MFN_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-		MFN_[E][H][z]->AddMult(hOld[y], eNew[x], 1.0);
+		MFN_[H][E][y]->AddMult(eFlux[z], hNew[x], 1.0);
+		MFN_[H][E][z]->AddMult(eFlux[y], hNew[x], -1.0);
+		MFN_[E][H][y]->AddMult(hFlux[z], eNew[x], -1.0);
+		MFN_[E][H][z]->AddMult(hFlux[y], eNew[x], 1.0);
 
 		//Upwind
 
-		MFNN_[H][H][X][x]->AddMult(hOld[X], hNew[x], 1.0);
-		MFNN_[H][H][Y][x]->AddMult(hOld[Y], hNew[x], 1.0);
-		MFNN_[H][H][Z][x]->AddMult(hOld[Z], hNew[x], 1.0);
-		MP_[H]->AddMult(hOld[x], hNew[x], -1.0);
+		MFNN_[H][H][X][x]->AddMult(hFlux[X], hNew[x], 1.0);
+		MFNN_[H][H][Y][x]->AddMult(hFlux[Y], hNew[x], 1.0);
+		MFNN_[H][H][Z][x]->AddMult(hFlux[Z], hNew[x], 1.0);
+		MP_[H]->AddMult(hFlux[x], hNew[x], -1.0);
 
-		MFNN_[E][E][Y][x]->AddMult(eOld[Y], eNew[x], 1.0);
-		MFNN_[E][E][X][x]->AddMult(eOld[X], eNew[x], 1.0);
-		MFNN_[E][E][Z][x]->AddMult(eOld[Z], eNew[x], 1.0);
-		MP_[E]->AddMult(eOld[x], eNew[x], -1.0);
+		MFNN_[E][E][Y][x]->AddMult(eFlux[Y], eNew[x], 1.0);
+		MFNN_[E][E][X][x]->AddMult(eFlux[X], eNew[x], 1.0);
+		MFNN_[E][E][Z][x]->AddMult(eFlux[Z], eNew[x], 1.0);
+		MP_[E]->AddMult(eFlux[x], eNew[x], -1.0);
 		
 
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 
-			MFNB_[H][E][y]->AddMult(eOld[z], hNew[x]);
-			MFNB_[H][E][z]->AddMult(eOld[y], hNew[x], -1.0);
-			MFNB_[E][H][y]->AddMult(hOld[z], eNew[x], -1.0);
-			MFNB_[E][H][z]->AddMult(hOld[y], eNew[x]);
+			MFNB_[H][E][y]->AddMult(eFlux[z], hNew[x]);
+			MFNB_[H][E][z]->AddMult(eFlux[y], hNew[x], -1.0);
+			MFNB_[E][H][y]->AddMult(hFlux[z], eNew[x], -1.0);
+			MFNB_[E][H][z]->AddMult(hFlux[y], eNew[x]);
 
 			//Upwind
 
-			MFNNB_[H][H][X][x]->AddMult(hOld[X], hNew[x]);
-			MFNNB_[H][H][Y][x]->AddMult(hOld[Y], hNew[x]);
-			MFNNB_[H][H][Z][x]->AddMult(hOld[Z], hNew[x]);
-			MPB_[H]->AddMult(hOld[x], hNew[x], -1.0);
+			MFNNB_[H][H][X][x]->AddMult(hFlux[X], hNew[x]);
+			MFNNB_[H][H][Y][x]->AddMult(hFlux[Y], hNew[x]);
+			MFNNB_[H][H][Z][x]->AddMult(hFlux[Z], hNew[x]);
+			MPB_[H]->AddMult(hFlux[x], hNew[x], -1.0);
 
-			MFNNB_[E][E][X][x]->AddMult(eOld[X], eNew[x]);
-			MFNNB_[E][E][Y][x]->AddMult(eOld[Y], eNew[x]);
-			MFNNB_[E][E][Z][x]->AddMult(eOld[Z], eNew[x]);
-			MPB_[E]->AddMult(eOld[x], eNew[x], -1.0);
+			MFNNB_[E][E][X][x]->AddMult(eFlux[X], eNew[x]);
+			MFNNB_[E][E][Y][x]->AddMult(eFlux[Y], eNew[x]);
+			MFNNB_[E][E][Z][x]->AddMult(eFlux[Z], eNew[x]);
+			MPB_[E]->AddMult(eFlux[x], eNew[x], -1.0);
 			
 		}
 	}
@@ -279,6 +315,8 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 			}
 		}
 	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 }

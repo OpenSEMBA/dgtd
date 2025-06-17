@@ -42,18 +42,21 @@ Solver::Solver(
 
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initStartTime = std::chrono::steady_clock::now();
-	if (!std::filesystem::is_directory("StatisticsExport/") || !std::filesystem::exists("StatisticsExport/")) {
-		std::filesystem::create_directory("StatisticsExport/");
+	if (Mpi::WorldRank == 0){
+		if (!std::filesystem::is_directory("StatisticsExport/") || !std::filesystem::exists("StatisticsExport/")) {
+			std::filesystem::create_directory("StatisticsExport/");
+		}
+		std::filesystem::path statspath("StatisticsExport/" + model_.meshName_ + "/");
+		if (std::filesystem::is_directory(statspath) || std::filesystem::exists(statspath)) {
+			std::filesystem::remove_all(statspath);
+		}
+		std::filesystem::create_directory(statspath);
 	}
-	std::filesystem::path statspath("StatisticsExport/" + model_.meshName_ + "/");
-	if (std::filesystem::is_directory(statspath) || std::filesystem::exists(statspath)) {
-		std::filesystem::remove_all(statspath);
-	}
-	std::filesystem::create_directory(statspath);
 	
 #endif
-
-	checkOptionsAreValid(opts_);
+	if (Mpi::WorldRank == 0){
+		checkOptionsAreValid(opts_);
+	}
 
 	if (opts_.evolution.spectral == true) {
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
@@ -73,9 +76,11 @@ Solver::Solver(
 
 	probesManager_.updateProbes(time_);
 
+	MPI_Barrier(MPI_COMM_WORLD);
 
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initEndTime = std::chrono::steady_clock::now();
+	if (Mpi::WorldRank == 0){
 	std::ofstream myfile;
 	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
 	myfile.open(path, std::ios::app);
@@ -86,6 +91,7 @@ Solver::Solver(
 		myfile << std::defaultfloat;
 	}
 	myfile.close();
+	}
 #endif
 
 }
@@ -114,9 +120,9 @@ const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
 	return probesManager_.getFieldProbe(probe);
 }
 
-double getMinimumInterNodeDistance(ParFiniteElementSpace& fes)
+double getMinimumInterNodeDistance(FiniteElementSpace& fes)
 {
-	ParGridFunction nodes(&fes);
+	GridFunction nodes(&fes);
 	fes.GetMesh()->GetNodes(nodes);
 	double res{ std::numeric_limits<double>::max() };
 	for (int e = 0; e < fes.GetMesh()->ElementToElementTable().Size(); ++e) {
@@ -204,7 +210,7 @@ double getElementPerimeter(const std::vector<Source::Position>& vertCoords)
 	return res;
 }
 
-double calc2DMeshTimeStep(ParFiniteElementSpace& fes)
+double calc2DMeshTimeStep(FiniteElementSpace& fes)
 {
 	Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
 	double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
@@ -218,7 +224,7 @@ double calc2DMeshTimeStep(ParFiniteElementSpace& fes)
 	}
 }
 
-double calc3DMeshTimeStep(ParFiniteElementSpace& fes)
+double calc3DMeshTimeStep(FiniteElementSpace& fes)
 {
 	Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
 	double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
@@ -232,24 +238,28 @@ double calc3DMeshTimeStep(ParFiniteElementSpace& fes)
 	}
 }
 
-double estimateTimeStep(const Model& model, const SolverOptions& opts, ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
+double estimateTimeStep(const Model& model, const SolverOptions& opts, const ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
 {
+	Mesh serialmesh = Mesh(model.getConstSerialMesh());
+	DG_FECollection fec(fes.FEColl()->GetOrder(), serialmesh.Dimension(), opts.basisType);
+	FiniteElementSpace serialfes(&serialmesh, &fec);
+
 	if (opts.evolution.op != EvolutionOperatorType::Hesthaven) {
 		if (model.getConstMesh().Dimension() == 1) {
 			double maxTimeStep{ 0.0 };
 			if (opts.evolution.order == 0) {
-				maxTimeStep = getMinimumInterNodeDistance(fes) / physicalConstants::speedOfLight;
+				maxTimeStep = getMinimumInterNodeDistance(serialfes) / physicalConstants::speedOfLight;
 			}
 			else {
-				maxTimeStep = getMinimumInterNodeDistance(fes) / pow(opts.evolution.order, 1.5) / physicalConstants::speedOfLight;
+				maxTimeStep = getMinimumInterNodeDistance(serialfes) / pow(double(fes.FEColl()->GetOrder()), 1.5) / physicalConstants::speedOfLight;
 			}
 			return opts.cfl * maxTimeStep;
 		}
 		else if (model.getConstMesh().Dimension() == 2) {
-			return calc2DMeshTimeStep(fes) * opts.cfl;
+			return calc2DMeshTimeStep(serialfes) * opts.cfl;
 		}
 		else if (model.getConstMesh().Dimension() == 3) {
-			return calc3DMeshTimeStep(fes) * opts.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
+			return calc3DMeshTimeStep(serialfes) * opts.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
 		}
 		else {
 			throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
@@ -257,18 +267,18 @@ double estimateTimeStep(const Model& model, const SolverOptions& opts, ParFinite
 	}
 	else {
 		if (model.getConstMesh().Dimension() == 2) {
-			return calc2DMeshTimeStep(fes) * opts.cfl;
+			return calc2DMeshTimeStep(serialfes) * opts.cfl;
 		}
 		else if (model.getConstMesh().Dimension() == 3) {
 			auto maxFscaleVal{ 0.0 };
 			const auto& evol = dynamic_cast<const HesthavenEvolution*>(tdo);
-			for (auto e{ 0 }; e < model.getConstMesh().GetNE(); e++) {
+			for (auto e{ 0 }; e < serialmesh.GetNE(); e++) {
 				const auto& fscaleMax{ evol->getHesthavenElement(e).fscale.maxCoeff() };
 				if (fscaleMax > maxFscaleVal) {
 					maxFscaleVal = fscaleMax;
 				}
 			}
-			const auto& order = fes.FEColl()->GetOrder();
+			const auto& order = serialfes.FEColl()->GetOrder();
 			return 1.0 * opts.cfl / (maxFscaleVal * order * order);
 		}
 		else {
@@ -308,7 +318,7 @@ void Solver::run()
 #endif
 
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
-
+		MPI_Barrier(MPI_COMM_WORLD);
 		step();
 
 #ifdef SHOW_TIMER_INFORMATION

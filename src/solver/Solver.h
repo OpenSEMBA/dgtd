@@ -23,7 +23,7 @@
 namespace maxwell {
 
 std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec);
-double estimateTimeStep(const Model&, const SolverOptions&, ParFiniteElementSpace&, const TimeDependentOperator*);
+double estimateTimeStep(const Model&, const SolverOptions&, const ParFiniteElementSpace&, const TimeDependentOperator*);
 
 class Solver {
 public:

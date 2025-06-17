@@ -14,6 +14,8 @@
 
 namespace maxwell {
 
+void buildGlobalToLocalDoFMapping(const Model& model, const ParFiniteElementSpace& pfes);
+
 class MaxwellEvolution: public mfem::TimeDependentOperator {
 public:
 	static const int numberOfFieldComponents = 2;
@@ -48,7 +50,7 @@ private:
 	/* */
 
 	ProblemDescription pd_;
-	FiniteElementSpace& fes_;
+	ParFiniteElementSpace& fes_;
 	SourcesManager& srcmngr_;
 
 };

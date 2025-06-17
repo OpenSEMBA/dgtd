@@ -16,6 +16,8 @@ using NeighbourElementId = int;
 using GlobalElementId = int;
 using Position = Vector;
 
+using GlobalToLocalElMap = std::map<GlobalElementId, LocalElementId>;
+
 using FaceId = int;
 using GeomTag = int;
 using GeomTagToMaterial = std::map<GeomTag, Material>;
@@ -70,8 +72,9 @@ struct GeomTagToMaterialInfo {
 
 std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh&);
 std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParMesh&);
-std::map<GlobalElementId, LocalElementId> buildGlobalToPartitionLocalElementMap(
+GlobalToLocalElMap buildGlobalToPartitionLocalElementMap(
 	const std::map<GlobalElementId, Position>& serial, const std::map<LocalElementId, Position>& local);
+void ensureElementTypeIsSame(const Mesh& mesh);
 
 class Model {
 public:
@@ -87,6 +90,8 @@ public:
 	const ParMesh& getConstMesh() const { return pmesh_; }
 	Mesh& getSerialMesh() { return serialMesh_; }
 	const Mesh& getConstSerialMesh() const { return serialMesh_; }
+
+	const GlobalToLocalElMap& getGlobal2LocalElementMap() const { return g2lElMap_; }
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
@@ -117,6 +122,8 @@ private:
 
 	Mesh serialMesh_;
 	ParMesh pmesh_;
+
+	std::map<GlobalElementId, LocalElementId> g2lElMap_;
 	
 	GeomTagToMaterial attToMatMap_;
 	GeomTagToBoundary attToBdrMap_;
