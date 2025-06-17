@@ -170,7 +170,6 @@ namespace maxwell {
 	FiniteElementOperator DGOperatorFactory::buildOneNormalSubOperator(const FieldType& f, const std::vector<Direction>& dirTerms)
 	{
 		auto res = std::make_unique<ParBilinearForm>(&fes_);
-		ConstantCoefficient one(1.0);
 		if (pd_.model.getInteriorBoundaryToMarker().size()) {
 			for (auto& kv : pd_.model.getInteriorBoundaryToMarker()) {
 				res->AddInteriorFaceIntegrator(

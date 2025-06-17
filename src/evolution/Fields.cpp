@@ -31,6 +31,7 @@ Fields::Fields(ParFiniteElementSpace& fes)
     h_global_.SetVector(h_[Y], dofsize);
     h_global_.SetVector(h_[Z], 2 * dofsize);
 
+
 }
 
 ParGridFunction& Fields::get(const FieldType& f, const Direction& d)

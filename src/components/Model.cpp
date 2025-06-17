@@ -4,9 +4,46 @@ namespace maxwell {
 
 using namespace mfem;
 
+
+std::map<GlobalElementId, Position> buildSerialElem2CenterMap(FiniteElementSpace& fes){
+	std::map<GlobalElementId, Position> res;
+	for (auto e = 0; e < fes.GetNE(); e++){
+		Vector center;
+		fes.GetMesh()->GetElementCenter(e, center);
+		res[e] = center;
+	}
+	return res;
+}
+
+
+std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParFiniteElementSpace& pfes){
+	std::map<LocalElementId, Position> res;
+	for (auto e = 0; e < pfes.GetNE(); e++){
+		Vector center;
+		pfes.GetParMesh()->GetElementCenter(e, center);
+		res[e] = center;
+	}
+	return res;
+}
+
+std::map<GlobalElementId, LocalElementId> buildGlobalToPartitionLocalElementMap(const std::map<GlobalElementId, Position>& serial, const std::map<LocalElementId, Position>& local)
+{
+	double tol = 1e-5;
+	std::map<GlobalElementId, LocalElementId> res;
+	for (const auto& [glob_el_id, center_to_find] : serial)	{
+		for (const auto& [loc_el_id, local_cent] : local){
+			if( center_to_find.DistanceTo(local_cent) <= tol){
+				res[glob_el_id] = loc_el_id;
+			}
+		}
+	}
+	return res;
+}
+
 Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo)
 {
-	pmesh_ = ParMesh(MPI_COMM_WORLD, mesh);
+	serialMesh_ = Mesh(mesh);
+	pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_);
 
 	if (matInfo.gt2m.size() == 0) {
 		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));

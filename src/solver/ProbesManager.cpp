@@ -177,10 +177,12 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	const auto& it{ fieldProbesCollection_.find(&p) };
 	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
-	p.addFieldToMovies(
-		time, 
-		pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
-	);
+	if (pC.fesPoint.elementId != -2){
+		p.addFieldToMovies(
+			time, 
+			pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP)
+		);
+	}
 }
 
 void ProbesManager::updateProbe(PointProbe& p, Time time)
@@ -188,19 +190,21 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	const auto& it{ pointProbesCollection_.find(&p) };
 	assert(it != pointProbesCollection_.end());
 	const auto& pC{ it->second };
-	FieldsForMovie f4FP;
-	{
-		f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		f4FP.Ez = pC.field_Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		f4FP.Hx = pC.field_Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		f4FP.Hy = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		f4FP.Hz = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+	if (pC.fesPoint.elementId != -2){
+		FieldsForMovie f4FP;
+		{
+			f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Ez = pC.field_Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Hx = pC.field_Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Hy = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Hz = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+		}
+		p.addFieldsToMovies(
+			time,
+			f4FP
+		);
 	}
-	p.addFieldsToMovies(
-		time,
-		f4FP
-	);
 }
 
 Fields buildFieldsForProbe(const Fields& src, ParFiniteElementSpace& fes)

@@ -11,6 +11,11 @@ namespace maxwell {
 
 using namespace mfem;
 
+using LocalElementId = int;
+using NeighbourElementId = int;
+using GlobalElementId = int;
+using Position = Vector;
+
 using FaceId = int;
 using GeomTag = int;
 using GeomTagToMaterial = std::map<GeomTag, Material>;
@@ -63,6 +68,11 @@ struct GeomTagToMaterialInfo {
 	};
 };
 
+std::map<GlobalElementId, Position> buildSerialElem2CenterMap(FiniteElementSpace&);
+std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParFiniteElementSpace&);
+std::map<GlobalElementId, LocalElementId> buildGlobalToPartitionLocalElementMap(
+	const std::map<GlobalElementId, Position>& serial, const std::map<LocalElementId, Position>& local);
+
 class Model {
 public:
 
@@ -75,6 +85,8 @@ public:
 
 	ParMesh& getMesh() { return pmesh_; };
 	const ParMesh& getConstMesh() const { return pmesh_; }
+	Mesh& getSerialMesh() { return serialMesh_; }
+	const Mesh& getConstSerialMesh() const { return serialMesh_; }
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
@@ -103,6 +115,7 @@ public:
 
 private:
 
+	Mesh serialMesh_;
 	ParMesh pmesh_;
 	
 	GeomTagToMaterial attToMatMap_;

@@ -28,5 +28,6 @@ private:
     std::array<mfem::ParGridFunction, 3> e_, h_;
     mfem::ParGridFunction e_global_, h_global_;
     std::unique_ptr<mfem::DG_FECollection> fec_;
+
 };
 }
