@@ -556,13 +556,19 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
 			}
-		auto marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
-		marker.SetSize(model.getConstMesh().bdr_attributes.Max());
-		marker = 0;
-		for (auto t : tfsf_tags) {
-			marker[t - 1] = 1;
-		}
-		model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, marker));
+			auto tfsf_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
+			tfsf_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+			tfsf_atts_present_in_partition_marker = 0;
+			for (auto t = 0; t < tfsf_tags.Size(); t++){
+				for (auto b = 0; b < model.getConstMesh().GetNBE(); b++){	
+					if (model.getMesh().GetBdrAttribute(b) == tfsf_tags[t]){
+						tfsf_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(b) - 1] = 1;
+					}
+				}
+			}
+			if (tfsf_atts_present_in_partition_marker.Sum() != 0){
+				model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
+			}
 		}
 	}
 

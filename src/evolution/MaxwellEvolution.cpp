@@ -110,6 +110,8 @@ MaxwellEvolution::MaxwellEvolution(
 
 		}
 
+		MPI_Barrier(MPI_COMM_WORLD);
+
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;

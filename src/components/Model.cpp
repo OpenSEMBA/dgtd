@@ -64,7 +64,7 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 		attToMatMap_ = matInfo.gt2m;
 	}
 
-	auto f2bdr{ mesh.GetFaceToBdrElMap() };
+	auto f2bdr{ pmesh_.GetFaceToBdrElMap() };
 
 	for (auto i = bdrInfo.gt2b.begin(); i != bdrInfo.gt2b.end(); i++) {
 		faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
