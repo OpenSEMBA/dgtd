@@ -26,20 +26,20 @@ void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 	}
 }
 
-void buildGlobalToLocalDoFMapping(const Model& model, const ParFiniteElementSpace& pfes)
-{
-	Array<int> dofs;
-	pfes.GetElementDofs(0, dofs);
-	const auto& ndof_per_geom = dofs.Size();
-	const auto& g2l_element_map = model.getGlobal2LocalElementMap();
-	std::vector<int> global_dof_indices;
-	global_dof_indices.reserve(ndof_per_geom * g2l_element_map.size());
-	for (const auto& [global, vals] : g2l_element_map){
-		for (auto d = 0; d < ndof_per_geom; d++){
-			global_dof_indices.push_back(global * ndof_per_geom + d);
-		}
-	}
-}
+// void buildGlobalToLocalDoFMapping(const Model& model, const ParFiniteElementSpace& pfes)
+// {
+// 	Array<int> dofs;
+// 	pfes.GetElementDofs(0, dofs);
+// 	const auto& ndof_per_geom = dofs.Size();
+// 	const auto& g2l_element_map = model.getGlobal2LocalElementMap();
+// 	std::vector<int> global_dof_indices;
+// 	global_dof_indices.reserve(ndof_per_geom * g2l_element_map.size());
+// 	for (const auto& [global, vals] : g2l_element_map){
+// 		for (auto d = 0; d < ndof_per_geom; d++){
+// 			global_dof_indices.push_back(global * ndof_per_geom + d);
+// 		}
+// 	}
+// }
 
 void loadFluxVector(const ParGridFunction& local, const Vector& nbr, Vector& flux)
 {
@@ -63,7 +63,7 @@ MaxwellEvolution::MaxwellEvolution(
 		auto startTime{ std::chrono::high_resolution_clock::now() };
 #endif
 		fes_.ExchangeFaceNbrData();
-		buildGlobalToLocalDoFMapping(pd_.model, fes_);
+		// buildGlobalToLocalDoFMapping(pd_.model, fes_);
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "------------------------------------------------" << std::endl;
@@ -72,18 +72,20 @@ MaxwellEvolution::MaxwellEvolution(
 		std::cout << std::endl;
 #endif
 
+		MPI_Barrier(MPI_COMM_WORLD);
+
 		if (pd_.model.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != pd_.model.getTotalFieldScatteredFieldToMarker().end()) {
 			srcmngr.initTFSFPreReqs(pd_.model.getConstMesh(), pd_.model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
 			auto globalTFSFfes{ srcmngr.getGlobalTFSFSpace() };			
-			Model tfsfModel = Model(*globalTFSFfes->GetMesh(), GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+			Model tfsfModel(*globalTFSFfes->GetMesh(), GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
 			ProblemDescription tfsfPD(tfsfModel, pd_.probes, pd_.sources, pd_.opts);
-			DGOperatorFactory tfsfFactory(tfsfPD, *globalTFSFfes);
+			DGOperatorFactory<FiniteElementSpace> tfsfFactory(tfsfPD, *globalTFSFfes);
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Assembling TFSF Inverse Mass Operators" << std::endl;
 #endif
 
-			MInvTFSF_ = tfsfFactory.buildMaxwellInverseMassMatrixOperator();
+			MInvTFSF_ = tfsfFactory.buildMaxwellInverseMassMatrixOperator<BilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -91,14 +93,14 @@ MaxwellEvolution::MaxwellEvolution(
 			std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
 
-			MP_GTFSF_ = tfsfFactory.buildMaxwellZeroNormalOperator();
+			MP_GTFSF_ = tfsfFactory.buildMaxwellZeroNormalOperator<BilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
 #endif
-			MFN_GTFSF_ = tfsfFactory.buildMaxwellOneNormalOperator();
+			MFN_GTFSF_ = tfsfFactory.buildMaxwellOneNormalOperator<BilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -106,7 +108,7 @@ MaxwellEvolution::MaxwellEvolution(
 			std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
 #endif
 
-			MFNN_GTFSF_ = tfsfFactory.buildMaxwellTwoNormalOperator();
+			MFNN_GTFSF_ = tfsfFactory.buildMaxwellTwoNormalOperator<BilinearForm>();
 
 		}
 
@@ -118,7 +120,7 @@ MaxwellEvolution::MaxwellEvolution(
 		std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
 #endif
 
-		DGOperatorFactory dgFactory(pd_, fes_);
+		DGOperatorFactory<ParFiniteElementSpace> dgFactory(pd_, fes_);
 
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
@@ -127,14 +129,14 @@ MaxwellEvolution::MaxwellEvolution(
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
-			MPB_ = dgFactory.buildMaxwellIntBdrZeroNormalOperator();
+			MPB_ = dgFactory.buildMaxwellIntBdrZeroNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
 #endif
-			MFNB_ = dgFactory.buildMaxwellIntBdrOneNormalOperator();
+			MFNB_ = dgFactory.buildMaxwellIntBdrOneNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -142,7 +144,7 @@ MaxwellEvolution::MaxwellEvolution(
 			std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
 #endif
 
-			MFNNB_ = dgFactory.buildMaxwellIntBdrTwoNormalOperator();
+			MFNNB_ = dgFactory.buildMaxwellIntBdrTwoNormalOperator<ParBilinearForm>();
 
 		}
 
@@ -152,7 +154,7 @@ MaxwellEvolution::MaxwellEvolution(
 		std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
 #endif
 
-		MS_ = dgFactory.buildMaxwellDirectionalOperator();
+		MS_ = dgFactory.buildMaxwellDirectionalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -160,7 +162,7 @@ MaxwellEvolution::MaxwellEvolution(
 		std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
 #endif
 		
-		MP_ = dgFactory.buildMaxwellZeroNormalOperator();
+		MP_ = dgFactory.buildMaxwellZeroNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -168,7 +170,7 @@ MaxwellEvolution::MaxwellEvolution(
 		std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
 #endif
 
-		MFN_ = dgFactory.buildMaxwellOneNormalOperator();
+		MFN_ = dgFactory.buildMaxwellOneNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
@@ -176,7 +178,7 @@ MaxwellEvolution::MaxwellEvolution(
 		std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
 #endif
 
-		MFNN_ = dgFactory.buildMaxwellTwoNormalOperator();
+		MFNN_ = dgFactory.buildMaxwellTwoNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
 		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>

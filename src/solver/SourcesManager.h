@@ -12,11 +12,11 @@ class SourcesManager {
 public:
     SourcesManager(const Sources&, mfem::ParFiniteElementSpace&, Fields& fields);
 
-    FieldGridFuncs evalTimeVarField(const Time, ParFiniteElementSpace*);
+    FieldGridFuncs evalTimeVarField(const Time, FiniteElementSpace*);
     void initTFSFPreReqs(const ParMesh&, const Array<int>& marker);
-    ParFiniteElementSpace* getTFSpace() { return tf_fes_.get(); }
-    ParFiniteElementSpace* getSFSpace() { return sf_fes_.get(); }
-    ParFiniteElementSpace* getGlobalTFSFSpace() { return global_tfsf_fes_.get(); }
+    FiniteElementSpace* getTFSpace() { return tf_fes_.get(); }
+    FiniteElementSpace* getSFSpace() { return sf_fes_.get(); }
+    FiniteElementSpace* getGlobalTFSFSpace() { return global_tfsf_fes_.get(); }
     TotalFieldScatteredFieldSubMesher& getTFSFSubMesher() { return tfsf_submesher_; }
     void markDoFSforTForSF(FieldGridFuncs&, bool isTF);
 
@@ -30,7 +30,7 @@ private:
 
     mfem::ParFiniteElementSpace& fes_;
     TotalFieldScatteredFieldSubMesher tfsf_submesher_;
-    std::unique_ptr<ParFiniteElementSpace> tf_fes_, sf_fes_, global_tfsf_fes_;
+    std::unique_ptr<FiniteElementSpace> tf_fes_, sf_fes_, global_tfsf_fes_;
     
 
 };

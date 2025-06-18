@@ -41,9 +41,9 @@ public:
 
     NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::ParFiniteElementSpace& fes, Fields&);
 
-    mfem::ParSubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
+    mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
     const mfem::ParGridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
-    mfem::ParGridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    mfem::GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
     void updateFields();
 
 private:
@@ -51,7 +51,7 @@ private:
     void assignGlobalFieldsReferences(Fields& global);
 
     NearToFarFieldSubMesher ntff_smsh_;
-    std::unique_ptr<mfem::ParFiniteElementSpace> sfes_;
+    std::unique_ptr<mfem::FiniteElementSpace> sfes_;
     Fields fields_;
     Fields& gFields_;
     TransferMaps tMaps_;

@@ -49,10 +49,10 @@ EigenvalueEstimator::EigenvalueEstimator(
 	Probes probes;
 	Sources sources;
 	ProblemDescription pd(model, probes, sources, opts_);
-	DGOperatorFactory dgops(pd, fes_);
+	DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes_);
 
-	auto invM_E{ toEigen(*dgops.buildInverseMassMatrixSubOperator(E)->SpMat().ToDenseMatrix()) };
-	auto invM_H{ toEigen(*dgops.buildInverseMassMatrixSubOperator(H)->SpMat().ToDenseMatrix()) };
+	auto invM_E{ toEigen(*dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat().ToDenseMatrix()) };
+	auto invM_H{ toEigen(*dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat().ToDenseMatrix()) };
 	Eigen::MatrixXd invM(invM_E);
 
 	for (auto f : { E, H }) {
@@ -63,14 +63,14 @@ EigenvalueEstimator::EigenvalueEstimator(
 
 			//MP
 			mat_.block(getOffset(f, d), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) +=
-				invM * toEigen(*dgops.buildZeroNormalSubOperator(f)->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildZeroNormalSubOperator<ParBilinearForm>(f)->SpMat().ToDenseMatrix());
 			//MFNN
 			mat_.block(getOffset(f, X), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) -=
-				invM * toEigen(*dgops.buildTwoNormalSubOperator(altField(f), { d, X })->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildTwoNormalSubOperator<ParBilinearForm>(altField(f), { d, X })->SpMat().ToDenseMatrix());
 			mat_.block(getOffset(f, Y), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) -=
-				invM * toEigen(*dgops.buildTwoNormalSubOperator(altField(f), { d, Y })->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildTwoNormalSubOperator<ParBilinearForm>(altField(f), { d, Y })->SpMat().ToDenseMatrix());
 			mat_.block(getOffset(f, Z), getOffset(f, d), fes_.GetNDofs(), fes_.GetNDofs()) -=
-				invM * toEigen(*dgops.buildTwoNormalSubOperator(altField(f), { d, Z })->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildTwoNormalSubOperator<ParBilinearForm>(altField(f), { d, Z })->SpMat().ToDenseMatrix());
 
 		}
 
@@ -81,14 +81,14 @@ EigenvalueEstimator::EigenvalueEstimator(
 			int z = (x + 2) % 3;
 
 			mat_.block(getOffset(f, x), getOffset(altField(f), y), fes_.GetNDofs(), fes_.GetNDofs()) -=
-				invM * toEigen(*dgops.buildDerivativeSubOperator(z)->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildDerivativeSubOperator<ParBilinearForm>(z)->SpMat().ToDenseMatrix());
 			mat_.block(getOffset(f, x), getOffset(altField(f), y), fes_.GetNDofs(), fes_.GetNDofs()) -=
-				invM * toEigen(*dgops.buildOneNormalSubOperator(altField(f), { z })->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildOneNormalSubOperator<ParBilinearForm>(altField(f), { z })->SpMat().ToDenseMatrix());
 
 			mat_.block(getOffset(f, x), getOffset(altField(f), z), fes_.GetNDofs(), fes_.GetNDofs()) +=
-				invM * toEigen(*dgops.buildDerivativeSubOperator(y)->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildDerivativeSubOperator<ParBilinearForm>(y)->SpMat().ToDenseMatrix());
 			mat_.block(getOffset(f, x), getOffset(altField(f), z), fes_.GetNDofs(), fes_.GetNDofs()) +=
-				invM * toEigen(*dgops.buildOneNormalSubOperator(altField(f), { y })->SpMat().ToDenseMatrix());
+				invM * toEigen(*dgops.buildOneNormalSubOperator<ParBilinearForm>(altField(f), { y })->SpMat().ToDenseMatrix());
 		}
 	}
 }

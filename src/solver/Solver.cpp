@@ -413,32 +413,31 @@ Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(ParM
 
 	EvolutionOptions localopts(opts);
 	ProblemDescription pd(submodel, probesManager_.probes, sourcesManager_.sources, localopts);
-	DGOperatorFactory dgops(pd, subfes);
+	DGOperatorFactory<ParFiniteElementSpace> dgops(pd, subfes);
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildDerivativeSubOperator(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildDerivativeSubOperator(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildDerivativeSubOperator(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildDerivativeSubOperator(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
 
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildOneNormalSubOperator(E, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildOneNormalSubOperator(E, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildOneNormalSubOperator(H, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
-		allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildOneNormalSubOperator(H, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
 
 		if (opts.alpha > 0.0) {
 
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildZeroNormalSubOperator(H)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildZeroNormalSubOperator(E)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
-
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildTwoNormalSubOperator(H, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildTwoNormalSubOperator(H, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildTwoNormalSubOperator(H, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildTwoNormalSubOperator(E, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildTwoNormalSubOperator(E, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
-			allocateDenseInEigen(buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildTwoNormalSubOperator(E, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildZeroNormalSubOperator<ParBilinearForm>(H)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildZeroNormalSubOperator<ParBilinearForm>(E)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
 
 		}
 

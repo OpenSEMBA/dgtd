@@ -7,7 +7,7 @@
 
 #include "solver/SourcesManager.h"
 
-#include "components/ProblemDefinition.h"
+#include "components/ProblemDescription.h"
 #include "components/DGOperatorFactory.h"
 
 #include <chrono>
@@ -26,26 +26,25 @@ public:
 
 private:
 
-	std::array<FiniteElementOperator, 2> MInv_;
-	std::array<FiniteElementOperator, 2> MInvTFSF_;
-
-	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
-	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_;
-	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_;
-	std::array<FiniteElementOperator, 2> MP_;
-
-	std::array<FiniteElementOperator, 2> MPB_;
-	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFNB_;
-	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNNB_;
+	std::array<std::unique_ptr<ParBilinearForm>, 2> MInv_;
+	
+	std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2> MS_;
+	std::array<std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 3>, 2>, 2> MFNN_;
+	std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2>, 2> MFN_;
+	std::array<std::unique_ptr<ParBilinearForm>, 2> MP_;
+	
+	std::array<std::unique_ptr<ParBilinearForm>, 2> MPB_;
+	std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2>, 2> MFNB_;
+	std::array<std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 3>, 2>, 2> MFNNB_;
 	
 	Vector CND_;
-
+	
 	//Total Field and Scattered Field operators for SubMeshing
-
-	std::array<std::array<FiniteElementOperator, 3>, 2> MS_GTFSF_;
-	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_GTFSF_;
-	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_GTFSF_;
-	std::array<FiniteElementOperator, 2> MP_GTFSF_;
+	std::array<std::unique_ptr<BilinearForm>, 2> MInvTFSF_;
+	std::array<std::array<std::unique_ptr<BilinearForm>, 3>, 2> MS_GTFSF_;
+	std::array<std::array<std::array<std::array<std::unique_ptr<BilinearForm>, 3>, 3>, 2>, 2> MFNN_GTFSF_;
+	std::array<std::array<std::array<std::unique_ptr<BilinearForm>, 3>, 2>, 2> MFN_GTFSF_;
+	std::array<std::unique_ptr<BilinearForm>, 2> MP_GTFSF_;
 
 	/* */
 

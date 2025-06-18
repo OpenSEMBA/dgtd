@@ -4,11 +4,11 @@ namespace maxwell {
 
 using namespace mfem;
 
-Fields::Fields(ParFiniteElementSpace& fes)
+Fields::Fields(FiniteElementSpace& fes)
 {
     auto fecdg = dynamic_cast<const DG_FECollection*>(fes.FEColl());
-    fec_ = std::make_unique<DG_FECollection>(fes.FEColl()->GetOrder(), fes.GetParMesh()->Dimension(), fecdg->GetBasisType());
-    global_fes_ = std::make_unique<ParFiniteElementSpace>(fes.GetParMesh(), fec_.get(), 3);
+    fec_ = std::make_unique<DG_FECollection>(fes.FEColl()->GetOrder(), fes.GetMesh()->Dimension(), fecdg->GetBasisType());
+    global_fes_ = std::make_unique<FiniteElementSpace>(fes.GetMesh(), fec_.get(), 3);
     allDOFs_.SetSize(6 * fes.GetNDofs());
     allDOFs_ = 0.0;
     for (int d = X; d <= Z; d++) {

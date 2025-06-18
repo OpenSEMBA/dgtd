@@ -38,7 +38,7 @@ GlobalEvolution::GlobalEvolution(
 		Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
 		
 		ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
-		DGOperatorFactory tfsfops(tfsfpd, *globalTFSFfes);
+		DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
 
 		TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
 

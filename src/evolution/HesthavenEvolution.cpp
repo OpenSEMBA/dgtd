@@ -150,9 +150,9 @@ void HesthavenEvolution::storeDirectionalMatrices(ParFiniteElementSpace& subFES,
 	Model model(*subFES.GetMesh(), GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo{});
 	Probes probes;
 	ProblemDescription pd(model, probes, srcmngr_.sources, opts_);
-	DGOperatorFactory dgops(pd, subFES);
+	DGOperatorFactory<ParFiniteElementSpace> dgops(pd, subFES);
 	for (int d = X; d <= Z; d++) {
-		auto denseMat = dgops.buildDerivativeSubOperator(d)->SpMat().ToDenseMatrix();
+		auto denseMat = dgops.buildDerivativeSubOperator<ParBilinearForm>(d)->SpMat().ToDenseMatrix();
 		DynamicMatrix dirMat = refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol;
 		delete denseMat;
 		StorageIterator it = matrixStorage_.find(dirMat);
@@ -445,7 +445,7 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 	if (curvedElements_.size()) {
 		Probes probes;
 		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
-		DGOperatorFactory dgops(pd, fes_);
+		DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes_);
 		auto global = dgops.buildGlobalOperator();
 
 		for (const auto& [e, dofs]: curvedElements_) {

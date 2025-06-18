@@ -8,7 +8,7 @@ namespace maxwell {
 
 class Fields {
 public:
-    Fields(mfem::ParFiniteElementSpace& fes);
+    Fields(mfem::FiniteElementSpace& fes);
     
     mfem::ParGridFunction& get(const FieldType&, const Direction&);
     const mfem::ParGridFunction& get(const FieldType&, const Direction&) const;
@@ -24,7 +24,7 @@ public:
 
 private:
     mfem::Vector allDOFs_;
-    std::unique_ptr<mfem::ParFiniteElementSpace> global_fes_;
+    std::unique_ptr<mfem::FiniteElementSpace> global_fes_;
     std::array<mfem::ParGridFunction, 3> e_, h_;
     mfem::ParGridFunction e_global_, h_global_;
     std::unique_ptr<mfem::DG_FECollection> fec_;

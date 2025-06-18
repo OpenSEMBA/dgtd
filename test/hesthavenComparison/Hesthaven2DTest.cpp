@@ -325,7 +325,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 	EvolutionOptions opts = EvolutionOptions();
 	opts.order = 1;
 	ProblemDescription pd(model, probes, sources, opts);
-	DGOperatorFactory dgops(pd, fes);
+	DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes);
 
 	auto EigenMFN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildOneNormalSubOperator(H, { Y })->SpMat(), fes)->SpMat().ToDenseMatrix());
 

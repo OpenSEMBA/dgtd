@@ -35,7 +35,7 @@ void SourcesManager::setInitialFields(Fields& fields)
     }
 }
 
-FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, ParFiniteElementSpace* fes)
+FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, FiniteElementSpace* fes)
 {
     std::array<std::array<ParGridFunction, 3>, 2> res;
     for (const auto& source : sources) {
@@ -103,12 +103,12 @@ void SourcesManager::initTFSFSubMesher(const ParMesh& m, const Array<int>& marke
 void SourcesManager::initTFSFSpaces()
 {
     if (tfsf_submesher_.getTFSubMesh() != NULL) {
-        tf_fes_ = std::make_unique<ParFiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
+        tf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getTFSubMesh(), fes_.FEColl());
     }
     if (tfsf_submesher_.getSFSubMesh() != NULL) {
-        sf_fes_ = std::make_unique<ParFiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
+        sf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getSFSubMesh(), fes_.FEColl());
     }
-    global_tfsf_fes_ = std::make_unique<ParFiniteElementSpace>(tfsf_submesher_.getGlobalTFSFSubMesh(), fes_.FEColl());
+    global_tfsf_fes_ = std::make_unique<FiniteElementSpace>(tfsf_submesher_.getGlobalTFSFSubMesh(), fes_.FEColl());
 }
 
 }

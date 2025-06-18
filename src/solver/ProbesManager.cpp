@@ -139,7 +139,7 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
 	}
 
-	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh()};
+	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
 	res.SetPrefixPath("NearToFarFieldExports/" + p.name);
 	res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getField(E, X));
 	res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getField(E, Y));
@@ -309,7 +309,7 @@ void TransferMaps::transferFields(const Fields& src, Fields& dst)
 NearFieldReqs::NearFieldReqs(
 	const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields& global) :
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
-	sfes_{ std::make_unique<ParFiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
+	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
 	fields_{ Fields(*sfes_) },
 	gFields_{ global },
 	tMaps_{ TransferMaps(gFields_, fields_) }
