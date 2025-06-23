@@ -5,7 +5,6 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 add_library(maxwell-evolution STATIC 
 	"MaxwellEvolution.cpp"
 	"MaxwellEvolutionMethods.cpp"
-	"Fields.cpp" 
 	"HesthavenEvolutionMethods.cpp"
 	"HesthavenEvolution.cpp" 
 	"GlobalEvolution.cpp")

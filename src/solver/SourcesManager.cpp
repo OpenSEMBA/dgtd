@@ -4,7 +4,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-SourcesManager::SourcesManager(const Sources& srcs, mfem::ParFiniteElementSpace& fes, Fields& fields) :
+SourcesManager::SourcesManager(const Sources& srcs, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& fields) :
     sources{ srcs }, 
     fes_{ fes }
 {
@@ -12,7 +12,7 @@ SourcesManager::SourcesManager(const Sources& srcs, mfem::ParFiniteElementSpace&
     setInitialFields(fields);
 }
 
-void SourcesManager::setInitialFields(Fields& fields)
+void SourcesManager::setInitialFields(Fields<ParFiniteElementSpace, ParGridFunction>& fields)
 {
     for (const auto& source : sources) {
         auto src{ dynamic_cast<InitialField*>(source.get()) };
@@ -37,7 +37,7 @@ void SourcesManager::setInitialFields(Fields& fields)
 
 FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, FiniteElementSpace* fes)
 {
-    std::array<std::array<ParGridFunction, 3>, 2> res;
+    std::array<std::array<GridFunction, 3>, 2> res;
     for (const auto& source : sources) {
         auto tf = dynamic_cast<TotalField*>(source.get());
         if (tf == nullptr) {

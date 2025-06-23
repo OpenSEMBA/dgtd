@@ -4,7 +4,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields& fields) const
+ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
 	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
 	pd.SetPrefixPath("ParaView");
@@ -27,7 +27,7 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	return pd;
 }
 
-ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Fields& fields, const SolverOptions& opts) :
+ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& fields, const SolverOptions& opts) :
 	probes{ pIn },
 	fes_{ fes }
 {
@@ -69,7 +69,7 @@ const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
 	return probes.pointProbes[i];
 }
 
-const GridFunction& getFieldView(const FieldProbe& p, Fields& fields)
+const ParGridFunction& getFieldView(const FieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields)
 {
 	switch (p.getFieldType()) {
 	case FieldType::E:
@@ -91,7 +91,7 @@ DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 }
 
 ProbesManager::PointProbeCollection
-ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields) const
+ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
 	
 	Array<int> elemIdArray;
@@ -114,7 +114,7 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields& fields
 }
 
 ProbesManager::FieldProbeCollection
-ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields) const
+ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
 
 	Array<int> elemIdArray;
@@ -132,7 +132,7 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields& fields
 }
 
 DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
-	const NearFieldProbe& p, Fields& gFields) const
+	const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
 	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
 	{
@@ -207,9 +207,9 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	}
 }
 
-Fields buildFieldsForProbe(const Fields& src, ParFiniteElementSpace& fes)
+Fields<ParFiniteElementSpace, ParGridFunction> buildFieldsForProbe(const Fields<ParFiniteElementSpace, ParGridFunction>& src, ParFiniteElementSpace& fes)
 {
-	Fields res(fes);
+	Fields<ParFiniteElementSpace, ParGridFunction> res(fes);
 	for (auto f : { E, H }) {
 		for (auto& d : { X, Y, Z }) {
 			TransferMap tm(src.get(f, d), res.get(f, d));
@@ -281,36 +281,16 @@ Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteEleme
 	return res;
 }
 
-void NearFieldReqs::assignGlobalFieldsReferences(Fields& global)
-{
-	gFields_.get(E, X) = global.get(E, X);
-	gFields_.get(E, Y) = global.get(E, Y);
-	gFields_.get(E, Z) = global.get(E, Z);
-	gFields_.get(H, X) = global.get(H, X);
-	gFields_.get(H, Y) = global.get(H, Y);
-	gFields_.get(H, Z) = global.get(H, Z);
-}
-
 void NearFieldReqs::updateFields()
 {
 	tMaps_.transferFields(gFields_, fields_);
 }
 
-void TransferMaps::transferFields(const Fields& src, Fields& dst)
-{
-	tMapEx.Transfer(src.get(E, X), dst.get(E, X));
-	tMapEy.Transfer(src.get(E, Y), dst.get(E, Y));
-	tMapEz.Transfer(src.get(E, Z), dst.get(E, Z));
-	tMapHx.Transfer(src.get(H, X), dst.get(H, X));
-	tMapHy.Transfer(src.get(H, Y), dst.get(H, Y));
-	tMapHz.Transfer(src.get(H, Z), dst.get(H, Z));
-}
-
 NearFieldReqs::NearFieldReqs(
-	const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields& global) :
+	const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& global) :
 	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
 	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
-	fields_{ Fields(*sfes_) },
+	fields_{ Fields<FiniteElementSpace, GridFunction>(*sfes_) },
 	gFields_{ global },
 	tMaps_{ TransferMaps(gFields_, fields_) }
 {

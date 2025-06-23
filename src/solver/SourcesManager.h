@@ -4,13 +4,13 @@
 #include "evolution/Fields.h"
 #include "components/SubMesher.h"
 
-using FieldGridFuncs = std::array<std::array<mfem::ParGridFunction, 3>, 2>;
+using FieldGridFuncs = std::array<std::array<mfem::GridFunction, 3>, 2>;
 
 namespace maxwell {
 
 class SourcesManager {
 public:
-    SourcesManager(const Sources&, mfem::ParFiniteElementSpace&, Fields& fields);
+    SourcesManager(const Sources&, mfem::ParFiniteElementSpace&, Fields<ParFiniteElementSpace, ParGridFunction>& fields);
 
     FieldGridFuncs evalTimeVarField(const Time, FiniteElementSpace*);
     void initTFSFPreReqs(const ParMesh&, const Array<int>& marker);
@@ -26,7 +26,7 @@ private:
 
     void initTFSFSubMesher(const ParMesh&, const Array<int>& marker);
     void initTFSFSpaces();
-    void setInitialFields(Fields&);
+    void setInitialFields(Fields<ParFiniteElementSpace, ParGridFunction>&);
 
     mfem::ParFiniteElementSpace& fes_;
     TotalFieldScatteredFieldSubMesher tfsf_submesher_;

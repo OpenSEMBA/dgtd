@@ -21,7 +21,7 @@ private:
     Model model_;
     mfem::DG_FECollection fec_;
     std::unique_ptr<mfem::ParFiniteElementSpace> fes_;
-    Fields fields_;
+    Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction> fields_;
     std::unique_ptr<Device> device_;
 
     SourcesManager sourcesManager_;

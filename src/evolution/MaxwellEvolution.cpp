@@ -265,11 +265,11 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 	}
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<TotalField*>(source.get())) {
+		if (dynamic_cast<TotalField*>(source.get()) && srcmngr_.getGlobalTFSFSpace() != nullptr) {
 
 			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
 
-			std::array<ParGridFunction, 3> eTemp, hTemp;
+			std::array<GridFunction, 3> eTemp, hTemp;
 
 			for (int d = X; d <= Z; d++) {
 				eTemp[d].SetSpace(srcmngr_.getGlobalTFSFSpace());

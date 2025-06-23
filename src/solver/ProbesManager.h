@@ -24,7 +24,7 @@ struct TransferMaps {
     mfem::TransferMap tMapHy;
     mfem::TransferMap tMapHz;
 
-    TransferMaps(Fields& src, Fields& dst) :
+    TransferMaps(Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst) :
         tMapEx{ mfem::TransferMap(src.get(E, X), dst.get(E, X)) },
         tMapEy{ mfem::TransferMap(src.get(E, Y), dst.get(E, Y)) },
         tMapEz{ mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
@@ -33,27 +33,33 @@ struct TransferMaps {
         tMapHz{ mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) }
     {}
 
-    void transferFields(const Fields&, Fields&);
+    void transferFields(const Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst)
+    {
+        tMapEx.Transfer(src.get(E, X), dst.get(E, X));
+        tMapEy.Transfer(src.get(E, Y), dst.get(E, Y));
+        tMapEz.Transfer(src.get(E, Z), dst.get(E, Z));
+        tMapHx.Transfer(src.get(H, X), dst.get(H, X));
+        tMapHy.Transfer(src.get(H, Y), dst.get(H, Y));
+        tMapHz.Transfer(src.get(H, Z), dst.get(H, Z));
+    }
 };
 
 class NearFieldReqs {
 public:
 
-    NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::ParFiniteElementSpace& fes, Fields&);
+    NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>&);
 
     mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
-    const mfem::ParGridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) const { return fields_.get(f, d); }
     mfem::GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
     void updateFields();
 
 private:
 
-    void assignGlobalFieldsReferences(Fields& global);
-
     NearToFarFieldSubMesher ntff_smsh_;
     std::unique_ptr<mfem::FiniteElementSpace> sfes_;
-    Fields fields_;
-    Fields& gFields_;
+    Fields<FiniteElementSpace, GridFunction> fields_;
+    Fields<ParFiniteElementSpace, ParGridFunction>& gFields_;
     TransferMaps tMaps_;
 
 };
@@ -61,7 +67,7 @@ private:
 class ProbesManager {
 public:
     ProbesManager() = delete;
-    ProbesManager(Probes, mfem::ParFiniteElementSpace&, Fields&, const SolverOptions&);
+    ProbesManager(Probes, mfem::ParFiniteElementSpace&, Fields<ParFiniteElementSpace, ParGridFunction>&, const SolverOptions&);
     
     ProbesManager(const ProbesManager&) = delete;
     ProbesManager(ProbesManager&&) = default;
@@ -107,14 +113,14 @@ private:
     std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
     
     mfem::ParFiniteElementSpace& fes_;
-    Fields* fields_;
+    Fields<ParFiniteElementSpace, ParGridFunction>* fields_;
 
     std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;
     
-    mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields&) const;
-    PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields&) const;
-    FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields&) const;
-    DataCollection buildNearFieldDataCollectionInfo(const NearFieldProbe&, Fields&) const;
+    mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
+    PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
+    FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
+    DataCollection buildNearFieldDataCollectionInfo(const NearFieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(FieldProbe&, Time);

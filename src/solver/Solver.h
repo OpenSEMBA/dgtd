@@ -31,12 +31,13 @@ public:
     using Position = Vector;
     using ParGridFunction = mfem::ParGridFunction;
     using ODESolver = mfem::ODESolver;
+    using ParFields = Fields<ParFiniteElementSpace, ParGridFunction>;
     
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
 
-    const Fields& getFields() const { return fields_; };
+    const ParFields& getFields() const { return fields_; };
     const ParGridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
     const FieldProbe& getFieldProbe(std::size_t probe) const;
     const PointProbe& getPointProbe(std::size_t probe) const;
@@ -61,7 +62,7 @@ private:
     Model model_;
     mfem::DG_FECollection fec_;
     std::unique_ptr<mfem::ParFiniteElementSpace> fes_;
-    Fields fields_;
+    ParFields fields_;
     std::unique_ptr<Device> device_;
     
     SourcesManager sourcesManager_;
