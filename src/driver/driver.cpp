@@ -234,7 +234,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 				res.setEvolutionOperator(EvolutionOperatorType::Hesthaven);
 			}
 			else {
-				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none chosen, it will default to 'global'.");
+				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none chosen, it will default to 'maxwell'.");
 			}
 		}
 
@@ -275,29 +275,31 @@ Probes buildProbes(const json& case_data)
 		}
 	}
 
-	if (case_data["probes"].contains("farfield")) {
-		for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
-			NearFieldProbe probe;
-			if (case_data["probes"]["farfield"][p].contains("name")) {
-				probe.name = case_data["probes"]["farfield"][p]["name"];
-			}
-			if (case_data["probes"]["farfield"][p].contains("export_path")) {
-				probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
-			}
-			if (case_data["probes"]["farfield"][p].contains("steps")) {
-				probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
-			}
-			if (case_data["probes"]["farfield"][p].contains("tags")) {
-				std::vector<int> tags;
-				for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
-					tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
+	if (Mpi::WorldRank() == 0){
+		if (case_data["probes"].contains("farfield")) {
+			for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
+				NearFieldProbe probe;
+				if (case_data["probes"]["farfield"][p].contains("name")) {
+					probe.name = case_data["probes"]["farfield"][p]["name"];
 				}
-				probe.tags = tags;
+				if (case_data["probes"]["farfield"][p].contains("export_path")) {
+					probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
+				}
+				if (case_data["probes"]["farfield"][p].contains("steps")) {
+					probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
+				}
+				if (case_data["probes"]["farfield"][p].contains("tags")) {
+					std::vector<int> tags;
+					for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
+						tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
+					}
+					probe.tags = tags;
+				}
+				else {
+					throw std::runtime_error("Tags have not been defined in farfield probe.");
+				}
+				probes.nearFieldProbes.push_back(probe);
 			}
-			else {
-				throw std::runtime_error("Tags have not been defined in farfield probe.");
-			}
-			probes.nearFieldProbes.push_back(probe);
 		}
 	}
 
@@ -499,6 +501,33 @@ mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, false);
 }
 
+Array<int> getTFSFTags(const json& case_data)
+{
+	Array<int> res;
+	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
+		if (case_data["sources"][s]["type"] == "planewave") {
+			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
+				res.Append(case_data["sources"][s]["tags"][t]);
+			}
+		}
+	}
+	return res;
+}
+
+std::vector<std::pair<int,int>> buildTFSFPairsToSort(mfem::Mesh& mesh, mfem::Array<int> tfsf_tags)
+{
+	std::vector<std::pair<int,int>> res;
+	for (auto t = 0; t < tfsf_tags.Size(); t++){
+		for(auto b = 0; b < mesh.GetNBE(); b++){
+			if (mesh.GetBdrAttribute(b) == tfsf_tags[t]){
+				auto f_trans = mesh.GetInternalBdrFaceTransformations(b);
+				res.push_back({f_trans->Elem1No, f_trans->Elem2No});
+			}
+		}
+	}
+	return res;
+}
+
 Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
 {
 	mfem::Mesh mesh;
@@ -521,7 +550,21 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 		}
 	}
 
-	Model res(mesh, att_to_material, att_to_bdr_info);
+	auto partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+	Array<int> tfsf_tags = getTFSFTags(case_data);
+
+	if (tfsf_tags.Size() > 0){
+		std::vector<std::pair<int,int>> elements_to_send_to_rank = buildTFSFPairsToSort(mesh, tfsf_tags);
+
+		auto process = 0;
+		for (auto p = 0; p < elements_to_send_to_rank.size(); p++){
+			partitioning[elements_to_send_to_rank[p].first] = 0;
+			partitioning[elements_to_send_to_rank[p].second] = 0;
+			process++;
+		}
+	}
+
+	Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
 	std::string filename = case_data["model"]["filename"];
 	size_t dot_position = filename.rfind(".msh");
 

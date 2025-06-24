@@ -6,13 +6,14 @@ using namespace mfem;
 
 ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
-	ParaViewDataCollection pd{ p.name, fes_.GetMesh()};
+	fes_.ExchangeFaceNbrData();
+	fes_.GetParMesh()->ExchangeFaceNbrData();
+	ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
 	pd.SetPrefixPath("ParaView");
 
 	pd.RegisterField("E", &fields.get(E));
 	pd.RegisterField("H", &fields.get(H));
 	
-
 	bool highOrder = false;
 	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
 	auto fecorder = fes_.FEColl()->GetOrder();
@@ -43,14 +44,16 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
 		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
 	}
 
-	for (const auto& p : probes.nearFieldProbes) {
-		auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
-		if (!dgfec)
-		{
-			throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+	if (Mpi::WorldRank() == 0){
+		for (const auto& p : probes.nearFieldProbes) {
+			auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
+			if (!dgfec)
+			{
+				throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+			}
+			nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
+			nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
 		}
-		nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
-		nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
 	}
 
 	finalTime_ = opts.finalTime;
@@ -263,9 +266,10 @@ void ProbesManager::updateProbes(Time t)
 	for (auto& p : probes.pointProbes) {
 		updateProbe(p, t);
 	}
-
-	for (auto& p : probes.nearFieldProbes) {
-		updateProbe(p, t);
+	if (Mpi::WorldRank() == 0){
+		for (auto& p : probes.nearFieldProbes) {
+			updateProbe(p, t);
+		}
 	}
 
 	cycle_++;

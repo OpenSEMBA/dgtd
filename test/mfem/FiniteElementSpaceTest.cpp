@@ -623,6 +623,18 @@ TEST_F(FiniteElementSpaceTest, Scaling2D)
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
+TEST_F(FiniteElementSpaceTest, CustomPartitioning) 
+{
+	auto mesh = Mesh::MakeCartesian1D(10);
+	auto partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+
+	std::vector<int> values(mesh.GetNE());
+	for (auto v = 0; v < mesh.GetNE(); v++){
+		values[v] = partitioning[v];
+	}
+
+}
+
 
 TEST_F(FiniteElementSpaceTest, LearningTest) 
 {

@@ -50,12 +50,15 @@ void ensureElementTypeIsSame(const Mesh& mesh)
 	}
 }
 
-Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo)
+Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo, int* partitioning)
 {
-	serialMesh_ = Mesh(mesh);
-	pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_);
 
+	serialMesh_ = Mesh(mesh);
 	ensureElementTypeIsSame(mesh);
+
+	if (partitioning != nullptr){
+		pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_, partitioning);
+	}
 
 	if (matInfo.gt2m.size() == 0) {
 		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));
@@ -64,7 +67,13 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 		attToMatMap_ = matInfo.gt2m;
 	}
 
-	auto f2bdr{ pmesh_.GetFaceToBdrElMap() };
+	Array<int> f2bdr;
+	if (partitioning != nullptr){
+		f2bdr = pmesh_.GetFaceToBdrElMap();
+	}
+	else{
+		f2bdr = serialMesh_.GetFaceToBdrElMap();
+	}
 
 	for (auto i = bdrInfo.gt2b.begin(); i != bdrInfo.gt2b.end(); i++) {
 		faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
@@ -85,9 +94,14 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
 	assembleBdrToMarkerMaps();
 
-	g2lElMap_ = buildGlobalToPartitionLocalElementMap(buildSerialElem2CenterMap(mesh), buildPartitionElem2CenterMap(pmesh_));
-	if (g2lElMap_.size() == 0){
-		throw std::runtime_error("Global to Local Element Map for rank " + std::to_string(Mpi::WorldRank()) + " is empty.");
+	if (partitioning != nullptr){
+		const auto serialmap = buildSerialElem2CenterMap(mesh);
+		const auto partmap = buildPartitionElem2CenterMap(pmesh_);
+
+		g2lElMap_ = buildGlobalToPartitionLocalElementMap(serialmap, partmap);
+		if (g2lElMap_.size() == 0){
+			throw std::runtime_error("Global to Local Element Map for rank " + std::to_string(Mpi::WorldRank()) + " is empty.");
+		}
 	}
 
 }

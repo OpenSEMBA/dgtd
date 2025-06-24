@@ -83,7 +83,8 @@ public:
 	Model(
 		Mesh&, 
 		const GeomTagToMaterialInfo& = GeomTagToMaterialInfo{},
-		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{}
+		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{},
+		int* partitioning = nullptr
 	);
 
 	ParMesh& getMesh() { return pmesh_; };

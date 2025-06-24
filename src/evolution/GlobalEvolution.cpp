@@ -17,14 +17,17 @@ GlobalEvolution::GlobalEvolution(
 #ifdef SHOW_TIMER_INFORMATION
 	auto startTime{ std::chrono::high_resolution_clock::now() };
 #endif
+	fes_.ExchangeFaceNbrData();
 
-	globalOperator_ = std::make_unique<SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
+	globalOperator_ = std::make_unique<SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs());
 
 #ifdef SHOW_TIMER_INFORMATION
-	std::cout << "------------------------------------------------" << std::endl;
-	std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
-	std::cout << "------------------------------------------------" << std::endl;
-	std::cout << std::endl;
+	if (Mpi::WorldRank() == 0){
+		std::cout << "------------------------------------------------" << std::endl;
+		std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
+		std::cout << "------------------------------------------------" << std::endl;
+		std::cout << std::endl;
+	}
 #endif
 
 	Probes probes;

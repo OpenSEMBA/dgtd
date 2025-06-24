@@ -239,6 +239,8 @@ public:
 					case Z:
 						return resField[2];
 				}
+			default:
+				throw std::runtime_error("Unknown FieldType as argument in DerivGaussDipole.");
 		}
 	}
 

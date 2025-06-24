@@ -607,6 +607,7 @@ namespace maxwell {
 				}
 			}
 		}
+		throw std::runtime_error("No matching nodes found in connectivity in findMapBIDForFaceNodes.");
 	}
 
 	Nodes initMapB(const GlobalConnectivity& connectivity)

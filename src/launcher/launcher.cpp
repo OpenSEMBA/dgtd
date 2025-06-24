@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <unistd.h>
 
 #include "driver/driver.h"
 
@@ -22,6 +23,9 @@ void printHelpArgument()
 int main(int argc, char** argv)
 {
 	
+    std::cout << "PID " << getpid() << " ready to be attached. Press Enter to continue...\n";
+    std::cin.get();
+
 	if (argc == 1) {
 		std::cerr << "Missing arguments. Use argument -h to print help menu.";
 		return 1;
@@ -41,8 +45,6 @@ int main(int argc, char** argv)
 	}
 
 	mfem::Mpi::Init(argc, argv);
-	int num_procs = mfem::Mpi::WorldSize();
-	int myid = mfem::Mpi::WorldRank();
 	mfem::Hypre::Init();
 
 	const std::string s_json = ".json";
@@ -59,6 +61,8 @@ int main(int argc, char** argv)
 
 	std::cout << "Solver has finished performing its operations." << std::endl;
 	std::cout << "Program will end now." << std::endl;
+	
+	mfem::Mpi::Finalize();
 
 	return 0;
 }

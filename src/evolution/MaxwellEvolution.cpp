@@ -66,13 +66,13 @@ MaxwellEvolution::MaxwellEvolution(
 		// buildGlobalToLocalDoFMapping(pd_.model, fes_);
 
 #ifdef SHOW_TIMER_INFORMATION
+	if (Mpi::WorldRank() == 0){
 		std::cout << "------------------------------------------------" << std::endl;
 		std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
 		std::cout << "------------------------------------------------" << std::endl;
 		std::cout << std::endl;
+	}
 #endif
-
-		MPI_Barrier(MPI_COMM_WORLD);
 
 		if (pd_.model.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != pd_.model.getTotalFieldScatteredFieldToMarker().end()) {
 			srcmngr.initTFSFPreReqs(pd_.model.getConstMesh(), pd_.model.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
@@ -82,42 +82,50 @@ MaxwellEvolution::MaxwellEvolution(
 			DGOperatorFactory<FiniteElementSpace> tfsfFactory(tfsfPD, *globalTFSFfes);
 
 #ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
 			std::cout << "Assembling TFSF Inverse Mass Operators" << std::endl;
+		}
 #endif
 
 			MInvTFSF_ = tfsfFactory.buildMaxwellInverseMassMatrixOperator<BilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
+		}
 #endif
 
 			MP_GTFSF_ = tfsfFactory.buildMaxwellZeroNormalOperator<BilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
+		}
 #endif
 			MFN_GTFSF_ = tfsfFactory.buildMaxwellOneNormalOperator<BilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
+		}
 #endif
 
 			MFNN_GTFSF_ = tfsfFactory.buildMaxwellTwoNormalOperator<BilinearForm>();
 
 		}
 
-		MPI_Barrier(MPI_COMM_WORLD);
-
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling Standard Inverse Mass Operators" << std::endl;
+		}
 #endif
 
 		DGOperatorFactory<ParFiniteElementSpace> dgFactory(pd_, fes_);
@@ -125,23 +133,29 @@ MaxwellEvolution::MaxwellEvolution(
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
 #ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
+		}
 #endif
 			MPB_ = dgFactory.buildMaxwellIntBdrZeroNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
+		}
 #endif
 			MFNB_ = dgFactory.buildMaxwellIntBdrOneNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
+		}
 #endif
 
 			MFNNB_ = dgFactory.buildMaxwellIntBdrTwoNormalOperator<ParBilinearForm>();
@@ -149,42 +163,52 @@ MaxwellEvolution::MaxwellEvolution(
 		}
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
+		}
 #endif
 
 		MS_ = dgFactory.buildMaxwellDirectionalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
+		}
 #endif
 		
 		MP_ = dgFactory.buildMaxwellZeroNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
+		}
 #endif
 
 		MFN_ = dgFactory.buildMaxwellOneNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
+	}
 #endif
 
 		MFNN_ = dgFactory.buildMaxwellTwoNormalOperator<ParBilinearForm>();
 
 #ifdef SHOW_TIMER_INFORMATION
-		std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
-			(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-		std::cout << "Operator assembly finished" << std::endl;
-		std::cout << std::endl;
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "Operator assembly finished" << std::endl;
+			std::cout << std::endl;
+		}
 #endif
 
 }

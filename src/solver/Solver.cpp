@@ -23,6 +23,9 @@ std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 		ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
 		return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);
 	}
+	else {
+		throw std::runtime_error("Unknown evolution operator type.");
+	}
 }
 
 Solver::Solver(
@@ -42,7 +45,7 @@ Solver::Solver(
 
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initStartTime = std::chrono::steady_clock::now();
-	if (Mpi::WorldRank == 0){
+	if (Mpi::WorldRank() == 0){
 		if (!std::filesystem::is_directory("StatisticsExport/") || !std::filesystem::exists("StatisticsExport/")) {
 			std::filesystem::create_directory("StatisticsExport/");
 		}
@@ -54,7 +57,7 @@ Solver::Solver(
 	}
 	
 #endif
-	if (Mpi::WorldRank == 0){
+	if (Mpi::WorldRank() == 0){
 		checkOptionsAreValid(opts_);
 	}
 
@@ -76,11 +79,9 @@ Solver::Solver(
 
 	probesManager_.updateProbes(time_);
 
-	MPI_Barrier(MPI_COMM_WORLD);
-
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initEndTime = std::chrono::steady_clock::now();
-	if (Mpi::WorldRank == 0){
+	if (Mpi::WorldRank() == 0){
 	std::ofstream myfile;
 	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
 	myfile.open(path, std::ios::app);
@@ -312,9 +313,11 @@ void Solver::run()
 
 #ifdef SHOW_TIMER_INFORMATION
 	auto lastPrintTime{ std::chrono::steady_clock::now() };
-	std::cout << "------------------------------------------------" << std::endl;
-	std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
-	printSimulationInformation(time_, dt_, opts_.finalTime);
+	if (Mpi::WorldRank() == 0){
+		std::cout << "------------------------------------------------" << std::endl;
+		std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
+		printSimulationInformation(time_, dt_, opts_.finalTime);
+	}
 #endif
 
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
@@ -326,13 +329,17 @@ void Solver::run()
 		if (std::chrono::duration_cast<std::chrono::seconds>
 			(currentTime - lastPrintTime).count() >= 30.0) 
 		{
+			if (Mpi::WorldRank() == 0){
 			printSimulationInformation(time_, dt_, opts_.finalTime);
 			lastPrintTime = currentTime;
+			}
 		}
 		if (this->fields_.getNorml2() > 1e20){
-			std::cout << "------------------------------------------------------------------------" << std::endl;
-			std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
-			std::cout << "------------------------------------------------------------------------" << std::endl;
+			if (Mpi::WorldRank() == 0){
+				std::cout << "------------------------------------------------------------------------" << std::endl;
+				std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
+				std::cout << "------------------------------------------------------------------------" << std::endl;
+			}
 		}
 
 #endif

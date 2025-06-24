@@ -917,6 +917,16 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 
 }
 
+
+TEST_F(ExtensiveCasesTest, 2D_TFSF_DBG_CASE)
+{
+
+	std::string case_name{ "2D_TFSF_DBG_CASE" };
+	auto solver{ buildSolverJson(maxwellCase(case_name)) };
+
+	EXPECT_NO_THROW(solver.run());
+}
+
 TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 {
 
