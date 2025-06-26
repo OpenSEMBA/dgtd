@@ -5,21 +5,15 @@
 namespace maxwell {
 
 GlobalEvolution::GlobalEvolution(
-	ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
-	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
-	fes_{ fes },
-	model_{ model },
-	srcmngr_{ srcmngr },
-	opts_{ options },
-	TFSFOperator_{ },
-	globalOperator_{ }
+mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
+mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
+fes_{ fes },
+model_{ model },
+srcmngr_{ srcmngr },
+opts_{ options }
 {
-#ifdef SHOW_TIMER_INFORMATION
-	auto startTime{ std::chrono::high_resolution_clock::now() };
-#endif
-	fes_.ExchangeFaceNbrData();
 
-	globalOperator_ = std::make_unique<SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs());
+	globalOperator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
 
 #ifdef SHOW_TIMER_INFORMATION
 	if (Mpi::WorldRank() == 0){
@@ -45,20 +39,22 @@ GlobalEvolution::GlobalEvolution(
 
 		TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
 
-		auto src_sm = static_cast<SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-		SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
+		auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
 	}
 
 	ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
-	DGOperatorFactory dgops(pd, fes_);
+	DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
 
 	globalOperator_ = dgops.buildGlobalOperator();
 
+	MPI_Barrier(MPI_COMM_WORLD);
+
 }
 
-const Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
+const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 {
-	Vector res(6 * func[0][0].Size());
+	mfem::Vector res(6 * func[0][0].Size());
 	for (auto f : { E, H }) {
 		for (auto d : { X, Y, Z }) {
 			for (auto v{ 0 }; v < func[f][d].Size(); v++) {
@@ -69,27 +65,48 @@ const Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 	return res;
 }
 
-void GlobalEvolution::Mult(const Vector& in, Vector& out) const
+void loadFluxVector(const mfem::ParGridFunction& local, const mfem::Vector& nbr, mfem::Vector& flux)
 {
-	const auto& dim{ fes_.GetMesh()->Dimension() };
+	flux.SetSize(local.Size() + nbr.Size());
+	for (auto v = 0; v < local.Size(); v++){
+		flux[v] = local[v];
+	}
+	for (auto v = 0; v < nbr.Size(); v++){
+		flux[v+local.Size()] = nbr[v];
+	}
+}
 
-	std::array<GridFunction, 3> eNew, hNew;
+void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
+{
+	std::array<mfem::ParGridFunction, 3> eOld, hOld, eFull, hFull;
+	mfem::Vector inNew;
 	for (int d = X; d <= Z; d++) {
-		eNew[d].SetSpace(&fes_);
-		hNew[d].SetSpace(&fes_);
-		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
-		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
-		eNew[d] = 0.0;
-		hNew[d] = 0.0;
+		eOld[d].SetSpace(&fes_);
+		hOld[d].SetSpace(&fes_);
+		eOld[d].SetDataAndSize(in.GetData() + d * fes_.GetNDofs(), fes_.GetNDofs());
+		hOld[d].SetDataAndSize(in.GetData() + (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
+		eOld[d].ExchangeFaceNbrData();
+		hOld[d].ExchangeFaceNbrData();
+		auto faceNbrField = eOld[d].FaceNbrData();
+		loadFluxVector(eOld[d], faceNbrField, eFull[d]);
+		faceNbrField = hOld[d].FaceNbrData();
+		loadFluxVector(hOld[d], faceNbrField, hFull[d]);
 	}
 
-	globalOperator_->Mult(in, out);
+	inNew.SetSize(numberOfFieldComponents * numberOfMaxDimensions * eFull[X].Size());
+	for (int d = X; d <= Z; d++){
+		inNew.SetVector(eFull[d], d * eFull[X].Size());
+		inNew.SetVector(hFull[d], (3 + d) * eFull[X].Size());
+	}
+
+
+	globalOperator_->Mult(inNew, out);
 
 	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<TotalField*>(source.get())) {
+		if (dynamic_cast<TotalField*>(source.get()) && srcmngr_.getGlobalTFSFSpace() != nullptr) {
 
 			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
-			Vector assembledFunc = buildSingleVectorTFSFFunc(func), tempTFSF(assembledFunc.Size());
+			mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func), tempTFSF(assembledFunc.Size());
 			TFSFOperator_->Mult(assembledFunc, tempTFSF);
 			for (auto f : { E, H }) {
 				for (auto d : { X, Y, Z }) {

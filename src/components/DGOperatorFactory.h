@@ -55,41 +55,62 @@ namespace maxwell
 		}
 	}
 
-	static void loadBlockInGlobalAtIndices(const SparseMatrix &blk, SparseMatrix &dst, const std::pair<Array<int>, Array<int>> &ids, const double fieldSign)
+	
+	struct FieldOffsets
 	{
-		MFEM_ASSERT(blk.NumRows() == ids.first.Size(), "Block Sparse NumRows does not match intended number of Rows.");
-		MFEM_ASSERT(blk.NumCols() == ids.second.Size(), "Block Sparse NumCols does not match intended number of Cols.");
-		Array<int> cols;
-		Vector vals;
-		for (auto r{0}; r < ids.first.Size(); r++)
+
+		FieldOffsets(const int localBlockSize, const int nbrBlockSize, const FieldType f, const Direction d, const bool isLocal)
 		{
-			blk.GetRow(r, cols, vals);
-			for (auto c{0}; c < cols.Size(); c++)
-			{
-				dst.Add(ids.first[r], ids.second[cols[c]], vals[c] * fieldSign);
+			rowStartOffset = (3 * f + d) * localBlockSize;
+			rowEndOffset = (3 * f + d) * localBlockSize + localBlockSize;
+			colStartOffset = (3 * f + d) * (localBlockSize + nbrBlockSize);
+			if (!isLocal){
+				colEndOffset = (3 * f + d) * (localBlockSize + nbrBlockSize) + (localBlockSize + nbrBlockSize);
+			}
+			else{
+				colEndOffset = (3 * f + d) * (localBlockSize + nbrBlockSize) + localBlockSize;
 			}
 		}
-	}
+
+		int rowStartOffset;
+		int rowEndOffset;
+		int colStartOffset;
+		int colEndOffset;
+	};
 
 	struct GlobalIndices
 	{
-		GlobalIndices(const int blockSize)
+		GlobalIndices(const int localBlockSize, const int nbrBlockSize, bool isLocal = false)
 		{
 			for (auto f : {E, H})
 			{
 				for (auto d : {X, Y, Z})
 				{
-					index[f][d] = Array<int>(blockSize);
-					for (auto i{0}; i < blockSize; i++)
-					{
-						index[f][d][i] = i + (3 * f + d) * blockSize;
-					}
+					offsets[f][d] = std::make_unique<FieldOffsets>(localBlockSize, nbrBlockSize, f, d, isLocal);
 				}
 			}
 		}
 
-		std::array<std::array<mfem::Array<int>, 3>, 2> index;
+		std::array<std::array<std::unique_ptr<FieldOffsets>, 3>, 2> offsets;
 	};
+
+	static void loadBlockInGlobalAtIndices(const SparseMatrix &blk, SparseMatrix &dst, const std::pair<FieldOffsets, FieldOffsets> &ids, const double fieldSign)
+	{
+		auto expectedRows = ids.first.rowEndOffset - ids.first.rowStartOffset;
+		auto expectedCols = ids.first.colEndOffset - ids.first.colStartOffset;
+		MFEM_ASSERT(blk.NumRows() == expectedRows, "Block Sparse NumRows does not match intended number of Rows.");
+		MFEM_ASSERT(blk.NumCols() == expectedCols, "Block Sparse NumCols does not match intended number of Cols.");
+		Array<int> cols;
+		Vector vals;
+		for (auto r = 0; r < expectedRows; r++)
+		{
+			blk.GetRow(r, cols, vals);
+			for (auto c = 0; c < cols.Size(); c++)
+			{
+				dst.Add(ids.first.rowStartOffset + r, ids.second.colStartOffset + cols[c], vals[c] * fieldSign);
+			}
+		}
+	}
 
 	static std::map<BdrCond, std::vector<double>> bdrCoeffCheck(double alpha)
 	{
@@ -177,16 +198,23 @@ namespace maxwell
 		template <typename BF>
 		std::array<std::unique_ptr<BF>, 2> buildGlobalInverseMassMatrixOperator();
 
-		// void addGlobalZeroNormalIBFIOperators(SparseMatrix* global);
-		// void addGlobalOneNormalIBFIOperators(SparseMatrix* global);
-		// void addGlobalTwoNormalIBFIOperators(SparseMatrix* global);
-		// void addGlobalDirectionalOperators(SparseMatrix* global);
-		// void addGlobalZeroNormalOperators(SparseMatrix* global);
-		// void addGlobalOneNormalOperators(SparseMatrix* global);
-		// void addGlobalTwoNormalOperators(SparseMatrix* global);
+		template <typename BF>
+		void addGlobalZeroNormalIBFIOperators(mfem::SparseMatrix* global);
+		template <typename BF>
+		void addGlobalOneNormalIBFIOperators(mfem::SparseMatrix* global);
+		template <typename BF>
+		void addGlobalTwoNormalIBFIOperators(mfem::SparseMatrix* global);
+		template <typename BF>
+		void addGlobalDirectionalOperators(mfem::SparseMatrix* global);
+		template <typename BF>
+		void addGlobalZeroNormalOperators(mfem::SparseMatrix* global);
+		template <typename BF>
+		void addGlobalOneNormalOperators(mfem::SparseMatrix* global);
+		template <typename BF>
+		void addGlobalTwoNormalOperators(mfem::SparseMatrix* global);
 
-		std::unique_ptr<SparseMatrix> buildTFSFGlobalOperator();
-		std::unique_ptr<SparseMatrix> buildGlobalOperator();
+		std::unique_ptr<mfem::SparseMatrix> buildTFSFGlobalOperator();
+		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
 
 	private:
 		ProblemDescription pd_;
@@ -586,14 +614,270 @@ namespace maxwell
 	template <typename BF>
 	std::array<std::unique_ptr<BF>, 2> DGOperatorFactory<FES>::buildGlobalInverseMassMatrixOperator()
 	{
-		return buildMaxwellInverseMassMatrixOperator();
+		return this->template  buildMaxwellInverseMassMatrixOperator<BF>();
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalZeroNormalIBFIOperators(SparseMatrix* global)
+	{
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		for (auto f : { E, H }) {
+			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildZeroNormalIBFISubOperator<BF>(f)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()),
+					-1.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalOneNormalIBFIOperators(SparseMatrix* global)
+	{
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		for (auto f : { E, H }) {
+			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
+			for (auto x{ X }; x <= Z; x++) {
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildOneNormalIBFISubOperator<BF>(altField(f), { x })->SpMat(), fes_);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					1.0 - double(f) * 2.0
+				);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					-1.0 + double(f) * 2.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalTwoNormalIBFIOperators(SparseMatrix* global)
+	{
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		for (auto f : { E, H }) {
+			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildTwoNormalIBFISubOperator<BF>(f, { d, d2 })->SpMat(), fes_);
+					loadBlockInGlobalAtIndices(
+						op->SpMat(),
+						*global,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()), 
+						1.0
+					);
+				}
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalDirectionalOperators(SparseMatrix* global)
+	{
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+		for (auto f : { E, H }) {
+			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
+			for (auto x{ X }; x <= Z; x++) {
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,ParBilinearForm>(
+					MInv[f]->SpMat(), buildDerivativeSubOperator<BF>(x)->SpMat(), fes_);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					1.0 - double(f) * 2.0
+				);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					-1.0 + double(f) * 2.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalZeroNormalOperators(SparseMatrix* global)
+	{
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		for (auto f : { E, H }) {
+			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildZeroNormalSubOperator<BF>(f)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()),
+					-1.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalOneNormalOperators(SparseMatrix* global)
+	{
+
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		for (auto f : { E, H }) {
+			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
+			for (auto x{ X }; x <= Z; x++) {
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,BF>(
+					MInv[f]->SpMat(), buildOneNormalSubOperator<BF>(altField(f), { x })->SpMat(), fes_);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					1.0 - double(f) * 2.0
+				);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					-1.0 + double(f) * 2.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalTwoNormalOperators(SparseMatrix* global)
+	{
+
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		for (auto f : { E, H }) {
+			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
+			for (auto d{ X }; d <= Z; d++) {
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					auto op = buildByMult<FES,BF>(
+						MInv[f]->SpMat(), buildTwoNormalSubOperator<BF>(f, {d, d2})->SpMat(), fes_);
+					loadBlockInGlobalAtIndices(
+						op->SpMat(),
+						*global,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()),
+						1.0
+					);
+				}
+			}
+		}
 	}
 
 	template <typename FES>
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildTFSFGlobalOperator()
 	{
 
-		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + additional_dofs));
+
+		std::chrono::high_resolution_clock::time_point startTime;
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+				startTime = std::chrono::high_resolution_clock::now();
+				std::cout << "Assembling TFSF Inverse Mass One-Normal Operators" << std::endl;
+		}
+		#endif
+
+		this->template addGlobalOneNormalOperators<BilinearForm>(res.get());
+
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+					std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+						(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+					startTime = std::chrono::high_resolution_clock::now();
+					std::cout << "Assembling TFSF Inverse Mass Zero-Normal Operators" << std::endl;
+		}
+		#endif	
+
+		this->template addGlobalZeroNormalOperators<BilinearForm>(res.get());
+
+
+		#ifdef SHOW_TIMER_INFORMATION	
+		if (Mpi::WorldRank() == 0){
+					std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+						(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+					startTime = std::chrono::high_resolution_clock::now();
+					std::cout << "Assembling TFSF Inverse Mass Two-Normal Operators" << std::endl;
+		}
+		#endif	
+
+		this->template	addGlobalTwoNormalOperators<BilinearForm>(res.get());
+
+		#ifdef SHOW_TIMER_INFORMATION	
+		if (Mpi::WorldRank() == 0){
+					std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+						(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+		}
+		#endif
 
 		res->Finalize();
 		return res;
@@ -603,7 +887,122 @@ namespace maxwell
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildGlobalOperator()
 	{
 
-		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
+		auto additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
+        	additional_dofs = fes_.num_face_nbr_dofs;
+    	}
+
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + additional_dofs));
+
+
+		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
+
+			std::chrono::high_resolution_clock::time_point startTime;
+			#ifdef SHOW_TIMER_INFORMATION
+			if (Mpi::WorldRank() == 0){
+				startTime = std::chrono::high_resolution_clock::now() ;
+			}
+			#endif
+
+			#ifdef SHOW_TIMER_INFORMATION
+			if (Mpi::WorldRank() == 0){
+						std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
+			}
+			#endif
+
+				this->template	addGlobalOneNormalIBFIOperators<ParBilinearForm>(res.get());
+
+			#ifdef SHOW_TIMER_INFORMATION
+			if (Mpi::WorldRank() == 0){
+				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+				startTime = std::chrono::high_resolution_clock::now();
+				std::cout << "Assembling IBFI Inverse Mass Zero-Normal Operators" << std::endl;
+			}
+			#endif
+
+				this->template	addGlobalZeroNormalIBFIOperators<ParBilinearForm>(res.get());
+
+			#ifdef SHOW_TIMER_INFORMATION
+			if (Mpi::WorldRank() == 0){
+				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+				startTime = std::chrono::high_resolution_clock::now();
+				std::cout << "Assembling IBFI Inverse Mass Two-Normal Operators" << std::endl;
+			}
+			#endif
+
+				this->template	addGlobalTwoNormalIBFIOperators<ParBilinearForm>(res.get());
+
+			#ifdef SHOW_TIMER_INFORMATION
+			if (Mpi::WorldRank() == 0){
+				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			}
+			#endif
+
+		}
+		else{
+
+			#ifdef SHOW_TIMER_INFORMATION		
+					if (Mpi::WorldRank() == 0){
+							std::cout << "No Interior Boundary Operators to Assemble." << std::endl;
+					}
+			#endif
+
+		}
+
+		std::chrono::high_resolution_clock::time_point startTime;
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+			startTime = std::chrono::high_resolution_clock::now();
+			std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
+		}
+		#endif
+
+		this->template	addGlobalDirectionalOperators<ParBilinearForm>(res.get());
+
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
+			std::cout << "Assembling Standard Inverse Mass One-Normal Operators" << std::endl;
+		}
+		#endif
+
+		this->template	addGlobalOneNormalOperators<ParBilinearForm>(res.get());
+
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
+			std::cout << "Assembling Standard Inverse Mass Zero-Normal Operators" << std::endl;
+		}
+		#endif
+
+		this->template	addGlobalZeroNormalOperators<ParBilinearForm>(res.get());
+
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
+			std::cout << "Assembling Standard Inverse Mass Two-Normal Operators" << std::endl;
+		}
+		#endif
+
+		this->template	addGlobalTwoNormalOperators<ParBilinearForm>(res.get());
+
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			std::cout << "All operators assembled. Finalising global operator matrix." << std::endl;
+		}
+		#endif
 
 		res->Finalize();
 		return res;

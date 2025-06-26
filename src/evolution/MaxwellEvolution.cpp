@@ -26,22 +26,7 @@ void changeSignOfFieldGridFuncs(FieldGridFuncs& gfs)
 	}
 }
 
-// void buildGlobalToLocalDoFMapping(const Model& model, const ParFiniteElementSpace& pfes)
-// {
-// 	Array<int> dofs;
-// 	pfes.GetElementDofs(0, dofs);
-// 	const auto& ndof_per_geom = dofs.Size();
-// 	const auto& g2l_element_map = model.getGlobal2LocalElementMap();
-// 	std::vector<int> global_dof_indices;
-// 	global_dof_indices.reserve(ndof_per_geom * g2l_element_map.size());
-// 	for (const auto& [global, vals] : g2l_element_map){
-// 		for (auto d = 0; d < ndof_per_geom; d++){
-// 			global_dof_indices.push_back(global * ndof_per_geom + d);
-// 		}
-// 	}
-// }
-
-void loadFluxVector(const ParGridFunction& local, const Vector& nbr, Vector& flux)
+static void loadFluxVector(const ParGridFunction& local, const Vector& nbr, Vector& flux)
 {
 	flux.SetSize(local.Size() + nbr.Size());
 	for (auto v = 0; v < local.Size(); v++){
@@ -63,7 +48,6 @@ MaxwellEvolution::MaxwellEvolution(
 		auto startTime{ std::chrono::high_resolution_clock::now() };
 #endif
 		fes_.ExchangeFaceNbrData();
-		// buildGlobalToLocalDoFMapping(pd_.model, fes_);
 
 #ifdef SHOW_TIMER_INFORMATION
 	if (Mpi::WorldRank() == 0){

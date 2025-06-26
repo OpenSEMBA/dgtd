@@ -8,7 +8,9 @@ namespace maxwell {
 
 std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec)
 {
-	return std::make_unique<ParFiniteElementSpace>(m, fec);
+	auto fes = std::make_unique<ParFiniteElementSpace>(m, fec);
+	fes->ExchangeFaceNbrData();
+	return fes;
 }
 
 std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
