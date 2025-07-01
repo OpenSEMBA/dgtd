@@ -94,7 +94,7 @@ void GlobalEvolution::Mult(const Vector& in, Vector& out) const
 	timerTFSF.Stop();
 	timerTotal.Stop();
 
-	std::cout << "Serial times - Total: " << timerTotal.RealTime() * 1000 << "ms, Mult: " << timerMult.RealTime() << "ms, TFSF: " << timerTFSF.RealTime() << "ms\n";
+	std::cout << "Serial times - Total: " << timerTotal.RealTime() * 1000 << "ms, Mult: " << timerMult.RealTime() * 1000 << "ms, TFSF: " << timerTFSF.RealTime() * 1000 << "ms\n";
 
 }
 
