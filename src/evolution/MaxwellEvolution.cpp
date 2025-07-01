@@ -327,8 +327,6 @@ void MaxwellEvolution::Mult(const Vector& in, Vector& out) const
 			}
 		}
 	}
-
-	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 }

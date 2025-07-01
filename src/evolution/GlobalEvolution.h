@@ -27,6 +27,9 @@ namespace maxwell {
 		SourcesManager& srcmngr_;
 		EvolutionOptions& opts_;
 
+		mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_, eFull_, hFull_;
+		mutable mfem::Vector inNew_;
+
 	};
 
 }

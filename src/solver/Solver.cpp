@@ -323,7 +323,6 @@ void Solver::run()
 #endif
 
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
-		MPI_Barrier(MPI_COMM_WORLD);
 		step();
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -376,6 +375,7 @@ void Solver::run()
 void Solver::step()
 {
 	double truedt{ std::min(dt_, opts_.finalTime - time_) };
+	
 	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 	probesManager_.updateProbes(time_);
 }
