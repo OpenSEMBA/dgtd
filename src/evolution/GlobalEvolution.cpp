@@ -75,53 +75,39 @@ const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 	return res;
 }
 
-void loadFluxVector(const mfem::ParGridFunction& local, const mfem::Vector& nbr, mfem::Vector& flux)
-{
-	flux.SetSize(local.Size() + nbr.Size());
-	flux.SetVector(local,0);
-	flux.SetVector(nbr,local.Size());
-}
+
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
-    mfem::StopWatch timerTotal, timerExchange;
+    mfem::StopWatch timerTotal, timerExchange, timerDataSet, timerMult, timerTFSF;
     timerTotal.Start();
 
     const int ndofs = fes_.GetNDofs();
     const int face_nbr_dofs = fes_.num_face_nbr_dofs;
     const int block_size = ndofs + face_nbr_dofs;
 
-    // 1) Setup eOld_ and hOld_ with raw data from 'in'
-    for (int d = X; d <= Z; d++) {
-        eOld_[d].SetData(in.GetData() + d * ndofs);
-        hOld_[d].SetData(in.GetData() + (d + 3) * ndofs);
-    }
-
-    // 2) Exchange ghost data ONCE per ParGridFunction
     timerExchange.Start();
     for (int d = X; d <= Z; d++) {
         eOld_[d].ExchangeFaceNbrData();
         hOld_[d].ExchangeFaceNbrData();
     }
     timerExchange.Stop();
+    
+	timerDataSet.Start();
+	for (int d = X; d <= Z; d++) {
+		eOld_[d].SetData(in.GetData() + d * fes_.GetNDofs());
+		hOld_[d].SetData(in.GetData() + (d + 3) * fes_.GetNDofs());
+		inNew_.SetVector(eOld_[d],      d  * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
+		inNew_.SetVector(eOld_[d].FaceNbrData(),      d  * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
+		inNew_.SetVector(hOld_[d], (3 + d) * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
+		inNew_.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
+	}
+	timerDataSet.Stop();
 
-    // 3) Fill inNew_ buffer with local DOFs + ghost DOFs for all components
-    double* inNewData = inNew_.GetData();
-    for (int d = X; d <= Z; d++) {
-        // Copy local DOFs
-        std::memcpy(inNewData + d * block_size, eOld_[d].GetData(), ndofs * sizeof(double));
-        // Copy ghost DOFs
-        std::memcpy(inNewData + d * block_size + ndofs, eOld_[d].FaceNbrData().GetData(), face_nbr_dofs * sizeof(double));
-
-        // Similarly for hOld_ fields (offset by 3)
-        int hIndex = 3 + d;
-        std::memcpy(inNewData + hIndex * block_size, hOld_[d].GetData(), ndofs * sizeof(double));
-        std::memcpy(inNewData + hIndex * block_size + ndofs, hOld_[d].FaceNbrData().GetData(), face_nbr_dofs * sizeof(double));
-    }
-
-    // 4) Call the global operator multiplication
+	timerMult.Start();
     globalOperator_->Mult(inNew_, out);
+	timerMult.Stop();
 
-    // 5) TFSF source correction (unchanged)
+	timerTFSF.Start();
     for (const auto& source : srcmngr_.sources) {
         if (dynamic_cast<TotalField*>(source.get()) && srcmngr_.getGlobalTFSFSpace() != nullptr) {
             auto func = evalTimeVarFunction(GetTime(), srcmngr_);
@@ -142,15 +128,18 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
     }
+	timerTFSF.Stop();
 
     timerTotal.Stop();
 
     // 6) Print timings
     if (Mpi::WorldRank() == 0) {
-        std::cout << "Rank 0 Mult total: " << timerTotal.RealTime() / 1000 << " ms, exchange: " << timerExchange.RealTime() / 1000 << " ms\n";
+        std::cout << "Rank 0 Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, dataset: " << timerDataSet.RealTime() * 1000 << "ms\n";
+        std::cout << "Rank 0 Mult mult: " << timerMult.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
     }
     else if (Mpi::WorldRank() == 1) {
-        std::cout << "Rank 1 Mult total: " << timerTotal.RealTime() / 1000 << " ms, exchange: " << timerExchange.RealTime() / 1000 << " ms\n";
+        std::cout << "Rank 1 Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, dataset: " << timerDataSet.RealTime() * 1000 << "ms\n";
+        std::cout << "Rank 1 Mult mult: " << timerMult.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
     }
 }
 }

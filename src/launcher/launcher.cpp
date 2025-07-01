@@ -2,6 +2,7 @@
 #include <vector>
 #include <iostream>
 #include <unistd.h>
+#include <omp.h>
 
 #include "driver/driver.h"
 
@@ -43,6 +44,12 @@ int main(int argc, char** argv)
 			return 2;
 		}
 	}
+
+	std::string devtype("omp");
+	mfem::Device device(devtype.c_str());
+	device.Print(std::cout);
+	omp_set_num_threads(12);
+	std::cout << "Max Num Threas: " << omp_get_max_threads() << std::endl;
 
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();

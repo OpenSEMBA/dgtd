@@ -556,11 +556,35 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 	if (tfsf_tags.Size() > 0){
 		std::vector<std::pair<int,int>> elements_to_send_to_rank = buildTFSFPairsToSort(mesh, tfsf_tags);
 
-		auto process = 0;
-		for (auto p = 0; p < elements_to_send_to_rank.size(); p++){
-			partitioning[elements_to_send_to_rank[p].first] = 0;
-			partitioning[elements_to_send_to_rank[p].second] = 0;
-			process++;
+		std::map<int, int> assigned_rank; // maps individual elements to their assigned rank
+    	int rr_counter = 0; // round-robin counter
+
+		for (const auto& pair : elements_to_send_to_rank) {
+			int a = pair.first;
+			int b = pair.second;
+
+			bool a_seen = assigned_rank.count(a);
+			bool b_seen = assigned_rank.count(b);
+
+			int rank;
+			if (!a_seen && !b_seen) {
+				rank = rr_counter % Mpi::WorldSize();
+				rr_counter++;
+			} else if (a_seen && b_seen) {
+				if (assigned_rank[a] != assigned_rank[b]) {
+					rank = std::min(assigned_rank[a], assigned_rank[b]);
+				} else {
+					rank = assigned_rank[a];
+				}
+			} else {
+				rank = a_seen ? assigned_rank[a] : assigned_rank[b];
+			}
+
+			partitioning[a] = rank;
+			partitioning[b] = rank;
+
+			assigned_rank[a] = rank;
+			assigned_rank[b] = rank;
 		}
 	}
 

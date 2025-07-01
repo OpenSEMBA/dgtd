@@ -881,6 +881,7 @@ namespace maxwell
 
 		auto additional_dofs = 0;
 		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			fes_.ExchangeFaceNbrData();
         	additional_dofs = fes_.num_face_nbr_dofs;
     	}
 
