@@ -68,23 +68,15 @@ const Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 
 void GlobalEvolution::Mult(const Vector& in, Vector& out) const
 {
-	const auto& dim{ fes_.GetMesh()->Dimension() };
-
-	std::array<GridFunction, 3> eNew, hNew;
-	for (int d = X; d <= Z; d++) {
-		eNew[d].SetSpace(&fes_);
-		hNew[d].SetSpace(&fes_);
-		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
-		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
-		eNew[d] = 0.0;
-		hNew[d] = 0.0;
-	}
-
+	mfem::StopWatch timerTotal, timerMult, timerTFSF;
+	timerTotal.Start();
+	timerMult.Start();
 	globalOperator_->Mult(in, out);
+	timerMult.Stop();
 
+	timerTFSF.Start();
 	for (const auto& source : srcmngr_.sources) {
 		if (dynamic_cast<TotalField*>(source.get())) {
-
 			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
 			Vector assembledFunc = buildSingleVectorTFSFFunc(func), tempTFSF(assembledFunc.Size());
 			TFSFOperator_->Mult(assembledFunc, tempTFSF);
@@ -97,11 +89,12 @@ void GlobalEvolution::Mult(const Vector& in, Vector& out) const
 					}
 				}
 			}
-
 		}
 	}
+	timerTFSF.Stop();
+	timerTotal.Stop();
 
-
+	std::cout << "Serial times - Total: " << timerTotal.RealTime() * 1000 << "ms, Mult: " << timerMult.RealTime() << "ms, TFSF: " << timerTFSF.RealTime() << "ms\n";
 
 }
 
