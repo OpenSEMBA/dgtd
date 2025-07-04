@@ -997,6 +997,9 @@ namespace maxwell
 		#endif
 
 		res->Finalize();
+		auto threshold = 1e-6;
+		res->Threshold(threshold);
+
 		return res;
 	}
 

@@ -22,8 +22,6 @@ public:
 
     double getNorml2() const { return allDOFs_.Norml2(); }
 
-    void updateGlobal();
-
 private:
     mfem::Vector allDOFs_;
     std::unique_ptr<FES> global_fes_;
@@ -49,25 +47,20 @@ Fields<FES, GF>::Fields(FES& fes)
     allDOFs_.SetSize(6 * fes.GetNDofs());
     allDOFs_ = 0.0;
     for (int d = X; d <= Z; d++) {
-        e_[d].SetDataAndSize(allDOFs_.GetData() + d *       fes.GetNDofs(), fes.GetNDofs());
-        h_[d].SetDataAndSize(allDOFs_.GetData() + (d + 3) * fes.GetNDofs(), fes.GetNDofs());
         e_[d].SetSpace(&fes);
         h_[d].SetSpace(&fes);
+        e_[d].MakeRef(allDOFs_,     d  * fes.GetNDofs(), fes.GetNDofs());
+        h_[d].MakeRef(allDOFs_,(d + 3) * fes.GetNDofs(), fes.GetNDofs());
     }
 
     e_global_.SetSpace(global_fes_.get());
     h_global_.SetSpace(global_fes_.get());
 
-    auto dofsize = global_fes_->GetNDofs() / 3;
+    auto dofsize = allDOFs_.Size() / 2;
 
-    e_global_.SetVector(e_[X], 0);
-    e_global_.SetVector(e_[Y], dofsize);
-    e_global_.SetVector(e_[Z], 2 * dofsize);
-    h_global_.SetVector(h_[X], 0);
-    h_global_.SetVector(h_[Y], dofsize);
-    h_global_.SetVector(h_[Z], 2 * dofsize);
+    e_global_.MakeRef(allDOFs_,       0, dofsize);
+    h_global_.MakeRef(allDOFs_, dofsize, dofsize);
 
-    
 }
 
 template <typename FES, typename GF>
@@ -107,18 +100,5 @@ GF& Fields<FES, GF>::get(const FieldType& f)
         return h_global_;
     }
 }
-
-template <typename FES, typename GF>
-void Fields<FES, GF>::updateGlobal() 
-{
-    auto offset = global_fes_->GetNDofs();
-    e_global_.SetVector(e_[X], 0);
-    e_global_.SetVector(e_[Y], offset);
-    e_global_.SetVector(e_[Z], 2 * offset);
-    h_global_.SetVector(h_[X], 0);
-    h_global_.SetVector(h_[Y], offset);
-    h_global_.SetVector(h_[Z], 2 * offset);
-}
-
 
 }

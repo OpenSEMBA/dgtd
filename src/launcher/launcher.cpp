@@ -45,9 +45,10 @@ int main(int argc, char** argv)
 		}
 	}
 
-	std::string devtype("omp");
+	std::string devtype("cuda");
 	mfem::Device device(devtype.c_str());
 	device.Print(std::cout);
+	
 	omp_set_num_threads(12);
 	std::cout << "Max Num Threas: " << omp_get_max_threads() << std::endl;
 

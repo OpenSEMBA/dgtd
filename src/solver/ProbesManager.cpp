@@ -170,8 +170,6 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 	pd.SetCycle(cycle_);
 	pd.SetTime(time);
 
-	fields_->updateGlobal();
-
 	pd.Save();
 }
 

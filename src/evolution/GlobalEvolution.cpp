@@ -22,6 +22,7 @@ opts_{ options }
 		hOld_[d].ExchangeFaceNbrData();
 	}
 
+	inNew_.UseDevice(true);
 	inNew_.SetSize(numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
 
 	globalOperator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
@@ -75,15 +76,31 @@ const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 	return res;
 }
 
+void AssertVectorOnDevice(const Vector &v, const std::string &name)
+{
+    MemoryType mem_type = v.GetMemory().GetMemoryType();
+    if (mem_type != MemoryType::DEVICE)
+    {
+        mfem::out << "Warning: Vector '" << name << "' latest data is NOT on device!\n";
+        // You could throw, or forcibly sync device data if you want:
+        // const double *dev_ptr = v.DeviceRead();
+    }
+    else
+    {
+        mfem::out << "Vector '" << name << "' latest data is on DEVICE.\n";
+    }
+}
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
     mfem::StopWatch timerTotal, timerExchange, timerDataSet, timerMult, timerTFSF;
     timerTotal.Start();
+	
+	const auto ndofs = fes_.GetNDofs();
+	const auto nbr_dofs = fes_.num_face_nbr_dofs;
+	const auto block_size = ndofs + nbr_dofs;
 
-    const int ndofs = fes_.GetNDofs();
-    const int face_nbr_dofs = fes_.num_face_nbr_dofs;
-    const int block_size = ndofs + face_nbr_dofs;
+	Vector inmod(in);
 
     timerExchange.Start();
     for (int d = X; d <= Z; d++) {
@@ -93,19 +110,46 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerExchange.Stop();
     
 	timerDataSet.Start();
+	std::array<Vector, 3> eOld, hOld;
+	Vector inNew(6*ndofs);
+
 	for (int d = X; d <= Z; d++) {
-		eOld_[d].SetData(in.GetData() + d * fes_.GetNDofs());
-		hOld_[d].SetData(in.GetData() + (d + 3) * fes_.GetNDofs());
-		inNew_.SetVector(eOld_[d],      d  * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
-		inNew_.SetVector(eOld_[d].FaceNbrData(),      d  * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
-		inNew_.SetVector(hOld_[d], (3 + d) * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
-		inNew_.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
+		eOld[d].SetSize(fes_.GetNDofs());
+		hOld[d].SetSize(fes_.GetNDofs());
+    }
+
+	inmod.Read();
+	for (int d = X; d <= Z; d++) {
+		eOld[d].MakeRef(inmod, d * fes_.GetNDofs(), fes_.GetNDofs());
+		hOld[d].MakeRef(inmod, (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
+		// inNew_.SetVector(eOld_[d].FaceNbrData(),      d  * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
+		// inNew_.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
+		auto inrw = inNew.HostWrite();
+		auto erw = eOld[d].HostRead();
+		auto hrw = hOld[d].HostRead();
+		assert(inrw != nullptr);
+		assert(erw != nullptr);
+		assert(hrw != nullptr);
+		for (int v = 0; v < ndofs; v++){
+			inrw[d * ndofs + v] = erw[v];
+			inrw[(d + 3) * ndofs + v] = hrw[v];
+		}
 	}
+
+	inNew.UseDevice(true);
+	out.UseDevice(true);
+	inNew.Read();
 	timerDataSet.Stop();
 
+
+	AssertVectorOnDevice(inNew, "inNew");
+	AssertVectorOnDevice(out, "out");
+
 	timerMult.Start();
-    globalOperator_->Mult(inNew_, out);
+    globalOperator_->Mult(inNew, out);
 	timerMult.Stop();
+
+	out.HostRead();
 
 	timerTFSF.Start();
     for (const auto& source : srcmngr_.sources) {
@@ -118,7 +162,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             for (auto f : { E, H }) {
                 for (auto d : { X, Y, Z }) {
                     for (int v = 0; v < sub_to_parent_ids_.Size(); v++) {
-                        const int outIdx = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
+                        const int outIdx = (f * 3 + d) * fes_.GetNDofs() + sub_to_parent_ids_[v];
                         const int tempIdx = (f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v;
                         if (tempTFSF[tempIdx] != 0.0) {
                             out[outIdx] -= tempTFSF[tempIdx];
@@ -134,6 +178,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
     // 6) Print timings
     if (Mpi::WorldRank() == 0) {
+		std::cout << "Current time: " << GetTime() << std::endl;
         std::cout << "Rank 0 Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, dataset: " << timerDataSet.RealTime() * 1000 << "ms\n";
         std::cout << "Rank 0 Mult mult: " << timerMult.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
     }
