@@ -44,9 +44,14 @@ Fields<FES, GF>::Fields(FES& fes)
     {
          global_fes_ = std::make_unique<ParFiniteElementSpace>(fes.GetParMesh(), fec_.get(), 3);
     }
+    allDOFs_.UseDevice(true);
+    e_global_.UseDevice(true);
+    h_global_.UseDevice(true);
     allDOFs_.SetSize(6 * fes.GetNDofs());
     allDOFs_ = 0.0;
     for (int d = X; d <= Z; d++) {
+        e_[d].UseDevice(true);
+        h_[d].UseDevice(true);
         e_[d].SetSpace(&fes);
         h_[d].SetSpace(&fes);
         e_[d].MakeRef(allDOFs_,     d  * fes.GetNDofs(), fes.GetNDofs());
