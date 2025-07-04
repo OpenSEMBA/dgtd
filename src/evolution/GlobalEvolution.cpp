@@ -177,7 +177,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
     timerTotal.Stop();
 
-    // 6) Print timings
 	std::cout << "Current time: " << GetTime() << std::endl;
     std::cout << "Rank " << Mpi::WorldRank() << " Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000 << "ms\n";
     std::cout << "Rank " << Mpi::WorldRank() << " Mult mult: " << timerMult.RealTime() * 1000 << " ms, loadOutHost: " << timerLoadOutHost.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
