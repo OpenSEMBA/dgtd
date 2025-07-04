@@ -32,6 +32,10 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered)
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
 	GridFunction eNew{ solver.getField(E,Z) };
+	eNew.UseDevice(false);
+	eOld.UseDevice(false);
+	eNew.HostRead();
+	eOld.HostRead();
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
 
 	// Compares all DOFs.
