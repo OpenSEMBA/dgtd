@@ -28,6 +28,7 @@ void SourcesManager::setInitialFields(Fields<ParFiniteElementSpace, ParGridFunct
                 );
                 FunctionCoefficient fc(f);
                 GridFunction gf(fields.get(ft, x).FESpace());
+                gf.UseDevice(false);
                 gf.ProjectCoefficient(fc);
                 fields.get(ft, x) += gf;
             }
