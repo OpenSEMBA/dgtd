@@ -93,7 +93,7 @@ void AssertVectorOnDevice(const Vector &v, const std::string &name)
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
-    mfem::StopWatch timerTotal, timerExchange, timerDataSet, timerMult, timerTFSF;
+    mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerLoadOutHost, timerMult, timerTFSF;
     timerTotal.Start();
 	
 	const auto ndofs = fes_.GetNDofs();
@@ -109,7 +109,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
     timerExchange.Stop();
     
-	timerDataSet.Start();
+	timerAssembleInNew.Start();
 	std::array<Vector, 3> eOld, hOld;
 	Vector inNew(6*ndofs);
 
@@ -139,17 +139,18 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 	inNew.UseDevice(true);
 	out.UseDevice(true);
 	inNew.Read();
-	timerDataSet.Stop();
-
 
 	AssertVectorOnDevice(inNew, "inNew");
 	AssertVectorOnDevice(out, "out");
+	timerAssembleInNew.Stop();
 
 	timerMult.Start();
     globalOperator_->Mult(inNew, out);
 	timerMult.Stop();
 
+	timerLoadOutHost.Start();
 	out.HostRead();
+	timerLoadOutHost.Stop();
 
 	timerTFSF.Start();
     for (const auto& source : srcmngr_.sources) {
@@ -177,14 +178,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerTotal.Stop();
 
     // 6) Print timings
-    if (Mpi::WorldRank() == 0) {
-		std::cout << "Current time: " << GetTime() << std::endl;
-        std::cout << "Rank 0 Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, dataset: " << timerDataSet.RealTime() * 1000 << "ms\n";
-        std::cout << "Rank 0 Mult mult: " << timerMult.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
-    }
-    else if (Mpi::WorldRank() == 1) {
-        std::cout << "Rank 1 Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, dataset: " << timerDataSet.RealTime() * 1000 << "ms\n";
-        std::cout << "Rank 1 Mult mult: " << timerMult.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
-    }
+	std::cout << "Current time: " << GetTime() << std::endl;
+    std::cout << "Rank " << Mpi::WorldRank() << " Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000 << "ms\n";
+    std::cout << "Rank " << Mpi::WorldRank() << " Mult mult: " << timerMult.RealTime() * 1000 << " ms, loadOutHost: " << timerLoadOutHost.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
 }
 }
