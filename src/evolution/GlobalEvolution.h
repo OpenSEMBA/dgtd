@@ -32,4 +32,21 @@ namespace maxwell {
 
 	};
 
+void load_in_to_eh_gpu(mfem::Vector& in, 
+                        std::array<mfem::Vector, 3>& eOld, 
+                        std::array<mfem::Vector, 3>& hOld, 
+                        const int ndofs);
+
+void load_eh_to_innew_gpu(const std::array<mfem::Vector, 3>& eOld,
+                          const std::array<mfem::Vector, 3>& hOld,
+                          mfem::Vector& inNew,
+                          int ndofs,
+                          int nbrSize);
+
+void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
+                   const std::array<mfem::ParGridFunction, 3>& hOldNbr,
+                   mfem::Vector& inNew,
+                   const int ndofs,
+                   const int nbrSize);
+
 }

@@ -97,10 +97,11 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerTotal.Start();
 	
 	const auto ndofs = fes_.GetNDofs();
-	const auto nbr_dofs = fes_.num_face_nbr_dofs;
-	const auto block_size = ndofs + nbr_dofs;
+	const auto nbrDofs = fes_.num_face_nbr_dofs;
+	const auto blockSize = ndofs + nbrDofs;
 
 	Vector inmod(in);
+	inmod.UseDevice(true);
 
     timerExchange.Start();
     for (int d = X; d <= Z; d++) {
@@ -110,8 +111,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerExchange.Stop();
     
 	timerAssembleInNew.Start();
-	std::array<Vector, 3> eOld, hOld;
-	Vector inNew(6*ndofs);
+	std::array<Vector, 3> eOld, hOld, eOldNbr, hOldNbr;
+	Vector inNew(6*blockSize);
 
 	for (int d = X; d <= Z; d++) {
 		eOld[d].SetSize(fes_.GetNDofs());
@@ -119,38 +120,18 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
 
 	inmod.Read();
-	for (int d = X; d <= Z; d++) {
-		eOld[d].MakeRef(inmod, d * fes_.GetNDofs(), fes_.GetNDofs());
-		hOld[d].MakeRef(inmod, (d + 3) * fes_.GetNDofs(), fes_.GetNDofs());
-		// inNew_.SetVector(eOld_[d].FaceNbrData(),      d  * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
-		// inNew_.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (fes_.GetNDofs() + fes_.num_face_nbr_dofs) + fes_.GetNDofs());
-		auto inrw = inNew.HostWrite();
-		auto erw = eOld[d].HostRead();
-		auto hrw = hOld[d].HostRead();
-		assert(inrw != nullptr);
-		assert(erw != nullptr);
-		assert(hrw != nullptr);
-		for (int v = 0; v < ndofs; v++){
-			inrw[d * ndofs + v] = erw[v];
-			inrw[(d + 3) * ndofs + v] = hrw[v];
-		}
-	}
+	load_in_to_eh_gpu(inmod, eOld, hOld, ndofs);
+	load_eh_to_innew_gpu(eOld, hOld, inNew, ndofs, nbrDofs);
+	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
 
 	inNew.UseDevice(true);
 	out.UseDevice(true);
 	inNew.Read();
-
-	AssertVectorOnDevice(inNew, "inNew");
-	AssertVectorOnDevice(out, "out");
 	timerAssembleInNew.Stop();
 
 	timerMult.Start();
     globalOperator_->Mult(inNew, out);
 	timerMult.Stop();
-
-	timerLoadOutHost.Start();
-	out.HostRead();
-	timerLoadOutHost.Stop();
 
 	timerTFSF.Start();
     for (const auto& source : srcmngr_.sources) {

@@ -12,8 +12,8 @@ struct ExporterProbe {
 };
 
 struct NearFieldProbe {
-    std::string name{ "NearFieldProbe" };
-    std::string exportPath{ "./defaultExportPath/" + name + "/"};
+    std::string name = std::string("NearFieldProbe");
+    std::string exportPath = std::string("./defaultExportPath/" + name + "/");
     int expSteps{ 10 };
     std::vector<int> tags;
 };
