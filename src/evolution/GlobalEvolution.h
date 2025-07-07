@@ -27,18 +27,17 @@ namespace maxwell {
 		SourcesManager& srcmngr_;
 		EvolutionOptions& opts_;
 
-		mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_, eFull_, hFull_;
-		mutable mfem::Vector inNew_;
+		mutable std::array<ParGridFunction, 3> eOld_, hOld_;
 
 	};
 
-void load_in_to_eh_gpu(mfem::Vector& in, 
-                        std::array<mfem::Vector, 3>& eOld, 
-                        std::array<mfem::Vector, 3>& hOld, 
-                        const int ndofs);
 
-void load_eh_to_innew_gpu(const std::array<mfem::Vector, 3>& eOld,
-                          const std::array<mfem::Vector, 3>& hOld,
+void load_in_to_eh_gpu(const mfem::Vector& in, 
+                        std::array<ParGridFunction, 3>& e,
+                        std::array<ParGridFunction, 3>& h,
+                        int ndofs);
+	
+void load_eh_to_innew_gpu(const mfem::Vector& inOld,
                           mfem::Vector& inNew,
                           int ndofs,
                           int nbrSize);

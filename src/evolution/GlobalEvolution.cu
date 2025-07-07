@@ -4,46 +4,50 @@
 
 namespace maxwell{
 
-void load_in_to_eh_gpu(mfem::Vector& in, 
-                        std::array<mfem::Vector, 3>& eOld, 
-                        std::array<mfem::Vector, 3>& hOld, 
-                        const int ndofs)
+void load_in_to_eh_gpu(const mfem::Vector& in, 
+                        std::array<ParGridFunction, 3>& e,
+                        std::array<ParGridFunction, 3>& h,
+                        int ndofs)
 {
-    eOld[0].MakeRef(in,  0      * ndofs, ndofs);
-    eOld[1].MakeRef(in,  1      * ndofs, ndofs);
-    eOld[2].MakeRef(in,  2      * ndofs, ndofs);
-    hOld[0].MakeRef(in, (0 + 3) * ndofs, ndofs);
-    hOld[1].MakeRef(in, (1 + 3) * ndofs, ndofs);
-    hOld[2].MakeRef(in, (2 + 3) * ndofs, ndofs);
+    const double* in_d = in.Read();
+    double* ex_d = e[0].Write();
+    double* ey_d = e[1].Write();
+    double* ez_d = e[2].Write();
+    double* hx_d = h[0].Write();
+    double* hy_d = h[1].Write();
+    double* hz_d = h[2].Write();
+
+    mfem::forall(ndofs, [=] MFEM_DEVICE(int v) {
+        ex_d[v] = in_d[0 * ndofs + v];
+        ey_d[v] = in_d[1 * ndofs + v];
+        ez_d[v] = in_d[2 * ndofs + v];
+        hx_d[v] = in_d[3 * ndofs + v];
+        hy_d[v] = in_d[4 * ndofs + v];
+        hz_d[v] = in_d[5 * ndofs + v];
+    });
+    cudaDeviceSynchronize();
 }
 
-void load_eh_to_innew_gpu(const std::array<mfem::Vector, 3>& eOld,
-                          const std::array<mfem::Vector, 3>& hOld,
+void load_eh_to_innew_gpu(const mfem::Vector& in,
                           mfem::Vector& inNew,
                           int ndofs,
                           int nbrSize)
 {
 
-    const double* eOld0 = eOld[0].Read();
-    const double* eOld1 = eOld[1].Read();
-    const double* eOld2 = eOld[2].Read();
-    const double* hOld0 = hOld[0].Read();
-    const double* hOld1 = hOld[1].Read();
-    const double* hOld2 = hOld[2].Read();
-
+    const double* in_d = in.Read();
     double* inNew_d = inNew.Write();
 
     const int blockSize = ndofs + nbrSize;
 
     mfem::forall(ndofs, [=] MFEM_DEVICE(int v) {
-        inNew_d[0 * blockSize + v] = eOld0[v];
-        inNew_d[1 * blockSize + v] = eOld1[v];
-        inNew_d[2 * blockSize + v] = eOld2[v];
-        inNew_d[(0 + 3) * blockSize + v] = hOld0[v];
-        inNew_d[(1 + 3) * blockSize + v] = hOld1[v];
-        inNew_d[(2 + 3) * blockSize + v] = hOld2[v];
+        inNew_d[0 * blockSize + v] = in_d[0 * ndofs + v];
+        inNew_d[1 * blockSize + v] = in_d[1 * ndofs + v];
+        inNew_d[2 * blockSize + v] = in_d[2 * ndofs + v];
+        inNew_d[3 * blockSize + v] = in_d[3 * ndofs + v];
+        inNew_d[4 * blockSize + v] = in_d[4 * ndofs + v];
+        inNew_d[5 * blockSize + v] = in_d[5 * ndofs + v];
     });
-    cudaDeviceSynchronize(); // wait for completion
+    cudaDeviceSynchronize();
 }
 
 void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
@@ -67,10 +71,11 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
         inNew_d[0 * blockSize + ndofs + v] = eOldNbr0[v];
         inNew_d[1 * blockSize + ndofs + v] = eOldNbr1[v];
         inNew_d[2 * blockSize + ndofs + v] = eOldNbr2[v];
-        inNew_d[(0 + 3) * blockSize + ndofs + v] = hOldNbr0[v];
-        inNew_d[(1 + 3) * blockSize + ndofs + v] = hOldNbr1[v];
-        inNew_d[(2 + 3) * blockSize + ndofs + v] = hOldNbr2[v];
+        inNew_d[3 * blockSize + ndofs + v] = hOldNbr0[v];
+        inNew_d[4 * blockSize + ndofs + v] = hOldNbr1[v];
+        inNew_d[5 * blockSize + ndofs + v] = hOldNbr2[v];
     });
+    cudaDeviceSynchronize();
 }
 
 }

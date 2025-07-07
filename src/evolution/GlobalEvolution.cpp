@@ -15,15 +15,10 @@ opts_{ options }
 
 	fes_.ExchangeFaceNbrData();
 
-	for (int d = X; d <= Z; d++) {
+	for (auto d = X; d <= Z; d++){
 		eOld_[d].SetSpace(&fes_);
 		hOld_[d].SetSpace(&fes_);
-		eOld_[d].ExchangeFaceNbrData();
-		hOld_[d].ExchangeFaceNbrData();
 	}
-
-	inNew_.UseDevice(true);
-	inNew_.SetSize(numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
 
 	globalOperator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
 
@@ -76,14 +71,12 @@ const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 	return res;
 }
 
-void AssertVectorOnDevice(const Vector &v, const std::string &name)
+void assertVectorOnDevice(const Vector &v, const std::string &name)
 {
     MemoryType mem_type = v.GetMemory().GetMemoryType();
     if (mem_type != MemoryType::DEVICE)
     {
         mfem::out << "Warning: Vector '" << name << "' latest data is NOT on device!\n";
-        // You could throw, or forcibly sync device data if you want:
-        // const double *dev_ptr = v.DeviceRead();
     }
     else
     {
@@ -93,40 +86,28 @@ void AssertVectorOnDevice(const Vector &v, const std::string &name)
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
-    mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerLoadOutHost, timerMult, timerTFSF;
+    mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerMult, timerTFSF;
     timerTotal.Start();
 	
 	const auto ndofs = fes_.GetNDofs();
 	const auto nbrDofs = fes_.num_face_nbr_dofs;
 	const auto blockSize = ndofs + nbrDofs;
 
-	Vector inmod(in);
-	inmod.UseDevice(true);
-
     timerExchange.Start();
-    for (int d = X; d <= Z; d++) {
-        eOld_[d].ExchangeFaceNbrData();
-        hOld_[d].ExchangeFaceNbrData();
-    }
+	load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+	for (auto d = X; d <= Z; d++){
+		eOld_[d].ExchangeFaceNbrData();
+		hOld_[d].ExchangeFaceNbrData();
+	}
     timerExchange.Stop();
     
 	timerAssembleInNew.Start();
-	std::array<Vector, 3> eOld, hOld, eOldNbr, hOldNbr;
 	Vector inNew(6*blockSize);
+	inNew.UseDevice(true);
 
-	for (int d = X; d <= Z; d++) {
-		eOld[d].SetSize(fes_.GetNDofs());
-		hOld[d].SetSize(fes_.GetNDofs());
-    }
-
-	inmod.Read();
-	load_in_to_eh_gpu(inmod, eOld, hOld, ndofs);
-	load_eh_to_innew_gpu(eOld, hOld, inNew, ndofs, nbrDofs);
+	load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
 	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
 
-	inNew.UseDevice(true);
-	out.UseDevice(true);
-	inNew.Read();
 	timerAssembleInNew.Stop();
 
 	timerMult.Start();
@@ -160,6 +141,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
 	std::cout << "Current time: " << GetTime() << std::endl;
     std::cout << "Rank " << Mpi::WorldRank() << " Mult total: " << timerTotal.RealTime() * 1000 << " ms, exchange: " << timerExchange.RealTime() * 1000 << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000 << "ms\n";
-    std::cout << "Rank " << Mpi::WorldRank() << " Mult mult: " << timerMult.RealTime() * 1000 << " ms, loadOutHost: " << timerLoadOutHost.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
+    std::cout << "Rank " << Mpi::WorldRank() << " Mult mult: " << timerMult.RealTime() * 1000 << " ms, tfsf: " << timerTFSF.RealTime() * 1000 << "ms\n";
 }
 }

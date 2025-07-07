@@ -642,6 +642,8 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getBoundaryToMarker().end() && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
 		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
 	}
+
+	model.getMesh().SetAttributes();
 }
 
 maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)
