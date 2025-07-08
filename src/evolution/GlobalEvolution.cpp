@@ -115,8 +115,21 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 	timerMult.Stop();
 
 	timerTFSF.Start();
-    for (const auto& source : srcmngr_.sources) {
+	bool early_tfsf_deletion = false;
+    for (auto& source : srcmngr_.sources) {
         if (dynamic_cast<TotalField*>(source.get()) && srcmngr_.getGlobalTFSFSpace() != nullptr) {
+			auto sourcecast = dynamic_cast<TotalField*>(source.get());
+			if(opts_.tfsfFinalTime != 0.0 
+			&& std::abs(GetTime() - opts_.tfsfFinalTime) <= 1e-5){
+				const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
+            	mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
+				if(assembledFunc.Norml2() >= 1e-1){
+					early_tfsf_deletion = true;
+					MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
+				}
+				source.reset(nullptr);
+				break;
+			}
             const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
             mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
             mfem::Vector tempTFSF(assembledFunc.Size());
@@ -124,6 +137,9 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             TFSFOperator_->Mult(assembledFunc, tempTFSF);
 			load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out, fes_.GetNDofs(), srcmngr_.getGlobalTFSFSpace()->GetNDofs());
 		}
+	}
+	if (early_tfsf_deletion){
+		MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
 	}
 	timerTFSF.Stop();
 

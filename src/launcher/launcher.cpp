@@ -49,8 +49,10 @@ int main(int argc, char** argv)
 	mfem::Device device(devtype.c_str());
 	device.Print(std::cout);
 	
-	omp_set_num_threads(12);
-	std::cout << "Max Num Threas: " << omp_get_max_threads() << std::endl;
+	if (devtype == "omp"){
+		omp_set_num_threads(12);
+		std::cout << "Max Num Threads: " << omp_get_max_threads() << std::endl;
+	}
 
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();

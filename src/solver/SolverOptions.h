@@ -57,6 +57,11 @@ struct SolverOptions {
         return *this;
     }
 
+    SolverOptions& setTFSFFinalTime(double tfsf_ft) {
+        evolution.tfsfFinalTime = tfsf_ft;
+        return *this;
+    }
+
 };
 
 }

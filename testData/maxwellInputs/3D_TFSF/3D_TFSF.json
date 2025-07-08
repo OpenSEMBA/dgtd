@@ -4,6 +4,7 @@
     "evolution_operator": "maxwell",
     "time_step":  1e-2,
     "final_time":  6.0,
+    "tfsf_final_time": 4.0,
     "order": 3
   },
 
