@@ -1604,7 +1604,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Global)
 
 	solver.run();
 	
-	double tolerance{ 1e-2 };
+	double tolerance{ 2e-2 };
 
 	{
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());

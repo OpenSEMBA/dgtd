@@ -61,6 +61,7 @@ opts_{ options }
 const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 {
 	mfem::Vector res(6 * func[0][0].Size());
+	res.UseDevice(true);
 	for (auto f : { E, H }) {
 		for (auto d : { X, Y, Z }) {
 			for (auto v{ 0 }; v < func[f][d].Size(); v++) {
@@ -87,7 +88,8 @@ void assertVectorOnDevice(const Vector &v, const std::string &name)
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
     mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerMult, timerTFSF;
-    timerTotal.Start();
+
+	timerTotal.Start();
 	
 	const auto ndofs = fes_.GetNDofs();
 	const auto nbrDofs = fes_.num_face_nbr_dofs;
@@ -104,10 +106,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 	timerAssembleInNew.Start();
 	Vector inNew(6*blockSize);
 	inNew.UseDevice(true);
-
 	load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
 	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
-
 	timerAssembleInNew.Stop();
 
 	timerMult.Start();
@@ -117,24 +117,14 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 	timerTFSF.Start();
     for (const auto& source : srcmngr_.sources) {
         if (dynamic_cast<TotalField*>(source.get()) && srcmngr_.getGlobalTFSFSpace() != nullptr) {
-            auto func = evalTimeVarFunction(GetTime(), srcmngr_);
-            mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+            const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
+            mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
             mfem::Vector tempTFSF(assembledFunc.Size());
+			tempTFSF.UseDevice(true);
             TFSFOperator_->Mult(assembledFunc, tempTFSF);
-
-            for (auto f : { E, H }) {
-                for (auto d : { X, Y, Z }) {
-                    for (int v = 0; v < sub_to_parent_ids_.Size(); v++) {
-                        const int outIdx = (f * 3 + d) * fes_.GetNDofs() + sub_to_parent_ids_[v];
-                        const int tempIdx = (f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v;
-                        if (tempTFSF[tempIdx] != 0.0) {
-                            out[outIdx] -= tempTFSF[tempIdx];
-                        }
-                    }
-                }
-            }
-        }
-    }
+			load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out, fes_.GetNDofs(), srcmngr_.getGlobalTFSFSpace()->GetNDofs());
+		}
+	}
 	timerTFSF.Stop();
 
     timerTotal.Stop();

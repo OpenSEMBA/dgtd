@@ -48,4 +48,14 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
                    const int ndofs,
                    const int nbrSize);
 
+mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func);
+
+void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& sub_to_parent_ids_, 
+                                   const mfem::Vector& tempTFSF,                               
+                                         mfem::Vector& out,
+                                   const int global_ndofs,
+                                   const int tfsf_ndofs);
+
+FieldGridFuncs eval_time_var_field_gpu(const Time time, SourcesManager& sm);
+
 }
