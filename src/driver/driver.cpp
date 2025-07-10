@@ -554,6 +554,13 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 		}
 	}
 
+	if (case_data["model"].contains("refinement")){
+		auto ref_levels = int(case_data["model"]["refinement"]);
+		for (auto r = 0; r < ref_levels; r++) {
+			mesh.UniformRefinement();
+		}
+	}
+
 	auto partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
 	Array<int> tfsf_tags = getTFSFTags(case_data);
 
