@@ -79,6 +79,7 @@ Solver::Solver(
 
 	odeSolver_->Init(*evolTDO_);
 
+	probesManager_.setCaseName(model_.meshName_);
 	probesManager_.updateProbes(time_);
 
 #ifdef ENABLE_STATISTICS_RECORD
@@ -290,6 +291,29 @@ double estimateTimeStep(const Model& model, const SolverOptions& opts, const Par
 	}
 }
 
+void Solver::writeSimulationStatistics(const Time runtime){
+	std::ofstream myfile;
+	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
+	myfile.open(path, std::ios::app);
+	if (myfile.is_open()) {
+		myfile << std::scientific << std::setprecision(5);
+		myfile << "Simulation Run Time: " << runtime << " (s)\n";
+		myfile << std::defaultfloat;
+		myfile << "Final Time: " << std::to_string(opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+		myfile << "Time Step: " << std::to_string(dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+		myfile << "Number of Elements: " << std::to_string(fes_.get()->GetNE()) << "\n";
+		myfile << "Number of Degrees of Freedom: " << std::to_string(fes_.get()->GetNDofs()) << "\n";
+		if (opts_.evolution.op == Global) {
+			auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
+			int64_t globalSize = (std::pow(global->getConstGlobalOperator().Size(), 2.0));
+			myfile << "Number of Global Total Entries: " << std::to_string(globalSize) << "\n";
+			int64_t nonZeroEntries = global->getConstGlobalOperator().NumNonZeroElems();
+			myfile << "Number of Global Non-Zero Entries: " << std::to_string(nonZeroEntries) << "\n";
+		}
+	}
+	myfile.close();
+}
+
 #ifdef SHOW_TIMER_INFORMATION
 void printSimulationInformation(const double time, const double dt, const double finalTime)
 {
@@ -331,8 +355,8 @@ void Solver::run()
 			(currentTime - lastPrintTime).count() >= 30.0) 
 		{
 			if (Mpi::WorldRank() == 0){
-			printSimulationInformation(time_, dt_, opts_.finalTime);
-			lastPrintTime = currentTime;
+				printSimulationInformation(time_, dt_, opts_.finalTime);
+				lastPrintTime = currentTime;
 			}
 		}
 		if (this->fields_.getNorml2() > 1e20){
@@ -342,33 +366,11 @@ void Solver::run()
 				std::cout << "------------------------------------------------------------------------" << std::endl;
 			}
 		}
-
-#endif
 	}
+#endif
 
 #ifdef ENABLE_STATISTICS_RECORD
-	auto runEndTime = std::chrono::steady_clock::now();
-	std::ofstream myfile;
-	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
-	myfile.open(path, std::ios::app);
-	if (myfile.is_open()) {
-		auto runtime = std::chrono::duration<double>(runEndTime - runStartTime).count();
-		myfile << std::scientific << std::setprecision(5);
-		myfile << "Simulation Run Time: " << runtime << " (s)\n";
-		myfile << std::defaultfloat;
-		myfile << "Final Time: " << std::to_string(opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
-		myfile << "Time Step: " << std::to_string(dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
-		myfile << "Number of Elements: " << std::to_string(fes_.get()->GetNE()) << "\n";
-		myfile << "Number of Degrees of Freedom: " << std::to_string(fes_.get()->GetNDofs()) << "\n";
-		if (opts_.evolution.op == Global) {
-			auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
-			int64_t globalSize = (std::pow(global->getConstGlobalOperator().Size(), 2.0));
-			myfile << "Number of Global Total Entries: " << std::to_string(globalSize) << "\n";
-			int64_t nonZeroEntries = global->getConstGlobalOperator().NumNonZeroElems();
-			myfile << "Number of Global Non-Zero Entries: " << std::to_string(nonZeroEntries) << "\n";
-		}
-	}
-	myfile.close();
+	writeSimulationStatistics(std::chrono::duration<double>(std::chrono::steady_clock::now() - runStartTime).count());
 #endif
 }
 

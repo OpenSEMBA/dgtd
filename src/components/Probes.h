@@ -20,17 +20,22 @@ struct NearFieldProbe {
 
 class FieldProbe {
 public:
-    FieldProbe(const FieldType& ft, const Direction& d, const Point& p) :
+    FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const bool writeFile = false) :
         fieldToExtract_{ ft },
         directionToExtract_{ d },
-        point_{ p }
+        point_{ p },
+        write{writeFile}
     {}
+
+    bool write;
 
     const FieldType& getFieldType() const { return fieldToExtract_; }
     const Direction& getDirection() const { return directionToExtract_; }
     const FieldMovie& getFieldMovie() const { return fieldMovie_; }
     const Point& getPoint() const { return point_; }
     void addFieldToMovies(double time, const double& field) { fieldMovie_.emplace(time, field); };
+    void setProbeID(const size_t id) {id_ = id;}
+    size_t getProbeID() const { return id_; }
 
     std::pair<Time, double> findFrameWithMax() const
     {
@@ -58,24 +63,30 @@ private:
     FieldType fieldToExtract_;
     Direction directionToExtract_;
     Point point_;
+    size_t id_;
 
     FieldMovie fieldMovie_;
 };
 
 class PointProbe {
 public:
-    PointProbe(const Point& p) :
-        point_{ p }
+    PointProbe(const Point& p, const bool writeFile = false) :
+        point_{ p },
+        write{writeFile}
     {}
+
+    bool write;
 
     const FieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
     void addFieldsToMovies(Time t, const FieldsForMovie& fields) { fieldMovies_.emplace(t, fields); };
-
+    void setProbeID(const size_t id) {id_ = id;}
+    size_t getProbeID() const { return id_; }
 
 private:
 
     Point point_;
+    size_t id_;
 
     FieldMovies fieldMovies_;
 };

@@ -23,7 +23,7 @@ const FieldType assignFieldType(const std::string& field_type)
 	}
 }
 
-const Direction assignFieldSpatial(const std::string& direction)
+const Direction assignFieldPol(const std::string& direction)
 {
 	if (direction == "X") {
 		return X;
@@ -255,6 +255,8 @@ Probes buildProbes(const json& case_data)
 {
 
 	Probes probes;
+	size_t pp_count = 0;
+	size_t fp_count = 0;
 
 	if (case_data["probes"].contains("exporter")) {
 		ExporterProbe exporter_probe;
@@ -272,10 +274,35 @@ Probes buildProbes(const json& case_data)
 
 	if (case_data["probes"].contains("point")) {
 		for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
-			PointProbe field_probe(
-				assembleVector(case_data["probes"]["point"][p]["position"])
+			bool write = false;
+			if (case_data["probes"]["field"][p].contains("write")){
+				write = true;
+			}
+			PointProbe point_probe(
+				assembleVector(case_data["probes"]["point"][p]["position"]),
+				write
 			);
-			probes.pointProbes.push_back(field_probe);
+			point_probe.setProbeID(pp_count);
+			pp_count++;
+			probes.pointProbes.push_back(point_probe);
+		}
+	}
+
+		if (case_data["probes"].contains("field")) {
+		for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
+			bool write = false;
+			if (case_data["probes"]["field"][p].contains("write")){
+				write = true;
+			}
+			FieldProbe field_probe(
+				assignFieldType(case_data["probes"]["field"][p]["field_type"]),
+				assignFieldPol(case_data["probes"]["field"][p]["polarization"]),
+				assembleVector(case_data["probes"]["field"][p]["position"]),
+				write
+			);
+			field_probe.setProbeID(fp_count);
+			fp_count++;
+			probes.fieldProbes.push_back(field_probe);
 		}
 	}
 

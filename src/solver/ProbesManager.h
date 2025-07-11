@@ -80,6 +80,8 @@ public:
     const FieldProbe& getFieldProbe(const std::size_t i) const;
     const PointProbe& getPointProbe(const std::size_t i) const;
 
+    void setCaseName(const std::string name) {caseName_ = name;}
+
     Probes probes;
 
 private:
@@ -111,6 +113,8 @@ private:
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
     std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
+
+    std::string caseName_;
     
     mfem::ParFiniteElementSpace& fes_;
     Fields<ParFiniteElementSpace, ParGridFunction>* fields_;
