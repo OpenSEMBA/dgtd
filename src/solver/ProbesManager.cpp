@@ -239,23 +239,25 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 	const auto& it{ fieldProbesCollection_.find(&p) };
 	assert(it != fieldProbesCollection_.end());
 	const auto& pC{ it->second };
-	real_t gf_value;
 	if (pC.fesPoint.elementId != -2){
-		gf_value = pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+
+		real_t gf_value = pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+
 		p.addFieldToMovies(
 			time, 
 			gf_value
 		);
-	}
-	if(p.write){
-		std::ofstream myfile;
-		std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-		myfile.open(path, std::ios::app);
-		if (myfile.is_open()) {
-			myfile << std::scientific << std::setprecision(5);
-			myfile << std::to_string(time) << " " << std::to_string(gf_value) << "\n";
-		}
+
+		if(p.write){
+			std::ofstream myfile;
+			std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+			myfile.open(path, std::ios::app);
+			if (myfile.is_open()) {
+				myfile << std::scientific << std::setprecision(5);
+				myfile << std::to_string(time) << " " << std::to_string(gf_value) << "\n";
+			}
 		myfile.close();
+		}
 	}
 }
 
@@ -264,39 +266,31 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 	const auto& it{ pointProbesCollection_.find(&p) };
 	assert(it != pointProbesCollection_.end());
 	const auto& pC{ it->second };
-	std::array<std::array<real_t, 3>,2> gf_values;
 	if (pC.fesPoint.elementId != -2){
-		
-		gf_values[E][X] = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		gf_values[E][Y] = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		gf_values[E][Z] = pC.field_Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		gf_values[H][X] = pC.field_Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		gf_values[H][Y] = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		gf_values[H][Z] = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 		FieldsForMovie f4FP;
 		{
-			f4FP.Ex = gf_values[E][X];
-			f4FP.Ey = gf_values[E][Y];
-			f4FP.Ez = gf_values[E][Z];
-			f4FP.Hx = gf_values[H][X];
-			f4FP.Hy = gf_values[H][Y];
-			f4FP.Hz = gf_values[H][Z];
+			f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Ez = pC.field_Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Hx = pC.field_Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Hy = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+			f4FP.Hz = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 		}
 		p.addFieldsToMovies(
 			time,
 			f4FP
 		);
-	}
-	if(p.write){
-		std::ofstream myfile;
-		std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-		myfile.open(path, std::ios::app);
-		if (myfile.is_open()) {
-			myfile << std::scientific << std::setprecision(5);
-			myfile << std::to_string(time) << " " << std::to_string(gf_values[E][X]) << " " << std::to_string(gf_values[E][Y]) << " " << std::to_string(gf_values[E][Z]) <<
-											  " " << std::to_string(gf_values[H][X]) << " " << std::to_string(gf_values[H][Y]) << " " << std::to_string(gf_values[H][Z]) << "\n";
+		if(p.write){
+			std::ofstream myfile;
+			std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+			myfile.open(path, std::ios::app);
+			if (myfile.is_open()) {
+				myfile << std::scientific << std::setprecision(5);
+				myfile << std::to_string(time) << " " << std::to_string(f4FP.Ex) << " " << std::to_string(f4FP.Ey) << " " << std::to_string(f4FP.Ez) <<
+												  " " << std::to_string(f4FP.Hx) << " " << std::to_string(f4FP.Hy) << " " << std::to_string(f4FP.Hz) << "\n";
+			}
+			myfile.close();
 		}
-		myfile.close();
 	}
 }
 
