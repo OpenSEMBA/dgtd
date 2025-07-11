@@ -80,6 +80,7 @@ Solver::Solver(
 	odeSolver_->Init(*evolTDO_);
 
 	probesManager_.setCaseName(model_.meshName_);
+	probesManager_.initPointFieldProbeExport();
 	probesManager_.updateProbes(time_);
 
 #ifdef ENABLE_STATISTICS_RECORD

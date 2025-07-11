@@ -1,4 +1,5 @@
 #include "ProbesManager.h"
+#include "math/PhysicalConstants.h"
 
 namespace maxwell {
 
@@ -129,24 +130,6 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFini
 	assert(integPointArray.Size() == 1);
 	FESPoint fesPoints { elemIdArray[0], integPointArray[0] };
 
-	if(p.write){
-		std::ofstream myfile;
-		std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-		std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-		for (auto i = 0; i < p.getPoint().size(); i++){
-			position[i] = p.getPoint()[i];
-		}
-		myfile.open(path, std::ios::app);
-		if (myfile.is_open()) {
-			myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
-			myfile << "Spatial Position (X, Y, Z) \n";
-			myfile << std::scientific << std::setprecision(5);
-			myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-			myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
-		}
-		myfile.close();
-	}
-
 	return { 
 		fesPoints, 
 		fields.get(E, X),
@@ -156,6 +139,50 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFini
 		fields.get(H, Y),
 		fields.get(H, Z)
 	};
+}
+
+void ProbesManager::initPointFieldProbeExport()
+{
+	for (const auto& p : probes.pointProbes) {
+		if(p.write){
+			std::ofstream myfile;
+			std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+			std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+			for (auto i = 0; i < p.getPoint().size(); i++){
+				position[i] = p.getPoint()[i];
+			}
+			myfile.open(path, std::ios::app);
+			if (myfile.is_open()) {
+				myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
+				myfile << "Spatial Position (X, Y, Z) \n";
+				myfile << std::scientific << std::setprecision(5);
+				myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+				myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
+			}
+			myfile.close();
+		}
+	}
+
+	for (const auto& p : probes.fieldProbes) {
+		if(p.write){
+			std::ofstream myfile;
+			std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+			std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+			auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
+			for (auto i = 0; i < p.getPoint().size(); i++){
+				position[i] = p.getPoint()[i];
+			}
+			myfile.open(path, std::ios::app);
+			if (myfile.is_open()) {
+				myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
+				myfile << "Spatial Position (X, Y, Z) \n";
+				myfile << std::scientific << std::setprecision(5);
+				myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+				myfile << "Time (s) // " + fieldpol + "\n";
+			}
+			myfile.close();
+		}
+	}
 }
 
 ProbesManager::FieldProbeCollection
@@ -169,25 +196,6 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields<ParFini
 	assert(elemIdArray.Size() == 1);
 	assert(integPointArray.Size() == 1);
 	FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
-
-	if(p.write){
-		std::ofstream myfile;
-		std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-		std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-		auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
-		for (auto i = 0; i < p.getPoint().size(); i++){
-			position[i] = p.getPoint()[i];
-		}
-		myfile.open(path, std::ios::app);
-		if (myfile.is_open()) {
-			myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
-			myfile << "Spatial Position (X, Y, Z) \n";
-			myfile << std::scientific << std::setprecision(5);
-			myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-			myfile << "Time (s) // " + fieldpol + "\n";
-		}
-		myfile.close();
-	}
 
 	return {
 		fesPoints,
@@ -254,7 +262,7 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 			myfile.open(path, std::ios::app);
 			if (myfile.is_open()) {
 				myfile << std::scientific << std::setprecision(5);
-				myfile << std::to_string(time) << " " << std::to_string(gf_value) << "\n";
+				myfile << time / physicalConstants::speedOfLight_SI << " " << gf_value << "\n";
 			}
 		myfile.close();
 		}
@@ -286,8 +294,9 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 			myfile.open(path, std::ios::app);
 			if (myfile.is_open()) {
 				myfile << std::scientific << std::setprecision(5);
-				myfile << std::to_string(time) << " " << std::to_string(f4FP.Ex) << " " << std::to_string(f4FP.Ey) << " " << std::to_string(f4FP.Ez) <<
-												  " " << std::to_string(f4FP.Hx) << " " << std::to_string(f4FP.Hy) << " " << std::to_string(f4FP.Hz) << "\n";
+				myfile << time / physicalConstants::speedOfLight_SI << 
+				" " << f4FP.Ex << " " << f4FP.Ey << " " << f4FP.Ez <<
+				" " << f4FP.Hx << " " << f4FP.Hy << " " << f4FP.Hz << "\n";
 			}
 			myfile.close();
 		}

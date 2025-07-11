@@ -275,8 +275,8 @@ Probes buildProbes(const json& case_data)
 	if (case_data["probes"].contains("point")) {
 		for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
 			bool write = false;
-			if (case_data["probes"]["field"][p].contains("write")){
-				write = true;
+			if (case_data["probes"]["point"][p].contains("write")){
+				write = case_data["probes"]["point"][p]["write"];
 			}
 			PointProbe point_probe(
 				assembleVector(case_data["probes"]["point"][p]["position"]),

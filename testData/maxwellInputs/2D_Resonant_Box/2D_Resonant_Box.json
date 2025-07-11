@@ -29,7 +29,17 @@
   "probes": {
     "exporter": {
       "steps": 10
-    }
+    },
+    "point": [
+      {
+        "position": [ 0.25, 0.75 ],
+        "write": true
+      },
+      {
+        "position": [ 0.75, 0.75 ],
+        "write": true
+      }
+    ]
   },
   "sources": [
     {

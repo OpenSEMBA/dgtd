@@ -81,6 +81,7 @@ public:
     const PointProbe& getPointProbe(const std::size_t i) const;
 
     void setCaseName(const std::string name) {caseName_ = name;}
+    void initPointFieldProbeExport();
 
     Probes probes;
 
