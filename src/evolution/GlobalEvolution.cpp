@@ -96,7 +96,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 	const auto blockSize = ndofs + nbrDofs;
 
     timerExchange.Start();
-	#ifdef SEMBA_DGTD_USE_CUDA
+	#ifdef SEMBA_DGTD_ENABLE_CUDA
 	load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
 	#else
 	for (auto d = X; d <= Z; d++){
@@ -114,7 +114,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     
 	timerAssembleInNew.Start();
 	Vector inNew(6*blockSize);
-	#ifdef SEMBA_DGTD_USE_CUDA
+	#ifdef SEMBA_DGTD_ENABLE_CUDA
 	inNew.UseDevice(true);
 	load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
 	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
@@ -143,7 +143,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 			auto sourcecast = dynamic_cast<TotalField*>(source.get());
 			if(opts_.tfsfFinalTime != 0.0 
 			&& std::abs(GetTime() - opts_.tfsfFinalTime) <= 1e-5){
-				#ifdef SEMBA_DGTD_USE_CUDA
+				#ifdef SEMBA_DGTD_ENABLE_CUDA
 				const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
             	mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
 				#else
@@ -157,7 +157,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 				source.reset(nullptr);
 				break;
 			}
-			#ifdef SEMBA_DGTD_USE_CUDA
+			#ifdef SEMBA_DGTD_ENABLE_CUDA
             const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
             mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
 			#else
@@ -167,7 +167,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             mfem::Vector tempTFSF(assembledFunc.Size());
 			tempTFSF.UseDevice(true);
             TFSFOperator_->Mult(assembledFunc, tempTFSF);
-			#ifdef SEMBA_DGTD_USE_CUDA
+			#ifdef SEMBA_DGTD_ENABLE_CUDA
 			load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out, fes_.GetNDofs(), srcmngr_.getGlobalTFSFSpace()->GetNDofs());
 			#else
 			for (auto f : { E, H }) {

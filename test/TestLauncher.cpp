@@ -18,7 +18,7 @@ int main(int argc, char** argv)
         std::cout << "Argument #" << i << ": " << args[i] << std::endl;
     }
 
-    std::string deviceConfig{ "cuda" };
+    std::string deviceConfig{ "cpu" };
     for (const auto& arg : args) {
         std::string prefix{ "--device=" };
         if (!arg.compare(0, prefix.size(), prefix)) {

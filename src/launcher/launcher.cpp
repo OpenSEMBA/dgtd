@@ -23,7 +23,7 @@ void printHelpArgument()
 
 int main(int argc, char** argv)
 {
-	
+		
     std::cout << "PID " << getpid() << " ready to be attached. Press Enter to continue...\n";
     std::cin.get();
 
@@ -33,34 +33,31 @@ int main(int argc, char** argv)
 	}
 	
 	std::string inputFilePath;
-
+    std::string deviceConfig{ "cpu" };
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
-		if (std::string(argv[i]) == "-i" && i + 1 < argc) {
+		if (arg == "-i" && i + 1 < argc) {
 			inputFilePath = argv[++i]; 
 		}
-		else if (std::string(argv[i]) == "-h") {
+		else if (arg == "-h") {
 			printHelpArgument();
 			return 2;
 		}
+		else if ((arg == "--device" || arg == "-d") && i + 1 < argc)
+		{
+			std::string devtype = argv[i+1];
+			if (devtype == "cpu" || devtype == "omp" || devtype == "cuda" ){
+				deviceConfig = devtype;
+				++i;
+			}
+			else{
+				throw std::runtime_error("Available device strings are \"cpu\", \"omp\" or \"cuda\"");
+			}
+		}
 	}
 
-	std::string devtype;
-	#ifdef SEMBA_DGTD_USE_CUDA
-	devtype = "cuda";
-	mfem::Device device(devtype.c_str());
-	device.Print(std::cout);
-	#elif SEMBA_DGTD_USE_OPENMP
-	devtype = "omp";
-	mfem::Device device(devtype.c_str());
-	device.Print(std::cout);
-	omp_set_num_threads(12);
-	std::cout << "Max Num Threads: " << omp_get_max_threads() << std::endl;
-	#else
-	devtype = "cpu";
-	mfem::Device device(devtype.c_str());
-	device.Print(std::cout);
-	#endif
+    mfem::Device device(deviceConfig.c_str());
+    device.Print();
 
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();
