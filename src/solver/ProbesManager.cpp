@@ -16,6 +16,8 @@ std::string getFieldPolString(const FieldType& ft, const Direction& d)
 				return "Ey";
 			case Z:
 				return "Ez";
+			default:
+				throw std::runtime_error("Incorrect direction in getFieldPolString.");
 		}
 		case H:
 		switch(d){
@@ -25,7 +27,11 @@ std::string getFieldPolString(const FieldType& ft, const Direction& d)
 				return "Hy";
 			case Z:
 				return "Hz";
+			default:
+				throw std::runtime_error("Incorrect direction in getFieldPolString.");
 		}
+		default:
+			throw std::runtime_error("Incorrect fieldtype in getFieldPolString.");
 	}
 }
 
@@ -44,7 +50,7 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	auto fecorder = fes_.FEColl()->GetOrder();
 	geomElemOrder > 1 ? highOrder = true : highOrder = false;
 	auto maxDetail = 1;
-	geomElemOrder >= fecorder ? maxDetail = geomElemOrder : maxDetail = fecorder;
+	// geomElemOrder >= fecorder ? maxDetail = geomElemOrder : maxDetail = fecorder;
 	pd.SetHighOrderOutput(highOrder);
 	pd.SetLevelsOfDetail(maxDetail);
 	

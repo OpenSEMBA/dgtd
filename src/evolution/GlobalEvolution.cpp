@@ -96,7 +96,16 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 	const auto blockSize = ndofs + nbrDofs;
 
     timerExchange.Start();
+	#ifdef SEMBA_DGTD_USE_CUDA
 	load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+	#else
+	for (auto d = X; d <= Z; d++){
+		for (auto v = 0; v < ndofs; v++){
+			eOld_[d][v] = in[d * ndofs + v];
+			hOld_[d][v] = in[(d+3) * ndofs + v];
+		}
+	}
+	#endif
 	for (auto d = X; d <= Z; d++){
 		eOld_[d].ExchangeFaceNbrData();
 		hOld_[d].ExchangeFaceNbrData();
@@ -105,9 +114,22 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     
 	timerAssembleInNew.Start();
 	Vector inNew(6*blockSize);
+	#ifdef SEMBA_DGTD_USE_CUDA
 	inNew.UseDevice(true);
 	load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
 	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
+	#else
+	for (int d = X; d <= Z; d++) {
+		eOld_[d].SetData(in.GetData() + d * ndofs);
+		hOld_[d].SetData(in.GetData() + (d + 3) * ndofs);
+		inNew.SetVector(eOld_[d],      d  * (ndofs + nbrDofs));
+		inNew.SetVector(hOld_[d], (3 + d) * (ndofs + nbrDofs));
+		if (nbrDofs != 0){
+			inNew.SetVector(eOld_[d].FaceNbrData(),      d  * (ndofs + nbrDofs) + ndofs);
+			inNew.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (ndofs + nbrDofs) + ndofs);
+		}
+	}
+	#endif
 	timerAssembleInNew.Stop();
 
 	timerMult.Start();
@@ -121,8 +143,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 			auto sourcecast = dynamic_cast<TotalField*>(source.get());
 			if(opts_.tfsfFinalTime != 0.0 
 			&& std::abs(GetTime() - opts_.tfsfFinalTime) <= 1e-5){
+				#ifdef SEMBA_DGTD_USE_CUDA
 				const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
             	mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
+				#else
+				auto func = evalTimeVarFunction(GetTime(), srcmngr_);
+            	mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+				#endif
 				if(assembledFunc.Norml2() >= 1e-1){
 					early_tfsf_deletion = true;
 					MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
@@ -130,12 +157,31 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 				source.reset(nullptr);
 				break;
 			}
+			#ifdef SEMBA_DGTD_USE_CUDA
             const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
             mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
+			#else
+			auto func = evalTimeVarFunction(GetTime(), srcmngr_);
+            mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+			#endif
             mfem::Vector tempTFSF(assembledFunc.Size());
 			tempTFSF.UseDevice(true);
             TFSFOperator_->Mult(assembledFunc, tempTFSF);
+			#ifdef SEMBA_DGTD_USE_CUDA
 			load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out, fes_.GetNDofs(), srcmngr_.getGlobalTFSFSpace()->GetNDofs());
+			#else
+			for (auto f : { E, H }) {
+                for (auto d : { X, Y, Z }) {
+                    for (int v = 0; v < sub_to_parent_ids_.Size(); v++) {
+                        const int outIdx = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
+                        const int tempIdx = (f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v;
+                        if (tempTFSF[tempIdx] != 0.0) {
+                            out[outIdx] -= tempTFSF[tempIdx];
+                        }
+                    }
+                }
+            }
+			#endif
 		}
 	}
 	if (early_tfsf_deletion){
