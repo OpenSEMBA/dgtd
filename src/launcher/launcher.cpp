@@ -74,8 +74,10 @@ int main(int argc, char** argv)
 
 	solver.run();
 
-	std::cout << "Solver has finished performing its operations." << std::endl;
-	std::cout << "Program will end now." << std::endl;
+	if (mfem::Mpi::WorldRank() == 0){
+		std::cout << "Solver has finished performing its operations." << std::endl;
+		std::cout << "Program will end now." << std::endl;
+	}
 	
 	mfem::Mpi::Finalize();
 

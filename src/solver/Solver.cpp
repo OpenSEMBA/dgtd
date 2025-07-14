@@ -293,26 +293,34 @@ double estimateTimeStep(const Model& model, const SolverOptions& opts, const Par
 }
 
 void Solver::writeSimulationStatistics(const Time runtime){
-	std::ofstream myfile;
-	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
-	myfile.open(path, std::ios::app);
-	if (myfile.is_open()) {
-		myfile << std::scientific << std::setprecision(5);
-		myfile << "Simulation Run Time: " << runtime << " (s)\n";
-		myfile << std::defaultfloat;
-		myfile << "Final Time: " << std::to_string(opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
-		myfile << "Time Step: " << std::to_string(dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
-		myfile << "Number of Elements: " << std::to_string(fes_.get()->GetNE()) << "\n";
-		myfile << "Number of Degrees of Freedom: " << std::to_string(fes_.get()->GetNDofs()) << "\n";
-		if (opts_.evolution.op == Global) {
-			auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
-			int64_t globalSize = (std::pow(global->getConstGlobalOperator().Size(), 2.0));
-			myfile << "Number of Global Total Entries: " << std::to_string(globalSize) << "\n";
-			int64_t nonZeroEntries = global->getConstGlobalOperator().NumNonZeroElems();
-			myfile << "Number of Global Non-Zero Entries: " << std::to_string(nonZeroEntries) << "\n";
-		}
-	}
-	myfile.close();
+	int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Construct a rank-specific filename
+    std::string path = "StatisticsExport/" + model_.meshName_ +
+                       "/statistics_rank" + std::to_string(rank) + ".dat";
+
+    std::ofstream myfile(path, std::ios::app);
+    if (myfile.is_open()) {
+        myfile << std::scientific << std::setprecision(5);
+        myfile << "Simulation Run Time: " << runtime << " (s)\n";
+        myfile << std::defaultfloat;
+        myfile << "Final Time: " << (opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+        myfile << "Time Step: " << (dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+        myfile << "Number of Elements: " << fes_.get()->GetNE() << "\n";
+        myfile << "Number of Degrees of Freedom: " << fes_.get()->GetNDofs() << "\n";
+        if (opts_.evolution.op == Global) {
+            auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
+            int64_t globalSize = std::pow(global->getConstGlobalOperator().Size(), 2.0);
+            myfile << "Number of Global Total Entries: " << globalSize << "\n";
+            int64_t nonZeroEntries = global->getConstGlobalOperator().NumNonZeroElems();
+            myfile << "Number of Global Non-Zero Entries: " << nonZeroEntries << "\n";
+        }
+        myfile << "\n";
+        myfile.close();
+    } else {
+        std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
+    }
 }
 
 #ifdef SHOW_TIMER_INFORMATION

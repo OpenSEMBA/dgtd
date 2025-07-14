@@ -48,11 +48,9 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	bool highOrder = false;
 	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
 	auto fecorder = fes_.FEColl()->GetOrder();
-	geomElemOrder > 1 ? highOrder = true : highOrder = false;
-	auto maxDetail = 1;
-	// geomElemOrder >= fecorder ? maxDetail = geomElemOrder : maxDetail = fecorder;
+	geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
 	pd.SetHighOrderOutput(highOrder);
-	pd.SetLevelsOfDetail(maxDetail);
+	pd.SetLevelsOfDetail(fecorder);
 	
 	pd.SetDataFormat(VTKFormat::BINARY);
 
@@ -151,42 +149,46 @@ void ProbesManager::initPointFieldProbeExport()
 {
 	for (const auto& p : probes.pointProbes) {
 		if(p.write){
-			std::ofstream myfile;
-			std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-			std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-			for (auto i = 0; i < p.getPoint().size(); i++){
-				position[i] = p.getPoint()[i];
+			if (Mpi::WorldRank() == 0){
+				std::ofstream myfile;
+				std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+				for (auto i = 0; i < p.getPoint().size(); i++){
+					position[i] = p.getPoint()[i];
+				}
+				myfile.open(path, std::ios::app);
+				if (myfile.is_open()) {
+					myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
+					myfile << "Spatial Position (X, Y, Z) \n";
+					myfile << std::scientific << std::setprecision(5);
+					myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+					myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
+				}
+				myfile.close();
 			}
-			myfile.open(path, std::ios::app);
-			if (myfile.is_open()) {
-				myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
-				myfile << "Spatial Position (X, Y, Z) \n";
-				myfile << std::scientific << std::setprecision(5);
-				myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-				myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
-			}
-			myfile.close();
 		}
 	}
 
 	for (const auto& p : probes.fieldProbes) {
 		if(p.write){
-			std::ofstream myfile;
-			std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-			std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-			auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
-			for (auto i = 0; i < p.getPoint().size(); i++){
-				position[i] = p.getPoint()[i];
+			if (Mpi::WorldRank() == 0){
+				std::ofstream myfile;
+				std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+				auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
+				for (auto i = 0; i < p.getPoint().size(); i++){
+					position[i] = p.getPoint()[i];
+				}
+				myfile.open(path, std::ios::app);
+				if (myfile.is_open()) {
+					myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
+					myfile << "Spatial Position (X, Y, Z) \n";
+					myfile << std::scientific << std::setprecision(5);
+					myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+					myfile << "Time (s) // " + fieldpol + "\n";
+				}
+				myfile.close();
 			}
-			myfile.open(path, std::ios::app);
-			if (myfile.is_open()) {
-				myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
-				myfile << "Spatial Position (X, Y, Z) \n";
-				myfile << std::scientific << std::setprecision(5);
-				myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-				myfile << "Time (s) // " + fieldpol + "\n";
-			}
-			myfile.close();
 		}
 	}
 }

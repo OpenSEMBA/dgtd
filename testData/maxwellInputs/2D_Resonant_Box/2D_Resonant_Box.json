@@ -52,7 +52,7 @@
       ],
       "magnitude": {
         "type": "resonant",
-        "modes": [ 2,2]
+        "modes": [2,2]
       }
     }
   ]
