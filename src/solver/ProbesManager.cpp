@@ -151,7 +151,7 @@ void ProbesManager::initPointFieldProbeExport()
 		if(p.write){
 			if (Mpi::WorldRank() == 0){
 				std::ofstream myfile;
-				std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+				std::string path("SimulationExports/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
 				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
 				for (auto i = 0; i < p.getPoint().size(); i++){
 					position[i] = p.getPoint()[i];
@@ -173,7 +173,7 @@ void ProbesManager::initPointFieldProbeExport()
 		if(p.write){
 			if (Mpi::WorldRank() == 0){
 				std::ofstream myfile;
-				std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+				std::string path("SimulationExports/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
 				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
 				auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
 				for (auto i = 0; i < p.getPoint().size(); i++){
@@ -266,7 +266,7 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 
 		if(p.write){
 			std::ofstream myfile;
-			std::string path("StatisticsExport/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+			std::string path("SimulationExports/" + caseName_ + "/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
 			myfile.open(path, std::ios::app);
 			if (myfile.is_open()) {
 				myfile << std::scientific << std::setprecision(5);
@@ -298,7 +298,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 		);
 		if(p.write){
 			std::ofstream myfile;
-			std::string path("StatisticsExport/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+			std::string path("SimulationExports/" + caseName_ + "/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
 			myfile.open(path, std::ios::app);
 			if (myfile.is_open()) {
 				myfile << std::scientific << std::setprecision(5);

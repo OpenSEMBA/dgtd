@@ -48,17 +48,17 @@ Solver::Solver(
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initStartTime = std::chrono::steady_clock::now();
 	if (Mpi::WorldRank() == 0){
-		if (!std::filesystem::is_directory("StatisticsExport/") || !std::filesystem::exists("StatisticsExport/")) {
-			std::filesystem::create_directory("StatisticsExport/");
+		if (!std::filesystem::is_directory("SimulationExports/") || !std::filesystem::exists("SimulationExports/")) {
+			std::filesystem::create_directory("SimulationExports/");
 		}
-		std::filesystem::path statspath("StatisticsExport/" + model_.meshName_ + "/");
-		if (std::filesystem::is_directory(statspath) || std::filesystem::exists(statspath)) {
-			std::filesystem::remove_all(statspath);
+		std::filesystem::path simExpPath("SimulationExports/" + model_.meshName_ + "/");
+		if (std::filesystem::is_directory(simExpPath) || std::filesystem::exists(simExpPath)) {
+			std::filesystem::remove_all(simExpPath);
 		}
-		std::filesystem::create_directory(statspath);
+		std::filesystem::create_directory(simExpPath);
 	}
-	
 #endif
+
 	if (Mpi::WorldRank() == 0){
 		checkOptionsAreValid(opts_);
 	}
@@ -85,18 +85,21 @@ Solver::Solver(
 
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initEndTime = std::chrono::steady_clock::now();
-	if (Mpi::WorldRank() == 0){
-	std::ofstream myfile;
-	std::string path("StatisticsExport/" + model_.meshName_ + "/" + "statistics.dat");
-	myfile.open(path, std::ios::app);
+	int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    std::string path = "SimulationExports/" + model_.meshName_ +
+                       "/statistics_rank" + std::to_string(rank) + ".dat";
+
+    std::ofstream myfile(path, std::ios::app);
 	if (myfile.is_open()) {
 		auto runtime = std::chrono::duration<double>(initEndTime - initStartTime).count();
 		myfile << std::scientific << std::setprecision(5);
 		myfile << "Initialization Time: " << runtime << " (s)\n";
 		myfile << std::defaultfloat;
-	}
-	myfile.close();
-	}
+        myfile.close();
+    } else {
+        std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
+    }
 #endif
 
 }
@@ -297,7 +300,7 @@ void Solver::writeSimulationStatistics(const Time runtime){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Construct a rank-specific filename
-    std::string path = "StatisticsExport/" + model_.meshName_ +
+    std::string path = "SimulationExports/" + model_.meshName_ +
                        "/statistics_rank" + std::to_string(rank) + ".dat";
 
     std::ofstream myfile(path, std::ios::app);
@@ -314,9 +317,8 @@ void Solver::writeSimulationStatistics(const Time runtime){
             int64_t globalSize = std::pow(global->getConstGlobalOperator().Size(), 2.0);
             myfile << "Number of Global Total Entries: " << globalSize << "\n";
             int64_t nonZeroEntries = global->getConstGlobalOperator().NumNonZeroElems();
-            myfile << "Number of Global Non-Zero Entries: " << nonZeroEntries << "\n";
+            myfile << "Number of Global Non-Zero Entries: " << nonZeroEntries;
         }
-        myfile << "\n";
         myfile.close();
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
