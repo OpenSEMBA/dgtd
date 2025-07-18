@@ -113,6 +113,15 @@ std::unique_ptr<InitialField> buildBesselJ6InitialField(
 	return std::make_unique<InitialField>(BesselJ6(), ft, p, center);
 }
 
+std::unique_ptr<InitialField> buildSphericalBesselJ6InitialField(
+	const FieldType& ft = E,
+	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }))
+{
+	Sources res;
+	Source::Position center = Source::Position({ 0.0, 0.0, 0.0 });
+	return std::make_unique<InitialField>(SphericalBesselJ6(), ft, p, center);
+}
+
 std::unique_ptr<TotalField> buildGaussianPlanewave(
 	double spread,
 	const Source::Position mean,
@@ -162,8 +171,14 @@ Sources buildSources(const json& case_data)
 					case_data["sources"][s]["magnitude"]["modes"])
 				);
 			}
-			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6") {
+			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6_2D") {
 				res.add(buildBesselJ6InitialField(
+					assignFieldType(case_data["sources"][s]["field_type"]),
+					assemble3DVector(case_data["sources"][s]["polarization"]))
+				);
+			}
+			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6_3D") {
+				res.add(buildSphericalBesselJ6InitialField(
 					assignFieldType(case_data["sources"][s]["field_type"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]))
 				);
@@ -306,33 +321,32 @@ Probes buildProbes(const json& case_data)
 		}
 	}
 
-	if (Mpi::WorldRank() == 0){
-		if (case_data["probes"].contains("farfield")) {
-			for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
-				NearFieldProbe probe;
-				if (case_data["probes"]["farfield"][p].contains("name")) {
-					probe.name = case_data["probes"]["farfield"][p]["name"];
-				}
-				if (case_data["probes"]["farfield"][p].contains("export_path")) {
-					probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
-				}
-				if (case_data["probes"]["farfield"][p].contains("steps")) {
-					probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
-				}
-				if (case_data["probes"]["farfield"][p].contains("tags")) {
-					std::vector<int> tags;
-					for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
-						tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
-					}
-					probe.tags = tags;
-				}
-				else {
-					throw std::runtime_error("Tags have not been defined in farfield probe.");
-				}
-				probes.nearFieldProbes.push_back(probe);
+	if (case_data["probes"].contains("farfield")) {
+		for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
+			NearFieldProbe probe;
+			if (case_data["probes"]["farfield"][p].contains("name")) {
+				probe.name = case_data["probes"]["farfield"][p]["name"];
 			}
+			if (case_data["probes"]["farfield"][p].contains("export_path")) {
+				probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
+			}
+			if (case_data["probes"]["farfield"][p].contains("steps")) {
+				probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
+			}
+			if (case_data["probes"]["farfield"][p].contains("tags")) {
+				std::vector<int> tags;
+				for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
+					tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
+				}
+				probe.tags = tags;
+			}
+			else {
+				throw std::runtime_error("Tags have not been defined in farfield probe.");
+			}
+			probes.nearFieldProbes.push_back(probe);
 		}
 	}
+
 
 	return probes;
 }

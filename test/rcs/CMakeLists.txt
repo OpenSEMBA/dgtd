@@ -14,7 +14,7 @@ add_executable(rcs_tests
  )
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
-		message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
+	message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
 	target_sources(rcs_tests PRIVATE
 		"ExtensiveRCSTest.cpp")
 endif()

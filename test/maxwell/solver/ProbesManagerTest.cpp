@@ -20,7 +20,7 @@ TEST_F(ProbesManagerTest, exporterProbe)
 	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
 	ParFiniteElementSpace fes{ &mesh, &fec };
-	Fields fields{ fes };
+	Fields<ParFiniteElementSpace, ParGridFunction> fields{ fes };
 	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
 	Probes ps;
@@ -37,7 +37,7 @@ TEST_F(ProbesManagerTest, fieldProbe)
 	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
 	ParFiniteElementSpace fes{ &mesh, &fec };
-	Fields fields{ fes };
+	Fields<ParFiniteElementSpace, ParGridFunction> fields{ fes };
 	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
 	Probes probes;

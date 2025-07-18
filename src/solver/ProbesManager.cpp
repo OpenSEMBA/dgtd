@@ -73,18 +73,16 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
 		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
 	}
 
-	if (Mpi::WorldRank() == 0){
-		for (const auto& p : probes.nearFieldProbes) {
-			auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
-			if (!dgfec)
-			{
-				throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
-			}
-			nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
-			nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
+	for (const auto& p : probes.nearFieldProbes) {
+		auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
+		if (!dgfec)
+		{
+			throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
 		}
+		nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
+		nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
 	}
-
+	
 	finalTime_ = opts.finalTime;
 	fields_ = &fields;
 }
@@ -220,7 +218,7 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 	}
 
 	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
-	res.SetPrefixPath("NearToFarFieldExports/" + p.name);
+	res.SetPrefixPath("NearToFarFieldExports/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 	res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getField(E, X));
 	res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getField(E, Y));
 	res.RegisterField("Ez.gf", &nearFieldReqs_.at(&p)->getField(E, Z));
@@ -367,10 +365,9 @@ void ProbesManager::updateProbes(Time t)
 	for (auto& p : probes.pointProbes) {
 		updateProbe(p, t);
 	}
-	if (Mpi::WorldRank() == 0){
-		for (auto& p : probes.nearFieldProbes) {
-			updateProbe(p, t);
-		}
+	
+	for (auto& p : probes.nearFieldProbes) {
+		updateProbe(p, t);
 	}
 
 	cycle_++;

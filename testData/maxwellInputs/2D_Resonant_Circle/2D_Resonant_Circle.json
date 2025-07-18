@@ -4,11 +4,11 @@
     "evolution_operator": "global",
 	  "time_step": 1e-2,
     "final_time": 2.0,
-    "order": 2
+    "order": 3
   },
   "model": {
     "filename": "2D_Resonant_Circle.msh",
-    "refinement": 1,
+    "refinement": 0,
     "materials": [
       {
         "tags": [
@@ -41,7 +41,7 @@
         1.0
       ],
       "magnitude": {
-        "type": "besselj6"
+        "type": "besselj6_2D"
       }
     }
   ]

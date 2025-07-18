@@ -14,4 +14,5 @@ if(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS)
 		"ExtensiveCasesTest.cpp")
 endif()
 
-target_link_libraries(cases_tests maxwell-driver GTest::gtest)
+target_include_directories(cases_tests PRIVATE ${GSL_INCLUDE_DIRS})
+target_link_libraries(cases_tests maxwell-driver GTest::gtest  ${GSL_LIBRARIES})

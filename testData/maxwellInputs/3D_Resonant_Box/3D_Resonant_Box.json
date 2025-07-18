@@ -1,14 +1,13 @@
 {
   "solver_options": {
-    "upwind_alpha": 0.0,
+    "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 5e-3,
-    "final_time": 2.0,
+	  "time_step": 2.5e-3,
+    "final_time": 10.0,
     "order": 3
   },
   "model": {
     "filename": "3D_Resonant_Box.msh",
-    "refinement": 3,
     "materials": [
       {
         "tags": [
@@ -28,15 +27,11 @@
   },
   "probes": {
     "exporter": {
-      "steps": 50
+      "steps": 4
     },
     "point": [
       {
-        "position": [ 0.25, 0.25, 0.50 ],
-        "write": true
-      },
-      {
-        "position": [ 0.25, 0.75, 0.50 ],
+        "position": [ 0.25, 0.25, 0.25 ],
         "write": true
       }
     ]
@@ -52,7 +47,7 @@
       ],
       "magnitude": {
         "type": "resonant",
-        "modes": [ 2, 2, 2]
+        "modes": [ 2, 2 ]
       }
     }
   ]

@@ -256,7 +256,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_ZeroNormal_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMP = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildZeroNormalSubOperator(E)->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMP = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildZeroNormalSubOperator<ParBilinearForm>(E)->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMP.rows(); i++) {
 		for (int j = 0; j < EigenMP.cols(); j++) {
@@ -292,7 +292,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxEZ_HX_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMFN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildOneNormalSubOperator(H, {X})->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, {X})->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
@@ -327,7 +327,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyEZ_HY_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes);
 
-	auto EigenMFN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops.buildOneNormalSubOperator(H, { Y })->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, { Y })->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
@@ -362,7 +362,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nyHX_EZ_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMFN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildOneNormalSubOperator(E, {Y})->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, {Y})->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
@@ -397,7 +397,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_OneNormal_nxHY_EZ_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMFN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildOneNormalSubOperator(E, { X })->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, { X })->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFN.rows(); i++) {
 		for (int j = 0; j < EigenMFN.cols(); j++) {
@@ -433,7 +433,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXnx_HX_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMFNN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildTwoNormalSubOperator(H, { X, X })->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFNN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { X, X })->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {
@@ -469,7 +469,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nxHXny_HY_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMFNN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildTwoNormalSubOperator(H, { X, Y })->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFNN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { X, Y })->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {
@@ -505,7 +505,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYnx_HY_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMFNN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildTwoNormalSubOperator(H, { Y, X })->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFNN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Y, X })->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {
@@ -541,7 +541,7 @@ TEST_F(MFEMHesthaven2D, 2D_Operator_TwoNormal_nyHYny_HY_PEC)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops(pd, fes);
 
-	auto EigenMFNN = toEigen(*buildByMult(dgops.buildInverseMassMatrixSubOperator(H)->SpMat(), dgops.buildTwoNormalSubOperator(H, { Y, Y })->SpMat(), fes)->SpMat().ToDenseMatrix());
+	auto EigenMFNN = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Y, Y })->SpMat(), fes)->SpMat().ToDenseMatrix());
 
 	for (int i = 0; i < EigenMFNN.rows(); i++) {
 		for (int j = 0; j < EigenMFNN.cols(); j++) {

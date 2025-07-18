@@ -9,6 +9,9 @@
 #include "math/Calculus.h"
 #include "components/Types.h"
 
+#include <gsl/gsl_sf_bessel.h>  
+#include <gsl/gsl_sf_legendre.h>
+
 namespace maxwell {
 
 using VectorTF = std::array<std::array<double, 3>, 2>;
@@ -149,6 +152,40 @@ public:
 		return besselj6 * cosinetheta * cosinetime;
 	}
 
+};
+
+class SphericalBesselJ6 : public Function {
+public:
+	SphericalBesselJ6() {}
+
+	std::unique_ptr<Function> clone() const override {
+		return std::make_unique<SphericalBesselJ6>(*this);
+	}
+
+	int dimension() const override { return 3; }
+
+	double eval(const Position& pos) const override
+	{
+		const double alpha6 = 13.589290170541217;
+		const double x = pos[0];
+		const double y = pos[1];
+		const double z = pos[2];
+
+		double r = pos.Norml2();
+		if (r == 0.0) return 0.0;
+
+		double theta = std::acos(z / r);
+		double phi = std::atan2(y, x);
+
+		double j6 = gsl_sf_bessel_jl(6, alpha6 * r);
+
+		double P66 = gsl_sf_legendre_sphPlm(6, 6, std::cos(theta)); 
+		double Y66_real = P66 * std::cos(6 * phi);
+
+		double cosAtT0 = 1.0;
+
+		return j6 * Y66_real * cosAtT0;
+	}
 };
 
 class DerivGaussDipole : public EHFieldFunction {
