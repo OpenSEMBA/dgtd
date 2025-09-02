@@ -3,12 +3,12 @@
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
 	  "time_step": 1e-3,
-    "final_time": 4.0,
+    "final_time": 10.0,
     "order": 3
   },
   "model": {
-    "filename": "2D_Resonant_Box.msh",
-    "refinement": 3,
+    "filename": "3D_Resonant_Box_H0_P3.msh",
+    "refinement": 0,
     "materials": [
       {
         "tags": [
@@ -20,7 +20,7 @@
     "boundaries": [
       {
         "tags": [
-          1, 2, 3, 4
+          1, 2, 3, 4, 5, 6
         ],
         "type": "PEC"
       }
@@ -32,11 +32,7 @@
     },
     "point": [
       {
-        "position": [ 0.25, 0.75 ],
-        "write": true
-      },
-      {
-        "position": [ 0.75, 0.75 ],
+        "position": [ 0.25, 0.25, 0.25 ],
         "write": true
       }
     ]
@@ -52,7 +48,7 @@
       ],
       "magnitude": {
         "type": "resonant",
-        "modes": [2,2]
+        "modes": [ 2, 2 ]
       }
     }
   ]

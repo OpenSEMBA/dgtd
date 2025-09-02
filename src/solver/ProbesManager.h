@@ -114,6 +114,7 @@ private:
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
     std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
+    std::map<const DomainSnapshotProbe*, mfem::ParaViewDataCollection> domainSnapshotProbesCollection_;
 
     std::string caseName_;
     
@@ -126,11 +127,13 @@ private:
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     DataCollection buildNearFieldDataCollectionInfo(const NearFieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
+    DataCollection buildDomainSnapshotDataCollection(DomainSnapshotProbe& p);
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(FieldProbe&, Time);
     void updateProbe(PointProbe&, Time);
     void updateProbe(NearFieldProbe&, Time);
+    void updateProbe(DomainSnapshotProbe&, Time);
 };
 
 

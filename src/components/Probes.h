@@ -18,6 +18,12 @@ struct NearFieldProbe {
     std::vector<int> tags;
 };
 
+struct DomainSnapshotProbe {
+    std::string name = std::string("DomainSnapshot");
+    std::string exportPath = std::string("./defaultExportPath/" + name + "/");
+    int expSteps { 10 };
+};
+
 class FieldProbe {
 public:
     FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const bool writeFile = false) :
@@ -96,6 +102,7 @@ struct Probes {
     std::vector<ExporterProbe> exporterProbes;
     std::vector<PointProbe> pointProbes;
     std::vector<NearFieldProbe> nearFieldProbes;
+    std::vector<DomainSnapshotProbe> domainSnapshotProbes;
 };
 
 }

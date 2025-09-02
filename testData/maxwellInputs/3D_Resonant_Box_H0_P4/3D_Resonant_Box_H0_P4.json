@@ -4,10 +4,10 @@
     "evolution_operator": "global",
 	  "time_step": 1e-3,
     "final_time": 10.0,
-    "order": 3
+    "order": 4
   },
   "model": {
-    "filename": "3D_Resonant_Box.msh",
+    "filename": "3D_Resonant_Box_H0_P4.msh",
     "refinement": 0,
     "materials": [
       {
@@ -28,7 +28,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 4
+      "steps": 1
     },
     "point": [
       {

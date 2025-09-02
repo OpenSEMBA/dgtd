@@ -347,6 +347,21 @@ Probes buildProbes(const json& case_data)
 		}
 	}
 
+	if (case_data["probes"].contains("domain_snapshot")){
+		for (int p{ 0 }; p < case_data["probes"]["domain_snapshot"].size(); p++) {
+			DomainSnapshotProbe probe;
+			if (case_data["probes"]["domain_snapshot"][p].contains("name")) {
+				probe.name = case_data["probes"]["domain_snapshot"][p]["name"];
+			}
+			if (case_data["probes"]["domain_snapshot"][p].contains("export_path")) {
+				probe.exportPath = case_data["probes"]["domain_snapshot"][p]["export_path"];
+			}
+			if (case_data["probes"]["domain_snapshot"][p].contains("steps")) {
+				probe.expSteps = case_data["probes"]["domain_snapshot"][p]["steps"];
+			}
+			probes.domainSnapshotProbes.push_back(probe);
+		}
+	}
 
 	return probes;
 }

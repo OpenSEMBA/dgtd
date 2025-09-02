@@ -230,6 +230,26 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 
 }
 
+DataCollection ProbesManager::buildDomainSnapshotDataCollection(DomainSnapshotProbe& p)
+{
+	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
+	{
+		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+	}
+
+	DataCollection res{ p.name, fes_.GetParMesh() };
+	res.SetPrefixPath("DomainSnapshotExports/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
+	res.RegisterField("Ex.gf", &fields_->get(E, X));
+	res.RegisterField("Ey.gf", &fields_->get(E, Y));
+	res.RegisterField("Ez.gf", &fields_->get(E, Z));
+	res.RegisterField("Hx.gf", &fields_->get(H, X));
+	res.RegisterField("Hy.gf", &fields_->get(H, Y));
+	res.RegisterField("Hz.gf", &fields_->get(H, Z));
+
+	return res;
+}
+
+
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
 	if (std::abs(time - finalTime_) >= 1e-3){
@@ -323,7 +343,7 @@ Fields<ParFiniteElementSpace, ParGridFunction> buildFieldsForProbe(const Fields<
 
 void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 {
-	if (abs(time - finalTime_) >= 1e-3) {
+	if (std::abs(time - finalTime_) >= 1e-3) {
 		if (cycle_ % p.expSteps != 0) {
 			return;
 		}
@@ -352,6 +372,30 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 	file.close();
 }
 
+void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
+{
+	if (std::abs(time - finalTime_) >= 1e-3) {
+		if (cycle_ % p.expSteps != 0) {
+			return;
+		}
+	}
+
+	auto it{ domainSnapshotProbesCollection_.find(&p) };
+	assert(it != domainSnapshotProbesCollection_.end());
+	auto& dc{ it->second };
+
+	dc.SetCycle(cycle_);
+	dc.SetTime(time);
+	dc.Save();
+
+	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
+	std::ofstream file;
+	file.open(dir_name);
+	file << time;
+	file.close();
+	
+}
+
 void ProbesManager::updateProbes(Time t)
 {
 	for (auto& p : probes.exporterProbes) {
@@ -367,6 +411,10 @@ void ProbesManager::updateProbes(Time t)
 	}
 	
 	for (auto& p : probes.nearFieldProbes) {
+		updateProbe(p, t);
+	}
+
+	for (auto& p : probes.domainSnapshotProbes){
 		updateProbe(p, t);
 	}
 
