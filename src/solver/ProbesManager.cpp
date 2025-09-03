@@ -209,13 +209,19 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields<ParFini
 	};
 }
 
-DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
-	const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
+void isDGCollection(const FiniteElementSpace& fes)
 {
-	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
+	if (!dynamic_cast<const DG_FECollection*>(fes.FEColl()))
 	{
 		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
 	}
+}
+
+DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
+	const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
+{
+	
+	isDGCollection(fes_);
 
 	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
 	res.SetPrefixPath("NearToFarFieldExports/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
@@ -232,10 +238,8 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 
 DataCollection ProbesManager::buildDomainSnapshotDataCollection(DomainSnapshotProbe& p)
 {
-	if (!dynamic_cast<const DG_FECollection*>(fes_.FEColl()))
-	{
-		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
-	}
+
+	isDGCollection(fes_);
 
 	DataCollection res{ p.name, fes_.GetParMesh() };
 	res.SetPrefixPath("DomainSnapshotExports/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
