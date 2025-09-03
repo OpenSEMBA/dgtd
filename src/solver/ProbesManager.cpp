@@ -82,6 +82,10 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
 		nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
 		nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
 	}
+
+	for (const auto& p: probes.domainSnapshotProbes) {
+		domainSnapshotProbesCollection_.emplace(&p, buildDomainSnapshotDataCollection(p, fields));
+	}
 	
 	finalTime_ = opts.finalTime;
 	fields_ = &fields;
@@ -220,7 +224,7 @@ void isDGCollection(const FiniteElementSpace& fes)
 DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 	const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
-	
+
 	isDGCollection(fes_);
 
 	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
@@ -236,19 +240,22 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 
 }
 
-DataCollection ProbesManager::buildDomainSnapshotDataCollection(DomainSnapshotProbe& p)
+DataCollection ProbesManager::buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields)
 {
 
 	isDGCollection(fes_);
 
 	DataCollection res{ p.name, fes_.GetParMesh() };
+	res.SetFormat(res.PARALLEL_FORMAT);
 	res.SetPrefixPath("DomainSnapshotExports/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
-	res.RegisterField("Ex.gf", &fields_->get(E, X));
-	res.RegisterField("Ey.gf", &fields_->get(E, Y));
-	res.RegisterField("Ez.gf", &fields_->get(E, Z));
-	res.RegisterField("Hx.gf", &fields_->get(H, X));
-	res.RegisterField("Hy.gf", &fields_->get(H, Y));
-	res.RegisterField("Hz.gf", &fields_->get(H, Z));
+	res.RegisterField("Ex.gf", &fields.get(E, X));
+	res.RegisterField("Ey.gf", &fields.get(E, Y));
+	res.RegisterField("Ez.gf", &fields.get(E, Z));
+	res.RegisterField("Hx.gf", &fields.get(H, X));
+	res.RegisterField("Hy.gf", &fields.get(H, Y));
+	res.RegisterField("Hz.gf", &fields.get(H, Z));
+
+	const auto& ex = &fields.get(E, X);
 
 	return res;
 }
@@ -390,6 +397,7 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
 
 	dc.SetCycle(cycle_);
 	dc.SetTime(time);
+	dc.SetFormat(1); // 0 - Serial Format / 1 - Parallel Format
 	dc.Save();
 
 	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
