@@ -8,7 +8,6 @@
 
 #include "components/Probes.h"
 #include "components/SubMesher.h"
-#include "evolution/Fields.h"
 #include "solver/SolverOptions.h"
 
 namespace maxwell {
@@ -114,7 +113,7 @@ private:
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
     std::map<const NearFieldProbe*, DataCollection> nearFieldProbesCollection_;
-    std::map<const DomainSnapshotProbe*, mfem::DataCollection> domainSnapshotProbesCollection_;
+    std::map<const DomainSnapshotProbe*, DomainSnapshotDataCollection> domainSnapshotProbesCollection_;
 
     std::string caseName_;
     
@@ -127,7 +126,7 @@ private:
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     DataCollection buildNearFieldDataCollectionInfo(const NearFieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
-    DataCollection buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields);
+    DomainSnapshotDataCollection buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const;
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(FieldProbe&, Time);

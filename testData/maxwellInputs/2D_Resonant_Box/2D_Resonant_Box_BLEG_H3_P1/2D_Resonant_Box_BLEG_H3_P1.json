@@ -40,7 +40,10 @@
         "position": [ 0.75, 0.75 ],
         "write": true
       }
-    ]
+    ],
+    "domain_snapshot":{
+      "steps": 1
+    }
   },
   "sources": [
     {

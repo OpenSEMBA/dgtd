@@ -1,5 +1,6 @@
 #include "ProbesManager.h"
 #include "math/PhysicalConstants.h"
+#include "filesystem"
 
 namespace maxwell {
 
@@ -240,22 +241,13 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 
 }
 
-DataCollection ProbesManager::buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields)
+DomainSnapshotDataCollection ProbesManager::buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
 
 	isDGCollection(fes_);
 
-	DataCollection res{ p.name, fes_.GetParMesh() };
-	res.SetFormat(res.PARALLEL_FORMAT);
-	res.SetPrefixPath("DomainSnapshotExports/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
-	res.RegisterField("Ex.gf", &fields.get(E, X));
-	res.RegisterField("Ey.gf", &fields.get(E, Y));
-	res.RegisterField("Ez.gf", &fields.get(E, Z));
-	res.RegisterField("Hx.gf", &fields.get(H, X));
-	res.RegisterField("Hy.gf", &fields.get(H, Y));
-	res.RegisterField("Hz.gf", &fields.get(H, Z));
-
-	const auto& ex = &fields.get(E, X);
+	DomainSnapshotDataCollection res(fes_, fields);
+	res.prefixPath = std::string("DomainSnapshotExports/" + p.name + "/");
 
 	return res;
 }
@@ -385,27 +377,49 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 
 void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
 {
-	if (std::abs(time - finalTime_) >= 1e-3) {
-		if (cycle_ % p.expSteps != 0) {
-			return;
+    if (std::abs(time - finalTime_) >= 1e-3) {
+        if (cycle_ % p.expSteps != 0) {
+            return;
+        }
+    }
+
+    auto it{ domainSnapshotProbesCollection_.find(&p) };
+    assert(it != domainSnapshotProbesCollection_.end());
+    auto& dc{ it->second };
+
+    std::string case_path{ dc.prefixPath };
+
+	if (cycle_ == 0) {
+		if (Mpi::WorldRank() == 0) {
+			if (std::filesystem::exists(case_path)) {
+				std::filesystem::remove_all(case_path);
+			}
+			std::filesystem::create_directories(case_path);
 		}
+		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
-	auto it{ domainSnapshotProbesCollection_.find(&p) };
-	assert(it != domainSnapshotProbesCollection_.end());
-	auto& dc{ it->second };
+    if (cycle_ == 0){
+        if (Mpi::WorldRank() == 0) {
+            std::filesystem::create_directories(case_path + "/meshes/");
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
 
-	dc.SetCycle(cycle_);
-	dc.SetTime(time);
-	dc.SetFormat(1); // 0 - Serial Format / 1 - Parallel Format
-	dc.Save();
+        dc.mesh.Save(case_path + "/meshes/mesh_rank" + std::to_string(Mpi::WorldRank()),0);
+    }
 
-	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
-	std::ofstream file;
-	file.open(dir_name);
+	std::string rank_path = case_path + "/rank_" + std::to_string(Mpi::WorldRank());
+	if (cycle_ == 0) {
+        std::filesystem::create_directories(rank_path);
+    }
+
+    std::string folder_path = rank_path + "/cycle_" + to_padded_string(cycle_, 6) + "/";
+    std::filesystem::create_directories(folder_path);
+
+    dc.Save(folder_path);
+
+	std::ofstream file(folder_path + "time.txt");
 	file << time;
-	file.close();
-	
 }
 
 void ProbesManager::updateProbes(Time t)

@@ -3,6 +3,7 @@
 #include <mfem.hpp>
 
 #include "Types.h"
+#include "evolution/Fields.h"
 
 namespace maxwell {
 
@@ -20,8 +21,48 @@ struct NearFieldProbe {
 
 struct DomainSnapshotProbe {
     std::string name = std::string("DomainSnapshot");
-    std::string exportPath = std::string("./defaultExportPath/" + name + "/");
     int expSteps { 10 };
+};
+
+struct DomainSnapshotDataCollection{
+
+    DomainSnapshotDataCollection(
+        mfem::ParFiniteElementSpace& fes, 
+        Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields) :
+        mesh{*fes.GetMesh()}
+        {
+            Ex = std::make_unique<mfem::ParGridFunction>(fields.get(E,X));
+            Ey = std::make_unique<mfem::ParGridFunction>(fields.get(E,Y));
+            Ez = std::make_unique<mfem::ParGridFunction>(fields.get(E,Z));
+            Hx = std::make_unique<mfem::ParGridFunction>(fields.get(H,X));
+            Hy = std::make_unique<mfem::ParGridFunction>(fields.get(H,Y));
+            Hz = std::make_unique<mfem::ParGridFunction>(fields.get(H,Z));
+        }
+
+    void Save(const std::string& folder)
+    {
+        std::ofstream osex(folder + "/Ex.gf");
+        Ex->Save(osex);
+        std::ofstream osey(folder + "/Ey.gf");
+        Ey->Save(osey);
+        std::ofstream osez(folder + "/Ez.gf");
+        Ez->Save(osez);
+        std::ofstream oshx(folder + "/Hx.gf");
+        Hx->Save(oshx);
+        std::ofstream oshy(folder + "/Hy.gf");
+        Hy->Save(oshy);
+        std::ofstream oshz(folder + "/Hz.gf");
+        Hz->Save(oshz);
+    }
+
+    mfem::Mesh& mesh;
+    std::unique_ptr<mfem::ParGridFunction> Ex;
+    std::unique_ptr<mfem::ParGridFunction> Ey;
+    std::unique_ptr<mfem::ParGridFunction> Ez;
+    std::unique_ptr<mfem::ParGridFunction> Hx;
+    std::unique_ptr<mfem::ParGridFunction> Hy;
+    std::unique_ptr<mfem::ParGridFunction> Hz;
+    std::string prefixPath;
 };
 
 class FieldProbe {

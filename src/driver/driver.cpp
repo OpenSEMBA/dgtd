@@ -352,8 +352,8 @@ Probes buildProbes(const json& case_data)
 		if (case_data["probes"]["domain_snapshot"].contains("name")) {
 			probe.name = case_data["probes"]["domain_snapshot"]["name"];
 		}
-		if (case_data["probes"]["domain_snapshot"].contains("export_path")) {
-			probe.exportPath = case_data["probes"]["domain_snapshot"]["export_path"];
+		else{
+			probe.name = case_data["model"]["filename"];
 		}
 		if (case_data["probes"]["domain_snapshot"].contains("steps")) {
 			probe.expSteps = case_data["probes"]["domain_snapshot"]["steps"];
