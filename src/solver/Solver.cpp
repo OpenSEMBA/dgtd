@@ -48,15 +48,13 @@ Solver::Solver(
 #ifdef ENABLE_STATISTICS_RECORD
 	auto initStartTime = std::chrono::steady_clock::now();
 	if (Mpi::WorldRank() == 0){
-		if (!std::filesystem::is_directory("SimulationExports/") || !std::filesystem::exists("SimulationExports/")) {
-			std::filesystem::create_directory("SimulationExports/");
-		}
-		std::filesystem::path simExpPath("SimulationExports/" + model_.meshName_ + "/");
+		std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
 		if (std::filesystem::is_directory(simExpPath) || std::filesystem::exists(simExpPath)) {
 			std::filesystem::remove_all(simExpPath);
 		}
-		std::filesystem::create_directory(simExpPath);
+		std::filesystem::create_directories(simExpPath);
 	}
+	MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
 	if (Mpi::WorldRank() == 0){
@@ -87,7 +85,7 @@ Solver::Solver(
 	auto initEndTime = std::chrono::steady_clock::now();
 	int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    std::string path = "SimulationExports/" + model_.meshName_ +
+    std::string path = "Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/" +
                        "/statistics_rank" + std::to_string(rank) + ".dat";
 
     std::ofstream myfile(path, std::ios::app);

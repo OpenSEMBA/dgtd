@@ -13,6 +13,7 @@
 namespace maxwell {
 
 Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace&);
+std::string getRunModeTag();
 
 struct TransferMaps {
 
@@ -108,7 +109,6 @@ private:
 
     int cycle_{ 0 };
     double finalTime_;
-    std::string runModeTag_;
 
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
@@ -128,8 +128,6 @@ private:
     FieldProbeCollection buildFieldProbeCollectionInfo(const FieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     DataCollection buildNearFieldDataCollectionInfo(const NearFieldProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     DomainSnapshotDataCollection buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const;
-
-    void setRunModeTag();
 
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(FieldProbe&, Time);

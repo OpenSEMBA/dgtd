@@ -41,7 +41,7 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	fes_.ExchangeFaceNbrData();
 	fes_.GetParMesh()->ExchangeFaceNbrData();
 	ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
-	pd.SetPrefixPath("Exports/ParaView/" + runModeTag_ + "/");
+	pd.SetPrefixPath("Exports/ParaView/" + getRunModeTag() + "/");
 
 	pd.RegisterField("E", &fields.get(E));
 	pd.RegisterField("H", &fields.get(H));
@@ -58,23 +58,22 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	return pd;
 }
 
-void ProbesManager::setRunModeTag()
+std::string getRunModeTag()
 {
 	std::string backend;
 	if (mfem::Device::Allows(mfem::Backend::CUDA)){
 		backend = "cuda-";
 		backend.append(std::to_string(Mpi::WorldSize()));
-		runModeTag_ = backend;
-		return;
+		return backend;
 	}
 	else{
 		if (Mpi::WorldSize() == 1){
-			runModeTag_ = "single-core";
+			return "single-core";
 		}
 		else{
 			backend = "mpi-";
 			backend.append(std::to_string(Mpi::WorldSize()));
-			runModeTag_ = backend;
+			return backend;
 		}
 	}
 }
@@ -83,9 +82,7 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
 	probes{ pIn },
 	fes_{ fes }
 {
-
-	setRunModeTag();
-
+	
 	for (const auto& p: probes.exporterProbes) {
 		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
 	}
@@ -176,7 +173,7 @@ void ProbesManager::initPointFieldProbeExport()
 {
 	for (const auto& p : probes.pointProbes) {
 		if(p.write){
-			std::string base_path("Exports/" + runModeTag_ + "/" + caseName_ + "/PointProbes/");
+			std::string base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
 			if (Mpi::WorldRank() == 0){
 				if (cycle_ == 0) {
 					if (std::filesystem::exists(base_path)) {
@@ -205,7 +202,7 @@ void ProbesManager::initPointFieldProbeExport()
 
 	for (const auto& p : probes.fieldProbes) {
 		if(p.write){
-			std::string base_path("Exports/" + runModeTag_ + "/" + caseName_ + "/FieldProbes/");
+			std::string base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
 			if (Mpi::WorldRank() == 0){
 				if (cycle_ == 0) {
 					if (std::filesystem::exists(base_path)) {
@@ -268,7 +265,7 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 	isDGCollection(fes_);
 
 	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
-	res.SetPrefixPath("Exports/" + runModeTag_ + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
+	res.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 	res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getField(E, X));
 	res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getField(E, Y));
 	res.RegisterField("Ez.gf", &nearFieldReqs_.at(&p)->getField(E, Z));
@@ -325,7 +322,7 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 
 		if(p.write){
 			std::ofstream myfile;
-			std::string path("Exports/" + runModeTag_ + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+			std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
 			myfile.open(path, std::ios::app);
 			if (myfile.is_open()) {
 				myfile << std::scientific << std::setprecision(5);
@@ -357,7 +354,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
 		);
 		if(p.write){
 			std::ofstream myfile;
-			std::string path("Exports/" + runModeTag_ + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+			std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
 			myfile.open(path, std::ios::app);
 			if (myfile.is_open()) {
 				myfile << std::scientific << std::setprecision(5);
@@ -425,7 +422,7 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     assert(it != domainSnapshotProbesCollection_.end());
     auto& dc{ it->second };
 
-	std::string case_path = std::string("Exports/" + runModeTag_ + "/" + caseName_ + "/DomainSnapshopProbes/");
+	std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshopProbes/");
 	
 	if (cycle_ == 0) {
 		if (Mpi::WorldRank() == 0) {
