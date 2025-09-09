@@ -4,11 +4,11 @@
     "evolution_operator": "global",
 	  "time_step": 1e-3,
     "final_time": 10.0,
-    "order": 1
+    "order": 2
   },
   "model": {
-    "filename": "2D_Resonant_Box_H3_P1.msh",
-    "refinement": 3,
+    "filename": "3D_Resonant_Box_H0_P2.msh",
+    "refinement": 0,
     "materials": [
       {
         "tags": [
@@ -20,7 +20,7 @@
     "boundaries": [
       {
         "tags": [
-          1, 2, 3, 4
+          1, 2, 3, 4, 5, 6
         ],
         "type": "PEC"
       }
@@ -28,20 +28,16 @@
   },
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 100
     },
     "point": [
       {
-        "position": [ 0.25, 0.75 ],
-        "write": true
-      },
-      {
-        "position": [ 0.75, 0.75 ],
+        "position": [ 0.25, 0.25, 0.25 ],
         "write": true
       }
     ],
     "domain_snapshot":{
-      "steps": 1
+      "steps": 100
     }
   },
   "sources": [
@@ -55,7 +51,7 @@
       ],
       "magnitude": {
         "type": "resonant",
-        "modes": [2,2]
+        "modes": [ 2, 2 ]
       }
     }
   ]

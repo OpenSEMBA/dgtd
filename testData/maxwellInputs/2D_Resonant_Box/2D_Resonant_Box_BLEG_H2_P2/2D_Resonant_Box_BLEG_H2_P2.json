@@ -3,12 +3,13 @@
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
 	  "time_step": 1e-3,
+    "basis_type": 0,
     "final_time": 10.0,
-    "order": 3
+    "order": 2
   },
   "model": {
-    "filename": "2D_Resonant_Box_H3_P3.msh",
-    "refinement": 3,
+    "filename": "2D_Resonant_Box_BLEG_H2_P2.msh",
+    "refinement": 2,
     "materials": [
       {
         "tags": [
@@ -28,7 +29,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 100
     },
     "point": [
       {
@@ -41,7 +42,7 @@
       }
     ],
     "domain_snapshot":{
-      "steps": 1
+      "steps": 100
     }
   },
   "sources": [

@@ -24,8 +24,10 @@ void printHelpArgument()
 int main(int argc, char** argv)
 {
 		
-    std::cout << "PID " << getpid() << " ready to be attached. Press Enter to continue...\n";
-    std::cin.get();
+	#ifndef NDEBUG
+	std::cout << "PID " << getpid() << " ready to be attached. Press Enter to continue...\n";
+	std::cin.get();
+	#endif
 
 	if (argc == 1) {
 		std::cerr << "Missing arguments. Use argument -h to print help menu.";

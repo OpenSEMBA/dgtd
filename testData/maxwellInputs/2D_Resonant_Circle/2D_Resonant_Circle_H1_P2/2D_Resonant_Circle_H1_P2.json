@@ -28,7 +28,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 100
     },
     "point": [
       {
@@ -37,7 +37,7 @@
       }
     ],
     "domain_snapshot":{
-      "steps": 1
+      "steps": 100
     }
   },
   "sources": [

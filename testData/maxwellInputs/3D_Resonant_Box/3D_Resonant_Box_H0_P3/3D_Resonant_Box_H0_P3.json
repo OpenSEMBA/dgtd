@@ -28,14 +28,17 @@
   },
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 100
     },
     "point": [
       {
         "position": [ 0.25, 0.25, 0.25 ],
         "write": true
       }
-    ]
+    ],
+    "domain_snapshot":{
+      "steps": 100
+    }
   },
   "sources": [
     {

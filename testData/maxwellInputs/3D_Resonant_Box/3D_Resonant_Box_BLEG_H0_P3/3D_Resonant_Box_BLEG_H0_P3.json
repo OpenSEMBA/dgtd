@@ -2,13 +2,13 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-3,
+	  "time_step": 2.5e-3,
+    "basis_type": 0,
     "final_time": 10.0,
-    "order": 2
+    "order": 3
   },
   "model": {
-    "filename": "3D_Resonant_Box_H0_P2.msh",
-    "refinement": 0,
+    "filename": "3D_Resonant_Box_BLEG_H0_P3.msh",
     "materials": [
       {
         "tags": [
@@ -24,18 +24,24 @@
         ],
         "type": "PEC"
       }
-    ]
+    ],
+    "domain_snapshot":{
+      "steps": 100
+    }
   },
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 40
     },
     "point": [
       {
         "position": [ 0.25, 0.25, 0.25 ],
         "write": true
       }
-    ]
+    ],
+    "domain_snapshot":{
+      "steps": 100
+    }
   },
   "sources": [
     {
