@@ -11,6 +11,7 @@ namespace maxwell {
 
 using namespace mfem;
 using Position = mfem::Vector;
+using Rank = int;
 
 enum FunctionType 
 {
@@ -76,7 +77,6 @@ double evalTimeResonantSinMode(const Position& pos, const Time& time, const std:
 
 Mesh loadMeshFromFile(const std::string& mesh_path);
 GridFunction loadGridFunctionFromFile(const std::string& file_path, Mesh& mesh);
-int getRankAmount(const std::string& data_path);
 
 class L2SimDataCalculator
 {
@@ -86,9 +86,11 @@ private:
 
     void assignFunctionType(const FunctionType ft);
     void loadMeshes(const std::string& data_path);
+    void loadFES(const std::string& data_path);
+    void loadNodeposFromData(const std::string& data_path, std::vector<Mesh>& meshes_);
 
-    std::vector<Mesh> meshes_;
-    std::vector<FiniteElementSpace> feses_;
+    std::map<Rank, Mesh> meshes_;
+    std::map<Rank, std::vector<Position>> nodepos_;
     std::unique_ptr<TimeFunction> function_;
 };
 
