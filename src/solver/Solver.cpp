@@ -298,7 +298,7 @@ void Solver::writeSimulationStatistics(const Time runtime){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Construct a rank-specific filename
-    std::string path = "SimulationExports/" + model_.meshName_ +
+    std::string path = "Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/" +
                        "/statistics_rank" + std::to_string(rank) + ".dat";
 
     std::ofstream myfile(path, std::ios::app);

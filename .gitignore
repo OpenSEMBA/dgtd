@@ -3,8 +3,7 @@
 
 build/
 out/
-ParaView/
-NearToFarFieldExports/
+Exports/
 resources/*.msh
 
 *.csv

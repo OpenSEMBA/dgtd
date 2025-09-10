@@ -1,8 +1,5 @@
 #pragma once
 
-#include <mfem.hpp>
-#include <math.h>
-#include <cmath>
 #include "math/PhysicalConstants.h"
 #include "evolution/Fields.h"
 #include "components/Spherical.h"
