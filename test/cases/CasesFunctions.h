@@ -23,6 +23,15 @@ enum FunctionType
     Dipole = 5
 };
 
+enum FieldMask {
+    Ex = 1 << 0,
+    Ey = 1 << 1,
+    Ez = 1 << 2,
+    Hx = 1 << 3,
+    Hy = 1 << 4,
+    Hz = 1 << 5
+};
+
 class TimeFunction {
 public:
 

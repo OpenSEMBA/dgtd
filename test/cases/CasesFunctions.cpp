@@ -7,10 +7,83 @@ namespace maxwell{
     using namespace mfem;
     using json = nlohmann::json;
 
+
 json parseJSONfile(const std::string& case_name)
 {
 	std::ifstream test_file(case_name);
 	return json::parse(test_file);
+}
+
+
+Vector assemble3DVector(const json& input)
+{
+	Vector res(3);
+	for (int i = 0; i < input.size(); i++) {
+		res[i] = input[i];
+	}
+	return res;
+}
+
+const FieldType assignFieldType(const std::string& field_type)
+{
+	if (field_type == "electric") {
+		return FieldType::E;
+	}
+	else if (field_type == "magnetic") {
+		return FieldType::H;
+	}
+	else {
+		throw std::runtime_error("Wrong Field Type in Point Probe assignation.");
+	}
+}
+
+int getInitialExcitationMask(const std::string& json_path)
+{
+    auto case_data = parseJSONfile(json_path);
+    auto fieldType = assignFieldType(case_data["sources"][0]["field_type"]);
+    auto polarization = assemble3DVector(case_data["sources"][0]["polarization"]);
+
+    int res = 0;
+    if (fieldType == E) {
+        if (polarization[0] > 0) res |= Ex;
+        if (polarization[1] > 0) res |= Ey;
+        if (polarization[2] > 0) res |= Ez;
+    } else {
+        if (polarization[0] > 0) res |= Hx;
+        if (polarization[1] > 0) res |= Hy;
+        if (polarization[2] > 0) res |= Hz;
+    }
+    return res;
+}
+
+int getExcitedFieldsMask(const int dimension, int initialMask) 
+{
+    int res = 0;
+    if (dimension == 1) {
+        if (initialMask & Ex) res |= Hy;
+        if (initialMask & Ey) res |= Hz;
+        if (initialMask & Ez) res |= Hx;
+        if (initialMask & Hx) res |= Ez;
+        if (initialMask & Hy) res |= Ex;
+        if (initialMask & Hz) res |= Ey;
+    }
+    else if (dimension == 2) { // XY plane
+        if (initialMask & Ez) res |= (Hx | Hy);
+        if (initialMask & Hz) res |= (Ex | Ey);
+        if (initialMask & Ex) res |= Hz;
+        if (initialMask & Ey) res |= Hz;
+        if (initialMask & Hx) res |= Ez;
+        if (initialMask & Hy) res |= Ez;
+    }
+    else if (dimension == 3) {
+        if (initialMask & Ex) res |= (Hy | Hz);
+        if (initialMask & Ey) res |= (Hx | Hz);
+        if (initialMask & Ez) res |= (Hx | Hy);
+        if (initialMask & Hx) res |= (Ey | Ez);
+        if (initialMask & Hy) res |= (Ex | Ez);
+        if (initialMask & Hz) res |= (Ex | Ey);
+    }
+    return res;
 }
 
 Mesh loadMeshFromFile(const std::string& mesh_path)
@@ -155,17 +228,50 @@ void L2SimDataCalculator::initFunction(const std::string& json_path)
     function_ = buildFunctionByType(case_data);
 }
 
-L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_file)
+GridFunction getGridFunction(const std::string& grid_path, Mesh& mesh)
+{
+    std::ifstream in(grid_path);
+	return GridFunction(&mesh, in);
+}
+
+L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_path)
 {
     loadMeshes(data_path);
     loadNodepos(data_path);
-    
-    initFunction(json_file);
-    
+    initFunction(json_path);
+
+    int initialMask = getInitialExcitationMask(json_path);
 
 
+    double l2diff = 0.0;
+
+    for (auto r = 0; r < meshes_.size(); r++)
+    {
+        int excitedMask = getExcitedFieldsMask(meshes_[r].Dimension(), initialMask);
+        
+        std::string rank_string("rank_" + std::to_string(r));
+        std::filesystem::path rankPath = std::filesystem::path(data_path) / "/DomainSnapshopProbes/" / rank_string;
+
+        for (auto& cycleEntry : std::filesystem::directory_iterator(rankPath)) {
+
+            std::filesystem::path cyclePath = cycleEntry.path();
+
+            std::filesystem::path ExPath = cyclePath / "Ex.gf";
+            std::filesystem::path EyPath = cyclePath / "Ey.gf";
+            std::filesystem::path EzPath = cyclePath / "Ez.gf";
+            std::filesystem::path HxPath = cyclePath / "Hx.gf";
+            std::filesystem::path HyPath = cyclePath / "Hy.gf";
+            std::filesystem::path HzPath = cyclePath / "Hz.gf";
+
+            auto Ex = getGridFunction(ExPath.string(), meshes_[r]);
+            auto Ey = getGridFunction(EyPath.string(), meshes_[r]);
+            auto Ez = getGridFunction(EzPath.string(), meshes_[r]);
+            auto Hx = getGridFunction(HxPath.string(), meshes_[r]);
+            auto Hy = getGridFunction(HyPath.string(), meshes_[r]);
+            auto Hz = getGridFunction(HzPath.string(), meshes_[r]);
+        }
+    }
 }
-
 
 
 }
