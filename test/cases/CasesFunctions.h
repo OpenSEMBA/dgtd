@@ -15,7 +15,12 @@ using Rank = int;
 
 enum FunctionType 
 {
-    TimeResonantSin = 0
+    Gaussian = 0,
+    Resonant = 1,
+    BesselJ62D = 2,
+    BesselJ63D = 3,
+    Planewave = 4,
+    Dipole = 5
 };
 
 class TimeFunction {
@@ -80,14 +85,14 @@ GridFunction loadGridFunctionFromFile(const std::string& file_path, Mesh& mesh);
 
 class L2SimDataCalculator
 {
-    L2SimDataCalculator(const std::string& data_path, const FunctionType function_type);
+    L2SimDataCalculator(const std::string& data_path, const std::string& json_path);
 
 private:
 
-    void assignFunctionType(const FunctionType ft);
     void loadMeshes(const std::string& data_path);
     void loadFES(const std::string& data_path);
-    void loadNodeposFromData(const std::string& data_path, std::vector<Mesh>& meshes_);
+    void loadNodepos(const std::string& data_path);
+    void initFunction(const std::string& json_path);
 
     std::map<Rank, Mesh> meshes_;
     std::map<Rank, std::vector<Position>> nodepos_;

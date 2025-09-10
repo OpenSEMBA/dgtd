@@ -1,9 +1,17 @@
 #include "CasesFunctions.h"
 #include <regex>
+#include <nlohmann/json.hpp>
 
 namespace maxwell{
 
     using namespace mfem;
+    using json = nlohmann::json;
+
+json parseJSONfile(const std::string& case_name)
+{
+	std::ifstream test_file(case_name);
+	return json::parse(test_file);
+}
 
 Mesh loadMeshFromFile(const std::string& mesh_path)
 {
@@ -45,8 +53,7 @@ const std::vector<Position> buildDoFPositions(const GridFunction& gf)
     return res;
 }
 
-void L2SimDataCalculator::loadNodeposFromData(const std::string& data_path,
-                               std::vector<Mesh>& meshes_)
+void L2SimDataCalculator::loadNodepos(const std::string& data_path)
 {
     std::filesystem::path probes_dir = std::filesystem::path(data_path) / "DomainSnapshopProbes";
     if (!std::filesystem::exists(probes_dir) || !std::filesystem::is_directory(probes_dir)) {
@@ -85,21 +92,77 @@ void L2SimDataCalculator::loadMeshes(const std::string& data_path)
         throw std::runtime_error("No DomainSnapshopProbes were generated in this case. Rerun case with one.");
     }
 
-    int rank = 0;
+    int rank_no = 0;
     for (const auto& entry : std::filesystem::directory_iterator(meshPath)) {
         if (entry.is_regular_file()) {
             const auto& fname = entry.path().filename().string();
             if (fname.rfind("mesh_rank", 0) == 0) {
-                meshes_[0] = loadMeshFromFile(entry.path().string());
-                rank++;
+                meshes_[rank_no] = loadMeshFromFile(entry.path().string());
+                rank_no++;
             }
         }
     }
 }
 
-L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const FunctionType function_type)
+FunctionType getFunctionTypeFromJson(const json& case_data)
+{
+    for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
+		if (case_data["sources"][s]["type"] == "initial") {
+			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
+                return FunctionType::Gaussian; //Currently unsupported.
+			}
+			else if (case_data["sources"][s]["magnitude"]["type"] == "resonant") {
+                return FunctionType::Resonant;
+			}
+			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6_2D") {
+                return FunctionType::BesselJ62D; //Currently unsupported.
+			}
+			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6_3D") {
+                return FunctionType::BesselJ63D; //Currently unsupported.
+            }
+		}
+		else if (case_data["sources"][s]["type"] == "planewave") {
+            return FunctionType::Planewave; //Currently unsupported.
+		}
+		else if (case_data["sources"][s]["type"] == "dipole") {
+            return FunctionType::Dipole; //Currently unsupported.
+		}
+		else {
+			throw std::runtime_error("Unknown source type in Json.");
+		}
+	}
+    throw std::runtime_error("No source detected in getFunctionTypeFromJson.");
+}
+
+std::unique_ptr<TimeFunction> buildFunctionByType(const json& case_data)
+{
+    if(getFunctionTypeFromJson(case_data) == FunctionType::Resonant){
+        std::vector<int> modes = case_data["sources"][0]["magnitude"]["modes"];
+        std::vector<double> box_size(modes.size()); //Assuming box size equal to 1.0 x 1.0 (x1.0 if 3D)
+        for (auto v = 0; v < box_size.size(); v++){
+            box_size[v] = 1.0;
+        }
+        return std::make_unique<TimeResonantSinusoidalMode>(case_data["sources"][0]["magnitude"]["modes"], box_size);
+    }
+    else{
+        throw std::runtime_error("Currently unsupported FunctionType in buildFunctionByType.");
+    }
+}
+
+void L2SimDataCalculator::initFunction(const std::string& json_path)
+{
+    auto case_data = parseJSONfile(json_path);
+    function_ = buildFunctionByType(case_data);
+}
+
+L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_file)
 {
     loadMeshes(data_path);
+    loadNodepos(data_path);
+    
+    initFunction(json_file);
+    
+
 
 }
 
