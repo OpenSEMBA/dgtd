@@ -343,12 +343,12 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
                 analytic[v] = function_->eval(nodepos_[r][v], time);
             }
 
-            l2diff += std::sqrt(Ex.Add(-1.0 * excCoeff.FieldCompFactor[E][X], analytic).Sum())
-            + std::sqrt(Ey.Add(-1.0 * excCoeff.FieldCompFactor[E][Y], analytic).Sum())
-            + std::sqrt(Ez.Add(-1.0 * excCoeff.FieldCompFactor[E][Z], analytic).Sum())
-            + std::sqrt(Hx.Add(-1.0 * excCoeff.FieldCompFactor[H][X], analytic).Sum())
-            + std::sqrt(Hy.Add(-1.0 * excCoeff.FieldCompFactor[H][Y], analytic).Sum())
-            + std::sqrt(Hz.Add(-1.0 * excCoeff.FieldCompFactor[H][Z], analytic).Sum());
+            l2diff += Ex.Add(-1.0 * excCoeff.FieldCompFactor[E][X], analytic).Norml2()
+                    + Ey.Add(-1.0 * excCoeff.FieldCompFactor[E][Y], analytic).Norml2()
+                    + Ez.Add(-1.0 * excCoeff.FieldCompFactor[E][Z], analytic).Norml2()
+                    + Hx.Add(-1.0 * excCoeff.FieldCompFactor[H][X], analytic).Norml2()
+                    + Hy.Add(-1.0 * excCoeff.FieldCompFactor[H][Y], analytic).Norml2()
+                    + Hz.Add(-1.0 * excCoeff.FieldCompFactor[H][Z], analytic).Norml2();
 
             l2diff /= double(ndofs);
         }
