@@ -8,9 +8,9 @@ namespace maxwell{
     using json = nlohmann::json;
 
 
-json parseJSONfile(const std::string& case_name)
+json parseJSONfile(const std::string& json_file)
 {
-	std::ifstream test_file(case_name);
+	std::ifstream test_file(json_file);
 	return json::parse(test_file);
 }
 
@@ -267,9 +267,9 @@ std::unique_ptr<TimeFunction> buildFunctionByType(const json& case_data)
     }
 }
 
-void L2SimDataCalculator::initFunction(const std::string& json_path)
+void L2SimDataCalculator::initFunction(const std::string& json_file)
 {
-    auto case_data = parseJSONfile(json_path);
+    auto case_data = parseJSONfile(json_file);
     function_ = buildFunctionByType(case_data);
 }
 
@@ -301,13 +301,13 @@ int getGlobalNdofs(const std::map<Rank, std::vector<Position>>& nodepos)
     return res;
 }
 
-L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_path)
+L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_file)
 {
     loadMeshes(data_path);
     loadNodepos(data_path);
-    initFunction(json_path);
+    initFunction(json_file);
     
-    ExcitationCoeffs excCoeff(json_path);
+    ExcitationCoeffs excCoeff(json_file);
     
     double l2diff = 0.0;
     int ndofs = getGlobalNdofs(nodepos_);
@@ -353,6 +353,21 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
             l2diff /= double(ndofs);
         }
     }
+
+    std::filesystem::path export_path = std::filesystem::path(data_path) / "/SimulationStats/AnalyticL2Difference.txt";
+    if (!std::filesystem::exists(export_path.parent_path())) {
+        if (!std::filesystem::create_directories(export_path.parent_path())) {
+            throw std::runtime_error("Failed to create directory: " + export_path.parent_path().string());
+        }
+    }
+
+    std::ofstream out_file(export_path);
+    if (!out_file) {
+        throw std::runtime_error("Error opening file for writing: " + export_path.string());
+    }
+    out_file << l2diff << "\n";
+    out_file.close();   
+
 }
 
 

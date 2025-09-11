@@ -6,6 +6,7 @@ include_directories(./)
 
 add_executable(analytic_cases_tests
 	$<TARGET_OBJECTS:TestLauncher>
+	"AnalyticalStudyTests.cpp"
 	"CasesFunctions.cpp")
 
 add_executable (cases_tests
