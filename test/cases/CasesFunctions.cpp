@@ -205,7 +205,7 @@ void L2SimDataCalculator::loadNodepos(const std::string& data_path)
 
 void L2SimDataCalculator::loadMeshes(const std::string& data_path)
 {
-    std::filesystem::path meshPath = std::filesystem::path(data_path) / "/DomainSnapshopProbes/meshes";
+    std::filesystem::path meshPath = data_path + "/DomainSnapshopProbes/meshes";
     if (!std::filesystem::exists(meshPath) || !std::filesystem::is_directory(meshPath)) {
         throw std::runtime_error("No DomainSnapshopProbes were generated in this case. Rerun case with one.");
     }
@@ -283,11 +283,7 @@ double getTime(const std::filesystem::path& time_path)
 {
     double res = 0.0;
     std::ifstream in(time_path);
-    if (in >> res) {
-        std::cout << "Simulation time = " << time_path << '\n';
-    } else {
-        std::cerr << "Failed to read a double from " << time_path << '\n';
-    }
+    in >> res;
     return res;
 }
 
@@ -315,7 +311,7 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
     for (auto r = 0; r < meshes_.size(); r++)
     {
         std::string rank_string("rank_" + std::to_string(r));
-        std::filesystem::path rankPath = std::filesystem::path(data_path) / "/DomainSnapshopProbes/" / rank_string;
+        std::filesystem::path rankPath = data_path + "/DomainSnapshopProbes/" + rank_string;
 
         for (auto& cycleEntry : std::filesystem::directory_iterator(rankPath)) {
 
@@ -354,7 +350,7 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
         }
     }
 
-    std::filesystem::path export_path = std::filesystem::path(data_path) / "/SimulationStats/AnalyticL2Difference.txt";
+    std::filesystem::path export_path = data_path + "/SimulationStats/AnalyticL2Difference.txt";
     if (!std::filesystem::exists(export_path.parent_path())) {
         if (!std::filesystem::create_directories(export_path.parent_path())) {
             throw std::runtime_error("Failed to create directory: " + export_path.parent_path().string());
