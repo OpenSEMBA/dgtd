@@ -374,4 +374,57 @@ private:
 	FieldType fieldtype_;
 };
 
+
+class TimeFunction {
+public:
+
+	virtual ~TimeFunction() = default;
+
+	virtual std::unique_ptr<TimeFunction> clone() const = 0;
+
+	virtual double eval(const Position&, const Time&) const = 0;
+
+};
+
+class TimeResonantSinusoidalMode : public TimeFunction
+{
+public:
+	TimeResonantSinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
+    {
+        int dim = modes.size();
+        if(modes_.size() != box_size_.size()){
+            modes_.size() > box_size_.size() ? dim = modes_.size() : dim = box_size_.size();
+        }
+        modes_.resize(dim);
+        box_size_.resize(dim);
+        for (auto d = 0; d < dim; d++){
+            modes_[d] = modes[d];
+            box_size_[d] = box_size[d];
+        }
+    }
+
+	std::unique_ptr<TimeFunction> clone() const {
+		return std::make_unique<TimeResonantSinusoidalMode>(*this);
+	}
+
+	double eval(const Position& pos, const Time& t) const
+	{
+		double w = M_PI;
+        for (auto d = 0; d < modes_.size(); d++){
+            w *= std::pow(modes_[d] / box_size_[d], 2);
+        }
+
+        double res = std::cos(w * t);
+        for (auto d = 0; d < modes_.size(); d++){
+            res *= std::sin(modes_[d] * M_PI * pos[d] / box_size_[d]);
+        }
+
+        return res;
+	}
+
+private:
+	std::vector<std::size_t> modes_;
+    std::vector<double> box_size_;
+};
+
 }

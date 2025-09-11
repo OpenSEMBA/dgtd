@@ -37,55 +37,6 @@ const FieldType assignFieldType(const std::string& field_type)
 	}
 }
 
-int getInitialExcitationMask(const std::string& json_path)
-{
-    auto case_data = parseJSONfile(json_path);
-    auto fieldType = assignFieldType(case_data["sources"][0]["field_type"]);
-    auto polarization = assemble3DVector(case_data["sources"][0]["polarization"]);
-
-    int res = 0;
-    if (fieldType == E) {
-        if (polarization[0] > 0) res |= Ex;
-        if (polarization[1] > 0) res |= Ey;
-        if (polarization[2] > 0) res |= Ez;
-    } else {
-        if (polarization[0] > 0) res |= Hx;
-        if (polarization[1] > 0) res |= Hy;
-        if (polarization[2] > 0) res |= Hz;
-    }
-    return res;
-}
-
-int getExcitedFieldsMask(const int dimension, int initialMask) 
-{
-    int res = 0;
-    if (dimension == 1) {
-        if (initialMask & Ex) res |= Hy;
-        if (initialMask & Ey) res |= Hz;
-        if (initialMask & Ez) res |= Hx;
-        if (initialMask & Hx) res |= Ez;
-        if (initialMask & Hy) res |= Ex;
-        if (initialMask & Hz) res |= Ey;
-    }
-    else if (dimension == 2) { // XY plane
-        if (initialMask & Ez) res |= (Hx | Hy);
-        if (initialMask & Hz) res |= (Ex | Ey);
-        if (initialMask & Ex) res |= Hz;
-        if (initialMask & Ey) res |= Hz;
-        if (initialMask & Hx) res |= Ez;
-        if (initialMask & Hy) res |= Ez;
-    }
-    else if (dimension == 3) {
-        if (initialMask & Ex) res |= (Hy | Hz);
-        if (initialMask & Ey) res |= (Hx | Hz);
-        if (initialMask & Ez) res |= (Hx | Hy);
-        if (initialMask & Hx) res |= (Ey | Ez);
-        if (initialMask & Hy) res |= (Ex | Ez);
-        if (initialMask & Hz) res |= (Ex | Ey);
-    }
-    return res;
-}
-
 Mesh loadMeshFromFile(const std::string& mesh_path)
 {
     Mesh res;
@@ -100,6 +51,100 @@ GridFunction loadGridFunctionFromFile(const std::string& file_path, Mesh& mesh)
 	GridFunction res(&mesh, in);
 	return res;
 }
+
+int getExcitedDirectionsFromInitial(const Vector& pol)
+{
+    int res = 1;
+    for (auto v = 0; v < pol.Size(); v++){
+        if (pol[v] != 0.0) {
+            res++;
+        }
+    }
+    return res;
+}
+
+ExcitationCoeffs::ExcitationCoeffs(const std::string& json_path)
+{
+    auto case_data = parseJSONfile(json_path);
+    auto ft = assignFieldType(case_data["sources"][0]["field_type"]);
+    auto pol = assemble3DVector(case_data["sources"][0]["polarization"]);
+    pol /= pol.Norml2();
+
+    initFieldCompFactor();
+    loadInitialPolarizationValues(ft, pol);
+    loadExcitedDirectionValues(ft, pol);
+}
+
+void ExcitationCoeffs::initFieldCompFactor()
+{
+    FieldCompFactor[E][X] = 0.0; 
+    FieldCompFactor[E][Y] = 0.0; 
+    FieldCompFactor[E][Z] = 0.0; 
+    FieldCompFactor[H][X] = 0.0; 
+    FieldCompFactor[H][Y] = 0.0; 
+    FieldCompFactor[H][Z] = 0.0; 
+}
+
+void ExcitationCoeffs::loadInitialPolarizationValues(const FieldType& ft, const Vector& pol)
+{
+    switch(ft){
+        case E:
+            if(pol[X] != 0.0){ FieldCompFactor[E][X] = pol[X];} else {FieldCompFactor[E][X] = 0.0;}
+            if(pol[Y] != 0.0){ FieldCompFactor[E][Y] = pol[Y];} else {FieldCompFactor[E][Y] = 0.0;}
+            if(pol[Z] != 0.0){ FieldCompFactor[E][Z] = pol[Z];} else {FieldCompFactor[E][Z] = 0.0;}
+            break;
+        case H:
+            if(pol[X] != 0.0){ FieldCompFactor[H][X] = pol[X];} else {FieldCompFactor[H][X] = 0.0;}
+            if(pol[Y] != 0.0){ FieldCompFactor[H][Y] = pol[Y];} else {FieldCompFactor[H][Y] = 0.0;}
+            if(pol[Z] != 0.0){ FieldCompFactor[H][Z] = pol[Z];} else {FieldCompFactor[H][Z] = 0.0;}
+            break;
+    }
+}
+
+void normaliseExcitedVector(double& xcomp, double& ycomp, double& zcomp)
+{
+    auto normfactor = std::sqrt(std::pow(xcomp, 2.0) + std::pow(ycomp, 2.0) + std::pow(zcomp, 2.0));
+    xcomp /= normfactor; 
+    ycomp /= normfactor; 
+    zcomp /= normfactor; 
+}
+
+void ExcitationCoeffs::loadExcitedDirectionValues(const FieldType& ft, const Vector& pol)
+{
+    auto numExcitedDirections = getExcitedDirectionsFromInitial(pol);
+    if (numExcitedDirections == 2){
+        switch(ft){
+            case E:
+                if (pol[X] != 0.0)     { FieldCompFactor[H][Y] = 1.0/std::sqrt(2.0); FieldCompFactor[H][Z] = 1.0/std::sqrt(2.0);}
+                else if (pol[Y] != 0.0){ FieldCompFactor[H][X] = 1.0/std::sqrt(2.0); FieldCompFactor[H][Z] = 1.0/std::sqrt(2.0);}
+                else                   { FieldCompFactor[H][X] = 1.0/std::sqrt(2.0); FieldCompFactor[H][Y] = 1.0/std::sqrt(2.0);}
+                break;
+            case H:
+                if (pol[X] != 0.0)     { FieldCompFactor[E][Y] = 1.0/std::sqrt(2.0); FieldCompFactor[E][Z] = 1.0/std::sqrt(2.0);}
+                else if (pol[Y] != 0.0){ FieldCompFactor[E][X] = 1.0/std::sqrt(2.0); FieldCompFactor[E][Z] = 1.0/std::sqrt(2.0);}
+                else                   { FieldCompFactor[E][X] = 1.0/std::sqrt(2.0); FieldCompFactor[E][Y] = 1.0/std::sqrt(2.0);}
+                break;
+        }
+    }
+    else if (numExcitedDirections == 3){
+        double normfactor = 0.0;
+        switch(ft){
+            case E:
+                if (pol[X] != 0.0){ FieldCompFactor[H][Y] += pol[X]; FieldCompFactor[H][Z] += pol[X];}
+                if (pol[Y] != 0.0){ FieldCompFactor[H][X] += pol[Y]; FieldCompFactor[H][Z] += pol[Y];}
+                if (pol[Z] != 0.0){ FieldCompFactor[H][X] += pol[Z]; FieldCompFactor[H][Y] += pol[Z];}
+                normaliseExcitedVector(FieldCompFactor[H][X], FieldCompFactor[H][Y], FieldCompFactor[H][Z]);
+                break;
+            case H:
+                if (pol[X] != 0.0){ FieldCompFactor[E][Y] += pol[X]; FieldCompFactor[E][Z] += pol[X];}
+                if (pol[Y] != 0.0){ FieldCompFactor[E][X] += pol[Y]; FieldCompFactor[E][Z] += pol[Y];}
+                if (pol[Z] != 0.0){ FieldCompFactor[E][X] += pol[Z]; FieldCompFactor[E][Y] += pol[Z];}
+                normaliseExcitedVector(FieldCompFactor[E][X], FieldCompFactor[E][Y], FieldCompFactor[E][Z]);
+                break;
+        }
+    }
+}
+
 
 int extractRankNumber(const std::string& folder_name) {
     static std::regex rank_regex(R"(rank_(\d+))");
@@ -240,14 +285,12 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
     loadNodepos(data_path);
     initFunction(json_path);
 
-    int initialMask = getInitialExcitationMask(json_path);
-
+    ExcitationCoeffs excCoeff(json_path);
 
     double l2diff = 0.0;
 
     for (auto r = 0; r < meshes_.size(); r++)
     {
-        int excitedMask = getExcitedFieldsMask(meshes_[r].Dimension(), initialMask);
         
         std::string rank_string("rank_" + std::to_string(r));
         std::filesystem::path rankPath = std::filesystem::path(data_path) / "/DomainSnapshopProbes/" / rank_string;

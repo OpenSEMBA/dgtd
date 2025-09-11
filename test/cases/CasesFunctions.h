@@ -23,71 +23,19 @@ enum FunctionType
     Dipole = 5
 };
 
-enum FieldMask {
-    Ex = 1 << 0,
-    Ey = 1 << 1,
-    Ez = 1 << 2,
-    Hx = 1 << 3,
-    Hy = 1 << 4,
-    Hz = 1 << 5
-};
-
-class TimeFunction {
-public:
-
-	virtual ~TimeFunction() = default;
-
-	virtual std::unique_ptr<TimeFunction> clone() const = 0;
-
-	virtual double eval(const Position&, const Time&) const = 0;
-
-};
-
-class TimeResonantSinusoidalMode : public TimeFunction
+class ExcitationCoeffs
 {
 public:
-	TimeResonantSinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
-    {
-        int dim = modes.size();
-        if(modes_.size() != box_size_.size()){
-            modes_.size() > box_size_.size() ? dim = modes_.size() : dim = box_size_.size();
-        }
-        modes_.resize(dim);
-        box_size_.resize(dim);
-        for (auto d = 0; d < dim; d++){
-            modes_[d] = modes[d];
-            box_size_[d] = box_size[d];
-        }
-    }
 
-	std::unique_ptr<TimeFunction> clone() const {
-		return std::make_unique<TimeResonantSinusoidalMode>(*this);
-	}
-
-	double eval(const Position& pos, const Time& t) const
-	{
-		double w = M_PI;
-        for (auto d = 0; d < modes_.size(); d++){
-            w *= std::pow(modes_[d] / box_size_[d], 2);
-        }
-
-        double res = std::cos(w * t);
-        for (auto d = 0; d < modes_.size(); d++){
-            res *= std::sin(modes_[d] * M_PI * pos[d] / box_size_[d]);
-        }
-
-        return res;
-	}
+    ExcitationCoeffs(const std::string& json_path);
+    std::array<std::array<double, 3>, 2> FieldCompFactor;
 
 private:
-	std::vector<std::size_t> modes_;
-    std::vector<double> box_size_;
-};
 
-double evalTimeResonantSinMode(const Position& pos, const Time& time, const std::vector<int>& modes, const std::vector<double>& box_size)
-{
-    return 0.0;
-}
+    void initFieldCompFactor();
+    void loadInitialPolarizationValues(const FieldType& ft, const Vector& pol);
+    void loadExcitedDirectionValues(const FieldType& ft, const Vector& pol);
+};
 
 Mesh loadMeshFromFile(const std::string& mesh_path);
 GridFunction loadGridFunctionFromFile(const std::string& file_path, Mesh& mesh);
