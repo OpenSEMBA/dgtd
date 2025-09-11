@@ -45,7 +45,7 @@ Solver::Solver(
 	time_{0.0}
 {
 
-#ifdef ENABLE_STATISTICS_RECORD
+
 	auto initStartTime = std::chrono::steady_clock::now();
 	if (Mpi::WorldRank() == 0){
 		std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
@@ -55,7 +55,7 @@ Solver::Solver(
 		std::filesystem::create_directories(simExpPath);
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
 
 	if (Mpi::WorldRank() == 0){
 		checkOptionsAreValid(opts_);
@@ -81,7 +81,6 @@ Solver::Solver(
 	probesManager_.initPointFieldProbeExport();
 	probesManager_.updateProbes(time_);
 
-#ifdef ENABLE_STATISTICS_RECORD
 	auto initEndTime = std::chrono::steady_clock::now();
 	int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -98,7 +97,7 @@ Solver::Solver(
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
     }
-#endif
+
 
 }
 
@@ -342,9 +341,7 @@ void printSimulationInformation(const double time, const double dt, const double
 void Solver::run()
 {
 
-#ifdef ENABLE_STATISTICS_RECORD
 	auto runStartTime = std::chrono::steady_clock::now();
-#endif
 
 #ifdef SHOW_TIMER_INFORMATION
 	auto lastPrintTime{ std::chrono::steady_clock::now() };
@@ -378,9 +375,8 @@ void Solver::run()
 	}
 #endif
 
-#ifdef ENABLE_STATISTICS_RECORD
 	writeSimulationStatistics(std::chrono::duration<double>(std::chrono::steady_clock::now() - runStartTime).count());
-#endif
+
 }
 
 void Solver::step()

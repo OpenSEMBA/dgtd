@@ -279,19 +279,41 @@ GridFunction getGridFunction(const std::string& grid_path, Mesh& mesh)
 	return GridFunction(&mesh, in);
 }
 
+double getTime(const std::filesystem::path& time_path)
+{
+    double res = 0.0;
+    std::ifstream in(time_path);
+    if (in >> res) {
+        std::cout << "Simulation time = " << time_path << '\n';
+    } else {
+        std::cerr << "Failed to read a double from " << time_path << '\n';
+    }
+    return res;
+}
+
+int getGlobalNdofs(const std::map<Rank, std::vector<Position>>& nodepos)
+{
+    int res = 0;
+    for (auto r = 0; r < nodepos.size(); r++)
+    {
+        res += nodepos.at(r).size();
+    }
+    return res;
+}
+
 L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_path)
 {
     loadMeshes(data_path);
     loadNodepos(data_path);
     initFunction(json_path);
-
+    
     ExcitationCoeffs excCoeff(json_path);
-
+    
     double l2diff = 0.0;
+    int ndofs = getGlobalNdofs(nodepos_);
 
     for (auto r = 0; r < meshes_.size(); r++)
     {
-        
         std::string rank_string("rank_" + std::to_string(r));
         std::filesystem::path rankPath = std::filesystem::path(data_path) / "/DomainSnapshopProbes/" / rank_string;
 
@@ -305,6 +327,7 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
             std::filesystem::path HxPath = cyclePath / "Hx.gf";
             std::filesystem::path HyPath = cyclePath / "Hy.gf";
             std::filesystem::path HzPath = cyclePath / "Hz.gf";
+            std::filesystem::path timePath = cyclePath / "time.txt";
 
             auto Ex = getGridFunction(ExPath.string(), meshes_[r]);
             auto Ey = getGridFunction(EyPath.string(), meshes_[r]);
@@ -312,6 +335,22 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
             auto Hx = getGridFunction(HxPath.string(), meshes_[r]);
             auto Hy = getGridFunction(HyPath.string(), meshes_[r]);
             auto Hz = getGridFunction(HzPath.string(), meshes_[r]);
+            double time = getTime(timePath);
+
+            Vector analytic(nodepos_[r].size()); 
+
+            for (auto v = 0; v < Ex.Size(); v++){
+                analytic[v] = function_->eval(nodepos_[r][v], time);
+            }
+
+            l2diff += std::sqrt(Ex.Add(-1.0 * excCoeff.FieldCompFactor[E][X], analytic).Sum())
+            + std::sqrt(Ey.Add(-1.0 * excCoeff.FieldCompFactor[E][Y], analytic).Sum())
+            + std::sqrt(Ez.Add(-1.0 * excCoeff.FieldCompFactor[E][Z], analytic).Sum())
+            + std::sqrt(Hx.Add(-1.0 * excCoeff.FieldCompFactor[H][X], analytic).Sum())
+            + std::sqrt(Hy.Add(-1.0 * excCoeff.FieldCompFactor[H][Y], analytic).Sum())
+            + std::sqrt(Hz.Add(-1.0 * excCoeff.FieldCompFactor[H][Z], analytic).Sum());
+
+            l2diff /= double(ndofs);
         }
     }
 }
