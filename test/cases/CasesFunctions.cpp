@@ -39,9 +39,8 @@ const FieldType assignFieldType(const std::string& field_type)
 
 Mesh loadMeshFromFile(const std::string& mesh_path)
 {
-    Mesh res;
-    res.LoadFromFile(mesh_path, 0, 0, 0);
-    res.Finalize();
+    std::ifstream in(mesh_path);
+    Mesh res(in, 0, 0, 0);
     return res;
 }
 
@@ -276,7 +275,8 @@ void L2SimDataCalculator::initFunction(const std::string& json_file)
 GridFunction getGridFunction(const std::string& grid_path, Mesh& mesh)
 {
     std::ifstream in(grid_path);
-	return GridFunction(&mesh, in);
+    GridFunction res(&mesh, in);
+	return res;
 }
 
 double getTime(const std::filesystem::path& time_path)
@@ -317,20 +317,20 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
 
             std::filesystem::path cyclePath = cycleEntry.path();
 
-            std::filesystem::path ExPath = cyclePath / "Ex.gf";
-            std::filesystem::path EyPath = cyclePath / "Ey.gf";
-            std::filesystem::path EzPath = cyclePath / "Ez.gf";
-            std::filesystem::path HxPath = cyclePath / "Hx.gf";
-            std::filesystem::path HyPath = cyclePath / "Hy.gf";
-            std::filesystem::path HzPath = cyclePath / "Hz.gf";
-            std::filesystem::path timePath = cyclePath / "time.txt";
+            std::string ExPath = cyclePath.string() + "/Ex.gf";
+            std::string EyPath = cyclePath.string() + "/Ey.gf";
+            std::string EzPath = cyclePath.string() + "/Ez.gf";
+            std::string HxPath = cyclePath.string() + "/Hx.gf";
+            std::string HyPath = cyclePath.string() + "/Hy.gf";
+            std::string HzPath = cyclePath.string() + "/Hz.gf";
+            std::string timePath = cyclePath.string() + "/time.txt";
 
-            auto Ex = getGridFunction(ExPath.string(), meshes_[r]);
-            auto Ey = getGridFunction(EyPath.string(), meshes_[r]);
-            auto Ez = getGridFunction(EzPath.string(), meshes_[r]);
-            auto Hx = getGridFunction(HxPath.string(), meshes_[r]);
-            auto Hy = getGridFunction(HyPath.string(), meshes_[r]);
-            auto Hz = getGridFunction(HzPath.string(), meshes_[r]);
+            auto Ex = getGridFunction(ExPath, meshes_[r]);
+            auto Ey = getGridFunction(EyPath, meshes_[r]);
+            auto Ez = getGridFunction(EzPath, meshes_[r]);
+            auto Hx = getGridFunction(HxPath, meshes_[r]);
+            auto Hy = getGridFunction(HyPath, meshes_[r]);
+            auto Hz = getGridFunction(HzPath, meshes_[r]);
             double time = getTime(timePath);
 
             Vector analytic(nodepos_[r].size()); 

@@ -438,7 +438,7 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
         }
         MPI_Barrier(MPI_COMM_WORLD);
 
-        dc.mesh.Save(case_path + "/meshes/mesh_rank" + std::to_string(Mpi::WorldRank()) , 0);
+        dc.mesh.Save(case_path + "/meshes/mesh_rank" + std::to_string(Mpi::WorldRank()) , 16);
     }
 
 	std::string rank_path = case_path + "/rank_" + std::to_string(Mpi::WorldRank());
