@@ -12,6 +12,7 @@ namespace maxwell {
 using namespace mfem;
 using Position = mfem::Vector;
 using Rank = int;
+using FieldScaleFactor = std::array<std::array<double, 3>, 2>;
 
 enum FunctionType 
 {
@@ -28,7 +29,7 @@ class ExcitationCoeffs
 public:
 
     ExcitationCoeffs(const std::string& json_path);
-    std::array<std::array<double, 3>, 2> FieldCompFactor;
+    FieldScaleFactor FieldFactor;
 
 private:
 

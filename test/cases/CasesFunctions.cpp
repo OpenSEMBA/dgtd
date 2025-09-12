@@ -8,6 +8,7 @@ namespace maxwell{
     using json = nlohmann::json;
 
 
+
 json parseJSONfile(const std::string& json_file)
 {
 	std::ifstream test_file(json_file);
@@ -76,26 +77,26 @@ ExcitationCoeffs::ExcitationCoeffs(const std::string& json_path)
 
 void ExcitationCoeffs::initFieldCompFactor()
 {
-    FieldCompFactor[E][X] = 0.0; 
-    FieldCompFactor[E][Y] = 0.0; 
-    FieldCompFactor[E][Z] = 0.0; 
-    FieldCompFactor[H][X] = 0.0; 
-    FieldCompFactor[H][Y] = 0.0; 
-    FieldCompFactor[H][Z] = 0.0; 
+    FieldFactor[E][X] = 0.0; 
+    FieldFactor[E][Y] = 0.0; 
+    FieldFactor[E][Z] = 0.0; 
+    FieldFactor[H][X] = 0.0; 
+    FieldFactor[H][Y] = 0.0; 
+    FieldFactor[H][Z] = 0.0; 
 }
 
 void ExcitationCoeffs::loadInitialPolarizationValues(const FieldType& ft, const Vector& pol)
 {
     switch(ft){
         case E:
-            if(pol[X] != 0.0){ FieldCompFactor[E][X] = pol[X];} else {FieldCompFactor[E][X] = 0.0;}
-            if(pol[Y] != 0.0){ FieldCompFactor[E][Y] = pol[Y];} else {FieldCompFactor[E][Y] = 0.0;}
-            if(pol[Z] != 0.0){ FieldCompFactor[E][Z] = pol[Z];} else {FieldCompFactor[E][Z] = 0.0;}
+            if(pol[X] != 0.0){ FieldFactor[E][X] = pol[X];} else {FieldFactor[E][X] = 0.0;}
+            if(pol[Y] != 0.0){ FieldFactor[E][Y] = pol[Y];} else {FieldFactor[E][Y] = 0.0;}
+            if(pol[Z] != 0.0){ FieldFactor[E][Z] = pol[Z];} else {FieldFactor[E][Z] = 0.0;}
             break;
         case H:
-            if(pol[X] != 0.0){ FieldCompFactor[H][X] = pol[X];} else {FieldCompFactor[H][X] = 0.0;}
-            if(pol[Y] != 0.0){ FieldCompFactor[H][Y] = pol[Y];} else {FieldCompFactor[H][Y] = 0.0;}
-            if(pol[Z] != 0.0){ FieldCompFactor[H][Z] = pol[Z];} else {FieldCompFactor[H][Z] = 0.0;}
+            if(pol[X] != 0.0){ FieldFactor[H][X] = pol[X];} else {FieldFactor[H][X] = 0.0;}
+            if(pol[Y] != 0.0){ FieldFactor[H][Y] = pol[Y];} else {FieldFactor[H][Y] = 0.0;}
+            if(pol[Z] != 0.0){ FieldFactor[H][Z] = pol[Z];} else {FieldFactor[H][Z] = 0.0;}
             break;
     }
 }
@@ -114,14 +115,14 @@ void ExcitationCoeffs::loadExcitedDirectionValues(const FieldType& ft, const Vec
     if (numExcitedDirections == 2){
         switch(ft){
             case E:
-                if (pol[X] != 0.0)     { FieldCompFactor[H][Y] = 1.0/std::sqrt(2.0); FieldCompFactor[H][Z] = 1.0/std::sqrt(2.0);}
-                else if (pol[Y] != 0.0){ FieldCompFactor[H][X] = 1.0/std::sqrt(2.0); FieldCompFactor[H][Z] = 1.0/std::sqrt(2.0);}
-                else                   { FieldCompFactor[H][X] = 1.0/std::sqrt(2.0); FieldCompFactor[H][Y] = 1.0/std::sqrt(2.0);}
+                if (pol[X] != 0.0)     { FieldFactor[H][Y] = 1.0/std::sqrt(2.0); FieldFactor[H][Z] = 1.0/std::sqrt(2.0);}
+                else if (pol[Y] != 0.0){ FieldFactor[H][X] = 1.0/std::sqrt(2.0); FieldFactor[H][Z] = 1.0/std::sqrt(2.0);}
+                else                   { FieldFactor[H][X] = 1.0/std::sqrt(2.0); FieldFactor[H][Y] = 1.0/std::sqrt(2.0);}
                 break;
             case H:
-                if (pol[X] != 0.0)     { FieldCompFactor[E][Y] = 1.0/std::sqrt(2.0); FieldCompFactor[E][Z] = 1.0/std::sqrt(2.0);}
-                else if (pol[Y] != 0.0){ FieldCompFactor[E][X] = 1.0/std::sqrt(2.0); FieldCompFactor[E][Z] = 1.0/std::sqrt(2.0);}
-                else                   { FieldCompFactor[E][X] = 1.0/std::sqrt(2.0); FieldCompFactor[E][Y] = 1.0/std::sqrt(2.0);}
+                if (pol[X] != 0.0)     { FieldFactor[E][Y] = 1.0/std::sqrt(2.0); FieldFactor[E][Z] = 1.0/std::sqrt(2.0);}
+                else if (pol[Y] != 0.0){ FieldFactor[E][X] = 1.0/std::sqrt(2.0); FieldFactor[E][Z] = 1.0/std::sqrt(2.0);}
+                else                   { FieldFactor[E][X] = 1.0/std::sqrt(2.0); FieldFactor[E][Y] = 1.0/std::sqrt(2.0);}
                 break;
         }
     }
@@ -129,16 +130,16 @@ void ExcitationCoeffs::loadExcitedDirectionValues(const FieldType& ft, const Vec
         double normfactor = 0.0;
         switch(ft){
             case E:
-                if (pol[X] != 0.0){ FieldCompFactor[H][Y] += pol[X]; FieldCompFactor[H][Z] += pol[X];}
-                if (pol[Y] != 0.0){ FieldCompFactor[H][X] += pol[Y]; FieldCompFactor[H][Z] += pol[Y];}
-                if (pol[Z] != 0.0){ FieldCompFactor[H][X] += pol[Z]; FieldCompFactor[H][Y] += pol[Z];}
-                normaliseExcitedVector(FieldCompFactor[H][X], FieldCompFactor[H][Y], FieldCompFactor[H][Z]);
+                if (pol[X] != 0.0){ FieldFactor[H][Y] += pol[X]; FieldFactor[H][Z] += pol[X];}
+                if (pol[Y] != 0.0){ FieldFactor[H][X] += pol[Y]; FieldFactor[H][Z] += pol[Y];}
+                if (pol[Z] != 0.0){ FieldFactor[H][X] += pol[Z]; FieldFactor[H][Y] += pol[Z];}
+                normaliseExcitedVector(FieldFactor[H][X], FieldFactor[H][Y], FieldFactor[H][Z]);
                 break;
             case H:
-                if (pol[X] != 0.0){ FieldCompFactor[E][Y] += pol[X]; FieldCompFactor[E][Z] += pol[X];}
-                if (pol[Y] != 0.0){ FieldCompFactor[E][X] += pol[Y]; FieldCompFactor[E][Z] += pol[Y];}
-                if (pol[Z] != 0.0){ FieldCompFactor[E][X] += pol[Z]; FieldCompFactor[E][Y] += pol[Z];}
-                normaliseExcitedVector(FieldCompFactor[E][X], FieldCompFactor[E][Y], FieldCompFactor[E][Z]);
+                if (pol[X] != 0.0){ FieldFactor[E][Y] += pol[X]; FieldFactor[E][Z] += pol[X];}
+                if (pol[Y] != 0.0){ FieldFactor[E][X] += pol[Y]; FieldFactor[E][Z] += pol[Y];}
+                if (pol[Z] != 0.0){ FieldFactor[E][X] += pol[Z]; FieldFactor[E][Y] += pol[Z];}
+                normaliseExcitedVector(FieldFactor[E][X], FieldFactor[E][Y], FieldFactor[E][Z]);
                 break;
         }
     }
@@ -297,6 +298,27 @@ int getGlobalNdofs(const std::map<Rank, std::vector<Position>>& nodepos)
     return res;
 }
 
+FieldScaleFactor getInitialExcitationCoefficients(const std::string& json_file)
+{
+    auto case_data = parseJSONfile(json_file);
+    auto ft = assignFieldType(case_data["sources"][0]["field_type"]);
+    auto pol = assemble3DVector(case_data["sources"][0]["polarization"]);
+    pol /= pol.Norml2();
+
+    FieldScaleFactor res;
+    res[E][X] = 0.0; res[E][Y] = 0.0; res[E][Z] = 0.0;
+    res[H][X] = 0.0; res[H][Y] = 0.0; res[H][Z] = 0.0;
+    switch(ft){
+        case E:
+        res[E][X] = pol[0]; res[E][Y] = pol[1]; res[E][Z] = pol[2];
+        break;
+        case H:
+        res[H][X] = pol[0]; res[H][Y] = pol[1]; res[H][Z] = pol[2];
+        break;
+    }
+    return res;
+}
+
 L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_file)
 {
     loadMeshes(data_path);
@@ -304,9 +326,12 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
     initFunction(json_file);
     
     ExcitationCoeffs excCoeff(json_file);
+    FieldScaleFactor initialFactor = getInitialExcitationCoefficients(json_file);
     
     double l2diff = 0.0;
     int ndofs = getGlobalNdofs(nodepos_);
+
+    std::unique_ptr<FieldScaleFactor> scaleFactor;
 
     for (auto r = 0; r < meshes_.size(); r++)
     {
@@ -339,12 +364,14 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
                 analytic[v] = function_->eval(nodepos_[r][v], time);
             }
 
-            l2diff += Ex.Add(-1.0 * excCoeff.FieldCompFactor[E][X], analytic).Norml2()
-                    + Ey.Add(-1.0 * excCoeff.FieldCompFactor[E][Y], analytic).Norml2()
-                    + Ez.Add(-1.0 * excCoeff.FieldCompFactor[E][Z], analytic).Norml2()
-                    + Hx.Add(-1.0 * excCoeff.FieldCompFactor[H][X], analytic).Norml2()
-                    + Hy.Add(-1.0 * excCoeff.FieldCompFactor[H][Y], analytic).Norml2()
-                    + Hz.Add(-1.0 * excCoeff.FieldCompFactor[H][Z], analytic).Norml2();
+            time == 0.0 ? scaleFactor = std::make_unique<FieldScaleFactor>(initialFactor) : scaleFactor = std::make_unique<FieldScaleFactor>(excCoeff.FieldFactor);
+
+            l2diff += Ex.Add(scaleFactor->at(E)[X] * -1.0, analytic).Norml2()
+                    + Ey.Add(scaleFactor->at(E)[Y] * -1.0, analytic).Norml2()
+                    + Ez.Add(scaleFactor->at(E)[Z] * -1.0, analytic).Norml2()
+                    + Hx.Add(scaleFactor->at(H)[X] * -1.0, analytic).Norml2()
+                    + Hy.Add(scaleFactor->at(H)[Y] * -1.0, analytic).Norml2()
+                    + Hz.Add(scaleFactor->at(H)[Z] * -1.0, analytic).Norml2();
 
             l2diff /= double(ndofs);
         }

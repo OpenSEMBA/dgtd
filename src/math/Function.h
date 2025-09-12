@@ -410,9 +410,11 @@ public:
 	double eval(const Position& pos, const Time& t) const
 	{
 		double w = M_PI;
+		double root_factor = 0.0;
         for (auto d = 0; d < modes_.size(); d++){
-            w *= std::pow(modes_[d] / box_size_[d], 2);
+            root_factor += std::pow(modes_[d] / box_size_[d], 2);
         }
+		w *= std::sqrt(root_factor);
 
         double res = std::cos(w * t);
         for (auto d = 0; d < modes_.size(); d++){
