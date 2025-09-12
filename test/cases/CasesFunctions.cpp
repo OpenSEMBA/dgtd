@@ -171,7 +171,7 @@ const std::vector<Position> buildDoFPositions(const GridFunction& gf)
     return res;
 }
 
-void L2SimDataCalculator::loadNodepos(const std::string& data_path)
+void RMSDataCalculator::loadNodepos(const std::string& data_path)
 {
     std::filesystem::path probes_dir = std::filesystem::path(data_path) / "DomainSnapshopProbes";
     if (!std::filesystem::exists(probes_dir) || !std::filesystem::is_directory(probes_dir)) {
@@ -203,7 +203,7 @@ void L2SimDataCalculator::loadNodepos(const std::string& data_path)
     }
 }
 
-void L2SimDataCalculator::loadMeshes(const std::string& data_path)
+void RMSDataCalculator::loadMeshes(const std::string& data_path)
 {
     std::filesystem::path meshPath = data_path + "/DomainSnapshopProbes/meshes";
     if (!std::filesystem::exists(meshPath) || !std::filesystem::is_directory(meshPath)) {
@@ -267,7 +267,7 @@ std::unique_ptr<TimeFunction> buildFunctionByType(const json& case_data)
     }
 }
 
-void L2SimDataCalculator::initFunction(const std::string& json_file)
+void RMSDataCalculator::initFunction(const std::string& json_file)
 {
     auto case_data = parseJSONfile(json_file);
     function_ = buildFunctionByType(case_data);
@@ -319,7 +319,39 @@ FieldScaleFactor getInitialExcitationCoefficients(const std::string& json_file)
     return res;
 }
 
-L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std::string& json_file)
+std::string getFieldDirString(const FieldType& ft, const Direction& dir)
+{
+    switch(ft){
+        case E:
+            switch(dir){
+                case X:
+                return "/Ex.gf";
+                case Y:
+                return "/Ey.gf";
+                case Z:
+                return "/Ez.gf";
+                default:
+                throw std::runtime_error("Input direction in getFieldDirString is not valid.");
+            }
+        break;
+        case H:
+            switch(dir){
+                case X:
+                return "/Hx.gf";
+                case Y:
+                return "/Hy.gf";
+                case Z:
+                return "/Hz.gf";
+                default:
+                throw std::runtime_error("Input direction in getFieldDirString is not valid.");
+            }
+        break;
+        default:
+        throw std::runtime_error("Input FieldType in getFieldDirString is not valid.");
+    }
+}
+
+RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::string& json_file)
 {
     loadMeshes(data_path);
     loadNodepos(data_path);
@@ -328,8 +360,9 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
     ExcitationCoeffs excCoeff(json_file);
     FieldScaleFactor initialFactor = getInitialExcitationCoefficients(json_file);
     
-    double l2diff = 0.0;
+    double rms = 0.0;
     int ndofs = getGlobalNdofs(nodepos_);
+    int timeCount = 0;
 
     std::unique_ptr<FieldScaleFactor> scaleFactor;
 
@@ -342,42 +375,39 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
 
             std::filesystem::path cyclePath = cycleEntry.path();
 
-            std::string ExPath = cyclePath.string() + "/Ex.gf";
-            std::string EyPath = cyclePath.string() + "/Ey.gf";
-            std::string EzPath = cyclePath.string() + "/Ez.gf";
-            std::string HxPath = cyclePath.string() + "/Hx.gf";
-            std::string HyPath = cyclePath.string() + "/Hy.gf";
-            std::string HzPath = cyclePath.string() + "/Hz.gf";
             std::string timePath = cyclePath.string() + "/time.txt";
-
-            auto Ex = getGridFunction(ExPath, meshes_[r]);
-            auto Ey = getGridFunction(EyPath, meshes_[r]);
-            auto Ez = getGridFunction(EzPath, meshes_[r]);
-            auto Hx = getGridFunction(HxPath, meshes_[r]);
-            auto Hy = getGridFunction(HyPath, meshes_[r]);
-            auto Hz = getGridFunction(HzPath, meshes_[r]);
             double time = getTime(timePath);
 
             Vector analytic(nodepos_[r].size()); 
 
-            for (auto v = 0; v < Ex.Size(); v++){
+            for (auto v = 0; v < analytic.Size(); v++){
                 analytic[v] = function_->eval(nodepos_[r][v], time);
             }
 
             time == 0.0 ? scaleFactor = std::make_unique<FieldScaleFactor>(initialFactor) : scaleFactor = std::make_unique<FieldScaleFactor>(excCoeff.FieldFactor);
 
-            l2diff += Ex.Add(scaleFactor->at(E)[X] * -1.0, analytic).Norml2()
-                    + Ey.Add(scaleFactor->at(E)[Y] * -1.0, analytic).Norml2()
-                    + Ez.Add(scaleFactor->at(E)[Z] * -1.0, analytic).Norml2()
-                    + Hx.Add(scaleFactor->at(H)[X] * -1.0, analytic).Norml2()
-                    + Hy.Add(scaleFactor->at(H)[Y] * -1.0, analytic).Norml2()
-                    + Hz.Add(scaleFactor->at(H)[Z] * -1.0, analytic).Norml2();
-
-            l2diff /= double(ndofs);
+            for (auto f : {E, H}){
+				for (auto d : {X, Y, Z}){
+                    std::string gfPath = cyclePath.string() + getFieldDirString(f, d);
+                    auto gf = getGridFunction(gfPath, meshes_[r]);
+                    double rootFactor = 0.0;
+                    for (auto v = 0; v < analytic.Size(); v++){
+                        rootFactor += std::pow(gf[v] - analytic[v] * scaleFactor->at(f)[d], 2.0);
+                    }
+                    rms += rootFactor;
+                }
+            }
+            timeCount++;
         }
     }
 
-    std::filesystem::path export_path = data_path + "/SimulationStats/AnalyticL2Difference.txt";
+    const auto& numRanks = meshes_.size();
+    const auto& numComponents = 6;
+    timeCount /= numRanks;
+
+    double final_rms = std::sqrt(rms / (timeCount * ndofs * numComponents));
+
+    std::filesystem::path export_path = data_path + "/SimulationStats/AnalyticRMS.txt";
     if (!std::filesystem::exists(export_path.parent_path())) {
         if (!std::filesystem::create_directories(export_path.parent_path())) {
             throw std::runtime_error("Failed to create directory: " + export_path.parent_path().string());
@@ -388,7 +418,7 @@ L2SimDataCalculator::L2SimDataCalculator(const std::string& data_path, const std
     if (!out_file) {
         throw std::runtime_error("Error opening file for writing: " + export_path.string());
     }
-    out_file << l2diff << "\n";
+    out_file << final_rms << "\n";
     out_file.close();   
 
 }
