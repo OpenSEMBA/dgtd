@@ -51,11 +51,13 @@ private:
     void loadMeshes(const std::string& data_path);
     void loadFES(const std::string& data_path);
     void loadNodepos(const std::string& data_path);
-    void initFunction(const std::string& json_path);
+    void initFunctions(const std::string& json_path);
 
     std::map<Rank, Mesh> meshes_;
     std::map<Rank, std::vector<Position>> nodepos_;
     std::unique_ptr<TimeFunction> function_;
+    std::unique_ptr<TimeFunction> dx_function_;
+    std::unique_ptr<TimeFunction> dy_function_;
 };
 
 

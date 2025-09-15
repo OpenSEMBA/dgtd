@@ -115,14 +115,14 @@ void ExcitationCoeffs::loadExcitedDirectionValues(const FieldType& ft, const Vec
     if (numExcitedDirections == 2){
         switch(ft){
             case E:
-                if (pol[X] != 0.0)     { FieldFactor[H][Y] = 1.0/std::sqrt(2.0); FieldFactor[H][Z] = 1.0/std::sqrt(2.0);}
-                else if (pol[Y] != 0.0){ FieldFactor[H][X] = 1.0/std::sqrt(2.0); FieldFactor[H][Z] = 1.0/std::sqrt(2.0);}
-                else                   { FieldFactor[H][X] = 1.0/std::sqrt(2.0); FieldFactor[H][Y] = 1.0/std::sqrt(2.0);}
+                if (pol[X] != 0.0)     { FieldFactor[H][Z] = 1.0/std::sqrt(2.0); FieldFactor[H][Y] = -1.0/std::sqrt(2.0);}
+                else if (pol[Y] != 0.0){ FieldFactor[H][X] = 1.0/std::sqrt(2.0); FieldFactor[H][Z] = -1.0/std::sqrt(2.0);}
+                else                   { FieldFactor[H][Y] = 1.0/std::sqrt(2.0); FieldFactor[H][X] = -1.0/std::sqrt(2.0);}
                 break;
             case H:
-                if (pol[X] != 0.0)     { FieldFactor[E][Y] = 1.0/std::sqrt(2.0); FieldFactor[E][Z] = 1.0/std::sqrt(2.0);}
-                else if (pol[Y] != 0.0){ FieldFactor[E][X] = 1.0/std::sqrt(2.0); FieldFactor[E][Z] = 1.0/std::sqrt(2.0);}
-                else                   { FieldFactor[E][X] = 1.0/std::sqrt(2.0); FieldFactor[E][Y] = 1.0/std::sqrt(2.0);}
+                if (pol[X] != 0.0)     { FieldFactor[E][Z] = -1.0/std::sqrt(2.0); FieldFactor[E][Y] =  1.0/std::sqrt(2.0);}
+                else if (pol[Y] != 0.0){ FieldFactor[E][X] = -1.0/std::sqrt(2.0); FieldFactor[E][Z] =  1.0/std::sqrt(2.0);}
+                else                   { FieldFactor[E][Y] = -1.0/std::sqrt(2.0); FieldFactor[E][X] =  1.0/std::sqrt(2.0);}
                 break;
         }
     }
@@ -130,29 +130,37 @@ void ExcitationCoeffs::loadExcitedDirectionValues(const FieldType& ft, const Vec
         double normfactor = 0.0;
         switch(ft){
             case E:
-                if (pol[X] != 0.0){ FieldFactor[H][Y] += pol[X]; FieldFactor[H][Z] += pol[X];}
-                if (pol[Y] != 0.0){ FieldFactor[H][X] += pol[Y]; FieldFactor[H][Z] += pol[Y];}
-                if (pol[Z] != 0.0){ FieldFactor[H][X] += pol[Z]; FieldFactor[H][Y] += pol[Z];}
+                if (pol[X] != 0.0){ FieldFactor[H][Z] += pol[X]; FieldFactor[H][Y] -= pol[X];}
+                if (pol[Y] != 0.0){ FieldFactor[H][X] += pol[Y]; FieldFactor[H][Z] -= pol[Y];}
+                if (pol[Z] != 0.0){ FieldFactor[H][Y] += pol[Z]; FieldFactor[H][X] -= pol[Z];}
                 normaliseExcitedVector(FieldFactor[H][X], FieldFactor[H][Y], FieldFactor[H][Z]);
                 break;
             case H:
-                if (pol[X] != 0.0){ FieldFactor[E][Y] += pol[X]; FieldFactor[E][Z] += pol[X];}
-                if (pol[Y] != 0.0){ FieldFactor[E][X] += pol[Y]; FieldFactor[E][Z] += pol[Y];}
-                if (pol[Z] != 0.0){ FieldFactor[E][X] += pol[Z]; FieldFactor[E][Y] += pol[Z];}
+                if (pol[X] != 0.0){ FieldFactor[E][Z] -= pol[X]; FieldFactor[E][Y] += pol[X];}
+                if (pol[Y] != 0.0){ FieldFactor[E][X] -= pol[Y]; FieldFactor[E][Z] += pol[Y];}
+                if (pol[Z] != 0.0){ FieldFactor[E][Y] -= pol[Z]; FieldFactor[E][X] += pol[Z];}
                 normaliseExcitedVector(FieldFactor[E][X], FieldFactor[E][Y], FieldFactor[E][Z]);
                 break;
         }
     }
 }
 
+int extractRankNumberForMesh(const std::string& folder_name) {
+    static std::regex rank_regex(R"(mesh_rank(\d+)(?:\.\d+)?)");
+    std::smatch match;
+    if (std::regex_match(folder_name, match, rank_regex)) {
+        return std::stoi(match[1].str());
+    }
+    throw std::runtime_error("Invalid rank file name: " + folder_name);
+}
 
-int extractRankNumber(const std::string& folder_name) {
+int extractRankNumberForFolder(const std::string& folder_name) {
     static std::regex rank_regex(R"(rank_(\d+))");
     std::smatch match;
     if (std::regex_match(folder_name, match, rank_regex)) {
         return std::stoi(match[1].str());
     }
-    throw std::runtime_error("Invalid rank folder name: " + folder_name);
+    throw std::runtime_error("Invalid rank file name: " + folder_name);
 }
 
 const std::vector<Position> buildDoFPositions(const GridFunction& gf)
@@ -178,28 +186,40 @@ void RMSDataCalculator::loadNodepos(const std::string& data_path)
         throw std::runtime_error("No DomainSnapshopProbes were generated in this case. Rerun case with one.");
     }
 
+    std::vector<std::filesystem::directory_entry> entries;
+
     for (const auto& entry : std::filesystem::directory_iterator(probes_dir)) {
         if (!entry.is_directory()) continue;
 
         std::string folder_name = entry.path().filename().string();
-
         if (folder_name == "meshes") continue;
 
         if (folder_name.rfind("rank_", 0) == 0) {
-            int rank_no = extractRankNumber(folder_name);
-
-            std::filesystem::path ex_file = entry.path() / "cycle_000000" / "Ex.gf";
-            if (!std::filesystem::exists(ex_file)) {
-                std::cerr << "Warning: Ex.gf missing in " << ex_file.parent_path() << "\n";
-                continue;
-            }
-
-            if (rank_no >= (int)meshes_.size()) {
-                throw std::runtime_error("Mesh not available for rank " + std::to_string(rank_no));
-            }
-
-            nodepos_[rank_no] = buildDoFPositions(loadGridFunctionFromFile(ex_file.string(), meshes_[rank_no]));
+            entries.push_back(entry);
         }
+    }
+    
+    std::sort(entries.begin(), entries.end(),
+              [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b) {
+                  return a.path().filename().string() < b.path().filename().string();
+              });
+
+    for (const auto& entry : entries) {
+        std::string folder_name = entry.path().filename().string();
+        int rank_no = extractRankNumberForFolder(folder_name);
+
+        std::filesystem::path ex_file = entry.path() / "cycle_000000" / "Ex.gf";
+        if (!std::filesystem::exists(ex_file)) {
+            std::cerr << "Warning: Ex.gf missing in " << ex_file.parent_path() << "\n";
+            continue;
+        }
+
+        if (rank_no >= (int)meshes_.size()) {
+            throw std::runtime_error("Mesh not available for rank " + std::to_string(rank_no));
+        }
+
+        nodepos_[rank_no] =
+            buildDoFPositions(loadGridFunctionFromFile(ex_file.string(), meshes_[rank_no]));
     }
 }
 
@@ -210,15 +230,27 @@ void RMSDataCalculator::loadMeshes(const std::string& data_path)
         throw std::runtime_error("No DomainSnapshopProbes were generated in this case. Rerun case with one.");
     }
 
-    int rank_no = 0;
+    std::vector<std::filesystem::directory_entry> entries;
+
     for (const auto& entry : std::filesystem::directory_iterator(meshPath)) {
-        if (entry.is_regular_file()) {
-            const auto& fname = entry.path().filename().string();
-            if (fname.rfind("mesh_rank", 0) == 0) {
-                meshes_[rank_no] = loadMeshFromFile(entry.path().string());
-                rank_no++;
-            }
+        if (!entry.is_regular_file()) continue;
+
+        const auto& fname = entry.path().filename().string();
+        if (fname.rfind("mesh_rank", 0) == 0) {
+            entries.push_back(entry);
         }
+    }
+
+    std::sort(entries.begin(), entries.end(),
+              [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b) {
+                  return extractRankNumberForMesh(a.path().filename().string()) <
+                         extractRankNumberForMesh(b.path().filename().string());
+              });
+
+    int rank_no = 0;
+    for (const auto& entry : entries) {
+        meshes_[rank_no] = loadMeshFromFile(entry.path().string());
+        rank_no++;
     }
 }
 
@@ -260,17 +292,49 @@ std::unique_ptr<TimeFunction> buildFunctionByType(const json& case_data)
         for (auto v = 0; v < box_size.size(); v++){
             box_size[v] = 1.0;
         }
-        return std::make_unique<TimeResonantSinusoidalMode>(case_data["sources"][0]["magnitude"]["modes"], box_size);
+        return std::make_unique<TM2DSinusoidalMode>(case_data["sources"][0]["magnitude"]["modes"], box_size);
     }
     else{
         throw std::runtime_error("Currently unsupported FunctionType in buildFunctionByType.");
     }
 }
 
-void RMSDataCalculator::initFunction(const std::string& json_file)
+std::unique_ptr<TimeFunction> buildDxFunctionByType(const json& case_data)
+{
+    if(getFunctionTypeFromJson(case_data) == FunctionType::Resonant){
+        std::vector<int> modes = case_data["sources"][0]["magnitude"]["modes"];
+        std::vector<double> box_size(modes.size()); //Assuming box size equal to 1.0 x 1.0 (x1.0 if 3D)
+        for (auto v = 0; v < box_size.size(); v++){
+            box_size[v] = 1.0;
+        }
+        return std::make_unique<TM2D_Dx_SinusoidalMode>(case_data["sources"][0]["magnitude"]["modes"], box_size);
+    }
+    else{
+        throw std::runtime_error("Currently unsupported FunctionType in buildFunctionByType.");
+    }
+}
+
+std::unique_ptr<TimeFunction> buildDyFunctionByType(const json& case_data)
+{
+    if(getFunctionTypeFromJson(case_data) == FunctionType::Resonant){
+        std::vector<int> modes = case_data["sources"][0]["magnitude"]["modes"];
+        std::vector<double> box_size(modes.size()); //Assuming box size equal to 1.0 x 1.0 (x1.0 if 3D)
+        for (auto v = 0; v < box_size.size(); v++){
+            box_size[v] = 1.0;
+        }
+        return std::make_unique<TM2D_Dy_SinusoidalMode>(case_data["sources"][0]["magnitude"]["modes"], box_size);
+    }
+    else{
+        throw std::runtime_error("Currently unsupported FunctionType in buildFunctionByType.");
+    }
+}
+
+void RMSDataCalculator::initFunctions(const std::string& json_file)
 {
     auto case_data = parseJSONfile(json_file);
     function_ = buildFunctionByType(case_data);
+    dx_function_ = buildDxFunctionByType(case_data);
+    dy_function_ = buildDyFunctionByType(case_data);
 }
 
 GridFunction getGridFunction(const std::string& grid_path, Mesh& mesh)
@@ -355,7 +419,7 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
 {
     loadMeshes(data_path);
     loadNodepos(data_path);
-    initFunction(json_file);
+    initFunctions(json_file);
     
     ExcitationCoeffs excCoeff(json_file);
     FieldScaleFactor initialFactor = getInitialExcitationCoefficients(json_file);
@@ -371,17 +435,32 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
         std::string rank_string("rank_" + std::to_string(r));
         std::filesystem::path rankPath = data_path + "/DomainSnapshopProbes/" + rank_string;
 
-        for (auto& cycleEntry : std::filesystem::directory_iterator(rankPath)) {
+        std::vector<std::filesystem::directory_entry> entries;
+        for (auto& entry : std::filesystem::directory_iterator(rankPath)) {
+            if (entry.is_directory()) { // optional: only subfolders
+                entries.push_back(entry);
+            }
+        }
 
-            std::filesystem::path cyclePath = cycleEntry.path();
+        std::sort(entries.begin(), entries.end(), [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b){
+            return a.path().filename() < b.path().filename();
+        });
+
+        for (auto& entry : entries) {
+
+            std::filesystem::path cyclePath = entry.path();
 
             std::string timePath = cyclePath.string() + "/time.txt";
             double time = getTime(timePath);
 
             Vector analytic(nodepos_[r].size()); 
+            // Vector analytic_dx(nodepos_[r].size()); 
+            // Vector analytic_dy(nodepos_[r].size()); 
 
             for (auto v = 0; v < analytic.Size(); v++){
-                analytic[v] = function_->eval(nodepos_[r][v], time);
+                analytic[v]    =    function_->eval(nodepos_[r][v], time);
+                // analytic_dx[v] = dx_function_->eval(nodepos_[r][v], time);
+                // analytic_dy[v] = dy_function_->eval(nodepos_[r][v], time);
             }
 
             time == 0.0 ? scaleFactor = std::make_unique<FieldScaleFactor>(initialFactor) : scaleFactor = std::make_unique<FieldScaleFactor>(excCoeff.FieldFactor);
@@ -392,7 +471,15 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
                     auto gf = getGridFunction(gfPath, meshes_[r]);
                     double rootFactor = 0.0;
                     for (auto v = 0; v < analytic.Size(); v++){
-                        rootFactor += std::pow(gf[v] - analytic[v] * scaleFactor->at(f)[d], 2.0);
+                        if(f == E && d == Z){
+                            rootFactor += std::pow(gf[v] - analytic[v] * scaleFactor->at(f)[d], 2.0);
+                        }
+                        // else if (f == H && d == X){
+                        //     rootFactor += std::pow(gf[v] - analytic_dy[v] * scaleFactor->at(f)[d], 2.0);
+                        // }
+                        // else if (f == H && d == Y){
+                        //     rootFactor += std::pow(gf[v] - analytic_dx[v] * scaleFactor->at(f)[d], 2.0);
+                        // }
                     }
                     rms += rootFactor;
                 }
@@ -405,7 +492,7 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
     const auto& numComponents = 6;
     timeCount /= numRanks;
 
-    double final_rms = std::sqrt(rms / (timeCount * ndofs * numComponents));
+    double final_rms = std::sqrt(rms / (timeCount * ndofs));
 
     std::filesystem::path export_path = data_path + "/SimulationStats/AnalyticRMS.txt";
     if (!std::filesystem::exists(export_path.parent_path())) {

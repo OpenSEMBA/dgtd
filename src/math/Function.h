@@ -386,10 +386,10 @@ public:
 
 };
 
-class TimeResonantSinusoidalMode : public TimeFunction
+class TM2DSinusoidalMode : public TimeFunction
 {
 public:
-	TimeResonantSinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
+	TM2DSinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
     {
         int dim = modes.size();
         if(modes_.size() != box_size_.size()){
@@ -404,7 +404,7 @@ public:
     }
 
 	std::unique_ptr<TimeFunction> clone() const {
-		return std::make_unique<TimeResonantSinusoidalMode>(*this);
+		return std::make_unique<TM2DSinusoidalMode>(*this);
 	}
 
 	double eval(const Position& pos, const Time& t) const
@@ -420,6 +420,92 @@ public:
         for (auto d = 0; d < modes_.size(); d++){
             res *= std::sin(modes_[d] * M_PI * pos[d] / box_size_[d]);
         }
+
+        return res;
+	}
+
+private:
+	std::vector<std::size_t> modes_;
+    std::vector<double> box_size_;
+};
+
+class TM2D_Dx_SinusoidalMode : public TimeFunction
+{
+public:
+	TM2D_Dx_SinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
+    {
+        int dim = modes.size();
+        if(modes_.size() != box_size_.size()){
+            modes_.size() > box_size_.size() ? dim = modes_.size() : dim = box_size_.size();
+        }
+        modes_.resize(dim);
+        box_size_.resize(dim);
+        for (auto d = 0; d < dim; d++){
+            modes_[d] = modes[d];
+            box_size_[d] = box_size[d];
+        }
+    }
+
+	std::unique_ptr<TimeFunction> clone() const {
+		return std::make_unique<TM2D_Dx_SinusoidalMode>(*this);
+	}
+
+	double eval(const Position& pos, const Time& t) const
+	{
+		double w = M_PI;
+		double root_factor = 0.0;
+        for (auto d = 0; d < modes_.size(); d++){
+            root_factor += std::pow(modes_[d] / box_size_[d], 2);
+        }
+		w *= std::sqrt(root_factor);
+
+		double constant_factor = modes_[0] * M_PI / (w * box_size_[0]);
+        double res = constant_factor * std::cos(w * t) 
+		* std::cos(modes_[0] * M_PI * pos[0] / box_size_[0])
+		* std::sin(modes_[1] * M_PI * pos[1] / box_size_[1]);
+
+        return res;
+	}
+
+private:
+	std::vector<std::size_t> modes_;
+    std::vector<double> box_size_;
+};
+
+class TM2D_Dy_SinusoidalMode : public TimeFunction
+{
+public:
+	TM2D_Dy_SinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
+    {
+        int dim = modes.size();
+        if(modes_.size() != box_size_.size()){
+            modes_.size() > box_size_.size() ? dim = modes_.size() : dim = box_size_.size();
+        }
+        modes_.resize(dim);
+        box_size_.resize(dim);
+        for (auto d = 0; d < dim; d++){
+            modes_[d] = modes[d];
+            box_size_[d] = box_size[d];
+        }
+    }
+
+	std::unique_ptr<TimeFunction> clone() const {
+		return std::make_unique<TM2D_Dy_SinusoidalMode>(*this);
+	}
+
+	double eval(const Position& pos, const Time& t) const
+	{
+		double w = M_PI;
+		double root_factor = 0.0;
+        for (auto d = 0; d < modes_.size(); d++){
+            root_factor += std::pow(modes_[d] / box_size_[d], 2);
+        }
+		w *= std::sqrt(root_factor);
+
+		double constant_factor = modes_[1] * M_PI / (w * box_size_[1]);
+        double res = constant_factor * std::cos(w * t) 
+		* std::sin(modes_[0] * M_PI * pos[0] / box_size_[0])
+		* std::cos(modes_[1] * M_PI * pos[1] / box_size_[1]);
 
         return res;
 	}
