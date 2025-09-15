@@ -454,13 +454,9 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
             double time = getTime(timePath);
 
             Vector analytic(nodepos_[r].size()); 
-            // Vector analytic_dx(nodepos_[r].size()); 
-            // Vector analytic_dy(nodepos_[r].size()); 
 
             for (auto v = 0; v < analytic.Size(); v++){
-                analytic[v]    =    function_->eval(nodepos_[r][v], time);
-                // analytic_dx[v] = dx_function_->eval(nodepos_[r][v], time);
-                // analytic_dy[v] = dy_function_->eval(nodepos_[r][v], time);
+                analytic[v] = function_->eval(nodepos_[r][v], time);
             }
 
             time == 0.0 ? scaleFactor = std::make_unique<FieldScaleFactor>(initialFactor) : scaleFactor = std::make_unique<FieldScaleFactor>(excCoeff.FieldFactor);
@@ -474,12 +470,6 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
                         if(f == E && d == Z){
                             rootFactor += std::pow(gf[v] - analytic[v] * scaleFactor->at(f)[d], 2.0);
                         }
-                        // else if (f == H && d == X){
-                        //     rootFactor += std::pow(gf[v] - analytic_dy[v] * scaleFactor->at(f)[d], 2.0);
-                        // }
-                        // else if (f == H && d == Y){
-                        //     rootFactor += std::pow(gf[v] - analytic_dx[v] * scaleFactor->at(f)[d], 2.0);
-                        // }
                     }
                     rms += rootFactor;
                 }
@@ -489,7 +479,6 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
     }
 
     const auto& numRanks = meshes_.size();
-    const auto& numComponents = 6;
     timeCount /= numRanks;
 
     double final_rms = std::sqrt(rms / (timeCount * ndofs));
