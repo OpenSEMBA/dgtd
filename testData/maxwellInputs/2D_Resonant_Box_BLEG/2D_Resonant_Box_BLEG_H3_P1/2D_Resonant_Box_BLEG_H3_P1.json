@@ -2,14 +2,14 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-3,
     "basis_type": 0,
+	  "time_step": 1e-3,
     "final_time": 10.0,
-    "order": 2
+    "order": 1
   },
   "model": {
-    "filename": "2D_Resonant_Box_BLEG_H2_P2.msh",
-    "refinement": 2,
+    "filename": "2D_Resonant_Box_BLEG_H3_P1.msh",
+    "refinement": 3,
     "materials": [
       {
         "tags": [
