@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SRC_ROOT="./Exports"
-DST_ROOT="./CollectedAnalytics"
+DST_ROOT="./CollectedResults"
 
 mkdir -p "$DST_ROOT"
 

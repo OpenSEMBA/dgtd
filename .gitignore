@@ -4,6 +4,7 @@
 build/
 out/
 Exports/
+CollectedResults/
 resources/*.msh
 
 *.csv
