@@ -292,6 +292,40 @@ double estimateTimeStep(const Model& model, const SolverOptions& opts, const Par
 	}
 }
 
+double Solver::calcAverageElementSizeInMesh()
+{
+	double res = 0.0;
+	auto& mesh = this->model_.getMesh();
+
+    for (int e = 0; e < mesh.GetNE(); e++)
+    {
+        Element *el = mesh.GetElement(e);
+        const int nv = el->GetNVertices();
+        Array<int> vert_indices(nv);
+        el->GetVertices(vert_indices);
+
+        auto h_el = 0.0;
+        for (int a = 0; a < nv; a++){
+            const auto va = mesh.GetVertex(vert_indices[a]);
+			for (int b = a + 1; b < nv; b++){
+                const auto vb = mesh.GetVertex(vert_indices[b]);
+				auto dist2 = 0.0;
+                for (int d = 0; d < mesh.Dimension(); d++){
+                    dist2 += (va[d] - vb[d]) * (va[d] - vb[d]);
+				}
+                auto dist = std::sqrt(dist2);
+                if (dist > h_el){
+					h_el = dist;
+				}
+            }
+        }
+
+        res += h_el;
+    }
+
+    return res / mesh.GetNE();
+}
+
 void Solver::writeSimulationStatistics(const Time runtime){
 	int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -307,14 +341,18 @@ void Solver::writeSimulationStatistics(const Time runtime){
         myfile << std::defaultfloat;
         myfile << "Final Time: " << (opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
         myfile << "Time Step: " << (dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
-        myfile << "Number of Elements: " << fes_.get()->GetNE() << "\n";
-        myfile << "Number of Degrees of Freedom: " << fes_.get()->GetNDofs() << "\n";
+        myfile << "Number of Mesh Elements: " << fes_.get()->GetNE() << "\n";
+		myfile << "Average Element Size in Mesh: " << calcAverageElementSizeInMesh() << "\n";
+		auto local_dofs = static_cast<std::int64_t>(fes_->GetNDofs());
+        myfile << "Number of Local Degrees of Freedom: " << local_dofs << "\n";
         if (opts_.evolution.op == Global) {
             auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
-            int64_t globalSize = std::pow(global->getConstGlobalOperator().Size(), 2.0);
-            myfile << "Number of Global Total Entries: " << globalSize << "\n";
-            int64_t nonZeroEntries = global->getConstGlobalOperator().NumNonZeroElems();
-            myfile << "Number of Global Non-Zero Entries: " << nonZeroEntries;
+			std::int64_t local_elems = static_cast<std::int64_t>(std::pow(global->getConstGlobalOperator().Size(), 2.0));
+            myfile << "Operator Total Elements for Local Degrees of Freedom: " << local_elems << "\n";
+			std::int64_t local_and_ghost_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().Height()) * static_cast<std::int64_t>(global->getConstGlobalOperator().Width());
+            myfile << "Operator Total Elements for Local and Ghost Degrees of Freedom: " << local_and_ghost_elems << "\n";
+			std::int64_t non_zero_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().NumNonZeroElems());
+            myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems;
         }
         myfile.close();
     } else {

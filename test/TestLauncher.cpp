@@ -6,8 +6,10 @@
 int main(int argc, char** argv) 
 {
 
+    #ifndef NDEBUG
     std::cout << "PID " << getpid() << " ready to be attached. Press Enter to continue...\n";
     std::cin.get();
+    #endif
 
     mfem::Mpi::Init(argc, argv);
     mfem::Hypre::Init();

@@ -415,6 +415,51 @@ std::string getFieldDirString(const FieldType& ft, const Direction& dir)
     }
 }
 
+double computeAverageElementSize(const std::string& data_path)
+{
+
+    std::filesystem::path sim_path = std::filesystem::path(data_path) / "SimulationStats";
+    std::vector<double> element_sizes;
+
+    for (const auto& entry : std::filesystem::directory_iterator(sim_path))
+    {
+        const auto& path = entry.path();
+        if (path.filename().string().find("statistics_rank") == 0 && path.extension() == ".dat")
+        {
+            std::ifstream file(path);
+            if (!file.is_open())
+            {
+                throw std::runtime_error("Failed to open file: " + entry.path().string() + "\n");
+            }
+
+            std::string line;
+            while (std::getline(file, line))
+            {
+                const std::string key = "Average Element Size in Mesh:";
+                auto pos = line.find(key);
+                if (pos != std::string::npos)
+                {
+                    std::string value_str = line.substr(pos + key.size());
+                    double value = std::stod(value_str);
+                    element_sizes.push_back(value);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (element_sizes.empty())
+    {
+        throw std::runtime_error("No element sizes found, check simulationstats output folder.");
+    }
+
+    double sum = 0.0;
+    for (double val : element_sizes)
+        sum += val;
+
+    return sum / element_sizes.size();
+}
+
 RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::string& json_file)
 {
     loadMeshes(data_path);
@@ -494,7 +539,8 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
     if (!out_file) {
         throw std::runtime_error("Error opening file for writing: " + export_path.string());
     }
-    out_file << final_rms << "\n";
+    out_file << "RMS: " << final_rms << "\n";
+    out_file << "Avg Element Size: " << computeAverageElementSize(data_path) << "\n";
     out_file.close();   
 
 }

@@ -83,5 +83,6 @@ private:
     void performSpectralAnalysis(const ParFiniteElementSpace&, Model&, const EvolutionOptions&);
     void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution&);
     void writeSimulationStatistics(const Time);
+    double calcAverageElementSizeInMesh();
 };
 }

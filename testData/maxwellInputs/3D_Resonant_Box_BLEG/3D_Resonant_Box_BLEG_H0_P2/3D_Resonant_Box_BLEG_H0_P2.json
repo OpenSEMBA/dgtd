@@ -2,13 +2,13 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 2.5e-3,
-    "basis_type": 0,
+	  "time_step": 1e-3,
     "final_time": 10.0,
     "order": 2
   },
   "model": {
     "filename": "3D_Resonant_Box_BLEG_H0_P2.msh",
+    "refinement": 0,
     "materials": [
       {
         "tags": [
@@ -28,7 +28,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 40
+      "steps": 100
     },
     "point": [
       {

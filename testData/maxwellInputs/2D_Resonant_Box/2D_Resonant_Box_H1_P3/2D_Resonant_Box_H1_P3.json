@@ -7,7 +7,7 @@
     "order": 3
   },
   "model": {
-    "filename": "2D_Resonant_Box_H1_P2.msh",
+    "filename": "2D_Resonant_Box_H1_P3.msh",
     "refinement": 1,
     "materials": [
       {

@@ -4,11 +4,11 @@
     "evolution_operator": "global",
 	  "time_step": 1e-3,
     "final_time": 10.0,
-    "order": 3
+    "order": 1
   },
   "model": {
-    "filename": "3D_Resonant_Box_BLEG_H1_P3.msh",
-    "refinement": 1,
+    "filename": "3D_Resonant_Box_BLEG_H0_P1.msh",
+    "refinement": 0,
     "materials": [
       {
         "tags": [

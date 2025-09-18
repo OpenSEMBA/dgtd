@@ -7,8 +7,8 @@
     "order": 3
   },
   "model": {
-    "filename": "3D_Resonant_Box_BLEG_H1_P3.msh",
-    "refinement": 1,
+    "filename": "3D_Resonant_Box_H2_P3.msh",
+    "refinement": 2,
     "materials": [
       {
         "tags": [
