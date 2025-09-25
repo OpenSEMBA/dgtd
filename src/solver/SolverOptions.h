@@ -7,7 +7,7 @@ namespace maxwell {
 struct SolverOptions {
     double timeStep = 0.0;
     double finalTime = 2.0;
-    double cfl = 0.8;
+    double cfl = 1.0;
     int basisType = mfem::BasisType::GaussLobatto;
 
     EvolutionOptions evolution;

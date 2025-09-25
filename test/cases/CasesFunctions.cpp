@@ -460,6 +460,25 @@ double computeAverageElementSize(const std::string& data_path)
     return sum / element_sizes.size();
 }
 
+double resonant_sinusoidal_function(const Position& pos, const Time& t)
+{
+    double w = M_PI;
+    double root_factor = 0.0;
+    std::vector<int> modes({5, 5});
+    std::vector<double> box_size({1.0, 1.0});
+    for (auto d = 0; d < modes.size(); d++){
+        root_factor += std::pow(modes[d] / box_size[d], 2);
+    }
+    w *= std::sqrt(root_factor);
+
+    double res = std::cos(w * t);
+    for (auto d = 0; d < modes.size(); d++){
+        res *= std::sin(modes[d] * M_PI * pos[d] / box_size[d]);
+    }
+
+    return res;
+}
+
 RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::string& json_file)
 {
     loadMeshes(data_path);
@@ -474,59 +493,56 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
     int timeCount = 0;
 
     std::unique_ptr<FieldScaleFactor> scaleFactor;
+    std::map<Time, double> time2rms;
+    std::map<Rank, std::filesystem::path> rank2path;
+    std::map<Rank, std::vector<std::filesystem::directory_entry>> rank2entries;
 
-    for (auto r = 0; r < meshes_.size(); r++)
-    {
-        std::string rank_string("rank_" + std::to_string(r));
-        std::filesystem::path rankPath = data_path + "/DomainSnapshopProbes/" + rank_string;
-
-        std::vector<std::filesystem::directory_entry> entries;
-        for (auto& entry : std::filesystem::directory_iterator(rankPath)) {
-            if (entry.is_directory()) { // optional: only subfolders
-                entries.push_back(entry);
+    for (auto r = 0; r < meshes_.size(); r++){
+        rank2path[r] = data_path + "/DomainSnapshopProbes/" + std::string("rank_" + std::to_string(r));
+        for (auto& entry : std::filesystem::directory_iterator(rank2path[r])) {
+            if (entry.is_directory()) {
+                rank2entries[r].push_back(entry);
             }
-        }
-
-        std::sort(entries.begin(), entries.end(), [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b){
+        } 
+        std::sort(rank2entries[r].begin(), rank2entries[r].end(), [](const std::filesystem::directory_entry& a, const std::filesystem::directory_entry& b){
             return a.path().filename() < b.path().filename();
         });
+    }
 
-        for (auto& entry : entries) {
-
-            std::filesystem::path cyclePath = entry.path();
-
-            std::string timePath = cyclePath.string() + "/time.txt";
-            double time = getTime(timePath);
-
-            Vector analytic(nodepos_[r].size()); 
-
-            for (auto v = 0; v < analytic.Size(); v++){
-                analytic[v] = function_->eval(nodepos_[r][v], time);
-            }
-
-            time == 0.0 ? scaleFactor = std::make_unique<FieldScaleFactor>(initialFactor) : scaleFactor = std::make_unique<FieldScaleFactor>(excCoeff.FieldFactor);
-
-            for (auto f : {E, H}){
-				for (auto d : {X, Y, Z}){
-                    std::string gfPath = cyclePath.string() + getFieldDirString(f, d);
-                    auto gf = getGridFunction(gfPath, meshes_[r]);
-                    double rootFactor = 0.0;
-                    for (auto v = 0; v < analytic.Size(); v++){
-                        if(f == E && d == Z){
-                            rootFactor += std::pow(gf[v] - analytic[v] * scaleFactor->at(f)[d], 2.0);
-                        }
-                    }
-                    rms += rootFactor;
-                }
-            }
-            timeCount++;
+    for (auto r = 0; r < rank2entries.size(); r++){
+        for (auto s = r + 1; s < rank2entries.size(); s++){
+            MFEM_ASSERT(rank2entries[r].size() == rank2entries[s].size(), "Cycle entry sizes in ranks " + std::to_string(r) + " and " + std::to_string(s) + " are different.");
         }
     }
 
-    const auto& numRanks = meshes_.size();
-    timeCount /= numRanks;
+    int num_cycles = rank2entries.begin()->second.size();
 
-    double final_rms = std::sqrt(rms / (timeCount * ndofs));
+    for (int c = 0; c < num_cycles; c++) {
+        double sum_sq = 0.0;
+        double time = getTime(rank2entries[0][c].path().string() + "/time.txt");
+    
+        for (int r = 0; r < rank2entries.size(); ++r) {
+            const auto& cycle_entry = rank2entries[r][c];
+            std::filesystem::path cycle_path = cycle_entry.path();
+    
+            double t_local = getTime(cycle_path.string() + "/time.txt");
+            MFEM_ASSERT(std::abs(t_local - time) < 1e-12, "Mismatched times across ranks");
+
+            auto gf = getGridFunction(cycle_path.string() + getFieldDirString(E, Z), meshes_[r]);
+    
+            FunctionCoefficient fc(resonant_sinusoidal_function);
+            fc.SetTime(time);
+            const IntegrationRule* ir = &IntRules.Get(Element::TRIANGLE, 2*gf.FESpace()->FEColl()->GetOrder() + 1);
+            double local_norm = gf.ComputeL2Error(fc, &ir);
+            delete ir;
+            sum_sq += local_norm * local_norm;
+        }
+    
+        double total_norm = std::sqrt(sum_sq);
+        time2rms[time] = total_norm;
+    }
+    
+
 
     std::filesystem::path export_path = data_path + "/SimulationStats/AnalyticRMS.txt";
     if (!std::filesystem::exists(export_path.parent_path())) {
@@ -539,8 +555,11 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
     if (!out_file) {
         throw std::runtime_error("Error opening file for writing: " + export_path.string());
     }
-    out_file << "RMS: " << final_rms << "\n";
     out_file << "Avg Element Size: " << computeAverageElementSize(data_path) << "\n";
+    out_file << "Time // RMS" << "\n"; 
+    for (const auto& [k, v] : time2rms){
+        out_file << k << " " << v << "\n";
+    }
     out_file.close();   
 
 }

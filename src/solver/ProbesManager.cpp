@@ -51,7 +51,7 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
 	auto fecorder = fes_.FEColl()->GetOrder();
 	geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
 	pd.SetHighOrderOutput(highOrder);
-	pd.SetLevelsOfDetail(fecorder);
+	pd.SetLevelsOfDetail(std::max(geomElemOrder,fecorder));
 	
 	pd.SetDataFormat(VTKFormat::BINARY);
 
