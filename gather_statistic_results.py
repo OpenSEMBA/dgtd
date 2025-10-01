@@ -27,19 +27,26 @@ for arch in ARCHS:
 
         # Initialize variables
         init_times = []
-        run_times = []
+        run_times = []  # wall-clock times per rank
         element_sizes = []
+        ghost_overheads = []
+        time_per_dof_per_step_list = []
+        total_local_dofs = 0
         final_time = None
         timestep = None
         num_elements = 0
-        num_local_dofs = 0
         operator_total_local = 0
         operator_total_local_ghost = 0
         operator_nonzero = 0
+        sparsities = []
 
-        # Single-core: just read rank0
-        if arch == "single-core":
-            rank_file = rank_files[0]
+        for rank_file in rank_files:
+            op_total_local_ghost_rank = 0
+            op_nonzero_rank = 0
+            op_total_local_rank = 0
+            rank_num_local_dofs = 0
+            rank_run_time = 0.0
+
             with open(rank_file, "r") as f:
                 for line in f:
                     if ":" not in line:
@@ -50,60 +57,32 @@ for arch in ARCHS:
                         if key.startswith("Initialization Time"):
                             init_times.append(float(value))
                         elif key.startswith("Simulation Run Time"):
-                            run_times.append(float(value))
-                        elif key.startswith("Final Time"):
-                            final_time = float(value)
-                        elif key.startswith("Time Step"):
-                            timestep = float(value)
+                            rank_run_time = float(value)
+                            run_times.append(rank_run_time)
+                        elif key.startswith("Final Time") and final_time is None:
+                            final_time = float(value)  # same for all ranks
+                        elif key.startswith("Time Step") and timestep is None:
+                            timestep = float(value)  # same for all ranks
                         elif key.startswith("Number of Mesh Elements"):
                             num_elements += int(value)
                         elif key.startswith("Average Element Size in Mesh"):
                             element_sizes.append(float(value))
                         elif key.startswith("Number of Local Degrees of Freedom"):
-                            num_local_dofs += int(value)
+                            rank_num_local_dofs = int(value)
+                            total_local_dofs += rank_num_local_dofs
                         elif key.startswith("Operator Total Elements for Local Degrees of Freedom"):
-                            operator_total_local = int(value)
+                            op_total_local_rank = int(value)
+                            operator_total_local += op_total_local_rank
                         elif key.startswith("Operator Total Elements for Local and Ghost Degrees of Freedom"):
-                            operator_total_local_ghost = int(value)
+                            op_total_local_ghost_rank = int(value)
+                            operator_total_local_ghost += op_total_local_ghost_rank
                         elif key.startswith("Number of Operator Non-Zero Elements"):
-                            operator_nonzero = int(value)
+                            op_nonzero_rank = int(value)
+                            operator_nonzero += op_nonzero_rank
                     except ValueError:
                         pass
 
-        # Multi-rank: read all rank files and aggregate
-        else:
-            for rank_file in rank_files:
-                with open(rank_file, "r") as f:
-                    for line in f:
-                        if ":" not in line:
-                            continue
-                        key, value = line.split(":", 1)
-                        value = value.strip().split()[0]
-                        try:
-                            if key.startswith("Initialization Time"):
-                                init_times.append(float(value))
-                            elif key.startswith("Simulation Run Time"):
-                                run_times.append(float(value))
-                            elif key.startswith("Final Time") and final_time is None:
-                                final_time = float(value)  # same for all ranks
-                            elif key.startswith("Time Step") and timestep is None:
-                                timestep = float(value)  # same for all ranks
-                            elif key.startswith("Number of Mesh Elements"):
-                                num_elements += int(value)
-                            elif key.startswith("Average Element Size in Mesh"):
-                                element_sizes.append(float(value))
-                            elif key.startswith("Number of Local Degrees of Freedom"):
-                                num_local_dofs += int(value)
-                            elif key.startswith("Operator Total Elements for Local Degrees of Freedom"):
-                                operator_total_local += int(value)
-                            elif key.startswith("Operator Total Elements for Local and Ghost Degrees of Freedom"):
-                                operator_total_local_ghost += int(value)
-                            elif key.startswith("Number of Operator Non-Zero Elements"):
-                                operator_nonzero += int(value)
-                        except ValueError:
-                            pass
-
-        # Compute averages where needed
+        # Compute averages
         avg_init_time = sum(init_times) / len(init_times) if init_times else 0.0
         avg_run_time = sum(run_times) / len(run_times) if run_times else 0.0
         avg_element_size = sum(element_sizes) / len(element_sizes) if element_sizes else 0.0
@@ -116,7 +95,7 @@ for arch in ARCHS:
             out.write(f"Time Step: {timestep} (ns)\n")
             out.write(f"Number of Mesh Elements: {num_elements}\n")
             out.write(f"Average Element Size in Mesh: {avg_element_size}\n")
-            out.write(f"Number of Local Degrees of Freedom: {num_local_dofs}\n")
-            out.write(f"Operator Total Elements for Local Degrees of Freedom: {operator_total_local}\n")
-            out.write(f"Operator Total Elements for Local and Ghost Degrees of Freedom: {operator_total_local_ghost}\n")
+            out.write(f"Number of Local Degrees of Freedom: {total_local_dofs}\n")
+            out.write(f"Operator Total Elements (Local): {operator_total_local}\n")
+            out.write(f"Operator Total Elements (Local + Nbr): {operator_total_local_ghost}\n")
             out.write(f"Number of Operator Non-Zero Elements: {operator_nonzero}\n")

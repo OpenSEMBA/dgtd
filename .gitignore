@@ -7,6 +7,9 @@ Exports/
 CollectedResults/
 resources/*.msh
 
+gather*
+run_all_*
+
 *.csv
 *.gf
 mesh.mesh
