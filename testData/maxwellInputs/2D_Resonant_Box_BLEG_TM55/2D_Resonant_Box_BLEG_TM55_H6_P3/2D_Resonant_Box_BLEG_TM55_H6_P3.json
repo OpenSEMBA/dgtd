@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 0.0005,
+    "time_step": 0.0001,
     "final_time": 10.0,
     "order": 3,
     "basis_type": 0
@@ -32,26 +32,26 @@
   },
   "probes": {
     "exporter": {
-      "steps": 200
+      "steps": 1000
     },
     "point": [
       {
         "position": [
-          0.5,
-          0.3
+          0.7,
+          0.7
         ],
         "write": true
       },
       {
         "position": [
           0.5,
-          0.5
+          0.3
         ],
         "write": true
       }
     ],
     "domain_snapshot": {
-      "steps": 566
+      "steps": 2828
     }
   },
   "sources": [

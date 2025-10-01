@@ -60,6 +60,8 @@ int main(int argc, char** argv)
 
     mfem::Device device(deviceConfig.c_str());
     device.Print();
+	
+	std::cout << "GPU-aware MPI? " << mfem::Device::GetGPUAwareMPI() << std::endl;
 
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();

@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 0.001,
+    "time_step": 0.0001,
     "final_time": 10.0,
     "order": 2
   },
@@ -54,7 +54,7 @@
       }
     ],
     "domain_snapshot": {
-      "steps": 283
+      "steps": 2828
     }
   },
   "sources": [

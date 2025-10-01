@@ -179,7 +179,7 @@ const std::vector<Position> buildDoFPositions(const GridFunction& gf)
     return res;
 }
 
-void RMSDataCalculator::loadNodepos(const std::string& data_path)
+void L2NormDataCalculator::loadNodepos(const std::string& data_path)
 {
     std::filesystem::path probes_dir = std::filesystem::path(data_path) / "DomainSnapshopProbes";
     if (!std::filesystem::exists(probes_dir) || !std::filesystem::is_directory(probes_dir)) {
@@ -223,7 +223,7 @@ void RMSDataCalculator::loadNodepos(const std::string& data_path)
     }
 }
 
-void RMSDataCalculator::loadMeshes(const std::string& data_path)
+void L2NormDataCalculator::loadMeshes(const std::string& data_path)
 {
     std::filesystem::path meshPath = data_path + "/DomainSnapshopProbes/meshes";
     if (!std::filesystem::exists(meshPath) || !std::filesystem::is_directory(meshPath)) {
@@ -329,7 +329,7 @@ std::unique_ptr<TimeFunction> buildDyFunctionByType(const json& case_data)
     }
 }
 
-void RMSDataCalculator::initFunctions(const std::string& json_file)
+void L2NormDataCalculator::initFunctions(const std::string& json_file)
 {
     auto case_data = parseJSONfile(json_file);
     function_ = buildFunctionByType(case_data);
@@ -479,7 +479,7 @@ double resonant_sinusoidal_function(const Position& pos, const Time& t)
     return res;
 }
 
-RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::string& json_file)
+L2NormDataCalculator::L2NormDataCalculator(const std::string& data_path, const std::string& json_file)
 {
     loadMeshes(data_path);
     loadNodepos(data_path);
@@ -488,12 +488,10 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
     ExcitationCoeffs excCoeff(json_file);
     FieldScaleFactor initialFactor = getInitialExcitationCoefficients(json_file);
     
-    double rms = 0.0;
     int ndofs = getGlobalNdofs(nodepos_);
-    int timeCount = 0;
 
     std::unique_ptr<FieldScaleFactor> scaleFactor;
-    std::map<Time, double> time2rms;
+    std::map<Time, double> time2norm;
     std::map<Rank, std::filesystem::path> rank2path;
     std::map<Rank, std::vector<std::filesystem::directory_entry>> rank2entries;
 
@@ -532,19 +530,17 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
     
             FunctionCoefficient fc(resonant_sinusoidal_function);
             fc.SetTime(time);
-            const IntegrationRule* ir = &IntRules.Get(Element::TRIANGLE, 2*gf.FESpace()->FEColl()->GetOrder() + 1);
-            double local_norm = gf.ComputeL2Error(fc, &ir);
-            delete ir;
+            double local_norm = gf.ComputeL2Error(fc);
             sum_sq += local_norm * local_norm;
         }
     
         double total_norm = std::sqrt(sum_sq);
-        time2rms[time] = total_norm;
+        time2norm[time] = total_norm;
     }
     
 
 
-    std::filesystem::path export_path = data_path + "/SimulationStats/AnalyticRMS.txt";
+    std::filesystem::path export_path = data_path + "/SimulationStats/DataNorm.txt";
     if (!std::filesystem::exists(export_path.parent_path())) {
         if (!std::filesystem::create_directories(export_path.parent_path())) {
             throw std::runtime_error("Failed to create directory: " + export_path.parent_path().string());
@@ -556,8 +552,8 @@ RMSDataCalculator::RMSDataCalculator(const std::string& data_path, const std::st
         throw std::runtime_error("Error opening file for writing: " + export_path.string());
     }
     out_file << "Avg Element Size: " << computeAverageElementSize(data_path) << "\n";
-    out_file << "Time // RMS" << "\n"; 
-    for (const auto& [k, v] : time2rms){
+    out_file << "Time // Norm" << "\n"; 
+    for (const auto& [k, v] : time2norm){
         out_file << k << " " << v << "\n";
     }
     out_file.close();   

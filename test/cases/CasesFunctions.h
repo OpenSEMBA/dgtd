@@ -41,10 +41,10 @@ private:
 Mesh loadMeshFromFile(const std::string& mesh_path);
 GridFunction loadGridFunctionFromFile(const std::string& file_path, Mesh& mesh);
 
-class RMSDataCalculator
+class L2NormDataCalculator
 {
 public:
-    RMSDataCalculator(const std::string& data_path, const std::string& json_path);
+    L2NormDataCalculator(const std::string& data_path, const std::string& json_path);
 
 private:
 
