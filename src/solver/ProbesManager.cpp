@@ -171,16 +171,18 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFini
 
 void ProbesManager::initPointFieldProbeExport()
 {
-	for (const auto& p : probes.pointProbes) {
-		if(p.write){
-			std::string base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
-			if (Mpi::WorldRank() == 0){
-				if (cycle_ == 0) {
-					if (std::filesystem::exists(base_path)) {
-						std::filesystem::remove_all(base_path);
-					}
-					std::filesystem::create_directories(base_path);
-				}
+	std::string base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
+	if (Mpi::WorldRank() == 0){
+
+		if (cycle_ == 0) {
+			if (std::filesystem::exists(base_path)) {
+				std::filesystem::remove_all(base_path);
+			}
+			std::filesystem::create_directories(base_path);
+		}
+
+		for (const auto& p : probes.pointProbes) {
+			if(p.write){
 				std::ofstream myfile;
 				std::string path(base_path + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
 				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
@@ -198,18 +200,17 @@ void ProbesManager::initPointFieldProbeExport()
 				myfile.close();
 			}
 		}
-	}
 
-	for (const auto& p : probes.fieldProbes) {
-		if(p.write){
-			std::string base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
-			if (Mpi::WorldRank() == 0){
-				if (cycle_ == 0) {
-					if (std::filesystem::exists(base_path)) {
-						std::filesystem::remove_all(base_path);
-					}
-					std::filesystem::create_directories(base_path);
-				}
+		base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
+		if (cycle_ == 0) {
+			if (std::filesystem::exists(base_path)) {
+				std::filesystem::remove_all(base_path);
+			}
+			std::filesystem::create_directories(base_path);
+		}
+
+		for (const auto& p : probes.fieldProbes) {
+			if(p.write){
 				std::ofstream myfile;
 				std::string path(base_path + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
 				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
