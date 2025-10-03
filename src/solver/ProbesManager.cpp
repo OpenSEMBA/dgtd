@@ -171,66 +171,74 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFini
 
 void ProbesManager::initPointFieldProbeExport()
 {
-	std::string base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
-	if (Mpi::WorldRank() == 0){
+	
+	if (probes.pointProbes.size()){
+		auto base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
+		if (Mpi::WorldRank() == 0){
 
-		if (cycle_ == 0) {
-			if (std::filesystem::exists(base_path)) {
-				std::filesystem::remove_all(base_path);
+			if (cycle_ == 0) {
+				if (std::filesystem::exists(base_path)) {
+					std::filesystem::remove_all(base_path);
+				}
+				std::filesystem::create_directories(base_path);
 			}
-			std::filesystem::create_directories(base_path);
-		}
 
-		for (const auto& p : probes.pointProbes) {
-			if(p.write){
-				std::ofstream myfile;
-				std::string path(base_path + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-				for (auto i = 0; i < p.getPoint().size(); i++){
-					position[i] = p.getPoint()[i];
+			for (const auto& p : probes.pointProbes) {
+				if(p.write){
+					std::ofstream myfile;
+					std::string path(base_path + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+					std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+					for (auto i = 0; i < p.getPoint().size(); i++){
+						position[i] = p.getPoint()[i];
+					}
+					myfile.open(path, std::ios::app);
+					if (myfile.is_open()) {
+						myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
+						myfile << "Spatial Position (X, Y, Z) \n";
+						myfile << std::scientific << std::setprecision(5);
+						myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+						myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
+					}
+					myfile.close();
 				}
-				myfile.open(path, std::ios::app);
-				if (myfile.is_open()) {
-					myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
-					myfile << "Spatial Position (X, Y, Z) \n";
-					myfile << std::scientific << std::setprecision(5);
-					myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-					myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
-				}
-				myfile.close();
 			}
 		}
+	}
 
-		base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
-		if (cycle_ == 0) {
-			if (std::filesystem::exists(base_path)) {
-				std::filesystem::remove_all(base_path);
+	if (probes.fieldProbes.size()){
+		auto base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
+		if (Mpi::WorldRank() == 0){
+			if (cycle_ == 0) {
+				if (std::filesystem::exists(base_path)) {
+					std::filesystem::remove_all(base_path);
+				}
+				std::filesystem::create_directories(base_path);
 			}
-			std::filesystem::create_directories(base_path);
-		}
 
-		for (const auto& p : probes.fieldProbes) {
-			if(p.write){
-				std::ofstream myfile;
-				std::string path(base_path + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-				std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-				auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
-				for (auto i = 0; i < p.getPoint().size(); i++){
-					position[i] = p.getPoint()[i];
+			for (const auto& p : probes.fieldProbes) {
+				if(p.write){
+					std::ofstream myfile;
+					std::string path(base_path + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+					std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+					auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
+					for (auto i = 0; i < p.getPoint().size(); i++){
+						position[i] = p.getPoint()[i];
+					}
+					myfile.open(path, std::ios::app);
+					if (myfile.is_open()) {
+						myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
+						myfile << "Spatial Position (X, Y, Z) \n";
+						myfile << std::scientific << std::setprecision(5);
+						myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+						myfile << "Time (s) // " + fieldpol + "\n";
+					}
+					myfile.close();
 				}
-				myfile.open(path, std::ios::app);
-				if (myfile.is_open()) {
-					myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
-					myfile << "Spatial Position (X, Y, Z) \n";
-					myfile << std::scientific << std::setprecision(5);
-					myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-					myfile << "Time (s) // " + fieldpol + "\n";
-				}
-				myfile.close();
 			}
 		}
 	}
 }
+
 
 
 ProbesManager::FieldProbeCollection
@@ -391,6 +399,7 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 	auto it{ nearFieldProbesCollection_.find(&p) };
 	assert(it != nearFieldProbesCollection_.end());
 	auto& dc{ it->second };
+	dc.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 
 	nearFieldReqs_.at(&p)->updateFields();
 
