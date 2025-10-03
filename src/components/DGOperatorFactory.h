@@ -12,7 +12,9 @@
 
 #include <chrono>
 #include <iostream>
+#include <fstream>
 #include <string>
+#include <filesystem>
 
 namespace maxwell
 {
@@ -999,6 +1001,35 @@ namespace maxwell
 		res->Finalize();
 		auto threshold = 1e-6;
 		res->Threshold(threshold);
+
+		if(this->pd_.opts.exportEvolutionOperator){
+			if(Mpi::WorldSize() > 1){
+				std::cout << "---------------------------------------------------------------" << std::endl;
+				std::cout << "--EXPORTING OPERATOR ONLY CURRENTLY WORKS IN SINGLE RANK SIMS--" << std::endl;
+				std::cout << "-----THE SPATIAL EVOLUTION OPERATOR IS NOT BEING EXPORTED------" << std::endl;
+				std::cout << "---------------------------------------------------------------" << std::endl;
+				return res;
+			}
+			std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / this->pd_.model.meshName_;
+
+			if (!std::filesystem::exists(export_dir))
+			{
+				std::filesystem::create_directories(export_dir);
+			}
+
+			std::filesystem::path file_path = export_dir / "SpatialEvolutionOperator.csr";
+
+			std::ofstream ofs(file_path);
+			if (!ofs.is_open())
+			{
+				throw std::runtime_error("Could not open file for writing: " + file_path.string());
+			}
+
+			res->PrintCSR2(ofs);
+			ofs.close();
+
+			std::cout << "Operator exported to " << file_path << std::endl;
+		}
 
 		return res;
 	}

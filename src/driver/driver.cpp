@@ -237,6 +237,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 		if (case_data["solver_options"].contains("spectral")) {
 			res.setSpectralEO(case_data["solver_options"]["spectral"]);
 		}
+		
+		if (case_data["solver_options"].contains("exportOperator")) {
+			res.setExportEO(case_data["solver_options"]["exportOperator"]);
+		}
 
 		if (case_data["solver_options"].contains("evolution_operator")) {
 			if (case_data["solver_options"]["evolution_operator"] == "maxwell") {

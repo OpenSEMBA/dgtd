@@ -47,6 +47,11 @@ struct SolverOptions {
         return *this;
     }
 
+    SolverOptions& setExportEO(bool exportOP = true) {
+        evolution.exportEvolutionOperator = exportOP;
+        return *this;
+    }
+
     SolverOptions& setEvolutionOperator(EvolutionOperatorType oper) {
         evolution.op = oper;
         return *this;
