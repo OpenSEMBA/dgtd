@@ -18,8 +18,6 @@ opts_{ options }
 	for (auto d = X; d <= Z; d++){
 		eOld_[d].SetSpace(&fes_);
 		hOld_[d].SetSpace(&fes_);
-		eOld_[d].UseDevice(true);
-		hOld_[d].UseDevice(true);
 	}
 
 	globalOperator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
@@ -91,80 +89,88 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
     mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerMult, timerTFSF;
 
-    timerTotal.Start();
-
-    const auto ndofs = fes_.GetNDofs();
-    const auto nbrDofs = fes_.num_face_nbr_dofs;
-    const auto blockSize = ndofs + nbrDofs;
+	timerTotal.Start();
+	
+	const auto ndofs = fes_.GetNDofs();
+	const auto nbrDofs = fes_.num_face_nbr_dofs;
+	const auto blockSize = ndofs + nbrDofs;
 
     timerExchange.Start();
-    for (auto d = X; d <= Z; d++) {
-        eOld_[d].SetData(in.GetData() + d * ndofs);
-        hOld_[d].SetData(in.GetData() + (d + 3) * ndofs);
-
-        eOld_[d].ExchangeFaceNbrData();
-        hOld_[d].ExchangeFaceNbrData();
-    }
+	#ifdef SEMBA_DGTD_ENABLE_CUDA
+	load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+	#else
+	for (auto d = X; d <= Z; d++){
+		for (auto v = 0; v < ndofs; v++){
+			eOld_[d][v] = in[d * ndofs + v];
+			hOld_[d][v] = in[(d+3) * ndofs + v];
+		}
+	}
+	#endif
+	for (auto d = X; d <= Z; d++){
+		eOld_[d].ExchangeFaceNbrData();
+		hOld_[d].ExchangeFaceNbrData();
+	}
     timerExchange.Stop();
+    
+	timerAssembleInNew.Start();
+	Vector inNew(6*blockSize);
+	#ifdef SEMBA_DGTD_ENABLE_CUDA
+	inNew.UseDevice(true);
+	load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
+	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
+	#else
+	for (int d = X; d <= Z; d++) {
+		eOld_[d].SetData(in.GetData() + d * ndofs);
+		hOld_[d].SetData(in.GetData() + (d + 3) * ndofs);
+		inNew.SetVector(eOld_[d],      d  * (ndofs + nbrDofs));
+		inNew.SetVector(hOld_[d], (3 + d) * (ndofs + nbrDofs));
+		if (nbrDofs != 0){
+			inNew.SetVector(eOld_[d].FaceNbrData(),      d  * (ndofs + nbrDofs) + ndofs);
+			inNew.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (ndofs + nbrDofs) + ndofs);
+		}
+	}
+	#endif
+	timerAssembleInNew.Stop();
 
-    timerAssembleInNew.Start();
-    mfem::Vector inNew(6 * blockSize);  
-    for (int d = X; d <= Z; d++) {
-
-        inNew.SetVector(eOld_[d],      d * blockSize);
-        inNew.SetVector(hOld_[d], (3 + d) * blockSize);
-
-        if (nbrDofs != 0) {
-            inNew.SetVector(eOld_[d].FaceNbrData(),      d * blockSize + ndofs);
-            inNew.SetVector(hOld_[d].FaceNbrData(), (3 + d) * blockSize + ndofs);
-        }
-    }
-
-    inNew.UseDevice(true);
-    timerAssembleInNew.Stop();
-
-    timerMult.Start();
+	timerMult.Start();
     globalOperator_->Mult(inNew, out);
-    timerMult.Stop();
+	timerMult.Stop();
 
-    timerTFSF.Start();
-    bool early_tfsf_deletion = false;
+	timerTFSF.Start();
+	bool early_tfsf_deletion = false;
     for (auto& source : srcmngr_.sources) {
         if (dynamic_cast<TotalField*>(source.get()) && srcmngr_.getGlobalTFSFSpace() != nullptr) {
-            auto sourcecast = dynamic_cast<TotalField*>(source.get());
-            if (opts_.tfsfFinalTime != 0.0 
-                && std::abs(GetTime() - opts_.tfsfFinalTime) <= 1e-5) {
-                #ifndef SEMBA_DGTD_ENABLE_CUDA
-                auto func = evalTimeVarFunction(GetTime(), srcmngr_);
-                mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
-                #else
-                auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
-                mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
-                #endif
-                if (assembledFunc.Norml2() >= 1e-1) {
-                    early_tfsf_deletion = true;
-                    MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
-                }
-                source.reset(nullptr);
-                break;
-            }
-
-            #ifndef SEMBA_DGTD_ENABLE_CUDA
-            auto func = evalTimeVarFunction(GetTime(), srcmngr_);
-            mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
-            #else
-            auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
+			auto sourcecast = dynamic_cast<TotalField*>(source.get());
+			if(opts_.tfsfFinalTime != 0.0 
+			&& std::abs(GetTime() - opts_.tfsfFinalTime) <= 1e-5){
+				#ifdef SEMBA_DGTD_ENABLE_CUDA
+				const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
+            	mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
+				#else
+				auto func = evalTimeVarFunction(GetTime(), srcmngr_);
+            	mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+				#endif
+				if(assembledFunc.Norml2() >= 1e-1){
+					early_tfsf_deletion = true;
+					MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
+				}
+				source.reset(nullptr);
+				break;
+			}
+			#ifdef SEMBA_DGTD_ENABLE_CUDA
+            const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
             mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
-            #endif
-
+			#else
+			auto func = evalTimeVarFunction(GetTime(), srcmngr_);
+            mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+			#endif
             mfem::Vector tempTFSF(assembledFunc.Size());
-            tempTFSF.UseDevice(true);
+			tempTFSF.UseDevice(true);
             TFSFOperator_->Mult(assembledFunc, tempTFSF);
-
-            #ifdef SEMBA_DGTD_ENABLE_CUDA
-            load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out, ndofs, srcmngr_.getGlobalTFSFSpace()->GetNDofs());
-            #else
-            for (auto f : { E, H }) {
+			#ifdef SEMBA_DGTD_ENABLE_CUDA
+			load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out, fes_.GetNDofs(), srcmngr_.getGlobalTFSFSpace()->GetNDofs());
+			#else
+			for (auto f : { E, H }) {
                 for (auto d : { X, Y, Z }) {
                     for (int v = 0; v < sub_to_parent_ids_.Size(); v++) {
                         const int outIdx = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
@@ -175,16 +181,17 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     }
                 }
             }
-            #endif
-        }
-    }
-    if (early_tfsf_deletion) {
-        MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
-    }
-    timerTFSF.Stop();
+			#endif
+		}
+	}
+	if (early_tfsf_deletion){
+		MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
+	}
+	timerTFSF.Stop();
 
     timerTotal.Stop();
-		
+
+			
 	static double lastPrintTime = -1.0;
 	const double printInterval = 0.1;  
 	double currentTime = GetTime();
@@ -205,5 +212,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
 
 }
+
 
 }

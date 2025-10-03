@@ -106,7 +106,7 @@ TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O1_monostatic)
 	 auto frequencies_manual = linspace(1e6, 1e9, 200);
 
 	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_G1_O1", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"), frequencies_manual, angles);
+	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G1_O1/NearToFarFieldProbes/sphere_Box_1m_G1_O1/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"), frequencies_manual, angles);
 }
 
 TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O2_monostatic)
@@ -117,7 +117,7 @@ TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O2_monostatic)
 	auto frequencies_manual = linspace(1e6, 1e9, 200);
 
 	 auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-	RCSManager rcs("NearToFarFieldExports/sphere_Box_1m_G2_O2", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"), frequencies_manual, angles);
+	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G2_O2/NearToFarFieldProbes/sphere_Box_1m_G2_O2/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"), frequencies_manual, angles);
 }
 
 TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O3_monostatic)

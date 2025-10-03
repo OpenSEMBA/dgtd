@@ -31,6 +31,23 @@ namespace maxwell {
 
 	};
 
+
+void load_in_to_eh_gpu(const mfem::Vector& in, 
+                        std::array<ParGridFunction, 3>& e,
+                        std::array<ParGridFunction, 3>& h,
+                        int ndofs);
+	
+void load_eh_to_innew_gpu(const mfem::Vector& inOld,
+                          mfem::Vector& inNew,
+                          int ndofs,
+                          int nbrSize);
+
+void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
+                   const std::array<mfem::ParGridFunction, 3>& hOldNbr,
+                   mfem::Vector& inNew,
+                   const int ndofs,
+                   const int nbrSize);
+
 mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func);
 
 void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& sub_to_parent_ids_, 
