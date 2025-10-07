@@ -94,16 +94,6 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
 	assembleBdrToMarkerMaps();
 
-	if (partitioning != nullptr){
-		const auto serialmap = buildSerialElem2CenterMap(mesh);
-		const auto partmap = buildPartitionElem2CenterMap(pmesh_);
-
-		g2lElMap_ = buildGlobalToPartitionLocalElementMap(serialmap, partmap);
-		if (g2lElMap_.size() == 0){
-			throw std::runtime_error("Global to Local Element Map for rank " + std::to_string(Mpi::WorldRank()) + " is empty.");
-		}
-	}
-
 }
 
 void Model::assembleBdrToMarkerMaps()

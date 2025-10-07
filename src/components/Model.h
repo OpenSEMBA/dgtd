@@ -91,8 +91,6 @@ public:
 	const ParMesh& getConstMesh() const { return pmesh_; }
 	Mesh& getSerialMesh() { return serialMesh_; }
 	const Mesh& getConstSerialMesh() const { return serialMesh_; }
-
-	const GlobalToLocalElMap& getGlobal2LocalElementMap() const { return g2lElMap_; }
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
@@ -123,8 +121,6 @@ private:
 
 	Mesh serialMesh_;
 	ParMesh pmesh_;
-
-	std::map<GlobalElementId, LocalElementId> g2lElMap_;
 	
 	GeomTagToMaterial attToMatMap_;
 	GeomTagToBoundary attToBdrMap_;

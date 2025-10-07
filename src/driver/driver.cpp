@@ -599,10 +599,11 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 	else {
 		mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
 	}
-
+	
+	
 	auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
 	auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
-
+	
 	if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
 		if (isTest) {
 			mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
@@ -611,13 +612,14 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 			mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
 		}
 	}
-
+	
 	if (case_data["model"].contains("refinement")){
 		auto ref_levels = int(case_data["model"]["refinement"]);
 		for (auto r = 0; r < ref_levels; r++) {
 			mesh.UniformRefinement();
 		}
 	}
+
 
 	auto partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
 	Array<int> tfsf_tags = getTFSFTags(case_data);
@@ -659,13 +661,20 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
 	Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
 	std::string filename = case_data["model"]["filename"];
-	size_t dot_position = filename.rfind(".msh");
 
-	if (dot_position != std::string::npos && dot_position == filename.size() - 4) {
-		res.meshName_ = filename.substr(0, dot_position);
+	auto ends_with = [](const std::string& str, const std::string& suffix) {
+		return str.size() >= suffix.size() &&
+			str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+	};
+
+	if (ends_with(filename, ".msh")) {
+		res.meshName_ = filename.substr(0, filename.size() - 4);
+	}
+	else if (ends_with(filename, ".mesh")) {
+		res.meshName_ = filename.substr(0, filename.size() - 5);
 	}
 	else {
-		throw std::runtime_error("File format for mesh is not name.msh");
+		throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
 	}
 
 	return res;
