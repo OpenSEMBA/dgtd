@@ -576,7 +576,7 @@ namespace maxwell {
 			for (const auto& marker : markers) {
 				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
 					FaceElementTransformations* faceTrans;
-					model_.getConstMesh().FaceIsInterior(model_.getMesh().GetFaceElementTransformations(model_.getConstMesh().GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = model_.getMesh().GetInternalBdrFaceTransformations(b) : faceTrans = model_.getMesh().GetBdrFaceTransformations(b);
+					model_.getConstMesh().FaceIsInterior(model_.getMesh().GetFaceElementTransformations(model_.getConstMesh().GetBdrFace(b))->ElementNo) ? faceTrans = model_.getMesh().GetInternalBdrFaceTransformations(b) : faceTrans = model_.getMesh().GetBdrFaceTransformations(b);
 					fes_.GetMesh()->Dimension() == 2 ? ori = calculateCrossBaryVertexSign(*fes_.GetMesh(), *faceTrans, b) : ori = buildFaceOrientation(*fes_.GetMesh(), b);
 					auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
 					FiniteElementSpace subFES(&twoElemSubMesh, fec);
@@ -607,7 +607,6 @@ namespace maxwell {
 				}
 			}
 		}
-		throw std::runtime_error("No matching nodes found in connectivity in findMapBIDForFaceNodes.");
 	}
 
 	Nodes initMapB(const GlobalConnectivity& connectivity)

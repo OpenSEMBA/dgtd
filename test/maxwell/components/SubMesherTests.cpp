@@ -14,8 +14,7 @@ public:
 
 TEST_F(SubMesherTest, barycenterOfElements_2D)
 {
-	auto smesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
-	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
+	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
 	{
 		auto bary{ getBarycenterOfElement(mesh, 0) };
@@ -52,8 +51,7 @@ TEST_F(SubMesherTest, barycenterOfElements_2D)
 
 TEST_F(SubMesherTest, barycenterOfFaceElements_2D)
 {
-	auto smesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
-	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
+	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
 	auto bary{ getBarycenterOfFaceElement(mesh, mesh.GetBdrElementFaceIndex(0)) };
 	Vector expectedBarycenter({ 1.0, 0.5 });
@@ -65,8 +63,7 @@ TEST_F(SubMesherTest, barycenterOfFaceElements_2D)
 
 TEST_F(SubMesherTest, barycentersOfTwoElements_2D)
 {
-	auto smesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
-	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
+	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
 	auto barycenters{ calculateBarycenters(mesh, 0) };
 	Vector expectedFirstBarycenter({ 2.0 / 3.0, 2.0 / 3.0 });
@@ -80,8 +77,7 @@ TEST_F(SubMesherTest, barycentersOfTwoElements_2D)
 
 TEST_F(SubMesherTest, barycenterVectorOfTwoElements_2D)
 {
-	auto smesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
-	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
+	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
 	auto baryVector{ buildElem1ToElem2BarycenterVector(mesh, 0) };
 	Vector expectedBaryVector({ (1.0 + 1.0 / 3.0) - (2.0 / 3.0), (1.0 / 3.0) - (2.0 / 3.0) });
@@ -93,8 +89,7 @@ TEST_F(SubMesherTest, barycenterVectorOfTwoElements_2D)
 
 TEST_F(SubMesherTest, tangentVector_2D)
 {
-	auto smesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
-	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
+	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
 	auto tangentVector{ buildTangent2D(mesh, 0) };
 	Vector expectedTangent({ 0.0, 1.0 });
@@ -106,8 +101,7 @@ TEST_F(SubMesherTest, tangentVector_2D)
 
 TEST_F(SubMesherTest, crossProductBaryTangent_2D)
 {
-	auto smesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
-	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
+	auto mesh{ Mesh::LoadFromFileNoBdrFix(gmshMeshesFolder() + "2D_TwoTriangles_InteriorBdr.msh",1,0) };
 
 	auto faceTrans{ mesh.GetInternalBdrFaceTransformations(0) };
 	auto crossValue{ calculateCrossBaryVertexSign(mesh, *faceTrans , 0) };
@@ -118,8 +112,7 @@ TEST_F(SubMesherTest, crossProductBaryTangent_2D)
 
 TEST_F(SubMesherTest, calculateNormal_3D)
 {
-	auto smesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::HEXAHEDRON) };
-	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
+	auto mesh{ Mesh::MakeCartesian3D(1,1,1,Element::Type::HEXAHEDRON) };
 
 	{
 		auto normal = buildNormal3D(mesh, 0);

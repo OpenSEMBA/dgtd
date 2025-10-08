@@ -8,10 +8,7 @@ target_link_libraries(maxwell-driver
 	maxwell-solver
 	mfem
 	nlohmann_json
-	${GSL_LIBRARIES}
 )
-
-target_include_directories(maxwell-driver PRIVATE ${GSL_INCLUDE_DIRS})
 
 if (SEMBA_DGTD_ENABLE_OPENMP)
 	message(STATUS "Linking maxwell-driver with OpenMP libraries")

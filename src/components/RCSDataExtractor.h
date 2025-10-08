@@ -1,10 +1,10 @@
-// #include <string>
+#include <string>
 
-//  namespace maxwell {
+ namespace maxwell {
 
-// class RCSDataExtractor {
-// public:
-// 	RCSDataExtractor(const std::string data_folder, const std::string case_name);
-// };
+class RCSDataExtractor {
+public:
+	RCSDataExtractor(const std::string data_folder, const std::string case_name);
+};
 
-// }
+}

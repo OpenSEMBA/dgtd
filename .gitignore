@@ -3,12 +3,9 @@
 
 build/
 out/
-Exports/
-CollectedResults/
+ParaView/
+NearToFarFieldExports/
 resources/*.msh
-
-gather*
-run_all_*
 
 *.csv
 *.gf

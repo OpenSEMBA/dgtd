@@ -44,13 +44,8 @@ double InitialField::eval(
 	}
 
 	Position pos(p.Size());
-	Position center(p.Size());
-	center = 0.0;
-	for (int v{0}; v < center_.Size(); v++){
-		center[v] = center_[v];
-	}
 	for (int i{ 0 }; i < p.Size(); ++i) {
-		pos[i] = p[i] - center[i];
+		pos[i] = p[i] - center_[i];
 	}
 	
 	return function_->eval(pos) * polarization_[d];

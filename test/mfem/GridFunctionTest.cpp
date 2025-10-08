@@ -364,18 +364,3 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 
 
 }
-
-TEST_F(GridFunctionTest, HostDeviceTests)
-{
-	const Vector vector = Vector({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-
-	Vector receiver_vector(5);
-	GridFunction receiver_gf;
-	receiver_gf.SetSize(5);
-
-	for (auto t = 0; t < 10; t++){
-		receiver_vector.SetData(vector.GetData());
-		receiver_gf.SetData(vector.GetData());
-	}
-	
-}

@@ -15,8 +15,6 @@ struct EvolutionOptions {
 	int order{ 2 };
 	double alpha = 1.0;
 	bool spectral{ false };
-	bool exportEvolutionOperator{ false };
-	double tfsfFinalTime = 0.0;
 };
 
 }

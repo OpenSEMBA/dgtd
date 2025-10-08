@@ -92,7 +92,7 @@ TEST_F(RCSToolsTest, LinearFormEval)
 	angles.phi = 0.0;
 	Frequency freq(3e8 / physicalConstants::speedOfLight_SI);
 
-	Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, Element::Type::TETRAHEDRON);
+	Mesh mesh(1, 1, 1, Element::Type::TETRAHEDRON);
 	L2_FECollection fec(1, 3, BasisType::GaussLobatto);
 	FiniteElementSpace fes(&mesh, &fec);
 	FiniteElementSpace fes_v3(&mesh, &fec, 3);

@@ -17,7 +17,7 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	EigenvalueEstimator(mfem::ParFiniteElementSpace&, Model&, EvolutionOptions&);
+	EigenvalueEstimator(mfem::FiniteElementSpace&, Model&, EvolutionOptions&);
 
 	const Eigen::MatrixXd& getElementMatrix() { return mat_; };
 
@@ -25,16 +25,16 @@ private:
 
 	int getOffset(const FieldType&, const Direction&);
 
-	mfem::ParFiniteElementSpace& fes_;
+	mfem::FiniteElementSpace& fes_;
 	Model& model_;
 	EvolutionOptions& opts_;
 
 	Eigen::MatrixXd mat_;
 
-	std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2> MS_;
-	std::array<std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 3>, 2>, 2> MFNN_;
-	std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2>, 2> MFN_;
-	std::array<std::unique_ptr<ParBilinearForm>, 2> MP_;
+	std::array<std::array<FiniteElementOperator, 3>, 2> MS_;
+	std::array<std::array<std::array<std::array<FiniteElementOperator, 3>, 3>, 2>, 2> MFNN_;
+	std::array<std::array<std::array<FiniteElementOperator, 3>, 2>, 2> MFN_;
+	std::array<FiniteElementOperator, 2> MP_;
 
 };
 }

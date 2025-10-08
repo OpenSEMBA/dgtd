@@ -13,7 +13,6 @@ include_directories(
 )
 
 add_executable(mfem_tests 
-	$<TARGET_OBJECTS:TestLauncher>
 	"FiniteElementSpaceTest.cpp"
 	"MeshTest.cpp" 
 	"GridFunctionTest.cpp"
@@ -31,6 +30,7 @@ target_link_libraries(mfem_tests PRIVATE
 	FFTW3::fftw3f
 	FFTW3::fftw3l
 	GTest::gtest 
+	GTest::gtest_main
 )
 
 

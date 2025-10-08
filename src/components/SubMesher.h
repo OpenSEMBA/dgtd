@@ -30,14 +30,14 @@ public:
 
 private:
 
-	void prepareSubMeshInfo(    Mesh&, const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
+	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
-	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setGlobalTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
+	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	
-	SetPairs twoPointAssignator(                    Mesh&, int be, bool flag);
-	void assignIndividualTFSFAttsOnePoint1D(        Mesh&, const Array<int>& marker);
-	void assignIndividualTFSFAttsTwoPoints1D(       Mesh&, const Array<int>& marker);
+	SetPairs twoPointAssignator(Mesh&, int be, bool flag);
+	void assignIndividualTFSFAttsOnePoint1D(Mesh&, const Array<int>& marker);
+	void assignIndividualTFSFAttsTwoPoints1D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&, const Array<int>& marker);
@@ -57,7 +57,7 @@ class NearToFarFieldSubMesher
 {
 public:
 	NearToFarFieldSubMesher(){};
-	NearToFarFieldSubMesher(const Mesh&, const ParFiniteElementSpace&, const Array<int>& marker);
+	NearToFarFieldSubMesher(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
 
 	const SubMesh* getConstSubMesh() { return ntff_mesh_.get(); }
 	SubMesh* getSubMesh() { return ntff_mesh_.get(); }

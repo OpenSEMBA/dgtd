@@ -4,13 +4,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 include_directories(./)
 
-add_executable(analytic_cases_tests
-	$<TARGET_OBJECTS:TestLauncher>
-	"AnalyticalStudyTests.cpp"
-	"CasesFunctions.cpp")
-
 add_executable (cases_tests
-    $<TARGET_OBJECTS:TestLauncher>
 	"CasesTest.cpp")
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS)
@@ -19,7 +13,4 @@ if(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS)
 		"ExtensiveCasesTest.cpp")
 endif()
 
-target_link_libraries(analytic_cases_tests maxwell-driver GTest::gtest mfem ${GSL_LIBRARIES})
-
-target_include_directories(cases_tests PRIVATE ${GSL_INCLUDE_DIRS})
-target_link_libraries(cases_tests maxwell-driver GTest::gtest mfem ${GSL_LIBRARIES})
+target_link_libraries(cases_tests maxwell-driver GTest::gtest GTest::gtest_main)

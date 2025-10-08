@@ -719,10 +719,9 @@ TEST_F(MeshTest, IdentifyCurvedElements_2D)
 		expectedCurvedElements[e] -= gmsh_starting_element;
 	}
 
-	auto smesh_p2{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_CurvedElementsCircle.msh", 1, 0) };
-	ParMesh mesh_p2 = ParMesh(MPI_COMM_WORLD, smesh_p2);
+	auto mesh_p2{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_CurvedElementsCircle.msh", 1, 0) };
 	DG_FECollection fec_p2(2, mesh_p2.Dimension(), BasisType::GaussLobatto);
-	ParFiniteElementSpace fes_p2(&mesh_p2, &fec_p2);
+	FiniteElementSpace fes_p2(&mesh_p2, &fec_p2);
 	
 	auto lists{ ::initCurvedAndLinearElementsLists(fes_p2, buildDoFPositions(fes_p2)) };
 	Array<ElementId> curvedElements;

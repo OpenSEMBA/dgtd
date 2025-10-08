@@ -5,7 +5,7 @@ namespace maxwell {
 using namespace mfem;
 static const int NotFound{ -1 };
 
-FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be)
+FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be) 
 {
 	switch (m.FaceIsInterior(m.GetBdrElementFaceIndex(be))) {
 	case true:
@@ -116,7 +116,7 @@ Vector getNormal(FaceElementTransformations& fet)
 	return res;
 }
 
-std::pair<double, double> calculateBaryNormalProduct(ParMesh& m, FaceElementTransformations& fet, int be)
+std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be)
 {
 	auto bdr_vertices{ m.GetBdrElement(be)->GetVertices() };
 	auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
@@ -641,9 +641,9 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 }
 
-NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const ParFiniteElementSpace& fes, const Array<int>& marker)
+NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElementSpace& fes, const Array<int>& marker)
 {
-	Mesh tmesh(m);
+
 	original_ = std::make_unique<Mesh>(m);
 
 	switch (original_->SpaceDimension()) {

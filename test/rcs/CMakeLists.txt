@@ -9,12 +9,11 @@ include_directories(
 )
 
 add_executable(rcs_tests
-	$<TARGET_OBJECTS:TestLauncher>
 	"RCSTest.cpp"
  )
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)
-	message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
+		message(STATUS "Appending ExtensiveRCSTests to rcs_tests")
 	target_sources(rcs_tests PRIVATE
 		"ExtensiveRCSTest.cpp")
 endif()
@@ -26,6 +25,7 @@ target_link_libraries(rcs_tests
 	maxwell-driver
 	Eigen3::Eigen
 	GTest::gtest 
+	GTest::gtest_main
 	FFTW3::fftw3
 )
 

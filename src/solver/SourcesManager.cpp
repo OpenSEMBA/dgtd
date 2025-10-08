@@ -4,7 +4,7 @@ namespace maxwell {
 
 using namespace mfem;
 
-SourcesManager::SourcesManager(const Sources& srcs, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& fields) :
+SourcesManager::SourcesManager(const Sources& srcs, mfem::FiniteElementSpace& fes, Fields& fields) :
     sources{ srcs }, 
     fes_{ fes }
 {
@@ -12,7 +12,7 @@ SourcesManager::SourcesManager(const Sources& srcs, mfem::ParFiniteElementSpace&
     setInitialFields(fields);
 }
 
-void SourcesManager::setInitialFields(Fields<ParFiniteElementSpace, ParGridFunction>& fields)
+void SourcesManager::setInitialFields(Fields& fields)
 {
     for (const auto& source : sources) {
         auto src{ dynamic_cast<InitialField*>(source.get()) };
@@ -28,7 +28,6 @@ void SourcesManager::setInitialFields(Fields<ParFiniteElementSpace, ParGridFunct
                 );
                 FunctionCoefficient fc(f);
                 GridFunction gf(fields.get(ft, x).FESpace());
-                gf.UseDevice(true);
                 gf.ProjectCoefficient(fc);
                 fields.get(ft, x) += gf;
             }
@@ -51,7 +50,6 @@ FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, FiniteElementSp
                     std::placeholders::_1, std::placeholders::_2, ft, d);
                 FunctionCoefficient func(f);
                 func.SetTime(time);
-                res[ft][d].UseDevice(true);
                 res[ft][d].SetSpace(fes);
                 res[ft][d].ProjectCoefficient(func);
             }
@@ -83,7 +81,6 @@ void SourcesManager::markDoFSforTForSF(FieldGridFuncs& gfs, bool isTF)
         for (int i = 0; i < dofs.Size(); i++) {
             for (auto f : { E, H }) {
                 for (auto d{ X }; d <= Z; d++) {
-                    gfs[f][d].UseDevice(true);
                     gfs[f][d][dofs[i]] = 0.0;
                 }
             }
@@ -91,13 +88,13 @@ void SourcesManager::markDoFSforTForSF(FieldGridFuncs& gfs, bool isTF)
     }
 }
 
-void SourcesManager::initTFSFPreReqs(const ParMesh& m, const Array<int>& marker)
+void SourcesManager::initTFSFPreReqs(const Mesh& m, const Array<int>& marker)
 {
     initTFSFSubMesher(m, marker);
     initTFSFSpaces();
 }
 
-void SourcesManager::initTFSFSubMesher(const ParMesh& m, const Array<int>& marker)
+void SourcesManager::initTFSFSubMesher(const Mesh& m, const Array<int>& marker)
 {
     auto sm = TotalFieldScatteredFieldSubMesher(m, marker);
     tfsf_submesher_ = std::move(sm);

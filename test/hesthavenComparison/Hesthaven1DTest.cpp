@@ -13,24 +13,21 @@ protected:
 
 	void SetUp() override 
 	{
-		smesh_ = Mesh::MakeCartesian1D(1);
-		mesh_ = ParMesh(MPI_COMM_WORLD, smesh_);
+		mesh_ = Mesh::MakeCartesian1D(1);
 		fec_ = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
-		fes_ = std::make_unique<ParFiniteElementSpace>(&mesh_, fec_.get());
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 	}
 
 	void setFES(const int order, const int elements = 1)
 	{
-		smesh_ = Mesh::MakeCartesian1D(1);
-		mesh_ = ParMesh(MPI_COMM_WORLD, smesh_);
+		mesh_ = Mesh::MakeCartesian1D(elements);
 		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
-		fes_ = std::make_unique<ParFiniteElementSpace>(&mesh_, fec_.get());
+		fes_ = std::make_unique<FiniteElementSpace>(&mesh_, fec_.get());
 	}
 
-	Mesh smesh_;
-	ParMesh mesh_;
+	Mesh mesh_;
 	std::unique_ptr<FiniteElementCollection> fec_;
-	std::unique_ptr<ParFiniteElementSpace> fes_;
+	std::unique_ptr<FiniteElementSpace> fes_;
 
 	double tol_ = 1e-6;
 
@@ -116,14 +113,14 @@ TEST_F(MFEMHesthaven1D, MSOperator)
 	ProblemDescription pd(model, probes, sources, opts);
 	DGOperatorFactory dgops4E(pd, *fes_);
 	
-	auto MS_MFEM4E = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops4E.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops4E.buildDerivativeSubOperator<ParBilinearForm>(X)->SpMat(), *fes_)->SpMat().ToDenseMatrix());
+	auto MS_MFEM4E = toEigen(*buildByMult(dgops4E.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops4E.buildDerivativeSubOperator(X)->SpMat(), *fes_)->SpMat().ToDenseMatrix());
 	auto MS_Hesthaven4E = buildMatrixForMSTest4E();
 
 	setFES(2, 3);
 	model = Model(mesh_, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(GeomTagToBoundary{ {1, BdrCond::SMA}, {2, BdrCond::SMA} }, GeomTagToInteriorBoundary{}));
 	pd = ProblemDescription(model, probes, sources, opts);
 	DGOperatorFactory dgops3E(pd, *fes_);
-	auto MS_MFEM3E = toEigen(*buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops3E.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops3E.buildDerivativeSubOperator<ParBilinearForm>(X)->SpMat(), *fes_)->SpMat().ToDenseMatrix());
+	auto MS_MFEM3E = toEigen(*buildByMult(dgops3E.buildInverseMassMatrixSubOperator(E)->SpMat(), dgops3E.buildDerivativeSubOperator(X)->SpMat(), *fes_)->SpMat().ToDenseMatrix());
 	Eigen::MatrixXd MS_Hesthaven3E{
 		{  9.0, -12.0,  3.0,  0.0,   0.0,  0.0,  0.0,   0.0,  0.0},
 		{  3.0,   0.0, -3.0,  0.0,   0.0,  0.0,  0.0,   0.0,  0.0},

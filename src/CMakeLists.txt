@@ -24,6 +24,10 @@ if(SEMBA_DGTD_ENABLE_TIMER_INFORMATION)
 	add_definitions(-DSHOW_TIMER_INFORMATION)
 endif()
 
+if (SEMBA_DGTD_ENABLE_STATISTICS_RECORD)
+	add_definitions(-DENABLE_STATISTICS_RECORD)
+endif()
+
 add_subdirectory(launcher)
 add_subdirectory(driver)
 add_subdirectory(components)

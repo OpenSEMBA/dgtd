@@ -22,31 +22,30 @@
 
 namespace maxwell {
 
-std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec);
-double estimateTimeStep(const Model&, const SolverOptions&, const ParFiniteElementSpace&, const TimeDependentOperator*);
+std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec);
+double estimateTimeStep(const Model&, const SolverOptions&, FiniteElementSpace&, const TimeDependentOperator*);
 
 class Solver {
 public:
     using Vector = mfem::Vector;
     using Position = Vector;
-    using ParGridFunction = mfem::ParGridFunction;
+    using GridFunction = mfem::GridFunction;
     using ODESolver = mfem::ODESolver;
-    using ParFields = Fields<ParFiniteElementSpace, ParGridFunction>;
     
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
 
-    const ParFields& getFields() const { return fields_; };
-    const ParGridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
-    const FieldProbe& getFieldProbe(std::size_t probe) const;
-    const PointProbe& getPointProbe(std::size_t probe) const;
+    const Fields& getFields() const { return fields_; };
+    const GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    const FieldProbe& getPointProbe(std::size_t probe) const;
+    const PointProbe& getFieldProbe(std::size_t probe) const;
 
     double getTime() const { return time_; }
     double getTimeStep() const { return dt_; }
 
     Model& getModel() { return model_; }
-    ParFiniteElementSpace& getFES() { return *fes_.get(); }
+    FiniteElementSpace& getFES() { return *fes_.get(); }
 
     const mfem::TimeDependentOperator* getFEEvol() const { return evolTDO_.get(); }
 
@@ -61,8 +60,8 @@ private:
     SolverOptions opts_;
     Model model_;
     mfem::DG_FECollection fec_;
-    std::unique_ptr<mfem::ParFiniteElementSpace> fes_;
-    ParFields fields_;
+    std::unique_ptr<mfem::FiniteElementSpace> fes_;
+    Fields fields_;
     std::unique_ptr<Device> device_;
     
     SourcesManager sourcesManager_;
@@ -77,12 +76,10 @@ private:
     void checkOptionsAreValid(const SolverOptions&) const; 
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
 
-    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
-    GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);
+    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
+    GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
-    void performSpectralAnalysis(const ParFiniteElementSpace&, Model&, const EvolutionOptions&);
+    void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
     void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution&);
-    void writeSimulationStatistics(const Time);
-    double calcAverageElementSizeInMesh();
 };
 }

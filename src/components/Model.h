@@ -9,15 +9,6 @@
 
 namespace maxwell {
 
-using namespace mfem;
-
-using LocalElementId = int;
-using NeighbourElementId = int;
-using GlobalElementId = int;
-using Position = Vector;
-
-using GlobalToLocalElMap = std::map<GlobalElementId, LocalElementId>;
-
 using FaceId = int;
 using GeomTag = int;
 using GeomTagToMaterial = std::map<GeomTag, Material>;
@@ -70,27 +61,18 @@ struct GeomTagToMaterialInfo {
 	};
 };
 
-std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh&);
-std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParMesh&);
-GlobalToLocalElMap buildGlobalToPartitionLocalElementMap(
-	const std::map<GlobalElementId, Position>& serial, const std::map<LocalElementId, Position>& local);
-void ensureElementTypeIsSame(const Mesh& mesh);
-
 class Model {
 public:
-
+	using Mesh = mfem::Mesh;
 	Model() = default;
 	Model(
 		Mesh&, 
 		const GeomTagToMaterialInfo& = GeomTagToMaterialInfo{},
-		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{},
-		int* partitioning = nullptr
+		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{}
 	);
 
-	ParMesh& getMesh() { return pmesh_; };
-	const ParMesh& getConstMesh() const { return pmesh_; }
-	Mesh& getSerialMesh() { return serialMesh_; }
-	const Mesh& getConstSerialMesh() const { return serialMesh_; }
+	Mesh& getMesh() { return mesh_; };
+	const Mesh& getConstMesh() const { return mesh_; }
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
@@ -119,8 +101,7 @@ public:
 
 private:
 
-	Mesh serialMesh_;
-	ParMesh pmesh_;
+	Mesh mesh_;
 	
 	GeomTagToMaterial attToMatMap_;
 	GeomTagToBoundary attToBdrMap_;
