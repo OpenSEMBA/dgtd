@@ -160,7 +160,7 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
 
     // Construct or retrieve an integration rule for the appropriate reference element with the desired order of accuracy, 
     // taking into account the element's geometry type and an appropiate integration rule order.
-    const IntegrationRule* ir = &IntRules.Get(Tr.GetGeometryType(), el.GetOrder() + Tr.Order());
+    const IntegrationRule* ir = &IntRules.Get(Tr.GetGeometryType(), 2 * (el.GetOrder() + Tr.Order()));
 
     // Initialise vectors that will hold normal components.
     Vector inner_normal(3), normal(el.GetDim());

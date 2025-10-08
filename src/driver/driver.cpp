@@ -23,7 +23,7 @@ const FieldType assignFieldType(const std::string& field_type)
 	}
 }
 
-const Direction assignFieldSpatial(const std::string& direction)
+const Direction assignFieldPol(const std::string& direction)
 {
 	if (direction == "X") {
 		return X;
@@ -113,6 +113,15 @@ std::unique_ptr<InitialField> buildBesselJ6InitialField(
 	return std::make_unique<InitialField>(BesselJ6(), ft, p, center);
 }
 
+std::unique_ptr<InitialField> buildSphericalBesselJ6InitialField(
+	const FieldType& ft = E,
+	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }))
+{
+	Sources res;
+	Source::Position center = Source::Position({ 0.0, 0.0, 0.0 });
+	return std::make_unique<InitialField>(SphericalBesselJ6(), ft, p, center);
+}
+
 std::unique_ptr<TotalField> buildGaussianPlanewave(
 	double spread,
 	const Source::Position mean,
@@ -162,8 +171,14 @@ Sources buildSources(const json& case_data)
 					case_data["sources"][s]["magnitude"]["modes"])
 				);
 			}
-			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6") {
+			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6_2D") {
 				res.add(buildBesselJ6InitialField(
+					assignFieldType(case_data["sources"][s]["field_type"]),
+					assemble3DVector(case_data["sources"][s]["polarization"]))
+				);
+			}
+			else if (case_data["sources"][s]["magnitude"]["type"] == "besselj6_3D") {
+				res.add(buildSphericalBesselJ6InitialField(
 					assignFieldType(case_data["sources"][s]["field_type"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]))
 				);
@@ -222,6 +237,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 		if (case_data["solver_options"].contains("spectral")) {
 			res.setSpectralEO(case_data["solver_options"]["spectral"]);
 		}
+		
+		if (case_data["solver_options"].contains("exportOperator")) {
+			res.setExportEO(case_data["solver_options"]["exportOperator"]);
+		}
 
 		if (case_data["solver_options"].contains("evolution_operator")) {
 			if (case_data["solver_options"]["evolution_operator"] == "maxwell") {
@@ -234,12 +253,16 @@ SolverOptions buildSolverOptions(const json& case_data)
 				res.setEvolutionOperator(EvolutionOperatorType::Hesthaven);
 			}
 			else {
-				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none chosen, it will default to 'global'.");
+				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none chosen, it will default to 'maxwell'.");
 			}
 		}
 
 		if (case_data["solver_options"].contains("basis_type")) {
 			res.setBasisType(case_data["solver_options"]["basis_type"]);
+		}
+
+		if (case_data["solver_options"].contains("tfsf_final_time")){
+			res.setTFSFFinalTime(case_data["solver_options"]["tfsf_final_time"]);
 		}
 
 	}
@@ -251,6 +274,8 @@ Probes buildProbes(const json& case_data)
 {
 
 	Probes probes;
+	size_t pp_count = 0;
+	size_t fp_count = 0;
 
 	if (case_data["probes"].contains("exporter")) {
 		ExporterProbe exporter_probe;
@@ -268,10 +293,35 @@ Probes buildProbes(const json& case_data)
 
 	if (case_data["probes"].contains("point")) {
 		for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
-			PointProbe field_probe(
-				assembleVector(case_data["probes"]["point"][p]["position"])
+			bool write = false;
+			if (case_data["probes"]["point"][p].contains("write")){
+				write = case_data["probes"]["point"][p]["write"];
+			}
+			PointProbe point_probe(
+				assembleVector(case_data["probes"]["point"][p]["position"]),
+				write
 			);
-			probes.pointProbes.push_back(field_probe);
+			point_probe.setProbeID(pp_count);
+			pp_count++;
+			probes.pointProbes.push_back(point_probe);
+		}
+	}
+
+		if (case_data["probes"].contains("field")) {
+		for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
+			bool write = false;
+			if (case_data["probes"]["field"][p].contains("write")){
+				write = true;
+			}
+			FieldProbe field_probe(
+				assignFieldType(case_data["probes"]["field"][p]["field_type"]),
+				assignFieldPol(case_data["probes"]["field"][p]["polarization"]),
+				assembleVector(case_data["probes"]["field"][p]["position"]),
+				write
+			);
+			field_probe.setProbeID(fp_count);
+			fp_count++;
+			probes.fieldProbes.push_back(field_probe);
 		}
 	}
 
@@ -299,6 +349,20 @@ Probes buildProbes(const json& case_data)
 			}
 			probes.nearFieldProbes.push_back(probe);
 		}
+	}
+
+	if (case_data["probes"].contains("domain_snapshot")){
+		DomainSnapshotProbe probe;
+		if (case_data["probes"]["domain_snapshot"].contains("name")) {
+			probe.name = case_data["probes"]["domain_snapshot"]["name"];
+		}
+		else{
+			probe.name = case_data["model"]["filename"];
+		}
+		if (case_data["probes"]["domain_snapshot"].contains("steps")) {
+			probe.expSteps = case_data["probes"]["domain_snapshot"]["steps"];
+		}
+		probes.domainSnapshotProbes.push_back(probe);
 	}
 
 	return probes;
@@ -499,6 +563,33 @@ mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 	return mfem::Mesh::LoadFromFileNoBdrFix(mesh_string, 1, 0, false);
 }
 
+Array<int> getTFSFTags(const json& case_data)
+{
+	Array<int> res;
+	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
+		if (case_data["sources"][s]["type"] == "planewave") {
+			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
+				res.Append(case_data["sources"][s]["tags"][t]);
+			}
+		}
+	}
+	return res;
+}
+
+std::vector<std::pair<int,int>> buildTFSFPairsToSort(mfem::Mesh& mesh, mfem::Array<int> tfsf_tags)
+{
+	std::vector<std::pair<int,int>> res;
+	for (auto t = 0; t < tfsf_tags.Size(); t++){
+		for(auto b = 0; b < mesh.GetNBE(); b++){
+			if (mesh.GetBdrAttribute(b) == tfsf_tags[t]){
+				auto f_trans = mesh.GetInternalBdrFaceTransformations(b);
+				res.push_back({f_trans->Elem1No, f_trans->Elem2No});
+			}
+		}
+	}
+	return res;
+}
+
 Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
 {
 	mfem::Mesh mesh;
@@ -508,10 +599,11 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 	else {
 		mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
 	}
-
+	
+	
 	auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
 	auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
-
+	
 	if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
 		if (isTest) {
 			mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
@@ -520,22 +612,69 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 			mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
 		}
 	}
-
-	if (mesh.GetNodalFESpace()){
-		if (mesh.GetNodalFESpace()->GetMaxElementOrder() > 1) {
-			mesh.SetCurvature(mesh.GetNodalFESpace()->GetMaxElementOrder(), true, mesh.SpaceDimension());
+	
+	if (case_data["model"].contains("refinement")){
+		auto ref_levels = int(case_data["model"]["refinement"]);
+		for (auto r = 0; r < ref_levels; r++) {
+			mesh.UniformRefinement();
 		}
 	}
 
-	Model res(mesh, att_to_material, att_to_bdr_info);
-	std::string filename = case_data["model"]["filename"];
-	size_t dot_position = filename.rfind(".msh");
 
-	if (dot_position != std::string::npos && dot_position == filename.size() - 4) {
-		res.meshName_ = filename.substr(0, dot_position);
+	auto partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+	Array<int> tfsf_tags = getTFSFTags(case_data);
+
+	if (tfsf_tags.Size() > 0){
+		std::vector<std::pair<int,int>> elements_to_send_to_rank = buildTFSFPairsToSort(mesh, tfsf_tags);
+
+		std::map<int, int> assigned_rank; // maps individual elements to their assigned rank
+    	int rr_counter = 0; // round-robin counter
+
+		for (const auto& pair : elements_to_send_to_rank) {
+			int a = pair.first;
+			int b = pair.second;
+
+			bool a_seen = assigned_rank.count(a);
+			bool b_seen = assigned_rank.count(b);
+
+			int rank;
+			if (!a_seen && !b_seen) {
+				rank = rr_counter % Mpi::WorldSize();
+				rr_counter++;
+			} else if (a_seen && b_seen) {
+				if (assigned_rank[a] != assigned_rank[b]) {
+					rank = std::min(assigned_rank[a], assigned_rank[b]);
+				} else {
+					rank = assigned_rank[a];
+				}
+			} else {
+				rank = a_seen ? assigned_rank[a] : assigned_rank[b];
+			}
+
+			partitioning[a] = rank;
+			partitioning[b] = rank;
+
+			assigned_rank[a] = rank;
+			assigned_rank[b] = rank;
+		}
+	}
+
+	Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
+	std::string filename = case_data["model"]["filename"];
+
+	auto ends_with = [](const std::string& str, const std::string& suffix) {
+		return str.size() >= suffix.size() &&
+			str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+	};
+
+	if (ends_with(filename, ".msh")) {
+		res.meshName_ = filename.substr(0, filename.size() - 4);
+	}
+	else if (ends_with(filename, ".mesh")) {
+		res.meshName_ = filename.substr(0, filename.size() - 5);
 	}
 	else {
-		throw std::runtime_error("File format for mesh is not name.msh");
+		throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
 	}
 
 	return res;
@@ -562,19 +701,27 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
 			}
-		auto marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
-		marker.SetSize(model.getConstMesh().bdr_attributes.Max());
-		marker = 0;
-		for (auto t : tfsf_tags) {
-			marker[t - 1] = 1;
-		}
-		model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, marker));
+			auto tfsf_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
+			tfsf_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+			tfsf_atts_present_in_partition_marker = 0;
+			for (auto t = 0; t < tfsf_tags.Size(); t++){
+				for (auto b = 0; b < model.getConstMesh().GetNBE(); b++){	
+					if (model.getMesh().GetBdrAttribute(b) == tfsf_tags[t]){
+						tfsf_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(b) - 1] = 1;
+					}
+				}
+			}
+			if (tfsf_atts_present_in_partition_marker.Sum() != 0){
+				model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
+			}
 		}
 	}
 
 	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getBoundaryToMarker().end() && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
 		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
 	}
+
+	model.getMesh().SetAttributes();
 }
 
 maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)

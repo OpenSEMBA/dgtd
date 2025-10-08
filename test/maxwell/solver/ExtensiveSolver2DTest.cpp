@@ -98,10 +98,10 @@ protected:
 		// At the left boundary the electric field should be closed to zero and
 		// the magnetic field reaches a maximum close to 1.0 or -1.0
 		// (the wave splits in two and doubles at the boundary).
-		EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tol);
-		EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tol);
-		EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tol);
-		EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
+		EXPECT_NEAR(0.0, abs(solver.getFieldProbe(0).findFrameWithMax().second), tol);
+		EXPECT_NEAR(0.0, abs(solver.getFieldProbe(1).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getFieldProbe(2).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getFieldProbe(3).findFrameWithMax().second), tol);
 	}
 
 	void expectedFieldsAreNearAfterEvolution_Periodic(maxwell::Solver &solver, const double tol=1e-2)
@@ -117,10 +117,10 @@ protected:
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
 
-		EXPECT_NEAR(1.0, abs(solver.getPointProbe(0).findFrameWithMax().second), tol);
-		EXPECT_NEAR(1.0, abs(solver.getPointProbe(1).findFrameWithMax().second), tol);
-		EXPECT_NEAR(1.0, abs(solver.getPointProbe(2).findFrameWithMax().second), tol);
-		EXPECT_NEAR(1.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getFieldProbe(0).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getFieldProbe(1).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getFieldProbe(2).findFrameWithMax().second), tol);
+		EXPECT_NEAR(1.0, abs(solver.getFieldProbe(3).findFrameWithMax().second), tol);
 	}
 };
 
@@ -210,10 +210,10 @@ TEST_F(ExtensiveSolver2DTest, sma_upwind_tris_1dot5D)
 
 	double tol{1e-2};
 	EXPECT_NEAR(0.0, solver.getField(E,Z).DistanceTo(zeros), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMin().second), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(2).findFrameWithMin().second), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(0).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(1).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(2).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(3).findFrameWithMax().second), tol);
 }
 
 TEST_F(ExtensiveSolver2DTest, sma_upwind_quads_1dot5D)
@@ -239,10 +239,10 @@ TEST_F(ExtensiveSolver2DTest, sma_upwind_quads_1dot5D)
 
 	double tol{1e-3};
 	EXPECT_NEAR(0.0, solver.getField(E,Z).DistanceTo(zeros), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(0).findFrameWithMin().second), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(1).findFrameWithMin().second), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(2).findFrameWithMin().second), tol);
-	EXPECT_NEAR(0.0, abs(solver.getPointProbe(3).findFrameWithMax().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(0).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(1).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(2).findFrameWithMin().second), tol);
+	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(3).findFrameWithMax().second), tol);
 }
 
 TEST_F(ExtensiveSolver2DTest, periodic_centered_tris)

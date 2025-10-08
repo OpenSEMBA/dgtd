@@ -1,6 +1,8 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <unistd.h>
+#include <omp.h>
 
 #include "driver/driver.h"
 
@@ -21,24 +23,48 @@ void printHelpArgument()
 
 int main(int argc, char** argv)
 {
-	
+		
+	#ifndef NDEBUG
+	std::cout << "PID " << getpid() << " ready to be attached. Press Enter to continue...\n";
+	std::cin.get();
+	#endif
+
 	if (argc == 1) {
 		std::cerr << "Missing arguments. Use argument -h to print help menu.";
 		return 1;
 	}
 	
 	std::string inputFilePath;
-
+    std::string deviceConfig{ "cpu" };
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
-		if (std::string(argv[i]) == "-i" && i + 1 < argc) {
+		if (arg == "-i" && i + 1 < argc) {
 			inputFilePath = argv[++i]; 
 		}
-		else if (std::string(argv[i]) == "-h") {
+		else if (arg == "-h") {
 			printHelpArgument();
 			return 2;
 		}
+		else if ((arg == "--device" || arg == "-d") && i + 1 < argc)
+		{
+			std::string devtype = argv[i+1];
+			if (devtype == "cpu" || devtype == "omp" || devtype == "cuda" ){
+				deviceConfig = devtype;
+				++i;
+			}
+			else{
+				throw std::runtime_error("Available device strings are \"cpu\", \"omp\" or \"cuda\"");
+			}
+		}
 	}
+
+    mfem::Device device(deviceConfig.c_str());
+    device.Print();
+	
+	std::cout << "GPU-aware MPI? " << mfem::Device::GetGPUAwareMPI() << std::endl;
+
+	mfem::Mpi::Init(argc, argv);
+	mfem::Hypre::Init();
 
 	const std::string s_json = ".json";
 	const std::string::size_type input_msh = inputFilePath.find(s_json);
@@ -57,8 +83,12 @@ int main(int argc, char** argv)
 
 	solver.run();
 
-	std::cout << "Solver has finished performing its operations." << std::endl;
-	std::cout << "Program will end now." << std::endl;
+	if (mfem::Mpi::WorldRank() == 0){
+		std::cout << "Solver has finished performing its operations." << std::endl;
+		std::cout << "Program will end now." << std::endl;
+	}
+	
+	mfem::Mpi::Finalize();
 
 	return 0;
 }

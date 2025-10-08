@@ -7,7 +7,7 @@ namespace maxwell {
 struct SolverOptions {
     double timeStep = 0.0;
     double finalTime = 2.0;
-    double cfl = 0.8;
+    double cfl = 1.0;
     int basisType = mfem::BasisType::GaussLobatto;
 
     EvolutionOptions evolution;
@@ -47,6 +47,11 @@ struct SolverOptions {
         return *this;
     }
 
+    SolverOptions& setExportEO(bool exportOP = true) {
+        evolution.exportEvolutionOperator = exportOP;
+        return *this;
+    }
+
     SolverOptions& setEvolutionOperator(EvolutionOperatorType oper) {
         evolution.op = oper;
         return *this;
@@ -54,6 +59,11 @@ struct SolverOptions {
 
     SolverOptions& setBasisType(int bt = mfem::BasisType::GaussLobatto) {
         basisType = bt;
+        return *this;
+    }
+
+    SolverOptions& setTFSFFinalTime(double tfsf_ft) {
+        evolution.tfsfFinalTime = tfsf_ft;
         return *this;
     }
 

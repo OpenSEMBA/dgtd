@@ -19,7 +19,6 @@ option(SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS "Enable extensive solver tests" 
 option(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS "Enable extensive RCS tests" ON )
 
 option(SEMBA_DGTD_ENABLE_TIMER_INFORMATION "Enable timer information" ON)
-option(SEMBA_DGTD_ENABLE_STATISTICS_RECORD "Enable recording of simulation statistics" ON)
 
 include_directories(
 	src/ 

@@ -16,10 +16,11 @@ class ProbesManagerTest : public ::testing::Test {
 
 TEST_F(ProbesManagerTest, exporterProbe)
 {
-	Mesh mesh{ Mesh::MakeCartesian1D(20, 1.0) };
+	Mesh smesh{ Mesh::MakeCartesian1D(20, 1.0) };
+	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
-	FiniteElementSpace fes{ &mesh, &fec };
-	Fields fields{ fes };
+	ParFiniteElementSpace fes{ &mesh, &fec };
+	Fields<ParFiniteElementSpace, ParGridFunction> fields{ fes };
 	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
 	Probes ps;
@@ -32,20 +33,25 @@ TEST_F(ProbesManagerTest, exporterProbe)
 
 TEST_F(ProbesManagerTest, fieldProbe)
 {
-	Mesh m{ Mesh::MakeCartesian1D(5) };
+	Mesh smesh{ Mesh::MakeCartesian1D(5) };
+	ParMesh mesh = ParMesh(MPI_COMM_WORLD, smesh);
 	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
-	FiniteElementSpace fes{ &m, &fec };
-	Fields fields{ fes };
+	ParFiniteElementSpace fes{ &mesh, &fec };
+	Fields<ParFiniteElementSpace, ParGridFunction> fields{ fes };
 	SourcesManager sM{ buildGaussianInitialField(), fes, fields };
 
 	Probes probes;
-	probes.pointProbes = {
-		PointProbe{{0.5}}
+	probes.fieldProbes = {
+		FieldProbe{E, Z, {0.5}}
 	};
 
 	ProbesManager pM{ probes, fes, fields, SolverOptions{} };
 
+	auto tol {1e-2};
 	ASSERT_NO_THROW(pM.updateProbes(0.0));
 	EXPECT_NO_THROW(pM.getFieldProbe(0));
-	EXPECT_TRUE(pM.getFieldProbe(0).getFieldMovies().at(0).Ez == 1.0);
+	for (const auto& [t, f] : pM.getFieldProbe(0).getFieldMovie()){
+		EXPECT_NEAR(1.0, f, tol);
+	}
+
 }
