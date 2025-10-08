@@ -41,7 +41,7 @@ enum SubMeshingMarkers {
 	ScatteredFieldMarker = 2000,
 	GlobalSubMeshMarker = 3000,
 	NearToFarFieldMarker = 4000,
-	SGBCMarker = 5000
+	SBCMarker = 5000
 };
 
 enum class BdrCond {
@@ -51,7 +51,7 @@ enum class BdrCond {
 	SurfaceCond,
 	NearToFarField = 201,
 	TotalFieldIn = 301,
-	SGBC = 401
+	SBC = 401
 };
 
 using InteriorFaceCoefficients = std::vector<double>;

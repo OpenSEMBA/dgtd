@@ -1,7 +1,155 @@
 #include "driver.h"
 #include "string"
 
+#include <numeric>
+#include <unordered_map>
+#include <vector>
+#include <utility>
+#include <algorithm>
+#include <limits>
+
 namespace maxwell::driver {
+
+struct DSU { //Disjoint Set Union
+    std::vector<int> p, r;
+    explicit DSU(int n): p(n), r(n,0) { std::iota(p.begin(), p.end(), 0); }
+    int find(int x){ return p[x]==x ? x : p[x]=find(p[x]); }
+    void unite(int a, int b){
+        a = find(a); b = find(b);
+        if (a == b) return;
+        if (r[a] < r[b]) std::swap(a,b);
+        p[b] = a;
+        if (r[a] == r[b]) r[a]++;
+    }
+};
+
+std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh, mfem::Array<int> tags)
+{
+	std::vector<std::pair<int,int>> res;
+	for (auto t = 0; t < tags.Size(); t++){
+		for(auto b = 0; b < mesh.GetNBE(); b++){
+			if (mesh.GetBdrAttribute(b) == tags[t]){
+				auto f_trans = mesh.GetInternalBdrFaceTransformations(b);
+				res.push_back({f_trans->Elem1No, f_trans->Elem2No});
+			}
+		}
+	}
+	return res;
+}
+
+static std::vector<std::pair<int,int>>
+gatherConstraintPairs(mfem::Mesh& mesh,
+                      const mfem::Array<int>& tfsf_tags,
+                      const mfem::Array<int>& sbc_tags)
+{
+    std::vector<std::pair<int,int>> pairs;
+    pairs.reserve(64);
+
+    if (tfsf_tags.Size() > 0) {
+        auto tfsf_pairs = buildTwoElementPairsByTagToSort(mesh, tfsf_tags);
+        pairs.insert(pairs.end(), tfsf_pairs.begin(), tfsf_pairs.end());
+    }
+    if (sbc_tags.Size() > 0) {
+        auto sbc_pairs = buildTwoElementPairsByTagToSort(mesh, sbc_tags);
+        pairs.insert(pairs.end(), sbc_pairs.begin(), sbc_pairs.end());
+    }
+    return pairs;
+}
+
+DSU buildDSU(int NE, const std::vector<std::pair<int,int>>& pairs)
+{
+    DSU dsu(NE);
+    for (const auto& pr : pairs) {
+        const int a = pr.first, b = pr.second;
+        if (0 <= a && a < NE && 0 <= b && b < NE) dsu.unite(a, b);
+    }
+    return dsu;
+}
+
+std::unordered_map<int, std::vector<int>> componentsFromDSU(int NE, DSU& dsu)
+{
+    std::unordered_map<int, std::vector<int>> comp;
+    comp.reserve(NE);
+    for (int e = 0; e < NE; ++e) comp[dsu.find(e)].push_back(e);
+    return comp;
+}
+
+std::vector<long long> computeLoad(int P, int NE, const int* partitioning)
+{
+    std::vector<long long> load(P, 0);
+    for (int e = 0; e < NE; ++e) {
+        const int r = partitioning[e];
+        if (0 <= r && r < P) load[r]++;
+    }
+    return load;
+}
+
+int chooseRankForComponent(const std::vector<int>& elems,
+                       int P,
+                       const int* partitioning,
+                       const std::vector<long long>& load)
+{
+    std::vector<int> hist(P, 0);
+    for (int e : elems) {
+        const int r = partitioning[e];
+        if (0 <= r && r < P) hist[r]++;
+    }
+
+    int best_rank = -1, best_count = -1;
+    for (int r = 0; r < P; ++r) {
+        if (hist[r] > best_count) { best_count = hist[r]; best_rank = r; }
+    }
+
+    if (best_rank < 0) {
+        best_rank = 0;
+        for (int r = 1; r < P; ++r)
+            if (load[r] < load[best_rank]) best_rank = r;
+        return best_rank;
+    }
+
+    long long best_load = std::numeric_limits<long long>::max();
+    int tie_pick = best_rank;
+    for (int r = 0; r < P; ++r) {
+        if (hist[r] == best_count && load[r] < best_load) {
+            best_load = load[r];
+            tie_pick = r;
+        }
+    }
+    return tie_pick;
+}
+
+void assignComponent(const std::vector<int>& elems,
+                int rank,
+                int* partitioning,
+                std::vector<long long>& load)
+{
+    for (int e : elems) partitioning[e] = rank;
+    load[rank] += static_cast<long long>(elems.size());
+}
+
+void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
+                                          int* partitioning,
+                                          const mfem::Array<int>& tfsf_tags,
+                                          const mfem::Array<int>& sbc_tags)
+{
+    const int NE = mesh.GetNE();
+    const int P  = Mpi::WorldSize();
+    if (NE == 0 || P <= 0) return;
+
+    auto pairs = gatherConstraintPairs(mesh, tfsf_tags, sbc_tags);
+    if (pairs.empty()) return;
+
+    auto dsu = buildDSU(NE, pairs);
+    auto comp = componentsFromDSU(NE, dsu);
+    auto load = computeLoad(P, NE, partitioning);
+
+    for (auto& kv : comp) {
+        const auto& elems = kv.second;
+        if (elems.size() <= 1) continue;
+        const int rank = chooseRankForComponent(elems, P, partitioning, load);
+        assignComponent(elems, rank, partitioning, load);
+    }
+}
 
 inline void checkIfThrows(bool condition, const std::string& msg)
 {
@@ -383,6 +531,9 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 	else if (bdr_cond == "SMA") {
 		return BdrCond::SMA;
 	}
+	else if (bdr_cond == "SBC") {
+		return BdrCond::SBC;
+	}
 	else {
 		throw std::runtime_error(("The defined Boundary Type " + bdr_cond + " is incorrect.").c_str());
 	}
@@ -515,7 +666,7 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 
 	struct geomTag2Info {
 		std::map<GeomTag, BdrCond> geomTag2BdrCond;
-		std::map<GeomTag, isInterior> geomTag2Interior;
+		std::map<GeomTag, isInterior> geomTag2IsInterior;
 	};
 
 	checkBoundaryInputProperties(case_data);
@@ -526,12 +677,12 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
 		for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
 			gt2i.geomTag2BdrCond.emplace(case_data["model"]["boundaries"][b]["tags"][a], assignBdrCond(case_data["model"]["boundaries"][b]["type"]));
-			gt2i.geomTag2Interior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
+			gt2i.geomTag2IsInterior.emplace(case_data["model"]["boundaries"][b]["tags"][a], false);
 			for (auto f = 0; f < mesh.GetNumFaces(); f++) {
 				if (face2BdrEl[f] != -1) {
 					if (mesh.GetBdrAttribute(face2BdrEl[f]) == case_data["model"]["boundaries"][b]["tags"][a] 
 						&& mesh.FaceIsInterior(f)) {
-						gt2i.geomTag2Interior[case_data["model"]["boundaries"][b]["tags"][a]] = true;
+						gt2i.geomTag2IsInterior[case_data["model"]["boundaries"][b]["tags"][a]] = true;
 						break;
 					}
 				}
@@ -540,7 +691,7 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 	}
 
 	GeomTagToBoundaryInfo res;
-	for (auto [att, isInt] : gt2i.geomTag2Interior) {
+	for (auto [att, isInt] : gt2i.geomTag2IsInterior) {
 		switch (isInt) {
 		case false:
 			res.gt2b.emplace(att, gt2i.geomTag2BdrCond[att]);
@@ -576,108 +727,67 @@ Array<int> getTFSFTags(const json& case_data)
 	return res;
 }
 
-std::vector<std::pair<int,int>> buildTFSFPairsToSort(mfem::Mesh& mesh, mfem::Array<int> tfsf_tags)
+Array<int> getSBCTags(const json& case_data)
 {
-	std::vector<std::pair<int,int>> res;
-	for (auto t = 0; t < tfsf_tags.Size(); t++){
-		for(auto b = 0; b < mesh.GetNBE(); b++){
-			if (mesh.GetBdrAttribute(b) == tfsf_tags[t]){
-				auto f_trans = mesh.GetInternalBdrFaceTransformations(b);
-				res.push_back({f_trans->Elem1No, f_trans->Elem2No});
+	Array<int> res;
+	for (auto b{ 0 }; b < case_data["model"]["boundaries"].size(); b++) {
+		if (case_data["model"]["boundaries"][b]["type"] == "SBC") {
+			for (auto t{ 0 }; t < case_data["model"]["boundaries"][b].size(); t++) {
+				res.Append(case_data["model"]["boundaries"][b]["tags"][t]);
 			}
 		}
 	}
-	return res;
 }
-
 Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
 {
-	mfem::Mesh mesh;
-	if (isTest) {
-		mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
-	}
-	else {
-		mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
-	}
-	
-	
-	auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
-	auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
-	
-	if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
-		if (isTest) {
-			mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
-		}
-		else {
-			mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
-		}
-	}
-	
-	if (case_data["model"].contains("refinement")){
-		auto ref_levels = int(case_data["model"]["refinement"]);
-		for (auto r = 0; r < ref_levels; r++) {
-			mesh.UniformRefinement();
-		}
-	}
+    mfem::Mesh mesh;
+    if (isTest) {
+        mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
+    } else {
+        mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+    }
 
+    auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
+    auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
 
-	auto partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
-	Array<int> tfsf_tags = getTFSFTags(case_data);
+    if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
+        if (isTest) {
+            mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
+        } else {
+            mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+        }
+    }
 
-	if (tfsf_tags.Size() > 0){
-		std::vector<std::pair<int,int>> elements_to_send_to_rank = buildTFSFPairsToSort(mesh, tfsf_tags);
+    if (case_data["model"].contains("refinement")) {
+        auto ref_levels = int(case_data["model"]["refinement"]);
+        for (auto r = 0; r < ref_levels; r++) {
+            mesh.UniformRefinement();
+        }
+    }
 
-		std::map<int, int> assigned_rank; // maps individual elements to their assigned rank
-    	int rr_counter = 0; // round-robin counter
+    int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+    mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
+    mfem::Array<int> sbc_tags  = getSBCTags(case_data);
 
-		for (const auto& pair : elements_to_send_to_rank) {
-			int a = pair.first;
-			int b = pair.second;
+    applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sbc_tags);
 
-			bool a_seen = assigned_rank.count(a);
-			bool b_seen = assigned_rank.count(b);
+    Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
+    std::string filename = case_data["model"]["filename"];
 
-			int rank;
-			if (!a_seen && !b_seen) {
-				rank = rr_counter % Mpi::WorldSize();
-				rr_counter++;
-			} else if (a_seen && b_seen) {
-				if (assigned_rank[a] != assigned_rank[b]) {
-					rank = std::min(assigned_rank[a], assigned_rank[b]);
-				} else {
-					rank = assigned_rank[a];
-				}
-			} else {
-				rank = a_seen ? assigned_rank[a] : assigned_rank[b];
-			}
+    auto ends_with = [](const std::string& str, const std::string& suffix) {
+        return str.size() >= suffix.size() &&
+               str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
 
-			partitioning[a] = rank;
-			partitioning[b] = rank;
+    if (ends_with(filename, ".msh")) {
+        res.meshName_ = filename.substr(0, filename.size() - 4);
+    } else if (ends_with(filename, ".mesh")) {
+        res.meshName_ = filename.substr(0, filename.size() - 5);
+    } else {
+        throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
+    }
 
-			assigned_rank[a] = rank;
-			assigned_rank[b] = rank;
-		}
-	}
-
-	Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
-	std::string filename = case_data["model"]["filename"];
-
-	auto ends_with = [](const std::string& str, const std::string& suffix) {
-		return str.size() >= suffix.size() &&
-			str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-	};
-
-	if (ends_with(filename, ".msh")) {
-		res.meshName_ = filename.substr(0, filename.size() - 4);
-	}
-	else if (ends_with(filename, ".mesh")) {
-		res.meshName_ = filename.substr(0, filename.size() - 5);
-	}
-	else {
-		throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
-	}
-
-	return res;
+    return res;
 }
 
 json parseJSONfile(const std::string& case_name)
