@@ -30,7 +30,9 @@ std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh
 		for(auto b = 0; b < mesh.GetNBE(); b++){
 			if (mesh.GetBdrAttribute(b) == tags[t]){
 				auto f_trans = mesh.GetInternalBdrFaceTransformations(b);
-				res.push_back({f_trans->Elem1No, f_trans->Elem2No});
+				if (auto f_trans = mesh.GetInternalBdrFaceTransformations(b)) {
+    				res.emplace_back(f_trans->Elem1No, f_trans->Elem2No);
+				}
 			}
 		}
 	}
@@ -84,10 +86,7 @@ std::vector<long long> computeLoad(int P, int NE, const int* partitioning)
     return load;
 }
 
-int chooseRankForComponent(const std::vector<int>& elems,
-                       int P,
-                       const int* partitioning,
-                       const std::vector<long long>& load)
+int chooseRankForComponent(const std::vector<int>& elems, int P, const int* partitioning, const std::vector<long long>& load)
 {
     std::vector<int> hist(P, 0);
     for (int e : elems) {
@@ -716,28 +715,40 @@ mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 
 Array<int> getTFSFTags(const json& case_data)
 {
-	Array<int> res;
-	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
-		if (case_data["sources"][s]["type"] == "planewave") {
-			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
-				res.Append(case_data["sources"][s]["tags"][t]);
-			}
-		}
-	}
-	return res;
+    Array<int> res;
+    if (!case_data.contains("sources") || !case_data["sources"].is_array()) return res;
+
+    for (int s = 0; s < case_data["sources"].size(); ++s) {
+        if (case_data["sources"][s].contains("type") && case_data["sources"][s]["type"] == "planewave" &&
+            case_data["sources"][s].contains("tags") && case_data["sources"][s]["tags"].is_array()) {
+            for (int t = 0; t < case_data["sources"][s]["tags"].size(); ++t) {
+                res.Append(case_data["sources"][s]["tags"][t]);
+            }
+        }
+    }
+    return res;
 }
 
 Array<int> getSBCTags(const json& case_data)
 {
-	Array<int> res;
-	for (auto b{ 0 }; b < case_data["model"]["boundaries"].size(); b++) {
-		if (case_data["model"]["boundaries"][b]["type"] == "SBC") {
-			for (auto t{ 0 }; t < case_data["model"]["boundaries"][b].size(); t++) {
-				res.Append(case_data["model"]["boundaries"][b]["tags"][t]);
-			}
-		}
-	}
+    Array<int> res;
+    if (!case_data.contains("model") ||
+        !case_data["model"].contains("boundaries") ||
+        !case_data["model"]["boundaries"].is_array()) {
+        return res;
+    }
+
+    for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
+        if (case_data["model"]["boundaries"][b].contains("type") && case_data["model"]["boundaries"][b]["type"] == "SBC" &&
+            case_data["model"]["boundaries"][b].contains("tags") && case_data["model"]["boundaries"][b]["tags"].is_array()) {
+            for (int t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); ++t) {
+                res.Append(case_data["model"]["boundaries"][b]["tags"][t]);
+            }
+        }
+    }
+    return res;
 }
+
 Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
 {
     mfem::Mesh mesh;
@@ -769,7 +780,9 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
     mfem::Array<int> sbc_tags  = getSBCTags(case_data);
 
-    applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sbc_tags);
+	if (tfsf_tags.Size() || sbc_tags.Size()){
+    	applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sbc_tags);
+	}
 
     Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
     std::string filename = case_data["model"]["filename"];
