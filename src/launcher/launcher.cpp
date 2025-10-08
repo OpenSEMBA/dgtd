@@ -74,6 +74,11 @@ int main(int argc, char** argv)
 		return 3;
 	}
 
+	std::string devtype("omp");
+	mfem::Device device(devtype.c_str());
+	omp_set_num_threads(24);
+	device.Print();
+
 	auto solver = maxwell::driver::buildSolverJson(inputFilePath, false);
 
 	solver.run();
