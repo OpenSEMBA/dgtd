@@ -8,14 +8,18 @@ namespace maxwell{
 
 using namespace mfem;
 
+using Frequency = double;
+
 struct ComplexField {
-    std::unique_ptr<mfem::GridFunction> re;
-    std::unique_ptr<mfem::GridFunction> im;
+    std::unique_ptr<mfem::GridFunction> real;
+    std::unique_ptr<mfem::GridFunction> imag;
 };
 
 struct FrequencyFields {
     ComplexField Ex, Ey, Ez, Hx, Hy, Hz;
 };
+
+using FrequencyToFields = std::map<Frequency, FrequencyFields>;
 
 struct CaseInfo {
     const std::string data_path;
