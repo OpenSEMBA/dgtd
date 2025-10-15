@@ -353,12 +353,18 @@ std::vector<Vector> buildDofPositions(const FiniteElementSpace& fes)
 void exportFrequencyGridFunctions(const FrequencyFields& ff, const CaseInfo& ci, size_t rank, const std::string& stage)
 {
     std::filesystem::path base(ci.data_path);
-    std::filesystem::path out = base / "FieldSuperposition" / ("rank_" + std::to_string(rank)) / stage;
+    std::filesystem::path parent = base;
+    if (parent.filename().empty()) {
+        parent = base.parent_path();
+    }
+    parent = parent.parent_path();
+    std::filesystem::path out = parent / "FieldSuperposition" / ("rank_" + std::to_string(rank)) / stage;
     std::filesystem::create_directories(out);
 
     Mesh* mesh = ff.Ex.real->FESpace()->GetMesh();
 
-    ParaViewDataCollection dc("field_superposition", mesh);
+    std::string paraview_case_name = "fsp_" + parent.filename().string();
+    ParaViewDataCollection dc(paraview_case_name, mesh);
     dc.SetPrefixPath(out.string());
     dc.SetHighOrderOutput(true);
 
