@@ -4,11 +4,17 @@
 
 namespace maxwell {
 
+enum ODEType{
+    RK4 = 0,
+    BackwardEuler = 1
+};
+
 struct SolverOptions {
     double timeStep = 0.0;
     double finalTime = 2.0;
     double cfl = 1.0;
     int basisType = mfem::BasisType::GaussLobatto;
+    size_t odeType = ODEType::RK4;
 
     EvolutionOptions evolution;
     

@@ -4,9 +4,10 @@
     "evolution_operator": "global",
 	  "time_step": 1e-2,
     "final_time": 30.0,
-    "exportOperator": true,
+    "exportOperator": false,
     "tfsf_final_time": 15.0,
-    "order": 2
+    "order": 2,
+    "ode_type": 1
   },
   "model": {
     "filename": "2D_RCS_FieldSuperposition_X.msh",

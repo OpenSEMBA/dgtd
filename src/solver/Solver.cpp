@@ -30,6 +30,19 @@ std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 	}
 }
 
+std::unique_ptr<ODESolver> Solver::assignODESolver()
+{
+	if (opts_.odeType == ODEType::RK4){
+		return std::make_unique<mfem::RK4Solver>();
+	}
+	else if (opts_.odeType == ODEType::BackwardEuler){
+		return std::make_unique<mfem::BackwardEulerSolver>();
+	}
+	else{
+		throw std::runtime_error("Wrong ode type defined in json. See ODEType in SolverOptions for available inputs.");
+	}
+}
+
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
@@ -75,6 +88,7 @@ Solver::Solver(
 		dt_ = opts_.timeStep;
 	}
 
+	assignODESolver();
 	odeSolver_->Init(*evolTDO_);
 
 	probesManager_.setCaseName(model_.meshName_);
