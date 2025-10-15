@@ -1,6 +1,8 @@
 {
   "solver_options": {
-    "solver_type": "upwind",
+    "upwind_alpha": 1.0,
+    "time_step": 1e-2,
+    "evolution_operator": "global",
     "order": 3
   },
 
@@ -26,7 +28,7 @@
 
   "probes": { 
     "exporter": { 
-      "steps": 20
+      "steps": 1
     },
     "point": [
       {
@@ -50,7 +52,7 @@
       "dimension": 1,
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.1
+        "spread": 0.12
       }
     }
   ]

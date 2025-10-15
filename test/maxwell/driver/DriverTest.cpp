@@ -27,7 +27,7 @@ TEST_F(DriverTest, jsonFindsExistingNestedObjects)
 	auto case_data = json::parse(test_file);
 
 	EXPECT_TRUE(case_data.contains("solver_options"));
-	EXPECT_TRUE(case_data["solver_options"].contains("solver_type"));
+	EXPECT_TRUE(case_data["solver_options"].contains("evolution_operator"));
 
 	EXPECT_TRUE(case_data.contains("model"));
 	EXPECT_TRUE(case_data["model"]["materials"][0].contains("type"));

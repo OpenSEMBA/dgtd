@@ -5,7 +5,7 @@ namespace maxwell {
 using namespace mfem;
 static const int NotFound{ -1 };
 
-FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be) 
+FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be)
 {
 	switch (m.FaceIsInterior(m.GetBdrElementFaceIndex(be))) {
 	case true:
@@ -116,7 +116,7 @@ Vector getNormal(FaceElementTransformations& fet)
 	return res;
 }
 
-std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be)
+std::pair<double, double> calculateBaryNormalProduct(ParMesh& m, FaceElementTransformations& fet, int be)
 {
 	auto bdr_vertices{ m.GetBdrElement(be)->GetVertices() };
 	auto bdr_vert{ m.GetVertex(bdr_vertices[0]) };
@@ -229,14 +229,6 @@ void cleanInvalidSubMeshEntries(std::vector<El2Face>& v)
 
 void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const std::pair<Array<int>, BdrCond>& parent_info)
 {
-	//if (child.Dimension() == 1) {
-	//	for (int e = 0; e < child.GetNE(); e++) {
-	//		Array<int> verts(2);
-	//		child.GetElementVertices(e, verts);
-	//		child.AddBdrPoint(verts[0]);
-	//		child.AddBdrPoint(verts[1]);
-	//	}
-	//}
 	auto parent_f2bdr_map{ parent.GetFaceToBdrElMap() };
 	auto child_f2bdr_map{ child.GetFaceToBdrElMap() };
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
@@ -528,8 +520,8 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 						@@   @    @   of the elements and the 2D vector along the face align
 					  @@     @     @@   with out TFSF designation intent
 					 @       @       @@
-				   @@        @         @@  For 2D meshes, MFEM will not correct boundary normals nor
-				 @@          A           @@  vectors, thus we can exploit this when designing problems
+				   @@        @         @@  
+				 @@          A           @@  
 				@            |            @@
 			  @@    SF       |      TF      @@
 			@@               |                @
@@ -649,9 +641,9 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 }
 
-NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const FiniteElementSpace& fes, const Array<int>& marker)
+NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const ParFiniteElementSpace& fes, const Array<int>& marker)
 {
-
+	Mesh tmesh(m);
 	original_ = std::make_unique<Mesh>(m);
 
 	switch (original_->SpaceDimension()) {

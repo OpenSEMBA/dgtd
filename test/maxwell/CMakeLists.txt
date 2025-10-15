@@ -6,6 +6,7 @@ if (SEMBA_DGTD_ENABLE_MPI)
 endif()
 
 add_executable(maxwell_tests
+	$<TARGET_OBJECTS:TestLauncher>
 	"driver/DriverTest.cpp"
 	"components/MaterialTest.cpp" 
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
@@ -20,7 +21,7 @@ add_executable(maxwell_tests
 	"math/FunctionTest.cpp")
 
 add_executable(maxwell_solver_tests
-	"MaxwellTestLauncher.cpp" 
+	$<TARGET_OBJECTS:TestLauncher>
 	${MPI_SRCS}
 	"solver/Solver1DTest.cpp" 
 	"solver/Solver2DTest.cpp" 
@@ -38,7 +39,6 @@ target_link_libraries(maxwell_tests
 	maxwell-driver
 	maxwell-components
 	GTest::gtest
-	GTest::gtest_main
 )
 
 target_link_libraries(maxwell_solver_tests

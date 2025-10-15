@@ -8,14 +8,15 @@ using namespace maxwell;
 
 PYBIND11_MODULE(maxwell_solver, m) {
 
-    py::enum_<FluxType>(m, "FluxType")
-        .value("Centered", FluxType::Centered)
-        .value("Upwind", FluxType::Upwind)
+    py::enum_<EvolutionOperatorType>(m, "EvolutionOperatorType")
+        .value("maxwell", EvolutionOperatorType::Maxwell)
+        .value("global", EvolutionOperatorType::Global)
+        .value("hesthaven", EvolutionOperatorType::Hesthaven)
         ;
 
     py::class_<EvolutionOptions>(m, "EvolutionOptions")
         .def(py::init<>())
-        .def_readwrite("fluxType",    &EvolutionOptions::fluxType)
+        .def_readwrite("alpha",       &EvolutionOptions::alpha)
         .def_readwrite("spectral",    &EvolutionOptions::spectral)
         .def_readwrite("eigenvals",   &EvolutionOptions::eigenvals)
         .def_readwrite("marketFile",  &EvolutionOptions::marketFile)

@@ -1,29 +1,36 @@
 #include "GlobalEvolution.h"
 
+#include <chrono>
+
 namespace maxwell {
 
 GlobalEvolution::GlobalEvolution(
-	FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
-	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
-	fes_{ fes },
-	model_{ model },
-	srcmngr_{ srcmngr },
-	opts_{ options },
-	TFSFOperator_{ },
-	globalOperator_{ }
+mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
+mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
+fes_{ fes },
+model_{ model },
+srcmngr_{ srcmngr },
+opts_{ options }
 {
+
+	fes_.ExchangeFaceNbrData();
+
+	for (auto d = X; d <= Z; d++){
+		eOld_[d].SetSpace(&fes_);
+		hOld_[d].SetSpace(&fes_);
+	}
+
+	globalOperator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
+
 #ifdef SHOW_TIMER_INFORMATION
-	auto startTime{ std::chrono::high_resolution_clock::now() };
+	if (Mpi::WorldRank() == 0){
+		std::cout << "------------------------------------------------" << std::endl;
+		std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
+		std::cout << "------------------------------------------------" << std::endl;
+		std::cout << std::endl;
+	}
 #endif
 
-	globalOperator_ = std::make_unique<SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * fes.GetNDofs());
-
-#ifdef SHOW_TIMER_INFORMATION
-	std::cout << "------------------------------------------------" << std::endl;
-	std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
-	std::cout << "------------------------------------------------" << std::endl;
-	std::cout << std::endl;
-#endif
 
 	Probes probes;
 	if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
@@ -36,24 +43,25 @@ GlobalEvolution::GlobalEvolution(
 		Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
 		
 		ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
-		DGOperatorFactory tfsfops(tfsfpd, *globalTFSFfes);
+		DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
 
 		TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
 
-		auto src_sm = static_cast<SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-		SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
+		auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
 	}
 
 	ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
-	DGOperatorFactory dgops(pd, fes_);
+	DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
 
 	globalOperator_ = dgops.buildGlobalOperator();
 
 }
 
-const Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
+const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 {
-	Vector res(6 * func[0][0].Size());
+	mfem::Vector res(6 * func[0][0].Size());
+	res.UseDevice(true);
 	for (auto f : { E, H }) {
 		for (auto d : { X, Y, Z }) {
 			for (auto v{ 0 }; v < func[f][d].Size(); v++) {
@@ -64,43 +72,146 @@ const Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 	return res;
 }
 
-void GlobalEvolution::Mult(const Vector& in, Vector& out) const
+void assertVectorOnDevice(const Vector &v, const std::string &name)
 {
-	const auto& dim{ fes_.GetMesh()->Dimension() };
+    MemoryType mem_type = v.GetMemory().GetMemoryType();
+    if (mem_type != MemoryType::DEVICE)
+    {
+        mfem::out << "Warning: Vector '" << name << "' latest data is NOT on device!\n";
+    }
+    else
+    {
+        mfem::out << "Vector '" << name << "' latest data is on DEVICE.\n";
+    }
+}
 
-	std::array<GridFunction, 3> eNew, hNew;
-	for (int d = X; d <= Z; d++) {
-		eNew[d].SetSpace(&fes_);
-		hNew[d].SetSpace(&fes_);
-		eNew[d].MakeRef(&fes_, &out[d * fes_.GetNDofs()]);
-		hNew[d].MakeRef(&fes_, &out[(d + 3) * fes_.GetNDofs()]);
-		eNew[d] = 0.0;
-		hNew[d] = 0.0;
-	}
+void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
+{
+    mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerMult, timerTFSF;
 
-	globalOperator_->Mult(in, out);
+	timerTotal.Start();
+	
+	const auto ndofs = fes_.GetNDofs();
+	const auto nbrDofs = fes_.num_face_nbr_dofs;
+	const auto blockSize = ndofs + nbrDofs;
 
-	for (const auto& source : srcmngr_.sources) {
-		if (dynamic_cast<TotalField*>(source.get())) {
-
-			auto func{ evalTimeVarFunction(GetTime(),srcmngr_) };
-			Vector assembledFunc = buildSingleVectorTFSFFunc(func), tempTFSF(assembledFunc.Size());
-			TFSFOperator_->Mult(assembledFunc, tempTFSF);
-			for (auto f : { E, H }) {
-				for (auto d : { X, Y, Z }) {
-					for (auto v{ 0 }; v < sub_to_parent_ids_.Size(); v++) {
-						if (tempTFSF[(f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v] != 0.0) {
-							out[(f * 3 + d) * fes_.GetNDofs() + sub_to_parent_ids_[v]] -= tempTFSF[(f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v];
-						}
-					}
-				}
-			}
-
+    timerExchange.Start();
+	#ifdef SEMBA_DGTD_ENABLE_CUDA
+	load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+	#else
+	for (auto d = X; d <= Z; d++){
+		for (auto v = 0; v < ndofs; v++){
+			eOld_[d][v] = in[d * ndofs + v];
+			hOld_[d][v] = in[(d+3) * ndofs + v];
 		}
 	}
+	#endif
+	for (auto d = X; d <= Z; d++){
+		eOld_[d].ExchangeFaceNbrData();
+		hOld_[d].ExchangeFaceNbrData();
+	}
+    timerExchange.Stop();
+    
+	timerAssembleInNew.Start();
+	Vector inNew(6*blockSize);
+	#ifdef SEMBA_DGTD_ENABLE_CUDA
+	inNew.UseDevice(true);
+	load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
+	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
+	#else
+	for (int d = X; d <= Z; d++) {
+		eOld_[d].SetData(in.GetData() + d * ndofs);
+		hOld_[d].SetData(in.GetData() + (d + 3) * ndofs);
+		inNew.SetVector(eOld_[d],      d  * (ndofs + nbrDofs));
+		inNew.SetVector(hOld_[d], (3 + d) * (ndofs + nbrDofs));
+		if (nbrDofs != 0){
+			inNew.SetVector(eOld_[d].FaceNbrData(),      d  * (ndofs + nbrDofs) + ndofs);
+			inNew.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (ndofs + nbrDofs) + ndofs);
+		}
+	}
+	#endif
+	timerAssembleInNew.Stop();
 
+	timerMult.Start();
+    globalOperator_->Mult(inNew, out);
+	timerMult.Stop();
+
+	timerTFSF.Start();
+	bool early_tfsf_deletion = false;
+    for (auto& source : srcmngr_.sources) {
+        if (dynamic_cast<TotalField*>(source.get()) && srcmngr_.getGlobalTFSFSpace() != nullptr) {
+			auto sourcecast = dynamic_cast<TotalField*>(source.get());
+			if(opts_.tfsfFinalTime != 0.0 
+			&& std::abs(GetTime() - opts_.tfsfFinalTime) <= 1e-5){
+				#ifdef SEMBA_DGTD_ENABLE_CUDA
+				const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
+            	mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
+				#else
+				auto func = evalTimeVarFunction(GetTime(), srcmngr_);
+            	mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+				#endif
+				if(assembledFunc.Norml2() >= 1e-1){
+					early_tfsf_deletion = true;
+					MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
+				}
+				source.reset(nullptr);
+				break;
+			}
+			#ifdef SEMBA_DGTD_ENABLE_CUDA
+            const auto func = eval_time_var_field_gpu(GetTime(), srcmngr_);
+            mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func);
+			#else
+			auto func = evalTimeVarFunction(GetTime(), srcmngr_);
+            mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+			#endif
+            mfem::Vector tempTFSF(assembledFunc.Size());
+			tempTFSF.UseDevice(true);
+            TFSFOperator_->Mult(assembledFunc, tempTFSF);
+			#ifdef SEMBA_DGTD_ENABLE_CUDA
+			load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out, fes_.GetNDofs(), srcmngr_.getGlobalTFSFSpace()->GetNDofs());
+			#else
+			for (auto f : { E, H }) {
+                for (auto d : { X, Y, Z }) {
+                    for (int v = 0; v < sub_to_parent_ids_.Size(); v++) {
+                        const int outIdx = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
+                        const int tempIdx = (f * 3 + d) * srcmngr_.getGlobalTFSFSpace()->GetNDofs() + v;
+                        if (tempTFSF[tempIdx] != 0.0) {
+                            out[outIdx] -= tempTFSF[tempIdx];
+                        }
+                    }
+                }
+            }
+			#endif
+		}
+	}
+	if (early_tfsf_deletion){
+		MFEM_WARNING("TFSF SOURCE DELETED WHEN FIELDS ARE STILL BEING LOADED!");
+	}
+	timerTFSF.Stop();
+
+    timerTotal.Stop();
+
+			
+	static double lastPrintTime = -1.0;
+	const double printInterval = 0.1;  
+	double currentTime = GetTime();
+
+	if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval) {
+		std::cout << "Current time: " << currentTime << std::endl;
+		std::cout << "Rank " << Mpi::WorldRank() 
+				<< " Mult total: " << timerTotal.RealTime() * 1000 
+				<< " ms, exchange: " << timerExchange.RealTime() * 1000 
+				<< " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000 << " ms\n";
+		std::cout << "Rank " << Mpi::WorldRank() 
+				<< " Mult mult: " << timerMult.RealTime() * 1000 
+				<< " ms, tfsf: " << timerTFSF.RealTime() * 1000 << " ms\n";
+
+		lastPrintTime += printInterval;
+		if (lastPrintTime < 0.0) lastPrintTime = currentTime;
+	}
 
 
 }
+
 
 }
