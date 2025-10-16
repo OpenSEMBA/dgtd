@@ -8,6 +8,7 @@ set(SOURCES
     "HesthavenEvolutionMethods.cpp"
     "HesthavenEvolution.cpp"
     "GlobalEvolution.cpp"
+    "EvolutionExtension.cpp"
 )
 
 if (SEMBA_DGTD_ENABLE_CUDA)
