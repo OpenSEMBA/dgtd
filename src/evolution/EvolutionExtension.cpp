@@ -1,23 +1,24 @@
 #include "EvolutionExtension.h"
+#include "solver/Solver.h"
 
 namespace maxwell
 {
 
 using namespace mfem;
 
-static InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
-	{
-		InteriorFaceConnectivityMaps res;
-		res.first.resize(local_dof_ids.first.size());
-		res.second.resize(local_dof_ids.second.size());
-		for (auto v{ 0 }; v < res.first.size(); v++) {
-			res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
-			res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
-		}
-		return res;
-	}
+InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
+{
+    InteriorFaceConnectivityMaps res;
+    res.first.resize(local_dof_ids.first.size());
+    res.second.resize(local_dof_ids.second.size());
+    for (auto v{ 0 }; v < res.first.size(); v++) {
+        res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
+        res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
+    }
+    return res;
+}
 
-void SBCManager::findDoFPairs(Model& model, FiniteElementSpace& fes)
+void SBCSolver::findDoFPairs(Model& model, FiniteElementSpace& fes)
 {
     auto attMap{ mapOriginalAttributes(*fes.GetMesh()) };
     auto fec = dynamic_cast<const DG_FECollection*>(fes.FEColl());
@@ -37,13 +38,39 @@ void SBCManager::findDoFPairs(Model& model, FiniteElementSpace& fes)
     }
 }
 
-SBCManager::SBCManager(Model& model, FiniteElementSpace& fes, const SBCProperties& sbcp)
+void SBCSolver::estimateTimeStep()
 {
-    findDoFPairs(model, fes);
+    dt_ = getMinimumInterNodeDistance(*fes_.get()) / std::pow(double(fes_.get()->FEColl()->GetOrder()), 1.5) / physicalConstants::speedOfLight;
+}
 
-    mesh_ = std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp.num_of_segments, sbcp.material_width));
-    fec_ = std::make_unique<DG_FECollection>(sbcp.order, 1, BasisType::GaussLobatto);
+SBCSolver::SBCSolver(Model& model, FiniteElementSpace& full_model_fes, const SBCProperties& sbcp) :
+sbcp_(sbcp)
+{
+    assignODESolver();
+    assignEvolutionOperator();
+
+    findDoFPairs(model, full_model_fes);
+
+    mesh_ = std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp_.num_of_segments, sbcp_.material_width));
+    fec_ = std::make_unique<DG_FECollection>(sbcp_.order, 1, BasisType::GaussLobatto);
     fes_ = std::make_unique<FiniteElementSpace>(mesh_.get(), fec_.get());
+}
+
+void SBCSolver::assignODESolver()
+{
+    switch(sbcp_.implicit_ode){
+        case true:
+            odeSolver_ = std::make_unique<ImplicitMidpointSolver>();
+            break;
+        case false:
+            odeSolver_ = std::make_unique<RK4Solver>();
+            break;
+    }
+}
+
+void SBCSolver::assignEvolutionOperator()
+{
+    // evolTDO_ = std::make_unique<SBC_TDO>();  // WIP
 }
 
 }

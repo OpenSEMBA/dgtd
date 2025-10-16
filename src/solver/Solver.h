@@ -24,6 +24,7 @@ namespace maxwell {
 
 std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec);
 double estimateTimeStep(const Model&, const SolverOptions&, const ParFiniteElementSpace&, const TimeDependentOperator*);
+double getMinimumInterNodeDistance(FiniteElementSpace& fes);
 
 class Solver {
 public:

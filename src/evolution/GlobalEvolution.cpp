@@ -237,80 +237,79 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                                     const mfem::Vector& x,
                                     mfem::Vector& k)
 {
-    // Generic implicit stage: (I - dt * A) k = A * x + s(t_stage)
-    // GetTime() is the stage time set by the integrator.
+    // (I - dt * A) k = A * x + s(t_stage), with GetTime() already set to stage time.
     mfem::StopWatch timerTotal, timerRHS, timerAx, timerSrc, timerSolve;
-
     timerTotal.Start();
 
-    const int n = x.Size();
-    const auto ndofs     = fes_.GetNDofs();
-    const auto nbrDofs   = fes_.num_face_nbr_dofs;
-    const auto blockSize = ndofs + nbrDofs;
+    const int n         = x.Size();
+    const int ndofs     = fes_.GetNDofs();
+    const int nbrDofs   = fes_.num_face_nbr_dofs;
+    const int blockSize = ndofs + nbrDofs;
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 
-    // ---- Helper: apply A (no sources), no printing here (used by GMRES) ----
+    // Reusable work buffers: eliminate per-matvec allocations/copies inside GMRES.
+    struct ApplyAWork {
+        mfem::Vector inNew;  // packed [locals|neighbors]
+        mfem::Vector Au;     // output buffer
+        ApplyAWork(int packed, int out) : inNew(packed), Au(out) {
+            inNew.UseDevice(true);
+            Au.UseDevice(true);
+        }
+    } work(6 * blockSize, 6 * ndofs);
+
+    // Matrix-free apply of A (no sources), no printing inside (used by GMRES).
     auto applyA_noPrint = [&](const mfem::Vector& u, mfem::Vector& Au)
     {
 #ifdef SEMBA_DGTD_ENABLE_CUDA
         load_in_to_eh_gpu(u, eOld_, hOld_, ndofs);
 #else
-        for (int d = X; d <= Z; ++d)
-        {
-            for (int v = 0; v < ndofs; ++v)
-            {
+        for (int d = X; d <= Z; ++d) {
+            for (int v = 0; v < ndofs; ++v) {
                 eOld_[d][v] = u[d * ndofs + v];
                 hOld_[d][v] = u[(3 + d) * ndofs + v];
             }
         }
 #endif
-        for (int d = X; d <= Z; ++d)
-        {
+        for (int d = X; d <= Z; ++d) {
             eOld_[d].ExchangeFaceNbrData();
             hOld_[d].ExchangeFaceNbrData();
         }
 
-        mfem::Vector inNew(6 * blockSize);
-        inNew.UseDevice(true);
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-        load_eh_to_innew_gpu(u, inNew, ndofs, nbrDofs);
-        load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
+        load_eh_to_innew_gpu(u, work.inNew, ndofs, nbrDofs);
+        load_nbr_to_innew_gpu(eOld_, hOld_, work.inNew, ndofs, nbrDofs);
 #else
-        for (int d = X; d <= Z; ++d)
-        {
-            inNew.SetVector(eOld_[d],       d      * blockSize);
-            inNew.SetVector(hOld_[d],  (3 + d)     * blockSize);
-            if (nbrDofs)
-            {
+        for (int d = X; d <= Z; ++d) {
+            work.inNew.SetVector(eOld_[d],       d      * blockSize);
+            work.inNew.SetVector(hOld_[d],  (3 + d)     * blockSize);
+            if (nbrDofs) {
                 mfem::Vector &eNbr = eOld_[d].FaceNbrData();
                 mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                inNew.SetVector(eNbr,      d      * blockSize + ndofs);
-                inNew.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+                work.inNew.SetVector(eNbr,      d      * blockSize + ndofs);
+                work.inNew.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
             }
         }
 #endif
-        Au.SetSize(6 * ndofs);
-        Au.UseDevice(true);
-        globalOperator_->Mult(inNew, Au);
+
+        globalOperator_->Mult(work.inNew, work.Au);
+        Au = work.Au; // alias-safe copy
     };
 
-    // ---- Build RHS = A*x + s(t_stage), with timing breakdown ----
+    // Build RHS = A*x + s(t_stage) with timing breakdown.
     timerRHS.Start();
 
     timerAx.Start();
     mfem::Vector rhs(n); rhs.UseDevice(true);
-    applyA_noPrint(x, rhs);   // counts as A(x)
+    applyA_noPrint(x, rhs);
     timerAx.Stop();
 
     timerSrc.Start();
     {
         mfem::Vector s(n); s.UseDevice(true); s = 0.0;
-        if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
-        {
+        if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace()) {
             const int ndofs_tfsf = tfsf_space->GetNDofs();
 
-            for (auto& source : srcmngr_.sources)
-            {
+            for (auto& source : srcmngr_.sources) {
                 if (!source) { continue; }
                 if (!dynamic_cast<TotalField*>(source.get())) { continue; }
 
@@ -330,12 +329,9 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                 load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, s,
                                               ndofs, ndofs_tfsf);
 #else
-                for (int f : { E, H })
-                {
-                    for (int d : { X, Y, Z })
-                    {
-                        for (int v = 0; v < sub_to_parent_ids_.Size(); ++v)
-                        {
+                for (int f : { E, H }) {
+                    for (int d : { X, Y, Z }) {
+                        for (int v = 0; v < sub_to_parent_ids_.Size(); ++v) {
                             const int outIdx  = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
                             const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
                             const double val = tempTFSF[tempIdx];
@@ -352,9 +348,8 @@ void GlobalEvolution::ImplicitSolve(const double dt,
 
     timerRHS.Stop();
 
-    // ---- Define J(v) = v - dt * A v ----
-    class JOp final : public mfem::Operator
-    {
+    // Linear operator: J(v) = v - dt * A v
+    class JOp final : public mfem::Operator {
         std::function<void(const mfem::Vector&, mfem::Vector&)> applyA_;
         const double dt_;
         mutable mfem::Vector tmp_;
@@ -367,19 +362,26 @@ void GlobalEvolution::ImplicitSolve(const double dt,
 
         void Mult(const mfem::Vector& v, mfem::Vector& Jv) const override
         {
-            applyA_(v, tmp_);   // tmp_ = A v
+            applyA_(v, tmp_);   // tmp = A v
             Jv = v;             // Jv  = v
             Jv.Add(-dt_, tmp_); // Jv -= dt * A v
         }
     } J(n, std::function<void(const mfem::Vector&, mfem::Vector&)>(applyA_noPrint), dt);
 
-    // ---- Solve ----
+    // GMRES solve without preconditioner. Nonzero initial guess helps when dt is small.
     mfem::GMRESSolver gmres;
     gmres.SetOperator(J);
     gmres.SetRelTol(1e-8);
     gmres.SetMaxIter(400);
+    gmres.SetKDim(60);     // cap memory and restart cost
     gmres.SetPrintLevel(0);
-    // Optional: gmres.SetPreconditioner(P);
+
+    // Initial guess: reuse current k if provided; otherwise use rhs (cheap and effective).
+    if (k.Size() == n) {
+        // keep user-provided guess
+    } else {
+        k.SetSize(n); k.UseDevice(true); k = rhs;
+    }
 
     timerSolve.Start();
     gmres.Mult(rhs, k);
@@ -387,21 +389,18 @@ void GlobalEvolution::ImplicitSolve(const double dt,
 
     timerTotal.Stop();
 
-    // ---------------------------
-    // Periodic timing print
-    // ---------------------------
+    // Periodic timing print (problem time).
     static double lastPrintTime = -1.0;
-    const double printInterval = 0.1;  // in problem time units
-    const double currentTime = GetTime();
+    const double printInterval = 0.1;
+    const double currentTime   = GetTime();
 
-    if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval)
-    {
+    if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval) {
         std::cout << "Current time: " << currentTime << std::endl;
         std::cout << "Rank " << Mpi::WorldRank()
                   << " ImplicitSolve total: " << timerTotal.RealTime() * 1000.0
                   << " ms, rhs: " << timerRHS.RealTime() * 1000.0
-                  << " ms A(x): " << timerAx.RealTime() * 1000.0
-                  << " ms, source: " << timerSrc.RealTime() * 1000.0 << " ms)" << std::endl;
+                  << " ms, A(x): " << timerAx.RealTime() * 1000.0
+                  << " ms, source: " << timerSrc.RealTime() * 1000.0 << " ms" << std::endl;
         std::cout << "Rank " << Mpi::WorldRank()
                   << " ImplicitSolve solve: " << timerSolve.RealTime() * 1000.0
                   << " ms, gmres iters: " << gmres.GetNumIterations() << std::endl;

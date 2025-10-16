@@ -14,25 +14,43 @@ struct SBCProperties{
     size_t order = 1;
     size_t material_width = 1e-4;
 
-    SBCProperties(size_t segnum, size_t o, size_t mat_w) : 
-    num_of_segments(segnum), order(o), material_width(mat_w){}
+    bool implicit_ode = false;
+
+    SBCProperties(size_t segnum, size_t o, size_t mat_w, bool is_implicit = false) : 
+    num_of_segments(segnum), order(o), material_width(mat_w), implicit_ode(is_implicit){}
 
 };
 
-class SBCManager{
+class SBCSolver{
 public:
 
-SBCManager(Model&, FiniteElementSpace&, const SBCProperties&);
+    SBCSolver(Model&, FiniteElementSpace&, const SBCProperties&);
+
+    void setGlobalModelTime(Time& t) { global_time_ = t; }
+    void setSBCModelTime(Time& t) { sbc_time_ = t; }
 
 private:
 
-void findDoFPairs(Model&, FiniteElementSpace&);
+    SBCProperties sbcp_;
 
-std::unique_ptr<Mesh> mesh_;
-std::unique_ptr<DG_FECollection> fec_;
-std::unique_ptr<FiniteElementSpace> fes_;
+    std::unique_ptr<Mesh> mesh_;
+    std::unique_ptr<DG_FECollection> fec_;
+    std::unique_ptr<FiniteElementSpace> fes_;
+    std::vector<std::pair<NodeId, NodeId>> dof_pairs_;
 
-std::vector<std::pair<NodeId, NodeId>> dof_pairs_;
+    Time global_time_;
+    Time sbc_time_;
+    Time dt_;
+    
+    std::unique_ptr<ODESolver> odeSolver_;
+    std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
+    
+    void findDoFPairs(Model&, FiniteElementSpace&);
+    
+    void assignODESolver();
+    void assignEvolutionOperator();
+
+    void estimateTimeStep();
 
 };
 
