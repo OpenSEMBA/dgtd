@@ -4,11 +4,25 @@
 
 namespace maxwell {
 
+// SolverOptions.h (or wherever ODEType lives)
+enum ODEType : size_t {
+    RK4              = 0, // [explicit] 4th order
+
+    BackwardEuler    = 1, // [implicit] 1st order (dissipative)
+    Trapezoidal      = 2, // [implicit] Crank–Nicolson, A-stable, low dissipation
+    ImplicitMidpoint = 3, // [implicit] symplectic/energy-conserving for linear problems
+    SDIRK33          = 4, // [implicit] A-stable, 3rd order
+    SDIRK23          = 5, // [implicit] L-stable (use gamma_opt=2), ~2nd/3rd order
+    SDIRK34          = 6  // [implicit] SDIRK(3/4) family, A-stable
+};
+
+
 struct SolverOptions {
     double timeStep = 0.0;
     double finalTime = 2.0;
     double cfl = 1.0;
     int basisType = mfem::BasisType::GaussLobatto;
+    size_t odeType = ODEType::RK4;
 
     EvolutionOptions evolution;
     
@@ -64,6 +78,11 @@ struct SolverOptions {
 
     SolverOptions& setTFSFFinalTime(double tfsf_ft) {
         evolution.tfsfFinalTime = tfsf_ft;
+        return *this;
+    }
+
+    SolverOptions& setODEType(size_t ode_type) {
+        odeType = ode_type;
         return *this;
     }
 

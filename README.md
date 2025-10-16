@@ -135,3 +135,9 @@ Example of a sources section with all available types of sources defined for doc
 - A totalField source defined on interfaces or boundary faces 1, 2, 3 and 4, polarised on the direction Y for the "E" field and with a propagation vector in the direction X, the wave that will appear will be of type "gaussian" with the defined delay and spread.
 
 https://github.com/OpenSEMBA/dgtd/blob/5dd67ef6435066172e9387d674ea7ccc4c6a8b87/testData/maxwellInputs/1D_PEC_Centered/1D_PEC_Centered.json#L50-L83
+
+## Funding
+
+- Spanish Ministry of Science and Innovation (MICIN/AEI) (Grant Number: PID2022-137495OB-C31).
+- European Union, HECATE project (HE-HORIZON-JU-Clean-Aviation-2022-01).
+- European Union, FEDER 2020 (B-TIC-700-UGR20).

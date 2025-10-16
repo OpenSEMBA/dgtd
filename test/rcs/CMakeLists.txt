@@ -11,6 +11,7 @@ include_directories(
 add_executable(rcs_tests
 	$<TARGET_OBJECTS:TestLauncher>
 	"RCSTest.cpp"
+	"FieldSuperposition.cpp"
  )
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS)

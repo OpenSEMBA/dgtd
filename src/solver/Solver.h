@@ -70,11 +70,12 @@ private:
     
     double time_;
     double dt_;
-    std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
+    std::unique_ptr<ODESolver> odeSolver_;
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
+    void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);

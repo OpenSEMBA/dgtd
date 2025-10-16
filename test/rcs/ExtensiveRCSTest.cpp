@@ -14,6 +14,7 @@
 #include "components/RCSManager.h"
 #include "components/RCSDataExtractor.h"
 #include "TestUtils.h"
+#include "FieldSuperposition.h"
 
 namespace maxwell {
 
@@ -48,6 +49,16 @@ public:
 
 
 };
+
+TEST_F(ExtensiveRCSTest, FieldSuperposition_XY)
+{
+
+	CaseInfo cx ("./Exports/cuda-1/2D_RCS_FieldSuperposition_X/DomainSnapshopProbes/",   maxwellCase("2D_RCS_FieldSuperposition_X"));
+	CaseInfo cy ("./Exports/cuda-1/2D_RCS_FieldSuperposition_Y/DomainSnapshopProbes/",   maxwellCase("2D_RCS_FieldSuperposition_Y"));
+	CaseInfo cxy ("./Exports/cuda-1/2D_RCS_FieldSuperposition_XY/DomainSnapshopProbes/",   maxwellCase("2D_RCS_FieldSuperposition_XY"));
+
+	FieldSuperposition f(cx, cy, cxy, 3e8/physicalConstants::speedOfLight_SI);
+}
 
 TEST_F(ExtensiveRCSTest, circleTest)
 {

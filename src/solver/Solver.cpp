@@ -30,6 +30,44 @@ std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 	}
 }
 
+void Solver::assignODESolver()
+{
+    switch (static_cast<ODEType>(opts_.odeType))
+    {
+        case ODEType::RK4:
+            odeSolver_ = std::make_unique<mfem::RK4Solver>();
+            break;
+
+        case ODEType::BackwardEuler:
+            odeSolver_ = std::make_unique<mfem::BackwardEulerSolver>();
+            break;
+
+        case ODEType::Trapezoidal:
+            odeSolver_ = std::make_unique<mfem::TrapezoidalRuleSolver>();
+            break;
+
+        case ODEType::ImplicitMidpoint:
+            odeSolver_ = std::make_unique<mfem::ImplicitMidpointSolver>();
+            break;
+
+        case ODEType::SDIRK33:
+            odeSolver_ = std::make_unique<mfem::SDIRK33Solver>();
+            break;
+
+        case ODEType::SDIRK23:  // L-stable flavor (good with PML/loss)
+            odeSolver_ = std::make_unique<mfem::SDIRK23Solver>(/*gamma_opt=*/2);
+            break;
+
+        case ODEType::SDIRK34:
+            odeSolver_ = std::make_unique<mfem::SDIRK34Solver>();
+            break;
+			
+        default:
+            throw std::runtime_error(
+                "Wrong ode type defined in json. See ODEType in SolverOptions for available inputs.");
+    }
+}
+
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
@@ -75,6 +113,7 @@ Solver::Solver(
 		dt_ = opts_.timeStep;
 	}
 
+	assignODESolver();
 	odeSolver_->Init(*evolTDO_);
 
 	probesManager_.setCaseName(model_.meshName_);

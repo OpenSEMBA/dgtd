@@ -13,6 +13,7 @@ namespace maxwell {
 
 		GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 		virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
+		void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
 		const SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
