@@ -265,6 +265,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setTFSFFinalTime(case_data["solver_options"]["tfsf_final_time"]);
 		}
 
+		if (case_data["solver_options"].contains("ode_type")){
+			res.setODEType(case_data["solver_options"]["ode_type"]);
+		}
+
 	}
 	return res;
 }

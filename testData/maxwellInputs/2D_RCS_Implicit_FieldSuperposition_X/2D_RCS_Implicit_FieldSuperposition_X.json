@@ -2,15 +2,15 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-2,
+	  "time_step": 1e-1,
     "final_time": 30.0,
     "exportOperator": false,
     "tfsf_final_time": 15.0,
     "order": 3,
-    "ode_type": 0
+    "ode_type": 2
   },
   "model": {
-    "filename": "2D_RCS_FieldSuperposition_X.msh",
+    "filename": "2D_RCS_Implicit_FieldSuperposition_X.msh",
     "materials": [
       {
         "tags": [
@@ -37,10 +37,10 @@
   },
   "probes": {
     "exporter": {
-      "steps": 10
+      "steps": 1
     },
     "domain_snapshot":{
-      "steps": 5
+      "steps": 50
     }
   },
   "sources": [

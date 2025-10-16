@@ -85,6 +85,108 @@ void assertVectorOnDevice(const Vector &v, const std::string &name)
     }
 }
 
+void GlobalEvolution::ImplicitSolve(const double dt,
+                                             const mfem::Vector& x,
+                                             mfem::Vector& k)
+{
+    // We solve G(k) = k - f(x + dt*k, t+dt) = 0 with Newton–Krylov.
+    // Only calls Mult() at t+dt. No need to separate TFSF.
+
+    const double t0 = GetTime();
+    SetTime(t0 + dt); // Backward Euler evaluates at t + dt
+
+    const int n = x.Size();
+
+    // Work vectors
+    mfem::Vector y(n), fy(n), G(n), delta(n);
+    y.UseDevice(true); fy.UseDevice(true); G.UseDevice(true); delta.UseDevice(true);
+
+    // Initial guess: use explicit evaluation at t+dt
+    // (MFEM may pass a reused k; you can keep it if you prefer.)
+    Mult(x, k); // k0 = f(x, t+dt)
+
+    // Helper to compute G(k) and cache y = x + dt*k and fy = f(y, t+dt)
+    auto compute_G = [&](const mfem::Vector& kin) {
+        y = x;
+        y.Add(dt, kin);   // y = x + dt*k
+        Mult(y, fy);      // fy = f(y, t+dt)
+        G  = kin;
+        G -= fy;          // G = k - f(y)
+    };
+
+    // Newton params (tweak if needed)
+    const int    newton_max_it = 8;
+    const double newton_rtol   = 1e-9;
+    const double newton_atol   = 1e-12;
+
+    for (int it = 0; it < newton_max_it; ++it) {
+        compute_G(k);
+
+        const double gnorm  = G.Norml2();
+        const double target = newton_atol + newton_rtol * std::max(1.0, k.Norml2());
+        if (gnorm <= target) { break; }
+
+        // Linear operator: J(v) ≈ v - dt * ( f(y + η v) - f(y) ) / η
+        // Finite-diff directional derivative; only calls Mult().
+        class JOp : public mfem::Operator {
+            GlobalEvolution& ge_;
+            const mfem::Vector& y_;
+            const mfem::Vector& fy_;
+            const double dt_;
+            mutable mfem::Vector ypert_, fpert_, diff_;
+            const double eps_; // finite-diff scaling
+        public:
+            JOp(GlobalEvolution& ge, const mfem::Vector& y, const mfem::Vector& fy, double dt)
+            : mfem::Operator(y.Size()), ge_(ge), y_(y), fy_(fy), dt_(dt),
+              ypert_(y.Size()), fpert_(fy.Size()), diff_(fy.Size()),
+              eps_(1e-7) {
+                ypert_.UseDevice(true); fpert_.UseDevice(true); diff_.UseDevice(true);
+            }
+            void Mult(const mfem::Vector& v, mfem::Vector& Jv) const override {
+                const double vnorm = v.Norml2();
+                if (vnorm == 0.0) {
+                    Jv.SetSize(v.Size()); Jv = 0.0; return;
+                }
+                const double ynorm = y_.Norml2();
+                const double eta   = eps_ * (1.0 + ynorm) / vnorm;
+
+                ypert_ = y_;
+                ypert_.Add(eta, v);          // y + η v
+
+                ge_.Mult(ypert_, fpert_);    // f(y + η v, t+dt)
+
+                diff_  = fpert_;
+                diff_ -= fy_;                // f(y+ηv) - f(y)
+
+                Jv.SetSize(v.Size());
+                Jv = v;                      // v
+                Jv.Add(-dt_/eta, diff_);     // - dt/η * (f(y+ηv)-f(y))
+            }
+        } J(*this, y, fy, dt);
+
+        mfem::GMRESSolver gmres;
+        gmres.SetOperator(J);
+        gmres.SetRelTol(1e-8);
+        gmres.SetMaxIter(400);
+        gmres.SetPrintLevel(0);
+        // If you have a preconditioner, set it here:
+        // gmres.SetPreconditioner(P);
+
+        // Solve J * delta = -G
+        mfem::Vector rhs = G;
+        rhs *= -1.0;
+        gmres.Mult(rhs, delta);
+
+        // Update k
+        k += delta;
+        // (Optional) line search could go here if you see stagnation.
+    }
+
+    // Restore original time
+    SetTime(t0);
+}
+
+
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
     mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerMult, timerTFSF;
@@ -119,14 +221,26 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 	load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
 	load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
 	#else
-	for (int d = X; d <= Z; d++) {
-		eOld_[d].SetData(in.GetData() + d * ndofs);
-		hOld_[d].SetData(in.GetData() + (d + 3) * ndofs);
-		inNew.SetVector(eOld_[d],      d  * (ndofs + nbrDofs));
-		inNew.SetVector(hOld_[d], (3 + d) * (ndofs + nbrDofs));
-		if (nbrDofs != 0){
-			inNew.SetVector(eOld_[d].FaceNbrData(),      d  * (ndofs + nbrDofs) + ndofs);
-			inNew.SetVector(hOld_[d].FaceNbrData(), (3 + d) * (ndofs + nbrDofs) + ndofs);
+	for (int d = X; d <= Z; ++d)
+	{
+		// Copy locals
+		MFEM_ASSERT(eOld_[d].Size() == ndofs, "eOld size mismatch");
+		MFEM_ASSERT(hOld_[d].Size() == ndofs, "hOld size mismatch");
+
+		inNew.SetVector(eOld_[d],         d      * blockSize);
+		inNew.SetVector(hOld_[d],    (3 + d)     * blockSize);
+
+		// Copy neighbor dofs (if any)
+		if (nbrDofs)
+		{
+			mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+			mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+
+			MFEM_ASSERT(eNbr.Size() == nbrDofs, "e-nbr size mismatch");
+			MFEM_ASSERT(hNbr.Size() == nbrDofs, "h-nbr size mismatch");
+
+			inNew.SetVector(eNbr,      d      * blockSize + ndofs);
+			inNew.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
 		}
 	}
 	#endif

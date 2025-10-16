@@ -75,7 +75,7 @@ private:
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
-    std::unique_ptr<ODESolver> assignODESolver();
+    void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
