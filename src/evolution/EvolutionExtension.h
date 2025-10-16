@@ -56,4 +56,26 @@ private:
 
 };
 
+class SBCTimeDependentOperator : public mfem::TimeDependentOperator
+{
+	public:
+		static const int numberOfFieldComponents = 2;
+		static const int numberOfMaxDimensions = 3;
+
+		SBCTimeDependentOperator(Model&, FiniteElementSpace&);
+		virtual void Mult(const Vector& x, Vector& y) const;
+		void ImplicitSolve(const double dt, const Vector& x, Vector& k) override;
+
+		const SparseMatrix& getConstGlobalOperator() { return *sbc_operator_.get(); }
+
+	private:
+
+		std::unique_ptr<mfem::SparseMatrix> sbc_operator_;
+
+		FiniteElementSpace& fes_;
+		Model& model_;
+
+		mutable std::array<ParGridFunction, 3> eOld_, hOld_;
+};
+
 }

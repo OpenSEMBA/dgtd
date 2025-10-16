@@ -1,5 +1,7 @@
 #include "EvolutionExtension.h"
 #include "solver/Solver.h"
+#include "components/DGOperatorFactory.h"
+#include "components/ProblemDescription.h"
 
 namespace maxwell
 {
@@ -54,6 +56,8 @@ sbc_fields_(Fields<FiniteElementSpace,GridFunction>(*fes_.get()))
     assignEvolutionOperator();
 
     findDoFPairs(model, full_model_fes);
+
+    
 }
 
 void SBCSolver::assignODESolver()
@@ -71,6 +75,22 @@ void SBCSolver::assignODESolver()
 void SBCSolver::assignEvolutionOperator()
 {
     // evolTDO_ = std::make_unique<SBC_TDO>();  // WIP
+}
+
+SBCTimeDependentOperator::SBCTimeDependentOperator(Model& model, FiniteElementSpace& fes) :
+model_(model),
+fes_(fes)
+{
+
+    sbc_operator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs());
+    Probes pr;
+    Sources src;
+    EvolutionOptions eopts;
+    ProblemDescription pd(model_, pr, src, eopts);
+    DGOperatorFactory<FiniteElementSpace> dgops(pd, fes_);
+
+    sbc_operator_ = dgops.buildGlobalOperator();
+    
 }
 
 }
