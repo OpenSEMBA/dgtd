@@ -717,7 +717,7 @@ namespace maxwell
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto op = buildByMult<FES,ParBilinearForm>(
+				auto op = buildByMult<FES,BF>(
 					MInv[f]->SpMat(), buildDerivativeSubOperator<BF>(x)->SpMat(), fes_);
 				loadBlockInGlobalAtIndices(
 					op->SpMat(),
@@ -905,7 +905,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalOneNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	addGlobalOneNormalIBFIOperators<BilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (Mpi::WorldRank() == 0){
@@ -916,7 +916,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalZeroNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	addGlobalZeroNormalIBFIOperators<BilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (Mpi::WorldRank() == 0){
@@ -927,7 +927,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalTwoNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	addGlobalTwoNormalIBFIOperators<BilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (Mpi::WorldRank() == 0){
@@ -955,7 +955,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalDirectionalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalDirectionalOperators<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
@@ -966,7 +966,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalOneNormalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalOneNormalOperators<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
@@ -977,7 +977,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalZeroNormalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalZeroNormalOperators<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
@@ -988,7 +988,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalTwoNormalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalTwoNormalOperators<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
