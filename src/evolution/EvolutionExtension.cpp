@@ -44,16 +44,16 @@ void SBCSolver::estimateTimeStep()
 }
 
 SBCSolver::SBCSolver(Model& model, FiniteElementSpace& full_model_fes, const SBCProperties& sbcp) :
-sbcp_(sbcp)
+sbcp_(sbcp),
+mesh_(std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp_.num_of_segments, sbcp_.material_width))),
+fec_(std::make_unique<DG_FECollection>(sbcp_.order, 1, BasisType::GaussLobatto)),
+fes_(std::make_unique<FiniteElementSpace>(mesh_.get(), fec_.get())),
+sbc_fields_(Fields<FiniteElementSpace,GridFunction>(*fes_.get()))
 {
     assignODESolver();
     assignEvolutionOperator();
 
     findDoFPairs(model, full_model_fes);
-
-    mesh_ = std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp_.num_of_segments, sbcp_.material_width));
-    fec_ = std::make_unique<DG_FECollection>(sbcp_.order, 1, BasisType::GaussLobatto);
-    fes_ = std::make_unique<FiniteElementSpace>(mesh_.get(), fec_.get());
 }
 
 void SBCSolver::assignODESolver()

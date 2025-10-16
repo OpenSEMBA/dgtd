@@ -26,8 +26,8 @@ public:
 
     SBCSolver(Model&, FiniteElementSpace&, const SBCProperties&);
 
-    void setGlobalModelTime(Time& t) { global_time_ = t; }
-    void setSBCModelTime(Time& t) { sbc_time_ = t; }
+    void setGlobalTime(Time& t) { global_time_ = t; }
+    void setSBCTime(Time& t) { sbc_time_ = t; }
 
 private:
 
@@ -41,9 +41,11 @@ private:
     Time global_time_;
     Time sbc_time_;
     Time dt_;
+
+    Fields<FiniteElementSpace,GridFunction> sbc_fields_;
     
     std::unique_ptr<ODESolver> odeSolver_;
-    std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
+    std::unique_ptr<TimeDependentOperator> evolTDO_;
     
     void findDoFPairs(Model&, FiniteElementSpace&);
     
