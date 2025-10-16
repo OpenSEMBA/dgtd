@@ -120,12 +120,33 @@ Array<int> getNearToFarFieldMarker(const int att_size)
 	return res;
 }
 
-std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteElementSpace& fes, const Direction& dir)
+std::unique_ptr<ParLinearForm> assembleLinearForm(FunctionCoefficient& fc, ParFiniteElementSpace& fes, const Direction& dir)
 {
-	auto res{ std::make_unique<LinearForm>(&fes) };
+	auto res{ std::make_unique<ParLinearForm>(&fes) };
 	auto marker{ getNearToFarFieldMarker(fes.GetMesh()->bdr_attributes.Max()) };
-	res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, dir), marker);
-	res->Assemble();
+	Direction final_dir = dir;
+	switch (fes.GetMesh()->Dimension()) {
+	case 2:
+		if (dir == Z) {
+			final_dir = X;
+			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->Assemble();
+			res.get()->Set(0.0, *res.get());
+			break;
+		}
+		else {
+			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->Assemble();
+			break;
+		}
+		break;
+	case 3:
+		res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+		res->Assemble();
+		break;
+	default:
+		throw std::runtime_error("RCS Post processing only supported for dimensions 2 and 3.");
+	}
 	return res;
 }
 
@@ -155,10 +176,10 @@ std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Fr
 	return res;
 }
 
-GridFunction getGridFunction(Mesh& mesh, const std::string& path)
+ParGridFunction getGridFunction(ParMesh& mesh, const std::string& path)
 {
 	std::ifstream in(path);
-	GridFunction res(&mesh, in);
+	ParGridFunction res(&mesh, in);
 	return res;
 }
 
@@ -213,7 +234,7 @@ std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double sprea
 {
 	std::vector<double> res(time.size());
 	for (int t = 0; t < time.size(); ++t) {
-		res[t] = exp(-0.5 * std::pow((time[t] - std::abs(mean)) / spread, 2.0));
+		res[t] = std::exp(-std::pow(time[t] - std::abs(mean), 2.0) / (2.0 * std::pow(spread, 2.0)));
 	}
 	return res;
 }
@@ -245,7 +266,7 @@ Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>& freque
 	return res;
 }
 
-FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequencies, const std::string& path)
+FreqFields calculateFreqFields(ParMesh& mesh, const std::vector<Frequency>& frequencies, const std::string& path)
 {
 	FreqFields res(frequencies.size());
 	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
@@ -279,11 +300,11 @@ FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>& frequen
 	return res;
 }
 
-ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace& fes, const Direction& dir)
+ComplexVector assembleComplexLinearForm(FunctionPair& fp, ParFiniteElementSpace& fes, const Direction& dir)
 {
 	ComplexVector res;
-	std::unique_ptr<LinearForm> lf_real = assembleLinearForm(*fp.first, fes, dir);
-	std::unique_ptr<LinearForm> lf_imag = assembleLinearForm(*fp.second, fes, dir);
+	std::unique_ptr<ParLinearForm> lf_real = assembleLinearForm(*fp.first, fes, dir);
+	std::unique_ptr<ParLinearForm> lf_imag = assembleLinearForm(*fp.second, fes, dir);
 	res.resize(lf_real->Size());
 	for (int i{ 0 }; i < res.size(); i++) {
 		res[i] = std::complex<double>(lf_real->Elem(i), lf_imag->Elem(i));
@@ -371,23 +392,16 @@ void FreqFields::normaliseFields(const double value)
 
 FarField::FarField(const std::string& data_path, const std::string& json_path, std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angle_vec)
 {
-	auto case_data = driver::parseJSONfile(json_path);
-	auto mesh_string = driver::assembleMeshString(case_data["model"]["filename"]);
-	auto full_mesh = Mesh::LoadFromFile(mesh_string, 1, 0);
-	auto fec = new DG_FECollection(case_data["solver_options"]["order"], full_mesh.Dimension(), BasisType::GaussLobatto);
-	auto full_fes = FiniteElementSpace(&full_mesh, fec);
-
-	Probes probes = driver::buildProbes(case_data);
-	NearToFarFieldSubMesher ntff_sub(full_mesh, full_fes, buildSurfaceMarker(probes.nearFieldProbes[0].tags, full_fes));
-
-	auto mesh = ntff_sub.getSubMesh();
-	mesh->SetCurvature(case_data["solver_options"]["order"]);
-	mesh->Finalize();
-	fes_ = buildFESFromGF(*mesh, data_path);
+	auto mesh = Mesh::LoadFromFile(data_path + "/mesh");
+	auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
+	auto sfes = buildFESFromGF(mesh, data_path);
+	auto fec = dynamic_cast<const DG_FECollection*>(sfes->FEColl());
+	auto fecdg = DG_FECollection(fec->GetOrder(), mesh.Dimension(), fec->GetBasisType());
+	fes_ = std::make_unique<ParFiniteElementSpace>(&pmesh, &fecdg);
 
 	pot_rad_ = initAngles2FreqValues(frequencies, angle_vec);
 
-	FreqFields freqfields{ calculateFreqFields(*mesh, frequencies, data_path) };
+	FreqFields freqfields{ calculateFreqFields(pmesh, frequencies, data_path) };
 
 	for (int f{ 0 }; f < frequencies.size(); f++) {
 		for (const auto& angpair : angle_vec) {
@@ -395,14 +409,11 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 			auto L_pair = calcNLpair(freqfields.Ex[f], freqfields.Ey[f], freqfields.Ez[f], frequencies[f], angpair, true);
 			auto landa = physicalConstants::speedOfLight / frequencies[f];
 			auto wavenumber = 2.0 * M_PI / landa;
-			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance * std::pow(obs_radius, 2.0));
+			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance);
 			auto freq_val = const_term * (std::pow(std::abs(L_pair.second + physicalConstants::freeSpaceImpedance * N_pair.first), 2.0) + std::pow(std::abs(L_pair.first - physicalConstants::freeSpaceImpedance * N_pair.second), 2.0));
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}
-
-	delete fec;
-
 }
 
 }

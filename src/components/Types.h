@@ -35,13 +35,13 @@ using Attribute = int;
 using BdrAttribute = Attribute;
 
 enum FieldType { E, H };
-enum class FluxType { Centered, Upwind };
 
 enum SubMeshingMarkers {
 	TotalFieldMarker = 1000,
 	ScatteredFieldMarker = 2000,
 	GlobalSubMeshMarker = 3000,
-	NearToFarFieldMarker = 4000
+	NearToFarFieldMarker = 4000,
+	SGBCMarker = 5000
 };
 
 enum class BdrCond {
@@ -50,13 +50,14 @@ enum class BdrCond {
 	SMA,
 	SurfaceCond,
 	NearToFarField = 201,
-	TotalFieldIn = 301
+	TotalFieldIn = 301,
+	SGBC = 401
 };
 
 using InteriorFaceCoefficients = std::vector<double>;
 using BdrFaceCoefficients = std::vector<double>;
 
-using InteriorCoefficients = std::map<FluxType, InteriorFaceCoefficients>;
+using InteriorCoefficients = std::map<double, InteriorFaceCoefficients>;
 using FluxBdrCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxBdrCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxSrcCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;

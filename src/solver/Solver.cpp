@@ -1,40 +1,71 @@
 #include "Solver.h"
+#include <filesystem>
+#include <fstream>
 
 using namespace mfem;
 
 namespace maxwell {
 
-std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
+std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec)
 {
-#ifdef SEMBA_DGTD_ENABLE_MPI	
-	if (dynamic_cast<ParMesh*>(m) != nullptr) {
-		auto pm{ dynamic_cast<ParMesh*>(m) };
-		return std::make_unique<ParFiniteElementSpace>(pm, fec);
-	}
-#endif
-	if (dynamic_cast<Mesh*>(m) != nullptr) {
-		return std::make_unique<FiniteElementSpace>(m, fec);
-	}
-	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
+	auto fes = std::make_unique<ParFiniteElementSpace>(m, fec);
+	fes->ExchangeFaceNbrData();
+	return fes;
 }
 
 std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 {
-	if (!opts_.highOrderMesh) {
-		if (opts_.hesthavenOperator) {
-			return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
-		}
-		else if (opts_.globalOperator) {
-			return std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
-		}
-		else {
-			ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
-			return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);
-		}
+	if (opts_.evolution.op == EvolutionOperatorType::Hesthaven) {
+		return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+	}
+	else if (opts_.evolution.op == EvolutionOperatorType::Global) {
+		return std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+	}
+	else if (opts_.evolution.op == EvolutionOperatorType::Maxwell){
+		ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
+		return std::make_unique<MaxwellEvolution>(pd, *fes_, sourcesManager_);
 	}
 	else {
-		throw std::runtime_error("Optimised Curved Operators are not supported at the moment.");
+		throw std::runtime_error("Unknown evolution operator type.");
 	}
+}
+
+void Solver::assignODESolver()
+{
+    switch (static_cast<ODEType>(opts_.odeType))
+    {
+        case ODEType::RK4:
+            odeSolver_ = std::make_unique<mfem::RK4Solver>();
+            break;
+
+        case ODEType::BackwardEuler:
+            odeSolver_ = std::make_unique<mfem::BackwardEulerSolver>();
+            break;
+
+        case ODEType::Trapezoidal:
+            odeSolver_ = std::make_unique<mfem::TrapezoidalRuleSolver>();
+            break;
+
+        case ODEType::ImplicitMidpoint:
+            odeSolver_ = std::make_unique<mfem::ImplicitMidpointSolver>();
+            break;
+
+        case ODEType::SDIRK33:
+            odeSolver_ = std::make_unique<mfem::SDIRK33Solver>();
+            break;
+
+        case ODEType::SDIRK23:  // L-stable flavor (good with PML/loss)
+            odeSolver_ = std::make_unique<mfem::SDIRK23Solver>(/*gamma_opt=*/2);
+            break;
+
+        case ODEType::SDIRK34:
+            odeSolver_ = std::make_unique<mfem::SDIRK34Solver>();
+            break;
+			
+        default:
+            throw std::runtime_error(
+                "Wrong ode type defined in json. See ODEType in SolverOptions for available inputs.");
+    }
 }
 
 Solver::Solver(
@@ -44,7 +75,7 @@ Solver::Solver(
 	const SolverOptions& options) :
 	opts_{ options },
 	model_{ model },
-	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
+	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), opts_.basisType},
 	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
 	fields_{ *fes_ },
 	sourcesManager_{ sources, *fes_, fields_ },
@@ -52,49 +83,83 @@ Solver::Solver(
 	time_{0.0}
 {
 
-	checkOptionsAreValid(opts_);
+
+	auto initStartTime = std::chrono::steady_clock::now();
+	if (Mpi::WorldRank() == 0){
+		std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
+		if (std::filesystem::is_directory(simExpPath) || std::filesystem::exists(simExpPath)) {
+			std::filesystem::remove_all(simExpPath);
+		}
+		std::filesystem::create_directories(simExpPath);
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+
+
+	if (Mpi::WorldRank() == 0){
+		checkOptionsAreValid(opts_);
+	}
 
 	if (opts_.evolution.spectral == true) {
 		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
 	}
 
-	maxwellEvol_ = assignEvolutionOperator();
-	maxwellEvol_->SetTime(time_);
+	evolTDO_ = assignEvolutionOperator();
+	evolTDO_->SetTime(time_);
 
 	if (opts_.timeStep == 0.0) {
-		dt_ = estimateTimeStep();
+		dt_ = estimateTimeStep(model_, opts_, *fes_, evolTDO_.get());
 	}
 	else {
 		dt_ = opts_.timeStep;
 	}
 
-	odeSolver_->Init(*maxwellEvol_);
+	assignODESolver();
+	odeSolver_->Init(*evolTDO_);
 
+	probesManager_.setCaseName(model_.meshName_);
+	probesManager_.initPointFieldProbeExport();
 	probesManager_.updateProbes(time_);
+
+	auto initEndTime = std::chrono::steady_clock::now();
+	int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    std::string path = "Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/" +
+                       "/statistics_rank" + std::to_string(rank) + ".dat";
+
+    std::ofstream myfile(path, std::ios::app);
+	if (myfile.is_open()) {
+		auto runtime = std::chrono::duration<double>(initEndTime - initStartTime).count();
+		myfile << std::scientific << std::setprecision(5);
+		myfile << "Initialization Time: " << runtime << " (s)\n";
+		myfile << std::defaultfloat;
+        myfile.close();
+    } else {
+        std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
+    }
+
 
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
+	
 	if ((opts.evolution.order < 0) ||
 		(opts.finalTime < 0)) {
 		throw std::runtime_error("Incorrect parameters in Options");
 	}
 
-	for (const auto& bdrMarker : model_.getBoundaryToMarker())
-	{
-		if (bdrMarker.first == BdrCond::SMA && opts_.evolution.fluxType == FluxType::Centered) {
-			throw std::runtime_error("SMA and Centered FluxType are not compatible.");
-		}
+	if (opts.cfl <= 0.0) {
+		throw std::runtime_error("CFL must be positive");
 	}
+
 }
 
-const FieldProbe& Solver::getPointProbe(const std::size_t probe) const 
+const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
 { 
 	return probesManager_.getPointProbe(probe); 
 }
 
-const PointProbe& Solver::getFieldProbe(const std::size_t probe) const
+const FieldProbe& Solver::getFieldProbe(const std::size_t probe) const
 {
 	return probesManager_.getFieldProbe(probe);
 }
@@ -164,7 +229,7 @@ double getJacobiGQ_RMin(const int order) {
 
 	return std::abs(nodes(0) - nodes(1));
 }
-std::vector<Source::Position> getVerticesCoordsForElem(const FiniteElementSpace& fes, const ElementId& e, const std::vector<Source::Position>& positions)
+std::vector<Source::Position> getVerticesCoordsForElem(const ParFiniteElementSpace& fes, const ElementId& e, const std::vector<Source::Position>& positions)
 {
 	Array<int> vertices;
 	fes.GetElementVertices(e, vertices);
@@ -217,49 +282,121 @@ double calc3DMeshTimeStep(FiniteElementSpace& fes)
 	}
 }
 
-double Solver::estimateTimeStep() const
+double estimateTimeStep(const Model& model, const SolverOptions& opts, const ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
 {
-	if (opts_.hesthavenOperator != true) {
-		if (model_.getConstMesh().Dimension() == 1) {
+	Mesh serialmesh = Mesh(model.getConstSerialMesh());
+	DG_FECollection fec(fes.FEColl()->GetOrder(), serialmesh.Dimension(), opts.basisType);
+	FiniteElementSpace serialfes(&serialmesh, &fec);
+
+	if (opts.evolution.op != EvolutionOperatorType::Hesthaven) {
+		if (model.getConstMesh().Dimension() == 1) {
 			double maxTimeStep{ 0.0 };
-			if (opts_.evolution.order == 0) {
-				maxTimeStep = getMinimumInterNodeDistance(*fes_) / physicalConstants::speedOfLight;
+			if (opts.evolution.order == 0) {
+				maxTimeStep = getMinimumInterNodeDistance(serialfes) / physicalConstants::speedOfLight;
 			}
 			else {
-				maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / physicalConstants::speedOfLight;
+				maxTimeStep = getMinimumInterNodeDistance(serialfes) / pow(double(fes.FEColl()->GetOrder()), 1.5) / physicalConstants::speedOfLight;
 			}
-			return opts_.cfl * maxTimeStep;
+			return opts.cfl * maxTimeStep;
 		}
-		else if (model_.getConstMesh().Dimension() == 2) {
-			return calc2DMeshTimeStep(*fes_.get()) * opts_.cfl;
+		else if (model.getConstMesh().Dimension() == 2) {
+			return calc2DMeshTimeStep(serialfes) * opts.cfl;
 		}
-		else if (model_.getConstMesh().Dimension() == 3) {
-			return calc3DMeshTimeStep(*fes_.get()) * opts_.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
+		else if (model.getConstMesh().Dimension() == 3) {
+			return calc3DMeshTimeStep(serialfes) * opts.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
 		}
 		else {
 			throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
 		}
 	}
 	else {
-		if (model_.getConstMesh().Dimension() == 2) {
-			return calc2DMeshTimeStep(*fes_.get()) * opts_.cfl;
+		if (model.getConstMesh().Dimension() == 2) {
+			return calc2DMeshTimeStep(serialfes) * opts.cfl;
 		}
-		else if (model_.getConstMesh().Dimension() == 3) {
+		else if (model.getConstMesh().Dimension() == 3) {
 			auto maxFscaleVal{ 0.0 };
-			const auto& evol = dynamic_cast<HesthavenEvolution*>(this->maxwellEvol_.get());
-			for (auto e{ 0 }; e < model_.getConstMesh().GetNE(); e++) {
+			const auto& evol = dynamic_cast<const HesthavenEvolution*>(tdo);
+			for (auto e{ 0 }; e < serialmesh.GetNE(); e++) {
 				const auto& fscaleMax{ evol->getHesthavenElement(e).fscale.maxCoeff() };
 				if (fscaleMax > maxFscaleVal) {
 					maxFscaleVal = fscaleMax;
 				}
 			}
-			const auto& order = fes_->FEColl()->GetOrder();
-			return 1.0 * opts_.cfl / (maxFscaleVal * order * order);
+			const auto& order = serialfes.FEColl()->GetOrder();
+			return 1.0 * opts.cfl / (maxFscaleVal * order * order);
 		}
 		else {
 			throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
 		}
 	}
+}
+
+double Solver::calcAverageElementSizeInMesh()
+{
+	double res = 0.0;
+	auto& mesh = this->model_.getMesh();
+
+    for (int e = 0; e < mesh.GetNE(); e++)
+    {
+        Element *el = mesh.GetElement(e);
+        const int nv = el->GetNVertices();
+        Array<int> vert_indices(nv);
+        el->GetVertices(vert_indices);
+
+        auto h_el = 0.0;
+        for (int a = 0; a < nv; a++){
+            const auto va = mesh.GetVertex(vert_indices[a]);
+			for (int b = a + 1; b < nv; b++){
+                const auto vb = mesh.GetVertex(vert_indices[b]);
+				auto dist2 = 0.0;
+                for (int d = 0; d < mesh.Dimension(); d++){
+                    dist2 += (va[d] - vb[d]) * (va[d] - vb[d]);
+				}
+                auto dist = std::sqrt(dist2);
+                if (dist > h_el){
+					h_el = dist;
+				}
+            }
+        }
+
+        res += h_el;
+    }
+
+    return res / mesh.GetNE();
+}
+
+void Solver::writeSimulationStatistics(const Time runtime){
+	int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    // Construct a rank-specific filename
+    std::string path = "Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/" +
+                       "/statistics_rank" + std::to_string(rank) + ".dat";
+
+    std::ofstream myfile(path, std::ios::app);
+    if (myfile.is_open()) {
+        myfile << std::scientific << std::setprecision(5);
+        myfile << "Simulation Run Time: " << runtime << " (s)\n";
+        myfile << std::defaultfloat;
+        myfile << "Final Time: " << (opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+        myfile << "Time Step: " << (dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+        myfile << "Number of Mesh Elements: " << fes_.get()->GetNE() << "\n";
+		myfile << "Average Element Size in Mesh: " << calcAverageElementSizeInMesh() << "\n";
+		auto local_dofs = static_cast<std::int64_t>(fes_->GetNDofs());
+        myfile << "Number of Local Degrees of Freedom: " << local_dofs << "\n";
+        if (opts_.evolution.op == Global) {
+            auto global = dynamic_cast<GlobalEvolution*>(evolTDO_.get());
+			std::int64_t local_elems = static_cast<std::int64_t>(std::pow(global->getConstGlobalOperator().Size(), 2.0));
+            myfile << "Operator Total Elements for Local Degrees of Freedom: " << local_elems << "\n";
+			std::int64_t local_and_ghost_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().Height()) * static_cast<std::int64_t>(global->getConstGlobalOperator().Width());
+            myfile << "Operator Total Elements for Local and Ghost Degrees of Freedom: " << local_and_ghost_elems << "\n";
+			std::int64_t non_zero_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().NumNonZeroElems());
+            myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems;
+        }
+        myfile.close();
+    } else {
+        std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
+    }
 }
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -281,15 +418,18 @@ void printSimulationInformation(const double time, const double dt, const double
 void Solver::run()
 {
 
+	auto runStartTime = std::chrono::steady_clock::now();
+
 #ifdef SHOW_TIMER_INFORMATION
 	auto lastPrintTime{ std::chrono::steady_clock::now() };
-	std::cout << "------------------------------------------------" << std::endl;
-	std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
-	printSimulationInformation(time_, dt_, opts_.finalTime);
+	if (Mpi::WorldRank() == 0){
+		std::cout << "------------------------------------------------" << std::endl;
+		std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
+		printSimulationInformation(time_, dt_, opts_.finalTime);
+	}
 #endif
 
 	while (time_ <= opts_.finalTime - 1e-8*dt_) {
-
 		step();
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -297,28 +437,35 @@ void Solver::run()
 		if (std::chrono::duration_cast<std::chrono::seconds>
 			(currentTime - lastPrintTime).count() >= 30.0) 
 		{
-			printSimulationInformation(time_, dt_, opts_.finalTime);
-			lastPrintTime = currentTime;
+			if (Mpi::WorldRank() == 0){
+				printSimulationInformation(time_, dt_, opts_.finalTime);
+				lastPrintTime = currentTime;
+			}
 		}
-		if (this->fields_.getNorml2() > 1e100){
-			std::cout << "------------------------------------------------------------------------" << std::endl;
-			std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
-			std::cout << "------------------------------------------------------------------------" << std::endl;
+		if (this->fields_.getNorml2() > 1e20){
+			if (Mpi::WorldRank() == 0){
+				std::cout << "------------------------------------------------------------------------" << std::endl;
+				std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
+				std::cout << "------------------------------------------------------------------------" << std::endl;
+			}
 		}
-
-#endif
 	}
+#endif
+
+	writeSimulationStatistics(std::chrono::duration<double>(std::chrono::steady_clock::now() - runStartTime).count());
+
 }
 
 void Solver::step()
 {
 	double truedt{ std::min(dt_, opts_.finalTime - time_) };
+	
 	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 	probesManager_.updateProbes(time_);
 }
 
 
-GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
+GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(ParMesh& submesh)
 {
 	switch (submesh.Dimension()) {
 	case 1:
@@ -347,10 +494,10 @@ GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
 
 }
 
-Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
+Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(ParMesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
 {
 	Model submodel(submesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh), GeomTagToInteriorBoundary{}));
-	FiniteElementSpace subfes(&submesh, &fec);
+	ParFiniteElementSpace subfes(&submesh, &fec);
 	Eigen::SparseMatrix<double> local;
 	auto numberOfFieldComponents = 2;
 	auto numberofMaxDimensions = 3;
@@ -359,32 +506,31 @@ Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh
 
 	EvolutionOptions localopts(opts);
 	ProblemDescription pd(submodel, probesManager_.probes, sourcesManager_.sources, localopts);
-	DGOperatorFactory dgops(pd, subfes);
+	DGOperatorFactory<ParFiniteElementSpace> dgops(pd, subfes);
 	for (int x = X; x <= Z; x++) {
 		int y = (x + 1) % 3;
 		int z = (x + 2) % 3;
 
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildDerivativeSubOperator(y), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildDerivativeSubOperator(z), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildDerivativeSubOperator(y), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildDerivativeSubOperator(z), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
 
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildOneNormalSubOperator(E, { y }), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildOneNormalSubOperator(E, { z }), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, { y }), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
-		allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildOneNormalSubOperator(H, { z }), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
+		allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
 
-		if (opts.fluxType == FluxType::Upwind) {
+		if (opts.alpha > 0.0) {
 
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildZeroNormalSubOperator(H), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildZeroNormalSubOperator(E), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
-
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { X, x }), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { Y, x }), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(H), *dgops.buildTwoNormalSubOperator(H, { Z, x }), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildTwoNormalSubOperator(E, { X, x }), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildTwoNormalSubOperator(E, { Y, x }), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
-			allocateDenseInEigen(buildByMult(*dgops.buildInverseMassMatrixSubOperator(E), *dgops.buildTwoNormalSubOperator(E, { Z, x }), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildZeroNormalSubOperator<ParBilinearForm>(H)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildZeroNormalSubOperator<ParBilinearForm>(E)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
+			allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
 
 		}
 
@@ -404,7 +550,7 @@ double Solver::findMaxEigenvalueModulus(const Eigen::VectorXcd& eigvals)
 	return res;
 }
 
-void reassembleSpectralBdrForSubmesh(SubMesh* submesh) 
+void reassembleSpectralBdrForSubmesh(ParSubMesh* submesh) 
 {
 	switch (submesh->GetElementType(0)) {
 	case Element::SEGMENT:
@@ -472,7 +618,7 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	}
 }
 
-void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
+void Solver::performSpectralAnalysis(const ParFiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
 {
 	Array<int> domainAtts(1);
 	domainAtts[0] = 501;
@@ -483,7 +629,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 
 		auto preAtt(meshCopy.GetAttribute(elem));
 		meshCopy.SetAttribute(elem, domainAtts[0]);
-		auto submesh{ SubMesh::CreateFromDomain(meshCopy,domainAtts) };
+		auto submesh{ ParSubMesh::CreateFromDomain(meshCopy,domainAtts) };
 		meshCopy.SetAttribute(elem, preAtt);
 		submesh.SetAttribute(0, preAtt);
 
@@ -492,7 +638,7 @@ void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model
 		auto eigenvals{ 
 			assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues() 
 		};
-		FiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
+		ParFiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
 		Model model{ submesh,
 			GeomTagToMaterialInfo{},
 			GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh),GeomTagToInteriorBoundary{})

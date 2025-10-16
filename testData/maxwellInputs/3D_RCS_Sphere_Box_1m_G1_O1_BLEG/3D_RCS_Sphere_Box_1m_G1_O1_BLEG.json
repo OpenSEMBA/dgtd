@@ -1,0 +1,72 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "evolution_operator": "global",
+    "basis_type": 0,
+	  "time_step": 1e-2,
+    "final_time": 30.0,
+    "order": 1
+  },
+  "model": {
+    "filename": "3D_RCS_Sphere_Box_1m_G1_O1_BLEG.msh",
+    "materials": [
+      {
+        "tags": [
+          2,
+          4
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          9
+        ],
+        "type": "PEC"
+      },
+      {
+        "tags": [
+          10
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "steps": 10
+    },
+    "farfield": [
+      {
+        "name": "sphere_Box_1m_G1_O1_BLEG",
+        "steps": 5,
+        "tags": [
+          3, 4, 5, 6, 7, 8
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "propagation": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        3, 4, 5, 6, 7, 8
+      ],
+      "magnitude": {
+        "spread": 0.20,
+        "mean": [0.0, 0.0, -4.0]
+      }
+    }
+  ]
+}

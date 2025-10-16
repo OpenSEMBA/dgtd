@@ -140,9 +140,9 @@ class MaxwellSMAJumpIntegrator : public BilinearFormIntegrator
 {
 
 public:
-	MaxwellSMAJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
+	MaxwellSMAJumpIntegrator(const std::vector<Direction>& dirTerms)
 	{
-		dir = dirTerms; beta = b;
+		dir = dirTerms; beta = 1.0;
 	}
 
 	void AssembleFaceMatrix(const FiniteElement& el1,

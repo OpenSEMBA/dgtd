@@ -89,20 +89,20 @@ std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Fr
 PlaneWaveData buildPlaneWaveData(const json&);
 std::vector<double> buildTimeVector(const std::string& data_path);
 
-GridFunction getGridFunction(Mesh&, const std::string& data_path);
+ParGridFunction getGridFunction(ParMesh&, const std::string& data_path);
 const Time getTime(const std::string& timePath);
 std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double delay, double mean);
 void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vector<Frequency>&);
 
 Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>&, const Time);
 
-FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>&, const std::string& path);
+FreqFields calculateFreqFields(ParMesh& mesh, const std::vector<Frequency>&, const std::string& path);
 
-ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace&, const Direction&);
+ComplexVector assembleComplexLinearForm(FunctionPair& fp, ParFiniteElementSpace&, const Direction&);
 
 Array<int> getNearToFarFieldMarker(const int att_size);
 
-std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteElementSpace& fes, const Direction& dir);
+std::unique_ptr<ParLinearForm> assembleLinearForm(FunctionCoefficient& fc, ParFiniteElementSpace& fes, const Direction& dir);
 
 class FarField {
 public:
@@ -113,7 +113,7 @@ private:
 	
 	std::pair<std::complex<double>, std::complex<double>> calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const Frequency, const SphericalAngles& angles, bool isElectric);
 
-	std::unique_ptr<FiniteElementSpace> fes_;
+	std::unique_ptr<ParFiniteElementSpace> fes_;
 	std::map<SphericalAngles, Freq2Value> pot_rad_;
 };
 

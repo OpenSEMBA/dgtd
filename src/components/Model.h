@@ -9,6 +9,15 @@
 
 namespace maxwell {
 
+using namespace mfem;
+
+using LocalElementId = int;
+using NeighbourElementId = int;
+using GlobalElementId = int;
+using Position = Vector;
+
+using GlobalToLocalElMap = std::map<GlobalElementId, LocalElementId>;
+
 using FaceId = int;
 using GeomTag = int;
 using GeomTagToMaterial = std::map<GeomTag, Material>;
@@ -25,6 +34,7 @@ using BoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
 using InteriorBoundaryToMarker = BoundaryToMarker;
 using TotalFieldScatteredFieldToMarker = BoundaryToMarker;
 using InteriorSourceToMarker = BoundaryToMarker;
+using SGBCToMarker = BoundaryToMarker;
 
 struct GeomTagToBoundaryInfo {
 	GeomTagToBoundary gt2b;
@@ -60,18 +70,27 @@ struct GeomTagToMaterialInfo {
 	};
 };
 
+std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh&);
+std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParMesh&);
+GlobalToLocalElMap buildGlobalToPartitionLocalElementMap(
+	const std::map<GlobalElementId, Position>& serial, const std::map<LocalElementId, Position>& local);
+void ensureElementTypeIsSame(const Mesh& mesh);
+
 class Model {
 public:
-	using Mesh = mfem::Mesh;
+
 	Model() = default;
 	Model(
 		Mesh&, 
 		const GeomTagToMaterialInfo& = GeomTagToMaterialInfo{},
-		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{}
+		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{},
+		int* partitioning = nullptr
 	);
 
-	Mesh& getMesh() { return mesh_; };
-	const Mesh& getConstMesh() const { return mesh_; }
+	ParMesh& getMesh() { return pmesh_; };
+	const ParMesh& getConstMesh() const { return pmesh_; }
+	Mesh& getSerialMesh() { return serialMesh_; }
+	const Mesh& getConstSerialMesh() const { return serialMesh_; }
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
@@ -81,6 +100,7 @@ public:
 	const InteriorBoundaryToMarker& getInteriorBoundaryToMarker() const { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
+	SGBCToMarker& getSGBCToMarker() { return sgbcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
 	GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() { return attToIntBdrMap_; }
 	const GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() const { return attToIntBdrMap_; }	
@@ -95,9 +115,12 @@ public:
 	std::size_t numberOfMaterials() const;
 	std::size_t numberOfBoundaryMaterials() const;
 
+	std::string meshName_;
+
 private:
 
-	Mesh mesh_;
+	Mesh serialMesh_;
+	ParMesh pmesh_;
 	
 	GeomTagToMaterial attToMatMap_;
 	GeomTagToBoundary attToBdrMap_;
@@ -107,6 +130,7 @@ private:
 	InteriorBoundaryToMarker intBdrToMarkerMap_;
 	TotalFieldScatteredFieldToMarker tfsfToMarkerMap_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
+	SGBCToMarker sgbcToMarkerMap_;
 	FaceToGeomTag faceToGeomTag_;
 
 	BoundaryMarker pecMarker_;
@@ -118,6 +142,7 @@ private:
 	BoundaryMarker intsmaMarker_;
 
 	BoundaryMarker tfsfMarker_;
+	BoundaryMarker sgbcMarker_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 
