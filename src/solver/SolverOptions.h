@@ -4,8 +4,8 @@
 
 namespace maxwell {
 
-// SolverOptions.h (or wherever ODEType lives)
-enum ODEType : size_t {
+// SolverOptions.h (or wherever ode_type lives)
+enum ode_type : size_t {
     RK4              = 0, // [explicit] 4th order
 
     BackwardEuler    = 1, // [implicit] 1st order (dissipative)
@@ -16,25 +16,35 @@ enum ODEType : size_t {
     SDIRK34          = 6  // [implicit] SDIRK(3/4) family, A-stable
 };
 
+struct SBCProperties{
+
+    size_t num_of_segments = 10;
+    size_t order = 1;
+    size_t material_width = 1e-4;
+
+    bool implicit_ode = false;
+
+};
 
 struct SolverOptions {
-    double timeStep = 0.0;
-    double finalTime = 2.0;
+    double time_step = 0.0;
+    double final_time = 2.0;
     double cfl = 1.0;
-    int basisType = mfem::BasisType::GaussLobatto;
-    size_t odeType = ODEType::RK4;
+    int basis_type = mfem::BasisType::GaussLobatto;
+    size_t ode_type = ode_type::RK4;
 
     EvolutionOptions evolution;
+    SBCProperties sbc_props;
     
     SolverOptions& setTimeStep(double t) 
     {
-        timeStep = t;
+        time_step = t;
         return *this;
     };
 
     SolverOptions& setFinalTime(double t) 
     { 
-        finalTime = t; 
+        final_time = t; 
         return *this; 
     };
 
@@ -61,8 +71,8 @@ struct SolverOptions {
         return *this;
     }
 
-    SolverOptions& setExportEO(bool exportOP = true) {
-        evolution.exportEvolutionOperator = exportOP;
+    SolverOptions& setExportEO(bool export_op = true) {
+        evolution.export_evolution_operator = export_op;
         return *this;
     }
 
@@ -72,17 +82,17 @@ struct SolverOptions {
     }    
 
     SolverOptions& setBasisType(int bt = mfem::BasisType::GaussLobatto) {
-        basisType = bt;
+        basis_type = bt;
         return *this;
     }
 
-    SolverOptions& setTFSFFinalTime(double tfsf_ft) {
-        evolution.tfsfFinalTime = tfsf_ft;
+    SolverOptions& setTFSFCutoffTime(double tfsf_ft) {
+        evolution.tfsf_cutoff_time = tfsf_ft;
         return *this;
     }
 
     SolverOptions& setODEType(size_t ode_type) {
-        odeType = ode_type;
+        ode_type = ode_type;
         return *this;
     }
 

@@ -1,5 +1,5 @@
-#include "EvolutionExtension.h"
-#include "solver/Solver.h"
+#include "SolverExtension.h"
+#include "Solver.h"
 #include "components/DGOperatorFactory.h"
 #include "components/ProblemDescription.h"
 
@@ -60,6 +60,11 @@ sbc_fields_(Fields<FiniteElementSpace,GridFunction>(*fes_.get()))
     
 }
 
+void SBCSolver::assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields)
+{
+    global_fields_ = g_fields;
+}
+
 void SBCSolver::assignODESolver()
 {
     switch(sbcp_.implicit_ode){
@@ -72,6 +77,16 @@ void SBCSolver::assignODESolver()
     }
 }
 
+void SBCSolver::resetFields()
+{
+    this->sbc_fields_.allDOFs() = 0.0;
+}
+
+std::pair<double, double> SBCSolver::getFieldPairAfterCalculation(const FieldType f, const Direction d)
+{
+    return {this->sbc_fields_.get(f,d)[0], this->sbc_fields_.get(f,d)[sbc_fields_.get(f,d).Size() - 1]};
+}
+
 void SBCSolver::assignEvolutionOperator()
 {
     // evolTDO_ = std::make_unique<SBC_TDO>();  // WIP
@@ -81,8 +96,6 @@ SBCTimeDependentOperator::SBCTimeDependentOperator(Model& model, FiniteElementSp
 model_(model),
 fes_(fes)
 {
-
-    sbc_operator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs());
     Probes pr;
     Sources src;
     EvolutionOptions eopts;

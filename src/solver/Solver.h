@@ -54,8 +54,8 @@ public:
     void run();
     void step();
 
-    void setFinalTime(double finalTime) {
-        opts_.setFinalTime(finalTime);
+    void setFinalTime(double final_time) {
+        opts_.setFinalTime(final_time);
     }
 
 private:

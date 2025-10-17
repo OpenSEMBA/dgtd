@@ -1,7 +1,8 @@
 message(STATUS "Creating build system for maxwell-solver")
 
 add_library(maxwell-solver STATIC 
-	"Solver.cpp" 
+	"Solver.cpp"
+	"SolverExtension.cpp"
 	"ProbesManager.cpp" 
 	"SourcesManager.cpp")
 

@@ -1002,7 +1002,7 @@ namespace maxwell
 		auto threshold = 1e-6;
 		res->Threshold(threshold);
 
-		if(this->pd_.opts.exportEvolutionOperator){
+		if(this->pd_.opts.export_evolution_operator){
 			if(Mpi::WorldSize() > 1){
 				std::cout << "---------------------------------------------------------------" << std::endl;
 				std::cout << "--EXPORTING OPERATOR ONLY CURRENTLY WORKS IN SINGLE RANK SIMS--" << std::endl;

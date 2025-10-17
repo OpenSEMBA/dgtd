@@ -1,5 +1,6 @@
 #include "components/Model.h"
-#include "HesthavenEvolutionMethods.h"
+#include "evolution/HesthavenEvolutionMethods.h"
+#include "SolverOptions.h"
 
 #include <mfem.hpp>
 
@@ -8,19 +9,6 @@ namespace maxwell
 
 using namespace mfem;
 
-struct SBCProperties{
-
-    size_t num_of_segments = 10;
-    size_t order = 1;
-    size_t material_width = 1e-4;
-
-    bool implicit_ode = false;
-
-    SBCProperties(size_t segnum, size_t o, size_t mat_w, bool is_implicit = false) : 
-    num_of_segments(segnum), order(o), material_width(mat_w), implicit_ode(is_implicit){}
-
-};
-
 class SBCSolver{
 public:
 
@@ -28,11 +16,14 @@ public:
 
     void setGlobalTime(Time& t) { global_time_ = t; }
     void setSBCTime(Time& t) { sbc_time_ = t; }
-
-private:
-
+    void resetFields();
+    void assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
+    std::pair<double, double> getFieldPairAfterCalculation(const FieldType f, const Direction d);
+    
+    private:
+    
     SBCProperties sbcp_;
-
+    
     std::unique_ptr<Mesh> mesh_;
     std::unique_ptr<DG_FECollection> fec_;
     std::unique_ptr<FiniteElementSpace> fes_;
@@ -42,6 +33,7 @@ private:
     Time sbc_time_;
     Time dt_;
 
+    const Fields<ParFiniteElementSpace,ParGridFunction>* global_fields_;
     Fields<FiniteElementSpace,GridFunction> sbc_fields_;
     
     std::unique_ptr<ODESolver> odeSolver_;

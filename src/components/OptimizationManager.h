@@ -2,7 +2,7 @@
 
 using ElementID = int;
 using ElementAttribute = int;
-using TimeStep = double;
+using time_step = double;
 using MaxEigenVal = Eigen::dcomplex;
 
 namespace maxwell {

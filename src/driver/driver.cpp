@@ -357,6 +357,7 @@ Sources buildSources(const json& case_data)
 
 SolverOptions buildSolverOptions(const json& case_data)
 {
+	
 	SolverOptions res{};
 
 	if (case_data.contains("solver_options")) {
@@ -400,7 +401,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 				res.setEvolutionOperator(EvolutionOperatorType::Hesthaven);
 			}
 			else {
-				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none chosen, it will default to 'maxwell'.");
+				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none explicitly stated, it will default to 'global'.");
 			}
 		}
 
@@ -409,7 +410,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 		}
 
 		if (case_data["solver_options"].contains("tfsf_final_time")){
-			res.setTFSFFinalTime(case_data["solver_options"]["tfsf_final_time"]);
+			res.setTFSFCutoffTime(case_data["solver_options"]["tfsf_final_time"]);
 		}
 
 		if (case_data["solver_options"].contains("ode_type")){
@@ -417,6 +418,25 @@ SolverOptions buildSolverOptions(const json& case_data)
 		}
 
 	}
+
+	for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
+        if (case_data["model"]["boundaries"][b].contains("type") && case_data["model"]["boundaries"][b]["type"] == "SBC" &&
+            case_data["model"]["boundaries"][b].contains("tags") && case_data["model"]["boundaries"][b]["tags"].is_array()){
+			if (case_data["model"]["boundaries"][b].contains("num_of_segments")){
+				res.sbc_props.num_of_segments = int(case_data["model"]["boundaries"][b]["num_of_segments"]);
+			}
+			if (case_data["model"]["boundaries"][b].contains("order")){
+				res.sbc_props.order = int(case_data["model"]["boundaries"][b]["order"]);
+			}
+			if (case_data["model"]["boundaries"][b].contains("material_width")){
+				res.sbc_props.material_width = double(case_data["model"]["boundaries"][b]["material_width"]);
+			}
+			if (case_data["model"]["boundaries"][b].contains("implicit_solve")){
+				res.sbc_props.implicit_ode = case_data["model"]["boundaries"][b]["implicit_solve"];
+			}
+		}
+	}
+
 	return res;
 }
 
