@@ -85,6 +85,7 @@ void assertVectorOnDevice(const Vector &v, const std::string &name)
     }
 }
 
+
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
     mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerApplyA, timerTFSF;
@@ -95,9 +96,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
-    // ---------------------------
     // 1) Load locals and exchange neighbors
-    // ---------------------------
     timerExchange.Start();
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
@@ -118,9 +117,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
     timerExchange.Stop();
 
-    // ---------------------------
     // 2) Assemble packed input [locals|neighbors]
-    // ---------------------------
     timerAssembleInNew.Start();
     mfem::Vector inNew(6 * blockSize);
     inNew.UseDevice(true);
@@ -153,67 +150,70 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     timerAssembleInNew.Stop();
 
-    // ---------------------------
     // 3) Apply global operator A
-    // ---------------------------
     timerApplyA.Start();
     out.SetSize(6 * ndofs);
     out.UseDevice(true);
     globalOperator_->Mult(inNew, out);
     timerApplyA.Stop();
 
-    // ---------------------------
-    // 4) Add forcing s(t_stage) (TFSF etc.), no source lifetime changes
-    // ---------------------------
+    // 4) Add forcing s(t_stage) (TFSF etc.), gated by final time
     timerTFSF.Start();
     if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
     {
-        const int ndofs_tfsf = tfsf_space->GetNDofs();
+        const double t_stage = GetTime();
+        const double t_off   = opts_.tfsf_cutoff_time;
 
-        for (auto& source : srcmngr_.sources)
+        // Gate: if tfsfFinalTime is set and we are at/after it, skip TFSF assembly entirely.
+        const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
+
+        if (tfsf_active)
         {
-            if (!source) { continue; }
-            if (!dynamic_cast<TotalField*>(source.get())) { continue; }
+            const int ndofs_tfsf = tfsf_space->GetNDofs();
 
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-            const auto func_gpu = eval_time_var_field_gpu(GetTime(), srcmngr_);
-            mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
-#else
-            auto func = evalTimeVarFunction(GetTime(), srcmngr_);
-            mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
-#endif
-            mfem::Vector tempTFSF(assembledFunc.Size());
-            tempTFSF.UseDevice(true);
-            TFSFOperator_->Mult(assembledFunc, tempTFSF);
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-            // Adds (-tempTFSF) into 'out'
-            load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out,
-                                          ndofs, ndofs_tfsf);
-#else
-            for (int f : { E, H })
+            for (auto& source : srcmngr_.sources)
             {
-                for (int d : { X, Y, Z })
+                if (!source) { continue; }
+                if (!dynamic_cast<TotalField*>(source.get())) { continue; }
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+                const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
+                mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
+#else
+                auto func = evalTimeVarFunction(t_stage, srcmngr_);
+                mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+#endif
+                mfem::Vector tempTFSF(assembledFunc.Size());
+                tempTFSF.UseDevice(true);
+                TFSFOperator_->Mult(assembledFunc, tempTFSF);
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+                // Adds (-tempTFSF) into 'out'
+                load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out,
+                                              ndofs, ndofs_tfsf);
+#else
+                for (int f : { E, H })
                 {
-                    for (int v = 0; v < sub_to_parent_ids_.Size(); ++v)
+                    for (int d : { X, Y, Z })
                     {
-                        const int outIdx  = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
-                        const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
-                        const double val = tempTFSF[tempIdx];
-                        if (val != 0.0) { out[outIdx] -= val; }
+                        for (int v = 0; v < sub_to_parent_ids_.Size(); ++v)
+                        {
+                            const int outIdx  = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
+                            const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
+                            const double val  = tempTFSF[tempIdx];
+                            if (val != 0.0) { out[outIdx] -= val; }
+                        }
                     }
                 }
-            }
 #endif
+            }
         }
     }
     timerTFSF.Stop();
 
     timerTotal.Stop();
 
-    // ---------------------------
     // 5) Periodic timing print
-    // ---------------------------
     static double lastPrintTime = -1.0;
     const double printInterval = 0.1;  // in problem time units
     const double currentTime = GetTime();
@@ -222,12 +222,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     {
         std::cout << "Current time: " << currentTime << std::endl;
         std::cout << "Rank " << Mpi::WorldRank()
-                  << " Mult total: "     << timerTotal.RealTime()        * 1000.0
-                  << " ms, exchange: "   << timerExchange.RealTime()     * 1000.0
-                  << " ms, assembleIn: " << timerAssembleInNew.RealTime()* 1000.0 << std::endl;
+                  << " Mult total: "     << timerTotal.RealTime()         * 1000.0
+                  << " ms, exchange: "   << timerExchange.RealTime()      * 1000.0
+                  << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000.0 << std::endl;
         std::cout << "Rank " << Mpi::WorldRank()
-                  << " Mult applyA: "    << timerApplyA.RealTime()       * 1000.0
-                  << " ms, tfsf: "       << timerTFSF.RealTime()         * 1000.0 << std::endl;
+                  << " Mult applyA: "    << timerApplyA.RealTime()        * 1000.0
+                  << " ms, tfsf: "       << timerTFSF.RealTime()          * 1000.0 << std::endl;
 
         lastPrintTime = (lastPrintTime < 0.0) ? currentTime : lastPrintTime + printInterval;
     }
@@ -306,42 +306,53 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     timerSrc.Start();
     {
         mfem::Vector s(n); s.UseDevice(true); s = 0.0;
+
         if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace()) {
-            const int ndofs_tfsf = tfsf_space->GetNDofs();
+            const double t_stage = GetTime();
+            const double t_off   = opts_.tfsf_cutoff_time;
 
-            for (auto& source : srcmngr_.sources) {
-                if (!source) { continue; }
-                if (!dynamic_cast<TotalField*>(source.get())) { continue; }
+            // Gate: if tfsfFinalTime is set and we are at/after it, skip TFSF assembly entirely.
+            const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
+
+            if (tfsf_active)
+            {
+                const int ndofs_tfsf = tfsf_space->GetNDofs();
+
+                for (auto& source : srcmngr_.sources) {
+                    if (!source) { continue; }
+                    if (!dynamic_cast<TotalField*>(source.get())) { continue; }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-                const auto func_gpu = eval_time_var_field_gpu(GetTime(), srcmngr_);
-                mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
+                    const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
+                    mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
 #else
-                auto func = evalTimeVarFunction(GetTime(), srcmngr_);
-                mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+                    auto func = evalTimeVarFunction(t_stage, srcmngr_);
+                    mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
 #endif
-                mfem::Vector tempTFSF(assembledFunc.Size());
-                tempTFSF.UseDevice(true);
-                TFSFOperator_->Mult(assembledFunc, tempTFSF);
+                    mfem::Vector tempTFSF(assembledFunc.Size());
+                    tempTFSF.UseDevice(true);
+                    TFSFOperator_->Mult(assembledFunc, tempTFSF);
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-                // Adds (-tempTFSF) into 's'
-                load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, s,
-                                              ndofs, ndofs_tfsf);
+                    // Adds (-tempTFSF) into 's'
+                    load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, s,
+                                                  ndofs, ndofs_tfsf);
 #else
-                for (int f : { E, H }) {
-                    for (int d : { X, Y, Z }) {
-                        for (int v = 0; v < sub_to_parent_ids_.Size(); ++v) {
-                            const int outIdx  = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
-                            const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
-                            const double val = tempTFSF[tempIdx];
-                            if (val != 0.0) { s[outIdx] -= val; }
+                    for (int f : { E, H }) {
+                        for (int d : { X, Y, Z }) {
+                            for (int v = 0; v < sub_to_parent_ids_.Size(); ++v) {
+                                const int outIdx  = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
+                                const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
+                                const double val = tempTFSF[tempIdx];
+                                if (val != 0.0) { s[outIdx] -= val; }
+                            }
                         }
                     }
-                }
 #endif
+                }
             }
         }
+
         rhs += s;
     }
     timerSrc.Stop();
@@ -368,17 +379,17 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         }
     } J(n, std::function<void(const mfem::Vector&, mfem::Vector&)>(applyA_noPrint), dt);
 
-    // GMRES solve without preconditioner. Nonzero initial guess helps when dt is small.
+    // GMRES solve without preconditioner.
     mfem::GMRESSolver gmres;
     gmres.SetOperator(J);
     gmres.SetRelTol(1e-8);
     gmres.SetMaxIter(400);
-    gmres.SetKDim(60);     // cap memory and restart cost
+    gmres.SetKDim(60);
     gmres.SetPrintLevel(0);
 
-    // Initial guess: reuse current k if provided; otherwise use rhs (cheap and effective).
+    // Initial guess: reuse current k if sized; else use rhs.
     if (k.Size() == n) {
-        // keep user-provided guess
+        // keep caller-provided guess
     } else {
         k.SetSize(n); k.UseDevice(true); k = rhs;
     }
@@ -399,8 +410,8 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         std::cout << "Rank " << Mpi::WorldRank()
                   << " ImplicitSolve total: " << timerTotal.RealTime() * 1000.0
                   << " ms, rhs: " << timerRHS.RealTime() * 1000.0
-                  << " ms, A(x): " << timerAx.RealTime() * 1000.0
-                  << " ms, source: " << timerSrc.RealTime() * 1000.0 << " ms" << std::endl;
+                  << " ms (A(x): " << timerAx.RealTime() * 1000.0
+                  << " ms, source: " << timerSrc.RealTime() * 1000.0 << " ms)" << std::endl;
         std::cout << "Rank " << Mpi::WorldRank()
                   << " ImplicitSolve solve: " << timerSolve.RealTime() * 1000.0
                   << " ms, gmres iters: " << gmres.GetNumIterations() << std::endl;

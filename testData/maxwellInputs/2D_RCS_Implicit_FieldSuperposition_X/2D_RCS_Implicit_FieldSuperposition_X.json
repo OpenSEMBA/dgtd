@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-1,
+	  "time_step": 1e-2,
     "final_time": 30.0,
     "exportOperator": false,
     "tfsf_final_time": 15.0,
