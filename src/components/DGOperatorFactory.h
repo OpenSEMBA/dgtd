@@ -857,7 +857,7 @@ namespace maxwell
 		GlobalIndices gid(fes_.GetNDofs(), additional_dofs, true);
 		for (auto d : { X, Y, Z }) {
 			loadBlockInGlobalAtIndices(
-				AsigE->SpMat(),
+				ASigE->SpMat(),
 				*global,
 				std::make_pair(*gid.offsets[E][d].get(), *gid.offsets[E][d].get()),
 				-1.0
