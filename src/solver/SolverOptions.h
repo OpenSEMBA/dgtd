@@ -60,9 +60,9 @@ struct SolverOptions {
         return *this;
     }
 
-    SolverOptions& setOrder(int orderIn) 
+    SolverOptions& setOrder(int o) 
     {
-        evolution.order = orderIn;
+        evolution.order = o;
         return *this;
     }
 
@@ -91,8 +91,8 @@ struct SolverOptions {
         return *this;
     }
 
-    SolverOptions& setODEType(size_t ode_type) {
-        ode_type = ode_type;
+    SolverOptions& setODEType(size_t type) {
+        ode_type = type;
         return *this;
     }
 
