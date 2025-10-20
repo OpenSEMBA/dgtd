@@ -20,7 +20,7 @@ InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps&
     return res;
 }
 
-void SBCSolver::findDoFPairs(Model& model, FiniteElementSpace& fes)
+void SBCSolver::findDoFPairs(Model& model, ParFiniteElementSpace& fes)
 {
     auto attMap{ mapOriginalAttributes(*fes.GetMesh()) };
     auto fec = dynamic_cast<const DG_FECollection*>(fes.FEColl());
@@ -45,17 +45,33 @@ void SBCSolver::estimateTimeStep()
     dt_ = getMinimumInterNodeDistance(*fes_.get()) / std::pow(double(fes_.get()->FEColl()->GetOrder()), 1.5) / physicalConstants::speedOfLight;
 }
 
-SBCSolver::SBCSolver(Model& model, FiniteElementSpace& full_model_fes, const SBCProperties& sbcp) :
+GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& g_model)
+{
+    GeomTagToMaterial res;
+    const auto& tag2bdr = g_model.getGeomTagToIntBoundaryCond();
+    for(const auto& [tag, cond] : tag2bdr){
+        if (cond == BdrCond::SBC){
+            const auto sbc_material = g_model.getGeomTagToBoundaryMaterial().at(tag);
+            res.emplace(1, sbc_material);
+        }
+    }
+    return res;
+}
+
+SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp),
 mesh_(std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp_.num_of_segments, sbcp_.material_width))),
+pmesh_(std::make_unique<ParMesh>(MPI_COMM_WORLD, *mesh_)),
 fec_(std::make_unique<DG_FECollection>(sbcp_.order, 1, BasisType::GaussLobatto)),
-fes_(std::make_unique<FiniteElementSpace>(mesh_.get(), fec_.get())),
-sbc_fields_(Fields<FiniteElementSpace,GridFunction>(*fes_.get()))
+fes_(std::make_unique<ParFiniteElementSpace>(pmesh_.get(), fec_.get())),
+sbc_fields_(Fields<ParFiniteElementSpace, ParGridFunction>(*fes_.get()))
 {
     assignODESolver();
     assignEvolutionOperator();
 
-    findDoFPairs(model, full_model_fes);
+    model_ = Model(*mesh_, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}));
+
+    findDoFPairs(g_model, g_fes);
 
     
 }
@@ -89,7 +105,11 @@ std::pair<double, double> SBCSolver::getFieldPairAfterCalculation(const FieldTyp
 
 void SBCSolver::assignEvolutionOperator()
 {
-    // evolTDO_ = std::make_unique<SBC_TDO>();  // WIP
+    EvolutionOptions ev_opts;
+    ev_opts.order = sbcp_.order;
+    Sources srcs;
+    SourcesManager src_mngr(srcs, *fes_, sbc_fields_);
+    evolTDO_ = std::make_unique<GlobalEvolution>(*fes_, model_, src_mngr, ev_opts);
 }
 
 SBCTimeDependentOperator::SBCTimeDependentOperator(Model& model, FiniteElementSpace& fes) :

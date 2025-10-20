@@ -12,7 +12,7 @@ using namespace mfem;
 class SBCSolver{
 public:
 
-    SBCSolver(Model&, FiniteElementSpace&, const SBCProperties&);
+    SBCSolver(Model&, ParFiniteElementSpace&, const SBCProperties&);
 
     void setGlobalTime(Time& t) { global_time_ = t; }
     void setSBCTime(Time& t) { sbc_time_ = t; }
@@ -20,26 +20,31 @@ public:
     void assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
     std::pair<double, double> getFieldPairAfterCalculation(const FieldType f, const Direction d);
     
-    private:
+private:
     
     SBCProperties sbcp_;
     
     std::unique_ptr<Mesh> mesh_;
+    std::unique_ptr<ParMesh> pmesh_;
     std::unique_ptr<DG_FECollection> fec_;
-    std::unique_ptr<FiniteElementSpace> fes_;
+    std::unique_ptr<ParFiniteElementSpace> fes_;
     std::vector<std::pair<NodeId, NodeId>> dof_pairs_;
+
+    Model model_;
 
     Time global_time_;
     Time sbc_time_;
     Time dt_;
 
-    const Fields<ParFiniteElementSpace,ParGridFunction>* global_fields_;
-    Fields<FiniteElementSpace,GridFunction> sbc_fields_;
+    SolverOptions opts_;
+
+    const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
+    Fields<ParFiniteElementSpace, ParGridFunction> sbc_fields_;
     
     std::unique_ptr<ODESolver> odeSolver_;
     std::unique_ptr<TimeDependentOperator> evolTDO_;
     
-    void findDoFPairs(Model&, FiniteElementSpace&);
+    void findDoFPairs(Model&, ParFiniteElementSpace&);
     
     void assignODESolver();
     void assignEvolutionOperator();
