@@ -67,6 +67,10 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 		attToMatMap_ = matInfo.gt2m;
 	}
 
+	if (matInfo.gt2bm.size() != 0){
+		attToBdrMatMap_ = matInfo.gt2bm;
+	}
+
 	Array<int> f2bdr;
 	if (partitioning != nullptr){
 		f2bdr = pmesh_.GetFaceToBdrElMap();
