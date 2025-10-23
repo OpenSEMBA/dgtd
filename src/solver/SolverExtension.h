@@ -13,6 +13,8 @@ using namespace mfem;
 
 GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& global_model);
 
+using NbrPairs = std::pair<double, double>;
+
 class SBCSolver{
 public:
 
@@ -21,9 +23,9 @@ public:
     void setTargetTime(Time& t) { target_time = t; }
     void setPreTime(Time& t) { pre_time = t; }
     void assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
-    std::pair<double, double> getFieldPairAfterCalculation(const FieldType f, const Direction d);
+    NbrPairs getFieldValues(const FieldType f, const Direction d);
     
-private:
+    private:
     
     SBCProperties sbcp_;
     
@@ -32,15 +34,15 @@ private:
     std::unique_ptr<DG_FECollection> fec_;
     std::unique_ptr<ParFiniteElementSpace> fes_;
     std::vector<std::pair<NodeId, NodeId>> dof_pairs_;
-
+    
     Model model_;
-
+    
     Time target_time;
     Time pre_time = 0.0;
     Time dt_;
-
+    
     SolverOptions opts_;
-
+    
     const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
     Fields<ParFiniteElementSpace, ParGridFunction> sbc_fields_;
     
@@ -49,10 +51,9 @@ private:
     
     void findDoFPairs(Model&, ParFiniteElementSpace&);
     
-    void assignODESolver();
     void assignEvolutionOperator();
 
-    void estimateTimeStep();
+    void loadFieldValues(const FieldType, const Direction, const NbrPairs&);
 
 };
 
@@ -63,8 +64,8 @@ class SBCTimeDependentOperator : public mfem::TimeDependentOperator
 		static const int numberOfMaxDimensions = 3;
 
 		SBCTimeDependentOperator(Model&, ParFiniteElementSpace&);
-		virtual void Mult(const Vector& x, Vector& y) const;
-		void ImplicitSolve(const double dt, const Vector& x, Vector& k) override;
+		// virtual void Mult(const Vector& x, Vector& y) const;
+		// void ImplicitSolve(const double dt, const Vector& x, Vector& k) override;
 
 		const SparseMatrix& getConstGlobalOperator() { return *sbc_operator_.get(); }
 

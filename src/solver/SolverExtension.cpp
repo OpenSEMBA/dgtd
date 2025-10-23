@@ -40,11 +40,6 @@ void SBCSolver::findDoFPairs(Model& model, ParFiniteElementSpace& fes)
     }
 }
 
-void SBCSolver::estimateTimeStep()
-{
-    dt_ = getMinimumInterNodeDistance(*fes_.get()) / std::pow(double(fes_.get()->FEColl()->GetOrder()), 1.5) / physicalConstants::speedOfLight;
-}
-
 GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& g_model)
 {
     GeomTagToMaterial res;
@@ -81,9 +76,19 @@ void SBCSolver::assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFun
     global_fields_ = g_fields;
 }
 
-std::pair<double, double> SBCSolver::getFieldPairAfterCalculation(const FieldType f, const Direction d)
+void SBCSolver::loadFieldValues(const FieldType f, const Direction d, const NbrPairs& vals)
 {
-    return {this->sbc_fields_.get(f,d)[0], this->sbc_fields_.get(f,d)[sbc_fields_.get(f,d).Size() - 1]};
+    const auto& ghost_interval = sbcp_.order + 1;
+    for(auto v = 0; v < ghost_interval; v++){
+        this->sbc_fields_.get(f, d)[v] = vals.first;
+        this->sbc_fields_.get(f, d)[sbc_fields_.get(f, d).Size() - v] = vals.second;
+    }
+}
+
+NbrPairs SBCSolver::getFieldValues(const FieldType f, const Direction d)
+{
+    const auto& ghost_interval = sbcp_.order + 1;
+    return {this->sbc_fields_.get(f,d)[sbcp_.order + 2], this->sbc_fields_.get(f,d)[sbc_fields_.get(f,d).Size() - (sbcp_.order + 2)]};
 }
 
 void SBCSolver::assignEvolutionOperator()

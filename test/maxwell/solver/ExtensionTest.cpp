@@ -95,8 +95,9 @@ TEST_F(SolverExtensionTest, isCorrect_SBC_Properties)
 
 TEST_F(SolverExtensionTest, buildTest)
 {
-    // buildClassDefaultUtilities();
-    // SBCSolver(model, pfes_, sbcp_);
+    auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SBC_Test"));
+    auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SBC_Test"), true);
+    SBCSolver sbc_solver(global_solver.getModel(), *pfes_, global_solver.getSolverOptions().sbc_props);
 }
 
 }

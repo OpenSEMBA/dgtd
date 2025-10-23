@@ -182,7 +182,7 @@ namespace maxwell {
 	const std::map<bool, std::vector<BdrElementId>> assembleInteriorOrTrueBdrMap(const FiniteElementSpace& fes);
 	std::vector<Nodes> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNodeMarkers, FiniteElementSpace& , const std::map<bool, std::vector<BdrElementId>>& isInteriorMap);
 
-	std::pair<Nodes, Nodes> buildConnectivityForInteriorBdrFace(const FaceElementTransformations&, FiniteElementSpace& globalFES, FiniteElementSpace& smFES);
+	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations&, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES);
 	std::vector<Array<int>> assembleBoundaryMarkers(FiniteElementSpace&);
 	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace&, Array<int>& boundaryMarker);
 	InteriorFaceConnectivityMaps mapConnectivity(const BilinearForm* fluxMatrix);
