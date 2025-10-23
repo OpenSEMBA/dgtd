@@ -60,18 +60,18 @@ GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& g_model)
 
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp),
-mesh_(std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp_.num_of_segments, sbcp_.material_width))),
+mesh_(std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp_.num_of_segments + 2, sbcp_.material_width + 2 * (sbcp_.material_width / double(sbcp_.num_of_segments))))),
 pmesh_(std::make_unique<ParMesh>(MPI_COMM_WORLD, *mesh_)),
 fec_(std::make_unique<DG_FECollection>(sbcp_.order, 1, BasisType::GaussLobatto)),
 fes_(std::make_unique<ParFiniteElementSpace>(pmesh_.get(), fec_.get())),
 sbc_fields_(Fields<ParFiniteElementSpace, ParGridFunction>(*fes_.get()))
 {
-    assignODESolver();
-    assignEvolutionOperator();
-
-    model_ = Model(*mesh_, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}));
 
     findDoFPairs(g_model, g_fes);
+    
+    assignEvolutionOperator();
+    model_ = Model(*mesh_, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}));
+
 
     
 }
@@ -79,23 +79,6 @@ sbc_fields_(Fields<ParFiniteElementSpace, ParGridFunction>(*fes_.get()))
 void SBCSolver::assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields)
 {
     global_fields_ = g_fields;
-}
-
-void SBCSolver::assignODESolver()
-{
-    switch(sbcp_.implicit_ode){
-        case true:
-            odeSolver_ = std::make_unique<ImplicitMidpointSolver>();
-            break;
-        case false:
-            odeSolver_ = std::make_unique<RK4Solver>();
-            break;
-    }
-}
-
-void SBCSolver::resetFields()
-{
-    this->sbc_fields_.allDOFs() = 0.0;
 }
 
 std::pair<double, double> SBCSolver::getFieldPairAfterCalculation(const FieldType f, const Direction d)
@@ -112,7 +95,7 @@ void SBCSolver::assignEvolutionOperator()
     evolTDO_ = std::make_unique<GlobalEvolution>(*fes_, model_, src_mngr, ev_opts);
 }
 
-SBCTimeDependentOperator::SBCTimeDependentOperator(Model& model, FiniteElementSpace& fes) :
+SBCTimeDependentOperator::SBCTimeDependentOperator(Model& model, ParFiniteElementSpace& fes) :
 model_(model),
 fes_(fes)
 {
@@ -120,7 +103,7 @@ fes_(fes)
     Sources src;
     EvolutionOptions eopts;
     ProblemDescription pd(model_, pr, src, eopts);
-    DGOperatorFactory<FiniteElementSpace> dgops(pd, fes_);
+    DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes_);
 
     sbc_operator_ = dgops.buildGlobalOperator();
     

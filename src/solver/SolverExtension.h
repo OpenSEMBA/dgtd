@@ -1,3 +1,5 @@
+#pragma once
+
 #include "components/Model.h"
 #include "evolution/HesthavenEvolutionMethods.h"
 #include "SolverOptions.h"
@@ -9,14 +11,15 @@ namespace maxwell
 
 using namespace mfem;
 
+GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& global_model);
+
 class SBCSolver{
 public:
 
     SBCSolver(Model&, ParFiniteElementSpace&, const SBCProperties&);
 
-    void setGlobalTime(Time& t) { global_time_ = t; }
-    void setSBCTime(Time& t) { sbc_time_ = t; }
-    void resetFields();
+    void setTargetTime(Time& t) { target_time = t; }
+    void setPreTime(Time& t) { pre_time = t; }
     void assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
     std::pair<double, double> getFieldPairAfterCalculation(const FieldType f, const Direction d);
     
@@ -32,8 +35,8 @@ private:
 
     Model model_;
 
-    Time global_time_;
-    Time sbc_time_;
+    Time target_time;
+    Time pre_time = 0.0;
     Time dt_;
 
     SolverOptions opts_;
@@ -59,7 +62,7 @@ class SBCTimeDependentOperator : public mfem::TimeDependentOperator
 		static const int numberOfFieldComponents = 2;
 		static const int numberOfMaxDimensions = 3;
 
-		SBCTimeDependentOperator(Model&, FiniteElementSpace&);
+		SBCTimeDependentOperator(Model&, ParFiniteElementSpace&);
 		virtual void Mult(const Vector& x, Vector& y) const;
 		void ImplicitSolve(const double dt, const Vector& x, Vector& k) override;
 
@@ -69,7 +72,7 @@ class SBCTimeDependentOperator : public mfem::TimeDependentOperator
 
 		std::unique_ptr<mfem::SparseMatrix> sbc_operator_;
 
-		FiniteElementSpace& fes_;
+		ParFiniteElementSpace& fes_;
 		Model& model_;
 
 		mutable std::array<ParGridFunction, 3> eOld_, hOld_;

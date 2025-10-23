@@ -20,9 +20,7 @@ struct SBCProperties{
 
     size_t num_of_segments = 10;
     size_t order = 1;
-    size_t material_width = 1e-4;
-
-    bool implicit_ode = false;
+    double material_width = 1e-4;
 
 };
 

@@ -142,7 +142,9 @@ private:
 	BoundaryMarker intsmaMarker_;
 
 	BoundaryMarker tfsfMarker_;
+
 	BoundaryMarker sbcMarker_;
+	BoundaryMarker intSbcMarker_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 

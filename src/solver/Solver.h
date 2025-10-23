@@ -51,6 +51,8 @@ public:
 
     const mfem::TimeDependentOperator* getFEEvol() const { return evolTDO_.get(); }
 
+    const SolverOptions& getSolverOptions() const { return this->opts_; }
+
     void run();
     void step();
 
