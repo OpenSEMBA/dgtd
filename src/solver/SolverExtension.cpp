@@ -101,6 +101,9 @@ Eigen::VectorXcd getEigenVectorFromOperator(const Eigen::MatrixXcd& S, int r)
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp)
 {
+    const size_t number_of_field_components = 2;
+    const size_t number_of_max_dimensions = 3;
+    
     auto mesh  = Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * (sbcp.material_width / double(sbcp.num_of_segments)));
     auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
     auto fec   = DG_FECollection(sbcp.order, 1, BasisType::GaussLobatto);
@@ -131,9 +134,9 @@ sbcp_(sbcp)
         }
     }
 
-    modal_values_.resize(6*ndofs);
+    modal_values_.resize(number_of_field_components * number_of_max_dimensions * target_ids.size());
     modal_values_.setZero();
-    nodal_values_.resize(6*ndofs);
+    nodal_values_.resize(number_of_field_components * number_of_max_dimensions * ndofs);
     nodal_values_.setZero();
 
     findDoFPairs(g_model, g_fes);

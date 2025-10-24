@@ -5,7 +5,6 @@
 
 namespace maxwell {
 
-// SolverOptions.h (or wherever ode_type lives)
 enum ode_type : size_t {
     RK4              = 0, // [explicit] 4th order
 
