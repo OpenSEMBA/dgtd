@@ -423,14 +423,41 @@ SolverOptions buildSolverOptions(const json& case_data)
         if (case_data["model"]["boundaries"][b].contains("type") && 
 			case_data["model"]["boundaries"][b]["type"] == "SBC" && 
 			case_data["model"]["boundaries"][b].contains("material")){
-			if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
-				res.sbc_props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
-			}
-			if (case_data["model"]["boundaries"][b]["material"].contains("order")){
-				res.sbc_props.order = int(case_data["model"]["boundaries"][b]["material"]["order"]);
-			}
-			if (case_data["model"]["boundaries"][b]["material"].contains("material_width")){
-				res.sbc_props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
+				for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
+					double rel_eps, rel_mu, sigma;
+				if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")){
+					std::cout << "SBC Material defined without 'relative_permittivity' parameter, assuming vacuum." << std::endl;
+					rel_eps = 1.0;
+				} 
+				else{
+					rel_eps = case_data["model"]["boundaries"][b]["material"]["relative_permittivity"];
+				}
+				if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permeability")){
+					std::cout << "SBC Material defined without 'relative_permeability' parameter, assuming vacuum." << std::endl;
+					rel_mu = 1.0;
+				} 
+				else{
+					rel_mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
+				}
+				if (!case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")){
+					throw std::runtime_error("SBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
+				} 
+				else {
+					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"];
+				}
+				Material mat(rel_eps, rel_mu, sigma);
+				SBCProperties props(mat);
+				props.phys_tag = case_data["model"]["boundaries"][b]["tags"][a];
+				if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
+					props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
+				}
+				if (case_data["model"]["boundaries"][b]["material"].contains("order")){
+					props.order = int(case_data["model"]["boundaries"][b]["material"]["order"]);
+				}
+				if (case_data["model"]["boundaries"][b]["material"].contains("material_width")){
+					props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
+				} 
+				res.sbc_props.emplace_back(props);
 			}
 		}
 	}

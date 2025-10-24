@@ -29,10 +29,6 @@ public:
     
     SBCProperties sbcp_;
     
-    std::unique_ptr<Mesh> mesh_;
-    std::unique_ptr<ParMesh> pmesh_;
-    std::unique_ptr<DG_FECollection> fec_;
-    std::unique_ptr<ParFiniteElementSpace> fes_;
     std::vector<std::pair<NodeId, NodeId>> dof_pairs_;
     
     Model model_;
@@ -44,10 +40,6 @@ public:
     SolverOptions opts_;
     
     const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
-    Fields<ParFiniteElementSpace, ParGridFunction> sbc_fields_;
-    
-    std::unique_ptr<ODESolver> odeSolver_;
-    std::unique_ptr<TimeDependentOperator> evolTDO_;
     
     void findDoFPairs(Model&, ParFiniteElementSpace&);
     

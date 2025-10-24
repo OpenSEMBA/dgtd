@@ -54,18 +54,28 @@ GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& g_model)
 }
 
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
-sbcp_(sbcp),
-mesh_(std::make_unique<Mesh>(Mesh::MakeCartesian1D(sbcp_.num_of_segments + 2, sbcp_.material_width + 2 * (sbcp_.material_width / double(sbcp_.num_of_segments))))),
-pmesh_(std::make_unique<ParMesh>(MPI_COMM_WORLD, *mesh_)),
-fec_(std::make_unique<DG_FECollection>(sbcp_.order, 1, BasisType::GaussLobatto)),
-fes_(std::make_unique<ParFiniteElementSpace>(pmesh_.get(), fec_.get())),
-sbc_fields_(Fields<ParFiniteElementSpace, ParGridFunction>(*fes_.get()))
+sbcp_(sbcp)
 {
+
+    auto mesh  = Mesh::MakeCartesian1D(sbcp_.num_of_segments + 2, sbcp_.material_width + 2 * (sbcp_.material_width / double(sbcp_.num_of_segments)));
+    auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
+    auto fec   = DG_FECollection(sbcp_.order, 1, BasisType::GaussLobatto);
+    auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
+
+    Model model(mesh, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo{});
+    Probes pr;
+    Sources src;
+    EvolutionOptions eopts;
+    eopts.order = sbcp_.order;
+    ProblemDescription pd(model, pr, src, eopts);
+    DGOperatorFactory<ParFiniteElementSpace> dgops(pd, pfes);
+    auto global_operator = dgops.buildGlobalOperator();
+    global_operator.get()->Print(std::cout);
 
     findDoFPairs(g_model, g_fes);
     
-    assignEvolutionOperator();
-    model_ = Model(*mesh_, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}));
+    // assignEvolutionOperator();
+    // model_ = Model(*mesh_, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}));
 
 
     
@@ -76,29 +86,20 @@ void SBCSolver::assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFun
     global_fields_ = g_fields;
 }
 
-void SBCSolver::loadFieldValues(const FieldType f, const Direction d, const NbrPairs& vals)
-{
-    const auto& ghost_interval = sbcp_.order + 1;
-    for(auto v = 0; v < ghost_interval; v++){
-        this->sbc_fields_.get(f, d)[v] = vals.first;
-        this->sbc_fields_.get(f, d)[sbc_fields_.get(f, d).Size() - v] = vals.second;
-    }
-}
+// void SBCSolver::loadFieldValues(const FieldType f, const Direction d, const NbrPairs& vals)
+// {
+//     const auto& ghost_interval = sbcp_.order + 1;
+//     for(auto v = 0; v < ghost_interval; v++){
+//         this->sbc_fields_.get(f, d)[v] = vals.first;
+//         this->sbc_fields_.get(f, d)[sbc_fields_.get(f, d).Size() - v] = vals.second;
+//     }
+// }
 
-NbrPairs SBCSolver::getFieldValues(const FieldType f, const Direction d)
-{
-    const auto& ghost_interval = sbcp_.order + 1;
-    return {this->sbc_fields_.get(f,d)[sbcp_.order + 2], this->sbc_fields_.get(f,d)[sbc_fields_.get(f,d).Size() - (sbcp_.order + 2)]};
-}
-
-void SBCSolver::assignEvolutionOperator()
-{
-    EvolutionOptions ev_opts;
-    ev_opts.order = sbcp_.order;
-    Sources srcs;
-    SourcesManager src_mngr(srcs, *fes_, sbc_fields_);
-    evolTDO_ = std::make_unique<GlobalEvolution>(*fes_, model_, src_mngr, ev_opts);
-}
+// NbrPairs SBCSolver::getFieldValues(const FieldType f, const Direction d)
+// {
+//     const auto& ghost_interval = sbcp_.order + 1;
+//     return {this->sbc_fields_.get(f,d)[sbcp_.order + 2], this->sbc_fields_.get(f,d)[sbc_fields_.get(f,d).Size() - (sbcp_.order + 2)]};
+// }
 
 SBCTimeDependentOperator::SBCTimeDependentOperator(Model& model, ParFiniteElementSpace& fes) :
 model_(model),

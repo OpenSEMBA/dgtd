@@ -1,6 +1,7 @@
 #pragma once
 
 #include "evolution/EvolutionOptions.h"
+#include "components/Material.h"
 
 namespace maxwell {
 
@@ -18,9 +19,15 @@ enum ode_type : size_t {
 
 struct SBCProperties{
 
+    size_t phys_tag;
     size_t num_of_segments = 10;
     size_t order = 1;
     double material_width = 1e-4;
+    Material material;
+
+    SBCProperties(Material mat) :
+    material(mat)
+    {}
 
 };
 
@@ -32,7 +39,7 @@ struct SolverOptions {
     size_t ode_type = ode_type::RK4;
 
     EvolutionOptions evolution;
-    SBCProperties sbc_props;
+    std::vector<SBCProperties> sbc_props;
     
     SolverOptions& setTimeStep(double t) 
     {

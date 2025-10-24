@@ -61,6 +61,7 @@ public:
     }
 
 private:
+
     SolverOptions opts_;
     Model model_;
     mfem::DG_FECollection fec_;
