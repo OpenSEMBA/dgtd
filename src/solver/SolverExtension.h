@@ -23,7 +23,9 @@ struct FluxRows
     Eigen::VectorXcd row_right_second;
 };
 
-using FieldToFluxRows = std::map<std::pair<FieldType,Direction>,FluxRows>;
+using FieldComponentToFluxRows = std::map<std::pair<FieldType,Direction>,FluxRows>;
+using ModalValues = Eigen::VectorXcd;
+using NodalValues = Eigen::VectorXd;
 
 class SBCSolver{
 public:
@@ -49,13 +51,15 @@ private:
     
     SolverOptions opts_;
 
-    FieldToFluxRows nodal_to_modal_rows;
-    FieldToFluxRows modal_to_nodal_rows;
+    FieldComponentToFluxRows nodal_to_modal_rows_;
+    FieldComponentToFluxRows modal_to_nodal_rows_;
+
+    ModalValues modal_values_;
+    NodalValues nodal_values_;
     
     const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
     
     void findDoFPairs(Model&, ParFiniteElementSpace&);
-    void assignEvolutionOperator();
     void loadFieldValues(const FieldType, const Direction, const NbrPairs&);
 
 };
