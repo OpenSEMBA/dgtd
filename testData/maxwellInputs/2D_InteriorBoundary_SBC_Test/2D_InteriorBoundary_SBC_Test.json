@@ -26,13 +26,23 @@
         "type": "PEC"
       },
       {
-        "tags": [ 15, 18 ],
+        "tags": [ 15 ],
         "type": "SBC",
         "material":{
           "bulk_conductivity": 1e5,
-          "num_of_segments": 12,
-          "order": 3,
-          "material_width": 1e-3
+          "num_of_segments": 15,
+          "order": 5,
+          "material_width": 1e-5
+        }
+      },
+      {
+        "tags": [ 18 ],
+        "type": "SBC",
+        "material":{
+          "bulk_conductivity": 1e8,
+          "num_of_segments": 18,
+          "order": 8,
+          "material_width": 1e-8
         }
       }
     ]
