@@ -15,6 +15,16 @@ GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& global_model);
 
 using NbrPairs = std::pair<double, double>;
 
+struct FluxRows
+{
+    Eigen::VectorXcd row_left_first;
+    Eigen::VectorXcd row_left_second;
+    Eigen::VectorXcd row_right_first;
+    Eigen::VectorXcd row_right_second;
+};
+
+using FieldToFluxRows = std::map<std::pair<FieldType,Direction>,FluxRows>;
+
 class SBCSolver{
 public:
 
@@ -25,7 +35,7 @@ public:
     void assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
     NbrPairs getFieldValues(const FieldType f, const Direction d);
     
-    private:
+private:
     
     SBCProperties sbcp_;
     
@@ -38,13 +48,14 @@ public:
     Time dt_;
     
     SolverOptions opts_;
+
+    FieldToFluxRows nodal_to_modal_rows;
+    FieldToFluxRows modal_to_nodal_rows;
     
     const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
     
     void findDoFPairs(Model&, ParFiniteElementSpace&);
-    
     void assignEvolutionOperator();
-
     void loadFieldValues(const FieldType, const Direction, const NbrPairs&);
 
 };
@@ -70,5 +81,7 @@ class SBCTimeDependentOperator : public mfem::TimeDependentOperator
 
 		mutable std::array<ParGridFunction, 3> eOld_, hOld_;
 };
+
+std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
 
 }
