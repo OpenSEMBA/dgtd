@@ -46,6 +46,89 @@ TEST_F(SolverExtensionTest, isCorrect_SBC_Properties)
     }
 }
 
+TEST_F(SolverExtensionTest, checkEigenSolverSolutions)
+{
+
+    // A = [ 2  -3   0 ]
+    //     [ 3   2   0 ]
+    //     [ 0   0  -1 ]
+
+    // Eigenvalues: (2 + 3i), (2 - 3i), (-1)
+    // Eigenvectors:
+    //   For (2 + 3i): [1, -i, 0]^T
+    //   For (2 - 3i): [1,  i, 0]^T
+    //   For (-1):     [0,  0, 1]^T
+
+    SparseMatrix A(3, 3);
+    A.Add(0, 0,  2.0);
+    A.Add(0, 1, -3.0);
+    A.Add(1, 0,  3.0);
+    A.Add(1, 1,  2.0);
+    A.Add(2, 2, -1.0);
+    A.Finalize();
+
+    auto es = applyEigenSolverOnGlobalOperator(A);
+
+    Eigen::VectorXcd evals = es.eigenvalues();
+    Eigen::MatrixXcd evecs = es.eigenvectors();
+
+    ASSERT_EQ(3, evals.size());
+    ASSERT_EQ(3, evecs.cols());
+    ASSERT_EQ(3, evecs.rows());
+
+    std::complex<double> eigval1(2.0,  3.0);
+    std::complex<double> eigval2(2.0, -3.0);
+    std::complex<double> eigval3(-1.0, 0.0);
+
+    Eigen::Vector3cd v1_exp = {
+        std::complex<double>(1.0,  0.0),
+        std::complex<double>(0.0, -1.0),
+        std::complex<double>(0.0,  0.0)
+    };
+
+    Eigen::Vector3cd v2_exp = {
+        std::complex<double>(1.0,  0.0),
+        std::complex<double>(0.0,  1.0),
+        std::complex<double>(0.0,  0.0)
+    };
+
+    Eigen::Vector3cd v3_exp = {
+        std::complex<double>(0.0,  0.0),
+        std::complex<double>(0.0,  0.0),
+        std::complex<double>(1.0,  0.0)
+    };
+
+    const double tol = 1e-10;
+
+    //eigval checking
+    EXPECT_NEAR(std::real(evals[0]), std::real(eigval1), tol);
+    EXPECT_NEAR(std::imag(evals[0]), std::imag(eigval1), tol);
+
+    EXPECT_NEAR(std::real(evals[1]), std::real(eigval2), tol);
+    EXPECT_NEAR(std::imag(evals[1]), std::imag(eigval2), tol);
+
+    EXPECT_NEAR(std::real(evals[2]), std::real(eigval3), tol);
+    EXPECT_NEAR(std::imag(evals[2]), std::imag(eigval3), tol);
+
+    //eigvec checking
+    Eigen::Matrix3cd M;
+    M << std::complex<double>(2.0, 0.0), std::complex<double>(-3.0, 0.0), std::complex<double>(0.0, 0.0),
+         std::complex<double>(3.0, 0.0),  std::complex<double>( 2.0, 0.0), std::complex<double>(0.0, 0.0),
+         std::complex<double>(0.0, 0.0),  std::complex<double>( 0.0, 0.0), std::complex<double>(-1.0, 0.0);
+
+    auto checkEigenpair = [&](const Eigen::Vector3cd& v, std::complex<double> lambda, const std::string& label)
+    {
+        Eigen::Vector3cd lhs = M * v;
+        Eigen::Vector3cd rhs = lambda * v;
+        double err = (lhs - rhs).norm();
+        EXPECT_LT(err, tol) << "Eigenvector check failed for " << label << ", residual = " << err;
+    };
+
+    checkEigenpair(v1_exp, eigval1, "(2 + 3i)");
+    checkEigenpair(v2_exp, eigval2, "(2 - 3i)");
+    checkEigenpair(v3_exp, eigval3, "(-1)");
+}
+
 TEST_F(SolverExtensionTest, targetIds)
 {
     size_t order = 2;

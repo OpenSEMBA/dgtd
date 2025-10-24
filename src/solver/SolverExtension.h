@@ -55,6 +55,8 @@ private:
 
     ModalValues modal_values_;
     NodalValues nodal_values_;
+
+    std::vector<NodeId> target_ids_;
     
     const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
     
@@ -63,5 +65,6 @@ private:
 };
 
 std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
+Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const SparseMatrix& mat);
 
 }

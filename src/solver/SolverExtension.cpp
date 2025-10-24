@@ -104,6 +104,8 @@ sbcp_(sbcp)
     const size_t number_of_field_components = 2;
     const size_t number_of_max_dimensions = 3;
     
+    target_ids_ = buildTargetNodeIds(sbcp.order, sbcp.num_of_segments);
+    
     auto mesh  = Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * (sbcp.material_width / double(sbcp.num_of_segments)));
     auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
     auto fec   = DG_FECollection(sbcp.order, 1, BasisType::GaussLobatto);
@@ -115,26 +117,25 @@ sbcp_(sbcp)
     const Eigen::MatrixXcd S = es.eigenvectors();
     const Eigen::MatrixXcd S_inv = S.inverse();
     const Eigen::VectorXcd D = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
-
-    auto target_ids = buildTargetNodeIds(sbcp.order, sbcp.num_of_segments);
-    const auto& ndofs = pfes.GetNDofs();
+    
+    const auto ndofs = pfes.GetNDofs();
     const auto field_offset = 3 * ndofs;
     const auto dir_offset = ndofs;
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
-            nodal_to_modal_rows_[{f, d}].row_left_first   = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids[0]); // Using inverse, as q = S-1 * x
-            nodal_to_modal_rows_[{f, d}].row_left_second  = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids[1]);
-            nodal_to_modal_rows_[{f, d}].row_right_first  = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids[2]);
-            nodal_to_modal_rows_[{f, d}].row_right_second = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids[3]);
+            nodal_to_modal_rows_[{f, d}].row_left_first   = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[0]); // Using inverse, as q = S-1 * x
+            nodal_to_modal_rows_[{f, d}].row_left_second  = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[1]);
+            nodal_to_modal_rows_[{f, d}].row_right_first  = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[2]);
+            nodal_to_modal_rows_[{f, d}].row_right_second = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[3]);
             
-            modal_to_nodal_rows_[{f, d}].row_left_first   = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids[0]); // Using direct, as x = S * q
-            modal_to_nodal_rows_[{f, d}].row_left_second  = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids[1]);
-            modal_to_nodal_rows_[{f, d}].row_right_first  = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids[2]);
-            modal_to_nodal_rows_[{f, d}].row_right_second = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids[3]);
+            modal_to_nodal_rows_[{f, d}].row_left_first   = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[0]); // Using direct, as x = S * q
+            modal_to_nodal_rows_[{f, d}].row_left_second  = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[1]);
+            modal_to_nodal_rows_[{f, d}].row_right_first  = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[2]);
+            modal_to_nodal_rows_[{f, d}].row_right_second = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[3]);
         }
     }
 
-    modal_values_.resize(number_of_field_components * number_of_max_dimensions * target_ids.size());
+    modal_values_.resize(number_of_field_components * number_of_max_dimensions * target_ids_.size());
     modal_values_.setZero();
     nodal_values_.resize(number_of_field_components * number_of_max_dimensions * ndofs);
     nodal_values_.setZero();
