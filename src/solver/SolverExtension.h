@@ -35,7 +35,6 @@ public:
     void setTargetTime(Time& t) { target_time = t; }
     void setPreTime(Time& t) { pre_time = t; }
     void assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
-    NbrPairs getFieldValues(const FieldType f, const Direction d);
     
 private:
     
@@ -60,30 +59,7 @@ private:
     const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
     
     void findDoFPairs(Model&, ParFiniteElementSpace&);
-    void loadFieldValues(const FieldType, const Direction, const NbrPairs&);
 
-};
-
-class SBCTimeDependentOperator : public mfem::TimeDependentOperator
-{
-	public:
-		static const int numberOfFieldComponents = 2;
-		static const int numberOfMaxDimensions = 3;
-
-		SBCTimeDependentOperator(Model&, ParFiniteElementSpace&);
-		// virtual void Mult(const Vector& x, Vector& y) const;
-		// void ImplicitSolve(const double dt, const Vector& x, Vector& k) override;
-
-		const SparseMatrix& getConstGlobalOperator() { return *sbc_operator_.get(); }
-
-	private:
-
-		std::unique_ptr<mfem::SparseMatrix> sbc_operator_;
-
-		ParFiniteElementSpace& fes_;
-		Model& model_;
-
-		mutable std::array<ParGridFunction, 3> eOld_, hOld_;
 };
 
 std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);

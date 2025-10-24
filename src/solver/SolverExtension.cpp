@@ -138,45 +138,11 @@ sbcp_(sbcp)
 
     findDoFPairs(g_model, g_fes);
     
-    // assignEvolutionOperator();
-    // model_ = Model(*mesh_, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}));
-
-
-    
 }
 
 void SBCSolver::assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields)
 {
     global_fields_ = g_fields;
-}
-
-// void SBCSolver::loadFieldValues(const FieldType f, const Direction d, const NbrPairs& vals)
-// {
-//     const auto& ghost_interval = sbcp_.order + 1;
-//     for(auto v = 0; v < ghost_interval; v++){
-//         this->sbc_fields_.get(f, d)[v] = vals.first;
-//         this->sbc_fields_.get(f, d)[sbc_fields_.get(f, d).Size() - v] = vals.second;
-//     }
-// }
-
-// NbrPairs SBCSolver::getFieldValues(const FieldType f, const Direction d)
-// {
-//     const auto& ghost_interval = sbcp_.order + 1;
-//     return {this->sbc_fields_.get(f,d)[sbcp_.order + 2], this->sbc_fields_.get(f,d)[sbc_fields_.get(f,d).Size() - (sbcp_.order + 2)]};
-// }
-
-SBCTimeDependentOperator::SBCTimeDependentOperator(Model& model, ParFiniteElementSpace& fes) :
-model_(model),
-fes_(fes)
-{
-    Probes pr;
-    Sources src;
-    EvolutionOptions eopts;
-    ProblemDescription pd(model_, pr, src, eopts);
-    DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes_);
-
-    sbc_operator_ = dgops.buildGlobalOperator();
-    
 }
 
 }
