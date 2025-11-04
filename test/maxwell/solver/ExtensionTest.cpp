@@ -43,6 +43,27 @@ protected:
         return check;
     }
 
+    static Eigen::VectorXcd getEigenVecFromStoredOnes(const FieldComponentToFluxRows& fc2fr, size_t c, const size_t localdofs, const Nodes& target_ids){
+        for (auto f : {E, H}){
+            for (auto d : {X, Y, Z}){
+                auto base = f * 3 * localdofs + d * localdofs;
+                if (c == base + target_ids[0]){
+                    return fc2fr.at({f,d}).row_left_first;
+                }    
+                if (c == base + target_ids[1]){
+                    return fc2fr.at({f,d}).row_left_second;
+                } 
+                if (c == base + target_ids[2]){
+                    return fc2fr.at({f,d}).row_right_first;
+                } 
+                if (c == base + target_ids[3]){
+                    return fc2fr.at({f,d}).row_right_second;
+                } 
+            }
+        }
+        throw std::runtime_error("Requested column in getEigenVecFromStoredOnes not available.");
+    }
+
 };
 
 TEST_F(SolverExtensionTest, isCorrect_SBC_Properties)
@@ -168,7 +189,7 @@ TEST_F(SolverExtensionTest, buildTest)
     }
 }
 
-TEST_F(SolverExtensionTest, applyNodalToModal)
+TEST_F(SolverExtensionTest, getModalVectors)
 {
     size_t localdofs = 10; //Assume 2 nodes in 5 elements;
     size_t num_field_dims = 3;
@@ -199,9 +220,9 @@ TEST_F(SolverExtensionTest, applyNodalToModal)
     const Eigen::MatrixXcd S_inv = S.inverse();
     const Eigen::VectorXcd D = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
 
-    FieldComponentToFluxRows out;
+    FieldComponentToFluxRows fc2fr;
 
-    ASSERT_NO_THROW(loadEigenVectorFromOperator(S, target_ids, localdofs, out));
+    ASSERT_NO_THROW(loadEigenVectorFromOperator(S_inv, target_ids, localdofs, fc2fr));
 
     // Eigenvalue check
     for (int c = 0; c < D.size(); ++c)
@@ -245,20 +266,17 @@ TEST_F(SolverExtensionTest, applyNodalToModal)
         double b = a;
 
         // expected eigenvector pattern
-        if (c % 2 == 0)
-        {
-            // eigenvalue a + i b → [1, -i]^T
+        if (c % 2 == 0) {
+            // eigenvalue a + i b -> left eigenvector [1, +i]^T
+            expected(i)     = std::complex<double>(1.0, 0.0);
+            expected(i + 1) = std::complex<double>(0.0, 1.0);
+        } else {
+            // eigenvalue a - i b -> left eigenvector [1, -i]^T
             expected(i)     = std::complex<double>(1.0, 0.0);
             expected(i + 1) = std::complex<double>(0.0, -1.0);
         }
-        else
-        {
-            // eigenvalue a - i b → [1, +i]^T
-            expected(i)     = std::complex<double>(1.0, 0.0);
-            expected(i + 1) = std::complex<double>(0.0, 1.0);
-        }
 
-        const Eigen::VectorXcd v = S.col(c);
+        Eigen::VectorXcd v = getEigenVecFromStoredOnes(fc2fr, c, localdofs, target_ids);
         std::complex<double> alpha = (expected.adjoint() * v)(0) / (expected.adjoint() * expected)(0);
         Eigen::VectorXcd diff = v - alpha * expected;
         double rel_error = diff.norm() / v.norm();
@@ -267,5 +285,6 @@ TEST_F(SolverExtensionTest, applyNodalToModal)
     }
 
 }
+
 
 }

@@ -143,7 +143,7 @@ void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target
     const auto dir_offset = ndofs;
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
-            out[{f, d}].row_left_first   = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[0]); // Using inverse, as q = S-1 * x
+            out[{f, d}].row_left_first   = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[0]);
             out[{f, d}].row_left_second  = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[1]);
             out[{f, d}].row_right_first  = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[2]);
             out[{f, d}].row_right_second = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[3]);
