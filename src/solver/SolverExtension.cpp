@@ -119,6 +119,13 @@ void updateModalValues(
     }
 }
 
+void updateNodalValues(const Eigen::MatrixXcd& S, const ModalValues& q, NodalValues& x)
+{
+    auto temp = S * q; //This should be a product giving a real vector.
+    MFEM_ASSERT(temp.imag().sum() < 1e-5, "S * q product has a large imaginary module.");
+    x = temp.real();
+}
+
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp)
 {
