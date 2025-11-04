@@ -126,6 +126,17 @@ void updateNodalValues(const Eigen::MatrixXcd& S, const ModalValues& q, NodalVal
     x = temp.real();
 }
 
+ModalValues evolEigenvalueSystem(const ModalValues& q, const Eigen::VectorXcd& eigvals, const Nodes& target_ids, const Time dt)
+{
+    ModalValues res;
+    res.resize(q.size());
+    res = q;
+    for (auto i = 0; i < target_ids.size(); i++){
+        res[target_ids[i]] = std::exp(eigvals[i] * dt) * q[i]; // + v[i], but for now lets assume no forcing sources.
+    }
+    return res;
+}
+
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp)
 {
