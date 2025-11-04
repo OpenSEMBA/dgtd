@@ -98,6 +98,27 @@ Eigen::VectorXcd getEigenVectorFromOperator(const Eigen::MatrixXcd& S, int r)
     return S.row(r).transpose();
 }
 
+void updateModalValues(
+    const FieldComponentToFluxRows& eigvecs, 
+    const Nodes& target_ids, 
+    const Fields<ParFiniteElementSpace, ParGridFunction>& fields, 
+    ModalValues& out)
+{
+    auto ndofs = fields.get(E, X).FESpace()->GetNDofs();
+    const auto field_offset = 3 * ndofs;
+    const auto dir_offset = ndofs;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            for (auto n = 0; n < eigvecs.at({f,d}).row_left_first.size(); n++){
+                out[f * field_offset + d * dir_offset + target_ids[0]] += eigvecs.at({f,d}).row_left_first[n] * fields.get(f, d)[n];
+                out[f * field_offset + d * dir_offset + target_ids[1]] += eigvecs.at({f,d}).row_left_second[n] * fields.get(f, d)[n];
+                out[f * field_offset + d * dir_offset + target_ids[2]] += eigvecs.at({f,d}).row_right_first[n] * fields.get(f, d)[n];
+                out[f * field_offset + d * dir_offset + target_ids[3]] += eigvecs.at({f,d}).row_right_second[n] * fields.get(f, d)[n];
+            }
+        }
+    }
+}
+
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp)
 {

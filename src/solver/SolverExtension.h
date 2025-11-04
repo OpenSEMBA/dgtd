@@ -66,5 +66,6 @@ private:
 
 std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
 Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const SparseMatrix& mat);
+void updateModalValues(const FieldComponentToFluxRows& eigvecs, const Nodes& target_ids, const Fields<ParFiniteElementSpace, ParGridFunction>&, ModalValues& out);
 
 }
