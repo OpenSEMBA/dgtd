@@ -94,7 +94,7 @@ Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const Spars
 
 Eigen::VectorXcd getEigenVectorFromOperator(const Eigen::MatrixXcd& S, int r)
 {
-    MFEM_ASSERT(r >= 0 && r < S.rows(), "row out of range");
+    MFEM_ASSERT(r >= 0 && r < S.rows(), "Row is out of range.");
     return S.row(r).transpose();
 }
 
@@ -137,6 +137,20 @@ ModalValues evolEigenvalueSystem(const ModalValues& q, const Eigen::VectorXcd& e
     return res;
 }
 
+void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target_ids, const size_t ndofs, FieldComponentToFluxRows& out)
+{
+    const auto field_offset = 3 * ndofs;
+    const auto dir_offset = ndofs;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            out[{f, d}].row_left_first   = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[0]); // Using inverse, as q = S-1 * x
+            out[{f, d}].row_left_second  = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[1]);
+            out[{f, d}].row_right_first  = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[2]);
+            out[{f, d}].row_right_second = getEigenVectorFromOperator(op, f * field_offset + d * dir_offset + target_ids[3]);
+        }
+    }
+}
+
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp)
 {
@@ -158,21 +172,8 @@ sbcp_(sbcp)
     const Eigen::VectorXcd D = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
     
     const auto ndofs = pfes.GetNDofs();
-    const auto field_offset = 3 * ndofs;
-    const auto dir_offset = ndofs;
-    for (auto f : {E, H}){
-        for (auto d : {X, Y, Z}){
-            nodal_to_modal_rows_[{f, d}].row_left_first   = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[0]); // Using inverse, as q = S-1 * x
-            nodal_to_modal_rows_[{f, d}].row_left_second  = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[1]);
-            nodal_to_modal_rows_[{f, d}].row_right_first  = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[2]);
-            nodal_to_modal_rows_[{f, d}].row_right_second = getEigenVectorFromOperator(S_inv, f * field_offset + d * dir_offset + target_ids_[3]);
-            
-            modal_to_nodal_rows_[{f, d}].row_left_first   = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[0]); // Using direct, as x = S * q
-            modal_to_nodal_rows_[{f, d}].row_left_second  = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[1]);
-            modal_to_nodal_rows_[{f, d}].row_right_first  = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[2]);
-            modal_to_nodal_rows_[{f, d}].row_right_second = getEigenVectorFromOperator(S, f * field_offset + d * dir_offset + target_ids_[3]);
-        }
-    }
+    loadEigenVectorFromOperator(S_inv, target_ids_, ndofs, nodal_to_modal_rows_); // Using inverse, as q = S-1 * x
+    loadEigenVectorFromOperator(S,     target_ids_, ndofs, modal_to_nodal_rows_); // Using direct, as x = S * q
 
     modal_values_.resize(number_of_field_components * number_of_max_dimensions * target_ids_.size());
     modal_values_.setZero();

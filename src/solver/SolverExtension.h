@@ -68,4 +68,7 @@ std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
 Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const SparseMatrix& mat);
 void updateModalValues(const FieldComponentToFluxRows& eigvecs, const Nodes& target_ids, const Fields<ParFiniteElementSpace, ParGridFunction>&, ModalValues& out);
 void updateNodalValues(const Eigen::MatrixXcd& S, const ModalValues& q, NodalValues& x);
+void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target_ids, const size_t ndofs, FieldComponentToFluxRows& out);
+ModalValues evolEigenvalueSystem(const ModalValues& q, const Eigen::VectorXcd& eigvals, const Nodes& target_ids, const Time dt);
+
 }
