@@ -184,8 +184,8 @@ TEST_F(SolverExtensionTest, buildTest)
 {
     auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SBC_Test"));
     auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SBC_Test"), true);
-    for (auto prop : global_solver.getSolverOptions().sbc_props){
-        ASSERT_NO_THROW(SBCSolver(global_solver.getModel(), global_solver.getFES(), prop));
+    for (const auto prop : global_solver.getSolverOptions().sbc_props){
+        ASSERT_NO_THROW(SBCSolver(global_solver.getModel(), global_solver.getFES(), &prop));
     }
 }
 

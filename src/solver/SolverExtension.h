@@ -43,19 +43,17 @@ using NodalValues = Eigen::VectorXd;
 class SBCSolver{
 public:
 
-    SBCSolver(Model&, ParFiniteElementSpace&, const SBCProperties&);
+    SBCSolver(Model&, ParFiniteElementSpace&, const SBCProperties*);
 
     void update(const Time& dt);
     void setTargetTime(const Time& t) { target_time = t; }
     void setPreTime(const Time& t) { pre_time = t; }
     void assignGlobalFields(Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
 
-    void loadNodalValuesAtFaces();
-    void unloadNodalValuesAtFaces();
     
 private:
     
-    SBCProperties sbcp_;
+    const SBCProperties* sbcp_;
     
     SBCNodeInfo dof_pair_;
     
@@ -68,7 +66,6 @@ private:
     SolverOptions opts_;
 
     FieldComponentToFluxRows nodal_to_modal_rows_;
-    FieldComponentToFluxRows modal_to_nodal_rows_;
 
     ModalValues modal_values_;
     NodalValues nodal_values_;
@@ -79,6 +76,9 @@ private:
     
     void findDoFPairs(Model&, ParFiniteElementSpace&);
     void initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids);
+    void loadNodalValuesAtFaces();
+    void unloadNodalValuesAtFaces();
+    void applyNodalToModalTransformation();
 
 };
 

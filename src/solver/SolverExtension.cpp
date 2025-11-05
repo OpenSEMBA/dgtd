@@ -154,11 +154,11 @@ void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target
 void SBCSolver::update(const Time& dt)
 {
     ModalValues q_old = modal_values_;
-    //loadNewNodal
-    //applyS-1NodalForNewModal
+    loadNodalValuesAtFaces();
+    applyNodalToModalTransformation();
     //evol
     //applySModalForNewNodal
-    //unloadNewNodal
+    unloadNodalValuesAtFaces();
 }
 
 void SBCSolver::loadNodalValuesAtFaces()
@@ -188,6 +188,21 @@ void SBCSolver::unloadNodalValuesAtFaces()
     }
 }
 
+void SBCSolver::applyNodalToModalTransformation()
+{
+
+    const auto field_offset = 3 * modal_values_.size() / 6;
+    const auto dir_offset   =     modal_values_.size() / 6;
+
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            for (auto i = 0; i < target_ids_.size(); i++){
+                modal_values_[f * field_offset + d * dir_offset + target_ids_[i]] = nodal_to_modal_rows_.at({f,d}).row_left_first.dot(nodal_values_);
+            }
+        }
+    }
+}
+
 void SBCSolver::initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids)
 {
     dof_pair_.load.g_el1 = el1_el2_ids.first;
@@ -201,21 +216,21 @@ void SBCSolver::initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids)
     dof_pair_.unload.l_el2 = target_ids_.at(2);
 }
 
-SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
+SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties* sbcp) : 
 sbcp_(sbcp)
 {
     const size_t number_of_field_components = 2;
     const size_t number_of_max_dimensions = 3;
     
-    target_ids_ = buildTargetNodeIds(sbcp.order, sbcp.num_of_segments);
+    target_ids_ = buildTargetNodeIds(sbcp->order, sbcp->num_of_segments);
     
-    auto mesh  = Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * (sbcp.material_width / double(sbcp.num_of_segments)));
+    auto mesh  = Mesh::MakeCartesian1D(sbcp->num_of_segments + 2, sbcp->material_width + 2 * (sbcp->material_width / double(sbcp->num_of_segments)));
     auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
-    auto fec   = DG_FECollection(sbcp.order, 1, BasisType::GaussLobatto);
+    auto fec   = DG_FECollection(sbcp->order, 1, BasisType::GaussLobatto);
     auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
 
     Model model(mesh, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo{});
-    auto global_operator = assembleGlobalOperator(model, pfes, sbcp.order);
+    auto global_operator = assembleGlobalOperator(model, pfes, sbcp->order);
     auto es = applyEigenSolverOnGlobalOperator(*global_operator);
     const Eigen::MatrixXcd S = es.eigenvectors();
     const Eigen::MatrixXcd S_inv = S.inverse();
