@@ -13,7 +13,8 @@ using namespace mfem;
 
 GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& global_model);
 
-using NbrPairs = std::pair<double, double>;
+using GlobalId = NodeId;
+using LocalId = NodeId;
 
 struct FluxRows
 {
@@ -21,6 +22,18 @@ struct FluxRows
     Eigen::VectorXcd row_left_second;
     Eigen::VectorXcd row_right_first;
     Eigen::VectorXcd row_right_second;
+};
+
+struct NodePairs
+{
+    GlobalId g_el1, g_el2;
+    LocalId l_el1, l_el2;
+};
+
+struct SBCNodeInfo
+{
+    NodePairs load;
+    NodePairs unload;
 };
 
 using FieldComponentToFluxRows = std::map<std::pair<FieldType,Direction>,FluxRows>;
@@ -32,15 +45,19 @@ public:
 
     SBCSolver(Model&, ParFiniteElementSpace&, const SBCProperties&);
 
-    void setTargetTime(Time& t) { target_time = t; }
-    void setPreTime(Time& t) { pre_time = t; }
-    void assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
+    void update(const Time& dt);
+    void setTargetTime(const Time& t) { target_time = t; }
+    void setPreTime(const Time& t) { pre_time = t; }
+    void assignGlobalFields(Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
+
+    void loadNodalValuesAtFaces();
+    void unloadNodalValuesAtFaces();
     
 private:
     
     SBCProperties sbcp_;
     
-    std::vector<std::pair<NodeId, NodeId>> dof_pairs_;
+    SBCNodeInfo dof_pair_;
     
     Model model_;
     
@@ -58,9 +75,10 @@ private:
 
     std::vector<NodeId> target_ids_;
     
-    const Fields<ParFiniteElementSpace, ParGridFunction>* global_fields_;
+    Fields<ParFiniteElementSpace, ParGridFunction>* global_nodal_fields_;
     
     void findDoFPairs(Model&, ParFiniteElementSpace&);
+    void initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids);
 
 };
 

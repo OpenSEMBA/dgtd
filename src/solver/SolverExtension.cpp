@@ -22,22 +22,22 @@ InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps&
 
 void SBCSolver::findDoFPairs(Model& model, ParFiniteElementSpace& fes)
 {
-    auto attMap{ mapOriginalAttributes(*fes.GetMesh()) };
-    auto fec = dynamic_cast<const DG_FECollection*>(fes.FEColl());
-    GlobalConnectivity global = assembleGlobalConnectivityMap(*fes.GetMesh(), fec);
-    auto sbc_marker = model.getMarker(BdrCond::SBC, true);
-    for (auto b = 0; b < model.getMesh().GetNBE(); b++){
-        if (sbc_marker[model.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-            const FaceElementTransformations* faceTrans;
-            fes.GetMesh()->FaceIsInterior(fes.GetMesh()->GetFaceElementTransformations(fes.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes.GetMesh()->GetBdrFaceTransformations(b);
-            auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes.GetMesh(), *faceTrans, attMap) };
-            FiniteElementSpace subFES(&twoElemSubMesh, fec);
-            auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, fes, subFES), global)};
-            for (auto p = 0; p < node_pair_global.first.size(); p++){
-                dof_pairs_.emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
-            }
-        }
-    }
+    // auto attMap{ mapOriginalAttributes(*fes.GetMesh()) };
+    // auto fec = dynamic_cast<const DG_FECollection*>(fes.FEColl());
+    // GlobalConnectivity global = assembleGlobalConnectivityMap(*fes.GetMesh(), fec);
+    // auto sbc_marker = model.getMarker(BdrCond::SBC, true);
+    // for (auto b = 0; b < model.getMesh().GetNBE(); b++){
+    //     if (sbc_marker[model.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+    //         const FaceElementTransformations* faceTrans;
+    //         fes.GetMesh()->FaceIsInterior(fes.GetMesh()->GetFaceElementTransformations(fes.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes.GetMesh()->GetBdrFaceTransformations(b);
+    //         auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes.GetMesh(), *faceTrans, attMap) };
+    //         FiniteElementSpace subFES(&twoElemSubMesh, fec);
+    //         auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, fes, subFES), global)};
+    //         for (auto p = 0; p < node_pair_global.first.size(); p++){
+    //             dof_pairs_.emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
+    //         }
+    //     }
+    // }
 }
 
 GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& g_model)
@@ -151,6 +151,56 @@ void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target
     }
 }
 
+void SBCSolver::update(const Time& dt)
+{
+    ModalValues q_old = modal_values_;
+    //loadNewNodal
+    //applyS-1NodalForNewModal
+    //evol
+    //applySModalForNewNodal
+    //unloadNewNodal
+}
+
+void SBCSolver::loadNodalValuesAtFaces()
+{
+    const auto field_offset = 3 * nodal_values_.size() / 6;
+    const auto dir_offset   =     nodal_values_.size() / 6;
+
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            nodal_values_[f * field_offset + d * dir_offset + dof_pair_.load.l_el1] = global_nodal_fields_->get(f, d)[dof_pair_.load.g_el1];
+            nodal_values_[f * field_offset + d * dir_offset + dof_pair_.load.l_el2] = global_nodal_fields_->get(f, d)[dof_pair_.load.g_el2];
+        }
+    }
+
+}
+
+void SBCSolver::unloadNodalValuesAtFaces()
+{
+    const auto field_offset = 3 * nodal_values_.size() / 6;
+    const auto dir_offset   =     nodal_values_.size() / 6;
+
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+        global_nodal_fields_->get(f,d)[dof_pair_.unload.g_el1] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.unload.l_el1];
+        global_nodal_fields_->get(f,d)[dof_pair_.unload.g_el2] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.unload.l_el2];
+        }
+    }
+}
+
+void SBCSolver::initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids)
+{
+    dof_pair_.load.g_el1 = el1_el2_ids.first;
+    dof_pair_.load.g_el2 = el1_el2_ids.second;
+    dof_pair_.load.l_el1 = target_ids_.front();
+    dof_pair_.load.l_el2 = target_ids_.back();
+
+    dof_pair_.unload.g_el1 = el1_el2_ids.first;
+    dof_pair_.unload.g_el2 = el1_el2_ids.second;
+    dof_pair_.unload.l_el1 = target_ids_.at(1);
+    dof_pair_.unload.l_el2 = target_ids_.at(2);
+}
+
 SBCSolver::SBCSolver(Model& g_model, ParFiniteElementSpace& g_fes, const SBCProperties& sbcp) :
 sbcp_(sbcp)
 {
@@ -173,7 +223,6 @@ sbcp_(sbcp)
     
     const auto ndofs = pfes.GetNDofs();
     loadEigenVectorFromOperator(S_inv, target_ids_, ndofs, nodal_to_modal_rows_); // Using inverse, as q = S-1 * x
-    loadEigenVectorFromOperator(S,     target_ids_, ndofs, modal_to_nodal_rows_); // Using direct, as x = S * q
 
     modal_values_.resize(number_of_field_components * number_of_max_dimensions * target_ids_.size());
     modal_values_.setZero();
@@ -184,9 +233,9 @@ sbcp_(sbcp)
     
 }
 
-void SBCSolver::assignGlobalFields(const Fields<ParFiniteElementSpace,ParGridFunction>* g_fields)
+void SBCSolver::assignGlobalFields(Fields<ParFiniteElementSpace,ParGridFunction>* g_fields)
 {
-    global_fields_ = g_fields;
+    global_nodal_fields_ = g_fields;
 }
 
 }
