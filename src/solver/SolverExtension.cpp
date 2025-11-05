@@ -8,38 +8,6 @@ namespace maxwell
 
 using namespace mfem;
 
-InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
-{
-    InteriorFaceConnectivityMaps res;
-    res.first.resize(local_dof_ids.first.size());
-    res.second.resize(local_dof_ids.second.size());
-    for (auto v{ 0 }; v < res.first.size(); v++) {
-        res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
-        res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
-    }
-    return res;
-}
-
-void SBCSolver::findDoFPairs(Model& model, ParFiniteElementSpace& fes)
-{
-    // auto attMap{ mapOriginalAttributes(*fes.GetMesh()) };
-    // auto fec = dynamic_cast<const DG_FECollection*>(fes.FEColl());
-    // GlobalConnectivity global = assembleGlobalConnectivityMap(*fes.GetMesh(), fec);
-    // auto sbc_marker = model.getMarker(BdrCond::SBC, true);
-    // for (auto b = 0; b < model.getMesh().GetNBE(); b++){
-    //     if (sbc_marker[model.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-    //         const FaceElementTransformations* faceTrans;
-    //         fes.GetMesh()->FaceIsInterior(fes.GetMesh()->GetFaceElementTransformations(fes.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes.GetMesh()->GetBdrFaceTransformations(b);
-    //         auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes.GetMesh(), *faceTrans, attMap) };
-    //         FiniteElementSpace subFES(&twoElemSubMesh, fec);
-    //         auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, fes, subFES), global)};
-    //         for (auto p = 0; p < node_pair_global.first.size(); p++){
-    //             dof_pairs_.emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
-    //         }
-    //     }
-    // }
-}
-
 GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& g_model)
 {
     GeomTagToMaterial res;
@@ -96,17 +64,6 @@ Eigen::VectorXcd getEigenVectorFromOperator(const Eigen::MatrixXcd& S, int r)
 {
     MFEM_ASSERT(r >= 0 && r < S.rows(), "Row is out of range.");
     return S.row(r).transpose();
-}
-
-ModalValues evolEigenvalueSystem(const ModalValues& q, const Eigen::VectorXcd& eigvals, const Nodes& target_ids, const Time dt)
-{
-    ModalValues res;
-    res.resize(q.size());
-    res = q;
-    for (auto i = 0; i < target_ids.size(); i++){
-        res[target_ids[i]] = std::exp(eigvals[i] * dt) * q[i]; // + v[i], but for now lets assume no forcing sources.
-    }
-    return res;
 }
 
 void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target_ids, const size_t ndofs, FieldComponentToFluxRows& out)

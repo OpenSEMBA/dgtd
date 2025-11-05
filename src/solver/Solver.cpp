@@ -68,6 +68,43 @@ void Solver::assignODESolver()
     }
 }
 
+InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
+{
+    InteriorFaceConnectivityMaps res;
+    res.first.resize(local_dof_ids.first.size());
+    res.second.resize(local_dof_ids.second.size());
+    for (auto v{ 0 }; v < res.first.size(); v++) {
+        res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
+        res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
+    }
+    return res;
+}
+
+void Solver::findSBCDoFPairs()
+{
+    auto attMap{ mapOriginalAttributes(*fes_->GetMesh()) };
+    auto fec = dynamic_cast<const DG_FECollection*>(fes_->FEColl());
+    GlobalConnectivity global = assembleGlobalConnectivityMap(*fes_->GetMesh(), fec);
+    auto sbc_marker = model_.getMarker(BdrCond::SBC, true);
+    for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
+        if (sbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+            const FaceElementTransformations* faceTrans;
+            fes_->GetMesh()->FaceIsInterior(fes_->GetMesh()->GetFaceElementTransformations(fes_->GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_->GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_->GetMesh()->GetBdrFaceTransformations(b);
+            auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_->GetMesh(), *faceTrans, attMap) };
+            FiniteElementSpace subFES(&twoElemSubMesh, fec);
+            auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, *fes_, subFES), global)};
+            for (auto p = 0; p < node_pair_global.first.size(); p++){
+                // dof_pairs_.emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
+            }
+        }
+    }
+}
+
+void Solver::initSbcSolvers()
+{
+	
+}
+
 Solver::Solver(
 	const Model& model,
 	const Probes& probes,
@@ -136,7 +173,6 @@ Solver::Solver(
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
     }
-
 
 }
 

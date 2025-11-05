@@ -3,6 +3,7 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
+#include "SolverExtension.h"
 
 #include "evolution/Fields.h"
 #include "evolution/MaxwellEvolution.h"
@@ -78,9 +79,13 @@ private:
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
+    std::unique_ptr<std::vector<SBCSolver>> sbcSolvers_;
+
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
+    void initSbcSolvers();
+    void findSBCDoFPairs();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);
