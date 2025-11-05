@@ -66,6 +66,7 @@ private:
     SolverOptions opts_;
 
     FieldComponentToFluxRows nodal_to_modal_rows_;
+    Eigen::MatrixXcd modal_to_nodal_matrix_;
 
     ModalValues modal_values_;
     NodalValues nodal_values_;
@@ -79,6 +80,7 @@ private:
     void loadNodalValuesAtFaces();
     void unloadNodalValuesAtFaces();
     void applyNodalToModalTransformation();
+    void applyModalToNodalTransformation();
 
 };
 

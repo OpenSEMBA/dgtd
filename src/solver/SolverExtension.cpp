@@ -155,9 +155,9 @@ void SBCSolver::update(const Time& dt)
 {
     ModalValues q_old = modal_values_;
     loadNodalValuesAtFaces();
-    applyNodalToModalTransformation();
+    applyNodalToModalTransformation(); // S-1 x = q / Only flux rows belonging to the sbc interfaces
     //evol
-    //applySModalForNewNodal
+    applyModalToNodalTransformation(); // S q = x / Full matrix-vector operation
     unloadNodalValuesAtFaces();
 }
 
@@ -166,10 +166,28 @@ void SBCSolver::loadNodalValuesAtFaces()
     const auto field_offset = 3 * nodal_values_.size() / 6;
     const auto dir_offset   =     nodal_values_.size() / 6;
 
-    for (auto f : {E, H}){
+    for (auto f : {E, H}){ //Apply on interface nodes.
         for (auto d : {X, Y, Z}){
             nodal_values_[f * field_offset + d * dir_offset + dof_pair_.load.l_el1] = global_nodal_fields_->get(f, d)[dof_pair_.load.g_el1];
             nodal_values_[f * field_offset + d * dir_offset + dof_pair_.load.l_el2] = global_nodal_fields_->get(f, d)[dof_pair_.load.g_el2];
+        }
+    }
+
+    const auto& extra_dof = dof_pair_.load.l_el1;
+
+    for (auto f : {E, H}){ //Extend to the rest of ghost element 1.
+        for (auto d : {X, Y, Z}){
+            for (auto i = 0; i < extra_dof; i++){
+                nodal_values_[f * field_offset + d * dir_offset + i] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.load.l_el1];
+            }
+        }
+    }
+
+        for (auto f : {E, H}){ //Extend to the rest of ghost element 2.
+        for (auto d : {X, Y, Z}){
+            for (auto i = 0; i < extra_dof; i++){
+                nodal_values_[f * field_offset + d * dir_offset + dof_pair_.load.l_el2 + i] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.load.l_el2];
+            }
         }
     }
 
@@ -182,8 +200,8 @@ void SBCSolver::unloadNodalValuesAtFaces()
 
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
-        global_nodal_fields_->get(f,d)[dof_pair_.unload.g_el1] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.unload.l_el1];
-        global_nodal_fields_->get(f,d)[dof_pair_.unload.g_el2] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.unload.l_el2];
+            global_nodal_fields_->get(f,d)[dof_pair_.unload.g_el1] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.unload.l_el1];
+            global_nodal_fields_->get(f,d)[dof_pair_.unload.g_el2] = nodal_values_[f * field_offset + d * dir_offset + dof_pair_.unload.l_el2];
         }
     }
 }
@@ -196,11 +214,21 @@ void SBCSolver::applyNodalToModalTransformation()
 
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
-            for (auto i = 0; i < target_ids_.size(); i++){
-                modal_values_[f * field_offset + d * dir_offset + target_ids_[i]] = nodal_to_modal_rows_.at({f,d}).row_left_first.dot(nodal_values_);
-            }
+            modal_values_[f * field_offset + d * dir_offset + target_ids_[0]] = nodal_to_modal_rows_.at({f,d}).row_left_first.dot(nodal_values_);
+            modal_values_[f * field_offset + d * dir_offset + target_ids_[1]] = nodal_to_modal_rows_.at({f,d}).row_left_second.dot(nodal_values_);
+            modal_values_[f * field_offset + d * dir_offset + target_ids_[2]] = nodal_to_modal_rows_.at({f,d}).row_right_first.dot(nodal_values_);
+            modal_values_[f * field_offset + d * dir_offset + target_ids_[3]] = nodal_to_modal_rows_.at({f,d}).row_right_second.dot(nodal_values_);
         }
     }
+}
+
+void SBCSolver::applyModalToNodalTransformation()
+{
+    auto temp = modal_to_nodal_matrix_ * modal_values_;
+    if (temp.imag().cwiseAbs().sum() > 1e-5){
+        throw std::runtime_error("Imaginary part over tolerance in ModalToNodalTransformation.");
+    }
+    nodal_values_ = temp.real();
 }
 
 void SBCSolver::initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids)
@@ -232,12 +260,11 @@ sbcp_(sbcp)
     Model model(mesh, GeomTagToMaterialInfo(getSBCSolverGeomTagToMaterialFromGlobal(g_model), GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo{});
     auto global_operator = assembleGlobalOperator(model, pfes, sbcp->order);
     auto es = applyEigenSolverOnGlobalOperator(*global_operator);
-    const Eigen::MatrixXcd S = es.eigenvectors();
-    const Eigen::MatrixXcd S_inv = S.inverse();
+    modal_to_nodal_matrix_ = es.eigenvectors();
     const Eigen::VectorXcd D = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
     
     const auto ndofs = pfes.GetNDofs();
-    loadEigenVectorFromOperator(S_inv, target_ids_, ndofs, nodal_to_modal_rows_); // Using inverse, as q = S-1 * x
+    loadEigenVectorFromOperator(modal_to_nodal_matrix_.inverse(), target_ids_, ndofs, nodal_to_modal_rows_); // Using inverse, as q = S-1 * x
 
     modal_values_.resize(number_of_field_components * number_of_max_dimensions * target_ids_.size());
     modal_values_.setZero();
