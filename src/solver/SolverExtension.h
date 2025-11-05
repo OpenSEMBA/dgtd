@@ -71,6 +71,8 @@ private:
     ModalValues modal_values_;
     NodalValues nodal_values_;
 
+    Eigen::VectorXcd eigvals_;
+
     std::vector<NodeId> target_ids_;
     
     Fields<ParFiniteElementSpace, ParGridFunction>* global_nodal_fields_;
@@ -81,6 +83,7 @@ private:
     void unloadNodalValuesAtFaces();
     void applyNodalToModalTransformation();
     void applyModalToNodalTransformation();
+    void evol(const ModalValues& q_old, const Time& dt);
 
 };
 

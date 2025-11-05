@@ -153,12 +153,19 @@ void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target
 
 void SBCSolver::update(const Time& dt)
 {
-    ModalValues q_old = modal_values_;
     loadNodalValuesAtFaces();
     applyNodalToModalTransformation(); // S-1 x = q / Only flux rows belonging to the sbc interfaces
+    ModalValues q_old = modal_values_;
     //evol
     applyModalToNodalTransformation(); // S q = x / Full matrix-vector operation
     unloadNodalValuesAtFaces();
+}
+
+void SBCSolver::evol(const ModalValues& q_old, const Time& dt)
+{
+    for (auto i = 0; i < modal_values_.size(); i++){
+        modal_values_[i] = std::exp(eigvals_[i] * dt) * q_old[i];
+    }
 }
 
 void SBCSolver::loadNodalValuesAtFaces()
@@ -261,10 +268,10 @@ sbcp_(sbcp)
     auto global_operator = assembleGlobalOperator(model, pfes, sbcp->order);
     auto es = applyEigenSolverOnGlobalOperator(*global_operator);
     modal_to_nodal_matrix_ = es.eigenvectors();
-    const Eigen::VectorXcd D = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
+    eigvals_ = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
     
     const auto ndofs = pfes.GetNDofs();
-    loadEigenVectorFromOperator(modal_to_nodal_matrix_.inverse(), target_ids_, ndofs, nodal_to_modal_rows_); // Using inverse, as q = S-1 * x
+    loadEigenVectorFromOperator(modal_to_nodal_matrix_.inverse(), target_ids_, ndofs, nodal_to_modal_rows_); // Using inverse, as q = S-1 * x, only storing interface relevant rows.
 
     modal_values_.resize(number_of_field_components * number_of_max_dimensions * target_ids_.size());
     modal_values_.setZero();
