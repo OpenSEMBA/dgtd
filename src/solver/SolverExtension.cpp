@@ -98,34 +98,6 @@ Eigen::VectorXcd getEigenVectorFromOperator(const Eigen::MatrixXcd& S, int r)
     return S.row(r).transpose();
 }
 
-void updateModalValues(
-    const FieldComponentToFluxRows& eigvecs, 
-    const Nodes& target_ids, 
-    const Fields<ParFiniteElementSpace, ParGridFunction>& fields, 
-    ModalValues& out)
-{
-    auto ndofs = fields.get(E, X).FESpace()->GetNDofs();
-    const auto field_offset = 3 * ndofs;
-    const auto dir_offset = ndofs;
-    for (auto f : {E, H}){
-        for (auto d : {X, Y, Z}){
-            for (auto n = 0; n < eigvecs.at({f,d}).row_left_first.size(); n++){
-                out[f * field_offset + d * dir_offset + target_ids[0]] += eigvecs.at({f,d}).row_left_first[n] * fields.get(f, d)[n];
-                out[f * field_offset + d * dir_offset + target_ids[1]] += eigvecs.at({f,d}).row_left_second[n] * fields.get(f, d)[n];
-                out[f * field_offset + d * dir_offset + target_ids[2]] += eigvecs.at({f,d}).row_right_first[n] * fields.get(f, d)[n];
-                out[f * field_offset + d * dir_offset + target_ids[3]] += eigvecs.at({f,d}).row_right_second[n] * fields.get(f, d)[n];
-            }
-        }
-    }
-}
-
-void updateNodalValues(const Eigen::MatrixXcd& S, const ModalValues& q, NodalValues& x)
-{
-    auto temp = S * q; //This should be a product giving a real vector.
-    MFEM_ASSERT(temp.imag().sum() < 1e-5, "S * q product has a large imaginary module.");
-    x = temp.real();
-}
-
 ModalValues evolEigenvalueSystem(const ModalValues& q, const Eigen::VectorXcd& eigvals, const Nodes& target_ids, const Time dt)
 {
     ModalValues res;
@@ -155,8 +127,8 @@ void SBCSolver::update(const Time& dt)
 {
     loadNodalValuesAtFaces();
     applyNodalToModalTransformation(); // S-1 x = q / Only flux rows belonging to the sbc interfaces
-    ModalValues q_old = modal_values_;
-    //evol
+    q_old_ = modal_values_;
+    evol(q_old_, dt);
     applyModalToNodalTransformation(); // S q = x / Full matrix-vector operation
     unloadNodalValuesAtFaces();
 }
@@ -277,8 +249,6 @@ sbcp_(sbcp)
     modal_values_.setZero();
     nodal_values_.resize(number_of_field_components * number_of_max_dimensions * ndofs);
     nodal_values_.setZero();
-
-    findDoFPairs(g_model, g_fes);
     
 }
 

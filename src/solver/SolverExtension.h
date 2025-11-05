@@ -49,7 +49,6 @@ public:
     void setTargetTime(const Time& t) { target_time = t; }
     void setPreTime(const Time& t) { pre_time = t; }
     void assignGlobalFields(Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
-
     
 private:
     
@@ -68,7 +67,7 @@ private:
     FieldComponentToFluxRows nodal_to_modal_rows_;
     Eigen::MatrixXcd modal_to_nodal_matrix_;
 
-    ModalValues modal_values_;
+    ModalValues modal_values_, q_old_;
     NodalValues nodal_values_;
 
     Eigen::VectorXcd eigvals_;
@@ -89,8 +88,6 @@ private:
 
 std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
 Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const SparseMatrix& mat);
-void updateModalValues(const FieldComponentToFluxRows& eigvecs, const Nodes& target_ids, const Fields<ParFiniteElementSpace, ParGridFunction>&, ModalValues& out);
-void updateNodalValues(const Eigen::MatrixXcd& S, const ModalValues& q, NodalValues& x);
 void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target_ids, const size_t ndofs, FieldComponentToFluxRows& out);
 ModalValues evolEigenvalueSystem(const ModalValues& q, const Eigen::VectorXcd& eigvals, const Nodes& target_ids, const Time dt);
 
