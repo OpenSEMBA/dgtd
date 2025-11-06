@@ -45,7 +45,7 @@ protected:
 
 };
 
-TEST_F(SolverExtensionTest, isCorrect_SBC_Properties)
+TEST_F(SolverExtensionTest, isCorrect_SGBC_Properties)
 {
     // auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
     // auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);

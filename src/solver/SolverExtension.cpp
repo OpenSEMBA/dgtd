@@ -150,7 +150,7 @@ void SGBCSolver::initNodeIds(const std::pair<GlobalId, GlobalId>& el1_el2_ids)
     dof_pair_.unload.l_el2 = target_ids_.at(2);
 }
 
-SGBCSolver::SGBCSolver(const SBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs) : 
+SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs) : 
 sbcp_(sbcp)
 {
     

@@ -80,7 +80,7 @@ InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps&
     return res;
 }
 
-std::vector<std::pair<NodeId, NodeId>> Solver::findSBCDoFPairs()
+std::vector<std::pair<NodeId, NodeId>> Solver::findSGBCDoFPairs()
 {
     std::vector<std::pair<NodeId, NodeId>> res;
 	
@@ -160,7 +160,7 @@ Solver::Solver(
 	probesManager_.initPointFieldProbeExport();
 	probesManager_.updateProbes(time_);
 
-	auto sbc_pairs = findSBCDoFPairs();
+	auto sbc_pairs = findSGBCDoFPairs();
 	if (sbc_pairs.size()){
 		
 		//do SGBC things;

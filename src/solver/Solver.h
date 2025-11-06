@@ -85,7 +85,7 @@ private:
     void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
     void initSbcSolvers();
-    std::vector<std::pair<NodeId, NodeId>> findSBCDoFPairs();
+    std::vector<std::pair<NodeId, NodeId>> findSGBCDoFPairs();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);

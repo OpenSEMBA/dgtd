@@ -446,7 +446,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"];
 				}
 				Material mat(rel_eps, rel_mu, sigma);
-				SBCProperties props(mat);
+				SGBCProperties props(mat);
 				// props.phys_tag = case_data["model"]["boundaries"][b]["tags"][a]; 
 				if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
 					props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
@@ -780,7 +780,7 @@ Array<int> getTFSFTags(const json& case_data)
     return res;
 }
 
-Array<int> getSBCTags(const json& case_data)
+Array<int> getSGBCTags(const json& case_data)
 {
     Array<int> res;
     if (!case_data.contains("model") ||
@@ -827,7 +827,7 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
-    mfem::Array<int> sbc_tags  = getSBCTags(case_data);
+    mfem::Array<int> sbc_tags  = getSGBCTags(case_data);
 
 	if (tfsf_tags.Size() || sbc_tags.Size()){
     	applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sbc_tags);

@@ -22,7 +22,7 @@ struct NodePairs
     LocalId l_el1, l_el2;
 };
 
-struct SBCNodeInfo
+struct SGBCNodeInfo
 {
     NodePairs load;
     NodePairs unload;
@@ -34,7 +34,7 @@ using NodalValues = Eigen::VectorXd;
 class SGBCSolver{
 public:
 
-    SGBCSolver(const SBCProperties*, const std::pair<GlobalId, GlobalId>&);
+    SGBCSolver(const SGBCProperties*, const std::pair<GlobalId, GlobalId>&);
 
     void setSGBCFieldValues(const SGBCNodalFields& in);
     SGBCNodalFields getSGBCFieldValues() const;
@@ -42,9 +42,9 @@ public:
     
 private:
     
-    const SBCProperties* sbcp_;
+    const SGBCProperties* sbcp_;
     
-    SBCNodeInfo dof_pair_;
+    SGBCNodeInfo dof_pair_;
     
     Model model_;
     
