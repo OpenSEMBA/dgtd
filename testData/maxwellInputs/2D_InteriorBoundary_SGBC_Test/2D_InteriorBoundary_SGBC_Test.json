@@ -9,7 +9,7 @@
   },
 
   "model": {
-    "filename": "2D_InteriorBoundary_SBC_Test.msh",
+    "filename": "2D_InteriorBoundary_SGBC_Test.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],

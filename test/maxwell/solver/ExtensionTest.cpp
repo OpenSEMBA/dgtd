@@ -43,47 +43,27 @@ protected:
         return check;
     }
 
-    static Eigen::VectorXcd getEigenVecFromStoredOnes(const FieldComponentToFluxRows& fc2fr, size_t c, const size_t localdofs, const Nodes& target_ids){
-        for (auto f : {E, H}){
-            for (auto d : {X, Y, Z}){
-                auto base = f * 3 * localdofs + d * localdofs;
-                if (c == base + target_ids[0]){
-                    return fc2fr.at({f,d}).row_left_first;
-                }    
-                if (c == base + target_ids[1]){
-                    return fc2fr.at({f,d}).row_left_second;
-                } 
-                if (c == base + target_ids[2]){
-                    return fc2fr.at({f,d}).row_right_first;
-                } 
-                if (c == base + target_ids[3]){
-                    return fc2fr.at({f,d}).row_right_second;
-                } 
-            }
-        }
-        throw std::runtime_error("Requested column in getEigenVecFromStoredOnes not available.");
-    }
-
 };
 
 TEST_F(SolverExtensionTest, isCorrect_SBC_Properties)
 {
-    auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SBC_Test"));
-    auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SBC_Test"), true);
-    for (auto props : global_solver.getSolverOptions().sbc_props){
-        if (props.phys_tag == 15){
-            ASSERT_EQ(1e-5, props.material_width);
-            ASSERT_EQ(15, props.num_of_segments);
-            ASSERT_EQ(5, props.order);
-            ASSERT_EQ(1e5, props.material.getConductivity());
-        }
-        else if (props.phys_tag == 18){
-            ASSERT_EQ(1e-8, props.material_width);
-            ASSERT_EQ(18, props.num_of_segments);
-            ASSERT_EQ(8, props.order);
-            ASSERT_EQ(1e8, props.material.getConductivity()); // High only so it ends in 8, for 'same-number' easy checks.
-        }
-    }
+    // auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
+    // auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
+    // for (auto props : global_solver.getSolverOptions().sbc_props){
+    //     if (props.phys_tag == 15){
+    //         ASSERT_EQ(1e-5, props.material_width);
+    //         ASSERT_EQ(15, props.num_of_segments);
+    //         ASSERT_EQ(5, props.order);
+    //         ASSERT_EQ(1e5, props.material.getConductivity());
+    //     }
+    //     else if (props.phys_tag == 18){
+    //         ASSERT_EQ(1e-8, props.material_width);
+    //         ASSERT_EQ(18, props.num_of_segments);
+    //         ASSERT_EQ(8, props.order);
+    //         ASSERT_EQ(1e8, props.material.getConductivity()); // High only so it ends in 8, for 'same-number' easy checks.
+    //     }
+    // }
+    ASSERT_TRUE(false); // While reworking phys_tag
 }
 
 TEST_F(SolverExtensionTest, checkEigenSolverSolutions)
@@ -182,12 +162,17 @@ TEST_F(SolverExtensionTest, targetIds)
 
 TEST_F(SolverExtensionTest, buildTest)
 {
-    auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SBC_Test"));
-    auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SBC_Test"), true);
+    auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
+    auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
     std::pair<GlobalId,GlobalId> pair({2,3});
     for (const auto prop : global_solver.getSolverOptions().sbc_props){
-        ASSERT_NO_THROW(SBCSolver(&prop, pair));
+        ASSERT_NO_THROW(SGBCSolver(&prop, pair));
     }
+}
+
+TEST_F(SolverExtensionTest, loadAndUnloadTest)
+{
+
 }
 
 }

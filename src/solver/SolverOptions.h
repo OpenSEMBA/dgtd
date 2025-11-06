@@ -18,7 +18,6 @@ enum ode_type : size_t {
 
 struct SBCProperties{
 
-    size_t phys_tag;
     size_t num_of_segments = 10;
     size_t order = 1;
     double material_width = 1e-4;

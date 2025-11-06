@@ -447,7 +447,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 				}
 				Material mat(rel_eps, rel_mu, sigma);
 				SBCProperties props(mat);
-				props.phys_tag = case_data["model"]["boundaries"][b]["tags"][a];
+				// props.phys_tag = case_data["model"]["boundaries"][b]["tags"][a]; 
 				if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
 					props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
 				}

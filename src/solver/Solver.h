@@ -79,7 +79,7 @@ private:
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
-    std::unique_ptr<std::vector<SBCSolver>> sbcSolvers_;
+    std::unique_ptr<std::vector<SGBCSolver>> sbcSolvers_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();

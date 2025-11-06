@@ -11,18 +11,10 @@ namespace maxwell
 
 using namespace mfem;
 
-GeomTagToMaterial getSBCSolverGeomTagToMaterialFromGlobal(Model& global_model);
-
 using GlobalId = NodeId;
 using LocalId = NodeId;
 
-struct FluxRows
-{
-    Eigen::VectorXcd row_left_first;
-    Eigen::VectorXcd row_left_second;
-    Eigen::VectorXcd row_right_first;
-    Eigen::VectorXcd row_right_second;
-};
+using SGBCNodalFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
 
 struct NodePairs
 {
@@ -36,15 +28,16 @@ struct SBCNodeInfo
     NodePairs unload;
 };
 
-using FieldComponentToFluxRows = std::map<std::pair<FieldType,Direction>,FluxRows>;
 using ModalValues = Eigen::VectorXcd;
 using NodalValues = Eigen::VectorXd;
 
-class SBCSolver{
+class SGBCSolver{
 public:
 
-    SBCSolver(const SBCProperties*, const std::pair<GlobalId, GlobalId>&);
+    SGBCSolver(const SBCProperties*, const std::pair<GlobalId, GlobalId>&);
 
+    void setSGBCFieldValues(const SGBCNodalFields& in);
+    SGBCNodalFields getSGBCFieldValues() const;
     void update(const Time& dt);
     
 private:
@@ -59,11 +52,10 @@ private:
     
     SolverOptions opts_;
 
-    FieldComponentToFluxRows nodal_to_modal_rows_;
+    Eigen::MatrixXcd nodal_to_modal_matrix_;
     Eigen::MatrixXcd modal_to_nodal_matrix_;
 
     ModalValues modal_values_, q_old_;
-    NodalValues nodal_values_;
 
     Eigen::VectorXcd eigvals_;
 
@@ -72,8 +64,8 @@ private:
     Fields<ParFiniteElementSpace, ParGridFunction>* global_nodal_fields_;
     
     void initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids);
-    void applyNodalToModalTransformation();
-    void applyModalToNodalTransformation();
+    void applyNodalToModalTransformation(const NodalValues& in);
+    void applyModalToNodalTransformation(NodalValues& out) const;
     void evol(const ModalValues& q_old, const Time& dt);
 
 };
