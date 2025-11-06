@@ -27,7 +27,7 @@
       },
       {
         "tags": [ 15 ],
-        "type": "SBC",
+        "type": "SGBC",
         "material":{
           "bulk_conductivity": 1e5,
           "num_of_segments": 15,
@@ -37,7 +37,7 @@
       },
       {
         "tags": [ 18 ],
-        "type": "SBC",
+        "type": "SGBC",
         "material":{
           "bulk_conductivity": 1e8,
           "num_of_segments": 18,

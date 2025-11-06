@@ -421,26 +421,26 @@ SolverOptions buildSolverOptions(const json& case_data)
 
 	for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
         if (case_data["model"]["boundaries"][b].contains("type") && 
-			case_data["model"]["boundaries"][b]["type"] == "SBC" && 
+			case_data["model"]["boundaries"][b]["type"] == "SGBC" && 
 			case_data["model"]["boundaries"][b].contains("material")){
 				for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
 					double rel_eps, rel_mu, sigma;
 				if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")){
-					std::cout << "SBC Material defined without 'relative_permittivity' parameter, assuming vacuum." << std::endl;
+					std::cout << "SGBC Material defined without 'relative_permittivity' parameter, assuming vacuum." << std::endl;
 					rel_eps = 1.0;
 				} 
 				else{
 					rel_eps = case_data["model"]["boundaries"][b]["material"]["relative_permittivity"];
 				}
 				if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permeability")){
-					std::cout << "SBC Material defined without 'relative_permeability' parameter, assuming vacuum." << std::endl;
+					std::cout << "SGBC Material defined without 'relative_permeability' parameter, assuming vacuum." << std::endl;
 					rel_mu = 1.0;
 				} 
 				else{
 					rel_mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
 				}
 				if (!case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")){
-					throw std::runtime_error("SBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
+					throw std::runtime_error("SGBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
 				} 
 				else {
 					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"];
@@ -581,8 +581,8 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 	else if (bdr_cond == "SMA") {
 		return BdrCond::SMA;
 	}
-	else if (bdr_cond == "SBC") {
-		return BdrCond::SBC;
+	else if (bdr_cond == "SGBC") {
+		return BdrCond::SGBC;
 	}
 	else {
 		throw std::runtime_error(("The defined Boundary Type " + bdr_cond + " is incorrect.").c_str());
@@ -789,7 +789,7 @@ Array<int> getSBCTags(const json& case_data)
     }
 
     for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
-        if (case_data["model"]["boundaries"][b].contains("type") && case_data["model"]["boundaries"][b]["type"] == "SBC") {
+        if (case_data["model"]["boundaries"][b].contains("type") && case_data["model"]["boundaries"][b]["type"] == "SGBC") {
             for (int t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); ++t) {
                 res.Append(case_data["model"]["boundaries"][b]["tags"][t]);
             }

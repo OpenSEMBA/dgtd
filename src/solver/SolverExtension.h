@@ -43,12 +43,9 @@ using NodalValues = Eigen::VectorXd;
 class SBCSolver{
 public:
 
-    SBCSolver(Model&, ParFiniteElementSpace&, const SBCProperties*);
+    SBCSolver(const SBCProperties*, const std::pair<GlobalId, GlobalId>&);
 
     void update(const Time& dt);
-    void setTargetTime(const Time& t) { target_time = t; }
-    void setPreTime(const Time& t) { pre_time = t; }
-    void assignGlobalFields(Fields<ParFiniteElementSpace,ParGridFunction>* g_fields);
     
 private:
     
@@ -58,8 +55,6 @@ private:
     
     Model model_;
     
-    Time target_time;
-    Time pre_time = 0.0;
     Time dt_;
     
     SolverOptions opts_;
@@ -76,10 +71,7 @@ private:
     
     Fields<ParFiniteElementSpace, ParGridFunction>* global_nodal_fields_;
     
-    void findDoFPairs(Model&, ParFiniteElementSpace&);
     void initNodeIds(const std::pair<NodeId,NodeId>& el1_el2_ids);
-    void loadNodalValuesAtFaces();
-    void unloadNodalValuesAtFaces();
     void applyNodalToModalTransformation();
     void applyModalToNodalTransformation();
     void evol(const ModalValues& q_old, const Time& dt);
@@ -88,6 +80,5 @@ private:
 
 std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
 Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const SparseMatrix& mat);
-void loadEigenVectorFromOperator(const Eigen::MatrixXcd& op, const Nodes& target_ids, const size_t ndofs, FieldComponentToFluxRows& out);
 
 }

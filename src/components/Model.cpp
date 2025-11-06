@@ -87,7 +87,7 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 	if (bdrInfo.gt2ib.size() != 0)
 	{
 		for (auto i = bdrInfo.gt2ib.begin(); i != bdrInfo.gt2ib.end(); i++){
-			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA || i->second == BdrCond::SBC) {
+			if (i->second == BdrCond::PEC || i->second == BdrCond::PMC || i->second == BdrCond::SMA || i->second == BdrCond::SGBC) {
 				faceToGeomTag_.insert(std::make_pair(f2bdr.Find(i->first - 1), i->first));
 				attToIntBdrMap_.insert(std::make_pair( i->first, i->second ));
 			}
@@ -112,7 +112,7 @@ void Model::assembleBdrToMarkerMaps()
 		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, smaMarker_));
 	}
 	if (sbcMarker_.Size() != 0) {
-		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SBC, sbcMarker_));
+		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, sbcMarker_));
 	}
 	if (intpecMarker_.Size() != 0) {
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::PEC, intpecMarker_));
@@ -124,7 +124,7 @@ void Model::assembleBdrToMarkerMaps()
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, intsmaMarker_));
 	}
 	if (intSbcMarker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SBC, intSbcMarker_));
+		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, intSbcMarker_));
 	}
 }
 
@@ -237,7 +237,7 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 	case BdrCond::TotalFieldIn:
 		return tfsfMarker_;
 		break;
-	case BdrCond::SBC:
+	case BdrCond::SGBC:
 		return sbcMarker_;
 		break;
 	default:

@@ -292,7 +292,7 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			if (kv.first == BdrCond::SBC)
+			if (kv.first == BdrCond::SGBC)
 			{
 				continue;
 			}
@@ -335,7 +335,7 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			if (kv.first == BdrCond::SBC)
+			if (kv.first == BdrCond::SGBC)
 			{
 				continue;
 			}
@@ -378,7 +378,7 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			if (kv.first == BdrCond::SBC)
+			if (kv.first == BdrCond::SGBC)
 			{
 				continue;
 			}

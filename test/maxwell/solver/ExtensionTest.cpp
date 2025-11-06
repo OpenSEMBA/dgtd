@@ -184,107 +184,10 @@ TEST_F(SolverExtensionTest, buildTest)
 {
     auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SBC_Test"));
     auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SBC_Test"), true);
+    std::pair<GlobalId,GlobalId> pair({2,3});
     for (const auto prop : global_solver.getSolverOptions().sbc_props){
-        ASSERT_NO_THROW(SBCSolver(global_solver.getModel(), global_solver.getFES(), &prop));
+        ASSERT_NO_THROW(SBCSolver(&prop, pair));
     }
 }
-
-TEST_F(SolverExtensionTest, getModalVectors)
-{
-    size_t localdofs = 10; //Assume 2 nodes in 5 elements;
-    size_t num_field_dims = 3;
-    size_t num_field_types = 2;
-    auto totaldofs = localdofs * num_field_dims * num_field_types;
-    
-    SparseMatrix A(totaldofs, totaldofs);
-    int n = A.NumRows();
-    int block_index = 1;
-    
-    for (int i = 0; i + 1 < n; i += 2, ++block_index)
-    {
-        double a = static_cast<double>(block_index);
-        double b = a; // I want 1+i, 1-i, 2+2i, 2-2i and so on eigs, in 2x2 blocks inside the matrix;
-    
-        A.Add(i,   i,   a);   // A[i,i]   = a
-        A.Add(i,   i+1, -b);  // A[i,i+1] = -b
-        A.Add(i+1, i,   b);   // A[i+1,i] =  b
-        A.Add(i+1, i+1, a);   // A[i+1,i+1] = a
-    }
-    A.Finalize();
-
-    Nodes target_ids({2, 3, 8, 9});
-
-    auto es = applyEigenSolverOnGlobalOperator(A);
-
-    const Eigen::MatrixXcd S = es.eigenvectors();
-    const Eigen::MatrixXcd S_inv = S.inverse();
-    const Eigen::VectorXcd D = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
-
-    FieldComponentToFluxRows fc2fr;
-
-    ASSERT_NO_THROW(loadEigenVectorFromOperator(S_inv, target_ids, localdofs, fc2fr));
-
-    // Eigenvalue check
-    for (int c = 0; c < D.size(); ++c)
-    {
-        auto check = checkIfInsideTargetIds(target_ids, localdofs, totaldofs, c); //Only check variations of target_id + n * localdofs.
-    
-        if (!check){
-            continue;
-        }
-
-        int block = c / 2;
-        double a = static_cast<double>(block + 1);
-        double b = a;
-
-        std::complex<double> expected_lambda;
-        if (c % 2 == 0)
-            expected_lambda = std::complex<double>(a, b);   // a + i b
-        else
-            expected_lambda = std::complex<double>(a, -b);  // a - i b
-
-        std::complex<double> lambda = D(c);
-        double tol = 1e-5;
-        EXPECT_NEAR(expected_lambda.real(), lambda.real(), tol);
-        EXPECT_NEAR(expected_lambda.imag(), lambda.imag(), tol);
-    }
-
-    //Eigenvector check
-    for (int c = 0; c < S.cols(); ++c){
-
-        auto check = checkIfInsideTargetIds(target_ids, localdofs, totaldofs, c); //Only check variations of target_id + n * localdofs.
-    
-        if (!check){
-            continue;
-        }
-
-        Eigen::VectorXcd expected = Eigen::VectorXcd::Zero(totaldofs);
-
-        int block = c / 2;
-        int i = 2 * block;
-        double a = static_cast<double>(block + 1);
-        double b = a;
-
-        // expected eigenvector pattern
-        if (c % 2 == 0) {
-            // eigenvalue a + i b -> left eigenvector [1, +i]^T
-            expected(i)     = std::complex<double>(1.0, 0.0);
-            expected(i + 1) = std::complex<double>(0.0, 1.0);
-        } else {
-            // eigenvalue a - i b -> left eigenvector [1, -i]^T
-            expected(i)     = std::complex<double>(1.0, 0.0);
-            expected(i + 1) = std::complex<double>(0.0, -1.0);
-        }
-
-        Eigen::VectorXcd v = getEigenVecFromStoredOnes(fc2fr, c, localdofs, target_ids);
-        std::complex<double> alpha = (expected.adjoint() * v)(0) / (expected.adjoint() * expected)(0);
-        Eigen::VectorXcd diff = v - alpha * expected;
-        double rel_error = diff.norm() / v.norm();
-        double tol = 1e-4;
-        EXPECT_NEAR(0.0, rel_error, tol);
-    }
-
-}
-
 
 }

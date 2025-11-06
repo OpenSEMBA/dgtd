@@ -51,7 +51,7 @@ enum class BdrCond {
 	SurfaceCond,
 	NearToFarField = 201,
 	TotalFieldIn = 301,
-	SBC = 401
+	SGBC = 401
 };
 
 using InteriorFaceCoefficients = std::vector<double>;
