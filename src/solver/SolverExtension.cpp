@@ -102,7 +102,7 @@ SGBCNodalFields SGBCSolver::getSGBCFieldValues() const
     for (auto f : {E, H}){ //Apply on ghost interface nodes.
         for (auto d : {X, Y, Z}){
             res.at(f).at(d).first = nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el1];
-            res.at(f).at(d).second = nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el1];
+            res.at(f).at(d).second = nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el2];
         }
     }
     return res;
@@ -131,7 +131,7 @@ void SGBCSolver::applyNodalToModalTransformation(const NodalValues& in)
 
 void SGBCSolver::applyModalToNodalTransformation(NodalValues& out) const
 {
-    const auto temp = modal_to_nodal_matrix_ * modal_values_;
+    const Eigen::VectorXcd temp = modal_to_nodal_matrix_ * modal_values_;
     if (temp.imag().cwiseAbs().sum() > 1e-5){
         throw std::runtime_error("Imaginary part over tolerance in ModalToNodalTransformation.");
     }
