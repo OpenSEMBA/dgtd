@@ -68,13 +68,12 @@ TEST_F(SolverExtensionTest, isCorrect_SGBC_Properties)
 
 TEST_F(SolverExtensionTest, checkEigenSolverSolutions)
 {
-
     // A = [ 2  -3   0 ]
     //     [ 3   2   0 ]
     //     [ 0   0  -1 ]
-
+    //
     // Eigenvalues: (2 + 3i), (2 - 3i), (-1)
-    // Eigenvectors:
+    // Eigenvectors (one choice):
     //   For (2 + 3i): [1, -i, 0]^T
     //   For (2 - 3i): [1,  i, 0]^T
     //   For (-1):     [0,  0, 1]^T
@@ -96,68 +95,108 @@ TEST_F(SolverExtensionTest, checkEigenSolverSolutions)
     ASSERT_EQ(3, evecs.cols());
     ASSERT_EQ(3, evecs.rows());
 
-    std::complex<double> eigval1(2.0,  3.0);
-    std::complex<double> eigval2(2.0, -3.0);
-    std::complex<double> eigval3(-1.0, 0.0);
-
-    Eigen::Vector3cd v1_exp = {
-        std::complex<double>(1.0,  0.0),
-        std::complex<double>(0.0, -1.0),
-        std::complex<double>(0.0,  0.0)
-    };
-
-    Eigen::Vector3cd v2_exp = {
-        std::complex<double>(1.0,  0.0),
-        std::complex<double>(0.0,  1.0),
-        std::complex<double>(0.0,  0.0)
-    };
-
-    Eigen::Vector3cd v3_exp = {
-        std::complex<double>(0.0,  0.0),
-        std::complex<double>(0.0,  0.0),
-        std::complex<double>(1.0,  0.0)
-    };
-
     const double tol = 1e-10;
 
-    //eigval checking
-    EXPECT_NEAR(std::real(evals[0]), std::real(eigval1), tol);
-    EXPECT_NEAR(std::imag(evals[0]), std::imag(eigval1), tol);
+    // Expected eigenvalues
+    std::vector<std::complex<double>> expected_evals = {
+        std::complex<double>(2.0,  3.0),
+        std::complex<double>(2.0, -3.0),
+        std::complex<double>(-1.0, 0.0)
+    };
 
-    EXPECT_NEAR(std::real(evals[1]), std::real(eigval2), tol);
-    EXPECT_NEAR(std::imag(evals[1]), std::imag(eigval2), tol);
+    Eigen::Vector3cd v1_exp; // (2 + 3i)
+    v1_exp << std::complex<double>(1.0, 0.0),
+              std::complex<double>(0.0,-1.0),
+              std::complex<double>(0.0, 0.0);
 
-    EXPECT_NEAR(std::real(evals[2]), std::real(eigval3), tol);
-    EXPECT_NEAR(std::imag(evals[2]), std::imag(eigval3), tol);
+    Eigen::Vector3cd v2_exp; // (2 - 3i)
+    v2_exp << std::complex<double>(1.0, 0.0),
+              std::complex<double>(0.0, 1.0),
+              std::complex<double>(0.0, 0.0);
 
-    //eigvec checking
+    Eigen::Vector3cd v3_exp; // (-1)
+    v3_exp << std::complex<double>(0.0, 0.0),
+              std::complex<double>(0.0, 0.0),
+              std::complex<double>(1.0, 0.0);
+
+    std::vector<Eigen::Vector3cd> expected_evecs = { v1_exp, v2_exp, v3_exp };
+
+    auto findBestMatchIndex = [&](const std::complex<double>& target, const Eigen::VectorXcd& vals, const std::vector<int>& used) -> int
+    {
+        double bestDist = std::numeric_limits<double>::infinity();
+        int bestIdx = -1;
+        for (int i = 0; i < vals.size(); ++i)
+        {
+            if (std::find(used.begin(), used.end(), i) != used.end()) continue; // skip already used
+            double dist = std::abs(vals[i] - target);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    };
+
+    auto compareEigenvectors = [&](const Eigen::Vector3cd& v_computed,
+                                   const Eigen::Vector3cd& v_expected,
+                                   const std::string& label)
+    {
+        Eigen::Vector3cd vc = v_computed.normalized();
+        Eigen::Vector3cd ve = v_expected.normalized();
+
+        std::complex<double> phase = (ve.adjoint() * vc)(0,0);
+        if (std::abs(phase) > 0.0)
+        {
+            vc /= (phase / std::abs(phase));
+        }
+
+        double diff = (vc - ve).norm();
+        EXPECT_LT(diff, tol) << "Eigenvector mismatch for " << label << " (difference = " << diff << ")";
+    };
+
+    std::vector<int> used_indices;
+
+    for (size_t k = 0; k < expected_evals.size(); ++k)
+    {
+        const auto& exp_ev = expected_evals[k];
+        int idx = findBestMatchIndex(exp_ev, evals, used_indices);
+        ASSERT_NE(idx, -1) << "Could not find a matching computed eigenvalue for expected eigenvalue index " << k;
+
+        used_indices.push_back(idx);
+
+        EXPECT_NEAR(std::real(evals[idx]), std::real(exp_ev), tol) << "Eigenvalue real part mismatch for expected index " << k;
+        EXPECT_NEAR(std::imag(evals[idx]), std::imag(exp_ev), tol) << "Eigenvalue imag part mismatch for expected index " << k;
+
+        compareEigenvectors(evecs.col(idx), expected_evecs[k], std::to_string(k) + " (expected " + std::to_string(std::real(exp_ev)) + (std::imag(exp_ev) >= 0 ? "+" : "") + std::to_string(std::imag(exp_ev)) + "i)");
+    }
+
+    // Additionally, perform a sanity check that A * v = lambda * v holds for the matched pairs (optional)
+    // (This is redundant if eigenvalues/eigenvectors matched above, but kept as an extra safeguard.)
     Eigen::Matrix3cd M;
     M << std::complex<double>(2.0, 0.0), std::complex<double>(-3.0, 0.0), std::complex<double>(0.0, 0.0),
          std::complex<double>(3.0, 0.0),  std::complex<double>( 2.0, 0.0), std::complex<double>(0.0, 0.0),
          std::complex<double>(0.0, 0.0),  std::complex<double>( 0.0, 0.0), std::complex<double>(-1.0, 0.0);
 
-    auto checkEigenpair = [&](const Eigen::Vector3cd& v, std::complex<double> lambda, const std::string& label)
+    for (size_t k = 0; k < expected_evals.size(); ++k)
     {
-        Eigen::Vector3cd lhs = M * v;
-        Eigen::Vector3cd rhs = lambda * v;
+        int matched_idx = used_indices[k];
+        Eigen::Vector3cd lhs = M * evecs.col(matched_idx);
+        Eigen::Vector3cd rhs = evals[matched_idx] * evecs.col(matched_idx);
         double err = (lhs - rhs).norm();
-        EXPECT_LT(err, tol) << "Eigenvector check failed for " << label << ", residual = " << err;
-    };
-
-    checkEigenpair(v1_exp, eigval1, "(2 + 3i)");
-    checkEigenpair(v2_exp, eigval2, "(2 - 3i)");
-    checkEigenpair(v3_exp, eigval3, "(-1)");
+        EXPECT_LT(err, 1e-8) << "Sanity Av - lambda v residual too large for matched index " << matched_idx << " (residual = " << err << ")";
+    }
 }
 
 TEST_F(SolverExtensionTest, targetIds)
 {
-    size_t order = 2;
+    size_t order = 1;
     size_t num_of_segments = 10;
     std::vector<NodeId> ids = buildTargetNodeIds(order, num_of_segments);
-    ASSERT_EQ(2, ids[0]);
-    ASSERT_EQ(3, ids[1]);
-    ASSERT_EQ(33, ids[2]);
-    ASSERT_EQ(34, ids[3]);
+    ASSERT_EQ(1, ids[0]);
+    ASSERT_EQ(2, ids[1]);
+    ASSERT_EQ(21, ids[2]);
+    ASSERT_EQ(22, ids[3]);
 }
 
 TEST_F(SolverExtensionTest, buildTest)
@@ -172,6 +211,30 @@ TEST_F(SolverExtensionTest, buildTest)
 
 TEST_F(SolverExtensionTest, loadAndUnloadTest)
 {
+    Material mat(1.0,1.0,1e4);
+    SGBCProperties props(mat);
+
+    std::pair<GlobalId, GlobalId> ids(1,2);
+
+    SGBCSolver solver(&props, ids);
+    SGBCNodalFields nodal;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            nodal.at(f).at(d).first = double(f + d + 1);
+            nodal.at(f).at(d).second = 2.0 * nodal.at(f).at(d).first;
+        }
+    }
+
+    solver.setSGBCFieldValues(nodal);
+    auto returned = solver.getSGBCFieldValues();
+
+    double tol = 1e-3;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            EXPECT_NEAR(nodal.at(f).at(d).first, returned.at(f).at(d).first, tol);
+            EXPECT_NEAR(nodal.at(f).at(d).second, returned.at(f).at(d).second, tol);
+        }
+    }
 
 }
 

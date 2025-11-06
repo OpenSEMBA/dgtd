@@ -160,11 +160,11 @@ Solver::Solver(
 	probesManager_.initPointFieldProbeExport();
 	probesManager_.updateProbes(time_);
 
-	auto sbc_pairs = findSGBCDoFPairs();
-	if (sbc_pairs.size()){
+	// auto sbc_pairs = findSGBCDoFPairs();
+	// if (sbc_pairs.size()){
 		
-		//do SGBC things;
-	}
+	// 	//do SGBC things;
+	// }
 
 	auto initEndTime = std::chrono::steady_clock::now();
 	int rank;

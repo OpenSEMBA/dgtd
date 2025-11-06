@@ -24,8 +24,8 @@ std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments)
     std::vector<NodeId> res(4);
     res[0] = order; // start of mesh, ghost element right boundary
     res[1] = order + 1; // start of mesh, SGBC element left boundary
-    res[2] = (order + 1) * (num_of_segments + 2) - (order + 1); // end of mesh, SGBC element right boundary
-    res[3] = (order + 1) * (num_of_segments + 2) - (order); // end of mesh, ghost element left boundary
+    res[2] = (order + 1) * (num_of_segments + 2) - (order + 1) - 1; // end of mesh, SGBC element right boundary
+    res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; // end of mesh, ghost element left boundary
     return res;
 }
 
@@ -105,6 +105,7 @@ SGBCNodalFields SGBCSolver::getSGBCFieldValues() const
             res.at(f).at(d).second = nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el1];
         }
     }
+    return res;
 }
 
 void SGBCSolver::update(const Time& dt)
@@ -158,20 +159,25 @@ sbcp_(sbcp)
     initNodeIds(global_dofs);
     
     auto mesh  = Mesh::MakeCartesian1D(sbcp->num_of_segments + 2, sbcp->material_width + 2 * (sbcp->material_width / double(sbcp->num_of_segments)));
-    auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
+    int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+    auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
     auto fec   = DG_FECollection(sbcp->order, 1, BasisType::GaussLobatto);
     auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
 
     GeomTagToMaterial geom_tag_sgbc_mat{{1,sbcp_->material}};
-    Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo{});
+    GeomTagToBoundary pecBdr{ {1,BdrCond::PEC}, {2,BdrCond::PEC} }; // For now, PEC is enforced on the boundaries
+    Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()), partitioning);
     auto global_operator = assembleGlobalOperator(model, pfes, sbcp->order);
+    std::cout << "Applying Eigen Solver on Global Operator." << std::endl;
     auto es = applyEigenSolverOnGlobalOperator(*global_operator);
+    std::cout << "Eigen Solver success." << std::endl;
     modal_to_nodal_matrix_ = es.eigenvectors(); // S
     nodal_to_modal_matrix_ = modal_to_nodal_matrix_.inverse(); // S-1
     eigvals_ = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
 
     modal_values_.resize(6 * pfes.GetNDofs());
     modal_values_.setZero();
+
 
 }
 
