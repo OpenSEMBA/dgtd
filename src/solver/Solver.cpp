@@ -242,7 +242,6 @@ bool checkIfElemTypeInMesh(const Mesh& mesh, const Element::Type& type)
 	return false;
 }
 
-
 Vector getTimeStepScale(Mesh& mesh)
 {
 	Vector vol(mesh.GetNE()), dtscale(mesh.GetNE());
@@ -410,7 +409,6 @@ double Solver::calcAverageElementSizeInMesh()
 
     return res / mesh.GetNE();
 }
-
 
 size_t getCurrentMemoryUsage() {
 #ifdef SEMBA_DGTD_ENABLE_CUDA
