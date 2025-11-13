@@ -443,7 +443,8 @@ SolverOptions buildSolverOptions(const json& case_data)
 					throw std::runtime_error("SGBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
 				} 
 				else {
-					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"] * physicalConstants::freeSpaceImpedance_SI; // sigma_solver = sigma_si * Z0;
+					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"]; // sigma_solver = sigma_si * Z0;
+					sigma *= physicalConstants::freeSpaceImpedance_SI;
 				}
 				Material mat(rel_eps, rel_mu, sigma);
 				SGBCProperties props(mat);
