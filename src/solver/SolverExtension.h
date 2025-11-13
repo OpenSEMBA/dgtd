@@ -15,6 +15,7 @@ using GlobalId = NodeId;
 using LocalId = NodeId;
 
 using SGBCNodalFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
+using FullNodalFields = std::array<std::array<GridFunction, 3>, 2>;
 
 struct NodePairs
 {
@@ -36,6 +37,8 @@ public:
 
     SGBCSolver(const SGBCProperties*, const std::pair<GlobalId, GlobalId>&);
 
+    void setFullNodalState(const FullNodalFields& in);
+    FullNodalFields getFullNodalState() const;
     void setSGBCFieldValues(const SGBCNodalFields& in);
     SGBCNodalFields getSGBCFieldValues() const;
     void update(const Time& dt);

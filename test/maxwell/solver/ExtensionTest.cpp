@@ -171,7 +171,7 @@ TEST_F(SolverExtensionTest, checkEigenSolverSolutions)
         compareEigenvectors(evecs.col(idx), expected_evecs[k], std::to_string(k) + " (expected " + std::to_string(std::real(exp_ev)) + (std::imag(exp_ev) >= 0 ? "+" : "") + std::to_string(std::imag(exp_ev)) + "i)");
     }
 
-    // Additionally, perform a sanity check that A * v = lambda * v holds for the matched pairs (optional)
+    // Additionally, perform a sanity check that A * v = lambda * v holds for the matched pairs
     // (This is redundant if eigenvalues/eigenvectors matched above, but kept as an extra safeguard.)
     Eigen::Matrix3cd M;
     M << std::complex<double>(2.0, 0.0), std::complex<double>(-3.0, 0.0), std::complex<double>(0.0, 0.0),
@@ -209,12 +209,12 @@ TEST_F(SolverExtensionTest, buildTest)
     }
 }
 
-TEST_F(SolverExtensionTest, loadAndUnloadTest)
+TEST_F(SolverExtensionTest, loadAndUnloadSGBCValuesTest)
 {
-    Material mat(1.0,1.0,1e4);
+    Material mat(1.0, 1.0, 1e4);
     SGBCProperties props(mat);
 
-    std::pair<GlobalId, GlobalId> ids(1,2);
+    std::pair<GlobalId, GlobalId> ids(1, 2);
 
     SGBCSolver solver(&props, ids);
     SGBCNodalFields nodal;
@@ -236,6 +236,38 @@ TEST_F(SolverExtensionTest, loadAndUnloadTest)
         }
     }
 
+}
+
+TEST_F(SolverExtensionTest, loadAndUnloadFullStateTest)
+{
+    Material mat(1.0, 1.0, 1e4);
+    SGBCProperties props(mat);
+    std::pair<GlobalId, GlobalId> ids(1, 2);
+    int ndofs = (props.num_of_segments + 2) * (props.order + 1);
+
+    SGBCSolver solver(&props, ids);
+    FullNodalFields nodal;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            nodal.at(f).at(d).SetSize(ndofs);
+            for (auto v = 0; v < ndofs; v++){
+                nodal.at(f).at(d)[v] = double(f + d + v + 1);
+            }
+        }
+    }
+
+    solver.setFullNodalState(nodal);
+    auto returned = solver.getFullNodalState();
+
+    double tol = 1e-3;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            for (auto v = 0; v < ndofs; v++){
+                EXPECT_NEAR(nodal.at(f).at(d)[v], returned.at(f).at(d)[v], tol);
+                EXPECT_NEAR(nodal.at(f).at(d)[v], returned.at(f).at(d)[v], tol);
+            }        
+        }
+    }
 }
 
 }

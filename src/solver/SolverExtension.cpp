@@ -47,6 +47,50 @@ Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const Spars
     return res;
 }
 
+void SGBCSolver::setFullNodalState(const FullNodalFields& in)
+{
+    const auto& ndofs = in.at(0).at(0).Size();
+    NodalValues nodal(6 * ndofs);
+    
+    const auto field_offset = 3 * ndofs;
+    const auto dir_offset   =     ndofs;
+    
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            for (auto v = 0; v < ndofs; v++){
+                nodal[f * field_offset + d * dir_offset + v] = in.at(f).at(d)[v];
+            }
+        }
+    }
+
+    applyNodalToModalTransformation(nodal);
+
+}
+
+FullNodalFields SGBCSolver::getFullNodalState() const
+{
+    FullNodalFields res;
+
+    int ndofs = (sbcp_->num_of_segments + 2) * (sbcp_->order + 1);
+    const auto field_offset = 3 * ndofs;
+    const auto dir_offset   =     ndofs;
+    
+    NodalValues nodal(6 * ndofs);
+    applyModalToNodalTransformation(nodal); 
+    
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            res.at(f).at(d).SetSize(ndofs);
+            for (auto v = 0; v < ndofs; v++){
+                res.at(f).at(d)[v] = nodal[f * field_offset + d * dir_offset + v];
+            }
+        }
+    }
+
+    return res;
+    
+}
+
 void SGBCSolver::setSGBCFieldValues(const SGBCNodalFields& in)
 {
     int nodal_dofs = (sbcp_->num_of_segments + 2) * (sbcp_->order + 1);
@@ -177,7 +221,6 @@ sbcp_(sbcp)
 
     modal_values_.resize(6 * pfes.GetNDofs());
     modal_values_.setZero();
-
 
 }
 
