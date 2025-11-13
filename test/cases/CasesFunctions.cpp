@@ -259,7 +259,7 @@ FunctionType getFunctionTypeFromJson(const json& case_data)
     for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		if (case_data["sources"][s]["type"] == "initial") {
 			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
-                return FunctionType::Gaussian; //Currently unsupported.
+                return FunctionType::GaussFT; //Currently unsupported.
 			}
 			else if (case_data["sources"][s]["magnitude"]["type"] == "resonant") {
                 return FunctionType::Resonant;
@@ -272,7 +272,7 @@ FunctionType getFunctionTypeFromJson(const json& case_data)
             }
 		}
 		else if (case_data["sources"][s]["type"] == "planewave") {
-            return FunctionType::Planewave; //Currently unsupported.
+            return FunctionType::PlanewaveFT; //Currently unsupported.
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
             return FunctionType::Dipole; //Currently unsupported.

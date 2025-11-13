@@ -22,10 +22,10 @@ std::unique_ptr<SparseMatrix> assembleGlobalOperator(Model& model, ParFiniteElem
 std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments)
 {
     std::vector<NodeId> res(4);
-    res[0] = order; // start of mesh, ghost element right boundary
-    res[1] = order + 1; // start of mesh, SGBC element left boundary
-    res[2] = (order + 1) * (num_of_segments + 2) - (order + 1) - 1; // end of mesh, SGBC element right boundary
-    res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; // end of mesh, ghost element left boundary
+    res[0] = order; // start of mesh, ghost element right boundary   // |---Ghost---X-|-----SGBC---|--
+    res[1] = order + 1; // start of mesh, SGBC element left boundary // |---Ghost-----|-X---SGBC---|--
+    res[2] = (order + 1) * (num_of_segments + 2) - (order + 1) - 1; // end of mesh, SGBC element right boundary // --|---SGBC---X-|-----Ghost---|
+    res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; // end of mesh, ghost element left boundary     // --|---SGBC-----|-X---Ghost---|
     return res;
 }
 
@@ -109,25 +109,23 @@ void SGBCSolver::setSGBCFieldValues(const SGBCNodalFields& in)
 
     applyNodalToModalTransformation(nodal); // And now, with the updated nodal vector, we perform S-1 x = q and that q stays stored.
 
-    // Technically we should be doing the thing at the bottom, extending to ghost dofs? For now this stays commented.
+    const auto& extra_dof = dof_pair_.load.l_el1; 
 
-    // const auto& extra_dof = dof_pair_.load.l_el1; 
+    for (auto f : {E, H}){ //Extend to the rest of ghost element 1.
+        for (auto d : {X, Y, Z}){
+            for (auto i = 0; i < extra_dof; i++){
+                nodal[f * field_offset + d * dir_offset + i] = in.at(f).at(d).first;
+            }
+        }
+    }
 
-    // for (auto f : {E, H}){ //Extend to the rest of ghost element 1.
-    //     for (auto d : {X, Y, Z}){
-    //         for (auto i = 0; i < extra_dof; i++){
-    //             nodal[f * field_offset + d * dir_offset + i] = vals.first;
-    //         }
-    //     }
-    // }
-
-    // for (auto f : {E, H}){ //Extend to the rest of ghost element 2.
-    //     for (auto d : {X, Y, Z}){
-    //         for (auto i = 0; i < extra_dof; i++){
-    //             nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el2 + i] = vals.second;
-    //         }
-    //     }
-    // }
+    for (auto f : {E, H}){ //Extend to the rest of ghost element 2.
+        for (auto d : {X, Y, Z}){
+            for (auto i = 0; i < extra_dof; i++){
+                nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el2 + i] = in.at(f).at(d).second;
+            }
+        }
+    }
 
 }
 
@@ -154,11 +152,8 @@ SGBCNodalFields SGBCSolver::getSGBCFieldValues() const
 
 void SGBCSolver::update(const Time& dt)
 {
-    NodalValues temp;
-    applyNodalToModalTransformation(temp); // S-1 x = q /
     q_old_ = modal_values_;
     evol(q_old_, dt);
-    applyModalToNodalTransformation(temp); // S q = x /
 }
 
 void SGBCSolver::evol(const ModalValues& q_old, const Time& dt)
@@ -208,8 +203,9 @@ sbcp_(sbcp)
     auto fec   = DG_FECollection(sbcp->order, 1, BasisType::GaussLobatto);
     auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
 
-    GeomTagToMaterial geom_tag_sgbc_mat{{1,sbcp_->material}};
-    GeomTagToBoundary pecBdr{ {1,BdrCond::PEC}, {2,BdrCond::PEC} }; // For now, PEC is enforced on the boundaries
+    GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp_->material}};
+    GeomTagToBoundary pecBdr{};
+    // GeomTagToBoundary pecBdr{ {1,BdrCond::PEC}, {2,BdrCond::PEC} }; // For now, PEC is enforced on the boundaries
     Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()), partitioning);
     auto global_operator = assembleGlobalOperator(model, pfes, sbcp->order);
     std::cout << "Applying Eigen Solver on Global Operator." << std::endl;

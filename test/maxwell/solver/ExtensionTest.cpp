@@ -7,6 +7,7 @@
 #include "cases/CasesFunctions.h"
 #include "driver/driver.h"
 #include "TestUtils.h"
+#include "SourceFixtures.h"
 
 
 namespace maxwell{
@@ -268,6 +269,91 @@ TEST_F(SolverExtensionTest, loadAndUnloadFullStateTest)
             }        
         }
     }
+}
+
+TEST_F(SolverExtensionTest, evalGaussianStep)
+{
+    Material mat(1.0, 1.0, 1e4 / physicalConstants::freeSpaceImpedance_SI);
+    SGBCProperties props(mat);
+    props.num_of_segments = 20;
+    props.material_width = 2.0;
+    std::pair<GlobalId, GlobalId> ids(1, 2);
+
+    // - Same setup as the SGBC constructor, but without ghost elements
+    auto mesh  = Mesh::MakeCartesian1D(props.num_of_segments, props.material_width);
+    int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+    auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
+    auto fec   = DG_FECollection(props.order, 1, BasisType::GaussLobatto);
+    auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
+
+    // - Assembling planewave in a system similar to the Solver
+    Fields<ParFiniteElementSpace, ParGridFunction> fields{ pfes };
+    auto planewave_source = maxwell::fixtures::sources::buildPlanewaveInitialField(Gaussian{ 0.1,  Position({0.0}) }, Source::Position({props.material_width / 2.0}), Source::Polarization(unitVec(Y)), Source::Propagation(unitVec(X)));
+	SourcesManager sM{ planewave_source, pfes, fields };
+    fields.get(H,Z) = fields.get(E,Y);
+    
+    // - Comparison solver simulation
+    SolverOptions opts;
+    opts.setOrder(1);
+    opts.time_step = 1e-4;
+    GeomTagToMaterial geom_tag_sgbc_mat{{1, props.material}};
+    GeomTagToBoundary pecBdr{{1,BdrCond::PEC}, {2,BdrCond::PEC} };
+    Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()), partitioning);
+    Probes probes;
+    ExporterProbe ex_probe;
+    ex_probe.name = std::string("sgbc_thing");
+    ex_probe.visSteps = 100;
+    probes.exporterProbes.emplace_back(ex_probe);
+    Solver full_solver(model, probes, planewave_source, opts);
+    full_solver.setFinalTime(1.0);
+    full_solver.run();
+
+    // - Adapting planewave to input as initial nodal values for SGBC solver
+    FullNodalFields nodal;
+    const auto& dofs = pfes.GetNDofs();
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            nodal.at(f).at(d).SetSize(dofs + 2 * (props.order + 1)); // We increase the size to 'emulate' those ghost elements.
+            for (auto v = 0; v < dofs; v++){
+                nodal.at(f).at(d)[(props.order + 1) + v] = fields.get(f,d)[v]; // Shifting to load the gaussian within the sgbc elements and not ghost.
+            }
+        }
+    }
+    
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            if (f == E){
+                nodal.at(f).at(d)[0] = -nodal.at(f).at(d)[2];
+                nodal.at(f).at(d)[1] = -nodal.at(f).at(d)[2];
+                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = -nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 3];
+                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = -nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 3];
+            }
+            else{
+                nodal.at(f).at(d)[0] = nodal.at(f).at(d)[2];
+                nodal.at(f).at(d)[1] = nodal.at(f).at(d)[2];
+                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 3];
+                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 3];
+            }
+        }
+    }
+
+    // - Construct and launch sgbcsolver
+    SGBCSolver solver(&props, ids);
+    solver.setFullNodalState(nodal);
+    solver.update(1.0);
+    auto returned = solver.getFullNodalState();
+
+    // - Comparison
+    double tol = 1e-4;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            for (auto v = 0; v < full_solver.getField(f,d).Size(); v++){
+                EXPECT_NEAR(returned.at(f).at(d)[(props.order + 1) + v], full_solver.getField(f,d)[v], tol);
+            }
+        }
+    }
+
+
 }
 
 }
