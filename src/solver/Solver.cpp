@@ -1,6 +1,7 @@
 #include "Solver.h"
 #include <filesystem>
 #include <fstream>
+#include <unistd.h>
 
 using namespace mfem;
 
@@ -410,6 +411,25 @@ double Solver::calcAverageElementSizeInMesh()
     return res / mesh.GetNE();
 }
 
+
+size_t getCurrentMemoryUsage() {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    size_t free_bytes = 0;
+    size_t total_bytes = 0;
+    cudaError_t err = cudaMemGetInfo(&free_bytes, &total_bytes);
+    if (err != cudaSuccess) {
+        std::cerr << "CUDA memory query failed: " << cudaGetErrorString(err) << "\n";
+        return 0;
+    }
+    return total_bytes - free_bytes; // bytes currently in use on GPU
+#else
+    std::ifstream statm("/proc/self/statm");
+    long rss_pages = 0;
+    statm >> rss_pages >> rss_pages;
+    return static_cast<size_t>(rss_pages * sysconf(_SC_PAGESIZE));
+#endif
+}
+
 void Solver::writeSimulationStatistics(const Time runtime){
 	int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -436,8 +456,9 @@ void Solver::writeSimulationStatistics(const Time runtime){
 			std::int64_t local_and_ghost_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().Height()) * static_cast<std::int64_t>(global->getConstGlobalOperator().Width());
             myfile << "Operator Total Elements for Local and Ghost Degrees of Freedom: " << local_and_ghost_elems << "\n";
 			std::int64_t non_zero_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().NumNonZeroElems());
-            myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems;
+            myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems << "\n";
         }
+		myfile << "Memory Consumption (B): " << getCurrentMemoryUsage() << "\n";
         myfile.close();
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
