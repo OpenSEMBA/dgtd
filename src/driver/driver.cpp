@@ -386,8 +386,8 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setSpectralEO(case_data["solver_options"]["spectral"]);
 		}
 		
-		if (case_data["solver_options"].contains("exportOperator")) {
-			res.setExportEO(case_data["solver_options"]["exportOperator"]);
+		if (case_data["solver_options"].contains("export_operator")) {
+			res.setExportEO(case_data["solver_options"]["export_operator"]);
 		}
 
 		if (case_data["solver_options"].contains("evolution_operator")) {

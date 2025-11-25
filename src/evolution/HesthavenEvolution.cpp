@@ -380,7 +380,7 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
 
-	bool allElementsSameGeomType = true;
+	bool allElementsSameGeomType = true; 
 	{
 		const auto firstElemGeomType = cmesh->GetElementGeometry(0);
 		for (auto e= 0; e < cmesh->GetNE(); e++)
