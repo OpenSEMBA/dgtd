@@ -37,6 +37,7 @@ struct SGBCNodeInfo
 
 using ModalValues = Eigen::VectorXcd;
 using NodalValues = Eigen::VectorXd;
+using SGBCBoundaries = std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>;
 
 class SGBCSolver{
 public:
@@ -52,13 +53,11 @@ public:
 
 private:
 
-    SGBCSolver(const SGBCProperties*, const std::pair<GlobalId, GlobalId>&, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>&);
+    SGBCSolver(const SGBCProperties*, const std::pair<GlobalId, GlobalId>&, const SGBCBoundaries&);
 
     const SGBCProperties* sbcp_;
     
     SGBCNodeInfo dof_pair_;
-    
-    Model model_;
     
     Time dt_;
     
