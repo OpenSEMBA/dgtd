@@ -17,6 +17,12 @@ using LocalId = NodeId;
 using SGBCNodalFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
 using FullNodalFields = std::array<std::array<GridFunction, 3>, 2>;
 
+struct SGBCBoundaryInfo
+{
+    BdrCond bdrCond;
+    bool isOn;
+};
+
 struct NodePairs
 {
     GlobalId g_el1, g_el2;
@@ -35,16 +41,19 @@ using NodalValues = Eigen::VectorXd;
 class SGBCSolver{
 public:
 
-    SGBCSolver(const SGBCProperties*, const std::pair<GlobalId, GlobalId>&);
+    static std::unique_ptr<SGBCSolver> buildSGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs); // Call to constructor call with no intBdrProperties.
+    static std::unique_ptr<SGBCSolver> buildSGBCSolverWithPEC(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs); // Call to constructor with PEC on both sides.
 
     void setFullNodalState(const FullNodalFields& in);
     FullNodalFields getFullNodalState() const;
     void setSGBCFieldValues(const SGBCNodalFields& in);
     SGBCNodalFields getSGBCFieldValues() const;
     void update(const Time& dt);
-    
+
 private:
-    
+
+    SGBCSolver(const SGBCProperties*, const std::pair<GlobalId, GlobalId>&, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>&);
+
     const SGBCProperties* sbcp_;
     
     SGBCNodeInfo dof_pair_;

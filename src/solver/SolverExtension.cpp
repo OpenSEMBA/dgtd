@@ -190,23 +190,66 @@ void SGBCSolver::initNodeIds(const std::pair<GlobalId, GlobalId>& el1_el2_ids)
     dof_pair_.unload.l_el2 = target_ids_.at(2);
 }
 
-SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs) : 
+GeomTagToInteriorBoundary buildIntBdrInfo(const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo)
+{
+    GeomTagToInteriorBoundary res;
+    if (bdrInfo.first.isOn){
+        res[3] = bdrInfo.first.bdrCond;
+    }
+    if (bdrInfo.second.isOn){
+        res[4] = bdrInfo.second.bdrCond;
+    }
+    return res;
+}
+
+Mesh buildSGBCMesh(const SGBCProperties* sbcp)
+{
+    auto mesh = Mesh::MakeCartesian1D(sbcp->num_of_segments + 2, sbcp->material_width + 2 * sbcp->material_width / sbcp->num_of_segments);
+    mesh.AddBdrPoint(1, 3);
+    mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
+    mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4}); // 1, 2 reserved for pure boundaries, 3, 4 reserved for interior boundaries.
+    mesh.FinalizeMesh();
+    return mesh;
+}
+
+Model buildSGBCModel(Mesh& mesh, int* partitioning, const SGBCProperties* sbcp, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo)
+{
+    GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp->material}};
+    GeomTagToInteriorBoundary intBdrInfo = buildIntBdrInfo(bdrInfo);
+    return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(GeomTagToBoundary(), intBdrInfo), partitioning);
+}
+
+std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs)
+{
+    std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo> bdrInfo;
+    bdrInfo.first.isOn = false;
+    bdrInfo.second.isOn = false;
+    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, global_dofs, bdrInfo));
+}
+
+std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolverWithPEC(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs)
+{
+    std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo> bdrInfo;
+    bdrInfo.first.bdrCond = BdrCond::PEC;
+    bdrInfo.first.isOn = true;
+    bdrInfo.second.bdrCond = BdrCond::PEC;
+    bdrInfo.second.isOn = true;
+    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, global_dofs, bdrInfo));
+}
+
+SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo) :
 sbcp_(sbcp)
 {
-    
     target_ids_ = buildTargetNodeIds(sbcp->order, sbcp->num_of_segments);
     initNodeIds(global_dofs);
     
-    auto mesh  = Mesh::MakeCartesian1D(sbcp->num_of_segments + 2, sbcp->material_width + 2 * (sbcp->material_width / double(sbcp->num_of_segments)));
+    auto mesh = buildSGBCMesh(sbcp);
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
     auto fec   = DG_FECollection(sbcp->order, 1, BasisType::GaussLobatto);
     auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
 
-    GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp_->material}};
-    GeomTagToBoundary pecBdr{};
-    // GeomTagToBoundary pecBdr{ {1,BdrCond::PEC}, {2,BdrCond::PEC} }; // For now, PEC is enforced on the boundaries
-    Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()), partitioning);
+    Model model = buildSGBCModel(mesh, partitioning, sbcp, bdrInfo);
     auto global_operator = assembleGlobalOperator(model, pfes, sbcp->order);
     std::cout << "Applying Eigen Solver on Global Operator." << std::endl;
     auto es = applyEigenSolverOnGlobalOperator(*global_operator);
@@ -217,7 +260,39 @@ sbcp_(sbcp)
 
     modal_values_.resize(6 * pfes.GetNDofs());
     modal_values_.setZero();
-
 }
+
+// SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo) : 
+// sbcp_(sbcp)
+// {
+    
+//     target_ids_ = buildTargetNodeIds(sbcp->order, sbcp->num_of_segments);
+//     initNodeIds(global_dofs);
+    
+//     auto mesh  = Mesh::MakeCartesian1D(sbcp->num_of_segments + 2, sbcp->material_width + 2 * sbcp->material_width / sbcp->num_of_segments);
+//     mesh.AddBdrPoint(1, 3);
+//     mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
+//     mesh.FinalizeMesh();
+//     mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4}); // 1, 2 reserved for pure boundaries, 3, 4 reserved for interior boundaries.
+//     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+//     auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
+//     auto fec   = DG_FECollection(sbcp->order, 1, BasisType::GaussLobatto);
+//     auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
+
+//     GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp_->material}};
+//     GeomTagToInteriorBoundary pecBdr{ {3, BdrCond::PEC}, {4, BdrCond::PEC} };
+//     Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(GeomTagToBoundary(), pecBdr), partitioning);
+//     auto global_operator = assembleGlobalOperator(model, pfes, sbcp->order);
+//     std::cout << "Applying Eigen Solver on Global Operator." << std::endl;
+//     auto es = applyEigenSolverOnGlobalOperator(*global_operator);
+//     std::cout << "Eigen Solver success." << std::endl;
+//     modal_to_nodal_matrix_ = es.eigenvectors(); // S
+//     nodal_to_modal_matrix_ = modal_to_nodal_matrix_.inverse(); // S-1
+//     eigvals_ = es.eigenvalues(); // D = S-1 global_operator S, flattened to eigenvalues vector.
+
+//     modal_values_.resize(6 * pfes.GetNDofs());
+//     modal_values_.setZero();
+
+// }
 
 }
