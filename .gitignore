@@ -14,6 +14,7 @@ run_all_*
 *.gf
 mesh.mesh
 *.mtx
+*.sh
 
 # Prerequisites
 *.d

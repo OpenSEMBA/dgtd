@@ -16,11 +16,11 @@ using FieldScaleFactor = std::array<std::array<double, 3>, 2>;
 
 enum FunctionType 
 {
-    Gaussian = 0,
+    GaussFT = 0,
     Resonant = 1,
     BesselJ62D = 2,
     BesselJ63D = 3,
-    Planewave = 4,
+    PlanewaveFT = 4,
     Dipole = 5
 };
 

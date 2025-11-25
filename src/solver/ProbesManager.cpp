@@ -109,7 +109,7 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
 		domainSnapshotProbesCollection_.emplace(&p, buildDomainSnapshotDataCollection(p, fields));
 	}
 	
-	finalTime_ = opts.finalTime;
+	finalTime_ = opts.final_time;
 	fields_ = &fields;
 }
 

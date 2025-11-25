@@ -357,6 +357,7 @@ Sources buildSources(const json& case_data)
 
 SolverOptions buildSolverOptions(const json& case_data)
 {
+	
 	SolverOptions res{};
 
 	if (case_data.contains("solver_options")) {
@@ -385,8 +386,8 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setSpectralEO(case_data["solver_options"]["spectral"]);
 		}
 		
-		if (case_data["solver_options"].contains("exportOperator")) {
-			res.setExportEO(case_data["solver_options"]["exportOperator"]);
+		if (case_data["solver_options"].contains("export_operator")) {
+			res.setExportEO(case_data["solver_options"]["export_operator"]);
 		}
 
 		if (case_data["solver_options"].contains("evolution_operator")) {
@@ -400,7 +401,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 				res.setEvolutionOperator(EvolutionOperatorType::Hesthaven);
 			}
 			else {
-				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none chosen, it will default to 'maxwell'.");
+				throw std::runtime_error("Wrong type of Evolution Operator defined, please choose: 'maxwell', 'global' or 'hesthaven'. If none explicitly stated, it will default to 'global'.");
 			}
 		}
 
@@ -409,7 +410,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 		}
 
 		if (case_data["solver_options"].contains("tfsf_final_time")){
-			res.setTFSFFinalTime(case_data["solver_options"]["tfsf_final_time"]);
+			res.setTFSFCutoffTime(case_data["solver_options"]["tfsf_final_time"]);
 		}
 
 		if (case_data["solver_options"].contains("ode_type")){
@@ -417,6 +418,51 @@ SolverOptions buildSolverOptions(const json& case_data)
 		}
 
 	}
+
+	for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
+        if (case_data["model"]["boundaries"][b].contains("type") && 
+			case_data["model"]["boundaries"][b]["type"] == "SGBC" && 
+			case_data["model"]["boundaries"][b].contains("material")){
+				for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
+					double rel_eps, rel_mu, sigma;
+				if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")){
+					std::cout << "SGBC Material defined without 'relative_permittivity' parameter, assuming vacuum." << std::endl;
+					rel_eps = 1.0;
+				} 
+				else{
+					rel_eps = case_data["model"]["boundaries"][b]["material"]["relative_permittivity"];
+				}
+				if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permeability")){
+					std::cout << "SGBC Material defined without 'relative_permeability' parameter, assuming vacuum." << std::endl;
+					rel_mu = 1.0;
+				} 
+				else{
+					rel_mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
+				}
+				if (!case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")){
+					throw std::runtime_error("SGBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
+				} 
+				else {
+					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"]; // sigma_solver = sigma_si * Z0;
+					sigma *= physicalConstants::freeSpaceImpedance_SI;
+				}
+				Material mat(rel_eps, rel_mu, sigma);
+				SGBCProperties props(mat);
+				// props.phys_tag = case_data["model"]["boundaries"][b]["tags"][a]; 
+				if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
+					props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
+				}
+				if (case_data["model"]["boundaries"][b]["material"].contains("order")){
+					props.order = int(case_data["model"]["boundaries"][b]["material"]["order"]);
+				}
+				if (case_data["model"]["boundaries"][b]["material"].contains("material_width")){
+					props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
+				} 
+				res.sbc_props.emplace_back(props);
+			}
+		}
+	}
+
 	return res;
 }
 
@@ -428,92 +474,94 @@ Probes buildProbes(const json& case_data)
 	size_t pp_count = 0;
 	size_t fp_count = 0;
 
-	if (case_data["probes"].contains("exporter")) {
-		ExporterProbe exporter_probe;
-		if (case_data["probes"]["exporter"].contains("name")) {
-			exporter_probe.name = case_data["probes"]["exporter"]["name"];
+	if (case_data.contains("probes")){
+		if (case_data["probes"].contains("exporter")) {
+			ExporterProbe exporter_probe;
+			if (case_data["probes"]["exporter"].contains("name")) {
+				exporter_probe.name = case_data["probes"]["exporter"]["name"];
+			}
+			else{
+				exporter_probe.name = case_data["model"]["filename"];
+			}
+			if (case_data["probes"]["exporter"].contains("steps")) {
+				exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
+			}
+			probes.exporterProbes.push_back(exporter_probe);
 		}
-		else{
-			exporter_probe.name = case_data["model"]["filename"];
-		}
-		if (case_data["probes"]["exporter"].contains("steps")) {
-			exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
-		}
-		probes.exporterProbes.push_back(exporter_probe);
-	}
 
-	if (case_data["probes"].contains("point")) {
-		for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
-			bool write = false;
-			if (case_data["probes"]["point"][p].contains("write")){
-				write = case_data["probes"]["point"][p]["write"];
-			}
-			PointProbe point_probe(
-				assembleVector(case_data["probes"]["point"][p]["position"]),
-				write
-			);
-			point_probe.setProbeID(pp_count);
-			pp_count++;
-			probes.pointProbes.push_back(point_probe);
-		}
-	}
-
-		if (case_data["probes"].contains("field")) {
-		for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
-			bool write = false;
-			if (case_data["probes"]["field"][p].contains("write")){
-				write = true;
-			}
-			FieldProbe field_probe(
-				assignFieldType(case_data["probes"]["field"][p]["field_type"]),
-				assignFieldPol(case_data["probes"]["field"][p]["polarization"]),
-				assembleVector(case_data["probes"]["field"][p]["position"]),
-				write
-			);
-			field_probe.setProbeID(fp_count);
-			fp_count++;
-			probes.fieldProbes.push_back(field_probe);
-		}
-	}
-
-	if (case_data["probes"].contains("farfield")) {
-		for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
-			NearFieldProbe probe;
-			if (case_data["probes"]["farfield"][p].contains("name")) {
-				probe.name = case_data["probes"]["farfield"][p]["name"];
-			}
-			if (case_data["probes"]["farfield"][p].contains("export_path")) {
-				probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
-			}
-			if (case_data["probes"]["farfield"][p].contains("steps")) {
-				probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
-			}
-			if (case_data["probes"]["farfield"][p].contains("tags")) {
-				std::vector<int> tags;
-				for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
-					tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
+		if (case_data["probes"].contains("point")) {
+			for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
+				bool write = false;
+				if (case_data["probes"]["point"][p].contains("write")){
+					write = case_data["probes"]["point"][p]["write"];
 				}
-				probe.tags = tags;
+				PointProbe point_probe(
+					assembleVector(case_data["probes"]["point"][p]["position"]),
+					write
+				);
+				point_probe.setProbeID(pp_count);
+				pp_count++;
+				probes.pointProbes.push_back(point_probe);
 			}
-			else {
-				throw std::runtime_error("Tags have not been defined in farfield probe.");
-			}
-			probes.nearFieldProbes.push_back(probe);
 		}
-	}
 
-	if (case_data["probes"].contains("domain_snapshot")){
-		DomainSnapshotProbe probe;
-		if (case_data["probes"]["domain_snapshot"].contains("name")) {
-			probe.name = case_data["probes"]["domain_snapshot"]["name"];
+			if (case_data["probes"].contains("field")) {
+			for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
+				bool write = false;
+				if (case_data["probes"]["field"][p].contains("write")){
+					write = true;
+				}
+				FieldProbe field_probe(
+					assignFieldType(case_data["probes"]["field"][p]["field_type"]),
+					assignFieldPol(case_data["probes"]["field"][p]["polarization"]),
+					assembleVector(case_data["probes"]["field"][p]["position"]),
+					write
+				);
+				field_probe.setProbeID(fp_count);
+				fp_count++;
+				probes.fieldProbes.push_back(field_probe);
+			}
 		}
-		else{
-			probe.name = case_data["model"]["filename"];
+
+		if (case_data["probes"].contains("farfield")) {
+			for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
+				NearFieldProbe probe;
+				if (case_data["probes"]["farfield"][p].contains("name")) {
+					probe.name = case_data["probes"]["farfield"][p]["name"];
+				}
+				if (case_data["probes"]["farfield"][p].contains("export_path")) {
+					probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
+				}
+				if (case_data["probes"]["farfield"][p].contains("steps")) {
+					probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
+				}
+				if (case_data["probes"]["farfield"][p].contains("tags")) {
+					std::vector<int> tags;
+					for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
+						tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
+					}
+					probe.tags = tags;
+				}
+				else {
+					throw std::runtime_error("Tags have not been defined in farfield probe.");
+				}
+				probes.nearFieldProbes.push_back(probe);
+			}
 		}
-		if (case_data["probes"]["domain_snapshot"].contains("steps")) {
-			probe.expSteps = case_data["probes"]["domain_snapshot"]["steps"];
+
+		if (case_data["probes"].contains("domain_snapshot")){
+			DomainSnapshotProbe probe;
+			if (case_data["probes"]["domain_snapshot"].contains("name")) {
+				probe.name = case_data["probes"]["domain_snapshot"]["name"];
+			}
+			else{
+				probe.name = case_data["model"]["filename"];
+			}
+			if (case_data["probes"]["domain_snapshot"].contains("steps")) {
+				probe.expSteps = case_data["probes"]["domain_snapshot"]["steps"];
+			}
+			probes.domainSnapshotProbes.push_back(probe);
 		}
-		probes.domainSnapshotProbes.push_back(probe);
 	}
 
 	return probes;
@@ -534,8 +582,8 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 	else if (bdr_cond == "SMA") {
 		return BdrCond::SMA;
 	}
-	else if (bdr_cond == "SBC") {
-		return BdrCond::SBC;
+	else if (bdr_cond == "SGBC") {
+		return BdrCond::SGBC;
 	}
 	else {
 		throw std::runtime_error(("The defined Boundary Type " + bdr_cond + " is incorrect.").c_str());
@@ -626,14 +674,14 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const m
 		for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
 			if (case_data["model"]["boundaries"][b].contains("material")) {
 				double eps{ 1.0 }, mu{ 1.0 }, sigma{ 0.0 };
-				if (case_data["model"]["boundaries"][b].contains("relative_permittivity")) {
-					eps = case_data["model"]["boundaries"][b]["relative_permittivity"];
+				if (case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")) {
+					eps = case_data["model"]["boundaries"][b]["material"]["relative_permittivity"];
 				}
-				if (case_data["model"]["boundaries"][b].contains("relative_permeability")) {
-					mu = case_data["model"]["boundaries"][b]["relative_permeability"];
+				if (case_data["model"]["boundaries"][b]["material"].contains("relative_permeability")) {
+					mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
 				}
-				if (case_data["model"]["boundaries"][b].contains("bulk_conductivity")) {
-					sigma = case_data["model"]["boundaries"][b]["bulk_conductivity"];
+				if (case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")) {
+					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"];
 				}
 				res.gt2bm.emplace(case_data["model"]["boundaries"][b]["tags"][a], Material(eps, mu, sigma));
 			}
@@ -707,6 +755,7 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 
 	return res;
 }
+
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
 	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, false);
@@ -720,11 +769,10 @@ mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
 Array<int> getTFSFTags(const json& case_data)
 {
     Array<int> res;
-    if (!case_data.contains("sources") || !case_data["sources"].is_array()) return res;
+    if (!case_data.contains("sources")) return res;
 
     for (int s = 0; s < case_data["sources"].size(); ++s) {
-        if (case_data["sources"][s].contains("type") && case_data["sources"][s]["type"] == "planewave" &&
-            case_data["sources"][s].contains("tags") && case_data["sources"][s]["tags"].is_array()) {
+        if (case_data["sources"][s].contains("type") && case_data["sources"][s]["type"] == "planewave") {
             for (int t = 0; t < case_data["sources"][s]["tags"].size(); ++t) {
                 res.Append(case_data["sources"][s]["tags"][t]);
             }
@@ -733,18 +781,16 @@ Array<int> getTFSFTags(const json& case_data)
     return res;
 }
 
-Array<int> getSBCTags(const json& case_data)
+Array<int> getSGBCTags(const json& case_data)
 {
     Array<int> res;
     if (!case_data.contains("model") ||
-        !case_data["model"].contains("boundaries") ||
-        !case_data["model"]["boundaries"].is_array()) {
+        !case_data["model"].contains("boundaries")) {
         return res;
     }
 
     for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
-        if (case_data["model"]["boundaries"][b].contains("type") && case_data["model"]["boundaries"][b]["type"] == "SBC" &&
-            case_data["model"]["boundaries"][b].contains("tags") && case_data["model"]["boundaries"][b]["tags"].is_array()) {
+        if (case_data["model"]["boundaries"][b].contains("type") && case_data["model"]["boundaries"][b]["type"] == "SGBC") {
             for (int t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); ++t) {
                 res.Append(case_data["model"]["boundaries"][b]["tags"][t]);
             }
@@ -782,7 +828,7 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
-    mfem::Array<int> sbc_tags  = getSBCTags(case_data);
+    mfem::Array<int> sbc_tags  = getSGBCTags(case_data);
 
 	if (tfsf_tags.Size() || sbc_tags.Size()){
     	applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sbc_tags);

@@ -3,6 +3,7 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
+#include "SolverExtension.h"
 
 #include "evolution/Fields.h"
 #include "evolution/MaxwellEvolution.h"
@@ -24,6 +25,7 @@ namespace maxwell {
 
 std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec);
 double estimateTimeStep(const Model&, const SolverOptions&, const ParFiniteElementSpace&, const TimeDependentOperator*);
+double getMinimumInterNodeDistance(FiniteElementSpace& fes);
 
 class Solver {
 public:
@@ -50,14 +52,17 @@ public:
 
     const mfem::TimeDependentOperator* getFEEvol() const { return evolTDO_.get(); }
 
+    const SolverOptions& getSolverOptions() const { return this->opts_; }
+
     void run();
     void step();
 
-    void setFinalTime(double finalTime) {
-        opts_.setFinalTime(finalTime);
+    void setFinalTime(double final_time) {
+        opts_.setFinalTime(final_time);
     }
 
 private:
+
     SolverOptions opts_;
     Model model_;
     mfem::DG_FECollection fec_;
@@ -74,9 +79,13 @@ private:
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
+    std::unique_ptr<std::vector<SGBCSolver>> sbcSolvers_;
+
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
+    void initSbcSolvers();
+    std::vector<std::pair<NodeId, NodeId>> findSGBCDoFPairs();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);

@@ -34,7 +34,6 @@ using BoundaryToMarker = std::map<BdrCond, BoundaryMarker>;
 using InteriorBoundaryToMarker = BoundaryToMarker;
 using TotalFieldScatteredFieldToMarker = BoundaryToMarker;
 using InteriorSourceToMarker = BoundaryToMarker;
-using SBCToMarker = BoundaryToMarker;
 
 struct GeomTagToBoundaryInfo {
 	GeomTagToBoundary gt2b;
@@ -94,13 +93,14 @@ public:
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
+	const GeomTagToMaterial& getGeomTagToMaterial() { return attToMatMap_; }
+	const GeomTagToBoundaryMaterial& getGeomTagToBoundaryMaterial() { return attToBdrMatMap_; }
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 	const InteriorBoundaryToMarker& getInteriorBoundaryToMarker() const { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
-	SBCToMarker& getSGBCToMarker() { return sbcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
 	GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() { return attToIntBdrMap_; }
 	const GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() const { return attToIntBdrMap_; }	
@@ -123,6 +123,7 @@ private:
 	ParMesh pmesh_;
 	
 	GeomTagToMaterial attToMatMap_;
+	GeomTagToBoundaryMaterial attToBdrMatMap_;
 	GeomTagToBoundary attToBdrMap_;
 	GeomTagToInteriorBoundary attToIntBdrMap_;
 	GeomTagToInteriorSource attToIntSrcMap_;
@@ -130,7 +131,6 @@ private:
 	InteriorBoundaryToMarker intBdrToMarkerMap_;
 	TotalFieldScatteredFieldToMarker tfsfToMarkerMap_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
-	SBCToMarker sbcToMarkerMap_;
 	FaceToGeomTag faceToGeomTag_;
 
 	BoundaryMarker pecMarker_;
@@ -142,7 +142,9 @@ private:
 	BoundaryMarker intsmaMarker_;
 
 	BoundaryMarker tfsfMarker_;
+
 	BoundaryMarker sbcMarker_;
+	BoundaryMarker intSbcMarker_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 

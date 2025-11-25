@@ -209,7 +209,6 @@ public:
 		const Position& p, const Time& t,
 		const FieldType& ft, const Direction& d) const {
 
-		VectorTF res;
 		SphericalVector pos(p);
 
 		const auto& cs = physicalConstants::speedOfLight;

@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "solver/Solver.h"
+#include "solver/SolverExtension.h"
 #include "components/Sources.h"
 #include "math/Function.h"
 

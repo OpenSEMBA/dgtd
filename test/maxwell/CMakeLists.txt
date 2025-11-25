@@ -28,9 +28,10 @@ add_executable(maxwell_solver_tests
 	"solver/Solver3DTest.cpp")
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS)
-	message(STATUS "Appending ExtensiveSolverTests to maxwell_solver_tests")
+	message(STATUS "Appending Extensive Tests to maxwell_solver_tests")
 	target_sources(maxwell_solver_tests PRIVATE
-		"solver/ExtensiveSolver2DTest.cpp")
+		"solver/ExtensiveSolver2DTest.cpp"
+		"solver/ExtensionTest.cpp")
 endif()
 
 

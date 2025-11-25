@@ -1,6 +1,7 @@
 #include "Solver.h"
 #include <filesystem>
 #include <fstream>
+#include <unistd.h>
 
 using namespace mfem;
 
@@ -32,40 +33,80 @@ std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
 
 void Solver::assignODESolver()
 {
-    switch (static_cast<ODEType>(opts_.odeType))
+    switch (static_cast<ode_type>(opts_.ode_type))
     {
-        case ODEType::RK4:
+        case ode_type::RK4:
             odeSolver_ = std::make_unique<mfem::RK4Solver>();
             break;
 
-        case ODEType::BackwardEuler:
+        case ode_type::BackwardEuler:
             odeSolver_ = std::make_unique<mfem::BackwardEulerSolver>();
             break;
 
-        case ODEType::Trapezoidal:
+        case ode_type::Trapezoidal:
             odeSolver_ = std::make_unique<mfem::TrapezoidalRuleSolver>();
             break;
 
-        case ODEType::ImplicitMidpoint:
+        case ode_type::ImplicitMidpoint:
             odeSolver_ = std::make_unique<mfem::ImplicitMidpointSolver>();
             break;
 
-        case ODEType::SDIRK33:
+        case ode_type::SDIRK33:
             odeSolver_ = std::make_unique<mfem::SDIRK33Solver>();
             break;
 
-        case ODEType::SDIRK23:  // L-stable flavor (good with PML/loss)
+        case ode_type::SDIRK23:  // L-stable flavor (good with PML/loss)
             odeSolver_ = std::make_unique<mfem::SDIRK23Solver>(/*gamma_opt=*/2);
             break;
 
-        case ODEType::SDIRK34:
+        case ode_type::SDIRK34:
             odeSolver_ = std::make_unique<mfem::SDIRK34Solver>();
             break;
 			
         default:
             throw std::runtime_error(
-                "Wrong ode type defined in json. See ODEType in SolverOptions for available inputs.");
+                "Wrong ode type defined in json. See ode_type in SolverOptions for available inputs.");
     }
+}
+
+InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
+{
+    InteriorFaceConnectivityMaps res;
+    res.first.resize(local_dof_ids.first.size());
+    res.second.resize(local_dof_ids.second.size());
+    for (auto v{ 0 }; v < res.first.size(); v++) {
+        res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
+        res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
+    }
+    return res;
+}
+
+std::vector<std::pair<NodeId, NodeId>> Solver::findSGBCDoFPairs()
+{
+    std::vector<std::pair<NodeId, NodeId>> res;
+	
+	auto attMap{ mapOriginalAttributes(*fes_->GetMesh()) };
+    auto fec = dynamic_cast<const DG_FECollection*>(fes_->FEColl());
+    GlobalConnectivity global = assembleGlobalConnectivityMap(*fes_->GetMesh(), fec);
+    auto sbc_marker = model_.getMarker(BdrCond::SGBC, true);
+    for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
+        if (sbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+            const FaceElementTransformations* faceTrans;
+            fes_->GetMesh()->FaceIsInterior(fes_->GetMesh()->GetFaceElementTransformations(fes_->GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_->GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_->GetMesh()->GetBdrFaceTransformations(b);
+            auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_->GetMesh(), *faceTrans, attMap) };
+            FiniteElementSpace subFES(&twoElemSubMesh, fec);
+            auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, *fes_, subFES), global)};
+            for (auto p = 0; p < node_pair_global.first.size(); p++){
+                res.emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
+            }
+        }
+    }
+	return res;
+}
+
+void Solver::initSbcSolvers()
+{
+	
 }
 
 Solver::Solver(
@@ -75,7 +116,7 @@ Solver::Solver(
 	const SolverOptions& options) :
 	opts_{ options },
 	model_{ model },
-	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), opts_.basisType},
+	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), opts_.basis_type},
 	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
 	fields_{ *fes_ },
 	sourcesManager_{ sources, *fes_, fields_ },
@@ -106,11 +147,11 @@ Solver::Solver(
 	evolTDO_ = assignEvolutionOperator();
 	evolTDO_->SetTime(time_);
 
-	if (opts_.timeStep == 0.0) {
+	if (opts_.time_step == 0.0) {
 		dt_ = estimateTimeStep(model_, opts_, *fes_, evolTDO_.get());
 	}
 	else {
-		dt_ = opts_.timeStep;
+		dt_ = opts_.time_step;
 	}
 
 	assignODESolver();
@@ -119,6 +160,12 @@ Solver::Solver(
 	probesManager_.setCaseName(model_.meshName_);
 	probesManager_.initPointFieldProbeExport();
 	probesManager_.updateProbes(time_);
+
+	// auto sbc_pairs = findSGBCDoFPairs();
+	// if (sbc_pairs.size()){
+		
+	// 	//do SGBC things;
+	// }
 
 	auto initEndTime = std::chrono::steady_clock::now();
 	int rank;
@@ -137,14 +184,13 @@ Solver::Solver(
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
     }
 
-
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
 {
 	
 	if ((opts.evolution.order < 0) ||
-		(opts.finalTime < 0)) {
+		(opts.final_time < 0)) {
 		throw std::runtime_error("Incorrect parameters in Options");
 	}
 
@@ -195,7 +241,6 @@ bool checkIfElemTypeInMesh(const Mesh& mesh, const Element::Type& type)
 	}
 	return false;
 }
-
 
 Vector getTimeStepScale(Mesh& mesh)
 {
@@ -285,7 +330,7 @@ double calc3DMeshTimeStep(FiniteElementSpace& fes)
 double estimateTimeStep(const Model& model, const SolverOptions& opts, const ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
 {
 	Mesh serialmesh = Mesh(model.getConstSerialMesh());
-	DG_FECollection fec(fes.FEColl()->GetOrder(), serialmesh.Dimension(), opts.basisType);
+	DG_FECollection fec(fes.FEColl()->GetOrder(), serialmesh.Dimension(), opts.basis_type);
 	FiniteElementSpace serialfes(&serialmesh, &fec);
 
 	if (opts.evolution.op != EvolutionOperatorType::Hesthaven) {
@@ -365,6 +410,24 @@ double Solver::calcAverageElementSizeInMesh()
     return res / mesh.GetNE();
 }
 
+size_t getCurrentMemoryUsage() {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    size_t free_bytes = 0;
+    size_t total_bytes = 0;
+    cudaError_t err = cudaMemGetInfo(&free_bytes, &total_bytes);
+    if (err != cudaSuccess) {
+        std::cerr << "CUDA memory query failed: " << cudaGetErrorString(err) << "\n";
+        return 0;
+    }
+    return total_bytes - free_bytes; // bytes currently in use on GPU
+#else
+    std::ifstream statm("/proc/self/statm");
+    long rss_pages = 0;
+    statm >> rss_pages >> rss_pages;
+    return static_cast<size_t>(rss_pages * sysconf(_SC_PAGESIZE));
+#endif
+}
+
 void Solver::writeSimulationStatistics(const Time runtime){
 	int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -378,7 +441,7 @@ void Solver::writeSimulationStatistics(const Time runtime){
         myfile << std::scientific << std::setprecision(5);
         myfile << "Simulation Run Time: " << runtime << " (s)\n";
         myfile << std::defaultfloat;
-        myfile << "Final Time: " << (opts_.finalTime / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
+        myfile << "Final Time: " << (opts_.final_time / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
         myfile << "Time Step: " << (dt_ / physicalConstants::speedOfLight_SI * 1e9) << " (ns)\n";
         myfile << "Number of Mesh Elements: " << fes_.get()->GetNE() << "\n";
 		myfile << "Average Element Size in Mesh: " << calcAverageElementSizeInMesh() << "\n";
@@ -391,8 +454,9 @@ void Solver::writeSimulationStatistics(const Time runtime){
 			std::int64_t local_and_ghost_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().Height()) * static_cast<std::int64_t>(global->getConstGlobalOperator().Width());
             myfile << "Operator Total Elements for Local and Ghost Degrees of Freedom: " << local_and_ghost_elems << "\n";
 			std::int64_t non_zero_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().NumNonZeroElems());
-            myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems;
+            myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems << "\n";
         }
+		myfile << "Memory Consumption (B): " << getCurrentMemoryUsage() << "\n";
         myfile.close();
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
@@ -400,15 +464,15 @@ void Solver::writeSimulationStatistics(const Time runtime){
 }
 
 #ifdef SHOW_TIMER_INFORMATION
-void printSimulationInformation(const double time, const double dt, const double finalTime)
+void printSimulationInformation(const double time, const double dt, const double final_time)
 {
 	std::cout << "------------------------------------------------" << std::endl;
 	std::cout << std::endl;
 	std::cout << "Information is updated every 30 seconds." << std::endl;
 	std::cout << "Current Step: " + std::to_string(int(time / dt)) << std::endl;
-	std::cout << "Steps Left  : " + std::to_string(int((finalTime - time) / dt)) << std::endl;
+	std::cout << "Steps Left  : " + std::to_string(int((final_time - time) / dt)) << std::endl;
 	std::cout << std::endl;
-	std::cout << "Final Time  : " + std::to_string(finalTime / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
+	std::cout << "Final Time  : " + std::to_string(final_time / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
 	std::cout << "Current Time: " + std::to_string(time / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
 	std::cout << "Time Step   : " + std::to_string(dt / physicalConstants::speedOfLight_SI * 1e9) + " ns." << std::endl;
 	std::cout << std::endl;
@@ -425,11 +489,11 @@ void Solver::run()
 	if (Mpi::WorldRank() == 0){
 		std::cout << "------------------------------------------------" << std::endl;
 		std::cout << "-------------SOLVER RUN INFORMATION-------------" << std::endl;
-		printSimulationInformation(time_, dt_, opts_.finalTime);
+		printSimulationInformation(time_, dt_, opts_.final_time);
 	}
 #endif
 
-	while (time_ <= opts_.finalTime - 1e-8*dt_) {
+	while (time_ <= opts_.final_time - 1e-8*dt_) {
 		step();
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -438,7 +502,7 @@ void Solver::run()
 			(currentTime - lastPrintTime).count() >= 30.0) 
 		{
 			if (Mpi::WorldRank() == 0){
-				printSimulationInformation(time_, dt_, opts_.finalTime);
+				printSimulationInformation(time_, dt_, opts_.final_time);
 				lastPrintTime = currentTime;
 			}
 		}
@@ -458,7 +522,7 @@ void Solver::run()
 
 void Solver::step()
 {
-	double truedt{ std::min(dt_, opts_.finalTime - time_) };
+	double truedt{ std::min(dt_, opts_.final_time - time_) };
 	
 	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 	probesManager_.updateProbes(time_);
@@ -599,11 +663,11 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 	auto time { 0.0 };
 	maxwellEvol.SetTime(time);
 	odeSolver_->Init(maxwellEvol);
-	odeSolver_->Step(real, time, opts_.timeStep);
+	odeSolver_->Step(real, time, opts_.time_step);
 	time = 0.0;
 	maxwellEvol.SetTime(time);
 	odeSolver_->Init(maxwellEvol);
-	odeSolver_->Step(imag, time, opts_.timeStep);
+	odeSolver_->Step(imag, time, opts_.time_step);
 	
 	for (int i = 0; i < real.Size(); ++i) {
 		

@@ -201,6 +201,9 @@ namespace maxwell
 		std::array<std::unique_ptr<BF>, 2> buildGlobalInverseMassMatrixOperator();
 
 		template <typename BF>
+		std::unique_ptr<BF> buildSigmaMassOperator();
+
+		template <typename BF>
 		void addGlobalZeroNormalIBFIOperators(mfem::SparseMatrix* global);
 		template <typename BF>
 		void addGlobalOneNormalIBFIOperators(mfem::SparseMatrix* global);
@@ -214,6 +217,8 @@ namespace maxwell
 		void addGlobalOneNormalOperators(mfem::SparseMatrix* global);
 		template <typename BF>
 		void addGlobalTwoNormalOperators(mfem::SparseMatrix* global);
+		template <typename BF>
+		void addGlobalConductiveOperator(mfem::SparseMatrix* global); 
 
 		std::unique_ptr<mfem::SparseMatrix> buildTFSFGlobalOperator();
 		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
@@ -287,7 +292,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -327,7 +335,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -367,7 +378,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -621,6 +635,20 @@ namespace maxwell
 
 	template <typename FES>
 	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildSigmaMassOperator()
+	{
+		Vector sigma = pd_.model.buildSigmaPiecewiseVector(); 
+		PWConstCoefficient SigCoeff(sigma);
+
+		auto bf = std::make_unique<BF>(&fes_);
+		bf->AddDomainIntegrator(new MassIntegrator(SigCoeff));
+		bf->Assemble();
+		bf->Finalize();
+		return bf;
+	}
+
+	template <typename FES>
+	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalZeroNormalIBFIOperators(SparseMatrix* global)
 	{
 		auto additional_dofs = 0;
@@ -717,7 +745,7 @@ namespace maxwell
 			for (auto x{ X }; x <= Z; x++) {
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
-				auto op = buildByMult<FES,ParBilinearForm>(
+				auto op = buildByMult<FES,BF>(
 					MInv[f]->SpMat(), buildDerivativeSubOperator<BF>(x)->SpMat(), fes_);
 				loadBlockInGlobalAtIndices(
 					op->SpMat(),
@@ -823,6 +851,30 @@ namespace maxwell
 	}
 
 	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalConductiveOperator(mfem::SparseMatrix* global)
+	{
+		int additional_dofs = 0;
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			additional_dofs = fes_.num_face_nbr_dofs;
+		}
+
+		auto MInvE = buildInverseMassMatrixSubOperator<BF>(FieldType::E);
+		auto MSig  = buildSigmaMassOperator<BF>();
+		auto ASigE = buildByMult<FES, BF>(MInvE->SpMat(), MSig->SpMat(), fes_);
+
+		GlobalIndices gid(fes_.GetNDofs(), additional_dofs, true);
+		for (auto d : { X, Y, Z }) {
+			loadBlockInGlobalAtIndices(
+				ASigE->SpMat(),
+				*global,
+				std::make_pair(*gid.offsets[E][d].get(), *gid.offsets[E][d].get()),
+				-1.0
+			);
+		}
+	}
+
+	template <typename FES>
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildTFSFGlobalOperator()
 	{
 
@@ -905,7 +957,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalOneNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	addGlobalOneNormalIBFIOperators<BilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (Mpi::WorldRank() == 0){
@@ -916,7 +968,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalZeroNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	addGlobalZeroNormalIBFIOperators<BilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (Mpi::WorldRank() == 0){
@@ -927,7 +979,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalTwoNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	addGlobalTwoNormalIBFIOperators<BilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (Mpi::WorldRank() == 0){
@@ -955,7 +1007,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalDirectionalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalDirectionalOperators<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
@@ -966,7 +1018,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalOneNormalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalOneNormalOperators<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
@@ -977,7 +1029,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalZeroNormalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalZeroNormalOperators<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
@@ -988,7 +1040,18 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalTwoNormalOperators<ParBilinearForm>(res.get());
+		this->template	addGlobalTwoNormalOperators<BilinearForm>(res.get());
+
+		#ifdef SHOW_TIMER_INFORMATION
+		if (Mpi::WorldRank() == 0){
+			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
+			startTime = std::chrono::high_resolution_clock::now();
+			std::cout << "Assembling Conductivity Operators" << std::endl;
+		}
+		#endif
+
+		this->template  addGlobalConductiveOperator<BilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (Mpi::WorldRank() == 0){
@@ -1002,7 +1065,7 @@ namespace maxwell
 		auto threshold = 1e-6;
 		res->Threshold(threshold);
 
-		if(this->pd_.opts.exportEvolutionOperator){
+		if(this->pd_.opts.export_evolution_operator){
 			if(Mpi::WorldSize() > 1){
 				std::cout << "---------------------------------------------------------------" << std::endl;
 				std::cout << "--EXPORTING OPERATOR ONLY CURRENTLY WORKS IN SINGLE RANK SIMS--" << std::endl;

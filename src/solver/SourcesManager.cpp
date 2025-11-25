@@ -8,7 +8,6 @@ SourcesManager::SourcesManager(const Sources& srcs, mfem::ParFiniteElementSpace&
     sources{ srcs }, 
     fes_{ fes }
 {
-
     setInitialFields(fields);
 }
 
