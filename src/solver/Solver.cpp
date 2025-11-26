@@ -172,8 +172,7 @@ Solver::Solver(
 					if (std::find(opts_.sgbc_props.at(p).geom_tags.begin(), opts_.sgbc_props.at(p).geom_tags.end(), tag) != opts_.sgbc_props.at(p).geom_tags.end()){
 						sgbcWrappers_.at(s).sgbcNodeInfos.resize(pairs.size());
 						for (auto v = 0; v < pairs.size(); v++){
-							sgbcWrappers_.at(s).sgbcNodeInfos.at(v) = std::make_unique<SGBCNodePairInfo>(pairs[v], sgbcWrappers_.at(s).sgbcSolver->getModalSize()); // This solver is shared by all the nodepairs that are on each side of the SGBC boundaries.							
-							sgbcWrappers_.at(s).sgbcNodeInfos.at(v)->setModalToZero();
+							sgbcWrappers_.at(s).sgbcNodeInfos.at(v) = std::make_unique<SGBCNodePairInfo>(pairs[v], sgbcWrappers_.at(s).sgbcSolver->getModalSize()); // This solver is shared by all the nodepairs that are on each side of the SGBC boundaries.
 						}
 					}
 				}		

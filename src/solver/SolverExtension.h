@@ -41,17 +41,16 @@ struct SGBCGlobalNodeInfo
 
 struct SGBCNodePairInfo
 {
-
+public:
     SGBCNodePairInfo(const NodePair& global_pair, const size_t modal_vec_size);
     
     SGBCGlobalNodeInfo node_pairs;
 
     void updateFullModalValues(const ModalValues& mv);
     void loadModalValuesInSolver(ModalValues& solver_mv);
-    void setModalToZero() { modal_values.setZero(); }
-
+    
 private:
-    ModalValues modal_values;
+    ModalValues modal_values_;
 };
 
 class SGBCSolver{

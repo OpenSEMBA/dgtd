@@ -265,7 +265,8 @@ sbcp_(sbcp)
 
 SGBCNodePairInfo::SGBCNodePairInfo(const NodePair& global_pair, const size_t modal_vec_size)
 {
-    modal_values.resize(modal_vec_size);
+    modal_values_.resize(modal_vec_size);
+    modal_values_.setZero();
     node_pairs.g_el1 = global_pair.first;
     node_pairs.g_el2 = global_pair.second;
 }
