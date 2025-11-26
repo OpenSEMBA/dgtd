@@ -421,8 +421,10 @@ SolverOptions buildSolverOptions(const json& case_data)
 
 	for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
         if (case_data["model"]["boundaries"][b].contains("type") && 
-			case_data["model"]["boundaries"][b]["type"] == "SGBC" && 
-			case_data["model"]["boundaries"][b].contains("material")){
+			case_data["model"]["boundaries"][b]["type"] == "SGBC"){ 
+			if (!case_data["model"]["boundaries"][b].contains("material")){
+				throw std::runtime_error("SGBC Material defined without material properties. Verify .json parameters.");
+			} else {
 				for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
 					double rel_eps, rel_mu, sigma;
 				if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")){
@@ -459,6 +461,7 @@ SolverOptions buildSolverOptions(const json& case_data)
 					props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
 				} 
 				res.sbc_props.emplace_back(props);
+			}
 			}
 		}
 	}
