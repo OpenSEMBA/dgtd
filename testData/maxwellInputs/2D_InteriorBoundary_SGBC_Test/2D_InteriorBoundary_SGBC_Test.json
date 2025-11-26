@@ -30,9 +30,9 @@
         "type": "SGBC",
         "material":{
           "bulk_conductivity": 1e5,
-          "num_of_segments": 15,
-          "order": 5,
-          "material_width": 1e-5
+          "num_of_segments": 5,
+          "order": 1,
+          "material_width": 1e-1
         }
       },
       {
@@ -40,9 +40,9 @@
         "type": "SGBC",
         "material":{
           "bulk_conductivity": 1e8,
-          "num_of_segments": 18,
-          "order": 8,
-          "material_width": 1e-8
+          "num_of_segments": 8,
+          "order": 2,
+          "material_width": 1e-2
         }
       }
     ]

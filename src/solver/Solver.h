@@ -79,13 +79,12 @@ private:
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
-    std::unique_ptr<std::vector<SGBCSolver>> sgbcSolvers_;
+    std::vector<SGBCWrapper> sgbcWrappers_;
 
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
-    void initSbcSolvers();
-    std::vector<std::pair<NodeId, NodeId>> findSGBCDoFPairs();
+    std::map<GeomTag, std::vector<NodePair>> findSGBCDoFPairs();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);

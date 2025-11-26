@@ -102,14 +102,14 @@ void SGBCSolver::setSGBCFieldValues(const SGBCNodalFields& in)
 
     for (auto f : {E, H}){ //Apply on ghost interface nodes.
         for (auto d : {X, Y, Z}){
-            nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el1] = in.at(f).at(d).first;
-            nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el2] = in.at(f).at(d).second;
+            nodal[f * field_offset + d * dir_offset + dof_pair_.load_el1] = in.at(f).at(d).first;
+            nodal[f * field_offset + d * dir_offset + dof_pair_.load_el2] = in.at(f).at(d).second;
         }
     }
 
     applyNodalToModalTransformation(nodal); // And now, with the updated nodal vector, we perform S-1 x = q and that q stays stored.
 
-    const auto& extra_dof = dof_pair_.load.l_el1; 
+    const auto& extra_dof = dof_pair_.load_el1; 
 
     for (auto f : {E, H}){ //Extend to the rest of ghost element 1.
         for (auto d : {X, Y, Z}){
@@ -122,7 +122,7 @@ void SGBCSolver::setSGBCFieldValues(const SGBCNodalFields& in)
     for (auto f : {E, H}){ //Extend to the rest of ghost element 2.
         for (auto d : {X, Y, Z}){
             for (auto i = 0; i < extra_dof; i++){
-                nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el2 + i] = in.at(f).at(d).second;
+                nodal[f * field_offset + d * dir_offset + dof_pair_.load_el2 + i] = in.at(f).at(d).second;
             }
         }
     }
@@ -143,8 +143,8 @@ SGBCNodalFields SGBCSolver::getSGBCFieldValues() const
 
     for (auto f : {E, H}){ //Apply on ghost interface nodes.
         for (auto d : {X, Y, Z}){
-            res.at(f).at(d).first = nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el1];
-            res.at(f).at(d).second = nodal[f * field_offset + d * dir_offset + dof_pair_.load.l_el2];
+            res.at(f).at(d).first = nodal[f * field_offset + d * dir_offset + dof_pair_.load_el1];
+            res.at(f).at(d).second = nodal[f * field_offset + d * dir_offset + dof_pair_.load_el2];
         }
     }
     return res;
@@ -177,17 +177,13 @@ void SGBCSolver::applyModalToNodalTransformation(NodalValues& out) const
     out = temp.real();
 }
 
-void SGBCSolver::initNodeIds(const std::pair<GlobalId, GlobalId>& el1_el2_ids)
+void SGBCSolver::initNodeIds(const std::vector<NodeId>& target_ids)
 {
-    dof_pair_.load.g_el1 = el1_el2_ids.first;
-    dof_pair_.load.g_el2 = el1_el2_ids.second;
-    dof_pair_.load.l_el1 = target_ids_.front();
-    dof_pair_.load.l_el2 = target_ids_.back();
+    dof_pair_.load_el1 = target_ids.front();
+    dof_pair_.load_el2 = target_ids.back();
 
-    dof_pair_.unload.g_el1 = el1_el2_ids.first;
-    dof_pair_.unload.g_el2 = el1_el2_ids.second;
-    dof_pair_.unload.l_el1 = target_ids_.at(1);
-    dof_pair_.unload.l_el2 = target_ids_.at(2);
+    dof_pair_.unload_el1 = target_ids.at(1);
+    dof_pair_.unload_el2 = target_ids.at(2);
 }
 
 GeomTagToInteriorBoundary buildIntBdrInfo(const SGBCBoundaries& bdrInfo)
@@ -219,29 +215,34 @@ Model buildSGBCModel(Mesh& mesh, int* partitioning, const SGBCProperties* sbcp, 
     return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(GeomTagToBoundary(), intBdrInfo), partitioning);
 }
 
-std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs)
+std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolver(const SGBCProperties* sbcp)
 {
     SGBCBoundaries bdrInfo;
     bdrInfo.first.isOn = false;
     bdrInfo.second.isOn = false;
-    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, global_dofs, bdrInfo));
+    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, bdrInfo));
 }
 
-std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolverWithPEC(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs)
+std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolverWithPEC(const SGBCProperties* sbcp)
 {
     SGBCBoundaries bdrInfo;
     bdrInfo.first.bdrCond = BdrCond::PEC;
     bdrInfo.first.isOn = true;
     bdrInfo.second.bdrCond = BdrCond::PEC;
     bdrInfo.second.isOn = true;
-    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, global_dofs, bdrInfo));
+    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, bdrInfo));
 }
 
-SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<GlobalId, GlobalId>& global_dofs, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo) :
+size_t SGBCSolver::getModalSize()
+{
+    return modal_values_.size();
+}
+
+SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo) :
 sbcp_(sbcp)
 {
-    target_ids_ = buildTargetNodeIds(sbcp->order, sbcp->num_of_segments);
-    initNodeIds(global_dofs);
+
+    initNodeIds(buildTargetNodeIds(sbcp->order, sbcp->num_of_segments));
     
     auto mesh = buildSGBCMesh(sbcp);
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
@@ -260,6 +261,13 @@ sbcp_(sbcp)
 
     modal_values_.resize(6 * pfes.GetNDofs());
     modal_values_.setZero();
+}
+
+SGBCNodePairInfo::SGBCNodePairInfo(const NodePair& global_pair, const size_t modal_vec_size)
+{
+    modal_values.resize(modal_vec_size);
+    node_pairs.g_el1 = global_pair.first;
+    node_pairs.g_el2 = global_pair.second;
 }
 
 }

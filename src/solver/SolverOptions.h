@@ -18,6 +18,7 @@ enum ode_type : size_t {
 
 struct SGBCProperties{
 
+    std::vector<size_t> geom_tags;
     size_t num_of_segments = 10;
     size_t order = 1;
     double material_width = 1e-4;
@@ -37,7 +38,7 @@ struct SolverOptions {
     size_t ode_type = ode_type::RK4;
 
     EvolutionOptions evolution;
-    std::vector<SGBCProperties> sbc_props;
+    std::vector<SGBCProperties> sgbc_props;
     
     SolverOptions& setTimeStep(double t) 
     {

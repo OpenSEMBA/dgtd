@@ -48,23 +48,24 @@ protected:
 
 TEST_F(SolverExtensionTest, isCorrect_SGBC_Properties)
 {
-    // auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
-    // auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
-    // for (auto props : global_solver.getSolverOptions().sbc_props){
-    //     if (props.phys_tag == 15){
-    //         ASSERT_EQ(1e-5, props.material_width);
-    //         ASSERT_EQ(15, props.num_of_segments);
-    //         ASSERT_EQ(5, props.order);
-    //         ASSERT_EQ(1e5, props.material.getConductivity());
-    //     }
-    //     else if (props.phys_tag == 18){
-    //         ASSERT_EQ(1e-8, props.material_width);
-    //         ASSERT_EQ(18, props.num_of_segments);
-    //         ASSERT_EQ(8, props.order);
-    //         ASSERT_EQ(1e8, props.material.getConductivity()); // High only so it ends in 8, for 'same-number' easy checks.
-    //     }
-    // }
-    ASSERT_TRUE(false); // While reworking phys_tag
+    auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
+    auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
+    double tol = 1e-7;
+    for (auto p = 0; p < global_solver.getSolverOptions().sgbc_props.size(); p++){
+        const auto& props = global_solver.getSolverOptions().sgbc_props[p];
+        if (p == 0 && props.geom_tags[0] == 15){
+            ASSERT_EQ(1e-1, props.material_width);
+            ASSERT_EQ(5, props.num_of_segments);
+            ASSERT_EQ(1, props.order);
+            ASSERT_NEAR(1e5, props.material.getConductivity() / physicalConstants::freeSpaceImpedance_SI, tol); //Internally we have to change this to our convention.
+        }
+        else if (p == 1 && props.geom_tags[0] == 18){
+            ASSERT_EQ(1e-2, props.material_width);
+            ASSERT_EQ(8, props.num_of_segments);
+            ASSERT_EQ(2, props.order);
+            ASSERT_NEAR(1e8, props.material.getConductivity() / physicalConstants::freeSpaceImpedance_SI, tol);
+        }
+    }
 }
 
 TEST_F(SolverExtensionTest, checkEigenSolverSolutions)
@@ -204,9 +205,8 @@ TEST_F(SolverExtensionTest, buildTest)
 {
     auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
     auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
-    std::pair<GlobalId,GlobalId> pair({2,3});
-    for (const auto prop : global_solver.getSolverOptions().sbc_props){
-        ASSERT_NO_THROW(SGBCSolver::buildSGBCSolver(&prop, pair));
+    for (const auto prop : global_solver.getSolverOptions().sgbc_props){
+        ASSERT_NO_THROW(SGBCSolver::buildSGBCSolver(&prop));
     }
 }
 
@@ -215,9 +215,7 @@ TEST_F(SolverExtensionTest, loadAndUnloadSGBCValuesTest)
     Material mat(1.0, 1.0, 1e4);
     SGBCProperties props(mat);
 
-    std::pair<GlobalId, GlobalId> ids(1, 2);
-
-    auto solver = SGBCSolver::buildSGBCSolver(&props, ids);
+    auto solver = SGBCSolver::buildSGBCSolver(&props);
     SGBCNodalFields nodal;
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
@@ -243,10 +241,9 @@ TEST_F(SolverExtensionTest, loadAndUnloadFullStateTest)
 {
     Material mat(1.0, 1.0, 1e4);
     SGBCProperties props(mat);
-    std::pair<GlobalId, GlobalId> ids(1, 2);
     int ndofs = (props.num_of_segments + 2) * (props.order + 1);
 
-    auto solver = SGBCSolver::buildSGBCSolver(&props, ids);
+    auto solver = SGBCSolver::buildSGBCSolver(&props);
     FullNodalFields nodal;
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
@@ -278,7 +275,6 @@ TEST_F(SolverExtensionTest, evalGaussianStep)
     props.order = 1;
     props.num_of_segments = 100;
     props.material_width = 2.0;
-    std::pair<GlobalId, GlobalId> ids(1, 2);
 
     // - Same setup as the SGBC constructor, but without ghost elements
     auto mesh  = Mesh::MakeCartesian1D(props.num_of_segments, props.material_width);
@@ -339,7 +335,7 @@ TEST_F(SolverExtensionTest, evalGaussianStep)
     }
 
     // - Construct and launch sgbcsolver
-    auto solver = SGBCSolver::buildSGBCSolverWithPEC(&props, ids);
+    auto solver = SGBCSolver::buildSGBCSolverWithPEC(&props);
     solver->setFullNodalState(nodal);
     solver->update(20.0);
     auto returned = solver->getFullNodalState();
