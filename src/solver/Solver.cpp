@@ -93,12 +93,16 @@ std::vector<std::pair<NodeId, NodeId>> Solver::findSGBCDoFPairs()
         if (sbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
             const FaceElementTransformations* faceTrans;
             fes_->GetMesh()->FaceIsInterior(fes_->GetMesh()->GetFaceElementTransformations(fes_->GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_->GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_->GetMesh()->GetBdrFaceTransformations(b);
-            auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_->GetMesh(), *faceTrans, attMap) };
-            FiniteElementSpace subFES(&twoElemSubMesh, fec);
-            auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, *fes_, subFES), global)};
-            for (auto p = 0; p < node_pair_global.first.size(); p++){
-                res.emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
-            }
+            if (fes_->GetMesh()->Dimension() == 1){
+				res.emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1);
+			} else {
+				auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_->GetMesh(), *faceTrans, attMap) };
+            	FiniteElementSpace subFES(&twoElemSubMesh, fec);
+            	auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, *fes_, subFES), global)};
+            	for (auto p = 0; p < node_pair_global.first.size(); p++){
+            	    res.emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
+            	}
+			}
         }
     }
 	return res;
@@ -161,11 +165,10 @@ Solver::Solver(
 	probesManager_.initPointFieldProbeExport();
 	probesManager_.updateProbes(time_);
 
-	// auto sbc_pairs = findSGBCDoFPairs();
-	// if (sbc_pairs.size()){
-		
-	// 	//do SGBC things;
-	// }
+	auto sbc_pairs = findSGBCDoFPairs();
+	if (sbc_pairs.size()){
+		// //do SGBC things;
+	}
 
 	auto initEndTime = std::chrono::steady_clock::now();
 	int rank;
