@@ -27,6 +27,7 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
+		{BdrCond::SGBC, {0.0, 0.0}},
 	};
 
 	static FluxBdrCoefficientsUpwind bdrUpwindCoeff{
@@ -34,6 +35,7 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
+		{BdrCond::SGBC, {0.0, 0.0}},
 	};
 
 	static FluxSrcCoefficientsCentered srcCentCoeff{
@@ -292,10 +294,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			if (kv.first == BdrCond::SGBC)
-			{
-				continue;
-			}
+			// if (kv.first == BdrCond::SGBC)
+			// {
+			// 	continue;
+			// }
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -335,10 +337,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			if (kv.first == BdrCond::SGBC)
-			{
-				continue;
-			}
+			// if (kv.first == BdrCond::SGBC)
+			// {
+			// 	continue;
+			// }
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -378,10 +380,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			if (kv.first == BdrCond::SGBC)
-			{
-				continue;
-			}
+			// if (kv.first == BdrCond::SGBC)
+			// {
+			// 	continue;
+			// }
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{

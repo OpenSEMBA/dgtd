@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-4,
-    "final_time":  4.0,
+    "time_step": 1e-3,
+    "final_time": 20.0,
     "order": 2
   },
 
@@ -26,9 +26,9 @@
           "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
           "bulk_conductivity": 1e4,
-          "num_of_segments": 20,
+          "num_of_segments": 30,
           "order": 1,
-          "material_width": 1e-4
+          "material_width": 1e-2
         }
       }
     ]
@@ -37,7 +37,21 @@
   "probes": {
     "exporter": {
       "steps": 100
-    }
+    },
+    "point": [
+      {
+        "position": [-4.0 ],
+        "write": true
+      },
+      {
+        "position": [ -1.0 ],
+        "write": true
+      },
+      {
+        "position": [ 4.0 ],
+        "write": true
+      }
+    ]
   },
 
   "sources": [ 
@@ -48,8 +62,8 @@
       "tags": [ 3 ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.2,
-        "mean": [ -2.8, 0.0, 0.0 ]
+        "spread": 0.3,
+        "mean": [ -4.5 ]
       }
     }
   ]

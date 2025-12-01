@@ -172,7 +172,7 @@ Solver::Solver(
 					if (std::find(opts_.sgbc_props.at(p).geom_tags.begin(), opts_.sgbc_props.at(p).geom_tags.end(), tag) != opts_.sgbc_props.at(p).geom_tags.end()){
 						sgbcWrappers_.at(s).sgbcNodeInfos.resize(pairs.size());
 						for (auto v = 0; v < pairs.size(); v++){
-							sgbcWrappers_.at(s).sgbcNodeInfos.at(v) = std::make_unique<SGBCNodePairInfo>(pairs[v], sgbcWrappers_.at(s).sgbcSolver->getModalSize()); // This solver is shared by all the nodepairs that are on each side of the SGBC boundaries.
+							sgbcWrappers_.at(s).sgbcNodeInfos.at(v) = std::make_unique<SGBCNodePairInfo>(pairs[v], sgbcWrappers_.at(s).sgbcSolver->getLocalModalSize()); // This solver is shared by all the nodepairs that are on each side of the SGBC boundaries.
 						}
 					}
 				}		
@@ -492,6 +492,42 @@ void printSimulationInformation(const double time, const double dt, const double
 }
 #endif
 
+void loadSGBCNodalFieldsForSolver(SGBCNodalFields& fields_in, const Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
+{
+	for (auto f : {E, H}){
+		for (auto d : {X, Y, Z}){
+			fields_in.at(f).at(d).first  = global_fields.get(f,d)[node_pairs.g_el1];
+			fields_in.at(f).at(d).second = global_fields.get(f,d)[node_pairs.g_el2];
+		}
+	}
+}
+
+void loadSolverFieldsWithSGBCValues(const SGBCNodalFields& fields_in, Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
+{
+	for (auto f : {E, H}){
+		for (auto d : {X, Y, Z}){
+			global_fields.get(f,d)[node_pairs.g_el1] = fields_in.at(f).at(d).first;
+			global_fields.get(f,d)[node_pairs.g_el2] = fields_in.at(f).at(d).second;
+		}
+	}
+}
+
+void Solver::stepSGBC() 
+{
+	SGBCNodalFields fields_in;
+	for (auto w = 0; w < sgbcWrappers_.size(); w++){
+		auto& sgbc_solver = *sgbcWrappers_[w].sgbcSolver;
+		for (auto p = 0; p < sgbcWrappers_[w].sgbcNodeInfos.size(); p++){
+			sgbc_solver.setFullModalState(sgbcWrappers_[w].sgbcNodeInfos[p]->getModalValues()); // Load last known modal state of the node pair into sgbc solver
+			loadSGBCNodalFieldsForSolver(fields_in, fields_, sgbcWrappers_[w].sgbcNodeInfos[p]->node_pairs); // Prepare nodal values to be loaded into sgbc solver
+			sgbc_solver.setSGBCFieldValues(fields_in);
+			sgbc_solver.update(this->dt_);
+			loadSolverFieldsWithSGBCValues(sgbc_solver.getSGBCFieldValues(), fields_, sgbcWrappers_[w].sgbcNodeInfos[p]->node_pairs); // Overwrite global fields with values from updated sgbc solver at interface nodes
+			sgbcWrappers_[w].sgbcNodeInfos[p]->updateFullModalValues(sgbc_solver.getFullModalState()); // Store updated modal state of the node pair for later use
+		}
+	}
+}
+
 void Solver::run()
 {
 
@@ -508,6 +544,9 @@ void Solver::run()
 
 	while (time_ <= opts_.final_time - 1e-8*dt_) {
 		step();
+		if (sgbcWrappers_.size() != 0){
+			stepSGBC();
+		}
 
 #ifdef SHOW_TIMER_INFORMATION
 		auto currentTime = std::chrono::steady_clock::now();

@@ -46,11 +46,12 @@ public:
     
     SGBCGlobalNodeInfo node_pairs;
 
-    void updateFullModalValues(const ModalValues& mv);
+    void updateFullModalValues(const ModalValues& mv) { local_modal_values_ = mv; }
     void loadModalValuesInSolver(ModalValues& solver_mv);
+    ModalValues getModalValues() const { return local_modal_values_; }
     
 private:
-    ModalValues modal_values_;
+    ModalValues local_modal_values_;
 };
 
 class SGBCSolver{
@@ -61,10 +62,12 @@ public:
 
     void setFullNodalState(const FullNodalFields& in);
     FullNodalFields getFullNodalState() const;
+    void setFullModalState(const ModalValues& in) { local_modal_values_ = in; }
+    ModalValues getFullModalState() const { return local_modal_values_; }
     void setSGBCFieldValues(const SGBCNodalFields& in);
     SGBCNodalFields getSGBCFieldValues() const;
     void update(const Time& dt);
-    size_t getModalSize();
+    size_t getLocalModalSize();
 
 private:
 
@@ -78,17 +81,18 @@ private:
     
     SolverOptions opts_;
 
-    Eigen::MatrixXcd nodal_to_modal_matrix_;
-    Eigen::MatrixXcd modal_to_nodal_matrix_;
+    Eigen::MatrixXcd Sinv_;
+    Eigen::MatrixXcd S_;
+    Eigen::MatrixXcd F_;
 
-    ModalValues modal_values_, q_old_;
+    ModalValues local_modal_values_, local_modal_values_old_, forcing_modal_values_;
 
-    Eigen::VectorXcd eigvals_;
+    Eigen::VectorXcd lambda_;
     
     Fields<ParFiniteElementSpace, ParGridFunction>* global_nodal_fields_;
     
     void initNodeIds(const std::vector<NodeId>& target_ids);
-    void applyNodalToModalTransformation(const NodalValues& in);
+    void applyLocalNodalToLocalModalTransformation(const NodalValues& in);
     void applyModalToNodalTransformation(NodalValues& out) const;
     void evol(const ModalValues& q_old, const Time& dt);
 
@@ -104,6 +108,6 @@ public:
 };
 
 std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
-Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnGlobalOperator(const SparseMatrix& mat);
+Eigen::EigenSolver<Eigen::MatrixXd> applyEigenSolverOnLocalOperator(const Eigen::MatrixXd& mat);
 
 }

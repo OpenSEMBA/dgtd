@@ -56,6 +56,7 @@ public:
 
     void run();
     void step();
+    void stepSGBC();
 
     void setFinalTime(double final_time) {
         opts_.setFinalTime(final_time);
