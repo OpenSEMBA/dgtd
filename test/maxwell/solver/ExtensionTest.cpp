@@ -25,25 +25,6 @@ protected:
 	    return json::parse(test_file);
     }
 
-    static bool checkIfInsideTargetIds(const Nodes& target_ids, const size_t localdofs, const size_t totaldofs, const size_t c){
-        bool check = false;
-        for (int id : target_ids)
-        {
-            for (int offset = 0; offset < totaldofs; offset += localdofs)
-            {
-                if (c == id + offset)
-                {
-                    check = true;
-                    break;
-                }
-            }
-            if (check){
-                break;
-            }
-        }
-        return check;
-    }
-
 };
 
 TEST_F(SolverExtensionTest, isCorrect_SGBC_Properties)
@@ -80,15 +61,18 @@ TEST_F(SolverExtensionTest, checkEigenSolverSolutions)
     //   For (2 - 3i): [1,  i, 0]^T
     //   For (-1):     [0,  0, 1]^T
 
-    SparseMatrix A(3, 3);
-    A.Add(0, 0,  2.0);
-    A.Add(0, 1, -3.0);
-    A.Add(1, 0,  3.0);
-    A.Add(1, 1,  2.0);
-    A.Add(2, 2, -1.0);
-    A.Finalize();
+    Eigen::SparseMatrix<double> A(3,3);
+    std::vector<Eigen::Triplet<double>> tripletList;
+    tripletList.reserve(5);
+    tripletList.push_back(Eigen::Triplet<double>(0, 0,  2.0));
+    tripletList.push_back(Eigen::Triplet<double>(0, 1, -3.0));
+    tripletList.push_back(Eigen::Triplet<double>(1, 0,  3.0));
+    tripletList.push_back(Eigen::Triplet<double>(1, 1,  2.0));
+    tripletList.push_back(Eigen::Triplet<double>(2, 2, -1.0));
+    A.setFromTriplets(tripletList.begin(), tripletList.end());
+    A.makeCompressed();
 
-    auto es = applyEigenSolverOnGlobalOperator(A);
+    auto es = applyEigenSolverOnLocalOperator(A);
 
     Eigen::VectorXcd evals = es.eigenvalues();
     Eigen::MatrixXcd evecs = es.eigenvectors();
@@ -210,38 +194,11 @@ TEST_F(SolverExtensionTest, buildTest)
     }
 }
 
-TEST_F(SolverExtensionTest, loadAndUnloadSGBCValuesTest)
-{
-    Material mat(1.0, 1.0, 1e4);
-    SGBCProperties props(mat);
-
-    auto solver = SGBCSolver::buildSGBCSolver(&props);
-    SGBCNodalFields nodal;
-    for (auto f : {E, H}){
-        for (auto d : {X, Y, Z}){
-            nodal.at(f).at(d).first = double(f + d + 1);
-            nodal.at(f).at(d).second = 2.0 * nodal.at(f).at(d).first;
-        }
-    }
-
-    solver->setSGBCFieldValues(nodal);
-    auto returned = solver->getSGBCFieldValues();
-
-    double tol = 1e-3;
-    for (auto f : {E, H}){
-        for (auto d : {X, Y, Z}){
-            EXPECT_NEAR(nodal.at(f).at(d).first, returned.at(f).at(d).first, tol);
-            EXPECT_NEAR(nodal.at(f).at(d).second, returned.at(f).at(d).second, tol);
-        }
-    }
-
-}
-
 TEST_F(SolverExtensionTest, loadAndUnloadFullStateTest)
 {
     Material mat(1.0, 1.0, 1e4);
     SGBCProperties props(mat);
-    int ndofs = (props.num_of_segments + 2) * (props.order + 1);
+    int ndofs = props.num_of_segments * (props.order + 1);
 
     auto solver = SGBCSolver::buildSGBCSolver(&props);
     FullNodalFields nodal;

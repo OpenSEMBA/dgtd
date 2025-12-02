@@ -492,7 +492,7 @@ void printSimulationInformation(const double time, const double dt, const double
 }
 #endif
 
-void loadSGBCNodalFieldsForSolver(SGBCNodalFields& fields_in, const Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
+void loadSGBCNodalFieldsForSolver(SGBCForcingFields& fields_in, const Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
 {
 	for (auto f : {E, H}){
 		for (auto d : {X, Y, Z}){
@@ -502,7 +502,7 @@ void loadSGBCNodalFieldsForSolver(SGBCNodalFields& fields_in, const Fields<ParFi
 	}
 }
 
-void loadSolverFieldsWithSGBCValues(const SGBCNodalFields& fields_in, Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
+void loadSolverFieldsWithSGBCValues(const SGBCForcingFields& fields_in, Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
 {
 	for (auto f : {E, H}){
 		for (auto d : {X, Y, Z}){
@@ -514,15 +514,15 @@ void loadSolverFieldsWithSGBCValues(const SGBCNodalFields& fields_in, Fields<Par
 
 void Solver::stepSGBC() 
 {
-	SGBCNodalFields fields_in;
+	SGBCForcingFields fields_in;
 	for (auto w = 0; w < sgbcWrappers_.size(); w++){
 		auto& sgbc_solver = *sgbcWrappers_[w].sgbcSolver;
 		for (auto p = 0; p < sgbcWrappers_[w].sgbcNodeInfos.size(); p++){
 			sgbc_solver.setFullModalState(sgbcWrappers_[w].sgbcNodeInfos[p]->getModalValues()); // Load last known modal state of the node pair into sgbc solver
 			loadSGBCNodalFieldsForSolver(fields_in, fields_, sgbcWrappers_[w].sgbcNodeInfos[p]->node_pairs); // Prepare nodal values to be loaded into sgbc solver
-			sgbc_solver.setSGBCFieldValues(fields_in);
+			sgbc_solver.setSGBCForcingFieldValues(fields_in);
 			sgbc_solver.update(this->dt_);
-			loadSolverFieldsWithSGBCValues(sgbc_solver.getSGBCFieldValues(), fields_, sgbcWrappers_[w].sgbcNodeInfos[p]->node_pairs); // Overwrite global fields with values from updated sgbc solver at interface nodes
+			// loadSolverFieldsWithSGBCValues(sgbc_solver.getSGBCForcingFieldValues(), fields_, sgbcWrappers_[w].sgbcNodeInfos[p]->node_pairs); // Overwrite global fields with values from updated sgbc solver at interface nodes
 			sgbcWrappers_[w].sgbcNodeInfos[p]->updateFullModalValues(sgbc_solver.getFullModalState()); // Store updated modal state of the node pair for later use
 		}
 	}

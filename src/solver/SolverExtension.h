@@ -13,9 +13,10 @@ using namespace mfem;
 
 using GlobalId = NodeId;
 using LocalId = NodeId;
+using GhostId = NodeId;
 using NodePair = std::pair<NodeId, NodeId>;
 
-using SGBCNodalFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
+using SGBCForcingFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
 using FullNodalFields = std::array<std::array<GridFunction, 3>, 2>;
 using ModalValues = Eigen::VectorXcd;
 using NodalValues = Eigen::VectorXd;
@@ -27,6 +28,12 @@ struct SGBCBoundaryInfo
 };
 
 using SGBCBoundaries = std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>;
+
+struct FluxNodeInfo
+{
+    LocalId local_element_left_node, local_element_right_node;  
+    GhostId ghost_element_left_node, ghost_element_right_node;
+};
 
 struct SGBCLocalNodeInfo
 {
@@ -64,8 +71,7 @@ public:
     FullNodalFields getFullNodalState() const;
     void setFullModalState(const ModalValues& in) { local_modal_values_ = in; }
     ModalValues getFullModalState() const { return local_modal_values_; }
-    void setSGBCFieldValues(const SGBCNodalFields& in);
-    SGBCNodalFields getSGBCFieldValues() const;
+    void setSGBCForcingFieldValues(const SGBCForcingFields& in);
     void update(const Time& dt);
     size_t getLocalModalSize();
 
@@ -76,6 +82,7 @@ private:
     const SGBCProperties* sbcp_;
     
     SGBCLocalNodeInfo dof_pair_;
+    FluxNodeInfo flux_nodes_;
     
     Time dt_;
     
