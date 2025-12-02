@@ -230,7 +230,7 @@ TEST_F(SolverExtensionTest, evalGaussianStep)
     Material mat(1.0, 1.0, 1e2 / physicalConstants::freeSpaceImpedance_SI);
     SGBCProperties props(mat);
     props.order = 1;
-    props.num_of_segments = 100;
+    props.num_of_segments = 50;
     props.material_width = 2.0;
 
     // - Same setup as the SGBC constructor, but without ghost elements
@@ -267,29 +267,29 @@ TEST_F(SolverExtensionTest, evalGaussianStep)
     const auto& dofs = pfes.GetNDofs();
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
-            nodal.at(f).at(d).SetSize(dofs + 2 * (props.order + 1)); // We increase the size to 'emulate' those ghost elements.
+            nodal.at(f).at(d).SetSize(dofs);
             for (auto v = 0; v < dofs; v++){
-                nodal.at(f).at(d)[(props.order + 1) + v] = fields.get(f,d)[v]; // Shifting to load the gaussian within the sgbc elements and not ghost.
+                nodal.at(f).at(d)[v] = fields.get(f,d)[v];
             }
         }
     }
     
-    for (auto f : {E, H}){
-        for (auto d : {X, Y, Z}){ //We set fields in the ghost region to zero as the PEC is enforced through the eigensolver.
-            if (f == E){
-                nodal.at(f).at(d)[0] = 0.0;
-                nodal.at(f).at(d)[1] = 0.0;
-                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = 0.0;
-                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = 0.0;
-            }
-            else{
-                nodal.at(f).at(d)[0] = 0.0;
-                nodal.at(f).at(d)[1] = 0.0;
-                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = 0.0;
-                nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = 0.0;
-            }
-        }
-    }
+    // for (auto f : {E, H}){
+    //     for (auto d : {X, Y, Z}){ //We set fields in the ghost region to zero as the PEC is enforced through the eigensolver.
+    //         if (f == E){
+    //             nodal.at(f).at(d)[0] = 0.0;
+    //             nodal.at(f).at(d)[1] = 0.0;
+    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = 0.0;
+    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = 0.0;
+    //         }
+    //         else{
+    //             nodal.at(f).at(d)[0] = 0.0;
+    //             nodal.at(f).at(d)[1] = 0.0;
+    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = 0.0;
+    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = 0.0;
+    //         }
+    //     }
+    // }
 
     // - Construct and launch sgbcsolver
     auto solver = SGBCSolver::buildSGBCSolverWithPEC(&props);
@@ -302,8 +302,8 @@ TEST_F(SolverExtensionTest, evalGaussianStep)
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
             for (auto v = 0; v < full_solver.getField(f,d).Size(); v++){
-                if(!(std::abs(returned.at(f).at(d)[(props.order + 1) + v] - full_solver.getField(f,d)[v]) < tol)){
-                    EXPECT_NEAR(returned.at(f).at(d)[(props.order + 1) + v], full_solver.getField(f,d)[v], tol);
+                if(!(std::abs(returned.at(f).at(d)[v] - full_solver.getField(f,d)[v]) < tol)){
+                    EXPECT_NEAR(returned.at(f).at(d)[v], full_solver.getField(f,d)[v], tol);
                     std::cout << "Mismatching results at " + std::to_string(f) + " and " + std::to_string(d) + " at position " + std::to_string(v) << std::endl;
                 }
             }

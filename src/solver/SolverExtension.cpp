@@ -279,29 +279,9 @@ std::vector<int> getGlobalToRealElementColumns(const std::vector<int>& left_ghos
     return res;
 }
 
-std::pair<Eigen::MatrixXd, Eigen::MatrixXd> buildLocalAndGhostMatrices(const SparseMatrix& global, const int order)
-{
-
-    const auto field_blocks = num_of_field_components * num_of_max_dimensions;
-    const auto field_block_size = global.Width() / field_blocks;
-    const auto num_of_total_ghost_segments = 2 * field_blocks;
-    const auto dofs_per_element = order + 1;
-    const auto num_of_total_segments = global.Width() / dofs_per_element;
-
-    Eigen::MatrixXd A, B;
-    A.resize((num_of_total_segments - num_of_total_ghost_segments) * dofs_per_element, (num_of_total_segments - num_of_total_ghost_segments) * dofs_per_element);
-    A.setZero();
-    B.resize((num_of_total_segments - num_of_total_ghost_segments) * dofs_per_element, num_of_total_ghost_segments * dofs_per_element);
-    B.setZero();
-
-    auto left_ghost_cols = getGlobalToGhostElementColumns(global.Width(), dofs_per_element, true);
-    auto right_ghost_cols = getGlobalToGhostElementColumns(global.Width(), dofs_per_element, false);
-    auto real_cols = getGlobalToRealElementColumns(left_ghost_cols, right_ghost_cols, global.Width());
-
-    const auto& dense_global = global.ToDenseMatrix();
-
-    std::unordered_map<int, size_t> b_col_map;
-    b_col_map.reserve(left_ghost_cols.size() + right_ghost_cols.size());
+std::unordered_map<int, size_t> buildColumnsForOperatorB(const std::vector<int>& left_ghost_cols, const std::vector<int>& right_ghost_cols){
+    std::unordered_map<int, size_t> res;
+    res.reserve(left_ghost_cols.size() + right_ghost_cols.size());
 
     size_t total = left_ghost_cols.size() + right_ghost_cols.size();
     size_t i = 0, j = 0;
@@ -313,22 +293,48 @@ std::pair<Eigen::MatrixXd, Eigen::MatrixXd> buildLocalAndGhostMatrices(const Spa
             (i < left_ghost_cols.size() && left_ghost_cols[i] < right_ghost_cols[j]);
 
         if (take_left) {
-            b_col_map[left_ghost_cols[i]] = next_b_col++;
+            res[left_ghost_cols[i]] = next_b_col++;
             ++i;
         } else {
-            b_col_map[right_ghost_cols[j]] = next_b_col++;
+            res[right_ghost_cols[j]] = next_b_col++;
             ++j;
         }
     }
+    return res;
+}
 
-    std::unordered_map<int, size_t> a_col_map;
-    a_col_map.reserve(real_cols.size());
+std::unordered_map<int, size_t> buildColumnsForOperatorA(const std::vector<int>& real_cols){
+    std::unordered_map<int, size_t> res;
+    res.reserve(real_cols.size());
     for (size_t k = 0; k < real_cols.size(); ++k) {
-        a_col_map[real_cols[k]] = k;
+        res[real_cols[k]] = k;
     }
+    return res;
+}
 
+std::pair<Eigen::MatrixXd, Eigen::MatrixXd> buildLocalAndGhostMatrices(const SparseMatrix& global, const int order)
+{
+    const auto field_blocks = num_of_field_components * num_of_max_dimensions;
+    const auto field_block_size = global.Width() / field_blocks;
+    const auto num_of_total_ghost_segments = 2 * field_blocks;
+    const auto dofs_per_element = order + 1;
+    const auto num_of_total_segments = global.Width() / dofs_per_element;
+
+    auto left_ghost_cols = getGlobalToGhostElementColumns(global.Width(), dofs_per_element, true);
+    auto right_ghost_cols = getGlobalToGhostElementColumns(global.Width(), dofs_per_element, false);
+    auto real_cols = getGlobalToRealElementColumns(left_ghost_cols, right_ghost_cols, global.Width());
+
+    auto b_col_map = buildColumnsForOperatorB(left_ghost_cols, right_ghost_cols);
+    auto a_col_map = buildColumnsForOperatorA(real_cols);
+    
     int row_offset = 0;
     Vector vals;
+    Eigen::MatrixXd A, B;
+    A.resize((num_of_total_segments - num_of_total_ghost_segments) * dofs_per_element, (num_of_total_segments - num_of_total_ghost_segments) * dofs_per_element);
+    A.setZero();
+    B.resize((num_of_total_segments - num_of_total_ghost_segments) * dofs_per_element, num_of_total_ghost_segments * dofs_per_element);
+    B.setZero();
+    const auto& dense_global = global.ToDenseMatrix();
     for (auto r = 0; r < global.Height(); ++r) {
         if (std::find(real_cols.begin(), real_cols.end(), r) == real_cols.end()) {
             ++row_offset;
@@ -368,7 +374,7 @@ sbcp_(sbcp)
     std::cout << "Eigen Solver success." << std::endl;
     S_ = es.eigenvectors(); // S
     Sinv_ = S_.inverse(); // S-1
-    F_ = S_.inverse() * loc_ghost.second;
+    F_ = Sinv_ * loc_ghost.second;
     lambda_ = es.eigenvalues(); // D = S-1 A S, flattened to eigenvalues vector.
     
     local_modal_values_.resize(lambda_.size());
