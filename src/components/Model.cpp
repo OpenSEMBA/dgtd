@@ -56,9 +56,7 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 	serialMesh_ = Mesh(mesh);
 	ensureElementTypeIsSame(mesh);
 
-	if (partitioning != nullptr){
-		pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_, partitioning);
-	}
+	pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_, partitioning);
 
 	if (matInfo.gt2m.size() == 0) {
 		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));
@@ -93,6 +91,7 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 			}
 		}
 	}
+	attToIntBdrMap_ = bdrInfo.gt2ib;
 
 	assembleGeomTagToTypeMap(attToBdrMap_, false);
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
@@ -238,7 +237,12 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 		return tfsfMarker_;
 		break;
 	case BdrCond::SGBC:
-		return sbcMarker_;
+		switch (isInterior) {
+			case true:
+				return intSbcMarker_;
+			case false:
+				return sbcMarker_;
+		}
 		break;
 	default:
 		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond.");

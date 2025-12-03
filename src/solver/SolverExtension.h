@@ -17,6 +17,7 @@ using GhostId = NodeId;
 using NodePair = std::pair<NodeId, NodeId>;
 
 using SGBCForcingFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
+using SGBCNodalFields = SGBCForcingFields;
 using FullNodalFields = std::array<std::array<GridFunction, 3>, 2>;
 using ModalValues = Eigen::VectorXcd;
 using NodalValues = Eigen::VectorXd;
@@ -69,9 +70,10 @@ public:
 
     void setFullNodalState(const FullNodalFields& in);
     FullNodalFields getFullNodalState() const;
+    SGBCForcingFields getSGBCNodalFields() const;
     void setFullModalState(const ModalValues& in) { local_modal_values_ = in; }
     ModalValues getFullModalState() const { return local_modal_values_; }
-    void setSGBCForcingFieldValues(const SGBCForcingFields& in);
+    void setForcingNodalToModalFieldValues(const SGBCForcingFields& in);
     void update(const Time& dt);
     size_t getLocalModalSize();
 

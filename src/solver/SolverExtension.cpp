@@ -107,10 +107,10 @@ FullNodalFields SGBCSolver::getFullNodalState() const
     
 }
 
-void SGBCSolver::setSGBCForcingFieldValues(const SGBCForcingFields& in)
+void SGBCSolver::setForcingNodalToModalFieldValues(const SGBCForcingFields& in)
 {
-    NodalValues temp(F_.cols());
-    const auto num_of_entries_per_block = temp.size() / num_of_field_blocks;
+    NodalValues forcing_nodal_values(F_.cols());
+    const auto num_of_entries_per_block = forcing_nodal_values.size() / num_of_field_blocks;
     const auto ghost_block_size = num_of_entries_per_block / num_of_ghost_segments_per_field_comp;
     
     const auto field_offset = num_of_entries_per_block * num_of_max_dimensions;
@@ -118,13 +118,13 @@ void SGBCSolver::setSGBCForcingFieldValues(const SGBCForcingFields& in)
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
             for (auto v = 0; v < ghost_block_size; v++){
-                temp[f * field_offset + d * dir_offset                    + v] = in.at(f).at(d).first; // First Ghost Element - Same value for all nodes.
-                temp[f * field_offset + d * dir_offset + ghost_block_size + v] = in.at(f).at(d).second; // Second Ghost Element - Same value for all nodes.
+                forcing_nodal_values[f * field_offset + d * dir_offset                    + v] = in.at(f).at(d).first; // First Ghost Element - Same value for all nodes.
+                forcing_nodal_values[f * field_offset + d * dir_offset + ghost_block_size + v] = in.at(f).at(d).second; // Second Ghost Element - Same value for all nodes.
             }
         }
     }
 
-    forcing_modal_values_ = F_ * temp;
+    forcing_modal_values_ = F_ * forcing_nodal_values;
 
 }
 
@@ -134,11 +134,11 @@ void SGBCSolver::update(const Time& dt)
     evol(local_modal_values_old_, dt);
 }
 
-void SGBCSolver::evol(const ModalValues& q_old, const Time& dt)
+void SGBCSolver::evol(const ModalValues& local_modal_values_old_, const Time& dt)
 {
-    Eigen::VectorXcd forcing = F_ * forcing_modal_values_;
+    // Eigen::VectorXcd forcing = forcing_modal_values_;
     for (auto i = 0; i < local_modal_values_.size(); i++){
-        local_modal_values_[i] = std::exp(lambda_[i] * dt) * q_old[i] + forcing[i];
+        local_modal_values_[i] = std::exp(lambda_[i] * dt) * local_modal_values_old_[i] + forcing_modal_values_[i];
     }
 }
 
@@ -150,8 +150,10 @@ void SGBCSolver::applyLocalNodalToLocalModalTransformation(const NodalValues& in
 void SGBCSolver::applyModalToNodalTransformation(NodalValues& out) const
 {
     const Eigen::VectorXcd temp = S_ * local_modal_values_;
-    if (temp.imag().cwiseAbs().sum() > 1e-5){
-        throw std::runtime_error("Imaginary part over tolerance in ModalToNodalTransformation.");
+    for (auto v = 0; v < temp.size(); v++){
+        if (temp[v].imag() > 1e-5){
+            throw std::runtime_error("Imaginary part over tolerance in ModalToNodalTransformation.");
+        }
     }
     out = temp.real();
 }
@@ -357,9 +359,24 @@ std::pair<Eigen::MatrixXd, Eigen::MatrixXd> buildLocalAndGhostMatrices(const Spa
     return {A, B};
 }
 
+SGBCNodalFields SGBCSolver::getSGBCNodalFields() const
+{
+    const auto dofs_per_element = sbcp_->order + 1;
+    const auto local_nodal_values = getFullNodalState();
+    SGBCNodalFields res;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            res.at(f).at(d).first = local_nodal_values.at(f).at(d)[dofs_per_element];
+            res.at(f).at(d).second = local_nodal_values.at(f).at(d)[local_nodal_values.at(f).at(d).Size() - dofs_per_element - 1];
+        }
+    }
+    return res;
+}
+
 SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo) :
 sbcp_(sbcp)
 { 
+    
     auto mesh = buildSGBCMesh(sbcp);
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);

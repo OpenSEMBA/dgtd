@@ -27,7 +27,7 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
-		{BdrCond::SGBC, {0.0, 0.0}},
+		{BdrCond::SGBC, {-1.0, -1.0}},
 	};
 
 	static FluxBdrCoefficientsUpwind bdrUpwindCoeff{
@@ -35,7 +35,7 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
-		{BdrCond::SGBC, {0.0, 0.0}},
+		{BdrCond::SGBC, {-1.0, -1.0}},
 	};
 
 	static FluxSrcCoefficientsCentered srcCentCoeff{
@@ -278,26 +278,12 @@ namespace maxwell
 	std::unique_ptr<BF> DGOperatorFactory<FES>::buildZeroNormalSubOperator(const FieldType &f)
 	{
 		auto res = std::make_unique<BF>(&fes_);
-		if (pd_.model.getInteriorBoundaryToMarker().size())
-		{
-			for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
-			{
-				res->AddInteriorFaceIntegrator(
-					new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha), kv.second);
-			}
-		}
-		else
-		{
-			res->AddInteriorFaceIntegrator(
-				new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha));
-		}
+
+		res->AddInteriorFaceIntegrator(
+			new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha));
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			// if (kv.first == BdrCond::SGBC)
-			// {
-			// 	continue;
-			// }
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -321,26 +307,12 @@ namespace maxwell
 	std::unique_ptr<BF> DGOperatorFactory<FES>::buildOneNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms)
 	{
 		auto res = std::make_unique<BF>(&fes_);
-		if (pd_.model.getInteriorBoundaryToMarker().size())
-		{
-			for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
-			{
-				res->AddInteriorFaceIntegrator(
-					new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0), kv.second);
-			}
-		}
-		else
-		{
-			res->AddInteriorFaceIntegrator(
-				new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0));
-		}
+
+		res->AddInteriorFaceIntegrator(
+			new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0));
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			// if (kv.first == BdrCond::SGBC)
-			// {
-			// 	continue;
-			// }
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -364,26 +336,12 @@ namespace maxwell
 	std::unique_ptr<BF> DGOperatorFactory<FES>::buildTwoNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms)
 	{
 		auto res = std::make_unique<BF>(&fes_);
-		if (pd_.model.getInteriorBoundaryToMarker().size())
-		{
-			for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
-			{
-				res->AddInteriorFaceIntegrator(
-					new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), kv.second);
-			}
-		}
-		else
-		{
-			res->AddInteriorFaceIntegrator(
-				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha));
-		}
+
+		res->AddInteriorFaceIntegrator(
+			new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha));
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
-			// if (kv.first == BdrCond::SGBC)
-			// {
-			// 	continue;
-			// }
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -413,16 +371,15 @@ namespace maxwell
 			if (kv.first != BdrCond::TotalFieldIn)
 			{
 				auto c = bdrCoeffCheck(pd_.opts.alpha);
-				switch (kv.first)
-				{
-				case (BdrCond::SMA):
-					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, 1.0), kv.second);
-					break;
-				default:
-					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
-					break;
+				switch (kv.first){
+					case (BdrCond::SMA):
+						res->AddInternalBoundaryFaceIntegrator(
+							new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, 1.0), kv.second);
+						break;
+					default:
+						res->AddInternalBoundaryFaceIntegrator(
+							new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f) * pd_.opts.alpha), kv.second);
+						break;
 				}
 			}
 		}
@@ -443,16 +400,15 @@ namespace maxwell
 			if (kv.first != BdrCond::TotalFieldIn)
 			{
 				auto c = bdrCoeffCheck(pd_.opts.alpha);
-				switch (kv.first)
-				{
-				case (BdrCond::SMA):
-					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
-					break;
-				default:
-					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
-					break;
+				switch (kv.first){
+					case (BdrCond::SMA):
+						res->AddInternalBoundaryFaceIntegrator(
+							new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
+						break;
+					default:
+						res->AddInternalBoundaryFaceIntegrator(
+							new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+						break;
 				}
 			}
 		}
@@ -473,16 +429,15 @@ namespace maxwell
 			if (kv.first != BdrCond::TotalFieldIn)
 			{
 				auto c = bdrCoeffCheck(pd_.opts.alpha);
-				switch (kv.first)
-				{
-				case (BdrCond::SMA):
-					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
-					break;
-				default:
-					res->AddInternalBoundaryFaceIntegrator(
-						new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
-					break;
+				switch (kv.first){
+					case (BdrCond::SMA):
+						res->AddInternalBoundaryFaceIntegrator(
+							new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
+						break;
+					default:
+						res->AddInternalBoundaryFaceIntegrator(
+							new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
+						break;
 				}
 			}
 		}
