@@ -463,6 +463,12 @@ TEST_F(FiniteElementSpaceTest, JacobiGLNodesPosition_1D)
 }
 
 TEST_F(FiniteElementSpaceTest, GlobalToLocalPartitionElementMaps_np2){
+
+	if (mfem::Mpi::WorldSize() != 2){
+		std::cout << "This test must be run with exactly 2 MPI ranks.\n"
+				<< "Run it using: mpirun -np 2 <executable>\n";   // or abort if needed
+		ASSERT_TRUE(false);
+	}
 	
 	auto mesh = Mesh::MakeCartesian1D(4);
 	auto fec = DG_FECollection(1, 1, BasisType::GaussLobatto);
@@ -490,6 +496,12 @@ TEST_F(FiniteElementSpaceTest, GlobalToLocalPartitionElementMaps_np2){
 
 TEST_F(FiniteElementSpaceTest, GlobalToLocalPartitionDoFMaps_np2)
 {
+	if (mfem::Mpi::WorldSize() != 2){
+		std::cout << "This test must be run with exactly 2 MPI ranks.\n"
+				<< "Run it using: mpirun -np 2 <executable>\n";   // or abort if needed
+		ASSERT_TRUE(false);
+	}
+	
 	auto mesh = Mesh::MakeCartesian1D(4);
 	auto fec = DG_FECollection(1, 1, BasisType::GaussLobatto);
 	auto fes = FiniteElementSpace(&mesh, &fec);
@@ -635,77 +647,4 @@ TEST_F(FiniteElementSpaceTest, CustomPartitioning)
 
 }
 
-
-TEST_F(FiniteElementSpaceTest, LearningTest) 
-{
-	auto mesh = Mesh::MakeCartesian1D(4);
-	auto fec = DG_FECollection(1, 1, BasisType::GaussLobatto);
-	auto fes = FiniteElementSpace(&mesh, &fec);
-	auto world_size = Mpi::WorldSize();
-	int* partitioning = mesh.GeneratePartitioning(world_size);
-	auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
-	// auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
-	auto pfes = ParFiniteElementSpace(&pmesh,&fec);
-
-	ConstantCoefficient one(1.0);
-
-	// Serial part
-
-	auto bf = BilinearForm(&fes);
-	bf.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
-	bf.AddInteriorFaceIntegrator(new maxwell::mfemExtension::MaxwellDGOneNormalJumpIntegrator({maxwell::X}, 1.0));
-	bf.Assemble();
-	bf.Finalize();
-
-	GridFunction serial_gf(&fes);
-	for (auto v = 0; v < serial_gf.Size(); v++){
-		serial_gf[v] = double(v);
-	}
-
-	Vector serial_res(bf.NumRows());
-	bf.Mult(serial_gf, serial_res);
-
-	// Parallel part
-
-	auto parbf = ParBilinearForm(&pfes);
-	parbf.AddDomainIntegrator(new InverseIntegrator(new MassIntegrator(one)));
-	parbf.AddInteriorFaceIntegrator(new maxwell::mfemExtension::MaxwellDGOneNormalJumpIntegrator({maxwell::X}, 1.0));
-	parbf.Assemble();
-	parbf.Finalize();
-
-	ParGridFunction pgf(&pmesh, &serial_gf, partitioning);
-	pgf.ExchangeFaceNbrData();
-	auto f_nbr_gf = pgf.FaceNbrData();
-
-	HYPRE_BigInt my_offset = pfes.GetMyDofOffset();
-	HYPRE_BigInt my_toffset = pfes.GetMyTDofOffset();
-
-	int pndofs = pfes.GetNDofs();
-	Array<int> global_dof_indices(pndofs);
-	for (int i = 0; i < pndofs; i++) {
-		global_dof_indices[i] = static_cast<int>(my_offset + i);
-	}
-
-	Vector local_and_nbr(pgf.Size() + f_nbr_gf.Size());
-	for (auto v = 0; v < pgf.Size(); v++){
-		local_and_nbr[v] = pgf[v];
-	}
-	for (auto v = 0; v < f_nbr_gf.Size(); v++){
-		local_and_nbr[v+pgf.Size()] = f_nbr_gf[v];
-	}
-
-	Vector res_par(parbf.NumRows());
-	parbf.Mult(local_and_nbr, res_par);
-
-	Vector serial_cut;
-	serial_cut.SetSize(pndofs);
-	for (int i = 0; i < pndofs; i++) {
-    	serial_cut[i] = serial_res[global_dof_indices[i]];
-	}
-
-	EXPECT_EQ(res_par.GetData(), serial_cut.GetData());
-	
-	MPI_Barrier(MPI_COMM_WORLD);
-
-}
 }

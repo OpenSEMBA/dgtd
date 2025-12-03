@@ -21,7 +21,7 @@ protected:
 
 	void setFES(const int order, const int elements = 1)
 	{
-		smesh_ = Mesh::MakeCartesian1D(1);
+		smesh_ = Mesh::MakeCartesian1D(elements);
 		mesh_ = ParMesh(MPI_COMM_WORLD, smesh_);
 		fec_ = std::make_unique<DG_FECollection>(order, 1, BasisType::GaussLobatto);
 		fes_ = std::make_unique<ParFiniteElementSpace>(&mesh_, fec_.get());

@@ -341,6 +341,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Hesthaven)
 
 	auto case_data = parseJSONfile(maxwellCase("2D_PEC"));
 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
+	case_data["solver_options"]["time_step"] = 5e-3;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
 	GridFunction eOld{ solver.getField(E,Z) };

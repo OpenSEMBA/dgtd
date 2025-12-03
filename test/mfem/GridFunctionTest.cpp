@@ -132,7 +132,7 @@ TEST_F(GridFunctionTest, GetValuesAtPoints1D)
 			{0.1}, // Point within an element in the mesh.
 			{0.5}, // Point in the boundary between two elements.
 			{1.0}, // Point at right boundary.
-			{1.1}  // Point out of the mesh.
+			{1.1}  // Point out of the mesh. On purpose.
 		} 
 	};
 	pointMat.Transpose();

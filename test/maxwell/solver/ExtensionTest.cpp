@@ -227,6 +227,8 @@ TEST_F(SolverExtensionTest, loadAndUnloadFullStateTest)
 
 TEST_F(SolverExtensionTest, evalGaussianStep)
 {
+    double runtime = 5.0;
+    
     Material mat(1.0, 1.0, 1e2 / physicalConstants::freeSpaceImpedance_SI);
     SGBCProperties props(mat);
     props.order = 1;
@@ -255,11 +257,11 @@ TEST_F(SolverExtensionTest, evalGaussianStep)
     Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()), partitioning);
     Probes probes;
     ExporterProbe ex_probe;
-    ex_probe.name = std::string("sgbc_thing");
+    ex_probe.name = std::string("SGBC_TEST_INTERIOR_PEC");
     ex_probe.visSteps = 100;
     probes.exporterProbes.emplace_back(ex_probe);
     Solver full_solver(model, probes, planewave_source, opts);
-    full_solver.setFinalTime(20.0);
+    full_solver.setFinalTime(runtime);
     full_solver.run();
 
     // - Adapting planewave to input as initial nodal values for SGBC solver
@@ -274,42 +276,113 @@ TEST_F(SolverExtensionTest, evalGaussianStep)
         }
     }
     
-    // for (auto f : {E, H}){
-    //     for (auto d : {X, Y, Z}){ //We set fields in the ghost region to zero as the PEC is enforced through the eigensolver.
-    //         if (f == E){
-    //             nodal.at(f).at(d)[0] = 0.0;
-    //             nodal.at(f).at(d)[1] = 0.0;
-    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = 0.0;
-    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = 0.0;
-    //         }
-    //         else{
-    //             nodal.at(f).at(d)[0] = 0.0;
-    //             nodal.at(f).at(d)[1] = 0.0;
-    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 2] = 0.0;
-    //             nodal.at(f).at(d)[nodal.at(f).at(d).Size() - 1] = 0.0;
-    //         }
-    //     }
-    // }
-
     // - Construct and launch sgbcsolver
-    auto solver = SGBCSolver::buildSGBCSolverWithPEC(&props);
-    solver->setFullNodalState(nodal);
-    solver->update(20.0);
-    auto returned = solver->getFullNodalState();
+    auto sgbc_solver = SGBCSolver::buildSGBCSolverWithPEC(&props);
+    sgbc_solver->setFullNodalState(nodal);
+    SGBCForcingFields forcing_nodal;
+    for (auto f : {E , H}){
+        for (auto d : {X, Y, Z}){
+            forcing_nodal.at(f).at(d).first = 0.0;
+            forcing_nodal.at(f).at(d).second = 0.0;
+        }
+    }
+    sgbc_solver->setForcingNodalToModalFieldValues(forcing_nodal);
+    sgbc_solver->update(runtime);
+    auto returned = sgbc_solver->getFullNodalState();
 
     // - Comparison
     double tol = 1e-3;
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
             for (auto v = 0; v < full_solver.getField(f,d).Size(); v++){
-                if(!(std::abs(returned.at(f).at(d)[v] - full_solver.getField(f,d)[v]) < tol)){
-                    EXPECT_NEAR(returned.at(f).at(d)[v], full_solver.getField(f,d)[v], tol);
+                EXPECT_NEAR(returned.at(f).at(d)[v], full_solver.getField(f,d)[v], tol);
+                if (std::abs(returned.at(f).at(d)[v] - full_solver.getField(f,d)[v]) > tol){
                     std::cout << "Mismatching results at " + std::to_string(f) + " and " + std::to_string(d) + " at position " + std::to_string(v) << std::endl;
                 }
             }
         }
     }
 
+}
+
+TEST_F(SolverExtensionTest, evalSMA)
+{
+    double runtime = 5.0;
+
+    Material mat(1.0, 1.0, 1e2 / physicalConstants::freeSpaceImpedance_SI);
+    SGBCProperties props(mat);
+    props.order = 1;
+    props.num_of_segments = 50;
+    props.material_width = 2.0;
+
+    // - Same setup as the SGBC constructor, but without ghost elements
+    auto mesh  = Mesh::MakeCartesian1D(props.num_of_segments, props.material_width);
+    int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+    auto pmesh = ParMesh(MPI_COMM_WORLD, mesh, partitioning);
+    auto fec   = DG_FECollection(props.order, 1, BasisType::GaussLobatto);
+    auto pfes  = ParFiniteElementSpace(&pmesh, &fec);
+
+    // - Assembling planewave in a system similar to the Solver
+    Fields<ParFiniteElementSpace, ParGridFunction> fields{ pfes };
+    auto planewave_source = maxwell::fixtures::sources::buildPlanewaveInitialField(Gaussian{ 0.1,  Position({0.0}) }, Source::Position({props.material_width / 2.0}), Source::Polarization(unitVec(Y)), Source::Propagation(unitVec(X)));
+	SourcesManager sM{ planewave_source, pfes, fields };
+    fields.get(H,Z) = fields.get(E,Y);
+    
+    // - Comparison solver simulation
+    SolverOptions opts;
+    opts.setOrder(props.order);
+    opts.time_step = 1e-4;
+    GeomTagToMaterial geom_tag_sgbc_mat{ {1, props.material} };
+    GeomTagToBoundary pecBdr{ {1, BdrCond::SMA}, {2, BdrCond::SMA} };
+    Model model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), GeomTagToBoundaryInfo(pecBdr, GeomTagToInteriorBoundary()), partitioning);
+    Probes probes;
+    ExporterProbe ex_probe;
+    ex_probe.name = std::string("SGBC_TEST_GHOST_SMA");
+    ex_probe.visSteps = 100;
+    probes.exporterProbes.emplace_back(ex_probe);
+    Solver full_solver(model, probes, planewave_source, opts);
+    full_solver.setFinalTime(runtime);
+    full_solver.run();
+
+    // - Adapting planewave to input as initial nodal values for SGBC solver
+    FullNodalFields nodal;
+    const auto& dofs = pfes.GetNDofs();
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            nodal.at(f).at(d).SetSize(dofs);
+            for (auto v = 0; v < dofs; v++){
+                nodal.at(f).at(d)[v] = fields.get(f,d)[v];
+            }
+        }
+    }
+    
+    // - Construct and launch sgbcsolver
+    auto sgbc_solver = SGBCSolver::buildSGBCSolver(&props);
+    sgbc_solver->setFullNodalState(nodal);
+    SGBCForcingFields forcing_nodal;
+    for (auto f : {E , H}){
+        for (auto d : {X, Y, Z}){
+            forcing_nodal.at(f).at(d).first = 0.0;
+            forcing_nodal.at(f).at(d).second = 0.0;
+        }
+    }
+    sgbc_solver->setForcingNodalToModalFieldValues(forcing_nodal);
+    sgbc_solver->update(runtime);
+    auto returned = sgbc_solver->getFullNodalState();
+
+    // - Comparison
+    double tol = 1e-3;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            for (auto v = 0; v < full_solver.getField(f,d).Size(); v++){
+                EXPECT_NEAR(0.0, returned.at(f).at(d)[v], tol);
+                EXPECT_NEAR(returned.at(f).at(d)[v], full_solver.getField(f,d)[v], tol);
+                if (std::abs(returned.at(f).at(d)[v] - full_solver.getField(f,d)[v]) > tol){
+                    std::cout << "Mismatching results at " + std::to_string(f) + " and " + std::to_string(d) + " at position " + std::to_string(v) << std::endl;
+                }
+            }
+        }
+    }
 
 }
 

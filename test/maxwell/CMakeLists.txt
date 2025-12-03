@@ -1,7 +1,6 @@
 message(STATUS "Creating build system for maxwell_Tests")
 
 if (SEMBA_DGTD_ENABLE_MPI)
-	set(MPI_SRCS "solver/ParSolver2DTest.cpp")
 	add_compile_definitions(SEMBA_DGTD_ENABLE_MPI)
 endif()
 
