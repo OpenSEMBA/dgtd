@@ -15,7 +15,8 @@ add_library(maxwell-components STATIC
 "ProblemDescription.cpp"
 "Spherical.cpp" 
 "FarField.cpp" 
-"RCSDataExtractor.cpp")
+"RCSDataExtractor.cpp"
+"SIBCPoleResidueFitting.cpp")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 

@@ -7,16 +7,17 @@ endif()
 add_executable(maxwell_tests
 	$<TARGET_OBJECTS:TestLauncher>
 	"driver/DriverTest.cpp"
+	"components/EigenvalueEstimator.cpp"
 	"components/MaterialTest.cpp" 
+	"components/SIBCPoleResidueFittingTest.cpp"
+	"components/SphericalTest.cpp" 
+	"components/SubMesherTests.cpp" 
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 
 	"mfemExtension/LinearFormExtensionTest.cpp" 
 	"math/GeometryTest.cpp"
-	"components/EigenvalueEstimator.cpp"
 	"solver/ProbesManagerTest.cpp" 
 	"solver/SourcesTest.cpp"
-	"components/SubMesherTests.cpp" 
-	"components/SphericalTest.cpp" 
 	"math/FunctionTest.cpp")
 
 add_executable(maxwell_solver_tests
