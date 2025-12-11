@@ -446,7 +446,6 @@ SolverOptions buildSolverOptions(const json& case_data)
 					} 
 					else {
 						sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"]; // sigma_solver = sigma_si * Z0;
-						sigma *= physicalConstants::freeSpaceImpedance_SI;
 					}
 					Material mat(rel_eps, rel_mu, sigma);
 					SGBCProperties props(mat);
