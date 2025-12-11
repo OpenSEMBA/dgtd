@@ -80,8 +80,6 @@ private:
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
-    std::vector<SGBCWrapper> sgbcWrappers_;
-
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
