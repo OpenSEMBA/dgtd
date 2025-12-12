@@ -69,6 +69,20 @@ struct GeomTagToMaterialInfo {
 	};
 };
 
+struct SGBCProperties{
+
+    std::vector<size_t> geom_tags;
+    size_t num_of_segments = 10;
+    size_t order = 1;
+    double material_width = 1e-4;
+    Material material;
+
+    SGBCProperties(Material mat) :
+    material(mat)
+    {}
+
+};
+
 std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh&);
 std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParMesh&);
 GlobalToLocalElMap buildGlobalToPartitionLocalElementMap(
@@ -107,6 +121,8 @@ public:
 	GeomTagToBoundary& getGeomTagToBoundaryCond() { return attToBdrMap_; }
 	const GeomTagToBoundary& getGeomTagToBoundaryCond() const { return attToBdrMap_; }
 
+	void setSGBCProperties(const std::vector<SGBCProperties> in) { sgbc_props_ = in; }
+	const std::vector<SGBCProperties>& getSGBCProperties() const { return sgbc_props_; }
 
 	mfem::Vector initialiseGeomTagVector() const;
 	mfem::Vector buildEpsMuPiecewiseVector(const FieldType& f) const;
@@ -143,8 +159,9 @@ private:
 
 	BoundaryMarker tfsfMarker_;
 
-	BoundaryMarker sbcMarker_;
-	BoundaryMarker intSbcMarker_;
+	BoundaryMarker sgbc_Marker_;
+	BoundaryMarker intsgbc_Marker_;
+	std::vector<SGBCProperties> sgbc_props_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 

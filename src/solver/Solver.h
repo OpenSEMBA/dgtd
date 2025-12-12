@@ -69,7 +69,6 @@ private:
     mfem::DG_FECollection fec_;
     std::unique_ptr<mfem::ParFiniteElementSpace> fes_;
     ParFields fields_;
-    std::unique_ptr<Device> device_;
     
     SourcesManager sourcesManager_;
     ProbesManager probesManager_;
@@ -77,6 +76,8 @@ private:
     double time_;
     double dt_;
     std::unique_ptr<ODESolver> odeSolver_;
+
+    std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 

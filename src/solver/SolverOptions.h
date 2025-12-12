@@ -16,20 +16,6 @@ enum ode_type : size_t {
     SDIRK34          = 6  // [implicit] SDIRK(3/4) family, A-stable
 };
 
-struct SGBCProperties{
-
-    std::vector<size_t> geom_tags;
-    size_t num_of_segments = 10;
-    size_t order = 1;
-    double material_width = 1e-4;
-    Material material;
-
-    SGBCProperties(Material mat) :
-    material(mat)
-    {}
-
-};
-
 struct SolverOptions {
     double time_step = 0.0;
     double final_time = 2.0;
@@ -38,7 +24,6 @@ struct SolverOptions {
     size_t ode_type = ode_type::RK4;
 
     EvolutionOptions evolution;
-    std::vector<SGBCProperties> sgbc_props;
     
     SolverOptions& setTimeStep(double t) 
     {

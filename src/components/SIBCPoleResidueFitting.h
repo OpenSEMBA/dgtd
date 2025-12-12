@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 
 #include "Material.h" 
-#include "solver/SolverOptions.h"
+#include "components/Model.h"
 
 namespace maxwell {
 

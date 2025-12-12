@@ -2,7 +2,6 @@
 
 #include "components/Model.h"
 #include "evolution/HesthavenEvolutionMethods.h"
-#include "solver/Solver.h"
 #include "SolverOptions.h"
 
 #include <mfem.hpp>
@@ -23,8 +22,8 @@ using NodalValues = Eigen::VectorXd;
 
 struct SGBCBoundaryInfo
 {
-    BdrCond bdrCond;
-    bool isOn;
+    BdrCond bdrCond = BdrCond::SMA;
+    bool isOn = false;
 };
 
 using SGBCBoundaries = std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>;
@@ -49,24 +48,25 @@ struct SGBCGlobalNodeInfo
 struct SGBCNodePairInfo
 {
 public:
-    SGBCNodePairInfo(const NodePair& global_pair, const size_t modal_vec_size);
+    SGBCNodePairInfo(const NodePair& global_pair);
     
     SGBCGlobalNodeInfo node_pairs;
-    
-private:
 
 };
 
-class SGBCSolver{
+class SGBCWrapper{
 public:
 
-    static std::unique_ptr<SGBCSolver> buildSGBCSolver(const SGBCProperties* sbcp); // Call to constructor call with no intBdrProperties.
-    static std::unique_ptr<SGBCSolver> buildSGBCSolverWithPEC(const SGBCProperties* sbcp); // Call to constructor with PEC on both real/ghost interfaces.
+    static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp); // Call to constructor call with no intBdrProperties.
+    static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp); // Call to constructor with PEC on both real/ghost interfaces.
+
+    ~SGBCWrapper();
+
 private:
 
-    SGBCSolver(const SGBCProperties*, const SGBCBoundaries&);
+    SGBCWrapper(const SGBCProperties&, const SGBCBoundaries&);
 
-    const SGBCProperties* sbcp_;
+    const SGBCProperties& sbcp_;
 
     std::unique_ptr<Solver> solver_;
 
@@ -78,15 +78,6 @@ private:
     Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>* global_nodal_fields_;
     
     void initNodeIds(const std::vector<NodeId>& target_ids);
-
-};
-
-class SGBCWrapper
-{
-public:
-  
-  std::unique_ptr<SGBCSolver> sgbcSolver;
-  std::vector<std::unique_ptr<SGBCNodePairInfo>> sgbcNodeInfos;
 
 };
 

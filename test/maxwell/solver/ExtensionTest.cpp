@@ -32,8 +32,8 @@ TEST_F(SolverExtensionTest, isCorrect_SGBC_Properties)
     auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
     auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
     double tol = 1e-7;
-    for (auto p = 0; p < global_solver.getSolverOptions().sgbc_props.size(); p++){
-        const auto& props = global_solver.getSolverOptions().sgbc_props[p];
+    for (auto p = 0; p < global_solver.getModel().getSGBCProperties().size(); p++){
+        const auto& props = global_solver.getModel().getSGBCProperties()[p];
         if (p == 0 && props.geom_tags[0] == 15){
             ASSERT_EQ(1e-1, props.material_width);
             ASSERT_EQ(5, props.num_of_segments);
@@ -64,8 +64,8 @@ TEST_F(SolverExtensionTest, buildTest)
 {
     auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
     auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
-    for (const auto prop : global_solver.getSolverOptions().sgbc_props){
-        ASSERT_NO_THROW(SGBCSolver::buildSGBCSolver(&prop));
+    for (const auto prop : global_solver.getModel().getSGBCProperties()){
+        ASSERT_NO_THROW(SGBCWrapper::buildSGBCWrapper(prop));
     }
 }
 

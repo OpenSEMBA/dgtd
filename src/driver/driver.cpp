@@ -42,7 +42,7 @@ std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh
 static std::vector<std::pair<int,int>>
 gatherConstraintPairs(mfem::Mesh& mesh,
                       const mfem::Array<int>& tfsf_tags,
-                      const mfem::Array<int>& sbc_tags)
+                      const mfem::Array<int>& sgbc_tags)
 {
     std::vector<std::pair<int,int>> pairs;
     pairs.reserve(64);
@@ -51,9 +51,9 @@ gatherConstraintPairs(mfem::Mesh& mesh,
         auto tfsf_pairs = buildTwoElementPairsByTagToSort(mesh, tfsf_tags);
         pairs.insert(pairs.end(), tfsf_pairs.begin(), tfsf_pairs.end());
     }
-    if (sbc_tags.Size() > 0) {
-        auto sbc_pairs = buildTwoElementPairsByTagToSort(mesh, sbc_tags);
-        pairs.insert(pairs.end(), sbc_pairs.begin(), sbc_pairs.end());
+    if (sgbc_tags.Size() > 0) {
+        auto sgbc_pairs = buildTwoElementPairsByTagToSort(mesh, sgbc_tags);
+        pairs.insert(pairs.end(), sgbc_pairs.begin(), sgbc_pairs.end());
     }
     return pairs;
 }
@@ -129,13 +129,13 @@ void assignComponent(const std::vector<int>& elems,
 void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
                                           int* partitioning,
                                           const mfem::Array<int>& tfsf_tags,
-                                          const mfem::Array<int>& sbc_tags)
+                                          const mfem::Array<int>& sgbc_tags)
 {
     const int NE = mesh.GetNE();
     const int P  = Mpi::WorldSize();
     if (NE == 0 || P <= 0) return;
 
-    auto pairs = gatherConstraintPairs(mesh, tfsf_tags, sbc_tags);
+    auto pairs = gatherConstraintPairs(mesh, tfsf_tags, sgbc_tags);
     if (pairs.empty()) return;
 
     auto dsu = buildDSU(NE, pairs);
@@ -417,54 +417,6 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setODEType(case_data["solver_options"]["ode_type"]);
 		}
 
-	}
-
-	for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
-        if (case_data["model"]["boundaries"][b].contains("type") && 
-			case_data["model"]["boundaries"][b]["type"] == "SGBC"){ 
-			if (!case_data["model"]["boundaries"][b].contains("material")){
-				throw std::runtime_error("SGBC Material defined without material properties. Verify .json parameters.");
-			} else {
-				for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
-					double rel_eps, rel_mu, sigma;
-					if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")){
-						std::cout << "SGBC Material defined without 'relative_permittivity' parameter, assuming vacuum." << std::endl;
-						rel_eps = 1.0;
-					} 
-					else{
-						rel_eps = case_data["model"]["boundaries"][b]["material"]["relative_permittivity"];
-					}
-					if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permeability")){
-						std::cout << "SGBC Material defined without 'relative_permeability' parameter, assuming vacuum." << std::endl;
-						rel_mu = 1.0;
-					} 
-					else{
-						rel_mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
-					}
-					if (!case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")){
-						throw std::runtime_error("SGBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
-					} 
-					else {
-						sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"]; // sigma_solver = sigma_si * Z0;
-					}
-					Material mat(rel_eps, rel_mu, sigma);
-					SGBCProperties props(mat);
-					for (auto t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); t++){
-						props.geom_tags.emplace_back(case_data["model"]["boundaries"][b]["tags"][t]);
-					}
-					if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
-						props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
-					}
-					if (case_data["model"]["boundaries"][b]["material"].contains("order")){
-						props.order = int(case_data["model"]["boundaries"][b]["material"]["order"]);
-					}
-					if (case_data["model"]["boundaries"][b]["material"].contains("material_width")){
-						props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
-					} 
-					res.sgbc_props.emplace_back(props);
-				}
-			}
-		}
 	}
 
 	return res;
@@ -832,10 +784,10 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
-    mfem::Array<int> sbc_tags  = getSGBCTags(case_data);
+    mfem::Array<int> sgbc_tags  = getSGBCTags(case_data);
 
-	if (tfsf_tags.Size() || sbc_tags.Size()){
-    	applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sbc_tags);
+	if (tfsf_tags.Size() || sgbc_tags.Size()){
+    	applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
 	}
 
     Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
@@ -853,6 +805,56 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     } else {
         throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
     }
+
+	std::vector<SGBCProperties> sgbc_props;
+	for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
+        if (case_data["model"]["boundaries"][b].contains("type") && 
+			case_data["model"]["boundaries"][b]["type"] == "SGBC"){ 
+			if (!case_data["model"]["boundaries"][b].contains("material")){
+				throw std::runtime_error("SGBC Material defined without material properties. Verify .json parameters.");
+			} else {
+				for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
+					double rel_eps, rel_mu, sigma;
+					if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")){
+						std::cout << "SGBC Material defined without 'relative_permittivity' parameter, assuming vacuum." << std::endl;
+						rel_eps = 1.0;
+					} 
+					else{
+						rel_eps = case_data["model"]["boundaries"][b]["material"]["relative_permittivity"];
+					}
+					if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permeability")){
+						std::cout << "SGBC Material defined without 'relative_permeability' parameter, assuming vacuum." << std::endl;
+						rel_mu = 1.0;
+					} 
+					else{
+						rel_mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
+					}
+					if (!case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")){
+						throw std::runtime_error("SGBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
+					} 
+					else {
+						sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"]; // sigma_solver = sigma_si * Z0;
+					}
+					Material mat(rel_eps, rel_mu, sigma);
+					SGBCProperties props(mat);
+					for (auto t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); t++){
+						props.geom_tags.emplace_back(case_data["model"]["boundaries"][b]["tags"][t]);
+					}
+					if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
+						props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
+					}
+					if (case_data["model"]["boundaries"][b]["material"].contains("order")){
+						props.order = int(case_data["model"]["boundaries"][b]["material"]["order"]);
+					}
+					if (case_data["model"]["boundaries"][b]["material"].contains("material_width")){
+						props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
+					} 
+					sgbc_props.emplace_back(props);
+				}
+			}
+		}
+	}
+	res.setSGBCProperties(sgbc_props);
 
     return res;
 }

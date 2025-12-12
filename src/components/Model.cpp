@@ -110,8 +110,8 @@ void Model::assembleBdrToMarkerMaps()
 	if (smaMarker_.Size() != 0) {
 		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, smaMarker_));
 	}
-	if (sbcMarker_.Size() != 0) {
-		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, sbcMarker_));
+	if (sgbc_Marker_.Size() != 0) {
+		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, sgbc_Marker_));
 	}
 	if (intpecMarker_.Size() != 0) {
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::PEC, intpecMarker_));
@@ -122,8 +122,8 @@ void Model::assembleBdrToMarkerMaps()
 	if (intsmaMarker_.Size() != 0) {
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, intsmaMarker_));
 	}
-	if (intSbcMarker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, intSbcMarker_));
+	if (intsgbc_Marker_.Size() != 0) {
+		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, intsgbc_Marker_));
 	}
 }
 
@@ -239,9 +239,9 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 	case BdrCond::SGBC:
 		switch (isInterior) {
 			case true:
-				return intSbcMarker_;
+				return intsgbc_Marker_;
 			case false:
-				return sbcMarker_;
+				return sgbc_Marker_;
 		}
 		break;
 	default:

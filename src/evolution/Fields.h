@@ -15,13 +15,13 @@ public:
     const GF& get(const FieldType&, const Direction&) const;
     GF& get(const FieldType&);
     
-    mfem::Vector& allDOFs() { return allDOFs_; }
-    const mfem::Vector& allDOFs() const { return allDOFs_; }
+    mfem::Vector& allDOFs() { return all_dofs_; }
+    const mfem::Vector& allDOFs() const { return all_dofs_; }
 
-    double getNorml2() const { return allDOFs_.Norml2(); }
+    double getNorml2() const { return all_dofs_.Norml2(); }
 
 private:
-    mfem::Vector allDOFs_;
+    mfem::Vector all_dofs_;
     std::unique_ptr<FES> global_fes_;
     std::array<GF, 3> e_, h_;
     GF e_global_, h_global_;
@@ -42,27 +42,27 @@ Fields<FES, GF>::Fields(FES& fes)
     {
          global_fes_ = std::make_unique<ParFiniteElementSpace>(fes.GetParMesh(), fec_.get(), 3);
     }
-    allDOFs_.UseDevice(true);
+    all_dofs_.UseDevice(true);
     e_global_.UseDevice(true);
     h_global_.UseDevice(true);
-    allDOFs_.SetSize(6 * fes.GetNDofs());
-    allDOFs_ = 0.0;
+    all_dofs_.SetSize(6 * fes.GetNDofs());
+    all_dofs_ = 0.0;
     for (int d = X; d <= Z; d++) {
         e_[d].UseDevice(true);
         h_[d].UseDevice(true);
         e_[d].SetSpace(&fes);
         h_[d].SetSpace(&fes);
-        e_[d].MakeRef(allDOFs_,     d  * fes.GetNDofs(), fes.GetNDofs());
-        h_[d].MakeRef(allDOFs_,(d + 3) * fes.GetNDofs(), fes.GetNDofs());
+        e_[d].MakeRef(all_dofs_,     d  * fes.GetNDofs(), fes.GetNDofs());
+        h_[d].MakeRef(all_dofs_,(d + 3) * fes.GetNDofs(), fes.GetNDofs());
     }
 
     e_global_.SetSpace(global_fes_.get());
     h_global_.SetSpace(global_fes_.get());
 
-    auto dofsize = allDOFs_.Size() / 2;
+    auto field_dof_size = all_dofs_.Size() / 2;
 
-    e_global_.MakeRef(allDOFs_,       0, dofsize);
-    h_global_.MakeRef(allDOFs_, dofsize, dofsize);
+    e_global_.MakeRef(all_dofs_,       0, field_dof_size);
+    h_global_.MakeRef(all_dofs_, field_dof_size, field_dof_size);
 
 }
 

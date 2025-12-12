@@ -163,6 +163,18 @@ Solver::Solver(
 	probesManager_.updateProbes(time_);
 
 	auto sgbc_pairs = findSGBCDoFPairs();
+    SGBCBoundaries intBdrInfo;
+	const auto& sbcps = model_.getSGBCProperties();
+    for (const auto& [tag, pair_vector] : sgbc_pairs){
+		for (auto p = 0; p < sbcps.size(); p++){
+			for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
+				if (tag == sbcps[p].geom_tags[t]){
+        			auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p]);
+					sgbcWrappers_.push_back(std::move(wrap));
+				}
+			}
+		}
+    }
     //Do SGBC solver initializations
 
 	auto initEndTime = std::chrono::steady_clock::now();

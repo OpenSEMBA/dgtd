@@ -23,7 +23,7 @@ std::vector<NodeId> buildTargetNodeIds(const size_t order, const size_t num_of_s
     return res;
 }
 
-void SGBCSolver::initNodeIds(const std::vector<NodeId>& target_ids) // To be redone
+void SGBCWrapper::initNodeIds(const std::vector<NodeId>& target_ids) // To be redone
 {
     dof_pair_.load_el1 = target_ids.front();
     dof_pair_.load_el2 = target_ids.back();
@@ -52,9 +52,9 @@ GeomTagToBoundary buildBdrInfo()
     return res;
 }
 
-Mesh buildSGBCMesh(const SGBCProperties* sbcp)
+Mesh buildSGBCMesh(const SGBCProperties& sbcp)
 {
-    auto mesh = Mesh::MakeCartesian1D(sbcp->num_of_segments + 2, sbcp->material_width + 2 * sbcp->material_width / sbcp->num_of_segments);
+    auto mesh = Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * sbcp.material_width / sbcp.num_of_segments);
     mesh.AddBdrPoint(1, 3);
     mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
     mesh.SetAttribute(0, 2);
@@ -64,55 +64,51 @@ Mesh buildSGBCMesh(const SGBCProperties* sbcp)
     return mesh;
 }
 
-Model buildSGBCModel(Mesh& mesh, int* partitioning, const SGBCProperties* sbcp, const SGBCBoundaries& intBdrInfo)
+Model buildSGBCModel(Mesh& mesh, int* partitioning, const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo)
 {
     Material vacuum = buildVacuumMaterial();
-    GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp->material}, {2, vacuum}};
+    GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp.material}, {2, vacuum}};
     GeomTagToInteriorBoundary gt2ib = buildIntBdrInfo(intBdrInfo);
     GeomTagToBoundary gt2b = buildBdrInfo();
     GeomTagToBoundaryInfo gtbdr(gt2b, gt2ib);
     return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), gtbdr, partitioning);
 }
 
-std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolver(const SGBCProperties* sbcp)
+std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp)
 {
     SGBCBoundaries bdrInfo;
     bdrInfo.first.isOn = false;
     bdrInfo.second.isOn = false;
-    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, bdrInfo));
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
 }
 
-std::unique_ptr<SGBCSolver> SGBCSolver::buildSGBCSolverWithPEC(const SGBCProperties* sbcp)
+std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProperties& sbcp)
 {
     SGBCBoundaries bdrInfo;
     bdrInfo.first.bdrCond = BdrCond::PEC;
     bdrInfo.first.isOn = true;
     bdrInfo.second.bdrCond = BdrCond::PEC;
     bdrInfo.second.isOn = true;
-    return std::unique_ptr<SGBCSolver>(new SGBCSolver(sbcp, bdrInfo));
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
 }
 
-SGBCSolver::SGBCSolver(const SGBCProperties* sbcp, const std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>& bdrInfo) :
+SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
 sbcp_(sbcp)
 { 
     
-    auto mesh = buildSGBCMesh(sbcp);
+    auto mesh = buildSGBCMesh(sbcp_);
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     
-    Model model = buildSGBCModel(mesh, partitioning, sbcp, bdrInfo);
+    Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
     Sources sources;
     SolverOptions opts;
-    opts.setOrder(sbcp_->order);
+    opts.setOrder(sbcp_.order);
     opts.setUpwindAlpha(1.0);
     opts.setODEType(ode_type::Trapezoidal); // Crank-Nicholson
+    std::cout << "Assembling SGBC Solvers: " << std::endl;
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
-}
 
-SGBCNodePairInfo::SGBCNodePairInfo(const NodePair& global_pair, const size_t modal_vec_size)
-{
-    node_pairs.g_el1 = global_pair.first;
-    node_pairs.g_el2 = global_pair.second;
 }
 
 }
