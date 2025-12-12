@@ -8,6 +8,8 @@ namespace maxwell
 
 using namespace mfem;
 
+SGBCWrapper::~SGBCWrapper() = default;
+
 const auto num_of_field_components = 2;
 const auto num_of_max_dimensions = 3;
 const auto num_of_field_blocks = num_of_field_components * num_of_max_dimensions;

@@ -3,7 +3,6 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
-#include "SolverExtension.h"
 
 #include "evolution/Fields.h"
 #include "evolution/MaxwellEvolution.h"
@@ -23,6 +22,8 @@
 
 namespace maxwell {
 
+class SGBCWrapper;
+
 std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec);
 double estimateTimeStep(const Model&, const SolverOptions&, const ParFiniteElementSpace&, const TimeDependentOperator*);
 double getMinimumInterNodeDistance(FiniteElementSpace& fes);
@@ -38,6 +39,8 @@ public:
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
+    
+    ~Solver();
 
     const ParFields& getFields() const { return fields_; };
     const ParGridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
@@ -77,6 +80,7 @@ private:
     double dt_;
     std::unique_ptr<ODESolver> odeSolver_;
 
+    // Works with forward declaration because destructor is in .cpp
     std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;

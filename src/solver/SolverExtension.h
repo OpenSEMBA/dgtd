@@ -9,6 +9,9 @@
 namespace maxwell 
 {
 
+// ADDED: Forward Declaration
+class Solver;
+
 using GlobalId = NodeId;
 using LocalId = NodeId;
 using GhostId = NodeId;
@@ -67,7 +70,6 @@ private:
     SGBCWrapper(const SGBCProperties&, const SGBCBoundaries&);
 
     const SGBCProperties& sbcp_;
-
     std::unique_ptr<Solver> solver_;
 
     SGBCLocalNodeInfo dof_pair_;
