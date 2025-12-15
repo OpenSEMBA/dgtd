@@ -48,7 +48,7 @@ opts_{ options }
 		TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
 
 		auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
+		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
 	}
 
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
@@ -66,7 +66,7 @@ opts_{ options }
 		SGBCOperator_ = sgbcops.buildTFSFGlobalOperator();
 
 		auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
+		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
 	}
 
 	ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
@@ -106,7 +106,7 @@ void assertVectorOnDevice(const Vector &v, const std::string &name)
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
-    mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerApplyA, timerTFSF;
+    mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerApplyA, timerTFSF, timerSGBC;
 
     timerTotal.Start();
 
@@ -207,16 +207,16 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
                 // Adds (-tempTFSF) into 'out'
-                load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, out,
+                load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, out,
                                               ndofs, ndofs_tfsf);
 #else
                 for (int f : { E, H })
                 {
                     for (int d : { X, Y, Z })
                     {
-                        for (int v = 0; v < sub_to_parent_ids_.Size(); ++v)
+                        for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v)
                         {
-                            const int outIdx  = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
+                            const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
                             const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
                             const double val  = tempTFSF[tempIdx];
                             if (val != 0.0) { out[outIdx] -= val; }
@@ -228,6 +228,11 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
     }
     timerTFSF.Stop();
+
+        // 4) Add forcing s(t_stage) (TFSF etc.), gated by final time
+    timerSGBC.Start();
+    //Do SGBC Matrix-Vector Mult
+    timerSGBC.Stop();
 
     timerTotal.Stop();
 
@@ -353,13 +358,13 @@ void GlobalEvolution::ImplicitSolve(const double dt,
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
                     // Adds (-tempTFSF) into 's'
-                    load_tfsf_into_out_vector_gpu(sub_to_parent_ids_, tempTFSF, s,
+                    load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, s,
                                                   ndofs, ndofs_tfsf);
 #else
                     for (int f : { E, H }) {
                         for (int d : { X, Y, Z }) {
-                            for (int v = 0; v < sub_to_parent_ids_.Size(); ++v) {
-                                const int outIdx  = (f * 3 + d) * ndofs + sub_to_parent_ids_[v];
+                            for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
+                                const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
                                 const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
                                 const double val = tempTFSF[tempIdx];
                                 if (val != 0.0) { s[outIdx] -= val; }

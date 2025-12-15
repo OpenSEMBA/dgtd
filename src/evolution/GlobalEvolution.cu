@@ -116,7 +116,7 @@ mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func)
     return res;
 }
 
-void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& sub_to_parent_ids_, 
+void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& tfsf_sub_to_parent_ids_, 
                                    const mfem::Vector& tempTFSF,                               
                                          mfem::Vector& out,
                                    const int global_ndofs,
@@ -124,12 +124,12 @@ void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& sub_to_parent_ids_,
 {
     const int n_fields = 2;
     const int n_dirs = 3;
-    const int v_size = sub_to_parent_ids_.Size();
+    const int v_size = tfsf_sub_to_parent_ids_.Size();
     const int total = n_fields * n_dirs * v_size;
 
     auto tempTFSF_d = tempTFSF.Read();
     auto out_d = out.ReadWrite();
-    auto sub_to_parent = sub_to_parent_ids_.Read();
+    auto sub_to_parent = tfsf_sub_to_parent_ids_.Read();
 
     mfem::forall(total, [=] MFEM_HOST_DEVICE (int i) {
         const int v = i % v_size;

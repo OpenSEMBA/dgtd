@@ -22,7 +22,8 @@ namespace maxwell {
 		std::unique_ptr<mfem::SparseMatrix> globalOperator_;
 		std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
 		std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
-		Array<int> sub_to_parent_ids_;
+		Array<int> tfsf_sub_to_parent_ids_;
+		Array<int> sgbc_sub_to_parent_ids_;
 
 		mfem::ParFiniteElementSpace& fes_;
 		Model& model_;
@@ -52,7 +53,7 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
 
 mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func);
 
-void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& sub_to_parent_ids_, 
+void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& tfsf_sub_to_parent_ids_, 
                                    const mfem::Vector& tempTFSF,                               
                                          mfem::Vector& out,
                                    const int global_ndofs,
