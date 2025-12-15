@@ -4,20 +4,18 @@
 #include <fstream>
 #include <unistd.h>
 
-using namespace mfem;
-
 namespace maxwell {
 
 Solver::~Solver() = default; 
 
-std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec)
+std::unique_ptr<mfem::ParFiniteElementSpace> buildFiniteElementSpace(mfem::ParMesh* m, mfem::FiniteElementCollection* fec)
 {
-    auto fes = std::make_unique<ParFiniteElementSpace>(m, fec);
+    auto fes = std::make_unique<mfem::ParFiniteElementSpace>(m, fec);
     fes->ExchangeFaceNbrData();
     return fes;
 }
 
-std::unique_ptr<TimeDependentOperator> Solver::assignEvolutionOperator()
+std::unique_ptr<mfem::TimeDependentOperator> Solver::assignEvolutionOperator()
 {
     if (opts_.evolution.op == EvolutionOperatorType::Hesthaven) {
         return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
@@ -89,19 +87,19 @@ std::map<GeomTag, std::vector<NodePair>> Solver::findSGBCDoFPairs()
     std::map<GeomTag, std::vector<NodePair>> res;
     
     auto attMap{ mapOriginalAttributes(*fes_->GetMesh()) };
-    auto fec = dynamic_cast<const DG_FECollection*>(fes_->FEColl());
+    auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_->FEColl());
     GlobalConnectivity global = assembleGlobalConnectivityMap(*fes_->GetMesh(), fec);
     auto sgbc_marker = model_.getMarker(BdrCond::SGBC, true);
     if (sgbc_marker.Size() != 0){
         for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
             if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-                const FaceElementTransformations* faceTrans;
+                const mfem::FaceElementTransformations* faceTrans;
                 fes_->GetMesh()->FaceIsInterior(fes_->GetMesh()->GetFaceElementTransformations(fes_->GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_->GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_->GetMesh()->GetBdrFaceTransformations(b);
                 if (fes_->GetMesh()->Dimension() == 1){
                     res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1);
                 } else {
                     auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_->GetMesh(), *faceTrans, attMap) };
-                    FiniteElementSpace subFES(&twoElemSubMesh, fec);
+                    mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
                     auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, *fes_, subFES), global)};
                     for (auto p = 0; p < node_pair_global.first.size(); p++){
                         res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
@@ -243,7 +241,7 @@ double getMinimumInterNodeDistance(FiniteElementSpace& fes)
     return res;
 }
 
-bool checkIfElemTypeInMesh(const Mesh& mesh, const Element::Type& type)
+bool checkIfElemTypeInMesh(const mfem::Mesh& mesh, const mfem::Element::Type& type)
 {
     for (int e = 0; e < mesh.GetNE(); ++e) {
         if (mesh.GetElementType(e) == type) {
@@ -253,19 +251,19 @@ bool checkIfElemTypeInMesh(const Mesh& mesh, const Element::Type& type)
     return false;
 }
 
-Vector getTimeStepScale(Mesh& mesh)
+mfem::Vector getTimeStepScale(mfem::Mesh& mesh)
 {
-    Vector vol(mesh.GetNE()), dtscale(mesh.GetNE());
+    mfem::Vector vol(mesh.GetNE()), dtscale(mesh.GetNE());
     for (int e = 0; e < mesh.GetNE(); ++e) {
         auto el{ mesh.GetElement(e) };
-        Vector areasum(mesh.GetNumFaces());
+        mfem::Vector areasum(mesh.GetNumFaces());
         areasum = 0.0;
         for (int f = 0; f < mesh.GetElement(e)->GetNEdges(); ++f) {
-            ElementTransformation* T{ mesh.GetFaceTransformation(f)};
-            const IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
+            mfem::ElementTransformation* T{ mesh.GetFaceTransformation(f)};
+            const mfem::IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
             for (int p = 0; p < ir.GetNPoints(); p++)
             {
-                const IntegrationPoint& ip = ir.IntPoint(p);
+                const mfem::IntegrationPoint& ip = ir.IntPoint(p);
                 areasum(e) += ip.weight * T->Weight();
             }
         }
@@ -276,18 +274,18 @@ Vector getTimeStepScale(Mesh& mesh)
 }
 
 double getJacobiGQ_RMin(const int order) {
-    auto mesh{ Mesh::MakeCartesian1D(1, 2.0) };
-    DG_FECollection fec{ order,1,BasisType::GaussLobatto };
-    FiniteElementSpace fes{ &mesh, &fec };
+    auto mesh{ mfem::Mesh::MakeCartesian1D(1, 2.0) };
+    mfem::DG_FECollection fec{ order,1, mfem::BasisType::GaussLobatto };
+    mfem::FiniteElementSpace fes{ &mesh, &fec };
 
-    GridFunction nodes(&fes);
+    mfem::GridFunction nodes(&fes);
     mesh.GetNodes(nodes);
 
     return std::abs(nodes(0) - nodes(1));
 }
-std::vector<Source::Position> getVerticesCoordsForElem(const ParFiniteElementSpace& fes, const ElementId& e, const std::vector<Source::Position>& positions)
+std::vector<Source::Position> getVerticesCoordsForElem(const mfem::ParFiniteElementSpace& fes, const ElementId& e, const std::vector<Source::Position>& positions)
 {
-    Array<int> vertices;
+    mfem::Array<int> vertices;
     fes.GetElementVertices(e, vertices);
     std::vector<Source::Position> res(vertices.Size());
     for (auto v{ 0 }; v < vertices.Size(); v++) {
@@ -310,13 +308,13 @@ double getElementPerimeter(const std::vector<Source::Position>& vertCoords)
     return res;
 }
 
-double calc2DMeshTimeStep(FiniteElementSpace& fes)
+double calc2DMeshTimeStep(mfem::FiniteElementSpace& fes)
 {
     Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
     double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
     auto dt{ dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight };
     dt *= 0.75; // Purely heuristic.
-    if (checkIfElemTypeInMesh(*fes.GetMesh(),Element::Type::QUADRILATERAL)) {
+    if (checkIfElemTypeInMesh(*fes.GetMesh(), mfem::Element::Type::QUADRILATERAL)) {
         return dt / 2.0; // This is purely heuristic.
     }
     else {
@@ -324,13 +322,13 @@ double calc2DMeshTimeStep(FiniteElementSpace& fes)
     }
 }
 
-double calc3DMeshTimeStep(FiniteElementSpace& fes)
+double calc3DMeshTimeStep(mfem::FiniteElementSpace& fes)
 {
     Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
     double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
     auto dt{ dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight };
     dt *= 0.75; // Purely heuristic.
-    if (checkIfElemTypeInMesh(*fes.GetMesh(), Element::Type::HEXAHEDRON)) {
+    if (checkIfElemTypeInMesh(*fes.GetMesh(), mfem::Element::Type::HEXAHEDRON)) {
         return dt / 6.0; // This is purely heuristic.
     }
     else {
@@ -338,11 +336,11 @@ double calc3DMeshTimeStep(FiniteElementSpace& fes)
     }
 }
 
-double estimateTimeStep(const Model& model, const SolverOptions& opts, const ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
+double estimateTimeStep(const Model& model, const SolverOptions& opts, const mfem::ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
 {
-    Mesh serialmesh = Mesh(model.getConstSerialMesh());
-    DG_FECollection fec(fes.FEColl()->GetOrder(), serialmesh.Dimension(), opts.basis_type);
-    FiniteElementSpace serialfes(&serialmesh, &fec);
+    mfem::Mesh serialmesh = mfem::Mesh(model.getConstSerialMesh());
+    mfem::DG_FECollection fec(fes.FEColl()->GetOrder(), serialmesh.Dimension(), opts.basis_type);
+    mfem::FiniteElementSpace serialfes(&serialmesh, &fec);
 
     if (opts.evolution.op != EvolutionOperatorType::Hesthaven) {
         if (model.getConstMesh().Dimension() == 1) {
@@ -394,9 +392,9 @@ double Solver::calcAverageElementSizeInMesh()
 
     for (int e = 0; e < mesh.GetNE(); e++)
     {
-        Element *el = mesh.GetElement(e);
+        mfem::Element *el = mesh.GetElement(e);
         const int nv = el->GetNVertices();
-        Array<int> vert_indices(nv);
+        mfem::Array<int> vert_indices(nv);
         el->GetVertices(vert_indices);
 
         auto h_el = 0.0;
@@ -490,7 +488,7 @@ void printSimulationInformation(const double time, const double dt, const double
 }
 #endif
 
-void loadSGBCNodalFieldsWithSolverFields(SGBCForcingFields& fields_in, const Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
+void loadSGBCNodalFieldsWithSolverFields(SGBCForcingFields& fields_in, const Fields<mfem::ParFiniteElementSpace,mfem::ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
 {
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
@@ -500,7 +498,7 @@ void loadSGBCNodalFieldsWithSolverFields(SGBCForcingFields& fields_in, const Fie
     }
 }
 
-void loadSolverFieldsWithSGBCValues(const SGBCForcingFields& fields_in, Fields<ParFiniteElementSpace,ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
+void loadSolverFieldsWithSGBCValues(const SGBCForcingFields& fields_in, Fields<mfem::ParFiniteElementSpace,mfem::ParGridFunction>& global_fields, const SGBCGlobalNodeInfo& node_pairs)
 {
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
@@ -560,25 +558,25 @@ void Solver::step()
 }
 
 
-GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(ParMesh& submesh)
+GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(mfem::ParMesh& submesh)
 {
     switch (submesh.Dimension()) {
     case 1:
         return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
     case 2:
         switch (submesh.GetElementType(0)) {
-        case Element::TRIANGLE:
+        case mfem::Element::TRIANGLE:
             return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
-        case Element::QUADRILATERAL:
+        case mfem::Element::QUADRILATERAL:
             return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
         default:
             throw std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
         }
     case 3:
         switch (submesh.GetElementType(0)) {
-        case Element::TETRAHEDRON:
+        case mfem::Element::TETRAHEDRON:
             return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
-        case Element::HEXAHEDRON:
+        case mfem::Element::HEXAHEDRON:
             return GeomTagToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
         default:
             throw std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
@@ -589,10 +587,10 @@ GeomTagToBoundary Solver::assignAttToBdrByDimForSpectral(ParMesh& submesh)
 
 }
 
-Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(ParMesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
+Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(mfem::ParMesh& submesh, const mfem::FiniteElementCollection& fec, const EvolutionOptions& opts)
 {
     Model submodel(submesh, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh), GeomTagToInteriorBoundary{}));
-    ParFiniteElementSpace subfes(&submesh, &fec);
+    mfem::ParFiniteElementSpace subfes(&submesh, &fec);
     Eigen::SparseMatrix<double> local;
     auto numberOfFieldComponents = 2;
     auto numberofMaxDimensions = 3;
@@ -601,31 +599,31 @@ Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(ParM
 
     EvolutionOptions localopts(opts);
     ProblemDescription pd(submodel, probesManager_.probes, sourcesManager_.sources, localopts);
-    DGOperatorFactory<ParFiniteElementSpace> dgops(pd, subfes);
+    DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, subfes);
     for (int x = X; x <= Z; x++) {
         int y = (x + 1) % 3;
         int z = (x + 2) % 3;
 
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<mfem::ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildDerivativeSubOperator<mfem::ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<mfem::ParBilinearForm>(y)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildDerivativeSubOperator<mfem::ParBilinearForm>(z)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
 
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(E, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
-        allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<ParBilinearForm>(H, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<mfem::ParBilinearForm>(E, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildOneNormalSubOperator<mfem::ParBilinearForm>(E, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<mfem::ParBilinearForm>(H, { y })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
+        allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildOneNormalSubOperator<mfem::ParBilinearForm>(H, { z })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
 
         if (opts.alpha > 0.0) {
 
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildZeroNormalSubOperator<ParBilinearForm>(H)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildZeroNormalSubOperator<ParBilinearForm>(E)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(H, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
-            allocateDenseInEigen(buildByMult<ParFiniteElementSpace,ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<ParBilinearForm>(E, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildZeroNormalSubOperator<mfem::ParBilinearForm>(H)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildZeroNormalSubOperator<mfem::ParBilinearForm>(E)->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<mfem::ParBilinearForm>(H, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<mfem::ParBilinearForm>(H, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(H)->SpMat(), dgops.buildTwoNormalSubOperator<mfem::ParBilinearForm>(H, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<mfem::ParBilinearForm>(E, { X, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<mfem::ParBilinearForm>(E, { Y, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
+            allocateDenseInEigen(buildByMult<mfem::ParFiniteElementSpace,mfem::ParBilinearForm>(dgops.buildInverseMassMatrixSubOperator<mfem::ParBilinearForm>(E)->SpMat(), dgops.buildTwoNormalSubOperator<mfem::ParBilinearForm>(E, { Z, x })->SpMat(), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
 
         }
 
@@ -645,34 +643,34 @@ double Solver::findMaxEigenvalueModulus(const Eigen::VectorXcd& eigvals)
     return res;
 }
 
-void reassembleSpectralBdrForSubmesh(ParSubMesh* submesh) 
+void reassembleSpectralBdrForSubmesh(mfem::ParSubMesh* submesh) 
 {
     switch (submesh->GetElementType(0)) {
-    case Element::SEGMENT:
+    case mfem::Element::SEGMENT:
         for (int i = 0; i < submesh->GetParentVertexIDMap().Size(); ++i) {
             submesh->AddBdrPoint(i, i + 1);
         }
         submesh->FinalizeMesh();
         break;
-    case Element::TRIANGLE:
+    case mfem::Element::TRIANGLE:
         for (int i = 0; i < submesh->GetNBE(); ++i) {
             submesh->SetBdrAttribute(i, i + 1);
         }
         submesh->FinalizeMesh();
         break;
-    case Element::QUADRILATERAL:
+    case mfem::Element::QUADRILATERAL:
         for (int i = 0; i < submesh->GetNBE(); ++i) {
             submesh->SetBdrAttribute(i, i + 1);
         }
         submesh->FinalizeMesh();
         break;
-    case Element::TETRAHEDRON:
+    case mfem::Element::TETRAHEDRON:
         for (int i = 0; i < submesh->GetNBE(); ++i) {
             submesh->SetBdrAttribute(i, i + 1);
         }
         submesh->FinalizeMesh();
         break;
-    case Element::HEXAHEDRON:
+    case mfem::Element::HEXAHEDRON:
         for (int i = 0; i < submesh->GetNBE(); ++i) {
             submesh->SetBdrAttribute(i, i + 1);
         }
@@ -713,9 +711,9 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
     }
 }
 
-void Solver::performSpectralAnalysis(const ParFiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
+void Solver::performSpectralAnalysis(const mfem::ParFiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
 {
-    Array<int> domainAtts(1);
+    mfem::Array<int> domainAtts(1);
     domainAtts[0] = 501;
     auto mesh{ model.getConstMesh() };
     auto meshCopy{ mesh };
@@ -724,7 +722,7 @@ void Solver::performSpectralAnalysis(const ParFiniteElementSpace& fes, Model& mo
 
         auto preAtt(meshCopy.GetAttribute(elem));
         meshCopy.SetAttribute(elem, domainAtts[0]);
-        auto submesh{ ParSubMesh::CreateFromDomain(meshCopy,domainAtts) };
+        auto submesh{ mfem::ParSubMesh::CreateFromDomain(meshCopy,domainAtts) };
         meshCopy.SetAttribute(elem, preAtt);
         submesh.SetAttribute(0, preAtt);
 
@@ -733,7 +731,7 @@ void Solver::performSpectralAnalysis(const ParFiniteElementSpace& fes, Model& mo
         auto eigenvals{ 
             assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues() 
         };
-        ParFiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
+        mfem::ParFiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
         Model model{ submesh,
             GeomTagToMaterialInfo{},
             GeomTagToBoundaryInfo(assignAttToBdrByDimForSpectral(submesh),GeomTagToInteriorBoundary{})
