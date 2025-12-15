@@ -1,5 +1,5 @@
 #include "Solver.h"
-#include "SolverExtension.h" // ADDED: Required to see full SGBCWrapper definition
+#include "SolverExtension.h"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>

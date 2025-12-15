@@ -15,6 +15,15 @@ const auto num_of_max_dimensions = 3;
 const auto num_of_field_blocks = num_of_field_components * num_of_max_dimensions;
 const auto num_of_ghost_segments_per_field_comp = 2;
 
+void SGBCWrapper::setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
+{
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            sgbc_solver_fields_->get(f,d) = fields.get(f,d);
+        }
+    }
+}
+
 std::vector<NodeId> buildTargetNodeIds(const size_t order, const size_t num_of_segments)
 {
     std::vector<NodeId> res(4);
@@ -107,7 +116,7 @@ sbcp_(sbcp)
     SolverOptions opts;
     opts.setOrder(sbcp_.order);
     opts.setUpwindAlpha(1.0);
-    opts.setODEType(ode_type::Trapezoidal); // Crank-Nicholson
+    opts.setODEType(ode_type::Trapezoidal); // Crank-NicWolson
     std::cout << "Assembling SGBC Solvers: " << std::endl;
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
 

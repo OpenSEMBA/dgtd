@@ -896,6 +896,25 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 		}
 	}
 
+	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
+		mfem::Array<int> sgbc_tags = getSGBCTags(case_data);
+		if (case_data["model"]["boundaries"][b]["type"] == "SGBC") {
+			auto sgbc_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::SGBC, true) };
+			sgbc_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+			sgbc_atts_present_in_partition_marker = 0;
+			for (auto t = 0; t < sgbc_tags.Size(); t++){
+				for (auto bn = 0; bn < model.getConstMesh().GetNBE(); bn++){	
+					if (model.getMesh().GetBdrAttribute(bn) == sgbc_tags[t]){
+						sgbc_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(bn) - 1] = 1;
+					}
+				}
+			}
+			if (sgbc_atts_present_in_partition_marker.Sum() != 0){
+				model.getSGBCToMarker().insert(std::make_pair(maxwell::BdrCond::SGBC, sgbc_atts_present_in_partition_marker));
+			}
+		}
+	}
+
 	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getBoundaryToMarker().end() && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
 		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
 	}

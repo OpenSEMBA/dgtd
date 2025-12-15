@@ -63,6 +63,8 @@ public:
     static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp); // Call to constructor call with no intBdrProperties.
     static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp); // Call to constructor with PEC on both real/ghost interfaces.
 
+    void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
+
     ~SGBCWrapper();
 
 private:
@@ -77,7 +79,8 @@ private:
     
     Time dt_;
     
-    Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>* global_nodal_fields_;
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>* global_fields_;
+    std::unique_ptr<Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>> sgbc_solver_fields_;
     
     void initNodeIds(const std::vector<NodeId>& target_ids);
 

@@ -80,7 +80,6 @@ private:
     double dt_;
     std::unique_ptr<ODESolver> odeSolver_;
 
-    // Works with forward declaration because destructor is in .cpp
     std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;

@@ -51,6 +51,24 @@ opts_{ options }
 		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
 	}
 
+    if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
+
+		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getSGBCToMarker().at(BdrCond::SGBC));
+
+		auto globalSGBCfes = srcmngr_.getGlobalTFSFSpace();
+		auto sgbcMesh = globalSGBCfes->GetMesh();
+
+		Model sgbcModel = Model(*sgbcMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+		
+		ProblemDescription sgbcpd(sgbcModel, probes, srcmngr_.sources, opts_);
+		DGOperatorFactory<FiniteElementSpace> sgbcops(sgbcpd, *globalSGBCfes);
+
+		SGBCOperator_ = sgbcops.buildTFSFGlobalOperator();
+
+		auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sub_to_parent_ids_);
+	}
+
 	ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
 	DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
 
