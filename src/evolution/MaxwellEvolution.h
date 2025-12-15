@@ -14,7 +14,7 @@
 
 namespace maxwell {
 
-void buildGlobalToLocalDoFMapping(const Model& model, const ParFiniteElementSpace& pfes);
+void buildGlobalToLocalDoFMapping(const Model& model, const mfem::ParFiniteElementSpace& pfes);
 
 class MaxwellEvolution: public mfem::TimeDependentOperator {
 public:
@@ -26,30 +26,30 @@ public:
 
 private:
 
-	std::array<std::unique_ptr<ParBilinearForm>, 2> MInv_;
+	std::array<std::unique_ptr<mfem::ParBilinearForm>, 2> MInv_;
 	
-	std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2> MS_;
-	std::array<std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 3>, 2>, 2> MFNN_;
-	std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2>, 2> MFN_;
-	std::array<std::unique_ptr<ParBilinearForm>, 2> MP_;
+	std::array<std::array<std::unique_ptr<mfem::ParBilinearForm>, 3>, 2> MS_;
+	std::array<std::array<std::array<std::array<std::unique_ptr<mfem::ParBilinearForm>, 3>, 3>, 2>, 2> MFNN_;
+	std::array<std::array<std::array<std::unique_ptr<mfem::ParBilinearForm>, 3>, 2>, 2> MFN_;
+	std::array<std::unique_ptr<mfem::ParBilinearForm>, 2> MP_;
 	
-	std::array<std::unique_ptr<ParBilinearForm>, 2> MPB_;
-	std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 2>, 2> MFNB_;
-	std::array<std::array<std::array<std::array<std::unique_ptr<ParBilinearForm>, 3>, 3>, 2>, 2> MFNNB_;
+	std::array<std::unique_ptr<mfem::ParBilinearForm>, 2> MPB_;
+	std::array<std::array<std::array<std::unique_ptr<mfem::ParBilinearForm>, 3>, 2>, 2> MFNB_;
+	std::array<std::array<std::array<std::array<std::unique_ptr<mfem::ParBilinearForm>, 3>, 3>, 2>, 2> MFNNB_;
 	
 	Vector CND_;
 	
 	//Total Field and Scattered Field operators for SubMeshing
-	std::array<std::unique_ptr<BilinearForm>, 2> MInvTFSF_;
-	std::array<std::array<std::unique_ptr<BilinearForm>, 3>, 2> MS_GTFSF_;
-	std::array<std::array<std::array<std::array<std::unique_ptr<BilinearForm>, 3>, 3>, 2>, 2> MFNN_GTFSF_;
-	std::array<std::array<std::array<std::unique_ptr<BilinearForm>, 3>, 2>, 2> MFN_GTFSF_;
-	std::array<std::unique_ptr<BilinearForm>, 2> MP_GTFSF_;
+	std::array<std::unique_ptr<mfem::BilinearForm>, 2> MInvTFSF_;
+	std::array<std::array<std::unique_ptr<mfem::BilinearForm>, 3>, 2> MS_GTFSF_;
+	std::array<std::array<std::array<std::array<std::unique_ptr<mfem::BilinearForm>, 3>, 3>, 2>, 2> MFNN_GTFSF_;
+	std::array<std::array<std::array<std::unique_ptr<mfem::BilinearForm>, 3>, 2>, 2> MFN_GTFSF_;
+	std::array<std::unique_ptr<mfem::BilinearForm>, 2> MP_GTFSF_;
 
 	/* */
 
 	ProblemDescription pd_;
-	ParFiniteElementSpace& fes_;
+	mfem::ParFiniteElementSpace& fes_;
 	SourcesManager& srcmngr_;
 
 };
