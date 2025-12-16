@@ -19,7 +19,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered)
     case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
-	GridFunction eOld{ solver.getField(E,Z) };
+	GridFunction eOld{ solver.getConstField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -31,7 +31,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Z) };
+	GridFunction eNew{ solver.getConstField(E,Z) };
 	eNew.UseDevice(false);
 	eOld.UseDevice(false);
 	eNew.HostRead();
@@ -89,7 +89,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_InteriorPEC_Hesthaven)
 	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_IntBoundary"), true) };
 
 
-	GridFunction eOld{ solver.getField(E,Y) };
+	GridFunction eOld{ solver.getConstField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	double tolerance{ 2e-2 };
@@ -210,7 +210,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Hesthaven)
 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
-	GridFunction eOld{ solver.getField(E,Z) };
+	GridFunction eOld{ solver.getConstField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -222,7 +222,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Hesthaven)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Z) };
+	GridFunction eNew{ solver.getConstField(E,Z) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
 
 	// Compares all DOFs.
@@ -277,7 +277,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Global)
 	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
-	GridFunction eOld{ solver.getField(E,Z) };
+	GridFunction eOld{ solver.getConstField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -289,7 +289,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Centered_Global)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Z) };
+	GridFunction eNew{ solver.getConstField(E,Z) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
 
 	// Compares all DOFs.
@@ -344,7 +344,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Hesthaven)
 	case_data["solver_options"]["time_step"] = 5e-3;
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
-	GridFunction eOld{ solver.getField(E,Z) };
+	GridFunction eOld{ solver.getConstField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -356,7 +356,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Hesthaven)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Z) };
+	GridFunction eNew{ solver.getConstField(E,Z) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
 
 	// Compares all DOFs.
@@ -409,7 +409,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Global)
 	case_data["solver_options"]["evolution_operator"] = "global";
 	auto solver{ buildSolver(case_data, maxwellCase("2D_PEC"), true) };
 
-	GridFunction eOld{ solver.getField(E,Z) };
+	GridFunction eOld{ solver.getConstField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -421,7 +421,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind_Global)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Z) };
+	GridFunction eNew{ solver.getConstField(E,Z) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
 
 	// Compares all DOFs.
@@ -472,7 +472,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind)
 	std::string case_name{"2D_PEC"};
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
-	GridFunction eOld{ solver.getField(E,Z) };
+	GridFunction eOld{ solver.getConstField(E,Z) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -484,7 +484,7 @@ TEST_F(ExtensiveCasesTest, 2D_PEC_Upwind)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Z) };
+	GridFunction eNew{ solver.getConstField(E,Z) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tolerance);
 
 	// Compares all DOFs.

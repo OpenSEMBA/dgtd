@@ -70,47 +70,6 @@ void Solver::assignODESolver()
     }
 }
 
-InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
-{
-    InteriorFaceConnectivityMaps res;
-    res.first.resize(local_dof_ids.first.size());
-    res.second.resize(local_dof_ids.second.size());
-    for (auto v{ 0 }; v < res.first.size(); v++) {
-        res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
-        res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
-    }
-    return res;
-}
-
-std::map<GeomTag, std::vector<NodePair>> Solver::findSGBCDoFPairs()
-{
-    std::map<GeomTag, std::vector<NodePair>> res;
-    
-    auto attMap{ mapOriginalAttributes(*fes_->GetMesh()) };
-    auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_->FEColl());
-    GlobalConnectivity global = assembleGlobalConnectivityMap(*fes_->GetMesh(), fec);
-    auto sgbc_marker = model_.getMarker(BdrCond::SGBC, true);
-    if (sgbc_marker.Size() != 0){
-        for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
-            if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-                const mfem::FaceElementTransformations* faceTrans;
-                fes_->GetMesh()->FaceIsInterior(fes_->GetMesh()->GetFaceElementTransformations(fes_->GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_->GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_->GetMesh()->GetBdrFaceTransformations(b);
-                if (fes_->GetMesh()->Dimension() == 1){
-                    res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1);
-                } else {
-                    auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_->GetMesh(), *faceTrans, attMap) };
-                    mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
-                    auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, *fes_, subFES), global)};
-                    for (auto p = 0; p < node_pair_global.first.size(); p++){
-                        res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
-                    }
-                }
-            }
-        }
-    }
-    return res;
-}
-
 Solver::Solver(
     const Model& model,
     const Probes& probes,
@@ -162,19 +121,6 @@ Solver::Solver(
     probesManager_.setCaseName(model_.meshName_);
     probesManager_.initPointFieldProbeExport();
     probesManager_.updateProbes(time_);
-
-    auto sgbc_pairs = findSGBCDoFPairs();
-    for (const auto& [tag, pair_vector] : sgbc_pairs){
-		const auto& sbcps = model_.getSGBCProperties();
-        for (auto p = 0; p < sbcps.size(); p++){
-            for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
-                if (tag == sbcps[p].geom_tags[t]){
-                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p]);
-                    sgbcWrappers_.push_back(std::move(wrap));
-                }
-            }
-        }
-    }
 
     auto initEndTime = std::chrono::steady_clock::now();
     int rank;

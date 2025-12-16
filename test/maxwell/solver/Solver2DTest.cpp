@@ -84,13 +84,13 @@ protected:
 
 	void expectFieldsAreNearAfterEvolution_1dot5D(maxwell::Solver &solver, const double tol=1e-2)
 	{
-		GridFunction eOld{solver.getField(E, Y)};
-		GridFunction hOld{solver.getField(H, Z)};
+		GridFunction eOld{solver.getConstField(E, Y)};
+		GridFunction hOld{solver.getConstField(H, Z)};
 
 		solver.run();
 
-		GridFunction eNew{solver.getField(E, Y)};
-		GridFunction hNew{solver.getField(H, Z)};
+		GridFunction eNew{solver.getConstField(E, Y)};
+		GridFunction hNew{solver.getConstField(H, Z)};
 
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
@@ -106,13 +106,13 @@ protected:
 
 	void expectedFieldsAreNearAfterEvolution_Periodic(maxwell::Solver &solver, const double tol=1e-2)
 	{
-		GridFunction eOld{solver.getField(E, Y)};
-		GridFunction hOld{solver.getField(H, Z)};
+		GridFunction eOld{solver.getConstField(E, Y)};
+		GridFunction hOld{solver.getConstField(H, Z)};
 
 		solver.run();
 
-		GridFunction eNew{solver.getField(E, Y)};
-		GridFunction hNew{solver.getField(H, Z)};
+		GridFunction eNew{solver.getConstField(E, Y)};
+		GridFunction hNew{solver.getConstField(H, Z)};
 
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
@@ -201,7 +201,7 @@ TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
 			.setOrder(3)
 	};
 
-	GridFunction eOld{solver.getField(E, Z)};
+	GridFunction eOld{solver.getConstField(E, Z)};
 	auto zeros{eOld};
 	zeros = 0.0;
 	EXPECT_TRUE(eOld.DistanceTo(zeros) > 1e-2);
@@ -209,7 +209,7 @@ TEST_F(Solver2DTest, sma_upwind_tris_1dot5D)
 	solver.run();
 
 	double tol{1e-2};
-	EXPECT_NEAR(0.0, solver.getField(E,Z).DistanceTo(zeros), tol);
+	EXPECT_NEAR(0.0, solver.getConstField(E,Z).DistanceTo(zeros), tol);
 	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(0).findFrameWithMin().second), tol);
 	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(1).findFrameWithMin().second), tol);
 	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(2).findFrameWithMin().second), tol);
@@ -229,7 +229,7 @@ TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 			.setFinalTime(1.0)
 			.setOrder(3)};
 
-	GridFunction eOld{solver.getField(E, Z)};
+	GridFunction eOld{solver.getConstField(E, Z)};
 
 	auto zeros{eOld};
 	zeros = 0.0;
@@ -238,7 +238,7 @@ TEST_F(Solver2DTest, sma_upwind_quads_1dot5D)
 	solver.run();
 
 	double tol{1e-3};
-	EXPECT_NEAR(0.0, solver.getField(E,Z).DistanceTo(zeros), tol);
+	EXPECT_NEAR(0.0, solver.getConstField(E,Z).DistanceTo(zeros), tol);
 	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(0).findFrameWithMin().second), tol);
 	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(1).findFrameWithMin().second), tol);
 	EXPECT_NEAR(0.0, abs(solver.getFieldProbe(2).findFrameWithMin().second), tol);
@@ -373,15 +373,15 @@ TEST_F(Solver2DTest, box_resonant_modes_pec_tris)
 	};
 
 
-	GridFunction ezOld{solver.getField(E, Z)};
-	GridFunction hxOld{solver.getField(H, X)};
-	GridFunction hyOld{solver.getField(H, Y)};
+	GridFunction ezOld{solver.getConstField(E, Z)};
+	GridFunction hxOld{solver.getConstField(H, X)};
+	GridFunction hyOld{solver.getConstField(H, Y)};
 
 	solver.run();
 
-	GridFunction ezNew{solver.getField(E, Z)};
-	GridFunction hxNew{solver.getField(H, X)};
-	GridFunction hyNew{solver.getField(H, Y)};
+	GridFunction ezNew{solver.getConstField(E, Z)};
+	GridFunction hxNew{solver.getConstField(H, X)};
+	GridFunction hyNew{solver.getConstField(H, Y)};
 
 	double tol{1e-2};
 	EXPECT_NE(0.0, ezOld.DistanceTo(ezNew));

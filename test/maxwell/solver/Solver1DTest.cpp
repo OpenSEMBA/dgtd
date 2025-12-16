@@ -57,13 +57,13 @@ protected:
 
 	void expectFieldsAreNearAfterEvolution(maxwell::Solver& solver)
 	{
-		GridFunction eOld{ solver.getField(E,Y) };
-		GridFunction hOld{ solver.getField(H,Z) };
+		GridFunction eOld{ solver.getConstField(E,Y) };
+		GridFunction hOld{ solver.getConstField(H,Z) };
 
 		solver.run();
 
-		GridFunction eNew{ solver.getField(E,Y) };
-		GridFunction hNew{ solver.getField(H,Z) };
+		GridFunction eNew{ solver.getConstField(E,Y) };
+		GridFunction hNew{ solver.getConstField(H,Z) };
 
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -93,8 +93,8 @@ TEST_F(Solver1DTest, pec_centered)
 			.setUpwindAlpha(0.0)
 	};
 	
-	GridFunction eOld{ solver.getField(E,Y) };
-	GridFunction hOld{ solver.getField(H,Z) };
+	GridFunction eOld{ solver.getConstField(E,Y) };
+	GridFunction hOld{ solver.getConstField(H,Z) };
 
 	auto eNormOld{ solver.getFields().getNorml2() };
 	
@@ -105,8 +105,8 @@ TEST_F(Solver1DTest, pec_centered)
 	
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Y) };
-	GridFunction hNew{ solver.getField(H,Z) };
+	GridFunction eNew{ solver.getConstField(E,Y) };
+	GridFunction hNew{ solver.getConstField(H,Z) };
 
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -229,13 +229,13 @@ TEST_F(Solver1DTest, DISABLED_periodic)
 		SolverOptions{}.setFinalTime(1.0)
 	};
 
-	GridFunction eOld{ solver.getField(E,Y) };
-	GridFunction hOld{ solver.getField(H,Z) };
+	GridFunction eOld{ solver.getConstField(E,Y) };
+	GridFunction hOld{ solver.getConstField(H,Z) };
 
 	solver.run();
 	{	
-		GridFunction eNew{ solver.getField(E,Y) };
-		GridFunction hNew{ solver.getField(H,Z) };
+		GridFunction eNew{ solver.getConstField(E,Y) };
+		GridFunction hNew{ solver.getConstField(H,Z) };
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	}
@@ -243,8 +243,8 @@ TEST_F(Solver1DTest, DISABLED_periodic)
 	solver.setFinalTime(2.0);
 	solver.run();
 	{	
-		GridFunction eNew{ solver.getField(E,Y) };
-		GridFunction hNew{ solver.getField(H,Z) };
+		GridFunction eNew{ solver.getConstField(E,Y) };
+		GridFunction hNew{ solver.getConstField(H,Z) };
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	}

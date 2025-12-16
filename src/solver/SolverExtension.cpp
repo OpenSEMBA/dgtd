@@ -3,10 +3,10 @@
 #include "components/DGOperatorFactory.h"
 #include "components/ProblemDescription.h"
 
+#include <memory>
+
 namespace maxwell
 {
-
-using namespace mfem;
 
 SGBCWrapper::~SGBCWrapper() = default;
 
@@ -27,7 +27,7 @@ void SGBCWrapper::setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, m
 std::vector<NodeId> buildTargetNodeIds(const size_t order, const size_t num_of_segments)
 {
     std::vector<NodeId> res(4);
-    res[0] = order; // start of mesh, ghost element right boundary   // |---Ghost---X-|-----SGBC---|--
+    res[0] = order; // start of mesh, ghost element right boundary    // |---Ghost---X-|-----SGBC---|--
     res[1] = order + 1; // start of mesh, SGBC element left boundary // |---Ghost-----|-X---SGBC---|--
     res[2] = (order + 1) * (num_of_segments + 2) - (order + 1) - 1; // end of mesh, SGBC element right boundary // --|---SGBC---X-|-----Ghost---|
     res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; // end of mesh, ghost element left boundary     // --|---SGBC-----|-X---Ghost---|
@@ -63,9 +63,9 @@ GeomTagToBoundary buildBdrInfo()
     return res;
 }
 
-Mesh buildSGBCMesh(const SGBCProperties& sbcp)
+mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp)
 {
-    auto mesh = Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * sbcp.material_width / sbcp.num_of_segments);
+    auto mesh = mfem::Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * sbcp.material_width / sbcp.num_of_segments);
     mesh.AddBdrPoint(1, 3);
     mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
     mesh.SetAttribute(0, 2);
@@ -75,7 +75,7 @@ Mesh buildSGBCMesh(const SGBCProperties& sbcp)
     return mesh;
 }
 
-Model buildSGBCModel(Mesh& mesh, int* partitioning, const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo)
+Model buildSGBCModel(mfem::Mesh& mesh, int* partitioning, const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo)
 {
     Material vacuum = buildVacuumMaterial();
     GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp.material}, {2, vacuum}};
@@ -103,6 +103,28 @@ std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProp
     return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
 }
 
+SolverOptions buildSGBCSolverOptions(const SGBCProperties& sbcp)
+{
+    SolverOptions res;
+    res.setOrder(sbcp.order);
+    res.setUpwindAlpha(1.0);
+    res.setODEType(ode_type::Trapezoidal); // Crank-Nicolson    
+    return res;
+}
+
+void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, const std::array<mfem::ParGridFunction, 3>& h, const NodePair& pair)
+{
+    const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
+    for (auto d : {X, Y, Z}){ 
+        for (auto dof = 0; dof < sbcp_.order + 1; dof++){ 
+            solver_->setFieldValue(FieldType::E, d, dof, e.at(d)[pair.first]); // Loading values on left side ghost
+            solver_->setFieldValue(FieldType::H, d, dof, h.at(d)[pair.first]);
+            solver_->setFieldValue(FieldType::E, d, dof_per_field_comp - 1 - dof, e.at(d)[pair.second]); // Loading values on right side ghost
+            solver_->setFieldValue(FieldType::H, d, dof_per_field_comp - 1 - dof, h.at(d)[pair.second]);
+        }
+    }
+}
+
 SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
 sbcp_(sbcp)
 { 
@@ -113,12 +135,12 @@ sbcp_(sbcp)
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
     Sources sources;
-    SolverOptions opts;
-    opts.setOrder(sbcp_.order);
-    opts.setUpwindAlpha(1.0);
-    opts.setODEType(ode_type::Trapezoidal); // Crank-NicWolson
+    SolverOptions opts = buildSGBCSolverOptions(sbcp_);
     std::cout << "Assembling SGBC Solvers: " << std::endl;
+
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
+
+    this->dt_ = 0.0;
 
 }
 

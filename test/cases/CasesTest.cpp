@@ -18,7 +18,7 @@ TEST_F(CasesTest, 1D_PEC_Centered)
     case_data["solver_options"]["upwind_alpha"] = 0.0;
 	auto solver{ buildSolver(case_data, maxwellCase("1D_PEC"), true) };
 
-	GridFunction eOld{ solver.getField(E,Y) };
+	GridFunction eOld{ solver.getConstField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -30,7 +30,7 @@ TEST_F(CasesTest, 1D_PEC_Centered)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Y) };
+	GridFunction eNew{ solver.getConstField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 
 	// Compares all DOFs.
@@ -79,7 +79,7 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 	std::string case_name{ "1D_PEC" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
 
-	GridFunction eOld{ solver.getField(E,Y) };
+	GridFunction eOld{ solver.getConstField(E,Y) };
 	auto normOld{ solver.getFields().getNorml2() };
 
 	// Checks fields have been initialized.
@@ -91,7 +91,7 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Y) };
+	GridFunction eNew{ solver.getConstField(E,Y) };
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 
 	// Compares all DOFs.

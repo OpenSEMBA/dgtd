@@ -51,7 +51,7 @@ public:
 
     mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
     const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) const { return fields_.get(f, d); }
-    mfem::GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
     void updateFields();
 
 private:

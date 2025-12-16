@@ -275,12 +275,12 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 
 	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
 	res.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
-	res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getField(E, X));
-	res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getField(E, Y));
-	res.RegisterField("Ez.gf", &nearFieldReqs_.at(&p)->getField(E, Z));
-	res.RegisterField("Hx.gf", &nearFieldReqs_.at(&p)->getField(H, X));
-	res.RegisterField("Hy.gf", &nearFieldReqs_.at(&p)->getField(H, Y));
-	res.RegisterField("Hz.gf", &nearFieldReqs_.at(&p)->getField(H, Z));
+	res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getConstField(E, X));
+	res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getConstField(E, Y));
+	res.RegisterField("Ez.gf", &nearFieldReqs_.at(&p)->getConstField(E, Z));
+	res.RegisterField("Hx.gf", &nearFieldReqs_.at(&p)->getConstField(H, X));
+	res.RegisterField("Hy.gf", &nearFieldReqs_.at(&p)->getConstField(H, Y));
+	res.RegisterField("Hz.gf", &nearFieldReqs_.at(&p)->getConstField(H, Z));
 
 	return res;
 

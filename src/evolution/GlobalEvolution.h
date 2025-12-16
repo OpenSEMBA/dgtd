@@ -6,40 +6,50 @@
 
 namespace maxwell {
 
-	class GlobalEvolution : public mfem::TimeDependentOperator {
-	public:
-		static const int numberOfFieldComponents = 2;
-		static const int numberOfMaxDimensions = 3;
+using NodeId = int;
+using NodePair = std::pair<NodeId, NodeId>;
 
-		GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-		virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
-		void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
+class SGBCWrapper;
 
-		const SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
+class GlobalEvolution : public mfem::TimeDependentOperator {
+public:
+	static const int numberOfFieldComponents = 2;
+	static const int numberOfMaxDimensions = 3;
 
-	private:
+	GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
+	void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
-		std::unique_ptr<mfem::SparseMatrix> globalOperator_;
-		std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
-		std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
-		Array<int> tfsf_sub_to_parent_ids_;
-		Array<int> sgbc_sub_to_parent_ids_;
+	const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
-		mfem::ParFiniteElementSpace& fes_;
-		Model& model_;
-		SourcesManager& srcmngr_;
-		EvolutionOptions& opts_;
+private:
 
-		mutable std::array<ParGridFunction, 3> eOld_, hOld_;
+	std::map<GeomTag, std::vector<NodePair>> findSGBCDoFPairs();
 
-	};
+	std::unique_ptr<mfem::SparseMatrix> globalOperator_;
+	std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
+	std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
+	mfem::Array<int> tfsf_sub_to_parent_ids_;
+	mfem::Array<int> sgbc_sub_to_parent_ids_;
+
+	std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
+	std::map<GeomTag, std::vector<NodePair>> sgbc_pairs_;
+
+	mfem::ParFiniteElementSpace& fes_;
+	Model& model_;
+	SourcesManager& srcmngr_;
+	EvolutionOptions& opts_;
+
+	mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
+
+};
 
 
 void load_in_to_eh_gpu(const mfem::Vector& in, 
-                        std::array<ParGridFunction, 3>& e,
-                        std::array<ParGridFunction, 3>& h,
-                        int ndofs);
-	
+                       std::array<mfem::ParGridFunction, 3>& e,
+                       std::array<mfem::ParGridFunction, 3>& h,
+                       int ndofs);
+    
 void load_eh_to_innew_gpu(const mfem::Vector& inOld,
                           mfem::Vector& inNew,
                           int ndofs,
@@ -54,7 +64,7 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
 mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func);
 
 void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& tfsf_sub_to_parent_ids_, 
-                                   const mfem::Vector& tempTFSF,                               
+                                   const mfem::Vector& tempTFSF,                              
                                          mfem::Vector& out,
                                    const int global_ndofs,
                                    const int tfsf_ndofs);

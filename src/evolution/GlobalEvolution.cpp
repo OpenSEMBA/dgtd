@@ -1,99 +1,158 @@
 #include "GlobalEvolution.h"
+#include "solver/SolverExtension.h"
 
 #include <chrono>
 
 namespace maxwell {
 
+InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
+{
+    InteriorFaceConnectivityMaps res;
+    res.first.resize(local_dof_ids.first.size());
+    res.second.resize(local_dof_ids.second.size());
+    for (auto v{ 0 }; v < res.first.size(); v++) {
+        res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
+        res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
+    }
+    return res;
+}
+
+std::map<GeomTag, std::vector<NodePair>> GlobalEvolution::findSGBCDoFPairs()
+{
+    std::map<GeomTag, std::vector<NodePair>> res;
+    
+    auto attMap{ mapOriginalAttributes(*fes_.GetMesh()) };
+    auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
+    GlobalConnectivity global = assembleGlobalConnectivityMap(*fes_.GetMesh(), fec);
+    auto sgbc_marker = model_.getMarker(BdrCond::SGBC, true);
+    if (sgbc_marker.Size() != 0){
+        for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
+            if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+                const mfem::FaceElementTransformations* faceTrans;
+                fes_.GetMesh()->FaceIsInterior(fes_.GetMesh()->GetFaceElementTransformations(fes_.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_.GetMesh()->GetBdrFaceTransformations(b);
+                if (fes_.GetMesh()->Dimension() == 1){
+                    res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1);
+                } else {
+                    auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_.GetMesh(), *faceTrans, attMap) };
+                    mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
+                    auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES), global)};
+                    for (auto p = 0; p < node_pair_global.first.size(); p++){
+                        res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
+                    }
+                }
+            }
+        }
+    }
+    return res;
+}
+
+
 GlobalEvolution::GlobalEvolution(
-mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
-mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
-fes_{ fes },
-model_{ model },
-srcmngr_{ srcmngr },
-opts_{ options }
+    mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
+    mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
+    fes_{ fes },
+    model_{ model },
+    srcmngr_{ srcmngr },
+    opts_{ options }
 {
 
-	fes_.ExchangeFaceNbrData();
+    fes_.ExchangeFaceNbrData();
 
-	for (auto d = X; d <= Z; d++){
-		eOld_[d].SetSpace(&fes_);
-		hOld_[d].SetSpace(&fes_);
-	}
+    for (auto d = X; d <= Z; d++){
+        eOld_[d].SetSpace(&fes_);
+        hOld_[d].SetSpace(&fes_);
+    }
 
-	globalOperator_ = std::make_unique<mfem::SparseMatrix>(numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs));
+    sgbc_pairs_ = findSGBCDoFPairs();
+    for (const auto& [tag, pair_vector] : sgbc_pairs_){
+		const auto& sbcps = model_.getSGBCProperties();
+        for (auto p = 0; p < sbcps.size(); p++){
+            for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
+                if (tag == sbcps[p].geom_tags[t]){
+                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p]);
+                    sgbcWrappers_.push_back(std::move(wrap));
+                }
+            }
+        }
+    }
+
+    globalOperator_ = std::make_unique<mfem::SparseMatrix>(
+        numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), 
+        numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs)
+    );
 
 #ifdef SHOW_TIMER_INFORMATION
-	if (Mpi::WorldRank() == 0){
-		std::cout << "------------------------------------------------" << std::endl;
-		std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
-		std::cout << "------------------------------------------------" << std::endl;
-		std::cout << std::endl;
-	}
+    if (Mpi::WorldRank() == 0){
+        std::cout << "------------------------------------------------" << std::endl;
+        std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
+        std::cout << "------------------------------------------------" << std::endl;
+        std::cout << std::endl;
+    }
 #endif
 
 
-	Probes probes;
-	if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
+    Probes probes; // Local probes instance for operator construction
+    if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
 
-		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
+        srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
 
-		auto globalTFSFfes = srcmngr_.getGlobalTFSFSpace();
-		auto tfsfMesh = globalTFSFfes->GetMesh();
+        auto globalTFSFfes = srcmngr_.getGlobalTFSFSpace();
+        auto tfsfMesh = globalTFSFfes->GetMesh();
 
-		Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-		
-		ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
-		DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
+        Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+        
+        ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
+        DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
 
-		TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
+        TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
 
-		auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
-	}
+        auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+        mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
+    }
 
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
 
-		srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getSGBCToMarker().at(BdrCond::SGBC));
+        srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getSGBCToMarker().at(BdrCond::SGBC));
 
-		auto globalSGBCfes = srcmngr_.getGlobalTFSFSpace();
-		auto sgbcMesh = globalSGBCfes->GetMesh();
+        auto globalSGBCfes = srcmngr_.getGlobalTFSFSpace();
+        auto sgbcMesh = globalSGBCfes->GetMesh();
 
-		Model sgbcModel = Model(*sgbcMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-		
-		ProblemDescription sgbcpd(sgbcModel, probes, srcmngr_.sources, opts_);
-		DGOperatorFactory<FiniteElementSpace> sgbcops(sgbcpd, *globalSGBCfes);
+        Model sgbcModel = Model(*sgbcMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+        
+        ProblemDescription sgbcpd(sgbcModel, probes, srcmngr_.sources, opts_);
+        DGOperatorFactory<FiniteElementSpace> sgbcops(sgbcpd, *globalSGBCfes);
 
-		SGBCOperator_ = sgbcops.buildTFSFGlobalOperator();
+        SGBCOperator_ = sgbcops.buildTFSFGlobalOperator();
 
-		auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-		mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
-	}
+        auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+        mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
+    }
 
-	ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
-	DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
+    ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
+    DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
 
-	globalOperator_ = dgops.buildGlobalOperator();
+    globalOperator_ = dgops.buildGlobalOperator();
 
 }
 
 const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 {
-	mfem::Vector res(6 * func[0][0].Size());
-	res.UseDevice(true);
-	for (auto f : { E, H }) {
-		for (auto d : { X, Y, Z }) {
-			for (auto v{ 0 }; v < func[f][d].Size(); v++) {
-				res[v + (f * 3 + d) * func[f][d].Size()] = func[f][d][v];
-			}
-		}
-	}
-	return res;
+    mfem::Vector res(6 * func[0][0].Size());
+    res.UseDevice(true);
+    for (auto f : { E, H }) {
+        for (auto d : { X, Y, Z }) {
+            for (auto v{ 0 }; v < func[f][d].Size(); v++) {
+                res[v + (f * 3 + d) * func[f][d].Size()] = func[f][d][v];
+            }
+        }
+    }
+    return res;
 }
 
-void assertVectorOnDevice(const Vector &v, const std::string &name)
+void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
 {
-    MemoryType mem_type = v.GetMemory().GetMemoryType();
-    if (mem_type != MemoryType::DEVICE)
+    mfem::MemoryType mem_type = v.GetMemory().GetMemoryType();
+    if (mem_type != mfem::MemoryType::DEVICE)
     {
         mfem::out << "Warning: Vector '" << name << "' latest data is NOT on device!\n";
     }
@@ -231,7 +290,17 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
         // 4) Add forcing s(t_stage) (TFSF etc.), gated by final time
     timerSGBC.Start();
-    //Do SGBC Matrix-Vector Mult
+    
+    for (const auto& [tag, pairs] : sgbc_pairs_){
+        for (auto w = 0; w < sgbcWrappers_.size(); w++){
+            if (tag == sgbcWrappers_[w]->getProperties().geom_tags.at(0)){
+                for (auto p = 0; p < pairs.size(); p++){
+                    sgbcWrappers_[w]->updateFieldsWithGlobal(eOld_, hOld_, pairs[p]);
+                }
+            }
+        }
+    }
+
     timerSGBC.Stop();
 
     timerTotal.Stop();

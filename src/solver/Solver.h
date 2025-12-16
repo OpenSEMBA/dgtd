@@ -43,7 +43,8 @@ public:
     ~Solver();
 
     const ParFields& getFields() const { return fields_; };
-    const ParGridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    void  setFieldValue(const FieldType& f, const Direction& d, const size_t dof_no, const double val) { fields_.get(f,d)[dof_no] = val; }
+    const ParGridFunction& getConstField(const FieldType& f, const Direction& d) const  { return fields_.get(f, d); }
     const FieldProbe& getFieldProbe(std::size_t probe) const;
     const PointProbe& getPointProbe(std::size_t probe) const;
 
@@ -59,7 +60,6 @@ public:
 
     void run();
     void step();
-    void stepSGBC();
 
     void setFinalTime(double final_time) {
         opts_.setFinalTime(final_time);
@@ -79,8 +79,6 @@ private:
     double time_;
     double dt_;
     std::unique_ptr<ODESolver> odeSolver_;
-
-    std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
     
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 

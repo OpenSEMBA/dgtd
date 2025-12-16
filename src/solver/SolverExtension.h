@@ -5,11 +5,11 @@
 #include "SolverOptions.h"
 
 #include <mfem.hpp>
+#include <memory>
 
 namespace maxwell 
 {
 
-// ADDED: Forward Declaration
 class Solver;
 
 using GlobalId = NodeId;
@@ -19,7 +19,7 @@ using NodePair = std::pair<NodeId, NodeId>;
 
 using SGBCForcingFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
 using SGBCNodalFields = SGBCForcingFields;
-using FullNodalFields = std::array<std::array<GridFunction, 3>, 2>;
+using FullNodalFields = std::array<std::array<mfem::GridFunction, 3>, 2>;
 using ModalValues = Eigen::VectorXcd;
 using NodalValues = Eigen::VectorXd;
 
@@ -63,7 +63,10 @@ public:
     static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp); // Call to constructor call with no intBdrProperties.
     static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp); // Call to constructor with PEC on both real/ghost interfaces.
 
+    void updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, const std::array<mfem::ParGridFunction, 3>& h, const NodePair& pair);
+
     void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
+    const SGBCProperties& getProperties() const { return sbcp_; }
 
     ~SGBCWrapper();
 
@@ -72,6 +75,7 @@ private:
     SGBCWrapper(const SGBCProperties&, const SGBCBoundaries&);
 
     const SGBCProperties& sbcp_;
+    
     std::unique_ptr<Solver> solver_;
 
     SGBCLocalNodeInfo dof_pair_;
