@@ -125,6 +125,28 @@ void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction,
     }
 }
 
+void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const NodePair& pair, FieldGridFuncs& out)
+{
+    const auto local_ghost_border_dof = this->getProperties().order + 1;
+    const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();
+    const auto first_idx = sub_to_global.Find(pair.first);
+    const auto second_idx =sub_to_global.Find(pair.second);
+    for (auto f : {E, H}){
+        for (auto d : {X, Y, Z}){
+            out[f][d][first_idx] = this->solver_->getConstField(f,d)[local_ghost_border_dof];
+            out[f][d][second_idx] = this->solver_->getConstField(f,d)[(local_field_size - 1) - local_ghost_border_dof];
+        }
+    }
+}
+
+void SGBCWrapper::solve(const Time t, const Time dt)
+{
+    this->solver_->getSolverOptions().setFinalTime(t + dt);
+    this->solver_->getSolverOptions().setTimeStep(dt);
+    this->solver_->getEvolTDO()->SetTime(t);
+    this->solver_->step();
+}
+
 SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
 sbcp_(sbcp)
 { 
@@ -140,7 +162,7 @@ sbcp_(sbcp)
 
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
 
-    this->dt_ = 0.0;
+    this->old_t_ = 0.0;
 
 }
 

@@ -8,6 +8,7 @@ namespace maxwell {
 
 using NodeId = int;
 using NodePair = std::pair<NodeId, NodeId>;
+using FieldGridFuncs = std::array<std::array<mfem::GridFunction, 3>, 2>;
 
 class SGBCWrapper;
 

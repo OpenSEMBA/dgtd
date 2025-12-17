@@ -63,7 +63,7 @@
       "magnitude": {
         "type": "gaussian",
         "spread": 0.3,
-        "mean": [ -4.5 ]
+        "mean": [ 0.0 ]
       }
     }
   ]

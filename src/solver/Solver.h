@@ -54,9 +54,11 @@ public:
     Model& getModel() { return model_; }
     ParFiniteElementSpace& getFES() { return *fes_.get(); }
 
-    const mfem::TimeDependentOperator* getFEEvol() const { return evolTDO_.get(); }
+    const mfem::TimeDependentOperator* getConstEvolTDO() const { return evolTDO_.get(); }
+    mfem::TimeDependentOperator* getEvolTDO() { return evolTDO_.get(); }
 
-    const SolverOptions& getSolverOptions() const { return this->opts_; }
+    SolverOptions& getSolverOptions() { return this->opts_; }
+
 
     void run();
     void step();

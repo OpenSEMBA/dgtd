@@ -66,7 +66,13 @@ public:
     void updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, const std::array<mfem::ParGridFunction, 3>& h, const NodePair& pair);
 
     void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
+    void getSGBCFields(const Array<int>& sub_to_global, const NodePair& pair, FieldGridFuncs& out);
     const SGBCProperties& getProperties() const { return sbcp_; }
+
+
+    void solve(const Time t, const Time dt);
+    void setOldTime(const Time t) { old_t_ = t; }
+    const Time getOldTime() const { return old_t_; }
 
     ~SGBCWrapper();
 
@@ -80,8 +86,8 @@ private:
 
     SGBCLocalNodeInfo dof_pair_;
     FluxNodeInfo flux_nodes_;
-    
-    Time dt_;
+
+    Time old_t_ = 0.0;
     
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>* global_fields_;
     std::unique_ptr<Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>> sgbc_solver_fields_;

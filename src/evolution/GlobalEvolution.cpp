@@ -46,6 +46,19 @@ std::map<GeomTag, std::vector<NodePair>> GlobalEvolution::findSGBCDoFPairs()
     return res;
 }
 
+FieldGridFuncs initSGBCHelperFields(const int size)
+{
+    FieldGridFuncs res;
+    for (auto f : {E, H}){
+        for (auto d : {X, Y , Z}){
+            res.at(f).at(d).UseDevice(true);
+            res.at(f).at(d).SetSize(size);
+            res.at(f).at(d) = 0.0;
+        }
+    }
+    return res;
+}
+
 
 GlobalEvolution::GlobalEvolution(
     mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
@@ -137,7 +150,7 @@ GlobalEvolution::GlobalEvolution(
 
 const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 {
-    mfem::Vector res(6 * func[0][0].Size());
+    mfem::Vector res(6 * func[E][X].Size());
     res.UseDevice(true);
     for (auto f : { E, H }) {
         for (auto d : { X, Y, Z }) {
@@ -244,14 +257,16 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         // Gate: if tfsfFinalTime is set and we are at/after it, skip TFSF assembly entirely.
         const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
 
-        if (tfsf_active)
-        {
+        if (tfsf_active){
             const int ndofs_tfsf = tfsf_space->GetNDofs();
 
-            for (auto& source : srcmngr_.sources)
-            {
-                if (!source) { continue; }
-                if (!dynamic_cast<TotalField*>(source.get())) { continue; }
+            for (auto& source : srcmngr_.sources){
+                if (!source) { 
+                    continue; 
+                }
+                if (!dynamic_cast<TotalField*>(source.get())) { 
+                    continue; 
+                }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
                 const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
@@ -269,16 +284,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, out,
                                               ndofs, ndofs_tfsf);
 #else
-                for (int f : { E, H })
-                {
-                    for (int d : { X, Y, Z })
-                    {
-                        for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v)
-                        {
+                for (int f : { E, H }){
+                    for (int d : { X, Y, Z }){
+                        for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v){
                             const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
                             const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
                             const double val  = tempTFSF[tempIdx];
-                            if (val != 0.0) { out[outIdx] -= val; }
+                            out[outIdx] -= val;
                         }
                     }
                 }
@@ -288,19 +300,41 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
     timerTFSF.Stop();
 
-        // 4) Add forcing s(t_stage) (TFSF etc.), gated by final time
     timerSGBC.Start();
-    
     for (const auto& [tag, pairs] : sgbc_pairs_){
         for (auto w = 0; w < sgbcWrappers_.size(); w++){
             if (tag == sgbcWrappers_[w]->getProperties().geom_tags.at(0)){
                 for (auto p = 0; p < pairs.size(); p++){
+
                     sgbcWrappers_[w]->updateFieldsWithGlobal(eOld_, hOld_, pairs[p]);
+                    sgbcWrappers_[w]->solve(GetTime(), GetTime() - sgbcWrappers_[w]->getOldTime());
+                    sgbcWrappers_[w]->setOldTime(GetTime());
+
+                    const auto sgbc_vec_size = SGBCOperator_->Height() / 6;
+                    auto sgbc_fields = initSGBCHelperFields(sgbc_vec_size);
+                    sgbcWrappers_[w]->getSGBCFields(sgbc_sub_to_parent_ids_, pairs[p], sgbc_fields);
+                    auto sgbc_vector = buildSingleVectorTFSFFunc(sgbc_fields);
+                    mfem::Vector tempSGBC(sgbc_vector.Size());
+                    tempSGBC.UseDevice(true);
+
+                    auto current_debug_time = GetTime();
+
+                    SGBCOperator_->Mult(sgbc_vector, tempSGBC);
+
+                    for (int f : { E, H }){
+                        for (int d : { X, Y, Z }){
+                            for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v){
+                                const int out_idx = (f * 3 + d) * ndofs + sgbc_sub_to_parent_ids_[v];
+                                const int temp_idx = (f * 3 + d) * sgbc_vec_size + v;
+                                out[out_idx] -= tempSGBC[temp_idx];
+                            }
+                        }
+                    }
+
                 }
             }
         }
     }
-
     timerSGBC.Stop();
 
     timerTotal.Stop();
@@ -319,7 +353,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                   << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000.0 << std::endl;
         std::cout << "Rank " << Mpi::WorldRank()
                   << " Mult applyA: "    << timerApplyA.RealTime()        * 1000.0
-                  << " ms, tfsf: "       << timerTFSF.RealTime()          * 1000.0 << std::endl;
+                  << " ms, tfsf: "       << timerTFSF.RealTime()          * 1000.0 
+                  << " ms, sgbc: "       << timerSGBC.RealTime()          * 1000.0 << std::endl;
 
         lastPrintTime = (lastPrintTime < 0.0) ? currentTime : lastPrintTime + printInterval;
     }
