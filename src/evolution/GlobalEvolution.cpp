@@ -180,6 +180,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
     mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerApplyA, timerTFSF, timerSGBC;
 
+    auto current_debug_time = GetTime();
+
     timerTotal.Start();
 
     const auto ndofs     = fes_.GetNDofs();
@@ -305,7 +307,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         for (auto w = 0; w < sgbcWrappers_.size(); w++){
             if (tag == sgbcWrappers_[w]->getProperties().geom_tags.at(0)){
                 for (auto p = 0; p < pairs.size(); p++){
-
+                    
                     sgbcWrappers_[w]->updateFieldsWithGlobal(eOld_, hOld_, pairs[p]);
                     sgbcWrappers_[w]->solve(GetTime(), GetTime() - sgbcWrappers_[w]->getOldTime());
                     sgbcWrappers_[w]->setOldTime(GetTime());
@@ -317,16 +319,28 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     mfem::Vector tempSGBC(sgbc_vector.Size());
                     tempSGBC.UseDevice(true);
 
-                    auto current_debug_time = GetTime();
-
                     SGBCOperator_->Mult(sgbc_vector, tempSGBC);
+
+                    auto dir_size = tempSGBC.Size() / 6;
+                    for (int f : { E, H }){
+                        for (int d : { X, Y, Z }){
+                            for (auto v = 0; v < dir_size / 2; v++){
+                                tempSGBC[(f * 3 + d) * dir_size + dir_size - 1 - v] = tempSGBC[(f * 3 + d) * dir_size + v];
+                                // tempSGBC[(f * 3 + d) * dir_size + v] -= tempSGBC[(f * 3 + d) * dir_size + dir_size - 1 - v];
+                            }
+                        }
+                    }
 
                     for (int f : { E, H }){
                         for (int d : { X, Y, Z }){
                             for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v){
                                 const int out_idx = (f * 3 + d) * ndofs + sgbc_sub_to_parent_ids_[v];
                                 const int temp_idx = (f * 3 + d) * sgbc_vec_size + v;
-                                out[out_idx] -= tempSGBC[temp_idx];
+                                if (v < sgbc_sub_to_parent_ids_.Size() / 2){
+                                    out[out_idx] += tempSGBC[temp_idx];
+                                } else {
+                                    out[out_idx] += tempSGBC[temp_idx];
+                                }
                             }
                         }
                     }
