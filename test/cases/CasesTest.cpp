@@ -135,6 +135,31 @@ TEST_F(CasesTest, 1D_PEC_Upwind)
 }
 
 
+TEST_F(CasesTest, 1D_SMA_Upwind)
+{
+	auto case_data = parseJSONfile(maxwellCase("1D_PEC"));
+    case_data["model"]["boundaries"][0]["type"] = "SMA";
+	case_data["solver_options"]["final_time"] = 1.0;
+	auto solver{ buildSolver(case_data, maxwellCase("1D_PEC"), true) };
+
+	GridFunction eOld{ solver.getConstField(E,Y) };
+	auto normOld{ solver.getFields().getNorml2() };
+
+	// Checks fields have been initialized.
+	EXPECT_NE(0.0, normOld);
+
+	double tolerance{ 1e-2 };
+
+	solver.run();
+
+	// Checks that field is almost the same as initially because the completion 
+	// of a cycle.
+	GridFunction eNew{ solver.getConstField(E,Y) };
+	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 1e-2);
+
+}
+
+
 TEST_F(CasesTest, 1D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("1D_TFSF"));
