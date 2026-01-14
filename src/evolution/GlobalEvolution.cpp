@@ -291,8 +291,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                         for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v){
                             const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
                             const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
-                            const double val  = tempTFSF[tempIdx];
-                            out[outIdx] -= val;
+                            out[outIdx] -= tempTFSF[tempIdx];
                         }
                     }
                 }
@@ -316,35 +315,30 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     auto sgbc_fields = initSGBCHelperFields(sgbc_vec_size);
                     sgbcWrappers_[w]->getSGBCFields(sgbc_sub_to_parent_ids_, pairs[p], sgbc_fields);
                     auto sgbc_vector = buildSingleVectorTFSFFunc(sgbc_fields);
+                    // sgbc_vector/=2.0;
                     mfem::Vector tempSGBC(sgbc_vector.Size());
                     tempSGBC.UseDevice(true);
 
                     SGBCOperator_->Mult(sgbc_vector, tempSGBC);
 
                     auto dir_size = tempSGBC.Size() / 6;
-                    for (int f : { E, H }){
-                        for (int d : { X, Y, Z }){
-                            for (auto v = 0; v < dir_size / 2; v++){
-                                tempSGBC[(f * 3 + d) * dir_size + dir_size - 1 - v] = tempSGBC[(f * 3 + d) * dir_size + v];
-                                // tempSGBC[(f * 3 + d) * dir_size + v] -= tempSGBC[(f * 3 + d) * dir_size + dir_size - 1 - v];
-                            }
-                        }
-                    }
+                    // for (int f : { E, H }){
+                    //     for (int d : { X, Y, Z }){
+                    //         for (auto v = 0; v < dir_size / 2; v++){
+                    //             tempSGBC[(f * 3 + d) * dir_size + v] = tempSGBC[(f * 3 + d) * dir_size + dir_size - 1 - v];
+                    //         }
+                    //     }
+                    // }
 
                     for (int f : { E, H }){
                         for (int d : { X, Y, Z }){
                             for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v){
-                                const int out_idx = (f * 3 + d) * ndofs + sgbc_sub_to_parent_ids_[v];
                                 const int temp_idx = (f * 3 + d) * sgbc_vec_size + v;
-                                if (v < sgbc_sub_to_parent_ids_.Size() / 2){
-                                    out[out_idx] += tempSGBC[temp_idx];
-                                } else {
-                                    out[out_idx] += tempSGBC[temp_idx];
-                                }
+                                const int out_idx = (f * 3 + d) * ndofs + sgbc_sub_to_parent_ids_[v];
+                                out[out_idx] -= tempSGBC[temp_idx];
                             }
                         }
                     }
-
                 }
             }
         }

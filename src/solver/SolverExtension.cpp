@@ -133,10 +133,8 @@ void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const NodePair&
     const auto second_idx =sub_to_global.Find(pair.second);
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
-            for (auto dof = 0; dof < out.at(f).at(d).Size() / 2; dof++){
-                out[f][d][first_idx - dof] = this->solver_->getConstField(f,d)[left_ghost_border_dof];
-                out[f][d][second_idx + dof] = this->solver_->getConstField(f,d)[(local_field_size - 1) - left_ghost_border_dof];
-            }
+            out[f][d][first_idx] = this->solver_->getConstField(f,d)[left_ghost_border_dof];
+            out[f][d][second_idx] = this->solver_->getConstField(f,d)[(local_field_size - 1) - left_ghost_border_dof];
         }
     }
 }
