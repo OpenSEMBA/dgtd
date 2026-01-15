@@ -159,11 +159,11 @@ sbcp_(sbcp)
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
-    probes.exporterProbes.resize(1);
-    ExporterProbe ep;
-    ep.name = "InsideSGBC";
-    ep.visSteps = 100;
-    probes.exporterProbes.at(0) = ep;
+    // probes.exporterProbes.resize(1);
+    // ExporterProbe ep;
+    // ep.name = "InsideSGBC";
+    // ep.visSteps = 1000;
+    // probes.exporterProbes.at(0) = ep;
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
     opts.setExportEO(true);

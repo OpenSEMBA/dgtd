@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-3,
-    "final_time": 12.0,
+    "time_step": 1e-4,
+    "final_time": 20.0,
     "order": 2
   },
 
@@ -23,12 +23,12 @@
         "tags": [ 4 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 1.0,
+          "relative_permittivity": 20.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 1e2,
-          "num_of_segments": 20,
-          "order": 1,
-          "material_width": 1e-6
+          "bulk_conductivity": 75.35,
+          "num_of_segments": 30,
+          "order": 2,
+          "material_width": 6e-2
         }
       }
     ]
@@ -36,7 +36,7 @@
 
   "probes": {
     "exporter": {
-      "steps": 100
+      "steps": 1000
     },
     "point": [
       {
@@ -62,7 +62,7 @@
       "tags": [ 3 ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.3,
+        "spread": 0.1,
         "mean": [ 0.0 ]
       }
     }
