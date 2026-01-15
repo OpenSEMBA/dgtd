@@ -2,20 +2,9 @@
 #include "solver/SolverExtension.h"
 
 #include <chrono>
+#include <unordered_set>
 
 namespace maxwell {
-
-InteriorFaceConnectivityMaps getGlobalNodeID(const InteriorFaceConnectivityMaps& local_dof_ids, const GlobalConnectivity& global)
-{
-    InteriorFaceConnectivityMaps res;
-    res.first.resize(local_dof_ids.first.size());
-    res.second.resize(local_dof_ids.second.size());
-    for (auto v{ 0 }; v < res.first.size(); v++) {
-        res.first[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.first[v], local_dof_ids.second[v])));
-        res.second[v] = std::distance(std::begin(global), std::find(global.begin(), global.end(), std::make_pair(local_dof_ids.second[v], local_dof_ids.first[v])));
-    }
-    return res;
-}
 
 std::map<GeomTag, std::vector<NodePair>> GlobalEvolution::findSGBCDoFPairs()
 {
@@ -23,21 +12,29 @@ std::map<GeomTag, std::vector<NodePair>> GlobalEvolution::findSGBCDoFPairs()
     
     auto attMap{ mapOriginalAttributes(*fes_.GetMesh()) };
     auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
-    GlobalConnectivity global = assembleGlobalConnectivityMap(*fes_.GetMesh(), fec);
+    
     auto sgbc_marker = model_.getMarker(BdrCond::SGBC, true);
     if (sgbc_marker.Size() != 0){
         for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
             if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
                 const mfem::FaceElementTransformations* faceTrans;
                 fes_.GetMesh()->FaceIsInterior(fes_.GetMesh()->GetFaceElementTransformations(fes_.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_.GetMesh()->GetBdrFaceTransformations(b);
+                
                 if (fes_.GetMesh()->Dimension() == 1){
-                    res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1);
+                    // 1D Case: Simple arithmetic for local DOFs
+                    res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
+                        faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), 
+                        faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1
+                    );
                 } else {
                     auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_.GetMesh(), *faceTrans, attMap) };
                     mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
-                    auto node_pair_global{ getGlobalNodeID(buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES), global)};
-                    for (auto p = 0; p < node_pair_global.first.size(); p++){
-                        res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(node_pair_global.first[p], node_pair_global.second[p]);
+                    auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
+                    for (auto p = 0; p < node_pair_local.first.size(); p++){
+                        res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
+                            node_pair_local.first[p], 
+                            node_pair_local.second[p]
+                        );
                     }
                 }
             }
@@ -59,7 +56,6 @@ FieldGridFuncs initSGBCHelperFields(const int size)
     return res;
 }
 
-
 GlobalEvolution::GlobalEvolution(
     mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
     mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
@@ -68,7 +64,6 @@ GlobalEvolution::GlobalEvolution(
     srcmngr_{ srcmngr },
     opts_{ options }
 {
-
     fes_.ExchangeFaceNbrData();
 
     for (auto d = X; d <= Z; d++){
@@ -78,7 +73,7 @@ GlobalEvolution::GlobalEvolution(
 
     sgbc_pairs_ = findSGBCDoFPairs();
     for (const auto& [tag, pair_vector] : sgbc_pairs_){
-		const auto& sbcps = model_.getSGBCProperties();
+        const auto& sbcps = model_.getSGBCProperties();
         for (auto p = 0; p < sbcps.size(); p++){
             for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
                 if (tag == sbcps[p].geom_tags[t]){
@@ -94,58 +89,34 @@ GlobalEvolution::GlobalEvolution(
         numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs)
     );
 
-#ifdef SHOW_TIMER_INFORMATION
-    if (Mpi::WorldRank() == 0){
-        std::cout << "------------------------------------------------" << std::endl;
-        std::cout << "---------OPERATOR ASSEMBLY INFORMATION----------" << std::endl;
-        std::cout << "------------------------------------------------" << std::endl;
-        std::cout << std::endl;
-    }
-#endif
-
-
-    Probes probes; // Local probes instance for operator construction
+    Probes probes; 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
-
         srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
-
         auto globalTFSFfes = srcmngr_.getGlobalTFSFSpace();
         auto tfsfMesh = globalTFSFfes->GetMesh();
-
         Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-        
         ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
         DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
-
         TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
-
         auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
         mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
     }
 
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
-
         srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getSGBCToMarker().at(BdrCond::SGBC));
-
         auto globalSGBCfes = srcmngr_.getGlobalTFSFSpace();
         auto sgbcMesh = globalSGBCfes->GetMesh();
-
         Model sgbcModel = Model(*sgbcMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-        
         ProblemDescription sgbcpd(sgbcModel, probes, srcmngr_.sources, opts_);
         DGOperatorFactory<FiniteElementSpace> sgbcops(sgbcpd, *globalSGBCfes);
-
         SGBCOperator_ = sgbcops.buildTFSFGlobalOperator();
-
         auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
         mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
     }
 
     ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
     DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
-
     globalOperator_ = dgops.buildGlobalOperator();
-
 }
 
 const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
@@ -165,16 +136,29 @@ const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
 {
     mfem::MemoryType mem_type = v.GetMemory().GetMemoryType();
-    if (mem_type != mfem::MemoryType::DEVICE)
-    {
+    if (mem_type != mfem::MemoryType::DEVICE) {
         mfem::out << "Warning: Vector '" << name << "' latest data is NOT on device!\n";
-    }
-    else
-    {
+    } else {
         mfem::out << "Vector '" << name << "' latest data is on DEVICE.\n";
     }
 }
 
+void GlobalEvolution::advanceSGBCs(double time, double dt, 
+                                   const std::array<mfem::ParGridFunction, 3>& e, 
+                                   const std::array<mfem::ParGridFunction, 3>& h)
+{
+    for (const auto& [tag, pairs] : sgbc_pairs_){
+        for (auto& w : sgbcWrappers_){
+            if (tag == w->getProperties().geom_tags.at(0)){
+                for (auto& p : pairs){
+                    w->updateFieldsWithGlobal(e, h, p);
+                }
+                w->solve(time, dt);
+                w->setOldTime(time);
+            }
+        }
+    }
+}
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
@@ -188,28 +172,24 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
-    // 1) Load locals and exchange neighbors
     timerExchange.Start();
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
 #else
-    for (int d = X; d <= Z; ++d)
-    {
-        for (int v = 0; v < ndofs; ++v)
-        {
+    for (int d = X; d <= Z; ++d) {
+        for (int v = 0; v < ndofs; ++v) {
             eOld_[d][v] = in[d * ndofs + v];
             hOld_[d][v] = in[(3 + d) * ndofs + v];
         }
     }
 #endif
-    for (int d = X; d <= Z; ++d)
-    {
+    for (int d = X; d <= Z; ++d) {
         eOld_[d].ExchangeFaceNbrData();
         hOld_[d].ExchangeFaceNbrData();
     }
     timerExchange.Stop();
 
-    // 2) Assemble packed input [locals|neighbors]
+    // 2) Assemble packed input
     timerAssembleInNew.Start();
     mfem::Vector inNew(6 * blockSize);
     inNew.UseDevice(true);
@@ -218,23 +198,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
     load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
 #else
-    for (int d = X; d <= Z; ++d)
-    {
-        MFEM_ASSERT(eOld_[d].Size() == ndofs, "eOld size mismatch");
-        MFEM_ASSERT(hOld_[d].Size() == ndofs, "hOld size mismatch");
-
-        // locals
+    for (int d = X; d <= Z; ++d) {
         inNew.SetVector(eOld_[d],       d      * blockSize);
         inNew.SetVector(hOld_[d],  (3 + d)     * blockSize);
-
-        // neighbors
-        if (nbrDofs)
-        {
+        if (nbrDofs) {
             mfem::Vector &eNbr = eOld_[d].FaceNbrData();
             mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            MFEM_ASSERT(eNbr.Size() == nbrDofs, "e-nbr size mismatch");
-            MFEM_ASSERT(hNbr.Size() == nbrDofs, "h-nbr size mismatch");
-
             inNew.SetVector(eNbr,      d      * blockSize + ndofs);
             inNew.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
         }
@@ -242,33 +211,24 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     timerAssembleInNew.Stop();
 
-    // 3) Apply global operator A
     timerApplyA.Start();
     out.SetSize(6 * ndofs);
     out.UseDevice(true);
     globalOperator_->Mult(inNew, out);
     timerApplyA.Stop();
 
-    // 4) Add forcing s(t_stage) (TFSF etc.), gated by final time
     timerTFSF.Start();
     if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
     {
         const double t_stage = GetTime();
         const double t_off   = opts_.tfsf_cutoff_time;
-
-        // Gate: if tfsfFinalTime is set and we are at/after it, skip TFSF assembly entirely.
         const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
 
         if (tfsf_active){
             const int ndofs_tfsf = tfsf_space->GetNDofs();
-
             for (auto& source : srcmngr_.sources){
-                if (!source) { 
-                    continue; 
-                }
-                if (!dynamic_cast<TotalField*>(source.get())) { 
-                    continue; 
-                }
+                if (!source) continue; 
+                if (!dynamic_cast<TotalField*>(source.get())) continue; 
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
                 const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
@@ -282,9 +242,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 TFSFOperator_->Mult(assembledFunc, tempTFSF);
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-                // Adds (-tempTFSF) into 'out'
-                load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, out,
-                                              ndofs, ndofs_tfsf);
+                load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, out, ndofs, ndofs_tfsf);
 #else
                 for (int f : { E, H }){
                     for (int d : { X, Y, Z }){
@@ -305,39 +263,61 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     for (const auto& [tag, pairs] : sgbc_pairs_){
         for (auto w = 0; w < sgbcWrappers_.size(); w++){
             if (tag == sgbcWrappers_[w]->getProperties().geom_tags.at(0)){
+                
                 for (auto p = 0; p < pairs.size(); p++){
-                    
-                    sgbcWrappers_[w]->updateFieldsWithGlobal(eOld_, hOld_, pairs[p]);
-                    sgbcWrappers_[w]->solve(GetTime(), GetTime() - sgbcWrappers_[w]->getOldTime());
-                    sgbcWrappers_[w]->setOldTime(GetTime());
-
-                    const auto sgbc_vec_size = SGBCOperator_->Height() / 6;
-                    auto sgbc_fields = initSGBCHelperFields(sgbc_vec_size);
+                   sgbcWrappers_[w]->updateFieldsWithGlobal(eOld_, hOld_, pairs[p]);
+                }
+                const auto sgbc_vec_size = SGBCOperator_->Height() / 6;
+                auto sgbc_fields = initSGBCHelperFields(sgbc_vec_size);
+                
+                for (auto p = 0; p < pairs.size(); p++) {
                     sgbcWrappers_[w]->getSGBCFields(sgbc_sub_to_parent_ids_, pairs[p], sgbc_fields);
-                    auto sgbc_vector = buildSingleVectorTFSFFunc(sgbc_fields);
-                    // sgbc_vector/=2.0;
-                    mfem::Vector tempSGBC(sgbc_vector.Size());
-                    tempSGBC.UseDevice(true);
+                    
+                    const int global_node_left = pairs[p].first;  
+                    const int global_node_right = pairs[p].second;
+                    
+                    const int sub_idx_L = sgbc_sub_to_parent_ids_.Find(global_node_left);
+                    const int sub_idx_R = sgbc_sub_to_parent_ids_.Find(global_node_right);
 
-                    SGBCOperator_->Mult(sgbc_vector, tempSGBC);
+                    if (sub_idx_L == -1 || sub_idx_R == -1) continue; 
 
-                    auto dir_size = tempSGBC.Size() / 6;
-                    // for (int f : { E, H }){
-                    //     for (int d : { X, Y, Z }){
-                    //         for (auto v = 0; v < dir_size / 2; v++){
-                    //             tempSGBC[(f * 3 + d) * dir_size + v] = tempSGBC[(f * 3 + d) * dir_size + dir_size - 1 - v];
-                    //         }
-                    //     }
-                    // }
+                    // --- Mass Matrix Scaling (Generalized for Non-Uniform Meshes) ---
+                    // Inverse Mass at boundary is proportional to Area/Volume.
+                    // For 1D DG: Scale = P(P+1) / h
+                    // We use GetElementVolume to safely handle non-uniform stretching.
+                    
+                    int order = fes_.GetElementOrder(0); 
+                    int el_idx_L = global_node_left / (order + 1); 
+                    int el_idx_R = global_node_right / (order + 1);
 
-                    for (int f : { E, H }){
-                        for (int d : { X, Y, Z }){
-                            for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v){
-                                const int temp_idx = (f * 3 + d) * sgbc_vec_size + v;
-                                const int out_idx = (f * 3 + d) * ndofs + sgbc_sub_to_parent_ids_[v];
-                                out[out_idx] -= tempSGBC[temp_idx];
-                            }
-                        }
+                    double vol_L = fes_.GetMesh()->GetElementVolume(el_idx_L);
+                    double vol_R = fes_.GetMesh()->GetElementVolume(el_idx_R);
+
+                    double scale_L = (double)(order * (order + 1)) / vol_L;
+                    double scale_R = (double)(order * (order + 1)) / vol_R;
+
+                    for (auto d : {X, Y, Z}) {
+                        double Eg_L = eOld_[d][global_node_left];
+                        double Hg_L = hOld_[d][global_node_left];
+                        double Es_L = sgbc_fields[E][d][sub_idx_L]; 
+                        double Hs_L = sgbc_fields[H][d][sub_idx_L]; 
+
+                        double flux_E_L = ((Hs_L - Hg_L) + (Es_L - Eg_L)) * 0.5;
+                        double flux_H_L = ((Es_L - Eg_L) + (Hs_L - Hg_L)) * 0.5;
+
+                        out[(E * 3 + d) * ndofs + global_node_left] += (flux_E_L * scale_L);
+                        out[(H * 3 + d) * ndofs + global_node_left] += (flux_H_L * scale_L);
+
+                        double Eg_R = eOld_[d][global_node_right];
+                        double Hg_R = hOld_[d][global_node_right];
+                        double Es_R = sgbc_fields[E][d][sub_idx_R]; 
+                        double Hs_R = sgbc_fields[H][d][sub_idx_R]; 
+
+                        double flux_E_R = -((Hs_R - Hg_R) - (Es_R - Eg_R)) * 0.5;
+                        double flux_H_R = -((Es_R - Eg_R) - (Hs_R - Hg_R)) * 0.5;
+
+                        out[(E * 3 + d) * ndofs + global_node_right] += (flux_E_R * scale_R);
+                        out[(H * 3 + d) * ndofs + global_node_right] += (flux_H_R * scale_R);
                     }
                 }
             }
@@ -347,9 +327,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
     timerTotal.Stop();
 
-    // 5) Periodic timing print
     static double lastPrintTime = -1.0;
-    const double printInterval = 0.1;  // in problem time units
+    const double printInterval = 0.1; 
     const double currentTime = GetTime();
 
     if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval)
@@ -372,7 +351,6 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                                     const mfem::Vector& x,
                                     mfem::Vector& k)
 {
-    // (I - dt * A) k = A * x + s(t_stage), with GetTime() already set to stage time.
     mfem::StopWatch timerTotal, timerRHS, timerAx, timerSrc, timerSolve;
     timerTotal.Start();
 
@@ -382,17 +360,15 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     const int blockSize = ndofs + nbrDofs;
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 
-    // Reusable work buffers: eliminate per-matvec allocations/copies inside GMRES.
     struct ApplyAWork {
-        mfem::Vector inNew;  // packed [locals|neighbors]
-        mfem::Vector Au;     // output buffer
+        mfem::Vector inNew;  
+        mfem::Vector Au;     
         ApplyAWork(int packed, int out) : inNew(packed), Au(out) {
             inNew.UseDevice(true);
             Au.UseDevice(true);
         }
     } work(6 * blockSize, 6 * ndofs);
 
-    // Matrix-free apply of A (no sources), no printing inside (used by GMRES).
     auto applyA_noPrint = [&](const mfem::Vector& u, mfem::Vector& Au)
     {
 #ifdef SEMBA_DGTD_ENABLE_CUDA
@@ -427,12 +403,10 @@ void GlobalEvolution::ImplicitSolve(const double dt,
 #endif
 
         globalOperator_->Mult(work.inNew, work.Au);
-        Au = work.Au; // alias-safe copy
+        Au = work.Au; 
     };
 
-    // Build RHS = A*x + s(t_stage) with timing breakdown.
     timerRHS.Start();
-
     timerAx.Start();
     mfem::Vector rhs(n); rhs.UseDevice(true);
     applyA_noPrint(x, rhs);
@@ -445,14 +419,11 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace()) {
             const double t_stage = GetTime();
             const double t_off   = opts_.tfsf_cutoff_time;
-
-            // Gate: if tfsfFinalTime is set and we are at/after it, skip TFSF assembly entirely.
             const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
 
             if (tfsf_active)
             {
                 const int ndofs_tfsf = tfsf_space->GetNDofs();
-
                 for (auto& source : srcmngr_.sources) {
                     if (!source) { continue; }
                     if (!dynamic_cast<TotalField*>(source.get())) { continue; }
@@ -469,9 +440,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                     TFSFOperator_->Mult(assembledFunc, tempTFSF);
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-                    // Adds (-tempTFSF) into 's'
-                    load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, s,
-                                                  ndofs, ndofs_tfsf);
+                    load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, s, ndofs, ndofs_tfsf);
 #else
                     for (int f : { E, H }) {
                         for (int d : { X, Y, Z }) {
@@ -487,14 +456,11 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                 }
             }
         }
-
         rhs += s;
     }
     timerSrc.Stop();
-
     timerRHS.Stop();
 
-    // Linear operator: J(v) = v - dt * A v
     class JOp final : public mfem::Operator {
         std::function<void(const mfem::Vector&, mfem::Vector&)> applyA_;
         const double dt_;
@@ -508,13 +474,12 @@ void GlobalEvolution::ImplicitSolve(const double dt,
 
         void Mult(const mfem::Vector& v, mfem::Vector& Jv) const override
         {
-            applyA_(v, tmp_);   // tmp = A v
-            Jv = v;             // Jv  = v
-            Jv.Add(-dt_, tmp_); // Jv -= dt * A v
+            applyA_(v, tmp_);   
+            Jv = v;             
+            Jv.Add(-dt_, tmp_); 
         }
     } J(n, std::function<void(const mfem::Vector&, mfem::Vector&)>(applyA_noPrint), dt);
 
-    // GMRES solve without preconditioner.
     mfem::GMRESSolver gmres;
     gmres.SetOperator(J);
     gmres.SetRelTol(1e-8);
@@ -522,9 +487,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     gmres.SetKDim(60);
     gmres.SetPrintLevel(0);
 
-    // Initial guess: reuse current k if sized; else use rhs.
     if (k.Size() == n) {
-        // keep caller-provided guess
     } else {
         k.SetSize(n); k.UseDevice(true); k = rhs;
     }
@@ -535,7 +498,6 @@ void GlobalEvolution::ImplicitSolve(const double dt,
 
     timerTotal.Stop();
 
-    // Periodic timing print (problem time).
     static double lastPrintTime = -1.0;
     const double printInterval = 0.1;
     const double currentTime   = GetTime();

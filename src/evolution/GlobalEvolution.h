@@ -3,6 +3,7 @@
 #include "solver/SourcesManager.h"
 #include "components/DGOperatorFactory.h"
 #include "components/Types.h"
+#include <map>
 
 namespace maxwell {
 
@@ -14,34 +15,40 @@ class SGBCWrapper;
 
 class GlobalEvolution : public mfem::TimeDependentOperator {
 public:
-	static const int numberOfFieldComponents = 2;
-	static const int numberOfMaxDimensions = 3;
+    static const int numberOfFieldComponents = 2;
+    static const int numberOfMaxDimensions = 3;
 
-	GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-	virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
-	void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
+    GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+    virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
+    void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
-	const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
+    void advanceSGBCs(double time, double dt, 
+                      const std::array<mfem::ParGridFunction, 3>& e, 
+                      const std::array<mfem::ParGridFunction, 3>& h);
+
+    const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
 private:
 
-	std::map<GeomTag, std::vector<NodePair>> findSGBCDoFPairs();
+    std::map<GeomTag, std::vector<NodePair>> findSGBCDoFPairs();
 
-	std::unique_ptr<mfem::SparseMatrix> globalOperator_;
-	std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
-	std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
-	mfem::Array<int> tfsf_sub_to_parent_ids_;
-	mfem::Array<int> sgbc_sub_to_parent_ids_;
+    std::unique_ptr<mfem::SparseMatrix> globalOperator_;
+    std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
+    std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
+    mfem::Array<int> tfsf_sub_to_parent_ids_;
+    mfem::Array<int> sgbc_sub_to_parent_ids_;
 
-	std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
-	std::map<GeomTag, std::vector<NodePair>> sgbc_pairs_;
+    std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
+    std::map<GeomTag, std::vector<NodePair>> sgbc_pairs_;
+    
+    std::map<int, int> sgbc_coupling_map_;
 
-	mfem::ParFiniteElementSpace& fes_;
-	Model& model_;
-	SourcesManager& srcmngr_;
-	EvolutionOptions& opts_;
+    mfem::ParFiniteElementSpace& fes_;
+    Model& model_;
+    SourcesManager& srcmngr_;
+    EvolutionOptions& opts_;
 
-	mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
+    mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
 
 };
 
@@ -65,7 +72,7 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
 mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func);
 
 void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& tfsf_sub_to_parent_ids_, 
-                                   const mfem::Vector& tempTFSF,                              
+                                   const mfem::Vector& tempTFSF,                             
                                          mfem::Vector& out,
                                    const int global_ndofs,
                                    const int tfsf_ndofs);
