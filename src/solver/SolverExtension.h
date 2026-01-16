@@ -16,6 +16,7 @@ using GlobalId = NodeId;
 using LocalId = NodeId;
 using GhostId = NodeId;
 using NodePair = std::pair<NodeId, NodeId>;
+using ElementPair = std::pair<ElementId, ElementId>;
 
 using SGBCForcingFields = std::array<std::array<std::pair<double, double>, 3>, 2>;
 using SGBCNodalFields = SGBCForcingFields;
@@ -48,31 +49,43 @@ struct SGBCGlobalNodeInfo
     GlobalId g_el1, g_el2;
 };
 
-struct SGBCNodePairInfo
-{
-public:
-    SGBCNodePairInfo(const NodePair& global_pair);
+struct SGBCState {
+    NodePair global_pair;       
+    ElementPair element_pair;   
+    mfem::Vector fields_state;  
     
-    SGBCGlobalNodeInfo node_pairs;
-
+    void init(int size) {
+        fields_state.SetSize(size);
+        fields_state = 0.0;
+    }
 };
 
 class SGBCWrapper{
 public:
 
-    static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp); // Call to constructor call with no intBdrProperties.
-    static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp); // Call to constructor with PEC on both real/ghost interfaces.
+    static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp); 
+    static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp);
 
-    void updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, const std::array<mfem::ParGridFunction, 3>& h, const NodePair& pair);
+    // [MODIFIED] Now takes a specific state context
+    void updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, 
+                                const std::array<mfem::ParGridFunction, 3>& h, 
+                                const SGBCState& context);
 
     void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
-    void getSGBCFields(const Array<int>& sub_to_global, const NodePair& pair, FieldGridFuncs& out);
+    
+    // [MODIFIED] Now reads from state directly
+    void getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, FieldGridFuncs& out);
+    
     const SGBCProperties& getProperties() const { return sbcp_; }
-
 
     void solve(const Time t, const Time dt);
     void setOldTime(const Time t) { old_t_ = t; }
     const Time getOldTime() const { return old_t_; }
+
+    // [ADDED] Context Switching
+    void loadState(const SGBCState& state);
+    void saveState(SGBCState& state);
+    int getStateSize() const;
 
     ~SGBCWrapper();
 

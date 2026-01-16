@@ -6,43 +6,6 @@
 
 namespace maxwell {
 
-std::map<GeomTag, std::vector<NodePair>> GlobalEvolution::findSGBCDoFPairs()
-{
-    std::map<GeomTag, std::vector<NodePair>> res;
-    
-    auto attMap{ mapOriginalAttributes(*fes_.GetMesh()) };
-    auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
-    
-    auto sgbc_marker = model_.getMarker(BdrCond::SGBC, true);
-    if (sgbc_marker.Size() != 0){
-        for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
-            if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-                const mfem::FaceElementTransformations* faceTrans;
-                fes_.GetMesh()->FaceIsInterior(fes_.GetMesh()->GetFaceElementTransformations(fes_.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_.GetMesh()->GetBdrFaceTransformations(b);
-                
-                if (fes_.GetMesh()->Dimension() == 1){
-                    // 1D Case: Simple arithmetic for local DOFs
-                    res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
-                        faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), 
-                        faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1
-                    );
-                } else {
-                    auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_.GetMesh(), *faceTrans, attMap) };
-                    mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
-                    auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
-                    for (auto p = 0; p < node_pair_local.first.size(); p++){
-                        res[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
-                            node_pair_local.first[p], 
-                            node_pair_local.second[p]
-                        );
-                    }
-                }
-            }
-        }
-    }
-    return res;
-}
-
 FieldGridFuncs initSGBCHelperFields(const int size)
 {
     FieldGridFuncs res;
@@ -71,13 +34,86 @@ GlobalEvolution::GlobalEvolution(
         hOld_[d].SetSpace(&fes_);
     }
 
-    sgbc_pairs_ = findSGBCDoFPairs();
-    for (const auto& [tag, pair_vector] : sgbc_pairs_){
+    // 1. Find Pairs (Raw)
+    std::map<GeomTag, std::vector<NodePair>> raw_pairs;
+    {
+        auto attMap{ mapOriginalAttributes(*fes_.GetMesh()) };
+        auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
+        
+        auto sgbc_marker = model_.getMarker(BdrCond::SGBC, true);
+        if (sgbc_marker.Size() != 0){
+            for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
+                if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+                    const mfem::FaceElementTransformations* faceTrans;
+                    fes_.GetMesh()->FaceIsInterior(fes_.GetMesh()->GetFaceElementTransformations(fes_.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_.GetMesh()->GetBdrFaceTransformations(b);
+                    
+                    if (fes_.GetMesh()->Dimension() == 1){
+                        raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
+                            faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), 
+                            faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1
+                        );
+                    } else {
+                        auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_.GetMesh(), *faceTrans, attMap) };
+                        mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
+                        
+                        auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
+                        
+                        for (auto p = 0; p < node_pair_local.first.size(); p++){
+                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
+                                node_pair_local.first[p], 
+                                node_pair_local.second[p]
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Build Wrappers and States
+    
+    // [TEMPORARY] Build DOF -> Element Map locally just for initialization
+    // We do not store this in the class, keeping GlobalEvolution clean.
+    mfem::Array<int> temp_dof_to_elem(fes_.GetNDofs());
+    temp_dof_to_elem = -1;
+    {
+        const mfem::Table& elem_dof = fes_.GetElementToDofTable();
+        for (int el = 0; el < elem_dof.Size(); el++) {
+            const int* dofs = elem_dof.GetRow(el);
+            const int n_dofs = elem_dof.RowSize(el);
+            for (int i = 0; i < n_dofs; i++) {
+                temp_dof_to_elem[dofs[i]] = el;
+            }
+        }
+    }
+
+    for (const auto& [tag, pairs] : raw_pairs){
         const auto& sbcps = model_.getSGBCProperties();
         for (auto p = 0; p < sbcps.size(); p++){
             for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
                 if (tag == sbcps[p].geom_tags[t]){
+                    
                     auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p]);
+                    
+                    int state_size = wrap->getStateSize();
+                    for(const auto& pair : pairs) {
+                        SGBCState s;
+                        s.global_pair = pair;
+                        
+                        // [ADDED] Populate Element IDs from temporary map
+                        s.element_pair.first = temp_dof_to_elem[pair.first];
+                        s.element_pair.second = temp_dof_to_elem[pair.second];
+                        
+                        // Sanity Check
+                        if (s.element_pair.first == -1 || s.element_pair.second == -1) {
+                            std::cerr << "Error: Could not find Element ID for SGBC Node Pair: " 
+                                      << pair.first << ", " << pair.second << std::endl;
+                        }
+
+                        s.init(state_size);
+                        sgbc_states_[tag].push_back(s);
+                    }
+                    
                     sgbcWrappers_.push_back(std::move(wrap));
                 }
             }
@@ -89,6 +125,7 @@ GlobalEvolution::GlobalEvolution(
         numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs)
     );
 
+    // [TFSF / SGBC Operator Setup Unchanged]
     Probes probes; 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
@@ -147,14 +184,17 @@ void GlobalEvolution::advanceSGBCs(double time, double dt,
                                    const std::array<mfem::ParGridFunction, 3>& e, 
                                    const std::array<mfem::ParGridFunction, 3>& h)
 {
-    for (const auto& [tag, pairs] : sgbc_pairs_){
+    for (auto& [tag, states] : sgbc_states_){
         for (auto& w : sgbcWrappers_){
             if (tag == w->getProperties().geom_tags.at(0)){
-                for (auto& p : pairs){
-                    w->updateFieldsWithGlobal(e, h, p);
+                
+                for (auto& state : states){
+                    w->loadState(state);
+                    w->updateFieldsWithGlobal(e, h, state);
+                    w->solve(time, dt);
+                    w->saveState(state);
                 }
-                w->solve(time, dt);
-                w->setOldTime(time);
+                w->setOldTime(time); 
             }
         }
     }
@@ -172,6 +212,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
+    // 1) Load locals and exchange neighbors
     timerExchange.Start();
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
@@ -211,12 +252,14 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     timerAssembleInNew.Stop();
 
+    // 3) Apply global operator A
     timerApplyA.Start();
     out.SetSize(6 * ndofs);
     out.UseDevice(true);
     globalOperator_->Mult(inNew, out);
     timerApplyA.Stop();
 
+    // 4) Add forcing s(t_stage)
     timerTFSF.Start();
     if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
     {
@@ -259,44 +302,42 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
     timerTFSF.Stop();
 
+    // 5) SGBC Coupling via Flux Injection
     timerSGBC.Start();
-    for (const auto& [tag, pairs] : sgbc_pairs_){
-        for (auto w = 0; w < sgbcWrappers_.size(); w++){
-            if (tag == sgbcWrappers_[w]->getProperties().geom_tags.at(0)){
+    for (const auto& [tag, states] : sgbc_states_){
+        for (auto& w : sgbcWrappers_){
+            if (tag == w->getProperties().geom_tags.at(0)){
                 
-                for (auto p = 0; p < pairs.size(); p++){
-                   sgbcWrappers_[w]->updateFieldsWithGlobal(eOld_, hOld_, pairs[p]);
-                }
                 const auto sgbc_vec_size = SGBCOperator_->Height() / 6;
                 auto sgbc_fields = initSGBCHelperFields(sgbc_vec_size);
                 
-                for (auto p = 0; p < pairs.size(); p++) {
-                    sgbcWrappers_[w]->getSGBCFields(sgbc_sub_to_parent_ids_, pairs[p], sgbc_fields);
+                for (const auto& state : states) {
                     
-                    const int global_node_left = pairs[p].first;  
-                    const int global_node_right = pairs[p].second;
+                    w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_fields);
+                    
+                    const int global_node_left = state.global_pair.first;  
+                    const int global_node_right = state.global_pair.second;
                     
                     const int sub_idx_L = sgbc_sub_to_parent_ids_.Find(global_node_left);
                     const int sub_idx_R = sgbc_sub_to_parent_ids_.Find(global_node_right);
 
                     if (sub_idx_L == -1 || sub_idx_R == -1) continue; 
 
-                    // --- Mass Matrix Scaling (Generalized for Non-Uniform Meshes) ---
-                    // Inverse Mass at boundary is proportional to Area/Volume.
-                    // For 1D DG: Scale = P(P+1) / h
-                    // We use GetElementVolume to safely handle non-uniform stretching.
-                    
-                    int order = fes_.GetElementOrder(0); 
-                    int el_idx_L = global_node_left / (order + 1); 
-                    int el_idx_R = global_node_right / (order + 1);
+                    // --- Mass Matrix Scaling Logic ---
+                    int el_idx_L = state.element_pair.first;
+                    int el_idx_R = state.element_pair.second;
+
+                    int order_L = fes_.GetElementOrder(el_idx_L); 
+                    int order_R = fes_.GetElementOrder(el_idx_R); 
 
                     double vol_L = fes_.GetMesh()->GetElementVolume(el_idx_L);
                     double vol_R = fes_.GetMesh()->GetElementVolume(el_idx_R);
 
-                    double scale_L = (double)(order * (order + 1)) / vol_L;
-                    double scale_R = (double)(order * (order + 1)) / vol_R;
+                    double scale_L = (double)(order_L * (order_L + 1)) / vol_L;
+                    double scale_R = (double)(order_R * (order_R + 1)) / vol_R;
 
                     for (auto d : {X, Y, Z}) {
+                        // --- Left Interface ---
                         double Eg_L = eOld_[d][global_node_left];
                         double Hg_L = hOld_[d][global_node_left];
                         double Es_L = sgbc_fields[E][d][sub_idx_L]; 
@@ -308,6 +349,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                         out[(E * 3 + d) * ndofs + global_node_left] += (flux_E_L * scale_L);
                         out[(H * 3 + d) * ndofs + global_node_left] += (flux_H_L * scale_L);
 
+                        // --- Right Interface ---
                         double Eg_R = eOld_[d][global_node_right];
                         double Hg_R = hOld_[d][global_node_right];
                         double Es_R = sgbc_fields[E][d][sub_idx_R]; 

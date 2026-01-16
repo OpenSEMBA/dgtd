@@ -42,13 +42,19 @@ public:
     
     ~Solver();
 
-    const ParFields& getFields() const { return fields_; };
+    const ParFields& getFields() const { return fields_; }
+    // Non-const accessor needed for state hydration
+    ParFields& getFields() { return fields_; } 
+
     void  setFieldValue(const FieldType& f, const Direction& d, const size_t dof_no, const double val) { fields_.get(f,d)[dof_no] = val; }
     const ParGridFunction& getConstField(const FieldType& f, const Direction& d) const  { return fields_.get(f, d); }
     const FieldProbe& getFieldProbe(std::size_t probe) const;
     const PointProbe& getPointProbe(std::size_t probe) const;
 
     double getTime() const { return time_; }
+    // [ADDED] Critical for context switching
+    void setTime(double t) { time_ = t; } 
+
     double getTimeStep() const { return dt_; }
 
     Model& getModel() { return model_; }
@@ -65,6 +71,11 @@ public:
 
     void setFinalTime(double final_time) {
         opts_.setFinalTime(final_time);
+    }
+    
+    void setTimeStep(double dt) {
+        dt_ = dt;
+        opts_.setTimeStep(dt);
     }
 
 private:

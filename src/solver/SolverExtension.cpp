@@ -17,6 +17,7 @@ const auto num_of_ghost_segments_per_field_comp = 2;
 
 void SGBCWrapper::setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
+    // Warning: This sets the ACTIVE fields. In multi-state mode, this only affects currently loaded state.
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
             sgbc_solver_fields_->get(f,d) = fields.get(f,d);
@@ -27,14 +28,14 @@ void SGBCWrapper::setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, m
 std::vector<NodeId> buildTargetNodeIds(const size_t order, const size_t num_of_segments)
 {
     std::vector<NodeId> res(4);
-    res[0] = order; // start of mesh, ghost element right boundary    // |---Ghost---X-|-----SGBC---|--
-    res[1] = order + 1; // start of mesh, SGBC element left boundary // |---Ghost-----|-X---SGBC---|--
-    res[2] = (order + 1) * (num_of_segments + 2) - (order + 1) - 1; // end of mesh, SGBC element right boundary // --|---SGBC---X-|-----Ghost---|
-    res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; // end of mesh, ghost element left boundary     // --|---SGBC-----|-X---Ghost---|
+    res[0] = order; 
+    res[1] = order + 1; 
+    res[2] = (order + 1) * (num_of_segments + 2) - (order + 1) - 1; 
+    res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; 
     return res;
 }
 
-void SGBCWrapper::initNodeIds(const std::vector<NodeId>& target_ids) // To be redone
+void SGBCWrapper::initNodeIds(const std::vector<NodeId>& target_ids)
 {
     dof_pair_.load_el1 = target_ids.front();
     dof_pair_.load_el2 = target_ids.back();
@@ -70,7 +71,7 @@ mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp)
     mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
     mesh.SetAttribute(0, 2);
     mesh.SetAttribute(mesh.GetNE() - 1, 2);
-    mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4}); // 1, 2 reserved for pure boundaries, 3, 4 reserved for interior boundaries.
+    mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4}); 
     mesh.FinalizeMesh();
     return mesh;
 }
@@ -108,33 +109,74 @@ SolverOptions buildSGBCSolverOptions(const SGBCProperties& sbcp)
     SolverOptions res;
     res.setOrder(sbcp.order);
     res.setUpwindAlpha(1.0);
-    res.setODEType(ode_type::Trapezoidal); // Crank-Nicolson    
+    res.setODEType(ode_type::Trapezoidal); 
     return res;
 }
 
-void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, const std::array<mfem::ParGridFunction, 3>& h, const NodePair& pair)
+// [ADDED] Accessor
+int SGBCWrapper::getStateSize() const {
+    return solver_->getFields().allDOFs().Size();
+}
+
+// [ADDED] Context Switching
+void SGBCWrapper::loadState(const SGBCState& state) {
+    // Overwrite solver fields with the saved state
+    solver_->getFields().allDOFs() = state.fields_state;
+}
+
+void SGBCWrapper::saveState(SGBCState& state) {
+    // Save solver fields back to state
+    state.fields_state = solver_->getFields().allDOFs();
+}
+
+void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, 
+                                         const std::array<mfem::ParGridFunction, 3>& h, 
+                                         const SGBCState& context)
 {
     const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
+    const NodePair& pair = context.global_pair;
+
     for (auto d : {X, Y, Z}){ 
         for (auto dof = 0; dof < sbcp_.order + 1; dof++){ 
-            solver_->setFieldValue(FieldType::E, d, dof, e.at(d)[pair.first]); // Loading values on left side ghost
+            
+            // Direct Copy Logic (Stable)
+            solver_->setFieldValue(FieldType::E, d, dof, e.at(d)[pair.first]); 
             solver_->setFieldValue(FieldType::H, d, dof, h.at(d)[pair.first]);
-            solver_->setFieldValue(FieldType::E, d, dof_per_field_comp - 1 - dof, e.at(d)[pair.second]); // Loading values on right side ghost
+            
+            solver_->setFieldValue(FieldType::E, d, dof_per_field_comp - 1 - dof, e.at(d)[pair.second]); 
             solver_->setFieldValue(FieldType::H, d, dof_per_field_comp - 1 - dof, h.at(d)[pair.second]);
         }
     }
 }
 
-void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const NodePair& pair, FieldGridFuncs& out)
+void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, FieldGridFuncs& out)
 {
     const auto left_ghost_border_dof = this->getProperties().order + 1;
-    const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();
-    const auto first_idx = sub_to_global.Find(pair.first);
-    const auto second_idx =sub_to_global.Find(pair.second);
+    const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size(); 
+    
+    const auto first_idx = sub_to_global.Find(context.global_pair.first);
+    const auto second_idx = sub_to_global.Find(context.global_pair.second);
+
+    if (first_idx == -1 || second_idx == -1) return;
+
+    // DIRECT ACCESS to state vector to avoid hydrating the solver.
+    // We assume the monolithic vector layout is: [Ex, Ey, Ez, Hx, Hy, Hz]
+    // Each block has size 'local_field_size'.
+    
+    // Indices in the 1D mesh
+    int idx_left = left_ghost_border_dof;
+    int idx_right = (local_field_size - 1) - left_ghost_border_dof;
+
     for (auto f : {E, H}){
         for (auto d : {X, Y, Z}){
-            out[f][d][first_idx] = this->solver_->getConstField(f,d)[left_ghost_border_dof];
-            out[f][d][second_idx] = this->solver_->getConstField(f,d)[(local_field_size - 1) - left_ghost_border_dof];
+            int block_idx = 0;
+            if (f == E) block_idx = d;
+            else        block_idx = 3 + d;
+            
+            int offset = block_idx * local_field_size;
+
+            out[f][d][first_idx] = context.fields_state[offset + idx_left];
+            out[f][d][second_idx] = context.fields_state[offset + idx_right];
         }
     }
 }
@@ -144,16 +186,24 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     if (std::abs(dt) < 1e-9){
         return;
     }
-    this->solver_->getSolverOptions().setFinalTime(t + dt);
-    this->solver_->getSolverOptions().setTimeStep(dt);
+    
+    // CRITICAL: Reset the internal solver time.
+    // If we don't do this, Pair 2 will see the solver at 't + dt' and not evolve.
+    this->solver_->setTime(t); 
     this->solver_->getEvolTDO()->SetTime(t);
+
+    this->solver_->getSolverOptions().setFinalTime(t + dt);
+    this->solver_->getSolverOptions().setTimeStep(dt); // Or do we rely on Solver::dt_?
+    
+    // Explicitly force the timestep variable in solver as well
+    this->solver_->setTimeStep(dt);
+
     this->solver_->step();
 }
 
 SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
 sbcp_(sbcp)
 { 
-    
     auto mesh = buildSGBCMesh(sbcp_);
     int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     
@@ -162,7 +212,7 @@ sbcp_(sbcp)
     // probes.exporterProbes.resize(1);
     // ExporterProbe ep;
     // ep.name = "InsideSGBC";
-    // ep.visSteps = 1000;
+    // ep.visSteps = 100;
     // probes.exporterProbes.at(0) = ep;
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
@@ -172,7 +222,6 @@ sbcp_(sbcp)
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
 
     this->old_t_ = 0.0;
-
 }
 
 }
