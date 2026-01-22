@@ -504,11 +504,9 @@ void Solver::step()
         if (auto* globalEvol = dynamic_cast<GlobalEvolution*>(evolTDO_.get())) {
             // Construct necessary field arrays
             std::array<mfem::ParGridFunction, 3> e, h;
-            for(auto d : {X, Y, Z}) {
-                e[d].SetSpace(fields_.get(E,d).FESpace());
-                h[d].SetSpace(fields_.get(H,d).FESpace());
-                e[d] = fields_.get(E,d);
-                h[d] = fields_.get(H,d);
+            for(int d = 0; d < 3; ++d) {
+                e[d] = fields_.get(E, (Direction)d);
+                h[d] = fields_.get(H, (Direction)d);
             }
             globalEvol->advanceSGBCs(time_, truedt, e, h);
         }

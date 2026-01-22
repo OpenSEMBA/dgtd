@@ -34,7 +34,6 @@ GlobalEvolution::GlobalEvolution(
         hOld_[d].SetSpace(&fes_);
     }
 
-    // 1. Find Pairs (Raw)
     std::map<GeomTag, std::vector<NodePair>> raw_pairs;
     {
         auto attMap{ mapOriginalAttributes(*fes_.GetMesh()) };
@@ -70,10 +69,6 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
-    // 2. Build Wrappers and States
-    
-    // [TEMPORARY] Build DOF -> Element Map locally just for initialization
-    // We do not store this in the class, keeping GlobalEvolution clean.
     mfem::Array<int> temp_dof_to_elem(fes_.GetNDofs());
     temp_dof_to_elem = -1;
     {
@@ -100,11 +95,9 @@ GlobalEvolution::GlobalEvolution(
                         SGBCState s;
                         s.global_pair = pair;
                         
-                        // [ADDED] Populate Element IDs from temporary map
                         s.element_pair.first = temp_dof_to_elem[pair.first];
                         s.element_pair.second = temp_dof_to_elem[pair.second];
                         
-                        // Sanity Check
                         if (s.element_pair.first == -1 || s.element_pair.second == -1) {
                             std::cerr << "Error: Could not find Element ID for SGBC Node Pair: " 
                                       << pair.first << ", " << pair.second << std::endl;
@@ -125,7 +118,6 @@ GlobalEvolution::GlobalEvolution(
         numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs)
     );
 
-    // [TFSF / SGBC Operator Setup Unchanged]
     Probes probes; 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
@@ -212,7 +204,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
-    // 1) Load locals and exchange neighbors
     timerExchange.Start();
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
@@ -230,7 +221,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
     timerExchange.Stop();
 
-    // 2) Assemble packed input
     timerAssembleInNew.Start();
     mfem::Vector inNew(6 * blockSize);
     inNew.UseDevice(true);
@@ -252,14 +242,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     timerAssembleInNew.Stop();
 
-    // 3) Apply global operator A
     timerApplyA.Start();
     out.SetSize(6 * ndofs);
     out.UseDevice(true);
     globalOperator_->Mult(inNew, out);
     timerApplyA.Stop();
 
-    // 4) Add forcing s(t_stage)
     timerTFSF.Start();
     if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
     {
@@ -324,12 +312,15 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     if (sub_idx_L == -1 || sub_idx_R == -1) continue; 
 
                     // --- Mass Matrix Scaling Logic ---
+                    // [UPDATED] Read Element IDs directly from the SGBCState
                     int el_idx_L = state.element_pair.first;
                     int el_idx_R = state.element_pair.second;
 
+                    // Robust: Use element order (assumes pairs share order, or look up per element)
                     int order_L = fes_.GetElementOrder(el_idx_L); 
                     int order_R = fes_.GetElementOrder(el_idx_R); 
 
+                    // Get exact volumes from the mesh using the stored element IDs
                     double vol_L = fes_.GetMesh()->GetElementVolume(el_idx_L);
                     double vol_R = fes_.GetMesh()->GetElementVolume(el_idx_R);
 
