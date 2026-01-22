@@ -132,15 +132,12 @@ GlobalEvolution::GlobalEvolution(
     }
 
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
-        srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getSGBCToMarker().at(BdrCond::SGBC));
-        auto globalSGBCfes = srcmngr_.getGlobalTFSFSpace();
-        auto sgbcMesh = globalSGBCfes->GetMesh();
-        Model sgbcModel = Model(*sgbcMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-        ProblemDescription sgbcpd(sgbcModel, probes, srcmngr_.sources, opts_);
-        DGOperatorFactory<FiniteElementSpace> sgbcops(sgbcpd, *globalSGBCfes);
-        SGBCOperator_ = sgbcops.buildTFSFGlobalOperator();
-        auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-        mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
+        auto sgbc_sm = TotalFieldScatteredFieldSubMesher(model_.getConstMesh(), model_.getSGBCToMarker().at(BdrCond::SGBC));
+        auto global_sm_fes = std::make_unique<FiniteElementSpace>(sgbc_sm.getGlobalTFSFSubMesh(), fes_.FEColl());
+        SGBCndofs_ = global_sm_fes->GetNDofs();
+        auto sgbc_mesh = global_sm_fes->GetMesh();
+        auto src_sm = static_cast<mfem::SubMesh*>(sgbc_mesh);
+        mfem::SubMeshUtils::BuildVdofToVdofMap(*global_sm_fes, fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
     }
 
     ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
@@ -296,8 +293,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         for (auto& w : sgbcWrappers_){
             if (tag == w->getProperties().geom_tags.at(0)){
                 
-                const auto sgbc_vec_size = SGBCOperator_->Height() / 6;
-                auto sgbc_fields = initSGBCHelperFields(sgbc_vec_size);
+                auto sgbc_fields = initSGBCHelperFields(SGBCndofs_);
                 
                 for (const auto& state : states) {
                     

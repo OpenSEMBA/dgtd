@@ -31,8 +31,8 @@ public:
 private:
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
-    std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
-    
+    int SGBCndofs_;
+
     mfem::Array<int> tfsf_sub_to_parent_ids_;
     mfem::Array<int> sgbc_sub_to_parent_ids_;
 
