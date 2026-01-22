@@ -499,14 +499,14 @@ void Solver::step()
 {
     double truedt{ std::min(dt_, opts_.final_time - time_) };
     
-    // Explicitly step the SGBC Wrappers once per global time step
     if (opts_.evolution.op == EvolutionOperatorType::Global) {
         if (auto* globalEvol = dynamic_cast<GlobalEvolution*>(evolTDO_.get())) {
-            // Construct necessary field arrays
             std::array<mfem::ParGridFunction, 3> e, h;
             for(int d = 0; d < 3; ++d) {
-                e[d] = fields_.get(E, (Direction)d);
-                h[d] = fields_.get(H, (Direction)d);
+                e[d].SetSpace(fields_.get(E, d).FESpace());
+                h[d].SetSpace(fields_.get(H, d).FESpace());
+                e[d] = fields_.get(E, d);
+                h[d] = fields_.get(H, d);
             }
             globalEvol->advanceSGBCs(time_, truedt, e, h);
         }
