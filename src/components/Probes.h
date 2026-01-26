@@ -116,7 +116,7 @@ private:
 
 class PointProbe {
 public:
-    PointProbe(const Point& p, const bool writeFile = false) :
+    PointProbe(const Point& p, const bool writeFile = true) :
         point_{ p },
         write{writeFile}
     {}
