@@ -432,7 +432,7 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     assert(it != domainSnapshotProbesCollection_.end());
     auto& dc{ it->second };
 
-	std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshopProbes/");
+	std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshotProbes/");
 	
 	if (cycle_ == 0) {
 		if (Mpi::WorldRank() == 0) {

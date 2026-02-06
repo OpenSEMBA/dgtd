@@ -82,6 +82,8 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
     for (const auto& [tag, pairs] : raw_pairs){
         const auto& sbcps = model_.getSGBCProperties();
         for (auto p = 0; p < sbcps.size(); p++){
@@ -112,6 +114,8 @@ GlobalEvolution::GlobalEvolution(
             }
         }
     }
+    
+    MPI_Barrier(MPI_COMM_WORLD);
 
     globalOperator_ = std::make_unique<mfem::SparseMatrix>(
         numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), 

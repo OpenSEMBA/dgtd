@@ -2,13 +2,14 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 1e-5,
+    "time_step":  1e-4,
     "final_time":  10.0,
+    "tfsf_final_time": 6.0,
     "order": 2
   },
 
-  "model": {
-    "filename": "2D_SGBC.msh",
+  "model": { 
+    "filename": "3D_SGBC.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -17,15 +18,19 @@
     ],
     "boundaries": [
       {
-        "tags": [ 16, 21 ],
-        "type": "SMA"
-      },
-      {
-        "tags": [ 13, 15, 17, 19, 20, 22 ],
+        "tags": [ 21, 22, 26, 27, 31, 32 ],
         "type": "PEC"
       },
       {
-        "tags": [ 18 ],
+        "tags": [ 23, 24, 28, 29, 33, 34 ],
+        "type":  "PMC"
+      },
+      {
+        "tags": [ 19, 30 ],
+        "type":  "SMA"
+      },
+      {
+        "tags": [ 25 ],
         "type": "SGBC",
         "material":{
           "relative_permittivity": 20.0,
@@ -41,19 +46,19 @@
 
   "probes": {
     "exporter": {
-      "steps": 10000
+      "steps": 1000
     },
     "point": [
       {
-        "position": [ 0.125, 0.075 ],
+        "position": [ 0.25, 0.25, 0.25 ],
         "write": true
       },
       {
-        "position": [ 0.5, 0.075 ],
+        "position": [ 0.75, 0.25, 0.25 ],
         "write": true
       },
       {
-        "position": [ 1.375, 0.075 ],
+        "position": [ 2.25, 0.25, 0.25 ],
         "write": true
       }
     ]
@@ -64,11 +69,11 @@
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 14 ],
+      "tags": [ 20 ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.1,
-        "mean": [ -1.75, 0.075 ]
+        "spread": 0.2,
+        "mean": [ -0.75, 0.5, 0.5 ]
       }
     }
   ]

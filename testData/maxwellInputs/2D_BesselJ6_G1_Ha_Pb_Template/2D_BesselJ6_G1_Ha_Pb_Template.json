@@ -28,12 +28,9 @@
     "exporter": {
       "steps": 100
     },
-    "point": [
-      {
-        "position": [ 0.865, 0.0 ],
-        "write": true
-      }
-    ]
+    "domain_snapshot": {
+      "steps": 100
+    }
   },
 
   "sources": [ 

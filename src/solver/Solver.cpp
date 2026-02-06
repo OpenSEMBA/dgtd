@@ -10,8 +10,10 @@ Solver::~Solver() = default;
 
 std::unique_ptr<mfem::ParFiniteElementSpace> buildFiniteElementSpace(mfem::ParMesh* m, mfem::FiniteElementCollection* fec)
 {
+    MPI_Barrier(MPI_COMM_WORLD);
     auto fes = std::make_unique<mfem::ParFiniteElementSpace>(m, fec);
     fes->ExchangeFaceNbrData();
+    MPI_Barrier(MPI_COMM_WORLD);
     return fes;
 }
 

@@ -109,7 +109,7 @@ SolverOptions buildSGBCSolverOptions(const SGBCProperties& sbcp)
     SolverOptions res;
     res.setOrder(sbcp.order);
     res.setUpwindAlpha(1.0);
-    res.setODEType(ode_type::Trapezoidal); 
+    res.setODEType(ode_type::SDIRK34); 
     return res;
 }
 
@@ -205,7 +205,7 @@ SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBd
 sbcp_(sbcp)
 { 
     auto mesh = buildSGBCMesh(sbcp_);
-    int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+    int* partitioning = mesh.GeneratePartitioning(1);
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;

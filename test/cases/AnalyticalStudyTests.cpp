@@ -1,512 +1,71 @@
-#include "CasesFunctions.h"
-#include "TestUtils.h"
-
-namespace maxwell{
-
-using namespace mfem;
+#include "L2ErrorAnalysis.h"
+#include <gtest/gtest.h>
+#include <filesystem>
+#include <iostream>
+#include <sstream>
 
 class AnalyticalStudyTests : public ::testing::Test {
-
+protected:
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H1_P1_mpi)
+// Generic batch runner that takes a prefix and P-range
+static void runBatchSweep(const std::string& case_prefix, int p_min, int p_max, const std::string& description) 
 {
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H1_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H1_P1/2D_Resonant_Box_TM55_H1_P1.json";
+    // Adjust this base path if your exports are stored elsewhere
+    const std::string base_export_path = "./Exports/single-core/"; 
+    
+    int processed = 0;
+    int missing = 0;
 
-    L2NormDataCalculator calc(data_path, json_file);
+    std::cout << "\n=== Starting Batch: " << description << " ===" << std::endl;
 
+    for (int p = p_min; p <= p_max; ++p) {
+        
+        std::stringstream ss;
+        // Construct folder name: e.g. "2D_BesselJ6_Coarse_G2_H0_P7"
+        // The prefix should include everything up to "_P"
+        ss << case_prefix << "_P" << p;
+        
+        std::string case_name = ss.str();
+        std::filesystem::path full_path = std::filesystem::path(base_export_path) / case_name;
+
+        if (std::filesystem::exists(full_path) && std::filesystem::is_directory(full_path)) {
+            std::cout << "Processing: " << case_name << " ... ";
+            try {
+                maxwell::L2ErrorAnalysis analysis(full_path.string());
+                std::cout << "[DONE]" << std::endl;
+                processed++;
+            }
+            catch (const std::exception& e) {
+                std::cerr << "\n[ERROR] in " << case_name << ": " << e.what() << std::endl;
+            }
+        } else {
+            // Optional: Print missed files to debug paths
+            // std::cout << "Skipping (Not Found): " << case_name << std::endl;
+            missing++;
+        }
+    }
+
+    std::cout << "=== Batch Complete (" << description << ") ===\n";
+    std::cout << "Processed: " << processed << ", Skipped (Missing): " << missing << "\n" << std::endl;
 }
 
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H1_P2_mpi)
+TEST_F(AnalyticalStudyTests, Batch_BesselJ6_G1_H0_Linear_Sweeps)
 {
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H1_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H1_P2/2D_Resonant_Box_TM55_H1_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
+    runBatchSweep("2D_BesselJ6_G1_H0", 1, 5, "Bessel J6 - Linear");
 }
 
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H1_P3_mpi)
+TEST_F(AnalyticalStudyTests, Batch_BesselJ6_G2_H0_Curved_Sweeps)
 {
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H1_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H1_P3/2D_Resonant_Box_TM55_H1_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
+    runBatchSweep("2D_BesselJ6_G2_H0", 1, 5, "Bessel J6 - Curved");
 }
 
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H2_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H2_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H2_P1/2D_Resonant_Box_TM55_H2_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H2_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H2_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H2_P2/2D_Resonant_Box_TM55_H2_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H2_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H2_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H2_P3/2D_Resonant_Box_TM55_H2_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H3_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H3_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H3_P1/2D_Resonant_Box_TM55_H3_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H3_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H3_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H3_P2/2D_Resonant_Box_TM55_H3_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H3_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H3_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H3_P3/2D_Resonant_Box_TM55_H3_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H4_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H4_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H4_P1/2D_Resonant_Box_TM55_H4_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H4_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H4_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H4_P2/2D_Resonant_Box_TM55_H4_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H4_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H4_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H4_P3/2D_Resonant_Box_TM55_H4_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H5_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H5_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H5_P1/2D_Resonant_Box_TM55_H5_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H5_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H5_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H5_P2/2D_Resonant_Box_TM55_H5_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H5_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H5_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H5_P3/2D_Resonant_Box_TM55_H5_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H6_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H6_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H6_P1/2D_Resonant_Box_TM55_H6_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H6_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H6_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H6_P2/2D_Resonant_Box_TM55_H6_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_TM55_H6_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_TM55_H6_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_TM55/2D_Resonant_Box_TM55_H6_P3/2D_Resonant_Box_TM55_H6_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-// }
-
-// // ------------------------------------------------------ //
-// // ----------- 2D RESONANT BOX LEGENDRE BASIS ----------- //
-// // ------------------------------------------------------ //
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H1_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H1_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H1_P1/2D_Resonant_Box_BLEG_TM55_H1_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H1_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H1_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H1_P2/2D_Resonant_Box_BLEG_TM55_H1_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H1_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H1_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H1_P3/2D_Resonant_Box_BLEG_TM55_H1_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H2_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H2_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H2_P1/2D_Resonant_Box_BLEG_TM55_H2_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H2_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H2_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H2_P2/2D_Resonant_Box_BLEG_TM55_H2_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H2_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H2_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H2_P3/2D_Resonant_Box_BLEG_TM55_H2_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H3_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H3_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H3_P1/2D_Resonant_Box_BLEG_TM55_H3_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H3_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H3_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H3_P2/2D_Resonant_Box_BLEG_TM55_H3_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H3_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H3_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H3_P3/2D_Resonant_Box_BLEG_TM55_H3_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H4_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H4_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H4_P1/2D_Resonant_Box_BLEG_TM55_H4_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H4_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H4_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H4_P2/2D_Resonant_Box_BLEG_TM55_H4_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H4_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H4_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H4_P3/2D_Resonant_Box_BLEG_TM55_H4_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H5_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H5_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H5_P1/2D_Resonant_Box_BLEG_TM55_H5_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H5_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H5_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H5_P2/2D_Resonant_Box_BLEG_TM55_H5_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H5_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H5_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H5_P3/2D_Resonant_Box_BLEG_TM55_H5_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H6_P1_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H6_P1/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H6_P1/2D_Resonant_Box_BLEG_TM55_H6_P1.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H6_P2_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H6_P2/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H6_P2/2D_Resonant_Box_BLEG_TM55_H6_P2.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-TEST_F(AnalyticalStudyTests, 2D_Resonant_Box_BLEG_TM55_H6_P3_mpi)
-{
-    std::string data_path = "./Exports/mpi-8/2D_Resonant_Box_BLEG_TM55_H6_P3/";
-    std::string json_file = "./testData/maxwellInputs/2D_Resonant_Box_BLEG_TM55/2D_Resonant_Box_BLEG_TM55_H6_P3/2D_Resonant_Box_BLEG_TM55_H6_P3.json";
-
-    L2NormDataCalculator calc(data_path, json_file);
-
-}
-
-// // -----------------------------------------------------------------//
-// // ---------------         3D RESONANT BOX          ----------------//
-// // -----------------------------------------------------------------//
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H0_P1_mpi)
+// TEST_F(AnalyticalStudyTests, Batch_TM55_Resonant_Box)
 // {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H0_P1/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H0_P1/3D_Resonant_Box_H0_P1.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
+//    // This would need the old double-loop logic or manual calls
+//    // runBatchSweep("2D_Resonant_Box_TM55_H1", 1, 10, "TM55 H1");
+//    // runBatchSweep("2D_Resonant_Box_TM55_H2", 1, 10, "TM55 H2");
+//    // runBatchSweep("2D_Resonant_Box_TM55_H3", 1, 10, "TM55 H3");
 // }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H0_P2_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H0_P2/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H0_P2/3D_Resonant_Box_H0_P2.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H0_P3_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H0_P3/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H0_P3/3D_Resonant_Box_H0_P3.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H1_P1_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H1_P1/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H1_P1/3D_Resonant_Box_H1_P1.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H1_P2_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H1_P2/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H1_P2/3D_Resonant_Box_H1_P2.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H1_P3_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H1_P3/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H1_P3/3D_Resonant_Box_H1_P3.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H2_P1_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H2_P1/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H2_P1/3D_Resonant_Box_H2_P1.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H2_P2_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H2_P2/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H2_P2/3D_Resonant_Box_H2_P2.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_H2_P3_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_H2_P3/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box/3D_Resonant_Box_H2_P3/3D_Resonant_Box_H2_P3.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// // -----------------------------------------------------------------//
-// // ---------------      3D RESONANT BLEG BOX        ----------------//
-// // -----------------------------------------------------------------//
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H0_P1_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H0_P1/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H0_P1/3D_Resonant_Box_BLEG_H0_P1.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H0_P2_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H0_P2/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H0_P2/3D_Resonant_Box_BLEG_H0_P2.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H0_P3_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H0_P3/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H0_P3/3D_Resonant_Box_BLEG_H0_P3.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H1_P1_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H1_P1/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H1_P1/3D_Resonant_Box_BLEG_H1_P1.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H1_P2_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H1_P2/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H1_P2/3D_Resonant_Box_BLEG_H1_P2.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H1_P3_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H1_P3/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H1_P3/3D_Resonant_Box_BLEG_H1_P3.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H2_P1_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H2_P1/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H2_P1/3D_Resonant_Box_BLEG_H2_P1.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H2_P2_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H2_P2/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H2_P2/3D_Resonant_Box_BLEG_H2_P2.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-// TEST_F(AnalyticalStudyTests, 3D_Resonant_Box_BLEG_H2_P3_mpi)
-// {
-//     std::string data_path = "./Exports/mpi-8/3D_Resonant_Box_BLEG_H2_P3/";
-//     std::string json_file = "./testData/maxwellInputs/3D_Resonant_Box_BLEG/3D_Resonant_Box_BLEG_H2_P3/3D_Resonant_Box_BLEG_H2_P3.json";
-
-//     L2NormDataCalculator calc(data_path, json_file);
-
-// }
-
-}

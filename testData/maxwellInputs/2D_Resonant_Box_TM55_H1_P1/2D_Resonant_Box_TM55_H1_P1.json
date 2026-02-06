@@ -8,7 +8,7 @@
     "order": 1
   },
   "model": {
-    "filename": "2D_Resonant_Box_TM55_Ha_Pb_Template.msh",
+    "filename": "2D_Resonant_Box_TM55_H1_P1.msh",
     "refinement": 1,
     "materials": [
       {
