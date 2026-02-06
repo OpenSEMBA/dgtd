@@ -130,6 +130,10 @@ GlobalEvolution::GlobalEvolution(
         Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
         ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
         DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
+        std::cout << "TFSF elements in rank " << std::to_string(Mpi::WorldRank()) << ": " << globalTFSFfes->GetNE() << std::endl;
+        if (globalTFSFfes->GetNE() <= 0){
+            std::cout << "Warning! No TFSF elements on rank but it is defined to have, simulation may fail. Use less processes." << std::endl;
+        }
         TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
         auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
         mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);

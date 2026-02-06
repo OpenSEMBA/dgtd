@@ -86,16 +86,20 @@ Solver::Solver(
     probesManager_ { probes , *fes_, fields_, opts_ },
     time_{0.0}
 {
-
-
     auto initStartTime = std::chrono::steady_clock::now();
+
+    std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
+
     if (Mpi::WorldRank() == 0){
-        std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
-        if (std::filesystem::is_directory(simExpPath) || std::filesystem::exists(simExpPath)) {
+        if (std::filesystem::exists(simExpPath)) {
             std::filesystem::remove_all(simExpPath);
         }
-        std::filesystem::create_directories(simExpPath);
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    std::filesystem::create_directories(simExpPath);
+
     MPI_Barrier(MPI_COMM_WORLD);
 
 
@@ -127,8 +131,8 @@ Solver::Solver(
     auto initEndTime = std::chrono::steady_clock::now();
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    std::string path = "Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/" +
-                        "/statistics_rank" + std::to_string(rank) + ".dat";
+
+    std::string path = (simExpPath / ("statistics_rank" + std::to_string(rank) + ".dat")).string();
 
     std::ofstream myfile(path, std::ios::app);
     if (myfile.is_open()) {
@@ -140,7 +144,6 @@ Solver::Solver(
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
     }
-
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
@@ -389,9 +392,11 @@ void Solver::writeSimulationStatistics(const Time runtime){
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    // Construct a rank-specific filename
-    std::string path = "Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/" +
-                        "/statistics_rank" + std::to_string(rank) + ".dat";
+    std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
+
+    std::filesystem::create_directories(simExpPath);
+
+    std::string path = (simExpPath / ("statistics_rank" + std::to_string(rank) + ".dat")).string();
 
     std::ofstream myfile(path, std::ios::app);
     if (myfile.is_open()) {
