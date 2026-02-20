@@ -7,11 +7,9 @@ namespace maxwell {
 
 using namespace mfem;
 
-// FIX: Helper function to identify Process 0 on each physical machine
 bool isNodeRoot()
 {
     MPI_Comm node_comm;
-    // Group processes that share physical memory (the same node)
     MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, Mpi::WorldRank(), MPI_INFO_NULL, &node_comm);
     
     int node_rank;
@@ -26,60 +24,21 @@ std::string getFieldPolString(const FieldType& ft, const Direction& d)
     switch(ft){
         case E:
         switch(d){
-            case X:
-                return "Ex";
-            case Y:
-                return "Ey";
-            case Z:
-                return "Ez";
-            default:
-                throw std::runtime_error("Incorrect direction in getFieldPolString.");
+            case X: return "Ex";
+            case Y: return "Ey";
+            case Z: return "Ez";
+            default: throw std::runtime_error("Incorrect direction in getFieldPolString.");
         }
         case H:
         switch(d){
-            case X:
-                return "Hx";
-            case Y:
-                return "Hy";
-            case Z:
-                return "Hz";
-            default:
-                throw std::runtime_error("Incorrect direction in getFieldPolString.");
+            case X: return "Hx";
+            case Y: return "Hy";
+            case Z: return "Hz";
+            default: throw std::runtime_error("Incorrect direction in getFieldPolString.");
         }
         default:
             throw std::runtime_error("Incorrect fieldtype in getFieldPolString.");
     }
-}
-
-ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
-{
-    fes_.ExchangeFaceNbrData();
-    fes_.GetParMesh()->ExchangeFaceNbrData();
-    ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
-    
-    std::string paraview_path = "Exports/ParaView/" + getRunModeTag() + "/";
-    
-    // FIX: Only the local root creates the directory to avoid race conditions
-    if (isNodeRoot()) {
-        std::filesystem::create_directories(paraview_path);
-    }
-    MPI_Barrier(MPI_COMM_WORLD); // Wait for local roots to finish
-
-    pd.SetPrefixPath(paraview_path);
-
-    pd.RegisterField("E", &fields.get(E));
-    pd.RegisterField("H", &fields.get(H));
-    
-    bool highOrder = false;
-    auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
-    auto fecorder = fes_.FEColl()->GetOrder();
-    geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
-    pd.SetHighOrderOutput(highOrder);
-    pd.SetLevelsOfDetail(std::max(geomElemOrder,fecorder));
-    
-    pd.SetDataFormat(VTKFormat::BINARY);
-
-    return pd;
 }
 
 std::string getRunModeTag()
@@ -102,11 +61,40 @@ std::string getRunModeTag()
     }
 }
 
+ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
+{
+    fes_.ExchangeFaceNbrData();
+    fes_.GetParMesh()->ExchangeFaceNbrData();
+    ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
+    
+    std::string paraview_path = "Exports/ParaView/" + getRunModeTag() + "/";
+    
+    if (isNodeRoot()) {
+        std::filesystem::create_directories(paraview_path);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    pd.SetPrefixPath(paraview_path);
+
+    pd.RegisterField("E", &fields.get(E));
+    pd.RegisterField("H", &fields.get(H));
+    
+    bool highOrder = false;
+    auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+    auto fecorder = fes_.FEColl()->GetOrder();
+    geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
+    pd.SetHighOrderOutput(highOrder);
+    pd.SetLevelsOfDetail(std::max(geomElemOrder,fecorder));
+    
+    pd.SetDataFormat(VTKFormat::BINARY);
+
+    return pd;
+}
+
 ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& fields, const SolverOptions& opts) :
     probes{ pIn },
     fes_{ fes }
 {
-    
     for (const auto& p: probes.exporterProbes) {
         exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
     }
@@ -173,7 +161,6 @@ DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 ProbesManager::PointProbeCollection
 ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
-    
     Array<int> elemIdArray;
     Array<IntegrationPoint> integPointArray;
     auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
@@ -195,11 +182,9 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFini
 
 void ProbesManager::initPointFieldProbeExport()
 {
-    
     if (probes.pointProbes.size()){
         auto base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
         
-        // FIX: Replaced WorldRank check with isNodeRoot()
         if (cycle_ == 0) {
             if (isNodeRoot()) {
                 if (std::filesystem::exists(base_path)) {
@@ -208,25 +193,28 @@ void ProbesManager::initPointFieldProbeExport()
                 std::filesystem::create_directories(base_path);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD); // Keep all ranks synced
+        MPI_Barrier(MPI_COMM_WORLD);
 
         for (const auto& p : probes.pointProbes) {
             if(p.write){
-                std::ofstream myfile;
-                std::string path(base_path + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-                std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-                for (auto i = 0; i < p.getPoint().size(); i++){
-                    position[i] = p.getPoint()[i];
+                const auto& it{ pointProbesCollection_.find(&p) };
+                if (it != pointProbesCollection_.end() && it->second.fesPoint.elementId != -2) {
+                    std::ofstream myfile;
+                    std::string path(base_path + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+                    std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+                    for (auto i = 0; i < p.getPoint().size(); i++){
+                        position[i] = p.getPoint()[i];
+                    }
+                    myfile.open(path, std::ios::trunc); 
+                    if (myfile.is_open()) {
+                        myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
+                        myfile << "Spatial Position (X, Y, Z) \n";
+                        myfile << std::scientific << std::setprecision(5);
+                        myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+                        myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
+                    }
+                    myfile.close();
                 }
-                myfile.open(path, std::ios::app);
-                if (myfile.is_open()) {
-                    myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
-                    myfile << "Spatial Position (X, Y, Z) \n";
-                    myfile << std::scientific << std::setprecision(5);
-                    myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-                    myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
-                }
-                myfile.close();
             }
         }
     }
@@ -234,7 +222,6 @@ void ProbesManager::initPointFieldProbeExport()
     if (probes.fieldProbes.size()){
         auto base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
         
-        // FIX: Replaced WorldRank check with isNodeRoot()
         if (cycle_ == 0) {
             if (isNodeRoot()) {
                 if (std::filesystem::exists(base_path)) {
@@ -243,26 +230,29 @@ void ProbesManager::initPointFieldProbeExport()
                 std::filesystem::create_directories(base_path);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD); // Keep all ranks synced
+        MPI_Barrier(MPI_COMM_WORLD); 
 
         for (const auto& p : probes.fieldProbes) {
             if(p.write){
-                std::ofstream myfile;
-                std::string path(base_path + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-                std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-                auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
-                for (auto i = 0; i < p.getPoint().size(); i++){
-                    position[i] = p.getPoint()[i];
+                const auto& it{ fieldProbesCollection_.find(&p) };
+                if (it != fieldProbesCollection_.end() && it->second.fesPoint.elementId != -2) {
+                    std::ofstream myfile;
+                    std::string path(base_path + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+                    std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+                    auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
+                    for (auto i = 0; i < p.getPoint().size(); i++){
+                        position[i] = p.getPoint()[i];
+                    }
+                    myfile.open(path, std::ios::trunc);
+                    if (myfile.is_open()) {
+                        myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
+                        myfile << "Spatial Position (X, Y, Z) \n";
+                        myfile << std::scientific << std::setprecision(5);
+                        myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+                        myfile << "Time (s) // " + fieldpol + "\n";
+                    }
+                    myfile.close();
                 }
-                myfile.open(path, std::ios::app);
-                if (myfile.is_open()) {
-                    myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
-                    myfile << "Spatial Position (X, Y, Z) \n";
-                    myfile << std::scientific << std::setprecision(5);
-                    myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-                    myfile << "Time (s) // " + fieldpol + "\n";
-                }
-                myfile.close();
             }
         }
     }
@@ -271,7 +261,6 @@ void ProbesManager::initPointFieldProbeExport()
 ProbesManager::FieldProbeCollection
 ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
-
     Array<int> elemIdArray;
     Array<IntegrationPoint> integPointArray;
     auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
@@ -280,10 +269,7 @@ ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields<ParFini
     assert(integPointArray.Size() == 1);
     FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
 
-    return {
-        fesPoints,
-        getFieldView(p, fields)
-    };
+    return { fesPoints, getFieldView(p, fields) };
 }
 
 void isDGCollection(const FiniteElementSpace& fes)
@@ -297,12 +283,10 @@ void isDGCollection(const FiniteElementSpace& fes)
 DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
     const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
-
     isDGCollection(fes_);
 
     DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
     
-    // FIX: Safely create shared parent directories before individual ranks create their subdirectories
     std::string parent_path = "Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name;
     if (isNodeRoot()) {
         std::filesystem::create_directories(parent_path);
@@ -310,7 +294,7 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
     MPI_Barrier(MPI_COMM_WORLD);
 
     std::string path = parent_path + "/rank" + std::to_string(Mpi::WorldRank());
-    std::filesystem::create_directories(path); // Safe, as each rank has a unique path here
+    std::filesystem::create_directories(path); 
     res.SetPrefixPath(path);
     
     res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getConstField(E, X));
@@ -321,16 +305,12 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
     res.RegisterField("Hz.gf", &nearFieldReqs_.at(&p)->getConstField(H, Z));
 
     return res;
-
 }
 
 DomainSnapshotDataCollection ProbesManager::buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
-
     isDGCollection(fes_);
-
     DomainSnapshotDataCollection res(fes_, fields);
-
     return res;
 }
 
@@ -349,6 +329,14 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     pd.SetCycle(cycle_);
     pd.SetTime(time);
 
+    std::string base_dir = pd.GetPrefixPath() + pd.GetCollectionName();
+    std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(cycle_, 6);
+    
+    if (isNodeRoot()) {
+        std::filesystem::create_directories(cycle_dir);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
     pd.Save();
 }
 
@@ -361,10 +349,7 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 
         real_t gf_value = pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 
-        p.addFieldToMovies(
-            time, 
-            gf_value
-        );
+        p.addFieldToMovies(time, gf_value);
 
         if(p.write){
             std::ofstream myfile;
@@ -394,10 +379,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
             f4FP.Hy = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
             f4FP.Hz = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
         }
-        p.addFieldsToMovies(
-            time,
-            f4FP
-        );
+        p.addFieldsToMovies(time, f4FP);
         if(p.write){
             std::ofstream myfile;
             std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
@@ -419,7 +401,7 @@ Fields<ParFiniteElementSpace, ParGridFunction> buildFieldsForProbe(const Fields<
     for (auto f : { E, H }) {
         for (auto& d : { X, Y, Z }) {
             TransferMap tm(src.get(f, d), res.get(f, d));
-            tm.  Transfer(src.get(f, d), res.get(f, d));
+            tm.Transfer(src.get(f, d), res.get(f, d));
         }
     }
     return res;
@@ -472,7 +454,6 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshotProbes/");
     
     if (cycle_ == 0) {
-        // FIX: Replaced WorldRank check with isNodeRoot()
         if (isNodeRoot()) {
             if (std::filesystem::exists(case_path)) {
                 std::filesystem::remove_all(case_path);
@@ -487,12 +468,11 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
 
     std::string rank_path = case_path + "/rank_" + std::to_string(Mpi::WorldRank());
     if (cycle_ == 0) {
-        // Safe to create without guard since the path includes the unique WorldRank
         std::filesystem::create_directories(rank_path);
     }
 
     std::string folder_path = rank_path + "/cycle_" + to_padded_string(cycle_, 6) + "/";
-    std::filesystem::create_directories(folder_path); // Safe, unique to rank
+    std::filesystem::create_directories(folder_path);
 
     dc.Save(folder_path);
 
