@@ -1,423 +1,460 @@
 #include "ProbesManager.h"
 #include "math/PhysicalConstants.h"
-#include "filesystem"
+#include <filesystem>
+#include <iostream>
 
 namespace maxwell {
 
 using namespace mfem;
 
+// FIX: Helper function to identify Process 0 on each physical machine
+bool isNodeRoot()
+{
+    MPI_Comm node_comm;
+    // Group processes that share physical memory (the same node)
+    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, Mpi::WorldRank(), MPI_INFO_NULL, &node_comm);
+    
+    int node_rank;
+    MPI_Comm_rank(node_comm, &node_rank);
+    MPI_Comm_free(&node_comm);
+    
+    return (node_rank == 0);
+}
+
 std::string getFieldPolString(const FieldType& ft, const Direction& d)
 {
-	switch(ft){
-		case E:
-		switch(d){
-			case X:
-				return "Ex";
-			case Y:
-				return "Ey";
-			case Z:
-				return "Ez";
-			default:
-				throw std::runtime_error("Incorrect direction in getFieldPolString.");
-		}
-		case H:
-		switch(d){
-			case X:
-				return "Hx";
-			case Y:
-				return "Hy";
-			case Z:
-				return "Hz";
-			default:
-				throw std::runtime_error("Incorrect direction in getFieldPolString.");
-		}
-		default:
-			throw std::runtime_error("Incorrect fieldtype in getFieldPolString.");
-	}
+    switch(ft){
+        case E:
+        switch(d){
+            case X:
+                return "Ex";
+            case Y:
+                return "Ey";
+            case Z:
+                return "Ez";
+            default:
+                throw std::runtime_error("Incorrect direction in getFieldPolString.");
+        }
+        case H:
+        switch(d){
+            case X:
+                return "Hx";
+            case Y:
+                return "Hy";
+            case Z:
+                return "Hz";
+            default:
+                throw std::runtime_error("Incorrect direction in getFieldPolString.");
+        }
+        default:
+            throw std::runtime_error("Incorrect fieldtype in getFieldPolString.");
+    }
 }
 
 ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const ExporterProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
-	fes_.ExchangeFaceNbrData();
-	fes_.GetParMesh()->ExchangeFaceNbrData();
-	ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
-	pd.SetPrefixPath("Exports/ParaView/" + getRunModeTag() + "/");
+    fes_.ExchangeFaceNbrData();
+    fes_.GetParMesh()->ExchangeFaceNbrData();
+    ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
+    
+    std::string paraview_path = "Exports/ParaView/" + getRunModeTag() + "/";
+    
+    // FIX: Only the local root creates the directory to avoid race conditions
+    if (isNodeRoot()) {
+        std::filesystem::create_directories(paraview_path);
+    }
+    MPI_Barrier(MPI_COMM_WORLD); // Wait for local roots to finish
 
-	pd.RegisterField("E", &fields.get(E));
-	pd.RegisterField("H", &fields.get(H));
-	
-	bool highOrder = false;
-	auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
-	auto fecorder = fes_.FEColl()->GetOrder();
-	geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
-	pd.SetHighOrderOutput(highOrder);
-	pd.SetLevelsOfDetail(std::max(geomElemOrder,fecorder));
-	
-	pd.SetDataFormat(VTKFormat::BINARY);
+    pd.SetPrefixPath(paraview_path);
 
-	return pd;
+    pd.RegisterField("E", &fields.get(E));
+    pd.RegisterField("H", &fields.get(H));
+    
+    bool highOrder = false;
+    auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+    auto fecorder = fes_.FEColl()->GetOrder();
+    geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
+    pd.SetHighOrderOutput(highOrder);
+    pd.SetLevelsOfDetail(std::max(geomElemOrder,fecorder));
+    
+    pd.SetDataFormat(VTKFormat::BINARY);
+
+    return pd;
 }
 
 std::string getRunModeTag()
 {
-	std::string backend;
-	if (mfem::Device::Allows(mfem::Backend::CUDA)){
-		backend = "cuda-";
-		backend.append(std::to_string(Mpi::WorldSize()));
-		return backend;
-	}
-	else{
-		if (Mpi::WorldSize() == 1){
-			return "single-core";
-		}
-		else{
-			backend = "mpi-";
-			backend.append(std::to_string(Mpi::WorldSize()));
-			return backend;
-		}
-	}
+    std::string backend;
+    if (mfem::Device::Allows(mfem::Backend::CUDA)){
+        backend = "cuda-";
+        backend.append(std::to_string(Mpi::WorldSize()));
+        return backend;
+    }
+    else{
+        if (Mpi::WorldSize() == 1){
+            return "single-core";
+        }
+        else{
+            backend = "mpi-";
+            backend.append(std::to_string(Mpi::WorldSize()));
+            return backend;
+        }
+    }
 }
 
 ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& fields, const SolverOptions& opts) :
-	probes{ pIn },
-	fes_{ fes }
+    probes{ pIn },
+    fes_{ fes }
 {
-	
-	for (const auto& p: probes.exporterProbes) {
-		exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
-	}
+    
+    for (const auto& p: probes.exporterProbes) {
+        exporterProbesCollection_.emplace(&p, buildParaviewDataCollectionInfo(p, fields));
+    }
 
-	for (const auto& p : probes.pointProbes) {
-		pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
-	}
+    for (const auto& p : probes.pointProbes) {
+        pointProbesCollection_.emplace(&p, buildPointProbeCollectionInfo(p, fields));
+    }
 
-	for (const auto& p : probes.fieldProbes) {
-		fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
-	}
+    for (const auto& p : probes.fieldProbes) {
+        fieldProbesCollection_.emplace(&p, buildFieldProbeCollectionInfo(p, fields));
+    }
 
-	for (const auto& p : probes.nearFieldProbes) {
-		auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
-		if (!dgfec)
-		{
-			throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
-		}
-		nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
-		nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
-	}
+    for (const auto& p : probes.nearFieldProbes) {
+        auto dgfec{ dynamic_cast<const DG_FECollection*>(fes_.FEColl()) };
+        if (!dgfec)
+        {
+            throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+        }
+        nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
+        nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
+    }
 
-	for (const auto& p: probes.domainSnapshotProbes) {
-		domainSnapshotProbesCollection_.emplace(&p, buildDomainSnapshotDataCollection(p, fields));
-	}
-	
-	finalTime_ = opts.final_time;
-	fields_ = &fields;
+    for (const auto& p: probes.domainSnapshotProbes) {
+        domainSnapshotProbesCollection_.emplace(&p, buildDomainSnapshotDataCollection(p, fields));
+    }
+    
+    finalTime_ = opts.final_time;
+    fields_ = &fields;
 }
 
 const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
 {
-	assert(i < probes.fieldProbes.size());
-	return probes.fieldProbes[i];
+    assert(i < probes.fieldProbes.size());
+    return probes.fieldProbes[i];
 }
 
 const PointProbe& ProbesManager::getPointProbe(const std::size_t i) const
 {
-	assert(i < probes.pointProbes.size());
-	return probes.pointProbes[i];
+    assert(i < probes.pointProbes.size());
+    return probes.pointProbes[i];
 }
 
 const ParGridFunction& getFieldView(const FieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields)
 {
-	switch (p.getFieldType()) {
-	case FieldType::E:
-		return fields.get(E, p.getDirection());
-	case FieldType::H:
-		return fields.get(H, p.getDirection());
-	default:
-		throw std::runtime_error("Invalid field type.");
-	}
+    switch (p.getFieldType()) {
+    case FieldType::E:
+        return fields.get(E, p.getDirection());
+    case FieldType::H:
+        return fields.get(H, p.getDirection());
+    default:
+        throw std::runtime_error("Invalid field type.");
+    }
 }
 
 DenseMatrix pointVectorToDenseMatrixColumnVector(const Point& p)
 {
-	DenseMatrix r{(int)p.size(), 1 };
-	for (auto i{ 0 }; i < p.size(); ++i) {
-		r(i, 0) = p[i];
-	}
-	return r;
+    DenseMatrix r{(int)p.size(), 1 };
+    for (auto i{ 0 }; i < p.size(); ++i) {
+        r(i, 0) = p[i];
+    }
+    return r;
 }
 
 ProbesManager::PointProbeCollection
 ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
-	
-	Array<int> elemIdArray;
-	Array<IntegrationPoint> integPointArray;
-	auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
-	fes_.GetParMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
-	assert(elemIdArray.Size() == 1);
-	assert(integPointArray.Size() == 1);
-	FESPoint fesPoints { elemIdArray[0], integPointArray[0] };
+    
+    Array<int> elemIdArray;
+    Array<IntegrationPoint> integPointArray;
+    auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
+    fes_.GetParMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
+    assert(elemIdArray.Size() == 1);
+    assert(integPointArray.Size() == 1);
+    FESPoint fesPoints { elemIdArray[0], integPointArray[0] };
 
-	return { 
-		fesPoints, 
-		fields.get(E, X),
-		fields.get(E, Y),
-		fields.get(E, Z),
-		fields.get(H, X),
-		fields.get(H, Y),
-		fields.get(H, Z)
-	};
+    return { 
+        fesPoints, 
+        fields.get(E, X),
+        fields.get(E, Y),
+        fields.get(E, Z),
+        fields.get(H, X),
+        fields.get(H, Y),
+        fields.get(H, Z)
+    };
 }
 
 void ProbesManager::initPointFieldProbeExport()
 {
-	
-	if (probes.pointProbes.size()){
-		auto base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
-		if (Mpi::WorldRank() == 0){
+    
+    if (probes.pointProbes.size()){
+        auto base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
+        
+        // FIX: Replaced WorldRank check with isNodeRoot()
+        if (cycle_ == 0) {
+            if (isNodeRoot()) {
+                if (std::filesystem::exists(base_path)) {
+                    std::filesystem::remove_all(base_path);
+                }
+                std::filesystem::create_directories(base_path);
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD); // Keep all ranks synced
 
-			if (cycle_ == 0) {
-				if (std::filesystem::exists(base_path)) {
-					std::filesystem::remove_all(base_path);
-				}
-				std::filesystem::create_directories(base_path);
-			}
+        for (const auto& p : probes.pointProbes) {
+            if(p.write){
+                std::ofstream myfile;
+                std::string path(base_path + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+                std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+                for (auto i = 0; i < p.getPoint().size(); i++){
+                    position[i] = p.getPoint()[i];
+                }
+                myfile.open(path, std::ios::app);
+                if (myfile.is_open()) {
+                    myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
+                    myfile << "Spatial Position (X, Y, Z) \n";
+                    myfile << std::scientific << std::setprecision(5);
+                    myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+                    myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
+                }
+                myfile.close();
+            }
+        }
+    }
 
-			for (const auto& p : probes.pointProbes) {
-				if(p.write){
-					std::ofstream myfile;
-					std::string path(base_path + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-					std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-					for (auto i = 0; i < p.getPoint().size(); i++){
-						position[i] = p.getPoint()[i];
-					}
-					myfile.open(path, std::ios::app);
-					if (myfile.is_open()) {
-						myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
-						myfile << "Spatial Position (X, Y, Z) \n";
-						myfile << std::scientific << std::setprecision(5);
-						myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-						myfile << "Time (s) // Ex // Ey // Ez // Hx // Hy // Hz \n";
-					}
-					myfile.close();
-				}
-			}
-		}
-	}
+    if (probes.fieldProbes.size()){
+        auto base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
+        
+        // FIX: Replaced WorldRank check with isNodeRoot()
+        if (cycle_ == 0) {
+            if (isNodeRoot()) {
+                if (std::filesystem::exists(base_path)) {
+                    std::filesystem::remove_all(base_path);
+                }
+                std::filesystem::create_directories(base_path);
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD); // Keep all ranks synced
 
-	if (probes.fieldProbes.size()){
-		auto base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
-		if (Mpi::WorldRank() == 0){
-			if (cycle_ == 0) {
-				if (std::filesystem::exists(base_path)) {
-					std::filesystem::remove_all(base_path);
-				}
-				std::filesystem::create_directories(base_path);
-			}
-
-			for (const auto& p : probes.fieldProbes) {
-				if(p.write){
-					std::ofstream myfile;
-					std::string path(base_path + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-					std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
-					auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
-					for (auto i = 0; i < p.getPoint().size(); i++){
-						position[i] = p.getPoint()[i];
-					}
-					myfile.open(path, std::ios::app);
-					if (myfile.is_open()) {
-						myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
-						myfile << "Spatial Position (X, Y, Z) \n";
-						myfile << std::scientific << std::setprecision(5);
-						myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
-						myfile << "Time (s) // " + fieldpol + "\n";
-					}
-					myfile.close();
-				}
-			}
-		}
-	}
+        for (const auto& p : probes.fieldProbes) {
+            if(p.write){
+                std::ofstream myfile;
+                std::string path(base_path + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+                std::vector<double> position = std::vector<double>({0.0, 0.0, 0.0});
+                auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
+                for (auto i = 0; i < p.getPoint().size(); i++){
+                    position[i] = p.getPoint()[i];
+                }
+                myfile.open(path, std::ios::app);
+                if (myfile.is_open()) {
+                    myfile << "FieldProbe ID " << std::to_string(p.getProbeID()) << "\n";
+                    myfile << "Spatial Position (X, Y, Z) \n";
+                    myfile << std::scientific << std::setprecision(5);
+                    myfile << std::to_string(position[0]) + " " + std::to_string(position[1]) + " " + std::to_string(position[2]) << "\n";
+                    myfile << "Time (s) // " + fieldpol + "\n";
+                }
+                myfile.close();
+            }
+        }
+    }
 }
-
-
 
 ProbesManager::FieldProbeCollection
 ProbesManager::buildFieldProbeCollectionInfo(const FieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
 
-	Array<int> elemIdArray;
-	Array<IntegrationPoint> integPointArray;
-	auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
-	fes_.GetParMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
-	assert(elemIdArray.Size() == 1);
-	assert(integPointArray.Size() == 1);
-	FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
+    Array<int> elemIdArray;
+    Array<IntegrationPoint> integPointArray;
+    auto pointMatrix{ pointVectorToDenseMatrixColumnVector(p.getPoint()) };
+    fes_.GetParMesh()->FindPoints(pointMatrix, elemIdArray, integPointArray);
+    assert(elemIdArray.Size() == 1);
+    assert(integPointArray.Size() == 1);
+    FESPoint fesPoints{ elemIdArray[0], integPointArray[0] };
 
-	return {
-		fesPoints,
-		getFieldView(p, fields)
-	};
+    return {
+        fesPoints,
+        getFieldView(p, fields)
+    };
 }
 
 void isDGCollection(const FiniteElementSpace& fes)
 {
-	if (!dynamic_cast<const DG_FECollection*>(fes.FEColl()))
-	{
-		throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
-	}
+    if (!dynamic_cast<const DG_FECollection*>(fes.FEColl()))
+    {
+        throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+    }
 }
 
 DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
-	const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
+    const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
 
-	isDGCollection(fes_);
+    isDGCollection(fes_);
 
-	DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
-	res.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
-	res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getConstField(E, X));
-	res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getConstField(E, Y));
-	res.RegisterField("Ez.gf", &nearFieldReqs_.at(&p)->getConstField(E, Z));
-	res.RegisterField("Hx.gf", &nearFieldReqs_.at(&p)->getConstField(H, X));
-	res.RegisterField("Hy.gf", &nearFieldReqs_.at(&p)->getConstField(H, Y));
-	res.RegisterField("Hz.gf", &nearFieldReqs_.at(&p)->getConstField(H, Z));
+    DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
+    
+    // FIX: Safely create shared parent directories before individual ranks create their subdirectories
+    std::string parent_path = "Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name;
+    if (isNodeRoot()) {
+        std::filesystem::create_directories(parent_path);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
-	return res;
+    std::string path = parent_path + "/rank" + std::to_string(Mpi::WorldRank());
+    std::filesystem::create_directories(path); // Safe, as each rank has a unique path here
+    res.SetPrefixPath(path);
+    
+    res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getConstField(E, X));
+    res.RegisterField("Ey.gf", &nearFieldReqs_.at(&p)->getConstField(E, Y));
+    res.RegisterField("Ez.gf", &nearFieldReqs_.at(&p)->getConstField(E, Z));
+    res.RegisterField("Hx.gf", &nearFieldReqs_.at(&p)->getConstField(H, X));
+    res.RegisterField("Hy.gf", &nearFieldReqs_.at(&p)->getConstField(H, Y));
+    res.RegisterField("Hz.gf", &nearFieldReqs_.at(&p)->getConstField(H, Z));
+
+    return res;
 
 }
 
 DomainSnapshotDataCollection ProbesManager::buildDomainSnapshotDataCollection(const DomainSnapshotProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& fields) const
 {
 
-	isDGCollection(fes_);
+    isDGCollection(fes_);
 
-	DomainSnapshotDataCollection res(fes_, fields);
+    DomainSnapshotDataCollection res(fes_, fields);
 
-	return res;
+    return res;
 }
-
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-	if (std::abs(time - finalTime_) >= 1e-3){
-		if (cycle_ % p.visSteps != 0) {
-			return;
-		}
-	}
+    if (std::abs(time - finalTime_) >= 1e-3){
+        if (cycle_ % p.visSteps != 0) {
+            return;
+        }
+    }
 
-	auto it{ exporterProbesCollection_.find(&p) };
-	assert(it != exporterProbesCollection_.end());
-	auto& pd{ it->second };
+    auto it{ exporterProbesCollection_.find(&p) };
+    assert(it != exporterProbesCollection_.end());
+    auto& pd{ it->second };
 
-	pd.SetCycle(cycle_);
-	pd.SetTime(time);
+    pd.SetCycle(cycle_);
+    pd.SetTime(time);
 
-	pd.Save();
+    pd.Save();
 }
 
 void ProbesManager::updateProbe(FieldProbe& p, Time time)
 {
-	const auto& it{ fieldProbesCollection_.find(&p) };
-	assert(it != fieldProbesCollection_.end());
-	const auto& pC{ it->second };
-	if (pC.fesPoint.elementId != -2){
+    const auto& it{ fieldProbesCollection_.find(&p) };
+    assert(it != fieldProbesCollection_.end());
+    const auto& pC{ it->second };
+    if (pC.fesPoint.elementId != -2){
 
-		real_t gf_value = pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+        real_t gf_value = pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 
-		p.addFieldToMovies(
-			time, 
-			gf_value
-		);
+        p.addFieldToMovies(
+            time, 
+            gf_value
+        );
 
-		if(p.write){
-			std::ofstream myfile;
-			std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-			myfile.open(path, std::ios::app);
-			if (myfile.is_open()) {
-				myfile << std::scientific << std::setprecision(5);
-				myfile << time / physicalConstants::speedOfLight_SI << " " << gf_value << "\n";
-			}
-		myfile.close();
-		}
-	}
+        if(p.write){
+            std::ofstream myfile;
+            std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+            myfile.open(path, std::ios::app);
+            if (myfile.is_open()) {
+                myfile << std::scientific << std::setprecision(5);
+                myfile << time / physicalConstants::speedOfLight_SI << " " << gf_value << "\n";
+            }
+        myfile.close();
+        }
+    }
 }
 
 void ProbesManager::updateProbe(PointProbe& p, Time time)
 {
-	const auto& it{ pointProbesCollection_.find(&p) };
-	assert(it != pointProbesCollection_.end());
-	const auto& pC{ it->second };
-	if (pC.fesPoint.elementId != -2){
-		FieldsForMovie f4FP;
-		{
-			f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-			f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-			f4FP.Ez = pC.field_Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-			f4FP.Hx = pC.field_Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-			f4FP.Hy = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-			f4FP.Hz = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
-		}
-		p.addFieldsToMovies(
-			time,
-			f4FP
-		);
-		if(p.write){
-			std::ofstream myfile;
-			std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-			myfile.open(path, std::ios::app);
-			if (myfile.is_open()) {
-				myfile << std::scientific << std::setprecision(5);
-				myfile << time / physicalConstants::speedOfLight_SI << 
-				" " << f4FP.Ex << " " << f4FP.Ey << " " << f4FP.Ez <<
-				" " << f4FP.Hx << " " << f4FP.Hy << " " << f4FP.Hz << "\n";
-			}
-			myfile.close();
-		}
-	}
+    const auto& it{ pointProbesCollection_.find(&p) };
+    assert(it != pointProbesCollection_.end());
+    const auto& pC{ it->second };
+    if (pC.fesPoint.elementId != -2){
+        FieldsForMovie f4FP;
+        {
+            f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+            f4FP.Ey = pC.field_Ey.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+            f4FP.Ez = pC.field_Ez.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+            f4FP.Hx = pC.field_Hx.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+            f4FP.Hy = pC.field_Hy.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+            f4FP.Hz = pC.field_Hz.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
+        }
+        p.addFieldsToMovies(
+            time,
+            f4FP
+        );
+        if(p.write){
+            std::ofstream myfile;
+            std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+            myfile.open(path, std::ios::app);
+            if (myfile.is_open()) {
+                myfile << std::scientific << std::setprecision(5);
+                myfile << time / physicalConstants::speedOfLight_SI << 
+                " " << f4FP.Ex << " " << f4FP.Ey << " " << f4FP.Ez <<
+                " " << f4FP.Hx << " " << f4FP.Hy << " " << f4FP.Hz << "\n";
+            }
+            myfile.close();
+        }
+    }
 }
 
 Fields<ParFiniteElementSpace, ParGridFunction> buildFieldsForProbe(const Fields<ParFiniteElementSpace, ParGridFunction>& src, ParFiniteElementSpace& fes)
 {
-	Fields<ParFiniteElementSpace, ParGridFunction> res(fes);
-	for (auto f : { E, H }) {
-		for (auto& d : { X, Y, Z }) {
-			TransferMap tm(src.get(f, d), res.get(f, d));
-			tm.   Transfer(src.get(f, d), res.get(f, d));
-		}
-	}
-	return res;
+    Fields<ParFiniteElementSpace, ParGridFunction> res(fes);
+    for (auto f : { E, H }) {
+        for (auto& d : { X, Y, Z }) {
+            TransferMap tm(src.get(f, d), res.get(f, d));
+            tm.  Transfer(src.get(f, d), res.get(f, d));
+        }
+    }
+    return res;
 }
 
 void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 {
-	if (std::abs(time - finalTime_) >= 1e-3) {
-		if (cycle_ % p.expSteps != 0) {
-			return;
-		}
-	}
+    if (std::abs(time - finalTime_) >= 1e-3) {
+        if (cycle_ % p.expSteps != 0) {
+            return;
+        }
+    }
 
-	auto it{ nearFieldProbesCollection_.find(&p) };
-	assert(it != nearFieldProbesCollection_.end());
-	auto& dc{ it->second };
-	dc.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
+    auto it{ nearFieldProbesCollection_.find(&p) };
+    assert(it != nearFieldProbesCollection_.end());
+    auto& dc{ it->second };
+    dc.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 
-	nearFieldReqs_.at(&p)->updateFields();
+    nearFieldReqs_.at(&p)->updateFields();
 
-	dc.SetCycle(cycle_);
-	dc.SetTime(time);
-	dc.Save(); //Ideally we wouldn't save the mesh every step but MFEM DataCollection does it. We should redo the method or delete the extra meshes later (suboptimal).
+    dc.SetCycle(cycle_);
+    dc.SetTime(time);
+    dc.Save(); 
 
-	std::string mesh_path{ dc.GetPrefixPath() + dc.GetCollectionName() + "/mesh" }; //We do want to save the mesh at the base directory, though ideally we'd only do this once. (WIP)
-	auto mesh{ dc.GetMesh() };
-	auto elemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
-	mesh->SetCurvature(elemOrder);
-	mesh->Save(dc.GetPrefixPath() + "/mesh");
+    std::string mesh_path{ dc.GetPrefixPath() + dc.GetCollectionName() + "/mesh" }; 
+    auto mesh{ dc.GetMesh() };
+    auto elemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
+    mesh->SetCurvature(elemOrder);
+    mesh->Save(dc.GetPrefixPath() + "/mesh");
 
-	std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
-	std::ofstream file;
-	file.open(dir_name);
-	file << time;
-	file.close();
+    std::string dir_name = dc.GetPrefixPath() + dc.GetCollectionName() + "_" + to_padded_string(dc.GetCycle(), 6) + "/time.txt";
+    std::ofstream file;
+    file.open(dir_name);
+    file << time;
+    file.close();
 }
 
 void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
@@ -432,18 +469,15 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     assert(it != domainSnapshotProbesCollection_.end());
     auto& dc{ it->second };
 
-	std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshotProbes/");
-	
-	if (cycle_ == 0) {
-		if (Mpi::WorldRank() == 0) {
-			if (std::filesystem::exists(case_path)) {
-				std::filesystem::remove_all(case_path);
-			}
-			std::filesystem::create_directories(case_path);
-		}
-		MPI_Barrier(MPI_COMM_WORLD);
-
-        if (Mpi::WorldRank() == 0) {
+    std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshotProbes/");
+    
+    if (cycle_ == 0) {
+        // FIX: Replaced WorldRank check with isNodeRoot()
+        if (isNodeRoot()) {
+            if (std::filesystem::exists(case_path)) {
+                std::filesystem::remove_all(case_path);
+            }
+            std::filesystem::create_directories(case_path);
             std::filesystem::create_directories(case_path + "/meshes/");
         }
         MPI_Barrier(MPI_COMM_WORLD);
@@ -451,69 +485,70 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
         dc.mesh.Save(case_path + "/meshes/mesh_rank" + std::to_string(Mpi::WorldRank()) , 16);
     }
 
-	std::string rank_path = case_path + "/rank_" + std::to_string(Mpi::WorldRank());
-	if (cycle_ == 0) {
+    std::string rank_path = case_path + "/rank_" + std::to_string(Mpi::WorldRank());
+    if (cycle_ == 0) {
+        // Safe to create without guard since the path includes the unique WorldRank
         std::filesystem::create_directories(rank_path);
     }
 
     std::string folder_path = rank_path + "/cycle_" + to_padded_string(cycle_, 6) + "/";
-    std::filesystem::create_directories(folder_path);
+    std::filesystem::create_directories(folder_path); // Safe, unique to rank
 
     dc.Save(folder_path);
 
-	std::ofstream file(folder_path + "time.txt");
-	file << time;
+    std::ofstream file(folder_path + "time.txt");
+    file << time;
 }
 
 void ProbesManager::updateProbes(Time t)
 {
-	for (auto& p : probes.exporterProbes) {
-		updateProbe(p, t);
-	}
-	
-	for (auto& p : probes.fieldProbes) {
-		updateProbe(p, t);
-	}
+    for (auto& p : probes.exporterProbes) {
+        updateProbe(p, t);
+    }
+    
+    for (auto& p : probes.fieldProbes) {
+        updateProbe(p, t);
+    }
 
-	for (auto& p : probes.pointProbes) {
-		updateProbe(p, t);
-	}
-	
-	for (auto& p : probes.nearFieldProbes) {
-		updateProbe(p, t);
-	}
+    for (auto& p : probes.pointProbes) {
+        updateProbe(p, t);
+    }
+    
+    for (auto& p : probes.nearFieldProbes) {
+        updateProbe(p, t);
+    }
 
-	for (auto& p : probes.domainSnapshotProbes){
-		updateProbe(p, t);
-	}
+    for (auto& p : probes.domainSnapshotProbes){
+        updateProbe(p, t);
+    }
 
-	cycle_++;
+    cycle_++;
 }
 
 Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace& fes)
 {
-	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
-	res = 0;
-	for (const auto& t : tags) {
-		res[t - 1] = 1;
-	}
-	return res;
+    Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+    res = 0;
+    for (const auto& t : tags) {
+        res[t - 1] = 1;
+    }
+    return res;
 }
 
 void NearFieldReqs::updateFields()
 {
-	tMaps_.transferFields(gFields_, fields_);
+    tMaps_.transferFields(gFields_, fields_);
 }
 
 NearFieldReqs::NearFieldReqs(
-	const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& global) :
-	ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
-	sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
-	fields_{ Fields<FiniteElementSpace, GridFunction>(*sfes_) },
-	gFields_{ global },
-	tMaps_{ TransferMaps(gFields_, fields_) }
+    const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& global) :
+    ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
+    sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
+    fields_{ Fields<FiniteElementSpace, GridFunction>(*sfes_) },
+    gFields_{ global },
+    tMaps_{ TransferMaps(gFields_, fields_) }
 {
-	updateFields();
+    updateFields();
 }
 
 }
