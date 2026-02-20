@@ -66,7 +66,7 @@ struct DomainSnapshotDataCollection{
 
 class FieldProbe {
 public:
-    FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const bool writeFile = false) :
+    FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const bool writeFile = true) :
         fieldToExtract_{ ft },
         directionToExtract_{ d },
         point_{ p },

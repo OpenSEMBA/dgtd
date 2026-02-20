@@ -447,13 +447,8 @@ Probes buildProbes(const json& case_data)
 
 		if (case_data["probes"].contains("point")) {
 			for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
-				bool write = false;
-				if (case_data["probes"]["point"][p].contains("write")){
-					write = case_data["probes"]["point"][p]["write"];
-				}
 				PointProbe point_probe(
-					assembleVector(case_data["probes"]["point"][p]["position"]),
-					write
+					assembleVector(case_data["probes"]["point"][p]["position"])
 				);
 				point_probe.setProbeID(pp_count);
 				pp_count++;
@@ -463,15 +458,10 @@ Probes buildProbes(const json& case_data)
 
 			if (case_data["probes"].contains("field")) {
 			for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
-				bool write = false;
-				if (case_data["probes"]["field"][p].contains("write")){
-					write = true;
-				}
 				FieldProbe field_probe(
 					assignFieldType(case_data["probes"]["field"][p]["field_type"]),
 					assignFieldPol(case_data["probes"]["field"][p]["polarization"]),
-					assembleVector(case_data["probes"]["field"][p]["position"]),
-					write
+					assembleVector(case_data["probes"]["field"][p]["position"])
 				);
 				field_probe.setProbeID(fp_count);
 				fp_count++;
