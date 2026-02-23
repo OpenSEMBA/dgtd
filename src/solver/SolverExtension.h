@@ -104,8 +104,6 @@ private:
     
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>* global_fields_;
     std::unique_ptr<Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>> sgbc_solver_fields_;
-    
-    void initNodeIds(const std::vector<NodeId>& target_ids);
 
 };
 

@@ -35,15 +35,6 @@ std::vector<NodeId> buildTargetNodeIds(const size_t order, const size_t num_of_s
     return res;
 }
 
-void SGBCWrapper::initNodeIds(const std::vector<NodeId>& target_ids)
-{
-    dof_pair_.load_el1 = target_ids.front();
-    dof_pair_.load_el2 = target_ids.back();
-
-    dof_pair_.unload_el1 = target_ids.at(1);
-    dof_pair_.unload_el2 = target_ids.at(2);
-}
-
 GeomTagToInteriorBoundary buildIntBdrInfo(const SGBCBoundaries& bdrInfo)
 {
     GeomTagToInteriorBoundary res;
