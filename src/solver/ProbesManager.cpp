@@ -316,7 +316,7 @@ DomainSnapshotDataCollection ProbesManager::buildDomainSnapshotDataCollection(co
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-    if (std::abs(time - finalTime_) >= 1e-3){
+    if (std::abs(time - finalTime_) >= 1e-8){
         if (cycle_ % p.visSteps != 0) {
             return;
         }
@@ -409,7 +409,7 @@ Fields<ParFiniteElementSpace, ParGridFunction> buildFieldsForProbe(const Fields<
 
 void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 {
-    if (std::abs(time - finalTime_) >= 1e-3) {
+    if (std::abs(time - finalTime_) >= 1e-8) {
         if (cycle_ % p.expSteps != 0) {
             return;
         }
@@ -441,7 +441,7 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
 
 void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
 {
-    if (std::abs(time - finalTime_) >= 1e-3) {
+    if (std::abs(time - finalTime_) >= 1e-8) {
         if (cycle_ % p.expSteps != 0) {
             return;
         }
