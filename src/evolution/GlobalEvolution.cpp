@@ -144,6 +144,10 @@ GlobalEvolution::GlobalEvolution(
         auto global_sm_fes = std::make_unique<FiniteElementSpace>(sgbc_sm.getGlobalTFSFSubMesh(), fes_.FEColl());
         SGBCndofs_ = global_sm_fes->GetNDofs();
         auto sgbc_mesh = global_sm_fes->GetMesh();
+        Model sgbc_model = Model(*sgbc_mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+        ProblemDescription sgbc_pd(sgbc_model, probes, srcmngr_.sources, opts_);
+        DGOperatorFactory<FiniteElementSpace> sgbc_ops(sgbc_pd, *global_sm_fes);
+        SGBCOperator_ = sgbc_ops.buildSGBCGlobalOperator();
         auto src_sm = static_cast<mfem::SubMesh*>(sgbc_mesh);
         mfem::SubMeshUtils::BuildVdofToVdofMap(*global_sm_fes, fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
     }
@@ -297,69 +301,63 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
     // 5) SGBC Coupling via Flux Injection
     timerSGBC.Start();
-    for (const auto& [tag, states] : sgbc_states_){
-        for (auto& w : sgbcWrappers_){
-            if (tag == w->getProperties().geom_tags.at(0)){
-                
-                auto sgbc_fields = initSGBCHelperFields(SGBCndofs_);
-                
-                for (const auto& state : states) {
-                    
-                    w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_fields);
-                    
-                    const int global_node_left = state.global_pair.first;  
-                    const int global_node_right = state.global_pair.second;
-                    
-                    const int sub_idx_L = sgbc_sub_to_parent_ids_.Find(global_node_left);
-                    const int sub_idx_R = sgbc_sub_to_parent_ids_.Find(global_node_right);
 
-                    if (sub_idx_L == -1 || sub_idx_R == -1) continue; 
+    FieldGridFuncs sgbc_fields = initSGBCHelperFields(SGBCndofs_);
+    mfem::Vector sgbcVec(6 * SGBCndofs_);
+    sgbcVec = 0.0;
 
-                    // --- Mass Matrix Scaling Logic ---
-                    // [UPDATED] Read Element IDs directly from the SGBCState
-                    int el_idx_L = state.element_pair.first;
-                    int el_idx_R = state.element_pair.second;
+    // for (int f : {E,H}) {
+    //     for (int d : {X,Y,Z}) {
+    //         for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
+    //             int globalId = sgbc_sub_to_parent_ids_[v];
+    //             if (f == E) sgbcVec[(f*3 + d)*SGBCndofs_ + v] = eOld_[d][globalId];
+    //             else        sgbcVec[(f*3 + d)*SGBCndofs_ + v] = hOld_[d][globalId];
+    //         }
+    //     }
+    // }
 
-                    // Robust: Use element order (assumes pairs share order, or look up per element)
-                    int order_L = fes_.GetElementOrder(el_idx_L); 
-                    int order_R = fes_.GetElementOrder(el_idx_R); 
+    for (const auto& w : sgbcWrappers_) {
+        int tag = w->getProperties().geom_tags.at(0);
+        auto it = sgbc_states_.find(tag);
+        if (it == sgbc_states_.end()) continue;
 
-                    // Get exact volumes from the mesh using the stored element IDs
-                    double vol_L = fes_.GetMesh()->GetElementVolume(el_idx_L);
-                    double vol_R = fes_.GetMesh()->GetElementVolume(el_idx_R);
+        const auto& states = it->second;
+        for (const auto& state : states) {
+            w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_fields);
 
-                    double scale_L = (double)(order_L * (order_L + 1)) / vol_L;
-                    double scale_R = (double)(order_R * (order_R + 1)) / vol_R;
+            const int global_L = state.global_pair.first;
+            const int global_R = state.global_pair.second;
+            const int sub_L = sgbc_sub_to_parent_ids_.Find(global_L);
+            const int sub_R = sgbc_sub_to_parent_ids_.Find(global_R);
 
-                    for (auto d : {X, Y, Z}) {
-                        // --- Left Interface ---
-                        double Eg_L = eOld_[d][global_node_left];
-                        double Hg_L = hOld_[d][global_node_left];
-                        double Es_L = sgbc_fields[E][d][sub_idx_L]; 
-                        double Hs_L = sgbc_fields[H][d][sub_idx_L]; 
+            if (sub_L == -1 || sub_R == -1) continue;
 
-                        double flux_E_L = ((Hs_L - Hg_L) + (Es_L - Eg_L)) * 0.5;
-                        double flux_H_L = ((Es_L - Eg_L) + (Hs_L - Hg_L)) * 0.5;
+            for (auto d : {X,Y,Z}) {
+                double flux_E = (sgbc_fields[E][d][sub_L] - sgbc_fields[E][d][sub_R]);
+                double flux_H = (sgbc_fields[H][d][sub_L] - sgbc_fields[H][d][sub_R]);
 
-                        out[(E * 3 + d) * ndofs + global_node_left] += (flux_E_L * scale_L);
-                        out[(H * 3 + d) * ndofs + global_node_left] += (flux_H_L * scale_L);
-
-                        // --- Right Interface ---
-                        double Eg_R = eOld_[d][global_node_right];
-                        double Hg_R = hOld_[d][global_node_right];
-                        double Es_R = sgbc_fields[E][d][sub_idx_R]; 
-                        double Hs_R = sgbc_fields[H][d][sub_idx_R]; 
-
-                        double flux_E_R = -((Hs_R - Hg_R) - (Es_R - Eg_R)) * 0.5;
-                        double flux_H_R = -((Es_R - Eg_R) - (Hs_R - Hg_R)) * 0.5;
-
-                        out[(E * 3 + d) * ndofs + global_node_right] += (flux_E_R * scale_R);
-                        out[(H * 3 + d) * ndofs + global_node_right] += (flux_H_R * scale_R);
-                    }
-                }
+                sgbcVec[(E*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[E][d][sub_L];
+                sgbcVec[(E*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[E][d][sub_R];
+                sgbcVec[(H*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[H][d][sub_L];
+                sgbcVec[(H*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[H][d][sub_R];
             }
         }
     }
+
+    mfem::Vector tempSGBC(sgbcVec.Size());
+    tempSGBC.UseDevice(true);
+    SGBCOperator_->Mult(sgbcVec, tempSGBC);
+
+    for (int f : {E,H}) {
+        for (int d : {X,Y,Z}) {
+            for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
+                int outIdx  = (f*3 + d)*ndofs + sgbc_sub_to_parent_ids_[v];
+                int tempIdx = (f*3 + d)*SGBCndofs_ + v;
+                out[outIdx] -= tempSGBC[tempIdx];
+            }
+        }
+    }
+
     timerSGBC.Stop();
 
     timerTotal.Stop();

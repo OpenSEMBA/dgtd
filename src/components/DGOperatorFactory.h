@@ -27,7 +27,6 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
-		{BdrCond::SGBC, {-1.0, -1.0}},
 	};
 
 	static FluxBdrCoefficientsUpwind bdrUpwindCoeff{
@@ -35,15 +34,16 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
-		{BdrCond::SGBC, {-1.0, -1.0}},
 	};
 
 	static FluxSrcCoefficientsCentered srcCentCoeff{
 		{BdrCond::TotalFieldIn, {1.0, 1.0}},
+		{BdrCond::SGBC, {1.0, 1.0}},
 	};
 
 	static FluxSrcCoefficientsUpwind srcUpwindCoeff{
 		{BdrCond::TotalFieldIn, {1.0, 1.0}},
+		{BdrCond::SGBC, {1.0, 1.0}},
 	};
 
 	static FieldType altField(const FieldType &f)
@@ -223,6 +223,7 @@ namespace maxwell
 		void addGlobalConductiveOperator(mfem::SparseMatrix* global); 
 
 		std::unique_ptr<mfem::SparseMatrix> buildTFSFGlobalOperator();
+		std::unique_ptr<mfem::SparseMatrix> buildSGBCGlobalOperator();
 		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
 
 	private:
@@ -368,7 +369,7 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
 		{
-			if (kv.first != BdrCond::TotalFieldIn)
+			if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
 			{
 				auto c = bdrCoeffCheck(pd_.opts.alpha);
 				switch (kv.first){
@@ -397,7 +398,7 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
 		{
-			if (kv.first != BdrCond::TotalFieldIn)
+			if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
 			{
 				auto c = bdrCoeffCheck(pd_.opts.alpha);
 				switch (kv.first){
@@ -426,7 +427,7 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
 		{
-			if (kv.first != BdrCond::TotalFieldIn)
+			if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
 			{
 				auto c = bdrCoeffCheck(pd_.opts.alpha);
 				switch (kv.first){
@@ -829,6 +830,12 @@ namespace maxwell
 				-1.0
 			);
 		}
+	}
+
+	template <typename FES>
+	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildSGBCGlobalOperator()
+	{
+		return buildTFSFGlobalOperator();
 	}
 
 	template <typename FES>
