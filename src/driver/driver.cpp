@@ -704,7 +704,7 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
-	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, false);
+	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
 }
 
 mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
@@ -743,6 +743,23 @@ Array<int> getSGBCTags(const json& case_data)
         }
     }
     return res;
+}
+
+BdrCond assignBoundaryType(const std::string& sgbc_bdr_type)
+{
+	if (sgbc_bdr_type == "PEC"){
+		return BdrCond::PEC;
+	}
+	if (sgbc_bdr_type == "PMC"){
+		return BdrCond::PMC;
+	}
+	if (sgbc_bdr_type == "SMA"){
+		return BdrCond::SMA;
+	}
+	else{
+		throw std::runtime_error("Incorrect sgbc_bdr_type defined in .json.");
+	}
+
 }
 
 Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
@@ -827,6 +844,8 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 					}
 					Material mat(rel_eps, rel_mu, sigma);
 					SGBCProperties props(mat);
+					SGBCBoundaryInfo left;
+					SGBCBoundaryInfo right;
 					for (auto t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); t++){
 						props.geom_tags.emplace_back(case_data["model"]["boundaries"][b]["tags"][t]);
 					}
@@ -839,6 +858,17 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 					if (case_data["model"]["boundaries"][b]["material"].contains("material_width")){
 						props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
 					} 
+					if (case_data["model"]["boundaries"][b]["material"].contains("sgbc_boundaries")){
+						if (case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"].contains("left")){
+							left.isOn = true;
+							left.bdrCond = assignBoundaryType(case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"]["left"]);
+						}
+						if (case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"].contains("right")){
+							right.isOn = true;
+							right.bdrCond = assignBoundaryType(case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"]["right"]);
+						}
+						props.sgbc_bdr_info = std::make_pair(left,right);
+					}
 					sgbc_props.emplace_back(props);
 				}
 			}

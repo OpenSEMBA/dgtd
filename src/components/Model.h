@@ -70,6 +70,14 @@ struct GeomTagToMaterialInfo {
 	};
 };
 
+struct SGBCBoundaryInfo
+{
+    BdrCond bdrCond = BdrCond::SMA;
+    bool isOn = false;
+};
+
+using SGBCBoundaries = std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>;
+
 struct SGBCProperties{
 
     std::vector<size_t> geom_tags;
@@ -77,6 +85,7 @@ struct SGBCProperties{
     size_t order = 1;
     double material_width = 1e-4;
     Material material;
+	SGBCBoundaries sgbc_bdr_info;
 
     SGBCProperties(Material mat) :
     material(mat)
