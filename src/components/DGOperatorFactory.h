@@ -27,6 +27,7 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
+		{BdrCond::SGBC, {1.0, 1.0}}
 	};
 
 	static FluxBdrCoefficientsUpwind bdrUpwindCoeff{
@@ -34,6 +35,7 @@ namespace maxwell
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
 		{BdrCond::SurfaceCond, {1.0, 1.0}},
+		{BdrCond::SGBC, {1.0, 1.0}}
 	};
 
 	static FluxSrcCoefficientsCentered srcCentCoeff{
