@@ -99,6 +99,4 @@ private:
 
 };
 
-std::vector<NodeId> buildTargetNodeIds(size_t order, size_t num_of_segments);
-
 }

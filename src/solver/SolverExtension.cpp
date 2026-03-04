@@ -25,16 +25,6 @@ void SGBCWrapper::setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, m
     }
 }
 
-std::vector<NodeId> buildTargetNodeIds(const size_t order, const size_t num_of_segments)
-{
-    std::vector<NodeId> res(4);
-    res[0] = order; 
-    res[1] = order; 
-    res[2] = (order + 1) * (num_of_segments + 2) - (order) - 1; 
-    res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; 
-    return res;
-}
-
 GeomTagToInteriorBoundary buildIntBdrInfo(const SGBCBoundaries& bdrInfo)
 {
     GeomTagToInteriorBoundary res;

@@ -282,8 +282,28 @@ namespace maxwell
 	{
 		auto res = std::make_unique<BF>(&fes_);
 
-		res->AddInteriorFaceIntegrator(
-			new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha));
+		Array<int> ignore_marker;
+		if (!pd_.model.getInteriorBoundaryToMarker().empty()) {
+			int marker_size = pd_.model.getInteriorBoundaryToMarker().begin()->second.Size();
+			ignore_marker.SetSize(marker_size);
+			ignore_marker = 0;
+			
+			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
+				if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC) {
+					for (int i = 0; i < kv.second.Size(); i++) {
+						if (kv.second[i] == 1) ignore_marker[i] = 1;
+					}
+				}
+			}
+		}
+
+		if (ignore_marker.Size() > 0) {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha), ignore_marker);
+		} else {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha));
+		}
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
@@ -311,8 +331,28 @@ namespace maxwell
 	{
 		auto res = std::make_unique<BF>(&fes_);
 
-		res->AddInteriorFaceIntegrator(
-			new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0));
+		Array<int> ignore_marker;
+		if (!pd_.model.getInteriorBoundaryToMarker().empty()) {
+			int marker_size = pd_.model.getInteriorBoundaryToMarker().begin()->second.Size();
+			ignore_marker.SetSize(marker_size);
+			ignore_marker = 0;
+			
+			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
+				if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC) {
+					for (int i = 0; i < kv.second.Size(); i++) {
+						if (kv.second[i] == 1) ignore_marker[i] = 1;
+					}
+				}
+			}
+		}
+
+		if (ignore_marker.Size() > 0) {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0), ignore_marker);
+		} else {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0));
+		}
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
@@ -340,8 +380,28 @@ namespace maxwell
 	{
 		auto res = std::make_unique<BF>(&fes_);
 
-		res->AddInteriorFaceIntegrator(
-			new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha));
+		Array<int> ignore_marker;
+		if (!pd_.model.getInteriorBoundaryToMarker().empty()) {
+			int marker_size = pd_.model.getInteriorBoundaryToMarker().begin()->second.Size();
+			ignore_marker.SetSize(marker_size);
+			ignore_marker = 0;
+			
+			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
+				if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC) {
+					for (int i = 0; i < kv.second.Size(); i++) {
+						if (kv.second[i] == 1) ignore_marker[i] = 1;
+					}
+				}
+			}
+		}
+
+		if (ignore_marker.Size() > 0) {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), ignore_marker);
+		} else {
+			res->AddInteriorFaceIntegrator(
+				new MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha));
+		}
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
@@ -363,92 +423,107 @@ namespace maxwell
 		return res;
 	}
 
-	template <typename FES>
-	template <typename BF>
-	std::unique_ptr<BF> DGOperatorFactory<FES>::buildZeroNormalIBFISubOperator(const FieldType &f)
-	{
-		auto res = std::make_unique<BF>(&fes_);
+    template <typename FES>
+    template <typename BF>
+    std::unique_ptr<BF> DGOperatorFactory<FES>::buildZeroNormalIBFISubOperator(const FieldType &f)
+    {
+        auto res = std::make_unique<BF>(&fes_);
 
-		for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
-		{
-			if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
-			{
-				auto c = bdrCoeffCheck(pd_.opts.alpha);
-				switch (kv.first){
-					case (BdrCond::SMA):
-						res->AddInternalBoundaryFaceIntegrator(
-							new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, 1.0), kv.second);
-						break;
-					default:
-						res->AddInternalBoundaryFaceIntegrator(
-							new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f) * pd_.opts.alpha), kv.second);
-						break;
-				}
-			}
-		}
+        for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
+        {
+            if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
+            {
+                auto c = bdrCoeffCheck(pd_.opts.alpha);
+                switch (kv.first) {
+                    case BdrCond::SMA:
+                    case BdrCond::PEC:
+                    case BdrCond::PMC:
+                    {
+                        double coeff = (kv.first == BdrCond::SMA) ? 1.0 : (c[kv.first].at(f) * pd_.opts.alpha);
+                        res->AddInternalBoundaryFaceIntegrator(
+                            new mfemExtension::MaxwellDGInteriorJumpIntegrator({}, coeff), kv.second);
+                        break;
+                    }
+                    default:
+                        res->AddInternalBoundaryFaceIntegrator(
+                            new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(c[kv.first].at(f) * pd_.opts.alpha), kv.second);
+                        break;
+                }
+            }
+        }
 
-		res->Assemble();
-		res->Finalize();
-		return res;
-	}
+        res->Assemble();
+        res->Finalize();
+        return res;
+    }
 
-	template <typename FES>
-	template <typename BF>
-	std::unique_ptr<BF> DGOperatorFactory<FES>::buildOneNormalIBFISubOperator(const FieldType &f, const std::vector<Direction> &dirTerms)
-	{
-		auto res = std::make_unique<BF>(&fes_);
+    template <typename FES>
+    template <typename BF>
+    std::unique_ptr<BF> DGOperatorFactory<FES>::buildOneNormalIBFISubOperator(const FieldType &f, const std::vector<Direction> &dirTerms)
+    {
+        auto res = std::make_unique<BF>(&fes_);
 
-		for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
-		{
-			if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
-			{
-				auto c = bdrCoeffCheck(pd_.opts.alpha);
-				switch (kv.first){
-					case (BdrCond::SMA):
-						res->AddInternalBoundaryFaceIntegrator(
-							new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
-						break;
-					default:
-						res->AddInternalBoundaryFaceIntegrator(
-							new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
-						break;
-				}
-			}
-		}
+        for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
+        {
+            if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
+            {
+                auto c = bdrCoeffCheck(pd_.opts.alpha);
+                switch (kv.first) {
+                    case BdrCond::SMA:
+                    case BdrCond::PEC:
+                    case BdrCond::PMC:
+                    {
+                        double coeff = (kv.first == BdrCond::SMA) ? 1.0 : c[kv.first].at(f);
+                        res->AddInternalBoundaryFaceIntegrator(
+                            new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, coeff), kv.second);
+                        break;
+                    }
+                    default:
+                        res->AddInternalBoundaryFaceIntegrator(
+                            new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, c[kv.first].at(f)), kv.second);
+                        break;
+                }
+            }
+        }
 
-		res->Assemble();
-		res->Finalize();
-		return res;
-	}
+        res->Assemble();
+        res->Finalize();
+        return res;
+    }
 
-	template <typename FES>
-	template <typename BF>
-	std::unique_ptr<BF> DGOperatorFactory<FES>::buildTwoNormalIBFISubOperator(const FieldType &f, const std::vector<Direction> &dirTerms)
-	{
-		auto res = std::make_unique<BF>(&fes_);
+    template <typename FES>
+    template <typename BF>
+    std::unique_ptr<BF> DGOperatorFactory<FES>::buildTwoNormalIBFISubOperator(const FieldType &f, const std::vector<Direction> &dirTerms)
+    {
+        auto res = std::make_unique<BF>(&fes_);
 
-		for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
-		{
-			if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
-			{
-				auto c = bdrCoeffCheck(pd_.opts.alpha);
-				switch (kv.first){
-					case (BdrCond::SMA):
-						res->AddInternalBoundaryFaceIntegrator(
-							new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, 1.0), kv.second);
-						break;
-					default:
-						res->AddInternalBoundaryFaceIntegrator(
-							new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
-						break;
-				}
-			}
-		}
+        for (auto &kv : pd_.model.getInteriorBoundaryToMarker())
+        {
+            if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC)
+            {
+                auto c = bdrCoeffCheck(pd_.opts.alpha);
+                switch (kv.first) {
+                    case BdrCond::SMA:
+                    case BdrCond::PEC:
+                    case BdrCond::PMC:
+                    {
+                        double coeff = (kv.first == BdrCond::SMA) ? 1.0 : (c[kv.first].at(f) * pd_.opts.alpha);
+                        res->AddInternalBoundaryFaceIntegrator(
+                            new mfemExtension::MaxwellDGInteriorJumpIntegrator(dirTerms, coeff), kv.second);
+                        break;
+                    }
+                    default:
+                        res->AddInternalBoundaryFaceIntegrator(
+                            new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, c[kv.first].at(f) * pd_.opts.alpha), kv.second);
+                        break;
+                }
+            }
+        }
 
-		res->Assemble();
-		res->Finalize();
-		return res;
-	}
+        res->Assemble();
+        res->Finalize();
+        return res;
+    }
 
 	template <typename FES>
 	template <typename BF>

@@ -49,17 +49,6 @@ TEST_F(SolverExtensionTest, isCorrect_SGBC_Properties)
     }
 }
 
-TEST_F(SolverExtensionTest, targetIds)
-{
-    size_t order = 1;
-    size_t num_of_segments = 10;
-    std::vector<NodeId> ids = buildTargetNodeIds(order, num_of_segments);
-    ASSERT_EQ(1, ids[0]);
-    ASSERT_EQ(2, ids[1]);
-    ASSERT_EQ(21, ids[2]);
-    ASSERT_EQ(22, ids[3]);
-}
-
 TEST_F(SolverExtensionTest, buildTest)
 {
     auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));

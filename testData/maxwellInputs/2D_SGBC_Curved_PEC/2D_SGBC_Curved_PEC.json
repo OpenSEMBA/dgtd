@@ -3,29 +3,29 @@
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
     "time_step": 1e-4,
-    "final_time": 10.0,
+    "final_time": 6.0,
     "order": 3
   },
 
   "model": {
-    "filename": "2D_SGBC.msh",
+    "filename": "2D_SGBC_Curved_PEC.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [ 1, 2 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 16, 21 ],
+        "tags": [ 4 ],
         "type": "SMA"
       },
       {
-        "tags": [ 13, 15, 17, 19, 20, 22 ],
+        "tags": [ 1, 3, 5, 6 ],
         "type": "PEC"
       },
       {
-        "tags": [ 18 ],
+        "tags": [ 7 ],
         "type": "SGBC",
         "material":{
           "relative_permittivity": 20.0,
@@ -33,7 +33,10 @@
           "bulk_conductivity": 75.3460628,
           "num_of_segments": 10,
           "order": 6,
-          "material_width": 5e-3
+          "material_width": 5e-3,
+          "sgbc_boundaries": {
+            "right": "PEC"
+          }
         }
       }
     ]
@@ -42,21 +45,7 @@
   "probes": {
     "exporter": {
       "steps": 1000
-    },
-    "point": [
-      {
-        "position": [ 0.125, 0.075 ],
-        "write": true
-      },
-      {
-        "position": [ 0.5, 0.075 ],
-        "write": true
-      },
-      {
-        "position": [ 1.45, 0.075 ],
-        "write": true
-      }
-    ]
+    }
   },
 
   "sources": [
@@ -64,7 +53,7 @@
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 14 ],
+      "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,

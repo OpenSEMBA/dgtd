@@ -160,6 +160,69 @@ TEST_F(CasesTest, 1D_SMA_Upwind)
 }
 
 
+TEST_F(CasesTest, 1D_MultiCondition_Upwind)
+{
+	SGBCProperties sbcp(Material(20.0, 1.0, 20.0));
+	sbcp.order = 4;
+	sbcp.material_width = 2.0;
+	SGBCBoundaries sbcp_bdrs;
+	sbcp_bdrs.second.isOn = true;
+	sbcp_bdrs.second.bdrCond = BdrCond::PEC;
+	sbcp.sgbc_bdr_info = sbcp_bdrs;
+
+	auto mesh = mfem::Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * sbcp.material_width / sbcp.num_of_segments);
+    mesh.AddBdrPoint(1, 3);
+    mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
+    mesh.SetAttribute(0, 2);
+    mesh.SetAttribute(mesh.GetNE() - 1, 2);
+    mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4}); 
+    mesh.FinalizeMesh();
+    int* partitioning = mesh.GeneratePartitioning(1);
+
+    Material vacuum = buildVacuumMaterial();
+    GeomTagToMaterial geom_tag_sgbc_mat{{1, vacuum}, {2, vacuum}};
+    GeomTagToInteriorBoundary gt2ib;
+    if (sbcp_bdrs.first.isOn){
+        gt2ib[3] = sbcp_bdrs.first.bdrCond;
+    }
+    if (sbcp_bdrs.second.isOn){
+        gt2ib[4] = sbcp_bdrs.second.bdrCond;
+    }
+	GeomTagToBoundary gt2b;
+    gt2b[1] = BdrCond::SMA;
+    gt2b[2] = BdrCond::SMA;
+    GeomTagToBoundaryInfo gtbdr(gt2b, gt2ib);
+    Model model = Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), gtbdr, partitioning);
+
+	Probes probes;
+    probes.exporterProbes.resize(1);
+    ExporterProbe ep;
+    ep.name = "1D_MultiCondition_Upwind";
+    ep.visSteps = 100;
+    probes.exporterProbes.at(0) = ep;
+    Sources sources;
+	mfem::Vector gaussianCenter(1);
+	gaussianCenter = 0.5;
+	double spread = 0.1;
+	Gaussian gauss{ spread, gaussianCenter, 1 };
+	sources.add(std::make_unique<InitialField>(gauss, E, mfem::Vector({0.0,1.0,0.0}), gaussianCenter));
+	sources.add(std::make_unique<InitialField>(gauss, H, mfem::Vector({0.0,0.0,1.0}), gaussianCenter));
+    SolverOptions opts;
+    opts.setOrder(sbcp.order);
+    opts.setUpwindAlpha(1.0);
+    opts.setODEType(ode_type::RK4); 
+	opts.setFinalTime(10.0);
+	opts.setTimeStep(1e-3);
+    opts.setExportEO(true);
+    std::cout << "Assembling SGBC Solvers: " << std::endl;
+
+    auto solver = maxwell::Solver(model, probes, sources, opts);
+
+	solver.run();
+
+}
+
+
 TEST_F(CasesTest, 1D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("1D_TFSF"));

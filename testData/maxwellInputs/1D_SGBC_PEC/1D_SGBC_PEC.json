@@ -2,33 +2,36 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "time_step": 1e-4,
-    "final_time": 5.0,
+    "final_time": 10.0,
     "order": 3
   },
 
   "model": { 
-    "filename": "1D_SGBC_Paper.msh",
+    "filename": "1D_SGBC_PEC.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [ 1, 2 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [ 1 ],
         "type": "SMA"
       },
       {
-        "tags": [ 4 ],
+        "tags": [ 3 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 20.0,
+          "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 1883.65157,
-          "num_of_segments": 10,
+          "bulk_conductivity": 5.0,
+          "num_of_segments": 20,
           "order": 6,
-          "material_width": 5e-3
+          "material_width": 5e-1,
+          "sgbc_boundaries": {
+            "right": "PEC"
+          }
         }
       }
     ]
@@ -37,21 +40,7 @@
   "probes": {
     "exporter": {
       "steps": 1000
-    },
-    "point": [
-      {
-        "position": [ -1.5 ],
-        "write": true
-      },
-      {
-        "position": [ -0.5 ],
-        "write": true
-      },
-      {
-        "position": [  1.5 ],
-        "write": true
-      }
-    ]
+    }
   },
 
   "sources": [ 
@@ -59,11 +48,11 @@
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3 ],
+      "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,
-        "mean": [ -2.0 ]
+        "mean": [ 0.5 ]
       }
     }
   ]

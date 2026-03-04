@@ -90,6 +90,68 @@ private:
 	Vector shape1_, shape2_;
 };
 
+class MaxwellDGDecoupledZeroNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+    MaxwellDGDecoupledZeroNormalJumpIntegrator(double b)
+    {
+        beta = b;
+    }
+
+    void AssembleFaceMatrix(const FiniteElement& el1,
+        const FiniteElement& el2,
+        FaceElementTransformations& Trans,
+        DenseMatrix& elmat) override;
+
+protected:
+    double beta;
+
+private:
+    Vector shape1_, shape2_;
+};
+
+class MaxwellDGDecoupledOneNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+    MaxwellDGDecoupledOneNormalJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
+    {
+        dir = dirTerms; beta = b;
+    }
+
+    void AssembleFaceMatrix(const FiniteElement& el1,
+        const FiniteElement& el2,
+        FaceElementTransformations& Trans,
+        DenseMatrix& elmat) override;
+
+protected:
+    std::vector<Direction> dir;
+    double beta;
+
+private:
+    Vector shape1_, shape2_;
+};
+
+class MaxwellDGDecoupledTwoNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+    MaxwellDGDecoupledTwoNormalJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
+    {
+        dir = dirTerms; beta = b;
+    }
+
+    void AssembleFaceMatrix(const FiniteElement& el1,
+        const FiniteElement& el2,
+        FaceElementTransformations& Trans,
+        DenseMatrix& elmat) override;
+
+protected:
+    std::vector<Direction> dir;
+    double beta;
+
+private:
+    Vector shape1_, shape2_;
+};
+
 class MaxwellDGTraceJumpIntegrator : public BilinearFormIntegrator
 {
 

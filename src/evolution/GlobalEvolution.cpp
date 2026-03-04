@@ -176,11 +176,51 @@ GlobalEvolution::GlobalEvolution(
         auto global_sm_fes = std::make_unique<FiniteElementSpace>(sgbc_sm.getGlobalTFSFSubMesh(), fes_.FEColl());
         SGBCndofs_ = global_sm_fes->GetNDofs();
         auto sgbc_mesh = global_sm_fes->GetMesh();
-        Model sgbc_model = Model(*sgbc_mesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+        
+        auto src_sm = static_cast<mfem::SubMesh*>(sgbc_mesh);
+
+        // --- NEW PREVENTATIVE FIX ---
+        // Initialize all submesh boundary attributes to a safe dummy value (>0) 
+        // to prevent `attr - 1 = -2` crash on the artificial cut faces.
+        for (int c_be = 0; c_be < src_sm->GetNBE(); c_be++) {
+            src_sm->SetBdrAttribute(c_be, 1); 
+        }
+        // ----------------------------
+
+        auto parent_mesh = fes_.GetMesh();
+        auto parent_f2bdr_map = parent_mesh->GetFaceToBdrElMap();
+        auto child_f2bdr_map = src_sm->GetFaceToBdrElMap();
+        auto face_map = mfem::SubMeshUtils::BuildFaceMap(*parent_mesh, *src_sm, src_sm->GetParentElementIDMap());
+
+        GeomTagToBoundary sgbc_bdr;
+        const auto& sgbc_marker = model_.getSGBCToMarker().at(BdrCond::SGBC);
+
+        // Locate the pure boundary elements and transfer ONLY the SGBC tags to the submesh
+        for (int be = 0; be < parent_mesh->GetNBE(); be++) {
+            int parent_tag = parent_mesh->GetBdrAttribute(be);
+            if (sgbc_marker[parent_tag - 1] == 1) {
+                int p_face = parent_f2bdr_map.Find(be);
+                if (p_face != -1) {
+                    int c_face = face_map.Find(p_face);
+                    if (c_face != -1) {
+                        int c_be = child_f2bdr_map[c_face];
+                        if (c_be != -1) {
+                            src_sm->SetBdrAttribute(c_be, parent_tag);
+                            sgbc_bdr[parent_tag] = BdrCond::SGBC;
+                        }
+                    }
+                }
+            }
+        }
+        
+        src_sm->SetAttributes(); // Force MFEM to rebuild the bdr_attributes array
+
+        Model sgbc_model = Model(*sgbc_mesh, GeomTagToMaterialInfo(), 
+                                 GeomTagToBoundaryInfo(sgbc_bdr, GeomTagToInteriorBoundary{}));
         ProblemDescription sgbc_pd(sgbc_model, probes, srcmngr_.sources, opts_);
         DGOperatorFactory<FiniteElementSpace> sgbc_ops(sgbc_pd, *global_sm_fes);
         SGBCOperator_ = sgbc_ops.buildSGBCGlobalOperator();
-        auto src_sm = static_cast<mfem::SubMesh*>(sgbc_mesh);
+        
         mfem::SubMeshUtils::BuildVdofToVdofMap(*global_sm_fes, fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
     }
 
@@ -366,14 +406,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 if (sub_L == -1) continue;
 
                 for (auto d : {X,Y,Z}) {
-
-                    double flux_E = sgbc_fields[E][d][sub_L];
-                    double flux_H = sgbc_fields[H][d][sub_L];
-
-                    if (sub_R != -1) {
-                        flux_E -= sgbc_fields[E][d][sub_R];
-                        flux_H -= sgbc_fields[H][d][sub_R];
-                    }
 
                     sgbcVec[(E*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[E][d][sub_L];
                     sgbcVec[(H*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[H][d][sub_L];
