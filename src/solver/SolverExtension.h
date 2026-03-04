@@ -24,14 +24,6 @@ using FullNodalFields = std::array<std::array<mfem::GridFunction, 3>, 2>;
 using ModalValues = Eigen::VectorXcd;
 using NodalValues = Eigen::VectorXd;
 
-struct SGBCBoundaryInfo
-{
-    BdrCond bdrCond = BdrCond::SMA;
-    bool isOn = false;
-};
-
-using SGBCBoundaries = std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>;
-
 struct FluxNodeInfo
 {
     LocalId local_element_left_node, local_element_right_node;  

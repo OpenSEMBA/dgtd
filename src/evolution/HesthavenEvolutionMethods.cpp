@@ -299,6 +299,16 @@ namespace maxwell {
 		return res;
 	}
 
+	SubMesh assembleBoundaryFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap)
+	{
+		Array<int> volume_marker;
+		volume_marker.Append(hesthavenMeshingTag);
+		m.SetAttribute(trans.Elem1No, hesthavenMeshingTag);
+		auto res{ SubMesh::CreateFromDomain(m, volume_marker) };
+		restoreOriginalAttributesAfterSubMeshing(trans.Elem1No, m, attMap);
+		return res;
+	}
+
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap)
 	{
 		Array<int> volume_marker;
@@ -357,6 +367,21 @@ namespace maxwell {
 		for (auto v{ 0 }; v < sortingVector.size(); v++) {
 			map.push_back(sortingVector[v]);
 		}
+	}
+
+	BoundaryFaceConnectivityMaps buildConnectivityForBdrFace(const FaceElementTransformations& trans, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
+	{
+		Array<int> dofs1;
+		globalFES.GetElementDofs(trans.Elem1No, dofs1);
+
+		Nodes elem1;
+		
+		for (auto v{ 0 }; v < dofs1.Size(); v++) {
+			elem1.push_back(dofs1[v]);
+		}
+
+		return std::make_pair(elem1, elem1);
+
 	}
 
 	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES)

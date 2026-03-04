@@ -67,6 +67,33 @@ GlobalEvolution::GlobalEvolution(
                 }
             }
         }
+        sgbc_marker = model_.getMarker(BdrCond::SGBC, false);
+        if (sgbc_marker.Size() != 0){
+            for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
+                if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
+                    const mfem::FaceElementTransformations* faceTrans;
+                    fes_.GetMesh()->FaceIsInterior(fes_.GetMesh()->GetFaceElementTransformations(fes_.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_.GetMesh()->GetBdrFaceTransformations(b);
+                    if (fes_.GetMesh()->Dimension() == 1){
+                        if(faceTrans->Elem1No == 0) {
+                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(0, -1);
+                        }
+                        else {
+                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), -1);
+                        }
+                    } else {
+                        auto elementSubMesh{ assembleBoundaryFaceSubMesh(*fes_.GetMesh(), *faceTrans, attMap)};
+                        mfem::FiniteElementSpace subFES(&elementSubMesh, fec);
+                        auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
+                        for (auto p = 0; p < node_pair_local.first.size(); p++){
+                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
+                                node_pair_local.first[p], 
+                                -1
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     mfem::Array<int> temp_dof_to_elem(fes_.GetNDofs());
@@ -98,9 +125,14 @@ GlobalEvolution::GlobalEvolution(
                         s.global_pair = pair;
                         
                         s.element_pair.first = temp_dof_to_elem[pair.first];
-                        s.element_pair.second = temp_dof_to_elem[pair.second];
+                        if (pair.second != -1){
+                            s.element_pair.second = temp_dof_to_elem[pair.second];
+                        }
+                        else {
+                            s.element_pair.second = -1;
+                        }
                         
-                        if (s.element_pair.first == -1 || s.element_pair.second == -1) {
+                        if (s.element_pair.first == -1) {
                             std::cerr << "Error: Could not find Element ID for SGBC Node Pair: " 
                                       << pair.first << ", " << pair.second << std::endl;
                         }
@@ -302,58 +334,68 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     // 5) SGBC Coupling via Flux Injection
     timerSGBC.Start();
 
-    FieldGridFuncs sgbc_fields = initSGBCHelperFields(SGBCndofs_);
-    mfem::Vector sgbcVec(6 * SGBCndofs_);
-    sgbcVec = 0.0;
+    if (sgbcWrappers_.size() != 0){
+        FieldGridFuncs sgbc_fields = initSGBCHelperFields(SGBCndofs_);
+        mfem::Vector sgbcVec(6 * SGBCndofs_);
+        sgbcVec = 0.0;
 
-    // for (int f : {E,H}) {
-    //     for (int d : {X,Y,Z}) {
-    //         for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
-    //             int globalId = sgbc_sub_to_parent_ids_[v];
-    //             if (f == E) sgbcVec[(f*3 + d)*SGBCndofs_ + v] = eOld_[d][globalId];
-    //             else        sgbcVec[(f*3 + d)*SGBCndofs_ + v] = hOld_[d][globalId];
-    //         }
-    //     }
-    // }
+        // for (int f : {E,H}) {
+        //     for (int d : {X,Y,Z}) {
+        //         for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
+        //             int globalId = sgbc_sub_to_parent_ids_[v];
+        //             if (f == E) sgbcVec[(f*3 + d)*SGBCndofs_ + v] = eOld_[d][globalId];
+        //             else        sgbcVec[(f*3 + d)*SGBCndofs_ + v] = hOld_[d][globalId];
+        //         }
+        //     }
+        // }
 
-    for (const auto& w : sgbcWrappers_) {
-        int tag = w->getProperties().geom_tags.at(0);
-        auto it = sgbc_states_.find(tag);
-        if (it == sgbc_states_.end()) continue;
+        for (const auto& w : sgbcWrappers_) {
+            int tag = w->getProperties().geom_tags.at(0);
+            auto it = sgbc_states_.find(tag);
+            if (it == sgbc_states_.end()) continue;
 
-        const auto& states = it->second;
-        for (const auto& state : states) {
-            w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_fields);
+            const auto& states = it->second;
+            for (const auto& state : states) {
+                w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_fields);
 
-            const int global_L = state.global_pair.first;
-            const int global_R = state.global_pair.second;
-            const int sub_L = sgbc_sub_to_parent_ids_.Find(global_L);
-            const int sub_R = sgbc_sub_to_parent_ids_.Find(global_R);
+                const int global_L = state.global_pair.first;
+                const int global_R = state.global_pair.second;
+                const int sub_L = sgbc_sub_to_parent_ids_.Find(global_L);
+                const int sub_R = sgbc_sub_to_parent_ids_.Find(global_R);
 
-            if (sub_L == -1 || sub_R == -1) continue;
+                if (sub_L == -1) continue;
 
-            for (auto d : {X,Y,Z}) {
-                double flux_E = (sgbc_fields[E][d][sub_L] - sgbc_fields[E][d][sub_R]);
-                double flux_H = (sgbc_fields[H][d][sub_L] - sgbc_fields[H][d][sub_R]);
+                for (auto d : {X,Y,Z}) {
 
-                sgbcVec[(E*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[E][d][sub_L];
-                sgbcVec[(E*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[E][d][sub_R];
-                sgbcVec[(H*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[H][d][sub_L];
-                sgbcVec[(H*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[H][d][sub_R];
+                    double flux_E = sgbc_fields[E][d][sub_L];
+                    double flux_H = sgbc_fields[H][d][sub_L];
+
+                    if (sub_R != -1) {
+                        flux_E -= sgbc_fields[E][d][sub_R];
+                        flux_H -= sgbc_fields[H][d][sub_R];
+                    }
+
+                    sgbcVec[(E*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[E][d][sub_L];
+                    sgbcVec[(H*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[H][d][sub_L];
+                    if (sub_R != -1){
+                        sgbcVec[(E*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[E][d][sub_R];
+                        sgbcVec[(H*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[H][d][sub_R];
+                    }
+                }
             }
         }
-    }
 
-    mfem::Vector tempSGBC(sgbcVec.Size());
-    tempSGBC.UseDevice(true);
-    SGBCOperator_->Mult(sgbcVec, tempSGBC);
+        mfem::Vector tempSGBC(sgbcVec.Size());
+        tempSGBC.UseDevice(true);
+        SGBCOperator_->Mult(sgbcVec, tempSGBC);
 
-    for (int f : {E,H}) {
-        for (int d : {X,Y,Z}) {
-            for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
-                int outIdx  = (f*3 + d)*ndofs + sgbc_sub_to_parent_ids_[v];
-                int tempIdx = (f*3 + d)*SGBCndofs_ + v;
-                out[outIdx] -= tempSGBC[tempIdx];
+        for (int f : {E,H}) {
+            for (int d : {X,Y,Z}) {
+                for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
+                    int outIdx  = (f*3 + d)*ndofs + sgbc_sub_to_parent_ids_[v];
+                    int tempIdx = (f*3 + d)*SGBCndofs_ + v;
+                    out[outIdx] -= tempSGBC[tempIdx];
+                }
             }
         }
     }

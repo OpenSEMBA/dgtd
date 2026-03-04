@@ -29,8 +29,8 @@ std::vector<NodeId> buildTargetNodeIds(const size_t order, const size_t num_of_s
 {
     std::vector<NodeId> res(4);
     res[0] = order; 
-    res[1] = order + 1; 
-    res[2] = (order + 1) * (num_of_segments + 2) - (order + 1) - 1; 
+    res[1] = order; 
+    res[2] = (order + 1) * (num_of_segments + 2) - (order) - 1; 
     res[3] = (order + 1) * (num_of_segments + 2) - (order) - 1; 
     return res;
 }
@@ -79,9 +79,7 @@ Model buildSGBCModel(mfem::Mesh& mesh, int* partitioning, const SGBCProperties& 
 
 std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp)
 {
-    SGBCBoundaries bdrInfo;
-    bdrInfo.first.isOn = false;
-    bdrInfo.second.isOn = false;
+    SGBCBoundaries bdrInfo = sbcp.sgbc_bdr_info;
     return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
 }
 
@@ -133,9 +131,10 @@ void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction,
             // Direct Copy Logic (Stable)
             solver_->setFieldValue(FieldType::E, d, dof, e.at(d)[pair.first]); 
             solver_->setFieldValue(FieldType::H, d, dof, h.at(d)[pair.first]);
-            
-            solver_->setFieldValue(FieldType::E, d, dof_per_field_comp - 1 - dof, e.at(d)[pair.second]); 
-            solver_->setFieldValue(FieldType::H, d, dof_per_field_comp - 1 - dof, h.at(d)[pair.second]);
+            if (context.global_pair.second != -1) { 
+                solver_->setFieldValue(FieldType::E, d, dof_per_field_comp - 1 - dof, e.at(d)[pair.second]); 
+                solver_->setFieldValue(FieldType::H, d, dof_per_field_comp - 1 - dof, h.at(d)[pair.second]);
+            }
         }
     }
 }
@@ -146,28 +145,32 @@ void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState
     const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size(); 
     
     const auto first_idx = sub_to_global.Find(context.global_pair.first);
-    const auto second_idx = sub_to_global.Find(context.global_pair.second);
+    int second_idx = -1;
+    if (context.global_pair.second != -1){
+        second_idx = sub_to_global.Find(context.global_pair.second);
+    }
 
-    if (first_idx == -1 || second_idx == -1) return;
+    if (first_idx == -1) return;
 
-    // DIRECT ACCESS to state vector to avoid hydrating the solver.
-    // We assume the monolithic vector layout is: [Ex, Ey, Ez, Hx, Hy, Hz]
-    // Each block has size 'local_field_size'.
-    
-    // Indices in the 1D mesh
     int idx_left = left_ghost_border_dof;
     int idx_right = (local_field_size - 1) - left_ghost_border_dof;
 
-    for (auto f : {E, H}){
-        for (auto d : {X, Y, Z}){
+    for (auto f : {E, H}) {
+        for (auto d : {X, Y, Z}) {
             int block_idx = 0;
-            if (f == E) block_idx = d;
-            else        block_idx = 3 + d;
+            if (f == E) {
+                block_idx = d;
+            } 
+            else {
+                block_idx = 3 + d;
+            }   
             
             int offset = block_idx * local_field_size;
 
             out[f][d][first_idx] = context.fields_state[offset + idx_left];
-            out[f][d][second_idx] = context.fields_state[offset + idx_right];
+            if (second_idx != -1) {
+                out[f][d][second_idx] = context.fields_state[offset + idx_right];
+            }
         }
     }
 }
@@ -177,16 +180,13 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     if (std::abs(dt) < 1e-9){
         return;
     }
-    
-    // CRITICAL: Reset the internal solver time.
-    // If we don't do this, Pair 2 will see the solver at 't + dt' and not evolve.
+
     this->solver_->setTime(t); 
     this->solver_->getEvolTDO()->SetTime(t);
 
     this->solver_->getSolverOptions().setFinalTime(t + dt);
-    this->solver_->getSolverOptions().setTimeStep(dt); // Or do we rely on Solver::dt_?
+    this->solver_->getSolverOptions().setTimeStep(dt); 
     
-    // Explicitly force the timestep variable in solver as well
     this->solver_->setTimeStep(dt);
 
     this->solver_->step();
@@ -200,11 +200,11 @@ sbcp_(sbcp)
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
-    // probes.exporterProbes.resize(1);
-    // ExporterProbe ep;
-    // ep.name = "InsideSGBC";
-    // ep.visSteps = 100;
-    // probes.exporterProbes.at(0) = ep;
+    probes.exporterProbes.resize(1);
+    ExporterProbe ep;
+    ep.name = "InsideSGBC";
+    ep.visSteps = 1000;
+    probes.exporterProbes.at(0) = ep;
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
     opts.setExportEO(true);
