@@ -35,10 +35,10 @@
         "material":{
           "relative_permittivity": 20.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 75.35,
+          "bulk_conductivity": 0.2,
           "num_of_segments": 6,
           "order": 2,
-          "material_width": 6e-2
+          "material_width": 5e-3
         }
       }
     ]

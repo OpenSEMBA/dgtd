@@ -1,10 +1,9 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "evolution_operator": "global",
     "time_step": 1e-4,
     "final_time": 10.0,
-    "order": 3
+    "order": 4
   },
 
   "model": {
@@ -30,7 +29,7 @@
         "material":{
           "relative_permittivity": 20.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 75.3460628,
+          "bulk_conductivity": 0.2,
           "num_of_segments": 10,
           "order": 6,
           "material_width": 5e-3

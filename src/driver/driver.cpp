@@ -23,6 +23,37 @@ struct DSU { //Disjoint Set Union
     }
 };
 
+double calculateMaximumSourceFrequency(const json& case_data)
+{
+    double min_spread = std::numeric_limits<double>::max();
+    bool found_gaussian = false;
+
+    if (case_data.contains("sources")) {
+        for (const auto& source : case_data["sources"]) {
+            if (source.contains("magnitude") && source["magnitude"].contains("type")) {
+                if (source["magnitude"]["type"] == "gaussian") {
+                    double spread = source["magnitude"]["spread"].get<double>();
+                    if (spread > 0.0 && spread < min_spread) {
+                        min_spread = spread;
+                        found_gaussian = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if (found_gaussian) {
+        // Spatial spread (sigma). f_max = c / (2 * sigma)
+        // This captures >99% of the spectral energy (-40dB power cutoff)
+        double c_si = physicalConstants::speedOfLight_SI;
+        double f_max = c_si / (2.0 * min_spread);
+        return f_max;
+    }
+
+    // Fallback if no Gaussian source is found (e.g., resonant modes)
+    return 1e9; // Default to 1 GHz
+}
+
 std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh, mfem::Array<int> tags)
 {
 	std::vector<std::pair<int,int>> res;
@@ -610,7 +641,7 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const m
 				mu = case_data["model"]["materials"][m]["relative_permeability"];
 			}
 			if (case_data["model"]["materials"][m].contains("bulk_conductivity")) {
-				sigma = case_data["model"]["materials"][m]["bulk_conductivity"];
+				sigma = case_data["model"]["materials"][m]["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
 			}
 			res.gt2m.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu, sigma)));
 		}
@@ -627,7 +658,7 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const m
 					mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
 				}
 				if (case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")) {
-					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"];
+					sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
 				}
 				res.gt2bm.emplace(case_data["model"]["boundaries"][b]["tags"][a], Material(eps, mu, sigma));
 			}
@@ -793,9 +824,9 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
     mfem::Array<int> sgbc_tags  = getSGBCTags(case_data);
 
-	if (tfsf_tags.Size() || sgbc_tags.Size()){
-    	applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
-	}
+    if (tfsf_tags.Size() || sgbc_tags.Size()){
+        applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
+    }
 
     Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
     std::string filename = case_data["model"]["filename"];
@@ -813,68 +844,122 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
         throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
     }
 
-	std::vector<SGBCProperties> sgbc_props;
-	for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
+    std::vector<SGBCProperties> sgbc_props;
+    
+    // 1. Determine highest frequency to resolve based on the user's pulse
+    double max_freq = calculateMaximumSourceFrequency(case_data);
+
+    for (int b = 0; b < case_data["model"]["boundaries"].size(); b++) {
         if (case_data["model"]["boundaries"][b].contains("type") && 
-			case_data["model"]["boundaries"][b]["type"] == "SGBC"){ 
-			if (!case_data["model"]["boundaries"][b].contains("material")){
-				throw std::runtime_error("SGBC Material defined without material properties. Verify .json parameters.");
-			} else {
-				for (auto a = 0; a < case_data["model"]["boundaries"][b]["tags"].size(); a++) {
-					double rel_eps, rel_mu, sigma;
-					if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permittivity")){
-						std::cout << "SGBC Material defined without 'relative_permittivity' parameter, assuming vacuum." << std::endl;
-						rel_eps = 1.0;
-					} 
-					else{
-						rel_eps = case_data["model"]["boundaries"][b]["material"]["relative_permittivity"];
-					}
-					if (!case_data["model"]["boundaries"][b]["material"].contains("relative_permeability")){
-						std::cout << "SGBC Material defined without 'relative_permeability' parameter, assuming vacuum." << std::endl;
-						rel_mu = 1.0;
-					} 
-					else{
-						rel_mu = case_data["model"]["boundaries"][b]["material"]["relative_permeability"];
-					}
-					if (!case_data["model"]["boundaries"][b]["material"].contains("bulk_conductivity")){
-						throw std::runtime_error("SGBC Material defined without 'bulk_conductivity parameter. Verify .json parameters.");
-					} 
-					else {
-						sigma = case_data["model"]["boundaries"][b]["material"]["bulk_conductivity"]; // sigma_solver = sigma_si * Z0;
-					}
-					Material mat(rel_eps, rel_mu, sigma);
-					SGBCProperties props(mat);
-					SGBCBoundaryInfo left;
-					SGBCBoundaryInfo right;
-					for (auto t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); t++){
-						props.geom_tags.emplace_back(case_data["model"]["boundaries"][b]["tags"][t]);
-					}
-					if (case_data["model"]["boundaries"][b]["material"].contains("num_of_segments")){
-						props.num_of_segments = int(case_data["model"]["boundaries"][b]["material"]["num_of_segments"]);
-					}
-					if (case_data["model"]["boundaries"][b]["material"].contains("order")){
-						props.order = int(case_data["model"]["boundaries"][b]["material"]["order"]);
-					}
-					if (case_data["model"]["boundaries"][b]["material"].contains("material_width")){
-						props.material_width = double(case_data["model"]["boundaries"][b]["material"]["material_width"]);
-					} 
-					if (case_data["model"]["boundaries"][b]["material"].contains("sgbc_boundaries")){
-						if (case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"].contains("left")){
-							left.isOn = true;
-							left.bdrCond = assignBoundaryType(case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"]["left"]);
-						}
-						if (case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"].contains("right")){
-							right.isOn = true;
-							right.bdrCond = assignBoundaryType(case_data["model"]["boundaries"][b]["material"]["sgbc_boundaries"]["right"]);
-						}
-						props.sgbc_bdr_info = std::make_pair(left,right);
-					}
-					sgbc_props.emplace_back(props);
-				}
-			}
-		}
-	}
-	res.setSGBCProperties(sgbc_props);
+            case_data["model"]["boundaries"][b]["type"] == "SGBC") { 
+            
+            if (!case_data["model"]["boundaries"][b].contains("material")) {
+                throw std::runtime_error("SGBC Material defined without material properties. Verify .json parameters.");
+            } 
+            
+            const auto& mat_json = case_data["model"]["boundaries"][b]["material"];
+            
+            // Extract Material Properties
+            double rel_eps = 1.0;
+            if (mat_json.contains("relative_permittivity")) {
+                rel_eps = mat_json["relative_permittivity"].get<double>();
+            } else {
+                std::cout << "SGBC Material defined without 'relative_permittivity', assuming vacuum." << std::endl;
+            }
+
+            double rel_mu = 1.0;
+            if (mat_json.contains("relative_permeability")) {
+                rel_mu = mat_json["relative_permeability"].get<double>();
+            } else {
+                std::cout << "SGBC Material defined without 'relative_permeability', assuming vacuum." << std::endl;
+            }
+
+            if (!mat_json.contains("bulk_conductivity")) {
+                throw std::runtime_error("SGBC Material defined without 'bulk_conductivity' parameter. Verify .json parameters.");
+            }
+            
+            double sigma_si = mat_json["bulk_conductivity"].get<double>();
+            double sigma_solver = sigma_si * physicalConstants::freeSpaceImpedance_SI; 
+            
+            Material mat(rel_eps, rel_mu, sigma_solver);
+            SGBCProperties props(mat);
+
+            // Extract Tags
+            for (auto t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); t++) {
+                props.geom_tags.emplace_back(case_data["model"]["boundaries"][b]["tags"][t]);
+            }
+
+            // Extract Width
+            if (mat_json.contains("material_width")) {
+                props.material_width = mat_json["material_width"].get<double>();
+            } else {
+                throw std::runtime_error("SGBC Material must define 'material_width'.");
+            }
+
+            // -----------------------------------------------------------
+            // THE ADVANCED AUTO-MESHER (Skin Depth + Wavelength)
+            // -----------------------------------------------------------
+            props.order = 3; // Lock order to 3 for robust wave and exponential fitting
+            
+            double mu_si = rel_mu * physicalConstants::vacuumPermeability_SI;
+            double eps_si = rel_eps * physicalConstants::vacuumPermittivity_SI;
+            
+            // 1. Calculate Wavelength Limit (Need at least 5 elements per wavelength at max freq)
+            double wavelength = 1.0 / (max_freq * std::sqrt(mu_si * eps_si));
+            double target_dx_wave = wavelength / 5.0; 
+
+            // 2. Calculate Skin Depth Limit (If applicable)
+            double target_dx_skin = std::numeric_limits<double>::max();
+            double skin_depth = 0.0;
+            if (sigma_si > 0.0) {
+                skin_depth = 1.0 / std::sqrt(M_PI * max_freq * mu_si * sigma_si);
+                target_dx_skin = skin_depth / 1.5; // 1.5 elements per skin depth
+            }
+
+            // 3. Choose the strictest requirement to prevent tunneling and dispersion
+            double target_dx = std::min(target_dx_wave, target_dx_skin);
+            
+            int auto_segments = static_cast<int>(std::ceil(props.material_width / target_dx));
+            
+            // Clamp between minimum 2 (for basic geometry) and 1000 (to prevent memory blowouts)
+            props.num_of_segments = std::clamp(auto_segments, 2, 1000);
+            
+            if (Mpi::WorldRank() == 0) {
+                std::cout << "\n[SGBC Auto-Mesh]" << std::endl;
+                std::cout << "  Pulse Max Freq : " << max_freq / 1e9 << " GHz" << std::endl;
+                std::cout << "  Wavelength     : " << wavelength * 1000.0 << " mm" << std::endl;
+                if (sigma_si > 0.0) {
+                    std::cout << "  Skin Depth     : " << skin_depth * 1000.0 << " mm" << std::endl;
+                }
+                std::cout << "  Generated Mesh : " << props.num_of_segments << " segments (Order " << props.order << ")" << std::endl;
+                
+                if (props.num_of_segments == 1000) {
+                    std::cout << "  [WARNING] Max segment limit reached. Material properties may be too extreme to fully resolve!\n" << std::endl;
+                } else {
+                    std::cout << std::endl;
+                }
+            }
+            // -----------------------------------------------------------
+
+            SGBCBoundaryInfo left;
+            SGBCBoundaryInfo right;
+            if (mat_json.contains("sgbc_boundaries")) {
+                if (mat_json["sgbc_boundaries"].contains("left")) {
+                    left.isOn = true;
+                    left.bdrCond = assignBoundaryType(mat_json["sgbc_boundaries"]["left"]);
+                }
+                if (mat_json["sgbc_boundaries"].contains("right")) {
+                    right.isOn = true;
+                    right.bdrCond = assignBoundaryType(mat_json["sgbc_boundaries"]["right"]);
+                }
+                props.sgbc_bdr_info = std::make_pair(left, right);
+            }
+
+            sgbc_props.emplace_back(props);
+        }
+    }
+    
+    res.setSGBCProperties(sgbc_props);
 
     return res;
 }

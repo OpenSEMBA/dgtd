@@ -2,12 +2,13 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-3,
-    "final_time": 30.0,
-    "order": 1
+	  "time_step": 1e-4,
+    "tfsf_cutoff_time": 12.0,
+    "final_time": 20.0,
+    "order": 2
   },
   "model": {
-    "filename": "3D_RCS_Sphere_Box_05m_G1.msh",
+    "filename": "3D_RCS_Sphere_Box_05m_G2.msh",
     "materials": [
       {
         "tags": [
@@ -23,12 +24,10 @@
         "tags": [ 1 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 5.0,
+          "relative_permittivity": 20.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 376.730314,
-          "num_of_segments": 12,
-          "order": 3,
-          "material_width": 5e-3
+          "bulk_conductivity": 100.0,
+          "material_width": 5e-2
         }
       },
       {
@@ -41,7 +40,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 500
+      "steps": 2500
     },
     "farfield": [
       {

@@ -7,7 +7,7 @@
   },
 
   "model": { 
-    "filename": "1D_SGBC_Paper.msh",
+    "filename": "1D_SGBC_Through.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -16,17 +16,17 @@
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [ 1, 4 ],
         "type": "SMA"
       },
       {
-        "tags": [ 4 ],
+        "tags": [ 3 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 1.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 1.06,
-          "material_width": 5e-3
+          "relative_permittivity": 25.0,
+          "relative_permeability": 4.0,
+          "bulk_conductivity": 0.0,
+          "material_width": 30e-3
         }
       }
     ]
@@ -34,20 +34,17 @@
 
   "probes": {
     "exporter": {
-      "steps": 2500
+      "steps": 1000
     },
     "point": [
       {
-        "position": [ -1.5 ],
-        "write": true
+        "position": [ 0.15 ]
       },
       {
-        "position": [ -0.5 ],
-        "write": true
+        "position": [ 0.35 ]
       },
       {
-        "position": [  1.5 ],
-        "write": true
+        "position": [ 1.45 ]
       }
     ]
   },
@@ -57,11 +54,11 @@
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3 ],
+      "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,
-        "mean": [ -2.0 ]
+        "mean": [ -0.5 ]
       }
     }
   ]

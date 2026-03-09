@@ -182,9 +182,48 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     this->solver_->step();
 }
 
+void checkSkinDepthResolution(const SGBCProperties& props) 
+{
+    double sigma_solver = props.material.getConductivity();
+    
+    if (sigma_solver <= 0.0) return;
+
+    constexpr double Z0 = physicalConstants::freeSpaceImpedance_SI;
+    constexpr double mu0 = physicalConstants::vacuumPermeability_SI;
+
+    double sigma_si = sigma_solver / Z0;
+    double mu_si = props.material.getPermeability() * mu0;
+
+    double dx = props.material_width / static_cast<double>(props.num_of_segments);
+
+    double f_max = 1.0 / (M_PI * mu_si * sigma_si * dx * dx);
+
+    std::cout << "\n--- SGBC Mesh Resolution Check ---" << std::endl;
+    std::cout << "Element dx : " << dx << " m" << std::endl;
+    std::cout << "Max reliably resolved frequency (Skin Depth = dx): ";
+    
+    if (f_max > 1e9) {
+        std::cout << f_max / 1e9 << " GHz" << std::endl;
+        std::cout << "[INFO] Mesh is well-resolved for standard RF/Microwave." << std::endl;
+    } 
+    else if (f_max > 1e6) {
+        std::cout << f_max / 1e6 << " MHz" << std::endl;
+        std::cout << "[WARNING] Mesh may cause numerical tunneling for GHz pulses." << std::endl;
+        std::cout << "          Consider increasing 'num_of_segments'." << std::endl;
+    } 
+    else {
+        std::cout << f_max / 1e3 << " kHz" << std::endl;
+        std::cout << "[SEVERE] Mesh is severely coarse for this conductivity!" << std::endl;
+        std::cout << "         Extreme numerical tunneling is highly likely." << std::endl;
+    }
+    std::cout << "----------------------------------\n" << std::endl;
+}
+
 SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
 sbcp_(sbcp)
 { 
+    checkSkinDepthResolution(sbcp_);
+
     auto mesh = buildSGBCMesh(sbcp_);
     int* partitioning = mesh.GeneratePartitioning(1);
     
