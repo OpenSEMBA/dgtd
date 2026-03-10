@@ -184,19 +184,21 @@ void SGBCWrapper::solve(const Time t, const Time dt)
 
 void checkSkinDepthResolution(const SGBCProperties& props) 
 {
-    double sigma_solver = props.material.getConductivity();
+    auto sigma_solver = props.material.getConductivity();
     
-    if (sigma_solver <= 0.0) return;
+    if (sigma_solver <= 0.0){
+        return;
+    }
 
-    constexpr double Z0 = physicalConstants::freeSpaceImpedance_SI;
-    constexpr double mu0 = physicalConstants::vacuumPermeability_SI;
+    constexpr auto Z0 = physicalConstants::freeSpaceImpedance_SI;
+    constexpr auto mu0 = physicalConstants::vacuumPermeability_SI;
 
-    double sigma_si = sigma_solver / Z0;
-    double mu_si = props.material.getPermeability() * mu0;
+    auto sigma_si = sigma_solver / Z0;
+    auto mu_si = props.material.getPermeability() * mu0;
 
-    double dx = props.material_width / static_cast<double>(props.num_of_segments);
+    auto dx = props.material_width / static_cast<double>(props.num_of_segments);
 
-    double f_max = 1.0 / (M_PI * mu_si * sigma_si * dx * dx);
+    auto f_max = 1.0 / (M_PI * mu_si * sigma_si * dx * dx);
 
     std::cout << "\n--- SGBC Mesh Resolution Check ---" << std::endl;
     std::cout << "Element dx : " << dx << " m" << std::endl;
