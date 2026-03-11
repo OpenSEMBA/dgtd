@@ -924,8 +924,10 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
             double target_dx = std::min(target_dx_wave, target_dx_skin);
             
             int auto_segments = static_cast<int>(std::ceil(props.material_width / target_dx));
-            
-            props.num_of_segments = std::clamp(auto_segments, 2, 1000);
+
+            // Apply 2x safety factor for SGBC mesh to ensure stable temporal evolution
+            // and proper resolution of material relaxation dynamics
+            props.num_of_segments = std::clamp(auto_segments * 2, 2, 1000);
             
             if (Mpi::WorldRank() == 0) {
                 std::cout << "\n[SGBC Auto-Mesh]" << std::endl;

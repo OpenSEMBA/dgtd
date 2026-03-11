@@ -38,55 +38,66 @@ GlobalEvolution::GlobalEvolution(
     {
         auto attMap{ mapOriginalAttributes(*fes_.GetMesh()) };
         auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
-        
-        auto sgbc_marker = model_.getMarker(BdrCond::SGBC, true);
-        if (sgbc_marker.Size() != 0){
+        auto mesh = fes_.GetMesh();
+        auto const_mesh = &model_.getConstMesh();
+
+        auto sgbc_marker_interior = model_.getMarker(BdrCond::SGBC, true);
+        auto sgbc_marker_boundary = model_.getMarker(BdrCond::SGBC, false);
+
+        if (sgbc_marker_interior.Size() != 0 || sgbc_marker_boundary.Size() != 0){
             for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
-                if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-                    const mfem::FaceElementTransformations* faceTrans;
-                    fes_.GetMesh()->FaceIsInterior(fes_.GetMesh()->GetFaceElementTransformations(fes_.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_.GetMesh()->GetBdrFaceTransformations(b);
-                    
-                    if (fes_.GetMesh()->Dimension() == 1){
-                        raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
-                            faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), 
+                int bdr_attr = const_mesh->GetBdrAttribute(b);
+                bool is_interior = false, is_boundary = false;
+
+                if (sgbc_marker_interior.Size() != 0 && sgbc_marker_interior[bdr_attr - 1] == 1) {
+                    is_interior = true;
+                }
+                if (sgbc_marker_boundary.Size() != 0 && sgbc_marker_boundary[bdr_attr - 1] == 1) {
+                    is_boundary = true;
+                }
+
+                if (!is_interior && !is_boundary) continue;
+
+                const mfem::FaceElementTransformations* faceTrans;
+                mesh->FaceIsInterior(mesh->GetFaceElementTransformations(mesh->GetBdrElementFaceIndex(b))->ElementNo) ?
+                    faceTrans = mesh->GetInternalBdrFaceTransformations(b) :
+                    faceTrans = mesh->GetBdrFaceTransformations(b);
+
+                if (is_interior) {
+                    if (mesh->Dimension() == 1){
+                        raw_pairs[bdr_attr].emplace_back(
+                            faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(),
                             faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1
                         );
                     } else {
-                        auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*fes_.GetMesh(), *faceTrans, attMap) };
+                        auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*mesh, *faceTrans, attMap) };
                         mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
-                        
                         auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
-                        
+
                         for (auto p = 0; p < node_pair_local.first.size(); p++){
-                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
-                                node_pair_local.first[p], 
+                            raw_pairs[bdr_attr].emplace_back(
+                                node_pair_local.first[p],
                                 node_pair_local.second[p]
                             );
                         }
                     }
                 }
-            }
-        }
-        sgbc_marker = model_.getMarker(BdrCond::SGBC, false);
-        if (sgbc_marker.Size() != 0){
-            for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
-                if (sgbc_marker[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
-                    const mfem::FaceElementTransformations* faceTrans;
-                    fes_.GetMesh()->FaceIsInterior(fes_.GetMesh()->GetFaceElementTransformations(fes_.GetMesh()->GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = fes_.GetMesh()->GetInternalBdrFaceTransformations(b) : faceTrans = fes_.GetMesh()->GetBdrFaceTransformations(b);
-                    if (fes_.GetMesh()->Dimension() == 1){
+
+                if (is_boundary) {
+                    if (mesh->Dimension() == 1){
                         if(faceTrans->Elem1No == 0) {
-                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(0, -1);
+                            raw_pairs[bdr_attr].emplace_back(0, -1);
                         }
                         else {
-                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), -1);
+                            raw_pairs[bdr_attr].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), -1);
                         }
                     } else {
-                        auto elementSubMesh{ assembleBoundaryFaceSubMesh(*fes_.GetMesh(), *faceTrans, attMap)};
+                        auto elementSubMesh{ assembleBoundaryFaceSubMesh(*mesh, *faceTrans, attMap)};
                         mfem::FiniteElementSpace subFES(&elementSubMesh, fec);
                         auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
                         for (auto p = 0; p < node_pair_local.first.size(); p++){
-                            raw_pairs[model_.getConstMesh().GetBdrAttribute(b)].emplace_back(
-                                node_pair_local.first[p], 
+                            raw_pairs[bdr_attr].emplace_back(
+                                node_pair_local.first[p],
                                 -1
                             );
                         }
@@ -116,14 +127,15 @@ GlobalEvolution::GlobalEvolution(
         for (auto p = 0; p < sbcps.size(); p++){
             for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
                 if (tag == sbcps[p].geom_tags[t]){
-                    
+
                     auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p]);
-                    
+                    SGBCWrapper* wrap_ptr = wrap.get();
+
                     int state_size = wrap->getStateSize();
                     for(const auto& pair : pairs) {
                         SGBCState s;
                         s.global_pair = pair;
-                        
+
                         s.element_pair.first = temp_dof_to_elem[pair.first];
                         if (pair.second != -1){
                             s.element_pair.second = temp_dof_to_elem[pair.second];
@@ -131,17 +143,18 @@ GlobalEvolution::GlobalEvolution(
                         else {
                             s.element_pair.second = -1;
                         }
-                        
+
                         if (s.element_pair.first == -1) {
-                            std::cerr << "Error: Could not find Element ID for SGBC Node Pair: " 
+                            std::cerr << "Error: Could not find Element ID for SGBC Node Pair: "
                                       << pair.first << ", " << pair.second << std::endl;
                         }
 
                         s.init(state_size);
                         sgbc_states_[tag].push_back(s);
                     }
-                    
+
                     sgbcWrappers_.push_back(std::move(wrap));
+                    sgbc_wrapper_map_[tag] = wrap_ptr;
                 }
             }
         }
@@ -233,10 +246,11 @@ const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 {
     mfem::Vector res(6 * func[E][X].Size());
     res.UseDevice(true);
+    const int size = func[E][X].Size();
     for (auto f : { E, H }) {
         for (auto d : { X, Y, Z }) {
-            for (auto v{ 0 }; v < func[f][d].Size(); v++) {
-                res[v + (f * 3 + d) * func[f][d].Size()] = func[f][d][v];
+            for (auto v{ 0 }; v < size; v++) {
+                res[v + (f * 3 + d) * size] = func[f][d][v];
             }
         }
     }
@@ -253,21 +267,65 @@ void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
     }
 }
 
-void GlobalEvolution::advanceSGBCs(double time, double dt, 
-                                   const std::array<mfem::ParGridFunction, 3>& e, 
+void GlobalEvolution::advanceSGBCs(double time, double dt,
+                                   const std::array<mfem::ParGridFunction, 3>& e,
                                    const std::array<mfem::ParGridFunction, 3>& h)
 {
     for (auto& [tag, states] : sgbc_states_){
-        for (auto& w : sgbcWrappers_){
-            if (tag == w->getProperties().geom_tags.at(0)){
-                
-                for (auto& state : states){
-                    w->loadState(state);
-                    w->updateFieldsWithGlobal(e, h, state);
-                    w->solve(time, dt);
-                    w->saveState(state);
+        auto it = sgbc_wrapper_map_.find(tag);
+        if (it == sgbc_wrapper_map_.end()) continue;
+
+        auto w = it->second;
+        for (auto& state : states){
+            w->loadState(state);
+            w->updateFieldsWithGlobal(e, h, state);
+            w->solve(time, dt);
+            w->saveState(state);
+        }
+        w->setOldTime(time);
+    }
+}
+
+void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int ndofs_tfsf,
+                                              mfem::Vector& result_vector, bool check_zero) const
+{
+    if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
+    {
+        const double t_off   = opts_.tfsf_cutoff_time;
+        const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
+
+        if (tfsf_active){
+            for (auto& source : srcmngr_.sources){
+                if (!source) continue;
+                if (!dynamic_cast<TotalField*>(source.get())) continue;
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+                const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
+                mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
+#else
+                auto func = evalTimeVarFunction(t_stage, srcmngr_);
+                mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+#endif
+                mfem::Vector tempTFSF(assembledFunc.Size());
+                tempTFSF.UseDevice(true);
+                TFSFOperator_->Mult(assembledFunc, tempTFSF);
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+                load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, result_vector, ndofs, ndofs_tfsf);
+#else
+                for (int f : { E, H }){
+                    for (int d : { X, Y, Z }){
+                        for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v){
+                            const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
+                            const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
+                            const double val = tempTFSF[tempIdx];
+                            if (!check_zero || val != 0.0) {
+                                result_vector[outIdx] -= val;
+                            }
+                        }
+                    }
                 }
-                w->setOldTime(time); 
+#endif
             }
         }
     }
@@ -313,7 +371,9 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     for (int d = X; d <= Z; ++d) {
         inNew.SetVector(eOld_[d],       d      * blockSize);
         inNew.SetVector(hOld_[d],  (3 + d)     * blockSize);
-        if (nbrDofs) {
+    }
+    if (nbrDofs) {
+        for (int d = X; d <= Z; ++d) {
             mfem::Vector &eNbr = eOld_[d].FaceNbrData();
             mfem::Vector &hNbr = hOld_[d].FaceNbrData();
             inNew.SetVector(eNbr,      d      * blockSize + ndofs);
@@ -330,73 +390,29 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerApplyA.Stop();
 
     timerTFSF.Start();
-    if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
-    {
-        const double t_stage = GetTime();
-        const double t_off   = opts_.tfsf_cutoff_time;
-        const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
-
-        if (tfsf_active){
-            const int ndofs_tfsf = tfsf_space->GetNDofs();
-            for (auto& source : srcmngr_.sources){
-                if (!source) continue; 
-                if (!dynamic_cast<TotalField*>(source.get())) continue; 
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-                const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
-                mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
-#else
-                auto func = evalTimeVarFunction(t_stage, srcmngr_);
-                mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
-#endif
-                mfem::Vector tempTFSF(assembledFunc.Size());
-                tempTFSF.UseDevice(true);
-                TFSFOperator_->Mult(assembledFunc, tempTFSF);
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-                load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, out, ndofs, ndofs_tfsf);
-#else
-                for (int f : { E, H }){
-                    for (int d : { X, Y, Z }){
-                        for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v){
-                            const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
-                            const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
-                            out[outIdx] -= tempTFSF[tempIdx];
-                        }
-                    }
-                }
-#endif
-            }
-        }
-    }
+    applyTFSFSourceToVector(GetTime(), ndofs, (srcmngr_.getGlobalTFSFSpace() ? srcmngr_.getGlobalTFSFSpace()->GetNDofs() : 0), out, false);
     timerTFSF.Stop();
 
     // 5) SGBC Coupling via Flux Injection
     timerSGBC.Start();
 
     if (sgbcWrappers_.size() != 0){
-        FieldGridFuncs sgbc_fields = initSGBCHelperFields(SGBCndofs_);
+        // Reuse or initialize SGBC helper fields
+        if (last_sgbc_helper_size_ != SGBCndofs_) {
+            sgbc_helper_fields_ = initSGBCHelperFields(SGBCndofs_);
+            last_sgbc_helper_size_ = SGBCndofs_;
+        }
+
         mfem::Vector sgbcVec(6 * SGBCndofs_);
         sgbcVec = 0.0;
 
-        // for (int f : {E,H}) {
-        //     for (int d : {X,Y,Z}) {
-        //         for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
-        //             int globalId = sgbc_sub_to_parent_ids_[v];
-        //             if (f == E) sgbcVec[(f*3 + d)*SGBCndofs_ + v] = eOld_[d][globalId];
-        //             else        sgbcVec[(f*3 + d)*SGBCndofs_ + v] = hOld_[d][globalId];
-        //         }
-        //     }
-        // }
+        for (auto& [tag, states] : sgbc_states_) {
+            auto it = sgbc_wrapper_map_.find(tag);
+            if (it == sgbc_wrapper_map_.end()) continue;
 
-        for (const auto& w : sgbcWrappers_) {
-            int tag = w->getProperties().geom_tags.at(0);
-            auto it = sgbc_states_.find(tag);
-            if (it == sgbc_states_.end()) continue;
-
-            const auto& states = it->second;
+            auto w = it->second;
             for (const auto& state : states) {
-                w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_fields);
+                w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_helper_fields_);
 
                 const int global_L = state.global_pair.first;
                 const int global_R = state.global_pair.second;
@@ -405,13 +421,18 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
                 if (sub_L == -1) continue;
 
+                const int E_base_L = E*3*SGBCndofs_ + sub_L;
+                const int H_base_L = H*3*SGBCndofs_ + sub_L;
                 for (auto d : {X,Y,Z}) {
-
-                    sgbcVec[(E*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[E][d][sub_L];
-                    sgbcVec[(H*3 + d)*SGBCndofs_ + sub_L] = sgbc_fields[H][d][sub_L];
-                    if (sub_R != -1){
-                        sgbcVec[(E*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[E][d][sub_R];
-                        sgbcVec[(H*3 + d)*SGBCndofs_ + sub_R] = sgbc_fields[H][d][sub_R];
+                    sgbcVec[E_base_L + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_L];
+                    sgbcVec[H_base_L + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_L];
+                }
+                if (sub_R != -1){
+                    const int E_base_R = E*3*SGBCndofs_ + sub_R;
+                    const int H_base_R = H*3*SGBCndofs_ + sub_R;
+                    for (auto d : {X,Y,Z}) {
+                        sgbcVec[E_base_R + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_R];
+                        sgbcVec[H_base_R + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_R];
                     }
                 }
             }
@@ -421,13 +442,15 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         tempSGBC.UseDevice(true);
         SGBCOperator_->Mult(sgbcVec, tempSGBC);
 
-        for (int f : {E,H}) {
+        for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
+            int parent_idx = sgbc_sub_to_parent_ids_[v];
+            const int E_out_base = E*3*ndofs + parent_idx;
+            const int H_out_base = H*3*ndofs + parent_idx;
+            const int E_temp_base = E*3*SGBCndofs_ + v;
+            const int H_temp_base = H*3*SGBCndofs_ + v;
             for (int d : {X,Y,Z}) {
-                for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
-                    int outIdx  = (f*3 + d)*ndofs + sgbc_sub_to_parent_ids_[v];
-                    int tempIdx = (f*3 + d)*SGBCndofs_ + v;
-                    out[outIdx] -= tempSGBC[tempIdx];
-                }
+                out[E_out_base + d*ndofs] -= tempSGBC[E_temp_base + d*SGBCndofs_];
+                out[H_out_base + d*ndofs] -= tempSGBC[H_temp_base + d*SGBCndofs_];
             }
         }
     }
@@ -502,7 +525,9 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         for (int d = X; d <= Z; ++d) {
             work.inNew.SetVector(eOld_[d],       d      * blockSize);
             work.inNew.SetVector(hOld_[d],  (3 + d)     * blockSize);
-            if (nbrDofs) {
+        }
+        if (nbrDofs) {
+            for (int d = X; d <= Z; ++d) {
                 mfem::Vector &eNbr = eOld_[d].FaceNbrData();
                 mfem::Vector &hNbr = hOld_[d].FaceNbrData();
                 work.inNew.SetVector(eNbr,      d      * blockSize + ndofs);
@@ -524,47 +549,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     timerSrc.Start();
     {
         mfem::Vector s(n); s.UseDevice(true); s = 0.0;
-
-        if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace()) {
-            const double t_stage = GetTime();
-            const double t_off   = opts_.tfsf_cutoff_time;
-            const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
-
-            if (tfsf_active)
-            {
-                const int ndofs_tfsf = tfsf_space->GetNDofs();
-                for (auto& source : srcmngr_.sources) {
-                    if (!source) { continue; }
-                    if (!dynamic_cast<TotalField*>(source.get())) { continue; }
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-                    const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
-                    mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
-#else
-                    auto func = evalTimeVarFunction(t_stage, srcmngr_);
-                    mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
-#endif
-                    mfem::Vector tempTFSF(assembledFunc.Size());
-                    tempTFSF.UseDevice(true);
-                    TFSFOperator_->Mult(assembledFunc, tempTFSF);
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-                    load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, s, ndofs, ndofs_tfsf);
-#else
-                    for (int f : { E, H }) {
-                        for (int d : { X, Y, Z }) {
-                            for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
-                                const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
-                                const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
-                                const double val = tempTFSF[tempIdx];
-                                if (val != 0.0) { s[outIdx] -= val; }
-                            }
-                        }
-                    }
-#endif
-                }
-            }
-        }
+        applyTFSFSourceToVector(GetTime(), ndofs, (srcmngr_.getGlobalTFSFSpace() ? srcmngr_.getGlobalTFSFSpace()->GetNDofs() : 0), s, true);
         rhs += s;
     }
     timerSrc.Stop();

@@ -22,13 +22,16 @@ public:
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
     void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
-    void advanceSGBCs(double time, double dt, 
-                      const std::array<mfem::ParGridFunction, 3>& e, 
+    void advanceSGBCs(double time, double dt,
+                      const std::array<mfem::ParGridFunction, 3>& e,
                       const std::array<mfem::ParGridFunction, 3>& h);
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
 private:
+    void applyTFSFSourceToVector(double t_stage, int ndofs, int ndofs_tfsf,
+                                  mfem::Vector& result_vector, bool check_zero = false) const;
+
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
@@ -38,9 +41,10 @@ private:
     mfem::Array<int> sgbc_sub_to_parent_ids_;
 
     std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
-    
+
     std::map<GeomTag, std::vector<SGBCState>> sgbc_states_;
-    
+    std::map<GeomTag, SGBCWrapper*> sgbc_wrapper_map_;
+
     std::map<int, int> sgbc_coupling_map_;
 
     mfem::ParFiniteElementSpace& fes_;
@@ -49,6 +53,8 @@ private:
     EvolutionOptions& opts_;
 
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
+    mutable FieldGridFuncs sgbc_helper_fields_;
+    mutable int last_sgbc_helper_size_ = -1;
 };
 
 void load_in_to_eh_gpu(const mfem::Vector& in, 

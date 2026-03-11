@@ -23,7 +23,9 @@ std::unique_ptr<mfem::TimeDependentOperator> Solver::assignEvolutionOperator()
         return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
     }
     else if (opts_.evolution.op == EvolutionOperatorType::Global) {
-        return std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+        auto global_evol = std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+        globalEvol_cache_ = global_evol.get();  // Cache the pointer
+        return global_evol;
     }
     else if (opts_.evolution.op == EvolutionOperatorType::Maxwell){
         ProblemDescription pd(model_, probesManager_.probes, sourcesManager_.sources, opts_.evolution);
@@ -259,32 +261,17 @@ double getElementPerimeter(const std::vector<Source::Position>& vertCoords)
     return res;
 }
 
-double calc2DMeshTimeStep(mfem::FiniteElementSpace& fes)
+double calcMeshTimeStep(mfem::FiniteElementSpace& fes, double heuristic_divisor,
+                        const mfem::Element::Type& special_elem_type)
 {
     Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
     double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
     auto dt{ dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight };
     dt *= 0.75; // Purely heuristic.
-    if (checkIfElemTypeInMesh(*fes.GetMesh(), mfem::Element::Type::QUADRILATERAL)) {
-        return dt / 2.0; // This is purely heuristic.
+    if (checkIfElemTypeInMesh(*fes.GetMesh(), special_elem_type)) {
+        return dt / heuristic_divisor;
     }
-    else {
-        return dt;
-    }
-}
-
-double calc3DMeshTimeStep(mfem::FiniteElementSpace& fes)
-{
-    Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
-    double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
-    auto dt{ dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight };
-    dt *= 0.75; // Purely heuristic.
-    if (checkIfElemTypeInMesh(*fes.GetMesh(), mfem::Element::Type::HEXAHEDRON)) {
-        return dt / 6.0; // This is purely heuristic.
-    }
-    else {
-        return dt;
-    }
+    return dt;
 }
 
 double estimateTimeStep(const Model& model, const SolverOptions& opts, const mfem::ParFiniteElementSpace& fes, const TimeDependentOperator* tdo)
@@ -293,47 +280,52 @@ double estimateTimeStep(const Model& model, const SolverOptions& opts, const mfe
     mfem::DG_FECollection fec(fes.FEColl()->GetOrder(), serialmesh.Dimension(), opts.basis_type);
     mfem::FiniteElementSpace serialfes(&serialmesh, &fec);
 
-    if (opts.evolution.op != EvolutionOperatorType::Hesthaven) {
-        if (model.getConstMesh().Dimension() == 1) {
-            double maxTimeStep{ 0.0 };
-            if (opts.evolution.order == 0) {
-                maxTimeStep = getMinimumInterNodeDistance(serialfes) / physicalConstants::speedOfLight;
-            }
-            else {
-                maxTimeStep = getMinimumInterNodeDistance(serialfes) / pow(double(fes.FEColl()->GetOrder()), 1.5) / physicalConstants::speedOfLight;
-            }
-            return opts.cfl * maxTimeStep;
-        }
-        else if (model.getConstMesh().Dimension() == 2) {
-            return calc2DMeshTimeStep(serialfes) * opts.cfl;
-        }
-        else if (model.getConstMesh().Dimension() == 3) {
-            return calc3DMeshTimeStep(serialfes) * opts.cfl / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
+    int dimension = model.getConstMesh().Dimension();
+
+    // 1D dimension handling
+    if (dimension == 1) {
+        double maxTimeStep{ 0.0 };
+        if (opts.evolution.order == 0) {
+            maxTimeStep = getMinimumInterNodeDistance(serialfes) / physicalConstants::speedOfLight;
         }
         else {
-            throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
+            maxTimeStep = getMinimumInterNodeDistance(serialfes) / pow(double(fes.FEColl()->GetOrder()), 1.5) / physicalConstants::speedOfLight;
         }
+        return opts.cfl * maxTimeStep;
+    }
+
+    // 2D and 3D common calculation
+    double base_dt = 0.0;
+    if (dimension == 2) {
+        base_dt = calcMeshTimeStep(serialfes, 2.0, mfem::Element::Type::QUADRILATERAL) * opts.cfl;
+    }
+    else if (dimension == 3) {
+        base_dt = calcMeshTimeStep(serialfes, 6.0, mfem::Element::Type::HEXAHEDRON) * opts.cfl;
     }
     else {
-        if (model.getConstMesh().Dimension() == 2) {
-            return calc2DMeshTimeStep(serialfes) * opts.cfl;
-        }
-        else if (model.getConstMesh().Dimension() == 3) {
-            auto maxFscaleVal{ 0.0 };
-            const auto& evol = dynamic_cast<const HesthavenEvolution*>(tdo);
-            for (auto e{ 0 }; e < serialmesh.GetNE(); e++) {
-                const auto& fscaleMax{ evol->getHesthavenElement(e).fscale.maxCoeff() };
-                if (fscaleMax > maxFscaleVal) {
-                    maxFscaleVal = fscaleMax;
-                }
-            }
-            const auto& order = serialfes.FEColl()->GetOrder();
-            return 1.0 * opts.cfl / (maxFscaleVal * order * order);
-        }
-        else {
-            throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
-        }
+        throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
     }
+
+    // Hesthaven-specific 3D scaling
+    if (opts.evolution.op == EvolutionOperatorType::Hesthaven && dimension == 3) {
+        auto maxFscaleVal{ 0.0 };
+        const auto& evol = dynamic_cast<const HesthavenEvolution*>(tdo);
+        for (auto e{ 0 }; e < serialmesh.GetNE(); e++) {
+            const auto& fscaleMax{ evol->getHesthavenElement(e).fscale.maxCoeff() };
+            if (fscaleMax > maxFscaleVal) {
+                maxFscaleVal = fscaleMax;
+            }
+        }
+        const auto& order = serialfes.FEColl()->GetOrder();
+        return 1.0 * opts.cfl / (maxFscaleVal * order * order);
+    }
+
+    // Global-specific 3D scaling
+    if (opts.evolution.op == EvolutionOperatorType::Global && dimension == 3) {
+        return base_dt / 0.8; // 0.8 is purely heuristic, adjusted from Hesthaven ATS value.
+    }
+
+    return base_dt;
 }
 
 double Solver::calcAverageElementSizeInMesh()
@@ -343,28 +335,7 @@ double Solver::calcAverageElementSizeInMesh()
 
     for (int e = 0; e < mesh.GetNE(); e++)
     {
-        mfem::Element *el = mesh.GetElement(e);
-        const int nv = el->GetNVertices();
-        mfem::Array<int> vert_indices(nv);
-        el->GetVertices(vert_indices);
-
-        auto h_el = 0.0;
-        for (int a = 0; a < nv; a++){
-            const auto va = mesh.GetVertex(vert_indices[a]);
-            for (int b = a + 1; b < nv; b++){
-                const auto vb = mesh.GetVertex(vert_indices[b]);
-                auto dist2 = 0.0;
-                for (int d = 0; d < mesh.Dimension(); d++){
-                    dist2 += (va[d] - vb[d]) * (va[d] - vb[d]);
-                }
-                auto dist = std::sqrt(dist2);
-                if (dist > h_el){
-                    h_el = dist;
-                }
-            }
-        }
-
-        res += h_el;
+        res += mesh.GetElementSize(e);
     }
 
     return res / mesh.GetNE();
@@ -481,22 +452,20 @@ void Solver::run()
 #ifdef SHOW_TIMER_INFORMATION
         auto currentTime = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::seconds>
-            (currentTime - lastPrintTime).count() >= 30.0) 
+            (currentTime - lastPrintTime).count() >= 30.0)
         {
             if (Mpi::WorldRank() == 0){
+                if (this->fields_.getNorml2() > 1e20){
+                    std::cout << "------------------------------------------------------------------------" << std::endl;
+                    std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
+                    std::cout << "------------------------------------------------------------------------" << std::endl;
+                }
                 printSimulationInformation(time_, dt_, opts_.final_time);
                 lastPrintTime = currentTime;
             }
         }
-        if (this->fields_.getNorml2() > 1e20){
-            if (Mpi::WorldRank() == 0){
-                std::cout << "------------------------------------------------------------------------" << std::endl;
-                std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
-                std::cout << "------------------------------------------------------------------------" << std::endl;
-            }
-        }
-    }
 #endif
+    }
 
     writeSimulationStatistics(std::chrono::duration<double>(std::chrono::steady_clock::now() - runStartTime).count());
 
@@ -505,18 +474,16 @@ void Solver::run()
 void Solver::step()
 {
     double truedt{ std::min(dt_, opts_.final_time - time_) };
-    
-    if (opts_.evolution.op == EvolutionOperatorType::Global) {
-        if (auto* globalEvol = dynamic_cast<GlobalEvolution*>(evolTDO_.get())) {
-            std::array<mfem::ParGridFunction, 3> e, h;
-            for(int d = 0; d < 3; ++d) {
-                e[d].SetSpace(fields_.get(E, d).FESpace());
-                h[d].SetSpace(fields_.get(H, d).FESpace());
-                e[d] = fields_.get(E, d);
-                h[d] = fields_.get(H, d);
-            }
-            globalEvol->advanceSGBCs(time_, truedt, e, h);
+
+    if (globalEvol_cache_) {
+        std::array<mfem::ParGridFunction, 3> e, h;
+        for(int d = 0; d < 3; ++d) {
+            e[d].SetSpace(fields_.get(E, d).FESpace());
+            h[d].SetSpace(fields_.get(H, d).FESpace());
+            e[d] = fields_.get(E, d);
+            h[d] = fields_.get(H, d);
         }
+        globalEvol_cache_->advanceSGBCs(time_, truedt, e, h);
     }
 
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);

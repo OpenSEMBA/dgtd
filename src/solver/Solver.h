@@ -92,8 +92,9 @@ private:
     double time_;
     double dt_;
     std::unique_ptr<ODESolver> odeSolver_;
-    
+
     std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
+    GlobalEvolution* globalEvol_cache_ = nullptr;  // Cached pointer to avoid dynamic_cast per step
 
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();
