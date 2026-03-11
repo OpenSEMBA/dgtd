@@ -342,6 +342,12 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 
 void ProbesManager::updateProbe(FieldProbe& p, Time time)
 {
+    if (std::abs(time - finalTime_) >= 1e-8) {
+        if (cycle_ % p.getVisSteps() != 0) {
+            return;
+        }
+    }
+    
     const auto& it{ fieldProbesCollection_.find(&p) };
     assert(it != fieldProbesCollection_.end());
     const auto& pC{ it->second };
@@ -366,6 +372,12 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
 
 void ProbesManager::updateProbe(PointProbe& p, Time time)
 {
+    if (std::abs(time - finalTime_) >= 1e-8) {
+        if (cycle_ % p.getVisSteps() != 0) {
+            return;
+        }
+    }
+    
     const auto& it{ pointProbesCollection_.find(&p) };
     assert(it != pointProbesCollection_.end());
     const auto& pC{ it->second };

@@ -66,10 +66,11 @@ struct DomainSnapshotDataCollection{
 
 class FieldProbe {
 public:
-    FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const bool writeFile = true) :
+    FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const int visSteps = 1, const bool writeFile = true) :
         fieldToExtract_{ ft },
         directionToExtract_{ d },
         point_{ p },
+        visSteps_{ visSteps },
         write{writeFile}
     {}
 
@@ -79,6 +80,7 @@ public:
     const Direction& getDirection() const { return directionToExtract_; }
     const FieldMovie& getFieldMovie() const { return fieldMovie_; }
     const Point& getPoint() const { return point_; }
+    int getVisSteps() const { return visSteps_; }
     void addFieldToMovies(double time, const double& field) { fieldMovie_.emplace(time, field); };
     void setProbeID(const size_t id) {id_ = id;}
     size_t getProbeID() const { return id_; }
@@ -109,6 +111,7 @@ private:
     FieldType fieldToExtract_;
     Direction directionToExtract_;
     Point point_;
+    int visSteps_;
     size_t id_;
 
     FieldMovie fieldMovie_;
@@ -116,8 +119,9 @@ private:
 
 class PointProbe {
 public:
-    PointProbe(const Point& p, const bool writeFile = true) :
+    PointProbe(const Point& p, const int visSteps = 1, const bool writeFile = true) :
         point_{ p },
+        visSteps_{ visSteps },
         write{writeFile}
     {}
 
@@ -125,13 +129,14 @@ public:
 
     const FieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
+    int getVisSteps() const { return visSteps_; }
     void addFieldsToMovies(Time t, const FieldsForMovie& fields) { fieldMovies_.emplace(t, fields); };
     void setProbeID(const size_t id) {id_ = id;}
     size_t getProbeID() const { return id_; }
 
 private:
-
     Point point_;
+    int visSteps_;
     size_t id_;
 
     FieldMovies fieldMovies_;
