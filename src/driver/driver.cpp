@@ -905,11 +905,27 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
                 throw std::runtime_error("SGBC Material must define 'material_width'.");
             }
 
-            props.order = 3; // Lock order 3 - heuristic
-            
             double mu_si = rel_mu * physicalConstants::vacuumPermeability_SI;
             double eps_si = rel_eps * physicalConstants::vacuumPermittivity_SI;
-            
+
+            // Calculate Peclet number for material characterization (needed for adaptive order)
+            double peclet_number = 0.0;  // Pe = σ/(ω·ε), ratio of conduction to displacement current
+            if (sigma_si > 0.0) {
+                peclet_number = sigma_si / (max_freq * eps_si);
+            }
+
+            // Adaptive polynomial order based on material properties
+            // High-conductivity (metals): Use lower order (faster, fields decay quickly)
+            // Weakly-conducting: Use higher order (better accuracy for smooth fields)
+            // Non-conducting: Use standard order (balanced)
+            if (peclet_number > 100.0) {
+                props.order = 2;  // Metals: lower order sufficient due to rapid decay
+            } else if (peclet_number < 0.1 && sigma_si < 1e-3) {
+                props.order = 4;  // Non-conducting dielectrics: higher order for accuracy
+            } else {
+                props.order = 3;  // Default: semiconductors and mixed materials
+            }
+
             // Need at least 5 elements per wavelength at max freq
             double wavelength = 1.0 / (max_freq * std::sqrt(mu_si * eps_si));
             double target_dx_wave = wavelength / 5.0; 
@@ -922,22 +938,40 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
             }
 
             double target_dx = std::min(target_dx_wave, target_dx_skin);
-            
+
             int auto_segments = static_cast<int>(std::ceil(props.material_width / target_dx));
 
-            // Apply 2x safety factor for SGBC mesh to ensure stable temporal evolution
-            // and proper resolution of material relaxation dynamics
-            props.num_of_segments = std::clamp(auto_segments * 2, 2, 1000);
+            // Material-dependent mesh safety factor (physics-based heuristic)
+            // Metals (high conductivity): need 2.0x for stability (fast relaxation requires careful handling)
+            // Semiconductors: use 1.75x (intermediate case)
+            // Weakly conducting: use 1.5x (can be more aggressive)
+            // Non-conducting: use 1.25x (purely wave-like, standard refinement sufficient)
+            // (peclet_number already calculated above for adaptive order)
+
+            double safety_factor = 1.25;  // Default for non-conducting
+            if (peclet_number > 100.0) {
+                safety_factor = 2.0;      // Metals: Pe >> 1 (highly conductive regime)
+            } else if (peclet_number > 10.0) {
+                safety_factor = 1.75;     // Semiconductors: Pe ~ 10-100
+            } else if (peclet_number > 1.0) {
+                safety_factor = 1.5;      // Weakly conducting: Pe ~ 1-10
+            }
+            // else: Pe << 1 (wave-dominated), use 1.25x
+
+            props.num_of_segments = std::clamp(
+                static_cast<int>(auto_segments * safety_factor), 2, 1000);
             
             if (Mpi::WorldRank() == 0) {
-                std::cout << "\n[SGBC Auto-Mesh]" << std::endl;
-                std::cout << "  Pulse Max Freq : " << max_freq / 1e9 << " GHz" << std::endl;
-                std::cout << "  Wavelength     : " << wavelength * 1000.0 << " mm" << std::endl;
+                std::cout << "\n[SGBC Auto-Mesh Generation]" << std::endl;
+                std::cout << "  Pulse Max Freq       : " << max_freq / 1e9 << " GHz" << std::endl;
+                std::cout << "  Wavelength           : " << wavelength * 1000.0 << " mm" << std::endl;
                 if (sigma_si > 0.0) {
-                    std::cout << "  Skin Depth     : " << skin_depth * 1000.0 << " mm" << std::endl;
+                    std::cout << "  Skin Depth           : " << skin_depth * 1000.0 << " mm" << std::endl;
+                    std::cout << "  Loss Tangent (Pe)    : " << peclet_number << std::endl;
                 }
-                std::cout << "  Generated Mesh : " << props.num_of_segments << " segments (Order " << props.order << ")" << std::endl;
-                
+                std::cout << "  Mesh Safety Factor   : " << safety_factor << "x" << std::endl;
+                std::cout << "  Generated Mesh       : " << props.num_of_segments << " segments (Order " << props.order << ")" << std::endl;
+
                 if (props.num_of_segments == 1000) {
                     std::cout << "  [WARNING] Max segment limit reached. Material properties may be too extreme to fully resolve!\n" << std::endl;
                 } else {

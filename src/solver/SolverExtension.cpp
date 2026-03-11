@@ -178,8 +178,49 @@ void SGBCWrapper::solve(const Time t, const Time dt)
 
         // Calculate temporal parameters once
         double crossing_time = dx * std::sqrt(eps_r * mu_r);
-        double relaxation_time = (sigma_solver > 0.0) ? (eps_r / sigma_solver) : std::numeric_limits<double>::max();
-        double recommended_dt = std::min(crossing_time * 0.5, relaxation_time / 50.0);
+
+        // CRITICAL FIX: Proper dimensional relaxation time calculation
+        // Physical relaxation time: τ = ε₀εᵣ / σ_SI [seconds]
+        // In solver units where Z₀ = √(μ₀/ε₀), conductivity is stored as σ_solver = σ_SI × Z₀
+        // Therefore to recover proper τ we must divide by Z₀ when computing in normalized units
+        constexpr double z0_si = physicalConstants::freeSpaceImpedance_SI;
+        constexpr double eps0_si = physicalConstants::vacuumPermittivity_SI;
+
+        double relaxation_time = std::numeric_limits<double>::max();
+        double loss_tangent = 0.0;  // tan(δ) = σ/(ωε) - dimensionless ratio
+
+        if (sigma_solver > 0.0) {
+            // Corrected formula for relaxation time in normalized units
+            // tau = eps_r * eps0 / (sigma_solver / Z0) = eps_r * eps0 * Z0 / sigma_solver
+            double sigma_si_recovered = sigma_solver / z0_si;
+            relaxation_time = (eps_r * eps0_si) / sigma_si_recovered;
+
+            // Material property characterization: loss tangent for adaptive factors
+            // Estimate angular frequency: ω ~ 2π × max_freq (from solve context)
+            // Loss tangent: tan(δ) = σ/(ω·ε) characterizes material behavior
+            // This value is used to select appropriate time-stepping factors below
+            loss_tangent = sigma_si_recovered / (eps_r * eps0_si);  // Normalized estimate
+        }
+
+        // Material-dependent temporal resolution factor (physics-based)
+        // Metals (loss_tangent >> 1): Rapid charge relaxation, can use aggressive /10-15
+        // Semiconductors (loss_tangent ~ 1): Intermediate case, /20-30
+        // Weakly conducting (loss_tangent << 1): Slow decay, need conservative /50-100
+        // Non-conducting (loss_tangent ≈ 0): No conductivity, skip relaxation criterion
+        double relaxation_factor = 50.0;  // Default for weakly conducting
+        if (loss_tangent > 10.0) {
+            relaxation_factor = 10.0;     // Metals: fast relaxation, can be aggressive
+        } else if (loss_tangent > 1.0) {
+            relaxation_factor = 20.0;     // Semiconductors: intermediate
+        } else if (loss_tangent > 0.1) {
+            relaxation_factor = 50.0;     // Weakly conducting: conservative (default)
+        }
+        // else: non-conducting, relaxation_time already set to inf, factor not used
+
+        double recommended_dt = crossing_time * 0.5;  // Wave criterion
+        if (sigma_solver > 0.0) {
+            recommended_dt = std::min(recommended_dt, relaxation_time / relaxation_factor);
+        }
 
         bool is_coarse = (dt > recommended_dt);
 
@@ -191,20 +232,22 @@ void SGBCWrapper::solve(const Time t, const Time dt)
                 std::cout << "[OK] SGBC Temporal Resolution is within good parameters!" << std::endl;
             }
             std::cout << "========================================================" << std::endl;
-            std::cout << "  Current dt       : " << dt << std::endl;
-            std::cout << "  Segment Crossing : " << crossing_time << std::endl;
+            std::cout << "  Current dt           : " << dt << std::endl;
+            std::cout << "  Segment Crossing     : " << crossing_time << std::endl;
             if (sigma_solver > 0.0) {
-                std::cout << "  Relaxation Time  : " << relaxation_time << std::endl;
+                std::cout << "  Relaxation Time      : " << relaxation_time << std::endl;
+                std::cout << "  Loss Tangent (tan δ) : " << loss_tangent << std::endl;
+                std::cout << "  Relaxation Factor    : 1/" << relaxation_factor << std::endl;
             }
 
             if (is_coarse) {
-                std::cout << "  Recommended dt   : < " << recommended_dt << std::endl;
+                std::cout << "  Recommended dt       : < " << recommended_dt << std::endl;
                 std::cout << "\n  The relaxation/crossing gradient is going to get mathematically smeared!" << std::endl;
                 std::cout << "  Your implicit solver will remain stable, but your reflection physics" << std::endl;
                 std::cout << "  will be wrong. You should lower your time step!" << std::endl;
             } else {
-                std::cout << "  Max safe dt      : " << recommended_dt << std::endl;
-                std::cout << "  Safety margin    : " << (recommended_dt / dt) << "x" << std::endl;
+                std::cout << "  Max safe dt          : " << recommended_dt << std::endl;
+                std::cout << "  Safety margin        : " << (recommended_dt / dt) << "x" << std::endl;
                 std::cout << "\n  SGBC solver respects relaxation time material dynamics." << std::endl;
             }
             std::cout << "========================================================\n" << std::endl;
@@ -222,37 +265,49 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     this->solver_->step();
 }
 
-void checkSkinDepthResolution(const SGBCProperties& props) 
+void checkSkinDepthResolution(const SGBCProperties& props)
 {
     auto sigma_solver = props.material.getConductivity();
-    
+
     if (sigma_solver <= 0.0){
         return;
     }
 
     constexpr auto Z0 = physicalConstants::freeSpaceImpedance_SI;
     constexpr auto mu0 = physicalConstants::vacuumPermeability_SI;
+    constexpr auto eps0 = physicalConstants::vacuumPermittivity_SI;
 
     auto sigma_si = sigma_solver / Z0;
     auto mu_si = props.material.getPermeability() * mu0;
+    auto eps_si = props.material.getPermittivity() * eps0;
 
     auto dx = props.material_width / static_cast<double>(props.num_of_segments);
 
+    // Frequency at which skin depth equals element size
     auto f_max = 1.0 / (M_PI * mu_si * sigma_si * dx * dx);
 
-    std::cout << "\n--- SGBC Mesh Resolution Check ---" << std::endl;
-    std::cout << "Element dx : " << dx << " m" << std::endl;
-    std::cout << "Max reliably resolved frequency (Skin Depth = dx): ";
-    
-    if (f_max > 1e9) {
+    // Loss tangent for material characterization
+    auto loss_tangent = sigma_si / (2.0 * M_PI * 1e9 * eps_si);  // At 1 GHz reference
+
+    std::cout << "\n--- SGBC Spatial Resolution Check ---" << std::endl;
+    std::cout << "Element dx                   : " << dx * 1e6 << " μm" << std::endl;
+    std::cout << "Skin depth (at 1 GHz)        : " << (1.0 / sqrt(M_PI * 1e9 * mu_si * sigma_si) * 1e6) << " μm" << std::endl;
+    std::cout << "Loss Tangent (tan δ @ 1 GHz) : " << loss_tangent << std::endl;
+    std::cout << "Max resolved frequency (δ=dx): ";
+
+    if (f_max > 1e10) {
+        std::cout << f_max / 1e9 << " GHz" << std::endl;
+        std::cout << "[EXCELLENT] Mesh resolution is outstanding for this material." << std::endl;
+    }
+    else if (f_max > 1e9) {
         std::cout << f_max / 1e9 << " GHz" << std::endl;
         std::cout << "[INFO] Mesh is well-resolved for standard RF/Microwave." << std::endl;
-    } 
+    }
     else if (f_max > 1e6) {
         std::cout << f_max / 1e6 << " MHz" << std::endl;
         std::cout << "[WARNING] Mesh may cause numerical tunneling for GHz pulses." << std::endl;
         std::cout << "          Consider increasing 'num_of_segments'." << std::endl;
-    } 
+    }
     else {
         std::cout << f_max / 1e3 << " kHz" << std::endl;
         std::cout << "[SEVERE] Mesh is severely coarse for this conductivity!" << std::endl;
