@@ -171,6 +171,45 @@ void SGBCWrapper::solve(const Time t, const Time dt)
         return;
     }
 
+    if (!temporal_warning_printed_) {
+        temporal_warning_printed_ = true;
+        
+        double eps_r = sbcp_.material.getPermittivity();
+        double mu_r = sbcp_.material.getPermeability();
+        double sigma_solver = sbcp_.material.getConductivity(); 
+        
+        double dx = sbcp_.material_width / sbcp_.num_of_segments;
+        
+        // 1. Wave Crossing Time (CFL limit of the element)
+        double crossing_time = dx * std::sqrt(eps_r * mu_r);
+        
+        // 2. Relaxation Time (How fast the field decays)
+        double relaxation_time = std::numeric_limits<double>::max();
+        if (sigma_solver > 0.0) {
+            relaxation_time = eps_r / sigma_solver;
+        }
+        
+        double recommended_dt = std::min(crossing_time * 0.5, relaxation_time / 50.0);
+
+        if (dt > recommended_dt) {
+            if (Mpi::WorldRank() == 0) {
+                std::cout << "\n========================================================" << std::endl;
+                std::cout << "[SEVERE WARNING] SGBC Temporal Resolution is too coarse!" << std::endl;
+                std::cout << "========================================================" << std::endl;
+                std::cout << "  Current dt       : " << dt << std::endl;
+                std::cout << "  Segment Crossing : " << crossing_time << std::endl;
+                if (sigma_solver > 0.0) {
+                    std::cout << "  Relaxation Time  : " << relaxation_time << std::endl;
+                }
+                std::cout << "  Recommended dt   : < " << recommended_dt << std::endl;
+                std::cout << "\n  The relaxation/crossing gradient is going to get mathematically smeared!" << std::endl;
+                std::cout << "  Your implicit solver will remain stable, but your reflection physics" << std::endl;
+                std::cout << "  will be wrong. You should lower your time step!" << std::endl;
+                std::cout << "========================================================\n" << std::endl;
+            }
+        }
+    }
+
     this->solver_->setTime(t); 
     this->solver_->getEvolTDO()->SetTime(t);
 
@@ -231,11 +270,11 @@ sbcp_(sbcp)
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
-    probes.exporterProbes.resize(1);
-    ExporterProbe ep;
-    ep.name = "InsideSGBC";
-    ep.visSteps = 1000;
-    probes.exporterProbes.at(0) = ep;
+    // probes.exporterProbes.resize(1);
+    // ExporterProbe ep;
+    // ep.name = "InsideSGBC";
+    // ep.visSteps = 10000;
+    // probes.exporterProbes.at(0) = ep;
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
     opts.setExportEO(true);

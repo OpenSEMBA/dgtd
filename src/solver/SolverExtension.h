@@ -93,6 +93,8 @@ private:
     FluxNodeInfo flux_nodes_;
 
     Time old_t_ = 0.0;
+
+    bool temporal_warning_printed_ = false;
     
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>* global_fields_;
     std::unique_ptr<Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>> sgbc_solver_fields_;
