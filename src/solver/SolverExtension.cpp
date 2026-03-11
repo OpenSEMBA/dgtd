@@ -177,7 +177,16 @@ void SGBCWrapper::solve(const Time t, const Time dt)
         double dx = sbcp_.material_width / sbcp_.num_of_segments;
 
         // Calculate temporal parameters once
-        double crossing_time = dx * std::sqrt(eps_r * mu_r);
+        // CRITICAL: Account for speed of light - convert spatial distance to temporal duration
+        // crossing_time_SI [s] = dx [m] / v [m/s] where v = c / sqrt(eps_r*mu_r)
+        // Therefore: crossing_time = dx * sqrt(eps_r*mu_r) / c_SI
+        constexpr double c_si = physicalConstants::speedOfLight_SI;
+        double crossing_time = (dx * std::sqrt(eps_r * mu_r)) / c_si;
+
+        // Convert simulator time to SI seconds for proper comparison
+        // Simulator uses normalized time: t_sim = t_si * c_si
+        // Therefore: t_si = t_sim / c_si
+        double dt_si = dt / c_si;
 
         // CRITICAL FIX: Proper dimensional relaxation time calculation
         // Physical relaxation time: τ = ε₀εᵣ / σ_SI [seconds]
@@ -222,7 +231,7 @@ void SGBCWrapper::solve(const Time t, const Time dt)
             recommended_dt = std::min(recommended_dt, relaxation_time / relaxation_factor);
         }
 
-        bool is_coarse = (dt > recommended_dt);
+        bool is_coarse = (dt_si > recommended_dt);
 
         if (Mpi::WorldRank() == 0) {
             std::cout << "\n========================================================" << std::endl;
@@ -232,22 +241,22 @@ void SGBCWrapper::solve(const Time t, const Time dt)
                 std::cout << "[OK] SGBC Temporal Resolution is within good parameters!" << std::endl;
             }
             std::cout << "========================================================" << std::endl;
-            std::cout << "  Current dt           : " << dt << std::endl;
-            std::cout << "  Segment Crossing     : " << crossing_time << std::endl;
+            std::cout << "  Current dt (SI)      : " << dt_si << " seconds" << std::endl;
+            std::cout << "  Segment Crossing     : " << crossing_time << " seconds" << std::endl;
             if (sigma_solver > 0.0) {
-                std::cout << "  Relaxation Time      : " << relaxation_time << std::endl;
+                std::cout << "  Relaxation Time      : " << relaxation_time << " seconds" << std::endl;
                 std::cout << "  Loss Tangent (tan δ) : " << loss_tangent << std::endl;
                 std::cout << "  Relaxation Factor    : 1/" << relaxation_factor << std::endl;
             }
 
             if (is_coarse) {
-                std::cout << "  Recommended dt       : < " << recommended_dt << std::endl;
+                std::cout << "  Recommended dt (SI)  : < " << recommended_dt << " seconds" << std::endl;
                 std::cout << "\n  The relaxation/crossing gradient is going to get mathematically smeared!" << std::endl;
                 std::cout << "  Your implicit solver will remain stable, but your reflection physics" << std::endl;
                 std::cout << "  will be wrong. You should lower your time step!" << std::endl;
             } else {
-                std::cout << "  Max safe dt          : " << recommended_dt << std::endl;
-                std::cout << "  Safety margin        : " << (recommended_dt / dt) << "x" << std::endl;
+                std::cout << "  Max safe dt (SI)     : " << recommended_dt << " seconds" << std::endl;
+                std::cout << "  Safety margin        : " << (recommended_dt / dt_si) << "x" << std::endl;
                 std::cout << "\n  SGBC solver respects relaxation time material dynamics." << std::endl;
             }
             std::cout << "========================================================\n" << std::endl;
