@@ -1,13 +1,13 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-4,
+    "time_step": 1e-5,
     "final_time": 10.0,
     "order": 4
   },
 
-  "model": { 
-    "filename": "1D_SGBC_Through.msh",
+  "model": {
+    "filename": "2D_SGBC_CFRP_Transverse.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -16,17 +16,21 @@
     ],
     "boundaries": [
       {
-        "tags": [ 1, 4 ],
+        "tags": [ 16, 21 ],
         "type": "SMA"
       },
       {
-        "tags": [ 3 ],
+        "tags": [ 13, 15, 17, 19, 20, 22 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 18 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 25.0,
-          "relative_permeability": 4.0,
-          "bulk_conductivity": 0.0,
-          "material_width": 30e-3
+          "relative_permittivity": 11.7,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 30, 
+          "material_width": 5e-3
         }
       }
     ]
@@ -34,31 +38,34 @@
 
   "probes": {
     "exporter": {
-      "steps": 1000
+      "saves": 40
     },
     "point": [
       {
-        "position": [ 0.15 ]
+        "position": [ 0.125, 0.075 ],
+        "saves": 10000
       },
       {
-        "position": [ 0.35 ]
+        "position": [ 0.5, 0.075 ],
+        "saves": 10000
       },
       {
-        "position": [ 1.45 ]
+        "position": [ 1.45, 0.075 ],
+        "saves": 10000
       }
     ]
   },
 
-  "sources": [ 
+  "sources": [
     {
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2 ],
+      "tags": [ 14 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,
-        "mean": [ -0.5 ]
+        "mean": [ -1.25, 0.075 ]
       }
     }
   ]
