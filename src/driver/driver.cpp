@@ -43,14 +43,13 @@ double calculateMaximumSourceFrequency(const json& case_data)
     }
 
     if (found_gaussian) {
-        // Spatial spread (sigma). f_max = c / (2 * sigma)
-        // This captures >99% of the spectral energy (-40dB power cutoff)
+        // capture >99% of the spectral energy (-40dB power cutoff)
         double c_si = physicalConstants::speedOfLight_SI;
         double f_max = c_si / (2.0 * min_spread);
         return f_max;
     }
 
-    // Fallback if no Gaussian source is found (e.g., resonant modes)
+    // Fallback if no Gaussian source is found
     return 1e9; // Default to 1 GHz
 }
 
@@ -453,95 +452,109 @@ SolverOptions buildSolverOptions(const json& case_data)
 	return res;
 }
 
-
 Probes buildProbes(const json& case_data)
 {
+    Probes probes;
+    size_t pp_count = 0;
+    size_t fp_count = 0;
 
-	Probes probes;
-	size_t pp_count = 0;
-	size_t fp_count = 0;
+    // Smart step calculator lambda
+    auto calculate_interval = [&](const json& probe_data) -> int {
+        if (probe_data.contains("steps")) {
+            return probe_data["steps"]; // Legacy manual step interval
+        } 
+        else if (probe_data.contains("saves")) {
+            int requested_saves = probe_data["saves"];
+            if (requested_saves <= 0) return 1;
+            
+            double t_final = case_data["solver_options"]["final_time"].get<double>();
+            double dt = case_data["solver_options"]["time_step"].get<double>();
+            int total_simulation_steps = static_cast<int>(std::ceil(t_final / dt));
+            
+            return std::max(1, total_simulation_steps / requested_saves);
+        }
+        return 1; // Default to every step
+    };
 
-	if (case_data.contains("probes")){
-		if (case_data["probes"].contains("exporter")) {
-			ExporterProbe exporter_probe;
-			if (case_data["probes"]["exporter"].contains("name")) {
-				exporter_probe.name = case_data["probes"]["exporter"]["name"];
-			}
-			else{
-				exporter_probe.name = case_data["model"]["filename"];
-			}
-			if (case_data["probes"]["exporter"].contains("steps")) {
-				exporter_probe.visSteps = case_data["probes"]["exporter"]["steps"];
-			}
-			probes.exporterProbes.push_back(exporter_probe);
-		}
+    if (case_data.contains("probes")){
+        if (case_data["probes"].contains("exporter")) {
+            ExporterProbe exporter_probe;
+            if (case_data["probes"]["exporter"].contains("name")) {
+                exporter_probe.name = case_data["probes"]["exporter"]["name"];
+            } else {
+                exporter_probe.name = case_data["model"]["filename"];
+            }
+            exporter_probe.visSteps = calculate_interval(case_data["probes"]["exporter"]);
+            probes.exporterProbes.push_back(exporter_probe);
+        }
 
-		if (case_data["probes"].contains("point")) {
-			for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
-				PointProbe point_probe(
-					assembleVector(case_data["probes"]["point"][p]["position"])
-				);
-				point_probe.setProbeID(pp_count);
-				pp_count++;
-				probes.pointProbes.push_back(point_probe);
-			}
-		}
+        if (case_data["probes"].contains("point")) {
+            for (int p = 0; p < case_data["probes"]["point"].size(); p++) {
+                int interval = calculate_interval(case_data["probes"]["point"][p]);
+                PointProbe point_probe(
+                    assembleVector(case_data["probes"]["point"][p]["position"]),
+                    interval
+                );
+                point_probe.setProbeID(pp_count);
+                pp_count++;
+                probes.pointProbes.push_back(point_probe);
+            }
+        }
 
-			if (case_data["probes"].contains("field")) {
-			for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
-				FieldProbe field_probe(
-					assignFieldType(case_data["probes"]["field"][p]["field_type"]),
-					assignFieldPol(case_data["probes"]["field"][p]["polarization"]),
-					assembleVector(case_data["probes"]["field"][p]["position"])
-				);
-				field_probe.setProbeID(fp_count);
-				fp_count++;
-				probes.fieldProbes.push_back(field_probe);
-			}
-		}
+        if (case_data["probes"].contains("field")) {
+            for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
+                int interval = calculate_interval(case_data["probes"]["field"][p]);
+                FieldProbe field_probe(
+                    assignFieldType(case_data["probes"]["field"][p]["field_type"]),
+                    assignFieldPol(case_data["probes"]["field"][p]["polarization"]),
+                    assembleVector(case_data["probes"]["field"][p]["position"]),
+                    interval
+                );
+                field_probe.setProbeID(fp_count);
+                fp_count++;
+                probes.fieldProbes.push_back(field_probe);
+            }
+        }
 
-		if (case_data["probes"].contains("farfield")) {
-			for (int p{ 0 }; p < case_data["probes"]["farfield"].size(); p++) {
-				NearFieldProbe probe;
-				if (case_data["probes"]["farfield"][p].contains("name")) {
-					probe.name = case_data["probes"]["farfield"][p]["name"];
-				}
-				if (case_data["probes"]["farfield"][p].contains("export_path")) {
-					probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
-				}
-				if (case_data["probes"]["farfield"][p].contains("steps")) {
-					probe.expSteps = case_data["probes"]["farfield"][p]["steps"];
-				}
-				if (case_data["probes"]["farfield"][p].contains("tags")) {
-					std::vector<int> tags;
-					for (int t{ 0 }; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
-						tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
-					}
-					probe.tags = tags;
-				}
-				else {
-					throw std::runtime_error("Tags have not been defined in farfield probe.");
-				}
-				probes.nearFieldProbes.push_back(probe);
-			}
-		}
+        if (case_data["probes"].contains("farfield")) {
+            for (int p = 0; p < case_data["probes"]["farfield"].size(); p++) {
+                NearFieldProbe probe;
+                if (case_data["probes"]["farfield"][p].contains("name")) {
+                    probe.name = case_data["probes"]["farfield"][p]["name"];
+                }
+                if (case_data["probes"]["farfield"][p].contains("export_path")) {
+                    probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
+                }
+                probe.expSteps = calculate_interval(case_data["probes"]["farfield"][p]);
+                
+                if (case_data["probes"]["farfield"][p].contains("tags")) {
+                    std::vector<int> tags;
+                    for (int t = 0; t < case_data["probes"]["farfield"][p]["tags"].size(); t++) {
+                        tags.push_back(case_data["probes"]["farfield"][p]["tags"][t]);
+                    }
+                    probe.tags = tags;
+                }
+                else {
+                    throw std::runtime_error("Tags have not been defined in farfield probe.");
+                }
+                probes.nearFieldProbes.push_back(probe);
+            }
+        }
 
-		if (case_data["probes"].contains("domain_snapshot")){
-			DomainSnapshotProbe probe;
-			if (case_data["probes"]["domain_snapshot"].contains("name")) {
-				probe.name = case_data["probes"]["domain_snapshot"]["name"];
-			}
-			else{
-				probe.name = case_data["model"]["filename"];
-			}
-			if (case_data["probes"]["domain_snapshot"].contains("steps")) {
-				probe.expSteps = case_data["probes"]["domain_snapshot"]["steps"];
-			}
-			probes.domainSnapshotProbes.push_back(probe);
-		}
-	}
+        if (case_data["probes"].contains("domain_snapshot")){
+            DomainSnapshotProbe probe;
+            if (case_data["probes"]["domain_snapshot"].contains("name")) {
+                probe.name = case_data["probes"]["domain_snapshot"]["name"];
+            }
+            else{
+                probe.name = case_data["model"]["filename"];
+            }
+            probe.expSteps = calculate_interval(case_data["probes"]["domain_snapshot"]);
+            probes.domainSnapshotProbes.push_back(probe);
+        }
+    }
 
-	return probes;
+    return probes;
 }
 
 
@@ -846,7 +859,6 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
     std::vector<SGBCProperties> sgbc_props;
     
-    // 1. Determine highest frequency to resolve based on the user's pulse
     double max_freq = calculateMaximumSourceFrequency(case_data);
 
     for (int b = 0; b < case_data["model"]["boundaries"].size(); b++) {
@@ -859,7 +871,6 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
             
             const auto& mat_json = case_data["model"]["boundaries"][b]["material"];
             
-            // Extract Material Properties
             double rel_eps = 1.0;
             if (mat_json.contains("relative_permittivity")) {
                 rel_eps = mat_json["relative_permittivity"].get<double>();
@@ -884,44 +895,36 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
             Material mat(rel_eps, rel_mu, sigma_solver);
             SGBCProperties props(mat);
 
-            // Extract Tags
             for (auto t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); t++) {
                 props.geom_tags.emplace_back(case_data["model"]["boundaries"][b]["tags"][t]);
             }
 
-            // Extract Width
             if (mat_json.contains("material_width")) {
                 props.material_width = mat_json["material_width"].get<double>();
             } else {
                 throw std::runtime_error("SGBC Material must define 'material_width'.");
             }
 
-            // -----------------------------------------------------------
-            // THE ADVANCED AUTO-MESHER (Skin Depth + Wavelength)
-            // -----------------------------------------------------------
-            props.order = 3; // Lock order to 3 for robust wave and exponential fitting
+            props.order = 3; // Lock order 3 - heuristic
             
             double mu_si = rel_mu * physicalConstants::vacuumPermeability_SI;
             double eps_si = rel_eps * physicalConstants::vacuumPermittivity_SI;
             
-            // 1. Calculate Wavelength Limit (Need at least 5 elements per wavelength at max freq)
+            // Need at least 5 elements per wavelength at max freq
             double wavelength = 1.0 / (max_freq * std::sqrt(mu_si * eps_si));
             double target_dx_wave = wavelength / 5.0; 
 
-            // 2. Calculate Skin Depth Limit (If applicable)
             double target_dx_skin = std::numeric_limits<double>::max();
             double skin_depth = 0.0;
             if (sigma_si > 0.0) {
                 skin_depth = 1.0 / std::sqrt(M_PI * max_freq * mu_si * sigma_si);
-                target_dx_skin = skin_depth / 1.5; // 1.5 elements per skin depth
+                target_dx_skin = skin_depth / 1.5; // 1.5 elements per skin depth - heuristic
             }
 
-            // 3. Choose the strictest requirement to prevent tunneling and dispersion
             double target_dx = std::min(target_dx_wave, target_dx_skin);
             
             int auto_segments = static_cast<int>(std::ceil(props.material_width / target_dx));
             
-            // Clamp between minimum 2 (for basic geometry) and 1000 (to prevent memory blowouts)
             props.num_of_segments = std::clamp(auto_segments, 2, 1000);
             
             if (Mpi::WorldRank() == 0) {
@@ -939,7 +942,6 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
                     std::cout << std::endl;
                 }
             }
-            // -----------------------------------------------------------
 
             SGBCBoundaryInfo left;
             SGBCBoundaryInfo right;
