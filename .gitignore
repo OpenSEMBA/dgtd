@@ -15,6 +15,7 @@ run_all_*
 mesh.mesh
 *.mtx
 *.sh
+*.log
 
 # Prerequisites
 *.d
