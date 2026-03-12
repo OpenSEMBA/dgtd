@@ -28,6 +28,8 @@ public:
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
+    bool hasSGBC() const { return !sgbc_states_.empty(); }
+
 private:
     void applyTFSFSourceToVector(double t_stage, int ndofs, int ndofs_tfsf,
                                   mfem::Vector& result_vector, bool check_zero = false) const;
@@ -53,7 +55,7 @@ private:
     EvolutionOptions& opts_;
 
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
-    mutable FieldGridFuncs sgbc_helper_fields_;
+    mutable SGBCHelperFields sgbc_helper_fields_;
     mutable int last_sgbc_helper_size_ = -1;
 };
 

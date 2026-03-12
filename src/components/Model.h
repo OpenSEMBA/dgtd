@@ -107,7 +107,8 @@ public:
 		Mesh&, 
 		const GeomTagToMaterialInfo& = GeomTagToMaterialInfo{},
 		const GeomTagToBoundaryInfo& = GeomTagToBoundaryInfo{},
-		int* partitioning = nullptr
+		int* partitioning = nullptr,
+		MPI_Comm comm = MPI_COMM_WORLD
 	);
 
 	ParMesh& getMesh() { return pmesh_; };

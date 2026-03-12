@@ -6,9 +6,9 @@
 
 namespace maxwell {
 
-FieldGridFuncs initSGBCHelperFields(const int size)
+SGBCHelperFields initSGBCHelperFields(const int size)
 {
-    FieldGridFuncs res;
+    SGBCHelperFields res;
     for (auto f : {E, H}){
         for (auto d : {X, Y , Z}){
             res.at(f).at(d).UseDevice(true);
@@ -120,7 +120,7 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(fes_.GetParMesh()->GetComm());
 
     for (const auto& [tag, pairs] : raw_pairs){
         const auto& sbcps = model_.getSGBCProperties();
@@ -160,7 +160,7 @@ GlobalEvolution::GlobalEvolution(
         }
     }
     
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(fes_.GetParMesh()->GetComm());
 
     globalOperator_ = std::make_unique<mfem::SparseMatrix>(
         numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), 

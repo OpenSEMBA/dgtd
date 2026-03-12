@@ -50,13 +50,13 @@ void ensureElementTypeIsSame(const Mesh& mesh)
 	}
 }
 
-Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo, int* partitioning)
+Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo, int* partitioning, MPI_Comm comm)
 {
 
 	serialMesh_ = Mesh(mesh);
 	ensureElementTypeIsSame(mesh);
 
-	pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_, partitioning);
+	pmesh_ = ParMesh(comm, serialMesh_, partitioning);
 
 	if (matInfo.gt2m.size() == 0) {
 		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));

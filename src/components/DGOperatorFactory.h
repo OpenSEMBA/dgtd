@@ -691,7 +691,7 @@ namespace maxwell
         	additional_dofs = fes_.num_face_nbr_dofs;
     	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			auto op = buildByMult<FES,BF>(
@@ -716,7 +716,7 @@ namespace maxwell
         	additional_dofs = fes_.num_face_nbr_dofs;
     	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto x{ X }; x <= Z; x++) {
@@ -748,7 +748,7 @@ namespace maxwell
         	additional_dofs = fes_.num_face_nbr_dofs;
     	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
 		for (auto f : { E, H }) {
 			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto d{ X }; d <= Z; d++) {

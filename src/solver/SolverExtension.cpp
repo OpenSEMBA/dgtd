@@ -64,7 +64,7 @@ Model buildSGBCModel(mfem::Mesh& mesh, int* partitioning, const SGBCProperties& 
     GeomTagToInteriorBoundary gt2ib = buildIntBdrInfo(intBdrInfo);
     GeomTagToBoundary gt2b = buildBdrInfo();
     GeomTagToBoundaryInfo gtbdr(gt2b, gt2ib);
-    return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), gtbdr, partitioning);
+    return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), gtbdr, partitioning, MPI_COMM_SELF);
 }
 
 std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp)
@@ -131,7 +131,7 @@ void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction,
     }
 }
 
-void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, FieldGridFuncs& out)
+void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, SGBCHelperFields& out)
 {
     const auto left_ghost_border_dof = this->getProperties().order + 1;
     const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();

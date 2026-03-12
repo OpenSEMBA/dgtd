@@ -12,6 +12,7 @@ namespace maxwell
 
 class Solver;
 
+using SGBCHelperFields = std::array<std::array<mfem::Vector, 3>, 2>;
 using GlobalId = NodeId;
 using LocalId = NodeId;
 using GhostId = NodeId;
@@ -66,7 +67,7 @@ public:
     void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
     
     // [MODIFIED] Now reads from state directly
-    void getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, FieldGridFuncs& out);
+    void getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, SGBCHelperFields& out);
     
     const SGBCProperties& getProperties() const { return sbcp_; }
 

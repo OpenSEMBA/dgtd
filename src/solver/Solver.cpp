@@ -10,10 +10,11 @@ Solver::~Solver() = default;
 
 std::unique_ptr<mfem::ParFiniteElementSpace> buildFiniteElementSpace(mfem::ParMesh* m, mfem::FiniteElementCollection* fec)
 {
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Comm comm = m->GetComm();
+    MPI_Barrier(comm);
     auto fes = std::make_unique<mfem::ParFiniteElementSpace>(m, fec);
     fes->ExchangeFaceNbrData();
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
     return fes;
 }
 
@@ -90,22 +91,26 @@ Solver::Solver(
 {
     auto initStartTime = std::chrono::steady_clock::now();
 
+    MPI_Comm comm = model_.getMesh().GetComm();
+    int comm_rank;
+    MPI_Comm_rank(comm, &comm_rank);
+
     std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
 
-    if (Mpi::WorldRank() == 0){
+    if (comm_rank == 0){
         if (std::filesystem::exists(simExpPath)) {
             std::filesystem::remove_all(simExpPath);
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
     std::filesystem::create_directories(simExpPath);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
 
-    if (Mpi::WorldRank() == 0){
+    if (comm_rank == 0){
         checkOptionsAreValid(opts_);
     }
 
@@ -131,10 +136,8 @@ Solver::Solver(
     probesManager_.updateProbes(time_);
 
     auto initEndTime = std::chrono::steady_clock::now();
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    std::string path = (simExpPath / ("statistics_rank" + std::to_string(rank) + ".dat")).string();
+    std::string path = (simExpPath / ("statistics_rank" + std::to_string(comm_rank) + ".dat")).string();
 
     std::ofstream myfile(path, std::ios::app);
     if (myfile.is_open()) {
@@ -144,7 +147,7 @@ Solver::Solver(
         myfile << std::defaultfloat;
         myfile.close();
     } else {
-        std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
+        std::cerr << "Rank " << comm_rank << " failed to open file: " << path << "\n";
     }
 }
 
@@ -360,8 +363,9 @@ size_t getCurrentMemoryUsage() {
 }
 
 void Solver::writeSimulationStatistics(const Time runtime){
+    MPI_Comm comm = model_.getMesh().GetComm();
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(comm, &rank);
 
     std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
 
@@ -475,7 +479,7 @@ void Solver::step()
 {
     double truedt{ std::min(dt_, opts_.final_time - time_) };
 
-    if (globalEvol_cache_) {
+    if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
         std::array<mfem::ParGridFunction, 3> e, h;
         for(int d = 0; d < 3; ++d) {
             e[d].SetSpace(fields_.get(E, d).FESpace());
