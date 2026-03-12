@@ -3,6 +3,7 @@
     "upwind_alpha": 1.0,
     "time_step": 1e-5,
     "final_time": 15.0,
+    "tfsf_cutoff_time": 2.5,
     "order": 4
   },
 
@@ -16,11 +17,11 @@
     ],
     "boundaries": [
       {
-        "tags": [ 1, 4 ],
+        "tags": [ 1, 2 ],
         "type": "SMA"
       },
       {
-        "tags": [ 3 ],
+        "tags": [ 4 ],
         "type": "SGBC",
         "material":{
           "relative_permittivity": 11.7,
@@ -38,11 +39,11 @@
     },
     "point": [
       {
-        "position": [ -2.95 ],
+        "position": [ -2.9 ],
         "saves": 10000
       },
       {
-        "position": [ -2.5 ],
+        "position": [ -2.25 ],
         "saves": 10000
       },
       {
@@ -57,11 +58,11 @@
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2 ],
+      "tags": [ 3 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,
-        "mean": [ -0.5 ]
+        "mean": [ -3.1 ]
       }
     }
   ]

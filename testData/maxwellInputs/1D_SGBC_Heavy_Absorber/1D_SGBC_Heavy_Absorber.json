@@ -8,7 +8,7 @@
   },
 
   "model": { 
-    "filename": "1D_SGBC_Doped_Silicon.msh",
+    "filename": "1D_SGBC_Heavy_Absorber.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -24,9 +24,9 @@
         "tags": [ 4 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 5.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 250, 
+          "relative_permittivity": 1.0,
+          "relative_permeability": 20.0,
+          "bulk_conductivity": 20, 
           "material_width": 2e-3
         }
       }

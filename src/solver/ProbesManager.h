@@ -122,6 +122,8 @@ private:
     Fields<ParFiniteElementSpace, ParGridFunction>* fields_;
 
     std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;
+    std::map<int, std::ofstream> fieldProbeFiles_;
+    std::map<int, std::ofstream> pointProbeFiles_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;

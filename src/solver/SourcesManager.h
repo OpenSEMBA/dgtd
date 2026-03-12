@@ -31,6 +31,9 @@ private:
     mfem::ParFiniteElementSpace& fes_;
     TotalFieldScatteredFieldSubMesher tfsf_submesher_;
     std::unique_ptr<FiniteElementSpace> tf_fes_, sf_fes_, global_tfsf_fes_;
+
+    FieldGridFuncs cached_tfsf_fields_;
+    bool cached_tfsf_fields_init_ = false;
     
 
 };

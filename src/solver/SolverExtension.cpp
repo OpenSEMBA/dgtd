@@ -108,8 +108,7 @@ void SGBCWrapper::saveState(SGBCState& state) {
     state.fields_state = solver_->getFields().allDOFs();
 }
 
-void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e,
-                                         const std::array<mfem::ParGridFunction, 3>& h,
+void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
                                          const SGBCState& context)
 {
     const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
@@ -121,11 +120,11 @@ void SGBCWrapper::updateFieldsWithGlobal(const std::array<mfem::ParGridFunction,
     for (auto d : {X, Y, Z}){
         for (auto dof = 0; dof < order_p1; dof++){
             // Direct copy with bounds checking for safety-critical field access
-            solver_->setFieldValue(FieldType::E, d, dof, e.at(d)[pair.first]);
-            solver_->setFieldValue(FieldType::H, d, dof, h.at(d)[pair.first]);
+            solver_->setFieldValue(FieldType::E, d, dof, fields.get(E, d)[pair.first]);
+            solver_->setFieldValue(FieldType::H, d, dof, fields.get(H, d)[pair.first]);
             if (has_right) {
-                solver_->setFieldValue(FieldType::E, d, right_dof_offset - dof, e.at(d)[pair.second]);
-                solver_->setFieldValue(FieldType::H, d, right_dof_offset - dof, h.at(d)[pair.second]);
+                solver_->setFieldValue(FieldType::E, d, right_dof_offset - dof, fields.get(E, d)[pair.second]);
+                solver_->setFieldValue(FieldType::H, d, right_dof_offset - dof, fields.get(H, d)[pair.second]);
             }
         }
     }

@@ -43,9 +43,9 @@ struct SolverOptions {
         return *this;
     };
 
-    SolverOptions& setCFL(double cfl) 
+    SolverOptions& setCFL(double c) 
     {
-        cfl = cfl;
+        cfl = c;
         return *this;
     }
 

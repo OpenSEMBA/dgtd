@@ -358,14 +358,15 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
         p.addFieldToMovies(time, gf_value);
 
         if(p.write){
-            std::ofstream myfile;
-            std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
-            myfile.open(path, std::ios::app);
+            auto& myfile = fieldProbeFiles_[p.getProbeID()];
+            if (!myfile.is_open()) {
+                std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+                myfile.open(path, std::ios::app);
+            }
             if (myfile.is_open()) {
                 myfile << std::scientific << std::setprecision(5);
                 myfile << time / physicalConstants::speedOfLight_SI << " " << gf_value << "\n";
             }
-        myfile.close();
         }
     }
 }
@@ -393,16 +394,17 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
         }
         p.addFieldsToMovies(time, f4FP);
         if(p.write){
-            std::ofstream myfile;
-            std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
-            myfile.open(path, std::ios::app);
+            auto& myfile = pointProbeFiles_[p.getProbeID()];
+            if (!myfile.is_open()) {
+                std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+                myfile.open(path, std::ios::app);
+            }
             if (myfile.is_open()) {
                 myfile << std::scientific << std::setprecision(5);
                 myfile << time / physicalConstants::speedOfLight_SI << 
                 " " << f4FP.Ex << " " << f4FP.Ey << " " << f4FP.Ez <<
                 " " << f4FP.Hx << " " << f4FP.Hy << " " << f4FP.Hz << "\n";
             }
-            myfile.close();
         }
     }
 }

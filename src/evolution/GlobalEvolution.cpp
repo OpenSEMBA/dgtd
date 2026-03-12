@@ -2,6 +2,7 @@
 #include "solver/SolverExtension.h"
 
 #include <chrono>
+#include <cstring>
 #include <unordered_set>
 
 namespace maxwell {
@@ -244,14 +245,14 @@ GlobalEvolution::GlobalEvolution(
 
 const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
 {
-    mfem::Vector res(6 * func[E][X].Size());
-    res.UseDevice(true);
     const int size = func[E][X].Size();
-    for (auto f : { E, H }) {
-        for (auto d : { X, Y, Z }) {
-            for (auto v{ 0 }; v < size; v++) {
-                res[v + (f * 3 + d) * size] = func[f][d][v];
-            }
+    mfem::Vector res(6 * size);
+    res.UseDevice(true);
+    for (int f : { E, H }) {
+        for (int d : { X, Y, Z }) {
+            std::memcpy(res.GetData() + (f * 3 + d) * size,
+                        func[f][d].GetData(),
+                        size * sizeof(double));
         }
     }
     return res;
@@ -268,8 +269,7 @@ void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
 }
 
 void GlobalEvolution::advanceSGBCs(double time, double dt,
-                                   const std::array<mfem::ParGridFunction, 3>& e,
-                                   const std::array<mfem::ParGridFunction, 3>& h)
+                                   const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
     for (auto& [tag, states] : sgbc_states_){
         auto it = sgbc_wrapper_map_.find(tag);
@@ -278,7 +278,7 @@ void GlobalEvolution::advanceSGBCs(double time, double dt,
         auto w = it->second;
         for (auto& state : states){
             w->loadState(state);
-            w->updateFieldsWithGlobal(e, h, state);
+            w->updateFieldsWithGlobal(fields, state);
             w->solve(time, dt);
             w->saveState(state);
         }
@@ -301,24 +301,26 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int ndo
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
                 const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
-                mfem::Vector assembledFunc = load_tfsf_into_single_vector_gpu(func_gpu);
+                tfsf_assembledFunc_ = load_tfsf_into_single_vector_gpu(func_gpu);
 #else
                 auto func = evalTimeVarFunction(t_stage, srcmngr_);
-                mfem::Vector assembledFunc = buildSingleVectorTFSFFunc(func);
+                tfsf_assembledFunc_ = buildSingleVectorTFSFFunc(func);
 #endif
-                mfem::Vector tempTFSF(assembledFunc.Size());
-                tempTFSF.UseDevice(true);
-                TFSFOperator_->Mult(assembledFunc, tempTFSF);
+                if (tfsf_tempVec_.Size() != tfsf_assembledFunc_.Size()) {
+                    tfsf_tempVec_.SetSize(tfsf_assembledFunc_.Size());
+                    tfsf_tempVec_.UseDevice(true);
+                }
+                TFSFOperator_->Mult(tfsf_assembledFunc_, tfsf_tempVec_);
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-                load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tempTFSF, result_vector, ndofs, ndofs_tfsf);
+                load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tfsf_tempVec_, result_vector, ndofs, ndofs_tfsf);
 #else
                 for (int f : { E, H }){
                     for (int d : { X, Y, Z }){
                         for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v){
                             const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
                             const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
-                            const double val = tempTFSF[tempIdx];
+                            const double val = tfsf_tempVec_[tempIdx];
                             if (!check_zero || val != 0.0) {
                                 result_vector[outIdx] -= val;
                             }
@@ -348,10 +350,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
 #else
     for (int d = X; d <= Z; ++d) {
-        for (int v = 0; v < ndofs; ++v) {
-            eOld_[d][v] = in[d * ndofs + v];
-            hOld_[d][v] = in[(3 + d) * ndofs + v];
-        }
+        std::memcpy(eOld_[d].GetData(), in.GetData() + d * ndofs, ndofs * sizeof(double));
+        std::memcpy(hOld_[d].GetData(), in.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
     }
 #endif
     for (int d = X; d <= Z; ++d) {
@@ -361,23 +361,25 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerExchange.Stop();
 
     timerAssembleInNew.Start();
-    mfem::Vector inNew(6 * blockSize);
-    inNew.UseDevice(true);
+    if (inNew_.Size() != 6 * blockSize) {
+        inNew_.SetSize(6 * blockSize);
+        inNew_.UseDevice(true);
+    }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_eh_to_innew_gpu(in, inNew, ndofs, nbrDofs);
-    load_nbr_to_innew_gpu(eOld_, hOld_, inNew, ndofs, nbrDofs);
+    load_eh_to_innew_gpu(in, inNew_, ndofs, nbrDofs);
+    load_nbr_to_innew_gpu(eOld_, hOld_, inNew_, ndofs, nbrDofs);
 #else
     for (int d = X; d <= Z; ++d) {
-        inNew.SetVector(eOld_[d],       d      * blockSize);
-        inNew.SetVector(hOld_[d],  (3 + d)     * blockSize);
+        inNew_.SetVector(eOld_[d],       d      * blockSize);
+        inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
     }
     if (nbrDofs) {
         for (int d = X; d <= Z; ++d) {
             mfem::Vector &eNbr = eOld_[d].FaceNbrData();
             mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            inNew.SetVector(eNbr,      d      * blockSize + ndofs);
-            inNew.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+            inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
         }
     }
 #endif
@@ -386,7 +388,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerApplyA.Start();
     out.SetSize(6 * ndofs);
     out.UseDevice(true);
-    globalOperator_->Mult(inNew, out);
+    globalOperator_->Mult(inNew_, out);
     timerApplyA.Stop();
 
     timerTFSF.Start();
@@ -403,8 +405,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             last_sgbc_helper_size_ = SGBCndofs_;
         }
 
-        mfem::Vector sgbcVec(6 * SGBCndofs_);
-        sgbcVec = 0.0;
+        if (sgbcVec_.Size() != 6 * SGBCndofs_) {
+            sgbcVec_.SetSize(6 * SGBCndofs_);
+            sgbcVec_.UseDevice(true);
+            tempSGBC_.SetSize(6 * SGBCndofs_);
+            tempSGBC_.UseDevice(true);
+        }
+        sgbcVec_ = 0.0;
 
         for (auto& [tag, states] : sgbc_states_) {
             auto it = sgbc_wrapper_map_.find(tag);
@@ -424,23 +431,21 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 const int E_base_L = E*3*SGBCndofs_ + sub_L;
                 const int H_base_L = H*3*SGBCndofs_ + sub_L;
                 for (auto d : {X,Y,Z}) {
-                    sgbcVec[E_base_L + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_L];
-                    sgbcVec[H_base_L + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_L];
+                    sgbcVec_[E_base_L + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_L];
+                    sgbcVec_[H_base_L + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_L];
                 }
                 if (sub_R != -1){
                     const int E_base_R = E*3*SGBCndofs_ + sub_R;
                     const int H_base_R = H*3*SGBCndofs_ + sub_R;
                     for (auto d : {X,Y,Z}) {
-                        sgbcVec[E_base_R + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_R];
-                        sgbcVec[H_base_R + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_R];
+                        sgbcVec_[E_base_R + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_R];
+                        sgbcVec_[H_base_R + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_R];
                     }
                 }
             }
         }
 
-        mfem::Vector tempSGBC(sgbcVec.Size());
-        tempSGBC.UseDevice(true);
-        SGBCOperator_->Mult(sgbcVec, tempSGBC);
+        SGBCOperator_->Mult(sgbcVec_, tempSGBC_);
 
         for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
             int parent_idx = sgbc_sub_to_parent_ids_[v];
@@ -449,8 +454,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             const int E_temp_base = E*3*SGBCndofs_ + v;
             const int H_temp_base = H*3*SGBCndofs_ + v;
             for (int d : {X,Y,Z}) {
-                out[E_out_base + d*ndofs] -= tempSGBC[E_temp_base + d*SGBCndofs_];
-                out[H_out_base + d*ndofs] -= tempSGBC[H_temp_base + d*SGBCndofs_];
+                out[E_out_base + d*ndofs] -= tempSGBC_[E_temp_base + d*SGBCndofs_];
+                out[H_out_base + d*ndofs] -= tempSGBC_[H_temp_base + d*SGBCndofs_];
             }
         }
     }
@@ -507,10 +512,8 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         load_in_to_eh_gpu(u, eOld_, hOld_, ndofs);
 #else
         for (int d = X; d <= Z; ++d) {
-            for (int v = 0; v < ndofs; ++v) {
-                eOld_[d][v] = u[d * ndofs + v];
-                hOld_[d][v] = u[(3 + d) * ndofs + v];
-            }
+            std::memcpy(eOld_[d].GetData(), u.GetData() + d * ndofs, ndofs * sizeof(double));
+            std::memcpy(hOld_[d].GetData(), u.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
         }
 #endif
         for (int d = X; d <= Z; ++d) {

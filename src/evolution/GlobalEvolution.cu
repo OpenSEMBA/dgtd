@@ -47,7 +47,6 @@ void load_eh_to_innew_gpu(const mfem::Vector& in,
         inNew_d[4 * blockSize + v] = in_d[4 * ndofs + v];
         inNew_d[5 * blockSize + v] = in_d[5 * ndofs + v];
     });
-    cudaDeviceSynchronize();
 }
 
 void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
@@ -75,7 +74,6 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
         inNew_d[4 * blockSize + ndofs + v] = hOldNbr1[v];
         inNew_d[5 * blockSize + ndofs + v] = hOldNbr2[v];
     });
-    cudaDeviceSynchronize();
 }
 
 mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func)
@@ -99,18 +97,9 @@ mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func)
 
     mfem::forall(total, [=] MFEM_HOST_DEVICE (int i) {
         const int v = i % v_size;
-        const int d = (i / v_size) % n_dirs;
-        const int f = i / (n_dirs * v_size);
-
-        const double val =
-            (f == 0 && d == 0) ? ex_x[v] :
-            (f == 0 && d == 1) ? ex_y[v] :
-            (f == 0 && d == 2) ? ex_z[v] :
-            (f == 1 && d == 0) ? hx_x[v] :
-            (f == 1 && d == 1) ? hx_y[v] :
-                                 hx_z[v];
-
-        res_d[i] = val;
+        const int fd = i / v_size;
+        const double* ptrs[] = {ex_x, ex_y, ex_z, hx_x, hx_y, hx_z};
+        res_d[i] = ptrs[fd][v];
     });
 
     return res;

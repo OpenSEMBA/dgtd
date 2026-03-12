@@ -11,9 +11,9 @@ namespace maxwell {
 
 static Eigen::MatrixXd toEigen(const mfem::DenseMatrix& mat)
 {
-	Eigen::MatrixXd res(mat.Width(), mat.Height());
-	for (int i = 0; i < mat.Width(); i++) {
-		for (int j = 0; j < mat.Height(); j++) {
+	Eigen::MatrixXd res(mat.Height(), mat.Width());
+	for (int i = 0; i < mat.Height(); i++) {
+		for (int j = 0; j < mat.Width(); j++) {
 			res(i, j) = mat.Elem(i, j);
 		}
 	}

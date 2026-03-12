@@ -20,11 +20,9 @@ void SourcesManager::setInitialFields(Fields<ParFiniteElementSpace, ParGridFunct
         }
         for (FieldType ft: {E, H}) {
             for (auto x : { X, Y, Z }) {
-                std::function<double(const Source::Position&, Source::Time)> f = 0;
-                f = std::bind(
-                    &InitialField::eval, src, 
-                    std::placeholders::_1, std::placeholders::_2, ft, x
-                );
+                auto f = [src, ft, x](const Source::Position& pos, Source::Time t) {
+                    return src->eval(pos, t, ft, x);
+                };
                 FunctionCoefficient fc(f);
                 GridFunction gf(fields.get(ft, x).FESpace());
                 gf.UseDevice(true);
@@ -37,7 +35,22 @@ void SourcesManager::setInitialFields(Fields<ParFiniteElementSpace, ParGridFunct
 
 FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, FiniteElementSpace* fes)
 {
-    std::array<std::array<GridFunction, 3>, 2> res;
+    if (!cached_tfsf_fields_init_) {
+        for (auto ft : { E, H }) {
+            for (auto d : { X, Y, Z }) {
+                cached_tfsf_fields_[ft][d].UseDevice(true);
+                cached_tfsf_fields_[ft][d].SetSpace(fes);
+            }
+        }
+        cached_tfsf_fields_init_ = true;
+    }
+
+    for (auto ft : { E, H }) {
+        for (auto d : { X, Y, Z }) {
+            cached_tfsf_fields_[ft][d] = 0.0;
+        }
+    }
+
     for (const auto& source : sources) {
         auto tf = dynamic_cast<TotalField*>(source.get());
         if (tf == nullptr) {
@@ -45,18 +58,16 @@ FieldGridFuncs SourcesManager::evalTimeVarField(const Time time, FiniteElementSp
         }
         for (auto ft : { E, H }) {
             for (auto d : { X, Y, Z }) {
-                std::function<double(const Source::Position&, Source::Time)> f = 0;
-                f = std::bind(&TotalField::eval, tf,
-                    std::placeholders::_1, std::placeholders::_2, ft, d);
+                auto f = [tf, ft, d](const Source::Position& pos, Source::Time t) {
+                    return tf->eval(pos, t, ft, d);
+                };
                 FunctionCoefficient func(f);
                 func.SetTime(time);
-                res[ft][d].UseDevice(true);
-                res[ft][d].SetSpace(fes);
-                res[ft][d].ProjectCoefficient(func);
+                cached_tfsf_fields_[ft][d].ProjectCoefficient(func);
             }
         }
     }
-    return res;
+    return cached_tfsf_fields_;
 }
 
 void SourcesManager::markDoFSforTForSF(FieldGridFuncs& gfs, bool isTF)

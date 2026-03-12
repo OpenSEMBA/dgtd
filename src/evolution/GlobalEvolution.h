@@ -23,8 +23,7 @@ public:
     void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
     void advanceSGBCs(double time, double dt,
-                      const std::array<mfem::ParGridFunction, 3>& e,
-                      const std::array<mfem::ParGridFunction, 3>& h);
+                      const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
@@ -57,6 +56,12 @@ private:
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
     mutable SGBCHelperFields sgbc_helper_fields_;
     mutable int last_sgbc_helper_size_ = -1;
+
+    mutable mfem::Vector inNew_;
+    mutable mfem::Vector sgbcVec_;
+    mutable mfem::Vector tempSGBC_;
+    mutable mfem::Vector tfsf_assembledFunc_;
+    mutable mfem::Vector tfsf_tempVec_;
 };
 
 void load_in_to_eh_gpu(const mfem::Vector& in, 

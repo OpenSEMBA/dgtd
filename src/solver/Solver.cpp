@@ -10,11 +10,8 @@ Solver::~Solver() = default;
 
 std::unique_ptr<mfem::ParFiniteElementSpace> buildFiniteElementSpace(mfem::ParMesh* m, mfem::FiniteElementCollection* fec)
 {
-    MPI_Comm comm = m->GetComm();
-    MPI_Barrier(comm);
     auto fes = std::make_unique<mfem::ParFiniteElementSpace>(m, fec);
     fes->ExchangeFaceNbrData();
-    MPI_Barrier(comm);
     return fes;
 }
 
@@ -480,14 +477,7 @@ void Solver::step()
     double truedt{ std::min(dt_, opts_.final_time - time_) };
 
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
-        std::array<mfem::ParGridFunction, 3> e, h;
-        for(int d = 0; d < 3; ++d) {
-            e[d].SetSpace(fields_.get(E, d).FESpace());
-            h[d].SetSpace(fields_.get(H, d).FESpace());
-            e[d] = fields_.get(E, d);
-            h[d] = fields_.get(H, d);
-        }
-        globalEvol_cache_->advanceSGBCs(time_, truedt, e, h);
+        globalEvol_cache_->advanceSGBCs(time_, truedt, fields_);
     }
 
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);

@@ -60,8 +60,7 @@ public:
     static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp);
 
     // [MODIFIED] Now takes a specific state context
-    void updateFieldsWithGlobal(const std::array<mfem::ParGridFunction, 3>& e, 
-                                const std::array<mfem::ParGridFunction, 3>& h, 
+    void updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields, 
                                 const SGBCState& context);
 
     void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
