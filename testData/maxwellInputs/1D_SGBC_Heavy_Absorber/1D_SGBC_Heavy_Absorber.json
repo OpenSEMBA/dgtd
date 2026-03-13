@@ -4,7 +4,7 @@
     "time_step": 1e-6,
     "final_time": 15.0,
     "tfsf_cutoff_time": 2.5,
-    "order": 4
+    "order": 5
   },
 
   "model": { 
@@ -26,7 +26,7 @@
         "material":{
           "relative_permittivity": 1.0,
           "relative_permeability": 20.0,
-          "bulk_conductivity": 20, 
+          "bulk_conductivity": 5, 
           "material_width": 2e-3
         }
       }
@@ -40,15 +40,15 @@
     "point": [
       {
         "position": [ -2.9 ],
-        "saves": 10000
+        "saves": 100000
       },
       {
         "position": [ -2.25 ],
-        "saves": 10000
+        "saves": 100000
       },
       {
         "position": [ 2.75 ],
-        "saves": 10000
+        "saves": 100000
       }
     ]
   },

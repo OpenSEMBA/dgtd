@@ -1,7 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-4,
+    "time_step": 1e-6,
     "final_time": 10.0,
     "order": 4
   },
@@ -25,7 +25,7 @@
         "material":{
           "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 1.06,
+          "bulk_conductivity": 106.0,
           "material_width": 5e-3
         }
       }
@@ -34,20 +34,20 @@
 
   "probes": {
     "exporter": {
-      "steps": 2500
+      "saves": 50
     },
     "point": [
       {
         "position": [ -1.5 ],
-        "write": true
+        "saves": 10000
       },
       {
         "position": [ -0.5 ],
-        "write": true
+        "saves": 10000
       },
       {
         "position": [  1.5 ],
-        "write": true
+        "saves": 10000
       }
     ]
   },

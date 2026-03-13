@@ -1,8 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "evolution_operator": "global",
-	  "time_step": 1e-4,
+	  "time_step": 1e-5,
     "tfsf_cutoff_time": 12.0,
     "final_time": 20.0,
     "order": 2
@@ -24,10 +23,13 @@
         "tags": [ 1 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 20.0,
+          "relative_permittivity": 4.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 100.0,
-          "material_width": 5e-2
+          "bulk_conductivity": 0.5, 
+          "material_width": 3e-2,
+          "sgbc_boundaries": {
+            "right": "PEC"
+          }
         }
       },
       {
@@ -40,12 +42,12 @@
   },
   "probes": {
     "exporter": {
-      "steps": 2500
+      "saves": 200
     },
     "farfield": [
       {
         "name": "sphere_Box_05m_G1",
-        "steps": 5,
+        "steps": 50,
         "tags": [
           3, 4, 5, 6, 7, 8
         ]
