@@ -7,6 +7,8 @@
 #include <utility>
 #include <algorithm>
 #include <limits>
+#include <filesystem>
+#include <mpi.h>
 
 namespace maxwell::driver {
 
@@ -1065,6 +1067,50 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 	model.getMesh().SetAttributes();
 }
 
+
+std::string getRunModeTag()
+{
+    std::string backend;
+    if (mfem::Device::Allows(mfem::Backend::CUDA)){
+        backend = "cuda-";
+        backend.append(std::to_string(Mpi::WorldSize()));
+        return backend;
+    }
+    else{
+        if (Mpi::WorldSize() == 1){
+            return "single-core";
+        }
+        else{
+            backend = "mpi-";
+            backend.append(std::to_string(Mpi::WorldSize()));
+            return backend;
+        }
+    }
+}
+
+void prepareExportDirectories(Model& model)
+{
+	MPI_Comm comm = model.getMesh().GetComm();
+    int comm_rank;
+    MPI_Comm_rank(comm, &comm_rank);
+	
+	int world_rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+	
+	if (world_rank == 0) {
+		std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model.meshName_ + "/SimulationStats/");
+		
+		if (std::filesystem::exists(simExpPath)) {
+			std::filesystem::remove_all(simExpPath);
+		}
+
+		std::filesystem::create_directories(simExpPath);
+	}
+
+    MPI_Barrier(comm);
+	
+}
+
 maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)
 {
 	
@@ -1074,6 +1120,7 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 	maxwell::Model model{ buildModel(case_data, case_path, isTest) };
 
 	postProcessInformation(case_data, model, solverOpts);
+	prepareExportDirectories(model);
 
 	return maxwell::Solver(model, probes, sources, solverOpts);
 }

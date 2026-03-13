@@ -341,7 +341,7 @@ sbcp_(sbcp)
     // probes.exporterProbes.at(0) = ep;
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
-    opts.setExportEO(true);
+    opts.setIsSGBCSolver(true);  // Mark as SGBC sub-solver to skip statistics
     std::cout << "Assembling SGBC Solvers: " << std::endl;
 
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);

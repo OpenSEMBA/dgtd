@@ -173,7 +173,7 @@ GlobalEvolution::GlobalEvolution(
         srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
         auto globalTFSFfes = srcmngr_.getGlobalTFSFSpace();
         auto tfsfMesh = globalTFSFfes->GetMesh();
-        Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
+        Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}), nullptr, MPI_COMM_SELF);
         ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
         DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
         std::cout << "TFSF elements in rank " << std::to_string(Mpi::WorldRank()) << ": " << globalTFSFfes->GetNE() << std::endl;
@@ -230,7 +230,7 @@ GlobalEvolution::GlobalEvolution(
         src_sm->SetAttributes(); // Force MFEM to rebuild the bdr_attributes array
 
         Model sgbc_model = Model(*sgbc_mesh, GeomTagToMaterialInfo(), 
-                                 GeomTagToBoundaryInfo(sgbc_bdr, GeomTagToInteriorBoundary{}));
+                                 GeomTagToBoundaryInfo(sgbc_bdr, GeomTagToInteriorBoundary{}), nullptr, MPI_COMM_SELF);
         ProblemDescription sgbc_pd(sgbc_model, probes, srcmngr_.sources, opts_);
         DGOperatorFactory<FiniteElementSpace> sgbc_ops(sgbc_pd, *global_sm_fes);
         SGBCOperator_ = sgbc_ops.buildSGBCGlobalOperator();

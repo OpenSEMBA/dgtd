@@ -19,6 +19,26 @@ bool isNodeRoot()
     return (node_rank == 0);
 }
 
+std::string getRunModeTag()
+{
+    std::string backend;
+    if (mfem::Device::Allows(mfem::Backend::CUDA)){
+        backend = "cuda-";
+        backend.append(std::to_string(Mpi::WorldSize()));
+        return backend;
+    }
+    else{
+        if (Mpi::WorldSize() == 1){
+            return "single-core";
+        }
+        else{
+            backend = "mpi-";
+            backend.append(std::to_string(Mpi::WorldSize()));
+            return backend;
+        }
+    }
+}
+
 std::string getFieldPolString(const FieldType& ft, const Direction& d)
 {
     switch(ft){
@@ -38,26 +58,6 @@ std::string getFieldPolString(const FieldType& ft, const Direction& d)
         }
         default:
             throw std::runtime_error("Incorrect fieldtype in getFieldPolString.");
-    }
-}
-
-std::string getRunModeTag()
-{
-    std::string backend;
-    if (mfem::Device::Allows(mfem::Backend::CUDA)){
-        backend = "cuda-";
-        backend.append(std::to_string(Mpi::WorldSize()));
-        return backend;
-    }
-    else{
-        if (Mpi::WorldSize() == 1){
-            return "single-core";
-        }
-        else{
-            backend = "mpi-";
-            backend.append(std::to_string(Mpi::WorldSize()));
-            return backend;
-        }
     }
 }
 

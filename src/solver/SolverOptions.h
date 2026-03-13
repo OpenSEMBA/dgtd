@@ -22,6 +22,7 @@ struct SolverOptions {
     double cfl = 1.0;
     int basis_type = mfem::BasisType::GaussLobatto;
     size_t ode_type = ode_type::RK4;
+    bool is_sgbc_solver = false;  // If true, skip statistics writing (SGBC sub-solver)
 
     EvolutionOptions evolution;
     
@@ -82,6 +83,11 @@ struct SolverOptions {
 
     SolverOptions& setODEType(size_t type) {
         ode_type = type;
+        return *this;
+    }
+
+    SolverOptions& setIsSGBCSolver(bool is_sgbc = true) {
+        is_sgbc_solver = is_sgbc;
         return *this;
     }
 

@@ -88,24 +88,9 @@ Solver::Solver(
 {
     auto initStartTime = std::chrono::steady_clock::now();
 
-    MPI_Comm comm = model_.getMesh().GetComm();
+	MPI_Comm comm = model_.getMesh().GetComm();
     int comm_rank;
     MPI_Comm_rank(comm, &comm_rank);
-
-    std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
-
-    if (comm_rank == 0){
-        if (std::filesystem::exists(simExpPath)) {
-            std::filesystem::remove_all(simExpPath);
-        }
-    }
-
-    MPI_Barrier(comm);
-
-    std::filesystem::create_directories(simExpPath);
-
-    MPI_Barrier(comm);
-
 
     if (comm_rank == 0){
         checkOptionsAreValid(opts_);
@@ -134,17 +119,20 @@ Solver::Solver(
 
     auto initEndTime = std::chrono::steady_clock::now();
 
-    std::string path = (simExpPath / ("statistics_rank" + std::to_string(comm_rank) + ".dat")).string();
+    if (!opts_.is_sgbc_solver) {
+        std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model.meshName_ + "/SimulationStats/");
+        std::string path = (simExpPath / ("statistics_rank" + std::to_string(comm_rank) + ".dat")).string();
 
-    std::ofstream myfile(path, std::ios::app);
-    if (myfile.is_open()) {
-        auto runtime = std::chrono::duration<double>(initEndTime - initStartTime).count();
-        myfile << std::scientific << std::setprecision(5);
-        myfile << "Initialization Time: " << runtime << " (s)\n";
-        myfile << std::defaultfloat;
-        myfile.close();
-    } else {
-        std::cerr << "Rank " << comm_rank << " failed to open file: " << path << "\n";
+        std::ofstream myfile(path, std::ios::app);
+        if (myfile.is_open()) {
+            auto runtime = std::chrono::duration<double>(initEndTime - initStartTime).count();
+            myfile << std::scientific << std::setprecision(5);
+            myfile << "Initialization Time: " << runtime << " (s)\n";
+            myfile << std::defaultfloat;
+            myfile.close();
+        } else {
+            std::cerr << "Rank " << comm_rank << " failed to open file: " << path << "\n";
+        }
     }
 }
 
@@ -360,6 +348,11 @@ size_t getCurrentMemoryUsage() {
 }
 
 void Solver::writeSimulationStatistics(const Time runtime){
+    // Skip writing statistics for SGBC sub-solvers
+    if (opts_.is_sgbc_solver) {
+        return;
+    }
+
     MPI_Comm comm = model_.getMesh().GetComm();
     int rank;
     MPI_Comm_rank(comm, &rank);
