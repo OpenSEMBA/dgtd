@@ -5,6 +5,8 @@
 #include "components/DGOperatorFactory.h"
 #include "components/Types.h"
 #include <map>
+#include <unordered_map>
+#include <vector>
 
 namespace maxwell {
 
@@ -48,6 +50,18 @@ private:
 
     std::map<int, int> sgbc_coupling_map_;
 
+    // O(1) lookup: global DOF id -> submesh index (replaces linear Array::Find)
+    std::unordered_map<int, int> sgbc_parent_to_sub_;
+
+    // Cached indices of sources that are TotalField (avoids dynamic_cast per Mult)
+    std::vector<int> tfsfSourceIndices_;
+
+    // Fast-exit flag: set to true once TFSF cutoff time is reached
+    mutable bool tfsf_cutoff_reached_ = false;
+
+    // Precomputed SGBC scatter arrays: sgbc_scatter_out_[i] = parent DOF index for submesh DOF i
+    std::vector<int> sgbc_scatter_parent_idx_;
+
     mfem::ParFiniteElementSpace& fes_;
     Model& model_;
     SourcesManager& srcmngr_;
@@ -62,6 +76,12 @@ private:
     mutable mfem::Vector tempSGBC_;
     mutable mfem::Vector tfsf_assembledFunc_;
     mutable mfem::Vector tfsf_tempVec_;
+
+    // ImplicitSolve reusable work vectors (avoid per-call allocation)
+    mutable mfem::Vector implicit_inNew_;
+    mutable mfem::Vector implicit_rhs_;
+    mutable mfem::Vector implicit_src_;
+    mutable bool implicit_work_initialized_ = false;
 };
 
 void load_in_to_eh_gpu(const mfem::Vector& in, 
