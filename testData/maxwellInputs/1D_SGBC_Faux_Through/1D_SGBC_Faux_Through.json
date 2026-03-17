@@ -1,8 +1,8 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-4,
-    "final_time": 4.0,
+    "time_step": 1e-6,
+    "final_time": 8.0,
     "order": 4
   },
 
@@ -15,9 +15,9 @@
       },
       {
         "tags": [ 3 ],
-        "relative_permittivity": 1.0,
+        "relative_permittivity": 4.0,
         "relative_permeability": 1.0,
-        "bulk_conductivity": 0.05
+        "bulk_conductivity": 0.5
       }
     ],
     "boundaries": [
@@ -30,17 +30,20 @@
 
   "probes": {
     "exporter": {
-      "steps": 1000
+      "saves": 60
     },
     "point": [
       {
-        "position": [ 0.15 ]
+        "position": [ 0.15 ],
+        "saves": 100000
       },
       {
-        "position": [ 0.35 ]
+        "position": [ 0.35 ],
+        "saves": 100000
       },
       {
-        "position": [ 1.45 ]
+        "position": [ 1.45 ],
+        "saves": 100000
       }
     ]
   },

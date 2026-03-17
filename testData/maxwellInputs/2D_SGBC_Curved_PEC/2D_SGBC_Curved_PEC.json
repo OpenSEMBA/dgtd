@@ -1,8 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "evolution_operator": "global",
-    "time_step": 1e-4,
+    "time_step": 1e-5,
     "final_time": 6.0,
     "order": 3
   },
@@ -28,11 +27,9 @@
         "tags": [ 7 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 20.0,
+          "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 0.2,
-          "num_of_segments": 10,
-          "order": 6,
+          "bulk_conductivity": 10.0,
           "material_width": 5e-3,
           "sgbc_boundaries": {
             "right": "PEC"
@@ -44,7 +41,7 @@
 
   "probes": {
     "exporter": {
-      "steps": 1000
+      "steps": 60
     }
   },
 

@@ -34,17 +34,19 @@ TEST_F(SolverExtensionTest, isCorrect_SGBC_Properties)
     double tol = 1e-7;
     for (auto p = 0; p < global_solver.getModel().getSGBCProperties().size(); p++){
         const auto& props = global_solver.getModel().getSGBCProperties()[p];
+        ASSERT_EQ(1, props.layers.size());
+        const auto& layer = props.layers[0];
         if (p == 0 && props.geom_tags[0] == 15){
-            ASSERT_EQ(1e-1, props.material_width);
-            ASSERT_EQ(5, props.num_of_segments);
-            ASSERT_EQ(1, props.order);
-            ASSERT_NEAR(1e5, props.material.getConductivity(), tol);
+            ASSERT_EQ(1e-1, layer.width);
+            ASSERT_EQ(5, layer.num_of_segments);
+            ASSERT_EQ(1, layer.order);
+            ASSERT_NEAR(1e5, layer.material.getConductivity(), tol);
         }
         else if (p == 1 && props.geom_tags[0] == 18){
-            ASSERT_EQ(1e-2, props.material_width);
-            ASSERT_EQ(8, props.num_of_segments);
-            ASSERT_EQ(2, props.order);
-            ASSERT_NEAR(1e8, props.material.getConductivity(), tol);
+            ASSERT_EQ(1e-2, layer.width);
+            ASSERT_EQ(8, layer.num_of_segments);
+            ASSERT_EQ(2, layer.order);
+            ASSERT_NEAR(1e8, layer.material.getConductivity(), tol);
         }
     }
 }

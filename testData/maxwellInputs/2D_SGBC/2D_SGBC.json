@@ -1,9 +1,9 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-4,
-    "final_time": 10.0,
-    "order": 4
+    "time_step": 1e-5,
+    "final_time": 6.0,
+    "order": 3
   },
 
   "model": {
@@ -27,12 +27,10 @@
         "tags": [ 18 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 20.0,
+          "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 0.2,
-          "num_of_segments": 10,
-          "order": 6,
-          "material_width": 5e-3
+          "bulk_conductivity": 10.0,
+          "material_width": 5e-3  
         }
       }
     ]
@@ -40,20 +38,20 @@
 
   "probes": {
     "exporter": {
-      "steps": 1000
+      "saves": 60
     },
     "point": [
       {
         "position": [ 0.125, 0.075 ],
-        "write": true
+        "saves": 10000
       },
       {
         "position": [ 0.5, 0.075 ],
-        "write": true
+        "saves": 10000
       },
       {
         "position": [ 1.45, 0.075 ],
-        "write": true
+        "saves": 10000
       }
     ]
   },

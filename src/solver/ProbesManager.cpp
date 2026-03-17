@@ -1,5 +1,6 @@
 #include "ProbesManager.h"
 #include "math/PhysicalConstants.h"
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 
@@ -327,7 +328,7 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     auto& pd{ it->second };
 
     pd.SetCycle(cycle_);
-    pd.SetTime(time);
+    pd.SetTime(std::round(time * 1e3) / 1e3);
 
     std::string base_dir = pd.GetPrefixPath() + pd.GetCollectionName();
     std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(cycle_, 6);

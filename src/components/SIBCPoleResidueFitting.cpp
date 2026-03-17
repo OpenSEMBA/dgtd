@@ -35,10 +35,10 @@ static VectorCx generatePhysicsTarget(const SGBCProperties& props,
     const double eps0 = physicalConstants::vacuumPermittivity_SI;
     const double mu0  = physicalConstants::vacuumPermeability_SI;
 
-    double eps_r = props.material.getPermittivity();
-    double mu_r  = props.material.getPermeability();
-    double sigma = props.material.getConductivity();
-    double thickness = props.material_width;
+    double eps_r = props.layers.front().material.getPermittivity();
+    double mu_r  = props.layers.front().material.getPermeability();
+    double sigma = props.layers.front().material.getConductivity();
+    double thickness = props.totalWidth();
 
     for(int i = 0; i < num_pts; ++i) {
         double w = 2.0 * M_PI * freqs_vec[i];

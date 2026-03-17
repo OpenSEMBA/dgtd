@@ -78,19 +78,43 @@ struct SGBCBoundaryInfo
 
 using SGBCBoundaries = std::pair<SGBCBoundaryInfo, SGBCBoundaryInfo>;
 
+struct SGBCLayer {
+    Material material;
+    double width;
+    size_t num_of_segments = 10;
+    size_t order = 1;
+
+    SGBCLayer(Material mat, double w) : material(mat), width(w) {}
+};
+
 struct SGBCProperties{
 
     std::vector<size_t> geom_tags;
-    size_t num_of_segments = 10;
-    size_t order = 1;
-    double material_width = 1e-4;
-    Material material;
+    std::vector<SGBCLayer> layers;
 	SGBCBoundaries sgbc_bdr_info;
 
-    SGBCProperties(Material mat) :
-    material(mat)
-    {}
+    SGBCProperties() : layers() {}
 
+    // Convenience: total width across all layers
+    double totalWidth() const {
+        double w = 0.0;
+        for (const auto& l : layers) w += l.width;
+        return w;
+    }
+
+    // Convenience: total number of segments across all layers
+    size_t totalSegments() const {
+        size_t n = 0;
+        for (const auto& l : layers) n += l.num_of_segments;
+        return n;
+    }
+
+    // Convenience: maximum order across all layers
+    size_t maxOrder() const {
+        size_t o = 1;
+        for (const auto& l : layers) o = std::max(o, l.order);
+        return o;
+    }
 };
 
 std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh&);

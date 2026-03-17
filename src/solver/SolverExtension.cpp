@@ -47,12 +47,60 @@ GeomTagToBoundary buildBdrInfo()
 
 mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp)
 {
-    auto mesh = mfem::Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * sbcp.material_width / sbcp.num_of_segments);
-    mesh.AddBdrPoint(1, 3);
-    mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
-    mesh.SetAttribute(0, 2);
-    mesh.SetAttribute(mesh.GetNE() - 1, 2);
-    mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4}); 
+    // Total interior segments across all layers
+    size_t total_segments = sbcp.totalSegments();
+    double total_width = sbcp.totalWidth();
+    double ghost_dx = total_width / total_segments; // ghost element size based on average
+
+    // Build vertex coordinates: ghost_left | layer0 | layer1 | ... | ghost_right
+    std::vector<double> vertices;
+    vertices.push_back(0.0);                          // left ghost start
+    vertices.push_back(ghost_dx);                     // left ghost end = first layer start
+
+    double x = ghost_dx;
+    for (const auto& layer : sbcp.layers) {
+        double dx = layer.width / layer.num_of_segments;
+        for (size_t i = 0; i < layer.num_of_segments; ++i) {
+            x += dx;
+            vertices.push_back(x);
+        }
+    }
+    vertices.push_back(x + ghost_dx);                 // right ghost end
+
+    int num_elements = static_cast<int>(vertices.size()) - 1;
+    mfem::Mesh mesh(1, static_cast<int>(vertices.size()), num_elements, 0, 1);
+
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        mesh.AddVertex(vertices[i]);
+    }
+    for (int i = 0; i < num_elements; ++i) {
+        mesh.AddSegment(i, i + 1, 1);
+    }
+    mesh.AddBdrPoint(0, 1);
+    mesh.AddBdrPoint(static_cast<int>(vertices.size()) - 1, 2);
+    mesh.FinalizeMesh();
+
+    // Interior boundary markers at ghost/material interfaces
+    mesh.AddBdrPoint(1, 3);                            // left interface
+    mesh.AddBdrPoint(num_elements - 1, 4);             // right interface
+
+    // Assign element attributes:
+    //   Element 0: left ghost  -> attr = total_layers + 1 (reserved for vacuum)
+    //   Elements for layer i   -> attr = i + 1
+    //   Last element: right ghost -> attr = total_layers + 1
+    int vacuum_attr = static_cast<int>(sbcp.layers.size()) + 1;
+    mesh.SetAttribute(0, vacuum_attr);
+    mesh.SetAttribute(num_elements - 1, vacuum_attr);
+
+    int elem_idx = 1; // start after left ghost
+    for (size_t li = 0; li < sbcp.layers.size(); ++li) {
+        for (size_t s = 0; s < sbcp.layers[li].num_of_segments; ++s) {
+            mesh.SetAttribute(elem_idx, static_cast<int>(li) + 1);
+            elem_idx++;
+        }
+    }
+
+    mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4});
     mesh.FinalizeMesh();
     return mesh;
 }
@@ -60,7 +108,14 @@ mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp)
 Model buildSGBCModel(mfem::Mesh& mesh, int* partitioning, const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo)
 {
     Material vacuum = buildVacuumMaterial();
-    GeomTagToMaterial geom_tag_sgbc_mat{{1, sbcp.material}, {2, vacuum}};
+    int vacuum_attr = static_cast<int>(sbcp.layers.size()) + 1;
+
+    GeomTagToMaterial geom_tag_sgbc_mat;
+    for (size_t li = 0; li < sbcp.layers.size(); ++li) {
+        geom_tag_sgbc_mat.insert({static_cast<int>(li) + 1, sbcp.layers[li].material});
+    }
+    geom_tag_sgbc_mat.insert({vacuum_attr, vacuum});
+
     GeomTagToInteriorBoundary gt2ib = buildIntBdrInfo(intBdrInfo);
     GeomTagToBoundary gt2b = buildBdrInfo();
     GeomTagToBoundaryInfo gtbdr(gt2b, gt2ib);
@@ -86,7 +141,7 @@ std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProp
 SolverOptions buildSGBCSolverOptions(const SGBCProperties& sbcp)
 {
     SolverOptions res;
-    res.setOrder(sbcp.order);
+    res.setOrder(sbcp.maxOrder());
     res.setUpwindAlpha(1.0);
     res.setODEType(ode_type::SDIRK33); 
     return res;
@@ -113,7 +168,7 @@ void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpac
 {
     const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
     const NodePair& pair = context.global_pair;
-    const int order_p1 = sbcp_.order + 1;
+    const int order_p1 = sbcp_.maxOrder() + 1;
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
 
@@ -132,7 +187,7 @@ void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpac
 
 void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, SGBCHelperFields& out)
 {
-    const auto left_ghost_border_dof = this->getProperties().order + 1;
+    const auto left_ghost_border_dof = this->getProperties().maxOrder() + 1;
     const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();
 
     const auto first_idx = sub_to_global.Find(context.global_pair.first);
@@ -161,6 +216,29 @@ void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState
     }
 }
 
+void SGBCWrapper::fillGlobalSGBCVec(const SGBCState& context, mfem::Vector& vec, int blockSize)
+{
+    const auto left_ghost_border_dof = this->getProperties().maxOrder() + 1;
+    const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();
+
+    const int idx_left  = left_ghost_border_dof;
+    const int idx_right = (local_field_size - 1) - left_ghost_border_dof;
+
+    const int gl = context.global_pair.first;
+    const int gr = context.global_pair.second;
+
+    for (auto f : {E, H}) {
+        const int state_base = (f == E) ? 0 : 3 * local_field_size;
+        for (auto d : {X, Y, Z}) {
+            const int state_offset = state_base + d * local_field_size;
+            vec[(f * 3 + d) * blockSize + gl] = context.fields_state[state_offset + idx_left];
+            if (gr != -1) {
+                vec[(f * 3 + d) * blockSize + gr] = context.fields_state[state_offset + idx_right];
+            }
+        }
+    }
+}
+
 void SGBCWrapper::solve(const Time t, const Time dt)
 {
     if (std::abs(dt) < 1e-9){
@@ -170,67 +248,10 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     if (!temporal_warning_printed_) {
         temporal_warning_printed_ = true;
 
-        double eps_r = sbcp_.material.getPermittivity();
-        double mu_r = sbcp_.material.getPermeability();
-        double sigma_solver = sbcp_.material.getConductivity();
-        double dx = sbcp_.material_width / sbcp_.num_of_segments;
-
-        // Calculate temporal parameters once
-        // CRITICAL: Account for speed of light - convert spatial distance to temporal duration
-        // crossing_time_SI [s] = dx [m] / v [m/s] where v = c / sqrt(eps_r*mu_r)
-        // Therefore: crossing_time = dx * sqrt(eps_r*mu_r) / c_SI
         constexpr double c_si = physicalConstants::speedOfLight_SI;
-        double crossing_time = (dx * std::sqrt(eps_r * mu_r)) / c_si;
-
-        // Convert simulator time to SI seconds for proper comparison
-        // Simulator uses normalized time: t_sim = t_si * c_si
-        // Therefore: t_si = t_sim / c_si
         double dt_si = dt / c_si;
-
-        // CRITICAL FIX: Proper dimensional relaxation time calculation
-        // Physical relaxation time: τ = ε₀εᵣ / σ_SI [seconds]
-        // In solver units where Z₀ = √(μ₀/ε₀), conductivity is stored as σ_solver = σ_SI × Z₀
-        // Therefore to recover proper τ we must divide by Z₀ when computing in normalized units
-        constexpr double z0_si = physicalConstants::freeSpaceImpedance_SI;
-        constexpr double eps0_si = physicalConstants::vacuumPermittivity_SI;
-
-        double relaxation_time = std::numeric_limits<double>::max();
-        double loss_tangent = 0.0;  // tan(δ) = σ/(ωε) - dimensionless ratio
-
-        if (sigma_solver > 0.0) {
-            // Corrected formula for relaxation time in normalized units
-            // tau = eps_r * eps0 / (sigma_solver / Z0) = eps_r * eps0 * Z0 / sigma_solver
-            double sigma_si_recovered = sigma_solver / z0_si;
-            relaxation_time = (eps_r * eps0_si) / sigma_si_recovered;
-
-            // Material property characterization: loss tangent for adaptive factors
-            // Estimate angular frequency: ω ~ 2π × max_freq (from solve context)
-            // Loss tangent: tan(δ) = σ/(ω·ε) characterizes material behavior
-            // This value is used to select appropriate time-stepping factors below
-            loss_tangent = sigma_si_recovered / (eps_r * eps0_si);  // Normalized estimate
-        }
-
-        // Material-dependent temporal resolution factor (physics-based)
-        // Metals (loss_tangent >> 1): Rapid charge relaxation, can use aggressive /10-15
-        // Semiconductors (loss_tangent ~ 1): Intermediate case, /20-30
-        // Weakly conducting (loss_tangent << 1): Slow decay, need conservative /50-100
-        // Non-conducting (loss_tangent ≈ 0): No conductivity, skip relaxation criterion
-        double relaxation_factor = 50.0;  // Default for weakly conducting
-        if (loss_tangent > 10.0) {
-            relaxation_factor = 10.0;     // Metals: fast relaxation, can be aggressive
-        } else if (loss_tangent > 1.0) {
-            relaxation_factor = 20.0;     // Semiconductors: intermediate
-        } else if (loss_tangent > 0.1) {
-            relaxation_factor = 50.0;     // Weakly conducting: conservative (default)
-        }
-        // else: non-conducting, relaxation_time already set to inf, factor not used
-
-        double recommended_dt = crossing_time * 0.5;  // Wave criterion
-        if (sigma_solver > 0.0) {
-            recommended_dt = std::min(recommended_dt, relaxation_time / relaxation_factor);
-        }
-
-        bool is_coarse = (dt_si > recommended_dt);
+        double recommended_dt_si = recommended_dt_ / c_si;
+        bool is_coarse = (dt_si > recommended_dt_si);
 
         if (Mpi::WorldRank() == 0) {
             std::cout << "\n========================================================" << std::endl;
@@ -241,22 +262,12 @@ void SGBCWrapper::solve(const Time t, const Time dt)
             }
             std::cout << "========================================================" << std::endl;
             std::cout << "  Current dt (SI)      : " << dt_si << " seconds" << std::endl;
-            std::cout << "  Segment Crossing     : " << crossing_time << " seconds" << std::endl;
-            if (sigma_solver > 0.0) {
-                std::cout << "  Relaxation Time      : " << relaxation_time << " seconds" << std::endl;
-                std::cout << "  Loss Tangent (tan δ) : " << loss_tangent << std::endl;
-                std::cout << "  Relaxation Factor    : 1/" << relaxation_factor << std::endl;
-            }
+            std::cout << "  Recommended dt (SI)  : " << recommended_dt_si << " seconds" << std::endl;
 
             if (is_coarse) {
-                std::cout << "  Recommended dt (SI)  : < " << recommended_dt << " seconds" << std::endl;
-                std::cout << "\n  The relaxation/crossing gradient is going to get mathematically smeared!" << std::endl;
-                std::cout << "  Your implicit solver will remain stable, but your reflection physics" << std::endl;
-                std::cout << "  will be wrong. You should lower your time step!" << std::endl;
+                std::cout << "\n  Sub-stepping will be applied automatically." << std::endl;
             } else {
-                std::cout << "  Max safe dt (SI)     : " << recommended_dt << " seconds" << std::endl;
-                std::cout << "  Safety margin        : " << (recommended_dt / dt_si) << "x" << std::endl;
-                std::cout << "\n  SGBC solver respects relaxation time material dynamics." << std::endl;
+                std::cout << "  Safety margin        : " << (recommended_dt_si / dt_si) << "x" << std::endl;
             }
             std::cout << "========================================================\n" << std::endl;
         }
@@ -275,53 +286,45 @@ void SGBCWrapper::solve(const Time t, const Time dt)
 
 void checkSkinDepthResolution(const SGBCProperties& props)
 {
-    auto sigma_solver = props.material.getConductivity();
-
-    if (sigma_solver <= 0.0){
-        return;
-    }
-
     constexpr auto Z0 = physicalConstants::freeSpaceImpedance_SI;
     constexpr auto mu0 = physicalConstants::vacuumPermeability_SI;
     constexpr auto eps0 = physicalConstants::vacuumPermittivity_SI;
 
-    auto sigma_si = sigma_solver / Z0;
-    auto mu_si = props.material.getPermeability() * mu0;
-    auto eps_si = props.material.getPermittivity() * eps0;
+    for (size_t li = 0; li < props.layers.size(); ++li) {
+        const auto& layer = props.layers[li];
+        auto sigma_solver = layer.material.getConductivity();
 
-    auto dx = props.material_width / static_cast<double>(props.num_of_segments);
+        if (sigma_solver <= 0.0) continue;
 
-    // Frequency at which skin depth equals element size
-    auto f_max = 1.0 / (M_PI * mu_si * sigma_si * dx * dx);
+        auto sigma_si = sigma_solver / Z0;
+        auto mu_si = layer.material.getPermeability() * mu0;
+        auto eps_si = layer.material.getPermittivity() * eps0;
 
-    // Loss tangent for material characterization
-    auto loss_tangent = sigma_si / (2.0 * M_PI * 1e9 * eps_si);  // At 1 GHz reference
+        auto dx = layer.width / static_cast<double>(layer.num_of_segments);
+        auto f_max = 1.0 / (M_PI * mu_si * sigma_si * dx * dx);
+        auto loss_tangent = sigma_si / (2.0 * M_PI * 1e9 * eps_si);
 
-    std::cout << "\n--- SGBC Spatial Resolution Check ---" << std::endl;
-    std::cout << "Element dx                   : " << dx * 1e6 << " μm" << std::endl;
-    std::cout << "Skin depth (at 1 GHz)        : " << (1.0 / sqrt(M_PI * 1e9 * mu_si * sigma_si) * 1e6) << " μm" << std::endl;
-    std::cout << "Loss Tangent (tan δ @ 1 GHz) : " << loss_tangent << std::endl;
-    std::cout << "Max resolved frequency (δ=dx): ";
+        std::cout << "\n--- SGBC Spatial Resolution Check (Layer " << li + 1 << ") ---" << std::endl;
+        std::cout << "Element dx                   : " << dx * 1e6 << " μm" << std::endl;
+        std::cout << "Skin depth (at 1 GHz)        : " << (1.0 / sqrt(M_PI * 1e9 * mu_si * sigma_si) * 1e6) << " μm" << std::endl;
+        std::cout << "Loss Tangent (tan δ @ 1 GHz) : " << loss_tangent << std::endl;
+        std::cout << "Max resolved frequency (δ=dx): ";
 
-    if (f_max > 1e10) {
-        std::cout << f_max / 1e9 << " GHz" << std::endl;
-        std::cout << "[EXCELLENT] Mesh resolution is outstanding for this material." << std::endl;
+        if (f_max > 1e10) {
+            std::cout << f_max / 1e9 << " GHz" << std::endl;
+            std::cout << "[EXCELLENT] Mesh resolution is outstanding for this material." << std::endl;
+        } else if (f_max > 1e9) {
+            std::cout << f_max / 1e9 << " GHz" << std::endl;
+            std::cout << "[INFO] Mesh is well-resolved for standard RF/Microwave." << std::endl;
+        } else if (f_max > 1e6) {
+            std::cout << f_max / 1e6 << " MHz" << std::endl;
+            std::cout << "[WARNING] Mesh may cause numerical tunneling for GHz pulses." << std::endl;
+        } else {
+            std::cout << f_max / 1e3 << " kHz" << std::endl;
+            std::cout << "[SEVERE] Mesh is severely coarse for this conductivity!" << std::endl;
+        }
+        std::cout << "----------------------------------\n" << std::endl;
     }
-    else if (f_max > 1e9) {
-        std::cout << f_max / 1e9 << " GHz" << std::endl;
-        std::cout << "[INFO] Mesh is well-resolved for standard RF/Microwave." << std::endl;
-    }
-    else if (f_max > 1e6) {
-        std::cout << f_max / 1e6 << " MHz" << std::endl;
-        std::cout << "[WARNING] Mesh may cause numerical tunneling for GHz pulses." << std::endl;
-        std::cout << "          Consider increasing 'num_of_segments'." << std::endl;
-    }
-    else {
-        std::cout << f_max / 1e3 << " kHz" << std::endl;
-        std::cout << "[SEVERE] Mesh is severely coarse for this conductivity!" << std::endl;
-        std::cout << "         Extreme numerical tunneling is highly likely." << std::endl;
-    }
-    std::cout << "----------------------------------\n" << std::endl;
 }
 
 SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
@@ -334,11 +337,11 @@ sbcp_(sbcp)
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
-    // probes.exporterProbes.resize(1);
-    // ExporterProbe ep;
-    // ep.name = "InsideSGBC";
-    // ep.visSteps = 10000;
-    // probes.exporterProbes.at(0) = ep;
+    probes.exporterProbes.resize(1);
+    ExporterProbe ep;
+    ep.name = "InsideSGBC";
+    ep.visSteps = 1000;
+    probes.exporterProbes.at(0) = ep;
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
     opts.setIsSGBCSolver(true);  // Mark as SGBC sub-solver to skip statistics
@@ -347,6 +350,47 @@ sbcp_(sbcp)
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
 
     this->old_t_ = 0.0;
+
+    // Compute recommended_dt as the minimum across all layers
+    {
+        constexpr double c_si = physicalConstants::speedOfLight_SI;
+        constexpr double z0_si = physicalConstants::freeSpaceImpedance_SI;
+        constexpr double eps0_si = physicalConstants::vacuumPermittivity_SI;
+
+        recommended_dt_ = std::numeric_limits<double>::max();
+
+        for (const auto& layer : sbcp_.layers) {
+            double eps_r = layer.material.getPermittivity();
+            double mu_r = layer.material.getPermeability();
+            double sigma_solver = layer.material.getConductivity();
+            double dx = layer.width / layer.num_of_segments;
+
+            double crossing_time = (dx * std::sqrt(eps_r * mu_r)) / c_si;
+            double layer_dt = crossing_time * 0.5;
+
+            if (sigma_solver > 0.0) {
+                double sigma_si = sigma_solver / z0_si;
+                double relaxation_time = (eps_r * eps0_si) / sigma_si;
+                double loss_tangent = sigma_si / (eps_r * eps0_si);
+
+                double relaxation_factor = 50.0;
+                if (loss_tangent > 10.0) {
+                    relaxation_factor = 10.0;
+                } else if (loss_tangent > 1.0) {
+                    relaxation_factor = 20.0;
+                } else if (loss_tangent > 0.1) {
+                    relaxation_factor = 50.0;
+                }
+
+                layer_dt = std::min(layer_dt, relaxation_time / relaxation_factor);
+            }
+
+            recommended_dt_ = std::min(recommended_dt_, layer_dt);
+        }
+
+        // Convert from SI seconds to simulator time units
+        recommended_dt_ *= c_si;
+    }
 }
 
 }

@@ -169,88 +169,24 @@ GlobalEvolution::GlobalEvolution(
     );
 
     Probes probes; 
+
+    // Keep TFSF submesh infrastructure for planewave source evaluation
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
-        auto globalTFSFfes = srcmngr_.getGlobalTFSFSpace();
-        auto tfsfMesh = globalTFSFfes->GetMesh();
-        Model tfsfModel = Model(*tfsfMesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}), nullptr, MPI_COMM_SELF);
-        ProblemDescription tfsfpd(tfsfModel, probes, srcmngr_.sources, opts_);
-        DGOperatorFactory<FiniteElementSpace> tfsfops(tfsfpd, *globalTFSFfes);
-        std::cout << "TFSF elements in rank " << std::to_string(Mpi::WorldRank()) << ": " << globalTFSFfes->GetNE() << std::endl;
-        if (globalTFSFfes->GetNE() <= 0){
-            std::cout << "Warning! No TFSF elements on rank but it is defined to have, simulation may fail. Use less processes." << std::endl;
-        }
-        TFSFOperator_ = tfsfops.buildTFSFGlobalOperator();
         auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
         mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
     }
 
-    if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
-        auto sgbc_sm = TotalFieldScatteredFieldSubMesher(model_.getConstMesh(), model_.getSGBCToMarker().at(BdrCond::SGBC));
-        auto global_sm_fes = std::make_unique<FiniteElementSpace>(sgbc_sm.getGlobalTFSFSubMesh(), fes_.FEColl());
-        SGBCndofs_ = global_sm_fes->GetNDofs();
-        auto sgbc_mesh = global_sm_fes->GetMesh();
-        
-        auto src_sm = static_cast<mfem::SubMesh*>(sgbc_mesh);
-
-        // --- NEW PREVENTATIVE FIX ---
-        // Initialize all submesh boundary attributes to a safe dummy value (>0) 
-        // to prevent `attr - 1 = -2` crash on the artificial cut faces.
-        for (int c_be = 0; c_be < src_sm->GetNBE(); c_be++) {
-            src_sm->SetBdrAttribute(c_be, 1); 
-        }
-        // ----------------------------
-
-        auto parent_mesh = fes_.GetMesh();
-        auto parent_f2bdr_map = parent_mesh->GetFaceToBdrElMap();
-        auto child_f2bdr_map = src_sm->GetFaceToBdrElMap();
-        auto face_map = mfem::SubMeshUtils::BuildFaceMap(*parent_mesh, *src_sm, src_sm->GetParentElementIDMap());
-
-        GeomTagToBoundary sgbc_bdr;
-        const auto& sgbc_marker = model_.getSGBCToMarker().at(BdrCond::SGBC);
-
-        // Locate the pure boundary elements and transfer ONLY the SGBC tags to the submesh
-        for (int be = 0; be < parent_mesh->GetNBE(); be++) {
-            int parent_tag = parent_mesh->GetBdrAttribute(be);
-            if (sgbc_marker[parent_tag - 1] == 1) {
-                int p_face = parent_f2bdr_map.Find(be);
-                if (p_face != -1) {
-                    int c_face = face_map.Find(p_face);
-                    if (c_face != -1) {
-                        int c_be = child_f2bdr_map[c_face];
-                        if (c_be != -1) {
-                            src_sm->SetBdrAttribute(c_be, parent_tag);
-                            sgbc_bdr[parent_tag] = BdrCond::SGBC;
-                        }
-                    }
-                }
-            }
-        }
-        
-        src_sm->SetAttributes(); // Force MFEM to rebuild the bdr_attributes array
-
-        Model sgbc_model = Model(*sgbc_mesh, GeomTagToMaterialInfo(), 
-                                 GeomTagToBoundaryInfo(sgbc_bdr, GeomTagToInteriorBoundary{}), nullptr, MPI_COMM_SELF);
-        ProblemDescription sgbc_pd(sgbc_model, probes, srcmngr_.sources, opts_);
-        DGOperatorFactory<FiniteElementSpace> sgbc_ops(sgbc_pd, *global_sm_fes);
-        SGBCOperator_ = sgbc_ops.buildSGBCGlobalOperator();
-        
-        mfem::SubMeshUtils::BuildVdofToVdofMap(*global_sm_fes, fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), sgbc_sub_to_parent_ids_);
-    }
-
+    // Build all operators on the global mesh
     ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
     DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
     globalOperator_ = dgops.buildGlobalOperator();
 
-    // --- Performance: precompute O(1) SGBC submesh lookup ---
-    for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
-        sgbc_parent_to_sub_[sgbc_sub_to_parent_ids_[v]] = v;
+    if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
+        TFSFOperator_ = dgops.buildTFSFGlobalOperator();
     }
-
-    // --- Performance: precompute SGBC scatter parent indices ---
-    sgbc_scatter_parent_idx_.resize(sgbc_sub_to_parent_ids_.Size());
-    for (int v = 0; v < sgbc_sub_to_parent_ids_.Size(); ++v) {
-        sgbc_scatter_parent_idx_[v] = sgbc_sub_to_parent_ids_[v];
+    if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
+        SGBCOperator_ = dgops.buildSGBCGlobalOperator();
     }
 
     // --- Performance: cache which sources are TotalField ---
@@ -298,66 +234,62 @@ void GlobalEvolution::advanceSGBCs(double time, double dt,
         if (it == sgbc_wrapper_map_.end()) continue;
 
         auto w = it->second;
+        double sub_dt = w->getRecommendedDt();
+        int nsteps = (sub_dt > 0.0 && sub_dt < dt)
+                   ? static_cast<int>(std::ceil(dt / sub_dt))
+                   : 1;
+        double actual_sub_dt = dt / nsteps;
+
         for (auto& state : states){
             w->loadState(state);
             w->updateFieldsWithGlobal(fields, state);
-            w->solve(time, dt);
+            for (int step = 0; step < nsteps; ++step) {
+                w->solve(time + step * actual_sub_dt, actual_sub_dt);
+            }
             w->saveState(state);
         }
         w->setOldTime(time);
     }
 }
 
-void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int ndofs_tfsf,
-                                              mfem::Vector& result_vector, bool check_zero) const
+void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
+                                              mfem::Vector& result_vector) const
 {
-    if (tfsf_cutoff_reached_) return;
+    if (tfsf_cutoff_reached_ || !TFSFOperator_) return;
     if (tfsfSourceIndices_.empty()) return;
 
-    if (auto *tfsf_space = srcmngr_.getGlobalTFSFSpace())
-    {
-        const double t_off   = opts_.tfsf_cutoff_time;
-        const bool tfsf_active = (t_off == 0.0) || (t_stage < t_off);
+    auto *tfsf_space = srcmngr_.getGlobalTFSFSpace();
+    if (!tfsf_space) return;
 
-        if (!tfsf_active) {
-            tfsf_cutoff_reached_ = true;
-            return;
-        }
+    const double t_off = opts_.tfsf_cutoff_time;
+    if (t_off != 0.0 && t_stage >= t_off) {
+        tfsf_cutoff_reached_ = true;
+        return;
+    }
 
-        for (int srcIdx : tfsfSourceIndices_) {
-            (void)srcIdx; // index cached at construction; source identity already verified
+    const int blockSize = ndofs + nbrDofs;
 
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-            const auto func_gpu = eval_time_var_field_gpu(t_stage, srcmngr_);
-            tfsf_assembledFunc_ = load_tfsf_into_single_vector_gpu(func_gpu);
-#else
-            auto func = evalTimeVarFunction(t_stage, srcmngr_);
-            tfsf_assembledFunc_ = buildSingleVectorTFSFFunc(func);
-#endif
-            if (tfsf_tempVec_.Size() != tfsf_assembledFunc_.Size()) {
-                tfsf_tempVec_.SetSize(tfsf_assembledFunc_.Size());
-                tfsf_tempVec_.UseDevice(true);
+    // Ensure global-layout planewave vector is allocated
+    if (tfsf_assembledFunc_.Size() != 6 * blockSize) {
+        tfsf_assembledFunc_.SetSize(6 * blockSize);
+        tfsf_assembledFunc_.UseDevice(true);
+    }
+    tfsf_assembledFunc_ = 0.0;
+
+    // Evaluate planewave on the TFSF submesh (with TF/SF masking and 0.5 scaling)
+    auto func = evalTimeVarFunction(t_stage, srcmngr_);
+
+    // Scatter submesh planewave values into global-layout vector
+    for (int f : {E, H}) {
+        for (int d : {X, Y, Z}) {
+            for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
+                tfsf_assembledFunc_[(f * 3 + d) * blockSize + tfsf_sub_to_parent_ids_[v]] = func[f][d][v];
             }
-            TFSFOperator_->Mult(tfsf_assembledFunc_, tfsf_tempVec_);
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-            load_tfsf_into_out_vector_gpu(tfsf_sub_to_parent_ids_, tfsf_tempVec_, result_vector, ndofs, ndofs_tfsf);
-#else
-            for (int f : { E, H }){
-                for (int d : { X, Y, Z }){
-                    for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v){
-                        const int outIdx  = (f * 3 + d) * ndofs + tfsf_sub_to_parent_ids_[v];
-                        const int tempIdx = (f * 3 + d) * ndofs_tfsf + v;
-                        const double val = tfsf_tempVec_[tempIdx];
-                        if (!check_zero || val != 0.0) {
-                            result_vector[outIdx] -= val;
-                        }
-                    }
-                }
-            }
-#endif
         }
     }
+
+    // Apply TFSF operator and subtract from result: out -= TFSFOp * planewave
+    TFSFOperator_->AddMult(tfsf_assembledFunc_, result_vector, -1.0);
 }
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
@@ -421,24 +353,16 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerApplyA.Stop();
 
     timerTFSF.Start();
-    applyTFSFSourceToVector(GetTime(), ndofs, (srcmngr_.getGlobalTFSFSpace() ? srcmngr_.getGlobalTFSFSpace()->GetNDofs() : 0), out, false);
+    applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
     timerTFSF.Stop();
 
     // 5) SGBC Coupling via Flux Injection
     timerSGBC.Start();
 
-    if (sgbcWrappers_.size() != 0){
-        // Reuse or initialize SGBC helper fields
-        if (last_sgbc_helper_size_ != SGBCndofs_) {
-            sgbc_helper_fields_ = initSGBCHelperFields(SGBCndofs_);
-            last_sgbc_helper_size_ = SGBCndofs_;
-        }
-
-        if (sgbcVec_.Size() != 6 * SGBCndofs_) {
-            sgbcVec_.SetSize(6 * SGBCndofs_);
+    if (SGBCOperator_ && !sgbcWrappers_.empty()){
+        if (sgbcVec_.Size() != 6 * blockSize) {
+            sgbcVec_.SetSize(6 * blockSize);
             sgbcVec_.UseDevice(true);
-            tempSGBC_.SetSize(6 * SGBCndofs_);
-            tempSGBC_.UseDevice(true);
         }
         sgbcVec_ = 0.0;
 
@@ -448,51 +372,11 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
             auto w = it->second;
             for (const auto& state : states) {
-                w->getSGBCFields(sgbc_sub_to_parent_ids_, state, sgbc_helper_fields_);
-
-                const int global_L = state.global_pair.first;
-                const int global_R = state.global_pair.second;
-
-                auto it_L = sgbc_parent_to_sub_.find(global_L);
-                if (it_L == sgbc_parent_to_sub_.end()) continue;
-                const int sub_L = it_L->second;
-
-                int sub_R = -1;
-                if (global_R != -1) {
-                    auto it_R = sgbc_parent_to_sub_.find(global_R);
-                    if (it_R != sgbc_parent_to_sub_.end()) sub_R = it_R->second;
-                }
-
-                const int E_base_L = E*3*SGBCndofs_ + sub_L;
-                const int H_base_L = H*3*SGBCndofs_ + sub_L;
-                for (auto d : {X,Y,Z}) {
-                    sgbcVec_[E_base_L + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_L];
-                    sgbcVec_[H_base_L + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_L];
-                }
-                if (sub_R != -1){
-                    const int E_base_R = E*3*SGBCndofs_ + sub_R;
-                    const int H_base_R = H*3*SGBCndofs_ + sub_R;
-                    for (auto d : {X,Y,Z}) {
-                        sgbcVec_[E_base_R + d*SGBCndofs_] = sgbc_helper_fields_[E][d][sub_R];
-                        sgbcVec_[H_base_R + d*SGBCndofs_] = sgbc_helper_fields_[H][d][sub_R];
-                    }
-                }
+                w->fillGlobalSGBCVec(state, sgbcVec_, blockSize);
             }
         }
 
-        SGBCOperator_->Mult(sgbcVec_, tempSGBC_);
-
-        const int nScatter = static_cast<int>(sgbc_scatter_parent_idx_.size());
-        for (int v = 0; v < nScatter; ++v) {
-            const int parent_idx = sgbc_scatter_parent_idx_[v];
-            for (int f : {E, H}) {
-                const int f_out_base = f*3*ndofs + parent_idx;
-                const int f_temp_base = f*3*SGBCndofs_ + v;
-                for (int d : {X,Y,Z}) {
-                    out[f_out_base + d*ndofs] -= tempSGBC_[f_temp_base + d*SGBCndofs_];
-                }
-            }
-        }
+        SGBCOperator_->AddMult(sgbcVec_, out, -1.0);
     }
 
     timerSGBC.Stop();
@@ -587,7 +471,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     timerSrc.Start();
     {
         implicit_src_ = 0.0;
-        applyTFSFSourceToVector(GetTime(), ndofs, (srcmngr_.getGlobalTFSFSpace() ? srcmngr_.getGlobalTFSFSpace()->GetNDofs() : 0), implicit_src_, true);
+        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
         implicit_rhs_ += implicit_src_;
     }
     timerSrc.Stop();

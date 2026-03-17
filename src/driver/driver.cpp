@@ -863,136 +863,156 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     
     double max_freq = calculateMaximumSourceFrequency(case_data);
 
+    auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
+        double rel_eps = 1.0;
+        if (mat_json.contains("relative_permittivity")) {
+            rel_eps = mat_json["relative_permittivity"].get<double>();
+        } else {
+            std::cout << "SGBC layer defined without 'relative_permittivity', assuming vacuum." << std::endl;
+        }
+
+        double rel_mu = 1.0;
+        if (mat_json.contains("relative_permeability")) {
+            rel_mu = mat_json["relative_permeability"].get<double>();
+        } else {
+            std::cout << "SGBC layer defined without 'relative_permeability', assuming vacuum." << std::endl;
+        }
+
+        if (!mat_json.contains("bulk_conductivity")) {
+            throw std::runtime_error("SGBC layer defined without 'bulk_conductivity' parameter. Verify .json parameters.");
+        }
+        double sigma_si = mat_json["bulk_conductivity"].get<double>();
+        double sigma_solver = sigma_si * physicalConstants::freeSpaceImpedance_SI;
+
+        Material mat(rel_eps, rel_mu, sigma_solver);
+
+        if (!mat_json.contains("material_width")) {
+            throw std::runtime_error("SGBC layer must define 'material_width'.");
+        }
+        double layer_width = mat_json["material_width"].get<double>();
+
+        SGBCLayer layer(mat, layer_width);
+
+        double mu_si = rel_mu * physicalConstants::vacuumPermeability_SI;
+        double eps_si = rel_eps * physicalConstants::vacuumPermittivity_SI;
+
+        double peclet_number = 0.0;
+        if (sigma_si > 0.0) {
+            peclet_number = sigma_si / (max_freq * eps_si);
+        }
+
+        // Adaptive polynomial order per layer
+        if (peclet_number > 100.0) {
+            layer.order = 2;
+        } else if (peclet_number < 0.1 && sigma_si < 1e-3) {
+            layer.order = 4;
+        } else {
+            layer.order = 3;
+        }
+
+        // Segment count per layer
+        double wavelength = 1.0 / (max_freq * std::sqrt(mu_si * eps_si));
+        double target_dx_wave = wavelength / 5.0;
+
+        double target_dx_skin = std::numeric_limits<double>::max();
+        double skin_depth = 0.0;
+        if (sigma_si > 0.0) {
+            skin_depth = 1.0 / std::sqrt(M_PI * max_freq * mu_si * sigma_si);
+            target_dx_skin = skin_depth / 1.5;
+        }
+
+        double target_dx = std::min(target_dx_wave, target_dx_skin);
+        int auto_segments = static_cast<int>(std::ceil(layer_width / target_dx));
+
+        double safety_factor = 1.25;
+        if (peclet_number > 100.0) {
+            safety_factor = 2.0;
+        } else if (peclet_number > 10.0) {
+            safety_factor = 1.75;
+        } else if (peclet_number > 1.0) {
+            safety_factor = 1.5;
+        }
+
+        layer.num_of_segments = std::clamp(
+            static_cast<int>(auto_segments * safety_factor), 2, 1000);
+
+        // Manual overrides (backward compatibility with old JSON format)
+        if (mat_json.contains("num_of_segments")) {
+            layer.num_of_segments = mat_json["num_of_segments"].get<size_t>();
+        }
+        if (mat_json.contains("order")) {
+            layer.order = mat_json["order"].get<size_t>();
+        }
+
+        if (Mpi::WorldRank() == 0) {
+            std::cout << "\n[SGBC Layer Auto-Mesh]" << std::endl;
+            std::cout << "  Width                : " << layer_width * 1000.0 << " mm" << std::endl;
+            std::cout << "  Pulse Max Freq       : " << max_freq / 1e9 << " GHz" << std::endl;
+            std::cout << "  Wavelength           : " << wavelength * 1000.0 << " mm" << std::endl;
+            if (sigma_si > 0.0) {
+                std::cout << "  Skin Depth           : " << skin_depth * 1000.0 << " mm" << std::endl;
+                std::cout << "  Loss Tangent (Pe)    : " << peclet_number << std::endl;
+            }
+            std::cout << "  Mesh Safety Factor   : " << safety_factor << "x" << std::endl;
+            std::cout << "  Generated Mesh       : " << layer.num_of_segments << " segments (Order " << layer.order << ")" << std::endl;
+
+            if (layer.num_of_segments == 1000) {
+                std::cout << "  [WARNING] Max segment limit reached!" << std::endl;
+            }
+            std::cout << std::endl;
+        }
+
+        return layer;
+    };
+
     for (int b = 0; b < case_data["model"]["boundaries"].size(); b++) {
         if (case_data["model"]["boundaries"][b].contains("type") && 
             case_data["model"]["boundaries"][b]["type"] == "SGBC") { 
-            
-            if (!case_data["model"]["boundaries"][b].contains("material")) {
-                throw std::runtime_error("SGBC Material defined without material properties. Verify .json parameters.");
-            } 
-            
-            const auto& mat_json = case_data["model"]["boundaries"][b]["material"];
-            
-            double rel_eps = 1.0;
-            if (mat_json.contains("relative_permittivity")) {
-                rel_eps = mat_json["relative_permittivity"].get<double>();
-            } else {
-                std::cout << "SGBC Material defined without 'relative_permittivity', assuming vacuum." << std::endl;
+
+            const auto& bdr_json = case_data["model"]["boundaries"][b];
+
+            SGBCProperties props;
+
+            for (auto t = 0; t < bdr_json["tags"].size(); t++) {
+                props.geom_tags.emplace_back(bdr_json["tags"][t]);
             }
 
-            double rel_mu = 1.0;
-            if (mat_json.contains("relative_permeability")) {
-                rel_mu = mat_json["relative_permeability"].get<double>();
-            } else {
-                std::cout << "SGBC Material defined without 'relative_permeability', assuming vacuum." << std::endl;
-            }
-
-            if (!mat_json.contains("bulk_conductivity")) {
-                throw std::runtime_error("SGBC Material defined without 'bulk_conductivity' parameter. Verify .json parameters.");
-            }
-            
-            double sigma_si = mat_json["bulk_conductivity"].get<double>();
-            double sigma_solver = sigma_si * physicalConstants::freeSpaceImpedance_SI; 
-            
-            Material mat(rel_eps, rel_mu, sigma_solver);
-            SGBCProperties props(mat);
-
-            for (auto t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); t++) {
-                props.geom_tags.emplace_back(case_data["model"]["boundaries"][b]["tags"][t]);
-            }
-
-            if (mat_json.contains("material_width")) {
-                props.material_width = mat_json["material_width"].get<double>();
-            } else {
-                throw std::runtime_error("SGBC Material must define 'material_width'.");
-            }
-
-            double mu_si = rel_mu * physicalConstants::vacuumPermeability_SI;
-            double eps_si = rel_eps * physicalConstants::vacuumPermittivity_SI;
-
-            // Calculate Peclet number for material characterization (needed for adaptive order)
-            double peclet_number = 0.0;  // Pe = σ/(ω·ε), ratio of conduction to displacement current
-            if (sigma_si > 0.0) {
-                peclet_number = sigma_si / (max_freq * eps_si);
-            }
-
-            // Adaptive polynomial order based on material properties
-            // High-conductivity (metals): Use lower order (faster, fields decay quickly)
-            // Weakly-conducting: Use higher order (better accuracy for smooth fields)
-            // Non-conducting: Use standard order (balanced)
-            if (peclet_number > 100.0) {
-                props.order = 2;  // Metals: lower order sufficient due to rapid decay
-            } else if (peclet_number < 0.1 && sigma_si < 1e-3) {
-                props.order = 4;  // Non-conducting dielectrics: higher order for accuracy
-            } else {
-                props.order = 3;  // Default: semiconductors and mixed materials
-            }
-
-            // Need at least 5 elements per wavelength at max freq
-            double wavelength = 1.0 / (max_freq * std::sqrt(mu_si * eps_si));
-            double target_dx_wave = wavelength / 5.0; 
-
-            double target_dx_skin = std::numeric_limits<double>::max();
-            double skin_depth = 0.0;
-            if (sigma_si > 0.0) {
-                skin_depth = 1.0 / std::sqrt(M_PI * max_freq * mu_si * sigma_si);
-                target_dx_skin = skin_depth / 1.5; // 1.5 elements per skin depth - heuristic
-            }
-
-            double target_dx = std::min(target_dx_wave, target_dx_skin);
-
-            int auto_segments = static_cast<int>(std::ceil(props.material_width / target_dx));
-
-            // Material-dependent mesh safety factor (physics-based heuristic)
-            // Metals (high conductivity): need 2.0x for stability (fast relaxation requires careful handling)
-            // Semiconductors: use 1.75x (intermediate case)
-            // Weakly conducting: use 1.5x (can be more aggressive)
-            // Non-conducting: use 1.25x (purely wave-like, standard refinement sufficient)
-            // (peclet_number already calculated above for adaptive order)
-
-            double safety_factor = 1.25;  // Default for non-conducting
-            if (peclet_number > 100.0) {
-                safety_factor = 2.0;      // Metals: Pe >> 1 (highly conductive regime)
-            } else if (peclet_number > 10.0) {
-                safety_factor = 1.75;     // Semiconductors: Pe ~ 10-100
-            } else if (peclet_number > 1.0) {
-                safety_factor = 1.5;      // Weakly conducting: Pe ~ 1-10
-            }
-            // else: Pe << 1 (wave-dominated), use 1.25x
-
-            props.num_of_segments = std::clamp(
-                static_cast<int>(auto_segments * safety_factor), 2, 1000);
-            
-            if (Mpi::WorldRank() == 0) {
-                std::cout << "\n[SGBC Auto-Mesh Generation]" << std::endl;
-                std::cout << "  Pulse Max Freq       : " << max_freq / 1e9 << " GHz" << std::endl;
-                std::cout << "  Wavelength           : " << wavelength * 1000.0 << " mm" << std::endl;
-                if (sigma_si > 0.0) {
-                    std::cout << "  Skin Depth           : " << skin_depth * 1000.0 << " mm" << std::endl;
-                    std::cout << "  Loss Tangent (Pe)    : " << peclet_number << std::endl;
+            // Support both single "material" and multi-layer "layers" formats
+            if (bdr_json.contains("layers")) {
+                for (const auto& layer_json : bdr_json["layers"]) {
+                    props.layers.push_back(parseSGBCLayer(layer_json));
                 }
-                std::cout << "  Mesh Safety Factor   : " << safety_factor << "x" << std::endl;
-                std::cout << "  Generated Mesh       : " << props.num_of_segments << " segments (Order " << props.order << ")" << std::endl;
-
-                if (props.num_of_segments == 1000) {
-                    std::cout << "  [WARNING] Max segment limit reached. Material properties may be too extreme to fully resolve!\n" << std::endl;
-                } else {
-                    std::cout << std::endl;
-                }
+            } else if (bdr_json.contains("material")) {
+                props.layers.push_back(parseSGBCLayer(bdr_json["material"]));
+            } else {
+                throw std::runtime_error("SGBC boundary must define either 'material' or 'layers'. Verify .json parameters.");
             }
 
+            // Parse sgbc_boundaries from boundary level or from material level (backward compat)
             SGBCBoundaryInfo left;
             SGBCBoundaryInfo right;
-            if (mat_json.contains("sgbc_boundaries")) {
-                if (mat_json["sgbc_boundaries"].contains("left")) {
-                    left.isOn = true;
-                    left.bdrCond = assignBoundaryType(mat_json["sgbc_boundaries"]["left"]);
+            auto parseBoundaries = [&](const nlohmann::json& src) {
+                if (src.contains("sgbc_boundaries")) {
+                    if (src["sgbc_boundaries"].contains("left")) {
+                        left.isOn = true;
+                        left.bdrCond = assignBoundaryType(src["sgbc_boundaries"]["left"]);
+                    }
+                    if (src["sgbc_boundaries"].contains("right")) {
+                        right.isOn = true;
+                        right.bdrCond = assignBoundaryType(src["sgbc_boundaries"]["right"]);
+                    }
                 }
-                if (mat_json["sgbc_boundaries"].contains("right")) {
-                    right.isOn = true;
-                    right.bdrCond = assignBoundaryType(mat_json["sgbc_boundaries"]["right"]);
-                }
-                props.sgbc_bdr_info = std::make_pair(left, right);
+            };
+            parseBoundaries(bdr_json);
+            if (!left.isOn && !right.isOn && bdr_json.contains("material")) {
+                parseBoundaries(bdr_json["material"]);
+            }
+            props.sgbc_bdr_info = std::make_pair(left, right);
+
+            if (Mpi::WorldRank() == 0) {
+                std::cout << "[SGBC] Total: " << props.layers.size() << " layer(s), "
+                          << props.totalSegments() << " segments, "
+                          << props.totalWidth() * 1000.0 << " mm width" << std::endl;
             }
 
             sgbc_props.emplace_back(props);

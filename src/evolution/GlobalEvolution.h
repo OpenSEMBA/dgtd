@@ -32,16 +32,14 @@ public:
     bool hasSGBC() const { return !sgbc_states_.empty(); }
 
 private:
-    void applyTFSFSourceToVector(double t_stage, int ndofs, int ndofs_tfsf,
-                                  mfem::Vector& result_vector, bool check_zero = false) const;
+    void applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
+                                  mfem::Vector& result_vector) const;
 
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
-    int SGBCndofs_;
 
     mfem::Array<int> tfsf_sub_to_parent_ids_;
-    mfem::Array<int> sgbc_sub_to_parent_ids_;
 
     std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
 
@@ -50,17 +48,11 @@ private:
 
     std::map<int, int> sgbc_coupling_map_;
 
-    // O(1) lookup: global DOF id -> submesh index (replaces linear Array::Find)
-    std::unordered_map<int, int> sgbc_parent_to_sub_;
-
     // Cached indices of sources that are TotalField (avoids dynamic_cast per Mult)
     std::vector<int> tfsfSourceIndices_;
 
     // Fast-exit flag: set to true once TFSF cutoff time is reached
     mutable bool tfsf_cutoff_reached_ = false;
-
-    // Precomputed SGBC scatter arrays: sgbc_scatter_out_[i] = parent DOF index for submesh DOF i
-    std::vector<int> sgbc_scatter_parent_idx_;
 
     mfem::ParFiniteElementSpace& fes_;
     Model& model_;
@@ -68,14 +60,10 @@ private:
     EvolutionOptions& opts_;
 
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
-    mutable SGBCHelperFields sgbc_helper_fields_;
-    mutable int last_sgbc_helper_size_ = -1;
 
     mutable mfem::Vector inNew_;
     mutable mfem::Vector sgbcVec_;
-    mutable mfem::Vector tempSGBC_;
     mutable mfem::Vector tfsf_assembledFunc_;
-    mutable mfem::Vector tfsf_tempVec_;
 
     // ImplicitSolve reusable work vectors (avoid per-call allocation)
     mutable mfem::Vector implicit_inNew_;

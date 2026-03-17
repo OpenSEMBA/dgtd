@@ -162,15 +162,19 @@ TEST_F(CasesTest, 1D_SMA_Upwind)
 
 TEST_F(CasesTest, 1D_MultiCondition_Upwind)
 {
-	SGBCProperties sbcp(Material(20.0, 1.0, 20.0));
-	sbcp.order = 4;
-	sbcp.material_width = 2.0;
+	SGBCProperties sbcp;
+	SGBCLayer layer(Material(20.0, 1.0, 20.0), 2.0);
+	layer.order = 4;
+	layer.num_of_segments = 10;
+	sbcp.layers.push_back(layer);
 	SGBCBoundaries sbcp_bdrs;
 	sbcp_bdrs.second.isOn = true;
 	sbcp_bdrs.second.bdrCond = BdrCond::PEC;
 	sbcp.sgbc_bdr_info = sbcp_bdrs;
 
-	auto mesh = mfem::Mesh::MakeCartesian1D(sbcp.num_of_segments + 2, sbcp.material_width + 2 * sbcp.material_width / sbcp.num_of_segments);
+	auto total_segments = sbcp.totalSegments();
+	auto total_width = sbcp.totalWidth();
+	auto mesh = mfem::Mesh::MakeCartesian1D(total_segments + 2, total_width + 2 * total_width / total_segments);
     mesh.AddBdrPoint(1, 3);
     mesh.AddBdrPoint(mesh.GetNV() - 2, 4);
     mesh.SetAttribute(0, 2);
@@ -208,7 +212,7 @@ TEST_F(CasesTest, 1D_MultiCondition_Upwind)
 	sources.add(std::make_unique<InitialField>(gauss, E, mfem::Vector({0.0,1.0,0.0}), gaussianCenter));
 	sources.add(std::make_unique<InitialField>(gauss, H, mfem::Vector({0.0,0.0,1.0}), gaussianCenter));
     SolverOptions opts;
-    opts.setOrder(sbcp.order);
+    opts.setOrder(sbcp.maxOrder());
     opts.setUpwindAlpha(1.0);
     opts.setODEType(ode_type::RK4); 
 	opts.setFinalTime(10.0);

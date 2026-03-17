@@ -67,12 +67,16 @@ public:
     
     // [MODIFIED] Now reads from state directly
     void getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, SGBCHelperFields& out);
+
+    // Write SGBC sub-solver boundary values directly into a global-layout vector
+    void fillGlobalSGBCVec(const SGBCState& context, mfem::Vector& vec, int blockSize);
     
     const SGBCProperties& getProperties() const { return sbcp_; }
 
     void solve(const Time t, const Time dt);
     void setOldTime(const Time t) { old_t_ = t; }
     const Time getOldTime() const { return old_t_; }
+    double getRecommendedDt() const { return recommended_dt_; }
 
     // [ADDED] Context Switching
     void loadState(const SGBCState& state);
@@ -93,6 +97,7 @@ private:
     FluxNodeInfo flux_nodes_;
 
     Time old_t_ = 0.0;
+    double recommended_dt_ = 0.0;
 
     bool temporal_warning_printed_ = false;
     

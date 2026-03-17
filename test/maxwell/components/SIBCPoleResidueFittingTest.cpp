@@ -13,8 +13,8 @@ TEST_F(SIBCFittingTest, copperCase)
 {
     // Case 1: Copper (Standard Conductor / Skin Effect)
     Material mat(1.0, 1.0, 5.8e7);
-    SGBCProperties props(mat);
-    props.material_width = 100e-6;
+    SGBCProperties props;
+    props.layers.push_back({mat, 100e-6});
 
     auto result = findOptimalPoles(props, 1e6, 1e9, 500, 10, 0.02);
 
@@ -77,8 +77,8 @@ TEST_F(SIBCFittingTest, teflonCase)
 {
     // Case 2: Teflon (Good Dielectric / Capacitive)
     Material mat(2.1, 1.0, 1e-12);
-    SGBCProperties props(mat);
-    props.material_width = 100e-6;
+    SGBCProperties props;
+    props.layers.push_back({mat, 100e-6});
 
     auto result = findOptimalPoles(props, 1e6, 1e9, 500, 10, 0.02);
 
@@ -135,8 +135,8 @@ TEST_F(SIBCFittingTest, saltwaterCase)
 {
     // Case 2: Saltwater (Lossy Dielectric / Crossover)
     Material mat(81.0, 1.0, 4.0);
-    SGBCProperties props(mat);
-    props.material_width = 1e-2;
+    SGBCProperties props;
+    props.layers.push_back({mat, 1e-2});
 
     auto result = findOptimalPoles(props, 1e6, 1e9, 500, 10, 0.02);
 

@@ -469,11 +469,17 @@ void Solver::step()
 {
     double truedt{ std::min(dt_, opts_.final_time - time_) };
 
+    // Strang splitting: half-step SGBC, full ODE step, half-step SGBC
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
-        globalEvol_cache_->advanceSGBCs(time_, truedt, fields_);
+        globalEvol_cache_->advanceSGBCs(time_, truedt * 0.5, fields_);
     }
 
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);
+
+    if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
+        globalEvol_cache_->advanceSGBCs(time_, truedt * 0.5, fields_);
+    }
+
     probesManager_.updateProbes(time_);
 }
 
