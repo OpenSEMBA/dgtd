@@ -18,7 +18,7 @@
         "tags": [ 3 ],
         "relative_permittivity": 1.0,
         "relative_permeability": 1.0,
-        "bulk_conductivity": 0.2
+        "bulk_conductivity": 100.0
       }
     ],
     "boundaries": [

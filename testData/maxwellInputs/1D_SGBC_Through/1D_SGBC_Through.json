@@ -26,7 +26,7 @@
         "material":{
           "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 0.02,
+          "bulk_conductivity": 100.0,
           "material_width": 5e-3
         }
       }

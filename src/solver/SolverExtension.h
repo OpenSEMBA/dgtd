@@ -106,6 +106,7 @@ private:
 
     Time old_t_ = 0.0;
     double recommended_dt_ = 0.0;
+    int n_ghost_elements_ = 1;
 
     bool temporal_warning_printed_ = false;
     

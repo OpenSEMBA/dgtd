@@ -4,6 +4,7 @@
 #include "components/ProblemDescription.h"
 
 #include <memory>
+#include <algorithm>
 
 namespace maxwell
 {
@@ -45,19 +46,23 @@ GeomTagToBoundary buildBdrInfo()
     return res;
 }
 
-mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp)
+mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp, int n_ghost)
 {
-    // Total interior segments across all layers
     size_t total_segments = sbcp.totalSegments();
     double total_width = sbcp.totalWidth();
-    double ghost_dx = total_width / total_segments; // ghost element size based on average
+    double ghost_dx = total_width / total_segments;
 
-    // Build vertex coordinates: ghost_left | layer0 | layer1 | ... | ghost_right
+    // Build vertex coordinates:
+    //   n_ghost ghost elements | layer0 | ... | layerN | n_ghost ghost elements
     std::vector<double> vertices;
-    vertices.push_back(0.0);                          // left ghost start
-    vertices.push_back(ghost_dx);                     // left ghost end = first layer start
 
-    double x = ghost_dx;
+    // Left ghost vertices
+    for (int i = 0; i <= n_ghost; ++i) {
+        vertices.push_back(i * ghost_dx);
+    }
+
+    // Physical layer vertices (first vertex already placed above)
+    double x = n_ghost * ghost_dx;
     for (const auto& layer : sbcp.layers) {
         double dx = layer.width / layer.num_of_segments;
         for (size_t i = 0; i < layer.num_of_segments; ++i) {
@@ -65,7 +70,11 @@ mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp)
             vertices.push_back(x);
         }
     }
-    vertices.push_back(x + ghost_dx);                 // right ghost end
+
+    // Right ghost vertices
+    for (int i = 1; i <= n_ghost; ++i) {
+        vertices.push_back(x + i * ghost_dx);
+    }
 
     int num_elements = static_cast<int>(vertices.size()) - 1;
     mfem::Mesh mesh(1, static_cast<int>(vertices.size()), num_elements, 0, 1);
@@ -81,23 +90,28 @@ mfem::Mesh buildSGBCMesh(const SGBCProperties& sbcp)
     mesh.FinalizeMesh();
 
     // Interior boundary markers at ghost/material interfaces
-    mesh.AddBdrPoint(1, 3);                            // left interface
-    mesh.AddBdrPoint(num_elements - 1, 4);             // right interface
+    mesh.AddBdrPoint(n_ghost, 3);
+    mesh.AddBdrPoint(n_ghost + static_cast<int>(total_segments), 4);
 
     // Assign element attributes:
-    //   Element 0: left ghost  -> attr = total_layers + 1 (reserved for vacuum)
-    //   Elements for layer i   -> attr = i + 1
-    //   Last element: right ghost -> attr = total_layers + 1
+    //   Elements 0..n_ghost-1:     left ghosts  -> vacuum_attr
+    //   Physical layer elements:   attr = layer_index + 1
+    //   Last n_ghost elements:     right ghosts -> vacuum_attr
     int vacuum_attr = static_cast<int>(sbcp.layers.size()) + 1;
-    mesh.SetAttribute(0, vacuum_attr);
-    mesh.SetAttribute(num_elements - 1, vacuum_attr);
+    for (int i = 0; i < n_ghost; ++i) {
+        mesh.SetAttribute(i, vacuum_attr);
+    }
 
-    int elem_idx = 1; // start after left ghost
+    int elem_idx = n_ghost;
     for (size_t li = 0; li < sbcp.layers.size(); ++li) {
         for (size_t s = 0; s < sbcp.layers[li].num_of_segments; ++s) {
             mesh.SetAttribute(elem_idx, static_cast<int>(li) + 1);
             elem_idx++;
         }
+    }
+
+    for (int i = 0; i < n_ghost; ++i) {
+        mesh.SetAttribute(elem_idx + i, vacuum_attr);
     }
 
     mesh.bdr_attributes = mfem::Array<int>({1, 2, 3, 4});
@@ -168,12 +182,12 @@ int SGBCWrapper::getLocalFieldSize() const {
 }
 
 int SGBCWrapper::getLeftInterfaceIndex() const {
-    return sbcp_.maxOrder() + 1;
+    return n_ghost_elements_ * (sbcp_.maxOrder() + 1);
 }
 
 int SGBCWrapper::getRightInterfaceIndex() const {
     int local_size = solver_->getConstField(FieldType::E, X).Size();
-    return (local_size - 1) - (sbcp_.maxOrder() + 1);
+    return (local_size - 1) - n_ghost_elements_ * (sbcp_.maxOrder() + 1);
 }
 
 void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
@@ -181,13 +195,12 @@ void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpac
 {
     const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
     const NodePair& pair = context.global_pair;
-    const int order_p1 = sbcp_.maxOrder() + 1;
+    const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
 
     for (auto d : {X, Y, Z}){
-        for (auto dof = 0; dof < order_p1; dof++){
-            // Direct copy with bounds checking for safety-critical field access
+        for (auto dof = 0; dof < total_ghost_dofs; dof++){
             solver_->setFieldValue(FieldType::E, d, dof, fields.get(E, d)[pair.first]);
             solver_->setFieldValue(FieldType::H, d, dof, fields.get(H, d)[pair.first]);
             if (has_right) {
@@ -202,7 +215,7 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
 {
     const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
     const NodePair& pair = context.global_pair;
-    const int order_p1 = sbcp_.maxOrder() + 1;
+    const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
 
@@ -211,7 +224,7 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
         double h_left = in[(3 + d) * ndofs + pair.first];
         double e_right = has_right ? in[d * ndofs + pair.second] : 0.0;
         double h_right = has_right ? in[(3 + d) * ndofs + pair.second] : 0.0;
-        for (auto dof = 0; dof < order_p1; dof++){
+        for (auto dof = 0; dof < total_ghost_dofs; dof++){
             solver_->setFieldValue(FieldType::E, d, dof, e_left);
             solver_->setFieldValue(FieldType::H, d, dof, h_left);
             if (has_right) {
@@ -224,7 +237,6 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
 
 void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, SGBCHelperFields& out)
 {
-    const auto left_ghost_border_dof = this->getProperties().maxOrder() + 1;
     const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();
 
     const auto first_idx = sub_to_global.Find(context.global_pair.first);
@@ -235,8 +247,8 @@ void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState
 
     if (first_idx == -1) return;
 
-    int idx_left = left_ghost_border_dof;
-    int idx_right = (local_field_size - 1) - left_ghost_border_dof;
+    int idx_left = this->getLeftInterfaceIndex();
+    int idx_right = this->getRightInterfaceIndex();
 
     const int E_base = 0 * local_field_size;      // E fields at indices 0-2
     const int H_base = 3 * local_field_size;       // H fields at indices 3-5 (3 components each)
@@ -255,11 +267,10 @@ void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState
 
 void SGBCWrapper::fillGlobalSGBCVec(const SGBCState& context, mfem::Vector& vec, int blockSize)
 {
-    const auto left_ghost_border_dof = this->getProperties().maxOrder() + 1;
     const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();
 
-    const int idx_left  = left_ghost_border_dof;
-    const int idx_right = (local_field_size - 1) - left_ghost_border_dof;
+    const int idx_left  = this->getLeftInterfaceIndex();
+    const int idx_right = this->getRightInterfaceIndex();
 
     const int gl = context.global_pair.first;
     const int gr = context.global_pair.second;
@@ -365,11 +376,12 @@ void checkSkinDepthResolution(const SGBCProperties& props)
 }
 
 SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
-sbcp_(sbcp)
+sbcp_(sbcp),
+n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
 { 
     checkSkinDepthResolution(sbcp_);
 
-    auto mesh = buildSGBCMesh(sbcp_);
+    auto mesh = buildSGBCMesh(sbcp_, n_ghost_elements_);
     int* partitioning = mesh.GeneratePartitioning(1);
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
