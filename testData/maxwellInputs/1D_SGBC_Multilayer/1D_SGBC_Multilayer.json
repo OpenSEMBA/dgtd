@@ -1,10 +1,10 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-4,
+    "time_step": 1e-5,
     "final_time": 8.0,
     "tfsf_final_time": 3.0,
-    "order": 3
+    "order": 4
   },
 
   "model": { 

@@ -304,8 +304,11 @@ void GlobalEvolution::finalizeSGBCStep(
 
         for (auto& state : states) {
             w->loadState(state);
-            w->updateFieldsWithGlobal(fields, state);
             for (int step = 0; step < nsteps; ++step) {
+                // Re-inject ghost values before each sub-step.
+                // The solver evolves ghost DOFs (including SMA absorption),
+                // so they must be reset to the global boundary condition.
+                w->updateFieldsWithGlobal(fields, state);
                 w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
             }
             w->saveState(state);
@@ -462,8 +465,11 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
                 for (auto& state : states) {
                     w->loadState(state);
-                    w->updateFieldsWithGlobalVector(in, ndofs, state);
                     for (int step = 0; step < nsteps; ++step) {
+                        // Re-inject ghost values before each sub-step.
+                        // The solver evolves ghost DOFs (including SMA absorption),
+                        // so they must be reset to the global boundary condition.
+                        w->updateFieldsWithGlobalVector(in, ndofs, state);
                         w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
                     }
                     w->saveState(state);
