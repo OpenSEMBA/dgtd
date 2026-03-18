@@ -63,6 +63,9 @@ public:
     void updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields, 
                                 const SGBCState& context);
 
+    // Overload that reads ghost-zone values from a raw stage vector (for monolithic IMEX)
+    void updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs, const SGBCState& context);
+
     void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
     
     // [MODIFIED] Now reads from state directly
@@ -82,6 +85,11 @@ public:
     void loadState(const SGBCState& state);
     void saveState(SGBCState& state);
     int getStateSize() const;
+
+    // Interface DOF indices for the sub-solver's internal field layout
+    int getLocalFieldSize() const;
+    int getLeftInterfaceIndex() const;
+    int getRightInterfaceIndex() const;
 
     ~SGBCWrapper();
 

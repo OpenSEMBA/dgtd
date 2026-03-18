@@ -469,15 +469,15 @@ void Solver::step()
 {
     double truedt{ std::min(dt_, opts_.final_time - time_) };
 
-    // Strang splitting: half-step SGBC, full ODE step, half-step SGBC
+    // Monolithic IMEX: checkpoint SGBC before RK4, advance inside Mult(), finalize after
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
-        globalEvol_cache_->advanceSGBCs(time_, truedt * 0.5, fields_);
+        globalEvol_cache_->commitSGBCCheckpoint(time_, truedt);
     }
 
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
-        globalEvol_cache_->advanceSGBCs(time_, truedt * 0.5, fields_);
+        globalEvol_cache_->finalizeSGBCStep(fields_);
     }
 
     probesManager_.updateProbes(time_);

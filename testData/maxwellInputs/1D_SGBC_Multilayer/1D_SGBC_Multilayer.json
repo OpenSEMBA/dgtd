@@ -8,7 +8,7 @@
   },
 
   "model": { 
-    "filename": "1D_SGBC_Through.msh",
+    "filename": "1D_SGBC_Multilayer.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -23,19 +23,27 @@
       {
         "tags": [ 3 ],
         "type": "SGBC",
-        "material":{
-          "relative_permittivity": 1.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 10.0,
-          "material_width": 5e-3
-        }
+        "layers": [
+          {
+            "relative_permittivity": 1.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 1.0,
+            "material_width": 7e-3
+          },
+          {
+            "relative_permittivity": 9.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 0.1,
+            "material_width": 3e-3
+          }
+        ]
       }
     ]
   },
 
 "probes": {
     "exporter": {
-      "saves": 60
+      "saves": 100
     },
     "point": [
       {

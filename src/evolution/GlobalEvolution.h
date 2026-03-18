@@ -24,8 +24,8 @@ public:
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
     void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
-    void advanceSGBCs(double time, double dt,
-                      const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
+    void commitSGBCCheckpoint(double base_time, double dt);
+    void finalizeSGBCStep(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
@@ -43,10 +43,21 @@ private:
 
     std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
 
-    std::map<GeomTag, std::vector<SGBCState>> sgbc_states_;
+    mutable std::map<GeomTag, std::vector<SGBCState>> sgbc_states_;
     std::map<GeomTag, SGBCWrapper*> sgbc_wrapper_map_;
 
+    // Monolithic IMEX: checkpoint storage for SGBC states at start of RK4 step
+    mutable std::map<GeomTag, std::vector<SGBCState>> sgbc_states_checkpoint_;
+    mutable double sgbc_step_base_time_ = 0.0;
+    mutable double sgbc_step_dt_ = 0.0;
+
     std::map<int, int> sgbc_coupling_map_;
+
+    // Pre-computed element DOF ranges for SGBC flux gathering.
+    // Maps element ID -> list of DOF indices belonging to that element.
+    // Separated by pass: elem1 DOFs (pass 1) and elem2 DOFs (pass 2).
+    std::vector<int> sgbc_elem1_dofs_;  // All DOFs of unique Elem1s touching SGBC faces
+    std::vector<int> sgbc_elem2_dofs_;  // All DOFs of unique Elem2s touching SGBC faces
 
     // Cached indices of sources that are TotalField (avoids dynamic_cast per Mult)
     std::vector<int> tfsfSourceIndices_;
@@ -63,6 +74,7 @@ private:
 
     mutable mfem::Vector inNew_;
     mutable mfem::Vector sgbcVec_;
+    mutable mfem::Vector sgbcOut_;
     mutable mfem::Vector tfsf_assembledFunc_;
 
     // ImplicitSolve reusable work vectors (avoid per-call allocation)

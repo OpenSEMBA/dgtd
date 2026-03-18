@@ -163,6 +163,19 @@ void SGBCWrapper::saveState(SGBCState& state) {
     state.fields_state = solver_->getFields().allDOFs();
 }
 
+int SGBCWrapper::getLocalFieldSize() const {
+    return solver_->getConstField(FieldType::E, X).Size();
+}
+
+int SGBCWrapper::getLeftInterfaceIndex() const {
+    return sbcp_.maxOrder() + 1;
+}
+
+int SGBCWrapper::getRightInterfaceIndex() const {
+    int local_size = solver_->getConstField(FieldType::E, X).Size();
+    return (local_size - 1) - (sbcp_.maxOrder() + 1);
+}
+
 void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
                                          const SGBCState& context)
 {
@@ -180,6 +193,30 @@ void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpac
             if (has_right) {
                 solver_->setFieldValue(FieldType::E, d, right_dof_offset - dof, fields.get(E, d)[pair.second]);
                 solver_->setFieldValue(FieldType::H, d, right_dof_offset - dof, fields.get(H, d)[pair.second]);
+            }
+        }
+    }
+}
+
+void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs, const SGBCState& context)
+{
+    const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
+    const NodePair& pair = context.global_pair;
+    const int order_p1 = sbcp_.maxOrder() + 1;
+    const bool has_right = (pair.second != -1);
+    const int right_dof_offset = dof_per_field_comp - 1;
+
+    for (int d = X; d <= Z; ++d){
+        double e_left = in[d * ndofs + pair.first];
+        double h_left = in[(3 + d) * ndofs + pair.first];
+        double e_right = has_right ? in[d * ndofs + pair.second] : 0.0;
+        double h_right = has_right ? in[(3 + d) * ndofs + pair.second] : 0.0;
+        for (auto dof = 0; dof < order_p1; dof++){
+            solver_->setFieldValue(FieldType::E, d, dof, e_left);
+            solver_->setFieldValue(FieldType::H, d, dof, h_left);
+            if (has_right) {
+                solver_->setFieldValue(FieldType::E, d, right_dof_offset - dof, e_right);
+                solver_->setFieldValue(FieldType::H, d, right_dof_offset - dof, h_right);
             }
         }
     }

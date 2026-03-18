@@ -304,7 +304,7 @@ namespace maxwell
 			ignore_marker = 0;
 			
 			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
-				if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC) {
+				if (kv.first != BdrCond::TotalFieldIn) {
 					for (int i = 0; i < kv.second.Size(); i++) {
 						if (kv.second[i] == 1) ignore_marker[i] = 1;
 					}
@@ -353,7 +353,7 @@ namespace maxwell
 			ignore_marker = 0;
 			
 			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
-				if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC) {
+				if (kv.first != BdrCond::TotalFieldIn) {
 					for (int i = 0; i < kv.second.Size(); i++) {
 						if (kv.second[i] == 1) ignore_marker[i] = 1;
 					}
@@ -402,7 +402,7 @@ namespace maxwell
 			ignore_marker = 0;
 			
 			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
-				if (kv.first != BdrCond::TotalFieldIn && kv.first != BdrCond::SGBC) {
+				if (kv.first != BdrCond::TotalFieldIn) {
 					for (int i = 0; i < kv.second.Size(); i++) {
 						if (kv.second[i] == 1) ignore_marker[i] = 1;
 					}

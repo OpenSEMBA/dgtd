@@ -2,6 +2,7 @@
 #include "solver/SolverExtension.h"
 
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <unordered_set>
 
@@ -163,6 +164,37 @@ GlobalEvolution::GlobalEvolution(
     
     MPI_Barrier(fes_.GetParMesh()->GetComm());
 
+    // Pre-compute unique element DOF sets for SGBC flux gathering.
+    // Instead of copying only face DOFs from sgbcOut_ to out, we need ALL DOFs
+    // of elements touching SGBC faces, because the DG face integral distributes
+    // flux to all test functions in the element (not just the face node).
+    {
+        std::unordered_set<int> elem1_set, elem2_set;
+        for (const auto& [tag, states] : sgbc_states_) {
+            for (const auto& s : states) {
+                elem1_set.insert(s.element_pair.first);
+                if (s.element_pair.second != -1) {
+                    elem2_set.insert(s.element_pair.second);
+                }
+            }
+        }
+        const mfem::Table& elem_dof_table = fes_.GetElementToDofTable();
+        auto collectDofs = [&](const std::unordered_set<int>& elems, std::vector<int>& out_dofs) {
+            std::unordered_set<int> dof_set;
+            for (int el : elems) {
+                const int* dofs = elem_dof_table.GetRow(el);
+                const int n = elem_dof_table.RowSize(el);
+                for (int i = 0; i < n; ++i) {
+                    dof_set.insert(dofs[i]);
+                }
+            }
+            out_dofs.assign(dof_set.begin(), dof_set.end());
+            std::sort(out_dofs.begin(), out_dofs.end());
+        };
+        collectDofs(elem1_set, sgbc_elem1_dofs_);
+        collectDofs(elem2_set, sgbc_elem2_dofs_);
+    }
+
     globalOperator_ = std::make_unique<mfem::SparseMatrix>(
         numberOfFieldComponents * numberOfMaxDimensions * fes_.GetNDofs(), 
         numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs)
@@ -226,10 +258,40 @@ void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
     }
 }
 
-void GlobalEvolution::advanceSGBCs(double time, double dt,
-                                   const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
+void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt)
 {
-    for (auto& [tag, states] : sgbc_states_){
+    sgbc_step_base_time_ = base_time;
+    sgbc_step_dt_ = dt;
+
+    // Deep copy all SGBC states (each SGBCState contains an mfem::Vector)
+    sgbc_states_checkpoint_.clear();
+    for (const auto& [tag, states] : sgbc_states_) {
+        auto& cp = sgbc_states_checkpoint_[tag];
+        cp.reserve(states.size());
+        for (const auto& s : states) {
+            SGBCState copy;
+            copy.global_pair = s.global_pair;
+            copy.element_pair = s.element_pair;
+            copy.fields_state = s.fields_state;  // mfem::Vector deep copy
+            cp.push_back(std::move(copy));
+        }
+    }
+}
+
+void GlobalEvolution::finalizeSGBCStep(
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
+{
+    // Restore from checkpoint
+    for (auto& [tag, states] : sgbc_states_) {
+        const auto& cp = sgbc_states_checkpoint_.at(tag);
+        for (size_t i = 0; i < states.size(); ++i) {
+            states[i].fields_state = cp[i].fields_state;
+        }
+    }
+
+    // Advance SGBC for full dt with committed post-step fields
+    double dt = sgbc_step_dt_;
+    for (auto& [tag, states] : sgbc_states_) {
         auto it = sgbc_wrapper_map_.find(tag);
         if (it == sgbc_wrapper_map_.end()) continue;
 
@@ -240,15 +302,15 @@ void GlobalEvolution::advanceSGBCs(double time, double dt,
                    : 1;
         double actual_sub_dt = dt / nsteps;
 
-        for (auto& state : states){
+        for (auto& state : states) {
             w->loadState(state);
             w->updateFieldsWithGlobal(fields, state);
             for (int step = 0; step < nsteps; ++step) {
-                w->solve(time + step * actual_sub_dt, actual_sub_dt);
+                w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
             }
             w->saveState(state);
         }
-        w->setOldTime(time);
+        w->setOldTime(sgbc_step_base_time_ + dt);
     }
 }
 
@@ -356,7 +418,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
     timerTFSF.Stop();
 
-    // 5) SGBC Coupling via Flux Injection
+    // 5) SGBC Coupling via Monolithic IMEX: two-pass face flux injection
+    //
+    // The global operator now EXCLUDES SGBC faces from its interior face flux.
+    // We compute the correct two-interface flux here:
+    //   Pass 1: Elem1 (L) sees itself + slab_left as neighbor -> keep Elem1 DOF contributions
+    //   Pass 2: Elem2 (R) sees slab_right as neighbor + itself -> keep Elem2 DOF contributions
     timerSGBC.Start();
 
     if (SGBCOperator_ && !sgbcWrappers_.empty()){
@@ -364,19 +431,116 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             sgbcVec_.SetSize(6 * blockSize);
             sgbcVec_.UseDevice(true);
         }
-        sgbcVec_ = 0.0;
+        if (sgbcOut_.Size() != 6 * ndofs) {
+            sgbcOut_.SetSize(6 * ndofs);
+            sgbcOut_.UseDevice(true);
+        }
 
+        double t_stage = GetTime();
+        double dt_to_stage = t_stage - sgbc_step_base_time_;
+
+        // Restore SGBC states from start-of-step checkpoint
         for (auto& [tag, states] : sgbc_states_) {
-            auto it = sgbc_wrapper_map_.find(tag);
-            if (it == sgbc_wrapper_map_.end()) continue;
-
-            auto w = it->second;
-            for (const auto& state : states) {
-                w->fillGlobalSGBCVec(state, sgbcVec_, blockSize);
+            const auto& cp = sgbc_states_checkpoint_.at(tag);
+            for (size_t i = 0; i < states.size(); ++i) {
+                states[i].fields_state = cp[i].fields_state;
             }
         }
 
-        SGBCOperator_->AddMult(sgbcVec_, out, -1.0);
+        // Advance SGBC to stage time using intermediate global fields as ghost data
+        if (dt_to_stage > 1e-12) {
+            for (auto& [tag, states] : sgbc_states_) {
+                auto it = sgbc_wrapper_map_.find(tag);
+                if (it == sgbc_wrapper_map_.end()) continue;
+
+                auto w = it->second;
+                double sub_dt = w->getRecommendedDt();
+                int nsteps = (sub_dt > 0.0 && sub_dt < dt_to_stage)
+                           ? static_cast<int>(std::ceil(dt_to_stage / sub_dt))
+                           : 1;
+                double actual_sub_dt = dt_to_stage / nsteps;
+
+                for (auto& state : states) {
+                    w->loadState(state);
+                    w->updateFieldsWithGlobalVector(in, ndofs, state);
+                    for (int step = 0; step < nsteps; ++step) {
+                        w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
+                    }
+                    w->saveState(state);
+                }
+            }
+        }
+
+        // --- Pass 1: Elem1 (L) flux ---
+        // Input: u_L at gl (Elem1), u_slab_left at gr (Elem2)
+        // Keep only Elem1 DOF contributions from the result
+        sgbcVec_ = 0.0;
+        for (auto& [tag, states] : sgbc_states_) {
+            auto it = sgbc_wrapper_map_.find(tag);
+            if (it == sgbc_wrapper_map_.end()) continue;
+            auto w = it->second;
+            int local_size = w->getLocalFieldSize();
+            int idx_left = w->getLeftInterfaceIndex();
+
+            for (const auto& state : states) {
+                int gl = state.global_pair.first;
+                int gr = state.global_pair.second;
+                for (int d = X; d <= Z; ++d) {
+                    // Elem1 slot: global field value (u_L)
+                    sgbcVec_[d * blockSize + gl] = in[d * ndofs + gl];
+                    sgbcVec_[(3 + d) * blockSize + gl] = in[(3 + d) * ndofs + gl];
+                    // Elem2 slot: slab left-interface value
+                    if (gr != -1) {
+                        sgbcVec_[d * blockSize + gr] = state.fields_state[d * local_size + idx_left];
+                        sgbcVec_[(3 + d) * blockSize + gr] = state.fields_state[(3 + d) * local_size + idx_left];
+                    }
+                }
+            }
+        }
+        sgbcOut_ = 0.0;
+        SGBCOperator_->Mult(sgbcVec_, sgbcOut_);
+        // Add ALL Elem1 DOF contributions to out (not just face DOFs).
+        // The DG face integral distributes flux to all test functions in
+        // the element, so we must copy the full element contribution.
+        for (int comp = 0; comp < 6; ++comp) {
+            for (int dof : sgbc_elem1_dofs_) {
+                out[comp * ndofs + dof] += sgbcOut_[comp * ndofs + dof];
+            }
+        }
+
+        // --- Pass 2: Elem2 (R) flux ---
+        // Input: u_slab_right at gl (Elem1), u_R at gr (Elem2)
+        // Keep only Elem2 DOF contributions from the result
+        sgbcVec_ = 0.0;
+        for (auto& [tag, states] : sgbc_states_) {
+            auto it = sgbc_wrapper_map_.find(tag);
+            if (it == sgbc_wrapper_map_.end()) continue;
+            auto w = it->second;
+            int local_size = w->getLocalFieldSize();
+            int idx_right = w->getRightInterfaceIndex();
+
+            for (const auto& state : states) {
+                int gl = state.global_pair.first;
+                int gr = state.global_pair.second;
+                if (gr == -1) continue;
+                for (int d = X; d <= Z; ++d) {
+                    // Elem1 slot: slab right-interface value
+                    sgbcVec_[d * blockSize + gl] = state.fields_state[d * local_size + idx_right];
+                    sgbcVec_[(3 + d) * blockSize + gl] = state.fields_state[(3 + d) * local_size + idx_right];
+                    // Elem2 slot: global field value (u_R)
+                    sgbcVec_[d * blockSize + gr] = in[d * ndofs + gr];
+                    sgbcVec_[(3 + d) * blockSize + gr] = in[(3 + d) * ndofs + gr];
+                }
+            }
+        }
+        sgbcOut_ = 0.0;
+        SGBCOperator_->Mult(sgbcVec_, sgbcOut_);
+        // Add ALL Elem2 DOF contributions to out (not just face DOFs).
+        for (int comp = 0; comp < 6; ++comp) {
+            for (int dof : sgbc_elem2_dofs_) {
+                out[comp * ndofs + dof] += sgbcOut_[comp * ndofs + dof];
+            }
+        }
     }
 
     timerSGBC.Stop();
