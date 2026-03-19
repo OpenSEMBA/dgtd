@@ -443,17 +443,23 @@ void Solver::run()
     while (time_ <= opts_.final_time - 1e-8*dt_) {
         step();
 
+        // Stability check — every step (getNorml2 is O(N), negligible cost).
+        if (Mpi::WorldRank() == 0 && this->fields_.getNorml2() > 1e20) {
+            std::cout << "========================================================================" << std::endl;
+            std::cout << "WARNING: Simulation is potentially unstable (field norm = "
+                      << this->fields_.getNorml2() << " > 1e20)." << std::endl;
+            std::cout << "  Time: " << time_ << " / " << opts_.final_time
+                      << ",  dt: " << dt_ << std::endl;
+            std::cout << "  Verify your setup and consider lowering the time step." << std::endl;
+            std::cout << "========================================================================" << std::endl;
+        }
+
 #ifdef SHOW_TIMER_INFORMATION
         auto currentTime = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::seconds>
             (currentTime - lastPrintTime).count() >= 30.0)
         {
             if (Mpi::WorldRank() == 0){
-                if (this->fields_.getNorml2() > 1e20){
-                    std::cout << "------------------------------------------------------------------------" << std::endl;
-                    std::cout << "Simulation is potentially unstable, verify manually and lower time step." << std::endl;
-                    std::cout << "------------------------------------------------------------------------" << std::endl;
-                }
                 printSimulationInformation(time_, dt_, opts_.final_time);
                 lastPrintTime = currentTime;
             }

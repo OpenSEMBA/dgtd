@@ -20,7 +20,8 @@ public:
     static const int numberOfMaxDimensions = 3;
 
     GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
-    
+    ~GlobalEvolution();
+
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
     void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
@@ -45,6 +46,19 @@ private:
 
     mutable std::map<GeomTag, std::vector<SGBCState>> sgbc_states_;
     std::map<GeomTag, SGBCWrapper*> sgbc_wrapper_map_;
+
+    // Flattened list of (tag, state_index) for OpenMP-parallel sub-stepping.
+    struct SGBCTask {
+        GeomTag tag;
+        size_t state_index;
+    };
+    std::vector<SGBCTask> sgbc_tasks_;
+    int sgbc_omp_threads_ = 1;
+
+    // Per-thread SGBCWrapper clones. sgbc_thread_pool_[tag][thread_id] owns
+    // an independent solver so that multiple states can be advanced in parallel.
+    // Thread 0 reuses the original wrapper from sgbc_wrapper_map_.
+    std::map<GeomTag, std::vector<std::unique_ptr<SGBCWrapper>>> sgbc_thread_pool_;
 
     // Monolithic IMEX: checkpoint storage for SGBC states at start of RK4 step
     mutable std::map<GeomTag, std::vector<SGBCState>> sgbc_states_checkpoint_;
@@ -82,6 +96,16 @@ private:
     mutable mfem::Vector implicit_rhs_;
     mutable mfem::Vector implicit_src_;
     mutable bool implicit_work_initialized_ = false;
+
+    // Cached dense LU factorization for small serial systems (SGBC sub-solver).
+    // Activated only when n <= threshold AND nbrDofs == 0 (serial mesh).
+    // This ensures it never triggers for the main 2D/3D parallel problem.
+    static constexpr int dense_solve_threshold_ = 2000;
+    mutable mfem::DenseMatrix A_dense_;           // Dense copy of globalOperator_
+    mutable mfem::DenseMatrix J_dense_;           // J = I - dt*A
+    mutable std::unique_ptr<mfem::DenseMatrixInverse> J_inv_;
+    mutable double cached_dt_ = -1.0;
+    mutable bool dense_A_formed_ = false;
 };
 
 void load_in_to_eh_gpu(const mfem::Vector& in, 

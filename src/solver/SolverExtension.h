@@ -59,6 +59,10 @@ public:
     static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp); 
     static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp);
 
+    /// Create an independent copy sharing the same SGBCProperties but with
+    /// its own Solver instance. Used to enable OpenMP-parallel sub-stepping.
+    std::unique_ptr<SGBCWrapper> clone() const;
+
     // [MODIFIED] Now takes a specific state context
     void updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields, 
                                 const SGBCState& context);

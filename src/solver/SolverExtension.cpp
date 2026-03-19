@@ -152,12 +152,17 @@ std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProp
     return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
 }
 
+std::unique_ptr<SGBCWrapper> SGBCWrapper::clone() const
+{
+    return buildSGBCWrapper(sbcp_);
+}
+
 SolverOptions buildSGBCSolverOptions(const SGBCProperties& sbcp)
 {
     SolverOptions res;
     res.setOrder(sbcp.maxOrder());
     res.setUpwindAlpha(1.0);
-    res.setODEType(ode_type::SDIRK33); 
+    res.setODEType(ode_type::SDIRK33);
     return res;
 }
 
@@ -293,31 +298,34 @@ void SGBCWrapper::solve(const Time t, const Time dt)
         return;
     }
 
-    if (!temporal_warning_printed_) {
-        temporal_warning_printed_ = true;
+    {
+        static bool temporal_warning_printed = false;
+        if (!temporal_warning_printed) {
+            temporal_warning_printed = true;
 
-        constexpr double c_si = physicalConstants::speedOfLight_SI;
-        double dt_si = dt / c_si;
-        double recommended_dt_si = recommended_dt_ / c_si;
-        bool is_coarse = (dt_si > recommended_dt_si);
+            constexpr double c_si = physicalConstants::speedOfLight_SI;
+            double dt_si = dt / c_si;
+            double recommended_dt_si = recommended_dt_ / c_si;
+            bool is_coarse = (dt_si > recommended_dt_si);
 
-        if (Mpi::WorldRank() == 0) {
-            std::cout << "\n========================================================" << std::endl;
-            if (is_coarse) {
-                std::cout << "[SEVERE WARNING] SGBC Temporal Resolution is too coarse!" << std::endl;
-            } else {
-                std::cout << "[OK] SGBC Temporal Resolution is within good parameters!" << std::endl;
+            if (Mpi::WorldRank() == 0) {
+                std::cout << "\n========================================================" << std::endl;
+                if (is_coarse) {
+                    std::cout << "[SEVERE WARNING] SGBC Temporal Resolution is too coarse!" << std::endl;
+                } else {
+                    std::cout << "[OK] SGBC Temporal Resolution is within good parameters!" << std::endl;
+                }
+                std::cout << "========================================================" << std::endl;
+                std::cout << "  Current dt (SI)      : " << dt_si << " seconds" << std::endl;
+                std::cout << "  Recommended dt (SI)  : " << recommended_dt_si << " seconds" << std::endl;
+
+                if (is_coarse) {
+                    std::cout << "\n  Sub-stepping will be applied automatically." << std::endl;
+                } else {
+                    std::cout << "  Safety margin        : " << (recommended_dt_si / dt_si) << "x" << std::endl;
+                }
+                std::cout << "========================================================\n" << std::endl;
             }
-            std::cout << "========================================================" << std::endl;
-            std::cout << "  Current dt (SI)      : " << dt_si << " seconds" << std::endl;
-            std::cout << "  Recommended dt (SI)  : " << recommended_dt_si << " seconds" << std::endl;
-
-            if (is_coarse) {
-                std::cout << "\n  Sub-stepping will be applied automatically." << std::endl;
-            } else {
-                std::cout << "  Safety margin        : " << (recommended_dt_si / dt_si) << "x" << std::endl;
-            }
-            std::cout << "========================================================\n" << std::endl;
         }
     }
 
@@ -400,39 +408,27 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
 
     this->old_t_ = 0.0;
 
-    // Compute recommended_dt as the minimum across all layers
+    // Compute recommended_dt as the minimum across all layers.
+    // CFL factor of 1.0: one wave crossing time per element.
+    // This is the natural accuracy threshold for resolving wave propagation
+    // through the layer. Works for all conductivities: low-sigma (hyperbolic,
+    // need to resolve wavefronts) and high-sigma (parabolic, only skin-depth
+    // attenuation matters — CFL 1.0 is conservative). The implicit solver
+    // (BackwardEuler, L-stable) ensures unconditional stability regardless.
+    // The dense direct solve makes sub-step cost negligible (O(n^2)
+    // back-substitution on a small 1D system), so tighter CFL barely hurts.
     {
         constexpr double c_si = physicalConstants::speedOfLight_SI;
-        constexpr double z0_si = physicalConstants::freeSpaceImpedance_SI;
-        constexpr double eps0_si = physicalConstants::vacuumPermittivity_SI;
 
         recommended_dt_ = std::numeric_limits<double>::max();
 
         for (const auto& layer : sbcp_.layers) {
             double eps_r = layer.material.getPermittivity();
-            double mu_r = layer.material.getPermeability();
-            double sigma_solver = layer.material.getConductivity();
-            double dx = layer.width / layer.num_of_segments;
+            double mu_r  = layer.material.getPermeability();
+            double dx    = layer.width / layer.num_of_segments;
 
             double crossing_time = (dx * std::sqrt(eps_r * mu_r)) / c_si;
             double layer_dt = crossing_time * 0.5;
-
-            if (sigma_solver > 0.0) {
-                double sigma_si = sigma_solver / z0_si;
-                double relaxation_time = (eps_r * eps0_si) / sigma_si;
-                double loss_tangent = sigma_si / (eps_r * eps0_si);
-
-                double relaxation_factor = 50.0;
-                if (loss_tangent > 10.0) {
-                    relaxation_factor = 10.0;
-                } else if (loss_tangent > 1.0) {
-                    relaxation_factor = 20.0;
-                } else if (loss_tangent > 0.1) {
-                    relaxation_factor = 50.0;
-                }
-
-                layer_dt = std::min(layer_dt, relaxation_time / relaxation_factor);
-            }
 
             recommended_dt_ = std::min(recommended_dt_, layer_dt);
         }

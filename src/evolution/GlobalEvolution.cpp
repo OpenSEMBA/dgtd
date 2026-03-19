@@ -5,6 +5,9 @@
 #include <cmath>
 #include <cstring>
 #include <unordered_set>
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+#include <omp.h>
+#endif
 
 namespace maxwell {
 
@@ -164,6 +167,42 @@ GlobalEvolution::GlobalEvolution(
     
     MPI_Barrier(fes_.GetParMesh()->GetComm());
 
+    // Build flattened SGBC task list and per-thread wrapper clones for OpenMP.
+    {
+        for (const auto& [tag, states] : sgbc_states_) {
+            for (size_t i = 0; i < states.size(); ++i) {
+                sgbc_tasks_.push_back({tag, i});
+            }
+        }
+
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+        int max_threads = 1;
+        #pragma omp parallel
+        {
+            #pragma omp single
+            max_threads = omp_get_num_threads();
+        }
+        sgbc_omp_threads_ = std::min(max_threads, static_cast<int>(sgbc_tasks_.size()));
+        if (sgbc_omp_threads_ > 1) {
+            for (auto& [tag, _] : sgbc_wrapper_map_) {
+                auto& pool = sgbc_thread_pool_[tag];
+                pool.resize(sgbc_omp_threads_);
+                // Thread 0 will use the original wrapper (no clone needed)
+                for (int t = 1; t < sgbc_omp_threads_; ++t) {
+                    pool[t] = sgbc_wrapper_map_[tag]->clone();
+                }
+            }
+            if (Mpi::WorldRank() == 0) {
+                std::cout << "[SGBC] OpenMP: using " << sgbc_omp_threads_
+                          << " of " << max_threads << " available threads for "
+                          << sgbc_tasks_.size() << " tasks" << std::endl;
+            }
+        } else if (Mpi::WorldRank() == 0 && !sgbc_tasks_.empty()) {
+            std::cout << "[SGBC] OpenMP: 1 task, running serial" << std::endl;
+        }
+#endif
+    }
+
     // Pre-compute unique element DOF sets for SGBC flux gathering.
     // Instead of copying only face DOFs from sgbcOut_ to out, we need ALL DOFs
     // of elements touching SGBC faces, because the DG face integral distributes
@@ -258,6 +297,8 @@ void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
     }
 }
 
+GlobalEvolution::~GlobalEvolution() = default;
+
 void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt)
 {
     sgbc_step_base_time_ = base_time;
@@ -291,29 +332,61 @@ void GlobalEvolution::finalizeSGBCStep(
 
     // Advance SGBC for full dt with committed post-step fields
     double dt = sgbc_step_dt_;
-    for (auto& [tag, states] : sgbc_states_) {
-        auto it = sgbc_wrapper_map_.find(tag);
-        if (it == sgbc_wrapper_map_.end()) continue;
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+    if (!sgbc_thread_pool_.empty()) {
+        #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+        for (size_t ti = 0; ti < sgbc_tasks_.size(); ++ti) {
+            const auto& task = sgbc_tasks_[ti];
+            auto& state = sgbc_states_[task.tag][task.state_index];
 
-        auto w = it->second;
-        double sub_dt = w->getRecommendedDt();
-        int nsteps = (sub_dt > 0.0 && sub_dt < dt)
-                   ? static_cast<int>(std::ceil(dt / sub_dt))
-                   : 1;
-        double actual_sub_dt = dt / nsteps;
+            int tid = omp_get_thread_num();
+            SGBCWrapper* w;
+            if (tid == 0) {
+                w = sgbc_wrapper_map_[task.tag];
+            } else {
+                w = sgbc_thread_pool_[task.tag][tid].get();
+            }
 
-        for (auto& state : states) {
+            double sub_dt = w->getRecommendedDt();
+            int nsteps = (sub_dt > 0.0 && sub_dt < dt)
+                       ? static_cast<int>(std::ceil(dt / sub_dt))
+                       : 1;
+            double actual_sub_dt = dt / nsteps;
+
             w->loadState(state);
             for (int step = 0; step < nsteps; ++step) {
-                // Re-inject ghost values before each sub-step.
-                // The solver evolves ghost DOFs (including SMA absorption),
-                // so they must be reset to the global boundary condition.
                 w->updateFieldsWithGlobal(fields, state);
                 w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
             }
             w->saveState(state);
         }
-        w->setOldTime(sgbc_step_base_time_ + dt);
+        for (auto& [tag, _] : sgbc_wrapper_map_) {
+            _->setOldTime(sgbc_step_base_time_ + dt);
+        }
+    } else
+#endif
+    {
+        for (auto& [tag, states] : sgbc_states_) {
+            auto it = sgbc_wrapper_map_.find(tag);
+            if (it == sgbc_wrapper_map_.end()) continue;
+
+            auto w = it->second;
+            double sub_dt = w->getRecommendedDt();
+            int nsteps = (sub_dt > 0.0 && sub_dt < dt)
+                       ? static_cast<int>(std::ceil(dt / sub_dt))
+                       : 1;
+            double actual_sub_dt = dt / nsteps;
+
+            for (auto& state : states) {
+                w->loadState(state);
+                for (int step = 0; step < nsteps; ++step) {
+                    w->updateFieldsWithGlobal(fields, state);
+                    w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
+                }
+                w->saveState(state);
+            }
+            w->setOldTime(sgbc_step_base_time_ + dt);
+        }
     }
 }
 
@@ -421,7 +494,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
     timerTFSF.Stop();
 
-    // 5) SGBC Coupling via Monolithic IMEX: two-pass face flux injection
+    // 5) SGBC Coupling via IMEX: two-pass face flux injection
     //
     // The global operator now EXCLUDES SGBC faces from its interior face flux.
     // We compute the correct two-interface flux here:
@@ -452,27 +525,56 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
         // Advance SGBC to stage time using intermediate global fields as ghost data
         if (dt_to_stage > 1e-12) {
-            for (auto& [tag, states] : sgbc_states_) {
-                auto it = sgbc_wrapper_map_.find(tag);
-                if (it == sgbc_wrapper_map_.end()) continue;
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+            if (!sgbc_thread_pool_.empty()) {
+                #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+                for (size_t ti = 0; ti < sgbc_tasks_.size(); ++ti) {
+                    const auto& task = sgbc_tasks_[ti];
+                    auto& state = sgbc_states_[task.tag][task.state_index];
 
-                auto w = it->second;
-                double sub_dt = w->getRecommendedDt();
-                int nsteps = (sub_dt > 0.0 && sub_dt < dt_to_stage)
-                           ? static_cast<int>(std::ceil(dt_to_stage / sub_dt))
-                           : 1;
-                double actual_sub_dt = dt_to_stage / nsteps;
+                    int tid = omp_get_thread_num();
+                    SGBCWrapper* w;
+                    if (tid == 0) {
+                        w = sgbc_wrapper_map_.at(task.tag);
+                    } else {
+                        w = sgbc_thread_pool_.at(task.tag)[tid].get();
+                    }
 
-                for (auto& state : states) {
+                    double sub_dt = w->getRecommendedDt();
+                    int nsteps = (sub_dt > 0.0 && sub_dt < dt_to_stage)
+                               ? static_cast<int>(std::ceil(dt_to_stage / sub_dt))
+                               : 1;
+                    double actual_sub_dt = dt_to_stage / nsteps;
+
                     w->loadState(state);
                     for (int step = 0; step < nsteps; ++step) {
-                        // Re-inject ghost values before each sub-step.
-                        // The solver evolves ghost DOFs (including SMA absorption),
-                        // so they must be reset to the global boundary condition.
                         w->updateFieldsWithGlobalVector(in, ndofs, state);
                         w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
                     }
                     w->saveState(state);
+                }
+            } else
+#endif
+            {
+                for (auto& [tag, states] : sgbc_states_) {
+                    auto it = sgbc_wrapper_map_.find(tag);
+                    if (it == sgbc_wrapper_map_.end()) continue;
+
+                    auto w = it->second;
+                    double sub_dt = w->getRecommendedDt();
+                    int nsteps = (sub_dt > 0.0 && sub_dt < dt_to_stage)
+                               ? static_cast<int>(std::ceil(dt_to_stage / sub_dt))
+                               : 1;
+                    double actual_sub_dt = dt_to_stage / nsteps;
+
+                    for (auto& state : states) {
+                        w->loadState(state);
+                        for (int step = 0; step < nsteps; ++step) {
+                            w->updateFieldsWithGlobalVector(in, ndofs, state);
+                            w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
+                        }
+                        w->saveState(state);
+                    }
                 }
             }
         }
@@ -554,7 +656,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerTotal.Stop();
 
     static double lastPrintTime = -1.0;
-    const double printInterval = 0.1; 
+    const double printInterval = 0.01; 
     const double currentTime = GetTime();
 
     if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval)
@@ -577,9 +679,6 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                                     const mfem::Vector& x,
                                     mfem::Vector& k)
 {
-    mfem::StopWatch timerTotal, timerRHS, timerAx, timerSrc, timerSolve;
-    timerTotal.Start();
-
     const int n         = x.Size();
     const int ndofs     = fes_.GetNDofs();
     const int nbrDofs   = fes_.num_face_nbr_dofs;
@@ -597,108 +696,125 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         implicit_work_initialized_ = true;
     }
 
-    auto applyA_noPrint = [&](const mfem::Vector& u, mfem::Vector& Au)
-    {
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-        load_in_to_eh_gpu(u, eOld_, hOld_, ndofs);
-#else
+    // --- Compute RHS = A*x + source ---
+    // For serial meshes (nbrDofs==0), globalOperator_ is square n×n and the
+    // copy-through-GridFunction round-trip is identity. Use direct SpMV.
+    if (nbrDofs == 0) {
+        globalOperator_->Mult(x, implicit_rhs_);
+    } else {
+        // Parallel path: need to exchange face neighbor data
         for (int d = X; d <= Z; ++d) {
-            std::memcpy(eOld_[d].GetData(), u.GetData() + d * ndofs, ndofs * sizeof(double));
-            std::memcpy(hOld_[d].GetData(), u.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+            std::memcpy(eOld_[d].GetData(), x.GetData() + d * ndofs, ndofs * sizeof(double));
+            std::memcpy(hOld_[d].GetData(), x.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
         }
-#endif
         for (int d = X; d <= Z; ++d) {
             eOld_[d].ExchangeFaceNbrData();
             hOld_[d].ExchangeFaceNbrData();
         }
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-        load_eh_to_innew_gpu(u, implicit_inNew_, ndofs, nbrDofs);
-        load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
-#else
         for (int d = X; d <= Z; ++d) {
             implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
             implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
         }
-        if (nbrDofs) {
-            for (int d = X; d <= Z; ++d) {
-                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-                implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+        for (int d = X; d <= Z; ++d) {
+            mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+            mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+            implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+            implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+        }
+        globalOperator_->Mult(implicit_inNew_, implicit_rhs_);
+    }
+
+    // Add TFSF source contribution
+    implicit_src_ = 0.0;
+    applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
+    implicit_rhs_ += implicit_src_;
+
+    // --- Solve (I - dt*A) k = rhs ---
+    // For small serial systems (SGBC sub-solver), use cached dense LU
+    // factorization. One-time cost: form A as dense + LU factor.
+    // Per-solve cost: O(n^2) back-substitution instead of ~30 GMRES iterations.
+    if (nbrDofs == 0 && n <= dense_solve_threshold_) {
+        // One-time: form dense copy of globalOperator_
+        if (!dense_A_formed_) {
+            globalOperator_->ToDenseMatrix(A_dense_);
+            J_dense_.SetSize(n);
+            dense_A_formed_ = true;
+            cached_dt_ = -1.0;  // force re-factorization
+        }
+
+        // Re-factorize when dt changes (different sub-step sizes)
+        if (dt != cached_dt_) {
+            // J = I - dt*A
+            J_dense_ = A_dense_;
+            J_dense_ *= -dt;
+            for (int i = 0; i < n; i++) {
+                J_dense_(i, i) += 1.0;
             }
+            J_inv_ = std::make_unique<mfem::DenseMatrixInverse>(J_dense_);
+            cached_dt_ = dt;
         }
-#endif
 
-        globalOperator_->Mult(implicit_inNew_, Au);
-    };
-
-    timerRHS.Start();
-    timerAx.Start();
-    applyA_noPrint(x, implicit_rhs_);
-    timerAx.Stop();
-
-    timerSrc.Start();
-    {
-        implicit_src_ = 0.0;
-        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
-        implicit_rhs_ += implicit_src_;
-    }
-    timerSrc.Stop();
-    timerRHS.Stop();
-
-    class JOp final : public mfem::Operator {
-        std::function<void(const mfem::Vector&, mfem::Vector&)> applyA_;
-        const double dt_;
-        mutable mfem::Vector tmp_;
-    public:
-        JOp(int n,
-            std::function<void(const mfem::Vector&, mfem::Vector&)> applyA,
-            double dt)
-        : mfem::Operator(n), applyA_(std::move(applyA)), dt_(dt), tmp_(n)
-        { tmp_.UseDevice(true); }
-
-        void Mult(const mfem::Vector& v, mfem::Vector& Jv) const override
+        if (k.Size() != n) {
+            k.SetSize(n);
+        }
+        J_inv_->Mult(implicit_rhs_, k);
+    } else {
+        // Large/parallel system: fall back to GMRES
+        auto applyA_parallel = [&](const mfem::Vector& u, mfem::Vector& Au)
         {
-            applyA_(v, tmp_);   
-            Jv = v;             
-            Jv.Add(-dt_, tmp_); 
+            for (int d = X; d <= Z; ++d) {
+                std::memcpy(eOld_[d].GetData(), u.GetData() + d * ndofs, ndofs * sizeof(double));
+                std::memcpy(hOld_[d].GetData(), u.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+            }
+            for (int d = X; d <= Z; ++d) {
+                eOld_[d].ExchangeFaceNbrData();
+                hOld_[d].ExchangeFaceNbrData();
+            }
+            for (int d = X; d <= Z; ++d) {
+                implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
+                implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+            }
+            if (nbrDofs) {
+                for (int d = X; d <= Z; ++d) {
+                    mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                    mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                    implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+                    implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+                }
+            }
+            globalOperator_->Mult(implicit_inNew_, Au);
+        };
+
+        class JOp final : public mfem::Operator {
+            std::function<void(const mfem::Vector&, mfem::Vector&)> applyA_;
+            const double dt_;
+            mutable mfem::Vector tmp_;
+        public:
+            JOp(int n,
+                std::function<void(const mfem::Vector&, mfem::Vector&)> applyA,
+                double dt)
+            : mfem::Operator(n), applyA_(std::move(applyA)), dt_(dt), tmp_(n)
+            { tmp_.UseDevice(true); }
+
+            void Mult(const mfem::Vector& v, mfem::Vector& Jv) const override
+            {
+                applyA_(v, tmp_);
+                Jv = v;
+                Jv.Add(-dt_, tmp_);
+            }
+        } J(n, std::function<void(const mfem::Vector&, mfem::Vector&)>(applyA_parallel), dt);
+
+        mfem::GMRESSolver gmres;
+        gmres.SetOperator(J);
+        gmres.SetRelTol(1e-8);
+        gmres.SetMaxIter(400);
+        gmres.SetKDim(60);
+        gmres.SetPrintLevel(0);
+
+        if (k.Size() != n) {
+            k.SetSize(n); k.UseDevice(true); k = implicit_rhs_;
         }
-    } J(n, std::function<void(const mfem::Vector&, mfem::Vector&)>(applyA_noPrint), dt);
-
-    mfem::GMRESSolver gmres;
-    gmres.SetOperator(J);
-    gmres.SetRelTol(1e-8);
-    gmres.SetMaxIter(400);
-    gmres.SetKDim(60);
-    gmres.SetPrintLevel(0);
-
-    if (k.Size() != n) {
-        k.SetSize(n); k.UseDevice(true); k = implicit_rhs_;
-    }
-
-    timerSolve.Start();
-    gmres.Mult(implicit_rhs_, k);
-    timerSolve.Stop();
-
-    timerTotal.Stop();
-
-    static double lastPrintTime = -1.0;
-    const double printInterval = 0.1;
-    const double currentTime   = GetTime();
-
-    if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval) {
-        std::cout << "Current time: " << currentTime << std::endl;
-        std::cout << "Rank " << Mpi::WorldRank()
-                  << " ImplicitSolve total: " << timerTotal.RealTime() * 1000.0
-                  << " ms, rhs: " << timerRHS.RealTime() * 1000.0
-                  << " ms (A(x): " << timerAx.RealTime() * 1000.0
-                  << " ms, source: " << timerSrc.RealTime() * 1000.0 << " ms)" << std::endl;
-        std::cout << "Rank " << Mpi::WorldRank()
-                  << " ImplicitSolve solve: " << timerSolve.RealTime() * 1000.0
-                  << " ms, gmres iters: " << gmres.GetNumIterations() << std::endl;
-
-        lastPrintTime = (lastPrintTime < 0.0) ? currentTime : lastPrintTime + printInterval;
+        gmres.Mult(implicit_rhs_, k);
     }
 }
 
