@@ -1,64 +1,74 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 4e-5,
+    "time_step": 1e-5,
     "final_time": 8.0,
     "tfsf_final_time": 3.0,
     "order": 3
   },
 
   "model": { 
-    "filename": "1D_SGBC_Faux_Through.msh",
+    "filename": "2D_Faux_SGBC_Multilayer.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 4 ],
+        "tags": [ 1, 2, 6 ],
         "type": "vacuum"
       },
       {
-        "tags": [ 3 ],
+        "tags": [ 3, 5 ],
         "relative_permittivity": 1.0,
+        "relative_permeability": 1.0,
+        "bulk_conductivity": 1.0
+      },
+      {
+        "tags": [ 4 ],
+        "relative_permittivity": 9.0,
         "relative_permeability": 1.0,
         "bulk_conductivity": 100.0
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 5 ],
+        "tags": [ 28, 42 ],
         "type": "SMA"
+      },
+      {
+        "tags": [ 25, 27, 29, 31, 32, 34, 35, 37, 38, 40, 41, 43 ],
+        "type": "PEC"
       }
     ]
   },
 
-  "probes": {
+   "probes": {
     "exporter": {
       "saves": 60
     },
     "point": [
       {
-        "position": [ 0.15 ],
+        "position": [ 0.125, 0.075 ],
         "saves": 10000
       },
       {
-        "position": [ 0.35 ],
+        "position": [ 0.35, 0.075 ],
         "saves": 10000
       },
       {
-        "position": [ 1.45 ],
+        "position": [ 1.45, 0.075 ],
         "saves": 10000
       }
     ]
   },
 
-  "sources": [ 
+  "sources": [
     {
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2 ],
+      "tags": [ 14 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,
-        "mean": [ -0.5 ]
+        "mean": [ -1.25, 0.075 ]
       }
     }
   ]

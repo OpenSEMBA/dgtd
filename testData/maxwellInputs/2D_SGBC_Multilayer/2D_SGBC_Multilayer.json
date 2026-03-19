@@ -4,11 +4,11 @@
     "time_step": 2.5e-3,
     "final_time": 8.0,
     "tfsf_final_time": 3.0,
-    "order": 4
+    "order": 3
   },
 
-  "model": { 
-    "filename": "1D_SGBC_Multilayer.msh",
+  "model": {
+    "filename": "2D_SGBC_Multilayer.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -17,11 +17,15 @@
     ],
     "boundaries": [
       {
-        "tags": [ 1, 4 ],
+        "tags": [ 16, 21 ],
         "type": "SMA"
       },
       {
-        "tags": [ 3 ],
+        "tags": [ 13, 15, 17, 19, 20, 22 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 18 ],
         "type": "SGBC",
         "layers": [
           {
@@ -47,36 +51,36 @@
     ]
   },
 
-"probes": {
+  "probes": {
     "exporter": {
-      "saves": 100
+      "saves": 60
     },
     "point": [
       {
-        "position": [ 0.15 ],
+        "position": [ 0.125, 0.075 ],
         "saves": 10000
       },
       {
-        "position": [ 0.35 ],
+        "position": [ 0.35, 0.075 ],
         "saves": 10000
       },
       {
-        "position": [ 1.45 ],
+        "position": [ 1.45, 0.075 ],
         "saves": 10000
       }
     ]
   },
 
-  "sources": [ 
+  "sources": [
     {
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2 ],
+      "tags": [ 14 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,
-        "mean": [ -0.5 ]
+        "mean": [ -1.25, 0.075 ]
       }
     }
   ]

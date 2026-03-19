@@ -23,9 +23,9 @@
         "tags": [ 4 ],
         "type": "SGBC",
         "material":{
-          "relative_permittivity": 4.0,
+          "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 0.0,
+          "bulk_conductivity": 300.0,
           "material_width": 5e-3
         }
       }
