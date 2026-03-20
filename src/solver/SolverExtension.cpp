@@ -3,6 +3,7 @@
 #include "components/DGOperatorFactory.h"
 #include "components/ProblemDescription.h"
 
+#include <cstring>
 #include <memory>
 #include <algorithm>
 
@@ -173,13 +174,15 @@ int SGBCWrapper::getStateSize() const {
 
 // [ADDED] Context Switching
 void SGBCWrapper::loadState(const SGBCState& state) {
-    // Overwrite solver fields with the saved state
-    solver_->getFields().allDOFs() = state.fields_state;
+    auto& dst = solver_->getFields().allDOFs();
+    std::memcpy(dst.GetData(), state.fields_state.GetData(),
+                dst.Size() * sizeof(double));
 }
 
 void SGBCWrapper::saveState(SGBCState& state) {
-    // Save solver fields back to state
-    state.fields_state = solver_->getFields().allDOFs();
+    const auto& src = solver_->getFields().allDOFs();
+    std::memcpy(state.fields_state.GetData(), src.GetData(),
+                src.Size() * sizeof(double));
 }
 
 int SGBCWrapper::getLocalFieldSize() const {
@@ -198,19 +201,28 @@ int SGBCWrapper::getRightInterfaceIndex() const {
 void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
                                          const SGBCState& context)
 {
-    const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
+    const int dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
     const NodePair& pair = context.global_pair;
     const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
+    double* all = solver_->getFields().allDOFs().GetData();
 
-    for (auto d : {X, Y, Z}){
-        for (auto dof = 0; dof < total_ghost_dofs; dof++){
-            solver_->setFieldValue(FieldType::E, d, dof, fields.get(E, d)[pair.first]);
-            solver_->setFieldValue(FieldType::H, d, dof, fields.get(H, d)[pair.first]);
-            if (has_right) {
-                solver_->setFieldValue(FieldType::E, d, right_dof_offset - dof, fields.get(E, d)[pair.second]);
-                solver_->setFieldValue(FieldType::H, d, right_dof_offset - dof, fields.get(H, d)[pair.second]);
+    for (int d = X; d <= Z; ++d) {
+        double e_left = fields.get(E, static_cast<Direction>(d))[pair.first];
+        double h_left = fields.get(H, static_cast<Direction>(d))[pair.first];
+        double* e_block = all + d * dof_per_field_comp;
+        double* h_block = all + (3 + d) * dof_per_field_comp;
+        for (int dof = 0; dof < total_ghost_dofs; ++dof) {
+            e_block[dof] = e_left;
+            h_block[dof] = h_left;
+        }
+        if (has_right) {
+            double e_right = fields.get(E, static_cast<Direction>(d))[pair.second];
+            double h_right = fields.get(H, static_cast<Direction>(d))[pair.second];
+            for (int dof = 0; dof < total_ghost_dofs; ++dof) {
+                e_block[right_dof_offset - dof] = e_right;
+                h_block[right_dof_offset - dof] = h_right;
             }
         }
     }
@@ -218,23 +230,28 @@ void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpac
 
 void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs, const SGBCState& context)
 {
-    const auto& dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
+    const int dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
     const NodePair& pair = context.global_pair;
     const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
+    double* all = solver_->getFields().allDOFs().GetData();
 
-    for (int d = X; d <= Z; ++d){
+    for (int d = X; d <= Z; ++d) {
         double e_left = in[d * ndofs + pair.first];
         double h_left = in[(3 + d) * ndofs + pair.first];
-        double e_right = has_right ? in[d * ndofs + pair.second] : 0.0;
-        double h_right = has_right ? in[(3 + d) * ndofs + pair.second] : 0.0;
-        for (auto dof = 0; dof < total_ghost_dofs; dof++){
-            solver_->setFieldValue(FieldType::E, d, dof, e_left);
-            solver_->setFieldValue(FieldType::H, d, dof, h_left);
-            if (has_right) {
-                solver_->setFieldValue(FieldType::E, d, right_dof_offset - dof, e_right);
-                solver_->setFieldValue(FieldType::H, d, right_dof_offset - dof, h_right);
+        double* e_block = all + d * dof_per_field_comp;
+        double* h_block = all + (3 + d) * dof_per_field_comp;
+        for (int dof = 0; dof < total_ghost_dofs; ++dof) {
+            e_block[dof] = e_left;
+            h_block[dof] = h_left;
+        }
+        if (has_right) {
+            double e_right = in[d * ndofs + pair.second];
+            double h_right = in[(3 + d) * ndofs + pair.second];
+            for (int dof = 0; dof < total_ghost_dofs; ++dof) {
+                e_block[right_dof_offset - dof] = e_right;
+                h_block[right_dof_offset - dof] = h_right;
             }
         }
     }
@@ -309,22 +326,22 @@ void SGBCWrapper::solve(const Time t, const Time dt)
             bool is_coarse = (dt_si > recommended_dt_si);
 
             if (Mpi::WorldRank() == 0) {
-                std::cout << "\n========================================================" << std::endl;
+                std::cout << "\n========================================================\n";
                 if (is_coarse) {
-                    std::cout << "[SEVERE WARNING] SGBC Temporal Resolution is too coarse!" << std::endl;
+                    std::cout << "[SEVERE WARNING] SGBC Temporal Resolution is too coarse!\n";
                 } else {
-                    std::cout << "[OK] SGBC Temporal Resolution is within good parameters!" << std::endl;
+                    std::cout << "[OK] SGBC Temporal Resolution is within good parameters!\n";
                 }
-                std::cout << "========================================================" << std::endl;
-                std::cout << "  Current dt (SI)      : " << dt_si << " seconds" << std::endl;
-                std::cout << "  Recommended dt (SI)  : " << recommended_dt_si << " seconds" << std::endl;
+                std::cout << "========================================================\n"
+                          << "  Current dt (SI)      : " << dt_si << " seconds\n"
+                          << "  Recommended dt (SI)  : " << recommended_dt_si << " seconds\n";
 
                 if (is_coarse) {
-                    std::cout << "\n  Sub-stepping will be applied automatically." << std::endl;
+                    std::cout << "\n  Sub-stepping will be applied automatically.\n";
                 } else {
-                    std::cout << "  Safety margin        : " << (recommended_dt_si / dt_si) << "x" << std::endl;
+                    std::cout << "  Safety margin        : " << (recommended_dt_si / dt_si) << "x\n";
                 }
-                std::cout << "========================================================\n" << std::endl;
+                std::cout << "========================================================\n" << std::flush;
             }
         }
     }
@@ -333,8 +350,6 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     this->solver_->getEvolTDO()->SetTime(t);
 
     this->solver_->getSolverOptions().setFinalTime(t + dt);
-    this->solver_->getSolverOptions().setTimeStep(dt);
-
     this->solver_->setTimeStep(dt);
 
     this->solver_->step();

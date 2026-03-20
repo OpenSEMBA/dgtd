@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 #include <unordered_set>
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
 #include <omp.h>
@@ -317,17 +318,25 @@ void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt)
     sgbc_step_base_time_ = base_time;
     sgbc_step_dt_ = dt;
 
-    // Deep copy all SGBC states (each SGBCState contains an mfem::Vector)
-    sgbc_states_checkpoint_.clear();
+    // First call: structurally clone the checkpoint map (allocate once)
+    if (sgbc_states_checkpoint_.empty()) {
+        for (const auto& [tag, states] : sgbc_states_) {
+            auto& cp = sgbc_states_checkpoint_[tag];
+            cp.resize(states.size());
+            for (size_t i = 0; i < states.size(); ++i) {
+                cp[i].global_pair  = states[i].global_pair;
+                cp[i].element_pair = states[i].element_pair;
+                cp[i].fields_state.SetSize(states[i].fields_state.Size());
+            }
+        }
+    }
+    // Fast path: only copy field data (no alloc/dealloc)
     for (const auto& [tag, states] : sgbc_states_) {
         auto& cp = sgbc_states_checkpoint_[tag];
-        cp.reserve(states.size());
-        for (const auto& s : states) {
-            SGBCState copy;
-            copy.global_pair = s.global_pair;
-            copy.element_pair = s.element_pair;
-            copy.fields_state = s.fields_state;  // mfem::Vector deep copy
-            cp.push_back(std::move(copy));
+        for (size_t i = 0; i < states.size(); ++i) {
+            std::memcpy(cp[i].fields_state.GetData(),
+                        states[i].fields_state.GetData(),
+                        states[i].fields_state.Size() * sizeof(double));
         }
     }
 }
@@ -335,11 +344,13 @@ void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt)
 void GlobalEvolution::finalizeSGBCStep(
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
-    // Restore from checkpoint
+    // Restore from checkpoint (memcpy only, sizes are pre-matched)
     for (auto& [tag, states] : sgbc_states_) {
         const auto& cp = sgbc_states_checkpoint_.at(tag);
         for (size_t i = 0; i < states.size(); ++i) {
-            states[i].fields_state = cp[i].fields_state;
+            std::memcpy(states[i].fields_state.GetData(),
+                        cp[i].fields_state.GetData(),
+                        cp[i].fields_state.Size() * sizeof(double));
         }
     }
 
@@ -420,27 +431,39 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
 
     const int blockSize = ndofs + nbrDofs;
 
-    // Ensure global-layout planewave vector is allocated
+    // Ensure global-layout planewave vector is allocated (first call only)
     if (tfsf_assembledFunc_.Size() != 6 * blockSize) {
         tfsf_assembledFunc_.SetSize(6 * blockSize);
         tfsf_assembledFunc_.UseDevice(true);
+        tfsf_assembledFunc_ = 0.0;
     }
-    tfsf_assembledFunc_ = 0.0;
+    // Vector is already zero: either freshly initialized above,
+    // or cleaned after the previous AddMult call below.
 
     // Evaluate planewave on the TFSF submesh (with TF/SF masking and 0.5 scaling)
     auto func = evalTimeVarFunction(t_stage, srcmngr_);
 
     // Scatter submesh planewave values into global-layout vector
-    for (int f : {E, H}) {
-        for (int d : {X, Y, Z}) {
-            for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
-                tfsf_assembledFunc_[(f * 3 + d) * blockSize + tfsf_sub_to_parent_ids_[v]] = func[f][d][v];
+    // Iterate DOFs in the outer loop to load each parent index only once
+    for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
+        const int parent_dof = tfsf_sub_to_parent_ids_[v];
+        for (int f : {E, H}) {
+            for (int d : {X, Y, Z}) {
+                tfsf_assembledFunc_[(f * 3 + d) * blockSize + parent_dof] = func[f][d][v];
             }
         }
     }
 
     // Apply TFSF operator and subtract from result: out -= TFSFOp * planewave
     TFSFOperator_->AddMult(tfsf_assembledFunc_, result_vector, -1.0);
+
+    // Restore zeroed state for next call (only touch submesh entries)
+    for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
+        const int parent_dof = tfsf_sub_to_parent_ids_[v];
+        for (int comp = 0; comp < 6; ++comp) {
+            tfsf_assembledFunc_[comp * blockSize + parent_dof] = 0.0;
+        }
+    }
 }
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
@@ -528,11 +551,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
 
-        // Restore SGBC states from start-of-step checkpoint
+        // Restore SGBC states from start-of-step checkpoint (memcpy only)
         for (auto& [tag, states] : sgbc_states_) {
             const auto& cp = sgbc_states_checkpoint_.at(tag);
             for (size_t i = 0; i < states.size(); ++i) {
-                states[i].fields_state = cp[i].fields_state;
+                std::memcpy(states[i].fields_state.GetData(),
+                            cp[i].fields_state.GetData(),
+                            cp[i].fields_state.Size() * sizeof(double));
             }
         }
 
@@ -595,7 +620,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         // --- Pass 1: Elem1 (L) flux ---
         // Input: u_L at gl (Elem1), u_slab_left at gr (Elem2)
         // Keep only Elem1 DOF contributions from the result
-        sgbcVec_ = 0.0;
+        // Selectively populate sgbcVec_ (no full zero needed)
         for (auto& [tag, states] : sgbc_states_) {
             auto it = sgbc_wrapper_map_.find(tag);
             if (it == sgbc_wrapper_map_.end()) continue;
@@ -629,10 +654,25 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
 
+        // Clear only the entries that were written in Pass 1
+        for (auto& [tag, states] : sgbc_states_) {
+            for (const auto& state : states) {
+                int gl = state.global_pair.first;
+                int gr = state.global_pair.second;
+                for (int d = X; d <= Z; ++d) {
+                    sgbcVec_[d * blockSize + gl] = 0.0;
+                    sgbcVec_[(3 + d) * blockSize + gl] = 0.0;
+                    if (gr != -1) {
+                        sgbcVec_[d * blockSize + gr] = 0.0;
+                        sgbcVec_[(3 + d) * blockSize + gr] = 0.0;
+                    }
+                }
+            }
+        }
+
         // --- Pass 2: Elem2 (R) flux ---
         // Input: u_slab_right at gl (Elem1), u_R at gr (Elem2)
         // Keep only Elem2 DOF contributions from the result
-        sgbcVec_ = 0.0;
         for (auto& [tag, states] : sgbc_states_) {
             auto it = sgbc_wrapper_map_.find(tag);
             if (it == sgbc_wrapper_map_.end()) continue;
@@ -662,6 +702,21 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 out[comp * ndofs + dof] += sgbcOut_[comp * ndofs + dof];
             }
         }
+
+        // Clear entries written in Pass 2 so sgbcVec_ stays zeroed for next call
+        for (auto& [tag, states] : sgbc_states_) {
+            for (const auto& state : states) {
+                int gl = state.global_pair.first;
+                int gr = state.global_pair.second;
+                if (gr == -1) continue;
+                for (int d = X; d <= Z; ++d) {
+                    sgbcVec_[d * blockSize + gl] = 0.0;
+                    sgbcVec_[(3 + d) * blockSize + gl] = 0.0;
+                    sgbcVec_[d * blockSize + gr] = 0.0;
+                    sgbcVec_[(3 + d) * blockSize + gr] = 0.0;
+                }
+            }
+        }
     }
 
     timerSGBC.Stop();
@@ -674,15 +729,15 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
     if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval)
     {
-        std::cout << "Current time: " << currentTime << std::endl;
-        std::cout << "Rank " << Mpi::WorldRank()
+        std::cout << "Current time: " << currentTime << '\n'
+                  << "Rank " << Mpi::WorldRank()
                   << " Mult total: "     << timerTotal.RealTime()         * 1000.0
                   << " ms, exchange: "   << timerExchange.RealTime()      * 1000.0
-                  << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000.0 << std::endl;
-        std::cout << "Rank " << Mpi::WorldRank()
+                  << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000.0 << '\n'
+                  << "Rank " << Mpi::WorldRank()
                   << " Mult applyA: "    << timerApplyA.RealTime()        * 1000.0
                   << " ms, tfsf: "       << timerTFSF.RealTime()          * 1000.0 
-                  << " ms, sgbc: "       << timerSGBC.RealTime()          * 1000.0 << std::endl;
+                  << " ms, sgbc: "       << timerSGBC.RealTime()          * 1000.0 << '\n' << std::flush;
 
         lastPrintTime = (lastPrintTime < 0.0) ? currentTime : lastPrintTime + printInterval;
     }
