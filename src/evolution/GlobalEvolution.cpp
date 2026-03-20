@@ -1,5 +1,6 @@
 #include "GlobalEvolution.h"
 #include "solver/SolverExtension.h"
+#include "components/SubMesher.h"
 
 #include <chrono>
 #include <cmath>
@@ -79,11 +80,23 @@ GlobalEvolution::GlobalEvolution(
                         mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
                         auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
 
+                        // Ensure consistent orientation: pair.first = inward side,
+                        // pair.second = outward side (face normal direction).
+                        // If face_ori < 0, Elem1 is on the outward side, so swap.
+                        bool swap = buildFaceOrientation(*mesh, b) < 0.0;
+
                         for (auto p = 0; p < node_pair_local.first.size(); p++){
-                            raw_pairs[bdr_attr].emplace_back(
-                                node_pair_local.first[p],
-                                node_pair_local.second[p]
-                            );
+                            if (swap) {
+                                raw_pairs[bdr_attr].emplace_back(
+                                    node_pair_local.second[p],
+                                    node_pair_local.first[p]
+                                );
+                            } else {
+                                raw_pairs[bdr_attr].emplace_back(
+                                    node_pair_local.first[p],
+                                    node_pair_local.second[p]
+                                );
+                            }
                         }
                     }
                 }
