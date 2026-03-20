@@ -6,7 +6,10 @@
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <cmath>
+#include <iomanip>
 #include <limits>
+#include <sstream>
 #include <filesystem>
 #include <mpi.h>
 
@@ -860,6 +863,7 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     }
 
     std::vector<SGBCProperties> sgbc_props;
+    std::vector<std::string> sgbc_notices;
     
     double max_freq = calculateMaximumSourceFrequency(case_data);
 
@@ -959,6 +963,21 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
             if (layer.num_of_segments == 1000) {
                 std::cout << "  [WARNING] Max segment limit reached!" << std::endl;
             }
+            if (sigma_si > 0.0 && skin_depth > 0.0) {
+                double n_skin_depths = layer_width / skin_depth;
+                if (n_skin_depths > 7.0) {
+                    double transmission_dB = -20.0 * n_skin_depths * std::log10(std::exp(1.0));
+                    std::ostringstream oss;
+                    oss << "Layer (sigma=" << sigma_si << " S/m, width="
+                        << layer_width * 1000.0 << " mm): "
+                        << std::fixed << std::setprecision(1)
+                        << n_skin_depths << std::defaultfloat
+                        << " skin depths (" << std::fixed << std::setprecision(0)
+                        << transmission_dB << std::defaultfloat
+                        << " dB). Consider PEC.";
+                    sgbc_notices.push_back(oss.str());
+                }
+            }
             std::cout << std::endl;
         }
 
@@ -1020,6 +1039,16 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     }
     
     res.setSGBCProperties(sgbc_props);
+
+    if (Mpi::WorldRank() == 0 && !sgbc_notices.empty()) {
+        std::cout << "\n========================================================" << std::endl;
+        std::cout << "  SGBC SETUP NOTICES" << std::endl;
+        std::cout << "========================================================" << std::endl;
+        for (const auto& notice : sgbc_notices) {
+            std::cout << "  * " << notice << std::endl;
+        }
+        std::cout << "========================================================\n" << std::endl;
+    }
 
     return res;
 }
