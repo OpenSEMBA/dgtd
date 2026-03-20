@@ -258,6 +258,7 @@ GlobalEvolution::GlobalEvolution(
     // Keep TFSF submesh infrastructure for planewave source evaluation
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
+        srcmngr_.initDirectPlanewaveEval();
         auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
         mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
     }
@@ -440,8 +441,18 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
     // Vector is already zero: either freshly initialized above,
     // or cleaned after the previous AddMult call below.
 
-    // Evaluate planewave on the TFSF submesh (with TF/SF masking and 0.5 scaling)
-    auto func = evalTimeVarFunction(t_stage, srcmngr_);
+    // Evaluate planewave on the TFSF submesh (with TF/SF masking and 0.5 scaling).
+    // Fast path avoids ProjectCoefficient + deep copy of 6 GridFunctions.
+    FieldGridFuncs func_storage;  // only used for fallback path
+    const FieldGridFuncs* func_ptr;
+    if (srcmngr_.hasDirectEval()) {
+        srcmngr_.evalTimeVarFieldDirect(t_stage);
+        func_ptr = &srcmngr_.getCachedTFSFFields();
+    } else {
+        func_storage = evalTimeVarFunction(t_stage, srcmngr_);
+        func_ptr = &func_storage;
+    }
+    const auto& func = *func_ptr;
 
     // Scatter submesh planewave values into global-layout vector
     // Iterate DOFs in the outer loop to load each parent index only once
@@ -468,17 +479,18 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
+#ifdef SHOW_TIMER_INFORMATION
     mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerApplyA, timerTFSF, timerSGBC;
-
-    auto current_debug_time = GetTime();
-
     timerTotal.Start();
+#endif
 
     const auto ndofs     = fes_.GetNDofs();
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
+#ifdef SHOW_TIMER_INFORMATION
     timerExchange.Start();
+#endif
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
 #else
@@ -491,9 +503,10 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         eOld_[d].ExchangeFaceNbrData();
         hOld_[d].ExchangeFaceNbrData();
     }
+#ifdef SHOW_TIMER_INFORMATION
     timerExchange.Stop();
-
     timerAssembleInNew.Start();
+#endif
     if (inNew_.Size() != 6 * blockSize) {
         inNew_.SetSize(6 * blockSize);
         inNew_.UseDevice(true);
@@ -516,19 +529,23 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
     }
 #endif
+#ifdef SHOW_TIMER_INFORMATION
     timerAssembleInNew.Stop();
-
     timerApplyA.Start();
+#endif
     if (out.Size() != 6 * ndofs) {
         out.SetSize(6 * ndofs);
         out.UseDevice(true);
     }
     globalOperator_->Mult(inNew_, out);
+#ifdef SHOW_TIMER_INFORMATION
     timerApplyA.Stop();
-
     timerTFSF.Start();
+#endif
     applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
+#ifdef SHOW_TIMER_INFORMATION
     timerTFSF.Stop();
+#endif
 
     // 5) SGBC Coupling via IMEX: two-pass face flux injection
     //
@@ -536,16 +553,14 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     // We compute the correct two-interface flux here:
     //   Pass 1: Elem1 (L) sees itself + slab_left as neighbor -> keep Elem1 DOF contributions
     //   Pass 2: Elem2 (R) sees slab_right as neighbor + itself -> keep Elem2 DOF contributions
+#ifdef SHOW_TIMER_INFORMATION
     timerSGBC.Start();
+#endif
 
     if (SGBCOperator_ && !sgbcWrappers_.empty()){
         if (sgbcVec_.Size() != 6 * blockSize) {
             sgbcVec_.SetSize(6 * blockSize);
             sgbcVec_.UseDevice(true);
-        }
-        if (sgbcOut_.Size() != 6 * ndofs) {
-            sgbcOut_.SetSize(6 * ndofs);
-            sgbcOut_.UseDevice(true);
         }
 
         double t_stage = GetTime();
@@ -643,14 +658,22 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 }
             }
         }
-        sgbcOut_ = 0.0;
-        SGBCOperator_->Mult(sgbcVec_, sgbcOut_);
-        // Add ALL Elem1 DOF contributions to out (not just face DOFs).
-        // The DG face integral distributes flux to all test functions in
-        // the element, so we must copy the full element contribution.
-        for (int comp = 0; comp < 6; ++comp) {
-            for (int dof : sgbc_elem1_dofs_) {
-                out[comp * ndofs + dof] += sgbcOut_[comp * ndofs + dof];
+        // Targeted SpMV: only compute rows for Elem1 DOFs, add directly to out.
+        {
+            const double* sv = sgbcVec_.HostRead();
+            double* op = out.HostReadWrite();
+            for (int comp = 0; comp < 6; ++comp) {
+                for (int dof : sgbc_elem1_dofs_) {
+                    const int row = comp * ndofs + dof;
+                    const int nnz = SGBCOperator_->RowSize(row);
+                    const int* cols = SGBCOperator_->GetRowColumns(row);
+                    const double* vals = SGBCOperator_->GetRowEntries(row);
+                    double sum = 0.0;
+                    for (int j = 0; j < nnz; ++j) {
+                        sum += vals[j] * sv[cols[j]];
+                    }
+                    op[row] += sum;
+                }
             }
         }
 
@@ -694,12 +717,22 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 }
             }
         }
-        sgbcOut_ = 0.0;
-        SGBCOperator_->Mult(sgbcVec_, sgbcOut_);
-        // Add ALL Elem2 DOF contributions to out (not just face DOFs).
-        for (int comp = 0; comp < 6; ++comp) {
-            for (int dof : sgbc_elem2_dofs_) {
-                out[comp * ndofs + dof] += sgbcOut_[comp * ndofs + dof];
+        // Targeted SpMV: only compute rows for Elem2 DOFs, add directly to out.
+        {
+            const double* sv = sgbcVec_.HostRead();
+            double* op = out.HostReadWrite();
+            for (int comp = 0; comp < 6; ++comp) {
+                for (int dof : sgbc_elem2_dofs_) {
+                    const int row = comp * ndofs + dof;
+                    const int nnz = SGBCOperator_->RowSize(row);
+                    const int* cols = SGBCOperator_->GetRowColumns(row);
+                    const double* vals = SGBCOperator_->GetRowEntries(row);
+                    double sum = 0.0;
+                    for (int j = 0; j < nnz; ++j) {
+                        sum += vals[j] * sv[cols[j]];
+                    }
+                    op[row] += sum;
+                }
             }
         }
 
@@ -719,8 +752,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
     }
 
+#ifdef SHOW_TIMER_INFORMATION
     timerSGBC.Stop();
-
     timerTotal.Stop();
 
     static double lastPrintTime = -1.0;
@@ -741,6 +774,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
         lastPrintTime = (lastPrintTime < 0.0) ? currentTime : lastPrintTime + printInterval;
     }
+#endif
 }
 
 void GlobalEvolution::ImplicitSolve(const double dt,
@@ -792,10 +826,12 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         globalOperator_->Mult(implicit_inNew_, implicit_rhs_);
     }
 
-    // Add TFSF source contribution
-    implicit_src_ = 0.0;
-    applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
-    implicit_rhs_ += implicit_src_;
+    // Add TFSF source contribution (skip if no active TFSF sources)
+    if (!tfsf_cutoff_reached_ && TFSFOperator_ && !tfsfSourceIndices_.empty()) {
+        implicit_src_ = 0.0;
+        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
+        implicit_rhs_ += implicit_src_;
+    }
 
     // --- Solve (I - dt*A) k = rhs ---
     // For small serial systems (SGBC sub-solver), use cached dense LU

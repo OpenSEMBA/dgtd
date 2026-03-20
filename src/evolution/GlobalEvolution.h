@@ -88,7 +88,6 @@ private:
 
     mutable mfem::Vector inNew_;
     mutable mfem::Vector sgbcVec_;
-    mutable mfem::Vector sgbcOut_;
     mutable mfem::Vector tfsf_assembledFunc_;
 
     // ImplicitSolve reusable work vectors (avoid per-call allocation)

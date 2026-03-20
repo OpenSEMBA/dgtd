@@ -20,6 +20,18 @@ public:
     TotalFieldScatteredFieldSubMesher& getTFSFSubMesher() { return tfsf_submesher_; }
     void markDoFSforTForSF(FieldGridFuncs&, bool isTF);
 
+    // Fast direct planewave evaluation (bypasses ProjectCoefficient).
+    // Must be called after initTFSFPreReqs().
+    void initDirectPlanewaveEval();
+    void evalTimeVarFieldDirect(Time time);
+    bool hasDirectEval() const { return direct_eval_ready_; }
+
+    // Pre-computed TF/SF sign mask: +0.5 for TF DOFs, -0.5 for SF, +1 if no SF.
+    const std::vector<double>& getTFSFSign() const { return tfsf_sign_; }
+
+    // Return reference to cached field grid functions (for fast path).
+    const FieldGridFuncs& getCachedTFSFFields() const { return cached_tfsf_fields_; }
+
     Sources sources;
 
 private:
@@ -34,7 +46,11 @@ private:
 
     FieldGridFuncs cached_tfsf_fields_;
     bool cached_tfsf_fields_init_ = false;
-    
+
+    // Direct planewave evaluation precomputed data
+    bool direct_eval_ready_ = false;
+    std::vector<mfem::Vector> dof_coords_;  // Physical coords per DOF
+    std::vector<double> tfsf_sign_;          // TF/SF sign mask per DOF
 
 };
 

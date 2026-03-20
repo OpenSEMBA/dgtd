@@ -1,7 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-4,
+    "time_step": 2.5e-3,
     "final_time": 8.0,
     "tfsf_final_time": 3.0,
     "order": 3
@@ -26,7 +26,7 @@
         "material":{
           "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 300.0,
+          "bulk_conductivity": 100.0,
           "material_width": 5e-3
         }
       }
