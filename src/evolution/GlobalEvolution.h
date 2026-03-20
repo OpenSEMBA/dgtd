@@ -99,7 +99,7 @@ private:
     // Cached dense LU factorization for small serial systems (SGBC sub-solver).
     // Activated only when n <= threshold AND nbrDofs == 0 (serial mesh).
     // This ensures it never triggers for the main 2D/3D parallel problem.
-    static constexpr int dense_solve_threshold_ = 2000;
+    static constexpr int dense_solve_threshold_ = 600;
     mutable mfem::DenseMatrix A_dense_;           // Dense copy of globalOperator_
     mutable mfem::DenseMatrix J_dense_;           // J = I - dt*A
     mutable std::unique_ptr<mfem::DenseMatrixInverse> J_inv_;
