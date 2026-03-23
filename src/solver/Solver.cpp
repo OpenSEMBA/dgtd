@@ -451,16 +451,14 @@ void Solver::run()
             int localUnstable = (!std::isfinite(localNorm) || localNorm > 1e20) ? 1 : 0;
             int globalUnstable = 0;
             MPI_Allreduce(&localUnstable, &globalUnstable, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            if (globalUnstable) {
-                if (Mpi::WorldRank() == 0) {
-                    std::cout << "========================================================================" << std::endl;
-                    std::cout << "ERROR: Simulation unstable — aborting." << std::endl;
-                    std::cout << "  Local field norm on rank 0: " << localNorm << std::endl;
-                    std::cout << "  Time: " << time_ << " / " << opts_.final_time
-                              << ",  dt: " << dt_ << std::endl;
-                    std::cout << "========================================================================" << std::endl;
-                }
-                MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+            if (globalUnstable && Mpi::WorldRank() == 0) {
+                std::cout << "========================================================================" << std::endl;
+                std::cout << "WARNING: Simulation is potentially unstable (field norm = "
+                          << localNorm << ")." << std::endl;
+                std::cout << "  Time: " << time_ << " / " << opts_.final_time
+                          << ",  dt: " << dt_ << std::endl;
+                std::cout << "  Verify your setup and consider lowering the time step." << std::endl;
+                std::cout << "========================================================================" << std::endl;
             }
         }
 
