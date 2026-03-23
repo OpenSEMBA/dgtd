@@ -1129,13 +1129,13 @@ namespace maxwell
 
 			std::chrono::high_resolution_clock::time_point startTime;
 			#ifdef SHOW_TIMER_INFORMATION
-			if (Mpi::WorldRank() == 0){
+			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 				startTime = std::chrono::high_resolution_clock::now() ;
 			}
 			#endif
 
 			#ifdef SHOW_TIMER_INFORMATION
-			if (Mpi::WorldRank() == 0){
+			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 						std::cout << "Assembling IBFI Inverse Mass One-Normal Operators" << std::endl;
 			}
 			#endif
@@ -1143,7 +1143,7 @@ namespace maxwell
 				this->template	addGlobalOneNormalIBFIOperators<ParBilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
-			if (Mpi::WorldRank() == 0){
+			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 				startTime = std::chrono::high_resolution_clock::now();
@@ -1154,7 +1154,7 @@ namespace maxwell
 				this->template	addGlobalZeroNormalIBFIOperators<ParBilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
-			if (Mpi::WorldRank() == 0){
+			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 				startTime = std::chrono::high_resolution_clock::now();
@@ -1165,7 +1165,7 @@ namespace maxwell
 				this->template	addGlobalTwoNormalIBFIOperators<ParBilinearForm>(res.get());
 
 			#ifdef SHOW_TIMER_INFORMATION
-			if (Mpi::WorldRank() == 0){
+			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 				std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			}
@@ -1175,7 +1175,7 @@ namespace maxwell
 		else{
 
 			#ifdef SHOW_TIMER_INFORMATION		
-					if (Mpi::WorldRank() == 0){
+					if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 							std::cout << "No Interior Boundary Operators to Assemble." << std::endl;
 					}
 			#endif
@@ -1184,7 +1184,7 @@ namespace maxwell
 
 		std::chrono::high_resolution_clock::time_point startTime;
 		#ifdef SHOW_TIMER_INFORMATION
-		if (Mpi::WorldRank() == 0){
+		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 			startTime = std::chrono::high_resolution_clock::now();
 			std::cout << "Assembling Standard Inverse Mass Stiffness Operators" << std::endl;
 		}
@@ -1193,7 +1193,7 @@ namespace maxwell
 		this->template	addGlobalDirectionalOperators<ParBilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
-		if (Mpi::WorldRank() == 0){
+		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			startTime = std::chrono::high_resolution_clock::now();
@@ -1204,7 +1204,7 @@ namespace maxwell
 		this->template	addGlobalOneNormalOperators<ParBilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
-		if (Mpi::WorldRank() == 0){
+		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			startTime = std::chrono::high_resolution_clock::now();
@@ -1215,7 +1215,7 @@ namespace maxwell
 		this->template	addGlobalZeroNormalOperators<ParBilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
-		if (Mpi::WorldRank() == 0){
+		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			startTime = std::chrono::high_resolution_clock::now();
@@ -1226,7 +1226,7 @@ namespace maxwell
 		this->template	addGlobalTwoNormalOperators<ParBilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
-		if (Mpi::WorldRank() == 0){
+		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			startTime = std::chrono::high_resolution_clock::now();
@@ -1237,7 +1237,7 @@ namespace maxwell
 		this->template  addGlobalConductiveOperator<ParBilinearForm>(res.get());
 
 		#ifdef SHOW_TIMER_INFORMATION
-		if (Mpi::WorldRank() == 0){
+		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
 			std::cout << "All operators assembled. Finalising global operator matrix." << std::endl;

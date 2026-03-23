@@ -45,13 +45,59 @@ struct SGBCGlobalNodeInfo
 struct SGBCState {
     NodePair global_pair;       
     ElementPair element_pair;   
-    mfem::Vector fields_state;  
+    mfem::Vector fields_state;
+    double rot[9];  // 3x3 rotation matrix (row-major): global→face-local frame
     
     void init(int size) {
         fields_state.SetSize(size);
         fields_state = 0.0;
+        // Identity by default (correct for 1D / face-aligned cases)
+        std::fill(rot, rot + 9, 0.0);
+        rot[0] = rot[4] = rot[8] = 1.0;
     }
 };
+
+// Build a 3x3 rotation matrix from a face normal vector.
+// Row 0 = normal (maps to sub-solver X, decoupled from 1D curl).
+// Row 1 = first tangential (maps to sub-solver Y, curl-active).
+// Row 2 = second tangential (maps to sub-solver Z, curl-active).
+inline void buildFaceRotationMatrix(const mfem::Vector& normal, int meshDim, double rot[9])
+{
+    std::fill(rot, rot + 9, 0.0);
+    if (meshDim <= 1) {
+        rot[0] = rot[4] = rot[8] = 1.0;
+        return;
+    }
+
+    double nx = normal(0);
+    double ny = (normal.Size() > 1) ? normal(1) : 0.0;
+    double nz = (normal.Size() > 2) ? normal(2) : 0.0;
+    double len = std::sqrt(nx*nx + ny*ny + nz*nz);
+    nx /= len; ny /= len; nz /= len;
+
+    if (meshDim == 2) {
+        // 2D mesh in xy-plane: z is always tangential
+        rot[0] =  nx; rot[1] = ny; rot[2] = 0.0;
+        rot[3] = -ny; rot[4] = nx; rot[5] = 0.0;
+        rot[6] = 0.0; rot[7] = 0.0; rot[8] = 1.0;
+    } else {
+        // 3D: general orthonormal frame from normal
+        rot[0] = nx; rot[1] = ny; rot[2] = nz;
+        // First tangential: n × ref (choose ref not parallel to n)
+        double rx = 0.0, ry = 0.0, rz = 0.0;
+        if (std::abs(nx) < 0.9) { rx = 1.0; } else { ry = 1.0; }
+        double t1x = ny*rz - nz*ry;
+        double t1y = nz*rx - nx*rz;
+        double t1z = nx*ry - ny*rx;
+        double t1l = std::sqrt(t1x*t1x + t1y*t1y + t1z*t1z);
+        t1x /= t1l; t1y /= t1l; t1z /= t1l;
+        rot[3] = t1x; rot[4] = t1y; rot[5] = t1z;
+        // Second tangential: n × t1
+        rot[6] = ny*t1z - nz*t1y;
+        rot[7] = nz*t1x - nx*t1z;
+        rot[8] = nx*t1y - ny*t1x;
+    }
+}
 
 class SGBCWrapper{
 public:

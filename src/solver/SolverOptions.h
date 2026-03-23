@@ -88,6 +88,7 @@ struct SolverOptions {
 
     SolverOptions& setIsSGBCSolver(bool is_sgbc = true) {
         is_sgbc_solver = is_sgbc;
+        evolution.is_sgbc_solver = is_sgbc;
         return *this;
     }
 

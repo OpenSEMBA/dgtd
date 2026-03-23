@@ -83,6 +83,7 @@ struct SGBCLayer {
     double width;
     size_t num_of_segments = 10;
     size_t order = 1;
+    double n_skin_depths = 0.0;
 
     SGBCLayer(Material mat, double w) : material(mat), width(w) {}
 };

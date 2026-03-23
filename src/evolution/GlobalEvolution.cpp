@@ -4,8 +4,10 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <iomanip>
 #include <unordered_set>
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
 #include <omp.h>
@@ -41,7 +43,8 @@ GlobalEvolution::GlobalEvolution(
         hOld_[d].SetSpace(&fes_);
     }
 
-    std::map<GeomTag, std::vector<NodePair>> raw_pairs;
+    struct RawSGBCPair { NodePair pair; std::array<double,9> rot; };
+    std::map<GeomTag, std::vector<RawSGBCPair>> raw_pairs;
     {
         auto attMap{ mapOriginalAttributes(*fes_.GetMesh()) };
         auto fec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
@@ -72,10 +75,12 @@ GlobalEvolution::GlobalEvolution(
 
                 if (is_interior) {
                     if (mesh->Dimension() == 1){
-                        raw_pairs[bdr_attr].emplace_back(
-                            faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(),
-                            faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1
-                        );
+                        std::array<double,9> id_rot = {1,0,0, 0,1,0, 0,0,1};
+                        raw_pairs[bdr_attr].push_back({
+                            NodePair(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(),
+                                     faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder() + 1),
+                            id_rot
+                        });
                     } else {
                         auto twoElemSubMesh{ assembleInteriorFaceSubMesh(*mesh, *faceTrans, attMap) };
                         mfem::FiniteElementSpace subFES(&twoElemSubMesh, fec);
@@ -86,17 +91,23 @@ GlobalEvolution::GlobalEvolution(
                         // If face_ori < 0, Elem1 is on the outward side, so swap.
                         bool swap = buildFaceOrientation(*mesh, b) < 0.0;
 
+                        // Compute face normal and build rotation matrix
+                        auto face_normal = getNormal(*const_cast<mfem::FaceElementTransformations*>(faceTrans));
+                        if (swap) face_normal *= -1.0; // ensure normal points from pair.first toward pair.second
+                        std::array<double,9> face_rot{};
+                        buildFaceRotationMatrix(face_normal, mesh->Dimension(), face_rot.data());
+
                         for (auto p = 0; p < node_pair_local.first.size(); p++){
                             if (swap) {
-                                raw_pairs[bdr_attr].emplace_back(
-                                    node_pair_local.second[p],
-                                    node_pair_local.first[p]
-                                );
+                                raw_pairs[bdr_attr].push_back({
+                                    NodePair(node_pair_local.second[p], node_pair_local.first[p]),
+                                    face_rot
+                                });
                             } else {
-                                raw_pairs[bdr_attr].emplace_back(
-                                    node_pair_local.first[p],
-                                    node_pair_local.second[p]
-                                );
+                                raw_pairs[bdr_attr].push_back({
+                                    NodePair(node_pair_local.first[p], node_pair_local.second[p]),
+                                    face_rot
+                                });
                             }
                         }
                     }
@@ -104,21 +115,30 @@ GlobalEvolution::GlobalEvolution(
 
                 if (is_boundary) {
                     if (mesh->Dimension() == 1){
+                        std::array<double,9> id_rot = {1,0,0, 0,1,0, 0,0,1};
                         if(faceTrans->Elem1No == 0) {
-                            raw_pairs[bdr_attr].emplace_back(0, -1);
+                            raw_pairs[bdr_attr].push_back({NodePair(0, -1), id_rot});
                         }
                         else {
-                            raw_pairs[bdr_attr].emplace_back(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), -1);
+                            raw_pairs[bdr_attr].push_back({
+                                NodePair(faceTrans->Elem1No * (fec->GetOrder() + 1) + fec->GetOrder(), -1),
+                                id_rot
+                            });
                         }
                     } else {
                         auto elementSubMesh{ assembleBoundaryFaceSubMesh(*mesh, *faceTrans, attMap)};
                         mfem::FiniteElementSpace subFES(&elementSubMesh, fec);
                         auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
+
+                        auto face_normal = getNormal(*const_cast<mfem::FaceElementTransformations*>(faceTrans));
+                        std::array<double,9> face_rot{};
+                        buildFaceRotationMatrix(face_normal, mesh->Dimension(), face_rot.data());
+
                         for (auto p = 0; p < node_pair_local.first.size(); p++){
-                            raw_pairs[bdr_attr].emplace_back(
-                                node_pair_local.first[p],
-                                -1
-                            );
+                            raw_pairs[bdr_attr].push_back({
+                                NodePair(node_pair_local.first[p], -1),
+                                face_rot
+                            });
                         }
                     }
                 }
@@ -141,6 +161,21 @@ GlobalEvolution::GlobalEvolution(
 
     MPI_Barrier(fes_.GetParMesh()->GetComm());
 
+    // Diagnostic: print SGBC DOF pair info per rank
+    for (const auto& [tag, pairs] : raw_pairs) {
+        int n_interior = 0, n_boundary = 0;
+        for (const auto& rp : pairs) {
+            if (rp.pair.second != -1) ++n_interior; else ++n_boundary;
+        }
+        std::cout << "[SGBC Init] Rank " << Mpi::WorldRank()
+                  << " | Tag " << tag
+                  << " | " << pairs.size() << " DOF pairs"
+                  << " (" << n_interior << " interior, " << n_boundary << " boundary)"
+                  << " | Normal of first pair: ("
+                  << pairs[0].rot[0] << ", " << pairs[0].rot[1] << ", " << pairs[0].rot[2] << ")"
+                  << std::endl;
+    }
+
     for (const auto& [tag, pairs] : raw_pairs){
         const auto& sbcps = model_.getSGBCProperties();
         for (auto p = 0; p < sbcps.size(); p++){
@@ -151,13 +186,13 @@ GlobalEvolution::GlobalEvolution(
                     SGBCWrapper* wrap_ptr = wrap.get();
 
                     int state_size = wrap->getStateSize();
-                    for(const auto& pair : pairs) {
+                    for(const auto& rp : pairs) {
                         SGBCState s;
-                        s.global_pair = pair;
+                        s.global_pair = rp.pair;
 
-                        s.element_pair.first = temp_dof_to_elem[pair.first];
-                        if (pair.second != -1){
-                            s.element_pair.second = temp_dof_to_elem[pair.second];
+                        s.element_pair.first = temp_dof_to_elem[rp.pair.first];
+                        if (rp.pair.second != -1){
+                            s.element_pair.second = temp_dof_to_elem[rp.pair.second];
                         }
                         else {
                             s.element_pair.second = -1;
@@ -165,10 +200,11 @@ GlobalEvolution::GlobalEvolution(
 
                         if (s.element_pair.first == -1) {
                             std::cerr << "Error: Could not find Element ID for SGBC Node Pair: "
-                                      << pair.first << ", " << pair.second << std::endl;
+                                      << rp.pair.first << ", " << rp.pair.second << std::endl;
                         }
 
                         s.init(state_size);
+                        std::memcpy(s.rot, rp.rot.data(), 9 * sizeof(double));
                         sgbc_states_[tag].push_back(s);
                     }
 
@@ -480,7 +516,7 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
 #ifdef SHOW_TIMER_INFORMATION
-    mfem::StopWatch timerTotal, timerExchange, timerAssembleInNew, timerApplyA, timerTFSF, timerSGBC;
+    mfem::StopWatch timerTotal, timerExchange, timerApplyA, timerTFSF, timerSGBC;
     timerTotal.Start();
 #endif
 
@@ -488,79 +524,16 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
-#ifdef SHOW_TIMER_INFORMATION
-    timerExchange.Start();
-#endif
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
-#else
-    for (int d = X; d <= Z; ++d) {
-        std::memcpy(eOld_[d].GetData(), in.GetData() + d * ndofs, ndofs * sizeof(double));
-        std::memcpy(hOld_[d].GetData(), in.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
-    }
-#endif
-    for (int d = X; d <= Z; ++d) {
-        eOld_[d].ExchangeFaceNbrData();
-        hOld_[d].ExchangeFaceNbrData();
-    }
-#ifdef SHOW_TIMER_INFORMATION
-    timerExchange.Stop();
-    timerAssembleInNew.Start();
-#endif
-    if (inNew_.Size() != 6 * blockSize) {
-        inNew_.SetSize(6 * blockSize);
-        inNew_.UseDevice(true);
-    }
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_eh_to_innew_gpu(in, inNew_, ndofs, nbrDofs);
-    load_nbr_to_innew_gpu(eOld_, hOld_, inNew_, ndofs, nbrDofs);
-#else
-    for (int d = X; d <= Z; ++d) {
-        inNew_.SetVector(eOld_[d],       d      * blockSize);
-        inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-    }
-    if (nbrDofs) {
-        for (int d = X; d <= Z; ++d) {
-            mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-            mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-            inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
-        }
-    }
-#endif
-#ifdef SHOW_TIMER_INFORMATION
-    timerAssembleInNew.Stop();
-    timerApplyA.Start();
-#endif
-    if (out.Size() != 6 * ndofs) {
-        out.SetSize(6 * ndofs);
-        out.UseDevice(true);
-    }
-    globalOperator_->Mult(inNew_, out);
-#ifdef SHOW_TIMER_INFORMATION
-    timerApplyA.Stop();
-    timerTFSF.Start();
-#endif
-    applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
-#ifdef SHOW_TIMER_INFORMATION
-    timerTFSF.Stop();
-#endif
-
-    // 5) SGBC Coupling via IMEX: two-pass face flux injection
-    //
-    // The global operator now EXCLUDES SGBC faces from its interior face flux.
-    // We compute the correct two-interface flux here:
-    //   Pass 1: Elem1 (L) sees itself + slab_left as neighbor -> keep Elem1 DOF contributions
-    //   Pass 2: Elem2 (R) sees slab_right as neighbor + itself -> keep Elem2 DOF contributions
+    // 1) SGBC sub-solve FIRST — independent of neighbor data, overlaps with
+    //    other ranks' local work so they don't idle-wait during exchange.
 #ifdef SHOW_TIMER_INFORMATION
     timerSGBC.Start();
 #endif
-
     if (SGBCOperator_ && !sgbcWrappers_.empty()){
         if (sgbcVec_.Size() != 6 * blockSize) {
             sgbcVec_.SetSize(6 * blockSize);
             sgbcVec_.UseDevice(true);
+            sgbcVec_ = 0.0;
         }
 
         double t_stage = GetTime();
@@ -631,29 +604,134 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 }
             }
         }
+    }
+#ifdef SHOW_TIMER_INFORMATION
+    timerSGBC.Stop();
+#endif
 
-        // --- Pass 1: Elem1 (L) flux ---
-        // Input: u_L at gl (Elem1), u_slab_left at gr (Elem2)
-        // Keep only Elem1 DOF contributions from the result
-        // Selectively populate sgbcVec_ (no full zero needed)
+    // 2) Exchange face neighbor data (MPI)
+#ifdef SHOW_TIMER_INFORMATION
+    timerExchange.Start();
+#endif
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+#else
+    for (int d = X; d <= Z; ++d) {
+        std::memcpy(eOld_[d].GetData(), in.GetData() + d * ndofs, ndofs * sizeof(double));
+        std::memcpy(hOld_[d].GetData(), in.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+    }
+#endif
+    for (int d = X; d <= Z; ++d) {
+        eOld_[d].ExchangeFaceNbrData();
+        hOld_[d].ExchangeFaceNbrData();
+    }
+#ifdef SHOW_TIMER_INFORMATION
+    timerExchange.Stop();
+#endif
+
+    // 3) Assemble inNew_ (local + neighbor data)
+    if (inNew_.Size() != 6 * blockSize) {
+        inNew_.SetSize(6 * blockSize);
+        inNew_.UseDevice(true);
+    }
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    load_eh_to_innew_gpu(in, inNew_, ndofs, nbrDofs);
+    load_nbr_to_innew_gpu(eOld_, hOld_, inNew_, ndofs, nbrDofs);
+#else
+    for (int d = X; d <= Z; ++d) {
+        inNew_.SetVector(eOld_[d],       d      * blockSize);
+        inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+    }
+    if (nbrDofs) {
+        for (int d = X; d <= Z; ++d) {
+            mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+            mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+            inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+            inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+        }
+    }
+#endif
+
+    // 4) Apply globalOperator_ (DG flux) 
+#ifdef SHOW_TIMER_INFORMATION
+    timerApplyA.Start();
+#endif
+    if (out.Size() != 6 * ndofs) {
+        out.SetSize(6 * ndofs);
+        out.UseDevice(true);
+    }
+    globalOperator_->Mult(inNew_, out);
+#ifdef SHOW_TIMER_INFORMATION
+    timerApplyA.Stop();
+#endif
+
+    // 5) TFSF source injection
+#ifdef SHOW_TIMER_INFORMATION
+    timerTFSF.Start();
+#endif
+    applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
+#ifdef SHOW_TIMER_INFORMATION
+    timerTFSF.Stop();
+#endif
+
+    // 6) SGBC flux injection (two-pass face coupling)
+    //    Sub-solve was done in step 1; here we only inject interface values as flux.
+    if (SGBCOperator_ && !sgbcWrappers_.empty()){
+        if (sgbcVec_.Size() != 6 * blockSize) {
+            sgbcVec_.SetSize(6 * blockSize);
+            sgbcVec_.UseDevice(true);
+            sgbcVec_ = 0.0;
+        }
         for (auto& [tag, states] : sgbc_states_) {
             auto it = sgbc_wrapper_map_.find(tag);
             if (it == sgbc_wrapper_map_.end()) continue;
             auto w = it->second;
             int local_size = w->getLocalFieldSize();
             int idx_left = w->getLeftInterfaceIndex();
+            const auto left_bdr =
+                w->getProperties().sgbc_bdr_info.first.bdrCond;
 
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
+                const double* R = state.rot;
+                // Elem1 slot: global field value (u_L) — already in global frame
                 for (int d = X; d <= Z; ++d) {
-                    // Elem1 slot: global field value (u_L)
                     sgbcVec_[d * blockSize + gl] = in[d * ndofs + gl];
                     sgbcVec_[(3 + d) * blockSize + gl] = in[(3 + d) * ndofs + gl];
-                    // Elem2 slot: slab left-interface value
-                    if (gr != -1) {
-                        sgbcVec_[d * blockSize + gr] = state.fields_state[d * local_size + idx_left];
-                        sgbcVec_[(3 + d) * blockSize + gr] = state.fields_state[(3 + d) * local_size + idx_left];
+                }
+                // Elem2 slot: what Elem1 sees from the slab's left side
+                if (gr != -1) {
+                    if (left_bdr == BdrCond::PEC) {
+                        // PEC on the left: Elem1 sees a PEC wall.
+                        for (int d = X; d <= Z; ++d) {
+                            sgbcVec_[d * blockSize + gr]       = -in[d * ndofs + gl];
+                            sgbcVec_[(3 + d) * blockSize + gr] =  in[(3 + d) * ndofs + gl];
+                        }
+                    } else if (left_bdr == BdrCond::PMC) {
+                        // PMC on the left: Elem1 sees a PMC wall.
+                        for (int d = X; d <= Z; ++d) {
+                            sgbcVec_[d * blockSize + gr]       =  in[d * ndofs + gl];
+                            sgbcVec_[(3 + d) * blockSize + gr] = -in[(3 + d) * ndofs + gl];
+                        }
+                    } else if (left_bdr == BdrCond::SMA) {
+                        // SMA on the left: Elem1 sees a matched load.
+                        for (int d = X; d <= Z; ++d) {
+                            sgbcVec_[d * blockSize + gr]       = in[d * ndofs + gl];
+                            sgbcVec_[(3 + d) * blockSize + gr] = in[(3 + d) * ndofs + gl];
+                        }
+                    } else {
+                        // Transparent: use slab left-interface value — rotate local→global
+                        double el[3], hl[3];
+                        for (int d = 0; d < 3; ++d) {
+                            el[d] = state.fields_state[d * local_size + idx_left];
+                            hl[d] = state.fields_state[(3 + d) * local_size + idx_left];
+                        }
+                        for (int d = 0; d < 3; ++d) {
+                            sgbcVec_[d * blockSize + gr]       = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
+                            sgbcVec_[(3 + d) * blockSize + gr] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
+                        }
                     }
                 }
             }
@@ -702,16 +780,50 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             auto w = it->second;
             int local_size = w->getLocalFieldSize();
             int idx_right = w->getRightInterfaceIndex();
+            const auto right_bdr =
+                w->getProperties().sgbc_bdr_info.second.bdrCond;
 
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
                 if (gr == -1) continue;
+                const double* R = state.rot;
+
+                if (right_bdr == BdrCond::PEC) {
+                    // PEC on the right: Elem2 sees a PEC wall.
+                    // Mirror state: E_ext = -E_int, H_ext = +H_int
+                    for (int d = X; d <= Z; ++d) {
+                        sgbcVec_[d * blockSize + gl]       = -in[d * ndofs + gr];
+                        sgbcVec_[(3 + d) * blockSize + gl] =  in[(3 + d) * ndofs + gr];
+                    }
+                } else if (right_bdr == BdrCond::PMC) {
+                    // PMC on the right: Elem2 sees a PMC wall.
+                    // Mirror state: E_ext = +E_int, H_ext = -H_int
+                    for (int d = X; d <= Z; ++d) {
+                        sgbcVec_[d * blockSize + gl]       =  in[d * ndofs + gr];
+                        sgbcVec_[(3 + d) * blockSize + gl] = -in[(3 + d) * ndofs + gr];
+                    }
+                } else if (right_bdr == BdrCond::SMA) {
+                    // SMA (absorbing) on the right: Elem2 sees a matched load.
+                    // Exterior state = interior state → zero jump → no reflection.
+                    for (int d = X; d <= Z; ++d) {
+                        sgbcVec_[d * blockSize + gl]       = in[d * ndofs + gr];
+                        sgbcVec_[(3 + d) * blockSize + gl] = in[(3 + d) * ndofs + gr];
+                    }
+                } else {
+                    // Transparent: use slab right-interface value — rotate local→global
+                    double el[3], hl[3];
+                    for (int d = 0; d < 3; ++d) {
+                        el[d] = state.fields_state[d * local_size + idx_right];
+                        hl[d] = state.fields_state[(3 + d) * local_size + idx_right];
+                    }
+                    for (int d = 0; d < 3; ++d) {
+                        sgbcVec_[d * blockSize + gl]       = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
+                        sgbcVec_[(3 + d) * blockSize + gl] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
+                    }
+                }
+                // Elem2 slot: global field value (u_R) — already in global frame
                 for (int d = X; d <= Z; ++d) {
-                    // Elem1 slot: slab right-interface value
-                    sgbcVec_[d * blockSize + gl] = state.fields_state[d * local_size + idx_right];
-                    sgbcVec_[(3 + d) * blockSize + gl] = state.fields_state[(3 + d) * local_size + idx_right];
-                    // Elem2 slot: global field value (u_R)
                     sgbcVec_[d * blockSize + gr] = in[d * ndofs + gr];
                     sgbcVec_[(3 + d) * blockSize + gr] = in[(3 + d) * ndofs + gr];
                 }
@@ -753,26 +865,88 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
 
 #ifdef SHOW_TIMER_INFORMATION
-    timerSGBC.Stop();
     timerTotal.Stop();
 
-    static double lastPrintTime = -1.0;
-    const double printInterval = 0.01; 
-    const double currentTime = GetTime();
+    // Skip timer output for SGBC sub-solver Mult() calls.
+    // In multi-rank runs the MPI collectives would deadlock because only
+    // SGBC ranks enter the sub-solver path.
+    if (!opts_.is_sgbc_solver) {
+        static double acc_total = 0, acc_sgbc = 0, acc_exchange = 0, acc_applyA = 0, acc_tfsf = 0;
+        static int acc_count = 0;
+        static double lastPrintTime = -1.0;
+        constexpr double printInterval = 0.05;
+        constexpr int printCadence = 50;
 
-    if (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval)
-    {
-        std::cout << "Current time: " << currentTime << '\n'
-                  << "Rank " << Mpi::WorldRank()
-                  << " Mult total: "     << timerTotal.RealTime()         * 1000.0
-                  << " ms, exchange: "   << timerExchange.RealTime()      * 1000.0
-                  << " ms, assembleIn: " << timerAssembleInNew.RealTime() * 1000.0 << '\n'
-                  << "Rank " << Mpi::WorldRank()
-                  << " Mult applyA: "    << timerApplyA.RealTime()        * 1000.0
-                  << " ms, tfsf: "       << timerTFSF.RealTime()          * 1000.0 
-                  << " ms, sgbc: "       << timerSGBC.RealTime()          * 1000.0 << '\n' << std::flush;
+        acc_total    += timerTotal.RealTime()    * 1000.0;
+        acc_sgbc     += timerSGBC.RealTime()     * 1000.0;
+        acc_exchange += timerExchange.RealTime() * 1000.0;
+        acc_applyA   += timerApplyA.RealTime()   * 1000.0;
+        acc_tfsf     += timerTFSF.RealTime()     * 1000.0;
+        acc_count++;
 
-        lastPrintTime = (lastPrintTime < 0.0) ? currentTime : lastPrintTime + printInterval;
+        const double currentTime = GetTime();
+        bool want_print = (acc_count >= printCadence &&
+            (lastPrintTime < 0.0 || currentTime >= lastPrintTime + printInterval));
+
+        const int P = Mpi::WorldSize();
+
+        if (P > 1) {
+            // Multi-rank: synchronize print decision across all ranks.
+            int local_want = want_print ? 1 : 0;
+            int global_want = 0;
+            MPI_Allreduce(&local_want, &global_want, 1, MPI_INT, MPI_MAX,
+                          fes_.GetParMesh()->GetComm());
+            want_print = (global_want != 0);
+        }
+
+        if (want_print)
+        {
+            double local_avg[5] = {
+                acc_total    / acc_count,
+                acc_sgbc     / acc_count,
+                acc_exchange / acc_count,
+                acc_applyA   / acc_count,
+                acc_tfsf     / acc_count
+            };
+
+            std::vector<double> all_avg(5 * P);
+            if (P > 1) {
+                MPI_Gather(local_avg, 5, MPI_DOUBLE,
+                           all_avg.data(), 5, MPI_DOUBLE,
+                           0, fes_.GetParMesh()->GetComm());
+            } else {
+                std::copy(local_avg, local_avg + 5, all_avg.data());
+            }
+
+            if (Mpi::WorldRank() == 0) {
+                std::cout << "\n[Mult timing] t=" << std::fixed << std::setprecision(4) << currentTime
+                          << "  (avg of " << acc_count << " calls, ms/call)\n"
+                          << std::defaultfloat;
+                std::cout << "  Rank  | total    sgbc   exchange  operator   tfsf  | bottleneck\n"
+                          << "  ------+----------------------------------------------------+-----------\n";
+                for (int r = 0; r < P; ++r) {
+                    double t_total    = all_avg[r*5 + 0];
+                    double t_sgbc     = all_avg[r*5 + 1];
+                    double t_exchange = all_avg[r*5 + 2];
+                    double t_applyA   = all_avg[r*5 + 3];
+                    double t_tfsf     = all_avg[r*5 + 4];
+                    const char* bottleneck = "compute";
+                    if (t_exchange > 0.7 * t_total) bottleneck = "MPI wait";
+                    else if (t_sgbc > 0.5 * t_total) bottleneck = "SGBC";
+
+                    char buf[256];
+                    std::snprintf(buf, sizeof(buf),
+                        "  %4d  | %7.2f  %6.2f  %8.2f  %8.2f  %6.3f  | %s",
+                        r, t_total, t_sgbc, t_exchange, t_applyA, t_tfsf, bottleneck);
+                    std::cout << buf << '\n';
+                }
+                std::cout << std::flush;
+            }
+
+            acc_total = acc_sgbc = acc_exchange = acc_applyA = acc_tfsf = 0;
+            acc_count = 0;
+            lastPrintTime = currentTime;
+        }
     }
 #endif
 }

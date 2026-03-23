@@ -207,22 +207,42 @@ void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpac
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
     double* all = solver_->getFields().allDOFs().GetData();
+    const double* R = context.rot;
 
-    for (int d = X; d <= Z; ++d) {
-        double e_left = fields.get(E, static_cast<Direction>(d))[pair.first];
-        double h_left = fields.get(H, static_cast<Direction>(d))[pair.first];
+    // Read global Cartesian fields at left DOF
+    double eg[3], hg[3], el[3], hl[3];
+    for (int d = 0; d < 3; ++d) {
+        eg[d] = fields.get(E, static_cast<Direction>(d))[pair.first];
+        hg[d] = fields.get(H, static_cast<Direction>(d))[pair.first];
+    }
+    // Rotate global → face-local: E_local = R * E_global
+    for (int i = 0; i < 3; ++i) {
+        el[i] = R[3*i]*eg[0] + R[3*i+1]*eg[1] + R[3*i+2]*eg[2];
+        hl[i] = R[3*i]*hg[0] + R[3*i+1]*hg[1] + R[3*i+2]*hg[2];
+    }
+    for (int d = 0; d < 3; ++d) {
         double* e_block = all + d * dof_per_field_comp;
         double* h_block = all + (3 + d) * dof_per_field_comp;
         for (int dof = 0; dof < total_ghost_dofs; ++dof) {
-            e_block[dof] = e_left;
-            h_block[dof] = h_left;
+            e_block[dof] = el[d];
+            h_block[dof] = hl[d];
         }
-        if (has_right) {
-            double e_right = fields.get(E, static_cast<Direction>(d))[pair.second];
-            double h_right = fields.get(H, static_cast<Direction>(d))[pair.second];
+    }
+    if (has_right) {
+        for (int d = 0; d < 3; ++d) {
+            eg[d] = fields.get(E, static_cast<Direction>(d))[pair.second];
+            hg[d] = fields.get(H, static_cast<Direction>(d))[pair.second];
+        }
+        for (int i = 0; i < 3; ++i) {
+            el[i] = R[3*i]*eg[0] + R[3*i+1]*eg[1] + R[3*i+2]*eg[2];
+            hl[i] = R[3*i]*hg[0] + R[3*i+1]*hg[1] + R[3*i+2]*hg[2];
+        }
+        for (int d = 0; d < 3; ++d) {
+            double* e_block = all + d * dof_per_field_comp;
+            double* h_block = all + (3 + d) * dof_per_field_comp;
             for (int dof = 0; dof < total_ghost_dofs; ++dof) {
-                e_block[right_dof_offset - dof] = e_right;
-                h_block[right_dof_offset - dof] = h_right;
+                e_block[right_dof_offset - dof] = el[d];
+                h_block[right_dof_offset - dof] = hl[d];
             }
         }
     }
@@ -236,22 +256,41 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
     double* all = solver_->getFields().allDOFs().GetData();
+    const double* R = context.rot;
 
-    for (int d = X; d <= Z; ++d) {
-        double e_left = in[d * ndofs + pair.first];
-        double h_left = in[(3 + d) * ndofs + pair.first];
+    // Read global-frame fields at left DOF, rotate to face-local frame
+    double eg[3], hg[3], el[3], hl[3];
+    for (int d = 0; d < 3; ++d) {
+        eg[d] = in[d * ndofs + pair.first];
+        hg[d] = in[(3 + d) * ndofs + pair.first];
+    }
+    for (int i = 0; i < 3; ++i) {
+        el[i] = R[3*i]*eg[0] + R[3*i+1]*eg[1] + R[3*i+2]*eg[2];
+        hl[i] = R[3*i]*hg[0] + R[3*i+1]*hg[1] + R[3*i+2]*hg[2];
+    }
+    for (int d = 0; d < 3; ++d) {
         double* e_block = all + d * dof_per_field_comp;
         double* h_block = all + (3 + d) * dof_per_field_comp;
         for (int dof = 0; dof < total_ghost_dofs; ++dof) {
-            e_block[dof] = e_left;
-            h_block[dof] = h_left;
+            e_block[dof] = el[d];
+            h_block[dof] = hl[d];
         }
-        if (has_right) {
-            double e_right = in[d * ndofs + pair.second];
-            double h_right = in[(3 + d) * ndofs + pair.second];
+    }
+    if (has_right) {
+        for (int d = 0; d < 3; ++d) {
+            eg[d] = in[d * ndofs + pair.second];
+            hg[d] = in[(3 + d) * ndofs + pair.second];
+        }
+        for (int i = 0; i < 3; ++i) {
+            el[i] = R[3*i]*eg[0] + R[3*i+1]*eg[1] + R[3*i+2]*eg[2];
+            hl[i] = R[3*i]*hg[0] + R[3*i+1]*hg[1] + R[3*i+2]*hg[2];
+        }
+        for (int d = 0; d < 3; ++d) {
+            double* e_block = all + d * dof_per_field_comp;
+            double* h_block = all + (3 + d) * dof_per_field_comp;
             for (int dof = 0; dof < total_ghost_dofs; ++dof) {
-                e_block[right_dof_offset - dof] = e_right;
-                h_block[right_dof_offset - dof] = h_right;
+                e_block[right_dof_offset - dof] = el[d];
+                h_block[right_dof_offset - dof] = hl[d];
             }
         }
     }
@@ -271,18 +310,28 @@ void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState
 
     int idx_left = this->getLeftInterfaceIndex();
     int idx_right = this->getRightInterfaceIndex();
+    const double* R = context.rot;
 
-    const int E_base = 0 * local_field_size;      // E fields at indices 0-2
-    const int H_base = 3 * local_field_size;       // H fields at indices 3-5 (3 components each)
+    // Left interface: read face-local fields and rotate to global
+    double el[3], hl[3];
+    for (int d = 0; d < 3; ++d) {
+        el[d] = context.fields_state[d * local_field_size + idx_left];
+        hl[d] = context.fields_state[(3 + d) * local_field_size + idx_left];
+    }
+    // R^T * local = global  (R is orthogonal)
+    for (int d = 0; d < 3; ++d) {
+        out[E][d][first_idx] = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
+        out[H][d][first_idx] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
+    }
 
-    for (auto f : {E, H}) {
-        int base = (f == E) ? E_base : H_base;
-        for (auto d : {X, Y, Z}) {
-            int offset = base + d * local_field_size;
-            out[f][d][first_idx] = context.fields_state[offset + idx_left];
-            if (second_idx != -1) {
-                out[f][d][second_idx] = context.fields_state[offset + idx_right];
-            }
+    if (second_idx != -1) {
+        for (int d = 0; d < 3; ++d) {
+            el[d] = context.fields_state[d * local_field_size + idx_right];
+            hl[d] = context.fields_state[(3 + d) * local_field_size + idx_right];
+        }
+        for (int d = 0; d < 3; ++d) {
+            out[E][d][second_idx] = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
+            out[H][d][second_idx] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
         }
     }
 }
@@ -296,15 +345,27 @@ void SGBCWrapper::fillGlobalSGBCVec(const SGBCState& context, mfem::Vector& vec,
 
     const int gl = context.global_pair.first;
     const int gr = context.global_pair.second;
+    const double* R = context.rot;
 
-    for (auto f : {E, H}) {
-        const int state_base = (f == E) ? 0 : 3 * local_field_size;
-        for (auto d : {X, Y, Z}) {
-            const int state_offset = state_base + d * local_field_size;
-            vec[(f * 3 + d) * blockSize + gl] = context.fields_state[state_offset + idx_left];
-            if (gr != -1) {
-                vec[(f * 3 + d) * blockSize + gr] = context.fields_state[state_offset + idx_right];
-            }
+    // Left interface: read face-local fields and rotate to global
+    double el[3], hl[3];
+    for (int d = 0; d < 3; ++d) {
+        el[d] = context.fields_state[d * local_field_size + idx_left];
+        hl[d] = context.fields_state[(3 + d) * local_field_size + idx_left];
+    }
+    for (int d = 0; d < 3; ++d) {
+        vec[d * blockSize + gl]       = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
+        vec[(3 + d) * blockSize + gl] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
+    }
+
+    if (gr != -1) {
+        for (int d = 0; d < 3; ++d) {
+            el[d] = context.fields_state[d * local_field_size + idx_right];
+            hl[d] = context.fields_state[(3 + d) * local_field_size + idx_right];
+        }
+        for (int d = 0; d < 3; ++d) {
+            vec[d * blockSize + gr]       = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
+            vec[(3 + d) * blockSize + gr] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
         }
     }
 }
@@ -326,22 +387,13 @@ void SGBCWrapper::solve(const Time t, const Time dt)
             bool is_coarse = (dt_si > recommended_dt_si);
 
             if (Mpi::WorldRank() == 0) {
-                std::cout << "\n========================================================\n";
                 if (is_coarse) {
-                    std::cout << "[SEVERE WARNING] SGBC Temporal Resolution is too coarse!\n";
+                    std::cout << "[SGBC] WARNING: parent dt=" << dt_si*1e12 << " ps > recommended "
+                              << recommended_dt_si*1e12 << " ps — sub-stepping applied.\n" << std::flush;
                 } else {
-                    std::cout << "[OK] SGBC Temporal Resolution is within good parameters!\n";
+                    std::cout << "[SGBC] Temporal OK: parent dt=" << dt_si*1e12 << " ps, recommended "
+                              << recommended_dt_si*1e12 << " ps (margin " << (recommended_dt_si / dt_si) << "x)\n" << std::flush;
                 }
-                std::cout << "========================================================\n"
-                          << "  Current dt (SI)      : " << dt_si << " seconds\n"
-                          << "  Recommended dt (SI)  : " << recommended_dt_si << " seconds\n";
-
-                if (is_coarse) {
-                    std::cout << "\n  Sub-stepping will be applied automatically.\n";
-                } else {
-                    std::cout << "  Safety margin        : " << (recommended_dt_si / dt_si) << "x\n";
-                }
-                std::cout << "========================================================\n" << std::flush;
             }
         }
     }
@@ -402,8 +454,6 @@ SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBd
 sbcp_(sbcp),
 n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
 { 
-    checkSkinDepthResolution(sbcp_);
-
     auto mesh = buildSGBCMesh(sbcp_, n_ghost_elements_);
     int* partitioning = mesh.GeneratePartitioning(1);
     
@@ -417,23 +467,20 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
     opts.setIsSGBCSolver(true);  // Mark as SGBC sub-solver to skip statistics
-    std::cout << "Assembling SGBC Solvers: " << std::endl;
 
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
 
     this->old_t_ = 0.0;
 
     // Compute recommended_dt as the minimum across all layers.
-    // CFL factor of 1.0: one wave crossing time per element.
-    // This is the natural accuracy threshold for resolving wave propagation
-    // through the layer. Works for all conductivities: low-sigma (hyperbolic,
-    // need to resolve wavefronts) and high-sigma (parabolic, only skin-depth
-    // attenuation matters — CFL 1.0 is conservative). The implicit solver
-    // (BackwardEuler, L-stable) ensures unconditional stability regardless.
-    // The dense direct solve makes sub-step cost negligible (O(n^2)
-    // back-substitution on a small 1D system), so tighter CFL barely hurts.
+    // Base CFL: half the wave crossing time per element.
+    // For layers that are many skin depths thick (N_delta >> 1), the physics
+    // is diffusion-dominated and the L-stable implicit solver can safely take
+    // much larger steps. We relax the CFL proportionally to N_delta^2,
+    // capped to avoid excessive jumps.
     {
         constexpr double c_si = physicalConstants::speedOfLight_SI;
+        constexpr double cfl_relax_cap = 50.0;
 
         recommended_dt_ = std::numeric_limits<double>::max();
 
@@ -445,11 +492,34 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
             double crossing_time = (dx * std::sqrt(eps_r * mu_r)) / c_si;
             double layer_dt = crossing_time * 0.5;
 
+            // Relax CFL for opaque layers: N_delta > 3 means wave is
+            // heavily attenuated, so temporal resolution of wave transit
+            // is unnecessary. The implicit solver handles the stiffness.
+            double nd = layer.n_skin_depths;
+            if (nd > 3.0) {
+                double relax = std::min(nd * nd, cfl_relax_cap);
+                layer_dt *= relax;
+            }
+
             recommended_dt_ = std::min(recommended_dt_, layer_dt);
         }
 
         // Convert from SI seconds to simulator time units
         recommended_dt_ *= c_si;
+    }
+
+    // Print spatial + temporal resolution check once (first wrapper only).
+    {
+        static bool resolutionChecked = false;
+        if (!resolutionChecked) {
+            resolutionChecked = true;
+            checkSkinDepthResolution(sbcp_);
+            constexpr double c_si = physicalConstants::speedOfLight_SI;
+            double rec_dt_si = recommended_dt_ / c_si;
+            std::cout << "  SGBC recommended dt   : " << rec_dt_si * 1e12 << " ps"
+                      << "  (CFL-relaxed for " << sbcp_.layers[0].n_skin_depths
+                      << " skin depths)\n" << std::endl;
+        }
     }
 }
 

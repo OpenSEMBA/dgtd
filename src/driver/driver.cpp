@@ -171,6 +171,15 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
     if (NE == 0 || P <= 0) return;
 
     auto pairs = gatherConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[Partition] gatherConstraintPairs found " << pairs.size()
+                  << " element pairs (TFSF tags=" << tfsf_tags.Size()
+                  << ", SGBC tags=" << sgbc_tags.Size() << ")" << std::endl;
+        for (size_t i = 0; i < pairs.size(); i++) {
+            std::cout << "  pair[" << i << "]: elem " << pairs[i].first
+                      << " <-> elem " << pairs[i].second << std::endl;
+        }
+    }
     if (pairs.empty()) return;
 
     auto dsu = buildDSU(NE, pairs);
@@ -181,6 +190,10 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
         const auto& elems = kv.second;
         if (elems.size() <= 1) continue;
         const int rank = chooseRankForComponent(elems, P, partitioning, load);
+        if (Mpi::WorldRank() == 0) {
+            std::cout << "  Component root=" << kv.first << " size=" << elems.size()
+                      << " -> rank " << rank << std::endl;
+        }
         assignComponent(elems, rank, partitioning, load);
     }
 }
@@ -948,6 +961,11 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
             layer.order = mat_json["order"].get<size_t>();
         }
 
+        // Compute n_skin_depths for all ranks (used for CFL relaxation)
+        if (sigma_si > 0.0 && skin_depth > 0.0) {
+            layer.n_skin_depths = layer_width / skin_depth;
+        }
+
         if (Mpi::WorldRank() == 0) {
             std::cout << "\n[SGBC Layer Auto-Mesh]" << std::endl;
             std::cout << "  Width                : " << layer_width * 1000.0 << " mm" << std::endl;
@@ -964,7 +982,7 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
                 std::cout << "  [WARNING] Max segment limit reached!" << std::endl;
             }
             if (sigma_si > 0.0 && skin_depth > 0.0) {
-                double n_skin_depths = layer_width / skin_depth;
+                double n_skin_depths = layer.n_skin_depths;
                 if (n_skin_depths > 7.0) {
                     double transmission_dB = -20.0 * n_skin_depths * std::log10(std::exp(1.0));
                     std::ostringstream oss;
