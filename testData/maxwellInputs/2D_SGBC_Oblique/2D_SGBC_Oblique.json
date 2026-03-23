@@ -29,10 +29,13 @@
         "type": "SGBC",
         "layers": [
           {
-            "relative_permittivity": 2.25,
+            "relative_permittivity": 1.0,
             "relative_permeability": 1.0,
-            "bulk_conductivity": 100.0,
-            "material_width": 8e-3
+            "bulk_conductivity": 1.0,
+            "material_width": 8e-3,
+            "sgbc_boundaries": {
+              "right": "PEC"
+            }
           }
         ]
       }
