@@ -8,7 +8,7 @@
   },
 
   "model": { 
-    "filename": "2D_Faux_SGBC_Multilayer.msh",
+    "filename": "2D_SGBC_Faux_Multilayer.msh",
     "materials": [
       {
         "tags": [ 1, 2, 6 ],
