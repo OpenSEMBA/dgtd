@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
+#include <cmath>
 
 namespace maxwell {
 
@@ -444,14 +445,23 @@ void Solver::run()
         step();
 
         // Stability check — every step (getNorml2 is O(N), negligible cost).
-        if (Mpi::WorldRank() == 0 && this->fields_.getNorml2() > 1e20) {
-            std::cout << "========================================================================" << std::endl;
-            std::cout << "WARNING: Simulation is potentially unstable (field norm = "
-                      << this->fields_.getNorml2() << " > 1e20)." << std::endl;
-            std::cout << "  Time: " << time_ << " / " << opts_.final_time
-                      << ",  dt: " << dt_ << std::endl;
-            std::cout << "  Verify your setup and consider lowering the time step." << std::endl;
-            std::cout << "========================================================================" << std::endl;
+        // NaN > threshold is always false in IEEE 754, so we must use isfinite.
+        {
+            double localNorm = this->fields_.getNorml2();
+            int localUnstable = (!std::isfinite(localNorm) || localNorm > 1e20) ? 1 : 0;
+            int globalUnstable = 0;
+            MPI_Allreduce(&localUnstable, &globalUnstable, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            if (globalUnstable) {
+                if (Mpi::WorldRank() == 0) {
+                    std::cout << "========================================================================" << std::endl;
+                    std::cout << "ERROR: Simulation unstable — aborting." << std::endl;
+                    std::cout << "  Local field norm on rank 0: " << localNorm << std::endl;
+                    std::cout << "  Time: " << time_ << " / " << opts_.final_time
+                              << ",  dt: " << dt_ << std::endl;
+                    std::cout << "========================================================================" << std::endl;
+                }
+                MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+            }
         }
 
 #ifdef SHOW_TIMER_INFORMATION
