@@ -15,19 +15,6 @@
 
 namespace maxwell::driver {
 
-struct DSU { //Disjoint Set Union
-    std::vector<int> p, r;
-    explicit DSU(int n): p(n), r(n,0) { std::iota(p.begin(), p.end(), 0); }
-    int find(int x){ return p[x]==x ? x : p[x]=find(p[x]); }
-    void unite(int a, int b){
-        a = find(a); b = find(b);
-        if (a == b) return;
-        if (r[a] < r[b]) std::swap(a,b);
-        p[b] = a;
-        if (r[a] == r[b]) r[a]++;
-    }
-};
-
 double calculateMaximumSourceFrequency(const json& case_data)
 {
     double min_spread = std::numeric_limits<double>::max();
@@ -93,72 +80,78 @@ gatherConstraintPairs(mfem::Mesh& mesh,
     return pairs;
 }
 
-DSU buildDSU(int NE, const std::vector<std::pair<int,int>>& pairs)
+// Weight for boundary-adjacent elements: SGBC sub-solvers and TFSF source
+// injection are significantly more expensive than a plain DG element update.
+static constexpr long long BOUNDARY_ELEM_WEIGHT = 5;
+static constexpr long long BULK_ELEM_WEIGHT     = 1;
+
+// Build per-element weight array.  Elements adjacent to any SGBC or TFSF
+// face get BOUNDARY_ELEM_WEIGHT; all others get BULK_ELEM_WEIGHT.
+static std::vector<long long> buildElementWeights(
+    int NE,
+    const std::vector<std::pair<int,int>>& pairs)
 {
-    DSU dsu(NE);
+    std::vector<long long> w(NE, BULK_ELEM_WEIGHT);
     for (const auto& pr : pairs) {
-        const int a = pr.first, b = pr.second;
-        if (0 <= a && a < NE && 0 <= b && b < NE) dsu.unite(a, b);
+        if (0 <= pr.first  && pr.first  < NE) w[pr.first]  = BOUNDARY_ELEM_WEIGHT;
+        if (0 <= pr.second && pr.second < NE) w[pr.second] = BOUNDARY_ELEM_WEIGHT;
     }
-    return dsu;
+    return w;
 }
 
-std::unordered_map<int, std::vector<int>> componentsFromDSU(int NE, DSU& dsu)
-{
-    std::unordered_map<int, std::vector<int>> comp;
-    comp.reserve(NE);
-    for (int e = 0; e < NE; ++e) comp[dsu.find(e)].push_back(e);
-    return comp;
-}
-
-std::vector<long long> computeLoad(int P, int NE, const int* partitioning)
+// Weighted load per rank.
+static std::vector<long long> computeWeightedLoad(
+    int P, int NE,
+    const int* partitioning,
+    const std::vector<long long>& weight)
 {
     std::vector<long long> load(P, 0);
     for (int e = 0; e < NE; ++e) {
         const int r = partitioning[e];
-        if (0 <= r && r < P) load[r]++;
+        if (0 <= r && r < P) load[r] += weight[e];
     }
     return load;
 }
 
-int chooseRankForComponent(const std::vector<int>& elems, int P, const int* partitioning, const std::vector<long long>& load)
+// Count how many boundary-pair DOF points (SGBC or TFSF face endpoints)
+// are currently assigned to each rank.
+static std::vector<int> countBoundaryPairsPerRank(
+    int P,
+    const int* partitioning,
+    const std::vector<std::pair<int,int>>& pairs)
 {
-    std::vector<int> hist(P, 0);
-    for (int e : elems) {
-        const int r = partitioning[e];
-        if (0 <= r && r < P) hist[r]++;
+    std::vector<int> cnt(P, 0);
+    for (const auto& pr : pairs) {
+        const int r = partitioning[pr.first];
+        if (0 <= r && r < P) cnt[r]++;
     }
-
-    int best_rank = -1, best_count = -1;
-    for (int r = 0; r < P; ++r) {
-        if (hist[r] > best_count) { best_count = hist[r]; best_rank = r; }
-    }
-
-    if (best_rank < 0) {
-        best_rank = 0;
-        for (int r = 1; r < P; ++r)
-            if (load[r] < load[best_rank]) best_rank = r;
-        return best_rank;
-    }
-
-    long long best_load = std::numeric_limits<long long>::max();
-    int tie_pick = best_rank;
-    for (int r = 0; r < P; ++r) {
-        if (hist[r] == best_count && load[r] < best_load) {
-            best_load = load[r];
-            tie_pick = r;
-        }
-    }
-    return tie_pick;
+    return cnt;
 }
 
-void assignComponent(const std::vector<int>& elems,
-                int rank,
-                int* partitioning,
-                std::vector<long long>& load)
+// Pick the rank with the lowest weighted load.
+static int leastLoadedRank(const std::vector<long long>& load)
 {
-    for (int e : elems) partitioning[e] = rank;
-    load[rank] += static_cast<long long>(elems.size());
+    int best = 0;
+    for (int r = 1; r < static_cast<int>(load.size()); ++r) {
+        if (load[r] < load[best]) best = r;
+    }
+    return best;
+}
+
+// Assign a vector of elements to a rank, updating weights.
+static void assignComponent(const std::vector<int>& elems,
+                             int rank,
+                             int* partitioning,
+                             std::vector<long long>& load,
+                             const std::vector<long long>& weight)
+{
+    for (int e : elems) {
+        const int old_r = partitioning[e];
+        if (0 <= old_r && old_r < static_cast<int>(load.size()))
+            load[old_r] -= weight[e];
+        partitioning[e] = rank;
+        load[rank] += weight[e];
+    }
 }
 
 void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
@@ -168,33 +161,82 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
 {
     const int NE = mesh.GetNE();
     const int P  = Mpi::WorldSize();
-    if (NE == 0 || P <= 0) return;
+    if (NE == 0 || P <= 1) return;
 
     auto pairs = gatherConstraintPairs(mesh, tfsf_tags, sgbc_tags);
-    if (Mpi::WorldRank() == 0) {
-        std::cout << "[Partition] gatherConstraintPairs found " << pairs.size()
-                  << " element pairs (TFSF tags=" << tfsf_tags.Size()
-                  << ", SGBC tags=" << sgbc_tags.Size() << ")" << std::endl;
-        for (size_t i = 0; i < pairs.size(); i++) {
-            std::cout << "  pair[" << i << "]: elem " << pairs[i].first
-                      << " <-> elem " << pairs[i].second << std::endl;
-        }
-    }
     if (pairs.empty()) return;
 
-    auto dsu = buildDSU(NE, pairs);
-    auto comp = componentsFromDSU(NE, dsu);
-    auto load = computeLoad(P, NE, partitioning);
+    // --- Phase 0: Build weighted load model ---
+    auto weight = buildElementWeights(NE, pairs);
+    auto load   = computeWeightedLoad(P, NE, partitioning, weight);
 
-    for (auto& kv : comp) {
-        const auto& elems = kv.second;
-        if (elems.size() <= 1) continue;
-        const int rank = chooseRankForComponent(elems, P, partitioning, load);
-        if (Mpi::WorldRank() == 0) {
-            std::cout << "  Component root=" << kv.first << " size=" << elems.size()
-                      << " -> rank " << rank << std::endl;
+    // --- Phase 1: Enforce pair co-location (DSU) ---
+    // Each pair's two elements must reside on the same rank.
+    // Build small components: only chain elements that share a face pair,
+    // NOT transitively through the whole surface.
+    // We do NOT chain through the DSU — each face pair (2 elements) is an
+    // independent unit so they can be spread across ranks.
+    struct PairComponent {
+        int elem1, elem2;
+        long long cost;        // sum of weights
+    };
+    std::vector<PairComponent> pairComps;
+    pairComps.reserve(pairs.size());
+    // Deduplicate: an element can appear in multiple pairs. Track which
+    // elements have already been assigned by an earlier pair.
+    std::vector<bool> claimed(NE, false);
+    for (const auto& pr : pairs) {
+        const int a = pr.first, b = pr.second;
+        if (a < 0 || a >= NE || b < 0 || b >= NE) continue;
+        pairComps.push_back({a, b, weight[a] + weight[b]});
+    }
+
+    // Sort pairs by descending cost so the heaviest pairs get first pick
+    // of the least-loaded rank.
+    std::sort(pairComps.begin(), pairComps.end(),
+              [](const PairComponent& a, const PairComponent& b) {
+                  return a.cost > b.cost;
+              });
+
+    // --- Phase 2: Round-robin assignment to spread pairs evenly ---
+    // First, remove existing load from these elements (we'll reassign them).
+    for (const auto& pc : pairComps) {
+        for (int e : {pc.elem1, pc.elem2}) {
+            const int old_r = partitioning[e];
+            if (0 <= old_r && old_r < P) {
+                load[old_r] -= weight[e];
+            }
         }
-        assignComponent(elems, rank, partitioning, load);
+    }
+
+    // Assign each pair to the least-loaded rank.
+    for (const auto& pc : pairComps) {
+        const int rank = leastLoadedRank(load);
+        for (int e : {pc.elem1, pc.elem2}) {
+            partitioning[e] = rank;
+            load[rank] += weight[e];
+        }
+    }
+
+    // --- Phase 3: Diagnostics ---
+    if (Mpi::WorldRank() == 0) {
+        auto bdr_cnt = countBoundaryPairsPerRank(P, partitioning, pairs);
+        long long max_load = *std::max_element(load.begin(), load.end());
+        long long min_load = *std::min_element(load.begin(), load.end());
+        long long total    = std::accumulate(load.begin(), load.end(), 0LL);
+        double ideal       = static_cast<double>(total) / P;
+        double imbalance   = (ideal > 0.0) ? (max_load - ideal) / ideal * 100.0 : 0.0;
+
+        std::cout << "[Partition] " << pairs.size() << " boundary pairs across "
+                  << P << " ranks (TFSF=" << tfsf_tags.Size()
+                  << " tags, SGBC=" << sgbc_tags.Size() << " tags)\n";
+        std::cout << "[Partition] Weighted load: min=" << min_load
+                  << " max=" << max_load << " ideal=" << std::fixed
+                  << std::setprecision(1) << ideal
+                  << " imbalance=" << imbalance << "%\n";
+        std::cout << "[Partition] Boundary pairs per rank:";
+        for (int r = 0; r < P; ++r) std::cout << " R" << r << "=" << bdr_cnt[r];
+        std::cout << std::endl;
     }
 }
 
