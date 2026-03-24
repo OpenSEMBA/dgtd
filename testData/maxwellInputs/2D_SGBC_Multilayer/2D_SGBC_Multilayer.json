@@ -76,7 +76,7 @@
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
       "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 26 ],
+      "tags": [ 14 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1,

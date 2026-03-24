@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "time_step": 2.5e-3,
-    "final_time": 8.0,
+    "final_time": 15.0,
     "tfsf_final_time": 3.0,
     "order": 4
   },
@@ -25,22 +25,22 @@
         "type": "SGBC",
         "layers": [
           {
-            "relative_permittivity": 2.25,
+            "relative_permittivity": 10.0,
             "relative_permeability": 1.0,
-            "bulk_conductivity": 1e-12,
-            "material_width": 1.5e-3
+            "bulk_conductivity": 0.0,
+            "material_width": 0.005
           },
           {
-            "relative_permittivity": 1.0,
+            "relative_permittivity": 80.0,
             "relative_permeability": 1.0,
-            "bulk_conductivity": 300.0,
-            "material_width": 5e-3
+            "bulk_conductivity": 0.05,
+            "material_width": 0.040
           },
           {
-            "relative_permittivity": 2.25,
+            "relative_permittivity": 10.0,
             "relative_permeability": 1.0,
-            "bulk_conductivity": 1e-12,
-            "material_width": 1.5e-3
+            "bulk_conductivity": 0.0,
+            "material_width": 0.005
           }
         ]
       }
@@ -75,7 +75,7 @@
       "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.1,
+        "spread": 0.15,
         "mean": [ -0.5 ]
       }
     }
