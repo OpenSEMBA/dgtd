@@ -16,15 +16,16 @@
       },
       {
         "tags": [ 3, 5 ],
-        "relative_permittivity": 1.0,
+        "relative_permittivity": 2.25,
         "relative_permeability": 1.0,
-        "bulk_conductivity": 1.0
+        "bulk_conductivity": 1e-12,
+        "material_width": 1.5e-3
       },
       {
         "tags": [ 4 ],
-        "relative_permittivity": 9.0,
-        "relative_permeability": 1.0,
-        "bulk_conductivity": 100.0
+        "relative_permittivity": 50.0,
+        "relative_permeability": 15.0, 
+        "bulk_conductivity": 10.0
       }
     ],
     "boundaries": [
