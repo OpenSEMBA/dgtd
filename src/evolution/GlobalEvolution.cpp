@@ -689,8 +689,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             auto w = it->second;
             int local_size = w->getLocalFieldSize();
             int idx_left = w->getLeftInterfaceIndex();
-            const auto left_bdr =
-                w->getProperties().sgbc_bdr_info.first.bdrCond;
+            const auto& left_info = w->getProperties().sgbc_bdr_info.first;
+            const auto left_bdr = left_info.isOn ? left_info.bdrCond : BdrCond::SGBC;
 
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
@@ -780,8 +780,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             auto w = it->second;
             int local_size = w->getLocalFieldSize();
             int idx_right = w->getRightInterfaceIndex();
-            const auto right_bdr =
-                w->getProperties().sgbc_bdr_info.second.bdrCond;
+            const auto& right_info = w->getProperties().sgbc_bdr_info.second;
+            const auto right_bdr = right_info.isOn ? right_info.bdrCond : BdrCond::SGBC;
 
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
