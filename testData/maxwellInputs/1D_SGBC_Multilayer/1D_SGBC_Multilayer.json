@@ -1,10 +1,10 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 2.5e-3,
+    "time_step": 5e-3, 
     "final_time": 15.0,
     "tfsf_final_time": 3.0,
-    "order": 4
+    "order": 3
   },
 
   "model": { 
@@ -24,25 +24,37 @@
         "tags": [ 3 ],
         "type": "SGBC",
         "layers": [
-          {
-            "relative_permittivity": 10.0,
-            "relative_permeability": 1.0,
-            "bulk_conductivity": 0.0,
-            "material_width": 0.005
-          },
-          {
-            "relative_permittivity": 80.0,
-            "relative_permeability": 1.0,
-            "bulk_conductivity": 0.05,
-            "material_width": 0.040
-          },
-          {
-            "relative_permittivity": 10.0,
-            "relative_permeability": 1.0,
-            "bulk_conductivity": 0.0,
-            "material_width": 0.005
-          }
-        ]
+        {
+          "material_width": 0.001,
+          "relative_permittivity": 10.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 0.01
+        },
+        {
+          "material_width": 0.001,
+          "relative_permittivity": 2.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 50.0
+        },
+        {
+          "material_width": 0.001,
+          "relative_permittivity": 3.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 300.0
+        },
+        {
+          "material_width": 0.001,
+          "relative_permittivity": 2.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 50.0
+        },
+        {
+          "material_width": 0.001,
+          "relative_permittivity": 10.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 0.01
+        }
+      ]
       }
     ]
   },
