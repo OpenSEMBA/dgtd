@@ -96,6 +96,11 @@ private:
     mutable mfem::Vector implicit_src_;
     mutable bool implicit_work_initialized_ = false;
 
+    // SGBC skip threshold: if both the sub-domain internal fields and the
+    // global interface DOFs are below this norm, skip the sub-solve and
+    // flux injection entirely for that face.
+    static constexpr double sgbc_skip_threshold_ = 1e-8;
+
     // Cached dense LU factorization for small serial systems (SGBC sub-solver).
     // Activated only when n <= threshold AND nbrDofs == 0 (serial mesh).
     // This ensures it never triggers for the main 2D/3D parallel problem.

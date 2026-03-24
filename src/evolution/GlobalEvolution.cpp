@@ -391,7 +391,38 @@ void GlobalEvolution::finalizeSGBCStep(
         }
     }
 
+    // Check quiescence: skip entire finalization when all SGBC faces are negligible
+    const double thr2 = sgbc_skip_threshold_ * sgbc_skip_threshold_;
+    auto ifaceNormSqGF = [&fields](const SGBCState& s) {
+        double n2 = 0.0;
+        for (int d = 0; d < 3; ++d) {
+            double ve = fields.get(E, static_cast<Direction>(d))[s.global_pair.first];
+            double vh = fields.get(H, static_cast<Direction>(d))[s.global_pair.first];
+            n2 += ve * ve + vh * vh;
+            if (s.global_pair.second != -1) {
+                ve = fields.get(E, static_cast<Direction>(d))[s.global_pair.second];
+                vh = fields.get(H, static_cast<Direction>(d))[s.global_pair.second];
+                n2 += ve * ve + vh * vh;
+            }
+        }
+        return n2;
+    };
+
+    bool all_quiescent = true;
+    for (const auto& [tag, states] : sgbc_states_) {
+        for (const auto& state : states) {
+            if (state.fields_state.Norml2() >= sgbc_skip_threshold_ ||
+                ifaceNormSqGF(state) >= thr2) {
+                all_quiescent = false;
+                break;
+            }
+        }
+        if (!all_quiescent) break;
+    }
+    if (all_quiescent) return;
+
     // Advance SGBC for full dt with committed post-step fields
+
     double dt = sgbc_step_dt_;
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
     if (!sgbc_thread_pool_.empty()) {
@@ -529,6 +560,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #ifdef SHOW_TIMER_INFORMATION
     timerSGBC.Start();
 #endif
+    bool sgbc_all_quiescent = false;
     if (SGBCOperator_ && !sgbcWrappers_.empty()){
         if (sgbcVec_.Size() != 6 * blockSize) {
             sgbcVec_.SetSize(6 * blockSize);
@@ -549,14 +581,49 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
 
+        // Helper: compute squared norm of global interface DOFs for a given state.
+        auto ifaceNormSq = [&in, ndofs](const SGBCState& s) {
+            double n2 = 0.0;
+            for (int d = 0; d < 6; ++d) {
+                double v = in[d * ndofs + s.global_pair.first];
+                n2 += v * v;
+                if (s.global_pair.second != -1) {
+                    v = in[d * ndofs + s.global_pair.second];
+                    n2 += v * v;
+                }
+            }
+            return n2;
+        };
+        const double thr2 = sgbc_skip_threshold_ * sgbc_skip_threshold_;
+
+        // Check if ALL SGBC faces are quiescent (skip sub-solve + flux injection)
+        sgbc_all_quiescent = true;
+        for (const auto& [tag, states] : sgbc_states_) {
+            for (const auto& state : states) {
+                if (state.fields_state.Norml2() >= sgbc_skip_threshold_ ||
+                    ifaceNormSq(state) >= thr2) {
+                    sgbc_all_quiescent = false;
+                    break;
+                }
+            }
+            if (!sgbc_all_quiescent) break;
+        }
+
         // Advance SGBC to stage time using intermediate global fields as ghost data
-        if (dt_to_stage > 1e-12) {
+        if (!sgbc_all_quiescent && dt_to_stage > 1e-12) {
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
             if (!sgbc_thread_pool_.empty()) {
                 #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
                 for (size_t ti = 0; ti < sgbc_tasks_.size(); ++ti) {
                     const auto& task = sgbc_tasks_[ti];
                     auto& state = sgbc_states_[task.tag][task.state_index];
+
+                    // Skip sub-solve when fields are negligible
+                    double stateN2 = 0.0;
+                    for (int j = 0; j < state.fields_state.Size(); ++j) {
+                        stateN2 += state.fields_state[j] * state.fields_state[j];
+                    }
+                    if (stateN2 < thr2 && ifaceNormSq(state) < thr2) continue;
 
                     int tid = omp_get_thread_num();
                     SGBCWrapper* w;
@@ -594,6 +661,10 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     double actual_sub_dt = dt_to_stage / nsteps;
 
                     for (auto& state : states) {
+                        // Skip sub-solve when fields are negligible
+                        if (state.fields_state.Norml2() < sgbc_skip_threshold_ &&
+                            ifaceNormSq(state) < thr2) continue;
+
                         w->loadState(state);
                         for (int step = 0; step < nsteps; ++step) {
                             w->updateFieldsWithGlobalVector(in, ndofs, state);
@@ -677,7 +748,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
     // 6) SGBC flux injection (two-pass face coupling)
     //    Sub-solve was done in step 1; here we only inject interface values as flux.
-    if (SGBCOperator_ && !sgbcWrappers_.empty()){
+    //    Skip entirely when all SGBC faces are quiescent.
+    if (SGBCOperator_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
         if (sgbcVec_.Size() != 6 * blockSize) {
             sgbcVec_.SetSize(6 * blockSize);
             sgbcVec_.UseDevice(true);
