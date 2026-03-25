@@ -25,7 +25,8 @@ public:
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
     void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
 
-    void commitSGBCCheckpoint(double base_time, double dt);
+    void commitSGBCCheckpoint(double base_time, double dt,
+                              const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
     void finalizeSGBCStep(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
@@ -76,9 +77,6 @@ private:
     // Cached indices of sources that are TotalField (avoids dynamic_cast per Mult)
     std::vector<int> tfsfSourceIndices_;
 
-    // Fast-exit flag: set to true once TFSF cutoff time is reached
-    mutable bool tfsf_cutoff_reached_ = false;
-
     mfem::ParFiniteElementSpace& fes_;
     Model& model_;
     SourcesManager& srcmngr_;
@@ -100,6 +98,11 @@ private:
     // global interface DOFs are below this norm, skip the sub-solve and
     // flux injection entirely for that face.
     static constexpr double sgbc_skip_threshold_ = 1e-8;
+
+    // TFSF skip threshold: if the evaluated planewave source norm falls
+    // below this value, the source has decayed and TFSF is permanently
+    // skipped for the remainder of the simulation.
+    static constexpr double tfsf_skip_threshold_ = 1e-8;
 
     // Cached dense LU factorization for small serial systems (SGBC sub-solver).
     // Activated only when n <= threshold AND nbrDofs == 0 (serial mesh).

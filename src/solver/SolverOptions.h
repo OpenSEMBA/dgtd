@@ -76,11 +76,6 @@ struct SolverOptions {
         return *this;
     }
 
-    SolverOptions& setTFSFCutoffTime(double tfsf_ft) {
-        evolution.tfsf_cutoff_time = tfsf_ft;
-        return *this;
-    }
-
     SolverOptions& setODEType(size_t type) {
         ode_type = type;
         return *this;

@@ -485,7 +485,7 @@ void Solver::step()
 
     // Monolithic IMEX: checkpoint SGBC before RK4, advance inside Mult(), finalize after
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
-        globalEvol_cache_->commitSGBCCheckpoint(time_, truedt);
+        globalEvol_cache_->commitSGBCCheckpoint(time_, truedt, fields_);
     }
 
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);

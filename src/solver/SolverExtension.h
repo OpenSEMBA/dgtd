@@ -47,6 +47,12 @@ struct SGBCState {
     ElementPair element_pair;   
     mfem::Vector fields_state;
     double rot[9];  // 3x3 rotation matrix (row-major): global→face-local frame
+
+    // Face-local ghost values for temporal interpolation during finalize sub-stepping.
+    // Layout: [Ex, Ey, Ez, Hx, Hy, Hz] left  (indices 0-5)
+    //         [Ex, Ey, Ez, Hx, Hy, Hz] right (indices 6-11)
+    double ghost_old[12];  // values at start of global step (t)
+    double ghost_new[12];  // values at end   of global step (t + dt)
     
     void init(int size) {
         fields_state.SetSize(size);
@@ -54,6 +60,8 @@ struct SGBCState {
         // Identity by default (correct for 1D / face-aligned cases)
         std::fill(rot, rot + 9, 0.0);
         rot[0] = rot[4] = rot[8] = 1.0;
+        std::fill(ghost_old, ghost_old + 12, 0.0);
+        std::fill(ghost_new, ghost_new + 12, 0.0);
     }
 };
 
@@ -115,6 +123,10 @@ public:
 
     // Overload that reads ghost-zone values from a raw stage vector (for monolithic IMEX)
     void updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs, const SGBCState& context);
+
+    // Set ghost fields from linearly interpolated face-local values stored in SGBCState.
+    // alpha in [0,1]: ghost = (1-alpha)*ghost_old + alpha*ghost_new.
+    void updateFieldsWithInterpolatedGhost(double alpha, const SGBCState& context);
 
     void setAllSolverFields(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
     

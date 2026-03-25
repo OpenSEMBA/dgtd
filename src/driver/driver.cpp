@@ -17,15 +17,25 @@ namespace maxwell::driver {
 
 double calculateMaximumSourceFrequency(const json& case_data)
 {
+    double c_si = physicalConstants::speedOfLight_SI;
     double min_spread = std::numeric_limits<double>::max();
+    double max_freq = 0.0;
     bool found_gaussian = false;
+    bool found_modulated = false;
 
     if (case_data.contains("sources")) {
         for (const auto& source : case_data["sources"]) {
             if (source.contains("magnitude") && source["magnitude"].contains("type")) {
                 if (source["magnitude"]["type"] == "gaussian") {
                     double spread = source["magnitude"]["spread"].get<double>();
-                    if (spread > 0.0 && spread < min_spread) {
+                    if (source["magnitude"].contains("frequency")) {
+                        double f_carrier = source["magnitude"]["frequency"].get<double>();
+                        double f_edge = f_carrier + c_si / (2.0 * spread);
+                        if (f_edge > max_freq) {
+                            max_freq = f_edge;
+                            found_modulated = true;
+                        }
+                    } else if (spread > 0.0 && spread < min_spread) {
                         min_spread = spread;
                         found_gaussian = true;
                     }
@@ -34,15 +44,15 @@ double calculateMaximumSourceFrequency(const json& case_data)
         }
     }
 
-    if (found_gaussian) {
-        // capture >99% of the spectral energy (-40dB power cutoff)
-        double c_si = physicalConstants::speedOfLight_SI;
-        double f_max = c_si / (2.0 * min_spread);
-        return f_max;
+    if (found_modulated) {
+        return max_freq;
     }
 
-    // Fallback if no Gaussian source is found
-    return 1e9; // Default to 1 GHz
+    if (found_gaussian) {
+        return c_si / (2.0 * min_spread);
+    }
+
+    return 1e9;
 }
 
 std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh, mfem::Array<int> tags)
@@ -377,6 +387,26 @@ std::unique_ptr<TotalField> buildGaussianPlanewave(
 	return std::make_unique<TotalField>(pw);
 }
 
+std::unique_ptr<TotalField> buildModulatedGaussianPlanewave(
+	double spread,
+	const Source::Position mean,
+	double freq_hz,
+	const Source::Polarization& pol,
+	const Source::Propagation& dir,
+	const FieldType ft = FieldType::E
+)
+{
+	Position projMean(3);
+	projMean = 0.0;
+	for (auto v = 0; v < mean.Size(); v++) {
+		projMean[v] = mean[v];
+	}
+	double freq_norm = freq_hz / physicalConstants::speedOfLight_SI;
+	ModulatedGaussian mg{ spread, mfem::Vector({projMean * dir / dir.Norml2()}), freq_norm };
+	Planewave pw(mg, pol, dir, ft);
+	return std::make_unique<TotalField>(pw);
+}
+
 std::unique_ptr<TotalField> buildDerivGaussDipole(
 	const double length, 
 	const double gaussianSpread, 
@@ -422,13 +452,24 @@ Sources buildSources(const json& case_data)
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "planewave") {
-			res.add(buildGaussianPlanewave(
-				case_data["sources"][s]["magnitude"]["spread"],
-				assemble3DVector(case_data["sources"][s]["magnitude"]["mean"]),
-				assemble3DVector(case_data["sources"][s]["polarization"]),
-				assemble3DVector(case_data["sources"][s]["propagation"]),
-				FieldType::E)
-			);
+			if (case_data["sources"][s]["magnitude"].contains("frequency")) {
+				res.add(buildModulatedGaussianPlanewave(
+					case_data["sources"][s]["magnitude"]["spread"],
+					assemble3DVector(case_data["sources"][s]["magnitude"]["mean"]),
+					case_data["sources"][s]["magnitude"]["frequency"],
+					assemble3DVector(case_data["sources"][s]["polarization"]),
+					assemble3DVector(case_data["sources"][s]["propagation"]),
+					FieldType::E)
+				);
+			} else {
+				res.add(buildGaussianPlanewave(
+					case_data["sources"][s]["magnitude"]["spread"],
+					assemble3DVector(case_data["sources"][s]["magnitude"]["mean"]),
+					assemble3DVector(case_data["sources"][s]["polarization"]),
+					assemble3DVector(case_data["sources"][s]["propagation"]),
+					FieldType::E)
+				);
+			}
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
 			res.add(buildDerivGaussDipole(
@@ -497,10 +538,6 @@ SolverOptions buildSolverOptions(const json& case_data)
 
 		if (case_data["solver_options"].contains("basis_type")) {
 			res.setBasisType(case_data["solver_options"]["basis_type"]);
-		}
-
-		if (case_data["solver_options"].contains("tfsf_final_time")){
-			res.setTFSFCutoffTime(case_data["solver_options"]["tfsf_final_time"]);
 		}
 
 		if (case_data["solver_options"].contains("ode_type")){
@@ -970,30 +1007,23 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
         }
 
         // Segment count per layer
+        // Target 20 DOFs per wavelength for accurate phase representation.
+        // Each segment has 'order' DOFs, so need ceil(20/order) segments per λ.
         double wavelength = 1.0 / (max_freq * std::sqrt(mu_si * eps_si));
-        double target_dx_wave = wavelength / 5.0;
+        int segs_per_wavelength = static_cast<int>(std::ceil(20.0 / layer.order));
+        double target_dx_wave = wavelength / segs_per_wavelength;
 
         double target_dx_skin = std::numeric_limits<double>::max();
         double skin_depth = 0.0;
         if (sigma_si > 0.0) {
             skin_depth = 1.0 / std::sqrt(M_PI * max_freq * mu_si * sigma_si);
-            target_dx_skin = skin_depth / 1.5;
+            target_dx_skin = skin_depth / 2.0;
         }
 
         double target_dx = std::min(target_dx_wave, target_dx_skin);
         int auto_segments = static_cast<int>(std::ceil(layer_width / target_dx));
 
-        double safety_factor = 1.25;
-        if (peclet_number > 100.0) {
-            safety_factor = 2.0;
-        } else if (peclet_number > 10.0) {
-            safety_factor = 1.75;
-        } else if (peclet_number > 1.0) {
-            safety_factor = 1.5;
-        }
-
-        layer.num_of_segments = std::clamp(
-            static_cast<int>(auto_segments * safety_factor), 2, 1000);
+        layer.num_of_segments = std::clamp(auto_segments, 4, 1000);
 
         // Manual overrides (backward compatibility with old JSON format)
         if (mat_json.contains("num_of_segments")) {
@@ -1017,7 +1047,6 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
                 std::cout << "  Skin Depth           : " << skin_depth * 1000.0 << " mm" << std::endl;
                 std::cout << "  Loss Tangent (Pe)    : " << peclet_number << std::endl;
             }
-            std::cout << "  Mesh Safety Factor   : " << safety_factor << "x" << std::endl;
             std::cout << "  Generated Mesh       : " << layer.num_of_segments << " segments (Order " << layer.order << ")" << std::endl;
 
             if (layer.num_of_segments == 1000) {

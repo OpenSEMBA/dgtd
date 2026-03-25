@@ -100,6 +100,49 @@ private:
 	int dimension_;
 };
 
+/**
+* A modulated Gaussian: exp(-((x-mean)^2)/(2*spread^2)) * cos(2*pi*freq*(x-mean))
+* Uses a wide envelope (large spread) with a carrier frequency to place spectral
+* content around freq without needing fine mesh resolution for a narrow Gaussian.
+* freq is in normalized units (f_SI / c_SI).
+*/
+class ModulatedGaussian : public Function {
+public:
+	ModulatedGaussian(
+		double spread,
+		const Position mean,
+		double freq,
+		int dim = 1
+	) :
+		spread_{ spread },
+		mean_{ mean },
+		freq_{ freq },
+		dimension_{ dim }
+	{
+		assert(mean_.Size() == dimension_);
+	}
+
+	int dimension() const { return dimension_; }
+
+	std::unique_ptr<Function> clone() const {
+		return std::make_unique<ModulatedGaussian>(*this);
+	}
+
+	double eval(const Position& pos) const {
+		assert(dimension_ <= pos.Size());
+		double arg = pos[X] - mean_[X];
+		double envelope = exp(-arg * arg / (2.0 * spread_ * spread_));
+		double carrier = cos(2.0 * M_PI * freq_ * arg);
+		return envelope * carrier;
+	}
+
+private:
+	double spread_;
+	Position mean_;
+	double freq_;
+	int dimension_;
+};
+
 class SinusoidalMode : public Function {
 public:
 	SinusoidalMode(std::vector<std::size_t> modes) :

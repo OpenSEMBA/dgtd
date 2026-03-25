@@ -296,6 +296,41 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
     }
 }
 
+void SGBCWrapper::updateFieldsWithInterpolatedGhost(double alpha, const SGBCState& context)
+{
+    const int dof_per_field_comp = solver_->getConstField(FieldType::E, X).Size();
+    const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
+    const bool has_right = (context.global_pair.second != -1);
+    const int right_dof_offset = dof_per_field_comp - 1;
+    double* all = solver_->getFields().allDOFs().GetData();
+
+    const double beta = 1.0 - alpha;
+
+    // Left ghost: interpolate face-local fields
+    for (int d = 0; d < 3; ++d) {
+        double ev = beta * context.ghost_old[d]     + alpha * context.ghost_new[d];
+        double hv = beta * context.ghost_old[3 + d] + alpha * context.ghost_new[3 + d];
+        double* e_block = all + d * dof_per_field_comp;
+        double* h_block = all + (3 + d) * dof_per_field_comp;
+        for (int dof = 0; dof < total_ghost_dofs; ++dof) {
+            e_block[dof] = ev;
+            h_block[dof] = hv;
+        }
+    }
+    if (has_right) {
+        for (int d = 0; d < 3; ++d) {
+            double ev = beta * context.ghost_old[6 + d]     + alpha * context.ghost_new[6 + d];
+            double hv = beta * context.ghost_old[6 + 3 + d] + alpha * context.ghost_new[6 + 3 + d];
+            double* e_block = all + d * dof_per_field_comp;
+            double* h_block = all + (3 + d) * dof_per_field_comp;
+            for (int dof = 0; dof < total_ghost_dofs; ++dof) {
+                e_block[right_dof_offset - dof] = ev;
+                h_block[right_dof_offset - dof] = hv;
+            }
+        }
+    }
+}
+
 void SGBCWrapper::getSGBCFields(const Array<int>& sub_to_global, const SGBCState& context, SGBCHelperFields& out)
 {
     const auto local_field_size = this->solver_->getConstField(FieldType::E, X).Size();

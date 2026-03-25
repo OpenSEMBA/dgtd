@@ -350,7 +350,8 @@ void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
 
 GlobalEvolution::~GlobalEvolution() = default;
 
-void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt)
+void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
     sgbc_step_base_time_ = base_time;
     sgbc_step_dt_ = dt;
@@ -374,6 +375,30 @@ void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt)
             std::memcpy(cp[i].fields_state.GetData(),
                         states[i].fields_state.GetData(),
                         states[i].fields_state.Size() * sizeof(double));
+
+            // Extract face-local ghost values at time t for interpolation.
+            const auto& s = states[i];
+            const double* R = s.rot;
+            const NodePair& pair = s.global_pair;
+            double eg[3], hg[3];
+            for (int d = 0; d < 3; ++d) {
+                eg[d] = fields.get(E, static_cast<Direction>(d))[pair.first];
+                hg[d] = fields.get(H, static_cast<Direction>(d))[pair.first];
+            }
+            for (int d = 0; d < 3; ++d) {
+                cp[i].ghost_old[d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
+                cp[i].ghost_old[3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
+            }
+            if (pair.second != -1) {
+                for (int d = 0; d < 3; ++d) {
+                    eg[d] = fields.get(E, static_cast<Direction>(d))[pair.second];
+                    hg[d] = fields.get(H, static_cast<Direction>(d))[pair.second];
+                }
+                for (int d = 0; d < 3; ++d) {
+                    cp[i].ghost_old[6 + d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
+                    cp[i].ghost_old[6 + 3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
+                }
+            }
         }
     }
 }
@@ -381,13 +406,39 @@ void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt)
 void GlobalEvolution::finalizeSGBCStep(
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
-    // Restore from checkpoint (memcpy only, sizes are pre-matched)
+    // Restore from checkpoint and copy interpolation endpoints into working states.
     for (auto& [tag, states] : sgbc_states_) {
         const auto& cp = sgbc_states_checkpoint_.at(tag);
         for (size_t i = 0; i < states.size(); ++i) {
             std::memcpy(states[i].fields_state.GetData(),
                         cp[i].fields_state.GetData(),
                         cp[i].fields_state.Size() * sizeof(double));
+
+            // ghost_old was captured at checkpoint time (t)
+            std::memcpy(states[i].ghost_old, cp[i].ghost_old, 12 * sizeof(double));
+
+            // Extract ghost_new from post-RK fields (t + dt)
+            const double* R = states[i].rot;
+            const NodePair& pair = states[i].global_pair;
+            double eg[3], hg[3];
+            for (int d = 0; d < 3; ++d) {
+                eg[d] = fields.get(E, static_cast<Direction>(d))[pair.first];
+                hg[d] = fields.get(H, static_cast<Direction>(d))[pair.first];
+            }
+            for (int d = 0; d < 3; ++d) {
+                states[i].ghost_new[d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
+                states[i].ghost_new[3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
+            }
+            if (pair.second != -1) {
+                for (int d = 0; d < 3; ++d) {
+                    eg[d] = fields.get(E, static_cast<Direction>(d))[pair.second];
+                    hg[d] = fields.get(H, static_cast<Direction>(d))[pair.second];
+                }
+                for (int d = 0; d < 3; ++d) {
+                    states[i].ghost_new[6 + d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
+                    states[i].ghost_new[6 + 3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
+                }
+            }
         }
     }
 
@@ -421,7 +472,7 @@ void GlobalEvolution::finalizeSGBCStep(
     }
     if (all_quiescent) return;
 
-    // Advance SGBC for full dt with committed post-step fields
+    // Advance SGBC for full dt with linearly interpolated ghost boundary data
 
     double dt = sgbc_step_dt_;
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
@@ -447,7 +498,8 @@ void GlobalEvolution::finalizeSGBCStep(
 
             w->loadState(state);
             for (int step = 0; step < nsteps; ++step) {
-                w->updateFieldsWithGlobal(fields, state);
+                double alpha = static_cast<double>(step + 1) / nsteps;
+                w->updateFieldsWithInterpolatedGhost(alpha, state);
                 w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
             }
             w->saveState(state);
@@ -472,7 +524,8 @@ void GlobalEvolution::finalizeSGBCStep(
             for (auto& state : states) {
                 w->loadState(state);
                 for (int step = 0; step < nsteps; ++step) {
-                    w->updateFieldsWithGlobal(fields, state);
+                    double alpha = static_cast<double>(step + 1) / nsteps;
+                    w->updateFieldsWithInterpolatedGhost(alpha, state);
                     w->solve(sgbc_step_base_time_ + step * actual_sub_dt, actual_sub_dt);
                 }
                 w->saveState(state);
@@ -485,17 +538,11 @@ void GlobalEvolution::finalizeSGBCStep(
 void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
                                               mfem::Vector& result_vector) const
 {
-    if (tfsf_cutoff_reached_ || !TFSFOperator_) return;
+    if (!TFSFOperator_) return;
     if (tfsfSourceIndices_.empty()) return;
 
     auto *tfsf_space = srcmngr_.getGlobalTFSFSpace();
     if (!tfsf_space) return;
-
-    const double t_off = opts_.tfsf_cutoff_time;
-    if (t_off != 0.0 && t_stage >= t_off) {
-        tfsf_cutoff_reached_ = true;
-        return;
-    }
 
     const int blockSize = ndofs + nbrDofs;
 
@@ -520,6 +567,22 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
         func_ptr = &func_storage;
     }
     const auto& func = *func_ptr;
+
+    // Check if evaluated planewave is negligible — skip scatter + SpMV.
+    // Not permanent: CW sources (e.g. cosine) pass through zero between lobes,
+    // so we re-evaluate every call and only skip the current one.
+    {
+        double norm2 = 0.0;
+        for (int f : {E, H}) {
+            for (int d : {X, Y, Z}) {
+                double n = func[f][d].Norml2();
+                norm2 += n * n;
+            }
+        }
+        if (norm2 < tfsf_skip_threshold_ * tfsf_skip_threshold_) {
+            return;
+        }
+    }
 
     // Scatter submesh planewave values into global-layout vector
     // Iterate DOFs in the outer loop to load each parent index only once
@@ -1073,7 +1136,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     }
 
     // Add TFSF source contribution (skip if no active TFSF sources)
-    if (!tfsf_cutoff_reached_ && TFSFOperator_ && !tfsfSourceIndices_.empty()) {
+    if (TFSFOperator_ && !tfsfSourceIndices_.empty()) {
         implicit_src_ = 0.0;
         applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
         implicit_rhs_ += implicit_src_;
