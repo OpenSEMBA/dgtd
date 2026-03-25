@@ -5,7 +5,6 @@
 	  "time_step": 5e-4,
     "final_time": 30.0,
     "exportOperator": false,
-    "tfsf_final_time": 15.0,
     "order": 3
   },
   "model": {

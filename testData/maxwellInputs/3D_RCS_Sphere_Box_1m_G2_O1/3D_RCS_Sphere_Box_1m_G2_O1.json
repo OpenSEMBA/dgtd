@@ -4,8 +4,7 @@
     "evolution_operator": "global",
 	  "time_step": 1e-2,
     "final_time": 30.0,
-    "order": 1,
-    "tfsf_final_time": 10.0
+    "order": 1
   },
   "model": {
     "filename": "3D_RCS_Sphere_Box_1m_G2_O1.msh",

@@ -4,7 +4,6 @@
     "evolution_operator": "global",
 	  "time_step": 1e-2,
     "final_time": 30.0,
-    "tfsf_final_time": 10.0,
     "order": 2
   },
   "model": {

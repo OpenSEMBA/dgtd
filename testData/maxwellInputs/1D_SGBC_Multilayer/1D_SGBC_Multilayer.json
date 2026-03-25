@@ -1,13 +1,12 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 5e-3, 
-    "final_time": 15.0,
-    "tfsf_final_time": 3.0,
+    "time_step": 5e-4,
+    "final_time": 12.0,
     "order": 3
   },
 
-  "model": { 
+  "model": {
     "filename": "1D_SGBC_Multilayer.msh",
     "materials": [
       {
@@ -23,63 +22,54 @@
       {
         "tags": [ 3 ],
         "type": "SGBC",
+        "sgbc_boundaries": {
+              "right": "PEC"
+        },
         "layers": [
-        {
-          "material_width": 0.001,
-          "relative_permittivity": 10.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 0.01
-        },
-        {
-          "material_width": 0.001,
-          "relative_permittivity": 2.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 50.0
-        },
-        {
-          "material_width": 0.001,
-          "relative_permittivity": 3.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 300.0
-        },
-        {
-          "material_width": 0.001,
-          "relative_permittivity": 2.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 50.0
-        },
-        {
-          "material_width": 0.001,
-          "relative_permittivity": 10.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 0.01
-        }
-      ]
+          {
+            "material_width": 0.0005,
+            "relative_permittivity": 3.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 0.0
+          },
+          {
+            "material_width": 0.003,
+            "relative_permittivity": 12.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 2.0
+          },
+          {
+            "material_width": 0.0005,
+            "relative_permittivity": 4.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 10.0
+          }
+        ]
       }
     ]
   },
 
-"probes": {
+  "probes": {
     "exporter": {
       "saves": 100
     },
     "point": [
       {
-        "position": [ 0.15 ],
+        "position": [ 0.10 ],
         "saves": 10000
       },
       {
-        "position": [ 0.35 ],
+        "position": [ 0.50 ],
         "saves": 10000
       },
       {
-        "position": [ 1.45 ],
+        "position": [ 3.45 ],
         "saves": 10000
       }
     ]
   },
 
-  "sources": [ 
+  "sources": [
     {
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
@@ -87,8 +77,9 @@
       "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.15,
-        "mean": [ -0.5 ]
+        "spread": 0.1,
+        "mean": [ -2.0 ],
+        "frequency": 6e9
       }
     }
   ]

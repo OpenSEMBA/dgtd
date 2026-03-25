@@ -2,7 +2,6 @@
   "solver_options": {
     "upwind_alpha": 1.0,
 	  "time_step": 1e-5,
-    "tfsf_cutoff_time": 12.0,
     "final_time": 20.0,
     "order": 2
   },

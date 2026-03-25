@@ -1,9 +1,8 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1.516e-3,
+    "time_step": 2e-4,
     "final_time": 8.0,
-    "tfsf_final_time": 3.0,
     "order": 3
   },
 
@@ -29,22 +28,22 @@
         "type": "SGBC",
         "layers": [
           {
-            "relative_permittivity": 2.25,
+            "relative_permittivity": 6.0,
             "relative_permeability": 1.0,
-            "bulk_conductivity": 1e-12,
-            "material_width": 1.5e-3
+            "bulk_conductivity": 0.0,
+            "material_width": 1.0e-3
           },
           {
-            "relative_permittivity": 50.0,
-            "relative_permeability": 15.0, 
-            "bulk_conductivity": 10.0,
-            "material_width": 5e-3
+            "relative_permittivity": 3.5,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 5000.0,
+            "material_width": 0.5e-3
           },
           {
-            "relative_permittivity": 2.25,
+            "relative_permittivity": 6.0,
             "relative_permeability": 1.0,
-            "bulk_conductivity": 1e-12,
-            "material_width": 1.5e-3
+            "bulk_conductivity": 0.0,
+            "material_width": 1.0e-3
           }
         ]
       }
@@ -53,7 +52,7 @@
 
   "probes": {
     "exporter": {
-      "saves": 60
+      "saves": 100
     },
     "point": [
       {
@@ -65,7 +64,7 @@
         "saves": 10000
       },
       {
-        "position": [ 1.45, 0.075 ],
+        "position": [ 2.95, 0.075 ],
         "saves": 10000
       }
     ]
@@ -79,8 +78,9 @@
       "tags": [ 14 ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.1,
-        "mean": [ -1.25, 0.075 ]
+        "spread": 0.2,
+        "mean": [ -1.25, 0.075 ],
+        "frequency": 4e8
       }
     }
   ]

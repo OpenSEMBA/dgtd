@@ -1,9 +1,8 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 3.571e-5,
+    "time_step": 3.571e-6,
     "final_time": 15.0,
-    "tfsf_final_time": 3.0,
     "order": 3
   },
 
@@ -16,21 +15,21 @@
       },
       {
         "tags": [ 3, 7 ],
-        "relative_permittivity": 10.0,
+        "relative_permittivity": 4.0,
         "relative_permeability": 1.0,
-        "bulk_conductivity": 0.01
+        "bulk_conductivity": 1.0
       },
       {
         "tags": [ 4, 6 ],
-        "relative_permittivity": 2.0,
+        "relative_permittivity": 8.0,
         "relative_permeability": 1.0,
-        "bulk_conductivity": 50.0
+        "bulk_conductivity": 10.0
       },
       {
         "tags": [ 5 ],
-        "relative_permittivity": 3.0,
+        "relative_permittivity": 12.0,
         "relative_permeability": 1.0,
-        "bulk_conductivity": 300.0
+        "bulk_conductivity": 20.0
       }
     ],
     "boundaries": [
