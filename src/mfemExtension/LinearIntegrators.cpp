@@ -185,7 +185,10 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
             inner_normal[i] = -normal[i];
         }
 
-        el.CalcShape(ip, shape_);
+        // Use the integration point mapped to element 1's reference space,
+        // not the face integration point which only has valid x for 1D faces.
+        const IntegrationPoint& eip1 = Tr.GetElement1IntPoint();
+        el.CalcShape(eip1, shape_);
 
         // We evaluate the value of the coefficient at the specified point.
         auto coeff_eval{ c_.Eval(*Tr.Face, ip) };

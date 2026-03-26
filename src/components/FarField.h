@@ -10,6 +10,8 @@
 
 #include "mfemExtension/LinearIntegrators.h"
 
+#include <filesystem>
+
 #include "components/SubMesher.h"
 #include "solver/ProbesManager.h"
 
@@ -83,6 +85,8 @@ double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles);
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second);
 
 std::unique_ptr<FiniteElementSpace> buildFESFromGF(Mesh&, const std::string& data_path);
+
+std::vector<std::filesystem::path> getSortedSnapshotDirs(const std::string& data_path);
 
 std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Frequency>&, const std::vector<SphericalAngles>&);
 
