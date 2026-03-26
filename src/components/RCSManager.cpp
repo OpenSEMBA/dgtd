@@ -35,9 +35,12 @@ static std::vector<double> buildIncomingPowerTerm(const std::string& json_path, 
 			auto w = std::complex<double>(cos(arg), -sin(arg));
 			freq_val += gauss_val[t] * w; 
 		}
-		freq_val /= (double)time.size();
 		freq2complex.emplace(std::make_pair(frequencies[f],freq_val));
 		res[f] = std::norm(freq_val) / (2.0 * physicalConstants::freeSpaceImpedance);
+	}
+
+	for (auto f = 0; f < res.size(); f++) {
+		res[f] /= time.size();
 	}
 
 	return res;

@@ -132,19 +132,19 @@ std::unique_ptr<ParLinearForm> assembleLinearForm(FunctionCoefficient& fc, ParFi
 	case 2:
 		if (dir == Z) {
 			final_dir = X;
-			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->AddBdrFaceIntegrator(new mfemExtension::NTFFBdrFaceIntegrator(fc, final_dir), marker);
 			res->Assemble();
 			res.get()->Set(0.0, *res.get());
 			break;
 		}
 		else {
-			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->AddBdrFaceIntegrator(new mfemExtension::NTFFBdrFaceIntegrator(fc, final_dir), marker);
 			res->Assemble();
 			break;
 		}
 		break;
 	case 3:
-		res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+		res->AddBdrFaceIntegrator(new mfemExtension::NTFFBdrFaceIntegrator(fc, final_dir), marker);
 		res->Assemble();
 		break;
 	default:
