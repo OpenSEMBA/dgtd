@@ -19,6 +19,12 @@ struct NearFieldProbe {
     std::vector<int> tags;
 };
 
+struct RCSSurfaceProbe {
+    std::string name = std::string("RCSSurfaceProbe");
+    int expSteps{ 1 };
+    std::vector<int> tags;
+};
+
 struct DomainSnapshotProbe {
     std::string name = std::string("DomainSnapshot");
     int expSteps { 10 };
@@ -148,6 +154,7 @@ struct Probes {
     std::vector<PointProbe> pointProbes;
     std::vector<NearFieldProbe> nearFieldProbes;
     std::vector<DomainSnapshotProbe> domainSnapshotProbes;
+    std::vector<RCSSurfaceProbe> rcsSurfaceProbes;
 };
 
 }

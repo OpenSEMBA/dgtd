@@ -13,6 +13,8 @@
 #include "components/Types.h"
 #include "components/RCSManager.h"
 #include "components/RCSDataExtractor.h"
+#include "components/RCSSurfacePostProcessor.h"
+#include "driver/driver.h"
 #include "TestUtils.h"
 #include "FieldSuperposition.h"
 
@@ -58,6 +60,42 @@ TEST_F(ExtensiveRCSTest, FieldSuperposition_XY)
 	CaseInfo cxy ("./Exports/cuda-1/2D_RCS_FieldSuperposition_XY/DomainSnapshotProbes/",   maxwellCase("2D_RCS_FieldSuperposition_XY"));
 
 	FieldSuperposition f(cx, cy, cxy, 3e8/physicalConstants::speedOfLight_SI);
+}
+
+TEST_F(ExtensiveRCSTest, 2D_RCS_Circle_G1_monostatic)
+{
+	auto frequencies_manual = linspace(1e6, 3e8, 201);
+
+	// 2D: theta must be pi/2. Monostatic backscatter: phi = pi (opposite to +X propagation).
+	auto angles{ buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1) };
+	RCSManager rcs(
+		"./Exports/single-core/2D_RCS_Circle_G1/NearToFarFieldProbes/cylinder_rcs/",
+		maxwellCase("2D_RCS_Circle_G1"),
+		frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 2D_RCS_Circle_G1_RCSSurface)
+{
+	auto frequencies_manual = linspace(1e6, 1e9, 301);
+	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
+	
+	std::string dataPath = "./Exports/single-core/2D_RCS_Circle_G1/RCSSurface/cylinder_rcs/";
+	RCSSurfacePostProcessor pp(
+		dataPath,
+		maxwellCase("2D_RCS_Circle_G1"),
+		frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 2D_RCS_Circle_G2_RCSSurface)
+{
+	auto frequencies_manual = linspace(1e6, 1e9, 301);
+	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
+	
+	std::string dataPath = "./Exports/single-core/2D_RCS_Circle_G2/RCSSurface/cylinder_rcs/";
+	RCSSurfacePostProcessor pp(
+		dataPath,
+		maxwellCase("2D_RCS_Circle_G2"),
+		frequencies_manual, angles);
 }
 
 TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G1_monostatic)

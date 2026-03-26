@@ -1,4 +1,5 @@
 #include "ProbesManager.h"
+#include "components/RCSSurfaceExporter.h"
 #include "math/PhysicalConstants.h"
 #include <cmath>
 #include <filesystem>
@@ -517,6 +518,10 @@ void ProbesManager::updateProbes(Time t)
         updateProbe(p, t);
     }
 
+    for (auto& p : probes.rcsSurfaceProbes) {
+        updateProbe(p, t);
+    }
+
     cycle_++;
 }
 
@@ -544,6 +549,27 @@ NearFieldReqs::NearFieldReqs(
     tMaps_{ TransferMaps(gFields_, fields_) }
 {
     updateFields();
+}
+
+void ProbesManager::updateProbe(RCSSurfaceProbe& p, Time t)
+{
+    auto it = rcsSurfaceExporters_.find(&p);
+    if (it != rcsSurfaceExporters_.end()) {
+        it->second->write(t, cycle_, finalTime_);
+    }
+}
+
+void ProbesManager::initRCSSurfaceExporters()
+{
+    if (!fields_) return;
+    for (const auto& p : probes.rcsSurfaceProbes) {
+        auto dgfec = dynamic_cast<const DG_FECollection*>(fes_.FEColl());
+        if (!dgfec) {
+            throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+        }
+        rcsSurfaceExporters_.emplace(&p,
+            std::make_unique<RCSSurfaceExporter>(p, dgfec, fes_, *fields_, caseName_));
+    }
 }
 
 }

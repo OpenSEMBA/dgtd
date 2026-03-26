@@ -67,6 +67,39 @@ private:
     mfem::Vector shape_;
 
 };
+
+/** Corrected near-to-far-field boundary face integrator.
+Computes: integral( n[dir] * coefficient * shape_function, dS )
+over boundary faces, where n is the inward-pointing unit normal and
+dS is the physical surface measure.
+
+Unlike FarFieldBdrFaceIntegrator, the Jacobian factor from CalcOrtho
+is correctly retained so the integral is over the physical surface. */
+class NTFFBdrFaceIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+    NTFFBdrFaceIntegrator(mfem::Coefficient& c, const Direction& outputDir) :
+        c_(c), dir_(outputDir) {}
+
+    void AssembleRHSElementVect(const mfem::FiniteElement& el,
+        mfem::ElementTransformation& Tr,
+        mfem::Vector& elvect);
+
+    void AssembleRHSElementVect(const mfem::FiniteElement& el1,
+        const mfem::FiniteElement& el2,
+        mfem::FaceElementTransformations& Tr,
+        mfem::Vector& elvect);
+
+    void AssembleRHSElementVect(const mfem::FiniteElement& el,
+        mfem::FaceElementTransformations& Tr,
+        mfem::Vector& elvect);
+
+private:
+    mfem::Coefficient& c_;
+    Direction dir_;
+
+    mfem::Vector shape_;
+};
 //
 //class VectorNTFFBdrFaceIntegrator : public mfem::LinearFormIntegrator {
 //public:

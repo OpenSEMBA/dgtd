@@ -649,6 +649,24 @@ Probes buildProbes(const json& case_data)
             probe.expSteps = calculate_interval(case_data["probes"]["domain_snapshot"]);
             probes.domainSnapshotProbes.push_back(probe);
         }
+
+        if (case_data["probes"].contains("rcssurface")) {
+            for (size_t p = 0; p < case_data["probes"]["rcssurface"].size(); p++) {
+                RCSSurfaceProbe probe;
+                if (case_data["probes"]["rcssurface"][p].contains("name")) {
+                    probe.name = case_data["probes"]["rcssurface"][p]["name"];
+                }
+                probe.expSteps = calculate_interval(case_data["probes"]["rcssurface"][p]);
+                if (case_data["probes"]["rcssurface"][p].contains("tags")) {
+                    for (size_t t = 0; t < case_data["probes"]["rcssurface"][p]["tags"].size(); t++) {
+                        probe.tags.push_back(case_data["probes"]["rcssurface"][p]["tags"][t]);
+                    }
+                } else {
+                    throw std::runtime_error("Tags have not been defined in rcssurface probe.");
+                }
+                probes.rcsSurfaceProbes.push_back(probe);
+            }
+        }
     }
 
     return probes;

@@ -8,6 +8,7 @@
 
 #include "components/Probes.h"
 #include "components/SubMesher.h"
+#include "components/RCSSurfaceExporter.h"
 #include "solver/SolverOptions.h"
 
 namespace maxwell {
@@ -80,7 +81,10 @@ public:
     const FieldProbe& getFieldProbe(const std::size_t i) const;
     const PointProbe& getPointProbe(const std::size_t i) const;
 
-    void setCaseName(const std::string name) {caseName_ = name;}
+    void setCaseName(const std::string name) {
+        caseName_ = name;
+        initRCSSurfaceExporters();
+    }
     void initPointFieldProbeExport();
 
     Probes probes;
@@ -122,6 +126,7 @@ private:
     Fields<ParFiniteElementSpace, ParGridFunction>* fields_;
 
     std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;
+    std::map<const RCSSurfaceProbe*, std::unique_ptr<RCSSurfaceExporter>> rcsSurfaceExporters_;
     std::map<int, std::ofstream> fieldProbeFiles_;
     std::map<int, std::ofstream> pointProbeFiles_;
     
@@ -136,6 +141,8 @@ private:
     void updateProbe(PointProbe&, Time);
     void updateProbe(NearFieldProbe&, Time);
     void updateProbe(DomainSnapshotProbe&, Time);
+    void updateProbe(RCSSurfaceProbe&, Time);
+    void initRCSSurfaceExporters();
 };
 
 
