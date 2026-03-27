@@ -114,6 +114,88 @@ Vector getNormal(FaceElementTransformations& fet)
 	return res;
 }
 
+Vector getNormalAtRefPoint(FaceElementTransformations& fet, const IntegrationPoint& face_ip)
+{
+	Vector res;
+	int dim = fet.Elem1->GetDimension();
+	switch (dim) {
+	case 1:
+		res.SetSize(1);
+		res(0) = 1.0;
+		break;
+	case 2:
+	case 3:
+		res.SetSize(dim);
+		fet.SetIntPoint(&face_ip);
+		CalcOrtho(fet.Jacobian(), res);
+		break;
+	default:
+		throw std::runtime_error("Wrong dimension in getNormalAtRefPoint.");
+	}
+	return res;
+}
+
+std::vector<Vector> computePerDofFaceNormals(
+	FaceElementTransformations& fet,
+	const FiniteElementSpace& fes,
+	const std::vector<int>& elem1FaceDofLocalIndices)
+{
+	int dim = fet.Elem1->GetDimension();
+	int nDofs = static_cast<int>(elem1FaceDofLocalIndices.size());
+	std::vector<Vector> normals(nDofs);
+
+	if (dim <= 1) {
+		for (int i = 0; i < nDofs; i++) {
+			normals[i].SetSize(1);
+			normals[i](0) = 1.0;
+		}
+		return normals;
+	}
+
+	// Get Elem1's finite element and its DOF reference-space positions.
+	const FiniteElement* fe = fes.GetFE(fet.Elem1No);
+	const IntegrationRule& elemNodes = fe->GetNodes();
+
+	// Get the face's geometry and build a fine integration rule to cover
+	// all DOF locations on the face. Use the face FE's nodes if available,
+	// otherwise use a high-order rule.
+	int faceGeomType = fet.GetGeometryType();
+	int order = fe->GetOrder();
+	const IntegrationRule& faceIR =
+		IntRules.Get(faceGeomType, 2 * order);
+
+	// For each face integration point, transform to Elem1-ref-space via Loc1
+	// and compute the physical position. Build a lookup of face ref points
+	// mapped to Elem1 reference coords.
+	// We'll match element DOFs to face points by proximity in element ref space.
+
+	for (int di = 0; di < nDofs; di++) {
+		int localDof = elem1FaceDofLocalIndices[di];
+		const IntegrationPoint& dofIP = elemNodes.IntPoint(localDof);
+
+		// Find the face reference point that maps closest to this DOF's
+		// element reference position, via Loc1.
+		double bestDist = 1e30;
+		int bestFI = 0;
+		for (int fi = 0; fi < faceIR.GetNPoints(); fi++) {
+			IntegrationPoint elemIP;
+			fet.Loc1.Transform(faceIR.IntPoint(fi), elemIP);
+			double dx = elemIP.x - dofIP.x;
+			double dy = elemIP.y - dofIP.y;
+			double dz = elemIP.z - dofIP.z;
+			double dist = dx*dx + dy*dy + dz*dz;
+			if (dist < bestDist) {
+				bestDist = dist;
+				bestFI = fi;
+			}
+		}
+
+		normals[di] = getNormalAtRefPoint(fet, faceIR.IntPoint(bestFI));
+	}
+
+	return normals;
+}
+
 std::pair<double, double> calculateBaryNormalProduct(ParMesh& m, FaceElementTransformations& fet, int be)
 {
 	auto bdr_vertices{ m.GetBdrElement(be)->GetVertices() };

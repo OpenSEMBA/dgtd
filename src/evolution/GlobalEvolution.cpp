@@ -91,22 +91,34 @@ GlobalEvolution::GlobalEvolution(
                         // If face_ori < 0, Elem1 is on the outward side, so swap.
                         bool swap = buildFaceOrientation(*mesh, b) < 0.0;
 
-                        // Compute face normal and build rotation matrix
-                        auto face_normal = getNormal(*const_cast<mfem::FaceElementTransformations*>(faceTrans));
-                        if (swap) face_normal *= -1.0; // ensure normal points from pair.first toward pair.second
-                        std::array<double,9> face_rot{};
-                        buildFaceRotationMatrix(face_normal, mesh->Dimension(), face_rot.data());
+                        // Compute per-DOF normals on curved faces.
+                        // Find local DOF indices within Elem1 for each face DOF.
+                        mfem::Array<int> dofs1;
+                        fes_.GetElementDofs(faceTrans->Elem1No, dofs1);
+                        std::vector<int> localDofIndices(node_pair_local.first.size());
+                        for (size_t p = 0; p < node_pair_local.first.size(); p++) {
+                            localDofIndices[p] = dofs1.Find(node_pair_local.first[p]);
+                        }
+
+                        auto perDofNormals = computePerDofFaceNormals(
+                            *const_cast<mfem::FaceElementTransformations*>(faceTrans),
+                            fes_, localDofIndices);
 
                         for (auto p = 0; p < node_pair_local.first.size(); p++){
+                            auto dof_normal = perDofNormals[p];
+                            if (swap) dof_normal *= -1.0;
+                            std::array<double,9> dof_rot{};
+                            buildFaceRotationMatrix(dof_normal, mesh->Dimension(), dof_rot.data());
+
                             if (swap) {
                                 raw_pairs[bdr_attr].push_back({
                                     NodePair(node_pair_local.second[p], node_pair_local.first[p]),
-                                    face_rot
+                                    dof_rot
                                 });
                             } else {
                                 raw_pairs[bdr_attr].push_back({
                                     NodePair(node_pair_local.first[p], node_pair_local.second[p]),
-                                    face_rot
+                                    dof_rot
                                 });
                             }
                         }
@@ -130,14 +142,24 @@ GlobalEvolution::GlobalEvolution(
                         mfem::FiniteElementSpace subFES(&elementSubMesh, fec);
                         auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
 
-                        auto face_normal = getNormal(*const_cast<mfem::FaceElementTransformations*>(faceTrans));
-                        std::array<double,9> face_rot{};
-                        buildFaceRotationMatrix(face_normal, mesh->Dimension(), face_rot.data());
+                        // Compute per-DOF normals on curved faces.
+                        mfem::Array<int> dofs1_bdr;
+                        fes_.GetElementDofs(faceTrans->Elem1No, dofs1_bdr);
+                        std::vector<int> localDofIndices_bdr(node_pair_local.first.size());
+                        for (size_t p = 0; p < node_pair_local.first.size(); p++) {
+                            localDofIndices_bdr[p] = dofs1_bdr.Find(node_pair_local.first[p]);
+                        }
+
+                        auto perDofNormals_bdr = computePerDofFaceNormals(
+                            *const_cast<mfem::FaceElementTransformations*>(faceTrans),
+                            fes_, localDofIndices_bdr);
 
                         for (auto p = 0; p < node_pair_local.first.size(); p++){
+                            std::array<double,9> dof_rot{};
+                            buildFaceRotationMatrix(perDofNormals_bdr[p], mesh->Dimension(), dof_rot.data());
                             raw_pairs[bdr_attr].push_back({
                                 NodePair(node_pair_local.first[p], -1),
-                                face_rot
+                                dof_rot
                             });
                         }
                     }

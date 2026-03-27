@@ -98,6 +98,11 @@ FaceElementTransformations* getFaceElementTransformation(Mesh& m, int be);
 Vector getBarycenterOfElement(Mesh& m, int e);
 Vector getBarycenterOfFaceElement(Mesh& m, int f);
 Vector getNormal(FaceElementTransformations& fet);
+Vector getNormalAtRefPoint(FaceElementTransformations& fet, const IntegrationPoint& face_ip);
+std::vector<Vector> computePerDofFaceNormals(
+	FaceElementTransformations& fet,
+	const FiniteElementSpace& fes,
+	const std::vector<int>& elem1FaceDofLocalIndices);
 std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be);
 double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, int be);
 double buildFaceOrientation(Mesh& mesh, int be);
