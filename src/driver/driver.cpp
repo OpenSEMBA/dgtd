@@ -25,20 +25,23 @@ double calculateMaximumSourceFrequency(const json& case_data)
 
     if (case_data.contains("sources")) {
         for (const auto& source : case_data["sources"]) {
-            if (source.contains("magnitude") && source["magnitude"].contains("type")) {
-                if (source["magnitude"]["type"] == "gaussian") {
-                    double spread = source["magnitude"]["spread"].get<double>();
-                    if (source["magnitude"].contains("frequency")) {
-                        double f_carrier = source["magnitude"]["frequency"].get<double>();
-                        double f_edge = f_carrier + c_si / (2.0 * spread);
-                        if (f_edge > max_freq) {
-                            max_freq = f_edge;
-                            found_modulated = true;
-                        }
-                    } else if (spread > 0.0 && spread < min_spread) {
-                        min_spread = spread;
-                        found_gaussian = true;
-                    }
+            if (!source.contains("magnitude")) continue;
+            const auto& mag = source["magnitude"];
+            // Modulated Gaussian: has "frequency" (with or without explicit "type")
+            if (mag.contains("frequency") && mag.contains("spread")) {
+                double spread = mag["spread"].get<double>();
+                double f_carrier = mag["frequency"].get<double>();
+                double f_edge = f_carrier + c_si / (2.0 * spread);
+                if (f_edge > max_freq) {
+                    max_freq = f_edge;
+                    found_modulated = true;
+                }
+            // Plain Gaussian: explicit type="gaussian", no frequency
+            } else if (mag.contains("type") && mag["type"] == "gaussian" && mag.contains("spread")) {
+                double spread = mag["spread"].get<double>();
+                if (spread > 0.0 && spread < min_spread) {
+                    min_spread = spread;
+                    found_gaussian = true;
                 }
             }
         }
