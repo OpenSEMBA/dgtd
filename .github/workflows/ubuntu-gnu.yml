@@ -56,7 +56,13 @@ jobs:
     #     cmake --build mfem-geg-build/ -j
     #     cmake --install mfem-geg-build/
 
-    # 4. Swap to the MPI presets
+    # Install system dependencies
+    - name: Install system dependencies (GSL)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgsl-dev
+
+    # 4. Swap to the MPI presets (your existing step)
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
       # lukka/run-cmake will automatically pick up METIS_DIR and HYPRE_DIR from $GITHUB_ENV
