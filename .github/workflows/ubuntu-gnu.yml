@@ -27,6 +27,24 @@ jobs:
     - name: Setup MPI
       uses: mpi4py/setup-mpi@v1
 
+    # 2. Build and Export METIS
+    - name: Build METIS
+      run: |
+        git clone https://github.com/mfem/ThirdParty-metis-5.1.0.git metis
+        cd metis
+        make config shared=1 prefix=$GITHUB_WORKSPACE/metis/install
+        make install -j $(nproc)
+        echo "METIS_DIR=$GITHUB_WORKSPACE/metis/install" >> $GITHUB_ENV
+
+    # 3. Build and Export HYPRE
+    - name: Build HYPRE
+      run: |
+        git clone --depth 1 https://github.com/hypre-space/hypre.git
+        cd hypre/src
+        ./configure --disable-fortran --prefix=$GITHUB_WORKSPACE/hypre/install
+        make install -j $(nproc)
+        echo "HYPRE_DIR=$GITHUB_WORKSPACE/hypre/install" >> $GITHUB_ENV
+
     # - name: Builds mfem-geg
     #   run: | 
     #     cmake -S external/mfem-geg \
@@ -37,15 +55,16 @@ jobs:
     #     cmake --build mfem-geg-build/ -j
     #     cmake --install mfem-geg-build/
 
-    # 2. Swap to the MPI presets
+    # 4. Swap to the MPI presets
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
+      # lukka/run-cmake will automatically pick up METIS_DIR and HYPRE_DIR from $GITHUB_ENV
       with:
         configurePreset: 'gnu-release-mpi'
         buildPreset: 'build-gnu-release-mpi'
         buildPresetAdditionalArgs: "['--parallel']"
 
-    # 3. Update paths and run with mpiexec (using 2 cores)
+    # 5. Update paths and run with mpiexec (using 2 cores)
     - name: Run hesthavenComparison tests 
       run: mpiexec -n 2 build/gnu-release-mpi/bin/hesthavenComparison_tests
 

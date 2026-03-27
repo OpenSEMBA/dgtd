@@ -54,6 +54,80 @@
         "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "gnu-debug-cpu",
+      "displayName": "GNU debug cpu",
+      "inherits": "gnu-dbg",
+      "cacheVariables": {
+        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON"
+      }
+    },
+    {
+      "name": "gnu-release-cpu",
+      "displayName": "GNU release cpu",
+      "inherits": "gnu",
+      "cacheVariables": {
+        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
+        "MFEM_USE_OPENMP": true,
+        "SEMBA_DGTD_ENABLE_OPENMP": true
+      }
+    },
+    {
+      "name": "gnu-debug-mpi",
+      "displayName": "GNU debug mpi",
+      "inherits": "gnu-debug-cpu",
+      "cacheVariables": {
+        "SEMBA_DGTD_ENABLE_MPI": true,
+        "METIS_DIR": "$env{METIS_DIR}",
+        "HYPRE_DIR": "$env{HYPRE_DIR}",
+        "MFEM_USE_MPI": true,
+        "MFEM_USE_METIS": true,
+        "MFEM_USE_METIS_5": true,
+        "MFEM_ENABLE_EXAMPLES": true
+      }
+    },
+    {
+      "name": "gnu-release-mpi",
+      "displayName": "GNU release mpi",
+      "inherits": "gnu-release-cpu",
+      "cacheVariables": {
+        "SEMBA_DGTD_ENABLE_MPI": true,
+        "METIS_DIR": "$env{METIS_DIR}",
+        "HYPRE_DIR": "$env{HYPRE_DIR}",
+        "MFEM_USE_MPI": true,
+        "MFEM_USE_METIS": true,
+        "MFEM_USE_METIS_5": true,
+        "MFEM_ENABLE_EXAMPLES": true
+      }
+    },
+    {
+      "name": "gnu-debug-cuda",
+      "displayName": "GNU debug cuda",
+      "inherits": "gnu-debug-mpi",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-12",
+        "CMAKE_CXX_COMPILER": "g++-12",
+        "CMAKE_CUDA_HOST_COMPILER": "g++-12",
+        "SEMBA_DGTD_ENABLE_CUDA": "ON",
+        "MFEM_USE_CUDA": true,
+        "CUDA_ARCH": "sm_89",
+        "CMAKE_CUDA_ARCHITECTURES": "89"
+      }
+    },
+    {
+      "name": "gnu-release-cuda",
+      "displayName": "GNU release cuda",
+      "inherits": "gnu-release-mpi",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-12",
+        "CMAKE_CXX_COMPILER": "g++-12",
+        "CMAKE_CUDA_HOST_COMPILER": "g++-12",
+        "SEMBA_DGTD_ENABLE_CUDA": "ON",
+        "MFEM_USE_CUDA": true,
+        "CUDA_ARCH": "sm_89",
+        "CMAKE_CUDA_ARCHITECTURES": "89"
+      }
     }
   ],
   "buildPresets": [
@@ -80,6 +154,36 @@
       "configurePreset": "x64-Release",
       "configuration": "Release",
       "jobs": 4
+    },
+    {
+      "name": "build-gnu-release-cuda",
+      "configurePreset": "gnu-release-cuda",
+      "jobs": 12
+    },
+    {
+      "name": "build-gnu-debug-cuda",
+      "configurePreset": "gnu-debug-cuda",
+      "jobs": 12
+    },
+    {
+      "name": "build-gnu-release-mpi",
+      "configurePreset": "gnu-release-mpi",
+      "jobs": 12
+    },
+    {
+      "name": "build-gnu-debug-mpi",
+      "configurePreset": "gnu-debug-mpi",
+      "jobs": 12
+    },
+    {
+      "name": "build-gnu-release-cpu",
+      "configurePreset": "gnu-release-cpu",
+      "jobs": 12
+    },
+    {
+      "name": "build-gnu-debug-cpu",
+      "configurePreset": "gnu-debug-cpu",
+      "jobs": 12
     }
   ]
 }
