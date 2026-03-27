@@ -7,7 +7,7 @@
   },
 
   "model": {
-    "filename": "2D_RCS_SGBC_Circle_G1.msh",
+    "filename": "2D_RCS_SGBC_Circle_G2_Fine.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],

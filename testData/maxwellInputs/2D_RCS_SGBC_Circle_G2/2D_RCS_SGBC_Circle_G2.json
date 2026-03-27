@@ -22,14 +22,22 @@
       {
         "tags": [ 6 ],
         "type": "SGBC",
-        "material": {
-          "relative_permittivity": 4.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 50.0,
-          "material_width": 5e-3,
-          "sgbc_boundaries": {
-            "right": "PEC"
+        "layers": [
+          {
+            "relative_permittivity": 4.0,
+            "relative_permeability": 2.0,
+            "bulk_conductivity": 0.005,
+            "material_width": 0.003
+          },
+          {
+            "relative_permittivity": 16.0,
+            "relative_permeability": 4.0,
+            "bulk_conductivity": 0.2,
+            "material_width": 0.004
           }
+        ],
+        "sgbc_boundaries": {
+            "right": "PEC"
         }
       }
     ]
@@ -39,7 +47,7 @@
     "exporter": {
       "saves": 100
     },
-    "farfield": [
+    "rcssurface": [
       {
         "name": "cylinder_sgbc_rcs",
         "steps": 1,
@@ -56,7 +64,7 @@
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.2,
+        "spread": 0.1,
         "mean": [ -3.0, 0.0, 0.0 ]
       }
     }
