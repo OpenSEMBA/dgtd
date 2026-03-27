@@ -30,23 +30,26 @@ jobs:
     # 2. Build and Export METIS
     - name: Build METIS
       run: |
+        cd $HOME
         wget https://github.com/mfem/tpls/raw/gh-pages/metis-5.1.0.tar.gz
         tar -zxvf metis-5.1.0.tar.gz
         cd metis-5.1.0
-        # Changed prefix to $HOME instead of $GITHUB_WORKSPACE
-        make config shared=1 prefix=$HOME/metis/install
-        make install -j $(nproc)
-        echo "METIS_DIR=$HOME/metis/install" >> $GITHUB_ENV
+        make BUILDDIR=lib config
+        make BUILDDIR=lib
+        cp lib/libmetis/libmetis.a lib/
+        echo "METIS_DIR=$HOME/metis-5.1.0" >> $GITHUB_ENV
 
     # 3. Build and Export HYPRE
     - name: Build HYPRE
       run: |
-        git clone --depth 1 https://github.com/hypre-space/hypre.git
-        cd hypre/src
-        # Changed prefix to $HOME instead of $GITHUB_WORKSPACE
-        ./configure --disable-fortran --prefix=$HOME/hypre/install
-        make install -j $(nproc)
-        echo "HYPRE_DIR=$HOME/hypre/install" >> $GITHUB_ENV
+        cd $HOME
+        wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
+        tar -zxvf v2.31.0.tar.gz
+        cd hypre-2.31.0/src
+        ./configure --disable-fortran
+        make -j $(nproc)
+        # An in-place HYPRE build puts includes and libs in the src/hypre subdirectory
+        echo "HYPRE_DIR=$HOME/hypre-2.31.0/src/hypre" >> $GITHUB_ENV
 
     # - name: Builds mfem-geg
     #   run: | 
