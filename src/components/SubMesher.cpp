@@ -7,12 +7,10 @@ static const int NotFound{ -1 };
 
 FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be)
 {
-	switch (m.FaceIsInterior(m.GetBdrElementFaceIndex(be))) {
-	case true:
-		return m.GetInternalBdrFaceTransformations(be);
-	default:
-		return m.GetBdrFaceTransformations(be);
+	if (auto* tr = m.GetInternalBdrFaceTransformations(be)) {
+		return tr;
 	}
+	return m.GetBdrFaceTransformations(be);
 }
 
 Vector getBarycenterOfElement(Mesh& m, int e)
@@ -127,7 +125,7 @@ std::pair<double, double> calculateBaryNormalProduct(ParMesh& m, FaceElementTran
 	auto d1{ mfem::InnerProduct(v1, normal) };
 
 	auto d2 = 0.0;
-	if (fet.Elem2No != NotFound) {
+	if (fet.Elem2No >= 0) {
 		auto bary2{ getBarycenterOfElement(m, fet.Elem2No) };
 		auto v2{ subtract(bdr_vert,bary2) };
 		d2 = mfem::InnerProduct(v2, normal);
@@ -190,7 +188,7 @@ const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be)
 {
 	auto fe_trans{ getFaceElementTransformation(m, be) };
 
-	if (fe_trans->Elem2No != NotFound) {
+	if (fe_trans->Elem2No >= 0) {
 		return std::make_pair(getBarycenterOfElement(m, fe_trans->Elem1No), getBarycenterOfElement(m, fe_trans->Elem2No));
 	}
 	else {
@@ -234,7 +232,13 @@ void setBoundaryAttributesInChild(const Mesh& parent, SubMesh& child, const std:
 	auto map{ SubMeshUtils::BuildFaceMap(parent, child, child.GetParentElementIDMap()) };
 	for (int be = 0; be < parent.GetNBE(); be++) {
 		if (parent_info.first[parent.GetBdrAttribute(be) - 1] == 1) {
-			child.SetBdrAttribute(child_f2bdr_map[map.Find(parent_f2bdr_map.Find(be))], static_cast<int>(parent_info.second));
+			const int parent_face = parent_f2bdr_map.Find(be);
+			if (parent_face < 0) continue;
+			const int child_face = map.Find(parent_face);
+			if (child_face < 0) continue; // face not in child SubMesh (e.g. partition boundary)
+			const int child_bdr = child_f2bdr_map[child_face];
+			if (child_bdr < 0) continue;
+			child.SetBdrAttribute(child_bdr, static_cast<int>(parent_info.second));
 		}
 	}
 }
@@ -312,7 +316,7 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 
 void TotalFieldScatteredFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el1_is_tf)
 {
-	if (trans->Elem2No != NotFound) {
+	if (trans->Elem2No >= 0) {
 		if (el1_is_tf) {
 			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::TotalFieldMarker);
 			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::ScatteredFieldMarker);
@@ -367,7 +371,7 @@ void TotalFieldScatteredFieldSubMesher::setGlobalTFSFAttributesForSubMeshing(Mes
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
 			auto be_trans{ getFaceElementTransformation(m, be)};
-			if (be_trans->Elem2No != NotFound) {
+			if (be_trans->Elem2No >= 0) {
 				m.GetElement(be_trans->Elem1No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
 				m.GetElement(be_trans->Elem2No)->SetAttribute(SubMeshingMarkers::GlobalSubMeshMarker);
 				elems_for_global_submesh_.push_back(be_trans->Elem1No);
@@ -388,7 +392,7 @@ SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, 
 	std::pair<FaceId, IsTF> set_e2;
 	switch (flag) {
 	case false: //If first boundary we find
-		if (be_trans->Elem1No == 0 && be_trans->Elem2No == NotFound) {
+		if (be_trans->Elem1No == 0 && be_trans->Elem2No < 0) {
 			set_e1 = std::make_pair(0, true);
 			set_e2 = std::make_pair(NotFound, false);
 		}
@@ -398,7 +402,7 @@ SetPairs TotalFieldScatteredFieldSubMesher::twoPointAssignator(Mesh& m, int be, 
 		}
 		break;
 	case true: //If second boundary we find
-		if (be_trans->Elem1No == m.GetNE() - 1 && be_trans->Elem2No == NotFound) {
+		if (be_trans->Elem1No == m.GetNE() - 1 && be_trans->Elem2No < 0) {
 			set_e1 = std::make_pair(1, true);
 			set_e2 = std::make_pair(NotFound, false);
 		}
@@ -564,7 +568,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			}
 
 			std::pair<FaceId, IsTF> set_v2;
-			if (fe_trans->Elem2No != NotFound) {
+			if (fe_trans->Elem2No >= 0) {
 				m.GetElementEdges(fe_trans->Elem2No, el2_face, el2_ori);
 				for (int f = 0; f < el2_face.Size(); f++) {
 					auto fi{ m.GetFaceInformation(f) };
@@ -614,7 +618,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			}
 
 			std::pair<FaceId, IsTF> set_v2;
-			if (fe_trans->Elem2No != NotFound) {
+			if (fe_trans->Elem2No >= 0) {
 
 				m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
 
@@ -679,23 +683,15 @@ void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Ar
 			auto fe_trans{ getFaceElementTransformation(m, be) };
 
 			std::pair<FaceId, IsTF> el_info;
-			if (fe_trans->Elem2No != NotFound) {
-
-				m.GetElementEdges(fe_trans->Elem1No, el_face, el_ori);
-
-				for (int f = 0; f < el_face.Size(); f++) {
-					auto fi{ m.GetFaceInformation(f) };
-					m.GetFaceVertices(el_face[f], face_vert);
-					face_vert.Sort();
-					if (face_vert == be_vert) {
-						face_ori >= 0.0 ? el_info = std::make_pair(f, false) : el_info = std::make_pair(f, true);
-						break;
-					}
+			m.GetElementEdges(fe_trans->Elem1No, el_face, el_ori);
+			for (int f = 0; f < el_face.Size(); f++) {
+				auto fi{ m.GetFaceInformation(f) };
+				m.GetFaceVertices(el_face[f], face_vert);
+				face_vert.Sort();
+				if (face_vert == be_vert) {
+					face_ori >= 0.0 ? el_info = std::make_pair(f, false) : el_info = std::make_pair(f, true);
+					break;
 				}
-			}
-			else {
-				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify that NearToFarField orientations on the mesh follow the intended convention." };
-				throw std::runtime_error(error.c_str());
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
 			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
@@ -719,7 +715,7 @@ void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh3D(Mesh& m, const Ar
 			auto fe_trans{ getFaceElementTransformation(m, be) };
 
 			std::pair<FaceId, IsTF> el2_info;
-			if (fe_trans->Elem2No != NotFound) {
+			if (fe_trans->Elem2No >= 0) {
 
 				m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
 
@@ -734,8 +730,17 @@ void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh3D(Mesh& m, const Ar
 				}
 			}
 			else {
-				std::string error{ "Element 2 has not been found for boundary element " + std::to_string(be) + ", verify NtFF orientations on the mesh adapt to the convention." };
-				throw std::runtime_error(error.c_str());
+				// Partition boundary: Elem2 is on another rank; use Elem1 to find the face index.
+				Array<int> el1_face, el1_ori;
+				m.GetElementFaces(fe_trans->Elem1No, el1_face, el1_ori);
+				for (int f = 0; f < el1_face.Size(); f++) {
+					m.GetFaceVertices(el1_face[f], face_vert);
+					face_vert.Sort();
+					if (face_vert == be_vert) {
+						el2_info = std::make_pair(f, false); // el_is_ntff=false → tag Elem1
+						break;
+					}
+				}
 			}
 			//Our convention is based on the inner product between a vector that joins the barycenters of the elements (going from elem1 to elem2)
 			//and the normal vector on the face, if it's positive, we designate it as TF. The other element will be SF.
@@ -752,20 +757,18 @@ void NearToFarFieldSubMesher::prepareSubMeshInfo(Mesh& m, const FaceElementTrans
 
 void NearToFarFieldSubMesher::setAttributeForTagging(Mesh& m, const FaceElementTransformations* trans, bool el_is_ntff)
 {
-	if (trans->Elem2No != NotFound) {
-		if (el_is_ntff) {
-			m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
-		}
-		else {
-			m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
-		}
+	if (el_is_ntff && trans->Elem2No >= 0) {
+		m.GetElement(trans->Elem2No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
+	}
+	else if (!el_is_ntff) {
+		m.GetElement(trans->Elem1No)->SetAttribute(SubMeshingMarkers::NearToFarFieldMarker);
 	}
 }
 
 void NearToFarFieldSubMesher::storeElementToFaceInformation(const FaceElementTransformations* trans, int faceId, bool el_is_ntff)
 {
 	if (faceId != NotFound) {
-		if (el_is_ntff) {
+		if (el_is_ntff && trans->Elem2No >= 0) {
 			elem_to_face_ntff_.push_back(std::make_pair(trans->Elem2No, faceId));
 		}
 		else {

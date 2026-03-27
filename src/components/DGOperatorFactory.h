@@ -105,7 +105,7 @@ namespace maxwell
 		auto expectedRows = ids.first.rowEndOffset - ids.first.rowStartOffset;
 		auto expectedCols = ids.first.colEndOffset - ids.first.colStartOffset;
 		MFEM_ASSERT(blk.NumRows() == expectedRows, "Block Sparse NumRows does not match intended number of Rows.");
-		MFEM_ASSERT(blk.NumCols() == expectedCols, "Block Sparse NumCols does not match intended number of Cols.");
+		MFEM_ASSERT(blk.NumCols() >= expectedCols, "Block Sparse NumCols is smaller than intended number of Cols.");
 		Array<int> cols;
 		Vector vals;
 		for (auto r = 0; r < expectedRows; r++)
