@@ -23,6 +23,10 @@ jobs:
     - name: Setup Ninja
       uses: ashutoshvarma/setup-ninja@master
 
+    # 1. Install MPI on the Ubuntu runner
+    - name: Setup MPI
+      uses: mpi4py/setup-mpi@v1
+
     # - name: Builds mfem-geg
     #   run: | 
     #     cmake -S external/mfem-geg \
@@ -33,31 +37,30 @@ jobs:
     #     cmake --build mfem-geg-build/ -j
     #     cmake --install mfem-geg-build/
 
+    # 2. Swap to the MPI presets
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
       with:
-        configurePreset: 'gnu'
-        buildPreset: 'gnu'
+        configurePreset: 'gnu-release-mpi'
+        buildPreset: 'build-gnu-release-mpi'
         buildPresetAdditionalArgs: "['--parallel']"
 
+    # 3. Update paths and run with mpiexec (using 2 cores)
     - name: Run hesthavenComparison tests 
-      run: build/gnu/bin/hesthavenComparison_tests
+      run: mpiexec -n 2 build/gnu-release-mpi/bin/hesthavenComparison_tests
 
     - name: Run mfem tests 
-      run: build/gnu/bin/mfem_tests
+      run: mpiexec -n 2 build/gnu-release-mpi/bin/mfem_tests
 
     - name: Run maxwell tests 
-      run: build/gnu/bin/maxwell_tests
+      run: mpiexec -n 2 build/gnu-release-mpi/bin/maxwell_tests
 
     - name: Run maxwell solver tests
-      run: build/gnu/bin/maxwell_solver_tests
+      run: mpiexec -n 2 build/gnu-release-mpi/bin/maxwell_solver_tests
 
     - name: Run maxwell cases tests
-      run: build/gnu/bin/cases_tests
+      run: mpiexec -n 2 build/gnu-release-mpi/bin/cases_tests
 
     # - name: Run system tests 
     #   run: |
-    #     build/gnu/bin/rcs_tests
-
-
-      
+    #     mpiexec -n 2 build/gnu-release-mpi/bin/rcs_tests
