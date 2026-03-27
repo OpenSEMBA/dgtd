@@ -24,16 +24,10 @@
         "type": "SGBC",
         "layers": [
           {
-            "relative_permittivity": 4.0,
-            "relative_permeability": 2.0,
-            "bulk_conductivity": 0.005,
-            "material_width": 0.003
-          },
-          {
-            "relative_permittivity": 16.0,
-            "relative_permeability": 4.0,
-            "bulk_conductivity": 0.2,
-            "material_width": 0.004
+            "relative_permittivity": 1.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 2.0,
+            "material_width": 0.05
           }
         ],
         "sgbc_boundaries": {
@@ -63,8 +57,8 @@
       "propagation": [ 1.0, 0.0, 0.0 ],
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
-        "type": "gaussian",
-        "spread": 0.1,
+        "spread": 0.3,
+        "frequency": 800e6,
         "mean": [ -3.0, 0.0, 0.0 ]
       }
     }
