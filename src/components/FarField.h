@@ -43,10 +43,14 @@ struct SphericalAngles {
 struct PlaneWaveData {
 	double spread;
 	double mean;
+	double frequency{0.0};
 
-	PlaneWaveData(double s, double m) :
+	PlaneWaveData(double s, double m, double f = 0.0) :
 		spread(s),
-		mean(m) {};
+		mean(m),
+		frequency(f) {};
+
+	bool isModulated() const { return frequency != 0.0; }
 };
 
 struct FreqFields {

@@ -76,7 +76,7 @@ TEST_F(ExtensiveRCSTest, 2D_RCS_Circle_G1_RCSSurface)
 
 TEST_F(ExtensiveRCSTest, 2D_RCS_Circle_G2_RCSSurface)
 {
-	auto frequencies_manual = linspace(1e6, 1e9, 301);
+	auto frequencies_manual = linspace(459e6, 1.2e9, 301);
 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
 	std::string dataPath = "./Exports/single-core/2D_RCS_Circle_G2/RCSSurface/cylinder_rcs/";
@@ -88,10 +88,10 @@ TEST_F(ExtensiveRCSTest, 2D_RCS_Circle_G2_RCSSurface)
 
 TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G1_monostatic)
 {
-	auto frequencies_manual = linspace(1e6, 1e9, 301);
+	auto frequencies_manual = linspace(459e6, 1.2e9, 301);
 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-	std::string dataPath = "./Exports/single-core/2D_RCS_SGBC_Circle_G1/RCSSurface/cylinder_sgbc_rcs/";
+	std::string dataPath = "./Exports/mpi-8/2D_RCS_SGBC_Circle_G1/RCSSurface/cylinder_sgbc_rcs/";
 	RCSSurfacePostProcessor pp(
 		dataPath,
 		maxwellCase("2D_RCS_SGBC_Circle_G1"),
@@ -103,7 +103,7 @@ TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G2_monostatic)
 	auto frequencies_manual = linspace(1e6, 1e9, 301);
 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-	std::string dataPath = "./Exports/single-core/2D_RCS_SGBC_Circle_G2/RCSSurface/cylinder_sgbc_rcs/";
+	std::string dataPath = "./Exports/mpi-8/2D_RCS_SGBC_Circle_G2/RCSSurface/cylinder_sgbc_rcs/";
 	RCSSurfacePostProcessor pp(
 		dataPath,
 		maxwellCase("2D_RCS_SGBC_Circle_G2"),

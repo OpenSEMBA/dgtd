@@ -127,15 +127,23 @@ std::vector<double> RCSSurfacePostProcessor::computeIncidentPowerSpectrum(
     const std::vector<double>& times,
     const std::vector<Frequency>& freqs) const
 {
-    auto gauss = evaluateGaussianVector(
+    auto envelope = evaluateGaussianVector(
         const_cast<std::vector<double>&>(times), pw.spread, pw.mean);
+
+    // Apply carrier modulation when using a modulated Gaussian.
+    if (pw.isModulated()) {
+        for (size_t t = 0; t < times.size(); ++t) {
+            double carrier_arg = 2.0 * M_PI * pw.frequency * (times[t] - std::abs(pw.mean));
+            envelope[t] *= std::cos(carrier_arg);
+        }
+    }
 
     std::vector<double> power(freqs.size(), 0.0);
     for (size_t fi = 0; fi < freqs.size(); ++fi) {
         std::complex<double> val(0.0, 0.0);
         for (size_t t = 0; t < times.size(); ++t) {
             double arg = 2.0 * M_PI * freqs[fi] * times[t];
-            val += gauss[t] * std::complex<double>(std::cos(arg), -std::sin(arg));
+            val += envelope[t] * std::complex<double>(std::cos(arg), -std::sin(arg));
         }
         val /= static_cast<double>(times.size());
         power[fi] = std::norm(val) / (2.0 * physicalConstants::freeSpaceImpedance);

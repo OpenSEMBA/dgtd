@@ -214,6 +214,7 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 	double spread(-1e5);
 	mfem::Vector mean;
 	double projMean(-1e5);
+	double frequency(0.0);
 
 	for (auto s{ 0 }; s < json["sources"].size(); s++) {
 		if (json["sources"][s]["type"] == "planewave") {
@@ -221,6 +222,10 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 			mean = driver::assemble3DVector(json["sources"][s]["magnitude"]["mean"]);
 		    mfem::Vector propagation = driver::assemble3DVector(json["sources"][s]["propagation"]);
 			projMean = mean * propagation / propagation.Norml2();
+			if (json["sources"][s]["magnitude"].contains("frequency")) {
+				frequency = json["sources"][s]["magnitude"]["frequency"].get<double>()
+					/ physicalConstants::speedOfLight_SI;
+			}
 		}
 	}
 
@@ -228,7 +233,7 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
-	return PlaneWaveData(spread, projMean);
+	return PlaneWaveData(spread, projMean, frequency);
 }
 
 std::vector<double> buildTimeVector(const std::string& data_path)
