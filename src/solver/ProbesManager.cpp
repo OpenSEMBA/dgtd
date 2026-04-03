@@ -572,4 +572,35 @@ void ProbesManager::initRCSSurfaceExporters()
     }
 }
 
+void ProbesManager::recalculateExportSteps(double dt)
+{
+    if (dt <= 0.0) return;
+
+    const int totalSteps = static_cast<int>(std::ceil(finalTime_ / dt));
+
+    auto stepsFromSaves = [&](int saves) -> int {
+        if (saves <= 0) return 1;
+        return std::max(1, totalSteps / saves);
+    };
+
+    for (auto& p : probes.exporterProbes) {
+        if (p.saves > 0) p.visSteps = stepsFromSaves(p.saves);
+    }
+    for (auto& p : probes.nearFieldProbes) {
+        if (p.saves > 0) p.expSteps = stepsFromSaves(p.saves);
+    }
+    for (auto& p : probes.rcsSurfaceProbes) {
+        if (p.saves > 0) p.expSteps = stepsFromSaves(p.saves);
+    }
+    for (auto& p : probes.domainSnapshotProbes) {
+        if (p.saves > 0) p.expSteps = stepsFromSaves(p.saves);
+    }
+    for (auto& p : probes.fieldProbes) {
+        if (p.getSaves() > 0) p.setVisSteps(stepsFromSaves(p.getSaves()));
+    }
+    for (auto& p : probes.pointProbes) {
+        if (p.getSaves() > 0) p.setVisSteps(stepsFromSaves(p.getSaves()));
+    }
+}
+
 }

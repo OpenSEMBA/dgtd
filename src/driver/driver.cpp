@@ -11,6 +11,8 @@
 #include <limits>
 #include <sstream>
 #include <filesystem>
+#include <fstream>
+#include <unordered_set>
 #include <mpi.h>
 
 namespace maxwell::driver {
@@ -558,19 +560,23 @@ Probes buildProbes(const json& case_data)
     size_t pp_count = 0;
     size_t fp_count = 0;
 
-    // Smart step calculator lambda
+    // Smart step calculator lambda.
+    // When time_step == 0.0 the solver will use an automatic time step that is
+    // not yet known here, so we return 1 as a safe placeholder; the solver will
+    // call ProbesManager::recalculateExportSteps() once the real dt is known.
     auto calculate_interval = [&](const json& probe_data) -> int {
         if (probe_data.contains("steps")) {
             return probe_data["steps"]; // Legacy manual step interval
-        } 
+        }
         else if (probe_data.contains("saves")) {
             int requested_saves = probe_data["saves"];
             if (requested_saves <= 0) return 1;
-            
+
             double t_final = case_data["solver_options"]["final_time"].get<double>();
             double dt = case_data["solver_options"]["time_step"].get<double>();
+            if (dt <= 0.0) return 1; // Placeholder; will be corrected by recalculateExportSteps
+
             int total_simulation_steps = static_cast<int>(std::ceil(t_final / dt));
-            
             return std::max(1, total_simulation_steps / requested_saves);
         }
         return 1; // Default to every step
@@ -585,6 +591,8 @@ Probes buildProbes(const json& case_data)
                 exporter_probe.name = case_data["model"]["filename"];
             }
             exporter_probe.visSteps = calculate_interval(case_data["probes"]["exporter"]);
+            if (case_data["probes"]["exporter"].contains("saves"))
+                exporter_probe.saves = case_data["probes"]["exporter"]["saves"];
             probes.exporterProbes.push_back(exporter_probe);
         }
 
@@ -596,6 +604,8 @@ Probes buildProbes(const json& case_data)
                     interval
                 );
                 point_probe.setProbeID(pp_count);
+                if (case_data["probes"]["point"][p].contains("saves"))
+                    point_probe.setSaves(case_data["probes"]["point"][p]["saves"]);
                 pp_count++;
                 probes.pointProbes.push_back(point_probe);
             }
@@ -611,6 +621,8 @@ Probes buildProbes(const json& case_data)
                     interval
                 );
                 field_probe.setProbeID(fp_count);
+                if (case_data["probes"]["field"][p].contains("saves"))
+                    field_probe.setSaves(case_data["probes"]["field"][p]["saves"]);
                 fp_count++;
                 probes.fieldProbes.push_back(field_probe);
             }
@@ -626,6 +638,8 @@ Probes buildProbes(const json& case_data)
                     probe.exportPath = case_data["probes"]["farfield"][p]["export_path"];
                 }
                 probe.expSteps = calculate_interval(case_data["probes"]["farfield"][p]);
+                if (case_data["probes"]["farfield"][p].contains("saves"))
+                    probe.saves = case_data["probes"]["farfield"][p]["saves"];
                 
                 if (case_data["probes"]["farfield"][p].contains("tags")) {
                     std::vector<int> tags;
@@ -650,6 +664,8 @@ Probes buildProbes(const json& case_data)
                 probe.name = case_data["model"]["filename"];
             }
             probe.expSteps = calculate_interval(case_data["probes"]["domain_snapshot"]);
+            if (case_data["probes"]["domain_snapshot"].contains("saves"))
+                probe.saves = case_data["probes"]["domain_snapshot"]["saves"];
             probes.domainSnapshotProbes.push_back(probe);
         }
 
@@ -660,6 +676,8 @@ Probes buildProbes(const json& case_data)
                     probe.name = case_data["probes"]["rcssurface"][p]["name"];
                 }
                 probe.expSteps = calculate_interval(case_data["probes"]["rcssurface"][p]);
+                if (case_data["probes"]["rcssurface"][p].contains("saves"))
+                    probe.saves = case_data["probes"]["rcssurface"][p]["saves"];
                 if (case_data["probes"]["rcssurface"][p].contains("tags")) {
                     for (size_t t = 0; t < case_data["probes"]["rcssurface"][p]["tags"].size(); t++) {
                         probe.tags.push_back(case_data["probes"]["rcssurface"][p]["tags"][t]);
@@ -864,8 +882,133 @@ GeomTagToBoundaryInfo assembleAttributeToBoundary(const json& case_data, const m
 	return res;
 }
 
+// Gmsh 2.2 element type IDs for lower-dimensional entities to strip.
+// 1D: nothing stripped.  2D: points (15).  3D: points (15) + lines (1, 8, 26, 27, 28).
+static const std::unordered_set<int> kPointTypes   = {15};
+static const std::unordered_set<int> kLineTypes     = {1, 8, 26, 27, 28};
+// Element types that define the problem dimension.
+static const std::unordered_set<int> kTetTypes      = {4, 11, 29};  // tet4, tet10, tet20
+static const std::unordered_set<int> kTriTypes      = {2, 9, 20, 21}; // tri3, tri6, tri9, tri10
+
+static int detectMeshDimension(const std::vector<std::string>& element_lines)
+{
+    int dim = 1;
+    for (const auto& line : element_lines) {
+        std::istringstream iss(line);
+        int id, etype;
+        if (!(iss >> id >> etype)) continue;
+        if (kTetTypes.count(etype))  return 3;
+        if (kTriTypes.count(etype))  dim = std::max(dim, 2);
+    }
+    return dim;
+}
+
+static bool shouldDeleteElement(int etype, int dim)
+{
+    if (dim == 3) return kPointTypes.count(etype) || kLineTypes.count(etype);
+    if (dim == 2) return kPointTypes.count(etype);
+    return false; // 1D: keep everything
+}
+
+void fixGmshMesh(const std::string& filepath)
+{
+    // Only process .msh files (Gmsh 2.2 ASCII).
+    {
+        auto dot = filepath.rfind('.');
+        if (dot == std::string::npos || filepath.substr(dot) != ".msh")
+            return;
+    }
+
+    std::vector<std::string> header_lines;   // everything before first element line
+    std::vector<std::string> element_lines;  // raw element lines
+    std::vector<std::string> footer_lines;   // $EndElements onward
+
+    {
+        std::ifstream in(filepath);
+        if (!in.is_open()) return;
+
+        std::string line;
+        bool in_elements = false;
+        bool reading_elements = false;
+        int element_count_line_idx = -1;
+
+        while (std::getline(in, line)) {
+            if (line.find("$Elements") != std::string::npos && !in_elements) {
+                in_elements = true;
+                header_lines.push_back(line);
+                // Next line is the element count.
+                if (!std::getline(in, line)) break;
+                header_lines.push_back(line); // placeholder — will be rewritten
+                element_count_line_idx = static_cast<int>(header_lines.size()) - 1;
+                reading_elements = true;
+                continue;
+            }
+            if (line.find("$EndElements") != std::string::npos) {
+                reading_elements = false;
+                footer_lines.push_back(line);
+                continue;
+            }
+            if (reading_elements) {
+                element_lines.push_back(line);
+            } else if (footer_lines.empty()) {
+                header_lines.push_back(line);
+            } else {
+                footer_lines.push_back(line);
+            }
+        }
+    }
+
+    if (element_lines.empty()) return;
+
+    int dim = detectMeshDimension(element_lines);
+
+    // Process elements: filter + swap physical tag with elementary tag + renumber.
+    std::vector<std::string> fixed_elements;
+    fixed_elements.reserve(element_lines.size());
+    int new_id = 1;
+
+    for (const auto& raw : element_lines) {
+        std::vector<std::string> tokens;
+        std::istringstream iss(raw);
+        std::string tok;
+        while (iss >> tok) tokens.push_back(tok);
+        if (tokens.size() < 5) continue;
+
+        int etype = std::stoi(tokens[1]);
+        if (shouldDeleteElement(etype, dim)) continue;
+
+        // Swap: tokens[3] = physical tag, tokens[4] = elementary tag.
+        tokens[3] = tokens[4];
+        tokens[0] = std::to_string(new_id++);
+
+        std::ostringstream oss;
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            if (i) oss << ' ';
+            oss << tokens[i];
+        }
+        fixed_elements.push_back(oss.str());
+    }
+
+    // Update element count in header.
+    // The element count line is the last line pushed before elements started.
+    auto& count_line = header_lines.back();
+    count_line = std::to_string(fixed_elements.size());
+
+    // Write back.
+    {
+        std::ofstream out(filepath, std::ios::trunc);
+        for (const auto& l : header_lines) out << l << '\n';
+        for (const auto& l : fixed_elements) out << l << '\n';
+        for (const auto& l : footer_lines) out << l << '\n';
+    }
+}
+
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
+	if (Mpi::WorldRank() == 0) {
+		fixGmshMesh(mesh_string);
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
 	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
 }
 

@@ -77,6 +77,7 @@ public:
     ProbesManager& operator=(ProbesManager&&) = default;
 
     void updateProbes(Time);
+    void recalculateExportSteps(double dt);
 
     const FieldProbe& getFieldProbe(const std::size_t i) const;
     const PointProbe& getPointProbe(const std::size_t i) const;

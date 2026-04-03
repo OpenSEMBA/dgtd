@@ -676,10 +676,31 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
 {
+	// Compute centroid of all TFSF boundary vertices.
+	// For a convex TFSF surface the centroid lies inside the TF region,
+	// so the element whose barycenter is closer to it is the TF element.
+	// This is invariant to face-normal orientation and handles corner
+	// elements (adjacent to multiple TFSF faces) consistently.
+	Vector tfsf_center(3);
+	tfsf_center = 0.0;
+	int n_verts = 0;
+	std::set<int> counted;
+	for (int be = 0; be < m.GetNBE(); be++) {
+		if (marker[m.GetBdrAttribute(be) - 1] != 1) continue;
+		Array<int> verts;
+		m.GetBdrElementVertices(be, verts);
+		for (int i = 0; i < verts.Size(); i++) {
+			if (counted.insert(verts[i]).second) {
+				auto* v = m.GetVertex(verts[i]);
+				for (int d = 0; d < 3; d++) tfsf_center[d] += v[d];
+				n_verts++;
+			}
+		}
+	}
+	if (n_verts > 0) tfsf_center /= double(n_verts);
+
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
-
-			auto face_ori{ buildFaceOrientation(m, be) };
 
 			Array<int> be_vert, el1_face, el1_ori, el2_face, el2_ori, face_vert;
 			m.GetBdrElementVertices(be, be_vert);
@@ -688,13 +709,41 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto fe_trans{ getFaceElementTransformation(m,be) };
 			m.GetElementFaces(fe_trans->Elem1No, el1_face, el1_ori);
 
+			// Determine TF/SF by centroid distance: closer to center = TF.
+			Vector bary1 = getBarycenterOfElement(m, fe_trans->Elem1No);
+			double dist1_sq = 0.0;
+			for (int d = 0; d < 3; d++) {
+				double diff = bary1[d] - tfsf_center[d];
+				dist1_sq += diff * diff;
+			}
+
+			bool elem1_is_tf;
+			if (fe_trans->Elem2No >= 0) {
+				Vector bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
+				double dist2_sq = 0.0;
+				for (int d = 0; d < 3; d++) {
+					double diff = bary2[d] - tfsf_center[d];
+					dist2_sq += diff * diff;
+				}
+				elem1_is_tf = dist1_sq < dist2_sq;
+			}
+			else {
+				// Boundary face with no Elem2: compare element to face barycenter
+				Vector face_bary = getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be));
+				double face_dist_sq = 0.0;
+				for (int d = 0; d < 3; d++) {
+					double diff = face_bary[d] - tfsf_center[d];
+					face_dist_sq += diff * diff;
+				}
+				elem1_is_tf = dist1_sq < face_dist_sq;
+			}
+
 			std::pair<FaceId, IsTF> set_v1;
 			for (int f = 0; f < el1_face.Size(); f++) {
-				auto fi{ m.GetFaceInformation(f) };
 				m.GetFaceVertices(el1_face[f], face_vert);
 				face_vert.Sort();
 				if (face_vert == be_vert) {
-					face_ori >= 0.0 ? set_v1 = std::make_pair(f, false) : set_v1 = std::make_pair(f, true);
+					set_v1 = std::make_pair(f, elem1_is_tf);
 					break;
 				}
 			}
@@ -705,13 +754,10 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
 
 				for (int f = 0; f < el2_face.Size(); f++) {
-					auto fi{ m.GetFaceInformation(f) };
-					auto ir = Geometries.GetVertices(Geometry::Type::SQUARE);
 					m.GetFaceVertices(el2_face[f], face_vert);
-					auto el_faces = m.GetElement(fe_trans->Elem2No)->GetFaceVertices(f);
 					face_vert.Sort();
 					if (face_vert == be_vert) {
-						face_ori >= 0.0 ? set_v2 = std::make_pair(f, true) : set_v2 = std::make_pair(f, false);
+						set_v2 = std::make_pair(f, !elem1_is_tf);
 						break;
 					}
 				}
@@ -719,7 +765,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			else {
 				auto set_v2{ std::make_pair(NotFound, false) };
 			}
-			//be_vert is counterclockwise, that is our convention to designate which element will be TF. The other element will be SF.
+
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
 			prepareSubMeshInfo(m, fe_trans, facesInfo, set_v1.second);
 		}

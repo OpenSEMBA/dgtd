@@ -100,7 +100,7 @@ TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G1_monostatic)
 
 TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G2_monostatic)
 {
-	auto frequencies_manual = linspace(1e6, 1e9, 301);
+	auto frequencies_manual = linspace(459e6, 1.2e9, 301);
 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
 	std::string dataPath = "./Exports/mpi-8/2D_RCS_SGBC_Circle_G2/RCSSurface/cylinder_sgbc_rcs/";
@@ -131,6 +131,35 @@ TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G2_Fine_monostatic)
 	RCSSurfacePostProcessor pp(
 		dataPath,
 		maxwellCase("2D_RCS_SGBC_Circle_G2_Fine"),
+		frequencies_manual, angles);
+}
+
+// 3D SGBC sphere-box cases.
+// Source: modulated Gaussian, f_c = 150 MHz, spread = 0.3 m.
+//   sigma_t = 1 ns  ->  sigma_f ~ 159 MHz  ->  useful range: 1 MHz – 650 MHz.
+// Monostatic: plane-wave propagates +Z, backscatter observed at theta=pi, phi=0.
+
+TEST_F(ExtensiveRCSTest, 3D_RCS_SGBC_Sphere_Box_G1_monostatic)
+{
+	auto frequencies_manual = linspace(1e6, 650e6, 301);
+	auto angles = buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1);
+
+	std::string dataPath = "./Exports/mpi-6/3D_RCS_SGBC_Sphere_Box_G1/RCSSurface/sphere_sgbc_G1/";
+	RCSSurfacePostProcessor pp(
+		dataPath,
+		maxwellCase("3D_RCS_SGBC_Sphere_Box_G1"),
+		frequencies_manual, angles);
+}
+
+TEST_F(ExtensiveRCSTest, 3D_RCS_SGBC_Sphere_Box_G2_monostatic)
+{
+	auto frequencies_manual = linspace(1e6, 650e6, 301);
+	auto angles = buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1);
+
+	std::string dataPath = "./Exports/mpi-6/3D_RCS_SGBC_Sphere_Box_G2/RCSSurface/sphere_sgbc_G2/";
+	RCSSurfacePostProcessor pp(
+		dataPath,
+		maxwellCase("3D_RCS_SGBC_Sphere_Box_G2"),
 		frequencies_manual, angles);
 }
 

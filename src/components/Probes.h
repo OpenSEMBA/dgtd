@@ -10,24 +10,28 @@ namespace maxwell {
 struct ExporterProbe {
     std::string name{"MaxwellView"};
     int visSteps{ 10 };
+    int saves{ 0 };
 };
 
 struct NearFieldProbe {
     std::string name = std::string("NearFieldProbe");
     std::string exportPath = std::string("./defaultExportPath/" + name + "/");
     int expSteps{ 10 };
+    int saves{ 0 };
     std::vector<int> tags;
 };
 
 struct RCSSurfaceProbe {
     std::string name = std::string("RCSSurfaceProbe");
     int expSteps{ 1 };
+    int saves{ 0 };
     std::vector<int> tags;
 };
 
 struct DomainSnapshotProbe {
     std::string name = std::string("DomainSnapshot");
     int expSteps { 10 };
+    int saves{ 0 };
 };
 
 struct DomainSnapshotDataCollection{
@@ -87,6 +91,9 @@ public:
     const FieldMovie& getFieldMovie() const { return fieldMovie_; }
     const Point& getPoint() const { return point_; }
     int getVisSteps() const { return visSteps_; }
+    void setVisSteps(int s) { visSteps_ = s; }
+    void setSaves(int s) { saves_ = s; }
+    int getSaves() const { return saves_; }
     void addFieldToMovies(double time, const double& field) { fieldMovie_.emplace(time, field); };
     void setProbeID(const size_t id) {id_ = id;}
     size_t getProbeID() const { return id_; }
@@ -118,6 +125,7 @@ private:
     Direction directionToExtract_;
     Point point_;
     int visSteps_;
+    int saves_{ 0 };
     size_t id_;
 
     FieldMovie fieldMovie_;
@@ -136,6 +144,9 @@ public:
     const FieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
     int getVisSteps() const { return visSteps_; }
+    void setVisSteps(int s) { visSteps_ = s; }
+    void setSaves(int s) { saves_ = s; }
+    int getSaves() const { return saves_; }
     void addFieldsToMovies(Time t, const FieldsForMovie& fields) { fieldMovies_.emplace(t, fields); };
     void setProbeID(const size_t id) {id_ = id;}
     size_t getProbeID() const { return id_; }
@@ -143,6 +154,7 @@ public:
 private:
     Point point_;
     int visSteps_;
+    int saves_{ 0 };
     size_t id_;
 
     FieldMovies fieldMovies_;

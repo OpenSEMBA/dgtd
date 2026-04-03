@@ -111,6 +111,13 @@ Solver::Solver(
         dt_ = opts_.time_step;
     }
 
+    // Now that the real time step is known, ensure all probe export intervals
+    // that were specified via "saves" are consistent with the actual dt.
+    // This is especially important when using the automatic time stepper
+    // (time_step == 0.0), where the interval could not be calculated correctly
+    // at parse time.
+    probesManager_.recalculateExportSteps(dt_);
+
     assignODESolver();
     odeSolver_->Init(*evolTDO_);
 
@@ -195,22 +202,47 @@ bool checkIfElemTypeInMesh(const mfem::Mesh& mesh, const mfem::Element::Type& ty
 
 mfem::Vector getTimeStepScale(mfem::Mesh& mesh)
 {
+    const int dim = mesh.Dimension();
+    const int sdim = mesh.SpaceDimension();
     mfem::Vector vol(mesh.GetNE()), dtscale(mesh.GetNE());
     for (int e = 0; e < mesh.GetNE(); ++e) {
-        auto el{ mesh.GetElement(e) };
-        mfem::Vector areasum(mesh.GetNumFaces());
-        areasum = 0.0;
-        for (int f = 0; f < mesh.GetElement(e)->GetNEdges(); ++f) {
-            mfem::ElementTransformation* T{ mesh.GetFaceTransformation(f)};
-            const mfem::IntegrationRule& ir = IntRules.Get(T->GetGeometryType(), T->OrderJ());
-            for (int p = 0; p < ir.GetNPoints(); p++)
-            {
-                const mfem::IntegrationPoint& ip = ir.IntPoint(p);
-                areasum(e) += ip.weight * T->Weight();
+        double faceAreaSum = 0.0;
+
+        mfem::Array<int> elem_faces, ori;
+        if (dim == 2) {
+            mesh.GetElementEdges(e, elem_faces, ori);
+        } else {
+            mesh.GetElementFaces(e, elem_faces, ori);
+        }
+
+        for (int fi = 0; fi < elem_faces.Size(); ++fi) {
+            if (dim == 2) {
+                // Edge length from vertices
+                mfem::Array<int> v;
+                mesh.GetEdgeVertices(elem_faces[fi], v);
+                double len = 0.0;
+                for (int d = 0; d < sdim; ++d) {
+                    double diff = mesh.GetVertex(v[1])[d] - mesh.GetVertex(v[0])[d];
+                    len += diff * diff;
+                }
+                faceAreaSum += std::sqrt(len);
+            } else {
+                // Triangle area from vertices
+                mfem::Array<int> v;
+                mesh.GetFaceVertices(elem_faces[fi], v);
+                double e1[3], e2[3];
+                for (int d = 0; d < 3; ++d) {
+                    e1[d] = mesh.GetVertex(v[1])[d] - mesh.GetVertex(v[0])[d];
+                    e2[d] = mesh.GetVertex(v[2])[d] - mesh.GetVertex(v[0])[d];
+                }
+                double cx = e1[1]*e2[2] - e1[2]*e2[1];
+                double cy = e1[2]*e2[0] - e1[0]*e2[2];
+                double cz = e1[0]*e2[1] - e1[1]*e2[0];
+                faceAreaSum += 0.5 * std::sqrt(cx*cx + cy*cy + cz*cz);
             }
         }
         vol(e) = mesh.GetElementVolume(e);
-        dtscale(e) = vol(e) / (areasum(e) / 2.0);
+        dtscale(e) = vol(e) / (faceAreaSum / 2.0);
     }
     return dtscale;
 }
