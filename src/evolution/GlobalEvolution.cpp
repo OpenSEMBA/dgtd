@@ -606,26 +606,23 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
         }
     }
 
-    // Scatter submesh planewave values into global-layout vector
-    // Iterate DOFs in the outer loop to load each parent index only once
+    // Scatter submesh planewave values into tfsf_assembledFunc_ (local DOFs only;
+    // partitioner guarantees all TFSF faces are rank-local, no ghost exchange needed).
     for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
         const int parent_dof = tfsf_sub_to_parent_ids_[v];
-        for (int f : {E, H}) {
-            for (int d : {X, Y, Z}) {
-                tfsf_assembledFunc_[(f * 3 + d) * blockSize + parent_dof] = func[f][d][v];
-            }
+        for (int d : {X, Y, Z}) {
+            tfsf_assembledFunc_[d * blockSize + parent_dof] = func[E][d][v];
+            tfsf_assembledFunc_[(3 + d) * blockSize + parent_dof] = func[H][d][v];
         }
     }
 
     // Apply TFSF operator and subtract from result: out -= TFSFOp * planewave
     TFSFOperator_->AddMult(tfsf_assembledFunc_, result_vector, -1.0);
 
-    // Restore zeroed state for next call (only touch submesh entries)
-    for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
-        const int parent_dof = tfsf_sub_to_parent_ids_[v];
-        for (int comp = 0; comp < 6; ++comp) {
-            tfsf_assembledFunc_[comp * blockSize + parent_dof] = 0.0;
-        }
+    // Restore zeroed state for next call
+    for (int d = X; d <= Z; ++d) {
+        std::memset(tfsf_assembledFunc_.GetData() + d * blockSize, 0, blockSize * sizeof(double));
+        std::memset(tfsf_assembledFunc_.GetData() + (3 + d) * blockSize, 0, blockSize * sizeof(double));
     }
 }
 
