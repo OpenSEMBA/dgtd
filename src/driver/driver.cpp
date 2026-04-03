@@ -185,52 +185,85 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
     auto weight = buildElementWeights(NE, pairs);
     auto load   = computeWeightedLoad(P, NE, partitioning, weight);
 
-    // --- Phase 1: Enforce pair co-location (DSU) ---
-    // Each pair's two elements must reside on the same rank.
-    // Build small components: only chain elements that share a face pair,
-    // NOT transitively through the whole surface.
-    // We do NOT chain through the DSU — each face pair (2 elements) is an
-    // independent unit so they can be spread across ranks.
-    struct PairComponent {
-        int elem1, elem2;
-        long long cost;        // sum of weights
+    // --- Phase 1: Transitive grouping via DSU (union-find) ---
+    // At corners a single TF element may share faces with multiple SF
+    // elements (or vice-versa).  All such elements must land on the same
+    // rank so that every TFSF face is rank-local.  We use a DSU to merge
+    // elements transitively through shared boundary faces.
+    std::vector<int> parent(NE);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::vector<int> rank_dsu(NE, 0);
+
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
     };
-    std::vector<PairComponent> pairComps;
-    pairComps.reserve(pairs.size());
-    // Deduplicate: an element can appear in multiple pairs. Track which
-    // elements have already been assigned by an earlier pair.
-    std::vector<bool> claimed(NE, false);
+    auto unite = [&](int a, int b) {
+        a = find(a); b = find(b);
+        if (a == b) return;
+        if (rank_dsu[a] < rank_dsu[b]) std::swap(a, b);
+        parent[b] = a;
+        if (rank_dsu[a] == rank_dsu[b]) rank_dsu[a]++;
+    };
+
     for (const auto& pr : pairs) {
         const int a = pr.first, b = pr.second;
         if (a < 0 || a >= NE || b < 0 || b >= NE) continue;
-        pairComps.push_back({a, b, weight[a] + weight[b]});
+        unite(a, b);
     }
 
-    // Sort pairs by descending cost so the heaviest pairs get first pick
-    // of the least-loaded rank.
-    std::sort(pairComps.begin(), pairComps.end(),
-              [](const PairComponent& a, const PairComponent& b) {
-                  return a.cost > b.cost;
-              });
-
-    // --- Phase 2: Round-robin assignment to spread pairs evenly ---
-    // First, remove existing load from these elements (we'll reassign them).
-    for (const auto& pc : pairComps) {
-        for (int e : {pc.elem1, pc.elem2}) {
-            const int old_r = partitioning[e];
-            if (0 <= old_r && old_r < P) {
-                load[old_r] -= weight[e];
+    // Collect connected components.
+    std::unordered_map<int, std::vector<int>> components;
+    for (const auto& pr : pairs) {
+        for (int e : {pr.first, pr.second}) {
+            if (e >= 0 && e < NE) {
+                components[find(e)];  // ensure key exists
             }
         }
     }
-
-    // Assign each pair to the least-loaded rank.
-    for (const auto& pc : pairComps) {
-        const int rank = leastLoadedRank(load);
-        for (int e : {pc.elem1, pc.elem2}) {
-            partitioning[e] = rank;
-            load[rank] += weight[e];
+    for (auto& [root, elems] : components) {
+        elems.clear();
+    }
+    for (const auto& pr : pairs) {
+        for (int e : {pr.first, pr.second}) {
+            if (e >= 0 && e < NE) {
+                auto& v = components[find(e)];
+                if (v.empty() || v.back() != e) {
+                    v.push_back(e);
+                }
+            }
         }
+    }
+    // Deduplicate element lists (an element may appear in multiple pairs).
+    for (auto& [root, elems] : components) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+    }
+
+    // Build sortable list of components by descending cost.
+    struct Component {
+        std::vector<int> elems;
+        long long cost;
+    };
+    std::vector<Component> comps;
+    comps.reserve(components.size());
+    for (auto& [root, elems] : components) {
+        long long c = 0;
+        for (int e : elems) c += weight[e];
+        comps.push_back({std::move(elems), c});
+    }
+    std::sort(comps.begin(), comps.end(),
+              [](const Component& a, const Component& b) {
+                  return a.cost > b.cost;
+              });
+
+    // --- Phase 2: Assign each component atomically to least-loaded rank ---
+    for (const auto& comp : comps) {
+        assignComponent(comp.elems, leastLoadedRank(load),
+                        partitioning, load, weight);
     }
 
     // --- Phase 3: Diagnostics ---
@@ -242,7 +275,8 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
         double ideal       = static_cast<double>(total) / P;
         double imbalance   = (ideal > 0.0) ? (max_load - ideal) / ideal * 100.0 : 0.0;
 
-        std::cout << "[Partition] " << pairs.size() << " boundary pairs across "
+        std::cout << "[Partition] " << pairs.size() << " boundary pairs, "
+                  << comps.size() << " components across "
                   << P << " ranks (TFSF=" << tfsf_tags.Size()
                   << " tags, SGBC=" << sgbc_tags.Size() << " tags)\n";
         std::cout << "[Partition] Weighted load: min=" << min_load
