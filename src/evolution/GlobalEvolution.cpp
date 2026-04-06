@@ -608,6 +608,9 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
 
     // Scatter submesh planewave values into tfsf_assembledFunc_ (local DOFs only;
     // partitioner guarantees all TFSF faces are rank-local, no ghost exchange needed).
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    scatter_tfsf_to_assembled_gpu(tfsf_sub_to_parent_ids_, func, tfsf_assembledFunc_, blockSize);
+#else
     for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
         const int parent_dof = tfsf_sub_to_parent_ids_[v];
         for (int d : {X, Y, Z}) {
@@ -615,15 +618,20 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
             tfsf_assembledFunc_[(3 + d) * blockSize + parent_dof] = func[H][d][v];
         }
     }
+#endif
 
     // Apply TFSF operator and subtract from result: out -= TFSFOp * planewave
     TFSFOperator_->AddMult(tfsf_assembledFunc_, result_vector, -1.0);
 
     // Restore zeroed state for next call
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    zero_tfsf_assembled_gpu(tfsf_sub_to_parent_ids_, tfsf_assembledFunc_, blockSize);
+#else
     for (int d = X; d <= Z; ++d) {
         std::memset(tfsf_assembledFunc_.GetData() + d * blockSize, 0, blockSize * sizeof(double));
         std::memset(tfsf_assembledFunc_.GetData() + (3 + d) * blockSize, 0, blockSize * sizeof(double));
     }
+#endif
 }
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
@@ -837,6 +845,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             sgbcVec_.UseDevice(true);
             sgbcVec_ = 0.0;
         }
+        // On GPU builds 'in' is device-authoritative after steps 2-5; HostRead()
+        // syncs device→host once for all operator[]-based DOF reads below.
+        // sgbcVec_ was zeroed on device; HostReadWrite() syncs it to host so that
+        // operator[] assignments write to the correct (host) buffer.
+        in.HostRead();
+        sgbcVec_.HostReadWrite();
         for (auto& [tag, states] : sgbc_states_) {
             auto it = sgbc_wrapper_map_.find(tag);
             if (it == sgbc_wrapper_map_.end()) continue;
@@ -1016,6 +1030,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 }
             }
         }
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        // Steps 3-5 wrote 'out' on device; the SGBC SpMV passes above wrote to
+        // the host copy via HostReadWrite(). Sync host→device so the ODE
+        // integrator sees a consistent device-authoritative 'out'.
+        (void)out.ReadWrite();
+#endif
     }
 
 #ifdef SHOW_TIMER_INFORMATION
