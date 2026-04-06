@@ -7,6 +7,8 @@
 #include <regex>
 #include <stdexcept>
 
+#include <omp.h>
+
 #include "driver/driver.h"
 #include "math/PhysicalConstants.h"
 #include "mfemExtension/LinearIntegrators.h"
@@ -228,11 +230,13 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         std::vector<std::vector<CVec>> ff(6,
             std::vector<CVec>(nFreq, CVec(nDofs, {0,0})));
 
+        #pragma omp parallel
         for (int t = 0; t < nSnap; ++t) {
             const auto& s = rd.snapshots[t];
             const std::vector<double>* comps[6] = {
                 &s.Ex, &s.Ey, &s.Ez, &s.Hx, &s.Hy, &s.Hz };
 
+            #pragma omp for schedule(static) nowait
             for (int fi = 0; fi < nFreq; ++fi) {
                 double arg = 2.0 * M_PI * normFreqs[fi] * times[t];
                 auto w = std::complex<double>(std::cos(arg), -std::sin(arg));
