@@ -196,6 +196,13 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
             rcsData_[ang][f] = 0.0;
         }
 
+    // Accumulators for coherent summation of complex amplitudes across ranks.
+    // Key: (angle, frequency), Value: {N_theta, N_phi, L_theta, L_phi}
+    std::map<std::pair<SphericalAngles, double>, std::array<std::complex<double>, 4>> coherentSum;
+    for (const auto& ang : angles)
+        for (const auto& f : normFreqs)
+            coherentSum[{ang, f}] = {0, 0, 0, 0};
+
     PlaneWaveData pw(0.0, 0.0);
     std::vector<double> incidentPower;
     int spaceDim = 0;
@@ -328,19 +335,40 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                 auto L_theta = dot3(th, L_vec);
                 auto L_phi   = dot3(ph, L_vec);
 
-                double Z0 = physicalConstants::freeSpaceImpedance;
-                double potRad;
-                if (spaceDim == 2) {
-                    potRad = k * k / (16.0 * M_PI * Z0) *
-                        (std::norm(L_phi + Z0 * N_theta) +
-                         std::norm(L_theta - Z0 * N_phi));
-                } else {
-                    potRad = k * k / (32.0 * M_PI * M_PI * Z0) *
-                        (std::norm(L_phi + Z0 * N_theta) +
-                         std::norm(L_theta - Z0 * N_phi));
-                }
-                farFieldData_[ang][freq] += potRad;
+                // Accumulate complex amplitudes coherently across ranks.
+                auto& acc = coherentSum[{ang, freq}];
+                acc[0] += N_theta;
+                acc[1] += N_phi;
+                acc[2] += L_theta;
+                acc[3] += L_phi;
             }
+        }
+    }
+
+    // After all ranks processed, compute far-field power from coherently-summed amplitudes.
+    for (int fi = 0; fi < nFreq; ++fi) {
+        const double freq = normFreqs[fi];
+        const double k = 2.0 * M_PI * freq;
+        double Z0 = physicalConstants::freeSpaceImpedance;
+
+        for (const auto& ang : angles) {
+            const auto& acc = coherentSum[{ang, freq}];
+            auto N_theta = acc[0];
+            auto N_phi   = acc[1];
+            auto L_theta = acc[2];
+            auto L_phi   = acc[3];
+
+            double potRad;
+            if (spaceDim == 2) {
+                potRad = k * k / (16.0 * M_PI * Z0) *
+                    (std::norm(L_phi + Z0 * N_theta) +
+                     std::norm(L_theta - Z0 * N_phi));
+            } else {
+                potRad = k * k / (32.0 * M_PI * M_PI * Z0) *
+                    (std::norm(L_phi + Z0 * N_theta) +
+                     std::norm(L_theta - Z0 * N_phi));
+            }
+            farFieldData_[ang][freq] = potRad;
         }
     }
 
