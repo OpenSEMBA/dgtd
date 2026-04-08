@@ -2,6 +2,7 @@
 
 #include <complex>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -50,7 +51,8 @@ public:
         const std::string& dataPath,
         const std::string& jsonPath,
         std::vector<Frequency>& frequencies,
-        const std::vector<SphericalAngles>& angles);
+        const std::vector<SphericalAngles>& angles,
+        const std::optional<double>& maxTime = std::nullopt);
 
     double getRCS(const SphericalAngles& angles, const Frequency& freq) const {
         return rcsData_.at(angles).at(freq);
@@ -81,6 +83,7 @@ private:
         const std::vector<SphericalAngles>& angles);
 
     std::map<SphericalAngles, Freq2Value> rcsData_;
+    std::optional<double> maxTime_;
     std::map<SphericalAngles, Freq2Value> farFieldData_;
 };
 

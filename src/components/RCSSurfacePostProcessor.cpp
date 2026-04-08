@@ -1,5 +1,6 @@
 #include "RCSSurfacePostProcessor.h"
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <filesystem>
@@ -212,7 +213,19 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         auto rd = readRankData(rp);
         spaceDim = rd.geometry.spaceDimension;
         const int nDofs = rd.geometry.numDofs;
-        const int nSnap = static_cast<int>(rd.snapshots.size());
+
+        // Filter snapshots based on maxTime if provided.
+        std::vector<SurfaceSnapshot> snapshots = rd.snapshots;
+        if (maxTime_.has_value()) {
+            snapshots.erase(
+                std::remove_if(snapshots.begin(), snapshots.end(),
+                    [this](const SurfaceSnapshot& s) { return s.time > maxTime_.value(); }),
+                snapshots.end());
+            if (snapshots.empty()) {
+                throw std::runtime_error("No snapshots found within the specified maxTime.");
+            }
+        }
+        const int nSnap = static_cast<int>(snapshots.size());
 
         if (spaceDim == 2)
             for (const auto& a : angles)
@@ -222,7 +235,7 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         // Time vector (normalised).
         std::vector<double> times(nSnap);
         for (int i = 0; i < nSnap; ++i)
-            times[i] = rd.snapshots[i].time / physicalConstants::speedOfLight;
+            times[i] = snapshots[i].time / physicalConstants::speedOfLight;
 
         if (firstRank) {
             pw = extractPlaneWaveData(jsonPath);
@@ -239,7 +252,7 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
 
         #pragma omp parallel
         for (int t = 0; t < nSnap; ++t) {
-            const auto& s = rd.snapshots[t];
+            const auto& s = snapshots[t];
             const std::vector<double>* comps[6] = {
                 &s.Ex, &s.Ey, &s.Ez, &s.Hx, &s.Hy, &s.Hz };
 
@@ -360,7 +373,12 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
 
             double potRad;
             if (spaceDim == 2) {
-                potRad = k * k / (16.0 * M_PI * Z0) *
+                // 2D NTFF formula derived from the scalar Green's function for E_y (TE):
+                //   E_y^scat ~ k/(4j) * sqrt(2/(pi*k*r)) * e^{-j(kr-pi/4)} * integral J_y e^{jk r_hat.r'} dl
+                // sigma_2D = 2*pi*r * |E_scat|^2/|E_inc|^2 = k/4 * |N_phi|^2 / |E_inc|^2
+                // With potRad = k^2/(32*Z0) * |N|^2 and ct = 4/k / P_inc:
+                //   sigma = (4/k) * k^2/(32*Z0) * 2*Z0 / |E_inc|^2 = k/4 * |N|^2 / |E_inc|^2  ✓
+                potRad = k * k / (32.0 * Z0) *
                     (std::norm(L_phi + Z0 * N_theta) +
                      std::norm(L_theta - Z0 * N_phi));
             } else {
@@ -427,7 +445,9 @@ RCSSurfacePostProcessor::RCSSurfacePostProcessor(
     const std::string& dataPath,
     const std::string& jsonPath,
     std::vector<Frequency>& frequencies,
-    const std::vector<SphericalAngles>& angles)
+    const std::vector<SphericalAngles>& angles,
+    const std::optional<double>& maxTime)
+    : maxTime_(maxTime)
 {
     computeAndWriteResults(dataPath, jsonPath, frequencies, angles);
 }
