@@ -34,6 +34,8 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     outputPath_ = base + "/rank" + std::to_string(Mpi::WorldRank());
     std::filesystem::create_directories(outputPath_);
 
+    auto elemOrder = parentFes.GetMesh()->GetElementTransformation(0)->Order();
+    mesh->SetCurvature(elemOrder);
     mesh->Save(outputPath_ + "/mesh");
 
     dataFile_.open(outputPath_ + "/surface_data.bin", std::ios::binary);
