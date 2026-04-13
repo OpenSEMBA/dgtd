@@ -1,0 +1,59 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 5e-3,
+    "final_time": 50.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "3D_RCS_PEC_1m_G2.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 2 ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "saves": 200
+    },
+    "rcssurface": [
+      {
+        "name": "sphere_fake_G2",
+        "steps": 1,
+        "tags": [ 6, 4, 7, 3, 8, 5 ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "propagation": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [ 6, 4, 7, 3, 8, 5 ],
+      "magnitude": {
+        "spread": 0.3,
+        "mean": [0.0, 0.0, -4.0]
+      }
+    }
+  ]
+}

@@ -1,15 +1,15 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 0.0,
+    "time_step": 5e-3,
     "final_time": 20.0,
-    "order": 2
+    "order": 4
   },
   "model": {
     "filename": "3D_RCS_SGBC_Sphere_Box_G1.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [ 1, 2, 3, 4 ],
         "type": "vacuum"
       }
     ],
@@ -21,8 +21,8 @@
           {
             "relative_permittivity": 4.0,
             "relative_permeability": 1.0,
-            "bulk_conductivity": 2.5,
-            "material_width": 0.10
+            "bulk_conductivity": 3.0,
+            "material_width": 0.05
           }
         ],
         "sgbc_boundaries": {
@@ -62,9 +62,8 @@
       ],
       "tags": [ 3, 4, 5, 6, 7, 8 ],
       "magnitude": {
-        "spread": 1.0,
-        "frequency": 600e6,
-        "mean": [0.0, 0.0, -4.25]
+        "spread": 0.2,
+        "mean": [0.0, 0.0, -3.5]
       }
     }
   ]

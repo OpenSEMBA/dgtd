@@ -1,0 +1,57 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 5e-3,
+    "final_time": 20.0,
+    "order": 3
+  },
+
+  "model": {
+    "filename": "2D_RCS_FAKE_Circle_G1_1m_MidFreq.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [ 3 ],
+        "relative_permittivity": 4.0,
+        "relative_permeability": 1.0,
+        "bulk_conductivity": 3.0
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1 ],
+        "type": "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "saves": 100
+    },
+    "rcssurface": [
+      {
+        "name": "cylinder_rcs",
+        "steps": 1,
+        "tags": [ 5, 6, 3, 4 ]
+      }
+    ]
+  },
+
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 5, 6, 3, 4 ],
+      "magnitude": {
+        "spread": 0.7,
+        "frequency": 600e6,
+        "mean": [ -5.0, 0.0, 0.0 ]
+      }
+    }
+  ]
+}
