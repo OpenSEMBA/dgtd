@@ -13,7 +13,8 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY": "ON"
+        "SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY": "ON",
+        "MFEM_ENABLE_TESTING": false
       }
     },
     {
