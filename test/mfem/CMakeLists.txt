@@ -33,4 +33,20 @@ target_link_libraries(mfem_tests PRIVATE
 	GTest::gtest 
 )
 
+add_executable(mpi_mfem_tests 
+	$<TARGET_OBJECTS:TestLauncher>
+	"mpi_FiniteElementSpaceTest.cpp")
+
+target_link_libraries(mpi_mfem_tests PRIVATE
+	mfem 
+	maxwell-mfemExtension
+	maxwell-evolution
+	maxwell-components 
+	maxwell-driver
+	Eigen3::Eigen
+	FFTW3::fftw3
+	FFTW3::fftw3f
+	FFTW3::fftw3l
+	GTest::gtest 
+)
 
