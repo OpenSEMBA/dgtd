@@ -12,6 +12,8 @@ resources/*.msh
 gather*
 run_all_*
 
+CLAUDE.md
+
 *.csv
 *.gf
 mesh.mesh

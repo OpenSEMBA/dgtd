@@ -83,6 +83,9 @@ jobs:
     - name: Run mfem tests 
       run: build/gnu-release-mpi/bin/mfem_tests
 
+    - name: Run mpi mfem tests 
+      run: mpirun -np 2 build/gnu-release-mpi/bin/mpi_mfem_tests
+
     - name: Run maxwell tests 
       run: build/gnu-release-mpi/bin/maxwell_tests
 
