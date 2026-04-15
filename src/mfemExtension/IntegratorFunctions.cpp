@@ -21,6 +21,15 @@ const IntegrationRule* setIntegrationRule(
     }
     if (el1.Space() == FunctionSpace::Pk) {
         order++;
+        // Over-integrate on curved meshes: the face integrands involve
+        // non-polynomial geometry terms (surface Jacobian, unit normal).
+        // Adding (dim-1)*(meshOrder-1) extra orders reduces quadrature
+        // error, matching the volume integrator over-integration.
+        int dim = el1.GetDim();
+        int orderW = Trans.Elem1->OrderW();
+        if (dim > 1 && orderW > 0) {
+            order += orderW * (dim - 1) / dim;
+        }
     }
     return &IntRules.Get(Trans.GetGeometryType(), order);
 }
@@ -34,6 +43,11 @@ const IntegrationRule* setIntegrationRule(
     
     if (el1.Space() == FunctionSpace::Pk) {
         order++;
+        int dim = el1.GetDim();
+        int orderW = Trans.Elem1->OrderW();
+        if (dim > 1 && orderW > 0) {
+            order += orderW * (dim - 1) / dim;
+        }
     }
     return &IntRules.Get(Trans.GetGeometryType(), order);
 }

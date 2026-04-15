@@ -283,13 +283,12 @@ namespace maxwell
 		}
 
 		ConstantCoefficient coeff = (d <= fes_.GetMesh()->Dimension()) ? ConstantCoefficient(1.0) : ConstantCoefficient(0.0);
-		auto* integ = new DerivativeIntegrator(coeff, d);
+		auto* integ = new AdjugateDerivativeIntegrator(coeff, d);
 
-		// For curved (high-order geometry) meshes, MFEM's default DerivativeIntegrator
-		// quadrature rule (order 2p-1 for Pk) does not account for the non-constant
-		// Jacobian. The adjugate matrix adj(J) introduces extra polynomial degree
-		// (dim-1)*(meshOrder-1). Under-integration breaks the discrete summation-by-parts
-		// (SBP) property, causing a slow-growing energy instability on curved elements.
+		// For curved (high-order geometry) meshes, the adjugate matrix adj(J)
+		// introduces extra polynomial degree (dim-1)*(meshOrder-1) beyond the
+		// default 2p-1 rule. Increase quadrature to integrate exactly, preserving
+		// the discrete summation-by-parts (SBP) property on curved elements.
 		auto* nodalFES = fes_.GetMesh()->GetNodalFESpace();
 		if (nodalFES && fes_.GetMesh()->GetNE() > 0) {
 			int meshOrder = nodalFES->GetMaxElementOrder();
@@ -297,7 +296,7 @@ namespace maxwell
 				int p = fes_.FEColl()->GetOrder();
 				int dim = fes_.GetMesh()->Dimension();
 				int adjDeg = (dim - 1) * (meshOrder - 1);
-				int totalOrder = 2 * p - 1 + adjDeg;
+				int totalOrder = 2 * p + 9 + adjDeg;
 				auto geomType = fes_.GetMesh()->GetElementGeometry(0);
 				integ->SetIntRule(&IntRules.Get(geomType, totalOrder));
 			}
@@ -1264,7 +1263,7 @@ namespace maxwell
 		#endif
 
 		res->Finalize();
-		auto threshold = 1e-6;
+		auto threshold = 1e-20;
 		res->Threshold(threshold);
 
 		if(this->pd_.opts.export_evolution_operator){

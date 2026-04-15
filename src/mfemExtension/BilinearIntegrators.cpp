@@ -713,6 +713,62 @@ void HesthavenFluxIntegrator::AssembleFaceMatrix(const FiniteElement& el1,
     }
 }
 
+void AdjugateDerivativeIntegrator::AssembleElementMatrix2(
+	const FiniteElement &trial_fe,
+	const FiniteElement &test_fe,
+	ElementTransformation &Trans,
+	DenseMatrix &elmat)
+{
+	int dim = trial_fe.GetDim();
+	int trial_nd = trial_fe.GetDof();
+	int test_nd = test_fe.GetDof();
+
+	elmat.SetSize(test_nd, trial_nd);
+	dshape_.SetSize(trial_nd, dim);
+	adjJ_.SetSize(dim);
+	dshape_adj_.SetSize(trial_nd, dim);
+	dshapedxi_.SetSize(trial_nd);
+	shape_.SetSize(test_nd);
+
+	const IntegrationRule *ir = IntRule;
+	if (ir == NULL)
+	{
+		int order;
+		if (trial_fe.Space() == FunctionSpace::Pk)
+		{
+			order = trial_fe.GetOrder() + test_fe.GetOrder() - 1;
+		}
+		else
+		{
+			order = trial_fe.GetOrder() + test_fe.GetOrder() + dim;
+		}
+		ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+	}
+
+	elmat = 0.0;
+	for (int i = 0; i < ir->GetNPoints(); i++)
+	{
+		const IntegrationPoint &ip = ir->IntPoint(i);
+
+		trial_fe.CalcDShape(ip, dshape_);
+
+		Trans.SetIntPoint(&ip);
+		CalcAdjugate(Trans.Jacobian(), adjJ_);
+
+		Mult(dshape_, adjJ_, dshape_adj_);
+
+		for (int l = 0; l < trial_nd; l++)
+		{
+			dshapedxi_(l) = dshape_adj_(l, xi);
+		}
+
+		test_fe.CalcShape(ip, shape_);
+
+		shape_ *= Q->Eval(Trans, ip) * ip.weight;
+		AddMultVWt(shape_, dshapedxi_, elmat);
+	}
+}
+
 }
 }
 
