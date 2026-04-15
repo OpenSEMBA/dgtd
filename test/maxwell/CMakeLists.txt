@@ -14,6 +14,7 @@ add_executable(maxwell_tests
 	"components/SphericalTest.cpp" 
 	"components/SubMesherTests.cpp" 
 	"components/DGOperatorHelpersTest.cpp"
+	"components/FarFieldTest.cpp"
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 
 	"mfemExtension/LinearFormExtensionTest.cpp"
