@@ -52,8 +52,7 @@
         "MFEM_USE_MPI": true,
         "MFEM_USE_OPENMP": true,
         "MFEM_USE_METIS": true,
-        "MFEM_USE_METIS_5": true,
-        "MFEM_ENABLE_EXAMPLES": true
+        "MFEM_USE_METIS_5": true
       }
     },
     {
@@ -67,8 +66,7 @@
         "MFEM_USE_MPI": true,
         "MFEM_USE_OPENMP": true,
         "MFEM_USE_METIS": true,
-        "MFEM_USE_METIS_5": true,
-        "MFEM_ENABLE_EXAMPLES": true
+        "MFEM_USE_METIS_5": true
       }
     },
     {
