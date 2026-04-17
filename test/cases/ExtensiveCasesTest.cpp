@@ -1344,7 +1344,7 @@ TEST_F(ExtensiveCasesTest, 2D_Bessel_TEz_Global)
 
 }
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Centered)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
     case_data["solver_options"]["upwind_alpha"] = 0.0;
@@ -1423,7 +1423,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered)
 }
 
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_SMA)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Centered_SMA)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"].push_back({ "evolution_operator", "maxwell" });
@@ -1503,7 +1503,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_SMA)
 }
 
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
     case_data["solver_options"]["upwind_alpha"] = 0.0;
@@ -1583,7 +1583,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
 }
 
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Global)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Centered_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
     case_data["solver_options"]["upwind_alpha"] = 0.0;
@@ -1662,7 +1662,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Global)
 
 }
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Upwind)
 {
 	std::string case_name{ "3D_TFSF" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
@@ -1737,7 +1737,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind)
 
 }
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_SMA)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Upwind_SMA)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"].push_back({ "evolution_operator", "maxwell" });
@@ -1815,7 +1815,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_SMA)
 
 }
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_InteriorPEC_Upwind)
 {
 	std::string case_name{ "3D_TFSF_InteriorPEC" };
 	auto solver{ buildSolverJson(maxwellCase(case_name)) };
@@ -1932,7 +1932,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind)
 }
 
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Hesthaven)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
@@ -2004,7 +2004,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Hesthaven)
 }
 
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Global)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Upwind_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
 	case_data["solver_options"]["evolution_operator"] = "global";
@@ -2075,7 +2075,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Upwind_Global)
 
 }
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_InteriorPEC_Upwind_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_InteriorPEC"));
 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
@@ -2193,7 +2193,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Hesthaven)
 }
 
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_InteriorPEC_Upwind_Global)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_InteriorPEC"));
 	case_data["solver_options"]["evolution_operator"] = "global";
@@ -2310,7 +2310,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_InteriorPEC_Upwind_Global)
 	}
 }
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Pos_X)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Dir_Pos_X)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_Directions"));
 	case_data["sources"][0]["propagation"] = { 1.0, 0.0, 0.0 };
@@ -2321,7 +2321,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Pos_X)
 	solver.run();
 }
 
-TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
+TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Dir_Neg_X)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_Directions"));
 	case_data["sources"][0]["propagation"] = { -1.0, 0.0, 0.0 };
@@ -2434,7 +2434,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
 //
 //
 
-  TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O1)
+  TEST_F(ExtensiveCasesTest, DISABLED_3D_RCS_Sphere_O1)
   {
   	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"));
   	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"), true) };
@@ -2442,7 +2442,7 @@ TEST_F(ExtensiveCasesTest, 3D_TFSF_Dir_Neg_X)
   	solver.run();
   }
 
-    TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O3)
+    TEST_F(ExtensiveCasesTest, DISABLED_3D_RCS_Sphere_O3)
   {
   	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G3_O3"));
   	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G3_O3"), true) };

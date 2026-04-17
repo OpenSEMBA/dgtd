@@ -10,6 +10,8 @@ jobs:
   
   builds-and-test:
     runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
     
     steps:       
     - name: Checkout
