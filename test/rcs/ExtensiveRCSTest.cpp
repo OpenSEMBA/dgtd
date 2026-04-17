@@ -86,6 +86,30 @@ TEST_F(ExtensiveRCSTest, 2D_RCS_Circle_G2_RCSSurface)
 		frequencies_manual, angles);
 }
 
+TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_1m_Solid_and_SGBC_monostatic)
+{
+	auto frequencies_manual = linspace(1e6, 450e6, 301);
+	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
+	
+	std::string dataPath = "./Exports/mpi-12/2D_RCS_SGBC_Circle_G1_1m_LowFreq/RCSSurface/cylinder_rcs/";
+	RCSSurfacePostProcessor pp(
+		dataPath,
+		maxwellCase("2D_RCS_SGBC_Circle_G1_1m_LowFreq"),
+		frequencies_manual, angles);
+
+		        dataPath = "./Exports/mpi-12/2D_RCS_SGBC_Circle_G2_1m_LowFreq/RCSSurface/cylinder_rcs/";
+	RCSSurfacePostProcessor pp2(
+		dataPath,
+		maxwellCase("2D_RCS_SGBC_Circle_G2_1m_LowFreq"),
+		frequencies_manual, angles);
+
+		        dataPath = "./Exports/mpi-12/2D_RCS_FAKE_Circle_G1_1m_LowFreq/RCSSurface/cylinder_rcs/";
+	RCSSurfacePostProcessor ppf(
+		dataPath,
+		maxwellCase("2D_RCS_FAKE_Circle_G1_1m_LowFreq"),
+		frequencies_manual, angles);
+}
+
 TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G1_monostatic)
 {
 	auto frequencies_manual = linspace(459e6, 1.2e9, 301);
@@ -141,10 +165,10 @@ TEST_F(ExtensiveRCSTest, 2D_RCS_SGBC_Circle_G2_Fine_monostatic)
 
 TEST_F(ExtensiveRCSTest, 3D_RCS_SGBC_Sphere_Box_G1_monostatic)
 {
-	auto frequencies_manual = linspace(457e6, 743e6, 287);
+	auto frequencies_manual = linspace(1e6, 400e6, 301);
 	auto angles = buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1);
 
-	std::string dataPath = "./Exports/mpi-12/3D_RCS_SGBC_Sphere_Box_G1/RCSSurface/sphere_sgbc_G1/";
+	std::string dataPath = "./Exports/mpi-48/3D_RCS_SGBC_Sphere_Box_G1/RCSSurface/sphere_sgbc_G1/";
 	RCSSurfacePostProcessor pp(
 		dataPath,
 		maxwellCase("3D_RCS_SGBC_Sphere_Box_G1"),
@@ -153,10 +177,10 @@ TEST_F(ExtensiveRCSTest, 3D_RCS_SGBC_Sphere_Box_G1_monostatic)
 
 TEST_F(ExtensiveRCSTest, 3D_RCS_SGBC_Sphere_Box_G2_monostatic)
 {
-	auto frequencies_manual = linspace(457e6, 743e6, 287);
+	auto frequencies_manual = linspace(1e6, 400e6, 301);
 	auto angles = buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1);
 
-	std::string dataPath = "./Exports/mpi-12/3D_RCS_SGBC_Sphere_Box_G2/RCSSurface/sphere_sgbc_G2/";
+	std::string dataPath = "./Exports/mpi-48/3D_RCS_SGBC_Sphere_Box_G2/RCSSurface/sphere_sgbc_G2/";
 	RCSSurfacePostProcessor pp(
 		dataPath,
 		maxwellCase("3D_RCS_SGBC_Sphere_Box_G2"),
