@@ -1,3 +1,5 @@
+#pragma once
+
 #include "evolution/MaxwellEvolutionMethods.h"
 #include "solver/Solver.h"
 

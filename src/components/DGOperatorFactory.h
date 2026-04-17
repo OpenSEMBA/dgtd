@@ -10,6 +10,7 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
+#include <type_traits>
 
 namespace maxwell
 {
