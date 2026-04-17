@@ -2,10 +2,9 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-2,
+    "time_step": 0.01,
     "final_time": 30.0,
     "exportOperator": false,
-    "tfsf_final_time": 15.0,
     "order": 3,
     "ode_type": 2
   },
@@ -23,7 +22,10 @@
     "boundaries": [
       {
         "tags": [
-          6, 7, 8, 9
+          6,
+          7,
+          8,
+          9
         ],
         "type": "PEC"
       },
@@ -39,7 +41,7 @@
     "exporter": {
       "steps": 1
     },
-    "domain_snapshot":{
+    "domain_snapshot": {
       "steps": 50
     }
   },
@@ -57,11 +59,13 @@
         0.0
       ],
       "tags": [
-        2, 3, 4, 5
+        2,
+        3,
+        4,
+        5
       ],
       "magnitude": {
-        "spread": 0.20,
-        "mean": [-4.0, 0.0, 0.0]
+        "spread": 0.2
       }
     }
   ]

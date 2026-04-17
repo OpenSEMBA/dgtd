@@ -16,7 +16,7 @@ struct EvolutionOptions {
 	double alpha = 1.0;
 	bool spectral{ false };
 	bool export_evolution_operator{ false };
-	double tfsf_cutoff_time = 0.0;
+	bool is_sgbc_solver = false;
 };
 
 }

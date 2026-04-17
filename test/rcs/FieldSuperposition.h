@@ -2,6 +2,7 @@
 #include "components/FarField.h"
 #include <string>
 #include "components/Types.h"
+#include "FieldUtils.h"
 
 
 namespace maxwell{
@@ -28,17 +29,6 @@ struct CaseInfo {
     
     CaseInfo(const std::string& d, const std::string& j);
 };
-
-struct TimeFields {
-    std::unique_ptr<GridFunction> Ex;
-    std::unique_ptr<GridFunction> Ey;
-    std::unique_ptr<GridFunction> Ez;
-    std::unique_ptr<GridFunction> Hx;
-    std::unique_ptr<GridFunction> Hy;
-    std::unique_ptr<GridFunction> Hz;
-};
-
-using TimeToFields = std::map<double, TimeFields>;
 
 class FieldSuperposition {
 public:

@@ -1,23 +1,30 @@
 message(STATUS "Creating build system for maxwell_Tests")
 
 if (SEMBA_DGTD_ENABLE_MPI)
-	set(MPI_SRCS "solver/ParSolver2DTest.cpp")
 	add_compile_definitions(SEMBA_DGTD_ENABLE_MPI)
 endif()
 
 add_executable(maxwell_tests
 	$<TARGET_OBJECTS:TestLauncher>
 	"driver/DriverTest.cpp"
+	"components/EigenvalueEstimator.cpp"
 	"components/MaterialTest.cpp" 
+	"components/ModelTest.cpp"
+	"components/SIBCPoleResidueFittingTest.cpp"
+	"components/SphericalTest.cpp" 
+	"components/SubMesherTests.cpp" 
+	"components/DGOperatorHelpersTest.cpp"
+	"components/FarFieldTest.cpp"
 	"mfemExtension/BilinearIntegratorsExtensionTest.cpp"
 	"mfemExtension/BilinearFormExtensionTest.cpp" 
-	"mfemExtension/LinearFormExtensionTest.cpp" 
+	"mfemExtension/LinearFormExtensionTest.cpp"
+	"mfemExtension/IntegratorFunctionsTest.cpp"
 	"math/GeometryTest.cpp"
-	"components/EigenvalueEstimator.cpp"
+	"math/PhysicalConstantsTest.cpp"
+	"math/CalculusTest.cpp"
+	"math/EigenMfemToolsTest.cpp"
 	"solver/ProbesManagerTest.cpp" 
 	"solver/SourcesTest.cpp"
-	"components/SubMesherTests.cpp" 
-	"components/SphericalTest.cpp" 
 	"math/FunctionTest.cpp")
 
 add_executable(maxwell_solver_tests

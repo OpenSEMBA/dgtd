@@ -17,6 +17,7 @@ namespace maxwell {
 	using Nodes = std::vector<NodeId>;
 	using DynamicMatrix = Eigen::MatrixXd;
 	using InteriorFaceConnectivityMaps = std::pair<Nodes, Nodes>;
+	using BoundaryFaceConnectivityMaps = InteriorFaceConnectivityMaps;
 	using NodePair = std::pair<NodeId, NodeId>;
 	using ConnectivityVector = std::vector<NodePair>;
 	using GlobalConnectivity = ConnectivityVector;
@@ -176,12 +177,14 @@ namespace maxwell {
 	
 	const std::vector<Source::Position> buildDoFPositions(const FiniteElementSpace&);
 
+	SubMesh assembleBoundaryFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap);
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap);
 	Mesh buildHesthavenRefTetrahedra();
 
 	const std::map<bool, std::vector<BdrElementId>> assembleInteriorOrTrueBdrMap(const FiniteElementSpace& fes);
 	std::vector<Nodes> assembleNodeVectorPerBdrFace(std::vector<Array<int>>& bdrNodeMarkers, FiniteElementSpace& , const std::map<bool, std::vector<BdrElementId>>& isInteriorMap);
 
+	BoundaryFaceConnectivityMaps buildConnectivityForBdrFace(const FaceElementTransformations& trans, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES);
 	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations&, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES);
 	std::vector<Array<int>> assembleBoundaryMarkers(FiniteElementSpace&);
 	std::unique_ptr<BilinearForm> assembleFaceMassBilinearForm(FiniteElementSpace&, Array<int>& boundaryMarker);

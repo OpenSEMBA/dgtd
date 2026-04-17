@@ -10,7 +10,7 @@ include_directories(
 
 add_library(TestLauncher OBJECT TestLauncher.cpp)
 target_include_directories(TestLauncher PRIVATE ${MFEM_INCLUDE_DIRS})
-target_link_libraries(TestLauncher PRIVATE mfem)
+target_link_libraries(TestLauncher PRIVATE mfem GTest::gtest)
 
 add_subdirectory(mfem)
 add_subdirectory(hesthavenComparison)

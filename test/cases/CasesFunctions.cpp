@@ -181,9 +181,9 @@ const std::vector<Position> buildDoFPositions(const GridFunction& gf)
 
 void L2NormDataCalculator::loadNodepos(const std::string& data_path)
 {
-    std::filesystem::path probes_dir = std::filesystem::path(data_path) / "DomainSnapshopProbes";
+    std::filesystem::path probes_dir = std::filesystem::path(data_path) / "DomainSnapshotProbes";
     if (!std::filesystem::exists(probes_dir) || !std::filesystem::is_directory(probes_dir)) {
-        throw std::runtime_error("No DomainSnapshopProbes were generated in this case. Rerun case with one.");
+        throw std::runtime_error("No DomainSnapshotProbes were generated in this case. Rerun case with one.");
     }
 
     std::vector<std::filesystem::directory_entry> entries;
@@ -225,9 +225,9 @@ void L2NormDataCalculator::loadNodepos(const std::string& data_path)
 
 void L2NormDataCalculator::loadMeshes(const std::string& data_path)
 {
-    std::filesystem::path meshPath = data_path + "/DomainSnapshopProbes/meshes";
+    std::filesystem::path meshPath = data_path + "/DomainSnapshotProbes/meshes";
     if (!std::filesystem::exists(meshPath) || !std::filesystem::is_directory(meshPath)) {
-        throw std::runtime_error("No DomainSnapshopProbes were generated in this case. Rerun case with one.");
+        throw std::runtime_error("No DomainSnapshotProbes were generated in this case. Rerun case with one.");
     }
 
     std::vector<std::filesystem::directory_entry> entries;
@@ -496,7 +496,7 @@ L2NormDataCalculator::L2NormDataCalculator(const std::string& data_path, const s
     std::map<Rank, std::vector<std::filesystem::directory_entry>> rank2entries;
 
     for (auto r = 0; r < meshes_.size(); r++){
-        rank2path[r] = data_path + "/DomainSnapshopProbes/" + std::string("rank_" + std::to_string(r));
+        rank2path[r] = data_path + "/DomainSnapshotProbes/" + std::string("rank_" + std::to_string(r));
         for (auto& entry : std::filesystem::directory_iterator(rank2path[r])) {
             if (entry.is_directory()) {
                 rank2entries[r].push_back(entry);

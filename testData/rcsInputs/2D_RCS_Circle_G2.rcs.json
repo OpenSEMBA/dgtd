@@ -1,0 +1,13 @@
+{
+  "runmode": "single-core",
+  "casename": "2D_RCS_Circle_G2",
+  "frequencies": {
+    "start": 459e6,
+    "end": 1.2e9,
+    "steps": 301
+  },
+  "angles": {
+    "theta": { "start": 1.5707963267948966, "end": 1.5707963267948966, "steps": 1 },
+    "phi":   { "start": 3.141592653589793,  "end": 3.141592653589793,  "steps": 1 }
+  }
+}

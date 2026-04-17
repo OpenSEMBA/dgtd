@@ -10,18 +10,28 @@ namespace maxwell {
 struct ExporterProbe {
     std::string name{"MaxwellView"};
     int visSteps{ 10 };
+    int saves{ 0 };
 };
 
 struct NearFieldProbe {
     std::string name = std::string("NearFieldProbe");
     std::string exportPath = std::string("./defaultExportPath/" + name + "/");
     int expSteps{ 10 };
+    int saves{ 0 };
+    std::vector<int> tags;
+};
+
+struct RCSSurfaceProbe {
+    std::string name = std::string("RCSSurfaceProbe");
+    int expSteps{ 1 };
+    int saves{ 0 };
     std::vector<int> tags;
 };
 
 struct DomainSnapshotProbe {
     std::string name = std::string("DomainSnapshot");
     int expSteps { 10 };
+    int saves{ 0 };
 };
 
 struct DomainSnapshotDataCollection{
@@ -66,10 +76,11 @@ struct DomainSnapshotDataCollection{
 
 class FieldProbe {
 public:
-    FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const bool writeFile = false) :
+    FieldProbe(const FieldType& ft, const Direction& d, const Point& p, const int visSteps = 1, const bool writeFile = true) :
         fieldToExtract_{ ft },
         directionToExtract_{ d },
         point_{ p },
+        visSteps_{ visSteps },
         write{writeFile}
     {}
 
@@ -79,6 +90,10 @@ public:
     const Direction& getDirection() const { return directionToExtract_; }
     const FieldMovie& getFieldMovie() const { return fieldMovie_; }
     const Point& getPoint() const { return point_; }
+    int getVisSteps() const { return visSteps_; }
+    void setVisSteps(int s) { visSteps_ = s; }
+    void setSaves(int s) { saves_ = s; }
+    int getSaves() const { return saves_; }
     void addFieldToMovies(double time, const double& field) { fieldMovie_.emplace(time, field); };
     void setProbeID(const size_t id) {id_ = id;}
     size_t getProbeID() const { return id_; }
@@ -109,6 +124,8 @@ private:
     FieldType fieldToExtract_;
     Direction directionToExtract_;
     Point point_;
+    int visSteps_;
+    int saves_{ 0 };
     size_t id_;
 
     FieldMovie fieldMovie_;
@@ -116,8 +133,9 @@ private:
 
 class PointProbe {
 public:
-    PointProbe(const Point& p, const bool writeFile = false) :
+    PointProbe(const Point& p, const int visSteps = 1, const bool writeFile = true) :
         point_{ p },
+        visSteps_{ visSteps },
         write{writeFile}
     {}
 
@@ -125,13 +143,18 @@ public:
 
     const FieldMovies& getFieldMovies() const { return fieldMovies_; }
     const Point& getPoint() const { return point_; }
+    int getVisSteps() const { return visSteps_; }
+    void setVisSteps(int s) { visSteps_ = s; }
+    void setSaves(int s) { saves_ = s; }
+    int getSaves() const { return saves_; }
     void addFieldsToMovies(Time t, const FieldsForMovie& fields) { fieldMovies_.emplace(t, fields); };
     void setProbeID(const size_t id) {id_ = id;}
     size_t getProbeID() const { return id_; }
 
 private:
-
     Point point_;
+    int visSteps_;
+    int saves_{ 0 };
     size_t id_;
 
     FieldMovies fieldMovies_;
@@ -143,6 +166,7 @@ struct Probes {
     std::vector<PointProbe> pointProbes;
     std::vector<NearFieldProbe> nearFieldProbes;
     std::vector<DomainSnapshotProbe> domainSnapshotProbes;
+    std::vector<RCSSurfaceProbe> rcsSurfaceProbes;
 };
 
 }

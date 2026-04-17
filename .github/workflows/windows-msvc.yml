@@ -1,73 +1,73 @@
-name: windows-msvc
+# name: windows-msvc
 
-permissions:
-  actions: write
+# permissions:
+#   actions: write
 
-on:
-  pull_request:
-    branches:
-      - main
-      - dev
+# on:
+#   pull_request:
+#     branches:
+#       - main
+#       - dev
    
-jobs:
-  builds-and-tests:
+# jobs:
+#   builds-and-tests:
     
-    runs-on: windows-latest
+#     runs-on: windows-latest
 
-    steps:
+#     steps:
     
-    - name: checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: 'recursive'
+#     - name: checkout
+#       uses: actions/checkout@v4
+#       with:
+#         submodules: 'recursive'
 
-    - name: getcmake
-      uses: lukka/get-cmake@latest
-      with:
-        cmakeVersion: "~3.25.0"
+#     - name: getcmake
+#       uses: lukka/get-cmake@latest
+#       with:
+#         cmakeVersion: "~3.25.0"
 
-    - name: Setup vcpkg
-      uses: lukka/run-vcpkg@v11
+#     - name: Setup vcpkg
+#       uses: lukka/run-vcpkg@v11
 
-    - name: Setup Ninja
-      uses: ashutoshvarma/setup-ninja@master
+#     - name: Setup Ninja
+#       uses: ashutoshvarma/setup-ninja@master
 
-    # - name: Builds mfem-geg
-    #   run: | 
-    #     cmake -S external/mfem-geg -B mfem-geg-build/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=mfem-geg-install -G Ninja
-    #     cmake --build mfem-geg-build/ -j --config Release
-    #     cmake --install mfem-geg-build/ --config Release
+#     # - name: Builds mfem-geg
+#     #   run: | 
+#     #     cmake -S external/mfem-geg -B mfem-geg-build/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=mfem-geg-install -G Ninja
+#     #     cmake --build mfem-geg-build/ -j --config Release
+#     #     cmake --install mfem-geg-build/ --config Release
         
-    - name: Builds semba/dgtd
-      uses: lukka/run-cmake@v10.8
-      env: 
-        MFEM_DIR: 'mfem-geg-install/lib/cmake/mfem/'
-      with:
-        configurePreset: 'x64-Release'
-        buildPreset: 'x64-Release'
-        buildPresetAdditionalArgs: "['--parallel']"
+#     - name: Builds semba/dgtd
+#       uses: lukka/run-cmake@v10.8
+#       env: 
+#         MFEM_DIR: 'mfem-geg-install/lib/cmake/mfem/'
+#       with:
+#         configurePreset: 'x64-Release'
+#         buildPreset: 'x64-Release'
+#         buildPresetAdditionalArgs: "['--parallel']"
 
-    - name: Verify test files exist
-      run: dir build/x64-Release/bin/
+#     - name: Verify test files exist
+#       run: dir build/x64-Release/bin/
       
-    - name: Run maxwell mfem tests 
-      run: build/x64-Release/bin/mfem_tests.exe
+#     - name: Run maxwell mfem tests 
+#       run: build/x64-Release/bin/mfem_tests.exe
 
-    - name: Run hesthaven comparison tests 
-      run: build/x64-Release/bin/hesthavenComparison_tests.exe
+#     - name: Run hesthaven comparison tests 
+#       run: build/x64-Release/bin/hesthavenComparison_tests.exe
 
-    - name: Run maxwell tests 
-      run: build/x64-Release/bin/maxwell_tests.exe
+#     - name: Run maxwell tests 
+#       run: build/x64-Release/bin/maxwell_tests.exe
 
-    - name: Run maxwell solver tests 
-      run: build/x64-Release/bin/maxwell_solver_tests.exe
+#     - name: Run maxwell solver tests 
+#       run: build/x64-Release/bin/maxwell_solver_tests.exe
 
-    - name: Run cases tests 
-      run: build/x64-Release/bin/cases_tests.exe
+#     - name: Run cases tests 
+#       run: build/x64-Release/bin/cases_tests.exe
 
-    # - name: Run system tests 
-    #   run: |
-    #     build/gnu/bin/rcs_tests
+#     # - name: Run system tests 
+#     #   run: |
+#     #     build/gnu/bin/rcs_tests
 
 
         

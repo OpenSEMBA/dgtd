@@ -7,6 +7,14 @@ using namespace mfemExtension;
 
 const FieldGridFuncs evalTimeVarFunction(const Time time, SourcesManager& sm)
 {
+	// Fast path: direct planewave evaluation with precomputed coords + TF/SF sign mask.
+	// evalTimeVarFieldDirect writes into cached_tfsf_fields_ with sign already applied.
+	if (sm.hasDirectEval()) {
+		sm.evalTimeVarFieldDirect(time);
+		return sm.getCachedTFSFFields();
+	}
+
+	// Fallback: original ProjectCoefficient path
 	auto res{ sm.evalTimeVarField(time, sm.getGlobalTFSFSpace()) };
 	auto func_g_sf = res;
 	sm.markDoFSforTForSF(res, true);

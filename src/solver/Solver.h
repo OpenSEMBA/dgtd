@@ -3,7 +3,6 @@
 #include "ProbesManager.h"
 #include "SourcesManager.h"
 #include "SolverOptions.h"
-#include "SolverExtension.h"
 
 #include "evolution/Fields.h"
 #include "evolution/MaxwellEvolution.h"
@@ -23,6 +22,8 @@
 
 namespace maxwell {
 
+class SGBCWrapper;
+
 std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec);
 double estimateTimeStep(const Model&, const SolverOptions&, const ParFiniteElementSpace&, const TimeDependentOperator*);
 double getMinimumInterNodeDistance(FiniteElementSpace& fes);
@@ -38,27 +39,43 @@ public:
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
+    
+    ~Solver();
 
-    const ParFields& getFields() const { return fields_; };
-    const ParGridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    const ParFields& getFields() const { return fields_; }
+    // Non-const accessor needed for state hydration
+    ParFields& getFields() { return fields_; } 
+
+    void  setFieldValue(const FieldType& f, const Direction& d, const size_t dof_no, const double val) { fields_.get(f,d)[dof_no] = val; }
+    const ParGridFunction& getConstField(const FieldType& f, const Direction& d) const  { return fields_.get(f, d); }
     const FieldProbe& getFieldProbe(std::size_t probe) const;
     const PointProbe& getPointProbe(std::size_t probe) const;
 
     double getTime() const { return time_; }
+    // [ADDED] Critical for context switching
+    void setTime(double t) { time_ = t; } 
+
     double getTimeStep() const { return dt_; }
 
     Model& getModel() { return model_; }
     ParFiniteElementSpace& getFES() { return *fes_.get(); }
 
-    const mfem::TimeDependentOperator* getFEEvol() const { return evolTDO_.get(); }
+    const mfem::TimeDependentOperator* getConstEvolTDO() const { return evolTDO_.get(); }
+    mfem::TimeDependentOperator* getEvolTDO() { return evolTDO_.get(); }
 
-    const SolverOptions& getSolverOptions() const { return this->opts_; }
+    SolverOptions& getSolverOptions() { return this->opts_; }
+
 
     void run();
     void step();
 
     void setFinalTime(double final_time) {
         opts_.setFinalTime(final_time);
+    }
+    
+    void setTimeStep(double dt) {
+        dt_ = dt;
+        opts_.setTimeStep(dt);
     }
 
 private:
@@ -68,7 +85,6 @@ private:
     mfem::DG_FECollection fec_;
     std::unique_ptr<mfem::ParFiniteElementSpace> fes_;
     ParFields fields_;
-    std::unique_ptr<Device> device_;
     
     SourcesManager sourcesManager_;
     ProbesManager probesManager_;
@@ -76,16 +92,14 @@ private:
     double time_;
     double dt_;
     std::unique_ptr<ODESolver> odeSolver_;
-    
-    std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
 
-    std::unique_ptr<std::vector<SGBCSolver>> sbcSolvers_;
+    std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
+    GlobalEvolution* globalEvol_cache_ = nullptr;  // Cached pointer to avoid dynamic_cast per step
 
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
-    void initSbcSolvers();
-    std::vector<std::pair<NodeId, NodeId>> findSGBCDoFPairs();
+    std::map<GeomTag, std::vector<NodePair>> findSGBCDoFPairs();
 
     Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
     GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);

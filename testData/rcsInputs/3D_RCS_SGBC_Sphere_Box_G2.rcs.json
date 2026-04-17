@@ -1,0 +1,13 @@
+{
+  "runmode": "mpi-48",
+  "casename": "3D_RCS_SGBC_Sphere_Box_G2",
+  "frequencies": {
+    "start": 1e6,
+    "end": 400e6,
+    "steps": 301
+  },
+  "angles": {
+    "theta": { "start": 3.141592653589793, "end": 3.141592653589793, "steps": 1 },
+    "phi":   { "start": 0.0,              "end": 0.0,              "steps": 1 }
+  }
+}

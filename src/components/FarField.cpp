@@ -1,5 +1,8 @@
 #include "components/FarField.h"
 
+#include <algorithm>
+#include <filesystem>
+
 namespace maxwell {
 
 using namespace mfem;
@@ -129,19 +132,19 @@ std::unique_ptr<ParLinearForm> assembleLinearForm(FunctionCoefficient& fc, ParFi
 	case 2:
 		if (dir == Z) {
 			final_dir = X;
-			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->AddBdrFaceIntegrator(new mfemExtension::NTFFBdrFaceIntegrator(fc, final_dir), marker);
 			res->Assemble();
 			res.get()->Set(0.0, *res.get());
 			break;
 		}
 		else {
-			res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+			res->AddBdrFaceIntegrator(new mfemExtension::NTFFBdrFaceIntegrator(fc, final_dir), marker);
 			res->Assemble();
 			break;
 		}
 		break;
 	case 3:
-		res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(fc, final_dir), marker);
+		res->AddBdrFaceIntegrator(new mfemExtension::NTFFBdrFaceIntegrator(fc, final_dir), marker);
 		res->Assemble();
 		break;
 	default:
@@ -150,17 +153,29 @@ std::unique_ptr<ParLinearForm> assembleLinearForm(FunctionCoefficient& fc, ParFi
 	return res;
 }
 
+std::vector<std::filesystem::path> getSortedSnapshotDirs(const std::string& data_path)
+{
+	std::vector<std::filesystem::path> dirs;
+	for (const auto& entry : std::filesystem::directory_iterator(data_path)) {
+		if (!entry.is_directory()) continue;
+		auto name = entry.path().filename().string();
+		if (name == "mesh" || name == "rcs" || name == "farfield") continue;
+		dirs.push_back(entry.path());
+	}
+	std::sort(dirs.begin(), dirs.end());
+	return dirs;
+}
+
 std::unique_ptr<FiniteElementSpace> buildFESFromGF(Mesh& mesh, const std::string& path)
 {
-	for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh") {
-			std::ifstream inex(dir_entry.path().generic_string() + "/Ex.gf");
-			FiniteElementSpace fes;
-			fes.Load(&mesh, inex);
-			return std::make_unique<FiniteElementSpace>(fes);
-		}
+	auto snapshot_dirs = getSortedSnapshotDirs(path);
+	if (snapshot_dirs.empty()) {
+		throw std::runtime_error("FES from GridFunction not returned. Verify input path.");
 	}
-	throw std::runtime_error("FES from GridFunciton not returned. Verify input path.");
+	std::ifstream inex(snapshot_dirs[0].string() + "/Ex.gf");
+	FiniteElementSpace fes;
+	fes.Load(&mesh, inex);
+	return std::make_unique<FiniteElementSpace>(fes);
 }
 
 std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Frequency>& frequencies, const std::vector<SphericalAngles>& angleVec)
@@ -199,6 +214,7 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 	double spread(-1e5);
 	mfem::Vector mean;
 	double projMean(-1e5);
+	double frequency(0.0);
 
 	for (auto s{ 0 }; s < json["sources"].size(); s++) {
 		if (json["sources"][s]["type"] == "planewave") {
@@ -206,6 +222,10 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 			mean = driver::assemble3DVector(json["sources"][s]["magnitude"]["mean"]);
 		    mfem::Vector propagation = driver::assemble3DVector(json["sources"][s]["propagation"]);
 			projMean = mean * propagation / propagation.Norml2();
+			if (json["sources"][s]["magnitude"].contains("frequency")) {
+				frequency = json["sources"][s]["magnitude"]["frequency"].get<double>()
+					/ physicalConstants::speedOfLight_SI;
+			}
 		}
 	}
 
@@ -213,19 +233,16 @@ PlaneWaveData buildPlaneWaveData(const json& json)
 		throw std::runtime_error("Verify PlaneWaveData inputs for RCS normalization term.");
 	}
 
-	return PlaneWaveData(spread, projMean);
+	return PlaneWaveData(spread, projMean, frequency);
 }
 
 std::vector<double> buildTimeVector(const std::string& data_path)
 {
+	auto snapshot_dirs = getSortedSnapshotDirs(data_path);
 	std::vector<double> res;
-	for (auto const& dir_entry : std::filesystem::directory_iterator(data_path)) {
-		if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" && 
-			dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 3) != "rcs"  &&
-			dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 8) != "farfield") 
-		{
-			res.push_back(getTime(dir_entry.path().generic_string() + "/time.txt") / physicalConstants::speedOfLight);
-		}
+	res.reserve(snapshot_dirs.size());
+	for (const auto& dir : snapshot_dirs) {
+		res.push_back(getTime(dir.string() + "/time.txt") / physicalConstants::speedOfLight);
 	}
 	return res;
 }
@@ -271,23 +288,26 @@ FreqFields calculateFreqFields(ParMesh& mesh, const std::vector<Frequency>& freq
 	FreqFields res(frequencies.size());
 	std::vector<std::string> fields({ "/Ex.gf", "/Ey.gf", "/Ez.gf", "/Hx.gf", "/Hy.gf", "/Hz.gf" });
 
-	std::vector<double> time{ buildTimeVector(path) };
+	auto snapshot_dirs = getSortedSnapshotDirs(path);
+
+	std::vector<double> time;
+	time.reserve(snapshot_dirs.size());
+	for (const auto& dir : snapshot_dirs) {
+		time.push_back(getTime(dir.string() + "/time.txt") / physicalConstants::speedOfLight);
+	}
 
 	for (const auto& field : fields) {
 		std::vector<GridFunction> A;
-		for (auto const& dir_entry : std::filesystem::directory_iterator(path)) {
-			if (dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "mesh" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 4) != "/rcs" &&
-				dir_entry.path().generic_string().substr(dir_entry.path().generic_string().size() - 9) != "/farfield") {
-				A.push_back(getGridFunction(mesh, dir_entry.path().generic_string() + field));
-			}
+		A.reserve(snapshot_dirs.size());
+		for (const auto& dir : snapshot_dirs) {
+			A.push_back(getGridFunction(mesh, dir.string() + field));
 		}
 		for (int f{ 0 }; f < frequencies.size(); ++f) {
-			ComplexVector comp_vec(A[f].Size());
+			ComplexVector comp_vec(A[0].Size());
 			for (int t{ 0 }; t < time.size(); ++t) {
 				auto arg = 2.0 * M_PI * frequencies[f] * time[t];
 				auto w = std::complex<double>(cos(arg), -sin(arg));
-				for (int v{ 0 }; v < A[f].Size(); ++v) {
+				for (int v{ 0 }; v < A[0].Size(); ++v) {
 					comp_vec[v] += A[t][v] * w;
 				}
 			}
@@ -305,6 +325,7 @@ ComplexVector assembleComplexLinearForm(FunctionPair& fp, ParFiniteElementSpace&
 	ComplexVector res;
 	std::unique_ptr<ParLinearForm> lf_real = assembleLinearForm(*fp.first, fes, dir);
 	std::unique_ptr<ParLinearForm> lf_imag = assembleLinearForm(*fp.second, fes, dir);
+
 	res.resize(lf_real->Size());
 	for (int i{ 0 }; i < res.size(); i++) {
 		res[i] = std::complex<double>(lf_real->Elem(i), lf_imag->Elem(i));
@@ -396,6 +417,7 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 	auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
 	auto sfes = buildFESFromGF(mesh, data_path);
 	auto fec = dynamic_cast<const DG_FECollection*>(sfes->FEColl());
+
 	auto fecdg = DG_FECollection(fec->GetOrder(), mesh.Dimension(), fec->GetBasisType());
 	fes_ = std::make_unique<ParFiniteElementSpace>(&pmesh, &fecdg);
 
@@ -407,10 +429,12 @@ FarField::FarField(const std::string& data_path, const std::string& json_path, s
 		for (const auto& angpair : angle_vec) {
 			auto N_pair = calcNLpair(freqfields.Hx[f], freqfields.Hy[f], freqfields.Hz[f], frequencies[f], angpair, false);
 			auto L_pair = calcNLpair(freqfields.Ex[f], freqfields.Ey[f], freqfields.Ez[f], frequencies[f], angpair, true);
+
 			auto landa = physicalConstants::speedOfLight / frequencies[f];
 			auto wavenumber = 2.0 * M_PI / landa;
 			auto const_term = std::pow(wavenumber, 2.0) / (32.0 * std::pow(M_PI, 2.0) * physicalConstants::freeSpaceImpedance);
 			auto freq_val = const_term * (std::pow(std::abs(L_pair.second + physicalConstants::freeSpaceImpedance * N_pair.first), 2.0) + std::pow(std::abs(L_pair.first - physicalConstants::freeSpaceImpedance * N_pair.second), 2.0));
+
 			pot_rad_[angpair][frequencies[f]] = freq_val;
 		}
 	}

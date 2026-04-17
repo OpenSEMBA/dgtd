@@ -37,6 +37,7 @@ target_include_directories(maxwell-evolution PRIVATE ${PARENT_DIR})
 
 target_link_libraries(maxwell-evolution 
     maxwell-components 
+    maxwell-solver
     mfem 
     maxwell-mfemExtension 
     Eigen3::Eigen

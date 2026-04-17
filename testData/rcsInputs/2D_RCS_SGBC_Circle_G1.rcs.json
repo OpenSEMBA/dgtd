@@ -1,0 +1,13 @@
+{
+  "runmode": "mpi-8",
+  "casename": "2D_RCS_SGBC_Circle_G1",
+  "frequencies": {
+    "start": 459e6,
+    "end": 1.2e9,
+    "steps": 301
+  },
+  "angles": {
+    "theta": { "start": 1.5707963267948966, "end": 1.5707963267948966, "steps": 1 },
+    "phi":   { "start": 3.141592653589793,  "end": 3.141592653589793,  "steps": 1 }
+  }
+}

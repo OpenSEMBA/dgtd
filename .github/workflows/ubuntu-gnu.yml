@@ -10,6 +10,8 @@ jobs:
   
   builds-and-test:
     runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: 1
     
     steps:       
     - name: Checkout
@@ -23,6 +25,34 @@ jobs:
     - name: Setup Ninja
       uses: ashutoshvarma/setup-ninja@master
 
+    # 1. Install MPI on the Ubuntu runner
+    - name: Setup MPI
+      uses: mpi4py/setup-mpi@v1
+
+    # 2. Build and Export METIS
+    - name: Build METIS
+      run: |
+        cd $HOME
+        wget https://github.com/mfem/tpls/raw/gh-pages/metis-5.1.0.tar.gz
+        tar -zxvf metis-5.1.0.tar.gz
+        cd metis-5.1.0
+        make BUILDDIR=lib config
+        make BUILDDIR=lib
+        cp lib/libmetis/libmetis.a lib/
+        echo "METIS_DIR=$HOME/metis-5.1.0" >> $GITHUB_ENV
+
+    # 3. Build and Export HYPRE
+    - name: Build HYPRE
+      run: |
+        cd $HOME
+        wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
+        tar -zxvf v2.31.0.tar.gz
+        cd hypre-2.31.0/src
+        ./configure --disable-fortran
+        make -j $(nproc)
+        # An in-place HYPRE build puts includes and libs in the src/hypre subdirectory
+        echo "HYPRE_DIR=$HOME/hypre-2.31.0/src/hypre" >> $GITHUB_ENV
+
     # - name: Builds mfem-geg
     #   run: | 
     #     cmake -S external/mfem-geg \
@@ -33,31 +63,40 @@ jobs:
     #     cmake --build mfem-geg-build/ -j
     #     cmake --install mfem-geg-build/
 
+    # Install system dependencies
+    - name: Install system dependencies (GSL)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgsl-dev
+
+    # 4. Swap to the MPI presets (your existing step)
     - name: Builds semba/dgtd
       uses: lukka/run-cmake@v10
+      # lukka/run-cmake will automatically pick up METIS_DIR and HYPRE_DIR from $GITHUB_ENV
       with:
-        configurePreset: 'gnu'
-        buildPreset: 'gnu'
+        configurePreset: 'gnu-release-mpi'
+        buildPreset: 'build-gnu-release-mpi'
         buildPresetAdditionalArgs: "['--parallel']"
 
+    # 5. Update paths and run with mpiexec (using 2 cores)
     - name: Run hesthavenComparison tests 
-      run: build/gnu/bin/hesthavenComparison_tests
+      run: build/gnu-release-mpi/bin/hesthavenComparison_tests
 
     - name: Run mfem tests 
-      run: build/gnu/bin/mfem_tests
+      run: build/gnu-release-mpi/bin/mfem_tests
+
+    - name: Run mpi mfem tests 
+      run: mpirun -np 2 build/gnu-release-mpi/bin/mpi_mfem_tests
 
     - name: Run maxwell tests 
-      run: build/gnu/bin/maxwell_tests
+      run: build/gnu-release-mpi/bin/maxwell_tests
 
     - name: Run maxwell solver tests
-      run: build/gnu/bin/maxwell_solver_tests
+      run: build/gnu-release-mpi/bin/maxwell_solver_tests
 
     - name: Run maxwell cases tests
-      run: build/gnu/bin/cases_tests
+      run: build/gnu-release-mpi/bin/cases_tests
 
     # - name: Run system tests 
     #   run: |
-    #     build/gnu/bin/rcs_tests
-
-
-      
+    #     mpiexec -n 2 build/gnu-release-mpi/bin/rcs_tests

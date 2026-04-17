@@ -8,6 +8,7 @@
 
 #include "components/Probes.h"
 #include "components/SubMesher.h"
+#include "components/RCSSurfaceExporter.h"
 #include "solver/SolverOptions.h"
 
 namespace maxwell {
@@ -51,7 +52,7 @@ public:
 
     mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
     const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) const { return fields_.get(f, d); }
-    mfem::GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
     void updateFields();
 
 private:
@@ -76,11 +77,15 @@ public:
     ProbesManager& operator=(ProbesManager&&) = default;
 
     void updateProbes(Time);
+    void recalculateExportSteps(double dt);
 
     const FieldProbe& getFieldProbe(const std::size_t i) const;
     const PointProbe& getPointProbe(const std::size_t i) const;
 
-    void setCaseName(const std::string name) {caseName_ = name;}
+    void setCaseName(const std::string name) {
+        caseName_ = name;
+        initRCSSurfaceExporters();
+    }
     void initPointFieldProbeExport();
 
     Probes probes;
@@ -122,6 +127,9 @@ private:
     Fields<ParFiniteElementSpace, ParGridFunction>* fields_;
 
     std::map<const NearFieldProbe*, std::unique_ptr<NearFieldReqs>> nearFieldReqs_;
+    std::map<const RCSSurfaceProbe*, std::unique_ptr<RCSSurfaceExporter>> rcsSurfaceExporters_;
+    std::map<int, std::ofstream> fieldProbeFiles_;
+    std::map<int, std::ofstream> pointProbeFiles_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
@@ -134,6 +142,8 @@ private:
     void updateProbe(PointProbe&, Time);
     void updateProbe(NearFieldProbe&, Time);
     void updateProbe(DomainSnapshotProbe&, Time);
+    void updateProbe(RCSSurfaceProbe&, Time);
+    void initRCSSurfaceExporters();
 };
 
 

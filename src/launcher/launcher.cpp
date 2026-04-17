@@ -59,13 +59,15 @@ int main(int argc, char** argv)
 	}
 
     mfem::Device device(deviceConfig.c_str());
-    device.Print();
-	
-	std::cout << "GPU-aware MPI? " << mfem::Device::GetGPUAwareMPI() << std::endl;
 
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();
 
+	if (mfem::Mpi::WorldRank() == 0){
+    	device.Print();
+		std::cout << "GPU-aware MPI? " << mfem::Device::GetGPUAwareMPI() << std::endl;
+	}
+	
 	const std::string s_json = ".json";
 	const std::string::size_type input_msh = inputFilePath.find(s_json);
 	if (input_msh == std::string::npos)

@@ -87,13 +87,13 @@ TEST_F(Solver3DTest, pec_global_1dot5D)
 				opts
 			};
 
-			GridFunction eOld{solver.getField(E, Y)};
-			GridFunction hOld{solver.getField(H, Z)};
+			GridFunction eOld{solver.getConstField(E, Y)};
+			GridFunction hOld{solver.getConstField(H, Z)};
 
 			solver.run();
 
-			GridFunction eNew{solver.getField(E, Y)};
-			GridFunction hNew{solver.getField(H, Z)};
+			GridFunction eNew{solver.getConstField(E, Y)};
+			GridFunction hNew{solver.getConstField(H, Z)};
 
 			EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
 			EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
@@ -139,13 +139,13 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 			opts
 		};
 
-		GridFunction eOld{solver.getField(E, Y)};
-		GridFunction hOld{solver.getField(H, Z)};
+		GridFunction eOld{solver.getConstField(E, Y)};
+		GridFunction hOld{solver.getConstField(H, Z)};
 
 		solver.run();
 
-		GridFunction eNew{solver.getField(E, Y)};
-		GridFunction hNew{solver.getField(H, Z)};
+		GridFunction eNew{solver.getConstField(E, Y)};
+		GridFunction hNew{solver.getConstField(H, Z)};
 
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);

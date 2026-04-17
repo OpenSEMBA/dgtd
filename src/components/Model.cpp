@@ -50,15 +50,13 @@ void ensureElementTypeIsSame(const Mesh& mesh)
 	}
 }
 
-Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo, int* partitioning)
+Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBoundaryInfo& bdrInfo, int* partitioning, MPI_Comm comm)
 {
 
 	serialMesh_ = Mesh(mesh);
 	ensureElementTypeIsSame(mesh);
 
-	if (partitioning != nullptr){
-		pmesh_ = ParMesh(MPI_COMM_WORLD, serialMesh_, partitioning);
-	}
+	pmesh_ = ParMesh(comm, serialMesh_, partitioning);
 
 	if (matInfo.gt2m.size() == 0) {
 		attToMatMap_.emplace(1, Material(1.0, 1.0, 0.0));
@@ -93,6 +91,7 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 			}
 		}
 	}
+	attToIntBdrMap_ = bdrInfo.gt2ib;
 
 	assembleGeomTagToTypeMap(attToBdrMap_, false);
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
@@ -111,8 +110,8 @@ void Model::assembleBdrToMarkerMaps()
 	if (smaMarker_.Size() != 0) {
 		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, smaMarker_));
 	}
-	if (sbcMarker_.Size() != 0) {
-		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, sbcMarker_));
+	if (sgbc_Marker_.Size() != 0) {
+		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, sgbc_Marker_));
 	}
 	if (intpecMarker_.Size() != 0) {
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::PEC, intpecMarker_));
@@ -123,8 +122,8 @@ void Model::assembleBdrToMarkerMaps()
 	if (intsmaMarker_.Size() != 0) {
 		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, intsmaMarker_));
 	}
-	if (intSbcMarker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, intSbcMarker_));
+	if (intsgbc_Marker_.Size() != 0) {
+		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, intsgbc_Marker_));
 	}
 }
 
@@ -238,7 +237,12 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 		return tfsfMarker_;
 		break;
 	case BdrCond::SGBC:
-		return sbcMarker_;
+		switch (isInterior) {
+			case true:
+				return intsgbc_Marker_;
+			case false:
+				return sgbc_Marker_;
+		}
 		break;
 	default:
 		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond.");

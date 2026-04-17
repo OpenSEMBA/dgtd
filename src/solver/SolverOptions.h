@@ -16,28 +16,15 @@ enum ode_type : size_t {
     SDIRK34          = 6  // [implicit] SDIRK(3/4) family, A-stable
 };
 
-struct SGBCProperties{
-
-    size_t num_of_segments = 10;
-    size_t order = 1;
-    double material_width = 1e-4;
-    Material material;
-
-    SGBCProperties(Material mat) :
-    material(mat)
-    {}
-
-};
-
 struct SolverOptions {
     double time_step = 0.0;
     double final_time = 2.0;
     double cfl = 1.0;
     int basis_type = mfem::BasisType::GaussLobatto;
     size_t ode_type = ode_type::RK4;
+    bool is_sgbc_solver = false;  // If true, skip statistics writing (SGBC sub-solver)
 
     EvolutionOptions evolution;
-    std::vector<SGBCProperties> sbc_props;
     
     SolverOptions& setTimeStep(double t) 
     {
@@ -57,9 +44,9 @@ struct SolverOptions {
         return *this;
     };
 
-    SolverOptions& setCFL(double cfl) 
+    SolverOptions& setCFL(double c) 
     {
-        cfl = cfl;
+        cfl = c;
         return *this;
     }
 
@@ -89,13 +76,14 @@ struct SolverOptions {
         return *this;
     }
 
-    SolverOptions& setTFSFCutoffTime(double tfsf_ft) {
-        evolution.tfsf_cutoff_time = tfsf_ft;
+    SolverOptions& setODEType(size_t type) {
+        ode_type = type;
         return *this;
     }
 
-    SolverOptions& setODEType(size_t type) {
-        ode_type = type;
+    SolverOptions& setIsSGBCSolver(bool is_sgbc = true) {
+        is_sgbc_solver = is_sgbc;
+        evolution.is_sgbc_solver = is_sgbc;
         return *this;
     }
 

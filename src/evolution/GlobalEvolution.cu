@@ -47,7 +47,6 @@ void load_eh_to_innew_gpu(const mfem::Vector& in,
         inNew_d[4 * blockSize + v] = in_d[4 * ndofs + v];
         inNew_d[5 * blockSize + v] = in_d[5 * ndofs + v];
     });
-    cudaDeviceSynchronize();
 }
 
 void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
@@ -75,106 +74,60 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
         inNew_d[4 * blockSize + ndofs + v] = hOldNbr1[v];
         inNew_d[5 * blockSize + ndofs + v] = hOldNbr2[v];
     });
-    cudaDeviceSynchronize();
 }
 
-mfem::Vector load_tfsf_into_single_vector_gpu(const FieldGridFuncs& func)
+// Scatter submesh planewave values (V DOFs) into the blockSize-stride assembled
+// vector used by TFSFOperator_->AddMult.  Mirrors the CPU loop in
+// applyTFSFSourceToVector but runs entirely on the device.
+void scatter_tfsf_to_assembled_gpu(const mfem::Array<int>& sub_to_parent,
+                                   const FieldGridFuncs& func,
+                                   mfem::Vector& assembled,
+                                   const int blockSize)
 {
-    const int n_fields = 2;
-    const int n_dirs = 3;
-    const int v_size = func[0][0].Size();
-    const int total = n_fields * n_dirs * v_size;
+    const int V = sub_to_parent.Size();
+    if (V == 0) return;
 
-    mfem::Vector res(total);
-    res.UseDevice(true);
+    const auto* sp  = sub_to_parent.Read();
+    const double* e0 = func[E][X].Read();
+    const double* e1 = func[E][Y].Read();
+    const double* e2 = func[E][Z].Read();
+    const double* h0 = func[H][X].Read();
+    const double* h1 = func[H][Y].Read();
+    const double* h2 = func[H][Z].Read();
+    double* asm_d   = assembled.ReadWrite();
 
-    auto ex_x = func[0][0].Read();
-    auto ex_y = func[0][1].Read();
-    auto ex_z = func[0][2].Read();
-    auto hx_x = func[1][0].Read();
-    auto hx_y = func[1][1].Read();
-    auto hx_z = func[1][2].Read();
-
-    auto res_d = res.Write();
-
-    mfem::forall(total, [=] MFEM_HOST_DEVICE (int i) {
-        const int v = i % v_size;
-        const int d = (i / v_size) % n_dirs;
-        const int f = i / (n_dirs * v_size);
-
-        const double val =
-            (f == 0 && d == 0) ? ex_x[v] :
-            (f == 0 && d == 1) ? ex_y[v] :
-            (f == 0 && d == 2) ? ex_z[v] :
-            (f == 1 && d == 0) ? hx_x[v] :
-            (f == 1 && d == 1) ? hx_y[v] :
-                                 hx_z[v];
-
-        res_d[i] = val;
-    });
-
-    return res;
-}
-
-void load_tfsf_into_out_vector_gpu(const mfem::Array<int>& sub_to_parent_ids_, 
-                                   const mfem::Vector& tempTFSF,                               
-                                         mfem::Vector& out,
-                                   const int global_ndofs,
-                                   const int tfsf_ndofs)
-{
-    const int n_fields = 2;
-    const int n_dirs = 3;
-    const int v_size = sub_to_parent_ids_.Size();
-    const int total = n_fields * n_dirs * v_size;
-
-    auto tempTFSF_d = tempTFSF.Read();
-    auto out_d = out.ReadWrite();
-    auto sub_to_parent = sub_to_parent_ids_.Read();
-
-    mfem::forall(total, [=] MFEM_HOST_DEVICE (int i) {
-        const int v = i % v_size;
-        const int d = (i / v_size) % n_dirs;
-        const int f = i / (n_dirs * v_size);
-
-        const int outIdx = (f * n_dirs + d) * global_ndofs + sub_to_parent[v];
-        const int tempIdx = (f * n_dirs + d) * tfsf_ndofs + v;
-
-        if (tempTFSF_d[tempIdx] != 0.0) {
-            out_d[outIdx] -= tempTFSF_d[tempIdx];
-        }
+    mfem::forall(V, [=] MFEM_HOST_DEVICE (int v) {
+        const int p = sp[v];
+        asm_d[0 * blockSize + p] = e0[v];
+        asm_d[1 * blockSize + p] = e1[v];
+        asm_d[2 * blockSize + p] = e2[v];
+        asm_d[3 * blockSize + p] = h0[v];
+        asm_d[4 * blockSize + p] = h1[v];
+        asm_d[5 * blockSize + p] = h2[v];
     });
 }
 
-FieldGridFuncs eval_time_var_field_gpu(const Time time, SourcesManager& sm)
+// Zero only the entries that scatter_tfsf_to_assembled_gpu wrote, restoring
+// the assembled vector to all-zeros for the next Mult() call.
+void zero_tfsf_assembled_gpu(const mfem::Array<int>& sub_to_parent,
+                             mfem::Vector& assembled,
+                             const int blockSize)
 {
+    const int V = sub_to_parent.Size();
+    if (V == 0) return;
 
-    FieldGridFuncs res = sm.evalTimeVarField(time, sm.getGlobalTFSFSpace());
-    FieldGridFuncs func_g_sf = res;
+    const auto* sp = sub_to_parent.Read();
+    double* asm_d  = assembled.ReadWrite();
 
-    sm.markDoFSforTForSF(res, true);
-
-    if (sm.getTFSFSubMesher().getSFSubMesh() != nullptr)
-    {
-        sm.markDoFSforTForSF(func_g_sf, false);
-        for (int f : {E, H})
-        {
-            for (int d = 0; d <= Z; ++d)
-            {
-                mfem::Vector &res_v = res[f][d];
-                const mfem::Vector &func_g_v = func_g_sf[f][d];
-                const int size = res_v.Size();
-
-                auto res_d = res_v.ReadWrite();
-                auto func_g_d = func_g_v.Read();
-
-                mfem::forall(size, [=] MFEM_HOST_DEVICE (int i) {
-                    res_d[i] = 0.5 * (res_d[i] - func_g_d[i]);
-                });
-            }
-        }
-    }
-
-    return res;
+    mfem::forall(V, [=] MFEM_HOST_DEVICE (int v) {
+        const int p = sp[v];
+        asm_d[0 * blockSize + p] = 0.0;
+        asm_d[1 * blockSize + p] = 0.0;
+        asm_d[2 * blockSize + p] = 0.0;
+        asm_d[3 * blockSize + p] = 0.0;
+        asm_d[4 * blockSize + p] = 0.0;
+        asm_d[5 * blockSize + p] = 0.0;
+    });
 }
 
 }

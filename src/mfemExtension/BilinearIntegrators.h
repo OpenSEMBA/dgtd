@@ -90,6 +90,68 @@ private:
 	Vector shape1_, shape2_;
 };
 
+class MaxwellDGDecoupledZeroNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+    MaxwellDGDecoupledZeroNormalJumpIntegrator(double b)
+    {
+        beta = b;
+    }
+
+    void AssembleFaceMatrix(const FiniteElement& el1,
+        const FiniteElement& el2,
+        FaceElementTransformations& Trans,
+        DenseMatrix& elmat) override;
+
+protected:
+    double beta;
+
+private:
+    Vector shape1_, shape2_;
+};
+
+class MaxwellDGDecoupledOneNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+    MaxwellDGDecoupledOneNormalJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
+    {
+        dir = dirTerms; beta = b;
+    }
+
+    void AssembleFaceMatrix(const FiniteElement& el1,
+        const FiniteElement& el2,
+        FaceElementTransformations& Trans,
+        DenseMatrix& elmat) override;
+
+protected:
+    std::vector<Direction> dir;
+    double beta;
+
+private:
+    Vector shape1_, shape2_;
+};
+
+class MaxwellDGDecoupledTwoNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+    MaxwellDGDecoupledTwoNormalJumpIntegrator(const std::vector<Direction>& dirTerms, double b)
+    {
+        dir = dirTerms; beta = b;
+    }
+
+    void AssembleFaceMatrix(const FiniteElement& el1,
+        const FiniteElement& el2,
+        FaceElementTransformations& Trans,
+        DenseMatrix& elmat) override;
+
+protected:
+    std::vector<Direction> dir;
+    double beta;
+
+private:
+    Vector shape1_, shape2_;
+};
+
 class MaxwellDGTraceJumpIntegrator : public BilinearFormIntegrator
 {
 
@@ -271,6 +333,33 @@ protected:
 
 private:
 	Vector shape1_, shape2_;
+};
+
+/** Like MFEM's DerivativeIntegrator but computes adj(J)*grad_ref(phi)
+    directly via CalcAdjugate, avoiding the CalcInverse/det(J) cancellation
+    that loses precision on curved elements with small det(J). */
+class AdjugateDerivativeIntegrator : public BilinearFormIntegrator
+{
+public:
+	AdjugateDerivativeIntegrator(Coefficient &q, int i) : Q(&q), xi(i) { }
+
+	void AssembleElementMatrix(const FiniteElement &el,
+		ElementTransformation &Trans,
+		DenseMatrix &elmat) override
+	{
+		AssembleElementMatrix2(el, el, Trans, elmat);
+	}
+
+	void AssembleElementMatrix2(const FiniteElement &trial_fe,
+		const FiniteElement &test_fe,
+		ElementTransformation &Trans,
+		DenseMatrix &elmat) override;
+
+private:
+	int xi;
+	Coefficient *Q;
+	DenseMatrix dshape_, adjJ_, dshape_adj_;
+	Vector dshapedxi_, shape_;
 };
 
 }
