@@ -1,5 +1,5 @@
 #include "evolution/MaxwellEvolutionMethods.h"
-#include <solver/Solver.h>
+#include "solver/Solver.h"
 
 namespace maxwell {
 
