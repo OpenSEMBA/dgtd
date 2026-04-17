@@ -126,7 +126,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_InteriorPEC_Hesthaven)
 	}
 
 	{
-		auto expected_t{ 1.2 };
+		auto expected_t{ 2.1 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
@@ -151,7 +151,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_InteriorPEC_Hesthaven)
 	}
 
 	{
-		auto expected_t{ 2.0 };
+		auto expected_t{ 2.9 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
@@ -176,7 +176,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_InteriorPEC_Hesthaven)
 	}
 
 	{
-		auto expected_t{ 2.8 };
+		auto expected_t{ 3.7 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Ez, tolerance);
@@ -548,11 +548,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -566,7 +566,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -580,7 +580,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -594,7 +594,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Hesthaven)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -627,11 +627,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -645,7 +645,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -659,7 +659,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -673,7 +673,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Global)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -705,11 +705,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Hesthaven)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -723,7 +723,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Hesthaven)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -737,7 +737,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Hesthaven)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -751,7 +751,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Hesthaven)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -783,11 +783,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Global)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -801,7 +801,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Global)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -815,7 +815,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Global)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -829,7 +829,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Global)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -861,11 +861,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -879,7 +879,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -893,7 +893,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -907,7 +907,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -939,11 +939,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -957,7 +957,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -971,7 +971,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -985,7 +985,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_TEy)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1018,11 +1018,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1036,7 +1036,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1050,7 +1050,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1064,7 +1064,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Centered_Quads)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1095,11 +1095,11 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1113,7 +1113,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1127,7 +1127,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1141,7 +1141,7 @@ TEST_F(ExtensiveCasesTest, 2D_TFSF_Upwind_Quads)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1175,11 +1175,11 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Centered_Quads_Hesthaven)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1193,7 +1193,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Centered_Quads_Hesthaven)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1207,7 +1207,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Centered_Quads_Hesthaven)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1221,7 +1221,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Centered_Quads_Hesthaven)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1254,11 +1254,11 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Upwind_Quads_Hesthaven)
 		const auto& last_fm = std::prev(solver.getPointProbe(0).getFieldMovies().end());
 		const auto& last_fm_time = last_fm->first;
 
-		ASSERT_GT(last_fm_time + tolerance, 9.0);
+		ASSERT_GT(last_fm_time + tolerance, 9.5);
 	}
 
 	{
-		double expected_t{ 9.0 };
+		double expected_t{ 9.8 };
 		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1272,7 +1272,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Upwind_Quads_Hesthaven)
 	}
 
 	{
-		double expected_t{ 2.0 };
+		double expected_t{ 2.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1286,7 +1286,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Upwind_Quads_Hesthaven)
 	}
 
 	{
-		double expected_t{ 8.0 };
+		double expected_t{ 8.8 };
 		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -1300,7 +1300,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_2D_TFSF_Upwind_Quads_Hesthaven)
 	}
 
 	{
-		double expected_t{ 5.0 };
+		double expected_t{ 5.8 };
 		for (const auto& [t, f] : solver.getPointProbe(2).getFieldMovies()) {
 			EXPECT_NEAR(0.0, f.Ex, tolerance);
 			EXPECT_NEAR(0.0, f.Hy, tolerance);
@@ -2309,161 +2309,3 @@ TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_InteriorPEC_Upwind_Global)
 		}
 	}
 }
-
-TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Dir_Pos_X)
-{
-	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_Directions"));
-	case_data["sources"][0]["propagation"] = { 1.0, 0.0, 0.0 };
-	case_data["sources"][0]["polarization"] = { 0.0, 1.0, 0.0 };
-	case_data["sources"][0]["magnitude"]["mean"] = { -2.0, 0.5, 0.5 };
-	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_Directions"), true) };
-
-	solver.run();
-}
-
-TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Dir_Neg_X)
-{
-	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_Directions"));
-	case_data["sources"][0]["propagation"] = { -1.0, 0.0, 0.0 };
-	case_data["sources"][0]["polarization"] = { 0.0, 0.0, 1.0 };
-	case_data["sources"][0]["magnitude"]["mean"] = { 2.0, 0.5, 0.5 };
-	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_Directions"), true) };
-
-	solver.run();
-}
-
-//
-//TEST_F(ExtensiveCasesTest, 2D_Dipole_Upwind_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("2D_Dipole"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("2D_Dipole"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 3D_Dipole_Box_Upwind_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("3D_Dipole"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 3D_Dipole_Sphere_Upwind_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("3D_Dipole_Sphere"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole_Sphere"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 3D_Dipole_Sphere_Slice_Upwind_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("3D_Dipole_Sphere_Slice"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole_Sphere_Slice"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 2D_Dipole_FarField_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("2D_Dipole_FarField"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("2D_Dipole_FarField"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 2D_TFSF_Dipole_Distant_Box_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Dipole_Distant_Box"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Dipole_Distant_Box"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 3D_TFSF_Dipole_Distant_Box)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("3D_Dipole_Distant_Box"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("3D_Dipole_Distant_Box"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 2D_TFSF_Dipole_Distant_Line_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Dipole_Distant_Line"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Dipole_Distant_Line"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 2D_TFSF_Oblique_Upwind_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Oblique"));
-//	case_data["solver_options"]["hesthaven_operator"] = false;
-//	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Oblique"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 2D_TFSF_Oblique_Rotated_Upwind_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("2D_TFSF_Oblique_Rotated"));
-//	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-//	auto solver{ buildSolver(case_data, maxwellCase("2D_TFSF_Oblique_Rotated"), true) };
-//
-//	solver.run();
-//}
-//
-//TEST_F(ExtensiveCasesTest, 3D_TFSF_PropZ_Upwind_Hesthaven)
-//{
-//	auto case_data = parseJSONfile(maxwellCase("3D_TFSF_PropZ"));
-//	case_data["solver_options"]["hesthaven_operator"] = false;
-//	auto solver{ buildSolver(case_data, maxwellCase("3D_TFSF_PropZ"), true) };
-//
-//	solver.run();
-//}
-//
-//
-
-  TEST_F(ExtensiveCasesTest, DISABLED_3D_RCS_Sphere_O1)
-  {
-  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"));
-  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"), true) };
-
-  	solver.run();
-  }
-
-    TEST_F(ExtensiveCasesTest, DISABLED_3D_RCS_Sphere_O3)
-  {
-  	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_Box_1m_G3_O3"));
-  	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_Box_1m_G3_O3"), true) };
-
-  	solver.run();
-  }
-
-// TEST_F(ExtensiveCasesTest, 3D_RCS_Sphere_O2)
-// {
-// 	auto case_data = parseJSONfile(maxwellCase("3D_RCS_Sphere_O2"));
-// 	// case_data["solver_options"]["evolution_operator"] = "hesthaven";
-// 	auto solver{ buildSolver(case_data, maxwellCase("3D_RCS_Sphere_O2"), true) };
-
-// 	solver.run();
-// }
-
-// TEST_F(ExtensiveCasesTest, 3D_Mixed_O2)
-// {
-// 	auto case_data = parseJSONfile(maxwellCase("3D_Mixed_O2"));
-// 	case_data["solver_options"]["evolution_operator"] = "hesthaven";
-// 	auto solver{ buildSolver(case_data, maxwellCase("3D_Mixed_O2"), true) };
-
-// 	solver.run();
-// }
