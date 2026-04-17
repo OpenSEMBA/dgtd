@@ -399,6 +399,74 @@ std::unique_ptr<InitialField> buildBesselJ6InitialField(
 	return std::make_unique<InitialField>(BesselJ6(), ft, p, center);
 }
 
+// ---------------------------------------------------------------------------
+// Helpers for automatic source delay (auto-mean) computation
+// ---------------------------------------------------------------------------
+
+// How many Gaussian sigma to delay the source past the TFSF arrival time.
+// exp(-N^2) ~ 1.4e-11 for N=5, ensuring negligible field at t=0.
+static constexpr double AUTO_DELAY_N_SIGMA = 5.0;
+
+// Returns the centroid of boundary element `be` using its vertex coordinates.
+static mfem::Vector bdrElemCentroid(const mfem::Mesh& mesh, int be)
+{
+	mfem::Array<int> verts;
+	mesh.GetBdrElementVertices(be, verts);
+	int dim = mesh.Dimension();
+	mfem::Vector c(dim);
+	c = 0.0;
+	for (int v = 0; v < verts.Size(); ++v) {
+		const double* p = mesh.GetVertex(verts[v]);
+		for (int d = 0; d < dim; ++d) c[d] += p[d];
+	}
+	c /= static_cast<double>(verts.Size());
+	return c;
+}
+
+// Returns true if boundary element `be` has one of the given JSON tags.
+static bool bdrElemHasTag(const mfem::Mesh& mesh, int be, const json& tags)
+{
+	int attr = mesh.GetBdrAttribute(be);
+	for (const auto& t : tags) {
+		if (t.get<int>() == attr) return true;
+	}
+	return false;
+}
+
+// Minimum Euclidean distance from the origin of all TFSF surface elements.
+// For dipole sources: the retarded-time wave must travel at least this far
+// before it reaches the TFSF surface, so it constrains the required mean.
+static double minRadiusOnTFSFSurface(const mfem::Mesh& mesh, const json& tags)
+{
+	double min_r = std::numeric_limits<double>::max();
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) continue;
+		min_r = std::min(min_r, bdrElemCentroid(mesh, be).Norml2());
+	}
+	return (min_r == std::numeric_limits<double>::max()) ? 0.0 : min_r;
+}
+
+// Minimum phase delay x·d̂/c of all TFSF surface elements in propagation direction d_hat.
+// For a planewave traveling in direction d_hat, this is the phase at the
+// earliest-arriving (most upstream) point of the TFSF surface.  The auto-mean
+// is chosen so that the pulse is N sigma before peak at this earliest point.
+static double minPhaseOnTFSFSurface(const mfem::Mesh& mesh, const json& tags,
+	const mfem::Vector& d_hat)
+{
+	double min_phase = std::numeric_limits<double>::max();
+	const double c = physicalConstants::speedOfLight;
+	int dim = mesh.Dimension();
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) continue;
+		auto x = bdrElemCentroid(mesh, be);
+		double phase = 0.0;
+		for (int d = 0; d < dim && d < d_hat.Size(); ++d) phase += x[d] * d_hat[d];
+		phase /= c;
+		min_phase = std::min(min_phase, phase);
+	}
+	return (min_phase == std::numeric_limits<double>::max()) ? 0.0 : min_phase;
+}
+
 std::unique_ptr<InitialField> buildSphericalBesselJ6InitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }))
@@ -456,7 +524,7 @@ std::unique_ptr<TotalField> buildDerivGaussDipole(
 	return std::make_unique<TotalField>(dip);
 }
 
-Sources buildSources(const json& case_data)
+Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 {
 	Sources res;
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
@@ -491,19 +559,41 @@ Sources buildSources(const json& case_data)
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "planewave") {
-			if (case_data["sources"][s]["magnitude"].contains("frequency")) {
+			const auto& mag = case_data["sources"][s]["magnitude"];
+			double spread = mag["spread"].get<double>();
+
+			// Determine mean: use explicit value if provided, otherwise auto-compute
+			// from the earliest-arriving (upstream) point of the TFSF surface so that
+			// the pulse is AUTO_DELAY_N_SIGMA sigma below peak at t=0 everywhere.
+			Source::Position mean_vec(3);
+			mean_vec = 0.0;
+			if (mag.contains("mean")) {
+				mean_vec = assemble3DVector(mag["mean"]);
+			} else if (mesh && case_data["sources"][s].contains("tags")) {
+				auto d_hat = assemble3DVector(case_data["sources"][s]["propagation"]);
+				d_hat /= d_hat.Norml2();
+				double min_phase = minPhaseOnTFSFSurface(*mesh, case_data["sources"][s]["tags"], d_hat);
+				// mean_1D = min_phase - N*sigma*sqrt(2): places the pulse N sigma
+				// before reaching the upstream TFSF surface at t=0.
+				double mean_1D = min_phase - AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+				for (int d = 0; d < d_hat.Size(); ++d) mean_vec[d] = mean_1D * d_hat[d];
+				std::cout << "[Source " << s << " (planewave)] Auto-computed mean_1D = "
+				          << mean_1D << " (min_phase=" << min_phase << ")\n";
+			}
+
+			if (mag.contains("frequency")) {
 				res.add(buildModulatedGaussianPlanewave(
-					case_data["sources"][s]["magnitude"]["spread"],
-					assemble3DVector(case_data["sources"][s]["magnitude"]["mean"]),
-					case_data["sources"][s]["magnitude"]["frequency"],
+					spread,
+					mean_vec,
+					mag["frequency"].get<double>(),
 					assemble3DVector(case_data["sources"][s]["polarization"]),
 					assemble3DVector(case_data["sources"][s]["propagation"]),
 					FieldType::E)
 				);
 			} else {
 				res.add(buildGaussianPlanewave(
-					case_data["sources"][s]["magnitude"]["spread"],
-					assemble3DVector(case_data["sources"][s]["magnitude"]["mean"]),
+					spread,
+					mean_vec,
 					assemble3DVector(case_data["sources"][s]["polarization"]),
 					assemble3DVector(case_data["sources"][s]["propagation"]),
 					FieldType::E)
@@ -511,11 +601,30 @@ Sources buildSources(const json& case_data)
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
-			res.add(buildDerivGaussDipole(
-				case_data["sources"][s]["magnitude"]["length"],
-				case_data["sources"][s]["magnitude"]["spread"],
-				case_data["sources"][s]["magnitude"]["mean"])
-			);
+			const auto& mag = case_data["sources"][s]["magnitude"];
+			double length = mag["length"].get<double>();
+			double spread = mag["spread"].get<double>();
+
+			// Determine mean: use explicit value if provided, otherwise auto-compute.
+			// For the retarded-time Gaussian, mean_auto ensures the field is
+			// AUTO_DELAY_N_SIGMA sigma before peak at t=0 on the TFSF surface.
+			double mean;
+			if (mag.contains("mean")) {
+				mean = mag["mean"].get<double>();
+			} else if (mesh && case_data["sources"][s].contains("tags")) {
+				double min_r = minRadiusOnTFSFSurface(*mesh, case_data["sources"][s]["tags"]);
+				// mean_auto = N*sigma*sqrt(2) - r_min/c
+				// (r_min/c is the retarded-time advance the TFSF surface already provides)
+				double mean_auto = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0)
+				                   - min_r / physicalConstants::speedOfLight;
+				mean = std::max(spread * std::sqrt(2.0), mean_auto);
+				std::cout << "[Source " << s << " (dipole)] Auto-computed mean = "
+				          << mean << " (min_radius=" << min_r << ")\n";
+			} else {
+				mean = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+			}
+
+			res.add(buildDerivGaussDipole(length, spread, mean));
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
@@ -1057,7 +1166,9 @@ Array<int> getTFSFTags(const json& case_data)
     if (!case_data.contains("sources")) return res;
 
     for (int s = 0; s < case_data["sources"].size(); ++s) {
-        if (case_data["sources"][s].contains("type") && case_data["sources"][s]["type"] == "planewave") {
+        if (case_data["sources"][s].contains("type") &&
+            (case_data["sources"][s]["type"] == "planewave" ||
+             case_data["sources"][s]["type"] == "dipole")) {
             for (int t = 0; t < case_data["sources"][s]["tags"].size(); ++t) {
                 res.Append(case_data["sources"][s]["tags"][t]);
             }
@@ -1451,9 +1562,11 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 {
 	
 	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };
-	maxwell::Sources sources{ buildSources(case_data) };
 	maxwell::Probes probes{ buildProbes(case_data) };
+	// Model (mesh) must be built before sources so that auto-mean computation
+	// can inspect the TFSF surface geometry to determine the correct delay.
 	maxwell::Model model{ buildModel(case_data, case_path, isTest) };
+	maxwell::Sources sources{ buildSources(case_data, &model.getConstMesh()) };
 
 	postProcessInformation(case_data, model, solverOpts);
 	prepareExportDirectories(model);

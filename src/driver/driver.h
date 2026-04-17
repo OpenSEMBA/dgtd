@@ -21,6 +21,6 @@ namespace maxwell::driver {
 
 	Probes buildProbes(const json& case_data);
 	SolverOptions buildSolverOptions(const json& case_data);
-	Sources buildSources(const json& case_data);
+	Sources buildSources(const json& case_data, const mfem::Mesh* mesh = nullptr);
 	Model buildModel(const json& case_data, const std::string& case_path, const bool isTest);
 }

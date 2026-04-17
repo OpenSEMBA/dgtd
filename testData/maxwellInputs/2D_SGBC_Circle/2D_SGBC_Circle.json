@@ -1,53 +1,70 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 5e-3,
+    "time_step": 0.005,
     "final_time": 10.0,
     "order": 3
   },
-
   "model": {
     "filename": "2D_SGBC_Circle.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 6 ],
+        "tags": [
+          6
+        ],
         "type": "SGBC",
-        "material":{
+        "material": {
           "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
           "bulk_conductivity": 200.0,
-          "material_width": 8e-3
+          "material_width": 0.008
         }
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "saves": 60
     }
   },
-
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2,
+        3,
+        4,
+        5
+      ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.1,
-        "mean": [ -3.5, 0.075 ]
+        "spread": 0.1
       }
     }
   ]

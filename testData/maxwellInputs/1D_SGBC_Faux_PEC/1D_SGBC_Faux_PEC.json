@@ -1,20 +1,24 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-5,
+    "time_step": 1e-05,
     "final_time": 4.0,
     "order": 4
   },
-
-  "model": { 
+  "model": {
     "filename": "1D_SGBC_Faux.msh",
     "materials": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [
+          1,
+          2
+        ],
         "type": "vacuum"
       },
       {
-        "tags": [ 3 ],
+        "tags": [
+          3
+        ],
         "relative_permittivity": 1.0,
         "relative_permeability": 1.0,
         "bulk_conductivity": 200000.0
@@ -22,32 +26,43 @@
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 4 ],
+        "tags": [
+          4
+        ],
         "type": "PEC"
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "steps": 25000
     }
   },
-
-  "sources": [ 
+  "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2
+      ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.1,
-        "mean": [ -0.5 ]
+        "spread": 0.1
       }
     }
   ]

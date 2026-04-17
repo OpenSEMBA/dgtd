@@ -1,7 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 5e-3,
+    "time_step": 0.005,
     "final_time": 20.0,
     "order": 4
   },
@@ -9,13 +9,20 @@
     "filename": "3D_RCS_SGBC_Sphere_Box_G1.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3, 4 ],
+        "tags": [
+          1,
+          2,
+          3,
+          4
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SGBC",
         "layers": [
           {
@@ -30,7 +37,9 @@
         }
       },
       {
-        "tags": [ 2 ],
+        "tags": [
+          2
+        ],
         "type": "SMA"
       }
     ]
@@ -43,7 +52,14 @@
       {
         "name": "sphere_sgbc_G1",
         "steps": 1,
-        "tags": [ 3, 4, 5, 6, 7, 8 ]
+        "tags": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ]
       }
     ]
   },
@@ -60,10 +76,16 @@
         0.0,
         1.0
       ],
-      "tags": [ 3, 4, 5, 6, 7, 8 ],
+      "tags": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
       "magnitude": {
-        "spread": 0.2,
-        "mean": [0.0, 0.0, -3.5]
+        "spread": 0.2
       }
     }
   ]

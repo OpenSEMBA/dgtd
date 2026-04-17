@@ -10,7 +10,8 @@ SphericalVector::SphericalVector(const std::vector<double>& p)
 		t_radius += std::pow(p[v], 2.0);
 	};
 	radius = std::sqrt(t_radius);
-	p.size() == 2 ? theta = 0.0 : theta = std::acos(p[2] / radius);
+	// For 2D points (in the xy-plane) theta is always pi/2 (equatorial plane).
+	p.size() == 2 ? theta = M_PI / 2.0 : theta = std::acos(p[2] / radius);
 	phi = std::atan2(p[1], p[0]);
 }
 
@@ -22,7 +23,8 @@ SphericalVector::SphericalVector(const mfem::Vector& p)
 		t_radius += std::pow(p[v], 2.0);
 	};
 	radius = std::sqrt(t_radius);
-	p.Size() == 2 ? theta = 0.0 : theta = std::acos(p[2] / radius);
+	// For 2D points (in the xy-plane) theta is always pi/2 (equatorial plane).
+	p.Size() == 2 ? theta = M_PI / 2.0 : theta = std::acos(p[2] / radius);
 	phi = std::atan2(p[1], p[0]);
 }
 
