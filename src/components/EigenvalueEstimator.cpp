@@ -1,4 +1,5 @@
 #include "EigenvalueEstimator.h"
+#include "components/DGOperatorFactory.h"
 
 namespace maxwell {
 

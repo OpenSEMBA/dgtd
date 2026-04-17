@@ -1,5 +1,7 @@
 #include "HesthavenEvolution.h"
 
+#include "components/DGOperatorFactory.h"
+
 #include <chrono>
 #include <iostream>
 #include <string>
@@ -272,77 +274,41 @@ bool HesthavenEvolution::isDoFinCurvedElement(const NodeId& d) const
 
 void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrMaps, const FieldsInputMaps& in, HesthavenFields& out) const
 {
-	for (int m = 0; m < bdrMaps.PEC.vmapB.size(); m++) {
-		for (int d = X; d <= Z; d++) {
-			for (int v = 0; v < bdrMaps.PEC.vmapB[m].size(); v++) {
-				if (!isDoFinCurvedElement(bdrMaps.PEC.vmapB[m][v])) {
-					out.e_[d][bdrMaps.PEC.mapB[m][v]] = -2.0 * in.e_[d][bdrMaps.PEC.vmapB[m][v]];
-					out.h_[d][bdrMaps.PEC.mapB[m][v]] = 0.0;
+	auto applyBdrBC = [&](const auto& bc, double e_coeff, double h_coeff) {
+		for (int m = 0; m < bc.vmapB.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (int v = 0; v < bc.vmapB[m].size(); v++) {
+					if (!isDoFinCurvedElement(bc.vmapB[m][v])) {
+						out.e_[d][bc.mapB[m][v]] = e_coeff * in.e_[d][bc.vmapB[m][v]];
+						out.h_[d][bc.mapB[m][v]] = h_coeff * in.h_[d][bc.vmapB[m][v]];
+					}
 				}
 			}
 		}
-	}
+	};
 
-	for (int m = 0; m < bdrMaps.PMC.vmapB.size(); m++) {
-		for (int d = X; d <= Z; d++) {
-			for (int v = 0; v < bdrMaps.PMC.vmapB[m].size(); v++) {
-				if (!isDoFinCurvedElement(bdrMaps.PMC.vmapB[m][v])) {
-					out.e_[d][bdrMaps.PMC.mapB[m][v]] = 0.0;
-					out.h_[d][bdrMaps.PMC.mapB[m][v]] = -2.0 * in.h_[d][bdrMaps.PMC.vmapB[m][v]];
-				}
-			}
-		}
-	}
+	applyBdrBC(bdrMaps.PEC, -2.0, 0.0);
+	applyBdrBC(bdrMaps.PMC, 0.0, -2.0);
+	applyBdrBC(bdrMaps.SMA, -1.0 / opts_.alpha, -1.0 / opts_.alpha);
 
-	for (int m = 0; m < bdrMaps.SMA.mapB.size(); m++) {
-		for (int d = X; d <= Z; d++) {
-			for (int v = 0; v < bdrMaps.SMA.vmapB[m].size(); v++) {
-				if (!isDoFinCurvedElement(bdrMaps.SMA.vmapB[m][v])) {
-					out.e_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.SMA.vmapB[m][v]] / opts_.alpha;
-					out.h_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.SMA.vmapB[m][v]] / opts_.alpha;
+	auto applyIntBdrBC = [&](const auto& bc, double e_coeff, double h_coeff) {
+		for (int m = 0; m < bc.mapBElem1.size(); m++) {
+			for (int d = X; d <= Z; d++) {
+				for (int v = 0; v < bc.mapBElem1[m].size(); v++) {
+					if (!isDoFinCurvedElement(bc.vmapBElem1[m][v]) || !isDoFinCurvedElement(bc.vmapBElem2[m][v])) {
+						out.e_[d][bc.mapBElem1[m][v]] = e_coeff * in.e_[d][bc.vmapBElem1[m][v]];
+						out.h_[d][bc.mapBElem1[m][v]] = h_coeff * in.h_[d][bc.vmapBElem1[m][v]];
+						out.e_[d][bc.mapBElem2[m][v]] = e_coeff * in.e_[d][bc.vmapBElem2[m][v]];
+						out.h_[d][bc.mapBElem2[m][v]] = h_coeff * in.h_[d][bc.vmapBElem2[m][v]];
+					}
 				}
 			}
 		}
-	}
+	};
 
-	for (int m = 0; m < bdrMaps.intPEC.mapBElem1.size(); m++) {
-		for (int d = X; d <= Z; d++) {
-			for (int v = 0; v < bdrMaps.intPEC.mapBElem1[m].size(); v++) { //Condition is applied twice, so we halve the coefficients for interior operators
-				if (!isDoFinCurvedElement(bdrMaps.intPEC.vmapBElem1[m][v]) || !isDoFinCurvedElement(bdrMaps.intPEC.vmapBElem2[m][v])) {
-					out.e_[d][bdrMaps.intPEC.mapBElem1[m][v]] = -1.0 * in.e_[d][bdrMaps.intPEC.vmapBElem1[m][v]];
-					out.e_[d][bdrMaps.intPEC.mapBElem2[m][v]] = -1.0 * in.e_[d][bdrMaps.intPEC.vmapBElem2[m][v]];
-					out.h_[d][bdrMaps.intPEC.mapBElem1[m][v]] = 0.0;
-					out.h_[d][bdrMaps.intPEC.mapBElem2[m][v]] = 0.0;
-				}
-			}
-		}
-	}
-
-	for (int m = 0; m < bdrMaps.intPMC.mapBElem1.size(); m++) {
-		for (int d = X; d <= Z; d++) {
-			for (int v = 0; v < bdrMaps.intPMC.mapBElem1[m].size(); v++) {
-				if (!isDoFinCurvedElement(bdrMaps.intPMC.vmapBElem1[m][v]) || !isDoFinCurvedElement(bdrMaps.intPMC.vmapBElem2[m][v])) {
-					out.e_[d][bdrMaps.intPMC.mapBElem1[m][v]] = 0.0;
-					out.e_[d][bdrMaps.intPMC.mapBElem2[m][v]] = 0.0;
-					out.h_[d][bdrMaps.intPMC.mapBElem1[m][v]] = -1.0 * in.h_[d][bdrMaps.intPMC.vmapBElem1[m][v]];
-					out.h_[d][bdrMaps.intPMC.mapBElem2[m][v]] = -1.0 * in.h_[d][bdrMaps.intPMC.vmapBElem2[m][v]];
-				}
-			}
-		}
-	}
-
-	for (int m = 0; m < bdrMaps.intSMA.mapBElem1.size(); m++) {
-		for (int d = X; d <= Z; d++) {
-			for (int v = 0; v < bdrMaps.intSMA.mapBElem1[m].size(); v++) {
-				if (!isDoFinCurvedElement(bdrMaps.intSMA.vmapBElem1[m][v]) || !isDoFinCurvedElement(bdrMaps.intSMA.vmapBElem2[m][v])) {
-					out.e_[d][bdrMaps.intSMA.mapBElem1[m][v]] = -0.5 * in.e_[d][bdrMaps.intSMA.vmapBElem1[m][v]];
-					out.h_[d][bdrMaps.intSMA.mapBElem1[m][v]] = -0.5 * in.h_[d][bdrMaps.intSMA.vmapBElem1[m][v]];
-					out.e_[d][bdrMaps.intSMA.mapBElem2[m][v]] = -0.5 * in.e_[d][bdrMaps.intSMA.vmapBElem2[m][v]];
-					out.h_[d][bdrMaps.intSMA.mapBElem2[m][v]] = -0.5 * in.h_[d][bdrMaps.intSMA.vmapBElem2[m][v]];
-				}
-			}
-		}
-	}
+	applyIntBdrBC(bdrMaps.intPEC, -1.0, 0.0);
+	applyIntBdrBC(bdrMaps.intPMC, 0.0, -1.0);
+	applyIntBdrBC(bdrMaps.intSMA, -0.5, -0.5);
 
 }
 

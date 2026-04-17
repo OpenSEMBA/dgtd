@@ -4,7 +4,7 @@
 
 namespace maxwell {
 
-static mfem::Vector crossProduct(const mfem::Vector& va, const mfem::Vector& vb)
+inline mfem::Vector crossProduct(const mfem::Vector& va, const mfem::Vector& vb)
 {
 	assert(va.Size() == 3);
 	assert(vb.Size() == 3);
@@ -15,7 +15,7 @@ static mfem::Vector crossProduct(const mfem::Vector& va, const mfem::Vector& vb)
 	return V;
 }
 
-static mfem::Vector unitVec(int d)
+inline mfem::Vector unitVec(int d)
 {
 	
 	mfem::Vector r(3);
@@ -24,7 +24,7 @@ static mfem::Vector unitVec(int d)
 	return r;
 }
 
-static mfem::Vector minusUnitVec(int d)
+inline mfem::Vector minusUnitVec(int d)
 {
 	auto res{unitVec(d)};
 	res *= -1.0;

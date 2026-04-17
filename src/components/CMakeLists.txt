@@ -15,7 +15,6 @@ add_library(maxwell-components STATIC
 "ProblemDescription.cpp"
 "Spherical.cpp" 
 "FarField.cpp" 
-"RCSDataExtractor.cpp"
 "RCSSurfaceExporter.cpp"
 "RCSSurfacePostProcessor.cpp"
 "SIBCPoleResidueFitting.cpp")

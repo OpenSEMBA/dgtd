@@ -37,40 +37,33 @@ double calcPsiAngle3D(const Vector& p, const SphericalAngles& angles)
 
 /* These functions represent the exponential part of e^(+j k r' cos(psi)) found in Equations 8.31 and 8.32 of Taflove's Computational Electrodynamics: The Finite-Difference Time-Domain Method. 
    Due to MFEM not supporting complex numbers in its Coefficient class, we separate real and imaginary parts for either 2D or 3D, returning cosine or sine as needed. */
-double func_exp_real_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
+static double func_exp_part(const Vector& p, const Frequency freq, const SphericalAngles& angles, bool is3D, bool isReal)
 {
 	auto landa = physicalConstants::speedOfLight / freq;
 	auto wavenumber = 2.0 * M_PI / landa;
-	auto psi = calcPsiAngle2D(p, angles);
+	auto psi = is3D ? calcPsiAngle3D(p, angles) : calcPsiAngle2D(p, angles);
 	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return cos(rad_term);
+	return isReal ? cos(rad_term) : sin(rad_term);
+}
+
+double func_exp_real_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
+{
+	return func_exp_part(p, freq, angles, false, true);
 }
 
 double func_exp_imag_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
-	auto landa = physicalConstants::speedOfLight / freq;
-	auto wavenumber = 2.0 * M_PI / landa;
-	auto psi = calcPsiAngle2D(p, angles);
-	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return sin(rad_term);
+	return func_exp_part(p, freq, angles, false, false);
 }
 
 double func_exp_real_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
-	auto landa = physicalConstants::speedOfLight / freq;
-	auto wavenumber = 2.0 * M_PI / landa;
-	auto psi = calcPsiAngle3D(p, angles);
-	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return cos(rad_term);
+	return func_exp_part(p, freq, angles, true, true);
 }
 
 double func_exp_imag_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
 {
-	auto landa = physicalConstants::speedOfLight / freq;
-	auto wavenumber = 2.0 * M_PI / landa;
-	auto psi = calcPsiAngle3D(p, angles);
-	auto rad_term = wavenumber * p.Norml2() * std::cos(psi);
-	return sin(rad_term);
+	return func_exp_part(p, freq, angles, true, false);
 }
 
 std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency freq, const SphericalAngles& angles, bool isReal)

@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include "components/EigenvalueEstimator.h"
 
 using namespace maxwell;

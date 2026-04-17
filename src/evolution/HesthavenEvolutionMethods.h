@@ -5,7 +5,6 @@
 #include "mfemExtension/BilinearIntegrators.h"
 #include "solver/SourcesManager.h"
 #include "math/EigenMfemTools.h"
-#include "components/Types.h"
 #include "components/Model.h"
 
 namespace maxwell {

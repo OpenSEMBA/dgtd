@@ -4,7 +4,6 @@
 #include "components/ProblemDescription.h"
 
 #include <cstring>
-#include <memory>
 #include <algorithm>
 
 namespace maxwell

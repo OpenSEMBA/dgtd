@@ -7,7 +7,7 @@ namespace maxwell {
 namespace fixtures {
 namespace sources {
 
-static Sources buildGaussianInitialField(
+inline Sources buildGaussianInitialField(
 	const FieldType& ft = E,
 	const double spread = 0.1,
 	const mfem::Vector& center_ = mfem::Vector({ 0.5 }),
@@ -25,7 +25,7 @@ static Sources buildGaussianInitialField(
 	return res;
 }
 
-static Sources buildResonantModeInitialField(
+inline Sources buildResonantModeInitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }),
 	const std::vector<std::size_t>& modes = { 1 },
@@ -42,7 +42,7 @@ static Sources buildResonantModeInitialField(
 	return res;
 }
 
-static Sources buildGaussianPlanewave(
+inline Sources buildGaussianPlanewave(
 	double spread,
 	const Source::Position mean,
 	const Source::Polarization& pol,
@@ -56,7 +56,7 @@ static Sources buildGaussianPlanewave(
 	return res;
 }
 
-static Sources buildInitialField(
+inline Sources buildInitialField(
 	const Function& mf)
 {
 	Sources res;

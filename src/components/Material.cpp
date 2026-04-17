@@ -31,20 +31,20 @@ Material buildVacuumMaterial()
 double Material::getImpedance() const
 {
 	if (sigma_ == 0.0) {
-		return sqrt(mu_ / epsilon_);;
+		return sqrt(mu_ / epsilon_);
 	}
 	else {
 		throw std::runtime_error("Current implementation does not support impedance calculation for materials with conductivity.");
 	}
 }
 
-double Material::getAdmitance() const
+double Material::getAdmittance() const
 {
 	if (sigma_ == 0.0) {
-		return sqrt(epsilon_ / mu_);;
+		return sqrt(epsilon_ / mu_);
 	}
 	else {
-		throw std::runtime_error("Current implementation does not support admitance calculation for materials with conductivity.");
+		throw std::runtime_error("Current implementation does not support admittance calculation for materials with conductivity.");
 	}
 }
 

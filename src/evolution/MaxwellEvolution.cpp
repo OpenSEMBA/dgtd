@@ -1,6 +1,5 @@
 #include "MaxwellEvolution.h"
 
-#include <chrono>
 #include <algorithm>
 #include <iostream>
 #include <string>
