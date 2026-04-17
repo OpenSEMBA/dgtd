@@ -101,29 +101,20 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 
 void Model::assembleBdrToMarkerMaps()
 {
-	if (pecMarker_.Size() != 0) {
-		bdrToMarkerMap_.insert(std::make_pair(BdrCond::PEC, pecMarker_));
+	const std::pair<BdrCond, const mfem::Array<int>&> bdrEntries[] = {
+		{BdrCond::PEC, pecMarker_}, {BdrCond::PMC, pmcMarker_},
+		{BdrCond::SMA, smaMarker_}, {BdrCond::SGBC, sgbc_Marker_}
+	};
+	for (const auto& [cond, marker] : bdrEntries) {
+		if (marker.Size() != 0) bdrToMarkerMap_.insert({cond, marker});
 	}
-	if (pmcMarker_.Size() != 0) {
-		bdrToMarkerMap_.insert(std::make_pair(BdrCond::PMC, pmcMarker_));
-	}
-	if (smaMarker_.Size() != 0) {
-		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, smaMarker_));
-	}
-	if (sgbc_Marker_.Size() != 0) {
-		bdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, sgbc_Marker_));
-	}
-	if (intpecMarker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::PEC, intpecMarker_));
-	}
-	if (intpmcMarker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::PMC, intpmcMarker_));
-	}
-	if (intsmaMarker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SMA, intsmaMarker_));
-	}
-	if (intsgbc_Marker_.Size() != 0) {
-		intBdrToMarkerMap_.insert(std::make_pair(BdrCond::SGBC, intsgbc_Marker_));
+
+	const std::pair<BdrCond, const mfem::Array<int>&> intBdrEntries[] = {
+		{BdrCond::PEC, intpecMarker_}, {BdrCond::PMC, intpmcMarker_},
+		{BdrCond::SMA, intsmaMarker_}, {BdrCond::SGBC, intsgbc_Marker_}
+	};
+	for (const auto& [cond, marker] : intBdrEntries) {
+		if (marker.Size() != 0) intBdrToMarkerMap_.insert({cond, marker});
 	}
 }
 

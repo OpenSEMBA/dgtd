@@ -52,7 +52,7 @@ public:
 	double getPermeability() const { return mu_; }
 	double getConductivity() const { return sigma_; }
 	double getImpedance() const;
-	double getAdmitance() const;
+	double getAdmittance() const;
 	double getSpeedOfWave() const;
 private:
 	double epsilon_, mu_, sigma_;

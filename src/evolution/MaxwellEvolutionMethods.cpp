@@ -35,39 +35,8 @@ const FieldGridFuncs evalTimeVarFunction(const Time time, SourcesManager& sm)
 std::vector<int> calcOffsetCoeff(const std::vector<FieldType>& f, const std::vector<Direction>& d)
 {
 	std::vector<int> res(2);
-	if (d.size() == 1) {
-		if (f[0] == E) {
-			res[0] = d[0];
-			res[1] = d[0];
-		}
-		else {
-			res[0] = 3 + d[0];
-			res[1] = 3 + d[0];
-		}
-	}
-	else if (f[0] == f[1]) {
-		if (f[0] == E) {
-			res[0] = d[0];
-			res[1] = d[1];
-		}
-		else {
-			res[0] = 3 + d[0];
-			res[1] = 3 + d[1];
-		}
-	}
-	else if (f[0] != f[1]) {
-		if (f[0] == E) {
-			res[0] = d[0];
-			res[1] = 3 + d[1];
-		}
-		else {
-			res[0] = 3 + d[0];
-			res[1] = d[1];
-		}
-	}
-	else {
-		throw std::runtime_error("Wrong input in method, check direction or field type vectors.");
-	}
+	res[0] = 3 * f[0] + d[0];
+	res[1] = (d.size() > 1) ? 3 * f[1] + d[1] : res[0];
 	return res;
 }
 

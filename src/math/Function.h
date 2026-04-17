@@ -4,7 +4,6 @@
 #include "evolution/Fields.h"
 #include "components/Spherical.h"
 #include "math/Calculus.h"
-#include "components/Types.h"
 
 #include <gsl/gsl_sf_bessel.h>  
 #include <gsl/gsl_sf_legendre.h>

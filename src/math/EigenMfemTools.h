@@ -9,7 +9,7 @@
 
 namespace maxwell {
 
-static Eigen::MatrixXd toEigen(const mfem::DenseMatrix& mat)
+inline Eigen::MatrixXd toEigen(const mfem::DenseMatrix& mat)
 {
 	Eigen::MatrixXd res(mat.Height(), mat.Width());
 	for (int i = 0; i < mat.Height(); i++) {
@@ -20,7 +20,7 @@ static Eigen::MatrixXd toEigen(const mfem::DenseMatrix& mat)
 	return res;
 }
 
-static Eigen::VectorXd toEigenVector(const mfem::Vector& in)
+inline Eigen::VectorXd toEigenVector(const mfem::Vector& in)
 {
 	Eigen::VectorXd res;
 	res.resize(in.Size());
@@ -30,7 +30,7 @@ static Eigen::VectorXd toEigenVector(const mfem::Vector& in)
 	return res;
 }
 
-static Eigen::VectorXcd toEigenComplexVector(const mfem::Vector& in)
+inline Eigen::VectorXcd toEigenComplexVector(const mfem::Vector& in)
 {
 	Eigen::VectorXcd res;
 	res.resize(in.Size());
@@ -40,7 +40,7 @@ static Eigen::VectorXcd toEigenComplexVector(const mfem::Vector& in)
 	return res;
 }
 
-static mfem::Vector toMFEMVector(const Eigen::VectorXd& in)
+inline mfem::Vector toMFEMVector(const Eigen::VectorXd& in)
 {
 	mfem::Vector res(int(in.size()));
 	for (int i = 0; i < res.Size(); ++i) {
@@ -49,7 +49,7 @@ static mfem::Vector toMFEMVector(const Eigen::VectorXd& in)
 	return res;
 }
 
-static mfem::SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>& sp)
+inline mfem::SparseMatrix toMFEMSparse(const Eigen::SparseMatrix<double>& sp)
 {
 	mfem::SparseMatrix res(int(sp.rows()), int(sp.cols()));
 	for (int k = 0; k < sp.outerSize(); ++k)

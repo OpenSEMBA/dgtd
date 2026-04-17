@@ -3,10 +3,7 @@
 #include "solver/SourcesManager.h"
 #include "solver/SolverExtension.h"
 #include "components/DGOperatorFactory.h"
-#include "components/Types.h"
-#include <map>
 #include <unordered_map>
-#include <vector>
 
 namespace maxwell {
 

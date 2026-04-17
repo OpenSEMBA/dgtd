@@ -18,9 +18,9 @@ TEST_F(MaterialTest, impedanceAndConductance)
 	EXPECT_EQ(sqrt(  2.0  /   1.0), mat1.getImpedance());
 	EXPECT_EQ(sqrt(  1.0  / 100.0), mat2.getImpedance());
 	EXPECT_EQ(sqrt( 20.0  /  10.0), mat3.getImpedance());
-    EXPECT_EQ(sqrt(  1.0  /   2.0), mat1.getAdmitance());
-	EXPECT_EQ(sqrt(100.0  /   1.0), mat2.getAdmitance());
-	EXPECT_EQ(sqrt( 10.0  /  20.0), mat3.getAdmitance());
+    EXPECT_EQ(sqrt(  1.0  /   2.0), mat1.getAdmittance());
+	EXPECT_EQ(sqrt(100.0  /   1.0), mat2.getAdmittance());
+	EXPECT_EQ(sqrt( 10.0  /  20.0), mat3.getAdmittance());
 }
 
 TEST_F(MaterialTest, invalidEpsOrMu)
@@ -64,7 +64,7 @@ TEST_F(MaterialTest, conductiveMaterialThrows)
 	Material cond(1.0, 1.0, 100.0);
 	EXPECT_EQ(100.0, cond.getConductivity());
 	EXPECT_ANY_THROW(cond.getImpedance());
-	EXPECT_ANY_THROW(cond.getAdmitance());
+	EXPECT_ANY_THROW(cond.getAdmittance());
 	EXPECT_ANY_THROW(cond.getSpeedOfWave());
 }
 
@@ -75,7 +75,7 @@ TEST_F(MaterialTest, buildVacuumMaterialProperties)
 	EXPECT_DOUBLE_EQ(1.0, vac.getPermeability());
 	EXPECT_DOUBLE_EQ(0.0, vac.getConductivity());
 	EXPECT_DOUBLE_EQ(1.0, vac.getImpedance());
-	EXPECT_DOUBLE_EQ(1.0, vac.getAdmitance());
+	EXPECT_DOUBLE_EQ(1.0, vac.getAdmittance());
 	EXPECT_DOUBLE_EQ(1.0, vac.getSpeedOfWave());
 }
 
@@ -85,9 +85,9 @@ TEST_F(MaterialTest, impedanceTimesAdmittanceIsOne)
 	Material mat2(100.0, 1.0, 0.0);
 	Material mat3(1.0,  50.0, 0.0);
 
-	EXPECT_NEAR(1.0, mat1.getImpedance() * mat1.getAdmitance(), 1e-15);
-	EXPECT_NEAR(1.0, mat2.getImpedance() * mat2.getAdmitance(), 1e-15);
-	EXPECT_NEAR(1.0, mat3.getImpedance() * mat3.getAdmitance(), 1e-15);
+	EXPECT_NEAR(1.0, mat1.getImpedance() * mat1.getAdmittance(), 1e-15);
+	EXPECT_NEAR(1.0, mat2.getImpedance() * mat2.getAdmittance(), 1e-15);
+	EXPECT_NEAR(1.0, mat3.getImpedance() * mat3.getAdmittance(), 1e-15);
 }
 
 TEST_F(MaterialTest, speedOfWaveRelationToImpedance)

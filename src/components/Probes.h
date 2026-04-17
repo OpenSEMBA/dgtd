@@ -1,7 +1,5 @@
 #pragma once
 
-#include <mfem.hpp>
-
 #include "Types.h"
 #include "evolution/Fields.h"
 

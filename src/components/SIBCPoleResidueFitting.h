@@ -1,8 +1,9 @@
+#pragma once
+
 #include <vector>
 #include <complex>
 #include <Eigen/Dense>
 
-#include "Material.h" 
 #include "components/Model.h"
 
 namespace maxwell {

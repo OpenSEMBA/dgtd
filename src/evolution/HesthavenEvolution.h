@@ -1,8 +1,5 @@
 #pragma once
 
-#include "mfemExtension/BilinearIntegrators.h"
-
-#include "components/Model.h"
 #include "components/SubMesher.h"
 
 #include "evolution/MaxwellEvolutionMethods.h"

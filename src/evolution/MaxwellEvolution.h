@@ -1,11 +1,7 @@
 #pragma once
 
-#include "mfemExtension/BilinearIntegrators.h"
-
 #include "MaxwellEvolutionMethods.h"
 #include "components/SubMesher.h"
-
-#include "solver/SourcesManager.h"
 
 #include "components/ProblemDescription.h"
 #include "components/DGOperatorFactory.h"

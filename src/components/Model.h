@@ -3,10 +3,6 @@
 #include "Types.h"
 #include "Material.h"
 
-#include <mfem.hpp>
-
-#include <map>
-
 namespace maxwell {
 
 using namespace mfem;

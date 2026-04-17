@@ -1,5 +1,4 @@
 #include "Solver.h"
-#include "SolverExtension.h"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>

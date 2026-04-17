@@ -1,9 +1,8 @@
 #include "ProbesManager.h"
-#include "components/RCSSurfaceExporter.h"
 #include "math/PhysicalConstants.h"
+#include "general/text.hpp"
 #include <cmath>
 #include <filesystem>
-#include <iostream>
 
 namespace maxwell {
 
