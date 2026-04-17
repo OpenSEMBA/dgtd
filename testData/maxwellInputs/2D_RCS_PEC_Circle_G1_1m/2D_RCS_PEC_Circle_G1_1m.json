@@ -1,31 +1,37 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 5e-3,
+    "time_step": 0.005,
     "final_time": 20.0,
     "order": 3
   },
-
   "model": {
     "filename": "2D_RCS_PEC_Circle_G1_1m.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 2 ],
+        "tags": [
+          2
+        ],
         "type": "PEC"
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "saves": 100
@@ -34,20 +40,36 @@
       {
         "name": "cylinder_rcs",
         "steps": 1,
-        "tags": [ 5, 6, 3, 4 ]
+        "tags": [
+          5,
+          6,
+          3,
+          4
+        ]
       }
     ]
   },
-
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 5, 6, 3, 4 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        5,
+        6,
+        3,
+        4
+      ],
       "magnitude": {
-        "spread": 0.3,
-        "mean": [ -5.0, 0.0, 0.0 ]
+        "spread": 0.3
       }
     }
   ]

@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-2,
+    "time_step": 0.01,
     "final_time": 30.0,
     "order": 1
   },
@@ -41,7 +41,12 @@
         "name": "sphere_Box_1m_G1_O1_LR",
         "steps": 1,
         "tags": [
-          11, 12, 13, 14, 15, 16
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
         ]
       }
     ]
@@ -60,11 +65,15 @@
         1.0
       ],
       "tags": [
-        11, 12, 13, 14, 15, 16
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
       ],
       "magnitude": {
-        "spread": 0.20,
-        "mean": [0.0, 0.0, -4.0]
+        "spread": 0.2
       }
     }
   ]

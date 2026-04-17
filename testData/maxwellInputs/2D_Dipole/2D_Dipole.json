@@ -24,7 +24,7 @@
 
   "probes": {
     "exporter": {
-      "steps": 20
+      "saves": 30
     }
   },
 
@@ -34,8 +34,7 @@
       "tags": [ 1 ],
       "magnitude": {
         "length": 0.1,
-        "spread": 0.2,
-        "mean": [ 0.8 ]
+        "spread": 0.2
       }
     }
   ]

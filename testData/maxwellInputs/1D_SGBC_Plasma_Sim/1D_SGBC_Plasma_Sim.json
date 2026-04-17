@@ -1,67 +1,88 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 1e-6,
+    "time_step": 1e-06,
     "final_time": 15.0,
     "order": 5
   },
-
-  "model": { 
+  "model": {
     "filename": "1D_SGBC_Plasma_Sim.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [
+          1,
+          2
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 4 ],
+        "tags": [
+          4
+        ],
         "type": "SGBC",
-        "material":{
+        "material": {
           "relative_permittivity": 1.0,
           "relative_permeability": 1.0,
-          "bulk_conductivity": 20, 
-          "material_width": 20e-3
+          "bulk_conductivity": 20,
+          "material_width": 0.02
         }
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "saves": 40
     },
     "point": [
       {
-        "position": [ -2.9 ],
+        "position": [
+          -2.9
+        ],
         "saves": 100000
       },
       {
-        "position": [ -2.25 ],
+        "position": [
+          -2.25
+        ],
         "saves": 100000
       },
       {
-        "position": [ 2.75 ],
+        "position": [
+          2.75
+        ],
         "saves": 100000
       }
     ]
   },
-
-  "sources": [ 
+  "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.1,
-        "mean": [ -3.1 ]
+        "spread": 0.1
       }
     }
   ]
