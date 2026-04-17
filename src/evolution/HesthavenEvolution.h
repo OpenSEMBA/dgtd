@@ -12,7 +12,7 @@ namespace maxwell {
 
 	using straightElemList = mfem::Array<ElementId>;
 	using curvedElemMap = std::map<ElementId, mfem::Array<NodeId>>;
-	std::pair<straightElemList, curvedElemMap> initCurvedAndLinearElementsLists(const mfem::FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos);
+	std::pair<straightElemList, curvedElemMap> initCurvedAndLinearElementsLists(const mfem::ParFiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos);
 
 class HesthavenEvolution : public mfem::TimeDependentOperator
 {
@@ -20,7 +20,7 @@ public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	HesthavenEvolution(mfem::FiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+	HesthavenEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
 
 	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemLinearStorage_[e]; }
@@ -28,14 +28,14 @@ public:
 private:
 
 	void evaluateTFSF(HesthavenFields& jumps) const;
-	void storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement&);
+	void storeDirectionalMatrices(ParFiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement&);
 	void checkForTFSFInCurvedElements();
 	void applyBoundaryConditionsToNodes(const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out) const;
 	bool isDoFinCurvedElement(const NodeId& d) const;
 	
 	const Eigen::VectorXd applyLIFT(const Eigen::VectorXd& fscale, Eigen::VectorXd& flux) const;
 	
-	FiniteElementSpace& fes_;
+	ParFiniteElementSpace& fes_;
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;

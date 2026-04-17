@@ -160,7 +160,7 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
 
     // Construct or retrieve an integration rule for the appropriate reference element with the desired order of accuracy, 
     // taking into account the element's geometry type and an appropiate integration rule order.
-    const IntegrationRule* ir = &IntRules.Get(Tr.GetGeometryType(), el.GetOrder() + Tr.Order());
+    const IntegrationRule* ir = &IntRules.Get(Tr.GetGeometryType(), 2 * (el.GetOrder() + Tr.Order()));
 
     // Initialise vectors that will hold normal components.
     Vector inner_normal(3), normal(el.GetDim());
@@ -185,7 +185,10 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
             inner_normal[i] = -normal[i];
         }
 
-        el.CalcShape(ip, shape_);
+        // Use the integration point mapped to element 1's reference space,
+        // not the face integration point which only has valid x for 1D faces.
+        const IntegrationPoint& eip1 = Tr.GetElement1IntPoint();
+        el.CalcShape(eip1, shape_);
 
         // We evaluate the value of the coefficient at the specified point.
         auto coeff_eval{ c_.Eval(*Tr.Face, ip) };
@@ -300,6 +303,62 @@ void FarFieldBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, 
 //    //}
 //
 //}
+
+void NTFFBdrFaceIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement& el, mfem::ElementTransformation& Tr, mfem::Vector& elvect)
+{
+    mfem_error("NTFFBdrFaceIntegrator::AssembleRHSElementVect\n"
+        "  is not implemented as boundary integrator!\n"
+        "  Use LinearForm::AddBdrFaceIntegrator instead of\n"
+        "  LinearForm::AddBoundaryIntegrator.");
+}
+
+void NTFFBdrFaceIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement& el1, const mfem::FiniteElement& el2, mfem::FaceElementTransformations& Tr, mfem::Vector& elvect)
+{
+    mfem_error("NTFFBdrFaceIntegrator::AssembleRHSElementVect\n"
+        "  is not implemented for two element purposes!\n");
+}
+
+void NTFFBdrFaceIntegrator::AssembleRHSElementVect(const FiniteElement& el, FaceElementTransformations& Tr, Vector& elvect)
+{
+    shape_.SetSize(el.GetDof());
+    elvect.SetSize(el.GetDof());
+    elvect = 0.0;
+
+    const IntegrationRule* ir = &IntRules.Get(Tr.GetGeometryType(), 2 * (el.GetOrder() + Tr.Order()));
+
+    Vector normal(el.GetDim());
+
+    for (int i = 0; i < ir->GetNPoints(); i++)
+    {
+        const IntegrationPoint& ip = ir->IntPoint(i);
+        Tr.SetAllIntPoints(&ip);
+
+        // CalcOrtho gives a non-unit normal whose magnitude equals the face
+        // Jacobian |J|.  Combined with ip.weight this provides the correct
+        // physical surface measure: w_q * |J_q| * hat_n[dir].
+        normal = 0.0;
+        CalcOrtho(Tr.Jacobian(), normal);
+
+        // Negate to obtain the inward-pointing normal (NTF convention).
+        double n_dir = 0.0;
+        if (dir_ < normal.Size()) {
+            n_dir = -normal[dir_];
+        }
+
+        const IntegrationPoint& eip1 = Tr.GetElement1IntPoint();
+        el.CalcShape(eip1, shape_);
+
+        auto coeff_eval = c_.Eval(*Tr.Face, ip);
+
+        // No division by Tr.Weight(): the Jacobian embedded in CalcOrtho
+        // is the physical surface measure we need.
+        auto val = ip.weight * coeff_eval * n_dir;
+
+        elvect.Add(val, shape_);
+    }
+}
 
 }
 }

@@ -10,6 +10,8 @@
 
 #include "mfemExtension/LinearIntegrators.h"
 
+#include <filesystem>
+
 #include "components/SubMesher.h"
 #include "solver/ProbesManager.h"
 
@@ -41,10 +43,14 @@ struct SphericalAngles {
 struct PlaneWaveData {
 	double spread;
 	double mean;
+	double frequency{0.0};
 
-	PlaneWaveData(double s, double m) :
+	PlaneWaveData(double s, double m, double f = 0.0) :
 		spread(s),
-		mean(m) {};
+		mean(m),
+		frequency(f) {};
+
+	bool isModulated() const { return frequency != 0.0; }
 };
 
 struct FreqFields {
@@ -84,25 +90,27 @@ std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& se
 
 std::unique_ptr<FiniteElementSpace> buildFESFromGF(Mesh&, const std::string& data_path);
 
+std::vector<std::filesystem::path> getSortedSnapshotDirs(const std::string& data_path);
+
 std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Frequency>&, const std::vector<SphericalAngles>&);
 
 PlaneWaveData buildPlaneWaveData(const json&);
 std::vector<double> buildTimeVector(const std::string& data_path);
 
-GridFunction getGridFunction(Mesh&, const std::string& data_path);
+ParGridFunction getGridFunction(ParMesh&, const std::string& data_path);
 const Time getTime(const std::string& timePath);
 std::vector<double> evaluateGaussianVector(std::vector<Time>& time, double delay, double mean);
 void trimLowMagFreqs(const std::map<double, std::complex<double>>& map, std::vector<Frequency>&);
 
 Freq2CompVec calculateDFT(const Vector& gf, const std::vector<Frequency>&, const Time);
 
-FreqFields calculateFreqFields(Mesh& mesh, const std::vector<Frequency>&, const std::string& path);
+FreqFields calculateFreqFields(ParMesh& mesh, const std::vector<Frequency>&, const std::string& path);
 
-ComplexVector assembleComplexLinearForm(FunctionPair& fp, FiniteElementSpace&, const Direction&);
+ComplexVector assembleComplexLinearForm(FunctionPair& fp, ParFiniteElementSpace&, const Direction&);
 
 Array<int> getNearToFarFieldMarker(const int att_size);
 
-std::unique_ptr<LinearForm> assembleLinearForm(FunctionCoefficient& fc, FiniteElementSpace& fes, const Direction& dir);
+std::unique_ptr<ParLinearForm> assembleLinearForm(FunctionCoefficient& fc, ParFiniteElementSpace& fes, const Direction& dir);
 
 class FarField {
 public:
@@ -113,7 +121,7 @@ private:
 	
 	std::pair<std::complex<double>, std::complex<double>> calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const Frequency, const SphericalAngles& angles, bool isElectric);
 
-	std::unique_ptr<FiniteElementSpace> fes_;
+	std::unique_ptr<ParFiniteElementSpace> fes_;
 	std::map<SphericalAngles, Freq2Value> pot_rad_;
 };
 

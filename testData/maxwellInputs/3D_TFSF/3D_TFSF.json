@@ -1,13 +1,15 @@
 {
   "solver_options": {
-    "solver_type": "upwind",
-    "time_step": 0.0,
+    "upwind_alpha": 1.0,
+    "evolution_operator": "maxwell",
+    "time_step":  1e-3,
     "final_time":  6.0,
     "order": 3
   },
 
   "model": { 
     "filename": "3D_TFSF.msh",
+    "refinement": 1,
     "materials": [
       {
         "tags": [ 1, 2 ],
@@ -28,7 +30,7 @@
 
   "probes": {
     "exporter": {
-      "steps": 1
+      "steps": 40
     },
     "point": [
       {

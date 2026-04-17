@@ -1,0 +1,76 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 3.571e-6,
+    "final_time": 15.0,
+    "order": 3
+  },
+
+  "model": { 
+    "filename": "1D_SGBC_Faux_Multilayer.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2, 8 ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [ 3, 7 ],
+        "relative_permittivity": 4.0,
+        "relative_permeability": 1.0,
+        "bulk_conductivity": 1.0
+      },
+      {
+        "tags": [ 4, 6 ],
+        "relative_permittivity": 8.0,
+        "relative_permeability": 1.0,
+        "bulk_conductivity": 10.0
+      },
+      {
+        "tags": [ 5 ],
+        "relative_permittivity": 12.0,
+        "relative_permeability": 1.0,
+        "bulk_conductivity": 20.0
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1, 9 ],
+        "type": "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "saves": 60
+    },
+    "point": [
+      {
+        "position": [ 0.15 ],
+        "saves": 10000
+      },
+      {
+        "position": [ 0.35 ],
+        "saves": 10000
+      },
+      {
+        "position": [ 1.45 ],
+        "saves": 10000
+      }
+    ]
+  },
+
+  "sources": [ 
+    {
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 2 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.15,
+        "mean": [ -0.5 ]
+      }
+    }
+  ]
+}

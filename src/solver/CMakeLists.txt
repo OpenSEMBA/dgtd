@@ -1,11 +1,10 @@
 message(STATUS "Creating build system for maxwell-solver")
 
-if(SEMBA_DGTD_ENABLE_TIMER_INFORMATION)
-	add_definitions(-DSHOW_TIMER_INFORMATION)
-endif()
+find_package(Eigen3 3.3 REQUIRED CONFIG)
 
 add_library(maxwell-solver STATIC 
-	"Solver.cpp" 
+	"Solver.cpp"
+	"SolverExtension.cpp"
 	"ProbesManager.cpp" 
 	"SourcesManager.cpp")
 
@@ -18,7 +17,7 @@ target_link_libraries(maxwell-solver
 
 if (SEMBA_DGTD_ENABLE_OPENMP)
 	message(STATUS "Linking maxwell-solver with OpenMP libraries")
-	target_link_libraries(maxwell-solver OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
+	target_link_libraries(maxwell-solver Eigen3::Eigen OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
 endif()
 
 if(SEMBA_DGTD_ENABLE_CUDA)

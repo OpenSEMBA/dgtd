@@ -2,14 +2,13 @@
 
 #include "driver/driver.h"
 #include "FarField.h"
-#include <filesystem>
-#include <fstream>
 
 namespace maxwell {
 
 using namespace mfem;
 
 Freq2CompVec calculateDFT(const Vector&, const std::vector<double>& frequencies, const double time);
+std::vector<std::string> findRankFolders(const std::string& data_path);
 
 struct RCSData {
 	double RCSvalue;

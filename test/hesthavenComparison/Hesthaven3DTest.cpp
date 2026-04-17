@@ -167,8 +167,8 @@ TEST_F(MFEMHesthaven3D, faceChecker)
 		form->Assemble();
 		form->Finalize();
 
-		std::cout << "Face 0" << std::endl;
-		std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
+		// std::cout << "Face 0" << std::endl;
+		// std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
 	}
 
 	{
@@ -181,8 +181,8 @@ TEST_F(MFEMHesthaven3D, faceChecker)
 		form->Assemble();
 		form->Finalize();
 
-		std::cout << "Face 1" << std::endl;
-		std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
+		// std::cout << "Face 1" << std::endl;
+		// std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
 	}
 
 	{
@@ -195,8 +195,8 @@ TEST_F(MFEMHesthaven3D, faceChecker)
 		form->Assemble();
 		form->Finalize();
 
-		std::cout << "Face 2" << std::endl;
-		std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
+		// std::cout << "Face 2" << std::endl;
+		// std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
 	}
 
 	{
@@ -209,8 +209,8 @@ TEST_F(MFEMHesthaven3D, faceChecker)
 		form->Assemble();
 		form->Finalize();
 
-		std::cout << "Face 3" << std::endl;
-		std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
+		// std::cout << "Face 3" << std::endl;
+		// std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
 	}
 
 	{
@@ -222,8 +222,8 @@ TEST_F(MFEMHesthaven3D, faceChecker)
 		form->AddDomainIntegrator(new MassIntegrator(one));
 		form->Assemble();
 		form->Finalize();
-		std::cout << "Mass Triang" << std::endl;
-		std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
+		// std::cout << "Mass Triang" << std::endl;
+		// std::cout << toEigen(*form.get()->SpMat().ToDenseMatrix()) << std::endl;
 	}
 
 }
@@ -247,7 +247,7 @@ TEST_F(MFEMHesthaven3D, EmatO1)
 
 	emat *= 2.0;
 
-	std::cout << emat << std::endl;
+	// std::cout << emat << std::endl;
 
 	DynamicMatrix expected_emat{
 		{0.0000, 0.0000, 0.0000, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667, 0.3333, 0.1667, 0.1667},

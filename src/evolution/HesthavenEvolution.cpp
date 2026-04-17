@@ -1,5 +1,9 @@
 #include "HesthavenEvolution.h"
 
+#include <chrono>
+#include <iostream>
+#include <string>
+
 namespace maxwell {
 
 using MatricesSet = std::set<DynamicMatrix, MatrixCompareLessThan>;
@@ -141,14 +145,14 @@ double getReferenceVolume(const Element::Type geom)
 	}
 }
 
-void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement& hestElem)
+void HesthavenEvolution::storeDirectionalMatrices(ParFiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement& hestElem)
 {
 	Model model(*subFES.GetMesh(), GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo{});
 	Probes probes;
 	ProblemDescription pd(model, probes, srcmngr_.sources, opts_);
-	DGOperatorFactory dgops(pd, subFES);
+	DGOperatorFactory<ParFiniteElementSpace> dgops(pd, subFES);
 	for (int d = X; d <= Z; d++) {
-		auto denseMat = dgops.buildDerivativeSubOperator(d)->SpMat().ToDenseMatrix();
+		auto denseMat = dgops.buildDerivativeSubOperator<ParBilinearForm>(d)->SpMat().ToDenseMatrix();
 		DynamicMatrix dirMat = refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol;
 		delete denseMat;
 		StorageIterator it = matrixStorage_.find(dirMat);
@@ -198,7 +202,7 @@ void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem
 	}
 }
 
-std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndLinearElementsLists(const FiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos)
+std::pair<Array<ElementId>,std::map<ElementId,Array<NodeId>>> initCurvedAndLinearElementsLists(const ParFiniteElementSpace& fes, const std::vector<Source::Position>& curved_pos)
 {
 	Mesh mesh_p1(*fes.GetMesh());
 	FiniteElementSpace fes_p1(&mesh_p1, fes.FEColl());
@@ -294,8 +298,8 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 		for (int d = X; d <= Z; d++) {
 			for (int v = 0; v < bdrMaps.SMA.vmapB[m].size(); v++) {
 				if (!isDoFinCurvedElement(bdrMaps.SMA.vmapB[m][v])) {
-					out.e_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.SMA.vmapB[m][v]];
-					out.h_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.SMA.vmapB[m][v]];
+					out.e_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.e_[d][bdrMaps.SMA.vmapB[m][v]] / opts_.alpha;
+					out.h_[d][bdrMaps.SMA.mapB[m][v]] = -1.0 * in.h_[d][bdrMaps.SMA.vmapB[m][v]] / opts_.alpha;
 				}
 			}
 		}
@@ -342,7 +346,7 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 
 }
 
-HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
+HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
 	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
 	fes_(fes),
 	model_(model),
@@ -350,11 +354,20 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 	opts_(opts),
 	connectivity_(model, fes)
 {
+
+#ifdef SHOW_TIMER_INFORMATION
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << "Hesthaven Evolution Operator is being initialized." << std::endl;
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+#endif
+
 	Array<int> elementMarker;
 	elementMarker.Append(hesthavenMeshingTag);
 
 	const auto* cmesh = &model_.getConstMesh();
-	auto mesh{ Mesh(model_.getMesh()) };
+	auto mesh{ ParMesh(model_.getMesh()) };
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
 	auto attMap{ mapOriginalAttributes(model_.getMesh()) };
 
@@ -367,7 +380,7 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
 
-	bool allElementsSameGeomType = true;
+	bool allElementsSameGeomType = true; 
 	{
 		const auto firstElemGeomType = cmesh->GetElementGeometry(0);
 		for (auto e= 0; e < cmesh->GetNE(); e++)
@@ -388,6 +401,14 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
 
+#ifdef SHOW_TIMER_INFORMATION
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << std::to_string(linearElements_.Size()) + " linear elements out of " + std::to_string(cmesh->GetNE()) + " total elements." << std::endl;
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+#endif
+
 	for (int e = 0; e < linearElements_.Size(); e++)
 	{
 		HesthavenElement hestElem;
@@ -396,9 +417,9 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		hestElem.vol = mesh.GetElementVolume(linearElements_[e]);
 
 		mesh.SetAttribute(linearElements_[e], hesthavenMeshingTag);
-		auto sm{ SubMesh::CreateFromDomain(mesh, elementMarker) };
+		auto sm{ ParSubMesh::CreateFromDomain(mesh, elementMarker) };
 		restoreOriginalAttributesAfterSubMeshing(linearElements_[e], mesh, attMap);
-		FiniteElementSpace subFES(&sm, fec);
+		ParFiniteElementSpace subFES(&sm, fec);
 
 		sm.bdr_attributes.SetSize(subFES.GetNF());
 		for (auto f= 0; f < subFES.GetNF(); f++) {
@@ -413,10 +434,18 @@ HesthavenEvolution::HesthavenEvolution(FiniteElementSpace& fes, Model& model, So
 		hestElemLinearStorage_[e] = hestElem;
 	}
 	
+#ifdef SHOW_TIMER_INFORMATION
+	std::cout << "------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	std::cout << std::to_string(curvedElements_.size()) + " curved elements out of " + std::to_string(cmesh->GetNE()) + " total elements." << std::endl;
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------" << std::endl;
+#endif
+
 	if (curvedElements_.size()) {
 		Probes probes;
 		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
-		DGOperatorFactory dgops(pd, fes_);
+		DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes_);
 		auto global = dgops.buildGlobalOperator();
 
 		for (const auto& [e, dofs]: curvedElements_) {
@@ -454,8 +483,7 @@ void loadOutVectors(const Eigen::VectorXd& data, const FiniteElementSpace& fes, 
 
 void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 {
-	double alpha;
-	opts_.fluxType == FluxType::Upwind ? alpha = 1.0 : alpha = 0.0;
+	double alpha = opts_.alpha;
 	in.UseDevice(true);
 	out.UseDevice(true);
 

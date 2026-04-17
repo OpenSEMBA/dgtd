@@ -132,7 +132,7 @@ TEST_F(GridFunctionTest, GetValuesAtPoints1D)
 			{0.1}, // Point within an element in the mesh.
 			{0.5}, // Point in the boundary between two elements.
 			{1.0}, // Point at right boundary.
-			{1.1}  // Point out of the mesh.
+			{1.1}  // Point out of the mesh. On purpose.
 		} 
 	};
 	pointMat.Transpose();
@@ -363,4 +363,19 @@ TEST_F(GridFunctionTest, ProjectBetweenDifferentSpaces)
 	}
 
 
+}
+
+TEST_F(GridFunctionTest, HostDeviceTests)
+{
+	const Vector vector = Vector({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+	Vector receiver_vector(5);
+	GridFunction receiver_gf;
+	receiver_gf.SetSize(5);
+
+	for (auto t = 0; t < 10; t++){
+		receiver_vector.SetData(vector.GetData());
+		receiver_gf.SetData(vector.GetData());
+	}
+	
 }

@@ -1,0 +1,78 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+	  "time_step": 1e-5,
+    "final_time": 20.0,
+    "order": 2
+  },
+  "model": {
+    "filename": "3D_RCS_Sphere_Box_05m_G2.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          4,
+          5
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1 ],
+        "type": "SGBC",
+        "material":{
+          "relative_permittivity": 4.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 0.5, 
+          "material_width": 3e-2,
+          "sgbc_boundaries": {
+            "right": "PEC"
+          }
+        }
+      },
+      {
+        "tags": [
+          9
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "saves": 200
+    },
+    "farfield": [
+      {
+        "name": "sphere_Box_05m_G2",
+        "steps": 50,
+        "tags": [
+          3, 4, 5, 6, 7, 8
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "propagation": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        3, 4, 5, 6, 7, 8
+      ],
+      "magnitude": {
+        "spread": 0.20,
+        "mean": [0.0, 0.0, -4.0]
+      }
+    }
+  ]
+}

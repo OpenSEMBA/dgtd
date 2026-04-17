@@ -30,14 +30,14 @@ public:
 
 private:
 
-	void prepareSubMeshInfo(Mesh& m,   const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
+	void prepareSubMeshInfo(    Mesh&, const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
 	void setAttributeForTagging(Mesh&, const FaceElementTransformations*, bool el1_is_tf);
-	void setGlobalTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
 	void storeElementToFaceInformation(const FaceElementTransformations*, const std::pair<int, int> facesId, bool el1_is_tf);
+	void setGlobalTFSFAttributesForSubMeshing(Mesh&, const Array<int>& marker);
 	
-	SetPairs twoPointAssignator(Mesh&, int be, bool flag);
-	void assignIndividualTFSFAttsOnePoint1D(Mesh&, const Array<int>& marker);
-	void assignIndividualTFSFAttsTwoPoints1D(Mesh&, const Array<int>& marker);
+	SetPairs twoPointAssignator(                    Mesh&, int be, bool flag);
+	void assignIndividualTFSFAttsOnePoint1D(        Mesh&, const Array<int>& marker);
+	void assignIndividualTFSFAttsTwoPoints1D(       Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing1D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing2D(Mesh&, const Array<int>& marker);
 	void setIndividualTFSFAttributesForSubMeshing3D(Mesh&, const Array<int>& marker);
@@ -57,7 +57,7 @@ class NearToFarFieldSubMesher
 {
 public:
 	NearToFarFieldSubMesher(){};
-	NearToFarFieldSubMesher(const Mesh&, const FiniteElementSpace&, const Array<int>& marker);
+	NearToFarFieldSubMesher(const Mesh&, const ParFiniteElementSpace&, const Array<int>& marker);
 
 	const SubMesh* getConstSubMesh() { return ntff_mesh_.get(); }
 	SubMesh* getSubMesh() { return ntff_mesh_.get(); }
@@ -98,6 +98,11 @@ FaceElementTransformations* getFaceElementTransformation(Mesh& m, int be);
 Vector getBarycenterOfElement(Mesh& m, int e);
 Vector getBarycenterOfFaceElement(Mesh& m, int f);
 Vector getNormal(FaceElementTransformations& fet);
+Vector getNormalAtRefPoint(FaceElementTransformations& fet, const IntegrationPoint& face_ip);
+std::vector<Vector> computePerDofFaceNormals(
+	FaceElementTransformations& fet,
+	const FiniteElementSpace& fes,
+	const std::vector<int>& elem1FaceDofLocalIndices);
 std::pair<double, double> calculateBaryNormalProduct(Mesh& m, FaceElementTransformations& fet, int be);
 double calculateCrossBaryVertexSign(Mesh& m, FaceElementTransformations& fet, int be);
 double buildFaceOrientation(Mesh& mesh, int be);

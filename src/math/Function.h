@@ -1,13 +1,13 @@
 #pragma once
 
-#include <mfem.hpp>
-#include <math.h>
-#include <cmath>
 #include "math/PhysicalConstants.h"
 #include "evolution/Fields.h"
 #include "components/Spherical.h"
 #include "math/Calculus.h"
 #include "components/Types.h"
+
+#include <gsl/gsl_sf_bessel.h>  
+#include <gsl/gsl_sf_legendre.h>
 
 namespace maxwell {
 
@@ -100,6 +100,49 @@ private:
 	int dimension_;
 };
 
+/**
+* A modulated Gaussian: exp(-((x-mean)^2)/(2*spread^2)) * cos(2*pi*freq*(x-mean))
+* Uses a wide envelope (large spread) with a carrier frequency to place spectral
+* content around freq without needing fine mesh resolution for a narrow Gaussian.
+* freq is in normalized units (f_SI / c_SI).
+*/
+class ModulatedGaussian : public Function {
+public:
+	ModulatedGaussian(
+		double spread,
+		const Position mean,
+		double freq,
+		int dim = 1
+	) :
+		spread_{ spread },
+		mean_{ mean },
+		freq_{ freq },
+		dimension_{ dim }
+	{
+		assert(mean_.Size() == dimension_);
+	}
+
+	int dimension() const { return dimension_; }
+
+	std::unique_ptr<Function> clone() const {
+		return std::make_unique<ModulatedGaussian>(*this);
+	}
+
+	double eval(const Position& pos) const {
+		assert(dimension_ <= pos.Size());
+		double arg = pos[X] - mean_[X];
+		double envelope = exp(-arg * arg / (2.0 * spread_ * spread_));
+		double carrier = cos(2.0 * M_PI * freq_ * arg);
+		return envelope * carrier;
+	}
+
+private:
+	double spread_;
+	Position mean_;
+	double freq_;
+	int dimension_;
+};
+
 class SinusoidalMode : public Function {
 public:
 	SinusoidalMode(std::vector<std::size_t> modes) :
@@ -151,6 +194,40 @@ public:
 
 };
 
+class SphericalBesselJ6 : public Function {
+public:
+	SphericalBesselJ6() {}
+
+	std::unique_ptr<Function> clone() const override {
+		return std::make_unique<SphericalBesselJ6>(*this);
+	}
+
+	int dimension() const override { return 3; }
+
+	double eval(const Position& pos) const override
+	{
+		const double alpha6 = 13.589290170541217;
+		const double x = pos[0];
+		const double y = pos[1];
+		const double z = pos[2];
+
+		double r = pos.Norml2();
+		if (r == 0.0) return 0.0;
+
+		double theta = std::acos(z / r);
+		double phi = std::atan2(y, x);
+
+		double j6 = gsl_sf_bessel_jl(6, alpha6 * r);
+
+		double P66 = gsl_sf_legendre_sphPlm(6, 6, std::cos(theta)); 
+		double Y66_real = P66 * std::cos(6 * phi);
+
+		double cosAtT0 = 1.0;
+
+		return j6 * Y66_real * cosAtT0;
+	}
+};
+
 class DerivGaussDipole : public EHFieldFunction {
 public:
 	DerivGaussDipole(const double length, const double gaussianSpread, const double gaussMean) :
@@ -175,7 +252,6 @@ public:
 		const Position& p, const Time& t,
 		const FieldType& ft, const Direction& d) const {
 
-		VectorTF res;
 		SphericalVector pos(p);
 
 		const auto& cs = physicalConstants::speedOfLight;
@@ -239,6 +315,8 @@ public:
 					case Z:
 						return resField[2];
 				}
+			default:
+				throw std::runtime_error("Unknown FieldType as argument in DerivGaussDipole.");
 		}
 	}
 
@@ -336,6 +414,147 @@ private:
 	Polarization polarization_;
 	Propagation propagation_;
 	FieldType fieldtype_;
+};
+
+
+class TimeFunction {
+public:
+
+	virtual ~TimeFunction() = default;
+
+	virtual std::unique_ptr<TimeFunction> clone() const = 0;
+
+	virtual double eval(const Position&, const Time&) const = 0;
+
+};
+
+class TM2DSinusoidalMode : public TimeFunction
+{
+public:
+	TM2DSinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
+    {
+        int dim = modes.size();
+        if(modes_.size() != box_size_.size()){
+            modes_.size() > box_size_.size() ? dim = modes_.size() : dim = box_size_.size();
+        }
+        modes_.resize(dim);
+        box_size_.resize(dim);
+        for (auto d = 0; d < dim; d++){
+            modes_[d] = modes[d];
+            box_size_[d] = box_size[d];
+        }
+    }
+
+	std::unique_ptr<TimeFunction> clone() const {
+		return std::make_unique<TM2DSinusoidalMode>(*this);
+	}
+
+	double eval(const Position& pos, const Time& t) const
+	{
+		double w = M_PI;
+		double root_factor = 0.0;
+        for (auto d = 0; d < modes_.size(); d++){
+            root_factor += std::pow(modes_[d] / box_size_[d], 2);
+        }
+		w *= std::sqrt(root_factor);
+
+        double res = std::cos(w * t);
+        for (auto d = 0; d < modes_.size(); d++){
+            res *= std::sin(modes_[d] * M_PI * pos[d] / box_size_[d]);
+        }
+
+        return res;
+	}
+
+private:
+	std::vector<std::size_t> modes_;
+    std::vector<double> box_size_;
+};
+
+class TM2D_Dx_SinusoidalMode : public TimeFunction
+{
+public:
+	TM2D_Dx_SinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
+    {
+        int dim = modes.size();
+        if(modes_.size() != box_size_.size()){
+            modes_.size() > box_size_.size() ? dim = modes_.size() : dim = box_size_.size();
+        }
+        modes_.resize(dim);
+        box_size_.resize(dim);
+        for (auto d = 0; d < dim; d++){
+            modes_[d] = modes[d];
+            box_size_[d] = box_size[d];
+        }
+    }
+
+	std::unique_ptr<TimeFunction> clone() const {
+		return std::make_unique<TM2D_Dx_SinusoidalMode>(*this);
+	}
+
+	double eval(const Position& pos, const Time& t) const
+	{
+		double w = M_PI;
+		double root_factor = 0.0;
+        for (auto d = 0; d < modes_.size(); d++){
+            root_factor += std::pow(modes_[d] / box_size_[d], 2);
+        }
+		w *= std::sqrt(root_factor);
+
+		double constant_factor = modes_[0] * M_PI / (w * box_size_[0]);
+        double res = constant_factor * std::cos(w * t) 
+		* std::cos(modes_[0] * M_PI * pos[0] / box_size_[0])
+		* std::sin(modes_[1] * M_PI * pos[1] / box_size_[1]);
+
+        return res;
+	}
+
+private:
+	std::vector<std::size_t> modes_;
+    std::vector<double> box_size_;
+};
+
+class TM2D_Dy_SinusoidalMode : public TimeFunction
+{
+public:
+	TM2D_Dy_SinusoidalMode(const std::vector<std::size_t>& modes, const std::vector<double>& box_size)
+    {
+        int dim = modes.size();
+        if(modes_.size() != box_size_.size()){
+            modes_.size() > box_size_.size() ? dim = modes_.size() : dim = box_size_.size();
+        }
+        modes_.resize(dim);
+        box_size_.resize(dim);
+        for (auto d = 0; d < dim; d++){
+            modes_[d] = modes[d];
+            box_size_[d] = box_size[d];
+        }
+    }
+
+	std::unique_ptr<TimeFunction> clone() const {
+		return std::make_unique<TM2D_Dy_SinusoidalMode>(*this);
+	}
+
+	double eval(const Position& pos, const Time& t) const
+	{
+		double w = M_PI;
+		double root_factor = 0.0;
+        for (auto d = 0; d < modes_.size(); d++){
+            root_factor += std::pow(modes_[d] / box_size_[d], 2);
+        }
+		w *= std::sqrt(root_factor);
+
+		double constant_factor = modes_[1] * M_PI / (w * box_size_[1]);
+        double res = constant_factor * std::cos(w * t) 
+		* std::sin(modes_[0] * M_PI * pos[0] / box_size_[0])
+		* std::cos(modes_[1] * M_PI * pos[1] / box_size_[1]);
+
+        return res;
+	}
+
+private:
+	std::vector<std::size_t> modes_;
+    std::vector<double> box_size_;
 };
 
 }

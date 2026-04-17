@@ -58,9 +58,9 @@ TEST_F(Solver3DTest, pec_global_1dot5D)
 {
 	const double tol{ 6e-2 };
 
-	for (const auto& flux : {
-				FluxType::Centered, 
-				FluxType::Upwind}) {
+	for (const auto& alpha : {
+				0.0, 
+				1.0}) {
 		for (const auto& elementType : {
 					Element::Type::HEXAHEDRON, 
 					Element::Type::TETRAHEDRON}) {
@@ -69,7 +69,7 @@ TEST_F(Solver3DTest, pec_global_1dot5D)
 			opts.setTimeStep(10e-3)
 				.setFinalTime(2.0)
 				.setOrder(3);		
-			opts.evolution.fluxType = flux;
+			opts.evolution.alpha = alpha;
 			
 			maxwell::Solver solver{
 				buildModel(
@@ -87,13 +87,13 @@ TEST_F(Solver3DTest, pec_global_1dot5D)
 				opts
 			};
 
-			GridFunction eOld{solver.getField(E, Y)};
-			GridFunction hOld{solver.getField(H, Z)};
+			GridFunction eOld{solver.getConstField(E, Y)};
+			GridFunction hOld{solver.getConstField(H, Z)};
 
 			solver.run();
 
-			GridFunction eNew{solver.getField(E, Y)};
-			GridFunction hNew{solver.getField(H, Z)};
+			GridFunction eNew{solver.getConstField(E, Y)};
+			GridFunction hNew{solver.getConstField(H, Z)};
 
 			EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
 			EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
@@ -106,9 +106,9 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 	
 	const double tol{ 50e-2 };
 
-	for (const auto& flux : {
-				FluxType::Centered, 
-				FluxType::Upwind}) {
+	for (const auto& alpha : {
+				0.0, 
+				1.0}) {
 		Mesh m;
 		{
 			Mesh cube{ Mesh::MakeCartesian3D(6,3,3,Element::HEXAHEDRON,1.0,1.0,1.0) };
@@ -124,7 +124,7 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 		opts.setTimeStep(15e-3)
 			.setFinalTime(1.0)
 			.setOrder(3);
-		opts.evolution.fluxType = flux;
+		opts.evolution.alpha = alpha;
 
 		maxwell::Solver solver{
 			Model{m},
@@ -139,13 +139,13 @@ TEST_F(Solver3DTest, periodic_global_cube_hexa)
 			opts
 		};
 
-		GridFunction eOld{solver.getField(E, Y)};
-		GridFunction hOld{solver.getField(H, Z)};
+		GridFunction eOld{solver.getConstField(E, Y)};
+		GridFunction hOld{solver.getConstField(H, Z)};
 
 		solver.run();
 
-		GridFunction eNew{solver.getField(E, Y)};
-		GridFunction hNew{solver.getField(H, Z)};
+		GridFunction eNew{solver.getConstField(E, Y)};
+		GridFunction hNew{solver.getConstField(H, Z)};
 
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), tol);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), tol);
@@ -188,14 +188,14 @@ TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 
 	{
 		auto expected_t{ 0.5 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.5, f.Ez, tolerance);
 				EXPECT_NEAR(0.5, f.Hy, tolerance);
 			}
 		}
 
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR( 0.5, f.Ez, tolerance);
 				EXPECT_NEAR(-0.5, f.Hy, tolerance);
@@ -205,14 +205,14 @@ TEST_F(Solver3DTest, sma_upwind_hexa_1dot5D)
 
 	{
 		auto expected_t{ 1.0 };
-		for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);
 			}
 		}
 
-		for (const auto& [t, f] : solver.getFieldProbe(1).getFieldMovies()) {
+		for (const auto& [t, f] : solver.getPointProbe(1).getFieldMovies()) {
 			if (abs(t - expected_t) <= 1e-3) {
 				EXPECT_NEAR(0.0, f.Ez, tolerance);
 				EXPECT_NEAR(0.0, f.Hy, tolerance);

@@ -299,6 +299,16 @@ namespace maxwell {
 		return res;
 	}
 
+	SubMesh assembleBoundaryFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap)
+	{
+		Array<int> volume_marker;
+		volume_marker.Append(hesthavenMeshingTag);
+		m.SetAttribute(trans.Elem1No, hesthavenMeshingTag);
+		auto res{ SubMesh::CreateFromDomain(m, volume_marker) };
+		restoreOriginalAttributesAfterSubMeshing(trans.Elem1No, m, attMap);
+		return res;
+	}
+
 	SubMesh assembleInteriorFaceSubMesh(Mesh& m, const FaceElementTransformations& trans, const FaceToGeomTag& attMap)
 	{
 		Array<int> volume_marker;
@@ -357,6 +367,21 @@ namespace maxwell {
 		for (auto v{ 0 }; v < sortingVector.size(); v++) {
 			map.push_back(sortingVector[v]);
 		}
+	}
+
+	BoundaryFaceConnectivityMaps buildConnectivityForBdrFace(const FaceElementTransformations& trans, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
+	{
+		Array<int> dofs1;
+		globalFES.GetElementDofs(trans.Elem1No, dofs1);
+
+		Nodes elem1;
+		
+		for (auto v{ 0 }; v < dofs1.Size(); v++) {
+			elem1.push_back(dofs1[v]);
+		}
+
+		return std::make_pair(elem1, elem1);
+
 	}
 
 	InteriorFaceConnectivityMaps buildConnectivityForInteriorBdrFace(const FaceElementTransformations& trans, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
@@ -576,7 +601,7 @@ namespace maxwell {
 			for (const auto& marker : markers) {
 				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
 					FaceElementTransformations* faceTrans;
-					model_.getConstMesh().FaceIsInterior(model_.getMesh().GetFaceElementTransformations(model_.getConstMesh().GetBdrFace(b))->ElementNo) ? faceTrans = model_.getMesh().GetInternalBdrFaceTransformations(b) : faceTrans = model_.getMesh().GetBdrFaceTransformations(b);
+					model_.getConstMesh().FaceIsInterior(model_.getMesh().GetFaceElementTransformations(model_.getConstMesh().GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = model_.getMesh().GetInternalBdrFaceTransformations(b) : faceTrans = model_.getMesh().GetBdrFaceTransformations(b);
 					fes_.GetMesh()->Dimension() == 2 ? ori = calculateCrossBaryVertexSign(*fes_.GetMesh(), *faceTrans, b) : ori = buildFaceOrientation(*fes_.GetMesh(), b);
 					auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
 					FiniteElementSpace subFES(&twoElemSubMesh, fec);
@@ -607,6 +632,7 @@ namespace maxwell {
 				}
 			}
 		}
+		throw std::runtime_error("No matching nodes found in connectivity in findMapBIDForFaceNodes.");
 	}
 
 	Nodes initMapB(const GlobalConnectivity& connectivity)
@@ -668,11 +694,39 @@ namespace maxwell {
 		}
 	}
 
+	GlobalConnectivity assembleGlobalConnectivityMap1D(const size_t num_elem, const size_t p)
+	{
+		GlobalConnectivity res;
+		res.reserve((num_elem - 1) * 2 + 2); // Interior interfaces two times plus two pure boundaries.
+		const auto np = p + 1;
+
+		NodePair pair, inv_pair;
+		pair.first = 0; // Left Bdr
+		pair.second = pair.first;
+		res.emplace_back(pair);
+		for (auto e = 0; e < num_elem - 1; e++){ // e & e+1 connectivity (two-way)
+			pair.first = p * e + p;
+			pair.second = p * e + p + 1;
+			res.emplace_back(pair);
+			inv_pair.first = pair.second;
+			inv_pair.second = pair.first;
+			res.emplace_back(inv_pair);
+		}
+		pair.first = p * num_elem + p; // Right Bdr
+		pair.second = pair.first;
+		res.emplace_back(pair);
+		return res;
+	}
+
 	GlobalConnectivity assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
 	{
 		GlobalConnectivity res;
 		auto mesh{ Mesh(m) };
 		FiniteElementSpace globalFES(&mesh, fec);
+
+		if (mesh.Dimension() == 1){
+			return assembleGlobalConnectivityMap1D(mesh.GetNE(), fec->GetOrder());
+		}
 
 		std::map<FaceId, bool> global_face_is_interior;
 		int numFaces;

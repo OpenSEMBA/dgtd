@@ -8,78 +8,119 @@
   "configurePresets": [
     {
       "name": "default",
+      "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY": "ON"
+        "SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY": "ON",
+        "MFEM_ENABLE_TESTING": false,
+        "MFEM_ENABLE_EXAMPLES": false
       }
     },
     {
-      "name": "gnu",
-      "displayName": "GNU release",
+      "name": "gnu-debug-base",
+      "hidden": true,
       "inherits": "default",
       "cacheVariables": {
-        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON", 
-        "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON",
+        "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON"
       }
     },
     {
-      "name": "gnu-dbg",
-      "displayName": "GNU debug",
+      "name": "gnu-release-base",
+      "hidden": true,
       "inherits": "default",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    },
-    {
-      "name": "x64-Debug",
-      "displayName": "x64 Debug",
-      "inherits": "default",
-      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
         "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON",
         "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
-        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "MFEM_USE_OPENMP": true,
+        "SEMBA_DGTD_ENABLE_OPENMP": true
       }
     },
     {
-      "name": "x64-Release",
-      "displayName": "x64 Release",
-      "inherits": "default",
+      "name": "gnu-debug-mpi",
+      "displayName": "GNU debug mpi",
+      "inherits": "gnu-debug-base",
       "cacheVariables": {
-        "SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS": "ON",
-        "SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS": "ON",
-        "SEMBA_DGTD_ENABLE_TIMER_INFORMATION": "ON",
-        "CMAKE_BUILD_TYPE": "Release"
+        "SEMBA_DGTD_ENABLE_MPI": true,
+        "METIS_DIR": "$env{METIS_DIR}",
+        "HYPRE_DIR": "$env{HYPRE_DIR}",
+        "MFEM_USE_MPI": true,
+        "MFEM_USE_OPENMP": true,
+        "MFEM_USE_METIS": true,
+        "MFEM_USE_METIS_5": true
+      }
+    },
+    {
+      "name": "gnu-release-mpi",
+      "displayName": "GNU release mpi",
+      "inherits": "gnu-release-base",
+      "cacheVariables": {
+        "SEMBA_DGTD_ENABLE_MPI": true,
+        "METIS_DIR": "$env{METIS_DIR}",
+        "HYPRE_DIR": "$env{HYPRE_DIR}",
+        "MFEM_USE_MPI": true,
+        "MFEM_USE_OPENMP": true,
+        "MFEM_USE_METIS": true,
+        "MFEM_USE_METIS_5": true
+      }
+    },
+    {
+      "name": "gnu-debug-cuda",
+      "displayName": "GNU debug cuda",
+      "inherits": "gnu-debug-mpi",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-12",
+        "CMAKE_CXX_COMPILER": "g++-12",
+        "CMAKE_CUDA_HOST_COMPILER": "g++-12",
+        "SEMBA_DGTD_ENABLE_CUDA": "ON",
+        "HYPRE_DIR": "$env{HYPRE_CUDA_DIR}",
+        "MFEM_USE_CUDA": true,
+        "CUDA_ARCH": "sm_89",
+        "CMAKE_CUDA_ARCHITECTURES": "89"
+      }
+    },
+    {
+      "name": "gnu-release-cuda",
+      "displayName": "GNU release cuda",
+      "inherits": "gnu-release-mpi",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-12",
+        "CMAKE_CXX_COMPILER": "g++-12",
+        "CMAKE_CUDA_HOST_COMPILER": "g++-12",
+        "SEMBA_DGTD_ENABLE_CUDA": "ON",
+        "HYPRE_DIR": "$env{HYPRE_CUDA_DIR}",
+        "MFEM_USE_CUDA": true,
+        "CUDA_ARCH": "sm_89",
+        "CMAKE_CUDA_ARCHITECTURES": "89"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "gnu",
-      "configurePreset": "gnu",
-      "displayName": "Build with GNU release",
-      "jobs": 4
+      "name": "build-gnu-debug-mpi",
+      "displayName": "Build GNU debug mpi",
+      "configurePreset": "gnu-debug-mpi"
     },
     {
-      "name": "gnu-dbg",
-      "configurePreset": "gnu-dbg",
-      "displayName": "Build with GNU debug",
-      "jobs": 4
+      "name": "build-gnu-release-mpi",
+      "displayName": "Build GNU release mpi",
+      "configurePreset": "gnu-release-mpi"
     },
     {
-      "name": "x64-Debug",
-      "configurePreset": "x64-Debug",
-      "configuration": "Debug",
-      "jobs": 4
+      "name": "build-gnu-debug-cuda",
+      "displayName": "Build GNU debug cuda",
+      "configurePreset": "gnu-debug-cuda"
     },
     {
-      "name": "x64-Release",
-      "configurePreset": "x64-Release",
-      "configuration": "Release",
-      "jobs": 4
+      "name": "build-gnu-release-cuda",
+      "displayName": "Build GNU release cuda",
+      "configurePreset": "gnu-release-cuda"
     }
   ]
 }

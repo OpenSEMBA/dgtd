@@ -22,63 +22,91 @@
 
 namespace maxwell {
 
+class SGBCWrapper;
+
+std::unique_ptr<ParFiniteElementSpace> buildFiniteElementSpace(ParMesh* m, FiniteElementCollection* fec);
+double estimateTimeStep(const Model&, const SolverOptions&, const ParFiniteElementSpace&, const TimeDependentOperator*);
+double getMinimumInterNodeDistance(FiniteElementSpace& fes);
+
 class Solver {
 public:
     using Vector = mfem::Vector;
     using Position = Vector;
-    using GridFunction = mfem::GridFunction;
+    using ParGridFunction = mfem::ParGridFunction;
     using ODESolver = mfem::ODESolver;
+    using ParFields = Fields<ParFiniteElementSpace, ParGridFunction>;
     
     Solver(const Model&, const Probes&, const Sources&, const SolverOptions& = SolverOptions());
     Solver(const Solver&) = delete;
     Solver& operator=(const Solver&) = delete;
+    
+    ~Solver();
 
-    const Fields& getFields() const { return fields_; };
-    const GridFunction& getField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
-    const FieldProbe& getPointProbe(std::size_t probe) const;
-    const PointProbe& getFieldProbe(std::size_t probe) const;
+    const ParFields& getFields() const { return fields_; }
+    // Non-const accessor needed for state hydration
+    ParFields& getFields() { return fields_; } 
+
+    void  setFieldValue(const FieldType& f, const Direction& d, const size_t dof_no, const double val) { fields_.get(f,d)[dof_no] = val; }
+    const ParGridFunction& getConstField(const FieldType& f, const Direction& d) const  { return fields_.get(f, d); }
+    const FieldProbe& getFieldProbe(std::size_t probe) const;
+    const PointProbe& getPointProbe(std::size_t probe) const;
 
     double getTime() const { return time_; }
+    // [ADDED] Critical for context switching
+    void setTime(double t) { time_ = t; } 
+
     double getTimeStep() const { return dt_; }
 
     Model& getModel() { return model_; }
-    FiniteElementSpace& getFES() { return *fes_.get(); }
-    
-    double estimateTimeStep() const;
+    ParFiniteElementSpace& getFES() { return *fes_.get(); }
 
-    const mfem::TimeDependentOperator* getFEEvol() const { return maxwellEvol_.get(); }
+    const mfem::TimeDependentOperator* getConstEvolTDO() const { return evolTDO_.get(); }
+    mfem::TimeDependentOperator* getEvolTDO() { return evolTDO_.get(); }
+
+    SolverOptions& getSolverOptions() { return this->opts_; }
+
 
     void run();
     void step();
 
-    void setFinalTime(double finalTime) {
-        opts_.setFinalTime(finalTime);
+    void setFinalTime(double final_time) {
+        opts_.setFinalTime(final_time);
+    }
+    
+    void setTimeStep(double dt) {
+        dt_ = dt;
+        opts_.setTimeStep(dt);
     }
 
 private:
+
     SolverOptions opts_;
     Model model_;
     mfem::DG_FECollection fec_;
-    std::unique_ptr<mfem::FiniteElementSpace> fes_;
-    Fields fields_;
-    std::unique_ptr<Device> device_;
+    std::unique_ptr<mfem::ParFiniteElementSpace> fes_;
+    ParFields fields_;
     
     SourcesManager sourcesManager_;
     ProbesManager probesManager_;
     
     double time_;
     double dt_;
-    std::unique_ptr<ODESolver> odeSolver_{ std::make_unique<mfem::RK4Solver>() };
-    
-    std::unique_ptr<mfem::TimeDependentOperator> maxwellEvol_;
+    std::unique_ptr<ODESolver> odeSolver_;
+
+    std::unique_ptr<mfem::TimeDependentOperator> evolTDO_;
+    GlobalEvolution* globalEvol_cache_ = nullptr;  // Cached pointer to avoid dynamic_cast per step
 
     void checkOptionsAreValid(const SolverOptions&) const; 
+    void assignODESolver();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
+    std::map<GeomTag, std::vector<NodePair>> findSGBCDoFPairs();
 
-    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(Mesh&, const FiniteElementCollection&, const EvolutionOptions&);
-    GeomTagToBoundary assignAttToBdrByDimForSpectral(Mesh&);
+    Eigen::SparseMatrix<double> assembleSubmeshedSpectralOperatorMatrix(ParMesh&, const FiniteElementCollection&, const EvolutionOptions&);
+    GeomTagToBoundary assignAttToBdrByDimForSpectral(ParMesh&);
     double findMaxEigenvalueModulus(const Eigen::VectorXcd&);
-    void performSpectralAnalysis(const FiniteElementSpace&, Model&, const EvolutionOptions&);
+    void performSpectralAnalysis(const ParFiniteElementSpace&, Model&, const EvolutionOptions&);
     void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution&);
+    void writeSimulationStatistics(const Time);
+    double calcAverageElementSizeInMesh();
 };
 }

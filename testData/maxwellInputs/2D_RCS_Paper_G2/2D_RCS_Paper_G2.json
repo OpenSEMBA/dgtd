@@ -1,0 +1,73 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "evolution_operator": "global",
+	  "time_step": 5e-4,
+    "final_time": 30.0,
+    "exportOperator": false,
+    "order": 3
+  },
+  "model": {
+    "filename": "2D_RCS_Paper_G2.msh",
+    "refinement": 1,
+    "materials": [
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          2
+        ],
+        "type": "PEC"
+      },
+      {
+        "tags": [
+          1
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "steps": 200
+    },
+    "farfield": [
+      {
+        "name": "circle_irr_g2",
+        "steps": 100,
+        "tags": [
+          3, 4, 5, 6
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3, 4, 5, 6
+      ],
+      "magnitude": {
+        "spread": 0.20,
+        "mean": [-4.0, 0.0, 0.0]
+      }
+    }
+  ]
+}

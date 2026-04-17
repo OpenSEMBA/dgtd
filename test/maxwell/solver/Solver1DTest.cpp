@@ -57,13 +57,13 @@ protected:
 
 	void expectFieldsAreNearAfterEvolution(maxwell::Solver& solver)
 	{
-		GridFunction eOld{ solver.getField(E,Y) };
-		GridFunction hOld{ solver.getField(H,Z) };
+		GridFunction eOld{ solver.getConstField(E,Y) };
+		GridFunction hOld{ solver.getConstField(H,Z) };
 
 		solver.run();
 
-		GridFunction eNew{ solver.getField(E,Y) };
-		GridFunction hNew{ solver.getField(H,Z) };
+		GridFunction eNew{ solver.getConstField(E,Y) };
+		GridFunction hNew{ solver.getConstField(H,Z) };
 
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -90,11 +90,11 @@ TEST_F(Solver1DTest, pec_centered)
 		probes,
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
 		SolverOptions{}
-			.setCentered()
+			.setUpwindAlpha(0.0)
 	};
 	
-	GridFunction eOld{ solver.getField(E,Y) };
-	GridFunction hOld{ solver.getField(H,Z) };
+	GridFunction eOld{ solver.getConstField(E,Y) };
+	GridFunction hOld{ solver.getConstField(H,Z) };
 
 	auto eNormOld{ solver.getFields().getNorml2() };
 	
@@ -105,8 +105,8 @@ TEST_F(Solver1DTest, pec_centered)
 	
 	// Checks that field is almost the same as initially because the completion 
 	// of a cycle.
-	GridFunction eNew{ solver.getField(E,Y) };
-	GridFunction hNew{ solver.getField(H,Z) };
+	GridFunction eNew{ solver.getConstField(E,Y) };
+	GridFunction hNew{ solver.getConstField(H,Z) };
 
 	EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 	EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
@@ -114,13 +114,13 @@ TEST_F(Solver1DTest, pec_centered)
 	EXPECT_NEAR(eNormOld, solver.getFields().getNorml2(), 1e-3);
 
 	// At the left boundary the electric field should be always close to zero...
-	for (const auto& [t, f] : solver.getPointProbe(0).getFieldMovie()) {
+	for (const auto& [t, f] : solver.getFieldProbe(0).getFieldMovie()) {
 		EXPECT_NEAR(0.0, f, tolerance);
 	}
 	
 	// ... and the magnetic field reaches a maximum close to 1.0 
 	// (the wave splits in two and doubles at the boundary).
-	auto hMaxFrame{ solver.getPointProbe(1).findFrameWithMax() };
+	auto hMaxFrame{ solver.getFieldProbe(1).findFrameWithMax() };
 	EXPECT_NEAR(1.5, hMaxFrame.first, 0.01);
 	EXPECT_NEAR(1.0, hMaxFrame.second, tolerance);
 }
@@ -141,7 +141,7 @@ TEST_F(Solver1DTest, pmc_centered)
 		buildStandardModel(defaultNumberOfElements, BdrCond::PMC, BdrCond::PMC),
 		buildProbesEmpty(),
 		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
-		SolverOptions{}.setCentered()
+		SolverOptions{}.setUpwindAlpha(0.0)
 	};
 
 	expectFieldsAreNearAfterEvolution(solver);
@@ -169,6 +169,30 @@ TEST_F(Solver1DTest, pmc_upwind)
 	};
 
 	expectFieldsAreNearAfterEvolution(solver);
+}
+
+TEST_F(Solver1DTest, sma_centered)
+{
+	SolverOptions opts{};
+	opts.evolution.alpha = 0.025;
+
+	Probes probes{ buildProbesEmpty() };
+	probes.exporterProbes = {
+		ExporterProbe{ "sma_centered", 1 }
+	};
+	maxwell::Solver solver(
+		buildStandardModel(defaultNumberOfElements, BdrCond::SMA, BdrCond::SMA),
+		probes,
+		buildGaussianInitialField(E, 0.1, Vector({ 0.5 }), unitVec(Y)),
+		opts
+	);
+
+	EXPECT_NE(0.0, solver.getFields().get(E,Y).Norml2());
+	EXPECT_NEAR(0.0, solver.getFields().get(H,Z).Norml2(), 2e-3);
+
+	solver.run();
+
+	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
 }
 
 TEST_F(Solver1DTest, sma)
@@ -205,13 +229,13 @@ TEST_F(Solver1DTest, DISABLED_periodic)
 		SolverOptions{}.setFinalTime(1.0)
 	};
 
-	GridFunction eOld{ solver.getField(E,Y) };
-	GridFunction hOld{ solver.getField(H,Z) };
+	GridFunction eOld{ solver.getConstField(E,Y) };
+	GridFunction hOld{ solver.getConstField(H,Z) };
 
 	solver.run();
 	{	
-		GridFunction eNew{ solver.getField(E,Y) };
-		GridFunction hNew{ solver.getField(H,Z) };
+		GridFunction eNew{ solver.getConstField(E,Y) };
+		GridFunction hNew{ solver.getConstField(H,Z) };
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	}
@@ -219,8 +243,8 @@ TEST_F(Solver1DTest, DISABLED_periodic)
 	solver.setFinalTime(2.0);
 	solver.run();
 	{	
-		GridFunction eNew{ solver.getField(E,Y) };
-		GridFunction hNew{ solver.getField(H,Z) };
+		GridFunction eNew{ solver.getConstField(E,Y) };
+		GridFunction hNew{ solver.getConstField(H,Z) };
 		EXPECT_NEAR(0.0, eOld.DistanceTo(eNew), 1e-2);
 		EXPECT_NEAR(0.0, hOld.DistanceTo(hNew), 1e-2);
 	}
@@ -294,14 +318,14 @@ TEST_F(Solver1DTest, twoSourceWaveTwoMaterialsReflection_SMA_PEC)
 
 	// Checks reflected wave.
 	{
-		auto frame{ solver.getPointProbe(0).findFrameWithMin() };
+		auto frame{ solver.getFieldProbe(0).findFrameWithMin() };
 		EXPECT_NEAR(0.75, frame.first, timeTolerance);
 		EXPECT_NEAR(expectedReflectCoeff, frame.second, fieldTolerance);
 	}
 
 	// Checks transmitted wave.
 	{
-		auto frame{ solver.getPointProbe(1).findFrameWithMax() };
+		auto frame{ solver.getFieldProbe(1).findFrameWithMax() };
 		auto expectedTimeOfArrival{ 0.25 + 0.25 / mat2.getSpeedOfWave() };
 		EXPECT_NEAR(expectedTimeOfArrival, frame.first, timeTolerance);
 		EXPECT_NEAR(expectedTransmissionCoeff, frame.second, fieldTolerance);

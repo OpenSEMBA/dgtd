@@ -2,26 +2,28 @@
 
 namespace maxwell {
 
-OptimizationManager::OptimizationManager(mfem::FiniteElementSpace& fes, Model& model) : 
+using namespace mfem;
+
+OptimizationManager::OptimizationManager(mfem::ParFiniteElementSpace& fes, Model& model) :
 	fes_(fes),
 	model_(model)
 {
 }
 
-SubMesh OptimizationManager::assembleElementBasedSubMesh(ElementID& id) {
-	Mesh m{ model_.getConstMesh() };
+ParSubMesh OptimizationManager::assembleElementBasedSubMesh(ElementID& id) {
+	ParMesh m{ model_.getConstMesh() };
 	m.SetAttribute(id, taggerAttribute_);
 	Array<int> atts(1); atts[0] = taggerAttribute_;
-	auto res(SubMesh::CreateFromDomain(m, atts));
+	auto res(ParSubMesh::CreateFromDomain(m, atts));
 	res.SetAttribute(0, elemIdToAtt_[id]);
 	return res;
 }
 
-std::pair<FiniteElementSpace, Model> OptimizationManager::assembleTimeSteppingReqs(ElementID& id) {
+std::pair<ParFiniteElementSpace, Model> OptimizationManager::assembleTimeSteppingReqs(ElementID& id) {
 	auto submesh{ assembleElementBasedSubMesh(id) };
-	FiniteElementSpace fes(&submesh, fes_.FEColl());
+	ParFiniteElementSpace fes(&submesh, fes_.FEColl());
 	Model model(submesh, GeomTagToMaterialInfo(), GeomTagToBoundaryInfo(GeomTagToBoundary{}, GeomTagToInteriorBoundary{}));
-	std::pair<FiniteElementSpace, Model> pair(fes,model);
+	std::pair<ParFiniteElementSpace, Model> pair(fes, model);
 	return pair;
 }
 
