@@ -14,7 +14,8 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY": "ON",
-        "MFEM_ENABLE_TESTING": false
+        "MFEM_ENABLE_TESTING": false,
+        "MFEM_ENABLE_EXAMPLES": false
       }
     },
     {
@@ -104,26 +105,22 @@
     {
       "name": "build-gnu-debug-mpi",
       "displayName": "Build GNU debug mpi",
-      "configurePreset": "gnu-debug-mpi",
-      "jobs": 12
+      "configurePreset": "gnu-debug-mpi"
     },
     {
       "name": "build-gnu-release-mpi",
       "displayName": "Build GNU release mpi",
-      "configurePreset": "gnu-release-mpi",
-      "jobs": 12
+      "configurePreset": "gnu-release-mpi"
     },
     {
       "name": "build-gnu-debug-cuda",
       "displayName": "Build GNU debug cuda",
-      "configurePreset": "gnu-debug-cuda",
-      "jobs": 12
+      "configurePreset": "gnu-debug-cuda"
     },
     {
       "name": "build-gnu-release-cuda",
       "displayName": "Build GNU release cuda",
-      "configurePreset": "gnu-release-cuda",
-      "jobs": 12
+      "configurePreset": "gnu-release-cuda"
     }
   ]
 }

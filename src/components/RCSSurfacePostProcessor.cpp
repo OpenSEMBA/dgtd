@@ -5,6 +5,8 @@
 #include <complex>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <regex>
 #include <stdexcept>
 
@@ -183,6 +185,12 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
     if (rankPaths.empty())
         throw std::runtime_error("No rank folders in " + dataPath);
 
+    std::cout << "[RCS] Post-processing started.\n"
+              << "  Data path  : " << dataPath << "\n"
+              << "  Ranks      : " << rankPaths.size()
+              << "   Frequencies: " << frequencies.size()
+              << "   Angles: " << angles.size() << "\n";
+
     // Rescale frequencies from Hz to normalised (f / c_SI).
     std::vector<double> normFreqs(frequencies.size());
     for (size_t i = 0; i < frequencies.size(); ++i)
@@ -208,15 +216,22 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
     std::vector<double> incidentPower;
     int spaceDim = 0;
     bool firstRank = true;
+    size_t rankIdx = 0;
 
     for (const auto& rp : rankPaths) {
+        ++rankIdx;
+        std::cout << "\n  [Rank " << rankIdx << "/" << rankPaths.size()
+                  << "] Reading surface data..." << std::flush;
         auto rd = readRankData(rp);
         spaceDim = rd.geometry.spaceDimension;
         const int nDofs = rd.geometry.numDofs;
+        std::cout << " done. (" << spaceDim << "D, " << nDofs
+                  << " DOFs, " << rd.snapshots.size() << " snapshots)\n";
 
         // Filter snapshots based on maxTime if provided.
         std::vector<SurfaceSnapshot> snapshots = rd.snapshots;
         if (maxTime_.has_value()) {
+            const size_t before = snapshots.size();
             snapshots.erase(
                 std::remove_if(snapshots.begin(), snapshots.end(),
                     [this](const SurfaceSnapshot& s) { return s.time > maxTime_.value(); }),
@@ -224,6 +239,9 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
             if (snapshots.empty()) {
                 throw std::runtime_error("No snapshots found within the specified maxTime.");
             }
+            std::cout << "    Time filter: kept " << snapshots.size() << "/" << before
+                      << " snapshots (maxTime = " << std::fixed << std::setprecision(5)
+                      << maxTime_.value() << ").\n" << std::defaultfloat;
         }
         const int nSnap = static_cast<int>(snapshots.size());
 
@@ -239,7 +257,16 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
 
         if (firstRank) {
             pw = extractPlaneWaveData(jsonPath);
+            std::cout << "    Plane-wave : spread=" << pw.spread
+                      << ", mean=" << pw.mean;
+            if (pw.isModulated())
+                std::cout << " [modulated at f=" << std::scientific
+                          << std::setprecision(2)
+                          << pw.frequency * physicalConstants::speedOfLight_SI << " Hz]";
+            std::cout << ".\n" << std::defaultfloat;
             incidentPower = computeIncidentPowerSpectrum(pw, times, normFreqs);
+            std::cout << "    Incident power spectrum computed for "
+                      << normFreqs.size() << " frequencies.\n";
             firstRank = false;
         }
 
@@ -249,6 +276,9 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         using CVec = std::vector<std::complex<double>>;
         std::vector<std::vector<CVec>> ff(6,
             std::vector<CVec>(nFreq, CVec(nDofs, {0,0})));
+
+        std::cout << "    DFT        : " << nSnap << " snapshots x "
+                  << nFreq << " frequencies x " << nDofs << " DOFs..." << std::flush;
 
         #pragma omp parallel
         for (int t = 0; t < nSnap; ++t) {
@@ -272,15 +302,20 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                     for (auto& v : fv)
                         v *= invN;
         }
+        std::cout << " done.\n";
 
         // --- Load mesh and build FES for this rank ---
+        std::cout << "    Loading mesh..." << std::flush;
         auto mesh = Mesh::LoadFromFile(rp + "/mesh", 1, 0);
         auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
         int order = determineFECOrder(pmesh, nDofs);
         DG_FECollection fec(order, pmesh.Dimension());
         ParFiniteElementSpace fes(&pmesh, &fec);
+        std::cout << " done. (FEC order: " << order << ")\n";
 
         // --- For each frequency and angle, compute far-field potentials ---
+        std::cout << "    Far-field integration: " << nFreq
+                  << " frequencies x " << angles.size() << " angles..." << std::flush;
         for (int fi = 0; fi < nFreq; ++fi) {
             const double freq = normFreqs[fi];
             const double k = 2.0 * M_PI * freq;
@@ -356,9 +391,11 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                 acc[3] += L_phi;
             }
         }
+        std::cout << " done.\n";
     }
 
     // After all ranks processed, compute far-field power from coherently-summed amplitudes.
+    std::cout << "\n[RCS] Computing far-field radiation potentials..." << std::flush;
     for (int fi = 0; fi < nFreq; ++fi) {
         const double freq = normFreqs[fi];
         const double k = 2.0 * M_PI * freq;
@@ -390,7 +427,10 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         }
     }
 
+    std::cout << " done.\n";
+
     // Compute RCS from accumulated far-field data.
+    std::cout << "[RCS] Computing RCS..." << std::flush;
     for (int fi = 0; fi < nFreq; ++fi) {
         double k = 2.0 * M_PI * normFreqs[fi];
         for (const auto& ang : angles) {
@@ -403,7 +443,10 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         }
     }
 
+    std::cout << " done.\n";
+
     // Write merged output files.
+    std::cout << "[RCS] Writing results to '" << dataPath << "'..." << std::flush;
     removeDir(dataPath + "/farfield");
     removeDir(dataPath + "/rcs");
     std::filesystem::create_directories(dataPath + "/farfield");
@@ -435,6 +478,8 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
             }
         }
     }
+    std::cout << " done. (" << angles.size() << " angle(s)).\n";
+    std::cout << "[RCS] Post-processing complete.\n";
 }
 
 // ------------------------------------------------------------------
