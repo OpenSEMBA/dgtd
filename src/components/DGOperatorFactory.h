@@ -1584,7 +1584,7 @@ namespace maxwell
 				std::filesystem::create_directories(export_dir);
 			}
 
-			std::filesystem::path file_path = export_dir / "SpatialEvolutionOperator.csr";
+			std::filesystem::path file_path = export_dir / (this->pd_.model.meshName_ + "_global.csr");
 
 			std::ofstream ofs(file_path);
 			if (!ofs.is_open())
@@ -1595,7 +1595,7 @@ namespace maxwell
 			res->PrintCSR2(ofs);
 			ofs.close();
 
-			std::cout << "Operator exported to " << file_path << std::endl;
+			std::cout << "Global operator exported to " << file_path << std::endl;
 		}
 
 		return res;

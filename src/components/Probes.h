@@ -158,6 +158,13 @@ private:
     FieldMovies fieldMovies_;
 };
 
+struct MORStateProbe {
+    std::string name{"MORState"};
+    double record_time_start{0.0};
+    double record_time_final{0.0};
+    int saves{10};
+};
+
 struct Probes {
     std::vector<FieldProbe> fieldProbes;
     std::vector<ExporterProbe> exporterProbes;
@@ -165,6 +172,7 @@ struct Probes {
     std::vector<NearFieldProbe> nearFieldProbes;
     std::vector<DomainSnapshotProbe> domainSnapshotProbes;
     std::vector<RCSSurfaceProbe> rcsSurfaceProbes;
+    std::vector<MORStateProbe> morStateProbes;
 };
 
 }
