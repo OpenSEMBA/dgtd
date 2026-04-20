@@ -541,10 +541,10 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
     const int blockSize = ndofs + nbrDofs;
 
     // Ensure global-layout planewave vector is allocated (first call only)
-    if (tfsf_assembledFunc_.Size() != 6 * blockSize) {
-        tfsf_assembledFunc_.SetSize(6 * blockSize);
-        tfsf_assembledFunc_.UseDevice(true);
-        tfsf_assembledFunc_ = 0.0;
+    if (multWorkVec_.Size() != 6 * blockSize) {
+        multWorkVec_.SetSize(6 * blockSize);
+        multWorkVec_.UseDevice(true);
+        multWorkVec_ = 0.0;
     }
     // Vector is already zero: either freshly initialized above,
     // or cleaned after the previous AddMult call below.
@@ -578,30 +578,30 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
         }
     }
 
-    // Scatter submesh planewave values into tfsf_assembledFunc_ (local DOFs only;
+    // Scatter submesh planewave values into multWorkVec_ (local DOFs only;
     // partitioner guarantees all TFSF faces are rank-local, no ghost exchange needed).
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    scatter_tfsf_to_assembled_gpu(tfsf_sub_to_parent_ids_, func, tfsf_assembledFunc_, blockSize);
+    scatter_tfsf_to_assembled_gpu(tfsf_sub_to_parent_ids_, func, multWorkVec_, blockSize);
 #else
     for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
         const int parent_dof = tfsf_sub_to_parent_ids_[v];
         for (int d : {X, Y, Z}) {
-            tfsf_assembledFunc_[d * blockSize + parent_dof] = func[E][d][v];
-            tfsf_assembledFunc_[(3 + d) * blockSize + parent_dof] = func[H][d][v];
+            multWorkVec_[d * blockSize + parent_dof] = func[E][d][v];
+            multWorkVec_[(3 + d) * blockSize + parent_dof] = func[H][d][v];
         }
     }
 #endif
 
     // Apply TFSF operator and subtract from result: out -= TFSFOp * planewave
-    TFSFOperator_->AddMult(tfsf_assembledFunc_, result_vector, -1.0);
+    TFSFOperator_->AddMult(multWorkVec_, result_vector, -1.0);
 
     // Restore zeroed state for next call
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    zero_tfsf_assembled_gpu(tfsf_sub_to_parent_ids_, tfsf_assembledFunc_, blockSize);
+    zero_tfsf_assembled_gpu(tfsf_sub_to_parent_ids_, multWorkVec_, blockSize);
 #else
     for (int d = X; d <= Z; ++d) {
-        std::memset(tfsf_assembledFunc_.GetData() + d * blockSize, 0, blockSize * sizeof(double));
-        std::memset(tfsf_assembledFunc_.GetData() + (3 + d) * blockSize, 0, blockSize * sizeof(double));
+        std::memset(multWorkVec_.GetData() + d * blockSize, 0, blockSize * sizeof(double));
+        std::memset(multWorkVec_.GetData() + (3 + d) * blockSize, 0, blockSize * sizeof(double));
     }
 #endif
 }
@@ -624,11 +624,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     bool sgbc_all_quiescent = false;
     if (SGBCOperator_ && !sgbcWrappers_.empty()){
-        if (sgbcVec_.Size() != 6 * blockSize) {
-            sgbcVec_.SetSize(6 * blockSize);
-            sgbcVec_.UseDevice(true);
-            sgbcVec_ = 0.0;
-        }
 
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
@@ -762,26 +757,26 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerExchange.Stop();
 #endif
 
-    // 3) Assemble inNew_ (local + neighbor data)
-    if (inNew_.Size() != 6 * blockSize) {
-        inNew_.SetSize(6 * blockSize);
-        inNew_.UseDevice(true);
+    // 3) Assemble multWorkVec_ (local + neighbor data)
+    if (multWorkVec_.Size() != 6 * blockSize) {
+        multWorkVec_.SetSize(6 * blockSize);
+        multWorkVec_.UseDevice(true);
     }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_eh_to_innew_gpu(in, inNew_, ndofs, nbrDofs);
-    load_nbr_to_innew_gpu(eOld_, hOld_, inNew_, ndofs, nbrDofs);
+    load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
+    load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
 #else
     for (int d = X; d <= Z; ++d) {
-        inNew_.SetVector(eOld_[d],       d      * blockSize);
-        inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+        multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
+        multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
     }
     if (nbrDofs) {
         for (int d = X; d <= Z; ++d) {
             mfem::Vector &eNbr = eOld_[d].FaceNbrData();
             mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-            inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
+            multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
         }
     }
 #endif
@@ -794,10 +789,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         out.SetSize(6 * ndofs);
         out.UseDevice(true);
     }
-    globalOperator_->Mult(inNew_, out);
+    globalOperator_->Mult(multWorkVec_, out);
 #ifdef SHOW_TIMER_INFORMATION
     timerApplyA.Stop();
 #endif
+
+    // S3: Zero multWorkVec_ so it can be reused for TFSF and SGBC injection.
+    multWorkVec_ = 0.0;
 
     // 5) TFSF source injection
 #ifdef SHOW_TIMER_INFORMATION
@@ -812,19 +810,15 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     //    Sub-solve was done in step 1; here we only inject interface values as flux.
     //    Skip entirely when all SGBC faces are quiescent.
     if (SGBCOperator_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
-        if (sgbcVec_.Size() != 6 * blockSize) {
-            sgbcVec_.SetSize(6 * blockSize);
-            sgbcVec_.UseDevice(true);
-            sgbcVec_ = 0.0;
-        }
+        // multWorkVec_ is already sized and zeroed (after step 4 zeroing + TFSF cleanup).
         // On GPU builds 'in' is device-authoritative after steps 2-5; HostRead()
         // syncs device→host once for all operator[]-based DOF reads below.
-        // sgbcVec_ was zeroed on device; HostReadWrite() syncs it to host so that
+        // multWorkVec_ was zeroed on device; HostReadWrite() syncs it to host so that
         // operator[] assignments write to the correct (host) buffer.
         in.HostRead();
-        sgbcVec_.HostReadWrite();
+        multWorkVec_.HostReadWrite();
 
-        // Helper: fill sgbcVec_ slot for a given BC type.
+        // Helper: fill multWorkVec_ slot for a given BC type.
         // For PEC/PMC/SMA: mirror/absorb from global field at source_dof.
         // For transparent (SGBC): rotate slab interior field at slab_idx to global frame.
         auto fillBCSlot = [&](BdrCond bdr, int source_dof, int target_slot,
@@ -832,18 +826,18 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                               int local_size, int slab_idx) {
             if (bdr == BdrCond::PEC) {
                 for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + target_slot]       = -in[d * ndofs + source_dof];
-                    sgbcVec_[(3 + d) * blockSize + target_slot] =  in[(3 + d) * ndofs + source_dof];
+                    multWorkVec_[d * blockSize + target_slot]       = -in[d * ndofs + source_dof];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] =  in[(3 + d) * ndofs + source_dof];
                 }
             } else if (bdr == BdrCond::PMC) {
                 for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + target_slot]       =  in[d * ndofs + source_dof];
-                    sgbcVec_[(3 + d) * blockSize + target_slot] = -in[(3 + d) * ndofs + source_dof];
+                    multWorkVec_[d * blockSize + target_slot]       =  in[d * ndofs + source_dof];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] = -in[(3 + d) * ndofs + source_dof];
                 }
             } else if (bdr == BdrCond::SMA) {
                 for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + target_slot]       = in[d * ndofs + source_dof];
-                    sgbcVec_[(3 + d) * blockSize + target_slot] = in[(3 + d) * ndofs + source_dof];
+                    multWorkVec_[d * blockSize + target_slot]       = in[d * ndofs + source_dof];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] = in[(3 + d) * ndofs + source_dof];
                 }
             } else {
                 // Transparent: rotate slab local→global
@@ -853,17 +847,17 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     hl[d] = fields_state[(3 + d) * local_size + slab_idx];
                 }
                 for (int d = 0; d < 3; ++d) {
-                    sgbcVec_[d * blockSize + target_slot]       = rot[d]*el[0] + rot[3+d]*el[1] + rot[6+d]*el[2];
-                    sgbcVec_[(3 + d) * blockSize + target_slot] = rot[d]*hl[0] + rot[3+d]*hl[1] + rot[6+d]*hl[2];
+                    multWorkVec_[d * blockSize + target_slot]       = rot[d]*el[0] + rot[3+d]*el[1] + rot[6+d]*el[2];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] = rot[d]*hl[0] + rot[3+d]*hl[1] + rot[6+d]*hl[2];
                 }
             }
         };
 
-        // Helper: copy global field values into sgbcVec_ slot
+        // Helper: copy global field values into multWorkVec_ slot
         auto copyGlobalSlot = [&](int dof, int slot) {
             for (int d = X; d <= Z; ++d) {
-                sgbcVec_[d * blockSize + slot] = in[d * ndofs + dof];
-                sgbcVec_[(3 + d) * blockSize + slot] = in[(3 + d) * ndofs + dof];
+                multWorkVec_[d * blockSize + slot] = in[d * ndofs + dof];
+                multWorkVec_[(3 + d) * blockSize + slot] = in[(3 + d) * ndofs + dof];
             }
         };
 
@@ -890,7 +884,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
         // Targeted SpMV: only compute rows for Elem1 DOFs, add directly to out.
         {
-            const double* sv = sgbcVec_.HostRead();
+            const double* sv = multWorkVec_.HostRead();
             double* op = out.HostReadWrite();
             for (int comp = 0; comp < 6; ++comp) {
                 for (int dof : sgbc_elem1_dofs_) {
@@ -913,11 +907,11 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
                 for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + gl] = 0.0;
-                    sgbcVec_[(3 + d) * blockSize + gl] = 0.0;
+                    multWorkVec_[d * blockSize + gl] = 0.0;
+                    multWorkVec_[(3 + d) * blockSize + gl] = 0.0;
                     if (gr != -1) {
-                        sgbcVec_[d * blockSize + gr] = 0.0;
-                        sgbcVec_[(3 + d) * blockSize + gr] = 0.0;
+                        multWorkVec_[d * blockSize + gr] = 0.0;
+                        multWorkVec_[(3 + d) * blockSize + gr] = 0.0;
                     }
                 }
             }
@@ -948,7 +942,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
         // Targeted SpMV: only compute rows for Elem2 DOFs, add directly to out.
         {
-            const double* sv = sgbcVec_.HostRead();
+            const double* sv = multWorkVec_.HostRead();
             double* op = out.HostReadWrite();
             for (int comp = 0; comp < 6; ++comp) {
                 for (int dof : sgbc_elem2_dofs_) {
@@ -965,17 +959,17 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
 
-        // Clear entries written in Pass 2 so sgbcVec_ stays zeroed for next call
+        // Clear entries written in Pass 2 so multWorkVec_ stays zeroed for next call
         for (auto& [tag, states] : sgbc_states_) {
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
                 if (gr == -1) continue;
                 for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + gl] = 0.0;
-                    sgbcVec_[(3 + d) * blockSize + gl] = 0.0;
-                    sgbcVec_[d * blockSize + gr] = 0.0;
-                    sgbcVec_[(3 + d) * blockSize + gr] = 0.0;
+                    multWorkVec_[d * blockSize + gl] = 0.0;
+                    multWorkVec_[(3 + d) * blockSize + gl] = 0.0;
+                    multWorkVec_[d * blockSize + gr] = 0.0;
+                    multWorkVec_[(3 + d) * blockSize + gr] = 0.0;
                 }
             }
         }
