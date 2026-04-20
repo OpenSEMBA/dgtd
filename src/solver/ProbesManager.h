@@ -121,6 +121,15 @@ private:
     std::map<const RCSSurfaceProbe*, std::unique_ptr<RCSSurfaceExporter>> rcsSurfaceExporters_;
     std::map<int, std::ofstream> fieldProbeFiles_;
     std::map<int, std::ofstream> pointProbeFiles_;
+
+    struct MORStateContext {
+        int save_count{0};
+        double next_save_time{0.0};
+        double dt_save{0.0};
+        bool initialized{false};
+        std::string export_dir;
+    };
+    std::map<const MORStateProbe*, MORStateContext> morStateContexts_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
@@ -134,6 +143,7 @@ private:
     void updateProbe(NearFieldProbe&, Time);
     void updateProbe(DomainSnapshotProbe&, Time);
     void updateProbe(RCSSurfaceProbe&, Time);
+    void updateProbe(MORStateProbe&, Time);
     void initRCSSurfaceExporters();
 };
 

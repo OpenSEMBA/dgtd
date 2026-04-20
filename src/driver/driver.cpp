@@ -831,6 +831,26 @@ Probes buildProbes(const json& case_data)
                 probes.rcsSurfaceProbes.push_back(probe);
             }
         }
+
+        if (case_data["probes"].contains("mor_state")) {
+            for (size_t p = 0; p < case_data["probes"]["mor_state"].size(); p++) {
+                MORStateProbe probe;
+                const auto& pd = case_data["probes"]["mor_state"][p];
+                if (pd.contains("name")) {
+                    probe.name = pd["name"];
+                }
+                if (pd.contains("record_time_start")) {
+                    probe.record_time_start = pd["record_time_start"].get<double>();
+                }
+                if (pd.contains("record_time_final")) {
+                    probe.record_time_final = pd["record_time_final"].get<double>();
+                }
+                if (pd.contains("saves")) {
+                    probe.saves = pd["saves"].get<int>();
+                }
+                probes.morStateProbes.push_back(probe);
+            }
+        }
     }
 
     return probes;

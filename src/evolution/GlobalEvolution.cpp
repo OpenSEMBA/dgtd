@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <unordered_set>
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
@@ -327,6 +329,23 @@ GlobalEvolution::GlobalEvolution(
 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         TFSFOperator_ = dgops.buildTFSFGlobalOperator();
+
+        if (opts_.export_evolution_operator) {
+            if (Mpi::WorldSize() == 1) {
+                std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / model_.meshName_;
+                if (!std::filesystem::exists(export_dir)) {
+                    std::filesystem::create_directories(export_dir);
+                }
+                std::filesystem::path file_path = export_dir / (model_.meshName_ + "_tfsf.csr");
+                std::ofstream ofs(file_path);
+                if (!ofs.is_open()) {
+                    throw std::runtime_error("Could not open file for writing: " + file_path.string());
+                }
+                TFSFOperator_->PrintCSR2(ofs);
+                ofs.close();
+                std::cout << "TFSF operator exported to " << file_path << std::endl;
+            }
+        }
     }
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
         SGBCOperator_ = dgops.buildSGBCGlobalOperator();
