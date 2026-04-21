@@ -1,11 +1,14 @@
 #include "Solver.h"
-#include "SolverExtension.h"
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <unistd.h>
 #include <cmath>
 
 namespace maxwell {
+
+size_t getCurrentMemoryUsage();
+size_t getPeakMemoryUsage();
 
 Solver::~Solver() = default; 
 
@@ -137,6 +140,7 @@ Solver::Solver(
             myfile << std::scientific << std::setprecision(5);
             myfile << "Initialization Time: " << runtime << " (s)\n";
             myfile << std::defaultfloat;
+            myfile << "Assembly Peak Memory Consumption (B): " << getPeakMemoryUsage() << "\n";
             myfile.close();
         } else {
             std::cerr << "Rank " << comm_rank << " failed to open file: " << path << "\n";
@@ -380,6 +384,23 @@ size_t getCurrentMemoryUsage() {
 #endif
 }
 
+size_t getPeakMemoryUsage() {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    return getCurrentMemoryUsage(); // No peak tracking available; report current GPU usage.
+#else
+    std::ifstream status("/proc/self/status");
+    std::string line;
+    while (std::getline(status, line)) {
+        if (line.rfind("VmHWM:", 0) == 0) {
+            long kb = 0;
+            std::istringstream(line.substr(6)) >> kb;
+            return static_cast<size_t>(kb * 1024);
+        }
+    }
+    return 0;
+#endif
+}
+
 void Solver::writeSimulationStatistics(const Time runtime){
     // Skip writing statistics for SGBC sub-solvers
     if (opts_.is_sgbc_solver) {
@@ -416,7 +437,7 @@ void Solver::writeSimulationStatistics(const Time runtime){
             std::int64_t non_zero_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().NumNonZeroElems());
             myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems << "\n";
         }
-        myfile << "Memory Consumption (B): " << getCurrentMemoryUsage() << "\n";
+        myfile << "Temporal Evolution Memory Consumption (B): " << getCurrentMemoryUsage() << "\n";
         myfile.close();
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";

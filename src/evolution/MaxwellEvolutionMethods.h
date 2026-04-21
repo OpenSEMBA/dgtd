@@ -1,15 +1,11 @@
 #pragma once
 
-#include <mfem.hpp>
-
 #include "components/Model.h"
 #include "EvolutionOptions.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 #include "mfemExtension/LinearIntegrators.h"
 #include "mfemExtension/LinearForm_IBFI.hpp"
-
-#include "components/DGOperatorFactory.h"
 
 #include "math/EigenMfemTools.h"
 #include "solver/SourcesManager.h"

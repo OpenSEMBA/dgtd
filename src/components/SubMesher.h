@@ -1,6 +1,5 @@
 #pragma once
 
-#include <mfem.hpp>
 #include "math/Calculus.h"
 #include "Types.h"
 

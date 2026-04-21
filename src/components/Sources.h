@@ -1,14 +1,9 @@
 #pragma once
 
-#include "Types.h"
 #include "math/Function.h"
-#include "Spherical.h"
 #include <functional>
-#include "math/PhysicalConstants.h"
-#include "math/Calculus.h"
 #include <memory>
 #include <cassert>
-#include <float.h>
 
 namespace maxwell {
 
@@ -90,6 +85,7 @@ public:
 	}
 	Sources& operator=(const Sources& rhs)
 	{
+		v_.clear();
 		for (auto& v : rhs) {
 			v_.push_back(v->clone());
 		}
@@ -97,6 +93,7 @@ public:
 	}
 	Sources& operator=(Sources&& rhs)
 	{
+		v_.clear();
 		{
 			for (auto& v : rhs) {
 				v_.push_back(std::move(v));

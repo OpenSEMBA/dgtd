@@ -4,7 +4,6 @@
 #include "evolution/HesthavenEvolutionMethods.h"
 #include "SolverOptions.h"
 
-#include <mfem.hpp>
 #include <memory>
 
 namespace maxwell 

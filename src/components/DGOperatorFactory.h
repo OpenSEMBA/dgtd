@@ -1,20 +1,16 @@
 #pragma once
 
 #include "ProblemDescription.h"
-#include "evolution/GlobalEvolution.h"
-#include "evolution/HesthavenEvolutionMethods.h"
-#include "evolution/MaxwellEvolutionMethods.h"
 
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
-
-#include "Types.h"
 
 #include <chrono>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <filesystem>
+#include <type_traits>
 
 namespace maxwell
 {
@@ -22,7 +18,7 @@ namespace maxwell
 	using namespace mfem;
 	using namespace mfemExtension;
 
-	static FluxBdrCoefficientsCentered bdrCentCoeff{
+	inline const FluxBdrCoefficientsCentered bdrCentCoeff{
 		{BdrCond::PEC, {2.0, 0.0}},
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
@@ -30,7 +26,7 @@ namespace maxwell
 		{BdrCond::SGBC, {1.0, 1.0}}
 	};
 
-	static FluxBdrCoefficientsUpwind bdrUpwindCoeff{
+	inline const FluxBdrCoefficientsUpwind bdrUpwindCoeff{
 		{BdrCond::PEC, {2.0, 0.0}},
 		{BdrCond::PMC, {0.0, 2.0}},
 		{BdrCond::SMA, {1.0, 1.0}},
@@ -38,17 +34,17 @@ namespace maxwell
 		{BdrCond::SGBC, {1.0, 1.0}}
 	};
 
-	static FluxSrcCoefficientsCentered srcCentCoeff{
+	inline const FluxSrcCoefficientsCentered srcCentCoeff{
 		{BdrCond::TotalFieldIn, {1.0, 1.0}},
 		{BdrCond::SGBC, {1.0, 1.0}},
 	};
 
-	static FluxSrcCoefficientsUpwind srcUpwindCoeff{
+	inline const FluxSrcCoefficientsUpwind srcUpwindCoeff{
 		{BdrCond::TotalFieldIn, {1.0, 1.0}},
 		{BdrCond::SGBC, {1.0, 1.0}},
 	};
 
-	static FieldType altField(const FieldType &f)
+	inline FieldType altField(const FieldType &f)
 	{
 		switch (f)
 		{
@@ -100,7 +96,7 @@ namespace maxwell
 		std::array<std::array<std::unique_ptr<FieldOffsets>, 3>, 2> offsets;
 	};
 
-	static void loadBlockInGlobalAtIndices(const SparseMatrix &blk, SparseMatrix &dst, const std::pair<FieldOffsets, FieldOffsets> &ids, const double fieldSign)
+	inline void loadBlockInGlobalAtIndices(const SparseMatrix &blk, SparseMatrix &dst, const std::pair<FieldOffsets, FieldOffsets> &ids, const double fieldSign)
 	{
 		auto expectedRows = ids.first.rowEndOffset - ids.first.rowStartOffset;
 		auto expectedCols = ids.first.colEndOffset - ids.first.colStartOffset;
@@ -118,7 +114,7 @@ namespace maxwell
 		}
 	}
 
-	static std::map<BdrCond, std::vector<double>> bdrCoeffCheck(double alpha)
+	inline std::map<BdrCond, std::vector<double>> bdrCoeffCheck(double alpha)
 	{
 		std::map<BdrCond, std::vector<double>> res;
 		if (alpha == 0.0)
@@ -151,6 +147,93 @@ namespace maxwell
 	}
 
 	void loadBlockInGlobalAtIndices(const SparseMatrix &blk, SparseMatrix &dst, const std::pair<Array<int>, Array<int>> &ids, const double fieldSign = 1.0);
+
+	/// A block placement for CSR-direct assembly (S1 optimization).
+	/// Stores a finalized sub-operator and its position within the global matrix.
+	struct CSRBlockPlacement {
+		std::unique_ptr<SparseMatrix> block;  ///< Finalized CSR sub-operator.
+		int rowOffset;                        ///< Global row offset for this block.
+		int colOffset;                        ///< Global column offset for this block.
+		double sign;                          ///< Scaling factor (±1).
+	};
+
+	/// Collect a sub-operator block placement instead of scattering into a LIL matrix.
+	/// The block's CSR data is copied (for operators placed at multiple offsets).
+	inline void collectBlockPlacement(
+		const SparseMatrix& blk,
+		std::vector<CSRBlockPlacement>& blocks,
+		const std::pair<FieldOffsets, FieldOffsets>& ids,
+		double fieldSign)
+	{
+		blocks.push_back(CSRBlockPlacement{
+			std::make_unique<SparseMatrix>(blk),
+			ids.first.rowStartOffset,
+			ids.second.colStartOffset,
+			fieldSign
+		});
+	}
+
+	/// Merge collected CSR block placements into a single finalized CSR SparseMatrix.
+	/// Uses a two-pass marker technique (like MFEM's Add) to avoid LIL overhead.
+	inline std::unique_ptr<SparseMatrix> mergeBlocksToCSR(
+		std::vector<CSRBlockPlacement>& blocks,
+		int globalRows, int globalCols)
+	{
+		// Pass 1: Count unique column entries per global row.
+		std::vector<int> marker(globalCols, -1);
+		int* C_i = mfem::Memory<int>(globalRows + 1);
+		C_i[0] = 0;
+
+		for (int row = 0; row < globalRows; ++row) {
+			int nnz = 0;
+			for (auto& bp : blocks) {
+				const int localRow = row - bp.rowOffset;
+				if (localRow < 0 || localRow >= bp.block->Height()) continue;
+				const int rowNNZ = bp.block->RowSize(localRow);
+				const int* cols = bp.block->GetRowColumns(localRow);
+				for (int k = 0; k < rowNNZ; ++k) {
+					int globalCol = cols[k] + bp.colOffset;
+					if (marker[globalCol] != row) {
+						marker[globalCol] = row;
+						++nnz;
+					}
+				}
+			}
+			C_i[row + 1] = C_i[row] + nnz;
+		}
+
+		const int totalNNZ = C_i[globalRows];
+		int* C_j = mfem::Memory<int>(totalNNZ);
+		real_t* C_data = mfem::Memory<real_t>(totalNNZ);
+
+		// Pass 2: Fill J and A arrays, merging duplicate column entries.
+		std::fill(marker.begin(), marker.end(), -1);
+		int pos = 0;
+		for (int row = 0; row < globalRows; ++row) {
+			for (auto& bp : blocks) {
+				const int localRow = row - bp.rowOffset;
+				if (localRow < 0 || localRow >= bp.block->Height()) continue;
+				const int rowNNZ = bp.block->RowSize(localRow);
+				const int* cols = bp.block->GetRowColumns(localRow);
+				const real_t* vals = bp.block->GetRowEntries(localRow);
+				for (int k = 0; k < rowNNZ; ++k) {
+					int globalCol = cols[k] + bp.colOffset;
+					if (marker[globalCol] < C_i[row]) {
+						// New entry for this row.
+						C_j[pos] = globalCol;
+						C_data[pos] = vals[k] * bp.sign;
+						marker[globalCol] = pos;
+						++pos;
+					} else {
+						// Duplicate column — accumulate.
+						C_data[marker[globalCol]] += vals[k] * bp.sign;
+					}
+				}
+			}
+		}
+
+		return std::make_unique<SparseMatrix>(C_i, C_j, C_data, globalRows, globalCols);
+	}
 
 	template <typename FES>
 	class DGOperatorFactory
@@ -208,8 +291,6 @@ namespace maxwell
 		std::array<std::array<std::array<std::array<std::unique_ptr<BF>, 3>, 3>, 2>, 2> buildMaxwellIntBdrTwoNormalOperator();
 
 		// Methors for complete Global Operators //
-		template <typename BF>
-		std::array<std::unique_ptr<BF>, 2> buildGlobalInverseMassMatrixOperator();
 
 		template <typename BF>
 		std::unique_ptr<BF> buildSigmaMassOperator();
@@ -235,7 +316,49 @@ namespace maxwell
 		template <typename BF>
 		void addGlobalTwoNormalOperators(mfem::SparseMatrix* global);
 		template <typename BF>
-		void addGlobalConductiveOperator(mfem::SparseMatrix* global); 
+		void addGlobalConductiveOperator(mfem::SparseMatrix* global);
+
+		// Overloads accepting pre-computed M^{-1} to avoid redundant rebuilds.
+		template <typename BF>
+		void addGlobalZeroNormalIBFIOperators(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalOneNormalIBFIOperators(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalTwoNormalIBFIOperators(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalDirectionalOperators(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalZeroNormalOperators(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalOneNormalOperators(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalTwoNormalOperators(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalConductiveOperator(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalSourceFaceIBFIZeroNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalSourceFaceIBFIOneNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalSourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv); 
+
+		// S1: Overloads that collect block placements for CSR-direct assembly.
+		template <typename BF>
+		void collectGlobalZeroNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void collectGlobalOneNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void collectGlobalTwoNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void collectGlobalDirectionalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void collectGlobalZeroNormalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void collectGlobalOneNormalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void collectGlobalTwoNormalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void collectGlobalConductiveOperator(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv);
 
 		std::unique_ptr<mfem::SparseMatrix> buildTFSFGlobalOperator();
 		std::unique_ptr<mfem::SparseMatrix> buildSGBCGlobalOperator();
@@ -246,6 +369,37 @@ namespace maxwell
 	private:
 		ProblemDescription pd_;
 		FES fes_;
+
+		mfem::Array<int> buildInteriorIgnoreMarker() const
+		{
+			mfem::Array<int> marker;
+			if (!pd_.model.getInteriorBoundaryToMarker().empty()) {
+				int marker_size = pd_.model.getInteriorBoundaryToMarker().begin()->second.Size();
+				marker.SetSize(marker_size);
+				marker = 0;
+				for (const auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
+					if (kv.first != BdrCond::TotalFieldIn) {
+						for (int i = 0; i < kv.second.Size(); i++) {
+							if (kv.second[i] == 1) marker[i] = 1;
+						}
+					}
+				}
+			}
+			return marker;
+		}
+
+		int getAdditionalDofs() const
+		{
+			if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+				return fes_.num_face_nbr_dofs;
+			}
+			return 0;
+		}
+
+		int meshDimension() const
+		{
+			return fes_.GetMesh()->Dimension();
+		}
 	};
 
 	template <typename FES>
@@ -316,20 +470,7 @@ namespace maxwell
 	{
 		auto res = std::make_unique<BF>(&fes_);
 
-		Array<int> ignore_marker;
-		if (!pd_.model.getInteriorBoundaryToMarker().empty()) {
-			int marker_size = pd_.model.getInteriorBoundaryToMarker().begin()->second.Size();
-			ignore_marker.SetSize(marker_size);
-			ignore_marker = 0;
-			
-			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
-				if (kv.first != BdrCond::TotalFieldIn) {
-					for (int i = 0; i < kv.second.Size(); i++) {
-						if (kv.second[i] == 1) ignore_marker[i] = 1;
-					}
-				}
-			}
-		}
+		auto ignore_marker = buildInteriorIgnoreMarker();
 
 		if (ignore_marker.Size() > 0) {
 			res->AddInteriorFaceIntegrator(
@@ -365,20 +506,7 @@ namespace maxwell
 	{
 		auto res = std::make_unique<BF>(&fes_);
 
-		Array<int> ignore_marker;
-		if (!pd_.model.getInteriorBoundaryToMarker().empty()) {
-			int marker_size = pd_.model.getInteriorBoundaryToMarker().begin()->second.Size();
-			ignore_marker.SetSize(marker_size);
-			ignore_marker = 0;
-			
-			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
-				if (kv.first != BdrCond::TotalFieldIn) {
-					for (int i = 0; i < kv.second.Size(); i++) {
-						if (kv.second[i] == 1) ignore_marker[i] = 1;
-					}
-				}
-			}
-		}
+		auto ignore_marker = buildInteriorIgnoreMarker();
 
 		if (ignore_marker.Size() > 0) {
 			res->AddInteriorFaceIntegrator(
@@ -414,20 +542,7 @@ namespace maxwell
 	{
 		auto res = std::make_unique<BF>(&fes_);
 
-		Array<int> ignore_marker;
-		if (!pd_.model.getInteriorBoundaryToMarker().empty()) {
-			int marker_size = pd_.model.getInteriorBoundaryToMarker().begin()->second.Size();
-			ignore_marker.SetSize(marker_size);
-			ignore_marker = 0;
-			
-			for (auto &kv : pd_.model.getInteriorBoundaryToMarker()) {
-				if (kv.first != BdrCond::TotalFieldIn) {
-					for (int i = 0; i < kv.second.Size(); i++) {
-						if (kv.second[i] == 1) ignore_marker[i] = 1;
-					}
-				}
-			}
-		}
+		auto ignore_marker = buildInteriorIgnoreMarker();
 
 		if (ignore_marker.Size() > 0) {
 			res->AddInteriorFaceIntegrator(
@@ -733,13 +848,6 @@ namespace maxwell
 
 	template <typename FES>
 	template <typename BF>
-	std::array<std::unique_ptr<BF>, 2> DGOperatorFactory<FES>::buildGlobalInverseMassMatrixOperator()
-	{
-		return this->template  buildMaxwellInverseMassMatrixOperator<BF>();
-	}
-
-	template <typename FES>
-	template <typename BF>
 	std::unique_ptr<BF> DGOperatorFactory<FES>::buildSigmaMassOperator()
 	{
 		Vector sigma = pd_.model.buildSigmaPiecewiseVector(); 
@@ -756,14 +864,16 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalZeroNormalIBFIOperators(SparseMatrix* global)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalZeroNormalIBFIOperators<BF>(global, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalZeroNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			auto op = buildByMult<FES,BF>(
 				MInv[f]->SpMat(), buildZeroNormalIBFISubOperator<BF>(f)->SpMat(), fes_);
 			for (auto d : { X, Y, Z }) {
@@ -781,15 +891,19 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalOneNormalIBFIOperators(SparseMatrix* global)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalOneNormalIBFIOperators<BF>(global, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalOneNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue; // S2: normal component x is zero in lower dimensions
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
 				auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildOneNormalIBFISubOperator<BF>(altField(f), { x })->SpMat(), fes_);
@@ -813,16 +927,21 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalTwoNormalIBFIOperators(SparseMatrix* global)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalTwoNormalIBFIOperators<BF>(global, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalTwoNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue; // S2: normal component d is zero in lower dimensions
 				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue; // S2: normal component d2 is zero in lower dimensions
 					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildTwoNormalIBFISubOperator<BF>(f, { d, d2 })->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
@@ -839,14 +958,16 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalSourceFaceIBFIZeroNormalOperators(SparseMatrix* global, mfem::Array<int>& marker)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-			additional_dofs = fes_.num_face_nbr_dofs;
-		}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalSourceFaceIBFIZeroNormalOperators<BF>(global, marker, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalSourceFaceIBFIZeroNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			auto op = buildByMult<FES,BF>(
 				MInv[f]->SpMat(), buildSourceFaceIBFIZeroNormalSubOperator<BF>(f, marker)->SpMat(), fes_);
 			for (auto d : { X, Y, Z }) {
@@ -864,15 +985,19 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalSourceFaceIBFIOneNormalOperators(SparseMatrix* global, mfem::Array<int>& marker)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-			additional_dofs = fes_.num_face_nbr_dofs;
-		}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalSourceFaceIBFIOneNormalOperators<BF>(global, marker, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalSourceFaceIBFIOneNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue;
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
 				auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildSourceFaceIBFIOneNormalSubOperator<BF>(altField(f), { x }, marker)->SpMat(), fes_);
@@ -896,16 +1021,21 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalSourceFaceIBFITwoNormalOperators(SparseMatrix* global, mfem::Array<int>& marker)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-			additional_dofs = fes_.num_face_nbr_dofs;
-		}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalSourceFaceIBFITwoNormalOperators<BF>(global, marker, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalSourceFaceIBFITwoNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue;
 				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue;
 					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildSourceFaceIBFITwoNormalSubOperator<BF>(f, { d, d2 }, marker)->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
@@ -922,15 +1052,19 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalDirectionalOperators(SparseMatrix* global)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalDirectionalOperators<BF>(global, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs, true);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalDirectionalOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue; // S2: derivative in direction x is zero beyond mesh dimension
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
 				auto op = buildByMult<FES,BF>(
@@ -955,14 +1089,16 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalZeroNormalOperators(SparseMatrix* global)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalZeroNormalOperators<BF>(global, MInv);
+	}
 
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalZeroNormalOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			auto op = buildByMult<FES,BF>(
 				MInv[f]->SpMat(), buildZeroNormalSubOperator<BF>(f)->SpMat(), fes_);
 			for (auto d : { X, Y, Z }) {
@@ -980,16 +1116,19 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalOneNormalOperators(SparseMatrix* global)
 	{
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalOneNormalOperators<BF>(global, MInv);
+	}
 
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
-
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalOneNormalOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue; // S2: normal component x is zero in lower dimensions
 				auto y = (x + 1) % 3;
 				auto z = (x + 2) % 3;
 				auto op = buildByMult<FES,BF>(
@@ -1014,17 +1153,21 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalTwoNormalOperators(SparseMatrix* global)
 	{
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalTwoNormalOperators<BF>(global, MInv);
+	}
 
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
-
-		GlobalIndices globalId(fes_.GetNDofs(), additional_dofs);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalTwoNormalOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
-			auto MInv = buildGlobalInverseMassMatrixOperator<BF>();
 			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue; // S2: normal component d is zero in lower dimensions
 				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue; // S2: normal component d2 is zero in lower dimensions
 					auto op = buildByMult<FES,BF>(
 						MInv[f]->SpMat(), buildTwoNormalSubOperator<BF>(f, {d, d2})->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
@@ -1042,16 +1185,18 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalConductiveOperator(mfem::SparseMatrix* global)
 	{
-		int additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-			additional_dofs = fes_.num_face_nbr_dofs;
-		}
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		addGlobalConductiveOperator<BF>(global, MInv);
+	}
 
-		auto MInvE = buildInverseMassMatrixSubOperator<BF>(FieldType::E);
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalConductiveOperator(mfem::SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
 		auto MSig  = buildSigmaMassOperator<BF>();
-		auto ASigE = buildByMult<FES, BF>(MInvE->SpMat(), MSig->SpMat(), fes_);
+		auto ASigE = buildByMult<FES, BF>(MInv[E]->SpMat(), MSig->SpMat(), fes_);
 
-		GlobalIndices gid(fes_.GetNDofs(), additional_dofs, true);
+		GlobalIndices gid(fes_.GetNDofs(), getAdditionalDofs(), true);
 		for (auto d : { X, Y, Z }) {
 			loadBlockInGlobalAtIndices(
 				ASigE->SpMat(),
@@ -1059,6 +1204,159 @@ namespace maxwell
 				std::make_pair(*gid.offsets[E][d].get(), *gid.offsets[E][d].get()),
 				-1.0
 			);
+		}
+	}
+
+	// ======= S1: collectGlobal* variants for CSR-direct assembly =======
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalZeroNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildZeroNormalIBFISubOperator<BF>(f)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()), -1.0);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalOneNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue;
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildOneNormalIBFISubOperator<BF>(altField(f), { x })->SpMat(), fes_);
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					1.0 - double(f) * 2.0);
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					-1.0 + double(f) * 2.0);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalTwoNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue;
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue;
+					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildTwoNormalIBFISubOperator<BF>(f, { d, d2 })->SpMat(), fes_);
+					collectBlockPlacement(op->SpMat(), blocks,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()), 1.0);
+				}
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalDirectionalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue;
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,BF>(
+					MInv[f]->SpMat(), buildDerivativeSubOperator<BF>(x)->SpMat(), fes_);
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					1.0 - double(f) * 2.0);
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					-1.0 + double(f) * 2.0);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalZeroNormalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
+		for (auto f : { E, H }) {
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildZeroNormalSubOperator<BF>(f)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()), -1.0);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalOneNormalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
+		for (auto f : { E, H }) {
+			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue;
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,BF>(
+					MInv[f]->SpMat(), buildOneNormalSubOperator<BF>(altField(f), { x })->SpMat(), fes_);
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					1.0 - double(f) * 2.0);
+				collectBlockPlacement(op->SpMat(), blocks,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					-1.0 + double(f) * 2.0);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalTwoNormalOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue;
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue;
+					auto op = buildByMult<FES,BF>(
+						MInv[f]->SpMat(), buildTwoNormalSubOperator<BF>(f, {d, d2})->SpMat(), fes_);
+					collectBlockPlacement(op->SpMat(), blocks,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()), 1.0);
+				}
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::collectGlobalConductiveOperator(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		auto MSig  = buildSigmaMassOperator<BF>();
+		auto ASigE = buildByMult<FES, BF>(MInv[E]->SpMat(), MSig->SpMat(), fes_);
+
+		GlobalIndices gid(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto d : { X, Y, Z }) {
+			collectBlockPlacement(ASigE->SpMat(), blocks,
+				std::make_pair(*gid.offsets[E][d].get(), *gid.offsets[E][d].get()), -1.0);
 		}
 	}
 
@@ -1098,11 +1396,7 @@ namespace maxwell
 			}
 		}
 		// No marker found — return empty finalized matrix
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-			additional_dofs = fes_.num_face_nbr_dofs;
-		}
-		auto res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + additional_dofs));
+		auto res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + getAdditionalDofs()));
 		res->Finalize();
 		return res;
 	}
@@ -1110,21 +1404,20 @@ namespace maxwell
 	template <typename FES>
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildSourceFaceOperator(mfem::Array<int>& marker)
 	{
-		auto additional_dofs = 0;
-		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-        	additional_dofs = fes_.num_face_nbr_dofs;
-    	}
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + getAdditionalDofs()));
 
-		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + additional_dofs));
+		// S5: Build M^{-1} once and share across all sub-operator assemblies.
+		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
 
 		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
-			this->template addGlobalSourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), marker);
-			this->template addGlobalSourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker);
-			this->template addGlobalSourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker);
+			this->template addGlobalSourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addGlobalSourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addGlobalSourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
 		} else {
-			this->template addGlobalSourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), marker);
-			this->template addGlobalSourceFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), marker);
-			this->template addGlobalSourceFaceIBFITwoNormalOperators<BilinearForm>(res.get(), marker);
+			auto MInvSerial = buildMaxwellInverseMassMatrixOperator<BilinearForm>();
+			this->template addGlobalSourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
+			this->template addGlobalSourceFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
+			this->template addGlobalSourceFaceIBFITwoNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
 		}
 
 		res->Finalize();
@@ -1135,14 +1428,19 @@ namespace maxwell
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildGlobalOperator()
 	{
 
-		auto additional_dofs = 0;
 		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
 			fes_.ExchangeFaceNbrData();
-        	additional_dofs = fes_.num_face_nbr_dofs;
     	}
 
-		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + additional_dofs));
+		const int globalRows = 6 * fes_.GetNDofs();
+		const int globalCols = 6 * (fes_.GetNDofs() + getAdditionalDofs());
 
+		// S1: Collect all sub-operator block placements, then merge into CSR directly
+		// (avoids LIL intermediate representation and its 2x peak memory during Finalize).
+		std::vector<CSRBlockPlacement> blocks;
+
+		// S5: Build M^{-1} once and share across all sub-operator assemblies.
+		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
 
 		if (pd_.model.getInteriorBoundaryToMarker().size() != 0) { //IntBdrConds
 
@@ -1159,7 +1457,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalOneNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	collectGlobalOneNormalIBFIOperators<ParBilinearForm>(blocks, MInv);
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
@@ -1170,7 +1468,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalZeroNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	collectGlobalZeroNormalIBFIOperators<ParBilinearForm>(blocks, MInv);
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
@@ -1181,7 +1479,7 @@ namespace maxwell
 			}
 			#endif
 
-				this->template	addGlobalTwoNormalIBFIOperators<ParBilinearForm>(res.get());
+				this->template	collectGlobalTwoNormalIBFIOperators<ParBilinearForm>(blocks, MInv);
 
 			#ifdef SHOW_TIMER_INFORMATION
 			if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
@@ -1209,7 +1507,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalDirectionalOperators<ParBilinearForm>(res.get());
+		this->template	collectGlobalDirectionalOperators<ParBilinearForm>(blocks, MInv);
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
@@ -1220,7 +1518,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalOneNormalOperators<ParBilinearForm>(res.get());
+		this->template	collectGlobalOneNormalOperators<ParBilinearForm>(blocks, MInv);
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
@@ -1231,7 +1529,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalZeroNormalOperators<ParBilinearForm>(res.get());
+		this->template	collectGlobalZeroNormalOperators<ParBilinearForm>(blocks, MInv);
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
@@ -1242,7 +1540,7 @@ namespace maxwell
 		}
 		#endif
 
-		this->template	addGlobalTwoNormalOperators<ParBilinearForm>(res.get());
+		this->template	collectGlobalTwoNormalOperators<ParBilinearForm>(blocks, MInv);
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
@@ -1253,17 +1551,21 @@ namespace maxwell
 		}
 		#endif
 
-		this->template  addGlobalConductiveOperator<ParBilinearForm>(res.get());
+		this->template  collectGlobalConductiveOperator<ParBilinearForm>(blocks, MInv);
 
 		#ifdef SHOW_TIMER_INFORMATION
 		if (!pd_.opts.is_sgbc_solver && Mpi::WorldRank() == 0){
 			std::cout << "Elapsed time (ms): " << std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>
 				(std::chrono::high_resolution_clock::now() - startTime).count()) << std::endl;
-			std::cout << "All operators assembled. Finalising global operator matrix." << std::endl;
+			std::cout << "All operators assembled. Merging into global CSR matrix." << std::endl;
 		}
 		#endif
 
-		res->Finalize();
+		auto res = mergeBlocksToCSR(blocks, globalRows, globalCols);
+
+		// Free sub-operator blocks before applying threshold.
+		blocks.clear();
+
 		auto threshold = 1e-20;
 		res->Threshold(threshold);
 
@@ -1282,7 +1584,7 @@ namespace maxwell
 				std::filesystem::create_directories(export_dir);
 			}
 
-			std::filesystem::path file_path = export_dir / "SpatialEvolutionOperator.csr";
+			std::filesystem::path file_path = export_dir / (this->pd_.model.meshName_ + "_global.csr");
 
 			std::ofstream ofs(file_path);
 			if (!ofs.is_open())
@@ -1293,7 +1595,7 @@ namespace maxwell
 			res->PrintCSR2(ofs);
 			ofs.close();
 
-			std::cout << "Operator exported to " << file_path << std::endl;
+			std::cout << "Global operator exported to " << file_path << std::endl;
 		}
 
 		return res;

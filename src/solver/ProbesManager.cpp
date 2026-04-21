@@ -1,9 +1,8 @@
 #include "ProbesManager.h"
-#include "components/RCSSurfaceExporter.h"
 #include "math/PhysicalConstants.h"
+#include "general/text.hpp"
 #include <cmath>
 #include <filesystem>
-#include <iostream>
 
 namespace maxwell {
 
@@ -522,6 +521,10 @@ void ProbesManager::updateProbes(Time t)
         updateProbe(p, t);
     }
 
+    for (auto& p : probes.morStateProbes) {
+        updateProbe(p, t);
+    }
+
     cycle_++;
 }
 
@@ -600,6 +603,56 @@ void ProbesManager::recalculateExportSteps(double dt)
     }
     for (auto& p : probes.pointProbes) {
         if (p.getSaves() > 0) p.setVisSteps(stepsFromSaves(p.getSaves()));
+    }
+}
+
+void ProbesManager::updateProbe(MORStateProbe& p, Time time)
+{
+    if (p.saves <= 0) return;
+    if (time < p.record_time_start - 1e-12) return;
+    if (time > p.record_time_final + 1e-12) return;
+
+    auto& ctx = morStateContexts_[&p];
+
+    if (!ctx.initialized) {
+        ctx.dt_save = (p.saves > 1)
+            ? (p.record_time_final - p.record_time_start) / (p.saves - 1)
+            : 0.0;
+        ctx.next_save_time = p.record_time_start;
+        ctx.save_count = 0;
+        ctx.export_dir = "Exports/" + getRunModeTag() + "/" + caseName_ + "/MORStateProbes/" + p.name;
+
+        if (isNodeRoot()) {
+            std::filesystem::create_directories(ctx.export_dir);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        ctx.initialized = true;
+    }
+
+    if (ctx.save_count >= p.saves) return;
+
+    double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 0.5 : 1e-12;
+    if (time < ctx.next_save_time - tol) return;
+
+    const auto& all_dofs = fields_->allDOFs();
+    std::string file_path = ctx.export_dir + "/x_" + std::to_string(ctx.save_count);
+
+    std::ofstream ofs(file_path);
+    if (ofs.is_open()) {
+        ofs << all_dofs.Size() << "\n";
+        ofs << std::scientific << std::setprecision(16);
+        for (int i = 0; i < all_dofs.Size(); ++i) {
+            ofs << all_dofs[i] << "\n";
+        }
+        ofs.close();
+    }
+
+    ctx.save_count++;
+    if (p.saves > 1) {
+        ctx.next_save_time = p.record_time_start + ctx.save_count * ctx.dt_save;
+    } else {
+        ctx.next_save_time = p.record_time_final + 1.0;
     }
 }
 

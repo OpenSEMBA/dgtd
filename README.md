@@ -168,21 +168,21 @@ An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries 
 				- **polarization**: String. Component to record. Can be `"X"`, `"Y"`, or `"Z"`.
 				- **position**: Array of doubles. Spatial coordinates. Same constraints as for `point`.
 				- steps / saves: See exporter above.
-		- farfield:
-			- Array. Each entry accumulates near-to-far-field data for 3D RCS post-processing.
-				- **tags**: Array of integers. Mesh surface tags that form the near-field Huygens surface.
-				- name: String. Output name.
-				- export_path: String. Directory for the output files.
-				- steps / saves: See exporter above.
 		- domain_snapshot:
 			- Object. Periodic full-domain field snapshot (alternative to the incremental exporter).
 				- name: String. Output name. Defaults to the mesh filename stem.
 				- steps / saves: See exporter above.
 		- rcssurface:
-			- Array. Each entry performs in-situ 2D RCS surface integration.
-				- **tags**: Array of integers. Mesh surface tags for the integration surface.
+			- Array. Each entry exports surface E/H field snapshots projected onto a boundary submesh to a compact binary file (`surface_data.bin`). The binary contains a geometry header (quadrature point positions, outward normals, and weights) followed by time-stamped E/H field blocks. Intended for offline RCS post-processing.
+				- **tags**: Array of integers. Mesh surface tags that define the integration surface.
 				- name: String. Output name.
 				- steps / saves: See exporter above.
+		- mor_state:
+			- Array. Each entry periodically saves the full DG state vector (all E and H DOFs) to disk over a specified time window. The saved vectors are compatible with the exported global operator matrix (`{name}_global.csr`), so that `y = A * x` can be evaluated offline (e.g. in Python). Each snapshot is written as a plain-text file `x_0`, `x_1`, … containing the vector size on the first line followed by one DOF value per line (16-digit precision). The vector layout is `[Ex₀…ExN | Ey | Ez | Hx | Hy | Hz]`.
+				- **record_time_start**: Double. Simulation time at which recording begins.
+				- **record_time_final**: Double. Simulation time at which recording ends.
+				- **saves**: Integer. Number of snapshots to record, distributed uniformly between `record_time_start` and `record_time_final`.
+				- name: String. Output subdirectory name. Defaults to `"MORState"`.
 
 - **sources**:
 	- Array. Defines the electromagnetic excitation. At least one source is required.

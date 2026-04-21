@@ -1,16 +1,10 @@
 #pragma once
 
 #include <complex>
-#include <map>
 #include <optional>
 #include <string>
-#include <vector>
 
-#include <mfem.hpp>
-
-#include "components/Types.h"
 #include "components/FarField.h"
-#include "math/PhysicalConstants.h"
 
 namespace maxwell {
 

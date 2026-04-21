@@ -64,11 +64,11 @@ using FluxSrcCoefficientsCentered = std::map<BdrCond, BdrFaceCoefficients>;
 using FluxSrcCoefficientsUpwind = std::map<BdrCond, BdrFaceCoefficients>;
 
 using Direction = int;
-static const Direction X{ 0 };
-static const Direction Y{ 1 };
-static const Direction Z{ 2 };
+inline constexpr Direction X{ 0 };
+inline constexpr Direction Y{ 1 };
+inline constexpr Direction Z{ 2 };
 
-static const Attribute hesthavenMeshingTag{ 777 };
+inline constexpr Attribute hesthavenMeshingTag{ 777 };
 
 
 }

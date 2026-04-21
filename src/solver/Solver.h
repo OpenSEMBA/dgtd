@@ -2,21 +2,11 @@
 
 #include "ProbesManager.h"
 #include "SourcesManager.h"
-#include "SolverOptions.h"
 
-#include "evolution/Fields.h"
 #include "evolution/MaxwellEvolution.h"
 #include "evolution/GlobalEvolution.h"
 #include "evolution/HesthavenEvolution.h"
-#include "evolution/HesthavenEvolutionMethods.h"
 
-#include "components/DGOperatorFactory.h"
-
-#include "components/SubMesher.h"
-#include "math/PhysicalConstants.h"
-
-#include <fstream>
-#include <iostream>
 #include <algorithm>
 #include <chrono>
 

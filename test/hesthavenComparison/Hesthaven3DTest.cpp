@@ -2,6 +2,7 @@
 
 #include "TestUtils.h"
 #include "HesthavenFunctions.h"
+#include "components/DGOperatorFactory.h"
 #include "math/EigenMfemTools.h"
 #include "evolution/MaxwellEvolutionMethods.h"
 #include "evolution/HesthavenEvolutionMethods.h"

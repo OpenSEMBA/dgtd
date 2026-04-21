@@ -1,12 +1,6 @@
 #pragma once
 
-#include "mfem.hpp"
-
-#include "components/Types.h"
-
 #include "driver/driver.h"
-
-#include "math/PhysicalConstants.h"
 
 #include "mfemExtension/LinearIntegrators.h"
 

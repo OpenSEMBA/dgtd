@@ -1,7 +1,6 @@
 #pragma once
 
 #include "components/Sources.h"
-#include "evolution/Fields.h"
 #include "components/SubMesher.h"
 
 using FieldGridFuncs = std::array<std::array<mfem::GridFunction, 3>, 2>;

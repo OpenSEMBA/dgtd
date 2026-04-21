@@ -1,12 +1,13 @@
 #include "GlobalEvolution.h"
-#include "solver/SolverExtension.h"
-#include "components/SubMesher.h"
+#include "MaxwellEvolutionMethods.h"
 
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <unordered_set>
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
@@ -328,6 +329,23 @@ GlobalEvolution::GlobalEvolution(
 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         TFSFOperator_ = dgops.buildTFSFGlobalOperator();
+
+        if (opts_.export_evolution_operator) {
+            if (Mpi::WorldSize() == 1) {
+                std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / model_.meshName_;
+                if (!std::filesystem::exists(export_dir)) {
+                    std::filesystem::create_directories(export_dir);
+                }
+                std::filesystem::path file_path = export_dir / (model_.meshName_ + "_tfsf.csr");
+                std::ofstream ofs(file_path);
+                if (!ofs.is_open()) {
+                    throw std::runtime_error("Could not open file for writing: " + file_path.string());
+                }
+                TFSFOperator_->PrintCSR2(ofs);
+                ofs.close();
+                std::cout << "TFSF operator exported to " << file_path << std::endl;
+            }
+        }
     }
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
         SGBCOperator_ = dgops.buildSGBCGlobalOperator();
@@ -360,13 +378,19 @@ const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
     return res;
 }
 
-void assertVectorOnDevice(const mfem::Vector &v, const std::string &name)
+static void rotateGlobalFieldsToLocal(
+    const double* R,
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
+    int dof_index, double* out_eh)
 {
-    mfem::MemoryType mem_type = v.GetMemory().GetMemoryType();
-    if (mem_type != mfem::MemoryType::DEVICE) {
-        mfem::out << "Warning: Vector '" << name << "' latest data is NOT on device!\n";
-    } else {
-        mfem::out << "Vector '" << name << "' latest data is on DEVICE.\n";
+    double eg[3], hg[3];
+    for (int d = 0; d < 3; ++d) {
+        eg[d] = fields.get(E, static_cast<Direction>(d))[dof_index];
+        hg[d] = fields.get(H, static_cast<Direction>(d))[dof_index];
+    }
+    for (int d = 0; d < 3; ++d) {
+        out_eh[d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
+        out_eh[3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
     }
 }
 
@@ -400,26 +424,9 @@ void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
 
             // Extract face-local ghost values at time t for interpolation.
             const auto& s = states[i];
-            const double* R = s.rot;
-            const NodePair& pair = s.global_pair;
-            double eg[3], hg[3];
-            for (int d = 0; d < 3; ++d) {
-                eg[d] = fields.get(E, static_cast<Direction>(d))[pair.first];
-                hg[d] = fields.get(H, static_cast<Direction>(d))[pair.first];
-            }
-            for (int d = 0; d < 3; ++d) {
-                cp[i].ghost_old[d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
-                cp[i].ghost_old[3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
-            }
-            if (pair.second != -1) {
-                for (int d = 0; d < 3; ++d) {
-                    eg[d] = fields.get(E, static_cast<Direction>(d))[pair.second];
-                    hg[d] = fields.get(H, static_cast<Direction>(d))[pair.second];
-                }
-                for (int d = 0; d < 3; ++d) {
-                    cp[i].ghost_old[6 + d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
-                    cp[i].ghost_old[6 + 3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
-                }
+            rotateGlobalFieldsToLocal(s.rot, fields, s.global_pair.first, cp[i].ghost_old);
+            if (s.global_pair.second != -1) {
+                rotateGlobalFieldsToLocal(s.rot, fields, s.global_pair.second, cp[i].ghost_old + 6);
             }
         }
     }
@@ -440,26 +447,10 @@ void GlobalEvolution::finalizeSGBCStep(
             std::memcpy(states[i].ghost_old, cp[i].ghost_old, 12 * sizeof(double));
 
             // Extract ghost_new from post-RK fields (t + dt)
-            const double* R = states[i].rot;
             const NodePair& pair = states[i].global_pair;
-            double eg[3], hg[3];
-            for (int d = 0; d < 3; ++d) {
-                eg[d] = fields.get(E, static_cast<Direction>(d))[pair.first];
-                hg[d] = fields.get(H, static_cast<Direction>(d))[pair.first];
-            }
-            for (int d = 0; d < 3; ++d) {
-                states[i].ghost_new[d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
-                states[i].ghost_new[3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
-            }
+            rotateGlobalFieldsToLocal(states[i].rot, fields, pair.first, states[i].ghost_new);
             if (pair.second != -1) {
-                for (int d = 0; d < 3; ++d) {
-                    eg[d] = fields.get(E, static_cast<Direction>(d))[pair.second];
-                    hg[d] = fields.get(H, static_cast<Direction>(d))[pair.second];
-                }
-                for (int d = 0; d < 3; ++d) {
-                    states[i].ghost_new[6 + d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
-                    states[i].ghost_new[6 + 3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
-                }
+                rotateGlobalFieldsToLocal(states[i].rot, fields, pair.second, states[i].ghost_new + 6);
             }
         }
     }
@@ -569,10 +560,10 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
     const int blockSize = ndofs + nbrDofs;
 
     // Ensure global-layout planewave vector is allocated (first call only)
-    if (tfsf_assembledFunc_.Size() != 6 * blockSize) {
-        tfsf_assembledFunc_.SetSize(6 * blockSize);
-        tfsf_assembledFunc_.UseDevice(true);
-        tfsf_assembledFunc_ = 0.0;
+    if (multWorkVec_.Size() != 6 * blockSize) {
+        multWorkVec_.SetSize(6 * blockSize);
+        multWorkVec_.UseDevice(true);
+        multWorkVec_ = 0.0;
     }
     // Vector is already zero: either freshly initialized above,
     // or cleaned after the previous AddMult call below.
@@ -606,30 +597,30 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
         }
     }
 
-    // Scatter submesh planewave values into tfsf_assembledFunc_ (local DOFs only;
+    // Scatter submesh planewave values into multWorkVec_ (local DOFs only;
     // partitioner guarantees all TFSF faces are rank-local, no ghost exchange needed).
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    scatter_tfsf_to_assembled_gpu(tfsf_sub_to_parent_ids_, func, tfsf_assembledFunc_, blockSize);
+    scatter_tfsf_to_assembled_gpu(tfsf_sub_to_parent_ids_, func, multWorkVec_, blockSize);
 #else
     for (int v = 0; v < tfsf_sub_to_parent_ids_.Size(); ++v) {
         const int parent_dof = tfsf_sub_to_parent_ids_[v];
         for (int d : {X, Y, Z}) {
-            tfsf_assembledFunc_[d * blockSize + parent_dof] = func[E][d][v];
-            tfsf_assembledFunc_[(3 + d) * blockSize + parent_dof] = func[H][d][v];
+            multWorkVec_[d * blockSize + parent_dof] = func[E][d][v];
+            multWorkVec_[(3 + d) * blockSize + parent_dof] = func[H][d][v];
         }
     }
 #endif
 
     // Apply TFSF operator and subtract from result: out -= TFSFOp * planewave
-    TFSFOperator_->AddMult(tfsf_assembledFunc_, result_vector, -1.0);
+    TFSFOperator_->AddMult(multWorkVec_, result_vector, -1.0);
 
     // Restore zeroed state for next call
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    zero_tfsf_assembled_gpu(tfsf_sub_to_parent_ids_, tfsf_assembledFunc_, blockSize);
+    zero_tfsf_assembled_gpu(tfsf_sub_to_parent_ids_, multWorkVec_, blockSize);
 #else
     for (int d = X; d <= Z; ++d) {
-        std::memset(tfsf_assembledFunc_.GetData() + d * blockSize, 0, blockSize * sizeof(double));
-        std::memset(tfsf_assembledFunc_.GetData() + (3 + d) * blockSize, 0, blockSize * sizeof(double));
+        std::memset(multWorkVec_.GetData() + d * blockSize, 0, blockSize * sizeof(double));
+        std::memset(multWorkVec_.GetData() + (3 + d) * blockSize, 0, blockSize * sizeof(double));
     }
 #endif
 }
@@ -652,11 +643,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     bool sgbc_all_quiescent = false;
     if (SGBCOperator_ && !sgbcWrappers_.empty()){
-        if (sgbcVec_.Size() != 6 * blockSize) {
-            sgbcVec_.SetSize(6 * blockSize);
-            sgbcVec_.UseDevice(true);
-            sgbcVec_ = 0.0;
-        }
 
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
@@ -790,26 +776,26 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerExchange.Stop();
 #endif
 
-    // 3) Assemble inNew_ (local + neighbor data)
-    if (inNew_.Size() != 6 * blockSize) {
-        inNew_.SetSize(6 * blockSize);
-        inNew_.UseDevice(true);
+    // 3) Assemble multWorkVec_ (local + neighbor data)
+    if (multWorkVec_.Size() != 6 * blockSize) {
+        multWorkVec_.SetSize(6 * blockSize);
+        multWorkVec_.UseDevice(true);
     }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_eh_to_innew_gpu(in, inNew_, ndofs, nbrDofs);
-    load_nbr_to_innew_gpu(eOld_, hOld_, inNew_, ndofs, nbrDofs);
+    load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
+    load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
 #else
     for (int d = X; d <= Z; ++d) {
-        inNew_.SetVector(eOld_[d],       d      * blockSize);
-        inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+        multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
+        multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
     }
     if (nbrDofs) {
         for (int d = X; d <= Z; ++d) {
             mfem::Vector &eNbr = eOld_[d].FaceNbrData();
             mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-            inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
+            multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
         }
     }
 #endif
@@ -822,10 +808,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         out.SetSize(6 * ndofs);
         out.UseDevice(true);
     }
-    globalOperator_->Mult(inNew_, out);
+    globalOperator_->Mult(multWorkVec_, out);
 #ifdef SHOW_TIMER_INFORMATION
     timerApplyA.Stop();
 #endif
+
+    // S3: Zero multWorkVec_ so it can be reused for TFSF and SGBC injection.
+    multWorkVec_ = 0.0;
 
     // 5) TFSF source injection
 #ifdef SHOW_TIMER_INFORMATION
@@ -840,17 +829,57 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     //    Sub-solve was done in step 1; here we only inject interface values as flux.
     //    Skip entirely when all SGBC faces are quiescent.
     if (SGBCOperator_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
-        if (sgbcVec_.Size() != 6 * blockSize) {
-            sgbcVec_.SetSize(6 * blockSize);
-            sgbcVec_.UseDevice(true);
-            sgbcVec_ = 0.0;
-        }
+        // multWorkVec_ is already sized and zeroed (after step 4 zeroing + TFSF cleanup).
         // On GPU builds 'in' is device-authoritative after steps 2-5; HostRead()
         // syncs device→host once for all operator[]-based DOF reads below.
-        // sgbcVec_ was zeroed on device; HostReadWrite() syncs it to host so that
+        // multWorkVec_ was zeroed on device; HostReadWrite() syncs it to host so that
         // operator[] assignments write to the correct (host) buffer.
         in.HostRead();
-        sgbcVec_.HostReadWrite();
+        multWorkVec_.HostReadWrite();
+
+        // Helper: fill multWorkVec_ slot for a given BC type.
+        // For PEC/PMC/SMA: mirror/absorb from global field at source_dof.
+        // For transparent (SGBC): rotate slab interior field at slab_idx to global frame.
+        auto fillBCSlot = [&](BdrCond bdr, int source_dof, int target_slot,
+                              const double* rot, const double* fields_state,
+                              int local_size, int slab_idx) {
+            if (bdr == BdrCond::PEC) {
+                for (int d = X; d <= Z; ++d) {
+                    multWorkVec_[d * blockSize + target_slot]       = -in[d * ndofs + source_dof];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] =  in[(3 + d) * ndofs + source_dof];
+                }
+            } else if (bdr == BdrCond::PMC) {
+                for (int d = X; d <= Z; ++d) {
+                    multWorkVec_[d * blockSize + target_slot]       =  in[d * ndofs + source_dof];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] = -in[(3 + d) * ndofs + source_dof];
+                }
+            } else if (bdr == BdrCond::SMA) {
+                for (int d = X; d <= Z; ++d) {
+                    multWorkVec_[d * blockSize + target_slot]       = in[d * ndofs + source_dof];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] = in[(3 + d) * ndofs + source_dof];
+                }
+            } else {
+                // Transparent: rotate slab local→global
+                double el[3], hl[3];
+                for (int d = 0; d < 3; ++d) {
+                    el[d] = fields_state[d * local_size + slab_idx];
+                    hl[d] = fields_state[(3 + d) * local_size + slab_idx];
+                }
+                for (int d = 0; d < 3; ++d) {
+                    multWorkVec_[d * blockSize + target_slot]       = rot[d]*el[0] + rot[3+d]*el[1] + rot[6+d]*el[2];
+                    multWorkVec_[(3 + d) * blockSize + target_slot] = rot[d]*hl[0] + rot[3+d]*hl[1] + rot[6+d]*hl[2];
+                }
+            }
+        };
+
+        // Helper: copy global field values into multWorkVec_ slot
+        auto copyGlobalSlot = [&](int dof, int slot) {
+            for (int d = X; d <= Z; ++d) {
+                multWorkVec_[d * blockSize + slot] = in[d * ndofs + dof];
+                multWorkVec_[(3 + d) * blockSize + slot] = in[(3 + d) * ndofs + dof];
+            }
+        };
+
         for (auto& [tag, states] : sgbc_states_) {
             auto it = sgbc_wrapper_map_.find(tag);
             if (it == sgbc_wrapper_map_.end()) continue;
@@ -863,50 +892,18 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
-                const double* R = state.rot;
                 // Elem1 slot: global field value (u_L) — already in global frame
-                for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + gl] = in[d * ndofs + gl];
-                    sgbcVec_[(3 + d) * blockSize + gl] = in[(3 + d) * ndofs + gl];
-                }
+                copyGlobalSlot(gl, gl);
                 // Elem2 slot: what Elem1 sees from the slab's left side
                 if (gr != -1) {
-                    if (left_bdr == BdrCond::PEC) {
-                        // PEC on the left: Elem1 sees a PEC wall.
-                        for (int d = X; d <= Z; ++d) {
-                            sgbcVec_[d * blockSize + gr]       = -in[d * ndofs + gl];
-                            sgbcVec_[(3 + d) * blockSize + gr] =  in[(3 + d) * ndofs + gl];
-                        }
-                    } else if (left_bdr == BdrCond::PMC) {
-                        // PMC on the left: Elem1 sees a PMC wall.
-                        for (int d = X; d <= Z; ++d) {
-                            sgbcVec_[d * blockSize + gr]       =  in[d * ndofs + gl];
-                            sgbcVec_[(3 + d) * blockSize + gr] = -in[(3 + d) * ndofs + gl];
-                        }
-                    } else if (left_bdr == BdrCond::SMA) {
-                        // SMA on the left: Elem1 sees a matched load.
-                        for (int d = X; d <= Z; ++d) {
-                            sgbcVec_[d * blockSize + gr]       = in[d * ndofs + gl];
-                            sgbcVec_[(3 + d) * blockSize + gr] = in[(3 + d) * ndofs + gl];
-                        }
-                    } else {
-                        // Transparent: use slab left-interface value — rotate local→global
-                        double el[3], hl[3];
-                        for (int d = 0; d < 3; ++d) {
-                            el[d] = state.fields_state[d * local_size + idx_left];
-                            hl[d] = state.fields_state[(3 + d) * local_size + idx_left];
-                        }
-                        for (int d = 0; d < 3; ++d) {
-                            sgbcVec_[d * blockSize + gr]       = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
-                            sgbcVec_[(3 + d) * blockSize + gr] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
-                        }
-                    }
+                    fillBCSlot(left_bdr, gl, gr, state.rot,
+                               state.fields_state.GetData(), local_size, idx_left);
                 }
             }
         }
         // Targeted SpMV: only compute rows for Elem1 DOFs, add directly to out.
         {
-            const double* sv = sgbcVec_.HostRead();
+            const double* sv = multWorkVec_.HostRead();
             double* op = out.HostReadWrite();
             for (int comp = 0; comp < 6; ++comp) {
                 for (int dof : sgbc_elem1_dofs_) {
@@ -929,11 +926,11 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
                 for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + gl] = 0.0;
-                    sgbcVec_[(3 + d) * blockSize + gl] = 0.0;
+                    multWorkVec_[d * blockSize + gl] = 0.0;
+                    multWorkVec_[(3 + d) * blockSize + gl] = 0.0;
                     if (gr != -1) {
-                        sgbcVec_[d * blockSize + gr] = 0.0;
-                        sgbcVec_[(3 + d) * blockSize + gr] = 0.0;
+                        multWorkVec_[d * blockSize + gr] = 0.0;
+                        multWorkVec_[(3 + d) * blockSize + gr] = 0.0;
                     }
                 }
             }
@@ -955,51 +952,16 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
                 if (gr == -1) continue;
-                const double* R = state.rot;
 
-                if (right_bdr == BdrCond::PEC) {
-                    // PEC on the right: Elem2 sees a PEC wall.
-                    // Mirror state: E_ext = -E_int, H_ext = +H_int
-                    for (int d = X; d <= Z; ++d) {
-                        sgbcVec_[d * blockSize + gl]       = -in[d * ndofs + gr];
-                        sgbcVec_[(3 + d) * blockSize + gl] =  in[(3 + d) * ndofs + gr];
-                    }
-                } else if (right_bdr == BdrCond::PMC) {
-                    // PMC on the right: Elem2 sees a PMC wall.
-                    // Mirror state: E_ext = +E_int, H_ext = -H_int
-                    for (int d = X; d <= Z; ++d) {
-                        sgbcVec_[d * blockSize + gl]       =  in[d * ndofs + gr];
-                        sgbcVec_[(3 + d) * blockSize + gl] = -in[(3 + d) * ndofs + gr];
-                    }
-                } else if (right_bdr == BdrCond::SMA) {
-                    // SMA (absorbing) on the right: Elem2 sees a matched load.
-                    // Exterior state = interior state → zero jump → no reflection.
-                    for (int d = X; d <= Z; ++d) {
-                        sgbcVec_[d * blockSize + gl]       = in[d * ndofs + gr];
-                        sgbcVec_[(3 + d) * blockSize + gl] = in[(3 + d) * ndofs + gr];
-                    }
-                } else {
-                    // Transparent: use slab right-interface value — rotate local→global
-                    double el[3], hl[3];
-                    for (int d = 0; d < 3; ++d) {
-                        el[d] = state.fields_state[d * local_size + idx_right];
-                        hl[d] = state.fields_state[(3 + d) * local_size + idx_right];
-                    }
-                    for (int d = 0; d < 3; ++d) {
-                        sgbcVec_[d * blockSize + gl]       = R[d]*el[0] + R[3+d]*el[1] + R[6+d]*el[2];
-                        sgbcVec_[(3 + d) * blockSize + gl] = R[d]*hl[0] + R[3+d]*hl[1] + R[6+d]*hl[2];
-                    }
-                }
+                fillBCSlot(right_bdr, gr, gl, state.rot,
+                           state.fields_state.GetData(), local_size, idx_right);
                 // Elem2 slot: global field value (u_R) — already in global frame
-                for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + gr] = in[d * ndofs + gr];
-                    sgbcVec_[(3 + d) * blockSize + gr] = in[(3 + d) * ndofs + gr];
-                }
+                copyGlobalSlot(gr, gr);
             }
         }
         // Targeted SpMV: only compute rows for Elem2 DOFs, add directly to out.
         {
-            const double* sv = sgbcVec_.HostRead();
+            const double* sv = multWorkVec_.HostRead();
             double* op = out.HostReadWrite();
             for (int comp = 0; comp < 6; ++comp) {
                 for (int dof : sgbc_elem2_dofs_) {
@@ -1016,17 +978,17 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
 
-        // Clear entries written in Pass 2 so sgbcVec_ stays zeroed for next call
+        // Clear entries written in Pass 2 so multWorkVec_ stays zeroed for next call
         for (auto& [tag, states] : sgbc_states_) {
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
                 if (gr == -1) continue;
                 for (int d = X; d <= Z; ++d) {
-                    sgbcVec_[d * blockSize + gl] = 0.0;
-                    sgbcVec_[(3 + d) * blockSize + gl] = 0.0;
-                    sgbcVec_[d * blockSize + gr] = 0.0;
-                    sgbcVec_[(3 + d) * blockSize + gr] = 0.0;
+                    multWorkVec_[d * blockSize + gl] = 0.0;
+                    multWorkVec_[(3 + d) * blockSize + gl] = 0.0;
+                    multWorkVec_[d * blockSize + gr] = 0.0;
+                    multWorkVec_[(3 + d) * blockSize + gr] = 0.0;
                 }
             }
         }

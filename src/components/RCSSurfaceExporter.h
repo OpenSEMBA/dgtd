@@ -1,16 +1,11 @@
 #pragma once
 
 #include <fstream>
-#include <vector>
 #include <string>
 #include <filesystem>
 
-#include <mfem.hpp>
-
-#include "components/Types.h"
 #include "components/Probes.h"
 #include "components/SubMesher.h"
-#include "evolution/Fields.h"
 
 namespace maxwell {
 

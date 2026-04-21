@@ -3,9 +3,6 @@
 #include <iostream>
 #include <fstream>
 
-#include "mfem.hpp"
-#include "general/text.hpp"
-
 #include "components/Probes.h"
 #include "components/SubMesher.h"
 #include "components/RCSSurfaceExporter.h"
@@ -18,30 +15,24 @@ std::string getRunModeTag();
 
 struct TransferMaps {
 
-    mfem::TransferMap tMapEx;
-    mfem::TransferMap tMapEy;
-    mfem::TransferMap tMapEz;
-    mfem::TransferMap tMapHx;
-    mfem::TransferMap tMapHy;
-    mfem::TransferMap tMapHz;
+    std::array<std::array<mfem::TransferMap, 3>, 2> maps;
 
     TransferMaps(Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst) :
-        tMapEx{ mfem::TransferMap(src.get(E, X), dst.get(E, X)) },
-        tMapEy{ mfem::TransferMap(src.get(E, Y), dst.get(E, Y)) },
-        tMapEz{ mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
-        tMapHx{ mfem::TransferMap(src.get(H, X), dst.get(H, X)) },
-        tMapHy{ mfem::TransferMap(src.get(H, Y), dst.get(H, Y)) },
-        tMapHz{ mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) }
+        maps{ std::array<mfem::TransferMap, 3>{ mfem::TransferMap(src.get(E, X), dst.get(E, X)),
+                                                 mfem::TransferMap(src.get(E, Y), dst.get(E, Y)),
+                                                 mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
+              std::array<mfem::TransferMap, 3>{ mfem::TransferMap(src.get(H, X), dst.get(H, X)),
+                                                 mfem::TransferMap(src.get(H, Y), dst.get(H, Y)),
+                                                 mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) } }
     {}
 
     void transferFields(const Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst)
     {
-        tMapEx.Transfer(src.get(E, X), dst.get(E, X));
-        tMapEy.Transfer(src.get(E, Y), dst.get(E, Y));
-        tMapEz.Transfer(src.get(E, Z), dst.get(E, Z));
-        tMapHx.Transfer(src.get(H, X), dst.get(H, X));
-        tMapHy.Transfer(src.get(H, Y), dst.get(H, Y));
-        tMapHz.Transfer(src.get(H, Z), dst.get(H, Z));
+        for (auto f : { E, H }) {
+            for (auto d : { X, Y, Z }) {
+                maps[f][d].Transfer(src.get(f, d), dst.get(f, d));
+            }
+        }
     }
 };
 
@@ -130,6 +121,15 @@ private:
     std::map<const RCSSurfaceProbe*, std::unique_ptr<RCSSurfaceExporter>> rcsSurfaceExporters_;
     std::map<int, std::ofstream> fieldProbeFiles_;
     std::map<int, std::ofstream> pointProbeFiles_;
+
+    struct MORStateContext {
+        int save_count{0};
+        double next_save_time{0.0};
+        double dt_save{0.0};
+        bool initialized{false};
+        std::string export_dir;
+    };
+    std::map<const MORStateProbe*, MORStateContext> morStateContexts_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
@@ -143,6 +143,7 @@ private:
     void updateProbe(NearFieldProbe&, Time);
     void updateProbe(DomainSnapshotProbe&, Time);
     void updateProbe(RCSSurfaceProbe&, Time);
+    void updateProbe(MORStateProbe&, Time);
     void initRCSSurfaceExporters();
 };
 

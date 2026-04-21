@@ -3,10 +3,7 @@
 #include "solver/SourcesManager.h"
 #include "solver/SolverExtension.h"
 #include "components/DGOperatorFactory.h"
-#include "components/Types.h"
-#include <map>
 #include <unordered_map>
-#include <vector>
 
 namespace maxwell {
 
@@ -84,9 +81,7 @@ private:
 
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
 
-    mutable mfem::Vector inNew_;
-    mutable mfem::Vector sgbcVec_;
-    mutable mfem::Vector tfsf_assembledFunc_;
+    mutable mfem::Vector multWorkVec_;
 
     // ImplicitSolve reusable work vectors (avoid per-call allocation)
     mutable mfem::Vector implicit_inNew_;
