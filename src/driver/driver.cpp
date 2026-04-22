@@ -443,7 +443,9 @@ static double minRadiusOnTFSFSurface(const mfem::Mesh& mesh, const json& tags)
 		if (!bdrElemHasTag(mesh, be, tags)) continue;
 		min_r = std::min(min_r, bdrElemCentroid(mesh, be).Norml2());
 	}
-	return (min_r == std::numeric_limits<double>::max()) ? 0.0 : min_r;
+	double global_min_r;
+	MPI_Allreduce(&min_r, &global_min_r, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+	return (global_min_r == std::numeric_limits<double>::max()) ? 0.0 : global_min_r;
 }
 
 // Minimum phase delay x·d̂/c of all TFSF surface elements in propagation direction d_hat.
@@ -464,7 +466,9 @@ static double minPhaseOnTFSFSurface(const mfem::Mesh& mesh, const json& tags,
 		phase /= c;
 		min_phase = std::min(min_phase, phase);
 	}
-	return (min_phase == std::numeric_limits<double>::max()) ? 0.0 : min_phase;
+	double global_min_phase;
+	MPI_Allreduce(&min_phase, &global_min_phase, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+	return (global_min_phase == std::numeric_limits<double>::max()) ? 0.0 : global_min_phase;
 }
 
 std::unique_ptr<InitialField> buildSphericalBesselJ6InitialField(
@@ -577,8 +581,11 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				// before reaching the upstream TFSF surface at t=0.
 				double mean_1D = min_phase - AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
 				for (int d = 0; d < d_hat.Size(); ++d) mean_vec[d] = mean_1D * d_hat[d];
-				std::cout << "[Source " << s << " (planewave)] Auto-computed mean_1D = "
-				          << mean_1D << " (min_phase=" << min_phase << ")\n";
+				int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+				if (rank == 0) {
+					std::cout << "[Source " << s << " (planewave)] Auto-computed mean_1D = "
+					          << mean_1D << " (min_phase=" << min_phase << ")\n";
+				}
 			}
 
 			if (mag.contains("frequency")) {

@@ -496,7 +496,7 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     // probes.exporterProbes.resize(1);
     // ExporterProbe ep;
     // ep.name = "InsideSGBC";
-    // ep.visSteps = 1000;
+    // ep.saves = 100;
     // probes.exporterProbes.at(0) = ep;
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
