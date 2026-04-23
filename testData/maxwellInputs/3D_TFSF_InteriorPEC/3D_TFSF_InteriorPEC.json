@@ -1,0 +1,65 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "final_time":  3.25,
+    "order": 3
+  },
+
+  "model": { 
+    "filename": "3D_TFSF_InteriorPEC.msh",
+    "materials": [
+      {
+        "tags": [ 1, 3, 4 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 28, 29, 31, 33, 38, 39 ],
+        "type": "PMC"
+      },
+      {
+        "tags": [ 26, 27, 30, 32, 34, 36, 37 ],
+        "type":  "PEC"
+      },
+      {
+        "tags": [ 25, 35 ],
+        "type":  "SMA"
+      }
+    ]
+  },
+
+  "probes": {
+    "exporter": {
+      "steps": 20
+    },
+    "point": [
+      {
+        "position": [ 0.0, 0.5, 0.5 ]
+      },
+      {
+        "position": [ 0.251, 0.5, 0.5 ]
+      },
+      {
+        "position": [ 1.249, 0.5, 0.5 ]
+      },
+      {
+        "position": [ 1.5, 0.5, 0.5 ]
+      }
+    ]
+  },
+
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 19 ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.4,
+        "mean": [-1.0, 0.5, 0.5]
+      }
+    }
+  ]
+}
