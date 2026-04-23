@@ -88,7 +88,7 @@ std::vector<std::filesystem::path> getSortedSnapshotDirs(const std::string& data
 
 std::map<SphericalAngles, Freq2Value> initAngles2FreqValues(const std::vector<Frequency>&, const std::vector<SphericalAngles>&);
 
-PlaneWaveData buildPlaneWaveData(const json&);
+PlaneWaveData buildPlaneWaveData(const json&, const std::string& meshDir = "");
 std::vector<double> buildTimeVector(const std::string& data_path);
 
 ParGridFunction getGridFunction(ParMesh&, const std::string& data_path);

@@ -1,0 +1,104 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 1e-4,
+    "final_time": 12.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "1D_SGBC_Resonant.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2,
+          3
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1,
+          4
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          3
+        ],
+        "type": "SGBC",
+        "layers": [
+          {
+            "material_width": 0.00722,
+            "relative_permittivity": 3.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 0.0
+          },
+          {
+            "material_width": 0.00417,
+            "relative_permittivity": 9.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 5.0
+          },
+          {
+            "material_width": 0.00722,
+            "relative_permittivity": 3.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 0.0
+          }
+        ]
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "saves": 100
+    },
+    "point": [
+      {
+        "position": [
+          0.1
+        ],
+        "saves": 10000
+      },
+      {
+        "position": [
+          0.5
+        ],
+        "saves": 10000
+      },
+      {
+        "position": [
+          3.45
+        ],
+        "saves": 10000
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.1,
+        "frequency": 6e9
+      }
+    }
+  ]
+}

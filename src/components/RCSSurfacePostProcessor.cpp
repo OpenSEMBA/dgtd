@@ -123,7 +123,8 @@ RCSSurfacePostProcessor::readRankData(const std::string& rankPath) const
 PlaneWaveData RCSSurfacePostProcessor::extractPlaneWaveData(
     const std::string& jsonPath) const
 {
-    return buildPlaneWaveData(driver::parseJSONfile(jsonPath));
+    std::string meshDir = std::filesystem::path(jsonPath).parent_path().string();
+    return buildPlaneWaveData(driver::parseJSONfile(jsonPath), meshDir);
 }
 
 std::vector<double> RCSSurfacePostProcessor::computeIncidentPowerSpectrum(

@@ -5,11 +5,11 @@
     "time_step": 0.0001,
     "basis_type": 1,
     "final_time": 2.8284,
-    "order": 4
+    "order": 8
   },
   "model": {
-    "filename": "2D_Resonant_Box_TM55_H4_P4.msh",
-    "refinement": 4,
+    "filename": "2D_Resonant_Box_TM55_H3_P8.msh",
+    "refinement": 3,
     "materials": [
       {
         "tags": [
