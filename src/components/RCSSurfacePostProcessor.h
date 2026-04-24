@@ -13,6 +13,7 @@ struct RCSSurfaceGeometry {
     int numDofs;
     int numBdrElements;
     int numQuadPoints;
+    int basisType;
 
     std::vector<double> positions;  // [numQuadPoints * spaceDimension]
     std::vector<double> normals;    // [numQuadPoints * 3]

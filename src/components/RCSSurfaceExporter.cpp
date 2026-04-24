@@ -54,11 +54,13 @@ RCSSurfaceExporter::RCSSurfaceExporter(
         totalQuadPts += ir->GetNPoints();
     }
 
-    int32_t header[4] = { 
+    int basisType = fec->GetBasisType();
+    int32_t header[5] = { 
         static_cast<int32_t>(spaceDim_), 
         static_cast<int32_t>(numDofs_), 
         static_cast<int32_t>(numBdr),
-        static_cast<int32_t>(totalQuadPts) 
+        static_cast<int32_t>(totalQuadPts),
+        static_cast<int32_t>(basisType)
     };
     dataFile_.write(reinterpret_cast<const char*>(header), sizeof(header));
 
