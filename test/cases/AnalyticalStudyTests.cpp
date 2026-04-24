@@ -1,71 +1,78 @@
-// #include "L2ErrorAnalysis.h"
-// #include <gtest/gtest.h>
-// #include <filesystem>
-// #include <iostream>
-// #include <sstream>
+#include "L2ErrorAnalysis.h"
 
-// class AnalyticalStudyTests : public ::testing::Test {
-// protected:
-//     void SetUp() override {}
-//     void TearDown() override {}
-// };
+#include <filesystem>
+#include <gtest/gtest.h>
+#include <iostream>
+#include <sstream>
 
-// // Generic batch runner that takes a prefix and P-range
-// static void runBatchSweep(const std::string& case_prefix, int p_min, int p_max, const std::string& description) 
-// {
-//     // Adjust this base path if your exports are stored elsewhere
-//     const std::string base_export_path = "./Exports/single-core/"; 
-    
-//     int processed = 0;
-//     int missing = 0;
+class AnalyticalStudyTests : public ::testing::Test {
+protected:
+    void SetUp() override {}
+    void TearDown() override {}
+};
 
-//     std::cout << "\n=== Starting Batch: " << description << " ===" << std::endl;
+static void runBatchSweep(const std::string& case_prefix,
+                          const std::string& case_suffix,
+                          int p_min,
+                          int p_max,
+                          const std::string& description)
+{
+    const std::string base_export_path = "./Exports/single-core/";
 
-//     for (int p = p_min; p <= p_max; ++p) {
-        
-//         std::stringstream ss;
-//         // Construct folder name: e.g. "2D_BesselJ6_Coarse_G2_H0_P7"
-//         // The prefix should include everything up to "_P"
-//         ss << case_prefix << "_P" << p;
-        
-//         std::string case_name = ss.str();
-//         std::filesystem::path full_path = std::filesystem::path(base_export_path) / case_name;
+    int processed = 0;
+    int missing = 0;
 
-//         if (std::filesystem::exists(full_path) && std::filesystem::is_directory(full_path)) {
-//             std::cout << "Processing: " << case_name << " ... ";
-//             try {
-//                 maxwell::L2ErrorAnalysis analysis(full_path.string());
-//                 std::cout << "[DONE]" << std::endl;
-//                 processed++;
-//             }
-//             catch (const std::exception& e) {
-//                 std::cerr << "\n[ERROR] in " << case_name << ": " << e.what() << std::endl;
-//             }
-//         } else {
-//             // Optional: Print missed files to debug paths
-//             // std::cout << "Skipping (Not Found): " << case_name << std::endl;
-//             missing++;
-//         }
-//     }
+    std::cout << "\n=== Starting Batch: " << description << " ===" << std::endl;
 
-//     std::cout << "=== Batch Complete (" << description << ") ===\n";
-//     std::cout << "Processed: " << processed << ", Skipped (Missing): " << missing << "\n" << std::endl;
-// }
+    for (int p = p_min; p <= p_max; ++p) {
+        std::stringstream ss;
+        ss << case_prefix << "_P" << p << case_suffix;
 
-// TEST_F(AnalyticalStudyTests, Batch_BesselJ6_G1_H0_Linear_Sweeps)
-// {
-//     runBatchSweep("2D_BesselJ6_G1_H0", 1, 5, "Bessel J6 - Linear");
-// }
+        const std::string case_name = ss.str();
+        const std::filesystem::path full_path = std::filesystem::path(base_export_path) / case_name;
 
-// TEST_F(AnalyticalStudyTests, Batch_BesselJ6_G2_H0_Curved_Sweeps)
-// {
-//     runBatchSweep("2D_BesselJ6_G2_H0", 1, 5, "Bessel J6 - Curved");
-// }
+        if (std::filesystem::exists(full_path) && std::filesystem::is_directory(full_path)) {
+            std::cout << "Processing: " << case_name << " ... ";
+            try {
+                maxwell::L2ErrorAnalysis analysis(full_path.string());
+                std::cout << "[DONE]" << std::endl;
+                processed++;
+            } catch (const std::exception& e) {
+                std::cerr << "\n[ERROR] in " << case_name << ": " << e.what() << std::endl;
+            }
+        } else {
+            missing++;
+        }
+    }
 
-// // TEST_F(AnalyticalStudyTests, Batch_TM55_Resonant_Box)
-// // {
-// //    // This would need the old double-loop logic or manual calls
-// //    // runBatchSweep("2D_Resonant_Box_TM55_H1", 1, 10, "TM55 H1");
-// //    // runBatchSweep("2D_Resonant_Box_TM55_H2", 1, 10, "TM55 H2");
-// //    // runBatchSweep("2D_Resonant_Box_TM55_H3", 1, 10, "TM55 H3");
-// // }
+    std::cout << "=== Batch Complete (" << description << ") ===\n";
+    std::cout << "Processed: " << processed << ", Skipped (Missing): " << missing << "\n" << std::endl;
+
+    EXPECT_GT(processed, 0) << "No matching export folders were found for batch: " << description;
+}
+
+static void runResonantFamily(const std::string& suffix, const std::string& description)
+{
+    for (int h = 1; h <= 3; ++h) {
+        std::stringstream prefix;
+        prefix << "2D_Resonant_Box_TM55_H" << h;
+        std::stringstream batch_desc;
+        batch_desc << description << " H" << h;
+        runBatchSweep(prefix.str(), suffix, 1, 10, batch_desc.str());
+    }
+}
+
+TEST_F(AnalyticalStudyTests, Batch_TM55_Resonant_Box_Global_Closed)
+{
+    runResonantFamily("", "TM55 Global Closed Basis");
+}
+
+TEST_F(AnalyticalStudyTests, Batch_TM55_Resonant_Box_Hesthaven_Closed)
+{
+    runResonantFamily("_hesthaven", "TM55 Hesthaven Closed Basis");
+}
+
+TEST_F(AnalyticalStudyTests, Batch_TM55_Resonant_Box_Global_Open)
+{
+    runResonantFamily("_bleg", "TM55 Global Open Basis");
+}

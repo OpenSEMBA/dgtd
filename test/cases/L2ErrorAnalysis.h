@@ -30,24 +30,18 @@ private:
 };
 
 class TM55_Ez_Exact : public mfem::Coefficient {
-    double t;
 public:
-    void SetTime(double time) { t = time; }
-    virtual double Eval(mfem::ElementTransformation &T, const mfem::IntegrationPoint &ip);
+    double Eval(mfem::ElementTransformation &T, const mfem::IntegrationPoint &ip) override;
 };
 
 class TM55_Hx_Exact : public mfem::Coefficient {
-    double t;
 public:
-    void SetTime(double time) { t = time; }
-    virtual double Eval(mfem::ElementTransformation &T, const mfem::IntegrationPoint &ip);
+    double Eval(mfem::ElementTransformation &T, const mfem::IntegrationPoint &ip) override;
 };
 
 class TM55_Hy_Exact : public mfem::Coefficient {
-    double t;
 public:
-    void SetTime(double time) { t = time; }
-    virtual double Eval(mfem::ElementTransformation &T, const mfem::IntegrationPoint &ip);
+    double Eval(mfem::ElementTransformation &T, const mfem::IntegrationPoint &ip) override;
 };
 
 }

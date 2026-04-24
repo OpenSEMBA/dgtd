@@ -10,6 +10,24 @@ namespace maxwell {
 size_t getCurrentMemoryUsage();
 size_t getPeakMemoryUsage();
 
+void Solver::sampleInitializationMemory()
+{
+    const auto cur = getCurrentMemoryUsage();
+    if (cur > initMemPeakSampled_) {
+        initMemPeakSampled_ = cur;
+    }
+}
+
+void Solver::sampleTemporalMemory()
+{
+    const auto cur = getCurrentMemoryUsage();
+    temporalMemSumSampled_ += static_cast<long double>(cur);
+    temporalMemSampleCount_++;
+    if (cur > temporalMemPeakSampled_) {
+        temporalMemPeakSampled_ = cur;
+    }
+}
+
 Solver::~Solver() = default; 
 
 std::unique_ptr<mfem::ParFiniteElementSpace> buildFiniteElementSpace(mfem::ParMesh* m, mfem::FiniteElementCollection* fec)
@@ -91,6 +109,8 @@ Solver::Solver(
     time_{0.0}
 {
     auto initStartTime = std::chrono::steady_clock::now();
+    initMemBaseline_ = getCurrentMemoryUsage();
+    initMemPeakSampled_ = initMemBaseline_;
 
 	MPI_Comm comm = model_.getMesh().GetComm();
     int comm_rank;
@@ -103,9 +123,11 @@ Solver::Solver(
     if (opts_.evolution.spectral == true) {
         performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
     }
+    sampleInitializationMemory();
 
     evolTDO_ = assignEvolutionOperator();
     evolTDO_->SetTime(time_);
+    sampleInitializationMemory();
 
     if (opts_.time_step == 0.0) {
         dt_ = estimateTimeStep(model_, opts_, *fes_, evolTDO_.get());
@@ -123,10 +145,12 @@ Solver::Solver(
 
     assignODESolver();
     odeSolver_->Init(*evolTDO_);
+    sampleInitializationMemory();
 
     probesManager_.setCaseName(model_.meshName_);
     probesManager_.initPointFieldProbeExport();
     probesManager_.updateProbes(time_);
+    sampleInitializationMemory();
 
     auto initEndTime = std::chrono::steady_clock::now();
 
@@ -140,6 +164,9 @@ Solver::Solver(
             myfile << std::scientific << std::setprecision(5);
             myfile << "Initialization Time: " << runtime << " (s)\n";
             myfile << std::defaultfloat;
+            myfile << "Initialization Baseline Memory (B): " << initMemBaseline_ << "\n";
+            myfile << "Initialization Peak Sampled Memory (B): " << initMemPeakSampled_ << "\n";
+            myfile << "Initialization Peak Increase (B): " << (initMemPeakSampled_ - initMemBaseline_) << "\n";
             myfile << "Assembly Peak Memory Consumption (B): " << getPeakMemoryUsage() << "\n";
             myfile.close();
         } else {
@@ -251,9 +278,9 @@ mfem::Vector getTimeStepScale(mfem::Mesh& mesh)
     return dtscale;
 }
 
-double getJacobiGQ_RMin(const int order) {
+double getJacobiGQ_RMin(const int order, const int basis_type) {
     auto mesh{ mfem::Mesh::MakeCartesian1D(1, 2.0) };
-    mfem::DG_FECollection fec{ order,1, mfem::BasisType::GaussLobatto };
+    mfem::DG_FECollection fec{ order, 1, basis_type };
     mfem::FiniteElementSpace fes{ &mesh, &fec };
 
     mfem::GridFunction nodes(&fes);
@@ -287,10 +314,10 @@ double getElementPerimeter(const std::vector<Source::Position>& vertCoords)
 }
 
 double calcMeshTimeStep(mfem::FiniteElementSpace& fes, double heuristic_divisor,
-                        const mfem::Element::Type& special_elem_type)
+                        const mfem::Element::Type& special_elem_type, const int basis_type)
 {
     Vector dtscale{ getTimeStepScale(*fes.GetMesh()) };
-    double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder()) };
+    double rmin{ getJacobiGQ_RMin(fes.FEColl()->GetOrder(), basis_type) };
     auto dt{ dtscale.Min() * rmin * 2.0 / 3.0 / physicalConstants::speedOfLight };
     dt *= 0.75; // Purely heuristic.
     if (checkIfElemTypeInMesh(*fes.GetMesh(), special_elem_type)) {
@@ -322,10 +349,10 @@ double estimateTimeStep(const Model& model, const SolverOptions& opts, const mfe
     // 2D and 3D common calculation
     double base_dt = 0.0;
     if (dimension == 2) {
-        base_dt = calcMeshTimeStep(serialfes, 2.0, mfem::Element::Type::QUADRILATERAL) * opts.cfl;
+        base_dt = calcMeshTimeStep(serialfes, 2.0, mfem::Element::Type::QUADRILATERAL, opts.basis_type) * opts.cfl;
     }
     else if (dimension == 3) {
-        base_dt = calcMeshTimeStep(serialfes, 6.0, mfem::Element::Type::HEXAHEDRON) * opts.cfl;
+        base_dt = calcMeshTimeStep(serialfes, 6.0, mfem::Element::Type::HEXAHEDRON, opts.basis_type) * opts.cfl;
     }
     else {
         throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
@@ -437,6 +464,15 @@ void Solver::writeSimulationStatistics(const Time runtime){
             std::int64_t non_zero_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().NumNonZeroElems());
             myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems << "\n";
         }
+        const std::size_t temporalMemAverageSampled =
+            temporalMemSampleCount_ > 0
+                ? static_cast<std::size_t>(temporalMemSumSampled_ / static_cast<long double>(temporalMemSampleCount_))
+                : 0;
+        myfile << "Temporal Evolution Baseline Memory (B): " << temporalMemBaseline_ << "\n";
+        myfile << "Temporal Evolution Peak Sampled Memory (B): " << temporalMemPeakSampled_ << "\n";
+        myfile << "Temporal Evolution Average Sampled Memory (B): " << temporalMemAverageSampled << "\n";
+        myfile << "Temporal Evolution Sample Count: " << temporalMemSampleCount_ << "\n";
+        myfile << "Temporal Evolution Peak Increase (B): " << (temporalMemPeakSampled_ - temporalMemBaseline_) << "\n";
         myfile << "Temporal Evolution Memory Consumption (B): " << getCurrentMemoryUsage() << "\n";
         myfile.close();
     } else {
@@ -484,6 +520,10 @@ void Solver::run()
 {
 
     auto runStartTime = std::chrono::steady_clock::now();
+    temporalMemBaseline_ = getCurrentMemoryUsage();
+    temporalMemPeakSampled_ = temporalMemBaseline_;
+    temporalMemSumSampled_ = static_cast<long double>(temporalMemBaseline_);
+    temporalMemSampleCount_ = 1;
 
 #ifdef SHOW_TIMER_INFORMATION
     auto lastPrintTime{ std::chrono::steady_clock::now() };
@@ -496,6 +536,7 @@ void Solver::run()
 
     while (time_ <= opts_.final_time - 1e-8*dt_) {
         step();
+        sampleTemporalMemory();
 
         // Stability check — every step (getNorml2 is O(N), negligible cost).
         // NaN > threshold is always false in IEEE 754, so we must use isfinite.

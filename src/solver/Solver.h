@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 
 namespace maxwell {
 
@@ -98,5 +99,16 @@ private:
     void evaluateStabilityByEigenvalueEvolutionFunction(Eigen::VectorXcd& eigenvals, MaxwellEvolution&);
     void writeSimulationStatistics(const Time);
     double calcAverageElementSizeInMesh();
+
+    // Phase-local sampled memory metrics (current RSS / device usage snapshots).
+    std::size_t initMemBaseline_ = 0;
+    std::size_t initMemPeakSampled_ = 0;
+    std::size_t temporalMemBaseline_ = 0;
+    std::size_t temporalMemPeakSampled_ = 0;
+    long double temporalMemSumSampled_ = 0.0L;
+    std::size_t temporalMemSampleCount_ = 0;
+
+    void sampleInitializationMemory();
+    void sampleTemporalMemory();
 };
 }
