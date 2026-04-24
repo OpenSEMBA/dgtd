@@ -1,0 +1,62 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.0,
+    "final_time": 20.0,
+    "order": 2
+  },
+  "model": {
+    "filename": "3D_RCS_FAKE_Sphere_Box_G1.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [ 3 ],
+        "relative_permittivity": 4.0,
+        "relative_permeability": 1.0,
+        "bulk_conductivity": 2.5
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 2 ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "saves": 200
+    },
+    "rcssurface": [
+      {
+        "name": "sphere_fake_G1",
+        "steps": 1,
+        "tags": [ 3, 4, 5, 6, 7, 8 ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "propagation": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [ 3, 4, 5, 6, 7, 8 ],
+      "magnitude": {
+        "spread": 1.0,
+        "frequency": 600e6,
+        "mean": [0.0, 0.0, -4.25]
+      }
+    }
+  ]
+}

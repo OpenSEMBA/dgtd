@@ -4,6 +4,7 @@
     "evolution_operator": "global",
     "time_step": 0.005,
     "final_time": 30.0,
+    "basis_type": 1,
     "order": 2
   },
   "model": {
@@ -34,12 +35,12 @@
   },
   "probes": {
     "exporter": {
-      "steps": 20
+      "saves": 300
     },
-    "farfield": [
+    "rcssurface": [
       {
         "name": "sphere_Box_1m_G2_O2_LR",
-        "steps": 2,
+        "steps": 1,
         "tags": [
           11,
           12,

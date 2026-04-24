@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <limits>
 
 namespace maxwell {
 
@@ -202,21 +203,58 @@ const Time getTime(const std::string& timePath)
 	return std::stod(timeString);
 }
 
-PlaneWaveData buildPlaneWaveData(const json& json)
+PlaneWaveData buildPlaneWaveData(const json& json, const std::string& meshDir)
 {
 	double spread(-1e5);
-	mfem::Vector mean;
 	double projMean(-1e5);
 	double frequency(0.0);
 
 	for (auto s{ 0 }; s < json["sources"].size(); s++) {
 		if (json["sources"][s]["type"] == "planewave") {
-			spread = json["sources"][s]["magnitude"]["spread"];
-			mean = driver::assemble3DVector(json["sources"][s]["magnitude"]["mean"]);
-		    mfem::Vector propagation = driver::assemble3DVector(json["sources"][s]["propagation"]);
-			projMean = mean * propagation / propagation.Norml2();
-			if (json["sources"][s]["magnitude"].contains("frequency")) {
-				frequency = json["sources"][s]["magnitude"]["frequency"].get<double>()
+			const auto& mag = json["sources"][s]["magnitude"];
+			spread = mag["spread"].get<double>();
+			mfem::Vector propagation = driver::assemble3DVector(json["sources"][s]["propagation"]);
+			mfem::Vector d_hat = propagation;
+			d_hat /= d_hat.Norml2();
+			if (mag.contains("mean")) {
+				mfem::Vector mean = driver::assemble3DVector(mag["mean"]);
+				projMean = mean * d_hat;
+			} else if (!meshDir.empty() && json["sources"][s].contains("tags")) {
+				// Auto-compute mean from the mesh geometry, mirroring driver.cpp logic.
+				std::string meshFile = (std::filesystem::path(meshDir)
+					/ json["model"]["filename"].get<std::string>()).string();
+				auto mesh = Mesh::LoadFromFile(meshFile.c_str(), 1, 0);
+				const auto& tags = json["sources"][s]["tags"];
+				double min_phase = std::numeric_limits<double>::max();
+				for (int be = 0; be < mesh.GetNBE(); ++be) {
+					int attr = mesh.GetBdrAttribute(be);
+					bool hasTag = false;
+					for (const auto& t : tags)
+						if (t.get<int>() == attr) { hasTag = true; break; }
+					if (!hasTag) continue;
+					Array<int> verts;
+					mesh.GetBdrElementVertices(be, verts);
+					int dim = mesh.Dimension();
+					Vector c(dim);
+					c = 0.0;
+					for (int v = 0; v < verts.Size(); ++v) {
+						const double* p = mesh.GetVertex(verts[v]);
+						for (int d = 0; d < dim; ++d) c[d] += p[d];
+					}
+					c /= static_cast<double>(verts.Size());
+					double phase = 0.0;
+					for (int d = 0; d < dim && d < d_hat.Size(); ++d)
+						phase += c[d] * d_hat[d];
+					phase /= physicalConstants::speedOfLight;
+					min_phase = std::min(min_phase, phase);
+				}
+				if (min_phase == std::numeric_limits<double>::max()) min_phase = 0.0;
+				projMean = min_phase - 5.0 * spread * std::sqrt(2.0);
+			} else {
+				projMean = -5.0 * spread * std::sqrt(2.0);
+			}
+			if (mag.contains("frequency")) {
+				frequency = mag["frequency"].get<double>()
 					/ physicalConstants::speedOfLight_SI;
 			}
 		}

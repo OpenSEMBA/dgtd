@@ -1,7 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 0.001,
+    "time_step": 0.005,
     "final_time": 20.0,
     "order": 3
   },

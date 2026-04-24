@@ -81,8 +81,8 @@
         "SEMBA_DGTD_ENABLE_CUDA": "ON",
         "HYPRE_DIR": "$env{HYPRE_CUDA_DIR}",
         "MFEM_USE_CUDA": true,
-        "CUDA_ARCH": "sm_89",
-        "CMAKE_CUDA_ARCHITECTURES": "89"
+        "CUDA_ARCH": "sm_120",
+        "CMAKE_CUDA_ARCHITECTURES": "120"
       }
     },
     {
@@ -96,8 +96,8 @@
         "SEMBA_DGTD_ENABLE_CUDA": "ON",
         "HYPRE_DIR": "$env{HYPRE_CUDA_DIR}",
         "MFEM_USE_CUDA": true,
-        "CUDA_ARCH": "sm_89",
-        "CMAKE_CUDA_ARCHITECTURES": "89"
+        "CUDA_ARCH": "sm_120",
+        "CMAKE_CUDA_ARCHITECTURES": "120"
       }
     }
   ],

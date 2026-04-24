@@ -79,12 +79,13 @@ RCSSurfacePostProcessor::readRankData(const std::string& rankPath) const
     std::ifstream f(rankPath + "/surface_data.bin", std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open " + rankPath + "/surface_data.bin");
 
-    int32_t hdr[4];
+    int32_t hdr[5];
     f.read(reinterpret_cast<char*>(hdr), sizeof(hdr));
     rd.geometry.spaceDimension = hdr[0];
     rd.geometry.numDofs        = hdr[1];
     rd.geometry.numBdrElements = hdr[2];
     rd.geometry.numQuadPoints  = hdr[3];
+    rd.geometry.basisType      = hdr[4];
 
     const int nqp = rd.geometry.numQuadPoints;
     const int sdim = rd.geometry.spaceDimension;
@@ -123,7 +124,8 @@ RCSSurfacePostProcessor::readRankData(const std::string& rankPath) const
 PlaneWaveData RCSSurfacePostProcessor::extractPlaneWaveData(
     const std::string& jsonPath) const
 {
-    return buildPlaneWaveData(driver::parseJSONfile(jsonPath));
+    std::string meshDir = std::filesystem::path(jsonPath).parent_path().string();
+    return buildPlaneWaveData(driver::parseJSONfile(jsonPath), meshDir);
 }
 
 std::vector<double> RCSSurfacePostProcessor::computeIncidentPowerSpectrum(
@@ -308,7 +310,7 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         auto mesh = Mesh::LoadFromFile(rp + "/mesh", 1, 0);
         auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
         int order = determineFECOrder(pmesh, nDofs);
-        DG_FECollection fec(order, pmesh.Dimension());
+        DG_FECollection fec(order, pmesh.Dimension(), rd.geometry.basisType);
         ParFiniteElementSpace fes(&pmesh, &fec);
         std::cout << " done. (FEC order: " << order << ")\n";
 

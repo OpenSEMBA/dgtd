@@ -632,7 +632,7 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
 
     if (ctx.save_count >= p.saves) return;
 
-    double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 0.5 : 1e-12;
+    double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 1e-6 : 1e-12;
     if (time < ctx.next_save_time - tol) return;
 
     const auto& all_dofs = fields_->allDOFs();
@@ -640,8 +640,9 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
 
     std::ofstream ofs(file_path);
     if (ofs.is_open()) {
-        ofs << all_dofs.Size() << "\n";
         ofs << std::scientific << std::setprecision(16);
+        ofs << time << "\n";
+        ofs << all_dofs.Size() << "\n";
         for (int i = 0; i < all_dofs.Size(); ++i) {
             ofs << all_dofs[i] << "\n";
         }

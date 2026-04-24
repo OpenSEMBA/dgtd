@@ -44,19 +44,32 @@ export HYPRE_DIR=$PWD/hypre
 
 ### CUDA builds
 
-CUDA builds require a separate HYPRE installation compiled with CUDA support. HYPRE's CMake build system is used for this (the autoconf `./configure` path does not support CUDA). The CUDA architecture must match the target GPU; the presets default to `sm_89` (Ada Lovelace / RTX 40-series).
+CUDA builds require a separate HYPRE installation compiled with CUDA support. HYPRE's CMake build system is used for this (the autoconf `./configure` path does not support CUDA). 
+
+**Prerequisites:**
+- Ensure the CUDA Toolkit is installed on your system. Refer to [NVIDIA's official CUDA installation guide](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/) for your platform.
+- Identify your GPU's compute capability. Common examples: `sm_120` (Blackwell), `sm_89` (Ada Lovelace / RTX 40-series), `sm_86` (Ampere / RTX 30-series), `sm_80` (Ampere / A100), `sm_75` (Turing / RTX 20-series). For a complete list, see [NVIDIA's compute capability reference](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#compute-capabilities).
 
 **Build HYPRE with CUDA:**
+Replace `<GPU_ARCH>` with the appropriate compute capability for your GPU:
 ```sh
 wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
 tar -zxvf v2.31.0.tar.gz
 cmake -S hypre-2.31.0/src -B hypre-cuda-build \
       -DHYPRE_WITH_CUDA=ON \
-      -DCMAKE_CUDA_ARCHITECTURES=89 \
+      -DCMAKE_CUDA_ARCHITECTURES=<GPU_ARCH> \
       -DCMAKE_INSTALL_PREFIX=$HOME/hypre-cuda-install
 cmake --build hypre-cuda-build -j $(nproc)
 cmake --install hypre-cuda-build
 export HYPRE_CUDA_DIR=$HOME/hypre-cuda-install
+```
+
+Example for RTX 4090 (Ada Lovelace):
+```sh
+cmake -S hypre-2.31.0/src -B hypre-cuda-build \
+      -DHYPRE_WITH_CUDA=ON \
+      -DCMAKE_CUDA_ARCHITECTURES=89 \
+      -DCMAKE_INSTALL_PREFIX=$HOME/hypre-cuda-install
 ```
 
 Then configure with a CUDA preset. `METIS_DIR` must also be set as described above:
@@ -73,8 +86,8 @@ The project provides the following CMake presets:
 |--------|-------------|
 | `gnu-debug-mpi` | Debug build with MPI and OpenMP |
 | `gnu-release-mpi` | Release build with MPI and OpenMP |
-| `gnu-debug-cuda` | Debug build with MPI, OpenMP and CUDA (gcc-12, sm_89) |
-| `gnu-release-cuda` | Release build with MPI, OpenMP and CUDA (gcc-12, sm_89) |
+| `gnu-debug-cuda` | Debug build with MPI, OpenMP and CUDA (gcc-12) |
+| `gnu-release-cuda` | Release build with MPI, OpenMP and CUDA (gcc-12) |
 
 Configure and build with a preset:
 ```sh

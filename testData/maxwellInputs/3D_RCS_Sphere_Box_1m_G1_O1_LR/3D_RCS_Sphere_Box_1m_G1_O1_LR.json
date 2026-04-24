@@ -2,7 +2,8 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 0.01,
+    "time_step": 0.005,
+    "basis_type": 1,
     "final_time": 30.0,
     "order": 1
   },
@@ -34,9 +35,9 @@
   },
   "probes": {
     "exporter": {
-      "steps": 10
+      "saves": 300
     },
-    "farfield": [
+    "rcssurface": [
       {
         "name": "sphere_Box_1m_G1_O1_LR",
         "steps": 1,
