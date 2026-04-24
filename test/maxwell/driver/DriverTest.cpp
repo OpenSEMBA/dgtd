@@ -2,6 +2,9 @@
 
 #include "driver/driver.h"
 
+#include <filesystem>
+#include <fstream>
+
 using namespace maxwell;
 using namespace maxwell::driver;
 
@@ -112,4 +115,20 @@ TEST_F(DriverTest, adaptsSourcesObjects)
 	auto sources{ buildSources(case_data) };
 
 	EXPECT_EQ(1, sources.size());
+}
+
+TEST_F(DriverTest, throwsWhenCaseNamingStyleIsInconsistent)
+{
+	const std::string case_name = "DriverStyleCheckMismatch";
+	const std::filesystem::path case_dir = std::filesystem::path(maxwellInputsFolder()) / case_name;
+	const std::filesystem::path json_path = case_dir / (case_name + ".json");
+
+	std::filesystem::create_directories(case_dir);
+	std::ofstream test_file(json_path);
+	test_file << R"({"model":{"filename":"WrongMeshName.msh"}})";
+	test_file.close();
+
+	EXPECT_THROW(buildSolverJson(json_path.string()), std::runtime_error);
+
+	std::filesystem::remove_all(case_dir);
 }

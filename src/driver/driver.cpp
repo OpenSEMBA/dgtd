@@ -1484,9 +1484,68 @@ json parseJSONfile(const std::string& case_name)
 	return json::parse(test_file);
 }
 
+void validateCaseNamingStyle(const std::string& case_json_path, const json& case_data)
+{
+    const std::filesystem::path json_path(case_json_path);
+    const std::string json_extension = json_path.extension().string();
+    if (json_extension != ".json") {
+        throw std::runtime_error(
+            "Input case file must be a .json file. Received: " + case_json_path);
+    }
+
+    const std::filesystem::path case_dir = json_path.parent_path();
+    if (case_dir.empty()) {
+        throw std::runtime_error(
+            "Invalid case path style for " + case_json_path +
+            ". Expected a folder named as the case containing <casename>.json and <casename>.msh.");
+    }
+
+    if (!case_data.contains("model") || !case_data["model"].contains("filename") ||
+        !case_data["model"]["filename"].is_string()) {
+        throw std::runtime_error(
+            "Invalid JSON style in " + case_json_path +
+            ". model.filename is required and must be a string.");
+    }
+
+    const std::string folder_name = case_dir.filename().string();
+    const std::string json_name = json_path.stem().string();
+    const std::string expected_mesh_name = json_name + ".msh";
+    const std::string model_filename_raw = case_data["model"]["filename"].get<std::string>();
+    const std::filesystem::path model_filename_path(model_filename_raw);
+    const std::string model_filename_name = model_filename_path.filename().string();
+
+    std::ostringstream err;
+    err << "Invalid case naming style for " << case_json_path << ". "
+        << "Folder name, .json name, .msh name and model.filename must match.\n"
+        << "Expected: folder='" << json_name << "', json='" << json_name
+        << ".json', msh='" << expected_mesh_name << "', model.filename='"
+        << expected_mesh_name << "'.\n"
+        << "Found: folder='" << folder_name << "', json='" << json_path.filename().string()
+        << "', model.filename='" << model_filename_raw << "'.\n"
+        << "Fix the case names so all four values use the same <casename>.";
+
+    if (folder_name != json_name) {
+        throw std::runtime_error(err.str());
+    }
+
+    if (model_filename_name != expected_mesh_name) {
+        throw std::runtime_error(err.str());
+    }
+
+    if (model_filename_path.has_parent_path()) {
+        throw std::runtime_error(err.str());
+    }
+
+    const std::filesystem::path expected_mesh_path = case_dir / expected_mesh_name;
+    if (!std::filesystem::exists(expected_mesh_path)) {
+        throw std::runtime_error(err.str());
+    }
+}
+
 maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 {
 	auto case_data = parseJSONfile(case_name);
+    validateCaseNamingStyle(case_name, case_data);
 
 	return buildSolver(case_data, case_name, isTest);
 }
