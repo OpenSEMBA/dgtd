@@ -15,9 +15,9 @@ static void runBatchSweep(const std::string& case_prefix,
                           const std::string& case_suffix,
                           int p_min,
                           int p_max,
-                          const std::string& description)
+                          const std::string& description,
+                          const std::string& base_export_path = "./Exports/paper/")
 {
-    const std::string base_export_path = "./Exports/single-core/";
 
     int processed = 0;
     int missing = 0;
@@ -60,6 +60,32 @@ static void runResonantFamily(const std::string& suffix, const std::string& desc
         batch_desc << description << " H" << h;
         runBatchSweep(prefix.str(), suffix, 1, 10, batch_desc.str());
     }
+}
+
+static void runBesselJ6Family(const std::string& suffix, const std::string& description)
+{
+    for (int g = 1; g <= 2; ++g) {
+        std::stringstream prefix;
+        prefix << "2D_BesselJ6_G" << g;
+        std::stringstream batch_desc;
+        batch_desc << description << " G" << g;
+        runBatchSweep(prefix.str(), suffix, 1, 5, batch_desc.str(), "./Exports/single-core/");
+    }
+}
+
+TEST_F(AnalyticalStudyTests, Batch_BesselJ6_Global_Closed)
+{
+    runBesselJ6Family("", "BesselJ6 Global Closed Basis");
+}
+
+TEST_F(AnalyticalStudyTests, Batch_BesselJ6_Hesthaven_Closed)
+{
+    runBesselJ6Family("_hesthaven", "BesselJ6 Hesthaven Closed Basis");
+}
+
+TEST_F(AnalyticalStudyTests, Batch_BesselJ6_Global_Open)
+{
+    runBesselJ6Family("_bleg", "BesselJ6 Global Open Basis");
 }
 
 TEST_F(AnalyticalStudyTests, Batch_TM55_Resonant_Box_Global_Closed)

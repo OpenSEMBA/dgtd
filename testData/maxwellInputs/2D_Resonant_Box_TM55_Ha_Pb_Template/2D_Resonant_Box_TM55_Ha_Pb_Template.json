@@ -5,6 +5,7 @@
     "time_step": 0.0001,
     "basis_type": 1,
     "final_time": 2.8284,
+    "export_operator": true,
     "order": 1
   },
   "model": {
