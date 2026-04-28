@@ -1649,6 +1649,12 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 	
 	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };
 	maxwell::Probes probes{ buildProbes(case_data) };
+
+	// If MOR state probes are defined, force export_operator to true
+	if (!probes.morStateProbes.empty()) {
+		solverOpts.setExportEO(true);
+	}
+
 	// Model (mesh) must be built before sources so that auto-mean computation
 	// can inspect the TFSF surface geometry to determine the correct delay.
 	maxwell::Model model{ buildModel(case_data, case_path, isTest) };

@@ -10,6 +10,8 @@
 
 namespace maxwell {
 
+class SourcesManager;  // Forward declaration
+
 Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace&);
 std::string getRunModeTag();
 
@@ -78,6 +80,10 @@ public:
         initRCSSurfaceExporters();
     }
     void initPointFieldProbeExport();
+    void initTFSFExport(SourcesManager* srcmngr, const mfem::Array<int>* tfsf_mapping) {
+        srcmngr_ = srcmngr;
+        tfsf_mapping_ = tfsf_mapping;
+    }
 
     Probes probes;
 
@@ -130,6 +136,9 @@ private:
         std::string export_dir;
     };
     std::map<const MORStateProbe*, MORStateContext> morStateContexts_;
+    
+    SourcesManager* srcmngr_{nullptr};
+    const mfem::Array<int>* tfsf_mapping_{nullptr};
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;

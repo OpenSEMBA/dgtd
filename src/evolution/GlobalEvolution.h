@@ -28,6 +28,8 @@ public:
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
+    const mfem::Array<int>& getTFSFMapping() const { return tfsf_sub_to_parent_ids_; }
+
     bool hasSGBC() const { return !sgbc_states_.empty(); }
 
 private:

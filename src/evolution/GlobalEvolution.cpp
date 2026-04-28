@@ -344,6 +344,30 @@ GlobalEvolution::GlobalEvolution(
                 TFSFOperator_->PrintCSR2(ofs);
                 ofs.close();
                 std::cout << "TFSF operator exported to " << file_path << std::endl;
+
+                // Export TFSF mapping matrix T (maps TFSF submesh DOFs to parent mesh DOFs)
+                const int tfsf_ndofs = tfsf_sub_to_parent_ids_.Size();
+                const int parent_ndofs = fes_.GetNDofs();
+                auto mapping_matrix = std::make_unique<mfem::SparseMatrix>(6 * parent_ndofs, 6 * tfsf_ndofs);
+
+                for (int comp = 0; comp < 6; ++comp) {
+                    for (int tfsf_dof = 0; tfsf_dof < tfsf_ndofs; ++tfsf_dof) {
+                        int parent_dof = tfsf_sub_to_parent_ids_[tfsf_dof];
+                        int row = comp * parent_ndofs + parent_dof;
+                        int col = comp * tfsf_ndofs + tfsf_dof;
+                        mapping_matrix->Set(row, col, 1.0);
+                    }
+                }
+                mapping_matrix->Finalize();
+
+                std::filesystem::path mapping_path = export_dir / (model_.meshName_ + "_tfsf_mapping.csr");
+                std::ofstream ofs_map(mapping_path);
+                if (!ofs_map.is_open()) {
+                    throw std::runtime_error("Could not open file for writing: " + mapping_path.string());
+                }
+                mapping_matrix->PrintCSR2(ofs_map);
+                ofs_map.close();
+                std::cout << "TFSF mapping matrix exported to " << mapping_path << std::endl;
             }
         }
     }

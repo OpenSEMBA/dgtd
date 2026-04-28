@@ -16,7 +16,7 @@ static void runBatchSweep(const std::string& case_prefix,
                           int p_min,
                           int p_max,
                           const std::string& description,
-                          const std::string& base_export_path = "./Exports/paper/")
+                          const std::string& base_export_path = "./Exports/single-core/")
 {
 
     int processed = 0;
