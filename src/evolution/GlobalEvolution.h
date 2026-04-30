@@ -3,6 +3,7 @@
 #include "solver/SourcesManager.h"
 #include "solver/SolverExtension.h"
 #include "components/DGOperatorFactory.h"
+#include "components/Probes.h"
 #include <unordered_map>
 
 namespace maxwell {
@@ -16,7 +17,7 @@ public:
     static const int numberOfFieldComponents = 2;
     static const int numberOfMaxDimensions = 3;
 
-    GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+    GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&, const Probes&);
     ~GlobalEvolution();
 
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;

@@ -43,7 +43,7 @@ std::unique_ptr<mfem::TimeDependentOperator> Solver::assignEvolutionOperator()
         return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
     }
     else if (opts_.evolution.op == EvolutionOperatorType::Global) {
-        auto global_evol = std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+        auto global_evol = std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution, probesManager_.probes);
         globalEvol_cache_ = global_evol.get();  // Cache the pointer
         return global_evol;
     }
