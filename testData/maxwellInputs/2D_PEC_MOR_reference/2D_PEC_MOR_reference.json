@@ -1,15 +1,15 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
+    "final_time": 6.0,
     "time_step": 1e-3,
-    "final_time": 2.0,
     "evolution_operator": "global",
     "export_operator": true,
     "order": 3
   },
 
   "model": { 
-    "filename": "2D_PEC_MOR.msh",
+    "filename": "2D_PEC_MOR_reference.msh",
     "materials": [
       {
         "tags": [ 1 ],
@@ -30,13 +30,14 @@
 
   "probes": { 
     "exporter": { 
-      "steps": 1
+      "saves": 60
     },
     "mor_state": [
       {
         "record_time_start": 0.0,
-        "record_time_final": 2.0,
-        "saves": 2001
+        "record_time_final": 6.0,
+        "saves": 7,
+        "name": "mor_state"
       }
     ]
   },
