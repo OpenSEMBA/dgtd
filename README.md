@@ -191,11 +191,63 @@ An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries 
 				- name: String. Output name.
 				- steps / saves: See exporter above.
 		- mor_state:
-			- Array. Each entry periodically saves the full DG state vector (all E and H DOFs) to disk over a specified time window. The saved vectors are compatible with the exported global operator matrix (`{name}_global.csr`), so that `y = A * x` can be evaluated offline (e.g. in Python). Each snapshot is written as a plain-text file `x_0`, `x_1`, … containing the vector size on the first line followed by one DOF value per line (16-digit precision). The vector layout is `[Ex₀…ExN | Ey | Ez | Hx | Hy | Hz]`.
+			- Array. Each entry periodically saves the full DG state vector (all E and H DOFs) to disk over a specified time window. The saved vectors are compatible with the exported global operator matrix (`{name}_global.csr`), so that `y = A * x` can be evaluated offline (e.g. in Python). Each snapshot is written as a plain-text file `x_0`, `x_1`, … with: first line = absolute simulation time, second line = vector size, followed by one DOF value per line (16-digit precision). The vector layout is `[Ex₀…ExN | Ey | Ez | Hx | Hy | Hz]`.
 				- **record_time_start**: Double. Simulation time at which recording begins.
 				- **record_time_final**: Double. Simulation time at which recording ends.
 				- **saves**: Integer. Number of snapshots to record, distributed uniformly between `record_time_start` and `record_time_final`.
 				- name: String. Output subdirectory name. Defaults to `"MORState"`.
+
+## MOR To ParaView Post-Processing
+
+`opensemba_mor2paraview` replays previously exported `mor_state` snapshots (`x_0`, `x_1`, ...) into a ParaView time series dataset.
+
+Expected folder layout (run command from this folder):
+
+```text
+.
+|-- <case>.json
+|-- <mesh>.msh
+`-- x/
+		|-- x_0
+		|-- x_1
+		`-- ...
+```
+
+Snapshot format per `x_k` file:
+
+1. first line: absolute simulation time
+2. second line: vector size
+3. remaining lines: state values in `[Ex | Ey | Ez | Hx | Hy | Hz]` packed order
+
+Default command:
+
+```sh
+./build/gnu-release-mpi/bin/opensemba_mor2paraview
+```
+
+Default behavior:
+
+- Detects exactly one `.json` in current directory (or errors if none/multiple).
+- Detects exactly one `.msh` in current directory (or errors if none/multiple).
+- Reads snapshots from `./x`.
+- Writes ParaView output to `./output`.
+- Uses dataset name `mor_paraview.vtk` (ParaView collection name).
+
+Optional arguments:
+
+```sh
+./build/gnu-release-mpi/bin/opensemba_mor2paraview \
+	--case ./my_case.json \
+	--mesh ./my_mesh.msh \
+	--xdir ./x \
+	--out ./output \
+	--name mor_paraview.vtk
+```
+
+Notes:
+
+- `opensemba_mor2paraview` supports only single-rank execution.
+- Output is the same ParaView-style time-series format used by the exporter probe (collection plus time-step data), suitable for direct loading in ParaView.
 
 - **sources**:
 	- Array. Defines the electromagnetic excitation. At least one source is required.
