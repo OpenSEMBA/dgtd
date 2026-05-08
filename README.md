@@ -197,6 +197,37 @@ An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries 
 				- **saves**: Integer. Number of snapshots to record, distributed uniformly between `record_time_start` and `record_time_final`.
 				- name: String. Output subdirectory name. Defaults to `"MORState"`.
 
+- **sources**:
+	- Array. Defines the electromagnetic excitation. At least one source is required.
+		- **type**: String. Can be `"initial"`, `"planewave"`, or `"dipole"`.
+
+		*For `type: "initial"` — volumetric initial condition:*
+		- **field_type**: String. Can be `"electric"` or `"magnetic"`.
+		- **polarization**: Array of 3 doubles. Polarization direction vector.
+		- **magnitude**: Object.
+			- **type**: String. Can be `"gaussian"`, `"resonant"`, `"besselj6_2D"`, or `"besselj6_3D"`.
+			- *(For `type: "gaussian"`)* **spread**: Double. Standard deviation $\sigma$ of the Gaussian pulse.
+			- *(For `type: "resonant"`)* **modes**: Array of integers. Number of standing waves along each spatial axis.
+		- *(Required for `magnitude.type: "gaussian"`)* **center**: Array of n doubles. Spatial position of the Gaussian centroid.
+		- *(Required for `magnitude.type: "gaussian"`)* **dimension**: Integer. Number of active spatial dimensions in the Gaussian exponent.
+
+		*For `type: "planewave"` — total-field/scattered-field (TFSF) plane wave:*
+		- **tags**: Array of integers. Mesh boundary tags that form the TFSF interface surface.
+		- **polarization**: Array of 3 doubles. E-field polarization direction.
+		- **propagation**: Array of 3 doubles. Wave propagation direction vector.
+		- **magnitude**: Object.
+			- **spread**: Double. Standard deviation $\sigma$ of the Gaussian envelope.
+			- **mean**: Array of doubles. Position of the Gaussian center projected onto the propagation axis at $t = 0$. Typically set behind the TFSF box. Provide as a 1-, 2-, or 3-component vector matching the mesh dimension.
+			- frequency: Double (Hz). Carrier frequency. If defined, wraps the Gaussian in a sinusoidal modulation (modulated Gaussian). If omitted, a broadband Gaussian pulse is used.
+
+		*For `type: "dipole"` — derivative-Gaussian dipole source within a TFSF box:*
+		- **tags**: Array of integers. Mesh boundary tags that form the TFSF interface surface.
+		- **magnitude**: Object.
+			- **length**: Double. Dipole length.
+			- **spread**: Double. Gaussian spread parameter.
+			- **mean**: Double. Gaussian center position along the dipole axis.
+
+
 ## MOR To ParaView Post-Processing
 
 `opensemba_mor2paraview` replays previously exported `mor_state` snapshots (`x_0`, `x_1`, ...) into a ParaView time series dataset.
@@ -248,36 +279,6 @@ Notes:
 
 - `opensemba_mor2paraview` supports only single-rank execution.
 - Output is the same ParaView-style time-series format used by the exporter probe (collection plus time-step data), suitable for direct loading in ParaView.
-
-- **sources**:
-	- Array. Defines the electromagnetic excitation. At least one source is required.
-		- **type**: String. Can be `"initial"`, `"planewave"`, or `"dipole"`.
-
-		*For `type: "initial"` — volumetric initial condition:*
-		- **field_type**: String. Can be `"electric"` or `"magnetic"`.
-		- **polarization**: Array of 3 doubles. Polarization direction vector.
-		- **magnitude**: Object.
-			- **type**: String. Can be `"gaussian"`, `"resonant"`, `"besselj6_2D"`, or `"besselj6_3D"`.
-			- *(For `type: "gaussian"`)* **spread**: Double. Standard deviation $\sigma$ of the Gaussian pulse.
-			- *(For `type: "resonant"`)* **modes**: Array of integers. Number of standing waves along each spatial axis.
-		- *(Required for `magnitude.type: "gaussian"`)* **center**: Array of n doubles. Spatial position of the Gaussian centroid.
-		- *(Required for `magnitude.type: "gaussian"`)* **dimension**: Integer. Number of active spatial dimensions in the Gaussian exponent.
-
-		*For `type: "planewave"` — total-field/scattered-field (TFSF) plane wave:*
-		- **tags**: Array of integers. Mesh boundary tags that form the TFSF interface surface.
-		- **polarization**: Array of 3 doubles. E-field polarization direction.
-		- **propagation**: Array of 3 doubles. Wave propagation direction vector.
-		- **magnitude**: Object.
-			- **spread**: Double. Standard deviation $\sigma$ of the Gaussian envelope.
-			- **mean**: Array of doubles. Position of the Gaussian center projected onto the propagation axis at $t = 0$. Typically set behind the TFSF box. Provide as a 1-, 2-, or 3-component vector matching the mesh dimension.
-			- frequency: Double (Hz). Carrier frequency. If defined, wraps the Gaussian in a sinusoidal modulation (modulated Gaussian). If omitted, a broadband Gaussian pulse is used.
-
-		*For `type: "dipole"` — derivative-Gaussian dipole source within a TFSF box:*
-		- **tags**: Array of integers. Mesh boundary tags that form the TFSF interface surface.
-		- **magnitude**: Object.
-			- **length**: Double. Dipole length.
-			- **spread**: Double. Gaussian spread parameter.
-			- **mean**: Double. Gaussian center position along the dipole axis.
 
 ## Funding
 
