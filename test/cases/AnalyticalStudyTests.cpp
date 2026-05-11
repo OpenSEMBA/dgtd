@@ -69,7 +69,7 @@ static void runBesselJ6Family(const std::string& suffix, const std::string& desc
         prefix << "2D_BesselJ6_G" << g;
         std::stringstream batch_desc;
         batch_desc << description << " G" << g;
-        runBatchSweep(prefix.str(), suffix, 1, 5, batch_desc.str(), "./Exports/single-core/");
+        runBatchSweep(prefix.str(), suffix, 1, 6, batch_desc.str(), "./Exports/single-core/");
     }
 }
 

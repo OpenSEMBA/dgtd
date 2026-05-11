@@ -5,7 +5,6 @@
     "time_step": 0.0001,
     "basis_type": 1,
     "final_time": 2.8284,
-    "export_operator": true,
     "order": 1
   },
   "model": {
@@ -32,25 +31,6 @@
     ]
   },
   "probes": {
-    "exporter": {
-      "steps": 1000
-    },
-    "point": [
-      {
-        "position": [
-          0.7,
-          0.7
-        ],
-        "write": true
-      },
-      {
-        "position": [
-          0.5,
-          0.3
-        ],
-        "write": true
-      }
-    ],
     "domain_snapshot": {
       "steps": 100
     }

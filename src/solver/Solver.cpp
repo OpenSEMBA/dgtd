@@ -479,7 +479,7 @@ void Solver::writeSimulationStatistics(const Time runtime){
         myfile << "Temporal Evolution Average Sampled Memory (B): " << temporalMemAverageSampled << "\n";
         myfile << "Temporal Evolution Sample Count: " << temporalMemSampleCount_ << "\n";
         myfile << "Temporal Evolution Peak Increase (B): " << (temporalMemPeakSampled_ - temporalMemBaseline_) << "\n";
-        myfile << "Temporal Evolution Memory Consumption (B): " << getCurrentMemoryUsage() << "\n";
+        myfile << "Temporal Evolution Memory Consumption (B): " << temporalMemAverageSampled << "\n";
         myfile.close();
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
