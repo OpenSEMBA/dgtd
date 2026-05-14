@@ -3,7 +3,7 @@
   "casename": "2D_RCS_SGBC_Circle_G2_1m_LowFreq",
   "frequencies": {
     "start": 1e6,
-    "end": 450e6,
+    "end": 250e6,
     "steps": 301
   },
   "angles": {

@@ -1566,7 +1566,9 @@ namespace maxwell
 		// Free sub-operator blocks before applying threshold.
 		blocks.clear();
 
-		auto threshold = 1e-20;
+		// Threshold set to sqrt(eps_machine) ~ 1e-8, the standard criterion for distinguishing
+		// genuine matrix entries from floating-point assembly noise relative to unit-scale quantities.
+		auto threshold = 1e-8;
 		res->Threshold(threshold);
 
 		if(this->pd_.opts.export_evolution_operator){

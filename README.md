@@ -102,7 +102,7 @@ MFEM is included as a submodule (`external/mfem-geg`) and built automatically. T
 ### Defining a JSON file
 
 Cases can be defined by parsing a JSON file with the problem information. See a complete [example](https://github.com/OpenSEMBA/dgtd/blob/main/testData/maxwellInputs/1D_PEC/1D_PEC.json) of a valid JSON file.
-An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries are **required**:
+An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIRED]** = must be present; **[OPTIONAL]** = has a default value (shown).
 
 - solver_options:
 	- Object. User can customise solver settings. If undefined, all defaults apply.
@@ -114,18 +114,18 @@ An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries 
 			- Double. Total simulation duration in natural units (1 meter/c). If undefined, defaults to `2.0`.
 		- time_step:
 			- Double. Fixed time step in natural units. Must be defined for 2D and 3D problems. Overrides `cfl` for 1D if both are defined. If undefined or `0.0` in 1D, an automatic step is computed via CFL.
-		- cfl:
-			- Double. Courant–Friedrichs–Lewy condition used to compute the automatic time step in 1D. Not available for 2D or 3D. Ignored if `time_step` is also defined. Must be in the range (0.0, 1.0].
-		- order:
-			- Integer. Polynomial order of the finite element basis. If undefined, defaults to `3`.
+		- **cfl**:
+			- Double. Courant–Friedrichs–Lewy condition used to compute the automatic time step in 1D. Not available for 2D or 3D. Ignored if `time_step` is also defined. Must be in the range (0.0, 1.0]. Defaults to `1.0`.
+		- **order**:
+			- Integer. Polynomial order of the finite element basis. Defaults to `2`.
 		- spectral:
 			- Boolean. Use a spectral evolution operator that assembles the full E/H system matrix and derives the time step from its eigenvalues. High computational cost; does not support all features. If undefined, defaults to `false`.
 		- export_operator:
 			- Boolean. Write the assembled evolution operator matrix to disk for inspection. If undefined, defaults to `false`.
-		- basis_type:
-			- String. Finite element basis type passed to MFEM.
-		- ode_type:
-			- String. ODE time-integration method passed to MFEM.
+		- **basis_type**:
+			- Integer. Finite element basis type passed to MFEM. Defaults to `1` (GaussLobatto). Values: `0` (GaussLegendre), `1` (GaussLobatto), `2` (Bernstein), `3` (OpenUniform), `4` (CloseUniform), `5` (OpenHalfUniform).
+		- **ode_type**:
+			- Integer. ODE time-integration method. Defaults to `0` (RK4). Values: `0` (RK4), `1` (BackwardEuler), `2` (Trapezoidal), `3` (ImplicitMidpoint), `4` (SDIRK33), `5` (SDIRK23), `6` (SDIRK34).
 
 - **model**:
 	- Object. Contains geometry, material, and boundary information.
@@ -168,30 +168,30 @@ An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries 
 	- Object. Controls data extraction. If undefined, no data is recorded.
 		- exporter:
 			- Object. Enables ParaView (VisIt) field export.
-				- name: String. Output dataset name. Defaults to the mesh filename stem.
+				- name: String. Output dataset name. Defaults to mesh filename (e.g. `mesh.msh` → `mesh`).
 				- steps: Integer. Export every N time steps. Mutually exclusive with `saves`.
 				- saves: Integer. Total number of exports over the whole simulation. The step interval is computed automatically. Mutually exclusive with `steps`.
 		- point:
 			- Array. Each entry records all E and H field components at a single point every interval.
 				- **position**: Array of doubles. Spatial coordinates. Must match the mesh dimension (e.g. `[x, y]` for 2D). ***Warning:*** If the point lies outside the mesh the simulation will crash.
-				- steps / saves: See exporter above.
+				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
 		- field:
 			- Array. Each entry records a single scalar field component at a point.
 				- **field_type**: String. Can be `"electric"` or `"magnetic"`.
 				- **polarization**: String. Component to record. Can be `"X"`, `"Y"`, or `"Z"`.
 				- **position**: Array of doubles. Spatial coordinates. Same constraints as for `point`.
-				- steps / saves: See exporter above.
+				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
 		- domain_snapshot:
 			- Object. Periodic full-domain field snapshot (alternative to the incremental exporter).
-				- name: String. Output name. Defaults to the mesh filename stem.
-				- steps / saves: See exporter above.
+				- name: String. Output name. Defaults to mesh filename (e.g. `mesh.msh` → `mesh`).
+				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
 		- rcssurface:
 			- Array. Each entry exports surface E/H field snapshots projected onto a boundary submesh to a compact binary file (`surface_data.bin`). The binary contains a geometry header (quadrature point positions, outward normals, and weights) followed by time-stamped E/H field blocks. Intended for offline RCS post-processing.
 				- **tags**: Array of integers. Mesh surface tags that define the integration surface.
-				- name: String. Output name.
-				- steps / saves: See exporter above.
+				- name: String. [OPTIONAL] Output name. Defaults to `"RCSSurfaceProbe"`.
+				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
 		- mor_state:
-			- Array. Each entry periodically saves the full DG state vector (all E and H DOFs) to disk over a specified time window. The saved vectors are compatible with the exported global operator matrix (`{name}_global.csr`), so that `y = A * x` can be evaluated offline (e.g. in Python). Each snapshot is written as a plain-text file `x_0`, `x_1`, … containing the vector size on the first line followed by one DOF value per line (16-digit precision). The vector layout is `[Ex₀…ExN | Ey | Ez | Hx | Hy | Hz]`.
+			- Array. Each entry periodically saves the full DG state vector (all E and H DOFs) to disk over a specified time window. The saved vectors are compatible with the exported global operator matrix (`{name}_global.csr`), so that `y = A * x` can be evaluated offline (e.g. in Python). Each snapshot is written as a plain-text file `x_0`, `x_1`, … with: first line = absolute simulation time, second line = vector size, followed by one DOF value per line (16-digit precision). The vector layout is `[Ex₀…ExN | Ey | Ez | Hx | Hy | Hz]`.
 				- **record_time_start**: Double. Simulation time at which recording begins.
 				- **record_time_final**: Double. Simulation time at which recording ends.
 				- **saves**: Integer. Number of snapshots to record, distributed uniformly between `record_time_start` and `record_time_final`.
@@ -208,8 +208,8 @@ An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries 
 			- **type**: String. Can be `"gaussian"`, `"resonant"`, `"besselj6_2D"`, or `"besselj6_3D"`.
 			- *(For `type: "gaussian"`)* **spread**: Double. Standard deviation $\sigma$ of the Gaussian pulse.
 			- *(For `type: "resonant"`)* **modes**: Array of integers. Number of standing waves along each spatial axis.
-		- *(Required for `magnitude.type: "gaussian"`)* **center**: Array of n doubles. Spatial position of the Gaussian centroid.
-		- *(Required for `magnitude.type: "gaussian"`)* **dimension**: Integer. Number of active spatial dimensions in the Gaussian exponent.
+		- **center** (Required for `magnitude.type: "gaussian"`): Array of n doubles. Spatial position of the Gaussian centroid.
+		- **dimension** (Required for `magnitude.type: "gaussian"`): Integer. Number of active spatial dimensions in the Gaussian exponent.
 
 		*For `type: "planewave"` — total-field/scattered-field (TFSF) plane wave:*
 		- **tags**: Array of integers. Mesh boundary tags that form the TFSF interface surface.
@@ -226,6 +226,59 @@ An OpenSEMBA/dgtd JSON file must have the following structure; **bold** entries 
 			- **length**: Double. Dipole length.
 			- **spread**: Double. Gaussian spread parameter.
 			- **mean**: Double. Gaussian center position along the dipole axis.
+
+
+## MOR To ParaView Post-Processing
+
+`opensemba_mor2paraview` replays previously exported `mor_state` snapshots (`x_0`, `x_1`, ...) into a ParaView time series dataset.
+
+Expected folder layout (run command from this folder):
+
+```text
+.
+|-- <case>.json
+|-- <mesh>.msh
+`-- x/
+		|-- x_0
+		|-- x_1
+		`-- ...
+```
+
+Snapshot format per `x_k` file:
+
+1. first line: absolute simulation time
+2. second line: vector size
+3. remaining lines: state values in `[Ex | Ey | Ez | Hx | Hy | Hz]` packed order
+
+Default command:
+
+```sh
+./build/gnu-release-mpi/bin/opensemba_mor2paraview
+```
+
+Default behavior:
+
+- Detects exactly one `.json` in current directory (or errors if none/multiple).
+- Detects exactly one `.msh` in current directory (or errors if none/multiple).
+- Reads snapshots from `./x`.
+- Writes ParaView output to `./output`.
+- Uses dataset name `mor_paraview.vtk` (ParaView collection name).
+
+Optional arguments:
+
+```sh
+./build/gnu-release-mpi/bin/opensemba_mor2paraview \
+	--case ./my_case.json \
+	--mesh ./my_mesh.msh \
+	--xdir ./x \
+	--out ./output \
+	--name mor_paraview.vtk
+```
+
+Notes:
+
+- `opensemba_mor2paraview` supports only single-rank execution.
+- Output is the same ParaView-style time-series format used by the exporter probe (collection plus time-step data), suitable for direct loading in ParaView.
 
 ## Funding
 

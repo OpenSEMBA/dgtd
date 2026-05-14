@@ -2,18 +2,18 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 0.01,
+    "time_step": 0.005,
     "final_time": 30.0,
-    "export_operator": true,
-    "order": 2
+    "basis_type": 0,
+    "order": 1
   },
   "model": {
-    "filename": "2D_RCS_FieldSuperposition_Y.msh",
+    "filename": "3D_RCS_Sphere_Box_1m_G2_O1_BLEG_LR.msh",
     "materials": [
       {
         "tags": [
-          1,
-          2
+          2,
+          4
         ],
         "type": "vacuum"
       }
@@ -21,16 +21,13 @@
     "boundaries": [
       {
         "tags": [
-          6,
-          7,
-          8,
           9
         ],
         "type": "PEC"
       },
       {
         "tags": [
-          1
+          10
         ],
         "type": "SMA"
       }
@@ -38,30 +35,43 @@
   },
   "probes": {
     "exporter": {
-      "steps": 10
+      "saves": 300
     },
-    "domain_snapshot": {
-      "steps": 5
-    }
+    "rcssurface": [
+      {
+        "name": "sphere_Box_1m_G2_O1_LR",
+        "steps": 1,
+        "tags": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ]
+      }
+    ]
   },
   "sources": [
     {
       "type": "planewave",
       "polarization": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "propagation": [
         0.0,
         0.0,
         1.0
       ],
-      "propagation": [
-        0.0,
-        1.0,
-        0.0
-      ],
       "tags": [
-        2,
-        3,
-        4,
-        5
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
       ],
       "magnitude": {
         "spread": 0.2

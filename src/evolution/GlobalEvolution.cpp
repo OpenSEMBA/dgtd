@@ -29,8 +29,31 @@ SGBCHelperFields initSGBCHelperFields(const int size)
     return res;
 }
 
+static mfem::Array<int> buildSurfaceMarkerFromTags(const std::vector<int>& tags, const mfem::ParFiniteElementSpace& fes)
+{
+    mfem::Array<int> marker(fes.GetMesh()->bdr_attributes.Max());
+    marker = 0;
+    for (const int t : tags) {
+        marker[t - 1] = 1;
+    }
+    return marker;
+}
+
+static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
+{
+    std::unordered_set<int> unique_tags;
+    for (const auto& p : probes.rcsSurfaceProbes) {
+        for (const int t : p.tags) {
+            unique_tags.insert(t);
+        }
+    }
+    std::vector<int> tags(unique_tags.begin(), unique_tags.end());
+    std::sort(tags.begin(), tags.end());
+    return tags;
+}
+
 GlobalEvolution::GlobalEvolution(
-    mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options) :
+    mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes) :
     mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
     fes_{ fes },
     model_{ model },
@@ -312,7 +335,7 @@ GlobalEvolution::GlobalEvolution(
         numberOfFieldComponents * numberOfMaxDimensions * (fes_.GetNDofs() + fes_.num_face_nbr_dofs)
     );
 
-    Probes probes; 
+    Probes emptyProbes; 
 
     // Keep TFSF submesh infrastructure for planewave source evaluation
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
@@ -323,7 +346,7 @@ GlobalEvolution::GlobalEvolution(
     }
 
     // Build all operators on the global mesh
-    ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
+    ProblemDescription pd(model_, emptyProbes, srcmngr_.sources, opts_);
     DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
     globalOperator_ = dgops.buildGlobalOperator();
 
@@ -344,9 +367,88 @@ GlobalEvolution::GlobalEvolution(
                 TFSFOperator_->PrintCSR2(ofs);
                 ofs.close();
                 std::cout << "TFSF operator exported to " << file_path << std::endl;
+
+                // Export TFSF mapping matrix T (maps TFSF submesh DOFs to parent mesh DOFs)
+                const int tfsf_ndofs = tfsf_sub_to_parent_ids_.Size();
+                const int parent_ndofs = fes_.GetNDofs();
+                auto mapping_matrix = std::make_unique<mfem::SparseMatrix>(6 * parent_ndofs, 6 * tfsf_ndofs);
+
+                for (int comp = 0; comp < 6; ++comp) {
+                    for (int tfsf_dof = 0; tfsf_dof < tfsf_ndofs; ++tfsf_dof) {
+                        int parent_dof = tfsf_sub_to_parent_ids_[tfsf_dof];
+                        int row = comp * parent_ndofs + parent_dof;
+                        int col = comp * tfsf_ndofs + tfsf_dof;
+                        mapping_matrix->Set(row, col, 1.0);
+                    }
+                }
+                mapping_matrix->Finalize();
+
+                std::filesystem::path mapping_path = export_dir / (model_.meshName_ + "_tfsf_mapping.csr");
+                std::ofstream ofs_map(mapping_path);
+                if (!ofs_map.is_open()) {
+                    throw std::runtime_error("Could not open file for writing: " + mapping_path.string());
+                }
+                mapping_matrix->PrintCSR2(ofs_map);
+                ofs_map.close();
+                std::cout << "TFSF mapping matrix exported to " << mapping_path << std::endl;
             }
         }
     }
+
+    const bool has_rcs_probe = !probes.rcsSurfaceProbes.empty();
+    const bool has_mor_probe = !probes.morStateProbes.empty();
+    if (opts_.export_evolution_operator && has_rcs_probe && has_mor_probe) {
+        if (Mpi::WorldSize() == 1) {
+            const auto rcs_tags = collectRCSSurfaceTags(probes);
+            if (!rcs_tags.empty()) {
+                auto marker = buildSurfaceMarkerFromTags(rcs_tags, fes_);
+                NearToFarFieldSubMesher ntff_submesher(model_.getConstMesh(), fes_, marker);
+
+                auto* ntff_submesh = ntff_submesher.getSubMesh();
+                auto dgfec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
+                if (!dgfec) {
+                    throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+                }
+
+                mfem::FiniteElementSpace ntff_fes(ntff_submesh, dgfec);
+                mfem::Array<int> farfield_sub_to_parent_ids;
+                mfem::SubMeshUtils::BuildVdofToVdofMap(ntff_fes,
+                                                       fes_,
+                                                       ntff_submesh->GetFrom(),
+                                                       ntff_submesh->GetParentElementIDMap(),
+                                                       farfield_sub_to_parent_ids);
+
+                const int farfield_ndofs = farfield_sub_to_parent_ids.Size();
+                const int parent_ndofs = fes_.GetNDofs();
+                auto farfield_mapping_matrix = std::make_unique<mfem::SparseMatrix>(6 * farfield_ndofs, 6 * parent_ndofs);
+
+                for (int comp = 0; comp < 6; ++comp) {
+                    for (int sub_dof = 0; sub_dof < farfield_ndofs; ++sub_dof) {
+                        const int parent_dof = farfield_sub_to_parent_ids[sub_dof];
+                        const int row = comp * farfield_ndofs + sub_dof;
+                        const int col = comp * parent_ndofs + parent_dof;
+                        farfield_mapping_matrix->Set(row, col, 1.0);
+                    }
+                }
+                farfield_mapping_matrix->Finalize();
+
+                std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / model_.meshName_;
+                if (!std::filesystem::exists(export_dir)) {
+                    std::filesystem::create_directories(export_dir);
+                }
+
+                std::filesystem::path farfield_path = export_dir / (model_.meshName_ + "_farfield.csr");
+                std::ofstream ofs_farfield(farfield_path);
+                if (!ofs_farfield.is_open()) {
+                    throw std::runtime_error("Could not open file for writing: " + farfield_path.string());
+                }
+                farfield_mapping_matrix->PrintCSR2(ofs_farfield);
+                ofs_farfield.close();
+                std::cout << "Farfield mapping matrix exported to " << farfield_path << std::endl;
+            }
+        }
+    }
+
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
         SGBCOperator_ = dgops.buildSGBCGlobalOperator();
     }

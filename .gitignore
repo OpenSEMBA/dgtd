@@ -2,6 +2,7 @@
 .vscode/
 .github/agents/
 .github/instructions/
+.opencode/
 
 build/
 out/
