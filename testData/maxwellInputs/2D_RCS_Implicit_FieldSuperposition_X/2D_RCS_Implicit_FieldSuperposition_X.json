@@ -4,7 +4,7 @@
     "evolution_operator": "global",
     "time_step": 0.01,
     "final_time": 30.0,
-    "exportOperator": false,
+    "export_operator": false,
     "order": 3,
     "ode_type": 2
   },
