@@ -17,6 +17,7 @@ option(SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY "Use MFEM as a subdirectory" ON )
 option(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS "Enable extensive case tests" ON )
 option(SEMBA_DGTD_ENABLE_EXTENSIVE_SOLVER_TESTS "Enable extensive solver tests" ON )
 option(SEMBA_DGTD_ENABLE_EXTENSIVE_RCS_TESTS "Enable extensive RCS tests" ON )
+option(SEMBA_DGTD_ENABLE_L2_ANALYSIS_TESTS "Enable L2 Analysis Tests" OFF)
 
 option(SEMBA_DGTD_ENABLE_TIMER_INFORMATION "Enable timer information" ON)
 
