@@ -58,15 +58,18 @@ public:
 
 
     void run();
-    void step();
+    void step(bool update_probes = true);
+    void updateProbes() { probesManager_.updateProbes(time_); }
 
     void setFinalTime(double final_time) {
         opts_.setFinalTime(final_time);
+        probesManager_.setFinalTime(final_time);
     }
     
     void setTimeStep(double dt) {
         dt_ = dt;
         opts_.setTimeStep(dt);
+        probesManager_.recalculateExportSteps(dt_);
     }
 
 private:

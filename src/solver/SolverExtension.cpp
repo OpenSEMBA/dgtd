@@ -136,25 +136,26 @@ Model buildSGBCModel(mfem::Mesh& mesh, int* partitioning, const SGBCProperties& 
     return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), gtbdr, partitioning, MPI_COMM_SELF);
 }
 
-std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp)
+std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp, double simulation_final_time, const ExporterProbe* exporter_probe)
 {
     SGBCBoundaries bdrInfo = sbcp.sgbc_bdr_info;
-    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo, simulation_final_time, exporter_probe));
 }
 
-std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProperties& sbcp)
+std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProperties& sbcp, double simulation_final_time, const ExporterProbe* exporter_probe)
 {
     SGBCBoundaries bdrInfo;
     bdrInfo.first.bdrCond = BdrCond::PEC;
     bdrInfo.first.isOn = true;
     bdrInfo.second.bdrCond = BdrCond::PEC;
     bdrInfo.second.isOn = true;
-    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo, simulation_final_time, exporter_probe));
 }
 
 std::unique_ptr<SGBCWrapper> SGBCWrapper::clone() const
 {
-    return buildSGBCWrapper(sbcp_);
+    const ExporterProbe* exporter_probe = has_exporter_probe_ ? &exporter_probe_ : nullptr;
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp_, intBdrInfo_, simulation_final_time_, exporter_probe));
 }
 
 SolverOptions buildSGBCSolverOptions(const SGBCProperties& sbcp)
@@ -435,10 +436,16 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     this->solver_->setTime(t);
     this->solver_->getEvolTDO()->SetTime(t);
 
-    this->solver_->getSolverOptions().setFinalTime(t + dt);
     this->solver_->setTimeStep(dt);
 
-    this->solver_->step();
+    this->solver_->step(false);
+}
+
+void SGBCWrapper::updateProbes(const Time t)
+{
+    this->solver_->setTime(t);
+    this->solver_->getEvolTDO()->SetTime(t);
+    this->solver_->updateProbes();
 }
 
 void checkSkinDepthResolution(const SGBCProperties& props)
@@ -484,8 +491,12 @@ void checkSkinDepthResolution(const SGBCProperties& props)
     }
 }
 
-SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
+SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo, double simulation_final_time, const ExporterProbe* exporter_probe) :
 sbcp_(sbcp),
+intBdrInfo_(intBdrInfo),
+simulation_final_time_(simulation_final_time),
+has_exporter_probe_(exporter_probe != nullptr),
+exporter_probe_(exporter_probe != nullptr ? *exporter_probe : ExporterProbe{}),
 n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
 { 
     auto mesh = buildSGBCMesh(sbcp_, n_ghost_elements_);
@@ -493,13 +504,15 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
-    // probes.exporterProbes.resize(1);
-    // ExporterProbe ep;
-    // ep.name = "InsideSGBC";
-    // ep.saves = 100;
-    // probes.exporterProbes.at(0) = ep;
+    if (has_exporter_probe_) {
+        auto ep = exporter_probe_;
+        const auto tag = sbcp_.geom_tags.empty() ? 0 : sbcp_.geom_tags.front();
+        ep.name = "InsideSGBC_tag" + std::to_string(tag);
+        probes.exporterProbes.push_back(ep);
+    }
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
+    opts.setFinalTime(simulation_final_time_);
     opts.setIsSGBCSolver(true);  // Mark as SGBC sub-solver to skip statistics
 
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);

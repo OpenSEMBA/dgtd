@@ -17,7 +17,7 @@ public:
     static const int numberOfFieldComponents = 2;
     static const int numberOfMaxDimensions = 3;
 
-    GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&, const Probes&);
+    GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&, const Probes&, double final_time);
     ~GlobalEvolution();
 
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;

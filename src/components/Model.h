@@ -89,6 +89,7 @@ struct SGBCProperties{
     std::vector<size_t> geom_tags;
     std::vector<SGBCLayer> layers;
 	SGBCBoundaries sgbc_bdr_info;
+	bool exporter_probe = false;
 
     SGBCProperties() : layers() {}
 

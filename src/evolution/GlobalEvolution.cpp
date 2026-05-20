@@ -53,7 +53,7 @@ static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
 }
 
 GlobalEvolution::GlobalEvolution(
-    mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes) :
+    mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes, double final_time) :
     mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
     fes_{ fes },
     model_{ model },
@@ -163,8 +163,20 @@ GlobalEvolution::GlobalEvolution(
                         }
                     } else {
                         auto elementSubMesh{ assembleBoundaryFaceSubMesh(*mesh, *faceTrans, attMap)};
+                        mfem::Array<int> elem_faces, elem_face_ori;
+                        if (mesh->Dimension() == 2) {
+                            mesh->GetElementEdges(faceTrans->Elem1No, elem_faces, elem_face_ori);
+                        } else {
+                            mesh->GetElementFaces(faceTrans->Elem1No, elem_faces, elem_face_ori);
+                        }
+                        const int boundary_face = mesh->GetBdrElementFaceIndex(b);
+                        const int local_face = elem_faces.Find(boundary_face);
+                        if (local_face == -1) {
+                            throw std::runtime_error("Could not map SGBC boundary face to a local element face.");
+                        }
+                        tagBdrAttributesForSubMesh(local_face, elementSubMesh);
                         mfem::FiniteElementSpace subFES(&elementSubMesh, fec);
-                        auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
+                        auto node_pair_local = buildConnectivityForBdrFace(*faceTrans, fes_, subFES);
 
                         // Compute per-DOF normals on curved faces.
                         mfem::Array<int> dofs1_bdr;
@@ -228,7 +240,12 @@ GlobalEvolution::GlobalEvolution(
             for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
                 if (tag == sbcps[p].geom_tags[t]){
 
-                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p]);
+                    const ExporterProbe* sgbc_exporter_probe =
+                        (sbcps[p].exporter_probe && !probes.exporterProbes.empty())
+                            ? &probes.exporterProbes.front()
+                            : nullptr;
+
+                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p], final_time, sgbc_exporter_probe);
                     SGBCWrapper* wrap_ptr = wrap.get();
 
                     int state_size = wrap->getStateSize();
@@ -585,7 +602,13 @@ void GlobalEvolution::finalizeSGBCStep(
         }
         if (!all_quiescent) break;
     }
-    if (all_quiescent) return;
+    if (all_quiescent) {
+        for (auto& [tag, wrapper] : sgbc_wrapper_map_) {
+            wrapper->setOldTime(sgbc_step_base_time_ + sgbc_step_dt_);
+            wrapper->updateProbes(sgbc_step_base_time_ + sgbc_step_dt_);
+        }
+        return;
+    }
 
     // Advance SGBC for full dt with linearly interpolated ghost boundary data
 
@@ -621,6 +644,7 @@ void GlobalEvolution::finalizeSGBCStep(
         }
         for (auto& [tag, _] : sgbc_wrapper_map_) {
             _->setOldTime(sgbc_step_base_time_ + dt);
+            _->updateProbes(sgbc_step_base_time_ + dt);
         }
     } else
 #endif
@@ -646,6 +670,7 @@ void GlobalEvolution::finalizeSGBCStep(
                 w->saveState(state);
             }
             w->setOldTime(sgbc_step_base_time_ + dt);
+            w->updateProbes(sgbc_step_base_time_ + dt);
         }
     }
 }
@@ -994,10 +1019,15 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
-                // Elem1 slot: global field value (u_L) — already in global frame
-                copyGlobalSlot(gl, gl);
-                // Elem2 slot: what Elem1 sees from the slab's left side
-                if (gr != -1) {
+                if (gr == -1) {
+                    // Boundary SGBC/SBC_PML: the source operator acts on the
+                    // SGBC trace directly at the boundary DOF slot.
+                    fillBCSlot(left_bdr, gl, gl, state.rot,
+                               state.fields_state.GetData(), local_size, idx_left);
+                } else {
+                    // Elem1 slot: global field value (u_L) — already in global frame
+                    copyGlobalSlot(gl, gl);
+                    // Elem2 slot: what Elem1 sees from the slab's left side
                     fillBCSlot(left_bdr, gl, gr, state.rot,
                                state.fields_state.GetData(), local_size, idx_left);
                 }

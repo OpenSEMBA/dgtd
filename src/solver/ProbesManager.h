@@ -71,6 +71,7 @@ public:
 
     void updateProbes(Time);
     void recalculateExportSteps(double dt);
+    void setFinalTime(double final_time);
 
     const FieldProbe& getFieldProbe(const std::size_t i) const;
     const PointProbe& getPointProbe(const std::size_t i) const;
@@ -109,9 +110,17 @@ private:
         const mfem::GridFunction& field;
     };
 
+    struct ExporterContext {
+        int save_count{0};
+        double next_save_time{0.0};
+        double dt_save{0.0};
+        bool initialized{false};
+    };
+
     int cycle_{ 0 };
     double finalTime_;
 
+    std::map<const ExporterProbe*, ExporterContext> exporterContexts_;
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;

@@ -268,6 +268,13 @@ namespace maxwell
 		template <typename BF>
 		std::unique_ptr<BF> buildSourceFaceIBFITwoNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker);
 
+		template <typename BF>
+		std::unique_ptr<BF> buildBoundarySourceFaceIBFIZeroNormalSubOperator(const FieldType &f, mfem::Array<int>& marker);
+		template <typename BF>
+		std::unique_ptr<BF> buildBoundarySourceFaceIBFIOneNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker);
+		template <typename BF>
+		std::unique_ptr<BF> buildBoundarySourceFaceIBFITwoNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker);
+
 		// Methods for complete Maxwell Operators //
 		template <typename BF>
 		std::array<std::unique_ptr<BF>, 2> buildMaxwellInverseMassMatrixOperator();
@@ -341,6 +348,12 @@ namespace maxwell
 		void addGlobalSourceFaceIBFIOneNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 		template <typename BF>
 		void addGlobalSourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv); 
+		template <typename BF>
+		void addGlobalBoundarySourceFaceIBFIZeroNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalBoundarySourceFaceIBFIOneNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalBoundarySourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 
 		// S1: Overloads that collect block placements for CSR-direct assembly.
 		template <typename BF>
@@ -712,6 +725,42 @@ namespace maxwell
 
 	template <typename FES>
 	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildBoundarySourceFaceIBFIZeroNormalSubOperator(const FieldType &f, mfem::Array<int>& marker)
+	{
+		auto res = std::make_unique<BF>(&fes_);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha), marker);
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildBoundarySourceFaceIBFIOneNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker)
+	{
+		auto res = std::make_unique<BF>(&fes_);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0), marker);
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildBoundarySourceFaceIBFITwoNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker)
+	{
+		auto res = std::make_unique<BF>(&fes_);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), marker);
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+
+	template <typename FES>
+	template <typename BF>
 	std::array<std::unique_ptr<BF>, 2> DGOperatorFactory<FES>::buildMaxwellInverseMassMatrixOperator()
 	{
 		std::array<std::unique_ptr<BF>, 2> res;
@@ -1050,6 +1099,78 @@ namespace maxwell
 
 	template <typename FES>
 	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalBoundarySourceFaceIBFIZeroNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildBoundarySourceFaceIBFIZeroNormalSubOperator<BF>(f, marker)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()),
+					-1.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalBoundarySourceFaceIBFIOneNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue;
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,BF>(
+					MInv[f]->SpMat(), buildBoundarySourceFaceIBFIOneNormalSubOperator<BF>(altField(f), { x }, marker)->SpMat(), fes_);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					1.0 - double(f) * 2.0
+				);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					-1.0 + double(f) * 2.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalBoundarySourceFaceIBFITwoNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue;
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue;
+					auto op = buildByMult<FES,BF>(
+						MInv[f]->SpMat(), buildBoundarySourceFaceIBFITwoNormalSubOperator<BF>(f, { d, d2 }, marker)->SpMat(), fes_);
+					loadBlockInGlobalAtIndices(
+						op->SpMat(),
+						*global,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()),
+						1.0
+					);
+				}
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalDirectionalOperators(SparseMatrix* global)
 	{
 		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
@@ -1363,7 +1484,38 @@ namespace maxwell
 	template <typename FES>
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildSGBCGlobalOperator()
 	{
-		return buildSourceFaceOperator(BdrCond::SGBC);
+		auto res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + getAdditionalDofs()));
+		auto& interior_marker = pd_.model.getMarker(BdrCond::SGBC, true);
+		auto& boundary_marker = pd_.model.getMarker(BdrCond::SGBC, false);
+
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
+			if (interior_marker.Size() != 0 && interior_marker.Sum() != 0) {
+				this->template addGlobalSourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), interior_marker, MInv);
+				this->template addGlobalSourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), interior_marker, MInv);
+				this->template addGlobalSourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), interior_marker, MInv);
+			}
+			if (boundary_marker.Size() != 0 && boundary_marker.Sum() != 0) {
+				this->template addGlobalBoundarySourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), boundary_marker, MInv);
+				this->template addGlobalBoundarySourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), boundary_marker, MInv);
+				this->template addGlobalBoundarySourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), boundary_marker, MInv);
+			}
+		} else {
+			auto MInvSerial = buildMaxwellInverseMassMatrixOperator<BilinearForm>();
+			if (interior_marker.Size() != 0 && interior_marker.Sum() != 0) {
+				this->template addGlobalSourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), interior_marker, MInvSerial);
+				this->template addGlobalSourceFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), interior_marker, MInvSerial);
+				this->template addGlobalSourceFaceIBFITwoNormalOperators<BilinearForm>(res.get(), interior_marker, MInvSerial);
+			}
+			if (boundary_marker.Size() != 0 && boundary_marker.Sum() != 0) {
+				this->template addGlobalBoundarySourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), boundary_marker, MInvSerial);
+				this->template addGlobalBoundarySourceFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), boundary_marker, MInvSerial);
+				this->template addGlobalBoundarySourceFaceIBFITwoNormalOperators<BilinearForm>(res.get(), boundary_marker, MInvSerial);
+			}
+		}
+
+		res->Finalize();
+		return res;
 	}
 
 	template <typename FES>

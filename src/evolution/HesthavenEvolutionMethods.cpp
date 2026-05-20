@@ -371,13 +371,36 @@ namespace maxwell {
 
 	BoundaryFaceConnectivityMaps buildConnectivityForBdrFace(const FaceElementTransformations& trans, const FiniteElementSpace& globalFES, FiniteElementSpace& smFES)
 	{
-		Array<int> dofs1;
-		globalFES.GetElementDofs(trans.Elem1No, dofs1);
+		GridFunction gfParent(const_cast<FiniteElementSpace*>(&globalFES));
+		GridFunction gfChild(&smFES);
+		auto mesh = dynamic_cast<SubMesh*>(smFES.GetMesh());
+		auto transferMap = mesh->CreateTransferMap(gfChild, gfParent);
+		ConstantCoefficient zero(0.0);
+		double tol{ 1e-8 };
+
+		Array<int> boundaryMarker(hesthavenMeshingTag);
+		boundaryMarker = 0;
+		boundaryMarker[hesthavenMeshingTag - 1] = 1;
+
+		auto surfaceMatrix = assembleConnectivityFaceMassMatrix(smFES, boundaryMarker);
 
 		Nodes elem1;
-		
-		for (auto v{ 0 }; v < dofs1.Size(); v++) {
-			elem1.push_back(dofs1[v]);
+		for (auto r{ 0 }; r < surfaceMatrix.rows(); r++) {
+			if (std::abs(surfaceMatrix(r, r)) <= tol) {
+				continue;
+			}
+
+			gfChild.ProjectCoefficient(zero);
+			gfParent.ProjectCoefficient(zero);
+			gfChild[r] = 1.0;
+			transferMap.Transfer(gfChild, gfParent);
+
+			for (auto v{ 0 }; v < gfParent.Size(); v++) {
+				if (gfParent[v] != 0.0) {
+					elem1.push_back(v);
+					break;
+				}
+			}
 		}
 
 		return std::make_pair(elem1, elem1);

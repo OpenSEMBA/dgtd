@@ -316,9 +316,44 @@ DomainSnapshotDataCollection ProbesManager::buildDomainSnapshotDataCollection(co
     return res;
 }
 
+void ProbesManager::setFinalTime(double final_time)
+{
+    finalTime_ = final_time;
+    exporterContexts_.clear();
+}
+
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-    if (std::abs(time - finalTime_) >= 1e-8){
+    int export_cycle = cycle_;
+
+    if (p.saves > 0 && finalTime_ > 0.0) {
+        auto& ctx = exporterContexts_[&p];
+
+        if (!ctx.initialized) {
+            ctx.dt_save = (p.saves > 1) ? finalTime_ / (p.saves - 1) : 0.0;
+            ctx.next_save_time = (p.saves > 1) ? 0.0 : finalTime_;
+            ctx.save_count = 0;
+            ctx.initialized = true;
+        }
+
+        if (ctx.save_count >= p.saves) {
+            return;
+        }
+
+        const double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 1e-6 : 1e-12;
+        if (time < ctx.next_save_time - tol) {
+            return;
+        }
+
+        export_cycle = ctx.save_count;
+        ++ctx.save_count;
+
+        if (ctx.save_count < p.saves) {
+            ctx.next_save_time = std::min(finalTime_, ctx.save_count * ctx.dt_save);
+        } else {
+            ctx.next_save_time = finalTime_ + tol;
+        }
+    } else if (std::abs(time - finalTime_) >= 1e-8) {
         if (cycle_ % p.visSteps != 0) {
             return;
         }
@@ -328,11 +363,11 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     assert(it != exporterProbesCollection_.end());
     auto& pd{ it->second };
 
-    pd.SetCycle(cycle_);
+    pd.SetCycle(export_cycle);
     pd.SetTime(std::round(time * 1e3) / 1e3);
 
     std::string base_dir = pd.GetPrefixPath() + pd.GetCollectionName();
-    std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(cycle_, 6);
+    std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(export_cycle, 6);
     
     if (isNodeRoot()) {
         std::filesystem::create_directories(cycle_dir);

@@ -1,12 +1,12 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 0.0001,
-    "final_time": 7.0,
+    "time_step": 0.001,
+    "final_time": 15.0,
     "order": 2
   },
   "model": {
-    "filename": "1D_SGBC.msh",
+    "filename": "1D_SGBC_PML.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -15,28 +15,19 @@
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2 ],
-        "type": "SMA"
+        "tags": [ 1 ],
+        "type": "PEC"
       },
       {
-        "tags": [
-          4
-        ],
-        "type": "SGBC",
-        "material": {
-          "relative_permittivity": 1.0,
-          "relative_permeability": 1.0,
-          "bulk_conductivity": 0,
-          "num_of_segments": 2,
-          "order": 6,
-          "material_width": 0.01
-        }
+        "tags": [ 2 ],
+        "type": "SBC_PML",
+        "exporter_probe": true
       }
     ]
   },
   "probes": {
     "exporter": {
-      "steps": 1000
+      "saves": 150
     },
     "point": [
       {
