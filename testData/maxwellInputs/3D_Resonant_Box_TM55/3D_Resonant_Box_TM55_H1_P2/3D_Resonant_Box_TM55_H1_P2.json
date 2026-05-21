@@ -11,22 +11,13 @@
     "refinement": 1,
     "materials": [
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
+        "tags": [ 1, 2, 3, 4, 5, 6 ],
         "type": "PEC"
       }
     ]
@@ -37,19 +28,11 @@
     },
     "point": [
       {
-        "position": [
-          0.5,
-          0.5,
-          0.5
-        ],
+        "position": [ 0.5, 0.5, 0.5 ],
         "write": true
       },
       {
-        "position": [
-          0.5,
-          0.3,
-          0.5
-        ],
+        "position": [ 0.5, 0.3, 0.5 ],
         "write": true
       }
     ],
@@ -61,17 +44,10 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "polarization": [
-        0.0,
-        0.0,
-        1.0
-      ],
+      "polarization": [ 0.0, 0.0, 1.0 ],
       "magnitude": {
         "type": "resonant",
-        "modes": [
-          5,
-          5
-        ]
+        "modes": [ 5, 5 ]
       }
     }
   ]

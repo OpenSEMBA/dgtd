@@ -41,21 +41,13 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "propagation": [
-        0.0,
-        0.0,
-        1.0
-      ],
+      "polarization": [ 1.0, 0.0, 0.0 ],
+      "propagation": [ 0.0, 0.0, 1.0 ],
       "tags": [ 3, 4, 5, 6, 7, 8 ],
       "magnitude": {
         "spread": 1.0,
         "frequency": 600e6,
-        "mean": [0.0, 0.0, -4.25]
+        "mean": [ 0.0, 0.0, -4.25 ]
       }
     }
   ]

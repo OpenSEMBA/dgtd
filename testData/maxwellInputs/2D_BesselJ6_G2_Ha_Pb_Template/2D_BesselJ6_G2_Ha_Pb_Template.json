@@ -7,8 +7,7 @@
     "basis_type": 1,
     "order": 1
   },
-
-  "model": { 
+  "model": {
     "filename": "2D_BesselJ6_G2_Ha_Pb_Template.msh",
     "refinement": 0,
     "materials": [
@@ -20,11 +19,10 @@
     "boundaries": [
       {
         "tags": [ 1, 2 ],
-        "type": "PEC" 
+        "type": "PEC"
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "steps": 1000
@@ -33,12 +31,11 @@
       "steps": 1000
     }
   },
-
-  "sources": [ 
+  "sources": [
     {
-      "type": "initial", 
-      "field_type": "electric", 
-      "polarization": [ 0.0, 0.0, 1.0 ],  
+      "type": "initial",
+      "field_type": "electric",
+      "polarization": [ 0.0, 0.0, 1.0 ],
       "magnitude": {
         "type": "besselj6_2D"
       }

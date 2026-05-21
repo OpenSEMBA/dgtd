@@ -9,26 +9,17 @@
     "filename": "1D_SGBC_CFRP_Transverse.msh",
     "materials": [
       {
-        "tags": [
-          1,
-          2,
-          3
-        ],
+        "tags": [ 1, 2, 3 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1,
-          2
-        ],
+        "tags": [ 1, 2 ],
         "type": "SMA"
       },
       {
-        "tags": [
-          4
-        ],
+        "tags": [ 4 ],
         "type": "SGBC",
         "material": {
           "relative_permittivity": 11.7,
@@ -45,21 +36,15 @@
     },
     "point": [
       {
-        "position": [
-          -2.9
-        ],
+        "position": [ -2.9 ],
         "saves": 100000
       },
       {
-        "position": [
-          -2.25
-        ],
+        "position": [ -2.25 ],
         "saves": 100000
       },
       {
-        "position": [
-          2.75
-        ],
+        "position": [ 2.75 ],
         "saves": 100000
       }
     ]
@@ -67,19 +52,9 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        0.0,
-        1.0,
-        0.0
-      ],
-      "propagation": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        3
-      ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 3 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1

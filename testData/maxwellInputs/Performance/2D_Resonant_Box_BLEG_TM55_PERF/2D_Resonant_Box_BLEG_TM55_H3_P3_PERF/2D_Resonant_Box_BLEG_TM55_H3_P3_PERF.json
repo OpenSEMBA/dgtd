@@ -3,7 +3,7 @@
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
     "time_step": 0.0001,
-    "final_time":  2.0,
+    "final_time": 2.0,
     "order": 3,
     "basis_type": 0
   },
@@ -12,20 +12,13 @@
     "refinement": 3,
     "materials": [
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1,
-          2,
-          3,
-          4
-        ],
+        "tags": [ 1, 2, 3, 4 ],
         "type": "PEC"
       }
     ]
@@ -36,17 +29,11 @@
     },
     "point": [
       {
-        "position": [
-          0.7,
-          0.7
-        ],
+        "position": [ 0.7, 0.7 ],
         "write": true
       },
       {
-        "position": [
-          0.5,
-          0.3
-        ],
+        "position": [ 0.5, 0.3 ],
         "write": true
       }
     ],
@@ -58,17 +45,10 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "polarization": [
-        0.0,
-        0.0,
-        1.0
-      ],
+      "polarization": [ 0.0, 0.0, 1.0 ],
       "magnitude": {
         "type": "resonant",
-        "modes": [
-          5,
-          5
-        ]
+        "modes": [ 5, 5 ]
       }
     }
   ]

@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 2.5e-3,
+    "time_step": 2.5e-3,
     "final_time": 10.0,
     "order": 3
   },
@@ -11,17 +11,13 @@
     "refinement": 1,
     "materials": [
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1, 2, 3
-        ],
+        "tags": [ 1, 2, 3 ],
         "type": "PEC"
       }
     ]
@@ -41,11 +37,7 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "polarization": [
-        0.0,
-        0.0,
-        1.0
-      ],
+      "polarization": [ 0.0, 0.0, 1.0 ],
       "magnitude": {
         "type": "besselj6_2D"
       }

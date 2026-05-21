@@ -5,8 +5,7 @@
     "evolution_operator": "global",
     "order": 3
   },
-
-  "model": { 
+  "model": {
     "filename": "2D_PEC.msh",
     "materials": [
       {
@@ -21,13 +20,12 @@
       },
       {
         "tags": [ 1, 3 ],
-        "type":  "PMC"
+        "type": "PMC"
       }
     ]
   },
-
-  "probes": { 
-    "exporter": { 
+  "probes": {
+    "exporter": {
       "steps": 1
     },
     "point": [
@@ -42,7 +40,6 @@
       }
     ]
   },
-
   "sources": [
     {
       "type": "initial",

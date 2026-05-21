@@ -9,37 +9,21 @@
     "filename": "3D_Curved_Element_Test.msh",
     "materials": [
       {
-        "tags": [
-          1,
-          4
-        ],
+        "tags": [ 1, 4 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          3,
-          4,
-          7,
-          9,
-          11
-        ],
+        "tags": [ 3, 4, 7, 9, 11 ],
         "type": "PEC"
       },
       {
-        "tags": [
-          5,
-          6,
-          8,
-          10
-        ],
+        "tags": [ 5, 6, 8, 10 ],
         "type": "PMC"
       },
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "SMA"
       }
     ]
@@ -52,19 +36,9 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        0.0,
-        1.0,
-        0.0
-      ],
-      "propagation": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        2
-      ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 2 ],
       "magnitude": {
         "spread": 0.2
       }

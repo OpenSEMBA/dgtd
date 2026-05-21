@@ -6,7 +6,7 @@
     "order": 3
   },
   "model": {
-    "filename": "2D_RCS_SGBC_Circle_G2.msh",
+    "filename": "2D_RCS_Circle_G1_PML.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -16,22 +16,12 @@
     "boundaries": [
       {
         "tags": [ 1 ],
-        "type": "SMA"
+        "type": "SBC_PML",
+        "exporter_probe": false
       },
       {
         "tags": [ 6 ],
-        "type": "SGBC",
-        "layers": [
-          {
-            "relative_permittivity": 1.0,
-            "relative_permeability": 1.0,
-            "bulk_conductivity": 2.0,
-            "material_width": 0.05
-          }
-        ],
-        "sgbc_boundaries": {
-          "right": "PEC"
-        }
+        "type": "PEC"
       }
     ]
   },
@@ -41,7 +31,7 @@
     },
     "rcssurface": [
       {
-        "name": "cylinder_sgbc_rcs",
+        "name": "cylinder_rcs",
         "steps": 1,
         "tags": [ 2, 3, 4, 5 ]
       }
@@ -54,8 +44,8 @@
       "propagation": [ 1.0, 0.0, 0.0 ],
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
-        "spread": 0.3,
-        "frequency": 800000000.0
+        "type": "gaussian",
+        "spread": 0.2
       }
     }
   ]

@@ -43,7 +43,7 @@
     {
       "type": "planewave",
       "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [-1.0, 0.0, 0.0 ],
+      "propagation": [ -1.0, 0.0, 0.0 ],
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
         "type": "gaussian",
@@ -63,7 +63,7 @@
     {
       "type": "planewave",
       "polarization": [ 1.0, 0.0, 0.0 ],
-      "propagation": [ 0.0,-1.0, 0.0 ],
+      "propagation": [ 0.0, -1.0, 0.0 ],
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
         "type": "gaussian",
@@ -82,8 +82,8 @@
     },
     {
       "type": "planewave",
-      "polarization": [ -0.7071067811865475,-0.7071067811865475, 0.0 ],
-      "propagation": [-0.7071067811865475, 0.7071067811865475, 0.0 ],
+      "polarization": [ -0.7071067811865475, -0.7071067811865475, 0.0 ],
+      "propagation": [ -0.7071067811865475, 0.7071067811865475, 0.0 ],
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
         "type": "gaussian",
@@ -92,8 +92,8 @@
     },
     {
       "type": "planewave",
-      "polarization": [ 0.7071067811865475,-0.7071067811865475, 0.0 ],
-      "propagation": [-0.7071067811865475,-0.7071067811865475, 0.0 ],
+      "polarization": [ 0.7071067811865475, -0.7071067811865475, 0.0 ],
+      "propagation": [ -0.7071067811865475, -0.7071067811865475, 0.0 ],
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
         "type": "gaussian",
@@ -103,7 +103,7 @@
     {
       "type": "planewave",
       "polarization": [ 0.7071067811865475, 0.7071067811865475, 0.0 ],
-      "propagation": [ 0.7071067811865475,-0.7071067811865475, 0.0 ],
+      "propagation": [ 0.7071067811865475, -0.7071067811865475, 0.0 ],
       "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
         "type": "gaussian",

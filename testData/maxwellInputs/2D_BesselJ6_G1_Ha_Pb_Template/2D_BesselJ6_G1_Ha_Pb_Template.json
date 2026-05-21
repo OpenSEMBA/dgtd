@@ -7,8 +7,7 @@
     "basis_type": 1,
     "order": 1
   },
-
-  "model": { 
+  "model": {
     "filename": "2D_BesselJ6_G1_Ha_Pb_Template.msh",
     "refinement": 0,
     "materials": [
@@ -24,7 +23,6 @@
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "steps": 100
@@ -33,12 +31,11 @@
       "steps": 100
     }
   },
-
-  "sources": [ 
+  "sources": [
     {
-      "type": "initial", 
-      "field_type": "electric", 
-      "polarization": [ 0.0, 0.0, 1.0 ],  
+      "type": "initial",
+      "field_type": "electric",
+      "polarization": [ 0.0, 0.0, 1.0 ],
       "magnitude": {
         "type": "besselj6_2D"
       }

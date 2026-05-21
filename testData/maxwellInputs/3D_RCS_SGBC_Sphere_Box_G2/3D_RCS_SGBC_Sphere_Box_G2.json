@@ -9,20 +9,13 @@
     "filename": "3D_RCS_SGBC_Sphere_Box_G2.msh",
     "materials": [
       {
-        "tags": [
-          1,
-          2,
-          3,
-          4
-        ],
+        "tags": [ 1, 2, 3, 4 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "SGBC",
         "layers": [
           {
@@ -37,9 +30,7 @@
         }
       },
       {
-        "tags": [
-          2
-        ],
+        "tags": [ 2 ],
         "type": "SMA"
       }
     ]
@@ -52,38 +43,16 @@
       {
         "name": "sphere_sgbc_G2",
         "steps": 1,
-        "tags": [
-          3,
-          4,
-          5,
-          6,
-          7,
-          8
-        ]
+        "tags": [ 3, 4, 5, 6, 7, 8 ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "propagation": [
-        0.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-      ],
+      "polarization": [ 1.0, 0.0, 0.0 ],
+      "propagation": [ 0.0, 0.0, 1.0 ],
+      "tags": [ 3, 4, 5, 6, 7, 8 ],
       "magnitude": {
         "spread": 0.2
       }

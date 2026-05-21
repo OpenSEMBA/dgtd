@@ -9,20 +9,13 @@
     "filename": "1D_TFSF.msh",
     "materials": [
       {
-        "tags": [
-          1,
-          2,
-          3
-        ],
+        "tags": [ 1, 2, 3 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1,
-          2
-        ],
+        "tags": [ 1, 2 ],
         "type": "PEC"
       }
     ]
@@ -33,49 +26,28 @@
     },
     "point": [
       {
-        "position": [
-          -2.999999
-        ]
+        "position": [ -2.999999 ]
       },
       {
-        "position": [
-          0.0
-        ]
+        "position": [ 0.0 ]
       },
       {
-        "position": [
-          2.999999
-        ]
+        "position": [ 2.999999 ]
       },
       {
-        "position": [
-          -4.0
-        ]
+        "position": [ -4.0 ]
       },
       {
-        "position": [
-          4.0
-        ]
+        "position": [ 4.0 ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        0.0,
-        1.0,
-        0.0
-      ],
-      "propagation": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        3,
-        4
-      ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 3, 4 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.6

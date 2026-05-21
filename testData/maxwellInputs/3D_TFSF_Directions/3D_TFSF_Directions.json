@@ -2,12 +2,11 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "hesthaven",
-    "time_step":  0.01,
-    "final_time":  3.0,
+    "time_step": 0.01,
+    "final_time": 3.0,
     "order": 1
   },
-
-  "model": { 
+  "model": {
     "filename": "3D_TFSF_Directions.msh",
     "materials": [
       {
@@ -22,7 +21,6 @@
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "steps": 10
@@ -33,7 +31,6 @@
       }
     ]
   },
-
   "sources": [
     {
       "type": "planewave",

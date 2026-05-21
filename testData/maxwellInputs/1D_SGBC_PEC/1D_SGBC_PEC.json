@@ -9,24 +9,17 @@
     "filename": "1D_SGBC_PEC.msh",
     "materials": [
       {
-        "tags": [
-          1,
-          2
-        ],
+        "tags": [ 1, 2 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "SMA"
       },
       {
-        "tags": [
-          3
-        ],
+        "tags": [ 3 ],
         "type": "SGBC",
         "material": {
           "relative_permittivity": 1.0,
@@ -48,33 +41,19 @@
     },
     "point": [
       {
-        "position": [
-          0.2
-        ]
+        "position": [ 0.2 ]
       },
       {
-        "position": [
-          1.2
-        ]
+        "position": [ 1.2 ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        0.0,
-        1.0,
-        0.0
-      ],
-      "propagation": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        2
-      ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 2 ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1

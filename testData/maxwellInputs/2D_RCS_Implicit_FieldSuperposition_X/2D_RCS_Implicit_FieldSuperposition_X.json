@@ -12,27 +12,17 @@
     "filename": "2D_RCS_Implicit_FieldSuperposition_X.msh",
     "materials": [
       {
-        "tags": [
-          1,
-          2
-        ],
+        "tags": [ 1, 2 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          6,
-          7,
-          8,
-          9
-        ],
+        "tags": [ 6, 7, 8, 9 ],
         "type": "PEC"
       },
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "SMA"
       }
     ]
@@ -48,22 +38,9 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        0.0,
-        0.0,
-        1.0
-      ],
-      "propagation": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        2,
-        3,
-        4,
-        5
-      ],
+      "polarization": [ 0.0, 0.0, 1.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 2, 3, 4, 5 ],
       "magnitude": {
         "spread": 0.2
       }

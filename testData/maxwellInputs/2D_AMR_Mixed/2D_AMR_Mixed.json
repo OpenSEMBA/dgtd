@@ -6,8 +6,7 @@
     "evolution_operator": "global",
     "order": 3
   },
-
-  "model": { 
+  "model": {
     "filename": "2D_AMR_Mixed.mesh",
     "refinement": 2,
     "materials": [
@@ -23,13 +22,11 @@
       }
     ]
   },
-
-  "probes": { 
-    "exporter": { 
+  "probes": {
+    "exporter": {
       "steps": 100
     }
   },
-
   "sources": [
     {
       "type": "initial",

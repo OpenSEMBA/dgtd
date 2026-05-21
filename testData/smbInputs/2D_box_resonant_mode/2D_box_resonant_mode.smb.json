@@ -7,7 +7,7 @@
     "solverOptions": {
       "evolution": {
         "order": 2,
-        "alpha":  0.0,
+        "alpha": 0.0,
         "spectral": false
       },
       "finalTime": 2.0,
@@ -29,7 +29,7 @@
       }
     ],
     "mesh": {
-      "type": "gmsh" 
+      "type": "gmsh"
     }
   },
   "sources": [
@@ -37,7 +37,7 @@
       "sourceType": "initialField",
       "magnitude": {
         "type": "ResonantMode",
-        "modes": [2, 2]
+        "modes": [ 2, 2 ]
       },
       "fieldType": "E",
       "polarization": [ 0, 0, 1 ],

@@ -19,9 +19,7 @@
         "type": "SMA"
       },
       {
-        "tags": [
-          4
-        ],
+        "tags": [ 4 ],
         "type": "SGBC",
         "material": {
           "relative_permittivity": 1.0,

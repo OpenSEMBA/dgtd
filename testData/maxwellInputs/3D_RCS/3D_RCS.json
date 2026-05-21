@@ -2,11 +2,10 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "time_step": 5e-3,
-    "final_time":  6.0,
+    "final_time": 6.0,
     "order": 3
   },
-
-  "model": { 
+  "model": {
     "filename": "3D_RCS.msh",
     "materials": [
       {
@@ -21,11 +20,10 @@
       },
       {
         "tags": [ 7 ],
-        "type":  "SMA"
+        "type": "SMA"
       }
     ]
   },
-
   "probes": {
     "exporter": {
       "steps": 20
@@ -38,7 +36,6 @@
       }
     ]
   },
-
   "sources": [
     {
       "type": "planewave",

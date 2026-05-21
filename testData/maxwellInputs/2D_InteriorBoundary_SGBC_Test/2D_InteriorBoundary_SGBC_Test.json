@@ -11,37 +11,21 @@
     "filename": "2D_InteriorBoundary_SGBC_Test.msh",
     "materials": [
       {
-        "tags": [
-          1,
-          2,
-          3
-        ],
+        "tags": [ 1, 2, 3 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          8,
-          10,
-          16,
-          17,
-          19,
-          21
-        ],
+        "tags": [ 8, 10, 16, 17, 19, 21 ],
         "type": "PMC"
       },
       {
-        "tags": [
-          11,
-          20
-        ],
+        "tags": [ 11, 20 ],
         "type": "PEC"
       },
       {
-        "tags": [
-          15
-        ],
+        "tags": [ 15 ],
         "type": "SGBC",
         "material": {
           "bulk_conductivity": 100000.0,
@@ -51,9 +35,7 @@
         }
       },
       {
-        "tags": [
-          18
-        ],
+        "tags": [ 18 ],
         "type": "SGBC",
         "material": {
           "bulk_conductivity": 100000000.0,
@@ -67,19 +49,9 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        0.0,
-        0.0,
-        1.0
-      ],
-      "propagation": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        9
-      ],
+      "polarization": [ 0.0, 0.0, 1.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 9 ],
       "magnitude": {
         "spread": 0.2
       }

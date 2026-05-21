@@ -12,24 +12,17 @@
     "refinement": 1,
     "materials": [
       {
-        "tags": [
-          1,
-          2
-        ],
+        "tags": [ 1, 2 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          2
-        ],
+        "tags": [ 2 ],
         "type": "PEC"
       },
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "SMA"
       }
     ]
@@ -42,34 +35,16 @@
       {
         "name": "circle_irr_g2",
         "steps": 100,
-        "tags": [
-          3,
-          4,
-          5,
-          6
-        ]
+        "tags": [ 3, 4, 5, 6 ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        0.0,
-        1.0,
-        0.0
-      ],
-      "propagation": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        3,
-        4,
-        5,
-        6
-      ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 3, 4, 5, 6 ],
       "magnitude": {
         "spread": 0.2
       }

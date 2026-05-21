@@ -11,24 +11,17 @@
     "filename": "3D_RCS_Sphere_Box_1m_G1_O2_LR.msh",
     "materials": [
       {
-        "tags": [
-          2,
-          4
-        ],
+        "tags": [ 2, 4 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          9
-        ],
+        "tags": [ 9 ],
         "type": "PEC"
       },
       {
-        "tags": [
-          10
-        ],
+        "tags": [ 10 ],
         "type": "SMA"
       }
     ]
@@ -41,38 +34,16 @@
       {
         "name": "sphere_Box_1m_G1_O2_LR",
         "steps": 1,
-        "tags": [
-          11,
-          12,
-          13,
-          14,
-          15,
-          16
-        ]
+        "tags": [ 11, 12, 13, 14, 15, 16 ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "propagation": [
-        0.0,
-        0.0,
-        1.0
-      ],
-      "tags": [
-        11,
-        12,
-        13,
-        14,
-        15,
-        16
-      ],
+      "polarization": [ 1.0, 0.0, 0.0 ],
+      "propagation": [ 0.0, 0.0, 1.0 ],
+      "tags": [ 11, 12, 13, 14, 15, 16 ],
       "magnitude": {
         "spread": 0.2
       }

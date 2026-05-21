@@ -12,25 +12,18 @@
     "filename": "1D_PEC_Centered.msh",
     "materials": [
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "Vacuum"
       },
       {
-        "tags": [
-          2
-        ],
+        "tags": [ 2 ],
         "type": "Dielectric",
         "relative_permittivity": 3.1
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1,
-          2
-        ],
+        "tags": [ 1, 2 ],
         "type": "PEC"
       }
     ]
@@ -41,9 +34,7 @@
     },
     "point": [
       {
-        "position": [
-          0.0
-        ]
+        "position": [ 0.0 ]
       }
     ]
   },
@@ -51,14 +42,8 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "center": [
-        0.5
-      ],
-      "polarization": [
-        0.0,
-        1.0,
-        0.0
-      ],
+      "center": [ 0.5 ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "dimension": 1,
       "magnitude": {
         "type": "gaussian",
@@ -68,16 +53,10 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "polarization": [
-        0.0,
-        1.0,
-        0.0
-      ],
+      "polarization": [ 0.0, 1.0, 0.0 ],
       "magnitude": {
         "type": "resonant",
-        "mode": [
-          2
-        ]
+        "mode": [ 2 ]
       }
     }
   ]
