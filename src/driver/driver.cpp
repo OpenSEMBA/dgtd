@@ -76,10 +76,22 @@ std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh
 	return res;
 }
 
+static std::vector<std::pair<int,int>> buildAllTwoElementInteriorBoundaryPairs(mfem::Mesh& mesh)
+{
+    std::vector<std::pair<int,int>> res;
+    res.reserve(mesh.GetNBE());
+    for (int b = 0; b < mesh.GetNBE(); b++) {
+        if (auto* f_trans = mesh.GetInternalBdrFaceTransformations(b)) {
+            res.emplace_back(f_trans->Elem1No, f_trans->Elem2No);
+        }
+    }
+    return res;
+}
+
 static std::vector<std::pair<int,int>>
-gatherConstraintPairs(mfem::Mesh& mesh,
-                      const mfem::Array<int>& tfsf_tags,
-                      const mfem::Array<int>& sgbc_tags)
+gatherWeightedConstraintPairs(mfem::Mesh& mesh,
+                             const mfem::Array<int>& tfsf_tags,
+                             const mfem::Array<int>& sgbc_tags)
 {
     std::vector<std::pair<int,int>> pairs;
     pairs.reserve(64);
@@ -128,8 +140,8 @@ static std::vector<long long> computeWeightedLoad(
     return load;
 }
 
-// Count how many boundary-pair DOF points (SGBC or TFSF face endpoints)
-// are currently assigned to each rank.
+// Count how many constrained interior-boundary pairs are currently assigned
+// to each rank.
 static std::vector<int> countBoundaryPairsPerRank(
     int P,
     const int* partitioning,
@@ -178,18 +190,18 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
     const int P  = Mpi::WorldSize();
     if (NE == 0 || P <= 1) return;
 
-    auto pairs = gatherConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    auto pairs = buildAllTwoElementInteriorBoundaryPairs(mesh);
     if (pairs.empty()) return;
 
     // --- Phase 0: Build weighted load model ---
-    auto weight = buildElementWeights(NE, pairs);
+    auto weighted_pairs = gatherWeightedConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    auto weight = buildElementWeights(NE, weighted_pairs);
     auto load   = computeWeightedLoad(P, NE, partitioning, weight);
 
     // --- Phase 1: Transitive grouping via DSU (union-find) ---
-    // At corners a single TF element may share faces with multiple SF
-    // elements (or vice-versa).  All such elements must land on the same
-    // rank so that every TFSF face is rank-local.  We use a DSU to merge
-    // elements transitively through shared boundary faces.
+    // Any two-sided interior boundary face is forced rank-local. At corners,
+    // one element may participate in multiple such faces, so we use a DSU to
+    // merge elements transitively through shared interior-boundary faces.
     std::vector<int> parent(NE);
     std::iota(parent.begin(), parent.end(), 0);
     std::vector<int> rank_dsu(NE, 0);
@@ -278,7 +290,8 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
         std::cout << "[Partition] " << pairs.size() << " boundary pairs, "
                   << comps.size() << " components across "
                   << P << " ranks (TFSF=" << tfsf_tags.Size()
-                  << " tags, SGBC=" << sgbc_tags.Size() << " tags)\n";
+                  << " tags, SGBC=" << sgbc_tags.Size()
+                  << " tags, weighted=" << weighted_pairs.size() << " pairs)\n";
         std::cout << "[Partition] Weighted load: min=" << min_load
                   << " max=" << max_load << " ideal=" << std::fixed
                   << std::setprecision(1) << ideal
@@ -1278,9 +1291,7 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
     mfem::Array<int> sgbc_tags  = getSGBCTags(case_data);
 
-    if (tfsf_tags.Size() || sgbc_tags.Size()){
-        applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
-    }
+    applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
 
     Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
     std::string filename = case_data["model"]["filename"];

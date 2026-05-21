@@ -921,7 +921,7 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalZeroNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			auto op = buildByMult<FES,BF>(
 				MInv[f]->SpMat(), buildZeroNormalIBFISubOperator<BF>(f)->SpMat(), fes_);
@@ -949,7 +949,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::addGlobalOneNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto x{ X }; x <= Z; x++) {
 				if (x >= dim) continue; // S2: normal component x is zero in lower dimensions
@@ -985,7 +985,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::addGlobalTwoNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				if (d >= dim) continue; // S2: normal component d is zero in lower dimensions
@@ -1334,7 +1334,7 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::collectGlobalZeroNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			auto op = buildByMult<FES,BF>(
 				MInv[f]->SpMat(), buildZeroNormalIBFISubOperator<BF>(f)->SpMat(), fes_);
@@ -1350,7 +1350,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::collectGlobalOneNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto x{ X }; x <= Z; x++) {
 				if (x >= dim) continue;
@@ -1372,7 +1372,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::collectGlobalTwoNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				if (d >= dim) continue;
