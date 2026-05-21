@@ -102,6 +102,7 @@ MFEM is included as a submodule (`external/mfem-geg`) and built automatically. T
 ### Defining a JSON file
 
 Cases can be defined by parsing a JSON file with the problem information. See a complete [example](https://github.com/OpenSEMBA/dgtd/blob/main/testData/maxwellInputs/1D_PEC/1D_PEC.json) of a valid JSON file.
+Each case must follow the enforced repository naming layout: the case folder name, the `.json` filename, the `.msh` filename, and `model.filename` must all share the same `<case_name>` base, and `model.filename` must not include a path.
 An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIRED]** = must be present; **[OPTIONAL]** = has a default value (shown).
 
 - solver_options:
@@ -148,7 +149,9 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 				- **tags**:
 					- Array of integers. Mesh boundary attribute IDs. (Surfaces in 3D, Segments in 2D, Points in 1D.)
 				- **type**:
-					- String. Boundary condition class. Can be `"PEC"`, `"PMC"`, `"SMA"`, or `"SGBC"`.
+					- String. Boundary condition class. Can be `"PEC"`, `"PMC"`, `"SMA"`, `"SGBC"`, or `"SBC_PML"`.
+				- *(For `type: "SGBC"` or `type: "SBC_PML"` only)* exporter_probe:
+					- Boolean. If `true` and a top-level `probes.exporter` exists, also exports the internal SGBC sub-solver fields using the exporter cadence. The dataset is named `InsideSGBC_tag<first_tag>`.
 				- *(For `type: "SGBC"` only)* material:
 					- Object. Defines a single-layer surface general boundary condition. Mutually exclusive with `layers`.
 						- relative_permittivity: Double. Defaults to `1.0`.
@@ -163,6 +166,9 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 					- Object. Boundary conditions applied to the outer and inner faces of the SGBC sub-domain. Can be placed at the boundary level or inside `material` (the latter is kept for backward compatibility).
 						- left: String. Condition on the outer (field-side) face. Can be `"PEC"`, `"PMC"`, or `"SMA"`.
 						- right: String. Condition on the inner face. Can be `"PEC"`, `"PMC"`, or `"SMA"`.
+				- *(For `type: "SBC_PML"` only)*
+					- Automatic absorbing-layer shortcut built on the SGBC machinery. `material`, `layers`, and `sgbc_boundaries` must not be provided.
+					- The current preset generates one lossless vacuum layer sized from the maximum source frequency estimate, with fixed order/segment defaults, and forces the internal right boundary to `SMA`.
 
 - probes:
 	- Object. Controls data extraction. If undefined, no data is recorded.
@@ -180,6 +186,11 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 				- **field_type**: String. Can be `"electric"` or `"magnetic"`.
 				- **polarization**: String. Component to record. Can be `"X"`, `"Y"`, or `"Z"`.
 				- **position**: Array of doubles. Spatial coordinates. Same constraints as for `point`.
+				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
+		- farfield:
+			- Array. Each entry exports E/H fields on a near-to-far-field surface submesh for later far-field post-processing. Output is written under `Exports/<run-mode>/<case>/NearToFarFieldProbes/<name>/rank<rank>`.
+				- **tags**: Array of integers. Boundary tags that define the near-to-far-field surface.
+				- name: String. Defaults to `"NearFieldProbe"`.
 				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
 		- domain_snapshot:
 			- Object. Periodic full-domain field snapshot (alternative to the incremental exporter).
@@ -199,6 +210,7 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 
 - **sources**:
 	- Array. Defines the electromagnetic excitation. At least one source is required.
+		- All entries in `sources` are instantiated and superimposed during the run. Multiple simultaneous planewave entries are supported.
 		- **type**: String. Can be `"initial"`, `"planewave"`, or `"dipole"`.
 
 		*For `type: "initial"` — volumetric initial condition:*
@@ -217,7 +229,7 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 		- **propagation**: Array of 3 doubles. Wave propagation direction vector.
 		- **magnitude**: Object.
 			- **spread**: Double. Standard deviation $\sigma$ of the Gaussian envelope.
-			- **mean**: Array of doubles. Position of the Gaussian center projected onto the propagation axis at $t = 0$. Typically set behind the TFSF box. Provide as a 1-, 2-, or 3-component vector matching the mesh dimension.
+			- mean: Array of doubles. Optional. Position of the Gaussian center projected onto the propagation axis at $t = 0$. Provide as a 1-, 2-, or 3-component vector matching the mesh dimension. If omitted, the solver auto-computes a value aligned with `propagation` so the pulse starts about $5\sigma$ before the most upstream TFSF point.
 			- frequency: Double (Hz). Carrier frequency. If defined, wraps the Gaussian in a sinusoidal modulation (modulated Gaussian). If omitted, a broadband Gaussian pulse is used.
 
 		*For `type: "dipole"` — derivative-Gaussian dipole source within a TFSF box:*
@@ -225,7 +237,7 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 		- **magnitude**: Object.
 			- **length**: Double. Dipole length.
 			- **spread**: Double. Gaussian spread parameter.
-			- **mean**: Double. Gaussian center position along the dipole axis.
+			- mean: Double. Optional. Gaussian center position along the dipole axis. If omitted, the solver auto-computes it from the nearest TFSF-surface radius and clamps it to a stable minimum.
 
 
 ## MOR To ParaView Post-Processing
