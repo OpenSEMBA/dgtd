@@ -1,0 +1,50 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.01,
+    "final_time": 10.0,
+    "order": 1
+  },
+  "model": {
+    "filename": "3D_MOR.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1 ],
+        "type": "PEC"
+      },
+      {
+        "tags": [ 8 ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "saves": 100
+    },
+    "mor_state": [
+      {
+        "record_time_start": 0.0,
+        "record_time_final": 10.0,
+        "saves": 11
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [ 0.0, 1.0, 0.0 ],
+      "propagation": [ 1.0, 0.0, 0.0 ],
+      "tags": [ 2, 3, 4, 5, 6, 7 ],
+      "magnitude": {
+        "spread": 0.2
+      }
+    }
+  ]
+}
