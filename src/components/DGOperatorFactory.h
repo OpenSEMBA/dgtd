@@ -495,6 +495,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -531,6 +535,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -567,6 +575,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{

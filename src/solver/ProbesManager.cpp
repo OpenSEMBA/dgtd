@@ -9,10 +9,19 @@ namespace maxwell {
 
 using namespace mfem;
 
-bool isNodeRoot()
+namespace {
+
+MPI_Comm getFESComm(const ParFiniteElementSpace& fes)
+{
+    return fes.GetParMesh()->GetComm();
+}
+
+bool isNodeRoot(MPI_Comm comm)
 {
     MPI_Comm node_comm;
-    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, Mpi::WorldRank(), MPI_INFO_NULL, &node_comm);
+    int comm_rank = 0;
+    MPI_Comm_rank(comm, &comm_rank);
+    MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, comm_rank, MPI_INFO_NULL, &node_comm);
     
     int node_rank;
     MPI_Comm_rank(node_comm, &node_rank);
@@ -20,6 +29,8 @@ bool isNodeRoot()
     
     return (node_rank == 0);
 }
+
+}  // namespace
 
 std::string getRunModeTag()
 {
@@ -68,13 +79,14 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
     fes_.ExchangeFaceNbrData();
     fes_.GetParMesh()->ExchangeFaceNbrData();
     ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
+    const MPI_Comm comm = getFESComm(fes_);
     
     std::string paraview_path = "Exports/ParaView/" + getRunModeTag() + "/";
     
-    if (isNodeRoot()) {
+    if (isNodeRoot(comm)) {
         std::filesystem::create_directories(paraview_path);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
     pd.SetPrefixPath(paraview_path);
 
@@ -184,18 +196,20 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFini
 
 void ProbesManager::initPointFieldProbeExport()
 {
+    const MPI_Comm comm = getFESComm(fes_);
+
     if (probes.pointProbes.size()){
         auto base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
         
         if (cycle_ == 0) {
-            if (isNodeRoot()) {
+            if (isNodeRoot(comm)) {
                 if (std::filesystem::exists(base_path)) {
                     std::filesystem::remove_all(base_path);
                 }
                 std::filesystem::create_directories(base_path);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         for (const auto& p : probes.pointProbes) {
             if(p.write){
@@ -225,14 +239,14 @@ void ProbesManager::initPointFieldProbeExport()
         auto base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
         
         if (cycle_ == 0) {
-            if (isNodeRoot()) {
+            if (isNodeRoot(comm)) {
                 if (std::filesystem::exists(base_path)) {
                     std::filesystem::remove_all(base_path);
                 }
                 std::filesystem::create_directories(base_path);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD); 
+        MPI_Barrier(comm); 
 
         for (const auto& p : probes.fieldProbes) {
             if(p.write){
@@ -286,14 +300,15 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
     const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
     isDGCollection(fes_);
+    const MPI_Comm comm = getFESComm(fes_);
 
     DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
     
     std::string parent_path = "Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name;
-    if (isNodeRoot()) {
+    if (isNodeRoot(comm)) {
         std::filesystem::create_directories(parent_path);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
     std::string path = parent_path + "/rank" + std::to_string(Mpi::WorldRank());
     std::filesystem::create_directories(path); 
@@ -324,6 +339,7 @@ void ProbesManager::setFinalTime(double final_time)
 
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
+    const MPI_Comm comm = getFESComm(fes_);
     int export_cycle = cycle_;
 
     if (p.saves > 0 && finalTime_ > 0.0) {
@@ -369,10 +385,10 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     std::string base_dir = pd.GetPrefixPath() + pd.GetCollectionName();
     std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(export_cycle, 6);
     
-    if (isNodeRoot()) {
+    if (isNodeRoot(comm)) {
         std::filesystem::create_directories(cycle_dir);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
     pd.Save();
 }
@@ -503,16 +519,17 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     auto& dc{ it->second };
 
     std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshotProbes/");
+    const MPI_Comm comm = getFESComm(fes_);
     
     if (cycle_ == 0) {
-        if (isNodeRoot()) {
+        if (isNodeRoot(comm)) {
             if (std::filesystem::exists(case_path)) {
                 std::filesystem::remove_all(case_path);
             }
             std::filesystem::create_directories(case_path);
             std::filesystem::create_directories(case_path + "/meshes/");
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         dc.mesh.Save(case_path + "/meshes/mesh_rank" + std::to_string(Mpi::WorldRank()) , 16);
     }
@@ -651,6 +668,7 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
     auto& ctx = morStateContexts_[&p];
 
     if (!ctx.initialized) {
+        const MPI_Comm comm = getFESComm(fes_);
         ctx.dt_save = (p.saves > 1)
             ? (p.record_time_final - p.record_time_start) / (p.saves - 1)
             : 0.0;
@@ -658,10 +676,10 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
         ctx.save_count = 0;
         ctx.export_dir = "Exports/" + getRunModeTag() + "/" + caseName_ + "/MORStateProbes/" + p.name;
 
-        if (isNodeRoot()) {
+        if (isNodeRoot(comm)) {
             std::filesystem::create_directories(ctx.export_dir);
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         ctx.initialized = true;
     }
