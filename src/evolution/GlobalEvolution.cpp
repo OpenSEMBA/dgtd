@@ -362,6 +362,10 @@ GlobalEvolution::GlobalEvolution(
         mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
     }
 
+	if (model_.hasPMLVolumes()) {
+		pml_wrapper_ = std::make_unique<PMLWrapper>(model_, fes_);
+	}
+
     // Build all operators on the global mesh
     ProblemDescription pd(model_, emptyProbes, srcmngr_.sources, opts_);
     DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
@@ -673,6 +677,30 @@ void GlobalEvolution::finalizeSGBCStep(
             w->updateProbes(sgbc_step_base_time_ + dt);
         }
     }
+}
+
+void GlobalEvolution::commitPMLCheckpoint(
+    double dt,
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
+{
+    if (!pml_wrapper_) {
+        return;
+    }
+
+    pml_step_dt_ = dt;
+    if (pml_state_.auxiliary_state.Size() == 0) {
+        pml_wrapper_->initializeStateFromParent(fields, pml_state_);
+    }
+    pml_wrapper_->initializeStateFromParent(fields, pml_checkpoint_state_);
+}
+
+void GlobalEvolution::finalizePMLStep(Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
+{
+    if (!pml_wrapper_) {
+        return;
+    }
+
+    pml_wrapper_->applyImplicitCorrection(pml_step_dt_, fields, pml_state_);
 }
 
 void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,

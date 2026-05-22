@@ -22,6 +22,31 @@ static Mesh make1DMeshTwoAttribs(int n = 4)
 	return m;
 }
 
+static Mesh make1DPMLShellMesh(int n = 5)
+{
+	auto m = Mesh::MakeCartesian1D(n);
+	m.GetElement(0)->SetAttribute(2);
+	m.GetElement(n - 1)->SetAttribute(2);
+	m.SetAttributes();
+	return m;
+}
+
+static Mesh make1DInvalidPMLShellMesh(int n = 5)
+{
+	auto m = Mesh::MakeCartesian1D(n);
+	m.GetElement(0)->SetAttribute(2);
+	m.SetAttributes();
+	return m;
+}
+
+static Mesh make1DInteriorPMLBlobMesh(int n = 5)
+{
+	auto m = Mesh::MakeCartesian1D(n);
+	m.GetElement(n / 2)->SetAttribute(2);
+	m.SetAttributes();
+	return m;
+}
+
 class ModelTest : public ::testing::Test {
 };
 
@@ -239,4 +264,104 @@ TEST_F(ModelTest, invalidGeomTagThrows)
 	GeomTagToBoundaryInfo bdrInfo;
 	bdrInfo.gt2b[0] = BdrCond::PEC; // geomTag 0 is invalid
 	EXPECT_ANY_THROW(Model model(mesh, GeomTagToMaterialInfo{}, bdrInfo));
+}
+
+TEST_F(ModelTest, pmlRegions_emptyByDefault)
+{
+	auto mesh = make1DMesh();
+	Model model(mesh);
+
+	EXPECT_FALSE(model.hasPMLVolumes());
+	EXPECT_TRUE(model.getPMLRegions().empty());
+}
+
+TEST_F(ModelTest, pmlRegions_storePropertiesByTag)
+{
+	auto mesh = make1DMeshTwoAttribs();
+	Model model(mesh);
+
+	GeomTagToPMLRegion pml_regions;
+	PMLRegionProperties props;
+	props.grading_order = 4;
+	props.target_reflection = 1e-8;
+	pml_regions.emplace(2, props);
+
+	model.setPMLRegions(pml_regions);
+
+	EXPECT_TRUE(model.hasPMLVolumes());
+	ASSERT_EQ(1u, model.getPMLRegions().size());
+	auto it = model.getPMLRegions().find(2);
+	ASSERT_NE(model.getPMLRegions().end(), it);
+	EXPECT_EQ(props, it->second);
+}
+
+TEST_F(ModelTest, pmlVolumeMarker_marksTaggedAttributes)
+{
+	auto mesh = make1DPMLShellMesh();
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, buildVacuumMaterial());
+	matInfo.gt2m.emplace(2, buildVacuumMaterial());
+	Model model(mesh, matInfo);
+
+	GeomTagToPMLRegion pml_regions;
+	pml_regions.emplace(2, PMLRegionProperties{});
+	model.setPMLRegions(pml_regions);
+
+	auto marker = model.buildPMLVolumeMarker();
+	ASSERT_EQ(2, marker.Size());
+	EXPECT_EQ(0, marker[0]);
+	EXPECT_EQ(1, marker[1]);
+}
+
+TEST_F(ModelTest, inferPMLBoxGeometry_detects1DShellThickness)
+{
+	constexpr double tol = 1e-12;
+	auto mesh = make1DPMLShellMesh();
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, buildVacuumMaterial());
+	matInfo.gt2m.emplace(2, buildVacuumMaterial());
+	Model model(mesh, matInfo);
+
+	GeomTagToPMLRegion pml_regions;
+	pml_regions.emplace(2, PMLRegionProperties{});
+	model.setPMLRegions(pml_regions);
+
+	auto geom = model.inferPMLBoxGeometry();
+	ASSERT_EQ(1, geom.inner_min.Size());
+	ASSERT_EQ(1, geom.thickness_minus.Size());
+	EXPECT_NEAR(0.2, geom.inner_min[0], tol);
+	EXPECT_NEAR(0.8, geom.inner_max[0], tol);
+	EXPECT_NEAR(0.2, geom.thickness_minus[0], tol);
+	EXPECT_NEAR(0.2, geom.thickness_plus[0], tol);
+	EXPECT_TRUE(geom.active_axes[0]);
+}
+
+TEST_F(ModelTest, inferPMLBoxGeometry_requiresWrappingBothSides)
+{
+	auto mesh = make1DInvalidPMLShellMesh();
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, buildVacuumMaterial());
+	matInfo.gt2m.emplace(2, buildVacuumMaterial());
+	Model model(mesh, matInfo);
+
+	GeomTagToPMLRegion pml_regions;
+	pml_regions.emplace(2, PMLRegionProperties{});
+	model.setPMLRegions(pml_regions);
+
+	EXPECT_THROW(model.inferPMLBoxGeometry(), std::runtime_error);
+}
+
+TEST_F(ModelTest, inferPMLBoxGeometry_requiresOuterShell)
+{
+	auto mesh = make1DInteriorPMLBlobMesh();
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, buildVacuumMaterial());
+	matInfo.gt2m.emplace(2, buildVacuumMaterial());
+	Model model(mesh, matInfo);
+
+	GeomTagToPMLRegion pml_regions;
+	pml_regions.emplace(2, PMLRegionProperties{});
+	model.setPMLRegions(pml_regions);
+
+	EXPECT_THROW(model.inferPMLBoxGeometry(), std::runtime_error);
 }

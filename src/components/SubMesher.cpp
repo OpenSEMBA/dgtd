@@ -344,6 +344,32 @@ Array<int> getMarkerForSubMesh(const BdrCond& bdrCond, bool isTF)
 	return res;
 }
 
+Array<int> buildSelectedDomainAttributes(const Array<int>& marker)
+{
+	Array<int> attributes;
+	for (int i = 0; i < marker.Size(); ++i) {
+		if (marker[i] != 0) {
+			attributes.Append(i + 1);
+		}
+	}
+
+	if (attributes.Size() == 0) {
+		throw std::runtime_error("Cannot create a volumetric PML submesh without any marked volume attributes.");
+	}
+
+	return attributes;
+}
+
+void assignSequentialBoundaryAttributes(Mesh& mesh)
+{
+	mesh.bdr_attributes.SetSize(mesh.GetNBE());
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		mesh.bdr_attributes[be] = be + 1;
+		mesh.SetBdrAttribute(be, be + 1);
+	}
+	mesh.SetAttributes();
+}
+
 SubMesh createSubMeshFromParent(const Mesh& parent, const std::pair<Array<int>, BdrCond>& parent_info, bool isTF = false)
 {
 	Array<int> marker{ getMarkerForSubMesh(parent_info.second, isTF) };
@@ -393,6 +419,44 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	}
 
 };
+
+VolumetricPMLSubMesher::VolumetricPMLSubMesher(const Mesh& mesh, const Array<int>& marker)
+{
+	auto attributes = buildSelectedDomainAttributes(marker);
+	auto submesh = SubMesh::CreateFromDomain(mesh, attributes);
+	assignSequentialBoundaryAttributes(submesh);
+	pml_mesh_ = std::make_unique<SubMesh>(submesh);
+}
+
+VolumetricPMLSubMesher::VolumetricPMLSubMesher(const ParMesh& mesh, const Array<int>& marker)
+{
+	auto attributes = buildSelectedDomainAttributes(marker);
+	auto submesh = ParSubMesh::CreateFromDomain(mesh, attributes);
+	assignSequentialBoundaryAttributes(submesh);
+	pml_pmesh_ = std::make_unique<ParSubMesh>(submesh);
+}
+
+const Array<int>& VolumetricPMLSubMesher::getParentElementIDMap() const
+{
+	if (pml_mesh_ != nullptr) {
+		return pml_mesh_->GetParentElementIDMap();
+	}
+	if (pml_pmesh_ != nullptr) {
+		return pml_pmesh_->GetParentElementIDMap();
+	}
+	throw std::runtime_error("VolumetricPMLSubMesher does not own a submesh.");
+}
+
+const Array<int>& VolumetricPMLSubMesher::getParentVertexIDMap() const
+{
+	if (pml_mesh_ != nullptr) {
+		return pml_mesh_->GetParentVertexIDMap();
+	}
+	if (pml_pmesh_ != nullptr) {
+		return pml_pmesh_->GetParentVertexIDMap();
+	}
+	throw std::runtime_error("VolumetricPMLSubMesher does not own a submesh.");
+}
 
 
 

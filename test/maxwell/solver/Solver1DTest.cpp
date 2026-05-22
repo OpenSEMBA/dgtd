@@ -31,6 +31,39 @@ protected:
 		};
 	}
 
+	Model buildShellModel(
+		const int numberOfElements = defaultNumberOfElements,
+		const int shellElements = 8,
+		const bool enablePML = false,
+		const BdrCond& bdrL = BdrCond::PEC,
+		const BdrCond& bdrR = BdrCond::PEC)
+	{
+		auto msh{ Mesh::MakeCartesian1D(numberOfElements, 1.0) };
+		for (int e = 0; e < shellElements; ++e) {
+			msh.SetAttribute(e, 2);
+			msh.SetAttribute(numberOfElements - 1 - e, 2);
+		}
+		msh.SetAttributes();
+
+		GeomTagToMaterialInfo matInfo;
+		matInfo.gt2m.emplace(1, buildVacuumMaterial());
+		matInfo.gt2m.emplace(2, buildVacuumMaterial());
+
+		Model model{
+			msh,
+			matInfo,
+			GeomTagToBoundaryInfo(GeomTagToBoundary{{1, bdrL},{2, bdrR}}, GeomTagToInteriorBoundary{})
+		};
+
+		if (enablePML) {
+			GeomTagToPMLRegion pml_regions;
+			pml_regions.emplace(2, PMLRegionProperties{});
+			model.setPMLRegions(pml_regions);
+		}
+
+		return model;
+	}
+
 	void setAttributeOnInterval(
 		const std::map<Attribute, Interval>& attToInterval,
 		Mesh& mesh)
@@ -210,6 +243,34 @@ TEST_F(Solver1DTest, sma)
 	solver.run();
 
 	EXPECT_NEAR(0.0, solver.getFields().getNorml2(), 2e-3);
+}
+
+TEST_F(Solver1DTest, pmlShellDampsWaveMoreThanVacuumShell)
+{
+	SolverOptions opts;
+	opts.setFinalTime(1.0);
+
+	auto sources = buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y));
+	maxwell::Solver vacuum_shell_solver(
+		buildShellModel(defaultNumberOfElements, 8, false),
+		buildProbesEmpty(),
+		sources,
+		opts
+	);
+	maxwell::Solver pml_shell_solver(
+		buildShellModel(defaultNumberOfElements, 8, true),
+		buildProbesEmpty(),
+		buildGaussianInitialField(E, 0.1, Vector({0.5}), unitVec(Y)),
+		opts
+	);
+
+	vacuum_shell_solver.run();
+	pml_shell_solver.run();
+
+	EXPECT_TRUE(std::isfinite(vacuum_shell_solver.getFields().getNorml2()));
+	EXPECT_TRUE(std::isfinite(pml_shell_solver.getFields().getNorml2()));
+	EXPECT_LT(pml_shell_solver.getFields().getNorml2(), vacuum_shell_solver.getFields().getNorml2());
+	EXPECT_LT(pml_shell_solver.getConstField(E, Y).Norml2(), vacuum_shell_solver.getConstField(E, Y).Norml2());
 }
 
 TEST_F(Solver1DTest, DISABLED_periodic)

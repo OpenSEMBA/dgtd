@@ -77,6 +77,25 @@ private:
 
 };
 
+class VolumetricPMLSubMesher
+{
+public:
+	VolumetricPMLSubMesher(){};
+	VolumetricPMLSubMesher(const Mesh&, const Array<int>& marker);
+	VolumetricPMLSubMesher(const ParMesh&, const Array<int>& marker);
+
+	SubMesh* getSubMesh() { return pml_mesh_.get(); }
+	const SubMesh* getConstSubMesh() const { return pml_mesh_.get(); }
+	ParSubMesh* getParSubMesh() { return pml_pmesh_.get(); }
+	const ParSubMesh* getConstParSubMesh() const { return pml_pmesh_.get(); }
+	const Array<int>& getParentElementIDMap() const;
+	const Array<int>& getParentVertexIDMap() const;
+
+private:
+	std::unique_ptr<SubMesh> pml_mesh_;
+	std::unique_ptr<ParSubMesh> pml_pmesh_;
+};
+
 class MaxwellTransferMap
 {
 public:

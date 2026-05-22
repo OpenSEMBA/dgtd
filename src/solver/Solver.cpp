@@ -587,12 +587,18 @@ void Solver::step(bool update_probes)
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
         globalEvol_cache_->commitSGBCCheckpoint(time_, truedt, fields_);
     }
+	if (globalEvol_cache_ && globalEvol_cache_->hasPML()) {
+		globalEvol_cache_->commitPMLCheckpoint(truedt, fields_);
+	}
 
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
         globalEvol_cache_->finalizeSGBCStep(fields_);
     }
+	if (globalEvol_cache_ && globalEvol_cache_->hasPML()) {
+		globalEvol_cache_->finalizePMLStep(fields_);
+	}
 
     if (update_probes) {
         probesManager_.updateProbes(time_);

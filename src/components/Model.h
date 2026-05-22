@@ -115,6 +115,35 @@ struct SGBCProperties{
     }
 };
 
+struct PMLRegionProperties {
+	bool matches_vacuum = true;
+	size_t grading_order = 3;
+	double target_reflection = 1e-6;
+	double kappa_max = 1.0;
+	double alpha_max = 0.0;
+
+	bool operator==(const PMLRegionProperties& other) const
+	{
+		return matches_vacuum == other.matches_vacuum &&
+			   grading_order == other.grading_order &&
+			   target_reflection == other.target_reflection &&
+			   kappa_max == other.kappa_max &&
+			   alpha_max == other.alpha_max;
+	}
+};
+
+using GeomTagToPMLRegion = std::map<GeomTag, PMLRegionProperties>;
+
+struct PMLBoxGeometry {
+	mfem::Vector inner_min;
+	mfem::Vector inner_max;
+	mfem::Vector outer_min;
+	mfem::Vector outer_max;
+	mfem::Vector thickness_minus;
+	mfem::Vector thickness_plus;
+	std::array<bool, 3> active_axes{ false, false, false };
+};
+
 std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh&);
 std::map<LocalElementId, Position> buildPartitionElem2CenterMap(ParMesh&);
 GlobalToLocalElMap buildGlobalToPartitionLocalElementMap(
@@ -157,6 +186,11 @@ public:
 
 	void setSGBCProperties(const std::vector<SGBCProperties> in) { sgbc_props_ = in; }
 	const std::vector<SGBCProperties>& getSGBCProperties() const { return sgbc_props_; }
+	void setPMLRegions(const GeomTagToPMLRegion& in) { pml_regions_ = in; }
+	const GeomTagToPMLRegion& getPMLRegions() const { return pml_regions_; }
+	bool hasPMLVolumes() const { return !pml_regions_.empty(); }
+	mfem::Array<int> buildPMLVolumeMarker() const;
+	PMLBoxGeometry inferPMLBoxGeometry() const;
 
 	mfem::Vector initialiseGeomTagVector() const;
 	mfem::Vector buildEpsMuPiecewiseVector(const FieldType& f) const;
@@ -197,6 +231,7 @@ private:
 	BoundaryMarker sgbc_Marker_;
 	BoundaryMarker intsgbc_Marker_;
 	std::vector<SGBCProperties> sgbc_props_;
+	GeomTagToPMLRegion pml_regions_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 

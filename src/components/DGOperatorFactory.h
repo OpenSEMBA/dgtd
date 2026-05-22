@@ -300,7 +300,13 @@ namespace maxwell
 		// Methors for complete Global Operators //
 
 		template <typename BF>
+		std::unique_ptr<BF> buildWeightedMassOperator(mfem::Coefficient& coeff);
+
+		template <typename BF>
 		std::unique_ptr<BF> buildSigmaMassOperator();
+
+		template <typename BF>
+		std::unique_ptr<mfem::SparseMatrix> buildMatchedConductiveOperator(mfem::Coefficient& coeff);
 
 		template <typename BF>
 		void addGlobalZeroNormalIBFIOperators(mfem::SparseMatrix* global);
@@ -909,16 +915,53 @@ namespace maxwell
 
 	template <typename FES>
 	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildWeightedMassOperator(mfem::Coefficient& coeff)
+	{
+		auto bf = std::make_unique<BF>(&fes_);
+		bf->AddDomainIntegrator(new MassIntegrator(coeff));
+		bf->Assemble();
+		bf->Finalize();
+		return bf;
+	}
+
+	template <typename FES>
+	template <typename BF>
 	std::unique_ptr<BF> DGOperatorFactory<FES>::buildSigmaMassOperator()
 	{
 		Vector sigma = pd_.model.buildSigmaPiecewiseVector(); 
 		PWConstCoefficient SigCoeff(sigma);
 
-		auto bf = std::make_unique<BF>(&fes_);
-		bf->AddDomainIntegrator(new MassIntegrator(SigCoeff));
-		bf->Assemble();
-		bf->Finalize();
-		return bf;
+		return buildWeightedMassOperator<BF>(SigCoeff);
+	}
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<mfem::SparseMatrix> DGOperatorFactory<FES>::buildMatchedConductiveOperator(mfem::Coefficient& coeff)
+	{
+		auto res = std::make_unique<mfem::SparseMatrix>(6 * fes_.GetNDofs(), 6 * fes_.GetNDofs());
+		auto MInv = buildMaxwellInverseMassMatrixOperator<BF>();
+		auto MCond = buildWeightedMassOperator<BF>(coeff);
+		auto ACondE = buildByMult<FES, BF>(MInv[E]->SpMat(), MCond->SpMat(), fes_);
+		auto ACondH = buildByMult<FES, BF>(MInv[H]->SpMat(), MCond->SpMat(), fes_);
+
+		GlobalIndices gid(fes_.GetNDofs(), 0, true);
+		for (auto d : { X, Y, Z }) {
+			loadBlockInGlobalAtIndices(
+				ACondE->SpMat(),
+				*res,
+				std::make_pair(*gid.offsets[E][d].get(), *gid.offsets[E][d].get()),
+				-1.0
+			);
+			loadBlockInGlobalAtIndices(
+				ACondH->SpMat(),
+				*res,
+				std::make_pair(*gid.offsets[H][d].get(), *gid.offsets[H][d].get()),
+				-1.0
+			);
+		}
+
+		res->Finalize();
+		return res;
 	}
 
 	template <typename FES>

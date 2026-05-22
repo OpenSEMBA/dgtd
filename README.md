@@ -136,6 +136,8 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 			- Integer. Number of uniform refinement levels to apply to the loaded mesh. Optional.
 		- **materials**:
 			- Array. At least one entry is required. Each entry defines the electromagnetic properties of one or more mesh domains:
+				- type:
+					- String. Optional material class selector. Omit it, or use `"vacuum"`, for the normal scalar-material path. Use `"PML"` to tag an explicitly meshed volumetric PML shell.
 				- **tags**:
 					- Array of integers. Mesh volume/surface/segment attribute IDs that share these material properties. (Volumes in 3D, Surfaces in 2D, Segments in 1D.)
 				- relative_permittivity:
@@ -144,6 +146,10 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 					- Double. Relative permeability $\mu_r$. Defaults to `1.0`.
 				- bulk_conductivity:
 					- Double. Bulk electrical conductivity in S/m. Defaults to `0.0`. Internally scaled by the free-space impedance.
+				- *(For `type: "PML"` only)*
+					- First-version volumetric PML support is limited to the GlobalOperator path, vacuum-matched regions, and an axis-aligned outer shell explicitly present in the mesh.
+					- `relative_permittivity`, `relative_permeability`, and `bulk_conductivity` must be omitted. Thickness is inferred from the mesh geometry; `sigma_max`, grading, and validation thresholds remain internal in v1.
+					- At startup the solver prints inferred shell thickness, estimated maximum source frequency when available, shortest wavelength, normal cell size, cells and effective DOFs across thickness, and the internally chosen `sigma_max`. Invalid or clearly underresolved shells hard-fail before time stepping.
 		- **boundaries**:
 			- Array. At least one entry is required. Each entry defines a boundary or interface condition:
 				- **tags**:
@@ -212,6 +218,10 @@ An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIR
 	- Array. Defines the electromagnetic excitation. At least one source is required.
 		- All entries in `sources` are instantiated and superimposed during the run. Multiple simultaneous planewave entries are supported.
 		- **type**: String. Can be `"initial"`, `"planewave"`, or `"dipole"`.
+
+### Volumetric PML workflow
+
+For the first volumetric PML implementation, mesh the physical vacuum region as an inner box and the absorber as a separate outer shell in Gmsh. Tag only the outer shell with a `type: "PML"` material entry in `model.materials`; keep the physical region on ordinary vacuum material tags. The solver infers the shell thickness from the mesh, builds the graded sigma profile internally, and prints startup diagnostics so you can confirm the shell is adequately resolved before running longer simulations.
 
 		*For `type: "initial"` — volumetric initial condition:*
 		- **field_type**: String. Can be `"electric"` or `"magnetic"`.

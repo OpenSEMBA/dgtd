@@ -26,12 +26,17 @@ public:
     void commitSGBCCheckpoint(double base_time, double dt,
                               const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
     void finalizeSGBCStep(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
+	void commitPMLCheckpoint(double dt,
+		const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
+	void finalizePMLStep(Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
     const mfem::Array<int>& getTFSFMapping() const { return tfsf_sub_to_parent_ids_; }
 
     bool hasSGBC() const { return !sgbc_states_.empty(); }
+	bool hasPML() const { return pml_wrapper_ != nullptr; }
+	const PMLWrapper* getPMLWrapper() const { return pml_wrapper_.get(); }
 
 private:
     void applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
@@ -44,6 +49,7 @@ private:
     mfem::Array<int> tfsf_sub_to_parent_ids_;
 
     std::vector<std::unique_ptr<SGBCWrapper>> sgbcWrappers_;
+	std::unique_ptr<PMLWrapper> pml_wrapper_;
 
     mutable std::map<GeomTag, std::vector<SGBCState>> sgbc_states_;
     std::map<GeomTag, SGBCWrapper*> sgbc_wrapper_map_;
@@ -65,6 +71,9 @@ private:
     mutable std::map<GeomTag, std::vector<SGBCState>> sgbc_states_checkpoint_;
     mutable double sgbc_step_base_time_ = 0.0;
     mutable double sgbc_step_dt_ = 0.0;
+	mutable PMLRegionState pml_state_;
+	mutable PMLRegionState pml_checkpoint_state_;
+	mutable double pml_step_dt_ = 0.0;
 
     std::map<int, int> sgbc_coupling_map_;
 

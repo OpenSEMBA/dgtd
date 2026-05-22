@@ -7,6 +7,23 @@
 using namespace maxwell;
 using namespace mfem;
 
+static Mesh make1DPMLShellMesh(int n = 5)
+{
+	auto m = Mesh::MakeCartesian1D(n);
+	m.GetElement(0)->SetAttribute(2);
+	m.GetElement(n - 1)->SetAttribute(2);
+	m.SetAttributes();
+	return m;
+}
+
+static Array<int> makePMLMarker()
+{
+	Array<int> marker(2);
+	marker = 0;
+	marker[1] = 1;
+	return marker;
+}
+
 class SubMesherTest : public ::testing::Test {
 public:
 	double tol_ = 1e-4;
@@ -163,4 +180,57 @@ TEST_F(SubMesherTest, calculateNormal_3D)
 			EXPECT_NEAR(expectedNormal[i], normal[i], tol_);
 		}
 	}
+}
+
+TEST_F(SubMesherTest, volumetricPMLSubMesher_extractsSerialShellDomain)
+{
+	auto mesh = make1DPMLShellMesh();
+	auto marker = makePMLMarker();
+
+	VolumetricPMLSubMesher submesher(mesh, marker);
+	auto* submesh = submesher.getSubMesh();
+	ASSERT_NE(nullptr, submesh);
+	ASSERT_EQ(2, submesh->GetNE());
+	ASSERT_EQ(2, submesher.getParentElementIDMap().Size());
+	EXPECT_EQ(0, submesher.getParentElementIDMap()[0]);
+	EXPECT_EQ(4, submesher.getParentElementIDMap()[1]);
+	ASSERT_EQ(4, submesher.getParentVertexIDMap().Size());
+	EXPECT_EQ(0, submesher.getParentVertexIDMap()[0]);
+	EXPECT_EQ(1, submesher.getParentVertexIDMap()[1]);
+	EXPECT_EQ(4, submesher.getParentVertexIDMap()[2]);
+	EXPECT_EQ(5, submesher.getParentVertexIDMap()[3]);
+}
+
+TEST_F(SubMesherTest, volumetricPMLSubMesher_extractsParallelShellDomain)
+{
+	auto serial_mesh = make1DPMLShellMesh();
+	ParMesh mesh(MPI_COMM_WORLD, serial_mesh);
+	auto marker = makePMLMarker();
+
+	VolumetricPMLSubMesher submesher(mesh, marker);
+	auto* submesh = submesher.getParSubMesh();
+	ASSERT_NE(nullptr, submesh);
+
+	const int local_count = submesher.getParentElementIDMap().Size();
+	int global_count = 0;
+	MPI_Allreduce(&local_count, &global_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	EXPECT_EQ(2, global_count);
+
+	for (int i = 0; i < submesher.getParentElementIDMap().Size(); ++i) {
+		EXPECT_EQ(2, mesh.GetAttribute(submesher.getParentElementIDMap()[i]));
+	}
+
+	EXPECT_EQ(local_count + 2, submesher.getParentVertexIDMap().Size());
+	for (int i = 0; i < submesher.getParentVertexIDMap().Size(); ++i) {
+		EXPECT_LE(0, submesher.getParentVertexIDMap()[i]);
+	}
+}
+
+TEST_F(SubMesherTest, volumetricPMLSubMesher_requiresMarkedDomain)
+{
+	auto mesh = make1DPMLShellMesh();
+	Array<int> marker(2);
+	marker = 0;
+
+	EXPECT_THROW(VolumetricPMLSubMesher(mesh, marker), std::runtime_error);
 }

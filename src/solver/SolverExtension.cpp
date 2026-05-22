@@ -5,6 +5,8 @@
 
 #include <cstring>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace maxwell
 {
@@ -134,6 +136,265 @@ Model buildSGBCModel(mfem::Mesh& mesh, int* partitioning, const SGBCProperties& 
     GeomTagToBoundary gt2b = buildBdrInfo();
     GeomTagToBoundaryInfo gtbdr(gt2b, gt2ib);
     return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), gtbdr, partitioning, MPI_COMM_SELF);
+}
+
+namespace {
+
+GeomTagToMaterialInfo buildVacuumMaterialInfo(const mfem::ParSubMesh& mesh)
+{
+    GeomTagToMaterialInfo res;
+    for (int e = 0; e < mesh.GetNE(); ++e) {
+        res.gt2m.emplace(mesh.GetAttribute(e), buildVacuumMaterial());
+    }
+    return res;
+}
+
+const PMLRegionProperties& getCommonPMLProperties(const GeomTagToPMLRegion& pml_regions)
+{
+    if (pml_regions.empty()) {
+        throw std::runtime_error("PML properties are not available for an empty volumetric PML region set.");
+    }
+
+    const auto& props = pml_regions.begin()->second;
+    for (const auto& [tag, other] : pml_regions) {
+        if (!(props == other)) {
+            throw std::runtime_error("All volumetric PML tags must currently share the same properties.");
+        }
+    }
+    return props;
+}
+
+double computeSigmaMaxForThickness(const double thickness, const PMLRegionProperties& props)
+{
+    if (thickness <= 0.0) {
+        return 0.0;
+    }
+    return -(static_cast<double>(props.grading_order) + 1.0)
+        * std::log(props.target_reflection)
+        / (2.0 * thickness);
+}
+
+double evaluatePMLSigmaAtPosition(
+    const mfem::Vector& position,
+    const PMLBoxGeometry& geometry,
+    const PMLRegionProperties& props,
+    const mfem::Vector& sigma_max_minus,
+    const mfem::Vector& sigma_max_plus)
+{
+    double sigma = 0.0;
+    const int dim = geometry.inner_min.Size();
+    for (int d = 0; d < dim; ++d) {
+        if (!geometry.active_axes[d]) {
+            continue;
+        }
+
+        if (position[d] < geometry.inner_min[d] && geometry.thickness_minus[d] > 0.0) {
+            const double distance = geometry.inner_min[d] - position[d];
+            const double xi = std::min(1.0, std::max(0.0, distance / geometry.thickness_minus[d]));
+            sigma += sigma_max_minus[d] * std::pow(xi, static_cast<double>(props.grading_order));
+        } else if (position[d] > geometry.inner_max[d] && geometry.thickness_plus[d] > 0.0) {
+            const double distance = position[d] - geometry.inner_max[d];
+            const double xi = std::min(1.0, std::max(0.0, distance / geometry.thickness_plus[d]));
+            sigma += sigma_max_plus[d] * std::pow(xi, static_cast<double>(props.grading_order));
+        }
+    }
+    return sigma;
+}
+
+std::pair<int, double> decodeSignedVdof(const int signed_vdof)
+{
+    if (signed_vdof >= 0) {
+        return std::make_pair(signed_vdof, 1.0);
+    }
+    return std::make_pair(-1 - signed_vdof, -1.0);
+}
+
+double computeMinNormalElementSize(const mfem::ParSubMesh& mesh, const PMLBoxGeometry& geometry)
+{
+    double min_size = std::numeric_limits<double>::infinity();
+    const int dim = geometry.inner_min.Size();
+    for (int e = 0; e < mesh.GetNE(); ++e) {
+        mfem::Array<int> vertices;
+        mesh.GetElementVertices(e, vertices);
+        mfem::Vector elem_min(dim);
+        mfem::Vector elem_max(dim);
+        for (int d = 0; d < dim; ++d) {
+            elem_min[d] = std::numeric_limits<double>::infinity();
+            elem_max[d] = -std::numeric_limits<double>::infinity();
+        }
+
+        for (int i = 0; i < vertices.Size(); ++i) {
+            const double* coords = mesh.GetVertex(vertices[i]);
+            for (int d = 0; d < dim; ++d) {
+                elem_min[d] = std::min(elem_min[d], coords[d]);
+                elem_max[d] = std::max(elem_max[d], coords[d]);
+            }
+        }
+
+        for (int d = 0; d < dim; ++d) {
+            if (!geometry.active_axes[d]) {
+                continue;
+            }
+
+            const bool overlaps_axis_shell =
+                elem_min[d] < geometry.inner_min[d] || elem_max[d] > geometry.inner_max[d];
+            if (!overlaps_axis_shell) {
+                continue;
+            }
+
+            const double extent = elem_max[d] - elem_min[d];
+            if (extent > 0.0) {
+                min_size = std::min(min_size, extent);
+            }
+        }
+    }
+
+    if (!std::isfinite(min_size)) {
+        return 0.0;
+    }
+    return min_size;
+}
+
+} // namespace
+
+PMLWrapper::PMLWrapper(Model& model, const mfem::ParFiniteElementSpace& parent_fes)
+    : geometry_(model.inferPMLBoxGeometry()),
+      submesher_(model.getConstMesh(), model.buildPMLVolumeMarker())
+{
+    auto* submesh = submesher_.getParSubMesh();
+    if (submesh == nullptr) {
+        throw std::runtime_error("PMLWrapper failed to build a volumetric PML ParSubMesh.");
+    }
+
+    sub_fes_ = std::make_unique<mfem::ParFiniteElementSpace>(submesh, parent_fes.FEColl());
+    mfem::SubMeshUtils::BuildVdofToVdofMap(*sub_fes_,
+                                          parent_fes,
+                                          submesh->GetFrom(),
+                                          submesh->GetParentElementIDMap(),
+                                          sub_to_parent_vdofs_);
+
+    const auto& props = getCommonPMLProperties(model.getPMLRegions());
+    const int dim = geometry_.inner_min.Size();
+    sigma_max_minus_.SetSize(dim);
+    sigma_max_plus_.SetSize(dim);
+    for (int d = 0; d < dim; ++d) {
+        sigma_max_minus_[d] = computeSigmaMaxForThickness(geometry_.thickness_minus[d], props);
+        sigma_max_plus_[d] = computeSigmaMaxForThickness(geometry_.thickness_plus[d], props);
+        sigma_max_ = std::max(sigma_max_, std::max(sigma_max_minus_[d], sigma_max_plus_[d]));
+    }
+
+    auto sigma_function = [this, &props](const mfem::Vector& pos) {
+        return evaluatePMLSigmaAtPosition(pos, geometry_, props, sigma_max_minus_, sigma_max_plus_);
+    };
+    mfem::FunctionCoefficient sigma_coeff(sigma_function);
+    mfem::ParGridFunction sigma_gf(sub_fes_.get());
+    sigma_gf.UseDevice(true);
+    sigma_gf.ProjectCoefficient(sigma_coeff);
+    sigma_profile_.SetSize(sub_fes_->GetNDofs());
+    sigma_profile_.UseDevice(true);
+    sigma_profile_ = sigma_gf;
+    min_normal_element_size_ = computeMinNormalElementSize(*submesh, geometry_);
+
+    Model pml_model(*submesh, buildVacuumMaterialInfo(*submesh));
+    Probes probes;
+    Sources sources;
+    EvolutionOptions local_opts;
+    ProblemDescription pd(pml_model, probes, sources, local_opts);
+    DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, *sub_fes_);
+    matched_layer_operator_ = dgops.buildMatchedConductiveOperator<mfem::ParBilinearForm>(sigma_coeff);
+}
+
+void PMLWrapper::gatherParentFields(
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields,
+    mfem::Vector& sub_state) const
+{
+    const int ndofs = sub_fes_->GetNDofs();
+    sub_state.SetSize(getStateSize());
+    sub_state.UseDevice(true);
+    for (int comp = 0; comp < 6; ++comp) {
+        const FieldType field = comp < 3 ? FieldType::E : FieldType::H;
+        const Direction dir = static_cast<Direction>(comp % 3);
+        for (int vdof = 0; vdof < ndofs; ++vdof) {
+            auto [parent_vdof, sign] = decodeSignedVdof(sub_to_parent_vdofs_[vdof]);
+            sub_state[comp * ndofs + vdof] = sign * parent_fields.get(field, dir)[parent_vdof];
+        }
+    }
+}
+
+void PMLWrapper::scatterStateToParent(
+    const mfem::Vector& sub_state,
+    Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields) const
+{
+    const int ndofs = sub_fes_->GetNDofs();
+    for (int comp = 0; comp < 6; ++comp) {
+        const FieldType field = comp < 3 ? FieldType::E : FieldType::H;
+        const Direction dir = static_cast<Direction>(comp % 3);
+        for (int vdof = 0; vdof < ndofs; ++vdof) {
+            auto [parent_vdof, sign] = decodeSignedVdof(sub_to_parent_vdofs_[vdof]);
+            parent_fields.get(field, dir)[parent_vdof] = sign * sub_state[comp * ndofs + vdof];
+        }
+    }
+}
+
+void PMLWrapper::initializeStateFromParent(
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields,
+    PMLRegionState& state) const
+{
+    if (state.auxiliary_state.Size() != getStateSize()) {
+        state.init(getStateSize());
+    }
+    gatherParentFields(parent_fields, state.auxiliary_state);
+}
+
+void PMLWrapper::applyImplicitCorrection(
+    double dt,
+    Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields,
+    PMLRegionState& state) const
+{
+    if (state.auxiliary_state.Size() != getStateSize()) {
+        state.init(getStateSize());
+    }
+
+    mfem::Vector rhs;
+    rhs.UseDevice(true);
+    gatherParentFields(parent_fields, rhs);
+    state.auxiliary_state = rhs;
+
+    if (dt <= 0.0 || matched_layer_operator_ == nullptr || sigma_max_ <= 0.0) {
+        scatterStateToParent(state.auxiliary_state, parent_fields);
+        return;
+    }
+
+    class PMLJacobian final : public mfem::Operator {
+    public:
+        PMLJacobian(const mfem::SparseMatrix& op, double dt)
+            : mfem::Operator(op.Height()), op_(op), dt_(dt), tmp_(op.Height())
+        {
+            tmp_.UseDevice(true);
+        }
+
+        void Mult(const mfem::Vector& v, mfem::Vector& Jv) const override
+        {
+            op_.Mult(v, tmp_);
+            Jv = v;
+            Jv.Add(-dt_, tmp_);
+        }
+
+    private:
+        const mfem::SparseMatrix& op_;
+        double dt_;
+        mutable mfem::Vector tmp_;
+    } jacobian(*matched_layer_operator_, dt);
+
+    mfem::GMRESSolver gmres;
+    gmres.SetOperator(jacobian);
+    gmres.SetRelTol(1e-8);
+    gmres.SetMaxIter(200);
+    gmres.SetKDim(50);
+    gmres.SetPrintLevel(0);
+    gmres.Mult(rhs, state.auxiliary_state);
+
+    scatterStateToParent(state.auxiliary_state, parent_fields);
 }
 
 std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp, double simulation_final_time, const ExporterProbe* exporter_probe)

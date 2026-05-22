@@ -1,8 +1,62 @@
 #include "Model.h"
 
+#include <limits>
+
+#include <unordered_set>
+
 namespace maxwell {
 
 using namespace mfem;
+
+namespace {
+
+std::unordered_set<int> buildPMLTagSet(const GeomTagToPMLRegion& pml_regions)
+{
+	std::unordered_set<int> tags;
+	for (const auto& [tag, _] : pml_regions) {
+		tags.insert(tag);
+	}
+	return tags;
+}
+
+std::pair<mfem::Vector, mfem::Vector> computeBoundingBoxForElements(
+	const mfem::Mesh& mesh,
+	const std::function<bool(int)>& include_attribute)
+{
+	const int dim = mesh.Dimension();
+	mfem::Vector min_corner(dim);
+	mfem::Vector max_corner(dim);
+	for (int d = 0; d < dim; ++d) {
+		min_corner[d] = std::numeric_limits<double>::infinity();
+		max_corner[d] = -std::numeric_limits<double>::infinity();
+	}
+
+	bool found = false;
+	for (int e = 0; e < mesh.GetNE(); ++e) {
+		if (!include_attribute(mesh.GetAttribute(e))) {
+			continue;
+		}
+
+		found = true;
+		mfem::Array<int> vertices;
+		mesh.GetElementVertices(e, vertices);
+		for (int i = 0; i < vertices.Size(); ++i) {
+			const double* coords = mesh.GetVertex(vertices[i]);
+			for (int d = 0; d < dim; ++d) {
+				min_corner[d] = std::min(min_corner[d], coords[d]);
+				max_corner[d] = std::max(max_corner[d], coords[d]);
+			}
+		}
+	}
+
+	if (!found) {
+		throw std::runtime_error("Could not infer a PML box because no matching elements were found.");
+	}
+
+	return std::make_pair(min_corner, max_corner);
+}
+
+}
 
 
 std::map<GlobalElementId, Position> buildSerialElem2CenterMap(Mesh& mesh){
@@ -126,6 +180,76 @@ std::size_t Model::numberOfMaterials() const
 std::size_t Model::numberOfBoundaryMaterials() const
 {
 	return attToBdrMap_.size();
+}
+
+mfem::Array<int> Model::buildPMLVolumeMarker() const
+{
+	mfem::Array<int> marker;
+	if (pml_regions_.empty()) {
+		return marker;
+	}
+
+	marker.SetSize(pmesh_.attributes.Max());
+	marker = 0;
+	for (const auto& [tag, _] : pml_regions_) {
+		if (tag <= 0 || tag > marker.Size()) {
+			throw std::runtime_error("PML geometry tag " + std::to_string(tag) + " is outside the mesh attribute range.");
+		}
+		marker[tag - 1] = 1;
+	}
+
+	return marker;
+}
+
+PMLBoxGeometry Model::inferPMLBoxGeometry() const
+{
+	if (pml_regions_.empty()) {
+		throw std::runtime_error("Cannot infer PML box geometry without any PML regions.");
+	}
+
+	const auto pml_tags = buildPMLTagSet(pml_regions_);
+	const auto outer_bbox = computeBoundingBoxForElements(serialMesh_, [](int) { return true; });
+	const auto inner_bbox = computeBoundingBoxForElements(
+		serialMesh_,
+		[&pml_tags](int attr) {
+			return pml_tags.find(attr) == pml_tags.end();
+		});
+
+	PMLBoxGeometry geom;
+	const int dim = serialMesh_.Dimension();
+	geom.outer_min = outer_bbox.first;
+	geom.outer_max = outer_bbox.second;
+	geom.inner_min = inner_bbox.first;
+	geom.inner_max = inner_bbox.second;
+	geom.thickness_minus.SetSize(dim);
+	geom.thickness_plus.SetSize(dim);
+	bool has_active_axis = false;
+
+	for (int d = 0; d < dim; ++d) {
+		const double span = std::max(geom.outer_max[d] - geom.outer_min[d], 1.0);
+		const double tol = 1e-8 * span;
+		const double minus = geom.inner_min[d] - geom.outer_min[d];
+		const double plus = geom.outer_max[d] - geom.inner_max[d];
+
+		if (minus < -tol || plus < -tol) {
+			throw std::runtime_error("PML shell geometry is invalid: inner box extends outside the full mesh bounding box.");
+		}
+
+		geom.thickness_minus[d] = std::max(0.0, minus);
+		geom.thickness_plus[d] = std::max(0.0, plus);
+		geom.active_axes[d] = geom.thickness_minus[d] > tol || geom.thickness_plus[d] > tol;
+		has_active_axis = has_active_axis || geom.active_axes[d];
+
+		if (geom.active_axes[d] && (geom.thickness_minus[d] <= tol || geom.thickness_plus[d] <= tol)) {
+			throw std::runtime_error("PML shell geometry is invalid: active PML axes must wrap both sides of the inner box.");
+		}
+	}
+
+	if (!has_active_axis) {
+		throw std::runtime_error("PML shell geometry is invalid: the tagged region does not define an outer shell around the inner box.");
+	}
+
+	return geom;
 }
 
 mfem::Vector Model::initialiseGeomTagVector() const

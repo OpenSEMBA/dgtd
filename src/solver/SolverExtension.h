@@ -2,6 +2,8 @@
 
 #include "components/Model.h"
 #include "components/Probes.h"
+#include "components/SubMesher.h"
+#include "evolution/Fields.h"
 #include "evolution/HesthavenEvolutionMethods.h"
 #include "SolverOptions.h"
 
@@ -62,6 +64,15 @@ struct SGBCState {
         rot[0] = rot[4] = rot[8] = 1.0;
         std::fill(ghost_old, ghost_old + 12, 0.0);
         std::fill(ghost_new, ghost_new + 12, 0.0);
+    }
+};
+
+struct PMLRegionState {
+    mfem::Vector auxiliary_state;
+
+    void init(const int size) {
+        auxiliary_state.SetSize(size);
+        auxiliary_state = 0.0;
     }
 };
 
@@ -180,6 +191,49 @@ private:
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>* global_fields_;
     std::unique_ptr<Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>> sgbc_solver_fields_;
 
+};
+
+class PMLWrapper {
+public:
+    PMLWrapper(Model& model, const mfem::ParFiniteElementSpace& parent_fes);
+
+    void initializeStateFromParent(
+        const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields,
+        PMLRegionState& state) const;
+    void applyImplicitCorrection(
+        double dt,
+        Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields,
+        PMLRegionState& state) const;
+
+    const VolumetricPMLSubMesher& getSubMesher() const { return submesher_; }
+    const mfem::ParSubMesh* getConstSubMesh() const { return submesher_.getConstParSubMesh(); }
+    mfem::ParSubMesh* getSubMesh() { return submesher_.getParSubMesh(); }
+    const mfem::ParFiniteElementSpace& getSubFES() const { return *sub_fes_; }
+    const mfem::Array<int>& getSubToParentVDofMap() const { return sub_to_parent_vdofs_; }
+    const PMLBoxGeometry& getGeometry() const { return geometry_; }
+    const mfem::Vector& getSigmaProfile() const { return sigma_profile_; }
+    double getSigmaMax() const { return sigma_max_; }
+    double getMinNormalElementSize() const { return min_normal_element_size_; }
+    int getStateSize() const { return 6 * sub_fes_->GetNDofs(); }
+
+private:
+    void gatherParentFields(
+        const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields,
+        mfem::Vector& sub_state) const;
+    void scatterStateToParent(
+        const mfem::Vector& sub_state,
+        Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& parent_fields) const;
+
+    PMLBoxGeometry geometry_;
+    VolumetricPMLSubMesher submesher_;
+    std::unique_ptr<mfem::ParFiniteElementSpace> sub_fes_;
+    mfem::Array<int> sub_to_parent_vdofs_;
+    std::unique_ptr<mfem::SparseMatrix> matched_layer_operator_;
+    mfem::Vector sigma_profile_;
+    mfem::Vector sigma_max_minus_;
+    mfem::Vector sigma_max_plus_;
+    double sigma_max_ = 0.0;
+    double min_normal_element_size_ = 0.0;
 };
 
 }

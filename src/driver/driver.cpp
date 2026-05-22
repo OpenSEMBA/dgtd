@@ -13,51 +13,63 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
+#include <cctype>
+#include <optional>
 #include <mpi.h>
 
 namespace maxwell::driver {
 
-double calculateMaximumSourceFrequency(const json& case_data)
+std::optional<double> tryCalculateMaximumSourceFrequency(const json& case_data)
 {
     double c_si = physicalConstants::speedOfLight_SI;
-    double min_spread = std::numeric_limits<double>::max();
     double max_freq = 0.0;
-    bool found_gaussian = false;
-    bool found_modulated = false;
+    bool found_frequency = false;
 
     if (case_data.contains("sources")) {
         for (const auto& source : case_data["sources"]) {
             if (!source.contains("magnitude")) continue;
             const auto& mag = source["magnitude"];
-            // Modulated Gaussian: has "frequency" (with or without explicit "type")
-            if (mag.contains("frequency") && mag.contains("spread")) {
-                double spread = mag["spread"].get<double>();
-                double f_carrier = mag["frequency"].get<double>();
-                double f_edge = f_carrier + c_si / (2.0 * spread);
-                if (f_edge > max_freq) {
-                    max_freq = f_edge;
-                    found_modulated = true;
-                }
-            // Plain Gaussian: explicit type="gaussian", no frequency
-            } else if (mag.contains("type") && mag["type"] == "gaussian" && mag.contains("spread")) {
-                double spread = mag["spread"].get<double>();
-                if (spread > 0.0 && spread < min_spread) {
-                    min_spread = spread;
-                    found_gaussian = true;
-                }
+
+			if (mag.contains("frequency")) {
+				double estimated = mag["frequency"].get<double>();
+				if (mag.contains("spread")) {
+					const double spread = mag["spread"].get<double>();
+					if (spread > 0.0) {
+						estimated += c_si / (2.0 * spread);
+					}
+				}
+				max_freq = std::max(max_freq, estimated);
+				found_frequency = true;
+				continue;
+			}
+
+			if (!mag.contains("spread")) {
+				continue;
+			}
+
+			const double spread = mag["spread"].get<double>();
+			if (spread <= 0.0) {
+				continue;
+			}
+
+			const std::string source_type = source.value("type", "");
+			const std::string magnitude_type = mag.value("type", "");
+			if (source_type == "dipole" || magnitude_type == "gaussian") {
+				max_freq = std::max(max_freq, c_si / (2.0 * spread));
+				found_frequency = true;
             }
         }
     }
 
-    if (found_modulated) {
-        return max_freq;
+	if (!found_frequency) {
+        return std::nullopt;
     }
+	return max_freq;
+}
 
-    if (found_gaussian) {
-        return c_si / (2.0 * min_spread);
-    }
-
-    return 1e9;
+double calculateMaximumSourceFrequency(const json& case_data)
+{
+	return tryCalculateMaximumSourceFrequency(case_data).value_or(1e9);
 }
 
 std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh, mfem::Array<int> tags)
@@ -958,6 +970,60 @@ void checkIfAttributesArePresent(const Mesh& mesh, const GeomTagToMaterialInfo& 
 	}
 }
 
+bool isPMLMaterialType(const json& material_json)
+{
+    if (!material_json.contains("type") || !material_json["type"].is_string()) {
+        return false;
+    }
+
+    std::string material_type = material_json["type"].get<std::string>();
+    std::transform(material_type.begin(), material_type.end(), material_type.begin(),
+        [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+
+    return material_type == "pml";
+}
+
+void validateVacuumMatchedPMLMaterial(const json& material_json)
+{
+    if (material_json.contains("relative_permittivity") ||
+        material_json.contains("relative_permeability") ||
+        material_json.contains("bulk_conductivity")) {
+        throw std::runtime_error(
+            "PML materials currently support only vacuum-matched regions. Remove relative_permittivity, relative_permeability, and bulk_conductivity from the PML material definition.");
+    }
+}
+
+GeomTagToPMLRegion assembleAttributeToPML(const json& case_data)
+{
+    GeomTagToPMLRegion res{};
+
+    if (!case_data.contains("model") || !case_data["model"].contains("materials")) {
+        return res;
+    }
+
+    for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
+        const auto& material_json = case_data["model"]["materials"][m];
+        if (!isPMLMaterialType(material_json)) {
+            continue;
+        }
+
+        validateVacuumMatchedPMLMaterial(material_json);
+        PMLRegionProperties props;
+
+        for (auto t = 0; t < material_json["tags"].size(); t++) {
+            const auto tag = material_json["tags"][t].get<int>();
+            auto [_, inserted] = res.emplace(tag, props);
+            if (!inserted) {
+                throw std::runtime_error("Duplicate PML material tag " + std::to_string(tag) + " in model.materials.");
+            }
+        }
+    }
+
+    return res;
+}
+
 GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh)
 {
 	GeomTagToMaterialInfo res{};
@@ -966,15 +1032,20 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const m
 	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
 
 	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
+        const auto& material_json = case_data["model"]["materials"][m];
+        const bool is_pml = isPMLMaterialType(material_json);
+        if (is_pml) {
+            validateVacuumMatchedPMLMaterial(material_json);
+        }
 		for (auto t = 0; t < case_data["model"]["materials"][m]["tags"].size(); t++) {
 			double eps{ 1.0 }, mu{ 1.0 }, sigma{ 0.0 };
-			if (case_data["model"]["materials"][m].contains("relative_permittivity")) {
+            if (!is_pml && case_data["model"]["materials"][m].contains("relative_permittivity")) {
 				eps = case_data["model"]["materials"][m]["relative_permittivity"];
 			}
-			if (case_data["model"]["materials"][m].contains("relative_permeability")) {
+            if (!is_pml && case_data["model"]["materials"][m].contains("relative_permeability")) {
 				mu = case_data["model"]["materials"][m]["relative_permeability"];
 			}
-			if (case_data["model"]["materials"][m].contains("bulk_conductivity")) {
+            if (!is_pml && case_data["model"]["materials"][m].contains("bulk_conductivity")) {
 				sigma = case_data["model"]["materials"][m]["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
 			}
 			res.gt2m.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu, sigma)));
@@ -1224,6 +1295,299 @@ static bool isSGBCBoundaryType(const std::string& boundary_type)
 	return boundary_type == "SGBC" || boundary_type == "SBC_PML";
 }
 
+static const char* pmlAxisLabel(const int axis)
+{
+    switch (axis) {
+    case 0:
+        return "X";
+    case 1:
+        return "Y";
+    case 2:
+        return "Z";
+    default:
+        return "?";
+    }
+}
+
+namespace {
+
+struct PMLResolutionMetrics {
+    double min_normal_size_minus[3] = { 0.0, 0.0, 0.0 };
+    double min_normal_size_plus[3] = { 0.0, 0.0, 0.0 };
+    double cells_minus[3] = { 0.0, 0.0, 0.0 };
+    double cells_plus[3] = { 0.0, 0.0, 0.0 };
+    double dofs_minus[3] = { 0.0, 0.0, 0.0 };
+    double dofs_plus[3] = { 0.0, 0.0, 0.0 };
+    double sigma_max_minus[3] = { 0.0, 0.0, 0.0 };
+    double sigma_max_plus[3] = { 0.0, 0.0, 0.0 };
+    double sigma_max = 0.0;
+    double min_normal_size = 0.0;
+};
+
+const PMLRegionProperties& getCommonPMLProperties(const GeomTagToPMLRegion& pml_regions)
+{
+    if (pml_regions.empty()) {
+        throw std::runtime_error("PML diagnostics requested without tagged PML regions.");
+    }
+
+    const auto& props = pml_regions.begin()->second;
+    for (const auto& [tag, other] : pml_regions) {
+        if (!(props == other)) {
+            throw std::runtime_error("All volumetric PML tags must currently share the same properties.");
+        }
+    }
+    return props;
+}
+
+double computeSigmaMaxForThickness(const double thickness, const PMLRegionProperties& props)
+{
+    if (thickness <= 0.0) {
+        return 0.0;
+    }
+    return -(static_cast<double>(props.grading_order) + 1.0)
+        * std::log(props.target_reflection)
+        / (2.0 * thickness);
+}
+
+int getPMLDiagnosticOrder(const json& case_data)
+{
+    if (case_data.contains("solver_options") && case_data["solver_options"].contains("order")) {
+        return case_data["solver_options"]["order"].get<int>();
+    }
+    return 2;
+}
+
+std::vector<std::pair<double, double>> collectDistinctIntervals(
+    const std::vector<std::pair<double, double>>& intervals,
+    const double tol)
+{
+    auto sorted = intervals;
+    std::sort(sorted.begin(), sorted.end());
+    std::vector<std::pair<double, double>> unique;
+    for (const auto& interval : sorted) {
+        if (unique.empty() ||
+            std::abs(interval.first - unique.back().first) > tol ||
+            std::abs(interval.second - unique.back().second) > tol) {
+            unique.push_back(interval);
+        }
+    }
+    return unique;
+}
+
+PMLResolutionMetrics computePMLResolutionMetrics(
+    const Model& model,
+    const PMLBoxGeometry& geom,
+    const int order)
+{
+    PMLResolutionMetrics metrics;
+    const auto& props = getCommonPMLProperties(model.getPMLRegions());
+    const auto& mesh = model.getConstSerialMesh();
+    std::unordered_set<int> pml_tags;
+    for (const auto& [tag, _] : model.getPMLRegions()) {
+        pml_tags.insert(tag);
+    }
+
+    std::vector<std::pair<double, double>> minus_intervals[3];
+    std::vector<std::pair<double, double>> plus_intervals[3];
+    double bbox_scale = 1.0;
+    for (int d = 0; d < geom.inner_min.Size(); ++d) {
+        bbox_scale = std::max(bbox_scale, std::abs(geom.outer_max[d] - geom.outer_min[d]));
+    }
+    const double tol = 1e-9 * bbox_scale;
+
+    for (int e = 0; e < mesh.GetNE(); ++e) {
+        if (pml_tags.count(mesh.GetAttribute(e)) == 0) {
+            continue;
+        }
+
+        mfem::Array<int> vertices;
+        mesh.GetElementVertices(e, vertices);
+        std::vector<double> elem_min(geom.inner_min.Size(), std::numeric_limits<double>::infinity());
+        std::vector<double> elem_max(geom.inner_min.Size(), -std::numeric_limits<double>::infinity());
+        for (int i = 0; i < vertices.Size(); ++i) {
+            const double* coords = mesh.GetVertex(vertices[i]);
+            for (int d = 0; d < geom.inner_min.Size(); ++d) {
+                elem_min[d] = std::min(elem_min[d], coords[d]);
+                elem_max[d] = std::max(elem_max[d], coords[d]);
+            }
+        }
+
+        for (int d = 0; d < geom.inner_min.Size(); ++d) {
+            if (!geom.active_axes[d]) {
+                continue;
+            }
+
+            if (geom.thickness_minus[d] > 0.0 && elem_max[d] <= geom.inner_min[d] + tol) {
+                minus_intervals[d].emplace_back(elem_min[d], elem_max[d]);
+            }
+            if (geom.thickness_plus[d] > 0.0 && elem_min[d] >= geom.inner_max[d] - tol) {
+                plus_intervals[d].emplace_back(elem_min[d], elem_max[d]);
+            }
+        }
+    }
+
+    const double dofs_per_cell = static_cast<double>(std::max(1, order + 1));
+    for (int d = 0; d < geom.inner_min.Size(); ++d) {
+        const auto distinct_minus = collectDistinctIntervals(minus_intervals[d], tol);
+        const auto distinct_plus = collectDistinctIntervals(plus_intervals[d], tol);
+
+        if (!distinct_minus.empty()) {
+            metrics.min_normal_size_minus[d] = std::numeric_limits<double>::infinity();
+            for (const auto& interval : distinct_minus) {
+                metrics.min_normal_size_minus[d] = std::min(
+                    metrics.min_normal_size_minus[d], interval.second - interval.first);
+            }
+            metrics.cells_minus[d] = static_cast<double>(distinct_minus.size());
+            metrics.dofs_minus[d] = metrics.cells_minus[d] * dofs_per_cell;
+            metrics.sigma_max_minus[d] = computeSigmaMaxForThickness(geom.thickness_minus[d], props);
+        }
+
+        if (!distinct_plus.empty()) {
+            metrics.min_normal_size_plus[d] = std::numeric_limits<double>::infinity();
+            for (const auto& interval : distinct_plus) {
+                metrics.min_normal_size_plus[d] = std::min(
+                    metrics.min_normal_size_plus[d], interval.second - interval.first);
+            }
+            metrics.cells_plus[d] = static_cast<double>(distinct_plus.size());
+            metrics.dofs_plus[d] = metrics.cells_plus[d] * dofs_per_cell;
+            metrics.sigma_max_plus[d] = computeSigmaMaxForThickness(geom.thickness_plus[d], props);
+        }
+
+        metrics.sigma_max = std::max(metrics.sigma_max,
+            std::max(metrics.sigma_max_minus[d], metrics.sigma_max_plus[d]));
+        for (const double size : { metrics.min_normal_size_minus[d], metrics.min_normal_size_plus[d] }) {
+            if (size > 0.0 && (metrics.min_normal_size == 0.0 || size < metrics.min_normal_size)) {
+                metrics.min_normal_size = size;
+            }
+        }
+    }
+
+    return metrics;
+}
+
+} // namespace
+
+static void validateAndReportPMLSetup(
+    const Model& model,
+    const std::optional<double>& max_freq,
+    const int order)
+{
+    if (!model.hasPMLVolumes()) {
+        return;
+    }
+
+    PMLBoxGeometry geom;
+    try {
+        geom = model.inferPMLBoxGeometry();
+    } catch (const std::exception& ex) {
+        throw std::runtime_error("Invalid volumetric PML geometry: " + std::string(ex.what()));
+    }
+
+    if (Mpi::WorldRank() != 0) {
+        return;
+    }
+
+    const auto metrics = computePMLResolutionMetrics(model, geom, order);
+    const double wavelength = max_freq.has_value() && *max_freq > 0.0
+        ? physicalConstants::speedOfLight_SI / *max_freq
+        : 0.0;
+    std::vector<std::string> hard_errors;
+    std::vector<std::string> warnings;
+    std::vector<std::string> infos;
+
+    std::cout << "\n[PML Setup]" << std::endl;
+    if (max_freq.has_value()) {
+        std::cout << "  Pulse Max Freq       : " << *max_freq / 1e9 << " GHz" << std::endl;
+        std::cout << "  Shortest Wavelength  : " << wavelength * 1000.0 << " mm" << std::endl;
+    } else {
+        std::cout << "  Pulse Max Freq       : unavailable (unsupported source spectrum for PML diagnostics)" << std::endl;
+    }
+    std::cout << "  Polynomial Order     : " << order << std::endl;
+    std::cout << "  Normal Cell Size Min : " << metrics.min_normal_size * 1000.0 << " mm" << std::endl;
+    std::cout << "  Sigma Max            : " << metrics.sigma_max << std::endl;
+
+    for (int d = 0; d < geom.inner_min.Size(); ++d) {
+        if (!geom.active_axes[d]) {
+            continue;
+        }
+
+        std::cout << "  Thickness " << pmlAxisLabel(d) << " (-/+) : "
+            << geom.thickness_minus[d] * 1000.0 << " / "
+            << geom.thickness_plus[d] * 1000.0 << " mm";
+        if (wavelength > 0.0) {
+            std::cout << " (" << geom.thickness_minus[d] / wavelength
+                << " / " << geom.thickness_plus[d] / wavelength << " lambda)";
+        }
+        std::cout << std::endl;
+        std::cout << "  Normal Cell " << pmlAxisLabel(d) << " (-/+) : "
+            << metrics.min_normal_size_minus[d] * 1000.0 << " / "
+            << metrics.min_normal_size_plus[d] * 1000.0 << " mm" << std::endl;
+        std::cout << "  Cells Across " << pmlAxisLabel(d) << " (-/+) : "
+            << metrics.cells_minus[d] << " / " << metrics.cells_plus[d] << std::endl;
+        std::cout << "  Effective DOFs " << pmlAxisLabel(d) << " (-/+) : "
+            << metrics.dofs_minus[d] << " / " << metrics.dofs_plus[d] << std::endl;
+        std::cout << "  Sigma Max " << pmlAxisLabel(d) << " (-/+) : "
+            << metrics.sigma_max_minus[d] << " / " << metrics.sigma_max_plus[d] << std::endl;
+
+        auto classifySide = [&](const char* side_label, const double thickness, const double cells, const double dofs) {
+            if (thickness <= 0.0) {
+                return;
+            }
+
+            const std::string side = std::string(pmlAxisLabel(d)) + side_label;
+            if (cells > 0.0 && cells < 2.0) {
+                hard_errors.push_back("PML shell " + side + " has only " + std::to_string(cells)
+                    + " cells across the thickness; need at least 2.");
+            } else if (cells > 0.0 && cells < 3.0) {
+                warnings.push_back("PML shell " + side + " has only " + std::to_string(cells)
+                    + " cells across the thickness; absorption may be marginal.");
+            }
+
+            if (dofs > 0.0 && dofs < 4.0) {
+                hard_errors.push_back("PML shell " + side + " has only " + std::to_string(dofs)
+                    + " effective DOFs across the thickness; need at least 4.");
+            } else if (dofs > 0.0 && dofs < 6.0) {
+                warnings.push_back("PML shell " + side + " has only " + std::to_string(dofs)
+                    + " effective DOFs across the thickness; consider a thicker or higher-order shell.");
+            }
+
+            if (wavelength > 0.0) {
+                const double ratio = thickness / wavelength;
+                if (ratio < 0.05) {
+                    hard_errors.push_back("PML shell " + side + " is only " + std::to_string(ratio)
+                        + " wavelengths thick at the estimated maximum source frequency; this is too thin.");
+                } else if (ratio < 0.10) {
+                    warnings.push_back("PML shell " + side + " is only " + std::to_string(ratio)
+                        + " wavelengths thick at the estimated maximum source frequency; absorption may be weak.");
+                } else if (ratio > 0.50) {
+                    infos.push_back("PML shell " + side + " is " + std::to_string(ratio)
+                        + " wavelengths thick at the estimated maximum source frequency; this is safe but may cost extra runtime.");
+                }
+            }
+        };
+
+        classifySide("-", geom.thickness_minus[d], metrics.cells_minus[d], metrics.dofs_minus[d]);
+        classifySide("+", geom.thickness_plus[d], metrics.cells_plus[d], metrics.dofs_plus[d]);
+    }
+
+    for (const auto& warning : warnings) {
+        std::cout << "  Warning              : " << warning << std::endl;
+    }
+    for (const auto& info : infos) {
+        std::cout << "  Info                 : " << info << std::endl;
+    }
+    std::cout << std::endl;
+
+    if (!hard_errors.empty()) {
+        std::ostringstream oss;
+        oss << "Volumetric PML setup is underresolved:";
+        for (const auto& error : hard_errors) {
+            oss << "\n - " << error;
+        }
+        throw std::runtime_error(oss.str());
+    }
+}
+
 Array<int> getSGBCTags(const json& case_data)
 {
     Array<int> res;
@@ -1311,7 +1675,9 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
     std::vector<SGBCProperties> sgbc_props;
     std::vector<std::string> sgbc_notices;
+    auto pml_regions{ assembleAttributeToPML(case_data) };
     
+	const auto pml_validation_freq = tryCalculateMaximumSourceFrequency(case_data);
     double max_freq = calculateMaximumSourceFrequency(case_data);
 
     auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
@@ -1538,6 +1904,8 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     }
     
     res.setSGBCProperties(sgbc_props);
+	res.setPMLRegions(pml_regions);
+    validateAndReportPMLSetup(res, pml_validation_freq, getPMLDiagnosticOrder(case_data));
 
     if (Mpi::WorldRank() == 0 && !sgbc_notices.empty()) {
         std::cout << "\n========================================================" << std::endl;
