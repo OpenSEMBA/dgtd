@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <fstream>
+
 #include "Types.h"
 #include "evolution/Fields.h"
 
@@ -48,18 +51,14 @@ struct DomainSnapshotDataCollection{
 
     void Save(const std::string& folder)
     {
-        std::ofstream osex(folder + "/Ex.gf");
-        Ex.Save(osex);
-        std::ofstream osey(folder + "/Ey.gf");
-        Ey.Save(osey);
-        std::ofstream osez(folder + "/Ez.gf");
-        Ez.Save(osez);
-        std::ofstream oshx(folder + "/Hx.gf");
-        Hx.Save(oshx);
-        std::ofstream oshy(folder + "/Hy.gf");
-        Hy.Save(oshy);
-        std::ofstream oshz(folder + "/Hz.gf");
-        Hz.Save(oshz);
+        const std::array<std::pair<std::string, mfem::ParGridFunction*>, 6> fields{ {
+            { "/Ex.gf", &Ex }, { "/Ey.gf", &Ey }, { "/Ez.gf", &Ez },
+            { "/Hx.gf", &Hx }, { "/Hy.gf", &Hy }, { "/Hz.gf", &Hz },
+        } };
+        for (const auto& [name, gf] : fields) {
+            std::ofstream out(folder + name);
+            gf->Save(out);
+        }
     }
 
     mfem::Mesh& mesh;

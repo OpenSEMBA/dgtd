@@ -104,4 +104,27 @@ GF& Fields<FES, GF>::get(const FieldType& f)
     }
 }
 
+struct TransferMaps {
+
+    std::array<std::array<mfem::TransferMap, 3>, 2> maps;
+
+    TransferMaps(Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst) :
+        maps{ std::array<mfem::TransferMap, 3>{ mfem::TransferMap(src.get(E, X), dst.get(E, X)),
+                                                 mfem::TransferMap(src.get(E, Y), dst.get(E, Y)),
+                                                 mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
+              std::array<mfem::TransferMap, 3>{ mfem::TransferMap(src.get(H, X), dst.get(H, X)),
+                                                 mfem::TransferMap(src.get(H, Y), dst.get(H, Y)),
+                                                 mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) } }
+    {}
+
+    void transferFields(const Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst)
+    {
+        for (auto f : { E, H }) {
+            for (auto d : { X, Y, Z }) {
+                maps[f][d].Transfer(src.get(f, d), dst.get(f, d));
+            }
+        }
+    }
+};
+
 }

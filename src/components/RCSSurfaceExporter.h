@@ -6,6 +6,7 @@
 
 #include "components/Probes.h"
 #include "components/SubMesher.h"
+#include "evolution/Fields.h"
 
 namespace maxwell {
 
@@ -61,8 +62,7 @@ private:
     Fields<mfem::FiniteElementSpace, mfem::GridFunction> surfaceFields_;
     Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& globalFields_;
 
-    mfem::TransferMap tMapEx_, tMapEy_, tMapEz_;
-    mfem::TransferMap tMapHx_, tMapHy_, tMapHz_;
+    TransferMaps transferMaps_;
 
     std::string outputPath_;
     std::ofstream dataFile_;

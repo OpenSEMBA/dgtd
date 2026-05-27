@@ -1,5 +1,7 @@
 #include "RCSSurfacePostProcessor.h"
 
+#include "components/Spherical.h"
+
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -40,26 +42,6 @@ static std::vector<std::string> findRankDirs(const std::string& basePath)
 static void removeDir(const std::string& p)
 {
     if (std::filesystem::exists(p)) std::filesystem::remove_all(p);
-}
-
-// Spherical coordinate unit vectors.
-static std::array<double, 3> thetaHat(const SphericalAngles& a)
-{
-    return { std::cos(a.theta)*std::cos(a.phi),
-             std::cos(a.theta)*std::sin(a.phi),
-            -std::sin(a.theta) };
-}
-
-static std::array<double, 3> phiHat(const SphericalAngles& a)
-{
-    return { -std::sin(a.phi), std::cos(a.phi), 0.0 };
-}
-
-static std::array<double, 3> rHat(const SphericalAngles& a)
-{
-    return { std::sin(a.theta)*std::cos(a.phi),
-             std::sin(a.theta)*std::sin(a.phi),
-             std::cos(a.theta) };
 }
 
 template <typename T>
@@ -324,13 +306,8 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
             for (const auto& ang : angles) {
                 // Build phase-term function coefficients.
                 std::unique_ptr<FunctionCoefficient> fcR, fcI;
-                if (spaceDim == 2) {
-                    fcR = buildFC_2D(freq, ang, true);
-                    fcI = buildFC_2D(freq, ang, false);
-                } else {
-                    fcR = buildFC_3D(freq, ang, true);
-                    fcI = buildFC_3D(freq, ang, false);
-                }
+                fcR = buildFC(spaceDim, freq, ang, true);
+                fcI = buildFC(spaceDim, freq, ang, false);
 
                 // For each spatial direction d, assemble linear forms that
                 // compute:  lf[i] = integral n[d] * fc * shape_i dS
@@ -376,8 +353,8 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                 }
 
                 // Project onto spherical components.
-                auto th = thetaHat(ang);
-                auto ph = phiHat(ang);
+                auto th = thetaHat(ang.theta, ang.phi);
+                auto ph = phiHat(ang.phi);
 
                 auto N_theta = dot3(th, N_vec);
                 auto N_phi   = dot3(ph, N_vec);

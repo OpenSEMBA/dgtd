@@ -29,16 +29,6 @@ SGBCHelperFields initSGBCHelperFields(const int size)
     return res;
 }
 
-static mfem::Array<int> buildSurfaceMarkerFromTags(const std::vector<int>& tags, const mfem::ParFiniteElementSpace& fes)
-{
-    mfem::Array<int> marker(fes.GetMesh()->bdr_attributes.Max());
-    marker = 0;
-    for (const int t : tags) {
-        marker[t - 1] = 1;
-    }
-    return marker;
-}
-
 static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
 {
     std::unordered_set<int> unique_tags;
@@ -418,7 +408,7 @@ GlobalEvolution::GlobalEvolution(
         if (Mpi::WorldSize() == 1) {
             const auto rcs_tags = collectRCSSurfaceTags(probes);
             if (!rcs_tags.empty()) {
-                auto marker = buildSurfaceMarkerFromTags(rcs_tags, fes_);
+                auto marker = buildSurfaceMarker(rcs_tags, fes_);
                 NearToFarFieldSubMesher ntff_submesher(model_.getConstMesh(), fes_, marker);
 
                 auto* ntff_submesh = ntff_submesher.getSubMesh();

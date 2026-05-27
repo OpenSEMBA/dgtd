@@ -581,16 +581,6 @@ void ProbesManager::updateProbes(Time t)
     cycle_++;
 }
 
-Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace& fes)
-{
-    Array<int> res(fes.GetMesh()->bdr_attributes.Max());
-    res = 0;
-    for (const auto& t : tags) {
-        res[t - 1] = 1;
-    }
-    return res;
-}
-
 void NearFieldReqs::updateFields()
 {
     tMaps_.transferFields(gFields_, fields_);

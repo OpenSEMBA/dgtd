@@ -17,12 +17,7 @@ RCSSurfaceExporter::RCSSurfaceExporter(
       surfaceFes_(std::make_unique<FiniteElementSpace>(submesher_.getSubMesh(), fec)),
       surfaceFields_(*surfaceFes_),
       globalFields_(globalFields),
-      tMapEx_(globalFields.get(E, X), surfaceFields_.get(E, X)),
-      tMapEy_(globalFields.get(E, Y), surfaceFields_.get(E, Y)),
-      tMapEz_(globalFields.get(E, Z), surfaceFields_.get(E, Z)),
-      tMapHx_(globalFields.get(H, X), surfaceFields_.get(H, X)),
-      tMapHy_(globalFields.get(H, Y), surfaceFields_.get(H, Y)),
-      tMapHz_(globalFields.get(H, Z), surfaceFields_.get(H, Z)),
+      transferMaps_(globalFields, surfaceFields_),
       expSteps_(probe.expSteps)
 {
     auto* mesh = submesher_.getSubMesh();
@@ -70,12 +65,7 @@ RCSSurfaceExporter::RCSSurfaceExporter(
 
 void RCSSurfaceExporter::transferFields()
 {
-    tMapEx_.Transfer(globalFields_.get(E, X), surfaceFields_.get(E, X));
-    tMapEy_.Transfer(globalFields_.get(E, Y), surfaceFields_.get(E, Y));
-    tMapEz_.Transfer(globalFields_.get(E, Z), surfaceFields_.get(E, Z));
-    tMapHx_.Transfer(globalFields_.get(H, X), surfaceFields_.get(H, X));
-    tMapHy_.Transfer(globalFields_.get(H, Y), surfaceFields_.get(H, Y));
-    tMapHz_.Transfer(globalFields_.get(H, Z), surfaceFields_.get(H, Z));
+    transferMaps_.transferFields(globalFields_, surfaceFields_);
 }
 
 void RCSSurfaceExporter::writeGeometry()

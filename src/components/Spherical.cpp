@@ -2,6 +2,25 @@
 
 namespace maxwell {
 
+std::array<double, 3> rHat(double theta, double phi)
+{
+	return { std::sin(theta) * std::cos(phi),
+	         std::sin(theta) * std::sin(phi),
+	         std::cos(theta) };
+}
+
+std::array<double, 3> thetaHat(double theta, double phi)
+{
+	return { std::cos(theta) * std::cos(phi),
+	         std::cos(theta) * std::sin(phi),
+	        -std::sin(theta) };
+}
+
+std::array<double, 3> phiHat(double phi)
+{
+	return { -std::sin(phi), std::cos(phi), 0.0 };
+}
+
 SphericalVector::SphericalVector(const std::vector<double>& p)
 {
 	mfem::Vector v(int(p.size()));
@@ -32,11 +51,8 @@ SphericalVector::SphericalVector(const double r, const double th, const double p
 
 const std::vector<double> SphericalVector::convertToCartesian() const
 {
-	std::vector<double> res(3);
-	res[0] = radius * std::sin(theta) * std::cos(phi);
-	res[1] = radius * std::sin(theta) * std::sin(phi);
-	res[2] = radius * std::cos(theta);
-	return res;
+	const auto pos = rHat(theta, phi);
+	return { radius * pos[0], radius * pos[1], radius * pos[2] };
 }
 
 const std::vector<double> SphericalVector::convertSphericalVectorFieldToCartesian(const double Ar, const double At, const double Ap) const

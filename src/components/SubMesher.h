@@ -3,6 +3,10 @@
 #include "math/Calculus.h"
 #include "Types.h"
 
+#include <memory>
+#include <set>
+#include <vector>
+
 
 namespace maxwell {
 
@@ -12,6 +16,7 @@ using Face2Dir = std::pair<FaceId, IsTF>;
 using SetPairs = std::pair<std::pair<FaceId, IsTF>, std::pair<FaceId, IsTF>>;
 
 using namespace mfem;
+using RegionTagSet = std::set<Attribute>;
 
 class TotalFieldScatteredFieldSubMesher
 {
@@ -77,6 +82,45 @@ private:
 
 };
 
+class VolumetricRegionSubMesher
+{
+public:
+	VolumetricRegionSubMesher() = default;
+	VolumetricRegionSubMesher(const Mesh& parent,
+		const RegionTagSet& vacuum_tags,
+		const RegionTagSet& pml_tags);
+
+	SubMesh* getVacuumSubMesh() { return vacuum_mesh_.get(); }
+	SubMesh* getPMLSubMesh() { return pml_mesh_.get(); }
+	const SubMesh* getVacuumConstSubMesh() const { return vacuum_mesh_.get(); }
+	const SubMesh* getPMLConstSubMesh() const { return pml_mesh_.get(); }
+
+	const Array<int>& getVacuumMarker() const { return vacuum_marker_; }
+	const Array<int>& getPMLMarker() const { return pml_marker_; }
+	const Array<int>& getVacuumPMLInterfaceMarker() const { return interface_marker_; }
+	const std::vector<int>& getVacuumPMLInterfaceFaces() const { return interface_faces_; }
+
+	bool hasVacuumSubMesh() const { return vacuum_mesh_ != nullptr; }
+	bool hasPMLSubMesh() const { return pml_mesh_ != nullptr; }
+	bool hasVacuumPMLInterface() const { return !interface_faces_.empty(); }
+
+private:
+	void buildRegionMarkers(const Mesh& parent,
+		const RegionTagSet& vacuum_tags,
+		const RegionTagSet& pml_tags);
+	void detectVacuumPMLInterface(Mesh& parent,
+		const RegionTagSet& vacuum_tags,
+		const RegionTagSet& pml_tags);
+
+	Array<int> vacuum_marker_;
+	Array<int> pml_marker_;
+	Array<int> interface_marker_;
+	std::vector<int> interface_faces_;
+
+	std::unique_ptr<SubMesh> vacuum_mesh_;
+	std::unique_ptr<SubMesh> pml_mesh_;
+};
+
 class MaxwellTransferMap
 {
 public:
@@ -109,5 +153,7 @@ const Vector buildTangent2D(Mesh& m, int be);
 const Vector buildNormal3D(Mesh& m, int be);
 const std::pair<Vector, Vector> calculateBarycenters(Mesh& m, int be);
 const Vector buildElem1ToElem2BarycenterVector(Mesh& m, int be);
+
+Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace& fes);
 
 };
