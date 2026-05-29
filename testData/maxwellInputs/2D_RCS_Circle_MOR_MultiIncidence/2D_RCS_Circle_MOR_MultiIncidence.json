@@ -1,0 +1,62 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.025,
+    "final_time": 30.0,
+    "order": 2
+  },
+  "model": {
+    "filename": "2D_RCS_Circle_MOR_MultiIncidence.msh",
+    "materials": [
+      {
+        "tags": [ 1, 2 ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [ 1 ],
+        "type": "SMA"
+      },
+      {
+        "tags": [ 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ],
+        "type": "PEC"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "saves": 250
+    },
+    "mor_state": [
+      {
+        "record_time_start": 0.0,
+        "record_time_final": 30.0,
+        "saves": 1201
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [0.8191520, 0.5735764, 0.0],
+      "propagation": [0.5735764, -0.8191520, 0.0],
+      "tags": [2, 3, 4, 5],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.2
+      }
+    },
+    {
+      "type": "planewave",
+      "polarization": [0.9063078, 0.4226183, 0.0],
+      "propagation": [0.4226183, -0.9063078, 0.0],
+      "tags": [2, 3, 4, 5],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.2,
+        "mean": [-6.3392745, 13.594617, 0.0]
+      }
+    }
+  ]
+}

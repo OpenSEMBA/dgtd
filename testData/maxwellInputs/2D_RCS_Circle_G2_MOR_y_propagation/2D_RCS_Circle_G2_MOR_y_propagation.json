@@ -6,7 +6,7 @@
     "order": 2
   },
   "model": {
-    "filename": "2D_RCS_Circle_G2_MOR.msh",
+    "filename": "2D_RCS_Circle_G2_MOR_y_propagation.msh",
     "materials": [
       {
         "tags": [
@@ -60,13 +60,13 @@
     {
       "type": "planewave",
       "polarization": [
-        0.0,
         1.0,
+        0.0,
         0.0
       ],
       "propagation": [
-        1.0,
         0.0,
+        1.0,
         0.0
       ],
       "tags": [
