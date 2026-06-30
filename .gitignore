@@ -3,6 +3,7 @@
 .github/agents/
 .github/instructions/
 .opencode/
+.cursor/
 
 build/
 out/

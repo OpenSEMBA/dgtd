@@ -1,27 +1,33 @@
 [![ubuntu-gnu](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml/badge.svg)](https://github.com/OpenSEMBA/dgtd/actions/workflows/ubuntu-gnu.yml)
 
 # semba-dgtd
-Maxwell's curl equations solver using discontinuous Galerkin methods
+
+Maxwell curl-equation solver using discontinuous Galerkin methods (OpenSEMBA / UGR).
+
+## Repository layout
+
+| Path | Contents |
+|------|----------|
+| `src/` | Driver, evolution operators, DG components, MFEM extensions |
+| `external/mfem-geg/` | Required MFEM fork (submodule) |
+| `testData/maxwellInputs/` | Example simulation cases (JSON + mesh per folder) |
+| `test/` | Unit and integration tests (GoogleTest) |
+| `docs/` | Input format, tools, and feature design notes |
+| `pythonBindings/` | Optional Python bindings |
+| `AGENTS.md` | Project guide for AI coding agents |
+| `CLAUDE.md` | General behavioral guidelines for LLM-assisted editing |
 
 ## Compiling
 
-The project requires the following tools:
-- CMake >= 3.25.2
-- [vcpkg](https://github.com/microsoft/vcpkg) (pointed to by `$VCPKG_ROOT`)
-- Ninja
-- GCC
+**Requirements:** CMake ≥ 3.25.2, [vcpkg](https://github.com/microsoft/vcpkg) (`$VCPKG_ROOT`), Ninja, GCC.
 
-vcpkg will automatically install the following dependencies declared in [vcpkg.json](vcpkg.json):
-- `eigen3`
-- `gtest`
-- `fftw3`
-- `nlohmann-json`
+vcpkg installs (see [vcpkg.json](vcpkg.json)): `eigen3`, `gtest`, `fftw3`, `nlohmann-json`.
 
 ### MPI builds
 
-MPI builds additionally require METIS 5 and HYPRE to be compiled from sources and their install directories exported as environment variables before configuring.
+Requires METIS 5 and HYPRE built from source; set `METIS_DIR` and `HYPRE_DIR` before configuring.
 
-**Build METIS:**
+**METIS:**
 ```sh
 wget https://github.com/mfem/tpls/raw/gh-pages/metis-5.1.0.tar.gz
 tar -zxvf metis-5.1.0.tar.gz
@@ -32,7 +38,7 @@ cp lib/libmetis/libmetis.a lib/
 export METIS_DIR=$PWD
 ```
 
-**Build HYPRE:**
+**HYPRE:**
 ```sh
 wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
 tar -zxvf v2.31.0.tar.gz
@@ -44,14 +50,11 @@ export HYPRE_DIR=$PWD/hypre
 
 ### CUDA builds
 
-CUDA builds require a separate HYPRE installation compiled with CUDA support. HYPRE's CMake build system is used for this (the autoconf `./configure` path does not support CUDA). 
+Requires HYPRE built with CUDA (CMake, not autoconf `./configure`).
 
-**Prerequisites:**
-- Ensure the CUDA Toolkit is installed on your system. Refer to [NVIDIA's official CUDA installation guide](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/) for your platform.
-- Identify your GPU's compute capability. Common examples: `sm_120` (Blackwell), `sm_89` (Ada Lovelace / RTX 40-series), `sm_86` (Ampere / RTX 30-series), `sm_80` (Ampere / A100), `sm_75` (Turing / RTX 20-series). For a complete list, see [NVIDIA's compute capability reference](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#compute-capabilities).
+**Prerequisites:** [CUDA toolkit](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/); set `-DCMAKE_CUDA_ARCHITECTURES` to your GPU (e.g. `89` for RTX 40-series, `86` for RTX 30-series).
 
-**Build HYPRE with CUDA:**
-Replace `<GPU_ARCH>` with the appropriate compute capability for your GPU:
+**HYPRE with CUDA:**
 ```sh
 wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
 tar -zxvf v2.31.0.tar.gz
@@ -64,15 +67,7 @@ cmake --install hypre-cuda-build
 export HYPRE_CUDA_DIR=$HOME/hypre-cuda-install
 ```
 
-Example for RTX 4090 (Ada Lovelace):
-```sh
-cmake -S hypre-2.31.0/src -B hypre-cuda-build \
-      -DHYPRE_WITH_CUDA=ON \
-      -DCMAKE_CUDA_ARCHITECTURES=89 \
-      -DCMAKE_INSTALL_PREFIX=$HOME/hypre-cuda-install
-```
-
-Then configure with a CUDA preset. `METIS_DIR` must also be set as described above:
+Then (with `METIS_DIR` set):
 ```sh
 cmake --preset gnu-release-cuda
 cmake --build --preset build-gnu-release-cuda --parallel
@@ -80,220 +75,51 @@ cmake --build --preset build-gnu-release-cuda --parallel
 
 ### CMake presets
 
-The project provides the following CMake presets:
-
 | Preset | Description |
 |--------|-------------|
-| `gnu-debug-mpi` | Debug build with MPI and OpenMP |
-| `gnu-release-mpi` | Release build with MPI and OpenMP |
-| `gnu-debug-cuda` | Debug build with MPI, OpenMP and CUDA (gcc-12) |
-| `gnu-release-cuda` | Release build with MPI, OpenMP and CUDA (gcc-12) |
+| `gnu-debug-mpi` | Debug, MPI, OpenMP |
+| `gnu-release-mpi` | Release, MPI, OpenMP |
+| `gnu-debug-cuda` | Debug, MPI, OpenMP, CUDA (gcc-12) |
+| `gnu-release-cuda` | Release, MPI, OpenMP, CUDA (gcc-12) |
 
-Configure and build with a preset:
 ```sh
 cmake --preset gnu-release-mpi
 cmake --build --preset build-gnu-release-mpi --parallel
 ```
 
-MFEM is included as a submodule (`external/mfem-geg`) and built automatically. To use an externally installed MFEM instead, set `-DSEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY=OFF`.
+### MFEM
 
-> **Warning:** The required MFEM installation must be the [OpenSEMBA/mfem-geg](https://github.com/OpenSEMBA/mfem-geg) fork. This repository contains modifications that are not present in upstream MFEM; the project will not compile against a standard MFEM installation.
+Built automatically from `external/mfem-geg`. For an external install: `-DSEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY=OFF`.
 
-### Defining a JSON file
+> **Warning:** Use only [OpenSEMBA/mfem-geg](https://github.com/OpenSEMBA/mfem-geg). Upstream MFEM will not build this project.
 
-Cases can be defined by parsing a JSON file with the problem information. See a complete [example](https://github.com/OpenSEMBA/dgtd/blob/main/testData/maxwellInputs/1D_PEC/1D_PEC.json) of a valid JSON file.
-Each case must follow the enforced repository naming layout: the case folder name, the `.json` filename, the `.msh` filename, and `model.filename` must all share the same `<case_name>` base, and `model.filename` must not include a path.
-An OpenSEMBA/dgtd JSON file must have the following structure. Legend: **[REQUIRED]** = must be present; **[OPTIONAL]** = has a default value (shown).
+## Running a case
 
-- solver_options:
-	- Object. User can customise solver settings. If undefined, all defaults apply.
-		- evolution_operator:
-			- String. Selects the DG evolution operator. Can be `"maxwell"`, `"global"`, or `"hesthaven"`. If undefined, defaults to `"global"`.
-		- upwind_alpha:
-			- Double. Upwind flux blending factor. `0.0` = fully centered, `1.0` = fully upwind. If undefined, defaults to `1.0`.
-		- final_time:
-			- Double. Total simulation duration in natural units (1 meter/c). If undefined, defaults to `2.0`.
-		- time_step:
-			- Double. Fixed time step in natural units. Must be defined for 2D and 3D problems. Overrides `cfl` for 1D if both are defined. If undefined or `0.0` in 1D, an automatic step is computed via CFL.
-		- **cfl**:
-			- Double. Courant–Friedrichs–Lewy condition used to compute the automatic time step in 1D. Not available for 2D or 3D. Ignored if `time_step` is also defined. Must be in the range (0.0, 1.0]. Defaults to `1.0`.
-		- **order**:
-			- Integer. Polynomial order of the finite element basis. Defaults to `2`.
-		- spectral:
-			- Boolean. Use a spectral evolution operator that assembles the full E/H system matrix and derives the time step from its eigenvalues. High computational cost; does not support all features. If undefined, defaults to `false`.
-		- export_operator:
-			- Boolean. Write the assembled evolution operator matrix to disk for inspection. If undefined, defaults to `false`.
-		- **basis_type**:
-			- Integer. Finite element basis type passed to MFEM. Defaults to `1` (GaussLobatto). Values: `0` (GaussLegendre), `1` (GaussLobatto), `2` (Bernstein), `3` (OpenUniform), `4` (CloseUniform), `5` (OpenHalfUniform).
-		- **ode_type**:
-			- Integer. ODE time-integration method. Defaults to `0` (RK4). Values: `0` (RK4), `1` (BackwardEuler), `2` (Trapezoidal), `3` (ImplicitMidpoint), `4` (SDIRK33), `5` (SDIRK23), `6` (SDIRK34).
+Cases live under `testData/maxwellInputs/<case_name>/` with matching `<case_name>.json` and mesh file.
 
-- **model**:
-	- Object. Contains geometry, material, and boundary information.
-		- **filename**:
-			- String. Mesh filename (`.msh` or `.mesh`). The file must reside in the same directory as the JSON file.
-		- refinement:
-			- Integer. Number of uniform refinement levels to apply to the loaded mesh. Optional.
-		- **materials**:
-			- Array. At least one entry is required. Each entry defines the electromagnetic properties of one or more mesh domains:
-				- **tags**:
-					- Array of integers. Mesh volume/surface/segment attribute IDs that share these material properties. (Volumes in 3D, Surfaces in 2D, Segments in 1D.)
-				- relative_permittivity:
-					- Double. Relative permittivity $\varepsilon_r$. Defaults to `1.0`.
-				- relative_permeability:
-					- Double. Relative permeability $\mu_r$. Defaults to `1.0`.
-				- bulk_conductivity:
-					- Double. Bulk electrical conductivity in S/m. Defaults to `0.0`. Internally scaled by the free-space impedance.
-		- **boundaries**:
-			- Array. At least one entry is required. Each entry defines a boundary or interface condition:
-				- **tags**:
-					- Array of integers. Mesh boundary attribute IDs. (Surfaces in 3D, Segments in 2D, Points in 1D.)
-				- **type**:
-					- String. Boundary condition class. Can be `"PEC"`, `"PMC"`, `"SMA"`, `"SGBC"`, or `"SBC_PML"`.
-				- *(For `type: "SGBC"` or `type: "SBC_PML"` only)* exporter_probe:
-					- Boolean. If `true` and a top-level `probes.exporter` exists, also exports the internal SGBC sub-solver fields using the exporter cadence. The dataset is named `InsideSGBC_tag<first_tag>`.
-				- *(For `type: "SGBC"` only)* material:
-					- Object. Defines a single-layer surface general boundary condition. Mutually exclusive with `layers`.
-						- relative_permittivity: Double. Defaults to `1.0`.
-						- relative_permeability: Double. Defaults to `1.0`.
-						- **bulk_conductivity**: Double. Conductivity of the layer material in S/m.
-						- **material_width**: Double. Physical thickness of the layer in meters.
-						- num_of_segments: Integer. Number of sub-elements in the layer mesh. Auto-computed from material properties and source frequency if omitted.
-						- order: Integer. Polynomial order for the layer sub-solver. Auto-computed if omitted.
-				- *(For `type: "SGBC"` only)* layers:
-					- Array. Defines a multi-layer SGBC stack. Mutually exclusive with `material`. Each element has the same fields as `material` above.
-				- *(For `type: "SGBC"` only)* sgbc_boundaries:
-					- Object. Boundary conditions applied to the outer and inner faces of the SGBC sub-domain. Can be placed at the boundary level or inside `material` (the latter is kept for backward compatibility).
-						- left: String. Condition on the outer (field-side) face. Can be `"PEC"`, `"PMC"`, or `"SMA"`.
-						- right: String. Condition on the inner face. Can be `"PEC"`, `"PMC"`, or `"SMA"`.
-				- *(For `type: "SBC_PML"` only)*
-					- Automatic absorbing-layer shortcut built on the SGBC machinery. `material`, `layers`, and `sgbc_boundaries` must not be provided.
-					- The current preset generates one lossless vacuum layer sized from the maximum source frequency estimate, with fixed order/segment defaults, and forces the internal right boundary to `SMA`.
+Full JSON reference: **[docs/json-input-format.md](docs/json-input-format.md)**.
 
-- probes:
-	- Object. Controls data extraction. If undefined, no data is recorded.
-		- exporter:
-			- Object. Enables ParaView (VisIt) field export.
-				- name: String. Output dataset name. Defaults to mesh filename (e.g. `mesh.msh` → `mesh`).
-				- steps: Integer. Export every N time steps. Mutually exclusive with `saves`.
-				- saves: Integer. Total number of exports over the whole simulation. The step interval is computed automatically. Mutually exclusive with `steps`.
-		- point:
-			- Array. Each entry records all E and H field components at a single point every interval.
-				- **position**: Array of doubles. Spatial coordinates. Must match the mesh dimension (e.g. `[x, y]` for 2D). ***Warning:*** If the point lies outside the mesh the simulation will crash.
-				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
-		- field:
-			- Array. Each entry records a single scalar field component at a point.
-				- **field_type**: String. Can be `"electric"` or `"magnetic"`.
-				- **polarization**: String. Component to record. Can be `"X"`, `"Y"`, or `"Z"`.
-				- **position**: Array of doubles. Spatial coordinates. Same constraints as for `point`.
-				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
-		- farfield:
-			- Array. Each entry exports E/H fields on a near-to-far-field surface submesh for later far-field post-processing. Output is written under `Exports/<run-mode>/<case>/NearToFarFieldProbes/<name>/rank<rank>`.
-				- **tags**: Array of integers. Boundary tags that define the near-to-far-field surface.
-				- name: String. Defaults to `"NearFieldProbe"`.
-				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
-		- domain_snapshot:
-			- Object. Periodic full-domain field snapshot (alternative to the incremental exporter).
-				- name: String. Output name. Defaults to mesh filename (e.g. `mesh.msh` → `mesh`).
-				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
-		- rcssurface:
-			- Array. Each entry exports surface E/H field snapshots projected onto a boundary submesh to a compact binary file (`surface_data.bin`). The binary contains a geometry header (quadrature point positions, outward normals, and weights) followed by time-stamped E/H field blocks. Intended for offline RCS post-processing.
-				- **tags**: Array of integers. Mesh surface tags that define the integration surface.
-				- name: String. [OPTIONAL] Output name. Defaults to `"RCSSurfaceProbe"`.
-				- steps / saves: (steps and saves are mutually exclusive; see `exporter` above for details)
-		- mor_state:
-			- Array. Each entry periodically saves the full DG state vector (all E and H DOFs) to disk over a specified time window. The saved vectors are compatible with the exported global operator matrix (`{name}_global.csr`), so that `y = A * x` can be evaluated offline (e.g. in Python). Each snapshot is written as a plain-text file `x_0`, `x_1`, … with: first line = absolute simulation time, second line = vector size, followed by one DOF value per line (16-digit precision). The vector layout is `[Ex₀…ExN | Ey | Ez | Hx | Hy | Hz]`.
-				- **record_time_start**: Double. Simulation time at which recording begins.
-				- **record_time_final**: Double. Simulation time at which recording ends.
-				- **saves**: Integer. Number of snapshots to record, distributed uniformly between `record_time_start` and `record_time_final`.
-				- name: String. Output subdirectory name. Defaults to `"MORState"`.
-
-- **sources**:
-	- Array. Defines the electromagnetic excitation. At least one source is required.
-		- All entries in `sources` are instantiated and superimposed during the run. Multiple simultaneous planewave entries are supported.
-		- **type**: String. Can be `"initial"`, `"planewave"`, or `"dipole"`.
-
-		*For `type: "initial"` — volumetric initial condition:*
-		- **field_type**: String. Can be `"electric"` or `"magnetic"`.
-		- **polarization**: Array of 3 doubles. Polarization direction vector.
-		- **magnitude**: Object.
-			- **type**: String. Can be `"gaussian"`, `"resonant"`, `"besselj6_2D"`, or `"besselj6_3D"`.
-			- *(For `type: "gaussian"`)* **spread**: Double. Standard deviation $\sigma$ of the Gaussian pulse.
-			- *(For `type: "resonant"`)* **modes**: Array of integers. Number of standing waves along each spatial axis.
-		- **center** (Required for `magnitude.type: "gaussian"`): Array of n doubles. Spatial position of the Gaussian centroid.
-		- **dimension** (Required for `magnitude.type: "gaussian"`): Integer. Number of active spatial dimensions in the Gaussian exponent.
-
-		*For `type: "planewave"` — total-field/scattered-field (TFSF) plane wave:*
-		- **tags**: Array of integers. Mesh boundary tags that form the TFSF interface surface.
-		- **polarization**: Array of 3 doubles. E-field polarization direction.
-		- **propagation**: Array of 3 doubles. Wave propagation direction vector.
-		- **magnitude**: Object.
-			- **spread**: Double. Standard deviation $\sigma$ of the Gaussian envelope.
-			- mean: Array of doubles. Optional. Position of the Gaussian center projected onto the propagation axis at $t = 0$. Provide as a 1-, 2-, or 3-component vector matching the mesh dimension. If omitted, the solver auto-computes a value aligned with `propagation` so the pulse starts about $5\sigma$ before the most upstream TFSF point.
-			- frequency: Double (Hz). Carrier frequency. If defined, wraps the Gaussian in a sinusoidal modulation (modulated Gaussian). If omitted, a broadband Gaussian pulse is used.
-
-		*For `type: "dipole"` — derivative-Gaussian dipole source within a TFSF box:*
-		- **tags**: Array of integers. Mesh boundary tags that form the TFSF interface surface.
-		- **magnitude**: Object.
-			- **length**: Double. Dipole length.
-			- **spread**: Double. Gaussian spread parameter.
-			- mean: Double. Optional. Gaussian center position along the dipole axis. If omitted, the solver auto-computes it from the nearest TFSF-surface radius and clamps it to a stable minimum.
-
-
-## MOR To ParaView Post-Processing
-
-`opensemba_mor2paraview` replays previously exported `mor_state` snapshots (`x_0`, `x_1`, ...) into a ParaView time series dataset.
-
-Expected folder layout (run command from this folder):
-
-```text
-.
-|-- <case>.json
-|-- <mesh>.msh
-`-- x/
-		|-- x_0
-		|-- x_1
-		`-- ...
-```
-
-Snapshot format per `x_k` file:
-
-1. first line: absolute simulation time
-2. second line: vector size
-3. remaining lines: state values in `[Ex | Ey | Ez | Hx | Hy | Hz]` packed order
-
-Default command:
-
+Example:
 ```sh
-./build/gnu-release-mpi/bin/opensemba_mor2paraview
+./build/gnu-release-mpi/bin/opensemba_dgtd testData/maxwellInputs/1D_PEC/1D_PEC.json
 ```
 
-Default behavior:
+(Confirm binary name/path for your preset.)
 
-- Detects exactly one `.json` in current directory (or errors if none/multiple).
-- Detects exactly one `.msh` in current directory (or errors if none/multiple).
-- Reads snapshots from `./x`.
-- Writes ParaView output to `./output`.
-- Uses dataset name `mor_paraview.vtk` (ParaView collection name).
+Exports appear under `Exports/` by run mode and case name.
 
-Optional arguments:
+## Further documentation
 
-```sh
-./build/gnu-release-mpi/bin/opensemba_mor2paraview \
-	--case ./my_case.json \
-	--mesh ./my_mesh.msh \
-	--xdir ./x \
-	--out ./output \
-	--name mor_paraview.vtk
-```
-
-Notes:
-
-- `opensemba_mor2paraview` supports only single-rank execution.
-- Output is the same ParaView-style time-series format used by the exporter probe (collection plus time-step data), suitable for direct loading in ParaView.
+| Topic | Link |
+|-------|------|
+| All docs | [docs/README.md](docs/README.md) |
+| JSON input | [docs/json-input-format.md](docs/json-input-format.md) |
+| MOR → ParaView | [docs/mor2paraview.md](docs/mor2paraview.md) |
+| Volumetric PML design | [docs/pml/README.md](docs/pml/README.md) |
+| AI / agent context | [AGENTS.md](AGENTS.md) |
 
 ## Funding
 
-- Spanish Ministry of Science and Innovation (MICIN/AEI) (Grant Number: PID2022-137495OB-C31).
+- Spanish Ministry of Science and Innovation (MICIN/AEI) (Grant PID2022-137495OB-C31).
 - European Union, HECATE project (HE-HORIZON-JU-Clean-Aviation-2022-01).
 - European Union, FEDER 2020 (B-TIC-700-UGR20).
