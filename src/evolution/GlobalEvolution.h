@@ -33,13 +33,25 @@ public:
 
     bool hasSGBC() const { return !sgbc_states_.empty(); }
 
+    int totalStateSize() const { return total_state_size_; }
+
 private:
+    void applyPMLCoupling(const mfem::Vector& in, mfem::Vector& out) const;
+
+    int total_state_size_ = 0;
     void applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
                                   mfem::Vector& result_vector) const;
 
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
+    std::unique_ptr<mfem::SparseMatrix> PMLOperator_;
+    mutable int pml_diag_mult_count_ = 0;
+    int pml_outer_element_ = -1;
+    std::vector<int> pml_outer_dof_indices_;
+    std::vector<int> pml_inner_pml_dof_indices_;
+    void initPMLLocalizationDiagnostics();
+    void runPMLMultProbes();
 
     mfem::Array<int> tfsf_sub_to_parent_ids_;
 
@@ -85,6 +97,7 @@ private:
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
 
     mutable mfem::Vector multWorkVec_;
+    mutable mfem::Vector pmlWorkVec_;
 
     // ImplicitSolve reusable work vectors (avoid per-call allocation)
     mutable mfem::Vector implicit_inNew_;

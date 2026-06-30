@@ -81,8 +81,8 @@ TEST_F(RCSToolsTest, FunctionEval)
 	Frequency freq(3e8 / physicalConstants::speedOfLight_SI);
 
 	double tol{ 1e-10 };
-	EXPECT_NEAR(0.9999905398146485235, func_exp_real_part_3D(p, freq, angles), tol);
-	EXPECT_NEAR(0.0043497449589425407, func_exp_imag_part_3D(p, freq, angles), tol);
+	EXPECT_NEAR(0.9999905398146485235, evalFuncExpPart(p, freq, angles, 3, true), tol);
+	EXPECT_NEAR(0.0043497449589425407, evalFuncExpPart(p, freq, angles, 3, false), tol);
 }
 
 TEST_F(RCSToolsTest, LinearFormEval)
@@ -111,7 +111,7 @@ TEST_F(RCSToolsTest, LinearFormEval)
 		nodepos.push_back({ nodes[v], nodes[v + fes.GetNDofs()], nodes[v + 2 * fes.GetNDofs()] });
 	}
 	
-	auto fc = buildFC_3D(freq, angles, true);
+	auto fc = buildFC(3, freq, angles, true);
 	auto res{ std::make_unique<LinearForm>(&fes) };
 	res->AddBdrFaceIntegrator(new mfemExtension::FarFieldBdrFaceIntegrator(*fc.get(), X));
 	res->Assemble();

@@ -1,5 +1,8 @@
 #include "GlobalEvolution.h"
+#include "components/PMLOperatorAudit.h"
 #include "MaxwellEvolutionMethods.h"
+#include "components/PMLDGHelpers.h"
+#include "components/PMLSignTest.h"
 
 #include <chrono>
 #include <cmath>
@@ -44,7 +47,14 @@ static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
 
 GlobalEvolution::GlobalEvolution(
     mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes, double final_time) :
-    mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
+    mfem::TimeDependentOperator([&]() {
+        const int ndofs = fes.GetNDofs();
+        const int n_aux = model.hasPML() && model.getPMLAuxLayout()
+            ? model.getPMLAuxLayout()->nAux()
+            : 0;
+        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux;
+    }()),
+    total_state_size_(Height()),
     fes_{ fes },
     model_{ model },
     srcmngr_{ srcmngr },
@@ -356,6 +366,21 @@ GlobalEvolution::GlobalEvolution(
     ProblemDescription pd(model_, emptyProbes, srcmngr_.sources, opts_);
     DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
     globalOperator_ = dgops.buildGlobalOperator();
+
+    if (model_.hasPML() && model_.getPMLAuxLayout()) {
+        PMLOperator_ = dgops.buildPMLOperator(*model_.getPMLAuxLayout());
+        initPMLLocalizationDiagnostics();
+        if (Mpi::WorldRank() == 0) {
+            std::cout << "[PML] Extended ODE size: " << total_state_size_
+                      << " (field block " << 6 * fes_.GetNDofs()
+                      << " + n_aux " << model_.getPMLAuxLayout()->nAux() << ")"
+                      << ", outer_elem=" << pml_outer_element_
+                      << std::endl;
+        }
+        if (isPMLMultProbeEnabled()) {
+            runPMLMultProbes();
+        }
+    }
 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         TFSFOperator_ = dgops.buildTFSFGlobalOperator();
@@ -753,6 +778,9 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
+    // Ensure ODE state is readable (device→host if needed).
+    (void)in.Read();
+
     // 1) SGBC sub-solve FIRST — independent of neighbor data, overlaps with
     //    other ranks' local work so they don't idle-wait during exchange.
 #ifdef SHOW_TIMER_INFORMATION
@@ -880,9 +908,14 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
 #else
-    for (int d = X; d <= Z; ++d) {
-        std::memcpy(eOld_[d].GetData(), in.GetData() + d * ndofs, ndofs * sizeof(double));
-        std::memcpy(hOld_[d].GetData(), in.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+    {
+        const double* in_data = in.Read();
+        for (int d = X; d <= Z; ++d) {
+            double* e_data = eOld_[d].Write();
+            double* h_data = hOld_[d].Write();
+            std::memcpy(e_data, in_data + d * ndofs, ndofs * sizeof(double));
+            std::memcpy(h_data, in_data + (3 + d) * ndofs, ndofs * sizeof(double));
+        }
     }
 #endif
     for (int d = X; d <= Z; ++d) {
@@ -921,14 +954,31 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #ifdef SHOW_TIMER_INFORMATION
     timerApplyA.Start();
 #endif
-    if (out.Size() != 6 * ndofs) {
-        out.SetSize(6 * ndofs);
+    if (out.Size() != total_state_size_) {
+        out.SetSize(total_state_size_);
         out.UseDevice(true);
     }
-    globalOperator_->Mult(multWorkVec_, out);
+    if (total_state_size_ > 6 * ndofs) {
+        std::memset(out.GetData() + 6 * ndofs, 0,
+                    static_cast<size_t>(total_state_size_ - 6 * ndofs) * sizeof(double));
+    }
+    if (!shouldSkipGlobalOperatorInMult()) {
+        globalOperator_->Mult(multWorkVec_, out);
+    } else {
+        std::memset(out.GetData(), 0,
+                    static_cast<size_t>(6 * ndofs) * sizeof(double));
+        if (total_state_size_ > 6 * ndofs) {
+            std::memset(out.GetData() + 6 * ndofs, 0,
+                        static_cast<size_t>(total_state_size_ - 6 * ndofs) * sizeof(double));
+        }
+    }
 #ifdef SHOW_TIMER_INFORMATION
     timerApplyA.Stop();
 #endif
+
+    if (!shouldSkipPMLOperatorInMult()) {
+        applyPMLCoupling(in, out);
+    }
 
     // S3: Zero multWorkVec_ so it can be reused for TFSF and SGBC injection.
     multWorkVec_ = 0.0;
@@ -1010,7 +1060,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
                 if (gr == -1) {
-                    // Boundary SGBC/SBC_PML: the source operator acts on the
+                    // Boundary SGBC: the source operator acts on the
                     // SGBC trace directly at the boundary DOF slot.
                     fillBCSlot(left_bdr, gl, gl, state.rot,
                                state.fields_state.GetData(), local_size, idx_left);
@@ -1122,6 +1172,10 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     }
 
+    // PML (and possibly TFSF/SGBC host writes) may have updated the host copy of
+    // 'out'; sync to device so the RK stage vectors see a consistent rate vector.
+    (void)out.ReadWrite();
+
 #ifdef SHOW_TIMER_INFORMATION
     timerTotal.Stop();
 
@@ -1209,6 +1263,303 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
 }
 
+void GlobalEvolution::runPMLMultProbes()
+{
+    if (!PMLOperator_ || Mpi::WorldRank() != 0) {
+        return;
+    }
+
+    const int ndofs = fes_.GetNDofs();
+    const PMLAuxLayout* layout = model_.getPMLAuxLayout();
+
+    std::unordered_set<int> pml_dofs;
+    for (int d : pml_inner_pml_dof_indices_) {
+        pml_dofs.insert(d);
+    }
+    for (int d : pml_outer_dof_indices_) {
+        pml_dofs.insert(d);
+    }
+
+    int vacuum_ey_dof = -1;
+    for (int i = 0; i < ndofs; ++i) {
+        if (pml_dofs.find(i) == pml_dofs.end()) {
+            vacuum_ey_dof = i;
+            break;
+        }
+    }
+    const int pml_ey_dof =
+        pml_inner_pml_dof_indices_.empty() ? -1 : pml_inner_pml_dof_indices_.front();
+
+    int psi_index = -1;
+    if (layout && layout->numStretchDirections() > 0) {
+        const Direction stretch = layout->stretchDirection(0);
+        const int psi_off = layout->psiEOffset(stretch, Z);
+        const int psi_dof = (pml_ey_dof >= 0) ? pml_ey_dof : 0;
+        psi_index = psi_off + psi_dof;
+    }
+
+    mfem::Vector in(total_state_size_);
+    mfem::Vector out(total_state_size_);
+    const int hz_base = 3 * ndofs + static_cast<int>(Z);
+    const int ey_base = ndofs * static_cast<int>(Y);
+    const int nbrDofs = fes_.num_face_nbr_dofs;
+    const int blockSize = ndofs + nbrDofs;
+    if (multWorkVec_.Size() != 6 * blockSize) {
+        multWorkVec_.SetSize(6 * blockSize);
+    }
+
+    auto run_probe = [&](const char* name, int ey_dof, int psi_row) {
+        in = 0.0;
+        out = 0.0;
+        multWorkVec_ = 0.0;
+        if (ey_dof >= 0) {
+            in[ey_base + ey_dof] = 1.0;
+            multWorkVec_[ey_base + ey_dof] = 1.0;
+        }
+        if (psi_row >= 0) {
+            in[psi_row] = 1.0;
+        }
+        if (total_state_size_ > 6 * ndofs) {
+            std::memset(out.GetData() + 6 * ndofs, 0,
+                        static_cast<size_t>(total_state_size_ - 6 * ndofs) * sizeof(double));
+        }
+
+        double max_hz_global = 0.0;
+        double max_hz_after_pml = 0.0;
+        double max_psi_dot = 0.0;
+
+        globalOperator_->Mult(multWorkVec_, out);
+        for (int i = 0; i < ndofs; ++i) {
+            max_hz_global = std::max(max_hz_global, std::abs(out[hz_base + i]));
+        }
+
+        applyPMLCoupling(in, out);
+        for (int i = 0; i < ndofs; ++i) {
+            max_hz_after_pml = std::max(max_hz_after_pml, std::abs(out[hz_base + i]));
+        }
+        for (int i = 6 * ndofs; i < total_state_size_; ++i) {
+            max_psi_dot = std::max(max_psi_dot, std::abs(out[i]));
+        }
+        pmlAuditLog(std::string(name) + ": max|dHz/dt| global=" +
+                    std::to_string(max_hz_global) + " after_pml=" +
+                    std::to_string(max_hz_after_pml) + " max|dpsi/dt|=" +
+                    std::to_string(max_psi_dot));
+    };
+
+    pmlAuditLog("=== PML Mult probes (globalOperator + applyPMLCoupling only) ===");
+    if (vacuum_ey_dof >= 0) {
+        run_probe("P1_vacuum_Ey", vacuum_ey_dof, -1);
+    }
+    if (pml_ey_dof >= 0) {
+        run_probe("P2_pml_Ey", pml_ey_dof, -1);
+    }
+    if (psi_index >= 0) {
+        run_probe("P3_unit_psiEz", -1, psi_index);
+    }
+    run_probe("P4_zero", -1, -1);
+}
+
+void GlobalEvolution::initPMLLocalizationDiagnostics()
+{
+    pml_outer_element_ = -1;
+    pml_outer_dof_indices_.clear();
+    pml_inner_pml_dof_indices_.clear();
+    if (!PMLOperator_) {
+        return;
+    }
+
+    mfem::Mesh& mesh = *fes_.GetMesh();
+    const mfem::Array<int> pml_marker = model_.buildPMLVolumeMarker();
+    const int dim = mesh.Dimension();
+    double best_coord = -1e300;
+    std::vector<int> pml_elements;
+
+    for (int el = 0; el < mesh.GetNE(); ++el) {
+        const int attr = mesh.GetAttribute(el);
+        if (attr < 1 || attr > pml_marker.Size() || pml_marker[attr - 1] == 0) {
+            continue;
+        }
+        pml_elements.push_back(el);
+        const mfem::Geometry::Type geom = mesh.GetElementBaseGeometry(el);
+        const mfem::IntegrationPoint& ip = mfem::Geometries.GetCenter(geom);
+        mfem::ElementTransformation* tr = mesh.GetElementTransformation(el);
+        tr->SetIntPoint(&ip);
+        mfem::Vector x(dim);
+        tr->Transform(ip, x);
+        const double coord = x(0);
+        if (coord > best_coord) {
+            best_coord = coord;
+            pml_outer_element_ = el;
+        }
+    }
+
+    const mfem::Table& elem_dof_table = fes_.GetElementToDofTable();
+    auto collect_element_dofs = [&](int el, std::unordered_set<int>& dof_set) {
+        const int* dofs = elem_dof_table.GetRow(el);
+        const int n = elem_dof_table.RowSize(el);
+        for (int i = 0; i < n; ++i) {
+            dof_set.insert(dofs[i]);
+        }
+    };
+
+    std::unordered_set<int> outer_set;
+    std::unordered_set<int> inner_set;
+    if (pml_outer_element_ >= 0) {
+        collect_element_dofs(pml_outer_element_, outer_set);
+    }
+    for (int el : pml_elements) {
+        if (el == pml_outer_element_) {
+            continue;
+        }
+        collect_element_dofs(el, inner_set);
+    }
+    for (int dof : outer_set) {
+        pml_outer_dof_indices_.push_back(dof);
+    }
+    for (int dof : inner_set) {
+        if (outer_set.find(dof) == outer_set.end()) {
+            pml_inner_pml_dof_indices_.push_back(dof);
+        }
+    }
+    std::sort(pml_outer_dof_indices_.begin(), pml_outer_dof_indices_.end());
+    std::sort(pml_inner_pml_dof_indices_.begin(), pml_inner_pml_dof_indices_.end());
+}
+
+void GlobalEvolution::applyPMLCoupling(const mfem::Vector& in, mfem::Vector& out) const
+{
+    if (!PMLOperator_) {
+        return;
+    }
+
+    const int ndofs = fes_.GetNDofs();
+    const int nbrDofs = fes_.num_face_nbr_dofs;
+    const int blockSize = ndofs + nbrDofs;
+    const int n_aux = total_state_size_ - 6 * ndofs;
+    const int work_size = 6 * blockSize + n_aux;
+
+    if (pmlWorkVec_.Size() != work_size) {
+        pmlWorkVec_.SetSize(work_size);
+        pmlWorkVec_.UseDevice(true);
+    }
+
+    std::memcpy(
+        pmlWorkVec_.HostWrite(),
+        multWorkVec_.HostRead(),
+        static_cast<size_t>(6 * blockSize) * sizeof(double));
+    std::memcpy(
+        pmlWorkVec_.HostWrite() + 6 * blockSize,
+        in.HostRead() + 6 * ndofs,
+        static_cast<size_t>(n_aux) * sizeof(double));
+
+    static bool pml_workvec_checked = false;
+    if (isPMLOperatorAuditEnabled() && !pml_workvec_checked && Mpi::WorldRank() == 0) {
+        pml_workvec_checked = true;
+        const double* mw = multWorkVec_.HostRead();
+        const double* pw = pmlWorkVec_.HostRead();
+        double max_diff = 0.0;
+        for (int i = 0; i < 6 * blockSize; ++i) {
+            max_diff = std::max(max_diff, std::abs(mw[i] - pw[i]));
+        }
+        pmlAuditLog("multWorkVec vs pmlWorkVec fields max|diff|=" +
+                    std::to_string(max_diff));
+    }
+
+    const double* out_before = out.HostRead();
+    double max_hz_before = 0.0;
+    const int hz_base = 3 * ndofs + static_cast<int>(Z);
+    if (isPMLOperatorAuditEnabled()) {
+        for (int dof : pml_outer_dof_indices_) {
+            max_hz_before = std::max(max_hz_before, std::abs(out_before[hz_base + dof]));
+        }
+    }
+
+    PMLOperator_->AddMult(pmlWorkVec_, out, getPMLOperatorMultSign());
+
+    if (isPMLOperatorAuditEnabled() && Mpi::WorldRank() == 0 &&
+        pml_diag_mult_count_ == 1 && !pml_outer_dof_indices_.empty()) {
+        const double* out_after = out.HostRead();
+        double max_hz_after = 0.0;
+        for (int dof : pml_outer_dof_indices_) {
+            max_hz_after = std::max(max_hz_after, std::abs(out_after[hz_base + dof]));
+        }
+        pmlAuditLog("outer PML max|dHz/dt| before_pml=" + std::to_string(max_hz_before) +
+                    " after_pml_add=" + std::to_string(max_hz_after));
+    }
+
+    ++pml_diag_mult_count_;
+    if (Mpi::WorldRank() == 0 &&
+        (pml_diag_mult_count_ == 1 || pml_diag_mult_count_ % 500 == 0)) {
+        const double* in_data = in.HostRead();
+        const double* out_data = out.HostRead();
+        const PMLAuxLayout* layout = model_.getPMLAuxLayout();
+        double max_psi = 0.0;
+        double max_psi_dot = 0.0;
+        double max_psi_outer = 0.0;
+        double max_psi_inner = 0.0;
+        double max_e_corr = 0.0;
+        double max_h_corr = 0.0;
+        double max_ey = 0.0;
+        double max_ey_outer = 0.0;
+        const int ey_base = ndofs * static_cast<int>(Y);
+
+        auto max_psi_on_dofs = [&](int offset, const std::vector<int>& dofs, double& target) {
+            for (int dof : dofs) {
+                const double v = std::abs(in_data[offset + dof]);
+                target = std::max(target, v);
+            }
+        };
+
+        for (int slot = 0; slot < layout->numStretchDirections(); ++slot) {
+            const Direction d = layout->stretchDirection(slot);
+            for (Direction c = X; c <= Z; ++c) {
+                if (!pmlPsiEComponentActive(c, d)) {
+                    continue;
+                }
+                const int off_e = layout->psiEOffset(d, c);
+                for (int i = 0; i < ndofs; ++i) {
+                    max_psi = std::max(max_psi, std::abs(in_data[off_e + i]));
+                    max_psi_dot = std::max(max_psi_dot, std::abs(out_data[off_e + i]));
+                }
+                max_psi_on_dofs(off_e, pml_outer_dof_indices_, max_psi_outer);
+                max_psi_on_dofs(off_e, pml_inner_pml_dof_indices_, max_psi_inner);
+            }
+            for (Direction c = X; c <= Z; ++c) {
+                if (!pmlPsiHComponentActive(c, d)) {
+                    continue;
+                }
+                const int off_h = layout->psiHOffset(d, c);
+                for (int i = 0; i < ndofs; ++i) {
+                    max_psi = std::max(max_psi, std::abs(in_data[off_h + i]));
+                    max_psi_dot = std::max(max_psi_dot, std::abs(out_data[off_h + i]));
+                }
+                max_psi_on_dofs(off_h, pml_outer_dof_indices_, max_psi_outer);
+                max_psi_on_dofs(off_h, pml_inner_pml_dof_indices_, max_psi_inner);
+            }
+        }
+        for (int i = 0; i < 3 * ndofs; ++i) {
+            max_e_corr = std::max(max_e_corr, std::abs(out_data[i]));
+            max_h_corr = std::max(max_h_corr, std::abs(out_data[3 * ndofs + i]));
+        }
+        for (int i = 0; i < ndofs; ++i) {
+            const double ey = std::abs(in_data[ey_base + i]);
+            max_ey = std::max(max_ey, ey);
+        }
+        for (int dof : pml_outer_dof_indices_) {
+            max_ey_outer = std::max(max_ey_outer, std::abs(in_data[ey_base + dof]));
+        }
+        std::cout << "[PML Mult diag @ call " << pml_diag_mult_count_ << "] "
+                  << "max|psi|=" << max_psi
+                  << " outer=" << max_psi_outer
+                  << " inner_pml=" << max_psi_inner
+                  << " max|dpsi/dt|=" << max_psi_dot
+                  << " max|out E|=" << max_e_corr
+                  << " max|out H|=" << max_h_corr
+                  << " max|Ey|=" << max_ey
+                  << " outer_Ey=" << max_ey_outer
+                  << std::endl;
+    }
+}
+
 void GlobalEvolution::ImplicitSolve(const double dt,
                                     const mfem::Vector& x,
                                     mfem::Vector& k)
@@ -1217,6 +1568,9 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     const int ndofs     = fes_.GetNDofs();
     const int nbrDofs   = fes_.num_face_nbr_dofs;
     const int blockSize = ndofs + nbrDofs;
+    if (total_state_size_ > 6 * ndofs) {
+        MFEM_ABORT("PML extended state is not supported with implicit integrators in Milestone A.");
+    }
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 
     // Reuse work vectors across calls (avoid repeated allocation)

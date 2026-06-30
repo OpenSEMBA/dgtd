@@ -68,6 +68,67 @@ private:
 	Vector shape1_, shape2_;
 };
 
+/// One-normal jump integrator scaled by a spatially varying coefficient at face QPs.
+class MaxwellDGCoefficientOneNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+	MaxwellDGCoefficientOneNormalJumpIntegrator(const std::vector<Direction>& dirTerms,
+	                                          mfem::Coefficient& coeff)
+		: dir_(dirTerms), coeff_(&coeff)
+	{
+	}
+
+	void AssembleFaceMatrix(const FiniteElement& el1,
+	                        const FiniteElement& el2,
+	                        FaceElementTransformations& Trans,
+	                        DenseMatrix& elmat) override;
+
+private:
+	std::vector<Direction> dir_;
+	mfem::Coefficient* coeff_;
+	Vector shape1_, shape2_;
+};
+
+/// Zero-normal jump integrator scaled by a spatially varying coefficient at face QPs.
+class MaxwellDGCoefficientZeroNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+	MaxwellDGCoefficientZeroNormalJumpIntegrator(mfem::Coefficient& coeff)
+		: coeff_(&coeff)
+	{
+	}
+
+	void AssembleFaceMatrix(const FiniteElement& el1,
+	                        const FiniteElement& el2,
+	                        FaceElementTransformations& Trans,
+	                        DenseMatrix& elmat) override;
+
+private:
+	mfem::Coefficient* coeff_;
+	Vector shape1_, shape2_;
+};
+
+/// Two-normal jump integrator scaled by a spatially varying coefficient at face QPs.
+class MaxwellDGCoefficientTwoNormalJumpIntegrator : public BilinearFormIntegrator
+{
+public:
+	MaxwellDGCoefficientTwoNormalJumpIntegrator(const std::vector<Direction>& dirTerms,
+	                                            mfem::Coefficient& coeff)
+		: dir_(dirTerms), coeff_(&coeff)
+	{
+	}
+
+	void AssembleFaceMatrix(const FiniteElement& el1,
+	                        const FiniteElement& el2,
+	                        FaceElementTransformations& Trans,
+	                        DenseMatrix& elmat) override;
+
+private:
+	std::vector<Direction> dir_;
+	mfem::Coefficient* coeff_;
+	Vector shape1_, shape2_;
+};
+
 class MaxwellDGTwoNormalJumpIntegrator : public BilinearFormIntegrator
 {
 

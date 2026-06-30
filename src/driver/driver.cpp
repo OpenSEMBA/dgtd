@@ -1,5 +1,6 @@
 #include "driver.h"
 #include "string"
+#include "components/PMLProperties.h"
 
 #include <numeric>
 #include <unordered_map>
@@ -893,6 +894,9 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 	else if (bdr_cond == "SMA") {
 		return BdrCond::SMA;
 	}
+	else if (bdr_cond == "PML_NONE") {
+		return BdrCond::PML_NONE;
+	}
     else if (isSGBCBoundaryType(bdr_cond)) {
 		return BdrCond::SGBC;
 	}
@@ -966,18 +970,43 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const m
 	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
 
 	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
-		for (auto t = 0; t < case_data["model"]["materials"][m]["tags"].size(); t++) {
+		const auto& mat_json = case_data["model"]["materials"][m];
+
+		if (mat_json.contains("type")) {
+			const std::string type = mat_json["type"].get<std::string>();
+			if (type == "vacuum") {
+				const Material vacuum = buildVacuumMaterial();
+				for (auto t = 0; t < mat_json["tags"].size(); t++) {
+					res.gt2m.emplace(mat_json["tags"][t], vacuum);
+				}
+			} else if (type == "PML") {
+				PMLProperties props = parsePMLMaterialBlock(mat_json, mesh.Dimension());
+				const Material vacuum = buildVacuumMaterial();
+				for (auto t = 0; t < mat_json["tags"].size(); t++) {
+					const GeomTag tag = mat_json["tags"][t];
+					props.geom_tags.push_back(tag);
+					res.gt2m.emplace(tag, vacuum);
+				}
+				res.pml_props.push_back(std::move(props));
+			} else {
+				throw std::runtime_error(
+					"Unknown material type '" + type + "'. Supported: vacuum, PML, or legacy eps/mu.");
+			}
+			continue;
+		}
+
+		for (auto t = 0; t < mat_json["tags"].size(); t++) {
 			double eps{ 1.0 }, mu{ 1.0 }, sigma{ 0.0 };
-			if (case_data["model"]["materials"][m].contains("relative_permittivity")) {
-				eps = case_data["model"]["materials"][m]["relative_permittivity"];
+			if (mat_json.contains("relative_permittivity")) {
+				eps = mat_json["relative_permittivity"];
 			}
-			if (case_data["model"]["materials"][m].contains("relative_permeability")) {
-				mu = case_data["model"]["materials"][m]["relative_permeability"];
+			if (mat_json.contains("relative_permeability")) {
+				mu = mat_json["relative_permeability"];
 			}
-			if (case_data["model"]["materials"][m].contains("bulk_conductivity")) {
-				sigma = case_data["model"]["materials"][m]["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			if (mat_json.contains("bulk_conductivity")) {
+				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
 			}
-			res.gt2m.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu, sigma)));
+			res.gt2m.emplace(std::make_pair(mat_json["tags"][t], Material(eps, mu, sigma)));
 		}
 	}
 
@@ -1221,7 +1250,7 @@ Array<int> getTFSFTags(const json& case_data)
 
 static bool isSGBCBoundaryType(const std::string& boundary_type)
 {
-	return boundary_type == "SGBC" || boundary_type == "SBC_PML";
+	return boundary_type == "SGBC";
 }
 
 Array<int> getSGBCTags(const json& case_data)
@@ -1428,107 +1457,53 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
         return layer;
     };
 
-    auto buildAutoPMLSGBCLayers = [&](const nlohmann::json& bdr_json) -> SGBCProperties {
-        constexpr size_t default_num_layers = 1;
-        constexpr size_t default_segments_per_layer = 60;
-        constexpr size_t default_order = 3;
-        constexpr double default_width_wavelengths = 30.0;
-        constexpr double mu0 = physicalConstants::vacuumPermeability_SI;
-        constexpr double eps0 = physicalConstants::vacuumPermittivity_SI;
-
-        if (bdr_json.contains("material") || bdr_json.contains("layers") || bdr_json.contains("sgbc_boundaries")) {
-            throw std::runtime_error(
-                "SBC_PML uses automatic absorber settings. Remove 'material', 'layers', and 'sgbc_boundaries' from the boundary definition.");
-        }
-
-        SGBCProperties props;
-        props.exporter_probe = bdr_json.value("exporter_probe", false);
-        for (auto t = 0; t < bdr_json["tags"].size(); ++t) {
-            props.geom_tags.emplace_back(bdr_json["tags"][t]);
-        }
-
-        const double wavelength = 1.0 / (max_freq * std::sqrt(mu0 * eps0));
-        const double total_width = default_width_wavelengths * wavelength;
-        const double layer_width = total_width / static_cast<double>(default_num_layers);
-
-        for (size_t layer_idx = 0; layer_idx < default_num_layers; ++layer_idx) {
-            SGBCLayer layer(buildVacuumMaterial(), layer_width);
-            layer.order = default_order;
-            layer.num_of_segments = default_segments_per_layer;
-            layer.n_skin_depths = 0.0;
-            props.layers.push_back(layer);
-        }
-
-        SGBCBoundaryInfo right;
-        right.bdrCond = BdrCond::SMA;
-        right.isOn = true;
-        props.sgbc_bdr_info = std::make_pair(SGBCBoundaryInfo{}, right);
-
-        if (Mpi::WorldRank() == 0) {
-            std::ostringstream notice;
-             notice << "SBC_PML auto-generated as " << default_num_layers
-                                 << " lossless SGBC vacuum layer, total width " << total_width * 1000.0
-                   << " mm, order " << default_order
-                   << ", " << (default_num_layers * default_segments_per_layer)
-                 << " total segments, conductivity 0 S/m, right boundary SMA.";
-            sgbc_notices.push_back(notice.str());
-        }
-
-        return props;
-    };
-
     for (int b = 0; b < case_data["model"]["boundaries"].size(); b++) {
         if (case_data["model"]["boundaries"][b].contains("type") &&
             isSGBCBoundaryType(case_data["model"]["boundaries"][b]["type"].get<std::string>())) {
 
             const auto& bdr_json = case_data["model"]["boundaries"][b];
-            const std::string boundary_type = bdr_json["type"].get<std::string>();
 
             SGBCProperties props;
 
-            if (boundary_type == "SBC_PML") {
-                props = buildAutoPMLSGBCLayers(bdr_json);
+            for (auto t = 0; t < bdr_json["tags"].size(); t++) {
+                props.geom_tags.emplace_back(bdr_json["tags"][t]);
+            }
+            props.exporter_probe = bdr_json.value("exporter_probe", false);
+
+            // Support both single "material" and multi-layer "layers" formats
+            if (bdr_json.contains("layers")) {
+                for (const auto& layer_json : bdr_json["layers"]) {
+                    props.layers.push_back(parseSGBCLayer(layer_json));
+                }
+            } else if (bdr_json.contains("material")) {
+                props.layers.push_back(parseSGBCLayer(bdr_json["material"]));
             } else {
-                for (auto t = 0; t < bdr_json["tags"].size(); t++) {
-                    props.geom_tags.emplace_back(bdr_json["tags"][t]);
-                }
-                props.exporter_probe = bdr_json.value("exporter_probe", false);
-
-                // Support both single "material" and multi-layer "layers" formats
-                if (bdr_json.contains("layers")) {
-                    for (const auto& layer_json : bdr_json["layers"]) {
-                        props.layers.push_back(parseSGBCLayer(layer_json));
-                    }
-                } else if (bdr_json.contains("material")) {
-                    props.layers.push_back(parseSGBCLayer(bdr_json["material"]));
-                } else {
-                    throw std::runtime_error("SGBC boundary must define either 'material' or 'layers'. Verify .json parameters.");
-                }
-
-                // Parse sgbc_boundaries from boundary level or from material level (backward compat)
-                SGBCBoundaryInfo left;
-                SGBCBoundaryInfo right;
-                auto parseBoundaries = [&](const nlohmann::json& src) {
-                    if (src.contains("sgbc_boundaries")) {
-                        if (src["sgbc_boundaries"].contains("left")) {
-                            left.isOn = true;
-                            left.bdrCond = assignBoundaryType(src["sgbc_boundaries"]["left"]);
-                        }
-                        if (src["sgbc_boundaries"].contains("right")) {
-                            right.isOn = true;
-                            right.bdrCond = assignBoundaryType(src["sgbc_boundaries"]["right"]);
-                        }
-                    }
-                };
-                parseBoundaries(bdr_json);
-                if (!left.isOn && !right.isOn && bdr_json.contains("material")) {
-                    parseBoundaries(bdr_json["material"]);
-                }
-                props.sgbc_bdr_info = std::make_pair(left, right);
+                throw std::runtime_error("SGBC boundary must define either 'material' or 'layers'. Verify .json parameters.");
             }
 
+            // Parse sgbc_boundaries from boundary level or from material level (backward compat)
+            SGBCBoundaryInfo left;
+            SGBCBoundaryInfo right;
+            auto parseBoundaries = [&](const nlohmann::json& src) {
+                if (src.contains("sgbc_boundaries")) {
+                    if (src["sgbc_boundaries"].contains("left")) {
+                        left.isOn = true;
+                        left.bdrCond = assignBoundaryType(src["sgbc_boundaries"]["left"]);
+                    }
+                    if (src["sgbc_boundaries"].contains("right")) {
+                        right.isOn = true;
+                        right.bdrCond = assignBoundaryType(src["sgbc_boundaries"]["right"]);
+                    }
+                }
+            };
+            parseBoundaries(bdr_json);
+            if (!left.isOn && !right.isOn && bdr_json.contains("material")) {
+                parseBoundaries(bdr_json["material"]);
+            }
+            props.sgbc_bdr_info = std::make_pair(left, right);
+
             if (Mpi::WorldRank() == 0) {
-                std::cout << '[' << boundary_type << "] Total: " << props.layers.size() << " layer(s), "
+                std::cout << "[SGBC] Total: " << props.layers.size() << " layer(s), "
                           << props.totalSegments() << " segments, "
                           << props.totalWidth() * 1000.0 << " mm width" << std::endl;
             }
@@ -1538,6 +1513,22 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     }
     
     res.setSGBCProperties(sgbc_props);
+
+    res.setPMLProperties(att_to_material.pml_props);
+    if (res.hasPML()) {
+        if (Mpi::WorldRank() == 0) {
+            std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;
+            for (size_t ri = 0; ri < att_to_material.pml_props.size(); ++ri) {
+                const auto& props = att_to_material.pml_props[ri];
+                std::cout << "  Region " << ri << ": " << props.geom_tags.size() << " tag(s), active_axes:";
+                for (Direction d : props.active_axes) {
+                    std::cout << " " << d;
+                }
+                std::cout << std::endl;
+            }
+        }
+        res.initializePMLProfiles(Mpi::WorldRank());
+    }
 
     if (Mpi::WorldRank() == 0 && !sgbc_notices.empty()) {
         std::cout << "\n========================================================" << std::endl;

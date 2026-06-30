@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "time_step": 0.025,
-    "final_time": 25.0,
+    "final_time": 60.0,
     "order": 2
   },
   "model": {
@@ -27,14 +27,21 @@
   "probes": {
     "exporter": {
       "saves": 250
-    }
+    },
+    "mor_state": [
+      {
+        "record_time_start": 0.0,
+        "record_time_final": 60.0,
+        "saves": 2401
+      }
+    ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
+      "polarization": [0.7660444, 0.6427876, 0.0],
+      "propagation": [0.6427876, -0.7660444, 0.0],
+      "tags": [2, 3, 4, 5],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.2
@@ -42,72 +49,35 @@
     },
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ -1.0, 0.0, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
+      "polarization": [0.8191520, 0.5735764, 0.0],
+      "propagation": [0.5735764, -0.8191520, 0.0],
+      "tags": [2, 3, 4, 5],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.2
+        "spread": 0.2,
+        "mean": [-8.6036465, 12.2872807, 0.0]
       }
     },
     {
       "type": "planewave",
-      "polarization": [ 1.0, 0.0, 0.0 ],
-      "propagation": [ 0.0, 1.0, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
+      "polarization": [0.9063078, 0.4226183, 0.0],
+      "propagation": [0.4226183, -0.9063078, 0.0],
+      "tags": [2, 3, 4, 5],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.2
+        "spread": 0.2,
+        "mean": [-12.6785479, 27.1892336, 0.0]
       }
     },
     {
       "type": "planewave",
-      "polarization": [ 1.0, 0.0, 0.0 ],
-      "propagation": [ 0.0, -1.0, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
+      "polarization": [0.9396926, 0.3420201, 0.0],
+      "propagation": [0.3420201, -0.9396926, 0.0],
+      "tags": [2, 3, 4, 5],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.2
-      }
-    },
-    {
-      "type": "planewave",
-      "polarization": [ -0.7071067811865475, 0.7071067811865475, 0.0 ],
-      "propagation": [ 0.7071067811865475, 0.7071067811865475, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
-      "magnitude": {
-        "type": "gaussian",
-        "spread": 0.2
-      }
-    },
-    {
-      "type": "planewave",
-      "polarization": [ -0.7071067811865475, -0.7071067811865475, 0.0 ],
-      "propagation": [ -0.7071067811865475, 0.7071067811865475, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
-      "magnitude": {
-        "type": "gaussian",
-        "spread": 0.2
-      }
-    },
-    {
-      "type": "planewave",
-      "polarization": [ 0.7071067811865475, -0.7071067811865475, 0.0 ],
-      "propagation": [ -0.7071067811865475, -0.7071067811865475, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
-      "magnitude": {
-        "type": "gaussian",
-        "spread": 0.2
-      }
-    },
-    {
-      "type": "planewave",
-      "polarization": [ 0.7071067811865475, 0.7071067811865475, 0.0 ],
-      "propagation": [ 0.7071067811865475, -0.7071067811865475, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
-      "magnitude": {
-        "type": "gaussian",
-        "spread": 0.2
+        "spread": 0.2,
+        "mean": [-15.3909064, 42.2861679, 0.0]
       }
     }
   ]

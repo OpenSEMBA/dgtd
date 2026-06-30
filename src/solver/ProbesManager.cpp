@@ -679,16 +679,17 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
     double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 1e-6 : 1e-12;
     if (time < ctx.next_save_time - tol) return;
 
-    // Export global state vector x
+    // Export E/H state only (first 6×ndofs block; ψ is internal).
     const auto& all_dofs = fields_->allDOFs();
+    const int export_size = fields_->fieldBlockSize();
     std::string file_path = ctx.export_dir + "/x_" + std::to_string(ctx.save_count);
 
     std::ofstream ofs(file_path);
     if (ofs.is_open()) {
         ofs << std::scientific << std::setprecision(16);
         ofs << time << "\n";
-        ofs << all_dofs.Size() << "\n";
-        for (int i = 0; i < all_dofs.Size(); ++i) {
+        ofs << export_size << "\n";
+        for (int i = 0; i < export_size; ++i) {
             ofs << all_dofs[i] << "\n";
         }
         ofs.close();

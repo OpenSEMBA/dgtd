@@ -2,6 +2,11 @@
 
 #include "Types.h"
 #include "Material.h"
+#include "PMLProperties.h"
+#include "PMLProfiles.h"
+#include "PMLAuxLayout.h"
+
+#include <memory>
 
 namespace maxwell {
 
@@ -52,6 +57,7 @@ struct GeomTagToBoundaryInfo {
 struct GeomTagToMaterialInfo {
 	GeomTagToMaterial gt2m;
 	GeomTagToBoundaryMaterial gt2bm;
+	std::vector<PMLProperties> pml_props;
 
 	GeomTagToMaterialInfo()
 	{
@@ -158,6 +164,19 @@ public:
 	void setSGBCProperties(const std::vector<SGBCProperties> in) { sgbc_props_ = in; }
 	const std::vector<SGBCProperties>& getSGBCProperties() const { return sgbc_props_; }
 
+	void setPMLProperties(const std::vector<PMLProperties>& in) { pml_props_ = in; }
+	const std::vector<PMLProperties>& getPMLProperties() const { return pml_props_; }
+	bool hasPML() const { return !pml_props_.empty(); }
+	bool isPMLAttribute(GeomTag tag) const;
+	const PMLProperties* getPMLPropertiesForTag(GeomTag tag) const;
+	void initializePMLProfiles(int mpi_rank, int fe_order = 2);
+	void initializePMLAuxLayout(const mfem::ParFiniteElementSpace& fes);
+	const PMLProfileData* getPMLProfileData() const { return pml_profiles_.get(); }
+	const PMLAuxLayout* getPMLAuxLayout() const { return pml_aux_layout_.get(); }
+
+	/// Element-attribute marker: 1 for each volumetric PML material tag.
+	mfem::Array<int> buildPMLVolumeMarker() const;
+
 	mfem::Vector initialiseGeomTagVector() const;
 	mfem::Vector buildEpsMuPiecewiseVector(const FieldType& f) const;
 	mfem::Vector buildSigmaPiecewiseVector() const;
@@ -187,16 +206,21 @@ private:
 	BoundaryMarker pecMarker_;
 	BoundaryMarker pmcMarker_;
 	BoundaryMarker smaMarker_;
+	BoundaryMarker pmlNoneMarker_;
 
 	BoundaryMarker intpecMarker_;
 	BoundaryMarker intpmcMarker_;
 	BoundaryMarker intsmaMarker_;
+	BoundaryMarker intpmlNoneMarker_;
 
 	BoundaryMarker tfsfMarker_;
 
 	BoundaryMarker sgbc_Marker_;
 	BoundaryMarker intsgbc_Marker_;
 	std::vector<SGBCProperties> sgbc_props_;
+	std::vector<PMLProperties> pml_props_;
+	std::shared_ptr<const PMLProfileData> pml_profiles_;
+	std::shared_ptr<const PMLAuxLayout> pml_aux_layout_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 
