@@ -30,6 +30,7 @@ struct HesthavenGPUData {
 	int ndof_el = 0;
 	int max_flux_size = 0;
 	int team_size = 0;
+	int workspace_stride = 0;
 
 	mfem::Vector d_matrices;
 	mfem::Array<int> d_matrix_offsets;
@@ -54,6 +55,7 @@ struct HesthavenGPUData {
 
 	mfem::Vector d_elem_out_e;
 	mfem::Vector d_elem_out_h;
+	mfem::Vector d_workspace;
 
 	int n_bc_true = 0;
 	int n_bc_int = 0;

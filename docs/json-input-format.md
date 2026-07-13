@@ -23,6 +23,20 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | `basis_type` | integer | `1` | MFEM basis: `0` GaussLegendre, `1` GaussLobatto, `2` Bernstein, `3` OpenUniform, `4` CloseUniform, `5` OpenHalfUniform. |
 | `ode_type` | integer | `0` | Time integrator: `0` RK4, `1` BackwardEuler, `2` Trapezoidal, `3` ImplicitMidpoint, `4` SDIRK33, `5` SDIRK23, `6` SDIRK34. |
 
+### evolution_operator: hesthaven (fast explicit path)
+
+`"hesthaven"` uses element-local dense operators (matrix-free on straight meshes). Use for explicit RK4 cases **without** SGBC, volumetric PML, bulk conductivity, or implicit `ode_type`.
+
+| Capability | hesthaven | global |
+|------------|-----------|--------|
+| MPI (`mpirun`) | Yes — shared-face ghost exchange and neighbor connectivity in `Mult()` | Yes |
+| CUDA (`--device cuda`) | Yes — element kernels when build has `SEMBA_DGTD_ENABLE_CUDA` | Yes |
+| SGBC / PML / conductivity | No | Yes |
+| Implicit `ode_type` | No | Yes |
+| Centered SMA (`upwind_alpha: 0`) | Blocked in driver | Yes |
+
+Run example: `mpirun -np 4 ./opensemba_dgtd case.json --device cuda` with `"evolution_operator": "hesthaven"`.
+
 ## model
 
 Object. Geometry, materials, and boundaries.

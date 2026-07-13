@@ -332,11 +332,13 @@ TEST(HesthavenOperatorBenchmark, GPU_Mult_matches_CPU_Mult)
 
 	const int ndofs = fes.GetNDofs();
 	Vector x(6 * ndofs), y_cpu(6 * ndofs), y_gpu(6 * ndofs);
+	x.UseDevice(true);
 	y_gpu.UseDevice(true);
 	x = 0.0;
 	for (int i = 0; i < x.Size(); ++i) {
-		x[i] = 0.1 * std::sin(0.31 * i);
+		x.HostWrite()[i] = 0.1 * std::sin(0.31 * i);
 	}
+	x.Write();
 
 	hest.benchmarkMultCPU(x, y_cpu);
 	hest.Mult(x, y_gpu);
@@ -350,7 +352,10 @@ TEST(HesthavenOperatorBenchmark, GPU_Mult_matches_CPU_Mult)
 		          << " (rel " << dist / std::max(norm_cpu, 1e-30)
 		          << ", norm_cpu=" << norm_cpu << ", norm_gpu=" << hostL2Norm(y_gpu) << ")\n";
 	}
-	EXPECT_LT(dist / std::max(norm_cpu, 1e-30), 1e-10);
+	EXPECT_LT(dist, 1e-10);
+	if (norm_cpu > 1e-12) {
+		EXPECT_LT(dist / norm_cpu, 1e-10);
+	}
 }
 
 TEST(HesthavenOperatorBenchmark, GPU_Mult_TFSF_matches_CPU_Mult)
@@ -390,6 +395,9 @@ TEST(HesthavenOperatorBenchmark, GPU_Mult_TFSF_matches_CPU_Mult)
 		std::cout << "[Hesthaven GPU TFSF] ||y_cpu - y_gpu||_2 = " << dist
 		          << " (rel " << dist / std::max(norm_cpu, 1e-30) << ")\n";
 	}
-	EXPECT_LT(dist / std::max(norm_cpu, 1e-30), 1e-9);
+	EXPECT_LT(dist, 1e-9);
+	if (norm_cpu > 1e-12) {
+		EXPECT_LT(dist / norm_cpu, 1e-9);
+	}
 }
 #endif

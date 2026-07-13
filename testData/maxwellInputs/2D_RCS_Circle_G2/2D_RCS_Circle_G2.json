@@ -3,6 +3,7 @@
     "upwind_alpha": 1.0,
     "time_step": 0.001,
     "final_time": 10.0,
+    "evolution_operator": "global",
     "order": 3
   },
   "model": {
@@ -28,6 +29,12 @@
     "exporter": {
       "saves": 100
     },
+    "point": [
+      {
+        "position": [ -2.0, 0.0 ],
+        "saves": 25
+      }
+    ],
     "rcssurface": [
       {
         "name": "cylinder_rcs",

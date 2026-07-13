@@ -602,9 +602,10 @@ void Solver::step(bool update_probes)
 
     if (update_probes) {
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-        // ParaView export reads host-side GridFunction data; sync from device after RK step.
+        // Point probes use host-side GridFunction::GetValue / GetSubVector.
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            fields_.allDOFs().HostRead();
+            fields_.allDOFs().HostReadWrite();
+            fes_->ExchangeFaceNbrData();
         }
 #endif
         probesManager_.updateProbes(time_);

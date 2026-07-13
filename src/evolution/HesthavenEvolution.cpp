@@ -26,21 +26,16 @@ namespace {
 
 bool hesthavenGpuMultViable()
 {
-	if (!mfem::Device::Allows(mfem::Backend::CUDA)) {
-		return false;
-	}
-	// hesthaven_mult_gpu still returns zero rates (see docs/handoff-cuda-hesthaven-out.md).
-	// MultCPU with HostRead/ReadWrite is correct for --device cuda and MPI.
-	return false;
+	return mfem::Device::Allows(mfem::Backend::CUDA);
 }
 
 void hesthaven_sync_gpu_static_data(HesthavenGPUData& gpu)
 {
 	auto sync_vec = [](mfem::Vector& v) {
-		if (v.Size() > 0) { v.Write(); }
+		if (v.Size() > 0) { (void)v.ReadWrite(); }
 	};
 	auto sync_arr = [](auto& a) {
-		if (a.Size() > 0) { a.Write(); }
+		if (a.Size() > 0) { (void)a.ReadWrite(); }
 	};
 
 	sync_vec(gpu.d_matrices);
@@ -1089,7 +1084,7 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 void HesthavenEvolution::initGPUData()
 {
-	if (!hesthavenGpuMultViable()) {
+	if (!mfem::Device::Allows(mfem::Backend::CUDA)) {
 		return;
 	}
 	if (Mpi::WorldSize() > 1 && !mfem::Device::GetGPUAwareMPI() && Mpi::WorldRank() == 0) {
@@ -1120,12 +1115,18 @@ void HesthavenEvolution::initGPUData()
 		                              static_cast<int>(hestElemLinearStorage_[e].fscale.size()));
 	}
 
-	std::unordered_map<const DynamicMatrix*, int> matrix_to_id;
 	std::vector<const DynamicMatrix*> unique_matrices;
-	for (const auto& mat : matrixStorage_) {
-		matrix_to_id[&mat] = static_cast<int>(unique_matrices.size());
-		unique_matrices.push_back(&mat);
+	unique_matrices.reserve(matrixStorage_.size());
+	for (auto it = matrixStorage_.begin(); it != matrixStorage_.end(); ++it) {
+		unique_matrices.push_back(&(*it));
 	}
+	auto matrix_index = [&](const DynamicMatrix* mat_ptr) -> int {
+		const auto it = matrixStorage_.find(*mat_ptr);
+		if (it == matrixStorage_.end()) {
+			throw std::runtime_error("Hesthaven GPU init: directional matrix not in storage.");
+		}
+		return static_cast<int>(std::distance(matrixStorage_.begin(), it));
+	};
 	gpu_.n_matrices = static_cast<int>(unique_matrices.size());
 
 	size_t total_matrix_entries = 0;
@@ -1192,7 +1193,7 @@ void HesthavenEvolution::initGPUData()
 			elem_dofs_host[e * gpu_.ndof_el + i] = el_dofs[i];
 		}
 		for (int d = 0; d < 3; ++d) {
-			dir_matrix_id_host[e * 3 + d] = matrix_to_id.at(he.dir[d]);
+			dir_matrix_id_host[e * 3 + d] = matrix_index(he.dir[d]);
 		}
 		for (int d = 0; d < 3; ++d) {
 			for (int i = 0; i < he.fscale.size(); ++i) {
@@ -1235,6 +1236,9 @@ void HesthavenEvolution::initGPUData()
 		throw std::runtime_error(
 			"Hesthaven GPU kernel supports ndof_el, max_flux_size, and lift_rows <= 64.");
 	}
+	gpu_.workspace_stride = 15 * gpu_.max_flux_size + 9 * gpu_.ndof_el;
+	gpu_.d_workspace.SetSize(gpu_.workspace_stride * n_elem);
+	gpu_.d_workspace.UseDevice(true);
 	gpu_.team_size = std::max({gpu_.ndof_el, gpu_.max_flux_size, gpu_.lift_rows});
 
 	hesthaven_sync_gpu_static_data(gpu_);
@@ -1444,8 +1448,8 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 			            jumps.h_[d].data(),
 			            static_cast<size_t>(js) * sizeof(double));
 		}
-		gpu_.d_jumps_e.Write();
-		gpu_.d_jumps_h.Write();
+		gpu_.d_jumps_e.ReadWrite();
+		gpu_.d_jumps_h.ReadWrite();
 
 #ifdef SHOW_TIMER_INFORMATION
 		if (gpu_.has_tfsf) {
@@ -1469,7 +1473,8 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 #endif
 
 	if (linearElements_.Size() > 0) {
-		(void)in.Read();
+		// Jump path used HostRead(); push the same state to device for the element kernel.
+		const_cast<mfem::Vector&>(in).ReadWrite();
 		hesthaven_mult_gpu(gpu_, opts_.alpha, in, eOld_, hOld_, out, ndofs);
 	}
 

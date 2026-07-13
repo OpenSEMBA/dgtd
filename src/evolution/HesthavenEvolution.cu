@@ -188,6 +188,7 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
     const int flux_cap = gpu.max_flux_size;
     const int lift_rows = gpu.lift_rows;
     const int lift_cols = gpu.lift_cols;
+    const int ws_stride = gpu.workspace_stride;
 
     const double* in_d = in.Read();
     double* out_d = out.Write();
@@ -206,6 +207,7 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
     const int* matrix_rows = gpu.d_matrix_rows.Read();
     const int* matrix_cols = gpu.d_matrix_cols.Read();
     const double* ref_lift = gpu.d_ref_lift.Read();
+    double* workspace = gpu.d_workspace.Write();
 
     mfem::forall(n_elem, [=] MFEM_DEVICE(int e) {
         const int elem_id = elem_ids[e];
@@ -213,25 +215,43 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
         const int jump_base = elem_id * flux_size;
         const int dof_base = e * ndof_el;
 
-        double ndotdH[64];
-        double ndotdE[64];
-        double je[3][64];
-        double jh[3][64];
-        double field_e[3][64];
-        double field_h[3][64];
-        double flux_h[3][64];
-        double flux_e[3][64];
-        double lift_in[64];
-        double lift_out[64];
-        double tmp_y[64];
-        double tmp_z[64];
+        double* ws = workspace + e * ws_stride;
+        double* ndotdH = ws;
+        double* ndotdE = ws + flux_cap;
+        double* je_x = ws + 2 * flux_cap;
+        double* je_y = ws + 3 * flux_cap;
+        double* je_z = ws + 4 * flux_cap;
+        double* jh_x = ws + 5 * flux_cap;
+        double* jh_y = ws + 6 * flux_cap;
+        double* jh_z = ws + 7 * flux_cap;
+        const int field_base = 8 * flux_cap;
+        double* field_ex = ws + field_base;
+        double* field_ey = ws + field_base + ndof_el;
+        double* field_ez = ws + field_base + 2 * ndof_el;
+        double* field_hx = ws + field_base + 3 * ndof_el;
+        double* field_hy = ws + field_base + 4 * ndof_el;
+        double* field_hz = ws + field_base + 5 * ndof_el;
+        const int flux_base = field_base + 6 * ndof_el;
+        double* flux_hx = ws + flux_base;
+        double* flux_hy = ws + flux_base + flux_cap;
+        double* flux_hz = ws + flux_base + 2 * flux_cap;
+        double* flux_ex = ws + flux_base + 3 * flux_cap;
+        double* flux_ey = ws + flux_base + 4 * flux_cap;
+        double* flux_ez = ws + flux_base + 5 * flux_cap;
+        const int lift_base = flux_base + 6 * flux_cap;
+        double* lift_in = ws + lift_base;
+        double* lift_out = ws + lift_base + flux_cap;
+        double* tmp_y = ws + lift_base + flux_cap + ndof_el;
+        double* tmp_z = ws + lift_base + 2 * flux_cap + ndof_el;
 
-        for (int d = 0; d < 3; ++d) {
-            for (int i = 0; i < flux_size; ++i) {
-                const int jidx = jump_base + i;
-                je[d][i] = jumps_e[d * jumps_size + jidx];
-                jh[d][i] = jumps_h[d * jumps_size + jidx];
-            }
+        for (int i = 0; i < flux_size; ++i) {
+            const int jidx = jump_base + i;
+            je_x[i] = jumps_e[0 * jumps_size + jidx];
+            je_y[i] = jumps_e[1 * jumps_size + jidx];
+            je_z[i] = jumps_e[2 * jumps_size + jidx];
+            jh_x[i] = jumps_h[0 * jumps_size + jidx];
+            jh_y[i] = jumps_h[1 * jumps_size + jidx];
+            jh_z[i] = jumps_h[2 * jumps_size + jidx];
         }
 
         for (int i = 0; i < flux_size; ++i) {
@@ -239,31 +259,37 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
             ndotdE[i] = 0.0;
             for (int d = 0; d < 3; ++d) {
                 const double nor = normals[e * 3 * flux_cap + d * flux_cap + i];
-                ndotdH[i] += nor * jh[d][i];
-                ndotdE[i] += nor * je[d][i];
+                ndotdH[i] += nor * (d == 0 ? jh_x[i] : (d == 1 ? jh_y[i] : jh_z[i]));
+                ndotdE[i] += nor * (d == 0 ? je_x[i] : (d == 1 ? je_y[i] : je_z[i]));
             }
         }
 
-        for (int x = 0; x < 3; ++x) {
-            const int y = (x + 1) % 3;
-            const int z = (x + 2) % 3;
-            for (int i = 0; i < flux_size; ++i) {
-                const double norx = normals[e * 3 * flux_cap + x * flux_cap + i];
-                const double nory = normals[e * 3 * flux_cap + y * flux_cap + i];
-                const double norz = normals[e * 3 * flux_cap + z * flux_cap + i];
-                flux_h[x][i] = -nory * je[z][i] + norz * je[y][i]
-                    + alpha * (jh[x][i] - ndotdH[i] * norx);
-                flux_e[x][i] = nory * jh[z][i] - norz * jh[y][i]
-                    + alpha * (je[x][i] - ndotdE[i] * norx);
-            }
+        for (int i = 0; i < flux_size; ++i) {
+            const double norx = normals[e * 3 * flux_cap + 0 * flux_cap + i];
+            const double nory = normals[e * 3 * flux_cap + 1 * flux_cap + i];
+            const double norz = normals[e * 3 * flux_cap + 2 * flux_cap + i];
+            flux_hx[i] = -nory * je_z[i] + norz * je_y[i]
+                + alpha * (jh_x[i] - ndotdH[i] * norx);
+            flux_hy[i] = -norz * je_x[i] + norx * je_z[i]
+                + alpha * (jh_y[i] - ndotdH[i] * nory);
+            flux_hz[i] = -norx * je_y[i] + nory * je_x[i]
+                + alpha * (jh_z[i] - ndotdH[i] * norz);
+            flux_ex[i] = nory * jh_z[i] - norz * jh_y[i]
+                + alpha * (je_x[i] - ndotdE[i] * norx);
+            flux_ey[i] = norz * jh_x[i] - norx * jh_z[i]
+                + alpha * (je_y[i] - ndotdE[i] * nory);
+            flux_ez[i] = norx * jh_y[i] - nory * jh_x[i]
+                + alpha * (je_z[i] - ndotdE[i] * norz);
         }
 
-        for (int d = 0; d < 3; ++d) {
-            for (int i = 0; i < ndof_el; ++i) {
-                const int gi = elem_dofs[dof_base + i];
-                field_e[d][i] = in_d[d * ndofs + gi];
-                field_h[d][i] = in_d[(3 + d) * ndofs + gi];
-            }
+        for (int i = 0; i < ndof_el; ++i) {
+            const int gi = elem_dofs[dof_base + i];
+            field_ex[i] = in_d[0 * ndofs + gi];
+            field_ey[i] = in_d[1 * ndofs + gi];
+            field_ez[i] = in_d[2 * ndofs + gi];
+            field_hx[i] = in_d[3 * ndofs + gi];
+            field_hy[i] = in_d[4 * ndofs + gi];
+            field_hz[i] = in_d[5 * ndofs + gi];
         }
 
         for (int x = 0; x < 3; ++x) {
@@ -275,15 +301,22 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
             const double* dir_y = matrices + matrix_offsets[mat_y];
             const double* dir_z = matrices + matrix_offsets[mat_z];
 
-            dense_matvec(matrix_rows[mat_y], matrix_cols[mat_y], dir_y, field_e[z], tmp_y);
-            dense_matvec(matrix_rows[mat_z], matrix_cols[mat_z], dir_z, field_e[y], tmp_z);
+            const double* field_e_ycomp = (y == 0) ? field_ex : (y == 1 ? field_ey : field_ez);
+            const double* field_e_zcomp = (z == 0) ? field_ex : (z == 1 ? field_ey : field_ez);
+            const double* field_h_ycomp = (y == 0) ? field_hx : (y == 1 ? field_hy : field_hz);
+            const double* field_h_zcomp = (z == 0) ? field_hx : (z == 1 ? field_hy : field_hz);
+            double* flux_h_xcomp = (x == 0) ? flux_hx : (x == 1 ? flux_hy : flux_hz);
+            double* flux_e_xcomp = (x == 0) ? flux_ex : (x == 1 ? flux_ey : flux_ez);
+
+            dense_matvec(matrix_rows[mat_y], matrix_cols[mat_y], dir_y, field_e_zcomp, tmp_y);
+            dense_matvec(matrix_rows[mat_z], matrix_cols[mat_z], dir_z, field_e_ycomp, tmp_z);
             for (int i = 0; i < ndof_el; ++i) {
                 const int gi = elem_dofs[dof_base + i];
                 out_d[(3 + x) * ndofs + gi] += -tmp_y[i] + tmp_z[i];
             }
 
             for (int i = 0; i < flux_size; ++i) {
-                lift_in[i] = flux_h[x][i] * fscale[e * flux_cap + i] * 0.5;
+                lift_in[i] = flux_h_xcomp[i] * fscale[e * flux_cap + i] * 0.5;
             }
             dense_matvec(lift_rows, lift_cols, ref_lift, lift_in, lift_out);
             for (int i = 0; i < ndof_el; ++i) {
@@ -291,15 +324,15 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
                 out_d[(3 + x) * ndofs + gi] += lift_out[i];
             }
 
-            dense_matvec(matrix_rows[mat_y], matrix_cols[mat_y], dir_y, field_h[z], tmp_y);
-            dense_matvec(matrix_rows[mat_z], matrix_cols[mat_z], dir_z, field_h[y], tmp_z);
+            dense_matvec(matrix_rows[mat_y], matrix_cols[mat_y], dir_y, field_h_zcomp, tmp_y);
+            dense_matvec(matrix_rows[mat_z], matrix_cols[mat_z], dir_z, field_h_ycomp, tmp_z);
             for (int i = 0; i < ndof_el; ++i) {
                 const int gi = elem_dofs[dof_base + i];
                 out_d[x * ndofs + gi] += tmp_y[i] - tmp_z[i];
             }
 
             for (int i = 0; i < flux_size; ++i) {
-                lift_in[i] = flux_e[x][i] * fscale[e * flux_cap + i] * 0.5;
+                lift_in[i] = flux_e_xcomp[i] * fscale[e * flux_cap + i] * 0.5;
             }
             dense_matvec(lift_rows, lift_cols, ref_lift, lift_in, lift_out);
             for (int i = 0; i < ndof_el; ++i) {
@@ -308,6 +341,8 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
             }
         }
     });
+
+    MFEM_STREAM_SYNC;
 }
 
 } // namespace maxwell

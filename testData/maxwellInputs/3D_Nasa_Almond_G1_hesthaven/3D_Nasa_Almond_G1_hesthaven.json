@@ -29,6 +29,12 @@
     "exporter": {
       "saves": 30
     },
+    "point": [
+      {
+        "position": [ -2.4, 0.0, 0.0 ],
+        "saves": 25
+      }
+    ],
     "rcssurface": [
       {
         "name": "almond",
