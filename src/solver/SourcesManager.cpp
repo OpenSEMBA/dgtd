@@ -1,6 +1,7 @@
 #include "SourcesManager.h"
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
 
 namespace maxwell {
 
@@ -205,11 +206,22 @@ void SourcesManager::evalTimeVarFieldDirect(Time time, bool apply_tfsf_sign)
 {
     auto* fes = global_tfsf_fes_.get();
     const int ndofs = fes->GetNDofs();
+    const bool on_cuda =
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        mfem::Device::Allows(mfem::Backend::CUDA);
+#else
+        false;
+#endif
 
-    // Zero all fields
+    // Zero all fields (host-authoritative on CUDA; operator= only clears device).
     for (auto ft : { E, H }) {
         for (auto d : { X, Y, Z }) {
-            cached_tfsf_fields_[ft][d] = 0.0;
+            if (on_cuda) {
+                double *host_data = cached_tfsf_fields_[ft][d].HostWrite();
+                std::fill_n(host_data, ndofs, 0.0);
+            } else {
+                cached_tfsf_fields_[ft][d] = 0.0;
+            }
         }
     }
 
@@ -222,12 +234,28 @@ void SourcesManager::evalTimeVarFieldDirect(Time time, bool apply_tfsf_sign)
             const double sign = apply_tfsf_sign ? tfsf_sign_[i] : 1.0;
             for (auto ft : { E, H }) {
                 for (auto d : { X, Y, Z }) {
-                    cached_tfsf_fields_[ft][d][i] +=
+                    const double val =
                         tf->eval(dof_coords_[i], time, static_cast<FieldType>(ft), static_cast<Direction>(d)) * sign;
+                    if (on_cuda) {
+                        double *host_data = cached_tfsf_fields_[ft][d].HostWrite();
+                        host_data[i] += val;
+                    } else {
+                        cached_tfsf_fields_[ft][d][i] += val;
+                    }
                 }
             }
         }
     }
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (on_cuda) {
+        for (auto ft : { E, H }) {
+            for (auto d : { X, Y, Z }) {
+                (void)cached_tfsf_fields_[ft][d].Read();
+            }
+        }
+    }
+#endif
 }
 
 int SourcesManager::findTFSFDofAtPosition(const Source::Position& pos, double tol) const
