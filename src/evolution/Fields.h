@@ -80,11 +80,7 @@ Fields<FES, GF>::Fields(FES& fes, int n_aux)
 template <typename FES, typename GF>
 double Fields<FES, GF>::getNorml2() const
 {
-    double sum = 0.0;
-    for (int i = 0; i < field_block_size_; ++i) {
-        sum += all_dofs_[i] * all_dofs_[i];
-    }
-    return std::sqrt(sum);
+    return all_dofs_.Norml2();
 }
 
 template <typename FES, typename GF>

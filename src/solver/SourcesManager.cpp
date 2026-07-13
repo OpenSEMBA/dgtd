@@ -201,7 +201,7 @@ void SourcesManager::initDirectPlanewaveEval()
     direct_eval_ready_ = true;
 }
 
-void SourcesManager::evalTimeVarFieldDirect(Time time)
+void SourcesManager::evalTimeVarFieldDirect(Time time, bool apply_tfsf_sign)
 {
     auto* fes = global_tfsf_fes_.get();
     const int ndofs = fes->GetNDofs();
@@ -219,7 +219,7 @@ void SourcesManager::evalTimeVarFieldDirect(Time time)
         if (tf == nullptr) continue;
 
         for (int i = 0; i < ndofs; ++i) {
-            const double sign = tfsf_sign_[i];
+            const double sign = apply_tfsf_sign ? tfsf_sign_[i] : 1.0;
             for (auto ft : { E, H }) {
                 for (auto d : { X, Y, Z }) {
                     cached_tfsf_fields_[ft][d][i] +=
@@ -228,6 +228,26 @@ void SourcesManager::evalTimeVarFieldDirect(Time time)
             }
         }
     }
+}
+
+int SourcesManager::findTFSFDofAtPosition(const Source::Position& pos, double tol) const
+{
+    if (!direct_eval_ready_ || dof_coords_.empty()) {
+        return -1;
+    }
+    const int dim = pos.Size();
+    for (int i = 0; i < static_cast<int>(dof_coords_.size()); ++i) {
+        const auto& c = dof_coords_[i];
+        double dist2 = 0.0;
+        for (int d = 0; d < dim && d < c.Size(); ++d) {
+            const double diff = pos[d] - c[d];
+            dist2 += diff * diff;
+        }
+        if (dist2 <= tol * tol) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 }

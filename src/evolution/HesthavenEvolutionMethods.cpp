@@ -14,36 +14,45 @@ namespace maxwell {
 
 	FieldsInputMaps::FieldsInputMaps(const Vector& in, FiniteElementSpace& fes)
 	{
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 0 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 1 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 2 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 3 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 4 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + 5 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		auto* in_data = const_cast<double*>(in.HostRead());
+		const int ndofs = fes.GetNDofs();
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in_data + 0 * ndofs, ndofs, 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in_data + 1 * ndofs, ndofs, 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(in_data + 2 * ndofs, ndofs, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in_data + 3 * ndofs, ndofs, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in_data + 4 * ndofs, ndofs, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(in_data + 5 * ndofs, ndofs, 1));
 	}
 
 	FieldsOutputMaps::FieldsOutputMaps(Vector& out, FiniteElementSpace& fes)
 	{
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 0 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 1 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 2 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 3 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 4 * fes.GetNDofs(), fes.GetNDofs(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(out.GetData() + 5 * fes.GetNDofs(), fes.GetNDofs(), 1));
+		double* out_data = out.HostReadWrite();
+		const int ndofs = fes.GetNDofs();
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(out_data + 0 * ndofs, ndofs, 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(out_data + 1 * ndofs, ndofs, 1));
+		e_.push_back(Eigen::Map<Eigen::VectorXd>(out_data + 2 * ndofs, ndofs, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(out_data + 3 * ndofs, ndofs, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(out_data + 4 * ndofs, ndofs, 1));
+		h_.push_back(Eigen::Map<Eigen::VectorXd>(out_data + 5 * ndofs, ndofs, 1));
 	}
 
 	FieldsElementMaps::FieldsElementMaps(const Vector& in, FiniteElementSpace& fes, const ElementId& id)
 	{
-
 		Array<int> dofs;
-		auto el2dofs = fes.GetElementDofs(id, dofs);
+		fes.GetElementDofs(id, dofs);
+		const double* in_data = in.HostRead();
+		const int ndofs = fes.GetNDofs();
 
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 0 * fes.GetNDofs(), dofs.Size(), 1));
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 1 * fes.GetNDofs(), dofs.Size(), 1));
-		e_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 2 * fes.GetNDofs(), dofs.Size(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 3 * fes.GetNDofs(), dofs.Size(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 4 * fes.GetNDofs(), dofs.Size(), 1));
-		h_.push_back(Eigen::Map<Eigen::VectorXd>(in.GetData() + id * dofs.Size() + 5 * fes.GetNDofs(), dofs.Size(), 1));
+		e_.resize(3);
+		h_.resize(3);
+		for (int d = X; d <= Z; ++d) {
+			e_[d].resize(dofs.Size());
+			h_[d].resize(dofs.Size());
+			for (int i = 0; i < dofs.Size(); ++i) {
+				e_[d][i] = in_data[d * ndofs + dofs[i]];
+				h_[d][i] = in_data[(3 + d) * ndofs + dofs[i]];
+			}
+		}
 	}
 
 	HesthavenElementJumps::HesthavenElementJumps(HesthavenFields& in, ElementId id, Eigen::Index& elFluxSize)
@@ -68,6 +77,22 @@ namespace maxwell {
 				if (vals.Size() && r != cols[c] && std::abs(vals[c] - vals[cols.Find(r)]) < tol && std::abs(vals[cols.Find(r)]) > tol) {
 					vmapM.emplace_back(r);
 					vmapP.emplace_back(cols[c]);
+				}
+			}
+		}
+		return std::make_pair(vmapM, vmapP);
+	}
+
+	InteriorFaceConnectivityMaps mapConnectivityDense(const DenseMatrix& mat)
+	{
+		std::vector<int> vmapM, vmapP;
+		double tol{ 1e-6 };
+		const int half = mat.Height() / 2;
+		for (int r = 0; r < half; r++) {
+			for (int c = 0; c < mat.Width(); c++) {
+				if (r != c && std::abs(mat(r, c) - mat(r, r)) < tol && std::abs(mat(r, r)) > tol) {
+					vmapM.emplace_back(r);
+					vmapP.emplace_back(c);
 				}
 			}
 		}
@@ -526,7 +551,9 @@ namespace maxwell {
 		fes_(fes)
 	{
 		auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
-		global = assembleGlobalConnectivityMap(model.getMesh(), fec);
+		global_plus_is_face_nbr.clear();
+		global = assembleGlobalConnectivityMap(
+			const_cast<FiniteElementSpace&>(fes_), fec, &global_plus_is_face_nbr);
 
 		const auto isInteriorMap{ assembleInteriorOrTrueBdrMap(fes_) };
 
@@ -741,25 +768,98 @@ namespace maxwell {
 		return res;
 	}
 
-	GlobalConnectivity assembleGlobalConnectivityMap(Mesh& m, const L2_FECollection* fec)
+	std::unordered_set<int> buildSharedLocalFaceSet(const ParMesh& pmesh)
+	{
+		std::unordered_set<int> shared_faces;
+		for (int sf = 0; sf < pmesh.GetNSharedFaces(); sf++) {
+			shared_faces.insert(pmesh.GetSharedFace(sf));
+		}
+		return shared_faces;
+	}
+
+	void appendSharedFaceConnectivityForElement(ParFiniteElementSpace& fes,
+		FaceElementTransformations& trans,
+		ElementId e,
+		GlobalConnectivity& map,
+		GlobalPlusIsFaceNbr& plus_is_nbr)
+	{
+		if (trans.Elem1No != e) {
+			return;
+		}
+
+		const ParMesh& pmesh = *fes.GetParMesh();
+		const int Elem2NbrNo = trans.Elem2No - pmesh.GetNE();
+
+		mfemExtension::HesthavenFluxIntegrator flux_int(1.0);
+		DenseMatrix elemmat;
+		flux_int.AssembleFaceMatrix(*fes.GetFE(trans.Elem1No),
+			*fes.GetFaceNbrFE(Elem2NbrNo), trans, elemmat);
+
+		Array<int> vdofs1, vdofs2;
+		fes.GetElementVDofs(trans.Elem1No, vdofs1);
+		fes.GetFaceNbrElementVDofs(Elem2NbrNo, vdofs2);
+
+		const auto maps = mapConnectivityDense(elemmat);
+		ConnectivityVector sortingVector;
+		for (size_t v = 0; v < maps.first.size(); v++) {
+			const int minus = vdofs1[maps.first[v]];
+			const int plus_col = maps.second[v];
+			const int plus = (plus_col < vdofs1.Size())
+				? vdofs1[plus_col]
+				: vdofs2[plus_col - vdofs1.Size()];
+			sortingVector.emplace_back(minus, plus);
+		}
+		std::sort(sortingVector.begin(), sortingVector.end());
+
+		for (const auto& pair : sortingVector) {
+			map.push_back(pair);
+			plus_is_nbr.push_back(1);
+		}
+	}
+
+	GlobalConnectivity assembleGlobalConnectivityMap(FiniteElementSpace& globalFES,
+		const L2_FECollection* fec,
+		GlobalPlusIsFaceNbr* plus_is_nbr)
 	{
 		GlobalConnectivity res;
+		if (plus_is_nbr) {
+			plus_is_nbr->clear();
+		}
+
+		Mesh& m = *globalFES.GetMesh();
+		ParMesh* pmesh = dynamic_cast<ParMesh*>(&m);
+		auto* par_fes = dynamic_cast<ParFiniteElementSpace*>(&globalFES);
+		std::unordered_set<int> shared_faces;
+		if (pmesh) {
+			shared_faces = buildSharedLocalFaceSet(*pmesh);
+		}
+
 		auto mesh{ Mesh(m) };
-		FiniteElementSpace globalFES(&mesh, fec);
 
 		if (mesh.Dimension() == 1){
+			if (plus_is_nbr) {
+				plus_is_nbr->assign(assembleGlobalConnectivityMap1D(mesh.GetNE(), fec->GetOrder()).size(), 0);
+			}
 			return assembleGlobalConnectivityMap1D(mesh.GetNE(), fec->GetOrder());
 		}
 
 		std::map<FaceId, bool> global_face_is_interior;
 		int numFaces;
-		m.Dimension() == 2 ? numFaces = mesh.GetNEdges() : numFaces = mesh.GetNFaces();
+		mesh.Dimension() == 2 ? numFaces = mesh.GetNEdges() : numFaces = mesh.GetNFaces();
 		for (auto f{ 0 }; f < numFaces; f++) {
 			global_face_is_interior[f] = mesh.FaceIsInterior(f);
 		}
 
 		Table globalElementToFace;
-		m.Dimension() == 2 ? globalElementToFace = mesh.ElementToEdgeTable() : globalElementToFace = mesh.ElementToFaceTable();
+		if (pmesh) {
+			pmesh->Dimension() == 2
+				? globalElementToFace = pmesh->ElementToEdgeTable()
+				: globalElementToFace = pmesh->ElementToFaceTable();
+		} else {
+			mesh.Dimension() == 2
+				? globalElementToFace = mesh.ElementToEdgeTable()
+				: globalElementToFace = mesh.ElementToFaceTable();
+		}
 
 		Array<int> volumeMarker;
 		volumeMarker.Append(hesthavenMeshingTag);
@@ -769,43 +869,81 @@ namespace maxwell {
 		boundaryMarker[hesthavenMeshingTag - 1] = 1;
 
 		auto attMap{ mapOriginalAttributes(mesh) };
+		const int ne = pmesh ? pmesh->GetNE() : mesh.GetNE();
 
-
-		for (auto e{ 0 }; e < mesh.GetNE(); e++) {
+		for (auto e{ 0 }; e < ne; e++) {
 
 			Array<int> localFaceIndexToGlobalFaceIndex;
 			globalElementToFace.GetRow(e, localFaceIndexToGlobalFaceIndex);
 
 			int numLocalFaces;
-			mesh.Dimension() == 2 ? numLocalFaces = mesh.GetElement(e)->GetNEdges() : numLocalFaces = mesh.GetElement(e)->GetNFaces();
+			if (pmesh) {
+				numLocalFaces = pmesh->Dimension() == 2
+					? pmesh->GetElement(e)->GetNEdges()
+					: pmesh->GetElement(e)->GetNFaces();
+			} else {
+				mesh.Dimension() == 2
+					? numLocalFaces = mesh.GetElement(e)->GetNEdges()
+					: numLocalFaces = mesh.GetElement(e)->GetNFaces();
+			}
 			for (auto localFace{ 0 }; localFace < numLocalFaces; localFace++) {
 
-				if (!global_face_is_interior[localFaceIndexToGlobalFaceIndex[localFace]]) {
+				const int gf = localFaceIndexToGlobalFaceIndex[localFace];
+				const bool is_shared = pmesh && shared_faces.count(gf);
+				const bool face_is_interior = pmesh
+					? pmesh->FaceIsInterior(gf)
+					: global_face_is_interior[gf];
+
+				if (is_shared && par_fes) {
+					FaceElementTransformations face_trans;
+					IsoparametricTransformation el1, el2;
+					pmesh->GetSharedFaceTransformationsByLocalIndex(
+						gf, face_trans, el1, el2);
+					if (plus_is_nbr) {
+						appendSharedFaceConnectivityForElement(
+							*par_fes, face_trans, e, res, *plus_is_nbr);
+					} else {
+						GlobalPlusIsFaceNbr dummy;
+						appendSharedFaceConnectivityForElement(
+							*par_fes, face_trans, e, res, dummy);
+					}
+				}
+				else if (!face_is_interior) {
 
 					mesh.SetAttribute(e, hesthavenMeshingTag);
 					auto sm = SubMesh::CreateFromDomain(mesh, volumeMarker);
 					restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
 					tagBdrAttributesForSubMesh(localFace, sm);
 					FiniteElementSpace smFES(&sm, fec);
+					const auto prev_size = res.size();
 					appendConnectivityMapsForBoundaryFace(
 						globalFES,
 						smFES,
 						assembleConnectivityFaceMassMatrix(smFES, boundaryMarker),
 						res);
+					if (plus_is_nbr) {
+						plus_is_nbr->insert(plus_is_nbr->end(), res.size() - prev_size, 0);
+					}
 
 				}
 				else {
 
-					FaceElementTransformations* faceTrans = mesh.GetFaceElementTransformations(localFaceIndexToGlobalFaceIndex[localFace]);
+					FaceElementTransformations* faceTrans = pmesh
+						? pmesh->GetFaceElementTransformations(gf)
+						: mesh.GetFaceElementTransformations(gf);
 					auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap);
 					restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
 					FiniteElementSpace smFES(&sm, fec);
+					const auto prev_size = res.size();
 					appendConnectivityMapsForInteriorFace(
 						*faceTrans,
 						globalFES,
 						smFES,
 						res,
 						e);
+					if (plus_is_nbr) {
+						plus_is_nbr->insert(plus_is_nbr->end(), res.size() - prev_size, 0);
+					}
 
 				}
 			}

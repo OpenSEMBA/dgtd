@@ -25,7 +25,6 @@ void load_in_to_eh_gpu(const mfem::Vector& in,
         hy_d[v] = in_d[4 * ndofs + v];
         hz_d[v] = in_d[5 * ndofs + v];
     });
-    cudaDeviceSynchronize();
 }
 
 void load_eh_to_innew_gpu(const mfem::Vector& in,

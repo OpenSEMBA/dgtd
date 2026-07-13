@@ -12,8 +12,11 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <filesystem>
 #include <type_traits>
@@ -203,8 +206,7 @@ namespace maxwell
 	{
 		// Pass 1: Count unique column entries per global row.
 		std::vector<int> marker(globalCols, -1);
-		int* C_i = mfem::Memory<int>(globalRows + 1);
-		C_i[0] = 0;
+		std::vector<int64_t> row_ptr(static_cast<size_t>(globalRows) + 1, 0);
 
 		for (int row = 0; row < globalRows; ++row) {
 			int nnz = 0;
@@ -221,12 +223,25 @@ namespace maxwell
 					}
 				}
 			}
-			C_i[row + 1] = C_i[row] + nnz;
+			row_ptr[row + 1] = row_ptr[row] + nnz;
 		}
 
-		const int totalNNZ = C_i[globalRows];
-		int* C_j = mfem::Memory<int>(totalNNZ);
-		real_t* C_data = mfem::Memory<real_t>(totalNNZ);
+		const int64_t totalNNZ_64 = row_ptr[globalRows];
+		if (totalNNZ_64 <= 0 ||
+		    totalNNZ_64 > static_cast<int64_t>(std::numeric_limits<int>::max())) {
+			throw std::runtime_error(
+				"mergeBlocksToCSR: total NNZ (" + std::to_string(totalNNZ_64) +
+				") is out of range for SparseMatrix indexing.");
+		}
+		const int totalNNZ = static_cast<int>(totalNNZ_64);
+
+		std::vector<int> C_i(static_cast<size_t>(globalRows) + 1);
+		for (int i = 0; i <= globalRows; ++i) {
+			C_i[i] = static_cast<int>(row_ptr[i]);
+		}
+
+		std::vector<int> C_j(static_cast<size_t>(totalNNZ));
+		std::vector<real_t> C_data(static_cast<size_t>(totalNNZ));
 
 		// Pass 2: Fill J and A arrays, merging duplicate column entries.
 		std::fill(marker.begin(), marker.end(), -1);
@@ -254,7 +269,14 @@ namespace maxwell
 			}
 		}
 
-		return std::make_unique<SparseMatrix>(C_i, C_j, C_data, globalRows, globalCols);
+		int* C_i_ptr = mfem::Memory<int>(globalRows + 1);
+		int* C_j_ptr = mfem::Memory<int>(totalNNZ);
+		real_t* C_data_ptr = mfem::Memory<real_t>(totalNNZ);
+		std::memcpy(C_i_ptr, C_i.data(), static_cast<size_t>(globalRows + 1) * sizeof(int));
+		std::memcpy(C_j_ptr, C_j.data(), static_cast<size_t>(totalNNZ) * sizeof(int));
+		std::memcpy(C_data_ptr, C_data.data(), static_cast<size_t>(totalNNZ) * sizeof(real_t));
+
+		return std::make_unique<SparseMatrix>(C_i_ptr, C_j_ptr, C_data_ptr, globalRows, globalCols);
 	}
 
 	template <typename FES>

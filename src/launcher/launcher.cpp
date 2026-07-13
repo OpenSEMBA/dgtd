@@ -58,10 +58,10 @@ int main(int argc, char** argv)
 		}
 	}
 
-    mfem::Device device(deviceConfig.c_str());
-
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();
+
+    mfem::Device device(deviceConfig.c_str());
 
 	if (mfem::Mpi::WorldRank() == 0){
     	device.Print();

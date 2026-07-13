@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <unordered_set>
 
 #include "mfemExtension/BilinearIntegrators.h"
@@ -26,6 +27,11 @@ namespace maxwell {
 	using Normals = std::array<Eigen::VectorXd, 3>;
 
 	struct MatrixCompareLessThan {
+		static constexpr double entryTolerance = 1e-10;
+
+		static long long quantize(const double value) {
+			return std::llround(value / entryTolerance);
+		}
 
 		bool operator()(const Eigen::MatrixXd& lhs, const Eigen::MatrixXd& rhs) const  {
 			if (lhs.rows() < rhs.rows()) {
@@ -44,8 +50,10 @@ namespace maxwell {
 
 			for (int i{ 0 }; i < lhs.rows(); i++) {
 				for (int j{ 0 }; j < lhs.cols(); j++) {
-					if (lhs(i, j) != rhs(i, j)) {
-						return lhs(i, j) < rhs(i, j);
+					const long long lhs_q = quantize(lhs(i, j));
+					const long long rhs_q = quantize(rhs(i, j));
+					if (lhs_q != rhs_q) {
+						return lhs_q < rhs_q;
 					}
 				}
 			}
@@ -101,12 +109,16 @@ namespace maxwell {
 		TotalFieldScatteredFieldMaps TFSF;
 	};
 
+	/// Per global jump slot: 1 if connectivity_.global[v].second is a FaceNbrData index.
+	using GlobalPlusIsFaceNbr = std::vector<uint8_t>;
+
 	class Connectivities {
 	public:
 
 		Connectivities(Model& model, const FiniteElementSpace& fes);
 
 		GlobalConnectivity global;
+		GlobalPlusIsFaceNbr global_plus_is_face_nbr;
 		BoundaryMaps boundary;
 
 	private:
@@ -134,7 +146,7 @@ namespace maxwell {
 
 	struct FieldsElementMaps {
 		FieldsElementMaps(const Vector& in, FiniteElementSpace&, const ElementId& id);
-		std::vector<Eigen::Map<Eigen::VectorXd>> e_, h_;
+		std::vector<Eigen::VectorXd> e_, h_;
 	};
 
 	struct FieldsInputMaps {
@@ -190,6 +202,14 @@ namespace maxwell {
 	InteriorFaceConnectivityMaps mapConnectivity(const BilinearForm* fluxMatrix);
 	Array<int> getFacesForElement(const Mesh&, const ElementId);
 	FaceElementTransformations* getInteriorFaceTransformation(Mesh&, const Array<int>& faces);
-	GlobalConnectivity assembleGlobalConnectivityMap(Mesh&, const L2_FECollection*);
+	GlobalConnectivity assembleGlobalConnectivityMap(FiniteElementSpace& globalFES,
+		const L2_FECollection* fec,
+		GlobalPlusIsFaceNbr* plus_is_nbr = nullptr);
+	void appendSharedFaceConnectivityForElement(ParFiniteElementSpace& fes,
+		FaceElementTransformations& trans,
+		ElementId e,
+		GlobalConnectivity& map,
+		GlobalPlusIsFaceNbr& plus_is_nbr);
+	std::unordered_set<int> buildSharedLocalFaceSet(const ParMesh& pmesh);
 
 }

@@ -933,22 +933,36 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
-    load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
-#else
-    for (int d = X; d <= Z; ++d) {
-        multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
-        multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-    }
-    if (nbrDofs) {
+    if (mfem::Device::Allows(mfem::Backend::CUDA) && mfem::Device::GetGPUAwareMPI()) {
+        load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
+        load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
+    } else if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
+        if (nbrDofs) {
+            for (int d = X; d <= Z; ++d) {
+                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
+                multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            }
+            (void)multWorkVec_.Read();
+        }
+    } else
+#endif
+    {
         for (int d = X; d <= Z; ++d) {
-            mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-            mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
-            multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
+            multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+        }
+        if (nbrDofs) {
+            for (int d = X; d <= Z; ++d) {
+                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
+                multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            }
         }
     }
-#endif
 
     // 4) Apply globalOperator_ (DG flux) 
 #ifdef SHOW_TIMER_INFORMATION
@@ -958,19 +972,9 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         out.SetSize(total_state_size_);
         out.UseDevice(true);
     }
-    if (total_state_size_ > 6 * ndofs) {
-        std::memset(out.GetData() + 6 * ndofs, 0,
-                    static_cast<size_t>(total_state_size_ - 6 * ndofs) * sizeof(double));
-    }
+    out = 0.0;
     if (!shouldSkipGlobalOperatorInMult()) {
         globalOperator_->Mult(multWorkVec_, out);
-    } else {
-        std::memset(out.GetData(), 0,
-                    static_cast<size_t>(6 * ndofs) * sizeof(double));
-        if (total_state_size_ > 6 * ndofs) {
-            std::memset(out.GetData() + 6 * ndofs, 0,
-                        static_cast<size_t>(total_state_size_ - 6 * ndofs) * sizeof(double));
-        }
     }
 #ifdef SHOW_TIMER_INFORMATION
     timerApplyA.Stop();
@@ -1591,9 +1595,19 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         globalOperator_->Mult(x, implicit_rhs_);
     } else {
         // Parallel path: need to exchange face neighbor data
-        for (int d = X; d <= Z; ++d) {
-            std::memcpy(eOld_[d].GetData(), x.GetData() + d * ndofs, ndofs * sizeof(double));
-            std::memcpy(hOld_[d].GetData(), x.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            load_in_to_eh_gpu(x, eOld_, hOld_, ndofs);
+        } else
+#endif
+        {
+            const double* x_host = x.HostRead();
+            for (int d = X; d <= Z; ++d) {
+                double* e_data = eOld_[d].HostWrite();
+                double* h_data = hOld_[d].HostWrite();
+                std::memcpy(e_data, x_host + d * ndofs, ndofs * sizeof(double));
+                std::memcpy(h_data, x_host + (3 + d) * ndofs, ndofs * sizeof(double));
+            }
         }
         for (int d = X; d <= Z; ++d) {
             eOld_[d].ExchangeFaceNbrData();
@@ -1609,6 +1623,11 @@ void GlobalEvolution::ImplicitSolve(const double dt,
             implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
             implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
         }
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            (void)implicit_inNew_.Read();
+        }
+#endif
         globalOperator_->Mult(implicit_inNew_, implicit_rhs_);
     }
 
@@ -1652,9 +1671,19 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         // Large/parallel system: fall back to GMRES
         auto applyA_parallel = [&](const mfem::Vector& u, mfem::Vector& Au)
         {
-            for (int d = X; d <= Z; ++d) {
-                std::memcpy(eOld_[d].GetData(), u.GetData() + d * ndofs, ndofs * sizeof(double));
-                std::memcpy(hOld_[d].GetData(), u.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+                load_in_to_eh_gpu(u, eOld_, hOld_, ndofs);
+            } else
+#endif
+            {
+                const double* u_host = u.HostRead();
+                for (int d = X; d <= Z; ++d) {
+                    double* e_data = eOld_[d].HostWrite();
+                    double* h_data = hOld_[d].HostWrite();
+                    std::memcpy(e_data, u_host + d * ndofs, ndofs * sizeof(double));
+                    std::memcpy(h_data, u_host + (3 + d) * ndofs, ndofs * sizeof(double));
+                }
             }
             for (int d = X; d <= Z; ++d) {
                 eOld_[d].ExchangeFaceNbrData();
@@ -1672,6 +1701,11 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                     implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
                 }
             }
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+                (void)implicit_inNew_.Read();
+            }
+#endif
             globalOperator_->Mult(implicit_inNew_, Au);
         };
 

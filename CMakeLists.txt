@@ -26,6 +26,23 @@ include_directories(
 	src/maxwell/
 )
 
+# MFEM enables CUDA in add_subdirectory(); arch must be fixed in cache first
+# (stale CMAKE_CUDA_ARCHITECTURES=120 from a prior configure breaks nvcc 12).
+if (SEMBA_DGTD_ENABLE_CUDA)
+	if (CUDA_ARCH)
+		string(REGEX REPLACE "^sm_" "" _dgtd_cuda_arch_num "${CUDA_ARCH}")
+		if (NOT CUDA_ARCH STREQUAL "sm_${_dgtd_cuda_arch_num}")
+			message(FATAL_ERROR "Unknown CUDA_ARCH: ${CUDA_ARCH} (expected sm_XX)")
+		endif()
+		set(CMAKE_CUDA_ARCHITECTURES "${_dgtd_cuda_arch_num}" CACHE STRING
+			"CUDA architectures to build for." FORCE)
+	elseif (NOT CMAKE_CUDA_ARCHITECTURES)
+		message(FATAL_ERROR
+			"SEMBA_DGTD_ENABLE_CUDA=ON requires CUDA_ARCH (e.g. sm_89) or CMAKE_CUDA_ARCHITECTURES")
+	endif()
+	message(STATUS "CUDA arch for MFEM + dgtd: sm_${CMAKE_CUDA_ARCHITECTURES}")
+endif()
+
 if (SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY)
 	add_subdirectory(external/mfem-geg)
 else ()

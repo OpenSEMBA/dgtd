@@ -715,9 +715,10 @@ TEST_F(MFEMHesthaven2D, connectivityMapO1)
 {
 	const int basis_order = 1;
 	auto mesh { Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Hesthaven_K2.msh")};
-	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	FiniteElementSpace globalFES(&mesh, &fec);
 
-	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
+	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(globalFES, &fec) };
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({
 		{0,4},
@@ -744,9 +745,10 @@ TEST_F(MFEMHesthaven2D, connectivityMapO2)
 {
 	const int basis_order = 2;
 	auto mesh{ Mesh::LoadFromFile(gmshMeshesFolder() + "2D_Hesthaven_K2.msh") };
-	auto fes{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	auto fec{ L2_FECollection(basis_order, 2, BasisType::GaussLobatto) };
+	FiniteElementSpace globalFES(&mesh, &fec);
 
-	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(mesh,&fes) };
+	GlobalConnectivity element_connectivity_map{ assembleGlobalConnectivityMap(globalFES, &fec) };
 
 	std::vector<std::pair<int, int>> expected_connectivity_pairs({ 
 		{0,8},   

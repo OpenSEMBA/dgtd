@@ -22,7 +22,7 @@ public:
     // Fast direct planewave evaluation (bypasses ProjectCoefficient).
     // Must be called after initTFSFPreReqs().
     void initDirectPlanewaveEval();
-    void evalTimeVarFieldDirect(Time time);
+    void evalTimeVarFieldDirect(Time time, bool apply_tfsf_sign = true);
     bool hasDirectEval() const { return direct_eval_ready_; }
 
     // Pre-computed TF/SF sign mask: +0.5 for TF DOFs, -0.5 for SF, +1 if no SF.
@@ -30,6 +30,9 @@ public:
 
     // Return reference to cached field grid functions (for fast path).
     const FieldGridFuncs& getCachedTFSFFields() const { return cached_tfsf_fields_; }
+
+    /// Find global TFSF submesh DOF whose coords match @a pos (requires initDirectPlanewaveEval).
+    int findTFSFDofAtPosition(const Source::Position& pos, double tol = 1e-10) const;
 
     Sources sources;
 
