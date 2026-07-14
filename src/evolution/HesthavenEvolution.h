@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <array>
+#include <memory>
 
 namespace maxwell {
 
@@ -80,6 +81,13 @@ struct HesthavenGPUData {
 	mfem::Array<int> d_tfsf_src_dof;
 
 	bool has_tfsf = false;
+
+	bool curved_initialized = false;
+	int n_curved_rows = 0;
+	int curved_full_size = 0;
+	mfem::Vector d_ext_in;
+	mfem::Vector d_curved_y;
+	mfem::Array<int> d_curved_row_to_out;
 };
 #endif
 
@@ -105,6 +113,7 @@ private:
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	void MultGPU(const mfem::Vector& in, mfem::Vector& out) const;
 	void initGPUData();
+	void initGPUCurvedData();
 	void initGPUBoundaryData();
 #endif
 	void exchangeFieldData(const mfem::Vector& in, bool for_gpu_mult) const;
@@ -142,6 +151,7 @@ private:
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	mutable HesthavenGPUData gpu_;
+	mutable std::unique_ptr<mfem::SparseMatrix> curved_merged_matrix_;
 	bool has_tfsf_gpu_ = false;
 #endif
 };
@@ -168,6 +178,14 @@ void hesthaven_apply_bc_gpu(HesthavenGPUData& gpu,
 void hesthaven_scatter_tfsf_to_jumps_gpu(HesthavenGPUData& gpu,
                                          const FieldGridFuncs& tfsf_fields,
                                          int jumps_size);
+
+void hesthaven_add_curved_gpu(HesthavenGPUData& gpu,
+                              mfem::SparseMatrix& curved_merged,
+                              const std::array<mfem::ParGridFunction, 3>& eOld,
+                              const std::array<mfem::ParGridFunction, 3>& hOld,
+                              mfem::Vector& out,
+                              int ndofs,
+                              int nbr_size);
 #endif
 
 } // namespace maxwell

@@ -225,6 +225,16 @@ void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 
 	const int ndofs = fes_.GetNDofs();
 	const int nbrDofs = fes_.num_face_nbr_dofs;
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	if (gpu_.curved_initialized && curved_merged_matrix_ &&
+	    mfem::Device::Allows(mfem::Backend::CUDA) && out.UseDevice()) {
+		hesthaven_add_curved_gpu(gpu_, *curved_merged_matrix_, eOld_, hOld_, out,
+		                         ndofs, nbrDofs);
+		return;
+	}
+#endif
+
 	const int blockSize = ndofs + nbrDofs;
 	const int localSize = numberOfFieldComponents * numberOfMaxDimensions * ndofs;
 	const int fullSize = numberOfFieldComponents * numberOfMaxDimensions * blockSize;
@@ -715,6 +725,9 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	if (linearElements_.Size() > 0 && refLIFT_.size() > 0) {
 		initGPUData();
+	}
+	if (!hestElemCurvedStorage_.empty()) {
+		initGPUCurvedData();
 	}
 #endif
 
@@ -1282,6 +1295,62 @@ void HesthavenEvolution::initGPUData()
 	gpu_.initialized = true;
 }
 
+void HesthavenEvolution::initGPUCurvedData()
+{
+	if (!mfem::Device::Allows(mfem::Backend::CUDA)) {
+		return;
+	}
+	if (hestElemCurvedStorage_.empty()) {
+		return;
+	}
+
+	const int ndofs = fes_.GetNDofs();
+	const int nbrDofs = fes_.num_face_nbr_dofs;
+	const int blockSize = ndofs + nbrDofs;
+	const int ncomp = numberOfFieldComponents * numberOfMaxDimensions;
+	const int fullSize = ncomp * blockSize;
+
+	int n_rows = 0;
+	for (const auto& curved : hestElemCurvedStorage_) {
+		n_rows += curved.dofs.Size() * ncomp;
+	}
+	if (n_rows == 0) {
+		return;
+	}
+
+	curved_merged_matrix_ = std::make_unique<SparseMatrix>(n_rows, fullSize);
+	gpu_.d_curved_row_to_out.SetSize(n_rows);
+	gpu_.d_curved_row_to_out.GetMemory().UseDevice(true);
+
+	int row = 0;
+	int* row_to_out = gpu_.d_curved_row_to_out.HostWrite();
+	for (const auto& curved : hestElemCurvedStorage_) {
+		for (int ii = 0; ii < curved.dofs.Size(); ++ii) {
+			const int dof = curved.dofs[ii];
+			for (int c = 0; c < ncomp; ++c) {
+				const int global_row = c * ndofs + dof;
+				Array<int> cols;
+				Vector vals;
+				curved.matrix.GetRow(global_row, cols, vals);
+				curved_merged_matrix_->SetRow(row, cols, vals);
+				row_to_out[row] = global_row;
+				++row;
+			}
+		}
+	}
+	curved_merged_matrix_->Finalize();
+
+	gpu_.n_curved_rows = n_rows;
+	gpu_.curved_full_size = fullSize;
+	gpu_.d_ext_in.SetSize(fullSize);
+	gpu_.d_ext_in.UseDevice(true);
+	gpu_.d_curved_y.SetSize(n_rows);
+	gpu_.d_curved_y.UseDevice(true);
+	(void)gpu_.d_curved_row_to_out.Read();
+
+	gpu_.curved_initialized = true;
+}
+
 void HesthavenEvolution::initGPUBoundaryData()
 {
 	const BoundaryMaps& bdr = connectivity_->boundary;
@@ -1645,10 +1714,50 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 		lastPrintTime = currentTime;
 	}
 #endif
-
-	// Curved path may update the host copy; sync host→device for the ODE integrator.
-	(void)out.ReadWrite();
 }
+
+void hesthaven_add_curved_gpu(HesthavenGPUData& gpu,
+                              mfem::SparseMatrix& curved_merged,
+                              const std::array<mfem::ParGridFunction, 3>& eOld,
+                              const std::array<mfem::ParGridFunction, 3>& hOld,
+                              mfem::Vector& out,
+                              int ndofs,
+                              int nbr_size)
+{
+	const int blockSize = ndofs + nbr_size;
+	const int fullSize = gpu.curved_full_size;
+
+	// Assemble ext_in on host (same path as CPU Mult) so halo data matches jumps.
+	mfem::Vector ext_in(fullSize);
+	ext_in.UseDevice(false);
+	ext_in = 0.0;
+	for (int d = maxwell::X; d <= maxwell::Z; ++d) {
+		ext_in.SetVector(eOld[d],       d      * blockSize);
+		ext_in.SetVector(hOld[d],  (3 + d) * blockSize);
+		if (nbr_size > 0) {
+			ext_in.SetVector(eOld[d].FaceNbrData(),      d      * blockSize + ndofs);
+			ext_in.SetVector(hOld[d].FaceNbrData(), (3 + d) * blockSize + ndofs);
+		}
+	}
+
+	std::memcpy(gpu.d_ext_in.HostWrite(), ext_in.HostRead(),
+	            static_cast<size_t>(fullSize) * sizeof(double));
+	(void)gpu.d_ext_in.Read();
+
+	gpu.d_curved_y = 0.0;
+	curved_merged.AddMult(gpu.d_ext_in, gpu.d_curved_y, 1.0);
+
+	// GPU SpMV done; merge curved increments on host (proven coupling path).
+	const double* y_host = gpu.d_curved_y.HostRead();
+	const int* map_host = gpu.d_curved_row_to_out.HostRead();
+	(void)out.HostRead();
+	double* out_host = out.HostWrite();
+	for (int k = 0; k < gpu.n_curved_rows; ++k) {
+		out_host[map_host[k]] += y_host[k];
+	}
+	(void)out.Read();
+}
+
 #endif
 
-}
+} // namespace maxwell
