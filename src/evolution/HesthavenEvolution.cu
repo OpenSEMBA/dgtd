@@ -139,19 +139,19 @@ void hesthaven_scatter_tfsf_to_jumps_gpu(HesthavenGPUData& gpu,
         const double hh1 = h1[src];
         const double hh2 = h2[src];
 
-        jumps_e[0 * jumps_size + jsf] -= ee0;
-        jumps_e[1 * jumps_size + jsf] -= ee1;
-        jumps_e[2 * jumps_size + jsf] -= ee2;
-        jumps_h[0 * jumps_size + jsf] -= hh0;
-        jumps_h[1 * jumps_size + jsf] -= hh1;
-        jumps_h[2 * jumps_size + jsf] -= hh2;
+        jumps_e[0 * jumps_size + jsf] += ee0;
+        jumps_e[1 * jumps_size + jsf] += ee1;
+        jumps_e[2 * jumps_size + jsf] += ee2;
+        jumps_h[0 * jumps_size + jsf] += hh0;
+        jumps_h[1 * jumps_size + jsf] += hh1;
+        jumps_h[2 * jumps_size + jsf] += hh2;
 
-        jumps_e[0 * jumps_size + jtf] += ee0;
-        jumps_e[1 * jumps_size + jtf] += ee1;
-        jumps_e[2 * jumps_size + jtf] += ee2;
-        jumps_h[0 * jumps_size + jtf] += hh0;
-        jumps_h[1 * jumps_size + jtf] += hh1;
-        jumps_h[2 * jumps_size + jtf] += hh2;
+        jumps_e[0 * jumps_size + jtf] -= ee0;
+        jumps_e[1 * jumps_size + jtf] -= ee1;
+        jumps_e[2 * jumps_size + jtf] -= ee2;
+        jumps_h[0 * jumps_size + jtf] -= hh0;
+        jumps_h[1 * jumps_size + jtf] -= hh1;
+        jumps_h[2 * jumps_size + jtf] -= hh2;
     });
 }
 

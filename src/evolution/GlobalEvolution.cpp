@@ -922,6 +922,11 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         eOld_[d].ExchangeFaceNbrData();
         hOld_[d].ExchangeFaceNbrData();
     }
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA) && nbrDofs > 0) {
+        sync_cuda_face_nbr_halos(eOld_, hOld_);
+    }
+#endif
 #ifdef SHOW_TIMER_INFORMATION
     timerExchange.Stop();
 #endif
@@ -933,19 +938,10 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    if (mfem::Device::Allows(mfem::Backend::CUDA) && mfem::Device::GetGPUAwareMPI()) {
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
         load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
-        load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
-    } else if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-        load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
-        if (nbrDofs) {
-            for (int d = X; d <= Z; ++d) {
-                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
-                multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
-            }
-            (void)multWorkVec_.Read();
+        if (nbrDofs > 0) {
+            load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
         }
     } else
 #endif
@@ -1613,21 +1609,29 @@ void GlobalEvolution::ImplicitSolve(const double dt,
             eOld_[d].ExchangeFaceNbrData();
             hOld_[d].ExchangeFaceNbrData();
         }
-        for (int d = X; d <= Z; ++d) {
-            implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
-            implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-        }
-        for (int d = X; d <= Z; ++d) {
-            mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-            mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-            implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
-        }
 #ifdef SEMBA_DGTD_ENABLE_CUDA
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            (void)implicit_inNew_.Read();
-        }
+            if (nbrDofs > 0) {
+                sync_cuda_face_nbr_halos(eOld_, hOld_);
+            }
+            load_eh_to_innew_gpu(x, implicit_inNew_, ndofs, nbrDofs);
+            if (nbrDofs > 0) {
+                load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
+            }
+        } else
 #endif
+        {
+            for (int d = X; d <= Z; ++d) {
+                implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
+                implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+            }
+            for (int d = X; d <= Z; ++d) {
+                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+                implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            }
+        }
         globalOperator_->Mult(implicit_inNew_, implicit_rhs_);
     }
 
@@ -1689,23 +1693,31 @@ void GlobalEvolution::ImplicitSolve(const double dt,
                 eOld_[d].ExchangeFaceNbrData();
                 hOld_[d].ExchangeFaceNbrData();
             }
-            for (int d = X; d <= Z; ++d) {
-                implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
-                implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-            }
-            if (nbrDofs) {
-                for (int d = X; d <= Z; ++d) {
-                    mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-                    mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                    implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-                    implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
-                }
-            }
 #ifdef SEMBA_DGTD_ENABLE_CUDA
             if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-                (void)implicit_inNew_.Read();
-            }
+                if (nbrDofs > 0) {
+                    sync_cuda_face_nbr_halos(eOld_, hOld_);
+                }
+                load_eh_to_innew_gpu(u, implicit_inNew_, ndofs, nbrDofs);
+                if (nbrDofs > 0) {
+                    load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
+                }
+            } else
 #endif
+            {
+                for (int d = X; d <= Z; ++d) {
+                    implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
+                    implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+                }
+                if (nbrDofs) {
+                    for (int d = X; d <= Z; ++d) {
+                        mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                        mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                        implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+                        implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+                    }
+                }
+            }
             globalOperator_->Mult(implicit_inNew_, Au);
         };
 

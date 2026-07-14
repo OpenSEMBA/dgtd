@@ -400,4 +400,54 @@ TEST(HesthavenOperatorBenchmark, GPU_Mult_TFSF_matches_CPU_Mult)
 		EXPECT_LT(dist / norm_cpu, 1e-9);
 	}
 }
+
+TEST(HesthavenOperatorBenchmark, GPU_Mult_matches_CPU_Mult_G2_Circle)
+{
+	if (!Device::Allows(Backend::CUDA)) {
+		GTEST_SKIP() << "CUDA backend not active.";
+	}
+	if (Mpi::WorldSize() > 1) {
+		GTEST_SKIP() << "GPU agreement reference uses undivided mesh; run with np=1.";
+	}
+
+	auto case_data = parseJSONfile(maxwellCase("2D_RCS_Circle_G2_hesthaven"));
+	case_data["solver_options"]["evolution_operator"] = "hesthaven";
+	auto solver = buildSolver(case_data, maxwellCase("2D_RCS_Circle_G2_hesthaven"), true);
+	auto* hest = dynamic_cast<HesthavenEvolution*>(solver.getEvolTDO());
+	ASSERT_NE(nullptr, hest);
+
+	const int ndofs = solver.getFES().GetNDofs();
+	Vector x(6 * ndofs), y_cpu(6 * ndofs), y_gpu(6 * ndofs);
+	x.UseDevice(true);
+	y_cpu.UseDevice(false);
+	y_gpu.UseDevice(true);
+	x = 0.0;
+	for (int i = 0; i < x.Size(); ++i) {
+		x.HostWrite()[i] = 0.1 * std::sin(0.19 * i);
+	}
+
+	hest->SetTime(0.25);
+	hest->benchmarkMultCPU(x, y_cpu);
+	hest->Mult(x, y_gpu);
+
+	y_cpu.HostRead();
+	y_gpu.HostRead();
+	const double dist = hostL2Distance(y_cpu, y_gpu);
+	const double norm_cpu = hostL2Norm(y_cpu);
+	double dot = 0.0;
+	for (int i = 0; i < y_cpu.Size(); ++i) {
+		dot += y_cpu.HostRead()[i] * y_gpu.HostRead()[i];
+	}
+	if (Mpi::WorldRank() == 0) {
+		std::cout << "[Hesthaven GPU G2] ||y_cpu - y_gpu||_2 = " << dist
+		          << " (rel " << dist / std::max(norm_cpu, 1e-30)
+		          << ", dot=" << dot << ", norm_cpu=" << norm_cpu
+		          << ", norm_gpu=" << hostL2Norm(y_gpu) << ")\n";
+	}
+	EXPECT_LT(dist, 1e-8);
+	if (norm_cpu > 1e-12) {
+		EXPECT_LT(dist / norm_cpu, 1e-8);
+		EXPECT_GT(dot, 0.0);
+	}
+}
 #endif

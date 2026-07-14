@@ -142,6 +142,11 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
                    const int ndofs,
                    const int nbrSize);
 
+/// After ExchangeFaceNbrData(), push host-received halos to device when
+/// GPU-aware MPI is disabled (MFEM receives into HostWrite()).
+void sync_cuda_face_nbr_halos(const std::array<mfem::ParGridFunction, 3>& eOld,
+                              const std::array<mfem::ParGridFunction, 3>& hOld);
+
 void scatter_tfsf_to_assembled_gpu(const mfem::Array<int>& sub_to_parent,
                                    const FieldGridFuncs& func,
                                    mfem::Vector& assembled,

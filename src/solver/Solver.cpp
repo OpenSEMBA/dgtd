@@ -602,10 +602,22 @@ void Solver::step(bool update_probes)
 
     if (update_probes) {
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-        // Point probes use host-side GridFunction::GetValue / GetSubVector.
+        // Probes and ParaView use host-side GridFunction::GetValue on MakeRef views.
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            fields_.allDOFs().HostReadWrite();
+            MFEM_STREAM_SYNC;
+            fields_.allDOFs().HostRead();
+            for (int d = X; d <= Z; ++d) {
+                fields_.get(E, d).HostRead();
+                fields_.get(H, d).HostRead();
+            }
+            fields_.get(E).HostRead();
+            fields_.get(H).HostRead();
             fes_->ExchangeFaceNbrData();
+            fes_->GetParMesh()->ExchangeFaceNbrData();
+            for (int d = X; d <= Z; ++d) {
+                fields_.get(E, d).ExchangeFaceNbrData();
+                fields_.get(H, d).ExchangeFaceNbrData();
+            }
         }
 #endif
         probesManager_.updateProbes(time_);

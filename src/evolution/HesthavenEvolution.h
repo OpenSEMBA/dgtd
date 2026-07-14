@@ -91,6 +91,7 @@ public:
 
 	HesthavenEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
 	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
+	mfem::MemoryClass GetMemoryClass() const override;
 
 	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemLinearStorage_[e]; }
 

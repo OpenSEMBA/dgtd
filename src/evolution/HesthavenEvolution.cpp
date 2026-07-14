@@ -31,11 +31,12 @@ bool hesthavenGpuMultViable()
 
 void hesthaven_sync_gpu_static_data(HesthavenGPUData& gpu)
 {
+	// HostWrite() fills above; push to device only (ReadWrite would pull stale device data).
 	auto sync_vec = [](mfem::Vector& v) {
-		if (v.Size() > 0) { (void)v.ReadWrite(); }
+		if (v.Size() > 0) { (void)v.Read(); }
 	};
 	auto sync_arr = [](auto& a) {
-		if (a.Size() > 0) { (void)a.ReadWrite(); }
+		if (a.Size() > 0) { (void)a.Read(); }
 	};
 
 	sync_vec(gpu.d_matrices);
@@ -176,10 +177,11 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 				for (int d : { X, Y, Z }) {
 					fields[E][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), E, d);
 					fields[H][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), H, d);
-					out.e_[d][mapBSF[m][v]] -= fields[E][d];
-					out.h_[d][mapBSF[m][v]] -= fields[H][d];
-					out.e_[d][mapBTF[m][v]] += fields[E][d];
-					out.h_[d][mapBTF[m][v]] += fields[H][d];
+					// Sign matches GlobalEvolution (out -= TFSFOp * planewave).
+					out.e_[d][mapBSF[m][v]] += fields[E][d];
+					out.h_[d][mapBSF[m][v]] += fields[H][d];
+					out.e_[d][mapBTF[m][v]] -= fields[E][d];
+					out.h_[d][mapBTF[m][v]] -= fields[H][d];
 				}
 			}
 		}
@@ -204,10 +206,10 @@ void HesthavenEvolution::evaluateTFSF(double* e_jumps, double* h_jumps, int jump
 				for (int d : { X, Y, Z }) {
 					fields[E][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), E, d);
 					fields[H][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), H, d);
-					e_jumps[d * jumps_size + mapBSF[m][v]] -= fields[E][d];
-					h_jumps[d * jumps_size + mapBSF[m][v]] -= fields[H][d];
-					e_jumps[d * jumps_size + mapBTF[m][v]] += fields[E][d];
-					h_jumps[d * jumps_size + mapBTF[m][v]] += fields[H][d];
+					e_jumps[d * jumps_size + mapBSF[m][v]] += fields[E][d];
+					h_jumps[d * jumps_size + mapBSF[m][v]] += fields[H][d];
+					e_jumps[d * jumps_size + mapBTF[m][v]] -= fields[E][d];
+					h_jumps[d * jumps_size + mapBTF[m][v]] -= fields[H][d];
 				}
 			}
 		}
@@ -226,8 +228,10 @@ void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 	const int blockSize = ndofs + nbrDofs;
 	const int localSize = numberOfFieldComponents * numberOfMaxDimensions * ndofs;
 	const int fullSize = numberOfFieldComponents * numberOfMaxDimensions * blockSize;
+	const int ncomp = numberOfFieldComponents * numberOfMaxDimensions;
 
 	Vector ext_in(fullSize);
+	ext_in.UseDevice(false);
 	ext_in = 0.0;
 	for (int d = X; d <= Z; ++d) {
 		ext_in.SetVector(eOld_[d],       d      * blockSize);
@@ -239,11 +243,34 @@ void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 	}
 
 	Vector curved_out(localSize);
+	curved_out.UseDevice(false);
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	const bool out_is_device =
+	    mfem::Device::Allows(mfem::Backend::CUDA) && out.UseDevice();
+	if (out_is_device) {
+		(void)out.HostRead();
+	}
+#endif
+
+	double* out_data = out.HostWrite();
 	for (const auto& curved : hestElemCurvedStorage_) {
 		curved_out = 0.0;
 		curved.matrix.AddMult(ext_in, curved_out);
-		out += curved_out;
+		const double* co = curved_out.HostRead();
+		for (int ii = 0; ii < curved.dofs.Size(); ++ii) {
+			const int dof = curved.dofs[ii];
+			for (int c = 0; c < ncomp; ++c) {
+				out_data[c * ndofs + dof] += co[c * ndofs + dof];
+			}
+		}
 	}
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	if (out_is_device) {
+		(void)out.Read();
+	}
+#endif
 }
 
 const Eigen::VectorXd HesthavenEvolution::applyLIFT(const Eigen::VectorXd& fscale, Eigen::VectorXd& flux) const
@@ -789,6 +816,11 @@ void HesthavenEvolution::exchangeFieldData(const Vector& in, bool for_gpu_mult) 
 		eOld_[d].ExchangeFaceNbrData();
 		hOld_[d].ExchangeFaceNbrData();
 	}
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	if (mfem::Device::Allows(mfem::Backend::CUDA) && fes_.num_face_nbr_dofs > 0) {
+		sync_cuda_face_nbr_halos(eOld_, hOld_);
+	}
+#endif
 }
 
 void HesthavenEvolution::computeJumps(const Vector& in, HesthavenFields& jumps) const
@@ -824,6 +856,16 @@ void HesthavenEvolution::Mult(const Vector& in, Vector& out) const
 	}
 #endif
 	MultCPU(in, out);
+}
+
+mfem::MemoryClass HesthavenEvolution::GetMemoryClass() const
+{
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	if (gpu_.initialized && hesthavenGpuMultViable()) {
+		return mfem::MemoryClass::DEVICE;
+	}
+#endif
+	return mfem::MemoryClass::HOST;
 }
 
 void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
@@ -946,12 +988,6 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 #endif
 
 	addCurvedElementContributions(out);
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-	if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-		(void)out.ReadWrite();
-	}
-#endif
 
 #ifdef SHOW_TIMER_INFORMATION
 	{
@@ -1448,8 +1484,9 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 			            jumps.h_[d].data(),
 			            static_cast<size_t>(js) * sizeof(double));
 		}
-		gpu_.d_jumps_e.ReadWrite();
-		gpu_.d_jumps_h.ReadWrite();
+		// HostWrite above; push to device only (ReadWrite would pull stale device data).
+		(void)gpu_.d_jumps_e.Read();
+		(void)gpu_.d_jumps_h.Read();
 
 #ifdef SHOW_TIMER_INFORMATION
 		if (gpu_.has_tfsf) {
@@ -1474,7 +1511,7 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 
 	if (linearElements_.Size() > 0) {
 		// Jump path used HostRead(); push the same state to device for the element kernel.
-		const_cast<mfem::Vector&>(in).ReadWrite();
+		const_cast<mfem::Vector&>(in).Read();
 		hesthaven_mult_gpu(gpu_, opts_.alpha, in, eOld_, hOld_, out, ndofs);
 	}
 
@@ -1609,8 +1646,7 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 	}
 #endif
 
-	// Host-side TFSF / debug reads may have touched 'out'; sync so the ODE integrator
-	// sees a consistent device-authoritative rate vector (same as GlobalEvolution).
+	// Curved path may update the host copy; sync host→device for the ODE integrator.
 	(void)out.ReadWrite();
 }
 #endif

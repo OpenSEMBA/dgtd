@@ -48,6 +48,17 @@ void load_eh_to_innew_gpu(const mfem::Vector& in,
     });
 }
 
+void sync_cuda_face_nbr_halos(const std::array<mfem::ParGridFunction, 3>& eOld,
+                              const std::array<mfem::ParGridFunction, 3>& hOld)
+{
+    for (int d = 0; d < 3; ++d) {
+        if (eOld[d].FaceNbrData().Size() > 0) {
+            (void)eOld[d].FaceNbrData().Read();
+            (void)hOld[d].FaceNbrData().Read();
+        }
+    }
+}
+
 void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
                    const std::array<mfem::ParGridFunction, 3>& hOldNbr,
                    mfem::Vector& inNew,
