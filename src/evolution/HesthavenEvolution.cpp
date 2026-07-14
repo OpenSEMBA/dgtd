@@ -813,10 +813,13 @@ void HesthavenEvolution::exchangeFieldData(const Vector& in, bool for_gpu_mult) 
 		}
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 		if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+			// HostWrite above; push to device (Write() would not copy and MPI send
+			// in ExchangeFaceNbrData reads stale device DOFs).
 			for (int d = X; d <= Z; ++d) {
-				eOld_[d].Write();
-				hOld_[d].Write();
+				(void)eOld_[d].Read();
+				(void)hOld_[d].Read();
 			}
+			MFEM_STREAM_SYNC;
 		}
 #endif
 	}
@@ -829,11 +832,6 @@ void HesthavenEvolution::exchangeFieldData(const Vector& in, bool for_gpu_mult) 
 		eOld_[d].ExchangeFaceNbrData();
 		hOld_[d].ExchangeFaceNbrData();
 	}
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-	if (mfem::Device::Allows(mfem::Backend::CUDA) && fes_.num_face_nbr_dofs > 0) {
-		sync_cuda_face_nbr_halos(eOld_, hOld_);
-	}
-#endif
 }
 
 void HesthavenEvolution::computeJumps(const Vector& in, HesthavenFields& jumps) const
@@ -1533,7 +1531,7 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 	timerJumps.Start();
 #endif
 
-	// Jumps, BC, and TFSF on host (same as MultCPU); push to device for the element kernel.
+	// Jumps, BC, and TFSF on host; MPI face-neighbor data arrives in host buffers.
 	{
 		(void)in.HostRead();
 		auto jumps{ HesthavenFields(gpu_.jumps_size) };
@@ -1556,6 +1554,13 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 		// HostWrite above; push to device only (ReadWrite would pull stale device data).
 		(void)gpu_.d_jumps_e.Read();
 		(void)gpu_.d_jumps_h.Read();
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+		// Upload MPI halos to device only after host-side jump assembly is done.
+		if (mfem::Device::Allows(mfem::Backend::CUDA) && fes_.num_face_nbr_dofs > 0) {
+			sync_cuda_face_nbr_halos(eOld_, hOld_);
+		}
+#endif
 
 #ifdef SHOW_TIMER_INFORMATION
 		if (gpu_.has_tfsf) {

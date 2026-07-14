@@ -390,6 +390,19 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     }
     MPI_Barrier(comm);
 
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA) && fields_) {
+        MFEM_STREAM_SYNC;
+        fields_->allDOFs().HostRead();
+        for (int d = X; d <= Z; ++d) {
+            fields_->get(E, d).HostRead();
+            fields_->get(H, d).HostRead();
+        }
+        fields_->get(E).HostRead();
+        fields_->get(H).HostRead();
+    }
+#endif
+
     pd.Save();
 }
 
