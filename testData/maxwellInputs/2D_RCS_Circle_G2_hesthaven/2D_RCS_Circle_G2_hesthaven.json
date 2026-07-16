@@ -35,7 +35,7 @@
   },
   "probes": {
     "exporter": {
-      "saves": 30
+      "saves": 10
     },
     "point": [
       {
@@ -43,7 +43,7 @@
           -2.0,
           0.0
         ],
-        "saves": 2
+        "saves": 25
       }
     ],
     "rcssurface": [
