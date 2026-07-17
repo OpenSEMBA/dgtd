@@ -45,6 +45,44 @@ static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
     return tags;
 }
 
+static void logTFSFPartitionFaceCoverage(mfem::ParMesh& mesh,
+                                         const mfem::Array<int>& marker)
+{
+    if (marker.Size() == 0) return;
+    bool any_tag = false;
+    for (int i = 0; i < marker.Size(); ++i) {
+        if (marker[i] != 0) { any_tag = true; break; }
+    }
+    if (!any_tag) return;
+
+    int local_ibfi = 0;
+    int local_bfi = 0;
+    for (int b = 0; b < mesh.GetNBE(); ++b) {
+        const int attr = mesh.GetBdrAttribute(b) - 1;
+        if (attr < 0 || attr >= marker.Size() || marker[attr] == 0) continue;
+        if (mesh.GetInternalBdrFaceTransformations(b) != nullptr) {
+            ++local_ibfi;
+        } else {
+            ++local_bfi;
+        }
+    }
+
+    const MPI_Comm comm = mesh.GetComm();
+    int global_ibfi = 0;
+    int global_bfi = 0;
+    MPI_Allreduce(&local_ibfi, &global_ibfi, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&local_bfi, &global_bfi, 1, MPI_INT, MPI_SUM, comm);
+
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[TFSF] face coverage across ranks: IBFI=" << global_ibfi
+                  << " BFI(partition-boundary)=" << global_bfi;
+        if (global_bfi > 0) {
+            std::cout << "  (BFI path active for MPI partition faces)";
+        }
+        std::cout << std::endl;
+    }
+}
+
 GlobalEvolution::GlobalEvolution(
     mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes, double final_time) :
     mfem::TimeDependentOperator([&]() {
@@ -383,7 +421,10 @@ GlobalEvolution::GlobalEvolution(
     }
 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
+        MPI_Barrier(MPI_COMM_WORLD);
         TFSFOperator_ = dgops.buildTFSFGlobalOperator();
+        logTFSFPartitionFaceCoverage(model_.getMesh(),
+            model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
 
         if (opts_.export_evolution_operator) {
             if (Mpi::WorldSize() == 1) {
