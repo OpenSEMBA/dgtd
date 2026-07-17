@@ -1692,9 +1692,16 @@ namespace maxwell
 		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
 
 		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			// Interior-boundary faces (both elems local): IBFI path.
 			this->template addGlobalSourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
 			this->template addGlobalSourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
 			this->template addGlobalSourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			// MPI partition faces (Elem2 on another rank): same Jump source via BFI,
+			// mirroring buildSGBCGlobalOperator(). Without this, tagged TFSF faces that
+			// appear as mesh boundaries on a rank inject nothing.
+			this->template addGlobalBoundarySourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addGlobalBoundarySourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addGlobalBoundarySourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
 		} else {
 			auto MInvSerial = buildMaxwellInverseMassMatrixOperator<BilinearForm>();
 			this->template addGlobalSourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
