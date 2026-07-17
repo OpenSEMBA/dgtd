@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace maxwell {
@@ -671,13 +672,11 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
 {
-	// Compute centroid of all TFSF boundary vertices.
-	// For a convex TFSF surface the centroid lies inside the TF region,
-	// so the element whose barycenter is closer to it is the TF element.
-	// This is invariant to face-normal orientation and handles corner
-	// elements (adjacent to multiple TFSF faces) consistently.
-	Vector tfsf_center(3);
-	tfsf_center = 0.0;
+	// Density-independent AABB center of the TFSF surface.  A vertex-weighted
+	// centroid is pulled toward finely meshed faces (e.g. tag 8 / +Y on G2),
+	// which can flip TF/SF on skinny corner tets via Euclidean distance.
+	Vector tfsf_min(3), tfsf_max(3), tfsf_center(3);
+	tfsf_min = 1e300; tfsf_max = -1e300; tfsf_center = 0.0;
 	int n_verts = 0;
 	std::set<int> counted;
 	for (int be = 0; be < m.GetNBE(); be++) {
@@ -685,14 +684,23 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 		Array<int> verts;
 		m.GetBdrElementVertices(be, verts);
 		for (int i = 0; i < verts.Size(); i++) {
-			if (counted.insert(verts[i]).second) {
-				auto* v = m.GetVertex(verts[i]);
-				for (int d = 0; d < 3; d++) tfsf_center[d] += v[d];
-				n_verts++;
+			if (!counted.insert(verts[i]).second) continue;
+			auto* v = m.GetVertex(verts[i]);
+			for (int d = 0; d < 3; d++) {
+				tfsf_min[d] = std::min(tfsf_min[d], v[d]);
+				tfsf_max[d] = std::max(tfsf_max[d], v[d]);
 			}
+			n_verts++;
 		}
 	}
-	if (n_verts > 0) tfsf_center /= double(n_verts);
+	if (n_verts == 0) return;
+	for (int d = 0; d < 3; d++) {
+		tfsf_center[d] = 0.5 * (tfsf_min[d] + tfsf_max[d]);
+	}
+
+	// Track per-element TF/SF votes so multi-face (edge/corner) conflicts are visible.
+	std::unordered_map<int, int> tf_votes; // >0 => TF, <0 => SF
+	int n_conflicts = 0;
 
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -704,33 +712,62 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto fe_trans{ getFaceElementTransformation(m,be) };
 			m.GetElementFaces(fe_trans->Elem1No, el1_face, el1_ori);
 
-			// Determine TF/SF by centroid distance: closer to center = TF.
-			Vector bary1 = getBarycenterOfElement(m, fe_trans->Elem1No);
-			double dist1_sq = 0.0;
+			// Classify by which side of the face plane contains the AABB center.
+			// Inward normal points toward tfsf_center; TF = element on the inward side.
+			Vector face_bary = getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be));
+			Vector n = buildNormal3D(m, be);
+			double n_norm = n.Norml2();
+			if (n_norm > 0.0) n /= n_norm;
+			Vector to_center(3);
 			for (int d = 0; d < 3; d++) {
-				double diff = bary1[d] - tfsf_center[d];
-				dist1_sq += diff * diff;
+				to_center[d] = tfsf_center[d] - face_bary[d];
+			}
+			if (mfem::InnerProduct(to_center, n) < 0.0) {
+				n *= -1.0;
 			}
 
-			bool elem1_is_tf;
+			Vector bary1 = getBarycenterOfElement(m, fe_trans->Elem1No);
+			Vector d1(3);
+			for (int d = 0; d < 3; d++) {
+				d1[d] = bary1[d] - face_bary[d];
+			}
+			bool elem1_is_tf = mfem::InnerProduct(d1, n) > 0.0;
+
 			if (fe_trans->Elem2No >= 0) {
 				Vector bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
-				double dist2_sq = 0.0;
+				Vector d2(3);
 				for (int d = 0; d < 3; d++) {
-					double diff = bary2[d] - tfsf_center[d];
-					dist2_sq += diff * diff;
+					d2[d] = bary2[d] - face_bary[d];
 				}
-				elem1_is_tf = dist1_sq < dist2_sq;
+				const bool elem2_is_tf = mfem::InnerProduct(d2, n) > 0.0;
+				// Degenerate / nearly coplanar: fall back to AABB-center distance.
+				if (elem1_is_tf == elem2_is_tf) {
+					double dist1_sq = 0.0, dist2_sq = 0.0;
+					for (int d = 0; d < 3; d++) {
+						double a = bary1[d] - tfsf_center[d];
+						double b = bary2[d] - tfsf_center[d];
+						dist1_sq += a * a;
+						dist2_sq += b * b;
+					}
+					elem1_is_tf = dist1_sq < dist2_sq;
+				}
 			}
-			else {
-				// Boundary face with no Elem2: compare element to face barycenter
-				Vector face_bary = getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be));
-				double face_dist_sq = 0.0;
-				for (int d = 0; d < 3; d++) {
-					double diff = face_bary[d] - tfsf_center[d];
-					face_dist_sq += diff * diff;
+
+			auto recordVote = [&](int elem, bool is_tf) {
+				const int vote = is_tf ? 1 : -1;
+				auto it = tf_votes.find(elem);
+				if (it == tf_votes.end()) {
+					tf_votes[elem] = vote;
+				} else if ((it->second > 0) != is_tf) {
+					++n_conflicts;
+					it->second += vote;
+				} else {
+					it->second += vote;
 				}
-				elem1_is_tf = dist1_sq < face_dist_sq;
+			};
+			recordVote(fe_trans->Elem1No, elem1_is_tf);
+			if (fe_trans->Elem2No >= 0) {
+				recordVote(fe_trans->Elem2No, !elem1_is_tf);
 			}
 
 			std::pair<FaceId, IsTF> set_v1;
@@ -743,7 +780,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				}
 			}
 
-			std::pair<FaceId, IsTF> set_v2;
+			std::pair<FaceId, IsTF> set_v2 = std::make_pair(NotFound, false);
 			if (fe_trans->Elem2No >= 0) {
 
 				m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
@@ -757,15 +794,22 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 					}
 				}
 			}
-			else {
-				auto set_v2{ std::make_pair(NotFound, false) };
-			}
 
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
 			prepareSubMeshInfo(m, fe_trans, facesInfo, set_v1.second);
 		}
 	}
 
+	if (Mpi::WorldRank() == 0) {
+		std::cout << "[TFSF] 3D tagging: AABB center=("
+		          << tfsf_center[0] << ", " << tfsf_center[1] << ", "
+		          << tfsf_center[2] << "), face-plane side test";
+		if (n_conflicts > 0) {
+			std::cout << ", WARNING: " << n_conflicts
+			          << " multi-face TF/SF vote conflicts";
+		}
+		std::cout << "\n";
+	}
 }
 
 NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const ParFiniteElementSpace& fes, const Array<int>& marker)
