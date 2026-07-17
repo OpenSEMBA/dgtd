@@ -182,6 +182,108 @@ static void assignComponent(const std::vector<int>& elems,
     }
 }
 
+// Verify TFSF TF/SF co-location after DSU partitioning.
+// Checks every tagged TFSF face pair directly, then every connected component
+// in the TFSF-only element graph (covers multi-TF / multi-SF corner cases).
+static void verifyTFSFPartitionColocation(
+    mfem::Mesh& mesh,
+    const int* partitioning,
+    const mfem::Array<int>& tfsf_tags)
+{
+    if (tfsf_tags.Size() == 0 || Mpi::WorldRank() != 0) return;
+
+    auto tfsf_pairs = buildTwoElementPairsByTagToSort(mesh, tfsf_tags);
+    if (tfsf_pairs.empty()) return;
+
+    int split_pairs = 0;
+    for (const auto& pr : tfsf_pairs) {
+        if (partitioning[pr.first] != partitioning[pr.second]) {
+            ++split_pairs;
+            if (split_pairs <= 5) {
+                std::cout << "[Partition] TFSF SPLIT pair elems "
+                          << pr.first << "/" << pr.second << " ranks "
+                          << partitioning[pr.first] << "/"
+                          << partitioning[pr.second] << "\n";
+            }
+        }
+    }
+
+    const int NE = mesh.GetNE();
+    std::vector<int> parent(NE);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::vector<int> rank_dsu(NE, 0);
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    auto unite = [&](int a, int b) {
+        a = find(a); b = find(b);
+        if (a == b) return;
+        if (rank_dsu[a] < rank_dsu[b]) std::swap(a, b);
+        parent[b] = a;
+        if (rank_dsu[a] == rank_dsu[b]) rank_dsu[a]++;
+    };
+
+    std::vector<int> tfsf_degree(NE, 0);
+    for (const auto& pr : tfsf_pairs) {
+        unite(pr.first, pr.second);
+        if (0 <= pr.first && pr.first < NE) ++tfsf_degree[pr.first];
+        if (0 <= pr.second && pr.second < NE) ++tfsf_degree[pr.second];
+    }
+
+    std::unordered_map<int, std::vector<int>> tfsf_components;
+    for (const auto& pr : tfsf_pairs) {
+        for (int e : {pr.first, pr.second}) {
+            if (0 <= e && e < NE) {
+                tfsf_components[find(e)].push_back(e);
+            }
+        }
+    }
+    for (auto& [root, elems] : tfsf_components) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+    }
+
+    int split_components = 0;
+    int max_component = 0;
+    int multi_face_elems = 0;
+    int max_elem_degree = 0;
+    for (int e = 0; e < NE; ++e) {
+        if (tfsf_degree[e] > 0) {
+            max_elem_degree = std::max(max_elem_degree, tfsf_degree[e]);
+            if (tfsf_degree[e] > 1) ++multi_face_elems;
+        }
+    }
+
+    for (const auto& [root, elems] : tfsf_components) {
+        max_component = std::max(max_component, static_cast<int>(elems.size()));
+        const int r0 = partitioning[elems.front()];
+        for (int e : elems) {
+            if (partitioning[e] != r0) {
+                ++split_components;
+                break;
+            }
+        }
+    }
+
+    std::cout << "[Partition] TFSF verify: pairs=" << tfsf_pairs.size()
+              << " split_pairs=" << split_pairs
+              << " tfsf_components=" << tfsf_components.size()
+              << " split_components=" << split_components
+              << " max_component_elems=" << max_component
+              << " max_elem_tfsf_faces=" << max_elem_degree
+              << " multi_face_elems=" << multi_face_elems;
+    if (split_pairs == 0 && split_components == 0) {
+        std::cout << " OK";
+    } else {
+        std::cout << " FAIL";
+    }
+    std::cout << std::endl;
+}
+
 void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
                                           int* partitioning,
                                           const mfem::Array<int>& tfsf_tags,
@@ -301,6 +403,8 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
         for (int r = 0; r < P; ++r) std::cout << " R" << r << "=" << bdr_cnt[r];
         std::cout << std::endl;
     }
+
+    verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
 }
 
 inline void checkIfThrows(bool condition, const std::string& msg)
