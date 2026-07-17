@@ -65,6 +65,7 @@ public:
 
 	const SubMesh* getConstSubMesh() { return ntff_mesh_.get(); }
 	SubMesh* getSubMesh() { return ntff_mesh_.get(); }
+	bool hasLocalSurface() const { return ntff_mesh_ != nullptr; }
 	const std::vector<El2Face> getEl2Face() { return elem_to_face_ntff_; }
 
 private:

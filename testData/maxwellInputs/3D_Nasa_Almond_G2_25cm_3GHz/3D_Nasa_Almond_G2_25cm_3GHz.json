@@ -2,9 +2,9 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 0.001,
-    "final_time": 10.0,
-    "order": 3
+    "time_step": 0.0005,
+    "final_time": 7.0,
+    "order": 2
   },
   "model": {
     "filename": "3D_Nasa_Almond_G2_25cm_3GHz.msh",
@@ -27,7 +27,7 @@
   },
   "probes": {
     "exporter": {
-      "saves": 300
+      "saves": 30
     },
     "rcssurface": [
       {

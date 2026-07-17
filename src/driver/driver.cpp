@@ -156,12 +156,13 @@ static std::vector<int> countBoundaryPairsPerRank(
     return cnt;
 }
 
-// Pick the rank with the lowest weighted load.
-static int leastLoadedRank(const std::vector<long long>& load)
+// Pick the rank with the lowest weighted load, optionally excluding one rank.
+static int leastLoadedRank(const std::vector<long long>& load, int excluded = -1)
 {
-    int best = 0;
-    for (int r = 1; r < static_cast<int>(load.size()); ++r) {
-        if (load[r] < load[best]) best = r;
+    int best = -1;
+    for (int r = 0; r < static_cast<int>(load.size()); ++r) {
+        if (r == excluded) continue;
+        if (best < 0 || load[r] < load[best]) best = r;
     }
     return best;
 }
@@ -404,6 +405,287 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
         std::cout << std::endl;
     }
 
+    verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
+}
+
+// METIS-only: assign each constrained-pair component to one rank (root element's).
+static void fixSplitConstraintPairs(
+    int* partitioning,
+    const std::vector<std::pair<int,int>>& pairs)
+{
+    if (pairs.empty()) return;
+
+    int max_elem = 0;
+    for (const auto& pr : pairs) {
+        max_elem = std::max({max_elem, pr.first, pr.second});
+    }
+    const int NE = max_elem + 1;
+
+    std::vector<int> parent(NE);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    auto unite = [&](int a, int b) {
+        a = find(a); b = find(b);
+        if (a != b) parent[b] = a;
+    };
+
+    for (const auto& pr : pairs) {
+        unite(pr.first, pr.second);
+    }
+
+    std::unordered_map<int, std::vector<int>> components;
+    for (const auto& pr : pairs) {
+        for (int e : {pr.first, pr.second}) {
+            components[find(e)].push_back(e);
+        }
+    }
+    for (auto& [root, elems] : components) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+        const int rank = partitioning[root];
+        for (int e : elems) {
+            partitioning[e] = rank;
+        }
+    }
+
+    int n_split = 0;
+    for (const auto& pr : pairs) {
+        if (partitioning[pr.first] != partitioning[pr.second]) ++n_split;
+    }
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[Partition] Co-located " << components.size()
+                  << " TFSF/SGBC constraint components after METIS";
+        if (n_split > 0) {
+            std::cout << " (WARNING: " << n_split << " pairs still split)";
+        }
+        std::cout << "\n";
+    }
+}
+
+// Assign every element in each constrained pair component to a fixed rank.
+static void pinConstraintPairsToRank(
+    int* partitioning,
+    const std::vector<std::pair<int,int>>& pairs,
+    int target_rank)
+{
+    if (pairs.empty()) return;
+
+    int max_elem = 0;
+    for (const auto& pr : pairs) {
+        max_elem = std::max({max_elem, pr.first, pr.second});
+    }
+    const int NE = max_elem + 1;
+
+    std::vector<int> parent(NE);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    auto unite = [&](int a, int b) {
+        a = find(a); b = find(b);
+        if (a != b) parent[b] = a;
+    };
+
+    for (const auto& pr : pairs) {
+        unite(pr.first, pr.second);
+    }
+
+    std::unordered_map<int, std::vector<int>> components;
+    for (const auto& pr : pairs) {
+        for (int e : {pr.first, pr.second}) {
+            components[find(e)].push_back(e);
+        }
+    }
+    for (auto& [root, elems] : components) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+        for (int e : elems) {
+            partitioning[e] = target_rank;
+        }
+    }
+}
+
+static std::unordered_set<int> elementsInPairs(
+    const std::vector<std::pair<int,int>>& pairs)
+{
+    std::unordered_set<int> elems;
+    for (const auto& pr : pairs) {
+        elems.insert(pr.first);
+        elems.insert(pr.second);
+    }
+    return elems;
+}
+
+// Move non-pinned elements off pin_rank to neighbor ranks (or least-loaded).
+static int rebalanceExcessFromRank(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const std::unordered_set<int>& pinned_elements,
+    int pin_rank,
+    const std::vector<long long>& weight)
+{
+    const int NE = mesh.GetNE();
+    const int P = Mpi::WorldSize();
+    if (P <= 1 || pin_rank < 0 || pin_rank >= P) return 0;
+
+    auto load = computeWeightedLoad(P, NE, partitioning, weight);
+    const long long total = std::accumulate(load.begin(), load.end(), 0LL);
+    const long long ideal = (total + P - 1) / P;
+
+    mesh.ElementToElementTable();
+    const mfem::Table& e2e = mesh.ElementToElementTable();
+
+    auto neighborScore = [&](int elem) {
+        int score = 0;
+        const int n = e2e.RowSize(elem);
+        const int* neigh = e2e.GetRow(elem);
+        for (int i = 0; i < n; ++i) {
+            if (partitioning[neigh[i]] != pin_rank) ++score;
+        }
+        return score;
+    };
+
+    auto bestNeighborTarget = [&](int elem) -> int {
+        std::vector<int> neigh_count(P, 0);
+        const int n = e2e.RowSize(elem);
+        const int* neigh = e2e.GetRow(elem);
+        for (int i = 0; i < n; ++i) {
+            const int r = partitioning[neigh[i]];
+            if (r != pin_rank && 0 <= r && r < P) {
+                neigh_count[r]++;
+            }
+        }
+        int best_r = -1;
+        int best_cnt = 0;
+        for (int r = 0; r < P; ++r) {
+            if (r == pin_rank) continue;
+            if (neigh_count[r] > best_cnt) {
+                best_cnt = neigh_count[r];
+                best_r = r;
+            }
+        }
+        if (best_r >= 0 && best_cnt > 0) return best_r;
+        return leastLoadedRank(load, pin_rank);
+    };
+
+    int moved = 0;
+    while (load[pin_rank] > ideal) {
+        int best_elem = -1;
+        int best_score = -1;
+        for (int e = 0; e < NE; ++e) {
+            if (partitioning[e] != pin_rank) continue;
+            if (pinned_elements.count(e)) continue;
+            const int score = neighborScore(e);
+            if (score > best_score) {
+                best_score = score;
+                best_elem = e;
+            }
+        }
+        if (best_elem < 0) break;
+
+        const int target = bestNeighborTarget(best_elem);
+        if (target < 0 || target == pin_rank) break;
+
+        load[pin_rank] -= weight[best_elem];
+        load[target] += weight[best_elem];
+        partitioning[best_elem] = target;
+        ++moved;
+    }
+    return moved;
+}
+
+static void applyMetisPartitioningWithTFSFPinRank0(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const mfem::Array<int>& tfsf_tags,
+    const mfem::Array<int>& sgbc_tags)
+{
+    const int P = Mpi::WorldSize();
+    constexpr int tfsf_pin_rank = 0;
+
+    std::vector<std::pair<int,int>> tfsf_pairs;
+    if (tfsf_tags.Size() > 0) {
+        tfsf_pairs = buildTwoElementPairsByTagToSort(mesh, tfsf_tags);
+    }
+    std::vector<std::pair<int,int>> sgbc_pairs;
+    if (sgbc_tags.Size() > 0) {
+        sgbc_pairs = buildTwoElementPairsByTagToSort(mesh, sgbc_tags);
+    }
+
+    const auto weighted_pairs = gatherWeightedConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    const auto weight = buildElementWeights(mesh.GetNE(), weighted_pairs);
+
+    if (!tfsf_pairs.empty()) {
+        pinConstraintPairsToRank(partitioning, tfsf_pairs, tfsf_pin_rank);
+    }
+    if (!sgbc_pairs.empty()) {
+        fixSplitConstraintPairs(partitioning, sgbc_pairs);
+    }
+
+    const auto pinned_tfsf = elementsInPairs(tfsf_pairs);
+    const auto load_after_pin = computeWeightedLoad(P, mesh.GetNE(), partitioning, weight);
+    const int moved = rebalanceExcessFromRank(
+        mesh, partitioning, pinned_tfsf, tfsf_pin_rank, weight);
+    auto load_after = computeWeightedLoad(P, mesh.GetNE(), partitioning, weight);
+
+    if (Mpi::WorldRank() == 0) {
+        const long long total = std::accumulate(load_after.begin(), load_after.end(), 0LL);
+        const long long ideal = (total + P - 1) / P;
+        long long max_load = *std::max_element(load_after.begin(), load_after.end());
+        long long min_load = *std::min_element(load_after.begin(), load_after.end());
+        double imbalance = (ideal > 0)
+            ? (max_load - static_cast<double>(ideal)) / ideal * 100.0
+            : 0.0;
+
+        std::cout << "[Partition] TFSF pinned to rank " << tfsf_pin_rank
+                  << " (" << pinned_tfsf.size() << " elements)\n";
+        std::cout << "[Partition] Rebalanced " << moved
+                  << " non-TFSF elements off rank " << tfsf_pin_rank
+                  << " (load R" << tfsf_pin_rank << ": "
+                  << load_after_pin[tfsf_pin_rank] << " -> "
+                  << load_after[tfsf_pin_rank] << ", ideal="
+                  << ideal << ")\n";
+        std::cout << "[Partition] Weighted load: min=" << min_load
+                  << " max=" << max_load << " ideal=" << ideal
+                  << " imbalance=" << std::fixed << std::setprecision(1)
+                  << imbalance << "%\n";
+        std::cout << "[Partition] Elements per rank:";
+        for (int r = 0; r < P; ++r) {
+            int cnt = 0;
+            for (int e = 0; e < mesh.GetNE(); ++e) {
+                if (partitioning[e] == r) ++cnt;
+            }
+            std::cout << " R" << r << "=" << cnt;
+        }
+        std::cout << std::endl;
+    }
+
+    verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
+}
+
+static void applyMetisPartitioningWithPairFix(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const mfem::Array<int>& tfsf_tags,
+    const mfem::Array<int>& sgbc_tags)
+{
+    auto pairs = gatherWeightedConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    if (!pairs.empty()) {
+        fixSplitConstraintPairs(partitioning, pairs);
+    }
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[Partition] METIS-only (DSU rebalance disabled)\n";
+    }
     verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
 }
 
@@ -1424,7 +1706,18 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
     mfem::Array<int> sgbc_tags  = getSGBCTags(case_data);
 
-    applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
+    const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
+    const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
+    const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
+        (!pin_tfsf || pin_tfsf[0] != '0');
+
+    if (use_dsu && use_dsu[0] == '1') {
+        applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
+    } else if (use_tfsf_pin_rank0) {
+        applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
+    } else {
+        applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
+    }
 
     Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
     std::string filename = case_data["model"]["filename"];
@@ -1721,6 +2014,8 @@ maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 
 void postProcessInformation(const json& case_data, maxwell::Model& model, maxwell::SolverOptions& solverOpts) 
 {
+	const MPI_Comm comm = model.getMesh().GetComm();
+
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		mfem::Array<int> tfsf_tags;
 		if (case_data["sources"][s]["type"] == "planewave" || case_data["sources"][s]["type"] == "dipole") {
@@ -1737,8 +2032,12 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 					}
 				}
 			}
-			if (tfsf_atts_present_in_partition_marker.Sum() != 0){
-				model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
+			const int local_tfsf_marker = tfsf_atts_present_in_partition_marker.Sum();
+			int global_tfsf_marker = 0;
+			MPI_Allreduce(&local_tfsf_marker, &global_tfsf_marker, 1, MPI_INT, MPI_SUM, comm);
+			if (global_tfsf_marker != 0) {
+				model.getTotalFieldScatteredFieldToMarker().insert(
+					std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
 			}
 		}
 	}
@@ -1755,8 +2054,12 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
                 }
             }
         }
-        if (sgbc_atts_present_in_partition_marker.Sum() != 0){
-            model.getSGBCToMarker().insert(std::make_pair(maxwell::BdrCond::SGBC, sgbc_atts_present_in_partition_marker));
+        const int local_sgbc_marker = sgbc_atts_present_in_partition_marker.Sum();
+        int global_sgbc_marker = 0;
+        MPI_Allreduce(&local_sgbc_marker, &global_sgbc_marker, 1, MPI_INT, MPI_SUM, comm);
+        if (global_sgbc_marker != 0) {
+            model.getSGBCToMarker().insert(
+                std::make_pair(maxwell::BdrCond::SGBC, sgbc_atts_present_in_partition_marker));
         }
     }
 

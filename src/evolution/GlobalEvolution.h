@@ -89,6 +89,10 @@ private:
     // Cached indices of sources that are TotalField (avoids dynamic_cast per Mult)
     std::vector<int> tfsfSourceIndices_;
 
+    // True when this rank owns at least one tagged TFSF / SGBC boundary face.
+    bool has_local_tfsf_faces_ = false;
+    bool has_local_sgbc_faces_ = false;
+
     mfem::ParFiniteElementSpace& fes_;
     Model& model_;
     SourcesManager& srcmngr_;

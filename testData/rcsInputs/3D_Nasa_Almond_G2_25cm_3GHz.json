@@ -1,5 +1,5 @@
 {
-  "runmode": "mpi-8",
+  "runmode": "cuda-1",
   "casename": "3D_Nasa_Almond_G2_25cm_3GHz",
   "frequencies": {
     "start": 1e9,
@@ -15,7 +15,7 @@
     "phi": {
       "start": 0.0,
       "end": 6.28318530718,
-      "steps": 361
+      "steps": 722
     }
   }
 }

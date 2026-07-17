@@ -14,15 +14,22 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     Fields<ParFiniteElementSpace, ParGridFunction>& globalFields,
     const std::string& caseName)
     : submesher_(*parentFes.GetMesh(), parentFes, buildSurfaceMarker(probe.tags, parentFes)),
-      surfaceFes_(std::make_unique<FiniteElementSpace>(submesher_.getSubMesh(), fec)),
-      surfaceFields_(*surfaceFes_),
       globalFields_(globalFields),
-      transferMaps_(globalFields, surfaceFields_),
       expSteps_(probe.expSteps)
 {
+    if (!submesher_.hasLocalSurface()) {
+        spaceDim_ = parentFes.GetMesh()->SpaceDimension();
+        return;
+    }
+
+    hasLocalSurface_ = true;
+    surfaceFes_ = std::make_unique<FiniteElementSpace>(submesher_.getSubMesh(), fec);
+    surfaceFields_ = std::make_unique<Fields<FiniteElementSpace, GridFunction>>(*surfaceFes_);
+    transferMaps_ = std::make_unique<TransferMaps>(globalFields, *surfaceFields_);
+
     auto* mesh = submesher_.getSubMesh();
     spaceDim_ = mesh->SpaceDimension();
-    numDofs_ = surfaceFields_.get(E, X).Size();
+    numDofs_ = surfaceFields_->get(E, X).Size();
 
     std::string base = "Exports/" + getRunModeTag() + "/" + caseName + "/RCSSurface/" + probe.name;
     std::filesystem::create_directories(base);
@@ -50,9 +57,9 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     }
 
     int basisType = fec->GetBasisType();
-    int32_t header[5] = { 
-        static_cast<int32_t>(spaceDim_), 
-        static_cast<int32_t>(numDofs_), 
+    int32_t header[5] = {
+        static_cast<int32_t>(spaceDim_),
+        static_cast<int32_t>(numDofs_),
         static_cast<int32_t>(numBdr),
         static_cast<int32_t>(totalQuadPts),
         static_cast<int32_t>(basisType)
@@ -65,11 +72,14 @@ RCSSurfaceExporter::RCSSurfaceExporter(
 
 void RCSSurfaceExporter::transferFields()
 {
-    transferMaps_.transferFields(globalFields_, surfaceFields_);
+    if (!hasLocalSurface_) return;
+    transferMaps_->transferFields(globalFields_, *surfaceFields_);
 }
 
 void RCSSurfaceExporter::writeGeometry()
 {
+    if (!hasLocalSurface_) return;
+
     auto* mesh = submesher_.getSubMesh();
     auto bdrMarker = getNearToFarFieldMarker(mesh->bdr_attributes.Max());
 
@@ -90,16 +100,12 @@ void RCSSurfaceExporter::writeGeometry()
             const auto& ip = ir->IntPoint(q);
             Tr->SetAllIntPoints(&ip);
 
-            // Physical position of quadrature point.
             Vector phys_pt;
             Tr->Face->Transform(ip, phys_pt);
             for (int d = 0; d < spaceDim_; ++d) {
                 positions.push_back(phys_pt(d));
             }
 
-            // Outward normal (into surrounding space, away from scatterer).
-            // The convention in the existing code uses inner normals (toward
-            // the element), so we negate CalcOrtho to get outward normals.
             Vector ortho(el.GetDim());
             CalcOrtho(Tr->Jacobian(), ortho);
             double face_weight = Tr->Weight();
@@ -129,12 +135,14 @@ void RCSSurfaceExporter::writeGeometry()
 
 void RCSSurfaceExporter::writeSnapshot(double time)
 {
+    if (!hasLocalSurface_) return;
+
     double t = time;
     dataFile_.write(reinterpret_cast<const char*>(&t), sizeof(double));
 
     for (auto ft : {E, H}) {
         for (auto d : {X, Y, Z}) {
-            const auto& gf = surfaceFields_.get(ft, d);
+            const auto& gf = surfaceFields_->get(ft, d);
             dataFile_.write(reinterpret_cast<const char*>(gf.GetData()),
                             numDofs_ * sizeof(double));
         }
@@ -144,6 +152,8 @@ void RCSSurfaceExporter::writeSnapshot(double time)
 
 void RCSSurfaceExporter::write(double time, int cycle, double finalTime)
 {
+    if (!hasLocalSurface_) return;
+
     bool atEnd = std::abs(time - finalTime) < 1e-8;
     if (!atEnd && cycle % expSteps_ != 0) {
         return;

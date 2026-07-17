@@ -59,16 +59,17 @@ private:
 
     NearToFarFieldSubMesher submesher_;
     std::unique_ptr<mfem::FiniteElementSpace> surfaceFes_;
-    Fields<mfem::FiniteElementSpace, mfem::GridFunction> surfaceFields_;
+    std::unique_ptr<Fields<mfem::FiniteElementSpace, mfem::GridFunction>> surfaceFields_;
     Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& globalFields_;
 
-    TransferMaps transferMaps_;
+    std::unique_ptr<TransferMaps> transferMaps_;
 
     std::string outputPath_;
     std::ofstream dataFile_;
-    int numDofs_;
-    int spaceDim_;
+    int numDofs_{0};
+    int spaceDim_{0};
     int expSteps_;
+    bool hasLocalSurface_{false};
     bool geometryWritten_{false};
 };
 

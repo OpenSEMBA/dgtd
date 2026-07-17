@@ -45,25 +45,34 @@ static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
     return tags;
 }
 
+static int countLocalTaggedBdrFaces(const mfem::ParMesh& mesh,
+                                    const mfem::Array<int>& marker)
+{
+    if (marker.Size() == 0) return 0;
+    int count = 0;
+    for (int b = 0; b < mesh.GetNBE(); ++b) {
+        const int attr = mesh.GetBdrAttribute(b) - 1;
+        if (attr >= 0 && attr < marker.Size() && marker[attr] != 0) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 static void logTFSFPartitionFaceCoverage(mfem::ParMesh& mesh,
                                          const mfem::Array<int>& marker)
 {
-    if (marker.Size() == 0) return;
-    bool any_tag = false;
-    for (int i = 0; i < marker.Size(); ++i) {
-        if (marker[i] != 0) { any_tag = true; break; }
-    }
-    if (!any_tag) return;
-
     int local_ibfi = 0;
     int local_bfi = 0;
-    for (int b = 0; b < mesh.GetNBE(); ++b) {
-        const int attr = mesh.GetBdrAttribute(b) - 1;
-        if (attr < 0 || attr >= marker.Size() || marker[attr] == 0) continue;
-        if (mesh.GetInternalBdrFaceTransformations(b) != nullptr) {
-            ++local_ibfi;
-        } else {
-            ++local_bfi;
+    if (marker.Size() > 0) {
+        for (int b = 0; b < mesh.GetNBE(); ++b) {
+            const int attr = mesh.GetBdrAttribute(b) - 1;
+            if (attr < 0 || attr >= marker.Size() || marker[attr] == 0) continue;
+            if (mesh.GetInternalBdrFaceTransformations(b) != nullptr) {
+                ++local_ibfi;
+            } else {
+                ++local_bfi;
+            }
         }
     }
 
@@ -115,6 +124,10 @@ GlobalEvolution::GlobalEvolution(
 
         auto sgbc_marker_interior = model_.getMarker(BdrCond::SGBC, true);
         auto sgbc_marker_boundary = model_.getMarker(BdrCond::SGBC, false);
+
+        has_local_sgbc_faces_ =
+            countLocalTaggedBdrFaces(model_.getMesh(), sgbc_marker_interior) > 0 ||
+            countLocalTaggedBdrFaces(model_.getMesh(), sgbc_marker_boundary) > 0;
 
         if (sgbc_marker_interior.Size() != 0 || sgbc_marker_boundary.Size() != 0){
             for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
@@ -394,10 +407,35 @@ GlobalEvolution::GlobalEvolution(
 
     // Keep TFSF submesh infrastructure for planewave source evaluation
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
-        srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
-        srcmngr_.initDirectPlanewaveEval();
-        auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-        mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
+        const auto& tfsf_marker =
+            model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn);
+        has_local_tfsf_faces_ =
+            countLocalTaggedBdrFaces(model_.getMesh(), tfsf_marker) > 0;
+
+        int local_has_tfsf = has_local_tfsf_faces_ ? 1 : 0;
+        int global_has_tfsf = 0;
+        MPI_Allreduce(&local_has_tfsf, &global_has_tfsf, 1, MPI_INT, MPI_MAX,
+                      model_.getMesh().GetComm());
+
+        if (global_has_tfsf > 0) {
+            if (has_local_tfsf_faces_) {
+                srcmngr_.initTFSFPreReqs(model_.getConstMesh(), tfsf_marker);
+                srcmngr_.initDirectPlanewaveEval();
+                auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+                mfem::SubMeshUtils::BuildVdofToVdofMap(
+                    *srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(),
+                    src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
+            }
+            int ranks_without = has_local_tfsf_faces_ ? 0 : 1;
+            int total_without = 0;
+            MPI_Allreduce(&ranks_without, &total_without, 1, MPI_INT, MPI_SUM,
+                          model_.getMesh().GetComm());
+            if (Mpi::WorldRank() == 0 && total_without > 0) {
+                std::cout << "[TFSF] " << total_without
+                          << " rank(s) have no local TFSF faces; those ranks "
+                          << "skip submesh init and Mult apply\n";
+            }
+        }
     }
 
     // Build all operators on the global mesh
@@ -421,10 +459,16 @@ GlobalEvolution::GlobalEvolution(
     }
 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
-        MPI_Barrier(MPI_COMM_WORLD);
-        TFSFOperator_ = dgops.buildTFSFGlobalOperator();
-        logTFSFPartitionFaceCoverage(model_.getMesh(),
-            model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
+        int local_has_tfsf = has_local_tfsf_faces_ ? 1 : 0;
+        int global_has_tfsf = 0;
+        MPI_Allreduce(&local_has_tfsf, &global_has_tfsf, 1, MPI_INT, MPI_MAX,
+                      model_.getMesh().GetComm());
+        if (global_has_tfsf > 0) {
+            MPI_Barrier(model_.getMesh().GetComm());
+            TFSFOperator_ = dgops.buildTFSFGlobalOperator();
+            logTFSFPartitionFaceCoverage(model_.getMesh(),
+                model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
+        }
 
         if (opts_.export_evolution_operator) {
             if (Mpi::WorldSize() == 1) {
@@ -523,7 +567,13 @@ GlobalEvolution::GlobalEvolution(
     }
 
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
-        SGBCOperator_ = dgops.buildSGBCGlobalOperator();
+        int local_has_sgbc = has_local_sgbc_faces_ ? 1 : 0;
+        int global_has_sgbc = 0;
+        MPI_Allreduce(&local_has_sgbc, &global_has_sgbc, 1, MPI_INT, MPI_MAX,
+                      model_.getMesh().GetComm());
+        if (global_has_sgbc > 0) {
+            SGBCOperator_ = dgops.buildSGBCGlobalOperator();
+        }
     }
 
     // --- Performance: cache which sources are TotalField ---
@@ -735,6 +785,7 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
                                               mfem::Vector& result_vector) const
 {
     if (!TFSFOperator_) return;
+    if (!has_local_tfsf_faces_) return;
     if (tfsfSourceIndices_.empty()) return;
 
     auto *tfsf_space = srcmngr_.getGlobalTFSFSpace();
@@ -828,7 +879,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerSGBC.Start();
 #endif
     bool sgbc_all_quiescent = false;
-    if (SGBCOperator_ && !sgbcWrappers_.empty()){
+    if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty()){
 
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
@@ -1036,7 +1087,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     // 6) SGBC flux injection (two-pass face coupling)
     //    Sub-solve was done in step 1; here we only inject interface values as flux.
     //    Skip entirely when all SGBC faces are quiescent.
-    if (SGBCOperator_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
+    if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
         // multWorkVec_ is already sized and zeroed (after step 4 zeroing + TFSF cleanup).
         // On GPU builds 'in' is device-authoritative after steps 2-5; HostRead()
         // syncs device→host once for all operator[]-based DOF reads below.

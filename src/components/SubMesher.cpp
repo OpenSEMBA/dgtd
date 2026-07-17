@@ -787,9 +787,7 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const ParFiniteE
 	if (!elem_to_face_ntff_.empty()) {
 		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
 	}
-	else {
-		throw std::runtime_error("ntff submesh is empty, check orientation of curves/faces.");
-	}
+	// Ranks with no local NTF surface leave ntff_mesh_ empty.
 }
 
 void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker)
