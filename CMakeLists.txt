@@ -27,7 +27,7 @@ include_directories(
 )
 
 # MFEM enables CUDA in add_subdirectory(); arch must be fixed in cache first
-# (stale CMAKE_CUDA_ARCHITECTURES=120 from a prior configure breaks nvcc 12).
+# (stale CMAKE_CUDA_ARCHITECTURES from a prior machine/toolkit can break nvcc).
 if (SEMBA_DGTD_ENABLE_CUDA)
 	if (CUDA_ARCH)
 		string(REGEX REPLACE "^sm_" "" _dgtd_cuda_arch_num "${CUDA_ARCH}")
@@ -45,6 +45,30 @@ endif()
 
 if (SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY)
 	add_subdirectory(external/mfem-geg)
+	# Blackwell (sm_120): cicc can take hours/OOM on heavily templated MFEM
+	# EA/TMOP/LOR TUs at -O3 (mfem/mfem#5363). Keep arch=120 but drop opt on
+	# those sources only; other CUDA TUs stay at Release -O3.
+	if (SEMBA_DGTD_ENABLE_CUDA AND "${CMAKE_CUDA_ARCHITECTURES}" STREQUAL "120")
+		set(_dgtd_mfem_dir "${CMAKE_SOURCE_DIR}/external/mfem-geg")
+		# MFEM 4.9 moved TMOP PA kernels under fem/tmop/{pa,assemble,mult,tools,metrics}/
+		file(GLOB _dgtd_mfem_cuda_o0
+			"${_dgtd_mfem_dir}/fem/integ/bilininteg_*_ea.cpp"
+			"${_dgtd_mfem_dir}/fem/integ/bilininteg_*_kernels.cpp"
+			"${_dgtd_mfem_dir}/fem/lor/lor_batched.cpp"
+		)
+		file(GLOB_RECURSE _dgtd_mfem_tmop_cuda_o0
+			"${_dgtd_mfem_dir}/fem/tmop/*.cpp"
+		)
+		list(APPEND _dgtd_mfem_cuda_o0 ${_dgtd_mfem_tmop_cuda_o0})
+		# Properties must be set in mfem's directory scope (CMake 3.18+).
+		set_source_files_properties(${_dgtd_mfem_cuda_o0}
+			DIRECTORY "${_dgtd_mfem_dir}"
+			TARGET_DIRECTORY mfem
+			PROPERTIES COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CUDA>:-O0>")
+		list(LENGTH _dgtd_mfem_cuda_o0 _dgtd_mfem_cuda_o0_n)
+		message(STATUS
+			"CUDA sm_120: compiling ${_dgtd_mfem_cuda_o0_n} heavy MFEM TUs at -O0 (cicc workaround)")
+	endif()
 else ()
 	find_package(MFEM CONFIG REQUIRED)
 	include_directories(${MFEM_INCLUDE_DIRS})

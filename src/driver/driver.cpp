@@ -1627,7 +1627,7 @@ Array<int> getTFSFTags(const json& case_data)
             (case_data["sources"][s]["type"] == "planewave" ||
              case_data["sources"][s]["type"] == "dipole")) {
             for (int t = 0; t < case_data["sources"][s]["tags"].size(); ++t) {
-                res.Append(case_data["sources"][s]["tags"][t]);
+                res.Append(case_data["sources"][s]["tags"][t].get<int>());
             }
         }
     }
@@ -1651,7 +1651,7 @@ Array<int> getSGBCTags(const json& case_data)
         if (case_data["model"]["boundaries"][b].contains("type") &&
             isSGBCBoundaryType(case_data["model"]["boundaries"][b]["type"].get<std::string>())) {
             for (int t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); ++t) {
-                res.Append(case_data["model"]["boundaries"][b]["tags"][t]);
+                res.Append(case_data["model"]["boundaries"][b]["tags"][t].get<int>());
             }
         }
     }
@@ -2020,7 +2020,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 		mfem::Array<int> tfsf_tags;
 		if (case_data["sources"][s]["type"] == "planewave" || case_data["sources"][s]["type"] == "dipole") {
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
-				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
+				tfsf_tags.Append(case_data["sources"][s]["tags"][t].get<int>());
 			}
 			auto tfsf_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
 			tfsf_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());

@@ -52,26 +52,29 @@ export HYPRE_DIR=$PWD/hypre
 
 Requires HYPRE built with CUDA (CMake, not autoconf `./configure`).
 
-**Prerequisites:** [CUDA toolkit](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/); set `-DCMAKE_CUDA_ARCHITECTURES` to your GPU (e.g. `89` for RTX 40-series, `86` for RTX 30-series).
+**Prerequisites:** For RTX 50-series (`sm_120`), build **MFEM/dgtd with CUDA ≥ 13.x** (CUDA 12.8’s `cicc` can OOM on MFEM kernels; see [mfem#5363](https://github.com/mfem/mfem/issues/5363)). Set `-DCMAKE_CUDA_ARCHITECTURES` to your GPU (e.g. `120`, `89`, `86`) and match `CMakePresets.json`.
 
-**HYPRE with CUDA:**
+**HYPRE with CUDA** — stay on **HYPRE 2.31** (matches stock `mfem-geg`; no HYPRE-3 API patches). Build HYPRE with **CUDA 12.8** if needed (2.31 does not build against CUDA 13 CCCL); link that install into a dgtd/MFEM build that uses CUDA 13.3 for `sm_120`:
 ```sh
-wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
-tar -zxvf v2.31.0.tar.gz
+# Example: HYPRE 2.31 + CUDA 12.8, arch matched to the GPU
 cmake -S hypre-2.31.0/src -B hypre-cuda-build \
       -DHYPRE_WITH_CUDA=ON \
-      -DCMAKE_CUDA_ARCHITECTURES=<GPU_ARCH> \
-      -DCMAKE_INSTALL_PREFIX=$HOME/hypre-cuda-install
+      -DHYPRE_CUDA_SM=120 \
+      -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc \
+      -DCMAKE_INSTALL_PREFIX=$HOME/workspace/hypre-cuda-install
 cmake --build hypre-cuda-build -j $(nproc)
 cmake --install hypre-cuda-build
-export HYPRE_CUDA_DIR=$HOME/hypre-cuda-install
+export HYPRE_CUDA_DIR=$HOME/workspace/hypre-cuda-install
 ```
 
-Then (with `METIS_DIR` set):
+Then (with `METIS_DIR` set; CUDA 13.3 for the dgtd/MFEM compile via the preset):
 ```sh
+export PATH=/usr/local/cuda-13.3/bin:$PATH
 cmake --preset gnu-release-cuda
 cmake --build --preset build-gnu-release-cuda --parallel
 ```
+
+On `sm_120`, the top-level CMake compiles a small set of heavy MFEM CUDA TUs at `-O0` to keep `cicc` compile times reasonable.
 
 ### CMake presets
 

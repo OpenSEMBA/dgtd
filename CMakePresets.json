@@ -77,12 +77,13 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc-12",
         "CMAKE_CXX_COMPILER": "g++-12",
+        "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.3/bin/nvcc",
         "CMAKE_CUDA_HOST_COMPILER": "g++-12",
         "SEMBA_DGTD_ENABLE_CUDA": "ON",
         "HYPRE_DIR": "$env{HYPRE_CUDA_DIR}",
         "MFEM_USE_CUDA": true,
-        "CUDA_ARCH": "sm_89",
-        "CMAKE_CUDA_ARCHITECTURES": "89"
+        "CUDA_ARCH": "sm_120",
+        "CMAKE_CUDA_ARCHITECTURES": "120"
       }
     },
     {
@@ -92,12 +93,13 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc-12",
         "CMAKE_CXX_COMPILER": "g++-12",
+        "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.3/bin/nvcc",
         "CMAKE_CUDA_HOST_COMPILER": "g++-12",
         "SEMBA_DGTD_ENABLE_CUDA": "ON",
         "HYPRE_DIR": "$env{HYPRE_CUDA_DIR}",
         "MFEM_USE_CUDA": true,
-        "CUDA_ARCH": "sm_89",
-        "CMAKE_CUDA_ARCHITECTURES": "89"
+        "CUDA_ARCH": "sm_120",
+        "CMAKE_CUDA_ARCHITECTURES": "120"
       }
     }
   ],

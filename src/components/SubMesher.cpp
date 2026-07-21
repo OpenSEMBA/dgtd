@@ -375,7 +375,7 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
-	global_submesh_ = std::make_unique<SubMesh>(global_sm);
+	global_submesh_ = std::make_unique<SubMesh>(std::move(global_sm));
 
 	cleanInvalidSubMeshEntries(elem_to_face_tf_);
 	cleanInvalidSubMeshEntries(elem_to_face_sf_);
@@ -988,14 +988,14 @@ VolumetricRegionSubMesher::VolumetricRegionSubMesher(
 		auto sub = SubMesh::CreateFromDomain(parent_copy, vacuum_marker_);
 		restoreElementAttributes(sub);
 		sub.FinalizeMesh();
-		vacuum_mesh_ = std::make_unique<SubMesh>(sub);
+		vacuum_mesh_ = std::make_unique<SubMesh>(std::move(sub));
 	}
 
 	if (pml_marker_.Size() != 0 && pml_marker_.Sum() > 0) {
 		auto sub = SubMesh::CreateFromDomain(parent_copy, pml_marker_);
 		restoreElementAttributes(sub);
 		sub.FinalizeMesh();
-		pml_mesh_ = std::make_unique<SubMesh>(sub);
+		pml_mesh_ = std::make_unique<SubMesh>(std::move(sub));
 	}
 }
 
