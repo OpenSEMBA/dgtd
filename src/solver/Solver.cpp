@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include <cmath>
 #include <iomanip>
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+#include <cuda_runtime.h>
+#endif
 
 namespace maxwell {
 
