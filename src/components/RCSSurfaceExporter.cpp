@@ -26,6 +26,7 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     surfaceFes_ = std::make_unique<FiniteElementSpace>(submesher_.getSubMesh(), fec);
     surfaceFields_ = std::make_unique<Fields<FiniteElementSpace, GridFunction>>(*surfaceFes_);
     transferMaps_ = std::make_unique<TransferMaps>(globalFields, *surfaceFields_);
+    initParentToSurfaceMap();
 
     auto* mesh = submesher_.getSubMesh();
     spaceDim_ = mesh->SpaceDimension();
@@ -70,9 +71,39 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     transferFields();
 }
 
+void RCSSurfaceExporter::initParentToSurfaceMap()
+{
+    auto* surface_sm = static_cast<SubMesh*>(surfaceFes_->GetMesh());
+    Array<int> raw_map;
+    SubMeshUtils::BuildVdofToVdofMap(*surfaceFes_,
+                                     *globalFields_.get(E, X).ParFESpace(),
+                                     surface_sm->GetFrom(),
+                                     surface_sm->GetParentElementIDMap(),
+                                     raw_map);
+
+    parent_dof_ids_.SetSize(raw_map.Size());
+    parent_dof_signs_.SetSize(raw_map.Size());
+    for (int i = 0; i < raw_map.Size(); ++i) {
+        real_t sign = 1.0;
+        parent_dof_ids_[i] = FiniteElementSpace::DecodeDof(raw_map[i], sign);
+        parent_dof_signs_[i] = sign;
+    }
+}
+
 void RCSSurfaceExporter::transferFields()
 {
     if (!hasLocalSurface_) return;
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        rcs_gather_surface_fields_gpu(parent_dof_ids_,
+                                      parent_dof_signs_,
+                                      globalFields_,
+                                      *surfaceFields_,
+                                      numDofs_);
+        return;
+    }
+#endif
     transferMaps_->transferFields(globalFields_, *surfaceFields_);
 }
 
@@ -142,7 +173,12 @@ void RCSSurfaceExporter::writeSnapshot(double time)
 
     for (auto ft : {E, H}) {
         for (auto d : {X, Y, Z}) {
-            const auto& gf = surfaceFields_->get(ft, d);
+            auto& gf = surfaceFields_->get(ft, d);
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+                gf.HostRead();
+            }
+#endif
             dataFile_.write(reinterpret_cast<const char*>(gf.GetData()),
                             numDofs_ * sizeof(double));
         }

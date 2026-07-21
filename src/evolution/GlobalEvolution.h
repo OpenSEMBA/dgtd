@@ -22,6 +22,7 @@ public:
 
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
     void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
+    mfem::MemoryClass GetMemoryClass() const override;
 
     void commitSGBCCheckpoint(double base_time, double dt,
                               const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);

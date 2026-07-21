@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <iomanip>
 
 namespace maxwell {
 
@@ -55,6 +56,8 @@ public:
     mfem::TimeDependentOperator* getEvolTDO() { return evolTDO_.get(); }
 
     SolverOptions& getSolverOptions() { return this->opts_; }
+    SourcesManager& getSourcesManager() { return sourcesManager_; }
+    const SourcesManager& getSourcesManager() const { return sourcesManager_; }
 
 
     void run();
@@ -113,5 +116,15 @@ private:
 
     void sampleInitializationMemory();
     void sampleTemporalMemory();
+
+    struct StepTimingStats {
+        double step_ms{0.0};
+        double ode_ms{0.0};
+        double sgbc_finalize_ms{0.0};
+        double probe_sync_ms{0.0};
+        double probe_update_ms{0.0};
+        int step_count{0};
+    };
+    mutable StepTimingStats stepTimingStats_;
 };
 }

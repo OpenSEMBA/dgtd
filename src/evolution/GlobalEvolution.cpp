@@ -621,6 +621,16 @@ static void rotateGlobalFieldsToLocal(
 
 GlobalEvolution::~GlobalEvolution() = default;
 
+mfem::MemoryClass GlobalEvolution::GetMemoryClass() const
+{
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        return mfem::MemoryClass::DEVICE;
+    }
+#endif
+    return mfem::MemoryClass::HOST;
+}
+
 void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
@@ -815,22 +825,6 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
     }
     const auto& func = *func_ptr;
 
-    // Check if evaluated planewave is negligible — skip scatter + SpMV.
-    // Not permanent: CW sources (e.g. cosine) pass through zero between lobes,
-    // so we re-evaluate every call and only skip the current one.
-    {
-        double norm2 = 0.0;
-        for (int f : {E, H}) {
-            for (int d : {X, Y, Z}) {
-                double n = func[f][d].Norml2();
-                norm2 += n * n;
-            }
-        }
-        if (norm2 < tfsf_skip_threshold_ * tfsf_skip_threshold_) {
-            return;
-        }
-    }
-
     // Scatter submesh planewave values into multWorkVec_ (local DOFs only;
     // partitioner guarantees all TFSF faces are rank-local, no ghost exchange needed).
 #ifdef SEMBA_DGTD_ENABLE_CUDA
@@ -864,6 +858,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #ifdef SHOW_TIMER_INFORMATION
     mfem::StopWatch timerTotal, timerExchange, timerApplyA, timerTFSF, timerSGBC;
     timerTotal.Start();
+    auto syncCudaForTiming = []() {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            MFEM_STREAM_SYNC;
+        }
+#endif
+    };
 #endif
 
     const auto ndofs     = fes_.GetNDofs();
@@ -990,6 +991,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
     }
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerSGBC.Stop();
 #endif
 
@@ -1020,6 +1022,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
 #endif
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerExchange.Stop();
 #endif
 
@@ -1065,6 +1068,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         globalOperator_->Mult(multWorkVec_, out);
     }
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerApplyA.Stop();
 #endif
 
@@ -1081,6 +1085,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerTFSF.Stop();
 #endif
 
@@ -1269,6 +1274,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     (void)out.ReadWrite();
 
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerTotal.Stop();
 
     // Skip timer output for SGBC sub-solver Mult() calls.

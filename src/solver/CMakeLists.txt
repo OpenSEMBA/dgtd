@@ -22,4 +22,10 @@ endif()
 
 if(SEMBA_DGTD_ENABLE_CUDA)
 	add_definitions(-DSEMBA_DGTD_ENABLE_CUDA)
+	target_sources(maxwell-solver PRIVATE "SourcesManager.cu")
+	set_source_files_properties(SourcesManager.cu PROPERTIES LANGUAGE CUDA)
+	set_target_properties(maxwell-solver PROPERTIES
+		CUDA_STANDARD 17
+		CUDA_STANDARD_REQUIRED ON
+	)
 endif()

@@ -64,6 +64,8 @@ public:
 		const Position&, const Time&,
 		const FieldType&, const Direction&) const;
 
+	const EHFieldFunction* function() const { return function_.get(); }
+
 private: 
 	std::unique_ptr<EHFieldFunction> function_;
 };

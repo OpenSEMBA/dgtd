@@ -5,6 +5,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <cmath>
+#include <iomanip>
 
 namespace maxwell {
 
@@ -575,8 +576,43 @@ void Solver::run()
         {
             if (Mpi::WorldRank() == 0){
                 printSimulationInformation(time_, dt_, opts_.final_time);
-                lastPrintTime = currentTime;
             }
+            if (!opts_.is_sgbc_solver && stepTimingStats_.step_count > 0) {
+                const int P = Mpi::WorldSize();
+                double local_avg[5] = {
+                    stepTimingStats_.step_ms / stepTimingStats_.step_count,
+                    stepTimingStats_.ode_ms / stepTimingStats_.step_count,
+                    stepTimingStats_.sgbc_finalize_ms / stepTimingStats_.step_count,
+                    stepTimingStats_.probe_sync_ms / stepTimingStats_.step_count,
+                    stepTimingStats_.probe_update_ms / stepTimingStats_.step_count
+                };
+                std::vector<double> all_avg(5 * P);
+                if (P > 1) {
+                    MPI_Gather(local_avg, 5, MPI_DOUBLE,
+                               all_avg.data(), 5, MPI_DOUBLE,
+                               0, MPI_COMM_WORLD);
+                } else {
+                    std::copy(local_avg, local_avg + 5, all_avg.data());
+                }
+
+                if (Mpi::WorldRank() == 0) {
+                    std::cout << "[Step timing] avg of " << stepTimingStats_.step_count
+                              << " steps, ms/step\n";
+                    std::cout << "  Rank  | total     ode  sgbc_fin  probe_sync  probe_update\n";
+                    std::cout << "  ------+---------------------------------------------------\n";
+                    for (int r = 0; r < P; ++r) {
+                        std::cout << std::setw(6) << r << " | "
+                                  << std::setw(6) << all_avg[r*5 + 0] << " "
+                                  << std::setw(7) << all_avg[r*5 + 1] << " "
+                                  << std::setw(9) << all_avg[r*5 + 2] << " "
+                                  << std::setw(11) << all_avg[r*5 + 3] << " "
+                                  << std::setw(12) << all_avg[r*5 + 4] << "\n";
+                        }
+                }
+                stepTimingStats_ = StepTimingStats{};
+                probesManager_.printTimingSummaryAndReset();
+            }
+            lastPrintTime = currentTime;
         }
 #endif
     }
@@ -587,6 +623,10 @@ void Solver::run()
 
 void Solver::step(bool update_probes)
 {
+#ifdef SHOW_TIMER_INFORMATION
+    using clock = std::chrono::steady_clock;
+    auto step_start = clock::now();
+#endif
     double truedt{ std::min(dt_, opts_.final_time - time_) };
 
     // Monolithic IMEX: checkpoint SGBC before RK4, advance inside Mult(), finalize after
@@ -594,33 +634,58 @@ void Solver::step(bool update_probes)
         globalEvol_cache_->commitSGBCCheckpoint(time_, truedt, fields_);
     }
 
+#ifdef SHOW_TIMER_INFORMATION
+    auto ode_start = clock::now();
+#endif
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    // Make ODE timing honest: RK4 Mult kernels are async on CUDA.
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        MFEM_STREAM_SYNC;
+    }
+#endif
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_ode = clock::now();
+#endif
 
     if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
         globalEvol_cache_->finalizeSGBCStep(fields_);
     }
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_finalize = clock::now();
+#endif
 
     if (update_probes) {
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-        // Probes and ParaView use host-side GridFunction::GetValue on MakeRef views.
-        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            MFEM_STREAM_SYNC;
-            fields_.allDOFs().HostRead();
-            for (int d = X; d <= Z; ++d) {
-                fields_.get(E, d).HostRead();
-                fields_.get(H, d).HostRead();
-            }
-            fields_.get(E).HostRead();
-            fields_.get(H).HostRead();
-            fes_->ExchangeFaceNbrData();
-            fes_->GetParMesh()->ExchangeFaceNbrData();
-            for (int d = X; d <= Z; ++d) {
-                fields_.get(E, d).ExchangeFaceNbrData();
-                fields_.get(H, d).ExchangeFaceNbrData();
-            }
-        }
+#ifdef SHOW_TIMER_INFORMATION
+        auto probe_sync_start = clock::now();
+#endif
+        // Full-volume HostRead / ExchangeFaceNbrData removed from the hot path.
+        // Consumers pull only what they need:
+        //   - RCS: device gather of surface DOFs + small HostRead
+        //   - Exporter / point / field: HostRead inside their update paths
+#ifdef SHOW_TIMER_INFORMATION
+        auto after_probe_sync = clock::now();
 #endif
         probesManager_.updateProbes(time_);
+#ifdef SHOW_TIMER_INFORMATION
+        auto after_probe_update = clock::now();
+#endif
+#ifdef SHOW_TIMER_INFORMATION
+        stepTimingStats_.step_ms += std::chrono::duration<double, std::milli>(after_probe_update - step_start).count();
+        stepTimingStats_.ode_ms += std::chrono::duration<double, std::milli>(after_ode - ode_start).count();
+        stepTimingStats_.sgbc_finalize_ms += std::chrono::duration<double, std::milli>(after_finalize - after_ode).count();
+        stepTimingStats_.probe_sync_ms += std::chrono::duration<double, std::milli>(after_probe_sync - probe_sync_start).count();
+        stepTimingStats_.probe_update_ms += std::chrono::duration<double, std::milli>(after_probe_update - after_probe_sync).count();
+        stepTimingStats_.step_count++;
+#endif
+    } else {
+#ifdef SHOW_TIMER_INFORMATION
+        auto step_end = clock::now();
+        stepTimingStats_.step_ms += std::chrono::duration<double, std::milli>(step_end - step_start).count();
+        stepTimingStats_.ode_ms += std::chrono::duration<double, std::milli>(after_ode - ode_start).count();
+        stepTimingStats_.sgbc_finalize_ms += std::chrono::duration<double, std::milli>(after_finalize - after_ode).count();
+        stepTimingStats_.step_count++;
+#endif
     }
 }
 

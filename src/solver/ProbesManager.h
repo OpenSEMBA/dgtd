@@ -46,6 +46,8 @@ public:
     ProbesManager& operator=(ProbesManager&&) = default;
 
     void updateProbes(Time);
+    /// True when at least one probe will read host field data this cycle.
+    bool needsHostSyncThisStep(Time) const;
     void recalculateExportSteps(double dt);
     void setFinalTime(double final_time);
 
@@ -61,10 +63,21 @@ public:
         srcmngr_ = srcmngr;
         tfsf_mapping_ = tfsf_mapping;
     }
+    void printTimingSummaryAndReset() const;
 
     Probes probes;
 
 private:
+    struct TimingStats {
+        double exporter_ms{0.0};
+        double field_ms{0.0};
+        double point_ms{0.0};
+        double nearfield_ms{0.0};
+        double snapshot_ms{0.0};
+        double rcs_ms{0.0};
+        double mor_ms{0.0};
+        int update_calls{0};
+    };
 
     struct FESPoint {
         int elementId;
@@ -124,6 +137,8 @@ private:
     
     SourcesManager* srcmngr_{nullptr};
     const mfem::Array<int>* tfsf_mapping_{nullptr};
+    bool is_sgbc_solver_{false};
+    mutable TimingStats timingStats_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;

@@ -93,6 +93,9 @@ public:
 		}
 	}
 
+	double spread() const { return spread_; }
+	const Position& mean() const { return mean_; }
+
 private:
 	double spread_;
 	Position mean_;
@@ -134,6 +137,10 @@ public:
 		double carrier = cos(2.0 * M_PI * freq_ * arg);
 		return envelope * carrier;
 	}
+
+	double spread() const { return spread_; }
+	const Position& mean() const { return mean_; }
+	double frequency() const { return freq_; }
 
 private:
 	double spread_;
@@ -319,6 +326,10 @@ public:
 		}
 	}
 
+	double length() const { return len_; }
+	double gaussianSpread() const { return gaussSpread_; }
+	double gaussianMean() const { return gaussMean_; }
+
 private:
 	double len_;
 	double gaussSpread_;
@@ -407,6 +418,11 @@ public:
 		return function_->eval(Position({ phaseDelay - t })) * polDir;
 
 	};
+
+	const Function* function() const { return function_.get(); }
+	const Polarization& polarization() const { return polarization_; }
+	const Propagation& propagation() const { return propagation_; }
+	FieldType fieldType() const { return fieldtype_; }
 
 private:
 	std::unique_ptr<Function> function_;
