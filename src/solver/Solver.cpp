@@ -643,8 +643,9 @@ void Solver::step(bool update_probes)
     odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     // Make ODE timing honest: RK4 Mult kernels are async on CUDA.
+    // Do not use MFEM_STREAM_SYNC here — it is empty unless compiled with nvcc.
     if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-        MFEM_STREAM_SYNC;
+        cudaStreamSynchronize(0);
     }
 #endif
 #ifdef SHOW_TIMER_INFORMATION

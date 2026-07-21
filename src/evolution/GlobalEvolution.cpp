@@ -13,6 +13,9 @@
 #include <fstream>
 #include <iomanip>
 #include <unordered_set>
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+#include <cuda_runtime.h>
+#endif
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
 #include <omp.h>
 #endif
@@ -858,10 +861,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #ifdef SHOW_TIMER_INFORMATION
     mfem::StopWatch timerTotal, timerExchange, timerApplyA, timerTFSF, timerSGBC;
     timerTotal.Start();
+    // MFEM_STREAM_SYNC is a no-op when this TU is compiled with the host
+    // compiler (no __CUDACC__). Sync explicitly so Mult timers include GPU work.
     auto syncCudaForTiming = []() {
 #ifdef SEMBA_DGTD_ENABLE_CUDA
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            MFEM_STREAM_SYNC;
+            cudaStreamSynchronize(0);
         }
 #endif
     };
