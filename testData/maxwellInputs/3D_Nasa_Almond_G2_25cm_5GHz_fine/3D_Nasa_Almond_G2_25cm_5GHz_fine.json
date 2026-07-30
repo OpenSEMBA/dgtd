@@ -2,12 +2,12 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 0.0005,
+    "time_step": 0.00025,
     "final_time": 16.0,
     "order": 2
   },
   "model": {
-    "filename": "3D_Nasa_Almond_G2_25cm_5GHz.msh",
+    "filename": "3D_Nasa_Almond_G2_25cm_5GHz_fine.msh",
     "materials": [
       {
         "tags": [ 1, 2, 3 ],
@@ -32,7 +32,7 @@
     "rcssurface": [
       {
         "name": "almond",
-        "steps": 1,
+        "steps": 2,
         "tags": [ 11, 12, 13, 14, 15, 16 ]
       }
     ],
