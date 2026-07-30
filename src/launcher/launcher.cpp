@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <cstdlib>
 #include <unistd.h>
 #include <omp.h>
 
@@ -76,15 +77,28 @@ int main(int argc, char** argv)
 		return 3;
 	}
 
-	auto solver = maxwell::driver::buildSolverJson(inputFilePath, false);
+	{
+		auto solver = maxwell::driver::buildSolverJson(inputFilePath, false);
+		solver.run();
 
-	solver.run();
+		if (mfem::Mpi::WorldRank() == 0) {
+			std::cout << "Solver has finished performing its operations." << std::endl;
+			std::cout << "Program will end now." << std::endl;
+		}
 
-	if (mfem::Mpi::WorldRank() == 0){
-		std::cout << "Solver has finished performing its operations." << std::endl;
-		std::cout << "Program will end now." << std::endl;
-	}
-	
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+		// CUDA: MFEM device-object destructors (SparseMatrix/cuSPARSE, RK4
+		// Vectors, RCS Mesh/GridFunction Memory) abort with glibc double-free.
+		// Each batch case is its own process — skip C++ teardown and let the OS
+		// reclaim. Finalize MPI first so ranks leave the job cleanly.
+		if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+			std::fflush(nullptr);
+			mfem::Mpi::Finalize();
+			std::_Exit(0);
+		}
+#endif
+	} // ~solver (CPU / non-CUDA path)
+
 	mfem::Mpi::Finalize();
 
 	return 0;

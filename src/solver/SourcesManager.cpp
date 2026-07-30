@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace maxwell {
 
@@ -382,6 +383,58 @@ void SourcesManager::evalTimeVarFieldDirect(Time time, bool apply_tfsf_sign)
             }
         }
     }
+}
+
+void SourcesManager::evalTimeVarFieldDirectToHost(Time time,
+                                                  std::vector<double>& out,
+                                                  bool apply_tfsf_sign) const
+{
+    MFEM_VERIFY(direct_eval_ready_, "initDirectPlanewaveEval() must be called first");
+    auto* fes = global_tfsf_fes_.get();
+    const int ndofs = fes->GetNDofs();
+    out.assign(static_cast<std::size_t>(6 * ndofs), 0.0);
+
+    const double* coords = dof_coords_.HostRead();
+    const double* sign = tfsf_sign_.HostRead();
+    const double* params = direct_source_params_.HostRead();
+    const int* meta = direct_source_meta_.HostRead();
+
+    for (int i = 0; i < ndofs; ++i) {
+        const double x = coords[3 * i + 0];
+        const double y = coords[3 * i + 1];
+        const double z = coords[3 * i + 2];
+        const double scale = apply_tfsf_sign ? sign[i] : 1.0;
+        for (int s = 0; s < direct_source_count_; ++s) {
+            DirectPlanewaveSourceData src;
+            src.field_type = meta[metaIndex(s, 0)];
+            src.waveform = meta[metaIndex(s, 1)];
+            src.spread = params[paramIndex(s, 0)];
+            src.mean = params[paramIndex(s, 1)];
+            src.frequency = params[paramIndex(s, 2)];
+            for (int d = 0; d < 3; ++d) {
+                src.polarization[d] = params[paramIndex(s, 3 + d)];
+                src.propagation[d] = params[paramIndex(s, 6 + d)];
+            }
+            for (int ft : { E, H }) {
+                for (int d : { X, Y, Z }) {
+                    const int comp = (ft == E ? 0 : 3) + d;
+                    out[static_cast<std::size_t>(comp * ndofs + i)] +=
+                        scale * evalDirectPlanewaveComponent(src, x, y, z, time, ft, d);
+                }
+            }
+        }
+    }
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    // HostRead above can leave these vectors host-authoritative; Mult's GPU
+    // kernel needs device-valid pointers on the next eval_tfsf_planewave_gpu.
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        (void)const_cast<mfem::Vector&>(dof_coords_).Read();
+        (void)const_cast<mfem::Vector&>(tfsf_sign_).Read();
+        (void)const_cast<mfem::Vector&>(direct_source_params_).Read();
+        (void)const_cast<mfem::Array<int>&>(direct_source_meta_).Read();
+    }
+#endif
 }
 
 int SourcesManager::findTFSFDofAtPosition(const Source::Position& pos, double tol) const

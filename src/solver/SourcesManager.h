@@ -3,6 +3,8 @@
 #include "components/Sources.h"
 #include "components/SubMesher.h"
 
+#include <vector>
+
 using FieldGridFuncs = std::array<std::array<mfem::GridFunction, 3>, 2>;
 
 namespace maxwell {
@@ -50,6 +52,13 @@ public:
     void initDirectPlanewaveEval();
     void evalTimeVarFieldDirect(Time time, bool apply_tfsf_sign = true);
     bool hasDirectEval() const { return direct_eval_ready_; }
+
+    /// Host-only TFSF source eval into [Ex|Ey|Ez|Hx|Hy|Hz] (6*ndofs).
+    /// Does not touch cached_tfsf_fields_ / device memory — safe for MOR export
+    /// without poisoning the GPU Mult path.
+    void evalTimeVarFieldDirectToHost(Time time,
+                                      std::vector<double>& out,
+                                      bool apply_tfsf_sign = true) const;
 
     // Pre-computed TF/SF sign mask: +0.5 for TF DOFs, -0.5 for SF, +1 if no SF.
     const mfem::Vector& getTFSFSign() const { return tfsf_sign_; }

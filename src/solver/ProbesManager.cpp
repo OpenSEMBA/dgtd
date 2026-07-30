@@ -891,33 +891,14 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
         ofs.close();
     }
 
-    // Export TFSF source function u if available
-    if (srcmngr_ && tfsf_mapping_) {
-        srcmngr_->evalTimeVarFieldDirect(time);
-        const auto& tfsf_fields = srcmngr_->getCachedTFSFFields();
+    // Export TFSF source function u if available.
+    // Use host-only eval so we never HostRead/Read the device-resident
+    // cached_tfsf_fields_ (that poisons the next GPU Mult TFSF eval).
+    if (srcmngr_ && tfsf_mapping_ && srcmngr_->hasDirectEval()) {
+        std::vector<double> u_combined;
+        srcmngr_->evalTimeVarFieldDirectToHost(time, u_combined);
+        const int tfsf_total_size = static_cast<int>(u_combined.size());
 
-        // Assemble TFSF source vector in same layout as x: [Ex, Ey, Ez, Hx, Hy, Hz]
-        // First get the size of one component
-        const int tfsf_size_per_comp = tfsf_fields[E][X].Size();
-        const int tfsf_total_size = 6 * tfsf_size_per_comp;
-        
-        std::vector<double> u_combined(tfsf_total_size);
-        
-        // E-field components (X, Y, Z)
-        for (int i = 0; i < tfsf_size_per_comp; ++i) {
-            u_combined[0 * tfsf_size_per_comp + i] = tfsf_fields[E][X][i];
-            u_combined[1 * tfsf_size_per_comp + i] = tfsf_fields[E][Y][i];
-            u_combined[2 * tfsf_size_per_comp + i] = tfsf_fields[E][Z][i];
-        }
-        
-        // H-field components (X, Y, Z)
-        for (int i = 0; i < tfsf_size_per_comp; ++i) {
-            u_combined[3 * tfsf_size_per_comp + i] = tfsf_fields[H][X][i];
-            u_combined[4 * tfsf_size_per_comp + i] = tfsf_fields[H][Y][i];
-            u_combined[5 * tfsf_size_per_comp + i] = tfsf_fields[H][Z][i];
-        }
-        
-        // Export unified TFSF source vector
         std::string u_path = ctx.export_dir + "/u_" + std::to_string(ctx.save_count);
         std::ofstream ofs_u(u_path);
         if (ofs_u.is_open()) {
@@ -925,7 +906,7 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
             ofs_u << time << "\n";
             ofs_u << tfsf_total_size << "\n";
             for (int i = 0; i < tfsf_total_size; ++i) {
-                ofs_u << u_combined[i] << "\n";
+                ofs_u << u_combined[static_cast<std::size_t>(i)] << "\n";
             }
             ofs_u.close();
         }
