@@ -7,6 +7,7 @@ endif()
 add_executable(maxwell_tests
 	$<TARGET_OBJECTS:TestLauncher>
 	"driver/DriverTest.cpp"
+	"driver/MorUrReconstructorTest.cpp"
 	"components/EigenvalueEstimator.cpp"
 	"components/MaterialTest.cpp" 
 	"components/ModelTest.cpp"

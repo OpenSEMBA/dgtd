@@ -1,10 +1,12 @@
 #include "mor_rcs_driver.h"
 
+#include "MorUrReconstructor.h"
+
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
-#include <regex>
 #include <stdexcept>
 #include <unordered_set>
 
@@ -20,69 +22,6 @@ namespace maxwell::driver {
 namespace {
 
 using json = nlohmann::json;
-
-std::vector<std::pair<int, std::filesystem::path>> collectXFiles(const std::string& x_dir)
-{
-    std::vector<std::pair<int, std::filesystem::path>> files;
-    const std::regex re(R"(^x_(\d+)$)");
-
-    for (const auto& entry : std::filesystem::directory_iterator(x_dir)) {
-        if (!entry.is_regular_file()) {
-            continue;
-        }
-
-        std::smatch m;
-        const auto name = entry.path().filename().string();
-        if (std::regex_match(name, m, re)) {
-            files.emplace_back(std::stoi(m[1].str()), entry.path());
-        }
-    }
-
-    std::sort(files.begin(), files.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-    });
-
-    if (files.empty()) {
-        throw std::runtime_error("No x_k files found in: " + x_dir);
-    }
-
-    return files;
-}
-
-std::pair<double, mfem::Vector> loadSnapshot(const std::filesystem::path& file_path,
-                                             int expected_size)
-{
-    std::ifstream ifs(file_path);
-    if (!ifs.is_open()) {
-        throw std::runtime_error("Failed to open snapshot: " + file_path.string());
-    }
-
-    double time = 0.0;
-    long long n = -1;
-    if (!(ifs >> time)) {
-        throw std::runtime_error("Invalid time header in: " + file_path.string());
-    }
-    if (!(ifs >> n)) {
-        throw std::runtime_error("Invalid size header in: " + file_path.string());
-    }
-
-    if (n != expected_size) {
-        throw std::runtime_error(
-            "Snapshot size mismatch in " + file_path.string() +
-            ". Expected " + std::to_string(expected_size) +
-            ", got " + std::to_string(n));
-    }
-
-    mfem::Vector state(expected_size);
-    for (int i = 0; i < expected_size; ++i) {
-        if (!(ifs >> state[i])) {
-            throw std::runtime_error(
-                "Unexpected EOF while reading state values in: " + file_path.string());
-        }
-    }
-
-    return {time, std::move(state)};
-}
 
 std::vector<int> tagsFromRCSProbes(const json& case_data)
 {
@@ -158,10 +97,145 @@ std::vector<int> resolveSurfaceTags(const json& case_data, const std::vector<int
         "tags, or pass --tags on the command line.");
 }
 
+void dumpAsciiSnapshot(const std::string& dir,
+                       int index,
+                       double time,
+                       const mfem::Vector& state)
+{
+    std::filesystem::create_directories(dir);
+    const auto path = std::filesystem::path(dir) / ("x_" + std::to_string(index));
+    std::ofstream ofs(path);
+    if (!ofs) {
+        throw std::runtime_error("Cannot write debug snapshot: " + path.string());
+    }
+    ofs << std::scientific << std::setprecision(16);
+    ofs << time << "\n" << state.Size() << "\n";
+    for (int i = 0; i < state.Size(); ++i) {
+        ofs << state[i] << "\n";
+    }
+}
+
+int writeSnapshotsFromXDir(const MORRCSConfig& cfg,
+                           maxwell::Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
+                           RCSSurfaceBinaryWriter& writer,
+                           int expected_size)
+{
+    const auto snapshots = collectIndexedSnapshots(cfg.x_dir, "x");
+    int written = 0;
+    for (const auto& [cycle, path] : snapshots) {
+        const auto [time, state] = loadAsciiSnapshot(path, expected_size);
+        if (cfg.max_time.has_value() && time > cfg.max_time.value()) {
+            continue;
+        }
+        fields.allDOFs() = state;
+        writer.writeSnapshot(time);
+        if (!cfg.dump_x_dir.empty()) {
+            dumpAsciiSnapshot(cfg.dump_x_dir, cycle, time, state);
+        }
+        ++written;
+    }
+    return written;
+}
+
+int writeSnapshotsFromUrXr(const MORRCSConfig& cfg,
+                           maxwell::Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
+                           RCSSurfaceBinaryWriter& writer,
+                           int expected_size)
+{
+    std::string meta_path = cfg.meta_path;
+    if (meta_path.empty()) {
+        const auto sibling = std::filesystem::path(cfg.ur_path).parent_path() / "meta.json";
+        if (std::filesystem::is_regular_file(sibling)) {
+            meta_path = sibling.string();
+        }
+    }
+
+    MorUrMeta meta;
+    meta.N = expected_size;
+    meta.layout = "colmajor";
+    meta.dtype = "float64";
+
+    if (!meta_path.empty()) {
+        meta = loadMorUrMeta(meta_path);
+        if (mfem::Mpi::WorldRank() == 0) {
+            std::cout << "mor2rcs: loaded meta " << meta_path
+                      << " (N=" << meta.N << ", r=" << meta.r
+                      << ", layout=" << meta.layout << ")\n";
+        }
+    } else {
+        const auto probe = collectIndexedSnapshots(cfg.xr_dir, "xr");
+        std::ifstream ifs(probe.front().second);
+        double t = 0.0;
+        long long rpeek = -1;
+        if (!(ifs >> t >> rpeek) || rpeek <= 0) {
+            throw std::runtime_error(
+                "Cannot infer r from " + probe.front().second +
+                "; provide meta.json with N and r.");
+        }
+        meta.r = rpeek;
+        if (mfem::Mpi::WorldRank() == 0) {
+            std::cout << "mor2rcs: no meta.json; using N=" << meta.N
+                      << " from FE space, r=" << meta.r << " from first xr\n";
+        }
+    }
+
+    if (meta.N != expected_size) {
+        throw std::runtime_error(
+            "Ur rows N=" + std::to_string(meta.N) +
+            " != fields.fieldBlockSize()=" + std::to_string(expected_size));
+    }
+    if (meta.r <= 0) {
+        throw std::runtime_error("Invalid reduced rank r in Ur/meta.");
+    }
+
+    if (mfem::Mpi::WorldRank() == 0) {
+        const double ur_gib =
+            static_cast<double>(meta.N) * static_cast<double>(meta.r) * 8.0 /
+            (1024.0 * 1024.0 * 1024.0);
+        std::cout << "mor2rcs: loading Ur from " << cfg.ur_path
+                  << " (~" << std::fixed << std::setprecision(2) << ur_gib
+                  << " GiB for Ur alone; xfull not required)\n";
+    }
+
+    const auto Ur = loadUrBinary(cfg.ur_path, meta.N, meta.r, meta.layout, meta.dtype);
+    const auto snapshots = collectIndexedSnapshots(cfg.xr_dir, "xr");
+
+    mfem::Vector x_full(expected_size);
+    int written = 0;
+    for (const auto& [cycle, path] : snapshots) {
+        const auto [time, xr] = loadAsciiSnapshot(path, static_cast<int>(meta.r));
+        if (cfg.max_time.has_value() && time > cfg.max_time.value()) {
+            continue;
+        }
+        urMatVec(Ur, meta.N, meta.r, xr, x_full);
+        fields.allDOFs() = x_full;
+        writer.writeSnapshot(time);
+        if (!cfg.dump_x_dir.empty()) {
+            dumpAsciiSnapshot(cfg.dump_x_dir, cycle, time, x_full);
+        }
+        ++written;
+    }
+    return written;
+}
+
 } // namespace
 
 void runMORRCSPostProcessing(const MORRCSConfig& cfg)
 {
+    if (cfg.useUrReconstruct()) {
+        if (!std::filesystem::is_regular_file(cfg.ur_path)) {
+            throw std::runtime_error("Ur file not found: " + cfg.ur_path);
+        }
+        if (!std::filesystem::is_directory(cfg.xr_dir)) {
+            throw std::runtime_error("xr directory not found: " + cfg.xr_dir);
+        }
+    } else {
+        if (cfg.x_dir.empty() || !std::filesystem::is_directory(cfg.x_dir)) {
+            throw std::runtime_error(
+                "Provide --xdir <xfull/> or both --ur <Ur.bin> and --xrdir <xr/>.");
+        }
+    }
+
     auto case_data = parseJSONfile(cfg.case_path);
     case_data["model"]["filename"] = std::filesystem::path(cfg.mesh_path).filename().string();
 
@@ -188,6 +262,11 @@ void runMORRCSPostProcessing(const MORRCSConfig& cfg)
             std::cout << ' ' << tag;
         }
         std::cout << '\n';
+        if (cfg.useUrReconstruct()) {
+            std::cout << "mor2rcs: mode=Ur*xr reconstruct-on-the-fly\n";
+        } else {
+            std::cout << "mor2rcs: mode=legacy ASCII --xdir\n";
+        }
     }
 
     const std::string data_path =
@@ -197,22 +276,13 @@ void runMORRCSPostProcessing(const MORRCSConfig& cfg)
     RCSSurfaceBinaryWriter writer(tags, &fec, fes, fields, rank_path);
 
     const int expected_size = fields.fieldBlockSize();
-    const auto snapshots = collectXFiles(cfg.x_dir);
-
-    int written = 0;
-    for (const auto& [cycle, path] : snapshots) {
-        (void)cycle;
-        const auto [time, state] = loadSnapshot(path, expected_size);
-        if (cfg.max_time.has_value() && time > cfg.max_time.value()) {
-            continue;
-        }
-        fields.allDOFs() = state;
-        writer.writeSnapshot(time);
-        ++written;
-    }
+    const int written = cfg.useUrReconstruct()
+        ? writeSnapshotsFromUrXr(cfg, fields, writer, expected_size)
+        : writeSnapshotsFromXDir(cfg, fields, writer, expected_size);
 
     if (written == 0) {
-        throw std::runtime_error("No snapshots written (check --max-time or xdir contents).");
+        throw std::runtime_error(
+            "No snapshots written (check --max-time or snapshot directory contents).");
     }
 
     if (mfem::Mpi::WorldRank() == 0) {

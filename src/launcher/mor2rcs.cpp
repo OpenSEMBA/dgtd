@@ -21,28 +21,40 @@ struct LauncherConfig {
     std::string case_path;
     std::string mesh_path;
     std::string x_dir;
+    std::string ur_path;
+    std::string xr_dir;
+    std::string meta_path;
+    std::string dump_x_dir;
     std::string output_root{"rcs_output"};
     std::string probe_name{"mor_rcs"};
     std::string rcs_json_path;
     std::vector<int> tags;
     std::optional<double> max_time;
+    bool x_dir_explicit = false;
 };
 
 void printHelp()
 {
     std::cout
         << "OpenSEMBA/dgtd mor2rcs\n"
-        << "Replay MOR xfull snapshots into rcssurface format and compute RCS.\n\n"
+        << "Replay MOR snapshots into rcssurface format and compute RCS.\n\n"
+        << "Modes:\n"
+        << "  Legacy:     --xdir <xfull/>          ASCII full-order x_k\n"
+        << "  Reconstruct: --ur <Ur.bin> --xrdir <xr/>   x = Ur * xr on the fly\n\n"
         << "Usage:\n"
-        << "  mor2rcs [--case <case.json>] [--mesh <mesh.msh>] [--xdir <xfull/>]\n"
+        << "  mor2rcs [--case <case.json>] [--mesh <mesh.msh>]\n"
+        << "          [--xdir <xfull/> | --ur <Ur.bin> --xrdir <xr/>]\n"
+        << "          [--meta <meta.json>] [--dump-xdir <dir>]\n"
         << "          [--tags <t1> <t2> ...] [--name <probe_name>] [--out <output_root>]\n"
         << "          [-i <rcs_sweep.json>] [--max-time <t>]\n\n"
         << "Defaults (when run in a post-processing folder):\n"
         << "  --case: unique .json file in current directory\n"
         << "  --mesh: unique .msh file in current directory\n"
-        << "  --xdir: ./xfull if present, else ./x\n"
+        << "  --xdir: ./xfull if present, else ./x  (legacy mode only)\n"
+        << "  --meta: <dir(Ur)>/meta.json if present\n"
         << "  --name: mor_rcs\n"
-        << "  --out : ./rcs_output\n";
+        << "  --out : ./rcs_output\n\n"
+        << "Ur.bin: float64, column-major (N×r), host endian. Peak RAM ≈ Ur + one x.\n";
 }
 
 std::string findUniqueFileWithExtension(const std::filesystem::path& dir,
@@ -99,6 +111,19 @@ LauncherConfig parseArgs(int argc, char** argv)
         }
         else if (arg == "--xdir" && i + 1 < argc) {
             cfg.x_dir = argv[++i];
+            cfg.x_dir_explicit = true;
+        }
+        else if (arg == "--ur" && i + 1 < argc) {
+            cfg.ur_path = argv[++i];
+        }
+        else if (arg == "--xrdir" && i + 1 < argc) {
+            cfg.xr_dir = argv[++i];
+        }
+        else if (arg == "--meta" && i + 1 < argc) {
+            cfg.meta_path = argv[++i];
+        }
+        else if (arg == "--dump-xdir" && i + 1 < argc) {
+            cfg.dump_x_dir = argv[++i];
         }
         else if (arg == "--name" && i + 1 < argc) {
             cfg.probe_name = argv[++i];
@@ -133,7 +158,18 @@ LauncherConfig parseArgs(int argc, char** argv)
     if (cfg.mesh_path.empty()) {
         cfg.mesh_path = findUniqueFileWithExtension(cwd, ".msh");
     }
-    if (cfg.x_dir.empty()) {
+
+    const bool ur_mode = !cfg.ur_path.empty() || !cfg.xr_dir.empty();
+    if (ur_mode) {
+        if (cfg.ur_path.empty() || cfg.xr_dir.empty()) {
+            throw std::runtime_error(
+                "Reconstruct mode requires both --ur <Ur.bin> and --xrdir <xr/>.");
+        }
+        if (cfg.x_dir_explicit) {
+            std::cerr << "mor2rcs: warning: --xdir ignored because --ur/--xrdir is set\n";
+            cfg.x_dir.clear();
+        }
+    } else if (cfg.x_dir.empty()) {
         cfg.x_dir = resolveXDir(cwd);
     }
 
@@ -143,8 +179,19 @@ LauncherConfig parseArgs(int argc, char** argv)
     if (!std::filesystem::is_regular_file(cfg.mesh_path)) {
         throw std::runtime_error("Mesh file not found: " + cfg.mesh_path);
     }
-    if (!std::filesystem::is_directory(cfg.x_dir)) {
+    if (!ur_mode && !std::filesystem::is_directory(cfg.x_dir)) {
         throw std::runtime_error("x directory not found: " + cfg.x_dir);
+    }
+    if (ur_mode) {
+        if (!std::filesystem::is_regular_file(cfg.ur_path)) {
+            throw std::runtime_error("Ur file not found: " + cfg.ur_path);
+        }
+        if (!std::filesystem::is_directory(cfg.xr_dir)) {
+            throw std::runtime_error("xr directory not found: " + cfg.xr_dir);
+        }
+        if (!cfg.meta_path.empty() && !std::filesystem::is_regular_file(cfg.meta_path)) {
+            throw std::runtime_error("meta JSON not found: " + cfg.meta_path);
+        }
     }
     if (cfg.rcs_json_path.empty()) {
         throw std::runtime_error("RCS sweep JSON required (-i <rcs_sweep.json>).");
@@ -177,6 +224,10 @@ maxwell::driver::MORRCSConfig buildDriverConfig(const LauncherConfig& launcher_c
     cfg.case_path = launcher_cfg.case_path;
     cfg.mesh_path = launcher_cfg.mesh_path;
     cfg.x_dir = launcher_cfg.x_dir;
+    cfg.ur_path = launcher_cfg.ur_path;
+    cfg.xr_dir = launcher_cfg.xr_dir;
+    cfg.meta_path = launcher_cfg.meta_path;
+    cfg.dump_x_dir = launcher_cfg.dump_x_dir;
     cfg.output_root = launcher_cfg.output_root;
     cfg.probe_name = launcher_cfg.probe_name;
     cfg.tags = launcher_cfg.tags;
