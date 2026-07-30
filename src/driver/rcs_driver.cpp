@@ -70,6 +70,14 @@ void runRCSPostProcessing(const std::string& rcsJsonPath)
 	if (rcsInput.contains("max_time") && !rcsInput["max_time"].is_null())
 		maxTime = rcsInput["max_time"].get<double>();
 
+	int everyNSteps = 1;
+	if (rcsInput.contains("every_n_steps") && !rcsInput["every_n_steps"].is_null()) {
+		everyNSteps = rcsInput["every_n_steps"].get<int>();
+		if (everyNSteps < 1) {
+			throw std::runtime_error("every_n_steps must be >= 1");
+		}
+	}
+
 	for (const auto& probe : caseData["probes"]["rcssurface"]) {
 		std::string probeName = probe.at("name");
 		std::string dataPath = "./Exports/" + runmode + "/" + casename
@@ -79,9 +87,14 @@ void runRCSPostProcessing(const std::string& rcsJsonPath)
 			std::cout << "Processing RCS probe: " << probeName << "\n"
 				<< "  Data path: " << dataPath << "\n"
 				<< "  Case JSON: " << caseJson << "\n";
+			if (everyNSteps > 1) {
+				std::cout << "  every_n_steps: " << everyNSteps
+					<< " (subsample existing surface_data.bin)\n";
+			}
 		}
 
-		RCSSurfacePostProcessor pp(dataPath, caseJson, frequencies, angles, maxTime);
+		RCSSurfacePostProcessor pp(
+			dataPath, caseJson, frequencies, angles, maxTime, everyNSteps);
 	}
 }
 

@@ -156,7 +156,9 @@ Surface E/H snapshots for offline RCS (`surface_data.bin` with geometry header +
 |-------|-------------|
 | `tags` | Surface integration tags |
 | `name` | Default `"RCSSurfaceProbe"` |
-| `steps` / `saves` | As above |
+| `steps` / `saves` | As above. Prefer matching temporal density across cases (e.g. with `time_step` 0.0001 use `steps: 5` to match a 0.0005 / `steps: 1` export). |
+
+Offline `opensemba_rcs` input JSON may also set `every_n_steps` (integer ≥ 1, default 1) to subsample an existing dense `surface_data.bin` **while reading** (skips payloads; does not load them into RAM).
 
 ### mor_state
 

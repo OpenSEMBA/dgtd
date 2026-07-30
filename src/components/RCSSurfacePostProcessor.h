@@ -47,7 +47,8 @@ public:
         const std::string& jsonPath,
         std::vector<Frequency>& frequencies,
         const std::vector<SphericalAngles>& angles,
-        const std::optional<double>& maxTime = std::nullopt);
+        const std::optional<double>& maxTime = std::nullopt,
+        int everyNSteps = 1);
 
     double getRCS(const SphericalAngles& angles, const Frequency& freq) const {
         return rcsData_.at(angles).at(freq);
@@ -79,6 +80,7 @@ private:
 
     std::map<SphericalAngles, Freq2Value> rcsData_;
     std::optional<double> maxTime_;
+    int everyNSteps_{1};  // keep snapshot i if i % everyNSteps_ == 0 (applied while reading)
     std::map<SphericalAngles, Freq2Value> farFieldData_;
 };
 

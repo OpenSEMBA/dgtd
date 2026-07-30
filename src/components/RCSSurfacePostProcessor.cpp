@@ -84,17 +84,40 @@ RCSSurfacePostProcessor::readRankData(const std::string& rankPath) const
            nqp * sizeof(double));
 
     const int ndofs = rd.geometry.numDofs;
+    const int stride = std::max(1, everyNSteps_);
+    const std::size_t field_bytes =
+        static_cast<std::size_t>(ndofs) * sizeof(double);
+    long long snap_index = 0;
+    long long kept = 0;
+    long long skipped = 0;
     while (f.peek() != EOF) {
         SurfaceSnapshot snap;
         f.read(reinterpret_cast<char*>(&snap.time), sizeof(double));
         if (!f) break;
 
-        for (auto* vec : {&snap.Ex, &snap.Ey, &snap.Ez,
-                          &snap.Hx, &snap.Hy, &snap.Hz}) {
-            vec->resize(ndofs);
-            f.read(reinterpret_cast<char*>(vec->data()), ndofs * sizeof(double));
+        const bool keep = (snap_index % stride) == 0;
+        if (keep) {
+            for (auto* vec : {&snap.Ex, &snap.Ey, &snap.Ez,
+                              &snap.Hx, &snap.Hy, &snap.Hz}) {
+                vec->resize(ndofs);
+                f.read(reinterpret_cast<char*>(vec->data()),
+                       static_cast<std::streamsize>(field_bytes));
+            }
+            if (!f) break;
+            rd.snapshots.push_back(std::move(snap));
+            ++kept;
+        } else {
+            // Skip field payload without allocating (critical for large dumps).
+            f.seekg(static_cast<std::streamoff>(6 * field_bytes), std::ios::cur);
+            if (!f) break;
+            ++skipped;
         }
-        rd.snapshots.push_back(std::move(snap));
+        ++snap_index;
+    }
+    if (stride > 1) {
+        std::cout << "    every_n_steps=" << stride
+                  << ": kept " << kept << ", skipped " << skipped
+                  << " snapshots while reading\n";
     }
     return rd;
 }
@@ -469,8 +492,10 @@ RCSSurfacePostProcessor::RCSSurfacePostProcessor(
     const std::string& jsonPath,
     std::vector<Frequency>& frequencies,
     const std::vector<SphericalAngles>& angles,
-    const std::optional<double>& maxTime)
-    : maxTime_(maxTime)
+    const std::optional<double>& maxTime,
+    int everyNSteps)
+    : maxTime_(maxTime),
+      everyNSteps_(std::max(1, everyNSteps))
 {
     computeAndWriteResults(dataPath, jsonPath, frequencies, angles);
 }
