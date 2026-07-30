@@ -103,9 +103,18 @@
       }
     },
     {
+      "name": "cuda-sm120-toolkit",
+      "hidden": true,
+      "environment": {
+        "CUDA_HOME": "/usr/local/cuda-13.3",
+        "PATH": "/usr/local/cuda-13.3/bin${pathListSep}$penv{PATH}",
+        "LD_LIBRARY_PATH": "/usr/local/cuda-13.3/lib64${pathListSep}$penv{LD_LIBRARY_PATH}"
+      }
+    },
+    {
       "name": "gnu-debug-cuda-sm120",
       "displayName": "GNU debug cuda (sm_120 / CUDA 13.3)",
-      "inherits": "gnu-debug-mpi",
+      "inherits": ["gnu-debug-mpi", "cuda-sm120-toolkit"],
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc-12",
         "CMAKE_CXX_COMPILER": "g++-12",
@@ -121,7 +130,7 @@
     {
       "name": "gnu-release-cuda-sm120",
       "displayName": "GNU release cuda (sm_120 / CUDA 13.3)",
-      "inherits": "gnu-release-mpi",
+      "inherits": ["gnu-release-mpi", "cuda-sm120-toolkit"],
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc-12",
         "CMAKE_CXX_COMPILER": "g++-12",
@@ -159,12 +168,14 @@
     {
       "name": "build-gnu-debug-cuda-sm120",
       "displayName": "Build GNU debug cuda (sm_120)",
-      "configurePreset": "gnu-debug-cuda-sm120"
+      "configurePreset": "gnu-debug-cuda-sm120",
+      "jobs": 6
     },
     {
       "name": "build-gnu-release-cuda-sm120",
       "displayName": "Build GNU release cuda (sm_120)",
-      "configurePreset": "gnu-release-cuda-sm120"
+      "configurePreset": "gnu-release-cuda-sm120",
+      "jobs": 6
     }
   ]
 }

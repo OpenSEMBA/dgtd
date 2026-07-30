@@ -55,6 +55,11 @@ if (SEMBA_DGTD_ENABLE_MFEM_AS_SUBDIRECTORY)
 			"${_dgtd_mfem_dir}/fem/integ/bilininteg_*_ea.cpp"
 			"${_dgtd_mfem_dir}/fem/integ/bilininteg_*_kernels.cpp"
 			"${_dgtd_mfem_dir}/fem/lor/lor_batched.cpp"
+			"${_dgtd_mfem_dir}/fem/dgmassinv.cpp"
+			"${_dgtd_mfem_dir}/fem/tmop.cpp"
+			"${_dgtd_mfem_dir}/fem/tmop_tools.cpp"
+			"${_dgtd_mfem_dir}/fem/tmop_amr.cpp"
+			"${_dgtd_mfem_dir}/fem/qinterp/*.cpp"
 		)
 		file(GLOB_RECURSE _dgtd_mfem_tmop_cuda_o0
 			"${_dgtd_mfem_dir}/fem/tmop/*.cpp"
