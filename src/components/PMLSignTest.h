@@ -6,13 +6,13 @@ namespace maxwell {
 /// 0=default, 1=S1..6 per docs/pml plan sign audit.
 enum class PMLSignTestMode {
 	Default = 0,
-	FlipCorrections = 1,      // S1: swap H/E correction placement signs
+	FlipCorrections = 1,      // S1: revert to pre-2026-09-04 H/E correction signs (unstable)
 	FaceSameAsVolume = 2,     // S2: face driver +w (no SBP opposition)
 	FaceCrossColumn = 3,      // S3: face driver uses global one-normal column layout
-	NegateDriverWeight = 4,   // S4: negate curl driver weight w
+	NegateDriverWeight = 4,   // S4: negate curl driver weight w (equiv. to old FlipCorrections via ψ→−ψ)
 	NegatePMLOperatorMult = 5,// S5: AddMult(..., -1)
 	FlipPsiMassSign = 6,      // S6: psi mass placement +1 instead of -1
-	IncludeOuterBdyFace = 7     // S7/S8: add terminating boundary face on ψ driver (experimental)
+	IncludeOuterBdyFace = 7     // S7: add terminating boundary face on ψ driver (experimental)
 };
 
 PMLSignTestMode getPMLSignTestMode();

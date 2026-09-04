@@ -257,29 +257,40 @@ For each direction \(d\) with active CFS stretch \((\kappa_d, \sigma_d, \alpha_d
 - **ψ^E_d** — memory for terms where **∂E/∂x_d** appears in **Ḣ**
 - **ψ^H_d** — memory for terms where **∂H/∂x_d** appears in **Ė**
 
-**Auxiliary evolution** (Gedney ADE structure, paper Eq. (6)–(8) pattern):
+**Auxiliary evolution** (Gedney ADE; paper Eq. (6)–(8) pattern with CFS pole
+\(\alpha + \sigma/\kappa\)):
 
 \[
-\frac{\partial \psi^E_d}{\partial t} = -\alpha_d\,\psi^E_d + \sigma_d\,\mathcal{D}_d(\mathbf{E})
+\frac{\partial \psi^E_d}{\partial t} = -\left(\alpha_d + \frac{\sigma_d}{\kappa_d}\right)\psi^E_d + \frac{\sigma_d}{\kappa_d}\,\mathcal{D}_d(\mathbf{E})
 \]
 
 \[
-\frac{\partial \psi^H_d}{\partial t} = -\alpha_d\,\psi^H_d + \sigma_d\,\mathcal{D}_d(\mathbf{H})
+\frac{\partial \psi^H_d}{\partial t} = -\left(\alpha_d + \frac{\sigma_d}{\kappa_d}\right)\psi^H_d + \frac{\sigma_d}{\kappa_d}\,\mathcal{D}_d(\mathbf{H})
 \]
+
+**Note (2026-09-04):** An earlier transcription used \(-\alpha\psi + \sigma\mathcal{D}\). That drops the
+\(\sigma/\kappa\) contribution to the pole, so with `alpha_max=0` the auxiliaries have **no
+damping** and late-time RK4 runs blow up. Live code uses `PMLProfileCoefficient::Kind::Decay`
+and `Kind::SigmaOverKappa`.
 
 where \(\mathcal{D}_d(\mathbf{F})\) is the **curl-coupled directional driver**: at each DOF, the linear combination of \(\partial F_c / \partial x_d\) with weights from the table above (only components whose curl row contains \(\partial/\partial x_d\)).
 
 **Field corrections** (added to semidiscrete \(\dot{\mathbf{E}}\), \(\dot{\mathbf{H}}\) after `globalOperator_->Mult`):
 
 \[
-\frac{\partial E_c}{\partial t} \mathrel{+}= \sum_{d \in \text{active}} \frac{\psi^H_{d,c}}{\kappa_d}
+\frac{\partial E_c}{\partial t} \mathrel{-}= \sum_{d \in \text{active}} \frac{\psi^H_{d,c}}{\kappa_d}
 \]
 
 \[
-\frac{\partial H_c}{\partial t} \mathrel{-}= \sum_{d \in \text{active}} \frac{\psi^E_{d,c}}{\kappa_d}
+\frac{\partial H_c}{\partial t} \mathrel{+}= \sum_{d \in \text{active}} \frac{\psi^E_{d,c}}{\kappa_d}
 \]
 
-(signs chosen so interface (\(\sigma=\alpha=0\), \(\kappa=1\)) gives zero correction).
+These signs match the continuous split \(1/s_d\,\partial_d = \kappa_d^{-1}\partial_d - \psi\) with the ADE
+above (validated 2026-09-04 on `1D_PML_buffer`: old opposite signs absorbed poorly and
+blew up after \(t\sim 30\); these signs absorb in the front of the layer and remain
+bounded through at least \(t=60\)).
+
+(Interface \(\sigma=\alpha=0\), \(\kappa=1\) still gives zero correction.)
 
 **Spatial discretization:** \(\mathcal{D}_d\) uses the same weak directional derivative as `buildDerivativeSubOperator(d)` **plus** the matching interior one-normal face jump (see `collectGlobalOneNormalOperators`), both restricted to PML volume markers and scaled by \(\sigma\). Volume and face contributions enter with opposite sign on each field column (discrete SBP split). `PMLOperator_` is a preassembled CSR matrix built by `DGOperatorFactory::buildPMLOperator()` as `M_{\text{L2}}^{-1} \times` weak blocks (scalar inverse mass on ψ rows; Maxwell inverse mass on field correction rows), applied in `GlobalEvolution::applyPMLCoupling()` via `PMLOperator_->AddMult`.
 

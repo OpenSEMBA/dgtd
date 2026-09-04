@@ -27,6 +27,9 @@ This folder exists so future Agent sessions and human reviewers do not depend on
 | [17-session-centered-frame-probe-correlation.md](./17-session-centered-frame-probe-correlation.md) | **2026-05-27** Centered case: ParaView frames 48/61/68–75 vs probes + audit |
 | [18-session-centered-vs-upwind-correlation.md](./18-session-centered-vs-upwind-correlation.md) | **2026-05-27** ψ Mult diag + centered vs upwind at frames 48–75 |
 | [19-session-sign-matrix-interface-window.md](./19-session-sign-matrix-interface-window.md) | **2026-05-27** S0–S6 at t=8.05 on `1D_PML_centered` |
+| [20-pipeline-reexploration.md](./20-pipeline-reexploration.md) | **2026-09-04** Full pipeline audit: physics, live wiring, intended vs actual, late-time outer-PML instability, experiment ledger |
+
+**DFT tooling:** [`scripts/pml_dft_reflection.py`](../../scripts/pml_dft_reflection.py) + case [`testData/maxwellInputs/1D_PML_DFT/`](../../testData/maxwellInputs/1D_PML_DFT/).
 
 ## Primary references
 

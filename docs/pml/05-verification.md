@@ -33,13 +33,29 @@ User responsibility: probe coordinates in JSON for their 1D Gmsh case.
 - **E and/or H components** as supported by existing `PointProbe` / exporter.
 - **Not** auxiliary ψ.
 
-### Post-processing (user)
+### Post-processing (script)
 
-1. Run simulation to `final_time` sufficient for pulse to pass PML and reflect back.
+Use [`scripts/pml_dft_reflection.py`](../../scripts/pml_dft_reflection.py) on vacuum PointProbe
+exports. Dedicated case: [`testData/maxwellInputs/1D_PML_DFT/`](../../testData/maxwellInputs/1D_PML_DFT/).
+
+1. Run simulation to `final_time` sufficient for the reflected lobe to clear the probe.
 2. Export probe time series (existing probe/export pipeline).
-3. DFT at dominant frequency (or broadband max reflection).
-4. Compute reflection coefficient **R = |E_ref| / |E_inc|** (or power ratio).
-5. **20 log10(|R|) ≤ −40 dB** → pass.
+3. DFT incident and reflected **time windows** separately (Hann taper default).
+4. Compute \(R(f) = |E_{\mathrm{ref}}(f)| / |E_{\mathrm{inc}}(f)|\).
+5. **20 log10(|R|) ≤ −40 dB** at the incident spectral peak → pass.
+
+```sh
+mpirun -np 1 ./build/gnu-release-mpi/bin/opensemba_dgtd \
+  -i testData/maxwellInputs/1D_PML_DFT/1D_PML_DFT.json
+python3 scripts/pml_dft_reflection.py Exports/single-core/1D_PML_DFT --probe 0
+```
+
+**2026-09-04 result (after ADE decay + correction-sign fix):** probe 0 at \(x=0\) gives
+\(R_{\mathrm{dB}}(f_{\mathrm{peak}})\approx -29~\mathrm{dB}\) on the original **L = 1** buffer mesh
+(**FAIL** −40 dB). Thickening the PML to **L = 2** ([`1D_PML_L2`](../../testData/maxwellInputs/1D_PML_L2/))
+or **L = 3** ([`1D_PML_L3`](../../testData/maxwellInputs/1D_PML_L3/)) yields **≪ −40 dB**
+(typically −150 dB or better) with the same ADE; see L3 README sweep table. On L = 1,
+increasing \(\sigma\) (smaller `target_reflection`) made reflection **worse**.
 
 ---
 

@@ -15,13 +15,19 @@ double PMLProfileCoefficient::Eval(
 {
 	PMLDirectionProfiles prof;
 	profiles_.evaluateAtTransform(T, ip, stretch_dir_, prof);
+	const double inv_kappa = (prof.kappa > 0.0) ? (1.0 / prof.kappa) : 0.0;
 	switch (kind_) {
 	case Kind::Alpha:
 		return prof.alpha;
 	case Kind::Sigma:
 		return prof.sigma;
 	case Kind::InvKappa:
-		return (prof.kappa > 0.0) ? (1.0 / prof.kappa) : 0.0;
+		return inv_kappa;
+	case Kind::Decay:
+		// Gedney ADE: ∂ψ/∂t = -(α + σ/κ) ψ + (σ/κ) D(F)
+		return prof.alpha + prof.sigma * inv_kappa;
+	case Kind::SigmaOverKappa:
+		return prof.sigma * inv_kappa;
 	}
 	return 0.0;
 }

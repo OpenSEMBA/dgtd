@@ -2013,7 +2013,8 @@ namespace maxwell
 			return;
 		}
 
-		PMLProfileCoefficient sigma_coeff(profiles, stretch_dir, PMLProfileCoefficient::Kind::Sigma);
+		PMLProfileCoefficient sigma_coeff(
+			profiles, stretch_dir, PMLProfileCoefficient::Kind::SigmaOverKappa);
 		auto MInvScalar = buildPMLScalarInverseMassSubOperator<ParBilinearForm>(
 			pml_marker, profiles.feOrder() + 1);
 
@@ -2310,10 +2311,14 @@ namespace maxwell
 		const PMLSignTestMode sign_mode = getPMLSignTestMode();
 		const double psi_mass_sign =
 			(sign_mode == PMLSignTestMode::FlipPsiMassSign) ? 1.0 : -1.0;
+		// Gedney 1/s ∂ = (1/κ)∂ − Ψ with Ψ̇ = −(α+σ/κ)Ψ + (σ/κ)D requires
+		// field corrections opposite the original docs transcription:
+		//   Ė −= ψ^H/κ ,  Ḣ += ψ^E/κ
+		// (PML_SIGN_TEST=1 FlipCorrections reverts to the old unstable signs.)
 		const double h_corr_sign =
-			(sign_mode == PMLSignTestMode::FlipCorrections) ? 1.0 : -1.0;
-		const double e_corr_sign =
 			(sign_mode == PMLSignTestMode::FlipCorrections) ? -1.0 : 1.0;
+		const double e_corr_sign =
+			(sign_mode == PMLSignTestMode::FlipCorrections) ? 1.0 : -1.0;
 		const bool pml_upwind = (pd_.opts.alpha > 0.0);
 
 		std::vector<std::pair<Direction, Direction>> two_dir_pairs;
@@ -2337,20 +2342,26 @@ namespace maxwell
 				continue;
 			}
 
-			PMLProfileCoefficient alpha_coeff(profiles, stretch_dir, PMLProfileCoefficient::Kind::Alpha);
-			PMLProfileCoefficient sigma_coeff(profiles, stretch_dir, PMLProfileCoefficient::Kind::Sigma);
-			PMLProfileCoefficient inv_kappa_coeff(profiles, stretch_dir, PMLProfileCoefficient::Kind::InvKappa);
+			// Gedney ADE (field corr uses ψ/κ):
+			//   ∂ψ/∂t = -(α + σ/κ) ψ + (σ/κ) D(F)
+			// Using Alpha alone left ψ undamped when alpha_max=0 (late-time blow-up).
+			PMLProfileCoefficient decay_coeff(
+				profiles, stretch_dir, PMLProfileCoefficient::Kind::Decay);
+			PMLProfileCoefficient sigma_over_kappa_coeff(
+				profiles, stretch_dir, PMLProfileCoefficient::Kind::SigmaOverKappa);
+			PMLProfileCoefficient inv_kappa_coeff(
+				profiles, stretch_dir, PMLProfileCoefficient::Kind::InvKappa);
 
 			const std::vector<Direction> dir_terms = {stretch_dir};
 
 			auto psi_e_volume = buildPMLDomainDerivativeSubOperator<ParBilinearForm>(
-				sigma_coeff, stretch_dir, pml_marker);
+				sigma_over_kappa_coeff, stretch_dir, pml_marker);
 			auto psi_e_face = buildPMLDomainOneNormalSubOperator<ParBilinearForm>(
-				sigma_coeff, altField(H), dir_terms, pml_marker);
+				sigma_over_kappa_coeff, altField(H), dir_terms, pml_marker);
 			auto psi_h_volume = buildPMLDomainDerivativeSubOperator<ParBilinearForm>(
-				sigma_coeff, stretch_dir, pml_marker);
+				sigma_over_kappa_coeff, stretch_dir, pml_marker);
 			auto psi_h_face = buildPMLDomainOneNormalSubOperator<ParBilinearForm>(
-				sigma_coeff, altField(E), dir_terms, pml_marker);
+				sigma_over_kappa_coeff, altField(E), dir_terms, pml_marker);
 
 			auto psi_e_vol_op = buildByMult<FES, ParBilinearForm>(
 				MInvScalar->SpMat(), psi_e_volume->SpMat(), fes_);
@@ -2362,7 +2373,7 @@ namespace maxwell
 				MInvScalar->SpMat(), psi_h_face->SpMat(), fes_);
 
 			auto psi_mass = buildPMLDomainMassSubOperator<ParBilinearForm>(
-				alpha_coeff, pml_marker, ir_order);
+				decay_coeff, pml_marker, ir_order);
 			auto psi_mass_op = buildByMult<FES, ParBilinearForm>(
 				MInvScalar->SpMat(), psi_mass->SpMat(), fes_);
 
@@ -2380,7 +2391,7 @@ namespace maxwell
 			std::vector<const mfem::SparseMatrix*> psi_two_ptr_H;
 			if (pml_upwind) {
 				ConstantCoefficient upwind_scale(pd_.opts.alpha);
-				ProductCoefficient sigma_upwind(sigma_coeff, upwind_scale);
+				ProductCoefficient sigma_upwind(sigma_over_kappa_coeff, upwind_scale);
 				auto psi_zero_bf = buildPMLDomainZeroNormalSubOperator<ParBilinearForm>(
 					sigma_upwind, pml_marker);
 				psi_zero_op = buildByMult<FES, ParBilinearForm>(
