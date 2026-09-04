@@ -323,12 +323,25 @@ Prior S1–S7 audits at \(t=20\) with the **undamped** mass were inconclusive: f
 cannot stabilize an integrator with zero ADE pole. With the correct decay, the correction-sign
 flip is decisive for both absorption and late-time stability.
 
-### Remaining / deferred (not blocking 1D stability)
+### Remaining / deferred (not blocking 1D stability or −40 dB on L=1)
 
-- DFT −40 dB user sign-off on vacuum probes
+- User DFT sign-off on preferred production meshes
 - κ-mass path when `kappa_max>1`
-- Milestone B SDIRK / `ImplicitSolve` for stiff large-\(\alpha\) or coarser \(\Delta t\)
-- Scalar vs Maxwell \(M^{-1}\) on ψ rows (still deferred; not required for these 1D passes)
+- Milestone B SDIRK / `ImplicitSolve` for stiff large-α or coarser Δt
+- Scalar vs Maxwell \(M^{-1}\) on ψ rows (still deferred)
+
+### Discrete matching follow-up (same day)
+
+| Experiment (L=1, `1D_PML_DFT`) | \(R_{\mathrm{dB}}(f_{\mathrm{peak}})\) |
+|--------------------------------|----------------------------------------|
+| Baseline (global + ψ upwind) | −28.8 FAIL |
+| `upwind_alpha=0` (centered) | −87.5 PASS |
+| order 3, same mesh | −39.7 FAIL (near miss) |
+| dx=0.05 (20 PML els, same L) | −135 PASS |
+| **Disable ψ Zero/Two only** (keep global upwind) | **≪ −40 PASS (~−300 dB)** |
+
+Conclusion: thin-L failure was largely **ψ-driver upwind double-counting**, not missing σ.
+Code now leaves `pml_upwind = false` in `collectPMLOperatorBlocks`.
 
 ---
 

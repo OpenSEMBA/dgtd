@@ -50,12 +50,15 @@ mpirun -np 1 ./build/gnu-release-mpi/bin/opensemba_dgtd \
 python3 scripts/pml_dft_reflection.py Exports/single-core/1D_PML_DFT --probe 0
 ```
 
-**2026-09-04 result (after ADE decay + correction-sign fix):** probe 0 at \(x=0\) gives
-\(R_{\mathrm{dB}}(f_{\mathrm{peak}})\approx -29~\mathrm{dB}\) on the original **L = 1** buffer mesh
-(**FAIL** −40 dB). Thickening the PML to **L = 2** ([`1D_PML_L2`](../../testData/maxwellInputs/1D_PML_L2/))
-or **L = 3** ([`1D_PML_L3`](../../testData/maxwellInputs/1D_PML_L3/)) yields **≪ −40 dB**
-(typically −150 dB or better) with the same ADE; see L3 README sweep table. On L = 1,
-increasing \(\sigma\) (smaller `target_reflection`) made reflection **worse**.
+**2026-09-04 result (after ADE decay + correction-sign fix):** probe 0 at \(x=0\) on the
+original **L = 1** buffer mesh gave \(R_{\mathrm{dB}}(f_{\mathrm{peak}})\approx -29~\mathrm{dB}\)
+(**FAIL**) when the ψ ADE driver also included σ-weighted Zero/Two upwind terms.
+
+**Root cause / fix:** those ψ-upwind blocks double-count dissipative jumps already present in
+`globalOperator_` and destroy vacuum–PML interface matching on thin/coarse layers. Disabling
+ψ-upwind (global `upwind_alpha` unchanged) yields **≪ −40 dB** on L = 1
+(\(R_{\mathrm{dB}}\sim -300~\mathrm{dB}\) noise floor). Thick L = 2/3 cases remain PASS.
+See [`20-pipeline-reexploration.md`](./20-pipeline-reexploration.md) §7.
 
 ---
 

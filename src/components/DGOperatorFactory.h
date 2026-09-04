@@ -2319,7 +2319,12 @@ namespace maxwell
 			(sign_mode == PMLSignTestMode::FlipCorrections) ? -1.0 : 1.0;
 		const double e_corr_sign =
 			(sign_mode == PMLSignTestMode::FlipCorrections) ? 1.0 : -1.0;
-		const bool pml_upwind = (pd_.opts.alpha > 0.0);
+		// Do NOT add σ-weighted Zero/Two (upwind) into the ψ ADE driver.
+		// GlobalEvolution already applies Hesthaven upwind in globalOperator_.
+		// Extra upwind on PML-marked faces double-counts dissipative jumps at the
+		// vacuum–PML interface and produces large discrete reflection on thin/coarse
+		// layers (1D_PML_DFT L=1: ~−29 dB with ψ-upwind vs ≪−40 dB without).
+		const bool pml_upwind = false;
 
 		std::vector<std::pair<Direction, Direction>> two_dir_pairs;
 		if (pml_upwind) {
