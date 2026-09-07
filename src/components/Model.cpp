@@ -1,6 +1,5 @@
 #include "Model.h"
 #include "PMLProfiles.h"
-#include "PMLAuxLayout.h"
 
 #include <memory>
 
@@ -107,7 +106,7 @@ void Model::assembleBdrToMarkerMaps()
 {
 	const std::pair<BdrCond, const mfem::Array<int>&> bdrEntries[] = {
 		{BdrCond::PEC, pecMarker_}, {BdrCond::PMC, pmcMarker_},
-		{BdrCond::SMA, smaMarker_}, {BdrCond::PML_NONE, pmlNoneMarker_},
+		{BdrCond::SMA, smaMarker_},
 		{BdrCond::SGBC, sgbc_Marker_}
 	};
 	for (const auto& [cond, marker] : bdrEntries) {
@@ -116,7 +115,7 @@ void Model::assembleBdrToMarkerMaps()
 
 	const std::pair<BdrCond, const mfem::Array<int>&> intBdrEntries[] = {
 		{BdrCond::PEC, intpecMarker_}, {BdrCond::PMC, intpmcMarker_},
-		{BdrCond::SMA, intsmaMarker_}, {BdrCond::PML_NONE, intpmlNoneMarker_},
+		{BdrCond::SMA, intsmaMarker_},
 		{BdrCond::SGBC, intsgbc_Marker_}
 	};
 	for (const auto& [cond, marker] : intBdrEntries) {
@@ -230,14 +229,6 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 				return smaMarker_;
 		}
 		break;
-	case BdrCond::PML_NONE:
-		switch (isInterior) {
-			case true:
-				return intpmlNoneMarker_;
-			case false:
-				return pmlNoneMarker_;
-		}
-		break;
 	case BdrCond::TotalFieldIn:
 		return tfsfMarker_;
 		break;
@@ -278,14 +269,6 @@ void Model::initializePMLProfiles(int mpi_rank, int fe_order)
 	}
 	pml_profiles_ = std::make_shared<PMLProfileData>(serialMesh_, pml_props_, fe_order);
 	pml_profiles_->printDiagnostics(mpi_rank);
-}
-
-void Model::initializePMLAuxLayout(const mfem::ParFiniteElementSpace& fes)
-{
-	if (pml_props_.empty()) {
-		return;
-	}
-	pml_aux_layout_ = std::make_shared<PMLAuxLayout>(fes, pml_props_);
 }
 
 mfem::Array<int> Model::buildPMLVolumeMarker() const

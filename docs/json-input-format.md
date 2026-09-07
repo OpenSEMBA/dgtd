@@ -17,6 +17,7 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | `final_time` | double | `2.0` | Simulation duration in natural units (1 m/c). |
 | `time_step` | double | `0.0` | Fixed time step in natural units. Required for 2D/3D. In 1D, `0.0` triggers automatic CFL-based step. |
 | `cfl` | double | `1.0` | CFL for automatic 1D time step. Range (0, 1]. Ignored if `time_step` is set. Not used in 2D/3D auto step. |
+| `sgbc_cfl` | double | `0.5` | Crossing-time CFL for SGBC sub-step recommendation: `δt_rec = crossing_time × sgbc_cfl × opacity_relax` (then SI→natural). Must be `> 0`. Omit for historical default (`0.5`). Does not change SGBC layer geometry; only `nsteps = ceil(Δt / δt_rec)`. |
 | `order` | integer | `2` | Polynomial order of the FE basis. |
 | `spectral` | boolean | `false` | Spectral evolution operator (full matrix eigenvalue step). High cost; limited feature support. |
 | `export_operator` | boolean | `false` | Write assembled evolution operator to disk. |
@@ -56,7 +57,7 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `tags` | int[] | — | Mesh attribute IDs sharing these properties. |
-| `type` | string | (legacy) | `"vacuum"` or `"PML"` (volumetric CFS-CPML — see [pml/03-json-schema-and-mesh.md](./pml/03-json-schema-and-mesh.md)). If omitted, legacy eps/mu/sigma fields apply. |
+| `type` | string | (legacy) | `"vacuum"` or `"PML"` (volumetric ADE-PML region — see [pml/03-json-schema-and-mesh.md](./pml/03-json-schema-and-mesh.md); CFS paused). If omitted, legacy eps/mu/sigma fields apply. |
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |

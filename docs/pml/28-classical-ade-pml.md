@@ -1,0 +1,58 @@
+# Classical ADE-PML (CuDG3D-style) — session 28 (2026-09-07)
+
+**Status: active path** after Gedney CFS pause ([`27-gedney-cfs-paused.md`](./27-gedney-cfs-paused.md)).
+
+## Formulation
+
+Uniaxial stretch axis \(s\) (normalized \(\varepsilon=\mu=1\)), volume-only:
+
+```text
+∂t E_s  +=  σ_s E_s − J_s
+∂t E_⊥  −=  σ_s E_⊥
+∂t J_s   =  σ_s² E_s − σ_s J_s
+(same for H / M)
+```
+
+No face ADE (ordinary DG fluxes at vacuum–PML). Source: commented CuDG3D [`PMLUniaxial.hpp`](../../external/Cudg3d/src/core/dg/dispersive/PMLUniaxial.hpp).
+
+**σ discretization:** element-constant mean of graded QP samples from [`PMLProfiles`](../../src/components/PMLProfiles.h) (depth grading across the layer; avoids CFS-era indefinite pointwise \(M^{-1}\mathrm{Mass}(\sigma)\) on triangles). `grading_order: 0` selects constant \(\sigma=\sigma_{\max}\) in the PML volume.
+
+**v1 scope:** one `active_axes` entry per PML material block. Multi-axis single tags error out — use separate uniaxial blocks (as in `2D_RCS_Circle_Vol_PML`).
+
+## State and Mult
+
+```text
+[Ex Ey Ez Hx Hy Hz | J_d0 M_d0 J_d1 M_d1 … ]
+n_aux = 2 × (# stretch dirs) × ndofs
+```
+
+Layout: [`ClassicalPMLLayout`](../../src/components/ClassicalPMLLayout.h).
+
+`Mult()` order:
+
+```text
+SGBC → pack EH(+nbr) → globalOperator_ → classicalPMLOperator_ AddMult → TFSF → SGBC flux
+```
+
+Assembled operator: `DGOperatorFactory::buildClassicalPMLOperator` — \(M^{-1}M(\sigma)\) field blocks + \(J\)/\(M\) couplings on PML markers.
+
+## JSON (unchanged region contract)
+
+```json
+{
+  "tags": [3],
+  "type": "PML",
+  "matches_vacuum": true,
+  "grading_order": 4,
+  "target_reflection": 1e-6,
+  "active_axes": ["X"]
+}
+```
+
+## Acceptance
+
+| Case | Gate |
+|------|------|
+| `1D_PML` | DFT reflection ≤ −40 dB ([`scripts/pml_dft_reflection.py`](../../scripts/pml_dft_reflection.py)) |
+| `2D_PML_X_slab` | Stable finite fields through `final_time` |
+| `2D_RCS_Circle_Vol_PML` | Assembles (X+Y uniaxial blocks) |

@@ -59,6 +59,11 @@ void validatePMLMaterialBlock(const nlohmann::json& mat_json)
 	if (mat_json.contains("matches_vacuum") && !mat_json["matches_vacuum"].get<bool>()) {
 		throw std::runtime_error("Only matches_vacuum: true is supported for volumetric PML.");
 	}
+	if (mat_json.contains("kappa_max") || mat_json.contains("alpha_max")) {
+		throw std::runtime_error(
+			"PML kappa_max/alpha_max are CFS-only and no longer accepted. "
+			"See docs/pml/27-gedney-cfs-paused.md.");
+	}
 }
 
 PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim)
@@ -69,21 +74,13 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	props.matches_vacuum = mat_json.value("matches_vacuum", true);
 	props.grading_order = mat_json.value("grading_order", 3);
 	props.target_reflection = mat_json.value("target_reflection", 1e-6);
-	props.kappa_max = mat_json.value("kappa_max", 1.0);
-	props.alpha_max = mat_json.value("alpha_max", 0.0);
 	props.active_axes = parseActiveAxes(mat_json, mesh_dim);
 
-	if (props.grading_order < 1) {
-		throw std::runtime_error("PML grading_order must be >= 1.");
-	}
-	if (props.kappa_max < 1.0) {
-		throw std::runtime_error("PML kappa_max must be >= 1.");
+	if (props.grading_order < 0) {
+		throw std::runtime_error("PML grading_order must be >= 0 (0 = constant conductivity).");
 	}
 	if (props.target_reflection <= 0.0 || props.target_reflection >= 1.0) {
 		throw std::runtime_error("PML target_reflection must be in (0, 1).");
-	}
-	if (props.alpha_max < 0.0) {
-		throw std::runtime_error("PML alpha_max must be >= 0.");
 	}
 
 	return props;

@@ -4,7 +4,6 @@
 #include "Material.h"
 #include "PMLProperties.h"
 #include "PMLProfiles.h"
-#include "PMLAuxLayout.h"
 
 #include <memory>
 
@@ -96,6 +95,9 @@ struct SGBCProperties{
     std::vector<SGBCLayer> layers;
 	SGBCBoundaries sgbc_bdr_info;
 	bool exporter_probe = false;
+	/// Crossing-time CFL for SGBC recommended δt: layer_dt = crossing_time * sgbc_cfl * opacity_relax.
+	/// Default 0.5 matches the historical hard-coded factor; omit JSON field for identical behavior.
+	double sgbc_cfl = 0.5;
 
     SGBCProperties() : layers() {}
 
@@ -170,9 +172,7 @@ public:
 	bool isPMLAttribute(GeomTag tag) const;
 	const PMLProperties* getPMLPropertiesForTag(GeomTag tag) const;
 	void initializePMLProfiles(int mpi_rank, int fe_order = 2);
-	void initializePMLAuxLayout(const mfem::ParFiniteElementSpace& fes);
 	const PMLProfileData* getPMLProfileData() const { return pml_profiles_.get(); }
-	const PMLAuxLayout* getPMLAuxLayout() const { return pml_aux_layout_.get(); }
 
 	/// Element-attribute marker: 1 for each volumetric PML material tag.
 	mfem::Array<int> buildPMLVolumeMarker() const;
@@ -206,12 +206,10 @@ private:
 	BoundaryMarker pecMarker_;
 	BoundaryMarker pmcMarker_;
 	BoundaryMarker smaMarker_;
-	BoundaryMarker pmlNoneMarker_;
 
 	BoundaryMarker intpecMarker_;
 	BoundaryMarker intpmcMarker_;
 	BoundaryMarker intsmaMarker_;
-	BoundaryMarker intpmlNoneMarker_;
 
 	BoundaryMarker tfsfMarker_;
 
@@ -220,7 +218,6 @@ private:
 	std::vector<SGBCProperties> sgbc_props_;
 	std::vector<PMLProperties> pml_props_;
 	std::shared_ptr<const PMLProfileData> pml_profiles_;
-	std::shared_ptr<const PMLAuxLayout> pml_aux_layout_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 

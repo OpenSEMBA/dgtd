@@ -8,6 +8,8 @@
 
 namespace maxwell {
 
+class ClassicalPMLLayout;
+
 using NodeId = int;
 using NodePair = std::pair<NodeId, NodeId>;
 using FieldGridFuncs = std::array<std::array<mfem::GridFunction, 3>, 2>;
@@ -37,7 +39,6 @@ public:
     int totalStateSize() const { return total_state_size_; }
 
 private:
-    void applyPMLCoupling(const mfem::Vector& in, mfem::Vector& out) const;
 
     int total_state_size_ = 0;
     void applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
@@ -46,13 +47,8 @@ private:
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
-    std::unique_ptr<mfem::SparseMatrix> PMLOperator_;
-    mutable int pml_diag_mult_count_ = 0;
-    int pml_outer_element_ = -1;
-    std::vector<int> pml_outer_dof_indices_;
-    std::vector<int> pml_inner_pml_dof_indices_;
-    void initPMLLocalizationDiagnostics();
-    void runPMLMultProbes();
+    std::unique_ptr<mfem::SparseMatrix> classicalPMLOperator_;
+    std::unique_ptr<ClassicalPMLLayout> classicalPMLLayout_;
 
     mfem::Array<int> tfsf_sub_to_parent_ids_;
 
@@ -102,7 +98,6 @@ private:
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
 
     mutable mfem::Vector multWorkVec_;
-    mutable mfem::Vector pmlWorkVec_;
 
     // ImplicitSolve reusable work vectors (avoid per-call allocation)
     mutable mfem::Vector implicit_inNew_;
@@ -114,6 +109,11 @@ private:
     // global interface DOFs are below this norm, skip the sub-solve and
     // flux injection entirely for that face.
     static constexpr double sgbc_skip_threshold_ = 1e-8;
+
+    // One-shot log of parent Δt / recommended δt / nsteps for TAP diagnostics.
+    mutable bool sgbc_substep_plan_logged_ = false;
+    void logSGBCSubstepPlanOnce(double parent_dt, double recommended_dt, int nsteps,
+                                double actual_sub_dt, double sgbc_cfl) const;
 
     // TFSF skip threshold: if the evaluated planewave source norm falls
     // below this value, the source has decayed and TFSF is permanently

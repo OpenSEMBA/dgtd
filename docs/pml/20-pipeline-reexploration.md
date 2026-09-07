@@ -340,8 +340,12 @@ flip is decisive for both absorption and late-time stability.
 | dx=0.05 (20 PML els, same L) | −135 PASS |
 | **Disable ψ Zero/Two only** (keep global upwind) | **≪ −40 PASS (~−300 dB)** |
 
-Conclusion: thin-L failure was largely **ψ-driver upwind double-counting**, not missing σ.
-Code now leaves `pml_upwind = false` in `collectPMLOperatorBlocks`.
+**Interpretation (refined):** ψ Zero/Two were **not** literally double-applying upwind into \(\dot E\)
+(global upwind still applies once). They assembled a **separate σ-weighted upwind face operator**
+with PML markers that does **not** match the global discrete \(D\) on vacuum–PML faces, and that
+broke thin/coarse interface matching. Live code keeps `pml_upwind = false`: Maxwell remains
+upwind via `upwind_alpha`; ψ is driven by volume + OneNormal SBP only. Full write-up:
+[`21-session-1d-solidification.md`](./21-session-1d-solidification.md).
 
 ---
 
@@ -379,6 +383,7 @@ Code now leaves `pml_upwind = false` in `collectPMLOperatorBlocks`.
 | [`17`](./17-session-centered-frame-probe-correlation.md) | Frames 48–75 vs probes |
 | [`18`](./18-session-centered-vs-upwind-correlation.md) | Centered vs upwind onset |
 | [`19`](./19-session-sign-matrix-interface-window.md) | S0–S6 at healthy t=8.05 |
+| [`21`](./21-session-1d-solidification.md) | **2026-09-04** Locked 1D: ADE + DFT + ψ-upwind off |
 
 ### Docs vs code discrepancies (known)
 
@@ -390,13 +395,13 @@ Code now leaves `pml_upwind = false` in `collectPMLOperatorBlocks`.
 | Outer terminator = SMA only | Also `PEC`, `PML_NONE` |
 | Profiles init once | Driver then Solver (order) |
 | `PML_SIGN_TEST=8` outer face | Mode is **7** |
+| ψ driver includes upwind Zero/Two when `upwind_alpha>0` | **Disabled** (`pml_upwind = false`) |
 
 ---
 
 ## Bottom line
 
-Volumetric ADE CFS-CPML is implemented end-to-end. The late-time outer-PML blow-up was fixed
-(2026-09-04) by restoring the Gedney ADE pole \(\alpha+\sigma/\kappa\) and correcting field-correction
-signs. 1D buffer and baseline cases remain bounded through at least \(t=60\) with post-pulse
-\(\max|\psi|\) at numerical noise. Remaining work is acceptance DFT (−40 dB) and hardening for
-\(\kappa_{\max}>1\) / stiff integration — not another BC or blind sign sweep.
+Volumetric ADE CFS-CPML is implemented end-to-end. Late-time stability and **1D −40 dB DFT on
+L=1** are achieved (2026-09-04) after ADE pole/sign fixes and disabling marker-based ψ upwind.
+Global Hesthaven upwind is unchanged. Next deciding work is **2D / oblique** acceptance — see
+[`21-session-1d-solidification.md`](./21-session-1d-solidification.md).

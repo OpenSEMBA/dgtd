@@ -39,7 +39,9 @@ Semantics:
 
 **Implementation:** map to `buildVacuumMaterial()` in `GeomTagToMaterial`.
 
-### PML (volumetric CFS-CPML)
+### PML (volumetric ADE — classical / CuDG3D-style next)
+
+CFS \(\kappa\)/\(\alpha\) JSON fields were removed when Gedney CFS was paused ([`27-gedney-cfs-paused.md`](./27-gedney-cfs-paused.md)). Region designation is unchanged for classical ADE-PML.
 
 ```json
 {
@@ -48,8 +50,6 @@ Semantics:
   "matches_vacuum": true,
   "grading_order": 4,
   "target_reflection": 1e-6,
-  "kappa_max": 1.0,
-  "alpha_max": 0.0,
   "active_axes": ["X"]
 }
 ```
@@ -59,11 +59,11 @@ Semantics:
 | `tags` | int[] | yes | Gmsh volume (or region) attribute IDs |
 | `type` | string | yes | Must be `"PML"` |
 | `matches_vacuum` | bool | yes (default true) | ε = μ = 1 in PML; stretch provides absorption only |
-| `grading_order` | int | yes | Power-law exponent **m** for profile vs normalized depth |
-| `target_reflection` | double | yes | Design reflection level (e.g. 1e-6); used to set **σ_max** (implementation formula TBD from Taflove/Gedney) |
-| `kappa_max` | double | yes | Maximum κ at outer PML edge (≥ 1); 1.0 = no κ grading in tests |
-| `alpha_max` | double | yes | Maximum α for CFS; **0** = classical PML limit; use **> 0** for late-time stability in production |
+| `grading_order` | int | yes | Power-law exponent **m** for \(\sigma(\xi)=\sigma_{\max}\xi^{m}\). **`0` = constant \(\sigma=\sigma_{\max}\)** in the PML volume |
+| `target_reflection` | double | yes | Design reflection level (e.g. 1e-6); used to set **σ_max** |
 | `active_axes` | string[] | yes | Subset of `"X"`, `"Y"`, `"Z"`; which directions are stretched for **this tag block** |
+
+**Rejected if present:** `kappa_max`, `alpha_max` (CFS-only leftovers).
 
 **Forbidden on PML tags:**
 
@@ -107,8 +107,6 @@ Suggested 1D JSON skeleton:
         "matches_vacuum": true,
         "grading_order": 4,
         "target_reflection": 1e-4,
-        "kappa_max": 1.0,
-        "alpha_max": 0.0,
         "active_axes": ["X"]
       }
     ],
@@ -128,14 +126,14 @@ Adjust tags, sources, boundaries to match user's Gmsh file. Outer boundaries: **
 
 | Value | Effect |
 |-------|--------|
-| **`0.0`** | Centered flux only (OneNormal + volume). **Recommended** for late-time ψ stability in current 1D matrix. |
-| **`1.0`** | Full Hesthaven upwind (Zero/Two scaled by `upwind_alpha`). `PMLOperator_` ψ driver includes matching σ-weighted Zero/Two on PML interior faces when α > 0 — see [14-session-pml-revert-and-audit.md](./14-session-pml-revert-and-audit.md). |
+| **`0.0`** | Centered flux only (OneNormal + volume). |
+| **`1.0`** | Full Hesthaven upwind (Zero/Two scaled by `upwind_alpha`). |
 
-Reference cases: [`1D_PML_centered/`](../../testData/maxwellInputs/1D_PML_centered/), [`1D_PML_buffer_centered/`](../../testData/maxwellInputs/1D_PML_buffer_centered/). Baseline upwind: [`1D_PML/`](../../testData/maxwellInputs/1D_PML/), [`1D_PML_buffer/`](../../testData/maxwellInputs/1D_PML_buffer/).
+Kept cases: [`1D_PML/`](../../testData/maxwellInputs/1D_PML/), [`1D_PML_buffer/`](../../testData/maxwellInputs/1D_PML_buffer/), [`2D_PML_X_slab/`](../../testData/maxwellInputs/2D_PML_X_slab/).
 
-Uniform probes (1.99 / 2.01 / 2.99) and stability gate: [`check_pml_probe_stability.py`](../../testData/maxwellInputs/1D_PML/check_pml_probe_stability.py).
+Uniform probes and stability gate: [`check_pml_probe_stability.py`](../../testData/maxwellInputs/1D_PML/check_pml_probe_stability.py).
 
-**Note:** Runtime **`PML_DERIV_SPLIT`** (marker subtraction from `globalOperator_`) was **removed** — it broke the vacuum–PML interface. Details: [14-session-pml-revert-and-audit.md](./14-session-pml-revert-and-audit.md).
+CFS-era note: runtime **`PML_DERIV_SPLIT`** and ψ-driver Zero/Two experiments are archived under session docs 13–14 / 27 — not live code.
 
 ---
 
@@ -189,12 +187,11 @@ Power-law toward max at outer edge of tagged region along **d**:
 
 ```text
 ξ = ρ_d / L_d   ∈ [0, 1]
-σ_d(ρ) = σ_d,max * ξ^m
-κ_d(ρ) = 1 + (κ_max - 1) * ξ^m     (if κ_max > 1)
-α_d(ρ) = α_max * ξ^m
+σ_d(ρ) = σ_d,max * ξ^m     (m >= 1)
+σ_d(ρ) = σ_d,max           (m = 0: constant conductivity in the PML)
 ```
 
-where **m = grading_order**, **L_d** = max depth in PML along **d** for that element (or local distance to outer boundary of PML tag region).
+where **m = grading_order**, **L_d** = max depth in PML along **d** for that element (or local distance to outer boundary of PML tag region). With \(m=0\), \(\sigma\) is discontinuous at the vacuum–PML interface.
 
 ### σ_max from target_reflection
 

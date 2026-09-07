@@ -31,8 +31,8 @@ Default JSON: `"evolution_operator": "global"` (or omit).
 ### GlobalEvolution operator split
 
 1. **`globalOperator_`** — curl, DG fluxes, bulk conductivity (`DGOperatorFactory::buildGlobalOperator`).
-2. **`Mult()` add-ons** — SGBC sub-solve + flux, TFSF source, (future) PML coupling.
-3. **State vector** — `[Ex, Ey, Ez, Hx, Hy, Hz]` per DOF (`6 × ndofs`); PML will extend with auxiliary ψ (see PML docs).
+2. **`Mult()` add-ons** — SGBC sub-solve + flux, classical ADE-PML (`classicalPMLOperator_`), TFSF source.
+3. **State vector** — `[Ex, Ey, Ez, Hx, Hy, Hz]` per DOF (`6 × ndofs`); with PML, plus \(J\)/\(M\) auxiliaries (`ClassicalPMLLayout`).
 
 ### Units
 
@@ -49,22 +49,20 @@ Always loop `X, Y, Z` and skip `d >= mesh.Dimension()`. Do not add 1D-only solve
 | **Build / run (human README)** | [README.md](./README.md) |
 | **JSON input reference** | [docs/json-input-format.md](./docs/json-input-format.md) |
 | **MOR → ParaView** | [docs/mor2paraview.md](./docs/mor2paraview.md) |
-| **Volumetric CFS-CPML (in progress)** | [docs/pml/README.md](./docs/pml/README.md) |
+| **Volumetric PML (CFS paused → classical ADE next)** | [docs/pml/README.md](./docs/pml/README.md) |
 | **MFEM/DGTD coding standards** | [.cursor/rules/02-mfem-dgtd-standards.mdc](./.cursor/rules/02-mfem-dgtd-standards.mdc) |
 | **C++ guidance** | [.cursor/rules/03-cpp-expert-guidance.mdc](./.cursor/rules/03-cpp-expert-guidance.mdc) |
 
-## Active work: volumetric CFS-CPML
+## Active work: volumetric classical ADE-PML (CuDG3D-style)
 
-Implementation plan and locked decisions: **`docs/pml/`** (start at [docs/pml/README.md](./docs/pml/README.md)).
+Live wiring: [`docs/pml/28-classical-ade-pml.md`](./docs/pml/28-classical-ade-pml.md). CFS archive: [`docs/pml/27-gedney-cfs-paused.md`](./docs/pml/27-gedney-cfs-paused.md).
 
 Summary:
 
-- **Formulation:** Gedney & Zhao ADE CFS-PML (DOI [10.1109/TAP.2009.2037765](https://doi.org/10.1109/TAP.2009.2037765)).
-- **Integration:** `GlobalEvolution` only; attribute-tagged PML elements; extended ODE state; RK4 via `Mult()` first.
-- **Remove:** surface `SBC_PML` shortcut (use volumetric PML only).
-- **Branch:** `vol_pml` from `dev` (fresh implementation).
-
-Before implementing PML, read `docs/pml/00-decisions-locked.md` and `docs/pml/04-implementation-plan.md`.
+- **Formulation:** classical ADE polarization currents (\(J\)/\(M\)) + volume \(\sigma\) (CuDG3D-style on MFEM).
+- **Keep:** Gmsh/JSON region tags, `active_axes` (uniaxial per block), σ grading.
+- **Integration:** `GlobalEvolution` only; RK4 via `Mult()` after `globalOperator_`.
+- **Do not** reintroduce CFS \(\psi\) / `kappa_max` / `alpha_max` without an explicit unlock.
 
 ## Conventions for agents
 
@@ -73,6 +71,7 @@ Before implementing PML, read `docs/pml/00-decisions-locked.md` and `docs/pml/04
 3. **Commits** — only when the user asks.
 4. **Tests** — run relevant gtests after substantive changes; PML acceptance is manual via `testData/maxwellInputs/` (−40 dB reflection target).
 5. **MFEM** — must use `external/mfem-geg` fork, not upstream MFEM.
+6. **NEVER clean builds/MFEM** — do not `ninja clean`, wipe `build/`, or delete MFEM/CUDA `.o` / `libmfem.a`. Incremental rebuild only. See [.cursor/rules/04-never-clean-build.mdc](./.cursor/rules/04-never-clean-build.mdc).
 
 ## Quick build (MPI release)
 

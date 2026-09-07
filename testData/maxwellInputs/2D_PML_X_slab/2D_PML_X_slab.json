@@ -1,12 +1,12 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 0.001,
+    "time_step": 0.0005,
     "final_time": 20.0,
-    "order": 2
+    "order": 3
   },
   "model": {
-    "filename": "1D_PML_L3.msh",
+    "filename": "2D_PML_X_slab.msh",
     "materials": [
       {
         "tags": [
@@ -21,10 +21,8 @@
         ],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 4,
-        "target_reflection": 1e-06,
-        "kappa_max": 1.0,
-        "alpha_max": 0.0,
+        "grading_order": 0,
+        "target_reflection": 1e-03,
         "active_axes": [
           "X"
         ]
@@ -33,13 +31,19 @@
     "boundaries": [
       {
         "tags": [
-          1
+          8,
+          10,
+          16,
+          17,
+          19,
+          21
         ],
-        "type": "SMA"
+        "type": "PMC"
       },
       {
         "tags": [
-          2
+          11,
+          20
         ],
         "type": "SMA"
       }
@@ -47,26 +51,36 @@
   },
   "probes": {
     "exporter": {
-      "saves": 400
+      "saves": 200
     },
     "point": [
       {
         "position": [
-          0.0
+          -0.5,
+          0.5
         ],
-        "saves": 2000
+        "saves": 4000
       },
       {
         "position": [
-          1.0
+          0.5,
+          0.5
         ],
-        "saves": 2000
+        "saves": 4000
       },
       {
         "position": [
-          1.5
+          0.95,
+          0.5
         ],
-        "saves": 2000
+        "saves": 4000
+      },
+      {
+        "position": [
+          1.05,
+          0.5
+        ],
+        "saves": 4000
       }
     ]
   },
@@ -75,8 +89,8 @@
       "type": "planewave",
       "polarization": [
         0.0,
-        1.0,
-        0.0
+        0.0,
+        1.0
       ],
       "propagation": [
         1.0,
@@ -84,11 +98,11 @@
         0.0
       ],
       "tags": [
-        3
+        9
       ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.4
+        "spread": 0.2
       }
     }
   ]

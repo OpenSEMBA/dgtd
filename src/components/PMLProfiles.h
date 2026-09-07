@@ -10,9 +10,7 @@ namespace maxwell {
 /// Per-quadrature-point stretch coefficients for one active direction.
 struct PMLDirectionProfiles {
 	double depth = 0.0;
-	double kappa = 1.0;
 	double sigma = 0.0;
-	double alpha = 0.0;
 };
 
 /// Profiles at all QPs of one PML element (active directions only in map).

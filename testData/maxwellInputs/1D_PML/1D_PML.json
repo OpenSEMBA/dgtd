@@ -9,28 +9,37 @@
     "filename": "1D_PML.msh",
     "materials": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [
+          1,
+          2
+        ],
         "type": "vacuum"
       },
       {
-        "tags": [ 3 ],
+        "tags": [
+          3
+        ],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 4,
-        "target_reflection": 1e-6,
-        "kappa_max": 1.0,
-        "alpha_max": 0.0,
-        "active_axes": [ "X" ]
+        "grading_order": 0,
+        "target_reflection": 1e-04,
+        "active_axes": [
+          "X"
+        ]
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
-        "type": "SMA"
+        "tags": [
+          1
+        ],
+        "type": "PEC"
       },
       {
-        "tags": [ 2 ],
-        "type": "SMA"
+        "tags": [
+          2
+        ],
+        "type": "PEC"
       }
     ]
   },
@@ -39,17 +48,42 @@
       "saves": 200
     },
     "point": [
-      { "position": [ 1.99 ], "saves": 400 },
-      { "position": [ 2.01 ], "saves": 400 },
-      { "position": [ 2.99 ], "saves": 400 }
+      {
+        "position": [
+          1.99
+        ],
+        "saves": 400
+      },
+      {
+        "position": [
+          2.01
+        ],
+        "saves": 400
+      },
+      {
+        "position": [
+          2.99
+        ],
+        "saves": 400
+      }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.4

@@ -1,5 +1,5 @@
 #include "Solver.h"
-#include "components/PMLAuxLayout.h"
+#include "components/ClassicalPMLLayout.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -108,7 +108,11 @@ Solver::Solver(
     model_{ model },
     fec_{ opts_.evolution.order, model_.getMesh().Dimension(), opts_.basis_type},
     fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
-    fields_{ *fes_, computePMLAuxSize(model_, fes_->GetNDofs(), fes_->GetMesh()->Dimension()) },
+    fields_{ *fes_,
+             computeClassicalPMLAuxSize(
+                 model.getPMLProperties(),
+                 fes_->GetNDofs(),
+                 fes_->GetMesh()->Dimension()) },
     sourcesManager_{ sources, *fes_, fields_ },
     probesManager_ { probes , *fes_, fields_, opts_ },
     time_{0.0}
@@ -132,7 +136,6 @@ Solver::Solver(
 
     if (model_.hasPML()) {
         model_.initializePMLProfiles(comm_rank, opts_.evolution.order);
-        model_.initializePMLAuxLayout(*fes_);
     }
 
     evolTDO_ = assignEvolutionOperator();

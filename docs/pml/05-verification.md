@@ -50,15 +50,13 @@ mpirun -np 1 ./build/gnu-release-mpi/bin/opensemba_dgtd \
 python3 scripts/pml_dft_reflection.py Exports/single-core/1D_PML_DFT --probe 0
 ```
 
-**2026-09-04 result (after ADE decay + correction-sign fix):** probe 0 at \(x=0\) on the
-original **L = 1** buffer mesh gave \(R_{\mathrm{dB}}(f_{\mathrm{peak}})\approx -29~\mathrm{dB}\)
-(**FAIL**) when the ψ ADE driver also included σ-weighted Zero/Two upwind terms.
+**2026-09-04 (solidified):** After ADE pole/sign fixes, L=1 `1D_PML_DFT` **FAIL**ed (~−29 dB)
+with σ-weighted Zero/Two in the ψ driver, and **PASS**es (≪ −40 dB) with those ψ-upwind
+blocks disabled. Global `upwind_alpha` is unchanged — Maxwell remains upwind; only the ADE
+driver drops marker-based Zero/Two. See [`21-session-1d-solidification.md`](./21-session-1d-solidification.md).
 
-**Root cause / fix:** those ψ-upwind blocks double-count dissipative jumps already present in
-`globalOperator_` and destroy vacuum–PML interface matching on thin/coarse layers. Disabling
-ψ-upwind (global `upwind_alpha` unchanged) yields **≪ −40 dB** on L = 1
-(\(R_{\mathrm{dB}}\sim -300~\mathrm{dB}\) noise floor). Thick L = 2/3 cases remain PASS.
-See [`20-pipeline-reexploration.md`](./20-pipeline-reexploration.md) §7.
+Related cases: [`1D_PML_L2`](../../testData/maxwellInputs/1D_PML_L2/), [`1D_PML_L3`](../../testData/maxwellInputs/1D_PML_L3/),
+[`1D_SMA_DFT`](../../testData/maxwellInputs/1D_SMA_DFT/) (1D SMA floor; not a fair PML contest).
 
 ---
 

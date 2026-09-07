@@ -1,7 +1,0 @@
-0      default                        0.8146       1.49     0.1878     0.2055          1  PASS
-1      S1_flip_corrections         2.358e+14  8.918e+12  7.885e+09  6.494e+09  7.885e+09  FAIL
-2      S2_face_same_as_vol         5.282e+06  2.697e+05       4066      5.067       7538  FAIL
-3      S3_face_cross_column        4.124e+09  8.385e+07  3.471e+06  2.974e+06  3.471e+06  FAIL
-4      S4_negate_driver_w          2.358e+14  8.918e+12  7.885e+09  6.494e+09  7.885e+09  FAIL
-5      S5_negate_pml_mult             0.8146       1.49     0.1878     0.2055          1  PASS
-6      S6_flip_psi_mass               0.8146       1.49     0.1878     0.2055          1  PASS

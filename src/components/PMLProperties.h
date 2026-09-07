@@ -13,8 +13,6 @@ struct PMLProperties {
 	bool matches_vacuum = true;
 	int grading_order = 3;
 	double target_reflection = 1e-6;
-	double kappa_max = 1.0;
-	double alpha_max = 0.0;
 	std::set<Direction> active_axes;
 };
 

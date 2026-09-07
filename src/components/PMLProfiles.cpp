@@ -15,25 +15,26 @@ void evaluateStretchProfiles(
 {
 	out.depth = rho;
 	if (L <= 0.0) {
-		out.kappa = 1.0;
 		out.sigma = 0.0;
-		out.alpha = 0.0;
 		return;
 	}
 
 	const double xi = std::clamp(rho / L, 0.0, 1.0);
 	const int m = props.grading_order;
-	const double xi_m = std::pow(xi, static_cast<double>(m));
-
-	out.kappa = 1.0 + (props.kappa_max - 1.0) * xi_m;
-	out.alpha = props.alpha_max * xi_m;
 
 	double sigma_max = 0.0;
 	if (props.target_reflection > 0.0 && props.target_reflection < 1.0) {
+		// m=0: constant σ; m>=1: power-law grade. Same σ_max design formula.
 		sigma_max = -(static_cast<double>(m) + 1.0) * std::log(props.target_reflection) /
 		            (2.0 * L);
 	}
-	out.sigma = sigma_max * xi_m;
+
+	if (m == 0) {
+		// Constant conductivity in the PML volume (abrupt at vacuum interface).
+		out.sigma = sigma_max;
+	} else {
+		out.sigma = sigma_max * std::pow(xi, static_cast<double>(m));
+	}
 }
 
 int dominantAxis(const mfem::Vector& normal, int mesh_dim)
@@ -345,18 +346,10 @@ void PMLProfileData::printDiagnostics(int rank) const
 		std::cout << std::endl;
 	}
 
-	double max_iface_kappa_dev = 0.0;
 	double max_iface_sigma = 0.0;
-	double max_iface_alpha = 0.0;
 	double max_sigma = 0.0;
-	double max_alpha = 0.0;
-	double max_kappa = 1.0;
 
 	for (const auto& ep : element_profiles_) {
-		const double L_x = region_max_depth_[ep.region_index][X];
-		const double L_y = region_max_depth_[ep.region_index][Y];
-		const double L_z = region_max_depth_[ep.region_index][Z];
-
 		for (const auto& qp : ep.qp_profiles) {
 			for (Direction d = X; d <= Z; ++d) {
 				const double L = region_max_depth_[ep.region_index][d];
@@ -365,27 +358,17 @@ void PMLProfileData::printDiagnostics(int rank) const
 				}
 				const double rel_depth = qp[d].depth / L;
 				if (rel_depth < 0.05) {
-					max_iface_kappa_dev =
-						std::max(max_iface_kappa_dev, std::abs(qp[d].kappa - 1.0));
 					max_iface_sigma = std::max(max_iface_sigma, qp[d].sigma);
-					max_iface_alpha = std::max(max_iface_alpha, qp[d].alpha);
 				}
 				max_sigma = std::max(max_sigma, qp[d].sigma);
-				max_alpha = std::max(max_alpha, qp[d].alpha);
-				max_kappa = std::max(max_kappa, qp[d].kappa);
 			}
 		}
-		(void)L_x;
-		(void)L_y;
-		(void)L_z;
 	}
 
 	std::cout << std::scientific << std::setprecision(3);
-	std::cout << "  Interface-adjacent (depth/L < 0.05): max|kappa-1|="
-	          << max_iface_kappa_dev << ", max sigma=" << max_iface_sigma
-	          << ", max alpha=" << max_iface_alpha << std::endl;
-	std::cout << "  Global max: kappa=" << max_kappa << ", sigma=" << max_sigma
-	          << ", alpha=" << max_alpha << std::endl;
+	std::cout << "  Interface-adjacent (depth/L < 0.05): max sigma="
+	          << max_iface_sigma << std::endl;
+	std::cout << "  Global max: sigma=" << max_sigma << std::endl;
 	std::cout << std::defaultfloat;
 	std::cout << "========================================================\n" << std::endl;
 }

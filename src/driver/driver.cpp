@@ -1280,9 +1280,6 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 	else if (bdr_cond == "SMA") {
 		return BdrCond::SMA;
 	}
-	else if (bdr_cond == "PML_NONE") {
-		return BdrCond::PML_NONE;
-	}
     else if (isSGBCBoundaryType(bdr_cond)) {
 		return BdrCond::SGBC;
 	}
@@ -1866,6 +1863,17 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
                 props.geom_tags.emplace_back(bdr_json["tags"][t]);
             }
             props.exporter_probe = bdr_json.value("exporter_probe", false);
+
+            // Optional solver_options.sgbc_cfl replaces the historical hard-coded 0.5
+            // in recommended_dt_ = crossing_time * sgbc_cfl * opacity_relax.
+            if (case_data.contains("solver_options") &&
+                case_data["solver_options"].contains("sgbc_cfl")) {
+                const double cfl = case_data["solver_options"]["sgbc_cfl"].get<double>();
+                if (!(cfl > 0.0)) {
+                    throw std::runtime_error("solver_options.sgbc_cfl must be > 0.");
+                }
+                props.sgbc_cfl = cfl;
+            }
 
             // Support both single "material" and multi-layer "layers" formats
             if (bdr_json.contains("layers")) {
