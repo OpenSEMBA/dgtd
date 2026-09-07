@@ -15,7 +15,7 @@ Uniaxial stretch axis \(s\) (normalized \(\varepsilon=\mu=1\)), volume-only:
 
 No face ADE (ordinary DG fluxes at vacuum–PML). Source: commented CuDG3D [`PMLUniaxial.hpp`](../../external/Cudg3d/src/core/dg/dispersive/PMLUniaxial.hpp).
 
-**σ discretization:** element-constant mean of graded QP samples from [`PMLProfiles`](../../src/components/PMLProfiles.h) (depth grading across the layer; avoids CFS-era indefinite pointwise \(M^{-1}\mathrm{Mass}(\sigma)\) on triangles). `grading_order: 0` selects constant \(\sigma=\sigma_{\max}\) in the PML volume.
+**σ discretization:** `MassIntegrator` samples σ(x) (and σ²(x)) at each quadrature point through `PMLProfileCoefficient` → [`PMLProfileData::evaluateAtTransform`](../../src/components/PMLProfiles.h) (power-law in depth for `grading_order >= 1`; constant for `0`). Element-mean flattening was removed — it mismatched graded σ² and could distort H relative to E.
 
 **v1 scope:** one `active_axes` entry per PML material block. Multi-axis single tags error out — use separate uniaxial blocks (as in `2D_RCS_Circle_Vol_PML`).
 

@@ -430,11 +430,6 @@ namespace maxwell
 		std::unique_ptr<BF> buildMarkedMassOperator(
 			mfem::Coefficient& coeff, mfem::Array<int>& attr_marker);
 
-		void fillElementMeanSigma(
-			Direction stretch_dir,
-			mfem::Vector& sigma_e,
-			mfem::Vector& sigma2_e) const;
-
 		mfem::Array<int> buildInteriorIgnoreMarker() const
 		{
 			mfem::Array<int> marker;
@@ -1829,64 +1824,32 @@ namespace maxwell
 
 	namespace {
 
-	/// Element-constant coefficient from a length-NE vector (mesh element index).
-	class ElementValueCoefficient : public mfem::Coefficient {
+	/// Continuously graded σ (or σ²) at each quadrature point via PMLProfileData.
+	/// Prefer this over element-mean flattening for grading_order >= 1; m=0 stays
+	/// constant through evaluateStretchProfiles.
+	class PMLProfileCoefficient : public mfem::Coefficient {
 	public:
-		explicit ElementValueCoefficient(const mfem::Vector& values) : values_(values) {}
+		PMLProfileCoefficient(const PMLProfileData& profiles, Direction stretch_dir,
+		                      bool square)
+			: profiles_(profiles), stretch_dir_(stretch_dir), square_(square)
+		{
+		}
 
 		double Eval(mfem::ElementTransformation& T,
-		            const mfem::IntegrationPoint&) override
+		            const mfem::IntegrationPoint& ip) override
 		{
-			const int el = T.ElementNo;
-			if (el < 0 || el >= values_.Size()) {
-				return 0.0;
-			}
-			return values_(el);
+			PMLDirectionProfiles out;
+			profiles_.evaluateAtTransform(T, ip, stretch_dir_, out);
+			return square_ ? (out.sigma * out.sigma) : out.sigma;
 		}
 
 	private:
-		const mfem::Vector& values_;
+		const PMLProfileData& profiles_;
+		Direction stretch_dir_;
+		bool square_;
 	};
 
 	} // namespace
-
-	template <typename FES>
-	void DGOperatorFactory<FES>::fillElementMeanSigma(
-		Direction stretch_dir,
-		mfem::Vector& sigma_e,
-		mfem::Vector& sigma2_e) const
-	{
-		auto* mesh = fes_.GetMesh();
-		const int NE = mesh->GetNE();
-		sigma_e.SetSize(NE);
-		sigma2_e.SetSize(NE);
-		sigma_e = 0.0;
-		sigma2_e = 0.0;
-
-		const PMLProfileData* profiles = pd_.model.getPMLProfileData();
-		if (!profiles) {
-			return;
-		}
-
-		for (int el = 0; el < NE; ++el) {
-			const PMLElementProfiles* ep = profiles->getElementProfiles(el);
-			if (!ep || ep->qp_profiles.empty()) {
-				continue;
-			}
-			double sum = 0.0;
-			int count = 0;
-			for (const auto& qp : ep->qp_profiles) {
-				sum += qp[stretch_dir].sigma;
-				++count;
-			}
-			if (count == 0) {
-				continue;
-			}
-			const double mean = sum / static_cast<double>(count);
-			sigma_e(el) = mean;
-			sigma2_e(el) = mean * mean;
-		}
-	}
 
 	template <typename FES>
 	template <typename BF>
@@ -1907,7 +1870,8 @@ namespace maxwell
 		if (layout.nAux() == 0) {
 			return nullptr;
 		}
-		if (!pd_.model.getPMLProfileData()) {
+		const PMLProfileData* profiles = pd_.model.getPMLProfileData();
+		if (!profiles) {
 			throw std::runtime_error(
 				"buildClassicalPMLOperator requires initialized PML profile data.");
 		}
@@ -1931,10 +1895,8 @@ namespace maxwell
 		std::vector<CSRBlockPlacement> blocks;
 
 		for (Direction s : layout.stretchDirections()) {
-			mfem::Vector sigma_e, sigma2_e;
-			fillElementMeanSigma(s, sigma_e, sigma2_e);
-			ElementValueCoefficient c_sig(sigma_e);
-			ElementValueCoefficient c_sig2(sigma2_e);
+			PMLProfileCoefficient c_sig(*profiles, s, /*square=*/false);
+			PMLProfileCoefficient c_sig2(*profiles, s, /*square=*/true);
 
 			auto Msig = buildMarkedMassOperator<ParBilinearForm>(c_sig, pml_marker);
 			auto Msig2 = buildMarkedMassOperator<ParBilinearForm>(c_sig2, pml_marker);
@@ -1988,6 +1950,7 @@ namespace maxwell
 			std::cout << "[PML] Classical ADE operator: " << globalRows << " x " << globalCols
 			          << ", nnz=" << res->NumNonZeroElems()
 			          << ", stretch_dirs=" << layout.numStretchDirections()
+			          << " (QP-graded Mass(σ))"
 			          << std::endl;
 		}
 
