@@ -225,9 +225,20 @@ namespace maxwell
 		const int64_t totalNNZ_64 = row_ptr[globalRows];
 		if (totalNNZ_64 <= 0 ||
 		    totalNNZ_64 > static_cast<int64_t>(std::numeric_limits<int>::max())) {
+			int block_nnz = 0;
+			for (const auto& bp : blocks) {
+				if (bp.block) {
+					block_nnz += bp.block->NumNonZeroElems();
+				}
+			}
 			throw std::runtime_error(
 				"mergeBlocksToCSR: total NNZ (" + std::to_string(totalNNZ_64) +
-				") is out of range for SparseMatrix indexing.");
+				") is out of range for SparseMatrix indexing."
+				" rank=" + std::to_string(Mpi::WorldRank()) +
+				" nblocks=" + std::to_string(blocks.size()) +
+				" sum_block_nnz=" + std::to_string(block_nnz) +
+				" rows=" + std::to_string(globalRows) +
+				" cols=" + std::to_string(globalCols));
 		}
 		const int totalNNZ = static_cast<int>(totalNNZ_64);
 
@@ -1942,17 +1953,33 @@ namespace maxwell
 				A_sig_H->SpMat(), blocks, m_off, m_off, -1.0);
 		}
 
+		// Ranks with no local PML elements assemble empty marked masses → nnz 0.
+		// Skip the operator (Mult already no-ops on nullptr). Do not build an
+		// empty SparseMatrix with null J/A — AddMult can segfault on that.
+		int sum_nnz = 0;
+		for (const auto& bp : blocks) {
+			if (bp.block) {
+				sum_nnz += bp.block->NumNonZeroElems();
+			}
+		}
+		if (sum_nnz <= 0) {
+			blocks.clear();
+			std::cout << "[PML] Rank " << Mpi::WorldRank()
+			          << ": no local PML volume — classical ADE operator omitted"
+			          << std::endl;
+			return nullptr;
+		}
+
 		auto res = mergeBlocksToCSR(blocks, globalRows, globalCols);
 		blocks.clear();
 		res->Threshold(1e-8);
 
-		if (Mpi::WorldRank() == 0) {
-			std::cout << "[PML] Classical ADE operator: " << globalRows << " x " << globalCols
-			          << ", nnz=" << res->NumNonZeroElems()
-			          << ", stretch_dirs=" << layout.numStretchDirections()
-			          << " (QP-graded Mass(σ))"
-			          << std::endl;
-		}
+		std::cout << "[PML] Rank " << Mpi::WorldRank()
+		          << ": Classical ADE operator " << globalRows << " x " << globalCols
+		          << ", nnz=" << res->NumNonZeroElems()
+		          << ", stretch_dirs=" << layout.numStretchDirections()
+		          << " (QP-graded Mass(σ))"
+		          << std::endl;
 
 		return res;
 	}

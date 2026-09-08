@@ -35,6 +35,7 @@ public:
 		int el, const mfem::IntegrationPoint& ip, Direction stretch_dir) const;
 
 	/// Evaluate stretch profiles at a quadrature point (zero outside PML).
+	/// Uses T.Attribute + physical x (MPI-safe); does not use T.ElementNo.
 	void evaluateAtTransform(mfem::ElementTransformation& T,
 	                         const mfem::IntegrationPoint& ip,
 	                         Direction stretch_dir,

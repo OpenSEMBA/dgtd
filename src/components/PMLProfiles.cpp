@@ -140,13 +140,21 @@ void PMLProfileData::evaluateAtTransform(
 	Direction stretch_dir, PMLDirectionProfiles& out) const
 {
 	out = PMLDirectionProfiles{};
-	const PMLElementProfiles* ep = getElementProfiles(T.ElementNo);
-	if (!ep || stretch_dir < 0 || stretch_dir >= 3 ||
-	    ep->region_index < 0 || ep->region_index >= static_cast<int>(regions_.size())) {
+	// Attribute-based region lookup — required for MPI. Profiles may be built on
+	// the full serial mesh (global interface / L), while ParBilinearForm passes
+	// ElementTransformations whose ElementNo is the *local* ParMesh index.
+	const int attr = T.Attribute;
+	if (attr <= 0 || attr > static_cast<int>(is_pml_attr_.size()) ||
+	    !is_pml_attr_[attr - 1] || stretch_dir < 0 || stretch_dir >= 3) {
 		return;
 	}
 
-	const PMLProperties& props = regions_[ep->region_index];
+	const int region_index = attr_region_index_[attr - 1];
+	if (region_index < 0 || region_index >= static_cast<int>(regions_.size())) {
+		return;
+	}
+
+	const PMLProperties& props = regions_[region_index];
 	if (props.active_axes.count(stretch_dir) == 0) {
 		return;
 	}
@@ -157,7 +165,7 @@ void PMLProfileData::evaluateAtTransform(
 	T.Transform(ip, x);
 
 	const double rho = depthAlongAxis(x, stretch_dir);
-	const double L = region_max_depth_[ep->region_index][stretch_dir];
+	const double L = region_max_depth_[region_index][stretch_dir];
 	evaluateStretchProfiles(rho, L, props, out);
 }
 

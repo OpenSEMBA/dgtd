@@ -1920,19 +1920,18 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     res.setSGBCProperties(sgbc_props);
 
     res.setPMLProperties(att_to_material.pml_props);
-    if (res.hasPML()) {
-        if (Mpi::WorldRank() == 0) {
-            std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;
-            for (size_t ri = 0; ri < att_to_material.pml_props.size(); ++ri) {
-                const auto& props = att_to_material.pml_props[ri];
-                std::cout << "  Region " << ri << ": " << props.geom_tags.size() << " tag(s), active_axes:";
-                for (Direction d : props.active_axes) {
-                    std::cout << " " << d;
-                }
-                std::cout << std::endl;
+    if (res.hasPML() && Mpi::WorldRank() == 0) {
+        std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;
+        for (size_t ri = 0; ri < att_to_material.pml_props.size(); ++ri) {
+            const auto& props = att_to_material.pml_props[ri];
+            std::cout << "  Region " << ri << ": " << props.geom_tags.size() << " tag(s), active_axes:";
+            for (Direction d : props.active_axes) {
+                std::cout << " " << d;
             }
+            std::cout << std::endl;
         }
-        res.initializePMLProfiles(Mpi::WorldRank());
+        // Profiles are initialized in Solver with the case FE order (MPI-safe
+        // attribute-based σ eval; serial mesh for global interface / L).
     }
 
     if (Mpi::WorldRank() == 0 && !sgbc_notices.empty()) {

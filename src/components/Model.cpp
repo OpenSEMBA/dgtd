@@ -267,6 +267,10 @@ void Model::initializePMLProfiles(int mpi_rank, int fe_order)
 	if (pml_props_.empty()) {
 		return;
 	}
+	// Build on the full serial mesh so vacuum–PML interface coords and
+	// region_max_depth (L) are global — not truncated to a partition. σ(x)
+	// evaluation during ParBilinearForm assembly uses Attribute + physical
+	// coordinates (see PMLProfileData::evaluateAtTransform), not ElementNo.
 	pml_profiles_ = std::make_shared<PMLProfileData>(serialMesh_, pml_props_, fe_order);
 	pml_profiles_->printDiagnostics(mpi_rank);
 }

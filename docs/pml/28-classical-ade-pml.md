@@ -36,6 +36,8 @@ SGBC → pack EH(+nbr) → globalOperator_ → classicalPMLOperator_ AddMult →
 
 Assembled operator: `DGOperatorFactory::buildClassicalPMLOperator` — \(M^{-1}M(\sigma)\) field blocks + \(J\)/\(M\) couplings on PML markers.
 
+**MPI:** Profiles are built on the full serial mesh (global vacuum–PML interface and \(L\)). `evaluateAtTransform` keys off `T.Attribute` + physical coordinates — not parallel `ElementNo`. ADE is volume-local (no aux ghost exchange). Each rank owns a local ODE of size \(6N_{\mathrm{loc}}+n_{\mathrm{aux}}\). Ranks with no local PML elements omit the classical operator (`nullptr` no-op in `Mult`).
+
 ## JSON (unchanged region contract)
 
 ```json
