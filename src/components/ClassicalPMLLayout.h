@@ -12,7 +12,9 @@ namespace maxwell {
 /// Layout of classical ADE-PML auxiliaries in the extended ODE state:
 ///   [Ex Ey Ez Hx Hy Hz | J_d0 M_d0 J_d1 M_d1 ... ]
 /// with one (J,M) pair per stretch direction in the union of region active_axes.
-/// v1 supports uniaxial regions only (one axis per material block).
+/// A single material block may list multiple axes (biaxial/triaxial ADE =
+/// superposition of uniaxial stacks). Axis-aligned depth grading assumes a
+/// mesh compatible with planar vacuum–PML interfaces per stretch axis.
 class ClassicalPMLLayout {
 public:
 	ClassicalPMLLayout() = default;

@@ -13,13 +13,11 @@ ClassicalPMLLayout::ClassicalPMLLayout(
 		throw std::runtime_error("ClassicalPMLLayout: invalid mesh dimension.");
 	}
 
+	// Multi-axis blocks (e.g. active_axes: ["X","Y"]) are allowed: biaxial ADE is
+	// the superposition of per-axis uniaxial stacks on the same elements. Depth
+	// ρ_s / L_s remain axis-aligned (planar vacuum–PML interfaces); the user must
+	// ensure the mesh geometry matches that model (centered box/ring, etc.).
 	for (const auto& props : regions) {
-		if (props.active_axes.size() >= 2) {
-			throw std::runtime_error(
-				"Classical ADE-PML v1 supports uniaxial regions only "
-				"(one entry in active_axes per PML material block). "
-				"Split multi-axis corners into separate uniaxial tag blocks.");
-		}
 		for (Direction d : props.active_axes) {
 			if (d < 0 || d >= mesh_dim) {
 				throw std::runtime_error(

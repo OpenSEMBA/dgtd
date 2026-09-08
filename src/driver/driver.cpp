@@ -1924,7 +1924,10 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
         std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;
         for (size_t ri = 0; ri < att_to_material.pml_props.size(); ++ri) {
             const auto& props = att_to_material.pml_props[ri];
-            std::cout << "  Region " << ri << ": " << props.geom_tags.size() << " tag(s), active_axes:";
+            std::cout << "  Region " << ri << ": " << props.geom_tags.size()
+                      << " tag(s), stretch_mode="
+                      << (props.stretch_mode == PMLStretchMode::Radial ? "radial" : "box")
+                      << ", active_axes:";
             for (Direction d : props.active_axes) {
                 std::cout << " " << d;
             }

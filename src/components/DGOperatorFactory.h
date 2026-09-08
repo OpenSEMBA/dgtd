@@ -1835,14 +1835,17 @@ namespace maxwell
 
 	namespace {
 
-	/// Continuously graded σ (or σ²) at each quadrature point via PMLProfileData.
-	/// Prefer this over element-mean flattening for grading_order >= 1; m=0 stays
-	/// constant through evaluateStretchProfiles.
+	enum class PMLCoeffKind {
+		Sigma,
+		Sigma2
+	};
+
+	/// Continuously graded σ / σ² at each QP via PMLProfileData.
 	class PMLProfileCoefficient : public mfem::Coefficient {
 	public:
 		PMLProfileCoefficient(const PMLProfileData& profiles, Direction stretch_dir,
-		                      bool square)
-			: profiles_(profiles), stretch_dir_(stretch_dir), square_(square)
+		                      PMLCoeffKind kind)
+			: profiles_(profiles), stretch_dir_(stretch_dir), kind_(kind)
 		{
 		}
 
@@ -1851,13 +1854,19 @@ namespace maxwell
 		{
 			PMLDirectionProfiles out;
 			profiles_.evaluateAtTransform(T, ip, stretch_dir_, out);
-			return square_ ? (out.sigma * out.sigma) : out.sigma;
+			switch (kind_) {
+			case PMLCoeffKind::Sigma:
+				return out.sigma;
+			case PMLCoeffKind::Sigma2:
+				return out.sigma * out.sigma;
+			}
+			return 0.0;
 		}
 
 	private:
 		const PMLProfileData& profiles_;
 		Direction stretch_dir_;
-		bool square_;
+		PMLCoeffKind kind_;
 	};
 
 	} // namespace
@@ -1906,8 +1915,10 @@ namespace maxwell
 		std::vector<CSRBlockPlacement> blocks;
 
 		for (Direction s : layout.stretchDirections()) {
-			PMLProfileCoefficient c_sig(*profiles, s, /*square=*/false);
-			PMLProfileCoefficient c_sig2(*profiles, s, /*square=*/true);
+			// CuDG3D ADE (α=0): ∂t E_s = σ E_s − J,  ∂t E_⊥ = −σ E_⊥,
+			//                    ∂t J = σ² E_s − σ J  (same for H / M).
+			PMLProfileCoefficient c_sig(*profiles, s, PMLCoeffKind::Sigma);
+			PMLProfileCoefficient c_sig2(*profiles, s, PMLCoeffKind::Sigma2);
 
 			auto Msig = buildMarkedMassOperator<ParBilinearForm>(c_sig, pml_marker);
 			auto Msig2 = buildMarkedMassOperator<ParBilinearForm>(c_sig2, pml_marker);
@@ -1925,13 +1936,21 @@ namespace maxwell
 			const int m_off = layout.mOffset(s);
 
 			for (Direction c = X; c <= Z; ++c) {
-				const double field_sign = (c == s) ? 1.0 : -1.0;
-				// ∂t E_c += (±) σ E_c
-				collectBlockPlacement(
-					A_sig_E->SpMat(), blocks, c * ndofs, c * ndofs, field_sign);
-				// ∂t H_c += (±) σ H_c
-				collectBlockPlacement(
-					A_sig_H->SpMat(), blocks, (3 + c) * ndofs, (3 + c) * ndofs, field_sign);
+				if (c == s) {
+					// ∂t E_s += σ E_s
+					collectBlockPlacement(
+						A_sig_E->SpMat(), blocks, c * ndofs, c * ndofs, 1.0);
+					collectBlockPlacement(
+						A_sig_H->SpMat(), blocks, (3 + c) * ndofs, (3 + c) * ndofs,
+						1.0);
+				} else {
+					// ∂t E_⊥ −= σ E_⊥
+					collectBlockPlacement(
+						A_sig_E->SpMat(), blocks, c * ndofs, c * ndofs, -1.0);
+					collectBlockPlacement(
+						A_sig_H->SpMat(), blocks, (3 + c) * ndofs, (3 + c) * ndofs,
+						-1.0);
+				}
 			}
 
 			// ∂t E_s -= J ; ∂t H_s -= M

@@ -61,7 +61,9 @@ CFS \(\kappa\)/\(\alpha\) JSON fields were removed when Gedney CFS was paused ([
 | `matches_vacuum` | bool | yes (default true) | ε = μ = 1 in PML; stretch provides absorption only |
 | `grading_order` | int | yes | Power-law exponent **m** for \(\sigma(\xi)=\sigma_{\max}\xi^{m}\). **`0` = constant \(\sigma=\sigma_{\max}\)** in the PML volume |
 | `target_reflection` | double | yes | Design reflection level (e.g. 1e-6); used to set **σ_max** |
-| `active_axes` | string[] | yes | Subset of `"X"`, `"Y"`, `"Z"`; which directions are stretched for **this tag block** |
+| `active_axes` | string[] | yes | Subset of `"X"`, `"Y"`, `"Z"`; which ADE stretch stacks are active for **this tag block** |
+| `stretch_mode` | string/int | `"box"` | `"box"`/`0`: planar depth; `"radial"`/`1`: radial \(\sigma(\rho)\) profile (Cartesian ADE) |
+| `radial_center` | number[] | inferred | Optional; only with `radial`. Else mean of vacuum–PML interface face centers |
 
 **Rejected if present:** `kappa_max`, `alpha_max` (CFS-only leftovers).
 
@@ -70,7 +72,7 @@ CFS \(\kappa\)/\(\alpha\) JSON fields were removed when Gedney CFS was paused ([
 - `bulk_conductivity`
 - `relative_permittivity` / `relative_permeability` unless explicitly allowed later (currently **matches_vacuum** only)
 
-**Multiple PML blocks:** Reference case `2D_RCS_Circle_Vol_PML.json` uses separate blocks for X-only, Y-only, and XY corner tags — same pattern user should follow.
+**Multiple PML blocks:** Separate uniaxial slabs (`2D_RCS_Circle_Vol_PML`) or a **single multi-axis block** (`active_axes: ["X","Y"]`, e.g. onion-ring) are both valid. Biaxial ADE is the superposition of per-axis uniaxial stacks; depth grading remains axis-aligned (user responsibility for mesh centering / geometry).
 
 ---
 

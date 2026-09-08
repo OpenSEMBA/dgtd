@@ -14,8 +14,8 @@ void evaluateStretchProfiles(
 	double rho, double L, const PMLProperties& props, PMLDirectionProfiles& out)
 {
 	out.depth = rho;
+	out.sigma = 0.0;
 	if (L <= 0.0) {
-		out.sigma = 0.0;
 		return;
 	}
 
@@ -51,11 +51,21 @@ int dominantAxis(const mfem::Vector& normal, int mesh_dim)
 	return best;
 }
 
+double distanceFromCenter(const mfem::Vector& x, const std::array<double, 3>& c, int dim)
+{
+	double r2 = 0.0;
+	for (int d = 0; d < dim; ++d) {
+		const double dx = x(d) - c[static_cast<size_t>(d)];
+		r2 += dx * dx;
+	}
+	return std::sqrt(r2);
+}
+
 } // namespace
 
 PMLProfileData::PMLProfileData(
 	mfem::Mesh& mesh, const std::vector<PMLProperties>& regions, int fe_order)
-	: fe_order_(fe_order)
+	: fe_order_(fe_order), mesh_dim_(mesh.Dimension())
 {
 	if (regions.empty()) {
 		return;
@@ -64,6 +74,7 @@ PMLProfileData::PMLProfileData(
 
 	buildAttributeMaps(mesh, regions);
 	buildInterfaceData(mesh, regions);
+	buildRadialRegionData(mesh, regions);
 	buildElementProfiles(mesh, regions, fe_order);
 }
 
@@ -96,15 +107,11 @@ const PMLDirectionProfiles* PMLProfileData::getDirectionProfileAtIP(
 		return nullptr;
 	}
 
-	mfem::ElementTransformation* T = nullptr;
-	(void)T;
-	(void)ip;
 	const int nqp = static_cast<int>(ep->qp_profiles.size());
 	if (nqp == 0) {
 		return nullptr;
 	}
 
-	// Match quadrature point index from reference coordinates (same rule as buildElementProfiles).
 	const int order = fe_order_ + 1;
 	const mfem::IntegrationRule& ir =
 		mfem::IntRules.Get(mfem::Geometry::SEGMENT, order);
@@ -164,8 +171,17 @@ void PMLProfileData::evaluateAtTransform(
 	mfem::Vector x(dim);
 	T.Transform(ip, x);
 
-	const double rho = depthAlongAxis(x, stretch_dir);
-	const double L = region_max_depth_[region_index][stretch_dir];
+	double rho = 0.0;
+	double L = 0.0;
+	if (props.stretch_mode == PMLStretchMode::Radial &&
+	    region_index < static_cast<int>(radial_.size()) &&
+	    radial_[region_index].active) {
+		rho = depthRadial(x, region_index);
+		L = radial_[region_index].thickness();
+	} else {
+		rho = depthAlongAxis(x, stretch_dir);
+		L = region_max_depth_[region_index][stretch_dir];
+	}
 	evaluateStretchProfiles(rho, L, props, out);
 }
 
@@ -192,6 +208,7 @@ void PMLProfileData::buildAttributeMaps(
 	}
 
 	region_max_depth_.assign(regions.size(), {0.0, 0.0, 0.0});
+	radial_.assign(regions.size(), RadialRegionData{});
 	global_interfaces_ = {};
 }
 
@@ -221,9 +238,6 @@ void PMLProfileData::buildInterfaceData(
 		const int vac_el = pml1 ? ft->Elem2No : ft->Elem1No;
 		const int pml_el = pml1 ? ft->Elem1No : ft->Elem2No;
 
-		const int region = attr_region_index_[pml_attr - 1];
-		(void)region;
-
 		mfem::Vector vac_center(dim);
 		mfem::Vector pml_center(dim);
 		mesh.GetElementCenter(vac_el, vac_center);
@@ -246,14 +260,146 @@ void PMLProfileData::buildInterfaceData(
 
 		auto& iface = global_interfaces_[axis];
 		const int sign = (delta(axis) >= 0.0) ? 1 : -1;
-		if (!iface.set) {
-			iface.set = true;
-			iface.coord = face_center(axis);
-			iface.sign_into_pml = sign;
-		} else if (iface.sign_into_pml == sign) {
-			iface.coord = (sign > 0)
-			                  ? std::min(iface.coord, face_center(axis))
-			                  : std::max(iface.coord, face_center(axis));
+		if (sign > 0) {
+			// +side: PML lies at larger x_d than the vacuum–PML face.
+			if (!iface.set_pos) {
+				iface.set_pos = true;
+				iface.coord_pos = face_center(axis);
+			} else {
+				iface.coord_pos = std::min(iface.coord_pos, face_center(axis));
+			}
+		} else {
+			// −side: PML lies at smaller x_d than the vacuum–PML face.
+			if (!iface.set_neg) {
+				iface.set_neg = true;
+				iface.coord_neg = face_center(axis);
+			} else {
+				iface.coord_neg = std::max(iface.coord_neg, face_center(axis));
+			}
+		}
+	}
+}
+
+void PMLProfileData::buildRadialRegionData(
+	mfem::Mesh& mesh, const std::vector<PMLProperties>& regions)
+{
+	const int dim = mesh.Dimension();
+
+	for (int ri = 0; ri < static_cast<int>(regions.size()); ++ri) {
+		if (regions[ri].stretch_mode != PMLStretchMode::Radial) {
+			continue;
+		}
+
+		RadialRegionData& rd = radial_[ri];
+		rd.active = true;
+
+		if (regions[ri].radial_center.has_value()) {
+			rd.center = *regions[ri].radial_center;
+			rd.center_inferred = false;
+		} else {
+			// Infer center as mean of vacuum–PML interface face centers for this region.
+			double sum[3] = {0.0, 0.0, 0.0};
+			int n_iface = 0;
+			for (int f = 0; f < mesh.GetNumFaces(); ++f) {
+				auto* ft = mesh.GetFaceElementTransformations(f);
+				if (!ft || ft->Elem1No < 0 || ft->Elem2No < 0) {
+					continue;
+				}
+				const int attr1 = mesh.GetAttribute(ft->Elem1No);
+				const int attr2 = mesh.GetAttribute(ft->Elem2No);
+				const bool pml1 = attr1 > 0 && attr1 <= static_cast<int>(is_pml_attr_.size()) &&
+				                  is_pml_attr_[attr1 - 1];
+				const bool pml2 = attr2 > 0 && attr2 <= static_cast<int>(is_pml_attr_.size()) &&
+				                  is_pml_attr_[attr2 - 1];
+				if (pml1 == pml2) {
+					continue;
+				}
+				const int pml_attr = pml1 ? attr1 : attr2;
+				if (attr_region_index_[pml_attr - 1] != ri) {
+					continue;
+				}
+				mfem::Vector face_center(dim);
+				mfem::IntegrationPoint ip;
+				ip.Set3(0.5, 0.5, 0.5);
+				ft->SetIntPoint(&ip);
+				ft->Transform(ip, face_center);
+				for (int d = 0; d < dim; ++d) {
+					sum[d] += face_center(d);
+				}
+				++n_iface;
+			}
+			if (n_iface == 0) {
+				throw std::runtime_error(
+					"PML stretch_mode \"radial\": cannot infer radial_center — "
+					"no vacuum–PML interface faces for region " +
+					std::to_string(ri) + ". Provide radial_center explicitly.");
+			}
+			for (int d = 0; d < 3; ++d) {
+				rd.center[static_cast<size_t>(d)] =
+					(d < dim) ? sum[d] / static_cast<double>(n_iface) : 0.0;
+			}
+			rd.center_inferred = true;
+		}
+
+		rd.r_inner = std::numeric_limits<double>::infinity();
+		rd.r_outer = 0.0;
+		int n_iface = 0;
+
+		for (int f = 0; f < mesh.GetNumFaces(); ++f) {
+			auto* ft = mesh.GetFaceElementTransformations(f);
+			if (!ft || ft->Elem1No < 0 || ft->Elem2No < 0) {
+				continue;
+			}
+			const int attr1 = mesh.GetAttribute(ft->Elem1No);
+			const int attr2 = mesh.GetAttribute(ft->Elem2No);
+			const bool pml1 = attr1 > 0 && attr1 <= static_cast<int>(is_pml_attr_.size()) &&
+			                  is_pml_attr_[attr1 - 1];
+			const bool pml2 = attr2 > 0 && attr2 <= static_cast<int>(is_pml_attr_.size()) &&
+			                  is_pml_attr_[attr2 - 1];
+			if (pml1 == pml2) {
+				continue;
+			}
+			const int pml_attr = pml1 ? attr1 : attr2;
+			if (attr_region_index_[pml_attr - 1] != ri) {
+				continue;
+			}
+			mfem::Vector face_center(dim);
+			mfem::IntegrationPoint ip;
+			ip.Set3(0.5, 0.5, 0.5);
+			ft->SetIntPoint(&ip);
+			ft->Transform(ip, face_center);
+			const double r = distanceFromCenter(face_center, rd.center, dim);
+			rd.r_inner = std::min(rd.r_inner, r);
+			++n_iface;
+		}
+
+		for (int el = 0; el < mesh.GetNE(); ++el) {
+			const int attr = mesh.GetAttribute(el);
+			if (attr <= 0 || attr > static_cast<int>(is_pml_attr_.size()) ||
+			    !is_pml_attr_[attr - 1] || attr_region_index_[attr - 1] != ri) {
+				continue;
+			}
+			mfem::ElementTransformation* T = mesh.GetElementTransformation(el);
+			const mfem::IntegrationRule& ir =
+				mfem::IntRules.Get(T->GetGeometryType(), fe_order_ + 1);
+			for (int iq = 0; iq < ir.GetNPoints(); ++iq) {
+				T->SetIntPoint(&ir[iq]);
+				mfem::Vector x(dim);
+				T->Transform(ir[iq], x);
+				rd.r_outer = std::max(rd.r_outer, distanceFromCenter(x, rd.center, dim));
+			}
+		}
+
+		if (n_iface == 0 || !std::isfinite(rd.r_inner)) {
+			throw std::runtime_error(
+				"PML stretch_mode \"radial\": no vacuum–PML interface for region " +
+				std::to_string(ri) + ".");
+		}
+		if (rd.r_outer <= rd.r_inner) {
+			throw std::runtime_error(
+				"PML stretch_mode \"radial\": non-positive shell thickness for region " +
+				std::to_string(ri) + " (r_inner=" + std::to_string(rd.r_inner) +
+				", r_outer=" + std::to_string(rd.r_outer) + ").");
 		}
 	}
 }
@@ -261,12 +407,30 @@ void PMLProfileData::buildInterfaceData(
 double PMLProfileData::depthAlongAxis(const mfem::Vector& x, Direction d) const
 {
 	const auto& iface = global_interfaces_[d];
-	if (!iface.set) {
-		return 0.0;
+	double depth = 0.0;
+	if (iface.set_pos) {
+		depth = std::max(depth, x(d) - iface.coord_pos);
 	}
+	if (iface.set_neg) {
+		depth = std::max(depth, iface.coord_neg - x(d));
+	}
+	return depth;
+}
 
-	const double raw = iface.sign_into_pml * (x(d) - iface.coord);
-	return std::max(0.0, raw);
+double PMLProfileData::depthRadial(const mfem::Vector& x, int region_index) const
+{
+	const RadialRegionData& rd = radial_[region_index];
+	const double r = distanceFromCenter(x, rd.center, mesh_dim_);
+	return std::max(0.0, r - rd.r_inner);
+}
+
+double PMLProfileData::thicknessFor(int region_index, Direction stretch_dir) const
+{
+	if (regions_[region_index].stretch_mode == PMLStretchMode::Radial &&
+	    radial_[region_index].active) {
+		return radial_[region_index].thickness();
+	}
+	return region_max_depth_[region_index][stretch_dir];
 }
 
 void PMLProfileData::buildElementProfiles(
@@ -309,9 +473,14 @@ void PMLProfileData::buildElementProfiles(
 					continue;
 				}
 
-				const double rho = depthAlongAxis(x, d);
-				region_max_depth_[region][d] =
-					std::max(region_max_depth_[region][d], rho);
+				double rho = 0.0;
+				if (props.stretch_mode == PMLStretchMode::Radial && radial_[region].active) {
+					rho = depthRadial(x, region);
+				} else {
+					rho = depthAlongAxis(x, d);
+					region_max_depth_[region][d] =
+						std::max(region_max_depth_[region][d], rho);
+				}
 				ep.qp_profiles[iq][d].depth = rho;
 			}
 		}
@@ -327,7 +496,7 @@ void PMLProfileData::buildElementProfiles(
 				if (d >= dim || props.active_axes.count(d) == 0) {
 					continue;
 				}
-				const double L = region_max_depth_[ep.region_index][d];
+				const double L = thicknessFor(ep.region_index, d);
 				evaluateStretchProfiles(ep.qp_profiles[iq][d].depth, L, props,
 				                        ep.qp_profiles[iq][d]);
 			}
@@ -346,10 +515,42 @@ void PMLProfileData::printDiagnostics(int rank) const
 	std::cout << "========================================================" << std::endl;
 	std::cout << "  PML elements: " << element_profiles_.size() << std::endl;
 
-	for (size_t ri = 0; ri < region_max_depth_.size(); ++ri) {
-		std::cout << "  Region " << ri << " max depth:";
-		for (Direction d = X; d <= Z; ++d) {
-			std::cout << " axis" << d << "=" << region_max_depth_[ri][d];
+	for (size_t ri = 0; ri < regions_.size(); ++ri) {
+		const auto& props = regions_[ri];
+		const char* mode =
+			(props.stretch_mode == PMLStretchMode::Radial) ? "radial" : "box";
+		std::cout << "  Region " << ri << " stretch_mode=" << mode;
+		if (props.stretch_mode == PMLStretchMode::Radial && ri < radial_.size() &&
+		    radial_[ri].active) {
+			const auto& rd = radial_[ri];
+			std::cout << " center=(" << rd.center[0] << ", " << rd.center[1] << ", "
+			          << rd.center[2] << ")"
+			          << (rd.center_inferred ? " [inferred]" : " [user]")
+			          << " r_inner=" << rd.r_inner << " r_outer=" << rd.r_outer
+			          << " L=" << rd.thickness();
+		} else {
+			std::cout << " max depth:";
+			for (Direction d = X; d <= Z; ++d) {
+				std::cout << " axis" << d << "=" << region_max_depth_[ri][d];
+			}
+			std::cout << " | interfaces:";
+			for (Direction d = X; d <= Z; ++d) {
+				const auto& iface = global_interfaces_[d];
+				if (!iface.set_pos && !iface.set_neg) {
+					continue;
+				}
+				std::cout << " d" << d << "{";
+				if (iface.set_neg) {
+					std::cout << "−@" << iface.coord_neg;
+				}
+				if (iface.set_pos && iface.set_neg) {
+					std::cout << ",";
+				}
+				if (iface.set_pos) {
+					std::cout << "+@" << iface.coord_pos;
+				}
+				std::cout << "}";
+			}
 		}
 		std::cout << std::endl;
 	}
@@ -360,7 +561,7 @@ void PMLProfileData::printDiagnostics(int rank) const
 	for (const auto& ep : element_profiles_) {
 		for (const auto& qp : ep.qp_profiles) {
 			for (Direction d = X; d <= Z; ++d) {
-				const double L = region_max_depth_[ep.region_index][d];
+				const double L = thicknessFor(ep.region_index, d);
 				if (L <= 0.0) {
 					continue;
 				}

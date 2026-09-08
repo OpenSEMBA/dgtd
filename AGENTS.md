@@ -60,7 +60,7 @@ Live wiring: [`docs/pml/28-classical-ade-pml.md`](./docs/pml/28-classical-ade-pm
 Summary:
 
 - **Formulation:** classical ADE polarization currents (\(J\)/\(M\)) + volume \(\sigma\) (CuDG3D-style on MFEM).
-- **Keep:** Gmsh/JSON region tags, `active_axes` (uniaxial per block), σ grading.
+- **Keep:** Gmsh/JSON region tags, `active_axes` (uniaxial or multi-axis per block), `stretch_mode` (`box`/`radial`), σ grading.
 - **Integration:** `GlobalEvolution` only; RK4 via `Mult()` after `globalOperator_`.
 - **Do not** reintroduce CFS \(\psi\) / `kappa_max` / `alpha_max` without an explicit unlock.
 

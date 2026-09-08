@@ -1,8 +1,10 @@
 #include "PMLProperties.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <stdexcept>
+#include <string>
 
 namespace maxwell {
 
@@ -20,6 +22,58 @@ Direction parseAxisToken(const std::string& token)
 		return Z;
 	}
 	throw std::runtime_error("PML active_axes entry must be \"X\", \"Y\", or \"Z\". Got: " + token);
+}
+
+PMLStretchMode parseStretchMode(const nlohmann::json& mat_json)
+{
+	if (!mat_json.contains("stretch_mode")) {
+		return PMLStretchMode::Box;
+	}
+	const auto& v = mat_json["stretch_mode"];
+	if (v.is_number_integer()) {
+		const int m = v.get<int>();
+		if (m == 0) {
+			return PMLStretchMode::Box;
+		}
+		if (m == 1) {
+			return PMLStretchMode::Radial;
+		}
+		throw std::runtime_error("PML stretch_mode integer must be 0 (box) or 1 (radial).");
+	}
+	if (v.is_string()) {
+		std::string s = v.get<std::string>();
+		std::transform(s.begin(), s.end(), s.begin(),
+		               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		if (s == "box") {
+			return PMLStretchMode::Box;
+		}
+		if (s == "radial") {
+			return PMLStretchMode::Radial;
+		}
+		throw std::runtime_error(
+			"PML stretch_mode must be \"box\" or \"radial\" (or 0/1). Got: " +
+			v.get<std::string>());
+	}
+	throw std::runtime_error("PML stretch_mode must be a string or integer.");
+}
+
+std::optional<std::array<double, 3>> parseRadialCenter(const nlohmann::json& mat_json,
+                                                       int mesh_dim)
+{
+	if (!mat_json.contains("radial_center")) {
+		return std::nullopt;
+	}
+	const auto& arr = mat_json["radial_center"];
+	if (!arr.is_array() || static_cast<int>(arr.size()) < mesh_dim ||
+	    static_cast<int>(arr.size()) > 3) {
+		throw std::runtime_error(
+			"PML radial_center must be an array of length mesh_dim..3.");
+	}
+	std::array<double, 3> c{{0.0, 0.0, 0.0}};
+	for (size_t i = 0; i < arr.size(); ++i) {
+		c[i] = arr[i].get<double>();
+	}
+	return c;
 }
 
 } // namespace
@@ -61,8 +115,8 @@ void validatePMLMaterialBlock(const nlohmann::json& mat_json)
 	}
 	if (mat_json.contains("kappa_max") || mat_json.contains("alpha_max")) {
 		throw std::runtime_error(
-			"PML kappa_max/alpha_max are CFS-only and no longer accepted. "
-			"See docs/pml/27-gedney-cfs-paused.md.");
+			"PML kappa_max / alpha_max are CFS-only and no longer accepted. "
+			"Classical ADE uses CuDG3D σ-only stretch (see docs/pml/28-classical-ade-pml.md).");
 	}
 }
 
@@ -75,12 +129,18 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	props.grading_order = mat_json.value("grading_order", 3);
 	props.target_reflection = mat_json.value("target_reflection", 1e-6);
 	props.active_axes = parseActiveAxes(mat_json, mesh_dim);
+	props.stretch_mode = parseStretchMode(mat_json);
+	props.radial_center = parseRadialCenter(mat_json, mesh_dim);
 
 	if (props.grading_order < 0) {
 		throw std::runtime_error("PML grading_order must be >= 0 (0 = constant conductivity).");
 	}
 	if (props.target_reflection <= 0.0 || props.target_reflection >= 1.0) {
 		throw std::runtime_error("PML target_reflection must be in (0, 1).");
+	}
+	if (props.stretch_mode == PMLStretchMode::Box && props.radial_center.has_value()) {
+		throw std::runtime_error(
+			"PML radial_center is only valid when stretch_mode is \"radial\".");
 	}
 
 	return props;
