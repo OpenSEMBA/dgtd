@@ -212,6 +212,8 @@ Array. At least one source; all entries superimpose.
 | Field | Description |
 |-------|-------------|
 | `tags` | TFSF interface tags |
-| `magnitude.length` | Dipole length |
-| `magnitude.spread` | Gaussian spread |
+| `magnitude.length` | Dipole length (Hertzian geometric scale) |
+| `magnitude.spread` | Gaussian spread (pulse width) |
+| `magnitude.amplitude_peak` | Desired max equatorial \|E\| (\|E_θ\|) at `peak_radius` (default `1.0`). The analytic formula is scaled so that peak equals this value. |
+| `magnitude.peak_radius` | Radius used to define `amplitude_peak` (default: min radius on the dipole TFSF tags if available, else `1.0`). |
 | `magnitude.mean` | Optional center along dipole axis |

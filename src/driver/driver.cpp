@@ -919,12 +919,13 @@ std::unique_ptr<TotalField> buildModulatedGaussianPlanewave(
 }
 
 std::unique_ptr<TotalField> buildDerivGaussDipole(
-	const double length, 
-	const double gaussianSpread, 
-	const double gaussMean
-) 
+	const double length,
+	const double gaussianSpread,
+	const double gaussMean,
+	const double amplitude_peak = 1.0,
+	const double peak_radius = 1.0)
 {
-	DerivGaussDipole dip(length, gaussianSpread, gaussMean);
+	DerivGaussDipole dip(length, gaussianSpread, gaussMean, amplitude_peak, peak_radius);
 	return std::make_unique<TotalField>(dip);
 }
 
@@ -1009,13 +1010,32 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
 			const auto& mag = case_data["sources"][s]["magnitude"];
+			if (mag.contains("amplitude")) {
+				throw std::runtime_error(
+					"Dipole magnitude.amplitude was renamed to magnitude.amplitude_peak "
+					"(desired max |E| at peak_radius).");
+			}
 			double length = mag["length"].get<double>();
 			double spread = mag["spread"].get<double>();
+			double amplitude_peak = mag.value("amplitude_peak", 1.0);
+			if (amplitude_peak <= 0.0) {
+				throw std::runtime_error(
+					"Dipole magnitude.amplitude_peak must be > 0 (got " +
+					std::to_string(amplitude_peak) + ").");
+			}
 
 			// Determine mean: use explicit value if provided, otherwise auto-compute.
 			// For the retarded-time Gaussian, mean_auto ensures the field is
 			// AUTO_DELAY_N_SIGMA sigma before peak at t=0 on the TFSF surface.
 			double mean;
+			double peak_radius = 1.0;
+			if (mag.contains("peak_radius")) {
+				peak_radius = mag["peak_radius"].get<double>();
+				if (peak_radius <= 0.0) {
+					throw std::runtime_error(
+						"Dipole magnitude.peak_radius must be > 0.");
+				}
+			}
 			if (mag.contains("mean")) {
 				mean = mag["mean"].get<double>();
 			} else if (mesh && case_data["sources"][s].contains("tags")) {
@@ -1025,13 +1045,19 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				double mean_auto = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0)
 				                   - min_r / physicalConstants::speedOfLight;
 				mean = std::max(spread * std::sqrt(2.0), mean_auto);
+				if (!mag.contains("peak_radius")) {
+					peak_radius = min_r;
+				}
 				std::cout << "[Source " << s << " (dipole)] Auto-computed mean = "
-				          << mean << " (min_radius=" << min_r << ")\n";
+				          << mean << " (min_radius=" << min_r
+				          << "), amplitude_peak=" << amplitude_peak
+				          << " at peak_radius=" << peak_radius << "\n";
 			} else {
 				mean = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
 			}
 
-			res.add(buildDerivGaussDipole(length, spread, mean));
+			res.add(buildDerivGaussDipole(
+				length, spread, mean, amplitude_peak, peak_radius));
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");

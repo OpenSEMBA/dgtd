@@ -145,6 +145,13 @@ def main() -> int:
     )
     parser.add_argument("--probe", type=int, default=0, help="PointProbe ID (default 0)")
     parser.add_argument(
+        "--ref-probe",
+        type=int,
+        default=None,
+        help="If set, take reflected lobe from this probe (incident still --probe). "
+             "Use for TFSF: e.g. --probe 1 --ref-probe 0",
+    )
+    parser.add_argument(
         "--component",
         default="Ey",
         choices=COLUMNS[1:],
@@ -212,7 +219,19 @@ def main() -> int:
 
     y = fields[args.component]
     t_inc, y_inc = extract_window(t_work, y, args.inc_window[0], args.inc_window[1])
-    t_ref, y_ref = extract_window(t_work, y, args.ref_window[0], args.ref_window[1])
+
+    if args.ref_probe is None:
+        t_ref, y_ref = extract_window(t_work, y, args.ref_window[0], args.ref_window[1])
+        ref_path = path
+        ref_meta = meta
+    else:
+        ref_path = resolve_probe_path(args.export_dir, args.ref_probe)
+        t_si_r, fields_r, ref_meta = parse_probe_dat(ref_path)
+        t_code_r = t_si_r * C_SI
+        t_work_r = t_si_r if args.time_unit == "si" else t_code_r
+        t_ref, y_ref = extract_window(
+            t_work_r, fields_r[args.component], args.ref_window[0], args.ref_window[1]
+        )
 
     # DFTs on code-time abscissa so frequencies are in code units either way.
     if args.time_unit == "si":
@@ -249,9 +268,18 @@ def main() -> int:
     pos_str = (
         f"({pos[0]:.4g}, {pos[1]:.4g}, {pos[2]:.4g})" if pos is not None else "?"
     )
+    rpos = ref_meta.get("position")
+    rpos_str = (
+        f"({rpos[0]:.4g}, {rpos[1]:.4g}, {rpos[2]:.4g})" if rpos is not None else "?"
+    )
 
-    print(f"probe file: {path}")
-    print(f"probe id:   {meta.get('probe_id')}  position: {pos_str}")
+    print(f"inc probe:  {path}")
+    print(f"  id={meta.get('probe_id')}  position={pos_str}")
+    if args.ref_probe is not None:
+        print(f"ref probe:  {ref_path}")
+        print(f"  id={ref_meta.get('probe_id')}  position={rpos_str}")
+    else:
+        print(f"ref probe:  same as incident (time-gated)")
     print(f"component:  {args.component}")
     print(f"time unit:  {unit}  (export t_si -> t_code = t_si * c_SI)")
     print(
