@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ProblemDescription.h"
-#include "ClassicalPMLLayout.h"
+#include "SCPMLLayout.h"
 
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
@@ -429,9 +429,13 @@ namespace maxwell
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(BdrCond filter);
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(mfem::Array<int>& marker);
 		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
-		/// Classical ADE-PML (CuDG3D-style): volume σ + J/M, local extended state.
-		std::unique_ptr<mfem::SparseMatrix> buildClassicalPMLOperator(
-			const ClassicalPMLLayout& layout);
+		/// Bagci/Chen SC-PML ADE + optional curl a-rescale (κ>1).
+		/// curl_delta[u] is ndofs×ndofs: out_Fu += Delta_u * out_Fu for F in {E,H}.
+		/// Entries are null when all regions have kappa_max == 1.
+		void buildSCPMLOperators(
+			const SCPMLLayout& layout,
+			std::unique_ptr<mfem::SparseMatrix>& ade_operator,
+			std::array<std::unique_ptr<mfem::SparseMatrix>, 3>& curl_delta);
 
 	private:
 		ProblemDescription pd_;
@@ -439,6 +443,10 @@ namespace maxwell
 
 		template <typename BF>
 		std::unique_ptr<BF> buildMarkedMassOperator(
+			mfem::Coefficient& coeff, mfem::Array<int>& attr_marker);
+
+		template <typename BF>
+		std::unique_ptr<BF> buildMarkedInverseMassOperator(
 			mfem::Coefficient& coeff, mfem::Array<int>& attr_marker);
 
 		mfem::Array<int> buildInteriorIgnoreMarker() const
@@ -1835,38 +1843,61 @@ namespace maxwell
 
 	namespace {
 
-	enum class PMLCoeffKind {
-		Sigma,
-		Sigma2
+	/// Bagci SC-PML diagonal tensor entry for field/aux component u.
+	enum class SCPMLTensorKind {
+		A,       ///< a_uu = κ_v κ_w / κ_u  (Phase 2 LHS; unused in κ≡1 assembly)
+		B,       ///< b_uu
+		C,       ///< c_uu
+		D,       ///< d_uu = σ_u / κ_u
+		InvKappa ///< 1/κ_u
 	};
 
-	/// Continuously graded σ / σ² at each QP via PMLProfileData.
-	class PMLProfileCoefficient : public mfem::Coefficient {
+	class SCPMLTensorCoefficient : public mfem::Coefficient {
 	public:
-		PMLProfileCoefficient(const PMLProfileData& profiles, Direction stretch_dir,
-		                      PMLCoeffKind kind)
-			: profiles_(profiles), stretch_dir_(stretch_dir), kind_(kind)
+		SCPMLTensorCoefficient(const PMLProfileData& profiles, Direction comp,
+		                       SCPMLTensorKind kind)
+			: profiles_(profiles), comp_(comp), kind_(kind)
 		{
 		}
 
 		double Eval(mfem::ElementTransformation& T,
 		            const mfem::IntegrationPoint& ip) override
 		{
-			PMLDirectionProfiles out;
-			profiles_.evaluateAtTransform(T, ip, stretch_dir_, out);
+			double sig[3];
+			double kap[3];
+			for (int d = 0; d < 3; ++d) {
+				PMLDirectionProfiles out;
+				profiles_.evaluateAtTransform(T, ip, static_cast<Direction>(d), out);
+				sig[d] = out.sigma;
+				kap[d] = std::max(out.kappa, 1e-30);
+			}
+			const int u = static_cast<int>(comp_);
+			const int v = (u + 1) % 3;
+			const int w = (u + 2) % 3;
+			const double a = kap[v] * kap[w] / kap[u];
+			const double b =
+				(sig[v] * kap[w] + sig[w] * kap[v] - a * sig[u]) / kap[u];
+			const double c = sig[v] * sig[w] - b * sig[u];
+			const double d = sig[u] / kap[u];
 			switch (kind_) {
-			case PMLCoeffKind::Sigma:
-				return out.sigma;
-			case PMLCoeffKind::Sigma2:
-				return out.sigma * out.sigma;
+			case SCPMLTensorKind::A:
+				return a;
+			case SCPMLTensorKind::B:
+				return b;
+			case SCPMLTensorKind::C:
+				return c;
+			case SCPMLTensorKind::D:
+				return d;
+			case SCPMLTensorKind::InvKappa:
+				return 1.0 / kap[u];
 			}
 			return 0.0;
 		}
 
 	private:
 		const PMLProfileData& profiles_;
-		Direction stretch_dir_;
-		PMLCoeffKind kind_;
+		Direction comp_;
+		SCPMLTensorKind kind_;
 	};
 
 	} // namespace
@@ -1884,16 +1915,43 @@ namespace maxwell
 	}
 
 	template <typename FES>
-	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildClassicalPMLOperator(
-		const ClassicalPMLLayout& layout)
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildMarkedInverseMassOperator(
+		mfem::Coefficient& coeff, mfem::Array<int>& attr_marker)
 	{
+		auto bf = std::make_unique<BF>(&fes_);
+		bf->AddDomainIntegrator(
+			new InverseIntegrator(new MassIntegrator(coeff)), attr_marker);
+		bf->Assemble();
+		bf->Finalize();
+		return bf;
+	}
+
+	template <typename FES>
+	void DGOperatorFactory<FES>::buildSCPMLOperators(
+		const SCPMLLayout& layout,
+		std::unique_ptr<mfem::SparseMatrix>& ade_operator,
+		std::array<std::unique_ptr<mfem::SparseMatrix>, 3>& curl_delta)
+	{
+		ade_operator.reset();
+		for (auto& d : curl_delta) {
+			d.reset();
+		}
 		if (layout.nAux() == 0) {
-			return nullptr;
+			return;
 		}
 		const PMLProfileData* profiles = pd_.model.getPMLProfileData();
 		if (!profiles) {
 			throw std::runtime_error(
-				"buildClassicalPMLOperator requires initialized PML profile data.");
+				"buildSCPMLOperators requires initialized PML profile data.");
+		}
+
+		bool needs_a = false;
+		for (const auto& props : pd_.model.getPMLProperties()) {
+			if (props.kappa_max > 1.0 + 1e-12) {
+				needs_a = true;
+				break;
+			}
 		}
 
 		const int ndofs = fes_.GetNDofs();
@@ -1904,77 +1962,91 @@ namespace maxwell
 		mfem::Array<int> pml_marker = pd_.model.buildPMLVolumeMarker();
 		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
 
-		// Unit mass on PML (ε=μ=1) for J/M → field couplings after M^{-1}.
 		mfem::ConstantCoefficient one(1.0);
 		auto Munit = buildMarkedMassOperator<ParBilinearForm>(one, pml_marker);
-		auto A_unit_E = buildByMult<FES, ParBilinearForm>(
+		auto S_unit_E = buildByMult<FES, ParBilinearForm>(
 			MInv[E]->SpMat(), Munit->SpMat(), fes_);
-		auto A_unit_H = buildByMult<FES, ParBilinearForm>(
+		auto S_unit_H = buildByMult<FES, ParBilinearForm>(
 			MInv[H]->SpMat(), Munit->SpMat(), fes_);
 
 		std::vector<CSRBlockPlacement> blocks;
 
-		for (Direction s : layout.stretchDirections()) {
-			// CuDG3D ADE (α=0): ∂t E_s = σ E_s − J,  ∂t E_⊥ = −σ E_⊥,
-			//                    ∂t J = σ² E_s − σ J  (same for H / M).
-			PMLProfileCoefficient c_sig(*profiles, s, PMLCoeffKind::Sigma);
-			PMLProfileCoefficient c_sig2(*profiles, s, PMLCoeffKind::Sigma2);
+		for (Direction u = X; u <= Z; ++u) {
+			SCPMLTensorCoefficient c_a(*profiles, u, SCPMLTensorKind::A);
+			SCPMLTensorCoefficient c_b(*profiles, u, SCPMLTensorKind::B);
+			SCPMLTensorCoefficient c_c(*profiles, u, SCPMLTensorKind::C);
+			SCPMLTensorCoefficient c_d(*profiles, u, SCPMLTensorKind::D);
+			SCPMLTensorCoefficient c_invk(*profiles, u, SCPMLTensorKind::InvKappa);
 
-			auto Msig = buildMarkedMassOperator<ParBilinearForm>(c_sig, pml_marker);
-			auto Msig2 = buildMarkedMassOperator<ParBilinearForm>(c_sig2, pml_marker);
+			auto Mb = buildMarkedMassOperator<ParBilinearForm>(c_b, pml_marker);
+			auto Mc = buildMarkedMassOperator<ParBilinearForm>(c_c, pml_marker);
+			auto Md = buildMarkedMassOperator<ParBilinearForm>(c_d, pml_marker);
+			auto Minvk = buildMarkedMassOperator<ParBilinearForm>(c_invk, pml_marker);
 
-			auto A_sig_E = buildByMult<FES, ParBilinearForm>(
-				MInv[E]->SpMat(), Msig->SpMat(), fes_);
-			auto A_sig_H = buildByMult<FES, ParBilinearForm>(
-				MInv[H]->SpMat(), Msig->SpMat(), fes_);
-			auto A_sig2_E = buildByMult<FES, ParBilinearForm>(
-				MInv[E]->SpMat(), Msig2->SpMat(), fes_);
-			auto A_sig2_H = buildByMult<FES, ParBilinearForm>(
-				MInv[H]->SpMat(), Msig2->SpMat(), fes_);
+			std::unique_ptr<ParBilinearForm> A_b_E;
+			std::unique_ptr<ParBilinearForm> A_b_H;
+			std::unique_ptr<ParBilinearForm> A_c_E;
+			std::unique_ptr<ParBilinearForm> A_c_H;
+			if (needs_a) {
+				auto MaInv = buildMarkedInverseMassOperator<ParBilinearForm>(
+					c_a, pml_marker);
+				A_b_E = buildByMult<FES, ParBilinearForm>(
+					MaInv->SpMat(), Mb->SpMat(), fes_);
+				A_b_H = buildByMult<FES, ParBilinearForm>(
+					MaInv->SpMat(), Mb->SpMat(), fes_);
+				A_c_E = buildByMult<FES, ParBilinearForm>(
+					MaInv->SpMat(), Mc->SpMat(), fes_);
+				A_c_H = buildByMult<FES, ParBilinearForm>(
+					MaInv->SpMat(), Mc->SpMat(), fes_);
 
-			const int j_off = layout.jOffset(s);
-			const int m_off = layout.mOffset(s);
-
-			for (Direction c = X; c <= Z; ++c) {
-				if (c == s) {
-					// ∂t E_s += σ E_s
-					collectBlockPlacement(
-						A_sig_E->SpMat(), blocks, c * ndofs, c * ndofs, 1.0);
-					collectBlockPlacement(
-						A_sig_H->SpMat(), blocks, (3 + c) * ndofs, (3 + c) * ndofs,
-						1.0);
-				} else {
-					// ∂t E_⊥ −= σ E_⊥
-					collectBlockPlacement(
-						A_sig_E->SpMat(), blocks, c * ndofs, c * ndofs, -1.0);
-					collectBlockPlacement(
-						A_sig_H->SpMat(), blocks, (3 + c) * ndofs, (3 + c) * ndofs,
-						-1.0);
+				// Delta = MaInv*M − MInv*M so out += Delta*out ⇒ MaInv*M*out on PML.
+				auto R = buildByMult<FES, ParBilinearForm>(
+					MaInv->SpMat(), Munit->SpMat(), fes_);
+				auto delta = std::make_unique<SparseMatrix>(R->SpMat());
+				delta->Add(-1.0, S_unit_E->SpMat());
+				delta->Finalize();
+				if (delta->NumNonZeroElems() > 0) {
+					curl_delta[u] = std::move(delta);
 				}
+			} else {
+				A_b_E = buildByMult<FES, ParBilinearForm>(
+					MInv[E]->SpMat(), Mb->SpMat(), fes_);
+				A_b_H = buildByMult<FES, ParBilinearForm>(
+					MInv[H]->SpMat(), Mb->SpMat(), fes_);
+				A_c_E = buildByMult<FES, ParBilinearForm>(
+					MInv[E]->SpMat(), Mc->SpMat(), fes_);
+				A_c_H = buildByMult<FES, ParBilinearForm>(
+					MInv[H]->SpMat(), Mc->SpMat(), fes_);
 			}
 
-			// ∂t E_s -= J ; ∂t H_s -= M
-			collectBlockPlacement(
-				A_unit_E->SpMat(), blocks, s * ndofs, j_off, -1.0);
-			collectBlockPlacement(
-				A_unit_H->SpMat(), blocks, (3 + s) * ndofs, m_off, -1.0);
+			// P rows always use unit Maxwell MInv (no a on ∂t P).
+			auto A_d_E = buildByMult<FES, ParBilinearForm>(
+				MInv[E]->SpMat(), Md->SpMat(), fes_);
+			auto A_d_H = buildByMult<FES, ParBilinearForm>(
+				MInv[H]->SpMat(), Md->SpMat(), fes_);
+			auto A_invk_E = buildByMult<FES, ParBilinearForm>(
+				MInv[E]->SpMat(), Minvk->SpMat(), fes_);
+			auto A_invk_H = buildByMult<FES, ParBilinearForm>(
+				MInv[H]->SpMat(), Minvk->SpMat(), fes_);
 
-			// ∂t J = σ² E_s − σ J
-			collectBlockPlacement(
-				A_sig2_E->SpMat(), blocks, j_off, s * ndofs, 1.0);
-			collectBlockPlacement(
-				A_sig_E->SpMat(), blocks, j_off, j_off, -1.0);
+			const int pe = layout.pEOffset(u);
+			const int ph = layout.pHOffset(u);
+			const int e_off = u * ndofs;
+			const int h_off = (3 + u) * ndofs;
 
-			// ∂t M = σ² H_s − σ M
-			collectBlockPlacement(
-				A_sig2_H->SpMat(), blocks, m_off, (3 + s) * ndofs, 1.0);
-			collectBlockPlacement(
-				A_sig_H->SpMat(), blocks, m_off, m_off, -1.0);
+			collectBlockPlacement(A_b_E->SpMat(), blocks, e_off, e_off, -1.0);
+			collectBlockPlacement(A_c_E->SpMat(), blocks, e_off, pe, -1.0);
+			collectBlockPlacement(A_b_H->SpMat(), blocks, h_off, h_off, -1.0);
+			collectBlockPlacement(A_c_H->SpMat(), blocks, h_off, ph, -1.0);
+
+			collectBlockPlacement(A_invk_E->SpMat(), blocks, pe, e_off, 1.0);
+			collectBlockPlacement(A_d_E->SpMat(), blocks, pe, pe, -1.0);
+			collectBlockPlacement(A_invk_H->SpMat(), blocks, ph, h_off, 1.0);
+			collectBlockPlacement(A_d_H->SpMat(), blocks, ph, ph, -1.0);
 		}
 
-		// Ranks with no local PML elements assemble empty marked masses → nnz 0.
-		// Skip the operator (Mult already no-ops on nullptr). Do not build an
-		// empty SparseMatrix with null J/A — AddMult can segfault on that.
+		(void)S_unit_H;
+
 		int sum_nnz = 0;
 		for (const auto& bp : blocks) {
 			if (bp.block) {
@@ -1983,24 +2055,25 @@ namespace maxwell
 		}
 		if (sum_nnz <= 0) {
 			blocks.clear();
+			for (auto& d : curl_delta) {
+				d.reset();
+			}
 			std::cout << "[PML] Rank " << Mpi::WorldRank()
-			          << ": no local PML volume — classical ADE operator omitted"
+			          << ": no local PML volume — SC-PML ADE operator omitted"
 			          << std::endl;
-			return nullptr;
+			return;
 		}
 
-		auto res = mergeBlocksToCSR(blocks, globalRows, globalCols);
+		ade_operator = mergeBlocksToCSR(blocks, globalRows, globalCols);
 		blocks.clear();
-		res->Threshold(1e-8);
+		ade_operator->Threshold(1e-8);
 
 		std::cout << "[PML] Rank " << Mpi::WorldRank()
-		          << ": Classical ADE operator " << globalRows << " x " << globalCols
-		          << ", nnz=" << res->NumNonZeroElems()
-		          << ", stretch_dirs=" << layout.numStretchDirections()
-		          << " (QP-graded Mass(σ))"
+		          << ": SC-PML ADE operator " << globalRows << " x " << globalCols
+		          << ", nnz=" << ade_operator->NumNonZeroElems()
+		          << (needs_a ? " (MaInv damping + curl a-rescale)"
+		                      : " (κ≡1 unit MInv)")
 		          << std::endl;
-
-		return res;
 	}
 
 } // namespace maxwell

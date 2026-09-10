@@ -6,22 +6,62 @@
     "order": 3
   },
   "model": {
-    "filename": "2D_Dipole.msh",
+    "filename": "2D_Dipole_PML_GO0.msh",
     "materials": [
       {
         "tags": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
           9,
           10
         ],
         "type": "vacuum"
+      },
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 0,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "Y"
+        ]
+      },
+      {
+        "tags": [
+          3,
+          4
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 0,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "X"
+        ]
+      },
+      {
+        "tags": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 0,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "X",
+          "Y"
+        ]
       }
     ],
     "boundaries": [

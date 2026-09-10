@@ -1371,7 +1371,8 @@ void checkIfAttributesArePresent(const Mesh& mesh, const GeomTagToMaterialInfo& 
 	}
 }
 
-GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh)
+GeomTagToMaterialInfo assembleAttributeToMaterial(
+	const json& case_data, const mfem::Mesh& mesh)
 {
 	GeomTagToMaterialInfo res{};
 
@@ -1389,7 +1390,8 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const m
 					res.gt2m.emplace(mat_json["tags"][t], vacuum);
 				}
 			} else if (type == "PML") {
-				PMLProperties props = parsePMLMaterialBlock(mat_json, mesh.Dimension());
+				PMLProperties props =
+					parsePMLMaterialBlock(mat_json, mesh.Dimension());
 				const Material vacuum = buildVacuumMaterial();
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
 					const GeomTag tag = mat_json["tags"][t];
@@ -1953,6 +1955,11 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
             std::cout << "  Region " << ri << ": " << props.geom_tags.size()
                       << " tag(s), stretch_mode="
                       << (props.stretch_mode == PMLStretchMode::Radial ? "radial" : "box")
+                      << ", grading_order=" << props.grading_order
+                      << ", target_reflection=" << std::scientific << props.target_reflection
+                      << std::defaultfloat
+                      << ", kappa_max=" << props.kappa_max
+                      << ", alpha_max=" << props.alpha_max
                       << ", active_axes:";
             for (Direction d : props.active_axes) {
                 std::cout << " " << d;

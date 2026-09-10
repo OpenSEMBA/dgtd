@@ -31,7 +31,7 @@ Default JSON: `"evolution_operator": "global"` (or omit).
 ### GlobalEvolution operator split
 
 1. **`globalOperator_`** — curl, DG fluxes, bulk conductivity (`DGOperatorFactory::buildGlobalOperator`).
-2. **`Mult()` add-ons** — SGBC sub-solve + flux, classical ADE-PML (`classicalPMLOperator_`), TFSF source.
+2. **`Mult()` add-ons** — SGBC sub-solve + flux, SC-PML ADE (`scpmlOperator_`), TFSF source.
 3. **State vector** — `[Ex, Ey, Ez, Hx, Hy, Hz]` per DOF (`6 × ndofs`); with PML, plus \(J\)/\(M\) auxiliaries (`ClassicalPMLLayout`).
 
 ### Units
@@ -49,20 +49,20 @@ Always loop `X, Y, Z` and skip `d >= mesh.Dimension()`. Do not add 1D-only solve
 | **Build / run (human README)** | [README.md](./README.md) |
 | **JSON input reference** | [docs/json-input-format.md](./docs/json-input-format.md) |
 | **MOR → ParaView** | [docs/mor2paraview.md](./docs/mor2paraview.md) |
-| **Volumetric PML (CFS paused → classical ADE next)** | [docs/pml/README.md](./docs/pml/README.md) |
+| **Volumetric PML (SC-PML ADE)** | [docs/pml/README.md](./docs/pml/README.md) |
 | **MFEM/DGTD coding standards** | [.cursor/rules/02-mfem-dgtd-standards.mdc](./.cursor/rules/02-mfem-dgtd-standards.mdc) |
 | **C++ guidance** | [.cursor/rules/03-cpp-expert-guidance.mdc](./.cursor/rules/03-cpp-expert-guidance.mdc) |
 
-## Active work: volumetric classical ADE-PML (CuDG3D-style)
+## Active work: volumetric SC-PML ADE (Bagci/Chen)
 
-Live wiring: [`docs/pml/28-classical-ade-pml.md`](./docs/pml/28-classical-ade-pml.md). CFS archive: [`docs/pml/27-gedney-cfs-paused.md`](./docs/pml/27-gedney-cfs-paused.md).
+Live wiring: [`docs/pml/30-sc-pml-ade.md`](./docs/pml/30-sc-pml-ade.md). Status report: [`docs/pml/31-sc-pml-status.md`](./docs/pml/31-sc-pml-status.md). Approaches survey: [`docs/pml/29-dgtd-pml-approaches.md`](./docs/pml/29-dgtd-pml-approaches.md). Gedney CFS archive: [`docs/pml/27-gedney-cfs-paused.md`](./docs/pml/27-gedney-cfs-paused.md).
 
 Summary:
 
-- **Formulation:** classical ADE polarization currents (\(J\)/\(M\)) + volume \(\sigma\) (CuDG3D-style on MFEM).
-- **Keep:** Gmsh/JSON region tags, `active_axes` (uniaxial or multi-axis per block), `stretch_mode` (`box`/`radial`), σ grading.
+- **Formulation:** field-driven \(P_E/P_H\) + volume tensors \(a,b,c,d(\sigma,\kappa)\) (CuDG3D \(J/M\) is the \(\kappa\equiv 1\) limit).
+- **Keep:** Gmsh/JSON region tags, `active_axes`, `stretch_mode` (`box`/`radial`), σ/κ grading.
 - **Integration:** `GlobalEvolution` only; RK4 via `Mult()` after `globalOperator_`.
-- **Do not** reintroduce CFS \(\psi\) / `kappa_max` / `alpha_max` without an explicit unlock.
+- Do **not** reintroduce Gedney \(\psi\sim D(F)\) or hybrid-corr ADE SBP.
 
 ## Conventions for agents
 

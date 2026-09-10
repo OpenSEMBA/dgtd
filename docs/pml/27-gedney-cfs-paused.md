@@ -1,8 +1,29 @@
-# Gedney CFS-CPML attempt — paused (2026-09-07)
+# Gedney CFS-CPML attempt — paused
 
-**Status: paused / not an active code path.** We tried Salvador’s volumetric ADE CFS-CPML (Gedney & Zhao), got this far, and stopped it for now in favor of a classical CuDG3D-style \(J\)/\(M\) ADE-PML on the same mesh/JSON region contract.
+**Status: paused / not an active code path.**
 
-This note is the handoff summary. Session docs **09–26** remain as historical detail; do not treat them as the live implementation plan.
+## 2026-09-09 — second attempt removed
+
+Reintroduced `pml_formulation: "gedney"` with shared centered \(D\) (Derivative+OneNormal) driving \(\psi\). Centered `1D_PML_Gedney` DFT failed (~+28 dB; late \(|E_y|\sim 1\)). Code path deleted again in favor of Bagci/Chen **SC-PML** field-driven ADE ([`30-sc-pml-ade.md`](./30-sc-pml-ade.md)).
+
+## 2026-09-07 — first pause
+
+Tried Salvador’s volumetric ADE CFS-CPML (Gedney & Zhao), stopped in favor of classical CuDG3D-style \(J\)/\(M\) (later replaced by SC-PML \(P\)-form).
+
+---
+
+## Intent (historical)
+
+| Item | Value |
+|------|-------|
+| Formulation | Volumetric **CFS-CPML** via **ADE** (auxiliaries \(\psi\)) |
+| Reference | Gedney & Zhao, IEEE TAP 2010 |
+
+## Why we stopped
+
+The stretch-derivative driver into \(\psi\) must match Maxwell’s discrete \(D\). Upwind Zero/Two on `globalOperator_` vs centered ADE → closed-loop instability on 2D upwind slabs; the 2026-09-09 centered rebuild still failed 1D absorption.
+
+SC-PML (field-driven \(P\leftarrow F\)) avoids a second discrete \(D\). Do not reintroduce Gedney without a new design review.
 
 ---
 

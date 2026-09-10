@@ -22,6 +22,10 @@ struct PMLProperties {
 	bool matches_vacuum = true;
 	int grading_order = 3;
 	double target_reflection = 1e-6;
+	/// SC-PML stretch scale κ(ρ); default 1 recovers CuDG3D-equivalent ADE.
+	double kappa_max = 1.0;
+	/// CFS frequency shift (deferred; must remain 0 until pole is wired).
+	double alpha_max = 0.0;
 	std::set<Direction> active_axes;
 	PMLStretchMode stretch_mode = PMLStretchMode::Box;
 	/// Optional center for Radial mode. If unset, inferred from vacuum–PML interfaces.
@@ -30,8 +34,8 @@ struct PMLProperties {
 
 std::set<Direction> parseActiveAxes(const nlohmann::json& mat_json, int mesh_dim);
 
-PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim);
-
 void validatePMLMaterialBlock(const nlohmann::json& mat_json);
+
+PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim);
 
 } // namespace maxwell

@@ -15,6 +15,8 @@ void evaluateStretchProfiles(
 {
 	out.depth = rho;
 	out.sigma = 0.0;
+	out.kappa = 1.0;
+	out.alpha = 0.0;
 	if (L <= 0.0) {
 		return;
 	}
@@ -30,10 +32,14 @@ void evaluateStretchProfiles(
 	}
 
 	if (m == 0) {
-		// Constant conductivity in the PML volume (abrupt at vacuum interface).
 		out.sigma = sigma_max;
+		out.kappa = props.kappa_max;
+		out.alpha = props.alpha_max;
 	} else {
-		out.sigma = sigma_max * std::pow(xi, static_cast<double>(m));
+		const double xi_m = std::pow(xi, static_cast<double>(m));
+		out.sigma = sigma_max * xi_m;
+		out.kappa = 1.0 + (props.kappa_max - 1.0) * xi_m;
+		out.alpha = props.alpha_max * xi_m;
 	}
 }
 
@@ -557,6 +563,8 @@ void PMLProfileData::printDiagnostics(int rank) const
 
 	double max_iface_sigma = 0.0;
 	double max_sigma = 0.0;
+	double max_alpha = 0.0;
+	double max_kappa = 1.0;
 
 	for (const auto& ep : element_profiles_) {
 		for (const auto& qp : ep.qp_profiles) {
@@ -570,6 +578,8 @@ void PMLProfileData::printDiagnostics(int rank) const
 					max_iface_sigma = std::max(max_iface_sigma, qp[d].sigma);
 				}
 				max_sigma = std::max(max_sigma, qp[d].sigma);
+				max_alpha = std::max(max_alpha, qp[d].alpha);
+				max_kappa = std::max(max_kappa, qp[d].kappa);
 			}
 		}
 	}
@@ -577,7 +587,8 @@ void PMLProfileData::printDiagnostics(int rank) const
 	std::cout << std::scientific << std::setprecision(3);
 	std::cout << "  Interface-adjacent (depth/L < 0.05): max sigma="
 	          << max_iface_sigma << std::endl;
-	std::cout << "  Global max: sigma=" << max_sigma << std::endl;
+	std::cout << "  Global max: sigma=" << max_sigma << " kappa=" << max_kappa
+	          << " alpha=" << max_alpha << std::endl;
 	std::cout << std::defaultfloat;
 	std::cout << "========================================================\n" << std::endl;
 }

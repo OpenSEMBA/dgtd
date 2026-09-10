@@ -1,12 +1,12 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 0.0005,
+    "time_step": 0.001,
     "final_time": 20.0,
-    "order": 3
+    "order": 2
   },
   "model": {
-    "filename": "2D_PML_X_slab.msh",
+    "filename": "1D_PML_kappa.msh",
     "materials": [
       {
         "tags": [
@@ -21,31 +21,26 @@
         ],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 1,
-        "target_reflection": 1e-03,
+        "grading_order": 0,
+        "target_reflection": 0.0001,
         "active_axes": [
           "X"
-        ]
+        ],
+        "kappa_max": 2.0
       }
     ],
     "boundaries": [
       {
         "tags": [
-          8,
-          10,
-          16,
-          17,
-          19,
-          21
+          1
         ],
-        "type": "PMC"
+        "type": "PEC"
       },
       {
         "tags": [
-          11,
-          20
+          2
         ],
-        "type": "SMA"
+        "type": "PEC"
       }
     ]
   },
@@ -56,31 +51,21 @@
     "point": [
       {
         "position": [
-          -0.5,
-          0.5
+          1.99
         ],
-        "saves": 4000
+        "saves": 400
       },
       {
         "position": [
-          0.5,
-          0.5
+          2.01
         ],
-        "saves": 4000
+        "saves": 400
       },
       {
         "position": [
-          0.95,
-          0.5
+          2.99
         ],
-        "saves": 4000
-      },
-      {
-        "position": [
-          1.05,
-          0.5
-        ],
-        "saves": 4000
+        "saves": 400
       }
     ]
   },
@@ -89,8 +74,8 @@
       "type": "planewave",
       "polarization": [
         0.0,
-        0.0,
-        1.0
+        1.0,
+        0.0
       ],
       "propagation": [
         1.0,
@@ -98,11 +83,11 @@
         0.0
       ],
       "tags": [
-        9
+        3
       ],
       "magnitude": {
         "type": "gaussian",
-        "spread": 0.2
+        "spread": 0.4
       }
     }
   ]

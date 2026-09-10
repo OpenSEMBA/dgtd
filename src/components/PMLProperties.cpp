@@ -113,10 +113,10 @@ void validatePMLMaterialBlock(const nlohmann::json& mat_json)
 	if (mat_json.contains("matches_vacuum") && !mat_json["matches_vacuum"].get<bool>()) {
 		throw std::runtime_error("Only matches_vacuum: true is supported for volumetric PML.");
 	}
-	if (mat_json.contains("kappa_max") || mat_json.contains("alpha_max")) {
+	if (mat_json.contains("alpha_max") && mat_json["alpha_max"].get<double>() != 0.0) {
 		throw std::runtime_error(
-			"PML kappa_max / alpha_max are CFS-only and no longer accepted. "
-			"Classical ADE uses CuDG3D σ-only stretch (see docs/pml/28-classical-ade-pml.md).");
+			"PML alpha_max > 0 is not supported yet (CFS pole deferred). Use alpha_max: 0 "
+			"or omit the field.");
 	}
 }
 
@@ -131,6 +131,15 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	props.active_axes = parseActiveAxes(mat_json, mesh_dim);
 	props.stretch_mode = parseStretchMode(mat_json);
 	props.radial_center = parseRadialCenter(mat_json, mesh_dim);
+	props.kappa_max = mat_json.value("kappa_max", 1.0);
+	props.alpha_max = mat_json.value("alpha_max", 0.0);
+
+	if (props.kappa_max < 1.0) {
+		throw std::runtime_error("PML kappa_max must be >= 1.");
+	}
+	if (props.alpha_max < 0.0) {
+		throw std::runtime_error("PML alpha_max must be >= 0.");
+	}
 
 	if (props.grading_order < 0) {
 		throw std::runtime_error("PML grading_order must be >= 0 (0 = constant conductivity).");

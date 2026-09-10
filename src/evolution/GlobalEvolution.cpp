@@ -1,6 +1,6 @@
 #include "GlobalEvolution.h"
 #include "MaxwellEvolutionMethods.h"
-#include "components/ClassicalPMLLayout.h"
+#include "components/SCPMLLayout.h"
 #include "math/PhysicalConstants.h"
 
 #include <chrono>
@@ -117,8 +117,9 @@ GlobalEvolution::GlobalEvolution(
     mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes, double final_time) :
     mfem::TimeDependentOperator([&]() {
         const int ndofs = fes.GetNDofs();
-        const int n_aux = computeClassicalPMLAuxSize(
-            model.getPMLProperties(), ndofs, fes.GetMesh()->Dimension());
+        const int n_aux = computePMLAuxSize(
+            model.getPMLProperties(), ndofs,
+            fes.GetMesh()->Dimension());
         return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux;
     }()),
     total_state_size_(Height()),
@@ -464,14 +465,17 @@ GlobalEvolution::GlobalEvolution(
     globalOperator_ = dgops.buildGlobalOperator();
 
     if (model_.hasPML()) {
-        classicalPMLLayout_ = std::make_unique<ClassicalPMLLayout>(
-            fes_.GetNDofs(), model_.getPMLProperties(), fes_.GetMesh()->Dimension());
-        if (classicalPMLLayout_->nAux() > 0) {
-            classicalPMLOperator_ = dgops.buildClassicalPMLOperator(*classicalPMLLayout_);
+        scpmlLayout_ = std::make_unique<SCPMLLayout>(
+            fes_.GetNDofs(), model_.getPMLProperties(),
+            fes_.GetMesh()->Dimension());
+        if (scpmlLayout_->nAux() > 0) {
+            dgops.buildSCPMLOperators(
+                *scpmlLayout_, scpmlOperator_, scpmlCurlDelta_);
             if (Mpi::WorldRank() == 0) {
-                std::cout << "[PML] Extended ODE size: " << total_state_size_
+                std::cout << "[PML] SC-PML ADE formulation; extended ODE size: "
+                          << total_state_size_
                           << " (field " << 6 * fes_.GetNDofs()
-                          << " + n_aux " << classicalPMLLayout_->nAux() << ")"
+                          << " + n_aux " << scpmlLayout_->nAux() << ")"
                           << std::endl;
             }
         }
@@ -1092,9 +1096,25 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         mfem::Vector out_fields;
         out_fields.MakeRef(out, 0, 6 * ndofs);
         globalOperator_->Mult(multWorkVec_, out_fields);
+
+        // κ>1: replace unit-mass curl on PML with Ma^{-1} M * curl (Bagci LHS a).
+        for (int u = 0; u < 3; ++u) {
+            if (!scpmlCurlDelta_[u]) {
+                continue;
+            }
+            if (scpmlCurlWork_.Size() != ndofs) {
+                scpmlCurlWork_.SetSize(ndofs);
+            }
+            for (int field_block = 0; field_block < 2; ++field_block) {
+                mfem::Vector slice;
+                slice.MakeRef(out_fields, (field_block * 3 + u) * ndofs, ndofs);
+                scpmlCurlDelta_[u]->Mult(slice, scpmlCurlWork_);
+                slice += scpmlCurlWork_;
+            }
+        }
     }
-    if (classicalPMLOperator_) {
-        classicalPMLOperator_->AddMult(in, out);
+    if (scpmlOperator_) {
+        scpmlOperator_->AddMult(in, out);
     }
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();

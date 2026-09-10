@@ -57,7 +57,7 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `tags` | int[] | — | Mesh attribute IDs sharing these properties. |
-| `type` | string | (legacy) | `"vacuum"` or `"PML"` (volumetric ADE-PML — see [pml/03-json-schema-and-mesh.md](./pml/03-json-schema-and-mesh.md) / [pml/28-classical-ade-pml.md](./pml/28-classical-ade-pml.md)). Optional PML fields: `active_axes`, `grading_order`, `target_reflection`, `stretch_mode`, `radial_center`. |
+| `type` | string | (legacy) | `"vacuum"` or `"PML"` (see [pml/30-sc-pml-ade.md](./pml/30-sc-pml-ade.md)). Optional: `active_axes`, `grading_order`, `target_reflection`, `stretch_mode`, `radial_center`, `kappa_max` (≥1); `alpha_max` must be 0 until CFS is wired. |
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |

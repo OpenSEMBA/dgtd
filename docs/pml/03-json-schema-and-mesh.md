@@ -59,13 +59,15 @@ CFS \(\kappa\)/\(\alpha\) JSON fields were removed when Gedney CFS was paused ([
 | `tags` | int[] | yes | Gmsh volume (or region) attribute IDs |
 | `type` | string | yes | Must be `"PML"` |
 | `matches_vacuum` | bool | yes (default true) | ε = μ = 1 in PML; stretch provides absorption only |
-| `grading_order` | int | yes | Power-law exponent **m** for \(\sigma(\xi)=\sigma_{\max}\xi^{m}\). **`0` = constant \(\sigma=\sigma_{\max}\)** in the PML volume |
+| `grading_order` | int | yes | Power-law exponent **m** for \(\sigma(\xi)=\sigma_{\max}\xi^{m}\). **`0` = constant** in the PML volume |
 | `target_reflection` | double | yes | Design reflection level (e.g. 1e-6); used to set **σ_max** |
+| `kappa_max` | double | no (`1`) | Gedney only (`pml_formulation: gedney`); ≥ 1 |
+| `alpha_max` | double | no (`0`) | Gedney only; CFS α on ψ pole |
 | `active_axes` | string[] | yes | Subset of `"X"`, `"Y"`, `"Z"`; which ADE stretch stacks are active for **this tag block** |
 | `stretch_mode` | string/int | `"box"` | `"box"`/`0`: planar depth; `"radial"`/`1`: radial \(\sigma(\rho)\) profile (Cartesian ADE) |
 | `radial_center` | number[] | inferred | Optional; only with `radial`. Else mean of vacuum–PML interface face centers |
 
-**Rejected if present:** `kappa_max`, `alpha_max` (CFS-only leftovers).
+**Rejected on classical formulation:** `kappa_max`, `alpha_max`.
 
 **Forbidden on PML tags:**
 

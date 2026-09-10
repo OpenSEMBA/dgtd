@@ -1,5 +1,5 @@
 #include "Solver.h"
-#include "components/ClassicalPMLLayout.h"
+#include "components/SCPMLLayout.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -109,7 +109,7 @@ Solver::Solver(
     fec_{ opts_.evolution.order, model_.getMesh().Dimension(), opts_.basis_type},
     fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
     fields_{ *fes_,
-             computeClassicalPMLAuxSize(
+             computePMLAuxSize(
                  model.getPMLProperties(),
                  fes_->GetNDofs(),
                  fes_->GetMesh()->Dimension()) },

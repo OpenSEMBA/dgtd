@@ -6,7 +6,7 @@
     "order": 3
   },
   "model": {
-    "filename": "2D_PML_X_slab.msh",
+    "filename": "2D_PML_X_slab_GO1.msh",
     "materials": [
       {
         "tags": [
@@ -22,7 +22,7 @@
         "type": "PML",
         "matches_vacuum": true,
         "grading_order": 1,
-        "target_reflection": 1e-03,
+        "target_reflection": 0.001,
         "active_axes": [
           "X"
         ]
@@ -64,20 +64,6 @@
       {
         "position": [
           0.5,
-          0.5
-        ],
-        "saves": 4000
-      },
-      {
-        "position": [
-          0.95,
-          0.5
-        ],
-        "saves": 4000
-      },
-      {
-        "position": [
-          1.05,
           0.5
         ],
         "saves": 4000

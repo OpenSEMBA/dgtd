@@ -8,7 +8,7 @@
 
 namespace maxwell {
 
-class ClassicalPMLLayout;
+class SCPMLLayout;
 
 using NodeId = int;
 using NodePair = std::pair<NodeId, NodeId>;
@@ -47,8 +47,11 @@ private:
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
-    std::unique_ptr<mfem::SparseMatrix> classicalPMLOperator_;
-    std::unique_ptr<ClassicalPMLLayout> classicalPMLLayout_;
+    std::unique_ptr<mfem::SparseMatrix> scpmlOperator_;
+    std::unique_ptr<SCPMLLayout> scpmlLayout_;
+    /// Per stretch-component curl a-rescale: out_Fu += Delta_u * out_Fu (E and H).
+    std::array<std::unique_ptr<mfem::SparseMatrix>, 3> scpmlCurlDelta_;
+    mutable mfem::Vector scpmlCurlWork_;
 
     mfem::Array<int> tfsf_sub_to_parent_ids_;
 

@@ -1,15 +1,14 @@
 # Locked decisions (do not re-litigate without user approval)
 
-This document records decisions from the planning conversation. **Updated 2026-09-07:** Gedney ADE CFS-CPML is **paused**; classical volumetric ADE-PML (CuDG3D-style) is the next active path. Archive: [`27-gedney-cfs-paused.md`](./27-gedney-cfs-paused.md).
+**Updated 2026-09-09:** Active PML is **SC-PML ADE** (Bagci/Chen). Gedney \(\psi\sim D(F)\) remains archived. Classical CuDG3D \(J/M\) replaced by equivalent \(\kappa\equiv 1\) SC-PML \(P\)-form.
 
 ## Formulation
 
 | Decision | Value |
 |----------|-------|
-| PML type (paused) | Volumetric **CFS-CPML** via ADE \(\psi\) — **not active in code** |
-| PML type (**next / active**) | Volumetric **classical ADE-PML** (\(J\)/\(M\) + volume \(\sigma\)), CuDG3D-style on MFEM |
-| CFS primary reference | Gedney & Zhao, IEEE TAP 2010, DOI `10.1109/TAP.2009.2037765` (historical) |
-| Secondary reference | Taflove for stretch / \(\sigma\) grading intuition — **not** FDTD stencils |
+| PML type (**active**) | Volumetric **SC-PML ADE** (\(P_E/P_H\) + volume \(a,b,c,d(\sigma,\kappa)\)) |
+| Primary reference | Chen et al., arXiv:2006.02551 (SC-PML ADE) |
+| Gedney CFS | **Parked** — [`27-gedney-cfs-paused.md`](./27-gedney-cfs-paused.md) |
 | Surface PML | **Rejected** — no `SBC_PML` |
 
 ## Solver integration
@@ -17,51 +16,40 @@ This document records decisions from the planning conversation. **Updated 2026-0
 | Decision | Value |
 |----------|-------|
 | Evolution operator | **`GlobalEvolution` only** |
-| Time integrator | **RK4** (explicit), PML dynamics through **`Mult()`** |
-| `ImplicitSolve()` | **Deferred** until explicit validation |
-| Regional IMEX | **Out of scope** for v1 |
-| Coexistence | **SGBC** and **TFSF** remain; not applied on PML surfaces in user workflows |
+| Time integrator | **RK4** (explicit), PML through **`Mult()`** |
+| `ImplicitSolve()` | **Deferred** |
+| Coexistence | **SGBC** and **TFSF** remain |
 
-## Dimensionality
-
-| Decision | Value |
-|----------|-------|
-| Code structure | **Dimension-agnostic** (loop X/Y/Z, skip `d >= mesh.Dimension()`) |
-| Multi-axis | Per-tag `active_axes` (uniaxial slabs + multi-block RCS) |
-
-## Mesh and JSON (retained)
+## Mesh and JSON
 
 | Decision | Value |
 |----------|-------|
 | PML region definition | **Gmsh volume → attribute tag → JSON `"type": "PML"`** |
-| Thickness | **From mesh geometry** — no `pml_thickness` JSON |
-| Vacuum match | **`matches_vacuum: true`** → ε = μ = 1 |
+| Thickness | **From mesh geometry** |
+| Vacuum match | **`matches_vacuum: true`** |
 | `bulk_conductivity` on PML | **Forbidden** |
-| Grading | `grading_order`, `target_reflection`, `active_axes` |
-| CFS-only fields | **`kappa_max` / `alpha_max` removed** from schema and parser |
+| Grading | `grading_order`, `target_reflection`, `active_axes`, `kappa_max` (≥1) |
+| `pml_formulation` switch | **Removed** |
+| `alpha_max` | Must be **0** until CFS pole is wired |
 
 ## State vector and I/O
 
 | Decision | Value |
 |----------|-------|
-| ODE state (CFS, paused) | Was `[E; ψ]` — removed from code |
-| ODE state (**classical, active**) | `[E/H (6N); J/M aux]` via `ClassicalPMLLayout` |
-| Probes / Paraview / MOR | **E and H only**; auxiliaries not exported |
+| ODE state | `[E/H (6N); P_E (3N); P_H (3N)]` via `SCPMLLayout` |
+| Probes / Paraview / MOR | **E and H only** |
 | Units | **Normalized** (`c = ε = μ = 1`) |
 
 ## Acceptance
 
 | Decision | Value |
 |----------|-------|
-| Probes | In **vacuum** |
-| Frequency analysis | **DFT offline** |
-| Reflection target | **−40 dB** |
+| Reflection target | **−40 dB** DFT on vacuum probes |
 | Kept reference cases | `1D_PML`, `1D_PML_buffer`, `2D_PML_X_slab`, `2D_RCS_Circle_Vol_PML` |
 
 ## What remains rejected
 
 1. Spatially varying **`bulk_conductivity`** as a fake PML.
 2. SGBC-style **sub-solver** for volumetric PML.
-3. FDTD-only / Yee-tied path.
-4. Keeping **`SBC_PML`** alongside volumetric PML.
-5. A **1D-only** PML module fork.
+3. Reintroducing **Gedney \(\psi\sim D(F)\)** without a new discrete-\(D\) design review.
+4. A **1D-only** PML module fork.
