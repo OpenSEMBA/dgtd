@@ -1160,15 +1160,32 @@ Probes buildProbes(const json& case_data)
 
     if (case_data.contains("probes")){
         if (case_data["probes"].contains("exporter")) {
+            const auto& exp_json = case_data["probes"]["exporter"];
+            if (exp_json.contains("saves")) {
+                throw std::runtime_error(
+                    "probes.exporter: \"saves\" was replaced by \"save_every\" "
+                    "(solver-time interval). Example: \"save_every\": 0.5 with "
+                    "final_time 20 writes t=0,0.5,...,20.");
+            }
+            if (exp_json.contains("save_every") && exp_json.contains("steps")) {
+                throw std::runtime_error(
+                    "probes.exporter: specify either \"save_every\" or \"steps\", not both.");
+            }
             ExporterProbe exporter_probe;
-            if (case_data["probes"]["exporter"].contains("name")) {
-                exporter_probe.name = case_data["probes"]["exporter"]["name"];
+            if (exp_json.contains("name")) {
+                exporter_probe.name = exp_json["name"];
             } else {
                 exporter_probe.name = case_data["model"]["filename"];
             }
-            exporter_probe.visSteps = calculate_interval(case_data["probes"]["exporter"]);
-            if (case_data["probes"]["exporter"].contains("saves"))
-                exporter_probe.saves = case_data["probes"]["exporter"]["saves"];
+            if (exp_json.contains("save_every")) {
+                exporter_probe.save_every = exp_json["save_every"].get<double>();
+                if (!(exporter_probe.save_every > 0.0)) {
+                    throw std::runtime_error(
+                        "probes.exporter.save_every must be > 0.");
+                }
+            } else {
+                exporter_probe.visSteps = calculate_interval(exp_json);
+            }
             probes.exporterProbes.push_back(exporter_probe);
         }
 
@@ -1961,8 +1978,12 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
                       << ", kappa_max=" << props.kappa_max
                       << ", alpha_max=" << props.alpha_max
                       << ", active_axes:";
-            for (Direction d : props.active_axes) {
-                std::cout << " " << d;
+            if (props.uniaxial_radial) {
+                std::cout << " R (cylindrical SC -> Cartesian)";
+            } else {
+                for (Direction d : props.active_axes) {
+                    std::cout << " " << d;
+                }
             }
             std::cout << std::endl;
         }

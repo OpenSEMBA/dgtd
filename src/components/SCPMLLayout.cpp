@@ -13,17 +13,25 @@ SCPMLLayout::SCPMLLayout(
 		throw std::runtime_error("SCPMLLayout: invalid mesh dimension.");
 	}
 
-	bool any_axis = false;
+	bool any_pml = false;
 	for (const auto& props : regions) {
+		if (props.uniaxial_radial) {
+			if (mesh_dim < 2) {
+				throw std::runtime_error(
+					"SCPMLLayout: uniaxial radial PML requires dim >= 2.");
+			}
+			any_pml = true;
+			continue;
+		}
 		for (Direction d : props.active_axes) {
 			if (d < 0 || d >= mesh_dim) {
 				throw std::runtime_error(
 					"SCPMLLayout: active_axes exceeds mesh dimension.");
 			}
-			any_axis = true;
+			any_pml = true;
 		}
 	}
-	if (any_axis) {
+	if (any_pml) {
 		n_aux_ = 6 * ndofs_;
 	}
 }

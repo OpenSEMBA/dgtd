@@ -101,9 +101,9 @@ Exported CSRs: `Exports/Operators/1D_PML_audit/` and `1D_PML_centered_audit/` (`
 
 | # | Finding | Confidence |
 |---|---------|------------|
-| 1 | **Duplicate-stretch hypothesis confirmed at architecture level:** `globalOperator_` applies full `D_x` + OneNormal curl in PML; `PMLOperator_` adds a **second** σ-weighted `D_x` + face chain into ψ, then ψ/kappa feeds back into `H`. This is **not** the Gedney split \(1/s = (1/\kappa)\partial + \text{memory}\) with memory-only in ψ. | High |
+| 1 | **Duplicate-stretch hypothesis confirmed at architecture level:** `globalOperator_` applies full `D_x` + OneNormal curl in PML; `PMLOperator_` adds a **second** σ-weighted `D_x` + face chain into ψ, then ψ/kappa feeds back into `H`. This is **not** the Gedney split $1/s = (1/\kappa)\partial + \text{memory}$ with memory-only in ψ. | High |
 | 2 | **Centered vs upwind** does not change Ey→Hz block norms; upwind only adds global/PML Zero/Two nnz when α>0. Late-time centered stability (session 14) is **not** explained by matching this block alone. | High |
-| 3 | **Mass model mismatch:** ψ driver uses **scalar** L2 `MInv(1)`; global curl uses **Maxwell** `MInv[H]` (ε/μ). Align if pursuing a single discrete symbol for \(\mathcal{D}_x\). | Medium |
+| 3 | **Mass model mismatch:** ψ driver uses **scalar** L2 `MInv(1)`; global curl uses **Maxwell** `MInv[H]` (ε/μ). Align if pursuing a single discrete symbol for $\mathcal{D}_x$. | Medium |
 | 4 | **Interface faces:** PML face integrators use `pml_marker` on interior faces only; vacuum–PML interface still has **global** face flux. No separate ψ face term at the interface (S7 trial worsened stability). | Medium |
 | 5 | Single-DOF Mult probes **do not** validate `Hz` coupling strength; use distributed tests or full simulation probes. | High |
 
@@ -113,7 +113,7 @@ Exported CSRs: `Exports/Operators/1D_PML_audit/` and `1D_PML_centered_audit/` (`
 
 1. **Regional assembly** was tried in session 16 and **reverted** — omitting global curl/flux in PML broke DG consistency; PML auxiliaries should remain **additive** on the full global operator.
 2. Investigate duplicate-curl via **signs**, ψ–field coupling, or formulation split without removing global flux.
-3. Optional \(1/\kappa\) global mass when `kappa_max > 1`, ψ-driver `MInv` alignment.
+3. Optional $1/\kappa$ global mass when `kappa_max > 1`, ψ-driver `MInv` alignment.
 
 ---
 

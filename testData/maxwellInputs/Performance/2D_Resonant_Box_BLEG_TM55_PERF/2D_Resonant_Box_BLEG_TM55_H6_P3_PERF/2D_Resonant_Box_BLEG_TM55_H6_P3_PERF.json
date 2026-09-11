@@ -12,28 +12,41 @@
     "refinement": 6,
     "materials": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2, 3, 4 ],
+        "tags": [
+          1,
+          2,
+          3,
+          4
+        ],
         "type": "PEC"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "steps": 1000
+      "save_every": 0.1
     },
     "point": [
       {
-        "position": [ 0.7, 0.7 ],
+        "position": [
+          0.7,
+          0.7
+        ],
         "write": true
       },
       {
-        "position": [ 0.5, 0.3 ],
+        "position": [
+          0.5,
+          0.3
+        ],
         "write": true
       }
     ],
@@ -45,10 +58,17 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "polarization": [ 0.0, 0.0, 1.0 ],
+      "polarization": [
+        0.0,
+        0.0,
+        1.0
+      ],
       "magnitude": {
         "type": "resonant",
-        "modes": [ 5, 5 ]
+        "modes": [
+          5,
+          5
+        ]
       }
     }
   ]

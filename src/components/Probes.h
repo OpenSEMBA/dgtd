@@ -11,7 +11,9 @@ namespace maxwell {
 struct ExporterProbe {
     std::string name{"MaxwellView"};
     int visSteps{ 10 };
-    int saves{ 0 };
+    /// Uniform export interval in solver time. When > 0, snapshots are taken at
+    /// t = 0, save_every, 2*save_every, … and always at final_time (steps mode unused).
+    double save_every{ 0.0 };
 };
 
 struct NearFieldProbe {

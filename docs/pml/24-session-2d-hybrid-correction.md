@@ -12,9 +12,11 @@ Stabilize the 2D ADE closed loop (`driver ↔ field correction`) so `pml_full` h
 2. **φ-form ADE**: unit stretch derivative `D` drives φ; σ lives in SPD mass terms (decay + field corr `Mass(σ/κ)`).
 3. **Volume-only driver by default** (SBP faces → Re≈6–8). `PML_FORCE_FACE_DRIVER=1` restores faces.
 4. **Hybrid field correction** (default θ=0.5):
-   \[
+   
+$$
    C_h = (1-\theta)\,C_{\mathrm{Gedney}} + \theta\,(-B^{\mathsf T})
-   \]
+$$
+
    Applied after CSR merge when `nbrDofs==0`. Override / disable: `PML_HYBRID_CORR_THETA` (`0` = pure Gedney).
 
 ### 1D unchanged path

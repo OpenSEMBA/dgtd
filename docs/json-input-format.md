@@ -57,7 +57,7 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `tags` | int[] | — | Mesh attribute IDs sharing these properties. |
-| `type` | string | (legacy) | `"vacuum"` or `"PML"` (see [pml/30-sc-pml-ade.md](./pml/30-sc-pml-ade.md)). Optional: `active_axes`, `grading_order`, `target_reflection`, `stretch_mode`, `radial_center`, `kappa_max` (≥1); `alpha_max` must be 0 until CFS is wired. |
+| `type` | string | (legacy) | `"vacuum"` or `"PML"` (see [pml/30-sc-pml-ade.md](./pml/30-sc-pml-ade.md)). Optional: `active_axes` (`X`/`Y`/`Z`, or `["R"]` alone for 2D cylindrical SC-PML → Cartesian on an onion mesh), `grading_order`, `target_reflection`, `stretch_mode`, `radial_center`, `kappa_max` (≥1; must be 1 with `"R"`); `alpha_max` must be 0 until CFS is wired. |
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |
@@ -110,8 +110,11 @@ ParaView (VisIt) field export.
 | Field | Description |
 |-------|-------------|
 | `name` | Dataset name (default: mesh basename) |
-| `steps` | Export every N steps (exclusive with `saves`) |
-| `saves` | Total exports over run (interval computed automatically) |
+| `save_every` | **Required cadence.** Export interval in solver time. Snapshots at `t = 0`, `save_every`, `2·save_every`, … and **always** at `final_time`. Example: `final_time: 20` with `save_every: 0.5` → 41 frames (`0, 0.5, …, 20`). Must be `> 0`. |
+
+Legacy keys on `exporter`:
+- `saves` (total frame count) — **rejected**; convert with `save_every = final_time / (saves - 1)` when `saves > 1`.
+- `steps` (every N time steps) — still parsed for backward compatibility, but prefer `save_every = steps * time_step`. Do not combine with `save_every`.
 
 ### point
 
@@ -120,7 +123,8 @@ Array. All E/H components at a point.
 | Field | Description |
 |-------|-------------|
 | `position` | Coordinates matching mesh dimension |
-| `steps` / `saves` | As above |
+| `steps` | Record every N time steps (exclusive with `saves`) |
+| `saves` | Total samples over the run (step interval computed from `final_time` / `time_step`) |
 
 **Warning:** point outside mesh crashes the simulation.
 
@@ -133,7 +137,7 @@ Array. Single scalar component at a point.
 | `field_type` | `"electric"`, `"magnetic"` |
 | `polarization` | `"X"`, `"Y"`, `"Z"` |
 | `position` | Coordinates |
-| `steps` / `saves` | As above |
+| `steps` / `saves` | Same meaning as `point` (count / step interval; not `save_every`) |
 
 ### farfield
 

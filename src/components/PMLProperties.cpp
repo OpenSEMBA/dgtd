@@ -10,18 +10,29 @@ namespace maxwell {
 
 namespace {
 
-Direction parseAxisToken(const std::string& token)
+enum class AxisTokenKind { Cartesian, Radial };
+
+struct ParsedAxisToken {
+	AxisTokenKind kind;
+	Direction cart = X;
+};
+
+ParsedAxisToken parseAxisToken(const std::string& token)
 {
 	if (token == "X" || token == "x") {
-		return X;
+		return {AxisTokenKind::Cartesian, X};
 	}
 	if (token == "Y" || token == "y") {
-		return Y;
+		return {AxisTokenKind::Cartesian, Y};
 	}
 	if (token == "Z" || token == "z") {
-		return Z;
+		return {AxisTokenKind::Cartesian, Z};
 	}
-	throw std::runtime_error("PML active_axes entry must be \"X\", \"Y\", or \"Z\". Got: " + token);
+	if (token == "R" || token == "r") {
+		return {AxisTokenKind::Radial, X};
+	}
+	throw std::runtime_error(
+		"PML active_axes entry must be \"X\", \"Y\", \"Z\", or \"R\". Got: " + token);
 }
 
 PMLStretchMode parseStretchMode(const nlohmann::json& mat_json)
@@ -84,13 +95,31 @@ std::set<Direction> parseActiveAxes(const nlohmann::json& mat_json, int mesh_dim
 	if (!mat_json.contains("active_axes")) {
 		throw std::runtime_error("PML material block requires 'active_axes'.");
 	}
+	bool saw_r = false;
+	bool saw_cart = false;
 	for (const auto& entry : mat_json["active_axes"]) {
-		const Direction d = parseAxisToken(entry.get<std::string>());
-		if (d >= mesh_dim) {
+		const ParsedAxisToken tok = parseAxisToken(entry.get<std::string>());
+		if (tok.kind == AxisTokenKind::Radial) {
+			saw_r = true;
+			continue;
+		}
+		saw_cart = true;
+		if (tok.cart >= mesh_dim) {
 			throw std::runtime_error(
 				"PML active_axes direction exceeds mesh dimension.");
 		}
-		axes.insert(d);
+		axes.insert(tok.cart);
+	}
+	if (saw_r && saw_cart) {
+		throw std::runtime_error(
+			"PML active_axes cannot mix \"R\" with \"X\"/\"Y\"/\"Z\".");
+	}
+	if (saw_r) {
+		if (mat_json["active_axes"].size() != 1) {
+			throw std::runtime_error(
+				"PML active_axes \"R\" must appear alone (use [\"R\"] only).");
+		}
+		return {}; // caller sets uniaxial_radial
 	}
 	if (axes.empty()) {
 		throw std::runtime_error("PML active_axes must contain at least one direction.");
@@ -128,11 +157,39 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	props.matches_vacuum = mat_json.value("matches_vacuum", true);
 	props.grading_order = mat_json.value("grading_order", 3);
 	props.target_reflection = mat_json.value("target_reflection", 1e-6);
-	props.active_axes = parseActiveAxes(mat_json, mesh_dim);
 	props.stretch_mode = parseStretchMode(mat_json);
 	props.radial_center = parseRadialCenter(mat_json, mesh_dim);
 	props.kappa_max = mat_json.value("kappa_max", 1.0);
 	props.alpha_max = mat_json.value("alpha_max", 0.0);
+
+	bool want_r = false;
+	if (mat_json.contains("active_axes")) {
+		for (const auto& entry : mat_json["active_axes"]) {
+			const ParsedAxisToken tok = parseAxisToken(entry.get<std::string>());
+			if (tok.kind == AxisTokenKind::Radial) {
+				want_r = true;
+				break;
+			}
+		}
+	}
+	props.active_axes = parseActiveAxes(mat_json, mesh_dim);
+	props.uniaxial_radial = want_r;
+
+	if (props.uniaxial_radial) {
+		if (mesh_dim < 2) {
+			throw std::runtime_error(
+				"PML active_axes \"R\" requires mesh dimension >= 2.");
+		}
+		if (props.kappa_max > 1.0 + 1e-12) {
+			throw std::runtime_error(
+				"PML active_axes \"R\" currently requires kappa_max == 1 "
+				"(anisotropic a-rescale deferred).");
+		}
+		if (props.stretch_mode == PMLStretchMode::Box) {
+			// Depth must be radial for true R stretch.
+			props.stretch_mode = PMLStretchMode::Radial;
+		}
+	}
 
 	if (props.kappa_max < 1.0) {
 		throw std::runtime_error("PML kappa_max must be >= 1.");
@@ -149,7 +206,8 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	}
 	if (props.stretch_mode == PMLStretchMode::Box && props.radial_center.has_value()) {
 		throw std::runtime_error(
-			"PML radial_center is only valid when stretch_mode is \"radial\".");
+			"PML radial_center is only valid when stretch_mode is \"radial\" "
+			"or active_axes is [\"R\"].");
 	}
 
 	return props;

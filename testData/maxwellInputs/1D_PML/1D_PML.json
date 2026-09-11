@@ -22,7 +22,7 @@
         "type": "PML",
         "matches_vacuum": true,
         "grading_order": 0,
-        "target_reflection": 1e-04,
+        "target_reflection": 0.0001,
         "active_axes": [
           "X"
         ]
@@ -45,7 +45,7 @@
   },
   "probes": {
     "exporter": {
-      "saves": 200
+      "save_every": 0.10050251256281408
     },
     "point": [
       {

@@ -41,7 +41,7 @@ exports. Dedicated case: [`testData/maxwellInputs/1D_PML_DFT/`](../../testData/m
 1. Run simulation to `final_time` sufficient for the reflected lobe to clear the probe.
 2. Export probe time series (existing probe/export pipeline).
 3. DFT incident and reflected **time windows** separately (Hann taper default).
-4. Compute \(R(f) = |E_{\mathrm{ref}}(f)| / |E_{\mathrm{inc}}(f)|\).
+4. Compute $R(f) = |E_{\mathrm{ref}}(f)| / |E_{\mathrm{inc}}(f)|$.
 5. **20 log10(|R|) ≤ −40 dB** at the incident spectral peak → pass.
 
 ```sh

@@ -25,19 +25,21 @@ Open domains must be truncated. A **Perfectly Matched Layer (PML)** is a volumet
 | Time integration (Milestone A) | Explicit **RK4** via `Mult()` for E, H, **and** ψ |
 | Not used | Berenger split-field, FDTD recursive convolution, surface `SBC_PML`, bulk Ohmic `Material::sigma_` |
 
-CFS stretch in direction \(d\):
+CFS stretch in direction $d$:
 
-\[
+
+$$
 s_d = \kappa_d + \frac{\sigma_d}{\alpha_d + j\omega}
-\]
+$$
+
 
 | Parameter | Role |
 |-----------|------|
-| \(\kappa_d \ge 1\) | Scaling / slowing along stretch |
-| \(\sigma_d \ge 0\) | Absorption; grows with depth into PML |
-| \(\alpha_d \ge 0\) | Frequency shift; late-time CFS stabilization; **\(\alpha = 0\)** = classical PML |
+| $\kappa_d \ge 1$ | Scaling / slowing along stretch |
+| $\sigma_d \ge 0$ | Absorption; grows with depth into PML |
+| $\alpha_d \ge 0$ | Frequency shift; late-time CFS stabilization; **$\alpha = 0$** = classical PML |
 
-**Interface matching (mandatory):** at depth \(\rho = 0\) (vacuum–PML face), \(\kappa = 1\), \(\sigma = 0\), \(\alpha = 0\).
+**Interface matching (mandatory):** at depth $\rho = 0$ (vacuum–PML face), $\kappa = 1$, $\sigma = 0$, $\alpha = 0$.
 
 ADE introduces auxiliary memory variables **ψ** so convolution is replaced by first-order ODEs that ride the same RK4 stages as the fields. Exact Maxwell ADE transcription used by the project is in [`01-physics-and-formulation.md`](./01-physics-and-formulation.md).
 
@@ -57,7 +59,7 @@ ADE introduces auxiliary memory variables **ψ** so convolution is replaced by f
 
 1. Gmsh: vacuum + PML volumes with Physical Volume / attribute tags  
 2. JSON: `"type": "vacuum"` or `"type": "PML"` with stretch parameters  
-3. Init: depth \(\rho_d\) from mesh geometry → \(\kappa, \sigma, \alpha\) at quadrature points  
+3. Init: depth $\rho_d$ from mesh geometry → $\kappa, \sigma, \alpha$ at quadrature points  
 4. Run: probes in vacuum; DFT offline for −40 dB  
 
 ### JSON PML block (live parser)
@@ -69,8 +71,8 @@ Parsed in [`src/components/PMLProperties.cpp`](../../src/components/PMLPropertie
 | `tags` | Gmsh volume attribute IDs |
 | `type` | `"PML"` |
 | `matches_vacuum` | Must be true → ε = μ = 1; no bulk Ohmic loss |
-| `grading_order` | Power-law exponent \(m\) |
-| `target_reflection` | Design \(R\) used to set \(\sigma_{\max}\) |
+| `grading_order` | Power-law exponent $m$ |
+| `target_reflection` | Design $R$ used to set $\sigma_{\max}$ |
 | `kappa_max` | Max κ at outer edge (≥ 1); cases use **1.0** |
 | `alpha_max` | Max CFS α; cases use **0.0** (classical limit) |
 | `active_axes` | Subset of `"X"`, `"Y"`, `"Z"` for that tag block |
@@ -81,24 +83,28 @@ Parsed in [`src/components/PMLProperties.cpp`](../../src/components/PMLPropertie
 
 [`src/components/PMLProfiles.cpp`](../../src/components/PMLProfiles.cpp) `evaluateStretchProfiles`:
 
-\[
+
+$$
 \xi = \mathrm{clamp}(\rho / L, 0, 1),\quad
 \kappa = 1 + (\kappa_{\max}-1)\xi^m,\quad
 \alpha = \alpha_{\max}\xi^m
-\]
+$$
 
-\[
+
+
+$$
 \sigma_{\max} = -\frac{(m+1)\ln(R_{\mathrm{target}})}{2L},\quad
 \sigma = \sigma_{\max}\xi^m
-\]
+$$
 
-\(L\) = PML thickness along the stretch axis from **mesh extent**, not JSON.
+
+$L$ = PML thickness along the stretch axis from **mesh extent**, not JSON.
 
 ### Outer boundary types
 
 Vacuum–PML interface = **interior face** (never a BC tag).
 
-Where the outermost PML element meets \(\partial\Omega\):
+Where the outermost PML element meets $\partial\Omega$:
 
 | JSON `type` | Effect |
 |-------------|--------|
@@ -110,7 +116,7 @@ Where the outermost PML element meets \(\partial\Omega\):
 
 | Case | Role |
 |------|------|
-| [`1D_PML/`](../../testData/maxwellInputs/1D_PML/) | Baseline: upwind α=1, SMA @ ±3, PML tag 3 on \(x\in[2,3]\), TFSF @ −2.5, `alpha_max=0`, `dt=0.001`, `final_time=20` |
+| [`1D_PML/`](../../testData/maxwellInputs/1D_PML/) | Baseline: upwind α=1, SMA @ ±3, PML tag 3 on $x\in[2,3]$, TFSF @ −2.5, `alpha_max=0`, `dt=0.001`, `final_time=20` |
 | [`1D_PML_centered/`](../../testData/maxwellInputs/1D_PML_centered/) | Same mesh, `upwind_alpha=0` |
 | [`1D_PML_PEC/`](../../testData/maxwellInputs/1D_PML_PEC/) | Outer PEC |
 | [`1D_PML_PML_NONE/`](../../testData/maxwellInputs/1D_PML_PML_NONE/) | Outer `PML_NONE` |
@@ -120,7 +126,7 @@ Where the outermost PML element meets \(\partial\Omega\):
 
 Stability probes on many 1D cases: **x = 1.99 / 2.01 / 2.99** (interface + near-outer). DFT layout in [`05-verification.md`](./05-verification.md) still mentions −2.75 / 1.0 (PointProbe0 at −2.75 was observed zero upstream of TFSF).
 
-**Time units:** `final_time: 20` is **normalized code time** (≈ 66.7 ns in SI export via \(c_{\mathrm{SI}}\)). Do not treat “20 s” as SI seconds.
+**Time units:** `final_time: 20` is **normalized code time** (≈ 66.7 ns in SI export via $c_{\mathrm{SI}}$). Do not treat “20 s” as SI seconds.
 
 ---
 
@@ -143,7 +149,7 @@ flowchart LR
 1. **Parse** — [`src/driver/driver.cpp`](../../src/driver/driver.cpp) `assembleAttributeToMaterial`: `"type":"PML"` → `parsePMLMaterialBlock`; each tag also inserted into `gt2m` as **vacuum** Material (ε=μ=1, σ_bulk=0). Stretch lives only in `pml_props`.
 2. **Model** — [`Model.h`](../../src/components/Model.h) / `.cpp`: `setPMLProperties`, `initializePMLProfiles`, `initializePMLAuxLayout`, `buildPMLVolumeMarker`. Driver may init profiles at default FE order; **Solver rebuilds** with `opts.evolution.order`.
 3. **Profiles** — [`PMLProfiles.cpp`](../../src/components/PMLProfiles.cpp): attribute maps, one global interface per axis, QP κ/σ/α.
-4. **Aux layout** — [`PMLAuxLayout.cpp`](../../src/components/PMLAuxLayout.cpp): \(n_{\mathrm{aux}} = 6 \times n_{\mathrm{dofs}} \times n_{\mathrm{stretch\_dirs}}\); blocks \(\psi^E_{d,c}\), \(\psi^H_{d,c}\).
+4. **Aux layout** — [`PMLAuxLayout.cpp`](../../src/components/PMLAuxLayout.cpp): $n_{\mathrm{aux}} = 6 \times n_{\mathrm{dofs}} \times n_{\mathrm{stretch\_dirs}}$; blocks $\psi^E_{d,c}$, $\psi^H_{d,c}$.
 5. **Fields** — [`Fields.h`](../../src/evolution/Fields.h): `allDOFs = [E,H (6N) | ψ (n_aux)]`. GridFunctions / probes / ParaView = first 6N only.
 6. **Operator** — [`DGOperatorFactory.h`](../../src/components/DGOperatorFactory.h) `buildPMLOperator` / `collectPMLOperatorBlocks`.
 7. **Evolution** — [`GlobalEvolution.cpp`](../../src/evolution/GlobalEvolution.cpp):
@@ -184,16 +190,16 @@ d/dt [E, H, ψ] = A_curl(E,H) + A_PML(E,H,ψ) + sources
 ```
 
 - `globalOperator_` — unstretched curl + DG flux (+ κ-mass when `κ_max>1`; **deferred**, cases use `κ_max=1`)
-- `PMLOperator_` — ADE: \(\dot\psi = -\alpha\psi + \sigma\,\mathcal{D}_d(\cdot)\); field corrections \(\pm\psi/\kappa\)
+- `PMLOperator_` — ADE: $\dot\psi = -\alpha\psi + \sigma\,\mathcal{D}_d(\cdot)$; field corrections $\pm\psi/\kappa$
 - Vacuum–PML: standard interior DG flux; stretch zero at interface
-- Outer: SMA (or experiment) on \(\partial\Omega\); ψ termination per Gedney, **not** bulk Ohmic σ
+- Outer: SMA (or experiment) on $\partial\Omega$; ψ termination per Gedney, **not** bulk Ohmic σ
 
 ### Live (code)
 
 | Piece | Behavior |
 |-------|----------|
 | `globalOperator_` | **Full Maxwell curl + DG flux everywhere**, including PML volume |
-| `PMLOperator_` | **Adds** σ-weighted volume \(\partial_d\) + interior-face SBP (same-column −w) into ψ; `−α ψ` (dead when `alpha_max=0`); field corrections `Ė += ψ^H/κ`, `Ḣ −= ψ^E/κ` |
+| `PMLOperator_` | **Adds** σ-weighted volume $\partial_d$ + interior-face SBP (same-column −w) into ψ; `−α ψ` (dead when `alpha_max=0`); field corrections `Ė += ψ^H/κ`, `Ḣ −= ψ^E/κ` |
 | Upwind | If `upwind_alpha>0`, also σ-scaled Zero/Two-normal blocks on **PML-marked** faces |
 | Outer ψ faces | Default: **none**. Mode `PML_SIGN_TEST=7` can add terminating bdr faces (worsened t=20) |
 | Inverse mass | ψ rows: **global scalar** `M⁻¹` (`buildPMLScalarInverseMassSubOperator` **ignores** `pml_marker`); field corrections: Maxwell `M⁻¹[E/H]` |
@@ -202,19 +208,23 @@ This is the documented **duplicate-curl** architecture: stretch derivatives appe
 
 ### ADE mapping (default signs)
 
-Per active stretch direction \(d\):
+Per active stretch direction $d$:
 
-\[
+
+$$
 \partial_t \psi^E_d = -\alpha_d\,\psi^E_d + \sigma_d\,\mathcal{D}_d(\mathbf{E}),\quad
 \partial_t \psi^H_d = -\alpha_d\,\psi^H_d + \sigma_d\,\mathcal{D}_d(\mathbf{H})
-\]
+$$
 
-\[
+
+
+$$
 \partial_t E_c \mathrel{+}= \sum_d \psi^H_{d,c}/\kappa_d,\quad
 \partial_t H_c \mathrel{-}= \sum_d \psi^E_{d,c}/\kappa_d
-\]
+$$
 
-1D TE (`active_axes: ["X"]`): wired couplings are essentially \(\psi^E_{X,Z}\leftrightarrow E_y\leftrightarrow H_z\) and \(\psi^H_{X,Y}\leftrightarrow H_z\leftrightarrow E_y\); see [`PMLDGHelpers`](../../src/components/PMLDGHelpers.cpp).
+
+1D TE (`active_axes: ["X"]`): wired couplings are essentially $\psi^E_{X,Z}\leftrightarrow E_y\leftrightarrow H_z$ and $\psi^H_{X,Y}\leftrightarrow H_z\leftrightarrow E_y$; see [`PMLDGHelpers`](../../src/components/PMLDGHelpers.cpp).
 
 ---
 
@@ -224,7 +234,7 @@ Per active stretch direction \(d\):
 
 On baseline `1D_PML` / centered:
 
-| Phase | Approx. \(t_{\mathrm{code}}\) | Observation |
+| Phase | Approx. $t_{\mathrm{code}}$ | Observation |
 |-------|-------------------------------|-------------|
 | Incidence / enter PML | ~3.5–7.5 | Fields O(1); `max|ψ|` rises to ~2.4 |
 | Interface peak | ~6.8–7.5 (ParaView cycles ~68–75) | Centered ≈ upwind at probes 1.99/2.01; **clean** transit |
@@ -233,18 +243,18 @@ On baseline `1D_PML` / centered:
 
 ### Late-time instability
 
-After the pulse has left the layer, **ψ-led exponential growth** starts in the **outermost PML cells** (near the designated outer boundary, \(x\approx 3\) on the baseline mesh), then contaminates E/H and eventually vacuum probes.
+After the pulse has left the layer, **ψ-led exponential growth** starts in the **outermost PML cells** (near the designated outer boundary, $x\approx 3$ on the baseline mesh), then contaminates E/H and eventually vacuum probes.
 
 Baseline `1D_PML` (`dt=0.001`, `alpha_max=0`, upwind):
 
-| ~\(t_{\mathrm{code}}\) | Mult call | `max|ψ|` |
+| ~$t_{\mathrm{code}}$ | Mult call | `max|ψ|` |
 |------------------------|-----------|----------|
 | 7.5 | 30000 | ~2.4 |
 | 11.25 | 45000 | ~0.17 (lull) |
 | **13.75** | **55000** | **~1417 (onset)** |
-| 20 | 80000 | ~\(10^{13}\) (later ~\(10^{27}\) after ψ Zero/Two upwind added) |
+| 20 | 80000 | ~$10^{13}$ (later ~$10^{27}$ after ψ Zero/Two upwind added) |
 
-Centered flux **delays** onset (~cycle 167 vs ~101 for probe gate failure) but still **fails** at `t=20` (`max|ψ| ~ 6\times10^4`, probes ~\(10^3\)).
+Centered flux **delays** onset (~cycle 167 vs ~101 for probe gate failure) but still **fails** at `t=20` (`max|ψ| ~ 6\times10^4`, probes ~$10^3$).
 
 **Spatial reading (compatible across sessions):**
 
@@ -269,7 +279,7 @@ User symptom (“grows unstable from the PML designated boundary after some seco
 | Vacuum buffer + distant SMA | Still blows; mid-time worse |
 | `dt/2` | Delays onset only; same end blow-up |
 | `alpha_max=1` | Delays / reduces mid-time noise; **still** blows by t=20 |
-| Adding σ Zero/Two to ψ driver (α=1) | Upwind end-state ψ **worsened** (\(10^{13}\to10^{27}\)) |
+| Adding σ Zero/Two to ψ driver (α=1) | Upwind end-state ψ **worsened** ($10^{13}\to10^{27}$) |
 
 ### Reverted (broke interface or DG consistency)
 
@@ -293,33 +303,33 @@ User symptom (“grows unstable from the PML designated boundary after some seco
 Late-time blow-up was **not** primarily SMA / duplicate-curl / RK4 stiffness. Two ADE
 transcription bugs stacked:
 
-1. **Missing CFS pole damping:** ψ mass used \(\alpha\) only. Gedney requires
-   \(\alpha + \sigma/\kappa\). With `alpha_max=0`, auxiliaries had **no decay** and integrated
+1. **Missing CFS pole damping:** ψ mass used $\alpha$ only. Gedney requires
+   $\alpha + \sigma/\kappa$. With `alpha_max=0`, auxiliaries had **no decay** and integrated
    stretch derivatives without bound.
-2. **Wrong field-correction signs:** continuous \(1/s\,\partial = \kappa^{-1}\partial - \psi\) needs
-   \(\dot E \mathrel{-}= \psi^H/\kappa\) and \(\dot H \mathrel{+}= \psi^E/\kappa\). The opposite
+2. **Wrong field-correction signs:** continuous $1/s\,\partial = \kappa^{-1}\partial - \psi$ needs
+   $\dot E \mathrel{-}= \psi^H/\kappa$ and $\dot H \mathrel{+}= \psi^E/\kappa$. The opposite
    signs let the pulse traverse the layer almost unattenuated, then go unstable near the outer
-   cells after \(t\sim 20\)–\(30\).
+   cells after $t\sim 20$–$30$.
 
 ### Fix (live code)
 
 | Piece | Before | After |
 |-------|--------|-------|
-| ψ mass coeff | `Kind::Alpha` | `Kind::Decay` \(=\alpha+\sigma/\kappa\) |
-| ψ driver coeff | `Kind::Sigma` | `Kind::SigmaOverKappa` \(=\sigma/\kappa\) |
-| \(H\leftarrow\psi^E\) sign | \(-1\) | \(+1\) |
-| \(E\leftarrow\psi^H\) sign | \(+1\) | \(-1\) |
+| ψ mass coeff | `Kind::Alpha` | `Kind::Decay` $=\alpha+\sigma/\kappa$ |
+| ψ driver coeff | `Kind::Sigma` | `Kind::SigmaOverKappa` $=\sigma/\kappa$ |
+| $H\leftarrow\psi^E$ sign | $-1$ | $+1$ |
+| $E\leftarrow\psi^H$ sign | $+1$ | $-1$ |
 
 ### Verification (probe gate `max|Ey|,|Hz|≤3`, `max|ψ|` after pulse → ~0)
 
-| Case | \(t=20\) | \(t=60\) |
+| Case | $t=20$ | $t=60$ |
 |------|----------|----------|
-| `1D_PML_buffer` | PASS, \(\psi\sim10^{-13}\) | PASS, \(\psi\sim10^{-13}\) |
+| `1D_PML_buffer` | PASS, $\psi\sim10^{-13}$ | PASS, $\psi\sim10^{-13}$ |
 | `1D_PML` | PASS | PASS |
 | `1D_PML_centered` | PASS | — |
 | `1D_PML_buffer_centered` | PASS | — |
 
-Prior S1–S7 audits at \(t=20\) with the **undamped** mass were inconclusive: flipping signs alone
+Prior S1–S7 audits at $t=20$ with the **undamped** mass were inconclusive: flipping signs alone
 cannot stabilize an integrator with zero ADE pole. With the correct decay, the correction-sign
 flip is decisive for both absorption and late-time stability.
 
@@ -328,11 +338,11 @@ flip is decisive for both absorption and late-time stability.
 - User DFT sign-off on preferred production meshes
 - κ-mass path when `kappa_max>1`
 - Milestone B SDIRK / `ImplicitSolve` for stiff large-α or coarser Δt
-- Scalar vs Maxwell \(M^{-1}\) on ψ rows (still deferred)
+- Scalar vs Maxwell $M^{-1}$ on ψ rows (still deferred)
 
 ### Discrete matching follow-up (same day)
 
-| Experiment (L=1, `1D_PML_DFT`) | \(R_{\mathrm{dB}}(f_{\mathrm{peak}})\) |
+| Experiment (L=1, `1D_PML_DFT`) | $R_{\mathrm{dB}}(f_{\mathrm{peak}})$ |
 |--------------------------------|----------------------------------------|
 | Baseline (global + ψ upwind) | −28.8 FAIL |
 | `upwind_alpha=0` (centered) | −87.5 PASS |
@@ -340,9 +350,9 @@ flip is decisive for both absorption and late-time stability.
 | dx=0.05 (20 PML els, same L) | −135 PASS |
 | **Disable ψ Zero/Two only** (keep global upwind) | **≪ −40 PASS (~−300 dB)** |
 
-**Interpretation (refined):** ψ Zero/Two were **not** literally double-applying upwind into \(\dot E\)
+**Interpretation (refined):** ψ Zero/Two were **not** literally double-applying upwind into $\dot E$
 (global upwind still applies once). They assembled a **separate σ-weighted upwind face operator**
-with PML markers that does **not** match the global discrete \(D\) on vacuum–PML faces, and that
+with PML markers that does **not** match the global discrete $D$ on vacuum–PML faces, and that
 broke thin/coarse interface matching. Live code keeps `pml_upwind = false`: Maxwell remains
 upwind via `upwind_alpha`; ψ is driven by volume + OneNormal SBP only. Full write-up:
 [`21-session-1d-solidification.md`](./21-session-1d-solidification.md).

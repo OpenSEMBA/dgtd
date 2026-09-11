@@ -1,0 +1,212 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.005,
+    "final_time": 20.0,
+    "order": 2
+  },
+  "model": {
+    "filename": "2D_RCS_Circle_1m_G2_PML_R_Thicker_GO2.msh",
+    "materials": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-05,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "R"
+        ],
+        "radial_center": [
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "tags": [
+          2,
+          3
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "PEC"
+      },
+      {
+        "tags": [
+          7
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.5
+    },
+    "rcssurface": [
+      {
+        "name": "cylinder_rcs",
+        "tags": [
+          6
+        ],
+        "saves": 40
+      }
+    ],
+    "point": [
+      {
+        "position": [
+          3.5,
+          0.0
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          0.0,
+          3.5
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          2.4748737341529163,
+          2.4748737341529163
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          0.0,
+          4.15
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          0.0,
+          -4.15
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          0.0,
+          4.5
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          0.0,
+          -4.5
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          2.9344931419241727,
+          2.9344931419241727
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          -2.9344931419241727,
+          2.9344931419241727
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          -2.9344931419241727,
+          -2.9344931419241727
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          2.9344931419241727,
+          -2.9344931419241727
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          3.1819805153394642,
+          3.1819805153394642
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          -3.1819805153394642,
+          3.1819805153394642
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          -3.1819805153394642,
+          -3.1819805153394642
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          3.1819805153394642,
+          -3.1819805153394642
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          4.5,
+          0.0
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          -4.5,
+          0.0
+        ],
+        "saves": 4000
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.2
+      }
+    }
+  ]
+}

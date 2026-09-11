@@ -10,39 +10,72 @@
     "filename": "3D_Nasa_Almond.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2, 3, 4 ],
+        "tags": [
+          1,
+          2,
+          3,
+          4
+        ],
         "type": "PEC"
       },
       {
-        "tags": [ 17 ],
+        "tags": [
+          17
+        ],
         "type": "SMA"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "saves": 30
+      "save_every": 1.0344827586206897
     },
     "rcssurface": [
       {
         "name": "almond",
         "steps": 1,
-        "tags": [ 11, 12, 13, 14, 15, 16 ]
+        "tags": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 0.0, 1.0 ],
-      "propagation": [ -1.0, 0.0, 0.0 ],
-      "tags": [ 5, 6, 7, 8, 9, 10 ],
+      "polarization": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "propagation": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
       "magnitude": {
         "spread": 0.15
       }

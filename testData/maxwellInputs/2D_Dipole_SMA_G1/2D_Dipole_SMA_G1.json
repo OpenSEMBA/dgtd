@@ -1,7 +1,7 @@
 {
   "solver_options": {
     "upwind_alpha": 1.0,
-    "time_step": 5e-3,
+    "time_step": 0.005,
     "final_time": 12.0,
     "order": 2
   },
@@ -9,26 +9,36 @@
     "filename": "2D_Dipole_SMA_G1.msh",
     "materials": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [
+          1,
+          2
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 2, 3, 4, 5 ],
+        "tags": [
+          2,
+          3,
+          4,
+          5
+        ],
         "type": "SMA"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "saves": 80
+      "save_every": 0.1518987341772152
     }
   },
   "sources": [
     {
       "type": "dipole",
-      "tags": [ 1 ],
+      "tags": [
+        1
+      ],
       "magnitude": {
         "length": 0.1,
         "spread": 0.2

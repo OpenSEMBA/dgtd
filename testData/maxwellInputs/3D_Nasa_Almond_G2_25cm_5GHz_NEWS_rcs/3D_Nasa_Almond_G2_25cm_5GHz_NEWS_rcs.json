@@ -38,13 +38,20 @@
   },
   "probes": {
     "exporter": {
-      "saves": 161
+      "save_every": 0.1
     },
     "rcssurface": [
       {
         "name": "almond",
         "steps": 1,
-        "tags": [ 11, 12, 13, 14, 15, 16 ]
+        "tags": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ]
       }
     ]
   },

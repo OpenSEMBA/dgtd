@@ -423,11 +423,14 @@ void SGBCWrapper::solve(const Time t, const Time dt)
 
             if (Mpi::WorldRank() == 0) {
                 if (is_coarse) {
-                    std::cout << "[SGBC] WARNING: parent dt=" << dt_si*1e12 << " ps > recommended "
-                              << recommended_dt_si*1e12 << " ps — sub-stepping applied.\n" << std::flush;
+                    // Here dt is already the SGBC sub-step (actual_sub_dt from GlobalEvolution).
+                    std::cout << "[SGBC] WARNING: sub-step dt=" << dt_si*1e12 << " ps > recommended "
+                              << recommended_dt_si*1e12 << " ps (sgbc_cfl=" << sbcp_.sgbc_cfl << ").\n"
+                              << std::flush;
                 } else {
-                    std::cout << "[SGBC] Temporal OK: parent dt=" << dt_si*1e12 << " ps, recommended "
-                              << recommended_dt_si*1e12 << " ps (margin " << (recommended_dt_si / dt_si) << "x)\n" << std::flush;
+                    std::cout << "[SGBC] Temporal OK: sub-step dt=" << dt_si*1e12 << " ps, recommended "
+                              << recommended_dt_si*1e12 << " ps (sgbc_cfl=" << sbcp_.sgbc_cfl
+                              << ", margin " << (recommended_dt_si / dt_si) << "x)\n" << std::flush;
                 }
             }
         }
@@ -520,7 +523,7 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     this->old_t_ = 0.0;
 
     // Compute recommended_dt as the minimum across all layers.
-    // Base CFL: half the wave crossing time per element.
+    // Base CFL: sgbc_cfl * wave crossing time per element (default sgbc_cfl=0.5).
     // For layers that are many skin depths thick (N_delta >> 1), the physics
     // is diffusion-dominated and the L-stable implicit solver can safely take
     // much larger steps. We relax the CFL proportionally to N_delta^2,
@@ -528,6 +531,7 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     {
         constexpr double c_si = physicalConstants::speedOfLight_SI;
         constexpr double cfl_relax_cap = 50.0;
+        const double sgbc_cfl = sbcp_.sgbc_cfl;
 
         recommended_dt_ = std::numeric_limits<double>::max();
 
@@ -537,7 +541,7 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
             double dx    = layer.width / layer.num_of_segments;
 
             double crossing_time = (dx * std::sqrt(eps_r * mu_r)) / c_si;
-            double layer_dt = crossing_time * 0.5;
+            double layer_dt = crossing_time * sgbc_cfl;
 
             // Relax CFL for opaque layers: N_delta > 3 means wave is
             // heavily attenuated, so temporal resolution of wave transit
@@ -563,7 +567,9 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
             checkSkinDepthResolution(sbcp_);
             constexpr double c_si = physicalConstants::speedOfLight_SI;
             double rec_dt_si = recommended_dt_ / c_si;
-            std::cout << "  SGBC recommended dt   : " << rec_dt_si * 1e12 << " ps"
+            std::cout << "  SGBC sgbc_cfl         : " << sbcp_.sgbc_cfl << "\n"
+                      << "  SGBC recommended dt   : " << rec_dt_si * 1e12 << " ps"
+                      << "  (natural " << recommended_dt_ << ")"
                       << "  (CFL-relaxed for " << sbcp_.layers[0].n_skin_depths
                       << " skin depths)\n" << std::endl;
         }

@@ -3,7 +3,7 @@
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
     "basis_type": 0,
-    "time_step": 1e-3,
+    "time_step": 0.001,
     "final_time": 10.0,
     "order": 3
   },
@@ -12,24 +12,31 @@
     "refinement": 1,
     "materials": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "PEC"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "steps": 100
+      "save_every": 0.1
     },
     "point": [
       {
-        "position": [ 0.0, 0.55 ],
+        "position": [
+          0.0,
+          0.55
+        ],
         "write": true
       }
     ],
@@ -41,7 +48,11 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "polarization": [ 0.0, 0.0, 1.0 ],
+      "polarization": [
+        0.0,
+        0.0,
+        1.0
+      ],
       "magnitude": {
         "type": "besselj6_2D"
       }

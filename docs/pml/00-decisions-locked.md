@@ -1,12 +1,12 @@
 # Locked decisions (do not re-litigate without user approval)
 
-**Updated 2026-09-09:** Active PML is **SC-PML ADE** (Bagci/Chen). Gedney \(\psi\sim D(F)\) remains archived. Classical CuDG3D \(J/M\) replaced by equivalent \(\kappa\equiv 1\) SC-PML \(P\)-form.
+**Updated 2026-09-09:** Active PML is **SC-PML ADE** (Bagci/Chen). Gedney $\psi\sim D(F)$ remains archived. Classical CuDG3D $J/M$ replaced by equivalent $\kappa\equiv 1$ SC-PML $P$-form.
 
 ## Formulation
 
 | Decision | Value |
 |----------|-------|
-| PML type (**active**) | Volumetric **SC-PML ADE** (\(P_E/P_H\) + volume \(a,b,c,d(\sigma,\kappa)\)) |
+| PML type (**active**) | Volumetric **SC-PML ADE** ($P_E/P_H$ + volume $a,b,c,d(\sigma,\kappa)$) |
 | Primary reference | Chen et al., arXiv:2006.02551 (SC-PML ADE) |
 | Gedney CFS | **Parked** — [`27-gedney-cfs-paused.md`](./27-gedney-cfs-paused.md) |
 | Surface PML | **Rejected** — no `SBC_PML` |
@@ -51,5 +51,5 @@
 
 1. Spatially varying **`bulk_conductivity`** as a fake PML.
 2. SGBC-style **sub-solver** for volumetric PML.
-3. Reintroducing **Gedney \(\psi\sim D(F)\)** without a new discrete-\(D\) design review.
+3. Reintroducing **Gedney $\psi\sim D(F)$** without a new discrete-$D$ design review.
 4. A **1D-only** PML module fork.

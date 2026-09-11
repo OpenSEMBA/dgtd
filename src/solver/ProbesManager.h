@@ -104,6 +104,7 @@ private:
         double next_save_time{0.0};
         double dt_save{0.0};
         bool initialized{false};
+        bool finished{false};
     };
 
     int cycle_{ 0 };

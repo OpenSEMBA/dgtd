@@ -10,28 +10,39 @@
     "filename": "2D_RCS_Circle_G1.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 6 ],
+        "tags": [
+          6
+        ],
         "type": "PEC"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "saves": 100
+      "save_every": 0.10101010101010101
     },
     "point": [
       {
-        "position": [ -2.0, 0.0 ],
+        "position": [
+          -2.0,
+          0.0
+        ],
         "saves": 25
       }
     ],
@@ -39,16 +50,34 @@
       {
         "name": "cylinder_rcs",
         "steps": 1,
-        "tags": [ 2, 3, 4, 5 ]
+        "tags": [
+          2,
+          3,
+          4,
+          5
+        ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2,
+        3,
+        4,
+        5
+      ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.2

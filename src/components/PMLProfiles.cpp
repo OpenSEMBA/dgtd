@@ -10,6 +10,37 @@ namespace maxwell {
 
 namespace {
 
+double designSigmaMax(double L, const PMLProperties& props)
+{
+	if (L <= 0.0 || props.target_reflection <= 0.0 || props.target_reflection >= 1.0) {
+		return 0.0;
+	}
+	const int m = props.grading_order;
+	return -(static_cast<double>(m) + 1.0) * std::log(props.target_reflection) / (2.0 * L);
+}
+
+/// ∫_{r_inner}^{r_inner+ρ} σ_r(r') dr' for power-law / constant grading.
+double integratedRadialSigma(double rho, double L, double sigma_max, int m)
+{
+	if (L <= 0.0 || rho <= 0.0 || sigma_max <= 0.0) {
+		return 0.0;
+	}
+	const double xi = std::clamp(rho / L, 0.0, 1.0);
+	// σ_r = σ_max (ρ'/L)^m  ⇒  Σ = σ_max L/(m+1) ξ^{m+1}  (m=0: Σ = σ_max ρ).
+	return sigma_max * L / (static_cast<double>(m) + 1.0) *
+	       std::pow(xi, static_cast<double>(m) + 1.0);
+}
+
+/// Cylindrical SC metric: s_θ = r̃/r ⇒ σ_θ = Σ(r)/r with Σ = ∫ σ_r dr'.
+double cylindricalSigmaTheta(double r, double rho, double L, double sigma_max, int m)
+{
+	constexpr double r_eps = 1e-14;
+	if (r < r_eps) {
+		return 0.0;
+	}
+	return integratedRadialSigma(rho, L, sigma_max, m) / r;
+}
+
 void evaluateStretchProfiles(
 	double rho, double L, const PMLProperties& props, PMLDirectionProfiles& out)
 {
@@ -23,13 +54,7 @@ void evaluateStretchProfiles(
 
 	const double xi = std::clamp(rho / L, 0.0, 1.0);
 	const int m = props.grading_order;
-
-	double sigma_max = 0.0;
-	if (props.target_reflection > 0.0 && props.target_reflection < 1.0) {
-		// m=0: constant σ; m>=1: power-law grade. Same σ_max design formula.
-		sigma_max = -(static_cast<double>(m) + 1.0) * std::log(props.target_reflection) /
-		            (2.0 * L);
-	}
+	const double sigma_max = designSigmaMax(L, props);
 
 	if (m == 0) {
 		out.sigma = sigma_max;
@@ -191,6 +216,158 @@ void PMLProfileData::evaluateAtTransform(
 	evaluateStretchProfiles(rho, L, props, out);
 }
 
+bool PMLProfileData::hasUniaxialRadialRegion() const
+{
+	for (const auto& props : regions_) {
+		if (props.uniaxial_radial) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool PMLProfileData::evaluateRotatedTensorAtTransform(
+	mfem::ElementTransformation& T, const mfem::IntegrationPoint& ip,
+	int tensor_kind, double T_xyz[3][3]) const
+{
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			T_xyz[i][j] = 0.0;
+		}
+	}
+
+	const int attr = T.Attribute;
+	if (attr <= 0 || attr > static_cast<int>(is_pml_attr_.size()) ||
+	    !is_pml_attr_[attr - 1]) {
+		return false;
+	}
+	const int region_index = attr_region_index_[attr - 1];
+	if (region_index < 0 || region_index >= static_cast<int>(regions_.size())) {
+		return false;
+	}
+	const PMLProperties& props = regions_[region_index];
+	if (!props.uniaxial_radial) {
+		return false;
+	}
+	if (region_index >= static_cast<int>(radial_.size()) || !radial_[region_index].active) {
+		return false;
+	}
+
+	const int dim = T.GetSpaceDim();
+	T.SetIntPoint(&ip);
+	mfem::Vector x(dim);
+	T.Transform(ip, x);
+
+	const RadialRegionData& rd = radial_[region_index];
+	double dx[3] = {0.0, 0.0, 0.0};
+	double r2 = 0.0;
+	for (int d = 0; d < dim; ++d) {
+		dx[d] = x(d) - rd.center[static_cast<size_t>(d)];
+		r2 += dx[d] * dx[d];
+	}
+	const double r = std::sqrt(r2);
+	constexpr double r_eps = 1e-14;
+	if (r < r_eps) {
+		return false;
+	}
+
+	const double rho = std::max(0.0, r - rd.r_inner);
+	const double L = rd.thickness();
+	PMLDirectionProfiles stretch;
+	evaluateStretchProfiles(rho, L, props, stretch);
+	const double sig_r = stretch.sigma;
+	const double sigma_max = designSigmaMax(L, props);
+	const double sig_theta =
+		cylindricalSigmaTheta(r, rho, L, sigma_max, props.grading_order);
+	// κ≡1 MVP for uniaxial_radial. Cylindrical SC: σ = (σ_r, σ_θ, 0) with
+	// σ_θ = Σ/r, Σ = ∫_{r_inner}^r σ_r dr' (not locally uniaxial σ_θ=0).
+	const double kap[3] = {1.0, 1.0, 1.0};
+	const double sig[3] = {sig_r, sig_theta, 0.0};
+
+	double prin[3];
+	for (int u = 0; u < 3; ++u) {
+		const int v = (u + 1) % 3;
+		const int w = (u + 2) % 3;
+		const double a = kap[v] * kap[w] / kap[u];
+		const double b =
+			(sig[v] * kap[w] + sig[w] * kap[v] - a * sig[u]) / kap[u];
+		const double c = sig[v] * sig[w] - b * sig[u];
+		const double d = sig[u] / kap[u];
+		switch (tensor_kind) {
+		case 0: // A
+			prin[u] = a;
+			break;
+		case 1: // B
+			prin[u] = b;
+			break;
+		case 2: // C
+			prin[u] = c;
+			break;
+		case 3: // D
+			prin[u] = d;
+			break;
+		case 4: // InvKappa
+			prin[u] = 1.0 / kap[u];
+			break;
+		default:
+			prin[u] = 0.0;
+			break;
+		}
+	}
+
+	// Columns of R are principal unit vectors in xyz: ê_r, ê_θ, ê_z (2D) or
+	// ê_r, ê_θ, ê_φ (3D). MVP focuses on 2D; 3D uses a simple spherical frame.
+	double R[3][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+	const double inv_r = 1.0 / r;
+	if (dim == 2) {
+		R[0][0] = dx[0] * inv_r; // ê_r
+		R[1][0] = dx[1] * inv_r;
+		R[0][1] = -dx[1] * inv_r; // ê_θ
+		R[1][1] = dx[0] * inv_r;
+		R[2][2] = 1.0; // ê_z
+	} else {
+		const double rx = dx[0] * inv_r;
+		const double ry = dx[1] * inv_r;
+		const double rz = dx[2] * inv_r;
+		R[0][0] = rx;
+		R[1][0] = ry;
+		R[2][0] = rz;
+		// ê_θ from z-axis cross ê_r, fallback if near poles.
+		double tx = -ry;
+		double ty = rx;
+		double tz = 0.0;
+		double tlen = std::sqrt(tx * tx + ty * ty + tz * tz);
+		if (tlen < 1e-14) {
+			tx = 0.0;
+			ty = -rz;
+			tz = ry;
+			tlen = std::sqrt(tx * tx + ty * ty + tz * tz);
+		}
+		tx /= tlen;
+		ty /= tlen;
+		tz /= tlen;
+		R[0][1] = tx;
+		R[1][1] = ty;
+		R[2][1] = tz;
+		// ê_φ = ê_r × ê_θ
+		R[0][2] = ry * tz - rz * ty;
+		R[1][2] = rz * tx - rx * tz;
+		R[2][2] = rx * ty - ry * tx;
+	}
+
+	// T_xyz = R diag(prin) R^T
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			double sum = 0.0;
+			for (int k = 0; k < 3; ++k) {
+				sum += R[i][k] * prin[k] * R[j][k];
+			}
+			T_xyz[i][j] = sum;
+		}
+	}
+	return true;
+}
+
 void PMLProfileData::buildAttributeMaps(
 	mfem::Mesh& mesh, const std::vector<PMLProperties>& regions)
 {
@@ -292,7 +469,9 @@ void PMLProfileData::buildRadialRegionData(
 	const int dim = mesh.Dimension();
 
 	for (int ri = 0; ri < static_cast<int>(regions.size()); ++ri) {
-		if (regions[ri].stretch_mode != PMLStretchMode::Radial) {
+		// True R-stretch and profile-only radial both need center / shell radii.
+		if (regions[ri].stretch_mode != PMLStretchMode::Radial &&
+		    !regions[ri].uniaxial_radial) {
 			continue;
 		}
 
@@ -349,36 +528,12 @@ void PMLProfileData::buildRadialRegionData(
 
 		rd.r_inner = std::numeric_limits<double>::infinity();
 		rd.r_outer = 0.0;
-		int n_iface = 0;
+		int n_pml_qp = 0;
 
-		for (int f = 0; f < mesh.GetNumFaces(); ++f) {
-			auto* ft = mesh.GetFaceElementTransformations(f);
-			if (!ft || ft->Elem1No < 0 || ft->Elem2No < 0) {
-				continue;
-			}
-			const int attr1 = mesh.GetAttribute(ft->Elem1No);
-			const int attr2 = mesh.GetAttribute(ft->Elem2No);
-			const bool pml1 = attr1 > 0 && attr1 <= static_cast<int>(is_pml_attr_.size()) &&
-			                  is_pml_attr_[attr1 - 1];
-			const bool pml2 = attr2 > 0 && attr2 <= static_cast<int>(is_pml_attr_.size()) &&
-			                  is_pml_attr_[attr2 - 1];
-			if (pml1 == pml2) {
-				continue;
-			}
-			const int pml_attr = pml1 ? attr1 : attr2;
-			if (attr_region_index_[pml_attr - 1] != ri) {
-				continue;
-			}
-			mfem::Vector face_center(dim);
-			mfem::IntegrationPoint ip;
-			ip.Set3(0.5, 0.5, 0.5);
-			ft->SetIntPoint(&ip);
-			ft->Transform(ip, face_center);
-			const double r = distanceFromCenter(face_center, rd.center, dim);
-			rd.r_inner = std::min(rd.r_inner, r);
-			++n_iface;
-		}
-
+		// Bound the shell from PML volume samples. Interface-face centers can sit
+		// inward of the true PML volume and under-estimate r_inner, which makes
+		// σ(ρ) already large at the geometric vacuum–PML face (looks like a jump
+		// even when grading_order ≥ 1) and reflects radial-polarized fields.
 		for (int el = 0; el < mesh.GetNE(); ++el) {
 			const int attr = mesh.GetAttribute(el);
 			if (attr <= 0 || attr > static_cast<int>(is_pml_attr_.size()) ||
@@ -392,13 +547,16 @@ void PMLProfileData::buildRadialRegionData(
 				T->SetIntPoint(&ir[iq]);
 				mfem::Vector x(dim);
 				T->Transform(ir[iq], x);
-				rd.r_outer = std::max(rd.r_outer, distanceFromCenter(x, rd.center, dim));
+				const double r = distanceFromCenter(x, rd.center, dim);
+				rd.r_inner = std::min(rd.r_inner, r);
+				rd.r_outer = std::max(rd.r_outer, r);
+				++n_pml_qp;
 			}
 		}
 
-		if (n_iface == 0 || !std::isfinite(rd.r_inner)) {
+		if (n_pml_qp == 0 || !std::isfinite(rd.r_inner)) {
 			throw std::runtime_error(
-				"PML stretch_mode \"radial\": no vacuum–PML interface for region " +
+				"PML stretch_mode \"radial\": no PML volume quadrature points for region " +
 				std::to_string(ri) + ".");
 		}
 		if (rd.r_outer <= rd.r_inner) {
@@ -489,6 +647,11 @@ void PMLProfileData::buildElementProfiles(
 				}
 				ep.qp_profiles[iq][d].depth = rho;
 			}
+			// Uniaxial R: no Cartesian active_axes — store radial depth on slot 0 for diagnostics.
+			if (props.uniaxial_radial && radial_[region].active) {
+				const double rho = depthRadial(x, region);
+				ep.qp_profiles[iq][0].depth = rho;
+			}
 		}
 
 		element_profiles_.push_back(std::move(ep));
@@ -498,6 +661,12 @@ void PMLProfileData::buildElementProfiles(
 	for (auto& ep : element_profiles_) {
 		const PMLProperties& props = regions[ep.region_index];
 		for (int iq = 0; iq < static_cast<int>(ep.qp_profiles.size()); ++iq) {
+			if (props.uniaxial_radial) {
+				const double L = thicknessFor(ep.region_index, X);
+				evaluateStretchProfiles(ep.qp_profiles[iq][0].depth, L, props,
+				                        ep.qp_profiles[iq][0]);
+				continue;
+			}
 			for (Direction d = X; d <= Z; ++d) {
 				if (d >= dim || props.active_axes.count(d) == 0) {
 					continue;
@@ -524,16 +693,20 @@ void PMLProfileData::printDiagnostics(int rank) const
 	for (size_t ri = 0; ri < regions_.size(); ++ri) {
 		const auto& props = regions_[ri];
 		const char* mode =
-			(props.stretch_mode == PMLStretchMode::Radial) ? "radial" : "box";
+			(props.uniaxial_radial)
+				? "radial-cylindrical(R)"
+				: ((props.stretch_mode == PMLStretchMode::Radial) ? "radial" : "box");
 		std::cout << "  Region " << ri << " stretch_mode=" << mode;
-		if (props.stretch_mode == PMLStretchMode::Radial && ri < radial_.size() &&
-		    radial_[ri].active) {
+		if ((props.stretch_mode == PMLStretchMode::Radial || props.uniaxial_radial) &&
+		    ri < radial_.size() && radial_[ri].active) {
 			const auto& rd = radial_[ri];
 			std::cout << " center=(" << rd.center[0] << ", " << rd.center[1] << ", "
 			          << rd.center[2] << ")"
 			          << (rd.center_inferred ? " [inferred]" : " [user]")
+			          << std::setprecision(8)
 			          << " r_inner=" << rd.r_inner << " r_outer=" << rd.r_outer
-			          << " L=" << rd.thickness();
+			          << " L=" << rd.thickness()
+			          << std::defaultfloat;
 		} else {
 			std::cout << " max depth:";
 			for (Direction d = X; d <= Z; ++d) {
@@ -563,10 +736,41 @@ void PMLProfileData::printDiagnostics(int rank) const
 
 	double max_iface_sigma = 0.0;
 	double max_sigma = 0.0;
+	double max_sigma_theta = 0.0;
+	double max_iface_sigma_theta = 0.0;
 	double max_alpha = 0.0;
 	double max_kappa = 1.0;
+	bool has_cylindrical_r = false;
 
 	for (const auto& ep : element_profiles_) {
+		const PMLProperties& props = regions_[ep.region_index];
+		if (props.uniaxial_radial) {
+			has_cylindrical_r = true;
+			const double L = thicknessFor(ep.region_index, X);
+			const double sigma_max = designSigmaMax(L, props);
+			const double r_inner =
+				(ep.region_index < static_cast<int>(radial_.size()) &&
+				 radial_[ep.region_index].active)
+					? radial_[ep.region_index].r_inner
+					: 0.0;
+			for (const auto& qp : ep.qp_profiles) {
+				const double rho = qp[0].depth;
+				const double r = r_inner + rho;
+				const double sig_r = qp[0].sigma;
+				const double sig_th = cylindricalSigmaTheta(
+					r, rho, L, sigma_max, props.grading_order);
+				if (L > 0.0 && rho / L < 0.05) {
+					max_iface_sigma = std::max(max_iface_sigma, sig_r);
+					max_iface_sigma_theta =
+						std::max(max_iface_sigma_theta, sig_th);
+				}
+				max_sigma = std::max(max_sigma, sig_r);
+				max_sigma_theta = std::max(max_sigma_theta, sig_th);
+				max_alpha = std::max(max_alpha, qp[0].alpha);
+				max_kappa = std::max(max_kappa, qp[0].kappa);
+			}
+			continue;
+		}
 		for (const auto& qp : ep.qp_profiles) {
 			for (Direction d = X; d <= Z; ++d) {
 				const double L = thicknessFor(ep.region_index, d);
@@ -585,10 +789,17 @@ void PMLProfileData::printDiagnostics(int rank) const
 	}
 
 	std::cout << std::scientific << std::setprecision(3);
-	std::cout << "  Interface-adjacent (depth/L < 0.05): max sigma="
-	          << max_iface_sigma << std::endl;
-	std::cout << "  Global max: sigma=" << max_sigma << " kappa=" << max_kappa
-	          << " alpha=" << max_alpha << std::endl;
+	std::cout << "  Interface-adjacent (depth/L < 0.05): max sigma_r="
+	          << max_iface_sigma;
+	if (has_cylindrical_r) {
+		std::cout << " sigma_theta=" << max_iface_sigma_theta;
+	}
+	std::cout << std::endl;
+	std::cout << "  Global max: sigma_r=" << max_sigma;
+	if (has_cylindrical_r) {
+		std::cout << " sigma_theta=" << max_sigma_theta;
+	}
+	std::cout << " kappa=" << max_kappa << " alpha=" << max_alpha << std::endl;
 	std::cout << std::defaultfloat;
 	std::cout << "========================================================\n" << std::endl;
 }

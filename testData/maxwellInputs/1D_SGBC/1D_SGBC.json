@@ -9,17 +9,26 @@
     "filename": "1D_SGBC.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [
+          1,
+          2
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 4 ],
+        "tags": [
+          4
+        ],
         "type": "SGBC",
         "material": {
           "relative_permittivity": 1.0,
@@ -34,19 +43,25 @@
   },
   "probes": {
     "exporter": {
-      "steps": 1000
+      "save_every": 0.1
     },
     "point": [
       {
-        "position": [ -1.5 ],
+        "position": [
+          -1.5
+        ],
         "write": true
       },
       {
-        "position": [ -0.5 ],
+        "position": [
+          -0.5
+        ],
         "write": true
       },
       {
-        "position": [ 1.5 ],
+        "position": [
+          1.5
+        ],
         "write": true
       }
     ]
@@ -54,9 +69,19 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1

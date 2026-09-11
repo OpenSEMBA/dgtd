@@ -28,50 +28,64 @@ Primary reference: Gedney & Zhao 2010, DOI [10.1109/TAP.2009.2037765](https://do
 
 ### dgtd curl convention (normalized vacuum)
 
-\[
+
+$$
 \frac{\partial \mathbf{E}}{\partial t} = \nabla \times \mathbf{H}, \qquad
 \frac{\partial \mathbf{H}}{\partial t} = -\nabla \times \mathbf{E}
-\]
+$$
 
-### Component-indexed auxiliary evolution (per stretch direction \(d\), component \(c\))
 
-\[
+### Component-indexed auxiliary evolution (per stretch direction $d$, component $c$)
+
+
+$$
 \frac{\partial \psi^E_{d,c}}{\partial t} = -\alpha_d\,\psi^E_{d,c} + \sigma_d\,\mathcal{D}_d(\mathbf{E})
-\]
+$$
 
-\[
+
+
+$$
 \frac{\partial \psi^H_{d,c}}{\partial t} = -\alpha_d\,\psi^H_{d,c} + \sigma_d\,\mathcal{D}_d(\mathbf{H})
-\]
+$$
 
-where \(\mathcal{D}_d(\mathbf{F})\) is the curl-coupled directional driver: at each DOF, the linear combination of \(\partial F_{c'}/\partial x_d\) with weights from the Maxwell curl table (only components whose curl row contains \(\partial/\partial x_d\)).
+
+where $\mathcal{D}_d(\mathbf{F})$ is the curl-coupled directional driver: at each DOF, the linear combination of $\partial F_{c'}/\partial x_d$ with weights from the Maxwell curl table (only components whose curl row contains $\partial/\partial x_d$).
 
 ### Field corrections (after `globalOperator_->Mult`)
 
-\[
+
+$$
 \frac{\partial E_c}{\partial t} \mathrel{+}= \sum_{d \in \text{active}} \frac{\psi^H_{d,c}}{\kappa_d}, \qquad
 \frac{\partial H_c}{\partial t} \mathrel{-}= \sum_{d \in \text{active}} \frac{\psi^E_{d,c}}{\kappa_d}
-\]
+$$
 
-At the vacuum–PML interface (\(\sigma = \alpha = 0\), \(\kappa = 1\)) corrections vanish.
+
+At the vacuum–PML interface ($\sigma = \alpha = 0$, $\kappa = 1$) corrections vanish.
 
 ### Semidiscrete transcription in code
 
 Each block in `PMLOperator_` is assembled as **`M^{-1} × weak operator`**, matching `globalOperator_`:
 
-\[
+
+$$
 \dot{\psi}^E_{d,c} = M^{-1}_{\text{scalar}}\left(-\alpha_d\,\psi^E_{d,c} + \sigma_d\,\mathcal{D}_d^{\text{disc}}(E)\right)
-\]
+$$
 
-\[
+
+
+$$
 \dot{\psi}^H_{d,c} = M^{-1}_{\text{scalar}}\left(-\alpha_d\,\psi^H_{d,c} + \sigma_d\,\mathcal{D}_d^{\text{disc}}(H)\right)
-\]
+$$
 
-\[
+
+
+$$
 \dot{E}_c \mathrel{+}= M^{-1}_E \frac{\psi^H_{d,c}}{\kappa_d}, \qquad
 \dot{H}_c \mathrel{-}= M^{-1}_H \frac{\psi^E_{d,c}}{\kappa_d}
-\]
+$$
 
-\(\mathcal{D}_d^{\text{disc}}\) = marked volume derivative (`buildPMLDomainDerivativeSubOperator`) **plus** marked interior one-normal face jump (`buildPMLDomainOneNormalSubOperator`), with **SBP split**: volume **+w**, face **−w** on the same field column (`collectPMLComponentDriverBlocks`).
+
+$\mathcal{D}_d^{\text{disc}}$ = marked volume derivative (`buildPMLDomainDerivativeSubOperator`) **plus** marked interior one-normal face jump (`buildPMLDomainOneNormalSubOperator`), with **SBP split**: volume **+w**, face **−w** on the same field column (`collectPMLComponentDriverBlocks`).
 
 ---
 
@@ -98,7 +112,7 @@ flowchart LR
 1. **`DGOperatorFactory::buildPMLOperator(PMLAuxLayout)`** — assembles extended CSR matrix via `collectPMLOperatorBlocks` + `mergeBlocksToCSR`.
 2. **`GlobalEvolution::applyPMLCoupling`** — packs `pmlWorkVec_` (field + ghost + ψ), calls `PMLOperator_->AddMult`.
 3. **`Model::buildPMLVolumeMarker()`** — restricts all PML domain integrators to tagged elements.
-4. **`PMLProfileCoefficient`** — evaluates \((\sigma, \alpha, \kappa)\) at quadrature points from init-time profile tables.
+4. **`PMLProfileCoefficient`** — evaluates $(\sigma, \alpha, \kappa)$ at quadrature points from init-time profile tables.
 
 ### Removed
 
@@ -115,7 +129,7 @@ First factory version used **`n_aux = 2 × ndofs × n_stretch`** (one ψ^E and o
 
 ### Problem
 
-When the planewave entered the PML (x ≈ 2–3), the simulation **blew up** or showed runaway high-frequency growth. The ψ driver used **volume-only** \(\partial/\partial x_d\); the global DG Maxwell curl uses **volume derivative + interior one-normal face fluxes** (`collectGlobalDirectionalOperators` + `collectGlobalOneNormalOperators`).
+When the planewave entered the PML (x ≈ 2–3), the simulation **blew up** or showed runaway high-frequency growth. The ψ driver used **volume-only** $\partial/\partial x_d$; the global DG Maxwell curl uses **volume derivative + interior one-normal face fluxes** (`collectGlobalDirectionalOperators` + `collectGlobalOneNormalOperators`).
 
 ### Implementation
 
@@ -143,17 +157,19 @@ When the planewave entered the PML (x ≈ 2–3), the simulation **blew up** or 
 
 ### Problem
 
-After Phase 2, Ey and Hz damped in the PML, but **Hy appeared** inside the PML and propagated **backward** toward the vacuum entrance — unphysical for 1D TE (+x, Ey + Hz only). Global Maxwell keeps Hy at zero because Hy is driven only by Ez (\((\nabla \times \mathbf{E})_y\) contains \(\partial_x E_z\)), and Ez ≡ 0.
+After Phase 2, Ey and Hz damped in the PML, but **Hy appeared** inside the PML and propagated **backward** toward the vacuum entrance — unphysical for 1D TE (+x, Ey + Hz only). Global Maxwell keeps Hy at zero because Hy is driven only by Ez ($(\nabla \times \mathbf{E})_y$ contains $\partial_x E_z$), and Ez ≡ 0.
 
-**Root cause:** Scalar ψ^E shared one DOF block across all H rows. Ey-driven memory incorrectly fed **`H_y ← ψ^E`** via the 3D curl table entry for \(\partial_x E_z\), a coupling path that does not exist when Ez = 0.
+**Root cause:** Scalar ψ^E shared one DOF block across all H rows. Ey-driven memory incorrectly fed **`H_y ← ψ^E`** via the 3D curl table entry for $\partial_x E_z$, a coupling path that does not exist when Ez = 0.
 
 ### Layout change
 
-\[
-n_{\text{aux}} = 6 \times n_{\text{dofs}} \times n_{\text{stretch\_dirs}}
-\]
 
-Per stretch slot \(d\):
+$$
+n_{\text{aux}} = 6 \times n_{\text{dofs}} \times n_{\text{stretch\_dirs}}
+$$
+
+
+Per stretch slot $d$:
 
 ```text
 [ Ex..Hz (6×N) | ψ^E_{d,X} (N) | ψ^E_{d,Y} (N) | ψ^E_{d,Z} (N) | ψ^H_{d,X} (N) | ψ^H_{d,Y} (N) | ψ^H_{d,Z} (N) | (next d …) ]

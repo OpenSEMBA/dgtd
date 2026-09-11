@@ -9,17 +9,25 @@
     "filename": "2D_RCS_SGBC_Circle_G1_1m_LowFreq.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 2 ],
+        "tags": [
+          2
+        ],
         "type": "SGBC",
         "layers": [
           {
@@ -37,22 +45,40 @@
   },
   "probes": {
     "exporter": {
-      "saves": 250
+      "save_every": 0.10040160642570281
     },
     "rcssurface": [
       {
         "name": "cylinder_rcs",
         "steps": 1,
-        "tags": [ 3, 4, 5, 6 ]
+        "tags": [
+          3,
+          4,
+          5,
+          6
+        ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3, 4, 5, 6 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3,
+        4,
+        5,
+        6
+      ],
       "magnitude": {
         "spread": 0.2
       }

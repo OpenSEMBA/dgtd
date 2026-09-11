@@ -9,39 +9,64 @@
     "filename": "2D_RCS_Normals_Coarse.msh",
     "materials": [
       {
-        "tags": [ 1, 2 ],
+        "tags": [
+          1,
+          2
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 6 ],
+        "tags": [
+          6
+        ],
         "type": "PEC"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "saves": 100
+      "save_every": 0.5050505050505051
     },
     "rcssurface": [
       {
         "name": "cylinder_pec_rcs",
         "steps": 1,
-        "tags": [ 2, 3, 4, 5 ]
+        "tags": [
+          2,
+          3,
+          4,
+          5
+        ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 2, 3, 4, 5 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2,
+        3,
+        4,
+        5
+      ],
       "magnitude": {
         "spread": 0.3
       }

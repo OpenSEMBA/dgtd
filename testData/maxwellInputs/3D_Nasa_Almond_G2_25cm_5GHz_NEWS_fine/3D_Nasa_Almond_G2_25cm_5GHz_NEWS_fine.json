@@ -38,7 +38,7 @@
   },
   "probes": {
     "exporter": {
-      "saves": 161
+      "save_every": 0.1
     },
     "mor_state": [
       {

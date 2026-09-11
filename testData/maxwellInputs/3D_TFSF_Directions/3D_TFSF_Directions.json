@@ -10,33 +10,62 @@
     "filename": "3D_TFSF_Directions.msh",
     "materials": [
       {
-        "tags": [ 3, 4 ],
+        "tags": [
+          3,
+          4
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1, 2, 3, 4, 5, 6 ],
+        "tags": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
         "type": "SMA"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "steps": 10
+      "save_every": 0.1
     },
     "point": [
       {
-        "position": [ 0.0, 0.0, 0.0 ]
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ]
       }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 7, 8, 9, 10, 11, 12 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.3,

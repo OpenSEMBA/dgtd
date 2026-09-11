@@ -8,11 +8,13 @@ Windowed DFT reflection coefficient from PointProbe exports.
 
 **Acceptance gate** ([docs/pml/05-verification.md](../docs/pml/05-verification.md)):
 
-\[
-20\log_{10}\frac{|E_{\mathrm{ref}}(f)|}{|E_{\mathrm{inc}}(f)|} \le -40~\mathrm{dB}
-\]
 
-at the frequency where \(|E_{\mathrm{inc}}|\) peaks in a chosen band.
+$$
+20\log_{10}\frac{|E_{\mathrm{ref}}(f)|}{|E_{\mathrm{inc}}(f)|} \le -40~\mathrm{dB}
+$$
+
+
+at the frequency where $|E_{\mathrm{inc}}|$ peaks in a chosen band.
 
 ### Quick start (case `1D_PML`)
 

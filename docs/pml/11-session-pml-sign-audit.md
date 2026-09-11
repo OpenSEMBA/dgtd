@@ -67,15 +67,15 @@ Halving `dt` **delays** onset (~10 s stable) but **does not** fix t = 20 under e
 
 | Continuous | Discrete block | Sign (default) |
 |------------|----------------|----------------|
-| \(\dot\psi^E_{X,Z} = -\alpha\psi + \sigma\mathcal{D}_x(E_y)\) | ψ mass + driver | mass **−1**, vol **+w**, face **−w** on Ey col |
-| \(\dot H_z \mathrel{-}= \psi^E_{X,Z}/\kappa\) | H[z] ← ψ^E | **−1** |
-| \(\dot\psi^H_{X,Y} = -\alpha\psi + \sigma\mathcal{D}_x(H_z)\) | ψ^H driver | same pattern on Hz col |
-| \(\dot E_y \mathrel{+}= \psi^H_{X,Y}/\kappa\) | E[y] ← ψ^H | **+1** |
-| Global \(\dot H_z\) from \(\partial_x E_y\) | `globalOperator_` | full domain including PML |
+| $\dot\psi^E_{X,Z} = -\alpha\psi + \sigma\mathcal{D}_x(E_y)$ | ψ mass + driver | mass **−1**, vol **+w**, face **−w** on Ey col |
+| $\dot H_z \mathrel{-}= \psi^E_{X,Z}/\kappa$ | H[z] ← ψ^E | **−1** |
+| $\dot\psi^H_{X,Y} = -\alpha\psi + \sigma\mathcal{D}_x(H_z)$ | ψ^H driver | same pattern on Hz col |
+| $\dot E_y \mathrel{+}= \psi^H_{X,Y}/\kappa$ | E[y] ← ψ^H | **+1** |
+| Global $\dot H_z$ from $\partial_x E_y$ | `globalOperator_` | full domain including PML |
 
 ### Duplicate-derivative hypothesis
 
-Architecture ([`02-codebase-architecture.md`](./02-codebase-architecture.md)): `globalOperator_` applies the **full** curl in PML; `PMLOperator_` **adds** σ-weighted \(\mathcal{D}_d\) into ψ and ψ/kappa into fields. With **κ = 1**, the κ-part of stretch is in the global curl; ψ should carry the CFS memory. A wrong **relative** sign between global face flux and PML face SBP at the **terminating** layer (interior-only ψ face integrator) remains a suspect, but trial **boundary face** terms (S7) **increased** growth.
+Architecture ([`02-codebase-architecture.md`](./02-codebase-architecture.md)): `globalOperator_` applies the **full** curl in PML; `PMLOperator_` **adds** σ-weighted $\mathcal{D}_d$ into ψ and ψ/kappa into fields. With **κ = 1**, the κ-part of stretch is in the global curl; ψ should carry the CFS memory. A wrong **relative** sign between global face flux and PML face SBP at the **terminating** layer (interior-only ψ face integrator) remains a suspect, but trial **boundary face** terms (S7) **increased** growth.
 
 **Next implementation candidates (not done here):**
 

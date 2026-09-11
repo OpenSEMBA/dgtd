@@ -1,0 +1,101 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.005,
+    "final_time": 16.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "2D_Dipole_PML_Radial_R1e8.msh",
+    "materials": [
+      {
+        "tags": [
+          2,
+          3
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          1
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-08,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "R"
+        ],
+        "radial_center": [
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          3
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.20253164556962025
+    },
+    "point": [
+      {
+        "position": [
+          2.5,
+          0.0
+        ],
+        "saves": 2000
+      },
+      {
+        "position": [
+          0.0,
+          2.5
+        ],
+        "saves": 2000
+      },
+      {
+        "position": [
+          1.7677669529663689,
+          1.7677669529663689
+        ],
+        "saves": 2000
+      },
+      {
+        "position": [
+          2.8,
+          0.0
+        ],
+        "saves": 2000
+      },
+      {
+        "position": [
+          0.0,
+          2.8
+        ],
+        "saves": 2000
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "dipole",
+      "tags": [
+        1
+      ],
+      "magnitude": {
+        "length": 0.1,
+        "spread": 0.2,
+        "amplitude_peak": 1.0
+      }
+    }
+  ]
+}

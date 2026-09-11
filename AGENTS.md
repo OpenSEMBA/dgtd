@@ -32,7 +32,7 @@ Default JSON: `"evolution_operator": "global"` (or omit).
 
 1. **`globalOperator_`** — curl, DG fluxes, bulk conductivity (`DGOperatorFactory::buildGlobalOperator`).
 2. **`Mult()` add-ons** — SGBC sub-solve + flux, SC-PML ADE (`scpmlOperator_`), TFSF source.
-3. **State vector** — `[Ex, Ey, Ez, Hx, Hy, Hz]` per DOF (`6 × ndofs`); with PML, plus \(J\)/\(M\) auxiliaries (`ClassicalPMLLayout`).
+3. **State vector** — `[Ex, Ey, Ez, Hx, Hy, Hz]` per DOF (`6 × ndofs`); with PML, plus $J$/$M$ auxiliaries (`ClassicalPMLLayout`).
 
 ### Units
 
@@ -55,14 +55,14 @@ Always loop `X, Y, Z` and skip `d >= mesh.Dimension()`. Do not add 1D-only solve
 
 ## Active work: volumetric SC-PML ADE (Bagci/Chen)
 
-Live wiring: [`docs/pml/30-sc-pml-ade.md`](./docs/pml/30-sc-pml-ade.md). Status report: [`docs/pml/31-sc-pml-status.md`](./docs/pml/31-sc-pml-status.md). Approaches survey: [`docs/pml/29-dgtd-pml-approaches.md`](./docs/pml/29-dgtd-pml-approaches.md). Gedney CFS archive: [`docs/pml/27-gedney-cfs-paused.md`](./docs/pml/27-gedney-cfs-paused.md).
+Live wiring (equations ↔ code): [`docs/pml/30-sc-pml-ade.md`](./docs/pml/30-sc-pml-ade.md). Status report: [`docs/pml/31-sc-pml-status.md`](./docs/pml/31-sc-pml-status.md). Approaches survey: [`docs/pml/29-dgtd-pml-approaches.md`](./docs/pml/29-dgtd-pml-approaches.md). Gedney CFS archive: [`docs/pml/27-gedney-cfs-paused.md`](./docs/pml/27-gedney-cfs-paused.md).
 
 Summary:
 
-- **Formulation:** field-driven \(P_E/P_H\) + volume tensors \(a,b,c,d(\sigma,\kappa)\) (CuDG3D \(J/M\) is the \(\kappa\equiv 1\) limit).
+- **Formulation:** field-driven $P_E/P_H$ + volume tensors $a,b,c,d(\sigma,\kappa)$ (CuDG3D $J/M$ is the $\kappa\equiv 1$ limit).
 - **Keep:** Gmsh/JSON region tags, `active_axes`, `stretch_mode` (`box`/`radial`), σ/κ grading.
 - **Integration:** `GlobalEvolution` only; RK4 via `Mult()` after `globalOperator_`.
-- Do **not** reintroduce Gedney \(\psi\sim D(F)\) or hybrid-corr ADE SBP.
+- Do **not** reintroduce Gedney $\psi\sim D(F)$ or hybrid-corr ADE SBP.
 
 ## Conventions for agents
 

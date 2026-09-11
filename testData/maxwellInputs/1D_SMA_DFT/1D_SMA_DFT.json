@@ -9,37 +9,70 @@
     "filename": "1D_SMA_DFT.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 1 ],
+        "tags": [
+          1
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 2 ],
+        "tags": [
+          2
+        ],
         "type": "SMA"
       }
     ]
   },
   "probes": {
     "exporter": {
-      "saves": 400
+      "save_every": 0.05012531328320802
     },
     "point": [
-      { "position": [ 0.0 ], "saves": 2000 },
-      { "position": [ 1.0 ], "saves": 2000 },
-      { "position": [ 1.5 ], "saves": 2000 }
+      {
+        "position": [
+          0.0
+        ],
+        "saves": 2000
+      },
+      {
+        "position": [
+          1.0
+        ],
+        "saves": 2000
+      },
+      {
+        "position": [
+          1.5
+        ],
+        "saves": 2000
+      }
     ]
   },
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 3 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.4

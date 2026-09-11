@@ -31,15 +31,19 @@ For direction **d** (x, y, or z), the stretch is a complex function **s_d** of p
 
 **Classical** stretch (schematic):
 
-\[
+
+$$
 s_d = \kappa_d + \frac{\sigma_d}{j\omega}
-\]
+$$
+
 
 **Complex-frequency-shifted (CFS)** stretch (Gedney / Taflove family):
 
-\[
+
+$$
 s_d = \kappa_d + \frac{\sigma_d}{\alpha_d + j\omega}
-\]
+$$
+
 
 | Parameter | Role |
 |-----------|------|
@@ -55,9 +59,11 @@ In frequency domain, stretch introduces rational functions of **jω**. Inverse L
 
 **ADE formulation** introduces auxiliary memory variables **ψ** (paper uses **T** for stress components; Maxwell literature uses various ψ labels) with ODEs:
 
-\[
+
+$$
 \frac{\partial \psi}{\partial t} = -\alpha \psi + \beta \cdot (\text{field or spatial derivative coupling})
-\]
+$$
+
 
 The main field equations receive **correction terms** proportional to ψ and profile coefficients. This is **convolution PML without storing history**.
 
@@ -69,15 +75,19 @@ Following the standard manipulation (Gedney & Zhao; Zhang & Shen Eq. 13–18 for
 
 For a stretched derivative in direction **x**, write:
 
-\[
+
+$$
 \frac{1}{s_x} \frac{\partial}{\partial x} = \frac{1}{\kappa_x} \frac{\partial}{\partial x} + \text{(correction involving auxiliary } T_x \text{)}
-\]
+$$
+
 
 with auxiliary **T_x** satisfying in time domain (schematic):
 
-\[
+
+$$
 \frac{\partial T_x}{\partial t} = -\alpha_x T_x + \sigma_x \frac{\partial (\cdot)}{\partial x}
-\]
+$$
+
 
 (signs and which field component is differentiated must be taken from **Gedney & Zhao Maxwell ADE system**, not copied from elastodynamics).
 
@@ -91,18 +101,22 @@ The **correction** to the main PDE adds terms like **T_x / κ_x** (or equivalent
 
 Interior vacuum (no PML), normalized units (ε = μ = 1, c = 1):
 
-\[
+
+$$
 \frac{\partial \mathbf{E}}{\partial t} = \nabla \times \mathbf{H}, \qquad
 \frac{\partial \mathbf{H}}{\partial t} = -\nabla \times \mathbf{E}
-\]
+$$
+
 
 (dgtd uses DG weak form; `GlobalEvolution` assembles curl + numerical flux via `DGOperatorFactory::buildGlobalOperator()`.)
 
 **Conductive loss** (non-PML) today:
 
-\[
+
+$$
 \frac{\partial \mathbf{E}}{\partial t} \mathrel{+}= -\sigma_{\text{bulk}} \mathbf{E}
-\]
+$$
+
 
 via `collectGlobalConductiveOperator()` — **orthogonal** to PML stretch σ.
 
@@ -150,9 +164,11 @@ Profiles are functions of **depth ρ_d** into the PML along direction **d**, mea
 
 ### Interface values (mandatory)
 
-\[
+
+$$
 \kappa_d(0) = 1, \quad \sigma_d(0) = 0, \quad \alpha_d(0) = 0
-\]
+$$
+
 
 ### Depth normalization
 
@@ -173,17 +189,23 @@ JSON provides:
 
 **Implementation task:** Derive **σ_max** (and κ profile if κ varies) from layer depth and `target_reflection` using Taflove/Gedney guidance, or use power law:
 
-\[
+
+$$
 \sigma_d(\rho) = \sigma_{d,\max} \left(\frac{\rho}{L_d}\right)^{m}, \quad m = \texttt{grading\_order}
-\]
+$$
 
-\[
+
+
+$$
 \kappa_d(\rho) = 1 + (\kappa_{d,\max} - 1) \left(\frac{\rho}{L_d}\right)^{m}
-\]
+$$
 
-\[
+
+
+$$
 \alpha_d(\rho) = \alpha_{d,\max} \left(\frac{\rho}{L_d}\right)^{m}
-\]
+$$
+
 
 **Verify against Gedney & Zhao** for exact profile conventions before locking constants.
 
@@ -227,82 +249,94 @@ Document answers in PR or amend this file when resolved.
 ## Gedney Maxwell ADE (dgtd transcription)
 
 Source: Gedney & Zhao, IEEE TAP 58(3):838–847, 2010 (DOI 10.1109/TAP.2009.2037765).  
-Paper Eq. (1)–(3): CFS stretch \(s_d = \kappa_d + \sigma_d/(\alpha_d + j\omega)\).  
-Paper Eq. (4)–(8): ADE split of \(1/s_d\) introducing auxiliary **b** (we label **ψ**).
+Paper Eq. (1)–(3): CFS stretch $s_d = \kappa_d + \sigma_d/(\alpha_d + j\omega)$.  
+Paper Eq. (4)–(8): ADE split of $1/s_d$ introducing auxiliary **b** (we label **ψ**).
 
 ### dgtd curl convention (matches `DGOperatorFactory`)
 
-Normalized vacuum (\(\varepsilon=\mu=1\)):
+Normalized vacuum ($\varepsilon=\mu=1$):
 
-\[
+
+$$
 \frac{\partial \mathbf{E}}{\partial t} = \nabla \times \mathbf{H}, \qquad
 \frac{\partial \mathbf{H}}{\partial t} = -\nabla \times \mathbf{E}
-\]
+$$
 
-Component form (\(d \in \{x,y,z\}\), skip \(d \ge \dim\)):
 
-| Component | \((\nabla \times \mathbf{H})_c\) | \(-(\nabla \times \mathbf{E})_c\) |
+Component form ($d \in \{x,y,z\}$, skip $d \ge \dim$):
+
+| Component | $(\nabla \times \mathbf{H})_c$ | $-(\nabla \times \mathbf{E})_c$ |
 |-----------|----------------------------------|-------------------------------------|
-| \(E_x\) | \(\partial_y H_z - \partial_z H_y\) | — |
-| \(E_y\) | \(\partial_z H_x - \partial_x H_z\) | — |
-| \(E_z\) | \(\partial_x H_y - \partial_y H_x\) | — |
-| \(H_x\) | — | \(\partial_y E_z - \partial_z E_y\) |
-| \(H_y\) | — | \(\partial_z E_x - \partial_x E_z\) |
-| \(H_z\) | — | \(\partial_x E_y - \partial_y E_x\) |
+| $E_x$ | $\partial_y H_z - \partial_z H_y$ | — |
+| $E_y$ | $\partial_z H_x - \partial_x H_z$ | — |
+| $E_z$ | $\partial_x H_y - \partial_y H_x$ | — |
+| $H_x$ | — | $\partial_y E_z - \partial_z E_y$ |
+| $H_y$ | — | $\partial_z E_x - \partial_x E_z$ |
+| $H_z$ | — | $\partial_x E_y - \partial_y E_x$ |
 
-### ADE per active stretch direction \(d\)
+### ADE per active stretch direction $d$
 
-For each direction \(d\) with active CFS stretch \((\kappa_d, \sigma_d, \alpha_d)\) at a point, introduce **two** auxiliary vectors collocated with DG DOFs:
+For each direction $d$ with active CFS stretch $(\kappa_d, \sigma_d, \alpha_d)$ at a point, introduce **two** auxiliary vectors collocated with DG DOFs:
 
 - **ψ^E_d** — memory for terms where **∂E/∂x_d** appears in **Ḣ**
 - **ψ^H_d** — memory for terms where **∂H/∂x_d** appears in **Ė**
 
 **Auxiliary evolution** (Gedney ADE; paper Eq. (6)–(8) pattern with CFS pole
-\(\alpha + \sigma/\kappa\)):
+$\alpha + \sigma/\kappa$):
 
-\[
+
+$$
 \frac{\partial \psi^E_d}{\partial t} = -\left(\alpha_d + \frac{\sigma_d}{\kappa_d}\right)\psi^E_d + \frac{\sigma_d}{\kappa_d}\,\mathcal{D}_d(\mathbf{E})
-\]
+$$
 
-\[
+
+
+$$
 \frac{\partial \psi^H_d}{\partial t} = -\left(\alpha_d + \frac{\sigma_d}{\kappa_d}\right)\psi^H_d + \frac{\sigma_d}{\kappa_d}\,\mathcal{D}_d(\mathbf{H})
-\]
+$$
 
-**Note (2026-09-04):** An earlier transcription used \(-\alpha\psi + \sigma\mathcal{D}\). That drops the
-\(\sigma/\kappa\) contribution to the pole, so with `alpha_max=0` the auxiliaries have **no
+
+**Note (2026-09-04):** An earlier transcription used $-\alpha\psi + \sigma\mathcal{D}$. That drops the
+$\sigma/\kappa$ contribution to the pole, so with `alpha_max=0` the auxiliaries have **no
 damping** and late-time RK4 runs blow up. Live code uses `PMLProfileCoefficient::Kind::Decay`
 and `Kind::SigmaOverKappa`.
 
-where \(\mathcal{D}_d(\mathbf{F})\) is the **curl-coupled directional driver**: at each DOF, the linear combination of \(\partial F_c / \partial x_d\) with weights from the table above (only components whose curl row contains \(\partial/\partial x_d\)).
+where $\mathcal{D}_d(\mathbf{F})$ is the **curl-coupled directional driver**: at each DOF, the linear combination of $\partial F_c / \partial x_d$ with weights from the table above (only components whose curl row contains $\partial/\partial x_d$).
 
-**Field corrections** (added to semidiscrete \(\dot{\mathbf{E}}\), \(\dot{\mathbf{H}}\) after `globalOperator_->Mult`):
+**Field corrections** (added to semidiscrete $\dot{\mathbf{E}}$, $\dot{\mathbf{H}}$ after `globalOperator_->Mult`):
 
-\[
+
+$$
 \frac{\partial E_c}{\partial t} \mathrel{-}= \sum_{d \in \text{active}} \frac{\psi^H_{d,c}}{\kappa_d}
-\]
+$$
 
-\[
+
+
+$$
 \frac{\partial H_c}{\partial t} \mathrel{+}= \sum_{d \in \text{active}} \frac{\psi^E_{d,c}}{\kappa_d}
-\]
+$$
 
-These signs match the continuous split \(1/s_d\,\partial_d = \kappa_d^{-1}\partial_d - \psi\) with the ADE
+
+These signs match the continuous split $1/s_d\,\partial_d = \kappa_d^{-1}\partial_d - \psi$ with the ADE
 above (validated 2026-09-04 on `1D_PML_buffer`: old opposite signs absorbed poorly and
-blew up after \(t\sim 30\); these signs absorb in the front of the layer and remain
-bounded through at least \(t=60\)).
+blew up after $t\sim 30$; these signs absorb in the front of the layer and remain
+bounded through at least $t=60$).
 
-(Interface \(\sigma=\alpha=0\), \(\kappa=1\) still gives zero correction.)
+(Interface $\sigma=\alpha=0$, $\kappa=1$ still gives zero correction.)
 
-**Spatial discretization:** \(\mathcal{D}_d\) uses the same weak directional derivative as `buildDerivativeSubOperator(d)` **plus** the matching interior one-normal face jump (see `collectGlobalOneNormalOperators`), both restricted to PML volume markers and scaled by \(\sigma\). Volume and face contributions enter with opposite sign on each field column (discrete SBP split). `PMLOperator_` is a preassembled CSR matrix built by `DGOperatorFactory::buildPMLOperator()` as `M_{\text{L2}}^{-1} \times` weak blocks (scalar inverse mass on ψ rows; Maxwell inverse mass on field correction rows), applied in `GlobalEvolution::applyPMLCoupling()` via `PMLOperator_->AddMult`.
+**Spatial discretization:** $\mathcal{D}_d$ uses the same weak directional derivative as `buildDerivativeSubOperator(d)` **plus** the matching interior one-normal face jump (see `collectGlobalOneNormalOperators`), both restricted to PML volume markers and scaled by $\sigma$. Volume and face contributions enter with opposite sign on each field column (discrete SBP split). `PMLOperator_` is a preassembled CSR matrix built by `DGOperatorFactory::buildPMLOperator()` as `M_{\text{L2}}^{-1} \times` weak blocks (scalar inverse mass on ψ rows; Maxwell inverse mass on field correction rows), applied in `GlobalEvolution::applyPMLCoupling()` via `PMLOperator_->AddMult`.
 
 ### Auxiliary DOF count
 
-\[
+
+$$
 n_{\text{aux}} = 6 \times n_{\text{dofs}} \times n_{\text{stretch\_dirs}}
-\]
+$$
 
-Each stretch direction allocates **three** ψ^E blocks and **three** ψ^H blocks (one per vector component \(c \in \{x,y,z\}\)), each of length \(n_{\text{dofs}}\). Only component pairs with a nonzero curl entry (`pmlPsiEComponentActive` / `pmlPsiHComponentActive`) receive nonzero `PMLOperator_` blocks; uncoupled slots remain in state at zero.
 
-where \(n_{\text{stretch\_dirs}}\) = number of distinct axes appearing in any region's `active_axes` (capped by `mesh.Dimension()`). Layout per stretch slot \(d\):
+Each stretch direction allocates **three** ψ^E blocks and **three** ψ^H blocks (one per vector component $c \in \{x,y,z\}$), each of length $n_{\text{dofs}}$. Only component pairs with a nonzero curl entry (`pmlPsiEComponentActive` / `pmlPsiHComponentActive`) receive nonzero `PMLOperator_` blocks; uncoupled slots remain in state at zero.
+
+where $n_{\text{stretch\_dirs}}$ = number of distinct axes appearing in any region's `active_axes` (capped by `mesh.Dimension()`). Layout per stretch slot $d$:
 
 ```text
 [ Ex..Hz (6×N) | ψ^E_{d,X} (N) | ψ^E_{d,Y} (N) | ψ^E_{d,Z} (N) | ψ^H_{d,X} (N) | ψ^H_{d,Y} (N) | ψ^H_{d,Z} (N) | (next d …) ]
@@ -310,4 +344,4 @@ where \(n_{\text{stretch\_dirs}}\) = number of distinct axes appearing in any re
 
 Example (1D TE, `active_axes: ["X"]`): only **ψ^E_{X,Z} ↔ Ey ↔ Hz** and **ψ^H_{X,Y} ↔ Hz ↔ Ey** are wired; **Hy** receives no Ey-driven ψ correction.
 
-When no PML tags: \(n_{\text{aux}} = 0\).
+When no PML tags: $n_{\text{aux}} = 0$.

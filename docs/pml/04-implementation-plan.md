@@ -76,9 +76,9 @@
 
 | Block | Factory builder | Status |
 |-------|-----------------|--------|
-| ψ mass \(-\alpha\) | Per-component `ψ^E_{d,c}` / `ψ^H_{d,c}` blocks: `PMLProfileCoefficient::Alpha` + marked mass + scalar `M^{-1}` | **Done** (zero when `alpha_max=0`) |
-| ψ driver \(\sigma \mathcal{D}_d\) | Per active component: marked volume + face integrators, driver column from `pmlPsiEDriverCoupling` / `pmlPsiHDriverCoupling`; SBP volume/face opposite sign on same column | **Done** |
-| Field correction \(\pm \psi/\kappa\) | One field row per component block (`H_c ← ψ^E_{d,c}`, `E_c ← ψ^H_{d,c}`); Maxwell `M^{-1}[E/H]` on field rows | **Done** |
+| ψ mass $-\alpha$ | Per-component `ψ^E_{d,c}` / `ψ^H_{d,c}` blocks: `PMLProfileCoefficient::Alpha` + marked mass + scalar `M^{-1}` | **Done** (zero when `alpha_max=0`) |
+| ψ driver $\sigma \mathcal{D}_d$ | Per active component: marked volume + face integrators, driver column from `pmlPsiEDriverCoupling` / `pmlPsiHDriverCoupling`; SBP volume/face opposite sign on same column | **Done** |
+| Field correction $\pm \psi/\kappa$ | One field row per component block (`H_c ← ψ^E_{d,c}`, `E_c ← ψ^H_{d,c}`); Maxwell `M^{-1}[E/H]` on field rows | **Done** |
 
 ### Step A.6 — User acceptance
 

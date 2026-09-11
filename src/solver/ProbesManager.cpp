@@ -393,21 +393,23 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     const MPI_Comm comm = getFESComm(fes_);
     int export_cycle = cycle_;
 
-    if (p.saves > 0 && finalTime_ > 0.0) {
+    if (p.save_every > 0.0 && finalTime_ > 0.0) {
         auto& ctx = exporterContexts_[&p];
 
         if (!ctx.initialized) {
-            ctx.dt_save = (p.saves > 1) ? finalTime_ / (p.saves - 1) : 0.0;
-            ctx.next_save_time = (p.saves > 1) ? 0.0 : finalTime_;
+            ctx.dt_save = p.save_every;
+            ctx.next_save_time = 0.0;
             ctx.save_count = 0;
+            ctx.finished = false;
             ctx.initialized = true;
         }
 
-        if (ctx.save_count >= p.saves) {
+        if (ctx.finished) {
             return;
         }
 
-        const double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 1e-6 : 1e-12;
+        const double tol = ctx.dt_save * 1e-6;
+        const double end_tol = std::max(tol, 1e-12);
         if (time < ctx.next_save_time - tol) {
             return;
         }
@@ -415,10 +417,11 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
         export_cycle = ctx.save_count;
         ++ctx.save_count;
 
-        if (ctx.save_count < p.saves) {
-            ctx.next_save_time = std::min(finalTime_, ctx.save_count * ctx.dt_save);
+        if (ctx.next_save_time >= finalTime_ - end_tol) {
+            ctx.finished = true;
         } else {
-            ctx.next_save_time = finalTime_ + tol;
+            const double next = ctx.next_save_time + ctx.dt_save;
+            ctx.next_save_time = (next >= finalTime_ - end_tol) ? finalTime_ : next;
         }
     } else if (std::abs(time - finalTime_) >= 1e-8) {
         if (cycle_ % p.visSteps != 0) {
@@ -454,7 +457,11 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     }
 #endif
 
+    // ParaViewDataCollection::Save is per-rank I/O, not an MPI collective.
+    // Without a post-Save barrier, a fast rank can leave step() and block in the
+    // next stability/Mult Allreduce while a slow rank is still writing — hang.
     pd.Save();
+    MPI_Barrier(comm);
 }
 
 void ProbesManager::updateProbe(FieldProbe& p, Time time)
@@ -645,16 +652,16 @@ bool ProbesManager::needsHostSyncThisStep(Time time) const
     };
 
     for (const auto& p : probes.exporterProbes) {
-        if (p.saves > 0 && finalTime_ > 0.0) {
+        if (p.save_every > 0.0 && finalTime_ > 0.0) {
             auto it = exporterContexts_.find(&p);
             if (it == exporterContexts_.end()) {
                 return true; // first call initializes and may save t=0
             }
             const auto& ctx = it->second;
-            if (ctx.save_count >= p.saves) {
+            if (ctx.finished) {
                 continue;
             }
-            const double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 1e-6 : 1e-12;
+            const double tol = ctx.dt_save * 1e-6;
             if (time >= ctx.next_save_time - tol) {
                 return true;
             }
@@ -820,9 +827,7 @@ void ProbesManager::recalculateExportSteps(double dt)
         return std::max(1, totalSteps / saves);
     };
 
-    for (auto& p : probes.exporterProbes) {
-        if (p.saves > 0) p.visSteps = stepsFromSaves(p.saves);
-    }
+    // ExporterProbe::save_every is absolute time; no step remapping needed.
     for (auto& p : probes.nearFieldProbes) {
         if (p.saves > 0) p.expSteps = stepsFromSaves(p.saves);
     }

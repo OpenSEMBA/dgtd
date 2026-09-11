@@ -52,8 +52,8 @@ Diagnostics: `[PML Mult diag]` calls 30000 / 48000 / 80000 (4 RK stages per step
 
 **Recommended next work** (unchanged from sign audit):
 
-1. **Derivative split** — remove or subtract stretch-direction curl in PML from `globalOperator_` where ψ driver duplicates \(\mathcal{D}_d\).
-2. **Gedney §V weak-form** — terminating face / \(\hat{n}=\hat{\nu}/\kappa_\nu\) (not another SMA toggle).
+1. **Derivative split** — remove or subtract stretch-direction curl in PML from `globalOperator_` where ψ driver duplicates $\mathcal{D}_d$.
+2. **Gedney §V weak-form** — terminating face / $\hat{n}=\hat{\nu}/\kappa_\nu$ (not another SMA toggle).
 3. **Time integration** — α > 0, smaller `dt`, or implicit ψ subsystem.
 
 ## Product guidance (interim)

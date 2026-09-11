@@ -9,21 +9,37 @@
     "filename": "2D_SGBC_Oblique.msh",
     "materials": [
       {
-        "tags": [ 1, 2, 3 ],
+        "tags": [
+          1,
+          2,
+          3
+        ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [ 4, 8 ],
+        "tags": [
+          4,
+          8
+        ],
         "type": "SMA"
       },
       {
-        "tags": [ 1, 2, 3, 5, 6, 7 ],
+        "tags": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7
+        ],
         "type": "PEC"
       },
       {
-        "tags": [ 10 ],
+        "tags": [
+          10
+        ],
         "type": "SGBC",
         "layers": [
           {
@@ -41,19 +57,28 @@
   },
   "probes": {
     "exporter": {
-      "saves": 60
+      "save_every": 0.13559322033898305
     },
     "point": [
       {
-        "position": [ 0.125, 0.075 ],
+        "position": [
+          0.125,
+          0.075
+        ],
         "saves": 10000
       },
       {
-        "position": [ 0.35, 0.075 ],
+        "position": [
+          0.35,
+          0.075
+        ],
         "saves": 10000
       },
       {
-        "position": [ 1.45, 0.075 ],
+        "position": [
+          1.45,
+          0.075
+        ],
         "saves": 10000
       }
     ]
@@ -61,9 +86,19 @@
   "sources": [
     {
       "type": "planewave",
-      "polarization": [ 0.0, 1.0, 0.0 ],
-      "propagation": [ 1.0, 0.0, 0.0 ],
-      "tags": [ 9 ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        9
+      ],
       "magnitude": {
         "type": "gaussian",
         "spread": 0.1

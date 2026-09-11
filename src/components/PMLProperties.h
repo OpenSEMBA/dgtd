@@ -11,7 +11,8 @@ namespace maxwell {
 
 /// How σ depth is measured for classical ADE-PML grading.
 /// Box: planar vacuum–PML interface per stretch axis (existing).
-/// Radial: ρ = max(0, ‖x−c‖ − r_in); ADE stacks stay Cartesian (option A).
+/// Radial: ρ = max(0, ‖x−c‖ − r_in); ADE stacks stay Cartesian unless
+///         uniaxial_radial is set (true radial stretch → rotate to xyz).
 enum class PMLStretchMode {
 	Box = 0,
 	Radial = 1
@@ -26,9 +27,12 @@ struct PMLProperties {
 	double kappa_max = 1.0;
 	/// CFS frequency shift (deferred; must remain 0 until pole is wired).
 	double alpha_max = 0.0;
+	/// Cartesian stretch axes (X/Y/Z). Empty when uniaxial_radial is true.
 	std::set<Direction> active_axes;
+	/// True when active_axes was ["R"]: Bagci diag in (r,θ[,z]), rotate to xyz.
+	bool uniaxial_radial = false;
 	PMLStretchMode stretch_mode = PMLStretchMode::Box;
-	/// Optional center for Radial mode. If unset, inferred from vacuum–PML interfaces.
+	/// Optional center for Radial / uniaxial_radial. Else vacuum–PML interface mean.
 	std::optional<std::array<double, 3>> radial_center;
 };
 
