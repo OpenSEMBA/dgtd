@@ -1978,12 +1978,8 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
                       << ", kappa_max=" << props.kappa_max
                       << ", alpha_max=" << props.alpha_max
                       << ", active_axes:";
-            if (props.uniaxial_radial) {
-                std::cout << " R (cylindrical SC -> Cartesian)";
-            } else {
-                for (Direction d : props.active_axes) {
-                    std::cout << " " << d;
-                }
+            for (Direction d : props.active_axes) {
+                std::cout << " " << d;
             }
             std::cout << std::endl;
         }

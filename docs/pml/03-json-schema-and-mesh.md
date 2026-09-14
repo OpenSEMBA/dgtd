@@ -63,20 +63,19 @@ CFS $\kappa$/$\alpha$ JSON fields were removed when Gedney CFS was paused ([`27-
 | `target_reflection` | double | yes | Design reflection level (e.g. 1e-6); used to set **σ_max** |
 | `kappa_max` | double | no (`1`) | Gedney only (`pml_formulation: gedney`); ≥ 1 |
 | `alpha_max` | double | no (`0`) | Gedney only; CFS α on ψ pole |
-| `active_axes` | string[] | yes | `"X"`/`"Y"`/`"Z"` Cartesian ADE stacks, **or** `["R"]` alone for 2D cylindrical SC-PML ($\sigma_r$, $\sigma_\theta=\Sigma/r$ → $R\,\mathrm{diag}\,R^T$). Do not mix `"R"` with Cartesian axes. |
-| `stretch_mode` | string/int | `"box"` | `"box"`/`0`: planar depth; `"radial"`/`1`: radial $\sigma(\rho)$ profile. With `"R"`, depth is always radial (mode forced if needed). |
-| `radial_center` | number[] | inferred | Optional for radial / `"R"`. Else mean of vacuum–PML interface face centers |
+| `active_axes` | string[] | yes | `"X"`/`"Y"`/`"Z"` Cartesian ADE stacks only. `["R"]` throws at parse ([`33-radial-sc-pml-ade.md`](./33-radial-sc-pml-ade.md) archive). |
+| `stretch_mode` | string/int | `"box"` | `"box"`/`0`: planar depth; `"radial"`/`1`: radial $\sigma(\rho)$ **depth** while ADE stays on X/Y/Z |
+| `radial_center` | number[] | inferred | Optional when `stretch_mode` is `"radial"`. Else mean of vacuum–PML interface face centers |
 
-**`"R"` vs `stretch_mode: "radial"`:** the latter only changes how $\sigma$ is graded while ADE stays on X/Y/Z; `"R"` changes the stretch geometry itself. Prefer an annular/onion PML volume for `"R"`.
-
-**Rejected on `"R"` (MVP):** `kappa_max > 1`, mixing with X/Y/Z.
+**`stretch_mode: "radial"`** only changes how $\sigma$ is graded; ADE tensors stay Cartesian. Cylindrical `"R"` stretch is not available.
 
 **Forbidden on PML tags:**
 
 - `bulk_conductivity`
 - `relative_permittivity` / `relative_permeability` unless explicitly allowed later (currently **matches_vacuum** only)
+- `sigma_max` (was radial-`"R"` only)
 
-**Multiple PML blocks:** Separate uniaxial slabs (`2D_RCS_Circle_Vol_PML`) or a **single multi-axis block** (`active_axes: ["X","Y"]`) are both valid for Cartesian. Onion true-stretch: `2D_RCS_Circle_1m_G2_PML_R` with `active_axes: ["R"]`.
+**Multiple PML blocks:** Separate uniaxial slabs (`2D_RCS_Circle_Vol_PML`) or a **single multi-axis block** (`active_axes: ["X","Y"]`) are both valid for Cartesian.
 
 ---
 
@@ -91,7 +90,7 @@ Path: `testData/maxwellInputs/2D_RCS_Circle_Vol_PML/2D_RCS_Circle_Vol_PML.json`
 | 3, 4 | Y | Y-directed PML slabs |
 | 5–8 | X, Y | Corner PML |
 
-Onion + `"R"`: `testData/maxwellInputs/2D_RCS_Circle_1m_G2_PML_R/` (same mesh as `…_G2_PML`, `active_axes: ["R"]`).
+Onion `"R"` JSON/meshes may exist under `2D_Onion_*_R*` / `*PML_R*` as expected parse failures.
 
 User will add **1D acceptance case** under `testData/maxwellInputs/1D_PML/`.
 

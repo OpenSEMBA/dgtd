@@ -1,30 +1,28 @@
 # SC-PML status report (2026-09-10)
 
 **Audience:** anyone picking up volumetric PML in dgtd.  
-**Live code path:** Bagci/Chen **stretched-coordinate ADE** (`P_E`/`P_H`).  
-**Not live:** Gedney CFS $\psi\sim D(F)$ (parked twice — see [`27-gedney-cfs-paused.md`](./27-gedney-cfs-paused.md)).
+**Live code path:** Cartesian Bagci/Chen SC-PML (`X`/`Y`/`Z`).  
+**Not live:** `"R"` / CylUPML (parser rejects; archive [`33`](./33-radial-sc-pml-ade.md)); Gedney CFS $\psi\sim D(F)$ ([`27`](./27-gedney-cfs-paused.md)).
 
-Companion docs: formulation detail [`30-sc-pml-ade.md`](./30-sc-pml-ade.md), literature shortlist [`29-dgtd-pml-approaches.md`](./29-dgtd-pml-approaches.md), locked decisions [`00-decisions-locked.md`](./00-decisions-locked.md).
+Companion docs: Cartesian [`30`](./30-sc-pml-ade.md), archived radial [`33`](./33-radial-sc-pml-ade.md), survey [`29`](./29-dgtd-pml-approaches.md).
 
 ---
 
 ## 1. Current status (one paragraph)
 
-Volumetric PML is **implemented and validated** in `GlobalEvolution` as a field-driven ADE on top of the usual DG Maxwell operator. Attribute-tagged Gmsh volumes + JSON `"type": "PML"` define regions; profiles $\sigma(\rho)$, $\kappa(\rho)$ are QP-graded; auxiliaries $P_E,P_H$ sit in an extended RK4 state. Plane-wave slabs pass the −40 dB DFT gate; the 2D dipole grading sweep (`2D_Dipole_PML_GO*`) shows **~50–60 dB better late-time reflection than SMA-only** `2D_Dipole` at the same probe locations. **Uniaxial radial** `"active_axes": ["R"]` (local Bagci → rotate to Cartesian) targets **onion / annular** PML meshes (`2D_RCS_Circle_1m_G2_PML_R`); do not judge it on box multi-slab dipole meshes. CFS $\alpha$ and Gedney $\psi\sim D(F)$ are **not** in the tree.
+Volumetric PML is **implemented** in `GlobalEvolution`. Cartesian slabs use Bagci/Chen. JSON `"R"` is rejected at parse. Acceptance: Cartesian dipole/slab vs SMA (`2D_Dipole` vs `2D_Dipole_PML`), not Onion_R.
 
 | Check | Result |
 |-------|--------|
 | `1D_PML` DFT ($E_y$) | ≈ −55 dB (PASS ≤ −40) |
-| `1D_PML_kappa` ($\kappa_{\max}=2$) | ≈ −42 dB (PASS) |
 | `2D_PML_X_slab` upwind | Late-stable |
-| Dipole SMA vs PML GO0–GO3 | See §8 |
-| `2D_RCS_Circle_1m_G2_PML_R` | Onion mesh + `"R"`; late-stable TFSF (compare to `…_G2_PML` Cartesian multi-axis + radial profile) |
+| `2D_Onion_*_R` vs SMA | N/A — `"R"` cases are expected parse failures |
 
 ---
 
-## 1b. Uniaxial radial `"R"` note
+## 1b. Radial `"R"` note
 
-True radial stretch needs an **annular PML volume**. Validating `"R"` on `2D_Dipole_PML` (box slabs) understates absorption. Use `2D_RCS_Circle_1m_G2_PML_R` (or a future onion dipole mesh). `stretch_mode: "radial"` with `active_axes: ["X","Y"]` on the same onion mesh remains the Cartesian-ADE baseline.
+`"R"` / CylUPML is **removed**. Parser throws on `"R"`/`"r"`. `stretch_mode: "radial"` remains Cartesian depth grading only. Archive: [`33`](./33-radial-sc-pml-ade.md).
 
 ## 2. Base Maxwell: how dgtd builds the curl operator
 

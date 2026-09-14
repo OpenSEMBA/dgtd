@@ -10,29 +10,23 @@ namespace maxwell {
 
 namespace {
 
-enum class AxisTokenKind { Cartesian, Radial };
-
-struct ParsedAxisToken {
-	AxisTokenKind kind;
-	Direction cart = X;
-};
-
-ParsedAxisToken parseAxisToken(const std::string& token)
+Direction parseAxisToken(const std::string& token)
 {
 	if (token == "X" || token == "x") {
-		return {AxisTokenKind::Cartesian, X};
+		return X;
 	}
 	if (token == "Y" || token == "y") {
-		return {AxisTokenKind::Cartesian, Y};
+		return Y;
 	}
 	if (token == "Z" || token == "z") {
-		return {AxisTokenKind::Cartesian, Z};
+		return Z;
 	}
 	if (token == "R" || token == "r") {
-		return {AxisTokenKind::Radial, X};
+		throw std::runtime_error(
+			"PML active_axes \"R\" is not supported. Use Cartesian \"X\"/\"Y\"/\"Z\" only.");
 	}
 	throw std::runtime_error(
-		"PML active_axes entry must be \"X\", \"Y\", \"Z\", or \"R\". Got: " + token);
+		"PML active_axes entry must be \"X\", \"Y\", or \"Z\". Got: " + token);
 }
 
 PMLStretchMode parseStretchMode(const nlohmann::json& mat_json)
@@ -95,31 +89,13 @@ std::set<Direction> parseActiveAxes(const nlohmann::json& mat_json, int mesh_dim
 	if (!mat_json.contains("active_axes")) {
 		throw std::runtime_error("PML material block requires 'active_axes'.");
 	}
-	bool saw_r = false;
-	bool saw_cart = false;
 	for (const auto& entry : mat_json["active_axes"]) {
-		const ParsedAxisToken tok = parseAxisToken(entry.get<std::string>());
-		if (tok.kind == AxisTokenKind::Radial) {
-			saw_r = true;
-			continue;
-		}
-		saw_cart = true;
-		if (tok.cart >= mesh_dim) {
+		const Direction d = parseAxisToken(entry.get<std::string>());
+		if (d >= mesh_dim) {
 			throw std::runtime_error(
 				"PML active_axes direction exceeds mesh dimension.");
 		}
-		axes.insert(tok.cart);
-	}
-	if (saw_r && saw_cart) {
-		throw std::runtime_error(
-			"PML active_axes cannot mix \"R\" with \"X\"/\"Y\"/\"Z\".");
-	}
-	if (saw_r) {
-		if (mat_json["active_axes"].size() != 1) {
-			throw std::runtime_error(
-				"PML active_axes \"R\" must appear alone (use [\"R\"] only).");
-		}
-		return {}; // caller sets uniaxial_radial
+		axes.insert(d);
 	}
 	if (axes.empty()) {
 		throw std::runtime_error("PML active_axes must contain at least one direction.");
@@ -142,11 +118,6 @@ void validatePMLMaterialBlock(const nlohmann::json& mat_json)
 	if (mat_json.contains("matches_vacuum") && !mat_json["matches_vacuum"].get<bool>()) {
 		throw std::runtime_error("Only matches_vacuum: true is supported for volumetric PML.");
 	}
-	if (mat_json.contains("alpha_max") && mat_json["alpha_max"].get<double>() != 0.0) {
-		throw std::runtime_error(
-			"PML alpha_max > 0 is not supported yet (CFS pole deferred). Use alpha_max: 0 "
-			"or omit the field.");
-	}
 }
 
 PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim)
@@ -161,53 +132,30 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	props.radial_center = parseRadialCenter(mat_json, mesh_dim);
 	props.kappa_max = mat_json.value("kappa_max", 1.0);
 	props.alpha_max = mat_json.value("alpha_max", 0.0);
-
-	bool want_r = false;
-	if (mat_json.contains("active_axes")) {
-		for (const auto& entry : mat_json["active_axes"]) {
-			const ParsedAxisToken tok = parseAxisToken(entry.get<std::string>());
-			if (tok.kind == AxisTokenKind::Radial) {
-				want_r = true;
-				break;
-			}
-		}
-	}
 	props.active_axes = parseActiveAxes(mat_json, mesh_dim);
-	props.uniaxial_radial = want_r;
 
-	if (props.uniaxial_radial) {
-		if (mesh_dim < 2) {
-			throw std::runtime_error(
-				"PML active_axes \"R\" requires mesh dimension >= 2.");
-		}
-		if (props.kappa_max > 1.0 + 1e-12) {
-			throw std::runtime_error(
-				"PML active_axes \"R\" currently requires kappa_max == 1 "
-				"(anisotropic a-rescale deferred).");
-		}
-		if (props.stretch_mode == PMLStretchMode::Box) {
-			// Depth must be radial for true R stretch.
-			props.stretch_mode = PMLStretchMode::Radial;
-		}
+	if (mat_json.contains("sigma_max")) {
+		throw std::runtime_error(
+			"PML sigma_max is not valid. Cartesian SC-PML uses target_reflection.");
+	}
+	if (props.alpha_max != 0.0) {
+		throw std::runtime_error(
+			"PML alpha_max > 0 is not supported for Cartesian SC-PML "
+			"(CFS deferred). Use alpha_max: 0 or omit.");
+	}
+	if (props.target_reflection <= 0.0 || props.target_reflection >= 1.0) {
+		throw std::runtime_error("PML target_reflection must be in (0, 1).");
 	}
 
 	if (props.kappa_max < 1.0) {
 		throw std::runtime_error("PML kappa_max must be >= 1.");
 	}
-	if (props.alpha_max < 0.0) {
-		throw std::runtime_error("PML alpha_max must be >= 0.");
-	}
-
 	if (props.grading_order < 0) {
 		throw std::runtime_error("PML grading_order must be >= 0 (0 = constant conductivity).");
 	}
-	if (props.target_reflection <= 0.0 || props.target_reflection >= 1.0) {
-		throw std::runtime_error("PML target_reflection must be in (0, 1).");
-	}
 	if (props.stretch_mode == PMLStretchMode::Box && props.radial_center.has_value()) {
 		throw std::runtime_error(
-			"PML radial_center is only valid when stretch_mode is \"radial\" "
-			"or active_axes is [\"R\"].");
+			"PML radial_center is only valid when stretch_mode is \"radial\".");
 	}
 
 	return props;

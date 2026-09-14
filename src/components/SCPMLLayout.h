@@ -10,8 +10,7 @@ namespace maxwell {
 
 /// Layout of Bagci/Chen SC-PML auxiliaries in the extended ODE state:
 ///   [Ex Ey Ez Hx Hy Hz | PEx PEy PEz | PHx PHy PHz]
-/// n_aux = 6 * ndofs when any PML region exists; else 0.
-/// Field-driven ADE (no stretch-derivative ψ); see docs/pml/30-sc-pml-ade.md.
+/// n_aux = 6 * ndofs when any Cartesian PML region exists; else 0.
 class SCPMLLayout {
 public:
 	SCPMLLayout() = default;
@@ -22,7 +21,6 @@ public:
 	int nAux() const { return n_aux_; }
 	bool active() const { return n_aux_ > 0; }
 
-	/// Absolute offsets into the extended state (length 6*ndofs + n_aux).
 	int pEOffset(Direction comp) const;
 	int pHOffset(Direction comp) const;
 

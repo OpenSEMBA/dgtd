@@ -2,7 +2,6 @@
 
 #include "ProblemDescription.h"
 #include "SCPMLLayout.h"
-
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 
@@ -429,7 +428,7 @@ namespace maxwell
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(BdrCond filter);
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(mfem::Array<int>& marker);
 		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
-		/// Bagci/Chen SC-PML ADE + optional curl a-rescale (κ>1).
+		/// Bagci/Chen SC-PML ADE + optional curl a-rescale (κ>1). Cartesian axes only.
 		/// curl_delta[u] is ndofs×ndofs: out_Fu += Delta_u * out_Fu for F in {E,H}.
 		/// Entries are null when all regions have kappa_max == 1.
 		void buildSCPMLOperators(
@@ -1900,33 +1899,6 @@ namespace maxwell
 		SCPMLTensorKind kind_;
 	};
 
-	/// Scalar entry T_ij of uniaxial-radial SC-PML tensor rotated to Cartesian.
-	class SCPMLRotatedTensorCoefficient : public mfem::Coefficient {
-	public:
-		SCPMLRotatedTensorCoefficient(const PMLProfileData& profiles, int row,
-		                              int col, SCPMLTensorKind kind)
-			: profiles_(profiles), row_(row), col_(col), kind_(kind)
-		{
-		}
-
-		double Eval(mfem::ElementTransformation& T,
-		            const mfem::IntegrationPoint& ip) override
-		{
-			double mat[3][3];
-			if (!profiles_.evaluateRotatedTensorAtTransform(
-					T, ip, static_cast<int>(kind_), mat)) {
-				return 0.0;
-			}
-			return mat[row_][col_];
-		}
-
-	private:
-		const PMLProfileData& profiles_;
-		int row_;
-		int col_;
-		SCPMLTensorKind kind_;
-	};
-
 	} // namespace
 
 	template <typename FES>
@@ -1975,12 +1947,7 @@ namespace maxwell
 
 		bool needs_a = false;
 		bool has_cartesian = false;
-		bool has_radial_r = false;
 		for (const auto& props : pd_.model.getPMLProperties()) {
-			if (props.uniaxial_radial) {
-				has_radial_r = true;
-				continue;
-			}
 			if (!props.active_axes.empty()) {
 				has_cartesian = true;
 			}
@@ -1989,11 +1956,14 @@ namespace maxwell
 			}
 		}
 
+		if (!has_cartesian) {
+			return;
+		}
+
 		const int ndofs = fes_.GetNDofs();
 		const int n_aux = layout.nAux();
 		const int globalRows = 6 * ndofs + n_aux;
 		const int globalCols = globalRows;
-		const int mesh_dim = fes_.GetMesh()->Dimension();
 
 		mfem::Array<int> pml_marker = pd_.model.buildPMLVolumeMarker();
 		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
@@ -2007,8 +1977,8 @@ namespace maxwell
 
 		std::vector<CSRBlockPlacement> blocks;
 
-		// --- Cartesian diagonal SC-PML (existing path) ---
-		if (has_cartesian) {
+		// --- Cartesian diagonal SC-PML ---
+		{
 			for (Direction u = X; u <= Z; ++u) {
 				SCPMLTensorCoefficient c_a(*profiles, u, SCPMLTensorKind::A);
 				SCPMLTensorCoefficient c_b(*profiles, u, SCPMLTensorKind::B);
@@ -2082,70 +2052,6 @@ namespace maxwell
 			}
 		}
 
-		// --- Uniaxial radial: rotated T_ij Mass blocks (κ≡1 MVP) ---
-		if (has_radial_r) {
-			const int ncomp = 3; // full EH layout always has 3 Cartesian comps
-			for (int i = 0; i < ncomp; ++i) {
-				for (int j = 0; j < ncomp; ++j) {
-					// In 2D, skip purely out-of-plane–out-of-plane pairs that
-					// never see radial stretch in-plane? Keep all 3×3: Ez uses
-					// prin_z and ê_z so T_zz = b_z etc. is correct.
-					(void)mesh_dim;
-
-					SCPMLRotatedTensorCoefficient c_b(
-						*profiles, i, j, SCPMLTensorKind::B);
-					SCPMLRotatedTensorCoefficient c_c(
-						*profiles, i, j, SCPMLTensorKind::C);
-					SCPMLRotatedTensorCoefficient c_d(
-						*profiles, i, j, SCPMLTensorKind::D);
-					SCPMLRotatedTensorCoefficient c_invk(
-						*profiles, i, j, SCPMLTensorKind::InvKappa);
-
-					auto Mb = buildMarkedMassOperator<ParBilinearForm>(c_b, pml_marker);
-					auto Mc = buildMarkedMassOperator<ParBilinearForm>(c_c, pml_marker);
-					auto Md = buildMarkedMassOperator<ParBilinearForm>(c_d, pml_marker);
-					auto Minvk =
-						buildMarkedMassOperator<ParBilinearForm>(c_invk, pml_marker);
-
-					auto A_b_E = buildByMult<FES, ParBilinearForm>(
-						MInv[E]->SpMat(), Mb->SpMat(), fes_);
-					auto A_b_H = buildByMult<FES, ParBilinearForm>(
-						MInv[H]->SpMat(), Mb->SpMat(), fes_);
-					auto A_c_E = buildByMult<FES, ParBilinearForm>(
-						MInv[E]->SpMat(), Mc->SpMat(), fes_);
-					auto A_c_H = buildByMult<FES, ParBilinearForm>(
-						MInv[H]->SpMat(), Mc->SpMat(), fes_);
-					auto A_d_E = buildByMult<FES, ParBilinearForm>(
-						MInv[E]->SpMat(), Md->SpMat(), fes_);
-					auto A_d_H = buildByMult<FES, ParBilinearForm>(
-						MInv[H]->SpMat(), Md->SpMat(), fes_);
-					auto A_invk_E = buildByMult<FES, ParBilinearForm>(
-						MInv[E]->SpMat(), Minvk->SpMat(), fes_);
-					auto A_invk_H = buildByMult<FES, ParBilinearForm>(
-						MInv[H]->SpMat(), Minvk->SpMat(), fes_);
-
-					const int pe_i = layout.pEOffset(static_cast<Direction>(i));
-					const int ph_i = layout.pHOffset(static_cast<Direction>(i));
-					const int pe_j = layout.pEOffset(static_cast<Direction>(j));
-					const int ph_j = layout.pHOffset(static_cast<Direction>(j));
-					const int e_i = i * ndofs;
-					const int e_j = j * ndofs;
-					const int h_i = (3 + i) * ndofs;
-					const int h_j = (3 + j) * ndofs;
-
-					collectBlockPlacement(A_b_E->SpMat(), blocks, e_i, e_j, -1.0);
-					collectBlockPlacement(A_c_E->SpMat(), blocks, e_i, pe_j, -1.0);
-					collectBlockPlacement(A_b_H->SpMat(), blocks, h_i, h_j, -1.0);
-					collectBlockPlacement(A_c_H->SpMat(), blocks, h_i, ph_j, -1.0);
-
-					collectBlockPlacement(A_invk_E->SpMat(), blocks, pe_i, e_j, 1.0);
-					collectBlockPlacement(A_d_E->SpMat(), blocks, pe_i, pe_j, -1.0);
-					collectBlockPlacement(A_invk_H->SpMat(), blocks, ph_i, h_j, 1.0);
-					collectBlockPlacement(A_d_H->SpMat(), blocks, ph_i, ph_j, -1.0);
-				}
-			}
-		}
-
 		(void)S_unit_H;
 
 		int sum_nnz = 0;
@@ -2174,8 +2080,8 @@ namespace maxwell
 		          << ", nnz=" << ade_operator->NumNonZeroElems()
 		          << (needs_a ? " (MaInv damping + curl a-rescale)"
 		                      : " (κ≡1 unit MInv)")
-		          << (has_radial_r ? " [includes cylindrical radial R]" : "")
 		          << std::endl;
 	}
+
 
 } // namespace maxwell

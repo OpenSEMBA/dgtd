@@ -31,8 +31,8 @@ Default JSON: `"evolution_operator": "global"` (or omit).
 ### GlobalEvolution operator split
 
 1. **`globalOperator_`** — curl, DG fluxes, bulk conductivity (`DGOperatorFactory::buildGlobalOperator`).
-2. **`Mult()` add-ons** — SGBC sub-solve + flux, SC-PML ADE (`scpmlOperator_`), TFSF source.
-3. **State vector** — `[Ex, Ey, Ez, Hx, Hy, Hz]` per DOF (`6 × ndofs`); with PML, plus $J$/$M$ auxiliaries (`ClassicalPMLLayout`).
+2. **`Mult()` add-ons** — SGBC sub-solve + flux; Cartesian SC-PML ADE (`scpmlCurlDelta_` then `scpmlOperator_`); TFSF source.
+3. **State vector** — `[Ex, Ey, Ez, Hx, Hy, Hz]` per DOF (`6 × ndofs`); with Cartesian PML, plus Bagci $P$ auxiliaries (`SCPMLLayout`, $n_{\mathrm{aux}}=6N$).
 
 ### Units
 
@@ -53,16 +53,11 @@ Always loop `X, Y, Z` and skip `d >= mesh.Dimension()`. Do not add 1D-only solve
 | **MFEM/DGTD coding standards** | [.cursor/rules/02-mfem-dgtd-standards.mdc](./.cursor/rules/02-mfem-dgtd-standards.mdc) |
 | **C++ guidance** | [.cursor/rules/03-cpp-expert-guidance.mdc](./.cursor/rules/03-cpp-expert-guidance.mdc) |
 
-## Active work: volumetric SC-PML ADE (Bagci/Chen)
+## Active work: volumetric PML (Cartesian SC-PML)
 
-Live wiring (equations ↔ code): [`docs/pml/30-sc-pml-ade.md`](./docs/pml/30-sc-pml-ade.md). Status report: [`docs/pml/31-sc-pml-status.md`](./docs/pml/31-sc-pml-status.md). Approaches survey: [`docs/pml/29-dgtd-pml-approaches.md`](./docs/pml/29-dgtd-pml-approaches.md). Gedney CFS archive: [`docs/pml/27-gedney-cfs-paused.md`](./docs/pml/27-gedney-cfs-paused.md).
-
-Summary:
-
-- **Formulation:** field-driven $P_E/P_H$ + volume tensors $a,b,c,d(\sigma,\kappa)$ (CuDG3D $J/M$ is the $\kappa\equiv 1$ limit).
-- **Keep:** Gmsh/JSON region tags, `active_axes`, `stretch_mode` (`box`/`radial`), σ/κ grading.
-- **Integration:** `GlobalEvolution` only; RK4 via `Mult()` after `globalOperator_`.
-- Do **not** reintroduce Gedney $\psi\sim D(F)$ or hybrid-corr ADE SBP.
+- **Cartesian** `X`/`Y`/`Z`: Bagci/Chen SC-PML — [`docs/pml/30-sc-pml-ade.md`](./docs/pml/30-sc-pml-ade.md). JSON `"R"` is rejected at parse.
+- Archived radial notes: [`33`](./docs/pml/33-radial-sc-pml-ade.md), [`32`](./docs/pml/32-radial-dgtd-literature.md). Survey / status: [`29`](./docs/pml/29-dgtd-pml-approaches.md), [`31`](./docs/pml/31-sc-pml-status.md).
+- **Integration:** `GlobalEvolution` only. Cartesian volume ADE after `globalOperator_`. Do **not** reintroduce Gedney $\psi\sim D(F)$, Bagci+$R$ rotation, or the deleted CylUPML path.
 
 ## Conventions for agents
 
@@ -88,8 +83,17 @@ Binary typically: `build/gnu-release-mpi/bin/opensemba_dgtd` (confirm in your pr
 
 Cursor loads:
 
-- **Always-applied:** `.cursor/rules/01-core-behavior.mdc`
-- **Glob-triggered:** `02-mfem-dgtd-standards.mdc`, `03-cpp-expert-guidance.mdc` on `src/**`, `test/**`
-- **This file:** `AGENTS.md` — read when onboarding to the repo or starting multi-file features
+- **Always-applied:** `.cursor/rules/01-core-behavior.mdc`, `04-never-clean-build.mdc`, `05-markdown-math-preview.mdc`, `06-frozen-contracts.mdc`
+- **Glob-triggered:** `02-mfem-dgtd-standards.mdc` and `03-cpp-expert-guidance.mdc` on `src/` and `test/` C++/CUDA; `07-deprecated-evolution.mdc` on deprecated evolution + Hesthaven tests; `08-json-tag-contract.mdc` on driver/JSON; `09-verification-policy.mdc` on `test/`
+- **Frozen contracts:** [`.cursor/contracts/frozen-contracts.md`](.cursor/contracts/frozen-contracts.md)
+- **Specialist agents:** [`.cursor/agents/`](.cursor/agents/) — Team Lead plus Formulation, FaceFlux, OperatorAssembly, Evolution, Execution, MFEM, Verification; separate PML and SGBC; scoped Configuration, TFSF/Sources, Probes/RCS/Export; literature Bookkeeper and Lore Interpreter (advisory)
+- **Commands:** `/dgtd-intake`, `/dgtd-consensus`, `/dgtd-literature`, `/dgtd-review`
+- **This file:** `AGENTS.md` — read when onboarding or starting multi-file features
+
+Do **not** migrate `.opencode` into `.cursor`. `.opencode/instructions/mfem-dgtd.md` is incomplete evidence (it mentions a nonexistent `core/schema` / `.dgtd.json`). Live JSON schema is [docs/json-input-format.md](docs/json-input-format.md).
 
 There is no separate Cursor equivalent to `CLAUDE.md` beyond rules + `AGENTS.md`; keep `AGENTS.md` updated when architecture or doc locations change.
+
+### Multi-agent protocol (short)
+
+Classify blast radius (LOCAL / PAIR / SPATIAL-TRIAD / FULL). Assign the minimum specialists. No majority vote on signs, flux, layout, or device residency. No coupled numerical implementation without frozen-contract confirmation **and explicit user approval**. After implementation, Verification plus owning specialists review. A paper does not override repository evidence, tests, MFEM, or a user decision. Do not extend `MaxwellEvolution` or `HesthavenEvolution` (`HesthavenEvolution` is a read-only operator oracle).

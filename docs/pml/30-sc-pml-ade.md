@@ -179,81 +179,24 @@ For each direction $u\in\{X,Y,Z\}$:
 - Damping uses $M_a^{-1}M(b)$, $M_a^{-1}M(c)$ instead of $M^{-1}M(\cdot)$.
 - After $A_{\mathrm{EH}}$ Mult, each field component slice is corrected by
   $\Delta_u = M_a^{-1}M - M^{-1}M$ on PML DOFs so the curl piece matches LHS $a_{uu}$.
-- Radial `"R"` MVP forbids $\kappa_{\max}>1$.
 
 ---
 
-## 4. Radial / cylindrical path (`active_axes: ["R"]`)
+## 4. Radial / cylindrical path (`active_axes: ["R"]`) — removed
 
-### 4.1 Principal stretch (geometry)
+Cylindrical `"R"` (Teixeira metrics + rotated Bagci, and later Lu/Cai grafts) is **removed**. JSON `["R"]`/`["r"]` throws at parse. Archive: [`33-radial-sc-pml-ade.md`](./33-radial-sc-pml-ade.md).
 
-Onion / annular PML. At each quadrature point with radius $r$ from `radial_center`:
-
-$$
-\begin{aligned}
-\rho &= \max(0,\, r - r_{\mathrm{inner}}), \\
-\sigma_r &= \sigma_{\max}\,(\rho/L)^{m}, \\
-\Sigma &= \int_{r_{\mathrm{inner}}}^{r}\sigma_r\,dr', \\
-\sigma_\theta &= \Sigma/r, \\
-\sigma_z &= 0, \\
-\kappa &\equiv 1.
-\end{aligned}
-$$
-
-Code: `evaluateStretchProfiles`, `cylindricalSigmaTheta` in
-[`src/components/PMLProfiles.cpp`](../../src/components/PMLProfiles.cpp).
-Bagci numbers $(a,b,c,d)$ are computed in the **principal** frame $(\hat r,\hat\theta,\hat z)$ with $\sigma=(\sigma_r,\sigma_\theta,0)$.
-
-### 4.2 Rotation into Cartesian (one similarity)
-
-Fields and $P$ are stored in **$xyz$**. Orthonormal frame matrix $R$ has columns $(\hat r,\hat\theta,\hat z)$. For any principal diagonal tensor $T'=\mathrm{diag}(T_r,T_\theta,T_z)$,
-
-**(5)**
-
-$$
-T_{xyz} = R\, T'\, R^{\mathsf{T}},
-\qquad
-(T_{xyz})_{ij} = \sum_{k\in\{r,\theta,z\}} R_{ik}\, T'_k\, R_{jk}.
-$$
-
-Implemented in `PMLProfileData::evaluateRotatedTensorAtTransform` (same file).  
-`SCPMLRotatedTensorCoefficient(i,j,kind)` returns entry $(T_{xyz})_{ij}$ for kind $\in\{B,C,D,\kappa^{-1}\}$.
-
-Assembly then loops **all** Cartesian pairs $(i,j)\in\{0,1,2\}^2$ and places
-
-$$
-\dot E_i \mathrel{+}= -\bigl(M^{-1}M(B_{ij})\bigr) E_j
-                 -\bigl(M^{-1}M(C_{ij})\bigr)(P_E)_j,
-$$
-
-$$
-\dot{(P_E)}_i \mathrel{+}= +\bigl(M^{-1}M((R\kappa^{-1}R^{\mathsf{T}})_{ij})\bigr) E_j
-                      -\bigl(M^{-1}M(D_{ij})\bigr)(P_E)_j,
-$$
-
-i.e. the **same** continuous structure as (1) with matrix-valued $B,C,D$ instead of diagonal $b_{uu}$. Curl/flux stay vacuum Cartesian ($A_{\mathrm{EH}}$ unchanged).
-
-**There is no second rotation of DOFs.** Rotating both the tensors and the stored fields would double-count. Stretch axes follow **geometry** $(\hat r,\hat\theta)$, not the local wavevector $\hat k$.
-
-### 4.3 Intuition after rotation
-
-At a point on $+\hat y$ ($\hat r=\hat y$): principal “normal” ADE sits on $E_y$; tangential damping sits on $E_x$ (and $E_z$).  
-At a diagonal, $E_r=E\cdot\hat r$ mixes $E_x$ and $E_y$ — late remanents that are mostly $E_r$ therefore show up as **Ey lobes at N/S** and **Ex lobes on diagonals** in ParaView.
-
-### 4.4 Continuous caveat (2D)
-
-For $\kappa=1$, curl-free DC modes satisfy $b\sigma_u+c=\sigma_v\sigma_w$. With $\sigma_z=0$, both $E_r$ and $E_\theta$ still have a **DC null space** even when $\sigma_\theta=\Sigma/r\neq 0$. Propagating waves are absorbed; shell remanents polarized like $E_r$ can persist. CFS $\alpha$ is the usual literature fix — **not** implemented here yet.
+Optional `stretch_mode: "radial"` still means **radial depth grading** for Cartesian `X`/`Y`/`Z` ADE stacks only (isotropic $\rho$; not $\sigma_\theta=\Sigma/r$).
 
 ---
 
 ## 5. End-to-end map (checklist)
-
 | Step | Math | Code |
 |------|------|------|
 | Parse PML JSON | regions, axes, grading | `parsePMLMaterialBlock` — [`PMLProperties.cpp`](../../src/components/PMLProperties.cpp) |
 | $\sigma,\kappa$ at QPs | depth $\rho$, power law | `PMLProfileData` — [`PMLProfiles.cpp`](../../src/components/PMLProfiles.cpp) |
 | Layout $P_E,P_H$ | $n_{\mathrm{aux}}=6N$ | `SCPMLLayout` |
-| Build $A_{\mathrm{PML}}$ | (4)–(5), CSR merge | `buildSCPMLOperators` |
+| Build $A_{\mathrm{PML}}$ | (4), CSR merge | `buildSCPMLOperators` |
 | Build $A_{\mathrm{EH}}$ | DG Maxwell | `buildGlobalOperator` (unchanged by PML) |
 | RHS | (3) | `GlobalEvolution::Mult` |
 | Time integrate | RK4 on $\mathbf{v}$ | `odeSolver_->Step` |
@@ -266,12 +209,12 @@ No `pml_formulation` switch. On `"type": "PML"`:
 
 | Field | Default | Notes |
 |-------|---------|-------|
-| `kappa_max` | `1` | ≥1; curl $a$-rescale for Cartesian only; **must be 1** with `"R"` |
+| `kappa_max` | `1` | ≥1; curl $a$-rescale for Cartesian |
 | `alpha_max` | `0` | Must stay 0 (CFS deferred; parser rejects `>0`) |
-| `active_axes` | required | `"X"`/`"Y"`/`"Z"` **or** `["R"]` alone (2D cylindrical) |
-| `grading_order`, `target_reflection`, `stretch_mode`, `radial_center` | as before | `"R"` forces radial depth |
+| `active_axes` | required | `"X"`/`"Y"`/`"Z"` only (`["R"]` throws at parse — archive [`33`](./33-radial-sc-pml-ade.md)) |
+| `grading_order`, `target_reflection`, `stretch_mode`, `radial_center` | as before | `stretch_mode: "radial"` = radial depth for Cartesian axes |
 
-Do **not** mix `"R"` with Cartesian axes. Onion / annular mesh required for `"R"` (e.g. `2D_RCS_Circle_1m_G2_PML_R`). 3D spherical $(s_\theta,s_\phi)$ deferred.
+Cartesian only. Onion `"R"` cases on disk do not run.
 
 ---
 
@@ -281,8 +224,7 @@ Do **not** mix `"R"` with Cartesian axes. Onion / annular mesh required for `"R"
 |------|------|
 | `1D_PML` | DFT ≤ −40 dB ($\kappa=1$) |
 | `2D_PML_X_slab` | Late-stable |
-| Dipole radial thicker vs SMA twin | Vacuum DFT bounce ≪ SMA (typical tens of dB) |
-| RCS onion vs SMA twin | Vacuum late $\|E\|$ / spectral bounce improved; shell $E_r$ remanents may remain (§4.4) |
+| Dipole Cartesian PML vs SMA | Vacuum bounce ≪ SMA |
 
 ---
 

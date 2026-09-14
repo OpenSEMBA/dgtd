@@ -57,7 +57,7 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `tags` | int[] | — | Mesh attribute IDs sharing these properties. |
-| `type` | string | (legacy) | `"vacuum"` or `"PML"` (see [pml/30-sc-pml-ade.md](./pml/30-sc-pml-ade.md)). Optional: `active_axes` (`X`/`Y`/`Z`, or `["R"]` alone for 2D cylindrical SC-PML → Cartesian on an onion mesh), `grading_order`, `target_reflection`, `stretch_mode`, `radial_center`, `kappa_max` (≥1; must be 1 with `"R"`); `alpha_max` must be 0 until CFS is wired. |
+| `type` | string | (legacy) | `"vacuum"` or `"PML"`. Cartesian ADE only: `active_axes` `X`/`Y`/`Z` ([pml/30-sc-pml-ade.md](./pml/30-sc-pml-ade.md)); `grading_order`, `target_reflection`, optional `kappa_max`, `alpha_max` must be 0, optional `stretch_mode` / `radial_center`. `"R"`/`"r"` and `sigma_max` are rejected at parse. |
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |

@@ -46,15 +46,6 @@ public:
 	                         Direction stretch_dir,
 	                         PMLDirectionProfiles& out) const;
 
-	/// Uniaxial radial SC-PML: Bagci diagonal in (r,θ[,z]), rotated to xyz.
-	/// Returns false (and zeros T) outside uniaxial_radial PML or near the center.
-	/// T is row-major 3x3; only the leading mesh_dim x mesh_dim block is used in 2D.
-	bool evaluateRotatedTensorAtTransform(
-		mfem::ElementTransformation& T, const mfem::IntegrationPoint& ip,
-		int tensor_kind, double T_xyz[3][3]) const;
-
-	bool hasUniaxialRadialRegion() const;
-
 	int feOrder() const { return fe_order_; }
 
 	void printDiagnostics(int rank) const;

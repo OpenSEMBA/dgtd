@@ -15,14 +15,6 @@ SCPMLLayout::SCPMLLayout(
 
 	bool any_pml = false;
 	for (const auto& props : regions) {
-		if (props.uniaxial_radial) {
-			if (mesh_dim < 2) {
-				throw std::runtime_error(
-					"SCPMLLayout: uniaxial radial PML requires dim >= 2.");
-			}
-			any_pml = true;
-			continue;
-		}
 		for (Direction d : props.active_axes) {
 			if (d < 0 || d >= mesh_dim) {
 				throw std::runtime_error(
