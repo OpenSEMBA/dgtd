@@ -163,7 +163,15 @@ Surface E/H snapshots for offline RCS (`surface_data.bin` with geometry header +
 | `name` | Default `"RCSSurfaceProbe"` |
 | `steps` / `saves` | As above. Prefer matching temporal density across cases (e.g. with `time_step` 0.0001 use `steps: 5` to match a 0.0005 / `steps: 1` export). |
 
-Offline `opensemba_rcs` input JSON may also set `every_n_steps` (integer ≥ 1, default 1) to subsample an existing dense `surface_data.bin` **while reading** (skips payloads; does not load them into RAM).
+Offline `opensemba_rcs` input JSON may also set:
+
+| Field | Description |
+|-------|-------------|
+| `every_n_steps` | Integer ≥ 1, default 1. Subsample an existing dense `surface_data.bin` **while reading** (skips payloads; does not load them into RAM). Changes the DFT time series — not equivalent to stride 1. |
+| `max_time` | Optional. Keep only snapshots with time ≤ this value. |
+| `ram_gate` | Optional. Hard memory budget in **GiB** for choosing load-all vs streaming DFT. If omitted, the budget is ~50% of Linux `MemAvailable`. If the estimated load-all peak exceeds the budget, snapshots are streamed into the frequency accumulator (same kept samples ⇒ near-equivalent RCS). Use a small `ram_gate` to force the streaming path for debugging. |
+
+Do not confuse offline `every_n_steps` with case-JSON `probes.rcssurface.steps` (export cadence during `opensemba_dgtd`).
 
 ### mor_state
 

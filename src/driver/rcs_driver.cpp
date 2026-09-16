@@ -78,6 +78,14 @@ void runRCSPostProcessing(const std::string& rcsJsonPath)
 		}
 	}
 
+	std::optional<double> ramGateGiB;
+	if (rcsInput.contains("ram_gate") && !rcsInput["ram_gate"].is_null()) {
+		ramGateGiB = rcsInput["ram_gate"].get<double>();
+		if (!(ramGateGiB.value() > 0.0)) {
+			throw std::runtime_error("ram_gate must be > 0 (GiB)");
+		}
+	}
+
 	for (const auto& probe : caseData["probes"]["rcssurface"]) {
 		std::string probeName = probe.at("name");
 		std::string dataPath = "./Exports/" + runmode + "/" + casename
@@ -91,10 +99,15 @@ void runRCSPostProcessing(const std::string& rcsJsonPath)
 				std::cout << "  every_n_steps: " << everyNSteps
 					<< " (subsample existing surface_data.bin)\n";
 			}
+			if (ramGateGiB.has_value()) {
+				std::cout << "  ram_gate: " << ramGateGiB.value()
+					<< " GiB (hard memory budget for load-all vs stream)\n";
+			}
 		}
 
 		RCSSurfacePostProcessor pp(
-			dataPath, caseJson, frequencies, angles, maxTime, everyNSteps);
+			dataPath, caseJson, frequencies, angles, maxTime, everyNSteps,
+			ramGateGiB);
 	}
 }
 
