@@ -163,15 +163,7 @@ Surface E/H snapshots for offline RCS (`surface_data.bin` with geometry header +
 | `name` | Default `"RCSSurfaceProbe"` |
 | `steps` / `saves` | As above. Prefer matching temporal density across cases (e.g. with `time_step` 0.0001 use `steps: 5` to match a 0.0005 / `steps: 1` export). |
 
-Offline `opensemba_rcs` input JSON may also set:
-
-| Field | Description |
-|-------|-------------|
-| `every_n_steps` | Integer ≥ 1, default 1. Subsample an existing dense `surface_data.bin` **while reading** (skips payloads; does not load them into RAM). Changes the DFT time series — not equivalent to stride 1. |
-| `max_time` | Optional. Keep only snapshots with time ≤ this value. |
-| `ram_gate` | Optional. Hard memory budget in **GiB** for choosing load-all vs streaming DFT. If omitted, the budget is ~50% of Linux `MemAvailable`. If the estimated load-all peak exceeds the budget, snapshots are streamed into the frequency accumulator (same kept samples ⇒ near-equivalent RCS). Use a small `ram_gate` to force the streaming path for debugging. |
-
-Do not confuse offline `every_n_steps` with case-JSON `probes.rcssurface.steps` (export cadence during `opensemba_dgtd`).
+Offline frequency/angle sweeps use a **separate** JSON for `opensemba_rcs` — see [Offline RCS JSON](#offline-rcs-json-opensemba_rcs). Do not confuse offline `every_n_steps` with case-JSON `probes.rcssurface.steps` (export cadence during `opensemba_dgtd`).
 
 ### mor_state
 
@@ -229,3 +221,87 @@ Array. At least one source; all entries superimpose.
 | `magnitude.amplitude_peak` | Desired max equatorial \|E\| (\|E_θ\|) at `peak_radius` (default `1.0`). The analytic formula is scaled so that peak equals this value. |
 | `magnitude.peak_radius` | Radius used to define `amplitude_peak` (default: min radius on the dipole TFSF tags if available, else `1.0`). |
 | `magnitude.mean` | Optional center along dipole axis |
+
+---
+
+## Offline RCS JSON (`opensemba_rcs`)
+
+Separate input file for the offline RCS / far-field post-processor (`opensemba_rcs`). It does **not** replace the Maxwell case JSON; it points at an existing export and at `testData/maxwellInputs/<casename>/<casename>.json`.
+
+**Prerequisites**
+
+1. Case JSON includes `probes.rcssurface` (see [rcssurface](#rcssurface)).
+2. `opensemba_dgtd` has been run so that  
+   `Exports/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`  
+   (and `mesh`) exist.
+3. Launch from the repository root (paths are relative: `./Exports/...`, `./testData/maxwellInputs/...`).
+
+**Process**
+
+1. Resolve `casename` → case JSON; collect each `rcssurface` probe `name`.
+2. For each probe, read `Exports/<runmode>/<casename>/RCSSurface/<name>/`.
+3. Estimate load-all peak RAM vs budget (`ram_gate` or ~50% of Linux `MemAvailable`).
+4. If the dump fits: load all kept snapshots and DFT. If not: stream snapshots into the frequency-domain accumulator (same kept samples ⇒ near-equivalent RCS).
+5. NTFF / RCS over the requested frequency and angle grids; write `farfield/` and `rcs/` under the probe directory.
+
+Example inputs: [testData/rcsInputs/](../testData/rcsInputs/).
+
+```sh
+mpiexec -n 1 ./build/gnu-release-mpi/bin/opensemba_rcs \
+  -i testData/rcsInputs/3D_Nasa_Almond_G2_25cm_5GHz.rcs.json
+```
+
+### Top-level fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `runmode` | string | yes | — | Export path segment under `Exports/` (must match how the simulation was launched, e.g. `cuda-1`, `single-core`, `mpi-8`). |
+| `casename` | string | yes | — | Case folder / JSON base name under `testData/maxwellInputs/`. |
+| `frequencies` | object | yes | — | Frequency linspace in **Hz** (see below). |
+| `angles` | object | yes | — | Spherical angle grids in **radians** (see below). |
+| `max_time` | double | no | (none) | Keep only snapshots with simulation time ≤ this value. |
+| `every_n_steps` | integer | no | `1` | Keep snapshot index `i` if `i % every_n_steps == 0` while reading. Skipped payloads are not loaded. **Not** equivalent to the full time series (Nyquist / spectrum change). Must be ≥ 1. |
+| `ram_gate` | double | no | (none) | Hard memory budget in **GiB**. If omitted, budget ≈ 50% of `MemAvailable`. If estimated load-all peak exceeds the budget, use streaming DFT. Use a small value to force streaming for debugging (e.g. `0.05`). Must be `> 0` when set. |
+
+### frequencies
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `start` | double | First frequency (Hz). |
+| `end` | double | Last frequency (Hz). |
+| `steps` | integer | Number of samples (`linspace`; `1` ⇒ only `start`). |
+
+### angles
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `theta` | object | `{ start, end, steps }` in radians. |
+| `phi` | object | `{ start, end, steps }` in radians. |
+
+Each of `theta` / `phi` uses the same linspace convention as `frequencies`. The post-processor evaluates the Cartesian product of all θ and φ samples.
+
+### Minimal example
+
+```json
+{
+  "runmode": "cuda-1",
+  "casename": "3D_Nasa_Almond_G2_25cm_5GHz",
+  "ram_gate": 100,
+  "frequencies": { "start": 1e9, "end": 5e9, "steps": 3 },
+  "angles": {
+    "theta": { "start": 1.570796326794896, "end": 1.570796326794896, "steps": 1 },
+    "phi": { "start": 0.0, "end": 6.28318530718, "steps": 361 }
+  }
+}
+```
+
+### Outputs
+
+Under `Exports/<runmode>/<casename>/RCSSurface/<probe_name>/`:
+
+| Path | Contents |
+|------|----------|
+| `farfield/farfieldData_Th_*_Phi_*_dgtd.dat` | Far-field radiation potential vs frequency |
+| `rcs/rcsData_Th_*_Phi_*_dgtd.dat` | RCS vs frequency |
+
+One file pair per requested angle.

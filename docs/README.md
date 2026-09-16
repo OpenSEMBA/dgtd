@@ -2,7 +2,7 @@
 
 | Document | Description |
 |----------|-------------|
-| [json-input-format.md](./json-input-format.md) | Full JSON case file reference |
+| [json-input-format.md](./json-input-format.md) | Full JSON reference: Maxwell case files and offline `opensemba_rcs` inputs |
 | [mor2paraview.md](./mor2paraview.md) | MOR state → ParaView replay tool |
 | [pml/README.md](./pml/README.md) | Volumetric CFS-CPML design and implementation plan |
 

@@ -11,6 +11,7 @@ Maxwell curl-equation solver using discontinuous Galerkin methods (OpenSEMBA / U
 | `src/` | Driver, evolution operators, DG components, MFEM extensions |
 | `external/mfem-geg/` | Required MFEM fork (submodule) |
 | `testData/maxwellInputs/` | Example simulation cases (JSON + mesh per folder) |
+| `testData/rcsInputs/` | Offline `opensemba_rcs` JSON (frequency/angle sweeps) |
 | `test/` | Unit and integration tests (GoogleTest) |
 | `docs/` | Input format, tools, and feature design notes |
 | `pythonBindings/` | Optional Python bindings |
@@ -111,12 +112,40 @@ Example:
 
 Exports appear under `Exports/` by run mode and case name.
 
+## RCS post-processing (`opensemba_rcs`)
+
+Offline far-field / RCS from an existing `rcssurface` export. The Maxwell case must already have been run with a `probes.rcssurface` probe so that
+
+`Exports/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`
+
+exists. The post-processor also reads the case JSON at `testData/maxwellInputs/<casename>/<casename>.json` (plane-wave data and probe names).
+
+RCS input files live under `testData/rcsInputs/` (often `*.rcs.json`). Full parameter reference: **[docs/json-input-format.md](docs/json-input-format.md#offline-rcs-json-opensemba_rcs)**.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `runmode` | yes | Export folder segment (e.g. `cuda-1`, `single-core`, `mpi-8`) |
+| `casename` | yes | Must match `testData/maxwellInputs/<casename>/` and the export tree |
+| `frequencies` | yes | `{ start, end, steps }` in Hz (`steps` = linspace count) |
+| `angles` | yes | `theta` / `phi` each `{ start, end, steps }` in radians |
+| `max_time` | no | Keep snapshots with time ≤ this value |
+| `every_n_steps` | no | Subsample while reading (default `1`; not equivalent to full history) |
+| `ram_gate` | no | Hard RAM budget in **GiB**; omit → ~50% of `MemAvailable`. Over budget → streaming DFT |
+
+Example:
+```sh
+mpiexec -n 1 ./build/gnu-release-mpi/bin/opensemba_rcs \
+  -i testData/rcsInputs/3D_Nasa_Almond_G2_25cm_5GHz.rcs.json
+```
+
+Results are written under the same probe directory as `farfield/` and `rcs/`.
+
 ## Further documentation
 
 | Topic | Link |
 |-------|------|
 | All docs | [docs/README.md](docs/README.md) |
-| JSON input | [docs/json-input-format.md](docs/json-input-format.md) |
+| JSON input (solver + offline RCS) | [docs/json-input-format.md](docs/json-input-format.md) |
 | MOR → ParaView | [docs/mor2paraview.md](docs/mor2paraview.md) |
 | Volumetric PML design | [docs/pml/README.md](docs/pml/README.md) |
 | AI / agent context | [AGENTS.md](AGENTS.md) |
