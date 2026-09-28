@@ -32,7 +32,7 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     spaceDim_ = mesh->SpaceDimension();
     numDofs_ = surfaceFields_->get(E, X).Size();
 
-    std::string base = "Exports/" + getRunModeTag() + "/" + caseName + "/RCSSurface/" + probe.name;
+    std::string base = getSimulationCaseExportPath(caseName) + "/RCSSurface/" + probe.name;
     std::filesystem::create_directories(base);
     outputPath_ = base + "/rank" + std::to_string(Mpi::WorldRank());
     std::filesystem::create_directories(outputPath_);

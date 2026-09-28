@@ -113,11 +113,11 @@ Replay after a run. Point probes append, so remove the case export directory bef
 ```sh
 python3 scripts/dipole_pml_grading_dft.py \
   --ref-delay 3 \
-  Exports/mpi-4/2D_Dipole \
-  Exports/mpi-4/2D_Dipole_PML_GO0 \
-  Exports/mpi-4/2D_Dipole_PML_GO1 \
-  Exports/mpi-4/2D_Dipole_PML_GO2 \
-  Exports/mpi-4/2D_Dipole_PML_GO3
+  exports/SimulationData/mpi-4/2D_Dipole \
+  exports/SimulationData/mpi-4/2D_Dipole_PML_GO0 \
+  exports/SimulationData/mpi-4/2D_Dipole_PML_GO1 \
+  exports/SimulationData/mpi-4/2D_Dipole_PML_GO2 \
+  exports/SimulationData/mpi-4/2D_Dipole_PML_GO3
 ```
 
 A new box is the same kind of comparison: an all-vacuum SMA twin of that outer boundary, probes in the vacuum, and this DFT. Quote $R_{\mathrm{dB}}$ next to the table. Matching $-80\,\mathrm{dB}$ is what this mesh and this grading achieved, not a guarantee for a thicker layer, a coarser mesh, or a 3D box.

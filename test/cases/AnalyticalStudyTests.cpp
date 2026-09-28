@@ -16,7 +16,7 @@ static void runBatchSweep(const std::string& case_prefix,
                           int p_min,
                           int p_max,
                           const std::string& description,
-                          const std::string& base_export_path = "./Exports/single-core/")
+                          const std::string& base_export_path = "./exports/SimulationData/single-core/")
 {
 
     int processed = 0;
@@ -69,7 +69,7 @@ static void runBesselJ6Family(const std::string& suffix, const std::string& desc
         prefix << "2D_BesselJ6_G" << g;
         std::stringstream batch_desc;
         batch_desc << description << " G" << g;
-        runBatchSweep(prefix.str(), suffix, 1, 6, batch_desc.str(), "./Exports/single-core/");
+        runBatchSweep(prefix.str(), suffix, 1, 6, batch_desc.str(), "./exports/SimulationData/single-core/");
     }
 }
 

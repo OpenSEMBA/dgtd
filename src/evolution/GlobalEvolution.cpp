@@ -495,7 +495,7 @@ GlobalEvolution::GlobalEvolution(
 
         if (opts_.export_evolution_operator) {
             if (Mpi::WorldSize() == 1) {
-                std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / model_.meshName_;
+                std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / model_.meshName_;
                 if (!std::filesystem::exists(export_dir)) {
                     std::filesystem::create_directories(export_dir);
                 }
@@ -572,7 +572,7 @@ GlobalEvolution::GlobalEvolution(
                 }
                 farfield_mapping_matrix->Finalize();
 
-                std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / model_.meshName_;
+                std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / model_.meshName_;
                 if (!std::filesystem::exists(export_dir)) {
                     std::filesystem::create_directories(export_dir);
                 }

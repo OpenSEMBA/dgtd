@@ -105,7 +105,7 @@ If omitted, no probe output.
 
 ### exporter
 
-ParaView (VisIt) field export.
+ParaView (VisIt) field export under `exports/ParaView/<run-mode>/`.
 
 | Field | Description |
 |-------|-------------|
@@ -141,7 +141,7 @@ Array. Single scalar component at a point.
 
 ### farfield
 
-Near-to-far-field surface export under `Exports/<run-mode>/<case>/NearToFarFieldProbes/<name>/`.
+Near-to-far-field surface export under `exports/SimulationData/<run-mode>/<case>/NearToFarFieldProbes/<name>/`.
 
 | Field | Description |
 |-------|-------------|
@@ -167,7 +167,7 @@ Offline frequency/angle sweeps use a **separate** JSON for `opensemba_rcs` — s
 
 ### mor_state
 
-Full DG state vector snapshots compatible with exported `{name}_global.csr` for offline `y = A x`.
+Full DG state vector snapshots compatible with exported `{name}_global.csr` for offline `y = A x`. Written under `exports/SimulationData/<run-mode>/<case>/MORStateProbes/<name>/`.
 
 | Field | Description |
 |-------|-------------|
@@ -232,14 +232,14 @@ Separate input file for the offline RCS / far-field post-processor (`opensemba_r
 
 1. Case JSON includes `probes.rcssurface` (see [rcssurface](#rcssurface)).
 2. `opensemba_dgtd` has been run so that  
-   `Exports/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`  
+   `exports/SimulationData/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`  
    (and `mesh`) exist.
-3. Launch from the repository root (paths are relative: `./Exports/...`, `./testData/maxwellInputs/...`).
+3. Launch from the repository root (paths are relative: `./exports/...`, `./testData/maxwellInputs/...`).
 
 **Process**
 
 1. Resolve `casename` → case JSON; collect each `rcssurface` probe `name`.
-2. For each probe, read `Exports/<runmode>/<casename>/RCSSurface/<name>/`.
+2. For each probe, read `exports/SimulationData/<runmode>/<casename>/RCSSurface/<name>/`.
 3. Estimate load-all peak RAM vs budget (`ram_gate` or ~50% of Linux `MemAvailable`).
 4. If the dump fits: load all kept snapshots and DFT. If not: stream snapshots into the frequency-domain accumulator (same kept samples ⇒ near-equivalent RCS).
 5. NTFF / RCS over the requested frequency and angle grids; write `farfield/` and `rcs/` under the probe directory.
@@ -255,7 +255,7 @@ mpiexec -n 1 ./build/gnu-release-mpi/bin/opensemba_rcs \
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `runmode` | string | yes | — | Export path segment under `Exports/` (must match how the simulation was launched, e.g. `cuda-1`, `single-core`, `mpi-8`). |
+| `runmode` | string | yes | — | Export path segment under `exports/SimulationData/` (must match how the simulation was launched, e.g. `cuda-1`, `single-core`, `mpi-8`). |
 | `casename` | string | yes | — | Case folder / JSON base name under `testData/maxwellInputs/`. |
 | `frequencies` | object | yes | — | Frequency linspace in **Hz** (see below). |
 | `angles` | object | yes | — | Spherical angle grids in **radians** (see below). |
@@ -297,7 +297,7 @@ Each of `theta` / `phi` uses the same linspace convention as `frequencies`. The 
 
 ### Outputs
 
-Under `Exports/<runmode>/<casename>/RCSSurface/<probe_name>/`:
+Under `exports/SimulationData/<runmode>/<casename>/RCSSurface/<probe_name>/`:
 
 | Path | Contents |
 |------|----------|

@@ -9,6 +9,7 @@ build/
 # Local snapshots of expensive CUDA sm_120 build trees (see backup/)
 backup/
 out/
+exports/
 Exports/
 CollectedResults/
 resources/*.msh

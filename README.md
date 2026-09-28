@@ -108,13 +108,17 @@ Example:
 
 (Confirm binary name/path for your preset.)
 
-Exports appear under `Exports/` by run mode and case name.
+Exports appear under `exports/` by kind, then run mode and case name:
+
+- Simulation probes / stats / RCS dumps: `exports/SimulationData/<runmode>/<casename>/`
+- ParaView exporter: `exports/ParaView/<runmode>/`
+- Sparse operators: `exports/Operators/<casename>/`
 
 ## RCS post-processing (`opensemba_rcs`)
 
 Offline far-field / RCS from an existing `rcssurface` export. The Maxwell case must already have been run with a `probes.rcssurface` probe so that
 
-`Exports/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`
+`exports/SimulationData/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`
 
 exists. The post-processor also reads the case JSON at `testData/maxwellInputs/<casename>/<casename>.json` (plane-wave data and probe names).
 

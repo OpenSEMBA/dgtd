@@ -10,7 +10,7 @@ Reports 20*log10(|E_ref|/|E_inc|) at the incident spectral peak.
 
 Example:
   python3 scripts/dipole_pml_grading_dft.py \\
-    Exports/mpi-4/2D_Dipole Exports/mpi-4/2D_Dipole_PML_GO0 ...
+    exports/SimulationData/mpi-4/2D_Dipole exports/SimulationData/mpi-4/2D_Dipole_PML_GO0 ...
 """
 
 from __future__ import annotations
@@ -160,7 +160,7 @@ def analyze_export(
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("exports", nargs="+", type=Path, help="Exports/.../<case> dirs")
+    ap.add_argument("exports", nargs="+", type=Path, help="exports/SimulationData/.../<case> dirs")
     ap.add_argument("--quiet-frac", type=float, default=0.02)
     ap.add_argument("--quiet-hold", type=float, default=0.75, help="code-time")
     ap.add_argument(

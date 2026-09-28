@@ -141,7 +141,8 @@ def main() -> int:
         ("1D_PML (α=1)", base / "1D_PML", base / "1D_PML" / "pml_diag.log"),
     ]
     for title, case_dir, log in cases:
-        export_dir = case_dir / "Exports" / "single-core" / case_dir.name
+        repo = Path(__file__).resolve().parents[3]
+        export_dir = repo / "exports" / "SimulationData" / "single-core" / case_dir.name
         analyze_case(title, export_dir, log, args.cycles)
     return 0
 

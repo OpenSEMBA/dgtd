@@ -88,7 +88,7 @@ void runRCSPostProcessing(const std::string& rcsJsonPath)
 
 	for (const auto& probe : caseData["probes"]["rcssurface"]) {
 		std::string probeName = probe.at("name");
-		std::string dataPath = "./Exports/" + runmode + "/" + casename
+		std::string dataPath = "./exports/SimulationData/" + runmode + "/" + casename
 			+ "/RCSSurface/" + probeName + "/";
 
 		if (mfem::Mpi::WorldRank() == 0) {

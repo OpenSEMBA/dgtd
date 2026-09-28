@@ -21,10 +21,10 @@ at the frequency where $|E_{\mathrm{inc}}|$ peaks in a chosen band.
 mpirun -np 1 ./build/gnu-release-mpi/bin/opensemba_dgtd \
   -i testData/maxwellInputs/1D_PML/1D_PML.json
 
-python3 scripts/pml_dft_reflection.py Exports/single-core/1D_PML \
+python3 scripts/pml_dft_reflection.py exports/SimulationData/single-core/1D_PML \
   --probe 0 --component Ey \
   --inc-window 3.0 7.2 --ref-window 8.5 11.5 \
-  --csv Exports/single-core/1D_PML/dft_P0.csv
+  --csv exports/SimulationData/single-core/1D_PML/dft_P0.csv
 ```
 
 Probe time in `.dat` files is SI (`t_code / c_SI`). Windows are **normalized code time** by default.

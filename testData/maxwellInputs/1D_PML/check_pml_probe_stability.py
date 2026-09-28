@@ -46,7 +46,7 @@ def main() -> int:
     parser.add_argument(
         "export_dir",
         type=Path,
-        help="Exports/<mode>/<case>/PointProbes (or parent containing PointProbes)",
+        help="exports/SimulationData/<mode>/<case>/PointProbes (or parent containing PointProbes)",
     )
     parser.add_argument(
         "--threshold",

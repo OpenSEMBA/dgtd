@@ -91,7 +91,7 @@ TEST_F(ProbesManagerTest, morStateProbe_writesTimeAsFirstLine)
 		pM.updateProbes(time);
 	}
 
-	std::string file_path = "Exports/single-core/morStateProbeWriteTimeTest/MORStateProbes/TestMORStateTime/x_0";
+	std::string file_path = "exports/SimulationData/single-core/morStateProbeWriteTimeTest/MORStateProbes/TestMORStateTime/x_0";
 	std::ifstream f(file_path);
 	ASSERT_TRUE(f.is_open()) << "Expected file at: " << file_path;
 
@@ -133,7 +133,7 @@ TEST_F(ProbesManagerTest, morStateProbe_recordTimesConsecutive)
 		pM.updateProbes(time);
 	}
 
-	std::string base_path = "Exports/single-core/morStateProbeConsecutiveTest/MORStateProbes/TestMORStateConsecutive/";
+	std::string base_path = "exports/SimulationData/single-core/morStateProbeConsecutiveTest/MORStateProbes/TestMORStateConsecutive/";
 	for (int i = 0; i < 7; ++i) {
 		std::ifstream f(base_path + "x_" + std::to_string(i));
 		ASSERT_TRUE(f.is_open()) << "Expected file x_" << i;

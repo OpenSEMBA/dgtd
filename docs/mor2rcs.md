@@ -37,7 +37,7 @@ Snapshot format (same as `mor_state` / `mor2paraview`):
 Produced by MOR (`mor_dgtd`) when operators are saved:
 
 ```text
-Exports/<mor_case>/
+exports/<mor_case>/
   operators/
     Ur.bin              # dense float64, column-major (N × r), host endian
     meta.json           # optional but recommended

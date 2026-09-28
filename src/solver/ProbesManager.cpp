@@ -54,6 +54,11 @@ std::string getRunModeTag()
     }
 }
 
+std::string getSimulationCaseExportPath(const std::string& caseName)
+{
+    return "exports/SimulationData/" + getRunModeTag() + "/" + caseName;
+}
+
 std::string getFieldPolString(const FieldType& ft, const Direction& d)
 {
     switch(ft){
@@ -83,7 +88,7 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
     ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
     const MPI_Comm comm = getFESComm(fes_);
     
-    std::string paraview_path = "Exports/ParaView/" + getRunModeTag() + "/";
+    std::string paraview_path = "exports/ParaView/" + getRunModeTag() + "/";
     
     if (isNodeRoot(comm)) {
         std::filesystem::create_directories(paraview_path);
@@ -250,7 +255,7 @@ void ProbesManager::initPointFieldProbeExport()
     const MPI_Comm comm = getFESComm(fes_);
 
     if (probes.pointProbes.size()){
-        auto base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
+        auto base_path(getSimulationCaseExportPath(caseName_) + "/PointProbes/");
         
         if (cycle_ == 0) {
             if (isNodeRoot(comm)) {
@@ -287,7 +292,7 @@ void ProbesManager::initPointFieldProbeExport()
     }
 
     if (probes.fieldProbes.size()){
-        auto base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
+        auto base_path = (getSimulationCaseExportPath(caseName_) + "/FieldProbes/");
         
         if (cycle_ == 0) {
             if (isNodeRoot(comm)) {
@@ -355,7 +360,7 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
 
     DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
     
-    std::string parent_path = "Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name;
+    std::string parent_path = getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name;
     if (isNodeRoot(comm)) {
         std::filesystem::create_directories(parent_path);
     }
@@ -488,7 +493,7 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
         if(p.write){
             auto& myfile = fieldProbeFiles_[p.getProbeID()];
             if (!myfile.is_open()) {
-                std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+                std::string path(getSimulationCaseExportPath(caseName_) + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
                 myfile.open(path, std::ios::app);
             }
             if (myfile.is_open()) {
@@ -534,7 +539,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
         if(p.write){
             auto& myfile = pointProbeFiles_[p.getProbeID()];
             if (!myfile.is_open()) {
-                std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+                std::string path(getSimulationCaseExportPath(caseName_) + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
                 myfile.open(path, std::ios::app);
             }
             if (myfile.is_open()) {
@@ -570,7 +575,7 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
     auto it{ nearFieldProbesCollection_.find(&p) };
     assert(it != nearFieldProbesCollection_.end());
     auto& dc{ it->second };
-    dc.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
+    dc.SetPrefixPath(getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 
     nearFieldReqs_.at(&p)->updateFields();
 
@@ -613,7 +618,7 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     }
 #endif
 
-    std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshotProbes/");
+    std::string case_path = std::string(getSimulationCaseExportPath(caseName_) + "/DomainSnapshotProbes/");
     const MPI_Comm comm = getFESComm(fes_);
     
     if (cycle_ == 0) {
@@ -860,7 +865,7 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
             : 0.0;
         ctx.next_save_time = p.record_time_start;
         ctx.save_count = 0;
-        ctx.export_dir = "Exports/" + getRunModeTag() + "/" + caseName_ + "/MORStateProbes/" + p.name;
+        ctx.export_dir = getSimulationCaseExportPath(caseName_) + "/MORStateProbes/" + p.name;
 
         if (isNodeRoot(comm)) {
             std::filesystem::create_directories(ctx.export_dir);

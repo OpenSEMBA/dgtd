@@ -174,7 +174,7 @@ Solver::Solver(
     auto initEndTime = std::chrono::steady_clock::now();
 
     if (!opts_.is_sgbc_solver) {
-        std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model.meshName_ + "/SimulationStats/");
+        std::filesystem::path simExpPath(getSimulationCaseExportPath(model.meshName_) + "/SimulationStats/");
         std::string path = (simExpPath / ("statistics_rank" + std::to_string(comm_rank) + ".dat")).string();
 
         std::ofstream myfile(path, std::ios::app);
@@ -457,7 +457,7 @@ void Solver::writeSimulationStatistics(const Time runtime){
     int rank;
     MPI_Comm_rank(comm, &rank);
 
-    std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model_.meshName_ + "/SimulationStats/");
+    std::filesystem::path simExpPath(getSimulationCaseExportPath(model_.meshName_) + "/SimulationStats/");
 
     std::filesystem::create_directories(simExpPath);
 

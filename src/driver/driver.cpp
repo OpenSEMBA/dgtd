@@ -2131,26 +2131,6 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 }
 
 
-std::string getRunModeTag()
-{
-    std::string backend;
-    if (mfem::Device::Allows(mfem::Backend::CUDA)){
-        backend = "cuda-";
-        backend.append(std::to_string(Mpi::WorldSize()));
-        return backend;
-    }
-    else{
-        if (Mpi::WorldSize() == 1){
-            return "single-core";
-        }
-        else{
-            backend = "mpi-";
-            backend.append(std::to_string(Mpi::WorldSize()));
-            return backend;
-        }
-    }
-}
-
 void prepareExportDirectories(Model& model)
 {
 	MPI_Comm comm = model.getMesh().GetComm();
@@ -2161,7 +2141,7 @@ void prepareExportDirectories(Model& model)
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 	
 	if (world_rank == 0) {
-		std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model.meshName_ + "/SimulationStats/");
+		std::filesystem::path simExpPath(maxwell::getSimulationCaseExportPath(model.meshName_) + "/SimulationStats/");
 		
 		if (std::filesystem::exists(simExpPath)) {
 			std::filesystem::remove_all(simExpPath);

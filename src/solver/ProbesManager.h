@@ -13,6 +13,9 @@ namespace maxwell {
 class SourcesManager;  // Forward declaration
 
 std::string getRunModeTag();
+// Probe / stats / RCS dumps: exports/SimulationData/<run-mode>/<case>
+// ParaView: exports/ParaView/<run-mode>/; CSR: exports/Operators/<case>/.
+std::string getSimulationCaseExportPath(const std::string& caseName);
 
 class NearFieldReqs {
 public:

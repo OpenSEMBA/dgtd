@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """Windowed DFT reflection coefficient from dgtd PointProbe exports.
 
-Acceptance (docs/pml/05-verification.md): 20*log10(|E_ref|/|E_inc|) <= -40 dB
-in the frequency domain, using a vacuum probe with time-separated incident and
-reflected lobes.
+See docs/designing-a-box-pml.md for the 2D dipole absorption table.
 
 Probe .dat time column is SI seconds (t_code / c_SI). This script converts to
 normalized code time with c_SI = 299792458 unless --time-unit si is set.
 
 Example:
   python3 scripts/pml_dft_reflection.py \\
-    Exports/single-core/1D_PML_DFT \\
+    exports/SimulationData/single-core/1D_PML \\
     --probe 0 --component Ey \\
     --inc-window 3.0 7.0 --ref-window 8.5 14.0
 """
@@ -141,7 +139,7 @@ def main() -> int:
     parser.add_argument(
         "export_dir",
         type=Path,
-        help="Exports/<mode>/<case> or .../PointProbes",
+        help="exports/SimulationData/<mode>/<case> or .../PointProbes",
     )
     parser.add_argument("--probe", type=int, default=0, help="PointProbe ID (default 0)")
     parser.add_argument(

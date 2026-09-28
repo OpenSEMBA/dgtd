@@ -1815,7 +1815,7 @@ namespace maxwell
 				std::cout << "---------------------------------------------------------------" << std::endl;
 				return res;
 			}
-			std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / this->pd_.model.meshName_;
+			std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / this->pd_.model.meshName_;
 
 			if (!std::filesystem::exists(export_dir))
 			{
