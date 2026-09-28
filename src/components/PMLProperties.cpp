@@ -41,9 +41,11 @@ PMLStretchMode parseStretchMode(const nlohmann::json& mat_json)
 			return PMLStretchMode::Box;
 		}
 		if (m == 1) {
-			return PMLStretchMode::Radial;
+			throw std::runtime_error(
+				"PML stretch_mode \"radial\" is not supported. Use Cartesian box grading "
+				"(omit stretch_mode, or set \"box\" / 0).");
 		}
-		throw std::runtime_error("PML stretch_mode integer must be 0 (box) or 1 (radial).");
+		throw std::runtime_error("PML stretch_mode integer must be 0 (box).");
 	}
 	if (v.is_string()) {
 		std::string s = v.get<std::string>();
@@ -53,32 +55,15 @@ PMLStretchMode parseStretchMode(const nlohmann::json& mat_json)
 			return PMLStretchMode::Box;
 		}
 		if (s == "radial") {
-			return PMLStretchMode::Radial;
+			throw std::runtime_error(
+				"PML stretch_mode \"radial\" is not supported. Use Cartesian box grading "
+				"(omit stretch_mode, or set \"box\" / 0).");
 		}
 		throw std::runtime_error(
-			"PML stretch_mode must be \"box\" or \"radial\" (or 0/1). Got: " +
+			"PML stretch_mode must be \"box\" (or 0), or omitted. Got: " +
 			v.get<std::string>());
 	}
 	throw std::runtime_error("PML stretch_mode must be a string or integer.");
-}
-
-std::optional<std::array<double, 3>> parseRadialCenter(const nlohmann::json& mat_json,
-                                                       int mesh_dim)
-{
-	if (!mat_json.contains("radial_center")) {
-		return std::nullopt;
-	}
-	const auto& arr = mat_json["radial_center"];
-	if (!arr.is_array() || static_cast<int>(arr.size()) < mesh_dim ||
-	    static_cast<int>(arr.size()) > 3) {
-		throw std::runtime_error(
-			"PML radial_center must be an array of length mesh_dim..3.");
-	}
-	std::array<double, 3> c{{0.0, 0.0, 0.0}};
-	for (size_t i = 0; i < arr.size(); ++i) {
-		c[i] = arr[i].get<double>();
-	}
-	return c;
 }
 
 } // namespace
@@ -129,10 +114,15 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	props.grading_order = mat_json.value("grading_order", 3);
 	props.target_reflection = mat_json.value("target_reflection", 1e-6);
 	props.stretch_mode = parseStretchMode(mat_json);
-	props.radial_center = parseRadialCenter(mat_json, mesh_dim);
 	props.kappa_max = mat_json.value("kappa_max", 1.0);
 	props.alpha_max = mat_json.value("alpha_max", 0.0);
 	props.active_axes = parseActiveAxes(mat_json, mesh_dim);
+
+	if (mat_json.contains("radial_center")) {
+		throw std::runtime_error(
+			"PML radial_center is not supported. Cartesian box SC-PML grades from "
+			"planar vacuum–PML interfaces.");
+	}
 
 	if (mat_json.contains("sigma_max")) {
 		throw std::runtime_error(
@@ -152,10 +142,6 @@ PMLProperties parsePMLMaterialBlock(const nlohmann::json& mat_json, int mesh_dim
 	}
 	if (props.grading_order < 0) {
 		throw std::runtime_error("PML grading_order must be >= 0 (0 = constant conductivity).");
-	}
-	if (props.stretch_mode == PMLStretchMode::Box && props.radial_center.has_value()) {
-		throw std::runtime_error(
-			"PML radial_center is only valid when stretch_mode is \"radial\".");
 	}
 
 	return props;

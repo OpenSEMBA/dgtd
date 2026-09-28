@@ -12,7 +12,7 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `evolution_operator` | string | `"global"` | DG evolution operator: `"maxwell"`, `"global"`, or `"hesthaven"`. **New features should use `"global"` only.** |
+| `evolution_operator` | string | `"global"` | `"global"` (default; SGBC, volumetric PML, conductivity). `"hesthaven"` is a limited explicit operator without those features. `"maxwell"` is deprecated. |
 | `upwind_alpha` | double | `1.0` | Upwind flux blending: `0.0` = centered, `1.0` = upwind. |
 | `final_time` | double | `2.0` | Simulation duration in natural units (1 m/c). |
 | `time_step` | double | `0.0` | Fixed time step in natural units. Required for 2D/3D. In 1D, `0.0` triggers automatic CFL-based step. |
@@ -24,9 +24,9 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | `basis_type` | integer | `1` | MFEM basis: `0` GaussLegendre, `1` GaussLobatto, `2` Bernstein, `3` OpenUniform, `4` CloseUniform, `5` OpenHalfUniform. |
 | `ode_type` | integer | `0` | Time integrator: `0` RK4, `1` BackwardEuler, `2` Trapezoidal, `3` ImplicitMidpoint, `4` SDIRK33, `5` SDIRK23, `6` SDIRK34. |
 
-### evolution_operator: hesthaven (fast explicit path)
+### evolution_operator: hesthaven
 
-`"hesthaven"` uses element-local dense operators (matrix-free on straight meshes). Use for explicit RK4 cases **without** SGBC, volumetric PML, bulk conductivity, or implicit `ode_type`.
+`"hesthaven"` is element-local dense operators (matrix-free on straight meshes). It does **not** run SGBC, volumetric PML, bulk conductivity, or implicit `ode_type`. Use `"global"` (or omit `evolution_operator`) for those features.
 
 | Capability | hesthaven | global |
 |------------|-----------|--------|
@@ -57,7 +57,7 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `tags` | int[] | — | Mesh attribute IDs sharing these properties. |
-| `type` | string | (legacy) | `"vacuum"` or `"PML"`. PML fields, mesh tagging, and the absorption reference: [pml/designing-a-box-pml.md](./pml/designing-a-box-pml.md). `"R"`/`"r"` and `sigma_max` are rejected at parse. |
+| `type` | string | (legacy) | `"vacuum"` or `"PML"`. PML fields, mesh tagging, and the absorption reference: [designing-a-box-pml.md](./designing-a-box-pml.md). `"R"`/`"r"`, `sigma_max`, `stretch_mode: "radial"`, and `radial_center` are rejected at parse. |
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |

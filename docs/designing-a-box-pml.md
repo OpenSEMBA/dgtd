@@ -1,8 +1,6 @@
 # Designing a box PML
 
-Cartesian SC-PML (Bagci/Chen) on `GlobalEvolution`. The mesh owns the layer geometry. JSON only names which element tags are PML and how conductivity is graded inside them. There is no thickness field.
-
-Formulation: [30-sc-pml-ade.md](./30-sc-pml-ade.md). The absorption numbers below are the reference for this absorber.
+Cartesian SC-PML (Bagci/Chen) on `GlobalEvolution`. The mesh owns the layer geometry. JSON only names which element tags are PML and how conductivity is graded inside them. There is no thickness field. The absorption numbers below are the reference for this absorber.
 
 Units inside the solver are normalized: $c=\varepsilon=\mu=1$. Mesh coordinates are those units. Use `"evolution_operator": "global"` or omit it. `"hesthaven"` does not run volumetric PML.
 
@@ -70,10 +68,10 @@ One object per tag group, inside `model.materials`. `active_axes` is required. E
 | `target_reflection` | `1e-6` | Design $R$ in $(0,1)$. Smaller $R$ raises $\sigma_{\max}$. This is not the decibel number you will measure. |
 | `kappa_max` | `1` | $\kappa \ge 1$ at the outer boundary. At $1$, $\kappa \equiv 1$ everywhere (the reference runs). Above $1$, $\kappa(\xi) = 1 + (\kappa_{\max}-1)\,\xi^{m}$, and $m=0$ uses $\kappa_{\max}$ as a constant. |
 | `alpha_max` | `0` | Must be `0` or omitted. A CFS pole is not implemented. |
-| `stretch_mode` | `"box"` | `"box"` or `0`. Depth is the planar depth above. `"radial"` / `1` still parses and grades by radius, but radial PML cases have been removed. New meshes use `"box"`. |
-| `radial_center` | — | Only legal with `stretch_mode` `"radial"`. Do not set it on a box. |
 
-Rejected on a PML block: `sigma_max`, `bulk_conductivity`, `relative_permittivity`, `relative_permeability`. Conductivity of the layer comes only from $R$, $m$, and $L$.
+Omit `stretch_mode` (planar box depth is the only grading). Do not set `radial_center`.
+
+Rejected on a PML block: `sigma_max`, `bulk_conductivity`, `relative_permittivity`, `relative_permeability`, `stretch_mode: "radial"`, `radial_center`. Conductivity of the layer comes only from $R$, $m$, and $L$.
 
 The reference case `testData/maxwellInputs/2D_Dipole_PML_GO0/2D_Dipole_PML_GO0.json` is the block to copy. `GO1`, `GO2`, and `GO3` change only `grading_order`. The SMA twin `2D_Dipole` uses the same outer box with every tag set to vacuum.
 
@@ -98,7 +96,7 @@ $$
 R_{\mathrm{dB}} = 20\log_{10}\big(|E_{\mathrm{ref}}| / |E_{\mathrm{inc}}|\big)
 $$
 
-at the incident spectral peak. Numbers below are the reproduced run (they match [31-sc-pml-status.md](./31-sc-pml-status.md) §8 when rounded).
+at the incident spectral peak. Numbers below are the reproduced run.
 
 | Case | $m$ | X | Y | XY |
 |------|-----|----|----|-----|
@@ -115,11 +113,11 @@ Replay after a run. Point probes append, so remove the case export directory bef
 ```sh
 python3 scripts/dipole_pml_grading_dft.py \
   --ref-delay 3 \
-  Exports/SimulationData/mpi-4/2D_Dipole \
-  Exports/SimulationData/mpi-4/2D_Dipole_PML_GO0 \
-  Exports/SimulationData/mpi-4/2D_Dipole_PML_GO1 \
-  Exports/SimulationData/mpi-4/2D_Dipole_PML_GO2 \
-  Exports/SimulationData/mpi-4/2D_Dipole_PML_GO3
+  Exports/mpi-4/2D_Dipole \
+  Exports/mpi-4/2D_Dipole_PML_GO0 \
+  Exports/mpi-4/2D_Dipole_PML_GO1 \
+  Exports/mpi-4/2D_Dipole_PML_GO2 \
+  Exports/mpi-4/2D_Dipole_PML_GO3
 ```
 
 A new box is the same kind of comparison: an all-vacuum SMA twin of that outer boundary, probes in the vacuum, and this DFT. Quote $R_{\mathrm{dB}}$ next to the table. Matching $-80\,\mathrm{dB}$ is what this mesh and this grading achieved, not a guarantee for a thicker layer, a coarser mesh, or a 3D box.

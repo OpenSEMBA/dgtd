@@ -17,6 +17,14 @@ gather*
 run_all_*
 
 CLAUDE.md
+AGENTS.md
+docs/pml/
+docs/handoff-cuda-hesthaven-out.md
+external/Cudg3d/
+scripts/__pycache__/
+testData/maxwellInputs/2D_RCS_FAKE_*/
+testData/maxwellInputs/3D_RCS_FAKE_*/
+testData/rcsInputs/*FAKE*
 
 *.csv
 *.gf

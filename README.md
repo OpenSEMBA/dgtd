@@ -13,10 +13,8 @@ Maxwell curl-equation solver using discontinuous Galerkin methods (OpenSEMBA / U
 | `testData/maxwellInputs/` | Example simulation cases (JSON + mesh per folder) |
 | `testData/rcsInputs/` | Offline `opensemba_rcs` JSON (frequency/angle sweeps) |
 | `test/` | Unit and integration tests (GoogleTest) |
-| `docs/` | Input format, tools, and feature design notes |
+| `docs/` | Input format, tools, and feature usage notes |
 | `pythonBindings/` | Optional Python bindings |
-| `AGENTS.md` | Project guide for AI coding agents |
-| `CLAUDE.md` | General behavioral guidelines for LLM-assisted editing |
 
 ## Compiling
 
@@ -147,8 +145,7 @@ Results are written under the same probe directory as `farfield/` and `rcs/`.
 | All docs | [docs/README.md](docs/README.md) |
 | JSON input (solver + offline RCS) | [docs/json-input-format.md](docs/json-input-format.md) |
 | MOR → ParaView | [docs/mor2paraview.md](docs/mor2paraview.md) |
-| Volumetric PML design | [docs/pml/README.md](docs/pml/README.md) |
-| AI / agent context | [AGENTS.md](AGENTS.md) |
+| Box PML (mesh, JSON, absorption table) | [docs/designing-a-box-pml.md](docs/designing-a-box-pml.md) |
 
 ## Funding
 
