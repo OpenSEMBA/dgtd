@@ -49,7 +49,7 @@ Always loop `X, Y, Z` and skip `d >= mesh.Dimension()`. Do not add 1D-only solve
 | **Build / run (human README)** | [README.md](./README.md) |
 | **JSON input reference** | [docs/json-input-format.md](./docs/json-input-format.md) (Maxwell cases + offline `opensemba_rcs`) |
 | **MOR → ParaView** | [docs/mor2paraview.md](./docs/mor2paraview.md) |
-| **Volumetric PML (SC-PML ADE)** | [docs/pml/README.md](./docs/pml/README.md) |
+| **Volumetric PML (SC-PML ADE)** | [docs/pml/designing-a-box-pml.md](./docs/pml/designing-a-box-pml.md) (mesh, JSON, absorption table); index [docs/pml/README.md](./docs/pml/README.md) |
 | **MFEM/DGTD coding standards** | [.cursor/rules/02-mfem-dgtd-standards.mdc](./.cursor/rules/02-mfem-dgtd-standards.mdc) |
 | **C++ guidance** | [.cursor/rules/03-cpp-expert-guidance.mdc](./.cursor/rules/03-cpp-expert-guidance.mdc) |
 
