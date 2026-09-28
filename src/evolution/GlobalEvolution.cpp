@@ -599,6 +599,22 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
+    // cuSPARSE SpMV records a DnVec sized to y and requires y.Size()==rows.
+    // Maxwell and TFSF are 6N; with Cartesian PML the ODE state is 12N.
+    // MFEM's forall kernel writes `height` rows on the device, same as the host path.
+    {
+        auto useMfemCudaSpmv = [](mfem::SparseMatrix* A) {
+            if (A) { A->UseGPUSparse(false); }
+        };
+        useMfemCudaSpmv(globalOperator_.get());
+        useMfemCudaSpmv(TFSFOperator_.get());
+        useMfemCudaSpmv(SGBCOperator_.get());
+        useMfemCudaSpmv(scpmlOperator_.get());
+        for (auto& delta : scpmlCurlDelta_) {
+            useMfemCudaSpmv(delta.get());
+        }
+    }
+
     // --- Performance: cache which sources are TotalField ---
     {
         int idx = 0;
@@ -1125,11 +1141,15 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     // S3: Zero multWorkVec_ so it can be reused for TFSF and SGBC injection.
     multWorkVec_ = 0.0;
 
-    // 5) TFSF source injection
+    // 5) TFSF source injection. TFSFOperator_ is 6N. With Cartesian PML, `out` is 12N.
 #ifdef SHOW_TIMER_INFORMATION
     timerTFSF.Start();
 #endif
-    applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
+    {
+        mfem::Vector out_fields;
+        out_fields.MakeRef(out, 0, 6 * ndofs);
+        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
+    }
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();
     timerTFSF.Stop();
