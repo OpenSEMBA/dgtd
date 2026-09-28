@@ -210,9 +210,8 @@ TEST_F(BilinearFormExtensionTest, buildBilinearFormFromSubMeshes)
 	tf_bf.AddBdrFaceIntegrator(new TotalFieldScatteredFieldIntegrator(1.0), bdr_marker);
 	tf_bf.Assemble();
 	tf_bf.Finalize();
-	tf_bf.SpMat().ToDenseMatrix()->Print(std::cout);
-	std::cout << std::flush;
-
+	EXPECT_GT(tf_bf.SpMat().Height(), 0);
+	EXPECT_GT(tf_bf.SpMat().Width(), 0);
 }
 
 //TEST_F(BilinearFormExtensionTest, checkInteriorBoundaryFaceIntegrator)

@@ -12,11 +12,10 @@
     "materials": [
       {
         "tags": [ 1 ],
-        "type": "Vacuum"
+        "type": "vacuum"
       },
       {
         "tags": [ 2 ],
-        "type": "Dielectric",
         "relative_permittivity": 4.0
       }
     ],
