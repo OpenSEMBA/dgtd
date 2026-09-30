@@ -106,6 +106,36 @@ private:
 	int dimension_;
 };
 
+/// Spread σ of exp(-(t-t0)^2 / (2 σ^2)) whose spectrum is `db_cut` dB at `f_max`.
+/// |ĝ(f)/ĝ(0)| = exp(-2 π^2 σ^2 f^2) = 10^(db_cut/20), with db_cut < 0.
+inline double gaussianSpreadForDbCut(double f_max, double db_cut)
+{
+	if (!(f_max > 0.0) || !std::isfinite(f_max)) {
+		throw std::runtime_error("gaussianSpreadForDbCut: f_max must be > 0.");
+	}
+	if (!(db_cut < 0.0) || !std::isfinite(db_cut)) {
+		throw std::runtime_error("gaussianSpreadForDbCut: db_cut must be < 0.");
+	}
+	const double pi = std::acos(-1.0);
+	const double ratio = std::pow(10.0, db_cut / 20.0);
+	const double neg_ln_ratio = -std::log(ratio);
+	return std::sqrt(neg_ln_ratio / (2.0 * pi * pi)) / f_max;
+}
+
+/// Time signal used as a delta-gap flux. `derivative == false` is the Gaussian
+/// pulse. `derivative == true` is its time derivative, so the accumulated field
+/// follows the pulse and returns to zero after it passes.
+inline double gaussianTimeSignal(
+	double t, double t0, double spread, double magnitude, bool derivative)
+{
+	const double arg = (t - t0) / spread;
+	const double pulse = std::exp(-0.5 * arg * arg);
+	if (!derivative) {
+		return magnitude * pulse;
+	}
+	return magnitude * (-arg / spread) * pulse;
+}
+
 /**
 * A modulated Gaussian: exp(-((x-mean)^2)/(2*spread^2)) * cos(2*pi*freq*(x-mean))
 * Uses a wide envelope (large spread) with a carrier frequency to place spectral

@@ -187,6 +187,7 @@ Array. At least one source; all entries superimpose.
 | `"initial"` | Volumetric initial condition |
 | `"planewave"` | TFSF plane wave |
 | `"dipole"` | TFSF dipole |
+| `"delta_gap"` | Impressed tangential E on an interior face (2D curve or 3D surface) |
 
 ### type: initial
 
@@ -221,6 +222,29 @@ Array. At least one source; all entries superimpose.
 | `magnitude.amplitude_peak` | Desired max equatorial \|E\| (\|E_θ\|) at `peak_radius` (default `1.0`). The analytic formula is scaled so that peak equals this value. |
 | `magnitude.peak_radius` | Radius used to define `amplitude_peak` (default: min radius on the dipole TFSF tags if available, else `1.0`). |
 | `magnitude.mean` | Optional center along dipole axis |
+
+### type: delta_gap
+
+One entry, on a 2D or 3D mesh. The tagged face must be interior, with vacuum on both sides. The source is a sibling of TFSF: its own face matrix, not a `planewave` or `dipole`.
+
+Peak field is `magnitude` (default `1.0`). The pulse width is `spread`, the Gaussian $\sigma$ in normalized time ($c = 1$), the same meaning as a planewave Gaussian spread. The pulse is $e^{-(t-t_0)^2/(2\sigma^2)}$, and its center is five widths after $t = 0$.
+
+If `spread` is omitted, $\sigma$ is chosen from the gap length $L$ so the spectrum is `db_cut` (default `-20`) down at $\mathrm{magnitude} \times L / 10$. That product is not a frequency you set.
+
+Optional `signal` is `"gaussian"` (default) or `"gaussian_derivative"`. The derivative is what a flux must use if that pulse is the field: the time integral of the derivative is the pulse, so the slot charges and then empties. `spread` and `magnitude` describe that pulse in both cases. `magnitude` remains the peak $|E|$.
+
+`polarization` is a required nonzero 3-vector, the direction of the electric field. It is normalized, and it must lie in the gap face. `magnitude` remains the peak $|E|$. For the vertical gap whose normal is $+x$, the field across the slot is $[0, 1, 0]$.
+
+`magnitude` is the peak $|E^{\mathrm{inc}}|$ (default `1.0`), the zero-thickness stand-in for a gap voltage over a gap width. The magnetic incident field is zero. Both sides of the face carry the same electric trace, $+\tfrac{1}{2}$ times that polarization. The source keeps each side's own face block, so those equal traces do not cancel.
+
+| Field | Description |
+|-------|-------------|
+| `tags` | Interior face tags. A curve in 2D, a surface in 3D |
+| `polarization` | Required 3-vector. Direction of $E$. Must be tangent to the gap |
+| `magnitude` | Peak \|E\|. Default `1.0` |
+| `spread` | Gaussian width $\sigma$ in normalized time. Must be `> 0`. Default from $L$ and `db_cut` |
+| `db_cut` | Used only when `spread` is omitted. Spectrum level in dB at $\mathrm{magnitude} \times L / 10$. Default `-20`. Must be negative |
+| `signal` | `"gaussian"` (default) or `"gaussian_derivative"` |
 
 ---
 

@@ -156,6 +156,9 @@ public:
 	const InteriorBoundaryToMarker& getInteriorBoundaryToMarker() const { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	SGBCToMarker& getSGBCToMarker() { return SGBCToMarkerMap_; }
+	void setDeltaGapMarker(const mfem::Array<int>& marker) { deltaGapMarker_ = marker; }
+	mfem::Array<int>& getDeltaGapMarker() { return deltaGapMarker_; }
+	const mfem::Array<int>& getDeltaGapMarker() const { return deltaGapMarker_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
 	GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() { return attToIntBdrMap_; }
@@ -200,6 +203,7 @@ private:
 	InteriorBoundaryToMarker intBdrToMarkerMap_;
 	TotalFieldScatteredFieldToMarker tfsfToMarkerMap_;
 	SGBCToMarker SGBCToMarkerMap_;
+	mfem::Array<int> deltaGapMarker_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
 	FaceToGeomTag faceToGeomTag_;
 

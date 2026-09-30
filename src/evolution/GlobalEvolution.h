@@ -43,9 +43,13 @@ private:
     int total_state_size_ = 0;
     void applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
                                   mfem::Vector& result_vector) const;
+    void initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace>& dgops);
+    void applyDeltaGapSourceToVector(double t_stage, int ndofs, int nbrDofs,
+                                     mfem::Vector& result_vector) const;
 
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
+    std::unique_ptr<mfem::SparseMatrix> deltaGapOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
     std::unique_ptr<mfem::SparseMatrix> scpmlOperator_;
     std::unique_ptr<SCPMLLayout> scpmlLayout_;
@@ -101,6 +105,16 @@ private:
     mutable std::array<mfem::ParGridFunction, 3> eOld_, hOld_;
 
     mutable mfem::Vector multWorkVec_;
+    mutable mfem::Vector deltaGapWorkVec_;
+    struct DeltaGapDof {
+        int dof;
+        double c[3];
+    };
+    std::vector<DeltaGapDof> deltaGapDofs_;
+    double deltaGapMagnitude_ = 1.0;
+    double deltaGapSpread_ = 1.0;
+    double deltaGapT0_ = 0.0;
+    bool deltaGapDerivative_ = false;
 
     // ImplicitSolve reusable work vectors (avoid per-call allocation)
     mutable mfem::Vector implicit_inNew_;

@@ -30,6 +30,10 @@ double calculateMaximumSourceFrequency(const json& case_data)
         for (const auto& source : case_data["sources"]) {
             if (!source.contains("magnitude")) continue;
             const auto& mag = source["magnitude"];
+            // delta_gap stores magnitude as a number, not a planewave object.
+            if (!mag.is_object()) {
+                continue;
+            }
             // Modulated Gaussian: has "frequency" (with or without explicit "type")
             if (mag.contains("frequency") && mag.contains("spread")) {
                 double spread = mag["spread"].get<double>();
@@ -871,6 +875,33 @@ static double minPhaseOnTFSFSurface(const mfem::Mesh& mesh, const json& tags,
 	return (global_min_phase == std::numeric_limits<double>::max()) ? 0.0 : global_min_phase;
 }
 
+// Sum of tagged boundary-element lengths. Parallel meshes split faces across ranks.
+static double deltaGapCurveLength(const mfem::Mesh& mesh, const json& tags)
+{
+	double length = 0.0;
+	const int dim = mesh.Dimension();
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) {
+			continue;
+		}
+		mfem::Array<int> verts;
+		mesh.GetBdrElementVertices(be, verts);
+		for (int i = 1; i < verts.Size(); ++i) {
+			const double* a = mesh.GetVertex(verts[i - 1]);
+			const double* b = mesh.GetVertex(verts[i]);
+			double s = 0.0;
+			for (int d = 0; d < dim; ++d) {
+				const double diff = a[d] - b[d];
+				s += diff * diff;
+			}
+			length += std::sqrt(s);
+		}
+	}
+	double global_length = 0.0;
+	MPI_Allreduce(&length, &global_length, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	return global_length;
+}
+
 std::unique_ptr<InitialField> buildSphericalBesselJ6InitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }))
@@ -932,6 +963,7 @@ std::unique_ptr<TotalField> buildDerivGaussDipole(
 Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 {
 	Sources res;
+	int delta_gap_count = 0;
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		if (case_data["sources"][s]["type"] == "initial") {
 			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
@@ -1058,6 +1090,109 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 
 			res.add(buildDerivGaussDipole(
 				length, spread, mean, amplitude_peak, peak_radius));
+		}
+		else if (case_data["sources"][s]["type"] == "delta_gap") {
+			if (delta_gap_count > 0) {
+				throw std::runtime_error("Only one delta_gap source is supported.");
+			}
+			++delta_gap_count;
+			if (mesh == nullptr) {
+				throw std::runtime_error("delta_gap requires a mesh.");
+			}
+			if (mesh->Dimension() != 2 && mesh->Dimension() != 3) {
+				throw std::runtime_error("delta_gap requires a 2D or 3D mesh.");
+			}
+			const auto& src = case_data["sources"][s];
+			if (!src.contains("tags") || src["tags"].empty()) {
+				throw std::runtime_error("delta_gap requires tags.");
+			}
+			if (src.contains("normal_sign")) {
+				throw std::runtime_error(
+					"delta_gap no longer accepts normal_sign. Set polarization, the electric-field direction.");
+			}
+			if (!src.contains("polarization") || !src["polarization"].is_array()
+				|| src["polarization"].size() != 3) {
+				throw std::runtime_error("delta_gap polarization must be a 3-vector.");
+			}
+			mfem::Vector polarization = assemble3DVector(src["polarization"]);
+			for (int d = 0; d < polarization.Size(); ++d) {
+				if (!std::isfinite(polarization[d])) {
+					throw std::runtime_error("delta_gap polarization must be finite.");
+				}
+			}
+			if (!(polarization.Norml2() > 0.0)) {
+				throw std::runtime_error("delta_gap polarization must be nonzero.");
+			}
+			double magnitude = 1.0;
+			if (src.contains("magnitude")) {
+				if (!src["magnitude"].is_number()) {
+					throw std::runtime_error("delta_gap magnitude must be a number.");
+				}
+				magnitude = src["magnitude"].get<double>();
+			}
+			if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
+				throw std::runtime_error("delta_gap magnitude must be > 0.");
+			}
+			double db_cut = -20.0;
+			if (src.contains("db_cut")) {
+				if (!src["db_cut"].is_number()) {
+					throw std::runtime_error("delta_gap db_cut must be a number.");
+				}
+				db_cut = src["db_cut"].get<double>();
+			}
+			bool derivative = false;
+			if (src.contains("signal")) {
+				if (!src["signal"].is_string()) {
+					throw std::runtime_error("delta_gap signal must be a string.");
+				}
+				const std::string signal = src["signal"].get<std::string>();
+				if (signal == "gaussian") {
+					derivative = false;
+				}
+				else if (signal == "gaussian_derivative") {
+					derivative = true;
+				}
+				else {
+					throw std::runtime_error(
+						"delta_gap signal must be \"gaussian\" or \"gaussian_derivative\".");
+				}
+			}
+			if (src.contains("f_max")) {
+				throw std::runtime_error(
+					"delta_gap no longer accepts f_max. Set spread, the Gaussian width in normalized time.");
+			}
+			const double curve_length = deltaGapCurveLength(*mesh, src["tags"]);
+			if (!(curve_length > 0.0)) {
+				throw std::runtime_error("delta_gap tags match no curve on the mesh.");
+			}
+			double spread = 0.0;
+			if (src.contains("spread")) {
+				if (src.contains("db_cut")) {
+					throw std::runtime_error(
+						"delta_gap spread sets the pulse width directly. Omit db_cut.");
+				}
+				if (!src["spread"].is_number()) {
+					throw std::runtime_error("delta_gap spread must be a number.");
+				}
+				spread = src["spread"].get<double>();
+			}
+			else {
+				spread = gaussianSpreadForDbCut(magnitude * curve_length / 10.0, db_cut);
+			}
+			if (!(spread > 0.0) || !std::isfinite(spread)) {
+				throw std::runtime_error("delta_gap spread must be > 0.");
+			}
+			const double t0 = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+			int rank = 0;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			if (rank == 0) {
+				std::cout << "[delta_gap] L=" << curve_length
+				          << " magnitude=" << magnitude
+				          << " signal=" << (derivative ? "gaussian_derivative" : "gaussian")
+				          << " spread=" << spread
+				          << " t0=" << t0 << "\n";
+			}
+			res.add(std::make_unique<DeltaGapSource>(magnitude, spread, t0, polarization, derivative));
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
@@ -2100,6 +2235,35 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 					std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
 			}
 		}
+	}
+
+	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
+		if (case_data["sources"][s]["type"] != "delta_gap") {
+			continue;
+		}
+		mfem::Array<int> gap_tags;
+		for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
+			gap_tags.Append(case_data["sources"][s]["tags"][t].get<int>());
+		}
+		mfem::Array<int> gap_marker;
+		const int n_attr = model.getConstMesh().bdr_attributes.Size() == 0
+			? 0 : model.getConstMesh().bdr_attributes.Max();
+		gap_marker.SetSize(n_attr);
+		gap_marker = 0;
+		for (int t = 0; t < gap_tags.Size(); t++) {
+			for (int b = 0; b < model.getConstMesh().GetNBE(); b++) {
+				if (model.getMesh().GetBdrAttribute(b) == gap_tags[t]) {
+					gap_marker[model.getMesh().GetBdrAttribute(b) - 1] = 1;
+				}
+			}
+		}
+		const int local_gap_marker = gap_marker.Sum();
+		int global_gap_marker = 0;
+		MPI_Allreduce(&local_gap_marker, &global_gap_marker, 1, MPI_INT, MPI_SUM, comm);
+		if (global_gap_marker == 0) {
+			throw std::runtime_error("delta_gap tags were not found on the mesh.");
+		}
+		model.setDeltaGapMarker(gap_marker);
 	}
 
     mfem::Array<int> sgbc_tags = getSGBCTags(case_data);

@@ -397,7 +397,15 @@ namespace maxwell
 		template <typename BF>
 		void addGlobalSourceFaceIBFIOneNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 		template <typename BF>
-		void addGlobalSourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv); 
+		void addGlobalSourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		std::unique_ptr<BF> buildDeltaGapFaceIBFIZeroNormalSubOperator(mfem::Array<int>& marker);
+		template <typename BF>
+		std::unique_ptr<BF> buildDeltaGapFaceIBFITwoNormalSubOperator(const std::vector<Direction>& dirTerms, mfem::Array<int>& marker);
+		template <typename BF>
+		void addDeltaGapFaceIBFIZeroNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addDeltaGapFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv); 
 		template <typename BF>
 		void addGlobalBoundarySourceFaceIBFIZeroNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 		template <typename BF>
@@ -427,6 +435,9 @@ namespace maxwell
 		std::unique_ptr<mfem::SparseMatrix> buildSGBCGlobalOperator();
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(BdrCond filter);
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(mfem::Array<int>& marker);
+		/// Delta-gap only. Same-side Zero and Two blocks, so equal traces on both
+		/// elements do not cancel. Not the TFSF jump operator.
+		std::unique_ptr<mfem::SparseMatrix> buildDeltaGapFaceOperator(mfem::Array<int>& marker);
 		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
 		/// Bagci/Chen SC-PML ADE + optional curl a-rescale (κ>1). Cartesian axes only.
 		/// curl_delta[u] is ndofs×ndofs: out_Fu += Delta_u * out_Fu for F in {E,H}.
@@ -800,6 +811,30 @@ namespace maxwell
         return res;
     }
 
+    template <typename FES>
+    template <typename BF>
+    std::unique_ptr<BF> DGOperatorFactory<FES>::buildDeltaGapFaceIBFIZeroNormalSubOperator(mfem::Array<int>& marker)
+    {
+        auto res = std::make_unique<BF>(&fes_);
+        res->AddInternalBoundaryFaceIntegrator(
+            new mfemExtension::MaxwellDGDecoupledZeroNormalJumpIntegrator(pd_.opts.alpha), marker);
+        res->Assemble();
+        res->Finalize();
+        return res;
+    }
+
+    template <typename FES>
+    template <typename BF>
+    std::unique_ptr<BF> DGOperatorFactory<FES>::buildDeltaGapFaceIBFITwoNormalSubOperator(const std::vector<Direction>& dirTerms, mfem::Array<int>& marker)
+    {
+        auto res = std::make_unique<BF>(&fes_);
+        res->AddInternalBoundaryFaceIntegrator(
+            new mfemExtension::MaxwellDGDecoupledTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), marker);
+        res->Assemble();
+        res->Finalize();
+        return res;
+    }
+
 	template <typename FES>
 	template <typename BF>
 	std::unique_ptr<BF> DGOperatorFactory<FES>::buildBoundarySourceFaceIBFIZeroNormalSubOperator(const FieldType &f, mfem::Array<int>& marker)
@@ -1163,6 +1198,48 @@ namespace maxwell
 				for (auto d2{ X }; d2 <= Z; d2++) {
 					if (d2 >= dim) continue;
 					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildSourceFaceIBFITwoNormalSubOperator<BF>(f, { d, d2 }, marker)->SpMat(), fes_);
+					loadBlockInGlobalAtIndices(
+						op->SpMat(),
+						*global,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()),
+						1.0
+					);
+				}
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addDeltaGapFaceIBFIZeroNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildDeltaGapFaceIBFIZeroNormalSubOperator<BF>(marker)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()),
+					-1.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addDeltaGapFaceIBFITwoNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue;
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue;
+					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildDeltaGapFaceIBFITwoNormalSubOperator<BF>({ d, d2 }, marker)->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
 						*global,
@@ -1654,6 +1731,25 @@ namespace maxwell
 			this->template addGlobalSourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
 			this->template addGlobalSourceFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
 			this->template addGlobalSourceFaceIBFITwoNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
+		}
+
+		res->Finalize();
+		return res;
+	}
+
+	template <typename FES>
+	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildDeltaGapFaceOperator(mfem::Array<int>& marker)
+	{
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + getAdditionalDofs()));
+		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
+
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			this->template addDeltaGapFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addDeltaGapFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+		} else {
+			auto MInvSerial = buildMaxwellInverseMassMatrixOperator<BilinearForm>();
+			this->template addDeltaGapFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
+			this->template addDeltaGapFaceIBFITwoNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
 		}
 
 		res->Finalize();

@@ -1,6 +1,7 @@
 #include "GlobalEvolution.h"
 #include "MaxwellEvolutionMethods.h"
 #include "components/SCPMLLayout.h"
+#include "math/Function.h"
 #include "math/PhysicalConstants.h"
 
 #include <chrono>
@@ -8,9 +9,11 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <unordered_map>
 #include <unordered_set>
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 #include <cuda_runtime.h>
@@ -599,6 +602,8 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
+    initDeltaGap(dgops);
+
     // cuSPARSE SpMV records a DnVec sized to y and requires y.Size()==rows.
     // Maxwell and TFSF are 6N; with Cartesian PML the ODE state is 12N.
     // MFEM's forall kernel writes `height` rows on the device, same as the host path.
@@ -608,6 +613,7 @@ GlobalEvolution::GlobalEvolution(
         };
         useMfemCudaSpmv(globalOperator_.get());
         useMfemCudaSpmv(TFSFOperator_.get());
+        useMfemCudaSpmv(deltaGapOperator_.get());
         useMfemCudaSpmv(SGBCOperator_.get());
         useMfemCudaSpmv(scpmlOperator_.get());
         for (auto& delta : scpmlCurlDelta_) {
@@ -894,6 +900,157 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
 #endif
 }
 
+void GlobalEvolution::initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace>& dgops)
+{
+    const DeltaGapSource* gap = nullptr;
+    for (const auto& source : srcmngr_.sources) {
+        if (auto* g = dynamic_cast<DeltaGapSource*>(source.get())) {
+            if (gap != nullptr) {
+                throw std::runtime_error("Only one delta_gap source is supported.");
+            }
+            gap = g;
+        }
+    }
+    if (gap == nullptr) {
+        return;
+    }
+
+    deltaGapMagnitude_ = gap->magnitude();
+    deltaGapSpread_ = gap->spread();
+    deltaGapT0_ = gap->t0();
+    deltaGapDerivative_ = gap->derivative();
+
+    auto& marker = model_.getDeltaGapMarker();
+    const int local_marks = (marker.Size() > 0) ? marker.Sum() : 0;
+    int global_marks = 0;
+    MPI_Allreduce(&local_marks, &global_marks, 1, MPI_INT, MPI_SUM,
+                  model_.getMesh().GetComm());
+    if (global_marks == 0) {
+        throw std::runtime_error("delta_gap tags were not found on the mesh.");
+    }
+
+    deltaGapOperator_ = dgops.buildDeltaGapFaceOperator(marker);
+
+    mfem::ParMesh& mesh = model_.getMesh();
+    const mfem::Vector& pol = gap->polarization();
+    const double epol[3] = {pol[0], pol[1], pol[2]};
+    std::unordered_map<int, std::array<double, 3>> coeff;
+
+    auto assignElement = [&](int elem, double scale, const double epol[3]) {
+        mfem::Array<int> dofs;
+        fes_.GetElementDofs(elem, dofs);
+        for (int i = 0; i < dofs.Size(); ++i) {
+            int dof = dofs[i];
+            if (dof < 0) {
+                dof = -1 - dof;
+            }
+            const std::array<double, 3> c{
+                scale * epol[0], scale * epol[1], scale * epol[2]};
+            const auto it = coeff.find(dof);
+            if (it == coeff.end()) {
+                coeff.emplace(dof, c);
+            } else {
+                for (int d = 0; d < 3; ++d) {
+                    if (std::abs(it->second[d] - c[d]) > 1e-8) {
+                        throw std::runtime_error(
+                            "delta_gap DOF is shared by faces with different incident fields.");
+                    }
+                }
+            }
+        }
+    };
+
+    bool logged = false;
+    for (int be = 0; be < mesh.GetNBE(); ++be) {
+        const int attr = mesh.GetBdrAttribute(be);
+        if (attr < 1 || attr > marker.Size() || marker[attr - 1] != 1) {
+            continue;
+        }
+        auto* tr = mesh.GetInternalBdrFaceTransformations(be);
+        if (tr == nullptr || tr->Elem2No < 0) {
+            throw std::runtime_error(
+                "delta_gap tag is not an interior face with two local elements.");
+        }
+        mfem::IntegrationPoint ip;
+        ip.x = 0.5;
+        ip.y = 0.0;
+        ip.z = 0.0;
+        ip.weight = 1.0;
+        tr->SetAllIntPoints(&ip);
+        mfem::Vector nor(mesh.Dimension());
+        mfem::CalcOrtho(tr->Jacobian(), nor);
+        const double nrm = nor.Norml2();
+        if (!(nrm > 0.0)) {
+            throw std::runtime_error("delta_gap face has a zero normal.");
+        }
+        double dot = 0.0;
+        for (int d = 0; d < nor.Size() && d < 3; ++d) {
+            dot += nor(d) * epol[d];
+        }
+        if (std::abs(dot) > 1e-6 * nrm) {
+            throw std::runtime_error(
+                "delta_gap polarization is not tangent to the gap face.");
+        }
+        // Both sides are total field: the same +1/2 E_pol, H incident stays 0.
+        // The decoupled source matrix does not subtract the neighbor trace.
+        assignElement(tr->Elem1No, 0.5, epol);
+        assignElement(tr->Elem2No, 0.5, epol);
+        if (!logged && Mpi::WorldRank() == 0) {
+            logged = true;
+            const double nx = nor(0) / nrm;
+            const double ny = (nor.Size() > 1) ? nor(1) / nrm : 0.0;
+            const double nz = (nor.Size() > 2) ? nor(2) / nrm : 0.0;
+            std::cout << "[delta_gap] face normal = (" << nx << ", " << ny
+                      << ", " << nz << "), E_pol = (" << epol[0] << ", " << epol[1]
+                      << ", " << epol[2] << "), both scales = 0.5\n";
+        }
+    }
+
+    deltaGapDofs_.reserve(coeff.size());
+    for (const auto& kv : coeff) {
+        DeltaGapDof slot;
+        slot.dof = kv.first;
+        for (int d = 0; d < 3; ++d) {
+            slot.c[d] = kv.second[d];
+        }
+        deltaGapDofs_.push_back(slot);
+    }
+
+    int local_dofs = static_cast<int>(deltaGapDofs_.size());
+    int global_dofs = 0;
+    MPI_Allreduce(&local_dofs, &global_dofs, 1, MPI_INT, MPI_SUM,
+                  model_.getMesh().GetComm());
+    if (global_dofs == 0) {
+        throw std::runtime_error("delta_gap produced no incident DOFs.");
+    }
+
+    if (!deltaGapDofs_.empty()) {
+        const int blockSize = fes_.GetNDofs() + fes_.num_face_nbr_dofs;
+        deltaGapWorkVec_.SetSize(6 * blockSize);
+        deltaGapWorkVec_.UseDevice(true);
+        deltaGapWorkVec_ = 0.0;
+    }
+}
+
+void GlobalEvolution::applyDeltaGapSourceToVector(double t_stage, int ndofs, int nbrDofs,
+                                                  mfem::Vector& result_vector) const
+{
+    if (!deltaGapOperator_ || deltaGapDofs_.empty()) {
+        return;
+    }
+    const int blockSize = ndofs + nbrDofs;
+    const double envelope = gaussianTimeSignal(
+        t_stage, deltaGapT0_, deltaGapSpread_, deltaGapMagnitude_, deltaGapDerivative_);
+    double* work = deltaGapWorkVec_.HostWrite();
+    std::fill(work, work + deltaGapWorkVec_.Size(), 0.0);
+    for (const auto& slot : deltaGapDofs_) {
+        for (int d = 0; d < 3; ++d) {
+            work[d * blockSize + slot.dof] = slot.c[d] * envelope;
+        }
+    }
+    deltaGapOperator_->AddMult(deltaGapWorkVec_, result_vector, -1.0);
+}
+
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
 #ifdef SHOW_TIMER_INFORMATION
@@ -1149,6 +1306,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         mfem::Vector out_fields;
         out_fields.MakeRef(out, 0, 6 * ndofs);
         applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
+        applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
     }
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();
@@ -1507,6 +1665,9 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         implicit_src_ = 0.0;
         applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
         implicit_rhs_ += implicit_src_;
+    }
+    if (deltaGapOperator_) {
+        applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, implicit_rhs_);
     }
 
     // --- Solve (I - dt*A) k = rhs ---
