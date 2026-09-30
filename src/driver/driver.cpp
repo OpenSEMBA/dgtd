@@ -1,5 +1,6 @@
 #include "driver.h"
 #include "string"
+#include "components/PMLProperties.h"
 
 #include <numeric>
 #include <unordered_map>
@@ -76,10 +77,22 @@ std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh
 	return res;
 }
 
+static std::vector<std::pair<int,int>> buildAllTwoElementInteriorBoundaryPairs(mfem::Mesh& mesh)
+{
+    std::vector<std::pair<int,int>> res;
+    res.reserve(mesh.GetNBE());
+    for (int b = 0; b < mesh.GetNBE(); b++) {
+        if (auto* f_trans = mesh.GetInternalBdrFaceTransformations(b)) {
+            res.emplace_back(f_trans->Elem1No, f_trans->Elem2No);
+        }
+    }
+    return res;
+}
+
 static std::vector<std::pair<int,int>>
-gatherConstraintPairs(mfem::Mesh& mesh,
-                      const mfem::Array<int>& tfsf_tags,
-                      const mfem::Array<int>& sgbc_tags)
+gatherWeightedConstraintPairs(mfem::Mesh& mesh,
+                             const mfem::Array<int>& tfsf_tags,
+                             const mfem::Array<int>& sgbc_tags)
 {
     std::vector<std::pair<int,int>> pairs;
     pairs.reserve(64);
@@ -128,8 +141,8 @@ static std::vector<long long> computeWeightedLoad(
     return load;
 }
 
-// Count how many boundary-pair DOF points (SGBC or TFSF face endpoints)
-// are currently assigned to each rank.
+// Count how many constrained interior-boundary pairs are currently assigned
+// to each rank.
 static std::vector<int> countBoundaryPairsPerRank(
     int P,
     const int* partitioning,
@@ -143,12 +156,13 @@ static std::vector<int> countBoundaryPairsPerRank(
     return cnt;
 }
 
-// Pick the rank with the lowest weighted load.
-static int leastLoadedRank(const std::vector<long long>& load)
+// Pick the rank with the lowest weighted load, optionally excluding one rank.
+static int leastLoadedRank(const std::vector<long long>& load, int excluded = -1)
 {
-    int best = 0;
-    for (int r = 1; r < static_cast<int>(load.size()); ++r) {
-        if (load[r] < load[best]) best = r;
+    int best = -1;
+    for (int r = 0; r < static_cast<int>(load.size()); ++r) {
+        if (r == excluded) continue;
+        if (best < 0 || load[r] < load[best]) best = r;
     }
     return best;
 }
@@ -169,6 +183,108 @@ static void assignComponent(const std::vector<int>& elems,
     }
 }
 
+// Verify TFSF TF/SF co-location after DSU partitioning.
+// Checks every tagged TFSF face pair directly, then every connected component
+// in the TFSF-only element graph (covers multi-TF / multi-SF corner cases).
+static void verifyTFSFPartitionColocation(
+    mfem::Mesh& mesh,
+    const int* partitioning,
+    const mfem::Array<int>& tfsf_tags)
+{
+    if (tfsf_tags.Size() == 0 || Mpi::WorldRank() != 0) return;
+
+    auto tfsf_pairs = buildTwoElementPairsByTagToSort(mesh, tfsf_tags);
+    if (tfsf_pairs.empty()) return;
+
+    int split_pairs = 0;
+    for (const auto& pr : tfsf_pairs) {
+        if (partitioning[pr.first] != partitioning[pr.second]) {
+            ++split_pairs;
+            if (split_pairs <= 5) {
+                std::cout << "[Partition] TFSF SPLIT pair elems "
+                          << pr.first << "/" << pr.second << " ranks "
+                          << partitioning[pr.first] << "/"
+                          << partitioning[pr.second] << "\n";
+            }
+        }
+    }
+
+    const int NE = mesh.GetNE();
+    std::vector<int> parent(NE);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::vector<int> rank_dsu(NE, 0);
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    auto unite = [&](int a, int b) {
+        a = find(a); b = find(b);
+        if (a == b) return;
+        if (rank_dsu[a] < rank_dsu[b]) std::swap(a, b);
+        parent[b] = a;
+        if (rank_dsu[a] == rank_dsu[b]) rank_dsu[a]++;
+    };
+
+    std::vector<int> tfsf_degree(NE, 0);
+    for (const auto& pr : tfsf_pairs) {
+        unite(pr.first, pr.second);
+        if (0 <= pr.first && pr.first < NE) ++tfsf_degree[pr.first];
+        if (0 <= pr.second && pr.second < NE) ++tfsf_degree[pr.second];
+    }
+
+    std::unordered_map<int, std::vector<int>> tfsf_components;
+    for (const auto& pr : tfsf_pairs) {
+        for (int e : {pr.first, pr.second}) {
+            if (0 <= e && e < NE) {
+                tfsf_components[find(e)].push_back(e);
+            }
+        }
+    }
+    for (auto& [root, elems] : tfsf_components) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+    }
+
+    int split_components = 0;
+    int max_component = 0;
+    int multi_face_elems = 0;
+    int max_elem_degree = 0;
+    for (int e = 0; e < NE; ++e) {
+        if (tfsf_degree[e] > 0) {
+            max_elem_degree = std::max(max_elem_degree, tfsf_degree[e]);
+            if (tfsf_degree[e] > 1) ++multi_face_elems;
+        }
+    }
+
+    for (const auto& [root, elems] : tfsf_components) {
+        max_component = std::max(max_component, static_cast<int>(elems.size()));
+        const int r0 = partitioning[elems.front()];
+        for (int e : elems) {
+            if (partitioning[e] != r0) {
+                ++split_components;
+                break;
+            }
+        }
+    }
+
+    std::cout << "[Partition] TFSF verify: pairs=" << tfsf_pairs.size()
+              << " split_pairs=" << split_pairs
+              << " tfsf_components=" << tfsf_components.size()
+              << " split_components=" << split_components
+              << " max_component_elems=" << max_component
+              << " max_elem_tfsf_faces=" << max_elem_degree
+              << " multi_face_elems=" << multi_face_elems;
+    if (split_pairs == 0 && split_components == 0) {
+        std::cout << " OK";
+    } else {
+        std::cout << " FAIL";
+    }
+    std::cout << std::endl;
+}
+
 void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
                                           int* partitioning,
                                           const mfem::Array<int>& tfsf_tags,
@@ -178,18 +294,18 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
     const int P  = Mpi::WorldSize();
     if (NE == 0 || P <= 1) return;
 
-    auto pairs = gatherConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    auto pairs = buildAllTwoElementInteriorBoundaryPairs(mesh);
     if (pairs.empty()) return;
 
     // --- Phase 0: Build weighted load model ---
-    auto weight = buildElementWeights(NE, pairs);
+    auto weighted_pairs = gatherWeightedConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    auto weight = buildElementWeights(NE, weighted_pairs);
     auto load   = computeWeightedLoad(P, NE, partitioning, weight);
 
     // --- Phase 1: Transitive grouping via DSU (union-find) ---
-    // At corners a single TF element may share faces with multiple SF
-    // elements (or vice-versa).  All such elements must land on the same
-    // rank so that every TFSF face is rank-local.  We use a DSU to merge
-    // elements transitively through shared boundary faces.
+    // Any two-sided interior boundary face is forced rank-local. At corners,
+    // one element may participate in multiple such faces, so we use a DSU to
+    // merge elements transitively through shared interior-boundary faces.
     std::vector<int> parent(NE);
     std::iota(parent.begin(), parent.end(), 0);
     std::vector<int> rank_dsu(NE, 0);
@@ -278,7 +394,8 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
         std::cout << "[Partition] " << pairs.size() << " boundary pairs, "
                   << comps.size() << " components across "
                   << P << " ranks (TFSF=" << tfsf_tags.Size()
-                  << " tags, SGBC=" << sgbc_tags.Size() << " tags)\n";
+                  << " tags, SGBC=" << sgbc_tags.Size()
+                  << " tags, weighted=" << weighted_pairs.size() << " pairs)\n";
         std::cout << "[Partition] Weighted load: min=" << min_load
                   << " max=" << max_load << " ideal=" << std::fixed
                   << std::setprecision(1) << ideal
@@ -287,6 +404,289 @@ void applyPairwiseConstraintsPartitioning(mfem::Mesh& mesh,
         for (int r = 0; r < P; ++r) std::cout << " R" << r << "=" << bdr_cnt[r];
         std::cout << std::endl;
     }
+
+    verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
+}
+
+// METIS-only: assign each constrained-pair component to one rank (root element's).
+static void fixSplitConstraintPairs(
+    int* partitioning,
+    const std::vector<std::pair<int,int>>& pairs)
+{
+    if (pairs.empty()) return;
+
+    int max_elem = 0;
+    for (const auto& pr : pairs) {
+        max_elem = std::max({max_elem, pr.first, pr.second});
+    }
+    const int NE = max_elem + 1;
+
+    std::vector<int> parent(NE);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    auto unite = [&](int a, int b) {
+        a = find(a); b = find(b);
+        if (a != b) parent[b] = a;
+    };
+
+    for (const auto& pr : pairs) {
+        unite(pr.first, pr.second);
+    }
+
+    std::unordered_map<int, std::vector<int>> components;
+    for (const auto& pr : pairs) {
+        for (int e : {pr.first, pr.second}) {
+            components[find(e)].push_back(e);
+        }
+    }
+    for (auto& [root, elems] : components) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+        const int rank = partitioning[root];
+        for (int e : elems) {
+            partitioning[e] = rank;
+        }
+    }
+
+    int n_split = 0;
+    for (const auto& pr : pairs) {
+        if (partitioning[pr.first] != partitioning[pr.second]) ++n_split;
+    }
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[Partition] Co-located " << components.size()
+                  << " TFSF/SGBC constraint components after METIS";
+        if (n_split > 0) {
+            std::cout << " (WARNING: " << n_split << " pairs still split)";
+        }
+        std::cout << "\n";
+    }
+}
+
+// Assign every element in each constrained pair component to a fixed rank.
+static void pinConstraintPairsToRank(
+    int* partitioning,
+    const std::vector<std::pair<int,int>>& pairs,
+    int target_rank)
+{
+    if (pairs.empty()) return;
+
+    int max_elem = 0;
+    for (const auto& pr : pairs) {
+        max_elem = std::max({max_elem, pr.first, pr.second});
+    }
+    const int NE = max_elem + 1;
+
+    std::vector<int> parent(NE);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    auto unite = [&](int a, int b) {
+        a = find(a); b = find(b);
+        if (a != b) parent[b] = a;
+    };
+
+    for (const auto& pr : pairs) {
+        unite(pr.first, pr.second);
+    }
+
+    std::unordered_map<int, std::vector<int>> components;
+    for (const auto& pr : pairs) {
+        for (int e : {pr.first, pr.second}) {
+            components[find(e)].push_back(e);
+        }
+    }
+    for (auto& [root, elems] : components) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+        for (int e : elems) {
+            partitioning[e] = target_rank;
+        }
+    }
+}
+
+static std::unordered_set<int> elementsInPairs(
+    const std::vector<std::pair<int,int>>& pairs)
+{
+    std::unordered_set<int> elems;
+    for (const auto& pr : pairs) {
+        elems.insert(pr.first);
+        elems.insert(pr.second);
+    }
+    return elems;
+}
+
+// Move non-pinned elements off pin_rank to neighbor ranks (or least-loaded).
+static int rebalanceExcessFromRank(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const std::unordered_set<int>& pinned_elements,
+    int pin_rank,
+    const std::vector<long long>& weight)
+{
+    const int NE = mesh.GetNE();
+    const int P = Mpi::WorldSize();
+    if (P <= 1 || pin_rank < 0 || pin_rank >= P) return 0;
+
+    auto load = computeWeightedLoad(P, NE, partitioning, weight);
+    const long long total = std::accumulate(load.begin(), load.end(), 0LL);
+    const long long ideal = (total + P - 1) / P;
+
+    mesh.ElementToElementTable();
+    const mfem::Table& e2e = mesh.ElementToElementTable();
+
+    auto neighborScore = [&](int elem) {
+        int score = 0;
+        const int n = e2e.RowSize(elem);
+        const int* neigh = e2e.GetRow(elem);
+        for (int i = 0; i < n; ++i) {
+            if (partitioning[neigh[i]] != pin_rank) ++score;
+        }
+        return score;
+    };
+
+    auto bestNeighborTarget = [&](int elem) -> int {
+        std::vector<int> neigh_count(P, 0);
+        const int n = e2e.RowSize(elem);
+        const int* neigh = e2e.GetRow(elem);
+        for (int i = 0; i < n; ++i) {
+            const int r = partitioning[neigh[i]];
+            if (r != pin_rank && 0 <= r && r < P) {
+                neigh_count[r]++;
+            }
+        }
+        int best_r = -1;
+        int best_cnt = 0;
+        for (int r = 0; r < P; ++r) {
+            if (r == pin_rank) continue;
+            if (neigh_count[r] > best_cnt) {
+                best_cnt = neigh_count[r];
+                best_r = r;
+            }
+        }
+        if (best_r >= 0 && best_cnt > 0) return best_r;
+        return leastLoadedRank(load, pin_rank);
+    };
+
+    int moved = 0;
+    while (load[pin_rank] > ideal) {
+        int best_elem = -1;
+        int best_score = -1;
+        for (int e = 0; e < NE; ++e) {
+            if (partitioning[e] != pin_rank) continue;
+            if (pinned_elements.count(e)) continue;
+            const int score = neighborScore(e);
+            if (score > best_score) {
+                best_score = score;
+                best_elem = e;
+            }
+        }
+        if (best_elem < 0) break;
+
+        const int target = bestNeighborTarget(best_elem);
+        if (target < 0 || target == pin_rank) break;
+
+        load[pin_rank] -= weight[best_elem];
+        load[target] += weight[best_elem];
+        partitioning[best_elem] = target;
+        ++moved;
+    }
+    return moved;
+}
+
+static void applyMetisPartitioningWithTFSFPinRank0(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const mfem::Array<int>& tfsf_tags,
+    const mfem::Array<int>& sgbc_tags)
+{
+    const int P = Mpi::WorldSize();
+    constexpr int tfsf_pin_rank = 0;
+
+    std::vector<std::pair<int,int>> tfsf_pairs;
+    if (tfsf_tags.Size() > 0) {
+        tfsf_pairs = buildTwoElementPairsByTagToSort(mesh, tfsf_tags);
+    }
+    std::vector<std::pair<int,int>> sgbc_pairs;
+    if (sgbc_tags.Size() > 0) {
+        sgbc_pairs = buildTwoElementPairsByTagToSort(mesh, sgbc_tags);
+    }
+
+    const auto weighted_pairs = gatherWeightedConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    const auto weight = buildElementWeights(mesh.GetNE(), weighted_pairs);
+
+    if (!tfsf_pairs.empty()) {
+        pinConstraintPairsToRank(partitioning, tfsf_pairs, tfsf_pin_rank);
+    }
+    if (!sgbc_pairs.empty()) {
+        fixSplitConstraintPairs(partitioning, sgbc_pairs);
+    }
+
+    const auto pinned_tfsf = elementsInPairs(tfsf_pairs);
+    const auto load_after_pin = computeWeightedLoad(P, mesh.GetNE(), partitioning, weight);
+    const int moved = rebalanceExcessFromRank(
+        mesh, partitioning, pinned_tfsf, tfsf_pin_rank, weight);
+    auto load_after = computeWeightedLoad(P, mesh.GetNE(), partitioning, weight);
+
+    if (Mpi::WorldRank() == 0) {
+        const long long total = std::accumulate(load_after.begin(), load_after.end(), 0LL);
+        const long long ideal = (total + P - 1) / P;
+        long long max_load = *std::max_element(load_after.begin(), load_after.end());
+        long long min_load = *std::min_element(load_after.begin(), load_after.end());
+        double imbalance = (ideal > 0)
+            ? (max_load - static_cast<double>(ideal)) / ideal * 100.0
+            : 0.0;
+
+        std::cout << "[Partition] TFSF pinned to rank " << tfsf_pin_rank
+                  << " (" << pinned_tfsf.size() << " elements)\n";
+        std::cout << "[Partition] Rebalanced " << moved
+                  << " non-TFSF elements off rank " << tfsf_pin_rank
+                  << " (load R" << tfsf_pin_rank << ": "
+                  << load_after_pin[tfsf_pin_rank] << " -> "
+                  << load_after[tfsf_pin_rank] << ", ideal="
+                  << ideal << ")\n";
+        std::cout << "[Partition] Weighted load: min=" << min_load
+                  << " max=" << max_load << " ideal=" << ideal
+                  << " imbalance=" << std::fixed << std::setprecision(1)
+                  << imbalance << "%\n";
+        std::cout << "[Partition] Elements per rank:";
+        for (int r = 0; r < P; ++r) {
+            int cnt = 0;
+            for (int e = 0; e < mesh.GetNE(); ++e) {
+                if (partitioning[e] == r) ++cnt;
+            }
+            std::cout << " R" << r << "=" << cnt;
+        }
+        std::cout << std::endl;
+    }
+
+    verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
+}
+
+static void applyMetisPartitioningWithPairFix(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const mfem::Array<int>& tfsf_tags,
+    const mfem::Array<int>& sgbc_tags)
+{
+    auto pairs = gatherWeightedConstraintPairs(mesh, tfsf_tags, sgbc_tags);
+    if (!pairs.empty()) {
+        fixSplitConstraintPairs(partitioning, pairs);
+    }
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[Partition] METIS-only (DSU rebalance disabled)\n";
+    }
+    verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
 }
 
 inline void checkIfThrows(bool condition, const std::string& msg)
@@ -519,12 +919,13 @@ std::unique_ptr<TotalField> buildModulatedGaussianPlanewave(
 }
 
 std::unique_ptr<TotalField> buildDerivGaussDipole(
-	const double length, 
-	const double gaussianSpread, 
-	const double gaussMean
-) 
+	const double length,
+	const double gaussianSpread,
+	const double gaussMean,
+	const double amplitude_peak = 1.0,
+	const double peak_radius = 1.0)
 {
-	DerivGaussDipole dip(length, gaussianSpread, gaussMean);
+	DerivGaussDipole dip(length, gaussianSpread, gaussMean, amplitude_peak, peak_radius);
 	return std::make_unique<TotalField>(dip);
 }
 
@@ -609,13 +1010,32 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
 			const auto& mag = case_data["sources"][s]["magnitude"];
+			if (mag.contains("amplitude")) {
+				throw std::runtime_error(
+					"Dipole magnitude.amplitude was renamed to magnitude.amplitude_peak "
+					"(desired max |E| at peak_radius).");
+			}
 			double length = mag["length"].get<double>();
 			double spread = mag["spread"].get<double>();
+			double amplitude_peak = mag.value("amplitude_peak", 1.0);
+			if (amplitude_peak <= 0.0) {
+				throw std::runtime_error(
+					"Dipole magnitude.amplitude_peak must be > 0 (got " +
+					std::to_string(amplitude_peak) + ").");
+			}
 
 			// Determine mean: use explicit value if provided, otherwise auto-compute.
 			// For the retarded-time Gaussian, mean_auto ensures the field is
 			// AUTO_DELAY_N_SIGMA sigma before peak at t=0 on the TFSF surface.
 			double mean;
+			double peak_radius = 1.0;
+			if (mag.contains("peak_radius")) {
+				peak_radius = mag["peak_radius"].get<double>();
+				if (peak_radius <= 0.0) {
+					throw std::runtime_error(
+						"Dipole magnitude.peak_radius must be > 0.");
+				}
+			}
 			if (mag.contains("mean")) {
 				mean = mag["mean"].get<double>();
 			} else if (mesh && case_data["sources"][s].contains("tags")) {
@@ -625,13 +1045,19 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				double mean_auto = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0)
 				                   - min_r / physicalConstants::speedOfLight;
 				mean = std::max(spread * std::sqrt(2.0), mean_auto);
+				if (!mag.contains("peak_radius")) {
+					peak_radius = min_r;
+				}
 				std::cout << "[Source " << s << " (dipole)] Auto-computed mean = "
-				          << mean << " (min_radius=" << min_r << ")\n";
+				          << mean << " (min_radius=" << min_r
+				          << "), amplitude_peak=" << amplitude_peak
+				          << " at peak_radius=" << peak_radius << "\n";
 			} else {
 				mean = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
 			}
 
-			res.add(buildDerivGaussDipole(length, spread, mean));
+			res.add(buildDerivGaussDipole(
+				length, spread, mean, amplitude_peak, peak_radius));
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
@@ -734,15 +1160,32 @@ Probes buildProbes(const json& case_data)
 
     if (case_data.contains("probes")){
         if (case_data["probes"].contains("exporter")) {
+            const auto& exp_json = case_data["probes"]["exporter"];
+            if (exp_json.contains("saves")) {
+                throw std::runtime_error(
+                    "probes.exporter: \"saves\" was replaced by \"save_every\" "
+                    "(solver-time interval). Example: \"save_every\": 0.5 with "
+                    "final_time 20 writes t=0,0.5,...,20.");
+            }
+            if (exp_json.contains("save_every") && exp_json.contains("steps")) {
+                throw std::runtime_error(
+                    "probes.exporter: specify either \"save_every\" or \"steps\", not both.");
+            }
             ExporterProbe exporter_probe;
-            if (case_data["probes"]["exporter"].contains("name")) {
-                exporter_probe.name = case_data["probes"]["exporter"]["name"];
+            if (exp_json.contains("name")) {
+                exporter_probe.name = exp_json["name"];
             } else {
                 exporter_probe.name = case_data["model"]["filename"];
             }
-            exporter_probe.visSteps = calculate_interval(case_data["probes"]["exporter"]);
-            if (case_data["probes"]["exporter"].contains("saves"))
-                exporter_probe.saves = case_data["probes"]["exporter"]["saves"];
+            if (exp_json.contains("save_every")) {
+                exporter_probe.save_every = exp_json["save_every"].get<double>();
+                if (!(exporter_probe.save_every > 0.0)) {
+                    throw std::runtime_error(
+                        "probes.exporter.save_every must be > 0.");
+                }
+            } else {
+                exporter_probe.visSteps = calculate_interval(exp_json);
+            }
             probes.exporterProbes.push_back(exporter_probe);
         }
 
@@ -867,6 +1310,8 @@ Probes buildProbes(const json& case_data)
 std::string dataFolder() { return "./testData/"; }
 std::string maxwellInputsFolder() { return dataFolder() + "maxwellInputs/"; }
 
+static bool isSGBCBoundaryType(const std::string& boundary_type);
+
 BdrCond assignBdrCond(const std::string& bdr_cond)
 {
 	if (bdr_cond == "PEC") {
@@ -878,7 +1323,7 @@ BdrCond assignBdrCond(const std::string& bdr_cond)
 	else if (bdr_cond == "SMA") {
 		return BdrCond::SMA;
 	}
-	else if (bdr_cond == "SGBC") {
+    else if (isSGBCBoundaryType(bdr_cond)) {
 		return BdrCond::SGBC;
 	}
 	else {
@@ -943,7 +1388,8 @@ void checkIfAttributesArePresent(const Mesh& mesh, const GeomTagToMaterialInfo& 
 	}
 }
 
-GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const mfem::Mesh& mesh)
+GeomTagToMaterialInfo assembleAttributeToMaterial(
+	const json& case_data, const mfem::Mesh& mesh)
 {
 	GeomTagToMaterialInfo res{};
 
@@ -951,18 +1397,44 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(const json& case_data, const m
 	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
 
 	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
-		for (auto t = 0; t < case_data["model"]["materials"][m]["tags"].size(); t++) {
+		const auto& mat_json = case_data["model"]["materials"][m];
+
+		if (mat_json.contains("type")) {
+			const std::string type = mat_json["type"].get<std::string>();
+			if (type == "vacuum") {
+				const Material vacuum = buildVacuumMaterial();
+				for (auto t = 0; t < mat_json["tags"].size(); t++) {
+					res.gt2m.emplace(mat_json["tags"][t], vacuum);
+				}
+			} else if (type == "PML") {
+				PMLProperties props =
+					parsePMLMaterialBlock(mat_json, mesh.Dimension());
+				const Material vacuum = buildVacuumMaterial();
+				for (auto t = 0; t < mat_json["tags"].size(); t++) {
+					const GeomTag tag = mat_json["tags"][t];
+					props.geom_tags.push_back(tag);
+					res.gt2m.emplace(tag, vacuum);
+				}
+				res.pml_props.push_back(std::move(props));
+			} else {
+				throw std::runtime_error(
+					"Unknown material type '" + type + "'. Supported: vacuum, PML, or legacy eps/mu.");
+			}
+			continue;
+		}
+
+		for (auto t = 0; t < mat_json["tags"].size(); t++) {
 			double eps{ 1.0 }, mu{ 1.0 }, sigma{ 0.0 };
-			if (case_data["model"]["materials"][m].contains("relative_permittivity")) {
-				eps = case_data["model"]["materials"][m]["relative_permittivity"];
+			if (mat_json.contains("relative_permittivity")) {
+				eps = mat_json["relative_permittivity"];
 			}
-			if (case_data["model"]["materials"][m].contains("relative_permeability")) {
-				mu = case_data["model"]["materials"][m]["relative_permeability"];
+			if (mat_json.contains("relative_permeability")) {
+				mu = mat_json["relative_permeability"];
 			}
-			if (case_data["model"]["materials"][m].contains("bulk_conductivity")) {
-				sigma = case_data["model"]["materials"][m]["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			if (mat_json.contains("bulk_conductivity")) {
+				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
 			}
-			res.gt2m.emplace(std::make_pair(case_data["model"]["materials"][m]["tags"][t], Material(eps, mu, sigma)));
+			res.gt2m.emplace(std::make_pair(mat_json["tags"][t], Material(eps, mu, sigma)));
 		}
 	}
 
@@ -1197,11 +1669,16 @@ Array<int> getTFSFTags(const json& case_data)
             (case_data["sources"][s]["type"] == "planewave" ||
              case_data["sources"][s]["type"] == "dipole")) {
             for (int t = 0; t < case_data["sources"][s]["tags"].size(); ++t) {
-                res.Append(case_data["sources"][s]["tags"][t]);
+                res.Append(case_data["sources"][s]["tags"][t].get<int>());
             }
         }
     }
     return res;
+}
+
+static bool isSGBCBoundaryType(const std::string& boundary_type)
+{
+	return boundary_type == "SGBC";
 }
 
 Array<int> getSGBCTags(const json& case_data)
@@ -1213,9 +1690,10 @@ Array<int> getSGBCTags(const json& case_data)
     }
 
     for (int b = 0; b < case_data["model"]["boundaries"].size(); ++b) {
-        if (case_data["model"]["boundaries"][b].contains("type") && case_data["model"]["boundaries"][b]["type"] == "SGBC") {
+        if (case_data["model"]["boundaries"][b].contains("type") &&
+            isSGBCBoundaryType(case_data["model"]["boundaries"][b]["type"].get<std::string>())) {
             for (int t = 0; t < case_data["model"]["boundaries"][b]["tags"].size(); ++t) {
-                res.Append(case_data["model"]["boundaries"][b]["tags"][t]);
+                res.Append(case_data["model"]["boundaries"][b]["tags"][t].get<int>());
             }
         }
     }
@@ -1270,8 +1748,17 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
     mfem::Array<int> sgbc_tags  = getSGBCTags(case_data);
 
-    if (tfsf_tags.Size() || sgbc_tags.Size()){
+    const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
+    const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
+    const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
+        (!pin_tfsf || pin_tfsf[0] != '0');
+
+    if (use_dsu && use_dsu[0] == '1') {
         applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
+    } else if (use_tfsf_pin_rank0) {
+        applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
+    } else {
+        applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
     }
 
     Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
@@ -1410,8 +1897,8 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     };
 
     for (int b = 0; b < case_data["model"]["boundaries"].size(); b++) {
-        if (case_data["model"]["boundaries"][b].contains("type") && 
-            case_data["model"]["boundaries"][b]["type"] == "SGBC") { 
+        if (case_data["model"]["boundaries"][b].contains("type") &&
+            isSGBCBoundaryType(case_data["model"]["boundaries"][b]["type"].get<std::string>())) {
 
             const auto& bdr_json = case_data["model"]["boundaries"][b];
 
@@ -1419,6 +1906,18 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
             for (auto t = 0; t < bdr_json["tags"].size(); t++) {
                 props.geom_tags.emplace_back(bdr_json["tags"][t]);
+            }
+            props.exporter_probe = bdr_json.value("exporter_probe", false);
+
+            // Optional solver_options.sgbc_cfl replaces the historical hard-coded 0.5
+            // in recommended_dt_ = crossing_time * sgbc_cfl * opacity_relax.
+            if (case_data.contains("solver_options") &&
+                case_data["solver_options"].contains("sgbc_cfl")) {
+                const double cfl = case_data["solver_options"]["sgbc_cfl"].get<double>();
+                if (!(cfl > 0.0)) {
+                    throw std::runtime_error("solver_options.sgbc_cfl must be > 0.");
+                }
+                props.sgbc_cfl = cfl;
             }
 
             // Support both single "material" and multi-layer "layers" formats
@@ -1464,6 +1963,29 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     }
     
     res.setSGBCProperties(sgbc_props);
+
+    res.setPMLProperties(att_to_material.pml_props);
+    if (res.hasPML() && Mpi::WorldRank() == 0) {
+        std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;
+        for (size_t ri = 0; ri < att_to_material.pml_props.size(); ++ri) {
+            const auto& props = att_to_material.pml_props[ri];
+            std::cout << "  Region " << ri << ": " << props.geom_tags.size()
+                      << " tag(s), stretch_mode="
+                      << (props.stretch_mode == PMLStretchMode::Radial ? "radial" : "box")
+                      << ", grading_order=" << props.grading_order
+                      << ", target_reflection=" << std::scientific << props.target_reflection
+                      << std::defaultfloat
+                      << ", kappa_max=" << props.kappa_max
+                      << ", alpha_max=" << props.alpha_max
+                      << ", active_axes:";
+            for (Direction d : props.active_axes) {
+                std::cout << " " << d;
+            }
+            std::cout << std::endl;
+        }
+        // Profiles are initialized in Solver with the case FE order (MPI-safe
+        // attribute-based σ eval; serial mesh for global interface / L).
+    }
 
     if (Mpi::WorldRank() == 0 && !sgbc_notices.empty()) {
         std::cout << "\n========================================================" << std::endl;
@@ -1552,11 +2074,13 @@ maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 
 void postProcessInformation(const json& case_data, maxwell::Model& model, maxwell::SolverOptions& solverOpts) 
 {
+	const MPI_Comm comm = model.getMesh().GetComm();
+
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		mfem::Array<int> tfsf_tags;
 		if (case_data["sources"][s]["type"] == "planewave" || case_data["sources"][s]["type"] == "dipole") {
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
-				tfsf_tags.Append(case_data["sources"][s]["tags"][t]);
+				tfsf_tags.Append(case_data["sources"][s]["tags"][t].get<int>());
 			}
 			auto tfsf_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
 			tfsf_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
@@ -1568,30 +2092,36 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 					}
 				}
 			}
-			if (tfsf_atts_present_in_partition_marker.Sum() != 0){
-				model.getTotalFieldScatteredFieldToMarker().insert(std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
+			const int local_tfsf_marker = tfsf_atts_present_in_partition_marker.Sum();
+			int global_tfsf_marker = 0;
+			MPI_Allreduce(&local_tfsf_marker, &global_tfsf_marker, 1, MPI_INT, MPI_SUM, comm);
+			if (global_tfsf_marker != 0) {
+				model.getTotalFieldScatteredFieldToMarker().insert(
+					std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
 			}
 		}
 	}
 
-	for (auto b = 0; b < case_data["model"]["boundaries"].size(); b++) {
-		mfem::Array<int> sgbc_tags = getSGBCTags(case_data);
-		if (case_data["model"]["boundaries"][b]["type"] == "SGBC") {
-			auto sgbc_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::SGBC, true) };
-			sgbc_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
-			sgbc_atts_present_in_partition_marker = 0;
-			for (auto t = 0; t < sgbc_tags.Size(); t++){
-				for (auto bn = 0; bn < model.getConstMesh().GetNBE(); bn++){	
-					if (model.getMesh().GetBdrAttribute(bn) == sgbc_tags[t]){
-						sgbc_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(bn) - 1] = 1;
-					}
-				}
-			}
-			if (sgbc_atts_present_in_partition_marker.Sum() != 0){
-				model.getSGBCToMarker().insert(std::make_pair(maxwell::BdrCond::SGBC, sgbc_atts_present_in_partition_marker));
-			}
-		}
-	}
+    mfem::Array<int> sgbc_tags = getSGBCTags(case_data);
+    if (sgbc_tags.Size() != 0) {
+        auto sgbc_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::SGBC, true) };
+        sgbc_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+        sgbc_atts_present_in_partition_marker = 0;
+        for (auto t = 0; t < sgbc_tags.Size(); t++){
+            for (auto bn = 0; bn < model.getConstMesh().GetNBE(); bn++){	
+                if (model.getMesh().GetBdrAttribute(bn) == sgbc_tags[t]){
+                    sgbc_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(bn) - 1] = 1;
+                }
+            }
+        }
+        const int local_sgbc_marker = sgbc_atts_present_in_partition_marker.Sum();
+        int global_sgbc_marker = 0;
+        MPI_Allreduce(&local_sgbc_marker, &global_sgbc_marker, 1, MPI_INT, MPI_SUM, comm);
+        if (global_sgbc_marker != 0) {
+            model.getSGBCToMarker().insert(
+                std::make_pair(maxwell::BdrCond::SGBC, sgbc_atts_present_in_partition_marker));
+        }
+    }
 
 	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getBoundaryToMarker().end() && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
 		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
@@ -1600,26 +2130,6 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 	model.getMesh().SetAttributes();
 }
 
-
-std::string getRunModeTag()
-{
-    std::string backend;
-    if (mfem::Device::Allows(mfem::Backend::CUDA)){
-        backend = "cuda-";
-        backend.append(std::to_string(Mpi::WorldSize()));
-        return backend;
-    }
-    else{
-        if (Mpi::WorldSize() == 1){
-            return "single-core";
-        }
-        else{
-            backend = "mpi-";
-            backend.append(std::to_string(Mpi::WorldSize()));
-            return backend;
-        }
-    }
-}
 
 void prepareExportDirectories(Model& model)
 {
@@ -1631,7 +2141,7 @@ void prepareExportDirectories(Model& model)
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 	
 	if (world_rank == 0) {
-		std::filesystem::path simExpPath("Exports/" + getRunModeTag() + "/" + model.meshName_ + "/SimulationStats/");
+		std::filesystem::path simExpPath(maxwell::getSimulationCaseExportPath(model.meshName_) + "/SimulationStats/");
 		
 		if (std::filesystem::exists(simExpPath)) {
 			std::filesystem::remove_all(simExpPath);

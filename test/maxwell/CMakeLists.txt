@@ -7,6 +7,7 @@ endif()
 add_executable(maxwell_tests
 	$<TARGET_OBJECTS:TestLauncher>
 	"driver/DriverTest.cpp"
+	"driver/MorUrReconstructorTest.cpp"
 	"components/EigenvalueEstimator.cpp"
 	"components/MaterialTest.cpp" 
 	"components/ModelTest.cpp"
@@ -32,7 +33,12 @@ add_executable(maxwell_solver_tests
 	${MPI_SRCS}
 	"solver/Solver1DTest.cpp" 
 	"solver/Solver2DTest.cpp" 
-	"solver/Solver3DTest.cpp")
+	"solver/Solver3DTest.cpp"
+	"solver/HesthavenOperatorBenchmarkTest.cpp")
+
+if (SEMBA_DGTD_ENABLE_CUDA)
+	target_compile_definitions(maxwell_solver_tests PRIVATE SEMBA_DGTD_ENABLE_CUDA)
+endif()
 
 if(SEMBA_DGTD_ENABLE_EXTENSIVE_CASE_TESTS)
 	message(STATUS "Appending Extensive Tests to maxwell_solver_tests")

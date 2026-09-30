@@ -2,6 +2,10 @@
 
 #include "Types.h"
 #include "Material.h"
+#include "PMLProperties.h"
+#include "PMLProfiles.h"
+
+#include <memory>
 
 namespace maxwell {
 
@@ -52,6 +56,7 @@ struct GeomTagToBoundaryInfo {
 struct GeomTagToMaterialInfo {
 	GeomTagToMaterial gt2m;
 	GeomTagToBoundaryMaterial gt2bm;
+	std::vector<PMLProperties> pml_props;
 
 	GeomTagToMaterialInfo()
 	{
@@ -89,6 +94,10 @@ struct SGBCProperties{
     std::vector<size_t> geom_tags;
     std::vector<SGBCLayer> layers;
 	SGBCBoundaries sgbc_bdr_info;
+	bool exporter_probe = false;
+	/// Crossing-time CFL for SGBC recommended δt: layer_dt = crossing_time * sgbc_cfl * opacity_relax.
+	/// Default 0.5 matches the historical hard-coded factor; omit JSON field for identical behavior.
+	double sgbc_cfl = 0.5;
 
     SGBCProperties() : layers() {}
 
@@ -157,6 +166,17 @@ public:
 	void setSGBCProperties(const std::vector<SGBCProperties> in) { sgbc_props_ = in; }
 	const std::vector<SGBCProperties>& getSGBCProperties() const { return sgbc_props_; }
 
+	void setPMLProperties(const std::vector<PMLProperties>& in) { pml_props_ = in; }
+	const std::vector<PMLProperties>& getPMLProperties() const { return pml_props_; }
+	bool hasPML() const { return !pml_props_.empty(); }
+	bool isPMLAttribute(GeomTag tag) const;
+	const PMLProperties* getPMLPropertiesForTag(GeomTag tag) const;
+	void initializePMLProfiles(int mpi_rank, int fe_order = 2);
+	const PMLProfileData* getPMLProfileData() const { return pml_profiles_.get(); }
+
+	/// Element-attribute marker: 1 for each volumetric PML material tag.
+	mfem::Array<int> buildPMLVolumeMarker() const;
+
 	mfem::Vector initialiseGeomTagVector() const;
 	mfem::Vector buildEpsMuPiecewiseVector(const FieldType& f) const;
 	mfem::Vector buildSigmaPiecewiseVector() const;
@@ -196,6 +216,8 @@ private:
 	BoundaryMarker sgbc_Marker_;
 	BoundaryMarker intsgbc_Marker_;
 	std::vector<SGBCProperties> sgbc_props_;
+	std::vector<PMLProperties> pml_props_;
+	std::shared_ptr<const PMLProfileData> pml_profiles_;
 
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 

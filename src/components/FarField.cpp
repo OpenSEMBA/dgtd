@@ -1,7 +1,10 @@
 #include "components/FarField.h"
 
+#include "components/Spherical.h"
+
 #include <algorithm>
 #include <filesystem>
+#include <functional>
 #include <limits>
 
 namespace maxwell {
@@ -10,13 +13,8 @@ using namespace mfem;
 
 const Vector buildObsPointVec(const SphericalAngles& angles) 
 {
-	const auto r{ obs_radius }; //Observation point radius distance. We consider a fairly distant enough radius.
-	const auto& phi{ angles.phi };
-	const auto& theta{ angles.theta };
-	const auto x{ r * std::sin(theta) * std::cos(phi) };
-	const auto y{ r * std::sin(theta) * std::sin(phi) };
-	const auto z{ r * std::cos(theta) };
-	const Vector res({ x, y, z });
+	const auto pos = rHat(angles.theta, angles.phi);
+	const Vector res({ obs_radius * pos[0], obs_radius * pos[1], obs_radius * pos[2] });
 	return res;
 }
 
@@ -47,54 +45,18 @@ static double func_exp_part(const Vector& p, const Frequency freq, const Spheric
 	return isReal ? cos(rad_term) : sin(rad_term);
 }
 
-double func_exp_real_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
+double evalFuncExpPart(const Vector& p, const Frequency freq, const SphericalAngles& angles, int spaceDim, bool isReal)
 {
-	return func_exp_part(p, freq, angles, false, true);
+	return func_exp_part(p, freq, angles, spaceDim == 3, isReal);
 }
 
-double func_exp_imag_part_2D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
+std::unique_ptr<FunctionCoefficient> buildFC(int spaceDim, const Frequency freq, const SphericalAngles& angles, bool isReal)
 {
-	return func_exp_part(p, freq, angles, false, false);
-}
-
-double func_exp_real_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
-{
-	return func_exp_part(p, freq, angles, true, true);
-}
-
-double func_exp_imag_part_3D(const Vector& p, const Frequency freq, const SphericalAngles& angles)
-{
-	return func_exp_part(p, freq, angles, true, false);
-}
-
-std::unique_ptr<FunctionCoefficient> buildFC_2D(const Frequency freq, const SphericalAngles& angles, bool isReal)
-{
-	std::function<double(const Vector&)> f = 0;
-	switch (isReal) {
-	case true:
-		f = std::bind(&func_exp_real_part_2D, std::placeholders::_1, freq, angles);
-		break;
-	case false:
-		f = std::bind(&func_exp_imag_part_2D, std::placeholders::_1, freq, angles);
-		break;
-	}
-	FunctionCoefficient res(f);
-	return std::make_unique<FunctionCoefficient>(res);
-}
-
-std::unique_ptr<FunctionCoefficient> buildFC_3D(const Frequency freq, const SphericalAngles& angles, bool isReal)
-{
-	std::function<double(const Vector&)> f = 0;
-	switch (isReal) {
-	case true:
-		f = std::bind(&func_exp_real_part_3D, std::placeholders::_1, freq, angles);
-		break;
-	case false:
-		f = std::bind(&func_exp_imag_part_3D, std::placeholders::_1, freq, angles);
-		break;
-	}
-	FunctionCoefficient res(f);
-	return std::make_unique<FunctionCoefficient>(res); 
+	const bool is3D = spaceDim == 3;
+	std::function<double(const Vector&)> f = [freq, angles, is3D, isReal](const Vector& p) {
+		return func_exp_part(p, freq, angles, is3D, isReal);
+	};
+	return std::make_unique<FunctionCoefficient>(f);
 }
 
 std::complex<double> complexInnerProduct(ComplexVector& first, ComplexVector& second)
@@ -368,16 +330,9 @@ ComplexVector assembleComplexLinearForm(FunctionPair& fp, ParFiniteElementSpace&
 std::pair<std::complex<double>, std::complex<double>> FarField::calcNLpair(ComplexVector& FAx, ComplexVector& FAy, ComplexVector& FAz, const Frequency frequency, const SphericalAngles& angles, bool isElectric)
 {
 	std::unique_ptr<FunctionCoefficient> fc_real, fc_imag;
-
-	switch (fes_->GetMesh()->SpaceDimension()) {
-	case 2:
-		fc_real = buildFC_2D(frequency, angles, true);
-		fc_imag = buildFC_2D(frequency, angles, false);
-		break;
-	case 3:
-		fc_real = buildFC_3D(frequency, angles, true);
-		fc_imag = buildFC_3D(frequency, angles, false);
-	}
+	const int spaceDim = fes_->GetMesh()->SpaceDimension();
+	fc_real = buildFC(spaceDim, frequency, angles, true);
+	fc_imag = buildFC(spaceDim, frequency, angles, false);
 
 	auto funcCoeff{ std::make_pair(fc_real.get(), fc_imag.get())};
 	auto lf_x{ assembleComplexLinearForm(funcCoeff, *fes_.get(), X) };

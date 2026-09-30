@@ -1,0 +1,21 @@
+{
+  "runmode": "mpi-24",
+  "casename": "3D_Nasa_Almond_G1",
+  "frequencies": {
+    "start": 10e6,
+    "end": 900e6,
+    "steps": 401
+  },
+  "angles": {
+    "theta": {
+      "start": 1.570796326794896,
+      "end": 1.570796326794896,
+      "steps": 1
+    },
+    "phi": {
+      "start": 0.0,
+      "end": 0.0,
+      "steps": 1
+    }
+  }
+}

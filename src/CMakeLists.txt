@@ -15,7 +15,6 @@ endif()
 
 if (SEMBA_DGTD_ENABLE_CUDA)
     enable_language(CUDA)
-    set(CMAKE_CUDA_ARCHITECTURES 89)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 	add_compile_definitions(SEMBA_DGTD_ENABLE_CUDA)
 endif()

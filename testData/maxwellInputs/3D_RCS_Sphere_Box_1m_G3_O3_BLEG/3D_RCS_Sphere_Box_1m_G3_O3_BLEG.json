@@ -35,7 +35,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 10
+      "save_every": 0.1
     },
     "farfield": [
       {

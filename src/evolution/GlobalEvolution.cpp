@@ -1,5 +1,7 @@
 #include "GlobalEvolution.h"
 #include "MaxwellEvolutionMethods.h"
+#include "components/SCPMLLayout.h"
+#include "math/PhysicalConstants.h"
 
 #include <chrono>
 #include <cmath>
@@ -10,11 +12,33 @@
 #include <fstream>
 #include <iomanip>
 #include <unordered_set>
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+#include <cuda_runtime.h>
+#endif
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
 #include <omp.h>
 #endif
 
 namespace maxwell {
+
+void GlobalEvolution::logSGBCSubstepPlanOnce(double parent_dt, double recommended_dt, int nsteps,
+                                              double actual_sub_dt, double sgbc_cfl) const
+{
+    if (sgbc_substep_plan_logged_ || Mpi::WorldRank() != 0) {
+        return;
+    }
+    sgbc_substep_plan_logged_ = true;
+    constexpr double c_si = physicalConstants::speedOfLight_SI;
+    std::cout << "[SGBC] Sub-step plan: sgbc_cfl=" << sgbc_cfl
+              << " recommended_dt(natural)=" << recommended_dt
+              << " recommended_dt(SI)=" << (recommended_dt / c_si) << " s"
+              << " parent_dt(natural)=" << parent_dt
+              << " parent_dt(SI)=" << (parent_dt / c_si) << " s"
+              << " nsteps=" << nsteps
+              << " actual_sub_dt(natural)=" << actual_sub_dt
+              << " actual_sub_dt(SI)=" << (actual_sub_dt / c_si) << " s\n"
+              << std::flush;
+}
 
 SGBCHelperFields initSGBCHelperFields(const int size)
 {
@@ -27,16 +51,6 @@ SGBCHelperFields initSGBCHelperFields(const int size)
         }
     }
     return res;
-}
-
-static mfem::Array<int> buildSurfaceMarkerFromTags(const std::vector<int>& tags, const mfem::ParFiniteElementSpace& fes)
-{
-    mfem::Array<int> marker(fes.GetMesh()->bdr_attributes.Max());
-    marker = 0;
-    for (const int t : tags) {
-        marker[t - 1] = 1;
-    }
-    return marker;
 }
 
 static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
@@ -52,9 +66,63 @@ static std::vector<int> collectRCSSurfaceTags(const Probes& probes)
     return tags;
 }
 
+static int countLocalTaggedBdrFaces(const mfem::ParMesh& mesh,
+                                    const mfem::Array<int>& marker)
+{
+    if (marker.Size() == 0) return 0;
+    int count = 0;
+    for (int b = 0; b < mesh.GetNBE(); ++b) {
+        const int attr = mesh.GetBdrAttribute(b) - 1;
+        if (attr >= 0 && attr < marker.Size() && marker[attr] != 0) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+static void logTFSFPartitionFaceCoverage(mfem::ParMesh& mesh,
+                                         const mfem::Array<int>& marker)
+{
+    int local_ibfi = 0;
+    int local_bfi = 0;
+    if (marker.Size() > 0) {
+        for (int b = 0; b < mesh.GetNBE(); ++b) {
+            const int attr = mesh.GetBdrAttribute(b) - 1;
+            if (attr < 0 || attr >= marker.Size() || marker[attr] == 0) continue;
+            if (mesh.GetInternalBdrFaceTransformations(b) != nullptr) {
+                ++local_ibfi;
+            } else {
+                ++local_bfi;
+            }
+        }
+    }
+
+    const MPI_Comm comm = mesh.GetComm();
+    int global_ibfi = 0;
+    int global_bfi = 0;
+    MPI_Allreduce(&local_ibfi, &global_ibfi, 1, MPI_INT, MPI_SUM, comm);
+    MPI_Allreduce(&local_bfi, &global_bfi, 1, MPI_INT, MPI_SUM, comm);
+
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[TFSF] face coverage across ranks: IBFI=" << global_ibfi
+                  << " BFI(partition-boundary)=" << global_bfi;
+        if (global_bfi > 0) {
+            std::cout << "  (BFI path active for MPI partition faces)";
+        }
+        std::cout << std::endl;
+    }
+}
+
 GlobalEvolution::GlobalEvolution(
-    mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes) :
-    mfem::TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
+    mfem::ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& options, const Probes& probes, double final_time) :
+    mfem::TimeDependentOperator([&]() {
+        const int ndofs = fes.GetNDofs();
+        const int n_aux = computePMLAuxSize(
+            model.getPMLProperties(), ndofs,
+            fes.GetMesh()->Dimension());
+        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux;
+    }()),
+    total_state_size_(Height()),
     fes_{ fes },
     model_{ model },
     srcmngr_{ srcmngr },
@@ -77,6 +145,10 @@ GlobalEvolution::GlobalEvolution(
 
         auto sgbc_marker_interior = model_.getMarker(BdrCond::SGBC, true);
         auto sgbc_marker_boundary = model_.getMarker(BdrCond::SGBC, false);
+
+        has_local_sgbc_faces_ =
+            countLocalTaggedBdrFaces(model_.getMesh(), sgbc_marker_interior) > 0 ||
+            countLocalTaggedBdrFaces(model_.getMesh(), sgbc_marker_boundary) > 0;
 
         if (sgbc_marker_interior.Size() != 0 || sgbc_marker_boundary.Size() != 0){
             for (auto b = 0; b < model_.getMesh().GetNBE(); b++){
@@ -163,8 +235,20 @@ GlobalEvolution::GlobalEvolution(
                         }
                     } else {
                         auto elementSubMesh{ assembleBoundaryFaceSubMesh(*mesh, *faceTrans, attMap)};
+                        mfem::Array<int> elem_faces, elem_face_ori;
+                        if (mesh->Dimension() == 2) {
+                            mesh->GetElementEdges(faceTrans->Elem1No, elem_faces, elem_face_ori);
+                        } else {
+                            mesh->GetElementFaces(faceTrans->Elem1No, elem_faces, elem_face_ori);
+                        }
+                        const int boundary_face = mesh->GetBdrElementFaceIndex(b);
+                        const int local_face = elem_faces.Find(boundary_face);
+                        if (local_face == -1) {
+                            throw std::runtime_error("Could not map SGBC boundary face to a local element face.");
+                        }
+                        tagBdrAttributesForSubMesh(local_face, elementSubMesh);
                         mfem::FiniteElementSpace subFES(&elementSubMesh, fec);
-                        auto node_pair_local = buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES);
+                        auto node_pair_local = buildConnectivityForBdrFace(*faceTrans, fes_, subFES);
 
                         // Compute per-DOF normals on curved faces.
                         mfem::Array<int> dofs1_bdr;
@@ -228,7 +312,12 @@ GlobalEvolution::GlobalEvolution(
             for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
                 if (tag == sbcps[p].geom_tags[t]){
 
-                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p]);
+                    const ExporterProbe* sgbc_exporter_probe =
+                        (sbcps[p].exporter_probe && !probes.exporterProbes.empty())
+                            ? &probes.exporterProbes.front()
+                            : nullptr;
+
+                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p], final_time, sgbc_exporter_probe);
                     SGBCWrapper* wrap_ptr = wrap.get();
 
                     int state_size = wrap->getStateSize();
@@ -339,10 +428,35 @@ GlobalEvolution::GlobalEvolution(
 
     // Keep TFSF submesh infrastructure for planewave source evaluation
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
-        srcmngr_.initTFSFPreReqs(model_.getConstMesh(), model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
-        srcmngr_.initDirectPlanewaveEval();
-        auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
-        mfem::SubMeshUtils::BuildVdofToVdofMap(*srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(), src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
+        const auto& tfsf_marker =
+            model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn);
+        has_local_tfsf_faces_ =
+            countLocalTaggedBdrFaces(model_.getMesh(), tfsf_marker) > 0;
+
+        int local_has_tfsf = has_local_tfsf_faces_ ? 1 : 0;
+        int global_has_tfsf = 0;
+        MPI_Allreduce(&local_has_tfsf, &global_has_tfsf, 1, MPI_INT, MPI_MAX,
+                      model_.getMesh().GetComm());
+
+        if (global_has_tfsf > 0) {
+            if (has_local_tfsf_faces_) {
+                srcmngr_.initTFSFPreReqs(model_.getConstMesh(), tfsf_marker);
+                srcmngr_.initDirectPlanewaveEval();
+                auto src_sm = static_cast<mfem::SubMesh*>(srcmngr_.getGlobalTFSFSpace()->GetMesh());
+                mfem::SubMeshUtils::BuildVdofToVdofMap(
+                    *srcmngr_.getGlobalTFSFSpace(), fes_, src_sm->GetFrom(),
+                    src_sm->GetParentElementIDMap(), tfsf_sub_to_parent_ids_);
+            }
+            int ranks_without = has_local_tfsf_faces_ ? 0 : 1;
+            int total_without = 0;
+            MPI_Allreduce(&ranks_without, &total_without, 1, MPI_INT, MPI_SUM,
+                          model_.getMesh().GetComm());
+            if (Mpi::WorldRank() == 0 && total_without > 0) {
+                std::cout << "[TFSF] " << total_without
+                          << " rank(s) have no local TFSF faces; those ranks "
+                          << "skip submesh init and Mult apply\n";
+            }
+        }
     }
 
     // Build all operators on the global mesh
@@ -350,12 +464,38 @@ GlobalEvolution::GlobalEvolution(
     DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
     globalOperator_ = dgops.buildGlobalOperator();
 
+    if (model_.hasPML()) {
+        scpmlLayout_ = std::make_unique<SCPMLLayout>(
+            fes_.GetNDofs(), model_.getPMLProperties(),
+            fes_.GetMesh()->Dimension());
+        if (scpmlLayout_->nAux() > 0) {
+            dgops.buildSCPMLOperators(
+                *scpmlLayout_, scpmlOperator_, scpmlCurlDelta_);
+            if (Mpi::WorldRank() == 0) {
+                std::cout << "[PML] SC-PML ADE formulation; extended ODE size: "
+                          << total_state_size_
+                          << " (field " << 6 * fes_.GetNDofs()
+                          << " + n_aux " << scpmlLayout_->nAux() << ")"
+                          << std::endl;
+            }
+        }
+    }
+
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
-        TFSFOperator_ = dgops.buildTFSFGlobalOperator();
+        int local_has_tfsf = has_local_tfsf_faces_ ? 1 : 0;
+        int global_has_tfsf = 0;
+        MPI_Allreduce(&local_has_tfsf, &global_has_tfsf, 1, MPI_INT, MPI_MAX,
+                      model_.getMesh().GetComm());
+        if (global_has_tfsf > 0) {
+            MPI_Barrier(model_.getMesh().GetComm());
+            TFSFOperator_ = dgops.buildTFSFGlobalOperator();
+            logTFSFPartitionFaceCoverage(model_.getMesh(),
+                model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
+        }
 
         if (opts_.export_evolution_operator) {
             if (Mpi::WorldSize() == 1) {
-                std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / model_.meshName_;
+                std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / model_.meshName_;
                 if (!std::filesystem::exists(export_dir)) {
                     std::filesystem::create_directories(export_dir);
                 }
@@ -401,7 +541,7 @@ GlobalEvolution::GlobalEvolution(
         if (Mpi::WorldSize() == 1) {
             const auto rcs_tags = collectRCSSurfaceTags(probes);
             if (!rcs_tags.empty()) {
-                auto marker = buildSurfaceMarkerFromTags(rcs_tags, fes_);
+                auto marker = buildSurfaceMarker(rcs_tags, fes_);
                 NearToFarFieldSubMesher ntff_submesher(model_.getConstMesh(), fes_, marker);
 
                 auto* ntff_submesh = ntff_submesher.getSubMesh();
@@ -432,7 +572,7 @@ GlobalEvolution::GlobalEvolution(
                 }
                 farfield_mapping_matrix->Finalize();
 
-                std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / model_.meshName_;
+                std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / model_.meshName_;
                 if (!std::filesystem::exists(export_dir)) {
                     std::filesystem::create_directories(export_dir);
                 }
@@ -450,7 +590,29 @@ GlobalEvolution::GlobalEvolution(
     }
 
     if (model_.getSGBCToMarker().find(BdrCond::SGBC) != model_.getSGBCToMarker().end()) {
-        SGBCOperator_ = dgops.buildSGBCGlobalOperator();
+        int local_has_sgbc = has_local_sgbc_faces_ ? 1 : 0;
+        int global_has_sgbc = 0;
+        MPI_Allreduce(&local_has_sgbc, &global_has_sgbc, 1, MPI_INT, MPI_MAX,
+                      model_.getMesh().GetComm());
+        if (global_has_sgbc > 0) {
+            SGBCOperator_ = dgops.buildSGBCGlobalOperator();
+        }
+    }
+
+    // cuSPARSE SpMV records a DnVec sized to y and requires y.Size()==rows.
+    // Maxwell and TFSF are 6N; with Cartesian PML the ODE state is 12N.
+    // MFEM's forall kernel writes `height` rows on the device, same as the host path.
+    {
+        auto useMfemCudaSpmv = [](mfem::SparseMatrix* A) {
+            if (A) { A->UseGPUSparse(false); }
+        };
+        useMfemCudaSpmv(globalOperator_.get());
+        useMfemCudaSpmv(TFSFOperator_.get());
+        useMfemCudaSpmv(SGBCOperator_.get());
+        useMfemCudaSpmv(scpmlOperator_.get());
+        for (auto& delta : scpmlCurlDelta_) {
+            useMfemCudaSpmv(delta.get());
+        }
     }
 
     // --- Performance: cache which sources are TotalField ---
@@ -497,6 +659,16 @@ static void rotateGlobalFieldsToLocal(
 }
 
 GlobalEvolution::~GlobalEvolution() = default;
+
+mfem::MemoryClass GlobalEvolution::GetMemoryClass() const
+{
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        return mfem::MemoryClass::DEVICE;
+    }
+#endif
+    return mfem::MemoryClass::HOST;
+}
 
 void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
@@ -585,7 +757,13 @@ void GlobalEvolution::finalizeSGBCStep(
         }
         if (!all_quiescent) break;
     }
-    if (all_quiescent) return;
+    if (all_quiescent) {
+        for (auto& [tag, wrapper] : sgbc_wrapper_map_) {
+            wrapper->setOldTime(sgbc_step_base_time_ + sgbc_step_dt_);
+            wrapper->updateProbes(sgbc_step_base_time_ + sgbc_step_dt_);
+        }
+        return;
+    }
 
     // Advance SGBC for full dt with linearly interpolated ghost boundary data
 
@@ -610,6 +788,7 @@ void GlobalEvolution::finalizeSGBCStep(
                        ? static_cast<int>(std::ceil(dt / sub_dt))
                        : 1;
             double actual_sub_dt = dt / nsteps;
+            logSGBCSubstepPlanOnce(dt, sub_dt, nsteps, actual_sub_dt, w->getProperties().sgbc_cfl);
 
             w->loadState(state);
             for (int step = 0; step < nsteps; ++step) {
@@ -621,6 +800,7 @@ void GlobalEvolution::finalizeSGBCStep(
         }
         for (auto& [tag, _] : sgbc_wrapper_map_) {
             _->setOldTime(sgbc_step_base_time_ + dt);
+            _->updateProbes(sgbc_step_base_time_ + dt);
         }
     } else
 #endif
@@ -635,6 +815,7 @@ void GlobalEvolution::finalizeSGBCStep(
                        ? static_cast<int>(std::ceil(dt / sub_dt))
                        : 1;
             double actual_sub_dt = dt / nsteps;
+            logSGBCSubstepPlanOnce(dt, sub_dt, nsteps, actual_sub_dt, w->getProperties().sgbc_cfl);
 
             for (auto& state : states) {
                 w->loadState(state);
@@ -646,6 +827,7 @@ void GlobalEvolution::finalizeSGBCStep(
                 w->saveState(state);
             }
             w->setOldTime(sgbc_step_base_time_ + dt);
+            w->updateProbes(sgbc_step_base_time_ + dt);
         }
     }
 }
@@ -654,6 +836,7 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
                                               mfem::Vector& result_vector) const
 {
     if (!TFSFOperator_) return;
+    if (!has_local_tfsf_faces_) return;
     if (tfsfSourceIndices_.empty()) return;
 
     auto *tfsf_space = srcmngr_.getGlobalTFSFSpace();
@@ -682,22 +865,6 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
         func_ptr = &func_storage;
     }
     const auto& func = *func_ptr;
-
-    // Check if evaluated planewave is negligible — skip scatter + SpMV.
-    // Not permanent: CW sources (e.g. cosine) pass through zero between lobes,
-    // so we re-evaluate every call and only skip the current one.
-    {
-        double norm2 = 0.0;
-        for (int f : {E, H}) {
-            for (int d : {X, Y, Z}) {
-                double n = func[f][d].Norml2();
-                norm2 += n * n;
-            }
-        }
-        if (norm2 < tfsf_skip_threshold_ * tfsf_skip_threshold_) {
-            return;
-        }
-    }
 
     // Scatter submesh planewave values into multWorkVec_ (local DOFs only;
     // partitioner guarantees all TFSF faces are rank-local, no ghost exchange needed).
@@ -732,11 +899,23 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #ifdef SHOW_TIMER_INFORMATION
     mfem::StopWatch timerTotal, timerExchange, timerApplyA, timerTFSF, timerSGBC;
     timerTotal.Start();
+    // MFEM_STREAM_SYNC is a no-op when this TU is compiled with the host
+    // compiler (no __CUDACC__). Sync explicitly so Mult timers include GPU work.
+    auto syncCudaForTiming = []() {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            cudaStreamSynchronize(0);
+        }
+#endif
+    };
 #endif
 
     const auto ndofs     = fes_.GetNDofs();
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
+
+    // Ensure ODE state is readable (device→host if needed).
+    (void)in.Read();
 
     // 1) SGBC sub-solve FIRST — independent of neighbor data, overlaps with
     //    other ranks' local work so they don't idle-wait during exchange.
@@ -744,7 +923,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerSGBC.Start();
 #endif
     bool sgbc_all_quiescent = false;
-    if (SGBCOperator_ && !sgbcWrappers_.empty()){
+    if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty()){
 
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
@@ -855,6 +1034,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
     }
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerSGBC.Stop();
 #endif
 
@@ -865,16 +1045,27 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
 #else
-    for (int d = X; d <= Z; ++d) {
-        std::memcpy(eOld_[d].GetData(), in.GetData() + d * ndofs, ndofs * sizeof(double));
-        std::memcpy(hOld_[d].GetData(), in.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+    {
+        const double* in_data = in.Read();
+        for (int d = X; d <= Z; ++d) {
+            double* e_data = eOld_[d].Write();
+            double* h_data = hOld_[d].Write();
+            std::memcpy(e_data, in_data + d * ndofs, ndofs * sizeof(double));
+            std::memcpy(h_data, in_data + (3 + d) * ndofs, ndofs * sizeof(double));
+        }
     }
 #endif
     for (int d = X; d <= Z; ++d) {
         eOld_[d].ExchangeFaceNbrData();
         hOld_[d].ExchangeFaceNbrData();
     }
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA) && nbrDofs > 0) {
+        sync_cuda_face_nbr_halos(eOld_, hOld_);
+    }
+#endif
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerExchange.Stop();
 #endif
 
@@ -885,52 +1076,89 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     }
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
-    load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
-#else
-    for (int d = X; d <= Z; ++d) {
-        multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
-        multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-    }
-    if (nbrDofs) {
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
+        if (nbrDofs > 0) {
+            load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
+        }
+    } else
+#endif
+    {
         for (int d = X; d <= Z; ++d) {
-            mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-            mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
-            multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
+            multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+        }
+        if (nbrDofs) {
+            for (int d = X; d <= Z; ++d) {
+                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
+                multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            }
         }
     }
-#endif
 
     // 4) Apply globalOperator_ (DG flux) 
 #ifdef SHOW_TIMER_INFORMATION
     timerApplyA.Start();
 #endif
-    if (out.Size() != 6 * ndofs) {
-        out.SetSize(6 * ndofs);
+    if (out.Size() != total_state_size_) {
+        out.SetSize(total_state_size_);
         out.UseDevice(true);
     }
-    globalOperator_->Mult(multWorkVec_, out);
+    out = 0.0;
+    {
+        // globalOperator_ is 6N × 6(N+nbr); Mult requires y.Size() == Height().
+        mfem::Vector out_fields;
+        out_fields.MakeRef(out, 0, 6 * ndofs);
+        globalOperator_->Mult(multWorkVec_, out_fields);
+
+        // κ>1: replace unit-mass curl on PML with Ma^{-1} M * curl (Bagci LHS a).
+        for (int u = 0; u < 3; ++u) {
+            if (!scpmlCurlDelta_[u]) {
+                continue;
+            }
+            if (scpmlCurlWork_.Size() != ndofs) {
+                scpmlCurlWork_.SetSize(ndofs);
+            }
+            for (int field_block = 0; field_block < 2; ++field_block) {
+                mfem::Vector slice;
+                slice.MakeRef(out_fields, (field_block * 3 + u) * ndofs, ndofs);
+                scpmlCurlDelta_[u]->Mult(slice, scpmlCurlWork_);
+                slice += scpmlCurlWork_;
+            }
+        }
+    }
+    if (scpmlOperator_) {
+        scpmlOperator_->AddMult(in, out);
+    }
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerApplyA.Stop();
 #endif
+
 
     // S3: Zero multWorkVec_ so it can be reused for TFSF and SGBC injection.
     multWorkVec_ = 0.0;
 
-    // 5) TFSF source injection
+    // 5) TFSF source injection. TFSFOperator_ is 6N. With Cartesian PML, `out` is 12N.
 #ifdef SHOW_TIMER_INFORMATION
     timerTFSF.Start();
 #endif
-    applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out);
+    {
+        mfem::Vector out_fields;
+        out_fields.MakeRef(out, 0, 6 * ndofs);
+        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
+    }
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerTFSF.Stop();
 #endif
 
     // 6) SGBC flux injection (two-pass face coupling)
     //    Sub-solve was done in step 1; here we only inject interface values as flux.
     //    Skip entirely when all SGBC faces are quiescent.
-    if (SGBCOperator_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
+    if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
         // multWorkVec_ is already sized and zeroed (after step 4 zeroing + TFSF cleanup).
         // On GPU builds 'in' is device-authoritative after steps 2-5; HostRead()
         // syncs device→host once for all operator[]-based DOF reads below.
@@ -994,10 +1222,15 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             for (const auto& state : states) {
                 int gl = state.global_pair.first;
                 int gr = state.global_pair.second;
-                // Elem1 slot: global field value (u_L) — already in global frame
-                copyGlobalSlot(gl, gl);
-                // Elem2 slot: what Elem1 sees from the slab's left side
-                if (gr != -1) {
+                if (gr == -1) {
+                    // Boundary SGBC: the source operator acts on the
+                    // SGBC trace directly at the boundary DOF slot.
+                    fillBCSlot(left_bdr, gl, gl, state.rot,
+                               state.fields_state.GetData(), local_size, idx_left);
+                } else {
+                    // Elem1 slot: global field value (u_L) — already in global frame
+                    copyGlobalSlot(gl, gl);
+                    // Elem2 slot: what Elem1 sees from the slab's left side
                     fillBCSlot(left_bdr, gl, gr, state.rot,
                                state.fields_state.GetData(), local_size, idx_left);
                 }
@@ -1102,7 +1335,12 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     }
 
+    // TFSF/SGBC host writes may have updated the host copy of 'out'; sync to
+    // device so the RK stage vectors see a consistent rate vector.
+    (void)out.ReadWrite();
+
 #ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
     timerTotal.Stop();
 
     // Skip timer output for SGBC sub-solver Mult() calls.
@@ -1197,6 +1435,9 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     const int ndofs     = fes_.GetNDofs();
     const int nbrDofs   = fes_.num_face_nbr_dofs;
     const int blockSize = ndofs + nbrDofs;
+    if (total_state_size_ > 6 * ndofs) {
+        MFEM_ABORT("Classical ADE-PML extended state is not supported with implicit integrators yet.");
+    }
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 
     // Reuse work vectors across calls (avoid repeated allocation)
@@ -1217,23 +1458,46 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         globalOperator_->Mult(x, implicit_rhs_);
     } else {
         // Parallel path: need to exchange face neighbor data
-        for (int d = X; d <= Z; ++d) {
-            std::memcpy(eOld_[d].GetData(), x.GetData() + d * ndofs, ndofs * sizeof(double));
-            std::memcpy(hOld_[d].GetData(), x.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            load_in_to_eh_gpu(x, eOld_, hOld_, ndofs);
+        } else
+#endif
+        {
+            const double* x_host = x.HostRead();
+            for (int d = X; d <= Z; ++d) {
+                double* e_data = eOld_[d].HostWrite();
+                double* h_data = hOld_[d].HostWrite();
+                std::memcpy(e_data, x_host + d * ndofs, ndofs * sizeof(double));
+                std::memcpy(h_data, x_host + (3 + d) * ndofs, ndofs * sizeof(double));
+            }
         }
         for (int d = X; d <= Z; ++d) {
             eOld_[d].ExchangeFaceNbrData();
             hOld_[d].ExchangeFaceNbrData();
         }
-        for (int d = X; d <= Z; ++d) {
-            implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
-            implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-        }
-        for (int d = X; d <= Z; ++d) {
-            mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-            mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-            implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-            implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            if (nbrDofs > 0) {
+                sync_cuda_face_nbr_halos(eOld_, hOld_);
+            }
+            load_eh_to_innew_gpu(x, implicit_inNew_, ndofs, nbrDofs);
+            if (nbrDofs > 0) {
+                load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
+            }
+        } else
+#endif
+        {
+            for (int d = X; d <= Z; ++d) {
+                implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
+                implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+            }
+            for (int d = X; d <= Z; ++d) {
+                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+                implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            }
         }
         globalOperator_->Mult(implicit_inNew_, implicit_rhs_);
     }
@@ -1278,24 +1542,47 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         // Large/parallel system: fall back to GMRES
         auto applyA_parallel = [&](const mfem::Vector& u, mfem::Vector& Au)
         {
-            for (int d = X; d <= Z; ++d) {
-                std::memcpy(eOld_[d].GetData(), u.GetData() + d * ndofs, ndofs * sizeof(double));
-                std::memcpy(hOld_[d].GetData(), u.GetData() + (3 + d) * ndofs, ndofs * sizeof(double));
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+                load_in_to_eh_gpu(u, eOld_, hOld_, ndofs);
+            } else
+#endif
+            {
+                const double* u_host = u.HostRead();
+                for (int d = X; d <= Z; ++d) {
+                    double* e_data = eOld_[d].HostWrite();
+                    double* h_data = hOld_[d].HostWrite();
+                    std::memcpy(e_data, u_host + d * ndofs, ndofs * sizeof(double));
+                    std::memcpy(h_data, u_host + (3 + d) * ndofs, ndofs * sizeof(double));
+                }
             }
             for (int d = X; d <= Z; ++d) {
                 eOld_[d].ExchangeFaceNbrData();
                 hOld_[d].ExchangeFaceNbrData();
             }
-            for (int d = X; d <= Z; ++d) {
-                implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
-                implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-            }
-            if (nbrDofs) {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+                if (nbrDofs > 0) {
+                    sync_cuda_face_nbr_halos(eOld_, hOld_);
+                }
+                load_eh_to_innew_gpu(u, implicit_inNew_, ndofs, nbrDofs);
+                if (nbrDofs > 0) {
+                    load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
+                }
+            } else
+#endif
+            {
                 for (int d = X; d <= Z; ++d) {
-                    mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-                    mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                    implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-                    implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+                    implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
+                    implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+                }
+                if (nbrDofs) {
+                    for (int d = X; d <= Z; ++d) {
+                        mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                        mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                        implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
+                        implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+                    }
                 }
             }
             globalOperator_->Mult(implicit_inNew_, Au);

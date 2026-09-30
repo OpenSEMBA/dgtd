@@ -1,4 +1,7 @@
 #include "Model.h"
+#include "PMLProfiles.h"
+
+#include <memory>
 
 namespace maxwell {
 
@@ -103,7 +106,8 @@ void Model::assembleBdrToMarkerMaps()
 {
 	const std::pair<BdrCond, const mfem::Array<int>&> bdrEntries[] = {
 		{BdrCond::PEC, pecMarker_}, {BdrCond::PMC, pmcMarker_},
-		{BdrCond::SMA, smaMarker_}, {BdrCond::SGBC, sgbc_Marker_}
+		{BdrCond::SMA, smaMarker_},
+		{BdrCond::SGBC, sgbc_Marker_}
 	};
 	for (const auto& [cond, marker] : bdrEntries) {
 		if (marker.Size() != 0) bdrToMarkerMap_.insert({cond, marker});
@@ -111,7 +115,8 @@ void Model::assembleBdrToMarkerMaps()
 
 	const std::pair<BdrCond, const mfem::Array<int>&> intBdrEntries[] = {
 		{BdrCond::PEC, intpecMarker_}, {BdrCond::PMC, intpmcMarker_},
-		{BdrCond::SMA, intsmaMarker_}, {BdrCond::SGBC, intsgbc_Marker_}
+		{BdrCond::SMA, intsmaMarker_},
+		{BdrCond::SGBC, intsgbc_Marker_}
 	};
 	for (const auto& [cond, marker] : intBdrEntries) {
 		if (marker.Size() != 0) intBdrToMarkerMap_.insert({cond, marker});
@@ -238,6 +243,52 @@ BoundaryMarker& Model::getMarker(const BdrCond& bdrCond, bool isInterior)
 	default:
 		throw std::runtime_error("Wrong BdrCond in getMarkerForBdrCond.");
 	}
+}
+
+bool Model::isPMLAttribute(GeomTag tag) const
+{
+	return getPMLPropertiesForTag(tag) != nullptr;
+}
+
+const PMLProperties* Model::getPMLPropertiesForTag(GeomTag tag) const
+{
+	for (const auto& props : pml_props_) {
+		for (const GeomTag t : props.geom_tags) {
+			if (t == tag) {
+				return &props;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void Model::initializePMLProfiles(int mpi_rank, int fe_order)
+{
+	if (pml_props_.empty()) {
+		return;
+	}
+	// Build on the full serial mesh so vacuum–PML interface coords and
+	// region_max_depth (L) are global — not truncated to a partition. σ(x)
+	// evaluation during ParBilinearForm assembly uses Attribute + physical
+	// coordinates (see PMLProfileData::evaluateAtTransform), not ElementNo.
+	pml_profiles_ = std::make_shared<PMLProfileData>(serialMesh_, pml_props_, fe_order);
+	pml_profiles_->printDiagnostics(mpi_rank);
+}
+
+mfem::Array<int> Model::buildPMLVolumeMarker() const
+{
+	const int max_attr = serialMesh_.attributes.Max();
+	mfem::Array<int> marker(max_attr);
+	marker = 0;
+	for (const auto& props : pml_props_) {
+		for (const GeomTag tag : props.geom_tags) {
+			if (tag <= 0 || tag > max_attr) {
+				throw std::runtime_error("PML material tag is out of mesh attribute range.");
+			}
+			marker[tag - 1] = 1;
+		}
+	}
+	return marker;
 }
 
 }

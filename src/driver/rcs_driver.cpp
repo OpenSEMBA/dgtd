@@ -70,18 +70,44 @@ void runRCSPostProcessing(const std::string& rcsJsonPath)
 	if (rcsInput.contains("max_time") && !rcsInput["max_time"].is_null())
 		maxTime = rcsInput["max_time"].get<double>();
 
+	int everyNSteps = 1;
+	if (rcsInput.contains("every_n_steps") && !rcsInput["every_n_steps"].is_null()) {
+		everyNSteps = rcsInput["every_n_steps"].get<int>();
+		if (everyNSteps < 1) {
+			throw std::runtime_error("every_n_steps must be >= 1");
+		}
+	}
+
+	std::optional<double> ramGateGiB;
+	if (rcsInput.contains("ram_gate") && !rcsInput["ram_gate"].is_null()) {
+		ramGateGiB = rcsInput["ram_gate"].get<double>();
+		if (!(ramGateGiB.value() > 0.0)) {
+			throw std::runtime_error("ram_gate must be > 0 (GiB)");
+		}
+	}
+
 	for (const auto& probe : caseData["probes"]["rcssurface"]) {
 		std::string probeName = probe.at("name");
-		std::string dataPath = "./Exports/" + runmode + "/" + casename
+		std::string dataPath = "./exports/SimulationData/" + runmode + "/" + casename
 			+ "/RCSSurface/" + probeName + "/";
 
 		if (mfem::Mpi::WorldRank() == 0) {
 			std::cout << "Processing RCS probe: " << probeName << "\n"
 				<< "  Data path: " << dataPath << "\n"
 				<< "  Case JSON: " << caseJson << "\n";
+			if (everyNSteps > 1) {
+				std::cout << "  every_n_steps: " << everyNSteps
+					<< " (subsample existing surface_data.bin)\n";
+			}
+			if (ramGateGiB.has_value()) {
+				std::cout << "  ram_gate: " << ramGateGiB.value()
+					<< " GiB (hard memory budget for load-all vs stream)\n";
+			}
 		}
 
-		RCSSurfacePostProcessor pp(dataPath, caseJson, frequencies, angles, maxTime);
+		RCSSurfacePostProcessor pp(
+			dataPath, caseJson, frequencies, angles, maxTime, everyNSteps,
+			ramGateGiB);
 	}
 }
 

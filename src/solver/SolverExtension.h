@@ -1,6 +1,7 @@
 #pragma once
 
 #include "components/Model.h"
+#include "components/Probes.h"
 #include "evolution/HesthavenEvolutionMethods.h"
 #include "SolverOptions.h"
 
@@ -109,8 +110,8 @@ inline void buildFaceRotationMatrix(const mfem::Vector& normal, int meshDim, dou
 class SGBCWrapper{
 public:
 
-    static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp); 
-    static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp);
+    static std::unique_ptr<SGBCWrapper> buildSGBCWrapper(const SGBCProperties& sbcp, double simulation_final_time = SolverOptions{}.final_time, const ExporterProbe* exporter_probe = nullptr); 
+    static std::unique_ptr<SGBCWrapper> buildSGBCWrapperWithPEC(const SGBCProperties& sbcp, double simulation_final_time = SolverOptions{}.final_time, const ExporterProbe* exporter_probe = nullptr);
 
     /// Create an independent copy sharing the same SGBCProperties but with
     /// its own Solver instance. Used to enable OpenMP-parallel sub-stepping.
@@ -138,6 +139,7 @@ public:
     const SGBCProperties& getProperties() const { return sbcp_; }
 
     void solve(const Time t, const Time dt);
+    void updateProbes(const Time t);
     void setOldTime(const Time t) { old_t_ = t; }
     const Time getOldTime() const { return old_t_; }
     double getRecommendedDt() const { return recommended_dt_; }
@@ -156,9 +158,13 @@ public:
 
 private:
 
-    SGBCWrapper(const SGBCProperties&, const SGBCBoundaries&);
+    SGBCWrapper(const SGBCProperties&, const SGBCBoundaries&, double simulation_final_time, const ExporterProbe* exporter_probe);
 
     const SGBCProperties& sbcp_;
+    SGBCBoundaries intBdrInfo_;
+    double simulation_final_time_ = 0.0;
+    bool has_exporter_probe_ = false;
+    ExporterProbe exporter_probe_;
     
     std::unique_ptr<Solver> solver_;
 

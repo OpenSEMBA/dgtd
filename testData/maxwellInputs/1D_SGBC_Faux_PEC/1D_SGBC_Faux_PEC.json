@@ -41,7 +41,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 25000
+      "save_every": 0.25
     }
   },
   "sources": [

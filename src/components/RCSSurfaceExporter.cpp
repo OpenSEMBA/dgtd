@@ -14,22 +14,25 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     Fields<ParFiniteElementSpace, ParGridFunction>& globalFields,
     const std::string& caseName)
     : submesher_(*parentFes.GetMesh(), parentFes, buildSurfaceMarker(probe.tags, parentFes)),
-      surfaceFes_(std::make_unique<FiniteElementSpace>(submesher_.getSubMesh(), fec)),
-      surfaceFields_(*surfaceFes_),
       globalFields_(globalFields),
-      tMapEx_(globalFields.get(E, X), surfaceFields_.get(E, X)),
-      tMapEy_(globalFields.get(E, Y), surfaceFields_.get(E, Y)),
-      tMapEz_(globalFields.get(E, Z), surfaceFields_.get(E, Z)),
-      tMapHx_(globalFields.get(H, X), surfaceFields_.get(H, X)),
-      tMapHy_(globalFields.get(H, Y), surfaceFields_.get(H, Y)),
-      tMapHz_(globalFields.get(H, Z), surfaceFields_.get(H, Z)),
       expSteps_(probe.expSteps)
 {
+    if (!submesher_.hasLocalSurface()) {
+        spaceDim_ = parentFes.GetMesh()->SpaceDimension();
+        return;
+    }
+
+    hasLocalSurface_ = true;
+    surfaceFes_ = std::make_unique<FiniteElementSpace>(submesher_.getSubMesh(), fec);
+    surfaceFields_ = std::make_unique<Fields<FiniteElementSpace, GridFunction>>(*surfaceFes_);
+    transferMaps_ = std::make_unique<TransferMaps>(globalFields, *surfaceFields_);
+    initParentToSurfaceMap();
+
     auto* mesh = submesher_.getSubMesh();
     spaceDim_ = mesh->SpaceDimension();
-    numDofs_ = surfaceFields_.get(E, X).Size();
+    numDofs_ = surfaceFields_->get(E, X).Size();
 
-    std::string base = "Exports/" + getRunModeTag() + "/" + caseName + "/RCSSurface/" + probe.name;
+    std::string base = getSimulationCaseExportPath(caseName) + "/RCSSurface/" + probe.name;
     std::filesystem::create_directories(base);
     outputPath_ = base + "/rank" + std::to_string(Mpi::WorldRank());
     std::filesystem::create_directories(outputPath_);
@@ -55,9 +58,9 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     }
 
     int basisType = fec->GetBasisType();
-    int32_t header[5] = { 
-        static_cast<int32_t>(spaceDim_), 
-        static_cast<int32_t>(numDofs_), 
+    int32_t header[5] = {
+        static_cast<int32_t>(spaceDim_),
+        static_cast<int32_t>(numDofs_),
         static_cast<int32_t>(numBdr),
         static_cast<int32_t>(totalQuadPts),
         static_cast<int32_t>(basisType)
@@ -68,18 +71,46 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     transferFields();
 }
 
+void RCSSurfaceExporter::initParentToSurfaceMap()
+{
+    auto* surface_sm = static_cast<SubMesh*>(surfaceFes_->GetMesh());
+    Array<int> raw_map;
+    SubMeshUtils::BuildVdofToVdofMap(*surfaceFes_,
+                                     *globalFields_.get(E, X).ParFESpace(),
+                                     surface_sm->GetFrom(),
+                                     surface_sm->GetParentElementIDMap(),
+                                     raw_map);
+
+    parent_dof_ids_.SetSize(raw_map.Size());
+    parent_dof_signs_.SetSize(raw_map.Size());
+    for (int i = 0; i < raw_map.Size(); ++i) {
+        real_t sign = 1.0;
+        parent_dof_ids_[i] = FiniteElementSpace::DecodeDof(raw_map[i], sign);
+        parent_dof_signs_[i] = sign;
+    }
+}
+
 void RCSSurfaceExporter::transferFields()
 {
-    tMapEx_.Transfer(globalFields_.get(E, X), surfaceFields_.get(E, X));
-    tMapEy_.Transfer(globalFields_.get(E, Y), surfaceFields_.get(E, Y));
-    tMapEz_.Transfer(globalFields_.get(E, Z), surfaceFields_.get(E, Z));
-    tMapHx_.Transfer(globalFields_.get(H, X), surfaceFields_.get(H, X));
-    tMapHy_.Transfer(globalFields_.get(H, Y), surfaceFields_.get(H, Y));
-    tMapHz_.Transfer(globalFields_.get(H, Z), surfaceFields_.get(H, Z));
+    if (!hasLocalSurface_) return;
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        rcs_gather_surface_fields_gpu(parent_dof_ids_,
+                                      parent_dof_signs_,
+                                      globalFields_,
+                                      *surfaceFields_,
+                                      numDofs_);
+        return;
+    }
+#endif
+    transferMaps_->transferFields(globalFields_, *surfaceFields_);
 }
 
 void RCSSurfaceExporter::writeGeometry()
 {
+    if (!hasLocalSurface_) return;
+
     auto* mesh = submesher_.getSubMesh();
     auto bdrMarker = getNearToFarFieldMarker(mesh->bdr_attributes.Max());
 
@@ -100,16 +131,12 @@ void RCSSurfaceExporter::writeGeometry()
             const auto& ip = ir->IntPoint(q);
             Tr->SetAllIntPoints(&ip);
 
-            // Physical position of quadrature point.
             Vector phys_pt;
             Tr->Face->Transform(ip, phys_pt);
             for (int d = 0; d < spaceDim_; ++d) {
                 positions.push_back(phys_pt(d));
             }
 
-            // Outward normal (into surrounding space, away from scatterer).
-            // The convention in the existing code uses inner normals (toward
-            // the element), so we negate CalcOrtho to get outward normals.
             Vector ortho(el.GetDim());
             CalcOrtho(Tr->Jacobian(), ortho);
             double face_weight = Tr->Weight();
@@ -139,12 +166,19 @@ void RCSSurfaceExporter::writeGeometry()
 
 void RCSSurfaceExporter::writeSnapshot(double time)
 {
+    if (!hasLocalSurface_) return;
+
     double t = time;
     dataFile_.write(reinterpret_cast<const char*>(&t), sizeof(double));
 
     for (auto ft : {E, H}) {
         for (auto d : {X, Y, Z}) {
-            const auto& gf = surfaceFields_.get(ft, d);
+            auto& gf = surfaceFields_->get(ft, d);
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+                gf.HostRead();
+            }
+#endif
             dataFile_.write(reinterpret_cast<const char*>(gf.GetData()),
                             numDofs_ * sizeof(double));
         }
@@ -154,6 +188,8 @@ void RCSSurfaceExporter::writeSnapshot(double time)
 
 void RCSSurfaceExporter::write(double time, int cycle, double finalTime)
 {
+    if (!hasLocalSurface_) return;
+
     bool atEnd = std::abs(time - finalTime) < 1e-8;
     if (!atEnd && cycle % expSteps_ != 0) {
         return;

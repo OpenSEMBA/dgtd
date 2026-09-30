@@ -61,13 +61,9 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_PEC)
 		eo);
 
 	auto mat{ ev.getElementMatrix() };
-	
+
 	ASSERT_GE(mat.rows(), 0);
 	ASSERT_GE(mat.cols(), 0);
-
-	std::cout << mat << std::endl;
-	std::cout << std::flush;
-
 }
 
 TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
@@ -85,10 +81,6 @@ TEST_F(EigenvalueEstimatorTest, printMatrix_SMA)
 
 	ASSERT_GE(mat.rows(), 0);
 	ASSERT_GE(mat.cols(), 0);
-
-	std::cout << mat << std::endl;
-	std::cout << std::flush;
-
 }
 
 TEST_F(EigenvalueEstimatorTest, comparePECandSMAconditions)
@@ -101,11 +93,7 @@ TEST_F(EigenvalueEstimatorTest, comparePECandSMAconditions)
 	auto smaModel{ Model{mQuad, GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo(att_to_bdr, GeomTagToInteriorBoundary{})} };
 	auto evSMA{ EigenvalueEstimator(fesQuad, smaModel, eo) };
 
-	auto eigenvalsPEC{ evPEC.getElementMatrix().eigenvalues() };
-	auto eigenvalsSMA{ evSMA.getElementMatrix().eigenvalues() };
-
-	std::cout << "PEC" << std::endl;
-	std::cout << evPEC.getElementMatrix().eigenvalues() << std::endl;
-	std::cout << "SMA" << std::endl;
-	std::cout << evSMA.getElementMatrix().eigenvalues() << std::endl;
+	const auto eigenvalsPEC = evPEC.getElementMatrix().eigenvalues();
+	const auto eigenvalsSMA = evSMA.getElementMatrix().eigenvalues();
+	EXPECT_EQ(eigenvalsPEC.size(), eigenvalsSMA.size());
 }

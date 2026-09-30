@@ -6,6 +6,7 @@
 
 #include "components/Probes.h"
 #include "components/SubMesher.h"
+#include "evolution/Fields.h"
 
 namespace maxwell {
 
@@ -55,21 +56,34 @@ private:
     void transferFields();
     void writeGeometry();
     void writeSnapshot(double time);
+    void initParentToSurfaceMap();
 
     NearToFarFieldSubMesher submesher_;
     std::unique_ptr<mfem::FiniteElementSpace> surfaceFes_;
-    Fields<mfem::FiniteElementSpace, mfem::GridFunction> surfaceFields_;
+    std::unique_ptr<Fields<mfem::FiniteElementSpace, mfem::GridFunction>> surfaceFields_;
     Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& globalFields_;
 
-    mfem::TransferMap tMapEx_, tMapEy_, tMapEz_;
-    mfem::TransferMap tMapHx_, tMapHy_, tMapHz_;
+    std::unique_ptr<TransferMaps> transferMaps_;
+
+    // Precomputed ParentToSubMesh VDOF map (Decoded index + sign).
+    mfem::Array<int> parent_dof_ids_;
+    mfem::Vector parent_dof_signs_;
 
     std::string outputPath_;
     std::ofstream dataFile_;
-    int numDofs_;
-    int spaceDim_;
+    int numDofs_{0};
+    int spaceDim_{0};
     int expSteps_;
+    bool hasLocalSurface_{false};
     bool geometryWritten_{false};
 };
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+void rcs_gather_surface_fields_gpu(const mfem::Array<int>& parent_dof_ids,
+                                   const mfem::Vector& parent_dof_signs,
+                                   const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& globalFields,
+                                   Fields<mfem::FiniteElementSpace, mfem::GridFunction>& surfaceFields,
+                                   int num_dofs);
+#endif
 
 } // namespace maxwell

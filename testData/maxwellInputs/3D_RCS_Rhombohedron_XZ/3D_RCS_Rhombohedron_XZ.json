@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-	  "time_step": 1e-2,
+    "time_step": 0.01,
     "final_time": 30.0,
     "order": 1
   },
@@ -20,7 +20,12 @@
     "boundaries": [
       {
         "tags": [
-          14, 15, 16, 17, 18, 19
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
         ],
         "type": "PEC"
       },
@@ -34,23 +39,39 @@
   },
   "probes": {
     "exporter": {
-      "steps": 10
+      "save_every": 0.1
     },
     "point": [
       {
-        "position": [ 4.0, 0.0, 0.0 ],
+        "position": [
+          4.0,
+          0.0,
+          0.0
+        ],
         "write": true
       },
       {
-        "position": [ 0.0, 4.0, 0.0 ],
+        "position": [
+          0.0,
+          4.0,
+          0.0
+        ],
         "write": true
       },
       {
-        "position": [ 0.0, 0.0, 4.0 ],
+        "position": [
+          0.0,
+          0.0,
+          4.0
+        ],
         "write": true
       },
       {
-        "position": [ 3.0, 3.0, 3.0 ],
+        "position": [
+          3.0,
+          3.0,
+          3.0
+        ],
         "write": true
       }
     ],
@@ -59,7 +80,12 @@
         "name": "rhombo_box_XZ",
         "steps": 5,
         "tags": [
-          21, 22, 23, 24, 25, 26
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
         ]
       }
     ]
@@ -78,11 +104,20 @@
         1.0
       ],
       "tags": [
-        21, 22, 23, 24, 25, 26
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
       ],
       "magnitude": {
-        "spread": 0.20,
-        "mean": [-2.828, 0.0, -2.828]
+        "spread": 0.2,
+        "mean": [
+          -2.828,
+          0.0,
+          -2.828
+        ]
       }
     }
   ]

@@ -5,6 +5,10 @@
 #include "components/Spherical.h"
 #include "math/Calculus.h"
 
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
+
 #include <gsl/gsl_sf_bessel.h>  
 #include <gsl/gsl_sf_legendre.h>
 
@@ -93,6 +97,9 @@ public:
 		}
 	}
 
+	double spread() const { return spread_; }
+	const Position& mean() const { return mean_; }
+
 private:
 	double spread_;
 	Position mean_;
@@ -134,6 +141,10 @@ public:
 		double carrier = cos(2.0 * M_PI * freq_ * arg);
 		return envelope * carrier;
 	}
+
+	double spread() const { return spread_; }
+	const Position& mean() const { return mean_; }
+	double frequency() const { return freq_; }
 
 private:
 	double spread_;
@@ -229,17 +240,33 @@ public:
 
 class DerivGaussDipole : public EHFieldFunction {
 public:
-	DerivGaussDipole(const double length, const double gaussianSpread, const double gaussMean) :
+	/// amplitude_peak: desired max |E| (equatorial |E_θ|) at peak_radius.
+	/// Internal scale is set so the analytic Hertzian pulse hits that peak.
+	DerivGaussDipole(const double length, const double gaussianSpread, const double gaussMean,
+	                 const double amplitude_peak = 1.0, const double peak_radius = 1.0) :
 		len_(length),
 		gaussSpread_(gaussianSpread),
-		gaussMean_(gaussMean)
+		gaussMean_(gaussMean),
+		amplitude_peak_(amplitude_peak),
+		peak_radius_(peak_radius)
 	{
+		const double unit_peak = peakAbsEtWithUnitScale(
+			len_, gaussSpread_, gaussMean_, peak_radius_);
+		if (unit_peak <= 0.0 || !(unit_peak == unit_peak)) {
+			throw std::runtime_error(
+				"DerivGaussDipole: could not compute a positive unit peak |E| "
+				"at peak_radius for amplitude_peak normalization.");
+		}
+		field_scale_ = amplitude_peak_ / unit_peak;
 	}
 
 	DerivGaussDipole(const DerivGaussDipole& rhs) :
 		len_{ rhs.len_ },
 		gaussSpread_{ rhs.gaussSpread_ },
-		gaussMean_{ rhs.gaussMean_ }
+		gaussMean_{ rhs.gaussMean_ },
+		amplitude_peak_{ rhs.amplitude_peak_ },
+		peak_radius_{ rhs.peak_radius_ },
+		field_scale_{ rhs.field_scale_ }
 	{
 	}
 
@@ -260,12 +287,6 @@ public:
 		auto radius2 = radius * radius;
 		auto radius3 = radius2 * radius;
 
-		auto invSpeed = 1.0 / cs;
-		auto invSpeed2 = invSpeed * invSpeed;
-		auto invSpeedRho = invSpeed / radius;
-		auto invSpeed2Rho = invSpeed2 / radius;
-		auto invSpeedRho2 = invSpeed / radius2;
-
 		auto sint = std::sin(pos.theta);
 		auto cost = std::cos(pos.theta);
 
@@ -274,8 +295,7 @@ public:
 		auto expArg = (t - gaussMean_ - pos.radius / cs) / spreadsqrt2;
 		auto expArg2 = expArg * expArg;
 
-		auto maxMagnitude = 1.0;
-		auto scalingFactor = (spreadsqrt2 * std::exp(1.0) / 2.0) * maxMagnitude;
+		auto scalingFactor = (spreadsqrt2 * std::exp(1.0) / 2.0) * field_scale_;
 
 		auto iret = scalingFactor * std::exp(-expArg2);
 		auto diret = -iret * 2.0 * expArg / spreadsqrt2;
@@ -283,10 +303,6 @@ public:
 
 		const auto& ifpe0 = physicalConstants::invFourPiEps0;
 		const auto& ifp = physicalConstants::invFourPi;
-
-		//auto er = 0.0;
-		//auto et = (len_ / cs) * ifpe0 * sint * (doublediret / (cs2 * radius));
-		//auto hp = (len_ / cs) * ifp * sint * (doublediret / (radius * cs));
 
 		auto er = (len_ / cs) * ifpe0 * 2.0 * cost * (iret / radius3 + diret / (cs * radius2));
 		auto et = (len_ / cs) * ifpe0 * sint * (iret / radius3 + diret / (cs * radius2) + doublediret / (cs2 * radius));
@@ -319,10 +335,55 @@ public:
 		}
 	}
 
+	double length() const { return len_; }
+	double gaussianSpread() const { return gaussSpread_; }
+	double gaussianMean() const { return gaussMean_; }
+	double amplitudePeak() const { return amplitude_peak_; }
+	double peakRadius() const { return peak_radius_; }
+
 private:
+	/// Max |E_θ| on the equator (θ=π/2) over the pulse, with field_scale = 1.
+	static double peakAbsEtWithUnitScale(
+		double length, double spread, double mean, double peak_radius)
+	{
+		using namespace physicalConstants;
+		const double cs = speedOfLight;
+		const double cs2 = cs * cs;
+		const double radius = peak_radius / cs;
+		const double radius2 = radius * radius;
+		const double radius3 = radius2 * radius;
+		const double spreadsqrt2 = spread * std::sqrt(2.0);
+		const double scalingFactor = (spreadsqrt2 * std::exp(1.0) / 2.0);
+		const double ifpe0 = invFourPiEps0;
+		const double sint = 1.0;
+
+		const double t_center = mean + peak_radius / cs;
+		const double t_half = 6.0 * spreadsqrt2;
+		const int n_samples = 401;
+		double peak = 0.0;
+		for (int i = 0; i < n_samples; ++i) {
+			const double t = t_center - t_half
+				+ (2.0 * t_half) * static_cast<double>(i) / static_cast<double>(n_samples - 1);
+			const double expArg = (t - mean - peak_radius / cs) / spreadsqrt2;
+			const double expArg2 = expArg * expArg;
+			const double iret = scalingFactor * std::exp(-expArg2);
+			const double diret = -iret * 2.0 * expArg / spreadsqrt2;
+			const double doublediret =
+				diret * (-2.0) * expArg / spreadsqrt2
+				+ iret * (-2.0) / spreadsqrt2 / spreadsqrt2;
+			const double et = (length / cs) * ifpe0 * sint
+				* (iret / radius3 + diret / (cs * radius2) + doublediret / (cs2 * radius));
+			peak = std::max(peak, std::abs(et));
+		}
+		return peak;
+	}
+
 	double len_;
 	double gaussSpread_;
 	double gaussMean_;
+	double amplitude_peak_;
+	double peak_radius_;
+	double field_scale_; ///< amplitude_peak_ / unit peak |E_θ| at peak_radius_
 
 };
 
@@ -407,6 +468,11 @@ public:
 		return function_->eval(Position({ phaseDelay - t })) * polDir;
 
 	};
+
+	const Function* function() const { return function_.get(); }
+	const Polarization& polarization() const { return polarization_; }
+	const Propagation& propagation() const { return propagation_; }
+	FieldType fieldType() const { return fieldtype_; }
 
 private:
 	std::unique_ptr<Function> function_;

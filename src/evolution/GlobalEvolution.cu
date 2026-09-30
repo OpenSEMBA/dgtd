@@ -25,7 +25,6 @@ void load_in_to_eh_gpu(const mfem::Vector& in,
         hy_d[v] = in_d[4 * ndofs + v];
         hz_d[v] = in_d[5 * ndofs + v];
     });
-    cudaDeviceSynchronize();
 }
 
 void load_eh_to_innew_gpu(const mfem::Vector& in,
@@ -47,6 +46,17 @@ void load_eh_to_innew_gpu(const mfem::Vector& in,
         inNew_d[4 * blockSize + v] = in_d[4 * ndofs + v];
         inNew_d[5 * blockSize + v] = in_d[5 * ndofs + v];
     });
+}
+
+void sync_cuda_face_nbr_halos(const std::array<mfem::ParGridFunction, 3>& eOld,
+                              const std::array<mfem::ParGridFunction, 3>& hOld)
+{
+    for (int d = 0; d < 3; ++d) {
+        if (eOld[d].FaceNbrData().Size() > 0) {
+            (void)eOld[d].FaceNbrData().Read();
+            (void)hOld[d].FaceNbrData().Read();
+        }
+    }
 }
 
 void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,

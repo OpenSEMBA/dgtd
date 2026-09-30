@@ -1,15 +1,20 @@
 #include "RCSSurfacePostProcessor.h"
 
+#include "components/Spherical.h"
+
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <regex>
 #include <stdexcept>
+#include <utility>
 
 #include <omp.h>
+#include <unistd.h>
 
 #include "driver/driver.h"
 #include "math/PhysicalConstants.h"
@@ -19,9 +24,11 @@ namespace maxwell {
 
 using namespace mfem;
 
-// ------------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------------
+namespace {
+
+constexpr double kGiB = 1024.0 * 1024.0 * 1024.0;
+constexpr double kSystemMemSafetyFraction = 0.5;
+constexpr std::uint64_t kMeshHeadroomBytes = 256ull * 1024ull * 1024ull;
 
 static std::vector<std::string> findRankDirs(const std::string& basePath)
 {
@@ -42,30 +49,129 @@ static void removeDir(const std::string& p)
     if (std::filesystem::exists(p)) std::filesystem::remove_all(p);
 }
 
-// Spherical coordinate unit vectors.
-static std::array<double, 3> thetaHat(const SphericalAngles& a)
-{
-    return { std::cos(a.theta)*std::cos(a.phi),
-             std::cos(a.theta)*std::sin(a.phi),
-            -std::sin(a.theta) };
-}
-
-static std::array<double, 3> phiHat(const SphericalAngles& a)
-{
-    return { -std::sin(a.phi), std::cos(a.phi), 0.0 };
-}
-
-static std::array<double, 3> rHat(const SphericalAngles& a)
-{
-    return { std::sin(a.theta)*std::cos(a.phi),
-             std::sin(a.theta)*std::sin(a.phi),
-             std::cos(a.theta) };
-}
-
 template <typename T>
 static T dot3(const std::array<double,3>& a, const std::array<T,3>& b)
 {
     return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+static std::uint64_t readMemAvailableBytes()
+{
+    std::ifstream meminfo("/proc/meminfo");
+    if (meminfo) {
+        std::string key;
+        std::uint64_t kib = 0;
+        std::string unit;
+        while (meminfo >> key >> kib >> unit) {
+            if (key == "MemAvailable:") {
+                return kib * 1024ull;
+            }
+        }
+    }
+    const long pages = sysconf(_SC_AVPHYS_PAGES);
+    const long pageSize = sysconf(_SC_PAGESIZE);
+    if (pages > 0 && pageSize > 0) {
+        return static_cast<std::uint64_t>(pages) *
+               static_cast<std::uint64_t>(pageSize);
+    }
+    throw std::runtime_error("Cannot determine available system memory.");
+}
+
+static void readGeometryFromStream(std::ifstream& f, RCSSurfaceGeometry& geo)
+{
+    int32_t hdr[5];
+    f.read(reinterpret_cast<char*>(hdr), sizeof(hdr));
+    if (!f) throw std::runtime_error("Failed to read surface_data.bin header.");
+
+    geo.spaceDimension = hdr[0];
+    geo.numDofs        = hdr[1];
+    geo.numBdrElements = hdr[2];
+    geo.numQuadPoints  = hdr[3];
+    geo.basisType      = hdr[4];
+
+    const int nqp = geo.numQuadPoints;
+    const int sdim = geo.spaceDimension;
+    geo.positions.resize(static_cast<std::size_t>(nqp) * sdim);
+    geo.normals.resize(static_cast<std::size_t>(nqp) * 3);
+    geo.weights.resize(static_cast<std::size_t>(nqp));
+
+    f.read(reinterpret_cast<char*>(geo.positions.data()),
+           static_cast<std::streamsize>(geo.positions.size() * sizeof(double)));
+    f.read(reinterpret_cast<char*>(geo.normals.data()),
+           static_cast<std::streamsize>(geo.normals.size() * sizeof(double)));
+    f.read(reinterpret_cast<char*>(geo.weights.data()),
+           static_cast<std::streamsize>(geo.weights.size() * sizeof(double)));
+    if (!f) throw std::runtime_error("Failed to read surface_data.bin geometry.");
+}
+
+static std::uint64_t geometryBytes(const RCSSurfaceGeometry& geo)
+{
+    return (geo.positions.size() + geo.normals.size() + geo.weights.size())
+           * sizeof(double);
+}
+
+static std::int64_t snapPayloadBytes(int nDofs)
+{
+    return static_cast<std::int64_t>(sizeof(double))
+           + 6ll * static_cast<std::int64_t>(nDofs) * static_cast<std::int64_t>(sizeof(double));
+}
+
+} // namespace
+
+// ------------------------------------------------------------------
+// Memory estimate / gate
+// ------------------------------------------------------------------
+
+bool RCSSurfacePostProcessor::peekSurfaceFile(
+    const std::string& rankPath,
+    int everyNSteps,
+    RCSSurfaceGeometry& geo,
+    std::int64_t& nSnapTotal,
+    std::int64_t& nSnapKeptEstimate)
+{
+    const std::string path = rankPath + "/surface_data.bin";
+    const auto fileSize = static_cast<std::uint64_t>(std::filesystem::file_size(path));
+
+    std::ifstream f(path, std::ios::binary);
+    if (!f) return false;
+    readGeometryFromStream(f, geo);
+
+    const auto headerAndGeo =
+        static_cast<std::uint64_t>(f.tellg());
+    if (fileSize < headerAndGeo) return false;
+
+    const std::int64_t payload = snapPayloadBytes(geo.numDofs);
+    if (payload <= 0) return false;
+
+    nSnapTotal = static_cast<std::int64_t>((fileSize - headerAndGeo) / static_cast<std::uint64_t>(payload));
+    const int stride = std::max(1, everyNSteps);
+    nSnapKeptEstimate = (nSnapTotal + stride - 1) / stride;
+    return true;
+}
+
+std::uint64_t RCSSurfacePostProcessor::estimateLoadAllBytes(
+    std::int64_t nKept, int nDofs, int nFreq)
+{
+    const std::uint64_t hist =
+        static_cast<std::uint64_t>(nKept) * 6ull *
+        static_cast<std::uint64_t>(nDofs) * sizeof(double);
+    const std::uint64_t ff =
+        6ull * static_cast<std::uint64_t>(nFreq) *
+        static_cast<std::uint64_t>(nDofs) * sizeof(std::complex<double>);
+    return hist + ff + kMeshHeadroomBytes;
+}
+
+std::uint64_t RCSSurfacePostProcessor::memoryBudgetBytes(
+    const std::optional<double>& ramGateGiB)
+{
+    if (ramGateGiB.has_value()) {
+        if (!(ramGateGiB.value() > 0.0)) {
+            throw std::runtime_error("ram_gate must be > 0 (GiB).");
+        }
+        return static_cast<std::uint64_t>(ramGateGiB.value() * kGiB);
+    }
+    const auto avail = readMemAvailableBytes();
+    return static_cast<std::uint64_t>(kSystemMemSafetyFraction * static_cast<double>(avail));
 }
 
 // ------------------------------------------------------------------
@@ -79,42 +185,181 @@ RCSSurfacePostProcessor::readRankData(const std::string& rankPath) const
     std::ifstream f(rankPath + "/surface_data.bin", std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open " + rankPath + "/surface_data.bin");
 
-    int32_t hdr[5];
-    f.read(reinterpret_cast<char*>(hdr), sizeof(hdr));
-    rd.geometry.spaceDimension = hdr[0];
-    rd.geometry.numDofs        = hdr[1];
-    rd.geometry.numBdrElements = hdr[2];
-    rd.geometry.numQuadPoints  = hdr[3];
-    rd.geometry.basisType      = hdr[4];
-
-    const int nqp = rd.geometry.numQuadPoints;
-    const int sdim = rd.geometry.spaceDimension;
-
-    rd.geometry.positions.resize(nqp * sdim);
-    rd.geometry.normals.resize(nqp * 3);
-    rd.geometry.weights.resize(nqp);
-
-    f.read(reinterpret_cast<char*>(rd.geometry.positions.data()),
-           nqp * sdim * sizeof(double));
-    f.read(reinterpret_cast<char*>(rd.geometry.normals.data()),
-           nqp * 3 * sizeof(double));
-    f.read(reinterpret_cast<char*>(rd.geometry.weights.data()),
-           nqp * sizeof(double));
+    readGeometryFromStream(f, rd.geometry);
 
     const int ndofs = rd.geometry.numDofs;
+    const int stride = std::max(1, everyNSteps_);
+    const std::size_t field_bytes =
+        static_cast<std::size_t>(ndofs) * sizeof(double);
+    long long snap_index = 0;
+    long long kept = 0;
+    long long skipped = 0;
     while (f.peek() != EOF) {
         SurfaceSnapshot snap;
         f.read(reinterpret_cast<char*>(&snap.time), sizeof(double));
         if (!f) break;
 
-        for (auto* vec : {&snap.Ex, &snap.Ey, &snap.Ez,
-                          &snap.Hx, &snap.Hy, &snap.Hz}) {
-            vec->resize(ndofs);
-            f.read(reinterpret_cast<char*>(vec->data()), ndofs * sizeof(double));
+        const bool keep = (snap_index % stride) == 0;
+        if (keep) {
+            for (auto* vec : {&snap.Ex, &snap.Ey, &snap.Ez,
+                              &snap.Hx, &snap.Hy, &snap.Hz}) {
+                vec->resize(ndofs);
+                f.read(reinterpret_cast<char*>(vec->data()),
+                       static_cast<std::streamsize>(field_bytes));
+            }
+            if (!f) break;
+            rd.snapshots.push_back(std::move(snap));
+            ++kept;
+        } else {
+            // Skip field payload without allocating (critical for large dumps).
+            f.seekg(static_cast<std::streamoff>(6 * field_bytes), std::ios::cur);
+            if (!f) break;
+            ++skipped;
         }
-        rd.snapshots.push_back(std::move(snap));
+        ++snap_index;
+    }
+    if (stride > 1) {
+        std::cout << "    every_n_steps=" << stride
+                  << ": kept " << kept << ", skipped " << skipped
+                  << " snapshots while reading\n";
     }
     return rd;
+}
+
+RCSSurfacePostProcessor::FreqFields
+RCSSurfacePostProcessor::dftFromSnapshots(
+    const std::vector<SurfaceSnapshot>& snapshots,
+    const std::vector<double>& times,
+    const std::vector<double>& normFreqs,
+    int nDofs) const
+{
+    const int nFreq = static_cast<int>(normFreqs.size());
+    const int nSnap = static_cast<int>(snapshots.size());
+    FreqFields ff(6, std::vector<std::vector<std::complex<double>>>(
+        nFreq, std::vector<std::complex<double>>(nDofs, {0, 0})));
+
+    #pragma omp parallel
+    for (int t = 0; t < nSnap; ++t) {
+        const auto& s = snapshots[t];
+        const std::vector<double>* comps[6] = {
+            &s.Ex, &s.Ey, &s.Ez, &s.Hx, &s.Hy, &s.Hz };
+
+        #pragma omp for schedule(static) nowait
+        for (int fi = 0; fi < nFreq; ++fi) {
+            double arg = 2.0 * M_PI * normFreqs[fi] * times[t];
+            auto w = std::complex<double>(std::cos(arg), -std::sin(arg));
+            for (int c = 0; c < 6; ++c)
+                for (int v = 0; v < nDofs; ++v)
+                    ff[c][fi][v] += (*comps[c])[v] * w;
+        }
+    }
+    {
+        double invN = 1.0 / static_cast<double>(nSnap);
+        for (auto& comp : ff)
+            for (auto& fv : comp)
+                for (auto& v : fv)
+                    v *= invN;
+    }
+    return ff;
+}
+
+RCSSurfacePostProcessor::FreqFields
+RCSSurfacePostProcessor::dftStreamFromFile(
+    const std::string& rankPath,
+    const RCSSurfaceGeometry& geo,
+    const std::vector<double>& normFreqs,
+    std::vector<double>& timesOut,
+    int& nSnapOut) const
+{
+    std::ifstream f(rankPath + "/surface_data.bin", std::ios::binary);
+    if (!f) throw std::runtime_error("Cannot open " + rankPath + "/surface_data.bin");
+
+    RCSSurfaceGeometry discardGeo;
+    readGeometryFromStream(f, discardGeo);
+
+    const int nDofs = geo.numDofs;
+    const int nFreq = static_cast<int>(normFreqs.size());
+    const int stride = std::max(1, everyNSteps_);
+    const std::size_t field_bytes =
+        static_cast<std::size_t>(nDofs) * sizeof(double);
+
+    FreqFields ff(6, std::vector<std::vector<std::complex<double>>>(
+        nFreq, std::vector<std::complex<double>>(nDofs, {0, 0})));
+
+    timesOut.clear();
+    long long snap_index = 0;
+    long long skipped = 0;
+
+    SurfaceSnapshot snap;
+    snap.Ex.resize(nDofs);
+    snap.Ey.resize(nDofs);
+    snap.Ez.resize(nDofs);
+    snap.Hx.resize(nDofs);
+    snap.Hy.resize(nDofs);
+    snap.Hz.resize(nDofs);
+
+    while (f.peek() != EOF) {
+        f.read(reinterpret_cast<char*>(&snap.time), sizeof(double));
+        if (!f) break;
+
+        if (maxTime_.has_value() && snap.time > maxTime_.value()) {
+            // Times are monotonic in exporter dumps; stop after max_time.
+            break;
+        }
+
+        const bool keep = (snap_index % stride) == 0;
+        if (!keep) {
+            f.seekg(static_cast<std::streamoff>(6 * field_bytes), std::ios::cur);
+            if (!f) break;
+            ++skipped;
+            ++snap_index;
+            continue;
+        }
+
+        for (auto* vec : {&snap.Ex, &snap.Ey, &snap.Ez,
+                          &snap.Hx, &snap.Hy, &snap.Hz}) {
+            f.read(reinterpret_cast<char*>(vec->data()),
+                   static_cast<std::streamsize>(field_bytes));
+        }
+        if (!f) break;
+
+        const double tNorm = snap.time / physicalConstants::speedOfLight;
+        timesOut.push_back(tNorm);
+
+        const std::vector<double>* comps[6] = {
+            &snap.Ex, &snap.Ey, &snap.Ez, &snap.Hx, &snap.Hy, &snap.Hz };
+
+        #pragma omp parallel for schedule(static)
+        for (int fi = 0; fi < nFreq; ++fi) {
+            double arg = 2.0 * M_PI * normFreqs[fi] * tNorm;
+            auto w = std::complex<double>(std::cos(arg), -std::sin(arg));
+            for (int c = 0; c < 6; ++c)
+                for (int v = 0; v < nDofs; ++v)
+                    ff[c][fi][v] += (*comps[c])[v] * w;
+        }
+
+        ++snap_index;
+    }
+
+    nSnapOut = static_cast<int>(timesOut.size());
+    if (nSnapOut == 0) {
+        throw std::runtime_error("No snapshots found while streaming surface_data.bin.");
+    }
+
+    {
+        double invN = 1.0 / static_cast<double>(nSnapOut);
+        for (auto& comp : ff)
+            for (auto& fv : comp)
+                for (auto& v : fv)
+                    v *= invN;
+    }
+
+    if (stride > 1) {
+        std::cout << "    every_n_steps=" << stride
+                  << ": kept " << nSnapOut << ", skipped " << skipped
+                  << " snapshots while streaming\n";
+    }
+    return ff;
 }
 
 // ------------------------------------------------------------------
@@ -198,6 +443,18 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         normFreqs[i] = frequencies[i] / physicalConstants::speedOfLight_SI;
 
     const int nFreq = static_cast<int>(normFreqs.size());
+    const std::uint64_t budget = memoryBudgetBytes(ramGateGiB_);
+    if (ramGateGiB_.has_value()) {
+        std::cout << "  ram_gate   : " << ramGateGiB_.value() << " GiB ("
+                  << std::fixed << std::setprecision(2)
+                  << (budget / kGiB) << " GiB hard budget)\n"
+                  << std::defaultfloat;
+    } else {
+        std::cout << "  RAM budget : " << std::fixed << std::setprecision(2)
+                  << (budget / kGiB) << " GiB "
+                  << "(50% of MemAvailable)\n"
+                  << std::defaultfloat;
+    }
 
     // Initialise output maps.
     for (const auto& ang : angles)
@@ -221,40 +478,87 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
 
     for (const auto& rp : rankPaths) {
         ++rankIdx;
-        std::cout << "\n  [Rank " << rankIdx << "/" << rankPaths.size()
-                  << "] Reading surface data..." << std::flush;
-        auto rd = readRankData(rp);
-        spaceDim = rd.geometry.spaceDimension;
-        const int nDofs = rd.geometry.numDofs;
-        std::cout << " done. (" << spaceDim << "D, " << nDofs
-                  << " DOFs, " << rd.snapshots.size() << " snapshots)\n";
 
-        // Filter snapshots based on maxTime if provided.
-        std::vector<SurfaceSnapshot> snapshots = rd.snapshots;
-        if (maxTime_.has_value()) {
-            const size_t before = snapshots.size();
-            snapshots.erase(
-                std::remove_if(snapshots.begin(), snapshots.end(),
-                    [this](const SurfaceSnapshot& s) { return s.time > maxTime_.value(); }),
-                snapshots.end());
-            if (snapshots.empty()) {
-                throw std::runtime_error("No snapshots found within the specified maxTime.");
-            }
-            std::cout << "    Time filter: kept " << snapshots.size() << "/" << before
-                      << " snapshots (maxTime = " << std::fixed << std::setprecision(5)
-                      << maxTime_.value() << ").\n" << std::defaultfloat;
+        RCSSurfaceGeometry peekGeo;
+        std::int64_t nSnapTotal = 0;
+        std::int64_t nSnapKeptEst = 0;
+        if (!peekSurfaceFile(rp, everyNSteps_, peekGeo, nSnapTotal, nSnapKeptEst)) {
+            throw std::runtime_error("Cannot peek surface_data.bin in " + rp);
         }
-        const int nSnap = static_cast<int>(snapshots.size());
+
+        const int nDofs = peekGeo.numDofs;
+        spaceDim = peekGeo.spaceDimension;
+        const std::uint64_t estBytes =
+            estimateLoadAllBytes(nSnapKeptEst, nDofs, nFreq) + geometryBytes(peekGeo);
+        const bool useStream = estBytes > budget;
+
+        std::cout << "\n  [Rank " << rankIdx << "/" << rankPaths.size()
+                  << "] " << (useStream ? "Streaming" : "Load-all")
+                  << " surface data..."
+                  << " (est " << std::fixed << std::setprecision(2)
+                  << (estBytes / kGiB) << " GiB vs budget "
+                  << (budget / kGiB) << " GiB; "
+                  << nSnapKeptEst << " snaps est, " << nDofs << " DOFs)\n"
+                  << std::defaultfloat;
 
         if (spaceDim == 2)
             for (const auto& a : angles)
                 if (std::abs(a.theta - M_PI_2) > 1e-8)
                     throw std::runtime_error("2D RCS requires theta = pi/2.");
 
-        // Time vector (normalised).
-        std::vector<double> times(nSnap);
-        for (int i = 0; i < nSnap; ++i)
-            times[i] = snapshots[i].time / physicalConstants::speedOfLight;
+        FreqFields ff;
+        std::vector<double> times;
+        int nSnap = 0;
+        int basisType = peekGeo.basisType;
+
+        if (useStream) {
+            ff = dftStreamFromFile(rp, peekGeo, normFreqs, times, nSnap);
+            std::cout << "    Stream DFT : " << nSnap << " snapshots x "
+                      << nFreq << " frequencies x " << nDofs << " DOFs done.\n";
+            if (maxTime_.has_value()) {
+                std::cout << "    Time filter: applied during stream (maxTime = "
+                          << std::fixed << std::setprecision(5)
+                          << maxTime_.value() << ").\n" << std::defaultfloat;
+            }
+        } else {
+            std::cout << "    Reading..." << std::flush;
+            auto rd = readRankData(rp);
+            basisType = rd.geometry.basisType;
+            // Move — do not deep-copy the snapshot history (peak RAM).
+            std::vector<SurfaceSnapshot> snapshots = std::move(rd.snapshots);
+            std::cout << " done. (" << spaceDim << "D, " << nDofs
+                      << " DOFs, " << snapshots.size() << " snapshots)\n";
+
+            if (maxTime_.has_value()) {
+                const size_t before = snapshots.size();
+                snapshots.erase(
+                    std::remove_if(snapshots.begin(), snapshots.end(),
+                        [this](const SurfaceSnapshot& s) {
+                            return s.time > maxTime_.value();
+                        }),
+                    snapshots.end());
+                if (snapshots.empty()) {
+                    throw std::runtime_error(
+                        "No snapshots found within the specified maxTime.");
+                }
+                std::cout << "    Time filter: kept " << snapshots.size() << "/"
+                          << before << " snapshots (maxTime = " << std::fixed
+                          << std::setprecision(5) << maxTime_.value() << ").\n"
+                          << std::defaultfloat;
+            }
+            nSnap = static_cast<int>(snapshots.size());
+            times.resize(static_cast<std::size_t>(nSnap));
+            for (int i = 0; i < nSnap; ++i)
+                times[i] = snapshots[i].time / physicalConstants::speedOfLight;
+
+            std::cout << "    DFT        : " << nSnap << " snapshots x "
+                      << nFreq << " frequencies x " << nDofs << " DOFs..."
+                      << std::flush;
+            ff = dftFromSnapshots(snapshots, times, normFreqs, nDofs);
+            snapshots.clear();
+            snapshots.shrink_to_fit();
+            std::cout << " done.\n";
+        }
 
         if (firstRank) {
             pw = extractPlaneWaveData(jsonPath);
@@ -271,46 +575,12 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
             firstRank = false;
         }
 
-        // --- DFT all 6 field components ---
-        // freqFields[comp][freq] is a ComplexVector of size nDofs.
-        // comp: 0=Ex 1=Ey 2=Ez 3=Hx 4=Hy 5=Hz
-        using CVec = std::vector<std::complex<double>>;
-        std::vector<std::vector<CVec>> ff(6,
-            std::vector<CVec>(nFreq, CVec(nDofs, {0,0})));
-
-        std::cout << "    DFT        : " << nSnap << " snapshots x "
-                  << nFreq << " frequencies x " << nDofs << " DOFs..." << std::flush;
-
-        #pragma omp parallel
-        for (int t = 0; t < nSnap; ++t) {
-            const auto& s = snapshots[t];
-            const std::vector<double>* comps[6] = {
-                &s.Ex, &s.Ey, &s.Ez, &s.Hx, &s.Hy, &s.Hz };
-
-            #pragma omp for schedule(static) nowait
-            for (int fi = 0; fi < nFreq; ++fi) {
-                double arg = 2.0 * M_PI * normFreqs[fi] * times[t];
-                auto w = std::complex<double>(std::cos(arg), -std::sin(arg));
-                for (int c = 0; c < 6; ++c)
-                    for (int v = 0; v < nDofs; ++v)
-                        ff[c][fi][v] += (*comps[c])[v] * w;
-            }
-        }
-        {
-            double invN = 1.0 / static_cast<double>(nSnap);
-            for (auto& comp : ff)
-                for (auto& fv : comp)
-                    for (auto& v : fv)
-                        v *= invN;
-        }
-        std::cout << " done.\n";
-
         // --- Load mesh and build FES for this rank ---
         std::cout << "    Loading mesh..." << std::flush;
         auto mesh = Mesh::LoadFromFile(rp + "/mesh", 1, 0);
         auto pmesh = ParMesh(MPI_COMM_WORLD, mesh);
         int order = determineFECOrder(pmesh, nDofs);
-        DG_FECollection fec(order, pmesh.Dimension(), rd.geometry.basisType);
+        DG_FECollection fec(order, pmesh.Dimension(), basisType);
         ParFiniteElementSpace fes(&pmesh, &fec);
         std::cout << " done. (FEC order: " << order << ")\n";
 
@@ -319,18 +589,12 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                   << " frequencies x " << angles.size() << " angles..." << std::flush;
         for (int fi = 0; fi < nFreq; ++fi) {
             const double freq = normFreqs[fi];
-            const double k = 2.0 * M_PI * freq;
 
             for (const auto& ang : angles) {
                 // Build phase-term function coefficients.
                 std::unique_ptr<FunctionCoefficient> fcR, fcI;
-                if (spaceDim == 2) {
-                    fcR = buildFC_2D(freq, ang, true);
-                    fcI = buildFC_2D(freq, ang, false);
-                } else {
-                    fcR = buildFC_3D(freq, ang, true);
-                    fcI = buildFC_3D(freq, ang, false);
-                }
+                fcR = buildFC(spaceDim, freq, ang, true);
+                fcI = buildFC(spaceDim, freq, ang, false);
 
                 // For each spatial direction d, assemble linear forms that
                 // compute:  lf[i] = integral n[d] * fc * shape_i dS
@@ -376,8 +640,8 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                 }
 
                 // Project onto spherical components.
-                auto th = thetaHat(ang);
-                auto ph = phiHat(ang);
+                auto th = thetaHat(ang.theta, ang.phi);
+                auto ph = phiHat(ang.phi);
 
                 auto N_theta = dot3(th, N_vec);
                 auto N_phi   = dot3(ph, N_vec);
@@ -492,8 +756,12 @@ RCSSurfacePostProcessor::RCSSurfacePostProcessor(
     const std::string& jsonPath,
     std::vector<Frequency>& frequencies,
     const std::vector<SphericalAngles>& angles,
-    const std::optional<double>& maxTime)
-    : maxTime_(maxTime)
+    const std::optional<double>& maxTime,
+    int everyNSteps,
+    const std::optional<double>& ramGateGiB)
+    : maxTime_(maxTime),
+      everyNSteps_(std::max(1, everyNSteps)),
+      ramGateGiB_(ramGateGiB)
 {
     computeAndWriteResults(dataPath, jsonPath, frequencies, angles);
 }

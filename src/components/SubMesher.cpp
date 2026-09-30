@@ -1,9 +1,41 @@
 #include "SubMesher.h"
 
+#include <algorithm>
+#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
+
 namespace maxwell {
 
 using namespace mfem;
 static const int NotFound{ -1 };
+
+static void setVectorSizeForDim(int dim, Vector& res)
+{
+	switch (dim) {
+	case 1:
+		res.SetSize(1);
+		break;
+	case 2:
+		res.SetSize(2);
+		break;
+	case 3:
+		res.SetSize(3);
+		break;
+	default:
+		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
+	}
+}
+
+Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace& fes)
+{
+	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+	res = 0;
+	for (const int t : tags) {
+		res[t - 1] = 1;
+	}
+	return res;
+}
 
 FaceElementTransformations* getFaceElementTransformation(Mesh&m, int be)
 {
@@ -19,19 +51,7 @@ Vector getBarycenterOfElement(Mesh& m, int e)
 	Array<int> elem_vert(elem->GetNVertices());
 	elem->GetVertices(elem_vert);
 	Vector res;
-	switch (m.Dimension()) {
-	case 1:
-		res.SetSize(1);
-		break;
-	case 2:
-		res.SetSize(2);
-		break;
-	case 3:
-		res.SetSize(3);
-		break;
-	default:
-		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
-	}
+	setVectorSizeForDim(m.Dimension(), res);
 	res = 0.0;
 	for (int v = 0; v < elem_vert.Size(); v++) {
 		Vector vertexPos(m.GetVertex(elem_vert[v]), m.Dimension());
@@ -46,19 +66,7 @@ Vector getBarycenterOfFaceElement(Mesh& m, int f)
 	Array<int> f_elem_vert;
 	m.GetFaceVertices(f, f_elem_vert);
 	Vector res;
-	switch (m.Dimension()) {
-	case 1:
-		res.SetSize(1);
-		break;
-	case 2:
-		res.SetSize(2);
-		break;
-	case 3:
-		res.SetSize(3);
-		break;
-	default:
-		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
-	}
+	setVectorSizeForDim(m.Dimension(), res);
 	res = 0.0;
 	for (int v = 0; v < f_elem_vert.Size(); v++) {
 		Vector vertexPos(m.GetVertex(f_elem_vert[v]), m.Dimension());
@@ -71,19 +79,7 @@ Vector getBarycenterOfFaceElement(Mesh& m, int f)
 Vector subtract(const double* bdr_v, const Vector& b_v)
 {
 	Vector res(3);
-	switch (b_v.Size()) {
-	case 1:
-		res.SetSize(1);
-		break;
-	case 2:
-		res.SetSize(2);
-		break;
-	case 3:
-		res.SetSize(3);
-		break;
-	default:
-		throw std::runtime_error("Wrong dimension for TFSF barycenter calculation.");
-	}
+	setVectorSizeForDim(b_v.Size(), res);
 	for (int i = 0; i < res.Size(); i++) {
 		res[i] = b_v[i] - bdr_v[i];
 	}
@@ -379,7 +375,7 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh&
 	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
-	global_submesh_ = std::make_unique<SubMesh>(global_sm);
+	global_submesh_ = std::make_unique<SubMesh>(std::move(global_sm));
 
 	cleanInvalidSubMeshEntries(elem_to_face_tf_);
 	cleanInvalidSubMeshEntries(elem_to_face_sf_);
@@ -676,13 +672,11 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing3D(Mesh& m, const Array<int>& marker)
 {
-	// Compute centroid of all TFSF boundary vertices.
-	// For a convex TFSF surface the centroid lies inside the TF region,
-	// so the element whose barycenter is closer to it is the TF element.
-	// This is invariant to face-normal orientation and handles corner
-	// elements (adjacent to multiple TFSF faces) consistently.
-	Vector tfsf_center(3);
-	tfsf_center = 0.0;
+	// Density-independent AABB center of the TFSF surface.  A vertex-weighted
+	// centroid is pulled toward finely meshed faces (e.g. tag 8 / +Y on G2),
+	// which can flip TF/SF on skinny corner tets via Euclidean distance.
+	Vector tfsf_min(3), tfsf_max(3), tfsf_center(3);
+	tfsf_min = 1e300; tfsf_max = -1e300; tfsf_center = 0.0;
 	int n_verts = 0;
 	std::set<int> counted;
 	for (int be = 0; be < m.GetNBE(); be++) {
@@ -690,14 +684,23 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 		Array<int> verts;
 		m.GetBdrElementVertices(be, verts);
 		for (int i = 0; i < verts.Size(); i++) {
-			if (counted.insert(verts[i]).second) {
-				auto* v = m.GetVertex(verts[i]);
-				for (int d = 0; d < 3; d++) tfsf_center[d] += v[d];
-				n_verts++;
+			if (!counted.insert(verts[i]).second) continue;
+			auto* v = m.GetVertex(verts[i]);
+			for (int d = 0; d < 3; d++) {
+				tfsf_min[d] = std::min(tfsf_min[d], v[d]);
+				tfsf_max[d] = std::max(tfsf_max[d], v[d]);
 			}
+			n_verts++;
 		}
 	}
-	if (n_verts > 0) tfsf_center /= double(n_verts);
+	if (n_verts == 0) return;
+	for (int d = 0; d < 3; d++) {
+		tfsf_center[d] = 0.5 * (tfsf_min[d] + tfsf_max[d]);
+	}
+
+	// Track per-element TF/SF votes so multi-face (edge/corner) conflicts are visible.
+	std::unordered_map<int, int> tf_votes; // >0 => TF, <0 => SF
+	int n_conflicts = 0;
 
 	for (int be = 0; be < m.GetNBE(); be++) {
 		if (marker[m.GetBdrAttribute(be) - 1] == 1) {
@@ -709,33 +712,62 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto fe_trans{ getFaceElementTransformation(m,be) };
 			m.GetElementFaces(fe_trans->Elem1No, el1_face, el1_ori);
 
-			// Determine TF/SF by centroid distance: closer to center = TF.
-			Vector bary1 = getBarycenterOfElement(m, fe_trans->Elem1No);
-			double dist1_sq = 0.0;
+			// Classify by which side of the face plane contains the AABB center.
+			// Inward normal points toward tfsf_center; TF = element on the inward side.
+			Vector face_bary = getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be));
+			Vector n = buildNormal3D(m, be);
+			double n_norm = n.Norml2();
+			if (n_norm > 0.0) n /= n_norm;
+			Vector to_center(3);
 			for (int d = 0; d < 3; d++) {
-				double diff = bary1[d] - tfsf_center[d];
-				dist1_sq += diff * diff;
+				to_center[d] = tfsf_center[d] - face_bary[d];
+			}
+			if (mfem::InnerProduct(to_center, n) < 0.0) {
+				n *= -1.0;
 			}
 
-			bool elem1_is_tf;
+			Vector bary1 = getBarycenterOfElement(m, fe_trans->Elem1No);
+			Vector d1(3);
+			for (int d = 0; d < 3; d++) {
+				d1[d] = bary1[d] - face_bary[d];
+			}
+			bool elem1_is_tf = mfem::InnerProduct(d1, n) > 0.0;
+
 			if (fe_trans->Elem2No >= 0) {
 				Vector bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
-				double dist2_sq = 0.0;
+				Vector d2(3);
 				for (int d = 0; d < 3; d++) {
-					double diff = bary2[d] - tfsf_center[d];
-					dist2_sq += diff * diff;
+					d2[d] = bary2[d] - face_bary[d];
 				}
-				elem1_is_tf = dist1_sq < dist2_sq;
+				const bool elem2_is_tf = mfem::InnerProduct(d2, n) > 0.0;
+				// Degenerate / nearly coplanar: fall back to AABB-center distance.
+				if (elem1_is_tf == elem2_is_tf) {
+					double dist1_sq = 0.0, dist2_sq = 0.0;
+					for (int d = 0; d < 3; d++) {
+						double a = bary1[d] - tfsf_center[d];
+						double b = bary2[d] - tfsf_center[d];
+						dist1_sq += a * a;
+						dist2_sq += b * b;
+					}
+					elem1_is_tf = dist1_sq < dist2_sq;
+				}
 			}
-			else {
-				// Boundary face with no Elem2: compare element to face barycenter
-				Vector face_bary = getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be));
-				double face_dist_sq = 0.0;
-				for (int d = 0; d < 3; d++) {
-					double diff = face_bary[d] - tfsf_center[d];
-					face_dist_sq += diff * diff;
+
+			auto recordVote = [&](int elem, bool is_tf) {
+				const int vote = is_tf ? 1 : -1;
+				auto it = tf_votes.find(elem);
+				if (it == tf_votes.end()) {
+					tf_votes[elem] = vote;
+				} else if ((it->second > 0) != is_tf) {
+					++n_conflicts;
+					it->second += vote;
+				} else {
+					it->second += vote;
 				}
-				elem1_is_tf = dist1_sq < face_dist_sq;
+			};
+			recordVote(fe_trans->Elem1No, elem1_is_tf);
+			if (fe_trans->Elem2No >= 0) {
+				recordVote(fe_trans->Elem2No, !elem1_is_tf);
 			}
 
 			std::pair<FaceId, IsTF> set_v1;
@@ -748,7 +780,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				}
 			}
 
-			std::pair<FaceId, IsTF> set_v2;
+			std::pair<FaceId, IsTF> set_v2 = std::make_pair(NotFound, false);
 			if (fe_trans->Elem2No >= 0) {
 
 				m.GetElementFaces(fe_trans->Elem2No, el2_face, el2_ori);
@@ -762,15 +794,22 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 					}
 				}
 			}
-			else {
-				auto set_v2{ std::make_pair(NotFound, false) };
-			}
 
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);
 			prepareSubMeshInfo(m, fe_trans, facesInfo, set_v1.second);
 		}
 	}
 
+	if (Mpi::WorldRank() == 0) {
+		std::cout << "[TFSF] 3D tagging: AABB center=("
+		          << tfsf_center[0] << ", " << tfsf_center[1] << ", "
+		          << tfsf_center[2] << "), face-plane side test";
+		if (n_conflicts > 0) {
+			std::cout << ", WARNING: " << n_conflicts
+			          << " multi-face TF/SF vote conflicts";
+		}
+		std::cout << "\n";
+	}
 }
 
 NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const ParFiniteElementSpace& fes, const Array<int>& marker)
@@ -792,9 +831,7 @@ NearToFarFieldSubMesher::NearToFarFieldSubMesher(const Mesh& m, const ParFiniteE
 	if (!elem_to_face_ntff_.empty()) {
 		ntff_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*original_.get(), std::make_pair(marker, BdrCond::NearToFarField)));
 	}
-	else {
-		throw std::runtime_error("ntff submesh is empty, check orientation of curves/faces.");
-	}
+	// Ranks with no local NTF surface leave ntff_mesh_ empty.
 }
 
 void NearToFarFieldSubMesher::setSurfaceAttributesForSubMesh2D(Mesh& m, const Array<int>& marker)
@@ -932,6 +969,153 @@ void MaxwellTransferMap::TransferSub(const GridFunction& src, GridFunction& dst)
 	for (int i = 0; i < sub_to_parent_map_.Size(); i++)
 	{
 		dst(sub_to_parent_map_[i]) -= src(i);
+	}
+}
+
+VolumetricRegionSubMesher::VolumetricRegionSubMesher(
+	const Mesh& parent,
+	const RegionTagSet& vacuum_tags,
+	const RegionTagSet& pml_tags)
+{
+	Mesh parent_copy(parent);
+	buildRegionMarkers(parent_copy, vacuum_tags, pml_tags);
+
+	// Detect interface on an untouched parent copy before any submesh extraction,
+	// which may alter parent-side bookkeeping in MFEM internals.
+	detectVacuumPMLInterface(parent_copy, vacuum_tags, pml_tags);
+
+	if (vacuum_marker_.Size() != 0 && vacuum_marker_.Sum() > 0) {
+		auto sub = SubMesh::CreateFromDomain(parent_copy, vacuum_marker_);
+		restoreElementAttributes(sub);
+		sub.FinalizeMesh();
+		vacuum_mesh_ = std::make_unique<SubMesh>(std::move(sub));
+	}
+
+	if (pml_marker_.Size() != 0 && pml_marker_.Sum() > 0) {
+		auto sub = SubMesh::CreateFromDomain(parent_copy, pml_marker_);
+		restoreElementAttributes(sub);
+		sub.FinalizeMesh();
+		pml_mesh_ = std::make_unique<SubMesh>(std::move(sub));
+	}
+}
+
+void VolumetricRegionSubMesher::buildRegionMarkers(
+	const Mesh& parent,
+	const RegionTagSet& vacuum_tags,
+	const RegionTagSet& pml_tags)
+{
+	const int max_attr = parent.attributes.Max();
+	vacuum_marker_.SetSize(max_attr);
+	vacuum_marker_ = 0;
+	pml_marker_.SetSize(max_attr);
+	pml_marker_ = 0;
+
+	for (const int tag : vacuum_tags) {
+		if (tag <= 0 || tag > max_attr) {
+			throw std::runtime_error("Vacuum region tag is out of mesh attribute range.");
+		}
+		if (parent.attributes.Find(tag) == -1) {
+			throw std::runtime_error("Vacuum region tag is not present in mesh attributes.");
+		}
+		vacuum_marker_[tag - 1] = 1;
+	}
+
+	for (const int tag : pml_tags) {
+		if (tag <= 0 || tag > max_attr) {
+			throw std::runtime_error("PML region tag is out of mesh attribute range.");
+		}
+		if (parent.attributes.Find(tag) == -1) {
+			throw std::runtime_error("PML region tag is not present in mesh attributes.");
+		}
+		pml_marker_[tag - 1] = 1;
+	}
+}
+
+void VolumetricRegionSubMesher::detectVacuumPMLInterface(
+	Mesh& parent,
+	const RegionTagSet& vacuum_tags,
+	const RegionTagSet& pml_tags)
+{
+	const int bdr_max = parent.bdr_attributes.Max();
+	interface_marker_.SetSize(bdr_max);
+	interface_marker_ = 0;
+	interface_faces_.clear();
+
+	std::unordered_set<int> unique_faces;
+	const auto face2bdr = parent.GetFaceToBdrElMap();
+	int faces_checked = 0;
+	int two_sided = 0;
+	int crossings = 0;
+	int vac_vac_pairs = 0;
+	int pml_pml_pairs = 0;
+	int vac_pml_pairs = 0;
+	int other_pairs = 0;
+
+	auto is_cross = [&](int attr1, int attr2) {
+		const bool e1_vac = vacuum_tags.find(attr1) != vacuum_tags.end();
+		const bool e2_vac = vacuum_tags.find(attr2) != vacuum_tags.end();
+		const bool e1_pml = pml_tags.find(attr1) != pml_tags.end();
+		const bool e2_pml = pml_tags.find(attr2) != pml_tags.end();
+		return (e1_vac && e2_pml) || (e2_vac && e1_pml);
+	};
+
+	for (int f = 0; f < parent.GetNumFaces(); ++f) {
+		++faces_checked;
+
+		const auto* ft = parent.GetFaceElementTransformations(f);
+		if (!ft || ft->Elem1No < 0 || ft->Elem2No < 0) {
+			continue;
+		}
+
+		++two_sided;
+
+		const int e1_attr = parent.GetAttribute(ft->Elem1No);
+		const int e2_attr = parent.GetAttribute(ft->Elem2No);
+		const bool e1_vac = vacuum_tags.find(e1_attr) != vacuum_tags.end();
+		const bool e2_vac = vacuum_tags.find(e2_attr) != vacuum_tags.end();
+		const bool e1_pml = pml_tags.find(e1_attr) != pml_tags.end();
+		const bool e2_pml = pml_tags.find(e2_attr) != pml_tags.end();
+
+		if (e1_vac && e2_vac) {
+			++vac_vac_pairs;
+		} else if (e1_pml && e2_pml) {
+			++pml_pml_pairs;
+		} else if ((e1_vac && e2_pml) || (e2_vac && e1_pml)) {
+			++vac_pml_pairs;
+		} else {
+			++other_pairs;
+		}
+
+		if (!is_cross(e1_attr, e2_attr)) {
+			continue;
+		}
+
+		++crossings;
+		unique_faces.insert(f);
+
+		if (f < face2bdr.Size() && face2bdr[f] != -1) {
+			const int bdr_attr = parent.GetBdrAttribute(face2bdr[f]);
+			if (bdr_attr > 0 && bdr_attr <= bdr_max) {
+				interface_marker_[bdr_attr - 1] = 1;
+			}
+		}
+	}
+
+	interface_faces_.assign(unique_faces.begin(), unique_faces.end());
+	std::sort(interface_faces_.begin(), interface_faces_.end());
+
+	if (Mpi::WorldRank() == 0) {
+		std::cout << "[VolPML InterfaceDetect] face-sweep: total_faces=" << parent.GetNumFaces()
+			<< ", checked=" << faces_checked
+			<< ", two_sided=" << two_sided
+			<< ", crossings=" << crossings
+			<< ", vac_vac_pairs=" << vac_vac_pairs
+			<< ", pml_pml_pairs=" << pml_pml_pairs
+			<< ", vac_pml_pairs=" << vac_pml_pairs
+			<< ", other_pairs=" << other_pairs
+			<< ", unique_faces=" << interface_faces_.size()
+			<< ", marker_sum=" << interface_marker_.Sum()
+			<< std::endl;
 	}
 }
 

@@ -9,6 +9,17 @@
 
 namespace maxwell {
 
+template <typename EigenVec>
+inline EigenVec mfemVectorToEigen(const mfem::Vector& in)
+{
+	EigenVec res;
+	res.resize(in.Size());
+	for (int i = 0; i < in.Size(); ++i) {
+		res(i) = in.Elem(i);
+	}
+	return res;
+}
+
 inline Eigen::MatrixXd toEigen(const mfem::DenseMatrix& mat)
 {
 	Eigen::MatrixXd res(mat.Height(), mat.Width());
@@ -22,22 +33,12 @@ inline Eigen::MatrixXd toEigen(const mfem::DenseMatrix& mat)
 
 inline Eigen::VectorXd toEigenVector(const mfem::Vector& in)
 {
-	Eigen::VectorXd res;
-	res.resize(in.Size());
-	for (int i = 0; i < in.Size(); ++i) {
-		res(i) = in.Elem(i);
-	}
-	return res;
+	return mfemVectorToEigen<Eigen::VectorXd>(in);
 }
 
 inline Eigen::VectorXcd toEigenComplexVector(const mfem::Vector& in)
 {
-	Eigen::VectorXcd res;
-	res.resize(in.Size());
-	for (int i = 0; i < in.Size(); ++i) {
-		res(i) = in.Elem(i);
-	}
-	return res;
+	return mfemVectorToEigen<Eigen::VectorXcd>(in);
 }
 
 inline mfem::Vector toMFEMVector(const Eigen::VectorXd& in)

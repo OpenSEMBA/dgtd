@@ -39,7 +39,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 10
+      "save_every": 0.1
     },
     "domain_snapshot": {
       "steps": 5

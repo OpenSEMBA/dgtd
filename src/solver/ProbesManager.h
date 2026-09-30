@@ -12,31 +12,10 @@ namespace maxwell {
 
 class SourcesManager;  // Forward declaration
 
-Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace&);
 std::string getRunModeTag();
-
-struct TransferMaps {
-
-    std::array<std::array<mfem::TransferMap, 3>, 2> maps;
-
-    TransferMaps(Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst) :
-        maps{ std::array<mfem::TransferMap, 3>{ mfem::TransferMap(src.get(E, X), dst.get(E, X)),
-                                                 mfem::TransferMap(src.get(E, Y), dst.get(E, Y)),
-                                                 mfem::TransferMap(src.get(E, Z), dst.get(E, Z)) },
-              std::array<mfem::TransferMap, 3>{ mfem::TransferMap(src.get(H, X), dst.get(H, X)),
-                                                 mfem::TransferMap(src.get(H, Y), dst.get(H, Y)),
-                                                 mfem::TransferMap(src.get(H, Z), dst.get(H, Z)) } }
-    {}
-
-    void transferFields(const Fields<ParFiniteElementSpace, ParGridFunction>& src, Fields<FiniteElementSpace, GridFunction>& dst)
-    {
-        for (auto f : { E, H }) {
-            for (auto d : { X, Y, Z }) {
-                maps[f][d].Transfer(src.get(f, d), dst.get(f, d));
-            }
-        }
-    }
-};
+// Probe / stats / RCS dumps: exports/SimulationData/<run-mode>/<case>
+// ParaView: exports/ParaView/<run-mode>/; CSR: exports/Operators/<case>/.
+std::string getSimulationCaseExportPath(const std::string& caseName);
 
 class NearFieldReqs {
 public:
@@ -70,7 +49,10 @@ public:
     ProbesManager& operator=(ProbesManager&&) = default;
 
     void updateProbes(Time);
+    /// True when at least one probe will read host field data this cycle.
+    bool needsHostSyncThisStep(Time) const;
     void recalculateExportSteps(double dt);
+    void setFinalTime(double final_time);
 
     const FieldProbe& getFieldProbe(const std::size_t i) const;
     const PointProbe& getPointProbe(const std::size_t i) const;
@@ -84,10 +66,21 @@ public:
         srcmngr_ = srcmngr;
         tfsf_mapping_ = tfsf_mapping;
     }
+    void printTimingSummaryAndReset() const;
 
     Probes probes;
 
 private:
+    struct TimingStats {
+        double exporter_ms{0.0};
+        double field_ms{0.0};
+        double point_ms{0.0};
+        double nearfield_ms{0.0};
+        double snapshot_ms{0.0};
+        double rcs_ms{0.0};
+        double mor_ms{0.0};
+        int update_calls{0};
+    };
 
     struct FESPoint {
         int elementId;
@@ -109,9 +102,18 @@ private:
         const mfem::GridFunction& field;
     };
 
+    struct ExporterContext {
+        int save_count{0};
+        double next_save_time{0.0};
+        double dt_save{0.0};
+        bool initialized{false};
+        bool finished{false};
+    };
+
     int cycle_{ 0 };
     double finalTime_;
 
+    std::map<const ExporterProbe*, ExporterContext> exporterContexts_;
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
     std::map<const FieldProbe*, FieldProbeCollection> fieldProbesCollection_;
@@ -139,6 +141,8 @@ private:
     
     SourcesManager* srcmngr_{nullptr};
     const mfem::Array<int>* tfsf_mapping_{nullptr};
+    bool is_sgbc_solver_{false};
+    mutable TimingStats timingStats_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
     PointProbeCollection buildPointProbeCollectionInfo(const PointProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;

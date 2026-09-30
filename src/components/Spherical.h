@@ -1,12 +1,16 @@
 #pragma once
 
+#include <array>
 #include <vector>
-#include <math.h>
 #include <cmath>
 #include <cassert>
 #include <mfem.hpp>
 
 namespace maxwell {
+
+std::array<double, 3> rHat(double theta, double phi);
+std::array<double, 3> thetaHat(double theta, double phi);
+std::array<double, 3> phiHat(double phi);
 
 class SphericalVector {
 public:

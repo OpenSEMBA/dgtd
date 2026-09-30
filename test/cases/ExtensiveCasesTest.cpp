@@ -1503,7 +1503,7 @@ TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Centered_SMA)
 }
 
 
-TEST_F(ExtensiveCasesTest, DISABLED_3D_TFSF_Centered_Hesthaven)
+TEST_F(ExtensiveCasesTest, 3D_TFSF_Centered_Hesthaven)
 {
 	auto case_data = parseJSONfile(maxwellCase("3D_TFSF"));
     case_data["solver_options"]["upwind_alpha"] = 0.0;

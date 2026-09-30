@@ -8,6 +8,8 @@
 
 namespace maxwell {
 
+class SCPMLLayout;
+
 using NodeId = int;
 using NodePair = std::pair<NodeId, NodeId>;
 using FieldGridFuncs = std::array<std::array<mfem::GridFunction, 3>, 2>;
@@ -17,11 +19,12 @@ public:
     static const int numberOfFieldComponents = 2;
     static const int numberOfMaxDimensions = 3;
 
-    GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&, const Probes&);
+    GlobalEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&, const Probes&, double final_time);
     ~GlobalEvolution();
 
     virtual void Mult(const mfem::Vector& x, mfem::Vector& y) const;
     void ImplicitSolve(const double dt, const mfem::Vector& x, mfem::Vector& k) override;
+    mfem::MemoryClass GetMemoryClass() const override;
 
     void commitSGBCCheckpoint(double base_time, double dt,
                               const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
@@ -33,13 +36,22 @@ public:
 
     bool hasSGBC() const { return !sgbc_states_.empty(); }
 
+    int totalStateSize() const { return total_state_size_; }
+
 private:
+
+    int total_state_size_ = 0;
     void applyTFSFSourceToVector(double t_stage, int ndofs, int nbrDofs,
                                   mfem::Vector& result_vector) const;
 
     std::unique_ptr<mfem::SparseMatrix> globalOperator_;
     std::unique_ptr<mfem::SparseMatrix> TFSFOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
+    std::unique_ptr<mfem::SparseMatrix> scpmlOperator_;
+    std::unique_ptr<SCPMLLayout> scpmlLayout_;
+    /// Per stretch-component curl a-rescale: out_Fu += Delta_u * out_Fu (E and H).
+    std::array<std::unique_ptr<mfem::SparseMatrix>, 3> scpmlCurlDelta_;
+    mutable mfem::Vector scpmlCurlWork_;
 
     mfem::Array<int> tfsf_sub_to_parent_ids_;
 
@@ -77,6 +89,10 @@ private:
     // Cached indices of sources that are TotalField (avoids dynamic_cast per Mult)
     std::vector<int> tfsfSourceIndices_;
 
+    // True when this rank owns at least one tagged TFSF / SGBC boundary face.
+    bool has_local_tfsf_faces_ = false;
+    bool has_local_sgbc_faces_ = false;
+
     mfem::ParFiniteElementSpace& fes_;
     Model& model_;
     SourcesManager& srcmngr_;
@@ -96,6 +112,11 @@ private:
     // global interface DOFs are below this norm, skip the sub-solve and
     // flux injection entirely for that face.
     static constexpr double sgbc_skip_threshold_ = 1e-8;
+
+    // One-shot log of parent Δt / recommended δt / nsteps for TAP diagnostics.
+    mutable bool sgbc_substep_plan_logged_ = false;
+    void logSGBCSubstepPlanOnce(double parent_dt, double recommended_dt, int nsteps,
+                                double actual_sub_dt, double sgbc_cfl) const;
 
     // TFSF skip threshold: if the evaluated planewave source norm falls
     // below this value, the source has decayed and TFSF is permanently
@@ -128,6 +149,11 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
                    mfem::Vector& inNew,
                    const int ndofs,
                    const int nbrSize);
+
+/// After ExchangeFaceNbrData(), push host-received halos to device when
+/// GPU-aware MPI is disabled (MFEM receives into HostWrite()).
+void sync_cuda_face_nbr_halos(const std::array<mfem::ParGridFunction, 3>& eOld,
+                              const std::array<mfem::ParGridFunction, 3>& hOld);
 
 void scatter_tfsf_to_assembled_gpu(const mfem::Array<int>& sub_to_parent,
                                    const FieldGridFuncs& func,

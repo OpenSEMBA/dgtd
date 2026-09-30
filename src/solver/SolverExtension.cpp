@@ -136,25 +136,26 @@ Model buildSGBCModel(mfem::Mesh& mesh, int* partitioning, const SGBCProperties& 
     return Model(mesh, GeomTagToMaterialInfo(geom_tag_sgbc_mat, GeomTagToBoundaryMaterial{}), gtbdr, partitioning, MPI_COMM_SELF);
 }
 
-std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp)
+std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapper(const SGBCProperties& sbcp, double simulation_final_time, const ExporterProbe* exporter_probe)
 {
     SGBCBoundaries bdrInfo = sbcp.sgbc_bdr_info;
-    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo, simulation_final_time, exporter_probe));
 }
 
-std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProperties& sbcp)
+std::unique_ptr<SGBCWrapper> SGBCWrapper::buildSGBCWrapperWithPEC(const SGBCProperties& sbcp, double simulation_final_time, const ExporterProbe* exporter_probe)
 {
     SGBCBoundaries bdrInfo;
     bdrInfo.first.bdrCond = BdrCond::PEC;
     bdrInfo.first.isOn = true;
     bdrInfo.second.bdrCond = BdrCond::PEC;
     bdrInfo.second.isOn = true;
-    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo));
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp, bdrInfo, simulation_final_time, exporter_probe));
 }
 
 std::unique_ptr<SGBCWrapper> SGBCWrapper::clone() const
 {
-    return buildSGBCWrapper(sbcp_);
+    const ExporterProbe* exporter_probe = has_exporter_probe_ ? &exporter_probe_ : nullptr;
+    return std::unique_ptr<SGBCWrapper>(new SGBCWrapper(sbcp_, intBdrInfo_, simulation_final_time_, exporter_probe));
 }
 
 SolverOptions buildSGBCSolverOptions(const SGBCProperties& sbcp)
@@ -422,11 +423,14 @@ void SGBCWrapper::solve(const Time t, const Time dt)
 
             if (Mpi::WorldRank() == 0) {
                 if (is_coarse) {
-                    std::cout << "[SGBC] WARNING: parent dt=" << dt_si*1e12 << " ps > recommended "
-                              << recommended_dt_si*1e12 << " ps — sub-stepping applied.\n" << std::flush;
+                    // Here dt is already the SGBC sub-step (actual_sub_dt from GlobalEvolution).
+                    std::cout << "[SGBC] WARNING: sub-step dt=" << dt_si*1e12 << " ps > recommended "
+                              << recommended_dt_si*1e12 << " ps (sgbc_cfl=" << sbcp_.sgbc_cfl << ").\n"
+                              << std::flush;
                 } else {
-                    std::cout << "[SGBC] Temporal OK: parent dt=" << dt_si*1e12 << " ps, recommended "
-                              << recommended_dt_si*1e12 << " ps (margin " << (recommended_dt_si / dt_si) << "x)\n" << std::flush;
+                    std::cout << "[SGBC] Temporal OK: sub-step dt=" << dt_si*1e12 << " ps, recommended "
+                              << recommended_dt_si*1e12 << " ps (sgbc_cfl=" << sbcp_.sgbc_cfl
+                              << ", margin " << (recommended_dt_si / dt_si) << "x)\n" << std::flush;
                 }
             }
         }
@@ -435,10 +439,16 @@ void SGBCWrapper::solve(const Time t, const Time dt)
     this->solver_->setTime(t);
     this->solver_->getEvolTDO()->SetTime(t);
 
-    this->solver_->getSolverOptions().setFinalTime(t + dt);
     this->solver_->setTimeStep(dt);
 
-    this->solver_->step();
+    this->solver_->step(false);
+}
+
+void SGBCWrapper::updateProbes(const Time t)
+{
+    this->solver_->setTime(t);
+    this->solver_->getEvolTDO()->SetTime(t);
+    this->solver_->updateProbes();
 }
 
 void checkSkinDepthResolution(const SGBCProperties& props)
@@ -484,8 +494,12 @@ void checkSkinDepthResolution(const SGBCProperties& props)
     }
 }
 
-SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo) :
+SGBCWrapper::SGBCWrapper(const SGBCProperties& sbcp, const SGBCBoundaries& intBdrInfo, double simulation_final_time, const ExporterProbe* exporter_probe) :
 sbcp_(sbcp),
+intBdrInfo_(intBdrInfo),
+simulation_final_time_(simulation_final_time),
+has_exporter_probe_(exporter_probe != nullptr),
+exporter_probe_(exporter_probe != nullptr ? *exporter_probe : ExporterProbe{}),
 n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
 { 
     auto mesh = buildSGBCMesh(sbcp_, n_ghost_elements_);
@@ -493,13 +507,15 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     
     Model model = buildSGBCModel(mesh, partitioning, sbcp_, intBdrInfo);
     Probes probes;
-    // probes.exporterProbes.resize(1);
-    // ExporterProbe ep;
-    // ep.name = "InsideSGBC";
-    // ep.saves = 100;
-    // probes.exporterProbes.at(0) = ep;
+    if (has_exporter_probe_) {
+        auto ep = exporter_probe_;
+        const auto tag = sbcp_.geom_tags.empty() ? 0 : sbcp_.geom_tags.front();
+        ep.name = "InsideSGBC_tag" + std::to_string(tag);
+        probes.exporterProbes.push_back(ep);
+    }
     Sources sources;
     SolverOptions opts = buildSGBCSolverOptions(sbcp_);
+    opts.setFinalTime(simulation_final_time_);
     opts.setIsSGBCSolver(true);  // Mark as SGBC sub-solver to skip statistics
 
     solver_ = std::make_unique<Solver>(model, probes, sources, opts);
@@ -507,7 +523,7 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     this->old_t_ = 0.0;
 
     // Compute recommended_dt as the minimum across all layers.
-    // Base CFL: half the wave crossing time per element.
+    // Base CFL: sgbc_cfl * wave crossing time per element (default sgbc_cfl=0.5).
     // For layers that are many skin depths thick (N_delta >> 1), the physics
     // is diffusion-dominated and the L-stable implicit solver can safely take
     // much larger steps. We relax the CFL proportionally to N_delta^2,
@@ -515,6 +531,7 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
     {
         constexpr double c_si = physicalConstants::speedOfLight_SI;
         constexpr double cfl_relax_cap = 50.0;
+        const double sgbc_cfl = sbcp_.sgbc_cfl;
 
         recommended_dt_ = std::numeric_limits<double>::max();
 
@@ -524,7 +541,7 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
             double dx    = layer.width / layer.num_of_segments;
 
             double crossing_time = (dx * std::sqrt(eps_r * mu_r)) / c_si;
-            double layer_dt = crossing_time * 0.5;
+            double layer_dt = crossing_time * sgbc_cfl;
 
             // Relax CFL for opaque layers: N_delta > 3 means wave is
             // heavily attenuated, so temporal resolution of wave transit
@@ -550,7 +567,9 @@ n_ghost_elements_(std::max(3, static_cast<int>(sbcp.maxOrder()) + 1))
             checkSkinDepthResolution(sbcp_);
             constexpr double c_si = physicalConstants::speedOfLight_SI;
             double rec_dt_si = recommended_dt_ / c_si;
-            std::cout << "  SGBC recommended dt   : " << rec_dt_si * 1e12 << " ps"
+            std::cout << "  SGBC sgbc_cfl         : " << sbcp_.sgbc_cfl << "\n"
+                      << "  SGBC recommended dt   : " << rec_dt_si * 1e12 << " ps"
+                      << "  (natural " << recommended_dt_ << ")"
                       << "  (CFL-relaxed for " << sbcp_.layers[0].n_skin_depths
                       << " skin depths)\n" << std::endl;
         }

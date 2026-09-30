@@ -3,7 +3,7 @@
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
     "basis_type": 0,
-	  "time_step": 1e-3,
+    "time_step": 0.001,
     "final_time": 10.0,
     "order": 3
   },
@@ -29,15 +29,18 @@
   },
   "probes": {
     "exporter": {
-      "steps": 100
+      "save_every": 0.1
     },
     "point": [
       {
-        "position": [ 0.0, 0.55 ],
+        "position": [
+          0.0,
+          0.55
+        ],
         "write": true
       }
     ],
-    "domain_snapshot":{
+    "domain_snapshot": {
       "steps": 100
     }
   },

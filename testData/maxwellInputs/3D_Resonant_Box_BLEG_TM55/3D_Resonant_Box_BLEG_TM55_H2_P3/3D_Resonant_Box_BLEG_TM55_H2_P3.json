@@ -34,7 +34,7 @@
   },
   "probes": {
     "exporter": {
-      "steps": 100
+      "save_every": 0.01
     },
     "point": [
       {

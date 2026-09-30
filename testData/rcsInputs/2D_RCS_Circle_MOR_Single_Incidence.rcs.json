@@ -1,0 +1,21 @@
+{
+  "runmode": "single-core",
+  "casename": "2D_RCS_Circle_MOR_Single_Incidence",
+  "frequencies": {
+    "start": 1e6,
+    "end": 250e6,
+    "steps": 301
+  },
+  "angles": {
+    "theta": {
+      "start": 1.5707963267948966,
+      "end": 1.5707963267948966,
+      "steps": 1
+    },
+    "phi": {
+      "start": 2.0943951023931953,
+      "end": 2.0943951023931953,
+      "steps": 1
+    }
+  }
+}

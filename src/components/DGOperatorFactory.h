@@ -1,16 +1,21 @@
 #pragma once
 
 #include "ProblemDescription.h"
-
+#include "SCPMLLayout.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
 
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <filesystem>
 #include <type_traits>
+#include <vector>
 
 namespace maxwell
 {
@@ -173,6 +178,21 @@ namespace maxwell
 		});
 	}
 
+	inline void collectBlockPlacement(
+		const SparseMatrix& blk,
+		std::vector<CSRBlockPlacement>& blocks,
+		int rowOffset,
+		int colOffset,
+		double fieldSign)
+	{
+		blocks.push_back(CSRBlockPlacement{
+			std::make_unique<SparseMatrix>(blk),
+			rowOffset,
+			colOffset,
+			fieldSign
+		});
+	}
+
 	/// Merge collected CSR block placements into a single finalized CSR SparseMatrix.
 	/// Uses a two-pass marker technique (like MFEM's Add) to avoid LIL overhead.
 	inline std::unique_ptr<SparseMatrix> mergeBlocksToCSR(
@@ -181,8 +201,7 @@ namespace maxwell
 	{
 		// Pass 1: Count unique column entries per global row.
 		std::vector<int> marker(globalCols, -1);
-		int* C_i = mfem::Memory<int>(globalRows + 1);
-		C_i[0] = 0;
+		std::vector<int64_t> row_ptr(static_cast<size_t>(globalRows) + 1, 0);
 
 		for (int row = 0; row < globalRows; ++row) {
 			int nnz = 0;
@@ -199,12 +218,36 @@ namespace maxwell
 					}
 				}
 			}
-			C_i[row + 1] = C_i[row] + nnz;
+			row_ptr[row + 1] = row_ptr[row] + nnz;
 		}
 
-		const int totalNNZ = C_i[globalRows];
-		int* C_j = mfem::Memory<int>(totalNNZ);
-		real_t* C_data = mfem::Memory<real_t>(totalNNZ);
+		const int64_t totalNNZ_64 = row_ptr[globalRows];
+		if (totalNNZ_64 <= 0 ||
+		    totalNNZ_64 > static_cast<int64_t>(std::numeric_limits<int>::max())) {
+			int block_nnz = 0;
+			for (const auto& bp : blocks) {
+				if (bp.block) {
+					block_nnz += bp.block->NumNonZeroElems();
+				}
+			}
+			throw std::runtime_error(
+				"mergeBlocksToCSR: total NNZ (" + std::to_string(totalNNZ_64) +
+				") is out of range for SparseMatrix indexing."
+				" rank=" + std::to_string(Mpi::WorldRank()) +
+				" nblocks=" + std::to_string(blocks.size()) +
+				" sum_block_nnz=" + std::to_string(block_nnz) +
+				" rows=" + std::to_string(globalRows) +
+				" cols=" + std::to_string(globalCols));
+		}
+		const int totalNNZ = static_cast<int>(totalNNZ_64);
+
+		std::vector<int> C_i(static_cast<size_t>(globalRows) + 1);
+		for (int i = 0; i <= globalRows; ++i) {
+			C_i[i] = static_cast<int>(row_ptr[i]);
+		}
+
+		std::vector<int> C_j(static_cast<size_t>(totalNNZ));
+		std::vector<real_t> C_data(static_cast<size_t>(totalNNZ));
 
 		// Pass 2: Fill J and A arrays, merging duplicate column entries.
 		std::fill(marker.begin(), marker.end(), -1);
@@ -232,7 +275,14 @@ namespace maxwell
 			}
 		}
 
-		return std::make_unique<SparseMatrix>(C_i, C_j, C_data, globalRows, globalCols);
+		int* C_i_ptr = mfem::Memory<int>(globalRows + 1);
+		int* C_j_ptr = mfem::Memory<int>(totalNNZ);
+		real_t* C_data_ptr = mfem::Memory<real_t>(totalNNZ);
+		std::memcpy(C_i_ptr, C_i.data(), static_cast<size_t>(globalRows + 1) * sizeof(int));
+		std::memcpy(C_j_ptr, C_j.data(), static_cast<size_t>(totalNNZ) * sizeof(int));
+		std::memcpy(C_data_ptr, C_data.data(), static_cast<size_t>(totalNNZ) * sizeof(real_t));
+
+		return std::make_unique<SparseMatrix>(C_i_ptr, C_j_ptr, C_data_ptr, globalRows, globalCols);
 	}
 
 	template <typename FES>
@@ -267,6 +317,13 @@ namespace maxwell
 		std::unique_ptr<BF> buildSourceFaceIBFIOneNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker);
 		template <typename BF>
 		std::unique_ptr<BF> buildSourceFaceIBFITwoNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker);
+
+		template <typename BF>
+		std::unique_ptr<BF> buildBoundarySourceFaceIBFIZeroNormalSubOperator(const FieldType &f, mfem::Array<int>& marker);
+		template <typename BF>
+		std::unique_ptr<BF> buildBoundarySourceFaceIBFIOneNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker);
+		template <typename BF>
+		std::unique_ptr<BF> buildBoundarySourceFaceIBFITwoNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker);
 
 		// Methods for complete Maxwell Operators //
 		template <typename BF>
@@ -341,6 +398,12 @@ namespace maxwell
 		void addGlobalSourceFaceIBFIOneNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 		template <typename BF>
 		void addGlobalSourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv); 
+		template <typename BF>
+		void addGlobalBoundarySourceFaceIBFIZeroNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalBoundarySourceFaceIBFIOneNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addGlobalBoundarySourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 
 		// S1: Overloads that collect block placements for CSR-direct assembly.
 		template <typename BF>
@@ -363,12 +426,27 @@ namespace maxwell
 		std::unique_ptr<mfem::SparseMatrix> buildTFSFGlobalOperator();
 		std::unique_ptr<mfem::SparseMatrix> buildSGBCGlobalOperator();
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(BdrCond filter);
-	std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(mfem::Array<int>& marker);
+		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(mfem::Array<int>& marker);
 		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
+		/// Bagci/Chen SC-PML ADE + optional curl a-rescale (κ>1). Cartesian axes only.
+		/// curl_delta[u] is ndofs×ndofs: out_Fu += Delta_u * out_Fu for F in {E,H}.
+		/// Entries are null when all regions have kappa_max == 1.
+		void buildSCPMLOperators(
+			const SCPMLLayout& layout,
+			std::unique_ptr<mfem::SparseMatrix>& ade_operator,
+			std::array<std::unique_ptr<mfem::SparseMatrix>, 3>& curl_delta);
 
 	private:
 		ProblemDescription pd_;
 		FES fes_;
+
+		template <typename BF>
+		std::unique_ptr<BF> buildMarkedMassOperator(
+			mfem::Coefficient& coeff, mfem::Array<int>& attr_marker);
+
+		template <typename BF>
+		std::unique_ptr<BF> buildMarkedInverseMassOperator(
+			mfem::Coefficient& coeff, mfem::Array<int>& attr_marker);
 
 		mfem::Array<int> buildInteriorIgnoreMarker() const
 		{
@@ -482,6 +560,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -518,6 +600,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -554,6 +640,10 @@ namespace maxwell
 
 		for (auto &kv : pd_.model.getBoundaryToMarker())
 		{
+			if (kv.first == BdrCond::SGBC)
+			{
+				continue;
+			}
 			auto c = bdrCoeffCheck(pd_.opts.alpha);
 			if (kv.first != BdrCond::SMA)
 			{
@@ -709,6 +799,42 @@ namespace maxwell
         res->Finalize();
         return res;
     }
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildBoundarySourceFaceIBFIZeroNormalSubOperator(const FieldType &f, mfem::Array<int>& marker)
+	{
+		auto res = std::make_unique<BF>(&fes_);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGZeroNormalJumpIntegrator(pd_.opts.alpha), marker);
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildBoundarySourceFaceIBFIOneNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker)
+	{
+		auto res = std::make_unique<BF>(&fes_);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGOneNormalJumpIntegrator(dirTerms, 1.0), marker);
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildBoundarySourceFaceIBFITwoNormalSubOperator(const FieldType &f, const std::vector<Direction> &dirTerms, mfem::Array<int>& marker)
+	{
+		auto res = std::make_unique<BF>(&fes_);
+		res->AddBdrFaceIntegrator(
+			new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), marker);
+		res->Assemble();
+		res->Finalize();
+		return res;
+	}
 
 	template <typename FES>
 	template <typename BF>
@@ -872,7 +998,7 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::addGlobalZeroNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			auto op = buildByMult<FES,BF>(
 				MInv[f]->SpMat(), buildZeroNormalIBFISubOperator<BF>(f)->SpMat(), fes_);
@@ -900,7 +1026,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::addGlobalOneNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto x{ X }; x <= Z; x++) {
 				if (x >= dim) continue; // S2: normal component x is zero in lower dimensions
@@ -936,7 +1062,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::addGlobalTwoNormalIBFIOperators(SparseMatrix* global, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				if (d >= dim) continue; // S2: normal component d is zero in lower dimensions
@@ -1037,6 +1163,78 @@ namespace maxwell
 				for (auto d2{ X }; d2 <= Z; d2++) {
 					if (d2 >= dim) continue;
 					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildSourceFaceIBFITwoNormalSubOperator<BF>(f, { d, d2 }, marker)->SpMat(), fes_);
+					loadBlockInGlobalAtIndices(
+						op->SpMat(),
+						*global,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()),
+						1.0
+					);
+				}
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalBoundarySourceFaceIBFIZeroNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildBoundarySourceFaceIBFIZeroNormalSubOperator<BF>(f, marker)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()),
+					-1.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalBoundarySourceFaceIBFIOneNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto x{ X }; x <= Z; x++) {
+				if (x >= dim) continue;
+				auto y = (x + 1) % 3;
+				auto z = (x + 2) % 3;
+				auto op = buildByMult<FES,BF>(
+					MInv[f]->SpMat(), buildBoundarySourceFaceIBFIOneNormalSubOperator<BF>(altField(f), { x }, marker)->SpMat(), fes_);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][y].get(), *globalId.offsets[altField(f)][z].get()),
+					1.0 - double(f) * 2.0
+				);
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][z].get(), *globalId.offsets[altField(f)][y].get()),
+					-1.0 + double(f) * 2.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addGlobalBoundarySourceFaceIBFITwoNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue;
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue;
+					auto op = buildByMult<FES,BF>(
+						MInv[f]->SpMat(), buildBoundarySourceFaceIBFITwoNormalSubOperator<BF>(f, { d, d2 }, marker)->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
 						*global,
@@ -1213,7 +1411,7 @@ namespace maxwell
 	template <typename BF>
 	void DGOperatorFactory<FES>::collectGlobalZeroNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			auto op = buildByMult<FES,BF>(
 				MInv[f]->SpMat(), buildZeroNormalIBFISubOperator<BF>(f)->SpMat(), fes_);
@@ -1229,7 +1427,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::collectGlobalOneNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto x{ X }; x <= Z; x++) {
 				if (x >= dim) continue;
@@ -1251,7 +1449,7 @@ namespace maxwell
 	void DGOperatorFactory<FES>::collectGlobalTwoNormalIBFIOperators(std::vector<CSRBlockPlacement>& blocks, const std::array<std::unique_ptr<BF>, 2>& MInv)
 	{
 		const int dim = meshDimension();
-		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs());
 		for (auto f : { E, H }) {
 			for (auto d{ X }; d <= Z; d++) {
 				if (d >= dim) continue;
@@ -1363,7 +1561,38 @@ namespace maxwell
 	template <typename FES>
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildSGBCGlobalOperator()
 	{
-		return buildSourceFaceOperator(BdrCond::SGBC);
+		auto res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + getAdditionalDofs()));
+		auto& interior_marker = pd_.model.getMarker(BdrCond::SGBC, true);
+		auto& boundary_marker = pd_.model.getMarker(BdrCond::SGBC, false);
+
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
+			if (interior_marker.Size() != 0 && interior_marker.Sum() != 0) {
+				this->template addGlobalSourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), interior_marker, MInv);
+				this->template addGlobalSourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), interior_marker, MInv);
+				this->template addGlobalSourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), interior_marker, MInv);
+			}
+			if (boundary_marker.Size() != 0 && boundary_marker.Sum() != 0) {
+				this->template addGlobalBoundarySourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), boundary_marker, MInv);
+				this->template addGlobalBoundarySourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), boundary_marker, MInv);
+				this->template addGlobalBoundarySourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), boundary_marker, MInv);
+			}
+		} else {
+			auto MInvSerial = buildMaxwellInverseMassMatrixOperator<BilinearForm>();
+			if (interior_marker.Size() != 0 && interior_marker.Sum() != 0) {
+				this->template addGlobalSourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), interior_marker, MInvSerial);
+				this->template addGlobalSourceFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), interior_marker, MInvSerial);
+				this->template addGlobalSourceFaceIBFITwoNormalOperators<BilinearForm>(res.get(), interior_marker, MInvSerial);
+			}
+			if (boundary_marker.Size() != 0 && boundary_marker.Sum() != 0) {
+				this->template addGlobalBoundarySourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), boundary_marker, MInvSerial);
+				this->template addGlobalBoundarySourceFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), boundary_marker, MInvSerial);
+				this->template addGlobalBoundarySourceFaceIBFITwoNormalOperators<BilinearForm>(res.get(), boundary_marker, MInvSerial);
+			}
+		}
+
+		res->Finalize();
+		return res;
 	}
 
 	template <typename FES>
@@ -1410,9 +1639,16 @@ namespace maxwell
 		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
 
 		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			// Interior-boundary faces (both elems local): IBFI path.
 			this->template addGlobalSourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
 			this->template addGlobalSourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
 			this->template addGlobalSourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			// MPI partition faces (Elem2 on another rank): same Jump source via BFI,
+			// mirroring buildSGBCGlobalOperator(). Without this, tagged TFSF faces that
+			// appear as mesh boundaries on a rank inject nothing.
+			this->template addGlobalBoundarySourceFaceIBFIOneNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addGlobalBoundarySourceFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addGlobalBoundarySourceFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
 		} else {
 			auto MInvSerial = buildMaxwellInverseMassMatrixOperator<BilinearForm>();
 			this->template addGlobalSourceFaceIBFIOneNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
@@ -1579,7 +1815,7 @@ namespace maxwell
 				std::cout << "---------------------------------------------------------------" << std::endl;
 				return res;
 			}
-			std::filesystem::path export_dir = std::filesystem::path("Exports") / "Operators" / this->pd_.model.meshName_;
+			std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / this->pd_.model.meshName_;
 
 			if (!std::filesystem::exists(export_dir))
 			{
@@ -1600,7 +1836,252 @@ namespace maxwell
 			std::cout << "Global operator exported to " << file_path << std::endl;
 		}
 
+
 		return res;
 	}
 
-}
+	namespace {
+
+	/// Bagci SC-PML diagonal tensor entry for field/aux component u.
+	enum class SCPMLTensorKind {
+		A,       ///< a_uu = κ_v κ_w / κ_u  (Phase 2 LHS; unused in κ≡1 assembly)
+		B,       ///< b_uu
+		C,       ///< c_uu
+		D,       ///< d_uu = σ_u / κ_u
+		InvKappa ///< 1/κ_u
+	};
+
+	class SCPMLTensorCoefficient : public mfem::Coefficient {
+	public:
+		SCPMLTensorCoefficient(const PMLProfileData& profiles, Direction comp,
+		                       SCPMLTensorKind kind)
+			: profiles_(profiles), comp_(comp), kind_(kind)
+		{
+		}
+
+		double Eval(mfem::ElementTransformation& T,
+		            const mfem::IntegrationPoint& ip) override
+		{
+			double sig[3];
+			double kap[3];
+			for (int d = 0; d < 3; ++d) {
+				PMLDirectionProfiles out;
+				profiles_.evaluateAtTransform(T, ip, static_cast<Direction>(d), out);
+				sig[d] = out.sigma;
+				kap[d] = std::max(out.kappa, 1e-30);
+			}
+			const int u = static_cast<int>(comp_);
+			const int v = (u + 1) % 3;
+			const int w = (u + 2) % 3;
+			const double a = kap[v] * kap[w] / kap[u];
+			const double b =
+				(sig[v] * kap[w] + sig[w] * kap[v] - a * sig[u]) / kap[u];
+			const double c = sig[v] * sig[w] - b * sig[u];
+			const double d = sig[u] / kap[u];
+			switch (kind_) {
+			case SCPMLTensorKind::A:
+				return a;
+			case SCPMLTensorKind::B:
+				return b;
+			case SCPMLTensorKind::C:
+				return c;
+			case SCPMLTensorKind::D:
+				return d;
+			case SCPMLTensorKind::InvKappa:
+				return 1.0 / kap[u];
+			}
+			return 0.0;
+		}
+
+	private:
+		const PMLProfileData& profiles_;
+		Direction comp_;
+		SCPMLTensorKind kind_;
+	};
+
+	} // namespace
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildMarkedMassOperator(
+		mfem::Coefficient& coeff, mfem::Array<int>& attr_marker)
+	{
+		auto bf = std::make_unique<BF>(&fes_);
+		bf->AddDomainIntegrator(new MassIntegrator(coeff), attr_marker);
+		bf->Assemble();
+		bf->Finalize();
+		return bf;
+	}
+
+	template <typename FES>
+	template <typename BF>
+	std::unique_ptr<BF> DGOperatorFactory<FES>::buildMarkedInverseMassOperator(
+		mfem::Coefficient& coeff, mfem::Array<int>& attr_marker)
+	{
+		auto bf = std::make_unique<BF>(&fes_);
+		bf->AddDomainIntegrator(
+			new InverseIntegrator(new MassIntegrator(coeff)), attr_marker);
+		bf->Assemble();
+		bf->Finalize();
+		return bf;
+	}
+
+	template <typename FES>
+	void DGOperatorFactory<FES>::buildSCPMLOperators(
+		const SCPMLLayout& layout,
+		std::unique_ptr<mfem::SparseMatrix>& ade_operator,
+		std::array<std::unique_ptr<mfem::SparseMatrix>, 3>& curl_delta)
+	{
+		ade_operator.reset();
+		for (auto& d : curl_delta) {
+			d.reset();
+		}
+		if (layout.nAux() == 0) {
+			return;
+		}
+		const PMLProfileData* profiles = pd_.model.getPMLProfileData();
+		if (!profiles) {
+			throw std::runtime_error(
+				"buildSCPMLOperators requires initialized PML profile data.");
+		}
+
+		bool needs_a = false;
+		bool has_cartesian = false;
+		for (const auto& props : pd_.model.getPMLProperties()) {
+			if (!props.active_axes.empty()) {
+				has_cartesian = true;
+			}
+			if (props.kappa_max > 1.0 + 1e-12) {
+				needs_a = true;
+			}
+		}
+
+		if (!has_cartesian) {
+			return;
+		}
+
+		const int ndofs = fes_.GetNDofs();
+		const int n_aux = layout.nAux();
+		const int globalRows = 6 * ndofs + n_aux;
+		const int globalCols = globalRows;
+
+		mfem::Array<int> pml_marker = pd_.model.buildPMLVolumeMarker();
+		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
+
+		mfem::ConstantCoefficient one(1.0);
+		auto Munit = buildMarkedMassOperator<ParBilinearForm>(one, pml_marker);
+		auto S_unit_E = buildByMult<FES, ParBilinearForm>(
+			MInv[E]->SpMat(), Munit->SpMat(), fes_);
+		auto S_unit_H = buildByMult<FES, ParBilinearForm>(
+			MInv[H]->SpMat(), Munit->SpMat(), fes_);
+
+		std::vector<CSRBlockPlacement> blocks;
+
+		// --- Cartesian diagonal SC-PML ---
+		{
+			for (Direction u = X; u <= Z; ++u) {
+				SCPMLTensorCoefficient c_a(*profiles, u, SCPMLTensorKind::A);
+				SCPMLTensorCoefficient c_b(*profiles, u, SCPMLTensorKind::B);
+				SCPMLTensorCoefficient c_c(*profiles, u, SCPMLTensorKind::C);
+				SCPMLTensorCoefficient c_d(*profiles, u, SCPMLTensorKind::D);
+				SCPMLTensorCoefficient c_invk(*profiles, u, SCPMLTensorKind::InvKappa);
+
+				auto Mb = buildMarkedMassOperator<ParBilinearForm>(c_b, pml_marker);
+				auto Mc = buildMarkedMassOperator<ParBilinearForm>(c_c, pml_marker);
+				auto Md = buildMarkedMassOperator<ParBilinearForm>(c_d, pml_marker);
+				auto Minvk = buildMarkedMassOperator<ParBilinearForm>(c_invk, pml_marker);
+
+				std::unique_ptr<ParBilinearForm> A_b_E;
+				std::unique_ptr<ParBilinearForm> A_b_H;
+				std::unique_ptr<ParBilinearForm> A_c_E;
+				std::unique_ptr<ParBilinearForm> A_c_H;
+				if (needs_a) {
+					auto MaInv = buildMarkedInverseMassOperator<ParBilinearForm>(
+						c_a, pml_marker);
+					A_b_E = buildByMult<FES, ParBilinearForm>(
+						MaInv->SpMat(), Mb->SpMat(), fes_);
+					A_b_H = buildByMult<FES, ParBilinearForm>(
+						MaInv->SpMat(), Mb->SpMat(), fes_);
+					A_c_E = buildByMult<FES, ParBilinearForm>(
+						MaInv->SpMat(), Mc->SpMat(), fes_);
+					A_c_H = buildByMult<FES, ParBilinearForm>(
+						MaInv->SpMat(), Mc->SpMat(), fes_);
+
+					auto R = buildByMult<FES, ParBilinearForm>(
+						MaInv->SpMat(), Munit->SpMat(), fes_);
+					auto delta = std::make_unique<SparseMatrix>(R->SpMat());
+					delta->Add(-1.0, S_unit_E->SpMat());
+					delta->Finalize();
+					if (delta->NumNonZeroElems() > 0) {
+						curl_delta[u] = std::move(delta);
+					}
+				} else {
+					A_b_E = buildByMult<FES, ParBilinearForm>(
+						MInv[E]->SpMat(), Mb->SpMat(), fes_);
+					A_b_H = buildByMult<FES, ParBilinearForm>(
+						MInv[H]->SpMat(), Mb->SpMat(), fes_);
+					A_c_E = buildByMult<FES, ParBilinearForm>(
+						MInv[E]->SpMat(), Mc->SpMat(), fes_);
+					A_c_H = buildByMult<FES, ParBilinearForm>(
+						MInv[H]->SpMat(), Mc->SpMat(), fes_);
+				}
+
+				auto A_d_E = buildByMult<FES, ParBilinearForm>(
+					MInv[E]->SpMat(), Md->SpMat(), fes_);
+				auto A_d_H = buildByMult<FES, ParBilinearForm>(
+					MInv[H]->SpMat(), Md->SpMat(), fes_);
+				auto A_invk_E = buildByMult<FES, ParBilinearForm>(
+					MInv[E]->SpMat(), Minvk->SpMat(), fes_);
+				auto A_invk_H = buildByMult<FES, ParBilinearForm>(
+					MInv[H]->SpMat(), Minvk->SpMat(), fes_);
+
+				const int pe = layout.pEOffset(u);
+				const int ph = layout.pHOffset(u);
+				const int e_off = u * ndofs;
+				const int h_off = (3 + u) * ndofs;
+
+				collectBlockPlacement(A_b_E->SpMat(), blocks, e_off, e_off, -1.0);
+				collectBlockPlacement(A_c_E->SpMat(), blocks, e_off, pe, -1.0);
+				collectBlockPlacement(A_b_H->SpMat(), blocks, h_off, h_off, -1.0);
+				collectBlockPlacement(A_c_H->SpMat(), blocks, h_off, ph, -1.0);
+
+				collectBlockPlacement(A_invk_E->SpMat(), blocks, pe, e_off, 1.0);
+				collectBlockPlacement(A_d_E->SpMat(), blocks, pe, pe, -1.0);
+				collectBlockPlacement(A_invk_H->SpMat(), blocks, ph, h_off, 1.0);
+				collectBlockPlacement(A_d_H->SpMat(), blocks, ph, ph, -1.0);
+			}
+		}
+
+		(void)S_unit_H;
+
+		int sum_nnz = 0;
+		for (const auto& bp : blocks) {
+			if (bp.block) {
+				sum_nnz += bp.block->NumNonZeroElems();
+			}
+		}
+		if (sum_nnz <= 0) {
+			blocks.clear();
+			for (auto& d : curl_delta) {
+				d.reset();
+			}
+			std::cout << "[PML] Rank " << Mpi::WorldRank()
+			          << ": no local PML volume — SC-PML ADE operator omitted"
+			          << std::endl;
+			return;
+		}
+
+		ade_operator = mergeBlocksToCSR(blocks, globalRows, globalCols);
+		blocks.clear();
+		ade_operator->Threshold(1e-8);
+
+		std::cout << "[PML] Rank " << Mpi::WorldRank()
+		          << ": SC-PML ADE operator " << globalRows << " x " << globalCols
+		          << ", nnz=" << ade_operator->NumNonZeroElems()
+		          << (needs_a ? " (MaInv damping + curl a-rescale)"
+		                      : " (κ≡1 unit MInv)")
+		          << std::endl;
+	}
+
+
+} // namespace maxwell

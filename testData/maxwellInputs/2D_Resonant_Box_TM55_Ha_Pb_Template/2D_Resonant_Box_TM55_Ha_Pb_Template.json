@@ -12,20 +12,13 @@
     "refinement": 1,
     "materials": [
       {
-        "tags": [
-          1
-        ],
+        "tags": [ 1 ],
         "type": "vacuum"
       }
     ],
     "boundaries": [
       {
-        "tags": [
-          1,
-          2,
-          3,
-          4
-        ],
+        "tags": [ 1, 2, 3, 4 ],
         "type": "PEC"
       }
     ]
@@ -39,17 +32,10 @@
     {
       "type": "initial",
       "field_type": "electric",
-      "polarization": [
-        0.0,
-        0.0,
-        1.0
-      ],
+      "polarization": [ 0.0, 0.0, 1.0 ],
       "magnitude": {
         "type": "resonant",
-        "modes": [
-          5,
-          5
-        ]
+        "modes": [ 5, 5 ]
       }
     }
   ]

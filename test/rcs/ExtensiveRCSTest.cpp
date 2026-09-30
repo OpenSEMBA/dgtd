@@ -55,9 +55,9 @@
 // TEST_F(ExtensiveRCSTest, FieldSuperposition_XY)
 // {
 
-// 	CaseInfo cx ("./Exports/cuda-1/2D_RCS_FieldSuperposition_X/DomainSnapshotProbes/",   maxwellCase("2D_RCS_FieldSuperposition_X"));
-// 	CaseInfo cy ("./Exports/cuda-1/2D_RCS_FieldSuperposition_Y/DomainSnapshotProbes/",   maxwellCase("2D_RCS_FieldSuperposition_Y"));
-// 	CaseInfo cxy ("./Exports/cuda-1/2D_RCS_FieldSuperposition_XY/DomainSnapshotProbes/",   maxwellCase("2D_RCS_FieldSuperposition_XY"));
+// 	CaseInfo cx ("./exports/SimulationData/cuda-1/2D_RCS_FieldSuperposition_X/DomainSnapshotProbes/",   maxwellCase("2D_RCS_FieldSuperposition_X"));
+// 	CaseInfo cy ("./exports/SimulationData/cuda-1/2D_RCS_FieldSuperposition_Y/DomainSnapshotProbes/",   maxwellCase("2D_RCS_FieldSuperposition_Y"));
+// 	CaseInfo cxy ("./exports/SimulationData/cuda-1/2D_RCS_FieldSuperposition_XY/DomainSnapshotProbes/",   maxwellCase("2D_RCS_FieldSuperposition_XY"));
 
 // 	FieldSuperposition f(cx, cy, cxy, 3e8/physicalConstants::speedOfLight_SI);
 // }
@@ -67,7 +67,7 @@
 // 	auto frequencies_manual = linspace(1e6, 1e9, 301);
 // 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-// 	std::string dataPath = "./Exports/single-core/2D_RCS_Circle_G1/RCSSurface/cylinder_rcs/";
+// 	std::string dataPath = "./exports/SimulationData/single-core/2D_RCS_Circle_G1/RCSSurface/cylinder_rcs/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_Circle_G1"),
@@ -79,7 +79,7 @@
 // 	auto frequencies_manual = linspace(459e6, 1.2e9, 301);
 // 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-// 	std::string dataPath = "./Exports/single-core/2D_RCS_Circle_G2/RCSSurface/cylinder_rcs/";
+// 	std::string dataPath = "./exports/SimulationData/single-core/2D_RCS_Circle_G2/RCSSurface/cylinder_rcs/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_Circle_G2"),
@@ -91,19 +91,19 @@
 // 	auto frequencies_manual = linspace(1e6, 450e6, 301);
 // 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-// 	std::string dataPath = "./Exports/mpi-12/2D_RCS_SGBC_Circle_G1_1m_LowFreq/RCSSurface/cylinder_rcs/";
+// 	std::string dataPath = "./exports/SimulationData/mpi-12/2D_RCS_SGBC_Circle_G1_1m_LowFreq/RCSSurface/cylinder_rcs/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_SGBC_Circle_G1_1m_LowFreq"),
 // 		frequencies_manual, angles);
 
-// 		        dataPath = "./Exports/mpi-12/2D_RCS_SGBC_Circle_G2_1m_LowFreq/RCSSurface/cylinder_rcs/";
+// 		        dataPath = "./exports/SimulationData/mpi-12/2D_RCS_SGBC_Circle_G2_1m_LowFreq/RCSSurface/cylinder_rcs/";
 // 	RCSSurfacePostProcessor pp2(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_SGBC_Circle_G2_1m_LowFreq"),
 // 		frequencies_manual, angles);
 
-// 		        dataPath = "./Exports/mpi-12/2D_RCS_FAKE_Circle_G1_1m_LowFreq/RCSSurface/cylinder_rcs/";
+// 		        dataPath = "./exports/SimulationData/mpi-12/2D_RCS_FAKE_Circle_G1_1m_LowFreq/RCSSurface/cylinder_rcs/";
 // 	RCSSurfacePostProcessor ppf(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_FAKE_Circle_G1_1m_LowFreq"),
@@ -115,7 +115,7 @@
 // 	auto frequencies_manual = linspace(459e6, 1.2e9, 301);
 // 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-// 	std::string dataPath = "./Exports/mpi-8/2D_RCS_SGBC_Circle_G1/RCSSurface/cylinder_sgbc_rcs/";
+// 	std::string dataPath = "./exports/SimulationData/mpi-8/2D_RCS_SGBC_Circle_G1/RCSSurface/cylinder_sgbc_rcs/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_SGBC_Circle_G1"),
@@ -127,7 +127,7 @@
 // 	auto frequencies_manual = linspace(459e6, 1.2e9, 301);
 // 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-// 	std::string dataPath = "./Exports/mpi-8/2D_RCS_SGBC_Circle_G2/RCSSurface/cylinder_sgbc_rcs/";
+// 	std::string dataPath = "./exports/SimulationData/mpi-8/2D_RCS_SGBC_Circle_G2/RCSSurface/cylinder_sgbc_rcs/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_SGBC_Circle_G2"),
@@ -139,7 +139,7 @@
 // 	auto frequencies_manual = linspace(1e6, 1e9, 301);
 // 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-// 	std::string dataPath = "./Exports/single-core/2D_RCS_SGBC_Circle_G1_Fine/RCSSurface/cylinder_sgbc_rcs/";
+// 	std::string dataPath = "./exports/SimulationData/single-core/2D_RCS_SGBC_Circle_G1_Fine/RCSSurface/cylinder_sgbc_rcs/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_SGBC_Circle_G1_Fine"),
@@ -151,7 +151,7 @@
 // 	auto frequencies_manual = linspace(1e6, 1e9, 301);
 // 	auto angles = buildAngleVector(M_PI_2, M_PI_2, 1, M_PI, M_PI, 1);
 	
-// 	std::string dataPath = "./Exports/single-core/2D_RCS_SGBC_Circle_G2_Fine/RCSSurface/cylinder_sgbc_rcs/";
+// 	std::string dataPath = "./exports/SimulationData/single-core/2D_RCS_SGBC_Circle_G2_Fine/RCSSurface/cylinder_sgbc_rcs/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("2D_RCS_SGBC_Circle_G2_Fine"),
@@ -168,7 +168,7 @@
 // 	auto frequencies_manual = linspace(1e6, 400e6, 301);
 // 	auto angles = buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1);
 
-// 	std::string dataPath = "./Exports/mpi-48/3D_RCS_SGBC_Sphere_Box_G1/RCSSurface/sphere_sgbc_G1/";
+// 	std::string dataPath = "./exports/SimulationData/mpi-48/3D_RCS_SGBC_Sphere_Box_G1/RCSSurface/sphere_sgbc_G1/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("3D_RCS_SGBC_Sphere_Box_G1"),
@@ -180,7 +180,7 @@
 // 	auto frequencies_manual = linspace(1e6, 400e6, 301);
 // 	auto angles = buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1);
 
-// 	std::string dataPath = "./Exports/mpi-48/3D_RCS_SGBC_Sphere_Box_G2/RCSSurface/sphere_sgbc_G2/";
+// 	std::string dataPath = "./exports/SimulationData/mpi-48/3D_RCS_SGBC_Sphere_Box_G2/RCSSurface/sphere_sgbc_G2/";
 // 	RCSSurfacePostProcessor pp(
 // 		dataPath,
 // 		maxwellCase("3D_RCS_SGBC_Sphere_Box_G2"),
@@ -244,7 +244,7 @@
 // 	 auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G1_O1/NearToFarFieldProbes/sphere_Box_1m_G1_O1/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G1_O1/NearToFarFieldProbes/sphere_Box_1m_G1_O1/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_G1_O2_monostatic)
@@ -255,7 +255,7 @@
 // 	 auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G1_O2/NearToFarFieldProbes/sphere_Box_1m_G1_O2/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O2"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G1_O2/NearToFarFieldProbes/sphere_Box_1m_G1_O2/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O2"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_G2_O1_monostatic)
@@ -266,7 +266,7 @@
 // 	auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	 auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G2_O1/NearToFarFieldProbes/sphere_Box_1m_G2_O1/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O1"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G2_O1/NearToFarFieldProbes/sphere_Box_1m_G2_O1/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O1"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_G2_O2_monostatic)
@@ -277,7 +277,7 @@
 // 	auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	 auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G2_O2/NearToFarFieldProbes/sphere_Box_1m_G2_O2/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G2_O2/NearToFarFieldProbes/sphere_Box_1m_G2_O2/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_G1_O1_LR_monostatic)
@@ -288,7 +288,7 @@
 // 	 auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G1_O1/NearToFarFieldProbes/sphere_Box_1m_G1_O1_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1_LR"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G1_O1/NearToFarFieldProbes/sphere_Box_1m_G1_O1_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O1_LR"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_G1_O2_LR_monostatic)
@@ -299,7 +299,7 @@
 // 	 auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G1_O2_LR/NearToFarFieldProbes/sphere_Box_1m_G1_O2_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O2_LR"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G1_O2_LR/NearToFarFieldProbes/sphere_Box_1m_G1_O2_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G1_O2_LR"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_G2_O1_LR_monostatic)
@@ -310,7 +310,7 @@
 // 	auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	 auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G2_O1_LR/NearToFarFieldProbes/sphere_Box_1m_G2_O1_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O1_LR"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G2_O1_LR/NearToFarFieldProbes/sphere_Box_1m_G2_O1_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O1_LR"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_G2_O2_LR_monostatic)
@@ -321,7 +321,7 @@
 // 	auto frequencies_manual = linspace(1e6, 1e9, 401);
 
 // 	 auto angles{ buildAngleVector(M_PI, M_PI, 1, 0.0, 0.0, 1) };
-// 	RCSManager rcs("./Exports/cuda-1/3D_RCS_Sphere_Box_1m_G2_O2_LR/NearToFarFieldProbes/sphere_Box_1m_G2_O2_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2_LR"), frequencies_manual, angles);
+// 	RCSManager rcs("./exports/SimulationData/cuda-1/3D_RCS_Sphere_Box_1m_G2_O2_LR/NearToFarFieldProbes/sphere_Box_1m_G2_O2_LR/", maxwellCase("3D_RCS_Sphere_Box_1m_G2_O2_LR"), frequencies_manual, angles);
 // }
 
 // TEST_F(ExtensiveRCSTest, 3D_RCS_Sphere_Box_1m_O3_monostatic)

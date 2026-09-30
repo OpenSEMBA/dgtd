@@ -1,0 +1,109 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.0005,
+    "final_time": 20.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "2D_PML_X_slab.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          3
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 1,
+        "target_reflection": 0.001,
+        "active_axes": [
+          "X"
+        ]
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          8,
+          10,
+          16,
+          17,
+          19,
+          21
+        ],
+        "type": "PMC"
+      },
+      {
+        "tags": [
+          11,
+          20
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.10050251256281408
+    },
+    "point": [
+      {
+        "position": [
+          -0.5,
+          0.5
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          0.5,
+          0.5
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          0.95,
+          0.5
+        ],
+        "saves": 4000
+      },
+      {
+        "position": [
+          1.05,
+          0.5
+        ],
+        "saves": 4000
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        9
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.2
+      }
+    }
+  ]
+}

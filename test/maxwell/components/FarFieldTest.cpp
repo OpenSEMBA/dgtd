@@ -82,8 +82,8 @@ TEST_F(FarFieldTest, funcExp3D_antiAligned)
 	SphericalAngles angles{ 0.0, 0.0 };
 	mfem::Vector p({ 0.0, 0.0, -1.0 });
 	const double freq = 1.0 / (2.0 * M_PI);
-	EXPECT_NEAR(std::cos(1.0),  func_exp_real_part_3D(p, freq, angles), 1e-10);
-	EXPECT_NEAR(-std::sin(1.0), func_exp_imag_part_3D(p, freq, angles), 1e-10);
+	EXPECT_NEAR(std::cos(1.0),  evalFuncExpPart(p, freq, angles, 3, true), 1e-10);
+	EXPECT_NEAR(-std::sin(1.0), evalFuncExpPart(p, freq, angles, 3, false), 1e-10);
 }
 
 TEST_F(FarFieldTest, funcExp3D_quarterWavelength)
@@ -93,8 +93,8 @@ TEST_F(FarFieldTest, funcExp3D_quarterWavelength)
 	// real=cos(pi/2)=0, imag=sin(pi/2)=1
 	SphericalAngles angles{ 0.0, 0.0 };
 	mfem::Vector p({ 0.0, 0.0, 1.0 });
-	EXPECT_NEAR(0.0, func_exp_real_part_3D(p, 0.25, angles), 1e-10);
-	EXPECT_NEAR(1.0, func_exp_imag_part_3D(p, 0.25, angles), 1e-10);
+	EXPECT_NEAR(0.0, evalFuncExpPart(p, 0.25, angles, 3, true), 1e-10);
+	EXPECT_NEAR(1.0, evalFuncExpPart(p, 0.25, angles, 3, false), 1e-10);
 }
 
 TEST_F(FarFieldTest, funcExp3D_perpendicularObsAndPoint)
@@ -103,8 +103,8 @@ TEST_F(FarFieldTest, funcExp3D_perpendicularObsAndPoint)
 	// => real=cos(0)=1, imag=sin(0)=0 regardless of frequency
 	SphericalAngles angles{ 0.0, 0.0 };
 	mfem::Vector p({ 1.0, 0.0, 0.0 });
-	EXPECT_NEAR(1.0, func_exp_real_part_3D(p, 0.5, angles), 1e-12);
-	EXPECT_NEAR(0.0, func_exp_imag_part_3D(p, 0.5, angles), 1e-12);
+	EXPECT_NEAR(1.0, evalFuncExpPart(p, 0.5, angles, 3, true), 1e-12);
+	EXPECT_NEAR(0.0, evalFuncExpPart(p, 0.5, angles, 3, false), 1e-12);
 }
 
 TEST_F(FarFieldTest, funcExp3D_alignedObsAndPoint)
@@ -114,8 +114,8 @@ TEST_F(FarFieldTest, funcExp3D_alignedObsAndPoint)
 	SphericalAngles angles{ 0.0, 0.0 };
 	mfem::Vector p({ 0.0, 0.0, 1.0 });
 	const double freq = 1.0 / (2.0 * M_PI);
-	EXPECT_NEAR(std::cos(1.0), func_exp_real_part_3D(p, freq, angles), 1e-10);
-	EXPECT_NEAR(std::sin(1.0), func_exp_imag_part_3D(p, freq, angles), 1e-10);
+	EXPECT_NEAR(std::cos(1.0), evalFuncExpPart(p, freq, angles, 3, true), 1e-10);
+	EXPECT_NEAR(std::sin(1.0), evalFuncExpPart(p, freq, angles, 3, false), 1e-10);
 }
 
 // ----------------------------------------------------------------
@@ -129,8 +129,8 @@ TEST_F(FarFieldTest, funcExp2D_alignedObsAndPoint)
 	SphericalAngles angles{ M_PI / 2.0, 0.0 };
 	mfem::Vector p({ 1.0, 0.0, 0.0 });
 	const double freq = 1.0 / (2.0 * M_PI);
-	EXPECT_NEAR(std::cos(1.0), func_exp_real_part_2D(p, freq, angles), 1e-10);
-	EXPECT_NEAR(std::sin(1.0), func_exp_imag_part_2D(p, freq, angles), 1e-10);
+	EXPECT_NEAR(std::cos(1.0), evalFuncExpPart(p, freq, angles, 2, true), 1e-10);
+	EXPECT_NEAR(std::sin(1.0), evalFuncExpPart(p, freq, angles, 2, false), 1e-10);
 }
 
 TEST_F(FarFieldTest, funcExp2D_quarterPeriodPoint)
@@ -139,8 +139,8 @@ TEST_F(FarFieldTest, funcExp2D_quarterPeriodPoint)
 	// |p|=2 -> rad_term=pi -> cos(pi)=-1, sin(pi)=0
 	SphericalAngles angles{ M_PI / 2.0, 0.0 };
 	mfem::Vector p({ 2.0, 0.0, 0.0 });
-	EXPECT_NEAR(-1.0, func_exp_real_part_2D(p, 0.25, angles), 1e-10);
-	EXPECT_NEAR(0.0,  func_exp_imag_part_2D(p, 0.25, angles), 1e-10);
+	EXPECT_NEAR(-1.0, evalFuncExpPart(p, 0.25, angles, 2, true), 1e-10);
+	EXPECT_NEAR(0.0,  evalFuncExpPart(p, 0.25, angles, 2, false), 1e-10);
 }
 
 // ----------------------------------------------------------------

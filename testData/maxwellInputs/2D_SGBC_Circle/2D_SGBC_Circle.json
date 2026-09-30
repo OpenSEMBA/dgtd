@@ -40,7 +40,7 @@
   },
   "probes": {
     "exporter": {
-      "saves": 60
+      "save_every": 0.1694915254237288
     }
   },
   "sources": [

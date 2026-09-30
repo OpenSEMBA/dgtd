@@ -3,16 +3,27 @@
 #include "math/PhysicalConstants.h"
 #include "general/text.hpp"
 #include <cmath>
+#include <chrono>
 #include <filesystem>
+#include <iomanip>
 
 namespace maxwell {
 
 using namespace mfem;
 
-bool isNodeRoot()
+namespace {
+
+MPI_Comm getFESComm(const ParFiniteElementSpace& fes)
+{
+    return fes.GetParMesh()->GetComm();
+}
+
+bool isNodeRoot(MPI_Comm comm)
 {
     MPI_Comm node_comm;
-    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, Mpi::WorldRank(), MPI_INFO_NULL, &node_comm);
+    int comm_rank = 0;
+    MPI_Comm_rank(comm, &comm_rank);
+    MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, comm_rank, MPI_INFO_NULL, &node_comm);
     
     int node_rank;
     MPI_Comm_rank(node_comm, &node_rank);
@@ -20,6 +31,8 @@ bool isNodeRoot()
     
     return (node_rank == 0);
 }
+
+}  // namespace
 
 std::string getRunModeTag()
 {
@@ -39,6 +52,11 @@ std::string getRunModeTag()
             return backend;
         }
     }
+}
+
+std::string getSimulationCaseExportPath(const std::string& caseName)
+{
+    return "exports/SimulationData/" + getRunModeTag() + "/" + caseName;
 }
 
 std::string getFieldPolString(const FieldType& ft, const Direction& d)
@@ -68,13 +86,14 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
     fes_.ExchangeFaceNbrData();
     fes_.GetParMesh()->ExchangeFaceNbrData();
     ParaViewDataCollection pd{ p.name, fes_.GetParMesh()};
+    const MPI_Comm comm = getFESComm(fes_);
     
-    std::string paraview_path = "Exports/ParaView/" + getRunModeTag() + "/";
+    std::string paraview_path = "exports/ParaView/" + getRunModeTag() + "/";
     
-    if (isNodeRoot()) {
+    if (isNodeRoot(comm)) {
         std::filesystem::create_directories(paraview_path);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
     pd.SetPrefixPath(paraview_path);
 
@@ -125,6 +144,55 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
     
     finalTime_ = opts.final_time;
     fields_ = &fields;
+    is_sgbc_solver_ = opts.is_sgbc_solver;
+}
+
+void ProbesManager::printTimingSummaryAndReset() const
+{
+#ifdef SHOW_TIMER_INFORMATION
+    if (is_sgbc_solver_ || timingStats_.update_calls == 0) {
+        return;
+    }
+
+    const int P = Mpi::WorldSize();
+    double local_avg[7] = {
+        timingStats_.exporter_ms / timingStats_.update_calls,
+        timingStats_.field_ms    / timingStats_.update_calls,
+        timingStats_.point_ms    / timingStats_.update_calls,
+        timingStats_.nearfield_ms/ timingStats_.update_calls,
+        timingStats_.snapshot_ms / timingStats_.update_calls,
+        timingStats_.rcs_ms      / timingStats_.update_calls,
+        timingStats_.mor_ms      / timingStats_.update_calls
+    };
+
+    std::vector<double> all_avg(7 * P);
+    if (P > 1) {
+        MPI_Gather(local_avg, 7, MPI_DOUBLE,
+                   all_avg.data(), 7, MPI_DOUBLE,
+                   0, getFESComm(fes_));
+    } else {
+        std::copy(local_avg, local_avg + 7, all_avg.data());
+    }
+
+    if (Mpi::WorldRank() == 0) {
+        std::cout << "[Probe timing] avg of " << timingStats_.update_calls
+                  << " updates, ms/update\n";
+        std::cout << "  Rank  | exporter field point nearfield snapshot   rcs   mor\n";
+        std::cout << "  ------+--------------------------------------------------------\n";
+        for (int r = 0; r < P; ++r) {
+            std::cout << std::setw(6) << r << " | "
+                      << std::setw(8) << all_avg[r*7 + 0] << " "
+                      << std::setw(5) << all_avg[r*7 + 1] << " "
+                      << std::setw(5) << all_avg[r*7 + 2] << " "
+                      << std::setw(9) << all_avg[r*7 + 3] << " "
+                      << std::setw(8) << all_avg[r*7 + 4] << " "
+                      << std::setw(5) << all_avg[r*7 + 5] << " "
+                      << std::setw(5) << all_avg[r*7 + 6] << "\n";
+        }
+    }
+
+    timingStats_ = TimingStats{};
+#endif
 }
 
 const FieldProbe& ProbesManager::getFieldProbe(const std::size_t i) const
@@ -184,18 +252,20 @@ ProbesManager::buildPointProbeCollectionInfo(const PointProbe& p, Fields<ParFini
 
 void ProbesManager::initPointFieldProbeExport()
 {
+    const MPI_Comm comm = getFESComm(fes_);
+
     if (probes.pointProbes.size()){
-        auto base_path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/");
+        auto base_path(getSimulationCaseExportPath(caseName_) + "/PointProbes/");
         
         if (cycle_ == 0) {
-            if (isNodeRoot()) {
+            if (isNodeRoot(comm)) {
                 if (std::filesystem::exists(base_path)) {
                     std::filesystem::remove_all(base_path);
                 }
                 std::filesystem::create_directories(base_path);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         for (const auto& p : probes.pointProbes) {
             if(p.write){
@@ -222,17 +292,17 @@ void ProbesManager::initPointFieldProbeExport()
     }
 
     if (probes.fieldProbes.size()){
-        auto base_path = ("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/");
+        auto base_path = (getSimulationCaseExportPath(caseName_) + "/FieldProbes/");
         
         if (cycle_ == 0) {
-            if (isNodeRoot()) {
+            if (isNodeRoot(comm)) {
                 if (std::filesystem::exists(base_path)) {
                     std::filesystem::remove_all(base_path);
                 }
                 std::filesystem::create_directories(base_path);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD); 
+        MPI_Barrier(comm); 
 
         for (const auto& p : probes.fieldProbes) {
             if(p.write){
@@ -286,14 +356,15 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
     const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
     isDGCollection(fes_);
+    const MPI_Comm comm = getFESComm(fes_);
 
     DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
     
-    std::string parent_path = "Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name;
-    if (isNodeRoot()) {
+    std::string parent_path = getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name;
+    if (isNodeRoot(comm)) {
         std::filesystem::create_directories(parent_path);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
     std::string path = parent_path + "/rank" + std::to_string(Mpi::WorldRank());
     std::filesystem::create_directories(path); 
@@ -316,9 +387,48 @@ DomainSnapshotDataCollection ProbesManager::buildDomainSnapshotDataCollection(co
     return res;
 }
 
+void ProbesManager::setFinalTime(double final_time)
+{
+    finalTime_ = final_time;
+    exporterContexts_.clear();
+}
+
 void ProbesManager::updateProbe(ExporterProbe& p, Time time)
 {
-    if (std::abs(time - finalTime_) >= 1e-8){
+    const MPI_Comm comm = getFESComm(fes_);
+    int export_cycle = cycle_;
+
+    if (p.save_every > 0.0 && finalTime_ > 0.0) {
+        auto& ctx = exporterContexts_[&p];
+
+        if (!ctx.initialized) {
+            ctx.dt_save = p.save_every;
+            ctx.next_save_time = 0.0;
+            ctx.save_count = 0;
+            ctx.finished = false;
+            ctx.initialized = true;
+        }
+
+        if (ctx.finished) {
+            return;
+        }
+
+        const double tol = ctx.dt_save * 1e-6;
+        const double end_tol = std::max(tol, 1e-12);
+        if (time < ctx.next_save_time - tol) {
+            return;
+        }
+
+        export_cycle = ctx.save_count;
+        ++ctx.save_count;
+
+        if (ctx.next_save_time >= finalTime_ - end_tol) {
+            ctx.finished = true;
+        } else {
+            const double next = ctx.next_save_time + ctx.dt_save;
+            ctx.next_save_time = (next >= finalTime_ - end_tol) ? finalTime_ : next;
+        }
+    } else if (std::abs(time - finalTime_) >= 1e-8) {
         if (cycle_ % p.visSteps != 0) {
             return;
         }
@@ -328,18 +438,35 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     assert(it != exporterProbesCollection_.end());
     auto& pd{ it->second };
 
-    pd.SetCycle(cycle_);
+    pd.SetCycle(export_cycle);
     pd.SetTime(std::round(time * 1e3) / 1e3);
 
     std::string base_dir = pd.GetPrefixPath() + pd.GetCollectionName();
-    std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(cycle_, 6);
+    std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(export_cycle, 6);
     
-    if (isNodeRoot()) {
+    if (isNodeRoot(comm)) {
         std::filesystem::create_directories(cycle_dir);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm);
 
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA) && fields_) {
+        MFEM_STREAM_SYNC;
+        fields_->allDOFs().HostRead();
+        for (int d = X; d <= Z; ++d) {
+            fields_->get(E, d).HostRead();
+            fields_->get(H, d).HostRead();
+        }
+        fields_->get(E).HostRead();
+        fields_->get(H).HostRead();
+    }
+#endif
+
+    // ParaViewDataCollection::Save is per-rank I/O, not an MPI collective.
+    // Without a post-Save barrier, a fast rank can leave step() and block in the
+    // next stability/Mult Allreduce while a slow rank is still writing — hang.
     pd.Save();
+    MPI_Barrier(comm);
 }
 
 void ProbesManager::updateProbe(FieldProbe& p, Time time)
@@ -354,7 +481,11 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
     assert(it != fieldProbesCollection_.end());
     const auto& pC{ it->second };
     if (pC.fesPoint.elementId != -2){
-
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            const_cast<mfem::GridFunction&>(pC.field).HostRead();
+        }
+#endif
         real_t gf_value = pC.field.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
 
         p.addFieldToMovies(time, gf_value);
@@ -362,7 +493,7 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
         if(p.write){
             auto& myfile = fieldProbeFiles_[p.getProbeID()];
             if (!myfile.is_open()) {
-                std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
+                std::string path(getSimulationCaseExportPath(caseName_) + "/FieldProbes/" + "FieldProbe" + std::to_string(p.getProbeID()) + ".dat");
                 myfile.open(path, std::ios::app);
             }
             if (myfile.is_open()) {
@@ -385,6 +516,16 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
     assert(it != pointProbesCollection_.end());
     const auto& pC{ it->second };
     if (pC.fesPoint.elementId != -2){
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            const_cast<mfem::GridFunction&>(pC.field_Ex).HostRead();
+            const_cast<mfem::GridFunction&>(pC.field_Ey).HostRead();
+            const_cast<mfem::GridFunction&>(pC.field_Ez).HostRead();
+            const_cast<mfem::GridFunction&>(pC.field_Hx).HostRead();
+            const_cast<mfem::GridFunction&>(pC.field_Hy).HostRead();
+            const_cast<mfem::GridFunction&>(pC.field_Hz).HostRead();
+        }
+#endif
         FieldsForMovie f4FP;
         {
             f4FP.Ex = pC.field_Ex.GetValue(pC.fesPoint.elementId, pC.fesPoint.iP);
@@ -398,7 +539,7 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
         if(p.write){
             auto& myfile = pointProbeFiles_[p.getProbeID()];
             if (!myfile.is_open()) {
-                std::string path("Exports/" + getRunModeTag() + "/" + caseName_ + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
+                std::string path(getSimulationCaseExportPath(caseName_) + "/PointProbes/" + "PointProbe" + std::to_string(p.getProbeID()) + ".dat");
                 myfile.open(path, std::ios::app);
             }
             if (myfile.is_open()) {
@@ -434,7 +575,7 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
     auto it{ nearFieldProbesCollection_.find(&p) };
     assert(it != nearFieldProbesCollection_.end());
     auto& dc{ it->second };
-    dc.SetPrefixPath("Exports/" + getRunModeTag() + "/" + caseName_ + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
+    dc.SetPrefixPath(getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 
     nearFieldReqs_.at(&p)->updateFields();
 
@@ -467,17 +608,28 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     assert(it != domainSnapshotProbesCollection_.end());
     auto& dc{ it->second };
 
-    std::string case_path = std::string("Exports/" + getRunModeTag() + "/" + caseName_ + "/DomainSnapshotProbes/");
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA) && fields_) {
+        fields_->allDOFs().HostRead();
+        for (int d = X; d <= Z; ++d) {
+            fields_->get(E, d).HostRead();
+            fields_->get(H, d).HostRead();
+        }
+    }
+#endif
+
+    std::string case_path = std::string(getSimulationCaseExportPath(caseName_) + "/DomainSnapshotProbes/");
+    const MPI_Comm comm = getFESComm(fes_);
     
     if (cycle_ == 0) {
-        if (isNodeRoot()) {
+        if (isNodeRoot(comm)) {
             if (std::filesystem::exists(case_path)) {
                 std::filesystem::remove_all(case_path);
             }
             std::filesystem::create_directories(case_path);
             std::filesystem::create_directories(case_path + "/meshes/");
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         dc.mesh.Save(case_path + "/meshes/mesh_rank" + std::to_string(Mpi::WorldRank()) , 16);
     }
@@ -496,47 +648,140 @@ void ProbesManager::updateProbe(DomainSnapshotProbe& p, Time time)
     file << time;
 }
 
+bool ProbesManager::needsHostSyncThisStep(Time time) const
+{
+    const bool at_end = std::abs(time - finalTime_) < 1e-8;
+
+    auto dueBySteps = [&](int steps) {
+        return at_end || (steps > 0 && (cycle_ % steps) == 0);
+    };
+
+    for (const auto& p : probes.exporterProbes) {
+        if (p.save_every > 0.0 && finalTime_ > 0.0) {
+            auto it = exporterContexts_.find(&p);
+            if (it == exporterContexts_.end()) {
+                return true; // first call initializes and may save t=0
+            }
+            const auto& ctx = it->second;
+            if (ctx.finished) {
+                continue;
+            }
+            const double tol = ctx.dt_save * 1e-6;
+            if (time >= ctx.next_save_time - tol) {
+                return true;
+            }
+        } else if (dueBySteps(p.visSteps)) {
+            return true;
+        }
+    }
+
+    for (const auto& p : probes.fieldProbes) {
+        if (dueBySteps(p.getVisSteps())) {
+            return true;
+        }
+    }
+    for (const auto& p : probes.pointProbes) {
+        if (dueBySteps(p.getVisSteps())) {
+            return true;
+        }
+    }
+    for (const auto& p : probes.nearFieldProbes) {
+        if (dueBySteps(p.expSteps)) {
+            return true;
+        }
+    }
+    for (const auto& p : probes.domainSnapshotProbes) {
+        if (dueBySteps(p.expSteps)) {
+            return true;
+        }
+    }
+    for (const auto& p : probes.rcsSurfaceProbes) {
+        if (dueBySteps(p.expSteps)) {
+            return true;
+        }
+    }
+    for (const auto& p : probes.morStateProbes) {
+        if (p.saves <= 0) {
+            continue;
+        }
+        if (time < p.record_time_start - 1e-12 || time > p.record_time_final + 1e-12) {
+            continue;
+        }
+        auto it = morStateContexts_.find(&p);
+        if (it == morStateContexts_.end()) {
+            return true;
+        }
+        const auto& ctx = it->second;
+        if (ctx.save_count >= p.saves) {
+            continue;
+        }
+        const double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 1e-6 : 1e-12;
+        if (time >= ctx.next_save_time - tol) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void ProbesManager::updateProbes(Time t)
 {
+#ifdef SHOW_TIMER_INFORMATION
+    using clock = std::chrono::steady_clock;
+    auto start = clock::now();
+#endif
     for (auto& p : probes.exporterProbes) {
         updateProbe(p, t);
     }
-    
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_exporter = clock::now();
+#endif
     for (auto& p : probes.fieldProbes) {
         updateProbe(p, t);
     }
-
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_field = clock::now();
+#endif
     for (auto& p : probes.pointProbes) {
         updateProbe(p, t);
     }
-    
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_point = clock::now();
+#endif
     for (auto& p : probes.nearFieldProbes) {
         updateProbe(p, t);
     }
-
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_nearfield = clock::now();
+#endif
     for (auto& p : probes.domainSnapshotProbes){
         updateProbe(p, t);
     }
-
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_snapshot = clock::now();
+#endif
     for (auto& p : probes.rcsSurfaceProbes) {
         updateProbe(p, t);
     }
-
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_rcs = clock::now();
+#endif
     for (auto& p : probes.morStateProbes) {
         updateProbe(p, t);
     }
+#ifdef SHOW_TIMER_INFORMATION
+    auto after_mor = clock::now();
+    timingStats_.exporter_ms += std::chrono::duration<double, std::milli>(after_exporter - start).count();
+    timingStats_.field_ms    += std::chrono::duration<double, std::milli>(after_field - after_exporter).count();
+    timingStats_.point_ms    += std::chrono::duration<double, std::milli>(after_point - after_field).count();
+    timingStats_.nearfield_ms+= std::chrono::duration<double, std::milli>(after_nearfield - after_point).count();
+    timingStats_.snapshot_ms += std::chrono::duration<double, std::milli>(after_snapshot - after_nearfield).count();
+    timingStats_.rcs_ms      += std::chrono::duration<double, std::milli>(after_rcs - after_snapshot).count();
+    timingStats_.mor_ms      += std::chrono::duration<double, std::milli>(after_mor - after_rcs).count();
+    timingStats_.update_calls++;
+#endif
 
     cycle_++;
-}
-
-Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace& fes)
-{
-    Array<int> res(fes.GetMesh()->bdr_attributes.Max());
-    res = 0;
-    for (const auto& t : tags) {
-        res[t - 1] = 1;
-    }
-    return res;
 }
 
 void NearFieldReqs::updateFields()
@@ -587,9 +832,7 @@ void ProbesManager::recalculateExportSteps(double dt)
         return std::max(1, totalSteps / saves);
     };
 
-    for (auto& p : probes.exporterProbes) {
-        if (p.saves > 0) p.visSteps = stepsFromSaves(p.saves);
-    }
+    // ExporterProbe::save_every is absolute time; no step remapping needed.
     for (auto& p : probes.nearFieldProbes) {
         if (p.saves > 0) p.expSteps = stepsFromSaves(p.saves);
     }
@@ -616,17 +859,18 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
     auto& ctx = morStateContexts_[&p];
 
     if (!ctx.initialized) {
+        const MPI_Comm comm = getFESComm(fes_);
         ctx.dt_save = (p.saves > 1)
             ? (p.record_time_final - p.record_time_start) / (p.saves - 1)
             : 0.0;
         ctx.next_save_time = p.record_time_start;
         ctx.save_count = 0;
-        ctx.export_dir = "Exports/" + getRunModeTag() + "/" + caseName_ + "/MORStateProbes/" + p.name;
+        ctx.export_dir = getSimulationCaseExportPath(caseName_) + "/MORStateProbes/" + p.name;
 
-        if (isNodeRoot()) {
+        if (isNodeRoot(comm)) {
             std::filesystem::create_directories(ctx.export_dir);
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         ctx.initialized = true;
     }
@@ -636,48 +880,35 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
     double tol = (ctx.dt_save > 0.0) ? ctx.dt_save * 1e-6 : 1e-12;
     if (time < ctx.next_save_time - tol) return;
 
-    // Export global state vector x
+    // Export E/H state only (first 6×ndofs block; ψ is internal).
     const auto& all_dofs = fields_->allDOFs();
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        const_cast<mfem::Vector&>(all_dofs).HostRead();
+    }
+#endif
+    const int export_size = fields_->fieldBlockSize();
     std::string file_path = ctx.export_dir + "/x_" + std::to_string(ctx.save_count);
 
     std::ofstream ofs(file_path);
     if (ofs.is_open()) {
         ofs << std::scientific << std::setprecision(16);
         ofs << time << "\n";
-        ofs << all_dofs.Size() << "\n";
-        for (int i = 0; i < all_dofs.Size(); ++i) {
+        ofs << export_size << "\n";
+        for (int i = 0; i < export_size; ++i) {
             ofs << all_dofs[i] << "\n";
         }
         ofs.close();
     }
 
-    // Export TFSF source function u if available
-    if (srcmngr_ && tfsf_mapping_) {
-        srcmngr_->evalTimeVarFieldDirect(time);
-        const auto& tfsf_fields = srcmngr_->getCachedTFSFFields();
+    // Export TFSF source function u if available.
+    // Use host-only eval so we never HostRead/Read the device-resident
+    // cached_tfsf_fields_ (that poisons the next GPU Mult TFSF eval).
+    if (srcmngr_ && tfsf_mapping_ && srcmngr_->hasDirectEval()) {
+        std::vector<double> u_combined;
+        srcmngr_->evalTimeVarFieldDirectToHost(time, u_combined);
+        const int tfsf_total_size = static_cast<int>(u_combined.size());
 
-        // Assemble TFSF source vector in same layout as x: [Ex, Ey, Ez, Hx, Hy, Hz]
-        // First get the size of one component
-        const int tfsf_size_per_comp = tfsf_fields[E][X].Size();
-        const int tfsf_total_size = 6 * tfsf_size_per_comp;
-        
-        std::vector<double> u_combined(tfsf_total_size);
-        
-        // E-field components (X, Y, Z)
-        for (int i = 0; i < tfsf_size_per_comp; ++i) {
-            u_combined[0 * tfsf_size_per_comp + i] = tfsf_fields[E][X][i];
-            u_combined[1 * tfsf_size_per_comp + i] = tfsf_fields[E][Y][i];
-            u_combined[2 * tfsf_size_per_comp + i] = tfsf_fields[E][Z][i];
-        }
-        
-        // H-field components (X, Y, Z)
-        for (int i = 0; i < tfsf_size_per_comp; ++i) {
-            u_combined[3 * tfsf_size_per_comp + i] = tfsf_fields[H][X][i];
-            u_combined[4 * tfsf_size_per_comp + i] = tfsf_fields[H][Y][i];
-            u_combined[5 * tfsf_size_per_comp + i] = tfsf_fields[H][Z][i];
-        }
-        
-        // Export unified TFSF source vector
         std::string u_path = ctx.export_dir + "/u_" + std::to_string(ctx.save_count);
         std::ofstream ofs_u(u_path);
         if (ofs_u.is_open()) {
@@ -685,7 +916,7 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
             ofs_u << time << "\n";
             ofs_u << tfsf_total_size << "\n";
             for (int i = 0; i < tfsf_total_size; ++i) {
-                ofs_u << u_combined[i] << "\n";
+                ofs_u << u_combined[static_cast<std::size_t>(i)] << "\n";
             }
             ofs_u.close();
         }

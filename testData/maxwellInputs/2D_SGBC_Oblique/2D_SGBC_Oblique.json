@@ -57,7 +57,7 @@
   },
   "probes": {
     "exporter": {
-      "saves": 60
+      "save_every": 0.13559322033898305
     },
     "point": [
       {

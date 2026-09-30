@@ -10,14 +10,15 @@ set(SOURCES
     "GlobalEvolution.cpp"
 )
 
-if (SEMBA_DGTD_ENABLE_CUDA)
+	if (SEMBA_DGTD_ENABLE_CUDA)
     enable_language(CUDA)
 
-    list(APPEND SOURCES "GlobalEvolution.cu")
+    list(APPEND SOURCES "GlobalEvolution.cu" "HesthavenEvolution.cu")
 
     set_source_files_properties(GlobalEvolution.cu PROPERTIES LANGUAGE CUDA)
+    set_source_files_properties(HesthavenEvolution.cu PROPERTIES LANGUAGE CUDA)
 
-    message(STATUS "CUDA is enabled: Compiling with GlobalEvolution.cu")
+    message(STATUS "CUDA is enabled: Compiling with GlobalEvolution.cu and HesthavenEvolution.cu")
 else()
     message(STATUS "CUDA is disabled: Skipping GlobalEvolution.cu")
 endif()

@@ -233,7 +233,7 @@ int main(int argc, char** argv)
         pd.SetLevelsOfDetail(std::max(geom_order, fec_order));
         pd.SetDataFormat(mfem::VTKFormat::BINARY);
 
-        const int expected_size = fields.allDOFs().Size();
+        const int expected_size = fields.fieldBlockSize();
         const auto snapshots = collectXFiles(cfg.x_dir);
 
         int written = 0;

@@ -1,0 +1,94 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.001,
+    "final_time": 20.0,
+    "order": 2
+  },
+  "model": {
+    "filename": "1D_PML_kappa.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          3
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 0,
+        "target_reflection": 0.0001,
+        "active_axes": [
+          "X"
+        ],
+        "kappa_max": 2.0
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "PEC"
+      },
+      {
+        "tags": [
+          2
+        ],
+        "type": "PEC"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.10050251256281408
+    },
+    "point": [
+      {
+        "position": [
+          1.99
+        ],
+        "saves": 400
+      },
+      {
+        "position": [
+          2.01
+        ],
+        "saves": 400
+      },
+      {
+        "position": [
+          2.99
+        ],
+        "saves": 400
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.4
+      }
+    }
+  ]
+}

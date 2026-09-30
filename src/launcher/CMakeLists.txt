@@ -45,3 +45,18 @@ if (SEMBA_DGTD_ENABLE_OPENMP)
 	message(STATUS "Linking opensemba_mor2paraview with OpenMP libraries")
 	target_link_libraries(opensemba_mor2paraview OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
 endif()
+
+message(STATUS "Creating build system for opensemba_mor2rcs")
+
+add_executable(opensemba_mor2rcs "mor2rcs.cpp")
+
+target_link_libraries(opensemba_mor2rcs
+		maxwell-driver
+		maxwell-components
+		mfem
+)
+
+if (SEMBA_DGTD_ENABLE_OPENMP)
+	message(STATUS "Linking opensemba_mor2rcs with OpenMP libraries")
+	target_link_libraries(opensemba_mor2rcs OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
+endif()
