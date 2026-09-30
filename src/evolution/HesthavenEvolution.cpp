@@ -177,11 +177,11 @@ void HesthavenEvolution::evaluateTFSF(HesthavenFields& out) const
 				for (int d : { X, Y, Z }) {
 					fields[E][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), E, d);
 					fields[H][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), H, d);
-					// Sign matches GlobalEvolution (out -= TFSFOp * planewave).
-					out.e_[d][mapBSF[m][v]] += fields[E][d];
-					out.h_[d][mapBSF[m][v]] += fields[H][d];
-					out.e_[d][mapBTF[m][v]] -= fields[E][d];
-					out.h_[d][mapBTF[m][v]] -= fields[H][d];
+					// Scattered side subtracts the incident field; total side adds it.
+					out.e_[d][mapBSF[m][v]] -= fields[E][d];
+					out.h_[d][mapBSF[m][v]] -= fields[H][d];
+					out.e_[d][mapBTF[m][v]] += fields[E][d];
+					out.h_[d][mapBTF[m][v]] += fields[H][d];
 				}
 			}
 		}
@@ -206,10 +206,10 @@ void HesthavenEvolution::evaluateTFSF(double* e_jumps, double* h_jumps, int jump
 				for (int d : { X, Y, Z }) {
 					fields[E][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), E, d);
 					fields[H][d] = source->eval(positions_[vmapBSF[m][v]], GetTime(), H, d);
-					e_jumps[d * jumps_size + mapBSF[m][v]] += fields[E][d];
-					h_jumps[d * jumps_size + mapBSF[m][v]] += fields[H][d];
-					e_jumps[d * jumps_size + mapBTF[m][v]] -= fields[E][d];
-					h_jumps[d * jumps_size + mapBTF[m][v]] -= fields[H][d];
+					e_jumps[d * jumps_size + mapBSF[m][v]] -= fields[E][d];
+					h_jumps[d * jumps_size + mapBSF[m][v]] -= fields[H][d];
+					e_jumps[d * jumps_size + mapBTF[m][v]] += fields[E][d];
+					h_jumps[d * jumps_size + mapBTF[m][v]] += fields[H][d];
 				}
 			}
 		}
