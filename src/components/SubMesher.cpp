@@ -352,7 +352,9 @@ SubMesh createSubMeshFromParent(const Mesh& parent, const std::pair<Array<int>, 
 	return res;
 }
 
-TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(const Mesh& m, const Array<int>& marker)
+TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(
+	const Mesh& m, const Array<int>& marker, int tf_volume)
+	: tf_volume_attribute_(tf_volume)
 {
 	Mesh parent_for_global(m);
 	Mesh parent_for_individual(m);
@@ -698,6 +700,14 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 		tfsf_center[d] = 0.5 * (tfsf_min[d] + tfsf_max[d]);
 	}
 
+	std::vector<int> original_attr;
+	if (tf_volume_attribute_ >= 0) {
+		original_attr.resize(static_cast<std::size_t>(m.GetNE()));
+		for (int el = 0; el < m.GetNE(); ++el) {
+			original_attr[static_cast<std::size_t>(el)] = m.GetAttribute(el);
+		}
+	}
+
 	// Track per-element TF/SF votes so multi-face (edge/corner) conflicts are visible.
 	std::unordered_map<int, int> tf_votes; // >0 => TF, <0 => SF
 	int n_conflicts = 0;
@@ -712,44 +722,61 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 			auto fe_trans{ getFaceElementTransformation(m,be) };
 			m.GetElementFaces(fe_trans->Elem1No, el1_face, el1_ori);
 
-			// Classify by which side of the face plane contains the AABB center.
-			// Inward normal points toward tfsf_center; TF = element on the inward side.
-			Vector face_bary = getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be));
-			Vector n = buildNormal3D(m, be);
-			double n_norm = n.Norml2();
-			if (n_norm > 0.0) n /= n_norm;
-			Vector to_center(3);
-			for (int d = 0; d < 3; d++) {
-				to_center[d] = tfsf_center[d] - face_bary[d];
-			}
-			if (mfem::InnerProduct(to_center, n) < 0.0) {
-				n *= -1.0;
-			}
-
-			Vector bary1 = getBarycenterOfElement(m, fe_trans->Elem1No);
-			Vector d1(3);
-			for (int d = 0; d < 3; d++) {
-				d1[d] = bary1[d] - face_bary[d];
-			}
-			bool elem1_is_tf = mfem::InnerProduct(d1, n) > 0.0;
-
-			if (fe_trans->Elem2No >= 0) {
-				Vector bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
-				Vector d2(3);
-				for (int d = 0; d < 3; d++) {
-					d2[d] = bary2[d] - face_bary[d];
+			bool elem1_is_tf = false;
+			if (tf_volume_attribute_ >= 0) {
+				if (fe_trans->Elem2No < 0) {
+					throw std::runtime_error(
+						"coaxial_port load face is not an interior face.");
 				}
-				const bool elem2_is_tf = mfem::InnerProduct(d2, n) > 0.0;
-				// Degenerate / nearly coplanar: fall back to AABB-center distance.
-				if (elem1_is_tf == elem2_is_tf) {
-					double dist1_sq = 0.0, dist2_sq = 0.0;
+				const int a1 = original_attr[static_cast<std::size_t>(fe_trans->Elem1No)];
+				const int a2 = original_attr[static_cast<std::size_t>(fe_trans->Elem2No)];
+				const bool side1 = a1 == tf_volume_attribute_;
+				const bool side2 = a2 == tf_volume_attribute_;
+				if (side1 == side2) {
+					throw std::runtime_error(
+						"coaxial_port load face does not separate the total-field volume from its neighbor.");
+				}
+				elem1_is_tf = side1;
+			} else {
+				// Classify by which side of the face plane contains the AABB center.
+				// Inward normal points toward tfsf_center; TF = element on the inward side.
+				Vector face_bary = getBarycenterOfFaceElement(m, m.GetBdrElementFaceIndex(be));
+				Vector n = buildNormal3D(m, be);
+				double n_norm = n.Norml2();
+				if (n_norm > 0.0) n /= n_norm;
+				Vector to_center(3);
+				for (int d = 0; d < 3; d++) {
+					to_center[d] = tfsf_center[d] - face_bary[d];
+				}
+				if (mfem::InnerProduct(to_center, n) < 0.0) {
+					n *= -1.0;
+				}
+
+				Vector bary1 = getBarycenterOfElement(m, fe_trans->Elem1No);
+				Vector d1(3);
+				for (int d = 0; d < 3; d++) {
+					d1[d] = bary1[d] - face_bary[d];
+				}
+				elem1_is_tf = mfem::InnerProduct(d1, n) > 0.0;
+
+				if (fe_trans->Elem2No >= 0) {
+					Vector bary2 = getBarycenterOfElement(m, fe_trans->Elem2No);
+					Vector d2(3);
 					for (int d = 0; d < 3; d++) {
-						double a = bary1[d] - tfsf_center[d];
-						double b = bary2[d] - tfsf_center[d];
-						dist1_sq += a * a;
-						dist2_sq += b * b;
+						d2[d] = bary2[d] - face_bary[d];
 					}
-					elem1_is_tf = dist1_sq < dist2_sq;
+					const bool elem2_is_tf = mfem::InnerProduct(d2, n) > 0.0;
+					// Degenerate / nearly coplanar: fall back to AABB-center distance.
+					if (elem1_is_tf == elem2_is_tf) {
+						double dist1_sq = 0.0, dist2_sq = 0.0;
+						for (int d = 0; d < 3; d++) {
+							double a = bary1[d] - tfsf_center[d];
+							double b = bary2[d] - tfsf_center[d];
+							dist1_sq += a * a;
+							dist2_sq += b * b;
+						}
+						elem1_is_tf = dist1_sq < dist2_sq;
+					}
 				}
 			}
 
@@ -801,9 +828,14 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 	}
 
 	if (Mpi::WorldRank() == 0) {
-		std::cout << "[TFSF] 3D tagging: AABB center=("
-		          << tfsf_center[0] << ", " << tfsf_center[1] << ", "
-		          << tfsf_center[2] << "), face-plane side test";
+		std::cout << "[TFSF] 3D tagging: ";
+		if (tf_volume_attribute_ >= 0) {
+			std::cout << "total-field volume " << tf_volume_attribute_;
+		} else {
+			std::cout << "AABB center=("
+			          << tfsf_center[0] << ", " << tfsf_center[1] << ", "
+			          << tfsf_center[2] << "), face-plane side test";
+		}
 		if (n_conflicts > 0) {
 			std::cout << ", WARNING: " << n_conflicts
 			          << " multi-face TF/SF vote conflicts";

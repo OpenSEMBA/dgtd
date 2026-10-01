@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
+#include <iterator>
 #include <mpi.h>
 
 namespace maxwell::driver {
@@ -28,6 +29,14 @@ double calculateMaximumSourceFrequency(const json& case_data)
 
     if (case_data.contains("sources")) {
         for (const auto& source : case_data["sources"]) {
+            if (source.contains("type") && source["type"] == "coaxial_port") {
+                const double spread = source.value("spread", 1.0);
+                if (spread > 0.0 && spread < min_spread) {
+                    min_spread = spread;
+                    found_gaussian = true;
+                }
+                continue;
+            }
             if (!source.contains("magnitude")) continue;
             const auto& mag = source["magnitude"];
             // delta_gap stores magnitude as a number, not a planewave object.
@@ -902,6 +911,303 @@ static double deltaGapCurveLength(const mfem::Mesh& mesh, const json& tags)
 	return global_length;
 }
 
+struct CoaxialPortGeometry {
+	mfem::Vector center;
+	mfem::Vector axis;
+	double inner_radius = 0.0;
+	double outer_radius = 0.0;
+	int total_field_volume = -1;
+	int scattered_field_volume = -1;
+};
+
+static bool jsonListHas(const json& tags, int attr)
+{
+	if (!tags.is_array()) {
+		return false;
+	}
+	for (const auto& t : tags) {
+		if (t.get<int>() == attr) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static mfem::Vector elementCentroid(const mfem::Mesh& mesh, int el)
+{
+	mfem::Array<int> verts;
+	mesh.GetElementVertices(el, verts);
+	const int dim = mesh.Dimension();
+	mfem::Vector c(3);
+	c = 0.0;
+	if (verts.Size() == 0) {
+		return c;
+	}
+	for (int v = 0; v < verts.Size(); ++v) {
+		const double* p = mesh.GetVertex(verts[v]);
+		for (int d = 0; d < dim && d < 3; ++d) {
+			c[d] += p[d];
+		}
+	}
+	c /= static_cast<double>(verts.Size());
+	return c;
+}
+
+static double radiusToAxis(const double* p, const double* center, const double* axis)
+{
+	double rel[3];
+	double along = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		rel[d] = p[d] - center[d];
+		along += rel[d] * axis[d];
+	}
+	double perp2 = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		const double radial = rel[d] - along * axis[d];
+		perp2 += radial * radial;
+	}
+	return std::sqrt(std::max(0.0, perp2));
+}
+
+static json collectSmaTags(const json& case_data)
+{
+	json tags = json::array();
+	if (!case_data.contains("model") || !case_data["model"].contains("boundaries")) {
+		return tags;
+	}
+	for (const auto& boundary : case_data["model"]["boundaries"]) {
+		if (!boundary.contains("type") || boundary["type"] != "SMA") {
+			continue;
+		}
+		for (const auto& tag : boundary["tags"]) {
+			tags.push_back(tag);
+		}
+	}
+	return tags;
+}
+
+static int agreeVolumeAttribute(int local, const char* name)
+{
+	const int has = local >= 0 ? 1 : 0;
+	int any = 0;
+	MPI_Allreduce(&has, &any, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (any == 0) {
+		throw std::runtime_error(std::string("coaxial_port could not identify the ") + name + " volume.");
+	}
+	const int send_min = has ? local : std::numeric_limits<int>::max();
+	const int send_max = has ? local : -1;
+	int global_min = 0;
+	int global_max = 0;
+	MPI_Allreduce(&send_min, &global_min, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+	MPI_Allreduce(&send_max, &global_max, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_min != global_max) {
+		throw std::runtime_error(std::string("coaxial_port ") + name + " volume disagrees across ranks.");
+	}
+	return global_min;
+}
+
+static CoaxialPortGeometry fitCoaxialPort(
+	mfem::Mesh& mesh,
+	const json& load_tags,
+	const json& live_tags,
+	const json& outer_tags,
+	const json& sma_tags)
+{
+	std::unordered_set<int> load_volumes;
+	bool saw_boundary_load = false;
+	double load_min[3] = {
+		std::numeric_limits<double>::max(),
+		std::numeric_limits<double>::max(),
+		std::numeric_limits<double>::max()};
+	double load_max[3] = {
+		-std::numeric_limits<double>::max(),
+		-std::numeric_limits<double>::max(),
+		-std::numeric_limits<double>::max()};
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!jsonListHas(load_tags, mesh.GetBdrAttribute(be))) {
+			continue;
+		}
+		mfem::Array<int> verts;
+		mesh.GetBdrElementVertices(be, verts);
+		for (int v = 0; v < verts.Size(); ++v) {
+			const double* p = mesh.GetVertex(verts[v]);
+			for (int d = 0; d < mesh.Dimension() && d < 3; ++d) {
+				load_min[d] = std::min(load_min[d], p[d]);
+				load_max[d] = std::max(load_max[d], p[d]);
+			}
+		}
+		auto* tr = mesh.GetInternalBdrFaceTransformations(be);
+		if (tr == nullptr || tr->Elem2No < 0) {
+			saw_boundary_load = true;
+			continue;
+		}
+		load_volumes.insert(mesh.GetAttribute(tr->Elem1No));
+		load_volumes.insert(mesh.GetAttribute(tr->Elem2No));
+	}
+	int local_bad = saw_boundary_load ? 1 : 0;
+	int global_bad = 0;
+	MPI_Allreduce(&local_bad, &global_bad, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_bad != 0) {
+		throw std::runtime_error("coaxial_port load tags must be interior faces.");
+	}
+
+	std::unordered_set<int> sma_volumes;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!jsonListHas(sma_tags, mesh.GetBdrAttribute(be))) {
+			continue;
+		}
+		int el = -1;
+		int info = 0;
+		mesh.GetBdrElementAdjacentElement(be, el, info);
+		if (el >= 0) {
+			sma_volumes.insert(mesh.GetAttribute(el));
+		}
+	}
+
+	int local_tf = -1;
+	int local_sf = -1;
+	if (load_volumes.size() > 2) {
+		throw std::runtime_error("coaxial_port load face touches more than two volumes.");
+	}
+	if (load_volumes.size() == 2) {
+		const int first = *load_volumes.begin();
+		const int second = *std::next(load_volumes.begin());
+		const bool first_sma = sma_volumes.count(first) != 0;
+		const bool second_sma = sma_volumes.count(second) != 0;
+		if (first_sma == second_sma) {
+			throw std::runtime_error(
+				"coaxial_port could not tell the scattered-field volume from the total-field volume. "
+				"One side of the load must meet an SMA boundary.");
+		}
+		local_sf = first_sma ? first : second;
+		local_tf = first_sma ? second : first;
+	}
+	const int tf_volume = agreeVolumeAttribute(local_tf, "total-field");
+	const int sf_volume = agreeVolumeAttribute(local_sf, "scattered-field");
+
+	double center[3] = {0.0, 0.0, 0.0};
+	for (int d = 0; d < 3; ++d) {
+		double global_min = 0.0;
+		double global_max = 0.0;
+		MPI_Allreduce(&load_min[d], &global_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+		MPI_Allreduce(&load_max[d], &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+		center[d] = 0.5 * (global_min + global_max);
+	}
+
+	double sum_tf[3] = {0.0, 0.0, 0.0};
+	double sum_sf[3] = {0.0, 0.0, 0.0};
+	int n_tf = 0;
+	int n_sf = 0;
+	for (int el = 0; el < mesh.GetNE(); ++el) {
+		const int attr = mesh.GetAttribute(el);
+		if (attr != tf_volume && attr != sf_volume) {
+			continue;
+		}
+		const mfem::Vector c = elementCentroid(mesh, el);
+		double* sum = attr == tf_volume ? sum_tf : sum_sf;
+		int& n = attr == tf_volume ? n_tf : n_sf;
+		for (int d = 0; d < 3; ++d) {
+			sum[d] += c[d];
+		}
+		++n;
+	}
+	double global_sum_tf[3];
+	double global_sum_sf[3];
+	int global_n_tf = 0;
+	int global_n_sf = 0;
+	MPI_Allreduce(sum_tf, global_sum_tf, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(sum_sf, global_sum_sf, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&n_tf, &global_n_tf, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&n_sf, &global_n_sf, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	if (global_n_tf == 0 || global_n_sf == 0) {
+		throw std::runtime_error("coaxial_port total-field or scattered-field volume has no elements.");
+	}
+	double axis[3];
+	double axis_norm = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		axis[d] = global_sum_tf[d] / global_n_tf - global_sum_sf[d] / global_n_sf;
+		axis_norm += axis[d] * axis[d];
+	}
+	axis_norm = std::sqrt(axis_norm);
+	if (!(axis_norm > 0.0)) {
+		throw std::runtime_error("coaxial_port total-field and scattered-field volumes share a centroid.");
+	}
+	for (int d = 0; d < 3; ++d) {
+		axis[d] /= axis_norm;
+	}
+
+	auto meanCylinderRadius = [&](const json& tags) {
+		double sum = 0.0;
+		int count = 0;
+		for (const auto& tag_json : tags) {
+			const int tag = tag_json.get<int>();
+			std::unordered_set<int> seen;
+			double min_r = std::numeric_limits<double>::max();
+			double max_r = 0.0;
+			double tag_sum = 0.0;
+			int tag_count = 0;
+			for (int be = 0; be < mesh.GetNBE(); ++be) {
+				if (mesh.GetBdrAttribute(be) != tag) {
+					continue;
+				}
+				mfem::Array<int> verts;
+				mesh.GetBdrElementVertices(be, verts);
+				for (int v = 0; v < verts.Size(); ++v) {
+					if (!seen.insert(verts[v]).second) {
+						continue;
+					}
+					const double r = radiusToAxis(mesh.GetVertex(verts[v]), center, axis);
+					min_r = std::min(min_r, r);
+					max_r = std::max(max_r, r);
+					tag_sum += r;
+					++tag_count;
+				}
+			}
+			double global_min = 0.0;
+			double global_max = 0.0;
+			double global_sum = 0.0;
+			int global_count = 0;
+			const double send_min = tag_count > 0 ? min_r : std::numeric_limits<double>::max();
+			MPI_Allreduce(&send_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+			MPI_Allreduce(&max_r, &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+			MPI_Allreduce(&tag_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			MPI_Allreduce(&tag_count, &global_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+			if (global_count == 0 || !(global_max > 0.0)) {
+				continue;
+			}
+			if ((global_max - global_min) / global_max > 0.15) {
+				continue;
+			}
+			sum += global_sum;
+			count += global_count;
+		}
+		if (count == 0) {
+			return 0.0;
+		}
+		return sum / static_cast<double>(count);
+	};
+
+	const double inner = meanCylinderRadius(live_tags);
+	const double outer = meanCylinderRadius(outer_tags);
+	if (!(inner > 0.0) || !(outer > inner)) {
+		throw std::runtime_error(
+			"coaxial_port could not measure inner and outer radii from the cylindrical conductor tags.");
+	}
+
+	CoaxialPortGeometry geom;
+	geom.center.SetSize(3);
+	geom.axis.SetSize(3);
+	for (int d = 0; d < 3; ++d) {
+		geom.center[d] = center[d];
+		geom.axis[d] = axis[d];
+	}
+	geom.inner_radius = inner;
+	geom.outer_radius = outer;
+	geom.total_field_volume = tf_volume;
+	geom.scattered_field_volume = sf_volume;
+	return geom;
+}
+
 std::unique_ptr<InitialField> buildSphericalBesselJ6InitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }))
@@ -964,6 +1270,8 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 {
 	Sources res;
 	int delta_gap_count = 0;
+	int coaxial_count = 0;
+	bool closed_tfsf = false;
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		if (case_data["sources"][s]["type"] == "initial") {
 			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
@@ -996,6 +1304,11 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "planewave") {
+			if (coaxial_count > 0) {
+				throw std::runtime_error(
+					"coaxial_port is the TFSF source. Do not combine it with planewave or dipole.");
+			}
+			closed_tfsf = true;
 			const auto& mag = case_data["sources"][s]["magnitude"];
 			double spread = mag["spread"].get<double>();
 
@@ -1041,6 +1354,11 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
+			if (coaxial_count > 0) {
+				throw std::runtime_error(
+					"coaxial_port is the TFSF source. Do not combine it with planewave or dipole.");
+			}
+			closed_tfsf = true;
 			const auto& mag = case_data["sources"][s]["magnitude"];
 			if (mag.contains("amplitude")) {
 				throw std::runtime_error(
@@ -1193,6 +1511,94 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				          << " t0=" << t0 << "\n";
 			}
 			res.add(std::make_unique<DeltaGapSource>(magnitude, spread, t0, polarization, derivative));
+		}
+		else if (case_data["sources"][s]["type"] == "coaxial_port") {
+			if (coaxial_count > 0) {
+				throw std::runtime_error("Only one coaxial_port source is supported.");
+			}
+			++coaxial_count;
+			if (closed_tfsf) {
+				throw std::runtime_error(
+					"coaxial_port is the TFSF source. Do not combine it with planewave or dipole.");
+			}
+			if (mesh == nullptr) {
+				throw std::runtime_error("coaxial_port requires a mesh.");
+			}
+			if (mesh->Dimension() != 3) {
+				throw std::runtime_error("coaxial_port requires a 3D mesh.");
+			}
+			const auto& src = case_data["sources"][s];
+			if (!src.contains("tags") || !src["tags"].is_object()) {
+				throw std::runtime_error("coaxial_port tags must name outer, live, and load.");
+			}
+			for (const char* key : {"outer", "live", "load"}) {
+				if (!src["tags"].contains(key) || !src["tags"][key].is_array() || src["tags"][key].empty()) {
+					throw std::runtime_error(
+						std::string("coaxial_port tags.") + key + " must be a non-empty array.");
+				}
+			}
+			double magnitude = 1.0;
+			if (src.contains("magnitude")) {
+				if (!src["magnitude"].is_number()) {
+					throw std::runtime_error("coaxial_port magnitude must be a number.");
+				}
+				magnitude = src["magnitude"].get<double>();
+			}
+			if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
+				throw std::runtime_error("coaxial_port magnitude must be > 0.");
+			}
+			double spread = 1.0;
+			if (src.contains("spread")) {
+				if (!src["spread"].is_number()) {
+					throw std::runtime_error("coaxial_port spread must be a number.");
+				}
+				spread = src["spread"].get<double>();
+			}
+			if (!(spread > 0.0) || !std::isfinite(spread)) {
+				throw std::runtime_error("coaxial_port spread must be > 0.");
+			}
+			bool derivative = false;
+			if (src.contains("signal")) {
+				if (!src["signal"].is_string()) {
+					throw std::runtime_error("coaxial_port signal must be a string.");
+				}
+				const std::string signal = src["signal"].get<std::string>();
+				if (signal == "gaussian") {
+					derivative = false;
+				}
+				else if (signal == "gaussian_derivative") {
+					derivative = true;
+				}
+				else {
+					throw std::runtime_error(
+						"coaxial_port signal must be \"gaussian\" or \"gaussian_derivative\".");
+				}
+			}
+			const CoaxialPortGeometry geom = fitCoaxialPort(
+				const_cast<mfem::Mesh&>(*mesh), src["tags"]["load"], src["tags"]["live"], src["tags"]["outer"],
+				collectSmaTags(case_data));
+			const double t0 = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+			int rank = 0;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			if (rank == 0) {
+				const auto previous = std::cout.precision();
+				std::cout << std::setprecision(6);
+				std::cout << "[coaxial_port] a=" << geom.inner_radius
+				          << " b=" << geom.outer_radius
+				          << " Z=" << std::log(geom.outer_radius / geom.inner_radius) / (2.0 * std::acos(-1.0))
+				          << " tf_volume=" << geom.total_field_volume
+				          << " sf_volume=" << geom.scattered_field_volume
+				          << " axis=(" << geom.axis[0] << ", " << geom.axis[1] << ", " << geom.axis[2] << ")"
+				          << " magnitude=" << magnitude
+				          << " spread=" << spread
+				          << " t0=" << t0 << "\n";
+				std::cout << std::setprecision(static_cast<int>(previous));
+			}
+			res.add(std::make_unique<TotalField>(CoaxialMode(
+				magnitude, spread, t0, derivative,
+				geom.center, geom.axis,
+				geom.inner_radius, geom.outer_radius,
+				geom.total_field_volume, geom.scattered_field_volume)));
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
@@ -1807,6 +2213,14 @@ Array<int> getTFSFTags(const json& case_data)
                 res.Append(case_data["sources"][s]["tags"][t].get<int>());
             }
         }
+        else if (case_data["sources"][s].contains("type") &&
+                 case_data["sources"][s]["type"] == "coaxial_port" &&
+                 case_data["sources"][s].contains("tags") &&
+                 case_data["sources"][s]["tags"].contains("load")) {
+            for (int t = 0; t < case_data["sources"][s]["tags"]["load"].size(); ++t) {
+                res.Append(case_data["sources"][s]["tags"]["load"][t].get<int>());
+            }
+        }
     }
     return res;
 }
@@ -2217,6 +2631,16 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t].get<int>());
 			}
+		}
+		else if (case_data["sources"][s]["type"] == "coaxial_port") {
+			const auto& load = case_data["sources"][s]["tags"]["load"];
+			for (auto t{ 0 }; t < load.size(); t++) {
+				tfsf_tags.Append(load[t].get<int>());
+			}
+		}
+		if (tfsf_tags.Size() == 0) {
+			continue;
+		}
 			auto tfsf_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
 			tfsf_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
 			tfsf_atts_present_in_partition_marker = 0;
@@ -2234,7 +2658,6 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 				model.getTotalFieldScatteredFieldToMarker().insert(
 					std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
 			}
-		}
 	}
 
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {

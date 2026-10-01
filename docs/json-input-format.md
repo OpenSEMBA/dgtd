@@ -188,6 +188,7 @@ Array. At least one source; all entries superimpose.
 | `"planewave"` | TFSF plane wave |
 | `"dipole"` | TFSF dipole |
 | `"delta_gap"` | Impressed tangential E on an interior face (2D curve or 3D surface) |
+| `"coaxial_port"` | TFSF coaxial TEM mode on an interior annular face |
 
 ### type: initial
 
@@ -244,6 +245,33 @@ Optional `signal` is `"gaussian"` (default) or `"gaussian_derivative"`. The deri
 | `magnitude` | Peak \|E\|. Default `1.0` |
 | `spread` | Gaussian width $\sigma$ in normalized time. Must be `> 0`. Default from $L$ and `db_cut` |
 | `db_cut` | Used only when `spread` is omitted. Spectrum level in dB at $\mathrm{magnitude} \times L / 10$. Default `-20`. Must be negative |
+| `signal` | `"gaussian"` (default) or `"gaussian_derivative"` |
+
+### type: coaxial_port
+
+One entry, on a 3D mesh. The load face is an interior annulus. It is the TFSF interface: the wave is launched into the total-field volume, and the scattered-field volume carries no incident field. Do not combine it with `planewave` or `dipole`.
+
+`tags.outer` and `tags.live` are the PEC conductors used to measure the shared center and the radii. Cylindrical tags are kept. End caps, whose radius is not constant, are ignored. `tags.load` is the annular face. It is not a boundary condition.
+
+The scattered-field volume is the load neighbor that also meets an SMA boundary. The other load neighbor is the total-field volume. The existing TFSF face operator and its Elem1/Elem2 convention are used as they are.
+
+The incident field is the circular TEM pair, with magnitude the voltage $V_0$:
+
+$$
+E_\rho=\frac{V_0}{\rho\ln(b/a)},\qquad \mathbf{H}=\hat{\mathbf{s}}\times\mathbf{E}.
+$$
+
+$\hat{\mathbf{s}}$ points from the scattered-field volume into the total-field volume. In solver units the cable impedance is $\ln(b/a)/(2\pi)$.
+
+`magnitude` defaults to `1.0` and is $V_0$, not a uniform peak $|E|$. `spread` defaults to `1.0` and is the Gaussian $\sigma$ in normalized time. The pulse center is five widths after $t=0$, the same delay as `delta_gap`. `signal` is `"gaussian"` (default) or `"gaussian_derivative"`.
+
+| Field | Description |
+|-------|-------------|
+| `tags.outer` | Outer-conductor surface tags |
+| `tags.live` | Inner-conductor surface tags |
+| `tags.load` | Interior annular face. Becomes the TFSF marker |
+| `magnitude` | Voltage $V_0$. Default `1.0` |
+| `spread` | Gaussian width $\sigma$ in normalized time. Default `1.0` |
 | `signal` | `"gaussian"` (default) or `"gaussian_derivative"` |
 
 ---

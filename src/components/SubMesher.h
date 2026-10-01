@@ -23,7 +23,7 @@ class TotalFieldScatteredFieldSubMesher
 public:
 
 	TotalFieldScatteredFieldSubMesher(){};
-	TotalFieldScatteredFieldSubMesher(const Mesh&, const Array<int>& marker);
+	TotalFieldScatteredFieldSubMesher(const Mesh&, const Array<int>& marker, int tf_volume = -1);
 
 	SubMesh* getTFSubMesh() { return tf_mesh_.get(); }
 	SubMesh* getSFSubMesh() { return sf_mesh_.get(); }
@@ -54,6 +54,7 @@ private:
 	std::unique_ptr<SubMesh> tf_mesh_;
 	std::unique_ptr<SubMesh> sf_mesh_;
 	std::unique_ptr<SubMesh> global_submesh_;
+	int tf_volume_attribute_ = -1;
 
 };
 

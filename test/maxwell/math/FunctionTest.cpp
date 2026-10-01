@@ -182,3 +182,24 @@ TEST_F(FunctionTest, GaussianTimeSignal_derivativeAccumulatesThePulse)
 	}
 	EXPECT_NEAR(magnitude, integral, 1e-3);
 }
+
+TEST_F(FunctionTest, CoaxialMode_radialElectricAndAzimuthalMagnetic)
+{
+	Vector center(3);
+	center = 0.0;
+	Vector axis({1.0, 0.0, 0.0});
+	const double a = 0.05;
+	const double b = 0.10;
+	const double v0 = 1.0;
+	CoaxialMode mode(v0, 1.0, 0.0, false, center, axis, a, b, 113, 112);
+	Vector at({0.0, 0.075, 0.0});
+	const double e_rho = v0 / (0.075 * std::log(b / a));
+	EXPECT_NEAR(mode.eval(at, 0.0, E, X), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, E, Y), e_rho, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, E, Z), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, H, X), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, H, Y), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, H, Z), e_rho, 1e-12);
+	EXPECT_EQ(113, mode.totalFieldVolume());
+	EXPECT_EQ(112, mode.scatteredFieldVolume());
+}

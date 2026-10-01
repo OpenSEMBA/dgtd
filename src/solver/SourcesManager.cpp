@@ -199,7 +199,22 @@ void SourcesManager::initTFSFPreReqs(const ParMesh& m, const Array<int>& marker)
 
 void SourcesManager::initTFSFSubMesher(const ParMesh& m, const Array<int>& marker)
 {
-    auto sm = TotalFieldScatteredFieldSubMesher(m, marker);
+    int tf_volume = -1;
+    for (const auto& source : sources) {
+        auto* tf = dynamic_cast<TotalField*>(source.get());
+        if (tf == nullptr) {
+            continue;
+        }
+        auto* coax = dynamic_cast<const CoaxialMode*>(tf->function());
+        if (coax == nullptr) {
+            continue;
+        }
+        if (tf_volume >= 0) {
+            throw std::runtime_error("Only one coaxial_port source is supported.");
+        }
+        tf_volume = coax->totalFieldVolume();
+    }
+    auto sm = TotalFieldScatteredFieldSubMesher(m, marker, tf_volume);
     tfsf_submesher_ = std::move(sm);
 }
 
