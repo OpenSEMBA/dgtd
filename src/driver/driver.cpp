@@ -911,6 +911,115 @@ static double deltaGapCurveLength(const mfem::Mesh& mesh, const json& tags)
 	return global_length;
 }
 
+// Parallel-plate sizes of a rectangular 3D gap. h is the vertex span along the
+// electric polarization. w is the span in the face, perpendicular to it.
+// Spans are global min/max, so a face split across ranks is not summed twice.
+struct DeltaGapPlate {
+	double separation = 0.0;
+	double width = 0.0;
+};
+
+static DeltaGapPlate deltaGapPlateSpans(
+	const mfem::Mesh& mesh, const json& tags, const mfem::Vector& polarization)
+{
+	double e[3] = {polarization[0], polarization[1], polarization[2]};
+	const double en = std::sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
+	e[0] /= en;
+	e[1] /= en;
+	e[2] /= en;
+
+	double nsum[3] = {0.0, 0.0, 0.0};
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) {
+			continue;
+		}
+		// MFEM caches the face transformation on a non-const Mesh.
+		mfem::ElementTransformation* T =
+			const_cast<mfem::Mesh&>(mesh).GetBdrElementTransformation(be);
+		mfem::IntegrationPoint ip;
+		ip.Set2(0.0, 0.0);
+		T->SetIntPoint(&ip);
+		mfem::Vector nor(3);
+		mfem::CalcOrtho(T->Jacobian(), nor);
+		const double nn = nor.Norml2();
+		if (!(nn > 0.0)) {
+			continue;
+		}
+		double n[3] = {nor(0) / nn, nor(1) / nn, nor(2) / nn};
+		for (int d = 0; d < 3; ++d) {
+			if (std::abs(n[d]) > 1e-12) {
+				if (n[d] < 0.0) {
+					n[0] = -n[0];
+					n[1] = -n[1];
+					n[2] = -n[2];
+				}
+				break;
+			}
+		}
+		nsum[0] = n[0];
+		nsum[1] = n[1];
+		nsum[2] = n[2];
+		break;
+	}
+	double nall[3] = {0.0, 0.0, 0.0};
+	MPI_Allreduce(nsum, nall, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	const double nrm = std::sqrt(nall[0] * nall[0] + nall[1] * nall[1] + nall[2] * nall[2]);
+	if (!(nrm > 0.0)) {
+		throw std::runtime_error("delta_gap face has a zero normal.");
+	}
+	nall[0] /= nrm;
+	nall[1] /= nrm;
+	nall[2] /= nrm;
+
+	const double t[3] = {
+		nall[1] * e[2] - nall[2] * e[1],
+		nall[2] * e[0] - nall[0] * e[2],
+		nall[0] * e[1] - nall[1] * e[0]
+	};
+	const double tn = std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]);
+	if (!(tn > 1e-8)) {
+		throw std::runtime_error("delta_gap polarization is not tangent to the gap face.");
+	}
+
+	const double absent = std::numeric_limits<double>::max();
+	double hmin = absent;
+	double hmax = -absent;
+	double wmin = absent;
+	double wmax = -absent;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) {
+			continue;
+		}
+		mfem::Array<int> verts;
+		mesh.GetBdrElementVertices(be, verts);
+		for (int i = 0; i < verts.Size(); ++i) {
+			const double* p = mesh.GetVertex(verts[i]);
+			double along = 0.0;
+			double across = 0.0;
+			for (int d = 0; d < 3; ++d) {
+				along += p[d] * e[d];
+				across += p[d] * t[d];
+			}
+			hmin = std::min(hmin, along);
+			hmax = std::max(hmax, along);
+			wmin = std::min(wmin, across);
+			wmax = std::max(wmax, across);
+		}
+	}
+	const double local[4] = {hmin, -hmax, wmin, -wmax};
+	double glob[4] = {0.0, 0.0, 0.0, 0.0};
+	MPI_Allreduce(local, glob, 4, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+
+	DeltaGapPlate plate;
+	plate.separation = -glob[1] - glob[0];
+	plate.width = -glob[3] - glob[2];
+	if (!(plate.separation > 0.0) || !(plate.width > 0.0)
+		|| !std::isfinite(plate.separation) || !std::isfinite(plate.width)) {
+		throw std::runtime_error("delta_gap rectangle has no positive separation and width.");
+	}
+	return plate;
+}
+
 struct CoaxialPortGeometry {
 	mfem::Vector center;
 	mfem::Vector axis;
@@ -1501,15 +1610,31 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				throw std::runtime_error("delta_gap spread must be > 0.");
 			}
 			const double t0 = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+			const bool rectangular = mesh->Dimension() == 3;
+			DeltaGapPlate plate;
+			if (rectangular) {
+				plate = deltaGapPlateSpans(*mesh, src["tags"], polarization);
+			}
 			int rank = 0;
 			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 			if (rank == 0) {
-				std::cout << "[delta_gap] L=" << curve_length
-				          << " magnitude=" << magnitude
+				std::cout << "[delta_gap] L=" << curve_length;
+				if (rectangular) {
+					// Wide-plate TEM values, eta = 1. Diagnostics, not source scales.
+					const double impedance = plate.separation / plate.width;
+					const double capacitance = plate.width / plate.separation;
+					std::cout << " h=" << plate.separation
+					          << " w=" << plate.width
+					          << " Z=" << impedance
+					          << " C'=" << capacitance
+					          << " w/h=" << (plate.width / plate.separation);
+				}
+				std::cout << " magnitude=" << magnitude
 				          << " signal=" << (derivative ? "gaussian_derivative" : "gaussian")
 				          << " spread=" << spread
 				          << " t0=" << t0 << "\n";
 			}
+
 			res.add(std::make_unique<DeltaGapSource>(magnitude, spread, t0, polarization, derivative));
 		}
 		else if (case_data["sources"][s]["type"] == "coaxial_port") {

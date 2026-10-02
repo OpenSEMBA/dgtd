@@ -238,6 +238,8 @@ Optional `signal` is `"gaussian"` (default) or `"gaussian_derivative"`. The deri
 
 `magnitude` is the peak $|E^{\mathrm{inc}}|$ (default `1.0`), the zero-thickness stand-in for a gap voltage over a gap width. The magnetic incident field is zero. Both sides of the face carry the same electric trace, $+\tfrac{1}{2}$ times that polarization. The source keeps each side's own face block, so those equal traces do not cancel.
 
+In 3D the tagged face is a rectangle. $h$ is the span of its vertices along `polarization`, the plate separation. $w$ is the span in the face perpendicular to that direction, the plate width. With the wave impedance equal to 1, the wide-plate line impedance is $Z=h/w$ and the capacitance per unit length along the face normal is $C'=w/h$. The run prints both, together with $w/h$. They are the parallel-plate consequences of that rectangle. They do not scale the source, and $C'$ is not a lumped capacitor: the face has no thickness along the normal. The approximation drops fringing, so it wants $w\gg h$.
+
 | Field | Description |
 |-------|-------------|
 | `tags` | Interior face tags. A curve in 2D, a surface in 3D |
