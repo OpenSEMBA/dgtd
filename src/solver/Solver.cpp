@@ -16,6 +16,11 @@ namespace maxwell {
 size_t getCurrentMemoryUsage();
 size_t getPeakMemoryUsage();
 
+void Solver::flushProbeFiles()
+{
+    probesManager_.flushOpenFiles();
+}
+
 void Solver::sampleInitializationMemory()
 {
     const auto cur = getCurrentMemoryUsage();

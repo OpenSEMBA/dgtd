@@ -51,6 +51,10 @@ private:
 	std::vector<El2Face> elem_to_face_sf_;
 	std::vector<ElementId> elems_for_global_submesh_;
 
+	// SubMesh stores this parent pointer. Declared before the submeshes so
+	// they are destroyed first.
+	std::unique_ptr<Mesh> parent_global_;
+	std::unique_ptr<Mesh> parent_individual_;
 	std::unique_ptr<SubMesh> tf_mesh_;
 	std::unique_ptr<SubMesh> sf_mesh_;
 	std::unique_ptr<SubMesh> global_submesh_;
@@ -118,6 +122,7 @@ private:
 	Array<int> pml_marker_;
 	Array<int> interface_marker_;
 	std::vector<int> interface_faces_;
+	std::unique_ptr<Mesh> parent_mesh_;
 
 	std::unique_ptr<SubMesh> vacuum_mesh_;
 	std::unique_ptr<SubMesh> pml_mesh_;

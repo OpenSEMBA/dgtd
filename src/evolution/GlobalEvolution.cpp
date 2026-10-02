@@ -596,7 +596,7 @@ GlobalEvolution::GlobalEvolution(
             if (!rcs_tags.empty()) {
                 auto marker = buildSurfaceMarker(rcs_tags, fes_);
                 NearToFarFieldSubMesher ntff_submesher(model_.getConstMesh(), fes_, marker);
-
+                if (ntff_submesher.hasLocalSurface()) {
                 auto* ntff_submesh = ntff_submesher.getSubMesh();
                 auto dgfec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
                 if (!dgfec) {
@@ -638,6 +638,7 @@ GlobalEvolution::GlobalEvolution(
                 farfield_mapping_matrix->PrintCSR2(ofs_farfield);
                 ofs_farfield.close();
                 std::cout << "Farfield mapping matrix exported to " << farfield_path << std::endl;
+                }
             }
         }
     }

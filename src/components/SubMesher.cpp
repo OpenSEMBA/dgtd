@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -29,9 +30,21 @@ static void setVectorSizeForDim(int dim, Vector& res)
 
 Array<int> buildSurfaceMarker(const std::vector<int>& tags, const ParFiniteElementSpace& fes)
 {
-	Array<int> res(fes.GetMesh()->bdr_attributes.Max());
+	const auto& attrs = fes.GetMesh()->bdr_attributes;
+	const int n = attrs.Size() == 0 ? 0 : attrs.Max();
+	if (!tags.empty() && n <= 0) {
+		throw std::runtime_error(
+			"Surface probe tag is set but the mesh has no boundary attributes.");
+	}
+	Array<int> res(n);
 	res = 0;
 	for (const int t : tags) {
+		if (t < 1 || t > res.Size()) {
+			throw std::runtime_error(
+				"Surface probe tag " + std::to_string(t)
+				+ " is outside the mesh boundary-attribute range 1.."
+				+ std::to_string(res.Size()) + ".");
+		}
 		res[t - 1] = 1;
 	}
 	return res;
@@ -356,25 +369,25 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(
 	const Mesh& m, const Array<int>& marker, int tf_volume)
 	: tf_volume_attribute_(tf_volume)
 {
-	Mesh parent_for_global(m);
-	Mesh parent_for_individual(m);
+	parent_global_ = std::make_unique<Mesh>(m);
+	parent_individual_ = std::make_unique<Mesh>(m);
 
-	setGlobalTFSFAttributesForSubMeshing(parent_for_global, marker);
+	setGlobalTFSFAttributesForSubMeshing(*parent_global_, marker);
 
 	switch (m.Dimension()) {
 	case 1:
-		setIndividualTFSFAttributesForSubMeshing1D(parent_for_individual, marker);
+		setIndividualTFSFAttributesForSubMeshing1D(*parent_individual_, marker);
 		break;
 	case 2:
-		setIndividualTFSFAttributesForSubMeshing2D(parent_for_individual, marker);
+		setIndividualTFSFAttributesForSubMeshing2D(*parent_individual_, marker);
 		break;
 	default:
-		setIndividualTFSFAttributesForSubMeshing3D(parent_for_individual, marker);
+		setIndividualTFSFAttributesForSubMeshing3D(*parent_individual_, marker);
 		break;
 	}
 
 	Array<int> global_att(1); global_att[0] = SubMeshingMarkers::GlobalSubMeshMarker;
-	auto global_sm{ SubMesh::CreateFromDomain(parent_for_global, global_att) };
+	auto global_sm{ SubMesh::CreateFromDomain(*parent_global_, global_att) };
 	restoreElementAttributes(global_sm);
 	global_sm.FinalizeMesh();
 	global_submesh_ = std::make_unique<SubMesh>(std::move(global_sm));
@@ -383,11 +396,11 @@ TotalFieldScatteredFieldSubMesher::TotalFieldScatteredFieldSubMesher(
 	cleanInvalidSubMeshEntries(elem_to_face_sf_);
 
 	if (!elem_to_face_tf_.empty()) {
-		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), true));
+		tf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*parent_individual_, std::make_pair(marker, BdrCond::TotalFieldIn), true));
 	}
 
 	if (!elem_to_face_sf_.empty()) {
-		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(parent_for_individual, std::make_pair(marker, BdrCond::TotalFieldIn), false));
+		sf_mesh_ = std::make_unique<SubMesh>(createSubMeshFromParent(*parent_individual_, std::make_pair(marker, BdrCond::TotalFieldIn), false));
 	}
 
 };
@@ -1015,22 +1028,34 @@ VolumetricRegionSubMesher::VolumetricRegionSubMesher(
 	const RegionTagSet& vacuum_tags,
 	const RegionTagSet& pml_tags)
 {
-	Mesh parent_copy(parent);
-	buildRegionMarkers(parent_copy, vacuum_tags, pml_tags);
+	parent_mesh_ = std::make_unique<Mesh>(parent);
+	buildRegionMarkers(*parent_mesh_, vacuum_tags, pml_tags);
 
-	// Detect interface on an untouched parent copy before any submesh extraction,
+	// Detect interface on the kept parent before any submesh extraction,
 	// which may alter parent-side bookkeeping in MFEM internals.
-	detectVacuumPMLInterface(parent_copy, vacuum_tags, pml_tags);
+	detectVacuumPMLInterface(*parent_mesh_, vacuum_tags, pml_tags);
 
-	if (vacuum_marker_.Size() != 0 && vacuum_marker_.Sum() > 0) {
-		auto sub = SubMesh::CreateFromDomain(parent_copy, vacuum_marker_);
+	auto attributeIds = [](const Array<int>& marker) {
+		Array<int> ids;
+		for (int i = 0; i < marker.Size(); ++i) {
+			if (marker[i] != 0) {
+				ids.Append(i + 1);
+			}
+		}
+		return ids;
+	};
+
+	const Array<int> vacuum_ids = attributeIds(vacuum_marker_);
+	if (vacuum_ids.Size() > 0) {
+		auto sub = SubMesh::CreateFromDomain(*parent_mesh_, vacuum_ids);
 		restoreElementAttributes(sub);
 		sub.FinalizeMesh();
 		vacuum_mesh_ = std::make_unique<SubMesh>(std::move(sub));
 	}
 
-	if (pml_marker_.Size() != 0 && pml_marker_.Sum() > 0) {
-		auto sub = SubMesh::CreateFromDomain(parent_copy, pml_marker_);
+	const Array<int> pml_ids = attributeIds(pml_marker_);
+	if (pml_ids.Size() > 0) {
+		auto sub = SubMesh::CreateFromDomain(*parent_mesh_, pml_ids);
 		restoreElementAttributes(sub);
 		sub.FinalizeMesh();
 		pml_mesh_ = std::make_unique<SubMesh>(std::move(sub));
@@ -1042,6 +1067,9 @@ void VolumetricRegionSubMesher::buildRegionMarkers(
 	const RegionTagSet& vacuum_tags,
 	const RegionTagSet& pml_tags)
 {
+	if (parent.attributes.Size() == 0) {
+		return;
+	}
 	const int max_attr = parent.attributes.Max();
 	vacuum_marker_.SetSize(max_attr);
 	vacuum_marker_ = 0;
@@ -1074,6 +1102,11 @@ void VolumetricRegionSubMesher::detectVacuumPMLInterface(
 	const RegionTagSet& vacuum_tags,
 	const RegionTagSet& pml_tags)
 {
+	if (parent.bdr_attributes.Size() == 0) {
+		interface_marker_.SetSize(0);
+		interface_faces_.clear();
+		return;
+	}
 	const int bdr_max = parent.bdr_attributes.Max();
 	interface_marker_.SetSize(bdr_max);
 	interface_marker_ = 0;
