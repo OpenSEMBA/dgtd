@@ -173,7 +173,7 @@ public:
 	void setSGBCProperties(const std::vector<SGBCProperties> in) { sgbc_props_ = in; }
 	const std::vector<SGBCProperties>& getSGBCProperties() const { return sgbc_props_; }
 
-	void setPMLProperties(const std::vector<PMLProperties>& in) { pml_props_ = in; }
+	void setPMLProperties(const std::vector<PMLProperties>& in);
 	const std::vector<PMLProperties>& getPMLProperties() const { return pml_props_; }
 	bool hasPML() const { return !pml_props_.empty(); }
 
@@ -245,6 +245,7 @@ private:
 	std::map<GeomTag, LorentzProperties> lorentz_by_tag_;
 	std::shared_ptr<const PMLProfileData> pml_profiles_;
 
+	void rejectDispersiveOnPML() const;
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 
 		bool isInterior);

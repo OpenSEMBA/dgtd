@@ -76,7 +76,7 @@ Optional object. Legal only when the material entry has no `type`. The electric 
 
 `relative_permittivity` is rejected together with `debye`. `relative_permeability` and `bulk_conductivity` keep their usual defaults. `bulk_conductivity` stays an independent Ohm term beside the pole.
 
-`debye` is rejected on `type: "vacuum"`, `type: "PML"`, and on an SGBC layer. A tag cannot be listed as both Debye and another material. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes the Debye polarization.
+`debye` is rejected on `type: "vacuum"`, `type: "PML"`, and on an SGBC layer. Initialization also aborts if a Debye tag is a PML tag. A tag cannot be listed as both Debye and another material. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes the Debye polarization.
 
 #### lorentz
 
@@ -89,7 +89,7 @@ Optional object. Legal only when the material entry has no `type`. The electric 
 | `omega_1` | double | Resonance frequency in rad/s. Must be $\ge 0$. |
 | `gamma` | double | Damping rate in rad/s. Must be $\ge 0$. |
 
-`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz`. `lorentz` is rejected on vacuum, PML, and SGBC. `evolution_operator` must be `"global"`. `spectral: true` is rejected.
+`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz`. `lorentz` is rejected on vacuum, PML, and SGBC. Initialization also aborts if a Lorentz tag is a PML tag. `evolution_operator` must be `"global"`. `spectral: true` is rejected.
 
 ### boundaries [REQUIRED]
 

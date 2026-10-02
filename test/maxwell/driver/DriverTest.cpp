@@ -347,6 +347,49 @@ TEST_F(DriverTest, lorentzRejectsBadMaterials)
 	}
 }
 
+TEST_F(DriverTest, dispersiveOnPmlIsRejectedAtInit)
+{
+	auto expectMessage = [](const json& materials) {
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = materials;
+		try {
+			buildModel(case_data, maxwellCase("1D_PEC"), true);
+			FAIL() << "expected dispersive-on-PML rejection";
+		} catch (const std::runtime_error& err) {
+			EXPECT_STREQ(kDispersiveOnPmlNotAllowed, err.what());
+		}
+	};
+	expectMessage(json::array({
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}},
+		 {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}}
+	}));
+	expectMessage(json::array({
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}},
+		 {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+	}));
+	expectMessage(json::array({
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}},
+		debyeMaterial(1, 2.0, 4.0, 1e-9)
+	}));
+	expectMessage(json::array({
+		lorentzMaterial(1, 1.0, 1.0, 0.0, 0.0),
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}}
+	}));
+
+	auto case_data = loadPecCase();
+	case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 4.0, 1e-9)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	PMLProperties pml;
+	pml.geom_tags = {1};
+	pml.active_axes = {X};
+	try {
+		model.setPMLProperties({pml});
+		FAIL() << "expected dispersive-on-PML rejection";
+	} catch (const std::runtime_error& err) {
+		EXPECT_STREQ(kDispersiveOnPmlNotAllowed, err.what());
+	}
+}
+
 TEST_F(DriverTest, lorentzStoresSolverRates)
 {
 	auto case_data = loadPecCase();

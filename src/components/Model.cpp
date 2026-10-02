@@ -103,6 +103,12 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 
 }
 
+void Model::setPMLProperties(const std::vector<PMLProperties>& in)
+{
+	pml_props_ = in;
+	rejectDispersiveOnPML();
+}
+
 void Model::setDebyeProperties(const std::vector<DebyeProperties>& in)
 {
 	debye_ = in;
@@ -110,6 +116,7 @@ void Model::setDebyeProperties(const std::vector<DebyeProperties>& in)
 	for (const DebyeProperties& pole : debye_) {
 		debye_by_tag_.insert_or_assign(pole.geom_tag, pole);
 	}
+	rejectDispersiveOnPML();
 }
 
 const DebyeProperties* Model::findDebye(Attribute tag) const
@@ -127,6 +134,21 @@ void Model::setLorentzProperties(const std::vector<LorentzProperties>& in)
 	lorentz_by_tag_.clear();
 	for (const LorentzProperties& pole : lorentz_) {
 		lorentz_by_tag_.insert_or_assign(pole.geom_tag, pole);
+	}
+	rejectDispersiveOnPML();
+}
+
+void Model::rejectDispersiveOnPML() const
+{
+	if (pml_props_.empty() || (debye_.empty() && lorentz_.empty())) {
+		return;
+	}
+	for (const PMLProperties& props : pml_props_) {
+		for (const GeomTag tag : props.geom_tags) {
+			if (debye_by_tag_.count(tag) != 0 || lorentz_by_tag_.count(tag) != 0) {
+				throw std::runtime_error(kDispersiveOnPmlNotAllowed);
+			}
+		}
 	}
 }
 
