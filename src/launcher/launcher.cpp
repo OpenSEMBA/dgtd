@@ -92,6 +92,8 @@ int main(int argc, char** argv)
 		// Each batch case is its own process — skip C++ teardown and let the OS
 		// reclaim. Finalize MPI first so ranks leave the job cleanly.
 		if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+			// _Exit skips C++ destructors, which is what flushes probe ofstreams.
+			solver.flushProbeFiles();
 			std::fflush(nullptr);
 			mfem::Mpi::Finalize();
 			std::_Exit(0);

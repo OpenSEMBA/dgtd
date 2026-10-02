@@ -1,6 +1,8 @@
 #include "driver.h"
 #include "string"
 #include "components/PMLProperties.h"
+#include "components/DebyeProperties.h"
+#include "components/LorentzProperties.h"
 
 #include <numeric>
 #include <unordered_map>
@@ -14,6 +16,8 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
+#include <iterator>
+#include <exception>
 #include <mpi.h>
 
 namespace maxwell::driver {
@@ -28,8 +32,20 @@ double calculateMaximumSourceFrequency(const json& case_data)
 
     if (case_data.contains("sources")) {
         for (const auto& source : case_data["sources"]) {
+            if (source.contains("type") && source["type"] == "coaxial_port") {
+                const double spread = source.value("spread", 1.0);
+                if (spread > 0.0 && spread < min_spread) {
+                    min_spread = spread;
+                    found_gaussian = true;
+                }
+                continue;
+            }
             if (!source.contains("magnitude")) continue;
             const auto& mag = source["magnitude"];
+            // delta_gap stores magnitude as a number, not a planewave object.
+            if (!mag.is_object()) {
+                continue;
+            }
             // Modulated Gaussian: has "frequency" (with or without explicit "type")
             if (mag.contains("frequency") && mag.contains("spread")) {
                 double spread = mag["spread"].get<double>();
@@ -745,6 +761,9 @@ mfem::Vector assembleCenterVector(const json& source_center)
 
 mfem::Vector assemble3DVector(const json& input)
 {
+	if (input.size() != 3) {
+		throw std::runtime_error("Expected a 3-vector.");
+	}
 	mfem::Vector res(3);
 	for (int i = 0; i < input.size(); i++) {
 		res[i] = input[i];
@@ -871,6 +890,703 @@ static double minPhaseOnTFSFSurface(const mfem::Mesh& mesh, const json& tags,
 	return (global_min_phase == std::numeric_limits<double>::max()) ? 0.0 : global_min_phase;
 }
 
+// Sum of tagged boundary-element lengths. Parallel meshes split faces across ranks.
+static double deltaGapCurveLength(const mfem::Mesh& mesh, const json& tags)
+{
+	double length = 0.0;
+	const int dim = mesh.Dimension();
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) {
+			continue;
+		}
+		mfem::Array<int> verts;
+		mesh.GetBdrElementVertices(be, verts);
+		for (int i = 1; i < verts.Size(); ++i) {
+			const double* a = mesh.GetVertex(verts[i - 1]);
+			const double* b = mesh.GetVertex(verts[i]);
+			double s = 0.0;
+			for (int d = 0; d < dim; ++d) {
+				const double diff = a[d] - b[d];
+				s += diff * diff;
+			}
+			length += std::sqrt(s);
+		}
+	}
+	double global_length = 0.0;
+	MPI_Allreduce(&length, &global_length, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	return global_length;
+}
+
+// Parallel-plate sizes of a rectangular 3D gap. h is the vertex span along the
+// electric polarization. w is the span in the face, perpendicular to it.
+// Spans are global min/max, so a face split across ranks is not summed twice.
+struct DeltaGapPlate {
+	double separation = 0.0;
+	double width = 0.0;
+};
+
+static DeltaGapPlate deltaGapPlateSpans(
+	const mfem::Mesh& mesh, const json& tags, const mfem::Vector& polarization)
+{
+	double e[3] = {polarization[0], polarization[1], polarization[2]};
+	const double en = std::sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
+	e[0] /= en;
+	e[1] /= en;
+	e[2] /= en;
+
+	double nsum[3] = {0.0, 0.0, 0.0};
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) {
+			continue;
+		}
+		// MFEM caches the face transformation on a non-const Mesh.
+		mfem::ElementTransformation* T =
+			const_cast<mfem::Mesh&>(mesh).GetBdrElementTransformation(be);
+		mfem::IntegrationPoint ip;
+		ip.Set2(0.0, 0.0);
+		T->SetIntPoint(&ip);
+		mfem::Vector nor(3);
+		mfem::CalcOrtho(T->Jacobian(), nor);
+		const double nn = nor.Norml2();
+		if (!(nn > 0.0)) {
+			continue;
+		}
+		double n[3] = {nor(0) / nn, nor(1) / nn, nor(2) / nn};
+		for (int d = 0; d < 3; ++d) {
+			if (std::abs(n[d]) > 1e-12) {
+				if (n[d] < 0.0) {
+					n[0] = -n[0];
+					n[1] = -n[1];
+					n[2] = -n[2];
+				}
+				break;
+			}
+		}
+		nsum[0] = n[0];
+		nsum[1] = n[1];
+		nsum[2] = n[2];
+		break;
+	}
+	double nall[3] = {0.0, 0.0, 0.0};
+	MPI_Allreduce(nsum, nall, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	const double nrm = std::sqrt(nall[0] * nall[0] + nall[1] * nall[1] + nall[2] * nall[2]);
+	if (!(nrm > 0.0)) {
+		throw std::runtime_error("delta_gap face has a zero normal.");
+	}
+	nall[0] /= nrm;
+	nall[1] /= nrm;
+	nall[2] /= nrm;
+
+	const double t[3] = {
+		nall[1] * e[2] - nall[2] * e[1],
+		nall[2] * e[0] - nall[0] * e[2],
+		nall[0] * e[1] - nall[1] * e[0]
+	};
+	const double tn = std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]);
+	if (!(tn > 1e-8)) {
+		throw std::runtime_error("delta_gap polarization is not tangent to the gap face.");
+	}
+
+	const double absent = std::numeric_limits<double>::max();
+	double hmin = absent;
+	double hmax = -absent;
+	double wmin = absent;
+	double wmax = -absent;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!bdrElemHasTag(mesh, be, tags)) {
+			continue;
+		}
+		mfem::Array<int> verts;
+		mesh.GetBdrElementVertices(be, verts);
+		for (int i = 0; i < verts.Size(); ++i) {
+			const double* p = mesh.GetVertex(verts[i]);
+			double along = 0.0;
+			double across = 0.0;
+			for (int d = 0; d < 3; ++d) {
+				along += p[d] * e[d];
+				across += p[d] * t[d];
+			}
+			hmin = std::min(hmin, along);
+			hmax = std::max(hmax, along);
+			wmin = std::min(wmin, across);
+			wmax = std::max(wmax, across);
+		}
+	}
+	const double local[4] = {hmin, -hmax, wmin, -wmax};
+	double glob[4] = {0.0, 0.0, 0.0, 0.0};
+	MPI_Allreduce(local, glob, 4, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+
+	DeltaGapPlate plate;
+	plate.separation = -glob[1] - glob[0];
+	plate.width = -glob[3] - glob[2];
+	if (!(plate.separation > 0.0) || !(plate.width > 0.0)
+		|| !std::isfinite(plate.separation) || !std::isfinite(plate.width)) {
+		throw std::runtime_error("delta_gap rectangle has no positive separation and width.");
+	}
+	return plate;
+}
+
+struct CoaxialPortGeometry {
+	mfem::Vector center;
+	mfem::Vector axis;
+	double inner_radius = 0.0;
+	double outer_radius = 0.0;
+	int total_field_volume = -1;
+	int scattered_field_volume = -1;
+};
+
+static bool jsonListHas(const json& tags, int attr)
+{
+	if (!tags.is_array()) {
+		return false;
+	}
+	for (const auto& t : tags) {
+		if (t.get<int>() == attr) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static mfem::Vector elementCentroid(const mfem::Mesh& mesh, int el)
+{
+	mfem::Array<int> verts;
+	mesh.GetElementVertices(el, verts);
+	const int dim = mesh.Dimension();
+	mfem::Vector c(3);
+	c = 0.0;
+	if (verts.Size() == 0) {
+		return c;
+	}
+	for (int v = 0; v < verts.Size(); ++v) {
+		const double* p = mesh.GetVertex(verts[v]);
+		for (int d = 0; d < dim && d < 3; ++d) {
+			c[d] += p[d];
+		}
+	}
+	c /= static_cast<double>(verts.Size());
+	return c;
+}
+
+static double radiusToAxis(const double* p, const double* center, const double* axis)
+{
+	double rel[3];
+	double along = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		rel[d] = p[d] - center[d];
+		along += rel[d] * axis[d];
+	}
+	double perp2 = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		const double radial = rel[d] - along * axis[d];
+		perp2 += radial * radial;
+	}
+	return std::sqrt(std::max(0.0, perp2));
+}
+
+static json collectSmaTags(const json& case_data)
+{
+	json tags = json::array();
+	if (!case_data.contains("model") || !case_data["model"].contains("boundaries")) {
+		return tags;
+	}
+	for (const auto& boundary : case_data["model"]["boundaries"]) {
+		if (!boundary.contains("type") || boundary["type"] != "SMA") {
+			continue;
+		}
+		for (const auto& tag : boundary["tags"]) {
+			tags.push_back(tag);
+		}
+	}
+	return tags;
+}
+
+static json collectPmlVolumeTags(const json& case_data)
+{
+	json tags = json::array();
+	if (!case_data.contains("model") || !case_data["model"].contains("materials")) {
+		return tags;
+	}
+	for (const auto& material : case_data["model"]["materials"]) {
+		if (!material.contains("type") || material["type"] != "PML" || !material.contains("tags")) {
+			continue;
+		}
+		for (const auto& tag : material["tags"]) {
+			tags.push_back(tag);
+		}
+	}
+	return tags;
+}
+
+static std::vector<int> allgatherInts(const std::vector<int>& local)
+{
+	int nprocs = 1;
+	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+	const int rank_count = static_cast<int>(local.size());
+	std::vector<int> counts(static_cast<std::size_t>(nprocs), 0);
+	MPI_Allgather(&rank_count, 1, MPI_INT, counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+	std::vector<int> displs(static_cast<std::size_t>(nprocs), 0);
+	int total = 0;
+	for (int i = 0; i < nprocs; ++i) {
+		displs[static_cast<std::size_t>(i)] = total;
+		total += counts[static_cast<std::size_t>(i)];
+	}
+	std::vector<int> gathered(static_cast<std::size_t>(std::max(total, 1)));
+	const int dummy = 0;
+	MPI_Allgatherv(
+		local.empty() ? &dummy : local.data(), rank_count, MPI_INT,
+		gathered.data(), counts.data(), displs.data(), MPI_INT, MPI_COMM_WORLD);
+	gathered.resize(static_cast<std::size_t>(std::max(total, 0)));
+	return gathered;
+}
+
+static std::vector<double> allgatherDoubles(const std::vector<double>& local)
+{
+	int nprocs = 1;
+	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+	const int rank_count = static_cast<int>(local.size());
+	std::vector<int> counts(static_cast<std::size_t>(nprocs), 0);
+	MPI_Allgather(&rank_count, 1, MPI_INT, counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+	std::vector<int> displs(static_cast<std::size_t>(nprocs), 0);
+	int total = 0;
+	for (int i = 0; i < nprocs; ++i) {
+		displs[static_cast<std::size_t>(i)] = total;
+		total += counts[static_cast<std::size_t>(i)];
+	}
+	std::vector<double> gathered(static_cast<std::size_t>(std::max(total, 1)));
+	const double dummy = 0.0;
+	MPI_Allgatherv(
+		local.empty() ? &dummy : local.data(), rank_count, MPI_DOUBLE,
+		gathered.data(), counts.data(), displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
+	gathered.resize(static_cast<std::size_t>(std::max(total, 0)));
+	return gathered;
+}
+
+static double boundaryFaceDistance(const mfem::Mesh& mesh, int be, const double center[3])
+{
+	mfem::Array<int> verts;
+	mesh.GetBdrElementVertices(be, verts);
+	if (verts.Size() == 0) {
+		return std::numeric_limits<double>::infinity();
+	}
+	double face[3] = {0.0, 0.0, 0.0};
+	const int dim = std::min(mesh.Dimension(), 3);
+	for (int v = 0; v < verts.Size(); ++v) {
+		const double* p = mesh.GetVertex(verts[v]);
+		for (int d = 0; d < dim; ++d) {
+			face[d] += p[d];
+		}
+	}
+	const double inv = 1.0 / static_cast<double>(verts.Size());
+	double dist2 = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		const double diff = face[d] * inv - center[d];
+		dist2 += diff * diff;
+	}
+	return std::sqrt(dist2);
+}
+
+static int agreeVolumeAttribute(int local, const char* name)
+{
+	const int has = local >= 0 ? 1 : 0;
+	int any = 0;
+	MPI_Allreduce(&has, &any, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (any == 0) {
+		throw std::runtime_error(std::string("coaxial_port could not identify the ") + name + " volume.");
+	}
+	const int send_min = has ? local : std::numeric_limits<int>::max();
+	const int send_max = has ? local : -1;
+	int global_min = 0;
+	int global_max = 0;
+	MPI_Allreduce(&send_min, &global_min, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+	MPI_Allreduce(&send_max, &global_max, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_min != global_max) {
+		throw std::runtime_error(std::string("coaxial_port ") + name + " volume disagrees across ranks.");
+	}
+	return global_min;
+}
+
+static CoaxialPortGeometry fitCoaxialPort(
+	mfem::Mesh& mesh,
+	const json& load_tags,
+	const json& live_tags,
+	const json& outer_tags,
+	const json& sma_tags,
+	const json& pml_tags)
+{
+	std::unordered_set<int> load_volumes;
+	std::vector<int> load_elem_pairs;
+	std::vector<int> boundary_volumes;
+	int local_n_boundary = 0;
+	int local_n_interior = 0;
+	int local_boundary_not_sma = 0;
+	double load_min[3] = {
+		std::numeric_limits<double>::max(),
+		std::numeric_limits<double>::max(),
+		std::numeric_limits<double>::max()};
+	double load_max[3] = {
+		-std::numeric_limits<double>::max(),
+		-std::numeric_limits<double>::max(),
+		-std::numeric_limits<double>::max()};
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (!jsonListHas(load_tags, mesh.GetBdrAttribute(be))) {
+			continue;
+		}
+		mfem::Array<int> verts;
+		mesh.GetBdrElementVertices(be, verts);
+		for (int v = 0; v < verts.Size(); ++v) {
+			const double* p = mesh.GetVertex(verts[v]);
+			for (int d = 0; d < mesh.Dimension() && d < 3; ++d) {
+				load_min[d] = std::min(load_min[d], p[d]);
+				load_max[d] = std::max(load_max[d], p[d]);
+			}
+		}
+		auto* tr = mesh.GetInternalBdrFaceTransformations(be);
+		const bool interior = tr != nullptr && tr->Elem2No >= 0;
+		if (!interior) {
+			++local_n_boundary;
+			if (!jsonListHas(sma_tags, mesh.GetBdrAttribute(be))) {
+				local_boundary_not_sma = 1;
+			}
+			if (tr != nullptr && tr->Elem1No >= 0) {
+				boundary_volumes.push_back(mesh.GetAttribute(tr->Elem1No));
+			}
+			else {
+				int el = -1;
+				int info = 0;
+				mesh.GetBdrElementAdjacentElement(be, el, info);
+				if (el >= 0) {
+					boundary_volumes.push_back(mesh.GetAttribute(el));
+				}
+			}
+			continue;
+		}
+		++local_n_interior;
+		const int elem1_volume = mesh.GetAttribute(tr->Elem1No);
+		const int elem2_volume = mesh.GetAttribute(tr->Elem2No);
+		load_volumes.insert(elem1_volume);
+		load_volumes.insert(elem2_volume);
+		load_elem_pairs.push_back(elem1_volume);
+		load_elem_pairs.push_back(elem2_volume);
+	}
+	int global_n_boundary = 0;
+	int global_n_interior = 0;
+	int global_boundary_not_sma = 0;
+	MPI_Allreduce(&local_n_boundary, &global_n_boundary, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&local_n_interior, &global_n_interior, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&local_boundary_not_sma, &global_boundary_not_sma, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_n_boundary > 0 && global_n_interior > 0) {
+		throw std::runtime_error("coaxial_port load tags must be either all interior or all boundary faces.");
+	}
+	if (global_n_boundary == 0 && global_n_interior == 0) {
+		throw std::runtime_error("coaxial_port load tags match no faces.");
+	}
+	const bool boundary_port = global_n_boundary > 0;
+	if (boundary_port && global_boundary_not_sma != 0) {
+		throw std::runtime_error("coaxial_port boundary load must also be an SMA boundary.");
+	}
+
+	const int local_too_many = load_volumes.size() > 2 ? 1 : 0;
+	int global_too_many = 0;
+	MPI_Allreduce(&local_too_many, &global_too_many, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_too_many != 0) {
+		throw std::runtime_error("coaxial_port load face touches more than two volumes.");
+	}
+
+	double center[3] = {0.0, 0.0, 0.0};
+	for (int d = 0; d < 3; ++d) {
+		double global_min = 0.0;
+		double global_max = 0.0;
+		MPI_Allreduce(&load_min[d], &global_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+		MPI_Allreduce(&load_max[d], &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+		center[d] = 0.5 * (global_min + global_max);
+	}
+
+	std::unordered_set<int> pml_volumes;
+	for (const auto& tag : pml_tags) {
+		pml_volumes.insert(tag.get<int>());
+	}
+
+	std::vector<int> local_sma;
+	std::vector<int> local_edges;
+	std::vector<int> local_interface_volume;
+	std::vector<double> local_interface_distance;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		auto* tr = mesh.GetInternalBdrFaceTransformations(be);
+		if (jsonListHas(sma_tags, mesh.GetBdrAttribute(be))) {
+			if (tr != nullptr && tr->Elem1No >= 0) {
+				local_sma.push_back(mesh.GetAttribute(tr->Elem1No));
+				if (tr->Elem2No >= 0) {
+					local_sma.push_back(mesh.GetAttribute(tr->Elem2No));
+				}
+			}
+			else {
+				int el = -1;
+				int info = 0;
+				mesh.GetBdrElementAdjacentElement(be, el, info);
+				if (el >= 0) {
+					local_sma.push_back(mesh.GetAttribute(el));
+				}
+			}
+		}
+		if (tr == nullptr || tr->Elem2No < 0 || jsonListHas(load_tags, mesh.GetBdrAttribute(be))) {
+			continue;
+		}
+		const int side_a = mesh.GetAttribute(tr->Elem1No);
+		const int side_b = mesh.GetAttribute(tr->Elem2No);
+		local_edges.push_back(side_a);
+		local_edges.push_back(side_b);
+		const bool a_pml = pml_volumes.count(side_a) != 0;
+		const bool b_pml = pml_volumes.count(side_b) != 0;
+		if (a_pml == b_pml) {
+			continue;
+		}
+		local_interface_volume.push_back(a_pml ? side_b : side_a);
+		local_interface_distance.push_back(boundaryFaceDistance(mesh, be, center));
+	}
+
+	const std::vector<int> load_ids = allgatherInts(
+		std::vector<int>(load_volumes.begin(), load_volumes.end()));
+	const std::vector<int> load_pairs = allgatherInts(load_elem_pairs);
+	const std::vector<int> boundary_ids = allgatherInts(boundary_volumes);
+	const std::vector<int> sma_ids = allgatherInts(local_sma);
+	const std::vector<int> edges = allgatherInts(local_edges);
+	const std::vector<int> interface_volumes = allgatherInts(local_interface_volume);
+	const std::vector<double> interface_distances = allgatherDoubles(local_interface_distance);
+
+	std::unordered_set<int> global_load(load_ids.begin(), load_ids.end());
+	std::unordered_set<int> global_sma(sma_ids.begin(), sma_ids.end());
+	std::unordered_map<int, std::vector<int>> adjacent;
+	for (std::size_t i = 0; i + 1 < edges.size(); i += 2) {
+		adjacent[edges[i]].push_back(edges[i + 1]);
+		adjacent[edges[i + 1]].push_back(edges[i]);
+	}
+	std::unordered_map<int, double> interface_distance;
+	for (std::size_t i = 0; i < interface_volumes.size() && i < interface_distances.size(); ++i) {
+		const int volume = interface_volumes[i];
+		const double distance = interface_distances[i];
+		const auto found = interface_distance.find(volume);
+		if (found == interface_distance.end() || distance < found->second) {
+			interface_distance[volume] = distance;
+		}
+	}
+
+	int local_tf = -1;
+	int local_sf = -1;
+	if (boundary_port) {
+		std::unordered_set<int> boundary_set(boundary_ids.begin(), boundary_ids.end());
+		if (boundary_set.size() != 1) {
+			throw std::runtime_error(
+				"coaxial_port boundary load must lie on exactly one volume.");
+		}
+		local_tf = *boundary_set.begin();
+	}
+	else if (global_load.size() == 2) {
+		std::vector<int> sides(global_load.begin(), global_load.end());
+		std::sort(sides.begin(), sides.end());
+		const bool first_sma = global_sma.count(sides[0]) != 0;
+		const bool second_sma = global_sma.count(sides[1]) != 0;
+		if (first_sma != second_sma) {
+			local_sf = first_sma ? sides[0] : sides[1];
+			local_tf = first_sma ? sides[1] : sides[0];
+		}
+		else if (!first_sma) {
+			const auto pmlDistance = [&](int start) {
+				std::unordered_set<int> seen;
+				std::vector<int> stack;
+				stack.push_back(start);
+				seen.insert(start);
+				double best = std::numeric_limits<double>::infinity();
+				bool reached = false;
+				if (pml_volumes.count(start) != 0) {
+					reached = true;
+					best = 0.0;
+				}
+				for (std::size_t n = 0; n < stack.size(); ++n) {
+					const int volume = stack[n];
+					const auto iface = interface_distance.find(volume);
+					if (iface != interface_distance.end()) {
+						reached = true;
+						best = std::min(best, iface->second);
+					}
+					if (pml_volumes.count(volume) != 0) {
+						reached = true;
+					}
+					for (const int next : adjacent[volume]) {
+						if (seen.insert(next).second) {
+							stack.push_back(next);
+						}
+					}
+				}
+				return reached ? best : std::numeric_limits<double>::infinity();
+			};
+			const double first_distance = pmlDistance(sides[0]);
+			const double second_distance = pmlDistance(sides[1]);
+			const bool first_reached = std::isfinite(first_distance);
+			const bool second_reached = std::isfinite(second_distance);
+			if (first_reached != second_reached) {
+				local_sf = first_reached ? sides[0] : sides[1];
+				local_tf = first_reached ? sides[1] : sides[0];
+			}
+			else if (first_reached && second_reached) {
+				const double scale = std::max(1.0, std::max(first_distance, second_distance));
+				if (!(std::abs(first_distance - second_distance) > 1.0e-8 * scale)) {
+					throw std::runtime_error(
+						"coaxial_port could not tell the scattered-field volume from the total-field volume. "
+						"One side of the load must meet an SMA boundary.");
+				}
+				const bool first_nearer = first_distance < second_distance;
+				local_sf = first_nearer ? sides[0] : sides[1];
+				local_tf = first_nearer ? sides[1] : sides[0];
+			}
+			else {
+				throw std::runtime_error(
+					"coaxial_port could not tell the scattered-field volume from the total-field volume. "
+					"One side of the load must meet an SMA boundary.");
+			}
+		}
+		else {
+			if (load_pairs.size() < 2 || (load_pairs.size() % 2) != 0) {
+				throw std::runtime_error(
+					"coaxial_port could not read the load face Elem1/Elem2 order.");
+			}
+			const int elem1_volume = load_pairs[0];
+			const int elem2_volume = load_pairs[1];
+			for (std::size_t i = 0; i + 1 < load_pairs.size(); i += 2) {
+				if (load_pairs[i] != elem1_volume || load_pairs[i + 1] != elem2_volume) {
+					throw std::runtime_error(
+						"coaxial_port load face Elem1/Elem2 order is not the same on every face.");
+				}
+			}
+			local_sf = elem1_volume;
+			local_tf = elem2_volume;
+		}
+	}
+	const int tf_volume = agreeVolumeAttribute(local_tf, "total-field");
+	const int sf_volume = boundary_port ? -1 : agreeVolumeAttribute(local_sf, "scattered-field");
+
+	double sum_tf[3] = {0.0, 0.0, 0.0};
+	double sum_sf[3] = {0.0, 0.0, 0.0};
+	int n_tf = 0;
+	int n_sf = 0;
+	for (int el = 0; el < mesh.GetNE(); ++el) {
+		const int attr = mesh.GetAttribute(el);
+		if (attr != tf_volume && attr != sf_volume) {
+			continue;
+		}
+		const mfem::Vector c = elementCentroid(mesh, el);
+		double* sum = attr == tf_volume ? sum_tf : sum_sf;
+		int& n = attr == tf_volume ? n_tf : n_sf;
+		for (int d = 0; d < 3; ++d) {
+			sum[d] += c[d];
+		}
+		++n;
+	}
+	double global_sum_tf[3];
+	double global_sum_sf[3];
+	int global_n_tf = 0;
+	int global_n_sf = 0;
+	MPI_Allreduce(sum_tf, global_sum_tf, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(sum_sf, global_sum_sf, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&n_tf, &global_n_tf, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&n_sf, &global_n_sf, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	if (global_n_tf == 0 || (!boundary_port && global_n_sf == 0)) {
+		throw std::runtime_error("coaxial_port total-field or scattered-field volume has no elements.");
+	}
+	double axis[3];
+	double axis_norm = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		if (boundary_port) {
+			axis[d] = global_sum_tf[d] / global_n_tf - center[d];
+		}
+		else {
+			axis[d] = global_sum_tf[d] / global_n_tf - global_sum_sf[d] / global_n_sf;
+		}
+		axis_norm += axis[d] * axis[d];
+	}
+	axis_norm = std::sqrt(axis_norm);
+	if (!(axis_norm > 0.0)) {
+		throw std::runtime_error(
+			boundary_port
+				? "coaxial_port boundary load and its volume share a center."
+				: "coaxial_port total-field and scattered-field volumes share a centroid.");
+	}
+	for (int d = 0; d < 3; ++d) {
+		axis[d] /= axis_norm;
+	}
+
+	auto meanCylinderRadius = [&](const json& tags) {
+		double sum = 0.0;
+		int count = 0;
+		for (const auto& tag_json : tags) {
+			const int tag = tag_json.get<int>();
+			std::unordered_set<int> seen;
+			double min_r = std::numeric_limits<double>::max();
+			double max_r = 0.0;
+			double tag_sum = 0.0;
+			int tag_count = 0;
+			for (int be = 0; be < mesh.GetNBE(); ++be) {
+				if (mesh.GetBdrAttribute(be) != tag) {
+					continue;
+				}
+				mfem::Array<int> verts;
+				mesh.GetBdrElementVertices(be, verts);
+				for (int v = 0; v < verts.Size(); ++v) {
+					if (!seen.insert(verts[v]).second) {
+						continue;
+					}
+					const double r = radiusToAxis(mesh.GetVertex(verts[v]), center, axis);
+					min_r = std::min(min_r, r);
+					max_r = std::max(max_r, r);
+					tag_sum += r;
+					++tag_count;
+				}
+			}
+			double global_min = 0.0;
+			double global_max = 0.0;
+			double global_sum = 0.0;
+			int global_count = 0;
+			const double send_min = tag_count > 0 ? min_r : std::numeric_limits<double>::max();
+			MPI_Allreduce(&send_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+			MPI_Allreduce(&max_r, &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+			MPI_Allreduce(&tag_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+			MPI_Allreduce(&tag_count, &global_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+			if (global_count == 0 || !(global_max > 0.0)) {
+				continue;
+			}
+			if ((global_max - global_min) / global_max > 0.15) {
+				continue;
+			}
+			sum += global_sum;
+			count += global_count;
+		}
+		if (count == 0) {
+			return 0.0;
+		}
+		return sum / static_cast<double>(count);
+	};
+
+	const double inner = meanCylinderRadius(live_tags);
+	const double outer = meanCylinderRadius(outer_tags);
+	if (!(inner > 0.0) || !(outer > inner)) {
+		throw std::runtime_error(
+			"coaxial_port could not measure inner and outer radii from the cylindrical conductor tags.");
+	}
+
+	CoaxialPortGeometry geom;
+	geom.center.SetSize(3);
+	geom.axis.SetSize(3);
+	for (int d = 0; d < 3; ++d) {
+		geom.center[d] = center[d];
+		geom.axis[d] = axis[d];
+	}
+	geom.inner_radius = inner;
+	geom.outer_radius = outer;
+	geom.total_field_volume = tf_volume;
+	geom.scattered_field_volume = sf_volume;
+	return geom;
+}
+
 std::unique_ptr<InitialField> buildSphericalBesselJ6InitialField(
 	const FieldType& ft = E,
 	const Source::Polarization& p = Source::Polarization({ 0.0, 0.0, 1.0 }))
@@ -932,6 +1648,9 @@ std::unique_ptr<TotalField> buildDerivGaussDipole(
 Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 {
 	Sources res;
+	int delta_gap_count = 0;
+	int coaxial_count = 0;
+	bool closed_tfsf = false;
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		if (case_data["sources"][s]["type"] == "initial") {
 			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
@@ -964,6 +1683,11 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "planewave") {
+			if (coaxial_count > 0) {
+				throw std::runtime_error(
+					"coaxial_port is the TFSF source. Do not combine it with planewave or dipole.");
+			}
+			closed_tfsf = true;
 			const auto& mag = case_data["sources"][s]["magnitude"];
 			double spread = mag["spread"].get<double>();
 
@@ -1009,6 +1733,11 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 		}
 		else if (case_data["sources"][s]["type"] == "dipole") {
+			if (coaxial_count > 0) {
+				throw std::runtime_error(
+					"coaxial_port is the TFSF source. Do not combine it with planewave or dipole.");
+			}
+			closed_tfsf = true;
 			const auto& mag = case_data["sources"][s]["magnitude"];
 			if (mag.contains("amplitude")) {
 				throw std::runtime_error(
@@ -1058,6 +1787,212 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 
 			res.add(buildDerivGaussDipole(
 				length, spread, mean, amplitude_peak, peak_radius));
+		}
+		else if (case_data["sources"][s]["type"] == "delta_gap") {
+			if (delta_gap_count > 0) {
+				throw std::runtime_error("Only one delta_gap source is supported.");
+			}
+			++delta_gap_count;
+			if (mesh == nullptr) {
+				throw std::runtime_error("delta_gap requires a mesh.");
+			}
+			if (mesh->Dimension() != 2 && mesh->Dimension() != 3) {
+				throw std::runtime_error("delta_gap requires a 2D or 3D mesh.");
+			}
+			const auto& src = case_data["sources"][s];
+			if (!src.contains("tags") || src["tags"].empty()) {
+				throw std::runtime_error("delta_gap requires tags.");
+			}
+			if (src.contains("normal_sign")) {
+				throw std::runtime_error(
+					"delta_gap no longer accepts normal_sign. Set polarization, the electric-field direction.");
+			}
+			if (!src.contains("polarization") || !src["polarization"].is_array()
+				|| src["polarization"].size() != 3) {
+				throw std::runtime_error("delta_gap polarization must be a 3-vector.");
+			}
+			mfem::Vector polarization = assemble3DVector(src["polarization"]);
+			for (int d = 0; d < polarization.Size(); ++d) {
+				if (!std::isfinite(polarization[d])) {
+					throw std::runtime_error("delta_gap polarization must be finite.");
+				}
+			}
+			if (!(polarization.Norml2() > 0.0)) {
+				throw std::runtime_error("delta_gap polarization must be nonzero.");
+			}
+			double magnitude = 1.0;
+			if (src.contains("magnitude")) {
+				if (!src["magnitude"].is_number()) {
+					throw std::runtime_error("delta_gap magnitude must be a number.");
+				}
+				magnitude = src["magnitude"].get<double>();
+			}
+			if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
+				throw std::runtime_error("delta_gap magnitude must be > 0.");
+			}
+			double db_cut = -20.0;
+			if (src.contains("db_cut")) {
+				if (!src["db_cut"].is_number()) {
+					throw std::runtime_error("delta_gap db_cut must be a number.");
+				}
+				db_cut = src["db_cut"].get<double>();
+			}
+			bool derivative = false;
+			if (src.contains("signal")) {
+				if (!src["signal"].is_string()) {
+					throw std::runtime_error("delta_gap signal must be a string.");
+				}
+				const std::string signal = src["signal"].get<std::string>();
+				if (signal == "gaussian") {
+					derivative = false;
+				}
+				else if (signal == "gaussian_derivative") {
+					derivative = true;
+				}
+				else {
+					throw std::runtime_error(
+						"delta_gap signal must be \"gaussian\" or \"gaussian_derivative\".");
+				}
+			}
+			if (src.contains("f_max")) {
+				throw std::runtime_error(
+					"delta_gap no longer accepts f_max. Set spread, the Gaussian width in normalized time.");
+			}
+			const double curve_length = deltaGapCurveLength(*mesh, src["tags"]);
+			if (!(curve_length > 0.0)) {
+				throw std::runtime_error("delta_gap tags match no curve on the mesh.");
+			}
+			double spread = 0.0;
+			if (src.contains("spread")) {
+				if (src.contains("db_cut")) {
+					throw std::runtime_error(
+						"delta_gap spread sets the pulse width directly. Omit db_cut.");
+				}
+				if (!src["spread"].is_number()) {
+					throw std::runtime_error("delta_gap spread must be a number.");
+				}
+				spread = src["spread"].get<double>();
+			}
+			else {
+				spread = gaussianSpreadForDbCut(magnitude * curve_length / 10.0, db_cut);
+			}
+			if (!(spread > 0.0) || !std::isfinite(spread)) {
+				throw std::runtime_error("delta_gap spread must be > 0.");
+			}
+			const double t0 = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+			const bool rectangular = mesh->Dimension() == 3;
+			DeltaGapPlate plate;
+			if (rectangular) {
+				plate = deltaGapPlateSpans(*mesh, src["tags"], polarization);
+			}
+			int rank = 0;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			if (rank == 0) {
+				std::cout << "[delta_gap] L=" << curve_length;
+				if (rectangular) {
+					// Wide-plate TEM values, eta = 1. Diagnostics, not source scales.
+					const double impedance = plate.separation / plate.width;
+					const double capacitance = plate.width / plate.separation;
+					std::cout << " h=" << plate.separation
+					          << " w=" << plate.width
+					          << " Z=" << impedance
+					          << " C'=" << capacitance
+					          << " w/h=" << (plate.width / plate.separation);
+				}
+				std::cout << " magnitude=" << magnitude
+				          << " signal=" << (derivative ? "gaussian_derivative" : "gaussian")
+				          << " spread=" << spread
+				          << " t0=" << t0 << "\n";
+			}
+			res.add(std::make_unique<DeltaGapSource>(magnitude, spread, t0, polarization, derivative));
+		}
+		else if (case_data["sources"][s]["type"] == "coaxial_port") {
+			if (coaxial_count > 0) {
+				throw std::runtime_error("Only one coaxial_port source is supported.");
+			}
+			++coaxial_count;
+			if (closed_tfsf) {
+				throw std::runtime_error(
+					"coaxial_port is the TFSF source. Do not combine it with planewave or dipole.");
+			}
+			if (mesh == nullptr) {
+				throw std::runtime_error("coaxial_port requires a mesh.");
+			}
+			if (mesh->Dimension() != 3) {
+				throw std::runtime_error("coaxial_port requires a 3D mesh.");
+			}
+			const auto& src = case_data["sources"][s];
+			if (!src.contains("tags") || !src["tags"].is_object()) {
+				throw std::runtime_error("coaxial_port tags must name outer, live, and load.");
+			}
+			for (const char* key : {"outer", "live", "load"}) {
+				if (!src["tags"].contains(key) || !src["tags"][key].is_array() || src["tags"][key].empty()) {
+					throw std::runtime_error(
+						std::string("coaxial_port tags.") + key + " must be a non-empty array.");
+				}
+			}
+			double magnitude = 1.0;
+			if (src.contains("magnitude")) {
+				if (!src["magnitude"].is_number()) {
+					throw std::runtime_error("coaxial_port magnitude must be a number.");
+				}
+				magnitude = src["magnitude"].get<double>();
+			}
+			if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
+				throw std::runtime_error("coaxial_port magnitude must be > 0.");
+			}
+			double spread = 1.0;
+			if (src.contains("spread")) {
+				if (!src["spread"].is_number()) {
+					throw std::runtime_error("coaxial_port spread must be a number.");
+				}
+				spread = src["spread"].get<double>();
+			}
+			if (!(spread > 0.0) || !std::isfinite(spread)) {
+				throw std::runtime_error("coaxial_port spread must be > 0.");
+			}
+			bool derivative = false;
+			if (src.contains("signal")) {
+				if (!src["signal"].is_string()) {
+					throw std::runtime_error("coaxial_port signal must be a string.");
+				}
+				const std::string signal = src["signal"].get<std::string>();
+				if (signal == "gaussian") {
+					derivative = false;
+				}
+				else if (signal == "gaussian_derivative") {
+					derivative = true;
+				}
+				else {
+					throw std::runtime_error(
+						"coaxial_port signal must be \"gaussian\" or \"gaussian_derivative\".");
+				}
+			}
+			const CoaxialPortGeometry geom = fitCoaxialPort(
+				const_cast<mfem::Mesh&>(*mesh), src["tags"]["load"], src["tags"]["live"], src["tags"]["outer"],
+				collectSmaTags(case_data), collectPmlVolumeTags(case_data));
+			const double t0 = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+			int rank = 0;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			if (rank == 0) {
+				const auto previous = std::cout.precision();
+				std::cout << std::setprecision(6);
+				std::cout << "[coaxial_port] a=" << geom.inner_radius
+				          << " b=" << geom.outer_radius
+				          << " Z=" << std::log(geom.outer_radius / geom.inner_radius) / (2.0 * std::acos(-1.0))
+				          << " tf_volume=" << geom.total_field_volume
+				          << " sf_volume=" << geom.scattered_field_volume
+				          << " axis=(" << geom.axis[0] << ", " << geom.axis[1] << ", " << geom.axis[2] << ")"
+				          << " magnitude=" << magnitude
+				          << " spread=" << spread
+				          << " t0=" << t0 << "\n";
+				std::cout << std::setprecision(static_cast<int>(previous));
+			}
+			res.add(std::make_unique<TotalField>(CoaxialMode(
+				magnitude, spread, t0, derivative,
+				geom.center, geom.axis,
+				geom.inner_radius, geom.outer_radius,
+				geom.total_field_volume, geom.scattered_field_volume)));
 		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
@@ -1396,12 +2331,70 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 	checkIfThrows(case_data.contains("model"), "JSON data does not include 'model'.");
 	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
 
+	std::unordered_map<int, std::string> material_tag_kind;
+	auto claimMaterialTag = [&](int tag, const std::string& kind) {
+		const auto it = material_tag_kind.find(tag);
+		if (it == material_tag_kind.end()) {
+			material_tag_kind.emplace(tag, kind);
+			return;
+		}
+		const bool dispersive =
+			kind == "debye" || kind == "lorentz" ||
+			it->second == "debye" || it->second == "lorentz";
+		const bool pml = kind == "pml" || it->second == "pml";
+		if (pml && dispersive) {
+			throw std::runtime_error(kDispersiveOnPmlNotAllowed);
+		}
+		if (dispersive) {
+			throw std::runtime_error(
+				"Material tag " + std::to_string(tag) +
+				" cannot carry Debye or Lorentz together with another material assignment.");
+		}
+	};
+
+	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
+		const auto& mat_json = case_data["model"]["materials"][m];
+		if (!mat_json.contains("tags")) {
+			continue;
+		}
+		std::string kind = "material";
+		if (mat_json.contains("type")) {
+			const std::string type = mat_json["type"].get<std::string>();
+			if (type == "vacuum") {
+				kind = "vacuum";
+				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+					throw std::runtime_error(
+						"Vacuum material must not define debye or lorentz.");
+				}
+			} else if (type == "PML") {
+				kind = "pml";
+				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+					throw std::runtime_error(kDispersiveOnPmlNotAllowed);
+				}
+			}
+		} else if (mat_json.contains("debye") && mat_json.contains("lorentz")) {
+			throw std::runtime_error(
+				"A material cannot define both debye and lorentz.");
+		} else if (mat_json.contains("debye")) {
+			kind = "debye";
+		} else if (mat_json.contains("lorentz")) {
+			kind = "lorentz";
+		}
+		for (auto t = 0; t < mat_json["tags"].size(); t++) {
+			claimMaterialTag(mat_json["tags"][t].get<int>(), kind);
+		}
+	}
+
 	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
 		const auto& mat_json = case_data["model"]["materials"][m];
 
 		if (mat_json.contains("type")) {
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
+				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+					throw std::runtime_error(
+						"Vacuum material must not define debye or lorentz.");
+				}
 				const Material vacuum = buildVacuumMaterial();
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
 					res.gt2m.emplace(mat_json["tags"][t], vacuum);
@@ -1419,6 +2412,54 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			} else {
 				throw std::runtime_error(
 					"Unknown material type '" + type + "'. Supported: vacuum, PML, or legacy eps/mu.");
+			}
+			continue;
+		}
+
+		if (mat_json.contains("debye")) {
+			if (mat_json.contains("relative_permittivity")) {
+				throw std::runtime_error(
+					"Debye material must not define relative_permittivity. "
+					"The electric mass uses debye.eps_inf.");
+			}
+			DebyeProperties pole = parseDebyeObject(mat_json["debye"]);
+			double mu{ 1.0 }, sigma{ 0.0 };
+			if (mat_json.contains("relative_permeability")) {
+				mu = mat_json["relative_permeability"];
+			}
+			if (mat_json.contains("bulk_conductivity")) {
+				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			}
+			for (auto t = 0; t < mat_json["tags"].size(); t++) {
+				pole.geom_tag = mat_json["tags"][t].get<int>();
+				res.debye.push_back(pole);
+				res.gt2m.emplace(pole.geom_tag, Material(pole.eps_inf, mu, sigma));
+			}
+			continue;
+		}
+
+		if (mat_json.contains("lorentz")) {
+			if (mat_json.contains("debye")) {
+				throw std::runtime_error(
+					"A material cannot define both debye and lorentz.");
+			}
+			if (mat_json.contains("relative_permittivity")) {
+				throw std::runtime_error(
+					"Lorentz material must not define relative_permittivity. "
+					"The electric mass uses lorentz.eps_inf.");
+			}
+			LorentzProperties pole = parseLorentzObject(mat_json["lorentz"]);
+			double mu{ 1.0 }, sigma{ 0.0 };
+			if (mat_json.contains("relative_permeability")) {
+				mu = mat_json["relative_permeability"];
+			}
+			if (mat_json.contains("bulk_conductivity")) {
+				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			}
+			for (auto t = 0; t < mat_json["tags"].size(); t++) {
+				pole.geom_tag = mat_json["tags"][t].get<int>();
+				res.lorentz.push_back(pole);
+				res.gt2m.emplace(pole.geom_tag, Material(pole.eps_inf, mu, sigma));
 			}
 			continue;
 		}
@@ -1647,10 +2688,24 @@ void fixGmshMesh(const std::string& filepath)
 
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
+	int failed = 0;
+	std::string err;
 	if (Mpi::WorldRank() == 0) {
-		fixGmshMesh(mesh_string);
+		try {
+			fixGmshMesh(mesh_string);
+		} catch (const std::exception& ex) {
+			failed = 1;
+			err = ex.what();
+		}
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
+	int global_failed = 0;
+	MPI_Allreduce(&failed, &global_failed, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_failed) {
+		if (!err.empty()) {
+			std::cerr << err << std::endl;
+		}
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
 	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
 }
 
@@ -1671,6 +2726,34 @@ Array<int> getTFSFTags(const json& case_data)
             for (int t = 0; t < case_data["sources"][s]["tags"].size(); ++t) {
                 res.Append(case_data["sources"][s]["tags"][t].get<int>());
             }
+        }
+        else if (case_data["sources"][s].contains("type") &&
+                 case_data["sources"][s]["type"] == "coaxial_port" &&
+                 case_data["sources"][s].contains("tags") &&
+                 case_data["sources"][s]["tags"].contains("load")) {
+            for (int t = 0; t < case_data["sources"][s]["tags"]["load"].size(); ++t) {
+                res.Append(case_data["sources"][s]["tags"]["load"][t].get<int>());
+            }
+        }
+    }
+    return res;
+}
+
+static mfem::Array<int> getDeltaGapTags(const json& case_data)
+{
+    mfem::Array<int> res;
+    if (!case_data.contains("sources")) {
+        return res;
+    }
+    for (int s = 0; s < case_data["sources"].size(); ++s) {
+        if (!case_data["sources"][s].contains("type")
+            || case_data["sources"][s]["type"] != "delta_gap"
+            || !case_data["sources"][s].contains("tags")) {
+            continue;
+        }
+        const auto& tags = case_data["sources"][s]["tags"];
+        for (int t = 0; t < tags.size(); ++t) {
+            res.Append(tags[t].get<int>());
         }
     }
     return res;
@@ -1744,24 +2827,41 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
         }
     }
 
-    int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
-    mfem::Array<int> sgbc_tags  = getSGBCTags(case_data);
-
-    const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
-    const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
-    const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
-        (!pin_tfsf || pin_tfsf[0] != '0');
-
-    if (use_dsu && use_dsu[0] == '1') {
-        applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
-    } else if (use_tfsf_pin_rank0) {
-        applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
-    } else {
-        applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
+    mfem::Array<int> sgbc_tags = getSGBCTags(case_data);
+    {
+        mfem::Array<int> gap_tags = getDeltaGapTags(case_data);
+        for (int i = 0; i < gap_tags.Size(); ++i) {
+            sgbc_tags.Append(gap_tags[i]);
+        }
     }
 
-    Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
+    const int ne = mesh.GetNE();
+    mfem::Array<int> part(ne);
+    if (Mpi::WorldRank() == 0) {
+        int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+        const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
+        const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
+        const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
+            (!pin_tfsf || pin_tfsf[0] != '0');
+
+        if (use_dsu && use_dsu[0] == '1') {
+            applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
+        } else if (use_tfsf_pin_rank0) {
+            applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
+        } else {
+            applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
+        }
+        for (int i = 0; i < ne; ++i) {
+            part[i] = partitioning[i];
+        }
+        delete[] partitioning;
+    }
+    if (Mpi::WorldSize() > 1 && ne > 0) {
+        MPI_Bcast(part.GetData(), ne, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+
+    Model res(mesh, att_to_material, att_to_bdr_info, ne > 0 ? part.GetData() : nullptr);
     std::string filename = case_data["model"]["filename"];
 
     auto ends_with = [](const std::string& str, const std::string& suffix) {
@@ -1783,6 +2883,10 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     double max_freq = calculateMaximumSourceFrequency(case_data);
 
     auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
+        if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+            throw std::runtime_error(
+                "SGBC layer must not define debye or lorentz.");
+        }
         double rel_eps = 1.0;
         if (mat_json.contains("relative_permittivity")) {
             rel_eps = mat_json["relative_permittivity"].get<double>();
@@ -1964,6 +3068,8 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     
     res.setSGBCProperties(sgbc_props);
 
+    res.setDebyeProperties(att_to_material.debye);
+    res.setLorentzProperties(att_to_material.lorentz);
     res.setPMLProperties(att_to_material.pml_props);
     if (res.hasPML() && Mpi::WorldRank() == 0) {
         std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;
@@ -2072,6 +3178,34 @@ maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 	return buildSolver(case_data, case_name, isTest);
 }
 
+static int boundaryAttributeSlots(const mfem::Mesh& mesh)
+{
+	if (mesh.bdr_attributes.Size() == 0) {
+		return 0;
+	}
+	return mesh.bdr_attributes.Max();
+}
+
+static bool markLocalBoundaryAttribute(mfem::Array<int>& marker, int attr)
+{
+	if (attr < 1 || attr > marker.Size()) {
+		return false;
+	}
+	marker[attr - 1] = 1;
+	return true;
+}
+
+static void throwIfAnyRankFailed(int local_bad, MPI_Comm comm, const char* what)
+{
+	int global_bad = 0;
+	MPI_Allreduce(&local_bad, &global_bad, 1, MPI_INT, MPI_MAX, comm);
+	if (global_bad) {
+		throw std::runtime_error(
+			std::string(what)
+			+ " boundary attribute is outside the mesh boundary-attribute range.");
+	}
+}
+
 void postProcessInformation(const json& case_data, maxwell::Model& model, maxwell::SolverOptions& solverOpts) 
 {
 	const MPI_Comm comm = model.getMesh().GetComm();
@@ -2082,16 +3216,37 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 			for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
 				tfsf_tags.Append(case_data["sources"][s]["tags"][t].get<int>());
 			}
+		}
+		else if (case_data["sources"][s]["type"] == "coaxial_port") {
+			const auto& load = case_data["sources"][s]["tags"]["load"];
+			for (auto t{ 0 }; t < load.size(); t++) {
+				tfsf_tags.Append(load[t].get<int>());
+			}
+		}
+		if (tfsf_tags.Size() == 0) {
+			continue;
+		}
+			const int n_attr = boundaryAttributeSlots(model.getConstMesh());
+			if (n_attr <= 0) {
+				throw std::runtime_error(
+					"TFSF tag is set but the mesh has no boundary attributes.");
+			}
 			auto tfsf_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
-			tfsf_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+			tfsf_atts_present_in_partition_marker.SetSize(n_attr);
 			tfsf_atts_present_in_partition_marker = 0;
+			int tfsf_bad = 0;
 			for (auto t = 0; t < tfsf_tags.Size(); t++){
 				for (auto b = 0; b < model.getConstMesh().GetNBE(); b++){	
 					if (model.getMesh().GetBdrAttribute(b) == tfsf_tags[t]){
-						tfsf_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(b) - 1] = 1;
+						if (!markLocalBoundaryAttribute(
+								tfsf_atts_present_in_partition_marker,
+								model.getMesh().GetBdrAttribute(b))) {
+							tfsf_bad = 1;
+						}
 					}
 				}
 			}
+			throwIfAnyRankFailed(tfsf_bad, comm, "TFSF");
 			const int local_tfsf_marker = tfsf_atts_present_in_partition_marker.Sum();
 			int global_tfsf_marker = 0;
 			MPI_Allreduce(&local_tfsf_marker, &global_tfsf_marker, 1, MPI_INT, MPI_SUM, comm);
@@ -2099,21 +3254,65 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 				model.getTotalFieldScatteredFieldToMarker().insert(
 					std::make_pair(maxwell::BdrCond::TotalFieldIn, tfsf_atts_present_in_partition_marker));
 			}
+	}
+
+	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
+		if (case_data["sources"][s]["type"] != "delta_gap") {
+			continue;
 		}
+		mfem::Array<int> gap_tags;
+		for (auto t{ 0 }; t < case_data["sources"][s]["tags"].size(); t++) {
+			gap_tags.Append(case_data["sources"][s]["tags"][t].get<int>());
+		}
+		mfem::Array<int> gap_marker;
+		const int n_attr = model.getConstMesh().bdr_attributes.Size() == 0
+			? 0 : model.getConstMesh().bdr_attributes.Max();
+		gap_marker.SetSize(n_attr);
+		gap_marker = 0;
+		int gap_bad = 0;
+		for (int t = 0; t < gap_tags.Size(); t++) {
+			for (int b = 0; b < model.getConstMesh().GetNBE(); b++) {
+				if (model.getMesh().GetBdrAttribute(b) == gap_tags[t]) {
+					if (!markLocalBoundaryAttribute(
+							gap_marker, model.getMesh().GetBdrAttribute(b))) {
+						gap_bad = 1;
+					}
+				}
+			}
+		}
+		throwIfAnyRankFailed(gap_bad, comm, "delta_gap");
+		const int local_gap_marker = gap_marker.Sum();
+		int global_gap_marker = 0;
+		MPI_Allreduce(&local_gap_marker, &global_gap_marker, 1, MPI_INT, MPI_SUM, comm);
+		if (global_gap_marker == 0) {
+			throw std::runtime_error("delta_gap tags were not found on the mesh.");
+		}
+		model.setDeltaGapMarker(gap_marker);
 	}
 
     mfem::Array<int> sgbc_tags = getSGBCTags(case_data);
     if (sgbc_tags.Size() != 0) {
+        const int n_attr = boundaryAttributeSlots(model.getConstMesh());
+        if (n_attr <= 0) {
+            throw std::runtime_error(
+                "SGBC tag is set but the mesh has no boundary attributes.");
+        }
         auto sgbc_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::SGBC, true) };
-        sgbc_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+        sgbc_atts_present_in_partition_marker.SetSize(n_attr);
         sgbc_atts_present_in_partition_marker = 0;
+        int sgbc_bad = 0;
         for (auto t = 0; t < sgbc_tags.Size(); t++){
             for (auto bn = 0; bn < model.getConstMesh().GetNBE(); bn++){	
                 if (model.getMesh().GetBdrAttribute(bn) == sgbc_tags[t]){
-                    sgbc_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(bn) - 1] = 1;
+                    if (!markLocalBoundaryAttribute(
+                            sgbc_atts_present_in_partition_marker,
+                            model.getMesh().GetBdrAttribute(bn))) {
+                        sgbc_bad = 1;
+                    }
                 }
             }
         }
+        throwIfAnyRankFailed(sgbc_bad, comm, "SGBC");
         const int local_sgbc_marker = sgbc_atts_present_in_partition_marker.Sum();
         int global_sgbc_marker = 0;
         MPI_Allreduce(&local_sgbc_marker, &global_sgbc_marker, 1, MPI_INT, MPI_SUM, comm);

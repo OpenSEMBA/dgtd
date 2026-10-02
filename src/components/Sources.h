@@ -53,6 +53,37 @@ private:
 	Position center_;
 };
 
+class DeltaGapSource : public Source {
+public:
+	DeltaGapSource(
+		double magnitude,
+		double spread,
+		double t0,
+		const mfem::Vector& polarization,
+		bool derivative = false);
+	DeltaGapSource(const DeltaGapSource&);
+
+	std::unique_ptr<Source> clone() const override;
+
+	double eval(
+		const Position&, const Time&,
+		const FieldType&, const Direction&) const override;
+
+	double magnitude() const { return magnitude_; }
+	double spread() const { return spread_; }
+	double t0() const { return t0_; }
+	bool derivative() const { return derivative_; }
+	const mfem::Vector& polarization() const { return polarization_; }
+	double waveform(Time t) const;
+
+private:
+	double magnitude_;
+	double spread_;
+	double t0_;
+	bool derivative_;
+	mfem::Vector polarization_;
+};
+
 class TotalField : public Source {
 public:
 	TotalField(const EHFieldFunction&);

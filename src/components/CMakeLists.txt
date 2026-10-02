@@ -13,6 +13,8 @@ add_library(maxwell-components STATIC
 "SubMesher.cpp"
 "PMLProperties.cpp"
 "PMLProfiles.cpp"
+"DebyeProperties.cpp"
+"LorentzProperties.cpp"
 "SCPMLLayout.cpp"
 "RCSManager.cpp" 
 "ProblemDescription.cpp"

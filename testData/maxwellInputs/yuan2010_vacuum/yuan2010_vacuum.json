@@ -1,0 +1,80 @@
+{
+  "solver_options": {
+    "evolution_operator": "global",
+    "upwind_alpha": 1.0,
+    "final_time": 2.5,
+    "order": 2,
+    "time_step": 0.0005
+  },
+  "model": {
+    "filename": "yuan2010_vacuum.msh",
+    "materials": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          2
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "point": [
+      {
+        "position": [
+          0.6
+        ],
+        "steps": 1
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "initial",
+      "field_type": "electric",
+      "center": [
+        0.25
+      ],
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "dimension": 1,
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.02
+      }
+    },
+    {
+      "type": "initial",
+      "field_type": "magnetic",
+      "center": [
+        0.25
+      ],
+      "polarization": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "dimension": 1,
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.02
+      }
+    }
+  ]
+}

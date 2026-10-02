@@ -143,3 +143,63 @@ TEST_F(FunctionTest, SinusoidalMode_higherModes)
 	Position half({0.5});
 	EXPECT_NEAR(0.0, mode.eval(half), 1e-15);
 }
+
+TEST_F(FunctionTest, GaussianSpread_minus20dB)
+{
+	const double f_max = 0.01;
+	const double sigma = gaussianSpreadForDbCut(f_max, -20.0);
+	const double pi = std::acos(-1.0);
+	const double ratio = std::exp(-2.0 * pi * pi * sigma * sigma * f_max * f_max);
+	EXPECT_NEAR(0.1, ratio, 1e-12);
+}
+
+TEST_F(FunctionTest, GaussianSpread_minus30dB)
+{
+	const double f_max = 2.0;
+	const double sigma = gaussianSpreadForDbCut(f_max, -30.0);
+	const double pi = std::acos(-1.0);
+	const double ratio = std::exp(-2.0 * pi * pi * sigma * sigma * f_max * f_max);
+	EXPECT_NEAR(std::pow(10.0, -1.5), ratio, 1e-12);
+}
+
+TEST_F(FunctionTest, GaussianTimeSignal_derivativeAccumulatesThePulse)
+{
+	const double magnitude = 1.0;
+	const double spread = 0.5;
+	const double t0 = 2.0;
+	EXPECT_NEAR(magnitude, gaussianTimeSignal(t0, t0, spread, magnitude, false), 1e-12);
+	EXPECT_NEAR(0.0, gaussianTimeSignal(t0, t0, spread, magnitude, true), 1e-12);
+	const double flank = t0 - spread;
+	EXPECT_NEAR(
+		magnitude * std::exp(-0.5) / spread,
+		gaussianTimeSignal(flank, t0, spread, magnitude, true),
+		1e-12);
+
+	double integral = 0.0;
+	const double dt = spread / 200.0;
+	for (double t = t0 - 12.0 * spread; t < t0 + dt * 0.5; t += dt) {
+		integral += gaussianTimeSignal(t, t0, spread, magnitude, true) * dt;
+	}
+	EXPECT_NEAR(magnitude, integral, 1e-3);
+}
+
+TEST_F(FunctionTest, CoaxialMode_radialElectricAndAzimuthalMagnetic)
+{
+	Vector center(3);
+	center = 0.0;
+	Vector axis({1.0, 0.0, 0.0});
+	const double a = 0.05;
+	const double b = 0.10;
+	const double v0 = 1.0;
+	CoaxialMode mode(v0, 1.0, 0.0, false, center, axis, a, b, 113, 112);
+	Vector at({0.0, 0.075, 0.0});
+	const double e_rho = v0 / (0.075 * std::log(b / a));
+	EXPECT_NEAR(mode.eval(at, 0.0, E, X), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, E, Y), e_rho, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, E, Z), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, H, X), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, H, Y), 0.0, 1e-12);
+	EXPECT_NEAR(mode.eval(at, 0.0, H, Z), e_rho, 1e-12);
+	EXPECT_EQ(113, mode.totalFieldVolume());
+	EXPECT_EQ(112, mode.scatteredFieldVolume());
+}

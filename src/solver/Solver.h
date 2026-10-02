@@ -34,6 +34,7 @@ public:
     
     ~Solver();
 
+    void flushProbeFiles();
     const ParFields& getFields() const { return fields_; }
     // Non-const accessor needed for state hydration
     ParFields& getFields() { return fields_; } 

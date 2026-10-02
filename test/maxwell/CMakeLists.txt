@@ -34,7 +34,9 @@ add_executable(maxwell_solver_tests
 	"solver/Solver1DTest.cpp" 
 	"solver/Solver2DTest.cpp" 
 	"solver/Solver3DTest.cpp"
-	"solver/HesthavenOperatorBenchmarkTest.cpp")
+	"solver/HesthavenOperatorBenchmarkTest.cpp"
+	"solver/DebyeMultTest.cpp"
+	"solver/LorentzMultTest.cpp")
 
 if (SEMBA_DGTD_ENABLE_CUDA)
 	target_compile_definitions(maxwell_solver_tests PRIVATE SEMBA_DGTD_ENABLE_CUDA)

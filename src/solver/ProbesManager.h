@@ -22,18 +22,19 @@ public:
 
     NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>&);
 
+    bool hasLocalSurface() const { return ntff_smsh_.hasLocalSurface(); }
     mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
-    const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) const { return fields_.get(f, d); }
-    mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) const { return fields_->get(f, d); }
+    mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_->get(f, d); }
     void updateFields();
 
 private:
 
     NearToFarFieldSubMesher ntff_smsh_;
     std::unique_ptr<mfem::FiniteElementSpace> sfes_;
-    Fields<FiniteElementSpace, GridFunction> fields_;
+    std::unique_ptr<Fields<FiniteElementSpace, GridFunction>> fields_;
     Fields<ParFiniteElementSpace, ParGridFunction>& gFields_;
-    TransferMaps tMaps_;
+    std::unique_ptr<TransferMaps> tMaps_;
 
 };
 
@@ -67,6 +68,7 @@ public:
         tfsf_mapping_ = tfsf_mapping;
     }
     void printTimingSummaryAndReset() const;
+    void flushOpenFiles();
 
     Probes probes;
 

@@ -1,0 +1,47 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "final_time": 40.0,
+    "order": 2
+  },
+  "model": {
+    "filename": "3D_Coaxial_Port_EndLoad.msh",
+    "materials": [
+      {
+        "tags": [3],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [4],
+        "type": "PEC"
+      },
+      {
+        "tags": [7],
+        "type": "PEC"
+      },
+      {
+        "tags": [8, 9],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.2
+    }
+  },
+  "sources": [
+    {
+      "type": "coaxial_port",
+      "tags": {
+        "outer": [7],
+        "live": [4],
+        "load": [9]
+      },
+      "signal": "gaussian_derivative",
+      "spread": 0.3
+    }
+  ]
+}

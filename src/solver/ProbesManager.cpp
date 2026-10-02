@@ -134,8 +134,21 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
         {
             throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
         }
-        nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
-        nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
+        auto reqs = std::make_unique<NearFieldReqs>(p, dgfec, fes_, fields);
+        const bool local = reqs->hasLocalSurface();
+        nearFieldReqs_.emplace(&p, std::move(reqs));
+        {
+            const MPI_Comm comm = getFESComm(fes_);
+            const std::string parent_path =
+                getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name;
+            if (isNodeRoot(comm)) {
+                std::filesystem::create_directories(parent_path);
+            }
+            MPI_Barrier(comm);
+        }
+        if (local) {
+            nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
+        }
     }
 
     for (const auto& p: probes.domainSnapshotProbes) {
@@ -145,6 +158,20 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
     finalTime_ = opts.final_time;
     fields_ = &fields;
     is_sgbc_solver_ = opts.is_sgbc_solver;
+}
+
+void ProbesManager::flushOpenFiles()
+{
+    for (auto& entry : pointProbeFiles_) {
+        if (entry.second.is_open()) {
+            entry.second.flush();
+        }
+    }
+    for (auto& entry : fieldProbeFiles_) {
+        if (entry.second.is_open()) {
+            entry.second.flush();
+        }
+    }
 }
 
 void ProbesManager::printTimingSummaryAndReset() const
@@ -356,18 +383,12 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
     const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
     isDGCollection(fes_);
-    const MPI_Comm comm = getFESComm(fes_);
+    auto* reqs = nearFieldReqs_.at(&p).get();
+    DataCollection res{ p.name, reqs->getSubMesh() };
 
-    DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
-    
-    std::string parent_path = getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name;
-    if (isNodeRoot(comm)) {
-        std::filesystem::create_directories(parent_path);
-    }
-    MPI_Barrier(comm);
-
-    std::string path = parent_path + "/rank" + std::to_string(Mpi::WorldRank());
-    std::filesystem::create_directories(path); 
+    std::string path = getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name
+        + "/rank" + std::to_string(Mpi::WorldRank());
+    std::filesystem::create_directories(path);
     res.SetPrefixPath(path);
     
     res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getConstField(E, X));
@@ -573,7 +594,9 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
     }
 
     auto it{ nearFieldProbesCollection_.find(&p) };
-    assert(it != nearFieldProbesCollection_.end());
+    if (it == nearFieldProbesCollection_.end()) {
+        return;
+    }
     auto& dc{ it->second };
     dc.SetPrefixPath(getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 
@@ -786,17 +809,23 @@ void ProbesManager::updateProbes(Time t)
 
 void NearFieldReqs::updateFields()
 {
-    tMaps_.transferFields(gFields_, fields_);
+    if (!tMaps_) {
+        return;
+    }
+    tMaps_->transferFields(gFields_, *fields_);
 }
 
 NearFieldReqs::NearFieldReqs(
     const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& global) :
     ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
-    sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
-    fields_{ Fields<FiniteElementSpace, GridFunction>(*sfes_) },
-    gFields_{ global },
-    tMaps_{ TransferMaps(gFields_, fields_) }
+    gFields_{ global }
 {
+    if (!ntff_smsh_.hasLocalSurface()) {
+        return;
+    }
+    sfes_ = std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec);
+    fields_ = std::make_unique<Fields<FiniteElementSpace, GridFunction>>(*sfes_);
+    tMaps_ = std::make_unique<TransferMaps>(gFields_, *fields_);
     updateFields();
 }
 

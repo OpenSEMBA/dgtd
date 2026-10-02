@@ -1,5 +1,6 @@
 #include "Solver.h"
 #include "components/SCPMLLayout.h"
+#include "evolution/EvolutionOptions.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -14,6 +15,11 @@ namespace maxwell {
 
 size_t getCurrentMemoryUsage();
 size_t getPeakMemoryUsage();
+
+void Solver::flushProbeFiles()
+{
+    probesManager_.flushOpenFiles();
+}
 
 void Solver::sampleInitializationMemory()
 {
@@ -85,7 +91,7 @@ void Solver::assignODESolver()
             odeSolver_ = std::make_unique<mfem::SDIRK33Solver>();
             break;
 
-        case ode_type::SDIRK23:  // L-stable flavor (good with PML/loss)
+        case ode_type::SDIRK23:  // L-stable. Parent PML/Debye/Lorentz/SGBC stays on RK4.
             odeSolver_ = std::make_unique<mfem::SDIRK23Solver>(/*gamma_opt=*/2);
             break;
 
@@ -112,7 +118,9 @@ Solver::Solver(
              computePMLAuxSize(
                  model.getPMLProperties(),
                  fes_->GetNDofs(),
-                 fes_->GetMesh()->Dimension()) },
+                 fes_->GetMesh()->Dimension())
+             + model.debyeAuxSize(fes_->GetNDofs())
+             + model.lorentzAuxSize(fes_->GetNDofs()) },
     sourcesManager_{ sources, *fes_, fields_ },
     probesManager_ { probes , *fes_, fields_, opts_ },
     time_{0.0}
@@ -127,6 +135,22 @@ Solver::Solver(
 
     if (comm_rank == 0){
         checkOptionsAreValid(opts_);
+    }
+
+    const bool dispersive = model_.hasDebye() || model_.hasLorentz();
+    if (dispersive && opts_.evolution.op != EvolutionOperatorType::Global) {
+        throw std::runtime_error(
+            "Debye and Lorentz materials require evolution_operator \"global\".");
+    }
+    const bool implicit_blocked =
+        model_.hasPML() || dispersive || !model_.getSGBCProperties().empty();
+    if (implicit_blocked && opts_.ode_type != ode_type::RK4) {
+        throw std::runtime_error(
+            "Implicit ODE integrators do not support Cartesian PML, Debye, Lorentz, or SGBC. Use ode_type RK4.");
+    }
+    if (dispersive && opts_.evolution.spectral) {
+        throw std::runtime_error(
+            "Spectral analysis does not include Debye or Lorentz polarization.");
     }
 
     if (opts_.evolution.spectral == true) {
@@ -577,21 +601,33 @@ void Solver::run()
 
 #ifdef SHOW_TIMER_INFORMATION
         auto currentTime = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::seconds>
-            (currentTime - lastPrintTime).count() >= 30.0)
+        int local_due = (std::chrono::duration_cast<std::chrono::seconds>
+            (currentTime - lastPrintTime).count() >= 30.0) ? 1 : 0;
+        int global_due = local_due;
+        if (Mpi::WorldSize() > 1) {
+            MPI_Allreduce(&local_due, &global_due, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        }
+        if (global_due)
         {
             if (Mpi::WorldRank() == 0){
                 printSimulationInformation(time_, dt_, opts_.final_time);
             }
-            if (!opts_.is_sgbc_solver && stepTimingStats_.step_count > 0) {
-                const int P = Mpi::WorldSize();
-                double local_avg[5] = {
-                    stepTimingStats_.step_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.ode_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.sgbc_finalize_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.probe_sync_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.probe_update_ms / stepTimingStats_.step_count
-                };
+            const int P = Mpi::WorldSize();
+            int local_gather = (!opts_.is_sgbc_solver && stepTimingStats_.step_count > 0) ? 1 : 0;
+            int global_gather = local_gather;
+            if (P > 1) {
+                MPI_Allreduce(&local_gather, &global_gather, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            }
+            if (global_gather) {
+                double local_avg[5] = {0, 0, 0, 0, 0};
+                if (local_gather) {
+                    const double n = static_cast<double>(stepTimingStats_.step_count);
+                    local_avg[0] = stepTimingStats_.step_ms / n;
+                    local_avg[1] = stepTimingStats_.ode_ms / n;
+                    local_avg[2] = stepTimingStats_.sgbc_finalize_ms / n;
+                    local_avg[3] = stepTimingStats_.probe_sync_ms / n;
+                    local_avg[4] = stepTimingStats_.probe_update_ms / n;
+                }
                 std::vector<double> all_avg(5 * P);
                 if (P > 1) {
                     MPI_Gather(local_avg, 5, MPI_DOUBLE,
@@ -852,6 +888,10 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 
 void Solver::performSpectralAnalysis(const mfem::ParFiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
 {
+    if (Mpi::WorldSize() > 1) {
+        throw std::runtime_error(
+            "Spectral analysis calls ParSubMesh once per local element and is serial only. Run with one MPI rank.");
+    }
     mfem::Array<int> domainAtts(1);
     domainAtts[0] = 501;
     auto mesh{ model.getConstMesh() };

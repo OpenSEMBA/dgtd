@@ -2,6 +2,7 @@
 #include "PMLProfiles.h"
 
 #include <memory>
+#include <string>
 
 namespace maxwell {
 
@@ -102,6 +103,64 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 
 }
 
+void Model::setPMLProperties(const std::vector<PMLProperties>& in)
+{
+	pml_props_ = in;
+	rejectDispersiveOnPML();
+}
+
+void Model::setDebyeProperties(const std::vector<DebyeProperties>& in)
+{
+	debye_ = in;
+	debye_by_tag_.clear();
+	for (const DebyeProperties& pole : debye_) {
+		debye_by_tag_.insert_or_assign(pole.geom_tag, pole);
+	}
+	rejectDispersiveOnPML();
+}
+
+const DebyeProperties* Model::findDebye(Attribute tag) const
+{
+	const auto it = debye_by_tag_.find(tag);
+	if (it == debye_by_tag_.end()) {
+		return nullptr;
+	}
+	return &it->second;
+}
+
+void Model::setLorentzProperties(const std::vector<LorentzProperties>& in)
+{
+	lorentz_ = in;
+	lorentz_by_tag_.clear();
+	for (const LorentzProperties& pole : lorentz_) {
+		lorentz_by_tag_.insert_or_assign(pole.geom_tag, pole);
+	}
+	rejectDispersiveOnPML();
+}
+
+void Model::rejectDispersiveOnPML() const
+{
+	if (pml_props_.empty() || (debye_.empty() && lorentz_.empty())) {
+		return;
+	}
+	for (const PMLProperties& props : pml_props_) {
+		for (const GeomTag tag : props.geom_tags) {
+			if (debye_by_tag_.count(tag) != 0 || lorentz_by_tag_.count(tag) != 0) {
+				throw std::runtime_error(kDispersiveOnPmlNotAllowed);
+			}
+		}
+	}
+}
+
+const LorentzProperties* Model::findLorentz(Attribute tag) const
+{
+	const auto it = lorentz_by_tag_.find(tag);
+	if (it == lorentz_by_tag_.end()) {
+		return nullptr;
+	}
+	return &it->second;
+}
+
 void Model::assembleBdrToMarkerMaps()
 {
 	const std::pair<BdrCond, const mfem::Array<int>&> bdrEntries[] = {
@@ -152,6 +211,11 @@ mfem::Vector Model::buildEpsMuPiecewiseVector(const FieldType& f) const
 	auto res{ initialiseGeomTagVector() };
 
 	for (auto const& [geomTag, mat] : attToMatMap_) {
+		if (geomTag <= 0 || geomTag > res.Size()) {
+			throw std::runtime_error(
+				"Material tag " + std::to_string(geomTag)
+				+ " is outside 1.." + std::to_string(res.Size()) + ".");
+		}
 		switch (f) {
 		case FieldType::E:
 			res[geomTag - 1] = mat.getPermittivity();
@@ -170,6 +234,11 @@ mfem::Vector Model::buildSigmaPiecewiseVector() const
 	auto res{ initialiseGeomTagVector() };
 
 	for (auto const& [geomTag, mat] : attToMatMap_) {
+		if (geomTag <= 0 || geomTag > res.Size()) {
+			throw std::runtime_error(
+				"Material tag " + std::to_string(geomTag)
+				+ " is outside 1.." + std::to_string(res.Size()) + ".");
+		}
 		res[geomTag - 1] = mat.getConductivity();
 	}
 
@@ -195,7 +264,21 @@ void Model::assembleGeomTagToTypeMap(
 		auto& marker{ getMarker(bdr, isInterior) };
 
 		if (marker.Size() == 0) {
-			initMarker(getMarker(bdr, isInterior), pmesh_.bdr_attributes.Max());
+			const int n_attr = pmesh_.bdr_attributes.Size() == 0
+				? 0 : pmesh_.bdr_attributes.Max();
+			if (n_attr <= 0) {
+				throw std::runtime_error(
+					"Boundary tag " + std::to_string(geomTag)
+					+ " is set but the mesh has no boundary attributes.");
+			}
+			initMarker(getMarker(bdr, isInterior), n_attr);
+		}
+
+		if (geomTag > marker.Size()) {
+			throw std::runtime_error(
+				"Boundary tag " + std::to_string(geomTag)
+				+ " is outside the mesh boundary-attribute range 1.."
+				+ std::to_string(marker.Size()) + ".");
 		}
 
 		marker[geomTag - 1] = 1;

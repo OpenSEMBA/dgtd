@@ -4,6 +4,8 @@
 #include "Material.h"
 #include "PMLProperties.h"
 #include "PMLProfiles.h"
+#include "DebyeProperties.h"
+#include "LorentzProperties.h"
 
 #include <memory>
 
@@ -57,6 +59,8 @@ struct GeomTagToMaterialInfo {
 	GeomTagToMaterial gt2m;
 	GeomTagToBoundaryMaterial gt2bm;
 	std::vector<PMLProperties> pml_props;
+	std::vector<DebyeProperties> debye;
+	std::vector<LorentzProperties> lorentz;
 
 	GeomTagToMaterialInfo()
 	{
@@ -156,6 +160,9 @@ public:
 	const InteriorBoundaryToMarker& getInteriorBoundaryToMarker() const { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
 	SGBCToMarker& getSGBCToMarker() { return SGBCToMarkerMap_; }
+	void setDeltaGapMarker(const mfem::Array<int>& marker) { deltaGapMarker_ = marker; }
+	mfem::Array<int>& getDeltaGapMarker() { return deltaGapMarker_; }
+	const mfem::Array<int>& getDeltaGapMarker() const { return deltaGapMarker_; }
 	InteriorSourceToMarker& getInteriorSourceToMarker() { return intSrcToMarkerMap_; }
 	const FaceToGeomTag& getFaceToGeometryTag() { return faceToGeomTag_; }
 	GeomTagToInteriorBoundary& getGeomTagToIntBoundaryCond() { return attToIntBdrMap_; }
@@ -166,9 +173,23 @@ public:
 	void setSGBCProperties(const std::vector<SGBCProperties> in) { sgbc_props_ = in; }
 	const std::vector<SGBCProperties>& getSGBCProperties() const { return sgbc_props_; }
 
-	void setPMLProperties(const std::vector<PMLProperties>& in) { pml_props_ = in; }
+	void setPMLProperties(const std::vector<PMLProperties>& in);
 	const std::vector<PMLProperties>& getPMLProperties() const { return pml_props_; }
 	bool hasPML() const { return !pml_props_.empty(); }
+
+	void setDebyeProperties(const std::vector<DebyeProperties>& in);
+	const std::vector<DebyeProperties>& getDebyeProperties() const { return debye_; }
+	bool hasDebye() const { return !debye_.empty(); }
+	const DebyeProperties* findDebye(Attribute tag) const;
+	/// 3N when any Debye attribute exists, else 0. Slots cover every local DOF.
+	int debyeAuxSize(int ndofs) const { return hasDebye() ? 3 * ndofs : 0; }
+
+	void setLorentzProperties(const std::vector<LorentzProperties>& in);
+	const std::vector<LorentzProperties>& getLorentzProperties() const { return lorentz_; }
+	bool hasLorentz() const { return !lorentz_.empty(); }
+	const LorentzProperties* findLorentz(Attribute tag) const;
+	/// 6N (P and J) when any Lorentz attribute exists, else 0.
+	int lorentzAuxSize(int ndofs) const { return hasLorentz() ? 6 * ndofs : 0; }
 	bool isPMLAttribute(GeomTag tag) const;
 	const PMLProperties* getPMLPropertiesForTag(GeomTag tag) const;
 	void initializePMLProfiles(int mpi_rank, int fe_order = 2);
@@ -200,6 +221,7 @@ private:
 	InteriorBoundaryToMarker intBdrToMarkerMap_;
 	TotalFieldScatteredFieldToMarker tfsfToMarkerMap_;
 	SGBCToMarker SGBCToMarkerMap_;
+	mfem::Array<int> deltaGapMarker_;
 	InteriorSourceToMarker intSrcToMarkerMap_;
 	FaceToGeomTag faceToGeomTag_;
 
@@ -217,8 +239,13 @@ private:
 	BoundaryMarker intsgbc_Marker_;
 	std::vector<SGBCProperties> sgbc_props_;
 	std::vector<PMLProperties> pml_props_;
+	std::vector<DebyeProperties> debye_;
+	std::map<GeomTag, DebyeProperties> debye_by_tag_;
+	std::vector<LorentzProperties> lorentz_;
+	std::map<GeomTag, LorentzProperties> lorentz_by_tag_;
 	std::shared_ptr<const PMLProfileData> pml_profiles_;
 
+	void rejectDispersiveOnPML() const;
 	void assembleGeomTagToTypeMap(
 		std::map<GeomTag, BdrCond>& attToCond, 
 		bool isInterior);
