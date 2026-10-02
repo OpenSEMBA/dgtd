@@ -2,6 +2,7 @@
 #include "PMLProfiles.h"
 
 #include <memory>
+#include <string>
 
 namespace maxwell {
 
@@ -188,6 +189,11 @@ mfem::Vector Model::buildEpsMuPiecewiseVector(const FieldType& f) const
 	auto res{ initialiseGeomTagVector() };
 
 	for (auto const& [geomTag, mat] : attToMatMap_) {
+		if (geomTag <= 0 || geomTag > res.Size()) {
+			throw std::runtime_error(
+				"Material tag " + std::to_string(geomTag)
+				+ " is outside 1.." + std::to_string(res.Size()) + ".");
+		}
 		switch (f) {
 		case FieldType::E:
 			res[geomTag - 1] = mat.getPermittivity();
@@ -206,6 +212,11 @@ mfem::Vector Model::buildSigmaPiecewiseVector() const
 	auto res{ initialiseGeomTagVector() };
 
 	for (auto const& [geomTag, mat] : attToMatMap_) {
+		if (geomTag <= 0 || geomTag > res.Size()) {
+			throw std::runtime_error(
+				"Material tag " + std::to_string(geomTag)
+				+ " is outside 1.." + std::to_string(res.Size()) + ".");
+		}
 		res[geomTag - 1] = mat.getConductivity();
 	}
 
@@ -231,7 +242,21 @@ void Model::assembleGeomTagToTypeMap(
 		auto& marker{ getMarker(bdr, isInterior) };
 
 		if (marker.Size() == 0) {
-			initMarker(getMarker(bdr, isInterior), pmesh_.bdr_attributes.Max());
+			const int n_attr = pmesh_.bdr_attributes.Size() == 0
+				? 0 : pmesh_.bdr_attributes.Max();
+			if (n_attr <= 0) {
+				throw std::runtime_error(
+					"Boundary tag " + std::to_string(geomTag)
+					+ " is set but the mesh has no boundary attributes.");
+			}
+			initMarker(getMarker(bdr, isInterior), n_attr);
+		}
+
+		if (geomTag > marker.Size()) {
+			throw std::runtime_error(
+				"Boundary tag " + std::to_string(geomTag)
+				+ " is outside the mesh boundary-attribute range 1.."
+				+ std::to_string(marker.Size()) + ".");
 		}
 
 		marker[geomTag - 1] = 1;

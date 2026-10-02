@@ -663,7 +663,7 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 				}
 			}
 			else {
-				auto set_v2{ std::make_pair(NotFound, false) };
+				set_v2 = std::make_pair(NotFound, false);
 			}
 
 			std::pair<FaceId, FaceId> facesInfo = std::make_pair(set_v1.first, set_v2.first);

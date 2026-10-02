@@ -177,16 +177,26 @@ void SourcesManager::markDoFSforTForSF(FieldGridFuncs& gfs, bool isTF)
         break;
     }
 
+    for (auto f : { E, H }) {
+        for (auto d{ X }; d <= Z; d++) {
+            gfs[f][d].UseDevice(true);
+            (void)gfs[f][d].HostReadWrite();
+        }
+    }
     for (int e = 0; e < secondary_map.Size(); e++) {
         Array<int> dofs;
         global_tfsf_fes_->GetElementDofs(global_tfsf_map.Find(secondary_map[e]), dofs);
         for (int i = 0; i < dofs.Size(); i++) {
             for (auto f : { E, H }) {
                 for (auto d{ X }; d <= Z; d++) {
-                    gfs[f][d].UseDevice(true);
                     gfs[f][d][dofs[i]] = 0.0;
                 }
             }
+        }
+    }
+    for (auto f : { E, H }) {
+        for (auto d{ X }; d <= Z; d++) {
+            (void)gfs[f][d].Read();
         }
     }
 }

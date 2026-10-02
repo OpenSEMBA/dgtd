@@ -17,6 +17,7 @@
 #include <fstream>
 #include <unordered_set>
 #include <iterator>
+#include <exception>
 #include <mpi.h>
 
 namespace maxwell::driver {
@@ -760,6 +761,9 @@ mfem::Vector assembleCenterVector(const json& source_center)
 
 mfem::Vector assemble3DVector(const json& input)
 {
+	if (input.size() != 3) {
+		throw std::runtime_error("Expected a 3-vector.");
+	}
 	mfem::Vector res(3);
 	for (int i = 0; i < input.size(); i++) {
 		res[i] = input[i];
@@ -2337,6 +2341,10 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 		const bool dispersive =
 			kind == "debye" || kind == "lorentz" ||
 			it->second == "debye" || it->second == "lorentz";
+		const bool pml = kind == "pml" || it->second == "pml";
+		if (pml && dispersive) {
+			throw std::runtime_error(kDispersiveOnPmlNotAllowed);
+		}
 		if (dispersive) {
 			throw std::runtime_error(
 				"Material tag " + std::to_string(tag) +
@@ -2361,8 +2369,7 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			} else if (type == "PML") {
 				kind = "pml";
 				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
-					throw std::runtime_error(
-						"PML material must not define debye or lorentz.");
+					throw std::runtime_error(kDispersiveOnPmlNotAllowed);
 				}
 			}
 		} else if (mat_json.contains("debye") && mat_json.contains("lorentz")) {
@@ -2681,10 +2688,24 @@ void fixGmshMesh(const std::string& filepath)
 
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
+	int failed = 0;
+	std::string err;
 	if (Mpi::WorldRank() == 0) {
-		fixGmshMesh(mesh_string);
+		try {
+			fixGmshMesh(mesh_string);
+		} catch (const std::exception& ex) {
+			failed = 1;
+			err = ex.what();
+		}
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
+	int global_failed = 0;
+	MPI_Allreduce(&failed, &global_failed, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_failed) {
+		if (!err.empty()) {
+			std::cerr << err << std::endl;
+		}
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
 	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
 }
 
@@ -2713,6 +2734,26 @@ Array<int> getTFSFTags(const json& case_data)
             for (int t = 0; t < case_data["sources"][s]["tags"]["load"].size(); ++t) {
                 res.Append(case_data["sources"][s]["tags"]["load"][t].get<int>());
             }
+        }
+    }
+    return res;
+}
+
+static mfem::Array<int> getDeltaGapTags(const json& case_data)
+{
+    mfem::Array<int> res;
+    if (!case_data.contains("sources")) {
+        return res;
+    }
+    for (int s = 0; s < case_data["sources"].size(); ++s) {
+        if (!case_data["sources"][s].contains("type")
+            || case_data["sources"][s]["type"] != "delta_gap"
+            || !case_data["sources"][s].contains("tags")) {
+            continue;
+        }
+        const auto& tags = case_data["sources"][s]["tags"];
+        for (int t = 0; t < tags.size(); ++t) {
+            res.Append(tags[t].get<int>());
         }
     }
     return res;
@@ -2786,24 +2827,41 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
         }
     }
 
-    int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
     mfem::Array<int> tfsf_tags = getTFSFTags(case_data);
-    mfem::Array<int> sgbc_tags  = getSGBCTags(case_data);
-
-    const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
-    const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
-    const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
-        (!pin_tfsf || pin_tfsf[0] != '0');
-
-    if (use_dsu && use_dsu[0] == '1') {
-        applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
-    } else if (use_tfsf_pin_rank0) {
-        applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
-    } else {
-        applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
+    mfem::Array<int> sgbc_tags = getSGBCTags(case_data);
+    {
+        mfem::Array<int> gap_tags = getDeltaGapTags(case_data);
+        for (int i = 0; i < gap_tags.Size(); ++i) {
+            sgbc_tags.Append(gap_tags[i]);
+        }
     }
 
-    Model res(mesh, att_to_material, att_to_bdr_info, partitioning);
+    const int ne = mesh.GetNE();
+    mfem::Array<int> part(ne);
+    if (Mpi::WorldRank() == 0) {
+        int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+        const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
+        const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
+        const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
+            (!pin_tfsf || pin_tfsf[0] != '0');
+
+        if (use_dsu && use_dsu[0] == '1') {
+            applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
+        } else if (use_tfsf_pin_rank0) {
+            applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
+        } else {
+            applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
+        }
+        for (int i = 0; i < ne; ++i) {
+            part[i] = partitioning[i];
+        }
+        delete[] partitioning;
+    }
+    if (Mpi::WorldSize() > 1 && ne > 0) {
+        MPI_Bcast(part.GetData(), ne, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+
+    Model res(mesh, att_to_material, att_to_bdr_info, ne > 0 ? part.GetData() : nullptr);
     std::string filename = case_data["model"]["filename"];
 
     auto ends_with = [](const std::string& str, const std::string& suffix) {
@@ -3120,6 +3178,34 @@ maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
 	return buildSolver(case_data, case_name, isTest);
 }
 
+static int boundaryAttributeSlots(const mfem::Mesh& mesh)
+{
+	if (mesh.bdr_attributes.Size() == 0) {
+		return 0;
+	}
+	return mesh.bdr_attributes.Max();
+}
+
+static bool markLocalBoundaryAttribute(mfem::Array<int>& marker, int attr)
+{
+	if (attr < 1 || attr > marker.Size()) {
+		return false;
+	}
+	marker[attr - 1] = 1;
+	return true;
+}
+
+static void throwIfAnyRankFailed(int local_bad, MPI_Comm comm, const char* what)
+{
+	int global_bad = 0;
+	MPI_Allreduce(&local_bad, &global_bad, 1, MPI_INT, MPI_MAX, comm);
+	if (global_bad) {
+		throw std::runtime_error(
+			std::string(what)
+			+ " boundary attribute is outside the mesh boundary-attribute range.");
+	}
+}
+
 void postProcessInformation(const json& case_data, maxwell::Model& model, maxwell::SolverOptions& solverOpts) 
 {
 	const MPI_Comm comm = model.getMesh().GetComm();
@@ -3140,16 +3226,27 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 		if (tfsf_tags.Size() == 0) {
 			continue;
 		}
+			const int n_attr = boundaryAttributeSlots(model.getConstMesh());
+			if (n_attr <= 0) {
+				throw std::runtime_error(
+					"TFSF tag is set but the mesh has no boundary attributes.");
+			}
 			auto tfsf_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::TotalFieldIn, true) };
-			tfsf_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+			tfsf_atts_present_in_partition_marker.SetSize(n_attr);
 			tfsf_atts_present_in_partition_marker = 0;
+			int tfsf_bad = 0;
 			for (auto t = 0; t < tfsf_tags.Size(); t++){
 				for (auto b = 0; b < model.getConstMesh().GetNBE(); b++){	
 					if (model.getMesh().GetBdrAttribute(b) == tfsf_tags[t]){
-						tfsf_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(b) - 1] = 1;
+						if (!markLocalBoundaryAttribute(
+								tfsf_atts_present_in_partition_marker,
+								model.getMesh().GetBdrAttribute(b))) {
+							tfsf_bad = 1;
+						}
 					}
 				}
 			}
+			throwIfAnyRankFailed(tfsf_bad, comm, "TFSF");
 			const int local_tfsf_marker = tfsf_atts_present_in_partition_marker.Sum();
 			int global_tfsf_marker = 0;
 			MPI_Allreduce(&local_tfsf_marker, &global_tfsf_marker, 1, MPI_INT, MPI_SUM, comm);
@@ -3172,13 +3269,18 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 			? 0 : model.getConstMesh().bdr_attributes.Max();
 		gap_marker.SetSize(n_attr);
 		gap_marker = 0;
+		int gap_bad = 0;
 		for (int t = 0; t < gap_tags.Size(); t++) {
 			for (int b = 0; b < model.getConstMesh().GetNBE(); b++) {
 				if (model.getMesh().GetBdrAttribute(b) == gap_tags[t]) {
-					gap_marker[model.getMesh().GetBdrAttribute(b) - 1] = 1;
+					if (!markLocalBoundaryAttribute(
+							gap_marker, model.getMesh().GetBdrAttribute(b))) {
+						gap_bad = 1;
+					}
 				}
 			}
 		}
+		throwIfAnyRankFailed(gap_bad, comm, "delta_gap");
 		const int local_gap_marker = gap_marker.Sum();
 		int global_gap_marker = 0;
 		MPI_Allreduce(&local_gap_marker, &global_gap_marker, 1, MPI_INT, MPI_SUM, comm);
@@ -3190,16 +3292,27 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 
     mfem::Array<int> sgbc_tags = getSGBCTags(case_data);
     if (sgbc_tags.Size() != 0) {
+        const int n_attr = boundaryAttributeSlots(model.getConstMesh());
+        if (n_attr <= 0) {
+            throw std::runtime_error(
+                "SGBC tag is set but the mesh has no boundary attributes.");
+        }
         auto sgbc_atts_present_in_partition_marker{ model.getMarker(maxwell::BdrCond::SGBC, true) };
-        sgbc_atts_present_in_partition_marker.SetSize(model.getConstMesh().bdr_attributes.Max());
+        sgbc_atts_present_in_partition_marker.SetSize(n_attr);
         sgbc_atts_present_in_partition_marker = 0;
+        int sgbc_bad = 0;
         for (auto t = 0; t < sgbc_tags.Size(); t++){
             for (auto bn = 0; bn < model.getConstMesh().GetNBE(); bn++){	
                 if (model.getMesh().GetBdrAttribute(bn) == sgbc_tags[t]){
-                    sgbc_atts_present_in_partition_marker[model.getMesh().GetBdrAttribute(bn) - 1] = 1;
+                    if (!markLocalBoundaryAttribute(
+                            sgbc_atts_present_in_partition_marker,
+                            model.getMesh().GetBdrAttribute(bn))) {
+                        sgbc_bad = 1;
+                    }
                 }
             }
         }
+        throwIfAnyRankFailed(sgbc_bad, comm, "SGBC");
         const int local_sgbc_marker = sgbc_atts_present_in_partition_marker.Sum();
         int global_sgbc_marker = 0;
         MPI_Allreduce(&local_sgbc_marker, &global_sgbc_marker, 1, MPI_INT, MPI_SUM, comm);

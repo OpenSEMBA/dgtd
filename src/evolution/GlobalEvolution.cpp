@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #ifdef SEMBA_DGTD_ENABLE_CUDA
@@ -23,6 +24,16 @@
 #endif
 
 namespace maxwell {
+
+static void hostReadCartesianFields(
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
+{
+    (void)fields.allDOFs().HostRead();
+    for (int d = 0; d < 3; ++d) {
+        fields.get(E, static_cast<Direction>(d)).SyncAliasMemory(fields.allDOFs());
+        fields.get(H, static_cast<Direction>(d)).SyncAliasMemory(fields.allDOFs());
+    }
+}
 
 void GlobalEvolution::logSGBCSubstepPlanOnce(double parent_dt, double recommended_dt, int nsteps,
                                               double actual_sub_dt, double sgbc_cfl) const
@@ -311,6 +322,8 @@ GlobalEvolution::GlobalEvolution(
                   << std::endl;
     }
 
+    int sgbc_elem_missing = 0;
+    std::string sgbc_elem_missing_msg;
     for (const auto& [tag, pairs] : raw_pairs){
         const auto& sbcps = model_.getSGBCProperties();
         for (auto p = 0; p < sbcps.size(); p++){
@@ -338,9 +351,16 @@ GlobalEvolution::GlobalEvolution(
                             s.element_pair.second = -1;
                         }
 
-                        if (s.element_pair.first == -1) {
-                            std::cerr << "Error: Could not find Element ID for SGBC Node Pair: "
-                                      << rp.pair.first << ", " << rp.pair.second << std::endl;
+                        if (s.element_pair.first < 0
+                            || (rp.pair.second != -1 && s.element_pair.second < 0)) {
+                            sgbc_elem_missing = 1;
+                            if (sgbc_elem_missing_msg.empty()) {
+                                sgbc_elem_missing_msg =
+                                    "Could not find Element ID for SGBC Node Pair: "
+                                    + std::to_string(rp.pair.first) + ", "
+                                    + std::to_string(rp.pair.second);
+                            }
+                            continue;
                         }
 
                         s.init(state_size);
@@ -355,6 +375,21 @@ GlobalEvolution::GlobalEvolution(
         }
     }
     
+    {
+        int global_missing = 0;
+        MPI_Allreduce(&sgbc_elem_missing, &global_missing, 1, MPI_INT, MPI_MAX,
+                      fes_.GetParMesh()->GetComm());
+        if (global_missing) {
+            if (!sgbc_elem_missing_msg.empty()) {
+                std::cerr << sgbc_elem_missing_msg << std::endl;
+            }
+            throw std::runtime_error(
+                sgbc_elem_missing_msg.empty()
+                    ? "Could not find Element ID for an SGBC node pair."
+                    : sgbc_elem_missing_msg);
+        }
+    }
+
     MPI_Barrier(fes_.GetParMesh()->GetComm());
 
     // Build flattened SGBC task list and per-thread wrapper clones for OpenMP.
@@ -696,6 +731,7 @@ mfem::MemoryClass GlobalEvolution::GetMemoryClass() const
 void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
+    hostReadCartesianFields(fields);
     sgbc_step_base_time_ = base_time;
     sgbc_step_dt_ = dt;
 
@@ -732,6 +768,7 @@ void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
 void GlobalEvolution::finalizeSGBCStep(
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
+    hostReadCartesianFields(fields);
     // Restore from checkpoint and copy interpolation endpoints into working states.
     for (auto& [tag, states] : sgbc_states_) {
         const auto& cp = sgbc_states_checkpoint_.at(tag);
@@ -793,25 +830,44 @@ void GlobalEvolution::finalizeSGBCStep(
     double dt = sgbc_step_dt_;
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
     if (!sgbc_thread_pool_.empty()) {
-        #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+        struct ReadyTask {
+            SGBCState* state;
+            SGBCWrapper* primary;
+            std::vector<SGBCWrapper*> pool;
+        };
+        std::vector<ReadyTask> ready(sgbc_tasks_.size());
         for (size_t ti = 0; ti < sgbc_tasks_.size(); ++ti) {
             const auto& task = sgbc_tasks_[ti];
-            auto& state = sgbc_states_[task.tag][task.state_index];
+            ready[ti].state = &sgbc_states_.at(task.tag).at(task.state_index);
+            ready[ti].primary = sgbc_wrapper_map_.at(task.tag);
+            const auto& clones = sgbc_thread_pool_.at(task.tag);
+            ready[ti].pool.resize(clones.size());
+            for (size_t t = 0; t < clones.size(); ++t) {
+                ready[ti].pool[t] = clones[t].get();
+            }
+        }
+        if (!ready.empty()) {
+            SGBCWrapper* w0 = ready.front().primary;
+            const double sub_dt = w0->getRecommendedDt();
+            const int nsteps = (sub_dt > 0.0 && sub_dt < dt)
+                             ? static_cast<int>(std::ceil(dt / sub_dt))
+                             : 1;
+            const double actual_sub_dt = dt / nsteps;
+            logSGBCSubstepPlanOnce(dt, sub_dt, nsteps, actual_sub_dt, w0->getProperties().sgbc_cfl);
+        }
+        #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+        for (size_t ti = 0; ti < ready.size(); ++ti) {
+            auto& state = *ready[ti].state;
 
             int tid = omp_get_thread_num();
-            SGBCWrapper* w;
-            if (tid == 0) {
-                w = sgbc_wrapper_map_[task.tag];
-            } else {
-                w = sgbc_thread_pool_[task.tag][tid].get();
-            }
+            SGBCWrapper* w = (tid == 0) ? ready[ti].primary
+                                        : ready[ti].pool[static_cast<size_t>(tid)];
 
             double sub_dt = w->getRecommendedDt();
             int nsteps = (sub_dt > 0.0 && sub_dt < dt)
                        ? static_cast<int>(std::ceil(dt / sub_dt))
                        : 1;
             double actual_sub_dt = dt / nsteps;
-            logSGBCSubstepPlanOnce(dt, sub_dt, nsteps, actual_sub_dt, w->getProperties().sgbc_cfl);
 
             w->loadState(state);
             for (int step = 0; step < nsteps; ++step) {
@@ -953,7 +1009,19 @@ void GlobalEvolution::initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace
     const double epol[3] = {pol[0], pol[1], pol[2]};
     std::unordered_map<int, std::array<double, 3>> coeff;
 
+    bool failed = false;
+    std::string err;
+    auto fail = [&](const char* msg) {
+        if (!failed) {
+            failed = true;
+            err = msg;
+        }
+    };
+
     auto assignElement = [&](int elem, double scale, const double epol[3]) {
+        if (failed) {
+            return;
+        }
         mfem::Array<int> dofs;
         fes_.GetElementDofs(elem, dofs);
         for (int i = 0; i < dofs.Size(); ++i) {
@@ -969,8 +1037,8 @@ void GlobalEvolution::initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace
             } else {
                 for (int d = 0; d < 3; ++d) {
                     if (std::abs(it->second[d] - c[d]) > 1e-8) {
-                        throw std::runtime_error(
-                            "delta_gap DOF is shared by faces with different incident fields.");
+                        fail("delta_gap DOF is shared by faces with different incident fields.");
+                        return;
                     }
                 }
             }
@@ -978,15 +1046,15 @@ void GlobalEvolution::initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace
     };
 
     bool logged = false;
-    for (int be = 0; be < mesh.GetNBE(); ++be) {
+    for (int be = 0; be < mesh.GetNBE() && !failed; ++be) {
         const int attr = mesh.GetBdrAttribute(be);
         if (attr < 1 || attr > marker.Size() || marker[attr - 1] != 1) {
             continue;
         }
         auto* tr = mesh.GetInternalBdrFaceTransformations(be);
         if (tr == nullptr || tr->Elem2No < 0) {
-            throw std::runtime_error(
-                "delta_gap tag is not an interior face with two local elements.");
+            fail("delta_gap tag is not an interior face with two local elements.");
+            break;
         }
         mfem::IntegrationPoint ip;
         ip.x = 0.5;
@@ -998,15 +1066,16 @@ void GlobalEvolution::initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace
         mfem::CalcOrtho(tr->Jacobian(), nor);
         const double nrm = nor.Norml2();
         if (!(nrm > 0.0)) {
-            throw std::runtime_error("delta_gap face has a zero normal.");
+            fail("delta_gap face has a zero normal.");
+            break;
         }
         double dot = 0.0;
         for (int d = 0; d < nor.Size() && d < 3; ++d) {
             dot += nor(d) * epol[d];
         }
         if (std::abs(dot) > 1e-6 * nrm) {
-            throw std::runtime_error(
-                "delta_gap polarization is not tangent to the gap face.");
+            fail("delta_gap polarization is not tangent to the gap face.");
+            break;
         }
         // Both sides are total field: the same +1/2 E_pol, H incident stays 0.
         // The decoupled source matrix does not subtract the neighbor trace.
@@ -1021,6 +1090,20 @@ void GlobalEvolution::initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace
                       << ", " << nz << "), E_pol = (" << epol[0] << ", " << epol[1]
                       << ", " << epol[2] << "), both scales = 0.5\n";
         }
+    }
+
+    int local_err = failed ? 1 : 0;
+    int global_err = 0;
+    MPI_Allreduce(&local_err, &global_err, 1, MPI_INT, MPI_MAX,
+                  mesh.GetComm());
+    if (global_err) {
+        if (failed) {
+            std::cerr << err << std::endl;
+        }
+        if (Mpi::WorldSize() > 1) {
+            MPI_Abort(mesh.GetComm(), 1);
+        }
+        throw std::runtime_error(err.empty() ? "delta_gap setup failed." : err);
     }
 
     deltaGapDofs_.reserve(coeff.size());
@@ -1088,9 +1171,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
-    // Ensure ODE state is readable (device→host if needed).
-    (void)in.Read();
-
     // 1) SGBC sub-solve FIRST — independent of neighbor data, overlaps with
     //    other ranks' local work so they don't idle-wait during exchange.
 #ifdef SHOW_TIMER_INFORMATION
@@ -1098,6 +1178,9 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     bool sgbc_all_quiescent = false;
     if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty()){
+        // Sub-step indexing uses the host pointer. Do this once: a later
+        // HostRead inside the OpenMP loop would race on the memory flags.
+        (void)in.HostRead();
 
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
@@ -1144,10 +1227,25 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         if (!sgbc_all_quiescent && dt_to_stage > 1e-12) {
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
             if (!sgbc_thread_pool_.empty()) {
-                #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+                struct ReadyTask {
+                    SGBCState* state;
+                    SGBCWrapper* primary;
+                    std::vector<SGBCWrapper*> pool;
+                };
+                std::vector<ReadyTask> ready(sgbc_tasks_.size());
                 for (size_t ti = 0; ti < sgbc_tasks_.size(); ++ti) {
                     const auto& task = sgbc_tasks_[ti];
-                    auto& state = sgbc_states_[task.tag][task.state_index];
+                    ready[ti].state = &sgbc_states_.at(task.tag).at(task.state_index);
+                    ready[ti].primary = sgbc_wrapper_map_.at(task.tag);
+                    const auto& clones = sgbc_thread_pool_.at(task.tag);
+                    ready[ti].pool.resize(clones.size());
+                    for (size_t t = 0; t < clones.size(); ++t) {
+                        ready[ti].pool[t] = clones[t].get();
+                    }
+                }
+                #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+                for (size_t ti = 0; ti < ready.size(); ++ti) {
+                    auto& state = *ready[ti].state;
 
                     // Skip sub-solve when fields are negligible
                     double stateN2 = 0.0;
@@ -1157,12 +1255,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     if (stateN2 < thr2 && ifaceNormSq(state) < thr2) continue;
 
                     int tid = omp_get_thread_num();
-                    SGBCWrapper* w;
-                    if (tid == 0) {
-                        w = sgbc_wrapper_map_.at(task.tag);
-                    } else {
-                        w = sgbc_thread_pool_.at(task.tag)[tid].get();
-                    }
+                    SGBCWrapper* w = (tid == 0) ? ready[ti].primary
+                                                : ready[ti].pool[static_cast<size_t>(tid)];
 
                     double sub_dt = w->getRecommendedDt();
                     int nsteps = (sub_dt > 0.0 && sub_dt < dt_to_stage)
@@ -1217,8 +1311,10 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerExchange.Start();
 #endif
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
-#else
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+    } else
+#endif
     {
         const double* in_data = in.Read();
         for (int d = X; d <= Z; ++d) {
@@ -1228,7 +1324,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             std::memcpy(h_data, in_data + (3 + d) * ndofs, ndofs * sizeof(double));
         }
     }
-#endif
     for (int d = X; d <= Z; ++d) {
         eOld_[d].ExchangeFaceNbrData();
         hOld_[d].ExchangeFaceNbrData();
@@ -1741,7 +1836,13 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         if (k.Size() != n) {
             k.SetSize(n);
         }
-        J_inv_->Mult(implicit_rhs_, k);
+        // Dense LU writes the host buffer. Vector::Mult assigns on the device
+        // first, so the ODE would keep the right-hand side. Solve on the host
+        // pointers, then publish that result to the device.
+        const double* rhs_h = implicit_rhs_.HostRead();
+        double* k_h = k.HostWrite();
+        J_inv_->Mult(rhs_h, k_h);
+        (void)k.Read();
     } else {
         // Large/parallel system: fall back to GMRES
         auto applyA_parallel = [&](const mfem::Vector& u, mfem::Vector& Au)
