@@ -446,6 +446,9 @@ namespace maxwell
 			const SCPMLLayout& layout,
 			std::unique_ptr<mfem::SparseMatrix>& ade_operator,
 			std::array<std::unique_ptr<mfem::SparseMatrix>, 3>& curl_delta);
+		/// Electric single-pole Debye. Square on the full ODE (EH + PML aux + 3N).
+		/// Null when this rank has no Debye elements. Not passed through Threshold.
+		std::unique_ptr<mfem::SparseMatrix> buildDebyeOperator();
 
 	private:
 		ProblemDescription pd_;
@@ -2177,6 +2180,62 @@ namespace maxwell
 		          << (needs_a ? " (MaInv damping + curl a-rescale)"
 		                      : " (κ≡1 unit MInv)")
 		          << std::endl;
+	}
+
+	template <typename FES>
+	std::unique_ptr<mfem::SparseMatrix> DGOperatorFactory<FES>::buildDebyeOperator()
+	{
+		if (!pd_.model.hasDebye()) {
+			return nullptr;
+		}
+
+		const int ndofs = fes_.GetNDofs();
+		mfem::Mesh* mesh = fes_.GetMesh();
+		const int n_pml = computePMLAuxSize(
+			pd_.model.getPMLProperties(), ndofs, mesh->Dimension());
+		const int n_debye = 3 * ndofs;
+		const int n_state = 6 * ndofs + n_pml + n_debye;
+		auto matrix = std::make_unique<mfem::SparseMatrix>(n_state, n_state);
+
+		bool any = false;
+		mfem::Array<int> dofs;
+		for (int el = 0; el < mesh->GetNE(); ++el) {
+			const DebyeProperties* pole = pd_.model.findDebye(mesh->GetAttribute(el));
+			if (!pole) {
+				continue;
+			}
+			any = true;
+			const double eps_d = pole->eps_s - pole->eps_inf;
+			const double tau = pole->tau_solver;
+			const double eps_inf = pole->eps_inf;
+			const double e_from_e = -eps_d / (eps_inf * tau);
+			const double e_from_p = 1.0 / (eps_inf * tau);
+			const double p_from_e = eps_d / tau;
+			const double p_from_p = -1.0 / tau;
+
+			fes_.GetElementDofs(el, dofs);
+			for (int u = 0; u < 3; ++u) {
+				const int e_off = u * ndofs;
+				const int p_off = 6 * ndofs + n_pml + u * ndofs;
+				for (int j = 0; j < dofs.Size(); ++j) {
+					int dof = dofs[j];
+					if (dof < 0) {
+						dof = -1 - dof;
+					}
+					matrix->Add(e_off + dof, e_off + dof, e_from_e);
+					matrix->Add(e_off + dof, p_off + dof, e_from_p);
+					matrix->Add(p_off + dof, e_off + dof, p_from_e);
+					matrix->Add(p_off + dof, p_off + dof, p_from_p);
+				}
+			}
+		}
+
+		if (!any) {
+			return nullptr;
+		}
+
+		matrix->Finalize();
+		return matrix;
 	}
 
 

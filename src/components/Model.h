@@ -4,6 +4,7 @@
 #include "Material.h"
 #include "PMLProperties.h"
 #include "PMLProfiles.h"
+#include "DebyeProperties.h"
 
 #include <memory>
 
@@ -57,6 +58,7 @@ struct GeomTagToMaterialInfo {
 	GeomTagToMaterial gt2m;
 	GeomTagToBoundaryMaterial gt2bm;
 	std::vector<PMLProperties> pml_props;
+	std::vector<DebyeProperties> debye;
 
 	GeomTagToMaterialInfo()
 	{
@@ -172,6 +174,13 @@ public:
 	void setPMLProperties(const std::vector<PMLProperties>& in) { pml_props_ = in; }
 	const std::vector<PMLProperties>& getPMLProperties() const { return pml_props_; }
 	bool hasPML() const { return !pml_props_.empty(); }
+
+	void setDebyeProperties(const std::vector<DebyeProperties>& in);
+	const std::vector<DebyeProperties>& getDebyeProperties() const { return debye_; }
+	bool hasDebye() const { return !debye_.empty(); }
+	const DebyeProperties* findDebye(Attribute tag) const;
+	/// 3N when any Debye attribute exists, else 0. Slots cover every local DOF.
+	int debyeAuxSize(int ndofs) const { return hasDebye() ? 3 * ndofs : 0; }
 	bool isPMLAttribute(GeomTag tag) const;
 	const PMLProperties* getPMLPropertiesForTag(GeomTag tag) const;
 	void initializePMLProfiles(int mpi_rank, int fe_order = 2);
@@ -221,6 +230,8 @@ private:
 	BoundaryMarker intsgbc_Marker_;
 	std::vector<SGBCProperties> sgbc_props_;
 	std::vector<PMLProperties> pml_props_;
+	std::vector<DebyeProperties> debye_;
+	std::map<GeomTag, DebyeProperties> debye_by_tag_;
 	std::shared_ptr<const PMLProfileData> pml_profiles_;
 
 	void assembleGeomTagToTypeMap(

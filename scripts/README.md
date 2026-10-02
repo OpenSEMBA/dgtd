@@ -35,6 +35,18 @@ Requires: Python 3 + NumPy.
 
 Same DFT, with automatic incident/reflection windows for the 2D dipole grading sweep. Replay command: [docs/designing-a-box-pml.md](../docs/designing-a-box-pml.md).
 
+## `debye_1d_reference.py`
+
+Vectorized 1D nodal DG reference for `testData/maxwellInputs/1D_Debye`. It reads that JSON with the solver's conventions (`tau` in seconds, unmodulated Gaussian planewave) and, when the ParaView export exists, prints the relative \(L_2\) difference in \(E_y\).
+
+```sh
+mpirun -np 1 ./build/gnu-release-mpi/bin/opensemba_dgtd \
+  -i testData/maxwellInputs/1D_Debye/1D_Debye.json
+python3 scripts/debye_1d_reference.py
+```
+
+`debye_1d_sweep.py` reruns four poles ($\tau$ in light-meters) and writes `exports/SimulationData/single-core/1D_Debye/debye_pole_sweep.png`.
+
 ## `analyze_probe_matrix.py`
 
 Optional check that global and `hesthaven` point-probe traces agree on paired cases. Not required to run a PML or RCS case.

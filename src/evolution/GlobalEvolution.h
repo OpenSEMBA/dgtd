@@ -52,6 +52,7 @@ private:
     std::unique_ptr<mfem::SparseMatrix> deltaGapOperator_;
     std::unique_ptr<mfem::SparseMatrix> SGBCOperator_;
     std::unique_ptr<mfem::SparseMatrix> scpmlOperator_;
+    std::unique_ptr<mfem::SparseMatrix> debyeOperator_;
     std::unique_ptr<SCPMLLayout> scpmlLayout_;
     /// Per stretch-component curl a-rescale: out_Fu += Delta_u * out_Fu (E and H).
     std::array<std::unique_ptr<mfem::SparseMatrix>, 3> scpmlCurlDelta_;

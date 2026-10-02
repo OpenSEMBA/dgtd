@@ -1,6 +1,7 @@
 #include "driver.h"
 #include "string"
 #include "components/PMLProperties.h"
+#include "components/DebyeProperties.h"
 
 #include <numeric>
 #include <unordered_map>
@@ -2062,12 +2063,59 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 	checkIfThrows(case_data.contains("model"), "JSON data does not include 'model'.");
 	checkIfThrows(case_data["model"].contains("materials"), "JSON data does not include 'materials'.");
 
+	std::unordered_map<int, std::string> material_tag_kind;
+	auto claimMaterialTag = [&](int tag, const std::string& kind) {
+		const auto it = material_tag_kind.find(tag);
+		if (it == material_tag_kind.end()) {
+			material_tag_kind.emplace(tag, kind);
+			return;
+		}
+		if (kind == "debye" || it->second == "debye") {
+			throw std::runtime_error(
+				"Material tag " + std::to_string(tag) +
+				" cannot be both a Debye material and another material assignment.");
+		}
+	};
+
+	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
+		const auto& mat_json = case_data["model"]["materials"][m];
+		if (!mat_json.contains("tags")) {
+			continue;
+		}
+		std::string kind = "material";
+		if (mat_json.contains("type")) {
+			const std::string type = mat_json["type"].get<std::string>();
+			if (type == "vacuum") {
+				kind = "vacuum";
+				if (mat_json.contains("debye")) {
+					throw std::runtime_error(
+						"Vacuum material must not define debye.");
+				}
+			} else if (type == "PML") {
+				kind = "pml";
+				if (mat_json.contains("debye")) {
+					throw std::runtime_error(
+						"PML material must not define debye. Debye is a volumetric material outside the PML.");
+				}
+			}
+		} else if (mat_json.contains("debye")) {
+			kind = "debye";
+		}
+		for (auto t = 0; t < mat_json["tags"].size(); t++) {
+			claimMaterialTag(mat_json["tags"][t].get<int>(), kind);
+		}
+	}
+
 	for (auto m = 0; m < case_data["model"]["materials"].size(); m++) {
 		const auto& mat_json = case_data["model"]["materials"][m];
 
 		if (mat_json.contains("type")) {
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
+				if (mat_json.contains("debye")) {
+					throw std::runtime_error(
+						"Vacuum material must not define debye.");
+				}
 				const Material vacuum = buildVacuumMaterial();
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
 					res.gt2m.emplace(mat_json["tags"][t], vacuum);
@@ -2085,6 +2133,28 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			} else {
 				throw std::runtime_error(
 					"Unknown material type '" + type + "'. Supported: vacuum, PML, or legacy eps/mu.");
+			}
+			continue;
+		}
+
+		if (mat_json.contains("debye")) {
+			if (mat_json.contains("relative_permittivity")) {
+				throw std::runtime_error(
+					"Debye material must not define relative_permittivity. "
+					"The electric mass uses debye.eps_inf.");
+			}
+			DebyeProperties pole = parseDebyeObject(mat_json["debye"]);
+			double mu{ 1.0 }, sigma{ 0.0 };
+			if (mat_json.contains("relative_permeability")) {
+				mu = mat_json["relative_permeability"];
+			}
+			if (mat_json.contains("bulk_conductivity")) {
+				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			}
+			for (auto t = 0; t < mat_json["tags"].size(); t++) {
+				pole.geom_tag = mat_json["tags"][t].get<int>();
+				res.debye.push_back(pole);
+				res.gt2m.emplace(pole.geom_tag, Material(pole.eps_inf, mu, sigma));
 			}
 			continue;
 		}
@@ -2457,6 +2527,10 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     double max_freq = calculateMaximumSourceFrequency(case_data);
 
     auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
+        if (mat_json.contains("debye")) {
+            throw std::runtime_error(
+                "SGBC layer must not define debye. Debye is a volumetric material.");
+        }
         double rel_eps = 1.0;
         if (mat_json.contains("relative_permittivity")) {
             rel_eps = mat_json["relative_permittivity"].get<double>();
@@ -2638,6 +2712,7 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     
     res.setSGBCProperties(sgbc_props);
 
+    res.setDebyeProperties(att_to_material.debye);
     res.setPMLProperties(att_to_material.pml_props);
     if (res.hasPML() && Mpi::WorldRank() == 0) {
         std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;

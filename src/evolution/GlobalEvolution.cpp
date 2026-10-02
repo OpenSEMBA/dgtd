@@ -123,7 +123,8 @@ GlobalEvolution::GlobalEvolution(
         const int n_aux = computePMLAuxSize(
             model.getPMLProperties(), ndofs,
             fes.GetMesh()->Dimension());
-        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux;
+        const int n_debye = model.debyeAuxSize(ndofs);
+        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux + n_debye;
     }()),
     total_state_size_(Height()),
     fes_{ fes },
@@ -478,10 +479,17 @@ GlobalEvolution::GlobalEvolution(
                 std::cout << "[PML] SC-PML ADE formulation; extended ODE size: "
                           << total_state_size_
                           << " (field " << 6 * fes_.GetNDofs()
-                          << " + n_aux " << scpmlLayout_->nAux() << ")"
+                          << " + pml " << scpmlLayout_->nAux()
+                          << " + debye " << model_.debyeAuxSize(fes_.GetNDofs()) << ")"
                           << std::endl;
             }
         }
+    }
+
+    debyeOperator_ = dgops.buildDebyeOperator();
+    if (debyeOperator_ && Mpi::WorldRank() == 0) {
+        std::cout << "[Debye] electric single-pole ADE; ODE size "
+                  << total_state_size_ << std::endl;
     }
 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
@@ -616,6 +624,7 @@ GlobalEvolution::GlobalEvolution(
         useMfemCudaSpmv(deltaGapOperator_.get());
         useMfemCudaSpmv(SGBCOperator_.get());
         useMfemCudaSpmv(scpmlOperator_.get());
+        useMfemCudaSpmv(debyeOperator_.get());
         for (auto& delta : scpmlCurlDelta_) {
             useMfemCudaSpmv(delta.get());
         }
@@ -1287,7 +1296,21 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         }
     }
     if (scpmlOperator_) {
-        scpmlOperator_->AddMult(in, out);
+        const int n_pml = scpmlLayout_ ? scpmlLayout_->nAux() : 0;
+        const int n_debye = model_.debyeAuxSize(ndofs);
+        if (n_debye == 0) {
+            scpmlOperator_->AddMult(in, out);
+        } else {
+            const int n_prefix = 6 * ndofs + n_pml;
+            mfem::Vector in_prefix;
+            mfem::Vector out_prefix;
+            in_prefix.MakeRef(const_cast<mfem::Vector&>(in), 0, n_prefix);
+            out_prefix.MakeRef(out, 0, n_prefix);
+            scpmlOperator_->AddMult(in_prefix, out_prefix);
+        }
+    }
+    if (debyeOperator_) {
+        debyeOperator_->AddMult(in, out);
     }
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();
@@ -1594,7 +1617,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     const int nbrDofs   = fes_.num_face_nbr_dofs;
     const int blockSize = ndofs + nbrDofs;
     if (total_state_size_ > 6 * ndofs) {
-        MFEM_ABORT("Classical ADE-PML extended state is not supported with implicit integrators yet.");
+        MFEM_ABORT("Extended state (Cartesian PML or Debye) is not supported with implicit integrators yet.");
     }
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 

@@ -1,5 +1,6 @@
 #include "Solver.h"
 #include "components/SCPMLLayout.h"
+#include "evolution/EvolutionOptions.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -112,7 +113,8 @@ Solver::Solver(
              computePMLAuxSize(
                  model.getPMLProperties(),
                  fes_->GetNDofs(),
-                 fes_->GetMesh()->Dimension()) },
+                 fes_->GetMesh()->Dimension())
+             + model.debyeAuxSize(fes_->GetNDofs()) },
     sourcesManager_{ sources, *fes_, fields_ },
     probesManager_ { probes , *fes_, fields_, opts_ },
     time_{0.0}
@@ -127,6 +129,15 @@ Solver::Solver(
 
     if (comm_rank == 0){
         checkOptionsAreValid(opts_);
+    }
+
+    if (model_.hasDebye() && opts_.evolution.op != EvolutionOperatorType::Global) {
+        throw std::runtime_error(
+            "Debye materials require evolution_operator \"global\".");
+    }
+    if (model_.hasDebye() && opts_.evolution.spectral) {
+        throw std::runtime_error(
+            "Spectral analysis does not include Debye polarization.");
     }
 
     if (opts_.evolution.spectral == true) {

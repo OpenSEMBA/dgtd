@@ -132,3 +132,129 @@ TEST_F(DriverTest, throwsWhenCaseNamingStyleIsInconsistent)
 
 	std::filesystem::remove_all(case_dir);
 }
+
+namespace {
+
+json loadPecCase()
+{
+	std::ifstream in(maxwellCase("1D_PEC"));
+	return json::parse(in);
+}
+
+json debyeMaterial(int tag, double eps_inf, double eps_s, double tau)
+{
+	return {
+		{"tags", json::array({tag})},
+		{"debye", {{"eps_inf", eps_inf}, {"eps_s", eps_s}, {"tau", tau}}}
+	};
+}
+
+} // namespace
+
+TEST_F(DriverTest, debyeRejectsBadMaterials)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "vacuum"}, {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}, {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}},
+			debyeMaterial(1, 2.0, 4.0, 1e-9)
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			debyeMaterial(1, 2.0, 4.0, 1e-9),
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		auto mat = debyeMaterial(1, 2.0, 4.0, 1e-9);
+		mat["relative_permittivity"] = 3.0;
+		case_data["model"]["materials"] = json::array({mat});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 0.5, 4.0, 1e-9)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 2.0, 1e-9)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 4.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}, {"omega_p", 1.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["boundaries"][0]["type"] = "SGBC";
+		case_data["model"]["boundaries"][0]["material"] = {
+			{"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, debyeRejectsHesthavenAndSpectral)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, 1e-9)});
+		case_data["solver_options"]["evolution_operator"] = "hesthaven";
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, 1e-9)});
+		case_data["solver_options"]["evolution_operator"] = "maxwell";
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, 1e-9)});
+		case_data["solver_options"]["spectral"] = true;
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, debyeStoresEpsInfAndSolverTau)
+{
+	auto case_data = loadPecCase();
+	const double tau_si = 2.0e-9;
+	case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, tau_si)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	ASSERT_TRUE(model.hasDebye());
+	const DebyeProperties* pole = model.findDebye(1);
+	ASSERT_NE(pole, nullptr);
+	EXPECT_DOUBLE_EQ(pole->eps_inf, 2.0);
+	EXPECT_DOUBLE_EQ(pole->eps_s, 6.0);
+	EXPECT_DOUBLE_EQ(pole->tau_solver, tau_si * physicalConstants::speedOfLight_SI);
+	EXPECT_DOUBLE_EQ(model.getGeomTagToMaterial().at(1).getPermittivity(), 2.0);
+}

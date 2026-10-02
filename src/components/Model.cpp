@@ -102,6 +102,24 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 
 }
 
+void Model::setDebyeProperties(const std::vector<DebyeProperties>& in)
+{
+	debye_ = in;
+	debye_by_tag_.clear();
+	for (const DebyeProperties& pole : debye_) {
+		debye_by_tag_.insert_or_assign(pole.geom_tag, pole);
+	}
+}
+
+const DebyeProperties* Model::findDebye(Attribute tag) const
+{
+	const auto it = debye_by_tag_.find(tag);
+	if (it == debye_by_tag_.end()) {
+		return nullptr;
+	}
+	return &it->second;
+}
+
 void Model::assembleBdrToMarkerMaps()
 {
 	const std::pair<BdrCond, const mfem::Array<int>&> bdrEntries[] = {

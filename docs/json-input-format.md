@@ -61,6 +61,21 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |
+| `debye` | object | — | Single-pole electric Debye on an untyped material. See below. |
+
+#### debye
+
+Optional object. Legal only when the material entry has no `type`. The electric mass uses `eps_inf`. `tau` is seconds; the solver stores $\tau_{\mathrm{SI}}\,c_{\mathrm{SI}}$ because time is in light-meters.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `eps_inf` | double | Instantaneous relative permittivity. Must be $\ge 1$. |
+| `eps_s` | double | Static relative permittivity. Must be greater than `eps_inf`. |
+| `tau` | double | Relaxation time in seconds. Must be $> 0$. |
+
+`relative_permittivity` is rejected together with `debye`. `relative_permeability` and `bulk_conductivity` keep their usual defaults. `bulk_conductivity` stays an independent Ohm term beside the pole.
+
+`debye` is rejected on `type: "vacuum"`, `type: "PML"`, and on an SGBC layer. A tag cannot be listed as both Debye and another material. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes the Debye polarization.
 
 ### boundaries [REQUIRED]
 
@@ -251,11 +266,11 @@ In 3D the tagged face is a rectangle. $h$ is the span of its vertices along `pol
 
 ### type: coaxial_port
 
-One entry, on a 3D mesh. The load face is an interior annulus. It is the TFSF interface: the wave is launched into the total-field volume, and the scattered-field volume carries no incident field. Do not combine it with `planewave` or `dipole`.
+One entry, on a 3D mesh. An interior load face is the TFSF interface: the wave is launched into the total-field volume, and the scattered-field volume carries no incident field. A boundary load face has no second volume. It is total field only, the tag must also be SMA, and the axis points from that face into the single volume. The face then applies the SMA flux to the solution minus the TEM pair. Do not combine it with `planewave` or `dipole`.
 
 `tags.outer` and `tags.live` are the PEC conductors used to measure the shared center and the radii. Cylindrical tags are kept. End caps, whose radius is not constant, are ignored. `tags.load` is the annular face. It is not a boundary condition.
 
-The scattered-field volume is the load neighbor that also meets an SMA boundary. The other load neighbor is the total-field volume. The existing TFSF face operator and its Elem1/Elem2 convention are used as they are.
+The scattered-field volume is the load neighbor that meets an SMA boundary when exactly one side does. An interior SMA face meets both volumes on that face. When neither side meets an SMA boundary, it is the load neighbor that reaches a PML volume without crossing the load. If both sides reach a PML, the scattered-field side is the one whose PML interface is closer to the load. The other load neighbor is the total-field volume. The existing TFSF face operator and its Elem1/Elem2 convention are used as they are.
 
 The incident field is the circular TEM pair, with magnitude the voltage $V_0$:
 
