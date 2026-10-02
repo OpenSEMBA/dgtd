@@ -120,6 +120,24 @@ const DebyeProperties* Model::findDebye(Attribute tag) const
 	return &it->second;
 }
 
+void Model::setLorentzProperties(const std::vector<LorentzProperties>& in)
+{
+	lorentz_ = in;
+	lorentz_by_tag_.clear();
+	for (const LorentzProperties& pole : lorentz_) {
+		lorentz_by_tag_.insert_or_assign(pole.geom_tag, pole);
+	}
+}
+
+const LorentzProperties* Model::findLorentz(Attribute tag) const
+{
+	const auto it = lorentz_by_tag_.find(tag);
+	if (it == lorentz_by_tag_.end()) {
+		return nullptr;
+	}
+	return &it->second;
+}
+
 void Model::assembleBdrToMarkerMaps()
 {
 	const std::pair<BdrCond, const mfem::Array<int>&> bdrEntries[] = {

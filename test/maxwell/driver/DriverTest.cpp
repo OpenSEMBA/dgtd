@@ -258,3 +258,126 @@ TEST_F(DriverTest, debyeStoresEpsInfAndSolverTau)
 	EXPECT_DOUBLE_EQ(pole->tau_solver, tau_si * physicalConstants::speedOfLight_SI);
 	EXPECT_DOUBLE_EQ(model.getGeomTagToMaterial().at(1).getPermittivity(), 2.0);
 }
+
+json lorentzMaterial(int tag, double eps_inf, double omega_p, double omega_1, double gamma)
+{
+	return {
+		{"tags", json::array({tag})},
+		{"lorentz", {
+			{"eps_inf", eps_inf},
+			{"omega_p", omega_p},
+			{"omega_1", omega_1},
+			{"gamma", gamma}
+		}}
+	};
+}
+
+TEST_F(DriverTest, lorentzRejectsBadMaterials)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "vacuum"}, {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}, {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		auto both = debyeMaterial(1, 2.0, 4.0, 1e-9);
+		both["lorentz"] = {{"eps_inf", 2.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}};
+		case_data["model"]["materials"] = json::array({both});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			debyeMaterial(1, 2.0, 4.0, 1e-9),
+			lorentzMaterial(1, 1.0, 1.0, 0.0, 0.0)
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		auto mat = lorentzMaterial(1, 2.0, 1.0e9, 0.0, 0.0);
+		mat["relative_permittivity"] = 3.0;
+		case_data["model"]["materials"] = json::array({mat});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 0.5, 1.0, 0.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 0.0, 0.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0, -1.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0, 0.0, -1.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["boundaries"][0]["type"] = "SGBC";
+		case_data["model"]["boundaries"][0]["material"] = {
+			{"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, lorentzStoresSolverRates)
+{
+	auto case_data = loadPecCase();
+	const double omega_p = 2.0e9;
+	const double omega_1 = 1.0e9;
+	const double gamma = 3.0e8;
+	case_data["model"]["materials"] = json::array({lorentzMaterial(1, 2.0, omega_p, omega_1, gamma)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	ASSERT_TRUE(model.hasLorentz());
+	const LorentzProperties* pole = model.findLorentz(1);
+	ASSERT_NE(pole, nullptr);
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
+	EXPECT_DOUBLE_EQ(pole->eps_inf, 2.0);
+	EXPECT_DOUBLE_EQ(pole->omega_p, omega_p * inv_c);
+	EXPECT_DOUBLE_EQ(pole->omega_1, omega_1 * inv_c);
+	EXPECT_DOUBLE_EQ(pole->gamma, gamma * inv_c);
+	EXPECT_DOUBLE_EQ(model.getGeomTagToMaterial().at(1).getPermittivity(), 2.0);
+}
+
+TEST_F(DriverTest, lorentzRejectsHesthavenAndSpectral)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0e9, 0.0, 0.0)});
+		case_data["solver_options"]["evolution_operator"] = "hesthaven";
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0e9, 0.0, 0.0)});
+		case_data["solver_options"]["spectral"] = true;
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}

@@ -100,9 +100,9 @@ void validatePMLMaterialBlock(const nlohmann::json& mat_json)
 			"PML material must not define relative_permittivity/permeability. "
 			"Use matches_vacuum instead.");
 	}
-	if (mat_json.contains("debye")) {
+	if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
 		throw std::runtime_error(
-			"PML material must not define debye. Debye is a volumetric material outside the PML.");
+			"PML material must not define debye or lorentz.");
 	}
 	if (mat_json.contains("matches_vacuum") && !mat_json["matches_vacuum"].get<bool>()) {
 		throw std::runtime_error("Only matches_vacuum: true is supported for volumetric PML.");

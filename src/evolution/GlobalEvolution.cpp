@@ -124,7 +124,8 @@ GlobalEvolution::GlobalEvolution(
             model.getPMLProperties(), ndofs,
             fes.GetMesh()->Dimension());
         const int n_debye = model.debyeAuxSize(ndofs);
-        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux + n_debye;
+        const int n_lorentz = model.lorentzAuxSize(ndofs);
+        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux + n_debye + n_lorentz;
     }()),
     total_state_size_(Height()),
     fes_{ fes },
@@ -480,7 +481,8 @@ GlobalEvolution::GlobalEvolution(
                           << total_state_size_
                           << " (field " << 6 * fes_.GetNDofs()
                           << " + pml " << scpmlLayout_->nAux()
-                          << " + debye " << model_.debyeAuxSize(fes_.GetNDofs()) << ")"
+                          << " + debye " << model_.debyeAuxSize(fes_.GetNDofs())
+                          << " + lorentz " << model_.lorentzAuxSize(fes_.GetNDofs()) << ")"
                           << std::endl;
             }
         }
@@ -489,6 +491,11 @@ GlobalEvolution::GlobalEvolution(
     debyeOperator_ = dgops.buildDebyeOperator();
     if (debyeOperator_ && Mpi::WorldRank() == 0) {
         std::cout << "[Debye] electric single-pole ADE; ODE size "
+                  << total_state_size_ << std::endl;
+    }
+    lorentzOperator_ = dgops.buildLorentzOperator();
+    if (lorentzOperator_ && Mpi::WorldRank() == 0) {
+        std::cout << "[Lorentz] electric single-pole ADE; ODE size "
                   << total_state_size_ << std::endl;
     }
 
@@ -625,6 +632,7 @@ GlobalEvolution::GlobalEvolution(
         useMfemCudaSpmv(SGBCOperator_.get());
         useMfemCudaSpmv(scpmlOperator_.get());
         useMfemCudaSpmv(debyeOperator_.get());
+        useMfemCudaSpmv(lorentzOperator_.get());
         for (auto& delta : scpmlCurlDelta_) {
             useMfemCudaSpmv(delta.get());
         }
@@ -1295,22 +1303,34 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
     }
-    if (scpmlOperator_) {
+    {
         const int n_pml = scpmlLayout_ ? scpmlLayout_->nAux() : 0;
         const int n_debye = model_.debyeAuxSize(ndofs);
-        if (n_debye == 0) {
-            scpmlOperator_->AddMult(in, out);
-        } else {
-            const int n_prefix = 6 * ndofs + n_pml;
+        const int n_lorentz = model_.lorentzAuxSize(ndofs);
+        auto addPrefix = [&](mfem::SparseMatrix& op, int n_prefix) {
             mfem::Vector in_prefix;
             mfem::Vector out_prefix;
             in_prefix.MakeRef(const_cast<mfem::Vector&>(in), 0, n_prefix);
             out_prefix.MakeRef(out, 0, n_prefix);
-            scpmlOperator_->AddMult(in_prefix, out_prefix);
+            op.AddMult(in_prefix, out_prefix);
+        };
+        if (scpmlOperator_) {
+            if (n_debye == 0 && n_lorentz == 0) {
+                scpmlOperator_->AddMult(in, out);
+            } else {
+                addPrefix(*scpmlOperator_, 6 * ndofs + n_pml);
+            }
         }
-    }
-    if (debyeOperator_) {
-        debyeOperator_->AddMult(in, out);
+        if (debyeOperator_) {
+            if (n_lorentz == 0) {
+                debyeOperator_->AddMult(in, out);
+            } else {
+                addPrefix(*debyeOperator_, 6 * ndofs + n_pml + n_debye);
+            }
+        }
+        if (lorentzOperator_) {
+            lorentzOperator_->AddMult(in, out);
+        }
     }
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();
@@ -1617,7 +1637,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     const int nbrDofs   = fes_.num_face_nbr_dofs;
     const int blockSize = ndofs + nbrDofs;
     if (total_state_size_ > 6 * ndofs) {
-        MFEM_ABORT("Extended state (Cartesian PML or Debye) is not supported with implicit integrators yet.");
+        MFEM_ABORT("Extended state (Cartesian PML, Debye, or Lorentz) is not supported with implicit integrators yet.");
     }
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 

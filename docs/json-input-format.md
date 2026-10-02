@@ -62,6 +62,7 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |
 | `debye` | object | — | Single-pole electric Debye on an untyped material. See below. |
+| `lorentz` | object | — | Single-pole electric Lorentz on an untyped material. See below. |
 
 #### debye
 
@@ -76,6 +77,19 @@ Optional object. Legal only when the material entry has no `type`. The electric 
 `relative_permittivity` is rejected together with `debye`. `relative_permeability` and `bulk_conductivity` keep their usual defaults. `bulk_conductivity` stays an independent Ohm term beside the pole.
 
 `debye` is rejected on `type: "vacuum"`, `type: "PML"`, and on an SGBC layer. A tag cannot be listed as both Debye and another material. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes the Debye polarization.
+
+#### lorentz
+
+Optional object. Legal only when the material entry has no `type`. The electric mass uses `eps_inf`. `omega_p`, `omega_1`, and `gamma` are rad/s; the solver stores each rate divided by $c_{\mathrm{SI}}$. $\omega_1 = 0$ is a cold plasma on this same pole.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `eps_inf` | double | Instantaneous relative permittivity. Must be $\ge 1$. |
+| `omega_p` | double | Plasma frequency in rad/s. Must be $> 0$. |
+| `omega_1` | double | Resonance frequency in rad/s. Must be $\ge 0$. |
+| `gamma` | double | Damping rate in rad/s. Must be $\ge 0$. |
+
+`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz`. `lorentz` is rejected on vacuum, PML, and SGBC. `evolution_operator` must be `"global"`. `spectral: true` is rejected.
 
 ### boundaries [REQUIRED]
 

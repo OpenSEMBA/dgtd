@@ -114,7 +114,8 @@ Solver::Solver(
                  model.getPMLProperties(),
                  fes_->GetNDofs(),
                  fes_->GetMesh()->Dimension())
-             + model.debyeAuxSize(fes_->GetNDofs()) },
+             + model.debyeAuxSize(fes_->GetNDofs())
+             + model.lorentzAuxSize(fes_->GetNDofs()) },
     sourcesManager_{ sources, *fes_, fields_ },
     probesManager_ { probes , *fes_, fields_, opts_ },
     time_{0.0}
@@ -131,13 +132,14 @@ Solver::Solver(
         checkOptionsAreValid(opts_);
     }
 
-    if (model_.hasDebye() && opts_.evolution.op != EvolutionOperatorType::Global) {
+    const bool dispersive = model_.hasDebye() || model_.hasLorentz();
+    if (dispersive && opts_.evolution.op != EvolutionOperatorType::Global) {
         throw std::runtime_error(
-            "Debye materials require evolution_operator \"global\".");
+            "Debye and Lorentz materials require evolution_operator \"global\".");
     }
-    if (model_.hasDebye() && opts_.evolution.spectral) {
+    if (dispersive && opts_.evolution.spectral) {
         throw std::runtime_error(
-            "Spectral analysis does not include Debye polarization.");
+            "Spectral analysis does not include Debye or Lorentz polarization.");
     }
 
     if (opts_.evolution.spectral == true) {

@@ -5,6 +5,7 @@
 #include "PMLProperties.h"
 #include "PMLProfiles.h"
 #include "DebyeProperties.h"
+#include "LorentzProperties.h"
 
 #include <memory>
 
@@ -59,6 +60,7 @@ struct GeomTagToMaterialInfo {
 	GeomTagToBoundaryMaterial gt2bm;
 	std::vector<PMLProperties> pml_props;
 	std::vector<DebyeProperties> debye;
+	std::vector<LorentzProperties> lorentz;
 
 	GeomTagToMaterialInfo()
 	{
@@ -181,6 +183,13 @@ public:
 	const DebyeProperties* findDebye(Attribute tag) const;
 	/// 3N when any Debye attribute exists, else 0. Slots cover every local DOF.
 	int debyeAuxSize(int ndofs) const { return hasDebye() ? 3 * ndofs : 0; }
+
+	void setLorentzProperties(const std::vector<LorentzProperties>& in);
+	const std::vector<LorentzProperties>& getLorentzProperties() const { return lorentz_; }
+	bool hasLorentz() const { return !lorentz_.empty(); }
+	const LorentzProperties* findLorentz(Attribute tag) const;
+	/// 6N (P and J) when any Lorentz attribute exists, else 0.
+	int lorentzAuxSize(int ndofs) const { return hasLorentz() ? 6 * ndofs : 0; }
 	bool isPMLAttribute(GeomTag tag) const;
 	const PMLProperties* getPMLPropertiesForTag(GeomTag tag) const;
 	void initializePMLProfiles(int mpi_rank, int fe_order = 2);
@@ -232,6 +241,8 @@ private:
 	std::vector<PMLProperties> pml_props_;
 	std::vector<DebyeProperties> debye_;
 	std::map<GeomTag, DebyeProperties> debye_by_tag_;
+	std::vector<LorentzProperties> lorentz_;
+	std::map<GeomTag, LorentzProperties> lorentz_by_tag_;
 	std::shared_ptr<const PMLProfileData> pml_profiles_;
 
 	void assembleGeomTagToTypeMap(

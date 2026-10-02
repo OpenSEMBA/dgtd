@@ -2,6 +2,7 @@
 #include "string"
 #include "components/PMLProperties.h"
 #include "components/DebyeProperties.h"
+#include "components/LorentzProperties.h"
 
 #include <numeric>
 #include <unordered_map>
@@ -2333,10 +2334,13 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			material_tag_kind.emplace(tag, kind);
 			return;
 		}
-		if (kind == "debye" || it->second == "debye") {
+		const bool dispersive =
+			kind == "debye" || kind == "lorentz" ||
+			it->second == "debye" || it->second == "lorentz";
+		if (dispersive) {
 			throw std::runtime_error(
 				"Material tag " + std::to_string(tag) +
-				" cannot be both a Debye material and another material assignment.");
+				" cannot carry Debye or Lorentz together with another material assignment.");
 		}
 	};
 
@@ -2350,19 +2354,24 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
 				kind = "vacuum";
-				if (mat_json.contains("debye")) {
+				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
 					throw std::runtime_error(
-						"Vacuum material must not define debye.");
+						"Vacuum material must not define debye or lorentz.");
 				}
 			} else if (type == "PML") {
 				kind = "pml";
-				if (mat_json.contains("debye")) {
+				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
 					throw std::runtime_error(
-						"PML material must not define debye. Debye is a volumetric material outside the PML.");
+						"PML material must not define debye or lorentz.");
 				}
 			}
+		} else if (mat_json.contains("debye") && mat_json.contains("lorentz")) {
+			throw std::runtime_error(
+				"A material cannot define both debye and lorentz.");
 		} else if (mat_json.contains("debye")) {
 			kind = "debye";
+		} else if (mat_json.contains("lorentz")) {
+			kind = "lorentz";
 		}
 		for (auto t = 0; t < mat_json["tags"].size(); t++) {
 			claimMaterialTag(mat_json["tags"][t].get<int>(), kind);
@@ -2375,9 +2384,9 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 		if (mat_json.contains("type")) {
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
-				if (mat_json.contains("debye")) {
+				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
 					throw std::runtime_error(
-						"Vacuum material must not define debye.");
+						"Vacuum material must not define debye or lorentz.");
 				}
 				const Material vacuum = buildVacuumMaterial();
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
@@ -2417,6 +2426,32 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			for (auto t = 0; t < mat_json["tags"].size(); t++) {
 				pole.geom_tag = mat_json["tags"][t].get<int>();
 				res.debye.push_back(pole);
+				res.gt2m.emplace(pole.geom_tag, Material(pole.eps_inf, mu, sigma));
+			}
+			continue;
+		}
+
+		if (mat_json.contains("lorentz")) {
+			if (mat_json.contains("debye")) {
+				throw std::runtime_error(
+					"A material cannot define both debye and lorentz.");
+			}
+			if (mat_json.contains("relative_permittivity")) {
+				throw std::runtime_error(
+					"Lorentz material must not define relative_permittivity. "
+					"The electric mass uses lorentz.eps_inf.");
+			}
+			LorentzProperties pole = parseLorentzObject(mat_json["lorentz"]);
+			double mu{ 1.0 }, sigma{ 0.0 };
+			if (mat_json.contains("relative_permeability")) {
+				mu = mat_json["relative_permeability"];
+			}
+			if (mat_json.contains("bulk_conductivity")) {
+				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			}
+			for (auto t = 0; t < mat_json["tags"].size(); t++) {
+				pole.geom_tag = mat_json["tags"][t].get<int>();
+				res.lorentz.push_back(pole);
 				res.gt2m.emplace(pole.geom_tag, Material(pole.eps_inf, mu, sigma));
 			}
 			continue;
@@ -2790,9 +2825,9 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     double max_freq = calculateMaximumSourceFrequency(case_data);
 
     auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
-        if (mat_json.contains("debye")) {
+        if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
             throw std::runtime_error(
-                "SGBC layer must not define debye. Debye is a volumetric material.");
+                "SGBC layer must not define debye or lorentz.");
         }
         double rel_eps = 1.0;
         if (mat_json.contains("relative_permittivity")) {
@@ -2976,6 +3011,7 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
     res.setSGBCProperties(sgbc_props);
 
     res.setDebyeProperties(att_to_material.debye);
+    res.setLorentzProperties(att_to_material.lorentz);
     res.setPMLProperties(att_to_material.pml_props);
     if (res.hasPML() && Mpi::WorldRank() == 0) {
         std::cout << "\n[PML] Parsed " << att_to_material.pml_props.size() << " region(s):" << std::endl;

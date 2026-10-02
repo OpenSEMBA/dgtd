@@ -449,6 +449,9 @@ namespace maxwell
 		/// Electric single-pole Debye. Square on the full ODE (EH + PML aux + 3N).
 		/// Null when this rank has no Debye elements. Not passed through Threshold.
 		std::unique_ptr<mfem::SparseMatrix> buildDebyeOperator();
+		/// Electric single-pole Lorentz. Square on the full ODE.
+		/// Null when this rank has no Lorentz elements. Not passed through Threshold.
+		std::unique_ptr<mfem::SparseMatrix> buildLorentzOperator();
 
 	private:
 		ProblemDescription pd_;
@@ -2226,6 +2229,64 @@ namespace maxwell
 					matrix->Add(e_off + dof, p_off + dof, e_from_p);
 					matrix->Add(p_off + dof, e_off + dof, p_from_e);
 					matrix->Add(p_off + dof, p_off + dof, p_from_p);
+				}
+			}
+		}
+
+		if (!any) {
+			return nullptr;
+		}
+
+		matrix->Finalize();
+		return matrix;
+	}
+
+	template <typename FES>
+	std::unique_ptr<mfem::SparseMatrix> DGOperatorFactory<FES>::buildLorentzOperator()
+	{
+		if (!pd_.model.hasLorentz()) {
+			return nullptr;
+		}
+
+		const int ndofs = fes_.GetNDofs();
+		mfem::Mesh* mesh = fes_.GetMesh();
+		const int n_pml = computePMLAuxSize(
+			pd_.model.getPMLProperties(), ndofs, mesh->Dimension());
+		const int n_debye = pd_.model.debyeAuxSize(ndofs);
+		const int n_lorentz = 6 * ndofs;
+		const int n_state = 6 * ndofs + n_pml + n_debye + n_lorentz;
+		const int p_base = 6 * ndofs + n_pml + n_debye;
+		const int j_base = p_base + 3 * ndofs;
+		auto matrix = std::make_unique<mfem::SparseMatrix>(n_state, n_state);
+
+		bool any = false;
+		mfem::Array<int> dofs;
+		for (int el = 0; el < mesh->GetNE(); ++el) {
+			const LorentzProperties* pole = pd_.model.findLorentz(mesh->GetAttribute(el));
+			if (!pole) {
+				continue;
+			}
+			any = true;
+			const double e_from_j = -1.0 / pole->eps_inf;
+			const double j_from_e = pole->omega_p * pole->omega_p;
+			const double j_from_p = -pole->omega_1 * pole->omega_1;
+			const double j_from_j = -2.0 * pole->gamma;
+
+			fes_.GetElementDofs(el, dofs);
+			for (int u = 0; u < 3; ++u) {
+				const int e_off = u * ndofs;
+				const int p_off = p_base + u * ndofs;
+				const int j_off = j_base + u * ndofs;
+				for (int j = 0; j < dofs.Size(); ++j) {
+					int dof = dofs[j];
+					if (dof < 0) {
+						dof = -1 - dof;
+					}
+					matrix->Add(e_off + dof, j_off + dof, e_from_j);
+					matrix->Add(p_off + dof, j_off + dof, 1.0);
+					matrix->Add(j_off + dof, e_off + dof, j_from_e);
+					matrix->Add(j_off + dof, p_off + dof, j_from_p);
+					matrix->Add(j_off + dof, j_off + dof, j_from_j);
 				}
 			}
 		}

@@ -47,6 +47,22 @@ python3 scripts/debye_1d_reference.py
 
 `debye_1d_sweep.py` reruns four poles ($\tau$ in light-meters) and writes `exports/SimulationData/single-core/1D_Debye/debye_pole_sweep.png`.
 
+## `lorentz_1d_reference.py`
+
+Standalone 1D nodal DG for a single-pole Lorentz slab (or a cold plasma when `omega_1` is 0). It does not call the solver. `--sweep` writes four 1D cases, runs `opensemba_dgtd`, and compares $E_y$.
+
+```sh
+python3 scripts/lorentz_1d_reference.py --sweep
+```
+
+## `yuan2010_plasma_slab.py`
+
+The conductor-backed 10 cm cold-plasma slab of Yuan, Zhou, and Sun, IEEE Trans. Plasma Sci. 38 (2010). It writes the two 1D cases, runs the solver, and compares the reflected power from 2 to 4 GHz with Eqs. (10)-(12) of that paper.
+
+```sh
+python3 scripts/yuan2010_plasma_slab.py
+```
+
 ## `analyze_probe_matrix.py`
 
 Optional check that global and `hesthaven` point-probe traces agree on paired cases. Not required to run a PML or RCS case.
