@@ -270,7 +270,7 @@ One entry, on a 3D mesh. An interior load face is the TFSF interface: the wave i
 
 `tags.outer` and `tags.live` are the PEC conductors used to measure the shared center and the radii. Cylindrical tags are kept. End caps, whose radius is not constant, are ignored. `tags.load` is the annular face. It is not a boundary condition.
 
-The scattered-field volume is the load neighbor that meets an SMA boundary when exactly one side does. An interior SMA face meets both volumes on that face. When neither side meets an SMA boundary, it is the load neighbor that reaches a PML volume without crossing the load. If both sides reach a PML, the scattered-field side is the one whose PML interface is closer to the load. The other load neighbor is the total-field volume. The existing TFSF face operator and its Elem1/Elem2 convention are used as they are.
+The scattered-field volume is the load neighbor that meets an SMA boundary when exactly one side does. An interior SMA face meets both volumes on that face. When both sides meet an SMA boundary, the scattered-field volume is Elem1 of the load face and the total-field volume is Elem2. Every load face must share that order. When neither side meets an SMA boundary, it is the load neighbor that reaches a PML volume without crossing the load. If both sides reach a PML, the scattered-field side is the one whose PML interface is closer to the load. The other load neighbor is the total-field volume. The existing TFSF face operator and its Elem1/Elem2 convention are used as they are.
 
 The incident field is the circular TEM pair, with magnitude the voltage $V_0$:
 

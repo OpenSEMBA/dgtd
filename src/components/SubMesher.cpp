@@ -724,11 +724,15 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 
 			bool elem1_is_tf = false;
 			if (tf_volume_attribute_ >= 0) {
-				if (fe_trans->Elem2No < 0) {
-					throw std::runtime_error(
-						"coaxial_port load face is not an interior face.");
-				}
 				const int a1 = original_attr[static_cast<std::size_t>(fe_trans->Elem1No)];
+				if (fe_trans->Elem2No < 0) {
+					if (a1 != tf_volume_attribute_) {
+						throw std::runtime_error(
+							"coaxial_port boundary load face does not lie on the total-field volume.");
+					}
+					elem1_is_tf = true;
+				}
+				else {
 				const int a2 = original_attr[static_cast<std::size_t>(fe_trans->Elem2No)];
 				const bool side1 = a1 == tf_volume_attribute_;
 				const bool side2 = a2 == tf_volume_attribute_;
@@ -736,7 +740,9 @@ void TotalFieldScatteredFieldSubMesher::setIndividualTFSFAttributesForSubMeshing
 					throw std::runtime_error(
 						"coaxial_port load face does not separate the total-field volume from its neighbor.");
 				}
+				// Total-field volume on Elem2 makes Elem1 the scattered side.
 				elem1_is_tf = side1;
+				}
 			} else {
 				// Classify by which side of the face plane contains the AABB center.
 				// Inward normal points toward tfsf_center; TF = element on the inward side.

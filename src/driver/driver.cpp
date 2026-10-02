@@ -1096,6 +1096,91 @@ static json collectSmaTags(const json& case_data)
 	return tags;
 }
 
+static json collectPmlVolumeTags(const json& case_data)
+{
+	json tags = json::array();
+	if (!case_data.contains("model") || !case_data["model"].contains("materials")) {
+		return tags;
+	}
+	for (const auto& material : case_data["model"]["materials"]) {
+		if (!material.contains("type") || material["type"] != "PML" || !material.contains("tags")) {
+			continue;
+		}
+		for (const auto& tag : material["tags"]) {
+			tags.push_back(tag);
+		}
+	}
+	return tags;
+}
+
+static std::vector<int> allgatherInts(const std::vector<int>& local)
+{
+	int nprocs = 1;
+	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+	const int rank_count = static_cast<int>(local.size());
+	std::vector<int> counts(static_cast<std::size_t>(nprocs), 0);
+	MPI_Allgather(&rank_count, 1, MPI_INT, counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+	std::vector<int> displs(static_cast<std::size_t>(nprocs), 0);
+	int total = 0;
+	for (int i = 0; i < nprocs; ++i) {
+		displs[static_cast<std::size_t>(i)] = total;
+		total += counts[static_cast<std::size_t>(i)];
+	}
+	std::vector<int> gathered(static_cast<std::size_t>(std::max(total, 1)));
+	const int dummy = 0;
+	MPI_Allgatherv(
+		local.empty() ? &dummy : local.data(), rank_count, MPI_INT,
+		gathered.data(), counts.data(), displs.data(), MPI_INT, MPI_COMM_WORLD);
+	gathered.resize(static_cast<std::size_t>(std::max(total, 0)));
+	return gathered;
+}
+
+static std::vector<double> allgatherDoubles(const std::vector<double>& local)
+{
+	int nprocs = 1;
+	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+	const int rank_count = static_cast<int>(local.size());
+	std::vector<int> counts(static_cast<std::size_t>(nprocs), 0);
+	MPI_Allgather(&rank_count, 1, MPI_INT, counts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+	std::vector<int> displs(static_cast<std::size_t>(nprocs), 0);
+	int total = 0;
+	for (int i = 0; i < nprocs; ++i) {
+		displs[static_cast<std::size_t>(i)] = total;
+		total += counts[static_cast<std::size_t>(i)];
+	}
+	std::vector<double> gathered(static_cast<std::size_t>(std::max(total, 1)));
+	const double dummy = 0.0;
+	MPI_Allgatherv(
+		local.empty() ? &dummy : local.data(), rank_count, MPI_DOUBLE,
+		gathered.data(), counts.data(), displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
+	gathered.resize(static_cast<std::size_t>(std::max(total, 0)));
+	return gathered;
+}
+
+static double boundaryFaceDistance(const mfem::Mesh& mesh, int be, const double center[3])
+{
+	mfem::Array<int> verts;
+	mesh.GetBdrElementVertices(be, verts);
+	if (verts.Size() == 0) {
+		return std::numeric_limits<double>::infinity();
+	}
+	double face[3] = {0.0, 0.0, 0.0};
+	const int dim = std::min(mesh.Dimension(), 3);
+	for (int v = 0; v < verts.Size(); ++v) {
+		const double* p = mesh.GetVertex(verts[v]);
+		for (int d = 0; d < dim; ++d) {
+			face[d] += p[d];
+		}
+	}
+	const double inv = 1.0 / static_cast<double>(verts.Size());
+	double dist2 = 0.0;
+	for (int d = 0; d < 3; ++d) {
+		const double diff = face[d] * inv - center[d];
+		dist2 += diff * diff;
+	}
+	return std::sqrt(dist2);
+}
+
 static int agreeVolumeAttribute(int local, const char* name)
 {
 	const int has = local >= 0 ? 1 : 0;
@@ -1121,10 +1206,15 @@ static CoaxialPortGeometry fitCoaxialPort(
 	const json& load_tags,
 	const json& live_tags,
 	const json& outer_tags,
-	const json& sma_tags)
+	const json& sma_tags,
+	const json& pml_tags)
 {
 	std::unordered_set<int> load_volumes;
-	bool saw_boundary_load = false;
+	std::vector<int> load_elem_pairs;
+	std::vector<int> boundary_volumes;
+	int local_n_boundary = 0;
+	int local_n_interior = 0;
+	int local_boundary_not_sma = 0;
 	double load_min[3] = {
 		std::numeric_limits<double>::max(),
 		std::numeric_limits<double>::max(),
@@ -1147,53 +1237,56 @@ static CoaxialPortGeometry fitCoaxialPort(
 			}
 		}
 		auto* tr = mesh.GetInternalBdrFaceTransformations(be);
-		if (tr == nullptr || tr->Elem2No < 0) {
-			saw_boundary_load = true;
+		const bool interior = tr != nullptr && tr->Elem2No >= 0;
+		if (!interior) {
+			++local_n_boundary;
+			if (!jsonListHas(sma_tags, mesh.GetBdrAttribute(be))) {
+				local_boundary_not_sma = 1;
+			}
+			if (tr != nullptr && tr->Elem1No >= 0) {
+				boundary_volumes.push_back(mesh.GetAttribute(tr->Elem1No));
+			}
+			else {
+				int el = -1;
+				int info = 0;
+				mesh.GetBdrElementAdjacentElement(be, el, info);
+				if (el >= 0) {
+					boundary_volumes.push_back(mesh.GetAttribute(el));
+				}
+			}
 			continue;
 		}
-		load_volumes.insert(mesh.GetAttribute(tr->Elem1No));
-		load_volumes.insert(mesh.GetAttribute(tr->Elem2No));
+		++local_n_interior;
+		const int elem1_volume = mesh.GetAttribute(tr->Elem1No);
+		const int elem2_volume = mesh.GetAttribute(tr->Elem2No);
+		load_volumes.insert(elem1_volume);
+		load_volumes.insert(elem2_volume);
+		load_elem_pairs.push_back(elem1_volume);
+		load_elem_pairs.push_back(elem2_volume);
 	}
-	int local_bad = saw_boundary_load ? 1 : 0;
-	int global_bad = 0;
-	MPI_Allreduce(&local_bad, &global_bad, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-	if (global_bad != 0) {
-		throw std::runtime_error("coaxial_port load tags must be interior faces.");
+	int global_n_boundary = 0;
+	int global_n_interior = 0;
+	int global_boundary_not_sma = 0;
+	MPI_Allreduce(&local_n_boundary, &global_n_boundary, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&local_n_interior, &global_n_interior, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&local_boundary_not_sma, &global_boundary_not_sma, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_n_boundary > 0 && global_n_interior > 0) {
+		throw std::runtime_error("coaxial_port load tags must be either all interior or all boundary faces.");
+	}
+	if (global_n_boundary == 0 && global_n_interior == 0) {
+		throw std::runtime_error("coaxial_port load tags match no faces.");
+	}
+	const bool boundary_port = global_n_boundary > 0;
+	if (boundary_port && global_boundary_not_sma != 0) {
+		throw std::runtime_error("coaxial_port boundary load must also be an SMA boundary.");
 	}
 
-	std::unordered_set<int> sma_volumes;
-	for (int be = 0; be < mesh.GetNBE(); ++be) {
-		if (!jsonListHas(sma_tags, mesh.GetBdrAttribute(be))) {
-			continue;
-		}
-		int el = -1;
-		int info = 0;
-		mesh.GetBdrElementAdjacentElement(be, el, info);
-		if (el >= 0) {
-			sma_volumes.insert(mesh.GetAttribute(el));
-		}
-	}
-
-	int local_tf = -1;
-	int local_sf = -1;
-	if (load_volumes.size() > 2) {
+	const int local_too_many = load_volumes.size() > 2 ? 1 : 0;
+	int global_too_many = 0;
+	MPI_Allreduce(&local_too_many, &global_too_many, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	if (global_too_many != 0) {
 		throw std::runtime_error("coaxial_port load face touches more than two volumes.");
 	}
-	if (load_volumes.size() == 2) {
-		const int first = *load_volumes.begin();
-		const int second = *std::next(load_volumes.begin());
-		const bool first_sma = sma_volumes.count(first) != 0;
-		const bool second_sma = sma_volumes.count(second) != 0;
-		if (first_sma == second_sma) {
-			throw std::runtime_error(
-				"coaxial_port could not tell the scattered-field volume from the total-field volume. "
-				"One side of the load must meet an SMA boundary.");
-		}
-		local_sf = first_sma ? first : second;
-		local_tf = first_sma ? second : first;
-	}
-	const int tf_volume = agreeVolumeAttribute(local_tf, "total-field");
-	const int sf_volume = agreeVolumeAttribute(local_sf, "scattered-field");
 
 	double center[3] = {0.0, 0.0, 0.0};
 	for (int d = 0; d < 3; ++d) {
@@ -1203,6 +1296,169 @@ static CoaxialPortGeometry fitCoaxialPort(
 		MPI_Allreduce(&load_max[d], &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 		center[d] = 0.5 * (global_min + global_max);
 	}
+
+	std::unordered_set<int> pml_volumes;
+	for (const auto& tag : pml_tags) {
+		pml_volumes.insert(tag.get<int>());
+	}
+
+	std::vector<int> local_sma;
+	std::vector<int> local_edges;
+	std::vector<int> local_interface_volume;
+	std::vector<double> local_interface_distance;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		auto* tr = mesh.GetInternalBdrFaceTransformations(be);
+		if (jsonListHas(sma_tags, mesh.GetBdrAttribute(be))) {
+			if (tr != nullptr && tr->Elem1No >= 0) {
+				local_sma.push_back(mesh.GetAttribute(tr->Elem1No));
+				if (tr->Elem2No >= 0) {
+					local_sma.push_back(mesh.GetAttribute(tr->Elem2No));
+				}
+			}
+			else {
+				int el = -1;
+				int info = 0;
+				mesh.GetBdrElementAdjacentElement(be, el, info);
+				if (el >= 0) {
+					local_sma.push_back(mesh.GetAttribute(el));
+				}
+			}
+		}
+		if (tr == nullptr || tr->Elem2No < 0 || jsonListHas(load_tags, mesh.GetBdrAttribute(be))) {
+			continue;
+		}
+		const int side_a = mesh.GetAttribute(tr->Elem1No);
+		const int side_b = mesh.GetAttribute(tr->Elem2No);
+		local_edges.push_back(side_a);
+		local_edges.push_back(side_b);
+		const bool a_pml = pml_volumes.count(side_a) != 0;
+		const bool b_pml = pml_volumes.count(side_b) != 0;
+		if (a_pml == b_pml) {
+			continue;
+		}
+		local_interface_volume.push_back(a_pml ? side_b : side_a);
+		local_interface_distance.push_back(boundaryFaceDistance(mesh, be, center));
+	}
+
+	const std::vector<int> load_ids = allgatherInts(
+		std::vector<int>(load_volumes.begin(), load_volumes.end()));
+	const std::vector<int> load_pairs = allgatherInts(load_elem_pairs);
+	const std::vector<int> boundary_ids = allgatherInts(boundary_volumes);
+	const std::vector<int> sma_ids = allgatherInts(local_sma);
+	const std::vector<int> edges = allgatherInts(local_edges);
+	const std::vector<int> interface_volumes = allgatherInts(local_interface_volume);
+	const std::vector<double> interface_distances = allgatherDoubles(local_interface_distance);
+
+	std::unordered_set<int> global_load(load_ids.begin(), load_ids.end());
+	std::unordered_set<int> global_sma(sma_ids.begin(), sma_ids.end());
+	std::unordered_map<int, std::vector<int>> adjacent;
+	for (std::size_t i = 0; i + 1 < edges.size(); i += 2) {
+		adjacent[edges[i]].push_back(edges[i + 1]);
+		adjacent[edges[i + 1]].push_back(edges[i]);
+	}
+	std::unordered_map<int, double> interface_distance;
+	for (std::size_t i = 0; i < interface_volumes.size() && i < interface_distances.size(); ++i) {
+		const int volume = interface_volumes[i];
+		const double distance = interface_distances[i];
+		const auto found = interface_distance.find(volume);
+		if (found == interface_distance.end() || distance < found->second) {
+			interface_distance[volume] = distance;
+		}
+	}
+
+	int local_tf = -1;
+	int local_sf = -1;
+	if (boundary_port) {
+		std::unordered_set<int> boundary_set(boundary_ids.begin(), boundary_ids.end());
+		if (boundary_set.size() != 1) {
+			throw std::runtime_error(
+				"coaxial_port boundary load must lie on exactly one volume.");
+		}
+		local_tf = *boundary_set.begin();
+	}
+	else if (global_load.size() == 2) {
+		std::vector<int> sides(global_load.begin(), global_load.end());
+		std::sort(sides.begin(), sides.end());
+		const bool first_sma = global_sma.count(sides[0]) != 0;
+		const bool second_sma = global_sma.count(sides[1]) != 0;
+		if (first_sma != second_sma) {
+			local_sf = first_sma ? sides[0] : sides[1];
+			local_tf = first_sma ? sides[1] : sides[0];
+		}
+		else if (!first_sma) {
+			const auto pmlDistance = [&](int start) {
+				std::unordered_set<int> seen;
+				std::vector<int> stack;
+				stack.push_back(start);
+				seen.insert(start);
+				double best = std::numeric_limits<double>::infinity();
+				bool reached = false;
+				if (pml_volumes.count(start) != 0) {
+					reached = true;
+					best = 0.0;
+				}
+				for (std::size_t n = 0; n < stack.size(); ++n) {
+					const int volume = stack[n];
+					const auto iface = interface_distance.find(volume);
+					if (iface != interface_distance.end()) {
+						reached = true;
+						best = std::min(best, iface->second);
+					}
+					if (pml_volumes.count(volume) != 0) {
+						reached = true;
+					}
+					for (const int next : adjacent[volume]) {
+						if (seen.insert(next).second) {
+							stack.push_back(next);
+						}
+					}
+				}
+				return reached ? best : std::numeric_limits<double>::infinity();
+			};
+			const double first_distance = pmlDistance(sides[0]);
+			const double second_distance = pmlDistance(sides[1]);
+			const bool first_reached = std::isfinite(first_distance);
+			const bool second_reached = std::isfinite(second_distance);
+			if (first_reached != second_reached) {
+				local_sf = first_reached ? sides[0] : sides[1];
+				local_tf = first_reached ? sides[1] : sides[0];
+			}
+			else if (first_reached && second_reached) {
+				const double scale = std::max(1.0, std::max(first_distance, second_distance));
+				if (!(std::abs(first_distance - second_distance) > 1.0e-8 * scale)) {
+					throw std::runtime_error(
+						"coaxial_port could not tell the scattered-field volume from the total-field volume. "
+						"One side of the load must meet an SMA boundary.");
+				}
+				const bool first_nearer = first_distance < second_distance;
+				local_sf = first_nearer ? sides[0] : sides[1];
+				local_tf = first_nearer ? sides[1] : sides[0];
+			}
+			else {
+				throw std::runtime_error(
+					"coaxial_port could not tell the scattered-field volume from the total-field volume. "
+					"One side of the load must meet an SMA boundary.");
+			}
+		}
+		else {
+			if (load_pairs.size() < 2 || (load_pairs.size() % 2) != 0) {
+				throw std::runtime_error(
+					"coaxial_port could not read the load face Elem1/Elem2 order.");
+			}
+			const int elem1_volume = load_pairs[0];
+			const int elem2_volume = load_pairs[1];
+			for (std::size_t i = 0; i + 1 < load_pairs.size(); i += 2) {
+				if (load_pairs[i] != elem1_volume || load_pairs[i + 1] != elem2_volume) {
+					throw std::runtime_error(
+						"coaxial_port load face Elem1/Elem2 order is not the same on every face.");
+				}
+			}
+			local_sf = elem1_volume;
+			local_tf = elem2_volume;
+		}
+	}
+	const int tf_volume = agreeVolumeAttribute(local_tf, "total-field");
+	const int sf_volume = boundary_port ? -1 : agreeVolumeAttribute(local_sf, "scattered-field");
 
 	double sum_tf[3] = {0.0, 0.0, 0.0};
 	double sum_sf[3] = {0.0, 0.0, 0.0};
@@ -1229,18 +1485,26 @@ static CoaxialPortGeometry fitCoaxialPort(
 	MPI_Allreduce(sum_sf, global_sum_sf, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(&n_tf, &global_n_tf, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 	MPI_Allreduce(&n_sf, &global_n_sf, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-	if (global_n_tf == 0 || global_n_sf == 0) {
+	if (global_n_tf == 0 || (!boundary_port && global_n_sf == 0)) {
 		throw std::runtime_error("coaxial_port total-field or scattered-field volume has no elements.");
 	}
 	double axis[3];
 	double axis_norm = 0.0;
 	for (int d = 0; d < 3; ++d) {
-		axis[d] = global_sum_tf[d] / global_n_tf - global_sum_sf[d] / global_n_sf;
+		if (boundary_port) {
+			axis[d] = global_sum_tf[d] / global_n_tf - center[d];
+		}
+		else {
+			axis[d] = global_sum_tf[d] / global_n_tf - global_sum_sf[d] / global_n_sf;
+		}
 		axis_norm += axis[d] * axis[d];
 	}
 	axis_norm = std::sqrt(axis_norm);
 	if (!(axis_norm > 0.0)) {
-		throw std::runtime_error("coaxial_port total-field and scattered-field volumes share a centroid.");
+		throw std::runtime_error(
+			boundary_port
+				? "coaxial_port boundary load and its volume share a center."
+				: "coaxial_port total-field and scattered-field volumes share a centroid.");
 	}
 	for (int d = 0; d < 3; ++d) {
 		axis[d] /= axis_norm;
@@ -1635,7 +1899,6 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				          << " spread=" << spread
 				          << " t0=" << t0 << "\n";
 			}
-
 			res.add(std::make_unique<DeltaGapSource>(magnitude, spread, t0, polarization, derivative));
 		}
 		else if (case_data["sources"][s]["type"] == "coaxial_port") {
@@ -1702,7 +1965,7 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 			const CoaxialPortGeometry geom = fitCoaxialPort(
 				const_cast<mfem::Mesh&>(*mesh), src["tags"]["load"], src["tags"]["live"], src["tags"]["outer"],
-				collectSmaTags(case_data));
+				collectSmaTags(case_data), collectPmlVolumeTags(case_data));
 			const double t0 = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
 			int rank = 0;
 			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
