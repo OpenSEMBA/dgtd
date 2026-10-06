@@ -3,6 +3,7 @@
 #include "components/Spherical.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -16,6 +17,7 @@
 #include <omp.h>
 #include <unistd.h>
 
+#include "components/RCSSurfaceDftCuda.h"
 #include "driver/driver.h"
 #include "math/PhysicalConstants.h"
 #include "mfemExtension/LinearIntegrators.h"
@@ -114,6 +116,18 @@ static std::int64_t snapPayloadBytes(int nDofs)
 {
     return static_cast<std::int64_t>(sizeof(double))
            + 6ll * static_cast<std::int64_t>(nDofs) * static_cast<std::int64_t>(sizeof(double));
+}
+
+static double elapsedSeconds(std::chrono::steady_clock::time_point t0)
+{
+    return std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - t0).count();
+}
+
+static void printElapsedSeconds(const char* label, double seconds)
+{
+    std::cout << label << std::fixed << std::setprecision(2)
+              << seconds << " s\n" << std::defaultfloat;
 }
 
 } // namespace
@@ -362,6 +376,38 @@ RCSSurfacePostProcessor::dftStreamFromFile(
     return ff;
 }
 
+bool RCSSurfacePostProcessor::tryCudaStreamDft(
+    const std::string& rankPath,
+    int nDofs,
+    const std::vector<double>& normFreqs,
+    std::vector<double>& timesOut,
+    int& nSnapOut,
+    FreqFields& ffOut) const
+{
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (!mfem::Device::Allows(mfem::Backend::CUDA)) {
+        return false;
+    }
+    return rcsCudaDftStreamFile(
+        rankPath + "/surface_data.bin",
+        nDofs,
+        everyNSteps_,
+        maxTime_,
+        normFreqs,
+        timesOut,
+        nSnapOut,
+        ffOut);
+#else
+    (void)rankPath;
+    (void)nDofs;
+    (void)normFreqs;
+    (void)timesOut;
+    (void)nSnapOut;
+    (void)ffOut;
+    return false;
+#endif
+}
+
 // ------------------------------------------------------------------
 // Plane-wave helpers
 // ------------------------------------------------------------------
@@ -491,9 +537,17 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         const std::uint64_t estBytes =
             estimateLoadAllBytes(nSnapKeptEst, nDofs, nFreq) + geometryBytes(peekGeo);
         const bool useStream = estBytes > budget;
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        const bool cudaCandidate = mfem::Device::Allows(mfem::Backend::CUDA);
+#else
+        const bool cudaCandidate = false;
+#endif
+        const char* readMode = cudaCandidate
+            ? "CUDA streaming"
+            : (useStream ? "Streaming" : "Load-all");
 
         std::cout << "\n  [Rank " << rankIdx << "/" << rankPaths.size()
-                  << "] " << (useStream ? "Streaming" : "Load-all")
+                  << "] " << readMode
                   << " surface data..."
                   << " (est " << std::fixed << std::setprecision(2)
                   << (estBytes / kGiB) << " GiB vs budget "
@@ -511,10 +565,22 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         int nSnap = 0;
         int basisType = peekGeo.basisType;
 
-        if (useStream) {
+        const auto dftT0 = std::chrono::steady_clock::now();
+        const bool usedCuda = tryCudaStreamDft(rp, nDofs, normFreqs, times, nSnap, ff);
+        if (usedCuda) {
+            std::cout << "    Stream DFT : " << nSnap << " snapshots x "
+                      << nFreq << " frequencies x " << nDofs << " DOFs done.\n";
+            printElapsedSeconds("    DFT time   : ", elapsedSeconds(dftT0));
+            if (maxTime_.has_value()) {
+                std::cout << "    Time filter: applied during stream (maxTime = "
+                          << std::fixed << std::setprecision(5)
+                          << maxTime_.value() << ").\n" << std::defaultfloat;
+            }
+        } else if (useStream) {
             ff = dftStreamFromFile(rp, peekGeo, normFreqs, times, nSnap);
             std::cout << "    Stream DFT : " << nSnap << " snapshots x "
                       << nFreq << " frequencies x " << nDofs << " DOFs done.\n";
+            printElapsedSeconds("    DFT time   : ", elapsedSeconds(dftT0));
             if (maxTime_.has_value()) {
                 std::cout << "    Time filter: applied during stream (maxTime = "
                           << std::fixed << std::setprecision(5)
@@ -558,6 +624,7 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
             snapshots.clear();
             snapshots.shrink_to_fit();
             std::cout << " done.\n";
+            printElapsedSeconds("    DFT time   : ", elapsedSeconds(dftT0));
         }
 
         if (firstRank) {
@@ -585,6 +652,7 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
         std::cout << " done. (FEC order: " << order << ")\n";
 
         // --- For each frequency and angle, compute far-field potentials ---
+        const auto farT0 = std::chrono::steady_clock::now();
         std::cout << "    Far-field integration: " << nFreq
                   << " frequencies x " << angles.size() << " angles..." << std::flush;
         for (int fi = 0; fi < nFreq; ++fi) {
@@ -657,6 +725,7 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
             }
         }
         std::cout << " done.\n";
+        printElapsedSeconds("    Far-field time: ", elapsedSeconds(farT0));
     }
 
     // After all ranks processed, compute far-field power from coherently-summed amplitudes.

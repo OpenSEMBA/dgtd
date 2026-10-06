@@ -27,8 +27,10 @@ add_library(maxwell-components STATIC
 
 if (SEMBA_DGTD_ENABLE_CUDA)
 	enable_language(CUDA)
-	target_sources(maxwell-components PRIVATE "RCSSurfaceExporter.cu")
-	set_source_files_properties(RCSSurfaceExporter.cu PROPERTIES LANGUAGE CUDA)
+	target_sources(maxwell-components PRIVATE
+		"RCSSurfaceExporter.cu"
+		"RCSSurfaceDftCuda.cu")
+	set_source_files_properties(RCSSurfaceExporter.cu RCSSurfaceDftCuda.cu PROPERTIES LANGUAGE CUDA)
 	set_target_properties(maxwell-components PROPERTIES
 		CUDA_STANDARD 17
 		CUDA_STANDARD_REQUIRED ON

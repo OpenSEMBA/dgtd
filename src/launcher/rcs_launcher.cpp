@@ -47,6 +47,15 @@ int main(int argc, char** argv)
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();
 
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	mfem::Device device("cuda");
+#else
+	mfem::Device device("cpu");
+#endif
+	if (mfem::Mpi::WorldRank() == 0) {
+		device.Print();
+	}
+
 	maxwell::driver::runRCSPostProcessing(inputFilePath);
 
 	if (mfem::Mpi::WorldRank() == 0) {
