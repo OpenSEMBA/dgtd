@@ -18,6 +18,14 @@ void printHelpArgument()
 	std::cout <<																				   std::endl;
 	std::cout << "-h              / Brings up this help menu."								    << std::endl;
 	std::cout << "-i path/to/file / Specifies input file to run with executable."			    << std::endl;
+	std::cout << "--device / -d   / Backend: cpu, omp, or cuda."							    << std::endl;
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	std::cout << "                  Default in this binary: cuda."							    << std::endl;
+	std::cout << "                  Use --device cpu (or omp) to force the host."			    << std::endl;
+#else
+	std::cout << "                  Default in this binary: cpu."							    << std::endl;
+	std::cout << "                  cuda requires a CUDA build of opensemba_dgtd."			    << std::endl;
+#endif
 	std::cout <<																				   std::endl;
 	std::cout << "___________________________________________________________________________"  << std::endl;
 }
@@ -36,7 +44,11 @@ int main(int argc, char** argv)
 	}
 	
 	std::string inputFilePath;
-    std::string deviceConfig{ "cpu" };
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	std::string deviceConfig{ "cuda" };
+#else
+	std::string deviceConfig{ "cpu" };
+#endif
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if (arg == "-i" && i + 1 < argc) {
@@ -50,6 +62,12 @@ int main(int argc, char** argv)
 		{
 			std::string devtype = argv[i+1];
 			if (devtype == "cpu" || devtype == "omp" || devtype == "cuda" ){
+#ifndef SEMBA_DGTD_ENABLE_CUDA
+				if (devtype == "cuda") {
+					throw std::runtime_error(
+						"--device cuda requires a CUDA build of opensemba_dgtd");
+				}
+#endif
 				deviceConfig = devtype;
 				++i;
 			}

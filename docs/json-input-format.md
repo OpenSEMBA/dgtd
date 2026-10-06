@@ -31,12 +31,12 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | Capability | hesthaven | global |
 |------------|-----------|--------|
 | MPI (`mpirun`) | Yes — shared-face ghost exchange and neighbor connectivity in `Mult()` | Yes |
-| CUDA (`--device cuda`) | Yes — element kernels when build has `SEMBA_DGTD_ENABLE_CUDA` | Yes |
+| CUDA | Yes — CUDA builds of `opensemba_dgtd` default to `--device cuda`; pass `--device cpu` (or `omp`) to stay on the host | Yes |
 | SGBC / PML / conductivity | No | Yes |
 | Implicit `ode_type` | No | Yes |
 | Centered SMA (`upwind_alpha: 0`) | Blocked in driver | Yes |
 
-Run example: `mpirun -np 4 ./opensemba_dgtd case.json --device cuda` with `"evolution_operator": "hesthaven"`.
+Run example: `mpirun -np 4 ./opensemba_dgtd -i case.json` with `"evolution_operator": "hesthaven"` (CUDA binaries default to the GPU).
 
 ## model
 

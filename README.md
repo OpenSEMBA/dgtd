@@ -103,8 +103,10 @@ Full JSON reference: **[docs/json-input-format.md](docs/json-input-format.md)**.
 
 Example:
 ```sh
-./build/gnu-release-mpi/bin/opensemba_dgtd testData/maxwellInputs/1D_PEC/1D_PEC.json
+./build/gnu-release-mpi/bin/opensemba_dgtd -i testData/maxwellInputs/1D_PEC/1D_PEC.json
 ```
+
+CUDA builds (`gnu-release-cuda`, `gnu-release-cuda-sm120`, and the matching debug presets) default to `--device cuda`. Override with `--device cpu` or `--device omp` if you need the host. MPI-only binaries still default to `cpu`.
 
 (Confirm binary name/path for your preset.)
 
