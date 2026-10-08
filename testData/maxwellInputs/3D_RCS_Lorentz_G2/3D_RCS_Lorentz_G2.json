@@ -2,7 +2,7 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "time_step": 0.002,
-    "final_time": 50.0,
+    "final_time": 25.0,
     "order": 2
   },
   "model": {
@@ -16,16 +16,16 @@
         "tags": [4],
         "lorentz": {
           "eps_inf": 2.0,
-          "omega_p": 7931762888.007762,
-          "omega_1": 1498962290.0,
-          "gamma": 3185294866.25
+          "f_p": 2.5e8,
+          "f_1": 2.0e8,
+          "gamma": 2.5e7
         }
       },
       {
         "tags": [5, 6],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 0,
+        "grading_order": 3,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
         "alpha_max": 0.0,
@@ -35,7 +35,7 @@
         "tags": [7, 8],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 0,
+        "grading_order": 3,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
         "alpha_max": 0.0,
@@ -45,7 +45,7 @@
         "tags": [9, 10],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 0,
+        "grading_order": 3,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
         "alpha_max": 0.0,
@@ -55,7 +55,7 @@
         "tags": [11, 12, 13, 14],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 0,
+        "grading_order": 3,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
         "alpha_max": 0.0,
@@ -65,7 +65,7 @@
         "tags": [15, 16, 17, 18],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 0,
+        "grading_order": 3,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
         "alpha_max": 0.0,
@@ -75,7 +75,7 @@
         "tags": [19, 20, 21, 22],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 0,
+        "grading_order": 3,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
         "alpha_max": 0.0,
@@ -85,7 +85,7 @@
         "tags": [23, 24, 25, 26, 27, 28, 29, 30],
         "type": "PML",
         "matches_vacuum": true,
-        "grading_order": 0,
+        "grading_order": 3,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
         "alpha_max": 0.0,
@@ -124,7 +124,7 @@
       "propagation": [0.0, 0.0, 1.0],
       "tags": [2, 3, 4, 5, 6, 7],
       "magnitude": {
-        "spread": 0.15
+        "f_1e": 320e6
       }
     }
   ]
