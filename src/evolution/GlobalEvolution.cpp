@@ -1,6 +1,7 @@
 #include "GlobalEvolution.h"
 #include "MaxwellEvolutionMethods.h"
 #include "components/SCPMLLayout.h"
+#include "math/Function.h"
 #include "math/PhysicalConstants.h"
 
 #include <chrono>
@@ -8,9 +9,12 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 #include <cuda_runtime.h>
@@ -20,6 +24,16 @@
 #endif
 
 namespace maxwell {
+
+static void hostReadCartesianFields(
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
+{
+    (void)fields.allDOFs().HostRead();
+    for (int d = 0; d < 3; ++d) {
+        fields.get(E, static_cast<Direction>(d)).SyncAliasMemory(fields.allDOFs());
+        fields.get(H, static_cast<Direction>(d)).SyncAliasMemory(fields.allDOFs());
+    }
+}
 
 void GlobalEvolution::logSGBCSubstepPlanOnce(double parent_dt, double recommended_dt, int nsteps,
                                               double actual_sub_dt, double sgbc_cfl) const
@@ -120,7 +134,9 @@ GlobalEvolution::GlobalEvolution(
         const int n_aux = computePMLAuxSize(
             model.getPMLProperties(), ndofs,
             fes.GetMesh()->Dimension());
-        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux;
+        const int n_debye = model.debyeAuxSize(ndofs);
+        const int n_lorentz = model.lorentzAuxSize(ndofs);
+        return numberOfFieldComponents * numberOfMaxDimensions * ndofs + n_aux + n_debye + n_lorentz;
     }()),
     total_state_size_(Height()),
     fes_{ fes },
@@ -306,6 +322,8 @@ GlobalEvolution::GlobalEvolution(
                   << std::endl;
     }
 
+    int sgbc_elem_missing = 0;
+    std::string sgbc_elem_missing_msg;
     for (const auto& [tag, pairs] : raw_pairs){
         const auto& sbcps = model_.getSGBCProperties();
         for (auto p = 0; p < sbcps.size(); p++){
@@ -333,9 +351,16 @@ GlobalEvolution::GlobalEvolution(
                             s.element_pair.second = -1;
                         }
 
-                        if (s.element_pair.first == -1) {
-                            std::cerr << "Error: Could not find Element ID for SGBC Node Pair: "
-                                      << rp.pair.first << ", " << rp.pair.second << std::endl;
+                        if (s.element_pair.first < 0
+                            || (rp.pair.second != -1 && s.element_pair.second < 0)) {
+                            sgbc_elem_missing = 1;
+                            if (sgbc_elem_missing_msg.empty()) {
+                                sgbc_elem_missing_msg =
+                                    "Could not find Element ID for SGBC Node Pair: "
+                                    + std::to_string(rp.pair.first) + ", "
+                                    + std::to_string(rp.pair.second);
+                            }
+                            continue;
                         }
 
                         s.init(state_size);
@@ -350,6 +375,21 @@ GlobalEvolution::GlobalEvolution(
         }
     }
     
+    {
+        int global_missing = 0;
+        MPI_Allreduce(&sgbc_elem_missing, &global_missing, 1, MPI_INT, MPI_MAX,
+                      fes_.GetParMesh()->GetComm());
+        if (global_missing) {
+            if (!sgbc_elem_missing_msg.empty()) {
+                std::cerr << sgbc_elem_missing_msg << std::endl;
+            }
+            throw std::runtime_error(
+                sgbc_elem_missing_msg.empty()
+                    ? "Could not find Element ID for an SGBC node pair."
+                    : sgbc_elem_missing_msg);
+        }
+    }
+
     MPI_Barrier(fes_.GetParMesh()->GetComm());
 
     // Build flattened SGBC task list and per-thread wrapper clones for OpenMP.
@@ -475,10 +515,23 @@ GlobalEvolution::GlobalEvolution(
                 std::cout << "[PML] SC-PML ADE formulation; extended ODE size: "
                           << total_state_size_
                           << " (field " << 6 * fes_.GetNDofs()
-                          << " + n_aux " << scpmlLayout_->nAux() << ")"
+                          << " + pml " << scpmlLayout_->nAux()
+                          << " + debye " << model_.debyeAuxSize(fes_.GetNDofs())
+                          << " + lorentz " << model_.lorentzAuxSize(fes_.GetNDofs()) << ")"
                           << std::endl;
             }
         }
+    }
+
+    debyeOperator_ = dgops.buildDebyeOperator();
+    if (debyeOperator_ && Mpi::WorldRank() == 0) {
+        std::cout << "[Debye] electric single-pole ADE; ODE size "
+                  << total_state_size_ << std::endl;
+    }
+    lorentzOperator_ = dgops.buildLorentzOperator();
+    if (lorentzOperator_ && Mpi::WorldRank() == 0) {
+        std::cout << "[Lorentz] electric single-pole ADE; ODE size "
+                  << total_state_size_ << std::endl;
     }
 
     if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
@@ -543,7 +596,7 @@ GlobalEvolution::GlobalEvolution(
             if (!rcs_tags.empty()) {
                 auto marker = buildSurfaceMarker(rcs_tags, fes_);
                 NearToFarFieldSubMesher ntff_submesher(model_.getConstMesh(), fes_, marker);
-
+                if (ntff_submesher.hasLocalSurface()) {
                 auto* ntff_submesh = ntff_submesher.getSubMesh();
                 auto dgfec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
                 if (!dgfec) {
@@ -585,6 +638,7 @@ GlobalEvolution::GlobalEvolution(
                 farfield_mapping_matrix->PrintCSR2(ofs_farfield);
                 ofs_farfield.close();
                 std::cout << "Farfield mapping matrix exported to " << farfield_path << std::endl;
+                }
             }
         }
     }
@@ -599,6 +653,8 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
+    initDeltaGap(dgops);
+
     // cuSPARSE SpMV records a DnVec sized to y and requires y.Size()==rows.
     // Maxwell and TFSF are 6N; with Cartesian PML the ODE state is 12N.
     // MFEM's forall kernel writes `height` rows on the device, same as the host path.
@@ -608,8 +664,11 @@ GlobalEvolution::GlobalEvolution(
         };
         useMfemCudaSpmv(globalOperator_.get());
         useMfemCudaSpmv(TFSFOperator_.get());
+        useMfemCudaSpmv(deltaGapOperator_.get());
         useMfemCudaSpmv(SGBCOperator_.get());
         useMfemCudaSpmv(scpmlOperator_.get());
+        useMfemCudaSpmv(debyeOperator_.get());
+        useMfemCudaSpmv(lorentzOperator_.get());
         for (auto& delta : scpmlCurlDelta_) {
             useMfemCudaSpmv(delta.get());
         }
@@ -673,6 +732,7 @@ mfem::MemoryClass GlobalEvolution::GetMemoryClass() const
 void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
+    hostReadCartesianFields(fields);
     sgbc_step_base_time_ = base_time;
     sgbc_step_dt_ = dt;
 
@@ -709,6 +769,7 @@ void GlobalEvolution::commitSGBCCheckpoint(double base_time, double dt,
 void GlobalEvolution::finalizeSGBCStep(
     const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields)
 {
+    hostReadCartesianFields(fields);
     // Restore from checkpoint and copy interpolation endpoints into working states.
     for (auto& [tag, states] : sgbc_states_) {
         const auto& cp = sgbc_states_checkpoint_.at(tag);
@@ -770,25 +831,44 @@ void GlobalEvolution::finalizeSGBCStep(
     double dt = sgbc_step_dt_;
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
     if (!sgbc_thread_pool_.empty()) {
-        #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+        struct ReadyTask {
+            SGBCState* state;
+            SGBCWrapper* primary;
+            std::vector<SGBCWrapper*> pool;
+        };
+        std::vector<ReadyTask> ready(sgbc_tasks_.size());
         for (size_t ti = 0; ti < sgbc_tasks_.size(); ++ti) {
             const auto& task = sgbc_tasks_[ti];
-            auto& state = sgbc_states_[task.tag][task.state_index];
+            ready[ti].state = &sgbc_states_.at(task.tag).at(task.state_index);
+            ready[ti].primary = sgbc_wrapper_map_.at(task.tag);
+            const auto& clones = sgbc_thread_pool_.at(task.tag);
+            ready[ti].pool.resize(clones.size());
+            for (size_t t = 0; t < clones.size(); ++t) {
+                ready[ti].pool[t] = clones[t].get();
+            }
+        }
+        if (!ready.empty()) {
+            SGBCWrapper* w0 = ready.front().primary;
+            const double sub_dt = w0->getRecommendedDt();
+            const int nsteps = (sub_dt > 0.0 && sub_dt < dt)
+                             ? static_cast<int>(std::ceil(dt / sub_dt))
+                             : 1;
+            const double actual_sub_dt = dt / nsteps;
+            logSGBCSubstepPlanOnce(dt, sub_dt, nsteps, actual_sub_dt, w0->getProperties().sgbc_cfl);
+        }
+        #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+        for (size_t ti = 0; ti < ready.size(); ++ti) {
+            auto& state = *ready[ti].state;
 
             int tid = omp_get_thread_num();
-            SGBCWrapper* w;
-            if (tid == 0) {
-                w = sgbc_wrapper_map_[task.tag];
-            } else {
-                w = sgbc_thread_pool_[task.tag][tid].get();
-            }
+            SGBCWrapper* w = (tid == 0) ? ready[ti].primary
+                                        : ready[ti].pool[static_cast<size_t>(tid)];
 
             double sub_dt = w->getRecommendedDt();
             int nsteps = (sub_dt > 0.0 && sub_dt < dt)
                        ? static_cast<int>(std::ceil(dt / sub_dt))
                        : 1;
             double actual_sub_dt = dt / nsteps;
-            logSGBCSubstepPlanOnce(dt, sub_dt, nsteps, actual_sub_dt, w->getProperties().sgbc_cfl);
 
             w->loadState(state);
             for (int step = 0; step < nsteps; ++step) {
@@ -894,6 +974,184 @@ void GlobalEvolution::applyTFSFSourceToVector(double t_stage, int ndofs, int nbr
 #endif
 }
 
+void GlobalEvolution::initDeltaGap(DGOperatorFactory<mfem::ParFiniteElementSpace>& dgops)
+{
+    const DeltaGapSource* gap = nullptr;
+    for (const auto& source : srcmngr_.sources) {
+        if (auto* g = dynamic_cast<DeltaGapSource*>(source.get())) {
+            if (gap != nullptr) {
+                throw std::runtime_error("Only one delta_gap source is supported.");
+            }
+            gap = g;
+        }
+    }
+    if (gap == nullptr) {
+        return;
+    }
+
+    deltaGapMagnitude_ = gap->magnitude();
+    deltaGapSpread_ = gap->spread();
+    deltaGapT0_ = gap->t0();
+    deltaGapDerivative_ = gap->derivative();
+
+    auto& marker = model_.getDeltaGapMarker();
+    const int local_marks = (marker.Size() > 0) ? marker.Sum() : 0;
+    int global_marks = 0;
+    MPI_Allreduce(&local_marks, &global_marks, 1, MPI_INT, MPI_SUM,
+                  model_.getMesh().GetComm());
+    if (global_marks == 0) {
+        throw std::runtime_error("delta_gap tags were not found on the mesh.");
+    }
+
+    deltaGapOperator_ = dgops.buildDeltaGapFaceOperator(marker);
+
+    mfem::ParMesh& mesh = model_.getMesh();
+    const mfem::Vector& pol = gap->polarization();
+    const double epol[3] = {pol[0], pol[1], pol[2]};
+    std::unordered_map<int, std::array<double, 3>> coeff;
+
+    bool failed = false;
+    std::string err;
+    auto fail = [&](const char* msg) {
+        if (!failed) {
+            failed = true;
+            err = msg;
+        }
+    };
+
+    auto assignElement = [&](int elem, double scale, const double epol[3]) {
+        if (failed) {
+            return;
+        }
+        mfem::Array<int> dofs;
+        fes_.GetElementDofs(elem, dofs);
+        for (int i = 0; i < dofs.Size(); ++i) {
+            int dof = dofs[i];
+            if (dof < 0) {
+                dof = -1 - dof;
+            }
+            const std::array<double, 3> c{
+                scale * epol[0], scale * epol[1], scale * epol[2]};
+            const auto it = coeff.find(dof);
+            if (it == coeff.end()) {
+                coeff.emplace(dof, c);
+            } else {
+                for (int d = 0; d < 3; ++d) {
+                    if (std::abs(it->second[d] - c[d]) > 1e-8) {
+                        fail("delta_gap DOF is shared by faces with different incident fields.");
+                        return;
+                    }
+                }
+            }
+        }
+    };
+
+    bool logged = false;
+    for (int be = 0; be < mesh.GetNBE() && !failed; ++be) {
+        const int attr = mesh.GetBdrAttribute(be);
+        if (attr < 1 || attr > marker.Size() || marker[attr - 1] != 1) {
+            continue;
+        }
+        auto* tr = mesh.GetInternalBdrFaceTransformations(be);
+        if (tr == nullptr || tr->Elem2No < 0) {
+            fail("delta_gap tag is not an interior face with two local elements.");
+            break;
+        }
+        mfem::IntegrationPoint ip;
+        ip.x = 0.5;
+        ip.y = 0.0;
+        ip.z = 0.0;
+        ip.weight = 1.0;
+        tr->SetAllIntPoints(&ip);
+        mfem::Vector nor(mesh.Dimension());
+        mfem::CalcOrtho(tr->Jacobian(), nor);
+        const double nrm = nor.Norml2();
+        if (!(nrm > 0.0)) {
+            fail("delta_gap face has a zero normal.");
+            break;
+        }
+        double dot = 0.0;
+        for (int d = 0; d < nor.Size() && d < 3; ++d) {
+            dot += nor(d) * epol[d];
+        }
+        if (std::abs(dot) > 1e-6 * nrm) {
+            fail("delta_gap polarization is not tangent to the gap face.");
+            break;
+        }
+        // Both sides are total field: the same +1/2 E_pol, H incident stays 0.
+        // The decoupled source matrix does not subtract the neighbor trace.
+        assignElement(tr->Elem1No, 0.5, epol);
+        assignElement(tr->Elem2No, 0.5, epol);
+        if (!logged && Mpi::WorldRank() == 0) {
+            logged = true;
+            const double nx = nor(0) / nrm;
+            const double ny = (nor.Size() > 1) ? nor(1) / nrm : 0.0;
+            const double nz = (nor.Size() > 2) ? nor(2) / nrm : 0.0;
+            std::cout << "[delta_gap] face normal = (" << nx << ", " << ny
+                      << ", " << nz << "), E_pol = (" << epol[0] << ", " << epol[1]
+                      << ", " << epol[2] << "), both scales = 0.5\n";
+        }
+    }
+
+    int local_err = failed ? 1 : 0;
+    int global_err = 0;
+    MPI_Allreduce(&local_err, &global_err, 1, MPI_INT, MPI_MAX,
+                  mesh.GetComm());
+    if (global_err) {
+        if (failed) {
+            std::cerr << err << std::endl;
+        }
+        if (Mpi::WorldSize() > 1) {
+            MPI_Abort(mesh.GetComm(), 1);
+        }
+        throw std::runtime_error(err.empty() ? "delta_gap setup failed." : err);
+    }
+
+    deltaGapDofs_.reserve(coeff.size());
+    for (const auto& kv : coeff) {
+        DeltaGapDof slot;
+        slot.dof = kv.first;
+        for (int d = 0; d < 3; ++d) {
+            slot.c[d] = kv.second[d];
+        }
+        deltaGapDofs_.push_back(slot);
+    }
+
+    int local_dofs = static_cast<int>(deltaGapDofs_.size());
+    int global_dofs = 0;
+    MPI_Allreduce(&local_dofs, &global_dofs, 1, MPI_INT, MPI_SUM,
+                  model_.getMesh().GetComm());
+    if (global_dofs == 0) {
+        throw std::runtime_error("delta_gap produced no incident DOFs.");
+    }
+
+    if (!deltaGapDofs_.empty()) {
+        const int blockSize = fes_.GetNDofs() + fes_.num_face_nbr_dofs;
+        deltaGapWorkVec_.SetSize(6 * blockSize);
+        deltaGapWorkVec_.UseDevice(true);
+        deltaGapWorkVec_ = 0.0;
+    }
+}
+
+void GlobalEvolution::applyDeltaGapSourceToVector(double t_stage, int ndofs, int nbrDofs,
+                                                  mfem::Vector& result_vector) const
+{
+    if (!deltaGapOperator_ || deltaGapDofs_.empty()) {
+        return;
+    }
+    const int blockSize = ndofs + nbrDofs;
+    const double envelope = gaussianTimeSignal(
+        t_stage, deltaGapT0_, deltaGapSpread_, deltaGapMagnitude_, deltaGapDerivative_);
+    double* work = deltaGapWorkVec_.HostWrite();
+    std::fill(work, work + deltaGapWorkVec_.Size(), 0.0);
+    for (const auto& slot : deltaGapDofs_) {
+        for (int d = 0; d < 3; ++d) {
+            work[d * blockSize + slot.dof] = slot.c[d] * envelope;
+        }
+    }
+    deltaGapOperator_->AddMult(deltaGapWorkVec_, result_vector, -1.0);
+}
+
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
 #ifdef SHOW_TIMER_INFORMATION
@@ -914,9 +1172,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     const auto nbrDofs   = fes_.num_face_nbr_dofs;
     const auto blockSize = ndofs + nbrDofs;
 
-    // Ensure ODE state is readable (device→host if needed).
-    (void)in.Read();
-
     // 1) SGBC sub-solve FIRST — independent of neighbor data, overlaps with
     //    other ranks' local work so they don't idle-wait during exchange.
 #ifdef SHOW_TIMER_INFORMATION
@@ -924,6 +1179,9 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     bool sgbc_all_quiescent = false;
     if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty()){
+        // Sub-step indexing uses the host pointer. Do this once: a later
+        // HostRead inside the OpenMP loop would race on the memory flags.
+        (void)in.HostRead();
 
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
@@ -970,10 +1228,25 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         if (!sgbc_all_quiescent && dt_to_stage > 1e-12) {
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
             if (!sgbc_thread_pool_.empty()) {
-                #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+                struct ReadyTask {
+                    SGBCState* state;
+                    SGBCWrapper* primary;
+                    std::vector<SGBCWrapper*> pool;
+                };
+                std::vector<ReadyTask> ready(sgbc_tasks_.size());
                 for (size_t ti = 0; ti < sgbc_tasks_.size(); ++ti) {
                     const auto& task = sgbc_tasks_[ti];
-                    auto& state = sgbc_states_[task.tag][task.state_index];
+                    ready[ti].state = &sgbc_states_.at(task.tag).at(task.state_index);
+                    ready[ti].primary = sgbc_wrapper_map_.at(task.tag);
+                    const auto& clones = sgbc_thread_pool_.at(task.tag);
+                    ready[ti].pool.resize(clones.size());
+                    for (size_t t = 0; t < clones.size(); ++t) {
+                        ready[ti].pool[t] = clones[t].get();
+                    }
+                }
+                #pragma omp parallel for schedule(dynamic) num_threads(sgbc_omp_threads_)
+                for (size_t ti = 0; ti < ready.size(); ++ti) {
+                    auto& state = *ready[ti].state;
 
                     // Skip sub-solve when fields are negligible
                     double stateN2 = 0.0;
@@ -983,12 +1256,8 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
                     if (stateN2 < thr2 && ifaceNormSq(state) < thr2) continue;
 
                     int tid = omp_get_thread_num();
-                    SGBCWrapper* w;
-                    if (tid == 0) {
-                        w = sgbc_wrapper_map_.at(task.tag);
-                    } else {
-                        w = sgbc_thread_pool_.at(task.tag)[tid].get();
-                    }
+                    SGBCWrapper* w = (tid == 0) ? ready[ti].primary
+                                                : ready[ti].pool[static_cast<size_t>(tid)];
 
                     double sub_dt = w->getRecommendedDt();
                     int nsteps = (sub_dt > 0.0 && sub_dt < dt_to_stage)
@@ -1043,8 +1312,10 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
     timerExchange.Start();
 #endif
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-    load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
-#else
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+    } else
+#endif
     {
         const double* in_data = in.Read();
         for (int d = X; d <= Z; ++d) {
@@ -1054,7 +1325,6 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             std::memcpy(h_data, in_data + (3 + d) * ndofs, ndofs * sizeof(double));
         }
     }
-#endif
     for (int d = X; d <= Z; ++d) {
         eOld_[d].ExchangeFaceNbrData();
         hOld_[d].ExchangeFaceNbrData();
@@ -1129,8 +1399,34 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
     }
-    if (scpmlOperator_) {
-        scpmlOperator_->AddMult(in, out);
+    {
+        const int n_pml = scpmlLayout_ ? scpmlLayout_->nAux() : 0;
+        const int n_debye = model_.debyeAuxSize(ndofs);
+        const int n_lorentz = model_.lorentzAuxSize(ndofs);
+        auto addPrefix = [&](mfem::SparseMatrix& op, int n_prefix) {
+            mfem::Vector in_prefix;
+            mfem::Vector out_prefix;
+            in_prefix.MakeRef(const_cast<mfem::Vector&>(in), 0, n_prefix);
+            out_prefix.MakeRef(out, 0, n_prefix);
+            op.AddMult(in_prefix, out_prefix);
+        };
+        if (scpmlOperator_) {
+            if (n_debye == 0 && n_lorentz == 0) {
+                scpmlOperator_->AddMult(in, out);
+            } else {
+                addPrefix(*scpmlOperator_, 6 * ndofs + n_pml);
+            }
+        }
+        if (debyeOperator_) {
+            if (n_lorentz == 0) {
+                debyeOperator_->AddMult(in, out);
+            } else {
+                addPrefix(*debyeOperator_, 6 * ndofs + n_pml + n_debye);
+            }
+        }
+        if (lorentzOperator_) {
+            lorentzOperator_->AddMult(in, out);
+        }
     }
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();
@@ -1149,6 +1445,7 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         mfem::Vector out_fields;
         out_fields.MakeRef(out, 0, 6 * ndofs);
         applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
+        applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
     }
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();
@@ -1436,7 +1733,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     const int nbrDofs   = fes_.num_face_nbr_dofs;
     const int blockSize = ndofs + nbrDofs;
     if (total_state_size_ > 6 * ndofs) {
-        MFEM_ABORT("Classical ADE-PML extended state is not supported with implicit integrators yet.");
+        MFEM_ABORT("Extended state (Cartesian PML, Debye, or Lorentz) is not supported with implicit integrators yet.");
     }
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 
@@ -1508,6 +1805,9 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
         implicit_rhs_ += implicit_src_;
     }
+    if (deltaGapOperator_) {
+        applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, implicit_rhs_);
+    }
 
     // --- Solve (I - dt*A) k = rhs ---
     // For small serial systems (SGBC sub-solver), use cached dense LU
@@ -1537,7 +1837,13 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         if (k.Size() != n) {
             k.SetSize(n);
         }
-        J_inv_->Mult(implicit_rhs_, k);
+        // Dense LU writes the host buffer. Vector::Mult assigns on the device
+        // first, so the ODE would keep the right-hand side. Solve on the host
+        // pointers, then publish that result to the device.
+        const double* rhs_h = implicit_rhs_.HostRead();
+        double* k_h = k.HostWrite();
+        J_inv_->Mult(rhs_h, k_h);
+        (void)k.Read();
     } else {
         // Large/parallel system: fall back to GMRES
         auto applyA_parallel = [&](const mfem::Vector& u, mfem::Vector& Au)

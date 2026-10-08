@@ -2,7 +2,10 @@ message(STATUS "Creating build system for maxwell-solver")
 
 find_package(Eigen3 3.3 REQUIRED CONFIG)
 
+find_package(nlohmann_json CONFIG REQUIRED)
+
 add_library(maxwell-solver STATIC 
+	"Checkpoint.cpp"
 	"Solver.cpp"
 	"SolverExtension.cpp"
 	"ProbesManager.cpp" 
@@ -13,6 +16,7 @@ target_link_libraries(maxwell-solver
 	maxwell-components 
 	maxwell-math
 	mfem
+	nlohmann_json
 )
 
 if (SEMBA_DGTD_ENABLE_OPENMP)

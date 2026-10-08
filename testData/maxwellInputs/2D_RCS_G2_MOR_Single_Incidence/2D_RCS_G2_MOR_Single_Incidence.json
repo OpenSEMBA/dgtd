@@ -1,0 +1,81 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.001,
+    "final_time": 60.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "2D_RCS_G2_MOR_Single_Incidence.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2,
+          3
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+        ],
+        "type": "PEC"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.25
+    },
+    "rcssurface": [
+      {
+        "name": "cylinder_rcs",
+        "steps": 1,
+        "tags": [
+          17, 18, 19, 20
+        ]
+      }
+    ],
+    "mor_state": [
+      {
+        "record_time_start": 0.0,
+        "record_time_final": 60.0,
+        "saves": 2401
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.8660254,
+        0.5,
+        0.0
+      ],
+      "propagation": [
+        0.5,
+        -0.8660254,
+        0.0
+      ],
+      "tags": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.1
+      }
+    }
+  ]
+}

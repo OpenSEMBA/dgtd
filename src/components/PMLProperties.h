@@ -17,6 +17,9 @@ enum class PMLStretchMode {
 	Radial = 1
 };
 
+inline constexpr char kDispersiveOnPmlNotAllowed[] =
+	"A PML tag cannot carry a Debye or Lorentz material.";
+
 struct PMLProperties {
 	std::vector<Attribute> geom_tags;
 	bool matches_vacuum = true;

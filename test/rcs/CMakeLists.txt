@@ -30,4 +30,8 @@ target_link_libraries(rcs_tests
 	FFTW3::fftw3
 )
 
+if (SEMBA_DGTD_ENABLE_CUDA)
+	target_compile_definitions(rcs_tests PRIVATE SEMBA_DGTD_ENABLE_CUDA)
+endif()
+
 

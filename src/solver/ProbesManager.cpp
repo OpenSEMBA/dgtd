@@ -2,10 +2,14 @@
 #include "SourcesManager.h"
 #include "math/PhysicalConstants.h"
 #include "general/text.hpp"
+#include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <iomanip>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace maxwell {
 
@@ -31,6 +35,17 @@ bool isNodeRoot(MPI_Comm comm)
     
     return (node_rank == 0);
 }
+
+#ifdef SHOW_TIMER_INFORMATION
+void formatProbeTimingCell(char* buf, std::size_t n, double ms, bool defined, int width)
+{
+    if (!defined) {
+        std::snprintf(buf, n, "%*s", width, "off");
+        return;
+    }
+    std::snprintf(buf, n, "%*.4f", width, ms);
+}
+#endif
 
 }  // namespace
 
@@ -134,8 +149,21 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
         {
             throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
         }
-        nearFieldReqs_.emplace(&p, std::make_unique<NearFieldReqs>(NearFieldReqs(p, dgfec, fes_, fields)));
-        nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
+        auto reqs = std::make_unique<NearFieldReqs>(p, dgfec, fes_, fields);
+        const bool local = reqs->hasLocalSurface();
+        nearFieldReqs_.emplace(&p, std::move(reqs));
+        {
+            const MPI_Comm comm = getFESComm(fes_);
+            const std::string parent_path =
+                getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name;
+            if (isNodeRoot(comm)) {
+                std::filesystem::create_directories(parent_path);
+            }
+            MPI_Barrier(comm);
+        }
+        if (local) {
+            nearFieldProbesCollection_.emplace(&p, buildNearFieldDataCollectionInfo(p, fields));
+        }
     }
 
     for (const auto& p: probes.domainSnapshotProbes) {
@@ -145,6 +173,36 @@ ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Field
     finalTime_ = opts.final_time;
     fields_ = &fields;
     is_sgbc_solver_ = opts.is_sgbc_solver;
+    preserve_existing_outputs_ = opts.resume_from_checkpoint;
+}
+
+static void fsyncWrittenFile(const std::filesystem::path& path)
+{
+    const int fd = ::open(path.c_str(), O_RDONLY);
+    if (fd < 0) {
+        return;
+    }
+    ::fsync(fd);
+    ::close(fd);
+}
+
+void ProbesManager::flushOpenFiles()
+{
+    const auto root = std::filesystem::path(getSimulationCaseExportPath(caseName_));
+    for (auto& entry : pointProbeFiles_) {
+        if (!entry.second.is_open()) {
+            continue;
+        }
+        entry.second.flush();
+        fsyncWrittenFile(root / "PointProbes" / ("PointProbe" + std::to_string(entry.first) + ".dat"));
+    }
+    for (auto& entry : fieldProbeFiles_) {
+        if (!entry.second.is_open()) {
+            continue;
+        }
+        entry.second.flush();
+        fsyncWrittenFile(root / "FieldProbes" / ("FieldProbe" + std::to_string(entry.first) + ".dat"));
+    }
 }
 
 void ProbesManager::printTimingSummaryAndReset() const
@@ -175,20 +233,35 @@ void ProbesManager::printTimingSummaryAndReset() const
     }
 
     if (Mpi::WorldRank() == 0) {
+        const bool defined[7] = {
+            !probes.exporterProbes.empty(),
+            !probes.fieldProbes.empty(),
+            !probes.pointProbes.empty(),
+            !probes.nearFieldProbes.empty(),
+            !probes.domainSnapshotProbes.empty(),
+            !probes.rcsSurfaceProbes.empty(),
+            !probes.morStateProbes.empty()
+        };
+        const int widths[7] = {9, 9, 9, 10, 9, 9, 9};
+
         std::cout << "[Probe timing] avg of " << timingStats_.update_calls
                   << " updates, ms/update\n";
-        std::cout << "  Rank  | exporter field point nearfield snapshot   rcs   mor\n";
-        std::cout << "  ------+--------------------------------------------------------\n";
+        std::cout << "  Rank  |  exporter     field     point  nearfield  snapshot       rcs       mor\n";
+        std::cout << "  ------+-----------------------------------------------------------------------\n";
         for (int r = 0; r < P; ++r) {
-            std::cout << std::setw(6) << r << " | "
-                      << std::setw(8) << all_avg[r*7 + 0] << " "
-                      << std::setw(5) << all_avg[r*7 + 1] << " "
-                      << std::setw(5) << all_avg[r*7 + 2] << " "
-                      << std::setw(9) << all_avg[r*7 + 3] << " "
-                      << std::setw(8) << all_avg[r*7 + 4] << " "
-                      << std::setw(5) << all_avg[r*7 + 5] << " "
-                      << std::setw(5) << all_avg[r*7 + 6] << "\n";
+            char cells[7][16];
+            for (int c = 0; c < 7; ++c) {
+                formatProbeTimingCell(
+                    cells[c], sizeof(cells[c]), all_avg[r * 7 + c], defined[c], widths[c]);
+            }
+            char buf[256];
+            std::snprintf(
+                buf, sizeof(buf),
+                "  %4d  | %s %s %s %s %s %s %s",
+                r, cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6]);
+            std::cout << buf << '\n';
         }
+        std::cout << std::flush;
     }
 
     timingStats_ = TimingStats{};
@@ -257,7 +330,7 @@ void ProbesManager::initPointFieldProbeExport()
     if (probes.pointProbes.size()){
         auto base_path(getSimulationCaseExportPath(caseName_) + "/PointProbes/");
         
-        if (cycle_ == 0) {
+        if (cycle_ == 0 && !preserve_existing_outputs_) {
             if (isNodeRoot(comm)) {
                 if (std::filesystem::exists(base_path)) {
                     std::filesystem::remove_all(base_path);
@@ -277,6 +350,9 @@ void ProbesManager::initPointFieldProbeExport()
                     for (auto i = 0; i < p.getPoint().size(); i++){
                         position[i] = p.getPoint()[i];
                     }
+                    if (preserve_existing_outputs_) {
+                        continue;
+                    }
                     myfile.open(path, std::ios::trunc); 
                     if (myfile.is_open()) {
                         myfile << "PointProbe ID " << std::to_string(p.getProbeID()) << "\n";
@@ -294,7 +370,7 @@ void ProbesManager::initPointFieldProbeExport()
     if (probes.fieldProbes.size()){
         auto base_path = (getSimulationCaseExportPath(caseName_) + "/FieldProbes/");
         
-        if (cycle_ == 0) {
+        if (cycle_ == 0 && !preserve_existing_outputs_) {
             if (isNodeRoot(comm)) {
                 if (std::filesystem::exists(base_path)) {
                     std::filesystem::remove_all(base_path);
@@ -314,6 +390,9 @@ void ProbesManager::initPointFieldProbeExport()
                     auto fieldpol = getFieldPolString(p.getFieldType(), p.getDirection());
                     for (auto i = 0; i < p.getPoint().size(); i++){
                         position[i] = p.getPoint()[i];
+                    }
+                    if (preserve_existing_outputs_) {
+                        continue;
                     }
                     myfile.open(path, std::ios::trunc);
                     if (myfile.is_open()) {
@@ -356,18 +435,12 @@ DataCollection ProbesManager::buildNearFieldDataCollectionInfo(
     const NearFieldProbe& p, Fields<ParFiniteElementSpace, ParGridFunction>& gFields) const
 {
     isDGCollection(fes_);
-    const MPI_Comm comm = getFESComm(fes_);
+    auto* reqs = nearFieldReqs_.at(&p).get();
+    DataCollection res{ p.name, reqs->getSubMesh() };
 
-    DataCollection res{ p.name, nearFieldReqs_.at(&p)->getSubMesh() };
-    
-    std::string parent_path = getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name;
-    if (isNodeRoot(comm)) {
-        std::filesystem::create_directories(parent_path);
-    }
-    MPI_Barrier(comm);
-
-    std::string path = parent_path + "/rank" + std::to_string(Mpi::WorldRank());
-    std::filesystem::create_directories(path); 
+    std::string path = getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name
+        + "/rank" + std::to_string(Mpi::WorldRank());
+    std::filesystem::create_directories(path);
     res.SetPrefixPath(path);
     
     res.RegisterField("Ex.gf", &nearFieldReqs_.at(&p)->getConstField(E, X));
@@ -573,7 +646,9 @@ void ProbesManager::updateProbe(NearFieldProbe& p, Time time)
     }
 
     auto it{ nearFieldProbesCollection_.find(&p) };
-    assert(it != nearFieldProbesCollection_.end());
+    if (it == nearFieldProbesCollection_.end()) {
+        return;
+    }
     auto& dc{ it->second };
     dc.SetPrefixPath(getSimulationCaseExportPath(caseName_) + "/NearToFarFieldProbes/" + p.name + "/rank" + std::to_string(Mpi::WorldRank()));
 
@@ -786,17 +861,23 @@ void ProbesManager::updateProbes(Time t)
 
 void NearFieldReqs::updateFields()
 {
-    tMaps_.transferFields(gFields_, fields_);
+    if (!tMaps_) {
+        return;
+    }
+    tMaps_->transferFields(gFields_, *fields_);
 }
 
 NearFieldReqs::NearFieldReqs(
     const NearFieldProbe& p, const DG_FECollection* fec, ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& global) :
     ntff_smsh_{ NearToFarFieldSubMesher(*fes.GetMesh(), fes, buildSurfaceMarker(p.tags, fes)) },
-    sfes_{ std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec) },
-    fields_{ Fields<FiniteElementSpace, GridFunction>(*sfes_) },
-    gFields_{ global },
-    tMaps_{ TransferMaps(gFields_, fields_) }
+    gFields_{ global }
 {
+    if (!ntff_smsh_.hasLocalSurface()) {
+        return;
+    }
+    sfes_ = std::make_unique<FiniteElementSpace>(ntff_smsh_.getSubMesh(), fec);
+    fields_ = std::make_unique<Fields<FiniteElementSpace, GridFunction>>(*sfes_);
+    tMaps_ = std::make_unique<TransferMaps>(gFields_, *fields_);
     updateFields();
 }
 
@@ -817,7 +898,8 @@ void ProbesManager::initRCSSurfaceExporters()
             throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
         }
         rcsSurfaceExporters_.emplace(&p,
-            std::make_unique<RCSSurfaceExporter>(p, dgfec, fes_, *fields_, caseName_));
+            std::make_unique<RCSSurfaceExporter>(
+                p, dgfec, fes_, *fields_, caseName_, preserve_existing_outputs_));
     }
 }
 
@@ -927,6 +1009,320 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
         ctx.next_save_time = p.record_time_start + ctx.save_count * ctx.dt_save;
     } else {
         ctx.next_save_time = p.record_time_final + 1.0;
+    }
+}
+
+int expectedProbeSamples(int saved_cycle, int vis_steps, bool at_final)
+{
+    if (saved_cycle <= 0) {
+        return 0;
+    }
+    if (vis_steps <= 0) {
+        return at_final ? 1 : 0;
+    }
+    int count = (saved_cycle - 1) / vis_steps + 1;
+    if (at_final && ((saved_cycle - 1) % vis_steps) != 0) {
+        ++count;
+    }
+    return count;
+}
+
+int cycleInPvdLine(const std::string& line)
+{
+    const auto pos = line.find("Cycle");
+    if (pos == std::string::npos) {
+        return -1;
+    }
+    std::size_t i = pos + 5;
+    if (i >= line.size() || line[i] < '0' || line[i] > '9') {
+        return -1;
+    }
+    int value = 0;
+    while (i < line.size() && line[i] >= '0' && line[i] <= '9') {
+        value = value * 10 + (line[i] - '0');
+        ++i;
+    }
+    return value;
+}
+
+namespace {
+
+void truncateDataLines(const std::filesystem::path& path, int header_lines, int keep_data_lines)
+{
+    if (!std::filesystem::exists(path)) {
+        return;
+    }
+    std::ifstream in(path);
+    if (!in) {
+        return;
+    }
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(in, line)) {
+        lines.push_back(line);
+    }
+    in.close();
+    const int keep = std::min(
+        header_lines + std::max(keep_data_lines, 0),
+        static_cast<int>(lines.size()));
+    if (keep >= static_cast<int>(lines.size())) {
+        return;
+    }
+    std::ofstream out(path, std::ios::trunc);
+    if (!out) {
+        throw std::runtime_error("Cannot trim " + path.string());
+    }
+    for (int i = 0; i < keep; ++i) {
+        out << lines[i] << '\n';
+    }
+}
+
+int trailingIndex(const std::string& name, const std::string& prefix)
+{
+    if (name.size() <= prefix.size() || name.compare(0, prefix.size(), prefix) != 0) {
+        return -1;
+    }
+    int value = 0;
+    for (std::size_t i = prefix.size(); i < name.size(); ++i) {
+        if (name[i] < '0' || name[i] > '9') {
+            return -1;
+        }
+        value = value * 10 + (name[i] - '0');
+    }
+    return value;
+}
+
+void removeIndexedDirs(const std::filesystem::path& parent, const std::string& prefix, int drop_from)
+{
+    if (!std::filesystem::exists(parent)) {
+        return;
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(parent)) {
+        if (!entry.is_directory()) {
+            continue;
+        }
+        const int index = trailingIndex(entry.path().filename().string(), prefix);
+        if (index >= drop_from) {
+            std::filesystem::remove_all(entry.path());
+        }
+    }
+}
+
+void removeIndexedFiles(const std::filesystem::path& dir, const std::string& prefix, int drop_from)
+{
+    if (!std::filesystem::exists(dir)) {
+        return;
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+        const int index = trailingIndex(entry.path().filename().string(), prefix);
+        if (index >= drop_from) {
+            std::filesystem::remove(entry.path());
+        }
+    }
+}
+
+void trimPvd(const std::filesystem::path& path, int drop_from)
+{
+    if (!std::filesystem::exists(path)) {
+        return;
+    }
+    std::ifstream in(path);
+    if (!in) {
+        return;
+    }
+    std::vector<std::string> kept;
+    std::string line;
+    bool dropped = false;
+    while (std::getline(in, line)) {
+        const int cycle = cycleInPvdLine(line);
+        if (cycle >= drop_from) {
+            dropped = true;
+            continue;
+        }
+        kept.push_back(line);
+    }
+    in.close();
+    if (!dropped) {
+        return;
+    }
+    std::ofstream out(path, std::ios::trunc);
+    if (!out) {
+        throw std::runtime_error("Cannot trim " + path.string());
+    }
+    for (const auto& kept_line : kept) {
+        out << kept_line << '\n';
+    }
+}
+
+}  // namespace
+
+std::vector<ExporterCursor> ProbesManager::captureExporterCursors() const
+{
+    std::vector<ExporterCursor> out;
+    out.reserve(probes.exporterProbes.size());
+    for (const auto& p : probes.exporterProbes) {
+        ExporterCursor cursor;
+        cursor.name = p.name;
+        const auto it = exporterContexts_.find(&p);
+        if (it != exporterContexts_.end()) {
+            cursor.save_count = it->second.save_count;
+            cursor.next_save_time = it->second.next_save_time;
+            cursor.dt_save = it->second.dt_save;
+            cursor.initialized = it->second.initialized;
+            cursor.finished = it->second.finished;
+        }
+        out.push_back(std::move(cursor));
+    }
+    return out;
+}
+
+std::vector<MorCursor> ProbesManager::captureMorCursors() const
+{
+    std::vector<MorCursor> out;
+    out.reserve(probes.morStateProbes.size());
+    for (const auto& p : probes.morStateProbes) {
+        MorCursor cursor;
+        cursor.name = p.name;
+        const auto it = morStateContexts_.find(&p);
+        if (it != morStateContexts_.end()) {
+            cursor.save_count = it->second.save_count;
+            cursor.next_save_time = it->second.next_save_time;
+            cursor.dt_save = it->second.dt_save;
+            cursor.initialized = it->second.initialized;
+        }
+        out.push_back(std::move(cursor));
+    }
+    return out;
+}
+
+void ProbesManager::restoreCheckpointCursors(
+    int cycle,
+    const std::vector<ExporterCursor>& exporters,
+    const std::vector<MorCursor>& mor)
+{
+    if (exporters.size() != probes.exporterProbes.size()) {
+        throw std::runtime_error("Checkpoint exporter cursors do not match this JSON.");
+    }
+    if (mor.size() != probes.morStateProbes.size()) {
+        throw std::runtime_error("Checkpoint MOR cursors do not match this JSON.");
+    }
+    cycle_ = cycle;
+    for (std::size_t i = 0; i < exporters.size(); ++i) {
+        if (exporters[i].name != probes.exporterProbes[i].name) {
+            throw std::runtime_error("Checkpoint exporter name does not match this JSON.");
+        }
+        if (!exporters[i].initialized) {
+            continue;
+        }
+        auto& ctx = exporterContexts_[&probes.exporterProbes[i]];
+        ctx.save_count = exporters[i].save_count;
+        ctx.next_save_time = exporters[i].next_save_time;
+        ctx.dt_save = exporters[i].dt_save;
+        ctx.initialized = true;
+        ctx.finished = exporters[i].finished;
+    }
+    for (std::size_t i = 0; i < mor.size(); ++i) {
+        if (mor[i].name != probes.morStateProbes[i].name) {
+            throw std::runtime_error("Checkpoint MOR probe name does not match this JSON.");
+        }
+        if (!mor[i].initialized) {
+            continue;
+        }
+        auto& ctx = morStateContexts_[&probes.morStateProbes[i]];
+        ctx.save_count = mor[i].save_count;
+        ctx.next_save_time = mor[i].next_save_time;
+        ctx.dt_save = mor[i].dt_save;
+        ctx.initialized = true;
+        ctx.export_dir = getSimulationCaseExportPath(caseName_) + "/MORStateProbes/" + probes.morStateProbes[i].name;
+    }
+    for (auto& entry : exporterProbesCollection_) {
+        entry.second.UseRestartMode(true);
+    }
+}
+
+void ProbesManager::trimProbeOutput(double time)
+{
+    const bool at_final = std::abs(time - finalTime_) < 1e-8;
+    const int saved_cycle = cycle_;
+
+    for (auto& entry : pointProbeFiles_) {
+        if (entry.second.is_open()) {
+            entry.second.close();
+        }
+    }
+    for (auto& entry : fieldProbeFiles_) {
+        if (entry.second.is_open()) {
+            entry.second.close();
+        }
+    }
+
+    const auto case_root = std::filesystem::path(getSimulationCaseExportPath(caseName_));
+
+    for (const auto& p : probes.pointProbes) {
+        if (!p.write) {
+            continue;
+        }
+        const auto it = pointProbesCollection_.find(&p);
+        if (it == pointProbesCollection_.end() || it->second.fesPoint.elementId == -2) {
+            continue;
+        }
+        truncateDataLines(
+            case_root / "PointProbes" / ("PointProbe" + std::to_string(p.getProbeID()) + ".dat"),
+            4,
+            expectedProbeSamples(saved_cycle, p.getVisSteps(), at_final));
+    }
+    for (const auto& p : probes.fieldProbes) {
+        if (!p.write) {
+            continue;
+        }
+        const auto it = fieldProbesCollection_.find(&p);
+        if (it == fieldProbesCollection_.end() || it->second.fesPoint.elementId == -2) {
+            continue;
+        }
+        truncateDataLines(
+            case_root / "FieldProbes" / ("FieldProbe" + std::to_string(p.getProbeID()) + ".dat"),
+            4,
+            expectedProbeSamples(saved_cycle, p.getVisSteps(), at_final));
+    }
+
+    const int rank = Mpi::WorldRank();
+    for (const auto& p : probes.nearFieldProbes) {
+        const auto rank_dir = case_root / "NearToFarFieldProbes" / p.name
+            / ("rank" + std::to_string(rank));
+        removeIndexedDirs(rank_dir, p.name + "_", saved_cycle);
+    }
+    for (const auto& p : probes.domainSnapshotProbes) {
+        (void)p;
+        const auto rank_dir = case_root / "DomainSnapshotProbes" / ("rank_" + std::to_string(rank));
+        removeIndexedDirs(rank_dir, "cycle_", saved_cycle);
+    }
+    for (auto& entry : rcsSurfaceExporters_) {
+        entry.second->truncateSnapshotsAfter(time);
+    }
+
+    if (rank == 0) {
+        const auto paraview_root = std::filesystem::path("exports/ParaView") / getRunModeTag();
+        for (const auto& p : probes.exporterProbes) {
+            int drop_from = saved_cycle;
+            if (p.save_every > 0.0) {
+                const auto it = exporterContexts_.find(&p);
+                drop_from = (it == exporterContexts_.end()) ? 0 : it->second.save_count;
+            }
+            const auto parent = paraview_root / p.name;
+            removeIndexedDirs(parent, "Cycle", drop_from);
+            trimPvd(parent / (p.name + ".pvd"), drop_from);
+        }
+        for (const auto& p : probes.morStateProbes) {
+            const auto it = morStateContexts_.find(&p);
+            const int drop_from = (it == morStateContexts_.end() || !it->second.initialized)
+                ? 0 : it->second.save_count;
+            const auto dir = case_root / "MORStateProbes" / p.name;
+            removeIndexedFiles(dir, "x_", drop_from);
+            removeIndexedFiles(dir, "u_", drop_from);
+        }
     }
 }
 

@@ -6,6 +6,7 @@
 #include "components/Probes.h"
 #include "components/SubMesher.h"
 #include "components/RCSSurfaceExporter.h"
+#include "solver/Checkpoint.h"
 #include "solver/SolverOptions.h"
 
 namespace maxwell {
@@ -17,23 +18,30 @@ std::string getRunModeTag();
 // ParaView: exports/ParaView/<run-mode>/; CSR: exports/Operators/<case>/.
 std::string getSimulationCaseExportPath(const std::string& caseName);
 
+/// Data rows a point or field probe file should still contain at `saved_cycle`.
+int expectedProbeSamples(int saved_cycle, int vis_steps, bool at_final);
+
+/// Digits immediately after "Cycle" in a ParaView collection line, or -1.
+int cycleInPvdLine(const std::string& line);
+
 class NearFieldReqs {
 public:
 
     NearFieldReqs(const NearFieldProbe&, const mfem::DG_FECollection* fec, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>&);
 
+    bool hasLocalSurface() const { return ntff_smsh_.hasLocalSurface(); }
     mfem::SubMesh* getSubMesh() { return ntff_smsh_.getSubMesh(); }
-    const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) const { return fields_.get(f, d); }
-    mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_.get(f, d); }
+    const mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) const { return fields_->get(f, d); }
+    mfem::GridFunction& getConstField(const FieldType& f, const Direction& d) { return fields_->get(f, d); }
     void updateFields();
 
 private:
 
     NearToFarFieldSubMesher ntff_smsh_;
     std::unique_ptr<mfem::FiniteElementSpace> sfes_;
-    Fields<FiniteElementSpace, GridFunction> fields_;
+    std::unique_ptr<Fields<FiniteElementSpace, GridFunction>> fields_;
     Fields<ParFiniteElementSpace, ParGridFunction>& gFields_;
-    TransferMaps tMaps_;
+    std::unique_ptr<TransferMaps> tMaps_;
 
 };
 
@@ -67,6 +75,16 @@ public:
         tfsf_mapping_ = tfsf_mapping;
     }
     void printTimingSummaryAndReset() const;
+    void flushOpenFiles();
+
+    int cycle() const { return cycle_; }
+    std::vector<ExporterCursor> captureExporterCursors() const;
+    std::vector<MorCursor> captureMorCursors() const;
+    void restoreCheckpointCursors(
+        int cycle,
+        const std::vector<ExporterCursor>& exporters,
+        const std::vector<MorCursor>& mor);
+    void trimProbeOutput(double time);
 
     Probes probes;
 
@@ -142,6 +160,7 @@ private:
     SourcesManager* srcmngr_{nullptr};
     const mfem::Array<int>* tfsf_mapping_{nullptr};
     bool is_sgbc_solver_{false};
+    bool preserve_existing_outputs_{false};
     mutable TimingStats timingStats_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;

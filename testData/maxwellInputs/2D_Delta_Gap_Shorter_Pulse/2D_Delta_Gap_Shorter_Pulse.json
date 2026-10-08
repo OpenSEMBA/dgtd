@@ -1,0 +1,93 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.005,
+    "final_time": 120.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "2D_Delta_Gap_Shorter_Pulse.msh",
+    "materials": [
+      {
+        "tags": [4],
+        "type": "vacuum"
+      },
+      {
+        "tags": [46, 50],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": ["Y"]
+      },
+      {
+        "tags": [54, 58],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": ["X"]
+      },
+      {
+        "tags": [62, 66, 70, 74],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": ["X", "Y"]
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [39, 40, 41, 42, 43, 44, 45],
+        "type": "PEC"
+      },
+      {
+        "tags": [32, 33, 34, 35, 36, 37, 38],
+        "type": "PEC"
+      },
+      {
+        "tags": [63, 54, 65, 66, 61, 69, 70, 52, 67, 68, 59, 64],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 1.0
+    },
+    "point": [
+      {
+        "position": [1.25, 2.0],
+        "saves": 200
+      },
+      {
+        "position": [1.55, 2.0],
+        "saves": 200
+      },
+      {
+        "position": [0.6, 2.0],
+        "saves": 200
+      },
+      {
+        "position": [2.4, 2.0],
+        "saves": 200
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "delta_gap",
+      "tags": [50],
+      "polarization": [0.0, 1.0, 0.0],
+      "spread": 0.341541100791,
+      "signal": "gaussian_derivative"
+    }
+  ]
+}

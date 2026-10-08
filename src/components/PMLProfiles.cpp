@@ -262,8 +262,44 @@ void PMLProfileData::buildInterfaceData(
 		ft->SetIntPoint(&ip);
 		ft->Transform(ip, face_center);
 
-		const int axis = dominantAxis(delta, dim);
-		if (axis >= dim) {
+		if (pml_attr < 1
+		    || static_cast<size_t>(pml_attr) > attr_region_index_.size()) {
+			continue;
+		}
+		const int region_index = attr_region_index_[static_cast<size_t>(pml_attr - 1)];
+		if (region_index < 0 || region_index >= static_cast<int>(regions_.size())) {
+			continue;
+		}
+		const auto& axes = regions_[static_cast<size_t>(region_index)].active_axes;
+		auto axisIsActive = [&](int axis) {
+			return axis >= 0 && axis < dim
+				&& axes.count(static_cast<Direction>(axis)) != 0;
+		};
+
+		// Face normal names the stretch axis. CalcOrtho is defined for a 2D or
+		// 3D face Jacobian; a 1D face is a point and uses the center delta.
+		int axis = -1;
+		const mfem::DenseMatrix& jac = ft->Jacobian();
+		const bool face_jacobian =
+			(jac.Height() == 2 && jac.Width() == 1)
+			|| (jac.Height() == 3 && jac.Width() == 2);
+		if (face_jacobian && jac.Data() != nullptr) {
+			mfem::Vector nor(jac.Height());
+			mfem::CalcOrtho(jac, nor);
+			if (nor.Norml2() > 0.0) {
+				const int normal_axis = dominantAxis(nor, dim);
+				if (axisIsActive(normal_axis)) {
+					axis = normal_axis;
+				}
+			}
+		}
+		if (axis < 0) {
+			const int delta_axis = dominantAxis(delta, dim);
+			if (axisIsActive(delta_axis)) {
+				axis = delta_axis;
+			}
+		}
+		if (axis < 0) {
 			continue;
 		}
 

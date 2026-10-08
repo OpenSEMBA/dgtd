@@ -19,7 +19,8 @@ static std::vector<double> buildIncomingPowerTerm(const std::string& json_path, 
 {
 
 	auto case_data = driver::parseJSONfile(json_path);
-	double spread = case_data["sources"][0]["magnitude"]["spread"];
+	double spread = driver::assembleGaussianSpread(
+		case_data["sources"][0]["magnitude"], "planewave");
 	mfem::Vector mean = driver::assemble3DVector(case_data["sources"][0]["magnitude"]["mean"]);
 	mfem::Vector propagation = driver::assemble3DVector(case_data["sources"][0]["propagation"]);
 	double projMean = mean * propagation / propagation.Norml2();

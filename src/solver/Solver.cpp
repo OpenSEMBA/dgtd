@@ -1,11 +1,21 @@
 #include "Solver.h"
+#include "Checkpoint.h"
 #include "components/SCPMLLayout.h"
+#include "evolution/EvolutionOptions.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <unistd.h>
+#include <fcntl.h>
+#include <atomic>
+#include <csignal>
+#include <cstring>
+#include <map>
+#include <optional>
 #include <cmath>
 #include <iomanip>
+#include <iostream>
+#include <limits>
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -14,6 +24,11 @@ namespace maxwell {
 
 size_t getCurrentMemoryUsage();
 size_t getPeakMemoryUsage();
+
+void Solver::flushProbeFiles()
+{
+    probesManager_.flushOpenFiles();
+}
 
 void Solver::sampleInitializationMemory()
 {
@@ -31,6 +46,94 @@ void Solver::sampleTemporalMemory()
     if (cur > temporalMemPeakSampled_) {
         temporalMemPeakSampled_ = cur;
     }
+}
+
+void warnGaussianPulseVsMesh(
+	mfem::ParMesh& mesh,
+	int order,
+	const Sources& sources,
+	int comm_rank)
+{
+	double min_spread = std::numeric_limits<double>::infinity();
+	double max_carrier_hz = 0.0;
+	const double c_si = physicalConstants::speedOfLight_SI;
+
+	for (const auto& src : sources) {
+		if (const auto* gap = dynamic_cast<const DeltaGapSource*>(src.get())) {
+			min_spread = std::min(min_spread, gap->spread());
+			continue;
+		}
+		const auto* tf = dynamic_cast<const TotalField*>(src.get());
+		if (tf == nullptr) {
+			continue;
+		}
+		const EHFieldFunction* eh = tf->function();
+		if (const auto* pw = dynamic_cast<const Planewave*>(eh)) {
+			if (const auto* g = dynamic_cast<const Gaussian*>(pw->function())) {
+				min_spread = std::min(min_spread, g->spread());
+			}
+			else if (const auto* mg = dynamic_cast<const ModulatedGaussian*>(pw->function())) {
+				min_spread = std::min(min_spread, mg->spread());
+				max_carrier_hz = std::max(max_carrier_hz, mg->frequency() * c_si);
+			}
+		}
+		else if (const auto* coax = dynamic_cast<const CoaxialMode*>(eh)) {
+			min_spread = std::min(min_spread, coax->spread());
+		}
+		else if (const auto* dip = dynamic_cast<const DerivGaussDipole*>(eh)) {
+			min_spread = std::min(min_spread, dip->spread());
+		}
+	}
+
+	if (!(min_spread > 0.0) || !std::isfinite(min_spread)) {
+		return;
+	}
+
+	double local_sum = 0.0;
+	double local_min = std::numeric_limits<double>::infinity();
+	const int local_ne = mesh.GetNE();
+	for (int e = 0; e < local_ne; ++e) {
+		const double h = mesh.GetElementSize(e);
+		local_sum += h;
+		local_min = std::min(local_min, h);
+	}
+
+	int global_ne = 0;
+	double global_sum = 0.0;
+	double global_min = 0.0;
+	MPI_Comm comm = mesh.GetComm();
+	MPI_Allreduce(&local_ne, &global_ne, 1, MPI_INT, MPI_SUM, comm);
+	MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, comm);
+	MPI_Allreduce(&local_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, comm);
+	if (global_ne <= 0 || !(global_sum > 0.0) || !std::isfinite(global_min)) {
+		return;
+	}
+
+	const double h_avg = global_sum / static_cast<double>(global_ne);
+	const double n_ppw = std::max(3.0, 15.0 / static_cast<double>(order + 1));
+	const double f_mesh_hz = c_si / (n_ppw * h_avg);
+	const double f_1e_hz = c_si / (2.0 * M_PI * min_spread) + max_carrier_hz;
+	if (!(f_1e_hz > f_mesh_hz)) {
+		return;
+	}
+
+	const double spread_ok = c_si / (2.0 * M_PI * std::max(f_mesh_hz - max_carrier_hz, 1.0));
+	if (comm_rank != 0) {
+		return;
+	}
+
+	std::cerr << std::setprecision(4)
+	          << "Warning: Gaussian 1/e power sits at " << f_1e_hz / 1e6
+	          << " MHz (spread=" << min_spread << " light-metres)"
+	          << (max_carrier_hz > 0.0 ? " including carrier" : "")
+	          << ".\n  Mesh order p=" << order
+	          << ", mean h=" << h_avg << " m, min h=" << global_min << " m.\n"
+	          << "  Estimated resolved band ~ " << f_mesh_hz / 1e6
+	          << " MHz (~" << n_ppw << " elements/λ at mean h, order "
+	          << order << ").\n"
+	          << "  Consider f_1e <= " << f_mesh_hz
+	          << " Hz or spread >= " << spread_ok
+	          << ", or refine the mesh. Continuing.\n";
 }
 
 Solver::~Solver() = default; 
@@ -85,7 +188,7 @@ void Solver::assignODESolver()
             odeSolver_ = std::make_unique<mfem::SDIRK33Solver>();
             break;
 
-        case ode_type::SDIRK23:  // L-stable flavor (good with PML/loss)
+        case ode_type::SDIRK23:  // L-stable. Parent PML/Debye/Lorentz/SGBC stays on RK4.
             odeSolver_ = std::make_unique<mfem::SDIRK23Solver>(/*gamma_opt=*/2);
             break;
 
@@ -112,7 +215,9 @@ Solver::Solver(
              computePMLAuxSize(
                  model.getPMLProperties(),
                  fes_->GetNDofs(),
-                 fes_->GetMesh()->Dimension()) },
+                 fes_->GetMesh()->Dimension())
+             + model.debyeAuxSize(fes_->GetNDofs())
+             + model.lorentzAuxSize(fes_->GetNDofs()) },
     sourcesManager_{ sources, *fes_, fields_ },
     probesManager_ { probes , *fes_, fields_, opts_ },
     time_{0.0}
@@ -127,6 +232,23 @@ Solver::Solver(
 
     if (comm_rank == 0){
         checkOptionsAreValid(opts_);
+    }
+    warnGaussianPulseVsMesh(model_.getMesh(), opts_.evolution.order, sources, comm_rank);
+
+    const bool dispersive = model_.hasDebye() || model_.hasLorentz();
+    if (dispersive && opts_.evolution.op != EvolutionOperatorType::Global) {
+        throw std::runtime_error(
+            "Debye and Lorentz materials require evolution_operator \"global\".");
+    }
+    const bool implicit_blocked =
+        model_.hasPML() || dispersive || !model_.getSGBCProperties().empty();
+    if (implicit_blocked && opts_.ode_type != ode_type::RK4) {
+        throw std::runtime_error(
+            "Implicit ODE integrators do not support Cartesian PML, Debye, Lorentz, or SGBC. Use ode_type RK4.");
+    }
+    if (dispersive && opts_.evolution.spectral) {
+        throw std::runtime_error(
+            "Spectral analysis does not include Debye or Lorentz polarization.");
     }
 
     if (opts_.evolution.spectral == true) {
@@ -168,12 +290,14 @@ Solver::Solver(
 
     probesManager_.setCaseName(model_.meshName_);
     probesManager_.initPointFieldProbeExport();
-    probesManager_.updateProbes(time_);
+    if (!opts_.resume_from_checkpoint) {
+        probesManager_.updateProbes(time_);
+    }
     sampleInitializationMemory();
 
     auto initEndTime = std::chrono::steady_clock::now();
 
-    if (!opts_.is_sgbc_solver) {
+    if (!opts_.is_sgbc_solver && !opts_.resume_from_checkpoint) {
         std::filesystem::path simExpPath(getSimulationCaseExportPath(model.meshName_) + "/SimulationStats/");
         std::string path = (simExpPath / ("statistics_rank" + std::to_string(comm_rank) + ".dat")).string();
 
@@ -192,6 +316,13 @@ Solver::Solver(
             std::cerr << "Rank " << comm_rank << " failed to open file: " << path << "\n";
         }
     }
+
+    if (!opts_.checkpoint_json_path.empty()) {
+        enableCheckpoint(opts_.checkpoint_json_path, opts_.checkpoint_mesh_path);
+    }
+    if (!opts_.checkpoint_directory.empty()) {
+        restoreCheckpoint(opts_.checkpoint_directory);
+    }
 }
 
 void Solver::checkOptionsAreValid(const SolverOptions& opts) const
@@ -200,6 +331,11 @@ void Solver::checkOptionsAreValid(const SolverOptions& opts) const
     if ((opts.evolution.order < 0) ||
         (opts.final_time < 0)) {
         throw std::runtime_error("Incorrect parameters in Options");
+    }
+
+    if (!(opts.checkpoint_percent >= 0.0 && opts.checkpoint_percent <= 100.0)) {
+        throw std::runtime_error(
+            "solver_options.checkpoint_percent must be between 0 and 100.");
     }
 
     if (opts.cfl <= 0.0) {
@@ -463,8 +599,38 @@ void Solver::writeSimulationStatistics(const Time runtime){
 
     std::string path = (simExpPath / ("statistics_rank" + std::to_string(rank) + ".dat")).string();
 
-    std::ofstream myfile(path, std::ios::app);
+    std::string existing;
+    {
+        std::ifstream previous(path);
+        if (previous) {
+            std::ostringstream buffered;
+            buffered << previous.rdbuf();
+            existing = buffered.str();
+        }
+    }
+    const auto marker = existing.find("Simulation Run Time:");
+    if (marker != std::string::npos) {
+        const auto line_start = existing.rfind('\n', marker);
+        existing.resize(line_start == std::string::npos ? 0 : line_start + 1);
+    }
+
+    std::ofstream myfile(path, std::ios::trunc);
     if (myfile.is_open()) {
+        if (!existing.empty()) {
+            myfile << existing;
+            if (existing.back() != '\n') {
+                myfile << '\n';
+            }
+        }
+        std::size_t mem_baseline = 0;
+        std::size_t mem_peak = 0;
+        std::size_t mem_count = 0;
+        double mem_sum = 0.0;
+        snapshotTemporal(mem_baseline, mem_peak, mem_sum, mem_count);
+        const std::size_t temporalMemAverageSampled = mem_count > 0
+            ? static_cast<std::size_t>(mem_sum / static_cast<double>(mem_count))
+            : 0;
+        const std::size_t temporalIncrease = mem_peak > mem_baseline ? mem_peak - mem_baseline : 0;
         myfile << std::scientific << std::setprecision(5);
         myfile << "Simulation Run Time: " << runtime << " (s)\n";
         myfile << std::defaultfloat;
@@ -483,17 +649,18 @@ void Solver::writeSimulationStatistics(const Time runtime){
             std::int64_t non_zero_elems = static_cast<std::int64_t>(global->getConstGlobalOperator().NumNonZeroElems());
             myfile << "Number of Operator Non-Zero Elements: " << non_zero_elems << "\n";
         }
-        const std::size_t temporalMemAverageSampled =
-            temporalMemSampleCount_ > 0
-                ? static_cast<std::size_t>(temporalMemSumSampled_ / static_cast<long double>(temporalMemSampleCount_))
-                : 0;
-        myfile << "Temporal Evolution Baseline Memory (B): " << temporalMemBaseline_ << "\n";
-        myfile << "Temporal Evolution Peak Sampled Memory (B): " << temporalMemPeakSampled_ << "\n";
+        myfile << "Temporal Evolution Baseline Memory (B): " << mem_baseline << "\n";
+        myfile << "Temporal Evolution Peak Sampled Memory (B): " << mem_peak << "\n";
         myfile << "Temporal Evolution Average Sampled Memory (B): " << temporalMemAverageSampled << "\n";
-        myfile << "Temporal Evolution Sample Count: " << temporalMemSampleCount_ << "\n";
-        myfile << "Temporal Evolution Peak Increase (B): " << (temporalMemPeakSampled_ - temporalMemBaseline_) << "\n";
+        myfile << "Temporal Evolution Sample Count: " << mem_count << "\n";
+        myfile << "Temporal Evolution Peak Increase (B): " << temporalIncrease << "\n";
         myfile << "Temporal Evolution Memory Consumption (B): " << temporalMemAverageSampled << "\n";
         myfile.close();
+        const int fd = ::open(path.c_str(), O_RDONLY);
+        if (fd >= 0) {
+            ::fsync(fd);
+            ::close(fd);
+        }
     } else {
         std::cerr << "Rank " << rank << " failed to open file: " << path << "\n";
     }
@@ -535,10 +702,373 @@ void loadSolverFieldsWithSGBCValues(const SGBCForcingFields& fields_in, Fields<m
     }
 }
 
+namespace {
+
+std::atomic<int> g_checkpoint_stop{0};
+
+void onCheckpointSignal(int)
+{
+    g_checkpoint_stop.store(1, std::memory_order_relaxed);
+}
+
+class CheckpointSignalGuard {
+public:
+    CheckpointSignalGuard()
+    {
+        g_checkpoint_stop.store(0, std::memory_order_relaxed);
+        struct sigaction action {};
+        action.sa_handler = onCheckpointSignal;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_RESTART;
+        sigaction(SIGINT, &action, &old_int_);
+        sigaction(SIGTERM, &action, &old_term_);
+    }
+
+    ~CheckpointSignalGuard()
+    {
+        sigaction(SIGINT, &old_int_, nullptr);
+        sigaction(SIGTERM, &old_term_, nullptr);
+    }
+
+    CheckpointSignalGuard(const CheckpointSignalGuard&) = delete;
+    CheckpointSignalGuard& operator=(const CheckpointSignalGuard&) = delete;
+
+private:
+    struct sigaction old_int_ {};
+    struct sigaction old_term_ {};
+};
+
+struct SgbcKey {
+    int tag = 0;
+    int node_a = 0;
+    int node_b = 0;
+
+    bool operator<(const SgbcKey& other) const
+    {
+        if (tag != other.tag) return tag < other.tag;
+        if (node_a != other.node_a) return node_a < other.node_a;
+        return node_b < other.node_b;
+    }
+};
+
+}  // namespace
+
+void Solver::enableCheckpoint(const std::string& json_path, const std::string& mesh_path)
+{
+    checkpoint_json_path_ = json_path;
+    checkpoint_mesh_path_ = mesh_path;
+}
+
+double Solver::accumulatedRunSeconds() const
+{
+    double segment = 0.0;
+    if (run_clock_started_) {
+        segment = std::chrono::duration<double>(std::chrono::steady_clock::now() - run_start_).count();
+    }
+    return checkpoint_elapsed_run_ + segment;
+}
+
+void Solver::snapshotTemporal(std::size_t& baseline, std::size_t& peak, double& sum, std::size_t& count) const
+{
+    baseline = checkpoint_temporal_count_ > 0 ? checkpoint_temporal_baseline_ : temporalMemBaseline_;
+    peak = std::max(checkpoint_temporal_peak_, temporalMemPeakSampled_);
+    sum = checkpoint_temporal_sum_ + static_cast<double>(temporalMemSumSampled_);
+    count = checkpoint_temporal_count_ + temporalMemSampleCount_;
+}
+
+void Solver::foldTemporalAndClock(double elapsed_seconds, std::chrono::steady_clock::time_point stamp)
+{
+    std::size_t baseline = 0;
+    std::size_t peak = 0;
+    std::size_t count = 0;
+    double sum = 0.0;
+    snapshotTemporal(baseline, peak, sum, count);
+    checkpoint_temporal_baseline_ = baseline;
+    checkpoint_temporal_peak_ = peak;
+    checkpoint_temporal_sum_ = sum;
+    checkpoint_temporal_count_ = count;
+    temporalMemBaseline_ = 0;
+    temporalMemPeakSampled_ = 0;
+    temporalMemSumSampled_ = 0.0L;
+    temporalMemSampleCount_ = 0;
+    checkpoint_elapsed_run_ = elapsed_seconds;
+    run_start_ = stamp;
+    run_clock_started_ = true;
+}
+
+void Solver::purgeCheckpoints()
+{
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        try {
+            const auto root = checkpointRoot(model_.meshName_);
+            if (std::filesystem::exists(root)) {
+                std::filesystem::remove_all(root);
+            }
+        } catch (const std::exception& ex) {
+            std::cerr << "Finished run, but checkpoints could not be removed: " << ex.what() << std::endl;
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
+bool Solver::writeCheckpoint()
+{
+    if (checkpoint_json_path_.empty() || checkpoint_mesh_path_.empty()) {
+        return false;
+    }
+
+    flushProbeFiles();
+
+    const auto stamp = std::chrono::steady_clock::now();
+    const double local_elapsed = run_clock_started_
+        ? checkpoint_elapsed_run_ + std::chrono::duration<double>(stamp - run_start_).count()
+        : checkpoint_elapsed_run_;
+    double elapsed = local_elapsed;
+    if (Mpi::WorldSize() > 1) {
+        MPI_Allreduce(&local_elapsed, &elapsed, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    }
+
+    std::size_t mem_baseline = 0;
+    std::size_t mem_peak = 0;
+    std::size_t mem_count = 0;
+    double mem_sum = 0.0;
+    snapshotTemporal(mem_baseline, mem_peak, mem_sum, mem_count);
+
+    int rank = 0;
+    int nprocs = 1;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    std::vector<unsigned long long> baselines(static_cast<std::size_t>(nprocs));
+    std::vector<unsigned long long> peaks(static_cast<std::size_t>(nprocs));
+    std::vector<unsigned long long> counts(static_cast<std::size_t>(nprocs));
+    std::vector<double> sums(static_cast<std::size_t>(nprocs));
+    const unsigned long long local_baseline = mem_baseline;
+    const unsigned long long local_peak = mem_peak;
+    const unsigned long long local_count = mem_count;
+    MPI_Gather(&local_baseline, 1, MPI_UNSIGNED_LONG_LONG, baselines.data(), 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Gather(&local_peak, 1, MPI_UNSIGNED_LONG_LONG, peaks.data(), 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Gather(&local_count, 1, MPI_UNSIGNED_LONG_LONG, counts.data(), 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+    MPI_Gather(&mem_sum, 1, MPI_DOUBLE, sums.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    CheckpointManifest meta;
+    meta.time = time_;
+    meta.dt = dt_;
+    meta.final_time = opts_.final_time;
+    meta.order = opts_.evolution.order;
+    meta.cycle = probesManager_.cycle();
+    meta.next_checkpoint_mark = checkpoint_next_mark_;
+    meta.elapsed_run_seconds = elapsed;
+    meta.json_sha256 = checkpoint_json_sha256_;
+    meta.mesh_sha256 = checkpoint_mesh_sha256_;
+    meta.exporters = probesManager_.captureExporterCursors();
+    meta.mor = probesManager_.captureMorCursors();
+    if (rank == 0) {
+        if (checkpoint_json_sha256_.empty()) {
+            checkpoint_json_sha256_ = sha256File(checkpoint_json_path_);
+            checkpoint_mesh_sha256_ = sha256File(checkpoint_mesh_path_);
+            meta.json_sha256 = checkpoint_json_sha256_;
+            meta.mesh_sha256 = checkpoint_mesh_sha256_;
+        }
+        meta.temporal_mem_baseline.assign(baselines.begin(), baselines.end());
+        meta.temporal_mem_peak.assign(peaks.begin(), peaks.end());
+        meta.temporal_mem_count.assign(counts.begin(), counts.end());
+        meta.temporal_mem_sum = std::move(sums);
+    }
+
+    auto& state = fields_.allDOFs();
+    const double* state_ptr = state.HostRead();
+
+    std::vector<SgbcRecord> sgbc;
+    if (globalEvol_cache_ != nullptr) {
+        for (const auto& [tag, states] : globalEvol_cache_->sgbcStates()) {
+            for (const auto& face : states) {
+                SgbcRecord record;
+                record.tag = tag;
+                record.node_a = face.global_pair.first;
+                record.node_b = face.global_pair.second;
+                const int n = face.fields_state.Size();
+                if (n > 0) {
+                    const double* values = face.fields_state.HostRead();
+                    record.values.assign(values, values + n);
+                }
+                sgbc.push_back(std::move(record));
+            }
+        }
+    }
+
+    const auto& partition = model_.elementPartition();
+    try {
+        writeCheckpointCollective(
+            model_.meshName_,
+            checkpoint_json_path_,
+            checkpoint_mesh_path_,
+            meta,
+            partition.GetData(),
+            partition.Size(),
+            state_ptr,
+            state.Size(),
+            sgbc);
+    } catch (const std::exception& ex) {
+        checkpoint_hold_ = true;
+        checkpoint_fail_at_ = std::chrono::steady_clock::now();
+        if (rank == 0) {
+            std::cerr << "Checkpoint failed (" << ex.what()
+                      << "). The run will continue; the last complete checkpoint is unchanged."
+                      << std::endl;
+        }
+        return false;
+    }
+    checkpoint_hold_ = false;
+    foldTemporalAndClock(elapsed, stamp);
+    return true;
+}
+
+void Solver::restoreCheckpoint(const std::string& directory)
+{
+    const MPI_Comm comm = model_.getMesh().GetComm();
+    int rank = 0;
+    MPI_Comm_rank(comm, &rank);
+    std::string error;
+    int failed = 0;
+    try {
+        const auto manifest = readManifest(std::filesystem::path(directory) / "manifest.json");
+        if (manifest.format_version != kCheckpointFormatVersion) {
+            throw std::runtime_error(
+                "Checkpoint format version " + std::to_string(manifest.format_version)
+                + " is not supported (this build reads version "
+                + std::to_string(kCheckpointFormatVersion) + ").");
+        }
+        if (manifest.world_size != Mpi::WorldSize()) {
+            throw std::runtime_error(
+                "Checkpoint was written with " + std::to_string(manifest.world_size)
+                + " ranks; this job has " + std::to_string(Mpi::WorldSize()) + ".");
+        }
+        const auto state_path = std::filesystem::path(directory) / ("state.rank" + std::to_string(rank) + ".bin");
+        if (!manifest.state_sha256.empty()) {
+            if (rank < 0 || rank >= static_cast<int>(manifest.state_sha256.size())
+                || sha256File(state_path) != manifest.state_sha256[static_cast<std::size_t>(rank)]) {
+                throw std::runtime_error(
+                    "Checkpoint state file for rank " + std::to_string(rank) + " failed its checksum.");
+            }
+        }
+        if (rank < 0 || rank >= static_cast<int>(manifest.state_sizes.size())
+            || manifest.state_sizes[static_cast<std::size_t>(rank)] != fields_.allDOFs().Size()) {
+            const int saved = (rank >= 0 && rank < static_cast<int>(manifest.state_sizes.size()))
+                ? manifest.state_sizes[static_cast<std::size_t>(rank)] : -1;
+            throw std::runtime_error(
+                "Checkpoint state length on rank " + std::to_string(rank)
+                + " is " + std::to_string(saved)
+                + "; this mesh partition has " + std::to_string(fields_.allDOFs().Size()) + ".");
+        }
+
+        std::vector<SgbcRecord> saved_sgbc;
+        readRankState(
+            state_path,
+            fields_.allDOFs().HostWrite(),
+            fields_.allDOFs().Size(),
+            saved_sgbc);
+
+        int live_sgbc = 0;
+        if (globalEvol_cache_ != nullptr) {
+            for (const auto& [tag, states] : globalEvol_cache_->sgbcStates()) {
+                live_sgbc += static_cast<int>(states.size());
+                (void)tag;
+            }
+        }
+        const int saved_count = (rank < static_cast<int>(manifest.sgbc_counts.size()))
+            ? manifest.sgbc_counts[static_cast<std::size_t>(rank)] : -1;
+        if (saved_count != live_sgbc || static_cast<int>(saved_sgbc.size()) != live_sgbc) {
+            throw std::runtime_error(
+                "Checkpoint SGBC state count on rank " + std::to_string(rank)
+                + " is " + std::to_string(saved_count)
+                + "; this run has " + std::to_string(live_sgbc) + ".");
+        }
+        if (live_sgbc > 0) {
+            std::map<SgbcKey, std::size_t> index;
+            for (std::size_t i = 0; i < saved_sgbc.size(); ++i) {
+                SgbcKey key;
+                key.tag = saved_sgbc[i].tag;
+                key.node_a = saved_sgbc[i].node_a;
+                key.node_b = saved_sgbc[i].node_b;
+                index.emplace(key, i);
+            }
+            int matched = 0;
+            for (auto& [tag, states] : globalEvol_cache_->sgbcStates()) {
+                for (auto& face : states) {
+                    SgbcKey key;
+                    key.tag = tag;
+                    key.node_a = face.global_pair.first;
+                    key.node_b = face.global_pair.second;
+                    const auto it = index.find(key);
+                    if (it == index.end()) {
+                        throw std::runtime_error("Checkpoint is missing an SGBC face state.");
+                    }
+                    const auto& values = saved_sgbc[it->second].values;
+                    if (static_cast<int>(values.size()) != face.fields_state.Size()) {
+                        throw std::runtime_error("Checkpoint SGBC face state has the wrong length.");
+                    }
+                    if (!values.empty()) {
+                        std::memcpy(
+                            face.fields_state.HostWrite(),
+                            values.data(),
+                            values.size() * sizeof(double));
+                    }
+                    ++matched;
+                }
+            }
+            if (matched != live_sgbc) {
+                throw std::runtime_error("Checkpoint SGBC states do not match this mesh.");
+            }
+        }
+
+        time_ = manifest.time;
+        dt_ = manifest.dt;
+        if (evolTDO_) {
+            evolTDO_->SetTime(time_);
+        }
+        checkpoint_next_mark_ = std::max(1, manifest.next_checkpoint_mark);
+        checkpoint_elapsed_run_ = manifest.elapsed_run_seconds;
+        checkpoint_json_sha256_ = manifest.json_sha256;
+        checkpoint_mesh_sha256_ = manifest.mesh_sha256;
+        if (rank >= 0
+            && rank < static_cast<int>(manifest.temporal_mem_count.size())
+            && rank < static_cast<int>(manifest.temporal_mem_baseline.size())
+            && rank < static_cast<int>(manifest.temporal_mem_peak.size())
+            && rank < static_cast<int>(manifest.temporal_mem_sum.size())) {
+            const auto idx = static_cast<std::size_t>(rank);
+            checkpoint_temporal_baseline_ = static_cast<std::size_t>(manifest.temporal_mem_baseline[idx]);
+            checkpoint_temporal_peak_ = static_cast<std::size_t>(manifest.temporal_mem_peak[idx]);
+            checkpoint_temporal_sum_ = manifest.temporal_mem_sum[idx];
+            checkpoint_temporal_count_ = static_cast<std::size_t>(manifest.temporal_mem_count[idx]);
+        }
+        probesManager_.recalculateExportSteps(dt_);
+        probesManager_.restoreCheckpointCursors(manifest.cycle, manifest.exporters, manifest.mor);
+        probesManager_.trimProbeOutput(time_);
+        if (rank == 0) {
+            std::cout << "Resuming from " << directory << " at t = " << time_ << std::endl;
+        }
+    } catch (const std::exception& ex) {
+        failed = 1;
+        error = ex.what();
+    }
+
+    int global_failed = 0;
+    MPI_Allreduce(&failed, &global_failed, 1, MPI_INT, MPI_MAX, comm);
+    if (global_failed) {
+        if (!error.empty()) {
+            throw std::runtime_error(error);
+        }
+        throw std::runtime_error("Checkpoint load failed on another rank.");
+    }
+}
+
 void Solver::run()
 {
 
-    auto runStartTime = std::chrono::steady_clock::now();
+    run_start_ = std::chrono::steady_clock::now();
+    run_clock_started_ = true;
     temporalMemBaseline_ = getCurrentMemoryUsage();
     temporalMemPeakSampled_ = temporalMemBaseline_;
     temporalMemSumSampled_ = static_cast<long double>(temporalMemBaseline_);
@@ -552,6 +1082,13 @@ void Solver::run()
         printSimulationInformation(time_, dt_, opts_.final_time);
     }
 #endif
+
+    const bool checkpointing = !checkpoint_json_path_.empty();
+    bool stopped_by_signal = false;
+    std::optional<CheckpointSignalGuard> checkpoint_signals;
+    if (checkpointing) {
+        checkpoint_signals.emplace();
+    }
 
     while (time_ <= opts_.final_time - 1e-8*dt_) {
         step();
@@ -577,21 +1114,33 @@ void Solver::run()
 
 #ifdef SHOW_TIMER_INFORMATION
         auto currentTime = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::seconds>
-            (currentTime - lastPrintTime).count() >= 30.0)
+        int local_due = (std::chrono::duration_cast<std::chrono::seconds>
+            (currentTime - lastPrintTime).count() >= 30.0) ? 1 : 0;
+        int global_due = local_due;
+        if (Mpi::WorldSize() > 1) {
+            MPI_Allreduce(&local_due, &global_due, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        }
+        if (global_due)
         {
             if (Mpi::WorldRank() == 0){
                 printSimulationInformation(time_, dt_, opts_.final_time);
             }
-            if (!opts_.is_sgbc_solver && stepTimingStats_.step_count > 0) {
-                const int P = Mpi::WorldSize();
-                double local_avg[5] = {
-                    stepTimingStats_.step_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.ode_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.sgbc_finalize_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.probe_sync_ms / stepTimingStats_.step_count,
-                    stepTimingStats_.probe_update_ms / stepTimingStats_.step_count
-                };
+            const int P = Mpi::WorldSize();
+            int local_gather = (!opts_.is_sgbc_solver && stepTimingStats_.step_count > 0) ? 1 : 0;
+            int global_gather = local_gather;
+            if (P > 1) {
+                MPI_Allreduce(&local_gather, &global_gather, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            }
+            if (global_gather) {
+                double local_avg[5] = {0, 0, 0, 0, 0};
+                if (local_gather) {
+                    const double n = static_cast<double>(stepTimingStats_.step_count);
+                    local_avg[0] = stepTimingStats_.step_ms / n;
+                    local_avg[1] = stepTimingStats_.ode_ms / n;
+                    local_avg[2] = stepTimingStats_.sgbc_finalize_ms / n;
+                    local_avg[3] = stepTimingStats_.probe_sync_ms / n;
+                    local_avg[4] = stepTimingStats_.probe_update_ms / n;
+                }
                 std::vector<double> all_avg(5 * P);
                 if (P > 1) {
                     MPI_Gather(local_avg, 5, MPI_DOUBLE,
@@ -621,9 +1170,55 @@ void Solver::run()
             lastPrintTime = currentTime;
         }
 #endif
+        if (checkpointing) {
+            int local_stop = g_checkpoint_stop.load(std::memory_order_relaxed);
+            int global_stop = local_stop;
+            if (Mpi::WorldSize() > 1) {
+                MPI_Allreduce(&local_stop, &global_stop, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            }
+
+            int next_mark = checkpoint_next_mark_;
+            int due = 0;
+            if (Mpi::WorldRank() == 0) {
+                const CheckpointSchedule schedule = checkpointSchedule(
+                    time_, dt_, opts_.final_time, opts_.checkpoint_percent, next_mark);
+                due = schedule.due ? 1 : 0;
+                next_mark = schedule.next_mark;
+                if (due && checkpoint_hold_) {
+                    const double since = std::chrono::duration<double>(
+                        std::chrono::steady_clock::now() - checkpoint_fail_at_).count();
+                    if (since < 60.0) {
+                        due = 0;
+                    }
+                }
+            }
+            if (Mpi::WorldSize() > 1) {
+                MPI_Bcast(&due, 1, MPI_INT, 0, MPI_COMM_WORLD);
+                MPI_Bcast(&next_mark, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            }
+            if (global_stop && Mpi::WorldRank() == 0) {
+                std::cout << "Received stop signal. Writing checkpoint and exiting." << std::endl;
+            }
+            if (global_stop || due) {
+                const int saved_mark = checkpoint_next_mark_;
+                if (due) {
+                    checkpoint_next_mark_ = next_mark;
+                }
+                if (!writeCheckpoint()) {
+                    checkpoint_next_mark_ = saved_mark;
+                }
+            }
+            if (global_stop) {
+                stopped_by_signal = true;
+                break;
+            }
+        }
     }
 
-    writeSimulationStatistics(std::chrono::duration<double>(std::chrono::steady_clock::now() - runStartTime).count());
+    writeSimulationStatistics(accumulatedRunSeconds());
+    if (checkpointing && !stopped_by_signal) {
+        purgeCheckpoints();
+    }
 
 }
 
@@ -852,6 +1447,10 @@ void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
 
 void Solver::performSpectralAnalysis(const mfem::ParFiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
 {
+    if (Mpi::WorldSize() > 1) {
+        throw std::runtime_error(
+            "Spectral analysis calls ParSubMesh once per local element and is serial only. Run with one MPI rank.");
+    }
     mfem::Array<int> domainAtts(1);
     domainAtts[0] = 501;
     auto mesh{ model.getConstMesh() };
