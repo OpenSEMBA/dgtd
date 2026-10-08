@@ -12,7 +12,7 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `evolution_operator` | string | `"global"` | `"global"` (default; SGBC, volumetric PML, conductivity). `"hesthaven"` is a limited explicit operator without those features. `"maxwell"` is deprecated. |
+| `evolution_operator` | string | `"global"` | `"global"` (default; SGBC, volumetric PML, Debye, Lorentz, conductivity). `"hesthaven"` is a limited explicit operator without those features. `"maxwell"` is deprecated. |
 | `upwind_alpha` | double | `1.0` | Upwind flux blending: `0.0` = centered, `1.0` = upwind. |
 | `final_time` | double | `2.0` | Simulation duration in natural units (1 m/c). |
 | `time_step` | double | `0.0` | Fixed time step in natural units. Required for 2D/3D. In 1D, `0.0` triggers automatic CFL-based step. |
@@ -41,13 +41,13 @@ mpirun -np N ./opensemba_dgtd -i case.json --restart
 
 ### evolution_operator: hesthaven
 
-`"hesthaven"` is element-local dense operators (matrix-free on straight meshes). It does **not** run SGBC, volumetric PML, bulk conductivity, or implicit `ode_type`. Use `"global"` (or omit `evolution_operator`) for those features.
+`"hesthaven"` is element-local dense operators (matrix-free on straight meshes). It does **not** run SGBC, volumetric PML, Debye, Lorentz, bulk conductivity, or implicit `ode_type`. Use `"global"` (or omit `evolution_operator`) for those features.
 
 | Capability | hesthaven | global |
 |------------|-----------|--------|
 | MPI (`mpirun`) | Yes — shared-face ghost exchange and neighbor connectivity in `Mult()` | Yes |
 | CUDA | Yes — CUDA builds of `opensemba_dgtd` default to `--device cuda`; pass `--device cpu` (or `omp`) to stay on the host | Yes |
-| SGBC / PML / conductivity | No | Yes |
+| SGBC / PML / Debye / Lorentz / conductivity | No | Yes |
 | Implicit `ode_type` | No | Yes |
 | Centered SMA (`upwind_alpha: 0`) | Blocked in driver | Yes |
 
@@ -95,16 +95,41 @@ Optional object. Legal only when the material entry has no `type`. The electric 
 
 #### lorentz
 
-Optional object. Legal only when the material entry has no `type`. The electric mass uses `eps_inf`. `omega_p`, `omega_1`, and `gamma` are rad/s; the solver stores each rate divided by $c_{\mathrm{SI}}$. $\omega_1 = 0$ is a cold plasma on this same pole.
+Optional object. Legal only when the material entry has no `type`. The electric mass uses `eps_inf`. Give the three rates in **one** style, never mixed. The solver stores $\omega/c_{\mathrm{SI}}$ because time is in light-meters. $f_1 = 0$ (or $\omega_1 = 0$) is a cold plasma on this same pole.
+
+The relative permittivity is
+
+$$
+\varepsilon_r(\omega)=\varepsilon_\infty+\frac{\omega_p^2}{\omega_1^2-\omega^2+j\,2\gamma\omega}.
+$$
+
+**Hz style (preferred for new cases):** `eps_inf`, `f_p`, `f_1`, `gamma`. All three rates are ordinary frequencies in Hz. Conversion is $\omega=2\pi f$, including damping: JSON `gamma: 2.5e7` is $25\,\mathrm{MHz}$, stored as $\gamma=2\pi\times 2.5\times 10^7\,\mathrm{rad/s}$.
+
+**rad/s style:** `eps_inf`, `omega_p`, `omega_1`, `gamma`. All three rates are angular frequencies in rad/s. Do not mix with `f_p` / `f_1`.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `eps_inf` | double | Instantaneous relative permittivity. Must be $\ge 1$. |
+| `f_p` | double | Plasma frequency in Hz. Must be $> 0$. |
+| `f_1` | double | Resonance frequency in Hz. Must be $\ge 0$. |
 | `omega_p` | double | Plasma frequency in rad/s. Must be $> 0$. |
 | `omega_1` | double | Resonance frequency in rad/s. Must be $\ge 0$. |
-| `gamma` | double | Damping rate in rad/s. Must be $\ge 0$. |
+| `gamma` | double | Damping. Hz with `f_*`, or rad/s with `omega_*`. Must be $\ge 0$. |
 
-`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz`. `lorentz` is rejected on vacuum, PML, and SGBC. Initialization also aborts if a Lorentz tag is a PML tag. `evolution_operator` must be `"global"`. `spectral: true` is rejected.
+Example (Hz), from [3D_RCS_Lorentz_G2](../testData/maxwellInputs/3D_RCS_Lorentz_G2/3D_RCS_Lorentz_G2.json):
+
+```json
+"lorentz": {
+  "eps_inf": 2.0,
+  "f_p": 2.5e8,
+  "f_1": 2.0e8,
+  "gamma": 2.5e7
+}
+```
+
+That is the same pole as `omega_p = 2π f_p`, `omega_1 = 2π f_1`, `gamma = 2π × 2.5e7` rad/s. Older 1D cases still use the rad/s keys; both styles are accepted.
+
+`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz`. `lorentz` is rejected on vacuum, PML, and SGBC. Initialization also aborts if a Lorentz tag is a PML tag. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes Lorentz auxiliaries.
 
 ### boundaries [REQUIRED]
 
@@ -234,6 +259,17 @@ Array. At least one source; all entries superimpose.
 | `"delta_gap"` | Impressed tangential E on an interior face (2D curve or 3D surface) |
 | `"coaxial_port"` | TFSF coaxial TEM mode on an interior annular face |
 
+### Gaussian width (`spread` / `f_1e`)
+
+Time-domain Gaussians are $\exp(-(t-t_0)^2/(2\sigma^2))$ with $\sigma$ in light-metres. Set the width with **either**:
+
+- `spread`: $\sigma$ directly, or
+- `f_1e`: frequency in Hz where incident **power** is $1/e$ of DC. Then $\sigma = c/(2\pi f_{1e})$.
+
+Do not mix units: $f_{1e}=3\times 10^8$ is 300 MHz, which is $\sigma\approx 0.16$, not `spread: 0.15` written as a frequency. If both keys are present, `f_1e` is used and a warning is printed. At solver start that 1/e frequency is compared to mean element size and FE order; if the pulse is likely under-resolved a warning is printed and the run continues.
+
+On `planewave`, `dipole`, and `initial`, the keys live under `magnitude`. On `delta_gap` and `coaxial_port`, they are on the source object.
+
 ### type: initial
 
 | Field | Description |
@@ -241,7 +277,8 @@ Array. At least one source; all entries superimpose.
 | `field_type` | `"electric"` or `"magnetic"` |
 | `polarization` | 3-vector |
 | `magnitude.type` | `"gaussian"`, `"resonant"`, `"besselj6_2D"`, `"besselj6_3D"` |
-| `magnitude.spread` | Gaussian σ (for gaussian) |
+| `magnitude.spread` | Gaussian $\sigma$ in light-metres |
+| `magnitude.f_1e` | Alternative to `spread`: Hz at 1/e incident power |
 | `magnitude.modes` | Standing-wave modes (for resonant) |
 | `center` | Gaussian centroid (required for gaussian) |
 | `dimension` | Active dimensions in Gaussian (required for gaussian) |
@@ -253,9 +290,16 @@ Array. At least one source; all entries superimpose.
 | `tags` | TFSF interface boundary tags |
 | `polarization` | E polarization |
 | `propagation` | Propagation direction |
-| `magnitude.spread` | Gaussian envelope σ |
+| `magnitude.spread` | Gaussian envelope $\sigma$ in light-metres |
+| `magnitude.f_1e` | Alternative to `spread`: Hz at 1/e incident power |
 | `magnitude.mean` | Optional pulse center on propagation axis |
 | `magnitude.frequency` | Optional carrier (Hz) for modulated Gaussian |
+
+Example:
+
+```json
+"magnitude": { "f_1e": 3.0e8 }
+```
 
 ### type: dipole
 
@@ -263,7 +307,7 @@ Array. At least one source; all entries superimpose.
 |-------|-------------|
 | `tags` | TFSF interface tags |
 | `magnitude.length` | Dipole length (Hertzian geometric scale) |
-| `magnitude.spread` | Gaussian spread (pulse width) |
+| `magnitude.spread` | Gaussian spread σ in light-metres. Alternative: `f_1e` (Hz, 1/e incident power) |
 | `magnitude.amplitude_peak` | Desired max equatorial \|E\| (\|E_θ\|) at `peak_radius` (default `1.0`). The analytic formula is scaled so that peak equals this value. |
 | `magnitude.peak_radius` | Radius used to define `amplitude_peak` (default: min radius on the dipole TFSF tags if available, else `1.0`). |
 | `magnitude.mean` | Optional center along dipole axis |
@@ -272,9 +316,9 @@ Array. At least one source; all entries superimpose.
 
 One entry, on a 2D or 3D mesh. The tagged face must be interior, with vacuum on both sides. The source is a sibling of TFSF: its own face matrix, not a `planewave` or `dipole`.
 
-Peak field is `magnitude` (default `1.0`). The pulse width is `spread`, the Gaussian $\sigma$ in normalized time ($c = 1$), the same meaning as a planewave Gaussian spread. The pulse is $e^{-(t-t_0)^2/(2\sigma^2)}$, and its center is five widths after $t = 0$.
+Peak field is `magnitude` (default `1.0`). The pulse width is `spread` (Gaussian $\sigma$ in light-metres) or `f_1e` (Hz where incident power is $1/e$ of DC). The pulse is $e^{-(t-t_0)^2/(2\sigma^2)}$, and its center is five widths after $t = 0$. If both `spread` and `f_1e` are set, `f_1e` wins and a warning is printed.
 
-If `spread` is omitted, $\sigma$ is chosen from the gap length $L$ so the spectrum is `db_cut` (default `-20`) down at $\mathrm{magnitude} \times L / 10$. That product is not a frequency you set.
+If both `spread` and `f_1e` are omitted, $\sigma$ is chosen from the gap length $L$ so the spectrum is `db_cut` (default `-20`) down at $\mathrm{magnitude} \times L / 10$. That product is not a frequency you set.
 
 Optional `signal` is `"gaussian"` (default) or `"gaussian_derivative"`. The derivative is what a flux must use if that pulse is the field: the time integral of the derivative is the pulse, so the slot charges and then empties. `spread` and `magnitude` describe that pulse in both cases. `magnitude` remains the peak $|E|$.
 
@@ -289,8 +333,9 @@ In 3D the tagged face is a rectangle. $h$ is the span of its vertices along `pol
 | `tags` | Interior face tags. A curve in 2D, a surface in 3D |
 | `polarization` | Required 3-vector. Direction of $E$. Must be tangent to the gap |
 | `magnitude` | Peak \|E\|. Default `1.0` |
-| `spread` | Gaussian width $\sigma$ in normalized time. Must be `> 0`. Default from $L$ and `db_cut` |
-| `db_cut` | Used only when `spread` is omitted. Spectrum level in dB at $\mathrm{magnitude} \times L / 10$. Default `-20`. Must be negative |
+| `spread` | Gaussian width $\sigma$ in light-metres. Must be `> 0`. Default from $L$ and `db_cut` |
+| `f_1e` | Alternative to `spread`: Hz at 1/e incident power |
+| `db_cut` | Used only when `spread` and `f_1e` are omitted. Spectrum level in dB at $\mathrm{magnitude} \times L / 10$. Default `-20`. Must be negative |
 | `signal` | `"gaussian"` (default) or `"gaussian_derivative"` |
 
 ### type: coaxial_port
@@ -309,7 +354,7 @@ $$
 
 $\hat{\mathbf{s}}$ points from the scattered-field volume into the total-field volume. In solver units the cable impedance is $\ln(b/a)/(2\pi)$.
 
-`magnitude` defaults to `1.0` and is $V_0$, not a uniform peak $|E|$. `spread` defaults to `1.0` and is the Gaussian $\sigma$ in normalized time. The pulse center is five widths after $t=0$, the same delay as `delta_gap`. `signal` is `"gaussian"` (default) or `"gaussian_derivative"`.
+`magnitude` defaults to `1.0` and is $V_0$, not a uniform peak $|E|$. Pulse width is `spread` (default `1.0`, light-metres) or `f_1e` (Hz, 1/e incident power). If both are set, `f_1e` wins and a warning is printed. The pulse center is five widths after $t=0$, the same delay as `delta_gap`. `signal` is `"gaussian"` (default) or `"gaussian_derivative"`.
 
 | Field | Description |
 |-------|-------------|
@@ -317,7 +362,8 @@ $\hat{\mathbf{s}}$ points from the scattered-field volume into the total-field v
 | `tags.live` | Inner-conductor surface tags |
 | `tags.load` | Interior annular face. Becomes the TFSF marker |
 | `magnitude` | Voltage $V_0$. Default `1.0` |
-| `spread` | Gaussian width $\sigma$ in normalized time. Default `1.0` |
+| `spread` | Gaussian width $\sigma$ in light-metres. Default `1.0` |
+| `f_1e` | Alternative to `spread`: Hz at 1/e incident power |
 | `signal` | `"gaussian"` (default) or `"gaussian_derivative"` |
 
 ---
