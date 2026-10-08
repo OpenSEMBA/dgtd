@@ -4,6 +4,7 @@
 #include "components/PMLProperties.h"
 #include "components/DebyeProperties.h"
 #include "components/LorentzProperties.h"
+#include "math/Function.h"
 
 #include <numeric>
 #include <unordered_map>
@@ -20,9 +21,56 @@
 #include <unordered_set>
 #include <iterator>
 #include <exception>
+#include <iostream>
 #include <mpi.h>
 
 namespace maxwell::driver {
+
+namespace {
+
+void warnGaussianWidthConflict(const char* context, const char* ignored)
+{
+	int rank = 0;
+	int initialized = 0;
+	MPI_Initialized(&initialized);
+	if (initialized) {
+		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	}
+	if (rank == 0) {
+		std::cerr << "Warning: " << context
+		          << " defines both f_1e and " << ignored
+		          << "; using f_1e (1/e incident power in Hz).\n";
+	}
+}
+
+} // namespace
+
+double assembleGaussianSpread(const json& obj, const char* context)
+{
+	const bool has_f_1e = obj.contains("f_1e");
+	const bool has_spread = obj.contains("spread");
+	if (has_f_1e && has_spread) {
+		warnGaussianWidthConflict(context, "spread");
+	}
+	if (has_f_1e) {
+		if (!obj["f_1e"].is_number()) {
+			throw std::runtime_error(std::string(context) + " f_1e must be a number (Hz).");
+		}
+		return gaussianSpreadForPower1e(obj["f_1e"].get<double>());
+	}
+	if (!has_spread) {
+		throw std::runtime_error(
+			std::string(context) + " must define f_1e (Hz) or spread (light-metres).");
+	}
+	if (!obj["spread"].is_number()) {
+		throw std::runtime_error(std::string(context) + " spread must be a number.");
+	}
+	const double spread = obj["spread"].get<double>();
+	if (!(spread > 0.0) || !std::isfinite(spread)) {
+		throw std::runtime_error(std::string(context) + " spread must be > 0.");
+	}
+	return spread;
+}
 
 double calculateMaximumSourceFrequency(const json& case_data)
 {
@@ -35,7 +83,10 @@ double calculateMaximumSourceFrequency(const json& case_data)
     if (case_data.contains("sources")) {
         for (const auto& source : case_data["sources"]) {
             if (source.contains("type") && source["type"] == "coaxial_port") {
-                const double spread = source.value("spread", 1.0);
+                double spread = 1.0;
+                if (source.contains("f_1e") || source.contains("spread")) {
+                    spread = assembleGaussianSpread(source, "coaxial_port");
+                }
                 if (spread > 0.0 && spread < min_spread) {
                     min_spread = spread;
                     found_gaussian = true;
@@ -49,17 +100,17 @@ double calculateMaximumSourceFrequency(const json& case_data)
                 continue;
             }
             // Modulated Gaussian: has "frequency" (with or without explicit "type")
-            if (mag.contains("frequency") && mag.contains("spread")) {
-                double spread = mag["spread"].get<double>();
+            if (mag.contains("frequency") && (mag.contains("spread") || mag.contains("f_1e"))) {
+                double spread = assembleGaussianSpread(mag, "modulated gaussian");
                 double f_carrier = mag["frequency"].get<double>();
                 double f_edge = f_carrier + c_si / (2.0 * spread);
                 if (f_edge > max_freq) {
                     max_freq = f_edge;
                     found_modulated = true;
                 }
-            // Plain Gaussian: explicit type="gaussian", no frequency
-            } else if (mag.contains("type") && mag["type"] == "gaussian" && mag.contains("spread")) {
-                double spread = mag["spread"].get<double>();
+            // Plain Gaussian: type="gaussian", or spread/f_1e on a planewave envelope
+            } else if (mag.contains("spread") || mag.contains("f_1e")) {
+                double spread = assembleGaussianSpread(mag, "gaussian");
                 if (spread > 0.0 && spread < min_spread) {
                     min_spread = spread;
                     found_gaussian = true;
@@ -1658,7 +1709,8 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			if (case_data["sources"][s]["magnitude"]["type"] == "gaussian") {
 				res.add(buildGaussianInitialField(
 					assignFieldType(case_data["sources"][s]["field_type"]),
-					case_data["sources"][s]["magnitude"]["spread"],
+					assembleGaussianSpread(
+						case_data["sources"][s]["magnitude"], "initial gaussian"),
 					assembleCenterVector(case_data["sources"][s]["center"]),
 					assemble3DVector(case_data["sources"][s]["polarization"]),
 					case_data["sources"][s]["dimension"])
@@ -1691,7 +1743,7 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 			closed_tfsf = true;
 			const auto& mag = case_data["sources"][s]["magnitude"];
-			double spread = mag["spread"].get<double>();
+			double spread = assembleGaussianSpread(mag, "planewave");
 
 			// Determine mean: use explicit value if provided, otherwise auto-compute
 			// from the earliest-arriving (upstream) point of the TFSF surface so that
@@ -1747,7 +1799,7 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 					"(desired max |E| at peak_radius).");
 			}
 			double length = mag["length"].get<double>();
-			double spread = mag["spread"].get<double>();
+			double spread = assembleGaussianSpread(mag, "dipole");
 			double amplitude_peak = mag.value("amplitude_peak", 1.0);
 			if (amplitude_peak <= 0.0) {
 				throw std::runtime_error(
@@ -1858,22 +1910,22 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 			if (src.contains("f_max")) {
 				throw std::runtime_error(
-					"delta_gap no longer accepts f_max. Set spread, the Gaussian width in normalized time.");
+					"delta_gap no longer accepts f_max. Set spread or f_1e.");
 			}
 			const double curve_length = deltaGapCurveLength(*mesh, src["tags"]);
 			if (!(curve_length > 0.0)) {
 				throw std::runtime_error("delta_gap tags match no curve on the mesh.");
 			}
 			double spread = 0.0;
-			if (src.contains("spread")) {
-				if (src.contains("db_cut")) {
+			if (src.contains("f_1e") || src.contains("spread")) {
+				if (src.contains("db_cut") && src.contains("f_1e")) {
+					warnGaussianWidthConflict("delta_gap", "db_cut");
+				}
+				else if (src.contains("spread") && src.contains("db_cut")) {
 					throw std::runtime_error(
 						"delta_gap spread sets the pulse width directly. Omit db_cut.");
 				}
-				if (!src["spread"].is_number()) {
-					throw std::runtime_error("delta_gap spread must be a number.");
-				}
-				spread = src["spread"].get<double>();
+				spread = assembleGaussianSpread(src, "delta_gap");
 			}
 			else {
 				spread = gaussianSpreadForDbCut(magnitude * curve_length / 10.0, db_cut);
@@ -1944,11 +1996,8 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				throw std::runtime_error("coaxial_port magnitude must be > 0.");
 			}
 			double spread = 1.0;
-			if (src.contains("spread")) {
-				if (!src["spread"].is_number()) {
-					throw std::runtime_error("coaxial_port spread must be a number.");
-				}
-				spread = src["spread"].get<double>();
+			if (src.contains("f_1e") || src.contains("spread")) {
+				spread = assembleGaussianSpread(src, "coaxial_port");
 			}
 			if (!(spread > 0.0) || !std::isfinite(spread)) {
 				throw std::runtime_error("coaxial_port spread must be > 0.");

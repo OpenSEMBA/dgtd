@@ -174,7 +174,7 @@ PlaneWaveData buildPlaneWaveData(const json& json, const std::string& meshDir)
 	for (auto s{ 0 }; s < json["sources"].size(); s++) {
 		if (json["sources"][s]["type"] == "planewave") {
 			const auto& mag = json["sources"][s]["magnitude"];
-			spread = mag["spread"].get<double>();
+			spread = driver::assembleGaussianSpread(mag, "planewave");
 			mfem::Vector propagation = driver::assemble3DVector(json["sources"][s]["propagation"]);
 			mfem::Vector d_hat = propagation;
 			d_hat /= d_hat.Norml2();

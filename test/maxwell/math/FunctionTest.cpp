@@ -144,6 +144,16 @@ TEST_F(FunctionTest, SinusoidalMode_higherModes)
 	EXPECT_NEAR(0.0, mode.eval(half), 1e-15);
 }
 
+TEST_F(FunctionTest, GaussianSpread_power1eMatchesHz)
+{
+	const double f_1e = 3.0e8;
+	const double sigma = gaussianSpreadForPower1e(f_1e);
+	const double omega = 2.0 * M_PI * f_1e / physicalConstants::speedOfLight_SI;
+	EXPECT_NEAR(1.0 / std::exp(1.0), std::exp(-(omega * sigma) * (omega * sigma)), 1e-12);
+	EXPECT_NEAR(0.15, gaussianSpreadForPower1e(
+		physicalConstants::speedOfLight_SI / (2.0 * M_PI * 0.15)), 1e-12);
+}
+
 TEST_F(FunctionTest, GaussianSpread_minus20dB)
 {
 	const double f_max = 0.01;

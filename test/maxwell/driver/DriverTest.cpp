@@ -272,6 +272,19 @@ json lorentzMaterial(int tag, double eps_inf, double omega_p, double omega_1, do
 	};
 }
 
+json lorentzMaterialHz(int tag, double eps_inf, double f_p, double f_1, double gamma_hz)
+{
+	return {
+		{"tags", json::array({tag})},
+		{"lorentz", {
+			{"eps_inf", eps_inf},
+			{"f_p", f_p},
+			{"f_1", f_1},
+			{"gamma", gamma_hz}
+		}}
+	};
+}
+
 TEST_F(DriverTest, lorentzRejectsBadMaterials)
 {
 	{
@@ -335,6 +348,25 @@ TEST_F(DriverTest, lorentzRejectsBadMaterials)
 		case_data["model"]["materials"] = json::array({
 			{{"tags", {1}}, {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}}}}
 		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"lorentz", {{"eps_inf", 2.0}, {"f_p", 1.0e8}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"lorentz", {{"eps_inf", 2.0}, {"f_p", 1.0e8}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterialHz(1, 2.0, 0.0, 1.0e8, 0.0)});
 		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
 	}
 	{
@@ -407,6 +439,47 @@ TEST_F(DriverTest, lorentzStoresSolverRates)
 	EXPECT_DOUBLE_EQ(pole->omega_1, omega_1 * inv_c);
 	EXPECT_DOUBLE_EQ(pole->gamma, gamma * inv_c);
 	EXPECT_DOUBLE_EQ(model.getGeomTagToMaterial().at(1).getPermittivity(), 2.0);
+}
+
+TEST_F(DriverTest, gaussianSpreadFromF1eOrSpread)
+{
+	json spread_only = {{"spread", 0.15}};
+	EXPECT_DOUBLE_EQ(assembleGaussianSpread(spread_only, "test"), 0.15);
+
+	const double f_1e = 3.0e8;
+	json hz_only = {{"f_1e", f_1e}};
+	EXPECT_DOUBLE_EQ(
+		assembleGaussianSpread(hz_only, "test"),
+		gaussianSpreadForPower1e(f_1e));
+
+	json both = {{"spread", 0.20}, {"f_1e", f_1e}};
+	EXPECT_DOUBLE_EQ(
+		assembleGaussianSpread(both, "test"),
+		gaussianSpreadForPower1e(f_1e));
+
+	json neither = {{"mean", 0.0}};
+	EXPECT_THROW(assembleGaussianSpread(neither, "test"), std::runtime_error);
+	json bad_f = {{"f_1e", 0.0}};
+	EXPECT_THROW(assembleGaussianSpread(bad_f, "test"), std::runtime_error);
+}
+
+TEST_F(DriverTest, lorentzHzStyleMatchesRadStyle)
+{
+	auto case_data = loadPecCase();
+	const double f_p = 2.5e8;
+	const double f_1 = 2.0e8;
+	const double gamma_hz = 2.5e7;
+	case_data["model"]["materials"] = json::array({lorentzMaterialHz(1, 2.0, f_p, f_1, gamma_hz)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	ASSERT_TRUE(model.hasLorentz());
+	const LorentzProperties* pole = model.findLorentz(1);
+	ASSERT_NE(pole, nullptr);
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
+	const double two_pi = 2.0 * M_PI;
+	EXPECT_DOUBLE_EQ(pole->eps_inf, 2.0);
+	EXPECT_DOUBLE_EQ(pole->omega_p, two_pi * f_p * inv_c);
+	EXPECT_DOUBLE_EQ(pole->omega_1, two_pi * f_1 * inv_c);
+	EXPECT_DOUBLE_EQ(pole->gamma, two_pi * gamma_hz * inv_c);
 }
 
 TEST_F(DriverTest, lorentzRejectsHesthavenAndSpectral)

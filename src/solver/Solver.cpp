@@ -14,6 +14,8 @@
 #include <optional>
 #include <cmath>
 #include <iomanip>
+#include <iostream>
+#include <limits>
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -44,6 +46,94 @@ void Solver::sampleTemporalMemory()
     if (cur > temporalMemPeakSampled_) {
         temporalMemPeakSampled_ = cur;
     }
+}
+
+void warnGaussianPulseVsMesh(
+	mfem::ParMesh& mesh,
+	int order,
+	const Sources& sources,
+	int comm_rank)
+{
+	double min_spread = std::numeric_limits<double>::infinity();
+	double max_carrier_hz = 0.0;
+	const double c_si = physicalConstants::speedOfLight_SI;
+
+	for (const auto& src : sources) {
+		if (const auto* gap = dynamic_cast<const DeltaGapSource*>(src.get())) {
+			min_spread = std::min(min_spread, gap->spread());
+			continue;
+		}
+		const auto* tf = dynamic_cast<const TotalField*>(src.get());
+		if (tf == nullptr) {
+			continue;
+		}
+		const EHFieldFunction* eh = tf->function();
+		if (const auto* pw = dynamic_cast<const Planewave*>(eh)) {
+			if (const auto* g = dynamic_cast<const Gaussian*>(pw->function())) {
+				min_spread = std::min(min_spread, g->spread());
+			}
+			else if (const auto* mg = dynamic_cast<const ModulatedGaussian*>(pw->function())) {
+				min_spread = std::min(min_spread, mg->spread());
+				max_carrier_hz = std::max(max_carrier_hz, mg->frequency() * c_si);
+			}
+		}
+		else if (const auto* coax = dynamic_cast<const CoaxialMode*>(eh)) {
+			min_spread = std::min(min_spread, coax->spread());
+		}
+		else if (const auto* dip = dynamic_cast<const DerivGaussDipole*>(eh)) {
+			min_spread = std::min(min_spread, dip->spread());
+		}
+	}
+
+	if (!(min_spread > 0.0) || !std::isfinite(min_spread)) {
+		return;
+	}
+
+	double local_sum = 0.0;
+	double local_min = std::numeric_limits<double>::infinity();
+	const int local_ne = mesh.GetNE();
+	for (int e = 0; e < local_ne; ++e) {
+		const double h = mesh.GetElementSize(e);
+		local_sum += h;
+		local_min = std::min(local_min, h);
+	}
+
+	int global_ne = 0;
+	double global_sum = 0.0;
+	double global_min = 0.0;
+	MPI_Comm comm = mesh.GetComm();
+	MPI_Allreduce(&local_ne, &global_ne, 1, MPI_INT, MPI_SUM, comm);
+	MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, comm);
+	MPI_Allreduce(&local_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, comm);
+	if (global_ne <= 0 || !(global_sum > 0.0) || !std::isfinite(global_min)) {
+		return;
+	}
+
+	const double h_avg = global_sum / static_cast<double>(global_ne);
+	const double n_ppw = std::max(3.0, 15.0 / static_cast<double>(order + 1));
+	const double f_mesh_hz = c_si / (n_ppw * h_avg);
+	const double f_1e_hz = c_si / (2.0 * M_PI * min_spread) + max_carrier_hz;
+	if (!(f_1e_hz > f_mesh_hz)) {
+		return;
+	}
+
+	const double spread_ok = c_si / (2.0 * M_PI * std::max(f_mesh_hz - max_carrier_hz, 1.0));
+	if (comm_rank != 0) {
+		return;
+	}
+
+	std::cerr << std::setprecision(4)
+	          << "Warning: Gaussian 1/e power sits at " << f_1e_hz / 1e6
+	          << " MHz (spread=" << min_spread << " light-metres)"
+	          << (max_carrier_hz > 0.0 ? " including carrier" : "")
+	          << ".\n  Mesh order p=" << order
+	          << ", mean h=" << h_avg << " m, min h=" << global_min << " m.\n"
+	          << "  Estimated resolved band ~ " << f_mesh_hz / 1e6
+	          << " MHz (~" << n_ppw << " elements/λ at mean h, order "
+	          << order << ").\n"
+	          << "  Consider f_1e <= " << f_mesh_hz
+	          << " Hz or spread >= " << spread_ok
+	          << ", or refine the mesh. Continuing.\n";
 }
 
 Solver::~Solver() = default; 
@@ -143,6 +233,7 @@ Solver::Solver(
     if (comm_rank == 0){
         checkOptionsAreValid(opts_);
     }
+    warnGaussianPulseVsMesh(model_.getMesh(), opts_.evolution.order, sources, comm_rank);
 
     const bool dispersive = model_.hasDebye() || model_.hasLorentz();
     if (dispersive && opts_.evolution.op != EvolutionOperatorType::Global) {

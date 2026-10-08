@@ -11,6 +11,10 @@ namespace maxwell::driver {
 
 	mfem::Vector assemble3DVector(const json& input);
 
+	/// Gaussian σ from `f_1e` (Hz, 1/e incident power) or `spread` (light-metres).
+	/// If both are set, uses `f_1e` and warns. Throws if neither is set.
+	double assembleGaussianSpread(const json& obj, const char* context);
+
 	maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest = true, bool restart = false);
 	maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest, bool restart = false);
 

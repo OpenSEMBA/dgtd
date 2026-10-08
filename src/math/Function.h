@@ -106,6 +106,16 @@ private:
 	int dimension_;
 };
 
+/// Spread σ of exp(-(t-t0)^2 / (2 σ^2)) whose incident *power* is 1/e at `f_1e_hz`.
+/// Time is light-metres: |A(ω)|² / |A(0)|² = exp(-(ω σ)²) with ω = 2 π f / c_SI.
+inline double gaussianSpreadForPower1e(double f_1e_hz)
+{
+	if (!(f_1e_hz > 0.0) || !std::isfinite(f_1e_hz)) {
+		throw std::runtime_error("f_1e must be > 0 (Hz).");
+	}
+	return physicalConstants::speedOfLight_SI / (2.0 * M_PI * f_1e_hz);
+}
+
 /// Spread σ of exp(-(t-t0)^2 / (2 σ^2)) whose spectrum is `db_cut` dB at `f_max`.
 /// |ĝ(f)/ĝ(0)| = exp(-2 π^2 σ^2 f^2) = 10^(db_cut/20), with db_cut < 0.
 inline double gaussianSpreadForDbCut(double f_max, double db_cut)
@@ -303,6 +313,8 @@ public:
 	std::unique_ptr<EHFieldFunction> clone() const {
 		return std::make_unique<DerivGaussDipole>(*this);
 	}
+
+	double spread() const { return gaussSpread_; }
 
 	double eval(
 		const Position& p, const Time& t,
@@ -574,6 +586,7 @@ public:
 	double innerRadius() const { return inner_radius_; }
 	double outerRadius() const { return outer_radius_; }
 	double magnitude() const { return magnitude_; }
+	double spread() const { return spread_; }
 
 	double eval(
 		const Position& p, const Time& t,
