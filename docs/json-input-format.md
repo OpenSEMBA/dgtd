@@ -23,6 +23,21 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | `export_operator` | boolean | `false` | Write assembled evolution operator to disk. |
 | `basis_type` | integer | `1` | MFEM basis: `0` GaussLegendre, `1` GaussLobatto, `2` Bernstein, `3` OpenUniform, `4` CloseUniform, `5` OpenHalfUniform. |
 | `ode_type` | integer | `0` | Time integrator: `0` RK4, `1` BackwardEuler, `2` Trapezoidal, `3` ImplicitMidpoint, `4` SDIRK33, `5` SDIRK23, `6` SDIRK34. |
+| `checkpoint_percent` | double | `20` | `0` disables checkpoints. Otherwise, after the completed step that crosses each multiple of this percent of `final_time`, write the evolved state. The default `20` saves near 20%, 40%, 60%, 80%, and 100%. |
+
+### Checkpoints
+
+`checkpoint_percent` writes under `exports/SimulationData/<run-mode>/<case>/Checkpoints/`. Each save stores the packed field state (E, H, and any PML, Debye, or Lorentz auxiliaries), SGBC face history, the time and time step, probe cursors, the element partition, and the solver run time up to that save. Operators are rebuilt on the next launch. A finished run deletes that directory. Probe files, ParaView output, and `SimulationStats` stay.
+
+`Simulation Run Time` in `statistics_rank*.dat` is the time spent inside the time loop and covered by a checkpoint, plus the time after the last resume. Minutes after the last save and before a crash are not included. A run that reached its 40% save in 4 minutes, died at 50%, and then took 6 minutes to finish after `--restart` reports 10 minutes.
+
+Resume with the same JSON, the same mesh, and the same MPI rank count and device, from the same working directory:
+
+```sh
+mpirun -np N ./opensemba_dgtd -i case.json --restart
+```
+
+`solver_options.checkpoint_percent` may differ on resume. Any other JSON change, or a different mesh, is rejected. A checkpoint written with another `-np` or device is rejected as well, including when `--restart` is omitted, so that launch does not start at t = 0. Delete the `Checkpoints` directory to start again at t = 0. `SIGINT` or `SIGTERM` delivered to the `opensemba_dgtd` processes finishes the current step, writes one checkpoint, and exits. `mpirun` handles Ctrl-C itself and can kill those processes before that write; the last complete checkpoint is what a later `--restart` loads. A failed save does not stop the run. The previous complete checkpoint is kept, and the next attempt waits at least a minute.
 
 ### evolution_operator: hesthaven
 

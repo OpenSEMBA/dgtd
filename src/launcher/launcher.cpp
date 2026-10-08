@@ -18,6 +18,8 @@ void printHelpArgument()
 	std::cout <<																				   std::endl;
 	std::cout << "-h              / Brings up this help menu."								    << std::endl;
 	std::cout << "-i path/to/file / Specifies input file to run with executable."			    << std::endl;
+	std::cout << "--restart       / Resume the latest complete checkpoint."				    << std::endl;
+	std::cout << "                  Same JSON, mesh, and MPI rank count."					    << std::endl;
 	std::cout << "--device / -d   / Backend: cpu, omp, or cuda."							    << std::endl;
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	std::cout << "                  Default in this binary: cuda."							    << std::endl;
@@ -44,6 +46,7 @@ int main(int argc, char** argv)
 	}
 	
 	std::string inputFilePath;
+	bool restart = false;
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	std::string deviceConfig{ "cuda" };
 #else
@@ -53,6 +56,9 @@ int main(int argc, char** argv)
 		std::string arg = argv[i];
 		if (arg == "-i" && i + 1 < argc) {
 			inputFilePath = argv[++i]; 
+		}
+		else if (arg == "--restart") {
+			restart = true;
 		}
 		else if (arg == "-h") {
 			printHelpArgument();
@@ -96,7 +102,7 @@ int main(int argc, char** argv)
 	}
 
 	{
-		auto solver = maxwell::driver::buildSolverJson(inputFilePath, false);
+		auto solver = maxwell::driver::buildSolverJson(inputFilePath, false, restart);
 		solver.run();
 
 		if (mfem::Mpi::WorldRank() == 0) {

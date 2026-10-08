@@ -65,6 +65,9 @@ public:
     void step(bool update_probes = true);
     void updateProbes() { probesManager_.updateProbes(time_); }
 
+    void enableCheckpoint(const std::string& json_path, const std::string& mesh_path);
+    void restoreCheckpoint(const std::string& directory);
+
     void setFinalTime(double final_time) {
         opts_.setFinalTime(final_time);
         probesManager_.setFinalTime(final_time);
@@ -96,6 +99,11 @@ private:
 
     void checkOptionsAreValid(const SolverOptions&) const; 
     void assignODESolver();
+    bool writeCheckpoint();
+    double accumulatedRunSeconds() const;
+    void snapshotTemporal(std::size_t& baseline, std::size_t& peak, double& sum, std::size_t& count) const;
+    void foldTemporalAndClock(double elapsed_seconds, std::chrono::steady_clock::time_point stamp);
+    void purgeCheckpoints();
     std::unique_ptr<TimeDependentOperator> assignEvolutionOperator();
     std::map<GeomTag, std::vector<NodePair>> findSGBCDoFPairs();
 
@@ -127,5 +135,20 @@ private:
         int step_count{0};
     };
     mutable StepTimingStats stepTimingStats_;
+
+    std::string checkpoint_json_path_;
+    std::string checkpoint_mesh_path_;
+    std::string checkpoint_json_sha256_;
+    std::string checkpoint_mesh_sha256_;
+    int checkpoint_next_mark_ = 1;
+    bool checkpoint_hold_ = false;
+    bool run_clock_started_ = false;
+    std::chrono::steady_clock::time_point run_start_{};
+    std::chrono::steady_clock::time_point checkpoint_fail_at_{};
+    double checkpoint_elapsed_run_ = 0.0;
+    std::size_t checkpoint_temporal_baseline_ = 0;
+    std::size_t checkpoint_temporal_peak_ = 0;
+    double checkpoint_temporal_sum_ = 0.0;
+    std::size_t checkpoint_temporal_count_ = 0;
 };
 }

@@ -1,4 +1,5 @@
 #include "driver.h"
+#include "solver/Checkpoint.h"
 #include "string"
 #include "components/PMLProperties.h"
 #include "components/DebyeProperties.h"
@@ -15,6 +16,7 @@
 #include <sstream>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <unordered_set>
 #include <iterator>
 #include <exception>
@@ -2060,6 +2062,15 @@ SolverOptions buildSolverOptions(const json& case_data)
 			res.setODEType(case_data["solver_options"]["ode_type"]);
 		}
 
+		if (case_data["solver_options"].contains("checkpoint_percent")) {
+			const double percent = case_data["solver_options"]["checkpoint_percent"].get<double>();
+			if (!(percent >= 0.0 && percent <= 100.0)) {
+				throw std::runtime_error(
+					"solver_options.checkpoint_percent must be between 0 and 100.");
+			}
+			res.setCheckpointPercent(percent);
+		}
+
 	}
 
 	return res;
@@ -2800,7 +2811,12 @@ BdrCond assignBoundaryType(const std::string& sgbc_bdr_type)
 
 }
 
-Model buildModel(const json& case_data, const std::string& case_path, const bool isTest)
+Model buildModel(
+    const json& case_data,
+    const std::string& case_path,
+    const bool isTest,
+    const int* partition_override,
+    int partition_count)
 {
     mfem::Mesh mesh;
     if (isTest) {
@@ -2838,24 +2854,50 @@ Model buildModel(const json& case_data, const std::string& case_path, const bool
 
     const int ne = mesh.GetNE();
     mfem::Array<int> part(ne);
+    int partition_bad = 0;
+    std::string partition_error;
     if (Mpi::WorldRank() == 0) {
-        int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
-        const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
-        const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
-        const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
-            (!pin_tfsf || pin_tfsf[0] != '0');
-
-        if (use_dsu && use_dsu[0] == '1') {
-            applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
-        } else if (use_tfsf_pin_rank0) {
-            applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
+        if (partition_override != nullptr) {
+            if (partition_count != ne) {
+                partition_bad = 1;
+                partition_error = "Checkpoint partition has " + std::to_string(partition_count)
+                    + " elements; the mesh has " + std::to_string(ne) + ".";
+            } else {
+                for (int i = 0; i < ne; ++i) {
+                    if (partition_override[i] < 0 || partition_override[i] >= Mpi::WorldSize()) {
+                        partition_bad = 1;
+                        partition_error = "Checkpoint partition rank is outside this job.";
+                        break;
+                    }
+                    part[i] = partition_override[i];
+                }
+            }
         } else {
-            applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
+            int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
+            const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
+            const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
+            const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
+                (!pin_tfsf || pin_tfsf[0] != '0');
+
+            if (use_dsu && use_dsu[0] == '1') {
+                applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
+            } else if (use_tfsf_pin_rank0) {
+                applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
+            } else {
+                applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
+            }
+            for (int i = 0; i < ne; ++i) {
+                part[i] = partitioning[i];
+            }
+            delete[] partitioning;
         }
-        for (int i = 0; i < ne; ++i) {
-            part[i] = partitioning[i];
+    }
+    MPI_Bcast(&partition_bad, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (partition_bad) {
+        if (!partition_error.empty()) {
+            throw std::runtime_error(partition_error);
         }
-        delete[] partitioning;
+        throw std::runtime_error("Checkpoint partition does not match this job.");
     }
     if (Mpi::WorldSize() > 1 && ne > 0) {
         MPI_Bcast(part.GetData(), ne, MPI_INT, 0, MPI_COMM_WORLD);
@@ -3170,12 +3212,24 @@ void validateCaseNamingStyle(const std::string& case_json_path, const json& case
     }
 }
 
-maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest)
+static std::string meshCaseNameFromJson(const json& case_data)
+{
+	const std::string filename = case_data.at("model").at("filename").get<std::string>();
+	if (filename.size() >= 5 && filename.compare(filename.size() - 5, 5, ".mesh") == 0) {
+		return filename.substr(0, filename.size() - 5);
+	}
+	if (filename.size() >= 4 && filename.compare(filename.size() - 4, 4, ".msh") == 0) {
+		return filename.substr(0, filename.size() - 4);
+	}
+	throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
+}
+
+maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest, bool restart)
 {
 	auto case_data = parseJSONfile(case_name);
     validateCaseNamingStyle(case_name, case_data);
 
-	return buildSolver(case_data, case_name, isTest);
+	return buildSolver(case_data, case_name, isTest, restart);
 }
 
 static int boundaryAttributeSlots(const mfem::Mesh& mesh)
@@ -3330,7 +3384,7 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
 }
 
 
-void prepareExportDirectories(Model& model)
+void prepareExportDirectories(Model& model, bool preserve_existing)
 {
 	MPI_Comm comm = model.getMesh().GetComm();
     int comm_rank;
@@ -3342,7 +3396,7 @@ void prepareExportDirectories(Model& model)
 	if (world_rank == 0) {
 		std::filesystem::path simExpPath(maxwell::getSimulationCaseExportPath(model.meshName_) + "/SimulationStats/");
 		
-		if (std::filesystem::exists(simExpPath)) {
+		if (std::filesystem::exists(simExpPath) && !preserve_existing) {
 			std::filesystem::remove_all(simExpPath);
 		}
 
@@ -3353,9 +3407,36 @@ void prepareExportDirectories(Model& model)
 	
 }
 
-maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest)
+static bool sameCaseExceptCheckpointPercent(const std::filesystem::path& live, const std::filesystem::path& saved)
 {
-	
+	try {
+		std::ifstream live_file(live);
+		std::ifstream saved_file(saved);
+		if (!live_file || !saved_file) {
+			return false;
+		}
+		json live_json;
+		json saved_json;
+		live_file >> live_json;
+		saved_file >> saved_json;
+		if (live_json.contains("solver_options") && live_json["solver_options"].is_object()) {
+			live_json["solver_options"].erase("checkpoint_percent");
+		}
+		if (saved_json.contains("solver_options") && saved_json["solver_options"].is_object()) {
+			saved_json["solver_options"].erase("checkpoint_percent");
+		}
+		return live_json == saved_json;
+	} catch (const std::exception&) {
+		return false;
+	}
+}
+
+maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest, bool restart)
+{
+	if (restart && isTest) {
+		throw std::runtime_error("--restart is only supported from opensemba_dgtd.");
+	}
+
 	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };
 	maxwell::Probes probes{ buildProbes(case_data) };
 
@@ -3364,14 +3445,79 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 		solverOpts.setExportEO(true);
 	}
 
+	std::filesystem::path checkpoint_dir;
+	std::vector<int> saved_partition;
+	std::string mesh_path;
+	std::optional<maxwell::CheckpointManifest> checkpoint_manifest;
+	if (!isTest) {
+		const std::string case_tag = meshCaseNameFromJson(case_data);
+		mesh_path = assembleLauncherMeshString(case_data["model"]["filename"].get<std::string>(), case_path);
+		const auto latest = maxwell::findLatestCompleteCheckpoint(case_tag);
+		const auto foreign = maxwell::findForeignCompleteCheckpoint(case_tag);
+		if (!latest && foreign) {
+			throw std::runtime_error(maxwell::foreignCheckpointMessage(*foreign));
+		}
+		if (restart) {
+			if (!latest) {
+				throw std::runtime_error(
+					"No complete checkpoint found under " + maxwell::checkpointRoot(case_tag).string()
+					+ ". --restart requires a checkpoint from the same JSON, mesh, and MPI rank count.");
+			}
+			checkpoint_dir = *latest;
+			checkpoint_manifest = maxwell::readManifest(checkpoint_dir / "manifest.json");
+			if (checkpoint_manifest->format_version != maxwell::kCheckpointFormatVersion) {
+				throw std::runtime_error(
+					"Checkpoint format version " + std::to_string(checkpoint_manifest->format_version)
+					+ " is not supported (this build reads version "
+					+ std::to_string(maxwell::kCheckpointFormatVersion) + ").");
+			}
+			if (checkpoint_manifest->world_size != mfem::Mpi::WorldSize()) {
+				throw std::runtime_error(
+					"Checkpoint was written with " + std::to_string(checkpoint_manifest->world_size)
+					+ " ranks; this job has " + std::to_string(mfem::Mpi::WorldSize()) + ".");
+			}
+			if (maxwell::sha256File(case_path) != checkpoint_manifest->json_sha256
+				&& !sameCaseExceptCheckpointPercent(case_path, checkpoint_dir / "input.json")) {
+				throw std::runtime_error(
+					"Checkpoint JSON does not match " + case_path
+					+ ". Resume requires the same input file. solver_options.checkpoint_percent may change.");
+			}
+			saved_partition = maxwell::readPartition(checkpoint_dir / "partition.bin");
+			solverOpts.resume_from_checkpoint = true;
+		} else if (latest) {
+			throw std::runtime_error(
+				"A complete checkpoint exists at " + latest->string()
+				+ ". Resume with --restart, or remove the Checkpoints directory to start from t = 0.");
+		}
+	}
+
 	// Model (mesh) must be built before sources so that auto-mean computation
 	// can inspect the TFSF surface geometry to determine the correct delay.
-	maxwell::Model model{ buildModel(case_data, case_path, isTest) };
+	const int* partition_override = saved_partition.empty() ? nullptr : saved_partition.data();
+	maxwell::Model model{ buildModel(
+		case_data,
+		case_path,
+		isTest,
+		partition_override,
+		static_cast<int>(saved_partition.size())) };
+	if (checkpoint_manifest) {
+		if (maxwell::sha256File(mesh_path) != checkpoint_manifest->mesh_sha256) {
+			throw std::runtime_error(
+				"Checkpoint mesh does not match " + mesh_path + ".");
+		}
+	}
 	maxwell::Sources sources{ buildSources(case_data, &model.getConstMesh()) };
 
 	postProcessInformation(case_data, model, solverOpts);
-	prepareExportDirectories(model);
+	prepareExportDirectories(model, restart);
 
+	if (!isTest && solverOpts.checkpoint_percent > 0.0) {
+		solverOpts.checkpoint_json_path = case_path;
+		solverOpts.checkpoint_mesh_path = mesh_path;
+	}
+	if (restart) {
+		solverOpts.checkpoint_directory = checkpoint_dir.string();
+	}
 	return maxwell::Solver(model, probes, sources, solverOpts);
 }
 

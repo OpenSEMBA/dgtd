@@ -207,10 +207,13 @@ public:
 
 	std::string meshName_;
 
+	const mfem::Array<int>& elementPartition() const { return element_partition_; }
+
 private:
 
 	Mesh serialMesh_;
 	ParMesh pmesh_;
+	mfem::Array<int> element_partition_;
 	
 	GeomTagToMaterial attToMatMap_;
 	GeomTagToBoundaryMaterial attToBdrMatMap_;

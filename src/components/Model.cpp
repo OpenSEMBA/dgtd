@@ -101,6 +101,14 @@ Model::Model(Mesh& mesh, const GeomTagToMaterialInfo& matInfo, const GeomTagToBo
 	assembleGeomTagToTypeMap(attToIntBdrMap_, true);
 	assembleBdrToMarkerMaps();
 
+	if (partitioning != nullptr) {
+		const int ne = serialMesh_.GetNE();
+		element_partition_.SetSize(ne);
+		for (int i = 0; i < ne; ++i) {
+			element_partition_[i] = partitioning[i];
+		}
+	}
+
 }
 
 void Model::setPMLProperties(const std::vector<PMLProperties>& in)

@@ -4,6 +4,7 @@
 #include "solver/SolverExtension.h"
 #include "components/DGOperatorFactory.h"
 #include "components/Probes.h"
+#include <map>
 #include <unordered_map>
 
 namespace maxwell {
@@ -35,6 +36,9 @@ public:
     const mfem::Array<int>& getTFSFMapping() const { return tfsf_sub_to_parent_ids_; }
 
     bool hasSGBC() const { return !sgbc_states_.empty(); }
+
+    std::map<GeomTag, std::vector<SGBCState>>& sgbcStates() { return sgbc_states_; }
+    const std::map<GeomTag, std::vector<SGBCState>>& sgbcStates() const { return sgbc_states_; }
 
     int totalStateSize() const { return total_state_size_; }
 

@@ -6,6 +6,7 @@
 #include "components/Probes.h"
 #include "components/SubMesher.h"
 #include "components/RCSSurfaceExporter.h"
+#include "solver/Checkpoint.h"
 #include "solver/SolverOptions.h"
 
 namespace maxwell {
@@ -69,6 +70,15 @@ public:
     }
     void printTimingSummaryAndReset() const;
     void flushOpenFiles();
+
+    int cycle() const { return cycle_; }
+    std::vector<ExporterCursor> captureExporterCursors() const;
+    std::vector<MorCursor> captureMorCursors() const;
+    void restoreCheckpointCursors(
+        int cycle,
+        const std::vector<ExporterCursor>& exporters,
+        const std::vector<MorCursor>& mor);
+    void trimProbeOutput(double time);
 
     Probes probes;
 
@@ -144,6 +154,7 @@ private:
     SourcesManager* srcmngr_{nullptr};
     const mfem::Array<int>* tfsf_mapping_{nullptr};
     bool is_sgbc_solver_{false};
+    bool preserve_existing_outputs_{false};
     mutable TimingStats timingStats_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
