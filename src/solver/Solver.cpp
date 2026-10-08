@@ -1088,19 +1088,11 @@ void Solver::run()
 
             int next_mark = checkpoint_next_mark_;
             int due = 0;
-            if (Mpi::WorldRank() == 0 && opts_.checkpoint_percent > 0.0 && opts_.final_time > 0.0) {
-                double frac = time_ / opts_.final_time;
-                if (opts_.final_time - time_ <= 1e-8 * std::max(dt_, 1e-30)) {
-                    frac = 1.0;
-                }
-                const double step = opts_.checkpoint_percent / 100.0;
-                if (step > 0.0) {
-                    const int crossed = static_cast<int>(std::floor((frac + 1e-9) / step));
-                    if (crossed >= next_mark) {
-                        due = 1;
-                        next_mark = crossed + 1;
-                    }
-                }
+            if (Mpi::WorldRank() == 0) {
+                const CheckpointSchedule schedule = checkpointSchedule(
+                    time_, dt_, opts_.final_time, opts_.checkpoint_percent, next_mark);
+                due = schedule.due ? 1 : 0;
+                next_mark = schedule.next_mark;
                 if (due && checkpoint_hold_) {
                     const double since = std::chrono::duration<double>(
                         std::chrono::steady_clock::now() - checkpoint_fail_at_).count();

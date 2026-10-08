@@ -985,8 +985,6 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
     }
 }
 
-namespace {
-
 int expectedProbeSamples(int saved_cycle, int vis_steps, bool at_final)
 {
     if (saved_cycle <= 0) {
@@ -1001,6 +999,26 @@ int expectedProbeSamples(int saved_cycle, int vis_steps, bool at_final)
     }
     return count;
 }
+
+int cycleInPvdLine(const std::string& line)
+{
+    const auto pos = line.find("Cycle");
+    if (pos == std::string::npos) {
+        return -1;
+    }
+    std::size_t i = pos + 5;
+    if (i >= line.size() || line[i] < '0' || line[i] > '9') {
+        return -1;
+    }
+    int value = 0;
+    while (i < line.size() && line[i] >= '0' && line[i] <= '9') {
+        value = value * 10 + (line[i] - '0');
+        ++i;
+    }
+    return value;
+}
+
+namespace {
 
 void truncateDataLines(const std::filesystem::path& path, int header_lines, int keep_data_lines)
 {
@@ -1077,24 +1095,6 @@ void removeIndexedFiles(const std::filesystem::path& dir, const std::string& pre
             std::filesystem::remove(entry.path());
         }
     }
-}
-
-int cycleInPvdLine(const std::string& line)
-{
-    const auto pos = line.find("Cycle");
-    if (pos == std::string::npos) {
-        return -1;
-    }
-    std::size_t i = pos + 5;
-    if (i >= line.size() || line[i] < '0' || line[i] > '9') {
-        return -1;
-    }
-    int value = 0;
-    while (i < line.size() && line[i] >= '0' && line[i] <= '9') {
-        value = value * 10 + (line[i] - '0');
-        ++i;
-    }
-    return value;
 }
 
 void trimPvd(const std::filesystem::path& path, int drop_from)

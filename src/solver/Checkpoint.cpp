@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
@@ -310,6 +311,60 @@ std::string sha256File(const std::filesystem::path& path)
         }
     }
     return ctx.final();
+}
+
+CheckpointSchedule checkpointSchedule(
+    double time,
+    double dt,
+    double final_time,
+    double percent,
+    int next_mark)
+{
+    CheckpointSchedule out;
+    out.next_mark = next_mark;
+    if (!(percent > 0.0) || !(final_time > 0.0)) {
+        return out;
+    }
+    double frac = time / final_time;
+    if (final_time - time <= 1e-8 * std::max(dt, 1e-30)) {
+        frac = 1.0;
+    }
+    const double step = percent / 100.0;
+    if (!(step > 0.0)) {
+        return out;
+    }
+    const int crossed = static_cast<int>(std::floor((frac + 1e-9) / step));
+    if (crossed >= next_mark) {
+        out.due = true;
+        out.next_mark = crossed + 1;
+    }
+    return out;
+}
+
+bool sameCaseExceptCheckpointPercent(
+    const std::filesystem::path& live,
+    const std::filesystem::path& saved)
+{
+    try {
+        std::ifstream live_file(live);
+        std::ifstream saved_file(saved);
+        if (!live_file || !saved_file) {
+            return false;
+        }
+        nlohmann::json live_json;
+        nlohmann::json saved_json;
+        live_file >> live_json;
+        saved_file >> saved_json;
+        if (live_json.contains("solver_options") && live_json["solver_options"].is_object()) {
+            live_json["solver_options"].erase("checkpoint_percent");
+        }
+        if (saved_json.contains("solver_options") && saved_json["solver_options"].is_object()) {
+            saved_json["solver_options"].erase("checkpoint_percent");
+        }
+        return live_json == saved_json;
+    } catch (const std::exception&) {
+        return false;
+    }
 }
 
 std::filesystem::path checkpointRoot(const std::string& caseName)

@@ -61,6 +61,26 @@ struct SgbcRecord {
 
 std::string sha256File(const std::filesystem::path& path);
 
+struct CheckpointSchedule {
+    bool due = false;
+    int next_mark = 1;
+};
+
+/// Next percent boundary crossed by `time / final_time`. A time within
+/// `1e-8 * dt` of `final_time` counts as 100%. `percent <= 0` is never due.
+CheckpointSchedule checkpointSchedule(
+    double time,
+    double dt,
+    double final_time,
+    double percent,
+    int next_mark);
+
+/// True when the two JSON files are equal once `solver_options.checkpoint_percent`
+/// is removed. A missing or unreadable file is not a match.
+bool sameCaseExceptCheckpointPercent(
+    const std::filesystem::path& live,
+    const std::filesystem::path& saved);
+
 std::filesystem::path checkpointRoot(const std::string& caseName);
 
 std::optional<std::filesystem::path> findLatestCompleteCheckpoint(const std::string& caseName);

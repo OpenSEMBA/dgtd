@@ -18,6 +18,12 @@ std::string getRunModeTag();
 // ParaView: exports/ParaView/<run-mode>/; CSR: exports/Operators/<case>/.
 std::string getSimulationCaseExportPath(const std::string& caseName);
 
+/// Data rows a point or field probe file should still contain at `saved_cycle`.
+int expectedProbeSamples(int saved_cycle, int vis_steps, bool at_final);
+
+/// Digits immediately after "Cycle" in a ParaView collection line, or -1.
+int cycleInPvdLine(const std::string& line);
+
 class NearFieldReqs {
 public:
 

@@ -3407,30 +3407,6 @@ void prepareExportDirectories(Model& model, bool preserve_existing)
 	
 }
 
-static bool sameCaseExceptCheckpointPercent(const std::filesystem::path& live, const std::filesystem::path& saved)
-{
-	try {
-		std::ifstream live_file(live);
-		std::ifstream saved_file(saved);
-		if (!live_file || !saved_file) {
-			return false;
-		}
-		json live_json;
-		json saved_json;
-		live_file >> live_json;
-		saved_file >> saved_json;
-		if (live_json.contains("solver_options") && live_json["solver_options"].is_object()) {
-			live_json["solver_options"].erase("checkpoint_percent");
-		}
-		if (saved_json.contains("solver_options") && saved_json["solver_options"].is_object()) {
-			saved_json["solver_options"].erase("checkpoint_percent");
-		}
-		return live_json == saved_json;
-	} catch (const std::exception&) {
-		return false;
-	}
-}
-
 maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest, bool restart)
 {
 	if (restart && isTest) {
@@ -3477,7 +3453,7 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 					+ " ranks; this job has " + std::to_string(mfem::Mpi::WorldSize()) + ".");
 			}
 			if (maxwell::sha256File(case_path) != checkpoint_manifest->json_sha256
-				&& !sameCaseExceptCheckpointPercent(case_path, checkpoint_dir / "input.json")) {
+				&& !maxwell::sameCaseExceptCheckpointPercent(case_path, checkpoint_dir / "input.json")) {
 				throw std::runtime_error(
 					"Checkpoint JSON does not match " + case_path
 					+ ". Resume requires the same input file. solver_options.checkpoint_percent may change.");

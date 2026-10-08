@@ -24,7 +24,8 @@ add_executable(maxwell_tests
 	"math/PhysicalConstantsTest.cpp"
 	"math/CalculusTest.cpp"
 	"math/EigenMfemToolsTest.cpp"
-	"solver/ProbesManagerTest.cpp" 
+	"solver/ProbesManagerTest.cpp"
+	"solver/CheckpointTest.cpp" 
 	"solver/SourcesTest.cpp"
 	"math/FunctionTest.cpp")
 
