@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <iomanip>
 #include <fcntl.h>
@@ -34,6 +35,17 @@ bool isNodeRoot(MPI_Comm comm)
     
     return (node_rank == 0);
 }
+
+#ifdef SHOW_TIMER_INFORMATION
+void formatProbeTimingCell(char* buf, std::size_t n, double ms, bool defined, int width)
+{
+    if (!defined) {
+        std::snprintf(buf, n, "%*s", width, "off");
+        return;
+    }
+    std::snprintf(buf, n, "%*.4f", width, ms);
+}
+#endif
 
 }  // namespace
 
@@ -221,20 +233,35 @@ void ProbesManager::printTimingSummaryAndReset() const
     }
 
     if (Mpi::WorldRank() == 0) {
+        const bool defined[7] = {
+            !probes.exporterProbes.empty(),
+            !probes.fieldProbes.empty(),
+            !probes.pointProbes.empty(),
+            !probes.nearFieldProbes.empty(),
+            !probes.domainSnapshotProbes.empty(),
+            !probes.rcsSurfaceProbes.empty(),
+            !probes.morStateProbes.empty()
+        };
+        const int widths[7] = {9, 9, 9, 10, 9, 9, 9};
+
         std::cout << "[Probe timing] avg of " << timingStats_.update_calls
                   << " updates, ms/update\n";
-        std::cout << "  Rank  | exporter field point nearfield snapshot   rcs   mor\n";
-        std::cout << "  ------+--------------------------------------------------------\n";
+        std::cout << "  Rank  |  exporter     field     point  nearfield  snapshot       rcs       mor\n";
+        std::cout << "  ------+-----------------------------------------------------------------------\n";
         for (int r = 0; r < P; ++r) {
-            std::cout << std::setw(6) << r << " | "
-                      << std::setw(8) << all_avg[r*7 + 0] << " "
-                      << std::setw(5) << all_avg[r*7 + 1] << " "
-                      << std::setw(5) << all_avg[r*7 + 2] << " "
-                      << std::setw(9) << all_avg[r*7 + 3] << " "
-                      << std::setw(8) << all_avg[r*7 + 4] << " "
-                      << std::setw(5) << all_avg[r*7 + 5] << " "
-                      << std::setw(5) << all_avg[r*7 + 6] << "\n";
+            char cells[7][16];
+            for (int c = 0; c < 7; ++c) {
+                formatProbeTimingCell(
+                    cells[c], sizeof(cells[c]), all_avg[r * 7 + c], defined[c], widths[c]);
+            }
+            char buf[256];
+            std::snprintf(
+                buf, sizeof(buf),
+                "  %4d  | %s %s %s %s %s %s %s",
+                r, cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6]);
+            std::cout << buf << '\n';
         }
+        std::cout << std::flush;
     }
 
     timingStats_ = TimingStats{};
