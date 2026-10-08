@@ -276,15 +276,21 @@ void PMLProfileData::buildInterfaceData(
 				&& axes.count(static_cast<Direction>(axis)) != 0;
 		};
 
-		// Face normal names the stretch axis. The element-center delta is only
-		// a fallback, and only when that axis is one this region stretches.
+		// Face normal names the stretch axis. CalcOrtho is defined for a 2D or
+		// 3D face Jacobian; a 1D face is a point and uses the center delta.
 		int axis = -1;
-		mfem::Vector nor(dim);
-		mfem::CalcOrtho(ft->Jacobian(), nor);
-		if (nor.Norml2() > 0.0) {
-			const int normal_axis = dominantAxis(nor, dim);
-			if (axisIsActive(normal_axis)) {
-				axis = normal_axis;
+		const mfem::DenseMatrix& jac = ft->Jacobian();
+		const bool face_jacobian =
+			(jac.Height() == 2 && jac.Width() == 1)
+			|| (jac.Height() == 3 && jac.Width() == 2);
+		if (face_jacobian && jac.Data() != nullptr) {
+			mfem::Vector nor(jac.Height());
+			mfem::CalcOrtho(jac, nor);
+			if (nor.Norml2() > 0.0) {
+				const int normal_axis = dominantAxis(nor, dim);
+				if (axisIsActive(normal_axis)) {
+					axis = normal_axis;
+				}
 			}
 		}
 		if (axis < 0) {
