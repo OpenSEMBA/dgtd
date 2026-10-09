@@ -491,10 +491,22 @@ GlobalEvolution::GlobalEvolution(
             int total_without = 0;
             MPI_Allreduce(&ranks_without, &total_without, 1, MPI_INT, MPI_SUM,
                           model_.getMesh().GetComm());
+            int owner = has_local_tfsf_faces_ ? Mpi::WorldRank() : -1;
+            int tfsf_owner = -1;
+            MPI_Allreduce(&owner, &tfsf_owner, 1, MPI_INT, MPI_MAX,
+                          model_.getMesh().GetComm());
             if (Mpi::WorldRank() == 0 && total_without > 0) {
-                std::cout << "[TFSF] " << total_without
-                          << " rank(s) have no local TFSF faces; those ranks "
-                          << "skip submesh init and Mult apply\n";
+                const int nrank = Mpi::WorldSize();
+                const int with = nrank - total_without;
+                if (with == 1) {
+                    std::cout << "[TFSF] TFSF faces on rank " << tfsf_owner
+                              << " only; the other " << total_without
+                              << " ranks skip TFSF submesh and source apply\n";
+                } else {
+                    std::cout << "[TFSF] TFSF faces on " << with << " of "
+                              << nrank << " ranks; the other " << total_without
+                              << " skip TFSF submesh and source apply\n";
+                }
             }
         }
     }
