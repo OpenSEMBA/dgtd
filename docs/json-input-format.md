@@ -292,7 +292,7 @@ On `planewave`, `dipole`, and `initial`, the keys live under `magnitude`. On `de
 | `propagation` | Propagation direction |
 | `magnitude.spread` | Gaussian envelope $\sigma$ in light-metres |
 | `magnitude.f_1e` | Alternative to `spread`: Hz at 1/e incident power |
-| `magnitude.mean` | Optional pulse center on propagation axis |
+| `magnitude.mean` | Optional 3-vector pulse center. Omit it to place the pulse upstream of the TFSF surface. |
 | `magnitude.frequency` | Optional carrier (Hz) for modulated Gaussian |
 
 Example:
