@@ -673,6 +673,314 @@ static int rebalanceExcessFromRank(
     return moved;
 }
 
+namespace {
+
+struct ConstraintComponent {
+    std::vector<int> elems;
+    int root = -1;
+};
+
+// One connected component of the pair graph. A multi-face element joins every
+// partner before any rank is chosen.
+static std::vector<ConstraintComponent> collectConstraintComponents(
+    const std::vector<std::pair<int,int>>& pairs)
+{
+    std::vector<ConstraintComponent> comps;
+    if (pairs.empty()) return comps;
+
+    int max_elem = 0;
+    for (const auto& pr : pairs) {
+        max_elem = std::max({max_elem, pr.first, pr.second});
+    }
+    const int n = max_elem + 1;
+
+    std::vector<int> parent(n);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::function<int(int)> find = [&](int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    auto unite = [&](int a, int b) {
+        a = find(a);
+        b = find(b);
+        if (a != b) parent[b] = a;
+    };
+
+    for (const auto& pr : pairs) {
+        if (pr.first < 0 || pr.second < 0 || pr.first >= n || pr.second >= n) continue;
+        unite(pr.first, pr.second);
+    }
+
+    std::unordered_map<int, std::vector<int>> grouped;
+    for (const auto& pr : pairs) {
+        for (int e : {pr.first, pr.second}) {
+            if (e < 0 || e >= n) continue;
+            grouped[find(e)].push_back(e);
+        }
+    }
+    comps.reserve(grouped.size());
+    for (auto& [root, elems] : grouped) {
+        std::sort(elems.begin(), elems.end());
+        elems.erase(std::unique(elems.begin(), elems.end()), elems.end());
+        comps.push_back({std::move(elems), root});
+    }
+    return comps;
+}
+
+// SGBC (or any later pair set) may not pull a locked TFSF element onto another rank.
+// Returns the number of components that touch locked elements on two or more ranks.
+static int colocatePairsPreservingLocked(
+    int* partitioning,
+    const std::vector<std::pair<int,int>>& pairs,
+    const std::unordered_set<int>& locked)
+{
+    int conflicts = 0;
+    for (const auto& comp : collectConstraintComponents(pairs)) {
+        int locked_rank = -1;
+        bool multi = false;
+        for (int e : comp.elems) {
+            if (!locked.count(e)) continue;
+            const int r = partitioning[e];
+            if (locked_rank < 0) locked_rank = r;
+            else if (r != locked_rank) multi = true;
+        }
+        if (multi) {
+            ++conflicts;
+            continue;
+        }
+        const int rank = (locked_rank >= 0) ? locked_rank : partitioning[comp.root];
+        for (int e : comp.elems) {
+            if (locked.count(e)) continue;
+            partitioning[e] = rank;
+        }
+    }
+    return conflicts;
+}
+
+// Shed unlocked elements from every overloaded rank. Locked TFSF/SGBC elements stay.
+static int rebalanceUnlockedVolume(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const std::unordered_set<int>& locked,
+    const std::vector<long long>& weight)
+{
+    const int NE = mesh.GetNE();
+    const int P = Mpi::WorldSize();
+    if (P <= 1 || NE == 0) return 0;
+
+    auto load = computeWeightedLoad(P, NE, partitioning, weight);
+    const long long total = std::accumulate(load.begin(), load.end(), 0LL);
+    const long long ideal = (total + P - 1) / P;
+
+    mesh.ElementToElementTable();
+    const mfem::Table& e2e = mesh.ElementToElementTable();
+
+    auto neighborScore = [&](int elem, int src) {
+        int score = 0;
+        const int n = e2e.RowSize(elem);
+        const int* neigh = e2e.GetRow(elem);
+        for (int i = 0; i < n; ++i) {
+            if (partitioning[neigh[i]] != src) ++score;
+        }
+        return score;
+    };
+
+    auto chooseTarget = [&](int elem, int src) -> int {
+        std::vector<int> neigh_count(P, 0);
+        const int n = e2e.RowSize(elem);
+        const int* neigh = e2e.GetRow(elem);
+        for (int i = 0; i < n; ++i) {
+            const int r = partitioning[neigh[i]];
+            if (r != src && 0 <= r && r < P) neigh_count[r]++;
+        }
+        int target = -1;
+        int best_cnt = 0;
+        for (int r = 0; r < P; ++r) {
+            if (r == src || neigh_count[r] == 0) continue;
+            if (load[r] + weight[elem] >= load[src]) continue;
+            if (neigh_count[r] > best_cnt) {
+                best_cnt = neigh_count[r];
+                target = r;
+            }
+        }
+        if (target >= 0) return target;
+        const int least = leastLoadedRank(load, src);
+        if (least >= 0 && load[least] + weight[elem] < load[src]) return least;
+        return -1;
+    };
+
+    std::vector<char> stuck(P, 0);
+    int moved = 0;
+    const int move_cap = NE * P;
+    for (int guard = 0; guard < move_cap; ++guard) {
+        int src = -1;
+        for (int r = 0; r < P; ++r) {
+            if (stuck[r] || load[r] <= ideal) continue;
+            if (src < 0 || load[r] > load[src]) src = r;
+        }
+        if (src < 0) break;
+
+        int best_elem = -1;
+        int best_target = -1;
+        int best_score = -1;
+        for (int e = 0; e < NE; ++e) {
+            if (partitioning[e] != src || locked.count(e)) continue;
+            const int target = chooseTarget(e, src);
+            if (target < 0) continue;
+            const int score = neighborScore(e, src);
+            if (score > best_score) {
+                best_score = score;
+                best_elem = e;
+                best_target = target;
+            }
+        }
+        if (best_elem < 0) {
+            stuck[src] = 1;
+            continue;
+        }
+
+        load[src] -= weight[best_elem];
+        load[best_target] += weight[best_elem];
+        partitioning[best_elem] = best_target;
+        ++moved;
+        std::fill(stuck.begin(), stuck.end(), 0);
+    }
+    return moved;
+}
+
+// METIS, then one rank per TFSF connected component (corners included), then
+// rebalance of elements that are not on a TFSF or SGBC face.
+static void applyMetisPartitioningWithTFSFComponents(
+    mfem::Mesh& mesh,
+    int* partitioning,
+    const mfem::Array<int>& tfsf_tags,
+    const mfem::Array<int>& sgbc_tags)
+{
+    const int NE = mesh.GetNE();
+    const int P = Mpi::WorldSize();
+
+    std::vector<std::pair<int,int>> tfsf_pairs;
+    if (tfsf_tags.Size() > 0) {
+        tfsf_pairs = buildTwoElementPairsByTagToSort(mesh, tfsf_tags);
+    }
+    std::vector<std::pair<int,int>> sgbc_pairs;
+    if (sgbc_tags.Size() > 0) {
+        sgbc_pairs = buildTwoElementPairsByTagToSort(mesh, sgbc_tags);
+    }
+
+    const auto weight = buildElementWeights(
+        NE, gatherWeightedConstraintPairs(mesh, tfsf_tags, sgbc_tags));
+
+    int kept_whole = 0;
+    if (!tfsf_pairs.empty() && P > 1) {
+        auto load = computeWeightedLoad(P, NE, partitioning, weight);
+        const long long total = std::accumulate(load.begin(), load.end(), 0LL);
+        const long long ideal = (total + P - 1) / P;
+
+        struct WeightedComponent {
+            std::vector<int> elems;
+            long long cost;
+            int root;
+        };
+        std::vector<WeightedComponent> comps;
+        for (auto& comp : collectConstraintComponents(tfsf_pairs)) {
+            long long cost = 0;
+            for (int e : comp.elems) {
+                if (0 <= e && e < NE) cost += weight[e];
+            }
+            comps.push_back({std::move(comp.elems), cost, comp.root});
+        }
+        std::sort(comps.begin(), comps.end(),
+                  [](const WeightedComponent& a, const WeightedComponent& b) {
+                      if (a.cost != b.cost) return a.cost > b.cost;
+                      return a.elems.front() < b.elems.front();
+                  });
+
+        for (const auto& comp : comps) {
+            if (comp.cost > ideal) ++kept_whole;
+            assignComponent(comp.elems, leastLoadedRank(load),
+                            partitioning, load, weight);
+        }
+    }
+
+    auto locked = elementsInPairs(tfsf_pairs);
+    int sgbc_conflicts = 0;
+    if (!sgbc_pairs.empty()) {
+        sgbc_conflicts = colocatePairsPreservingLocked(partitioning, sgbc_pairs, locked);
+        for (const auto& pr : sgbc_pairs) {
+            locked.insert(pr.first);
+            locked.insert(pr.second);
+        }
+    }
+
+    int moved = 0;
+    if (!tfsf_pairs.empty() && P > 1) {
+        moved = rebalanceUnlockedVolume(mesh, partitioning, locked, weight);
+    }
+
+    if (Mpi::WorldRank() == 0) {
+        const auto tfsf_elems = elementsInPairs(tfsf_pairs);
+        auto load_after = computeWeightedLoad(P, NE, partitioning, weight);
+        const long long total = std::accumulate(load_after.begin(), load_after.end(), 0LL);
+        const long long ideal = (P > 0) ? (total + P - 1) / P : 0;
+        long long max_load = 0;
+        long long min_load = 0;
+        if (!load_after.empty()) {
+            max_load = *std::max_element(load_after.begin(), load_after.end());
+            min_load = *std::min_element(load_after.begin(), load_after.end());
+        }
+        double imbalance = (ideal > 0)
+            ? (max_load - static_cast<double>(ideal)) / ideal * 100.0
+            : 0.0;
+
+        std::cout << "[Partition] TFSF components assigned by load ("
+                  << tfsf_elems.size() << " elements)\n";
+        if (kept_whole > 0) {
+            std::cout << "[Partition] " << kept_whole
+                      << " TFSF components exceed ideal load " << ideal
+                      << "; each kept on one rank\n";
+        }
+        if (sgbc_conflicts > 0) {
+            std::cout << "[Partition] WARNING: " << sgbc_conflicts
+                      << " SGBC components touch TFSF elements on more than one rank;"
+                      << " TFSF elements were not moved\n";
+        }
+        std::cout << "[Partition] Rebalanced " << moved
+                  << " unlocked elements\n";
+        std::cout << "[Partition] Weighted load: min=" << min_load
+                  << " max=" << max_load << " ideal=" << ideal
+                  << " imbalance=" << std::fixed << std::setprecision(1)
+                  << imbalance << "%\n";
+        std::cout << "[Partition] Elements per rank:";
+        for (int r = 0; r < P; ++r) {
+            int cnt = 0;
+            for (int e = 0; e < NE; ++e) {
+                if (partitioning[e] == r) ++cnt;
+            }
+            std::cout << " R" << r << "=" << cnt;
+        }
+        std::cout << "\n";
+        std::cout << "[Partition] TFSF elements per rank:";
+        int ranks_with = 0;
+        for (int r = 0; r < P; ++r) {
+            int cnt = 0;
+            for (int e : tfsf_elems) {
+                if (partitioning[e] == r) ++cnt;
+            }
+            if (cnt > 0) ++ranks_with;
+            std::cout << " R" << r << "=" << cnt;
+        }
+        std::cout << " (ranks_with_tfsf=" << ranks_with << ")" << std::endl;
+    }
+
+    verifyTFSFPartitionColocation(mesh, partitioning, tfsf_tags);
+}
+
+} // namespace
+
 static void applyMetisPartitioningWithTFSFPinRank0(
     mfem::Mesh& mesh,
     int* partitioning,
@@ -2925,13 +3233,17 @@ Model buildModel(
             int* partitioning = mesh.GeneratePartitioning(Mpi::WorldSize());
             const char* use_dsu = std::getenv("DGTD_USE_DSU_PARTITION");
             const char* pin_tfsf = std::getenv("DGTD_TFSF_PIN_RANK0");
-            const bool use_tfsf_pin_rank0 = tfsf_tags.Size() > 0 &&
-                (!pin_tfsf || pin_tfsf[0] != '0');
+            // Unset: one rank per TFSF component. "1": pin all TFSF to rank 0.
+            // "0": METIS pair stamp, no load assignment.
+            const bool pin_rank0 = pin_tfsf && pin_tfsf[0] == '1';
+            const bool pair_fix_only = pin_tfsf && pin_tfsf[0] == '0';
 
             if (use_dsu && use_dsu[0] == '1') {
                 applyPairwiseConstraintsPartitioning(mesh, partitioning, tfsf_tags, sgbc_tags);
-            } else if (use_tfsf_pin_rank0) {
+            } else if (tfsf_tags.Size() > 0 && pin_rank0) {
                 applyMetisPartitioningWithTFSFPinRank0(mesh, partitioning, tfsf_tags, sgbc_tags);
+            } else if (tfsf_tags.Size() > 0 && !pair_fix_only) {
+                applyMetisPartitioningWithTFSFComponents(mesh, partitioning, tfsf_tags, sgbc_tags);
             } else {
                 applyMetisPartitioningWithPairFix(mesh, partitioning, tfsf_tags, sgbc_tags);
             }
