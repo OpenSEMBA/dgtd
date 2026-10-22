@@ -18,6 +18,16 @@ void printHelpArgument()
 	std::cout <<																				   std::endl;
 	std::cout << "-h              / Brings up this help menu."								    << std::endl;
 	std::cout << "-i path/to/file / Specifies input file to run with executable."			    << std::endl;
+	std::cout << "--restart       / Resume the latest complete checkpoint."				    << std::endl;
+	std::cout << "                  Same JSON, mesh, and MPI rank count."					    << std::endl;
+	std::cout << "--device / -d   / Backend: cpu, omp, or cuda."							    << std::endl;
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	std::cout << "                  Default in this binary: cuda."							    << std::endl;
+	std::cout << "                  Use --device cpu (or omp) to force the host."			    << std::endl;
+#else
+	std::cout << "                  Default in this binary: cpu."							    << std::endl;
+	std::cout << "                  cuda requires a CUDA build of opensemba_dgtd."			    << std::endl;
+#endif
 	std::cout <<																				   std::endl;
 	std::cout << "___________________________________________________________________________"  << std::endl;
 }
@@ -36,11 +46,19 @@ int main(int argc, char** argv)
 	}
 	
 	std::string inputFilePath;
-    std::string deviceConfig{ "cpu" };
+	bool restart = false;
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+	std::string deviceConfig{ "cuda" };
+#else
+	std::string deviceConfig{ "cpu" };
+#endif
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if (arg == "-i" && i + 1 < argc) {
 			inputFilePath = argv[++i]; 
+		}
+		else if (arg == "--restart") {
+			restart = true;
 		}
 		else if (arg == "-h") {
 			printHelpArgument();
@@ -50,6 +68,12 @@ int main(int argc, char** argv)
 		{
 			std::string devtype = argv[i+1];
 			if (devtype == "cpu" || devtype == "omp" || devtype == "cuda" ){
+#ifndef SEMBA_DGTD_ENABLE_CUDA
+				if (devtype == "cuda") {
+					throw std::runtime_error(
+						"--device cuda requires a CUDA build of opensemba_dgtd");
+				}
+#endif
 				deviceConfig = devtype;
 				++i;
 			}
@@ -78,7 +102,7 @@ int main(int argc, char** argv)
 	}
 
 	{
-		auto solver = maxwell::driver::buildSolverJson(inputFilePath, false);
+		auto solver = maxwell::driver::buildSolverJson(inputFilePath, false, restart);
 		solver.run();
 
 		if (mfem::Mpi::WorldRank() == 0) {
@@ -92,6 +116,8 @@ int main(int argc, char** argv)
 		// Each batch case is its own process — skip C++ teardown and let the OS
 		// reclaim. Finalize MPI first so ranks leave the job cleanly.
 		if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+			// _Exit skips C++ destructors, which is what flushes probe ofstreams.
+			solver.flushProbeFiles();
 			std::fflush(nullptr);
 			mfem::Mpi::Finalize();
 			std::_Exit(0);

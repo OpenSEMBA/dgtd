@@ -132,3 +132,368 @@ TEST_F(DriverTest, throwsWhenCaseNamingStyleIsInconsistent)
 
 	std::filesystem::remove_all(case_dir);
 }
+
+namespace {
+
+json loadPecCase()
+{
+	std::ifstream in(maxwellCase("1D_PEC"));
+	return json::parse(in);
+}
+
+json debyeMaterial(int tag, double eps_inf, double eps_s, double tau)
+{
+	return {
+		{"tags", json::array({tag})},
+		{"debye", {{"eps_inf", eps_inf}, {"eps_s", eps_s}, {"tau", tau}}}
+	};
+}
+
+} // namespace
+
+TEST_F(DriverTest, debyeRejectsBadMaterials)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "vacuum"}, {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}, {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}},
+			debyeMaterial(1, 2.0, 4.0, 1e-9)
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			debyeMaterial(1, 2.0, 4.0, 1e-9),
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		auto mat = debyeMaterial(1, 2.0, 4.0, 1e-9);
+		mat["relative_permittivity"] = 3.0;
+		case_data["model"]["materials"] = json::array({mat});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 0.5, 4.0, 1e-9)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 2.0, 1e-9)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 4.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}, {"omega_p", 1.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["boundaries"][0]["type"] = "SGBC";
+		case_data["model"]["boundaries"][0]["material"] = {
+			{"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, debyeRejectsHesthavenAndSpectral)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, 1e-9)});
+		case_data["solver_options"]["evolution_operator"] = "hesthaven";
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, 1e-9)});
+		case_data["solver_options"]["evolution_operator"] = "maxwell";
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, 1e-9)});
+		case_data["solver_options"]["spectral"] = true;
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, debyeStoresEpsInfAndSolverTau)
+{
+	auto case_data = loadPecCase();
+	const double tau_si = 2.0e-9;
+	case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, tau_si)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	ASSERT_TRUE(model.hasDebye());
+	const DebyeProperties* pole = model.findDebye(1);
+	ASSERT_NE(pole, nullptr);
+	EXPECT_DOUBLE_EQ(pole->eps_inf, 2.0);
+	EXPECT_DOUBLE_EQ(pole->eps_s, 6.0);
+	EXPECT_DOUBLE_EQ(pole->tau_solver, tau_si * physicalConstants::speedOfLight_SI);
+	EXPECT_DOUBLE_EQ(model.getGeomTagToMaterial().at(1).getPermittivity(), 2.0);
+}
+
+json lorentzMaterial(int tag, double eps_inf, double omega_p, double omega_1, double gamma)
+{
+	return {
+		{"tags", json::array({tag})},
+		{"lorentz", {
+			{"eps_inf", eps_inf},
+			{"omega_p", omega_p},
+			{"omega_1", omega_1},
+			{"gamma", gamma}
+		}}
+	};
+}
+
+json lorentzMaterialHz(int tag, double eps_inf, double f_p, double f_1, double gamma_hz)
+{
+	return {
+		{"tags", json::array({tag})},
+		{"lorentz", {
+			{"eps_inf", eps_inf},
+			{"f_p", f_p},
+			{"f_1", f_1},
+			{"gamma", gamma_hz}
+		}}
+	};
+}
+
+TEST_F(DriverTest, lorentzRejectsBadMaterials)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "vacuum"}, {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}, {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		auto both = debyeMaterial(1, 2.0, 4.0, 1e-9);
+		both["lorentz"] = {{"eps_inf", 2.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}};
+		case_data["model"]["materials"] = json::array({both});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			debyeMaterial(1, 2.0, 4.0, 1e-9),
+			lorentzMaterial(1, 1.0, 1.0, 0.0, 0.0)
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		auto mat = lorentzMaterial(1, 2.0, 1.0e9, 0.0, 0.0);
+		mat["relative_permittivity"] = 3.0;
+		case_data["model"]["materials"] = json::array({mat});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 0.5, 1.0, 0.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 0.0, 0.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0, -1.0, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0, 0.0, -1.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"lorentz", {{"eps_inf", 2.0}, {"f_p", 1.0e8}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"lorentz", {{"eps_inf", 2.0}, {"f_p", 1.0e8}, {"gamma", 0.0}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterialHz(1, 2.0, 0.0, 1.0e8, 0.0)});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["boundaries"][0]["type"] = "SGBC";
+		case_data["model"]["boundaries"][0]["material"] = {
+			{"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, dispersiveOnPmlIsRejectedAtInit)
+{
+	auto expectMessage = [](const json& materials) {
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = materials;
+		try {
+			buildModel(case_data, maxwellCase("1D_PEC"), true);
+			FAIL() << "expected dispersive-on-PML rejection";
+		} catch (const std::runtime_error& err) {
+			EXPECT_STREQ(kDispersiveOnPmlNotAllowed, err.what());
+		}
+	};
+	expectMessage(json::array({
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}},
+		 {"debye", {{"eps_inf", 2.0}, {"eps_s", 4.0}, {"tau", 1e-9}}}}
+	}));
+	expectMessage(json::array({
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}},
+		 {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0}, {"omega_1", 0.0}, {"gamma", 0.0}}}}
+	}));
+	expectMessage(json::array({
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}},
+		debyeMaterial(1, 2.0, 4.0, 1e-9)
+	}));
+	expectMessage(json::array({
+		lorentzMaterial(1, 1.0, 1.0, 0.0, 0.0),
+		{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}}}
+	}));
+
+	auto case_data = loadPecCase();
+	case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 4.0, 1e-9)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	PMLProperties pml;
+	pml.geom_tags = {1};
+	pml.active_axes = {X};
+	try {
+		model.setPMLProperties({pml});
+		FAIL() << "expected dispersive-on-PML rejection";
+	} catch (const std::runtime_error& err) {
+		EXPECT_STREQ(kDispersiveOnPmlNotAllowed, err.what());
+	}
+}
+
+TEST_F(DriverTest, lorentzStoresSolverRates)
+{
+	auto case_data = loadPecCase();
+	const double omega_p = 2.0e9;
+	const double omega_1 = 1.0e9;
+	const double gamma = 3.0e8;
+	case_data["model"]["materials"] = json::array({lorentzMaterial(1, 2.0, omega_p, omega_1, gamma)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	ASSERT_TRUE(model.hasLorentz());
+	const LorentzProperties* pole = model.findLorentz(1);
+	ASSERT_NE(pole, nullptr);
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
+	EXPECT_DOUBLE_EQ(pole->eps_inf, 2.0);
+	EXPECT_DOUBLE_EQ(pole->omega_p, omega_p * inv_c);
+	EXPECT_DOUBLE_EQ(pole->omega_1, omega_1 * inv_c);
+	EXPECT_DOUBLE_EQ(pole->gamma, gamma * inv_c);
+	EXPECT_DOUBLE_EQ(model.getGeomTagToMaterial().at(1).getPermittivity(), 2.0);
+}
+
+TEST_F(DriverTest, gaussianSpreadFromF1eOrSpread)
+{
+	json spread_only = {{"spread", 0.15}};
+	EXPECT_DOUBLE_EQ(assembleGaussianSpread(spread_only, "test"), 0.15);
+
+	const double f_1e = 3.0e8;
+	json hz_only = {{"f_1e", f_1e}};
+	EXPECT_DOUBLE_EQ(
+		assembleGaussianSpread(hz_only, "test"),
+		gaussianSpreadForPower1e(f_1e));
+
+	json both = {{"spread", 0.20}, {"f_1e", f_1e}};
+	EXPECT_DOUBLE_EQ(
+		assembleGaussianSpread(both, "test"),
+		gaussianSpreadForPower1e(f_1e));
+
+	json neither = {{"mean", 0.0}};
+	EXPECT_THROW(assembleGaussianSpread(neither, "test"), std::runtime_error);
+	json bad_f = {{"f_1e", 0.0}};
+	EXPECT_THROW(assembleGaussianSpread(bad_f, "test"), std::runtime_error);
+}
+
+TEST_F(DriverTest, lorentzHzStyleMatchesRadStyle)
+{
+	auto case_data = loadPecCase();
+	const double f_p = 2.5e8;
+	const double f_1 = 2.0e8;
+	const double gamma_hz = 2.5e7;
+	case_data["model"]["materials"] = json::array({lorentzMaterialHz(1, 2.0, f_p, f_1, gamma_hz)});
+	auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+	ASSERT_TRUE(model.hasLorentz());
+	const LorentzProperties* pole = model.findLorentz(1);
+	ASSERT_NE(pole, nullptr);
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
+	const double two_pi = 2.0 * M_PI;
+	EXPECT_DOUBLE_EQ(pole->eps_inf, 2.0);
+	EXPECT_DOUBLE_EQ(pole->omega_p, two_pi * f_p * inv_c);
+	EXPECT_DOUBLE_EQ(pole->omega_1, two_pi * f_1 * inv_c);
+	EXPECT_DOUBLE_EQ(pole->gamma, two_pi * gamma_hz * inv_c);
+}
+
+TEST_F(DriverTest, lorentzRejectsHesthavenAndSpectral)
+{
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0e9, 0.0, 0.0)});
+		case_data["solver_options"]["evolution_operator"] = "hesthaven";
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0e9, 0.0, 0.0)});
+		case_data["solver_options"]["spectral"] = true;
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}

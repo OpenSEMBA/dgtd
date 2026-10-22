@@ -106,6 +106,46 @@ private:
 	int dimension_;
 };
 
+/// Spread σ of exp(-(t-t0)^2 / (2 σ^2)) whose incident *power* is 1/e at `f_1e_hz`.
+/// Time is light-metres: |A(ω)|² / |A(0)|² = exp(-(ω σ)²) with ω = 2 π f / c_SI.
+inline double gaussianSpreadForPower1e(double f_1e_hz)
+{
+	if (!(f_1e_hz > 0.0) || !std::isfinite(f_1e_hz)) {
+		throw std::runtime_error("f_1e must be > 0 (Hz).");
+	}
+	return physicalConstants::speedOfLight_SI / (2.0 * M_PI * f_1e_hz);
+}
+
+/// Spread σ of exp(-(t-t0)^2 / (2 σ^2)) whose spectrum is `db_cut` dB at `f_max`.
+/// |ĝ(f)/ĝ(0)| = exp(-2 π^2 σ^2 f^2) = 10^(db_cut/20), with db_cut < 0.
+inline double gaussianSpreadForDbCut(double f_max, double db_cut)
+{
+	if (!(f_max > 0.0) || !std::isfinite(f_max)) {
+		throw std::runtime_error("gaussianSpreadForDbCut: f_max must be > 0.");
+	}
+	if (!(db_cut < 0.0) || !std::isfinite(db_cut)) {
+		throw std::runtime_error("gaussianSpreadForDbCut: db_cut must be < 0.");
+	}
+	const double pi = std::acos(-1.0);
+	const double ratio = std::pow(10.0, db_cut / 20.0);
+	const double neg_ln_ratio = -std::log(ratio);
+	return std::sqrt(neg_ln_ratio / (2.0 * pi * pi)) / f_max;
+}
+
+/// Time signal used as a delta-gap flux. `derivative == false` is the Gaussian
+/// pulse. `derivative == true` is its time derivative, so the accumulated field
+/// follows the pulse and returns to zero after it passes.
+inline double gaussianTimeSignal(
+	double t, double t0, double spread, double magnitude, bool derivative)
+{
+	const double arg = (t - t0) / spread;
+	const double pulse = std::exp(-0.5 * arg * arg);
+	if (!derivative) {
+		return magnitude * pulse;
+	}
+	return magnitude * (-arg / spread) * pulse;
+}
+
 /**
 * A modulated Gaussian: exp(-((x-mean)^2)/(2*spread^2)) * cos(2*pi*freq*(x-mean))
 * Uses a wide envelope (large spread) with a carrier frequency to place spectral
@@ -273,6 +313,8 @@ public:
 	std::unique_ptr<EHFieldFunction> clone() const {
 		return std::make_unique<DerivGaussDipole>(*this);
 	}
+
+	double spread() const { return gaussSpread_; }
 
 	double eval(
 		const Position& p, const Time& t,
@@ -481,6 +523,123 @@ private:
 	FieldType fieldtype_;
 };
 
+/// Circular-coax TEM pair. `magnitude` is the conductor voltage \(V_0\), not a uniform \(|E|\).
+/// \(\hat{s}\) points from the scattered-field side into the total-field side.
+/// \(E_\rho = V_0/(\rho\ln(b/a))\) times the time signal, and \(\mathbf{H}=\hat{s}\times\mathbf{E}\).
+class CoaxialMode : public EHFieldFunction {
+public:
+	CoaxialMode(
+		double magnitude,
+		double spread,
+		double t0,
+		bool derivative,
+		const mfem::Vector& center,
+		const mfem::Vector& axis,
+		double inner_radius,
+		double outer_radius,
+		int total_field_volume,
+		int scattered_field_volume) :
+		magnitude_{ magnitude },
+		spread_{ spread },
+		t0_{ t0 },
+		derivative_{ derivative },
+		inner_radius_{ inner_radius },
+		outer_radius_{ outer_radius },
+		total_field_volume_{ total_field_volume },
+		scattered_field_volume_{ scattered_field_volume }
+	{
+		if (!(magnitude_ > 0.0) || !std::isfinite(magnitude_)) {
+			throw std::runtime_error("coaxial_port magnitude must be > 0.");
+		}
+		if (!(spread_ > 0.0) || !std::isfinite(spread_)) {
+			throw std::runtime_error("coaxial_port spread must be > 0.");
+		}
+		if (!std::isfinite(t0_)) {
+			throw std::runtime_error("coaxial_port t0 must be finite.");
+		}
+		if (!(outer_radius_ > inner_radius_) || !(inner_radius_ > 0.0)) {
+			throw std::runtime_error("coaxial_port radii must satisfy b > a > 0.");
+		}
+		if (center.Size() != 3 || axis.Size() != 3) {
+			throw std::runtime_error("coaxial_port center and axis must be 3-vectors.");
+		}
+		center_.SetSize(3);
+		axis_.SetSize(3);
+		for (int d = 0; d < 3; ++d) {
+			center_[d] = center[d];
+			axis_[d] = axis[d];
+		}
+		const double n = axis_.Norml2();
+		if (!(n > 0.0)) {
+			throw std::runtime_error("coaxial_port axis must be nonzero.");
+		}
+		axis_ /= n;
+		log_b_over_a_ = std::log(outer_radius_ / inner_radius_);
+	}
+
+	std::unique_ptr<EHFieldFunction> clone() const override {
+		return std::make_unique<CoaxialMode>(*this);
+	}
+
+	int totalFieldVolume() const { return total_field_volume_; }
+	int scatteredFieldVolume() const { return scattered_field_volume_; }
+	double innerRadius() const { return inner_radius_; }
+	double outerRadius() const { return outer_radius_; }
+	double magnitude() const { return magnitude_; }
+	double spread() const { return spread_; }
+
+	double eval(
+		const Position& p, const Time& t,
+		const FieldType& ft, const Direction& d) const override
+	{
+		double rel[3] = {0.0, 0.0, 0.0};
+		for (int i = 0; i < p.Size() && i < 3; ++i) {
+			rel[i] = p[i] - center_[i];
+		}
+		double along = 0.0;
+		for (int i = 0; i < 3; ++i) {
+			along += rel[i] * axis_[i];
+		}
+		double radial[3];
+		double rho2 = 0.0;
+		for (int i = 0; i < 3; ++i) {
+			radial[i] = rel[i] - along * axis_[i];
+			rho2 += radial[i] * radial[i];
+		}
+		const double rho = std::sqrt(rho2);
+		if (!(rho > 0.0)) {
+			return 0.0;
+		}
+		const double e_rho = gaussianTimeSignal(t, t0_, spread_, magnitude_, derivative_)
+			/ (rho * log_b_over_a_);
+		double e[3];
+		for (int i = 0; i < 3; ++i) {
+			e[i] = e_rho * radial[i] / rho;
+		}
+		if (ft == E) {
+			return e[d];
+		}
+		const double h[3] = {
+			axis_[1] * e[2] - axis_[2] * e[1],
+			axis_[2] * e[0] - axis_[0] * e[2],
+			axis_[0] * e[1] - axis_[1] * e[0]
+		};
+		return h[d];
+	}
+
+private:
+	double magnitude_;
+	double spread_;
+	double t0_;
+	bool derivative_;
+	double inner_radius_;
+	double outer_radius_;
+	double log_b_over_a_ = 0.0;
+	int total_field_volume_;
+	int scattered_field_volume_;
+	mfem::Vector center_;
+	mfem::Vector axis_;
+};
 
 class TimeFunction {
 public:

@@ -1,0 +1,72 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "final_time": 25.0,
+    "order": 4,
+    "time_step": 0.01
+  },
+  "model": {
+    "filename": "lorentz_res4.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          3
+        ],
+        "lorentz": {
+          "eps_inf": 2.0,
+          "omega_p": 749481145.0,
+          "omega_1": 1199169832.0,
+          "gamma": 29979245.8
+        }
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          2
+        ],
+        "type": "PEC"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 1.0
+    }
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.6
+      }
+    }
+  ]
+}

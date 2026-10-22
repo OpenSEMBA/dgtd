@@ -177,16 +177,26 @@ void SourcesManager::markDoFSforTForSF(FieldGridFuncs& gfs, bool isTF)
         break;
     }
 
+    for (auto f : { E, H }) {
+        for (auto d{ X }; d <= Z; d++) {
+            gfs[f][d].UseDevice(true);
+            (void)gfs[f][d].HostReadWrite();
+        }
+    }
     for (int e = 0; e < secondary_map.Size(); e++) {
         Array<int> dofs;
         global_tfsf_fes_->GetElementDofs(global_tfsf_map.Find(secondary_map[e]), dofs);
         for (int i = 0; i < dofs.Size(); i++) {
             for (auto f : { E, H }) {
                 for (auto d{ X }; d <= Z; d++) {
-                    gfs[f][d].UseDevice(true);
                     gfs[f][d][dofs[i]] = 0.0;
                 }
             }
+        }
+    }
+    for (auto f : { E, H }) {
+        for (auto d{ X }; d <= Z; d++) {
+            (void)gfs[f][d].Read();
         }
     }
 }
@@ -199,7 +209,22 @@ void SourcesManager::initTFSFPreReqs(const ParMesh& m, const Array<int>& marker)
 
 void SourcesManager::initTFSFSubMesher(const ParMesh& m, const Array<int>& marker)
 {
-    auto sm = TotalFieldScatteredFieldSubMesher(m, marker);
+    int tf_volume = -1;
+    for (const auto& source : sources) {
+        auto* tf = dynamic_cast<TotalField*>(source.get());
+        if (tf == nullptr) {
+            continue;
+        }
+        auto* coax = dynamic_cast<const CoaxialMode*>(tf->function());
+        if (coax == nullptr) {
+            continue;
+        }
+        if (tf_volume >= 0) {
+            throw std::runtime_error("Only one coaxial_port source is supported.");
+        }
+        tf_volume = coax->totalFieldVolume();
+    }
+    auto sm = TotalFieldScatteredFieldSubMesher(m, marker, tf_volume);
     tfsf_submesher_ = std::move(sm);
 }
 

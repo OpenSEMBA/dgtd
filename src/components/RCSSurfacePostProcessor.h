@@ -103,6 +103,18 @@ private:
         std::vector<double>& timesOut,
         int& nSnapOut) const;
 
+    /**
+     * Device streaming DFT. False when CUDA is off, the MFEM device is not CUDA,
+     * or the frequency accumulator does not fit in free VRAM (caller uses the host DFT).
+     */
+    bool tryCudaStreamDft(
+        const std::string& rankPath,
+        int nDofs,
+        const std::vector<double>& normFreqs,
+        std::vector<double>& timesOut,
+        int& nSnapOut,
+        FreqFields& ffOut) const;
+
     PlaneWaveData extractPlaneWaveData(const std::string& jsonPath) const;
 
     std::vector<double> computeIncidentPowerSpectrum(

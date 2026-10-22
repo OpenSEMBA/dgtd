@@ -1,0 +1,47 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "final_time": 40.0,
+    "order": 2
+  },
+  "model": {
+    "filename": "3D_Coaxial_Port_Small_PML.msh",
+    "materials": [
+      {
+        "tags": [1, 3, 5],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [4, 9, 13],
+        "type": "PEC"
+      },
+      {
+        "tags": [1, 7, 11],
+        "type": "PEC"
+      },
+      {
+        "tags": [3, 12],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.2
+    }
+  },
+  "sources": [
+    {
+      "type": "coaxial_port",
+      "tags": {
+        "outer": [1, 7, 11],
+        "live": [4, 9, 13],
+        "load": [3]
+      },
+      "signal": "gaussian_derivative",
+      "spread": 0.3
+    }
+  ]
+}

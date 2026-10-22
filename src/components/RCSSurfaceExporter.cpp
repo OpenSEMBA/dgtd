@@ -12,7 +12,8 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     const DG_FECollection* fec,
     ParFiniteElementSpace& parentFes,
     Fields<ParFiniteElementSpace, ParGridFunction>& globalFields,
-    const std::string& caseName)
+    const std::string& caseName,
+    bool resume)
     : submesher_(*parentFes.GetMesh(), parentFes, buildSurfaceMarker(probe.tags, parentFes)),
       globalFields_(globalFields),
       expSteps_(probe.expSteps)
@@ -37,11 +38,21 @@ RCSSurfaceExporter::RCSSurfaceExporter(
     outputPath_ = base + "/rank" + std::to_string(Mpi::WorldRank());
     std::filesystem::create_directories(outputPath_);
 
+    const std::string data_path = outputPath_ + "/surface_data.bin";
+    if (resume && std::filesystem::exists(data_path)) {
+        dataFile_.open(data_path, std::ios::binary | std::ios::app);
+        if (!dataFile_) {
+            throw std::runtime_error("Cannot reopen " + data_path);
+        }
+        geometryWritten_ = true;
+        return;
+    }
+
     auto elemOrder = parentFes.GetMesh()->GetElementTransformation(0)->Order();
     mesh->SetCurvature(elemOrder);
     mesh->Save(outputPath_ + "/mesh");
 
-    dataFile_.open(outputPath_ + "/surface_data.bin", std::ios::binary);
+    dataFile_.open(data_path, std::ios::binary);
 
     // Count total quadrature points on NTF boundary faces.
     int numBdr = mesh->GetNBE();
@@ -69,6 +80,75 @@ RCSSurfaceExporter::RCSSurfaceExporter(
 
     writeGeometry();
     transferFields();
+}
+
+void RCSSurfaceExporter::truncateSnapshotsAfter(double time)
+{
+    if (!hasLocalSurface_) {
+        return;
+    }
+    const std::string path = outputPath_ + "/surface_data.bin";
+    dataFile_.close();
+
+    std::fstream in(path, std::ios::in | std::ios::binary);
+    if (!in) {
+        throw std::runtime_error("Cannot read " + path);
+    }
+    int32_t header[5];
+    in.read(reinterpret_cast<char*>(header), sizeof(header));
+    if (!in) {
+        throw std::runtime_error("RCS surface file is missing its header: " + path);
+    }
+    if (header[0] != spaceDim_ || header[1] != numDofs_) {
+        throw std::runtime_error("RCS surface file does not match this mesh: " + path);
+    }
+    const int32_t quad = header[3];
+    if (quad < 0) {
+        throw std::runtime_error("RCS surface file has a negative quadrature count.");
+    }
+    const std::streamoff geom =
+        (static_cast<std::streamoff>(quad) * header[0]
+         + static_cast<std::streamoff>(quad) * 3
+         + static_cast<std::streamoff>(quad))
+        * static_cast<std::streamoff>(sizeof(double));
+    in.seekg(static_cast<std::streamoff>(sizeof(header)) + geom);
+    if (!in) {
+        throw std::runtime_error("RCS surface file is missing geometry: " + path);
+    }
+
+    const std::streamoff snap =
+        static_cast<std::streamoff>(sizeof(double) * (1 + 6 * numDofs_));
+    std::streamoff keep = in.tellg();
+    while (in && keep >= 0) {
+        const auto pos = in.tellg();
+        if (pos < 0) {
+            break;
+        }
+        double t = 0.0;
+        in.read(reinterpret_cast<char*>(&t), sizeof(double));
+        if (!in) {
+            break;
+        }
+        if (t > time + 1e-9) {
+            keep = pos;
+            break;
+        }
+        in.seekg(snap - static_cast<std::streamoff>(sizeof(double)), std::ios::cur);
+        if (!in) {
+            keep = pos;
+            break;
+        }
+        keep = in.tellg();
+    }
+    in.close();
+    if (keep < 0) {
+        throw std::runtime_error("RCS surface file could not be truncated: " + path);
+    }
+    std::filesystem::resize_file(path, static_cast<std::uintmax_t>(keep));
+    dataFile_.open(path, std::ios::binary | std::ios::app);
+    if (!dataFile_) {
+        throw std::runtime_error("Cannot reopen " + path);
+    }
 }
 
 void RCSSurfaceExporter::initParentToSurfaceMap()

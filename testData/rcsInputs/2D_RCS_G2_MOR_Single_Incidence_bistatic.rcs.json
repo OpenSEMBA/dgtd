@@ -1,6 +1,6 @@
 {
-  "runmode": "single-core",
-  "casename": "2D_RCS_Circle_MOR_Single_Incidence",
+  "runmode": "cuda-1",
+  "casename": "2D_RCS_G2_MOR_Single_Incidence",
   "frequencies": {
     "start": 1e6,
     "end": 250e6,
@@ -14,8 +14,8 @@
     },
     "phi": {
       "start": 2.0943951023931953,
-      "end": 2.0943951023931953,
-      "steps": 1
+      "end": 8.377580408352388,
+      "steps": 1805
     }
   }
 }

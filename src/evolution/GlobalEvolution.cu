@@ -17,7 +17,7 @@ void load_in_to_eh_gpu(const mfem::Vector& in,
     double* hy_d = h[1].Write();
     double* hz_d = h[2].Write();
 
-    mfem::forall(ndofs, [=] MFEM_DEVICE(int v) {
+    mfem::forall(ndofs, [=] MFEM_HOST_DEVICE (int v) {
         ex_d[v] = in_d[0 * ndofs + v];
         ey_d[v] = in_d[1 * ndofs + v];
         ez_d[v] = in_d[2 * ndofs + v];
@@ -38,7 +38,7 @@ void load_eh_to_innew_gpu(const mfem::Vector& in,
 
     const int blockSize = ndofs + nbrSize;
 
-    mfem::forall(ndofs, [=] MFEM_DEVICE(int v) {
+    mfem::forall(ndofs, [=] MFEM_HOST_DEVICE (int v) {
         inNew_d[0 * blockSize + v] = in_d[0 * ndofs + v];
         inNew_d[1 * blockSize + v] = in_d[1 * ndofs + v];
         inNew_d[2 * blockSize + v] = in_d[2 * ndofs + v];
@@ -76,7 +76,7 @@ void load_nbr_to_innew_gpu(const std::array<mfem::ParGridFunction, 3>& eOldNbr,
 
     const int blockSize = ndofs + nbrSize;
 
-    mfem::forall(nbrSize, [=] MFEM_DEVICE(int v) {
+    mfem::forall(nbrSize, [=] MFEM_HOST_DEVICE (int v) {
         inNew_d[0 * blockSize + ndofs + v] = eOldNbr0[v];
         inNew_d[1 * blockSize + ndofs + v] = eOldNbr1[v];
         inNew_d[2 * blockSize + ndofs + v] = eOldNbr2[v];

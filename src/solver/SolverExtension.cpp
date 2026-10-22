@@ -175,14 +175,16 @@ int SGBCWrapper::getStateSize() const {
 // [ADDED] Context Switching
 void SGBCWrapper::loadState(const SGBCState& state) {
     auto& dst = solver_->getFields().allDOFs();
-    std::memcpy(dst.GetData(), state.fields_state.GetData(),
-                dst.Size() * sizeof(double));
+    const int n = dst.Size();
+    std::memcpy(dst.HostWrite(), state.fields_state.HostRead(),
+                static_cast<size_t>(n) * sizeof(double));
 }
 
 void SGBCWrapper::saveState(SGBCState& state) {
     const auto& src = solver_->getFields().allDOFs();
-    std::memcpy(state.fields_state.GetData(), src.GetData(),
-                src.Size() * sizeof(double));
+    const int n = src.Size();
+    std::memcpy(state.fields_state.HostWrite(), src.HostRead(),
+                static_cast<size_t>(n) * sizeof(double));
 }
 
 int SGBCWrapper::getLocalFieldSize() const {
@@ -206,8 +208,15 @@ void SGBCWrapper::updateFieldsWithGlobal(const Fields<mfem::ParFiniteElementSpac
     const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
-    double* all = solver_->getFields().allDOFs().GetData();
+    auto& slab = solver_->getFields().allDOFs();
+    double* all = slab.HostReadWrite();
     const double* R = context.rot;
+
+    (void)fields.allDOFs().HostRead();
+    for (int d = 0; d < 3; ++d) {
+        fields.get(E, static_cast<Direction>(d)).SyncAliasMemory(fields.allDOFs());
+        fields.get(H, static_cast<Direction>(d)).SyncAliasMemory(fields.allDOFs());
+    }
 
     // Read global Cartesian fields at left DOF
     double eg[3], hg[3], el[3], hl[3];
@@ -255,14 +264,18 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
     const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
     const bool has_right = (pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
-    double* all = solver_->getFields().allDOFs().GetData();
+    // Caller HostRead()s `in` once. Repeating it here races when OpenMP
+    // sub-steps share that vector.
+    const double* in_h = in.GetData();
+    auto& slab = solver_->getFields().allDOFs();
+    double* all = slab.HostReadWrite();
     const double* R = context.rot;
 
     // Read global-frame fields at left DOF, rotate to face-local frame
     double eg[3], hg[3], el[3], hl[3];
     for (int d = 0; d < 3; ++d) {
-        eg[d] = in[d * ndofs + pair.first];
-        hg[d] = in[(3 + d) * ndofs + pair.first];
+        eg[d] = in_h[d * ndofs + pair.first];
+        hg[d] = in_h[(3 + d) * ndofs + pair.first];
     }
     for (int i = 0; i < 3; ++i) {
         el[i] = R[3*i]*eg[0] + R[3*i+1]*eg[1] + R[3*i+2]*eg[2];
@@ -278,8 +291,8 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
     }
     if (has_right) {
         for (int d = 0; d < 3; ++d) {
-            eg[d] = in[d * ndofs + pair.second];
-            hg[d] = in[(3 + d) * ndofs + pair.second];
+            eg[d] = in_h[d * ndofs + pair.second];
+            hg[d] = in_h[(3 + d) * ndofs + pair.second];
         }
         for (int i = 0; i < 3; ++i) {
             el[i] = R[3*i]*eg[0] + R[3*i+1]*eg[1] + R[3*i+2]*eg[2];
@@ -302,7 +315,8 @@ void SGBCWrapper::updateFieldsWithInterpolatedGhost(double alpha, const SGBCStat
     const int total_ghost_dofs = n_ghost_elements_ * (sbcp_.maxOrder() + 1);
     const bool has_right = (context.global_pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
-    double* all = solver_->getFields().allDOFs().GetData();
+    auto& slab = solver_->getFields().allDOFs();
+    double* all = slab.HostReadWrite();
 
     const double beta = 1.0 - alpha;
 
@@ -441,6 +455,9 @@ void SGBCWrapper::solve(const Time t, const Time dt)
 
     this->solver_->setTimeStep(dt);
 
+    // Ghost values were written on the host. The sub-step reads the device
+    // copy when CUDA is the ODE memory class.
+    (void)this->solver_->getFields().allDOFs().Read();
     this->solver_->step(false);
 }
 

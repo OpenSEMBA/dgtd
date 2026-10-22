@@ -23,7 +23,7 @@ class TotalFieldScatteredFieldSubMesher
 public:
 
 	TotalFieldScatteredFieldSubMesher(){};
-	TotalFieldScatteredFieldSubMesher(const Mesh&, const Array<int>& marker);
+	TotalFieldScatteredFieldSubMesher(const Mesh&, const Array<int>& marker, int tf_volume = -1);
 
 	SubMesh* getTFSubMesh() { return tf_mesh_.get(); }
 	SubMesh* getSFSubMesh() { return sf_mesh_.get(); }
@@ -51,9 +51,14 @@ private:
 	std::vector<El2Face> elem_to_face_sf_;
 	std::vector<ElementId> elems_for_global_submesh_;
 
+	// SubMesh stores this parent pointer. Declared before the submeshes so
+	// they are destroyed first.
+	std::unique_ptr<Mesh> parent_global_;
+	std::unique_ptr<Mesh> parent_individual_;
 	std::unique_ptr<SubMesh> tf_mesh_;
 	std::unique_ptr<SubMesh> sf_mesh_;
 	std::unique_ptr<SubMesh> global_submesh_;
+	int tf_volume_attribute_ = -1;
 
 };
 
@@ -117,6 +122,7 @@ private:
 	Array<int> pml_marker_;
 	Array<int> interface_marker_;
 	std::vector<int> interface_faces_;
+	std::unique_ptr<Mesh> parent_mesh_;
 
 	std::unique_ptr<SubMesh> vacuum_mesh_;
 	std::unique_ptr<SubMesh> pml_mesh_;

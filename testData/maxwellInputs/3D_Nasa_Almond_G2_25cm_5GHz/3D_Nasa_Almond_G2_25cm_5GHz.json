@@ -2,8 +2,8 @@
   "solver_options": {
     "upwind_alpha": 1.0,
     "evolution_operator": "global",
-    "time_step": 0.0005,
-    "final_time": 16.0,
+    "time_step": 0.00025,
+    "final_time": 10.0,
     "order": 2
   },
   "model": {
@@ -53,13 +53,6 @@
           16
         ]
       }
-    ],
-    "mor_state": [
-      {
-        "record_time_start": 0.0,
-        "record_time_final": 16.0,
-        "saves": 1601
-      }
     ]
   },
   "sources": [
@@ -84,7 +77,7 @@
         10
       ],
       "magnitude": {
-        "spread": 0.0273
+        "spread": 0.02
       }
     }
   ]

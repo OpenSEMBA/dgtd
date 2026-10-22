@@ -733,3 +733,87 @@ TEST_F(MeshTest, IdentifyCurvedElements_2D)
 	EXPECT_EQ(expectedCurvedElements, curvedElements);
 
 }
+
+// model.refinement calls Mesh::UniformRefinement on the serial mesh loaded
+// the same way as assembleMesh: generate edges, refine argument 0, fix_orientation.
+static int countBoundaryAttribute(const Mesh& mesh, int attr)
+{
+	int n = 0;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (mesh.GetBdrAttribute(be) == attr) {
+			++n;
+		}
+	}
+	return n;
+}
+
+static void expectRefinedInteriorAttribute(Mesh& mesh, int attr, int expected)
+{
+	int n = 0;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (mesh.GetBdrAttribute(be) != attr) {
+			continue;
+		}
+		++n;
+		ASSERT_NE(mesh.GetInternalBdrFaceTransformations(be), nullptr)
+			<< "attribute " << attr << " boundary element " << be;
+		int inf1 = 0;
+		int inf2 = 0;
+		int nc = 0;
+		mesh.GetFaceInfos(mesh.GetBdrElementFaceIndex(be), &inf1, &inf2, &nc);
+		EXPECT_EQ(1, inf2 % 2) << "Elem2Inf " << inf2;
+	}
+	EXPECT_EQ(expected, n);
+}
+
+static void expectRefinedOuterAttribute(Mesh& mesh, int attr, int expected)
+{
+	int n = 0;
+	for (int be = 0; be < mesh.GetNBE(); ++be) {
+		if (mesh.GetBdrAttribute(be) != attr) {
+			continue;
+		}
+		++n;
+		EXPECT_EQ(nullptr, mesh.GetInternalBdrFaceTransformations(be))
+			<< "attribute " << attr << " boundary element " << be;
+		int e1 = -1;
+		int e2 = -1;
+		mesh.GetFaceElements(mesh.GetBdrElementFaceIndex(be), &e1, &e2);
+		EXPECT_LT(e2, 0);
+	}
+	EXPECT_EQ(expected, n);
+}
+
+TEST_F(MeshTest, UniformRefinementKeepsInteriorBoundary2D)
+{
+	Mesh mesh = Mesh::LoadFromFile(
+		gmshMeshesFolder() + "2D_TFSF_Beam.msh", 1, 0, true);
+	const int interior = 301;
+	const int outer = 1;
+	const int coarse_interior = countBoundaryAttribute(mesh, interior);
+	const int coarse_outer = countBoundaryAttribute(mesh, outer);
+	ASSERT_GT(coarse_interior, 0);
+	ASSERT_GT(coarse_outer, 0);
+
+	mesh.UniformRefinement();
+
+	expectRefinedInteriorAttribute(mesh, interior, coarse_interior * 2);
+	expectRefinedOuterAttribute(mesh, outer, coarse_outer * 2);
+}
+
+TEST_F(MeshTest, UniformRefinementKeepsInteriorBoundary3D)
+{
+	Mesh mesh = Mesh::LoadFromFile(
+		gmshMeshesFolder() + "3D_TFSF_Box.msh", 1, 0, true);
+	const int interior = 301;
+	const int outer = 2;
+	const int coarse_interior = countBoundaryAttribute(mesh, interior);
+	const int coarse_outer = countBoundaryAttribute(mesh, outer);
+	ASSERT_GT(coarse_interior, 0);
+	ASSERT_GT(coarse_outer, 0);
+
+	mesh.UniformRefinement();
+
+	expectRefinedInteriorAttribute(mesh, interior, coarse_interior * 4);
+	expectRefinedOuterAttribute(mesh, outer, coarse_outer * 4);
+}

@@ -397,7 +397,15 @@ namespace maxwell
 		template <typename BF>
 		void addGlobalSourceFaceIBFIOneNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 		template <typename BF>
-		void addGlobalSourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv); 
+		void addGlobalSourceFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		std::unique_ptr<BF> buildDeltaGapFaceIBFIZeroNormalSubOperator(mfem::Array<int>& marker);
+		template <typename BF>
+		std::unique_ptr<BF> buildDeltaGapFaceIBFITwoNormalSubOperator(const std::vector<Direction>& dirTerms, mfem::Array<int>& marker);
+		template <typename BF>
+		void addDeltaGapFaceIBFIZeroNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
+		template <typename BF>
+		void addDeltaGapFaceIBFITwoNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv); 
 		template <typename BF>
 		void addGlobalBoundarySourceFaceIBFIZeroNormalOperators(mfem::SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv);
 		template <typename BF>
@@ -427,6 +435,9 @@ namespace maxwell
 		std::unique_ptr<mfem::SparseMatrix> buildSGBCGlobalOperator();
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(BdrCond filter);
 		std::unique_ptr<mfem::SparseMatrix> buildSourceFaceOperator(mfem::Array<int>& marker);
+		/// Delta-gap only. Same-side Zero and Two blocks, so equal traces on both
+		/// elements do not cancel. Not the TFSF jump operator.
+		std::unique_ptr<mfem::SparseMatrix> buildDeltaGapFaceOperator(mfem::Array<int>& marker);
 		std::unique_ptr<mfem::SparseMatrix> buildGlobalOperator();
 		/// Bagci/Chen SC-PML ADE + optional curl a-rescale (κ>1). Cartesian axes only.
 		/// curl_delta[u] is ndofs×ndofs: out_Fu += Delta_u * out_Fu for F in {E,H}.
@@ -435,6 +446,12 @@ namespace maxwell
 			const SCPMLLayout& layout,
 			std::unique_ptr<mfem::SparseMatrix>& ade_operator,
 			std::array<std::unique_ptr<mfem::SparseMatrix>, 3>& curl_delta);
+		/// Electric single-pole Debye. Square on the full ODE (EH + PML aux + 3N).
+		/// Null when this rank has no Debye elements. Not passed through Threshold.
+		std::unique_ptr<mfem::SparseMatrix> buildDebyeOperator();
+		/// Electric single-pole Lorentz. Square on the full ODE.
+		/// Null when this rank has no Lorentz elements. Not passed through Threshold.
+		std::unique_ptr<mfem::SparseMatrix> buildLorentzOperator();
 
 	private:
 		ProblemDescription pd_;
@@ -795,6 +812,30 @@ namespace maxwell
         auto res = std::make_unique<BF>(&fes_);
         res->AddInternalBoundaryFaceIntegrator(
             new mfemExtension::MaxwellDGTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), marker);
+        res->Assemble();
+        res->Finalize();
+        return res;
+    }
+
+    template <typename FES>
+    template <typename BF>
+    std::unique_ptr<BF> DGOperatorFactory<FES>::buildDeltaGapFaceIBFIZeroNormalSubOperator(mfem::Array<int>& marker)
+    {
+        auto res = std::make_unique<BF>(&fes_);
+        res->AddInternalBoundaryFaceIntegrator(
+            new mfemExtension::MaxwellDGDecoupledZeroNormalJumpIntegrator(pd_.opts.alpha), marker);
+        res->Assemble();
+        res->Finalize();
+        return res;
+    }
+
+    template <typename FES>
+    template <typename BF>
+    std::unique_ptr<BF> DGOperatorFactory<FES>::buildDeltaGapFaceIBFITwoNormalSubOperator(const std::vector<Direction>& dirTerms, mfem::Array<int>& marker)
+    {
+        auto res = std::make_unique<BF>(&fes_);
+        res->AddInternalBoundaryFaceIntegrator(
+            new mfemExtension::MaxwellDGDecoupledTwoNormalJumpIntegrator(dirTerms, pd_.opts.alpha), marker);
         res->Assemble();
         res->Finalize();
         return res;
@@ -1163,6 +1204,48 @@ namespace maxwell
 				for (auto d2{ X }; d2 <= Z; d2++) {
 					if (d2 >= dim) continue;
 					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildSourceFaceIBFITwoNormalSubOperator<BF>(f, { d, d2 }, marker)->SpMat(), fes_);
+					loadBlockInGlobalAtIndices(
+						op->SpMat(),
+						*global,
+						std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d2].get()),
+						1.0
+					);
+				}
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addDeltaGapFaceIBFIZeroNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			auto op = buildByMult<FES,BF>(
+				MInv[f]->SpMat(), buildDeltaGapFaceIBFIZeroNormalSubOperator<BF>(marker)->SpMat(), fes_);
+			for (auto d : { X, Y, Z }) {
+				loadBlockInGlobalAtIndices(
+					op->SpMat(),
+					*global,
+					std::make_pair(*globalId.offsets[f][d].get(), *globalId.offsets[f][d].get()),
+					-1.0
+				);
+			}
+		}
+	}
+
+	template <typename FES>
+	template <typename BF>
+	void DGOperatorFactory<FES>::addDeltaGapFaceIBFITwoNormalOperators(SparseMatrix* global, mfem::Array<int>& marker, const std::array<std::unique_ptr<BF>, 2>& MInv)
+	{
+		const int dim = meshDimension();
+		GlobalIndices globalId(fes_.GetNDofs(), getAdditionalDofs(), true);
+		for (auto f : { E, H }) {
+			for (auto d{ X }; d <= Z; d++) {
+				if (d >= dim) continue;
+				for (auto d2{ X }; d2 <= Z; d2++) {
+					if (d2 >= dim) continue;
+					auto op = buildByMult<FES,BF>(MInv[f]->SpMat(), buildDeltaGapFaceIBFITwoNormalSubOperator<BF>({ d, d2 }, marker)->SpMat(), fes_);
 					loadBlockInGlobalAtIndices(
 						op->SpMat(),
 						*global,
@@ -1661,6 +1744,25 @@ namespace maxwell
 	}
 
 	template <typename FES>
+	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildDeltaGapFaceOperator(mfem::Array<int>& marker)
+	{
+		std::unique_ptr<SparseMatrix> res = std::make_unique<SparseMatrix>(6 * fes_.GetNDofs(), 6 * (fes_.GetNDofs() + getAdditionalDofs()));
+		auto MInv = buildMaxwellInverseMassMatrixOperator<ParBilinearForm>();
+
+		if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+			this->template addDeltaGapFaceIBFIZeroNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+			this->template addDeltaGapFaceIBFITwoNormalOperators<ParBilinearForm>(res.get(), marker, MInv);
+		} else {
+			auto MInvSerial = buildMaxwellInverseMassMatrixOperator<BilinearForm>();
+			this->template addDeltaGapFaceIBFIZeroNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
+			this->template addDeltaGapFaceIBFITwoNormalOperators<BilinearForm>(res.get(), marker, MInvSerial);
+		}
+
+		res->Finalize();
+		return res;
+	}
+
+	template <typename FES>
 	std::unique_ptr<SparseMatrix> DGOperatorFactory<FES>::buildGlobalOperator()
 	{
 
@@ -2081,6 +2183,120 @@ namespace maxwell
 		          << (needs_a ? " (MaInv damping + curl a-rescale)"
 		                      : " (κ≡1 unit MInv)")
 		          << std::endl;
+	}
+
+	template <typename FES>
+	std::unique_ptr<mfem::SparseMatrix> DGOperatorFactory<FES>::buildDebyeOperator()
+	{
+		if (!pd_.model.hasDebye()) {
+			return nullptr;
+		}
+
+		const int ndofs = fes_.GetNDofs();
+		mfem::Mesh* mesh = fes_.GetMesh();
+		const int n_pml = computePMLAuxSize(
+			pd_.model.getPMLProperties(), ndofs, mesh->Dimension());
+		const int n_debye = 3 * ndofs;
+		const int n_state = 6 * ndofs + n_pml + n_debye;
+		auto matrix = std::make_unique<mfem::SparseMatrix>(n_state, n_state);
+
+		bool any = false;
+		mfem::Array<int> dofs;
+		for (int el = 0; el < mesh->GetNE(); ++el) {
+			const DebyeProperties* pole = pd_.model.findDebye(mesh->GetAttribute(el));
+			if (!pole) {
+				continue;
+			}
+			any = true;
+			const double eps_d = pole->eps_s - pole->eps_inf;
+			const double tau = pole->tau_solver;
+			const double eps_inf = pole->eps_inf;
+			const double e_from_e = -eps_d / (eps_inf * tau);
+			const double e_from_p = 1.0 / (eps_inf * tau);
+			const double p_from_e = eps_d / tau;
+			const double p_from_p = -1.0 / tau;
+
+			fes_.GetElementDofs(el, dofs);
+			for (int u = 0; u < 3; ++u) {
+				const int e_off = u * ndofs;
+				const int p_off = 6 * ndofs + n_pml + u * ndofs;
+				for (int j = 0; j < dofs.Size(); ++j) {
+					int dof = dofs[j];
+					if (dof < 0) {
+						dof = -1 - dof;
+					}
+					matrix->Add(e_off + dof, e_off + dof, e_from_e);
+					matrix->Add(e_off + dof, p_off + dof, e_from_p);
+					matrix->Add(p_off + dof, e_off + dof, p_from_e);
+					matrix->Add(p_off + dof, p_off + dof, p_from_p);
+				}
+			}
+		}
+
+		if (!any) {
+			return nullptr;
+		}
+
+		matrix->Finalize();
+		return matrix;
+	}
+
+	template <typename FES>
+	std::unique_ptr<mfem::SparseMatrix> DGOperatorFactory<FES>::buildLorentzOperator()
+	{
+		if (!pd_.model.hasLorentz()) {
+			return nullptr;
+		}
+
+		const int ndofs = fes_.GetNDofs();
+		mfem::Mesh* mesh = fes_.GetMesh();
+		const int n_pml = computePMLAuxSize(
+			pd_.model.getPMLProperties(), ndofs, mesh->Dimension());
+		const int n_debye = pd_.model.debyeAuxSize(ndofs);
+		const int n_lorentz = 6 * ndofs;
+		const int n_state = 6 * ndofs + n_pml + n_debye + n_lorentz;
+		const int p_base = 6 * ndofs + n_pml + n_debye;
+		const int j_base = p_base + 3 * ndofs;
+		auto matrix = std::make_unique<mfem::SparseMatrix>(n_state, n_state);
+
+		bool any = false;
+		mfem::Array<int> dofs;
+		for (int el = 0; el < mesh->GetNE(); ++el) {
+			const LorentzProperties* pole = pd_.model.findLorentz(mesh->GetAttribute(el));
+			if (!pole) {
+				continue;
+			}
+			any = true;
+			const double e_from_j = -1.0 / pole->eps_inf;
+			const double j_from_e = pole->omega_p * pole->omega_p;
+			const double j_from_p = -pole->omega_1 * pole->omega_1;
+			const double j_from_j = -2.0 * pole->gamma;
+
+			fes_.GetElementDofs(el, dofs);
+			for (int u = 0; u < 3; ++u) {
+				const int e_off = u * ndofs;
+				const int p_off = p_base + u * ndofs;
+				const int j_off = j_base + u * ndofs;
+				for (int j = 0; j < dofs.Size(); ++j) {
+					int dof = dofs[j];
+					if (dof < 0) {
+						dof = -1 - dof;
+					}
+					matrix->Add(e_off + dof, j_off + dof, e_from_j);
+					matrix->Add(p_off + dof, j_off + dof, 1.0);
+					matrix->Add(j_off + dof, e_off + dof, j_from_e);
+					matrix->Add(j_off + dof, p_off + dof, j_from_p);
+					matrix->Add(j_off + dof, j_off + dof, j_from_j);
+				}
+			}
+		}
+
+		if (!any) {
+			return nullptr;
+		}
+
+		matrix->Finalize();
+		return matrix;
 	}
 
 

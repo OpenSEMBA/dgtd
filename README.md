@@ -101,10 +101,17 @@ Cases live under `testData/maxwellInputs/<case_name>/` with matching `<case_name
 
 Full JSON reference: **[docs/json-input-format.md](docs/json-input-format.md)**.
 
+JSON units that are easy to get wrong:
+
+- **Lorentz:** `materials[].lorentz` with either Hz (`f_p`, `f_1`, `gamma`) or rad/s (`omega_p`, `omega_1`, `gamma`). Do not mix. Hz `gamma` is a frequency, converted as $2\pi f$ like the other two rates. Example: [3D_RCS_Lorentz_G2](testData/maxwellInputs/3D_RCS_Lorentz_G2/3D_RCS_Lorentz_G2.json).
+- **Gaussian:** `f_1e` (Hz at 1/e incident power) or `spread` (light-metres). If both are set, `f_1e` wins and a warning is printed; an under-resolved pulse also warns and continues.
+
 Example:
 ```sh
-./build/gnu-release-mpi/bin/opensemba_dgtd testData/maxwellInputs/1D_PEC/1D_PEC.json
+./build/gnu-release-mpi/bin/opensemba_dgtd -i testData/maxwellInputs/1D_PEC/1D_PEC.json
 ```
+
+CUDA builds (`gnu-release-cuda`, `gnu-release-cuda-sm120`, and the matching debug presets) default to `--device cuda`. Override with `--device cpu` or `--device omp` if you need the host. MPI-only binaries still default to `cpu`.
 
 (Confirm binary name/path for your preset.)
 

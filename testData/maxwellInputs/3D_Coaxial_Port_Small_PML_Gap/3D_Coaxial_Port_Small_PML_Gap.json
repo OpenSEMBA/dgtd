@@ -1,0 +1,48 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 1e-5,
+    "final_time": 40.0,
+    "order": 1
+  },
+  "model": {
+    "filename": "3D_Coaxial_Port_Small_PML_Gap.msh",
+    "materials": [
+      {
+        "tags": [1, 3, 7, 8, 9],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [9, 204, 206],
+        "type": "PEC"
+      },
+      {
+        "tags": [7, 203, 205],
+        "type": "PEC"
+      },
+      {
+        "tags": [2, 12],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.2
+    }
+  },
+  "sources": [
+    {
+      "type": "coaxial_port",
+      "tags": {
+        "outer": [7, 203, 205],
+        "live": [9, 204, 206],
+        "load": [202]
+      },
+      "signal": "gaussian_derivative",
+      "spread": 0.3
+    }
+  ]
+}

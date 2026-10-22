@@ -1,0 +1,71 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "final_time": 25.0,
+    "order": 4,
+    "time_step": 0.01
+  },
+  "model": {
+    "filename": "eps6_tau0p8.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          3
+        ],
+        "debye": {
+          "eps_inf": 2.0,
+          "eps_s": 6.0,
+          "tau": 2.6685127615852166e-09
+        }
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          2
+        ],
+        "type": "PEC"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 1.0
+    }
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.6
+      }
+    }
+  ]
+}

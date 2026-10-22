@@ -46,9 +46,12 @@ public:
         const mfem::DG_FECollection* fec,
         mfem::ParFiniteElementSpace& parentFes,
         Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& globalFields,
-        const std::string& caseName);
+        const std::string& caseName,
+        bool resume = false);
 
     void write(double time, int cycle, double finalTime);
+    /// Drop snapshots whose time is after `time` and leave the file ready to append.
+    void truncateSnapshotsAfter(double time);
 
     const std::string& getOutputPath() const { return outputPath_; }
 
