@@ -382,7 +382,7 @@ TEST_F(CasesTest, 1D_TFSF_Upwind_Negative_K)
 	case_data["probes"]["point"][0]["position"] = {2.99999};
 	case_data["probes"]["point"][2]["position"] = { -2.99999 };
 	case_data["sources"][0]["propagation"] = { -1.0, 0.0, 0.0 };
-	case_data["sources"][0]["magnitude"]["mean"] = { 5.0 };
+	case_data["sources"][0]["magnitude"]["mean"] = { 5.0, 0.0, 0.0 };
 	auto solver{ buildSolver(case_data, maxwellCase("1D_TFSF"), true) };
 
 	auto normOld{ solver.getFields().getNorml2() };
