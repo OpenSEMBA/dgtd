@@ -61,6 +61,128 @@ bool extractDirectPlanewaveSource(const TotalField& tf, DirectPlanewaveSourceDat
 
 double evalDirectPlanewaveComponent(const DirectPlanewaveSourceData& src,
                                     double x, double y, double z,
+                                    double time, int field_type, int direction);
+
+void fillDofCoordsAndSign(FiniteElementSpace& fes,
+                          TotalFieldScatteredFieldSubMesher& submesher,
+                          Vector& dof_coords,
+                          Vector& tfsf_sign)
+{
+    const int ndofs = fes.GetNDofs();
+    dof_coords.SetSize(3 * ndofs);
+    dof_coords = 0.0;
+    for (int el = 0; el < fes.GetNE(); ++el) {
+        const auto* fe = fes.GetFE(el);
+        auto* T = fes.GetElementTransformation(el);
+        const auto& ir = fe->GetNodes();
+        mfem::Array<int> dofs;
+        fes.GetElementDofs(el, dofs);
+        for (int i = 0; i < dofs.Size(); ++i) {
+            const auto& ip = ir.IntPoint(i);
+            T->SetIntPoint(&ip);
+            mfem::Vector coords;
+            T->Transform(ip, coords);
+            const int dof = dofs[i];
+            for (int c = 0; c < coords.Size(); ++c) {
+                dof_coords[3 * dof + c] = coords[c];
+            }
+        }
+    }
+
+    tfsf_sign.SetSize(ndofs);
+    tfsf_sign = 1.0;
+    if (submesher.getSFSubMesh() != NULL) {
+        auto global_tfsf_map = submesher.getGlobalTFSFSubMesh()->GetParentElementIDMap();
+        std::unordered_map<int, int> parent_to_global;
+        for (int i = 0; i < global_tfsf_map.Size(); ++i) {
+            parent_to_global[global_tfsf_map[i]] = i;
+        }
+
+        tfsf_sign = 0.5;
+
+        auto sf_map = submesher.getSFSubMesh()->GetParentElementIDMap();
+        std::unordered_set<int> sf_dof_set;
+        for (int e = 0; e < sf_map.Size(); ++e) {
+            auto it = parent_to_global.find(sf_map[e]);
+            if (it == parent_to_global.end()) continue;
+            mfem::Array<int> dofs;
+            fes.GetElementDofs(it->second, dofs);
+            for (int i = 0; i < dofs.Size(); ++i) {
+                sf_dof_set.insert(dofs[i]);
+            }
+        }
+        for (int dof : sf_dof_set) {
+            tfsf_sign[dof] = -0.5;
+        }
+    }
+}
+
+void storeDirectSources(const std::vector<DirectPlanewaveSourceData>& direct_sources,
+                        Vector& params,
+                        Array<int>& meta,
+                        int& count)
+{
+    count = static_cast<int>(direct_sources.size());
+    meta.SetSize(count * kDirectSourceMetaStride);
+    params.SetSize(count * kDirectSourceParamStride);
+    for (int s = 0; s < count; ++s) {
+        const auto& src = direct_sources[static_cast<std::size_t>(s)];
+        meta[metaIndex(s, 0)] = src.field_type;
+        meta[metaIndex(s, 1)] = src.waveform;
+        params[paramIndex(s, 0)] = src.spread;
+        params[paramIndex(s, 1)] = src.mean;
+        params[paramIndex(s, 2)] = src.frequency;
+        for (int d = 0; d < 3; ++d) {
+            params[paramIndex(s, 3 + d)] = src.polarization[d];
+            params[paramIndex(s, 6 + d)] = src.propagation[d];
+        }
+    }
+}
+
+void evalIncidentOnHost(int ndofs,
+                        const Vector& dof_coords,
+                        const Vector& tfsf_sign,
+                        const Vector& params,
+                        const Array<int>& meta,
+                        int source_count,
+                        Time time,
+                        bool apply_tfsf_sign,
+                        std::vector<double>& out)
+{
+    out.assign(static_cast<std::size_t>(6 * ndofs), 0.0);
+    const double* coords = dof_coords.HostRead();
+    const double* sign = tfsf_sign.HostRead();
+    const double* source_params = params.HostRead();
+    const int* source_meta = meta.HostRead();
+    for (int i = 0; i < ndofs; ++i) {
+        const double x = coords[3 * i + 0];
+        const double y = coords[3 * i + 1];
+        const double z = coords[3 * i + 2];
+        const double scale = apply_tfsf_sign ? sign[i] : 1.0;
+        for (int s = 0; s < source_count; ++s) {
+            DirectPlanewaveSourceData src;
+            src.field_type = source_meta[metaIndex(s, 0)];
+            src.waveform = source_meta[metaIndex(s, 1)];
+            src.spread = source_params[paramIndex(s, 0)];
+            src.mean = source_params[paramIndex(s, 1)];
+            src.frequency = source_params[paramIndex(s, 2)];
+            for (int d = 0; d < 3; ++d) {
+                src.polarization[d] = source_params[paramIndex(s, 3 + d)];
+                src.propagation[d] = source_params[paramIndex(s, 6 + d)];
+            }
+            for (int ft : { E, H }) {
+                for (int d : { X, Y, Z }) {
+                    const int comp = (ft == E ? 0 : 3) + d;
+                    out[static_cast<std::size_t>(comp * ndofs + i)] +=
+                        scale * evalDirectPlanewaveComponent(src, x, y, z, time, ft, d);
+                }
+            }
+        }
+    }
+}
+
+double evalDirectPlanewaveComponent(const DirectPlanewaveSourceData& src,
+                                    double x, double y, double z,
                                     double time, int field_type, int direction)
 {
     const double phase_delay =
@@ -248,7 +370,6 @@ void SourcesManager::initDirectPlanewaveEval()
 
     if (!global_tfsf_fes_) return;
     auto* fes = global_tfsf_fes_.get();
-    const int ndofs = fes->GetNDofs();
     if (!isClosedBasis(*fes)) return;
 
     std::vector<DirectPlanewaveSourceData> direct_sources;
@@ -266,77 +387,11 @@ void SourcesManager::initDirectPlanewaveEval()
     }
     if (direct_sources.empty()) return;
 
-    // 1) Pre-compute physical coordinates for each DOF
-    dof_coords_.SetSize(3 * ndofs);
-    dof_coords_ = 0.0;
-    for (int el = 0; el < fes->GetNE(); ++el) {
-        const auto* fe = fes->GetFE(el);
-        auto* T = fes->GetElementTransformation(el);
-        const auto& ir = fe->GetNodes();
-        mfem::Array<int> dofs;
-        fes->GetElementDofs(el, dofs);
-        for (int i = 0; i < dofs.Size(); ++i) {
-            const auto& ip = ir.IntPoint(i);
-            T->SetIntPoint(&ip);
-            mfem::Vector coords;
-            T->Transform(ip, coords);
-            const int dof = dofs[i];
-            for (int c = 0; c < coords.Size(); ++c) {
-                dof_coords_[3 * dof + c] = coords[c];
-            }
-        }
-    }
+    fillDofCoordsAndSign(*fes, tfsf_submesher_, dof_coords_, tfsf_sign_);
+    storeDirectSources(direct_sources, direct_source_params_, direct_source_meta_,
+                       direct_source_count_);
 
-    // 2) Pre-compute TF/SF sign mask
-    tfsf_sign_.SetSize(ndofs);
-    tfsf_sign_ = 1.0;  // Default: no SF submesh, scale = 1.0
-    if (tfsf_submesher_.getSFSubMesh() != NULL) {
-        // Build set of SF DOF indices (on the global TFSF submesh)
-        auto global_tfsf_map = tfsf_submesher_.getGlobalTFSFSubMesh()->GetParentElementIDMap();
-
-        // Build reverse lookup: parent_elem_id -> global_tfsf_element_index
-        std::unordered_map<int, int> parent_to_global;
-        for (int i = 0; i < global_tfsf_map.Size(); ++i) {
-            parent_to_global[global_tfsf_map[i]] = i;
-        }
-
-        // All DOFs start as TF (+0.5)
-        tfsf_sign_ = 0.5;
-
-        // Mark SF DOFs as -0.5
-        auto sf_map = tfsf_submesher_.getSFSubMesh()->GetParentElementIDMap();
-        std::unordered_set<int> sf_dof_set;
-        for (int e = 0; e < sf_map.Size(); ++e) {
-            auto it = parent_to_global.find(sf_map[e]);
-            if (it == parent_to_global.end()) continue;
-            mfem::Array<int> dofs;
-            fes->GetElementDofs(it->second, dofs);
-            for (int i = 0; i < dofs.Size(); ++i) {
-                sf_dof_set.insert(dofs[i]);
-            }
-        }
-        for (int dof : sf_dof_set) {
-            tfsf_sign_[dof] = -0.5;
-        }
-    }
-
-    direct_source_count_ = static_cast<int>(direct_sources.size());
-    direct_source_meta_.SetSize(direct_source_count_ * kDirectSourceMetaStride);
-    direct_source_params_.SetSize(direct_source_count_ * kDirectSourceParamStride);
-    for (int s = 0; s < direct_source_count_; ++s) {
-        const auto& src = direct_sources[s];
-        direct_source_meta_[metaIndex(s, 0)] = src.field_type;
-        direct_source_meta_[metaIndex(s, 1)] = src.waveform;
-        direct_source_params_[paramIndex(s, 0)] = src.spread;
-        direct_source_params_[paramIndex(s, 1)] = src.mean;
-        direct_source_params_[paramIndex(s, 2)] = src.frequency;
-        for (int d = 0; d < 3; ++d) {
-            direct_source_params_[paramIndex(s, 3 + d)] = src.polarization[d];
-            direct_source_params_[paramIndex(s, 6 + d)] = src.propagation[d];
-        }
-    }
-
-    // 3) Initialize cached grid functions if not already done
+    // Initialize cached grid functions if not already done
     if (!cached_tfsf_fields_init_) {
         for (auto ft : { E, H }) {
             for (auto d : { X, Y, Z }) {
@@ -415,40 +470,15 @@ void SourcesManager::evalTimeVarFieldDirectToHost(Time time,
                                                   bool apply_tfsf_sign) const
 {
     MFEM_VERIFY(direct_eval_ready_, "initDirectPlanewaveEval() must be called first");
-    auto* fes = global_tfsf_fes_.get();
-    const int ndofs = fes->GetNDofs();
-    out.assign(static_cast<std::size_t>(6 * ndofs), 0.0);
-
-    const double* coords = dof_coords_.HostRead();
-    const double* sign = tfsf_sign_.HostRead();
-    const double* params = direct_source_params_.HostRead();
-    const int* meta = direct_source_meta_.HostRead();
-
-    for (int i = 0; i < ndofs; ++i) {
-        const double x = coords[3 * i + 0];
-        const double y = coords[3 * i + 1];
-        const double z = coords[3 * i + 2];
-        const double scale = apply_tfsf_sign ? sign[i] : 1.0;
-        for (int s = 0; s < direct_source_count_; ++s) {
-            DirectPlanewaveSourceData src;
-            src.field_type = meta[metaIndex(s, 0)];
-            src.waveform = meta[metaIndex(s, 1)];
-            src.spread = params[paramIndex(s, 0)];
-            src.mean = params[paramIndex(s, 1)];
-            src.frequency = params[paramIndex(s, 2)];
-            for (int d = 0; d < 3; ++d) {
-                src.polarization[d] = params[paramIndex(s, 3 + d)];
-                src.propagation[d] = params[paramIndex(s, 6 + d)];
-            }
-            for (int ft : { E, H }) {
-                for (int d : { X, Y, Z }) {
-                    const int comp = (ft == E ? 0 : 3) + d;
-                    out[static_cast<std::size_t>(comp * ndofs + i)] +=
-                        scale * evalDirectPlanewaveComponent(src, x, y, z, time, ft, d);
-                }
-            }
-        }
-    }
+    evalIncidentOnHost(global_tfsf_fes_->GetNDofs(),
+                       dof_coords_,
+                       tfsf_sign_,
+                       direct_source_params_,
+                       direct_source_meta_,
+                       direct_source_count_,
+                       time,
+                       apply_tfsf_sign,
+                       out);
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     // HostRead above can leave these vectors host-authoritative; Mult's GPU
@@ -460,6 +490,81 @@ void SourcesManager::evalTimeVarFieldDirectToHost(Time time,
         (void)const_cast<mfem::Array<int>&>(direct_source_meta_).Read();
     }
 #endif
+}
+
+void SourcesManager::initSerialMORIncident(const mfem::Mesh& serial_mesh,
+                                           const mfem::Array<int>& marker)
+{
+    serial_mor_ready_ = false;
+    serial_mor_source_count_ = 0;
+    serial_mor_fes_.reset();
+    serial_mor_submesher_.reset();
+    serial_mor_params_.SetSize(0);
+    serial_mor_meta_.SetSize(0);
+
+    int tf_volume = -1;
+    for (const auto& source : sources) {
+        auto* tf = dynamic_cast<TotalField*>(source.get());
+        if (tf == nullptr) {
+            continue;
+        }
+        auto* coax = dynamic_cast<const CoaxialMode*>(tf->function());
+        if (coax == nullptr) {
+            continue;
+        }
+        if (tf_volume >= 0) {
+            throw std::runtime_error("Only one coaxial_port source is supported.");
+        }
+        tf_volume = coax->totalFieldVolume();
+    }
+
+    serial_mor_submesher_ = std::make_unique<TotalFieldScatteredFieldSubMesher>(
+        serial_mesh, marker, tf_volume);
+    if (serial_mor_submesher_->getGlobalTFSFSubMesh() == nullptr) {
+        return;
+    }
+    serial_mor_fes_ = std::make_unique<FiniteElementSpace>(
+        serial_mor_submesher_->getGlobalTFSFSubMesh(), fes_.FEColl());
+    if (!isClosedBasis(*serial_mor_fes_)) {
+        return;
+    }
+
+    std::vector<DirectPlanewaveSourceData> direct_sources;
+    direct_sources.reserve(sources.size());
+    for (const auto& source : sources) {
+        auto* tf = dynamic_cast<TotalField*>(source.get());
+        if (tf == nullptr) {
+            continue;
+        }
+        DirectPlanewaveSourceData src_data;
+        if (!extractDirectPlanewaveSource(*tf, src_data)) {
+            return;
+        }
+        direct_sources.push_back(src_data);
+    }
+    if (direct_sources.empty()) {
+        return;
+    }
+
+    fillDofCoordsAndSign(*serial_mor_fes_, *serial_mor_submesher_,
+                         serial_mor_coords_, serial_mor_sign_);
+    storeDirectSources(direct_sources, serial_mor_params_, serial_mor_meta_,
+                       serial_mor_source_count_);
+    serial_mor_ready_ = true;
+}
+
+void SourcesManager::evalSerialMORIncidentToHost(Time time, std::vector<double>& out) const
+{
+    MFEM_VERIFY(serial_mor_ready_, "initSerialMORIncident() must be called first");
+    evalIncidentOnHost(serial_mor_fes_->GetNDofs(),
+                       serial_mor_coords_,
+                       serial_mor_sign_,
+                       serial_mor_params_,
+                       serial_mor_meta_,
+                       serial_mor_source_count_,
+                       time,
+                       true,
+                       out);
 }
 
 int SourcesManager::findTFSFDofAtPosition(const Source::Position& pos, double tol) const

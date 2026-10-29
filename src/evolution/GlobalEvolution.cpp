@@ -3,6 +3,7 @@
 #include "components/SCPMLLayout.h"
 #include "math/Function.h"
 #include "math/PhysicalConstants.h"
+#include "solver/SerialLayoutExport.h"
 
 #include <chrono>
 #include <cmath>
@@ -125,6 +126,78 @@ static void logTFSFPartitionFaceCoverage(mfem::ParMesh& mesh,
         }
         std::cout << std::endl;
     }
+}
+
+static void writeFieldSelectionCSR(
+    const mfem::Array<int>& sub_to_parent,
+    int parent_ndofs,
+    bool submesh_on_columns,
+    const std::filesystem::path& file_path,
+    const char* label)
+{
+    const int sub_ndofs = sub_to_parent.Size();
+    const int rows = 6 * (submesh_on_columns ? parent_ndofs : sub_ndofs);
+    const int cols = 6 * (submesh_on_columns ? sub_ndofs : parent_ndofs);
+    auto matrix = std::make_unique<mfem::SparseMatrix>(rows, cols);
+    for (int comp = 0; comp < 6; ++comp) {
+        for (int sub = 0; sub < sub_ndofs; ++sub) {
+            const int parent = sub_to_parent[sub];
+            const int sub_index = comp * sub_ndofs + sub;
+            const int parent_index = comp * parent_ndofs + parent;
+            if (submesh_on_columns) {
+                matrix->Set(parent_index, sub_index, 1.0);
+            } else {
+                matrix->Set(sub_index, parent_index, 1.0);
+            }
+        }
+    }
+    matrix->Finalize();
+
+    std::filesystem::create_directories(file_path.parent_path());
+    std::ofstream ofs(file_path);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Could not open file for writing: " + file_path.string());
+    }
+    matrix->PrintCSR2(ofs);
+    std::cout << label << " exported to " << file_path << std::endl;
+}
+
+static mfem::Array<int> buildSubmeshToParentDofs(
+    mfem::Mesh& parent_mesh,
+    mfem::SubMesh& submesh,
+    const mfem::FiniteElementCollection* fec,
+    int& parent_ndofs)
+{
+    mfem::FiniteElementSpace parent_fes(&parent_mesh, fec);
+    mfem::FiniteElementSpace sub_fes(&submesh, fec);
+    mfem::Array<int> ids;
+    mfem::SubMeshUtils::BuildVdofToVdofMap(
+        sub_fes, parent_fes, submesh.GetFrom(), submesh.GetParentElementIDMap(), ids);
+    parent_ndofs = parent_fes.GetNDofs();
+    return ids;
+}
+
+static mfem::Array<int> boundaryMarkerFromMesh(
+    const mfem::Mesh& mesh, const std::vector<int>& tags)
+{
+    const auto& attrs = mesh.bdr_attributes;
+    const int n = attrs.Size() == 0 ? 0 : attrs.Max();
+    if (!tags.empty() && n <= 0) {
+        throw std::runtime_error(
+            "Surface probe tag is set but the mesh has no boundary attributes.");
+    }
+    mfem::Array<int> marker(n);
+    marker = 0;
+    for (const int tag : tags) {
+        if (tag < 1 || tag > marker.Size()) {
+            throw std::runtime_error(
+                "Surface probe tag " + std::to_string(tag)
+                + " is outside the mesh boundary-attribute range 1.."
+                + std::to_string(marker.Size()) + ".");
+        }
+        marker[tag - 1] = 1;
+    }
+    return marker;
 }
 
 GlobalEvolution::GlobalEvolution(
@@ -596,7 +669,48 @@ GlobalEvolution::GlobalEvolution(
                 mapping_matrix->PrintCSR2(ofs_map);
                 ofs_map.close();
                 std::cout << "TFSF mapping matrix exported to " << mapping_path << std::endl;
+            } else if (TFSFOperator_) {
+                const int n_nbr = fes_.num_face_nbr_dofs;
+                if (n_nbr < 0) {
+                    throw std::runtime_error(
+                        "Face-neighbor data is missing; cannot export the parallel TFSF operator.");
+                }
+                const mfem::Array<HYPRE_BigInt>* nbr_map =
+                    (n_nbr > 0) ? &fes_.GetFaceNbrGlobalDofMapArray() : nullptr;
+                const auto dof_map = buildSerialDGDofMap(fes_, model_.elementPartition());
+                std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / model_.meshName_;
+                std::filesystem::path file_path = export_dir / (model_.meshName_ + "_tfsf.csr");
+                gatherSerialCSR(*TFSFOperator_, dof_map, nbr_map, n_nbr, file_path, "TFSF operator");
+                if (Mpi::WorldRank() == 0) {
+                    auto* dgfec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
+                    if (!dgfec) {
+                        throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+                    }
+                    const auto& tfsf_marker =
+                        model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn);
+                    TotalFieldScatteredFieldSubMesher serial_submesher(
+                        model_.getSerialMesh(), tfsf_marker, -1);
+                    auto* serial_sub = serial_submesher.getGlobalTFSFSubMesh();
+                    if (serial_sub == nullptr) {
+                        throw std::runtime_error("Serial TFSF submesh is empty.");
+                    }
+                    int parent_ndofs = 0;
+                    const auto ids = buildSubmeshToParentDofs(
+                        model_.getSerialMesh(), *serial_sub, dgfec, parent_ndofs);
+                    writeFieldSelectionCSR(
+                        ids, parent_ndofs, true,
+                        export_dir / (model_.meshName_ + "_tfsf_mapping.csr"),
+                        "TFSF mapping matrix");
+                }
             }
+        }
+
+        if (Mpi::WorldSize() > 1
+            && !probes.morStateProbes.empty()
+            && Mpi::WorldRank() == 0) {
+            srcmngr_.initSerialMORIncident(
+                model_.getSerialMesh(),
+                model_.getTotalFieldScatteredFieldToMarker().at(BdrCond::TotalFieldIn));
         }
     }
 
@@ -650,6 +764,26 @@ GlobalEvolution::GlobalEvolution(
                 farfield_mapping_matrix->PrintCSR2(ofs_farfield);
                 ofs_farfield.close();
                 std::cout << "Farfield mapping matrix exported to " << farfield_path << std::endl;
+                }
+            }
+        } else if (Mpi::WorldRank() == 0) {
+            const auto rcs_tags = collectRCSSurfaceTags(probes);
+            if (!rcs_tags.empty()) {
+                auto* dgfec = dynamic_cast<const mfem::DG_FECollection*>(fes_.FEColl());
+                if (!dgfec) {
+                    throw std::runtime_error("The FiniteElementCollection in the FiniteElementSpace is not DG.");
+                }
+                auto marker = boundaryMarkerFromMesh(model_.getSerialMesh(), rcs_tags);
+                NearToFarFieldSubMesher ntff_submesher(model_.getSerialMesh(), fes_, marker);
+                if (ntff_submesher.hasLocalSurface()) {
+                    int parent_ndofs = 0;
+                    const auto ids = buildSubmeshToParentDofs(
+                        model_.getSerialMesh(), *ntff_submesher.getSubMesh(), dgfec, parent_ndofs);
+                    writeFieldSelectionCSR(
+                        ids, parent_ndofs, false,
+                        std::filesystem::path("exports") / "Operators" / model_.meshName_
+                            / (model_.meshName_ + "_farfield.csr"),
+                        "Farfield mapping matrix");
                 }
             }
         }

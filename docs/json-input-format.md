@@ -20,7 +20,7 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | `sgbc_cfl` | double | `0.5` | Crossing-time CFL for SGBC sub-step recommendation: `δt_rec = crossing_time × sgbc_cfl × opacity_relax` (then SI→natural). Must be `> 0`. Omit for historical default (`0.5`). Does not change SGBC layer geometry; only `nsteps = ceil(Δt / δt_rec)`. |
 | `order` | integer | `2` | Polynomial order of the FE basis. |
 | `spectral` | boolean | `false` | Spectral evolution operator (full matrix eigenvalue step). High cost; limited feature support. |
-| `export_operator` | boolean | `false` | Write assembled evolution operator to disk. |
+| `export_operator` | boolean | `false` | Write the assembled evolution operator to `exports/Operators/<mesh>/` (`{mesh}_global.csr`, and `{mesh}_tfsf.csr`, `{mesh}_tfsf_mapping.csr`, `{mesh}_farfield.csr` when those pieces exist). With more than one MPI rank the partitioned matrices are gathered into the same serial-mesh DOF order a one-rank run writes. The directory name does not include the run mode. |
 | `basis_type` | integer | `1` | MFEM basis: `0` GaussLegendre, `1` GaussLobatto, `2` Bernstein, `3` OpenUniform, `4` CloseUniform, `5` OpenHalfUniform. |
 | `ode_type` | integer | `0` | Time integrator: `0` RK4, `1` BackwardEuler, `2` Trapezoidal, `3` ImplicitMidpoint, `4` SDIRK33, `5` SDIRK23, `6` SDIRK34. |
 | `checkpoint_percent` | double | `20` | `0` disables checkpoints. Otherwise, after the completed step that crosses each multiple of this percent of `final_time`, write the evolved state. The default `20` saves near 20%, 40%, 60%, 80%, and 100%. |
@@ -236,7 +236,9 @@ Offline frequency/angle sweeps use a **separate** JSON for `opensemba_rcs` — s
 
 ### mor_state
 
-Full DG state vector snapshots compatible with exported `{name}_global.csr` for offline `y = A x`. Written under `exports/SimulationData/<run-mode>/<case>/MORStateProbes/<name>/`.
+Full DG state snapshots in serial-mesh DOF order, the same layout as `{mesh}_global.csr`, for offline `y = A x`. With more than one MPI rank, each rank's owned degrees of freedom are gathered into that order before the file is written. Files go under `exports/SimulationData/<run-mode>/<case>/MORStateProbes/<name>/`, where `<run-mode>` is `single-core` or `mpi-N` (and `cuda-N` on a GPU run).
+
+When the case has a planewave TFSF source, each save also writes `u_k` on the serial TFSF submesh. An MPI run builds that incident vector from the full mesh, so it matches a one-rank `u_k`.
 
 | Field | Description |
 |-------|-------------|
@@ -245,7 +247,7 @@ Full DG state vector snapshots compatible with exported `{name}_global.csr` for 
 | `saves` | Number of uniform snapshots |
 | `name` | Default `"MORState"` |
 
-Snapshot file format (`x_0`, `x_1`, …): line 1 = time, line 2 = size, then DOF values in `[Ex | Ey | Ez | Hx | Hy | Hz]` order.
+Snapshot file format (`x_0`, `x_1`, …): line 1 = time, line 2 = size, then DOF values in `[Ex | Ey | Ez | Hx | Hy | Hz]` order. `u_k` uses the same header. Its size is 6 times the number of DOFs on the TFSF submesh.
 
 ## sources [REQUIRED]
 

@@ -4,6 +4,7 @@
 #include "SCPMLLayout.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
+#include "solver/SerialLayoutExport.h"
 
 #include <algorithm>
 #include <chrono>
@@ -1910,12 +1911,50 @@ namespace maxwell
 		res->Threshold(threshold);
 
 		if(this->pd_.opts.export_evolution_operator){
-			if(Mpi::WorldSize() > 1){
-				std::cout << "---------------------------------------------------------------" << std::endl;
-				std::cout << "--EXPORTING OPERATOR ONLY CURRENTLY WORKS IN SINGLE RANK SIMS--" << std::endl;
-				std::cout << "-----THE SPATIAL EVOLUTION OPERATOR IS NOT BEING EXPORTED------" << std::endl;
-				std::cout << "---------------------------------------------------------------" << std::endl;
-				return res;
+			std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / this->pd_.model.meshName_;
+			std::filesystem::path file_path = export_dir / (this->pd_.model.meshName_ + "_global.csr");
+
+			if (Mpi::WorldSize() > 1) {
+				if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+					const int n_nbr = fes_.num_face_nbr_dofs;
+					if (n_nbr < 0) {
+						throw std::runtime_error(
+							"Face-neighbor data is missing; cannot export the parallel operator.");
+					}
+					const mfem::Array<HYPRE_BigInt>* nbr_map =
+						(n_nbr > 0) ? &fes_.GetFaceNbrGlobalDofMapArray() : nullptr;
+					gatherSerialCSR(
+						*res,
+						buildSerialDGDofMap(fes_, this->pd_.model.elementPartition()),
+						nbr_map,
+						n_nbr,
+						file_path,
+						"Global operator");
+				} else {
+					throw std::runtime_error(
+						"Parallel operator export requires a parallel finite element space.");
+				}
+			} else {
+				if (!std::filesystem::exists(export_dir))
+				{
+					std::filesystem::create_directories(export_dir);
+				}
+
+				std::ofstream ofs(file_path);
+				if (!ofs.is_open())
+				{
+					throw std::runtime_error("Could not open file for writing: " + file_path.string());
+				}
+
+				res->PrintCSR2(ofs);
+				ofs.close();
+
+				std::cout << "Global operator exported to " << file_path << std::endl;
+			}
+		}
+
+
+		return res;
 			}
 			std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / this->pd_.model.meshName_;
 

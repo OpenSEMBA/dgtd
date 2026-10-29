@@ -264,6 +264,9 @@ Solver::Solver(
     evolTDO_->SetTime(time_);
     
     // Initialize TFSF export in ProbesManager if TFSF is present and MOR state probes exist
+    if (!probesManager_.probes.morStateProbes.empty()) {
+        probesManager_.setElementPartition(&model_.elementPartition());
+    }
     if (globalEvol_cache_ && !probesManager_.probes.morStateProbes.empty()) {
         probesManager_.initTFSFExport(&sourcesManager_, &(globalEvol_cache_->getTFSFMapping()));
     }

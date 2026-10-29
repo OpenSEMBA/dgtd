@@ -7,6 +7,7 @@
 #include "components/SubMesher.h"
 #include "components/RCSSurfaceExporter.h"
 #include "solver/Checkpoint.h"
+#include "solver/SerialLayoutExport.h"
 #include "solver/SolverOptions.h"
 
 namespace maxwell {
@@ -73,6 +74,9 @@ public:
     void initTFSFExport(SourcesManager* srcmngr, const mfem::Array<int>* tfsf_mapping) {
         srcmngr_ = srcmngr;
         tfsf_mapping_ = tfsf_mapping;
+    }
+    void setElementPartition(const mfem::Array<int>* partition) {
+        element_partition_ = partition;
     }
     void printTimingSummaryAndReset() const;
     void flushOpenFiles();
@@ -159,6 +163,8 @@ private:
     
     SourcesManager* srcmngr_{nullptr};
     const mfem::Array<int>* tfsf_mapping_{nullptr};
+    const mfem::Array<int>* element_partition_{nullptr};
+    std::unique_ptr<SerialDGDofMap> serial_dof_map_;
     bool is_sgbc_solver_{false};
     bool preserve_existing_outputs_{false};
     mutable TimingStats timingStats_;

@@ -60,6 +60,12 @@ public:
                                       std::vector<double>& out,
                                       bool apply_tfsf_sign = true) const;
 
+    /// Incident field on the serial TFSF submesh, for MPI MOR `u_k` export.
+    /// Does not touch the parallel direct-eval buffers.
+    void initSerialMORIncident(const mfem::Mesh& serial_mesh, const mfem::Array<int>& marker);
+    bool hasSerialMORIncident() const { return serial_mor_ready_; }
+    void evalSerialMORIncidentToHost(Time time, std::vector<double>& out) const;
+
     // Pre-computed TF/SF sign mask: +0.5 for TF DOFs, -0.5 for SF, +1 if no SF.
     const mfem::Vector& getTFSFSign() const { return tfsf_sign_; }
 
@@ -91,6 +97,16 @@ private:
     mfem::Vector direct_source_params_;
     mfem::Array<int> direct_source_meta_;
     int direct_source_count_ = 0;
+
+    // Destroy the space before the submesh it references.
+    std::unique_ptr<TotalFieldScatteredFieldSubMesher> serial_mor_submesher_;
+    std::unique_ptr<mfem::FiniteElementSpace> serial_mor_fes_;
+    mfem::Vector serial_mor_coords_;
+    mfem::Vector serial_mor_sign_;
+    mfem::Vector serial_mor_params_;
+    mfem::Array<int> serial_mor_meta_;
+    int serial_mor_source_count_ = 0;
+    bool serial_mor_ready_ = false;
 
 };
 

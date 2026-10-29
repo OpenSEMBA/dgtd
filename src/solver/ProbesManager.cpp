@@ -932,6 +932,24 @@ void ProbesManager::recalculateExportSteps(double dt)
     }
 }
 
+namespace {
+
+void writeAsciiSnapshot(const std::string& file_path, double time, const std::vector<double>& values)
+{
+    std::ofstream ofs(file_path);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Could not open file for writing: " + file_path);
+    }
+    ofs << std::scientific << std::setprecision(16);
+    ofs << time << "\n";
+    ofs << values.size() << "\n";
+    for (double value : values) {
+        ofs << value << "\n";
+    }
+}
+
+}  // namespace
+
 void ProbesManager::updateProbe(MORStateProbe& p, Time time)
 {
     if (p.saves <= 0) return;
@@ -972,35 +990,60 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
     const int export_size = fields_->fieldBlockSize();
     std::string file_path = ctx.export_dir + "/x_" + std::to_string(ctx.save_count);
 
-    std::ofstream ofs(file_path);
-    if (ofs.is_open()) {
-        ofs << std::scientific << std::setprecision(16);
-        ofs << time << "\n";
-        ofs << export_size << "\n";
-        for (int i = 0; i < export_size; ++i) {
-            ofs << all_dofs[i] << "\n";
-        }
-        ofs.close();
-    }
-
-    // Export TFSF source function u if available.
-    // Use host-only eval so we never HostRead/Read the device-resident
-    // cached_tfsf_fields_ (that poisons the next GPU Mult TFSF eval).
-    if (srcmngr_ && tfsf_mapping_ && srcmngr_->hasDirectEval()) {
-        std::vector<double> u_combined;
-        srcmngr_->evalTimeVarFieldDirectToHost(time, u_combined);
-        const int tfsf_total_size = static_cast<int>(u_combined.size());
-
-        std::string u_path = ctx.export_dir + "/u_" + std::to_string(ctx.save_count);
-        std::ofstream ofs_u(u_path);
-        if (ofs_u.is_open()) {
-            ofs_u << std::scientific << std::setprecision(16);
-            ofs_u << time << "\n";
-            ofs_u << tfsf_total_size << "\n";
-            for (int i = 0; i < tfsf_total_size; ++i) {
-                ofs_u << u_combined[static_cast<std::size_t>(i)] << "\n";
+    if (Mpi::WorldSize() == 1) {
+        std::ofstream ofs(file_path);
+        if (ofs.is_open()) {
+            ofs << std::scientific << std::setprecision(16);
+            ofs << time << "\n";
+            ofs << export_size << "\n";
+            for (int i = 0; i < export_size; ++i) {
+                ofs << all_dofs[i] << "\n";
             }
-            ofs_u.close();
+            ofs.close();
+        }
+
+        // Export TFSF source function u if available.
+        // Use host-only eval so we never HostRead/Read the device-resident
+        // cached_tfsf_fields_ (that poisons the next GPU Mult TFSF eval).
+        if (srcmngr_ && tfsf_mapping_ && srcmngr_->hasDirectEval()) {
+            std::vector<double> u_combined;
+            srcmngr_->evalTimeVarFieldDirectToHost(time, u_combined);
+            const int tfsf_total_size = static_cast<int>(u_combined.size());
+
+            std::string u_path = ctx.export_dir + "/u_" + std::to_string(ctx.save_count);
+            std::ofstream ofs_u(u_path);
+            if (ofs_u.is_open()) {
+                ofs_u << std::scientific << std::setprecision(16);
+                ofs_u << time << "\n";
+                ofs_u << tfsf_total_size << "\n";
+                for (int i = 0; i < tfsf_total_size; ++i) {
+                    ofs_u << u_combined[static_cast<std::size_t>(i)] << "\n";
+                }
+                ofs_u.close();
+            }
+        }
+    } else {
+        if (!serial_dof_map_) {
+            if (element_partition_ == nullptr || element_partition_->Size() == 0) {
+                throw std::runtime_error(
+                    "MPI MOR state export requires the element partition.");
+            }
+            serial_dof_map_ = std::make_unique<SerialDGDofMap>(
+                buildSerialDGDofMap(fes_, *element_partition_));
+        }
+        const_cast<mfem::Vector&>(all_dofs).HostRead();
+        std::vector<double> serial_x;
+        gatherSerialEHVector(*serial_dof_map_, all_dofs.GetData(), serial_x);
+        if (Mpi::WorldRank() == 0) {
+            writeAsciiSnapshot(file_path, time, serial_x);
+            if (srcmngr_ != nullptr && srcmngr_->hasSerialMORIncident()) {
+                std::vector<double> u_combined;
+                srcmngr_->evalSerialMORIncidentToHost(time, u_combined);
+                writeAsciiSnapshot(
+                    ctx.export_dir + "/u_" + std::to_string(ctx.save_count),
+                    time,
+                    u_combined);
+            }
         }
     }
 

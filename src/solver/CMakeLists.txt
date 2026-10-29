@@ -9,7 +9,8 @@ add_library(maxwell-solver STATIC
 	"Solver.cpp"
 	"SolverExtension.cpp"
 	"ProbesManager.cpp" 
-	"SourcesManager.cpp")
+	"SourcesManager.cpp"
+	"SerialLayoutExport.cpp")
 
 target_link_libraries(maxwell-solver 
 	maxwell-evolution 
