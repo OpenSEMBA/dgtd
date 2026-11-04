@@ -176,14 +176,16 @@ int SGBCWrapper::getStateSize() const {
 void SGBCWrapper::loadState(const SGBCState& state) {
     auto& dst = solver_->getFields().allDOFs();
     const int n = dst.Size();
-    std::memcpy(dst.HostWrite(), state.fields_state.HostRead(),
+    // GetData(), not HostRead/HostWrite: OpenMP face threads must not touch
+    // the process-wide memory map. Both buffers are host-only.
+    std::memcpy(dst.GetData(), state.fields_state.GetData(),
                 static_cast<size_t>(n) * sizeof(double));
 }
 
 void SGBCWrapper::saveState(SGBCState& state) {
     const auto& src = solver_->getFields().allDOFs();
     const int n = src.Size();
-    std::memcpy(state.fields_state.HostWrite(), src.HostRead(),
+    std::memcpy(state.fields_state.GetData(), src.GetData(),
                 static_cast<size_t>(n) * sizeof(double));
 }
 
@@ -268,7 +270,7 @@ void SGBCWrapper::updateFieldsWithGlobalVector(const mfem::Vector& in, int ndofs
     // sub-steps share that vector.
     const double* in_h = in.GetData();
     auto& slab = solver_->getFields().allDOFs();
-    double* all = slab.HostReadWrite();
+    double* all = slab.GetData();
     const double* R = context.rot;
 
     // Read global-frame fields at left DOF, rotate to face-local frame
@@ -316,7 +318,7 @@ void SGBCWrapper::updateFieldsWithInterpolatedGhost(double alpha, const SGBCStat
     const bool has_right = (context.global_pair.second != -1);
     const int right_dof_offset = dof_per_field_comp - 1;
     auto& slab = solver_->getFields().allDOFs();
-    double* all = slab.HostReadWrite();
+    double* all = slab.GetData();
 
     const double beta = 1.0 - alpha;
 
@@ -455,9 +457,11 @@ void SGBCWrapper::solve(const Time t, const Time dt)
 
     this->solver_->setTimeStep(dt);
 
-    // Ghost values were written on the host. The sub-step reads the device
-    // copy when CUDA is the ODE memory class.
-    (void)this->solver_->getFields().allDOFs().Read();
+    // The coating state stays on the host (GetMemoryClass is HOST). Publishing
+    // it with Read() would register a device copy from every OpenMP thread.
+    if (this->solver_->getFields().allDOFs().UseDevice()) {
+        (void)this->solver_->getFields().allDOFs().Read();
+    }
     this->solver_->step(false);
 }
 

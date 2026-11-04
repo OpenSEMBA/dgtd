@@ -480,6 +480,8 @@ GlobalEvolution::GlobalEvolution(
             #pragma omp single
             max_threads = omp_get_num_threads();
         }
+        // The 1D sub-solves stay on the host (see GetMemoryClass). OpenMP
+        // clones do not allocate device memory, so they can share the process.
         sgbc_omp_threads_ = std::min(max_threads, static_cast<int>(sgbc_tasks_.size()));
         if (sgbc_omp_threads_ > 1) {
             for (auto& [tag, _] : sgbc_wrapper_map_) {
@@ -865,8 +867,47 @@ static void rotateGlobalFieldsToLocal(
 
 GlobalEvolution::~GlobalEvolution() = default;
 
+void GlobalEvolution::commitWires(double time, double dt)
+{
+    if (wires_) {
+        wires_->commit(time, dt);
+    }
+}
+
+void GlobalEvolution::finalizeWires(const mfem::Vector& eh)
+{
+    if (wires_) {
+        const int ndofs = fes_.GetNDofs();
+        if (!wires_->runsOnDevice()) {
+            eh.HostRead();
+        }
+        wires_->finalize(eh, ndofs);
+    }
+}
+
+void GlobalEvolution::exportWires(const std::string& directory, int cycle, double time) const
+{
+    if (wires_) {
+        wires_->writeParaView(directory, cycle, time);
+    }
+}
+
+bool GlobalEvolution::sampleWire(const std::vector<double>& point, double& current, double& charge) const
+{
+    if (!wires_) {
+        return false;
+    }
+    return wires_->sample(point, current, charge);
+}
+
 mfem::MemoryClass GlobalEvolution::GetMemoryClass() const
 {
+    // The coating sub-solver is a tiny 1D system, one per face. Keeping it on
+    // the host lets OpenMP run the faces concurrently. A CUDA launch per face
+    // is slower, and the launches race on the process-wide memory map.
+    if (opts_.is_sgbc_solver) {
+        return mfem::MemoryClass::HOST;
+    }
 #ifdef SEMBA_DGTD_ENABLE_CUDA
     if (mfem::Device::Allows(mfem::Backend::CUDA)) {
         return mfem::MemoryClass::DEVICE;
@@ -1331,6 +1372,13 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 
         double t_stage = GetTime();
         double dt_to_stage = t_stage - sgbc_step_base_time_;
+        if (sgbc_step_dt_ > 0.0) {
+            if (std::abs(dt_to_stage - 0.5 * sgbc_step_dt_) <= 1e-6 * sgbc_step_dt_) {
+                dt_to_stage = 0.5 * sgbc_step_dt_;
+            } else if (std::abs(dt_to_stage - sgbc_step_dt_) <= 1e-6 * sgbc_step_dt_) {
+                dt_to_stage = sgbc_step_dt_;
+            }
+        }
 
         // Restore SGBC states from start-of-step checkpoint (memcpy only)
         for (auto& [tag, states] : sgbc_states_) {
@@ -1883,6 +1931,62 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     }
     MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
 
+    // Host dense solve for the coating sub-solver. The 1D operator is the same
+    // on every OpenMP clone. SpMV and the LU stay on host pointers so the
+    // threads do not register device memory.
+    if (opts_.is_sgbc_solver) {
+        if (implicit_rhs_.Size() != n) {
+            implicit_rhs_.UseDevice(false);
+            implicit_rhs_.SetSize(n);
+        }
+        const double* xp = x.GetData();
+        double* rp = implicit_rhs_.GetData();
+        const int height = globalOperator_->Height();
+        for (int i = 0; i < height; ++i) {
+            const int nnz = globalOperator_->RowSize(i);
+            const int* cols = globalOperator_->GetRowColumns(i);
+            const double* vals = globalOperator_->GetRowEntries(i);
+            double sum = 0.0;
+            for (int j = 0; j < nnz; ++j) {
+                sum += vals[j] * xp[cols[j]];
+            }
+            rp[i] = sum;
+        }
+
+        if (!dense_A_formed_) {
+            globalOperator_->ToDenseMatrix(A_dense_);
+            for (int s = 0; s < num_lu_cache_slots_; ++s) {
+                J_dense_[s].SetSize(n);
+                cached_dt_[s] = -1.0;
+            }
+            dense_A_formed_ = true;
+        }
+        int slot = -1;
+        for (int s = 0; s < num_lu_cache_slots_; ++s) {
+            if (cached_dt_[s] > 0.0 && std::abs(dt - cached_dt_[s]) <= 1e-12 * dt && J_inv_[s]) {
+                slot = s;
+                break;
+            }
+        }
+        if (slot < 0) {
+            slot = next_lu_cache_slot_;
+            next_lu_cache_slot_ = (next_lu_cache_slot_ + 1) % num_lu_cache_slots_;
+            J_dense_[slot] = A_dense_;
+            J_dense_[slot] *= -dt;
+            for (int i = 0; i < n; ++i) {
+                J_dense_[slot](i, i) += 1.0;
+            }
+            J_inv_[slot] = std::make_unique<mfem::DenseMatrixInverse>(J_dense_[slot]);
+            cached_dt_[slot] = dt;
+        }
+        if (k.Size() != n) {
+            k.UseDevice(false);
+            k.SetSize(n);
+        }
+        J_inv_[slot]->Mult(rp, k.GetData());
+        return;
+    }
+
     // Reuse work vectors across calls (avoid repeated allocation)
     if (!implicit_work_initialized_ || implicit_inNew_.Size() != 6 * blockSize) {
         implicit_inNew_.SetSize(6 * blockSize);
@@ -1963,21 +2067,32 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         // One-time: form dense copy of globalOperator_
         if (!dense_A_formed_) {
             globalOperator_->ToDenseMatrix(A_dense_);
-            J_dense_.SetSize(n);
+            for (int s = 0; s < num_lu_cache_slots_; ++s) {
+                J_dense_[s].SetSize(n);
+                cached_dt_[s] = -1.0;  // force re-factorization
+            }
             dense_A_formed_ = true;
-            cached_dt_ = -1.0;  // force re-factorization
         }
 
-        // Re-factorize when dt changes (different sub-step sizes)
-        if (dt != cached_dt_) {
-            // J = I - dt*A
-            J_dense_ = A_dense_;
-            J_dense_ *= -dt;
-            for (int i = 0; i < n; i++) {
-                J_dense_(i, i) += 1.0;
+        // Re-factorize when dt is not in cache (different sub-step sizes)
+        int slot = -1;
+        for (int s = 0; s < num_lu_cache_slots_; ++s) {
+            if (cached_dt_[s] > 0.0 && std::abs(dt - cached_dt_[s]) <= 1e-12 * dt && J_inv_[s]) {
+                slot = s;
+                break;
             }
-            J_inv_ = std::make_unique<mfem::DenseMatrixInverse>(J_dense_);
-            cached_dt_ = dt;
+        }
+        if (slot < 0) {
+            slot = next_lu_cache_slot_;
+            next_lu_cache_slot_ = (next_lu_cache_slot_ + 1) % num_lu_cache_slots_;
+            // J = I - dt*A
+            J_dense_[slot] = A_dense_;
+            J_dense_[slot] *= -dt;
+            for (int i = 0; i < n; i++) {
+                J_dense_[slot](i, i) += 1.0;
+            }
+            J_inv_[slot] = std::make_unique<mfem::DenseMatrixInverse>(J_dense_[slot]);
+            cached_dt_[slot] = dt;
         }
 
         if (k.Size() != n) {
@@ -1988,7 +2103,7 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         // pointers, then publish that result to the device.
         const double* rhs_h = implicit_rhs_.HostRead();
         double* k_h = k.HostWrite();
-        J_inv_->Mult(rhs_h, k_h);
+        J_inv_[slot]->Mult(rhs_h, k_h);
         (void)k.Read();
     } else {
         // Large/parallel system: fall back to GMRES

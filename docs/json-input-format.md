@@ -17,7 +17,7 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | `final_time` | double | `2.0` | Simulation duration in natural units (1 m/c). |
 | `time_step` | double | `0.0` | Fixed time step in natural units. Required for 2D/3D. In 1D, `0.0` triggers automatic CFL-based step. |
 | `cfl` | double | `1.0` | CFL for automatic 1D time step. Range (0, 1]. Ignored if `time_step` is set. Not used in 2D/3D auto step. |
-| `sgbc_cfl` | double | `0.5` | Crossing-time CFL for SGBC sub-step recommendation: `δt_rec = crossing_time × sgbc_cfl × opacity_relax` (then SI→natural). Must be `> 0`. Omit for historical default (`0.5`). Does not change SGBC layer geometry; only `nsteps = ceil(Δt / δt_rec)`. |
+| `sgbc_cfl` | double | `0.5` | Crossing-time CFL for SGBC sub-step recommendation: `δt_rec = crossing_time × sgbc_cfl × opacity_relax` (then SI→natural), where `opacity_relax = min((d/δ)^2, 50)` for thick conductive layers ($d/\delta > 3$ evaluated at the source $1/e$ power frequency). Must be `> 0`. Omit for historical default (`0.5`). Does not change SGBC layer geometry; only `nsteps = ceil(Δt / δt_rec)`. |
 | `order` | integer | `2` | Polynomial order of the FE basis. |
 | `spectral` | boolean | `false` | Spectral evolution operator (full matrix eigenvalue step). High cost; limited feature support. |
 | `export_operator` | boolean | `false` | Write the assembled evolution operator to `exports/Operators/<mesh>/` (`{mesh}_global.csr`, and `{mesh}_tfsf.csr`, `{mesh}_tfsf_mapping.csr`, `{mesh}_farfield.csr` when those pieces exist). With more than one MPI rank the partitioned matrices are gathered into the same serial-mesh DOF order a one-rank run writes. The directory name does not include the run mode. |
@@ -167,6 +167,8 @@ Layer / material object fields:
 |-------|--------|
 | `left` | `"PEC"`, `"PMC"`, `"SMA"` (field-side) |
 | `right` | `"PEC"`, `"PMC"`, `"SMA"` (inner face) |
+
+Each SGBC sub-solver caches up to two dense LU factorizations of $J = I - \gamma\,\delta t\,A_s$, covering both the RK4 half-stage sub-step ($\delta t_{1/2} = 0.5\Delta t / N_{1/2}$) and the full-step sub-step ($\delta t_1 = \Delta t / N_1$) without re-factorizing during the time loop. Multiple SGBC boundary blocks with distinct `tags` and layer stacks may be defined in the same model and distributed across MPI ranks.
 
 ## probes [OPTIONAL]
 

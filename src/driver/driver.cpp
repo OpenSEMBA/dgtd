@@ -130,6 +130,61 @@ double calculateMaximumSourceFrequency(const json& case_data)
     return 1e9;
 }
 
+static double calculateSourcePower1eFrequency(const json& case_data)
+{
+    double c_si = physicalConstants::speedOfLight_SI;
+    double min_spread = std::numeric_limits<double>::max();
+    double max_freq_1e = 0.0;
+    bool found_gaussian = false;
+    bool found_modulated = false;
+
+    if (case_data.contains("sources")) {
+        for (const auto& source : case_data["sources"]) {
+            if (source.contains("type") && source["type"] == "coaxial_port") {
+                double spread = 1.0;
+                if (source.contains("f_1e") || source.contains("spread")) {
+                    spread = assembleGaussianSpread(source, "coaxial_port");
+                }
+                if (spread > 0.0 && spread < min_spread) {
+                    min_spread = spread;
+                    found_gaussian = true;
+                }
+                continue;
+            }
+            if (!source.contains("magnitude")) continue;
+            const auto& mag = source["magnitude"];
+            if (!mag.is_object()) {
+                continue;
+            }
+            if (mag.contains("frequency") && (mag.contains("spread") || mag.contains("f_1e"))) {
+                double spread = assembleGaussianSpread(mag, "modulated gaussian");
+                double f_carrier = mag["frequency"].get<double>();
+                double f_edge = f_carrier + c_si / (2.0 * M_PI * spread);
+                if (f_edge > max_freq_1e) {
+                    max_freq_1e = f_edge;
+                    found_modulated = true;
+                }
+            } else if (mag.contains("spread") || mag.contains("f_1e")) {
+                double spread = assembleGaussianSpread(mag, "gaussian");
+                if (spread > 0.0 && spread < min_spread) {
+                    min_spread = spread;
+                    found_gaussian = true;
+                }
+            }
+        }
+    }
+
+    if (found_modulated) {
+        return max_freq_1e;
+    }
+
+    if (found_gaussian) {
+        return c_si / (2.0 * M_PI * min_spread);
+    }
+
+    return 1e9;
+}
+
 std::vector<std::pair<int,int>> buildTwoElementPairsByTagToSort(mfem::Mesh& mesh, mfem::Array<int> tags)
 {
 	std::vector<std::pair<int,int>> res;
@@ -3284,6 +3339,7 @@ Model buildModel(
     std::vector<std::string> sgbc_notices;
     
     double max_freq = calculateMaximumSourceFrequency(case_data);
+    double freq_1e = calculateSourcePower1eFrequency(case_data);
 
     auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
         if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
@@ -3363,9 +3419,12 @@ Model buildModel(
             layer.order = mat_json["order"].get<size_t>();
         }
 
-        // Compute n_skin_depths for all ranks (used for CFL relaxation)
-        if (sigma_si > 0.0 && skin_depth > 0.0) {
-            layer.n_skin_depths = layer_width / skin_depth;
+        // Compute n_skin_depths for all ranks (used for CFL relaxation) at the
+        // pulse 1/e power frequency so semi-transparent layers are not relaxed
+        // based on the far spectral tail.
+        if (sigma_si > 0.0 && freq_1e > 0.0) {
+            double skin_depth_1e = 1.0 / std::sqrt(M_PI * freq_1e * mu_si * sigma_si);
+            layer.n_skin_depths = layer_width / skin_depth_1e;
         }
 
         if (Mpi::WorldRank() == 0) {

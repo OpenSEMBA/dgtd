@@ -146,11 +146,15 @@ private:
     // Cached dense LU factorization for small serial systems (SGBC sub-solver).
     // Activated only when n <= threshold AND nbrDofs == 0 (serial mesh).
     // This ensures it never triggers for the main 2D/3D parallel problem.
+    // Two cache slots cover RK4 stages 2-3 (0.5*dt/Ns) and stage 4/finalize (dt/Nf)
+    // without re-factorizing on every global step.
     static constexpr int dense_solve_threshold_ = 600;
+    static constexpr int num_lu_cache_slots_ = 2;
     mutable mfem::DenseMatrix A_dense_;           // Dense copy of globalOperator_
-    mutable mfem::DenseMatrix J_dense_;           // J = I - dt*A
-    mutable std::unique_ptr<mfem::DenseMatrixInverse> J_inv_;
-    mutable double cached_dt_ = -1.0;
+    mutable mfem::DenseMatrix J_dense_[num_lu_cache_slots_]; // J = I - dt*A
+    mutable std::unique_ptr<mfem::DenseMatrixInverse> J_inv_[num_lu_cache_slots_];
+    mutable double cached_dt_[num_lu_cache_slots_] = {-1.0, -1.0};
+    mutable int next_lu_cache_slot_ = 0;
     mutable bool dense_A_formed_ = false;
 };
 

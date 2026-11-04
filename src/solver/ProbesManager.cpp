@@ -556,6 +556,10 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
     if (pC.fesPoint.elementId != -2){
 #ifdef SEMBA_DGTD_ENABLE_CUDA
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            if (fields_) {
+                fields_->allDOFs().HostRead();
+                const_cast<mfem::GridFunction&>(pC.field).SyncAliasMemory(fields_->allDOFs());
+            }
             const_cast<mfem::GridFunction&>(pC.field).HostRead();
         }
 #endif
@@ -591,6 +595,15 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
     if (pC.fesPoint.elementId != -2){
 #ifdef SEMBA_DGTD_ENABLE_CUDA
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            if (fields_) {
+                fields_->allDOFs().HostRead();
+                const_cast<mfem::GridFunction&>(pC.field_Ex).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Ey).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Ez).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Hx).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Hy).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Hz).SyncAliasMemory(fields_->allDOFs());
+            }
             const_cast<mfem::GridFunction&>(pC.field_Ex).HostRead();
             const_cast<mfem::GridFunction&>(pC.field_Ey).HostRead();
             const_cast<mfem::GridFunction&>(pC.field_Ez).HostRead();
