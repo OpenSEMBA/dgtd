@@ -403,12 +403,7 @@ GlobalEvolution::GlobalEvolution(
             for (auto t = 0; t < sbcps[p].geom_tags.size(); t++){
                 if (tag == sbcps[p].geom_tags[t]){
 
-                    const ExporterProbe* sgbc_exporter_probe =
-                        (sbcps[p].exporter_probe && !probes.exporterProbes.empty())
-                            ? &probes.exporterProbes.front()
-                            : nullptr;
-
-                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p], final_time, sgbc_exporter_probe);
+                    auto wrap = SGBCWrapper::buildSGBCWrapper(sbcps[p], final_time, nullptr);
                     SGBCWrapper* wrap_ptr = wrap.get();
 
                     int state_size = wrap->getStateSize();
@@ -831,6 +826,276 @@ GlobalEvolution::GlobalEvolution(
             }
             ++idx;
         }
+    }
+
+    if (!model_.getSGBCProperties().empty()) {
+        buildSGBCExportMeshes();
+    }
+}
+
+void GlobalEvolution::buildSGBCExportMeshes()
+{
+    sgbc_exports_.clear();
+    std::map<GeomTag, const SGBCProperties*> tag_props;
+    for (const auto& props : model_.getSGBCProperties()) {
+        for (size_t tag : props.geom_tags) {
+            tag_props.emplace(static_cast<GeomTag>(tag), &props);
+        }
+    }
+    if (tag_props.empty()) {
+        return;
+    }
+
+    MPI_Comm comm = fes_.GetParMesh()->GetComm();
+    int comm_size = 1;
+    int comm_rank = 0;
+    MPI_Comm_size(comm, &comm_size);
+    MPI_Comm_rank(comm, &comm_rank);
+
+    for (const auto& [tag, props] : tag_props) {
+        const int order = static_cast<int>(props->maxOrder());
+        const int nloc = order + 1;
+        const int nseg_per_state = static_cast<int>(props->totalSegments());
+        if (nseg_per_state <= 0) {
+            continue;
+        }
+        const int n_ghost = std::max(3, order + 1);
+        const int idx_left = n_ghost * nloc;
+        const int local_field_size = (2 * n_ghost + nseg_per_state) * nloc;
+
+        const auto it = sgbc_states_.find(tag);
+        const int local_states = (it != sgbc_states_.end())
+            ? static_cast<int>(it->second.size())
+            : 0;
+        int total_states = local_states;
+        if (comm_size > 1) {
+            MPI_Allreduce(&local_states, &total_states, 1, MPI_INT, MPI_SUM, comm);
+        }
+        if (total_states <= 0) {
+            continue;
+        }
+
+        std::vector<double> local_geom(static_cast<size_t>(6 * local_states), 0.0);
+        if (local_states > 0) {
+            const auto& states = it->second;
+            mfem::Array<int> dofs;
+            mfem::Vector coords;
+            for (int s = 0; s < local_states; ++s) {
+                const int el = states[static_cast<size_t>(s)].element_pair.first;
+                fes_.GetElementDofs(el, dofs);
+                const int local_idx = dofs.Find(states[static_cast<size_t>(s)].global_pair.first);
+                if (local_idx >= 0) {
+                    const mfem::FiniteElement* fe = fes_.GetFE(el);
+                    const mfem::IntegrationPoint& ip = fe->GetNodes().IntPoint(local_idx);
+                    mfem::ElementTransformation* trans = fes_.GetElementTransformation(el);
+                    trans->Transform(ip, coords);
+                    local_geom[static_cast<size_t>(6 * s + 0)] = (coords.Size() > 0) ? coords(0) : 0.0;
+                    local_geom[static_cast<size_t>(6 * s + 1)] = (coords.Size() > 1) ? coords(1) : 0.0;
+                    local_geom[static_cast<size_t>(6 * s + 2)] = (coords.Size() > 2) ? coords(2) : 0.0;
+                }
+                local_geom[static_cast<size_t>(6 * s + 3)] = states[static_cast<size_t>(s)].rot[0];
+                local_geom[static_cast<size_t>(6 * s + 4)] = states[static_cast<size_t>(s)].rot[1];
+                local_geom[static_cast<size_t>(6 * s + 5)] = states[static_cast<size_t>(s)].rot[2];
+            }
+        }
+
+        SGBCExport view;
+        view.tag = tag;
+        view.order = order;
+        view.nseg_per_state = nseg_per_state;
+        view.local_field_size = local_field_size;
+        view.idx_left = idx_left;
+        view.local_states = local_states;
+        view.total_states = total_states;
+
+        std::vector<double> all_geom;
+        if (comm_size > 1) {
+            std::vector<int> state_counts(comm_rank == 0 ? static_cast<size_t>(comm_size) : 0, 0);
+            MPI_Gather(&local_states, 1, MPI_INT,
+                       comm_rank == 0 ? state_counts.data() : nullptr, 1, MPI_INT,
+                       0, comm);
+
+            std::vector<int> geom_counts;
+            std::vector<int> geom_displs;
+            const int doubles_per_state = 6 * nseg_per_state * nloc;
+            if (comm_rank == 0) {
+                geom_counts.resize(static_cast<size_t>(comm_size), 0);
+                geom_displs.resize(static_cast<size_t>(comm_size), 0);
+                view.recv_counts.resize(static_cast<size_t>(comm_size), 0);
+                view.displs.resize(static_cast<size_t>(comm_size), 0);
+                int g_off = 0;
+                int f_off = 0;
+                for (int r = 0; r < comm_size; ++r) {
+                    geom_counts[static_cast<size_t>(r)] = 6 * state_counts[static_cast<size_t>(r)];
+                    geom_displs[static_cast<size_t>(r)] = g_off;
+                    g_off += geom_counts[static_cast<size_t>(r)];
+
+                    view.recv_counts[static_cast<size_t>(r)] =
+                        doubles_per_state * state_counts[static_cast<size_t>(r)];
+                    view.displs[static_cast<size_t>(r)] = f_off;
+                    f_off += view.recv_counts[static_cast<size_t>(r)];
+                }
+                all_geom.resize(static_cast<size_t>(6 * total_states), 0.0);
+            }
+            MPI_Gatherv(local_geom.data(), 6 * local_states, MPI_DOUBLE,
+                        comm_rank == 0 ? all_geom.data() : nullptr,
+                        comm_rank == 0 ? geom_counts.data() : nullptr,
+                        comm_rank == 0 ? geom_displs.data() : nullptr,
+                        MPI_DOUBLE, 0, comm);
+        }
+
+        if (comm_rank == 0) {
+            const double* geom_ptr = (comm_size > 1) ? all_geom.data() : local_geom.data();
+            const int total_verts = total_states * (nseg_per_state + 1);
+            const int total_elems = total_states * nseg_per_state;
+            view.mesh = std::make_unique<mfem::Mesh>(1, total_verts, total_elems, 0, 3);
+            for (int s = 0; s < total_states; ++s) {
+                const double x0 = geom_ptr[6 * s + 0];
+                const double y0 = geom_ptr[6 * s + 1];
+                const double z0 = geom_ptr[6 * s + 2];
+                const double nx = geom_ptr[6 * s + 3];
+                const double ny = geom_ptr[6 * s + 4];
+                const double nz = geom_ptr[6 * s + 5];
+                const int v_base = s * (nseg_per_state + 1);
+                view.mesh->AddVertex(x0, y0, z0);
+                double dist = 0.0;
+                int seg_offset = 0;
+                for (size_t li = 0; li < props->layers.size(); ++li) {
+                    const auto& layer = props->layers[li];
+                    const double dx = layer.width / static_cast<double>(layer.num_of_segments);
+                    const int attr = static_cast<int>(li) + 1;
+                    for (size_t seg = 0; seg < layer.num_of_segments; ++seg) {
+                        dist += dx;
+                        view.mesh->AddVertex(x0 + dist * nx, y0 + dist * ny, z0 + dist * nz);
+                        const int v0 = v_base + seg_offset;
+                        view.mesh->AddSegment(v0, v0 + 1, attr);
+                        ++seg_offset;
+                    }
+                }
+            }
+            view.mesh->FinalizeTopology();
+            view.collection = std::make_unique<mfem::DG_FECollection>(
+                order, 1, mfem::BasisType::GaussLobatto);
+            view.space = std::make_unique<mfem::FiniteElementSpace>(
+                view.mesh.get(), view.collection.get(), 3);
+            view.e = std::make_unique<mfem::GridFunction>(view.space.get());
+            view.h = std::make_unique<mfem::GridFunction>(view.space.get());
+            *view.e = 0.0;
+            *view.h = 0.0;
+        }
+
+        sgbc_exports_.push_back(std::move(view));
+    }
+}
+
+void GlobalEvolution::syncSGBCExportFields() const
+{
+    MPI_Comm comm = fes_.GetParMesh()->GetComm();
+    int comm_size = 1;
+    int comm_rank = 0;
+    MPI_Comm_size(comm, &comm_size);
+    MPI_Comm_rank(comm, &comm_rank);
+
+    for (SGBCExport& view : sgbc_exports_) {
+        const int nloc = view.order + 1;
+        const int phys_dofs = view.nseg_per_state * nloc;
+        const int doubles_per_state = 6 * phys_dofs;
+
+        std::vector<double> local_buf(
+            static_cast<size_t>(view.local_states * doubles_per_state), 0.0);
+        if (view.local_states > 0) {
+            const auto& states = sgbc_states_.at(view.tag);
+            for (int s = 0; s < view.local_states; ++s) {
+                const auto& st = states[static_cast<size_t>(s)];
+                const double* R = st.rot;
+                const double* fs = st.fields_state.GetData();
+                double* dst = local_buf.data() + static_cast<size_t>(s * doubles_per_state);
+                for (int m = 0; m < phys_dofs; ++m) {
+                    const int slab_idx = view.idx_left + m;
+                    double el[3], hl[3];
+                    for (int d = 0; d < 3; ++d) {
+                        el[d] = fs[d * view.local_field_size + slab_idx];
+                        hl[d] = fs[(3 + d) * view.local_field_size + slab_idx];
+                    }
+                    for (int d = 0; d < 3; ++d) {
+                        dst[d * phys_dofs + m] =
+                            R[d] * el[0] + R[3 + d] * el[1] + R[6 + d] * el[2];
+                        dst[(3 + d) * phys_dofs + m] =
+                            R[d] * hl[0] + R[3 + d] * hl[1] + R[6 + d] * hl[2];
+                    }
+                }
+            }
+        }
+
+        std::vector<double> gathered_buf;
+        if (comm_size > 1) {
+            if (comm_rank == 0) {
+                gathered_buf.resize(
+                    static_cast<size_t>(view.total_states * doubles_per_state), 0.0);
+            }
+            MPI_Gatherv(local_buf.data(), view.local_states * doubles_per_state, MPI_DOUBLE,
+                        comm_rank == 0 ? gathered_buf.data() : nullptr,
+                        comm_rank == 0 ? view.recv_counts.data() : nullptr,
+                        comm_rank == 0 ? view.displs.data() : nullptr,
+                        MPI_DOUBLE, 0, comm);
+        }
+
+        if (comm_rank == 0 && view.e && view.h) {
+            const double* src = (comm_size > 1) ? gathered_buf.data() : local_buf.data();
+            const int ndofs_export = view.total_states * phys_dofs;
+            for (int s = 0; s < view.total_states; ++s) {
+                const double* st_src = src + static_cast<size_t>(s * doubles_per_state);
+                for (int d = 0; d < 3; ++d) {
+                    for (int m = 0; m < phys_dofs; ++m) {
+                        const int export_dof = s * phys_dofs + m;
+                        (*view.e)(d * ndofs_export + export_dof) = st_src[d * phys_dofs + m];
+                        (*view.h)(d * ndofs_export + export_dof) = st_src[(3 + d) * phys_dofs + m];
+                    }
+                }
+            }
+        }
+    }
+}
+
+void GlobalEvolution::exportSGBC(const std::string& directory, int cycle, double time) const
+{
+    if (sgbc_exports_.empty()) {
+        return;
+    }
+    syncSGBCExportFields();
+    if (mfem::Mpi::WorldRank() != 0) {
+        return;
+    }
+    const std::filesystem::path volume_dir(directory);
+    const std::string volume_name = volume_dir.filename().string();
+    std::string stem = volume_name;
+    const std::string suffix = ".msh";
+    if (stem.size() > suffix.size() &&
+        stem.compare(stem.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        stem.erase(stem.size() - suffix.size());
+    }
+    const std::filesystem::path prefix = volume_dir;
+
+    for (SGBCExport& view : sgbc_exports_) {
+        if (!view.mesh) {
+            continue;
+        }
+        if (!view.paraview) {
+            const std::string name = stem + "_sgbc_tag" + std::to_string(view.tag) + ".msh";
+            view.paraview = std::make_unique<mfem::ParaViewDataCollection>(name, view.mesh.get());
+            view.paraview->SetPrefixPath(prefix.string());
+            view.paraview->RegisterField("E", view.e.get());
+            view.paraview->RegisterField("H", view.h.get());
+            view.paraview->SetHighOrderOutput(view.order > 1);
+            view.paraview->SetLevelsOfDetail(std::max(view.order, 1));
+            view.paraview->SetDataFormat(mfem::VTKFormat::BINARY);
+            if (cycle > 0 && std::filesystem::exists(prefix / name / (name + ".pvd"))) {
+                view.paraview->UseRestartMode(true);
+            }
+        }
+        view.paraview->SetCycle(cycle);
+        view.paraview->SetTime(time);
+        view.paraview->Save();
     }
 }
 

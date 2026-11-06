@@ -30,6 +30,15 @@ public:
 	virtual std::unique_ptr<Function> clone() const = 0;
 
 	virtual double eval(const Position&) const = 0;
+
+	/// Evaluate 1D profile at normalized region coordinate xi in [0, 1],
+	/// stretching the profile's native domain across the target mesh region.
+	virtual double evalAtUnitCoord(double xi) const
+	{
+		Position p(1);
+		p[0] = xi;
+		return eval(p);
+	}
 	
 	virtual int dimension() const = 0;
 
@@ -104,6 +113,297 @@ private:
 	double spread_;
 	Position mean_;
 	int dimension_;
+};
+
+class ConstantProfile : public Function {
+public:
+	explicit ConstantProfile(double value, int dim = 1)
+		: value_(value), dimension_(dim)
+	{
+	}
+
+	int dimension() const override { return dimension_; }
+
+	std::unique_ptr<Function> clone() const override
+	{
+		return std::make_unique<ConstantProfile>(*this);
+	}
+
+	double eval(const Position&) const override { return value_; }
+
+	double evalAtUnitCoord(double) const override { return value_; }
+
+private:
+	double value_;
+	int dimension_;
+};
+
+class GaussianProfile : public Function {
+public:
+	static constexpr double kDefaultCutoffFactor = 1.0e-2;
+
+	GaussianProfile(
+		double peak,
+		double spread,
+		const Position& center,
+		double offset = 0.0,
+		double cutoff_factor = kDefaultCutoffFactor)
+		: peak_(peak),
+		  offset_(offset),
+		  cutoff_factor_(cutoff_factor),
+		  z_cut_(computeZCut(cutoff_factor)),
+		  gaussian_(spread, center, center.Size())
+	{
+	}
+
+	int dimension() const override { return gaussian_.dimension(); }
+
+	std::unique_ptr<Function> clone() const override
+	{
+		return std::make_unique<GaussianProfile>(*this);
+	}
+
+	double eval(const Position& pos) const override
+	{
+		return std::max(0.0, offset_ + peak_ * gaussian_.eval(pos));
+	}
+
+	double evalAtUnitCoord(double xi) const override
+	{
+		const double z = (2.0 * xi - 1.0) * z_cut_;
+		return std::max(0.0, offset_ + peak_ * std::exp(-0.5 * z * z));
+	}
+
+	double cutoffFactor() const { return cutoff_factor_; }
+	double zCut() const { return z_cut_; }
+
+private:
+	static double computeZCut(double cutoff_factor)
+	{
+		if (!(cutoff_factor > 0.0 && cutoff_factor < 1.0)) {
+			throw std::runtime_error("GaussianProfile cutoff_factor must be in (0, 1).");
+		}
+		return std::sqrt(-2.0 * std::log(cutoff_factor));
+	}
+
+	double peak_;
+	double offset_;
+	double cutoff_factor_;
+	double z_cut_;
+	Gaussian gaussian_;
+};
+
+class PositiveGaussianDerivativeProfile : public Function {
+public:
+	static constexpr double kDefaultCutoffFactor = 1.0e-2;
+
+	PositiveGaussianDerivativeProfile(
+		double peak,
+		double spread,
+		const Position& center,
+		int axis = 0,
+		double offset = 0.0,
+		double cutoff_factor = kDefaultCutoffFactor)
+		: peak_(peak),
+		  spread_(spread),
+		  center_(center),
+		  axis_(axis),
+		  offset_(offset),
+		  cutoff_factor_(cutoff_factor),
+		  z_cut_(computeDerivativeZCut(cutoff_factor)),
+		  gaussian_(spread, center, center.Size())
+	{
+	}
+
+	int dimension() const override { return gaussian_.dimension(); }
+
+	std::unique_ptr<Function> clone() const override
+	{
+		return std::make_unique<PositiveGaussianDerivativeProfile>(*this);
+	}
+
+	double eval(const Position& pos) const override
+	{
+		assert(axis_ >= 0 && axis_ < pos.Size());
+		const double z = (pos[axis_] - center_[axis_]) / spread_;
+		const double env = std::abs(z) * std::exp(0.5 * (1.0 - z * z));
+		return std::max(0.0, offset_ + peak_ * env);
+	}
+
+	double evalAtUnitCoord(double xi) const override
+	{
+		const double z = (2.0 * xi - 1.0) * z_cut_;
+		const double env = std::abs(z) * std::exp(0.5 * (1.0 - z * z));
+		return std::max(0.0, offset_ + peak_ * env);
+	}
+
+	double cutoffFactor() const { return cutoff_factor_; }
+	double zCut() const { return z_cut_; }
+
+private:
+	/// Solves z * exp(0.5 * (1 - z^2)) = cutoff_factor for z > 1 so that both
+	/// derivative lobes peak at 1 (at z = +/-1) and decay to cutoff_factor at z = +/-z_cut.
+	static double computeDerivativeZCut(double cutoff_factor)
+	{
+		if (!(cutoff_factor > 0.0 && cutoff_factor < 1.0)) {
+			throw std::runtime_error("PositiveGaussianDerivativeProfile cutoff_factor must be in (0, 1).");
+		}
+		const double target = std::log(cutoff_factor);
+		double z = std::sqrt(1.0 - 2.0 * target);
+		for (int iter = 0; iter < 10; ++iter) {
+			const double g = std::log(z) + 0.5 * (1.0 - z * z) - target;
+			const double dg = (1.0 / z) - z;
+			z -= g / dg;
+		}
+		return z;
+	}
+
+	double peak_;
+	double spread_;
+	Position center_;
+	int axis_;
+	double offset_;
+	double cutoff_factor_;
+	double z_cut_;
+	Gaussian gaussian_;
+};
+
+// Evaluates RAM-C II 61 km stagnation-line omega_p(x) [rad/s].
+// Expects x in metres with the nose at x = 0 and shock around x = -0.0073 m.
+inline double ramc61kmStagnationOmegaP(const mfem::Vector& p)
+{
+	const double x = p(0);
+	if (x > 0.0) {
+		return 0.0;
+	}
+	constexpr double wp_inf = 9.697700e+08;
+	constexpr double x_sh   = -7.309150e-03;
+	constexpr double d_sh   =  3.211841e-04;
+	constexpr double a0     =  6.865065e+11;
+	constexpr double a1     = -4.836413e+13;
+	constexpr double a2     = -2.041384e+15;
+	constexpr double a3     =  8.678069e+17;
+	constexpr double d_bl   =  4.296268e-04;
+	constexpr double A_bl   =  2.639789e+11;
+
+	const double step = 0.5 * (1.0 + std::tanh((x - x_sh) / d_sh));
+	const double s    = x + 0.0066;
+	const double env  = a0 + s * (a1 + s * (a2 + s * a3)) - A_bl * std::exp(x / d_bl);
+	return wp_inf + step * std::max(0.0, env);
+}
+
+// Evaluates RAM-C II 61 km stagnation-line nu_c(x) [1/s] (Gupta closure).
+inline double ramc61kmStagnationNuC_Gupta(const mfem::Vector& p)
+{
+	const double x = p(0);
+	if (x > 0.0) {
+		return 0.0;
+	}
+	constexpr double nu_inf =  2.732100e+07;
+	constexpr double x_sh   = -7.482650e-03;
+	constexpr double d_sh   =  4.340546e-04;
+	constexpr double a0     =  5.765874e+09;
+	constexpr double a1     =  6.977597e+11;
+	constexpr double a2     = -1.255220e+14;
+	constexpr double a3     =  8.677992e+15;
+	constexpr double d_bl   =  2.616807e-04;
+	constexpr double A_bl   =  2.012032e+09;
+
+	const double step = 0.5 * (1.0 + std::tanh((x - x_sh) / d_sh));
+	const double s    = x + 0.0066;
+	const double env  = a0 + s * (a1 + s * (a2 + s * a3)) + A_bl * std::exp(x / d_bl);
+	return nu_inf + step * std::max(0.0, env);
+}
+
+// Evaluates RAM-C II 61 km stagnation-line nu_c(x) [1/s] (Liu closure).
+inline double ramc61kmStagnationNuC_Liu(const mfem::Vector& p)
+{
+	const double x = p(0);
+	if (x > 0.0) {
+		return 0.0;
+	}
+	constexpr double nu_inf =  3.349800e+07;
+	constexpr double x_sh   = -7.241507e-03;
+	constexpr double d_sh   =  5.581643e-04;
+	constexpr double a0     =  9.148027e+09;
+	constexpr double a1     =  1.061459e+12;
+	constexpr double a2     = -2.426263e+14;
+	constexpr double a3     =  1.968110e+16;
+	constexpr double d_bl   =  3.390816e-04;
+	constexpr double A_bl   =  1.492221e+09;
+
+	const double step = 0.5 * (1.0 + std::tanh((x - x_sh) / d_sh));
+	const double s    = x + 0.0066;
+	const double env  = a0 + s * (a1 + s * (a2 + s * a3)) - A_bl * std::exp(x / d_bl);
+	return nu_inf + step * std::max(0.0, env);
+}
+
+enum class Ramc61kmPreset {
+	OmegaP,
+	NuC_Gupta,
+	NuC_Liu
+};
+
+class Ramc61kmStagnationProfile : public Function {
+public:
+	static constexpr double kNativeLength = 0.012;
+
+	Ramc61kmStagnationProfile(
+		Ramc61kmPreset preset,
+		double scale = 1.0,
+		double nose_x = 0.0,
+		int axis = 0,
+		double direction = 1.0)
+		: preset_(preset),
+		  scale_(scale),
+		  nose_x_(nose_x),
+		  axis_(axis),
+		  direction_(direction)
+	{
+	}
+
+	int dimension() const override { return axis_ + 1; }
+
+	std::unique_ptr<Function> clone() const override
+	{
+		return std::make_unique<Ramc61kmStagnationProfile>(*this);
+	}
+
+	double eval(const Position& pos) const override
+	{
+		assert(axis_ >= 0 && axis_ < pos.Size());
+		mfem::Vector shifted(1);
+		shifted(0) = direction_ * (pos[axis_] - nose_x_);
+		return evalNative(shifted);
+	}
+
+	double evalAtUnitCoord(double xi) const override
+	{
+		const double u = (direction_ >= 0.0) ? xi : (1.0 - xi);
+		mfem::Vector s(1);
+		s(0) = -kNativeLength * (1.0 - u);
+		return evalNative(s);
+	}
+
+private:
+	double evalNative(const mfem::Vector& s) const
+	{
+		switch (preset_) {
+		case Ramc61kmPreset::OmegaP:
+			return scale_ * ramc61kmStagnationOmegaP(s);
+		case Ramc61kmPreset::NuC_Gupta:
+			return scale_ * ramc61kmStagnationNuC_Gupta(s);
+		case Ramc61kmPreset::NuC_Liu:
+			return scale_ * ramc61kmStagnationNuC_Liu(s);
+		}
+		return 0.0;
+	}
+
+	Ramc61kmPreset preset_;
+	double scale_;
+	double nose_x_;
+	int axis_;
+	double direction_;
 };
 
 /// Spread σ of exp(-(t-t0)^2 / (2 σ^2)) whose incident *power* is 1/e at `f_1e_hz`.

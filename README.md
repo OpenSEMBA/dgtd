@@ -103,8 +103,8 @@ Full JSON reference: **[docs/json-input-format.md](docs/json-input-format.md)**.
 
 JSON units that are easy to get wrong:
 
-- **Lorentz:** `materials[].lorentz` with either Hz (`f_p`, `f_1`, `gamma`) or rad/s (`omega_p`, `omega_1`, `gamma`). Do not mix. Hz `gamma` is a frequency, converted as $2\pi f$ like the other two rates. Example: [3D_RCS_Lorentz_G2](testData/maxwellInputs/3D_RCS_Lorentz_G2/3D_RCS_Lorentz_G2.json).
-- **Gaussian:** `f_1e` (Hz at 1/e incident power) or `spread` (light-metres). If both are set, `f_1e` wins and a warning is printed; an under-resolved pulse also warns and continues.
+- **Lorentz & Drude:** `materials[].lorentz` (or `materials[].drude` with $\omega_1 = 0$) with either Hz (`f_p`, `f_1`, `gamma` / `nu_c`) or rad/s (`omega_p`, `omega_1`, `gamma` / `nu_c`). Do not mix. `gamma` / `nu_c` is the collision frequency in $\ddot{P}+\gamma\dot{P}+\omega_1^2 P=\omega_p^2 E$. Hz `gamma` is that frequency, converted as $2\pi f$ like the other rates. Any rate may also be a spatial profile object (`constant`, `gaussian`, `positive_gaussian_derivative`, `ramc_61km_*`). Details: **[docs/dispersive-materials.md](docs/dispersive-materials.md)**.
+- **Gaussian:** `f_1e` (Hz at 1/e incident power) or `spread` (light-metres). If both are set, `f_1e` wins and a warning is printed; an under-resolved pulse also warns and continues. Details: **[docs/tfsf-and-sources.md](docs/tfsf-and-sources.md)**.
 
 Example:
 ```sh
@@ -155,8 +155,14 @@ Results are written under the same probe directory as `farfield/` and `rcs/`.
 |-------|------|
 | All docs | [docs/README.md](docs/README.md) |
 | JSON input (solver + offline RCS) | [docs/json-input-format.md](docs/json-input-format.md) |
-| MOR → ParaView | [docs/mor2paraview.md](docs/mor2paraview.md) |
 | Box PML (mesh, JSON, absorption table) | [docs/designing-a-box-pml.md](docs/designing-a-box-pml.md) |
+| Dispersive materials (Debye, Lorentz, Drude, spatial profiles) | [docs/dispersive-materials.md](docs/dispersive-materials.md) |
+| SGBC multi-layer thin sheets and coatings | [docs/sgbc.md](docs/sgbc.md) |
+| TFSF and excitation sources | [docs/tfsf-and-sources.md](docs/tfsf-and-sources.md) |
+| RCS and near-to-far-field post-processing | [docs/rcs-and-farfield.md](docs/rcs-and-farfield.md) |
+| MOR → ParaView | [docs/mor2paraview.md](docs/mor2paraview.md) |
+| MOR → RCS | [docs/mor2rcs.md](docs/mor2rcs.md) |
+| How this solver uses MFEM | [docs/mfem-usage.md](docs/mfem-usage.md) |
 
 ## Funding
 

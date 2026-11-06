@@ -262,6 +262,11 @@ Solver::Solver(
 
     evolTDO_ = assignEvolutionOperator();
     evolTDO_->SetTime(time_);
+    if (globalEvol_cache_ && globalEvol_cache_->hasSGBCExport()) {
+        probesManager_.setSGBCExporter([this](const std::string& directory, int cycle, double time) {
+            globalEvol_cache_->exportSGBC(directory, cycle, time);
+        });
+    }
     
     // Initialize TFSF export in ProbesManager if TFSF is present and MOR state probes exist
     if (!probesManager_.probes.morStateProbes.empty()) {
@@ -286,6 +291,15 @@ Solver::Solver(
     // (time_step == 0.0), where the interval could not be calculated correctly
     // at parse time.
     probesManager_.recalculateExportSteps(dt_);
+
+    if (opts_.is_sgbc_solver) {
+        fields_.allDOFs().UseDevice(false);
+        for (int d = 0; d < 3; ++d) {
+            auto dir = static_cast<Direction>(d);
+            fields_.get(E, dir).UseDevice(false);
+            fields_.get(H, dir).UseDevice(false);
+        }
+    }
 
     assignODESolver();
     odeSolver_->Init(*evolTDO_);

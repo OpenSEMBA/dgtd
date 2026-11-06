@@ -539,6 +539,9 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     // Without a post-Save barrier, a fast rank can leave step() and block in the
     // next stability/Mult Allreduce while a slow rank is still writing — hang.
     pd.Save();
+    if (sgbc_exporter_) {
+        sgbc_exporter_(pd.GetPrefixPath() + pd.GetCollectionName(), export_cycle, pd.GetTime());
+    }
     MPI_Barrier(comm);
 }
 
@@ -1370,6 +1373,19 @@ void ProbesManager::trimProbeOutput(double time)
             const auto parent = paraview_root / p.name;
             removeIndexedDirs(parent, "Cycle", drop_from);
             trimPvd(parent / (p.name + ".pvd"), drop_from);
+            if (std::filesystem::exists(parent)) {
+                for (const auto& entry : std::filesystem::directory_iterator(parent)) {
+                    if (!entry.is_directory()) {
+                        continue;
+                    }
+                    const auto sub_name = entry.path().filename().string();
+                    const auto sub_pvd = entry.path() / (sub_name + ".pvd");
+                    if (std::filesystem::exists(sub_pvd)) {
+                        removeIndexedDirs(entry.path(), "Cycle", drop_from);
+                        trimPvd(sub_pvd, drop_from);
+                    }
+                }
+            }
         }
         for (const auto& p : probes.morStateProbes) {
             const auto it = morStateContexts_.find(&p);

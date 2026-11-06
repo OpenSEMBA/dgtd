@@ -1,0 +1,89 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "final_time": 2.5,
+    "order": 4,
+    "time_step": 1e-05
+  },
+  "model": {
+    "filename": "1D_Drude_RAMC_61km.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          3
+        ],
+        "drude": {
+          "eps_inf": 1.0,
+          "omega_p": {
+            "type": "ramc_61km_omega_p"
+          },
+          "nu_c": {
+            "type": "ramc_61km_nu_c_gupta"
+          }
+        }
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          2
+        ],
+        "type": "PEC"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.05
+    },
+    "point": [
+      {
+        "position": [
+          0.1
+        ],
+        "steps": 1
+      },
+      {
+        "position": [
+          0.3
+        ],
+        "steps": 1
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        3
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "f_1e": 120e9
+      }
+    }
+  ]
+}

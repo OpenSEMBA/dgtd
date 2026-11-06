@@ -2780,27 +2780,30 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 		if (!mat_json.contains("tags")) {
 			continue;
 		}
+		const bool has_debye = mat_json.contains("debye");
+		const bool has_lorentz = mat_json.contains("lorentz");
+		const bool has_drude = mat_json.contains("drude");
 		std::string kind = "material";
 		if (mat_json.contains("type")) {
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
 				kind = "vacuum";
-				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+				if (has_debye || has_lorentz || has_drude) {
 					throw std::runtime_error(
-						"Vacuum material must not define debye or lorentz.");
+						"Vacuum material must not define debye, lorentz, or drude.");
 				}
 			} else if (type == "PML") {
 				kind = "pml";
-				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+				if (has_debye || has_lorentz || has_drude) {
 					throw std::runtime_error(kDispersiveOnPmlNotAllowed);
 				}
 			}
-		} else if (mat_json.contains("debye") && mat_json.contains("lorentz")) {
+		} else if ((has_debye ? 1 : 0) + (has_lorentz ? 1 : 0) + (has_drude ? 1 : 0) > 1) {
 			throw std::runtime_error(
-				"A material cannot define both debye and lorentz.");
-		} else if (mat_json.contains("debye")) {
+				"A material cannot define more than one of debye, lorentz, or drude.");
+		} else if (has_debye) {
 			kind = "debye";
-		} else if (mat_json.contains("lorentz")) {
+		} else if (has_lorentz || has_drude) {
 			kind = "lorentz";
 		}
 		for (auto t = 0; t < mat_json["tags"].size(); t++) {
@@ -2814,9 +2817,9 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 		if (mat_json.contains("type")) {
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
-				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+				if (mat_json.contains("debye") || mat_json.contains("lorentz") || mat_json.contains("drude")) {
 					throw std::runtime_error(
-						"Vacuum material must not define debye or lorentz.");
+						"Vacuum material must not define debye, lorentz, or drude.");
 				}
 				const Material vacuum = buildVacuumMaterial();
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
@@ -2861,23 +2864,51 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			continue;
 		}
 
-		if (mat_json.contains("lorentz")) {
-			if (mat_json.contains("debye")) {
+		if (mat_json.contains("lorentz") || mat_json.contains("drude")) {
+			const bool is_drude = mat_json.contains("drude");
+			if (mat_json.contains("debye") || (mat_json.contains("lorentz") && is_drude)) {
 				throw std::runtime_error(
-					"A material cannot define both debye and lorentz.");
+					"A material cannot define more than one of debye, lorentz, or drude.");
 			}
 			if (mat_json.contains("relative_permittivity")) {
 				throw std::runtime_error(
-					"Lorentz material must not define relative_permittivity. "
-					"The electric mass uses lorentz.eps_inf.");
+					std::string(is_drude ? "Drude" : "Lorentz") +
+					" material must not define relative_permittivity. "
+					"The electric mass uses eps_inf.");
 			}
-			LorentzProperties pole = parseLorentzObject(mat_json["lorentz"]);
+			LorentzProperties pole = is_drude
+				? parseDrudeObject(mat_json["drude"])
+				: parseLorentzObject(mat_json["lorentz"]);
 			double mu{ 1.0 }, sigma{ 0.0 };
 			if (mat_json.contains("relative_permeability")) {
 				mu = mat_json["relative_permeability"];
 			}
 			if (mat_json.contains("bulk_conductivity")) {
 				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			}
+			if (mesh.Dimension() == 1 && mesh.GetNE() > 0) {
+				std::set<int> block_tags;
+				for (auto t = 0; t < mat_json["tags"].size(); t++) {
+					block_tags.insert(mat_json["tags"][t].get<int>());
+				}
+				double min_x = std::numeric_limits<double>::infinity();
+				double max_x = -std::numeric_limits<double>::infinity();
+				mfem::Array<int> verts;
+				for (int el = 0; el < mesh.GetNE(); ++el) {
+					if (block_tags.count(mesh.GetAttribute(el)) == 0) {
+						continue;
+					}
+					mesh.GetElementVertices(el, verts);
+					for (int v = 0; v < verts.Size(); ++v) {
+						const double vx = mesh.GetVertex(verts[v])[0];
+						min_x = std::min(min_x, vx);
+						max_x = std::max(max_x, vx);
+					}
+				}
+				if (max_x > min_x) {
+					pole.region_min_x = min_x;
+					pole.region_max_x = max_x;
+				}
 			}
 			for (auto t = 0; t < mat_json["tags"].size(); t++) {
 				pole.geom_tag = mat_json["tags"][t].get<int>();
@@ -3342,9 +3373,9 @@ Model buildModel(
     double freq_1e = calculateSourcePower1eFrequency(case_data);
 
     auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
-        if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+        if (mat_json.contains("debye") || mat_json.contains("lorentz") || mat_json.contains("drude")) {
             throw std::runtime_error(
-                "SGBC layer must not define debye or lorentz.");
+                "SGBC layer must not define debye, lorentz, or drude.");
         }
         double rel_eps = 1.0;
         if (mat_json.contains("relative_permittivity")) {

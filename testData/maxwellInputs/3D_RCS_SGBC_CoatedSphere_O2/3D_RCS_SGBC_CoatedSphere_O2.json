@@ -1,0 +1,94 @@
+{
+  "solver_options": {
+    "evolution_operator": "global",
+    "upwind_alpha": 1.0,
+    "time_step": 0.0005385766,
+    "final_time": 10.0,
+    "order": 2,
+    "basis_type": 1
+  },
+  "model": {
+    "filename": "3D_RCS_SGBC_CoatedSphere_O2.msh",
+    "materials": [
+      {
+        "tags": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          14
+        ],
+        "type": "SGBC",
+        "layers": [
+          {
+            "relative_permittivity": 4.0,
+            "relative_permeability": 2.0,
+            "bulk_conductivity": 3.0,
+            "material_width": 0.05
+          }
+        ],
+        "sgbc_boundaries": {
+          "right": "PEC"
+        }
+      },
+      {
+        "tags": [
+          15
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.2
+    },
+    "rcssurface": [
+      {
+        "name": "coated_sphere_ntff",
+        "saves": 340,
+        "tags": [
+          16,
+          17,
+          18,
+          19,
+          20,
+          21
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "propagation": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "magnitude": {
+        "f_1e": 500000000.0
+      }
+    }
+  ]
+}

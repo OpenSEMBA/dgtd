@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <fstream>
 
@@ -69,6 +70,9 @@ public:
     void setCaseName(const std::string name) {
         caseName_ = name;
         initRCSSurfaceExporters();
+    }
+    void setSGBCExporter(std::function<void(const std::string&, int, double)> exporter) {
+        sgbc_exporter_ = std::move(exporter);
     }
     void initPointFieldProbeExport();
     void initTFSFExport(SourcesManager* srcmngr, const mfem::Array<int>* tfsf_mapping) {
@@ -167,6 +171,7 @@ private:
     std::unique_ptr<SerialDGDofMap> serial_dof_map_;
     bool is_sgbc_solver_{false};
     bool preserve_existing_outputs_{false};
+    std::function<void(const std::string&, int, double)> sgbc_exporter_;
     mutable TimingStats timingStats_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;

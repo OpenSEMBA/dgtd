@@ -76,8 +76,9 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |
-| `debye` | object | — | Single-pole electric Debye on an untyped material. See below. |
-| `lorentz` | object | — | Single-pole electric Lorentz on an untyped material. See below. |
+| `debye` | object | — | Single-pole electric Debye on an untyped material. See below and [dispersive-materials.md](./dispersive-materials.md). |
+| `lorentz` | object | — | Single-pole electric Lorentz on an untyped material. See below and [dispersive-materials.md](./dispersive-materials.md). |
+| `drude` | object | — | Cold-plasma Drude pole ($\omega_1=0$) on an untyped material. See below and [dispersive-materials.md](./dispersive-materials.md). |
 
 #### debye
 
@@ -100,7 +101,7 @@ Optional object. Legal only when the material entry has no `type`. The electric 
 The relative permittivity is
 
 $$
-\varepsilon_r(\omega)=\varepsilon_\infty+\frac{\omega_p^2}{\omega_1^2-\omega^2+j\,2\gamma\omega}.
+\varepsilon_r(\omega)=\varepsilon_\infty+\frac{\omega_p^2}{\omega_1^2-\omega^2+j\,\gamma\omega}.
 $$
 
 **Hz style (preferred for new cases):** `eps_inf`, `f_p`, `f_1`, `gamma`. All three rates are ordinary frequencies in Hz. Conversion is $\omega=2\pi f$, including damping: JSON `gamma: 2.5e7` is $25\,\mathrm{MHz}$, stored as $\gamma=2\pi\times 2.5\times 10^7\,\mathrm{rad/s}$.
@@ -110,11 +111,11 @@ $$
 | Field | Type | Description |
 |-------|------|-------------|
 | `eps_inf` | double | Instantaneous relative permittivity. Must be $\ge 1$. |
-| `f_p` | double | Plasma frequency in Hz. Must be $> 0$. |
-| `f_1` | double | Resonance frequency in Hz. Must be $\ge 0$. |
-| `omega_p` | double | Plasma frequency in rad/s. Must be $> 0$. |
-| `omega_1` | double | Resonance frequency in rad/s. Must be $\ge 0$. |
-| `gamma` | double | Damping. Hz with `f_*`, or rad/s with `omega_*`. Must be $\ge 0$. |
+| `f_p` | double or object | Plasma frequency in Hz (or spatial profile object). Must be $> 0$. |
+| `f_1` | double or object | Resonance frequency in Hz (or spatial profile object). Must be $\ge 0$. |
+| `omega_p` | double or object | Plasma frequency in rad/s (or spatial profile object). Must be $> 0$. |
+| `omega_1` | double or object | Resonance frequency in rad/s (or spatial profile object). Must be $\ge 0$. |
+| `gamma` / `nu_c` | double or object | Collision frequency in $\ddot{P}+\gamma\dot{P}+\omega_1^2 P=\omega_p^2 E$. Hz with `f_*`, or rad/s ($1/\mathrm{s}$) with `omega_*` (or spatial profile object). Must be $\ge 0$. |
 
 Example (Hz), from [3D_RCS_Lorentz_G2](../testData/maxwellInputs/3D_RCS_Lorentz_G2/3D_RCS_Lorentz_G2.json):
 
@@ -129,7 +130,113 @@ Example (Hz), from [3D_RCS_Lorentz_G2](../testData/maxwellInputs/3D_RCS_Lorentz_
 
 That is the same pole as `omega_p = 2π f_p`, `omega_1 = 2π f_1`, `gamma = 2π × 2.5e7` rad/s. Older 1D cases still use the rad/s keys; both styles are accepted.
 
-`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz`. `lorentz` is rejected on vacuum, PML, and SGBC. Initialization also aborts if a Lorentz tag is a PML tag. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes Lorentz auxiliaries.
+`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz` (or `drude`). `lorentz` is rejected on vacuum, PML, and SGBC. Initialization also aborts if a Lorentz tag is a PML tag. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes Lorentz auxiliaries.
+
+#### drude
+
+Optional object. Shorthand for a cold-plasma Lorentz pole with $\omega_1 = 0$:
+
+$$
+\varepsilon_r(\omega)=\varepsilon_\infty-\frac{\omega_p^2}{\omega^2-j\,\nu_c\omega}.
+$$
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `eps_inf` | double | `1.0` | Instantaneous relative permittivity ($\ge 1$). |
+| `omega_p` / `f_p` | double or object | — | Plasma frequency in rad/s (`omega_p`) or Hz (`f_p`), or spatial profile object. |
+| `nu_c` / `gamma` | double or object | — | Collision frequency in $1/\mathrm{s}$ (with `omega_p`) or Hz (with `f_p`), or spatial profile object. |
+
+#### Spatial rate profiles (`lorentz` and `drude`)
+
+Any rate in `lorentz` or `drude` (`omega_p`, `f_p`, `omega_1`, `f_1`, `gamma`, `nu_c`) can be either a constant number or a spatial profile object `{ "type": "...", ... }`. When a profile object is used on an attribute, `DGOperatorFactory::buildLorentzOperator()` evaluates the profile at each element's quadrature points via `mfem::FunctionCoefficient` inside `mfem::MassIntegrator` and pre-multiplies by the element inverse mass $M_K^{-1}$.
+
+##### 1D automatic region stretching
+
+In 1D, the solver scans the mesh at initialization for all elements carrying the material's `tags` and records the physical bounding interval $[x_{\min}^{\mathrm{mesh}}, x_{\max}^{\mathrm{mesh}}]$. Every quadrature point $x \in [x_{\min}^{\mathrm{mesh}}, x_{\max}^{\mathrm{mesh}}]$ is mapped to the normalized unit coordinate:
+
+$$
+\xi(x) = \frac{x - x_{\min}^{\mathrm{mesh}}}{x_{\max}^{\mathrm{mesh}} - x_{\min}^{\mathrm{mesh}}} \in [0, 1].
+$$
+
+Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete profile automatically stretches or compresses to fit the tagged mesh region whether that region is $10\,\mathrm{mm}$, $12\,\mathrm{mm}$, $24\,\mathrm{mm}$, or $2\,\mathrm{m}$ wide.
+
+##### Supported profile `type` values
+
+| `type` | Required keys | Optional keys (defaults) | Description |
+|--------|---------------|--------------------------|-------------|
+| `"constant"` | `value` | — | Uniform rate across the region. |
+| `"gaussian"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Symmetric bell curve stretched between its `cutoff_factor` tails. |
+| `"positive_gaussian_derivative"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Rectified two-lobe Gaussian derivative stretched between its outer `cutoff_factor` tails. |
+| `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p(x)$ $[\mathrm{rad/s}]$ mapped from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
+| `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Gupta closure) mapped onto $\xi \in [0, 1]$. |
+| `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Liu closure) mapped onto $\xi \in [0, 1]$. |
+
+##### How `"gaussian"` and `"positive_gaussian_derivative"` work
+
+Because plasma, resonance, and collision frequencies ($\omega_p, \omega_1, \nu_c$) must be non-negative and self-contained on arbitrary mesh intervals, both profiles use `cutoff_factor` $\epsilon \in (0, 1)$ (default `1e-2`) to determine their canonical span $[-z_{\mathrm{cut}}, +z_{\mathrm{cut}}]$ and map it linearly onto $\xi \in [0, 1]$ via $z(\xi) = (2\xi - 1)\,z_{\mathrm{cut}}$:
+
+1. **`"gaussian"`** evaluates the canonical Gaussian $G(z) = \exp(-z^2 / 2)$:
+
+$$
+z_{\mathrm{cut}} = \sqrt{-2\ln(\epsilon)} \quad (\approx 3.035\text{ for }\epsilon = 10^{-2}),
+$$
+
+$$
+f(\xi) = \mathrm{offset} + \mathrm{peak}\cdot\exp\!\left(-\frac{z(\xi)^2}{2}\right).
+$$
+
+At the region boundaries $\xi = 0$ and $\xi = 1$, $f$ equals $\mathrm{offset} + \epsilon\cdot\mathrm{peak}$; at the region midpoint $\xi = 0.5$ ($z = 0$), $f$ reaches $\mathrm{offset} + \mathrm{peak}$.
+
+2. **`"positive_gaussian_derivative"`** takes the magnitude of the normalized Gaussian derivative so that both lobes are positive and have unit peak height at $z = \pm 1$:
+
+$$
+D(z) = |z|\,\exp\!\left(\frac{1 - z^2}{2}\right), \qquad f(\xi) = \mathrm{offset} + \mathrm{peak}\cdot D\big(z(\xi)\big).
+$$
+
+The outer cutoff $z_{\mathrm{cut}} > 1$ is solved at initialization from:
+
+$$
+z_{\mathrm{cut}}\,\exp\!\left(\frac{1 - z_{\mathrm{cut}}^2}{2}\right) = \epsilon \quad (\approx 3.648\text{ for }\epsilon = 10^{-2}).
+$$
+
+Across the normalized region $\xi \in [0, 1]$, `"positive_gaussian_derivative"` therefore produces:
+- $\xi = 0$ ($x = x_{\min}^{\mathrm{mesh}}$, $z = -z_{\mathrm{cut}}$): outer tail $\mathrm{offset} + \epsilon\cdot\mathrm{peak}$
+- $\xi = \tfrac{1}{2}(1 - 1/z_{\mathrm{cut}}) \approx 0.363$ ($z = -1$): first lobe peak $\mathrm{offset} + \mathrm{peak}$
+- $\xi = 0.5$ ($x = \text{midpoint}$, $z = 0$): central trough $\mathrm{offset}$
+- $\xi = \tfrac{1}{2}(1 + 1/z_{\mathrm{cut}}) \approx 0.637$ ($z = +1$): second lobe peak $\mathrm{offset} + \mathrm{peak}$
+- $\xi = 1$ ($x = x_{\max}^{\mathrm{mesh}}$, $z = +z_{\mathrm{cut}}$): outer tail $\mathrm{offset} + \epsilon\cdot\mathrm{peak}$
+
+Examples:
+
+```json
+"drude": {
+  "eps_inf": 1.0,
+  "omega_p": {
+    "type": "positive_gaussian_derivative",
+    "peak": 4.0e9,
+    "cutoff_factor": 1.0e-2
+  },
+  "nu_c": {
+    "type": "gaussian",
+    "peak": 1.0e9,
+    "cutoff_factor": 1.0e-2
+  }
+}
+```
+
+RAM-C II 61 km example ([1D_Drude_RAMC_61km](../testData/maxwellInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json)):
+
+```json
+"drude": {
+  "eps_inf": 1.0,
+  "omega_p": {
+    "type": "ramc_61km_omega_p"
+  },
+  "nu_c": {
+    "type": "ramc_61km_nu_c_gupta"
+  }
+}
+```
 
 ### boundaries [REQUIRED]
 
@@ -142,11 +249,11 @@ Array. At least one entry per boundary or interface condition.
 
 #### type: SGBC
 
-Surface general boundary condition (multi-layer absorber / material slab sub-solver).
+Surface general boundary condition (multi-layer absorber / material slab sub-solver). Full guide (automatic layer meshing, Péclet/skin-depth rules, sub-stepping, and ParaView export): [sgbc.md](./sgbc.md).
 
 | Field | Description |
 |-------|-------------|
-| `exporter_probe` | If `true` and top-level `probes.exporter` exists, export internal SGBC fields as `InsideSGBC_tag<first_tag>`. |
+| `exporter_probe` | Legacy optional flag (accepted for backward compatibility). When top-level `probes.exporter` exists, internal SGBC fields are automatically exported per tag as `<stem>_sgbc_tag<tag>.msh` inside the exporter directory. |
 | `material` | Single layer (mutually exclusive with `layers`). |
 | `layers` | Multi-layer stack (mutually exclusive with `material`). |
 
@@ -226,7 +333,7 @@ Periodic full-domain snapshot (alternative to incremental exporter).
 
 ### rcssurface
 
-Surface E/H snapshots for offline RCS (`surface_data.bin` with geometry header + time blocks).
+Surface E/H snapshots for offline RCS (`surface_data.bin` with geometry header + time blocks). Full workflow and Huygens surface placement guide: [rcs-and-farfield.md](./rcs-and-farfield.md).
 
 | Field | Description |
 |-------|-------------|
@@ -253,7 +360,7 @@ Snapshot file format (`x_0`, `x_1`, …): line 1 = time, line 2 = size, then DOF
 
 ## sources [REQUIRED]
 
-Array. At least one source; all entries superimpose.
+Array. At least one source; all entries superimpose. Full guide on TFSF mesh partitioning, probe placement, and source waveforms: [tfsf-and-sources.md](./tfsf-and-sources.md).
 
 | `type` | Description |
 |--------|-------------|
@@ -374,7 +481,7 @@ $\hat{\mathbf{s}}$ points from the scattered-field volume into the total-field v
 
 ## Offline RCS JSON (`opensemba_rcs`)
 
-Separate input file for the offline RCS / far-field post-processor (`opensemba_rcs`). It does **not** replace the Maxwell case JSON; it points at an existing export and at `testData/maxwellInputs/<casename>/<casename>.json`.
+Separate input file for the offline RCS / far-field post-processor (`opensemba_rcs`). It does **not** replace the Maxwell case JSON; it points at an existing export and at `testData/maxwellInputs/<casename>/<casename>.json`. See also [rcs-and-farfield.md](./rcs-and-farfield.md).
 
 **Prerequisites**
 

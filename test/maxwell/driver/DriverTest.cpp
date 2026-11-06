@@ -497,3 +497,128 @@ TEST_F(DriverTest, lorentzRejectsHesthavenAndSpectral)
 		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
 	}
 }
+
+TEST_F(DriverTest, drudeAndSpatialProfilesParseCorrectly)
+{
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
+
+	// 1. Drude with RAM-C 61 km stagnation-line profiles stretched over [0, 1] on 1D_PEC
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{
+				{"tags", {1}},
+				{"drude", {
+					{"eps_inf", 1.0},
+					{"omega_p", {{"type", "ramc_61km_omega_p"}}},
+					{"nu_c", {{"type", "ramc_61km_nu_c_gupta"}}}
+				}}
+			}
+		});
+		auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+		ASSERT_TRUE(model.hasLorentz());
+		const LorentzProperties* pole = model.findLorentz(1);
+		ASSERT_NE(pole, nullptr);
+		EXPECT_TRUE(pole->hasSpatialProfile());
+		EXPECT_TRUE(pole->hasRegionBounds());
+		EXPECT_DOUBLE_EQ(pole->region_min_x, 0.0);
+		EXPECT_DOUBLE_EQ(pole->region_max_x, 1.0);
+		EXPECT_DOUBLE_EQ(pole->omega_1, 0.0);
+
+		mfem::Vector pt_mesh(1);
+		pt_mesh(0) = 0.5;
+		mfem::Vector pt_ramc(1);
+		pt_ramc(0) = -0.012 * (1.0 - pt_mesh(0));
+		EXPECT_NEAR(pole->evalOmegaP(pt_mesh), ramc61kmStagnationOmegaP(pt_ramc) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalGamma(pt_mesh), ramc61kmStagnationNuC_Gupta(pt_ramc) * inv_c, 1e-12);
+	}
+
+	// 2. Liu closure preset + Gaussian and Gaussian-derivative profiles auto-mapped via cutoff_factor
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{
+				{"tags", {1}},
+				{"lorentz", {
+					{"eps_inf", 1.5},
+					{"omega_p", {
+						{"type", "gaussian"},
+						{"peak", 4.0e9},
+						{"cutoff_factor", 1.0e-2},
+						{"offset", 1.0e8}
+					}},
+					{"omega_1", {
+						{"type", "positive_gaussian_derivative"},
+						{"peak", 2.0e9},
+						{"cutoff_factor", 1.0e-2},
+						{"offset", 5.0e8}
+					}},
+					{"nu_c", {{"type", "ramc_61km_nu_c_liu"}}}
+				}}
+			}
+		});
+		auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+		const LorentzProperties* pole = model.findLorentz(1);
+		ASSERT_NE(pole, nullptr);
+		EXPECT_TRUE(pole->hasSpatialProfile());
+
+		// At endpoints x = 0.0 and x = 1.0 (xi = 0 and xi = 1), both profiles decay to offset + cutoff_factor * peak
+		mfem::Vector left_pt(1), right_pt(1), center_pt(1);
+		left_pt(0) = 0.0;
+		center_pt(0) = 0.5;
+		right_pt(0) = 1.0;
+		EXPECT_NEAR(pole->evalOmegaP(left_pt), (1.0e8 + 1.0e-2 * 4.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmegaP(center_pt), (1.0e8 + 4.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmegaP(right_pt), (1.0e8 + 1.0e-2 * 4.0e9) * inv_c, 1e-12);
+
+		EXPECT_NEAR(pole->evalOmega1(left_pt), (5.0e8 + 1.0e-2 * 2.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmega1(center_pt), 5.0e8 * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmega1(right_pt), (5.0e8 + 1.0e-2 * 2.0e9) * inv_c, 1e-12);
+
+		// Check that both lobes of positive_gaussian_derivative (at z = -1 and z = +1) reach offset + peak
+		const auto* deriv_prof = dynamic_cast<const PositiveGaussianDerivativeProfile*>(pole->omega_1_profile.get());
+		ASSERT_NE(deriv_prof, nullptr);
+		const double z_cut = deriv_prof->zCut();
+		mfem::Vector lobe1_pt(1), lobe2_pt(1);
+		lobe1_pt(0) = 0.5 * (1.0 - 1.0 / z_cut);
+		lobe2_pt(0) = 0.5 * (1.0 + 1.0 / z_cut);
+		EXPECT_NEAR(pole->evalOmega1(lobe1_pt), (5.0e8 + 2.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmega1(lobe2_pt), (5.0e8 + 2.0e9) * inv_c, 1e-12);
+
+		mfem::Vector pt_mesh(1);
+		pt_mesh(0) = 0.75;
+		mfem::Vector pt_ramc(1);
+		pt_ramc(0) = -0.012 * (1.0 - pt_mesh(0));
+		EXPECT_NEAR(pole->evalGamma(pt_mesh), ramc61kmStagnationNuC_Liu(pt_ramc) * inv_c, 1e-12);
+	}
+
+	// 3. Reject invalid combinations on drude
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}},
+			 {"drude", {{"omega_p", 1.0e9}, {"nu_c", 1.0e7}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}},
+			 {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0e9}, {"omega_1", 0.0}, {"gamma", 0.0}}},
+			 {"drude", {{"omega_p", 1.0e9}, {"nu_c", 1.0e7}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+
+	// 4. Parse full 1D_Drude_RAMC_61km case JSON
+	{
+		const std::string case_path = maxwellCase("1D_Drude_RAMC_61km");
+		auto case_data = parseJSONfile(case_path);
+		auto model = buildModel(case_data, case_path, false);
+		EXPECT_TRUE(model.hasLorentz());
+		const LorentzProperties* pole = model.findLorentz(3);
+		ASSERT_NE(pole, nullptr);
+		EXPECT_TRUE(pole->hasSpatialProfile());
+	}
+}

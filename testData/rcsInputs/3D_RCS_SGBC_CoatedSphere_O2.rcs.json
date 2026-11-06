@@ -1,0 +1,21 @@
+{
+  "runmode": "cuda-1",
+  "casename": "3D_RCS_SGBC_CoatedSphere_O2",
+  "frequencies": {
+    "start": 100000000.0,
+    "end": 500000000.0,
+    "steps": 41
+  },
+  "angles": {
+    "theta": {
+      "start": 0.0,
+      "end": 3.141592653589793,
+      "steps": 181
+    },
+    "phi": {
+      "start": 0.0,
+      "end": 1.5707963267948966,
+      "steps": 2
+    }
+  }
+}
