@@ -615,10 +615,162 @@ TEST_F(DriverTest, drudeAndSpatialProfilesParseCorrectly)
 	{
 		const std::string case_path = maxwellCase("1D_Drude_RAMC_61km");
 		auto case_data = parseJSONfile(case_path);
-		auto model = buildModel(case_data, case_path, false);
+		auto model = buildModel(case_data, case_path, true);
 		EXPECT_TRUE(model.hasLorentz());
 		const LorentzProperties* pole = model.findLorentz(3);
 		ASSERT_NE(pole, nullptr);
 		EXPECT_TRUE(pole->hasSpatialProfile());
+	}
+}
+
+TEST_F(DriverTest, sgbcAutoMeshingOrderSegmentsAndValidation)
+{
+	// 1. Péclet-based order selection (Pe > 100 -> order 2; Pe < 0.1 & sigma < 1e-3 -> order 4; moderate -> order 3)
+	{
+		auto case_data = loadPecCase();
+		case_data["solver_options"]["sgbc_cfl"] = 0.75;
+		case_data["model"]["boundaries"][0] = {
+			{"tags", {1}},
+			{"type", "SGBC"},
+			{"sgbc_boundaries", {{"right", "PEC"}}},
+			{"layers", json::array({
+				// Layer 0: low-loss dielectric (sigma = 0, Pe = 0) -> order 4
+				{
+					{"material_width", 0.002},
+					{"relative_permittivity", 4.0},
+					{"relative_permeability", 1.0},
+					{"bulk_conductivity", 0.0}
+				},
+				// Layer 1: moderate loss (sigma = 0.05 S/m -> Pe ~ 1.1) -> order 3
+				{
+					{"material_width", 0.003},
+					{"relative_permittivity", 2.0},
+					{"relative_permeability", 1.0},
+					{"bulk_conductivity", 0.05}
+				},
+				// Layer 2: high-loss conductor (sigma = 1.0e5 S/m -> Pe >> 100) -> order 2
+				{
+					{"material_width", 0.001},
+					{"relative_permittivity", 1.0},
+					{"relative_permeability", 1.0},
+					{"bulk_conductivity", 1.0e5}
+				}
+			})}
+		};
+
+		auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+		const auto& sgbc_props = model.getSGBCProperties();
+		ASSERT_EQ(sgbc_props.size(), 1u);
+		EXPECT_DOUBLE_EQ(sgbc_props[0].sgbc_cfl, 0.75);
+		EXPECT_FALSE(sgbc_props[0].sgbc_bdr_info.first.isOn);
+		EXPECT_TRUE(sgbc_props[0].sgbc_bdr_info.second.isOn);
+		EXPECT_EQ(sgbc_props[0].sgbc_bdr_info.second.bdrCond, BdrCond::PEC);
+
+		ASSERT_EQ(sgbc_props[0].layers.size(), 3u);
+		EXPECT_EQ(sgbc_props[0].layers[0].order, 4u);
+		EXPECT_GE(sgbc_props[0].layers[0].num_of_segments, 4u);
+
+		EXPECT_EQ(sgbc_props[0].layers[1].order, 3u);
+		EXPECT_GE(sgbc_props[0].layers[1].num_of_segments, 4u);
+
+		EXPECT_EQ(sgbc_props[0].layers[2].order, 2u);
+		// High conductivity shrinks skin depth, so skin-depth rule produces > 4 segments
+		EXPECT_GT(sgbc_props[0].layers[2].num_of_segments, 4u);
+		EXPECT_LE(sgbc_props[0].layers[2].num_of_segments, 1000u);
+	}
+
+	// 2. Reject non-positive sgbc_cfl
+	{
+		auto case_data = loadPecCase();
+		case_data["solver_options"]["sgbc_cfl"] = 0.0;
+		case_data["model"]["boundaries"][0] = {
+			{"tags", {1}},
+			{"type", "SGBC"},
+			{"material", {
+				{"material_width", 0.001},
+				{"bulk_conductivity", 1.0}
+			}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+
+	// 3. Reject drude on SGBC layer
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["boundaries"][0] = {
+			{"tags", {1}},
+			{"type", "SGBC"},
+			{"material", {
+				{"material_width", 0.001},
+				{"bulk_conductivity", 1.0},
+				{"drude", {{"omega_p", 1.0e9}, {"nu_c", 1.0e7}}}
+			}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, planewaveAutoDelayAndDeltaGapValidation)
+{
+	// 1. Planewave auto-delay sets mean = min_phase - 5 * sqrt(2) * spread along propagation
+	{
+		const std::string case_path = maxwellCase("1D_TFSF");
+		auto case_data = parseJSONfile(case_path);
+		case_data["sources"][0]["magnitude"].erase("mean");
+		const double spread = case_data["sources"][0]["magnitude"]["spread"].get<double>();
+
+		auto model = buildModel(case_data, case_path, true);
+		auto sources = buildSources(case_data, &model.getConstMesh());
+		ASSERT_EQ(sources.size(), 1u);
+		const auto* tf = dynamic_cast<const TotalField*>(sources.begin()->get());
+		ASSERT_NE(tf, nullptr);
+		// Evaluate incident field at TFSF point (x = -3.0 on 1D_TFSF mesh) at t = 0:
+		// exp(-(-5*sqrt(2)*sigma)^2 / (2*sigma^2)) = exp(-25) < 2e-11
+		mfem::Vector x_tfsf({-3.0, 0.0, 0.0});
+		const double e_at_t0 = std::abs(tf->eval(x_tfsf, 0.0, E, Y));
+		EXPECT_LT(e_at_t0, 2.0e-11);
+		// Peak arrives at x_tfsf at t = 5 * sqrt(2) * spread
+		const double t_peak = 5.0 * std::sqrt(2.0) * spread;
+		EXPECT_NEAR(tf->eval(x_tfsf, t_peak, E, Y), 1.0, 1e-12);
+	}
+
+	// 2. Delta-gap auto-spread from db_cut and key validation
+	{
+		const std::string case_path = maxwellCase("2D_Delta_Gap");
+		auto case_data = parseJSONfile(case_path);
+		case_data["sources"][0].erase("spread");
+		case_data["sources"][0].erase("f_1e");
+		case_data["sources"][0]["db_cut"] = -20.0;
+
+		auto model = buildModel(case_data, case_path, true);
+		auto sources = buildSources(case_data, &model.getConstMesh());
+		ASSERT_EQ(sources.size(), 1u);
+		const auto* gap = dynamic_cast<const DeltaGapSource*>(sources.begin()->get());
+		ASSERT_NE(gap, nullptr);
+		EXPECT_GT(gap->spread(), 0.0);
+		EXPECT_NEAR(gap->t0(), 5.0 * std::sqrt(2.0) * gap->spread(), 1e-12);
+
+		// Reject zero polarization, legacy normal_sign, f_max, or spread + db_cut
+		{
+			auto bad = case_data;
+			bad["sources"][0]["polarization"] = {0.0, 0.0, 0.0};
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
+		{
+			auto bad = case_data;
+			bad["sources"][0]["normal_sign"] = 1;
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
+		{
+			auto bad = case_data;
+			bad["sources"][0]["f_max"] = 1.0e9;
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
+		{
+			auto bad = case_data;
+			bad["sources"][0]["spread"] = 0.2;
+			bad["sources"][0]["db_cut"] = -20.0;
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
 	}
 }

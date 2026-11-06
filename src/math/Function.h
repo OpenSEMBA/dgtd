@@ -7,7 +7,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
+#include <vector>
 
 #include <gsl/gsl_sf_bessel.h>  
 #include <gsl/gsl_sf_legendre.h>
@@ -491,6 +494,72 @@ private:
 	Position mean_;
 	double freq_;
 	int dimension_;
+};
+
+/// Incident waveform read from a two-column file: time in seconds, amplitude.
+/// Linear interpolation. Zero outside the first and last sample.
+/// `eval` receives the same argument as `Gaussian`: phase minus solver time, in light-metres.
+class SampledExcitation : public Function {
+public:
+	explicit SampledExcitation(const std::string& path)
+	{
+		std::ifstream in(path);
+		if (!in) {
+			throw std::runtime_error("Cannot open excitation file: " + path);
+		}
+		std::string line;
+		while (std::getline(in, line)) {
+			if (line.empty() || line[0] == '#') {
+				continue;
+			}
+			std::istringstream row(line);
+			double time = 0.0;
+			double amplitude = 0.0;
+			if (!(row >> time >> amplitude)) {
+				continue;
+			}
+			if (!std::isfinite(time) || !std::isfinite(amplitude)) {
+				throw std::runtime_error("Excitation file has a non-finite sample: " + path);
+			}
+			if (!times_.empty() && !(time > times_.back())) {
+				throw std::runtime_error("Excitation file times must increase: " + path);
+			}
+			times_.push_back(time);
+			values_.push_back(amplitude);
+		}
+		if (times_.size() < 2) {
+			throw std::runtime_error("Excitation file needs at least two samples: " + path);
+		}
+	}
+
+	int dimension() const { return 1; }
+
+	std::unique_ptr<Function> clone() const {
+		return std::make_unique<SampledExcitation>(*this);
+	}
+
+	double eval(const Position& pos) const {
+		const double time_s = -pos[0] / physicalConstants::speedOfLight_SI;
+		if (time_s < times_.front() || time_s > times_.back()) {
+			return 0.0;
+		}
+		const auto upper = std::upper_bound(times_.begin(), times_.end(), time_s);
+		if (upper == times_.begin()) {
+			return values_.front();
+		}
+		if (upper == times_.end()) {
+			return values_.back();
+		}
+		const std::size_t i1 = static_cast<std::size_t>(upper - times_.begin());
+		const std::size_t i0 = i1 - 1;
+		const double span = times_[i1] - times_[i0];
+		const double weight = (time_s - times_[i0]) / span;
+		return values_[i0] + weight * (values_[i1] - values_[i0]);
+	}
+
+private:
+	std::vector<double> times_;
+	std::vector<double> values_;
 };
 
 class SinusoidalMode : public Function {

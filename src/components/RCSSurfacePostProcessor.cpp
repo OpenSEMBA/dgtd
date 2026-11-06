@@ -729,6 +729,8 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
     }
 
     // After all ranks processed, compute far-field power from coherently-summed amplitudes.
+    // Key matches coherentSum. Value is {E_theta, E_phi}.
+    std::map<std::pair<SphericalAngles, double>, std::array<std::complex<double>, 2>> sphericalE;
     std::cout << "\n[RCS] Computing far-field radiation potentials..." << std::flush;
     for (int fi = 0; fi < nFreq; ++fi) {
         const double freq = normFreqs[fi];
@@ -758,6 +760,12 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                      std::norm(L_theta - Z0 * N_phi));
             }
             farFieldData_[ang][freq] = potRad;
+            // Same complex amplitudes that enter the RCS norm.
+            // E_theta = L_phi + Z0 N_theta, E_phi = L_theta - Z0 N_phi.
+            // These are NTFF integrals (Z0 = 1), not a 1/r field in V/m.
+            auto E_theta = L_phi + Z0 * N_theta;
+            auto E_phi = L_theta - Z0 * N_phi;
+            sphericalE[{ang, freq}] = {E_theta, E_phi};
         }
     }
 
@@ -809,6 +817,26 @@ void RCSSurfacePostProcessor::computeAndWriteResults(
                 out << ang.theta << " " << ang.phi << " "
                     << f * physicalConstants::speedOfLight_SI << " "
                     << rcsData_[ang][f] << " " << norm << "\n";
+            }
+        }
+        {
+            std::ofstream out(dataPath + "/rcs/rcsComplex_Th_" +
+                              std::to_string(ang.theta) + "_Phi_" +
+                              std::to_string(ang.phi) + "_dgtd.csv");
+            out << "# theta_rad=" << std::setprecision(17) << ang.theta
+                << " phi_rad=" << ang.phi << "\n";
+            out << "# E_theta = L_phi + Z0*N_theta, E_phi = L_theta - Z0*N_phi, "
+                   "Z0=1. Complex NTFF integrals used by the RCS norm; "
+                   "not a 1/r far field in V/m.\n";
+            out << "frequency_Hz,rcs_m2,E_theta_re,E_theta_im,E_phi_re,E_phi_im\n";
+            out << std::setprecision(17);
+            for (const auto& f : normFreqs) {
+                const auto& amp = sphericalE.at({ang, f});
+                const double f_hz = f * physicalConstants::speedOfLight_SI;
+                out << f_hz << ","
+                    << rcsData_[ang][f] << ","
+                    << amp[0].real() << "," << amp[0].imag() << ","
+                    << amp[1].real() << "," << amp[1].imag() << "\n";
             }
         }
     }

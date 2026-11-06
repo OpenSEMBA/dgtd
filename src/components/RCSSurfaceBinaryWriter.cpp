@@ -131,4 +131,57 @@ void RCSSurfaceBinaryWriter::writeSnapshot(double time)
     dataFile_.flush();
 }
 
+void RCSSurfaceBinaryWriter::surfaceParentMap(mfem::Array<int>& ids,
+                                             std::vector<double>& signs) const
+{
+    auto* surface_sm = static_cast<SubMesh*>(surfaceFes_->GetMesh());
+    Array<int> raw_map;
+    SubMeshUtils::BuildVdofToVdofMap(*surfaceFes_,
+                                     *globalFields_.get(E, X).ParFESpace(),
+                                     surface_sm->GetFrom(),
+                                     surface_sm->GetParentElementIDMap(),
+                                     raw_map);
+
+    ids.SetSize(raw_map.Size());
+    signs.resize(static_cast<std::size_t>(raw_map.Size()));
+    for (int i = 0; i < raw_map.Size(); ++i) {
+        real_t sign = 1.0;
+        ids[i] = FiniteElementSpace::DecodeDof(raw_map[i], sign);
+        signs[static_cast<std::size_t>(i)] = static_cast<double>(sign);
+    }
+}
+
+void RCSSurfaceBinaryWriter::copyTransferredSurface(double* packed)
+{
+    transferMaps_.transferFields(globalFields_, surfaceFields_);
+    double* dst = packed;
+    for (auto ft : {E, H}) {
+        for (auto d : {X, Y, Z}) {
+            const auto& gf = surfaceFields_.get(ft, d);
+            const double* src = gf.GetData();
+            for (int i = 0; i < numDofs_; ++i) {
+                dst[i] = src[i];
+            }
+            dst += numDofs_;
+        }
+    }
+}
+
+void RCSSurfaceBinaryWriter::writePackedSnapshot(double time, const double* packed)
+{
+    dataFile_.write(reinterpret_cast<const char*>(&time), sizeof(double));
+    const std::size_t bytes =
+        static_cast<std::size_t>(6 * numDofs_) * sizeof(double);
+    dataFile_.write(reinterpret_cast<const char*>(packed),
+                    static_cast<std::streamsize>(bytes));
+    if (!dataFile_) {
+        throw std::runtime_error("Failed writing a packed RCS surface snapshot.");
+    }
+}
+
+void RCSSurfaceBinaryWriter::flush()
+{
+    dataFile_.flush();
+}
+
 } // namespace maxwell

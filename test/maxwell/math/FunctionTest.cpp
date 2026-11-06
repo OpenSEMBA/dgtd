@@ -213,3 +213,77 @@ TEST_F(FunctionTest, CoaxialMode_radialElectricAndAzimuthalMagnetic)
 	EXPECT_EQ(113, mode.totalFieldVolume());
 	EXPECT_EQ(112, mode.scatteredFieldVolume());
 }
+
+TEST_F(FunctionTest, GaussianProfile_UnitCoordMappingAndCutoffFactor)
+{
+	const double peak = 5.0;
+	const double offset = 1.25;
+	Position center({0.5});
+
+	for (double eps : {1.0e-1, 1.0e-2, 1.0e-4}) {
+		GaussianProfile prof(peak, 0.1, center, offset, eps);
+		EXPECT_DOUBLE_EQ(eps, prof.cutoffFactor());
+		EXPECT_NEAR(std::sqrt(-2.0 * std::log(eps)), prof.zCut(), 1e-14);
+
+		// Tails at xi = 0 and xi = 1 equal offset + eps * peak
+		EXPECT_NEAR(offset + eps * peak, prof.evalAtUnitCoord(0.0), 1e-12);
+		EXPECT_NEAR(offset + eps * peak, prof.evalAtUnitCoord(1.0), 1e-12);
+		// Center at xi = 0.5 equals offset + peak
+		EXPECT_NEAR(offset + peak, prof.evalAtUnitCoord(0.5), 1e-12);
+
+		// Symmetry across xi = 0.5
+		for (double xi : {0.1, 0.25, 0.37}) {
+			EXPECT_NEAR(prof.evalAtUnitCoord(xi), prof.evalAtUnitCoord(1.0 - xi), 1e-13);
+		}
+	}
+
+	EXPECT_THROW(GaussianProfile(peak, 0.1, center, 0.0, 0.0), std::runtime_error);
+	EXPECT_THROW(GaussianProfile(peak, 0.1, center, 0.0, 1.0), std::runtime_error);
+	EXPECT_THROW(GaussianProfile(peak, 0.1, center, 0.0, -0.1), std::runtime_error);
+}
+
+TEST_F(FunctionTest, PositiveGaussianDerivativeProfile_TwoLobesAndCutoffFactor)
+{
+	const double peak = 4.0;
+	const double offset = 0.5;
+	Position center({0.5});
+
+	for (double eps : {1.0e-1, 1.0e-2, 1.0e-3}) {
+		PositiveGaussianDerivativeProfile prof(peak, 0.1, center, 0, offset, eps);
+		EXPECT_DOUBLE_EQ(eps, prof.cutoffFactor());
+		const double z_cut = prof.zCut();
+		EXPECT_GT(z_cut, 1.0);
+
+		// Outer tails at xi = 0 and xi = 1 equal offset + eps * peak
+		EXPECT_NEAR(offset + eps * peak, prof.evalAtUnitCoord(0.0), 1e-11);
+		EXPECT_NEAR(offset + eps * peak, prof.evalAtUnitCoord(1.0), 1e-11);
+
+		// Central trough at xi = 0.5 equals offset
+		EXPECT_NEAR(offset, prof.evalAtUnitCoord(0.5), 1e-12);
+
+		// Two symmetric lobes at z = -1 and z = +1 reach offset + peak
+		const double xi_left_lobe = 0.5 * (1.0 - 1.0 / z_cut);
+		const double xi_right_lobe = 0.5 * (1.0 + 1.0 / z_cut);
+		EXPECT_NEAR(offset + peak, prof.evalAtUnitCoord(xi_left_lobe), 1e-12);
+		EXPECT_NEAR(offset + peak, prof.evalAtUnitCoord(xi_right_lobe), 1e-12);
+
+		// Symmetry and non-negativity across [0, 1]
+		for (double xi = 0.0; xi <= 1.0; xi += 0.05) {
+			EXPECT_GE(prof.evalAtUnitCoord(xi), offset);
+			EXPECT_NEAR(prof.evalAtUnitCoord(xi), prof.evalAtUnitCoord(1.0 - xi), 1e-12);
+		}
+	}
+
+	EXPECT_THROW(PositiveGaussianDerivativeProfile(peak, 0.1, center, 0, 0.0, 0.0), std::runtime_error);
+	EXPECT_THROW(PositiveGaussianDerivativeProfile(peak, 0.1, center, 0, 0.0, 1.0), std::runtime_error);
+}
+
+TEST_F(FunctionTest, Ramc61kmStagnationProfile_DirectionFlipAndUnitCoord)
+{
+	Ramc61kmStagnationProfile wp_pos(Ramc61kmPreset::OmegaP, 1.0, 0.0, 0, 1.0);
+	Ramc61kmStagnationProfile wp_neg(Ramc61kmPreset::OmegaP, 1.0, 0.0, 0, -1.0);
+
+	for (double xi : {0.0, 0.2, 0.39, 0.65, 1.0}) {
+		EXPECT_NEAR(wp_pos.evalAtUnitCoord(xi), wp_neg.evalAtUnitCoord(1.0 - xi), 1e-12);
+	}
+}

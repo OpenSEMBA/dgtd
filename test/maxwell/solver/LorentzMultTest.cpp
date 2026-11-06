@@ -403,3 +403,122 @@ TEST(LorentzMult, profile_stretches_across_arbitrary_1d_region_lengths)
 		}
 	}
 }
+
+TEST(LorentzMult, combined_debye_and_lorentz_regions_keep_separate_aux_blocks)
+{
+	if (Mpi::WorldSize() > 1) {
+		GTEST_SKIP() << "Lorentz residual check uses an undivided mesh.";
+	}
+
+	// 2-element 1D mesh: element 0 has attribute 1 (Debye), element 1 has attribute 2 (Lorentz)
+	Mesh serial(1, 3, 2, 2);
+	const double vx0 = 0.0, vx1 = 0.5, vx2 = 1.0;
+	serial.AddVertex(&vx0);
+	serial.AddVertex(&vx1);
+	serial.AddVertex(&vx2);
+	serial.AddSegment(0, 1, 1);
+	serial.AddSegment(1, 2, 2);
+	Element* b0 = serial.NewElement(Geometry::POINT);
+	int v0 = 0;
+	b0->SetVertices(&v0);
+	b0->SetAttribute(1);
+	serial.AddBdrElement(b0);
+	Element* b1 = serial.NewElement(Geometry::POINT);
+	int v2 = 2;
+	b1->SetVertices(&v2);
+	b1->SetAttribute(2);
+	serial.AddBdrElement(b1);
+	serial.FinalizeTopology();
+	serial.Finalize();
+
+	const double eps_inf_d = 2.0, eps_s_d = 5.0, tau_d = 0.8;
+	const double eps_inf_l = 1.5, omega_p_l = 2.5, omega_1_l = 1.2, gamma_l = 0.4;
+
+	GeomTagToMaterial mats;
+	mats.emplace(1, Material(eps_inf_d, 1.0, 0.0));
+	mats.emplace(2, Material(eps_inf_l, 1.0, 0.0));
+
+	auto model = std::make_unique<Model>(
+		serial,
+		GeomTagToMaterialInfo(mats, {}),
+		GeomTagToBoundaryInfo(pecEnds(serial), {}));
+
+	DebyeProperties debye_pole;
+	debye_pole.geom_tag = 1;
+	debye_pole.eps_inf = eps_inf_d;
+	debye_pole.eps_s = eps_s_d;
+	debye_pole.tau_solver = tau_d;
+	model->setDebyeProperties({debye_pole});
+
+	LorentzProperties lorentz_pole;
+	lorentz_pole.geom_tag = 2;
+	lorentz_pole.eps_inf = eps_inf_l;
+	lorentz_pole.omega_p = omega_p_l;
+	lorentz_pole.omega_1 = omega_1_l;
+	lorentz_pole.gamma = gamma_l;
+	model->setLorentzProperties({lorentz_pole});
+
+	auto fec = std::make_unique<DG_FECollection>(1, 1, BasisType::GaussLobatto);
+	auto fes = std::make_unique<ParFiniteElementSpace>(&model->getMesh(), fec.get());
+	const int ndofs = fes->GetNDofs();
+	const int n_debye = model->debyeAuxSize(ndofs);
+	const int n_lorentz = model->lorentzAuxSize(ndofs);
+	ASSERT_EQ(n_debye, 3 * ndofs);
+	ASSERT_EQ(n_lorentz, 6 * ndofs);
+
+	Fields<ParFiniteElementSpace, ParGridFunction> fields(*fes, n_debye + n_lorentz);
+	Sources sources;
+	SourcesManager sources_manager(sources, *fes, fields);
+	EvolutionOptions opts;
+	opts.order = 1;
+	opts.alpha = 1.0;
+	Probes probes;
+	GlobalEvolution evolution(*fes, *model, sources_manager, opts, probes, 1.0);
+	ASSERT_EQ(evolution.Height(), 15 * ndofs);
+
+	Array<int> debye_dofs, lorentz_dofs;
+	fes->GetElementDofs(0, debye_dofs);
+	fes->GetElementDofs(1, lorentz_dofs);
+
+	Vector x0(evolution.Height());
+	x0 = 0.0;
+	Vector y0(evolution.Height());
+	evolution.Mult(x0, y0);
+
+	// Perturb Debye P_x on element 0 and Lorentz (P_x, J_x) on element 1
+	const double p_debye_val = 0.35;
+	const double p_lor_val = 0.25;
+	const double j_lor_val = 0.45;
+	const int debye_p_off = 6 * ndofs;
+	const int lor_p_off = 9 * ndofs;
+	const int lor_j_off = 12 * ndofs;
+
+	Vector x1(x0);
+	for (int k = 0; k < debye_dofs.Size(); ++k) {
+		x1[debye_p_off + debye_dofs[k]] = p_debye_val;
+	}
+	for (int k = 0; k < lorentz_dofs.Size(); ++k) {
+		x1[lor_p_off + lorentz_dofs[k]] = p_lor_val;
+		x1[lor_j_off + lorentz_dofs[k]] = j_lor_val;
+	}
+	Vector y1(evolution.Height());
+	evolution.Mult(x1, y1);
+
+	for (int k = 0; k < debye_dofs.Size(); ++k) {
+		const int d = debye_dofs[k];
+		EXPECT_NEAR(y1[d] - y0[d], p_debye_val / (eps_inf_d * tau_d), 1e-10);
+		EXPECT_NEAR(y1[debye_p_off + d] - y0[debye_p_off + d], -p_debye_val / tau_d, 1e-10);
+		EXPECT_NEAR(y1[lor_p_off + d] - y0[lor_p_off + d], 0.0, 1e-12);
+		EXPECT_NEAR(y1[lor_j_off + d] - y0[lor_j_off + d], 0.0, 1e-12);
+	}
+	for (int k = 0; k < lorentz_dofs.Size(); ++k) {
+		const int d = lorentz_dofs[k];
+		EXPECT_NEAR(y1[d] - y0[d], -j_lor_val / eps_inf_l, 1e-10);
+		EXPECT_NEAR(y1[debye_p_off + d] - y0[debye_p_off + d], 0.0, 1e-12);
+		EXPECT_NEAR(y1[lor_p_off + d] - y0[lor_p_off + d], j_lor_val, 1e-10);
+		EXPECT_NEAR(
+			y1[lor_j_off + d] - y0[lor_j_off + d],
+			-omega_1_l * omega_1_l * p_lor_val - gamma_l * j_lor_val,
+			1e-10);
+	}
+}
