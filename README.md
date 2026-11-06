@@ -32,8 +32,9 @@ Requires METIS 5 and HYPRE built from source; set `METIS_DIR` and `HYPRE_DIR` be
 wget https://github.com/mfem/tpls/raw/gh-pages/metis-5.1.0.tar.gz
 tar -zxvf metis-5.1.0.tar.gz
 cd metis-5.1.0
-make BUILDDIR=lib config
-make BUILDDIR=lib
+# CMake 4 rejects this release's cmake_minimum_required() unless the floor is set.
+CMAKE_POLICY_VERSION_MINIMUM=3.5 make BUILDDIR=lib config
+CMAKE_POLICY_VERSION_MINIMUM=3.5 make BUILDDIR=lib
 cp lib/libmetis/libmetis.a lib/
 export METIS_DIR=$PWD
 ```

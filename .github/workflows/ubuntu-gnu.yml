@@ -34,7 +34,11 @@ jobs:
       uses: mpi4py/setup-mpi@v1
 
     # 2. Build and Export METIS
+    # METIS 5.1.0 still calls cmake_minimum_required() with a version below 3.5.
+    # CMake 4 removes that compatibility unless this floor is set.
     - name: Build METIS
+      env:
+        CMAKE_POLICY_VERSION_MINIMUM: "3.5"
       run: |
         cd $HOME
         wget https://github.com/mfem/tpls/raw/gh-pages/metis-5.1.0.tar.gz
