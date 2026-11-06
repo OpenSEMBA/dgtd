@@ -44,7 +44,8 @@ export METIS_DIR=$PWD
 wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
 tar -zxvf v2.31.0.tar.gz
 cd hypre-2.31.0/src
-./configure --disable-fortran
+# GCC 15 defaults to C23, where Pilut's typedef of bool is invalid.
+./configure --disable-fortran CFLAGS="-O2 -std=gnu11"
 make -j $(nproc)
 export HYPRE_DIR=$PWD/hypre
 ```

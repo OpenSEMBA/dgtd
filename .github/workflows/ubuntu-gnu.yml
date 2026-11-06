@@ -50,13 +50,14 @@ jobs:
         echo "METIS_DIR=$HOME/metis-5.1.0" >> $GITHUB_ENV
 
     # 3. Build and Export HYPRE
+    # Pilut's struct.h typedefs bool. GCC 15 defaults to C23, where bool is a keyword.
     - name: Build HYPRE
       run: |
         cd $HOME
         wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
         tar -zxvf v2.31.0.tar.gz
         cd hypre-2.31.0/src
-        ./configure --disable-fortran
+        ./configure --disable-fortran CFLAGS="-O2 -std=gnu11"
         make -j $(nproc)
         # An in-place HYPRE build puts includes and libs in the src/hypre subdirectory
         echo "HYPRE_DIR=$HOME/hypre-2.31.0/src/hypre" >> $GITHUB_ENV
