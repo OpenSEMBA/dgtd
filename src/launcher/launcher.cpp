@@ -18,8 +18,9 @@ void printHelpArgument()
 	std::cout <<																				   std::endl;
 	std::cout << "-h              / Brings up this help menu."								    << std::endl;
 	std::cout << "-i path/to/file / Specifies input file to run with executable."			    << std::endl;
-	std::cout << "--restart       / Resume the latest complete checkpoint."				    << std::endl;
+	std::cout << "--continue      / Resume the latest complete checkpoint."				    << std::endl;
 	std::cout << "                  Same JSON, mesh, and MPI rank count."					    << std::endl;
+	std::cout << "--restart       / Delete this case's checkpoints and run from t = 0."	    << std::endl;
 	std::cout << "--device / -d   / Backend: cpu, omp, or cuda."							    << std::endl;
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	std::cout << "                  Default in this binary: cuda."							    << std::endl;
@@ -46,7 +47,8 @@ int main(int argc, char** argv)
 	}
 	
 	std::string inputFilePath;
-	bool restart = false;
+	bool continue_run = false;
+	bool restart_run = false;
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	std::string deviceConfig{ "cuda" };
 #else
@@ -57,8 +59,11 @@ int main(int argc, char** argv)
 		if (arg == "-i" && i + 1 < argc) {
 			inputFilePath = argv[++i]; 
 		}
+		else if (arg == "--continue") {
+			continue_run = true;
+		}
 		else if (arg == "--restart") {
-			restart = true;
+			restart_run = true;
 		}
 		else if (arg == "-h") {
 			printHelpArgument();
@@ -83,6 +88,11 @@ int main(int argc, char** argv)
 		}
 	}
 
+	if (continue_run && restart_run) {
+		std::cerr << "--continue and --restart cannot be used together." << std::endl;
+		return 1;
+	}
+
 	mfem::Mpi::Init(argc, argv);
 	mfem::Hypre::Init();
 
@@ -102,7 +112,12 @@ int main(int argc, char** argv)
 	}
 
 	{
-		auto solver = maxwell::driver::buildSolverJson(inputFilePath, false, restart);
+		const auto resume = continue_run
+			? maxwell::driver::LaunchResume::Continue
+			: restart_run
+				? maxwell::driver::LaunchResume::Restart
+				: maxwell::driver::LaunchResume::None;
+		auto solver = maxwell::driver::buildSolverJson(inputFilePath, false, resume);
 		solver.run();
 
 		if (mfem::Mpi::WorldRank() == 0) {

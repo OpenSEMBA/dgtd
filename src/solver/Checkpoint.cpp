@@ -438,8 +438,53 @@ std::string foreignCheckpointMessage(const std::filesystem::path& checkpoint_dir
     } catch (const std::exception&) {
     }
     msg += ". This job is " + getRunModeTag()
-        + ". Resume with the same MPI rank count and device, from the same working directory.";
+        + ". Resume with --continue using the same MPI rank count and device, from the same working directory."
+        + " Pass --restart to delete checkpoints and start from t = 0.";
     return msg;
+}
+
+void removeAllCaseCheckpoints(const std::string& caseName)
+{
+    int ok = 1;
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        try {
+            const std::filesystem::path base("exports/SimulationData");
+            int removed = 0;
+            if (std::filesystem::exists(base)) {
+                for (const auto& mode : std::filesystem::directory_iterator(base)) {
+                    if (!mode.is_directory()) {
+                        continue;
+                    }
+                    const auto root = mode.path() / caseName / "Checkpoints";
+                    if (!std::filesystem::exists(root)) {
+                        continue;
+                    }
+                    std::error_code ec;
+                    std::filesystem::remove_all(root, ec);
+                    if (ec) {
+                        std::cerr << "Could not remove " << root << ": " << ec.message() << std::endl;
+                        ok = 0;
+                        break;
+                    }
+                    ++removed;
+                }
+            }
+            if (ok) {
+                std::cout << "Removed " << removed << " checkpoint director"
+                          << (removed == 1 ? "y" : "ies")
+                          << " for " << caseName << ". Starting from t = 0." << std::endl;
+            }
+        } catch (const std::exception& ex) {
+            std::cerr << ex.what() << std::endl;
+            ok = 0;
+        }
+    }
+    MPI_Bcast(&ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (!ok) {
+        throw std::runtime_error("Could not remove checkpoints for " + caseName + ".");
+    }
 }
 
 CheckpointManifest readManifest(const std::filesystem::path& manifest_json)

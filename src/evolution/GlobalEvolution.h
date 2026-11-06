@@ -30,6 +30,8 @@ public:
     void commitSGBCCheckpoint(double base_time, double dt,
                               const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
     void finalizeSGBCStep(const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields);
+    void exportSGBC(const std::string& directory, int cycle, double time) const;
+    bool hasSGBCExport() const { return !sgbc_exports_.empty(); }
 
     const mfem::SparseMatrix& getConstGlobalOperator() { return *globalOperator_.get(); }
 
@@ -138,6 +140,27 @@ private:
     void logSGBCSubstepPlanOnce(double parent_dt, double recommended_dt, int nsteps,
                                 double actual_sub_dt, double sgbc_cfl) const;
 
+    struct SGBCExport {
+        GeomTag tag = 0;
+        int order = 1;
+        int nseg_per_state = 0;
+        int local_field_size = 0;
+        int idx_left = 0;
+        int local_states = 0;
+        int total_states = 0;
+        std::vector<int> recv_counts;
+        std::vector<int> displs;
+        std::unique_ptr<mfem::Mesh> mesh;
+        std::unique_ptr<mfem::DG_FECollection> collection;
+        std::unique_ptr<mfem::FiniteElementSpace> space;
+        std::unique_ptr<mfem::GridFunction> e;
+        std::unique_ptr<mfem::GridFunction> h;
+        std::unique_ptr<mfem::ParaViewDataCollection> paraview;
+    };
+    mutable std::vector<SGBCExport> sgbc_exports_;
+    void buildSGBCExportMeshes();
+    void syncSGBCExportFields() const;
+
     // TFSF skip threshold: if the evaluated planewave source norm falls
     // below this value, the source has decayed and TFSF is permanently
     // skipped for the remainder of the simulation.
@@ -146,11 +169,15 @@ private:
     // Cached dense LU factorization for small serial systems (SGBC sub-solver).
     // Activated only when n <= threshold AND nbrDofs == 0 (serial mesh).
     // This ensures it never triggers for the main 2D/3D parallel problem.
+    // Two cache slots cover RK4 stages 2-3 (0.5*dt/Ns) and stage 4/finalize (dt/Nf)
+    // without re-factorizing on every global step.
     static constexpr int dense_solve_threshold_ = 600;
+    static constexpr int num_lu_cache_slots_ = 2;
     mutable mfem::DenseMatrix A_dense_;           // Dense copy of globalOperator_
-    mutable mfem::DenseMatrix J_dense_;           // J = I - dt*A
-    mutable std::unique_ptr<mfem::DenseMatrixInverse> J_inv_;
-    mutable double cached_dt_ = -1.0;
+    mutable mfem::DenseMatrix J_dense_[num_lu_cache_slots_]; // J = I - dt*A
+    mutable std::unique_ptr<mfem::DenseMatrixInverse> J_inv_[num_lu_cache_slots_];
+    mutable double cached_dt_[num_lu_cache_slots_] = {-1.0, -1.0};
+    mutable int next_lu_cache_slot_ = 0;
     mutable bool dense_A_formed_ = false;
 };
 

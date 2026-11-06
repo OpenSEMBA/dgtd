@@ -139,6 +139,31 @@ const DebyeProperties* Model::findDebye(Attribute tag) const
 void Model::setLorentzProperties(const std::vector<LorentzProperties>& in)
 {
 	lorentz_ = in;
+	if (serialMesh_.Dimension() == 1 && serialMesh_.GetNE() > 0) {
+		for (LorentzProperties& pole : lorentz_) {
+			if (pole.hasRegionBounds()) {
+				continue;
+			}
+			double min_x = std::numeric_limits<double>::infinity();
+			double max_x = -std::numeric_limits<double>::infinity();
+			mfem::Array<int> verts;
+			for (int el = 0; el < serialMesh_.GetNE(); ++el) {
+				if (serialMesh_.GetAttribute(el) != pole.geom_tag) {
+					continue;
+				}
+				serialMesh_.GetElementVertices(el, verts);
+				for (int v = 0; v < verts.Size(); ++v) {
+					const double vx = serialMesh_.GetVertex(verts[v])[0];
+					min_x = std::min(min_x, vx);
+					max_x = std::max(max_x, vx);
+				}
+			}
+			if (max_x > min_x) {
+				pole.region_min_x = min_x;
+				pole.region_max_x = max_x;
+			}
+		}
+	}
 	lorentz_by_tag_.clear();
 	for (const LorentzProperties& pole : lorentz_) {
 		lorentz_by_tag_.insert_or_assign(pole.geom_tag, pole);

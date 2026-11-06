@@ -515,11 +515,11 @@ void TotalFieldScatteredFieldSubMesher::assignIndividualTFSFAttsOnePoint1D(Mesh&
 			auto be_trans{ getFaceElementTransformation(m, be) };
 			std::pair<FaceId, IsTF> set_e1;
 			std::pair<FaceId, IsTF> set_e2;
-			if (be_trans->Elem1No == 0) {
+			if (be_trans->Elem1No == 0 && be_trans->Elem2No < 0) {
 				set_e1 = std::make_pair(0, true);
 				set_e2 = std::make_pair(NotFound, false);
 			}
-			else if (be_trans->Elem1No == m.GetNE() - 1) {
+			else if (be_trans->Elem1No == m.GetNE() - 1 && be_trans->Elem2No < 0) {
 				set_e1 = std::make_pair(1, true);
 				set_e2 = std::make_pair(NotFound, false);
 			}

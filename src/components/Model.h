@@ -152,14 +152,16 @@ public:
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
-	const GeomTagToMaterial& getGeomTagToMaterial() { return attToMatMap_; }
+	const GeomTagToMaterial& getGeomTagToMaterial() const { return attToMatMap_; }
 	const GeomTagToBoundaryMaterial& getGeomTagToBoundaryMaterial() { return attToBdrMatMap_; }
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 	const InteriorBoundaryToMarker& getInteriorBoundaryToMarker() const { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
+	const TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() const { return tfsfToMarkerMap_; }
 	SGBCToMarker& getSGBCToMarker() { return SGBCToMarkerMap_; }
+	const SGBCToMarker& getSGBCToMarker() const { return SGBCToMarkerMap_; }
 	void setDeltaGapMarker(const mfem::Array<int>& marker) { deltaGapMarker_ = marker; }
 	mfem::Array<int>& getDeltaGapMarker() { return deltaGapMarker_; }
 	const mfem::Array<int>& getDeltaGapMarker() const { return deltaGapMarker_; }

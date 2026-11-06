@@ -85,4 +85,32 @@ TEST_F(SolverExtensionTest, buildTest)
     }
 }
 
+TEST_F(SolverExtensionTest, exportSGBCWritesParaViewPerTag)
+{
+    auto case_data = parseJSONfile(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
+    auto global_solver = driver::buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true);
+
+    auto* evol = dynamic_cast<GlobalEvolution*>(global_solver.getEvolTDO());
+    ASSERT_NE(nullptr, evol);
+    EXPECT_TRUE(evol->hasSGBCExport());
+
+    const std::string directory = "sgbc_paraview_test.msh";
+    std::filesystem::remove_all(directory);
+    evol->exportSGBC(directory, 0, 0.0);
+
+    if (mfem::Mpi::WorldRank() == 0) {
+        for (int tag : {15, 18}) {
+            const std::string sub = "sgbc_paraview_test_sgbc_tag" + std::to_string(tag) + ".msh";
+            const std::string pvd = directory + "/" + sub + "/" + sub + ".pvd";
+            std::ifstream pvd_file(pvd);
+            ASSERT_TRUE(pvd_file.is_open()) << "Missing PVD: " << pvd;
+            std::string contents(
+                (std::istreambuf_iterator<char>(pvd_file)),
+                std::istreambuf_iterator<char>());
+            EXPECT_NE(std::string::npos, contents.find("Cycle"));
+        }
+        std::filesystem::remove_all(directory);
+    }
+}
+
 }

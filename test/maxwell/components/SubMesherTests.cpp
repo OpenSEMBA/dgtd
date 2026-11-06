@@ -164,3 +164,75 @@ TEST_F(SubMesherTest, calculateNormal_3D)
 		}
 	}
 }
+
+TEST_F(SubMesherTest, TFSFSubMesher1D_OnePointTwoPointsAndThreePointRejection)
+{
+	// Build a 4-element 1D mesh on [0, 4] with interior boundary points at vertices 1, 2, 3
+	Mesh mesh(1, 5, 4, 5);
+	for (int i = 0; i < 5; ++i) {
+		const double x = static_cast<double>(i);
+		mesh.AddVertex(&x);
+	}
+	for (int e = 0; e < 4; ++e) {
+		mesh.AddSegment(e, e + 1, 1);
+	}
+	auto addBdrPt = [&](int v, int attr) {
+		Element* b = mesh.NewElement(Geometry::POINT);
+		b->SetVertices(&v);
+		b->SetAttribute(attr);
+		mesh.AddBdrElement(b);
+	};
+	addBdrPt(0, 1); // left outer boundary
+	addBdrPt(4, 2); // right outer boundary
+	addBdrPt(1, 3); // interior point x = 1 (between el 0 and el 1)
+	addBdrPt(3, 4); // interior point x = 3 (between el 2 and el 3)
+	addBdrPt(2, 5); // interior point x = 2 (between el 1 and el 2)
+	mesh.FinalizeTopology();
+	mesh.Finalize();
+
+	// 1. Single-point 1D TFSF at tag 3 (x = 1): el 0 is SF, el 1 is TF
+	{
+		Array<int> marker(5);
+		marker = 0;
+		marker[3 - 1] = 1;
+		TotalFieldScatteredFieldSubMesher submesher(mesh, marker);
+		ASSERT_NE(submesher.getSFSubMesh(), nullptr);
+		ASSERT_NE(submesher.getTFSubMesh(), nullptr);
+		const auto& sf_map = submesher.getSFSubMesh()->GetParentElementIDMap();
+		const auto& tf_map = submesher.getTFSubMesh()->GetParentElementIDMap();
+		ASSERT_EQ(sf_map.Size(), 1);
+		ASSERT_EQ(tf_map.Size(), 1);
+		EXPECT_EQ(sf_map[0], 0);
+		EXPECT_EQ(tf_map[0], 1);
+	}
+
+	// 2. Two-point 1D TFSF at tags 3 (x = 1) and 4 (x = 3):
+	// outer elements {0, 3} are SF, inner adjacent elements {1, 2} are TF
+	{
+		Array<int> marker(5);
+		marker = 0;
+		marker[3 - 1] = 1;
+		marker[4 - 1] = 1;
+		TotalFieldScatteredFieldSubMesher submesher(mesh, marker);
+		ASSERT_NE(submesher.getSFSubMesh(), nullptr);
+		ASSERT_NE(submesher.getTFSubMesh(), nullptr);
+		const auto& sf_map = submesher.getSFSubMesh()->GetParentElementIDMap();
+		const auto& tf_map = submesher.getTFSubMesh()->GetParentElementIDMap();
+		ASSERT_EQ(sf_map.Size(), 2);
+		ASSERT_EQ(tf_map.Size(), 2);
+		EXPECT_EQ(sf_map[0], 0);
+		EXPECT_EQ(sf_map[1], 3);
+		EXPECT_EQ(tf_map[0], 1);
+		EXPECT_EQ(tf_map[1], 2);
+	}
+
+	// 3. Three TFSF points in 1D must throw std::runtime_error
+	{
+		Array<int> marker(5);
+		marker = 0;
+		marker[3 - 1] = 1;
+		marker[4 - 1] = 1;
+		marker[5 - 1] = 1;
+		EXPECT_THROW(TotalFieldScatteredFieldSubMesher(mesh, marker), std::runtime_error);
+	}
+}

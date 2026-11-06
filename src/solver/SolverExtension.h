@@ -55,6 +55,9 @@ struct SGBCState {
     double ghost_new[12];  // values at end   of global step (t + dt)
     
     void init(int size) {
+        // Host buffer. The face sub-steps read it with GetData() from OpenMP
+        // threads, which must not register device memory.
+        fields_state.UseDevice(false);
         fields_state.SetSize(size);
         fields_state = 0.0;
         // Identity by default (correct for 1D / face-aligned cases)

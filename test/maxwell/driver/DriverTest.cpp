@@ -52,7 +52,7 @@ TEST_F(DriverTest, readsMesh)
 	auto case_data = json::parse(test_file);
 
 	EXPECT_NO_THROW(assembleMeshString(case_data["model"]["filename"]));
-	std::string expected{ "./testData/maxwellInputs/2D_Parser_BdrAndInterior/2D_Parser_BdrAndInterior.msh" };
+	std::string expected{ "./testData/testInputs/2D_Parser_BdrAndInterior/2D_Parser_BdrAndInterior.msh" };
 	EXPECT_EQ(expected, assembleMeshString(case_data["model"]["filename"]));
 }
 
@@ -120,7 +120,7 @@ TEST_F(DriverTest, adaptsSourcesObjects)
 TEST_F(DriverTest, throwsWhenCaseNamingStyleIsInconsistent)
 {
 	const std::string case_name = "DriverStyleCheckMismatch";
-	const std::filesystem::path case_dir = std::filesystem::path(maxwellInputsFolder()) / case_name;
+	const std::filesystem::path case_dir = std::filesystem::path(testInputsFolder()) / case_name;
 	const std::filesystem::path json_path = case_dir / (case_name + ".json");
 
 	std::filesystem::create_directories(case_dir);
@@ -495,5 +495,282 @@ TEST_F(DriverTest, lorentzRejectsHesthavenAndSpectral)
 		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0e9, 0.0, 0.0)});
 		case_data["solver_options"]["spectral"] = true;
 		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, drudeAndSpatialProfilesParseCorrectly)
+{
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
+
+	// 1. Drude with RAM-C 61 km stagnation-line profiles stretched over [0, 1] on 1D_PEC
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{
+				{"tags", {1}},
+				{"drude", {
+					{"eps_inf", 1.0},
+					{"omega_p", {{"type", "ramc_61km_omega_p"}}},
+					{"nu_c", {{"type", "ramc_61km_nu_c_gupta"}}}
+				}}
+			}
+		});
+		auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+		ASSERT_TRUE(model.hasLorentz());
+		const LorentzProperties* pole = model.findLorentz(1);
+		ASSERT_NE(pole, nullptr);
+		EXPECT_TRUE(pole->hasSpatialProfile());
+		EXPECT_TRUE(pole->hasRegionBounds());
+		EXPECT_DOUBLE_EQ(pole->region_min_x, 0.0);
+		EXPECT_DOUBLE_EQ(pole->region_max_x, 1.0);
+		EXPECT_DOUBLE_EQ(pole->omega_1, 0.0);
+
+		mfem::Vector pt_mesh(1);
+		pt_mesh(0) = 0.5;
+		mfem::Vector pt_ramc(1);
+		pt_ramc(0) = -0.012 * (1.0 - pt_mesh(0));
+		EXPECT_NEAR(pole->evalOmegaP(pt_mesh), ramc61kmStagnationOmegaP(pt_ramc) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalGamma(pt_mesh), ramc61kmStagnationNuC_Gupta(pt_ramc) * inv_c, 1e-12);
+	}
+
+	// 2. Liu closure preset + Gaussian and Gaussian-derivative profiles auto-mapped via cutoff_factor
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{
+				{"tags", {1}},
+				{"lorentz", {
+					{"eps_inf", 1.5},
+					{"omega_p", {
+						{"type", "gaussian"},
+						{"peak", 4.0e9},
+						{"cutoff_factor", 1.0e-2},
+						{"offset", 1.0e8}
+					}},
+					{"omega_1", {
+						{"type", "positive_gaussian_derivative"},
+						{"peak", 2.0e9},
+						{"cutoff_factor", 1.0e-2},
+						{"offset", 5.0e8}
+					}},
+					{"nu_c", {{"type", "ramc_61km_nu_c_liu"}}}
+				}}
+			}
+		});
+		auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+		const LorentzProperties* pole = model.findLorentz(1);
+		ASSERT_NE(pole, nullptr);
+		EXPECT_TRUE(pole->hasSpatialProfile());
+
+		// At endpoints x = 0.0 and x = 1.0 (xi = 0 and xi = 1), both profiles decay to offset + cutoff_factor * peak
+		mfem::Vector left_pt(1), right_pt(1), center_pt(1);
+		left_pt(0) = 0.0;
+		center_pt(0) = 0.5;
+		right_pt(0) = 1.0;
+		EXPECT_NEAR(pole->evalOmegaP(left_pt), (1.0e8 + 1.0e-2 * 4.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmegaP(center_pt), (1.0e8 + 4.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmegaP(right_pt), (1.0e8 + 1.0e-2 * 4.0e9) * inv_c, 1e-12);
+
+		EXPECT_NEAR(pole->evalOmega1(left_pt), (5.0e8 + 1.0e-2 * 2.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmega1(center_pt), 5.0e8 * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmega1(right_pt), (5.0e8 + 1.0e-2 * 2.0e9) * inv_c, 1e-12);
+
+		// Check that both lobes of positive_gaussian_derivative (at z = -1 and z = +1) reach offset + peak
+		const auto* deriv_prof = dynamic_cast<const PositiveGaussianDerivativeProfile*>(pole->omega_1_profile.get());
+		ASSERT_NE(deriv_prof, nullptr);
+		const double z_cut = deriv_prof->zCut();
+		mfem::Vector lobe1_pt(1), lobe2_pt(1);
+		lobe1_pt(0) = 0.5 * (1.0 - 1.0 / z_cut);
+		lobe2_pt(0) = 0.5 * (1.0 + 1.0 / z_cut);
+		EXPECT_NEAR(pole->evalOmega1(lobe1_pt), (5.0e8 + 2.0e9) * inv_c, 1e-12);
+		EXPECT_NEAR(pole->evalOmega1(lobe2_pt), (5.0e8 + 2.0e9) * inv_c, 1e-12);
+
+		mfem::Vector pt_mesh(1);
+		pt_mesh(0) = 0.75;
+		mfem::Vector pt_ramc(1);
+		pt_ramc(0) = -0.012 * (1.0 - pt_mesh(0));
+		EXPECT_NEAR(pole->evalGamma(pt_mesh), ramc61kmStagnationNuC_Liu(pt_ramc) * inv_c, 1e-12);
+	}
+
+	// 3. Reject invalid combinations on drude
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}}, {"type", "PML"}, {"active_axes", {"X"}},
+			 {"drude", {{"omega_p", 1.0e9}, {"nu_c", 1.0e7}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["materials"] = json::array({
+			{{"tags", {1}},
+			 {"lorentz", {{"eps_inf", 1.0}, {"omega_p", 1.0e9}, {"omega_1", 0.0}, {"gamma", 0.0}}},
+			 {"drude", {{"omega_p", 1.0e9}, {"nu_c", 1.0e7}}}}
+		});
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+
+	// 4. Parse full 1D_Drude_RAMC_61km case JSON
+	{
+		const std::string case_path = maxwellCase("1D_Drude_RAMC_61km");
+		auto case_data = parseJSONfile(case_path);
+		auto model = buildModel(case_data, case_path, true);
+		EXPECT_TRUE(model.hasLorentz());
+		const LorentzProperties* pole = model.findLorentz(3);
+		ASSERT_NE(pole, nullptr);
+		EXPECT_TRUE(pole->hasSpatialProfile());
+	}
+}
+
+TEST_F(DriverTest, sgbcAutoMeshingOrderSegmentsAndValidation)
+{
+	// 1. Péclet-based order selection (Pe > 100 -> order 2; Pe < 0.1 & sigma < 1e-3 -> order 4; moderate -> order 3)
+	{
+		auto case_data = loadPecCase();
+		case_data["solver_options"]["sgbc_cfl"] = 0.75;
+		case_data["model"]["boundaries"][0] = {
+			{"tags", {1}},
+			{"type", "SGBC"},
+			{"sgbc_boundaries", {{"right", "PEC"}}},
+			{"layers", json::array({
+				// Layer 0: low-loss dielectric (sigma = 0, Pe = 0) -> order 4
+				{
+					{"material_width", 0.002},
+					{"relative_permittivity", 4.0},
+					{"relative_permeability", 1.0},
+					{"bulk_conductivity", 0.0}
+				},
+				// Layer 1: moderate loss (sigma = 0.05 S/m -> Pe ~ 1.1) -> order 3
+				{
+					{"material_width", 0.003},
+					{"relative_permittivity", 2.0},
+					{"relative_permeability", 1.0},
+					{"bulk_conductivity", 0.05}
+				},
+				// Layer 2: high-loss conductor (sigma = 1.0e5 S/m -> Pe >> 100) -> order 2
+				{
+					{"material_width", 0.001},
+					{"relative_permittivity", 1.0},
+					{"relative_permeability", 1.0},
+					{"bulk_conductivity", 1.0e5}
+				}
+			})}
+		};
+
+		auto model = buildModel(case_data, maxwellCase("1D_PEC"), true);
+		const auto& sgbc_props = model.getSGBCProperties();
+		ASSERT_EQ(sgbc_props.size(), 1u);
+		EXPECT_DOUBLE_EQ(sgbc_props[0].sgbc_cfl, 0.75);
+		EXPECT_FALSE(sgbc_props[0].sgbc_bdr_info.first.isOn);
+		EXPECT_TRUE(sgbc_props[0].sgbc_bdr_info.second.isOn);
+		EXPECT_EQ(sgbc_props[0].sgbc_bdr_info.second.bdrCond, BdrCond::PEC);
+
+		ASSERT_EQ(sgbc_props[0].layers.size(), 3u);
+		EXPECT_EQ(sgbc_props[0].layers[0].order, 4u);
+		EXPECT_GE(sgbc_props[0].layers[0].num_of_segments, 4u);
+
+		EXPECT_EQ(sgbc_props[0].layers[1].order, 3u);
+		EXPECT_GE(sgbc_props[0].layers[1].num_of_segments, 4u);
+
+		EXPECT_EQ(sgbc_props[0].layers[2].order, 2u);
+		// High conductivity shrinks skin depth, so skin-depth rule produces > 4 segments
+		EXPECT_GT(sgbc_props[0].layers[2].num_of_segments, 4u);
+		EXPECT_LE(sgbc_props[0].layers[2].num_of_segments, 1000u);
+	}
+
+	// 2. Reject non-positive sgbc_cfl
+	{
+		auto case_data = loadPecCase();
+		case_data["solver_options"]["sgbc_cfl"] = 0.0;
+		case_data["model"]["boundaries"][0] = {
+			{"tags", {1}},
+			{"type", "SGBC"},
+			{"material", {
+				{"material_width", 0.001},
+				{"bulk_conductivity", 1.0}
+			}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+
+	// 3. Reject drude on SGBC layer
+	{
+		auto case_data = loadPecCase();
+		case_data["model"]["boundaries"][0] = {
+			{"tags", {1}},
+			{"type", "SGBC"},
+			{"material", {
+				{"material_width", 0.001},
+				{"bulk_conductivity", 1.0},
+				{"drude", {{"omega_p", 1.0e9}, {"nu_c", 1.0e7}}}
+			}}
+		};
+		EXPECT_THROW(buildModel(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, planewaveAutoDelayAndDeltaGapValidation)
+{
+	// 1. Planewave auto-delay sets mean = min_phase - 5 * sqrt(2) * spread along propagation
+	{
+		const std::string case_path = maxwellCase("1D_TFSF");
+		auto case_data = parseJSONfile(case_path);
+		case_data["sources"][0]["magnitude"].erase("mean");
+		const double spread = case_data["sources"][0]["magnitude"]["spread"].get<double>();
+
+		auto model = buildModel(case_data, case_path, true);
+		auto sources = buildSources(case_data, &model.getConstMesh());
+		ASSERT_EQ(sources.size(), 1u);
+		const auto* tf = dynamic_cast<const TotalField*>(sources.begin()->get());
+		ASSERT_NE(tf, nullptr);
+		// Evaluate incident field at TFSF point (x = -3.0 on 1D_TFSF mesh) at t = 0:
+		// exp(-(-5*sqrt(2)*sigma)^2 / (2*sigma^2)) = exp(-25) < 2e-11
+		mfem::Vector x_tfsf({-3.0, 0.0, 0.0});
+		const double e_at_t0 = std::abs(tf->eval(x_tfsf, 0.0, E, Y));
+		EXPECT_LT(e_at_t0, 2.0e-11);
+		// Peak arrives at x_tfsf at t = 5 * sqrt(2) * spread
+		const double t_peak = 5.0 * std::sqrt(2.0) * spread;
+		EXPECT_NEAR(tf->eval(x_tfsf, t_peak, E, Y), 1.0, 1e-12);
+	}
+
+	// 2. Delta-gap auto-spread from db_cut and key validation
+	{
+		const std::string case_path = maxwellCase("2D_Delta_Gap");
+		auto case_data = parseJSONfile(case_path);
+		case_data["sources"][0].erase("spread");
+		case_data["sources"][0].erase("f_1e");
+		case_data["sources"][0]["db_cut"] = -20.0;
+
+		auto model = buildModel(case_data, case_path, true);
+		auto sources = buildSources(case_data, &model.getConstMesh());
+		ASSERT_EQ(sources.size(), 1u);
+		const auto* gap = dynamic_cast<const DeltaGapSource*>(sources.begin()->get());
+		ASSERT_NE(gap, nullptr);
+		EXPECT_GT(gap->spread(), 0.0);
+		EXPECT_NEAR(gap->t0(), 5.0 * std::sqrt(2.0) * gap->spread(), 1e-12);
+
+		// Reject zero polarization, legacy normal_sign, f_max, or spread + db_cut
+		{
+			auto bad = case_data;
+			bad["sources"][0]["polarization"] = {0.0, 0.0, 0.0};
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
+		{
+			auto bad = case_data;
+			bad["sources"][0]["normal_sign"] = 1;
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
+		{
+			auto bad = case_data;
+			bad["sources"][0]["f_max"] = 1.0e9;
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
+		{
+			auto bad = case_data;
+			bad["sources"][0]["spread"] = 0.2;
+			bad["sources"][0]["db_cut"] = -20.0;
+			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
+		}
 	}
 }

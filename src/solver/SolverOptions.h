@@ -27,7 +27,7 @@ struct SolverOptions {
     /// 0 disables checkpoints. Otherwise save after the step that crosses each
     /// multiple of this percent of final_time. Omitted in the JSON means 20.
     double checkpoint_percent = 20.0;
-    /// Set by the launcher on --restart. Skips the t = 0 probe wipe.
+    /// Set by the launcher on --continue. Skips the t = 0 probe wipe.
     bool resume_from_checkpoint = false;
     /// Runtime paths. Empty unless the driver is launching a checkpointed run.
     std::string checkpoint_json_path;

@@ -38,7 +38,20 @@ void runRCSPostProcessing(const std::string& rcsJsonPath)
 	std::string runmode  = rcsInput.at("runmode");
 	std::string casename = rcsInput.at("casename");
 
-	std::string caseJson = "./testData/maxwellInputs/" + casename + "/" + casename + ".json";
+	const std::string case_rel = casename + "/" + casename + ".json";
+	const std::string published = "./testData/testInputs/" + case_rel;
+	const std::string local = "./testData/maxwellInputs/" + case_rel;
+	std::string caseJson;
+	if (std::ifstream(published).good()) {
+		caseJson = published;
+	}
+	else if (std::ifstream(local).good()) {
+		caseJson = local;
+	}
+	else {
+		throw std::runtime_error(
+			"Cannot find " + casename + ".json under testData/testInputs or testData/maxwellInputs");
+	}
 
 	auto caseData = parseJSONfile(caseJson);
 

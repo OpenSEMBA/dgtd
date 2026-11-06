@@ -1,0 +1,123 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.0025,
+    "final_time": 18.0,
+    "order": 3
+  },
+  "model": {
+    "filename": "1D_SGBC_Multiple.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "type": "vacuum"
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          1,
+          6
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          3
+        ],
+        "type": "SGBC",
+        "material": {
+          "relative_permittivity": 4.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 1.5,
+          "material_width": 0.003
+        }
+      },
+      {
+        "tags": [
+          4
+        ],
+        "type": "SGBC",
+        "layers": [
+          {
+            "relative_permittivity": 2.5,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 0.5,
+            "material_width": 0.002
+          },
+          {
+            "relative_permittivity": 5.0,
+            "relative_permeability": 1.0,
+            "bulk_conductivity": 2.5,
+            "material_width": 0.002
+          }
+        ]
+      },
+      {
+        "tags": [
+          5
+        ],
+        "type": "SGBC",
+        "material": {
+          "relative_permittivity": 3.0,
+          "relative_permeability": 1.0,
+          "bulk_conductivity": 2.0,
+          "material_width": 0.0025
+        }
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.2
+    },
+    "point": [
+      {
+        "position": [
+          0.1
+        ],
+        "saves": 7200
+      },
+      {
+        "position": [
+          0.35
+        ],
+        "saves": 7200
+      },
+      {
+        "position": [
+          2.25
+        ],
+        "saves": 7200
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        2
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.1
+      }
+    }
+  ]
+}

@@ -16,7 +16,10 @@
 
 #include <components/RCSManager.h>
 #include "components/FarField.h"
+#include "components/RCSSurfaceBinaryWriter.h"
 #include "components/RCSSurfaceDftCuda.h"
+#include "components/RCSSurfacePostProcessor.h"
+#include "driver/driver.h"
 
 #include "TestUtils.h"
 
@@ -236,5 +239,83 @@ TEST_F(RCSToolsTest, CudaDiscreteFourierTransform)
 	expectDftMatch(tiled, ref);
 }
 #endif
+
+TEST_F(RCSToolsTest, RCSSurfacePostProcessor_LoadAllMatchesRamGatedStreamingAndFilters)
+{
+	if (Mpi::WorldSize() > 1) {
+		GTEST_SKIP() << "Synthetic single-rank RCSSurface dump check runs on 1 rank.";
+	}
+
+	const std::string case_path = maxwellCase("2D_RCS_Circle_G1");
+	auto case_data = driver::parseJSONfile(case_path);
+	auto model = driver::buildModel(case_data, case_path, true);
+
+	DG_FECollection fec(1, 2, BasisType::GaussLobatto);
+	ParFiniteElementSpace fes(&model.getMesh(), &fec);
+	Fields<ParFiniteElementSpace, ParGridFunction> fields(fes);
+
+	const std::string tmp_dir = "rcs_stream_test_tmp";
+	const std::string rank_dir = tmp_dir + "/rank0";
+	std::filesystem::remove_all(tmp_dir);
+
+	{
+		RCSSurfaceBinaryWriter writer({2, 3, 4, 5}, &fec, fes, fields, rank_dir);
+		const int ndofs = fes.GetNDofs();
+		for (int step = 0; step < 8; ++step) {
+			const double t = 0.05 * static_cast<double>(step);
+			for (int i = 0; i < ndofs; ++i) {
+				fields.get(E, Y)[i] = std::sin(2.0 * M_PI * (t + 0.01 * i));
+				fields.get(H, Z)[i] = std::cos(2.0 * M_PI * (t + 0.01 * i));
+			}
+			writer.writeSnapshot(t);
+		}
+		writer.flush();
+	}
+
+	std::vector<Frequency> freqs = {3.0e8, 6.0e8};
+	SphericalAngles ang{M_PI_2, M_PI};
+	std::vector<SphericalAngles> angles = {ang};
+
+	// 1. Load-all (ram_gate = 10.0 GiB) vs RAM-gated streaming DFT (ram_gate = 1e-9 GiB)
+	RCSSurfacePostProcessor pp_load_all(
+		tmp_dir, case_path, freqs, angles, std::nullopt, 1, 10.0);
+	RCSSurfacePostProcessor pp_stream(
+		tmp_dir, case_path, freqs, angles, std::nullopt, 1, 1.0e-9);
+
+	for (double f_hz : freqs) {
+		const double f_norm = f_hz / physicalConstants::speedOfLight_SI;
+		EXPECT_GT(pp_load_all.getRCS(ang, f_norm), 0.0);
+		EXPECT_NEAR(
+			pp_load_all.getRCS(ang, f_norm),
+			pp_stream.getRCS(ang, f_norm),
+			1e-12);
+		EXPECT_NEAR(
+			pp_load_all.getFarField(ang, f_norm),
+			pp_stream.getFarField(ang, f_norm),
+			1e-12);
+	}
+
+	// 2. Load-all vs streaming with max_time and every_n_steps filters
+	RCSSurfacePostProcessor pp_filtered_load(
+		tmp_dir, case_path, freqs, angles, 0.22, 2, 10.0);
+	RCSSurfacePostProcessor pp_filtered_stream(
+		tmp_dir, case_path, freqs, angles, 0.22, 2, 1.0e-9);
+
+	for (double f_hz : freqs) {
+		const double f_norm = f_hz / physicalConstants::speedOfLight_SI;
+		EXPECT_NEAR(
+			pp_filtered_load.getRCS(ang, f_norm),
+			pp_filtered_stream.getRCS(ang, f_norm),
+			1e-12);
+	}
+
+	// 3. 2D RCS must reject theta != pi/2
+	std::vector<SphericalAngles> bad_angles = {{0.5, 0.0}};
+	EXPECT_THROW(
+		RCSSurfacePostProcessor(tmp_dir, case_path, freqs, bad_angles, std::nullopt, 1, 10.0),
+		std::runtime_error);
+
+	std::filesystem::remove_all(tmp_dir);
+}
 
 }

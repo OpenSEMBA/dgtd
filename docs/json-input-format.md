@@ -2,7 +2,7 @@
 
 Simulation cases are defined by JSON files parsed at runtime. Each case must follow the repository naming layout: the case folder name, the `.json` filename, the `.msh` filename, and `model.filename` must all share the same `<case_name>` base, and `model.filename` must not include a path.
 
-Example: [testData/maxwellInputs/1D_PEC/1D_PEC.json](../testData/maxwellInputs/1D_PEC/1D_PEC.json)
+Example: [testData/testInputs/1D_PEC/1D_PEC.json](../testData/testInputs/1D_PEC/1D_PEC.json)
 
 Legend: **[REQUIRED]** = must be present; **[OPTIONAL]** = has a default value (shown).
 
@@ -17,10 +17,10 @@ Object. User can customise solver settings. If undefined, all defaults apply.
 | `final_time` | double | `2.0` | Simulation duration in natural units (1 m/c). |
 | `time_step` | double | `0.0` | Fixed time step in natural units. Required for 2D/3D. In 1D, `0.0` triggers automatic CFL-based step. |
 | `cfl` | double | `1.0` | CFL for automatic 1D time step. Range (0, 1]. Ignored if `time_step` is set. Not used in 2D/3D auto step. |
-| `sgbc_cfl` | double | `0.5` | Crossing-time CFL for SGBC sub-step recommendation: `δt_rec = crossing_time × sgbc_cfl × opacity_relax` (then SI→natural). Must be `> 0`. Omit for historical default (`0.5`). Does not change SGBC layer geometry; only `nsteps = ceil(Δt / δt_rec)`. |
+| `sgbc_cfl` | double | `0.5` | Crossing-time CFL for SGBC sub-step recommendation: `δt_rec = crossing_time × sgbc_cfl × opacity_relax` (then SI→natural), where `opacity_relax = min((d/δ)^2, 50)` for thick conductive layers ($d/\delta > 3$ evaluated at the source $1/e$ power frequency). Must be `> 0`. Omit for historical default (`0.5`). Does not change SGBC layer geometry; only `nsteps = ceil(Δt / δt_rec)`. |
 | `order` | integer | `2` | Polynomial order of the FE basis. |
 | `spectral` | boolean | `false` | Spectral evolution operator (full matrix eigenvalue step). High cost; limited feature support. |
-| `export_operator` | boolean | `false` | Write assembled evolution operator to disk. |
+| `export_operator` | boolean | `false` | Write the assembled evolution operator to `exports/Operators/<mesh>/` (`{mesh}_global.csr`, and `{mesh}_tfsf.csr`, `{mesh}_tfsf_mapping.csr`, `{mesh}_farfield.csr` when those pieces exist). With more than one MPI rank the partitioned matrices are gathered into the same serial-mesh DOF order a one-rank run writes. The directory name does not include the run mode. |
 | `basis_type` | integer | `1` | MFEM basis: `0` GaussLegendre, `1` GaussLobatto, `2` Bernstein, `3` OpenUniform, `4` CloseUniform, `5` OpenHalfUniform. |
 | `ode_type` | integer | `0` | Time integrator: `0` RK4, `1` BackwardEuler, `2` Trapezoidal, `3` ImplicitMidpoint, `4` SDIRK33, `5` SDIRK23, `6` SDIRK34. |
 | `checkpoint_percent` | double | `20` | `0` disables checkpoints. Otherwise, after the completed step that crosses each multiple of this percent of `final_time`, write the evolved state. The default `20` saves near 20%, 40%, 60%, 80%, and 100%. |
@@ -76,8 +76,9 @@ Array. At least one entry. Each entry assigns electromagnetic properties to mesh
 | `relative_permittivity` | double | `1.0` | ε_r (legacy / non-PML). |
 | `relative_permeability` | double | `1.0` | μ_r (legacy / non-PML). |
 | `bulk_conductivity` | double | `0.0` | Conductivity in S/m; scaled internally by free-space impedance. Not for PML tags. |
-| `debye` | object | — | Single-pole electric Debye on an untyped material. See below. |
-| `lorentz` | object | — | Single-pole electric Lorentz on an untyped material. See below. |
+| `debye` | object | — | Single-pole electric Debye on an untyped material. See below and [dispersive-materials.md](./dispersive-materials.md). |
+| `lorentz` | object | — | Single-pole electric Lorentz on an untyped material. See below and [dispersive-materials.md](./dispersive-materials.md). |
+| `drude` | object | — | Cold-plasma Drude pole ($\omega_1=0$) on an untyped material. See below and [dispersive-materials.md](./dispersive-materials.md). |
 
 #### debye
 
@@ -100,7 +101,7 @@ Optional object. Legal only when the material entry has no `type`. The electric 
 The relative permittivity is
 
 $$
-\varepsilon_r(\omega)=\varepsilon_\infty+\frac{\omega_p^2}{\omega_1^2-\omega^2+j\,2\gamma\omega}.
+\varepsilon_r(\omega)=\varepsilon_\infty+\frac{\omega_p^2}{\omega_1^2-\omega^2+j\,\gamma\omega}.
 $$
 
 **Hz style (preferred for new cases):** `eps_inf`, `f_p`, `f_1`, `gamma`. All three rates are ordinary frequencies in Hz. Conversion is $\omega=2\pi f$, including damping: JSON `gamma: 2.5e7` is $25\,\mathrm{MHz}$, stored as $\gamma=2\pi\times 2.5\times 10^7\,\mathrm{rad/s}$.
@@ -110,11 +111,11 @@ $$
 | Field | Type | Description |
 |-------|------|-------------|
 | `eps_inf` | double | Instantaneous relative permittivity. Must be $\ge 1$. |
-| `f_p` | double | Plasma frequency in Hz. Must be $> 0$. |
-| `f_1` | double | Resonance frequency in Hz. Must be $\ge 0$. |
-| `omega_p` | double | Plasma frequency in rad/s. Must be $> 0$. |
-| `omega_1` | double | Resonance frequency in rad/s. Must be $\ge 0$. |
-| `gamma` | double | Damping. Hz with `f_*`, or rad/s with `omega_*`. Must be $\ge 0$. |
+| `f_p` | double or object | Plasma frequency in Hz (or spatial profile object). Must be $> 0$. |
+| `f_1` | double or object | Resonance frequency in Hz (or spatial profile object). Must be $\ge 0$. |
+| `omega_p` | double or object | Plasma frequency in rad/s (or spatial profile object). Must be $> 0$. |
+| `omega_1` | double or object | Resonance frequency in rad/s (or spatial profile object). Must be $\ge 0$. |
+| `gamma` / `nu_c` | double or object | Collision frequency in $\ddot{P}+\gamma\dot{P}+\omega_1^2 P=\omega_p^2 E$. Hz with `f_*`, or rad/s ($1/\mathrm{s}$) with `omega_*` (or spatial profile object). Must be $\ge 0$. |
 
 Example (Hz), from [3D_RCS_Lorentz_G2](../testData/maxwellInputs/3D_RCS_Lorentz_G2/3D_RCS_Lorentz_G2.json):
 
@@ -129,7 +130,113 @@ Example (Hz), from [3D_RCS_Lorentz_G2](../testData/maxwellInputs/3D_RCS_Lorentz_
 
 That is the same pole as `omega_p = 2π f_p`, `omega_1 = 2π f_1`, `gamma = 2π × 2.5e7` rad/s. Older 1D cases still use the rad/s keys; both styles are accepted.
 
-`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz`. `lorentz` is rejected on vacuum, PML, and SGBC. Initialization also aborts if a Lorentz tag is a PML tag. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes Lorentz auxiliaries.
+`relative_permittivity` is rejected together with `lorentz`. `bulk_conductivity` stays an independent Ohm term. A tag cannot carry both `debye` and `lorentz` (or `drude`). `lorentz` is rejected on vacuum, PML, and SGBC. Initialization also aborts if a Lorentz tag is a PML tag. `evolution_operator` must be `"global"`. `spectral: true` is rejected. Implicit ODE types abort when the state includes Lorentz auxiliaries.
+
+#### drude
+
+Optional object. Shorthand for a cold-plasma Lorentz pole with $\omega_1 = 0$:
+
+$$
+\varepsilon_r(\omega)=\varepsilon_\infty-\frac{\omega_p^2}{\omega^2-j\,\nu_c\omega}.
+$$
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `eps_inf` | double | `1.0` | Instantaneous relative permittivity ($\ge 1$). |
+| `omega_p` / `f_p` | double or object | — | Plasma frequency in rad/s (`omega_p`) or Hz (`f_p`), or spatial profile object. |
+| `nu_c` / `gamma` | double or object | — | Collision frequency in $1/\mathrm{s}$ (with `omega_p`) or Hz (with `f_p`), or spatial profile object. |
+
+#### Spatial rate profiles (`lorentz` and `drude`)
+
+Any rate in `lorentz` or `drude` (`omega_p`, `f_p`, `omega_1`, `f_1`, `gamma`, `nu_c`) can be either a constant number or a spatial profile object `{ "type": "...", ... }`. When a profile object is used on an attribute, `DGOperatorFactory::buildLorentzOperator()` evaluates the profile at each element's quadrature points via `mfem::FunctionCoefficient` inside `mfem::MassIntegrator` and pre-multiplies by the element inverse mass $M_K^{-1}$.
+
+##### 1D automatic region stretching
+
+In 1D, the solver scans the mesh at initialization for all elements carrying the material's `tags` and records the physical bounding interval $[x_{\min}^{\mathrm{mesh}}, x_{\max}^{\mathrm{mesh}}]$. Every quadrature point $x \in [x_{\min}^{\mathrm{mesh}}, x_{\max}^{\mathrm{mesh}}]$ is mapped to the normalized unit coordinate:
+
+$$
+\xi(x) = \frac{x - x_{\min}^{\mathrm{mesh}}}{x_{\max}^{\mathrm{mesh}} - x_{\min}^{\mathrm{mesh}}} \in [0, 1].
+$$
+
+Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete profile automatically stretches or compresses to fit the tagged mesh region whether that region is $10\,\mathrm{mm}$, $12\,\mathrm{mm}$, $24\,\mathrm{mm}$, or $2\,\mathrm{m}$ wide.
+
+##### Supported profile `type` values
+
+| `type` | Required keys | Optional keys (defaults) | Description |
+|--------|---------------|--------------------------|-------------|
+| `"constant"` | `value` | — | Uniform rate across the region. |
+| `"gaussian"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Symmetric bell curve stretched between its `cutoff_factor` tails. |
+| `"positive_gaussian_derivative"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Rectified two-lobe Gaussian derivative stretched between its outer `cutoff_factor` tails. |
+| `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p(x)$ $[\mathrm{rad/s}]$ mapped from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
+| `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Gupta closure) mapped onto $\xi \in [0, 1]$. |
+| `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Liu closure) mapped onto $\xi \in [0, 1]$. |
+
+##### How `"gaussian"` and `"positive_gaussian_derivative"` work
+
+Because plasma, resonance, and collision frequencies ($\omega_p, \omega_1, \nu_c$) must be non-negative and self-contained on arbitrary mesh intervals, both profiles use `cutoff_factor` $\epsilon \in (0, 1)$ (default `1e-2`) to determine their canonical span $[-z_{\mathrm{cut}}, +z_{\mathrm{cut}}]$ and map it linearly onto $\xi \in [0, 1]$ via $z(\xi) = (2\xi - 1)\,z_{\mathrm{cut}}$:
+
+1. **`"gaussian"`** evaluates the canonical Gaussian $G(z) = \exp(-z^2 / 2)$:
+
+$$
+z_{\mathrm{cut}} = \sqrt{-2\ln(\epsilon)} \quad (\approx 3.035\text{ for }\epsilon = 10^{-2}),
+$$
+
+$$
+f(\xi) = \mathrm{offset} + \mathrm{peak}\cdot\exp\!\left(-\frac{z(\xi)^2}{2}\right).
+$$
+
+At the region boundaries $\xi = 0$ and $\xi = 1$, $f$ equals $\mathrm{offset} + \epsilon\cdot\mathrm{peak}$; at the region midpoint $\xi = 0.5$ ($z = 0$), $f$ reaches $\mathrm{offset} + \mathrm{peak}$.
+
+2. **`"positive_gaussian_derivative"`** takes the magnitude of the normalized Gaussian derivative so that both lobes are positive and have unit peak height at $z = \pm 1$:
+
+$$
+D(z) = |z|\,\exp\!\left(\frac{1 - z^2}{2}\right), \qquad f(\xi) = \mathrm{offset} + \mathrm{peak}\cdot D\big(z(\xi)\big).
+$$
+
+The outer cutoff $z_{\mathrm{cut}} > 1$ is solved at initialization from:
+
+$$
+z_{\mathrm{cut}}\,\exp\!\left(\frac{1 - z_{\mathrm{cut}}^2}{2}\right) = \epsilon \quad (\approx 3.648\text{ for }\epsilon = 10^{-2}).
+$$
+
+Across the normalized region $\xi \in [0, 1]$, `"positive_gaussian_derivative"` therefore produces:
+- $\xi = 0$ ($x = x_{\min}^{\mathrm{mesh}}$, $z = -z_{\mathrm{cut}}$): outer tail $\mathrm{offset} + \epsilon\cdot\mathrm{peak}$
+- $\xi = \tfrac{1}{2}(1 - 1/z_{\mathrm{cut}}) \approx 0.363$ ($z = -1$): first lobe peak $\mathrm{offset} + \mathrm{peak}$
+- $\xi = 0.5$ ($x = \text{midpoint}$, $z = 0$): central trough $\mathrm{offset}$
+- $\xi = \tfrac{1}{2}(1 + 1/z_{\mathrm{cut}}) \approx 0.637$ ($z = +1$): second lobe peak $\mathrm{offset} + \mathrm{peak}$
+- $\xi = 1$ ($x = x_{\max}^{\mathrm{mesh}}$, $z = +z_{\mathrm{cut}}$): outer tail $\mathrm{offset} + \epsilon\cdot\mathrm{peak}$
+
+Examples:
+
+```json
+"drude": {
+  "eps_inf": 1.0,
+  "omega_p": {
+    "type": "positive_gaussian_derivative",
+    "peak": 4.0e9,
+    "cutoff_factor": 1.0e-2
+  },
+  "nu_c": {
+    "type": "gaussian",
+    "peak": 1.0e9,
+    "cutoff_factor": 1.0e-2
+  }
+}
+```
+
+RAM-C II 61 km example ([1D_Drude_RAMC_61km](../testData/testInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json)):
+
+```json
+"drude": {
+  "eps_inf": 1.0,
+  "omega_p": {
+    "type": "ramc_61km_omega_p"
+  },
+  "nu_c": {
+    "type": "ramc_61km_nu_c_gupta"
+  }
+}
+```
 
 ### boundaries [REQUIRED]
 
@@ -142,11 +249,11 @@ Array. At least one entry per boundary or interface condition.
 
 #### type: SGBC
 
-Surface general boundary condition (multi-layer absorber / material slab sub-solver).
+Surface general boundary condition (multi-layer absorber / material slab sub-solver). Full guide (automatic layer meshing, Péclet/skin-depth rules, sub-stepping, and ParaView export): [sgbc.md](./sgbc.md).
 
 | Field | Description |
 |-------|-------------|
-| `exporter_probe` | If `true` and top-level `probes.exporter` exists, export internal SGBC fields as `InsideSGBC_tag<first_tag>`. |
+| `exporter_probe` | Legacy optional flag (accepted for backward compatibility). When top-level `probes.exporter` exists, internal SGBC fields are automatically exported per tag as `<stem>_sgbc_tag<tag>.msh` inside the exporter directory. |
 | `material` | Single layer (mutually exclusive with `layers`). |
 | `layers` | Multi-layer stack (mutually exclusive with `material`). |
 
@@ -167,6 +274,8 @@ Layer / material object fields:
 |-------|--------|
 | `left` | `"PEC"`, `"PMC"`, `"SMA"` (field-side) |
 | `right` | `"PEC"`, `"PMC"`, `"SMA"` (inner face) |
+
+Each SGBC sub-solver caches up to two dense LU factorizations of $J = I - \gamma\,\delta t\,A_s$, covering both the RK4 half-stage sub-step ($\delta t_{1/2} = 0.5\Delta t / N_{1/2}$) and the full-step sub-step ($\delta t_1 = \Delta t / N_1$) without re-factorizing during the time loop. Multiple SGBC boundary blocks with distinct `tags` and layer stacks may be defined in the same model and distributed across MPI ranks.
 
 ## probes [OPTIONAL]
 
@@ -224,7 +333,7 @@ Periodic full-domain snapshot (alternative to incremental exporter).
 
 ### rcssurface
 
-Surface E/H snapshots for offline RCS (`surface_data.bin` with geometry header + time blocks).
+Surface E/H snapshots for offline RCS (`surface_data.bin` with geometry header + time blocks). Full workflow and Huygens surface placement guide: [rcs-and-farfield.md](./rcs-and-farfield.md).
 
 | Field | Description |
 |-------|-------------|
@@ -236,7 +345,9 @@ Offline frequency/angle sweeps use a **separate** JSON for `opensemba_rcs` — s
 
 ### mor_state
 
-Full DG state vector snapshots compatible with exported `{name}_global.csr` for offline `y = A x`. Written under `exports/SimulationData/<run-mode>/<case>/MORStateProbes/<name>/`.
+Full DG state snapshots in serial-mesh DOF order, the same layout as `{mesh}_global.csr`, for offline `y = A x`. With more than one MPI rank, each rank's owned degrees of freedom are gathered into that order before the file is written. Files go under `exports/SimulationData/<run-mode>/<case>/MORStateProbes/<name>/`, where `<run-mode>` is `single-core` or `mpi-N` (and `cuda-N` on a GPU run).
+
+When the case has a planewave TFSF source, each save also writes `u_k` on the serial TFSF submesh. An MPI run builds that incident vector from the full mesh, so it matches a one-rank `u_k`.
 
 | Field | Description |
 |-------|-------------|
@@ -245,11 +356,11 @@ Full DG state vector snapshots compatible with exported `{name}_global.csr` for 
 | `saves` | Number of uniform snapshots |
 | `name` | Default `"MORState"` |
 
-Snapshot file format (`x_0`, `x_1`, …): line 1 = time, line 2 = size, then DOF values in `[Ex | Ey | Ez | Hx | Hy | Hz]` order.
+Snapshot file format (`x_0`, `x_1`, …): line 1 = time, line 2 = size, then DOF values in `[Ex | Ey | Ez | Hx | Hy | Hz]` order. `u_k` uses the same header. Its size is 6 times the number of DOFs on the TFSF submesh.
 
 ## sources [REQUIRED]
 
-Array. At least one source; all entries superimpose.
+Array. At least one source; all entries superimpose. Full guide on TFSF mesh partitioning, probe placement, and source waveforms: [tfsf-and-sources.md](./tfsf-and-sources.md).
 
 | `type` | Description |
 |--------|-------------|
@@ -370,7 +481,7 @@ $\hat{\mathbf{s}}$ points from the scattered-field volume into the total-field v
 
 ## Offline RCS JSON (`opensemba_rcs`)
 
-Separate input file for the offline RCS / far-field post-processor (`opensemba_rcs`). It does **not** replace the Maxwell case JSON; it points at an existing export and at `testData/maxwellInputs/<casename>/<casename>.json`.
+Separate input file for the offline RCS / far-field post-processor (`opensemba_rcs`). It does **not** replace the Maxwell case JSON; it points at an existing export and at `testData/testInputs/<casename>/<casename>.json`, or `testData/maxwellInputs/<casename>/<casename>.json` for a local exploration case. See also [rcs-and-farfield.md](./rcs-and-farfield.md).
 
 **Prerequisites**
 
@@ -378,7 +489,7 @@ Separate input file for the offline RCS / far-field post-processor (`opensemba_r
 2. `opensemba_dgtd` has been run so that  
    `exports/SimulationData/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`  
    (and `mesh`) exist.
-3. Launch from the repository root (paths are relative: `./exports/...`, `./testData/maxwellInputs/...`).
+3. Launch from the repository root (paths are relative: `./exports/...`, `./testData/testInputs/...`).
 
 **Process**
 
@@ -400,7 +511,7 @@ mpiexec -n 1 ./build/gnu-release-mpi/bin/opensemba_rcs \
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `runmode` | string | yes | — | Export path segment under `exports/SimulationData/` (must match how the simulation was launched, e.g. `cuda-1`, `single-core`, `mpi-8`). |
-| `casename` | string | yes | — | Case folder / JSON base name under `testData/maxwellInputs/`. |
+| `casename` | string | yes | — | Case folder / JSON base name under `testData/testInputs/`, or under local `testData/maxwellInputs/`. |
 | `frequencies` | object | yes | — | Frequency linspace in **Hz** (see below). |
 | `angles` | object | yes | — | Spherical angle grids in **radians** (see below). |
 | `max_time` | double | no | (none) | Keep only snapshots with simulation time ≤ this value. |

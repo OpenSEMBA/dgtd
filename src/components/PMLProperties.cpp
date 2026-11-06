@@ -100,7 +100,7 @@ void validatePMLMaterialBlock(const nlohmann::json& mat_json)
 			"PML material must not define relative_permittivity/permeability. "
 			"Use matches_vacuum instead.");
 	}
-	if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+	if (mat_json.contains("debye") || mat_json.contains("lorentz") || mat_json.contains("drude")) {
 		throw std::runtime_error(kDispersiveOnPmlNotAllowed);
 	}
 	if (mat_json.contains("matches_vacuum") && !mat_json["matches_vacuum"].get<bool>()) {

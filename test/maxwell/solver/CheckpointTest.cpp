@@ -343,6 +343,28 @@ TEST_F(CheckpointTest, foreignRunModeIsReported)
 	EXPECT_NE(message.find("This job is " + getRunModeTag()), std::string::npos);
 }
 
+TEST_F(CheckpointTest, restartRemovesCheckpointsInEveryRunMode)
+{
+	const std::string case_name = "RestartFlagProbeCase";
+	const auto base = std::filesystem::path("exports/SimulationData");
+	const auto mpi_ck = base / "mpi-99" / case_name / "Checkpoints" / "checkpoint_000001";
+	const auto cuda_ck = base / "cuda-1" / case_name / "Checkpoints" / "checkpoint_000002";
+	const auto keep = base / "mpi-99" / case_name / "PointProbes" / "PointProbe0.dat";
+	CleanTrees clean{{base / "mpi-99" / case_name, base / "cuda-1" / case_name}};
+	if (Mpi::WorldRank() == 0) {
+		writeText(mpi_ck / "COMPLETE", "ok\n");
+		writeText(cuda_ck / "COMPLETE", "ok\n");
+		writeText(keep, "keep\n");
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	removeAllCaseCheckpoints(case_name);
+
+	EXPECT_FALSE(std::filesystem::exists(mpi_ck));
+	EXPECT_FALSE(std::filesystem::exists(cuda_ck));
+	EXPECT_TRUE(std::filesystem::exists(keep));
+}
+
 TEST_F(CheckpointTest, percentMarksSnapAtFinalTime)
 {
 	const auto at_33 = checkpointSchedule(33.0, 0.1, 100.0, 10.0, 3);

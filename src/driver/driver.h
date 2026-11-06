@@ -15,14 +15,20 @@ namespace maxwell::driver {
 	/// If both are set, uses `f_1e` and warns. Throws if neither is set.
 	double assembleGaussianSpread(const json& obj, const char* context);
 
-	maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest = true, bool restart = false);
-	maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest, bool restart = false);
+	enum class LaunchResume {
+		None,
+		Continue,
+		Restart
+	};
+
+	maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest = true, LaunchResume resume = LaunchResume::None);
+	maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest, LaunchResume resume = LaunchResume::None);
 
 	std::string assembleMeshString(const std::string& filename);
 
 	Probes buildProbes(const json& case_data);
 	SolverOptions buildSolverOptions(const json& case_data);
-	Sources buildSources(const json& case_data, const mfem::Mesh* mesh = nullptr);
+	Sources buildSources(const json& case_data, const mfem::Mesh* mesh = nullptr, const std::string& case_path = "");
 	Model buildModel(
 		const json& case_data,
 		const std::string& case_path,

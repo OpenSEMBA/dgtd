@@ -6,6 +6,8 @@
 #include "driver/driver.h"
 #include "solver/Solver.h"
 
+#include <fstream>
+
 using namespace maxwell;
 using namespace maxwell::driver;
 using namespace mfem;
@@ -37,6 +39,26 @@ TEST_F(SourcesTest, planewave)
 		);
 	}	
 
+}
+
+TEST_F(SourcesTest, sampledPlanewaveReadsExcitationFile)
+{
+	const std::string path =
+		"sampled_excitation_test_" + std::to_string(Mpi::WorldRank()) + ".exc";
+	{
+		std::ofstream out(path);
+		out << "0 0\n1e-9 2\n2e-9 0\n";
+	}
+	Planewave pw{SampledExcitation{path}, unitVec(Y), unitVec(X), E};
+	const double c = physicalConstants::speedOfLight_SI;
+	const double tol = 1e-12;
+	EXPECT_NEAR(0.0, pw.eval(Source::Position({0.0, 0.0, 0.0}), 0.0, E, Y), tol);
+	EXPECT_NEAR(2.0, pw.eval(Source::Position({0.0, 0.0, 0.0}), 1e-9 * c, E, Y), tol);
+	EXPECT_NEAR(1.0, pw.eval(Source::Position({0.0, 0.0, 0.0}), 1.5e-9 * c, E, Y), tol);
+	EXPECT_NEAR(0.0, pw.eval(Source::Position({0.0, 0.0, 0.0}), 3e-9 * c, E, Y), tol);
+	EXPECT_NEAR(0.0, pw.eval(Source::Position({c * 1e-9, 0.0, 0.0}), 0.0, E, Y), tol);
+	EXPECT_NEAR(2.0, pw.eval(Source::Position({c * 1e-9, 0.0, 0.0}), 2e-9 * c, E, Y), tol);
+	std::remove(path.c_str());
 }
 
 TEST_F(SourcesTest, DirectTFSFPlanewaveMatchesProjectedReferenceOnCuda)

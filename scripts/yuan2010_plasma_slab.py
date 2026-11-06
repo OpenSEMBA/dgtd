@@ -9,7 +9,7 @@ Electromagnetic Wave in a Bounded Plasma Slab", IEEE Trans. Plasma Sci.,
 vol. 38, no. 12, pp. 3348-3355, 2010. Cold plasma, f_p = 2 GHz,
 nu_en = 5e9 s^-1, slab thickness 10 cm, PEC backing. The reflected power
 is their Eqs. (10)-(12). The time-domain model is the cold-plasma limit of
-the single-pole Lorentz ODE (omega_1 = 0, eps_inf = 1, gamma = nu_en / 2).
+the single-pole Lorentz ODE (omega_1 = 0, eps_inf = 1, gamma = nu_en).
 
 Geometry matches that script: order 2, dx = 5 mm, a right-going Gaussian of
 width 0.02 m centered at x = 0.25 m, probe at x = 0.6 m, plasma on
@@ -102,7 +102,7 @@ def write_case(folder: Path, name: str, xmax: float, plasma: bool, right: str):
                     "eps_inf": 1.0,
                     "omega_p": 2.0 * np.pi * PLASMA_FREQUENCY,
                     "omega_1": 0.0,
-                    "gamma": 0.5 * COLLISION_FREQUENCY,
+                    "gamma": COLLISION_FREQUENCY,
                 },
             }
         )

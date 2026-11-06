@@ -22,7 +22,14 @@ PAIRS = [
 def mesh_name(case: str, root: Path) -> str:
     import json
 
-    json_path = root / "testData/maxwellInputs" / case / f"{case}.json"
+    json_path = None
+    for folder in ("testInputs", "maxwellInputs"):
+        candidate = root / "testData" / folder / case / f"{case}.json"
+        if candidate.is_file():
+            json_path = candidate
+            break
+    if json_path is None:
+        raise FileNotFoundError(f"no case JSON for {case}")
     data = json.loads(json_path.read_text())
     name = data["model"]["filename"]
     return name[:-4] if name.endswith(".msh") else name

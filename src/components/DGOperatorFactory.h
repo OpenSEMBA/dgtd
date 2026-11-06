@@ -4,6 +4,7 @@
 #include "SCPMLLayout.h"
 #include "mfemExtension/BilinearIntegrators.h"
 #include "mfemExtension/BilinearForm_IBFI.hpp"
+#include "solver/SerialLayoutExport.h"
 
 #include <algorithm>
 #include <chrono>
@@ -1910,32 +1911,46 @@ namespace maxwell
 		res->Threshold(threshold);
 
 		if(this->pd_.opts.export_evolution_operator){
-			if(Mpi::WorldSize() > 1){
-				std::cout << "---------------------------------------------------------------" << std::endl;
-				std::cout << "--EXPORTING OPERATOR ONLY CURRENTLY WORKS IN SINGLE RANK SIMS--" << std::endl;
-				std::cout << "-----THE SPATIAL EVOLUTION OPERATOR IS NOT BEING EXPORTED------" << std::endl;
-				std::cout << "---------------------------------------------------------------" << std::endl;
-				return res;
-			}
 			std::filesystem::path export_dir = std::filesystem::path("exports") / "Operators" / this->pd_.model.meshName_;
-
-			if (!std::filesystem::exists(export_dir))
-			{
-				std::filesystem::create_directories(export_dir);
-			}
-
 			std::filesystem::path file_path = export_dir / (this->pd_.model.meshName_ + "_global.csr");
 
-			std::ofstream ofs(file_path);
-			if (!ofs.is_open())
-			{
-				throw std::runtime_error("Could not open file for writing: " + file_path.string());
+			if (Mpi::WorldSize() > 1) {
+				if constexpr (std::is_same_v<FES, ParFiniteElementSpace>) {
+					const int n_nbr = fes_.num_face_nbr_dofs;
+					if (n_nbr < 0) {
+						throw std::runtime_error(
+							"Face-neighbor data is missing; cannot export the parallel operator.");
+					}
+					const mfem::Array<HYPRE_BigInt>* nbr_map =
+						(n_nbr > 0) ? &fes_.GetFaceNbrGlobalDofMapArray() : nullptr;
+					gatherSerialCSR(
+						*res,
+						buildSerialDGDofMap(fes_, this->pd_.model.elementPartition()),
+						nbr_map,
+						n_nbr,
+						file_path,
+						"Global operator");
+				} else {
+					throw std::runtime_error(
+						"Parallel operator export requires a parallel finite element space.");
+				}
+			} else {
+				if (!std::filesystem::exists(export_dir))
+				{
+					std::filesystem::create_directories(export_dir);
+				}
+
+				std::ofstream ofs(file_path);
+				if (!ofs.is_open())
+				{
+					throw std::runtime_error("Could not open file for writing: " + file_path.string());
+				}
+
+				res->PrintCSR2(ofs);
+				ofs.close();
+
+				std::cout << "Global operator exported to " << file_path << std::endl;
 			}
-
-			res->PrintCSR2(ofs);
-			ofs.close();
-
-			std::cout << "Global operator exported to " << file_path << std::endl;
 		}
 
 
@@ -2261,6 +2276,10 @@ namespace maxwell
 
 		bool any = false;
 		mfem::Array<int> dofs;
+		mfem::ConstantCoefficient one_coeff(1.0);
+		mfem::InverseIntegrator m_inv_integ(new mfem::MassIntegrator(one_coeff));
+		mfem::DenseMatrix el_m_inv, el_m_coeff, el_block;
+
 		for (int el = 0; el < mesh->GetNE(); ++el) {
 			const LorentzProperties* pole = pd_.model.findLorentz(mesh->GetAttribute(el));
 			if (!pole) {
@@ -2268,27 +2287,84 @@ namespace maxwell
 			}
 			any = true;
 			const double e_from_j = -1.0 / pole->eps_inf;
-			const double j_from_e = pole->omega_p * pole->omega_p;
-			const double j_from_p = -pole->omega_1 * pole->omega_1;
-			const double j_from_j = -2.0 * pole->gamma;
 
 			fes_.GetElementDofs(el, dofs);
+			for (int j = 0; j < dofs.Size(); ++j) {
+				if (dofs[j] < 0) {
+					dofs[j] = -1 - dofs[j];
+				}
+			}
+
+			if (!pole->hasSpatialProfile()) {
+				const double j_from_e = pole->omega_p * pole->omega_p;
+				const double j_from_p = -pole->omega_1 * pole->omega_1;
+				const double j_from_j = -pole->gamma;
+
+				for (int u = 0; u < 3; ++u) {
+					const int e_off = u * ndofs;
+					const int p_off = p_base + u * ndofs;
+					const int j_off = j_base + u * ndofs;
+					for (int j = 0; j < dofs.Size(); ++j) {
+						const int dof = dofs[j];
+						matrix->Add(e_off + dof, j_off + dof, e_from_j);
+						matrix->Add(p_off + dof, j_off + dof, 1.0);
+						matrix->Add(j_off + dof, e_off + dof, j_from_e);
+						matrix->Add(j_off + dof, p_off + dof, j_from_p);
+						matrix->Add(j_off + dof, j_off + dof, j_from_j);
+					}
+				}
+				continue;
+			}
+
 			for (int u = 0; u < 3; ++u) {
 				const int e_off = u * ndofs;
 				const int p_off = p_base + u * ndofs;
 				const int j_off = j_base + u * ndofs;
 				for (int j = 0; j < dofs.Size(); ++j) {
-					int dof = dofs[j];
-					if (dof < 0) {
-						dof = -1 - dof;
-					}
+					const int dof = dofs[j];
 					matrix->Add(e_off + dof, j_off + dof, e_from_j);
 					matrix->Add(p_off + dof, j_off + dof, 1.0);
-					matrix->Add(j_off + dof, e_off + dof, j_from_e);
-					matrix->Add(j_off + dof, p_off + dof, j_from_p);
-					matrix->Add(j_off + dof, j_off + dof, j_from_j);
 				}
 			}
+
+			const mfem::FiniteElement* fe = fes_.GetFE(el);
+			mfem::ElementTransformation* tr = fes_.GetElementTransformation(el);
+			m_inv_integ.AssembleElementMatrix(*fe, *tr, el_m_inv);
+
+			auto addWeightedMassBlock = [&](mfem::Coefficient& coeff, int col_base) {
+				mfem::MassIntegrator mi(coeff);
+				mi.AssembleElementMatrix(*fe, *tr, el_m_coeff);
+				el_block.SetSize(dofs.Size());
+				mfem::Mult(el_m_inv, el_m_coeff, el_block);
+				for (int u = 0; u < 3; ++u) {
+					const int row_off = j_base + u * ndofs;
+					const int col_off = col_base + u * ndofs;
+					for (int r = 0; r < dofs.Size(); ++r) {
+						for (int c = 0; c < dofs.Size(); ++c) {
+							matrix->Add(row_off + dofs[r], col_off + dofs[c], el_block(r, c));
+						}
+					}
+				}
+			};
+
+			mfem::FunctionCoefficient wp_sq_fc([pole](const mfem::Vector& x) {
+				const double wp = pole->evalOmegaP(x);
+				return wp * wp;
+			});
+			addWeightedMassBlock(wp_sq_fc, 0);
+
+			if (pole->omega_1_profile || pole->omega_1 != 0.0) {
+				mfem::FunctionCoefficient neg_w1_sq_fc([pole](const mfem::Vector& x) {
+					const double w1 = pole->evalOmega1(x);
+					return -w1 * w1;
+				});
+				addWeightedMassBlock(neg_w1_sq_fc, p_base);
+			}
+
+			mfem::FunctionCoefficient neg_gamma_fc([pole](const mfem::Vector& x) {
+				return -pole->evalGamma(x);
+			});
+			addWeightedMassBlock(neg_gamma_fc, j_base);
 		}
 
 		if (!any) {
