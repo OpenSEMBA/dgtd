@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OMP_NUM_THREADS: 1
+      # ubuntu-latest is moving to Ubuntu 26.04, which ships CMake 4.
+      # CMake 4 rejects cmake_minimum_required() below 3.5. METIS 5.1.0
+      # and the pinned vcpkg FFTW 3.3.10 port both still declare that.
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
     
     steps:       
     - name: Checkout
@@ -34,11 +38,7 @@ jobs:
       uses: mpi4py/setup-mpi@v1
 
     # 2. Build and Export METIS
-    # METIS 5.1.0 still calls cmake_minimum_required() with a version below 3.5.
-    # CMake 4 removes that compatibility unless this floor is set.
     - name: Build METIS
-      env:
-        CMAKE_POLICY_VERSION_MINIMUM: "3.5"
       run: |
         cd $HOME
         wget https://github.com/mfem/tpls/raw/gh-pages/metis-5.1.0.tar.gz
