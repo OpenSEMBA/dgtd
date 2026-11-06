@@ -78,7 +78,7 @@ def build_multilayer_network(freq_hz: np.ndarray, layers: list[dict], pec_backed
 
 
 def generate_pec_ram_reference() -> Path:
-    case_path = REPO / "testData" / "maxwellInputs" / "1D_SGBC_Multilayer" / "1D_SGBC_Multilayer.json"
+    case_path = REPO / "testData" / "testInputs" / "1D_SGBC_Multilayer" / "1D_SGBC_Multilayer.json"
     data = json.loads(case_path.read_text())
     sgbc = next(b for b in data["model"]["boundaries"] if b["type"] == "SGBC")
     freqs = probe_dft_frequencies(case_path, 4.5e9, 7.4e9)
@@ -96,7 +96,7 @@ def generate_pec_ram_reference() -> Path:
 
 
 def generate_passthrough_reference() -> Path:
-    case_path = REPO / "testData" / "maxwellInputs" / "1D_SGBC_Resonant" / "1D_SGBC_Resonant.json"
+    case_path = REPO / "testData" / "testInputs" / "1D_SGBC_Resonant" / "1D_SGBC_Resonant.json"
     data = json.loads(case_path.read_text())
     sgbc = next(b for b in data["model"]["boundaries"] if b["type"] == "SGBC")
     freqs = probe_dft_frequencies(case_path, 5.0e9, 7.0e9)
@@ -115,7 +115,7 @@ def generate_passthrough_reference() -> Path:
 
 
 def generate_through_fast_references() -> tuple[Path, Path]:
-    case_path = REPO / "testData" / "maxwellInputs" / "1D_SGBC_Through" / "1D_SGBC_Through.json"
+    case_path = REPO / "testData" / "testInputs" / "1D_SGBC_Through" / "1D_SGBC_Through.json"
     data = json.loads(case_path.read_text())
     sgbc = next(b for b in data["model"]["boundaries"] if b["type"] == "SGBC")
     freqs = probe_dft_frequencies(case_path, 0.2e9, 1.5e9)
@@ -153,7 +153,7 @@ def generate_through_fast_references() -> tuple[Path, Path]:
 
 
 def generate_multiple_sgbc_references() -> tuple[Path, Path]:
-    case_path = REPO / "testData" / "maxwellInputs" / "1D_SGBC_Multiple" / "1D_SGBC_Multiple.json"
+    case_path = REPO / "testData" / "testInputs" / "1D_SGBC_Multiple" / "1D_SGBC_Multiple.json"
     data = json.loads(case_path.read_text())
     freqs = probe_dft_frequencies(case_path, 0.2e9, 1.5e9)
 

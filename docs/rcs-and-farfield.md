@@ -80,7 +80,7 @@ $$
 3. **Far-field radiation potentials:**
    Integrates the surface currents over all quadrature points across all MPI rank dumps with the far-field phase factor $\exp(+jk\,\mathbf{r}'\cdot\hat{\mathbf{r}})$ to obtain the transverse far-field components $(E_\theta^{\mathrm{ff}}, E_\phi^{\mathrm{ff}})$.
 4. **Incident spectrum normalization:**
-   Reads the `planewave` source from `testData/maxwellInputs/<casename>/<casename>.json` (`Gaussian` or `ModulatedGaussian`), evaluates its analytical Fourier transform $|\tilde{E}_{\mathrm{inc}}(f)|^2$, and normalizes the radar cross section:
+   Reads the `planewave` source from `testData/testInputs/<casename>/<casename>.json`, or from `testData/maxwellInputs/<casename>/<casename>.json` when that case is only on the local checkout (`Gaussian` or `ModulatedGaussian`), evaluates its analytical Fourier transform $|\tilde{E}_{\mathrm{inc}}(f)|^2$, and normalizes the radar cross section:
    - **3D RCS ($\mathrm{m}^2$):**
 
 $$

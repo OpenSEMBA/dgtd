@@ -2666,7 +2666,7 @@ Probes buildProbes(const json& case_data)
 
 
 std::string dataFolder() { return "./testData/"; }
-std::string maxwellInputsFolder() { return dataFolder() + "maxwellInputs/"; }
+std::string testInputsFolder() { return dataFolder() + "testInputs/"; }
 
 static bool isSGBCBoundaryType(const std::string& boundary_type);
 
@@ -2703,7 +2703,7 @@ std::string assembleMeshString(const std::string& filename)
 	if (input_mesh != std::string::npos)
 		folder_name.erase(input_mesh, s_mesh.length());
 
-	return maxwellInputsFolder() + folder_name + "/" + filename;
+	return testInputsFolder() + folder_name + "/" + filename;
 }
 
 std::string assembleLauncherMeshString(const std::string& mesh_name, const std::string& case_path)

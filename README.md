@@ -10,7 +10,8 @@ Maxwell curl-equation solver using discontinuous Galerkin methods (OpenSEMBA / U
 |------|----------|
 | `src/` | Driver, evolution operators, DG components, MFEM extensions |
 | `external/mfem-geg/` | Required MFEM fork (submodule) |
-| `testData/maxwellInputs/` | Example simulation cases (JSON + mesh per folder) |
+| `testData/testInputs/` | Cases loaded by the tests (JSON + mesh per folder) |
+| `testData/maxwellInputs/` | Local exploration cases. Not part of the published tree |
 | `testData/rcsInputs/` | Offline `opensemba_rcs` JSON (frequency/angle sweeps) |
 | `test/` | Unit and integration tests (GoogleTest) |
 | `docs/` | Input format, tools, and feature usage notes |
@@ -97,7 +98,7 @@ Built automatically from `external/mfem-geg`. For an external install: `-DSEMBA_
 
 ## Running a case
 
-Cases live under `testData/maxwellInputs/<case_name>/` with matching `<case_name>.json` and mesh file.
+Published cases live under `testData/testInputs/<case_name>/` with matching `<case_name>.json` and mesh file. Exploration cases stay in `testData/maxwellInputs/` on a local checkout.
 
 Full JSON reference: **[docs/json-input-format.md](docs/json-input-format.md)**.
 
@@ -108,7 +109,7 @@ JSON units that are easy to get wrong:
 
 Example:
 ```sh
-./build/gnu-release-mpi/bin/opensemba_dgtd -i testData/maxwellInputs/1D_PEC/1D_PEC.json
+./build/gnu-release-mpi/bin/opensemba_dgtd -i testData/testInputs/1D_PEC/1D_PEC.json
 ```
 
 CUDA builds (`gnu-release-cuda`, `gnu-release-cuda-sm120`, and the matching debug presets) default to `--device cuda`. Override with `--device cpu` or `--device omp` if you need the host. MPI-only binaries still default to `cpu`.
@@ -127,14 +128,14 @@ Offline far-field / RCS from an existing `rcssurface` export. The Maxwell case m
 
 `exports/SimulationData/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`
 
-exists. The post-processor also reads the case JSON at `testData/maxwellInputs/<casename>/<casename>.json` (plane-wave data and probe names).
+exists. The post-processor reads the case JSON from `testData/testInputs/<casename>/<casename>.json`, then from `testData/maxwellInputs/<casename>/<casename>.json` (plane-wave data and probe names).
 
 RCS input files live under `testData/rcsInputs/` (often `*.rcs.json`). Full parameter reference: **[docs/json-input-format.md](docs/json-input-format.md#offline-rcs-json-opensemba_rcs)**.
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `runmode` | yes | Export folder segment (e.g. `cuda-1`, `single-core`, `mpi-8`) |
-| `casename` | yes | Must match `testData/maxwellInputs/<casename>/` and the export tree |
+| `casename` | yes | Case folder under `testData/testInputs/` or local `testData/maxwellInputs/`, and the export tree |
 | `frequencies` | yes | `{ start, end, steps }` in Hz (`steps` = linspace count) |
 | `angles` | yes | `theta` / `phi` each `{ start, end, steps }` in radians |
 | `max_time` | no | Keep snapshots with time ≤ this value |

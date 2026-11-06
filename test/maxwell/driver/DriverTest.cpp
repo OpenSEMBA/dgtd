@@ -52,7 +52,7 @@ TEST_F(DriverTest, readsMesh)
 	auto case_data = json::parse(test_file);
 
 	EXPECT_NO_THROW(assembleMeshString(case_data["model"]["filename"]));
-	std::string expected{ "./testData/maxwellInputs/2D_Parser_BdrAndInterior/2D_Parser_BdrAndInterior.msh" };
+	std::string expected{ "./testData/testInputs/2D_Parser_BdrAndInterior/2D_Parser_BdrAndInterior.msh" };
 	EXPECT_EQ(expected, assembleMeshString(case_data["model"]["filename"]));
 }
 
@@ -120,7 +120,7 @@ TEST_F(DriverTest, adaptsSourcesObjects)
 TEST_F(DriverTest, throwsWhenCaseNamingStyleIsInconsistent)
 {
 	const std::string case_name = "DriverStyleCheckMismatch";
-	const std::filesystem::path case_dir = std::filesystem::path(maxwellInputsFolder()) / case_name;
+	const std::filesystem::path case_dir = std::filesystem::path(testInputsFolder()) / case_name;
 	const std::filesystem::path json_path = case_dir / (case_name + ".json");
 
 	std::filesystem::create_directories(case_dir);

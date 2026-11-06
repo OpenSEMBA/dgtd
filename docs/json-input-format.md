@@ -2,7 +2,7 @@
 
 Simulation cases are defined by JSON files parsed at runtime. Each case must follow the repository naming layout: the case folder name, the `.json` filename, the `.msh` filename, and `model.filename` must all share the same `<case_name>` base, and `model.filename` must not include a path.
 
-Example: [testData/maxwellInputs/1D_PEC/1D_PEC.json](../testData/maxwellInputs/1D_PEC/1D_PEC.json)
+Example: [testData/testInputs/1D_PEC/1D_PEC.json](../testData/testInputs/1D_PEC/1D_PEC.json)
 
 Legend: **[REQUIRED]** = must be present; **[OPTIONAL]** = has a default value (shown).
 
@@ -224,7 +224,7 @@ Examples:
 }
 ```
 
-RAM-C II 61 km example ([1D_Drude_RAMC_61km](../testData/maxwellInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json)):
+RAM-C II 61 km example ([1D_Drude_RAMC_61km](../testData/testInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json)):
 
 ```json
 "drude": {
@@ -481,7 +481,7 @@ $\hat{\mathbf{s}}$ points from the scattered-field volume into the total-field v
 
 ## Offline RCS JSON (`opensemba_rcs`)
 
-Separate input file for the offline RCS / far-field post-processor (`opensemba_rcs`). It does **not** replace the Maxwell case JSON; it points at an existing export and at `testData/maxwellInputs/<casename>/<casename>.json`. See also [rcs-and-farfield.md](./rcs-and-farfield.md).
+Separate input file for the offline RCS / far-field post-processor (`opensemba_rcs`). It does **not** replace the Maxwell case JSON; it points at an existing export and at `testData/testInputs/<casename>/<casename>.json`, or `testData/maxwellInputs/<casename>/<casename>.json` for a local exploration case. See also [rcs-and-farfield.md](./rcs-and-farfield.md).
 
 **Prerequisites**
 
@@ -489,7 +489,7 @@ Separate input file for the offline RCS / far-field post-processor (`opensemba_r
 2. `opensemba_dgtd` has been run so that  
    `exports/SimulationData/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`  
    (and `mesh`) exist.
-3. Launch from the repository root (paths are relative: `./exports/...`, `./testData/maxwellInputs/...`).
+3. Launch from the repository root (paths are relative: `./exports/...`, `./testData/testInputs/...`).
 
 **Process**
 
@@ -511,7 +511,7 @@ mpiexec -n 1 ./build/gnu-release-mpi/bin/opensemba_rcs \
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `runmode` | string | yes | — | Export path segment under `exports/SimulationData/` (must match how the simulation was launched, e.g. `cuda-1`, `single-core`, `mpi-8`). |
-| `casename` | string | yes | — | Case folder / JSON base name under `testData/maxwellInputs/`. |
+| `casename` | string | yes | — | Case folder / JSON base name under `testData/testInputs/`, or under local `testData/maxwellInputs/`. |
 | `frequencies` | object | yes | — | Frequency linspace in **Hz** (see below). |
 | `angles` | object | yes | — | Spherical angle grids in **radians** (see below). |
 | `max_time` | double | no | (none) | Keep only snapshots with simulation time ≤ this value. |

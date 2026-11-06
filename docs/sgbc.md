@@ -97,7 +97,7 @@ SGBC entries are defined in `model.boundaries` with `"type": "SGBC"` and either 
 
 ### Example: PEC-backed 3-layer RAM coating
 
-From [`testData/maxwellInputs/1D_SGBC_Multilayer/1D_SGBC_Multilayer.json`](../testData/maxwellInputs/1D_SGBC_Multilayer/1D_SGBC_Multilayer.json):
+From [`testData/testInputs/1D_SGBC_Multilayer/1D_SGBC_Multilayer.json`](../testData/testInputs/1D_SGBC_Multilayer/1D_SGBC_Multilayer.json):
 
 ```json
 {

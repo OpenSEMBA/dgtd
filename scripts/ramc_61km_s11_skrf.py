@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare 1D RAM-C II 61 km stagnation-line S11 (90-110 GHz) from opensemba_dgtd against scikit-rf.
 
-Setup (testData/maxwellInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json):
+Setup (testData/testInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json):
   - Domain: [0, 1.0] m, with vacuum on [0, 0.988] m (0.5 mm elements, LGL order 4)
     and the 12 mm RAM-C II 61 km stagnation line on [0.988, 1.0] m (0.2 mm elements, LGL order 4).
   - Left boundary (x = 0.0 m): SMA; Right boundary (x = 1.0 m): PEC.
@@ -28,7 +28,7 @@ from skrf.media import Freespace
 C_SI = 299792458.0
 REPO = Path(__file__).resolve().parents[1]
 SOLVER = REPO / "build/gnu-release-mpi/bin/opensemba_dgtd"
-CASE_JSON = REPO / "testData/maxwellInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json"
+CASE_JSON = REPO / "testData/testInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json"
 
 X_REF = 0.10
 X_INC = 0.30

@@ -185,4 +185,4 @@ with $\tilde{s} = s + 0.0066\,\mathrm{m}$ and $s(\xi) = -0.012\,(1 - \xi)$ for `
 2. **Resolving shock gradients and skin depths:**
    Ensure element sizes inside the dispersive region resolve both the shortest wavelength of interest ($\ge 3$ order-4 elements or $\ge 5$ order-2 elements per wavelength) and sharp profile transitions such as the bow shock thickness $d_{\mathrm{sh}} \approx 0.32\,\mathrm{mm}$.
 3. **Reference 1D reflection case:**
-   See [`testData/maxwellInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json`](../testData/maxwellInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json) and [`scripts/ramc_61km_s11_skrf.py`](../scripts/ramc_61km_s11_skrf.py) for an end-to-end 1D $S_{11}$ verification against a 2400-layer `scikit-rf` transfer-matrix reference across $1\,\mathrm{MHz}$–$250\,\mathrm{GHz}$.
+   See [`testData/testInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json`](../testData/testInputs/1D_Drude_RAMC_61km/1D_Drude_RAMC_61km.json) and [`scripts/ramc_61km_s11_skrf.py`](../scripts/ramc_61km_s11_skrf.py) for an end-to-end 1D $S_{11}$ verification against a 2400-layer `scikit-rf` transfer-matrix reference across $1\,\mathrm{MHz}$–$250\,\mathrm{GHz}$.
