@@ -539,6 +539,9 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     // Without a post-Save barrier, a fast rank can leave step() and block in the
     // next stability/Mult Allreduce while a slow rank is still writing — hang.
     pd.Save();
+    if (wire_exporter_) {
+        wire_exporter_(pd.GetPrefixPath() + pd.GetCollectionName(), export_cycle, pd.GetTime());
+    }
     if (sgbc_exporter_) {
         sgbc_exporter_(pd.GetPrefixPath() + pd.GetCollectionName(), export_cycle, pd.GetTime());
     }
@@ -638,6 +641,51 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
                 " " << f4FP.Hx << " " << f4FP.Hy << " " << f4FP.Hz << "\n";
             }
         }
+    }
+}
+
+void ProbesManager::updateProbe(WireProbe& p, Time time)
+{
+    if (std::abs(time - finalTime_) >= 1e-8) {
+        if (cycle_ % p.getVisSteps() != 0) {
+            return;
+        }
+    }
+    if (Mpi::WorldRank() != 0) {
+        return;
+    }
+    if (!wire_sampler_) {
+        throw std::runtime_error("A wire probe requires model.wires.");
+    }
+    double current = 0.0;
+    double charge = 0.0;
+    if (!wire_sampler_(p.getPoint(), current, charge)) {
+        throw std::runtime_error("Wire probe is not on a thin wire.");
+    }
+    if (!p.write) {
+        return;
+    }
+    auto& myfile = wireProbeFiles_[p.getProbeID()];
+    if (!myfile.is_open()) {
+        const std::string folder = getSimulationCaseExportPath(caseName_) + "/WireProbes/";
+        if (!preserve_existing_outputs_) {
+            std::filesystem::create_directories(folder);
+        }
+        const std::string path = folder + "WireProbe" + std::to_string(p.getProbeID()) + ".dat";
+        myfile.open(path, preserve_existing_outputs_ ? std::ios::app : std::ios::trunc);
+        if (myfile.is_open() && !preserve_existing_outputs_) {
+            const Point& position = p.getPoint();
+            myfile << "WireProbe ID " << p.getProbeID() << "\n";
+            myfile << "Spatial Position (X, Y, Z) \n";
+            myfile << std::scientific << std::setprecision(5);
+            myfile << position[0] << " " << (position.size() > 1 ? position[1] : 0.0)
+                   << " " << (position.size() > 2 ? position[2] : 0.0) << "\n";
+            myfile << "Time (s) // current // charge \n";
+        }
+    }
+    if (myfile.is_open()) {
+        myfile << std::scientific << std::setprecision(5);
+        myfile << time / physicalConstants::speedOfLight_SI << " " << current << " " << charge << "\n";
     }
 }
 
@@ -834,6 +882,9 @@ void ProbesManager::updateProbes(Time t)
     auto after_field = clock::now();
 #endif
     for (auto& p : probes.pointProbes) {
+        updateProbe(p, t);
+    }
+    for (auto& p : probes.wireProbes) {
         updateProbe(p, t);
     }
 #ifdef SHOW_TIMER_INFORMATION

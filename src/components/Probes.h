@@ -159,6 +159,31 @@ private:
     FieldMovies fieldMovies_;
 };
 
+class WireProbe {
+public:
+    WireProbe(const Point& p, const int visSteps = 1, const bool writeFile = true) :
+        point_{ p },
+        visSteps_{ visSteps },
+        write{ writeFile }
+    {}
+
+    bool write;
+
+    const Point& getPoint() const { return point_; }
+    int getVisSteps() const { return visSteps_; }
+    void setVisSteps(int s) { visSteps_ = s; }
+    void setSaves(int s) { saves_ = s; }
+    int getSaves() const { return saves_; }
+    void setProbeID(const size_t id) { id_ = id; }
+    size_t getProbeID() const { return id_; }
+
+private:
+    Point point_;
+    int visSteps_;
+    int saves_{ 0 };
+    size_t id_{ 0 };
+};
+
 struct MORStateProbe {
     std::string name{"MORState"};
     double record_time_start{0.0};
@@ -170,6 +195,7 @@ struct Probes {
     std::vector<FieldProbe> fieldProbes;
     std::vector<ExporterProbe> exporterProbes;
     std::vector<PointProbe> pointProbes;
+    std::vector<WireProbe> wireProbes;
     std::vector<NearFieldProbe> nearFieldProbes;
     std::vector<DomainSnapshotProbe> domainSnapshotProbes;
     std::vector<RCSSurfaceProbe> rcsSurfaceProbes;

@@ -71,8 +71,14 @@ public:
         caseName_ = name;
         initRCSSurfaceExporters();
     }
+    void setWireExporter(std::function<void(const std::string&, int, double)> exporter) {
+        wire_exporter_ = std::move(exporter);
+    }
     void setSGBCExporter(std::function<void(const std::string&, int, double)> exporter) {
         sgbc_exporter_ = std::move(exporter);
+    }
+    void setWireSampler(std::function<bool(const Point&, double&, double&)> sampler) {
+        wire_sampler_ = std::move(sampler);
     }
     void initPointFieldProbeExport();
     void initTFSFExport(SourcesManager* srcmngr, const mfem::Array<int>* tfsf_mapping) {
@@ -171,7 +177,10 @@ private:
     std::unique_ptr<SerialDGDofMap> serial_dof_map_;
     bool is_sgbc_solver_{false};
     bool preserve_existing_outputs_{false};
+    std::function<void(const std::string&, int, double)> wire_exporter_;
     std::function<void(const std::string&, int, double)> sgbc_exporter_;
+    std::function<bool(const Point&, double&, double&)> wire_sampler_;
+    std::map<int, std::ofstream> wireProbeFiles_;
     mutable TimingStats timingStats_;
     
     mfem::ParaViewDataCollection buildParaviewDataCollectionInfo(const ExporterProbe&, Fields<ParFiniteElementSpace, ParGridFunction>&) const;
@@ -183,6 +192,7 @@ private:
     void updateProbe(ExporterProbe&, Time);
     void updateProbe(FieldProbe&, Time);
     void updateProbe(PointProbe&, Time);
+    void updateProbe(WireProbe&, Time);
     void updateProbe(NearFieldProbe&, Time);
     void updateProbe(DomainSnapshotProbe&, Time);
     void updateProbe(RCSSurfaceProbe&, Time);

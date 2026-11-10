@@ -84,6 +84,38 @@ private:
 	mfem::Vector polarization_;
 };
 
+/// Series voltage on one Holland-wire piece. `magnitude` is the peak of ∫E·dl.
+class WireVoltageSource : public Source {
+public:
+	WireVoltageSource(
+		double magnitude,
+		double spread,
+		double t0,
+		const mfem::Vector& position,
+		bool derivative = false);
+	WireVoltageSource(const WireVoltageSource&);
+
+	std::unique_ptr<Source> clone() const override;
+
+	double eval(
+		const Position&, const Time&,
+		const FieldType&, const Direction&) const override;
+
+	double magnitude() const { return magnitude_; }
+	double spread() const { return spread_; }
+	double t0() const { return t0_; }
+	bool derivative() const { return derivative_; }
+	const mfem::Vector& position() const { return position_; }
+	double waveform(Time t) const;
+
+private:
+	double magnitude_;
+	double spread_;
+	double t0_;
+	bool derivative_;
+	mfem::Vector position_;
+};
+
 class TotalField : public Source {
 public:
 	TotalField(const EHFieldFunction&);
