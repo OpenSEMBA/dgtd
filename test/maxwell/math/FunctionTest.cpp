@@ -287,3 +287,26 @@ TEST_F(FunctionTest, Ramc61kmStagnationProfile_DirectionFlipAndUnitCoord)
 		EXPECT_NEAR(wp_pos.evalAtUnitCoord(xi), wp_neg.evalAtUnitCoord(1.0 - xi), 1e-12);
 	}
 }
+
+TEST_F(FunctionTest, Ramc50kmStagnationProfile_Stretches24mmAndFlips)
+{
+	Ramc50kmStagnationProfile wp_pos(Ramc50kmPreset::OmegaP, 1.0, 0.0, 0, 1.0);
+	Ramc50kmStagnationProfile wp_neg(Ramc50kmPreset::OmegaP, 1.0, 0.0, 0, -1.0);
+	Ramc50kmStagnationProfile nu_g(Ramc50kmPreset::NuC_Gupta, 1.0, 0.0, 0, 1.0);
+	Ramc50kmStagnationProfile nu_l(Ramc50kmPreset::NuC_Liu, 1.0, 0.0, 0, 1.0);
+
+	mfem::Vector inflow(1);
+	inflow(0) = -Ramc50kmStagnationProfile::kNativeLength;
+	mfem::Vector nose(1);
+	nose(0) = 0.0;
+	EXPECT_DOUBLE_EQ(0.024, Ramc50kmStagnationProfile::kNativeLength);
+	EXPECT_NEAR(ramc50kmStagnationOmegaP(inflow), wp_pos.evalAtUnitCoord(0.0), 1e-6);
+	EXPECT_NEAR(ramc50kmStagnationOmegaP(nose), wp_pos.evalAtUnitCoord(1.0), 1e-6);
+	EXPECT_NEAR(ramc50kmStagnationNuC_Gupta(inflow), nu_g.evalAtUnitCoord(0.0), 1e-4);
+	EXPECT_NEAR(ramc50kmStagnationNuC_Liu(nose), nu_l.evalAtUnitCoord(1.0), 1e-4);
+	EXPECT_GT(wp_pos.evalAtUnitCoord(1.0), 1.0e9);
+
+	for (double xi : {0.0, 0.15, 0.42, 0.8, 1.0}) {
+		EXPECT_NEAR(wp_pos.evalAtUnitCoord(xi), wp_neg.evalAtUnitCoord(1.0 - xi), 1e-6);
+	}
+}

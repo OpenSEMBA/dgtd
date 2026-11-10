@@ -155,7 +155,10 @@ ParsedRate parseRateEntry(
 
 	if (type == "ramc_61km_omega_p" ||
 	    type == "ramc_61km_nu_c_gupta" ||
-	    type == "ramc_61km_nu_c_liu") {
+	    type == "ramc_61km_nu_c_liu" ||
+	    type == "ramc_50km_omega_p" ||
+	    type == "ramc_50km_nu_c_gupta" ||
+	    type == "ramc_50km_nu_c_liu") {
 		const double nose_x = entry.contains("nose_x")
 			? entry["nose_x"].get<double>()
 			: entry.value("origin", 0.0);
@@ -164,30 +167,48 @@ ParsedRate parseRateEntry(
 		if (direction != 1.0 && direction != -1.0) {
 			throw std::runtime_error(label + " 'direction' must be 1.0 or -1.0.");
 		}
-		Ramc61kmPreset preset = Ramc61kmPreset::OmegaP;
+		const bool ramc50 = type.rfind("ramc_50km_", 0) == 0;
 		mfem::Vector probe_pt(1);
-		probe_pt(0) = -0.005;
+		probe_pt(0) = ramc50 ? -0.012 : -0.005;
 		double ref_si = 0.0;
-		if (type == "ramc_61km_omega_p") {
-			preset = Ramc61kmPreset::OmegaP;
-			ref_si = ramc61kmStagnationOmegaP(probe_pt);
-		} else if (type == "ramc_61km_nu_c_gupta") {
-			preset = Ramc61kmPreset::NuC_Gupta;
-			ref_si = ramc61kmStagnationNuC_Gupta(probe_pt);
+		if (!ramc50) {
+			Ramc61kmPreset preset = Ramc61kmPreset::OmegaP;
+			if (type == "ramc_61km_omega_p") {
+				preset = Ramc61kmPreset::OmegaP;
+				ref_si = ramc61kmStagnationOmegaP(probe_pt);
+			} else if (type == "ramc_61km_nu_c_gupta") {
+				preset = Ramc61kmPreset::NuC_Gupta;
+				ref_si = ramc61kmStagnationNuC_Gupta(probe_pt);
+			} else {
+				preset = Ramc61kmPreset::NuC_Liu;
+				ref_si = ramc61kmStagnationNuC_Liu(probe_pt);
+			}
+			out.profile = std::make_shared<Ramc61kmStagnationProfile>(
+				preset, inv_c, nose_x, axis, direction);
 		} else {
-			preset = Ramc61kmPreset::NuC_Liu;
-			ref_si = ramc61kmStagnationNuC_Liu(probe_pt);
+			Ramc50kmPreset preset = Ramc50kmPreset::OmegaP;
+			if (type == "ramc_50km_omega_p") {
+				preset = Ramc50kmPreset::OmegaP;
+				ref_si = ramc50kmStagnationOmegaP(probe_pt);
+			} else if (type == "ramc_50km_nu_c_gupta") {
+				preset = Ramc50kmPreset::NuC_Gupta;
+				ref_si = ramc50kmStagnationNuC_Gupta(probe_pt);
+			} else {
+				preset = Ramc50kmPreset::NuC_Liu;
+				ref_si = ramc50kmStagnationNuC_Liu(probe_pt);
+			}
+			out.profile = std::make_shared<Ramc50kmStagnationProfile>(
+				preset, inv_c, nose_x, axis, direction);
 		}
 		out.scalar_solver = ref_si * inv_c;
-		out.profile = std::make_shared<Ramc61kmStagnationProfile>(
-			preset, inv_c, nose_x, axis, direction);
 		return out;
 	}
 
 	throw std::runtime_error(
 		"Unknown profile type '" + type + "' in " + label +
 		". Supported: constant, gaussian, positive_gaussian_derivative, "
-		"ramc_61km_omega_p, ramc_61km_nu_c_gupta, ramc_61km_nu_c_liu.");
+		"ramc_61km_omega_p, ramc_61km_nu_c_gupta, ramc_61km_nu_c_liu, "
+		"ramc_50km_omega_p, ramc_50km_nu_c_gupta, ramc_50km_nu_c_liu.");
 }
 
 } // namespace

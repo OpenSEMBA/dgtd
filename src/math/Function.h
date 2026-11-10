@@ -409,6 +409,145 @@ private:
 	double direction_;
 };
 
+// RAM-C II 50 km, Mach 9.5, 12:55 stagnation line.
+// x in metres, nose at x = 0, inflow at x = -0.024 m.
+// Relative RMS against the H1 axis nodes: 3.6% (largest miss 11% at x = -7.1 mm).
+inline double ramc50kmStagnationOmegaP(const mfem::Vector& p)
+{
+	const double x = p(0);
+	if (x > 0.0) {
+		return 0.0;
+	}
+	constexpr double wp_inf =  1.891488933e+05;
+	constexpr double x_sh   = -1.404091339e-02;
+	constexpr double d_sh   =  3.346945412e-03;
+	constexpr double a0     = -1.442830910e+08;
+	constexpr double a1     = -8.139327178e+09;
+	constexpr double a2     =  2.023092321e+12;
+	constexpr double a3     =  1.607015069e+14;
+	constexpr double d_bl   =  3.531895113e-03;
+	constexpr double A_bl   =  5.860432868e+09;
+
+	const double step = 0.5 * (1.0 + std::tanh((x - x_sh) / d_sh));
+	const double s    = x + 1.018700058e-02;
+	const double env  = a0 + s * (a1 + s * (a2 + s * a3)) + A_bl * std::exp(x / d_bl);
+	return wp_inf + step * std::max(0.0, env);
+}
+
+// Relative RMS 1.1% (largest miss 5.9% at x = -20.6 mm).
+inline double ramc50kmStagnationNuC_Gupta(const mfem::Vector& p)
+{
+	const double x = p(0);
+	if (x > 0.0) {
+		return 0.0;
+	}
+	constexpr double nu_inf =  1.007955905e+08;
+	constexpr double x_sh   = -1.878338741e-02;
+	constexpr double d_sh   =  1.433905287e-03;
+	constexpr double a0     =  5.432719481e+09;
+	constexpr double a1     =  3.957922427e+10;
+	constexpr double a2     = -4.318630790e+12;
+	constexpr double a3     =  3.187292185e+14;
+	constexpr double d_bl   =  4.727815008e-04;
+	constexpr double A_bl   =  2.680914883e+09;
+
+	const double step = 0.5 * (1.0 + std::tanh((x - x_sh) / d_sh));
+	const double s    = x - 6.151333725e-04;
+	const double env  = a0 + s * (a1 + s * (a2 + s * a3)) + A_bl * std::exp(x / d_bl);
+	return nu_inf + step * std::max(0.0, env);
+}
+
+// Relative RMS 1.4% (largest miss 6.7% at x = -20.6 mm).
+inline double ramc50kmStagnationNuC_Liu(const mfem::Vector& p)
+{
+	const double x = p(0);
+	if (x > 0.0) {
+		return 0.0;
+	}
+	constexpr double nu_inf =  1.285807127e+08;
+	constexpr double x_sh   = -1.849299301e-02;
+	constexpr double d_sh   =  9.186956772e-04;
+	constexpr double a0     =  3.007385768e+09;
+	constexpr double a1     =  1.495225548e+11;
+	constexpr double a2     = -1.230767693e+13;
+	constexpr double a3     =  4.136508255e+14;
+	constexpr double d_bl   =  4.391254946e-04;
+	constexpr double A_bl   =  2.531663926e+09;
+
+	const double step = 0.5 * (1.0 + std::tanh((x - x_sh) / d_sh));
+	const double s    = x + 1.698257593e-02;
+	const double env  = a0 + s * (a1 + s * (a2 + s * a3)) + A_bl * std::exp(x / d_bl);
+	return nu_inf + step * std::max(0.0, env);
+}
+
+enum class Ramc50kmPreset {
+	OmegaP,
+	NuC_Gupta,
+	NuC_Liu
+};
+
+class Ramc50kmStagnationProfile : public Function {
+public:
+	static constexpr double kNativeLength = 0.024;
+
+	Ramc50kmStagnationProfile(
+		Ramc50kmPreset preset,
+		double scale = 1.0,
+		double nose_x = 0.0,
+		int axis = 0,
+		double direction = 1.0)
+		: preset_(preset),
+		  scale_(scale),
+		  nose_x_(nose_x),
+		  axis_(axis),
+		  direction_(direction)
+	{
+	}
+
+	int dimension() const override { return axis_ + 1; }
+
+	std::unique_ptr<Function> clone() const override
+	{
+		return std::make_unique<Ramc50kmStagnationProfile>(*this);
+	}
+
+	double eval(const Position& pos) const override
+	{
+		assert(axis_ >= 0 && axis_ < pos.Size());
+		mfem::Vector shifted(1);
+		shifted(0) = direction_ * (pos[axis_] - nose_x_);
+		return evalNative(shifted);
+	}
+
+	double evalAtUnitCoord(double xi) const override
+	{
+		const double u = (direction_ >= 0.0) ? xi : (1.0 - xi);
+		mfem::Vector s(1);
+		s(0) = -kNativeLength * (1.0 - u);
+		return evalNative(s);
+	}
+
+private:
+	double evalNative(const mfem::Vector& s) const
+	{
+		switch (preset_) {
+		case Ramc50kmPreset::OmegaP:
+			return scale_ * ramc50kmStagnationOmegaP(s);
+		case Ramc50kmPreset::NuC_Gupta:
+			return scale_ * ramc50kmStagnationNuC_Gupta(s);
+		case Ramc50kmPreset::NuC_Liu:
+			return scale_ * ramc50kmStagnationNuC_Liu(s);
+		}
+		return 0.0;
+	}
+
+	Ramc50kmPreset preset_;
+	double scale_;
+	double nose_x_;
+	int axis_;
+	double direction_;
+};
+
 /// Spread σ of exp(-(t-t0)^2 / (2 σ^2)) whose incident *power* is 1/e at `f_1e_hz`.
 /// Time is light-metres: |A(ω)|² / |A(0)|² = exp(-(ω σ)²) with ω = 2 π f / c_SI.
 inline double gaussianSpreadForPower1e(double f_1e_hz)

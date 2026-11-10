@@ -1,8 +1,8 @@
 # Dispersive materials and spatial profiles
 
-Volumetric single-pole electric Debye, Lorentz, and cold-plasma Drude materials on `GlobalEvolution`.
+Volumetric single-pole electric Debye, Lorentz, and cold-plasma Drude materials on `GlobalEvolution` and `HesthavenEvolution`.
 
-Internal solver units are normalized ($c_0 = \varepsilon_0 = \mu_0 = 1$, time in light-metres $t' = c_0 t$). JSON rates and relaxation times are given in SI units (seconds, Hz, or rad/s) and converted at parse time. Use `"evolution_operator": "global"` (or omit `evolution_operator`) and `"ode_type": 0` (RK4).
+Internal solver units are normalized ($c_0 = \varepsilon_0 = \mu_0 = 1$, time in light-metres $t' = c_0 t$). JSON rates and relaxation times are given in SI units (seconds, Hz, or rad/s) and converted at parse time. Use `"evolution_operator": "global"` (or omit it) or `"hesthaven"`. `"ode_type": 0` is RK4. Implicit ODE types include these poles. `"hesthaven"` is 2D/3D and applies the same ADE as element-local updates.
 
 ---
 
@@ -99,7 +99,7 @@ $$
 
 When all rates on an element $K$ are constant scalars, the element mass matrix cancels against $M_K^{-1}$ and the auxiliary coupling block reduces to a point-diagonal scaling on each degree of freedom.
 
-When any rate ($\omega_p$, $\omega_1$, or $\nu_c$) is given as a spatial profile object, `DGOperatorFactory::buildLorentzOperator()` wraps the profile in an `mfem::FunctionCoefficient`, integrates it at the element's Gauss quadrature points via `mfem::MassIntegrator`, and pre-multiplies by the element inverse mass matrix $(M_K^{(1)})^{-1}$:
+When any rate ($\omega_p$, $\omega_1$, or $\nu_c$) is given as a spatial profile object, the operator wraps the profile in an `mfem::FunctionCoefficient`, integrates it at the element's Gauss quadrature points via `mfem::MassIntegrator`, and pre-multiplies by the element inverse mass matrix $(M_K^{(1)})^{-1}$:
 
 $$
 \frac{\mathrm{d}\mathbf{J}_K}{\mathrm{d}t'} = (M_K^{(1)})^{-1} M_K^{(\tilde{\omega}_p^2)}\,\mathbf{E}_K - (M_K^{(1)})^{-1} M_K^{(\tilde{\omega}_1^2)}\,\mathbf{P}_K - (M_K^{(1)})^{-1} M_K^{(\tilde{\gamma})}\,\mathbf{J}_K,
@@ -133,6 +133,9 @@ Each profile evaluates its canonical shape on $\xi \in [0, 1]$, so the complete 
 | `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p$ $[\mathrm{rad/s}]$ stretched from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Gupta closure) stretched onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Liu closure) stretched onto $\xi \in [0, 1]$. |
+| `"ramc_50km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\omega_p$ $[\mathrm{rad/s}]$ stretched from $[-0.024, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
+| `"ramc_50km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Gupta closure) stretched onto $\xi \in [0, 1]$. |
+| `"ramc_50km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Liu closure) stretched onto $\xi \in [0, 1]$. |
 
 #### Mathematical definition of `"gaussian"` and `"positive_gaussian_derivative"`
 
@@ -175,6 +178,8 @@ f(s) = f_\infty + \frac{1}{2}\left(1 + \tanh\!\left(\frac{s - x_{\mathrm{sh}}}{d
 $$
 
 with $\tilde{s} = s + 0.0066\,\mathrm{m}$ and $s(\xi) = -0.012\,(1 - \xi)$ for `direction: 1.0` (or $s(\xi) = -0.012\,\xi$ for `direction: -1.0` if the nose sits at the left end of the region).
+
+The 50 km presets `"ramc_50km_omega_p"`, `"ramc_50km_nu_c_gupta"`, and `"ramc_50km_nu_c_liu"` use the same shock-plus-polynomial shape on the $24\,\mathrm{mm}$ stagnation line $s \in [-0.024, 0.0]\,\mathrm{m}$ ($s(\xi) = -0.024\,(1 - \xi)$ when `direction` is $1$). Peak $f_p$ on that fit is about $0.96\,\mathrm{GHz}$ at the nose. The 1D check is [`testData/testInputs/1D_Drude_RAMC_50km/1D_Drude_RAMC_50km.json`](../testData/testInputs/1D_Drude_RAMC_50km/1D_Drude_RAMC_50km.json) with [`scripts/ramc_50km_s11_skrf.py`](../scripts/ramc_50km_s11_skrf.py), from $1\,\mathrm{MHz}$ to $5\,\mathrm{GHz}$.
 
 ---
 
