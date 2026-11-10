@@ -95,7 +95,7 @@ odeSolver_->Step(fields_.allDOFs(), time_, truedt);
 
 `Step` allocates stage vectors in the memory class above and calls `Mult` or `ImplicitSolve` as the Butcher tableau requires. A hand-written RK4 is a small scalar routine and a memory bug on a device vector of fields plus auxiliaries. The implicit family adds stage coupling and a linear solve for the stage derivative $k$ in $y' = f(t, y)$.
 
-Runs that include Cartesian PML, Debye, Lorentz, or SGBC must select RK4. The `Solver` constructor throws otherwise. Those extra terms are applied inside `Mult`. The nested SGBC problem is still a stock MFEM stepper: `buildSGBCSolverOptions` selects `SDIRK33Solver` ([`src/solver/SolverExtension.cpp`](../src/solver/SolverExtension.cpp)).
+Runs that include SGBC must select RK4. The `Solver` constructor throws otherwise. Cartesian PML, Debye, and Lorentz are inside the implicit operator as well as `Mult`. The nested SGBC problem is still a stock MFEM stepper: `buildSGBCSolverOptions` selects `SDIRK33Solver` ([`src/solver/SolverExtension.cpp`](../src/solver/SolverExtension.cpp)).
 
 ### Smaller stock uses
 
@@ -179,7 +179,7 @@ The two lists are MFEM objects and the specializations of those objects. The tim
 
 `GlobalEvolution::Mult` applies the merged Maxwell matrix, then adds the TFSF source, the Cartesian SC-PML auxiliary update, Debye, Lorentz, and the SGBC face sub-step ([`src/evolution/GlobalEvolution.cpp`](../src/evolution/GlobalEvolution.cpp)). The ODE stepper sees the sum. Those updates are not a subclass of an MFEM integrator.
 
-`HesthavenEvolution` is a deprecated reference operator. It uses an `L2_FECollection` on the same family of discontinuous spaces. `GlobalEvolution` is the path that carries PML, dispersive media, and SGBC.
+`HesthavenEvolution` is the element-local operator. It uses an `L2_FECollection` on the same family of discontinuous spaces and applies conductivity, Cartesian SC-PML, Debye, and Lorentz/Drude without a global CSR. Interior-boundary faces, centered SMA, and SGBC faces reuse assembled rows or the Global coating sub-step. `GlobalEvolution` is the assembled path and the one that carries thin wires.
 
 ## References
 

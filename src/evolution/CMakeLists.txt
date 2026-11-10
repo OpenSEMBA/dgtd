@@ -7,18 +7,21 @@ set(SOURCES
     "MaxwellEvolutionMethods.cpp"
     "HesthavenEvolutionMethods.cpp"
     "HesthavenEvolution.cpp"
-    "GlobalEvolution.cpp"
+    "HesthavenAuxiliary.cpp"
+	"GlobalEvolution.cpp"
+	"../wires/ThinWire.cpp"
 )
 
 	if (SEMBA_DGTD_ENABLE_CUDA)
     enable_language(CUDA)
 
-    list(APPEND SOURCES "GlobalEvolution.cu" "HesthavenEvolution.cu")
+    list(APPEND SOURCES "GlobalEvolution.cu" "HesthavenEvolution.cu" "../wires/ThinWire.cu")
 
     set_source_files_properties(GlobalEvolution.cu PROPERTIES LANGUAGE CUDA)
     set_source_files_properties(HesthavenEvolution.cu PROPERTIES LANGUAGE CUDA)
+    set_source_files_properties(../wires/ThinWire.cu PROPERTIES LANGUAGE CUDA)
 
-    message(STATUS "CUDA is enabled: Compiling with GlobalEvolution.cu and HesthavenEvolution.cu")
+    message(STATUS "CUDA is enabled: Compiling with GlobalEvolution.cu, HesthavenEvolution.cu, and ThinWire.cu")
 else()
     message(STATUS "CUDA is disabled: Skipping GlobalEvolution.cu")
 endif()

@@ -1957,8 +1957,6 @@ namespace maxwell
 		return res;
 	}
 
-	namespace {
-
 	/// Bagci SC-PML diagonal tensor entry for field/aux component u.
 	enum class SCPMLTensorKind {
 		A,       ///< a_uu = κ_v κ_w / κ_u  (Phase 2 LHS; unused in κ≡1 assembly)
@@ -2015,8 +2013,6 @@ namespace maxwell
 		Direction comp_;
 		SCPMLTensorKind kind_;
 	};
-
-	} // namespace
 
 	template <typename FES>
 	template <typename BF>

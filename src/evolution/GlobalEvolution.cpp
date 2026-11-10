@@ -3,6 +3,7 @@
 #include "components/SCPMLLayout.h"
 #include "math/Function.h"
 #include "math/PhysicalConstants.h"
+#include "wires/ThinWire.h"
 #include "solver/SerialLayoutExport.h"
 
 #include <chrono>
@@ -828,8 +829,94 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
+    if (opts_.spectral && model_.hasWires()) {
+        throw std::runtime_error("Thin wires are not available with spectral evolution.");
+    }
+    if (model_.hasWires()) {
+        if (model_.wirePieces().empty()) {
+            model_.setWirePieces(buildWirePieceChain(model_));
+        }
+        wires_ = std::make_unique<ThinWireCoupler>(fes_, model_);
+    }
+
+    const WireVoltageSource* feed = nullptr;
+    for (const auto& source : srcmngr_.sources) {
+        if (const auto* voltage = dynamic_cast<const WireVoltageSource*>(source.get())) {
+            if (feed != nullptr) {
+                throw std::runtime_error("Only one wire_voltage source is supported.");
+            }
+            feed = voltage;
+        }
+    }
+    if (feed != nullptr) {
+        if (!wires_) {
+            throw std::runtime_error("wire_voltage requires model.wires.");
+        }
+        const mfem::Vector& at = feed->position();
+        const double position[3] = {at[0], at[1], at[2]};
+        wires_->setFeed(position, feed->magnitude(), feed->spread(), feed->t0(), feed->derivative());
+    }
+
     if (!model_.getSGBCProperties().empty()) {
         buildSGBCExportMeshes();
+    }
+}
+
+const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
+{
+    const int size = func[E][X].Size();
+    mfem::Vector res(6 * size);
+    res.UseDevice(true);
+    for (int f : { E, H }) {
+        for (int d : { X, Y, Z }) {
+            std::memcpy(res.GetData() + (f * 3 + d) * size,
+                        func[f][d].GetData(),
+                        size * sizeof(double));
+        }
+    }
+    return res;
+}
+
+static void rotateGlobalFieldsToLocal(
+    const double* R,
+    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
+    int dof_index, double* out_eh)
+{
+    double eg[3], hg[3];
+    for (int d = 0; d < 3; ++d) {
+        eg[d] = fields.get(E, static_cast<Direction>(d))[dof_index];
+        hg[d] = fields.get(H, static_cast<Direction>(d))[dof_index];
+    }
+    for (int d = 0; d < 3; ++d) {
+        out_eh[d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
+        out_eh[3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
+    }
+}
+
+GlobalEvolution::~GlobalEvolution() = default;
+
+void GlobalEvolution::commitWires(double time, double dt)
+{
+    if (wires_) {
+        wires_->commit(time, dt);
+    }
+}
+
+void GlobalEvolution::finalizeWires(const mfem::Vector& eh)
+{
+    if (wires_) {
+        const int ndofs = fes_.GetNDofs();
+        if (!wires_->runsOnDevice()) {
+            eh.HostRead();
+        }
+        wires_->finalize(eh, ndofs);
+    }
+}
+
+void GlobalEvolution::exportWires(const std::string& directory, int cycle, double time) const
+{
+    if (wires_) {
+        wires_->writeParaView(directory, cycle, time);
     }
 }
 
@@ -1096,64 +1183,6 @@ void GlobalEvolution::exportSGBC(const std::string& directory, int cycle, double
         view.paraview->SetCycle(cycle);
         view.paraview->SetTime(time);
         view.paraview->Save();
-    }
-}
-
-const mfem::Vector buildSingleVectorTFSFFunc(const FieldGridFuncs& func)
-{
-    const int size = func[E][X].Size();
-    mfem::Vector res(6 * size);
-    res.UseDevice(true);
-    for (int f : { E, H }) {
-        for (int d : { X, Y, Z }) {
-            std::memcpy(res.GetData() + (f * 3 + d) * size,
-                        func[f][d].GetData(),
-                        size * sizeof(double));
-        }
-    }
-    return res;
-}
-
-static void rotateGlobalFieldsToLocal(
-    const double* R,
-    const Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
-    int dof_index, double* out_eh)
-{
-    double eg[3], hg[3];
-    for (int d = 0; d < 3; ++d) {
-        eg[d] = fields.get(E, static_cast<Direction>(d))[dof_index];
-        hg[d] = fields.get(H, static_cast<Direction>(d))[dof_index];
-    }
-    for (int d = 0; d < 3; ++d) {
-        out_eh[d]     = R[3*d]*eg[0] + R[3*d+1]*eg[1] + R[3*d+2]*eg[2];
-        out_eh[3 + d] = R[3*d]*hg[0] + R[3*d+1]*hg[1] + R[3*d+2]*hg[2];
-    }
-}
-
-GlobalEvolution::~GlobalEvolution() = default;
-
-void GlobalEvolution::commitWires(double time, double dt)
-{
-    if (wires_) {
-        wires_->commit(time, dt);
-    }
-}
-
-void GlobalEvolution::finalizeWires(const mfem::Vector& eh)
-{
-    if (wires_) {
-        const int ndofs = fes_.GetNDofs();
-        if (!wires_->runsOnDevice()) {
-            eh.HostRead();
-        }
-        wires_->finalize(eh, ndofs);
-    }
-}
-
-void GlobalEvolution::exportWires(const std::string& directory, int cycle, double time) const
-{
-    if (wires_) {
-        wires_->writeParaView(directory, cycle, time);
     }
 }
 
@@ -1604,32 +1633,10 @@ void GlobalEvolution::applyDeltaGapSourceToVector(double t_stage, int ndofs, int
     deltaGapOperator_->AddMult(deltaGapWorkVec_, result_vector, -1.0);
 }
 
-void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
+bool GlobalEvolution::advanceSGBC(const mfem::Vector& in) const
 {
-#ifdef SHOW_TIMER_INFORMATION
-    mfem::StopWatch timerTotal, timerExchange, timerApplyA, timerTFSF, timerSGBC;
-    timerTotal.Start();
-    // MFEM_STREAM_SYNC is a no-op when this TU is compiled with the host
-    // compiler (no __CUDACC__). Sync explicitly so Mult timers include GPU work.
-    auto syncCudaForTiming = []() {
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            cudaStreamSynchronize(0);
-        }
-#endif
-    };
-#endif
-
-    const auto ndofs     = fes_.GetNDofs();
-    const auto nbrDofs   = fes_.num_face_nbr_dofs;
-    const auto blockSize = ndofs + nbrDofs;
-
-    // 1) SGBC sub-solve FIRST — independent of neighbor data, overlaps with
-    //    other ranks' local work so they don't idle-wait during exchange.
-#ifdef SHOW_TIMER_INFORMATION
-    timerSGBC.Start();
-#endif
-    bool sgbc_all_quiescent = false;
+    const auto ndofs = fes_.GetNDofs();
+    sgbc_all_quiescent_ = true;
     if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty()){
         // Sub-step indexing uses the host pointer. Do this once: a later
         // HostRead inside the OpenMP loop would race on the memory flags.
@@ -1671,20 +1678,20 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
         const double thr2 = sgbc_skip_threshold_ * sgbc_skip_threshold_;
 
         // Check if ALL SGBC faces are quiescent (skip sub-solve + flux injection)
-        sgbc_all_quiescent = true;
+        sgbc_all_quiescent_ = true;
         for (const auto& [tag, states] : sgbc_states_) {
             for (const auto& state : states) {
                 if (state.fields_state.Norml2() >= sgbc_skip_threshold_ ||
                     ifaceNormSq(state) >= thr2) {
-                    sgbc_all_quiescent = false;
+                    sgbc_all_quiescent_ = false;
                     break;
                 }
             }
-            if (!sgbc_all_quiescent) break;
+            if (!sgbc_all_quiescent_) break;
         }
 
         // Advance SGBC to stage time using intermediate global fields as ghost data
-        if (!sgbc_all_quiescent && dt_to_stage > 1e-12) {
+        if (!sgbc_all_quiescent_ && dt_to_stage > 1e-12) {
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
             if (!sgbc_thread_pool_.empty()) {
                 struct ReadyTask {
@@ -1761,160 +1768,23 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
             }
         }
     }
-#ifdef SHOW_TIMER_INFORMATION
-    syncCudaForTiming();
-    timerSGBC.Stop();
-#endif
+    return sgbc_all_quiescent_;
+}
 
-    // 2) Exchange face neighbor data (MPI)
-#ifdef SHOW_TIMER_INFORMATION
-    timerExchange.Start();
-#endif
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-        load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
-    } else
-#endif
-    {
-        const double* in_data = in.Read();
-        for (int d = X; d <= Z; ++d) {
-            double* e_data = eOld_[d].Write();
-            double* h_data = hOld_[d].Write();
-            std::memcpy(e_data, in_data + d * ndofs, ndofs * sizeof(double));
-            std::memcpy(h_data, in_data + (3 + d) * ndofs, ndofs * sizeof(double));
-        }
-    }
-    for (int d = X; d <= Z; ++d) {
-        eOld_[d].ExchangeFaceNbrData();
-        hOld_[d].ExchangeFaceNbrData();
-    }
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-    if (mfem::Device::Allows(mfem::Backend::CUDA) && nbrDofs > 0) {
-        sync_cuda_face_nbr_halos(eOld_, hOld_);
-    }
-#endif
-#ifdef SHOW_TIMER_INFORMATION
-    syncCudaForTiming();
-    timerExchange.Stop();
-#endif
-
-    // 3) Assemble multWorkVec_ (local + neighbor data)
+void GlobalEvolution::injectSGBCFlux(const mfem::Vector& in, mfem::Vector& out) const
+{
+    const auto ndofs = fes_.GetNDofs();
+    const auto nbrDofs = fes_.num_face_nbr_dofs;
+    const auto blockSize = ndofs + nbrDofs;
     if (multWorkVec_.Size() != 6 * blockSize) {
         multWorkVec_.SetSize(6 * blockSize);
         multWorkVec_.UseDevice(true);
     }
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-        load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
-        if (nbrDofs > 0) {
-            load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
-        }
-    } else
-#endif
-    {
-        for (int d = X; d <= Z; ++d) {
-            multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
-            multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-        }
-        if (nbrDofs) {
-            for (int d = X; d <= Z; ++d) {
-                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
-                multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
-            }
-        }
-    }
-
-    // 4) Apply globalOperator_ (DG flux) 
-#ifdef SHOW_TIMER_INFORMATION
-    timerApplyA.Start();
-#endif
-    if (out.Size() != total_state_size_) {
-        out.SetSize(total_state_size_);
-        out.UseDevice(true);
-    }
-    out = 0.0;
-    {
-        // globalOperator_ is 6N × 6(N+nbr); Mult requires y.Size() == Height().
-        mfem::Vector out_fields;
-        out_fields.MakeRef(out, 0, 6 * ndofs);
-        globalOperator_->Mult(multWorkVec_, out_fields);
-
-        // κ>1: replace unit-mass curl on PML with Ma^{-1} M * curl (Bagci LHS a).
-        for (int u = 0; u < 3; ++u) {
-            if (!scpmlCurlDelta_[u]) {
-                continue;
-            }
-            if (scpmlCurlWork_.Size() != ndofs) {
-                scpmlCurlWork_.SetSize(ndofs);
-            }
-            for (int field_block = 0; field_block < 2; ++field_block) {
-                mfem::Vector slice;
-                slice.MakeRef(out_fields, (field_block * 3 + u) * ndofs, ndofs);
-                scpmlCurlDelta_[u]->Mult(slice, scpmlCurlWork_);
-                slice += scpmlCurlWork_;
-            }
-        }
-    }
-    {
-        const int n_pml = scpmlLayout_ ? scpmlLayout_->nAux() : 0;
-        const int n_debye = model_.debyeAuxSize(ndofs);
-        const int n_lorentz = model_.lorentzAuxSize(ndofs);
-        auto addPrefix = [&](mfem::SparseMatrix& op, int n_prefix) {
-            mfem::Vector in_prefix;
-            mfem::Vector out_prefix;
-            in_prefix.MakeRef(const_cast<mfem::Vector&>(in), 0, n_prefix);
-            out_prefix.MakeRef(out, 0, n_prefix);
-            op.AddMult(in_prefix, out_prefix);
-        };
-        if (scpmlOperator_) {
-            if (n_debye == 0 && n_lorentz == 0) {
-                scpmlOperator_->AddMult(in, out);
-            } else {
-                addPrefix(*scpmlOperator_, 6 * ndofs + n_pml);
-            }
-        }
-        if (debyeOperator_) {
-            if (n_lorentz == 0) {
-                debyeOperator_->AddMult(in, out);
-            } else {
-                addPrefix(*debyeOperator_, 6 * ndofs + n_pml + n_debye);
-            }
-        }
-        if (lorentzOperator_) {
-            lorentzOperator_->AddMult(in, out);
-        }
-    }
-#ifdef SHOW_TIMER_INFORMATION
-    syncCudaForTiming();
-    timerApplyA.Stop();
-#endif
-
-
-    // S3: Zero multWorkVec_ so it can be reused for TFSF and SGBC injection.
     multWorkVec_ = 0.0;
-
-    // 5) TFSF source injection. TFSFOperator_ is 6N. With Cartesian PML, `out` is 12N.
-#ifdef SHOW_TIMER_INFORMATION
-    timerTFSF.Start();
-#endif
-    {
-        mfem::Vector out_fields;
-        out_fields.MakeRef(out, 0, 6 * ndofs);
-        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
-        applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
-    }
-#ifdef SHOW_TIMER_INFORMATION
-    syncCudaForTiming();
-    timerTFSF.Stop();
-#endif
-
     // 6) SGBC flux injection (two-pass face coupling)
     //    Sub-solve was done in step 1; here we only inject interface values as flux.
     //    Skip entirely when all SGBC faces are quiescent.
-    if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent){
+    if (SGBCOperator_ && has_local_sgbc_faces_ && !sgbcWrappers_.empty() && !sgbc_all_quiescent_){
         // multWorkVec_ is already sized and zeroed (after step 4 zeroing + TFSF cleanup).
         // On GPU builds 'in' is device-authoritative after steps 2-5; HostRead()
         // syncs device→host once for all operator[]-based DOF reads below.
@@ -2091,9 +1961,199 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
     }
 
+}
+
+void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
+{
+#ifdef SHOW_TIMER_INFORMATION
+    mfem::StopWatch timerTotal, timerExchange, timerApplyA, timerTFSF, timerSGBC;
+    timerTotal.Start();
+    // MFEM_STREAM_SYNC is a no-op when this TU is compiled with the host
+    // compiler (no __CUDACC__). Sync explicitly so Mult timers include GPU work.
+    auto syncCudaForTiming = []() {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            cudaStreamSynchronize(0);
+        }
+#endif
+    };
+#endif
+
+    const auto ndofs     = fes_.GetNDofs();
+    const auto nbrDofs   = fes_.num_face_nbr_dofs;
+    const auto blockSize = ndofs + nbrDofs;
+
+    // 1) SGBC sub-solve FIRST — independent of neighbor data, overlaps with
+    //    other ranks' local work so they don't idle-wait during exchange.
+#ifdef SHOW_TIMER_INFORMATION
+    timerSGBC.Start();
+#endif
+    advanceSGBC(in);
+#ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
+    timerSGBC.Stop();
+#endif
+
+    // 2) Exchange face neighbor data (MPI)
+#ifdef SHOW_TIMER_INFORMATION
+    timerExchange.Start();
+#endif
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        load_in_to_eh_gpu(in, eOld_, hOld_, ndofs);
+    } else
+#endif
+    {
+        const double* in_data = in.Read();
+        for (int d = X; d <= Z; ++d) {
+            double* e_data = eOld_[d].Write();
+            double* h_data = hOld_[d].Write();
+            std::memcpy(e_data, in_data + d * ndofs, ndofs * sizeof(double));
+            std::memcpy(h_data, in_data + (3 + d) * ndofs, ndofs * sizeof(double));
+        }
+    }
+    for (int d = X; d <= Z; ++d) {
+        eOld_[d].ExchangeFaceNbrData();
+        hOld_[d].ExchangeFaceNbrData();
+    }
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA) && nbrDofs > 0) {
+        sync_cuda_face_nbr_halos(eOld_, hOld_);
+    }
+#endif
+#ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
+    timerExchange.Stop();
+#endif
+
+    // 3) Assemble multWorkVec_ (local + neighbor data)
+    if (multWorkVec_.Size() != 6 * blockSize) {
+        multWorkVec_.SetSize(6 * blockSize);
+        multWorkVec_.UseDevice(true);
+    }
+
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+    if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+        load_eh_to_innew_gpu(in, multWorkVec_, ndofs, nbrDofs);
+        if (nbrDofs > 0) {
+            load_nbr_to_innew_gpu(eOld_, hOld_, multWorkVec_, ndofs, nbrDofs);
+        }
+    } else
+#endif
+    {
+        for (int d = X; d <= Z; ++d) {
+            multWorkVec_.SetVector(eOld_[d],       d      * blockSize);
+            multWorkVec_.SetVector(hOld_[d],  (3 + d)     * blockSize);
+        }
+        if (nbrDofs) {
+            for (int d = X; d <= Z; ++d) {
+                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
+                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
+                multWorkVec_.SetVector(eNbr,      d      * blockSize + ndofs);
+                multWorkVec_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
+            }
+        }
+    }
+
+    // 4) Apply globalOperator_ (DG flux) 
+#ifdef SHOW_TIMER_INFORMATION
+    timerApplyA.Start();
+#endif
+    if (out.Size() != total_state_size_) {
+        out.SetSize(total_state_size_);
+        out.UseDevice(true);
+    }
+    out = 0.0;
+    {
+        // globalOperator_ is 6N × 6(N+nbr); Mult requires y.Size() == Height().
+        mfem::Vector out_fields;
+        out_fields.MakeRef(out, 0, 6 * ndofs);
+        globalOperator_->Mult(multWorkVec_, out_fields);
+
+        // κ>1: replace unit-mass curl on PML with Ma^{-1} M * curl (Bagci LHS a).
+        for (int u = 0; u < 3; ++u) {
+            if (!scpmlCurlDelta_[u]) {
+                continue;
+            }
+            if (scpmlCurlWork_.Size() != ndofs) {
+                scpmlCurlWork_.SetSize(ndofs);
+            }
+            for (int field_block = 0; field_block < 2; ++field_block) {
+                mfem::Vector slice;
+                slice.MakeRef(out_fields, (field_block * 3 + u) * ndofs, ndofs);
+                scpmlCurlDelta_[u]->Mult(slice, scpmlCurlWork_);
+                slice += scpmlCurlWork_;
+            }
+        }
+    }
+    {
+        const int n_pml = scpmlLayout_ ? scpmlLayout_->nAux() : 0;
+        const int n_debye = model_.debyeAuxSize(ndofs);
+        const int n_lorentz = model_.lorentzAuxSize(ndofs);
+        auto addPrefix = [&](mfem::SparseMatrix& op, int n_prefix) {
+            mfem::Vector in_prefix;
+            mfem::Vector out_prefix;
+            in_prefix.MakeRef(const_cast<mfem::Vector&>(in), 0, n_prefix);
+            out_prefix.MakeRef(out, 0, n_prefix);
+            op.AddMult(in_prefix, out_prefix);
+        };
+        if (scpmlOperator_) {
+            if (n_debye == 0 && n_lorentz == 0) {
+                scpmlOperator_->AddMult(in, out);
+            } else {
+                addPrefix(*scpmlOperator_, 6 * ndofs + n_pml);
+            }
+        }
+        if (debyeOperator_) {
+            if (n_lorentz == 0) {
+                debyeOperator_->AddMult(in, out);
+            } else {
+                addPrefix(*debyeOperator_, 6 * ndofs + n_pml + n_debye);
+            }
+        }
+        if (lorentzOperator_) {
+            lorentzOperator_->AddMult(in, out);
+        }
+    }
+#ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
+    timerApplyA.Stop();
+#endif
+
+
+    // S3: Zero multWorkVec_ so it can be reused for TFSF and SGBC injection.
+    multWorkVec_ = 0.0;
+
+    // 5) TFSF source injection. TFSFOperator_ is 6N. With Cartesian PML, `out` is 12N.
+#ifdef SHOW_TIMER_INFORMATION
+    timerTFSF.Start();
+#endif
+    {
+        mfem::Vector out_fields;
+        out_fields.MakeRef(out, 0, 6 * ndofs);
+        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
+        applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, out_fields);
+    }
+#ifdef SHOW_TIMER_INFORMATION
+    syncCudaForTiming();
+    timerTFSF.Stop();
+#endif
+
+    injectSGBCFlux(in, out);
+
     // TFSF/SGBC host writes may have updated the host copy of 'out'; sync to
     // device so the RK stage vectors see a consistent rate vector.
-    (void)out.ReadWrite();
+    // A single-rank CUDA wire updates `out` on the device and does not copy it.
+    if (wires_ && !wires_->runsOnDevice()) {
+        in.HostRead();
+        out.HostReadWrite();
+        wires_->contribute(in, out, ndofs, GetTime());
+        (void)out.ReadWrite();
+    } else if (wires_) {
+        wires_->contribute(in, out, ndofs, GetTime());
+    } else {
+        (void)out.ReadWrite();
+    }
 
 #ifdef SHOW_TIMER_INFORMATION
     syncCudaForTiming();
@@ -2183,6 +2243,109 @@ void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 #endif
 }
 
+void GlobalEvolution::applyImplicitOperator(const mfem::Vector& x, mfem::Vector& y) const
+{
+    const int ndofs = fes_.GetNDofs();
+    const int nbrDofs = fes_.num_face_nbr_dofs;
+    const int blockSize = ndofs + nbrDofs;
+    const int n = x.Size();
+    if (y.Size() != n) {
+        y.SetSize(n);
+        y.UseDevice(true);
+    }
+    y = 0.0;
+    mfem::Vector y_eh;
+    y_eh.MakeRef(y, 0, 6 * ndofs);
+    if (nbrDofs == 0) {
+        mfem::Vector x_eh;
+        x_eh.MakeRef(const_cast<mfem::Vector&>(x), 0, 6 * ndofs);
+        globalOperator_->Mult(x_eh, y_eh);
+    } else {
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            load_in_to_eh_gpu(x, eOld_, hOld_, ndofs);
+        } else
+#endif
+        {
+            const double* x_host = x.HostRead();
+            for (int d = X; d <= Z; ++d) {
+                double* e_data = eOld_[d].HostWrite();
+                double* h_data = hOld_[d].HostWrite();
+                std::memcpy(e_data, x_host + d * ndofs, static_cast<size_t>(ndofs) * sizeof(double));
+                std::memcpy(h_data, x_host + (3 + d) * ndofs, static_cast<size_t>(ndofs) * sizeof(double));
+            }
+        }
+        for (int d = X; d <= Z; ++d) {
+            eOld_[d].ExchangeFaceNbrData();
+            hOld_[d].ExchangeFaceNbrData();
+        }
+        if (implicit_inNew_.Size() != 6 * blockSize) {
+            implicit_inNew_.SetSize(6 * blockSize);
+            implicit_inNew_.UseDevice(true);
+        }
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            sync_cuda_face_nbr_halos(eOld_, hOld_);
+            load_eh_to_innew_gpu(x, implicit_inNew_, ndofs, nbrDofs);
+            load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
+        } else
+#endif
+        {
+            for (int d = X; d <= Z; ++d) {
+                implicit_inNew_.SetVector(eOld_[d], d * blockSize);
+                implicit_inNew_.SetVector(hOld_[d], (3 + d) * blockSize);
+                mfem::Vector& eNbr = eOld_[d].FaceNbrData();
+                mfem::Vector& hNbr = hOld_[d].FaceNbrData();
+                implicit_inNew_.SetVector(eNbr, d * blockSize + ndofs);
+                implicit_inNew_.SetVector(hNbr, (3 + d) * blockSize + ndofs);
+            }
+        }
+        globalOperator_->Mult(implicit_inNew_, y_eh);
+    }
+
+    for (int u = 0; u < 3; ++u) {
+        if (!scpmlCurlDelta_[u]) {
+            continue;
+        }
+        if (scpmlCurlWork_.Size() != ndofs) {
+            scpmlCurlWork_.SetSize(ndofs);
+        }
+        for (int field_block = 0; field_block < 2; ++field_block) {
+            mfem::Vector slice;
+            slice.MakeRef(y_eh, (field_block * 3 + u) * ndofs, ndofs);
+            scpmlCurlDelta_[static_cast<size_t>(u)]->Mult(slice, scpmlCurlWork_);
+            slice += scpmlCurlWork_;
+        }
+    }
+    const int n_pml = scpmlLayout_ ? scpmlLayout_->nAux() : 0;
+    const int n_debye = model_.debyeAuxSize(ndofs);
+    const int n_lorentz = model_.lorentzAuxSize(ndofs);
+    auto addPrefix = [&](mfem::SparseMatrix& op, int n_prefix) {
+        mfem::Vector in_prefix;
+        mfem::Vector out_prefix;
+        in_prefix.MakeRef(const_cast<mfem::Vector&>(x), 0, n_prefix);
+        out_prefix.MakeRef(y, 0, n_prefix);
+        op.AddMult(in_prefix, out_prefix);
+    };
+    if (scpmlOperator_) {
+        if (n_debye == 0 && n_lorentz == 0) {
+            scpmlOperator_->AddMult(x, y);
+        } else {
+            addPrefix(*scpmlOperator_, 6 * ndofs + n_pml);
+        }
+    }
+    if (debyeOperator_) {
+        if (n_lorentz == 0) {
+            debyeOperator_->AddMult(x, y);
+        } else {
+            addPrefix(*debyeOperator_, 6 * ndofs + n_pml + n_debye);
+        }
+    }
+    if (lorentzOperator_) {
+        lorentzOperator_->AddMult(x, y);
+    }
+}
+
 void GlobalEvolution::ImplicitSolve(const double dt,
                                     const mfem::Vector& x,
                                     mfem::Vector& k)
@@ -2191,10 +2354,8 @@ void GlobalEvolution::ImplicitSolve(const double dt,
     const int ndofs     = fes_.GetNDofs();
     const int nbrDofs   = fes_.num_face_nbr_dofs;
     const int blockSize = ndofs + nbrDofs;
-    if (total_state_size_ > 6 * ndofs) {
-        MFEM_ABORT("Extended state (Cartesian PML, Debye, or Lorentz) is not supported with implicit integrators yet.");
-    }
-    MFEM_ASSERT(n == 6 * ndofs, "ImplicitSolve: size mismatch");
+    const bool extended = total_state_size_ > 6 * ndofs;
+    MFEM_ASSERT(n == total_state_size_, "ImplicitSolve: size mismatch");
 
     // Host dense solve for the coating sub-solver. The 1D operator is the same
     // on every OpenMP clone. SpMV and the LU stay on host pointers so the
@@ -2263,72 +2424,29 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         implicit_work_initialized_ = true;
     }
 
-    // --- Compute RHS = A*x + source ---
-    // For serial meshes (nbrDofs==0), globalOperator_ is square n×n and the
-    // copy-through-GridFunction round-trip is identity. Use direct SpMV.
-    if (nbrDofs == 0) {
-        globalOperator_->Mult(x, implicit_rhs_);
-    } else {
-        // Parallel path: need to exchange face neighbor data
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            load_in_to_eh_gpu(x, eOld_, hOld_, ndofs);
-        } else
-#endif
-        {
-            const double* x_host = x.HostRead();
-            for (int d = X; d <= Z; ++d) {
-                double* e_data = eOld_[d].HostWrite();
-                double* h_data = hOld_[d].HostWrite();
-                std::memcpy(e_data, x_host + d * ndofs, ndofs * sizeof(double));
-                std::memcpy(h_data, x_host + (3 + d) * ndofs, ndofs * sizeof(double));
+    applyImplicitOperator(x, implicit_rhs_);
+    {
+        mfem::Vector rhs_eh;
+        rhs_eh.MakeRef(implicit_rhs_, 0, 6 * ndofs);
+        if (TFSFOperator_ && !tfsfSourceIndices_.empty()) {
+            if (implicit_src_.Size() != 6 * ndofs) {
+                implicit_src_.SetSize(6 * ndofs);
+                implicit_src_.UseDevice(true);
             }
+            implicit_src_ = 0.0;
+            applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
+            rhs_eh += implicit_src_;
         }
-        for (int d = X; d <= Z; ++d) {
-            eOld_[d].ExchangeFaceNbrData();
-            hOld_[d].ExchangeFaceNbrData();
+        if (deltaGapOperator_) {
+            applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, rhs_eh);
         }
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-        if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-            if (nbrDofs > 0) {
-                sync_cuda_face_nbr_halos(eOld_, hOld_);
-            }
-            load_eh_to_innew_gpu(x, implicit_inNew_, ndofs, nbrDofs);
-            if (nbrDofs > 0) {
-                load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
-            }
-        } else
-#endif
-        {
-            for (int d = X; d <= Z; ++d) {
-                implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
-                implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-            }
-            for (int d = X; d <= Z; ++d) {
-                mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-                mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-                implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
-            }
-        }
-        globalOperator_->Mult(implicit_inNew_, implicit_rhs_);
-    }
-
-    // Add TFSF source contribution (skip if no active TFSF sources)
-    if (TFSFOperator_ && !tfsfSourceIndices_.empty()) {
-        implicit_src_ = 0.0;
-        applyTFSFSourceToVector(GetTime(), ndofs, nbrDofs, implicit_src_);
-        implicit_rhs_ += implicit_src_;
-    }
-    if (deltaGapOperator_) {
-        applyDeltaGapSourceToVector(GetTime(), ndofs, nbrDofs, implicit_rhs_);
     }
 
     // --- Solve (I - dt*A) k = rhs ---
     // For small serial systems (SGBC sub-solver), use cached dense LU
     // factorization. One-time cost: form A as dense + LU factor.
     // Per-solve cost: O(n^2) back-substitution instead of ~30 GMRES iterations.
-    if (nbrDofs == 0 && n <= dense_solve_threshold_) {
+    if (!extended && nbrDofs == 0 && n <= dense_solve_threshold_) {
         // One-time: form dense copy of globalOperator_
         if (!dense_A_formed_) {
             globalOperator_->ToDenseMatrix(A_dense_);
@@ -2372,52 +2490,8 @@ void GlobalEvolution::ImplicitSolve(const double dt,
         (void)k.Read();
     } else {
         // Large/parallel system: fall back to GMRES
-        auto applyA_parallel = [&](const mfem::Vector& u, mfem::Vector& Au)
-        {
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-                load_in_to_eh_gpu(u, eOld_, hOld_, ndofs);
-            } else
-#endif
-            {
-                const double* u_host = u.HostRead();
-                for (int d = X; d <= Z; ++d) {
-                    double* e_data = eOld_[d].HostWrite();
-                    double* h_data = hOld_[d].HostWrite();
-                    std::memcpy(e_data, u_host + d * ndofs, ndofs * sizeof(double));
-                    std::memcpy(h_data, u_host + (3 + d) * ndofs, ndofs * sizeof(double));
-                }
-            }
-            for (int d = X; d <= Z; ++d) {
-                eOld_[d].ExchangeFaceNbrData();
-                hOld_[d].ExchangeFaceNbrData();
-            }
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-            if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-                if (nbrDofs > 0) {
-                    sync_cuda_face_nbr_halos(eOld_, hOld_);
-                }
-                load_eh_to_innew_gpu(u, implicit_inNew_, ndofs, nbrDofs);
-                if (nbrDofs > 0) {
-                    load_nbr_to_innew_gpu(eOld_, hOld_, implicit_inNew_, ndofs, nbrDofs);
-                }
-            } else
-#endif
-            {
-                for (int d = X; d <= Z; ++d) {
-                    implicit_inNew_.SetVector(eOld_[d],       d      * blockSize);
-                    implicit_inNew_.SetVector(hOld_[d],  (3 + d)     * blockSize);
-                }
-                if (nbrDofs) {
-                    for (int d = X; d <= Z; ++d) {
-                        mfem::Vector &eNbr = eOld_[d].FaceNbrData();
-                        mfem::Vector &hNbr = hOld_[d].FaceNbrData();
-                        implicit_inNew_.SetVector(eNbr,      d      * blockSize + ndofs);
-                        implicit_inNew_.SetVector(hNbr, (3 + d)     * blockSize + ndofs);
-                    }
-                }
-            }
-            globalOperator_->Mult(implicit_inNew_, Au);
+        auto applyA_parallel = [&](const mfem::Vector& u, mfem::Vector& Au) {
+            applyImplicitOperator(u, Au);
         };
 
         class JOp final : public mfem::Operator {

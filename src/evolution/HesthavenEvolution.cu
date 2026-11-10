@@ -208,6 +208,10 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
     const int* matrix_cols = gpu.d_matrix_cols.Read();
     const double* ref_lift = gpu.d_ref_lift.Read();
     double* workspace = gpu.d_workspace.Write();
+    const bool have_scale = gpu.d_inv_eps.Size() == n_elem;
+    const double* inv_eps_a = have_scale ? gpu.d_inv_eps.Read() : nullptr;
+    const double* inv_mu_a = have_scale ? gpu.d_inv_mu.Read() : nullptr;
+    const double* sig_a = have_scale ? gpu.d_sigma_over_eps.Read() : nullptr;
 
     mfem::forall(n_elem, [=] MFEM_DEVICE(int e) {
         const int elem_id = elem_ids[e];
@@ -243,6 +247,9 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
         double* lift_out = ws + lift_base + flux_cap;
         double* tmp_y = ws + lift_base + flux_cap + ndof_el;
         double* tmp_z = ws + lift_base + 2 * flux_cap + ndof_el;
+        const double inv_eps = have_scale ? inv_eps_a[e] : 1.0;
+        const double inv_mu = have_scale ? inv_mu_a[e] : 1.0;
+        const double sig = have_scale ? sig_a[e] : 0.0;
 
         for (int i = 0; i < flux_size; ++i) {
             const int jidx = jump_base + i;
@@ -312,7 +319,12 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
             dense_matvec(matrix_rows[mat_z], matrix_cols[mat_z], dir_z, field_e_ycomp, tmp_z);
             for (int i = 0; i < ndof_el; ++i) {
                 const int gi = elem_dofs[dof_base + i];
-                out_d[(3 + x) * ndofs + gi] += -tmp_y[i] + tmp_z[i];
+                const double h_inc = -tmp_y[i] + tmp_z[i];
+                if (inv_mu != 1.0) {
+                    out_d[(3 + x) * ndofs + gi] += inv_mu * h_inc;
+                } else {
+                    out_d[(3 + x) * ndofs + gi] += h_inc;
+                }
             }
 
             for (int i = 0; i < flux_size; ++i) {
@@ -321,14 +333,23 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
             dense_matvec(lift_rows, lift_cols, ref_lift, lift_in, lift_out);
             for (int i = 0; i < ndof_el; ++i) {
                 const int gi = elem_dofs[dof_base + i];
-                out_d[(3 + x) * ndofs + gi] += lift_out[i];
+                if (inv_mu != 1.0) {
+                    out_d[(3 + x) * ndofs + gi] += inv_mu * lift_out[i];
+                } else {
+                    out_d[(3 + x) * ndofs + gi] += lift_out[i];
+                }
             }
 
             dense_matvec(matrix_rows[mat_y], matrix_cols[mat_y], dir_y, field_h_zcomp, tmp_y);
             dense_matvec(matrix_rows[mat_z], matrix_cols[mat_z], dir_z, field_h_ycomp, tmp_z);
             for (int i = 0; i < ndof_el; ++i) {
                 const int gi = elem_dofs[dof_base + i];
-                out_d[x * ndofs + gi] += tmp_y[i] - tmp_z[i];
+                const double e_inc = tmp_y[i] - tmp_z[i];
+                if (inv_eps != 1.0) {
+                    out_d[x * ndofs + gi] += inv_eps * e_inc;
+                } else {
+                    out_d[x * ndofs + gi] += e_inc;
+                }
             }
 
             for (int i = 0; i < flux_size; ++i) {
@@ -337,10 +358,208 @@ void hesthaven_mult_gpu(HesthavenGPUData& gpu,
             dense_matvec(lift_rows, lift_cols, ref_lift, lift_in, lift_out);
             for (int i = 0; i < ndof_el; ++i) {
                 const int gi = elem_dofs[dof_base + i];
-                out_d[x * ndofs + gi] += lift_out[i];
+                if (inv_eps != 1.0) {
+                    out_d[x * ndofs + gi] += inv_eps * lift_out[i];
+                } else {
+                    out_d[x * ndofs + gi] += lift_out[i];
+                }
+            }
+        }
+
+        if (sig != 0.0) {
+            for (int x = 0; x < 3; ++x) {
+                const double* field_e = (x == 0) ? field_ex : (x == 1 ? field_ey : field_ez);
+                for (int i = 0; i < ndof_el; ++i) {
+                    const int gi = elem_dofs[dof_base + i];
+                    out_d[x * ndofs + gi] -= sig * field_e[i];
+                }
             }
         }
     });
+
+    MFEM_STREAM_SYNC;
+}
+
+namespace {
+
+MFEM_HOST_DEVICE inline void load_local(const double* v, int offset, const int* dofs,
+                                        int n, double* x)
+{
+    for (int i = 0; i < n; ++i) {
+        x[i] = v[offset + dofs[i]];
+    }
+}
+
+MFEM_HOST_DEVICE inline void add_local(double* v, int offset, const int* dofs,
+                                       int n, const double* y, double scale)
+{
+    for (int i = 0; i < n; ++i) {
+        v[offset + dofs[i]] += scale * y[i];
+    }
+}
+
+} // namespace
+
+void hesthaven_apply_aux_gpu(HesthavenGPUData& gpu,
+                             const mfem::Vector& in,
+                             mfem::Vector& out,
+                             int ndofs)
+{
+    const int n = gpu.ndof_el;
+    if (n <= 0 || n > 64) {
+        return;
+    }
+    const int n2 = n * n;
+    const double* in_d = in.Read();
+    double* out_d = out.ReadWrite();
+
+    if (gpu.n_pml_elem > 0) {
+        const int n_pml = gpu.n_pml_elem;
+        const int needs_a = gpu.pml_needs_a;
+        const int* pml_dofs = gpu.d_pml_dofs.Read();
+        const double* blocks = gpu.d_pml_blocks.Read();
+        const double* delta = needs_a ? gpu.d_pml_delta.Read() : nullptr;
+        mfem::forall(n_pml, [=] MFEM_DEVICE(int e) {
+            const int* dofs = pml_dofs + e * n;
+            double x[64];
+            double y[64];
+            if (needs_a) {
+                for (int axis = 0; axis < 3; ++axis) {
+                    const double* D = delta + (e * 3 + axis) * n2;
+                    load_local(out_d, axis * ndofs, dofs, n, x);
+                    dense_matvec(n, n, D, x, y);
+                    add_local(out_d, axis * ndofs, dofs, n, y, 1.0);
+                    load_local(out_d, (3 + axis) * ndofs, dofs, n, x);
+                    dense_matvec(n, n, D, x, y);
+                    add_local(out_d, (3 + axis) * ndofs, dofs, n, y, 1.0);
+                }
+            }
+            for (int axis = 0; axis < 3; ++axis) {
+                const int e_off = axis * ndofs;
+                const int h_off = (3 + axis) * ndofs;
+                const int pe = 6 * ndofs + axis * ndofs;
+                const int ph = 6 * ndofs + (3 + axis) * ndofs;
+                const double* base = blocks + (e * 3 + axis) * 8 * n2;
+                load_local(in_d, e_off, dofs, n, x);
+                dense_matvec(n, n, base + 0 * n2, x, y);
+                add_local(out_d, e_off, dofs, n, y, -1.0);
+                load_local(in_d, pe, dofs, n, x);
+                dense_matvec(n, n, base + 2 * n2, x, y);
+                add_local(out_d, e_off, dofs, n, y, -1.0);
+                load_local(in_d, h_off, dofs, n, x);
+                dense_matvec(n, n, base + 1 * n2, x, y);
+                add_local(out_d, h_off, dofs, n, y, -1.0);
+                load_local(in_d, ph, dofs, n, x);
+                dense_matvec(n, n, base + 3 * n2, x, y);
+                add_local(out_d, h_off, dofs, n, y, -1.0);
+                load_local(in_d, e_off, dofs, n, x);
+                dense_matvec(n, n, base + 6 * n2, x, y);
+                add_local(out_d, pe, dofs, n, y, 1.0);
+                load_local(in_d, pe, dofs, n, x);
+                dense_matvec(n, n, base + 4 * n2, x, y);
+                add_local(out_d, pe, dofs, n, y, -1.0);
+                load_local(in_d, h_off, dofs, n, x);
+                dense_matvec(n, n, base + 7 * n2, x, y);
+                add_local(out_d, ph, dofs, n, y, 1.0);
+                load_local(in_d, ph, dofs, n, x);
+                dense_matvec(n, n, base + 5 * n2, x, y);
+                add_local(out_d, ph, dofs, n, y, -1.0);
+            }
+        });
+    }
+
+    if (gpu.n_debye_elem > 0) {
+        const int n_debye = gpu.n_debye_elem;
+        const int p_base = gpu.debye_p_base;
+        const int* debye_dofs = gpu.d_debye_dofs.Read();
+        const double* coeff = gpu.d_debye_coeff.Read();
+        mfem::forall(n_debye, [=] MFEM_DEVICE(int e) {
+            const int* dofs = debye_dofs + e * n;
+            const double e_from_e = coeff[4 * e + 0];
+            const double e_from_p = coeff[4 * e + 1];
+            const double p_from_e = coeff[4 * e + 2];
+            const double p_from_p = coeff[4 * e + 3];
+            for (int i = 0; i < n; ++i) {
+                const int dof = dofs[i];
+                for (int axis = 0; axis < 3; ++axis) {
+                    const int e_off = axis * ndofs + dof;
+                    const int p_off = p_base + axis * ndofs + dof;
+                    const double eval = in_d[e_off];
+                    const double pval = in_d[p_off];
+                    out_d[e_off] += e_from_e * eval + e_from_p * pval;
+                    out_d[p_off] += p_from_e * eval + p_from_p * pval;
+                }
+            }
+        });
+    }
+
+    if (gpu.n_lorentz_scalar > 0) {
+        const int n_lorentz = gpu.n_lorentz_scalar;
+        const int p_base = gpu.lorentz_p_base;
+        const int j_base = gpu.lorentz_j_base;
+        const int* lorentz_dofs = gpu.d_lorentz_dofs.Read();
+        const double* coeff = gpu.d_lorentz_coeff.Read();
+        mfem::forall(n_lorentz, [=] MFEM_DEVICE(int e) {
+            const int* dofs = lorentz_dofs + e * n;
+            const double e_from_j = coeff[4 * e + 0];
+            const double j_from_e = coeff[4 * e + 1];
+            const double j_from_p = coeff[4 * e + 2];
+            const double j_from_j = coeff[4 * e + 3];
+            for (int i = 0; i < n; ++i) {
+                const int dof = dofs[i];
+                for (int axis = 0; axis < 3; ++axis) {
+                    const int e_off = axis * ndofs + dof;
+                    const int p_off = p_base + axis * ndofs + dof;
+                    const int j_off = j_base + axis * ndofs + dof;
+                    const double eval = in_d[e_off];
+                    const double pval = in_d[p_off];
+                    const double jval = in_d[j_off];
+                    out_d[e_off] += e_from_j * jval;
+                    out_d[p_off] += jval;
+                    out_d[j_off] += j_from_e * eval + j_from_p * pval + j_from_j * jval;
+                }
+            }
+        });
+    }
+
+    if (gpu.n_lorentz_spatial > 0) {
+        const int n_spatial = gpu.n_lorentz_spatial;
+        const int p_base = gpu.lorentz_p_base;
+        const int j_base = gpu.lorentz_j_base;
+        const int* sp_dofs = gpu.d_lorentz_sp_dofs.Read();
+        const double* e_from_j_a = gpu.d_lorentz_sp_e_from_j.Read();
+        const int* has_p = gpu.d_lorentz_sp_has_p.Read();
+        const double* je = gpu.d_lorentz_sp_j_from_e.Read();
+        const double* jp = gpu.d_lorentz_sp_j_from_p.Read();
+        const double* jj = gpu.d_lorentz_sp_j_from_j.Read();
+        mfem::forall(n_spatial, [=] MFEM_DEVICE(int e) {
+            const int* dofs = sp_dofs + e * n;
+            const double e_from_j = e_from_j_a[e];
+            double x[64];
+            double y[64];
+            for (int axis = 0; axis < 3; ++axis) {
+                const int e_off = axis * ndofs;
+                const int p_off = p_base + axis * ndofs;
+                const int j_off = j_base + axis * ndofs;
+                for (int i = 0; i < n; ++i) {
+                    const double jval = in_d[j_off + dofs[i]];
+                    out_d[e_off + dofs[i]] += e_from_j * jval;
+                    out_d[p_off + dofs[i]] += jval;
+                }
+                load_local(in_d, e_off, dofs, n, x);
+                dense_matvec(n, n, je + e * n2, x, y);
+                add_local(out_d, j_off, dofs, n, y, 1.0);
+                if (has_p[e]) {
+                    load_local(in_d, p_off, dofs, n, x);
+                    dense_matvec(n, n, jp + e * n2, x, y);
+                    add_local(out_d, j_off, dofs, n, y, 1.0);
+                }
+                load_local(in_d, j_off, dofs, n, x);
+                dense_matvec(n, n, jj + e * n2, x, y);
+                add_local(out_d, j_off, dofs, n, y, 1.0);
+            }
+        });
+    }
 
     MFEM_STREAM_SYNC;
 }

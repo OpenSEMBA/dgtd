@@ -605,6 +605,8 @@ namespace maxwell {
 				boundary.intSMA.vmapBElem1.push_back(nodePairs.first);
 				boundary.intSMA.vmapBElem2.push_back(nodePairs.second);
 				break;
+			case BdrCond::SGBC:
+				break;
 			default:
 				throw std::runtime_error("Incorrect boundary condition for interior assignment.");
 			}

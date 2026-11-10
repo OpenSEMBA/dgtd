@@ -2,7 +2,7 @@
 
 Cartesian SC-PML (Bagci/Chen) on `GlobalEvolution`. The mesh owns the layer geometry. JSON only names which element tags are PML and how conductivity is graded inside them. There is no thickness field. The absorption numbers below are the reference for this absorber.
 
-Units inside the solver are normalized: $c=\varepsilon=\mu=1$. Mesh coordinates are those units. Use `"evolution_operator": "global"` or omit it. `"hesthaven"` does not run volumetric PML.
+Units inside the solver are normalized: $c=\varepsilon=\mu=1$. Mesh coordinates are those units. Use `"evolution_operator": "global"` or `"hesthaven"`, or omit it. `"hesthaven"` applies the same Cartesian ADE per element and is 2D/3D only.
 
 ## Cut the box
 

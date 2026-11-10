@@ -222,13 +222,15 @@ TEST_F(DriverTest, debyeRejectsBadMaterials)
 	}
 }
 
-TEST_F(DriverTest, debyeRejectsHesthavenAndSpectral)
+TEST_F(DriverTest, debyeAcceptsHesthavenRejectsMaxwellAndSpectral)
 {
 	{
-		auto case_data = loadPecCase();
+		std::ifstream in(maxwellCase("2D_PEC"));
+		auto case_data = json::parse(in);
 		case_data["model"]["materials"] = json::array({debyeMaterial(1, 2.0, 6.0, 1e-9)});
 		case_data["solver_options"]["evolution_operator"] = "hesthaven";
-		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+		case_data["solver_options"]["order"] = 1;
+		EXPECT_NO_THROW(buildSolver(case_data, maxwellCase("2D_PEC"), true));
 	}
 	{
 		auto case_data = loadPecCase();
@@ -482,19 +484,50 @@ TEST_F(DriverTest, lorentzHzStyleMatchesRadStyle)
 	EXPECT_DOUBLE_EQ(pole->gamma, two_pi * gamma_hz * inv_c);
 }
 
-TEST_F(DriverTest, lorentzRejectsHesthavenAndSpectral)
+TEST_F(DriverTest, lorentzAcceptsHesthavenRejectsSpectral)
 {
 	{
-		auto case_data = loadPecCase();
+		std::ifstream in(maxwellCase("2D_PEC"));
+		auto case_data = json::parse(in);
 		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0e9, 0.0, 0.0)});
 		case_data["solver_options"]["evolution_operator"] = "hesthaven";
-		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+		case_data["solver_options"]["order"] = 1;
+		EXPECT_NO_THROW(buildSolver(case_data, maxwellCase("2D_PEC"), true));
 	}
 	{
 		auto case_data = loadPecCase();
 		case_data["model"]["materials"] = json::array({lorentzMaterial(1, 1.0, 1.0e9, 0.0, 0.0)});
 		case_data["solver_options"]["spectral"] = true;
 		EXPECT_THROW(buildSolver(case_data, maxwellCase("1D_PEC"), true), std::runtime_error);
+	}
+}
+
+TEST_F(DriverTest, hesthavenAcceptsSgbcAndImplicitRejectsWires)
+{
+	{
+		std::ifstream in(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
+		auto case_data = json::parse(in);
+		case_data["solver_options"]["evolution_operator"] = "hesthaven";
+		case_data["solver_options"]["order"] = 1;
+		EXPECT_NO_THROW(buildSolver(case_data, maxwellCase("2D_InteriorBoundary_SGBC_Test"), true));
+	}
+	{
+		std::ifstream in(maxwellCase("2D_PEC"));
+		auto case_data = json::parse(in);
+		case_data["solver_options"]["evolution_operator"] = "hesthaven";
+		case_data["solver_options"]["order"] = 1;
+		case_data["solver_options"]["ode_type"] = 1;
+		EXPECT_NO_THROW(buildSolver(case_data, maxwellCase("2D_PEC"), true));
+	}
+	{
+		std::ifstream in(maxwellCase("2D_PEC"));
+		auto case_data = json::parse(in);
+		case_data["solver_options"]["evolution_operator"] = "hesthaven";
+		case_data["solver_options"]["order"] = 1;
+		case_data["model"]["wires"] = json::array({
+			{{"tags", json::array({1})}, {"radius", 1.0e-3}}
+		});
+		EXPECT_THROW(buildSolver(case_data, maxwellCase("2D_PEC"), true), std::runtime_error);
 	}
 }
 
@@ -620,6 +653,31 @@ TEST_F(DriverTest, drudeAndSpatialProfilesParseCorrectly)
 		const LorentzProperties* pole = model.findLorentz(3);
 		ASSERT_NE(pole, nullptr);
 		EXPECT_TRUE(pole->hasSpatialProfile());
+	}
+
+	// 5. 50 km stagnation line stretches onto the 24 mm plasma block
+	{
+		const std::string case_path = maxwellCase("1D_Drude_RAMC_50km");
+		auto case_data = parseJSONfile(case_path);
+		auto model = buildModel(case_data, case_path, true);
+		const LorentzProperties* pole = model.findLorentz(3);
+		ASSERT_NE(pole, nullptr);
+		EXPECT_TRUE(pole->hasRegionBounds());
+		EXPECT_NEAR(0.976, pole->region_min_x, 1e-12);
+		EXPECT_NEAR(1.0, pole->region_max_x, 1e-12);
+
+		mfem::Vector nose(1);
+		nose(0) = 1.0;
+		mfem::Vector native_nose(1);
+		native_nose(0) = 0.0;
+		EXPECT_NEAR(
+			pole->evalOmegaP(nose),
+			ramc50kmStagnationOmegaP(native_nose) * inv_c,
+			1e-9);
+		EXPECT_NEAR(
+			pole->evalGamma(nose),
+			ramc50kmStagnationNuC_Gupta(native_nose) * inv_c,
+			1e-9);
 	}
 }
 

@@ -2,11 +2,13 @@
 
 #include "components/DGOperatorFactory.h"
 #include "solver/SourcesManager.h"
-#ifdef SEMBA_DGTD_ENABLE_CUDA
 #include "GlobalEvolution.h"
-#endif
 
+#include "components/SCPMLLayout.h"
+
+#include <algorithm>
 #include <atomic>
+#include <functional>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -68,12 +70,199 @@ void hesthaven_sync_gpu_static_data(HesthavenGPUData& gpu)
 	sync_arr(gpu.d_tfsf_jump_sf);
 	sync_arr(gpu.d_tfsf_jump_tf);
 	sync_arr(gpu.d_tfsf_src_dof);
+	sync_vec(gpu.d_inv_eps);
+	sync_vec(gpu.d_inv_mu);
+	sync_vec(gpu.d_sigma_over_eps);
+	sync_arr(gpu.d_debye_dofs);
+	sync_vec(gpu.d_debye_coeff);
+	sync_arr(gpu.d_lorentz_dofs);
+	sync_vec(gpu.d_lorentz_coeff);
+	sync_arr(gpu.d_lorentz_sp_dofs);
+	sync_vec(gpu.d_lorentz_sp_e_from_j);
+	sync_arr(gpu.d_lorentz_sp_has_p);
+	sync_vec(gpu.d_lorentz_sp_j_from_e);
+	sync_vec(gpu.d_lorentz_sp_j_from_p);
+	sync_vec(gpu.d_lorentz_sp_j_from_j);
+	sync_arr(gpu.d_pml_dofs);
+	sync_vec(gpu.d_pml_blocks);
+	sync_vec(gpu.d_pml_delta);
+}
+
+void pack_element_dofs(const std::vector<int>& dofs, int ndof_el, int* dst)
+{
+	if (static_cast<int>(dofs.size()) != ndof_el) {
+		throw std::runtime_error(
+			"Hesthaven GPU auxiliary path requires a uniform element dof count.");
+	}
+	for (int i = 0; i < ndof_el; ++i) {
+		dst[i] = dofs[static_cast<size_t>(i)];
+	}
+}
+
+void packHesthavenAuxGpu(const HesthavenAuxiliary& aux, HesthavenGPUData& gpu)
+{
+	const int ndof = gpu.ndof_el;
+	const int n2 = ndof * ndof;
+	if (aux.anyLinearScale()) {
+		const int n = static_cast<int>(aux.linearMaterials().size());
+		gpu.d_inv_eps.SetSize(n);
+		gpu.d_inv_mu.SetSize(n);
+		gpu.d_sigma_over_eps.SetSize(n);
+		gpu.d_inv_eps.UseDevice(true);
+		gpu.d_inv_mu.UseDevice(true);
+		gpu.d_sigma_over_eps.UseDevice(true);
+		double* inv_eps = gpu.d_inv_eps.HostWrite();
+		double* inv_mu = gpu.d_inv_mu.HostWrite();
+		double* sigma = gpu.d_sigma_over_eps.HostWrite();
+		for (int e = 0; e < n; ++e) {
+			const HesthavenLinearMaterial& mat = aux.linearMaterials()[static_cast<size_t>(e)];
+			inv_eps[e] = mat.inv_eps;
+			inv_mu[e] = mat.inv_mu;
+			sigma[e] = mat.sigma_over_eps;
+		}
+	}
+
+	gpu.n_debye_elem = static_cast<int>(aux.debye().size());
+	gpu.debye_p_base = 6 * aux.ndofs() + aux.nPml();
+	if (gpu.n_debye_elem > 0) {
+		gpu.d_debye_dofs.SetSize(gpu.n_debye_elem * ndof);
+		gpu.d_debye_dofs.GetMemory().UseDevice(true);
+		gpu.d_debye_coeff.SetSize(gpu.n_debye_elem * 4);
+		gpu.d_debye_coeff.UseDevice(true);
+		int* dofs = gpu.d_debye_dofs.HostWrite();
+		double* coeff = gpu.d_debye_coeff.HostWrite();
+		for (int e = 0; e < gpu.n_debye_elem; ++e) {
+			const HesthavenDebyeTerm& term = aux.debye()[static_cast<size_t>(e)];
+			pack_element_dofs(term.dofs, ndof, dofs + e * ndof);
+			coeff[4 * e + 0] = term.e_from_e;
+			coeff[4 * e + 1] = term.e_from_p;
+			coeff[4 * e + 2] = term.p_from_e;
+			coeff[4 * e + 3] = term.p_from_p;
+		}
+	}
+
+	gpu.lorentz_p_base = gpu.debye_p_base + aux.nDebye();
+	gpu.lorentz_j_base = gpu.lorentz_p_base + 3 * aux.ndofs();
+	int n_scalar = 0;
+	int n_spatial = 0;
+	for (const HesthavenLorentzTerm& term : aux.lorentz()) {
+		if (term.spatial) {
+			++n_spatial;
+		} else {
+			++n_scalar;
+		}
+	}
+	gpu.n_lorentz_scalar = n_scalar;
+	gpu.n_lorentz_spatial = n_spatial;
+	if (n_scalar > 0) {
+		gpu.d_lorentz_dofs.SetSize(n_scalar * ndof);
+		gpu.d_lorentz_dofs.GetMemory().UseDevice(true);
+		gpu.d_lorentz_coeff.SetSize(n_scalar * 4);
+		gpu.d_lorentz_coeff.UseDevice(true);
+		int* dofs = gpu.d_lorentz_dofs.HostWrite();
+		double* coeff = gpu.d_lorentz_coeff.HostWrite();
+		int slot = 0;
+		for (const HesthavenLorentzTerm& term : aux.lorentz()) {
+			if (term.spatial) {
+				continue;
+			}
+			pack_element_dofs(term.dofs, ndof, dofs + slot * ndof);
+			coeff[4 * slot + 0] = term.e_from_j;
+			coeff[4 * slot + 1] = term.j_from_e;
+			coeff[4 * slot + 2] = term.j_from_p;
+			coeff[4 * slot + 3] = term.j_from_j;
+			++slot;
+		}
+	}
+	if (n_spatial > 0) {
+		gpu.d_lorentz_sp_dofs.SetSize(n_spatial * ndof);
+		gpu.d_lorentz_sp_dofs.GetMemory().UseDevice(true);
+		gpu.d_lorentz_sp_e_from_j.SetSize(n_spatial);
+		gpu.d_lorentz_sp_e_from_j.UseDevice(true);
+		gpu.d_lorentz_sp_has_p.SetSize(n_spatial);
+		gpu.d_lorentz_sp_has_p.GetMemory().UseDevice(true);
+		gpu.d_lorentz_sp_j_from_e.SetSize(n_spatial * n2);
+		gpu.d_lorentz_sp_j_from_p.SetSize(n_spatial * n2);
+		gpu.d_lorentz_sp_j_from_j.SetSize(n_spatial * n2);
+		gpu.d_lorentz_sp_j_from_e.UseDevice(true);
+		gpu.d_lorentz_sp_j_from_p.UseDevice(true);
+		gpu.d_lorentz_sp_j_from_j.UseDevice(true);
+		int* dofs = gpu.d_lorentz_sp_dofs.HostWrite();
+		double* e_from_j = gpu.d_lorentz_sp_e_from_j.HostWrite();
+		int* has_p = gpu.d_lorentz_sp_has_p.HostWrite();
+		double* je = gpu.d_lorentz_sp_j_from_e.HostWrite();
+		double* jp = gpu.d_lorentz_sp_j_from_p.HostWrite();
+		double* jj = gpu.d_lorentz_sp_j_from_j.HostWrite();
+		int slot = 0;
+		for (const HesthavenLorentzTerm& term : aux.lorentz()) {
+			if (!term.spatial) {
+				continue;
+			}
+			pack_element_dofs(term.dofs, ndof, dofs + slot * ndof);
+			e_from_j[slot] = term.e_from_j;
+			has_p[slot] = term.has_p_block ? 1 : 0;
+			std::memcpy(je + slot * n2, term.j_from_e_block.data(),
+			            static_cast<size_t>(n2) * sizeof(double));
+			if (term.has_p_block) {
+				std::memcpy(jp + slot * n2, term.j_from_p_block.data(),
+				            static_cast<size_t>(n2) * sizeof(double));
+			} else {
+				std::fill(jp + slot * n2, jp + (slot + 1) * n2, 0.0);
+			}
+			std::memcpy(jj + slot * n2, term.j_from_j_block.data(),
+			            static_cast<size_t>(n2) * sizeof(double));
+			++slot;
+		}
+	}
+
+	gpu.n_pml_elem = static_cast<int>(aux.pml().size());
+	gpu.pml_needs_a = aux.pmlNeedsA() ? 1 : 0;
+	if (gpu.n_pml_elem > 0) {
+		gpu.d_pml_dofs.SetSize(gpu.n_pml_elem * ndof);
+		gpu.d_pml_dofs.GetMemory().UseDevice(true);
+		gpu.d_pml_blocks.SetSize(gpu.n_pml_elem * 3 * 8 * n2);
+		gpu.d_pml_blocks.UseDevice(true);
+		int* dofs = gpu.d_pml_dofs.HostWrite();
+		double* blocks = gpu.d_pml_blocks.HostWrite();
+		double* delta = nullptr;
+		if (gpu.pml_needs_a) {
+			gpu.d_pml_delta.SetSize(gpu.n_pml_elem * 3 * n2);
+			gpu.d_pml_delta.UseDevice(true);
+			delta = gpu.d_pml_delta.HostWrite();
+		}
+		for (int e = 0; e < gpu.n_pml_elem; ++e) {
+			const HesthavenPMLElement& term = aux.pml()[static_cast<size_t>(e)];
+			pack_element_dofs(term.dofs, ndof, dofs + e * ndof);
+			for (int axis = 0; axis < 3; ++axis) {
+				for (int kind = 0; kind < 8; ++kind) {
+					const DynamicMatrix& block = term.blocks[static_cast<size_t>(axis)][static_cast<size_t>(kind)];
+					const int offset = ((e * 3 + axis) * 8 + kind) * n2;
+					std::memcpy(blocks + offset, block.data(),
+					            static_cast<size_t>(n2) * sizeof(double));
+				}
+				if (delta != nullptr) {
+					const int offset = (e * 3 + axis) * n2;
+					std::memcpy(delta + offset, term.delta[static_cast<size_t>(axis)].data(),
+					            static_cast<size_t>(n2) * sizeof(double));
+				}
+			}
+		}
+	}
 }
 
 } // namespace
 #endif
 
 using MatricesSet = std::set<DynamicMatrix, MatrixCompareLessThan>;
+
+int hesthavenStateSize(const ParFiniteElementSpace& fes, const Model& model)
+{
+	const int ndofs = fes.GetNDofs();
+	return 6 * ndofs
+		+ computePMLAuxSize(model.getPMLProperties(), ndofs, fes.GetMesh()->Dimension())
+		+ model.debyeAuxSize(ndofs)
+		+ model.lorentzAuxSize(ndofs);
+}
 
 static DynamicMatrix assembleInverseMassMatrix(FiniteElementSpace& fes)
 {
@@ -452,7 +641,9 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 
 	applyBdrBC(bdrMaps.PEC, -2.0, 0.0);
 	applyBdrBC(bdrMaps.PMC, 0.0, -2.0);
-	applyBdrBC(bdrMaps.SMA, -1.0 / opts_.alpha, -1.0 / opts_.alpha);
+	if (opts_.alpha != 0.0) {
+		applyBdrBC(bdrMaps.SMA, -1.0 / opts_.alpha, -1.0 / opts_.alpha);
+	}
 
 	auto applyIntBdrBC = [&](const auto& bc, double e_coeff, double h_coeff) {
 		for (int m = 0; m < bc.mapBElem1.size(); m++) {
@@ -495,7 +686,9 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 
 	applyBdrBC(bdrMaps.PEC, -2.0, 0.0);
 	applyBdrBC(bdrMaps.PMC, 0.0, -2.0);
-	applyBdrBC(bdrMaps.SMA, -1.0 / opts_.alpha, -1.0 / opts_.alpha);
+	if (opts_.alpha != 0.0) {
+		applyBdrBC(bdrMaps.SMA, -1.0 / opts_.alpha, -1.0 / opts_.alpha);
+	}
 
 	auto applyIntBdrBC = [&](const auto& bc, double e_coeff, double h_coeff) {
 		for (int m = 0; m < bc.mapBElem1.size(); m++) {
@@ -518,8 +711,190 @@ void HesthavenEvolution::applyBoundaryConditionsToNodes(const BoundaryMaps& bdrM
 
 }
 
-HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts) :
-	TimeDependentOperator(numberOfFieldComponents* numberOfMaxDimensions* fes.GetNDofs()),
+HesthavenEvolution::~HesthavenEvolution() = default;
+
+void HesthavenEvolution::SetTime(double t)
+{
+	TimeDependentOperator::SetTime(t);
+	if (sgbc_engine_) {
+		sgbc_engine_->SetTime(t);
+	}
+}
+
+void HesthavenEvolution::applySGBC(const Vector& in, Vector& out, bool inject) const
+{
+	if (sgbc_engine_ == nullptr || !sgbc_engine_->hasSGBC()) {
+		return;
+	}
+	sgbc_engine_->SetTime(GetTime());
+	if (inject) {
+		sgbc_engine_->injectSGBCFlux(in, out);
+	} else {
+		sgbc_engine_->advanceSGBC(in);
+	}
+}
+
+void HesthavenEvolution::promoteAssembledElements()
+{
+	auto marked = [](const Array<int>& marker, int attr) {
+		return attr > 0 && marker.Size() >= attr && marker[attr - 1] == 1;
+	};
+	std::unordered_set<int> extra;
+	auto add_boundary_element = [&](int boundary) {
+		const int face = fes_.GetMesh()->GetBdrElementFaceIndex(boundary);
+		const bool interior = fes_.GetMesh()->FaceIsInterior(face);
+		const mfem::FaceElementTransformations* ft = interior
+			? fes_.GetMesh()->GetInternalBdrFaceTransformations(boundary)
+			: fes_.GetMesh()->GetBdrFaceTransformations(boundary);
+		if (ft == nullptr) {
+			return;
+		}
+		extra.insert(ft->Elem1No);
+		if (interior && ft->Elem2No >= 0 && ft->Elem2No < fes_.GetMesh()->GetNE()) {
+			extra.insert(ft->Elem2No);
+		}
+	};
+
+	const int nbe = fes_.GetMesh()->GetNBE();
+	std::unordered_set<int> tfsf_elements;
+	for (const auto& entry : model_.getTotalFieldScatteredFieldToMarker()) {
+		for (int b = 0; b < nbe; ++b) {
+			if (!marked(entry.second, fes_.GetMesh()->GetBdrAttribute(b))) {
+				continue;
+			}
+			const int face = fes_.GetMesh()->GetBdrElementFaceIndex(b);
+			const bool interior = fes_.GetMesh()->FaceIsInterior(face);
+			const mfem::FaceElementTransformations* ft = interior
+				? fes_.GetMesh()->GetInternalBdrFaceTransformations(b)
+				: fes_.GetMesh()->GetBdrFaceTransformations(b);
+			if (ft == nullptr) {
+				continue;
+			}
+			tfsf_elements.insert(ft->Elem1No);
+			if (interior && ft->Elem2No >= 0 && ft->Elem2No < fes_.GetMesh()->GetNE()) {
+				tfsf_elements.insert(ft->Elem2No);
+			}
+		}
+	}
+	auto blocked_by_tfsf = [&](int boundary) {
+		const int face = fes_.GetMesh()->GetBdrElementFaceIndex(boundary);
+		const bool interior = fes_.GetMesh()->FaceIsInterior(face);
+		const mfem::FaceElementTransformations* ft = interior
+			? fes_.GetMesh()->GetInternalBdrFaceTransformations(boundary)
+			: fes_.GetMesh()->GetBdrFaceTransformations(boundary);
+		if (ft == nullptr) {
+			return true;
+		}
+		if (tfsf_elements.count(ft->Elem1No) != 0) {
+			return true;
+		}
+		return interior && ft->Elem2No >= 0 && tfsf_elements.count(ft->Elem2No) != 0;
+	};
+
+	for (int b = 0; b < nbe; ++b) {
+		const int attr = fes_.GetMesh()->GetBdrAttribute(b);
+		bool ibfi = false;
+		bool sgbc = false;
+		for (const auto& entry : model_.getInteriorBoundaryToMarker()) {
+			if (!marked(entry.second, attr)) {
+				continue;
+			}
+			if (entry.first == BdrCond::PEC || entry.first == BdrCond::PMC || entry.first == BdrCond::SMA) {
+				ibfi = true;
+			}
+			if (entry.first == BdrCond::SGBC) {
+				sgbc = true;
+			}
+		}
+		{
+			const auto it = model_.getBoundaryToMarker().find(BdrCond::SGBC);
+			if (it != model_.getBoundaryToMarker().end() && marked(it->second, attr)) {
+				sgbc = true;
+			}
+		}
+		bool centered_sma = false;
+		if (opts_.alpha == 0.0) {
+			const auto it = model_.getBoundaryToMarker().find(BdrCond::SMA);
+			if (it != model_.getBoundaryToMarker().end() && marked(it->second, attr)) {
+				centered_sma = true;
+			}
+		}
+		if ((ibfi || centered_sma || sgbc) && !blocked_by_tfsf(b)) {
+			add_boundary_element(b);
+		}
+	}
+	if (extra.empty()) {
+		return;
+	}
+
+	Array<int> kept;
+	for (int i = 0; i < linearElements_.Size(); ++i) {
+		if (extra.count(linearElements_[i]) == 0) {
+			kept.Append(linearElements_[i]);
+		}
+	}
+	linearElements_ = kept;
+	for (int elem : extra) {
+		if (curvedElements_.find(elem) != curvedElements_.end()) {
+			continue;
+		}
+		Array<int> dofs;
+		fes_.GetElementDofs(elem, dofs);
+		for (int i = 0; i < dofs.Size(); ++i) {
+			if (dofs[i] < 0) {
+				dofs[i] = -1 - dofs[i];
+			}
+		}
+		curvedElements_.emplace(elem, dofs);
+	}
+}
+
+void HesthavenEvolution::ImplicitSolve(const double dt, const Vector& x, Vector& k)
+{
+	if (sgbc_engine_ != nullptr && sgbc_engine_->hasSGBC()) {
+		throw std::runtime_error(
+			"SGBC is integrated inside explicit RK4. Use ode_type RK4.");
+	}
+	const int n = Height();
+	Vector source(n);
+	Vector zero(n);
+	zero = 0.0;
+	Mult(zero, source);
+	auto apply_a = [&](const Vector& v, Vector& av) {
+		Mult(v, av);
+		av -= source;
+	};
+	apply_a(x, k);
+	k += source;
+
+	class HomogeneousJacobian final : public mfem::Operator {
+		std::function<void(const Vector&, Vector&)> apply_;
+		const double dt_;
+		mutable Vector tmp_;
+	public:
+		HomogeneousJacobian(int size, std::function<void(const Vector&, Vector&)> apply, double step)
+			: mfem::Operator(size), apply_(std::move(apply)), dt_(step), tmp_(size) {}
+		void Mult(const Vector& v, Vector& jv) const override
+		{
+			apply_(v, tmp_);
+			jv = v;
+			jv.Add(-dt_, tmp_);
+		}
+	} jacobian(n, apply_a, dt);
+
+	mfem::GMRESSolver gmres;
+	gmres.SetOperator(jacobian);
+	gmres.SetRelTol(1e-8);
+	gmres.SetMaxIter(400);
+	gmres.SetKDim(60);
+	gmres.SetPrintLevel(0);
+	Vector rhs(k);
+	gmres.Mult(rhs, k);
+}
+
+HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model, SourcesManager& srcmngr, EvolutionOptions& opts,
+                                       const Probes* probes, double final_time) :
+	TimeDependentOperator(hesthavenStateSize(fes, model)),
 	fes_(fes),
 	model_(model),
 	srcmngr_(srcmngr),
@@ -538,7 +913,7 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 	auto elemOrderList = initCurvedAndLinearElementsLists(fes_, positions_);
 	linearElements_ = elemOrderList.first;
 	curvedElements_ = elemOrderList.second;
-
+	promoteAssembledElements();
 	checkForTFSFInCurvedElements();
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
@@ -722,6 +1097,14 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 		}
 	}
 
+	auxiliary_.build(fes_, model_, linearElements_);
+	if (!model_.getSGBCProperties().empty()) {
+		static const Probes empty_probes;
+		const Probes& sgbc_probes = probes != nullptr ? *probes : empty_probes;
+		sgbc_engine_ = std::make_unique<GlobalEvolution>(
+			fes_, model_, srcmngr_, opts_, sgbc_probes, final_time);
+	}
+
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	if (linearElements_.Size() > 0 && refLIFT_.size() > 0) {
 		initGPUData();
@@ -894,6 +1277,7 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 
 	double alpha = opts_.alpha;
 	(void)in.HostRead();
+	applySGBC(in, out, false);
 
 	out.SetSize(Height());
 
@@ -913,6 +1297,10 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 	for (int d = X; d <= Z; ++d) {
 		outMaps.e_[d].setZero();
 		outMaps.h_[d].setZero();
+	}
+	if (Height() > 6 * ndofs) {
+		double* out_tail = out.HostReadWrite();
+		std::fill(out_tail + 6 * ndofs, out_tail + static_cast<int>(Height()), 0.0);
 	}
 
 	auto scatterElem = [&](const Eigen::VectorXd& data, ElementId id,
@@ -984,12 +1372,28 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 
 			const DynamicMatrix& dir1 = *hestElemLinearStorage_[e].dir[y];
 			const DynamicMatrix& dir2 = *hestElemLinearStorage_[e].dir[z];
+			const HesthavenLinearMaterial& mat = auxiliary_.linearMaterial(e);
 
-			const Eigen::VectorXd& hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.h_[x]);
-			const Eigen::VectorXd& eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.e_[x]);
-
-			scatterElem(hResult, hestElemLinearStorage_[e].id, outMaps.h_[x]);
-			scatterElem(eResult, hestElemLinearStorage_[e].id, outMaps.e_[x]);
+			if (!mat.active()) {
+				const Eigen::VectorXd& hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.h_[x]);
+				const Eigen::VectorXd& eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.e_[x]);
+				scatterElem(hResult, hestElemLinearStorage_[e].id, outMaps.h_[x]);
+				scatterElem(eResult, hestElemLinearStorage_[e].id, outMaps.e_[x]);
+			} else {
+				Eigen::VectorXd hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.h_[x]);
+				Eigen::VectorXd eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.e_[x]);
+				if (mat.inv_mu != 1.0) {
+					hResult *= mat.inv_mu;
+				}
+				if (mat.inv_eps != 1.0) {
+					eResult *= mat.inv_eps;
+				}
+				if (mat.sigma_over_eps != 0.0) {
+					eResult -= mat.sigma_over_eps * fieldsElem.e_[x];
+				}
+				scatterElem(hResult, hestElemLinearStorage_[e].id, outMaps.h_[x]);
+				scatterElem(eResult, hestElemLinearStorage_[e].id, outMaps.e_[x]);
+			}
 		}
 
 	}
@@ -999,6 +1403,8 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 #endif
 
 	addCurvedElementContributions(out);
+	auxiliary_.apply(in, out);
+	applySGBC(in, out, true);
 
 #ifdef SHOW_TIMER_INFORMATION
 	{
@@ -1288,6 +1694,7 @@ void HesthavenEvolution::initGPUData()
 	gpu_.d_workspace.UseDevice(true);
 	gpu_.team_size = std::max({gpu_.ndof_el, gpu_.max_flux_size, gpu_.lift_rows});
 
+	packHesthavenAuxGpu(auxiliary_, gpu_);
 	hesthaven_sync_gpu_static_data(gpu_);
 
 	gpu_.initialized = true;
@@ -1375,7 +1782,9 @@ void HesthavenEvolution::initGPUBoundaryData()
 
 	appendTrueBC(bdr.PEC, -2.0, 0.0);
 	appendTrueBC(bdr.PMC, 0.0, -2.0);
-	appendTrueBC(bdr.SMA, -1.0 / opts_.alpha, -1.0 / opts_.alpha);
+	if (opts_.alpha != 0.0) {
+		appendTrueBC(bdr.SMA, -1.0 / opts_.alpha, -1.0 / opts_.alpha);
+	}
 
 	std::vector<int> int_jump_out1, int_jump_out2, int_vmap_in1, int_vmap_in2, int_comp;
 	std::vector<double> int_e_coeff, int_h_coeff;
@@ -1517,6 +1926,7 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 #endif
 
 	const int ndofs = fes_.GetNDofs();
+	applySGBC(in, out, false);
 
 	out.SetSize(Height());
 	out.UseDevice(true);
@@ -1608,6 +2018,12 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 #endif
 
 	// Device-authoritative 'out' must be synced before host-side debug/export reads.
+	(void)out.Read();
+	if (auxiliary_.hasAux()) {
+		hesthaven_apply_aux_gpu(gpu_, in, out, ndofs);
+	}
+	(void)out.HostRead();
+	applySGBC(in, out, true);
 	(void)out.Read();
 
 #ifdef SHOW_TIMER_INFORMATION

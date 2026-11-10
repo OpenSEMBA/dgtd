@@ -19,7 +19,6 @@
         "grading_order": 2,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
-        "alpha_max": 0.0,
         "active_axes": ["Y"]
       },
       {
@@ -29,7 +28,6 @@
         "grading_order": 2,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
-        "alpha_max": 0.0,
         "active_axes": ["X"]
       },
       {
@@ -39,7 +37,6 @@
         "grading_order": 2,
         "target_reflection": 1e-06,
         "kappa_max": 1.0,
-        "alpha_max": 0.0,
         "active_axes": ["X", "Y"]
       }
     ],
