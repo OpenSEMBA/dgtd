@@ -101,6 +101,65 @@ double DeltaGapSource::waveform(Time t) const
 	return gaussianTimeSignal(t, t0_, spread_, magnitude_, derivative_);
 }
 
+WireVoltageSource::WireVoltageSource(
+	double magnitude,
+	double spread,
+	double t0,
+	const mfem::Vector& position,
+	bool derivative) :
+	magnitude_{ magnitude },
+	spread_{ spread },
+	t0_{ t0 },
+	derivative_{ derivative },
+	position_{ position }
+{
+	if (!(magnitude_ > 0.0) || !std::isfinite(magnitude_)) {
+		throw std::runtime_error("wire_voltage magnitude must be > 0.");
+	}
+	if (!(spread_ > 0.0) || !std::isfinite(spread_)) {
+		throw std::runtime_error("wire_voltage spread must be > 0.");
+	}
+	if (!std::isfinite(t0_)) {
+		throw std::runtime_error("wire_voltage t0 must be finite.");
+	}
+	if (position_.Size() != 3) {
+		throw std::runtime_error("wire_voltage position must be a 3-vector.");
+	}
+	for (int d = 0; d < 3; ++d) {
+		if (!std::isfinite(position_[d])) {
+			throw std::runtime_error("wire_voltage position must be finite.");
+		}
+	}
+}
+
+WireVoltageSource::WireVoltageSource(const WireVoltageSource& rhs) :
+	magnitude_{ rhs.magnitude_ },
+	spread_{ rhs.spread_ },
+	t0_{ rhs.t0_ },
+	derivative_{ rhs.derivative_ },
+	position_{ rhs.position_ }
+{}
+
+std::unique_ptr<Source> WireVoltageSource::clone() const
+{
+	return std::make_unique<WireVoltageSource>(*this);
+}
+
+double WireVoltageSource::waveform(Time t) const
+{
+	return gaussianTimeSignal(t, t0_, spread_, magnitude_, derivative_);
+}
+
+double WireVoltageSource::eval(
+	const Position&, const Time& t,
+	const FieldType& ft, const Direction&) const
+{
+	if (ft != E) {
+		return 0.0;
+	}
+	return waveform(t);
+}
+
 double DeltaGapSource::eval(
 	const Position&, const Time& t,
 	const FieldType& ft, const Direction& d) const

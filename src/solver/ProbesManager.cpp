@@ -539,6 +539,12 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     // Without a post-Save barrier, a fast rank can leave step() and block in the
     // next stability/Mult Allreduce while a slow rank is still writing — hang.
     pd.Save();
+    if (wire_exporter_) {
+        wire_exporter_(pd.GetPrefixPath() + pd.GetCollectionName(), export_cycle, pd.GetTime());
+    }
+    if (sgbc_exporter_) {
+        sgbc_exporter_(pd.GetPrefixPath() + pd.GetCollectionName(), export_cycle, pd.GetTime());
+    }
     MPI_Barrier(comm);
 }
 
@@ -556,6 +562,10 @@ void ProbesManager::updateProbe(FieldProbe& p, Time time)
     if (pC.fesPoint.elementId != -2){
 #ifdef SEMBA_DGTD_ENABLE_CUDA
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            if (fields_) {
+                fields_->allDOFs().HostRead();
+                const_cast<mfem::GridFunction&>(pC.field).SyncAliasMemory(fields_->allDOFs());
+            }
             const_cast<mfem::GridFunction&>(pC.field).HostRead();
         }
 #endif
@@ -591,6 +601,15 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
     if (pC.fesPoint.elementId != -2){
 #ifdef SEMBA_DGTD_ENABLE_CUDA
         if (mfem::Device::Allows(mfem::Backend::CUDA)) {
+            if (fields_) {
+                fields_->allDOFs().HostRead();
+                const_cast<mfem::GridFunction&>(pC.field_Ex).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Ey).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Ez).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Hx).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Hy).SyncAliasMemory(fields_->allDOFs());
+                const_cast<mfem::GridFunction&>(pC.field_Hz).SyncAliasMemory(fields_->allDOFs());
+            }
             const_cast<mfem::GridFunction&>(pC.field_Ex).HostRead();
             const_cast<mfem::GridFunction&>(pC.field_Ey).HostRead();
             const_cast<mfem::GridFunction&>(pC.field_Ez).HostRead();
@@ -622,6 +641,51 @@ void ProbesManager::updateProbe(PointProbe& p, Time time)
                 " " << f4FP.Hx << " " << f4FP.Hy << " " << f4FP.Hz << "\n";
             }
         }
+    }
+}
+
+void ProbesManager::updateProbe(WireProbe& p, Time time)
+{
+    if (std::abs(time - finalTime_) >= 1e-8) {
+        if (cycle_ % p.getVisSteps() != 0) {
+            return;
+        }
+    }
+    if (Mpi::WorldRank() != 0) {
+        return;
+    }
+    if (!wire_sampler_) {
+        throw std::runtime_error("A wire probe requires model.wires.");
+    }
+    double current = 0.0;
+    double charge = 0.0;
+    if (!wire_sampler_(p.getPoint(), current, charge)) {
+        throw std::runtime_error("Wire probe is not on a thin wire.");
+    }
+    if (!p.write) {
+        return;
+    }
+    auto& myfile = wireProbeFiles_[p.getProbeID()];
+    if (!myfile.is_open()) {
+        const std::string folder = getSimulationCaseExportPath(caseName_) + "/WireProbes/";
+        if (!preserve_existing_outputs_) {
+            std::filesystem::create_directories(folder);
+        }
+        const std::string path = folder + "WireProbe" + std::to_string(p.getProbeID()) + ".dat";
+        myfile.open(path, preserve_existing_outputs_ ? std::ios::app : std::ios::trunc);
+        if (myfile.is_open() && !preserve_existing_outputs_) {
+            const Point& position = p.getPoint();
+            myfile << "WireProbe ID " << p.getProbeID() << "\n";
+            myfile << "Spatial Position (X, Y, Z) \n";
+            myfile << std::scientific << std::setprecision(5);
+            myfile << position[0] << " " << (position.size() > 1 ? position[1] : 0.0)
+                   << " " << (position.size() > 2 ? position[2] : 0.0) << "\n";
+            myfile << "Time (s) // current // charge \n";
+        }
+    }
+    if (myfile.is_open()) {
+        myfile << std::scientific << std::setprecision(5);
+        myfile << time / physicalConstants::speedOfLight_SI << " " << current << " " << charge << "\n";
     }
 }
 
@@ -820,6 +884,9 @@ void ProbesManager::updateProbes(Time t)
     for (auto& p : probes.pointProbes) {
         updateProbe(p, t);
     }
+    for (auto& p : probes.wireProbes) {
+        updateProbe(p, t);
+    }
 #ifdef SHOW_TIMER_INFORMATION
     auto after_point = clock::now();
 #endif
@@ -932,6 +999,24 @@ void ProbesManager::recalculateExportSteps(double dt)
     }
 }
 
+namespace {
+
+void writeAsciiSnapshot(const std::string& file_path, double time, const std::vector<double>& values)
+{
+    std::ofstream ofs(file_path);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Could not open file for writing: " + file_path);
+    }
+    ofs << std::scientific << std::setprecision(16);
+    ofs << time << "\n";
+    ofs << values.size() << "\n";
+    for (double value : values) {
+        ofs << value << "\n";
+    }
+}
+
+}  // namespace
+
 void ProbesManager::updateProbe(MORStateProbe& p, Time time)
 {
     if (p.saves <= 0) return;
@@ -972,35 +1057,60 @@ void ProbesManager::updateProbe(MORStateProbe& p, Time time)
     const int export_size = fields_->fieldBlockSize();
     std::string file_path = ctx.export_dir + "/x_" + std::to_string(ctx.save_count);
 
-    std::ofstream ofs(file_path);
-    if (ofs.is_open()) {
-        ofs << std::scientific << std::setprecision(16);
-        ofs << time << "\n";
-        ofs << export_size << "\n";
-        for (int i = 0; i < export_size; ++i) {
-            ofs << all_dofs[i] << "\n";
-        }
-        ofs.close();
-    }
-
-    // Export TFSF source function u if available.
-    // Use host-only eval so we never HostRead/Read the device-resident
-    // cached_tfsf_fields_ (that poisons the next GPU Mult TFSF eval).
-    if (srcmngr_ && tfsf_mapping_ && srcmngr_->hasDirectEval()) {
-        std::vector<double> u_combined;
-        srcmngr_->evalTimeVarFieldDirectToHost(time, u_combined);
-        const int tfsf_total_size = static_cast<int>(u_combined.size());
-
-        std::string u_path = ctx.export_dir + "/u_" + std::to_string(ctx.save_count);
-        std::ofstream ofs_u(u_path);
-        if (ofs_u.is_open()) {
-            ofs_u << std::scientific << std::setprecision(16);
-            ofs_u << time << "\n";
-            ofs_u << tfsf_total_size << "\n";
-            for (int i = 0; i < tfsf_total_size; ++i) {
-                ofs_u << u_combined[static_cast<std::size_t>(i)] << "\n";
+    if (Mpi::WorldSize() == 1) {
+        std::ofstream ofs(file_path);
+        if (ofs.is_open()) {
+            ofs << std::scientific << std::setprecision(16);
+            ofs << time << "\n";
+            ofs << export_size << "\n";
+            for (int i = 0; i < export_size; ++i) {
+                ofs << all_dofs[i] << "\n";
             }
-            ofs_u.close();
+            ofs.close();
+        }
+
+        // Export TFSF source function u if available.
+        // Use host-only eval so we never HostRead/Read the device-resident
+        // cached_tfsf_fields_ (that poisons the next GPU Mult TFSF eval).
+        if (srcmngr_ && tfsf_mapping_ && srcmngr_->hasDirectEval()) {
+            std::vector<double> u_combined;
+            srcmngr_->evalTimeVarFieldDirectToHost(time, u_combined);
+            const int tfsf_total_size = static_cast<int>(u_combined.size());
+
+            std::string u_path = ctx.export_dir + "/u_" + std::to_string(ctx.save_count);
+            std::ofstream ofs_u(u_path);
+            if (ofs_u.is_open()) {
+                ofs_u << std::scientific << std::setprecision(16);
+                ofs_u << time << "\n";
+                ofs_u << tfsf_total_size << "\n";
+                for (int i = 0; i < tfsf_total_size; ++i) {
+                    ofs_u << u_combined[static_cast<std::size_t>(i)] << "\n";
+                }
+                ofs_u.close();
+            }
+        }
+    } else {
+        if (!serial_dof_map_) {
+            if (element_partition_ == nullptr || element_partition_->Size() == 0) {
+                throw std::runtime_error(
+                    "MPI MOR state export requires the element partition.");
+            }
+            serial_dof_map_ = std::make_unique<SerialDGDofMap>(
+                buildSerialDGDofMap(fes_, *element_partition_));
+        }
+        const_cast<mfem::Vector&>(all_dofs).HostRead();
+        std::vector<double> serial_x;
+        gatherSerialEHVector(*serial_dof_map_, all_dofs.GetData(), serial_x);
+        if (Mpi::WorldRank() == 0) {
+            writeAsciiSnapshot(file_path, time, serial_x);
+            if (srcmngr_ != nullptr && srcmngr_->hasSerialMORIncident()) {
+                std::vector<double> u_combined;
+                srcmngr_->evalSerialMORIncidentToHost(time, u_combined);
+                writeAsciiSnapshot(
+                    ctx.export_dir + "/u_" + std::to_string(ctx.save_count),
+                    time,
+                    u_combined);
+            }
         }
     }
 
@@ -1314,6 +1424,19 @@ void ProbesManager::trimProbeOutput(double time)
             const auto parent = paraview_root / p.name;
             removeIndexedDirs(parent, "Cycle", drop_from);
             trimPvd(parent / (p.name + ".pvd"), drop_from);
+            if (std::filesystem::exists(parent)) {
+                for (const auto& entry : std::filesystem::directory_iterator(parent)) {
+                    if (!entry.is_directory()) {
+                        continue;
+                    }
+                    const auto sub_name = entry.path().filename().string();
+                    const auto sub_pvd = entry.path() / (sub_name + ".pvd");
+                    if (std::filesystem::exists(sub_pvd)) {
+                        removeIndexedDirs(entry.path(), "Cycle", drop_from);
+                        trimPvd(sub_pvd, drop_from);
+                    }
+                }
+            }
         }
         for (const auto& p : probes.morStateProbes) {
             const auto it = morStateContexts_.find(&p);

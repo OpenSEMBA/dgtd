@@ -5,6 +5,7 @@
 #include "components/DebyeProperties.h"
 #include "components/LorentzProperties.h"
 #include "math/Function.h"
+#include "wires/ThinWire.h"
 
 #include <numeric>
 #include <unordered_map>
@@ -125,6 +126,61 @@ double calculateMaximumSourceFrequency(const json& case_data)
 
     if (found_gaussian) {
         return c_si / (2.0 * min_spread);
+    }
+
+    return 1e9;
+}
+
+static double calculateSourcePower1eFrequency(const json& case_data)
+{
+    double c_si = physicalConstants::speedOfLight_SI;
+    double min_spread = std::numeric_limits<double>::max();
+    double max_freq_1e = 0.0;
+    bool found_gaussian = false;
+    bool found_modulated = false;
+
+    if (case_data.contains("sources")) {
+        for (const auto& source : case_data["sources"]) {
+            if (source.contains("type") && source["type"] == "coaxial_port") {
+                double spread = 1.0;
+                if (source.contains("f_1e") || source.contains("spread")) {
+                    spread = assembleGaussianSpread(source, "coaxial_port");
+                }
+                if (spread > 0.0 && spread < min_spread) {
+                    min_spread = spread;
+                    found_gaussian = true;
+                }
+                continue;
+            }
+            if (!source.contains("magnitude")) continue;
+            const auto& mag = source["magnitude"];
+            if (!mag.is_object()) {
+                continue;
+            }
+            if (mag.contains("frequency") && (mag.contains("spread") || mag.contains("f_1e"))) {
+                double spread = assembleGaussianSpread(mag, "modulated gaussian");
+                double f_carrier = mag["frequency"].get<double>();
+                double f_edge = f_carrier + c_si / (2.0 * M_PI * spread);
+                if (f_edge > max_freq_1e) {
+                    max_freq_1e = f_edge;
+                    found_modulated = true;
+                }
+            } else if (mag.contains("spread") || mag.contains("f_1e")) {
+                double spread = assembleGaussianSpread(mag, "gaussian");
+                if (spread > 0.0 && spread < min_spread) {
+                    min_spread = spread;
+                    found_gaussian = true;
+                }
+            }
+        }
+    }
+
+    if (found_modulated) {
+        return max_freq_1e;
+    }
+
+    if (found_gaussian) {
+        return c_si / (2.0 * M_PI * min_spread);
     }
 
     return 1e9;
@@ -1995,6 +2051,33 @@ std::unique_ptr<TotalField> buildModulatedGaussianPlanewave(
 	return std::make_unique<TotalField>(pw);
 }
 
+std::filesystem::path resolveExcitationFile(const std::string& file, const std::string& case_path)
+{
+	const std::filesystem::path requested(file);
+	if (requested.is_absolute()) {
+		return requested;
+	}
+	if (!case_path.empty()) {
+		const std::filesystem::path beside = std::filesystem::path(case_path).parent_path() / requested;
+		if (std::filesystem::exists(beside)) {
+			return beside;
+		}
+	}
+	return requested;
+}
+
+std::unique_ptr<TotalField> buildSampledPlanewave(
+	const std::string& file,
+	const Source::Polarization& pol,
+	const Source::Propagation& dir,
+	const FieldType ft = FieldType::E
+)
+{
+	SampledExcitation sampled(file);
+	Planewave pw(sampled, pol, dir, ft);
+	return std::make_unique<TotalField>(pw);
+}
+
 std::unique_ptr<TotalField> buildDerivGaussDipole(
 	const double length,
 	const double gaussianSpread,
@@ -2006,11 +2089,12 @@ std::unique_ptr<TotalField> buildDerivGaussDipole(
 	return std::make_unique<TotalField>(dip);
 }
 
-Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
+Sources buildSources(const json& case_data, const mfem::Mesh* mesh, const std::string& case_path)
 {
 	Sources res;
 	int delta_gap_count = 0;
 	int coaxial_count = 0;
+	int wire_voltage_count = 0;
 	bool closed_tfsf = false;
 	for (auto s{ 0 }; s < case_data["sources"].size(); s++) {
 		if (case_data["sources"][s]["type"] == "initial") {
@@ -2051,6 +2135,23 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 			}
 			closed_tfsf = true;
 			const auto& mag = case_data["sources"][s]["magnitude"];
+			if (mag.contains("file")) {
+				if (!mag["file"].is_string() || mag["file"].get<std::string>().empty()) {
+					throw std::runtime_error("planewave magnitude.file must be a path.");
+				}
+				if (mag.contains("spread") || mag.contains("f_1e") || mag.contains("frequency") || mag.contains("mean")) {
+					throw std::runtime_error(
+						"planewave magnitude.file replaces spread, f_1e, frequency, and mean.");
+				}
+				const std::string file = resolveExcitationFile(mag["file"].get<std::string>(), case_path).string();
+				res.add(buildSampledPlanewave(
+					file,
+					assemble3DVector(case_data["sources"][s]["polarization"]),
+					assemble3DVector(case_data["sources"][s]["propagation"]),
+					FieldType::E)
+				);
+				continue;
+			}
 			double spread = assembleGaussianSpread(mag, "planewave");
 
 			// Determine mean: use explicit value if provided, otherwise auto-compute
@@ -2353,6 +2454,75 @@ Sources buildSources(const json& case_data, const mfem::Mesh* mesh)
 				geom.inner_radius, geom.outer_radius,
 				geom.total_field_volume, geom.scattered_field_volume)));
 		}
+		else if (case_data["sources"][s]["type"] == "wire_voltage") {
+			if (wire_voltage_count > 0) {
+				throw std::runtime_error("Only one wire_voltage source is supported.");
+			}
+			++wire_voltage_count;
+			if (!case_data.contains("model") || !case_data["model"].contains("wires")
+				|| !case_data["model"]["wires"].is_array()
+				|| case_data["model"]["wires"].empty()) {
+				throw std::runtime_error("wire_voltage requires model.wires.");
+			}
+			std::string evolution = "global";
+			if (case_data.contains("solver_options")
+				&& case_data["solver_options"].contains("evolution_operator")) {
+				evolution = case_data["solver_options"]["evolution_operator"].get<std::string>();
+			}
+			if (evolution != "global") {
+				throw std::runtime_error("wire_voltage requires evolution_operator \"global\".");
+			}
+			const auto& src = case_data["sources"][s];
+			if (src.contains("f_max")) {
+				throw std::runtime_error(
+					"wire_voltage no longer accepts f_max. Set spread or f_1e.");
+			}
+			if (!src.contains("position") || !src["position"].is_array()
+				|| src["position"].size() != 3) {
+				throw std::runtime_error("wire_voltage position must be a 3-vector.");
+			}
+			mfem::Vector position = assemble3DVector(src["position"]);
+			double magnitude = 1.0;
+			if (src.contains("magnitude")) {
+				if (!src["magnitude"].is_number()) {
+					throw std::runtime_error("wire_voltage magnitude must be a number.");
+				}
+				magnitude = src["magnitude"].get<double>();
+			}
+			if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
+				throw std::runtime_error("wire_voltage magnitude must be > 0.");
+			}
+			bool derivative = false;
+			if (src.contains("signal")) {
+				if (!src["signal"].is_string()) {
+					throw std::runtime_error("wire_voltage signal must be a string.");
+				}
+				const std::string signal = src["signal"].get<std::string>();
+				if (signal == "gaussian") {
+					derivative = false;
+				}
+				else if (signal == "gaussian_derivative") {
+					derivative = true;
+				}
+				else {
+					throw std::runtime_error(
+						"wire_voltage signal must be \"gaussian\" or \"gaussian_derivative\".");
+				}
+			}
+			const double spread = assembleGaussianSpread(src, "wire_voltage");
+			const double t0 = AUTO_DELAY_N_SIGMA * spread * std::sqrt(2.0);
+			int rank = 0;
+			MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+			if (rank == 0) {
+				std::cout << "[wire_voltage] position=(" << position[0] << ", "
+				          << position[1] << ", " << position[2] << ")"
+				          << " magnitude=" << magnitude
+				          << " spread=" << spread
+				          << " t0=" << t0 << "\n";
+			}
+			res.add(std::make_unique<WireVoltageSource>(
+				magnitude, spread, t0, position, derivative));
+		}
 		else {
 			throw std::runtime_error("Unknown source type in Json.");
 		}
@@ -2507,6 +2677,28 @@ Probes buildProbes(const json& case_data)
             }
         }
 
+        if (case_data["probes"].contains("wire")) {
+            size_t wire_probe_count = 0;
+            for (int p = 0; p < case_data["probes"]["wire"].size(); p++) {
+                const auto& probe_json = case_data["probes"]["wire"][p];
+                if (probe_json.contains("field")) {
+                    const std::string field = probe_json["field"].get<std::string>();
+                    if (field != "current" && field != "charge") {
+                        throw std::runtime_error(
+                            "A Holland wire probe records current and charge. Voltage has no reference conductor on this wire.");
+                    }
+                }
+                int interval = calculate_interval(probe_json);
+                WireProbe wire_probe(assembleVector(probe_json["position"]), interval);
+                wire_probe.setProbeID(wire_probe_count);
+                if (probe_json.contains("saves")) {
+                    wire_probe.setSaves(probe_json["saves"]);
+                }
+                wire_probe_count++;
+                probes.wireProbes.push_back(wire_probe);
+            }
+        }
+
         if (case_data["probes"].contains("field")) {
             for (int p = 0; p < case_data["probes"]["field"].size(); p++) {
                 int interval = calculate_interval(case_data["probes"]["field"][p]);
@@ -2611,7 +2803,7 @@ Probes buildProbes(const json& case_data)
 
 
 std::string dataFolder() { return "./testData/"; }
-std::string maxwellInputsFolder() { return dataFolder() + "maxwellInputs/"; }
+std::string testInputsFolder() { return dataFolder() + "testInputs/"; }
 
 static bool isSGBCBoundaryType(const std::string& boundary_type);
 
@@ -2648,7 +2840,7 @@ std::string assembleMeshString(const std::string& filename)
 	if (input_mesh != std::string::npos)
 		folder_name.erase(input_mesh, s_mesh.length());
 
-	return maxwellInputsFolder() + folder_name + "/" + filename;
+	return testInputsFolder() + folder_name + "/" + filename;
 }
 
 std::string assembleLauncherMeshString(const std::string& mesh_name, const std::string& case_path)
@@ -2725,27 +2917,30 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 		if (!mat_json.contains("tags")) {
 			continue;
 		}
+		const bool has_debye = mat_json.contains("debye");
+		const bool has_lorentz = mat_json.contains("lorentz");
+		const bool has_drude = mat_json.contains("drude");
 		std::string kind = "material";
 		if (mat_json.contains("type")) {
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
 				kind = "vacuum";
-				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+				if (has_debye || has_lorentz || has_drude) {
 					throw std::runtime_error(
-						"Vacuum material must not define debye or lorentz.");
+						"Vacuum material must not define debye, lorentz, or drude.");
 				}
 			} else if (type == "PML") {
 				kind = "pml";
-				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+				if (has_debye || has_lorentz || has_drude) {
 					throw std::runtime_error(kDispersiveOnPmlNotAllowed);
 				}
 			}
-		} else if (mat_json.contains("debye") && mat_json.contains("lorentz")) {
+		} else if ((has_debye ? 1 : 0) + (has_lorentz ? 1 : 0) + (has_drude ? 1 : 0) > 1) {
 			throw std::runtime_error(
-				"A material cannot define both debye and lorentz.");
-		} else if (mat_json.contains("debye")) {
+				"A material cannot define more than one of debye, lorentz, or drude.");
+		} else if (has_debye) {
 			kind = "debye";
-		} else if (mat_json.contains("lorentz")) {
+		} else if (has_lorentz || has_drude) {
 			kind = "lorentz";
 		}
 		for (auto t = 0; t < mat_json["tags"].size(); t++) {
@@ -2759,9 +2954,9 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 		if (mat_json.contains("type")) {
 			const std::string type = mat_json["type"].get<std::string>();
 			if (type == "vacuum") {
-				if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+				if (mat_json.contains("debye") || mat_json.contains("lorentz") || mat_json.contains("drude")) {
 					throw std::runtime_error(
-						"Vacuum material must not define debye or lorentz.");
+						"Vacuum material must not define debye, lorentz, or drude.");
 				}
 				const Material vacuum = buildVacuumMaterial();
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
@@ -2806,23 +3001,51 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			continue;
 		}
 
-		if (mat_json.contains("lorentz")) {
-			if (mat_json.contains("debye")) {
+		if (mat_json.contains("lorentz") || mat_json.contains("drude")) {
+			const bool is_drude = mat_json.contains("drude");
+			if (mat_json.contains("debye") || (mat_json.contains("lorentz") && is_drude)) {
 				throw std::runtime_error(
-					"A material cannot define both debye and lorentz.");
+					"A material cannot define more than one of debye, lorentz, or drude.");
 			}
 			if (mat_json.contains("relative_permittivity")) {
 				throw std::runtime_error(
-					"Lorentz material must not define relative_permittivity. "
-					"The electric mass uses lorentz.eps_inf.");
+					std::string(is_drude ? "Drude" : "Lorentz") +
+					" material must not define relative_permittivity. "
+					"The electric mass uses eps_inf.");
 			}
-			LorentzProperties pole = parseLorentzObject(mat_json["lorentz"]);
+			LorentzProperties pole = is_drude
+				? parseDrudeObject(mat_json["drude"])
+				: parseLorentzObject(mat_json["lorentz"]);
 			double mu{ 1.0 }, sigma{ 0.0 };
 			if (mat_json.contains("relative_permeability")) {
 				mu = mat_json["relative_permeability"];
 			}
 			if (mat_json.contains("bulk_conductivity")) {
 				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
+			}
+			if (mesh.Dimension() == 1 && mesh.GetNE() > 0) {
+				std::set<int> block_tags;
+				for (auto t = 0; t < mat_json["tags"].size(); t++) {
+					block_tags.insert(mat_json["tags"][t].get<int>());
+				}
+				double min_x = std::numeric_limits<double>::infinity();
+				double max_x = -std::numeric_limits<double>::infinity();
+				mfem::Array<int> verts;
+				for (int el = 0; el < mesh.GetNE(); ++el) {
+					if (block_tags.count(mesh.GetAttribute(el)) == 0) {
+						continue;
+					}
+					mesh.GetElementVertices(el, verts);
+					for (int v = 0; v < verts.Size(); ++v) {
+						const double vx = mesh.GetVertex(verts[v])[0];
+						min_x = std::min(min_x, vx);
+						max_x = std::max(max_x, vx);
+					}
+				}
+				if (max_x > min_x) {
+					pole.region_min_x = min_x;
+					pole.region_max_x = max_x;
+				}
 			}
 			for (auto t = 0; t < mat_json["tags"].size(); t++) {
 				pole.geom_tag = mat_json["tags"][t].get<int>();
@@ -2961,13 +3184,19 @@ static bool shouldDeleteElement(int etype, int dim)
     return false; // 1D: keep everything
 }
 
-void fixGmshMesh(const std::string& filepath)
+static std::string volumeSidecarPath(const std::string& filepath)
 {
-    // Only process .msh files (Gmsh 2.2 ASCII).
+	return filepath + ".dgtd-volume";
+}
+
+bool fixGmshMesh(const std::string& filepath)
+{
+    // Only process .msh files (Gmsh 2.2 ASCII). The case file stays intact.
+    // The volume reader gets a sidecar with lines and points removed.
     {
         auto dot = filepath.rfind('.');
         if (dot == std::string::npos || filepath.substr(dot) != ".msh")
-            return;
+            return false;
     }
 
     std::vector<std::string> header_lines;   // everything before first element line
@@ -2976,7 +3205,7 @@ void fixGmshMesh(const std::string& filepath)
 
     {
         std::ifstream in(filepath);
-        if (!in.is_open()) return;
+        if (!in.is_open()) return false;
 
         std::string line;
         bool in_elements = false;
@@ -3009,7 +3238,7 @@ void fixGmshMesh(const std::string& filepath)
         }
     }
 
-    if (element_lines.empty()) return;
+    if (element_lines.empty()) return false;
 
     int dim = detectMeshDimension(element_lines);
 
@@ -3045,36 +3274,46 @@ void fixGmshMesh(const std::string& filepath)
     auto& count_line = header_lines.back();
     count_line = std::to_string(fixed_elements.size());
 
-    // Write back.
+    // Write the volume mesh beside the case file. The original keeps its lines.
     {
-        std::ofstream out(filepath, std::ios::trunc);
+        std::ofstream out(volumeSidecarPath(filepath), std::ios::trunc);
         for (const auto& l : header_lines) out << l << '\n';
         for (const auto& l : fixed_elements) out << l << '\n';
         for (const auto& l : footer_lines) out << l << '\n';
     }
+    return true;
 }
 
 mfem::Mesh assembleMesh(const std::string& mesh_string)
 {
 	int failed = 0;
+	int wrote_sidecar = 0;
 	std::string err;
 	if (Mpi::WorldRank() == 0) {
 		try {
-			fixGmshMesh(mesh_string);
+			wrote_sidecar = fixGmshMesh(mesh_string) ? 1 : 0;
 		} catch (const std::exception& ex) {
 			failed = 1;
 			err = ex.what();
 		}
 	}
 	int global_failed = 0;
+	int global_sidecar = 0;
 	MPI_Allreduce(&failed, &global_failed, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	MPI_Allreduce(&wrote_sidecar, &global_sidecar, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 	if (global_failed) {
 		if (!err.empty()) {
 			std::cerr << err << std::endl;
 		}
 		MPI_Abort(MPI_COMM_WORLD, 1);
 	}
-	return mfem::Mesh::LoadFromFile(mesh_string, 1, 0, true);
+	const std::string load_path = global_sidecar ? volumeSidecarPath(mesh_string) : mesh_string;
+	mfem::Mesh mesh = mfem::Mesh::LoadFromFile(load_path, 1, 0, true);
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (global_sidecar && Mpi::WorldRank() == 0) {
+		std::filesystem::remove(load_path);
+	}
+	return mesh;
 }
 
 mfem::Mesh assembleMeshNoFix(const std::string& mesh_string)
@@ -3175,22 +3414,71 @@ Model buildModel(
     const int* partition_override,
     int partition_count)
 {
-    mfem::Mesh mesh;
-    if (isTest) {
-        mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
-    } else {
-        mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
+    const std::string mesh_file = isTest
+        ? assembleMeshString(case_data["model"]["filename"])
+        : assembleLauncherMeshString(case_data["model"]["filename"], case_path);
+
+    std::vector<WireSpec> wire_specs;
+    std::vector<WirePolyline> wire_curves;
+    if (case_data["model"].contains("wires")) {
+        const auto& wires = case_data["model"]["wires"];
+        if (wires.is_array() && !wires.empty()) {
+            std::string evolution = "global";
+            if (case_data.contains("solver_options")
+                && case_data["solver_options"].contains("evolution_operator")) {
+                evolution = case_data["solver_options"]["evolution_operator"].get<std::string>();
+            }
+            if (evolution == "hesthaven") {
+                throw std::runtime_error("Thin wires require evolution_operator \"global\".");
+            }
+        }
+        for (int w = 0; w < static_cast<int>(wires.size()); ++w) {
+            if (!wires[w].contains("tags") || !wires[w].contains("radius")) {
+                throw std::runtime_error("A thin wire requires tags and radius.");
+            }
+            WireSpec spec;
+            for (int t = 0; t < static_cast<int>(wires[w]["tags"].size()); ++t) {
+                spec.tags.push_back(wires[w]["tags"][t].get<int>());
+            }
+            if (spec.tags.empty()) {
+                throw std::runtime_error("A thin wire requires at least one elementary tag.");
+            }
+            spec.radius = wires[w]["radius"].get<double>();
+            if (!(spec.radius > 0.0)) {
+                throw std::runtime_error("Thin-wire radius must be positive.");
+            }
+            if (wires[w].contains("resistancePerMeter")) {
+                spec.resistance_per_meter = wires[w]["resistancePerMeter"].get<double>();
+            }
+            if (wires[w].contains("inductancePerMeter")) {
+                spec.inductance_per_meter = wires[w]["inductancePerMeter"].get<double>();
+            }
+            if (wires[w].contains("transverseStep")) {
+                spec.transverse_step = wires[w]["transverseStep"].get<double>();
+            }
+            if (spec.resistance_per_meter < 0.0 || spec.inductance_per_meter < 0.0
+                || spec.transverse_step < 0.0) {
+                throw std::runtime_error(
+                    "Thin-wire per-metre resistance, inductance, and transverseStep must be non-negative.");
+            }
+            if (spec.transverse_step > 0.0 && !(spec.radius < spec.transverse_step)) {
+                throw std::runtime_error(
+                    "Thin-wire radius must be smaller than transverseStep.");
+            }
+            wire_specs.push_back(spec);
+        }
+        if (!wire_specs.empty()) {
+            wire_curves = buildWirePolylinesFromGmsh(mesh_file, wire_specs);
+        }
     }
+
+    mfem::Mesh mesh = assembleMesh(mesh_file);
 
     auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
     auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
 
     if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {
-        if (isTest) {
-            mesh = assembleMesh(assembleMeshString(case_data["model"]["filename"]));
-        } else {
-            mesh = assembleMesh(assembleLauncherMeshString(case_data["model"]["filename"], case_path));
-        }
+        mesh = assembleMesh(mesh_file);
     }
 
     if (case_data["model"].contains("refinement")) {
@@ -3265,6 +3553,9 @@ Model buildModel(
     }
 
     Model res(mesh, att_to_material, att_to_bdr_info, ne > 0 ? part.GetData() : nullptr);
+    if (!wire_specs.empty()) {
+        res.setWires(wire_specs, wire_curves);
+    }
     std::string filename = case_data["model"]["filename"];
 
     auto ends_with = [](const std::string& str, const std::string& suffix) {
@@ -3284,11 +3575,12 @@ Model buildModel(
     std::vector<std::string> sgbc_notices;
     
     double max_freq = calculateMaximumSourceFrequency(case_data);
+    double freq_1e = calculateSourcePower1eFrequency(case_data);
 
     auto parseSGBCLayer = [&](const nlohmann::json& mat_json) -> SGBCLayer {
-        if (mat_json.contains("debye") || mat_json.contains("lorentz")) {
+        if (mat_json.contains("debye") || mat_json.contains("lorentz") || mat_json.contains("drude")) {
             throw std::runtime_error(
-                "SGBC layer must not define debye or lorentz.");
+                "SGBC layer must not define debye, lorentz, or drude.");
         }
         double rel_eps = 1.0;
         if (mat_json.contains("relative_permittivity")) {
@@ -3363,9 +3655,12 @@ Model buildModel(
             layer.order = mat_json["order"].get<size_t>();
         }
 
-        // Compute n_skin_depths for all ranks (used for CFL relaxation)
-        if (sigma_si > 0.0 && skin_depth > 0.0) {
-            layer.n_skin_depths = layer_width / skin_depth;
+        // Compute n_skin_depths for all ranks (used for CFL relaxation) at the
+        // pulse 1/e power frequency so semi-transparent layers are not relaxed
+        // based on the far spectral tail.
+        if (sigma_si > 0.0 && freq_1e > 0.0) {
+            double skin_depth_1e = 1.0 / std::sqrt(M_PI * freq_1e * mu_si * sigma_si);
+            layer.n_skin_depths = layer_width / skin_depth_1e;
         }
 
         if (Mpi::WorldRank() == 0) {
@@ -3585,12 +3880,12 @@ static std::string meshCaseNameFromJson(const json& case_data)
 	throw std::runtime_error("File format for mesh must be name.msh or name.mesh");
 }
 
-maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest, bool restart)
+maxwell::Solver buildSolverJson(const std::string& case_name, const bool isTest, LaunchResume resume)
 {
 	auto case_data = parseJSONfile(case_name);
     validateCaseNamingStyle(case_name, case_data);
 
-	return buildSolver(case_data, case_name, isTest, restart);
+	return buildSolver(case_data, case_name, isTest, resume);
 }
 
 static int boundaryAttributeSlots(const mfem::Mesh& mesh)
@@ -3737,10 +4032,6 @@ void postProcessInformation(const json& case_data, maxwell::Model& model, maxwel
         }
     }
 
-	if (model.getBoundaryToMarker().find(BdrCond::SMA) != model.getBoundaryToMarker().end() && solverOpts.evolution.alpha == 0.0 && solverOpts.evolution.op == EvolutionOperatorType::Hesthaven) {
-		throw std::runtime_error("Centered SMA with Hesthaven Evolution Operator not supported yet.");
-	}
-
 	model.getMesh().SetAttributes();
 }
 
@@ -3768,10 +4059,13 @@ void prepareExportDirectories(Model& model, bool preserve_existing)
 	
 }
 
-maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest, bool restart)
+maxwell::Solver buildSolver(const json& case_data, const std::string& case_path, const bool isTest, LaunchResume resume)
 {
-	if (restart && isTest) {
-		throw std::runtime_error("--restart is only supported from opensemba_dgtd.");
+	if (resume != LaunchResume::None && isTest) {
+		throw std::runtime_error(
+			resume == LaunchResume::Continue
+				? "--continue is only supported from opensemba_dgtd."
+				: "--restart is only supported from opensemba_dgtd.");
 	}
 
 	maxwell::SolverOptions solverOpts{ buildSolverOptions(case_data) };
@@ -3789,16 +4083,20 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 	if (!isTest) {
 		const std::string case_tag = meshCaseNameFromJson(case_data);
 		mesh_path = assembleLauncherMeshString(case_data["model"]["filename"].get<std::string>(), case_path);
+		if (resume == LaunchResume::Restart) {
+			maxwell::removeAllCaseCheckpoints(case_tag);
+		}
+		const bool continue_run = resume == LaunchResume::Continue;
 		const auto latest = maxwell::findLatestCompleteCheckpoint(case_tag);
 		const auto foreign = maxwell::findForeignCompleteCheckpoint(case_tag);
 		if (!latest && foreign) {
 			throw std::runtime_error(maxwell::foreignCheckpointMessage(*foreign));
 		}
-		if (restart) {
+		if (continue_run) {
 			if (!latest) {
 				throw std::runtime_error(
 					"No complete checkpoint found under " + maxwell::checkpointRoot(case_tag).string()
-					+ ". --restart requires a checkpoint from the same JSON, mesh, and MPI rank count.");
+					+ ". --continue requires a checkpoint from the same JSON, mesh, and MPI rank count.");
 			}
 			checkpoint_dir = *latest;
 			checkpoint_manifest = maxwell::readManifest(checkpoint_dir / "manifest.json");
@@ -3824,7 +4122,7 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 		} else if (latest) {
 			throw std::runtime_error(
 				"A complete checkpoint exists at " + latest->string()
-				+ ". Resume with --restart, or remove the Checkpoints directory to start from t = 0.");
+				+ ". Resume with --continue, or pass --restart to delete checkpoints and start from t = 0.");
 		}
 	}
 
@@ -3843,16 +4141,16 @@ maxwell::Solver buildSolver(const json& case_data, const std::string& case_path,
 				"Checkpoint mesh does not match " + mesh_path + ".");
 		}
 	}
-	maxwell::Sources sources{ buildSources(case_data, &model.getConstMesh()) };
+	maxwell::Sources sources{ buildSources(case_data, &model.getConstMesh(), case_path) };
 
 	postProcessInformation(case_data, model, solverOpts);
-	prepareExportDirectories(model, restart);
+	prepareExportDirectories(model, resume == LaunchResume::Continue);
 
 	if (!isTest && solverOpts.checkpoint_percent > 0.0) {
 		solverOpts.checkpoint_json_path = case_path;
 		solverOpts.checkpoint_mesh_path = mesh_path;
 	}
-	if (restart) {
+	if (resume == LaunchResume::Continue) {
 		solverOpts.checkpoint_directory = checkpoint_dir.string();
 	}
 	return maxwell::Solver(model, probes, sources, solverOpts);

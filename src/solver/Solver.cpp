@@ -63,6 +63,10 @@ void warnGaussianPulseVsMesh(
 			min_spread = std::min(min_spread, gap->spread());
 			continue;
 		}
+		if (const auto* wire = dynamic_cast<const WireVoltageSource*>(src.get())) {
+			min_spread = std::min(min_spread, wire->spread());
+			continue;
+		}
 		const auto* tf = dynamic_cast<const TotalField*>(src.get());
 		if (tf == nullptr) {
 			continue;
@@ -145,14 +149,34 @@ std::unique_ptr<mfem::ParFiniteElementSpace> buildFiniteElementSpace(mfem::ParMe
     return fes;
 }
 
+GlobalEvolution* Solver::sgbcEvolution() const
+{
+    if (globalEvol_cache_ != nullptr && globalEvol_cache_->hasSGBC()) {
+        return globalEvol_cache_;
+    }
+    if (hesthavenEvol_cache_ != nullptr) {
+        GlobalEvolution* engine = hesthavenEvol_cache_->sgbcEngine();
+        if (engine != nullptr && engine->hasSGBC()) {
+            return engine;
+        }
+    }
+    return nullptr;
+}
+
 std::unique_ptr<mfem::TimeDependentOperator> Solver::assignEvolutionOperator()
 {
     if (opts_.evolution.op == EvolutionOperatorType::Hesthaven) {
-        return std::make_unique<HesthavenEvolution>(*fes_, model_, sourcesManager_, opts_.evolution);
+        auto hesthaven = std::make_unique<HesthavenEvolution>(
+            *fes_, model_, sourcesManager_, opts_.evolution, &probesManager_.probes, opts_.final_time);
+        hesthavenEvol_cache_ = hesthaven.get();
+        return hesthaven;
     }
     else if (opts_.evolution.op == EvolutionOperatorType::Global) {
         auto global_evol = std::make_unique<GlobalEvolution>(*fes_, model_, sourcesManager_, opts_.evolution, probesManager_.probes, opts_.final_time);
-        globalEvol_cache_ = global_evol.get();  // Cache the pointer
+        globalEvol_cache_ = global_evol.get();
+        if (global_evol->hasWires() && static_cast<ode_type>(opts_.ode_type) != ode_type::RK4) {
+            throw std::runtime_error("Thin wires require ode_type RK4.");
+        }
         return global_evol;
     }
     else if (opts_.evolution.op == EvolutionOperatorType::Maxwell){
@@ -188,7 +212,7 @@ void Solver::assignODESolver()
             odeSolver_ = std::make_unique<mfem::SDIRK33Solver>();
             break;
 
-        case ode_type::SDIRK23:  // L-stable. Parent PML/Debye/Lorentz/SGBC stays on RK4.
+        case ode_type::SDIRK23:  // L-stable. The SGBC parent step stays on RK4.
             odeSolver_ = std::make_unique<mfem::SDIRK23Solver>(/*gamma_opt=*/2);
             break;
 
@@ -236,15 +260,16 @@ Solver::Solver(
     warnGaussianPulseVsMesh(model_.getMesh(), opts_.evolution.order, sources, comm_rank);
 
     const bool dispersive = model_.hasDebye() || model_.hasLorentz();
-    if (dispersive && opts_.evolution.op != EvolutionOperatorType::Global) {
+    if (dispersive && opts_.evolution.op == EvolutionOperatorType::Maxwell) {
         throw std::runtime_error(
-            "Debye and Lorentz materials require evolution_operator \"global\".");
+            "Debye and Lorentz materials require evolution_operator \"global\" or \"hesthaven\".");
     }
-    const bool implicit_blocked =
-        model_.hasPML() || dispersive || !model_.getSGBCProperties().empty();
-    if (implicit_blocked && opts_.ode_type != ode_type::RK4) {
+    if (opts_.evolution.op == EvolutionOperatorType::Hesthaven && model_.hasWires()) {
+        throw std::runtime_error("Thin wires require evolution_operator \"global\".");
+    }
+    if (!model_.getSGBCProperties().empty() && opts_.ode_type != ode_type::RK4) {
         throw std::runtime_error(
-            "Implicit ODE integrators do not support Cartesian PML, Debye, Lorentz, or SGBC. Use ode_type RK4.");
+            "SGBC is integrated inside explicit RK4. Use ode_type RK4.");
     }
     if (dispersive && opts_.evolution.spectral) {
         throw std::runtime_error(
@@ -262,8 +287,24 @@ Solver::Solver(
 
     evolTDO_ = assignEvolutionOperator();
     evolTDO_->SetTime(time_);
+    if (globalEvol_cache_ && globalEvol_cache_->hasWires()) {
+        probesManager_.setWireExporter([this](const std::string& directory, int cycle, double time) {
+            globalEvol_cache_->exportWires(directory, cycle, time);
+        });
+        probesManager_.setWireSampler([this](const Point& position, double& current, double& charge) {
+            return globalEvol_cache_->sampleWire(position, current, charge);
+        });
+    }
+    if (GlobalEvolution* sgbc = sgbcEvolution(); sgbc != nullptr && sgbc->hasSGBCExport()) {
+        probesManager_.setSGBCExporter([sgbc](const std::string& directory, int cycle, double time) {
+            sgbc->exportSGBC(directory, cycle, time);
+        });
+    }
     
     // Initialize TFSF export in ProbesManager if TFSF is present and MOR state probes exist
+    if (!probesManager_.probes.morStateProbes.empty()) {
+        probesManager_.setElementPartition(&model_.elementPartition());
+    }
     if (globalEvol_cache_ && !probesManager_.probes.morStateProbes.empty()) {
         probesManager_.initTFSFExport(&sourcesManager_, &(globalEvol_cache_->getTFSFMapping()));
     }
@@ -283,6 +324,15 @@ Solver::Solver(
     // (time_step == 0.0), where the interval could not be calculated correctly
     // at parse time.
     probesManager_.recalculateExportSteps(dt_);
+
+    if (opts_.is_sgbc_solver) {
+        fields_.allDOFs().UseDevice(false);
+        for (int d = 0; d < 3; ++d) {
+            auto dir = static_cast<Direction>(d);
+            fields_.get(E, dir).UseDevice(false);
+            fields_.get(H, dir).UseDevice(false);
+        }
+    }
 
     assignODESolver();
     odeSolver_->Init(*evolTDO_);
@@ -881,8 +931,8 @@ bool Solver::writeCheckpoint()
     const double* state_ptr = state.HostRead();
 
     std::vector<SgbcRecord> sgbc;
-    if (globalEvol_cache_ != nullptr) {
-        for (const auto& [tag, states] : globalEvol_cache_->sgbcStates()) {
+    if (GlobalEvolution* engine = sgbcEvolution()) {
+        for (const auto& [tag, states] : engine->sgbcStates()) {
             for (const auto& face : states) {
                 SgbcRecord record;
                 record.tag = tag;
@@ -971,8 +1021,8 @@ void Solver::restoreCheckpoint(const std::string& directory)
             saved_sgbc);
 
         int live_sgbc = 0;
-        if (globalEvol_cache_ != nullptr) {
-            for (const auto& [tag, states] : globalEvol_cache_->sgbcStates()) {
+        if (GlobalEvolution* sgbc = sgbcEvolution()) {
+            for (const auto& [tag, states] : sgbc->sgbcStates()) {
                 live_sgbc += static_cast<int>(states.size());
                 (void)tag;
             }
@@ -995,7 +1045,7 @@ void Solver::restoreCheckpoint(const std::string& directory)
                 index.emplace(key, i);
             }
             int matched = 0;
-            for (auto& [tag, states] : globalEvol_cache_->sgbcStates()) {
+            for (auto& [tag, states] : sgbcEvolution()->sgbcStates()) {
                 for (auto& face : states) {
                     SgbcKey key;
                     key.tag = tag;
@@ -1231,8 +1281,11 @@ void Solver::step(bool update_probes)
     double truedt{ std::min(dt_, opts_.final_time - time_) };
 
     // Monolithic IMEX: checkpoint SGBC before RK4, advance inside Mult(), finalize after
-    if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
-        globalEvol_cache_->commitSGBCCheckpoint(time_, truedt, fields_);
+    if (GlobalEvolution* sgbc = sgbcEvolution()) {
+        sgbc->commitSGBCCheckpoint(time_, truedt, fields_);
+    }
+    if (globalEvol_cache_ && globalEvol_cache_->hasWires()) {
+        globalEvol_cache_->commitWires(time_, truedt);
     }
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -1250,8 +1303,11 @@ void Solver::step(bool update_probes)
     auto after_ode = clock::now();
 #endif
 
-    if (globalEvol_cache_ && globalEvol_cache_->hasSGBC()) {
-        globalEvol_cache_->finalizeSGBCStep(fields_);
+    if (GlobalEvolution* sgbc = sgbcEvolution()) {
+        sgbc->finalizeSGBCStep(fields_);
+    }
+    if (globalEvol_cache_ && globalEvol_cache_->hasWires()) {
+        globalEvol_cache_->finalizeWires(fields_.allDOFs());
     }
 #ifdef SHOW_TIMER_INFORMATION
     auto after_finalize = clock::now();

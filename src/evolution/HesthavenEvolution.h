@@ -4,10 +4,12 @@
 
 #include "evolution/MaxwellEvolutionMethods.h"
 #include "evolution/HesthavenEvolutionMethods.h"
+#include "evolution/HesthavenAuxiliary.h"
 
 #include <optional>
 #include <array>
 #include <memory>
+#include <unordered_set>
 
 namespace maxwell {
 
@@ -82,6 +84,34 @@ struct HesthavenGPUData {
 
 	bool has_tfsf = false;
 
+	mfem::Vector d_inv_eps;
+	mfem::Vector d_inv_mu;
+	mfem::Vector d_sigma_over_eps;
+
+	int n_debye_elem = 0;
+	int debye_p_base = 0;
+	mfem::Array<int> d_debye_dofs;
+	mfem::Vector d_debye_coeff;
+
+	int n_lorentz_scalar = 0;
+	int n_lorentz_spatial = 0;
+	int lorentz_p_base = 0;
+	int lorentz_j_base = 0;
+	mfem::Array<int> d_lorentz_dofs;
+	mfem::Vector d_lorentz_coeff;
+	mfem::Array<int> d_lorentz_sp_dofs;
+	mfem::Vector d_lorentz_sp_e_from_j;
+	mfem::Array<int> d_lorentz_sp_has_p;
+	mfem::Vector d_lorentz_sp_j_from_e;
+	mfem::Vector d_lorentz_sp_j_from_p;
+	mfem::Vector d_lorentz_sp_j_from_j;
+
+	int n_pml_elem = 0;
+	int pml_needs_a = 0;
+	mfem::Array<int> d_pml_dofs;
+	mfem::Vector d_pml_blocks;
+	mfem::Vector d_pml_delta;
+
 	bool curved_initialized = false;
 	int n_curved_rows = 0;
 	int curved_full_size = 0;
@@ -91,15 +121,25 @@ struct HesthavenGPUData {
 };
 #endif
 
+class GlobalEvolution;
+class Probes;
+
 class HesthavenEvolution : public mfem::TimeDependentOperator
 {
 public:
 	static const int numberOfFieldComponents = 2;
 	static const int numberOfMaxDimensions = 3;
 
-	HesthavenEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&);
+	HesthavenEvolution(mfem::ParFiniteElementSpace&, Model&, SourcesManager&, EvolutionOptions&,
+	                   const Probes* probes = nullptr, double final_time = 0.0);
+	~HesthavenEvolution();
+	void SetTime(double t) override;
 	virtual void Mult(const mfem::Vector& in, mfem::Vector& out) const;
+	void ImplicitSolve(double dt, const mfem::Vector& x, mfem::Vector& k) override;
 	mfem::MemoryClass GetMemoryClass() const override;
+
+	GlobalEvolution* sgbcEngine() { return sgbc_engine_.get(); }
+	const GlobalEvolution* sgbcEngine() const { return sgbc_engine_.get(); }
 
 	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemLinearStorage_[e]; }
 
@@ -117,6 +157,8 @@ private:
 	void initGPUBoundaryData();
 #endif
 	void exchangeFieldData(const mfem::Vector& in, bool for_gpu_mult) const;
+	void promoteAssembledElements();
+	void applySGBC(const mfem::Vector& in, mfem::Vector& out, bool inject) const;
 	void computeJumps(const mfem::Vector& in, HesthavenFields& jumps) const;
 
 	void evaluateTFSF(HesthavenFields& jumps) const;
@@ -135,6 +177,7 @@ private:
 	Model& model_;
 	SourcesManager& srcmngr_;
 	EvolutionOptions& opts_;
+	HesthavenAuxiliary auxiliary_;
 
 	Array<ElementId> linearElements_;
 	std::map<ElementId, Array<NodeId>> curvedElements_;
@@ -148,6 +191,8 @@ private:
 
 	mutable std::array<mfem::ParGridFunction, 3> eOld_;
 	mutable std::array<mfem::ParGridFunction, 3> hOld_;
+
+	std::unique_ptr<GlobalEvolution> sgbc_engine_;
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	mutable HesthavenGPUData gpu_;
@@ -178,6 +223,11 @@ void hesthaven_apply_bc_gpu(HesthavenGPUData& gpu,
 void hesthaven_scatter_tfsf_to_jumps_gpu(HesthavenGPUData& gpu,
                                          const FieldGridFuncs& tfsf_fields,
                                          int jumps_size);
+
+void hesthaven_apply_aux_gpu(HesthavenGPUData& gpu,
+                             const mfem::Vector& in,
+                             mfem::Vector& out,
+                             int ndofs);
 
 void hesthaven_add_curved_gpu(HesthavenGPUData& gpu,
                               mfem::SparseMatrix& curved_merged,

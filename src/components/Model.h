@@ -6,6 +6,7 @@
 #include "PMLProfiles.h"
 #include "DebyeProperties.h"
 #include "LorentzProperties.h"
+#include "ThinWireGeometry.h"
 
 #include <memory>
 
@@ -152,14 +153,16 @@ public:
 	
 	BoundaryMarker& getMarker(const BdrCond&, bool isInterior);
 	
-	const GeomTagToMaterial& getGeomTagToMaterial() { return attToMatMap_; }
+	const GeomTagToMaterial& getGeomTagToMaterial() const { return attToMatMap_; }
 	const GeomTagToBoundaryMaterial& getGeomTagToBoundaryMaterial() { return attToBdrMatMap_; }
 	BoundaryToMarker& getBoundaryToMarker() { return bdrToMarkerMap_; }
 	const BoundaryToMarker& getBoundaryToMarker() const { return bdrToMarkerMap_; }
 	InteriorBoundaryToMarker& getInteriorBoundaryToMarker() { return intBdrToMarkerMap_; }
 	const InteriorBoundaryToMarker& getInteriorBoundaryToMarker() const { return intBdrToMarkerMap_; }
 	TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() { return tfsfToMarkerMap_; }
+	const TotalFieldScatteredFieldToMarker& getTotalFieldScatteredFieldToMarker() const { return tfsfToMarkerMap_; }
 	SGBCToMarker& getSGBCToMarker() { return SGBCToMarkerMap_; }
+	const SGBCToMarker& getSGBCToMarker() const { return SGBCToMarkerMap_; }
 	void setDeltaGapMarker(const mfem::Array<int>& marker) { deltaGapMarker_ = marker; }
 	mfem::Array<int>& getDeltaGapMarker() { return deltaGapMarker_; }
 	const mfem::Array<int>& getDeltaGapMarker() const { return deltaGapMarker_; }
@@ -183,6 +186,17 @@ public:
 	const DebyeProperties* findDebye(Attribute tag) const;
 	/// 3N when any Debye attribute exists, else 0. Slots cover every local DOF.
 	int debyeAuxSize(int ndofs) const { return hasDebye() ? 3 * ndofs : 0; }
+
+	void setWires(std::vector<WireSpec> specs, std::vector<WirePolyline> curves)
+	{
+		wire_specs_ = std::move(specs);
+		wire_curves_ = std::move(curves);
+	}
+	const std::vector<WireSpec>& wireSpecs() const { return wire_specs_; }
+	const std::vector<WirePolyline>& wireCurves() const { return wire_curves_; }
+	void setWirePieces(std::vector<WirePieceGeom> pieces) { wire_pieces_ = std::move(pieces); }
+	const std::vector<WirePieceGeom>& wirePieces() const { return wire_pieces_; }
+	bool hasWires() const { return !wire_specs_.empty(); }
 
 	void setLorentzProperties(const std::vector<LorentzProperties>& in);
 	const std::vector<LorentzProperties>& getLorentzProperties() const { return lorentz_; }
@@ -246,6 +260,9 @@ private:
 	std::map<GeomTag, DebyeProperties> debye_by_tag_;
 	std::vector<LorentzProperties> lorentz_;
 	std::map<GeomTag, LorentzProperties> lorentz_by_tag_;
+	std::vector<WireSpec> wire_specs_;
+	std::vector<WirePolyline> wire_curves_;
+	std::vector<WirePieceGeom> wire_pieces_;
 	std::shared_ptr<const PMLProfileData> pml_profiles_;
 
 	void rejectDispersiveOnPML() const;

@@ -4,7 +4,7 @@
 This file does not call the C++ solver. It integrates
 
     dP/dt = J
-    dJ/dt = -2 gamma J - omega_1^2 P + omega_p^2 E
+    dJ/dt = -gamma J - omega_1^2 P + omega_p^2 E
     D = eps_inf E + P
     dD/dt = -dH/dx
 
@@ -185,7 +185,7 @@ def rhs(d_field, h_field, p_field, j_field, t, geom):
     if np.any(mask):
         p_dt[mask] = j_field[mask]
         j_dt[mask] = (
-            -2.0 * geom["gamma"][mask, None] * j_field[mask]
+            -geom["gamma"][mask, None] * j_field[mask]
             - geom["omega_1_sq"][mask, None] * p_field[mask]
             + geom["omega_p_sq"][mask, None] * e_field[mask]
         )

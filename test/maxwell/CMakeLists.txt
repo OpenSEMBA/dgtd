@@ -27,6 +27,7 @@ add_executable(maxwell_tests
 	"solver/ProbesManagerTest.cpp"
 	"solver/CheckpointTest.cpp" 
 	"solver/SourcesTest.cpp"
+	"solver/ThinWireTest.cpp"
 	"math/FunctionTest.cpp")
 
 add_executable(maxwell_solver_tests
@@ -36,6 +37,8 @@ add_executable(maxwell_solver_tests
 	"solver/Solver2DTest.cpp" 
 	"solver/Solver3DTest.cpp"
 	"solver/HesthavenOperatorBenchmarkTest.cpp"
+	"solver/HesthavenElementLocalTest.cpp"
+	"solver/HesthavenAnalyticAgreementTest.cpp"
 	"solver/DebyeMultTest.cpp"
 	"solver/LorentzMultTest.cpp")
 

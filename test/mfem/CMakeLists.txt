@@ -21,11 +21,7 @@ add_executable(mfem_tests
 	"Forms.cpp")
 
 target_link_libraries(mfem_tests PRIVATE
-	mfem 
-	maxwell-mfemExtension
-	maxwell-evolution
-	maxwell-components 
-	maxwell-driver
+	"$<LINK_GROUP:RESCAN,mfem,maxwell-mfemExtension,maxwell-evolution,maxwell-components,maxwell-driver,maxwell-solver,maxwell-math>"
 	Eigen3::Eigen
 	FFTW3::fftw3
 	FFTW3::fftw3f

@@ -92,6 +92,10 @@ std::optional<std::filesystem::path> findForeignCompleteCheckpoint(const std::st
 
 std::string foreignCheckpointMessage(const std::filesystem::path& checkpoint_dir);
 
+/// Collective over MPI_COMM_WORLD. Rank 0 deletes every
+/// `exports/SimulationData/<run-mode>/<case>/Checkpoints` directory.
+void removeAllCaseCheckpoints(const std::string& caseName);
+
 CheckpointManifest readManifest(const std::filesystem::path& manifest_json);
 
 std::vector<int> readPartition(const std::filesystem::path& partition_bin);

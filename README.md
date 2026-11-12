@@ -10,7 +10,8 @@ Maxwell curl-equation solver using discontinuous Galerkin methods (OpenSEMBA / U
 |------|----------|
 | `src/` | Driver, evolution operators, DG components, MFEM extensions |
 | `external/mfem-geg/` | Required MFEM fork (submodule) |
-| `testData/maxwellInputs/` | Example simulation cases (JSON + mesh per folder) |
+| `testData/testInputs/` | Cases loaded by the tests (JSON + mesh per folder) |
+| `testData/maxwellInputs/` | Local exploration cases. Not part of the published tree |
 | `testData/rcsInputs/` | Offline `opensemba_rcs` JSON (frequency/angle sweeps) |
 | `test/` | Unit and integration tests (GoogleTest) |
 | `docs/` | Input format, tools, and feature usage notes |
@@ -31,8 +32,9 @@ Requires METIS 5 and HYPRE built from source; set `METIS_DIR` and `HYPRE_DIR` be
 wget https://github.com/mfem/tpls/raw/gh-pages/metis-5.1.0.tar.gz
 tar -zxvf metis-5.1.0.tar.gz
 cd metis-5.1.0
-make BUILDDIR=lib config
-make BUILDDIR=lib
+# CMake 4 rejects this release's cmake_minimum_required() unless the floor is set.
+CMAKE_POLICY_VERSION_MINIMUM=3.5 make BUILDDIR=lib config
+CMAKE_POLICY_VERSION_MINIMUM=3.5 make BUILDDIR=lib
 cp lib/libmetis/libmetis.a lib/
 export METIS_DIR=$PWD
 ```
@@ -42,7 +44,8 @@ export METIS_DIR=$PWD
 wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.31.0.tar.gz
 tar -zxvf v2.31.0.tar.gz
 cd hypre-2.31.0/src
-./configure --disable-fortran
+# GCC 15 defaults to C23, where Pilut's typedef of bool is invalid.
+./configure --disable-fortran CFLAGS="-O2 -std=gnu11"
 make -j $(nproc)
 export HYPRE_DIR=$PWD/hypre
 ```
@@ -97,18 +100,18 @@ Built automatically from `external/mfem-geg`. For an external install: `-DSEMBA_
 
 ## Running a case
 
-Cases live under `testData/maxwellInputs/<case_name>/` with matching `<case_name>.json` and mesh file.
+Published cases live under `testData/testInputs/<case_name>/` with matching `<case_name>.json` and mesh file. Exploration cases stay in `testData/maxwellInputs/` on a local checkout.
 
 Full JSON reference: **[docs/json-input-format.md](docs/json-input-format.md)**.
 
 JSON units that are easy to get wrong:
 
-- **Lorentz:** `materials[].lorentz` with either Hz (`f_p`, `f_1`, `gamma`) or rad/s (`omega_p`, `omega_1`, `gamma`). Do not mix. Hz `gamma` is a frequency, converted as $2\pi f$ like the other two rates. Example: [3D_RCS_Lorentz_G2](testData/maxwellInputs/3D_RCS_Lorentz_G2/3D_RCS_Lorentz_G2.json).
-- **Gaussian:** `f_1e` (Hz at 1/e incident power) or `spread` (light-metres). If both are set, `f_1e` wins and a warning is printed; an under-resolved pulse also warns and continues.
+- **Lorentz & Drude:** `materials[].lorentz` (or `materials[].drude` with $\omega_1 = 0$) with either Hz (`f_p`, `f_1`, `gamma` / `nu_c`) or rad/s (`omega_p`, `omega_1`, `gamma` / `nu_c`). Do not mix. `gamma` / `nu_c` is the collision frequency in $\ddot{P}+\gamma\dot{P}+\omega_1^2 P=\omega_p^2 E$. Hz `gamma` is that frequency, converted as $2\pi f$ like the other rates. Any rate may also be a spatial profile object (`constant`, `gaussian`, `positive_gaussian_derivative`, `ramc_61km_*`, `ramc_50km_*`). Details: **[docs/dispersive-materials.md](docs/dispersive-materials.md)**.
+- **Gaussian:** `f_1e` (Hz at 1/e incident power) or `spread` (light-metres). If both are set, `f_1e` wins and a warning is printed; an under-resolved pulse also warns and continues. Details: **[docs/tfsf-and-sources.md](docs/tfsf-and-sources.md)**.
 
 Example:
 ```sh
-./build/gnu-release-mpi/bin/opensemba_dgtd -i testData/maxwellInputs/1D_PEC/1D_PEC.json
+./build/gnu-release-mpi/bin/opensemba_dgtd -i testData/testInputs/1D_PEC/1D_PEC.json
 ```
 
 CUDA builds (`gnu-release-cuda`, `gnu-release-cuda-sm120`, and the matching debug presets) default to `--device cuda`. Override with `--device cpu` or `--device omp` if you need the host. MPI-only binaries still default to `cpu`.
@@ -127,14 +130,14 @@ Offline far-field / RCS from an existing `rcssurface` export. The Maxwell case m
 
 `exports/SimulationData/<runmode>/<casename>/RCSSurface/<probe_name>/rank*/surface_data.bin`
 
-exists. The post-processor also reads the case JSON at `testData/maxwellInputs/<casename>/<casename>.json` (plane-wave data and probe names).
+exists. The post-processor reads the case JSON from `testData/testInputs/<casename>/<casename>.json`, then from `testData/maxwellInputs/<casename>/<casename>.json` (plane-wave data and probe names).
 
 RCS input files live under `testData/rcsInputs/` (often `*.rcs.json`). Full parameter reference: **[docs/json-input-format.md](docs/json-input-format.md#offline-rcs-json-opensemba_rcs)**.
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `runmode` | yes | Export folder segment (e.g. `cuda-1`, `single-core`, `mpi-8`) |
-| `casename` | yes | Must match `testData/maxwellInputs/<casename>/` and the export tree |
+| `casename` | yes | Case folder under `testData/testInputs/` or local `testData/maxwellInputs/`, and the export tree |
 | `frequencies` | yes | `{ start, end, steps }` in Hz (`steps` = linspace count) |
 | `angles` | yes | `theta` / `phi` each `{ start, end, steps }` in radians |
 | `max_time` | no | Keep snapshots with time ≤ this value |
@@ -155,8 +158,14 @@ Results are written under the same probe directory as `farfield/` and `rcs/`.
 |-------|------|
 | All docs | [docs/README.md](docs/README.md) |
 | JSON input (solver + offline RCS) | [docs/json-input-format.md](docs/json-input-format.md) |
-| MOR → ParaView | [docs/mor2paraview.md](docs/mor2paraview.md) |
 | Box PML (mesh, JSON, absorption table) | [docs/designing-a-box-pml.md](docs/designing-a-box-pml.md) |
+| Dispersive materials (Debye, Lorentz, Drude, spatial profiles) | [docs/dispersive-materials.md](docs/dispersive-materials.md) |
+| SGBC multi-layer thin sheets and coatings | [docs/sgbc.md](docs/sgbc.md) |
+| TFSF and excitation sources | [docs/tfsf-and-sources.md](docs/tfsf-and-sources.md) |
+| RCS and near-to-far-field post-processing | [docs/rcs-and-farfield.md](docs/rcs-and-farfield.md) |
+| MOR → ParaView | [docs/mor2paraview.md](docs/mor2paraview.md) |
+| MOR → RCS | [docs/mor2rcs.md](docs/mor2rcs.md) |
+| How this solver uses MFEM | [docs/mfem-usage.md](docs/mfem-usage.md) |
 
 ## Funding
 

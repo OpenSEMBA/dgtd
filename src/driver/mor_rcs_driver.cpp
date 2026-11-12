@@ -3,12 +3,19 @@
 #include "MorUrReconstructor.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <unordered_set>
+
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+#include <omp.h>
+#endif
 
 #include <nlohmann/json.hpp>
 
@@ -137,6 +144,15 @@ int writeSnapshotsFromXDir(const MORRCSConfig& cfg,
     return written;
 }
 
+int writeSurfaceFromUrXr(
+    std::vector<double>& Ur,
+    const MorUrMeta& meta,
+    const std::vector<std::pair<int, std::string>>& snapshots,
+    const MORRCSConfig& cfg,
+    maxwell::Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
+    RCSSurfaceBinaryWriter& writer,
+    int expected_size);
+
 int writeSnapshotsFromUrXr(const MORRCSConfig& cfg,
                            maxwell::Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
                            RCSSurfaceBinaryWriter& writer,
@@ -197,24 +213,230 @@ int writeSnapshotsFromUrXr(const MORRCSConfig& cfg,
                   << " GiB for Ur alone; xfull not required)\n";
     }
 
-    const auto Ur = loadUrBinary(cfg.ur_path, meta.N, meta.r, meta.layout, meta.dtype);
+    auto Ur = loadUrBinary(cfg.ur_path, meta.N, meta.r, meta.layout, meta.dtype);
     const auto snapshots = collectIndexedSnapshots(cfg.xr_dir, "xr");
 
-    mfem::Vector x_full(expected_size);
-    int written = 0;
-    for (const auto& [cycle, path] : snapshots) {
-        const auto [time, xr] = loadAsciiSnapshot(path, static_cast<int>(meta.r));
-        if (cfg.max_time.has_value() && time > cfg.max_time.value()) {
+    if (!cfg.dump_x_dir.empty()) {
+        mfem::Vector x_full(expected_size);
+        int written = 0;
+        for (const auto& [cycle, path] : snapshots) {
+            const auto [time, xr] = loadAsciiSnapshot(path, static_cast<int>(meta.r));
+            if (cfg.max_time.has_value() && time > cfg.max_time.value()) {
+                continue;
+            }
+            urMatVec(Ur, meta.N, meta.r, xr, x_full);
+            fields.allDOFs() = x_full;
+            writer.writeSnapshot(time);
+            dumpAsciiSnapshot(cfg.dump_x_dir, cycle, time, x_full);
+            ++written;
+        }
+        return written;
+    }
+
+    return writeSurfaceFromUrXr(Ur, meta, snapshots, cfg, fields, writer, expected_size);
+}
+
+void loadXrColumn(const std::string& path, int r, double* column, double& time)
+{
+    std::ifstream ifs(path);
+    if (!ifs) {
+        throw std::runtime_error("Failed to open snapshot: " + path);
+    }
+    long long n = -1;
+    if (!(ifs >> time) || !(ifs >> n)) {
+        throw std::runtime_error("Invalid xr header in: " + path);
+    }
+    if (n != r) {
+        throw std::runtime_error(
+            "Snapshot size mismatch in " + path + ". Expected " +
+            std::to_string(r) + ", got " + std::to_string(n));
+    }
+    for (int j = 0; j < r; ++j) {
+        if (!(ifs >> column[j])) {
+            throw std::runtime_error("Unexpected EOF in: " + path);
+        }
+    }
+}
+
+int writeSurfaceFromUrXr(
+    std::vector<double>& Ur,
+    const MorUrMeta& meta,
+    const std::vector<std::pair<int, std::string>>& snapshots,
+    const MORRCSConfig& cfg,
+    maxwell::Fields<mfem::ParFiniteElementSpace, mfem::ParGridFunction>& fields,
+    RCSSurfaceBinaryWriter& writer,
+    int expected_size)
+{
+    mfem::Array<int> ids;
+    std::vector<double> signs;
+    writer.surfaceParentMap(ids, signs);
+
+    const int m = ids.Size();
+    const int ndofs = fields.ndofsPerComponent();
+    const int ncomp = 6;
+    const int rows = ncomp * m;
+    const int r = static_cast<int>(meta.r);
+    const int nsnap = static_cast<int>(snapshots.size());
+
+    if (m != writer.numSurfaceDofs()) {
+        throw std::runtime_error(
+            "Surface DOF map size " + std::to_string(m) +
+            " != writer surface size " + std::to_string(writer.numSurfaceDofs()));
+    }
+    if (ncomp * ndofs != expected_size || meta.N != expected_size) {
+        throw std::runtime_error("Field block size does not match Ur rows.");
+    }
+    for (int i = 0; i < m; ++i) {
+        if (ids[i] < 0 || ids[i] >= ndofs) {
+            throw std::runtime_error(
+                "Surface parent DOF " + std::to_string(ids[i]) + " is outside 0.." +
+                std::to_string(ndofs - 1));
+        }
+    }
+
+    if (mfem::Mpi::WorldRank() == 0) {
+        std::cout << "mor2rcs: RCS uses " << rows
+                  << " surface unknowns, not the full " << expected_size << '\n';
+    }
+
+    std::vector<double> A(static_cast<std::size_t>(rows) * static_cast<std::size_t>(r));
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+    for (int row = 0; row < rows; ++row) {
+        const int comp = row / m;
+        const int i = row - comp * m;
+        const std::int64_t g =
+            static_cast<std::int64_t>(ids[i]) +
+            static_cast<std::int64_t>(comp) * ndofs;
+        const double s = signs[static_cast<std::size_t>(i)];
+        double* dst = A.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(r);
+        for (int j = 0; j < r; ++j) {
+            dst[j] = s * Ur[static_cast<std::size_t>(g + static_cast<std::int64_t>(j) * meta.N)];
+        }
+    }
+
+    {
+        const int candidates[] = {
+            std::max(0, nsnap / 5),
+            std::max(0, nsnap / 2),
+            std::max(0, (4 * nsnap) / 5)
+        };
+        double strongest_ref = 0.0;
+        for (const int check_k : candidates) {
+            const auto [time, xr] = loadAsciiSnapshot(
+                snapshots[static_cast<std::size_t>(check_k)].second, r);
+            mfem::Vector x_full;
+            urMatVec(Ur, meta.N, r, xr, x_full);
+            fields.allDOFs() = x_full;
+            std::vector<double> transferred(static_cast<std::size_t>(rows));
+            writer.copyTransferredSurface(transferred.data());
+            double max_abs = 0.0;
+            double max_ref = 0.0;
+            for (int row = 0; row < rows; ++row) {
+                const double* a = A.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(r);
+                double sum = 0.0;
+                for (int j = 0; j < r; ++j) {
+                    sum += a[j] * xr[j];
+                }
+                const double ref = transferred[static_cast<std::size_t>(row)];
+                max_abs = std::max(max_abs, std::abs(sum - ref));
+                max_ref = std::max(max_ref, std::abs(ref));
+            }
+            strongest_ref = std::max(strongest_ref, max_ref);
+            if (mfem::Mpi::WorldRank() == 0) {
+                std::cout << std::scientific << std::setprecision(3)
+                          << "mor2rcs: transfer check at snapshot " << check_k
+                          << " max_abs=" << max_abs << " max_ref=" << max_ref << '\n';
+            }
+            if (max_abs > 1e-6 * std::max(1.0, max_ref)) {
+                throw std::runtime_error(
+                    "Surface Ur*xr does not match the RCS transfer map.");
+            }
+        }
+        if (strongest_ref < 1e-8) {
+            throw std::runtime_error(
+                "Surface transfer check never saw a nonzero field.");
+        }
+    }
+
+    std::vector<double>().swap(Ur);
+
+    std::vector<double> times(static_cast<std::size_t>(nsnap));
+    std::vector<double> X(static_cast<std::size_t>(r) * static_cast<std::size_t>(nsnap));
+    std::atomic<int> bad{-1};
+    std::string bad_msg;
+    if (mfem::Mpi::WorldRank() == 0) {
+        std::cout << "mor2rcs: reading " << nsnap << " reduced states\n";
+    }
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+#pragma omp parallel for schedule(dynamic, 32)
+#endif
+    for (int k = 0; k < nsnap; ++k) {
+        try {
+            loadXrColumn(snapshots[static_cast<std::size_t>(k)].second,
+                         r,
+                         X.data() + static_cast<std::size_t>(k) * static_cast<std::size_t>(r),
+                         times[static_cast<std::size_t>(k)]);
+        } catch (const std::exception& ex) {
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+#pragma omp critical
+#endif
+            if (bad.load() < 0) {
+                bad.store(k);
+                bad_msg = ex.what();
+            }
+        }
+    }
+    if (bad.load() >= 0) {
+        throw std::runtime_error(bad_msg);
+    }
+
+    std::vector<int> used;
+    used.reserve(static_cast<std::size_t>(nsnap));
+    for (int k = 0; k < nsnap; ++k) {
+        if (cfg.max_time.has_value() && times[static_cast<std::size_t>(k)] > cfg.max_time.value()) {
             continue;
         }
-        urMatVec(Ur, meta.N, meta.r, xr, x_full);
-        fields.allDOFs() = x_full;
-        writer.writeSnapshot(time);
-        if (!cfg.dump_x_dir.empty()) {
-            dumpAsciiSnapshot(cfg.dump_x_dir, cycle, time, x_full);
-        }
-        ++written;
+        used.push_back(k);
     }
+
+    const int batch = 512;
+    std::vector<double> Y(static_cast<std::size_t>(rows) * static_cast<std::size_t>(batch));
+    const auto t0 = std::chrono::steady_clock::now();
+    int written = 0;
+    for (int b0 = 0; b0 < static_cast<int>(used.size()); b0 += batch) {
+        const int nb = std::min(batch, static_cast<int>(used.size()) - b0);
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+        for (int row = 0; row < rows; ++row) {
+            const double* a = A.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(r);
+            for (int t = 0; t < nb; ++t) {
+                const int k = used[static_cast<std::size_t>(b0 + t)];
+                const double* x = X.data() + static_cast<std::size_t>(k) * static_cast<std::size_t>(r);
+                double sum = 0.0;
+                for (int j = 0; j < r; ++j) {
+                    sum += a[j] * x[j];
+                }
+                Y[static_cast<std::size_t>(row) + static_cast<std::size_t>(t) * static_cast<std::size_t>(rows)] = sum;
+            }
+        }
+        for (int t = 0; t < nb; ++t) {
+            const int k = used[static_cast<std::size_t>(b0 + t)];
+            writer.writePackedSnapshot(
+                times[static_cast<std::size_t>(k)],
+                Y.data() + static_cast<std::size_t>(t) * static_cast<std::size_t>(rows));
+        }
+        written += nb;
+        if (mfem::Mpi::WorldRank() == 0 && (written == nb || written % 8192 < batch || written == static_cast<int>(used.size()))) {
+            const double sec = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            std::cout << "mor2rcs: wrote " << written << " / " << used.size()
+                      << " surface snapshots in " << std::fixed << std::setprecision(1)
+                      << sec << " s\n";
+        }
+    }
+    writer.flush();
     return written;
 }
 
@@ -262,7 +484,9 @@ void runMORRCSPostProcessing(const MORRCSConfig& cfg)
             std::cout << ' ' << tag;
         }
         std::cout << '\n';
-        if (cfg.useUrReconstruct()) {
+        if (cfg.useUrReconstruct() && cfg.dump_x_dir.empty()) {
+            std::cout << "mor2rcs: mode=surface rows of Ur*xr\n";
+        } else if (cfg.useUrReconstruct()) {
             std::cout << "mor2rcs: mode=Ur*xr reconstruct-on-the-fly\n";
         } else {
             std::cout << "mor2rcs: mode=legacy ASCII --xdir\n";
