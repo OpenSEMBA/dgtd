@@ -40,6 +40,16 @@ namespace maxwell {
 	{
 		Array<int> dofs;
 		fes.GetElementDofs(id, dofs);
+		for (int i = 0; i < dofs.Size(); ++i) {
+			if (dofs[i] < 0) {
+				dofs[i] = -1 - dofs[i];
+			}
+		}
+		*this = FieldsElementMaps(in, fes, dofs);
+	}
+
+	FieldsElementMaps::FieldsElementMaps(const Vector& in, FiniteElementSpace& fes, const Array<int>& dofs)
+	{
 		const double* in_data = in.HostRead();
 		const int ndofs = fes.GetNDofs();
 

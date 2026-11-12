@@ -8,13 +8,16 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <map>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
@@ -406,9 +409,52 @@ void HesthavenEvolution::evaluateTFSF(double* e_jumps, double* h_jumps, int jump
 
 }
 
+void HesthavenEvolution::buildMergedCurvedMatrix()
+{
+	curved_merged_matrix_.reset();
+	curved_merged_row_to_out_.SetSize(0);
+	if (hestElemCurvedStorage_.empty()) {
+		return;
+	}
+
+	const int ndofs = fes_.GetNDofs();
+	const int nbrDofs = fes_.num_face_nbr_dofs;
+	const int blockSize = ndofs + nbrDofs;
+	const int ncomp = numberOfFieldComponents * numberOfMaxDimensions;
+	const int fullSize = ncomp * blockSize;
+
+	int n_rows = 0;
+	for (const auto& curved : hestElemCurvedStorage_) {
+		n_rows += curved.dofs.Size() * ncomp;
+	}
+	if (n_rows == 0) {
+		return;
+	}
+
+	curved_merged_matrix_ = std::make_unique<SparseMatrix>(n_rows, fullSize);
+	curved_merged_row_to_out_.SetSize(n_rows);
+
+	int row = 0;
+	for (const auto& curved : hestElemCurvedStorage_) {
+		for (int ii = 0; ii < curved.dofs.Size(); ++ii) {
+			const int dof = curved.dofs[ii];
+			for (int c = 0; c < ncomp; ++c) {
+				const int global_row = c * ndofs + dof;
+				Array<int> cols;
+				Vector vals;
+				curved.matrix.GetRow(global_row, cols, vals);
+				curved_merged_matrix_->SetRow(row, cols, vals);
+				curved_merged_row_to_out_[row] = global_row;
+				++row;
+			}
+		}
+	}
+	curved_merged_matrix_->Finalize();
+}
+
 void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 {
-	if (hestElemCurvedStorage_.empty()) {
+	if (!curved_merged_matrix_ || curved_merged_matrix_->Height() == 0) {
 		return;
 	}
 
@@ -416,7 +462,7 @@ void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 	const int nbrDofs = fes_.num_face_nbr_dofs;
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-	if (gpu_.curved_initialized && curved_merged_matrix_ &&
+	if (gpu_.curved_initialized &&
 	    mfem::Device::Allows(mfem::Backend::CUDA) && out.UseDevice()) {
 		hesthaven_add_curved_gpu(gpu_, *curved_merged_matrix_, eOld_, hOld_, out,
 		                         ndofs, nbrDofs);
@@ -425,9 +471,8 @@ void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 #endif
 
 	const int blockSize = ndofs + nbrDofs;
-	const int localSize = numberOfFieldComponents * numberOfMaxDimensions * ndofs;
 	const int fullSize = numberOfFieldComponents * numberOfMaxDimensions * blockSize;
-	const int ncomp = numberOfFieldComponents * numberOfMaxDimensions;
+	const int n_rows = curved_merged_matrix_->Height();
 
 	Vector ext_in(fullSize);
 	ext_in.UseDevice(false);
@@ -441,8 +486,10 @@ void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 		}
 	}
 
-	Vector curved_out(localSize);
-	curved_out.UseDevice(false);
+	Vector curved_y(n_rows);
+	curved_y.UseDevice(false);
+	curved_y = 0.0;
+	curved_merged_matrix_->AddMult(ext_in, curved_y);
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	const bool out_is_device =
@@ -452,17 +499,10 @@ void HesthavenEvolution::addCurvedElementContributions(Vector& out) const
 	}
 #endif
 
-	double* out_data = out.HostWrite();
-	for (const auto& curved : hestElemCurvedStorage_) {
-		curved_out = 0.0;
-		curved.matrix.AddMult(ext_in, curved_out);
-		const double* co = curved_out.HostRead();
-		for (int ii = 0; ii < curved.dofs.Size(); ++ii) {
-			const int dof = curved.dofs[ii];
-			for (int c = 0; c < ncomp; ++c) {
-				out_data[c * ndofs + dof] += co[c * ndofs + dof];
-			}
-		}
+	double* out_data = out.HostReadWrite();
+	const double* y = curved_y.HostRead();
+	for (int row = 0; row < n_rows; ++row) {
+		out_data[curved_merged_row_to_out_[row]] += y[row];
 	}
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
@@ -496,54 +536,107 @@ double getReferenceVolume(const Element::Type geom)
 	}
 }
 
-void HesthavenEvolution::storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement& hestElem)
+void HesthavenEvolution::storeDirectionalMatrices(const DynamicMatrix& refInvMass, HesthavenElement& hestElem)
 {
-	// Single-element submesh: keep assembly serial on this rank (MPI_COMM_SELF).
-	Model model(*subFES.GetMesh(), GeomTagToMaterialInfo{}, GeomTagToBoundaryInfo{}, nullptr, MPI_COMM_SELF);
-	Probes probes;
-	ProblemDescription pd(model, probes, srcmngr_.sources, opts_);
-	DGOperatorFactory<FiniteElementSpace> dgops(pd, subFES);
+	// Affine / linear elements: assemble DerivativeIntegrator on the parent element
+	// (same integrator as DGOperatorFactory::buildDerivativeSubOperator) — no SubMesh.
+	const int e = hestElem.id;
+	const FiniteElement& fe = *fes_.GetFE(e);
+	ElementTransformation& T = *fes_.GetElementTransformation(e);
+	const int dim = fes_.GetMesh()->Dimension();
+	const int nd = fe.GetDof();
+	ConstantCoefficient one(1.0);
+	const double scale = getReferenceVolume(hestElem.type) / hestElem.vol;
+
 	for (int d = X; d <= Z; d++) {
-		auto denseMat = dgops.buildDerivativeSubOperator<BilinearForm>(d)->SpMat().ToDenseMatrix();
-		DynamicMatrix dirMat = refInvMass * toEigen(*denseMat) * getReferenceVolume(hestElem.type) / hestElem.vol;
-		delete denseMat;
+		DenseMatrix elmat(nd);
+		elmat = 0.0;
+		if (d < dim) {
+			DerivativeIntegrator integ(one, d);
+			integ.AssembleElementMatrix(fe, T, elmat);
+		}
+		DynamicMatrix dirMat = refInvMass * toEigen(elmat) * scale;
 		StorageIterator it = matrixStorage_.find(dirMat);
 		if (it == matrixStorage_.end()) {
 			matrixStorage_.insert(dirMat);
 			it = matrixStorage_.find(dirMat);
 			hestElem.dir[d] = &(*it);
-		}
-		else {
+		} else {
 			hestElem.dir[d] = &(*it);
-		} 
+		}
 	}
 }
 
-void storeFaceInformation(FiniteElementSpace& subFES, HesthavenElement& hestElem)
+void HesthavenEvolution::buildLinearDirGroups()
 {
+	linear_dir_groups_.clear();
+	using Key = std::tuple<const DynamicMatrix*, const DynamicMatrix*, const DynamicMatrix*>;
+	std::map<Key, std::vector<int>> groups;
+	for (int e = 0; e < static_cast<int>(hestElemLinearStorage_.size()); ++e) {
+		const auto& he = hestElemLinearStorage_[static_cast<size_t>(e)];
+		groups[Key{he.dir[0], he.dir[1], he.dir[2]}].push_back(e);
+	}
+	linear_dir_groups_.reserve(groups.size());
+	for (auto& kv : groups) {
+		linear_dir_groups_.push_back(std::move(kv.second));
+	}
+	if (Mpi::WorldRank() == 0 && !linear_dir_groups_.empty()) {
+		std::size_t max_g = 0;
+		for (const auto& g : linear_dir_groups_) {
+			max_g = std::max(max_g, g.size());
+		}
+		std::cout << "Hesthaven Mult: " << linear_dir_groups_.size()
+		          << " dir-groups (max size " << max_g << ") for batched volume GEMM\n"
+		          << std::flush;
+	}
+}
 
-	int numFaces, numNodesAtFace;
-	subFES.GetMesh()->SetCurvature(1);
-	const auto& dim = subFES.GetMesh()->Dimension();
-	dim == 2 ? numFaces = subFES.GetMesh()->GetNEdges() : numFaces = subFES.GetMesh()->GetNFaces();
-	dim == 2 ? numNodesAtFace = numNodesAtFace = subFES.FEColl()->GetOrder() + 1 : numNodesAtFace = getFaceNodeNumByGeomType(subFES);
+void HesthavenEvolution::storeFaceInformation(HesthavenElement& hestElem)
+{
+	Mesh& mesh = *fes_.GetMesh();
+	const int e = hestElem.id;
+	const int dim = mesh.Dimension();
+
+	Array<int> faces, orients;
+	if (dim == 2) {
+		mesh.GetElementEdges(e, faces, orients);
+	} else {
+		mesh.GetElementFaces(e, faces, orients);
+	}
+	const int numFaces = faces.Size();
+	const int numNodesAtFace = (dim == 2)
+		? fes_.FEColl()->GetOrder() + 1
+		: getFaceNodeNumByGeomType(fes_);
+
 	initNormalVectors(hestElem, numFaces * numNodesAtFace);
 	initFscale(hestElem, numFaces * numNodesAtFace);
-	auto J{ subFES.GetMesh()->GetElementTransformation(0)->Weight() };
 
-	ElementTransformation* faceTrans;
+	const double J = fes_.GetElementTransformation(e)->Weight();
+
 	for (int f = 0; f < numFaces; f++) {
+		const int gf = faces[f];
+		ElementTransformation* faceTrans = (dim == 2)
+			? mesh.GetEdgeTransformation(gf)
+			: mesh.GetFaceTransformation(gf);
+		const auto* ir = &IntRules.Get(
+			faceTrans->GetGeometryType(),
+			faceTrans->OrderW() + 2 * faceTrans->Order());
+		faceTrans->SetIntPoint(&ir->IntPoint(0));
 
 		Vector normal(dim);
-		dim == 2 ? faceTrans = subFES.GetMesh()->GetEdgeTransformation(f) : faceTrans = subFES.GetMesh()->GetFaceTransformation(f);
-		auto ir{ &IntRules.Get(faceTrans->GetGeometryType(), faceTrans->OrderW() + 2 * faceTrans->Order()) };
-		faceTrans->SetIntPoint(&ir->IntPoint(0)); // Face is always order 1, thus we don't need more than one point to calculate the normal at the face.
 		CalcOrtho(faceTrans->Jacobian(), normal);
-		auto sJ{ faceTrans->Weight() };
 
-		for (auto b= 0; b < numNodesAtFace; b++) { //hesthaven requires normals to be stored once per node at face
+		// Parent-mesh edge/face orientation is global; flip so n is outward for element e
+		// (MFEM FaceElementTransformations: normal points Elem1 → Elem2).
+		FaceElementTransformations* fet = mesh.GetFaceElementTransformations(gf);
+		if (fet != nullptr && fet->Elem1No != e) {
+			normal *= -1.0;
+		}
+
+		const double sJ = faceTrans->Weight();
+		for (int b = 0; b < numNodesAtFace; b++) {
 			hestElem.normals[X][f * numNodesAtFace + b] = normal[0] / sJ;
-			hestElem.fscale[f * numNodesAtFace + b] = sJ * 2.0 / J; //likewise for fscale, surface per volume ratio per node at face
+			hestElem.fscale[f * numNodesAtFace + b] = sJ * 2.0 / J;
 			if (dim >= 2) {
 				hestElem.normals[Y][f * numNodesAtFace + b] = normal[1] / sJ;
 			}
@@ -856,31 +949,44 @@ void HesthavenEvolution::ImplicitSolve(const double dt, const Vector& x, Vector&
 			"SGBC is integrated inside explicit RK4. Use ode_type RK4.");
 	}
 	const int n = Height();
-	Vector source(n);
-	Vector zero(n);
-	zero = 0.0;
-	Mult(zero, source);
+	const bool on_device = GetMemoryClass() == mfem::MemoryClass::DEVICE;
+
+	if (implicit_rhs_.Size() != n) {
+		implicit_rhs_.SetSize(n);
+		implicit_rhs_.UseDevice(on_device);
+		implicit_tmp_.SetSize(n);
+		implicit_tmp_.UseDevice(on_device);
+	}
+	if (k.Size() != n) {
+		k.SetSize(n);
+		k.UseDevice(on_device);
+	}
+
+	// Inhomogeneous sources: Mult(0). Reused as RHS bias; homogeneous A via Mult(v)-source.
+	implicit_tmp_ = 0.0;
+	Mult(implicit_tmp_, implicit_rhs_);
 	auto apply_a = [&](const Vector& v, Vector& av) {
 		Mult(v, av);
-		av -= source;
+		av -= implicit_rhs_;
 	};
 	apply_a(x, k);
-	k += source;
+	k += implicit_rhs_;
 
 	class HomogeneousJacobian final : public mfem::Operator {
 		std::function<void(const Vector&, Vector&)> apply_;
 		const double dt_;
-		mutable Vector tmp_;
+		mfem::Vector& tmp_;
 	public:
-		HomogeneousJacobian(int size, std::function<void(const Vector&, Vector&)> apply, double step)
-			: mfem::Operator(size), apply_(std::move(apply)), dt_(step), tmp_(size) {}
+		HomogeneousJacobian(int size, std::function<void(const Vector&, Vector&)> apply,
+		                    double step, mfem::Vector& tmp)
+			: mfem::Operator(size), apply_(std::move(apply)), dt_(step), tmp_(tmp) {}
 		void Mult(const Vector& v, Vector& jv) const override
 		{
 			apply_(v, tmp_);
 			jv = v;
 			jv.Add(-dt_, tmp_);
 		}
-	} jacobian(n, apply_a, dt);
+	} jacobian(n, apply_a, dt, implicit_tmp_);
 
 	mfem::GMRESSolver gmres;
 	gmres.SetOperator(jacobian);
@@ -888,6 +994,7 @@ void HesthavenEvolution::ImplicitSolve(const double dt, const Vector& x, Vector&
 	gmres.SetMaxIter(400);
 	gmres.SetKDim(60);
 	gmres.SetPrintLevel(0);
+	implicit_cached_dt_ = dt;
 	Vector rhs(k);
 	gmres.Mult(rhs, k);
 }
@@ -901,13 +1008,9 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 	opts_(opts)
 {
 
-	Array<int> elementMarker;
-	elementMarker.Append(hesthavenMeshingTag);
-
 	const auto* cmesh = &model_.getConstMesh();
 	ParMesh& mesh = model_.getMesh();
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
-	auto attMap{ mapOriginalAttributes(mesh) };
 
 	positions_ = buildDoFPositions(fes_);
 	auto elemOrderList = initCurvedAndLinearElementsLists(fes_, positions_);
@@ -918,58 +1021,53 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
 
-	bool allElementsSameGeomType = true; 
+	bool allElementsSameGeomType = true;
 	{
 		const auto firstElemGeomType = cmesh->GetElementGeometry(0);
-		for (auto e= 0; e < cmesh->GetNE(); e++)
-		{
-			if (firstElemGeomType != cmesh->GetElementGeometry(e))
-			{
+		for (auto e = 0; e < cmesh->GetNE(); e++) {
+			if (firstElemGeomType != cmesh->GetElementGeometry(e)) {
 				allElementsSameGeomType = false;
 			}
 		}
 	}
 
 	DynamicMatrix refInvMass;
-	if (allElementsSameGeomType)
-	{
-		refInvMass = assembleHesthavenRefElemInvMassMatrix(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
-		refLIFT_ = refInvMass * assembleHesthavenRefElemEmat(cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
+	if (allElementsSameGeomType) {
+		refInvMass = assembleHesthavenRefElemInvMassMatrix(
+			cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
+		refLIFT_ = refInvMass * assembleHesthavenRefElemEmat(
+			cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
 	}
-
-	hestElemLinearStorage_.resize(linearElements_.Size());
 
 	const int n_assemble = linearElements_.Size();
 	if (Mpi::WorldRank() == 0) {
-		std::cout << "Hesthaven init: assembling " << n_assemble << " linear elements...\n"
+		std::cout << "Hesthaven init: assembling " << n_assemble
+		          << " linear elements (parent-mesh affine)...\n"
 		          << std::flush;
 	}
 
 	std::atomic<int> assembled_count{0};
 	const int progress_stride = std::max(1, n_assemble / 16);
 
-	auto assembleOneElement = [&](int e, Mesh& work_mesh) {
+	auto assembleOneElement = [&](int e) {
 		HesthavenElement hestElem;
 		hestElem.id = linearElements_[e];
 		hestElem.type = cmesh->GetElementType(linearElements_[e]);
-
-		work_mesh.SetAttribute(linearElements_[e], hesthavenMeshingTag);
-		hestElem.vol = work_mesh.GetElementVolume(linearElements_[e]);
-		auto sm{ SubMesh::CreateFromDomain(work_mesh, elementMarker) };
-		restoreOriginalAttributesAfterSubMeshing(linearElements_[e], work_mesh, attMap);
-		FiniteElementSpace subFES(&sm, fec);
-
-		sm.bdr_attributes.SetSize(subFES.GetNF());
-		for (auto f = 0; f < subFES.GetNF(); f++) {
-			sm.bdr_attributes[f] = f + 1;
-			sm.SetBdrAttribute(f, sm.bdr_attributes[f]);
-		}
+		hestElem.vol = mesh.GetElementVolume(linearElements_[e]);
 
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
 		#pragma omp critical(hesthaven_matrix_dedup)
 #endif
-		storeDirectionalMatrices(subFES, refInvMass, hestElem);
-		storeFaceInformation(subFES, hestElem);
+		{
+			storeDirectionalMatrices(refInvMass, hestElem);
+		}
+		storeFaceInformation(hestElem);
+		fes_.GetElementDofs(hestElem.id, hestElem.dofs);
+		for (int i = 0; i < hestElem.dofs.Size(); ++i) {
+			if (hestElem.dofs[i] < 0) {
+				hestElem.dofs[i] = -1 - hestElem.dofs[i];
+			}
+		}
 		hestElemLinearStorage_[e] = std::move(hestElem);
 
 		const int done = ++assembled_count;
@@ -982,62 +1080,64 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
 	bool use_parallel_assembly = (n_assemble > 32);
 #ifdef SEMBA_DGTD_ENABLE_CUDA
-	// MFEM mesh/DG assembly is not thread-safe with the CUDA device backend enabled.
+	// MFEM mesh/FE accessors are not assumed thread-safe with the CUDA device backend.
 	if (mfem::Device::Allows(mfem::Backend::CUDA)) {
 		use_parallel_assembly = false;
 	}
 #endif
 	if (use_parallel_assembly) {
-		#pragma omp parallel
-		{
-			Mesh work_mesh;
-			#pragma omp for schedule(dynamic, 64)
-			for (int e = 0; e < linearElements_.Size(); e++) {
-				#pragma omp critical(hesthaven_mesh_copy)
-				{
-					work_mesh = Mesh(mesh);
-				}
-				assembleOneElement(e, work_mesh);
-			}
+		#pragma omp parallel for schedule(dynamic, 64)
+		for (int e = 0; e < linearElements_.Size(); e++) {
+			assembleOneElement(e);
 		}
 	} else
 #endif
 	{
 		for (int e = 0; e < linearElements_.Size(); e++) {
-			Mesh work_mesh(mesh);
-			assembleOneElement(e, work_mesh);
+			assembleOneElement(e);
 		}
 	}
 
-	if (curvedElements_.size()) {
-		Probes probes;
-		ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
-		DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes_);
-		auto global = dgops.buildGlobalOperator();
+	buildLinearDirGroups();
 
-		const int ndofs = fes_.GetNDofs();
-		const int nbrDofs = fes_.num_face_nbr_dofs;
-		const int blockSize = ndofs + nbrDofs;
-		const int localSize = numberOfFieldComponents * numberOfMaxDimensions * ndofs;
-		const int fullSize = numberOfFieldComponents * numberOfMaxDimensions * blockSize;
+	// buildGlobalOperator() starts with ExchangeFaceNbrData — every rank must enter
+	// when any rank has promoted/curved elements (SGBC / IBFI / centered SMA), or MPI deadlocks.
+	{
+		const MPI_Comm comm = fes_.GetParMesh()->GetComm();
+		int need_assembled = curvedElements_.empty() ? 0 : 1;
+		if (Mpi::WorldSize() > 1) {
+			MPI_Allreduce(MPI_IN_PLACE, &need_assembled, 1, MPI_INT, MPI_MAX, comm);
+		}
+		if (need_assembled) {
+			Probes probes;
+			ProblemDescription pd(model_, probes, srcmngr_.sources, opts_);
+			DGOperatorFactory<ParFiniteElementSpace> dgops(pd, fes_);
+			auto global = dgops.buildGlobalOperator();
 
-		for (const auto& [e, dofs]: curvedElements_) {
-			HesthavenCurvedElement hestCurElem;
-			hestCurElem.id = e;
-			hestCurElem.type = cmesh->GetElementType(e);
-			hestCurElem.dofs = dofs;
-			SparseMatrix spmat(localSize, fullSize);
-			Array<int> cols;
-			Vector vals;
-			for (auto d : dofs) {
-				for (auto ft = 0; ft < numberOfFieldComponents * numberOfMaxDimensions; ft++) {
-					global->GetRow(d + ft * ndofs, cols, vals);
-					spmat.SetRow(d + ft * ndofs, cols, vals);
+			const int ndofs = fes_.GetNDofs();
+			const int nbrDofs = fes_.num_face_nbr_dofs;
+			const int blockSize = ndofs + nbrDofs;
+			const int localSize = numberOfFieldComponents * numberOfMaxDimensions * ndofs;
+			const int fullSize = numberOfFieldComponents * numberOfMaxDimensions * blockSize;
+
+			for (const auto& [e, dofs] : curvedElements_) {
+				HesthavenCurvedElement hestCurElem;
+				hestCurElem.id = e;
+				hestCurElem.type = cmesh->GetElementType(e);
+				hestCurElem.dofs = dofs;
+				SparseMatrix spmat(localSize, fullSize);
+				Array<int> cols;
+				Vector vals;
+				for (auto d : dofs) {
+					for (auto ft = 0; ft < numberOfFieldComponents * numberOfMaxDimensions; ft++) {
+						global->GetRow(d + ft * ndofs, cols, vals);
+						spmat.SetRow(d + ft * ndofs, cols, vals);
+					}
 				}
+				spmat.Finalize();
+				hestCurElem.matrix = std::move(spmat);
+				hestElemCurvedStorage_.push_back(hestCurElem);
 			}
-			spmat.Finalize();
-			hestCurElem.matrix = std::move(spmat);
-			hestElemCurvedStorage_.push_back(hestCurElem);
 		}
 	}
 
@@ -1101,10 +1201,13 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 	if (!model_.getSGBCProperties().empty()) {
 		static const Probes empty_probes;
 		const Probes& sgbc_probes = probes != nullptr ? *probes : empty_probes;
+		sgbc_host_opts_ = std::make_unique<EvolutionOptions>(opts_);
+		sgbc_host_opts_->hesthaven_sgbc_host = true;
 		sgbc_engine_ = std::make_unique<GlobalEvolution>(
-			fes_, model_, srcmngr_, opts_, sgbc_probes, final_time);
+			fes_, model_, srcmngr_, *sgbc_host_opts_, sgbc_probes, final_time);
 	}
 
+	buildMergedCurvedMatrix();
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	if (linearElements_.Size() > 0 && refLIFT_.size() > 0) {
 		initGPUData();
@@ -1265,7 +1368,8 @@ mfem::MemoryClass HesthavenEvolution::GetMemoryClass() const
 void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 {
 #ifdef SHOW_TIMER_INFORMATION
-	mfem::StopWatch timerTotal, timerExchange, timerJumps, timerElements, timerCurved;
+	mfem::StopWatch timerTotal, timerExchange, timerJumps, timerElements;
+	mfem::StopWatch timerPromoted, timerAux, timerSgbc;
 	timerTotal.Start();
 	double tfsf_abs_sum_e = 0.0;
 	double tfsf_abs_sum_h = 0.0;
@@ -1303,10 +1407,8 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 		std::fill(out_tail + 6 * ndofs, out_tail + static_cast<int>(Height()), 0.0);
 	}
 
-	auto scatterElem = [&](const Eigen::VectorXd& data, ElementId id,
+	auto scatterElem = [&](const Eigen::VectorXd& data, const Array<int>& dofs,
 	                       Eigen::Map<Eigen::VectorXd>& out_map) {
-		Array<int> dofs;
-		fes_.GetElementDofs(id, dofs);
 		for (int i = 0; i < dofs.Size(); ++i) {
 			out_map[dofs[i]] += data[i];
 		}
@@ -1334,21 +1436,19 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 	timerElements.Start();
 #endif
 
-#ifdef SEMBA_DGTD_ENABLE_OPENMP
-	#pragma omp parallel for schedule(static) if(linearElements_.Size() > 32)
-#endif
-	for (int e = 0 ; e < linearElements_.Size(); e++) {
-		auto elemFluxSize{ hestElemLinearStorage_[e].fscale.size() };
+	auto processOneLinear = [&](int e) {
+		const auto& he = hestElemLinearStorage_[static_cast<size_t>(e)];
+		auto elemFluxSize{ he.fscale.size() };
 
-		const auto jumpsElem{ HesthavenElementJumps(jumps, hestElemLinearStorage_[e].id, elemFluxSize) };
-		const auto fieldsElem{ FieldsElementMaps(in, fes_, hestElemLinearStorage_[e].id) };
+		const auto jumpsElem{ HesthavenElementJumps(jumps, he.id, elemFluxSize) };
+		const auto fieldsElem{ FieldsElementMaps(in, fes_, he.dofs) };
 
 		Eigen::VectorXd ndotdH(jumpsElem.h_[X].size()), ndotdE(jumpsElem.e_[X].size());
 		ndotdH.setZero(); ndotdE.setZero();
 
 		for (int d = X; d <= Z; d++) {
-			ndotdH += hestElemLinearStorage_[e].normals[d].asDiagonal() * jumpsElem.h_[d];
-			ndotdE += hestElemLinearStorage_[e].normals[d].asDiagonal() * jumpsElem.e_[d];
+			ndotdH += he.normals[d].asDiagonal() * jumpsElem.h_[d];
+			ndotdE += he.normals[d].asDiagonal() * jumpsElem.e_[d];
 		}
 
 		HesthavenFields elemFlux(elemFluxSize);
@@ -1357,31 +1457,27 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const Eigen::VectorXd& norx = hestElemLinearStorage_[e].normals[x];
-			const Eigen::VectorXd& nory = hestElemLinearStorage_[e].normals[y];
-			const Eigen::VectorXd& norz = hestElemLinearStorage_[e].normals[z];
+			const Eigen::VectorXd& norx = he.normals[x];
+			const Eigen::VectorXd& nory = he.normals[y];
+			const Eigen::VectorXd& norz = he.normals[z];
 
 			elemFlux.h_[x] = -1.0 * nory.asDiagonal() * jumpsElem.e_[z] +       norz.asDiagonal() * jumpsElem.e_[y] + alpha * (jumpsElem.h_[x] - ndotdH.asDiagonal() * norx);
 			elemFlux.e_[x] =        nory.asDiagonal() * jumpsElem.h_[z] - 1.0 * norz.asDiagonal() * jumpsElem.h_[y] + alpha * (jumpsElem.e_[x] - ndotdE.asDiagonal() * norx);
-
 		}
 
 		for (int x = X; x <= Z; x++) {
 			int y = (x + 1) % 3;
 			int z = (x + 2) % 3;
 
-			const DynamicMatrix& dir1 = *hestElemLinearStorage_[e].dir[y];
-			const DynamicMatrix& dir2 = *hestElemLinearStorage_[e].dir[z];
+			const DynamicMatrix& dir1 = *he.dir[y];
+			const DynamicMatrix& dir2 = *he.dir[z];
 			const HesthavenLinearMaterial& mat = auxiliary_.linearMaterial(e);
 
-			if (!mat.active()) {
-				const Eigen::VectorXd& hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.h_[x]);
-				const Eigen::VectorXd& eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.e_[x]);
-				scatterElem(hResult, hestElemLinearStorage_[e].id, outMaps.h_[x]);
-				scatterElem(eResult, hestElemLinearStorage_[e].id, outMaps.e_[x]);
-			} else {
-				Eigen::VectorXd hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.h_[x]);
-				Eigen::VectorXd eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(hestElemLinearStorage_[e].fscale, elemFlux.e_[x]);
+			Eigen::VectorXd fluxH = elemFlux.h_[x];
+			Eigen::VectorXd fluxE = elemFlux.e_[x];
+			Eigen::VectorXd hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(he.fscale, fluxH);
+			Eigen::VectorXd eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(he.fscale, fluxE);
+			if (mat.active()) {
 				if (mat.inv_mu != 1.0) {
 					hResult *= mat.inv_mu;
 				}
@@ -1391,20 +1487,123 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 				if (mat.sigma_over_eps != 0.0) {
 					eResult -= mat.sigma_over_eps * fieldsElem.e_[x];
 				}
-				scatterElem(hResult, hestElemLinearStorage_[e].id, outMaps.h_[x]);
-				scatterElem(eResult, hestElemLinearStorage_[e].id, outMaps.e_[x]);
 			}
+			scatterElem(hResult, he.dofs, outMaps.h_[x]);
+			scatterElem(eResult, he.dofs, outMaps.e_[x]);
+		}
+	};
+
+	// Batched volume GEMM for groups sharing dir*; flux/LIFT stay per-element.
+	constexpr int kBatchMin = 8;
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+	#pragma omp parallel for schedule(dynamic) if(linear_dir_groups_.size() > 1)
+#endif
+	for (int gi = 0; gi < static_cast<int>(linear_dir_groups_.size()); ++gi) {
+		const auto& group = linear_dir_groups_[static_cast<size_t>(gi)];
+		if (static_cast<int>(group.size()) < kBatchMin) {
+			for (int e : group) {
+				processOneLinear(e);
+			}
+			continue;
 		}
 
+		const auto& he0 = hestElemLinearStorage_[static_cast<size_t>(group[0])];
+		const int n = he0.dofs.Size();
+		const int k = static_cast<int>(group.size());
+		const int flux_n = static_cast<int>(he0.fscale.size());
+
+		std::vector<FieldsElementMaps> fields;
+		std::vector<HesthavenFields> fluxes;
+		fields.reserve(static_cast<size_t>(k));
+		fluxes.reserve(static_cast<size_t>(k));
+		for (int e : group) {
+			const auto& he = hestElemLinearStorage_[static_cast<size_t>(e)];
+			Eigen::Index flux_size = he.fscale.size();
+			const auto jumpsElem{ HesthavenElementJumps(jumps, he.id, flux_size) };
+			fields.emplace_back(in, fes_, he.dofs);
+
+			Eigen::VectorXd ndotdH(jumpsElem.h_[X].size()), ndotdE(jumpsElem.e_[X].size());
+			ndotdH.setZero(); ndotdE.setZero();
+			for (int d = X; d <= Z; d++) {
+				ndotdH += he.normals[d].asDiagonal() * jumpsElem.h_[d];
+				ndotdE += he.normals[d].asDiagonal() * jumpsElem.e_[d];
+			}
+
+			HesthavenFields elemFlux(flux_size);
+			for (int x = X; x <= Z; x++) {
+				int y = (x + 1) % 3;
+				int z = (x + 2) % 3;
+				const Eigen::VectorXd& norx = he.normals[x];
+				const Eigen::VectorXd& nory = he.normals[y];
+				const Eigen::VectorXd& norz = he.normals[z];
+				elemFlux.h_[x] = -1.0 * nory.asDiagonal() * jumpsElem.e_[z] +       norz.asDiagonal() * jumpsElem.e_[y] + alpha * (jumpsElem.h_[x] - ndotdH.asDiagonal() * norx);
+				elemFlux.e_[x] =        nory.asDiagonal() * jumpsElem.h_[z] - 1.0 * norz.asDiagonal() * jumpsElem.h_[y] + alpha * (jumpsElem.e_[x] - ndotdE.asDiagonal() * norx);
+			}
+			fluxes.push_back(std::move(elemFlux));
+			(void)flux_n;
+		}
+
+		for (int x = X; x <= Z; x++) {
+			int y = (x + 1) % 3;
+			int z = (x + 2) % 3;
+			const DynamicMatrix& dir1 = *he0.dir[y];
+			const DynamicMatrix& dir2 = *he0.dir[z];
+
+			Eigen::MatrixXd Ez(n, k), Ey(n, k), Hz(n, k), Hy(n, k);
+			for (int j = 0; j < k; ++j) {
+				Ez.col(j) = fields[static_cast<size_t>(j)].e_[z];
+				Ey.col(j) = fields[static_cast<size_t>(j)].e_[y];
+				Hz.col(j) = fields[static_cast<size_t>(j)].h_[z];
+				Hy.col(j) = fields[static_cast<size_t>(j)].h_[y];
+			}
+
+			Eigen::MatrixXd volH(n, k), volE(n, k);
+			volH.noalias() = -dir1 * Ez + dir2 * Ey;
+			volE.noalias() =  dir1 * Hz - dir2 * Hy;
+
+			for (int j = 0; j < k; ++j) {
+				const int e = group[static_cast<size_t>(j)];
+				const auto& he = hestElemLinearStorage_[static_cast<size_t>(e)];
+				const HesthavenLinearMaterial& mat = auxiliary_.linearMaterial(e);
+				Eigen::VectorXd fluxH = fluxes[static_cast<size_t>(j)].h_[x];
+				Eigen::VectorXd fluxE = fluxes[static_cast<size_t>(j)].e_[x];
+				Eigen::VectorXd hResult = volH.col(j) + applyLIFT(he.fscale, fluxH);
+				Eigen::VectorXd eResult = volE.col(j) + applyLIFT(he.fscale, fluxE);
+				if (mat.active()) {
+					if (mat.inv_mu != 1.0) {
+						hResult *= mat.inv_mu;
+					}
+					if (mat.inv_eps != 1.0) {
+						eResult *= mat.inv_eps;
+					}
+					if (mat.sigma_over_eps != 0.0) {
+						eResult -= mat.sigma_over_eps * fields[static_cast<size_t>(j)].e_[x];
+					}
+				}
+				scatterElem(hResult, he.dofs, outMaps.h_[x]);
+				scatterElem(eResult, he.dofs, outMaps.e_[x]);
+			}
+		}
 	}
 #ifdef SHOW_TIMER_INFORMATION
 	timerElements.Stop();
-	timerCurved.Start();
+	timerPromoted.Start();
 #endif
 
 	addCurvedElementContributions(out);
+#ifdef SHOW_TIMER_INFORMATION
+	timerPromoted.Stop();
+	timerAux.Start();
+#endif
 	auxiliary_.apply(in, out);
+#ifdef SHOW_TIMER_INFORMATION
+	timerAux.Stop();
+	timerSgbc.Start();
+#endif
 	applySGBC(in, out, true);
+#ifdef SHOW_TIMER_INFORMATION
+	timerSgbc.Stop();
+#endif
 
 #ifdef SHOW_TIMER_INFORMATION
 	{
@@ -1440,10 +1639,10 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 #endif
 
 #ifdef SHOW_TIMER_INFORMATION
-	timerCurved.Stop();
 	timerTotal.Stop();
 
-	static double acc_total = 0, acc_exchange = 0, acc_jumps = 0, acc_elements = 0, acc_curved = 0;
+	static double acc_total = 0, acc_exchange = 0, acc_jumps = 0, acc_elements = 0;
+	static double acc_promoted = 0, acc_aux = 0, acc_sgbc = 0;
 	static int acc_count = 0;
 	static double lastPrintTime = -1.0;
 	constexpr double printInterval = 0.05;
@@ -1453,7 +1652,9 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 	acc_exchange += timerExchange.RealTime() * 1000.0;
 	acc_jumps    += timerJumps.RealTime()    * 1000.0;
 	acc_elements += timerElements.RealTime() * 1000.0;
-	acc_curved   += timerCurved.RealTime()   * 1000.0;
+	acc_promoted += timerPromoted.RealTime() * 1000.0;
+	acc_aux      += timerAux.RealTime()      * 1000.0;
+	acc_sgbc     += timerSgbc.RealTime()     * 1000.0;
 	acc_count++;
 
 	const double currentTime = GetTime();
@@ -1471,48 +1672,57 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 
 	if (want_print)
 	{
-		double local_avg[5] = {
+		double local_avg[7] = {
 			acc_total    / acc_count,
 			acc_exchange / acc_count,
 			acc_jumps    / acc_count,
 			acc_elements / acc_count,
-			acc_curved   / acc_count
+			acc_promoted / acc_count,
+			acc_aux      / acc_count,
+			acc_sgbc     / acc_count
 		};
 
-		std::vector<double> all_avg(5 * P);
+		std::vector<double> all_avg(7 * P);
 		if (P > 1) {
-			MPI_Gather(local_avg, 5, MPI_DOUBLE,
-			           all_avg.data(), 5, MPI_DOUBLE,
+			MPI_Gather(local_avg, 7, MPI_DOUBLE,
+			           all_avg.data(), 7, MPI_DOUBLE,
 			           0, fes_.GetParMesh()->GetComm());
 		} else {
-			std::copy(local_avg, local_avg + 5, all_avg.data());
+			std::copy(local_avg, local_avg + 7, all_avg.data());
 		}
 
 		if (Mpi::WorldRank() == 0) {
 			std::cout << "\n[Hesthaven Mult timing] t=" << std::fixed << std::setprecision(4)
 			          << currentTime << "  (avg of " << acc_count << " calls, ms/call)\n"
 			          << std::defaultfloat;
-			std::cout << "  Rank  | total   exchange    jumps  elements   curved  | bottleneck\n"
-			          << "  ------+--------------------------------------------------+-----------\n";
+			std::cout << "  Rank  | total  exchange  jumps  elements  promoted    aux   sgbc  | bottleneck\n"
+			          << "  ------+-----------------------------------------------------------+-----------\n";
 			for (int r = 0; r < P; ++r) {
-				const double t_total    = all_avg[r * 5 + 0];
-				const double t_exchange = all_avg[r * 5 + 1];
-				const double t_jumps    = all_avg[r * 5 + 2];
-				const double t_elements = all_avg[r * 5 + 3];
-				const double t_curved   = all_avg[r * 5 + 4];
+				const double t_total    = all_avg[r * 7 + 0];
+				const double t_exchange = all_avg[r * 7 + 1];
+				const double t_jumps    = all_avg[r * 7 + 2];
+				const double t_elements = all_avg[r * 7 + 3];
+				const double t_promoted = all_avg[r * 7 + 4];
+				const double t_aux      = all_avg[r * 7 + 5];
+				const double t_sgbc     = all_avg[r * 7 + 6];
 				const char* bottleneck = "elements";
 				if (t_exchange > 0.7 * t_total) {
 					bottleneck = "MPI wait";
 				} else if (t_jumps > 0.5 * t_total) {
 					bottleneck = "jumps/BC";
-				} else if (t_curved > 0.3 * t_total) {
-					bottleneck = "curved";
+				} else if (t_aux > 0.3 * t_total) {
+					bottleneck = "aux/PML";
+				} else if (t_promoted > 0.3 * t_total) {
+					bottleneck = "promoted";
+				} else if (t_sgbc > 0.3 * t_total) {
+					bottleneck = "sgbc";
 				}
 
-				char buf[256];
+				char buf[320];
 				std::snprintf(buf, sizeof(buf),
-				              "  %4d  | %6.2f  %8.2f  %7.2f  %8.2f  %7.3f  | %s",
-				              r, t_total, t_exchange, t_jumps, t_elements, t_curved, bottleneck);
+				              "  %4d  | %6.2f  %8.2f  %6.2f  %8.2f  %8.2f  %6.2f  %5.2f  | %s",
+				              r, t_total, t_exchange, t_jumps, t_elements, t_promoted, t_aux, t_sgbc,
+				              bottleneck);
 				std::cout << buf << '\n';
 			}
 			std::cout << "  TFSF debug | abs(E)=" << std::scientific << std::setprecision(3)
@@ -1527,7 +1737,8 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 			std::cout << std::flush;
 		}
 
-		acc_total = acc_exchange = acc_jumps = acc_elements = acc_curved = 0;
+		acc_total = acc_exchange = acc_jumps = acc_elements = 0;
+		acc_promoted = acc_aux = acc_sgbc = 0;
 		acc_count = 0;
 		lastPrintTime = currentTime;
 	}
@@ -1640,10 +1851,8 @@ void HesthavenEvolution::initGPUData()
 		const auto& he = hestElemLinearStorage_[e];
 		elem_ids_host[e] = he.id;
 		flux_size_host[e] = static_cast<int>(he.fscale.size());
-		Array<int> el_dofs;
-		fes_.GetElementDofs(he.id, el_dofs);
-		for (int i = 0; i < el_dofs.Size(); ++i) {
-			elem_dofs_host[e * gpu_.ndof_el + i] = el_dofs[i];
+		for (int i = 0; i < he.dofs.Size(); ++i) {
+			elem_dofs_host[e * gpu_.ndof_el + i] = he.dofs[i];
 		}
 		for (int d = 0; d < 3; ++d) {
 			dir_matrix_id_host[e * 3 + d] = matrix_index(he.dir[d]);
@@ -1705,45 +1914,19 @@ void HesthavenEvolution::initGPUCurvedData()
 	if (!mfem::Device::Allows(mfem::Backend::CUDA)) {
 		return;
 	}
-	if (hestElemCurvedStorage_.empty()) {
+	if (!curved_merged_matrix_ || curved_merged_matrix_->Height() == 0) {
 		return;
 	}
 
-	const int ndofs = fes_.GetNDofs();
-	const int nbrDofs = fes_.num_face_nbr_dofs;
-	const int blockSize = ndofs + nbrDofs;
-	const int ncomp = numberOfFieldComponents * numberOfMaxDimensions;
-	const int fullSize = ncomp * blockSize;
+	const int n_rows = curved_merged_matrix_->Height();
+	const int fullSize = curved_merged_matrix_->Width();
 
-	int n_rows = 0;
-	for (const auto& curved : hestElemCurvedStorage_) {
-		n_rows += curved.dofs.Size() * ncomp;
-	}
-	if (n_rows == 0) {
-		return;
-	}
-
-	curved_merged_matrix_ = std::make_unique<SparseMatrix>(n_rows, fullSize);
 	gpu_.d_curved_row_to_out.SetSize(n_rows);
 	gpu_.d_curved_row_to_out.GetMemory().UseDevice(true);
-
-	int row = 0;
 	int* row_to_out = gpu_.d_curved_row_to_out.HostWrite();
-	for (const auto& curved : hestElemCurvedStorage_) {
-		for (int ii = 0; ii < curved.dofs.Size(); ++ii) {
-			const int dof = curved.dofs[ii];
-			for (int c = 0; c < ncomp; ++c) {
-				const int global_row = c * ndofs + dof;
-				Array<int> cols;
-				Vector vals;
-				curved.matrix.GetRow(global_row, cols, vals);
-				curved_merged_matrix_->SetRow(row, cols, vals);
-				row_to_out[row] = global_row;
-				++row;
-			}
-		}
+	for (int row = 0; row < n_rows; ++row) {
+		row_to_out[row] = curved_merged_row_to_out_[row];
 	}
-	curved_merged_matrix_->Finalize();
 
 	gpu_.n_curved_rows = n_rows;
 	gpu_.curved_full_size = fullSize;
@@ -1911,7 +2094,8 @@ void HesthavenEvolution::initGPUBoundaryData()
 void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 {
 #ifdef SHOW_TIMER_INFORMATION
-	mfem::StopWatch timerTotal, timerExchange, timerJumps, timerElements, timerCurved;
+	mfem::StopWatch timerTotal, timerExchange, timerJumps, timerElements;
+	mfem::StopWatch timerPromoted, timerAux, timerSgbc;
 	timerTotal.Start();
 	double tfsf_abs_sum_e = 0.0;
 	double tfsf_abs_sum_h = 0.0;
@@ -1935,57 +2119,44 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 #ifdef SHOW_TIMER_INFORMATION
 	timerExchange.Start();
 #endif
-	exchangeFieldData(in, false);
+	exchangeFieldData(in, true);
+	if (fes_.num_face_nbr_dofs > 0) {
+		sync_cuda_face_nbr_halos(eOld_, hOld_);
+	}
 #ifdef SHOW_TIMER_INFORMATION
 	timerExchange.Stop();
 	timerJumps.Start();
 #endif
 
-	// Jumps, BC, and TFSF on host; MPI face-neighbor data arrives in host buffers.
-	{
+	const_cast<mfem::Vector&>(in).Read();
+	hesthaven_compute_jumps_gpu(gpu_, in, eOld_, hOld_, ndofs);
+	hesthaven_apply_bc_gpu(gpu_, in, ndofs);
+	if (gpu_.has_tfsf && has_tfsf_gpu_) {
+		srcmngr_.evalTimeVarFieldDirect(GetTime());
+		hesthaven_scatter_tfsf_to_jumps_gpu(
+			gpu_, srcmngr_.getCachedTFSFFields(), gpu_.jumps_size);
+	} else if (!connectivity_->boundary.TFSF.mapBSF.empty()) {
+		// Fallback: host TFSF when direct GPU eval is unavailable.
 		(void)in.HostRead();
 		auto jumps{ HesthavenFields(gpu_.jumps_size) };
-		computeJumps(in, jumps);
-		const FieldsInputMaps fieldsIn(in, fes_);
-		applyBoundaryConditionsToNodes(connectivity_->boundary, fieldsIn, jumps);
-		evaluateTFSF(jumps);
-
+		const double* je = gpu_.d_jumps_e.HostRead();
+		const double* jh = gpu_.d_jumps_h.HostRead();
 		const int js = gpu_.jumps_size;
+		for (int d = X; d <= Z; ++d) {
+			std::memcpy(jumps.e_[d].data(), je + d * js, static_cast<size_t>(js) * sizeof(double));
+			std::memcpy(jumps.h_[d].data(), jh + d * js, static_cast<size_t>(js) * sizeof(double));
+		}
+		evaluateTFSF(jumps);
 		double* jumps_e_host = gpu_.d_jumps_e.HostWrite();
 		double* jumps_h_host = gpu_.d_jumps_h.HostWrite();
 		for (int d = X; d <= Z; ++d) {
-			std::memcpy(jumps_e_host + d * js,
-			            jumps.e_[d].data(),
+			std::memcpy(jumps_e_host + d * js, jumps.e_[d].data(),
 			            static_cast<size_t>(js) * sizeof(double));
-			std::memcpy(jumps_h_host + d * js,
-			            jumps.h_[d].data(),
+			std::memcpy(jumps_h_host + d * js, jumps.h_[d].data(),
 			            static_cast<size_t>(js) * sizeof(double));
 		}
-		// HostWrite above; push to device only (ReadWrite would pull stale device data).
 		(void)gpu_.d_jumps_e.Read();
 		(void)gpu_.d_jumps_h.Read();
-
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-		// Upload MPI halos to device only after host-side jump assembly is done.
-		if (mfem::Device::Allows(mfem::Backend::CUDA) && fes_.num_face_nbr_dofs > 0) {
-			sync_cuda_face_nbr_halos(eOld_, hOld_);
-		}
-#endif
-
-#ifdef SHOW_TIMER_INFORMATION
-		if (gpu_.has_tfsf) {
-			for (int d = X; d <= Z; ++d) {
-				for (int i = 0; i < js; ++i) {
-					const double ae = std::abs(jumps.e_[d][i]);
-					const double ah = std::abs(jumps.h_[d][i]);
-					tfsf_abs_sum_e += ae;
-					tfsf_abs_sum_h += ah;
-					tfsf_max_e = std::max(tfsf_max_e, ae);
-					tfsf_max_h = std::max(tfsf_max_h, ah);
-				}
-			}
-		}
-#endif
 	}
 
 #ifdef SHOW_TIMER_INFORMATION
@@ -1994,37 +2165,35 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 #endif
 
 	if (linearElements_.Size() > 0) {
-		// Jump path used HostRead(); push the same state to device for the element kernel.
-		const_cast<mfem::Vector&>(in).Read();
 		hesthaven_mult_gpu(gpu_, opts_.alpha, in, eOld_, hOld_, out, ndofs);
 	}
 
 #ifdef SHOW_TIMER_INFORMATION
 	timerElements.Stop();
-	timerCurved.Start();
+	timerPromoted.Start();
 #endif
 
 	addCurvedElementContributions(out);
-
 #ifdef SHOW_TIMER_INFORMATION
-	{
-		const double* stale_out = out.HostRead();
-		for (int i = 0; i < out.Size(); ++i) {
-			const double a = std::abs(stale_out[i]);
-			out_abs_sum_stale += a;
-			out_max_stale = std::max(out_max_stale, a);
-		}
-	}
+	timerPromoted.Stop();
+	timerAux.Start();
 #endif
 
-	// Device-authoritative 'out' must be synced before host-side debug/export reads.
-	(void)out.Read();
 	if (auxiliary_.hasAux()) {
 		hesthaven_apply_aux_gpu(gpu_, in, out, ndofs);
 	}
-	(void)out.HostRead();
-	applySGBC(in, out, true);
-	(void)out.Read();
+#ifdef SHOW_TIMER_INFORMATION
+	timerAux.Stop();
+	timerSgbc.Start();
+#endif
+	if (sgbc_engine_ != nullptr && sgbc_engine_->hasSGBC()) {
+		(void)out.HostReadWrite();
+		applySGBC(in, out, true);
+		(void)out.Read();
+	}
+#ifdef SHOW_TIMER_INFORMATION
+	timerSgbc.Stop();
+#endif
 
 #ifdef SHOW_TIMER_INFORMATION
 	{
@@ -2038,10 +2207,10 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 #endif
 
 #ifdef SHOW_TIMER_INFORMATION
-	timerCurved.Stop();
 	timerTotal.Stop();
 
-	static double acc_total = 0, acc_exchange = 0, acc_jumps = 0, acc_elements = 0, acc_curved = 0;
+	static double acc_total = 0, acc_exchange = 0, acc_jumps = 0, acc_elements = 0;
+	static double acc_promoted = 0, acc_aux = 0, acc_sgbc = 0;
 	static int acc_count = 0;
 	static double lastPrintTime = -1.0;
 	constexpr double printInterval = 0.05;
@@ -2051,7 +2220,9 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 	acc_exchange += timerExchange.RealTime() * 1000.0;
 	acc_jumps    += timerJumps.RealTime()    * 1000.0;
 	acc_elements += timerElements.RealTime() * 1000.0;
-	acc_curved   += timerCurved.RealTime()   * 1000.0;
+	acc_promoted += timerPromoted.RealTime() * 1000.0;
+	acc_aux      += timerAux.RealTime()      * 1000.0;
+	acc_sgbc     += timerSgbc.RealTime()     * 1000.0;
 	acc_count++;
 
 	const double currentTime = GetTime();
@@ -2069,48 +2240,57 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 
 	if (want_print)
 	{
-		double local_avg[5] = {
+		double local_avg[7] = {
 			acc_total    / acc_count,
 			acc_exchange / acc_count,
 			acc_jumps    / acc_count,
 			acc_elements / acc_count,
-			acc_curved   / acc_count
+			acc_promoted / acc_count,
+			acc_aux      / acc_count,
+			acc_sgbc     / acc_count
 		};
 
-		std::vector<double> all_avg(5 * P);
+		std::vector<double> all_avg(7 * P);
 		if (P > 1) {
-			MPI_Gather(local_avg, 5, MPI_DOUBLE,
-			           all_avg.data(), 5, MPI_DOUBLE,
+			MPI_Gather(local_avg, 7, MPI_DOUBLE,
+			           all_avg.data(), 7, MPI_DOUBLE,
 			           0, fes_.GetParMesh()->GetComm());
 		} else {
-			std::copy(local_avg, local_avg + 5, all_avg.data());
+			std::copy(local_avg, local_avg + 7, all_avg.data());
 		}
 
 		if (Mpi::WorldRank() == 0) {
 			std::cout << "\n[Hesthaven Mult timing] t=" << std::fixed << std::setprecision(4)
 			          << currentTime << "  (avg of " << acc_count << " calls, ms/call, GPU)\n"
 			          << std::defaultfloat;
-			std::cout << "  Rank  | total   exchange    jumps  elements   curved  | bottleneck\n"
-			          << "  ------+--------------------------------------------------+-----------\n";
+			std::cout << "  Rank  | total  exchange  jumps  elements  promoted    aux   sgbc  | bottleneck\n"
+			          << "  ------+-----------------------------------------------------------+-----------\n";
 			for (int r = 0; r < P; ++r) {
-				const double t_total    = all_avg[r * 5 + 0];
-				const double t_exchange = all_avg[r * 5 + 1];
-				const double t_jumps    = all_avg[r * 5 + 2];
-				const double t_elements = all_avg[r * 5 + 3];
-				const double t_curved   = all_avg[r * 5 + 4];
+				const double t_total    = all_avg[r * 7 + 0];
+				const double t_exchange = all_avg[r * 7 + 1];
+				const double t_jumps    = all_avg[r * 7 + 2];
+				const double t_elements = all_avg[r * 7 + 3];
+				const double t_promoted = all_avg[r * 7 + 4];
+				const double t_aux      = all_avg[r * 7 + 5];
+				const double t_sgbc     = all_avg[r * 7 + 6];
 				const char* bottleneck = "elements";
 				if (t_exchange > 0.7 * t_total) {
 					bottleneck = "MPI wait";
 				} else if (t_jumps > 0.5 * t_total) {
 					bottleneck = "jumps/BC";
-				} else if (t_curved > 0.3 * t_total) {
-					bottleneck = "curved";
+				} else if (t_aux > 0.3 * t_total) {
+					bottleneck = "aux/PML";
+				} else if (t_promoted > 0.3 * t_total) {
+					bottleneck = "promoted";
+				} else if (t_sgbc > 0.3 * t_total) {
+					bottleneck = "sgbc";
 				}
 
-				char buf[256];
+				char buf[320];
 				std::snprintf(buf, sizeof(buf),
-				              "  %4d  | %6.2f  %8.2f  %7.2f  %8.2f  %7.3f  | %s",
-				              r, t_total, t_exchange, t_jumps, t_elements, t_curved, bottleneck);
+				              "  %4d  | %6.2f  %8.2f  %6.2f  %8.2f  %8.2f  %6.2f  %5.2f  | %s",
+				              r, t_total, t_exchange, t_jumps, t_elements, t_promoted, t_aux, t_sgbc,
+				              bottleneck);
 				std::cout << buf << '\n';
 			}
 			if (gpu_.has_tfsf && has_tfsf_gpu_) {
@@ -2130,7 +2310,8 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 			std::cout << std::flush;
 		}
 
-		acc_total = acc_exchange = acc_jumps = acc_elements = acc_curved = 0;
+		acc_total = acc_exchange = acc_jumps = acc_elements = 0;
+		acc_promoted = acc_aux = acc_sgbc = 0;
 		acc_count = 0;
 		lastPrintTime = currentTime;
 	}
