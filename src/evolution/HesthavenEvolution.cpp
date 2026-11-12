@@ -1012,12 +1012,20 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 	ParMesh& mesh = model_.getMesh();
 	auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
 
+	mfem::StopWatch swPositions, swClassify, swRefLift, swElemLoop, swDirCrit,
+		swGroups, swPromoted, swConnectivity, swTfsfPre, swAux, swSgbc, swGpuInit;
+	std::atomic<double> face_info_secs{0.0};
+
+	swPositions.Start();
 	positions_ = buildDoFPositions(fes_);
+	swPositions.Stop();
+	swClassify.Start();
 	auto elemOrderList = initCurvedAndLinearElementsLists(fes_, positions_);
 	linearElements_ = elemOrderList.first;
 	curvedElements_ = elemOrderList.second;
 	promoteAssembledElements();
 	checkForTFSFInCurvedElements();
+	swClassify.Stop();
 
 	hestElemLinearStorage_.resize(linearElements_.Size());
 
@@ -1031,6 +1039,7 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 		}
 	}
 
+	swRefLift.Start();
 	DynamicMatrix refInvMass;
 	if (allElementsSameGeomType) {
 		refInvMass = assembleHesthavenRefElemInvMassMatrix(
@@ -1038,6 +1047,7 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 		refLIFT_ = refInvMass * assembleHesthavenRefElemEmat(
 			cmesh->GetElementType(0), fec->GetOrder(), cmesh->Dimension());
 	}
+	swRefLift.Stop();
 
 	const int n_assemble = linearElements_.Size();
 	if (Mpi::WorldRank() == 0) {
@@ -1059,9 +1069,18 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 		#pragma omp critical(hesthaven_matrix_dedup)
 #endif
 		{
+			swDirCrit.Start();
 			storeDirectionalMatrices(refInvMass, hestElem);
+			swDirCrit.Stop();
 		}
-		storeFaceInformation(hestElem);
+		{
+			mfem::StopWatch swFace;
+			swFace.Start();
+			storeFaceInformation(hestElem);
+			swFace.Stop();
+			face_info_secs.store(face_info_secs.load(std::memory_order_relaxed) + swFace.RealTime(),
+			                     std::memory_order_relaxed);
+		}
 		fes_.GetElementDofs(hestElem.id, hestElem.dofs);
 		for (int i = 0; i < hestElem.dofs.Size(); ++i) {
 			if (hestElem.dofs[i] < 0) {
@@ -1093,15 +1112,20 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 	} else
 #endif
 	{
+		swElemLoop.Start();
 		for (int e = 0; e < linearElements_.Size(); e++) {
 			assembleOneElement(e);
 		}
+		swElemLoop.Stop();
 	}
 
+	swGroups.Start();
 	buildLinearDirGroups();
+	swGroups.Stop();
 
 	// buildGlobalOperator() starts with ExchangeFaceNbrData — every rank must enter
 	// when any rank has promoted/curved elements (SGBC / IBFI / centered SMA), or MPI deadlocks.
+	swPromoted.Start();
 	{
 		const MPI_Comm comm = fes_.GetParMesh()->GetComm();
 		int need_assembled = curvedElements_.empty() ? 0 : 1;
@@ -1140,6 +1164,7 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 			}
 		}
 	}
+	swPromoted.Stop();
 
 	{
 		const int P = Mpi::WorldSize();
@@ -1183,8 +1208,11 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 		hOld_[d].SetSpace(&fes_);
 	}
 
+	swConnectivity.Start();
 	connectivity_.emplace(model, fes_);
+	swConnectivity.Stop();
 
+	swTfsfPre.Start();
 	const auto& tfsf_markers = model_.getTotalFieldScatteredFieldToMarker();
 	if (!tfsf_markers.empty()) {
 		const auto it = tfsf_markers.find(BdrCond::TotalFieldIn);
@@ -1196,8 +1224,12 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 #endif
 		}
 	}
+	swTfsfPre.Stop();
 
+	swAux.Start();
 	auxiliary_.build(fes_, model_, linearElements_);
+	swAux.Stop();
+	swSgbc.Start();
 	if (!model_.getSGBCProperties().empty()) {
 		static const Probes empty_probes;
 		const Probes& sgbc_probes = probes != nullptr ? *probes : empty_probes;
@@ -1206,18 +1238,43 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 		sgbc_engine_ = std::make_unique<GlobalEvolution>(
 			fes_, model_, srcmngr_, *sgbc_host_opts_, sgbc_probes, final_time);
 	}
+	swSgbc.Stop();
 
 	buildMergedCurvedMatrix();
 #ifdef SEMBA_DGTD_ENABLE_CUDA
+	swGpuInit.Start();
 	if (linearElements_.Size() > 0 && refLIFT_.size() > 0) {
 		initGPUData();
 	}
 	if (!hestElemCurvedStorage_.empty()) {
 		initGPUCurvedData();
 	}
+	swGpuInit.Stop();
 #endif
 
 #ifdef SHOW_TIMER_INFORMATION
+	{
+		if (Mpi::WorldRank() == 0) {
+			std::cout << "------------------------------------------------\n"
+			          << "Hesthaven init phases (rank 0, seconds):\n"
+			          << "  positions/classify: " << std::fixed << std::setprecision(2)
+			          << swPositions.RealTime() + swClassify.RealTime() << "\n"
+			          << "  ref inv-mass/lift : " << swRefLift.RealTime() << "\n"
+			          << "  element loop      : " << swElemLoop.RealTime()
+			          << "  (dir assy+dedup " << swDirCrit.RealTime()
+			          << ", face info " << face_info_secs.load() << ")\n"
+			          << "  dir groups        : " << swGroups.RealTime() << "\n"
+			          << "  promoted/curved   : " << swPromoted.RealTime() << "\n"
+			          << "  connectivity      : " << swConnectivity.RealTime() << "\n"
+			          << "  tfsf pre-reqs     : " << swTfsfPre.RealTime() << "\n"
+			          << "  auxiliary build   : " << swAux.RealTime() << "\n"
+			          << "  sgbc host engine  : " << swSgbc.RealTime() << "\n";
+#ifdef SEMBA_DGTD_ENABLE_CUDA
+			std::cout << "  gpu init          : " << swGpuInit.RealTime() << "\n";
+#endif
+			std::cout << "------------------------------------------------\n" << std::flush;
+		}
+	}
 	{
 		const int P = Mpi::WorldSize();
 		const MPI_Comm comm = fes_.GetParMesh()->GetComm();

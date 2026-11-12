@@ -1,5 +1,8 @@
 #include "evolution/HesthavenEvolutionMethods.h"
 
+#include <iomanip>
+#include <iostream>
+
 namespace maxwell {
 
 	using namespace mfem;
@@ -560,13 +563,18 @@ namespace maxwell {
 		model_(model),
 		fes_(fes)
 	{
+		mfem::StopWatch swGlobalMap, swBdrNodes, swIntFace;
+
 		auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
 		global_plus_is_face_nbr.clear();
+		swGlobalMap.Start();
 		global = assembleGlobalConnectivityMap(
 			const_cast<FiniteElementSpace&>(fes_), fec, &global_plus_is_face_nbr);
+		swGlobalMap.Stop();
 
 		const auto isInteriorMap{ assembleInteriorOrTrueBdrMap(fes_) };
 
+		swBdrNodes.Start();
 		{
 			auto bdrNodeMesh{ Mesh(model_.getMesh()) };
 			std::vector<Array<int>> bdrNodeMarkers{ assembleBdrMarkersForBdrElements(bdrNodeMesh, model_.getConstMesh().GetNBE()) };
@@ -578,7 +586,9 @@ namespace maxwell {
 			const auto bdr2nodes{ assembleNodeVectorPerBdrFace(bdrNodeMarkers, bdrNodeFES, isInteriorMap) };
 			initBdrConnectivityMaps(bdr2nodes, isInteriorMap);
 		}
+		swBdrNodes.Stop();
 
+		swIntFace.Start();
 		{
 			if (model_.getInteriorBoundaryToMarker().size() != 0) {
 				initIntFaceConnectivityMaps(model_.getInteriorBoundaryToMarker());
@@ -590,7 +600,13 @@ namespace maxwell {
 				initIntFaceConnectivityMaps(model.getTotalFieldScatteredFieldToMarker());
 			}
 		}
+		swIntFace.Stop();
 
+		if (Mpi::WorldRank() == 0) {
+			std::cout << "Connectivities init: global map " << std::fixed << std::setprecision(2)
+			          << swGlobalMap.RealTime() << "s, bdr nodes " << swBdrNodes.RealTime()
+			          << "s, int-face markers " << swIntFace.RealTime() << "s\n" << std::flush;
+		}
 	}
 
 	void Connectivities::loadIntBdrConditions(const InteriorFaceConnectivityMaps& mapB, const InteriorFaceConnectivityMaps& nodePairs, const BdrCond& bdrCond, const double ori = 0.0)
