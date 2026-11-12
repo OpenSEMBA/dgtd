@@ -1096,28 +1096,14 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 		}
 	};
 
-#ifdef SEMBA_DGTD_ENABLE_OPENMP
-	bool use_parallel_assembly = (n_assemble > 32);
-#ifdef SEMBA_DGTD_ENABLE_CUDA
-	// MFEM mesh/FE accessors are not assumed thread-safe with the CUDA device backend.
-	if (mfem::Device::Allows(mfem::Backend::CUDA)) {
-		use_parallel_assembly = false;
+	// The per-element assembly touches MFEM mesh/FES accessors with lazy caches
+	// (e.g. face transformations) that are not thread-safe; keep it serial. It
+	// measures <1 s for ~59k elements, so parallelizing it is not worth the race.
+	swElemLoop.Start();
+	for (int e = 0; e < linearElements_.Size(); e++) {
+		assembleOneElement(e);
 	}
-#endif
-	if (use_parallel_assembly) {
-		#pragma omp parallel for schedule(dynamic, 64)
-		for (int e = 0; e < linearElements_.Size(); e++) {
-			assembleOneElement(e);
-		}
-	} else
-#endif
-	{
-		swElemLoop.Start();
-		for (int e = 0; e < linearElements_.Size(); e++) {
-			assembleOneElement(e);
-		}
-		swElemLoop.Stop();
-	}
+	swElemLoop.Stop();
 
 	swGroups.Start();
 	buildLinearDirGroups();
