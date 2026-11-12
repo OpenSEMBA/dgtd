@@ -73,7 +73,7 @@ Omit `stretch_mode` (planar box depth is the only grading). Do not set `radial_c
 
 Rejected on a PML block: `sigma_max`, `bulk_conductivity`, `relative_permittivity`, `relative_permeability`, `stretch_mode: "radial"`, `radial_center`. Conductivity of the layer comes only from $R$, $m$, and $L$.
 
-The reference case `testData/maxwellInputs/2D_Dipole_PML_GO0/2D_Dipole_PML_GO0.json` is the block to copy. `GO1`, `GO2`, and `GO3` change only `grading_order`. The SMA twin `2D_Dipole` uses the same outer box with every tag set to vacuum.
+The reference case `testData/maxwellInputs/2D_Dipole_PML_GO0/2D_Dipole_PML_GO0.json` is the block to copy. `GO1`, `GO2`, and `GO3` change only `grading_order`. Those `GO*` cases share the quadratic mesh `2D_Dipole_PML_G2`. The linear twin is `2D_Dipole_PML_G1` (straight triangles, finer dipole circle). The SMA twin `2D_Dipole` uses the same outer box with every tag set to vacuum.
 
 ```json
 {
@@ -108,7 +108,7 @@ at the incident spectral peak. Numbers below are the reproduced run.
 
 SMA alone sits near $-20\,\mathrm{dB}$ on axis. The PML mesh, same box, drops that by about $50$–$60\,\mathrm{dB}$. Flat grading ($m = 0$) is the best on-axis result. Higher $m$ is a few decibels worse on X/Y and, for $m = 1$, better on the diagonal.
 
-Replay after a run. Point probes append, so remove the case export directory before repeating a case. The `GO*` JSON files share one mesh file; run those cases one after another, not in one `mpirun`.
+Replay after a run. Point probes append, so remove the case export directory before repeating a case. The `GO*` JSON files share the `2D_Dipole_PML_G2` mesh; run those cases one after another, not in one `mpirun`.
 
 ```sh
 python3 scripts/dipole_pml_grading_dft.py \

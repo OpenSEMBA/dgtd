@@ -23,6 +23,7 @@ docs/pml/
 docs/handoff-cuda-hesthaven-out.md
 external/Cudg3d/
 external/Gmesh
+external/mor_dgtd
 scripts/__pycache__/
 # Local exploration cases. Published fixtures are testData/testInputs/.
 testData/maxwellInputs/
