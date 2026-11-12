@@ -1212,6 +1212,17 @@ HesthavenEvolution::HesthavenEvolution(ParFiniteElementSpace& fes, Model& model,
 	connectivity_.emplace(model, fes_);
 	swConnectivity.Stop();
 
+	{
+		const int n_threads =
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+			omp_get_max_threads();
+#else
+			1;
+#endif
+		mult_scratch_.resize(static_cast<size_t>(n_threads));
+		mult_jumps_ = std::make_unique<HesthavenFields>(connectivity_->global.size());
+	}
+
 	swTfsfPre.Start();
 	const auto& tfsf_markers = model_.getTotalFieldScatteredFieldToMarker();
 	if (!tfsf_markers.empty()) {
@@ -1437,7 +1448,7 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 #endif
 
 	double alpha = opts_.alpha;
-	(void)in.HostRead();
+	const double* in_data = in.HostRead();
 	applySGBC(in, out, false);
 
 	out.SetSize(Height());
@@ -1464,14 +1475,14 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 		std::fill(out_tail + 6 * ndofs, out_tail + static_cast<int>(Height()), 0.0);
 	}
 
-	auto scatterElem = [&](const Eigen::VectorXd& data, const Array<int>& dofs,
+	auto scatterElem = [&](Eigen::Ref<const Eigen::VectorXd> data, const Array<int>& dofs,
 	                       Eigen::Map<Eigen::VectorXd>& out_map) {
 		for (int i = 0; i < dofs.Size(); ++i) {
 			out_map[dofs[i]] += data[i];
 		}
 	};
 
-	auto jumps{ HesthavenFields(connectivity_->global.size()) };
+	auto& jumps = *mult_jumps_;
 	computeJumps(in, jumps);
 
 	applyBoundaryConditionsToNodes(connectivity_->boundary, fieldsIn, jumps);
@@ -1495,58 +1506,110 @@ void HesthavenEvolution::MultCPU(const Vector& in, Vector& out) const
 
 	auto processOneLinear = [&](int e) {
 		const auto& he = hestElemLinearStorage_[static_cast<size_t>(e)];
-		auto elemFluxSize{ he.fscale.size() };
+		const int nd = he.dofs.Size();
+		const int nf = static_cast<int>(he.fscale.size());
+		int tid = 0;
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+		tid = omp_get_thread_num();
+#endif
+		auto& sc = mult_scratch_[static_cast<size_t>(tid)];
+		sc.ensure(nd, nf);
 
-		const auto jumpsElem{ HesthavenElementJumps(jumps, he.id, elemFluxSize) };
-		const auto fieldsElem{ FieldsElementMaps(in, fes_, he.dofs) };
-
-		Eigen::VectorXd ndotdH(jumpsElem.h_[X].size()), ndotdE(jumpsElem.e_[X].size());
-		ndotdH.setZero(); ndotdE.setZero();
-
-		for (int d = X; d <= Z; d++) {
-			ndotdH += he.normals[d].asDiagonal() * jumpsElem.h_[d];
-			ndotdE += he.normals[d].asDiagonal() * jumpsElem.e_[d];
+		// Gather this element's field values (replaces FieldsElementMaps copies).
+		for (int i = 0; i < nd; ++i) {
+			const int dof = he.dofs[i];
+			for (int d = X; d <= Z; ++d) {
+				sc.eIn[d][i] = in_data[d * ndofs + dof];
+				sc.hIn[d][i] = in_data[(3 + d) * ndofs + dof];
+			}
 		}
 
-		HesthavenFields elemFlux(elemFluxSize);
+		// Jump views into the preallocated element-major jump buffer.
+		const int jbase = he.id * nf;
 
-		for (int x = X; x <= Z; x++) {
-			int y = (x + 1) % 3;
-			int z = (x + 2) % 3;
+		sc.ndotdH.setZero();
+		sc.ndotdE.setZero();
+		for (int d = X; d <= Z; ++d) {
+			const Eigen::Map<const Eigen::VectorXd> jh_d(jumps.h_[d].data() + jbase, nf);
+			const Eigen::Map<const Eigen::VectorXd> je_d(jumps.e_[d].data() + jbase, nf);
+			sc.ndotdH.noalias() += he.normals[d].asDiagonal() * jh_d;
+			sc.ndotdE.noalias() += he.normals[d].asDiagonal() * je_d;
+		}
+
+		const HesthavenLinearMaterial& mat = auxiliary_.linearMaterial(e);
+
+		for (int x = X; x <= Z; ++x) {
+			const int y = (x + 1) % 3;
+			const int z = (x + 2) % 3;
 
 			const Eigen::VectorXd& norx = he.normals[x];
 			const Eigen::VectorXd& nory = he.normals[y];
 			const Eigen::VectorXd& norz = he.normals[z];
-
-			elemFlux.h_[x] = -1.0 * nory.asDiagonal() * jumpsElem.e_[z] +       norz.asDiagonal() * jumpsElem.e_[y] + alpha * (jumpsElem.h_[x] - ndotdH.asDiagonal() * norx);
-			elemFlux.e_[x] =        nory.asDiagonal() * jumpsElem.h_[z] - 1.0 * norz.asDiagonal() * jumpsElem.h_[y] + alpha * (jumpsElem.e_[x] - ndotdE.asDiagonal() * norx);
-		}
-
-		for (int x = X; x <= Z; x++) {
-			int y = (x + 1) % 3;
-			int z = (x + 2) % 3;
-
 			const DynamicMatrix& dir1 = *he.dir[y];
 			const DynamicMatrix& dir2 = *he.dir[z];
-			const HesthavenLinearMaterial& mat = auxiliary_.linearMaterial(e);
 
-			Eigen::VectorXd fluxH = elemFlux.h_[x];
-			Eigen::VectorXd fluxE = elemFlux.e_[x];
-			Eigen::VectorXd hResult = -1.0 * dir1 * fieldsElem.e_[z] +        dir2 * fieldsElem.e_[y] + applyLIFT(he.fscale, fluxH);
-			Eigen::VectorXd eResult =        dir1 * fieldsElem.h_[z] - 1.0 *  dir2 * fieldsElem.h_[y] + applyLIFT(he.fscale, fluxE);
+			const Eigen::Map<const Eigen::VectorXd> je_x(jumps.e_[x].data() + jbase, nf);
+			const Eigen::Map<const Eigen::VectorXd> jh_x(jumps.h_[x].data() + jbase, nf);
+			const Eigen::Map<const Eigen::VectorXd> je_y(jumps.e_[y].data() + jbase, nf);
+			const Eigen::Map<const Eigen::VectorXd> jh_y(jumps.h_[y].data() + jbase, nf);
+			const Eigen::Map<const Eigen::VectorXd> je_z(jumps.e_[z].data() + jbase, nf);
+			const Eigen::Map<const Eigen::VectorXd> jh_z(jumps.h_[z].data() + jbase, nf);
+
+			// Flux h: -nory.*je_z + norz.*je_y + alpha*(jh_x - ndotdH.*norx)
+			sc.fluxH.noalias() = nory.asDiagonal() * je_z;
+			sc.fluxH *= -1.0;
+			sc.tmpF.noalias() = norz.asDiagonal() * je_y;
+			sc.fluxH += sc.tmpF;
+			sc.tmpF.noalias() = sc.ndotdH.asDiagonal() * norx;
+			sc.tmpF2.noalias() = jh_x - sc.tmpF;
+			sc.tmpF2 *= alpha;
+			sc.fluxH += sc.tmpF2;
+
+			// Flux e: nory.*jh_z - norz.*jh_y + alpha*(je_x - ndotdE.*norx)
+			sc.fluxE.noalias() = nory.asDiagonal() * jh_z;
+			sc.tmpF.noalias() = norz.asDiagonal() * jh_y;
+			sc.tmpF *= -1.0;
+			sc.fluxE += sc.tmpF;
+			sc.tmpF.noalias() = sc.ndotdE.asDiagonal() * norx;
+			sc.tmpF2.noalias() = je_x - sc.tmpF;
+			sc.tmpF2 *= alpha;
+			sc.fluxE += sc.tmpF2;
+
+			// LIFT (same arithmetic as applyLIFT, in place).
+			for (int i = 0; i < nf; ++i) {
+				sc.fluxH[i] *= he.fscale[i] / 2.0;
+				sc.fluxE[i] *= he.fscale[i] / 2.0;
+			}
+			sc.liftedH.noalias() = refLIFT_ * sc.fluxH;
+			sc.liftedE.noalias() = refLIFT_ * sc.fluxE;
+
+			// Volume h: -dir1*e_z + dir2*e_y + liftedH
+			sc.volH.noalias() = dir1 * sc.eIn[z];
+			sc.volH *= -1.0;
+			sc.tmpV.noalias() = dir2 * sc.eIn[y];
+			sc.volH += sc.tmpV;
+			sc.volH += sc.liftedH;
+
+			// Volume e: dir1*h_z - dir2*h_y + liftedE
+			sc.volE.noalias() = dir1 * sc.hIn[z];
+			sc.tmpV.noalias() = dir2 * sc.hIn[y];
+			sc.tmpV *= -1.0;
+			sc.volE += sc.tmpV;
+			sc.volE += sc.liftedE;
+
 			if (mat.active()) {
 				if (mat.inv_mu != 1.0) {
-					hResult *= mat.inv_mu;
+					sc.volH *= mat.inv_mu;
 				}
 				if (mat.inv_eps != 1.0) {
-					eResult *= mat.inv_eps;
+					sc.volE *= mat.inv_eps;
 				}
 				if (mat.sigma_over_eps != 0.0) {
-					eResult -= mat.sigma_over_eps * fieldsElem.e_[x];
+					sc.volE.noalias() -= mat.sigma_over_eps * sc.eIn[x];
 				}
 			}
-			scatterElem(hResult, he.dofs, outMaps.h_[x]);
-			scatterElem(eResult, he.dofs, outMaps.e_[x]);
+			scatterElem(sc.volH, he.dofs, outMaps.h_[x]);
+			scatterElem(sc.volE, he.dofs, outMaps.e_[x]);
 		}
 	};
 
