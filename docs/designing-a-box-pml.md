@@ -73,7 +73,7 @@ Omit `stretch_mode` (planar box depth is the only grading). Do not set `radial_c
 
 Rejected on a PML block: `sigma_max`, `bulk_conductivity`, `relative_permittivity`, `relative_permeability`, `stretch_mode: "radial"`, `radial_center`. Conductivity of the layer comes only from $R$, $m$, and $L$.
 
-The reference case `testData/maxwellInputs/2D_Dipole_PML_GO0/2D_Dipole_PML_GO0.json` is the block to copy. `GO1`, `GO2`, and `GO3` change only `grading_order`. Those `GO*` cases share the quadratic mesh `2D_Dipole_PML_G2`. The linear twin is `2D_Dipole_PML_G1` (straight triangles, finer dipole circle). The SMA twin `2D_Dipole` uses the same outer box with every tag set to vacuum.
+The reference case `testData/testInputs/2D_Dipole_PML_GO0/2D_Dipole_PML_GO0.json` is the block to copy. `GO1`, `GO2`, and `GO3` change only `grading_order`. Those `GO*` cases share the quadratic mesh `2D_Dipole_PML_G2`. The linear twin is `2D_Dipole_PML_G1` (straight triangles, finer dipole circle). The SMA twin `2D_Dipole` uses the same outer box with every tag set to vacuum.
 
 ```json
 {
