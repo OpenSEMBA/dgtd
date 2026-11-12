@@ -667,23 +667,28 @@ namespace maxwell {
 
 	void Connectivities::initIntFaceConnectivityMaps(const BoundaryToMarker& markers)
 	{
-		Array<int> elementMarker;
-		elementMarker.Append(hesthavenMeshingTag);
-
-		auto fec{ dynamic_cast<const L2_FECollection*>(fes_.FEColl()) };
-		auto attMap{ mapOriginalAttributes(model_.getConstMesh()) };
-
 		double ori{ 0.0 };
-		auto intBdrNodeMesh{ Mesh(model_.getConstMesh()) };
 		for (auto b{ 0 }; b < model_.getConstMesh().GetNBE(); b++) {
 			for (const auto& marker : markers) {
 				if (marker.second[model_.getConstMesh().GetBdrAttribute(b) - 1] == 1) {
 					FaceElementTransformations* faceTrans;
 					model_.getConstMesh().FaceIsInterior(model_.getMesh().GetFaceElementTransformations(model_.getConstMesh().GetBdrElementFaceIndex(b))->ElementNo) ? faceTrans = model_.getMesh().GetInternalBdrFaceTransformations(b) : faceTrans = model_.getMesh().GetBdrFaceTransformations(b);
 					fes_.GetMesh()->Dimension() == 2 ? ori = calculateCrossBaryVertexSign(*fes_.GetMesh(), *faceTrans, b) : ori = buildFaceOrientation(*fes_.GetMesh(), b);
-					auto twoElemSubMesh{ assembleInteriorFaceSubMesh(model_.getMesh(), *faceTrans, attMap) };
-					FiniteElementSpace subFES(&twoElemSubMesh, fec);
-					auto nodePairs{ buildConnectivityForInteriorBdrFace(*faceTrans, fes_, subFES) };
+					// Parent-mesh flux matrix couples the two elements' face DOFs
+					// exactly as the two-element SubMesh did — no SubMesh.
+					DenseMatrix elmat;
+					mfemExtension::HesthavenFluxIntegrator flux_int(1.0);
+					flux_int.AssembleFaceMatrix(*fes_.GetFE(faceTrans->Elem1No),
+						*fes_.GetFE(faceTrans->Elem2No), *faceTrans, elmat);
+					Array<int> dofs1, dofs2;
+					fes_.GetElementDofs(faceTrans->Elem1No, dofs1);
+					fes_.GetElementDofs(faceTrans->Elem2No, dofs2);
+					const auto maps = mapConnectivityDense(elmat);
+					InteriorFaceConnectivityMaps nodePairs;
+					for (auto v{ 0 }; v < maps.first.size(); v++) {
+						nodePairs.first.push_back(dofs1[maps.first[v]]);
+						nodePairs.second.push_back(dofs2[maps.second[v] - dofs1.Size()]);
+					}
 					auto mapsB{ initInteriorFacesMapB(nodePairs) };
 					loadIntBdrConditions(mapsB, nodePairs, marker.first, ori);
 				}
@@ -889,14 +894,6 @@ namespace maxwell {
 				: globalElementToFace = mesh.ElementToFaceTable();
 		}
 
-		Array<int> volumeMarker;
-		volumeMarker.Append(hesthavenMeshingTag);
-
-		Array<int> boundaryMarker(hesthavenMeshingTag);
-		boundaryMarker = 0;
-		boundaryMarker[hesthavenMeshingTag - 1] = 1;
-
-		auto attMap{ mapOriginalAttributes(mesh) };
 		const int ne = pmesh ? pmesh->GetNE() : mesh.GetNE();
 
 		for (auto e{ 0 }; e < ne; e++) {
@@ -938,17 +935,21 @@ namespace maxwell {
 				}
 				else if (!face_is_interior) {
 
-					mesh.SetAttribute(e, hesthavenMeshingTag);
-					auto sm = SubMesh::CreateFromDomain(mesh, volumeMarker);
-					restoreOriginalAttributesAfterSubMeshing(e, mesh, attMap);
-					tagBdrAttributesForSubMesh(localFace, sm);
-					FiniteElementSpace smFES(&sm, fec);
+					// Parent-mesh boundary face: assemble the Hesthaven flux matrix
+					// directly on the parent FEs — no per-face SubMesh (O(1) per face).
+					FaceElementTransformations* faceTrans = mesh.GetFaceElementTransformations(gf);
+					DenseMatrix elmat;
+					mfemExtension::HesthavenFluxIntegrator flux_int(1.0);
+					flux_int.AssembleFaceMatrix(*globalFES.GetFE(e), *globalFES.GetFE(e), *faceTrans, elmat);
+					Array<int> dofs;
+					globalFES.GetElementDofs(e, dofs);
+					const double tol{ 1e-8 };
 					const auto prev_size = res.size();
-					appendConnectivityMapsForBoundaryFace(
-						globalFES,
-						smFES,
-						assembleConnectivityFaceMassMatrix(smFES, boundaryMarker),
-						res);
+					for (int r = 0; r < elmat.Height(); r++) {
+						if (std::abs(elmat(r, r)) > tol) {
+							res.emplace_back(dofs[r], dofs[r]);
+						}
+					}
 					if (plus_is_nbr) {
 						plus_is_nbr->insert(plus_is_nbr->end(), res.size() - prev_size, 0);
 					}
@@ -959,16 +960,39 @@ namespace maxwell {
 					FaceElementTransformations* faceTrans = pmesh
 						? pmesh->GetFaceElementTransformations(gf)
 						: mesh.GetFaceElementTransformations(gf);
-					auto sm = assembleInteriorFaceSubMesh(mesh, *faceTrans, attMap);
-					restoreOriginalAttributesAfterSubMeshing(faceTrans, mesh, attMap);
-					FiniteElementSpace smFES(&sm, fec);
+					// Parent-mesh interior face: the flux matrix couples the two
+					// elements' face DOFs exactly as the two-element SubMesh did —
+					// same FEs, same layout [Elem1 | Elem2], no SubMesh.
+					DenseMatrix elmat;
+					mfemExtension::HesthavenFluxIntegrator flux_int(1.0);
+					flux_int.AssembleFaceMatrix(*globalFES.GetFE(faceTrans->Elem1No),
+						*globalFES.GetFE(faceTrans->Elem2No), *faceTrans, elmat);
+					Array<int> dofs1, dofs2;
+					globalFES.GetElementDofs(faceTrans->Elem1No, dofs1);
+					globalFES.GetElementDofs(faceTrans->Elem2No, dofs2);
+					const auto maps = mapConnectivityDense(elmat);
+
+					ConnectivityVector sortingVector;
+					if (faceTrans->Elem1No == e) {
+						for (auto v{ 0 }; v < maps.first.size(); v++) {
+							sortingVector.push_back(std::pair(dofs1[maps.first[v]], dofs2[maps.second[v] - dofs1.Size()]));
+						}
+						sort(sortingVector.begin(), sortingVector.end());
+					}
+					else if (faceTrans->Elem2No == e) {
+						for (auto v{ 0 }; v < maps.first.size(); v++) {
+							sortingVector.push_back(std::pair(dofs2[maps.second[v] - dofs1.Size()], dofs1[maps.first[v]]));
+						}
+						sort(sortingVector.begin(), sortingVector.end());
+					}
+					else {
+						throw std::runtime_error("incorrect element id to element ids in FaceElementTransformation");
+					}
+
 					const auto prev_size = res.size();
-					appendConnectivityMapsForInteriorFace(
-						*faceTrans,
-						globalFES,
-						smFES,
-						res,
-						e);
+					for (auto v{ 0 }; v < sortingVector.size(); v++) {
+						res.push_back(sortingVector[v]);
+					}
 					if (plus_is_nbr) {
 						plus_is_nbr->insert(plus_is_nbr->end(), res.size() - prev_size, 0);
 					}
