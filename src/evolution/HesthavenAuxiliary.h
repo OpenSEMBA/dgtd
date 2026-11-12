@@ -3,11 +3,13 @@
 #include "evolution/HesthavenEvolutionMethods.h"
 
 #include <array>
+#include <memory>
 #include <vector>
 
 namespace mfem {
 class Vector;
 class ParFiniteElementSpace;
+class SparseMatrix;
 }
 
 namespace maxwell {
@@ -79,6 +81,8 @@ public:
 	void apply(const mfem::Vector& in, mfem::Vector& out) const;
 
 private:
+	void buildPmlCsr();
+
 	int ndofs_ = 0;
 	int n_pml_ = 0;
 	int n_debye_ = 0;
@@ -89,6 +93,8 @@ private:
 	std::vector<HesthavenDebyeTerm> debye_;
 	std::vector<HesthavenLorentzTerm> lorentz_;
 	std::vector<HesthavenPMLElement> pml_;
+	/// CPU Mult: merged element PML blocks (Global-style SpMV). Dense pml_ kept for CUDA.
+	std::unique_ptr<mfem::SparseMatrix> pml_csr_;
 };
 
 } // namespace maxwell

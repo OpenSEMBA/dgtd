@@ -74,19 +74,46 @@ DynamicMatrix weighted(const mfem::DenseMatrix& inverse, mfem::Coefficient& coef
 void addMatvec(const DynamicMatrix& matrix, double scale,
                const double* in, int in_offset,
                double* out, int out_offset,
-               const std::vector<int>& dofs, int ndofs)
+               const std::vector<int>& dofs, int /*ndofs*/)
 {
 	if (matrix.size() == 0 || scale == 0.0) {
 		return;
 	}
 	const int n = static_cast<int>(dofs.size());
-	Eigen::VectorXd x(n);
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+	// One scratch pair per OpenMP thread — avoids per-call heap traffic.
+#endif
+	thread_local Eigen::VectorXd x;
+	thread_local Eigen::VectorXd y;
+	x.resize(n);
+	y.resize(n);
 	for (int i = 0; i < n; ++i) {
 		x[i] = in[in_offset + dofs[static_cast<size_t>(i)]];
 	}
-	const Eigen::VectorXd y = scale * (matrix * x);
+	y.noalias() = matrix * x;
+	if (scale != 1.0) {
+		y *= scale;
+	}
 	for (int i = 0; i < n; ++i) {
 		out[out_offset + dofs[static_cast<size_t>(i)]] += y[i];
+	}
+}
+
+void accumulateDenseBlock(mfem::SparseMatrix& A, const DynamicMatrix& M, double scale,
+                          const std::vector<int>& dofs, int row_off, int col_off)
+{
+	if (M.size() == 0 || scale == 0.0) {
+		return;
+	}
+	const int n = static_cast<int>(dofs.size());
+	for (int j = 0; j < n; ++j) {
+		const int gj = col_off + dofs[static_cast<size_t>(j)];
+		for (int i = 0; i < n; ++i) {
+			const double v = scale * M(i, j);
+			if (v != 0.0) {
+				A.Add(row_off + dofs[static_cast<size_t>(i)], gj, v);
+			}
+		}
 	}
 }
 
@@ -338,6 +365,43 @@ void HesthavenAuxiliary::build(mfem::ParFiniteElementSpace& fes, Model& model,
 			lorentz_.push_back(buildLorentzTerm(fes, elem, *pole));
 		}
 	}
+
+	if (!pml_.empty()) {
+		buildPmlCsr();
+	}
+}
+
+void HesthavenAuxiliary::buildPmlCsr()
+{
+	pml_csr_.reset();
+	if (pml_.empty() || n_pml_ == 0) {
+		return;
+	}
+	// Full ODE height so AddMult accepts the evolution state vector.
+	const int height = 6 * ndofs_ + n_pml_ + n_debye_ + n_lorentz_;
+	auto csr = std::make_unique<mfem::SparseMatrix>(height, height);
+
+	// in → out ADE blocks only. Kappa stretch (delta) is out += Δ·out and is applied after SpMV.
+	for (const HesthavenPMLElement& term : pml_) {
+		for (int axis = 0; axis < 3; ++axis) {
+			const int e_off = axis * ndofs_;
+			const int h_off = (3 + axis) * ndofs_;
+			const int pe = 6 * ndofs_ + axis * ndofs_;
+			const int ph = 6 * ndofs_ + (3 + axis) * ndofs_;
+			const auto& block = term.blocks[static_cast<size_t>(axis)];
+			accumulateDenseBlock(*csr, block[0], -1.0, term.dofs, e_off, e_off);
+			accumulateDenseBlock(*csr, block[2], -1.0, term.dofs, e_off, pe);
+			accumulateDenseBlock(*csr, block[1], -1.0, term.dofs, h_off, h_off);
+			accumulateDenseBlock(*csr, block[3], -1.0, term.dofs, h_off, ph);
+			accumulateDenseBlock(*csr, block[6], 1.0, term.dofs, pe, e_off);
+			accumulateDenseBlock(*csr, block[4], -1.0, term.dofs, pe, pe);
+			accumulateDenseBlock(*csr, block[7], 1.0, term.dofs, ph, h_off);
+			accumulateDenseBlock(*csr, block[5], -1.0, term.dofs, ph, ph);
+		}
+	}
+
+	csr->Finalize();
+	pml_csr_ = std::move(csr);
 }
 
 const HesthavenLinearMaterial& HesthavenAuxiliary::linearMaterial(int slot) const
@@ -359,11 +423,35 @@ void HesthavenAuxiliary::apply(const mfem::Vector& in, mfem::Vector& out) const
 	const int p_lorentz = p_debye + n_debye_;
 	const int j_lorentz = p_lorentz + 3 * ndofs_;
 
+	if (pml_csr_ != nullptr) {
+		// Match applyPmlElement: out += Δ·out on the Maxwell RHS, then ADE SpMV from in.
+		if (pml_needs_a_) {
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
-	#pragma omp parallel for schedule(static) if (pml_.size() > 1)
+			#pragma omp parallel for schedule(static) if (pml_.size() > 1)
 #endif
-	for (int i = 0; i < static_cast<int>(pml_.size()); ++i) {
-		applyPmlElement(pml_[static_cast<size_t>(i)], ndofs_, in_data, out_data);
+			for (int i = 0; i < static_cast<int>(pml_.size()); ++i) {
+				const auto& term = pml_[static_cast<size_t>(i)];
+				if (!term.needs_a) {
+					continue;
+				}
+				for (int axis = 0; axis < 3; ++axis) {
+					const int e_off = axis * ndofs_;
+					const int h_off = (3 + axis) * ndofs_;
+					addMatvec(term.delta[static_cast<size_t>(axis)], 1.0,
+					          out_data, e_off, out_data, e_off, term.dofs, ndofs_);
+					addMatvec(term.delta[static_cast<size_t>(axis)], 1.0,
+					          out_data, h_off, out_data, h_off, term.dofs, ndofs_);
+				}
+			}
+		}
+		pml_csr_->AddMult(in, out);
+	} else {
+#ifdef SEMBA_DGTD_ENABLE_OPENMP
+		#pragma omp parallel for schedule(static) if (pml_.size() > 1)
+#endif
+		for (int i = 0; i < static_cast<int>(pml_.size()); ++i) {
+			applyPmlElement(pml_[static_cast<size_t>(i)], ndofs_, in_data, out_data);
+		}
 	}
 #ifdef SEMBA_DGTD_ENABLE_OPENMP
 	#pragma omp parallel for schedule(static) if (debye_.size() > 1)
