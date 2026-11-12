@@ -2238,7 +2238,9 @@ void HesthavenEvolution::MultGPU(const Vector& in, Vector& out) const
 	hesthaven_compute_jumps_gpu(gpu_, in, eOld_, hOld_, ndofs);
 	hesthaven_apply_bc_gpu(gpu_, in, ndofs);
 	if (gpu_.has_tfsf && has_tfsf_gpu_) {
-		srcmngr_.evalTimeVarFieldDirect(GetTime());
+		// Hesthaven injects the plain incident field (CPU evaluateTFSF uses ±1);
+		// the ±0.5 tfsf_sign_ mask is GlobalEvolution's convention, not ours.
+		srcmngr_.evalTimeVarFieldDirect(GetTime(), /*apply_tfsf_sign=*/false);
 		hesthaven_scatter_tfsf_to_jumps_gpu(
 			gpu_, srcmngr_.getCachedTFSFFields(), gpu_.jumps_size);
 	} else if (!connectivity_->boundary.TFSF.mapBSF.empty()) {
