@@ -1,8 +1,10 @@
 #include "LorentzProperties.h"
 
+#include "math/GridFunctionProfile.h"
 #include "math/PhysicalConstants.h"
 
 #include <cmath>
+#include <filesystem>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -10,6 +12,22 @@
 namespace maxwell {
 
 namespace {
+
+std::string resolveProfilePath(const std::string& file, const std::string& case_path)
+{
+	namespace fs = std::filesystem;
+	const fs::path requested(file);
+	if (requested.is_absolute()) {
+		return requested.string();
+	}
+	if (!case_path.empty()) {
+		const fs::path beside = fs::path(case_path).parent_path() / requested;
+		if (fs::exists(beside)) {
+			return beside.string();
+		}
+	}
+	return requested.string();
+}
 
 int parseAxisValue(const nlohmann::json& j, const std::string& context)
 {
@@ -61,7 +79,8 @@ ParsedRate parseRateEntry(
 	double unit_to_rad_s,
 	bool require_positive,
 	const std::string& label,
-	const char* rate_unit)
+	const char* rate_unit,
+	const std::string& case_path)
 {
 	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
 	const double solver_scale = unit_to_rad_s * inv_c;
@@ -204,16 +223,74 @@ ParsedRate parseRateEntry(
 		return out;
 	}
 
+	if (type == "gridfunction") {
+		if (!entry.contains("file") || !entry["file"].is_string()) {
+			throw std::runtime_error(
+				label + " gridfunction profile requires string 'file' (.gf).");
+		}
+		if (!entry.contains("mesh") || !entry["mesh"].is_string()) {
+			throw std::runtime_error(
+				label + " gridfunction profile requires string 'mesh' "
+				"(the MFEM mesh the .gf lives on).");
+		}
+		// plasma_kit writes omega_p in rad/s and nu_c in 1/s.  The unit key
+		// is only needed for files written in Hz; the default is rad/s and
+		// deliberately ignores the Hz/rad style of the JSON key.
+		double file_unit_scale = 1.0;
+		if (entry.contains("unit")) {
+			const std::string unit = entry["unit"].get<std::string>();
+			if (unit == "Hz") {
+				file_unit_scale = 2.0 * M_PI;
+			}
+			else if (unit != "rad/s") {
+				throw std::runtime_error(
+					label + " gridfunction profile 'unit' must be \"rad/s\" or \"Hz\".");
+			}
+		}
+		const bool axisymmetric = entry.value("axisymmetric", true);
+		const double outside_value = entry.value("default", 0.0);
+		const std::string fallback = entry.value("fallback", std::string("nearest"));
+		if (fallback != "nearest" && fallback != "default") {
+			throw std::runtime_error(
+				label + " gridfunction profile 'fallback' must be \"nearest\" or \"default\".");
+		}
+		const bool fallback_to_nearest = fallback == "nearest";
+		const std::string mesh_path =
+			resolveProfilePath(entry["mesh"].get<std::string>(), case_path);
+		const std::string gf_path =
+			resolveProfilePath(entry["file"].get<std::string>(), case_path);
+
+		const double scale = file_unit_scale * inv_c;
+		auto gf_profile = std::make_shared<GridFunctionProfile>(
+			mesh_path, gf_path, axisymmetric, scale, outside_value,
+			fallback_to_nearest);
+		if (gf_profile->minValue() < 0.0) {
+			throw std::runtime_error(
+				label + " gridfunction profile has negative values in '" +
+				gf_path + "'.");
+		}
+		out.scalar_solver = gf_profile->maxValue() * scale;
+		if (require_positive && !(gf_profile->maxValue() > 0.0)) {
+			throw std::runtime_error(
+				label + " gridfunction profile has no positive values in '" +
+				gf_path + "'.");
+		}
+		out.profile = gf_profile;
+		return out;
+	}
+
 	throw std::runtime_error(
 		"Unknown profile type '" + type + "' in " + label +
 		". Supported: constant, gaussian, positive_gaussian_derivative, "
-		"ramc_61km_omega_p, ramc_61km_nu_c_gupta, ramc_61km_nu_c_liu, "
-		"ramc_50km_omega_p, ramc_50km_nu_c_gupta, ramc_50km_nu_c_liu.");
+		"gridfunction, ramc_61km_omega_p, ramc_61km_nu_c_gupta, "
+		"ramc_61km_nu_c_liu, ramc_50km_omega_p, ramc_50km_nu_c_gupta, "
+		"ramc_50km_nu_c_liu.");
 }
 
 } // namespace
 
-LorentzProperties parseLorentzObject(const nlohmann::json& lorentz_json)
+LorentzProperties parseLorentzObject(
+	const nlohmann::json& lorentz_json, const std::string& case_path)
 {
 	if (!lorentz_json.is_object()) {
 		throw std::runtime_error(
@@ -270,11 +347,14 @@ LorentzProperties parseLorentzObject(const nlohmann::json& lorentz_json)
 		}
 		const double two_pi = 2.0 * M_PI;
 		const ParsedRate wp = parseRateEntry(
-			lorentz_json["f_p"], two_pi, true, "lorentz plasma frequency", "Hz");
+			lorentz_json["f_p"], two_pi, true, "lorentz plasma frequency", "Hz",
+			case_path);
 		const ParsedRate w1 = parseRateEntry(
-			lorentz_json["f_1"], two_pi, false, "lorentz resonance", "Hz");
+			lorentz_json["f_1"], two_pi, false, "lorentz resonance", "Hz",
+			case_path);
 		const ParsedRate gm = parseRateEntry(
-			lorentz_json[damp_key], two_pi, false, "lorentz gamma", "Hz");
+			lorentz_json[damp_key], two_pi, false, "lorentz gamma", "Hz",
+			case_path);
 		pole.omega_p = wp.scalar_solver;
 		pole.omega_1 = w1.scalar_solver;
 		pole.gamma = gm.scalar_solver;
@@ -289,11 +369,14 @@ LorentzProperties parseLorentzObject(const nlohmann::json& lorentz_json)
 			"lorentz rad/s style requires omega_p, omega_1, and gamma.");
 	}
 	const ParsedRate wp = parseRateEntry(
-		lorentz_json["omega_p"], 1.0, true, "lorentz plasma frequency", "rad/s");
+		lorentz_json["omega_p"], 1.0, true, "lorentz plasma frequency", "rad/s",
+		case_path);
 	const ParsedRate w1 = parseRateEntry(
-		lorentz_json["omega_1"], 1.0, false, "lorentz resonance", "rad/s");
+		lorentz_json["omega_1"], 1.0, false, "lorentz resonance", "rad/s",
+		case_path);
 	const ParsedRate gm = parseRateEntry(
-		lorentz_json[damp_key], 1.0, false, "lorentz gamma", "rad/s");
+		lorentz_json[damp_key], 1.0, false, "lorentz gamma", "rad/s",
+		case_path);
 	pole.omega_p = wp.scalar_solver;
 	pole.omega_1 = w1.scalar_solver;
 	pole.gamma = gm.scalar_solver;
@@ -303,7 +386,8 @@ LorentzProperties parseLorentzObject(const nlohmann::json& lorentz_json)
 	return pole;
 }
 
-LorentzProperties parseDrudeObject(const nlohmann::json& drude_json)
+LorentzProperties parseDrudeObject(
+	const nlohmann::json& drude_json, const std::string& case_path)
 {
 	if (!drude_json.is_object()) {
 		throw std::runtime_error(
@@ -351,9 +435,11 @@ LorentzProperties parseDrudeObject(const nlohmann::json& drude_json)
 	const std::string wp_key = has_f_p ? "f_p" : "omega_p";
 
 	const ParsedRate wp = parseRateEntry(
-		drude_json[wp_key], unit_scale, true, "drude plasma frequency", rate_unit);
+		drude_json[wp_key], unit_scale, true, "drude plasma frequency", rate_unit,
+		case_path);
 	const ParsedRate gm = parseRateEntry(
-		drude_json[damp_key], unit_scale, false, "drude collision frequency", rate_unit);
+		drude_json[damp_key], unit_scale, false, "drude collision frequency", rate_unit,
+		case_path);
 
 	pole.omega_p = wp.scalar_solver;
 	pole.omega_1 = 0.0;

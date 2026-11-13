@@ -2884,7 +2884,7 @@ void checkIfAttributesArePresent(const Mesh& mesh, const GeomTagToMaterialInfo& 
 }
 
 GeomTagToMaterialInfo assembleAttributeToMaterial(
-	const json& case_data, const mfem::Mesh& mesh)
+	const json& case_data, const mfem::Mesh& mesh, const std::string& case_path = "")
 {
 	GeomTagToMaterialInfo res{};
 
@@ -3014,8 +3014,8 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 					"The electric mass uses eps_inf.");
 			}
 			LorentzProperties pole = is_drude
-				? parseDrudeObject(mat_json["drude"])
-				: parseLorentzObject(mat_json["lorentz"]);
+				? parseDrudeObject(mat_json["drude"], case_path)
+				: parseLorentzObject(mat_json["lorentz"], case_path);
 			double mu{ 1.0 }, sigma{ 0.0 };
 			if (mat_json.contains("relative_permeability")) {
 				mu = mat_json["relative_permeability"];
@@ -3474,7 +3474,7 @@ Model buildModel(
 
     mfem::Mesh mesh = assembleMesh(mesh_file);
 
-    auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
+    auto att_to_material{ assembleAttributeToMaterial(case_data, mesh, case_path) };
     auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
 
     if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {

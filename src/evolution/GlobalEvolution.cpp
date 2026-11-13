@@ -585,9 +585,12 @@ GlobalEvolution::GlobalEvolution(
     // Build all operators on the global mesh
     ProblemDescription pd(model_, emptyProbes, srcmngr_.sources, opts_);
     DGOperatorFactory<mfem::ParFiniteElementSpace> dgops(pd, fes_);
-    globalOperator_ = dgops.buildGlobalOperator();
+    const bool sgbc_host_only = opts_.hesthaven_sgbc_host;
+    if (!sgbc_host_only) {
+        globalOperator_ = dgops.buildGlobalOperator();
+    }
 
-    if (model_.hasPML()) {
+    if (!sgbc_host_only && model_.hasPML()) {
         scpmlLayout_ = std::make_unique<SCPMLLayout>(
             fes_.GetNDofs(), model_.getPMLProperties(),
             fes_.GetMesh()->Dimension());
@@ -606,18 +609,20 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
-    debyeOperator_ = dgops.buildDebyeOperator();
-    if (debyeOperator_ && Mpi::WorldRank() == 0) {
-        std::cout << "[Debye] electric single-pole ADE; ODE size "
-                  << total_state_size_ << std::endl;
-    }
-    lorentzOperator_ = dgops.buildLorentzOperator();
-    if (lorentzOperator_ && Mpi::WorldRank() == 0) {
-        std::cout << "[Lorentz] electric single-pole ADE; ODE size "
-                  << total_state_size_ << std::endl;
+    if (!sgbc_host_only) {
+        debyeOperator_ = dgops.buildDebyeOperator();
+        if (debyeOperator_ && Mpi::WorldRank() == 0) {
+            std::cout << "[Debye] electric single-pole ADE; ODE size "
+                      << total_state_size_ << std::endl;
+        }
+        lorentzOperator_ = dgops.buildLorentzOperator();
+        if (lorentzOperator_ && Mpi::WorldRank() == 0) {
+            std::cout << "[Lorentz] electric single-pole ADE; ODE size "
+                      << total_state_size_ << std::endl;
+        }
     }
 
-    if (model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
+    if (!sgbc_host_only && model_.getTotalFieldScatteredFieldToMarker().find(BdrCond::TotalFieldIn) != model_.getTotalFieldScatteredFieldToMarker().end()) {
         int local_has_tfsf = has_local_tfsf_faces_ ? 1 : 0;
         int global_has_tfsf = 0;
         MPI_Allreduce(&local_has_tfsf, &global_has_tfsf, 1, MPI_INT, MPI_MAX,
@@ -797,7 +802,11 @@ GlobalEvolution::GlobalEvolution(
         }
     }
 
-    initDeltaGap(dgops);
+    if (!sgbc_host_only) {
+        initDeltaGap(dgops);
+    } else if (Mpi::WorldRank() == 0) {
+        std::cout << "[SGBC] Hesthaven host engine: vacuum A / PML / Debye / Lorentz / TFSF skipped\n";
+    }
 
     // cuSPARSE SpMV records a DnVec sized to y and requires y.Size()==rows.
     // Maxwell and TFSF are 6N; with Cartesian PML the ODE state is 12N.
@@ -1965,6 +1974,10 @@ void GlobalEvolution::injectSGBCFlux(const mfem::Vector& in, mfem::Vector& out) 
 
 void GlobalEvolution::Mult(const mfem::Vector& in, mfem::Vector& out) const
 {
+    MFEM_VERIFY(globalOperator_ != nullptr,
+        "GlobalEvolution::Mult requires vacuum A. "
+        "hesthaven_sgbc_host engines expose only advanceSGBC/injectSGBCFlux.");
+
 #ifdef SHOW_TIMER_INFORMATION
     mfem::StopWatch timerTotal, timerExchange, timerApplyA, timerTFSF, timerSGBC;
     timerTotal.Start();

@@ -78,6 +78,7 @@ namespace maxwell {
 		Directional dir;
 		Normals normals;
 		Eigen::VectorXd fscale;
+		mfem::Array<int> dofs; // cached volume DOFs (positive indices)
 	};
 
 	struct TrueBoundaryMaps {
@@ -146,6 +147,7 @@ namespace maxwell {
 
 	struct FieldsElementMaps {
 		FieldsElementMaps(const Vector& in, FiniteElementSpace&, const ElementId& id);
+		FieldsElementMaps(const Vector& in, FiniteElementSpace&, const mfem::Array<int>& dofs);
 		std::vector<Eigen::VectorXd> e_, h_;
 	};
 

@@ -66,10 +66,13 @@ struct LorentzProperties {
 	}
 };
 
-/// Parse a `lorentz` object. geom_tag is filled by the caller.
-LorentzProperties parseLorentzObject(const nlohmann::json& lorentz_json);
+/// Parse a `lorentz` object. geom_tag is filled by the caller.  `case_path`
+/// is the case JSON path used to resolve relative gridfunction profile files.
+LorentzProperties parseLorentzObject(
+	const nlohmann::json& lorentz_json, const std::string& case_path = "");
 
 /// Parse a `drude` object (cold-plasma Lorentz pole with omega_1 = 0). geom_tag is filled by the caller.
-LorentzProperties parseDrudeObject(const nlohmann::json& drude_json);
+LorentzProperties parseDrudeObject(
+	const nlohmann::json& drude_json, const std::string& case_path = "");
 
 } // namespace maxwell

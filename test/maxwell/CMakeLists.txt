@@ -28,7 +28,8 @@ add_executable(maxwell_tests
 	"solver/CheckpointTest.cpp" 
 	"solver/SourcesTest.cpp"
 	"solver/ThinWireTest.cpp"
-	"math/FunctionTest.cpp")
+	"math/FunctionTest.cpp"
+	"math/GridFunctionProfileTest.cpp")
 
 add_executable(maxwell_solver_tests
 	$<TARGET_OBJECTS:TestLauncher>

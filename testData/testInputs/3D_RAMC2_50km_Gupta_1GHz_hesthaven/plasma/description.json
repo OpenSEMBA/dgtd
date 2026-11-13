@@ -1,0 +1,17 @@
+{
+  "closure": "gupta",
+  "source": "lmrsim/vtk/fluid-s0012.pvtu",
+  "temperature": "Te",
+  "temperatures_clamped": 1282,
+  "dimension": 2,
+  "revolve_sectors": 0,
+  "curvature_order": 1,
+  "h1_order": 1,
+  "h1_collection": "H1",
+  "nodal_reduction": "area-weighted average of incident cells",
+  "omega_p": "omega_p.gf",
+  "nu_c": "nu_c.gf",
+  "omega_p_units": "rad/s",
+  "nu_c_units": "1/s",
+  "mesh": "mesh.mesh"
+}
