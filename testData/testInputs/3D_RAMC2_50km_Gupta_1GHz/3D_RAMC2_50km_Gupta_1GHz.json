@@ -1,0 +1,105 @@
+{
+  "solver_options": {
+    "evolution_operator": "global",
+    "upwind_alpha": 1.0,
+    "time_step": 0.00047985505566367967,
+    "final_time": 23.761972938796525,
+    "order": 2,
+    "basis_type": 1
+  },
+  "model": {
+    "filename": "3D_RAMC2_50km_Gupta_1GHz.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2,
+          3
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          4
+        ],
+        "lorentz": {
+          "eps_inf": 1.0,
+          "f_p": {
+            "type": "gridfunction",
+            "mesh": "plasma/mesh.mesh",
+            "file": "plasma/omega_p.gf",
+            "axisymmetric": true,
+            "fallback": "nearest"
+          },
+          "f_1": 0.0,
+          "gamma": {
+            "type": "gridfunction",
+            "mesh": "plasma/mesh.mesh",
+            "file": "plasma/nu_c.gf",
+            "axisymmetric": true,
+            "fallback": "nearest"
+          }
+        }
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          9
+        ],
+        "type": "PEC"
+      },
+      {
+        "tags": [
+          10
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 1.1880986469398263
+    },
+    "rcssurface": [
+      {
+        "name": "RCSSurfaceProbe",
+        "tags": [
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        "steps": 21
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "magnitude": {
+        "f_1e": 907695147.0
+      }
+    }
+  ]
+}
