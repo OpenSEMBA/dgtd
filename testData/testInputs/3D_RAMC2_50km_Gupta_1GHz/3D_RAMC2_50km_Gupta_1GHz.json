@@ -2,8 +2,8 @@
   "solver_options": {
     "evolution_operator": "global",
     "upwind_alpha": 1.0,
-    "time_step": 0.00047985505566367967,
-    "final_time": 23.761972938796525,
+    "time_step": 0.0007971205269804828,
+    "final_time": 38.261414763387876,
     "order": 2,
     "basis_type": 1
   },
@@ -59,7 +59,7 @@
   },
   "probes": {
     "exporter": {
-      "save_every": 1.1880986469398263
+      "save_every": 1.9130707381693939
     },
     "rcssurface": [
       {
@@ -72,7 +72,7 @@
           25,
           26
         ],
-        "steps": 21
+        "steps": 13
       }
     ]
   },
