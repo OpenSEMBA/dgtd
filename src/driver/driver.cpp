@@ -2659,6 +2659,38 @@ Probes buildProbes(const json& case_data)
             } else {
                 exporter_probe.visSteps = calculate_interval(exp_json);
             }
+            if (exp_json.contains("context_fields")) {
+                const auto& context_fields = exp_json["context_fields"];
+                if (context_fields.is_string()) {
+                    exporter_probe.context_fields = {
+                        context_fields.get<std::string>()};
+                } else if (context_fields.is_array()) {
+                    for (const auto& field : context_fields) {
+                        if (!field.is_string()) {
+                            throw std::runtime_error(
+                                "probes.exporter.context_fields array entries must be strings.");
+                        }
+                        exporter_probe.context_fields.push_back(
+                            field.get<std::string>());
+                    }
+                } else {
+                    throw std::runtime_error(
+                        "probes.exporter.context_fields must be a string "
+                        "(\"all\" or \"none\") or an array of field names.");
+                }
+            }
+            if (exp_json.contains("context_mode")) {
+                exporter_probe.context_mode =
+                    exp_json["context_mode"].get<std::string>();
+                if (exporter_probe.context_mode != "auto" &&
+                    exporter_probe.context_mode != "separate" &&
+                    exporter_probe.context_mode != "inline" &&
+                    exporter_probe.context_mode != "off") {
+                    throw std::runtime_error(
+                        "probes.exporter.context_mode must be "
+                        "\"auto\", \"separate\", \"inline\", or \"off\".");
+                }
+            }
             probes.exporterProbes.push_back(exporter_probe);
         }
 

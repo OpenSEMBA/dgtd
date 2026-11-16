@@ -243,7 +243,7 @@ Solver::Solver(
              + model.debyeAuxSize(fes_->GetNDofs())
              + model.lorentzAuxSize(fes_->GetNDofs()) },
     sourcesManager_{ sources, *fes_, fields_ },
-    probesManager_ { probes , *fes_, fields_, opts_ },
+    probesManager_ { probes , *fes_, fields_, opts_, &model_ },
     time_{0.0}
 {
     auto initStartTime = std::chrono::steady_clock::now();
@@ -284,6 +284,8 @@ Solver::Solver(
     if (model_.hasPML()) {
         model_.initializePMLProfiles(comm_rank, opts_.evolution.order);
     }
+
+    probesManager_.initializeContextFields(model_);
 
     evolTDO_ = assignEvolutionOperator();
     evolTDO_->SetTime(time_);
