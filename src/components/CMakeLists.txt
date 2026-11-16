@@ -7,6 +7,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 add_library(maxwell-components STATIC 
 "Material.cpp"
 "Model.cpp" 
+"ExporterContextFields.cpp"
 "Sources.cpp"
 "EigenvalueEstimator.cpp"
 "OptimizationManager.cpp"
