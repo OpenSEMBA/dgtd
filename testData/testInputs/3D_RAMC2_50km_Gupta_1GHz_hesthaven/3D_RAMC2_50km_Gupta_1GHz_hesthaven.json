@@ -2,8 +2,8 @@
   "solver_options": {
     "evolution_operator": "hesthaven",
     "upwind_alpha": 1.0,
-    "time_step": 0.0007971205269804828,
-    "final_time": 38.261414763387876,
+    "time_step": 0.0008,
+    "final_time": 22.956848858032725,
     "order": 2,
     "basis_type": 1
   },
@@ -59,7 +59,7 @@
   },
   "probes": {
     "exporter": {
-      "save_every": 1.9130707381693939
+      "save_every": 0.2
     },
     "rcssurface": [
       {

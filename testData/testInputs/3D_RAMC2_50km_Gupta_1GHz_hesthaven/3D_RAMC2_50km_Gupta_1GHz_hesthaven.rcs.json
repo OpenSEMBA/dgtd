@@ -1,5 +1,5 @@
 {
-  "runmode": "single-core",
+  "runmode": "mpi-16",
   "casename": "3D_RAMC2_50km_Gupta_1GHz_hesthaven",
   "frequencies": {
     "start": 200000000.0,

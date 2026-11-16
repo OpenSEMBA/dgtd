@@ -59,7 +59,7 @@
   },
   "probes": {
     "exporter": {
-      "save_every": 1.9130707381693939
+      "save_every": 0.2
     },
     "rcssurface": [
       {
