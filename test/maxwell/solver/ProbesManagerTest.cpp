@@ -6,7 +6,11 @@
 #include "solver/SourcesManager.h"
 #include <solver/Solver.h>
 
+#include "components/ExporterContextFields.h"
+#include "math/PhysicalConstants.h"
+
 #include <fstream>
+#include <limits>
 
 using namespace maxwell;
 using namespace mfem;
@@ -31,6 +35,163 @@ TEST_F(ProbesManagerTest, exporterProbe)
 	ProbesManager pM{ ps, fes, fields, SolverOptions{} };
 
 	ASSERT_NO_THROW(pM.updateProbes(0.0));
+}
+
+TEST_F(ProbesManagerTest, exporterContextFieldsLorentz)
+{
+	Mesh smesh{ Mesh::MakeCartesian1D(10, 1.0) };
+	for (int e = 5; e < smesh.GetNE(); ++e) {
+		smesh.SetAttribute(e, 2);
+	}
+	smesh.SetAttributes();
+
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+	matInfo.gt2m.emplace(2, Material(2.0, 1.0, 0.0));
+
+	LorentzProperties pole;
+	pole.geom_tag = 2;
+	pole.eps_inf = 2.0;
+	pole.omega_p = 7931762888.007762 / physicalConstants::speedOfLight_SI;
+	pole.omega_1 = 1498962290.0 / physicalConstants::speedOfLight_SI;
+	pole.gamma = 3185294866.25 / physicalConstants::speedOfLight_SI;
+	matInfo.lorentz.push_back(pole);
+
+	GeomTagToBoundaryInfo bdrInfo(
+		GeomTagToBoundary{{1, BdrCond::SMA}, {2, BdrCond::SMA}},
+		GeomTagToInteriorBoundary{});
+	Model model(smesh, matInfo, bdrInfo);
+	model.setLorentzProperties(matInfo.lorentz);
+
+	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
+	ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+
+	ExporterContextFields ctx(
+		model, fes,
+		{"eps_r", "mu_r", "sigma_S_per_m", "eps_inf", "fp_Hz",
+		 "f1_Hz", "nuc_Hz", "mat_tag"});
+
+	ASSERT_EQ(ctx.fields().size(), 8u);
+	EXPECT_FALSE(ctx.isTimeDependent());
+
+	auto find = [&](const std::string& name) -> const mfem::ParGridFunction& {
+		for (const auto& f : ctx.fields()) {
+			if (f.name == name) { return *f.gf; }
+		}
+		throw std::runtime_error("missing context field " + name);
+	};
+
+	const auto& eps_r = find("eps_r");
+	const auto& eps_inf = find("eps_inf");
+	const auto& fp = find("fp_Hz");
+	const auto& f1 = find("f1_Hz");
+	const auto& nuc = find("nuc_Hz");
+	const auto& tag = find("mat_tag");
+
+	const double expected_fp = 7931762888.007762 / (2.0 * M_PI);
+	const double expected_f1 = 1498962290.0 / (2.0 * M_PI);
+	const double expected_nuc = 3185294866.25 / (2.0 * M_PI);
+
+	mfem::Array<int> dofs;
+	for (int e = 0; e < fes.GetMesh()->GetNE(); ++e) {
+		fes.GetElementDofs(e, dofs);
+		const int attr = fes.GetMesh()->GetAttribute(e);
+		for (int j = 0; j < dofs.Size(); ++j) {
+			const int dof = dofs[j] < 0 ? -1 - dofs[j] : dofs[j];
+			EXPECT_NEAR(tag(dof), attr, 1e-12);
+			if (attr == 2) {
+				EXPECT_NEAR(eps_r(dof), 2.0, 1e-12);
+				EXPECT_NEAR(eps_inf(dof), 2.0, 1e-12);
+				EXPECT_NEAR(fp(dof), expected_fp, expected_fp * 1e-12);
+				EXPECT_NEAR(f1(dof), expected_f1, expected_f1 * 1e-12);
+				EXPECT_NEAR(nuc(dof), expected_nuc, expected_nuc * 1e-12);
+			} else {
+				EXPECT_NEAR(eps_r(dof), 1.0, 1e-12);
+				EXPECT_NEAR(eps_inf(dof), 1.0, 1e-12);
+				EXPECT_NEAR(fp(dof), 0.0, 1e-12);
+				EXPECT_NEAR(f1(dof), 0.0, 1e-12);
+				EXPECT_NEAR(nuc(dof), 0.0, 1e-12);
+			}
+		}
+	}
+}
+
+TEST_F(ProbesManagerTest, exporterContextFieldsLorentzProfile)
+{
+	Mesh smesh{ Mesh::MakeCartesian1D(10, 1.0) };
+	for (int e = 5; e < smesh.GetNE(); ++e) {
+		smesh.SetAttribute(e, 2);
+	}
+	smesh.SetAttributes();
+
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+	matInfo.gt2m.emplace(2, Material(2.0, 1.0, 0.0));
+
+	LorentzProperties pole;
+	pole.geom_tag = 2;
+	pole.eps_inf = 2.0;
+	pole.omega_p = 0.0;
+	pole.omega_1 = 0.0;
+	pole.gamma = 3185294866.25 / physicalConstants::speedOfLight_SI;
+	mfem::Vector center(1);
+	center(0) = 0.5;
+	const double peak = 7931762888.007762 / physicalConstants::speedOfLight_SI;
+	pole.omega_p_profile =
+		std::make_shared<GaussianProfile>(peak, 0.2, center);
+	matInfo.lorentz.push_back(pole);
+
+	GeomTagToBoundaryInfo bdrInfo(
+		GeomTagToBoundary{{1, BdrCond::SMA}, {2, BdrCond::SMA}},
+		GeomTagToInteriorBoundary{});
+	Model model(smesh, matInfo, bdrInfo);
+	model.setLorentzProperties(matInfo.lorentz);
+	const auto* modelPole = model.findLorentz(2);
+	ASSERT_NE(modelPole, nullptr);
+
+	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
+	ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+
+	ExporterContextFields ctx(
+		model, fes, {"fp_Hz", "nuc_Hz", "eps_inf", "mat_tag"});
+
+	auto find = [&](const std::string& name) -> const mfem::ParGridFunction& {
+		for (const auto& f : ctx.fields()) {
+			if (f.name == name) { return *f.gf; }
+		}
+		throw std::runtime_error("missing context field " + name);
+	};
+	const auto& fp = find("fp_Hz");
+	const auto& eps_inf = find("eps_inf");
+
+	double fp_min = std::numeric_limits<double>::max();
+	double fp_max = -std::numeric_limits<double>::max();
+
+	mfem::Array<int> dofs;
+	mfem::Vector x(1);
+	for (int e = 0; e < fes.GetMesh()->GetNE(); ++e) {
+		fes.GetElementDofs(e, dofs);
+		const int attr = fes.GetMesh()->GetAttribute(e);
+		auto* fe = fes.GetFE(e);
+		auto* tr = fes.GetElementTransformation(e);
+		for (int j = 0; j < dofs.Size(); ++j) {
+			const int dof = dofs[j] < 0 ? -1 - dofs[j] : dofs[j];
+			const auto& ip = fe->GetNodes().IntPoint(j);
+			tr->Transform(ip, x);
+			if (attr == 2) {
+				const double expected = modelPole->evalOmegaP(x) *
+					physicalConstants::speedOfLight_SI / (2.0 * M_PI);
+				EXPECT_NEAR(fp(dof), expected,
+					std::max(1.0, expected) * 1e-12);
+				EXPECT_NEAR(eps_inf(dof), 2.0, 1e-12);
+				fp_min = std::min(fp_min, fp(dof));
+				fp_max = std::max(fp_max, fp(dof));
+			} else {
+				EXPECT_NEAR(fp(dof), 0.0, 1e-12);
+			}
+		}
+	}
+	EXPECT_LT(fp_min, fp_max);
 }
 
 TEST_F(ProbesManagerTest, fieldProbe)
