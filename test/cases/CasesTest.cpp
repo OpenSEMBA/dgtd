@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 using json = nlohmann::json;
@@ -860,4 +861,45 @@ TEST_F(CasesTest, 1D_SGBC_Multiple_PEC_Backed_vs_Skrf)
 
 	EXPECT_LT(sum_s11_err_db / static_cast<double>(ref_rows.size()), 0.05);
 	EXPECT_LT(max_s11_err_db, 0.18);
+}
+
+TEST_F(CasesTest, 2D_Lorentz_Profile_Block)
+{
+	auto case_data = parseJSONfile(maxwellCase("2D_Lorentz_Profile_Block"));
+	auto solver{
+		buildSolver(case_data, maxwellCase("2D_Lorentz_Profile_Block"), true) };
+
+	const auto* p2 = solver.getModel().findLorentz(2);
+	const auto* p3 = solver.getModel().findLorentz(3);
+	ASSERT_NE(p2, nullptr);
+	ASSERT_NE(p3, nullptr);
+	EXPECT_NEAR(p2->region_min_x, 0.5, 1e-12);
+	EXPECT_NEAR(p2->region_max_x, 1.5, 1e-12);
+	EXPECT_NEAR(p3->region_min_x, 0.5, 1e-12);
+	EXPECT_NEAR(p3->region_max_x, 1.5, 1e-12);
+
+	solver.run();
+
+	const std::vector<std::pair<double, double>> expected0{
+		{4.0, 4.50346e-1}, {4.5, 8.37905e-1}, {5.0, 6.54825e-1}};
+	const std::vector<std::pair<double, double>> expected1{
+		{4.0, 6.95420e-2}, {4.5, 2.66404e-1}, {5.0, 4.82461e-1}};
+
+	auto check = [](const PointProbe& probe,
+	                const std::vector<std::pair<double, double>>& expected) {
+		for (const auto& [t_expected, ey_expected] : expected) {
+			bool found = false;
+			for (const auto& [t, f] : probe.getFieldMovies()) {
+				if (std::abs(t - t_expected) <= 1e-6) {
+					EXPECT_NEAR(f.Ey, ey_expected, 1e-6)
+						<< "t=" << t_expected;
+					found = true;
+					break;
+				}
+			}
+			EXPECT_TRUE(found) << "missing time " << t_expected;
+		}
+	};
+	check(solver.getPointProbe(0), expected0);
+	check(solver.getPointProbe(1), expected1);
 }

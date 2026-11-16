@@ -57,8 +57,7 @@ TEST_F(DriverTest, readsMesh)
 }
 
 TEST_F(DriverTest, adaptsModelObjects)
-{
-	auto file_name{ maxwellCase("2D_Parser_BdrAndInterior") };
+{	auto file_name{ maxwellCase("2D_Parser_BdrAndInterior") };
 	std::ifstream test_file(file_name);
 	auto case_data = json::parse(test_file);
 
@@ -831,4 +830,20 @@ TEST_F(DriverTest, planewaveAutoDelayAndDeltaGapValidation)
 			EXPECT_THROW(buildSources(bad, &model.getConstMesh()), std::runtime_error);
 		}
 	}
+}
+
+TEST_F(DriverTest, lorentzProfileBlockSharesUnionExtent)
+{
+	auto file_name{ maxwellCase("2D_Lorentz_Profile_Block") };
+	auto case_data = parseJSONfile(file_name);
+	auto model = buildModel(case_data, file_name, true);
+
+	const auto* p2 = model.findLorentz(2);
+	const auto* p3 = model.findLorentz(3);
+	ASSERT_NE(p2, nullptr);
+	ASSERT_NE(p3, nullptr);
+	EXPECT_NEAR(p2->region_min_x, 0.5, 1e-12);
+	EXPECT_NEAR(p2->region_max_x, 1.5, 1e-12);
+	EXPECT_NEAR(p3->region_min_x, 0.5, 1e-12);
+	EXPECT_NEAR(p3->region_max_x, 1.5, 1e-12);
 }
