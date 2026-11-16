@@ -1,0 +1,72 @@
+{
+  "solver_options": {
+    "upwind_alpha": 1.0,
+    "time_step": 0.001,
+    "final_time": 16.0,
+    "order": 3,
+    "ode_type": 0,
+    "evolution_operator": "hesthaven"
+  },
+  "model": {
+    "filename": "2D_Hybrid_Box_Circle.msh",
+    "materials": [
+      {
+        "tags": [9, 10],
+        "type": "vacuum"
+      },
+      {
+        "tags": [1, 2],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 0,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "active_axes": ["Y"]
+      },
+      {
+        "tags": [3, 4],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 0,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "active_axes": ["X"]
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [4, 6, 13, 15],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 1.0e9
+    },
+    "point": [
+      { "position": [0.0, 0.0] },
+      { "position": [2.0, 0.0] },
+      { "position": [0.0, 2.0] }
+    ],
+    "rcssurface": [
+      {
+        "name": "NTFF",
+        "tags": [11],
+        "steps": 5
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [0.0, 0.0, 1.0],
+      "propagation": [1.0, 0.0, 0.0],
+      "tags": [9],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.25
+      }
+    }
+  ]
+}

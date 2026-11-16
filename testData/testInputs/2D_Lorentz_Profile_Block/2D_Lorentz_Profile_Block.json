@@ -1,0 +1,103 @@
+{
+  "solver_options": {
+    "evolution_operator": "global",
+    "upwind_alpha": 1.0,
+    "time_step": 0.01,
+    "final_time": 5.5,
+    "order": 2,
+    "basis_type": 1
+  },
+  "model": {
+    "filename": "2D_Lorentz_Profile_Block.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          4
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          2,
+          3
+        ],
+        "lorentz": {
+          "eps_inf": 1.0,
+          "f_p": {
+            "type": "ramc_50km_omega_p"
+          },
+          "f_1": 0.0,
+          "gamma": {
+            "type": "ramc_50km_nu_c_gupta"
+          }
+        }
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          10
+        ],
+        "type": "SMA"
+      },
+      {
+        "tags": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "type": "PEC"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.1,
+      "context_fields": "all",
+      "context_mode": "auto"
+    },
+    "point": [
+      {
+        "position": [
+          1.0,
+          0.5
+        ]
+      },
+      {
+        "position": [
+          1.5,
+          0.5
+        ]
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        11
+      ],
+      "magnitude": {
+        "type": "gaussian",
+        "spread": 0.6
+      }
+    }
+  ]
+}

@@ -127,8 +127,9 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
     return pd;
 }
 
-ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& fields, const SolverOptions& opts) :
+ProbesManager::ProbesManager(Probes pIn, mfem::ParFiniteElementSpace& fes, Fields<ParFiniteElementSpace, ParGridFunction>& fields, const SolverOptions& opts, const Model* model) :
     probes{ pIn },
+    model_{ model },
     fes_{ fes }
 {
     for (const auto& p: probes.exporterProbes) {
@@ -460,6 +461,94 @@ DomainSnapshotDataCollection ProbesManager::buildDomainSnapshotDataCollection(co
     return res;
 }
 
+void ProbesManager::initializeContextFields(const Model& model)
+{
+    model_ = &model;
+    if (probes.exporterProbes.empty() || !contextFields_.empty()) {
+        return;
+    }
+
+    const MPI_Comm comm = getFESComm(fes_);
+    const bool root = isNodeRoot(comm);
+    const bool highOrder =
+        fes_.GetMesh()->GetElementTransformation(0)->Order() > 1 ||
+        fes_.FEColl()->GetOrder() > 1;
+    const int levelsOfDetail = std::max(
+        fes_.GetMesh()->GetElementTransformation(0)->Order(),
+        fes_.FEColl()->GetOrder());
+
+    for (auto& p : probes.exporterProbes) {
+        if (p.context_mode == "off") {
+            continue;
+        }
+
+        auto fields = std::make_unique<ExporterContextFields>(
+            model, fes_, p.context_fields);
+        if (fields->empty()) {
+            continue;
+        }
+
+        std::string mode = p.context_mode;
+        if (mode == "auto") {
+            mode = "inline";
+        }
+
+        if (mode == "inline") {
+            auto it = exporterProbesCollection_.find(&p);
+            if (it != exporterProbesCollection_.end()) {
+                fields->registerFields(it->second);
+            }
+            if (!fields->isTimeDependent()) {
+                // Static fields are written with the first frame (t=0) and then
+                // removed from the main collection so later cycles only carry E/H.
+                inlineContextPending_[&p] = true;
+            }
+            if (root) {
+                std::cout << "[Exporter] " << p.name << ": "
+                          << fields->fields().size() << " context fields, "
+                          << (fields->isTimeDependent()
+                                  ? "time-dependent -> every cycle"
+                                  : "time-independent -> t=0")
+                          << " (inline, single .pvd)\n";
+            }
+        } else if (mode == "separate") {
+            auto main_it = exporterProbesCollection_.find(&p);
+            if (main_it == exporterProbesCollection_.end()) {
+                continue;
+            }
+
+            mfem::ParaViewDataCollection pd{p.name + "_context", fes_.GetParMesh()};
+            pd.SetPrefixPath(main_it->second.GetPrefixPath());
+            pd.SetHighOrderOutput(highOrder);
+            pd.SetLevelsOfDetail(levelsOfDetail);
+            pd.SetDataFormat(VTKFormat::BINARY);
+            fields->registerFields(pd);
+
+            if (!fields->isTimeDependent()) {
+                pd.SetCycle(0);
+                pd.SetTime(0.0);
+                pd.Save();
+                MPI_Barrier(comm);
+            }
+            contextCollections_.emplace(&p, std::move(pd));
+
+            if (root) {
+                std::cout << "[Exporter] " << p.name << ": "
+                          << fields->fields().size() << " context fields, "
+                          << (fields->isTimeDependent()
+                                  ? "time-dependent -> every cycle"
+                                  : "time-independent -> t=0")
+                          << " (separate)\n";
+            }
+        } else {
+            throw std::runtime_error(
+                "probes.exporter.context_mode must be auto, separate, inline, or off.");
+        }
+
+        contextFields_.emplace(&p, std::move(fields));
+    }
+}
+
 void ProbesManager::setFinalTime(double final_time)
 {
     finalTime_ = final_time;
@@ -539,6 +628,26 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     // Without a post-Save barrier, a fast rank can leave step() and block in the
     // next stability/Mult Allreduce while a slow rank is still writing — hang.
     pd.Save();
+    auto pending_it = inlineContextPending_.find(&p);
+    if (pending_it != inlineContextPending_.end() && pending_it->second) {
+        auto fields_it = contextFields_.find(&p);
+        if (fields_it != contextFields_.end()) {
+            for (const auto& f : fields_it->second->fields()) {
+                pd.DeregisterField(f.name);
+            }
+        }
+        pending_it->second = false;
+    }
+    auto context_it = contextCollections_.find(&p);
+    if (context_it != contextCollections_.end()) {
+        auto fields_it = contextFields_.find(&p);
+        if (fields_it != contextFields_.end() &&
+            fields_it->second->isTimeDependent()) {
+            context_it->second.SetCycle(export_cycle);
+            context_it->second.SetTime(pd.GetTime());
+            context_it->second.Save();
+        }
+    }
     if (wire_exporter_) {
         wire_exporter_(pd.GetPrefixPath() + pd.GetCollectionName(), export_cycle, pd.GetTime());
     }

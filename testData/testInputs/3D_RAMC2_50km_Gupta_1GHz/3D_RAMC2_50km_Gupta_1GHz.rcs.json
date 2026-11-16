@@ -1,0 +1,21 @@
+{
+  "runmode": "cuda-1",
+  "casename": "3D_RAMC2_50km_Gupta_1GHz",
+  "frequencies": {
+    "start": 200000000.0,
+    "end": 1500000000.0,
+    "steps": 141
+  },
+  "angles": {
+    "theta": {
+      "start": 1.5707963267948966,
+      "end": 1.5707963267948966,
+      "steps": 1
+    },
+    "phi": {
+      "start": 3.141592653589793,
+      "end": 3.141592653589793,
+      "steps": 1
+    }
+  }
+}

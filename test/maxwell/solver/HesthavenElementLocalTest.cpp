@@ -457,3 +457,21 @@ TEST(HesthavenElementLocal, sgbc_step_matches_global)
 		hest_solver.getFields().allDOFs());
 	EXPECT_LT(diff, 1e-6) << "SGBC step max |global - hesthaven| = " << diff;
 }
+
+// Regression: promoted SGBC/SMA faces are rank-local. buildGlobalOperator() does
+// ExchangeFaceNbrData, so every rank must enter when any rank owns a promoted element.
+TEST(HesthavenElementLocal, sgbc_hesthaven_constructs_with_uneven_promotion)
+{
+	if (Mpi::WorldSize() < 2) {
+		GTEST_SKIP() << "Needs >=2 ranks to expose uneven SGBC face ownership.";
+	}
+	std::ifstream in(maxwellCase("2D_InteriorBoundary_SGBC_Test"));
+	auto data = nlohmann::json::parse(in);
+	data["solver_options"]["order"] = 1;
+	data["solver_options"]["time_step"] = 1.0e-3;
+	data["solver_options"]["final_time"] = 1.0e-3;
+	data["solver_options"]["upwind_alpha"] = 0.0;
+	data["solver_options"]["evolution_operator"] = "hesthaven";
+	const std::string path = maxwellCase("2D_InteriorBoundary_SGBC_Test");
+	EXPECT_NO_THROW(driver::buildSolver(data, path, true));
+}

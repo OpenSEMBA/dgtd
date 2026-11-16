@@ -243,7 +243,7 @@ Solver::Solver(
              + model.debyeAuxSize(fes_->GetNDofs())
              + model.lorentzAuxSize(fes_->GetNDofs()) },
     sourcesManager_{ sources, *fes_, fields_ },
-    probesManager_ { probes , *fes_, fields_, opts_ },
+    probesManager_ { probes , *fes_, fields_, opts_, &model_ },
     time_{0.0}
 {
     auto initStartTime = std::chrono::steady_clock::now();
@@ -284,6 +284,8 @@ Solver::Solver(
     if (model_.hasPML()) {
         model_.initializePMLProfiles(comm_rank, opts_.evolution.order);
     }
+
+    probesManager_.initializeContextFields(model_);
 
     evolTDO_ = assignEvolutionOperator();
     evolTDO_->SetTime(time_);
@@ -1151,14 +1153,20 @@ void Solver::run()
             int localUnstable = (!std::isfinite(localNorm) || localNorm > 1e20) ? 1 : 0;
             int globalUnstable = 0;
             MPI_Allreduce(&localUnstable, &globalUnstable, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            if (globalUnstable && Mpi::WorldRank() == 0) {
-                std::cout << "========================================================================" << std::endl;
-                std::cout << "WARNING: Simulation is potentially unstable (field norm = "
-                          << localNorm << ")." << std::endl;
-                std::cout << "  Time: " << time_ << " / " << opts_.final_time
-                          << ",  dt: " << dt_ << std::endl;
-                std::cout << "  Verify your setup and consider lowering the time step." << std::endl;
-                std::cout << "========================================================================" << std::endl;
+            if (globalUnstable) {
+                if (Mpi::WorldRank() == 0) {
+                    std::cout << "========================================================================" << std::endl;
+                    std::cout << "ERROR: Non-physical / unstable solution detected (field norm = "
+                              << localNorm << "). Aborting." << std::endl;
+                    std::cout << "  Time: " << time_ << " / " << opts_.final_time
+                              << ",  dt: " << dt_ << std::endl;
+                    std::cout << "  Reduce the time step or inspect mesh orientation / BCs / sources."
+                              << std::endl;
+                    std::cout << "========================================================================" << std::endl;
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+                throw std::runtime_error(
+                    "Simulation aborted: non-physical field norm (unstable or NaN).");
             }
         }
 

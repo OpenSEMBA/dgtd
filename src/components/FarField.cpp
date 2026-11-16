@@ -185,7 +185,7 @@ PlaneWaveData buildPlaneWaveData(const json& json, const std::string& meshDir)
 				// Auto-compute mean from the mesh geometry, mirroring driver.cpp logic.
 				std::string meshFile = (std::filesystem::path(meshDir)
 					/ json["model"]["filename"].get<std::string>()).string();
-				auto mesh = Mesh::LoadFromFile(meshFile.c_str(), 1, 0);
+				auto mesh = driver::assembleMesh(meshFile);
 				const auto& tags = json["sources"][s]["tags"];
 				double min_phase = std::numeric_limits<double>::max();
 				for (int be = 0; be < mesh.GetNBE(); ++be) {

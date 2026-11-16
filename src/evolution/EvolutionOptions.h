@@ -17,6 +17,9 @@ struct EvolutionOptions {
 	bool spectral{ false };
 	bool export_evolution_operator{ false };
 	bool is_sgbc_solver = false;
+	/// When true, GlobalEvolution builds only SGBC face ops (no vacuum A / PML / Debye /
+	/// Lorentz / TFSF). Used as HesthavenEvolution's nested coating engine.
+	bool hesthaven_sgbc_host = false;
 };
 
 }

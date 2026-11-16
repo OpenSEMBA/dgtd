@@ -14,6 +14,12 @@ struct ExporterProbe {
     /// Uniform export interval in solver time. When > 0, snapshots are taken at
     /// t = 0, save_every, 2*save_every, … and always at final_time (steps mode unused).
     double save_every{ 0.0 };
+    /// Context fields to write next to E/H. Empty means "all".
+    /// Accepts "all", "none", or an explicit list (see ExporterContextFields).
+    std::vector<std::string> context_fields;
+    /// "auto" (static -> one-shot collection, time-dependent -> inline every
+    /// cycle), "separate", "inline", or "off".
+    std::string context_mode{"auto"};
 };
 
 struct NearFieldProbe {

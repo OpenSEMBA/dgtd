@@ -1,0 +1,21 @@
+{
+  "runmode": "mpi-24",
+  "casename": "3D_RCS_Lorentz_Cold_Plasma_Small",
+  "frequencies": {
+    "start": 0.4e9,
+    "end": 120e9,
+    "steps": 601
+  },
+  "angles": {
+    "theta": {
+      "start": 3.141592653589793,
+      "end": 3.141592653589793,
+      "steps": 1
+    },
+    "phi": {
+      "start": 0.0,
+      "end": 0.0,
+      "steps": 1
+    }
+  }
+}

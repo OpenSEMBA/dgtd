@@ -43,7 +43,9 @@ struct LorentzProperties {
 
 	double evalProfile(const Function& fn, const mfem::Vector& x) const
 	{
-		if (x.Size() == 1 && hasRegionBounds()) {
+		// 1D profiles stretch over the tagged region's x extent and are
+		// uniform in the transverse directions (2D/3D meshes included).
+		if (fn.dimension() == 1 && hasRegionBounds()) {
 			const double xi = (x(0) - region_min_x) / (region_max_x - region_min_x);
 			return fn.evalAtUnitCoord(xi);
 		}
@@ -66,10 +68,13 @@ struct LorentzProperties {
 	}
 };
 
-/// Parse a `lorentz` object. geom_tag is filled by the caller.
-LorentzProperties parseLorentzObject(const nlohmann::json& lorentz_json);
+/// Parse a `lorentz` object. geom_tag is filled by the caller.  `case_path`
+/// is the case JSON path used to resolve relative gridfunction profile files.
+LorentzProperties parseLorentzObject(
+	const nlohmann::json& lorentz_json, const std::string& case_path = "");
 
 /// Parse a `drude` object (cold-plasma Lorentz pole with omega_1 = 0). geom_tag is filled by the caller.
-LorentzProperties parseDrudeObject(const nlohmann::json& drude_json);
+LorentzProperties parseDrudeObject(
+	const nlohmann::json& drude_json, const std::string& case_path = "");
 
 } // namespace maxwell

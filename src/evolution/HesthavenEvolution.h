@@ -160,11 +160,14 @@ private:
 	void promoteAssembledElements();
 	void applySGBC(const mfem::Vector& in, mfem::Vector& out, bool inject) const;
 	void computeJumps(const mfem::Vector& in, HesthavenFields& jumps) const;
+	void buildMergedCurvedMatrix();
 
 	void evaluateTFSF(HesthavenFields& jumps) const;
 	void evaluateTFSF(double* e_jumps, double* h_jumps, int jumps_size) const;
 	void addCurvedElementContributions(mfem::Vector& out) const;
-	void storeDirectionalMatrices(FiniteElementSpace& subFES, const DynamicMatrix& refInvMass, HesthavenElement&);
+	void storeDirectionalMatrices(const DynamicMatrix& refInvMass, HesthavenElement&);
+	void storeFaceInformation(HesthavenElement&);
+	void buildLinearDirGroups();
 	void checkForTFSFInCurvedElements();
 	void applyBoundaryConditionsToNodes(const BoundaryMaps&, const FieldsInputMaps& in, HesthavenFields& out) const;
 	void applyBoundaryConditionsToNodes(const BoundaryMaps&, const FieldsInputMaps& in,
@@ -184,19 +187,63 @@ private:
 
 	std::set<DynamicMatrix, MatrixCompareLessThan> matrixStorage_;
 	std::vector<HesthavenElement> hestElemLinearStorage_;
+	/// Slots in hestElemLinearStorage_ that share the same dir[0..2] pointers.
+	std::vector<std::vector<int>> linear_dir_groups_;
 	std::vector<HesthavenCurvedElement> hestElemCurvedStorage_;
 	DynamicMatrix refLIFT_;
 	std::optional<Connectivities> connectivity_;
 	std::vector<Source::Position> positions_;
 
+	/// Preallocated per-thread scratch for the element-local Mult (no heap
+	/// allocation inside MultCPU). Sized to the linear elements' DOF / flux sizes.
+	struct MultScratch {
+		Eigen::VectorXd eIn[3], hIn[3];
+		Eigen::VectorXd ndotdH, ndotdE;
+		Eigen::VectorXd fluxH, fluxE, tmpF, tmpF2;
+		Eigen::VectorXd liftedH, liftedE, volH, volE, tmpV;
+		void ensure(int nd, int nf)
+		{
+			if (volH.size() != nd) {
+				for (int d = X; d <= Z; ++d) {
+					eIn[d].resize(nd);
+					hIn[d].resize(nd);
+				}
+				liftedH.resize(nd);
+				liftedE.resize(nd);
+				volH.resize(nd);
+				volE.resize(nd);
+				tmpV.resize(nd);
+			}
+			if (fluxH.size() != nf) {
+				ndotdH.resize(nf);
+				ndotdE.resize(nf);
+				fluxH.resize(nf);
+				fluxE.resize(nf);
+				tmpF.resize(nf);
+				tmpF2.resize(nf);
+			}
+		}
+	};
+	mutable std::vector<MultScratch> mult_scratch_;
+	/// Preallocated jump buffer (element-major, connectivity_->global.size()).
+	mutable std::unique_ptr<HesthavenFields> mult_jumps_;
+
 	mutable std::array<mfem::ParGridFunction, 3> eOld_;
 	mutable std::array<mfem::ParGridFunction, 3> hOld_;
 
 	std::unique_ptr<GlobalEvolution> sgbc_engine_;
+	/// Owns options for nested SGBC GlobalEvolution (must outlive sgbc_engine_).
+	std::unique_ptr<EvolutionOptions> sgbc_host_opts_;
+
+	std::unique_ptr<mfem::SparseMatrix> curved_merged_matrix_;
+	mfem::Array<int> curved_merged_row_to_out_;
+
+	mutable mfem::Vector implicit_rhs_;
+	mutable mfem::Vector implicit_tmp_;
+	mutable double implicit_cached_dt_{-1.0};
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	mutable HesthavenGPUData gpu_;
-	mutable std::unique_ptr<mfem::SparseMatrix> curved_merged_matrix_;
 	bool has_tfsf_gpu_ = false;
 #endif
 };

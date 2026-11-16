@@ -26,6 +26,10 @@ namespace maxwell::driver {
 
 	std::string assembleMeshString(const std::string& filename);
 
+	/// Loads a Gmsh/MFEM mesh after applying fixGmshMesh() when needed
+	/// (strips zero-tagged lower-dimensional elements, same as the DGTD driver).
+	mfem::Mesh assembleMesh(const std::string& mesh_string);
+
 	Probes buildProbes(const json& case_data);
 	SolverOptions buildSolverOptions(const json& case_data);
 	Sources buildSources(const json& case_data, const mfem::Mesh* mesh = nullptr, const std::string& case_path = "");

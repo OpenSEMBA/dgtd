@@ -3,6 +3,7 @@
 | Document | Description |
 |----------|-------------|
 | [json-input-format.md](./json-input-format.md) | Full JSON schema reference: Maxwell case files (materials, Debye/Lorentz/Drude, spatial profiles, boundaries, probes, sources) and offline `opensemba_rcs` inputs |
+| [exporter-context-fields.md](./exporter-context-fields.md) | ParaView exporter context fields: DOF-attached material, plasma (`f_p`, `f_1`, `nu_c`), Debye, and PML fields, `context_fields`/`context_mode`, SI units, and applicability rules |
 | [designing-a-box-pml.md](./designing-a-box-pml.md) | How to cut, tag, and grade a Cartesian box SC-PML, with the 2D absorption reference |
 | [dispersive-materials.md](./dispersive-materials.md) | Single-pole Debye, Lorentz, and cold-plasma Drude formulations, spatial rate profiles (`gaussian`, `positive_gaussian_derivative`, `ramc_61km_*`, `ramc_50km_*`), and 1D automatic region stretching |
 | [sgbc.md](./sgbc.md) | Surface general boundary condition (SGBC): multi-layer thin sheets and RAM coatings, automatic layer meshing, IMEX sub-stepping, and ParaView export |

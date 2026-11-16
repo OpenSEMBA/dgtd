@@ -2659,6 +2659,38 @@ Probes buildProbes(const json& case_data)
             } else {
                 exporter_probe.visSteps = calculate_interval(exp_json);
             }
+            if (exp_json.contains("context_fields")) {
+                const auto& context_fields = exp_json["context_fields"];
+                if (context_fields.is_string()) {
+                    exporter_probe.context_fields = {
+                        context_fields.get<std::string>()};
+                } else if (context_fields.is_array()) {
+                    for (const auto& field : context_fields) {
+                        if (!field.is_string()) {
+                            throw std::runtime_error(
+                                "probes.exporter.context_fields array entries must be strings.");
+                        }
+                        exporter_probe.context_fields.push_back(
+                            field.get<std::string>());
+                    }
+                } else {
+                    throw std::runtime_error(
+                        "probes.exporter.context_fields must be a string "
+                        "(\"all\" or \"none\") or an array of field names.");
+                }
+            }
+            if (exp_json.contains("context_mode")) {
+                exporter_probe.context_mode =
+                    exp_json["context_mode"].get<std::string>();
+                if (exporter_probe.context_mode != "auto" &&
+                    exporter_probe.context_mode != "separate" &&
+                    exporter_probe.context_mode != "inline" &&
+                    exporter_probe.context_mode != "off") {
+                    throw std::runtime_error(
+                        "probes.exporter.context_mode must be "
+                        "\"auto\", \"separate\", \"inline\", or \"off\".");
+                }
+            }
             probes.exporterProbes.push_back(exporter_probe);
         }
 
@@ -2884,7 +2916,7 @@ void checkIfAttributesArePresent(const Mesh& mesh, const GeomTagToMaterialInfo& 
 }
 
 GeomTagToMaterialInfo assembleAttributeToMaterial(
-	const json& case_data, const mfem::Mesh& mesh)
+	const json& case_data, const mfem::Mesh& mesh, const std::string& case_path = "")
 {
 	GeomTagToMaterialInfo res{};
 
@@ -3014,8 +3046,8 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 					"The electric mass uses eps_inf.");
 			}
 			LorentzProperties pole = is_drude
-				? parseDrudeObject(mat_json["drude"])
-				: parseLorentzObject(mat_json["lorentz"]);
+				? parseDrudeObject(mat_json["drude"], case_path)
+				: parseLorentzObject(mat_json["lorentz"], case_path);
 			double mu{ 1.0 }, sigma{ 0.0 };
 			if (mat_json.contains("relative_permeability")) {
 				mu = mat_json["relative_permeability"];
@@ -3023,7 +3055,7 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			if (mat_json.contains("bulk_conductivity")) {
 				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
 			}
-			if (mesh.Dimension() == 1 && mesh.GetNE() > 0) {
+			if (mesh.GetNE() > 0) {
 				std::set<int> block_tags;
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
 					block_tags.insert(mat_json["tags"][t].get<int>());
@@ -3474,7 +3506,7 @@ Model buildModel(
 
     mfem::Mesh mesh = assembleMesh(mesh_file);
 
-    auto att_to_material{ assembleAttributeToMaterial(case_data, mesh) };
+    auto att_to_material{ assembleAttributeToMaterial(case_data, mesh, case_path) };
     auto att_to_bdr_info{ assembleAttributeToBoundary(case_data, mesh) };
 
     if (!att_to_bdr_info.gt2b.empty() && !att_to_material.gt2m.empty()) {

@@ -175,12 +175,49 @@ Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete pr
 | `"constant"` | `value` | — | Uniform rate across the region. |
 | `"gaussian"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Symmetric bell curve stretched between its `cutoff_factor` tails. |
 | `"positive_gaussian_derivative"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Rectified two-lobe Gaussian derivative stretched between its outer `cutoff_factor` tails. |
+| `"gridfunction"` | `mesh`, `file` | `axisymmetric` (`true`), `unit` (`"rad/s"`), `fallback` (`"nearest"`), `default` (`0.0`) | Scalar H1 GridFunction from a plasma_kit archive (`mesh.mesh` + `.gf`), evaluated pointwise at the DG quadrature points. |
 | `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p(x)$ $[\mathrm{rad/s}]$ mapped from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Gupta closure) mapped onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Liu closure) mapped onto $\xi \in [0, 1]$. |
 | `"ramc_50km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\omega_p(x)$ $[\mathrm{rad/s}]$ mapped from $[-0.024, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
 | `"ramc_50km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Gupta closure) mapped onto $\xi \in [0, 1]$. |
 | `"ramc_50km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Liu closure) mapped onto $\xi \in [0, 1]$. |
+
+##### `"gridfunction"` profiles
+
+A `"gridfunction"` profile reads an MFEM mesh and a scalar H1 `GridFunction`
+written by plasma_kit (`omega_p.gf`, `nu_c.gf`). The file must store SI
+`rad/s` (or `1/s`); `unit: "Hz"` multiplies by `2*pi`. Only the `1/c0`
+conversion to solver units is applied. Relative `mesh`/`file` paths are
+resolved next to the case JSON first and then from the current directory.
+
+```json
+"lorentz": {
+  "eps_inf": 1.0,
+  "f_p": {
+    "type": "gridfunction",
+    "mesh": "ramc2_subghz_2d_gupta/mesh.mesh",
+    "file": "ramc2_subghz_2d_gupta/omega_p.gf",
+    "axisymmetric": true
+  },
+  "f_1": 0.0,
+  "gamma": {
+    "type": "gridfunction",
+    "mesh": "ramc2_subghz_2d_gupta/mesh.mesh",
+    "file": "ramc2_subghz_2d_gupta/nu_c.gf",
+    "axisymmetric": true
+  }
+}
+```
+
+The rate profiles are evaluated at every element quadrature point and passed
+through the same `M_K^{-1} M_K[f]` projection as the built-in profiles, so the
+H1 data is effectively projected onto the DG (L2) space of the simulation,
+element by element, only on the Lorentz material's volume tags. For a 2D
+source mesh, the 3D point `(x, y, z)` is reduced to `(x, r = hypot(y, z))`
+when `axisymmetric` is true (the default). Points outside the source region
+return the nearest source element value (`fallback: "nearest"`, default) or
+`default` (0) when `fallback: "default"`.
 
 ##### How `"gaussian"` and `"positive_gaussian_derivative"` work
 
@@ -318,10 +355,39 @@ ParaView (VisIt) field export under `exports/ParaView/<run-mode>/`.
 |-------|-------------|
 | `name` | Dataset name (default: mesh basename) |
 | `save_every` | **Required cadence.** Export interval in solver time. Snapshots at `t = 0`, `save_every`, `2·save_every`, … and **always** at `final_time`. Example: `final_time: 20` with `save_every: 0.5` → 41 frames (`0, 0.5, …, 20`). Must be `> 0`. |
+| `context_fields` | Optional. `"all"` (default), `"none"`, or an array of field names (see [exporter context fields](#exporter-context-fields)). `"all"` writes only fields relevant to the model: PML fields only when PML exists, Debye fields only for Debye, `f1_Hz` only for a resonant Lorentz pole, and `sigma_S_per_m` only when a material has nonzero conductivity. |
+| `context_mode` | Optional. `"auto"` (default), `"separate"`, `"inline"`, or `"off"`. `"auto"`/`"inline"` write time-independent context fields in the main `<name>.pvd` at `t = 0` only (the first frame), so the dataset stays a single `.pvd`; time-dependent fields are written every cycle. `"separate"` writes a separate `<name>_context` collection, and `"off"` disables the fields. |
 
 Legacy keys on `exporter`:
 - `saves` (total frame count) — **rejected**; convert with `save_every = final_time / (saves - 1)` when `saves > 1`.
 - `steps` (every N time steps) — still parsed for backward compatibility, but prefer `save_every = steps * time_step`. Do not combine with `save_every`.
+
+#### exporter context fields
+
+See the dedicated guide: [exporter-context-fields.md](./exporter-context-fields.md).
+
+`context_fields` writes additional DOF-attached fields on the same DG space as `E`/`H`. Values are evaluated at each DOF's physical coordinate, so spatial plasma profiles (`f_p`, `f_1`, `nu_c`) vary DOF by DOF instead of being element-constant. All current fields are time-independent, so the default `"auto"` mode writes them in the **first frame** of the main `<name>.pvd` (at `t = 0`); later frames contain only `E`/`H`. `"all"` filters to the model's actual content. SI units are used throughout.
+
+| Field | Units | Description |
+|-------|-------|-------------|
+| `eps_r` | – | Relative permittivity (`eps_inf` on dispersive tags). |
+| `mu_r` | – | Relative permeability. |
+| `sigma_S_per_m` | S/m | Bulk conductivity. |
+| `mat_tag` | – | Element attribute. |
+| `h_m` | m | Element size. |
+| `eps_inf` | – | Instantaneous relative permittivity of a Debye/Lorentz/Drude tag. |
+| `fp_Hz` | Hz | Plasma frequency `f_p = omega_p / (2*pi)`, profile-aware. |
+| `f1_Hz` | Hz | Lorentz resonance `f_1 = omega_1 / (2*pi)`; 0 for Drude. |
+| `nuc_Hz` | Hz | Collision frequency `nu_c = gamma / (2*pi)`, profile-aware. |
+| `eps_s` | – | Static relative permittivity of a Debye tag. |
+| `tau_s` | s | Debye relaxation time. |
+| `pml_sigma_x/y/z` | 1/m | SC-PML stretch conductivity per axis (0 outside/inactive). |
+| `pml_kappa_x/y/z` | – | SC-PML stretch factor (1 outside/inactive). |
+| `pml_alpha_x/y/z` | – | SC-PML shift (0 outside/inactive). |
+| `pml_depth_x/y/z` | m | SC-PML depth per axis (0 outside). |
+| `pml_mask` | – | 1 inside a volumetric PML, 0 elsewhere. |
+
+The fields are written as scalar `ParGridFunction`s, so ParaView can contour them directly. They are nodal evaluations at the DG points, not the mass-matrix-projected operator coefficients; for smooth profiles the two agree, and for steep profiles the nodal values are the natural visualization.
 
 ### point
 

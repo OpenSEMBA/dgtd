@@ -5,6 +5,7 @@
 #include <fstream>
 
 #include "components/Probes.h"
+#include "components/ExporterContextFields.h"
 #include "components/SubMesher.h"
 #include "components/RCSSurfaceExporter.h"
 #include "solver/Checkpoint.h"
@@ -50,7 +51,7 @@ private:
 class ProbesManager {
 public:
     ProbesManager() = delete;
-    ProbesManager(Probes, mfem::ParFiniteElementSpace&, Fields<ParFiniteElementSpace, ParGridFunction>&, const SolverOptions&);
+    ProbesManager(Probes, mfem::ParFiniteElementSpace&, Fields<ParFiniteElementSpace, ParGridFunction>&, const SolverOptions&, const Model* model = nullptr);
     
     ProbesManager(const ProbesManager&) = delete;
     ProbesManager(ProbesManager&&) = default;
@@ -81,6 +82,9 @@ public:
         wire_sampler_ = std::move(sampler);
     }
     void initPointFieldProbeExport();
+    /// Builds the exporter context fields (material / plasma / PML parameters).
+    /// Call after Model::initializePMLProfiles so PML profiles are available.
+    void initializeContextFields(const Model& model);
     void initTFSFExport(SourcesManager* srcmngr, const mfem::Array<int>* tfsf_mapping) {
         srcmngr_ = srcmngr;
         tfsf_mapping_ = tfsf_mapping;
@@ -145,6 +149,9 @@ private:
     int cycle_{ 0 };
     double finalTime_;
 
+    std::map<const ExporterProbe*, std::unique_ptr<ExporterContextFields>> contextFields_;
+    std::map<const ExporterProbe*, mfem::ParaViewDataCollection> contextCollections_;
+    std::map<const ExporterProbe*, bool> inlineContextPending_;
     std::map<const ExporterProbe*, ExporterContext> exporterContexts_;
     std::map<const ExporterProbe*, mfem::ParaViewDataCollection> exporterProbesCollection_;
     std::map<const PointProbe*, PointProbeCollection> pointProbesCollection_;
@@ -154,6 +161,7 @@ private:
 
     std::string caseName_;
     
+    const Model* model_{nullptr};
     mfem::ParFiniteElementSpace& fes_;
     Fields<ParFiniteElementSpace, ParGridFunction>* fields_;
 
