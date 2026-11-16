@@ -43,7 +43,9 @@ struct LorentzProperties {
 
 	double evalProfile(const Function& fn, const mfem::Vector& x) const
 	{
-		if (x.Size() == 1 && hasRegionBounds()) {
+		// 1D profiles stretch over the tagged region's x extent and are
+		// uniform in the transverse directions (2D/3D meshes included).
+		if (fn.dimension() == 1 && hasRegionBounds()) {
 			const double xi = (x(0) - region_min_x) / (region_max_x - region_min_x);
 			return fn.evalAtUnitCoord(xi);
 		}

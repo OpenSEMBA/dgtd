@@ -139,7 +139,7 @@ const DebyeProperties* Model::findDebye(Attribute tag) const
 void Model::setLorentzProperties(const std::vector<LorentzProperties>& in)
 {
 	lorentz_ = in;
-	if (serialMesh_.Dimension() == 1 && serialMesh_.GetNE() > 0) {
+	if (serialMesh_.GetNE() > 0) {
 		for (LorentzProperties& pole : lorentz_) {
 			if (pole.hasRegionBounds()) {
 				continue;
