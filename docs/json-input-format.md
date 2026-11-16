@@ -355,10 +355,39 @@ ParaView (VisIt) field export under `exports/ParaView/<run-mode>/`.
 |-------|-------------|
 | `name` | Dataset name (default: mesh basename) |
 | `save_every` | **Required cadence.** Export interval in solver time. Snapshots at `t = 0`, `save_every`, `2·save_every`, … and **always** at `final_time`. Example: `final_time: 20` with `save_every: 0.5` → 41 frames (`0, 0.5, …, 20`). Must be `> 0`. |
+| `context_fields` | Optional. `"all"` (default), `"none"`, or an array of field names (see [exporter context fields](#exporter-context-fields)). `"all"` writes only fields relevant to the model: PML fields only when PML exists, Debye fields only for Debye, `f1_Hz` only for a resonant Lorentz pole, and `sigma_S_per_m` only when a material has nonzero conductivity. |
+| `context_mode` | Optional. `"auto"` (default), `"separate"`, `"inline"`, or `"off"`. `"auto"`/`"inline"` write time-independent context fields in the main `<name>.pvd` at `t = 0` only (the first frame), so the dataset stays a single `.pvd`; time-dependent fields are written every cycle. `"separate"` writes a separate `<name>_context` collection, and `"off"` disables the fields. |
 
 Legacy keys on `exporter`:
 - `saves` (total frame count) — **rejected**; convert with `save_every = final_time / (saves - 1)` when `saves > 1`.
 - `steps` (every N time steps) — still parsed for backward compatibility, but prefer `save_every = steps * time_step`. Do not combine with `save_every`.
+
+#### exporter context fields
+
+See the dedicated guide: [exporter-context-fields.md](./exporter-context-fields.md).
+
+`context_fields` writes additional DOF-attached fields on the same DG space as `E`/`H`. Values are evaluated at each DOF's physical coordinate, so spatial plasma profiles (`f_p`, `f_1`, `nu_c`) vary DOF by DOF instead of being element-constant. All current fields are time-independent, so the default `"auto"` mode writes them in the **first frame** of the main `<name>.pvd` (at `t = 0`); later frames contain only `E`/`H`. `"all"` filters to the model's actual content. SI units are used throughout.
+
+| Field | Units | Description |
+|-------|-------|-------------|
+| `eps_r` | – | Relative permittivity (`eps_inf` on dispersive tags). |
+| `mu_r` | – | Relative permeability. |
+| `sigma_S_per_m` | S/m | Bulk conductivity. |
+| `mat_tag` | – | Element attribute. |
+| `h_m` | m | Element size. |
+| `eps_inf` | – | Instantaneous relative permittivity of a Debye/Lorentz/Drude tag. |
+| `fp_Hz` | Hz | Plasma frequency `f_p = omega_p / (2*pi)`, profile-aware. |
+| `f1_Hz` | Hz | Lorentz resonance `f_1 = omega_1 / (2*pi)`; 0 for Drude. |
+| `nuc_Hz` | Hz | Collision frequency `nu_c = gamma / (2*pi)`, profile-aware. |
+| `eps_s` | – | Static relative permittivity of a Debye tag. |
+| `tau_s` | s | Debye relaxation time. |
+| `pml_sigma_x/y/z` | 1/m | SC-PML stretch conductivity per axis (0 outside/inactive). |
+| `pml_kappa_x/y/z` | – | SC-PML stretch factor (1 outside/inactive). |
+| `pml_alpha_x/y/z` | – | SC-PML shift (0 outside/inactive). |
+| `pml_depth_x/y/z` | m | SC-PML depth per axis (0 outside). |
+| `pml_mask` | – | 1 inside a volumetric PML, 0 elsewhere. |
+
+The fields are written as scalar `ParGridFunction`s, so ParaView can contour them directly. They are nodal evaluations at the DG points, not the mass-matrix-projected operator coefficients; for smooth profiles the two agree, and for steep profiles the nodal values are the natural visualization.
 
 ### point
 

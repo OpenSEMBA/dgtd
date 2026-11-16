@@ -91,6 +91,10 @@ $$
 - `relative_permeability` (default `1.0`) and `bulk_conductivity` (default `0.0` S/m) remain available alongside the dispersive pole.
 - A mesh tag cannot combine `debye`, `lorentz`, `drude`, or `type: "PML"`, and SGBC layers cannot carry dispersive poles.
 
+### ParaView context fields
+
+When `probes.exporter` is present, the exporter can write `eps_inf`, `fp_Hz`, `f1_Hz`, and `nuc_Hz` (plus `eps_s` and `tau_s` for Debye) as DOF-attached fields on the same DG space as `E`/`H`. Values are evaluated at each DOF's physical coordinate, so `gridfunction` profiles vary DOF by DOF instead of being element-constant. See [exporter-context-fields.md](./exporter-context-fields.md).
+
 ---
 
 ## Spatial rate profiles and DG mass assembly

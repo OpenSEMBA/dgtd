@@ -158,6 +158,7 @@ Results are written under the same probe directory as `farfield/` and `rcs/`.
 |-------|------|
 | All docs | [docs/README.md](docs/README.md) |
 | JSON input (solver + offline RCS) | [docs/json-input-format.md](docs/json-input-format.md) |
+| Exporter context fields (ParaView material, plasma, and PML fields) | [docs/exporter-context-fields.md](docs/exporter-context-fields.md) |
 | Box PML (mesh, JSON, absorption table) | [docs/designing-a-box-pml.md](docs/designing-a-box-pml.md) |
 | Dispersive materials (Debye, Lorentz, Drude, spatial profiles) | [docs/dispersive-materials.md](docs/dispersive-materials.md) |
 | SGBC multi-layer thin sheets and coatings | [docs/sgbc.md](docs/sgbc.md) |
