@@ -32,7 +32,9 @@ Consequences:
 - **Spatial profiles** (`f_p`, `f_1`, `nu_c` from `gaussian`,
   `positive_gaussian_derivative`, `gridfunction`, or `ramc_*` profiles) are
   evaluated at each DOF, so they vary DOF by DOF. This is required for plasma
-  sheaths whose parameters are not element-constant.
+  sheaths whose parameters are not element-constant. A 1D profile (for
+  example `ramc_50km_*`) is stretched over the tagged region's `x` extent and
+  is uniform in the transverse directions.
 - PML profiles are evaluated at each DOF and for each active axis.
 - The values are **nodal evaluations** at the DG points, not the
   mass-matrix-projected operator coefficients `M_K^{-1} M_K[f]`. For smooth

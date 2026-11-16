@@ -119,11 +119,13 @@ Evaluating $\tilde{\omega}_p^2(\mathbf{x}) \ge 0$ and $\tilde{\gamma}(\mathbf{x}
 
 ### 1D automatic region stretching
 
-In 1D simulations, spatial profiles are not locked to hardcoded mesh coordinates. At initialization, the solver scans the mesh for all elements assigned to the material's `tags` and records the physical bounding interval $[x_{\min}^{\mathrm{mesh}},\, x_{\max}^{\mathrm{mesh}}]$. Every quadrature point $x \in [x_{\min}^{\mathrm{mesh}},\, x_{\max}^{\mathrm{mesh}}]$ is mapped to the normalized unit coordinate:
+In 1D simulations (and for 1D profiles on 2D/3D meshes), spatial profiles are not locked to hardcoded mesh coordinates. At initialization, the solver scans the mesh for all elements assigned to the material's `tags` and records the physical bounding interval $[x_{\min}^{\mathrm{mesh}},\, x_{\max}^{\mathrm{mesh}}]$. Every quadrature point $x \in [x_{\min}^{\mathrm{mesh}},\, x_{\max}^{\mathrm{mesh}}]$ is mapped to the normalized unit coordinate:
 
 $$
 \xi(x) = \frac{x - x_{\min}^{\mathrm{mesh}}}{x_{\max}^{\mathrm{mesh}} - x_{\min}^{\mathrm{mesh}}} \in [0, 1].
 $$
+
+On a 2D/3D mesh, a 1D profile is stretched over the `x` extent of the tagged elements and is uniform in the transverse directions (`y`, `z`). This is how the built-in `ramc_*` stagnation-line profiles are used on a 2D/3D Lorentz volume.
 
 Each profile evaluates its canonical shape on $\xi \in [0, 1]$, so the complete profile automatically stretches or compresses to cover the tagged mesh region whether the region is $10\,\mathrm{mm}$, $12\,\mathrm{mm}$, $24\,\mathrm{mm}$, or $2\,\mathrm{m}$ wide.
 
