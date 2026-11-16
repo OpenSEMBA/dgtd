@@ -9,8 +9,13 @@
 #include "components/ExporterContextFields.h"
 #include "math/PhysicalConstants.h"
 
+#include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
 
 using namespace maxwell;
 using namespace mfem;
@@ -192,6 +197,270 @@ TEST_F(ProbesManagerTest, exporterContextFieldsLorentzProfile)
 		}
 	}
 	EXPECT_LT(fp_min, fp_max);
+}
+
+TEST_F(ProbesManagerTest, exporterContextFields2DProfileUniformInY)
+{
+	Mesh smesh{ Mesh::MakeCartesian2D(
+		8, 2, Element::QUADRILATERAL, true, 1.0, 1.0) };
+	mfem::Array<int> verts;
+	for (int e = 0; e < smesh.GetNE(); ++e) {
+		smesh.GetElementVertices(e, verts);
+		double xc = 0.0;
+		for (int v = 0; v < verts.Size(); ++v) {
+			xc += smesh.GetVertex(verts[v])[0];
+		}
+		xc /= static_cast<double>(verts.Size());
+		smesh.SetAttribute(e, xc >= 0.5 ? 2 : 1);
+	}
+	smesh.SetAttributes();
+
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+	matInfo.gt2m.emplace(2, Material(2.0, 1.0, 0.0));
+
+	LorentzProperties pole;
+	pole.geom_tag = 2;
+	pole.eps_inf = 2.0;
+	pole.omega_p = 0.0;
+	pole.omega_1 = 0.0;
+	pole.gamma = 3185294866.25 / physicalConstants::speedOfLight_SI;
+	mfem::Vector center(1);
+	center(0) = 0.5;
+	const double peak = 7931762888.007762 / physicalConstants::speedOfLight_SI;
+	pole.omega_p_profile =
+		std::make_shared<GaussianProfile>(peak, 0.2, center);
+	matInfo.lorentz.push_back(pole);
+
+	GeomTagToBoundaryInfo bdrInfo(
+		GeomTagToBoundary{{1, BdrCond::SMA}, {2, BdrCond::SMA}},
+		GeomTagToInteriorBoundary{});
+	Model model(smesh, matInfo, bdrInfo);
+	model.setLorentzProperties(matInfo.lorentz);
+	const auto* modelPole = model.findLorentz(2);
+	ASSERT_NE(modelPole, nullptr);
+	EXPECT_NEAR(modelPole->region_min_x, 0.5, 1e-12);
+	EXPECT_NEAR(modelPole->region_max_x, 1.0, 1e-12);
+
+	DG_FECollection fec{ 2, 2, BasisType::GaussLobatto };
+	ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+	ExporterContextFields ctx(
+		model, fes, {"fp_Hz", "nuc_Hz", "eps_inf", "mat_tag"});
+
+	auto find = [&](const std::string& name) -> const mfem::ParGridFunction& {
+		for (const auto& f : ctx.fields()) {
+			if (f.name == name) { return *f.gf; }
+		}
+		throw std::runtime_error("missing context field " + name);
+	};
+	const auto& fp = find("fp_Hz");
+	const auto& eps_inf = find("eps_inf");
+
+	std::map<long long, double> fp_by_x;
+	mfem::Array<int> dofs;
+	mfem::Vector x(2);
+	for (int e = 0; e < fes.GetMesh()->GetNE(); ++e) {
+		if (fes.GetMesh()->GetAttribute(e) != 2) {
+			continue;
+		}
+		fes.GetElementDofs(e, dofs);
+		auto* fe = fes.GetFE(e);
+		auto* tr = fes.GetElementTransformation(e);
+		for (int j = 0; j < dofs.Size(); ++j) {
+			const int dof = dofs[j] < 0 ? -1 - dofs[j] : dofs[j];
+			const auto& ip = fe->GetNodes().IntPoint(j);
+			tr->Transform(ip, x);
+			const double expected = modelPole->evalOmegaP(x) *
+				physicalConstants::speedOfLight_SI / (2.0 * M_PI);
+			EXPECT_NEAR(fp(dof), expected, std::max(1.0, expected) * 1e-12);
+			EXPECT_NEAR(eps_inf(dof), 2.0, 1e-12);
+
+			const long long key = std::llround(x(0) * 1e12);
+			const auto it = fp_by_x.find(key);
+			if (it != fp_by_x.end()) {
+				EXPECT_NEAR(it->second, fp(dof), 1e-12);
+			} else {
+				fp_by_x[key] = fp(dof);
+			}
+		}
+	}
+	EXPECT_GT(fp_by_x.size(), 1u);
+}
+
+TEST_F(ProbesManagerTest, exporterContextFieldsApplicability)
+{
+	auto fieldNames = [](const ExporterContextFields& ctx) {
+		std::vector<std::string> names;
+		for (const auto& f : ctx.fields()) {
+			names.push_back(f.name);
+		}
+		return names;
+	};
+
+	GeomTagToBoundaryInfo bdrInfo(
+		GeomTagToBoundary{{1, BdrCond::SMA}, {2, BdrCond::SMA}},
+		GeomTagToInteriorBoundary{});
+
+	auto makeMesh = [] {
+		Mesh smesh{ Mesh::MakeCartesian1D(10, 1.0) };
+		for (int e = 5; e < smesh.GetNE(); ++e) {
+			smesh.SetAttribute(e, 2);
+		}
+		smesh.SetAttributes();
+		return smesh;
+	};
+
+	{
+		auto smesh = makeMesh();
+		GeomTagToMaterialInfo matInfo;
+		matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+		matInfo.gt2m.emplace(2, Material(1.0, 1.0, 0.0));
+		LorentzProperties pole;
+		pole.geom_tag = 2;
+		pole.eps_inf = 1.0;
+		pole.omega_p = 7931762888.007762 / physicalConstants::speedOfLight_SI;
+		pole.omega_1 = 0.0;
+		pole.gamma = 3185294866.25 / physicalConstants::speedOfLight_SI;
+		matInfo.lorentz.push_back(pole);
+		Model model(smesh, matInfo, bdrInfo);
+		model.setLorentzProperties(matInfo.lorentz);
+		DG_FECollection fec{ 1, 1, BasisType::GaussLobatto };
+		ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+		ExporterContextFields ctx(model, fes, {});
+		EXPECT_EQ(fieldNames(ctx),
+			(std::vector<std::string>{
+				"eps_r", "mu_r", "mat_tag", "h_m",
+				"eps_inf", "fp_Hz", "nuc_Hz"}));
+	}
+
+	{
+		auto smesh = makeMesh();
+		GeomTagToMaterialInfo matInfo;
+		matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+		matInfo.gt2m.emplace(2, Material(2.0, 1.0, 0.0));
+		LorentzProperties pole;
+		pole.geom_tag = 2;
+		pole.eps_inf = 2.0;
+		pole.omega_p = 7931762888.007762 / physicalConstants::speedOfLight_SI;
+		pole.omega_1 = 1498962290.0 / physicalConstants::speedOfLight_SI;
+		pole.gamma = 3185294866.25 / physicalConstants::speedOfLight_SI;
+		matInfo.lorentz.push_back(pole);
+		Model model(smesh, matInfo, bdrInfo);
+		model.setLorentzProperties(matInfo.lorentz);
+		DG_FECollection fec{ 1, 1, BasisType::GaussLobatto };
+		ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+		ExporterContextFields ctx(model, fes, {});
+		EXPECT_EQ(fieldNames(ctx),
+			(std::vector<std::string>{
+				"eps_r", "mu_r", "mat_tag", "h_m",
+				"eps_inf", "fp_Hz", "f1_Hz", "nuc_Hz"}));
+	}
+
+	{
+		auto smesh = makeMesh();
+		GeomTagToMaterialInfo matInfo;
+		matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+		matInfo.gt2m.emplace(2, Material(2.0, 1.0, 0.0));
+		DebyeProperties pole;
+		pole.geom_tag = 2;
+		pole.eps_inf = 2.0;
+		pole.eps_s = 5.0;
+		pole.tau_solver = 1e-9 * physicalConstants::speedOfLight_SI;
+		matInfo.debye.push_back(pole);
+		Model model(smesh, matInfo, bdrInfo);
+		model.setDebyeProperties(matInfo.debye);
+		DG_FECollection fec{ 1, 1, BasisType::GaussLobatto };
+		ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+		ExporterContextFields ctx(model, fes, {});
+		EXPECT_EQ(fieldNames(ctx),
+			(std::vector<std::string>{
+				"eps_r", "mu_r", "mat_tag", "h_m",
+				"eps_inf", "eps_s", "tau_s"}));
+	}
+
+	{
+		auto smesh = makeMesh();
+		GeomTagToMaterialInfo matInfo;
+		matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+		matInfo.gt2m.emplace(2, Material(1.0, 1.0, 0.0));
+		Model model(smesh, matInfo, bdrInfo);
+		PMLProperties pml;
+		pml.geom_tags = {2};
+		pml.active_axes = {X};
+		pml.kappa_max = 1.0;
+		pml.alpha_max = 0.0;
+		model.setPMLProperties({pml});
+		DG_FECollection fec{ 1, 1, BasisType::GaussLobatto };
+		ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+		ExporterContextFields ctx(model, fes, {});
+		EXPECT_EQ(fieldNames(ctx),
+			(std::vector<std::string>{
+				"eps_r", "mu_r", "mat_tag", "h_m",
+				"pml_sigma_x", "pml_kappa_x", "pml_alpha_x",
+				"pml_depth_x", "pml_mask"}));
+	}
+}
+
+TEST_F(ProbesManagerTest, exporterContextFieldsSinglePvdFirstFrame)
+{
+	Mesh smesh{ Mesh::MakeCartesian1D(10, 1.0) };
+	for (int e = 5; e < smesh.GetNE(); ++e) {
+		smesh.SetAttribute(e, 2);
+	}
+	smesh.SetAttributes();
+
+	GeomTagToMaterialInfo matInfo;
+	matInfo.gt2m.emplace(1, Material(1.0, 1.0, 0.0));
+	matInfo.gt2m.emplace(2, Material(2.0, 1.0, 0.0));
+	LorentzProperties pole;
+	pole.geom_tag = 2;
+	pole.eps_inf = 2.0;
+	pole.omega_p = 7931762888.007762 / physicalConstants::speedOfLight_SI;
+	pole.omega_1 = 1498962290.0 / physicalConstants::speedOfLight_SI;
+	pole.gamma = 3185294866.25 / physicalConstants::speedOfLight_SI;
+	matInfo.lorentz.push_back(pole);
+
+	GeomTagToBoundaryInfo bdrInfo(
+		GeomTagToBoundary{{1, BdrCond::SMA}, {2, BdrCond::SMA}},
+		GeomTagToInteriorBoundary{});
+	Model model(smesh, matInfo, bdrInfo);
+	model.setLorentzProperties(matInfo.lorentz);
+
+	DG_FECollection fec{ 2, 1, BasisType::GaussLobatto };
+	ParFiniteElementSpace fes{ &model.getMesh(), &fec };
+	Fields<ParFiniteElementSpace, ParGridFunction> fields{ fes };
+
+	Probes ps;
+	ExporterProbe exporter{ "ExporterContextSinglePvdTest" };
+	exporter.save_every = 0.1;
+	ps.exporterProbes = { exporter };
+
+	SolverOptions opts;
+	opts.final_time = 1.0;
+	ProbesManager pM{ ps, fes, fields, opts, &model };
+	pM.initializeContextFields(model);
+
+	const std::string base = "exports/ParaView/" + getRunModeTag() +
+		"/ExporterContextSinglePvdTest";
+	std::filesystem::remove_all(base);
+	pM.updateProbes(0.0);
+	pM.updateProbes(0.1);
+
+	auto readFile = [](const std::string& path) {
+		std::ifstream f(path);
+		std::stringstream ss;
+		ss << f.rdbuf();
+		return ss.str();
+	};
+	const auto cycle0 = readFile(base + "/Cycle000000/proc000000.vtu");
+	const auto cycle1 = readFile(base + "/Cycle000001/proc000000.vtu");
+
+	EXPECT_NE(cycle0.find("Name=\"E\""), std::string::npos);
+	EXPECT_NE(cycle0.find("Name=\"fp_Hz\""), std::string::npos);
+	EXPECT_NE(cycle0.find("Name=\"mat_tag\""), std::string::npos);
+	EXPECT_NE(cycle1.find("Name=\"E\""), std::string::npos);
+	EXPECT_EQ(cycle1.find("Name=\"fp_Hz\""), std::string::npos);
+	EXPECT_EQ(cycle1.find("Name=\"mat_tag\""), std::string::npos);
 }
 
 TEST_F(ProbesManagerTest, fieldProbe)
