@@ -3055,7 +3055,7 @@ GeomTagToMaterialInfo assembleAttributeToMaterial(
 			if (mat_json.contains("bulk_conductivity")) {
 				sigma = mat_json["bulk_conductivity"].get<double>() * physicalConstants::freeSpaceImpedance_SI;
 			}
-			if (mesh.Dimension() == 1 && mesh.GetNE() > 0) {
+			if (mesh.GetNE() > 0) {
 				std::set<int> block_tags;
 				for (auto t = 0; t < mat_json["tags"].size(); t++) {
 					block_tags.insert(mat_json["tags"][t].get<int>());

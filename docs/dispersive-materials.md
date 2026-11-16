@@ -125,7 +125,7 @@ $$
 \xi(x) = \frac{x - x_{\min}^{\mathrm{mesh}}}{x_{\max}^{\mathrm{mesh}} - x_{\min}^{\mathrm{mesh}}} \in [0, 1].
 $$
 
-On a 2D/3D mesh, a 1D profile is stretched over the `x` extent of the tagged elements and is uniform in the transverse directions (`y`, `z`). This is how the built-in `ramc_*` stagnation-line profiles are used on a 2D/3D Lorentz volume.
+On a 2D/3D mesh, a 1D profile is stretched over the `x` extent of the tagged elements and is uniform in the transverse directions (`y`, `z`). When several tags share one material block, the stretch uses the union of their `x` extents, so the profile is continuous across the tag interfaces. This is how the built-in `ramc_*` stagnation-line profiles are used on a 2D/3D Lorentz volume.
 
 Each profile evaluates its canonical shape on $\xi \in [0, 1]$, so the complete profile automatically stretches or compresses to cover the tagged mesh region whether the region is $10\,\mathrm{mm}$, $12\,\mathrm{mm}$, $24\,\mathrm{mm}$, or $2\,\mathrm{m}$ wide.
 
