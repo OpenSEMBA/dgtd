@@ -1,0 +1,231 @@
+{
+  "solver_options": {
+    "evolution_operator": "global",
+    "upwind_alpha": 1.0,
+    "time_step": 0.0008174908272727245,
+    "final_time": 23.669169988365155,
+    "order": 2,
+    "basis_type": 1
+  },
+  "model": {
+    "filename": "ramc2_50km_3d_gupta_pml.msh",
+    "materials": [
+      {
+        "tags": [
+          1,
+          2
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "X"
+        ]
+      },
+      {
+        "tags": [
+          3,
+          4
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "Y"
+        ]
+      },
+      {
+        "tags": [
+          5,
+          6
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "Z"
+        ]
+      },
+      {
+        "tags": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "X",
+          "Y"
+        ]
+      },
+      {
+        "tags": [
+          11,
+          12,
+          13,
+          14
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "X",
+          "Z"
+        ]
+      },
+      {
+        "tags": [
+          15,
+          16,
+          17,
+          18
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "Y",
+          "Z"
+        ]
+      },
+      {
+        "tags": [
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        "type": "PML",
+        "matches_vacuum": true,
+        "grading_order": 2,
+        "target_reflection": 1e-06,
+        "kappa_max": 1.0,
+        "alpha_max": 0.0,
+        "active_axes": [
+          "X",
+          "Y",
+          "Z"
+        ]
+      },
+      {
+        "tags": [
+          27,
+          28
+        ],
+        "type": "vacuum"
+      },
+      {
+        "tags": [
+          29
+        ],
+        "drude": {
+          "eps_inf": 1.0,
+          "omega_p": {
+            "type": "gridfunction",
+            "mesh": "plasma/mesh.mesh",
+            "axisymmetric": true,
+            "fallback": "nearest",
+            "default": 0.0,
+            "file": "plasma/omega_p.gf",
+            "unit": "rad/s"
+          },
+          "nu_c": {
+            "type": "gridfunction",
+            "mesh": "plasma/mesh.mesh",
+            "axisymmetric": true,
+            "fallback": "nearest",
+            "default": 0.0,
+            "file": "plasma/nu_c.gf",
+            "unit": "rad/s"
+          }
+        }
+      }
+    ],
+    "boundaries": [
+      {
+        "tags": [
+          9
+        ],
+        "type": "PEC"
+      },
+      {
+        "tags": [
+          10
+        ],
+        "type": "SMA"
+      }
+    ]
+  },
+  "probes": {
+    "exporter": {
+      "save_every": 0.2,
+      "context_fields": "all",
+      "context_mode": "auto"
+    },
+    "rcssurface": [
+      {
+        "name": "RCSSurfaceProbe",
+        "tags": [
+          21,
+          22,
+          23,
+          24,
+          25,
+          26
+        ],
+        "steps": 13
+      }
+    ]
+  },
+  "sources": [
+    {
+      "type": "planewave",
+      "polarization": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "propagation": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "magnitude": {
+        "f_1e": 915547712.2
+      }
+    }
+  ]
+}
