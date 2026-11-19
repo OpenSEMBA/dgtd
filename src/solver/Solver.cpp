@@ -246,6 +246,8 @@ Solver::Solver(
     probesManager_ { probes , *fes_, fields_, opts_, &model_ },
     time_{0.0}
 {
+    model_.loadLorentzGridFunctions(*fes_);
+
     auto initStartTime = std::chrono::steady_clock::now();
     initMemBaseline_ = getCurrentMemoryUsage();
     initMemPeakSampled_ = initMemBaseline_;

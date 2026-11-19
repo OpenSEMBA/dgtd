@@ -143,25 +143,16 @@
         "tags": [
           29
         ],
-        "drude": {
+        "lorentz": {
           "eps_inf": 1.0,
-          "omega_p": {
+          "f_p": {
             "type": "gridfunction",
-            "mesh": "plasma/mesh.mesh",
-            "axisymmetric": true,
-            "fallback": "nearest",
-            "default": 0.0,
-            "file": "plasma/omega_p.gf",
-            "unit": "rad/s"
+            "file": "omega_p.gf"
           },
-          "nu_c": {
+          "f_1": 0.0,
+          "gamma": {
             "type": "gridfunction",
-            "mesh": "plasma/mesh.mesh",
-            "axisymmetric": true,
-            "fallback": "nearest",
-            "default": 0.0,
-            "file": "plasma/nu_c.gf",
-            "unit": "rad/s"
+            "file": "nu_c.gf"
           }
         }
       }

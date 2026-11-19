@@ -269,13 +269,19 @@ void ExporterContextFields::build()
             if (lorentz) {
                 if (eps_inf) { (*eps_inf)(dof) = lorentz->eps_inf; }
                 if (fp) {
-                    (*fp)(dof) = lorentz->evalOmegaP(x) * c_si / two_pi;
+                    (*fp)(dof) = lorentz->omega_p_gf
+                        ? (*lorentz->omega_p_gf)(dof) * c_si / two_pi
+                        : lorentz->evalOmegaP(x) * c_si / two_pi;
                 }
                 if (f1) {
-                    (*f1)(dof) = lorentz->evalOmega1(x) * c_si / two_pi;
+                    (*f1)(dof) = lorentz->omega_1_gf
+                        ? (*lorentz->omega_1_gf)(dof) * c_si / two_pi
+                        : lorentz->evalOmega1(x) * c_si / two_pi;
                 }
                 if (nuc) {
-                    (*nuc)(dof) = lorentz->evalGamma(x) * c_si / two_pi;
+                    (*nuc)(dof) = lorentz->gamma_gf
+                        ? (*lorentz->gamma_gf)(dof) * c_si / two_pi
+                        : lorentz->evalGamma(x) * c_si / two_pi;
                 }
             }
 

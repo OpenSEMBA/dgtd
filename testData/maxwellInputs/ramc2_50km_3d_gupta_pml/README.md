@@ -1,7 +1,8 @@
 # RAM-C II 50 km, 3D Gupta, PML absorber
 
-Prepared case for DGTD.  The plasma source is the **order-4 H1 archive** from
-`output/h1_error_check/error_h1_order_4/`, copied into `plasma/`.
+Prepared case for DGTD.  The plasma rates are DG grid functions produced by
+plasma_kit `mode: "dgtd"` on this mesh and finite element space (order-2 H1
+source projected onto the order-2 DG space), stored beside the case JSON.
 
 ## Contents
 
@@ -11,7 +12,8 @@ Prepared case for DGTD.  The plasma source is the **order-4 H1 archive** from
 | `ramc2_50km_3d_gupta_pml.json` | DGTD case, `global` operator, PML absorber |
 | `ramc2_50km_3d_gupta_pml.rcs.json` | offline RCS sweep, 0.2–1.5 GHz, backscatter, `runmode: "mpi-16"` |
 | `ramc2_50km_3d_gupta_pml.rcs.cuda-1.json` | same sweep with `runmode: "cuda-1"` for single-rank GPU runs |
-| `plasma/` | order-4 H1 archive: `mesh.mesh`, `omega_p.gf`, `nu_c.gf`, `description.json` |
+| `omega_p.gf` / `nu_c.gf` | plasma_kit DG grid functions in the solver's DoFs |
+| `description.json` | plasma_kit projection metadata (mesh, order, basis) |
 
 ## Material and tag layout
 
@@ -22,10 +24,10 @@ Outside to inside:
 | 1..26 | Cartesian PML layer (X/Y/Z faces, XY/XZ/YZ edges, XYZ corners) | `PML`, `grading_order: 2` |
 | 27 | NTFF shell (NTFF box -> TFSF box) | vacuum |
 | 28 | TFSF shell (TFSF box -> flow field) | vacuum |
-| 29 | flow field | Drude, order-4 `gridfunction` profiles |
+| 29 | flow field | `lorentz` with `gridfunction` `f_p` / `gamma` files |
 
 Boundaries: `9` = PEC, `10` = SMA on the PML outer truncation, `11..16` =
-TFSF faces, `21..26` = NTFF faces.  `20` is the internal Drude/vacuum
+TFSF faces, `21..26` = NTFF faces.  `20` is the internal Lorentz/vacuum
 interface and is not referenced by the JSON.
 
 PML blocks use `grading_order: 2`, `target_reflection: 1e-6`,
@@ -62,4 +64,4 @@ scp -r output/ramc2_50km_3d_gupta_pml user@host:/path/to/plasma_kit/output/
 ```
 
 The case is self-contained once the folder is copied; the JSON points at
-`plasma/mesh.mesh`, `plasma/omega_p.gf`, and `plasma/nu_c.gf`.
+`omega_p.gf` and `nu_c.gf` beside it.

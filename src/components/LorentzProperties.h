@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <string>
 #include <vector>
 
 namespace maxwell {
@@ -23,6 +24,16 @@ struct LorentzProperties {
 	std::shared_ptr<const Function> omega_1_profile;
 	std::shared_ptr<const Function> gamma_profile;
 
+	/// Grid functions produced by plasma_kit on the simulation mesh and FES.
+	/// They are loaded after the solver's ParFiniteElementSpace exists; the
+	/// values are already the DG coefficients of omega_p / nu_c.
+	std::string omega_p_file;
+	std::string omega_1_file;
+	std::string gamma_file;
+	std::shared_ptr<mfem::ParGridFunction> omega_p_gf;
+	std::shared_ptr<mfem::ParGridFunction> omega_1_gf;
+	std::shared_ptr<mfem::ParGridFunction> gamma_gf;
+
 	/// 1D physical bounding interval [region_min_x, region_max_x] of the mesh region
 	/// carrying this material. When region_max_x > region_min_x, 1D profiles stretch
 	/// across [region_min_x, region_max_x] via normalized coordinate xi in [0, 1].
@@ -34,11 +45,18 @@ struct LorentzProperties {
 		return region_max_x > region_min_x;
 	}
 
+	bool hasGridFunctions() const
+	{
+		return omega_p_gf != nullptr || omega_1_gf != nullptr ||
+		       gamma_gf != nullptr;
+	}
+
 	bool hasSpatialProfile() const
 	{
 		return omega_p_profile != nullptr ||
 		       omega_1_profile != nullptr ||
-		       gamma_profile != nullptr;
+		       gamma_profile != nullptr ||
+		       hasGridFunctions();
 	}
 
 	double evalProfile(const Function& fn, const mfem::Vector& x) const

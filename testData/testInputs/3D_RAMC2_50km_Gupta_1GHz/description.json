@@ -1,0 +1,17 @@
+{
+  "mode": "dgtd",
+  "source": "/home/alejandro/workspace/plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
+  "dimension": 3,
+  "mesh": "3D_RAMC2_50km_Gupta_1GHz.msh",
+  "order": 2,
+  "basis_type": 1,
+  "refinement": 0,
+  "ndofs": 1234010,
+  "positivity_limiter": true,
+  "fec": "DG",
+  "omega_p": "omega_p.gf",
+  "nu_c": "nu_c.gf",
+  "omega_p_units": "rad/s",
+  "nu_c_units": "1/s",
+  "dof_layout": "DG element dofs, DGTD simulation FES"
+}

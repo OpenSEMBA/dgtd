@@ -50,10 +50,10 @@ hesthaven on GPU, run the cuda build; `runmode` in the rcs.json would then be
 ## Regeneration
 
 ```sh
-python3 plasma_kit/scripts/post_mesher/post_mesher.py \
-  --input plasma_kit/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu \
+python3 plasma_kit/src/scripts/post_mesher/post_mesher.py \
+  --input plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu \
   --frequency 9.07695147e8 --ppw-out 2.3 \
-  --plasma-archive testData/testInputs/3D_RAMC2_50km_Gupta_1GHz_hesthaven/plasma \
+  --plasma-archive plasma_kit/output/ramc2_subghz_targeted_1255_2d_gupta \
   --evolution-operator hesthaven --runmode single-core \
   --ensure-straight-tfsf --tfsf-widen-attempts 4 \
   --rcs-start 2.0e8 --rcs-end 1.5e9 --rcs-steps 141 \

@@ -136,7 +136,7 @@ Each profile evaluates its canonical shape on $\xi \in [0, 1]$, so the complete 
 | `"constant"` | `value` | — | Uniform value across the region. |
 | `"gaussian"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Symmetric bell curve from $\epsilon\cdot\mathrm{peak}$ at $\xi=0$ to $\mathrm{peak}$ at $\xi=0.5$ and back to $\epsilon\cdot\mathrm{peak}$ at $\xi=1$. |
 | `"positive_gaussian_derivative"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Two-lobe rectified Gaussian derivative with unit peaks at $z = \pm 1$, central null at $\xi=0.5$, and outer tails $\epsilon\cdot\mathrm{peak}$ at $\xi \in \{0, 1\}$. |
-| `"gridfunction"` | `mesh`, `file` | `axisymmetric` (`true`), `unit` (`"rad/s"`), `fallback` (`"nearest"`), `default` (`0.0`) | Scalar H1 GridFunction from a plasma_kit archive, evaluated at the DG quadrature points. |
+| `"gridfunction"` | `file` | — | Scalar DG grid function produced by plasma_kit for this simulation mesh and FES. |
 | `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p$ $[\mathrm{rad/s}]$ stretched from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Gupta closure) stretched onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Liu closure) stretched onto $\xi \in [0, 1]$. |
@@ -144,18 +144,19 @@ Each profile evaluates its canonical shape on $\xi \in [0, 1]$, so the complete 
 | `"ramc_50km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Gupta closure) stretched onto $\xi \in [0, 1]$. |
 | `"ramc_50km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 50 km stagnation-line $\nu_c$ $[\mathrm{s}^{-1}]$ (Liu closure) stretched onto $\xi \in [0, 1]$. |
 
-#### `"gridfunction"` profiles (plasma_kit archives)
+#### `"gridfunction"` profiles (plasma_kit `dgtd` mode)
 
-`"gridfunction"` reads an MFEM mesh plus a scalar H1 `GridFunction` produced by
-plasma_kit (`mesh.mesh`, `omega_p.gf`, `nu_c.gf`). The values are evaluated at
-the same quadrature points as every other profile and therefore pass through
-the same $(M_K^{(1)})^{-1} M_K^{(f)}$ projection, which is the L2 projection
-onto the DG space restricted to the material's volume tags. The files store SI
-`rad/s` (or `1/s`); the solver applies only the `1/c0` conversion. A 2D source
-mesh is evaluated axisymmetrically: `(x, y, z)` is reduced to
-`(x, hypot(y, z))` unless `"axisymmetric": false`. Points outside the archive
-mesh return the nearest element value (`fallback: "nearest"`, default) or
-`default` (0). Relative paths resolve next to the case JSON first.
+`"gridfunction"` reads a scalar DG `GridFunction` produced by plasma_kit for
+the same simulation mesh and finite element space (`omega_p.gf`, `nu_c.gf`).
+plasma_kit's `mode: "dgtd"` performs the element L2 projection onto the DG
+space ahead of time, so the file already contains the solver's DoF values. The
+solver loads the serial grid function once at startup and distributes its
+element DoFs to each MPI rank. The files store SI `rad/s` (or `1/s`); only the
+`1/c0` conversion is applied, and `omega_p` is squared at the quadrature
+points. A positivity limiter in plasma_kit keeps the projected rates
+non-negative (a sheath thinner than an element would otherwise produce large
+negative high-order modes). The mesh, order, basis type and refinement must
+match the case; plasma_kit reads them from the case JSON. Relative paths resolve next to the case JSON first.
 
 #### Mathematical definition of `"gaussian"` and `"positive_gaussian_derivative"`
 

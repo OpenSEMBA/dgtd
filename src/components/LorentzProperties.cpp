@@ -1,6 +1,5 @@
 #include "LorentzProperties.h"
 
-#include "math/GridFunctionProfile.h"
 #include "math/PhysicalConstants.h"
 
 #include <cmath>
@@ -72,6 +71,7 @@ Position parseCenterVector(const nlohmann::json& obj, const std::string& context
 struct ParsedRate {
 	double scalar_solver = 0.0;
 	std::shared_ptr<const Function> profile;
+	std::string gridfunction_file;
 };
 
 ParsedRate parseRateEntry(
@@ -224,58 +224,15 @@ ParsedRate parseRateEntry(
 	}
 
 	if (type == "gridfunction") {
+		// A grid function produced by plasma_kit in the DoFs of the
+		// simulation FES.  Only the file is needed; the rate values are
+		// loaded once the solver's finite element space exists.
 		if (!entry.contains("file") || !entry["file"].is_string()) {
 			throw std::runtime_error(
 				label + " gridfunction profile requires string 'file' (.gf).");
 		}
-		if (!entry.contains("mesh") || !entry["mesh"].is_string()) {
-			throw std::runtime_error(
-				label + " gridfunction profile requires string 'mesh' "
-				"(the MFEM mesh the .gf lives on).");
-		}
-		// plasma_kit writes omega_p in rad/s and nu_c in 1/s.  The unit key
-		// is only needed for files written in Hz; the default is rad/s and
-		// deliberately ignores the Hz/rad style of the JSON key.
-		double file_unit_scale = 1.0;
-		if (entry.contains("unit")) {
-			const std::string unit = entry["unit"].get<std::string>();
-			if (unit == "Hz") {
-				file_unit_scale = 2.0 * M_PI;
-			}
-			else if (unit != "rad/s") {
-				throw std::runtime_error(
-					label + " gridfunction profile 'unit' must be \"rad/s\" or \"Hz\".");
-			}
-		}
-		const bool axisymmetric = entry.value("axisymmetric", true);
-		const double outside_value = entry.value("default", 0.0);
-		const std::string fallback = entry.value("fallback", std::string("nearest"));
-		if (fallback != "nearest" && fallback != "default") {
-			throw std::runtime_error(
-				label + " gridfunction profile 'fallback' must be \"nearest\" or \"default\".");
-		}
-		const bool fallback_to_nearest = fallback == "nearest";
-		const std::string mesh_path =
-			resolveProfilePath(entry["mesh"].get<std::string>(), case_path);
-		const std::string gf_path =
+		out.gridfunction_file =
 			resolveProfilePath(entry["file"].get<std::string>(), case_path);
-
-		const double scale = file_unit_scale * inv_c;
-		auto gf_profile = std::make_shared<GridFunctionProfile>(
-			mesh_path, gf_path, axisymmetric, scale, outside_value,
-			fallback_to_nearest);
-		if (gf_profile->minValue() < 0.0) {
-			throw std::runtime_error(
-				label + " gridfunction profile has negative values in '" +
-				gf_path + "'.");
-		}
-		out.scalar_solver = gf_profile->maxValue() * scale;
-		if (require_positive && !(gf_profile->maxValue() > 0.0)) {
-			throw std::runtime_error(
-				label + " gridfunction profile has no positive values in '" +
-				gf_path + "'.");
-		}
-		out.profile = gf_profile;
 		return out;
 	}
 
@@ -361,6 +318,9 @@ LorentzProperties parseLorentzObject(
 		pole.omega_p_profile = wp.profile;
 		pole.omega_1_profile = w1.profile;
 		pole.gamma_profile = gm.profile;
+		pole.omega_p_file = wp.gridfunction_file;
+		pole.omega_1_file = w1.gridfunction_file;
+		pole.gamma_file = gm.gridfunction_file;
 		return pole;
 	}
 
@@ -383,6 +343,9 @@ LorentzProperties parseLorentzObject(
 	pole.omega_p_profile = wp.profile;
 	pole.omega_1_profile = w1.profile;
 	pole.gamma_profile = gm.profile;
+	pole.omega_p_file = wp.gridfunction_file;
+	pole.omega_1_file = w1.gridfunction_file;
+	pole.gamma_file = gm.gridfunction_file;
 	return pole;
 }
 
@@ -447,6 +410,8 @@ LorentzProperties parseDrudeObject(
 	pole.omega_p_profile = wp.profile;
 	pole.omega_1_profile = nullptr;
 	pole.gamma_profile = gm.profile;
+	pole.omega_p_file = wp.gridfunction_file;
+	pole.gamma_file = gm.gridfunction_file;
 	return pole;
 }
 

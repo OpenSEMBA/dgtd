@@ -1,4 +1,8 @@
 #include "Model.h"
+
+#include <algorithm>
+#include <fstream>
+#include <limits>
 #include "PMLProfiles.h"
 
 #include <memory>
@@ -171,6 +175,159 @@ void Model::setLorentzProperties(const std::vector<LorentzProperties>& in)
 	rejectDispersiveOnPML();
 }
 
+namespace {
+
+long long countGridFunctionValues(const std::string& file)
+{
+	std::ifstream input(file);
+	if (!input) {
+		return -1;
+	}
+	std::string line;
+	bool in_values = false;
+	long long count = 0;
+	while (std::getline(input, line)) {
+		if (!in_values) {
+			if (line.rfind("Ordering", 0) == 0) {
+				in_values = true;
+			}
+			continue;
+		}
+		std::istringstream row(line);
+		std::string token;
+		while (row >> token) {
+			++count;
+		}
+	}
+	return count;
+}
+
+std::shared_ptr<mfem::ParGridFunction> loadDistributedGridFunction(
+	const std::string& file, mfem::Mesh& serial_mesh, mfem::ParMesh& pmesh,
+	mfem::ParFiniteElementSpace& pfes)
+{
+	const long long values = countGridFunctionValues(file);
+	if (values < 0) {
+		throw std::runtime_error(
+			"Lorentz grid function file cannot be opened: " + file);
+	}
+
+	std::ifstream input(file);
+	mfem::GridFunction serial(&serial_mesh, input);
+	const long long expected = serial.FESpace()->GetVSize();
+	if (values != expected) {
+		throw std::runtime_error(
+			"Lorentz grid function " + file + " has " + std::to_string(values) +
+			" values, but the case mesh and FES need " + std::to_string(expected) +
+			". Regenerate it with plasma_kit for this mesh, order, basis type and refinement.");
+	}
+	if (serial.FESpace()->GetVDim() != 1) {
+		throw std::runtime_error(
+			"Lorentz grid function file must be scalar: " + file);
+	}
+	if (serial.FESpace()->GetNE() != serial_mesh.GetNE()) {
+		throw std::runtime_error(
+			"Lorentz grid function " + file + " was built on a mesh with " +
+			std::to_string(serial.FESpace()->GetNE()) + " elements, but the case mesh has " +
+			std::to_string(serial_mesh.GetNE()) +
+			". Regenerate it with plasma_kit for this mesh and refinement.");
+	}
+	if (serial.FESpace()->GetFE(0)->GetOrder() != pfes.GetFE(0)->GetOrder()) {
+		throw std::runtime_error(
+			"Lorentz grid function " + file + " has order " +
+			std::to_string(serial.FESpace()->GetFE(0)->GetOrder()) + " but the case uses order " +
+			std::to_string(pfes.GetFE(0)->GetOrder()) + ".");
+	}
+	if (serial.FESpace()->GetFE(0)->GetDof() != pfes.GetFE(0)->GetDof()) {
+		throw std::runtime_error(
+			"Lorentz grid function " + file +
+			" has a different number of DoFs per element than the case FES.");
+	}
+
+	auto parallel = std::make_shared<mfem::ParGridFunction>(&pfes);
+	mfem::Array<int> serial_dofs, local_dofs;
+	for (int e = 0; e < pmesh.GetNE(); ++e) {
+		const int global = static_cast<int>(pmesh.GetGlobalElementNum(e));
+		if (global < 0 || global >= serial_mesh.GetNE()) {
+			throw std::runtime_error(
+				"Lorentz grid function " + file + ": invalid global element index.");
+		}
+		serial.FESpace()->GetElementDofs(global, serial_dofs);
+		pfes.GetElementDofs(e, local_dofs);
+		if (serial_dofs.Size() != local_dofs.Size()) {
+			throw std::runtime_error(
+				"Lorentz grid function " + file +
+				": element DoF count mismatch during distribution.");
+		}
+		for (int i = 0; i < local_dofs.Size(); ++i) {
+			(*parallel)(local_dofs[i]) = serial(serial_dofs[i]);
+		}
+	}
+	return parallel;
+}
+
+double maxValue(const mfem::ParGridFunction& gf)
+{
+	double value = -std::numeric_limits<double>::infinity();
+	for (int i = 0; i < gf.Size(); ++i) {
+		value = std::max(value, gf(i));
+	}
+	return value;
+}
+
+double minValue(const mfem::ParGridFunction& gf)
+{
+	double value = std::numeric_limits<double>::infinity();
+	for (int i = 0; i < gf.Size(); ++i) {
+		value = std::min(value, gf(i));
+	}
+	return value;
+}
+
+} // namespace
+
+void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
+{
+	for (auto& [tag, pole] : lorentz_by_tag_) {
+		(void)tag;
+		if (!pole.omega_p_file.empty()) {
+			pole.omega_p_gf = loadDistributedGridFunction(
+				pole.omega_p_file, serialMesh_, pmesh_, fes);
+			if (minValue(*pole.omega_p_gf) < 0.0) {
+				throw std::runtime_error(
+					"Lorentz omega_p grid function has negative values: " +
+					pole.omega_p_file);
+			}
+			pole.omega_p = maxValue(*pole.omega_p_gf);
+		}
+		if (!pole.omega_1_file.empty()) {
+			pole.omega_1_gf = loadDistributedGridFunction(
+				pole.omega_1_file, serialMesh_, pmesh_, fes);
+			pole.omega_1 = maxValue(*pole.omega_1_gf);
+		}
+		if (!pole.gamma_file.empty()) {
+			pole.gamma_gf = loadDistributedGridFunction(
+				pole.gamma_file, serialMesh_, pmesh_, fes);
+			if (minValue(*pole.gamma_gf) < 0.0) {
+				throw std::runtime_error(
+					"Lorentz gamma grid function has negative values: " +
+					pole.gamma_file);
+			}
+			pole.gamma = maxValue(*pole.gamma_gf);
+		}
+	}
+	for (LorentzProperties& pole : lorentz_) {
+		const auto it = lorentz_by_tag_.find(pole.geom_tag);
+		if (it != lorentz_by_tag_.end()) {
+			pole.omega_p_gf = it->second.omega_p_gf;
+			pole.omega_1_gf = it->second.omega_1_gf;
+			pole.gamma_gf = it->second.gamma_gf;
+			pole.omega_p = it->second.omega_p;
+			pole.omega_1 = it->second.omega_1;
+			pole.gamma = it->second.gamma;
+		}
+	}
+}
 void Model::rejectDispersiveOnPML() const
 {
 	if (pml_props_.empty() || (debye_.empty() && lorentz_.empty())) {

@@ -175,7 +175,7 @@ Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete pr
 | `"constant"` | `value` | — | Uniform rate across the region. |
 | `"gaussian"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Symmetric bell curve stretched between its `cutoff_factor` tails. |
 | `"positive_gaussian_derivative"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Rectified two-lobe Gaussian derivative stretched between its outer `cutoff_factor` tails. |
-| `"gridfunction"` | `mesh`, `file` | `axisymmetric` (`true`), `unit` (`"rad/s"`), `fallback` (`"nearest"`), `default` (`0.0`) | Scalar H1 GridFunction from a plasma_kit archive (`mesh.mesh` + `.gf`), evaluated pointwise at the DG quadrature points. |
+| `"gridfunction"` | `file` | — | Scalar DG grid function produced by plasma_kit (`mode: "dgtd"`) on the simulation mesh and FES. The file stores the DG coefficients for the same mesh, order, basis type and refinement as the case. |
 | `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p(x)$ $[\mathrm{rad/s}]$ mapped from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Gupta closure) mapped onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Liu closure) mapped onto $\xi \in [0, 1]$. |
@@ -185,39 +185,29 @@ Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete pr
 
 ##### `"gridfunction"` profiles
 
-A `"gridfunction"` profile reads an MFEM mesh and a scalar H1 `GridFunction`
-written by plasma_kit (`omega_p.gf`, `nu_c.gf`). The file must store SI
-`rad/s` (or `1/s`); `unit: "Hz"` multiplies by `2*pi`. Only the `1/c0`
-conversion to solver units is applied. Relative `mesh`/`file` paths are
-resolved next to the case JSON first and then from the current directory.
+A `"gridfunction"` profile reads a scalar DG `GridFunction` written by
+plasma_kit for **this** simulation mesh and finite element space. plasma_kit
+is run with a `preprocess.json` whose `mode` is `"dgtd"`, pointing at the
+case mesh and at the case JSON (or at the order and basis type). It projects
+`omega_p` and `nu_c` onto the DG space DGTD will use, so the `.gf` file
+already contains the solver's degrees of freedom. Relative `file` paths are
+resolved next to the case JSON.
 
 ```json
 "lorentz": {
   "eps_inf": 1.0,
-  "f_p": {
-    "type": "gridfunction",
-    "mesh": "ramc2_subghz_2d_gupta/mesh.mesh",
-    "file": "ramc2_subghz_2d_gupta/omega_p.gf",
-    "axisymmetric": true
-  },
+  "f_p":   {"type": "gridfunction", "file": "omega_p.gf"},
   "f_1": 0.0,
-  "gamma": {
-    "type": "gridfunction",
-    "mesh": "ramc2_subghz_2d_gupta/mesh.mesh",
-    "file": "ramc2_subghz_2d_gupta/nu_c.gf",
-    "axisymmetric": true
-  }
+  "gamma": {"type": "gridfunction", "file": "nu_c.gf"}
 }
 ```
 
-The rate profiles are evaluated at every element quadrature point and passed
-through the same `M_K^{-1} M_K[f]` projection as the built-in profiles, so the
-H1 data is effectively projected onto the DG (L2) space of the simulation,
-element by element, only on the Lorentz material's volume tags. For a 2D
-source mesh, the 3D point `(x, y, z)` is reduced to `(x, r = hypot(y, z))`
-when `axisymmetric` is true (the default). Points outside the source region
-return the nearest source element value (`fallback: "nearest"`, default) or
-`default` (0) when `fallback: "default"`.
+The files store SI `rad/s` (or `1/s`); the solver applies the `1/c0`
+conversion and squares `omega_p` at the DG quadrature points. The grid
+function must have the same mesh, polynomial order, basis type and
+`model.refinement` as the case; plasma_kit reads those from the case JSON.
+DGTD loads the serial grid function once at startup and distributes its
+element degrees of freedom onto each MPI rank's `ParFiniteElementSpace`.
 
 ##### How `"gaussian"` and `"positive_gaussian_derivative"` work
 
