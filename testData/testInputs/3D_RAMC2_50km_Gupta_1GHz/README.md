@@ -81,8 +81,8 @@ Create `plasmakit-generate.json` (for example in the repository root) with:
 {
   "mode": {
     "solver": "OpenSEMBA-dgtd",
-    "mesh": "testData/testInputs/3D_RAMC2_50km_Gupta_1GHz/3D_RAMC2_50km_Gupta_1GHz.msh",
     "build": {
+      "output_mesh": "testData/testInputs/3D_RAMC2_50km_Gupta_1GHz/3D_RAMC2_50km_Gupta_1GHz.msh",
       "frequency": 9.07695147e8,
       "order": 2,
       "basis_type": 1,
