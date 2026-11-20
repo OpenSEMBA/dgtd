@@ -12,7 +12,7 @@ functions.
 | `3D_RAMC2_50km_Gupta_1GHz.json` | DGTD case: global operator, CUDA run |
 | `3D_RAMC2_50km_Gupta_1GHz.rcs.json` | offline `opensemba_rcs` sweep, 0.2-1.5 GHz, backscatter |
 | `omega_p.gf` / `nu_c.gf` | plasma_kit DG grid functions on this mesh and FES (solver DoFs) |
-| `description.json` | plasma_kit projection metadata (mesh, order, basis, refinement) |
+| `description.json` | plasma_kit projection metadata (mesh, order, basis) |
 
 ## Mesh layout
 

@@ -175,7 +175,7 @@ Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete pr
 | `"constant"` | `value` | — | Uniform rate across the region. |
 | `"gaussian"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Symmetric bell curve stretched between its `cutoff_factor` tails. |
 | `"positive_gaussian_derivative"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Rectified two-lobe Gaussian derivative stretched between its outer `cutoff_factor` tails. |
-| `"gridfunction"` | `file` | — | Scalar DG grid function produced by plasma_kit (`mode.solver: "OpenSEMBA-dgtd"`) on the simulation mesh and FES. The file stores the DG coefficients for the same mesh, order, basis type and refinement as the case. |
+| `"gridfunction"` | `file` | — | Scalar DG grid function produced by plasma_kit (`mode.solver: "OpenSEMBA-dgtd"`) on the simulation mesh and FES. The file stores the DG coefficients for the same mesh, order and basis type as the case. |
 | `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p(x)$ $[\mathrm{rad/s}]$ mapped from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Gupta closure) mapped onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Liu closure) mapped onto $\xi \in [0, 1]$. |
@@ -203,11 +203,12 @@ resolved next to the case JSON.
 ```
 
 The files store SI `rad/s` (or `1/s`); the solver applies the `1/c0`
-conversion and squares `omega_p` at the DG quadrature points. The grid
-function must have the same mesh, polynomial order, basis type and
-`model.refinement` as the case; plasma_kit reads those from the case JSON.
+conversion and squares `omega_p` at the DG quadrature points. The grid function must have the same mesh, polynomial order and basis type
+as the case; plasma_kit reads those from the case JSON.
 DGTD loads the serial grid function once at startup and distributes its
 element degrees of freedom onto each MPI rank's `ParFiniteElementSpace`.
+The case must not use `model.refinement` with a gridfunction Lorentz
+material: plasma_kit projects on the mesh as delivered.
 
 ##### How `"gaussian"` and `"positive_gaussian_derivative"` work
 

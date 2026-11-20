@@ -155,8 +155,9 @@ element DoFs to each MPI rank. The files store SI `rad/s` (or `1/s`); only the
 `1/c0` conversion is applied, and `omega_p` is squared at the quadrature
 points. A positivity limiter in plasma_kit keeps the projected rates
 non-negative (a sheath thinner than an element would otherwise produce large
-negative high-order modes). The mesh, order, basis type and refinement must
-match the case; plasma_kit reads them from the case JSON. Relative paths resolve next to the case JSON first.
+negative high-order modes). The mesh, order and basis type must match the case;
+plasma_kit reads them from the case JSON. The DGTD mode does not support
+`model.refinement`; it projects on the mesh as delivered. Relative paths resolve next to the case JSON first.
 
 #### Mathematical definition of `"gaussian"` and `"positive_gaussian_derivative"`
 
