@@ -1,7 +1,7 @@
 # RAM-C II 50 km, 3D Gupta, PML absorber
 
 Prepared case for DGTD.  The plasma rates are DG grid functions produced by
-plasma_kit `mode: "dgtd"` on this mesh and finite element space (order-2 H1
+plasma_kit `mode.solver: "OpenSEMBA-dgtd"` on this mesh and finite element space (order-2 H1
 source projected onto the order-2 DG space), stored beside the case JSON.
 
 ## Contents

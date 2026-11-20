@@ -148,7 +148,7 @@ Each profile evaluates its canonical shape on $\xi \in [0, 1]$, so the complete 
 
 `"gridfunction"` reads a scalar DG `GridFunction` produced by plasma_kit for
 the same simulation mesh and finite element space (`omega_p.gf`, `nu_c.gf`).
-plasma_kit's `mode: "dgtd"` performs the element L2 projection onto the DG
+plasma_kit's `mode.solver: "OpenSEMBA-dgtd"` performs the element L2 projection onto the DG
 space ahead of time, so the file already contains the solver's DoF values. The
 solver loads the serial grid function once at startup and distributes its
 element DoFs to each MPI rank. The files store SI `rad/s` (or `1/s`); only the

@@ -1,11 +1,14 @@
 {
-  "mode": "dgtd",
+  "mode": {
+    "solver": "OpenSEMBA-dgtd",
+    "mesh": "3D_RAMC2_50km_Gupta_1GHz_hesthaven.msh",
+    "order": 2,
+    "basis_type": 1,
+    "refinement": 0
+  },
   "source": "/home/alejandro/workspace/plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
+  "plasma_model": "gupta",
   "dimension": 3,
-  "mesh": "3D_RAMC2_50km_Gupta_1GHz_hesthaven.msh",
-  "order": 2,
-  "basis_type": 1,
-  "refinement": 0,
   "ndofs": 1234010,
   "positivity_limiter": true,
   "fec": "DG",

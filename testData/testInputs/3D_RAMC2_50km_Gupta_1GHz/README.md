@@ -47,7 +47,7 @@ light-metres.
 
 Volume 4 uses `gridfunction` profiles pointing at `omega_p.gf` and
 `nu_c.gf` (SI rad/s; only 1/c0 applied). The files are written by
-plasma_kit `mode: "dgtd"` directly in the DoFs of this mesh and
+plasma_kit `mode.solver: "OpenSEMBA-dgtd"` directly in the DoFs of this mesh and
 `DG_FECollection(order=2, basis_type=1)`. DGTD loads them once at startup
 and distributes them over MPI; it squares `omega_p` at the quadrature
 points. A positivity limiter in plasma_kit keeps the projected rates
@@ -96,13 +96,13 @@ directory; adapt `input` and `mesh` to your checkout layout):
 
 ```json
 {
-  "mode": "dgtd",
-  "input": "../../plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
-  "closure": "gupta",
-  "dgtd": {
+  "mode": {
+    "solver": "OpenSEMBA-dgtd",
     "mesh": "3D_RAMC2_50km_Gupta_1GHz.msh",
     "case_json": "3D_RAMC2_50km_Gupta_1GHz.json"
-  }
+  },
+  "input": "../../plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
+  "plasma_model": "gupta"
 }
 ```
 
