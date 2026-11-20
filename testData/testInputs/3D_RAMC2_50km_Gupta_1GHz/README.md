@@ -75,36 +75,42 @@ mpiexec -n 1 ./build/gnu-release-cuda/bin/opensemba_rcs \
 
 ## Regeneration
 
-```sh
-python3 plasma_kit/src/scripts/post_mesher/post_mesher.py \
-  --input plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu \
-  --frequency 9.07695147e8 --ppw-out 2.3 \
-  --plasma-archive plasma_kit/output/ramc2_subghz_targeted_1255_2d_gupta \
-  --evolution-operator global --runmode cuda-1 \
-  --rcs-start 2.0e8 --rcs-end 1.5e9 --rcs-steps 141 \
-  --out-dir testData/testInputs/3D_RAMC2_50km_Gupta_1GHz
-```
-
-Then create the plasma grid functions in the solver's DoFs:
-
-```sh
-plasma-fields --config /path/to/preprocess.json
-```
-
-with a config such as (relative paths resolve from the config file's
-directory; adapt `input` and `mesh` to your checkout layout):
+Create `plasmakit-generate.json` (for example in the repository root) with:
 
 ```json
 {
   "mode": {
     "solver": "OpenSEMBA-dgtd",
-    "mesh": "3D_RAMC2_50km_Gupta_1GHz.msh",
-    "case_json": "3D_RAMC2_50km_Gupta_1GHz.json"
+    "mesh": "testData/testInputs/3D_RAMC2_50km_Gupta_1GHz/3D_RAMC2_50km_Gupta_1GHz.msh",
+    "build": {
+      "frequency": 9.07695147e8,
+      "order": 2,
+      "basis_type": 1,
+      "overwrite": true,
+      "sizing": {"ppw_out": 2.3},
+      "boxes": {"absorber": "sma"},
+      "physics": {
+        "evolution_operator": "global",
+        "timestep_archive": "plasma_kit/output/ramc2_subghz_targeted_1255_2d_gupta"
+      },
+      "rcs": {"start": 2.0e8, "end": 1.5e9, "steps": 141,
+              "runmode": "cuda-1"}
+    }
   },
-  "input": "../../plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
+  "input": "plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
   "plasma_model": "gupta"
 }
 ```
 
-The 2D archive is only used by the post-mesher to estimate the plasma
-rates for the time step; it is not shipped in the case.
+Then run the full checked pipeline from the repository root:
+
+```sh
+plasma_kit/build/gnu-release/bin/plasmakit --config plasmakit-generate.json
+```
+
+This writes the `.msh`, `.json` and `.rcs.json`, compares the CFD and DGTD
+plasma-sheath geometry, repairs geometry-dependent tags with a backup if
+needed, and writes `omega_p.gf` / `nu_c.gf` in the solver's DoFs.
+
+`timestep_archive` is only a time-step reference (it supplies
+`omega_p_max` / `nu_c_max`); the fields are recomputed from `input`.

@@ -7,11 +7,12 @@ variant to run.
 
 The hesthaven operator rejects TFSF faces that touch curved elements
 (`HesthavenEvolution::checkForTFSFInCurvedElements`). With the current sizing
-the TFSF box needs **no widening**: the post-mesher's curvature check, which
+the TFSF box needs **no widening**: the mesh builder's curvature check, which
 reproduces DGTD's classifier on the written MSH file, reports **0** TFSF
 faces touching a curved element, and DGTD's own
 `initCurvedAndLinearElementsLists` agrees (0 bad faces). The
-`--ensure-straight-tfsf` flag remains available if a future mesh needs it.
+`meshing.ensure_straight_tfsf` option remains available if a future mesh needs
+it.
 
 ## Contents
 
@@ -20,7 +21,8 @@ faces touching a curved element, and DGTD's own
 | `3D_RAMC2_50km_Gupta_1GHz_hesthaven.msh` | 123,401 order-2 tets, 171,692 nodes |
 | `3D_RAMC2_50km_Gupta_1GHz_hesthaven.json` | hesthaven case, gridfunction Lorentz |
 | `3D_RAMC2_50km_Gupta_1GHz_hesthaven.rcs.json` | 0.2-1.5 GHz backscatter sweep, runmode single-core |
-| `plasma/` | plasma_kit H1 archive (mesh.mesh, omega_p.gf, nu_c.gf) |
+| `omega_p.gf` / `nu_c.gf` | plasma-kit DG grid functions on this mesh and FES |
+| `description.json` | plasma-kit projection metadata |
 
 Mesh layout, sizing and Lorentz material are identical to the `global` case
 (see its README): interest frequency = max f_p = 9.077e8 Hz, 5 elements per
@@ -49,17 +51,43 @@ hesthaven on GPU, run the cuda build; `runmode` in the rcs.json would then be
 
 ## Regeneration
 
-```sh
-python3 plasma_kit/src/scripts/post_mesher/post_mesher.py \
-  --input plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu \
-  --frequency 9.07695147e8 --ppw-out 2.3 \
-  --plasma-archive plasma_kit/output/ramc2_subghz_targeted_1255_2d_gupta \
-  --evolution-operator hesthaven --runmode single-core \
-  --ensure-straight-tfsf --tfsf-widen-attempts 4 \
-  --rcs-start 2.0e8 --rcs-end 1.5e9 --rcs-steps 141 \
-  --out-dir testData/testInputs/3D_RAMC2_50km_Gupta_1GHz_hesthaven
+Create `plasmakit-generate.json` (for example in the repository root) with:
+
+```json
+{
+  "mode": {
+    "solver": "OpenSEMBA-dgtd",
+    "mesh": "testData/testInputs/3D_RAMC2_50km_Gupta_1GHz_hesthaven/3D_RAMC2_50km_Gupta_1GHz_hesthaven.msh",
+    "build": {
+      "frequency": 9.07695147e8,
+      "order": 2,
+      "basis_type": 1,
+      "overwrite": true,
+      "sizing": {"ppw_out": 2.3},
+      "boxes": {"absorber": "sma"},
+      "physics": {
+        "evolution_operator": "hesthaven",
+        "timestep_archive": "plasma_kit/output/ramc2_subghz_targeted_1255_2d_gupta"
+      },
+      "rcs": {"start": 2.0e8, "end": 1.5e9, "steps": 141,
+              "runmode": "single-core"},
+      "meshing": {"ensure_straight_tfsf": true, "tfsf_widen_attempts": 4}
+    }
+  },
+  "input": "plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
+  "plasma_model": "gupta"
+}
 ```
 
-`--ensure-straight-tfsf` widens the TFSF box by 0.5*h per attempt and remeshes
-until no TFSF face touches a curved element (required by hesthaven). Use
-`--mesh-order 1` instead if you want a fully straight geometry (G1_O2).
+Then run:
+
+```sh
+plasma_kit/build/gnu-release/bin/plasmakit --config plasmakit-generate.json
+```
+
+The hesthaven mesh auto-enables TFSF widening when `mesh_order > 1`; the
+explicit `ensure_straight_tfsf: true` is kept here for clarity. Use
+`mesh_order: 1` instead if you want a fully straight geometry (G1_O2).
+
+`timestep_archive` is only a time-step reference (it supplies
+`omega_p_max` / `nu_c_max`); the fields are recomputed from `input`.
