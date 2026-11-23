@@ -4,6 +4,7 @@
 #include <fstream>
 #include <limits>
 #include "PMLProfiles.h"
+#include "math/PhysicalConstants.h"
 
 #include <memory>
 #include <string>
@@ -288,11 +289,19 @@ double minValue(const mfem::ParGridFunction& gf)
 
 void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
 {
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
+	auto to_solver_units = [inv_c](mfem::ParGridFunction& gf) {
+		// plasma_kit writes the rates in SI rad/s; solver time is light-metres.
+		for (int i = 0; i < gf.Size(); ++i) {
+			gf(i) *= inv_c;
+		}
+	};
 	for (auto& [tag, pole] : lorentz_by_tag_) {
 		(void)tag;
 		if (!pole.omega_p_file.empty()) {
 			pole.omega_p_gf = loadDistributedGridFunction(
 				pole.omega_p_file, serialMesh_, pmesh_, fes);
+			to_solver_units(*pole.omega_p_gf);
 			if (minValue(*pole.omega_p_gf) < 0.0) {
 				throw std::runtime_error(
 					"Lorentz omega_p grid function has negative values: " +
@@ -303,11 +312,13 @@ void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
 		if (!pole.omega_1_file.empty()) {
 			pole.omega_1_gf = loadDistributedGridFunction(
 				pole.omega_1_file, serialMesh_, pmesh_, fes);
+			to_solver_units(*pole.omega_1_gf);
 			pole.omega_1 = maxValue(*pole.omega_1_gf);
 		}
 		if (!pole.gamma_file.empty()) {
 			pole.gamma_gf = loadDistributedGridFunction(
 				pole.gamma_file, serialMesh_, pmesh_, fes);
+			to_solver_units(*pole.gamma_gf);
 			if (minValue(*pole.gamma_gf) < 0.0) {
 				throw std::runtime_error(
 					"Lorentz gamma grid function has negative values: " +

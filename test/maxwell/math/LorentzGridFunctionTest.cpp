@@ -1,4 +1,5 @@
 #include "components/Model.h"
+#include "math/PhysicalConstants.h"
 
 #include <gtest/gtest.h>
 
@@ -67,6 +68,7 @@ TEST_F(LorentzGridFunctionTest, LoadsAndDistributesToParallelSpace)
 	EXPECT_GT(loaded->omega_p, 0.0);
 
 	mfem::Array<int> serial_dofs, local_dofs;
+	const double inv_c = 1.0 / physicalConstants::speedOfLight_SI;
 	for (int e = 0; e < pmesh.GetNE(); ++e) {
 		const int global = static_cast<int>(pmesh.GetGlobalElementNum(e));
 		serial_fes.GetElementDofs(global, serial_dofs);
@@ -75,7 +77,7 @@ TEST_F(LorentzGridFunctionTest, LoadsAndDistributesToParallelSpace)
 		for (int i = 0; i < local_dofs.Size(); ++i) {
 			EXPECT_NEAR(
 				(*loaded->omega_p_gf)(local_dofs[i]),
-				serial_gf(serial_dofs[i]), 1.0e-12);
+				serial_gf(serial_dofs[i]) * inv_c, 1.0e-12);
 		}
 	}
 }
