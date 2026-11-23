@@ -205,7 +205,8 @@ long long countGridFunctionValues(const std::string& file)
 
 std::shared_ptr<mfem::ParGridFunction> loadDistributedGridFunction(
 	const std::string& file, mfem::Mesh& serial_mesh, mfem::ParMesh& pmesh,
-	mfem::ParFiniteElementSpace& pfes)
+	mfem::ParFiniteElementSpace& pfes,
+	const std::vector<int>& local_to_global_element)
 {
 	const long long values = countGridFunctionValues(file);
 	if (values < 0) {
@@ -248,7 +249,7 @@ std::shared_ptr<mfem::ParGridFunction> loadDistributedGridFunction(
 	auto parallel = std::make_shared<mfem::ParGridFunction>(&pfes);
 	mfem::Array<int> serial_dofs, local_dofs;
 	for (int e = 0; e < pmesh.GetNE(); ++e) {
-		const int global = static_cast<int>(pmesh.GetGlobalElementNum(e));
+		const int global = local_to_global_element[static_cast<std::size_t>(e)];
 		if (global < 0 || global >= serial_mesh.GetNE()) {
 			throw std::runtime_error(
 				"Lorentz grid function " + file + ": invalid global element index.");
@@ -296,11 +297,39 @@ void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
 			gf(i) *= inv_c;
 		}
 	};
+
+	// ParMesh numbers local elements contiguously per rank, not by their
+	// serial element index.  The serial .gf file is written in serial element
+	// order, so recover that order from the partitioning array.
+	const int serial_ne = serialMesh_.GetNE();
+	const int local_ne = pmesh_.GetNE();
+	const int rank = pmesh_.GetMyRank();
+	std::vector<int> local_to_global_element;
+	if (element_partition_.Size() == serial_ne) {
+		local_to_global_element.reserve(local_ne);
+		for (int global = 0; global < serial_ne; ++global) {
+			if (element_partition_[global] == rank) {
+				local_to_global_element.push_back(global);
+			}
+		}
+	} else if (serial_ne == local_ne) {
+		local_to_global_element.resize(local_ne);
+		for (int i = 0; i < local_ne; ++i) {
+			local_to_global_element[i] = i;
+		}
+	}
+	if (static_cast<int>(local_to_global_element.size()) != local_ne) {
+		throw std::runtime_error(
+			"Lorentz grid function distribution: local element count does not "
+			"match the case partitioning.");
+	}
+
 	for (auto& [tag, pole] : lorentz_by_tag_) {
 		(void)tag;
 		if (!pole.omega_p_file.empty()) {
 			pole.omega_p_gf = loadDistributedGridFunction(
-				pole.omega_p_file, serialMesh_, pmesh_, fes);
+				pole.omega_p_file, serialMesh_, pmesh_, fes,
+				local_to_global_element);
 			to_solver_units(*pole.omega_p_gf);
 			if (minValue(*pole.omega_p_gf) < 0.0) {
 				throw std::runtime_error(
@@ -311,13 +340,15 @@ void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
 		}
 		if (!pole.omega_1_file.empty()) {
 			pole.omega_1_gf = loadDistributedGridFunction(
-				pole.omega_1_file, serialMesh_, pmesh_, fes);
+				pole.omega_1_file, serialMesh_, pmesh_, fes,
+				local_to_global_element);
 			to_solver_units(*pole.omega_1_gf);
 			pole.omega_1 = maxValue(*pole.omega_1_gf);
 		}
 		if (!pole.gamma_file.empty()) {
 			pole.gamma_gf = loadDistributedGridFunction(
-				pole.gamma_file, serialMesh_, pmesh_, fes);
+				pole.gamma_file, serialMesh_, pmesh_, fes,
+				local_to_global_element);
 			to_solver_units(*pole.gamma_gf);
 			if (minValue(*pole.gamma_gf) < 0.0) {
 				throw std::runtime_error(
