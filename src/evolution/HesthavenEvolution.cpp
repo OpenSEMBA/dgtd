@@ -1887,15 +1887,22 @@ void HesthavenEvolution::initGPUData()
 
 	std::vector<const DynamicMatrix*> unique_matrices;
 	unique_matrices.reserve(matrixStorage_.size());
+	// Index the unique matrices by address once.  Looking the index up again
+	// with std::distance(begin, it) for every element and direction is O(N)
+	// per lookup and turns GPU init into O(N^2) for large meshes.
+	std::unordered_map<const DynamicMatrix*, int> matrix_indices;
+	matrix_indices.reserve(matrixStorage_.size());
 	for (auto it = matrixStorage_.begin(); it != matrixStorage_.end(); ++it) {
+		const int index = static_cast<int>(unique_matrices.size());
 		unique_matrices.push_back(&(*it));
+		matrix_indices.emplace(&(*it), index);
 	}
 	auto matrix_index = [&](const DynamicMatrix* mat_ptr) -> int {
-		const auto it = matrixStorage_.find(*mat_ptr);
-		if (it == matrixStorage_.end()) {
+		const auto it = matrix_indices.find(mat_ptr);
+		if (it == matrix_indices.end()) {
 			throw std::runtime_error("Hesthaven GPU init: directional matrix not in storage.");
 		}
-		return static_cast<int>(std::distance(matrixStorage_.begin(), it));
+		return it->second;
 	};
 	gpu_.n_matrices = static_cast<int>(unique_matrices.size());
 
