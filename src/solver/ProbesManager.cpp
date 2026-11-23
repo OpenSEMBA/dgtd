@@ -485,9 +485,50 @@ void ProbesManager::initializeContextFields(const Model& model)
         }
 
         auto fields = std::make_unique<ExporterContextFields>(
-            model, fes_, p.context_fields);
+            model, fes_, p.context_fields, p.smooth_plasma_fields);
         if (fields->empty()) {
             continue;
+        }
+
+        if (p.smooth_plasma_fields && fields->hasPlasmaFields()) {
+            auto main_it = exporterProbesCollection_.find(&p);
+            if (main_it != exporterProbesCollection_.end()) {
+                mfem::ParaViewDataCollection plasma_pd{
+                    p.name + "_plasma", fes_.GetParMesh()};
+                plasma_pd.SetPrefixPath(main_it->second.GetPrefixPath());
+                plasma_pd.SetHighOrderOutput(false);
+                plasma_pd.SetLevelsOfDetail(1);
+                plasma_pd.SetDataFormat(VTKFormat::BINARY);
+                fields->registerPlasmaFields(plasma_pd);
+                plasma_pd.SetCycle(0);
+                plasma_pd.SetTime(0.0);
+                plasma_pd.Save();
+                MPI_Barrier(comm);
+                if (root) {
+                    std::cout << "[Exporter] " << p.name
+                              << ": smooth plasma field -> "
+                              << p.name << "_plasma\n";
+                }
+
+                if (fields->hasPlasmaCellFields()) {
+                    mfem::ParaViewDataCollection cell_pd{
+                        p.name + "_plasma_cells", fes_.GetParMesh()};
+                    cell_pd.SetPrefixPath(main_it->second.GetPrefixPath());
+                    cell_pd.SetHighOrderOutput(false);
+                    cell_pd.SetLevelsOfDetail(1);
+                    cell_pd.SetDataFormat(VTKFormat::BINARY);
+                    fields->registerPlasmaCellFields(cell_pd);
+                    cell_pd.SetCycle(0);
+                    cell_pd.SetTime(0.0);
+                    cell_pd.Save();
+                    MPI_Barrier(comm);
+                    if (root) {
+                        std::cout << "[Exporter] " << p.name
+                                  << ": plasma cell means -> "
+                                  << p.name << "_plasma_cells\n";
+                    }
+                }
+            }
         }
 
         std::string mode = p.context_mode;
@@ -603,7 +644,7 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     auto& pd{ it->second };
 
     pd.SetCycle(export_cycle);
-    pd.SetTime(std::round(time * 1e3) / 1e3);
+    pd.SetTime(time);
 
     std::string base_dir = pd.GetPrefixPath() + pd.GetCollectionName();
     std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(export_cycle, 6);

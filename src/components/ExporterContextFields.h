@@ -29,13 +29,20 @@ public:
 
     ExporterContextFields(const Model& model,
                           mfem::ParFiniteElementSpace& fes,
-                          const std::vector<std::string>& requested);
+                          const std::vector<std::string>& requested,
+                          bool smooth_plasma = false);
 
     bool empty() const { return fields_.empty(); }
     bool isTimeDependent() const;
     const std::vector<Field>& fields() const { return fields_; }
+    const std::vector<Field>& plasmaFields() const { return plasma_fields_; }
+    const std::vector<Field>& plasmaCellFields() const { return plasma_cell_fields_; }
+    bool hasPlasmaFields() const { return !plasma_fields_.empty(); }
+    bool hasPlasmaCellFields() const { return !plasma_cell_fields_.empty(); }
 
     void registerFields(mfem::ParaViewDataCollection& pd) const;
+    void registerPlasmaFields(mfem::ParaViewDataCollection& pd) const;
+    void registerPlasmaCellFields(mfem::ParaViewDataCollection& pd) const;
 
     static const std::vector<std::string>& allFieldNames();
     static std::vector<std::string> resolveRequested(
@@ -47,9 +54,17 @@ public:
 private:
     const Model& model_;
     mfem::ParFiniteElementSpace& fes_;
+    bool smooth_plasma_{false};
     std::vector<Field> fields_;
+    std::unique_ptr<mfem::H1_FECollection> plasma_fec_;
+    std::unique_ptr<mfem::ParFiniteElementSpace> plasma_fes_;
+    std::vector<Field> plasma_fields_;
+    std::unique_ptr<mfem::L2_FECollection> plasma_cell_fec_;
+    std::unique_ptr<mfem::ParFiniteElementSpace> plasma_cell_fes_;
+    std::vector<Field> plasma_cell_fields_;
 
     void build();
+    void buildPlasmaVisualization();
     mfem::ParGridFunction* findField(const std::string& name);
 };
 
