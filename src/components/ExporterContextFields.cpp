@@ -347,18 +347,41 @@ void ExporterContextFields::buildPlasmaVisualization()
         return;
     }
 
-    auto& mesh = *fes_.GetMesh();
-    plasma_fec_ = std::make_unique<mfem::H1_FECollection>(1, mesh.Dimension());
+    auto& parent_mesh = *fes_.GetMesh();
+    mfem::Array<int> domain_attributes;
+    for (const auto& pole : model_.getLorentzProperties()) {
+        bool present = false;
+        for (int i = 0; i < domain_attributes.Size(); ++i) {
+            if (domain_attributes[i] == pole.geom_tag) {
+                present = true;
+                break;
+            }
+        }
+        if (!present) {
+            domain_attributes.Append(pole.geom_tag);
+        }
+    }
+    if (domain_attributes.Size() == 0) {
+        return;
+    }
+
+    plasma_submesh_ = std::make_unique<mfem::ParSubMesh>(
+        mfem::ParSubMesh::CreateFromDomain(
+            *fes_.GetParMesh(), domain_attributes));
+    const mfem::Array<int>& parent_elements =
+        plasma_submesh_->GetParentElementIDMap();
+
+    plasma_fec_ = std::make_unique<mfem::H1_FECollection>(
+        1, plasma_submesh_->Dimension());
     plasma_fes_ = std::make_unique<mfem::ParFiniteElementSpace>(
-        fes_.GetParMesh(), plasma_fec_.get());
+        plasma_submesh_.get(), plasma_fec_.get());
     plasma_cell_fec_ = std::make_unique<mfem::L2_FECollection>(
-        0, mesh.Dimension());
+        0, plasma_submesh_->Dimension());
     plasma_cell_fes_ = std::make_unique<mfem::ParFiniteElementSpace>(
-        fes_.GetParMesh(), plasma_cell_fec_.get());
+        plasma_submesh_.get(), plasma_cell_fec_.get());
 
     auto fp_h1 = std::make_unique<mfem::ParGridFunction>(plasma_fes_.get());
     auto nuc_h1 = std::make_unique<mfem::ParGridFunction>(plasma_fes_.get());
-    auto mask_h1 = std::make_unique<mfem::ParGridFunction>(plasma_fes_.get());
     auto fp_cell = std::make_unique<mfem::ParGridFunction>(
         plasma_cell_fes_.get());
     auto nuc_cell = std::make_unique<mfem::ParGridFunction>(
@@ -368,42 +391,42 @@ void ExporterContextFields::buildPlasmaVisualization()
     mfem::ParGridFunction weight(plasma_fes_.get());
     *fp_h1 = 0.0;
     *nuc_h1 = 0.0;
-    *mask_h1 = 0.0;
     *fp_cell = 0.0;
     *nuc_cell = 0.0;
     sum_fp = 0.0;
     sum_nuc = 0.0;
     weight = 0.0;
 
-    mfem::Array<int> dg_dofs;
+    mfem::L2_FECollection parent_cell_fec(0, parent_mesh.Dimension());
+    mfem::ParFiniteElementSpace parent_cell_fes(
+        fes_.GetParMesh(), &parent_cell_fec);
+    mfem::ParGridFunction parent_fp_mean(&parent_cell_fes);
+    mfem::ParGridFunction parent_nuc_mean(&parent_cell_fes);
+    fp->GetElementAverages(parent_fp_mean);
+    nuc->GetElementAverages(parent_nuc_mean);
+
+    mfem::Array<int> parent_cell_dofs;
     mfem::Array<int> h1_dofs;
     mfem::Array<int> cell_dofs;
-    for (int el = 0; el < fes_.GetNE(); ++el) {
-        const int attr = mesh.GetAttribute(el);
-        if (model_.findLorentz(attr) == nullptr) {
+    for (int el = 0; el < plasma_fes_->GetNE(); ++el) {
+        const int parent_el = parent_elements[el];
+        if (parent_el < 0 || parent_el >= fes_.GetNE()) {
             continue;
         }
-        fes_.GetElementDofs(el, dg_dofs);
-        double mean_fp = 0.0;
-        double mean_nuc = 0.0;
-        for (int i = 0; i < dg_dofs.Size(); ++i) {
-            mean_fp += (*fp)(dg_dofs[i]);
-            mean_nuc += (*nuc)(dg_dofs[i]);
-        }
-        mean_fp = std::max(0.0, mean_fp / dg_dofs.Size());
-        mean_nuc = std::max(0.0, mean_nuc / dg_dofs.Size());
+        parent_cell_fes.GetElementDofs(parent_el, parent_cell_dofs);
+        const double mean_fp = std::max(0.0, parent_fp_mean(parent_cell_dofs[0]));
+        const double mean_nuc = std::max(0.0, parent_nuc_mean(parent_cell_dofs[0]));
 
         plasma_cell_fes_->GetElementDofs(el, cell_dofs);
         (*fp_cell)(cell_dofs[0]) = mean_fp;
         (*nuc_cell)(cell_dofs[0]) = mean_nuc;
 
-        const double volume = mesh.GetElementVolume(el);
+        const double volume = parent_mesh.GetElementVolume(parent_el);
         plasma_fes_->GetElementDofs(el, h1_dofs);
         for (int i = 0; i < h1_dofs.Size(); ++i) {
             sum_fp(h1_dofs[i]) += mean_fp * volume;
             sum_nuc(h1_dofs[i]) += mean_nuc * volume;
             weight(h1_dofs[i]) += volume;
-            (*mask_h1)(h1_dofs[i]) = 1.0;
         }
     }
 
@@ -411,15 +434,12 @@ void ExporterContextFields::buildPlasmaVisualization()
     mfem::Vector sum_fp_true(true_size);
     mfem::Vector sum_nuc_true(true_size);
     mfem::Vector weight_true(true_size);
-    mfem::Vector mask_true(true_size);
     sum_fp.ParallelAverage(sum_fp_true);
     sum_nuc.ParallelAverage(sum_nuc_true);
     weight.ParallelAverage(weight_true);
-    mask_h1->ParallelAverage(mask_true);
 
     mfem::Vector fp_true(true_size);
     mfem::Vector nuc_true(true_size);
-    mfem::Vector mask_out(true_size);
     for (int i = 0; i < true_size; ++i) {
         if (weight_true(i) > 0.0) {
             fp_true(i) = sum_fp_true(i) / weight_true(i);
@@ -428,20 +448,16 @@ void ExporterContextFields::buildPlasmaVisualization()
             fp_true(i) = 0.0;
             nuc_true(i) = 0.0;
         }
-        mask_out(i) = mask_true(i) > 0.0 ? 1.0 : 0.0;
     }
     fp_h1->SetFromTrueDofs(fp_true);
     nuc_h1->SetFromTrueDofs(nuc_true);
-    mask_h1->SetFromTrueDofs(mask_out);
     fp_h1->HostWrite();
     nuc_h1->HostWrite();
-    mask_h1->HostWrite();
     fp_cell->HostWrite();
     nuc_cell->HostWrite();
 
     plasma_fields_.push_back({"fp_Hz", std::move(fp_h1), false});
     plasma_fields_.push_back({"nuc_Hz", std::move(nuc_h1), false});
-    plasma_fields_.push_back({"plasma_mask", std::move(mask_h1), false});
     plasma_cell_fields_.push_back({"fp_Hz_cell", std::move(fp_cell), false});
     plasma_cell_fields_.push_back({"nuc_Hz_cell", std::move(nuc_cell), false});
 }

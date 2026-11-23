@@ -492,9 +492,10 @@ void ProbesManager::initializeContextFields(const Model& model)
 
         if (p.smooth_plasma_fields && fields->hasPlasmaFields()) {
             auto main_it = exporterProbesCollection_.find(&p);
-            if (main_it != exporterProbesCollection_.end()) {
+            if (main_it != exporterProbesCollection_.end() &&
+                fields->plasmaMesh() != nullptr) {
                 mfem::ParaViewDataCollection plasma_pd{
-                    p.name + "_plasma", fes_.GetParMesh()};
+                    p.name + "_plasma", fields->plasmaMesh()};
                 plasma_pd.SetPrefixPath(main_it->second.GetPrefixPath());
                 plasma_pd.SetHighOrderOutput(false);
                 plasma_pd.SetLevelsOfDetail(1);
@@ -512,7 +513,7 @@ void ProbesManager::initializeContextFields(const Model& model)
 
                 if (fields->hasPlasmaCellFields()) {
                     mfem::ParaViewDataCollection cell_pd{
-                        p.name + "_plasma_cells", fes_.GetParMesh()};
+                        p.name + "_plasma_cells", fields->plasmaMesh()};
                     cell_pd.SetPrefixPath(main_it->second.GetPrefixPath());
                     cell_pd.SetHighOrderOutput(false);
                     cell_pd.SetLevelsOfDetail(1);

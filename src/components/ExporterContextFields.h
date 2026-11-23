@@ -3,6 +3,7 @@
 #include "Model.h"
 
 #include <mfem.hpp>
+#include "mesh/submesh/psubmesh.hpp"
 
 #include <memory>
 #include <string>
@@ -37,6 +38,7 @@ public:
     const std::vector<Field>& fields() const { return fields_; }
     const std::vector<Field>& plasmaFields() const { return plasma_fields_; }
     const std::vector<Field>& plasmaCellFields() const { return plasma_cell_fields_; }
+    mfem::ParMesh* plasmaMesh() { return plasma_submesh_.get(); }
     bool hasPlasmaFields() const { return !plasma_fields_.empty(); }
     bool hasPlasmaCellFields() const { return !plasma_cell_fields_.empty(); }
 
@@ -56,6 +58,7 @@ private:
     mfem::ParFiniteElementSpace& fes_;
     bool smooth_plasma_{false};
     std::vector<Field> fields_;
+    std::unique_ptr<mfem::ParSubMesh> plasma_submesh_;
     std::unique_ptr<mfem::H1_FECollection> plasma_fec_;
     std::unique_ptr<mfem::ParFiniteElementSpace> plasma_fes_;
     std::vector<Field> plasma_fields_;
