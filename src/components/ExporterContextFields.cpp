@@ -156,6 +156,9 @@ ExporterContextFields::ExporterContextFields(
         field.name = name;
         field.gf = std::make_unique<mfem::ParGridFunction>(&fes_);
         *field.gf = defaultValueFor(name);
+        // On device builds the scalar assignment above may only initialize the
+        // device copy.  Pull the defaults to the host before build() edits them.
+        field.gf->HostRead();
         fields_.push_back(std::move(field));
     }
     build();
@@ -295,6 +298,13 @@ void ExporterContextFields::build()
                 }
             }
         }
+    }
+
+    // The values above are written through the host pointer without touching
+    // MFEM's memory validity flags.  Mark the host side as authoritative so a
+    // CUDA build uploads these fields instead of exporting the initial defaults.
+    for (auto& field : fields_) {
+        field.gf->HostWrite();
     }
 }
 
