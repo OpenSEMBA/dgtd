@@ -116,6 +116,36 @@ All units are SI.
   `pml_alpha_*` are dimensionless; `pml_depth_*` is in metres. Inactive axes
   are not written when `context_fields: "all"` is used.
 
+## Smooth plasma visualization
+
+When `probes.exporter.smooth_plasma_fields` is `true`, the DG rates are
+complemented by two visualization-only collections.  The solver
+still reads the original `omega_p.gf` / `nu_c.gf` values at the DG quadrature
+points; neither collection feeds back into the operator.
+
+- `<name>_plasma` is a continuous H1 order-2 reconstruction of `fp_Hz` and
+  `nuc_Hz`.  The DG rate is sampled at the H1 nodes, so the sub-element
+  variation is retained; shared nodes are volume-averaged across the incident
+  plasma elements.  The collection is written on a **plasma-only submesh**
+  (the Lorentz tags), so it cannot extend into vacuum.  The continuous field
+  is floored at the minimum element-centre rate over the plasma volume (the
+  free-stream value), so DG polynomial undershoots cannot create artificial
+  zero or negative spots in ParaView.  This is a visualization floor, not a
+  change to the solver rates.
+- `<name>_plasma_cells` is the piecewise-constant view on the same submesh.
+  `fp_Hz_cell` / `nuc_Hz_cell` are the DG rate at the element centroid (a
+  local representative value), and `fp_Hz_mean` / `nuc_Hz_mean` are the exact
+  L2 element means used by the DG mass integration.  The element-centre
+  sample is the better default for a coarse cell that spans a strong gradient;
+  the mean is available for solver-side comparisons.
+
+A continuous view is intentionally preferred for the sheath: an element mean
+is a volume average, and a single mesh element can span a large part of the
+sheath (the RAM-C II nose stagnation element is a 24 mm axial sliver).  The
+mean then assigns a high value to the low-density nose vertex and makes the
+cell view look blocky even though the underlying DG field carries the local
+variation.
+
 ## Applicability
 
 `context_fields: "all"` (the default) writes only fields that exist in the

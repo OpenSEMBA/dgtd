@@ -497,8 +497,9 @@ void ProbesManager::initializeContextFields(const Model& model)
                 mfem::ParaViewDataCollection plasma_pd{
                     p.name + "_plasma", fields->plasmaMesh()};
                 plasma_pd.SetPrefixPath(main_it->second.GetPrefixPath());
-                plasma_pd.SetHighOrderOutput(false);
-                plasma_pd.SetLevelsOfDetail(1);
+                plasma_pd.SetHighOrderOutput(true);
+                plasma_pd.SetLevelsOfDetail(
+                    fields->plasmaOrder() > 1 ? fields->plasmaOrder() : 1);
                 plasma_pd.SetDataFormat(VTKFormat::BINARY);
                 fields->registerPlasmaFields(plasma_pd);
                 plasma_pd.SetCycle(0);
@@ -525,7 +526,7 @@ void ProbesManager::initializeContextFields(const Model& model)
                     MPI_Barrier(comm);
                     if (root) {
                         std::cout << "[Exporter] " << p.name
-                                  << ": plasma cell means -> "
+                                  << ": plasma cell samples -> "
                                   << p.name << "_plasma_cells\n";
                     }
                 }

@@ -39,6 +39,7 @@ public:
     const std::vector<Field>& plasmaFields() const { return plasma_fields_; }
     const std::vector<Field>& plasmaCellFields() const { return plasma_cell_fields_; }
     mfem::ParMesh* plasmaMesh() { return plasma_submesh_.get(); }
+    int plasmaOrder() const { return plasma_fec_ ? plasma_fec_->GetOrder() : 0; }
     bool hasPlasmaFields() const { return !plasma_fields_.empty(); }
     bool hasPlasmaCellFields() const { return !plasma_cell_fields_.empty(); }
 
