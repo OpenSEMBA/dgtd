@@ -400,6 +400,8 @@ void ExporterContextFields::buildPlasmaVisualization()
     mfem::ParGridFunction sum_fp(plasma_fes_.get());
     mfem::ParGridFunction sum_nuc(plasma_fes_.get());
     mfem::ParGridFunction weight(plasma_fes_.get());
+    mfem::ParGridFunction fallback_fp(plasma_fes_.get());
+    mfem::ParGridFunction fallback_nuc(plasma_fes_.get());
     *fp_h1 = 0.0;
     *nuc_h1 = 0.0;
     *fp_cell = 0.0;
@@ -409,6 +411,8 @@ void ExporterContextFields::buildPlasmaVisualization()
     sum_fp = 0.0;
     sum_nuc = 0.0;
     weight = 0.0;
+    fallback_fp = 0.0;
+    fallback_nuc = 0.0;
 
     mfem::L2_FECollection parent_cell_fec(0, parent_mesh.Dimension());
     mfem::ParFiniteElementSpace parent_cell_fes(
@@ -475,42 +479,45 @@ void ExporterContextFields::buildPlasmaVisualization()
             sum_fp(h1_dofs[i]) += volume * value_fp;
             sum_nuc(h1_dofs[i]) += volume * value_nuc;
             weight(h1_dofs[i]) += volume;
+            fallback_fp(h1_dofs[i]) += volume * center_fp;
+            fallback_nuc(h1_dofs[i]) += volume * center_nuc;
         }
     }
-
-    // A DG polynomial can undershoot below the lowest cell-centre value at
-    // an H1 edge node.  Floor the continuous visualization at the minimum
-    // element-centre rate over the plasma volume (the free-stream value) so
-    // ParaView does not manufacture zero/negative spots.  This is a display
-    // floor only; the solver still sees the original DG rates.
-    const MPI_Comm comm = plasma_fes_->GetParMesh()->GetComm();
-    fp_cell->HostWrite();
-    nuc_cell->HostWrite();
-    double local_min_fp = fp_cell->Min();
-    double local_min_nuc = nuc_cell->Min();
-    double global_min_fp = 0.0;
-    double global_min_nuc = 0.0;
-    MPI_Allreduce(&local_min_fp, &global_min_fp, 1, MPI_DOUBLE, MPI_MIN, comm);
-    MPI_Allreduce(&local_min_nuc, &global_min_nuc, 1, MPI_DOUBLE, MPI_MIN, comm);
 
     const int true_size = plasma_fes_->GetTrueVSize();
     mfem::Vector sum_fp_true(true_size);
     mfem::Vector sum_nuc_true(true_size);
     mfem::Vector weight_true(true_size);
+    mfem::Vector fallback_fp_true(true_size);
+    mfem::Vector fallback_nuc_true(true_size);
     sum_fp.ParallelAverage(sum_fp_true);
     sum_nuc.ParallelAverage(sum_nuc_true);
     weight.ParallelAverage(weight_true);
+    fallback_fp.ParallelAverage(fallback_fp_true);
+    fallback_nuc.ParallelAverage(fallback_nuc_true);
 
     mfem::Vector fp_true(true_size);
     mfem::Vector nuc_true(true_size);
     for (int i = 0; i < true_size; ++i) {
-        double value_fp = global_min_fp;
-        double value_nuc = global_min_nuc;
+        double value_fp = 0.0;
+        double value_nuc = 0.0;
         if (weight_true(i) > 0.0) {
-            value_fp = std::max(global_min_fp,
-                                sum_fp_true(i) / weight_true(i));
-            value_nuc = std::max(global_min_nuc,
-                                 sum_nuc_true(i) / weight_true(i));
+            value_fp = sum_fp_true(i) / weight_true(i);
+            value_nuc = sum_nuc_true(i) / weight_true(i);
+            // A DG polynomial can undershoot by orders of magnitude at a
+            // shared H1 edge node (the fp neck spots), even when the element
+            // centre is healthy.  A nodal value below 15% of the local
+            // element-centre average is a visualization zero; use the centre
+            // value instead.  The solver still sees the original DG rates.
+            constexpr double nodal_floor_ratio = 1.5e-1;
+            const double center_fp = fallback_fp_true(i) / weight_true(i);
+            const double center_nuc = fallback_nuc_true(i) / weight_true(i);
+            if (!(value_fp > nodal_floor_ratio * center_fp)) {
+                value_fp = center_fp;
+            }
+            if (!(value_nuc > nodal_floor_ratio * center_nuc)) {
+                value_nuc = center_nuc;
+            }
         }
         fp_true(i) = value_fp;
         nuc_true(i) = value_nuc;

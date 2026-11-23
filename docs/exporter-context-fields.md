@@ -127,11 +127,12 @@ points; neither collection feeds back into the operator.
   `nuc_Hz`.  The DG rate is sampled at the H1 nodes, so the sub-element
   variation is retained; shared nodes are volume-averaged across the incident
   plasma elements.  The collection is written on a **plasma-only submesh**
-  (the Lorentz tags), so it cannot extend into vacuum.  The continuous field
-  is floored at the minimum element-centre rate over the plasma volume (the
-  free-stream value), so DG polynomial undershoots cannot create artificial
-  zero or negative spots in ParaView.  This is a visualization floor, not a
-  change to the solver rates.
+  (the Lorentz tags), so it cannot extend into vacuum.  A nodal average below
+  15% of the local element-centre value is treated as a DG polynomial
+  undershoot and replaced by that centre value.  This suppresses the
+  undershoot spots (most visibly in `fp` at the RAM-C neck) without changing
+  the solver rates; the exact element means remain available in the cell
+  collection.
 - `<name>_plasma_cells` is the piecewise-constant view on the same submesh.
   `fp_Hz_cell` / `nuc_Hz_cell` are the DG rate at the element centroid (a
   local representative value), and `fp_Hz_mean` / `nuc_Hz_mean` are the exact
