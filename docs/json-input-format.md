@@ -348,6 +348,7 @@ ParaView (VisIt) field export under `exports/ParaView/<run-mode>/`.
 | `save_every` | **Required cadence.** Export interval in solver time. Snapshots at `t = 0`, `save_every`, `2·save_every`, … and **always** at `final_time`. Example: `final_time: 20` with `save_every: 0.5` → 41 frames (`0, 0.5, …, 20`). Must be `> 0`. |
 | `context_fields` | Optional. `"all"` (default), `"none"`, or an array of field names (see [exporter context fields](#exporter-context-fields)). `"all"` writes only fields relevant to the model: PML fields only when PML exists, Debye fields only for Debye, `f1_Hz` only for a resonant Lorentz pole, and `sigma_S_per_m` only when a material has nonzero conductivity. |
 | `context_mode` | Optional. `"auto"` (default), `"separate"`, `"inline"`, or `"off"`. `"auto"`/`"inline"` write time-independent context fields in the main `<name>.pvd` at `t = 0` only (the first frame), so the dataset stays a single `.pvd`; time-dependent fields are written every cycle. `"separate"` writes a separate `<name>_context` collection, and `"off"` disables the fields. |
+| `high_order_output` | Optional. Default `true`. When `false`, ParaView output uses the linear mesh instead of VTK high-order Lagrange cells. This avoids high-order interpolation ringing at visualization nodes (for example tiny negative values in a non-negative plasma-rate field) at the cost of a piecewise-linear view. |
 
 Legacy keys on `exporter`:
 - `saves` (total frame count) — **rejected**; convert with `save_every = final_time / (saves - 1)` when `saves > 1`.

@@ -2691,6 +2691,10 @@ Probes buildProbes(const json& case_data)
                         "\"auto\", \"separate\", \"inline\", or \"off\".");
                 }
             }
+            if (exp_json.contains("high_order_output")) {
+                exporter_probe.high_order_output =
+                    exp_json["high_order_output"].get<bool>();
+            }
             probes.exporterProbes.push_back(exporter_probe);
         }
 

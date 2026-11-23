@@ -20,6 +20,10 @@ struct ExporterProbe {
     /// "auto" (static -> one-shot collection, time-dependent -> inline every
     /// cycle), "separate", "inline", or "off".
     std::string context_mode{"auto"};
+    /// Use VTK high-order Lagrange output. Setting this to false writes the
+    /// fields on the linear mesh, which avoids high-order interpolation
+    /// ringing in ParaView at the cost of a piecewise-linear visualization.
+    bool high_order_output{true};
 };
 
 struct NearFieldProbe {

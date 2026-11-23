@@ -119,8 +119,10 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
     auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
     auto fecorder = fes_.FEColl()->GetOrder();
     geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
-    pd.SetHighOrderOutput(highOrder);
-    pd.SetLevelsOfDetail(std::max(geomElemOrder,fecorder));
+    pd.SetHighOrderOutput(highOrder && p.high_order_output);
+    pd.SetLevelsOfDetail(p.high_order_output
+                             ? std::max(geomElemOrder, fecorder)
+                             : 1);
     
     pd.SetDataFormat(VTKFormat::BINARY);
 
@@ -519,8 +521,8 @@ void ProbesManager::initializeContextFields(const Model& model)
 
             mfem::ParaViewDataCollection pd{p.name + "_context", fes_.GetParMesh()};
             pd.SetPrefixPath(main_it->second.GetPrefixPath());
-            pd.SetHighOrderOutput(highOrder);
-            pd.SetLevelsOfDetail(levelsOfDetail);
+            pd.SetHighOrderOutput(highOrder && p.high_order_output);
+            pd.SetLevelsOfDetail(p.high_order_output ? levelsOfDetail : 1);
             pd.SetDataFormat(VTKFormat::BINARY);
             fields->registerFields(pd);
 
