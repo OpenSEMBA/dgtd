@@ -1,7 +1,9 @@
 #include "Model.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include "PMLProfiles.h"
 #include "math/PhysicalConstants.h"
@@ -286,6 +288,50 @@ double minValue(const mfem::ParGridFunction& gf)
 	return value;
 }
 
+// Diagnostic: dump the exact DG values the solver has loaded, together with
+// the physical coordinate of every DOF.  Enabled only through
+// DGTD_PLASMA_DUMP_DIR so normal solver runs do not write multi-hundred-MB
+// CSVs.  `gf` is in solver units (rad/m for omega_p, 1/m for gamma).
+void dumpLorentzRateDofs(
+	mfem::ParFiniteElementSpace& fes,
+	const mfem::ParGridFunction& gf,
+	const std::string& path,
+	int rank,
+	const std::string& rate_name,
+	const std::string& hz_name)
+{
+	std::ofstream out(path);
+	if (!out) {
+		throw std::runtime_error("could not open plasma DoF dump: " + path);
+	}
+	out << std::setprecision(17);
+	out << "rank,element,local_dof,dof,x,y,z,"
+	    << rate_name << "," << hz_name << "\n";
+
+	const double c = physicalConstants::speedOfLight_SI;
+	const double two_pi = 2.0 * M_PI;
+	mfem::Array<int> dofs;
+	mfem::Vector point;
+	for (int e = 0; e < fes.GetNE(); ++e) {
+		fes.GetElementDofs(e, dofs);
+		const mfem::FiniteElement* fe = fes.GetFE(e);
+		const mfem::IntegrationRule& nodes = fe->GetNodes();
+		auto* tr = const_cast<mfem::ElementTransformation*>(
+			fes.GetElementTransformation(e));
+		if (dofs.Size() != nodes.GetNPoints()) {
+			continue;
+		}
+		for (int j = 0; j < dofs.Size(); ++j) {
+			tr->Transform(nodes.IntPoint(j), point);
+			const double rate_si = gf(dofs[j]) * c;
+			const double rate_hz = rate_si / two_pi;
+			out << rank << ',' << e << ',' << j << ',' << dofs[j] << ','
+			    << point(0) << ',' << point(1) << ',' << point(2) << ','
+			    << rate_si << ',' << rate_hz << '\n';
+		}
+	}
+}
+
 } // namespace
 
 void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
@@ -324,8 +370,8 @@ void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
 			"match the case partitioning.");
 	}
 
+	const char* dump_dir = std::getenv("DGTD_PLASMA_DUMP_DIR");
 	for (auto& [tag, pole] : lorentz_by_tag_) {
-		(void)tag;
 		if (!pole.omega_p_file.empty()) {
 			pole.omega_p_gf = loadDistributedGridFunction(
 				pole.omega_p_file, serialMesh_, pmesh_, fes,
@@ -337,6 +383,14 @@ void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
 					pole.omega_p_file);
 			}
 			pole.omega_p = maxValue(*pole.omega_p_gf);
+			if (dump_dir != nullptr) {
+				dumpLorentzRateDofs(
+					fes, *pole.omega_p_gf,
+					std::string(dump_dir) + "/omega_p_tag" +
+						std::to_string(tag) + "_rank" +
+						std::to_string(rank) + ".csv",
+					rank, "omega_p_rad_s", "fp_Hz");
+			}
 		}
 		if (!pole.omega_1_file.empty()) {
 			pole.omega_1_gf = loadDistributedGridFunction(
@@ -356,6 +410,14 @@ void Model::loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes)
 					pole.gamma_file);
 			}
 			pole.gamma = maxValue(*pole.gamma_gf);
+			if (dump_dir != nullptr) {
+				dumpLorentzRateDofs(
+					fes, *pole.gamma_gf,
+					std::string(dump_dir) + "/nu_c_tag" +
+						std::to_string(tag) + "_rank" +
+						std::to_string(rank) + ".csv",
+					rank, "nu_c_s-1", "nuc_Hz");
+			}
 		}
 	}
 	for (LorentzProperties& pole : lorentz_) {
