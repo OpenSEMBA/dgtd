@@ -2343,13 +2343,27 @@ namespace maxwell
 				}
 			};
 
-			mfem::FunctionCoefficient wp_sq_fc([pole](const mfem::Vector& x) {
-				const double wp = pole->evalOmegaP(x);
-				return wp * wp;
-			});
-			addWeightedMassBlock(wp_sq_fc, 0);
+			if (pole->omega_p_gf) {
+				mfem::GridFunctionCoefficient wp(pole->omega_p_gf.get());
+				mfem::ProductCoefficient wp_sq(wp, wp);
+				addWeightedMassBlock(wp_sq, 0);
+			}
+			else {
+				mfem::FunctionCoefficient wp_sq_fc([pole](const mfem::Vector& x) {
+					const double wp = pole->evalOmegaP(x);
+					return wp * wp;
+				});
+				addWeightedMassBlock(wp_sq_fc, 0);
+			}
 
-			if (pole->omega_1_profile || pole->omega_1 != 0.0) {
+			if (pole->omega_1_gf) {
+				mfem::GridFunctionCoefficient w1(pole->omega_1_gf.get());
+				mfem::ConstantCoefficient minus_one(-1.0);
+				mfem::ProductCoefficient w1_sq(w1, w1);
+				mfem::ProductCoefficient neg_w1_sq(minus_one, w1_sq);
+				addWeightedMassBlock(neg_w1_sq, p_base);
+			}
+			else if (pole->omega_1_profile || pole->omega_1 != 0.0) {
 				mfem::FunctionCoefficient neg_w1_sq_fc([pole](const mfem::Vector& x) {
 					const double w1 = pole->evalOmega1(x);
 					return -w1 * w1;
@@ -2357,10 +2371,18 @@ namespace maxwell
 				addWeightedMassBlock(neg_w1_sq_fc, p_base);
 			}
 
-			mfem::FunctionCoefficient neg_gamma_fc([pole](const mfem::Vector& x) {
-				return -pole->evalGamma(x);
-			});
-			addWeightedMassBlock(neg_gamma_fc, j_base);
+			if (pole->gamma_gf) {
+				mfem::GridFunctionCoefficient gamma(pole->gamma_gf.get());
+				mfem::ConstantCoefficient minus_one(-1.0);
+				mfem::ProductCoefficient neg_gamma(minus_one, gamma);
+				addWeightedMassBlock(neg_gamma, j_base);
+			}
+			else {
+				mfem::FunctionCoefficient neg_gamma_fc([pole](const mfem::Vector& x) {
+					return -pole->evalGamma(x);
+				});
+				addWeightedMassBlock(neg_gamma_fc, j_base);
+			}
 		}
 
 		if (!any) {

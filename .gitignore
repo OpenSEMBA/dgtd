@@ -88,3 +88,7 @@ valgrind*
 vcpkg_installed/*
 CMakeFiles/*
 *.dat
+
+# plasmakit-check case JSON backups
+*.json.bak
+*.json.bak.*

@@ -246,6 +246,8 @@ Solver::Solver(
     probesManager_ { probes , *fes_, fields_, opts_, &model_ },
     time_{0.0}
 {
+    model_.loadLorentzGridFunctions(*fes_);
+
     auto initStartTime = std::chrono::steady_clock::now();
     initMemBaseline_ = getCurrentMemoryUsage();
     initMemPeakSampled_ = initMemBaseline_;
@@ -565,15 +567,25 @@ double estimateTimeStep(const Model& model, const SolverOptions& opts, const mfe
         throw std::runtime_error("Automatic Time Step Estimation not available for the set dimension.");
     }
 
-    // Hesthaven-specific 3D scaling
+    // Hesthaven-specific 3D scaling.
+    // hestElemLinearStorage_ is densely indexed 0..nLinear-1 and excludes
+    // curved/promoted elements. Indexing by serialmesh.GetNE() / ElementId
+    // segfaults as soon as any element is curved (e.g. 3D_TFSF_InteriorPEC).
     if (opts.evolution.op == EvolutionOperatorType::Hesthaven && dimension == 3) {
-        auto maxFscaleVal{ 0.0 };
-        const auto& evol = dynamic_cast<const HesthavenEvolution*>(tdo);
-        for (auto e{ 0 }; e < serialmesh.GetNE(); e++) {
-            const auto& fscaleMax{ evol->getHesthavenElement(e).fscale.maxCoeff() };
-            if (fscaleMax > maxFscaleVal) {
-                maxFscaleVal = fscaleMax;
-            }
+        const auto* evol = dynamic_cast<const HesthavenEvolution*>(tdo);
+        if (evol == nullptr) {
+            throw std::runtime_error(
+                "Hesthaven time-step estimate requires a HesthavenEvolution operator.");
+        }
+        double maxFscaleVal = evol->maxLinearFscale();
+        if (Mpi::WorldSize() > 1) {
+            double global_max = 0.0;
+            MPI_Allreduce(&maxFscaleVal, &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+            maxFscaleVal = global_max;
+        }
+        if (maxFscaleVal <= 0.0) {
+            // Rank (or job) has no linear hesthaven elements; fall back.
+            return base_dt;
         }
         const auto& order = serialfes.FEColl()->GetOrder();
         return 1.0 * opts.cfl / (maxFscaleVal * order * order);

@@ -11,7 +11,8 @@ functions.
 | `3D_RAMC2_50km_Gupta_1GHz.msh` | order-2 tetrahedral mesh (MSH 2.2, all elements saved, physical == elementary tags) |
 | `3D_RAMC2_50km_Gupta_1GHz.json` | DGTD case: global operator, CUDA run |
 | `3D_RAMC2_50km_Gupta_1GHz.rcs.json` | offline `opensemba_rcs` sweep, 0.2-1.5 GHz, backscatter |
-| `plasma/` | plasma_kit archive: `mesh.mesh` + `omega_p.gf` + `nu_c.gf` + `description.json` |
+| `omega_p.gf` / `nu_c.gf` | plasma_kit DG grid functions on this mesh and FES (solver DoFs) |
+| `description.json` | plasma_kit projection metadata (mesh, order, basis) |
 
 ## Mesh layout
 
@@ -44,11 +45,13 @@ light-metres.
 
 ## Lorentz material
 
-Volume 4 uses `gridfunction` profiles pointing at `plasma/omega_p.gf` and
-`plasma/nu_c.gf` (SI rad/s; only 1/c0 applied; 2D archive evaluated
-axisymmetrically as (x, r=hypot(y,z)); `fallback: "nearest"`). DGTD evaluates
-the H1 functions at the DG quadrature points and applies the per-element
-M_K^-1 M_K[f] projection. `f_1 = 0` (cold plasma / Drude).
+Volume 4 uses `gridfunction` profiles pointing at `omega_p.gf` and
+`nu_c.gf` (SI rad/s; only 1/c0 applied). The files are written by
+plasma_kit `mode.solver: "OpenSEMBA-dgtd"` directly in the DoFs of this mesh and
+`DG_FECollection(order=2, basis_type=1)`. DGTD loads them once at startup
+and distributes them over MPI; it squares `omega_p` at the quadrature
+points. A positivity limiter in plasma_kit keeps the projected rates
+non-negative. `f_1 = 0` (cold plasma / Drude).
 
 ## RAM / run mode
 
@@ -72,16 +75,42 @@ mpiexec -n 1 ./build/gnu-release-cuda/bin/opensemba_rcs \
 
 ## Regeneration
 
-```sh
-python3 plasma_kit/scripts/post_mesher/post_mesher.py \
-  --input plasma_kit/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu \
-  --frequency 9.07695147e8 --ppw-out 2.3 \
-  --plasma-archive testData/testInputs/3D_RAMC2_50km_Gupta_1GHz/plasma \
-  --evolution-operator global --runmode cuda-1 \
-  --rcs-start 2.0e8 --rcs-end 1.5e9 --rcs-steps 141 \
-  --out-dir testData/testInputs/3D_RAMC2_50km_Gupta_1GHz
+Create `plasmakit-generate.json` (for example in the repository root) with:
+
+```json
+{
+  "mode": {
+    "solver": "OpenSEMBA-dgtd",
+    "build": {
+      "output_mesh": "testData/testInputs/3D_RAMC2_50km_Gupta_1GHz/3D_RAMC2_50km_Gupta_1GHz.msh",
+      "frequency": 9.07695147e8,
+      "order": 2,
+      "basis_type": 1,
+      "overwrite": true,
+      "sizing": {"ppw_out": 2.3},
+      "boxes": {"absorber": "sma"},
+      "physics": {
+        "evolution_operator": "global",
+        "timestep_archive": "plasma_kit/output/ramc2_subghz_targeted_1255_2d_gupta"
+      },
+      "rcs": {"start": 2.0e8, "end": 1.5e9, "steps": 141,
+              "runmode": "cuda-1"}
+    }
+  },
+  "input": "plasma_kit/src/cfd/ns_solver/cases/ramc2_subghz_targeted/lmrsim/vtk/fluid-s0012.pvtu",
+  "plasma_model": "gupta"
+}
 ```
 
-The plasma archive originates from
-`plasma_kit/output/ramc2_subghz_targeted_1255_2d_gupta` (Gupta closure, Eilmer
-50 km targeted case).
+Then run the full checked pipeline from the repository root:
+
+```sh
+plasma_kit/build/gnu-release/bin/plasmakit --config plasmakit-generate.json
+```
+
+This writes the `.msh`, `.json` and `.rcs.json`, compares the CFD and DGTD
+plasma-sheath geometry, repairs geometry-dependent tags with a backup if
+needed, and writes `omega_p.gf` / `nu_c.gf` in the solver's DoFs.
+
+`timestep_archive` is only a time-step reference (it supplies
+`omega_p_max` / `nu_c_max`); the fields are recomputed from `input`.

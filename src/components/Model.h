@@ -199,6 +199,11 @@ public:
 	bool hasWires() const { return !wire_specs_.empty(); }
 
 	void setLorentzProperties(const std::vector<LorentzProperties>& in);
+	/// Load the plasma_kit grid functions referenced by the Lorentz materials
+	/// onto the solver's parallel finite element space.  Must be called once
+	/// after the solver's FES exists and before the evolution operator is
+	/// built.
+	void loadLorentzGridFunctions(mfem::ParFiniteElementSpace& fes);
 	const std::vector<LorentzProperties>& getLorentzProperties() const { return lorentz_; }
 	bool hasLorentz() const { return !lorentz_.empty(); }
 	const LorentzProperties* findLorentz(Attribute tag) const;

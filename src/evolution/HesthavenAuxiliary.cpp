@@ -196,14 +196,29 @@ HesthavenLorentzTerm buildLorentzTerm(mfem::ParFiniteElementSpace& fes, int elem
 	mfem::DenseMatrix inv_m;
 	assembleInverseMass(*fe, *tr, one, inv_m);
 
-	mfem::FunctionCoefficient wp_sq([&pole](const mfem::Vector& x) {
-		const double wp = pole.evalOmegaP(x);
-		return wp * wp;
-	});
-	term.j_from_e_block = weighted(inv_m, wp_sq, *fe, *tr, false);
+	if (pole.omega_p_gf) {
+		mfem::GridFunctionCoefficient wp(pole.omega_p_gf.get());
+		mfem::ProductCoefficient wp_sq(wp, wp);
+		term.j_from_e_block = weighted(inv_m, wp_sq, *fe, *tr, false);
+	}
+	else {
+		mfem::FunctionCoefficient wp_sq([&pole](const mfem::Vector& x) {
+			const double wp = pole.evalOmegaP(x);
+			return wp * wp;
+		});
+		term.j_from_e_block = weighted(inv_m, wp_sq, *fe, *tr, false);
+	}
 
-	term.has_p_block = pole.omega_1_profile != nullptr || pole.omega_1 != 0.0;
-	if (term.has_p_block) {
+	term.has_p_block = pole.omega_1_gf != nullptr ||
+		pole.omega_1_profile != nullptr || pole.omega_1 != 0.0;
+	if (pole.omega_1_gf) {
+		mfem::GridFunctionCoefficient w1(pole.omega_1_gf.get());
+		mfem::ConstantCoefficient minus_one(-1.0);
+		mfem::ProductCoefficient w1_sq(w1, w1);
+		mfem::ProductCoefficient neg_w1(minus_one, w1_sq);
+		term.j_from_p_block = weighted(inv_m, neg_w1, *fe, *tr, false);
+	}
+	else if (term.has_p_block) {
 		mfem::FunctionCoefficient neg_w1([&pole](const mfem::Vector& x) {
 			const double w1 = pole.evalOmega1(x);
 			return -w1 * w1;
@@ -211,10 +226,18 @@ HesthavenLorentzTerm buildLorentzTerm(mfem::ParFiniteElementSpace& fes, int elem
 		term.j_from_p_block = weighted(inv_m, neg_w1, *fe, *tr, false);
 	}
 
-	mfem::FunctionCoefficient neg_gamma([&pole](const mfem::Vector& x) {
-		return -pole.evalGamma(x);
-	});
-	term.j_from_j_block = weighted(inv_m, neg_gamma, *fe, *tr, false);
+	if (pole.gamma_gf) {
+		mfem::GridFunctionCoefficient gamma(pole.gamma_gf.get());
+		mfem::ConstantCoefficient minus_one(-1.0);
+		mfem::ProductCoefficient neg_gamma(minus_one, gamma);
+		term.j_from_j_block = weighted(inv_m, neg_gamma, *fe, *tr, false);
+	}
+	else {
+		mfem::FunctionCoefficient neg_gamma([&pole](const mfem::Vector& x) {
+			return -pole.evalGamma(x);
+		});
+		term.j_from_j_block = weighted(inv_m, neg_gamma, *fe, *tr, false);
+	}
 	return term;
 }
 

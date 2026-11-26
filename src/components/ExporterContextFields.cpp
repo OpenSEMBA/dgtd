@@ -142,8 +142,9 @@ std::vector<std::string> ExporterContextFields::applicableFieldNames(
 ExporterContextFields::ExporterContextFields(
     const Model& model,
     mfem::ParFiniteElementSpace& fes,
-    const std::vector<std::string>& requested)
-    : model_(model), fes_(fes)
+    const std::vector<std::string>& requested,
+    bool smooth_plasma)
+    : model_(model), fes_(fes), smooth_plasma_(smooth_plasma)
 {
     auto names = resolveRequested(requested);
     if (requested.empty() ||
@@ -156,9 +157,13 @@ ExporterContextFields::ExporterContextFields(
         field.name = name;
         field.gf = std::make_unique<mfem::ParGridFunction>(&fes_);
         *field.gf = defaultValueFor(name);
+        // On device builds the scalar assignment above may only initialize the
+        // device copy.  Pull the defaults to the host before build() edits them.
+        field.gf->HostRead();
         fields_.push_back(std::move(field));
     }
     build();
+    buildPlasmaVisualization();
 }
 
 bool ExporterContextFields::isTimeDependent() const
@@ -170,6 +175,26 @@ bool ExporterContextFields::isTimeDependent() const
 void ExporterContextFields::registerFields(mfem::ParaViewDataCollection& pd) const
 {
     for (const auto& field : fields_) {
+        if (smooth_plasma_ &&
+            (field.name == "fp_Hz" || field.name == "nuc_Hz")) {
+            continue;
+        }
+        pd.RegisterField(field.name, field.gf.get());
+    }
+}
+
+void ExporterContextFields::registerPlasmaFields(
+    mfem::ParaViewDataCollection& pd) const
+{
+    for (const auto& field : plasma_fields_) {
+        pd.RegisterField(field.name, field.gf.get());
+    }
+}
+
+void ExporterContextFields::registerPlasmaCellFields(
+    mfem::ParaViewDataCollection& pd) const
+{
+    for (const auto& field : plasma_cell_fields_) {
         pd.RegisterField(field.name, field.gf.get());
     }
 }
@@ -266,13 +291,19 @@ void ExporterContextFields::build()
             if (lorentz) {
                 if (eps_inf) { (*eps_inf)(dof) = lorentz->eps_inf; }
                 if (fp) {
-                    (*fp)(dof) = lorentz->evalOmegaP(x) * c_si / two_pi;
+                    (*fp)(dof) = lorentz->omega_p_gf
+                        ? (*lorentz->omega_p_gf)(dof) * c_si / two_pi
+                        : lorentz->evalOmegaP(x) * c_si / two_pi;
                 }
                 if (f1) {
-                    (*f1)(dof) = lorentz->evalOmega1(x) * c_si / two_pi;
+                    (*f1)(dof) = lorentz->omega_1_gf
+                        ? (*lorentz->omega_1_gf)(dof) * c_si / two_pi
+                        : lorentz->evalOmega1(x) * c_si / two_pi;
                 }
                 if (nuc) {
-                    (*nuc)(dof) = lorentz->evalGamma(x) * c_si / two_pi;
+                    (*nuc)(dof) = lorentz->gamma_gf
+                        ? (*lorentz->gamma_gf)(dof) * c_si / two_pi
+                        : lorentz->evalGamma(x) * c_si / two_pi;
                 }
             }
 
@@ -296,6 +327,216 @@ void ExporterContextFields::build()
             }
         }
     }
+
+    // The values above are written through the host pointer without touching
+    // MFEM's memory validity flags.  Mark the host side as authoritative so a
+    // CUDA build uploads these fields instead of exporting the initial defaults.
+    for (auto& field : fields_) {
+        field.gf->HostWrite();
+    }
+}
+
+void ExporterContextFields::buildPlasmaVisualization()
+{
+    if (!smooth_plasma_) {
+        return;
+    }
+    auto* fp = findField("fp_Hz");
+    auto* nuc = findField("nuc_Hz");
+    if (fp == nullptr || nuc == nullptr) {
+        return;
+    }
+
+    auto& parent_mesh = *fes_.GetMesh();
+    mfem::Array<int> domain_attributes;
+    for (const auto& pole : model_.getLorentzProperties()) {
+        bool present = false;
+        for (int i = 0; i < domain_attributes.Size(); ++i) {
+            if (domain_attributes[i] == pole.geom_tag) {
+                present = true;
+                break;
+            }
+        }
+        if (!present) {
+            domain_attributes.Append(pole.geom_tag);
+        }
+    }
+    if (domain_attributes.Size() == 0) {
+        return;
+    }
+
+    plasma_submesh_ = std::make_unique<mfem::ParSubMesh>(
+        mfem::ParSubMesh::CreateFromDomain(
+            *fes_.GetParMesh(), domain_attributes));
+    const mfem::Array<int>& parent_elements =
+        plasma_submesh_->GetParentElementIDMap();
+
+    // Reconstruct the continuous sheath field from the DG rates sampled at
+    // the H1 nodes.  Assigning an element volume mean to every vertex is
+    // badly biased when one element spans a steep gradient (the nose
+    // stagnation element is a 24 mm axial sliver), and it makes the
+    // downstream cells look blocky.  The nodal reconstruction preserves the
+    // sub-element variation; shared H1 nodes make the result continuous.
+    constexpr int plasma_order = 2;
+    plasma_fec_ = std::make_unique<mfem::H1_FECollection>(
+        plasma_order, plasma_submesh_->Dimension());
+    plasma_fes_ = std::make_unique<mfem::ParFiniteElementSpace>(
+        plasma_submesh_.get(), plasma_fec_.get());
+    plasma_cell_fec_ = std::make_unique<mfem::L2_FECollection>(
+        0, plasma_submesh_->Dimension());
+    plasma_cell_fes_ = std::make_unique<mfem::ParFiniteElementSpace>(
+        plasma_submesh_.get(), plasma_cell_fec_.get());
+
+    auto fp_h1 = std::make_unique<mfem::ParGridFunction>(plasma_fes_.get());
+    auto nuc_h1 = std::make_unique<mfem::ParGridFunction>(plasma_fes_.get());
+    auto fp_cell = std::make_unique<mfem::ParGridFunction>(
+        plasma_cell_fes_.get());
+    auto nuc_cell = std::make_unique<mfem::ParGridFunction>(
+        plasma_cell_fes_.get());
+    auto fp_mean = std::make_unique<mfem::ParGridFunction>(
+        plasma_cell_fes_.get());
+    auto nuc_mean = std::make_unique<mfem::ParGridFunction>(
+        plasma_cell_fes_.get());
+    mfem::ParGridFunction sum_fp(plasma_fes_.get());
+    mfem::ParGridFunction sum_nuc(plasma_fes_.get());
+    mfem::ParGridFunction weight(plasma_fes_.get());
+    mfem::ParGridFunction fallback_fp(plasma_fes_.get());
+    mfem::ParGridFunction fallback_nuc(plasma_fes_.get());
+    *fp_h1 = 0.0;
+    *nuc_h1 = 0.0;
+    *fp_cell = 0.0;
+    *nuc_cell = 0.0;
+    *fp_mean = 0.0;
+    *nuc_mean = 0.0;
+    sum_fp = 0.0;
+    sum_nuc = 0.0;
+    weight = 0.0;
+    fallback_fp = 0.0;
+    fallback_nuc = 0.0;
+
+    mfem::L2_FECollection parent_cell_fec(0, parent_mesh.Dimension());
+    mfem::ParFiniteElementSpace parent_cell_fes(
+        fes_.GetParMesh(), &parent_cell_fec);
+    mfem::ParGridFunction parent_fp_mean(&parent_cell_fes);
+    mfem::ParGridFunction parent_nuc_mean(&parent_cell_fes);
+    fp->GetElementAverages(parent_fp_mean);
+    nuc->GetElementAverages(parent_nuc_mean);
+
+    mfem::Array<int> dg_dofs;
+    mfem::Array<int> parent_cell_dofs;
+    mfem::Array<int> h1_dofs;
+    mfem::Array<int> cell_dofs;
+    mfem::Vector local_fp;
+    mfem::Vector local_nuc;
+    mfem::Vector shape;
+    for (int el = 0; el < plasma_fes_->GetNE(); ++el) {
+        const int parent_el = parent_elements[el];
+        if (parent_el < 0 || parent_el >= fes_.GetNE()) {
+            continue;
+        }
+        const mfem::FiniteElement* dg_fe = fes_.GetFE(parent_el);
+        fes_.GetElementDofs(parent_el, dg_dofs);
+        local_fp.SetSize(dg_dofs.Size());
+        local_nuc.SetSize(dg_dofs.Size());
+        for (int i = 0; i < dg_dofs.Size(); ++i) {
+            local_fp(i) = (*fp)(dg_dofs[i]);
+            local_nuc(i) = (*nuc)(dg_dofs[i]);
+        }
+
+        // Local representative value for the piecewise-constant collection.
+        const mfem::IntegrationPoint& center =
+            mfem::Geometries.GetCenter(dg_fe->GetGeomType());
+        dg_fe->CalcShape(center, shape);
+        const double center_fp = std::max(0.0, shape * local_fp);
+        const double center_nuc = std::max(0.0, shape * local_nuc);
+
+        // Exact L2 element mean used by the DG mass integration.
+        parent_cell_fes.GetElementDofs(parent_el, parent_cell_dofs);
+        const double mean_fp =
+            std::max(0.0, parent_fp_mean(parent_cell_dofs[0]));
+        const double mean_nuc =
+            std::max(0.0, parent_nuc_mean(parent_cell_dofs[0]));
+
+        plasma_cell_fes_->GetElementDofs(el, cell_dofs);
+        (*fp_cell)(cell_dofs[0]) = center_fp;
+        (*nuc_cell)(cell_dofs[0]) = center_nuc;
+        (*fp_mean)(cell_dofs[0]) = mean_fp;
+        (*nuc_mean)(cell_dofs[0]) = mean_nuc;
+
+        const double volume = parent_mesh.GetElementVolume(parent_el);
+        const mfem::FiniteElement* h1_fe = plasma_fes_->GetFE(el);
+        const mfem::IntegrationRule& nodes = h1_fe->GetNodes();
+        plasma_fes_->GetElementDofs(el, h1_dofs);
+        if (h1_dofs.Size() != nodes.GetNPoints()) {
+            throw std::runtime_error(
+                "ExporterContextFields: plasma H1 element node count mismatch.");
+        }
+        for (int i = 0; i < h1_dofs.Size(); ++i) {
+            const mfem::IntegrationPoint& ip = nodes.IntPoint(i);
+            dg_fe->CalcShape(ip, shape);
+            const double value_fp = shape * local_fp;
+            const double value_nuc = shape * local_nuc;
+            sum_fp(h1_dofs[i]) += volume * value_fp;
+            sum_nuc(h1_dofs[i]) += volume * value_nuc;
+            weight(h1_dofs[i]) += volume;
+            fallback_fp(h1_dofs[i]) += volume * center_fp;
+            fallback_nuc(h1_dofs[i]) += volume * center_nuc;
+        }
+    }
+
+    const int true_size = plasma_fes_->GetTrueVSize();
+    mfem::Vector sum_fp_true(true_size);
+    mfem::Vector sum_nuc_true(true_size);
+    mfem::Vector weight_true(true_size);
+    mfem::Vector fallback_fp_true(true_size);
+    mfem::Vector fallback_nuc_true(true_size);
+    sum_fp.ParallelAverage(sum_fp_true);
+    sum_nuc.ParallelAverage(sum_nuc_true);
+    weight.ParallelAverage(weight_true);
+    fallback_fp.ParallelAverage(fallback_fp_true);
+    fallback_nuc.ParallelAverage(fallback_nuc_true);
+
+    mfem::Vector fp_true(true_size);
+    mfem::Vector nuc_true(true_size);
+    for (int i = 0; i < true_size; ++i) {
+        double value_fp = 0.0;
+        double value_nuc = 0.0;
+        if (weight_true(i) > 0.0) {
+            value_fp = sum_fp_true(i) / weight_true(i);
+            value_nuc = sum_nuc_true(i) / weight_true(i);
+            // A DG polynomial can undershoot by orders of magnitude at a
+            // shared H1 edge node (the fp neck spots), even when the element
+            // centre is healthy.  A nodal value below 15% of the local
+            // element-centre average is a visualization zero; use the centre
+            // value instead.  The solver still sees the original DG rates.
+            constexpr double nodal_floor_ratio = 1.5e-1;
+            const double center_fp = fallback_fp_true(i) / weight_true(i);
+            const double center_nuc = fallback_nuc_true(i) / weight_true(i);
+            if (!(value_fp > nodal_floor_ratio * center_fp)) {
+                value_fp = center_fp;
+            }
+            if (!(value_nuc > nodal_floor_ratio * center_nuc)) {
+                value_nuc = center_nuc;
+            }
+        }
+        fp_true(i) = value_fp;
+        nuc_true(i) = value_nuc;
+    }
+    fp_h1->SetFromTrueDofs(fp_true);
+    nuc_h1->SetFromTrueDofs(nuc_true);
+    fp_h1->HostWrite();
+    nuc_h1->HostWrite();
+    fp_cell->HostWrite();
+    nuc_cell->HostWrite();
+    fp_mean->HostWrite();
+    nuc_mean->HostWrite();
+
+    plasma_fields_.push_back({"fp_Hz", std::move(fp_h1), false});
+    plasma_fields_.push_back({"nuc_Hz", std::move(nuc_h1), false});
+    plasma_cell_fields_.push_back({"fp_Hz_cell", std::move(fp_cell), false});
+    plasma_cell_fields_.push_back({"nuc_Hz_cell", std::move(nuc_cell), false});
+    plasma_cell_fields_.push_back({"fp_Hz_mean", std::move(fp_mean), false});
+    plasma_cell_fields_.push_back({"nuc_Hz_mean", std::move(nuc_mean), false});
 }
 
 } // namespace maxwell

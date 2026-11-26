@@ -26,18 +26,12 @@
           "eps_inf": 1.0,
           "f_p": {
             "type": "gridfunction",
-            "mesh": "plasma/mesh.mesh",
-            "file": "plasma/omega_p.gf",
-            "axisymmetric": true,
-            "fallback": "nearest"
+            "file": "omega_p.gf"
           },
           "f_1": 0.0,
           "gamma": {
             "type": "gridfunction",
-            "mesh": "plasma/mesh.mesh",
-            "file": "plasma/nu_c.gf",
-            "axisymmetric": true,
-            "fallback": "nearest"
+            "file": "nu_c.gf"
           }
         }
       }

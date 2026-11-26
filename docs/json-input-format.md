@@ -175,7 +175,7 @@ Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete pr
 | `"constant"` | `value` | — | Uniform rate across the region. |
 | `"gaussian"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Symmetric bell curve stretched between its `cutoff_factor` tails. |
 | `"positive_gaussian_derivative"` | `peak` (or `amplitude`) | `cutoff_factor` (`1e-2`), `offset` (`0.0`) | Rectified two-lobe Gaussian derivative stretched between its outer `cutoff_factor` tails. |
-| `"gridfunction"` | `mesh`, `file` | `axisymmetric` (`true`), `unit` (`"rad/s"`), `fallback` (`"nearest"`), `default` (`0.0`) | Scalar H1 GridFunction from a plasma_kit archive (`mesh.mesh` + `.gf`), evaluated pointwise at the DG quadrature points. |
+| `"gridfunction"` | `file` | — | Scalar DG grid function produced by plasma_kit (`mode.solver: "OpenSEMBA-dgtd"`) on the simulation mesh and FES. The file stores the DG coefficients for the same mesh, order and basis type as the case. |
 | `"ramc_61km_omega_p"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\omega_p(x)$ $[\mathrm{rad/s}]$ mapped from $[-0.012, 0.0]\,\mathrm{m}$ onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_gupta"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Gupta closure) mapped onto $\xi \in [0, 1]$. |
 | `"ramc_61km_nu_c_liu"` | — | `direction` (`1.0`) | RAM-C II 61 km stagnation-line $\nu_c(x)$ $[1/\mathrm{s}]$ (Liu closure) mapped onto $\xi \in [0, 1]$. |
@@ -185,39 +185,30 @@ Each profile defines its canonical shape on $\xi \in [0, 1]$, so the complete pr
 
 ##### `"gridfunction"` profiles
 
-A `"gridfunction"` profile reads an MFEM mesh and a scalar H1 `GridFunction`
-written by plasma_kit (`omega_p.gf`, `nu_c.gf`). The file must store SI
-`rad/s` (or `1/s`); `unit: "Hz"` multiplies by `2*pi`. Only the `1/c0`
-conversion to solver units is applied. Relative `mesh`/`file` paths are
-resolved next to the case JSON first and then from the current directory.
+A `"gridfunction"` profile reads a scalar DG `GridFunction` written by
+plasma_kit for **this** simulation mesh and finite element space. plasma_kit
+is run with a `preprocess.json` whose `mode` is `"dgtd"`, pointing at the
+case mesh and at the case JSON (or at the order and basis type). It projects
+`omega_p` and `nu_c` onto the DG space DGTD will use, so the `.gf` file
+already contains the solver's degrees of freedom. Relative `file` paths are
+resolved next to the case JSON.
 
 ```json
 "lorentz": {
   "eps_inf": 1.0,
-  "f_p": {
-    "type": "gridfunction",
-    "mesh": "ramc2_subghz_2d_gupta/mesh.mesh",
-    "file": "ramc2_subghz_2d_gupta/omega_p.gf",
-    "axisymmetric": true
-  },
+  "f_p":   {"type": "gridfunction", "file": "omega_p.gf"},
   "f_1": 0.0,
-  "gamma": {
-    "type": "gridfunction",
-    "mesh": "ramc2_subghz_2d_gupta/mesh.mesh",
-    "file": "ramc2_subghz_2d_gupta/nu_c.gf",
-    "axisymmetric": true
-  }
+  "gamma": {"type": "gridfunction", "file": "nu_c.gf"}
 }
 ```
 
-The rate profiles are evaluated at every element quadrature point and passed
-through the same `M_K^{-1} M_K[f]` projection as the built-in profiles, so the
-H1 data is effectively projected onto the DG (L2) space of the simulation,
-element by element, only on the Lorentz material's volume tags. For a 2D
-source mesh, the 3D point `(x, y, z)` is reduced to `(x, r = hypot(y, z))`
-when `axisymmetric` is true (the default). Points outside the source region
-return the nearest source element value (`fallback: "nearest"`, default) or
-`default` (0) when `fallback: "default"`.
+The files store SI `rad/s` (or `1/s`); the solver applies the `1/c0`
+conversion and squares `omega_p` at the DG quadrature points. The grid function must have the same mesh, polynomial order and basis type
+as the case; plasma_kit reads those from the case JSON.
+DGTD loads the serial grid function once at startup and distributes its
+element degrees of freedom onto each MPI rank's `ParFiniteElementSpace`.
+The case must not use `model.refinement` with a gridfunction Lorentz
+material: plasma_kit projects on the mesh as delivered.
 
 ##### How `"gaussian"` and `"positive_gaussian_derivative"` work
 
@@ -357,6 +348,8 @@ ParaView (VisIt) field export under `exports/ParaView/<run-mode>/`.
 | `save_every` | **Required cadence.** Export interval in solver time. Snapshots at `t = 0`, `save_every`, `2·save_every`, … and **always** at `final_time`. Example: `final_time: 20` with `save_every: 0.5` → 41 frames (`0, 0.5, …, 20`). Must be `> 0`. |
 | `context_fields` | Optional. `"all"` (default), `"none"`, or an array of field names (see [exporter context fields](#exporter-context-fields)). `"all"` writes only fields relevant to the model: PML fields only when PML exists, Debye fields only for Debye, `f1_Hz` only for a resonant Lorentz pole, and `sigma_S_per_m` only when a material has nonzero conductivity. |
 | `context_mode` | Optional. `"auto"` (default), `"separate"`, `"inline"`, or `"off"`. `"auto"`/`"inline"` write time-independent context fields in the main `<name>.pvd` at `t = 0` only (the first frame), so the dataset stays a single `.pvd`; time-dependent fields are written every cycle. `"separate"` writes a separate `<name>_context` collection, and `"off"` disables the fields. |
+| `high_order_output` | Optional. Default `true`. When `false`, ParaView output uses the linear mesh instead of VTK high-order Lagrange cells. This avoids high-order interpolation ringing at visualization nodes (for example tiny negative values in a non-negative plasma-rate field) at the cost of a piecewise-linear view. |
+| `smooth_plasma_fields` | Optional. Default `false`. When `true`, `fp_Hz` and `nuc_Hz` are written as a separate `<name>_plasma` collection on a continuous H1 order-2 field reconstructed from the DG rates at the H1 nodes. That keeps the sub-element variation of the original DG field instead of assigning one volume mean to every vertex. `<name>_plasma_cells` also gets the element-centre sample (`fp_Hz_cell`, `nuc_Hz_cell`) and the exact L2 element means (`fp_Hz_mean`, `nuc_Hz_mean`). Both collections use a plasma-only submesh. The solver continues to use the original DG rates; the collections are non-negative, spot-free visualizations of the sheath. |
 
 Legacy keys on `exporter`:
 - `saves` (total frame count) — **rejected**; convert with `save_every = final_time / (saves - 1)` when `saves > 1`.

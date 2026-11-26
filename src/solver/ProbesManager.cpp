@@ -119,8 +119,10 @@ ParaViewDataCollection ProbesManager::buildParaviewDataCollectionInfo(const Expo
     auto geomElemOrder = fes_.GetMesh()->GetElementTransformation(0)->Order();
     auto fecorder = fes_.FEColl()->GetOrder();
     geomElemOrder > 1 || fecorder > 1 ? highOrder = true : highOrder = false;
-    pd.SetHighOrderOutput(highOrder);
-    pd.SetLevelsOfDetail(std::max(geomElemOrder,fecorder));
+    pd.SetHighOrderOutput(highOrder && p.high_order_output);
+    pd.SetLevelsOfDetail(p.high_order_output
+                             ? std::max(geomElemOrder, fecorder)
+                             : 1);
     
     pd.SetDataFormat(VTKFormat::BINARY);
 
@@ -483,9 +485,52 @@ void ProbesManager::initializeContextFields(const Model& model)
         }
 
         auto fields = std::make_unique<ExporterContextFields>(
-            model, fes_, p.context_fields);
+            model, fes_, p.context_fields, p.smooth_plasma_fields);
         if (fields->empty()) {
             continue;
+        }
+
+        if (p.smooth_plasma_fields && fields->hasPlasmaFields()) {
+            auto main_it = exporterProbesCollection_.find(&p);
+            if (main_it != exporterProbesCollection_.end() &&
+                fields->plasmaMesh() != nullptr) {
+                mfem::ParaViewDataCollection plasma_pd{
+                    p.name + "_plasma", fields->plasmaMesh()};
+                plasma_pd.SetPrefixPath(main_it->second.GetPrefixPath());
+                plasma_pd.SetHighOrderOutput(true);
+                plasma_pd.SetLevelsOfDetail(
+                    fields->plasmaOrder() > 1 ? fields->plasmaOrder() : 1);
+                plasma_pd.SetDataFormat(VTKFormat::BINARY);
+                fields->registerPlasmaFields(plasma_pd);
+                plasma_pd.SetCycle(0);
+                plasma_pd.SetTime(0.0);
+                plasma_pd.Save();
+                MPI_Barrier(comm);
+                if (root) {
+                    std::cout << "[Exporter] " << p.name
+                              << ": smooth plasma field -> "
+                              << p.name << "_plasma\n";
+                }
+
+                if (fields->hasPlasmaCellFields()) {
+                    mfem::ParaViewDataCollection cell_pd{
+                        p.name + "_plasma_cells", fields->plasmaMesh()};
+                    cell_pd.SetPrefixPath(main_it->second.GetPrefixPath());
+                    cell_pd.SetHighOrderOutput(false);
+                    cell_pd.SetLevelsOfDetail(1);
+                    cell_pd.SetDataFormat(VTKFormat::BINARY);
+                    fields->registerPlasmaCellFields(cell_pd);
+                    cell_pd.SetCycle(0);
+                    cell_pd.SetTime(0.0);
+                    cell_pd.Save();
+                    MPI_Barrier(comm);
+                    if (root) {
+                        std::cout << "[Exporter] " << p.name
+                                  << ": plasma cell samples -> "
+                                  << p.name << "_plasma_cells\n";
+                    }
+                }
+            }
         }
 
         std::string mode = p.context_mode;
@@ -519,8 +564,8 @@ void ProbesManager::initializeContextFields(const Model& model)
 
             mfem::ParaViewDataCollection pd{p.name + "_context", fes_.GetParMesh()};
             pd.SetPrefixPath(main_it->second.GetPrefixPath());
-            pd.SetHighOrderOutput(highOrder);
-            pd.SetLevelsOfDetail(levelsOfDetail);
+            pd.SetHighOrderOutput(highOrder && p.high_order_output);
+            pd.SetLevelsOfDetail(p.high_order_output ? levelsOfDetail : 1);
             pd.SetDataFormat(VTKFormat::BINARY);
             fields->registerFields(pd);
 
@@ -601,7 +646,7 @@ void ProbesManager::updateProbe(ExporterProbe& p, Time time)
     auto& pd{ it->second };
 
     pd.SetCycle(export_cycle);
-    pd.SetTime(std::round(time * 1e3) / 1e3);
+    pd.SetTime(time);
 
     std::string base_dir = pd.GetPrefixPath() + pd.GetCollectionName();
     std::string cycle_dir = base_dir + "/Cycle" + to_padded_string(export_cycle, 6);

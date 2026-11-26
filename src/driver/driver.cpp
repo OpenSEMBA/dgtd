@@ -2691,6 +2691,14 @@ Probes buildProbes(const json& case_data)
                         "\"auto\", \"separate\", \"inline\", or \"off\".");
                 }
             }
+            if (exp_json.contains("high_order_output")) {
+                exporter_probe.high_order_output =
+                    exp_json["high_order_output"].get<bool>();
+            }
+            if (exp_json.contains("smooth_plasma_fields")) {
+                exporter_probe.smooth_plasma_fields =
+                    exp_json["smooth_plasma_fields"].get<bool>();
+            }
             probes.exporterProbes.push_back(exporter_probe);
         }
 
