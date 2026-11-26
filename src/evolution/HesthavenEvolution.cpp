@@ -567,6 +567,18 @@ void HesthavenEvolution::storeDirectionalMatrices(const DynamicMatrix& refInvMas
 	}
 }
 
+double HesthavenEvolution::maxLinearFscale() const
+{
+	double max_fscale = 0.0;
+	for (const auto& he : hestElemLinearStorage_) {
+		if (he.fscale.size() == 0) {
+			continue;
+		}
+		max_fscale = std::max(max_fscale, he.fscale.maxCoeff());
+	}
+	return max_fscale;
+}
+
 void HesthavenEvolution::buildLinearDirGroups()
 {
 	linear_dir_groups_.clear();

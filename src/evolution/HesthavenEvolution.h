@@ -141,7 +141,19 @@ public:
 	GlobalEvolution* sgbcEngine() { return sgbc_engine_.get(); }
 	const GlobalEvolution* sgbcEngine() const { return sgbc_engine_.get(); }
 
-	const HesthavenElement& getHesthavenElement(const ElementId& e) const { return hestElemLinearStorage_[e]; }
+	/// Dense index into `hestElemLinearStorage_` (0 .. numLinearElements()-1),
+	/// not a mesh ElementId. Curved / promoted elements are not stored here.
+	const HesthavenElement& getHesthavenElement(int linear_slot) const
+	{
+		return hestElemLinearStorage_[static_cast<size_t>(linear_slot)];
+	}
+	int numLinearElements() const
+	{
+		return static_cast<int>(hestElemLinearStorage_.size());
+	}
+	/// Max face scale over local linear elements (0 if none). For ATS, reduce
+	/// with MPI_MAX across ranks.
+	double maxLinearFscale() const;
 
 #ifdef SEMBA_DGTD_ENABLE_CUDA
 	/// CPU Mult path for GPU-vs-CPU benchmark tests only.
