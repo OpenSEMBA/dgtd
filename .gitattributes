@@ -1,0 +1,4 @@
+# MFEM GridFunction dumps share the .gf extension with Grammatical Framework.
+# Treat them as generated data so they stay in the tree but do not dominate
+# GitHub Linguist language statistics (or inflate PR diffs).
+*.gf linguist-generated=true
